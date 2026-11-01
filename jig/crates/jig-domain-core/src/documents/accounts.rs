@@ -87,7 +87,7 @@ pub(super) fn source_lines(core: &Core, limits: &Limits, account: &accounts::Acc
                 number: *number,
                 kind: fact.kind,
                 state: account_state(fact.state),
-                usable: fact.usable,
+                usable: source_usable(core, &fact),
                 expiring: fact.expiring,
                 attention: fact.attention,
                 spent_until,
@@ -172,11 +172,54 @@ pub(super) fn make(core: &Core, limits: &Limits, party: u64, owner: u64, window:
 fn serves_work(core: &Core, party: u64) -> bool {
     for fact in &core.accounts.account_views() {
         let account = core.accounts.account(fact.account).expect("an account view names its account");
-        if !fact.usable {
+        if !account_usable(core, account) {
             continue;
         }
         if crate::runs::coverage::serves(&core.people, account, accounts::Use::Party(party), None) {
             return true;
+        }
+    }
+    false
+}
+
+/// Program sources need a current worker login allowed by the host rule (accounts.md, 3.4).
+fn source_usable(core: &Core, fact: &accounts::Fact) -> bool {
+    if !fact.usable {
+        return false;
+    }
+    match fact.kind {
+        accounts::Kind::SignIn | accounts::Kind::Key | accounts::Kind::None => return fact.usable,
+        accounts::Kind::Program => {}
+    }
+    let mut facts = List::with_capacity(core.host_fact_capacity());
+    for host in &core.fleet.host_views() {
+        if !host.connected
+            || host.kind != jig_domain_fleet::HostKind::Worker
+            || core.fleet.awaiting_logins(host.channel)
+        {
+            continue;
+        }
+        let placement = jig_domain_fleet::PlacementConstraint { channel: host.channel, kind: host.kind };
+        core.host_facts(placement, core.host_rule(placement), &mut facts);
+        for login in &facts {
+            if login.source == fact.source && login.usable {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// Walk the holder's source order before document truncation (accounts.md, 3.4).
+pub(super) fn account_usable(core: &Core, account: &accounts::Account) -> bool {
+    for (_, number) in account.sources() {
+        let fact = core.accounts.source(*number).expect("an account's sources are kept");
+        if source_usable(core, &fact) {
+            return true;
+        }
+        match fact.kind {
+            accounts::Kind::Program => {}
+            accounts::Kind::SignIn | accounts::Kind::Key | accounts::Kind::None => return false,
         }
     }
     false

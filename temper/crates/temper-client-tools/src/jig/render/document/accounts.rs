@@ -7,6 +7,7 @@ use skein_json::writer::Encoder;
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Accounts<'a> {
+    pub viewer: Option<u64>,
     pub party: Option<&'a c::Accounts>,
     pub deployment: Option<&'a c::Deployment>,
     pub models: Option<(&'a c::Me, Option<u32>)>,
@@ -26,17 +27,19 @@ impl Accounts<'_> {
         out.finish()
     }
 }
-// Reserve 1 KiB for the envelope and 128 B for its digest/wait outcome.
-// Each of the two readiness lists has its own capacity (contract rows) × 128 B.
-// Remaining bytes split between account/catalogue structure (1 KiB per row)
-// and escaped text (six bytes per input byte).
+// tools.md, 12: the result is 32 KiB and each account list has at most 32
+// rows. Reserve 1 KiB for the envelope, 128 B for digest/wait, and 128 B
+// per row in each readiness list. Split the rest equally: structural takes
+// charge their JSON field/number costs; text reserves six escaped bytes per
+// input byte. Nested sources, hosts, programs and offers spend bytes, not
+// the account list's row count.
 pub(super) struct Window {
     pub(super) left: u32,
     pub(super) cut: bool,
 }
 impl Window {
-    pub(super) fn take(&mut self) -> bool {
-        if let Some(left) = self.left.checked_sub(1) {
+    pub(super) fn take(&mut self, bytes: u32) -> bool {
+        if let Some(left) = self.left.checked_sub(bytes) {
             self.left = left;
             true
         } else {
@@ -49,7 +52,7 @@ pub(super) fn encode(value: Accounts<'_>, limits: &Limits, printed: bool, out: &
     let room = limits.text.saturating_sub(128);
     let readiness = super::offers::readiness_rows(limits);
     let room = room.saturating_sub(1024).saturating_sub(readiness.saturating_mul(2).saturating_mul(128));
-    let mut window = Window { left: limits.rows.min(room / 2048), cut: false };
+    let mut window = Window { left: room / 2, cut: false };
     let mut cut =
         Cut { room: usize::try_from(room / 12).expect("text fits"), left: 0, turn: None, subject: false, digest: None };
     out.object_start();
@@ -95,8 +98,12 @@ fn party_fields(
     }
     out.key(b"party");
     out.array_start();
-    for row in &party.accounts {
-        if !window.take() {
+    for (index, row) in party.accounts.as_slice().iter().enumerate() {
+        if index >= usize::try_from(limits.rows).expect("rows fit") {
+            window.cut = true;
+            break;
+        }
+        if !window.take(512) {
             break;
         }
         out.object_start();
@@ -127,7 +134,7 @@ fn party_fields(
     out.key(b"signing");
     out.array_start();
     for signing in &party.signing {
-        if !window.take() {
+        if !window.take(128) {
             break;
         }
         out.object_start();
@@ -151,7 +158,7 @@ fn party_fields(
     }
     super::account_programs::hosts(&party.program_hosts, out, cut, window);
     super::offers::readiness(&party.readiness, party.readiness_cut, limits, out, window);
-    deployment(extra, out, cut, window);
+    deployment(extra, limits, out, cut, window);
     out.key(b"deployment_facts");
     match extra {
         None => out.null(),
@@ -168,13 +175,23 @@ fn party_fields(
     out.boolean(window.cut || cut.left > 0);
     out.object_end();
 }
-fn deployment(deployment: Option<&c::Deployment>, out: &mut Encoder, cut: &mut Cut, window: &mut Window) {
+fn deployment(
+    deployment: Option<&c::Deployment>,
+    limits: &Limits,
+    out: &mut Encoder,
+    cut: &mut Cut,
+    window: &mut Window,
+) {
     out.key(b"deployment");
     out.array_start();
     if let Some(deployment) = deployment {
         window.cut |= deployment.cut;
-        for row in &deployment.accounts {
-            if !window.take() {
+        for (index, row) in deployment.accounts.as_slice().iter().enumerate() {
+            if index >= usize::try_from(limits.rows).expect("rows fit") {
+                window.cut = true;
+                break;
+            }
+            if !window.take(768) {
                 break;
             }
             out.object_start();
@@ -202,7 +219,7 @@ fn deployment(deployment: Option<&c::Deployment>, out: &mut Encoder, cut: &mut C
                 out.key(key);
                 out.array_start();
                 for chip in chips {
-                    if !window.take() {
+                    if !window.take(32) {
                         break;
                     }
                     out.unsigned(chip.task);
@@ -261,7 +278,7 @@ fn line(
         Some(uses) => {
             out.array_start();
             for payer in uses {
-                if !window.take() {
+                if !window.take(64) {
                     break;
                 }
                 out.object_start();
@@ -277,7 +294,7 @@ fn line(
     out.key(b"sources");
     out.array_start();
     for source in sources {
-        if !window.take() {
+        if !window.take(256) {
             break;
         }
         out.object_start();
@@ -473,7 +490,7 @@ fn models(me: &c::Me, project: Option<u32>, out: &mut Encoder, cut: &mut Cut, wi
         {
             continue;
         }
-        if !window.take() {
+        if !window.take(64) {
             break;
         }
         out.object_start();
@@ -492,7 +509,7 @@ fn models(me: &c::Me, project: Option<u32>, out: &mut Encoder, cut: &mut Cut, wi
             if seen {
                 continue;
             }
-            if !window.take() {
+            if !window.take(128) {
                 break;
             }
             out.object_start();
@@ -518,7 +535,7 @@ fn models(me: &c::Me, project: Option<u32>, out: &mut Encoder, cut: &mut Cut, wi
                 if item.provider != model.provider {
                     continue;
                 }
-                if !window.take() {
+                if !window.take(512) {
                     break;
                 }
                 out.object_start();
@@ -543,7 +560,7 @@ fn models(me: &c::Me, project: Option<u32>, out: &mut Encoder, cut: &mut Cut, wi
                 out.key(b"efforts");
                 out.array_start();
                 for effort in &item.efforts {
-                    if !window.take() {
+                    if !window.take(32) {
                         break;
                     }
                     cut.words(effort.bytes(), out);
@@ -560,9 +577,12 @@ fn models(me: &c::Me, project: Option<u32>, out: &mut Encoder, cut: &mut Cut, wi
     out.array_end();
 }
 pub(super) fn text(value: Accounts<'_>, limits: &Limits, out: &mut Text) {
-    // Keep every printed identity and cut identical to JSON, followed by the
-    // usual text digest and wait status. No second account interpretation.
-    super::account_lines::text(&value.bytes(limits, false), out);
+    let bytes = value.bytes(limits, false);
+    if value.models.is_some() {
+        super::account_lines::text(&bytes, out);
+    } else {
+        super::account_text::text(&bytes, value.viewer, out);
+    }
     out.put(b"\ndigest: ");
     out.put(if value.models.is_some() { b"models" } else { b"accounts" });
     out.put(b" ");

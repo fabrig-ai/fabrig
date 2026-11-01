@@ -268,6 +268,66 @@ fn usable_follows_a_source_the_party_or_the_deployment_holds() {
     assert!(document(&core, &env, BOB).usable);
 }
 
+fn program_records(holder: accounts::Holder) -> Vec<accounts::Stored> {
+    vec![
+        account(OWN, holder),
+        accounts::Stored::Issued {
+            number: FIRST_SOURCE,
+            holder,
+            name: b"program".as_slice().into(),
+            signed_out: false,
+        },
+        accounts::Stored::Source {
+            account: OWN,
+            number: FIRST_SOURCE,
+            place: 0,
+            kind: accounts::Kind::Program,
+            name: b"program".as_slice().into(),
+            held: None,
+        },
+    ]
+}
+
+#[test]
+fn a_program_without_a_host_login_is_not_usable() {
+    let (core, env) = fixture(program_records(accounts::Holder::Party(ALICE)));
+    let doc = document(&core, &env, ALICE);
+    assert!(!doc.usable);
+    assert!(!doc.accounts.get(0).unwrap().sources.get(0).unwrap().usable);
+}
+
+#[test]
+fn a_deployment_program_without_a_host_login_is_not_usable() {
+    let (core, env) = fixture(program_records(accounts::Holder::Deployment));
+    assert!(!document(&core, &env, ALICE).usable);
+    let Document::Deployment(doc) = make(&core, &env.limits, ALICE, &Subject::Deployment, &window(), env.wall).unwrap()
+    else {
+        panic!("deployment document")
+    };
+    let account = doc.accounts.get(0).unwrap();
+    assert!(!account.usable);
+    assert!(!account.sources.get(0).unwrap().usable);
+}
+
+#[test]
+fn an_unusable_program_passes_to_a_later_source_but_a_direct_source_holds_it() {
+    let mut records = program_records(accounts::Holder::Party(ALICE));
+    records.push(source(OWN, LAST_SOURCE, 1, accounts::Kind::Key));
+    let (mut core, env) = fixture(records);
+    grant(&mut core, &env, LAST_SOURCE);
+    let doc = document(&core, &env, ALICE);
+    assert!(doc.usable);
+    assert!(!doc.accounts.get(0).unwrap().sources.get(0).unwrap().usable);
+    change_account(
+        &mut core,
+        &env,
+        accounts::Holder::Party(ALICE),
+        accounts::Change::MoveSource { account: OWN, source: LAST_SOURCE, place: 0 },
+    );
+    drop(step(&mut core, &env, Event::Account(accounts::Event::Limited { account: LAST_SOURCE, reset: None })));
+    assert!(!document(&core, &env, ALICE).usable);
+}
+
 #[test]
 fn another_partys_accounts_subject_is_not_allowed() {
     let (core, env) = fixture(vec![]);

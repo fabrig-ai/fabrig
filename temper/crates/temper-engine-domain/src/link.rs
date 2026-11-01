@@ -330,10 +330,10 @@ pub fn inbox_words(word: &tasks::Word) -> Box<[u8]> {
     }
     let (label, number) = match word.kind {
         tasks::MessageKind::QuestionAnswered { question } => {
-            return question_notice(b"Person answered question ", question, b" in their inbox");
+            return question_notice(b"Person answered question ", question, b" in their inbox", &word.words);
         }
         tasks::MessageKind::QuestionEnded { question } => {
-            return question_notice(b"Question ", question, b" ended");
+            return question_notice(b"Question ", question, b" ended", &[]);
         }
         tasks::MessageKind::SettingsDecision { .. } => unreachable!("settings decision rendered above"),
         tasks::MessageKind::Result(_) => (
@@ -375,14 +375,19 @@ pub fn inbox_words(word: &tasks::Word) -> Box<[u8]> {
     writer.finish()
 }
 
-fn question_notice(prefix: &[u8], question: u64, suffix: &[u8]) -> Box<[u8]> {
+fn question_notice(prefix: &[u8], question: u64, suffix: &[u8], words: &[u8]) -> Box<[u8]> {
+    let separator = if words.is_empty() { b"".as_slice() } else { b":\n".as_slice() };
     let question = Decimal::of(question);
     let bytes = prefix.len().checked_add(question.as_bytes().len()).expect("bounded question label");
     let bytes = bytes.checked_add(suffix.len()).expect("bounded question notice");
+    let bytes = bytes.checked_add(separator.len()).expect("bounded message separator");
+    let bytes = bytes.checked_add(words.len()).expect("bounded message envelope");
     let mut writer = Writer::new(bytes);
     writer.put(prefix).expect("measured prefix");
     writer.put(question.as_bytes()).expect("measured question");
     writer.put(suffix).expect("measured suffix");
+    writer.put(separator).expect("measured separator");
+    writer.put(words).expect("measured words");
     writer.finish()
 }
 
@@ -655,17 +660,22 @@ mod tests {
     }
 
     #[test]
-    fn question_notices_render_their_number_without_words() {
-        let cases: &[(tasks::MessageKind, &[u8])] = &[
-            (tasks::MessageKind::QuestionAnswered { question: 42 }, b"Person answered question 42 in their inbox"),
-            (tasks::MessageKind::QuestionEnded { question: 42 }, b"Question 42 ended"),
+    fn question_notices_render_their_number_and_any_answer_words() {
+        let cases: &[(tasks::MessageKind, &[u8], &[u8])] = &[
+            (tasks::MessageKind::QuestionAnswered { question: 42 }, b"", b"Person answered question 42 in their inbox"),
+            (
+                tasks::MessageKind::QuestionAnswered { question: 42 },
+                b"fruit,count\nGo ahead.",
+                b"Person answered question 42 in their inbox:\nfruit,count\nGo ahead.",
+            ),
+            (tasks::MessageKind::QuestionEnded { question: 42 }, b"", b"Question 42 ended"),
         ];
-        for (kind, expected) in cases {
+        for (kind, words, expected) in cases {
             let word = tasks::Word {
                 number: 7,
                 from: tasks::Party::Task(2),
                 kind: kind.clone(),
-                words: Box::new([]),
+                words: (*words).into(),
                 at: skein_lib::Wall::EPOCH,
                 hits: 1,
                 eligible: true,

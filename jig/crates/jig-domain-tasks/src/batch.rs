@@ -368,7 +368,9 @@ pub fn valid_spec(limits: &Limits, spec: &Spec) -> bool {
     if spec.parameters.len() > skein_lib::length::usize_of(limits.parameters)
         || spec.inputs.len() > skein_lib::length::usize_of(limits.inputs)
         || !is_utf8(&spec.words)
-        || spec.asks && crate::questions::OWED_WORDS.len() > skein_lib::length::usize_of(limits.inbox_bytes)
+        || spec.asks
+            && (crate::questions::OWED_WORDS.len() > skein_lib::length::usize_of(limits.inbox_bytes)
+                || crate::questions::ANSWER_NOTICE_BYTES > skein_lib::length::usize_of(limits.inbox_bytes))
     {
         return false;
     }

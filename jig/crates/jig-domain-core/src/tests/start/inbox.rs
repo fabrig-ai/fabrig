@@ -251,6 +251,7 @@ fn question_membership_is_supplied_by_the_start_census_index() {
 #[test]
 fn a_full_question_list_names_its_live_task_record() {
     let (mut core, mut env) = loaded();
+    env.limits.tasks.inbox_bytes = 512;
     let (source, _) = crate::tests::watch_core();
     let mut row = source.tasks.task(1).unwrap().clone();
     row.question_lines = Box::new([tasks::QuestionLine { message: 2, line: 3, answer: None }]);

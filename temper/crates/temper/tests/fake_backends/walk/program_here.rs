@@ -54,6 +54,7 @@ pub(super) fn steps() -> Vec<Act> {
                     .contains("temper program-login --config CONFIG --data DATA --cache CACHE claude-owner")
             );
             program_account(accounts);
+            assert_eq!(ctl::json(accounts)["accounts"]["usable"], false);
             // A read after these assertions lets the printed-command step follow the same act sequence.
             Call::new(&["forge", "list", "--json"])
         })),
@@ -66,7 +67,10 @@ pub(super) fn steps() -> Vec<Act> {
             Call::new(&["account", "verify", &account, "--source", "program", "--json"])
         })),
         Act::Now(Call::new(&["account", "list", "--until", "usable", "--json"])),
-        Act::Now(Call::new(&["forge", "list", "--json"])),
+        Act::After(Box::new(|seen| {
+            assert_program_usable(seen.last().expect("usable wait completed"));
+            Call::new(&["forge", "list", "--json"])
+        })),
         Act::Now(Call::new(&["account", "list", "--json"])),
         Act::Mark("program ready"),
     ]

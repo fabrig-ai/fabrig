@@ -73,6 +73,8 @@ pub(crate) fn prepare_staged(
     }
     match admission {
         Admission::Refusable => {
+            let notice = word.kind == MessageKind::Question && is_person(task.requester);
+            let bytes = word.words.len().checked_add(if notice { crate::questions::ANSWER_NOTICE_BYTES } else { 0 })?;
             let mut unanswered = 0_usize;
             for line in &task.question_lines {
                 if line.answer.is_none() {
@@ -80,14 +82,7 @@ pub(crate) fn prepare_staged(
                 }
             }
             if (word.kind == MessageKind::Question && unanswered >= skein_lib::length::usize_of(limits.inbox_messages))
-                || !room_staged(
-                    domain,
-                    staged,
-                    limits,
-                    number,
-                    if word.kind == MessageKind::Question && is_person(task.requester) { 2 } else { 1 },
-                    word.words.len(),
-                )
+                || !room_staged(domain, staged, limits, number, if notice { 2 } else { 1 }, bytes)
             {
                 return None;
             }
@@ -246,6 +241,8 @@ pub(crate) fn room_staged(
     else {
         return false;
     };
+    let Some(notice_bytes) = received.checked_mul(crate::questions::ANSWER_NOTICE_BYTES) else { return false };
+    let Some(total_bytes) = total_bytes.checked_add(notice_bytes) else { return false };
     let total_bytes = total_bytes.checked_sub(extra_bytes).expect("separate slots included");
     let Some(total_bytes) = total_bytes.checked_add(if owed_credit { crate::questions::OWED_WORDS.len() } else { 0 })
     else {

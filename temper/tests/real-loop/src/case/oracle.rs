@@ -1117,7 +1117,10 @@ fn pace_inbox(misses: &mut Vec<Miss>, observed: &Observed) {
         observed.told.iter().position(|told| told.agent == Agent::Director && contains(&told.words, PACE_QUESTION));
     let answered = observed.told.iter().position(|told| {
         told.agent == Agent::Director
-            && contains(&told.words, &format!("Person answered question {PACE_QUESTION_MESSAGE} in their inbox"))
+            && contains(
+                &told.words,
+                &format!("Person answered question {PACE_QUESTION_MESSAGE} in their inbox:\n{PACE_ANSWER}"),
+            )
     });
     step_check(
         misses,
@@ -1301,7 +1304,7 @@ mod pace_tests {
                 told(
                     Agent::Director,
                     &format!(
-                        "Person answered question {PACE_QUESTION_MESSAGE} in their inbox\nNote 1 revision 1 written"
+                        "Person answered question {PACE_QUESTION_MESSAGE} in their inbox:\n{PACE_ANSWER}\nNote 1 revision 1 written"
                     ),
                     DEFAULT_MODEL,
                     0,
@@ -7527,14 +7530,14 @@ fn budget_person_answer(observed: &Observed, misses: &mut Vec<Miss>) {
         BUDGET_UP_QUESTION_NUMBER,
     };
     let question = blocker_delivery(observed, Agent::BudgetDirector, BUDGET_UP_QUESTION);
-    let notice = format!("answered question {BUDGET_UP_QUESTION_NUMBER} in their inbox");
+    let notice = format!("answered question {BUDGET_UP_QUESTION_NUMBER} in their inbox:\n{BUDGET_PERSON_ANSWER}");
     let answer = blocker_delivery(observed, Agent::BudgetOwner, BUDGET_PERSON_ANSWER);
     step_check(
         misses,
         "6.5",
         question.zip(answer).is_some_and(|(question, answer)| question < answer)
             && plan_deliveries(observed, Agent::BudgetDirector, &notice) == 1
-            && plan_deliveries(observed, Agent::BudgetDirector, BUDGET_PERSON_ANSWER) == 0
+            && plan_deliveries(observed, Agent::BudgetDirector, BUDGET_PERSON_ANSWER) == 1
             && plan_deliveries(observed, Agent::BudgetOwner, BUDGET_PERSON_ANSWER) == 1
             && budget_rows(observed, Read::BudgetDirectorEnded)
                 .iter()
@@ -7542,7 +7545,7 @@ fn budget_person_answer(observed: &Observed, misses: &mut Vec<Miss>) {
                     number(r, "/line/heard/number") == Some(BUDGET_NOTICE_NUMBER)
                         && number(r, "/line/heard/from/task") == Some(super::BUDGET_DIRECTOR)
                         && number(r, "/line/heard/kind/question_answered/question") == Some(BUDGET_UP_QUESTION_NUMBER)
-                        && text(r, "/line/heard/words").is_empty()
+                        && text(r, "/line/heard/words") == BUDGET_PERSON_ANSWER
                 })
                 .count()
                 == 1
@@ -7903,7 +7906,7 @@ mod budget_tests {
                 .1
                 .push(json!({"words":{"message":message,"by":by,"kind":kind,"words":words}}));
         }
-        lines.get_mut(&Read::BudgetDirectorEnded).expect("director").1.push(json!({"heard":{"number":BUDGET_NOTICE_NUMBER,"from":{"task":BUDGET_DIRECTOR},"kind":{"question_answered":{"question":BUDGET_UP_QUESTION_NUMBER}},"words":"","eligible":true}}));
+        lines.get_mut(&Read::BudgetDirectorEnded).expect("director").1.push(json!({"heard":{"number":BUDGET_NOTICE_NUMBER,"from":{"task":BUDGET_DIRECTOR},"kind":{"question_answered":{"question":BUDGET_UP_QUESTION_NUMBER}},"words":BUDGET_PERSON_ANSWER,"eligible":true}}));
         lines.get_mut(&Read::BudgetSubownerEnded).expect("A1").1.push(json!({"words":{"message":BUDGET_FINDING_NUMBER,"by":{"task":BUDGET_A5},"kind":"words","words":BUDGET_FINDING}}));
         for (task, message, words) in [
             (BUDGET_A5, BUDGET_A5_REPORT_NUMBER, BUDGET_A5_REPORT),
@@ -8024,7 +8027,13 @@ mod budget_tests {
         let mut finding = vec![input(BUDGET_FINDING)];
         finding.extend(observed.told[8].history.iter().cloned());
         observed.told[8].history = finding.into();
-        observed.told.insert(4, told(Agent::BudgetDirector, &[input("Person answered question 2 in their inbox")]));
+        observed.told.insert(
+            4,
+            told(
+                Agent::BudgetDirector,
+                &[input(&format!("Person answered question 2 in their inbox:\n{BUDGET_PERSON_ANSWER}"))],
+            ),
+        );
     }
 
     fn rejects(observed: &Observed, promise: Promise) {

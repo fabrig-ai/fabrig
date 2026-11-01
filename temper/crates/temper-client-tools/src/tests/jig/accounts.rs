@@ -246,10 +246,9 @@ fn me_text_exposes_configured_provider_offers() {
     let call = root.submit(&["me"]);
     let printed = root.answer(call).expect("offers text");
     for fact in [
-        b"name: Scripted name_cut: false key_bytes: 256".as_slice(),
-        b"sign_in: true key: true none: false signed_in_plan: false programs_cut: false",
-        b"programs: helper manage_usage: https://provider.example/usage",
-        b"providers_cut: false\nkey_bytes: 256\ncut: false\n",
+        "provider 9 · Scripted · sign-in, key, programs helper · manage usage https://provider.example/usage"
+            .as_bytes(),
+        b"cut: false\n",
     ] {
         assert!(f::has(&printed, fact), "{fact:?}");
     }
@@ -360,7 +359,7 @@ fn accounts_show_supplied_deployment_activity_and_no_party_activity() {
         let expected: &[&[u8]] = if json {
             &[b"\"runs\":null,\"waiting\":null", b"\"runs\":[211],\"waiting\":[223]"]
         } else {
-            &[b"runs: null", b"waiting: null", b"runs: \n        - 211", b"waiting: \n        - 223", b"Scripted"]
+            &[b"runs: unavailable", b"waiting: unavailable", b"runs: 211", b"waiting: 223", b"Scripted"]
         };
         for fact in expected {
             assert!(f::has(&printed, fact), "{fact:?}: {printed:?}");
@@ -433,5 +432,137 @@ fn owner_accounts_include_each_supplied_deployment_host_login_state() {
     let printed = f::account_read(&mut f::account_root(true), f::accounts(), Some(deployment));
     for fact in [b"deployment-worker".as_slice(), b"deployment-login", b"not_signed_in"] {
         assert!(f::has(&printed, fact), "{printed:?}");
+    }
+}
+
+fn program_accounts() -> c::Accounts {
+    let mut accounts = f::accounts();
+    let source = accounts.accounts.get_mut(0).expect("account").sources.get_mut(0).expect("source");
+    source.kind = c::AccountKind::Program;
+    source.name = Some(b"helper".as_slice().into());
+    source.state = c::AccountState::Granted;
+    source.usable = true;
+    source.spent_until = None;
+    source.expiring = false;
+    source.attention = false;
+    accounts.program_hosts = List::with_capacity(4);
+    for name in [b"worker-one".as_slice(), b"worker-two", b"worker-three", b"worker-four"] {
+        let mut programs = List::with_capacity(1);
+        programs
+            .push(c::ProgramLogin {
+                name: b"helper".as_slice().into(),
+                state: Some(c::ProgramState::Usable),
+                sign_out: None,
+                cleanup: false,
+                cut: false,
+            })
+            .expect("program");
+        accounts
+            .program_hosts
+            .push(c::ProgramHost {
+                name: name.into(),
+                channel: 17,
+                connected: true,
+                awaiting_logins: false,
+                programs,
+                cut: false,
+            })
+            .expect("host");
+    }
+    accounts
+}
+
+#[test]
+fn one_account_owner_with_hosts_and_offers_is_whole() {
+    for json in [true, false] {
+        let mut deployment = f::deployment();
+        deployment.accounts = List::with_capacity(0);
+        deployment.hosts = List::with_capacity(0);
+        deployment.providers = f::provider_offers();
+        deployment.providers_cut = false;
+        deployment.readiness = List::with_capacity(0);
+        deployment.readiness_cut = false;
+        let mut root = f::account_root(true);
+        let call = root.submit(if json { &["account", "list", "--json"][..] } else { &["account", "list"][..] });
+        f::deliver_accounts(&mut root, program_accounts());
+        f::deliver_deployment(&mut root, deployment);
+        let printed = root.answer(call).expect("owner accounts");
+        assert_eq!(printed.status, 0);
+        assert!(!f::has(&printed, if json { b"\"cut\":true" } else { b"cut: true" }), "{printed:?}");
+        assert!(f::has(&printed, b"worker-three"));
+        assert!(f::has(&printed, b"https://provider.example/usage"));
+        if !json {
+            assert!(f::has(&printed, "account 43 · provider 9 · Scripted · Work · yours".as_bytes()), "{printed:?}");
+        }
+    }
+}
+
+#[test]
+fn account_list_text_names_the_account_source_and_host() {
+    let mut root = f::account_root(false);
+    let call = root.submit(&["account", "list"]);
+    f::deliver_accounts(&mut root, program_accounts());
+    let printed = root.answer(call).expect("account text");
+    assert!(f::has(&printed, "account 43 · provider 9 · Scripted · Work · yours".as_bytes()), "{printed:?}");
+    f::check_golden("account_list", &printed.stdout);
+}
+
+#[test]
+fn account_text_explains_each_supplied_host_login_state() {
+    let mut accounts = program_accounts();
+    for (index, state) in [
+        c::ProgramState::Usable,
+        c::ProgramState::NotSignedIn,
+        c::ProgramState::SignedInOtherwise { method: b"key".as_slice().into() },
+        c::ProgramState::Failed { reason: c::ProgramFailure::Deadline, detail: b"check expired".as_slice().into() },
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        accounts
+            .program_hosts
+            .get_mut(u32::try_from(index).expect("host index"))
+            .expect("host")
+            .programs
+            .get_mut(0)
+            .expect("program")
+            .state = Some(state);
+    }
+    let mut root = f::account_root(false);
+    let call = root.submit(&["account", "list"]);
+    f::deliver_accounts(&mut root, accounts);
+    let printed = root.answer(call).expect("host observations");
+    for fact in [
+        "host worker-one: usable",
+        "host worker-two: not signed in",
+        "host worker-three: signed in otherwise (key)",
+        "host worker-four: failed deadline · check expired",
+        "verify: account verify 43 --source program",
+    ] {
+        assert!(f::has(&printed, fact.as_bytes()), "{printed:?}");
+    }
+}
+
+#[test]
+fn account_text_distinguishes_deployment_readiness_and_names_jig_loss() {
+    for different in [false, true] {
+        let mut accounts = f::accounts();
+        accounts.readiness = f::payer_readiness();
+        let mut deployment = f::deployment();
+        deployment.readiness = accounts.readiness.clone();
+        deployment.readiness_cut = true;
+        if different {
+            deployment.readiness.get_mut(0).expect("observation").readiness = c::Readiness::Usable;
+        }
+        let mut root = f::account_root(true);
+        let call = root.submit(&["account", "list"]);
+        f::deliver_accounts(&mut root, accounts.clone());
+        f::deliver_deployment(&mut root, deployment.clone());
+        let printed = root.answer(call).expect("readiness text");
+        assert_eq!(f::occurrences(&printed.stdout, "readiness: provider 9 · party 73 · unknown".as_bytes()), 1);
+        assert_eq!(f::has(&printed, b"deployment readiness:"), different);
+        assert!(f::has(&printed, b"deployment readiness cut: true (jig)\ncut: true\n"));
+        let json = f::account_read(&mut root, accounts, Some(deployment));
+        assert!(f::has(&printed, &f::last_digest(&json.stdout)), "text and JSON share the bounded projection digest");
     }
 }

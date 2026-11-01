@@ -7,7 +7,7 @@ pub(super) fn hosts(hosts: &skein_lib::List<c::ProgramHost>, out: &mut Encoder, 
     out.key(b"program_hosts");
     out.array_start();
     for host in hosts {
-        if !window.take() {
+        if !window.take(256) {
             break;
         }
         out.object_start();
@@ -48,7 +48,7 @@ fn programs(values: &skein_lib::List<c::ProgramLogin>, out: &mut Encoder, cut: &
     out.key(b"programs");
     out.array_start();
     for program in values {
-        if !window.take() {
+        if !window.take(256) {
             break;
         }
         out.object_start();
@@ -87,7 +87,7 @@ pub(super) fn deployment_hosts(deployment: &c::Deployment, out: &mut Encoder, cu
     out.key(b"program_hosts");
     out.array_start();
     for host in &deployment.hosts {
-        if !window.take() {
+        if !window.take(256) {
             break;
         }
         out.object_start();

@@ -41,7 +41,11 @@ fn pair() -> World {
 }
 
 fn pair_with_asks(asks: bool) -> World {
-    let mut world = World::new(880, LIMITS);
+    pair_with_limits(asks, &LIMITS)
+}
+
+fn pair_with_limits(asks: bool, limits: &Limits) -> World {
+    let mut world = World::new(880, *limits);
     let mut parent = task(REQUESTER, &[]);
     parent.numbers.budget = 1_000;
     parent.authority.budget.spend = 1_000;
@@ -355,7 +359,11 @@ fn ending_full_credit_lists_emits_one_batch_per_asker_and_one_publication() {
 }
 
 fn person_asked() -> World {
-    let mut world = pair();
+    person_asked_with(&LIMITS)
+}
+
+fn person_asked_with(limits: &Limits) -> World {
+    let mut world = pair_with_limits(false, limits);
     response(&mut world, |reply_to| Event::PersonQuestion {
         reply_to,
         project: 1,
@@ -376,6 +384,10 @@ fn person_asked() -> World {
 }
 
 fn person_reply(world: &mut World, person: u64) -> Reply {
+    person_reply_with(world, person, b"proceed")
+}
+
+fn person_reply_with(world: &mut World, person: u64, words: &[u8]) -> Reply {
     let number = world.record(REQUESTER).last_message.max(world.record(ASKER).last_message) + 1;
     response(world, |reply_to| Event::PersonQuestionAnswer {
         reply_to,
@@ -388,7 +400,7 @@ fn person_reply(world: &mut World, person: u64) -> Reply {
             number,
             from: Party::Person(person),
             kind: MessageKind::Answer { question: QUESTION },
-            words: b"proceed".as_slice().into(),
+            words: words.into(),
             at: Wall::EPOCH,
             hits: 1,
             eligible: false,
@@ -418,8 +430,94 @@ fn the_asked_task_hears_its_person_answered() {
     let mut world = person_asked();
     person_reply(&mut world, PERSON);
     let row = world.record(REQUESTER);
-    assert!(row.inbox.iter().any(|word| word.kind == MessageKind::QuestionAnswered { question: QUESTION }));
+    let notice = row
+        .inbox
+        .iter()
+        .find(|word| word.kind == MessageKind::QuestionAnswered { question: QUESTION })
+        .expect("answer notice");
+    assert_eq!(notice.words.as_ref(), b"proceed");
     assert!(!row.inbox.iter().any(|word| matches!(word.kind, MessageKind::Answer { .. })));
+}
+
+#[test]
+fn answer_notices_keep_the_bound_and_mark_utf8_cuts() {
+    const BOUND: usize = 256;
+    const ASCII_PREFIX: usize = 240;
+    const UTF8_PREFIX: usize = 120;
+    let cases = [
+        ("a".repeat(BOUND - 1), "a".repeat(BOUND - 1)),
+        ("a".repeat(BOUND), "a".repeat(BOUND)),
+        ("a".repeat(BOUND + 1), format!("{}\n[17 bytes cut]\n", "a".repeat(ASCII_PREFIX))),
+        ("é".repeat(129), format!("{}\n[18 bytes cut]\n", "é".repeat(UTF8_PREFIX))),
+    ];
+    for (answer, expected) in cases {
+        let mut world = person_asked_with(&Limits { message_bytes: 512, inbox_bytes: 1024, ..LIMITS });
+        person_reply_with(&mut world, PERSON, answer.as_bytes());
+        let notice = world
+            .record(REQUESTER)
+            .inbox
+            .iter()
+            .find(|word| word.kind == MessageKind::QuestionAnswered { question: QUESTION })
+            .expect("answer notice");
+        assert_eq!(notice.words.as_ref(), expected.as_bytes());
+        assert!(world.record(ASKER).inbox.iter().any(|word| word.words.as_ref() == answer.as_bytes()));
+        world.restart();
+    }
+}
+
+#[test]
+fn admitting_a_question_keeps_the_answer_notice_bytes() {
+    const NEEDED: u32 = LIMITS.result_bytes + 8 + 256;
+    for (inbox_bytes, accepted) in [(NEEDED - 1, false), (NEEDED, true)] {
+        let mut world = pair_with_limits(false, &Limits { inbox_bytes, ..LIMITS });
+        let reply = message(&mut world, Party::Task(ASKER), REQUESTER, QUESTION, MessageKind::Question);
+        assert_eq!(matches!(reply, Reply::Done), accepted);
+        assert_eq!(world.record(ASKER).questions.len(), usize::from(accepted));
+        world.restart();
+    }
+}
+
+#[test]
+fn empty_answer_notices_still_restore() {
+    let mut world = person_asked();
+    person_reply(&mut world, PERSON);
+    for record in world.records.values_mut() {
+        if let Stored::Live(row) = record {
+            for word in &mut row.inbox {
+                if word.kind == (MessageKind::QuestionAnswered { question: QUESTION }) {
+                    word.words = Box::new([]);
+                }
+            }
+        }
+    }
+    world.restart();
+    assert!(
+        world
+            .record(REQUESTER)
+            .inbox
+            .iter()
+            .any(|word| word.kind == MessageKind::QuestionAnswered { question: QUESTION } && word.words.is_empty())
+    );
+}
+
+#[test]
+fn a_byte_full_inbox_keeps_the_whole_answer_notice_credit() {
+    const BOUND: u32 = 256;
+    const WORD_BYTES: u32 = 8;
+    let limits =
+        Limits { message_bytes: BOUND, inbox_bytes: LIMITS.result_bytes + WORD_BYTES + BOUND + WORD_BYTES, ..LIMITS };
+    let mut world = person_asked_with(&limits);
+    assert!(matches!(message(&mut world, Party::Person(PERSON), REQUESTER, 2, MessageKind::Words), Reply::Done));
+    assert!(matches!(message(&mut world, Party::Person(PERSON), REQUESTER, 3, MessageKind::Words), Reply::Refused(_)));
+    world.restart();
+    person_reply_with(&mut world, PERSON, &vec![b'a'; BOUND as usize]);
+    let row = world.record(REQUESTER);
+    assert_eq!(
+        row.inbox.iter().map(|word| word.words.len()).sum::<usize>() + LIMITS.result_bytes as usize,
+        limits.inbox_bytes as usize
+    );
+    assert_eq!(row.inbox.last().expect("answer notice").words.len(), BOUND as usize);
+    world.restart();
 }
 
 #[test]
@@ -572,16 +670,20 @@ fn unread_words_cannot_prepare_an_owing_task_before_its_reminder() {
 }
 
 #[test]
-fn an_inbox_too_small_for_the_fixed_reminder_refuses_asks_at_creation() {
-    let limits = Limits { inbox_bytes: LIMITS.message_bytes, ..LIMITS };
-    let mut world = World::new(882, limits);
-    let mut new = task(REQUESTER, &[]);
-    new.spec.asks = true;
-    let reply = response(&mut world, |reply_to| Event::Make {
-        reply_to,
-        creator: Party::Person(PERSON),
-        batch: Box::new([new]),
-    });
-    assert!(matches!(reply, Reply::Refused(problem) if problem.why == Refusal::Spec));
-    assert!(!world.records.contains_key(&Key::Live(REQUESTER)));
+fn asks_requires_room_for_the_fixed_answer_notice() {
+    const BOUND: u32 = 256;
+    for (inbox_bytes, accepted) in [(BOUND - 1, false), (BOUND, true)] {
+        let limits = Limits { inbox_bytes, ..LIMITS };
+        let mut world = World::new(882, limits);
+        let mut new = task(REQUESTER, &[]);
+        new.spec.asks = true;
+        let reply = response(&mut world, |reply_to| Event::Make {
+            reply_to,
+            creator: Party::Person(PERSON),
+            batch: Box::new([new]),
+        });
+        assert_eq!(matches!(reply, Reply::Made(_)), accepted);
+        assert_eq!(world.records.contains_key(&Key::Live(REQUESTER)), accepted);
+        world.restart();
+    }
 }

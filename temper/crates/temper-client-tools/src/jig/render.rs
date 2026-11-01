@@ -347,8 +347,13 @@ pub(crate) fn reads(
         } else {
             None
         };
+        let mut viewer = None;
+        if let Some(party) = party {
+            viewer = Some(party.party.number);
+        }
         return document::print(
             document::Document::Accounts(document::accounts::Accounts {
+                viewer,
                 party: Some(accounts),
                 deployment,
                 models,

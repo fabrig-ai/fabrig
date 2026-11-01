@@ -2,7 +2,10 @@
 use crate::domain::{Domain, publish, record, refused, task_mut};
 use crate::{Event, Limits, MessageKind, Party, Refusal, Request, Word};
 use alloc::boxed::Box;
-use skein_lib::{Env, List, Map, Queue, ReplyTo};
+use skein_lib::{Decimal, Env, List, Map, Queue, ReplyTo, Writer};
+
+/// Maximum bytes of the answer carried by its requester's notice, including a cut marker.
+pub(crate) const ANSWER_NOTICE_BYTES: usize = 256;
 
 impl Domain {
     /// The credit owner of one question offered in this person's inbox.
@@ -85,6 +88,7 @@ pub(crate) fn person_answer(domain: &mut Domain, env: &Env<Limits>, event: Event
     let credit = selected.expect("selected credit");
     word.eligible = credit.asked == row.requester;
     word.from = row.requester;
+    let words = answer_notice_words(word.words.clone());
     let Some(prepared) = crate::inbox::prepare(domain, &env.limits, asker, word, crate::inbox::Admission::RoomKept)
     else {
         return refused(reply_to, Some(asker), Refusal::Read, out);
@@ -101,7 +105,7 @@ pub(crate) fn person_answer(domain: &mut Domain, env: &Env<Limits>, event: Event
     crate::positions::sent_answer(domain, env, Party::Task(asked), question, heard, out);
     if asked != asker
         && let Some((previous, word)) =
-            append_notice(domain, env, asked, notice, MessageKind::QuestionAnswered { question }, out)
+            append_notice(domain, env, asked, notice, MessageKind::QuestionAnswered { question }, words, out)
     {
         changed(domain, asked);
         crate::wake::after_message(domain, env, asked, previous, word, out);
@@ -183,6 +187,7 @@ pub(crate) fn ended(
             task,
             notice.message,
             MessageKind::QuestionEnded { question: notice.question },
+            Box::new([]),
             out,
         );
     }
@@ -198,21 +203,14 @@ fn append_notice(
     task: u64,
     message: u64,
     kind: MessageKind,
+    words: Box<[u8]>,
     out: &mut Queue<Request>,
 ) -> Option<(Option<u64>, Word)> {
     let row = record(domain, task)?;
     if !crate::moving::mutable(&row.phase) {
         return None;
     }
-    let word = Word {
-        number: message,
-        from: Party::Task(task),
-        words: if kind == MessageKind::QuestionOwed { Box::from(OWED_WORDS) } else { Box::new([]) },
-        kind,
-        at: env.wall,
-        hits: 1,
-        eligible: true,
-    };
+    let word = Word { number: message, from: Party::Task(task), words, kind, at: env.wall, hits: 1, eligible: true };
     let admission = if word.kind == MessageKind::QuestionOwed {
         crate::inbox::Admission::Merged
     } else {
@@ -356,8 +354,33 @@ pub(crate) fn owed(domain: &mut Domain, env: &Env<Limits>, task: u64, message: u
     if !row.spec.asks || row.asked_requester || row.phase != crate::Phase::Active(crate::Active::Idle) {
         return;
     }
-    if let Some((previous, word)) = append_notice(domain, env, task, message, MessageKind::QuestionOwed, out) {
+    if let Some((previous, word)) =
+        append_notice(domain, env, task, message, MessageKind::QuestionOwed, Box::from(OWED_WORDS), out)
+    {
         changed(domain, task);
         crate::wake::after_message(domain, env, task, previous, word, out);
     }
+}
+
+fn answer_notice_words(words: Box<[u8]>) -> Box<[u8]> {
+    if words.len() <= ANSWER_NOTICE_BYTES {
+        return words;
+    }
+    let mut keep = skein_lib::bytes::utf8_prefix(&words, ANSWER_NOTICE_BYTES);
+    for _ in 0..ANSWER_NOTICE_BYTES {
+        let lost = words.len().checked_sub(keep.len()).expect("prefix within answer");
+        let digits = Decimal::of(u64::try_from(lost).expect("bounded answer"));
+        let bytes = keep.len().checked_add(b"\n[ bytes cut]\n".len()).expect("bounded notice marker");
+        let bytes = bytes.checked_add(digits.as_bytes().len()).expect("bounded lost count");
+        if bytes <= ANSWER_NOTICE_BYTES {
+            let mut writer = Writer::new(bytes);
+            writer.put(keep).expect("measured answer prefix");
+            writer.put(b"\n[").expect("measured marker");
+            writer.put(digits.as_bytes()).expect("measured lost count");
+            writer.put(b" bytes cut]\n").expect("measured marker");
+            return writer.finish();
+        }
+        keep = skein_lib::bytes::utf8_prefix(keep, keep.len().checked_sub(1).expect("notice has prefix room"));
+    }
+    unreachable!("the fixed notice bound holds its cut marker");
 }

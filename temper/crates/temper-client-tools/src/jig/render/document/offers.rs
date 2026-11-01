@@ -16,7 +16,7 @@ pub(super) fn fields(
     out.key(b"providers");
     out.array_start();
     for offer in providers {
-        if !window.take() {
+        if !window.take(256) {
             break;
         }
         window.cut |= offer.name.cut || offer.programs_cut;
@@ -40,7 +40,7 @@ pub(super) fn fields(
         out.key(b"programs");
         out.array_start();
         for program in &offer.programs {
-            if !window.take() {
+            if !window.take(64) {
                 break;
             }
             whole(program.bytes(), out, cut, window);
@@ -70,7 +70,7 @@ pub(super) fn readiness(
     out.key(b"readiness");
     out.array_start();
     for row in rows {
-        if !readiness.take() {
+        if !readiness.take(1) {
             break;
         }
         out.object_start();
@@ -113,12 +113,11 @@ pub(super) fn readiness_rows(limits: &Limits) -> u32 {
     limits.rows.min(limits.text.saturating_sub(128).saturating_sub(1024) / 4 / 128)
 }
 pub(super) fn me_window(limits: &Limits) -> Window {
-    // Contract: rows providers × (1 header + rows programs). Each JSON row
-    // costs at most 256 structural bytes; escaped text costs 6 × text bytes.
-    // Reserve 1 KiB for the envelope; the result-byte ceiling bounds this window.
-    let rows = limits.rows.saturating_mul(limits.rows.saturating_add(1));
+    // Contract: rows providers × (256 B header + rows × 64 B programs).
+    // Escaped text costs 6 × text bytes, with 1 KiB for the envelope.
+    let rows = limits.rows.saturating_mul(256u32.saturating_add(limits.rows.saturating_mul(64)));
     let room = limits.result_bytes.saturating_sub(1024).saturating_sub(u64::from(limits.text).saturating_mul(6));
-    Window { left: u32::try_from(u64::from(rows).min(room / 256)).expect("contract row bound"), cut: false }
+    Window { left: u32::try_from(u64::from(rows).min(room)).expect("contract row bound"), cut: false }
 }
 pub(super) fn whole(bytes: &[u8], out: &mut Encoder, cut: &mut Cut, window: &mut Window) {
     if bytes.len() <= cut.room {
@@ -130,7 +129,7 @@ pub(super) fn whole(bytes: &[u8], out: &mut Encoder, cut: &mut Cut, window: &mut
         out.null();
     }
 }
-fn whole_text(bytes: &[u8], out: &mut Text, window: &mut Window) {
+pub(super) fn whole_text(bytes: &[u8], out: &mut Text, window: &mut Window) {
     if bytes.len() <= out.room() {
         out.words(bytes);
     } else {
@@ -146,48 +145,45 @@ pub(super) fn text(me: &c::Me, limits: &Limits, out: &mut Text) {
     let mut window = me_window(limits);
     window.cut = me.cut || me.providers_cut;
     for offer in &me.providers {
-        if !window.take() {
+        if !window.take(256) {
             break;
         }
         window.cut |= offer.name.cut || offer.programs_cut;
         out.put(b"  provider ");
         out.number(u64::from(offer.provider));
-        out.put(b" name: ");
+        out.put(b" \xc2\xb7 ");
         out.words(offer.name.bytes());
-        out.put(b" name_cut: ");
-        flag(offer.name.cut, out);
-        out.put(b" key_bytes: ");
-        out.number(u64::from(offer.key_bytes));
-        for (key, value) in [
-            (b" sign_in: ".as_slice(), offer.sign_in),
-            (b" key: ", offer.key),
-            (b" none: ", offer.none),
-            (b" signed_in_plan: ", offer.signed_in_plan),
-            (b" programs_cut: ", offer.programs_cut),
-        ] {
-            out.put(key);
-            flag(value, out);
+        out.put(b" \xc2\xb7 ");
+        let mut separator = false;
+        for (name, offered) in [(b"sign-in".as_slice(), offer.sign_in), (b"key", offer.key), (b"none", offer.none)] {
+            if offered {
+                if separator {
+                    out.put(b", ");
+                }
+                out.put(name);
+                separator = true;
+            }
         }
-        out.put(b" programs:");
+        if !offer.programs.is_empty() {
+            if separator {
+                out.put(b", ");
+            }
+            out.put(b"programs");
+        }
         for program in &offer.programs {
-            if !window.take() {
+            if !window.take(64) {
                 break;
             }
             out.put(b" ");
             whole_text(program.bytes(), out, &mut window);
         }
-        out.put(b" manage_usage: ");
-        match &offer.manage_usage {
-            Some(uri) => whole_text(uri, out, &mut window),
-            None => out.put(b"null"),
+        if let Some(uri) = &offer.manage_usage {
+            out.put(b" \xc2\xb7 manage usage ");
+            whole_text(uri, out, &mut window);
         }
         out.put(b"\n");
     }
-    out.put(b"providers_cut: ");
-    flag(me.providers_cut, out);
-    out.put(b"\nkey_bytes: ");
-    out.number(u64::from(me.key_bytes));
-    out.put(b"\ncut: ");
+    out.put(b"cut: ");
     flag(window.cut || out.left() > 0, out);
     out.put(b"\n");
 }

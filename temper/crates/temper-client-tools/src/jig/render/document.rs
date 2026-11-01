@@ -1,6 +1,7 @@
 //! Step-local document rendering; no borrowed document survives a step.
 mod account_lines;
 mod account_programs;
+mod account_text;
 mod projects;
 mod projects_json;
 mod proposal;

@@ -92,6 +92,7 @@ fn question_cycles(h: &mut Harness) {
 
 fn question_cohort(last: u64) -> Harness {
     let mut h = Harness::new();
+    h.env.limits.inbox_bytes = 512;
     let mut parent = task(1, &[]);
     parent.numbers.budget = 1000;
     parent.authority.budget.spend = 1000;
