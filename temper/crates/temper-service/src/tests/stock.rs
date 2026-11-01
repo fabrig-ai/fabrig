@@ -260,10 +260,12 @@ fn the_chats_words_send_plain_changes_to_change() {
     assert!(!words.contains("never call change yourself"));
     assert!(words.contains("Only if your brief says the work is to be agreed"));
     assert!(words.contains("Otherwise do the work without asking."));
-    assert!(words.contains("If your brief opens by saying you are a goal, this paragraph alone is yours; the next is the chat's, not yours."));
+    assert!(words.contains(
+        "If your brief says you are a goal, this paragraph alone is yours; the next is the chat's, not yours."
+    ));
     assert!(
         words.contains(
-            "If neither line opens your brief, you are the person's chat, and this paragraph alone is yours."
+            "If neither line is in your brief, you are the person's chat, and this paragraph alone is yours."
         )
     );
 }
@@ -278,7 +280,7 @@ fn the_chats_words_tell_the_person_when_its_change_holds() {
 #[test]
 fn the_chats_words_send_work_agreed_first_to_a_goal() {
     let words = include_str!("../stock/chat.txt");
-    assert!(words.contains("If your brief opens by saying you are a goal"), "a goal is told apart by its root brief");
+    assert!(words.contains("If your brief says you are a goal"), "a goal is told apart by its root brief");
     assert!(
         words.contains("Only if your brief says the work is to be agreed: before anything is changed, send your requester your plan with message, as a question asking whether to go ahead, and call wait until it is answered: never call finish before that answer, nor before every agreed change has landed; if the answer declines, report that and change nothing."),
         "the goal calls wait after asking and finishes only after the answer and all landings"
@@ -300,7 +302,7 @@ fn the_chats_words_send_work_agreed_first_to_a_goal() {
 #[test]
 fn the_chats_words_mark_an_advisors_read_only_report() {
     let words = include_str!("../stock/chat.txt");
-    assert!(words.split("\n\n").any(|paragraph| paragraph == "If your brief opens by saying you are an advisor, do only that: read what it asks with the forge's reads, change nothing, ask no one, and report what you found."), "the advisor has its own paragraph");
+    assert!(words.split("\n\n").any(|paragraph| paragraph == "If your brief says you are an advisor, do only that: read what it asks with the forge's reads, change nothing, ask no one, and report what you found."), "the advisor has its own paragraph");
 }
 
 #[test]
