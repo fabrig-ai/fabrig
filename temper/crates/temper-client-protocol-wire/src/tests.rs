@@ -1,5 +1,6 @@
 //! Version, bounds and total outcome round trips (client/README.md, 4.6).
 mod fixtures;
+mod forge_requests;
 use crate::v1;
 use alloc::boxed::Box;
 use skein_lib::{List, Reader};
@@ -60,6 +61,9 @@ fn limits_take_each_bound_from_its_source_field() {
         fixtures::limits(),
         v1::Limits {
             authority_hold_reason: 512,
+            forgejo_choice_api: 259,
+            forgejo_choice_git: 1024,
+            forgejo_choice_web_some: 1024,
             owned_forge_forgejo: 64,
             owned_forge_runner_some: 64,
             owned_forge_password: 512,
@@ -101,10 +105,10 @@ fn limits_take_each_bound_from_its_source_field() {
             change_panel_branch: 16,
             change_panel_landing: 16,
             change_panel_gates: crate::GATES,
-            demo_answer_owner: 16,
-            demo_answer_name: 16,
-            demo_answer_cues: crate::CUES,
-            demo_answer_cues_item: crate::CUE_BYTES,
+            playground_answer_owner: 16,
+            playground_answer_name: 16,
+            playground_answer_cues: crate::CUES,
+            playground_answer_cues_item: crate::CUE_BYTES,
             first_ask_org: 16,
             first_ask_repository: 16,
             first_ask_label: 64,
@@ -145,17 +149,17 @@ fn an_unknown_owner_number_has_no_owner() {
 }
 
 #[test]
-fn the_demo_read_and_answer_round_trip_with_nonempty_cues() {
+fn the_playground_read_and_answer_round_trip_with_nonempty_cues() {
     let limits = fixtures::limits();
-    let reading = v1::Reading::new(&limits, v1::ReadingParts { read: v1::Read::Demo }).expect("demo read");
+    let reading = v1::Reading::new(&limits, v1::ReadingParts { read: v1::Read::Playground }).expect("demo read");
     assert_eq!(crate::decode_reading(&crate::reading(&reading), &limits), Some(reading));
     for (row, cue, accepted) in [("cue", "Change it", true), ("empty cue", "", false)] {
         let mut cues = List::with_capacity(crate::CUES);
         cues.push(cue.as_bytes().into()).expect("one cue");
-        let answer = v1::DemoAnswer::new(
+        let answer = v1::PlaygroundAnswer::new(
             &limits,
-            v1::DemoAnswerParts {
-                state: v1::DemoState::Running,
+            v1::PlaygroundAnswerParts {
+                state: v1::PlaygroundState::Running,
                 project: 7,
                 forge: crate::FORGE,
                 provider: 3,
@@ -165,7 +169,7 @@ fn the_demo_read_and_answer_round_trip_with_nonempty_cues() {
             },
         )
         .expect("schema answer");
-        let back = crate::decode_demo_answer(&crate::demo_answer(&answer), &limits);
+        let back = crate::decode_playground_answer(&crate::playground_answer(&answer), &limits);
         assert_eq!(back.is_some(), accepted, "{row}");
         if accepted {
             assert_eq!(back, Some(answer), "{row}");
@@ -174,8 +178,8 @@ fn the_demo_read_and_answer_round_trip_with_nonempty_cues() {
 }
 
 #[test]
-fn demo_cues_obey_their_count_and_text_bounds() {
-    for state in [v1::DemoState::Running, v1::DemoState::Ended] {
+fn playground_cues_obey_their_count_and_text_bounds() {
+    for state in [v1::PlaygroundState::Running, v1::PlaygroundState::Resetting] {
         for (row, count, bytes, accepted) in [
             ("no cues", 0, b"x".as_slice(), true),
             ("one byte", 1, b"x".as_slice(), true),
@@ -190,9 +194,9 @@ fn demo_cues_obey_their_count_and_text_bounds() {
             for _ in 0..count {
                 cues.push(bytes.into()).expect("row's cue capacity");
             }
-            let answer = v1::DemoAnswer::new(
+            let answer = v1::PlaygroundAnswer::new(
                 &limits,
-                v1::DemoAnswerParts {
+                v1::PlaygroundAnswerParts {
                     state: state.clone(),
                     project: 7,
                     forge: crate::FORGE,
@@ -204,7 +208,7 @@ fn demo_cues_obey_their_count_and_text_bounds() {
             );
             assert_eq!(answer.is_ok(), accepted, "{row}");
             if let Ok(answer) = answer {
-                assert_eq!(crate::decode_demo_answer(&crate::demo_answer(&answer), &limits), Some(answer), "{row}");
+                assert_eq!(crate::decode_playground_answer(&crate::playground_answer(&answer), &limits), Some(answer), "{row}");
             }
         }
     }
@@ -289,7 +293,7 @@ fn change_panel_bounds_accept_at_and_refuse_one_past() {
 fn requesting_round_trips_and_refuses_trailing_and_version_three_adopt_bytes() {
     let limits = fixtures::limits();
     for request in [
-        v1::Request::StartDemo,
+        v1::Request::StartPlayground,
         v1::Request::Adopt(fixtures::adopt()),
         v1::Request::SetUp(
             v1::SetUp::new(
@@ -599,7 +603,7 @@ fn forge_login_and_stop_reason_round_trip_at_schema_ceilings() {
 }
 
 #[test]
-fn demo_start_outcomes_round_trip_at_each_boundary() {
+fn playground_start_outcomes_round_trip_at_each_boundary() {
     let limits = v1::CEILINGS;
     let mut outcomes = List::with_capacity(8);
     for outcome in [
@@ -661,24 +665,24 @@ fn demo_start_outcomes_round_trip_at_each_boundary() {
 }
 
 #[test]
-fn demo_states_round_trip_at_smallest_and_ceiling() {
+fn playground_states_round_trip_at_smallest_and_ceiling() {
     use skein_lib::List;
     let limits = v1::CEILINGS;
-    for state in [v1::DemoState::NotStarted, v1::DemoState::Running, v1::DemoState::Ended] {
+    for state in [v1::PlaygroundState::NotStarted, v1::PlaygroundState::Running, v1::PlaygroundState::Resetting] {
         for full in [false, true] {
-            let mut cues = List::with_capacity(limits.demo_answer_cues);
+            let mut cues = List::with_capacity(limits.playground_answer_cues);
             if full {
-                for _ in 0..limits.demo_answer_cues {
+                for _ in 0..limits.playground_answer_cues {
                     cues.push(skein_lib::bytes::zeroed(
-                        usize::try_from(limits.demo_answer_cues_item).expect("ceiling"),
+                        usize::try_from(limits.playground_answer_cues_item).expect("ceiling"),
                     ))
                     .expect("cue room");
                 }
             }
-            let field = if full { usize::try_from(limits.demo_answer_owner).expect("ceiling") } else { 0 };
-            let record = v1::DemoAnswer::new(
+            let field = if full { usize::try_from(limits.playground_answer_owner).expect("ceiling") } else { 0 };
+            let record = v1::PlaygroundAnswer::new(
                 &limits,
-                v1::DemoAnswerParts {
+                v1::PlaygroundAnswerParts {
                     project: if full { u32::MAX } else { 0 },
                     forge: if full { u16::MAX } else { 0 },
                     provider: if full { u32::MAX } else { 0 },
@@ -689,12 +693,12 @@ fn demo_states_round_trip_at_smallest_and_ceiling() {
                 },
             )
             .expect("demo answer");
-            let bytes = crate::demo_answer(&record);
-            assert_eq!(crate::decode_demo_answer(&bytes, &limits), Some(record));
+            let bytes = crate::playground_answer(&record);
+            assert_eq!(crate::decode_playground_answer(&bytes, &limits), Some(record));
         }
     }
     let record =
-        v1::Requesting::new(&limits, v1::RequestingParts { request: v1::Request::StartDemo }).expect("start request");
+        v1::Requesting::new(&limits, v1::RequestingParts { request: v1::Request::StartPlayground }).expect("start request");
     assert_eq!(crate::decode_requesting(&crate::requesting(&record), &limits), Some(record));
 }
 
