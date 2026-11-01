@@ -287,6 +287,7 @@ fn checked_peers(dirs: &Directories, bytes: &[u8]) -> Result<Peers, String> {
         Box::new([]),
     );
     let mut ports = vec![1455];
+    ports.extend(deployment.ports.iter().map(SocketAddr::port));
     for step in
         ordinary.always.iter().chain(ordinary.asked.iter().flat_map(|group| group.steps.iter().map(|(_, step)| step)))
     {
@@ -347,14 +348,11 @@ fn validate(dirs: &Directories, bytes: &[u8], expected: &Path) -> Result<(), Str
     {
         return Err("effective deployment, worker root and agent configuration must stay in the sandbox".into());
     }
-    for entry in &deployment.checked.setup.entries {
-        let directoryless =
-            matches!(entry.mode, temper_forge_setup::setup::Mode::Managed { .. }) && entry.directory.is_empty();
-        if !directoryless && !contained(&dirs.data, &entry.directory) {
-            return Err("application.setup.directory: must stay under effective data".into());
-        }
-    }
     let tree = Json::decode(bytes)?;
+    let git_program = tree.string("application/machine/git_program")?;
+    if !contained(&dirs.data, git_program) {
+        return Err("application.machine.git_program: must stay under effective data".into());
+    }
     let configuration = tree.string("workers/0/agent/configuration")?;
     let argv = tree.at("workers/0/agent/arguments")?;
     let wanted = Json::Array(vec![
@@ -555,16 +553,7 @@ fn prepare(source_dirs: &Directories, bundle: Option<&Path>, adapter: &Path) -> 
     if let Some(webhooks) = &deployment.named.webhooks {
         excluded.push(crate::address(&webhooks.listener)?.port());
     }
-    for entry in &deployment.checked.setup.entries {
-        match &entry.mode {
-            temper_forge_setup::setup::Mode::Owned(owned) => excluded.push(owned.listen.port()),
-            temper_forge_setup::setup::Mode::Fake(fake) => excluded.push(fake.listen.port()),
-            temper_forge_setup::setup::Mode::Managed { .. } => {}
-        }
-    }
-    if let Some(demo) = &deployment.demo {
-        excluded.push(demo.llm().listen().port());
-    }
+    excluded.extend(deployment.ports.iter().map(SocketAddr::port));
     let github = reserve(&excluded)?;
     excluded.push(addr(&github)?.port());
     let oauth = reserve(&excluded)?;

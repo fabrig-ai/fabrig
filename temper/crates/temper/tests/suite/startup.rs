@@ -406,7 +406,7 @@ fn refused_box(scratch: &support::Scratch, value: &serde_json::Value) -> String 
     .expect_err("box refused")
 }
 #[test]
-fn a_box_on_a_fresh_init_reaches_serves_link_with_forge_3_dormant() {
+fn a_box_on_a_fresh_init_reaches_serves_link_with_no_forge() {
     let scratch = support::Scratch::startup("box-fresh-init");
     let init = std::process::Command::new(skein_scratch::paths::binary("temper"))
         .arg("init")
@@ -414,7 +414,6 @@ fn a_box_on_a_fresh_init_reaches_serves_link_with_forge_3_dormant() {
         .output()
         .expect("init command");
     assert!(init.status.success(), "{}", String::from_utf8_lossy(&init.stderr));
-    // init's ports are fixed when free; tests run side by side, so each listener moves to a drawn one.
     support::own_listener_files(scratch.path());
     let ended = support::boxed::run(scratch.path(), None, support::boxed::Plan::Stop, support::boxed::BOX_DEADLINE);
     let diagnostic = String::from_utf8_lossy(&ended.stderr);
@@ -423,8 +422,11 @@ fn a_box_on_a_fresh_init_reaches_serves_link_with_forge_3_dormant() {
     assert!(!diagnostic.contains("application.setup"), "{diagnostic}");
     assert_eq!(ended.exit, Some(skein_io::kernel::Exit::Code(0)), "{diagnostic}");
     assert_eq!(ended.left, Some(Vec::new()), "no process outlived the box: {diagnostic}");
-    // Forge 3 is asked: its group never ran, so it has no directory and nothing was fetched.
-    for absent in ["forge-3", "forgejo", "forgejo-runner"] {
+    for entry in fs::read_dir(scratch.path()).expect("deployment directory") {
+        let entry = entry.expect("directory entry");
+        assert!(!entry.file_name().to_string_lossy().starts_with("forge-"), "{diagnostic}");
+    }
+    for absent in ["forgejo", "forgejo-runner"] {
         assert!(!scratch.path().join(absent).exists(), "{absent}: {diagnostic}");
     }
     scratch.remove();
@@ -2145,7 +2147,7 @@ fn a_box_runs_a_recorded_group_from_its_file_before_serve() {
     use std::os::unix::fs::PermissionsExt;
     let scratch = support::Scratch::startup("box-recorded-file");
     let document = initialized_box(&scratch);
-    let mut body = document["application"]["setup"][0].clone();
+    let mut body = document["application"]["demo"]["forge"].clone();
     let body = body.as_object_mut().expect("fake entry");
     for name in ["forge", "directory", "start"] {
         body.remove(name);

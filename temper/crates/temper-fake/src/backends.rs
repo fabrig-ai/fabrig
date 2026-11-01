@@ -68,12 +68,12 @@ pub struct Documents {
     pub forgejo: Box<[u8]>,
 }
 const OUTPUT: Limits = Limits { depth: 32, length: crate::DOCUMENT_BYTES };
-// Init-shaped temper: forge roots/program (5), sign-in (6),
+// Init-shaped temper: machine GitHub roots/program (5), sign-in (6),
 // model endpoint (2), program route (3), two charter alternatives (2), bundle
-// (1), worker argv/configuration (2), managed forge/provider limits (9). Each of the
+// (1), worker argv/configuration (2), repository/provider limits (6). Each of the
 // forge, sign-in and endpoint may also remove all four stale TLS members.
 // The agent document needs only its endpoint (6), route (1) and adapter (1).
-const EDITS: u32 = 5 + 6 + 2 + 3 + 2 + 1 + 2 + 9 + 3 * 4;
+const EDITS: u32 = 5 + 6 + 2 + 3 + 2 + 1 + 2 + 6 + 3 * 4;
 // The Model step must see OpenAI, demo and Anthropic in one provider offer.
 const PROVIDER_LINES: u32 = 3;
 #[derive(Debug)]
@@ -389,7 +389,7 @@ pub fn rewrite(temper: &[u8], agent: &[u8], paths: &Paths, peers: &Peers) -> Res
     }
     edits.text(&d, bundle, &paths.bundle, &ap.member(b"clients").member(b"bundle"))?;
     worker(&d, &paths.config, &mut edits)?;
-    managed(&d, application, &forgejo, &git_program, &mut edits)?;
+    limits(&d, application, &mut edits)?;
     let mut agent_edits = Edits::new();
     let endpoints = member(&a, 0, b"endpoints", &root)?;
     endpoint(&a, endpoints, &llm, true, &mut agent_edits, &root.member(b"endpoints"))?;
@@ -445,34 +445,8 @@ fn object_member(d: &Document, at: u32, name: &[u8], value: &[u8], edits: &mut E
         append(d, at, &read::joined(&[b"{", &text(name)?, b":", value, b"}"]), edits)
     }
 }
-fn managed(
-    d: &Document,
-    application: u32,
-    socket: &[u8],
-    git_program: &[u8],
-    edits: &mut Edits,
-) -> Result<(), Refusal> {
+fn limits(d: &Document, application: u32, edits: &mut Edits) -> Result<(), Refusal> {
     let p = Path::root().member(b"application");
-    let origin = text(&read::joined(&[b"http://", socket]))?;
-    let forge = read::joined(&[
-        br#"{"number":4,"kind":"forgejo","api":"#.as_slice(),
-        &address(socket)?,
-        b",\"web\":null,\"git\":",
-        &origin,
-        b",\"git_program\":",
-        &text(git_program)?,
-        br#", "transport":"plaintext"}"#,
-    ]);
-    for (name, value) in [
-        (b"forges".as_slice(), forge.as_ref()),
-        (
-            b"identities",
-            br#"{"number":4,"forge":4,"login":"temper","author":{"name":"Temper","email":"temper@localhost"}}"#,
-        ),
-        (b"setup", br#"{"forge":4,"bot":{"login":"temper","email":"temper@localhost"},"mode":"managed"}"#),
-    ] {
-        append(d, member(d, application, name, &p)?, value, edits)?;
-    }
     let limits = member(d, application, b"limits", &p)?;
     let overrides = member(d, limits, b"overrides", &p)?;
     object_member(d, overrides, b"forge.client.repositories", b"4", edits)?;
@@ -501,13 +475,9 @@ fn forge(
     edits: &mut Edits,
     ap: &Path,
 ) -> Result<(), Refusal> {
-    let forges = member(d, application, b"forges", ap)?;
-    let fp = ap.member(b"forges");
-    let forge = selected(d, forges, b"number", b"2", true, &fp)?;
-    let kind = member(d, forge, b"kind", &fp)?;
-    if read::text(d, kind, 16, &fp.member(b"kind"))?.as_ref() != b"github" {
-        return Err(read::why(&fp.member(b"kind"), b"forge 2 must be GitHub"));
-    }
+    let machine = member(d, application, b"machine", ap)?;
+    let fp = ap.member(b"machine").member(b"github");
+    let forge = member(d, machine, b"github", &ap.member(b"machine"))?;
     let origin = read::joined(&[b"http://", github]);
     for name in [b"api".as_slice(), b"web", b"git", b"transport"] {
         let at = member(d, forge, name, &fp)?;
@@ -525,7 +495,7 @@ fn forge(
         };
         edits.set(d, at, &value, &fp.member(name))?;
     }
-    object_member(d, forge, b"git_program", &text(git_program)?, edits)?;
+    object_member(d, machine, b"git_program", &text(git_program)?, edits)?;
     tls(d, forge, edits, &fp)?;
     Ok(())
 }
@@ -603,7 +573,7 @@ fn forge_document(socket: &[u8], data: &[u8], d: &Document, clients: u32) -> Res
     let listener = member(d, clients, b"listener", &p)?;
     let at = member(d, listener, b"socket", &p)?;
     let clients = read::text(d, at, 128, &p.member(b"socket"))?;
-    let setup = text(&read::joined(&[b"http://", &clients, b"/forges/2/github/setup"]))?;
+    let setup = text(&read::joined(&[b"http://", &clients, b"/forges/1/github/setup"]))?;
     Ok(read::joined(&[b"{\"listen\":", &address(socket)?, b",\"admin_token\":", &text(&path(data, b"github-admin.token"))?,
         br#", "owner":"fake-person","repositories":[{"name":"widget","landing":"main","ci":null}],"github":{"app":{"id":1,"slug":"temper-fake","bot":2,"key":0,"setup_url":"#,&setup,br#"},"accounts":[{"login":"fake-person","id":3,"kind":"user","installation":{"id":1,"repositories":"all"}}]}}"#]))
 }
