@@ -17,6 +17,9 @@ final: tasks/fr-connect.md
 final: tasks/fr-setup.md
 final: tasks/fr-first-intent.md
 final: tasks/kept-acts.md
+final: tasks/rm-box-remove.md
+final: tasks/rm-remove-forge.md
+final: tasks/rm-forge-secrets.md
 
 ## Parts
 
@@ -48,6 +51,8 @@ final: tasks/kept-acts.md
 - The deployment-level `SetUp` offer the playground designer asked for is the client wire's `Forges.owned: Offer`, filled by the service (`fr-setup`).
 - `fr-setup` edits the client wire after `pg-wire`; `pg-demo-out-wire` also owns the wire: the lead orders the two (suggested: `pg-demo-out-wire` needs `fr-setup`).
 - `kept-acts` owns the root's `domain.rs` after `fr-seed`; `fr-setup` (one call there) needs `kept-acts` so the two never overlap.
+
+- Amended before release (their needs not yet merged): `fr-setup` needs `kept-acts` (both edit the root's `domain.rs`); `fr-first-intent` needs `rm-remove-forge` and `rm-forge-secrets` (shared `asks.rs`, `forge/table.rs`). Only the `needs` lines changed.
 
 ## Contract problems
 
