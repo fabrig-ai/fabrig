@@ -419,6 +419,16 @@ impl World {
                     }
                     _ => {}
                 },
+                engine::Request::Register(row) => {
+                    assert_eq!(
+                        row,
+                        temper_engine_domain_world::forges::record(
+                            1,
+                            forge_top::Kind::Forgejo,
+                            forge_top::Mode::Connected,
+                        )
+                    );
+                }
                 engine::Request::Account(_)
                 | engine::Request::SetUpGroup { .. }
                 | engine::Request::Connect { .. }
@@ -429,7 +439,6 @@ impl World {
                 | engine::Request::EraseCarried { .. }
                 | engine::Request::RemoveGroup { .. }
                 | engine::Request::EraseSecrets { .. }
-                | engine::Request::Register(_)
                 | engine::Request::Unregister { .. }
                 | engine::Request::StopGroup { .. }
                 | engine::Request::SetUp { .. }
