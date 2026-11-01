@@ -121,7 +121,8 @@ pub struct Domain {
     pub(crate) next_forge: Option<u16>,
     pub(crate) seed: Box<[crate::Forge]>,
     pub(crate) seed_path: bool,
-    playground: Option<crate::Playground>,
+    pub(crate) playground: Option<crate::Playground>,
+    pub(crate) playground_start: crate::playground::State,
     pub(crate) kept: Map<[u8; 16], crate::KeptAct>,
     pub(crate) configured: Map<u16, crate::Configured>,
     pub(crate) under_box: bool,
@@ -403,6 +404,9 @@ impl Domain {
         if let Some(answer) = self.connect.answers.get(&token) {
             return Some(answer.clone());
         }
+        if let Some(answer) = self.playground_start.answers.get(&token) {
+            return Some(crate::Answered::StartPlayground(answer.clone()));
+        }
         if let Some(answer) = self.demo_answers.get(&token) {
             return Some(crate::Answered::StartDemo(answer.clone()));
         }
@@ -605,6 +609,7 @@ impl Domain {
             seed_path,
             next_forge: None,
             playground: None,
+            playground_start: crate::playground::State::new(l),
             kept: Map::with_capacity(crate::kept_bound(l).expect("validated kept bound")),
             configured,
             under_box,
@@ -1138,6 +1143,8 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::KeptAnswered { key, keep } => crate::kept::answered(d, key, keep, out),
         Event::BoxRemoved { forge, removed } => crate::kept::box_answered(d, forge, removed, out),
         Event::ReleaseProject { request, project } => crate::release::release(d, request, project, out),
+        Event::PlaygroundMade { project, account } => crate::playground::made(d, project, account, out),
+        Event::PlaygroundAnswered { answer } => crate::playground::answered(d, answer, out),
         Event::DemoAnswered { answer } => crate::demo::answered(d, answer, out),
         Event::BoxClosed => {
             d.under_box = false;
@@ -1175,6 +1182,14 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             if d.demo_pending.contains_key(&request) {
                 if let crate::SetUpAnswer::Refused(_) = answer {
                     crate::demo::answered(
+                        d,
+                        crate::StartAnswer::Failed(crate::StartFailure::Group { why: Box::from(b"busy".as_slice()) }),
+                        out,
+                    );
+                }
+            } else if d.playground_start.pending.contains_key(&request) {
+                if let crate::SetUpAnswer::Refused(_) = answer {
+                    crate::playground::answered(
                         d,
                         crate::StartAnswer::Failed(crate::StartFailure::Group { why: Box::from(b"busy".as_slice()) }),
                         out,
@@ -1266,13 +1281,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 crate::Answered::RemoveForge(crate::RemoveAnswer::Refused(crate::RemoveRefusal::NotOffered)),
                 out,
             ),
-            crate::Ask::StartPlayground => crate::asks::refuse(
-                d,
-                request,
-                token,
-                crate::Answered::StartPlayground(crate::StartAnswer::NotOffered),
-                out,
-            ),
+            crate::Ask::StartPlayground => crate::playground::start(d, env, request, token, out),
             crate::Ask::EndPlayground => crate::asks::refuse(
                 d,
                 request,

@@ -1,6 +1,7 @@
 //! Child timers available to the root's fire pass, on the injected clock.
 use crate::{Domain, Limits};
 use skein_lib::{Duration, Env, Time, Wall};
+use temper_engine_domain_forge as forge;
 
 impl Domain {
     /// Earliest participating child timer, including wall timers mapped to
@@ -14,6 +15,12 @@ impl Domain {
         if let Some(start) = &self.demo_start
             && let Some(demo) = self.forge.demo()
             && !crate::route::demo::connected(&self.forge.connection(demo.adoption.forge))
+        {
+            next = earliest(next, Some(start.until));
+        }
+        if let Some(start) = &self.playground_start
+            && let Some(forge::Playground { forge: Some(forge), .. }) = self.forge.playground()
+            && !crate::route::demo::connected(&self.forge.connection(*forge))
         {
             next = earliest(next, Some(start.until));
         }

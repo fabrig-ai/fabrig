@@ -3001,6 +3001,7 @@ pub(crate) fn outputs(
             }
             forge::Request::ListDemoActs => super::demo::list_end_acts(domain),
             forge::Request::SendDemoAct(row) => super::demo::send_end_act(domain, row),
+            forge::Request::PlaygroundStart { request } => super::playground::start(domain, env, decision, request),
             forge::Request::DemoStart { request } => super::demo::start(domain, env, decision, request),
             forge::Request::StopGroup { forge } => {
                 assert!(super::now(domain, Request::StopGroup { forge }), "demo stop door reserved");
@@ -3020,10 +3021,12 @@ pub(crate) fn outputs(
             }
             forge::Request::ApplicationDone { request, token } => {
                 super::demo::done(domain, env, decision, request, true);
+                super::playground::done(domain, env, decision, request, true);
                 super::applications::finished(domain, request, Ok(token));
             }
             forge::Request::ApplicationAgain { request, why } => {
                 super::demo::done(domain, env, decision, request, false);
+                super::playground::done(domain, env, decision, request, false);
                 super::applications::finished(domain, request, Err(why));
             }
             forge::Request::WakeProcedure { task } => {

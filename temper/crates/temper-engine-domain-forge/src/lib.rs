@@ -37,6 +37,7 @@ mod limits;
 mod make;
 mod origin;
 mod panel;
+mod playground;
 pub mod purpose;
 mod release;
 mod removal;

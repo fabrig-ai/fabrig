@@ -18,6 +18,7 @@ mod landing_routes;
 mod limits;
 mod make;
 mod panel;
+mod playground;
 mod projection;
 mod purpose;
 mod reconcile;
@@ -365,6 +366,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ListDemoActs
         | Request::SendDemoAct(_)
         | Request::DemoStart { .. }
+        | Request::PlaygroundStart { .. }
         | Request::Settled { .. }
         | Request::ForgeKept { .. }
         | Request::ForgeRemoved { .. }
@@ -441,6 +443,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ListDemoActs
         | Request::SendDemoAct(_)
         | Request::DemoStart { .. }
+        | Request::PlaygroundStart { .. }
         | Request::Settled { .. }
         | Request::ForgeKept { .. }
         | Request::ForgeRemoved { .. }
@@ -514,6 +517,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ListDemoActs
         | Request::SendDemoAct(_)
         | Request::DemoStart { .. }
+        | Request::PlaygroundStart { .. }
         | Request::Settled { .. }
         | Request::ForgeKept { .. }
         | Request::ForgeRemoved { .. }

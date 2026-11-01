@@ -58,6 +58,10 @@ pub struct Domain {
     pub(crate) forge: forge::Domain,
     pub(crate) application: Option<(Token, crate::Application)>,
     pub(crate) application_carried: Option<jig_domain_core::Carried>,
+    pub(crate) application_playground: Option<crate::route::playground::Context>,
+    pub(crate) playground_contexts: Map<Token, crate::route::playground::Context>,
+    pub(crate) playground_start: Option<crate::route::playground::Start>,
+    pub(crate) playground_reply: Option<(Token, crate::route::playground::Phase)>,
     pub(crate) application_demo: Option<crate::route::demo::Context>,
     pub(crate) demo_contexts: Map<Token, crate::route::demo::Context>,
     pub(crate) demo_start: Option<crate::route::demo::Start>,
@@ -411,6 +415,10 @@ impl Domain {
             forge,
             application: None,
             application_carried: None,
+            application_playground: None,
+            playground_contexts: Map::with_capacity(limits.forge.applications),
+            playground_start: None,
+            playground_reply: None,
             application_demo: None,
             demo_contexts: Map::with_capacity(limits.forge.applications),
             demo_start: None,
@@ -959,6 +967,7 @@ pub(crate) fn fire_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Queu
         forge_route::outputs(domain, env, &mut decision, &mut forge_out);
     }
     crate::route::demo::progress(domain, env, &mut decision);
+    crate::route::playground::progress(domain, env, &mut decision);
     route_into(domain, env, &mut decision);
     if domain.ready() {
         if !domain.core.stopping()
