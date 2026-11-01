@@ -5,7 +5,8 @@ use temper_client_protocol_wire::{self as wire, v1 as w};
 const DEMO_SOURCE: u64 = 1;
 
 fn enqueue(clients: &mut Clients) {
-    let requesting = w::Requesting::new(&w::CEILINGS, w::RequestingParts { request: w::Request::StartDemo }).unwrap();
+    let requesting =
+        w::Requesting::new(&w::CEILINGS, w::RequestingParts { request: w::Request::StartPlayground }).unwrap();
     clients.out.push(kit::Request::Application(kit::ToApplication::Request {
         reply_to: skein_lib::ReplyTo::new(Token::new(91)),
         sign_in: 1,

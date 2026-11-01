@@ -514,10 +514,10 @@ fn demo_change_page(demo_forge: u16, ended: bool) {
     let mut cues = skein_lib::List::with_capacity(1);
     cues.push(b"Change the title".as_slice().into()).expect("one cue");
     world.front().demo = Some(
-        w::DemoAnswer::new(
+        w::PlaygroundAnswer::new(
             &w::CEILINGS,
-            w::DemoAnswerParts {
-                state: if ended { w::DemoState::Ended } else { w::DemoState::Running },
+            w::PlaygroundAnswerParts {
+                state: if ended { w::PlaygroundState::Resetting } else { w::PlaygroundState::Running },
                 project: 1,
                 forge: demo_forge,
                 provider: 17,

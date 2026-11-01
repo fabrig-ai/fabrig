@@ -82,7 +82,10 @@ impl Harness {
             w::Request::Adopt(adopt) => adopt,
             w::Request::Return(_)
             | w::Request::SetUp(_)
-            | w::Request::StartDemo
+            | w::Request::MakeForge(_)
+            | w::Request::RemoveForge(_)
+            | w::Request::EndPlayground
+            | w::Request::StartPlayground
             | w::Request::Accept(_)
             | w::Request::Reachable(_)
             | w::Request::Connect(_)

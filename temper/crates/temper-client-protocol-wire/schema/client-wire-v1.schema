@@ -15,7 +15,6 @@ record NewProject { name: bytes 1024 }
 enum SetUpProject { existing: ExistingProject, new: NewProject }
 record SetUp { forge: u16 org: bytes 1024 repository: bytes 1024 project: SetUpProject playground: bool }
 record Return { source: u32 path: bytes 512 }
-# start_demo: the demo document's start (client/README.md, 4.6; protocol/setup.md, 8.4).
 record GitHubApp { id: u64 }
 record GitHubManifest { back: option bytes 512 }
 record FirstAsk { org: bytes 1024 repository: bytes 1024 project: SetUpProject label: bytes 64 }
@@ -25,7 +24,14 @@ record Connect { forge: u16 how: How }
 record Install { forge: u16 back: option bytes 512 }
 record Reachable { forge: u16 installation: option u64 page: u32 }
 record Accept { forge: u16 installation: u64 }
-enum Request { adopt: Adopt, set_up: SetUp, start_demo, return_: Return, connect: Connect, install: Install, reachable: Reachable, accept: Accept }
+# make_forge: a forge made by its kind, then set up or connected by its number
+# (temper/docs/design/draft/playground-reset.md, section 3).
+record ForgejoChoice { api: text 259 git: text 1024 web: option text 1024 }
+enum ForgeChoice { owned, github, forgejo: ForgejoChoice }
+record MakeForge { choice: ForgeChoice }
+# remove_forge: a forge removed whole (draft playground-reset.md, section 4).
+record RemoveForge { forge: u16 }
+enum Request { adopt: Adopt, set_up: SetUp, start_playground, return_: Return, connect: Connect, install: Install, reachable: Reachable, accept: Accept, make_forge: MakeForge, remove_forge: RemoveForge, end_playground }
 versioned record Requesting { request: Request }
 enum SetUpRefusal { not_offered, not_under_the_box, busy, new_project, invalid }
 record SetUpRefused { why: SetUpRefusal }
@@ -34,7 +40,7 @@ record StartRefused { why: StartRefusal }
 record GroupFailed { why: bytes 256 }
 enum StartFailure { group: GroupFailed, account, adoption, not_connected }
 record StartFailed { why: StartFailure }
-enum DemoState { not_started, running, ended }
+enum PlaygroundState { not_started, running, resetting }
 
 
 # The deployment's forges, in number order (client/README.md, 4.6).
@@ -67,11 +73,12 @@ record OwnedForge { forgejo: bytes 64 runner: option bytes 64 password: bytes 51
 record ForgeRow { number: u16 kind: Kind mode: Mode connection: Connection offer: Offer first: option FirstRepository installations: list 64 Installation ended: option ConnectStopped app: option AppWay web: option bytes 2048 repositories: list 16 Adoption owned: option OwnedForge admin: bool ended_stop: option AdminStop read_only: bool }
 versioned record Forges { forges: list 16 ForgeRow }
 
-# The family's read name and its demo answer (client/README.md, 4.6).
-# No demo is the read's empty answer, with no record.
-enum Read { demo }
+enum Read { playground }
 versioned record Reading { read: Read }
-versioned record DemoAnswer { project: u32 forge: u16 provider: u32 owner: bytes 1024 name: bytes 1024 state: DemoState cues: list 8 text 256 }
+# The family's read name and the playground's answer (client/README.md, 4.6;
+# temper/docs/design/draft/playground-reset.md, 6.1). No playground offered is
+# the read's empty answer, with no record.
+versioned record PlaygroundAnswer { project: u32 forge: u16 provider: u32 owner: bytes 1024 name: bytes 1024 state: PlaygroundState cues: list 8 text 256 }
 
 # A change's watched panel (client/README.md, 4.6; client/forge.md, 9.2).
 record ChangeSubject { task: u64 }
@@ -127,5 +134,6 @@ record Page { rows: list 100 Reached more: bool }
 # unknown: the outcome's retention ended (02.2's Delivery::Application
 # outcome None; client/README.md, 4.7, "unknown past the retention").
 record AcceptedInstallation { installation: u64 }
-enum Outcome { adopted: Adopted, core_refused: CoreRefused, forge_refused: ForgeRefused, unknown, setting_up, set_up_refused: SetUpRefused, running, start_refused: StartRefused, start_failed: StartFailed, returning, connecting, link: Link, connect_refused: ConnectRefused, page: Page, accepted: AcceptedInstallation }
+record MadeForge { forge: u16 }
+enum Outcome { adopted: Adopted, core_refused: CoreRefused, forge_refused: ForgeRefused, unknown, setting_up, set_up_refused: SetUpRefused, running, start_refused: StartRefused, start_failed: StartFailed, returning, connecting, link: Link, connect_refused: ConnectRefused, page: Page, accepted: AcceptedInstallation, made: MadeForge, full, not_offered, removing, playground, reset }
 versioned record Answer { outcome: Outcome }
