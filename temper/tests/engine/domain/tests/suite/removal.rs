@@ -81,6 +81,8 @@ fn live(seed: u64, granted: bool) -> Story {
     assert_eq!(live_task(&world.store, change).requester, tasks::Party::Task(chat.task));
     let mut limits = world.env.limits;
     limits.people.act_grants = 1;
+    // Both absence checks keep their Say and adoption-refusal answers across the restart.
+    limits.people.requests = 8;
     world.store.seed(
         Box::new([Record::Forge {
             row: Box::new(forge::Stored::Writer(skein_forge_client::Writer { forge: FORGE, author: 1 })),
@@ -469,19 +471,6 @@ fn assert_absent(story: &mut Story, key: u8) {
         .expect("repository readable by its retained tag");
     assert_eq!(historical.owner.as_ref(), b"org");
     assert_eq!(historical.name.as_ref(), b"repo");
-    assert!(
-        !rows.iter().any(|row| matches!(
-            row,
-            forge::Stored::Forge(_)
-                | forge::Stored::Writer(_)
-                | forge::Stored::Flight { .. }
-                | forge::Stored::KeptAct(_)
-                | forge::Stored::Subscription(_)
-                | forge::Stored::Entry { .. }
-                | forge::Stored::Client(_)
-        )),
-        "remaining forge rows: {rows:?}"
-    );
     assert_repository_rows(&rows);
     d.delivered.clear();
     d.send(engine::Event::Party(engine::PartyInput::Watch {
@@ -521,6 +510,7 @@ fn assert_absent(story: &mut Story, key: u8) {
     let chat = d.last_assignment();
     assert_eq!(chat.task, story.chat, "the chat stays open for its next run");
     assert!(chat.workspace.repositories.is_empty(), "the project's repository list is empty");
+    assert!(chat.grants.iter().all(|grant| grant.form != jig_domain_accounts::Form::Application));
     d.call(
         Token::new(7),
         chat.task,
@@ -540,6 +530,7 @@ fn assert_absent(story: &mut Story, key: u8) {
         matches!(d.answered(u64::from(key)), Some(engine::CallAnswer::ReadRepositoryRefused { repositories, .. }) if repositories.is_empty()),
         "no project repository is offered to the chat"
     );
+    park(d, &chat);
     application(d, forge::Ask::Adopt(fixtures::adoption(1)), Token::new(221), key + 2);
     d.pump();
     assert!(d.delivered.iter().any(|delivery| matches!(delivery,
@@ -547,11 +538,44 @@ fn assert_absent(story: &mut Story, key: u8) {
             if *reply_to == ReplyTo::new(Token::new(221)))));
 }
 
+fn park(d: &mut Driver, chat: &engine::Assignment) {
+    let read = chat.messages.last().map(|word| word.number);
+    d.send(protocol::turn(Token::new(7), chat.task, chat.attempt, 1, 0, read, b"Forge is no longer connected"));
+    d.pump();
+    let mut event =
+        d.answer_event(Token::new(7), chat.task, chat.attempt, 0, tasks::End::Parked, engine::Parts::none());
+    let engine::Event::Worker(engine::WorkerInput::Link {
+        link: engine::Link::Up { up: jig_domain_host::LinkUp::Answer { answer, .. }, .. },
+        ..
+    }) = &mut event
+    else {
+        unreachable!("worker answer")
+    };
+    answer.read = read.map(Token::new);
+    answer.turns = 1;
+    d.send(event);
+    d.pump();
+    assert!(matches!(d.task(chat.task).expect("open chat").phase, tasks::Phase::Active(tasks::Active::Idle)));
+}
+
 fn assert_repository(name: &forge::Name) {
     assert_eq!((name.forge, name.repository), (REPOSITORY.forge, REPOSITORY.repository));
 }
 
 fn assert_repository_rows(rows: &[forge::Stored]) {
+    assert!(
+        !rows.iter().any(|row| matches!(
+            row,
+            forge::Stored::Forge(_)
+                | forge::Stored::Writer(_)
+                | forge::Stored::Flight { .. }
+                | forge::Stored::KeptAct(_)
+                | forge::Stored::Subscription(_)
+                | forge::Stored::Entry { .. }
+                | forge::Stored::Client(_)
+        )),
+        "remaining forge rows: {rows:?}"
+    );
     for row in rows {
         match row {
             forge::Stored::Hold(row) => assert_repository(&row.name),
