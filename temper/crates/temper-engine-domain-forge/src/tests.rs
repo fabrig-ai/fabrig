@@ -11,6 +11,7 @@ mod connect;
 mod demo;
 mod fixtures;
 mod flight;
+mod kept;
 #[path = "tests/landing.rs"]
 mod landing_routes;
 mod limits;
@@ -24,7 +25,6 @@ mod restore_fit;
 mod runs;
 mod seed;
 mod stopping;
-mod surface;
 mod views;
 use alloc::boxed::Box;
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
@@ -2279,4 +2279,14 @@ fn release_failed(requests: &[Request], task: u64) -> bool {
         }
     }
     false
+}
+
+#[test]
+fn release_answers_project_released_at_once() {
+    let mut d = domain();
+    let request = Token::new(71);
+    assert_eq!(
+        outputs(&mut d, Event::ReleaseProject { request, project: 5 }).as_ref(),
+        &[Request::ProjectReleased { request, project: 5 }],
+    );
 }
