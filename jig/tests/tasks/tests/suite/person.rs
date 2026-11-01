@@ -221,10 +221,10 @@ fn person_stall_news_and_the_result_keep_room_before_ordinary_words() {
     parent.wake.news = tasks::WakeRule::Never;
     assert_eq!(world.make(Party::Person(9), vec![parent]), Reply::Made(vec![1]));
     world.claim_fresh(1);
-    assert_eq!(world.terminal(1, tasks::End::Parked), Reply::Acknowledged(tasks::Accepted::New));
     let mut person = task(2, &[]);
     person.executor = Executor::Person(PersonAddress::Person(10));
     assert_eq!(world.make(Party::Task(1), vec![person]), Reply::Made(vec![2]));
+    assert_eq!(world.terminal(1, tasks::End::Parked), Reply::Acknowledged(tasks::Accepted::New));
     let got = response(&mut world, |reply_to| Event::Message {
         reply_to,
         project: 1,

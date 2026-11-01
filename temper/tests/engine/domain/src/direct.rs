@@ -409,23 +409,40 @@ impl Driver {
         Self::configured_chat([config(91), config(91)], &limits())
     }
 
+    /// A standing chat that parks until its requester speaks again.
+    #[must_use]
+    pub fn open_chat() -> (Driver, engine::Assignment) {
+        Self::chat_ending([config(91), config(91)], &limits(), people::EndedBy::Requester)
+    }
+
     /// A chat with the story's bounded configuration.
     #[must_use]
     pub fn configured_chat(
         configuration: [engine::Config; 2],
         bounds: &engine::Limits,
     ) -> (Driver, engine::Assignment) {
+        Self::chat_ending(configuration, bounds, people::EndedBy::Result)
+    }
+
+    fn chat_ending(
+        configuration: [engine::Config; 2],
+        bounds: &engine::Limits,
+        ended_by: people::EndedBy,
+    ) -> (Driver, engine::Assignment) {
         let mut driver = Driver::configured(Store::new(), configuration, bounds);
         driver.hello(Token::new(7));
         driver.settle();
         driver.sign_in();
         driver.settle();
+        let mut ask = driver.chat_ask(1, crate::walking_referee::QUESTION);
+        let people::Ask::Create { batch, .. } = &mut ask else { panic!("chat creation") };
+        batch[0].flags.ended_by = ended_by;
         driver.send(engine::Event::Party(engine::PartyInput::Ask {
             models: Box::new([]),
             reply_to: ReplyTo::new(Token::new(1001)),
             sign_in: driver.session(),
             key: [31; 16],
-            ask: driver.chat_ask(1, crate::walking_referee::QUESTION),
+            ask,
         }));
         driver.settle();
         let assignment = driver.last_assignment();

@@ -1485,3 +1485,28 @@ fn a_deletion_row_round_trips_at_each_step() {
     *oversized.get_mut(6).expect("project high word") = 1;
     assert_eq!(crate::keys::decode(&oversized), None);
 }
+
+#[test]
+fn a_nothing_awaited_notice_survives_storage_with_small_caller_limits() {
+    use jig_domain_tasks::{ActivityLine, Line, MessageKind, Party, Stored, Word};
+    let domain =
+        jig_domain_tasks::Limits { message_bytes: 16, result_bytes: 32, inbox_bytes: 32, ..fixtures::TASKS_LIMITS };
+    let words = b"Nothing more will come: your delegates have ended and no question waits. Finish with your result.";
+    let limits = crate::codec::tasks::limits(&domain).expect("fixed notice slot fits");
+    let row = Stored::Activity(ActivityLine {
+        task: 1,
+        position: 1,
+        at: skein_lib::Wall::EPOCH,
+        line: Line::Heard(Word {
+            number: 1,
+            from: Party::Task(1),
+            kind: MessageKind::NothingAwaited,
+            words: words.as_slice().into(),
+            at: skein_lib::Wall::EPOCH,
+            hits: 1,
+            eligible: true,
+        }),
+    });
+    let bytes = crate::codec::tasks::encode(&row, &limits, &[]).expect("fixed notice fits");
+    assert_eq!(crate::codec::tasks::decode(&bytes, &limits, &[]), Ok(row));
+}

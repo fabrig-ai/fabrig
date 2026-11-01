@@ -91,6 +91,7 @@ impl CompoundTask<'_> {
                 | crate::MessageKind::Met { .. }
                 | crate::MessageKind::QuestionAnswered { .. }
                 | crate::MessageKind::QuestionOwed
+                | crate::MessageKind::NothingAwaited
                 | crate::MessageKind::QuestionEnded { .. }
                 | crate::MessageKind::SettingsDecision { .. }
                 | crate::MessageKind::ProposalDecision { .. }

@@ -15,17 +15,27 @@ use alloc::boxed::Box;
 use jig_domain_tasks as domain;
 use skein_lib::{Reader, Writer};
 
-// Fixed internal words use the existing inbox byte envelope; caller
-// words and result words retain their admission bounds (domain/tasks.md, 5.7).
+// Fixed nothing-awaited words share the met slot; the question reminder uses
+// the inbox envelope. Caller words keep their bounds (domain/tasks.md, 5.2 and 5.7).
 fn word_bytes(domain: &domain::Limits) -> u32 {
-    domain.message_bytes.max(domain.result_bytes).max(
-        domain.inbox_bytes.min(
+    domain
+        .message_bytes
+        .max(domain.result_bytes)
+        .max(
             u32::try_from(
-                b"You owe your requester a question: ask your plan with message, as a question, and wait.".len(),
+                b"Nothing more will come: your delegates have ended and no question waits. Finish with your result."
+                    .len(),
             )
-            .expect("fixed reminder length"),
-        ),
-    )
+            .expect("fixed nothing-awaited notice length"),
+        )
+        .max(
+            domain.inbox_bytes.min(
+                u32::try_from(
+                    b"You owe your requester a question: ask your plan with message, as a question, and wait.".len(),
+                )
+                .expect("fixed reminder length"),
+            ),
+        )
 }
 
 /// Translate the tasks child's bounds, refusing any schema ceiling.

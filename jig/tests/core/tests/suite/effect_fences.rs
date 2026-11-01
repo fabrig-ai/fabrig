@@ -260,7 +260,7 @@ fn every_connector_must_acknowledge_closure_and_duplicates_cannot_replace_a_miss
 fn a_conflicting_late_terminal_cannot_replace_an_already_committed_answer() {
     let mut world = World::new(Setup { seed: 131, ..Setup::default() });
     let key = world.call_key(1);
-    world.end(tasks::End::Parked, 0);
+    world.park_for_message(0);
     let (mut core, env) = recovered(&world, 131, false);
     let mut outputs = core::step(
         &mut core,

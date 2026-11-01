@@ -29,6 +29,21 @@ fn a_parked_producers_existing_change_waits_for_its_resumed_terminal_to_commit()
     let tag = forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository);
     let saved_branch = format!("temper/{}/s{}", live_task(&world, producer.task).root, producer.task).into_bytes();
     world.external(2, raw::Op::Git(raw::Git::Create { branch: saved_branch.clone().into(), commit: pushed }));
+    let timer = world.protocol.call(
+        Token::new(7),
+        producer.task,
+        producer.attempt,
+        u64::MAX,
+        engine::Call {
+            completion: u32::MAX,
+            position: 1,
+            tool: engine::Tool::Subscribe {
+                kind: tasks::SubscriptionKind::Timer { at: skein_lib::Wall::from_nanos(u64::MAX), period: None },
+            },
+        },
+    );
+    world.send(timer);
+    world.until(Until::Ready);
     let parked = world.protocol.answer(
         Token::new(7),
         producer.task,

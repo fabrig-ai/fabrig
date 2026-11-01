@@ -18,7 +18,7 @@ fn a_party_watching_a_chat_sees_each_phase_after_its_commit() {
     let Document::Task(task) = latest(&world, 2) else { panic!("task page") };
     assert!(matches!(task.chip.phase, PhaseLine::Active(tasks::Active::Running { .. })));
     world.store_delay = 4;
-    world.end(tasks::End::Parked, 0);
+    world.park_for_message(0);
     let Document::Task(task) = latest(&world, 2) else { panic!("idle page") };
     assert_eq!(task.chip.phase, PhaseLine::Active(tasks::Active::Idle));
     world.say(70);
@@ -38,7 +38,7 @@ fn a_slow_watcher_of_a_tree_sees_fewer_deliveries_and_the_last_state() {
     for turn in 2..=4 {
         world.turn(turn, u64::from(turn), None, b"later");
     }
-    world.end(tasks::End::Parked, 4);
+    world.park_for_message(4);
     world.send(root::Event::Core(core::Event::Delivered { watcher: Token::new(3) }));
     let watches = world.watches.as_ref().expect("watches");
     let slow = watches.deliveries.iter().filter(|(watcher, _, _)| *watcher == 3).count();

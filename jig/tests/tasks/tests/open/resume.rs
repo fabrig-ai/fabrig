@@ -55,6 +55,21 @@ fn resumed(w: &World, expected: Resume, replies: &[ReplyHint]) {
 fn twins(resume: impl Fn(&mut World), expected: Resume, wake: fn(&mut World)) {
     for (flags, finish) in [(OPEN, Finish::Parks), (FINITE, Finish::Ends)] {
         let mut w = claimed(flags);
+        // The finite twin awaits its own timer when it parks.
+        if flags == FINITE {
+            let reply_to = w.to();
+            w.send(Event::Subscribe {
+                reply_to,
+                task: CHAT,
+                subscription: jig_domain_tasks::Subscription {
+                    number: 1,
+                    kind: jig_domain_tasks::SubscriptionKind::Timer {
+                        at: skein_lib::Wall::from_nanos(u64::MAX),
+                        period: None,
+                    },
+                },
+            });
+        }
         commit_turn(&mut w, FIRST_ATTEMPT, None);
         let replies = w.record(CHAT).replies.clone();
         let (turn_key, turn) = w

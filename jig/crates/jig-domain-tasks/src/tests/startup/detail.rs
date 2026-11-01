@@ -421,6 +421,15 @@ fn inbox_payloads_and_separate_reserved_lanes_keep_the_live_key() {
         (crate::MessageKind::Result(crate::ResultKind::Report), 33, bound(B::ResultBytes, 33, 32)),
         (crate::MessageKind::Met { dependency: 9, removed: false }, 1, bound(B::ZeroBytes, 1, 0)),
         (
+            crate::MessageKind::NothingAwaited,
+            crate::run::NOTHING_AWAITED_WORDS.len() + 1,
+            bound(
+                B::ReminderBytes,
+                u64::try_from(crate::run::NOTHING_AWAITED_WORDS.len()).expect("fixed notice") + 1,
+                u64::try_from(crate::run::NOTHING_AWAITED_WORDS.len()).expect("fixed notice"),
+            ),
+        ),
+        (
             crate::MessageKind::QuestionOwed,
             crate::questions::OWED_WORDS.len() + 1,
             bound(
@@ -440,6 +449,9 @@ fn inbox_payloads_and_separate_reserved_lanes_keep_the_live_key() {
     let mut record = row();
     live(&mut record).inbox =
         vec![word(crate::MessageKind::Met { dependency: 9, removed: false }, 0); 2].into_boxed_slice();
+    refused(&mut empty(&LIMITS), record, bound(B::MetSlots, 2, 1));
+    let mut record = row();
+    live(&mut record).inbox = vec![word(crate::MessageKind::NothingAwaited, 0); 2].into_boxed_slice();
     refused(&mut empty(&LIMITS), record, bound(B::MetSlots, 2, 1));
     let mut record = row();
     live(&mut record).inbox = vec![word(crate::MessageKind::Words, 32); 5].into_boxed_slice();

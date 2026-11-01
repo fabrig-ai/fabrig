@@ -102,7 +102,7 @@ fn an_uncertain_effect_across_restarts_is_made_before_its_retry_deadline_and_onc
 fn nothing_is_decided_before_every_connector_has_settled_its_outbox() {
     let mut world = World::new(Setup { seed: 115, ..Setup::default() });
     applied_without_answer(&mut world);
-    world.end(tasks::End::Parked, 0);
+    world.park_for_message(0);
     let mut seeded = Vec::new();
     for record in world.store.rows.values().cloned() {
         let mut record = record;
@@ -137,7 +137,7 @@ fn a_restart_after_a_turn_committed_resumes_from_it() {
     };
     world.restart(116, false);
     hello(&mut world, Box::new([hosted]));
-    world.end(tasks::End::Parked, 3);
+    world.park_for_message(3);
     account(&mut world);
     world.say(90);
     assert_eq!(
@@ -198,7 +198,7 @@ fn an_uncertain_effect_released_without_making_it_again_tells_its_executor() {
     world.restart(119, false);
     let task = world.call_key(1).task;
     applied_without_answer(&mut world);
-    world.end(tasks::End::Parked, 0);
+    world.park_for_message(0);
     world.restart(119, false);
     assert!(world.domain.ready());
     assert!(world.store.rows.values().any(|record| matches!(record, root::Record::Connector { record: connector::Record::Outbox(row), .. } if row.phase==connector::EffectPhase::Held)));
@@ -258,7 +258,7 @@ fn an_uncertain_effect_released_without_making_it_again_tells_its_executor() {
 fn a_refused_claim_keeps_the_conversation_for_the_next_resume() {
     let mut world = World::new(Setup { seed: 120, ..Setup::default() });
     world.turn(1, 1, None, b"durable conversation");
-    world.end(tasks::End::Parked, 1);
+    world.park_for_message(1);
     let assignment = world.assigned.as_ref().expect("first assignment");
     let task = assignment.task;
     let key = root::Key::Core(core::Key::Core(core::CoreKey::RunProof(task)));
@@ -397,7 +397,7 @@ fn a_restart_keeps_the_window_a_turn_opened() {
     let hosted = fleet::Hosting { run: Token::new(task), attempt: Token::new(attempt), phase: fleet::Phase::Active };
     world.restart(125, false);
     hello(&mut world, Box::new([hosted]));
-    world.end(tasks::End::Parked, 2);
+    world.park_for_message(2);
     account(&mut world);
     world.say(92);
     let key = root::Key::Core(core::Key::Core(core::CoreKey::RunProof(task)));
@@ -420,7 +420,7 @@ fn a_restart_between_a_window_turn_and_its_resume_sends_the_window() {
     };
     world.restart(124, false);
     hello(&mut world, Box::new([hosted]));
-    world.end(tasks::End::Parked, 2);
+    world.park_for_message(2);
     account(&mut world);
     world.say(91);
     assert_eq!(
@@ -624,7 +624,7 @@ fn a_generation_renewed_while_the_assignment_is_held_reaches_the_attempt_after_i
 #[test]
 fn a_generation_renewed_before_a_waiting_chat_is_placed_reaches_its_host() {
     let mut world = World::new(Setup { seed: 165, ..Setup::default() });
-    world.end(tasks::End::Parked, 0);
+    world.park_for_message(0);
     world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Lost { channel: Token::new(7) })));
     world.say(99);
     grant_account(&mut world, 1, 2);
@@ -660,7 +660,7 @@ fn a_durable_placed_stop_restores_with_its_task_and_releases_after_restart() {
     let (task, attempt) = world.assignments[0];
     let sign_in = world.sign_in.expect("signed in requester");
     ask_as(&mut world, sign_in, 71, people::Ask::Stop { project: 1, task });
-    world.end(tasks::End::Parked, 0);
+    world.park_for_message(0);
     let hold = live_row(&world, task).placed.expect("placed stop");
     let revision = live_row(&world, task).revisions.hold;
     let key = root::Key::Core(core::Key::Tasks(tasks::Key::PlacedHold(hold)));

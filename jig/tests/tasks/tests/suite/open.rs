@@ -403,7 +403,18 @@ fn a_finish_grace_cancels_an_idle_open_task_at_once() {
     assert_eq!(row.last_reply, 1);
     assert_eq!(row.ended_at, Some(at));
 
-    let mut finite = after_turn(Flags::PLAIN, End::Parked);
+    let mut finite = claimed(Flags::PLAIN);
+    commit_turn(&mut finite, 1, None);
+    let reply_to = finite.to();
+    finite.send(Event::Subscribe {
+        reply_to,
+        task: CHAT,
+        subscription: jig_domain_tasks::Subscription {
+            number: 1,
+            kind: jig_domain_tasks::SubscriptionKind::Timer { at: skein_lib::Wall::from_nanos(u64::MAX), period: None },
+        },
+    });
+    finite.terminal(CHAT, End::Parked);
     let until = skein_lib::Wall::from_nanos(at.as_nanos() + GRACE.as_nanos());
     assert_eq!(control(&mut finite, cancel), Reply::Done);
     assert_eq!(finite.record(CHAT).grace.as_ref().expect("finite grace").until, until);

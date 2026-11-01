@@ -301,6 +301,7 @@ pub(crate) fn key_documents(directory: &Path) -> std::io::Result<()> {
     config["engine"]["limits"]["overrides"]["authority.projects"] = 2.into();
     // Each project needs its period and the owner's pool in the tasks ledger.
     config["engine"]["limits"]["overrides"]["tasks.funders"] = 4.into();
+    config["world_settings"]["requester"] = true.into();
     private(&config_path, &serde_json::to_vec(&config)?)?;
     private(&path, &serde_json::to_vec(&agent)?)
 }
@@ -368,7 +369,11 @@ pub fn listed(value: &mut serde_json::Value) {
 }
 pub(crate) fn finish_configuration(directory: &Path, value: &mut serde_json::Value) -> std::io::Result<()> {
     stock_document(value);
-    let flags = value.as_object_mut().expect("configuration").remove("world_settings").unwrap_or(serde_json::json!({}));
+    let mut flags =
+        value.as_object_mut().expect("configuration").remove("world_settings").unwrap_or(serde_json::json!({}));
+    if directory.join("standing-chats").exists() {
+        flags["requester"] = true.into();
+    }
     private(&directory.join("world-settings.json"), &serde_json::to_vec(&flags)?)?;
     private(&directory.join("temper.json"), &serde_json::to_vec(value)?)
 }
@@ -511,6 +516,19 @@ pub fn own_defaults(deployment: &serde_json::Value, flags: &serde_json::Value) -
         crate::case::defaults::apply(&mut defaults, flags, stock_period_spend);
     }
     temper_service::stock::Given::Own(Box::new(defaults))
+}
+
+/// Keep the fixture's other settings while making its chats standing.
+pub fn standing_chats(directory: &Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(directory)?;
+    private(&directory.join("standing-chats"), b"")?;
+    let path = directory.join("world-settings.json");
+    if path.exists() {
+        let mut flags: serde_json::Value = serde_json::from_slice(&std::fs::read(&path)?)?;
+        flags["requester"] = true.into();
+        private(&path, &serde_json::to_vec(&flags)?)?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]

@@ -1965,7 +1965,9 @@ fn a_chat_made_before_its_home_was_adopted_reads_the_home_and_says_why() {
     world.send(protocol::hello_slots(Token::new(7), 2, Box::new([])));
     let mut chats = Vec::new();
     for key in [94, 95] {
-        let ask = adoption_chat(&world);
+        let mut ask = adoption_chat(&world);
+        let people::Ask::Create { batch, .. } = &mut ask else { panic!("chat creation") };
+        batch[0].flags.ended_by = people::EndedBy::Requester;
         let assignment = assigned_chat(&mut world, key, ask);
         assert!(live_task(&world, assignment.task).holdings.is_empty(), "no home exists to hold");
         assert!(

@@ -90,6 +90,7 @@ pub(in crate::codec) fn wire_message_kind(
 ) -> Result<w::MessageKind, w::Problem> {
     Ok::<_, w::Problem>(match value {
         c::MessageKind::QuestionOwed => w::MessageKind::QuestionOwed,
+        c::MessageKind::NothingAwaited => w::MessageKind::NothingAwaited,
         c::MessageKind::SettingsDecision { proposal, outcome } => {
             w::MessageKind::SettingsDecision(w::MessageKindSettingsDecision::new(
                 limits,

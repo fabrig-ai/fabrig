@@ -29,7 +29,13 @@ pub enum Scenario {
     ReadOnly,
     Delivered,
 }
-thread_local! { static ACTIVE: Cell<bool> = const { Cell::new(false) }; }
+thread_local! {
+    static ACTIVE: Cell<bool> = const { Cell::new(false) };
+    static WAITING: Cell<bool> = const { Cell::new(false) };
+}
+pub(crate) fn waiting() -> bool {
+    active() && WAITING.with(Cell::get)
+}
 pub(crate) fn active() -> bool {
     ACTIVE.with(Cell::get)
 }
@@ -423,6 +429,7 @@ impl skein_world::Referee<Proc> for Judge {
 /// Exercise installation scope, checkout and the authenticated git route on simulated sockets/files.
 pub fn run(scenario: Scenario) {
     ACTIVE.with(|active| active.set(true));
+    WAITING.with(|waiting| waiting.set(matches!(scenario, Scenario::ReadOnly)));
     stories::set(Story::Adopt);
     stories::setup_settings(world::Phase::Story);
     let store = Rc::new(RefCell::new(Store::new()));

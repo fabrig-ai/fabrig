@@ -383,14 +383,14 @@ impl World {
                     &mut self.out,
                 );
             }
-            Request::QuestionOwedDue { task } => {
+            Request::QuestionOwedDue { task } | Request::NothingAwaitedDue { task } => {
                 self.message = self.message.checked_add(1).expect("reminder number room");
-                tasks::step(
-                    &mut self.domain,
-                    &self.env,
-                    Event::QuestionOwedNotice { task: *task, message: self.message },
-                    &mut self.out,
-                );
+                let event = if matches!(request, Request::QuestionOwedDue { .. }) {
+                    Event::QuestionOwedNotice { task: *task, message: self.message }
+                } else {
+                    Event::NothingAwaitedNotice { task: *task, message: self.message }
+                };
+                tasks::step(&mut self.domain, &self.env, event, &mut self.out);
             }
             Request::QuestionEndedDue { task, questions } => self.question_ended(*task, questions),
             Request::MetDue { task, dependency, removed, by } => {
@@ -568,6 +568,7 @@ impl World {
             | Event::Unsubscribe { .. }
             | Event::MetNotice { .. }
             | Event::QuestionOwedNotice { .. }
+            | Event::NothingAwaitedNotice { .. }
             | Event::QuestionEndedNotice { .. }
             | Event::CancelQuestion { .. }
             | Event::PersonStallNotice { .. }
@@ -582,7 +583,9 @@ impl World {
             Event::DecideSettingsProposal { decision, .. } => {
                 self.message = self.message.max(decision.message);
             }
-            Event::Amend { message, .. } | Event::QuestionOwedNotice { message, .. } => {
+            Event::Amend { message, .. }
+            | Event::QuestionOwedNotice { message, .. }
+            | Event::NothingAwaitedNotice { message, .. } => {
                 self.message = self.message.max(*message);
             }
             Event::Message { word, .. }
@@ -820,6 +823,7 @@ impl World {
                 | Request::Relay { .. }
                 | Request::MetDue { .. }
                 | Request::QuestionOwedDue { .. }
+                | Request::NothingAwaitedDue { .. }
                 | Request::QuestionEndedDue { .. }
                 | Request::PersonStallDue { .. }
                 | Request::Notify { .. }
@@ -915,6 +919,7 @@ impl World {
                 | Request::Relay { .. }
                 | Request::MetDue { .. }
                 | Request::QuestionOwedDue { .. }
+                | Request::NothingAwaitedDue { .. }
                 | Request::QuestionEndedDue { .. }
                 | Request::PersonStallDue { .. }
                 | Request::Notify { .. }

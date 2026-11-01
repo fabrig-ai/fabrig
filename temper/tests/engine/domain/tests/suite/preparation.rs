@@ -29,7 +29,7 @@ fn transcript_in_flight(driver: &mut Driver, task: u64) -> Token {
 // read's answer then belongs to none (jig's `examples/ops/domain/src/restart.rs`).
 #[test]
 fn a_transcript_read_landing_after_a_message_ended_its_preparation_is_dropped() {
-    let (mut driver, first) = Driver::chat();
+    let (mut driver, first) = Driver::open_chat();
     driver.send(protocol::turn(Token::new(7), first.task, first.attempt, 1, 1, None, b"first"));
     driver.settle();
     driver.answer(Token::new(7), first.task, first.attempt, 1, tasks::End::Parked, engine::Parts::none());

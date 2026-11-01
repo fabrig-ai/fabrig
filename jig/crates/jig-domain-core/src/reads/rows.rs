@@ -736,6 +736,7 @@ fn object(
                     | tasks::MessageKind::Met { .. }
                     | tasks::MessageKind::QuestionAnswered { .. }
                     | tasks::MessageKind::QuestionOwed
+                    | tasks::MessageKind::NothingAwaited
                     | tasks::MessageKind::QuestionEnded { .. }
                     | tasks::MessageKind::FinishRequested { .. }
                     | tasks::MessageKind::Amendment { .. }

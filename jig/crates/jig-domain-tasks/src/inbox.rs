@@ -29,7 +29,7 @@ fn merge_key(kind: &MessageKind) -> Option<(u8, u64)> {
         | MessageKind::Timer { subscription }
         | MessageKind::News { subscription, .. } => Some((1, *subscription)),
         MessageKind::Amendment { .. } => Some((0, 0)),
-        MessageKind::Met { .. } => Some((2, 0)),
+        MessageKind::Met { .. } | MessageKind::NothingAwaited => Some((2, 0)),
         MessageKind::QuestionOwed => Some((3, 0)),
         MessageKind::FinishRequested { .. }
         | MessageKind::EffectNotMade { .. }
@@ -135,6 +135,7 @@ pub(crate) fn prepare_staged(
                 | MessageKind::Met { .. }
                 | MessageKind::QuestionAnswered { .. }
                 | MessageKind::QuestionOwed
+                | MessageKind::NothingAwaited
                 | MessageKind::QuestionEnded { .. }
                 | MessageKind::News { class: NewsClass::Kept | NewsClass::Dropped, .. } => {}
             }
@@ -197,7 +198,10 @@ pub(crate) fn room_staged(
     let mut extra_bytes = 0_usize;
     for word in record.inbox {
         match word.kind {
-            MessageKind::Amendment { .. } | MessageKind::FinishRequested { .. } | MessageKind::Met { .. } => {
+            MessageKind::Amendment { .. }
+            | MessageKind::FinishRequested { .. }
+            | MessageKind::Met { .. }
+            | MessageKind::NothingAwaited => {
                 extra_count = extra_count.checked_add(1).expect("bounded merged slots");
                 extra_bytes = extra_bytes.checked_add(word.words.len()).expect("bounded amendment bytes");
             }
@@ -331,6 +335,7 @@ pub(crate) fn check_message(
         | MessageKind::Met { .. }
         | MessageKind::QuestionAnswered { .. }
         | MessageKind::QuestionOwed
+        | MessageKind::NothingAwaited
         | MessageKind::QuestionEnded { .. }
         | MessageKind::SettingsDecision { .. }
         | MessageKind::ProposalDecision { .. }
@@ -443,6 +448,7 @@ pub(crate) fn check_message(
         | MessageKind::Met { .. }
         | MessageKind::QuestionAnswered { .. }
         | MessageKind::QuestionOwed
+        | MessageKind::NothingAwaited
         | MessageKind::QuestionEnded { .. }
         | MessageKind::SettingsDecision { .. }
         | MessageKind::ProposalDecision { .. }
@@ -588,6 +594,7 @@ pub(crate) fn delegate_result(
         | MessageKind::Met { .. }
         | MessageKind::QuestionAnswered { .. }
         | MessageKind::QuestionOwed
+        | MessageKind::NothingAwaited
         | MessageKind::QuestionEnded { .. }
         | MessageKind::Question
         | MessageKind::Answer { .. }

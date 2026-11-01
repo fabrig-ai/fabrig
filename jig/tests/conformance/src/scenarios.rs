@@ -447,6 +447,14 @@ impl Continuation {
                 Action::StartStanding => {
                     if self.phase == 0 {
                         let (task, attempt) = parent(world);
+                        world.send(root::Event::Core(core::Event::Tasks(tasks::Event::Subscribe {
+                            reply_to: ReplyTo::new(Token::new(u64::MAX)),
+                            task,
+                            subscription: tasks::Subscription {
+                                number: u64::MAX,
+                                kind: tasks::SubscriptionKind::Timer { at: Wall::from_nanos(u64::MAX), period: None },
+                            },
+                        })));
                         let worker = world
                             .peers
                             .peers

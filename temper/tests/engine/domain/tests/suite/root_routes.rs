@@ -934,12 +934,19 @@ fn hello(driver: &mut Driver) {
 }
 
 fn chat(driver: &mut Driver, key: u8) {
+    chat_ending(driver, key, people::EndedBy::Result);
+}
+
+fn chat_ending(driver: &mut Driver, key: u8, ended_by: people::EndedBy) {
+    let mut ask = driver.chat_ask(1, QUESTION);
+    let people::Ask::Create { batch, .. } = &mut ask else { panic!("chat creation") };
+    batch[0].flags.ended_by = ended_by;
     driver.send(engine::Event::Party(engine::PartyInput::Ask {
         models: Box::new([]),
         reply_to: ReplyTo::new(Token::new(401)),
         sign_in: driver.session(),
         key: [key; 16],
-        ask: driver.chat_ask(1, QUESTION),
+        ask,
     }));
 }
 
@@ -3820,7 +3827,7 @@ fn a_read_fence_takes_only_what_the_run_read() {
 // Waiting words travel in the run's start (jig 0f6041cb).
 #[test]
 fn words_to_a_parked_chat_wake_it() {
-    let (mut driver, assignment) = Driver::chat();
+    let (mut driver, assignment) = Driver::open_chat();
     driver.answer(Token::new(7), assignment.task, assignment.attempt, 0, tasks::End::Parked, engine::Parts::none());
     driver.settle();
     let number = driver.say(assignment.task, 44);
@@ -4394,10 +4401,10 @@ fn a_lost_workers_run_is_placed_on_the_other_worker_past_its_grace() {
     driver.settle();
     driver.sign_in();
     driver.settle();
-    chat(&mut driver, FIRST_CHAT);
+    chat_ending(&mut driver, FIRST_CHAT, people::EndedBy::Requester);
     driver.settle();
     let first = driver.last_assignment();
-    chat(&mut driver, SECOND_CHAT);
+    chat_ending(&mut driver, SECOND_CHAT, people::EndedBy::Requester);
     driver.settle();
     let second = driver.last_assignment();
     assert_ne!(first.task, second.task);
