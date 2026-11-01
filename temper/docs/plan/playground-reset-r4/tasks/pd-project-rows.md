@@ -70,8 +70,12 @@ Neighbours, each edit the line or arm named:
   }` and `Sweep::Proposals` variants, their `admits` arms and their
   test's cases), `lib.rs` (`mod
   project_rows;`, and the field `pub(crate) row_sweeps: Map<Token,
-  reads::Sweep>` beside `erasures`, made in `Core::new` with
-  `Map::with_capacity(limits.authority.projects)`), `tests.rs` (`mod project_rows;`), `erase.rs` (`swept` hands a page whose owner is not
+  project_rows::RowSweep>` beside `erasures` (Answers, 2026-11-01,
+  fourth), made in `Core::new` with
+  `Map::with_capacity(limits.authority.projects)`), `tests.rs` (`mod project_rows;`),
+  `routing/historical.rs` (`route_historical_proposal`'s first lines:
+  a `request` in `row_sweeps` goes to `project_rows::decision_loaded`:
+  Answers, fourth), `erase.rs` (`swept` hands a page whose owner is not
   an erasure's to `project_rows::swept`), the core's per-project maps'
   owners (`funding.rs` periods and boundaries, `Core.permission_roles`,
   `Core.template_overrides`): one removal each;
@@ -104,6 +108,9 @@ Pre-approved:
    /// A notes sweep page of the project's lines.
    pub(crate) fn swept(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Event>,
        owner: Token, rows: Box<[Record]>, more: bool) -> Requests;
+   /// An accepted proposal's archived decision, loaded for its `Update`'s time.
+   pub(crate) fn decision_loaded(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Event>,
+       owner: Token, row: Option<ProposalDecisionRecord>, busy: bool) -> Requests;
    /// `pd-delete` continues the deletion here.
    fn rows_done(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Event>,
        out: &mut Queue<Request>, project: u32);
@@ -121,7 +128,8 @@ Pre-approved:
    `more`; else `Sweep::Recurring { project }` (the archived
    `ClosedLedger(Funder::Recurring { project, .. })` rows), each erased
    by key, again on `more`; else `Sweep::Proposals` (Answers,
-   2026-11-01, third), again on `more`; else `rows_done` (empty but for `// pd-delete continues the
+   2026-11-01, third and fourth), again on `more` once the page's
+   accepted decisions are loaded; else `rows_done` (empty but for `// pd-delete continues the
    project's deletion here.`).
 2. Tests:
    - `jig-domain-tasks` `src/tests/project_gone.rs`:
@@ -137,7 +145,8 @@ Pre-approved:
      `erasing_a_projects_rows_closes_its_ledgers_and_sweeps_its_notes`,
      `a_notes_page_erases_each_line_and_its_entry`,
      `the_last_notes_page_sweeps_the_closed_recurring_ledgers`,
-     `a_proposals_page_erases_only_the_projects_decisions_and_their_updates`.
+     `a_proposals_page_erases_only_the_projects_decisions_and_their_updates`,
+     `an_accepted_proposals_update_goes_at_its_loaded_decision_time`.
 3. Checks: `cargo fmt`; clippy on the four crates; their `--lib`
    tests; `heavy cargo nextest run -p jig-tasks-world`, `-p
    jig-accounts-world`, `-p jig-notes-world`; `heavy cargo nextest run
@@ -208,3 +217,47 @@ family). The edits, in Owns and Steps above:
 - Task-origin proposals live on task records and went with the tasks
   (`pd-erase-task`); hold kinds, resources, pools and writers are keyed
   by name, not project, and stay.
+
+2026-11-01, from this task's question (how does the proposals stage
+find an accepted proposal's decision time, which `Accepted` and
+`SettingsAccepted` do not hold, to key its `Update`?): option A, and
+the stored format stays. Every person proposal is decided by a person
+(`sibling_routes.rs`, `party_decisions.rs`, `routing/tasks.rs` all pass
+`Party::Person`), so each accepted one has its core
+`ProposalDecision` row, whose `at` is the `Update`'s (both are
+`env.wall` of the decision's turn). The load exists:
+`Now::HistoricalProposal { request, person, project, proposer,
+proposal }`, answered as `Event::HistoricalProposal { .., row:
+Option<ProposalDecisionRecord>, busy }` by `jig-protocol-store`'s
+`historical.rs` and every route already; add no `Now` or `Event`.
+
+- `project_rows::RowSweep { sweep: reads::Sweep, waiting:
+  List<Waiting>, more: bool }`, `Waiting { proposer: u64, proposal:
+  u64, first: u64 }` (`first` from `PersonProposal::first()`); the
+  value of `row_sweeps` (lib.rs, Owns), `waiting` empty but in the
+  proposals stage and bounded by the page's row count.
+- A proposals page: each row of the project that is `Rejected` or
+  `Withdrawn` is erased as the third answer says (its `Update`'s `at`
+  from its state; its `DecidedProposal` and core `ProposalDecision`
+  rows by key); each `Accepted` or `SettingsAccepted` one goes into
+  `waiting`, nothing of it erased yet, and `more` is kept. Then, while
+  `waiting` holds one, `out` takes `Now::HistoricalProposal { request:
+  owner, person: proposer, project, proposer:
+  Proposer::Party(proposer), proposal }`, one at a time; else the
+  stage goes on as Steps say.
+- `decision_loaded` (from `route_historical_proposal`, whose first
+  lines hand over a `request` found in `row_sweeps`): `busy` loads the
+  same one again; a row naming the waiting proposal erases its
+  `Update { party: proposer, at: row.at, task: first, object:
+  Proposal { proposal } }` key, the core row and the
+  `DecidedProposal`; no row (none is written for a person's decision,
+  so this is a restored store's gap) erases the `DecidedProposal` and
+  core key alone. Then the next waiting one is loaded, or, none left,
+  the stage sweeps again on `more`, else removes the owner and calls
+  `rows_done`. An owner in neither map is ignored, as `swept` does.
+- Test `an_accepted_proposals_update_goes_at_its_loaded_decision_time`
+  (`jig-domain-core`, `src/tests/project_rows.rs`): a page with one
+  accepted and one rejected proposal of the project and one of another;
+  the rejected one's rows go in the page, one `HistoricalProposal`
+  load leaves, and its answer erases the accepted one's `Update` at
+  the loaded `at`; then `rows_done`'s point is reached.
