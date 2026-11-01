@@ -10,6 +10,7 @@ mod fake_opening;
 mod forge;
 mod forge_land;
 mod github_accept;
+mod groups;
 mod inbox_reply;
 mod relay;
 mod startup;

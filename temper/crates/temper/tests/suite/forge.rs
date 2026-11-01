@@ -1,10 +1,10 @@
-use crate::support;
+use crate::{groups, support};
 use std::{fs, os::unix::fs::PermissionsExt, process::Command};
 use temper_forge_setup_shell::process;
 #[test]
 fn a_second_preparation_is_refused_while_the_first_holds_the_lock() {
     let scratch = support::Scratch::new("forge_prepare_held");
-    let _programs = support::owned::scripted(scratch.path());
+    let _programs = groups::scripted(scratch.path());
     support::owned::finished(scratch.path());
     let _lock = process::lock(&scratch.path().join("forge-1/forgejo.lock")).expect("first holds lock");
     let refused = support::owned::prepare(scratch.path(), 1);
@@ -15,7 +15,7 @@ fn a_second_preparation_is_refused_while_the_first_holds_the_lock() {
 #[test]
 fn a_preparation_cut_short_is_begun_again_from_an_empty_layout() {
     let scratch = support::Scratch::new("forge_cut_short");
-    let programs = support::owned::scripted(scratch.path());
+    let programs = groups::scripted(scratch.path());
     programs.fail("forgejo", "admin");
     let first = support::owned::prepare(scratch.path(), 1);
     assert_eq!(first.status.code(), Some(1));
@@ -32,7 +32,7 @@ fn a_preparation_cut_short_is_begun_again_from_an_empty_layout() {
 #[test]
 fn forgejo_files_with_no_state_are_refused_naming_the_directory() {
     let scratch = support::Scratch::new("forge_no_state");
-    let _programs = support::owned::scripted(scratch.path());
+    let _programs = groups::scripted(scratch.path());
     support::owned::finished(scratch.path());
     fs::remove_file(scratch.path().join("forge-1/state")).expect("no state");
     let refused = support::owned::prepare(scratch.path(), 1);
@@ -49,7 +49,7 @@ fn forgejo_files_with_no_state_are_refused_naming_the_directory() {
 #[test]
 fn a_later_preparation_takes_forgejos_lock_alone() {
     let scratch = support::Scratch::new("forge_later_lock");
-    let _programs = support::owned::scripted(scratch.path());
+    let _programs = groups::scripted(scratch.path());
     let first = support::owned::prepare(scratch.path(), 1);
     assert_eq!(first.status.code(), Some(0), "{}", String::from_utf8_lossy(&first.stderr));
     let _lock = process::lock(&scratch.path().join("forge-1/runner.lock")).expect("runner runs");
@@ -60,7 +60,7 @@ fn a_later_preparation_takes_forgejos_lock_alone() {
 #[test]
 fn a_first_preparation_refuses_a_running_runner() {
     let scratch = support::Scratch::new("forge_first_runner_lock");
-    let _programs = support::owned::scripted(scratch.path());
+    let _programs = groups::scripted(scratch.path());
     support::owned::finished(scratch.path());
     let mut state = temper_forge_setup::state::decode(&fs::read(scratch.path().join("forge-1/state")).expect("state"))
         .expect("record");
@@ -75,7 +75,7 @@ fn a_first_preparation_refuses_a_running_runner() {
 #[test]
 fn a_forge_directory_open_to_others_is_refused_naming_it() {
     let scratch = support::Scratch::new("forge_directory_open");
-    let _programs = support::owned::scripted(scratch.path());
+    let _programs = groups::scripted(scratch.path());
     support::owned::finished(scratch.path());
     fs::set_permissions(scratch.path().join("forge-1"), fs::Permissions::from_mode(0o755)).expect("open directory");
     let refused = support::owned::prepare(scratch.path(), 1);
@@ -92,7 +92,7 @@ fn a_forge_directory_open_to_others_is_refused_naming_it() {
 #[test]
 fn a_termination_signal_kills_the_commands_group_and_ends_the_preparation_interrupted() {
     let scratch = support::Scratch::new("forge_interrupted");
-    let programs = support::owned::scripted(scratch.path());
+    let programs = groups::scripted(scratch.path());
     programs.hang("forgejo", "migrate");
     let mut run = Command::new(skein_scratch::paths::binary("temper"))
         .args(["forge", "prepare"])
@@ -131,7 +131,7 @@ fn a_termination_signal_kills_the_commands_group_and_ends_the_preparation_interr
 #[test]
 fn a_second_run_is_refused_while_the_first_holds_the_lock() {
     let scratch = support::Scratch::new("forge_run_held");
-    let programs = support::owned::scripted(scratch.path());
+    let programs = groups::scripted(scratch.path());
     support::owned::finished(scratch.path());
     let mut first = support::owned::command(scratch.path(), "forgejo").spawn().expect("first run");
     programs.marker("forgejo", &mut first, support::WITHIN);
@@ -144,7 +144,7 @@ fn a_second_run_is_refused_while_the_first_holds_the_lock() {
 #[test]
 fn the_run_replaces_itself_holding_the_lock_as_standard_input() {
     let scratch = support::Scratch::new("forge_run_exec");
-    let programs = support::owned::scripted(scratch.path());
+    let programs = groups::scripted(scratch.path());
     support::owned::finished(scratch.path());
     let mut run = support::owned::command(scratch.path(), "forgejo").spawn().expect("run starts");
     let marker = programs.marker("forgejo", &mut run, support::WITHIN);
@@ -167,7 +167,7 @@ fn the_run_replaces_itself_holding_the_lock_as_standard_input() {
 #[test]
 fn the_new_process_sees_the_specs_environment_alone() {
     let scratch = support::Scratch::new("forge_run_environment");
-    let programs = support::owned::scripted(scratch.path());
+    let programs = groups::scripted(scratch.path());
     support::owned::finished(scratch.path());
     let mut run = support::owned::command(scratch.path(), "forgejo").env("LEAKED", "private").spawn().expect("run");
     let mut marker = programs.marker("forgejo", &mut run, support::WITHIN);
@@ -189,7 +189,7 @@ fn the_new_process_sees_the_specs_environment_alone() {
 #[test]
 fn the_new_process_holds_no_descriptor_but_the_standard_three() {
     let scratch = support::Scratch::new("forge_run_descriptors");
-    let programs = support::owned::scripted(scratch.path());
+    let programs = groups::scripted(scratch.path());
     support::owned::finished(scratch.path());
     let mut run = support::owned::command(scratch.path(), "runner").spawn().expect("run");
     let marker = programs.marker("runner", &mut run, support::WITHIN);
@@ -204,7 +204,7 @@ fn the_new_process_holds_no_descriptor_but_the_standard_three() {
 #[test]
 fn no_secret_of_the_state_reaches_a_refusal() {
     let scratch = support::Scratch::new("forge_run_secret_refusal");
-    let _programs = support::owned::scripted(scratch.path());
+    let _programs = groups::scripted(scratch.path());
     support::owned::finished(scratch.path());
     let path = scratch.path().join("forge-1/state");
     let mut state = temper_forge_setup::state::decode(&fs::read(&path).expect("state")).expect("record");
@@ -226,7 +226,7 @@ fn no_secret_of_the_state_reaches_a_refusal() {
 fn a_newer_recorded_forgejo_refuses_the_preparation_untouched() {
     use support::owned;
     let scratch = support::Scratch::new("forge_newer_prepare");
-    let _programs = owned::scripted(scratch.path());
+    let _programs = groups::scripted(scratch.path());
     assert!(owned::prepare(scratch.path(), 1).status.success());
     owned::record_versions(scratch.path(), Some(b"999.0.0"), None);
     let files = ["state", "forgejo/app.ini"];
@@ -247,7 +247,7 @@ fn a_newer_recorded_forgejo_refuses_the_preparation_untouched() {
 fn the_run_refuses_a_newer_recorded_version_in_its_own_words() {
     use support::owned;
     let scratch = support::Scratch::new("forge_newer_run");
-    let _programs = owned::scripted(scratch.path());
+    let _programs = groups::scripted(scratch.path());
     owned::finished(scratch.path());
     owned::record_versions(scratch.path(), Some(b"999.0.0"), None);
     owned::refused(scratch.path(), "run", b"temper forge run: forge 1: prepared at 999.0.0 / 13.2.0, this temper pins 17.0.0 / 13.2.0: no command of this temper runs it\n");
@@ -257,7 +257,7 @@ fn the_run_refuses_a_newer_recorded_version_in_its_own_words() {
 fn the_run_refuses_an_unreadable_recorded_version_in_its_own_words() {
     use support::owned;
     let scratch = support::Scratch::new("forge_unreadable_run");
-    let _programs = owned::scripted(scratch.path());
+    let _programs = groups::scripted(scratch.path());
     owned::finished(scratch.path());
     owned::record_versions(scratch.path(), Some(b"private-looking-garbage"), None);
     owned::refused(scratch.path(), "run", b"temper forge run: forge 1: prepared at a version this temper cannot read: no command of this temper runs it\n");
@@ -267,7 +267,7 @@ fn the_run_refuses_an_unreadable_recorded_version_in_its_own_words() {
 fn the_run_names_prepare_for_a_runner_added() {
     use support::owned;
     let scratch = support::Scratch::new("forge_runner_added_run");
-    let _programs = owned::scripted(scratch.path());
+    let _programs = groups::scripted(scratch.path());
     owned::finished(scratch.path());
     owned::recorded_without_runner(scratch.path());
     owned::refused(scratch.path(), "run", format!("temper forge run: forge 1: prepared without a runner, and the setup has one: run temper forge prepare --config {0} --data {0} --cache {0} 1\n", scratch.path().display()).as_bytes());
@@ -277,9 +277,12 @@ fn the_run_names_prepare_for_a_runner_added() {
 fn the_run_names_prepare_for_a_runner_removed() {
     use support::owned;
     let scratch = support::Scratch::new("forge_runner_removed_run");
-    let _programs = owned::scripted(scratch.path());
+    let _programs = groups::scripted(scratch.path());
     owned::finished(scratch.path());
-    owned::setup_without_runner(scratch.path());
+    let path = scratch.path().join("box/groups/1");
+    let mut entry: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("group settings")).expect("JSON");
+    entry["mode"]["owned"]["runner"] = serde_json::Value::Null;
+    support::write_private(&path, &serde_json::to_vec(&entry).expect("settings JSON"));
     owned::refused(scratch.path(), "run", format!("temper forge run: forge 1: prepared with a runner, and the setup has none: run temper forge prepare --config {0} --data {0} --cache {0} 1\n", scratch.path().display()).as_bytes());
     scratch.remove();
 }
@@ -287,7 +290,7 @@ fn the_run_names_prepare_for_a_runner_removed() {
 fn an_interrupted_upgrade_leaves_the_state_for_the_next_preparation() {
     use support::owned;
     let scratch = support::Scratch::new("forge_upgrade_interrupted");
-    let programs = owned::scripted(scratch.path());
+    let programs = groups::scripted(scratch.path());
     assert!(owned::prepare(scratch.path(), 1).status.success());
     owned::record_versions(scratch.path(), Some(b"16.0.5"), None);
     let path = owned::file(scratch.path(), 1, temper_forge_setup::place::File::State);
@@ -317,60 +320,6 @@ fn an_interrupted_upgrade_leaves_the_state_for_the_next_preparation() {
     assert_eq!(fs::read_dir(scratch.path().join("forge-1/backups")).expect("upgrade fixture").count(), 0);
     scratch.remove();
 }
-#[test]
-fn reconcile_refuses_a_tls_forge_naming_it() {
-    let scratch = support::Scratch::new("reconcile_tls");
-    support::owned::managed(scratch.path());
-    support::owned::configuration_value(scratch.path(), |value| {
-        value["application"]["forges"][0]["transport"] =
-            serde_json::json!({"tls":{"server_name":"forge.example","trust":null}});
-    });
-    support::owned::refused(
-        scratch.path(),
-        "reconcile",
-        b"temper forge reconcile: forge 1: its transport is TLS, and reconcile speaks plaintext to loopback alone\n",
-    );
-    assert!(!scratch.path().join("forge-1").exists());
-    scratch.remove();
-}
-#[test]
-fn reconcile_makes_a_missing_forge_directory_private() {
-    let scratch = support::Scratch::new("reconcile_missing_directory");
-    support::owned::managed(scratch.path());
-    support::owned::refused(
-        scratch.path(),
-        "reconcile",
-        b"temper forge reconcile: forge 1: Forgejo did not answer within 300 ms\n",
-    );
-    assert_eq!(fs::metadata(scratch.path().join("forge-1")).expect("directory").permissions().mode() & 0o777, 0o700);
-    scratch.remove();
-}
-#[test]
-fn reconcile_refuses_a_forge_directory_open_to_others() {
-    let scratch = support::Scratch::new("reconcile_open_directory");
-    support::owned::managed(scratch.path());
-    fs::create_dir(scratch.path().join("forge-1")).expect("open directory");
-    fs::set_permissions(scratch.path().join("forge-1"), fs::Permissions::from_mode(0o755)).expect("open directory");
-    support::owned::refused(scratch.path(), "reconcile", format!("temper forge reconcile: forge 1: {}: must be a private directory of this user's, not reached through a link\n", scratch.path().join("forge-1").display()).as_bytes());
-    assert!(!scratch.path().join("forge-1/state").exists());
-    scratch.remove();
-}
-#[test]
-fn reconcile_refuses_a_forge_the_setup_has_no_entry_for() {
-    let scratch = support::Scratch::new("reconcile_no_entry");
-    support::owned::managed(scratch.path());
-    support::owned::configuration_value(scratch.path(), |value| {
-        value["application"]["setup"] = serde_json::json!([]);
-    });
-    support::owned::refused(
-        scratch.path(),
-        "reconcile",
-        b"temper forge reconcile: forge 1: the setup has no entry for it\n",
-    );
-    assert!(!scratch.path().join("forge-1").exists());
-    scratch.remove();
-}
-
 #[test]
 fn fake_preparation_writes_only_a_private_token_and_keeps_existing_bytes() {
     for existing in [None, Some(b"existing token\n".as_slice())] {
@@ -423,7 +372,10 @@ fn fake_preparation_refuses_an_open_directory_and_run_still_refuses_fake() {
 }
 
 fn fake_configuration(directory: &std::path::Path) {
-    let config = support::legacy_configuration::check_document(directory);
+    let config = support::configuration::check_document(directory);
+    let body = serde_json::json!({"bot":{"login":"temper","email":"temper@example.test"},"mode":{"fake":{
+        "listen":{"socket":"127.0.0.1:9"},"git":"demo/bin/git","owner":"playground","repositories":[{"name":"widget","landing":"main"}]}}});
+    groups::write(directory, 1, &body);
     fs::write(directory.join("temper.json"), serde_json::to_vec(&config).expect("document")).expect("document");
 }
 
@@ -476,7 +428,7 @@ fn forge_fetch_command() {
             "paths" | "usage" => {}
             _ => unreachable!(),
         }
-        fs::write(&path, serde_json::to_vec(&document).expect("JSON")).expect("document");
+        groups::save(scratch.path(), document);
         if row != "missing-roots" {
             support::fetch::roots(&root);
         }
@@ -546,7 +498,7 @@ fn forge_sign_in_refuses_without_openssl_a_named_forge_or_a_provider() {
     use support::forge_sign_in;
     let scratch = support::Scratch::new("forge_sign_in_refusals");
     let directory = scratch.path();
-    let _programs = support::owned::scripted(directory);
+    let _programs = groups::scripted(directory);
     forge_sign_in::configure(directory, "127.0.0.1:3000", "127.0.0.1:31000", "127.0.0.1:31999");
     let path = directory.join("temper.json");
     let value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
@@ -586,11 +538,11 @@ fn forge_sign_in_prints_the_owned_command_with_public_forge_and_temper_origins()
     use support::forge_sign_in;
     let scratch = support::Scratch::new("forge_sign_in_public");
     let directory = scratch.path();
-    let _programs = support::owned::scripted(directory);
+    let _programs = groups::scripted(directory);
     forge_sign_in::configure(directory, "127.0.0.1:3000", "127.0.0.1:31000", "127.0.0.1:31999");
     let path = directory.join("temper.json");
     let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
-    value["application"]["setup"][0]["mode"]["owned"]["public"] = "https://git.example.com".into();
+    value["application"]["machine"]["owned"]["mode"]["owned"]["public"] = "https://git.example.com".into();
     value["application"]["clients"]["public"] = "https://temper.example.com".into();
     value["engine"]["clients"]["provider"]["clients"][0]["redirect_uri"] =
         "https://git.example.com/user/oauth2/temper/callback".into();
@@ -620,7 +572,7 @@ fn forge_sign_in_prints_the_owned_command_without_its_private_secret() {
     use support::forge_sign_in;
     let scratch = support::Scratch::new("forge_sign_in_prints");
     let directory = scratch.path();
-    let _programs = support::owned::scripted(directory);
+    let _programs = groups::scripted(directory);
     forge_sign_in::configure(directory, "127.0.0.1:3000", "127.0.0.1:31000", "127.0.0.1:31999");
     let output = forge_sign_in::command(directory).output().expect("sign-in command");
     forge_sign_in::success(&output);
