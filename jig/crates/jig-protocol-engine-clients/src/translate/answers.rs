@@ -303,7 +303,8 @@ fn owner(value: &p::Outcome, limits: &w::Limits) -> Result<w::OwnerOutcome, w::P
                 },
             )?)
         }
-        p::Outcome::SettingsChanged { .. }
+        p::Outcome::ProjectRemoved { .. }
+        | p::Outcome::SettingsChanged { .. }
         | p::Outcome::MovedToNewest { .. }
         | p::Outcome::AccountMovingOut { .. }
         | p::Outcome::CompoundRefused { .. }

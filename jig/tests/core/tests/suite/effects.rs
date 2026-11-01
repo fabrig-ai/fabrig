@@ -334,6 +334,7 @@ fn deadline_answers(outputs: Vec<core::Request>) -> Vec<(u64, core::CallKey, cor
                 }
                 core::Request::Decided => None,
                 core::Request::ProjectMade { .. }
+                | core::Request::ProjectRemoved { .. }
                 | core::Request::Write(_)
                 | core::Request::Ask { .. }
                 | core::Request::Now(_) => {

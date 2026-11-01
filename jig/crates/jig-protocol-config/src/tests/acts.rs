@@ -11,12 +11,20 @@ fn absent_acts_grant_nothing() {
     assert_eq!(engine.limits.core.people.act_grants, 0);
 }
 #[test]
-fn a_valid_grant_keeps_every_kind_including_make_project() {
-    let document = with(ENGINE_SMALL, br#""connectors": [1],"#, br#""connectors": [1], "acts": [{"connector":1,"may":["close","add_key","remove_account","adopt","make_project"]}],"#);
+fn a_valid_grant_keeps_every_kind_including_cancel_and_remove_project() {
+    let document = with(ENGINE_SMALL, br#""connectors": [1],"#, br#""connectors": [1], "acts": [{"connector":1,"may":["close","add_key","remove_account","adopt","make_project","cancel","remove_project"]}],"#);
     let engine = engine(&document).expect("configured acts");
     let expected = Box::new([ActGrant {
         connector: 1,
-        may: Box::new([ActKind::Close, ActKind::AddKey, ActKind::RemoveAccount, ActKind::Adopt, ActKind::MakeProject]),
+        may: Box::new([
+            ActKind::Close,
+            ActKind::AddKey,
+            ActKind::RemoveAccount,
+            ActKind::Adopt,
+            ActKind::MakeProject,
+            ActKind::Cancel,
+            ActKind::RemoveProject,
+        ]),
     }]);
     assert_eq!(&*engine.acts, &*expected);
     assert_eq!(engine.limits.core.people.act_grants, 1);
@@ -57,8 +65,8 @@ fn every_configured_connector_can_hold_one_full_grant() {
         ENGINE_SMALL,
         br#""connectors": [1],"#,
         br#""connectors": [1,2], "acts": [
-            {"connector":1,"may":["close","add_key","remove_account","adopt","make_project"]},
-            {"connector":2,"may":["close","add_key","remove_account","adopt","make_project"]}],"#,
+            {"connector":1,"may":["close","add_key","remove_account","adopt","make_project","cancel","remove_project"]},
+            {"connector":2,"may":["close","add_key","remove_account","adopt","make_project","cancel","remove_project"]}],"#,
     );
     let engine = engine(&document).expect("one full grant per configured connector");
     assert_eq!(engine.limits.core.people.act_grants, engine.limits.core.connectors);

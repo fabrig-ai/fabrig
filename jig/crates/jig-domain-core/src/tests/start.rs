@@ -773,6 +773,7 @@ fn finish_core_load(core: &mut Core, env: &Env<crate::Limits>, out: &mut Queue<R
                     | Request::Ask { .. }
                     | Request::Held(_)
                     | Request::ProjectMade { .. }
+                    | Request::ProjectRemoved { .. }
                     | Request::Decided => panic!("seed commit contains only writes"),
                 }
             }

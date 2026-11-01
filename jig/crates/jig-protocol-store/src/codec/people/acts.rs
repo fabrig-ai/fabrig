@@ -16,6 +16,19 @@ pub(super) fn encode(act: &domain::Act, limits: &wire::Limits) -> Result<wire::A
                 reason: reason.clone(),
             },
         )?),
+        domain::Act::Cancel { project, task, grace, reason } => wire::Act::Cancel(wire::ActCancel::new(
+            limits,
+            wire::ActCancelParts {
+                project: *project,
+                task: *task,
+                grace: compound::encode_grace(*grace),
+                reason: reason.clone(),
+            },
+        )?),
+        domain::Act::RemoveProject { project } => wire::Act::RemoveProject(wire::ActRemoveProject::new(
+            limits,
+            wire::ActRemoveProjectParts { project: *project },
+        )?),
         domain::Act::AddKey { provider, join, digest } => wire::Act::AddKey(wire::ActAddKey::new(
             limits,
             wire::ActAddKeyParts { provider: *provider, join: *join, digest: *digest },
@@ -40,6 +53,11 @@ pub(super) fn decode(act: wire::Act, limits: &wire::Limits) -> Result<domain::Ac
             let wire::ActCloseParts { project, task, grace, reason } = value.into_parts();
             domain::Act::Close { project, task, grace: compound::decode_grace(grace), reason }
         }
+        wire::Act::Cancel(value) => {
+            let wire::ActCancelParts { project, task, grace, reason } = value.into_parts();
+            domain::Act::Cancel { project, task, grace: compound::decode_grace(grace), reason }
+        }
+        wire::Act::RemoveProject(value) => domain::Act::RemoveProject { project: value.project() },
         wire::Act::AddKey(value) => {
             let wire::ActAddKeyParts { provider, join, digest } = value.into_parts();
             domain::Act::AddKey { provider, join, digest }

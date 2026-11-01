@@ -151,6 +151,10 @@ pub(super) fn encode_outcome(value: &domain::Outcome, limits: &wire::Limits) -> 
         domain::Outcome::Renamed { project } => {
             wire::Outcome::Renamed(wire::OutcomeRenamed::new(limits, wire::OutcomeRenamedParts { project: *project })?)
         }
+        domain::Outcome::ProjectRemoved { project } => wire::Outcome::ProjectRemoved(wire::OutcomeProjectRemoved::new(
+            limits,
+            wire::OutcomeProjectRemovedParts { project: *project },
+        )?),
         domain::Outcome::ProjectMade { project } => wire::Outcome::ProjectMade(wire::OutcomeProjectMade::new(
             limits,
             wire::OutcomeProjectMadeParts { project: *project },
@@ -294,6 +298,7 @@ pub(super) fn decode_outcome(value: wire::Outcome) -> domain::Outcome {
             domain::Outcome::RolesSet { project }
         }
         wire::Outcome::Renamed(value) => domain::Outcome::Renamed { project: value.project() },
+        wire::Outcome::ProjectRemoved(value) => domain::Outcome::ProjectRemoved { project: value.project() },
         wire::Outcome::ProjectMade(value) => domain::Outcome::ProjectMade { project: value.project() },
         wire::Outcome::PolicyChanged(value) => {
             let wire::OutcomePolicyChangedParts { project } = value.into_parts();

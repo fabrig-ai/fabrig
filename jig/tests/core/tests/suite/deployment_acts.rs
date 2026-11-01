@@ -1,6 +1,6 @@
 use jig_core_world::{
     effects::{Cut, World},
-    fixtures::live_row,
+    fixtures::{delegate, live_row, member},
     stories::delegates::delegate_pair,
 };
 use jig_domain_accounts as accounts;
@@ -24,6 +24,8 @@ fn configuration(seed: u64) -> (root::Config, root::Limits) {
         connector: CONNECTOR,
         may: Box::new([
             people::ActKind::Close,
+            people::ActKind::Cancel,
+            people::ActKind::RemoveProject,
             people::ActKind::AddKey,
             people::ActKind::RemoveAccount,
             people::ActKind::Adopt,
@@ -229,6 +231,7 @@ fn a_connector_adopts_its_own_resource_into_a_project() {
             | core::Request::Held(_)
             | core::Request::Now(_)
             | core::Request::ProjectMade { .. }
+            | core::Request::ProjectRemoved { .. }
             | core::Request::Decided => {}
         }
     }
@@ -386,6 +389,7 @@ fn a_deployment_adoption_of_an_unknown_project_is_refused() {
             | core::Request::Held(_)
             | core::Request::Now(_)
             | core::Request::ProjectMade { .. }
+            | core::Request::ProjectRemoved { .. }
             | core::Request::Decided => {}
         }
     }
@@ -457,4 +461,106 @@ fn a_make_project_act_refuses_a_maker_outside_its_subject() {
     let mut world = project_world(true);
     act(&mut world, KEY, make_project(u64::MAX));
     assert_eq!(answered(&world), &people::Outcome::Refused(people::Refusal::Unknown));
+}
+
+fn cancel(task: u64, project: u32, grace: Option<Duration>) -> people::Act {
+    people::Act::Cancel { project, task, grace, reason: REASON.into() }
+}
+
+#[test]
+fn a_connector_cancels_a_change_and_its_delegate_with_the_changes_grace() {
+    let mut world = world(1860);
+    let chat = world.assignments[0];
+    let mut change = member(&world, tasks::Executor::Agent { charter: 1 }, b"change");
+    change.authority.budget.spend = 40;
+    let change = delegate(&mut world, chat, 1, change);
+    let change_run = *world.assignments.iter().find(|(task, _)| *task == change).expect("change assigned");
+    let mut child = member(&world, tasks::Executor::Agent { charter: 1 }, b"delegate");
+    child.authority.budget.spend = 15;
+    child.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
+    let child = delegate(&mut world, change_run, 1, child);
+    assert!(!live_row(&world, change).flags.conversation);
+    assert_eq!(live_row(&world, change).requester, tasks::Party::Task(chat.0));
+    act(&mut world, KEY, cancel(change, PROJECT, Some(GRACE)));
+    assert!(matches!(answered(&world), people::Outcome::Compound { project: PROJECT, operations: 2, .. }));
+    cancelled(&world, child);
+    let finish = live_row(&world, change).grace.as_ref().expect("change finish requested");
+    assert_eq!(finish.by, tasks::Party::Deployment { project: PROJECT });
+    assert_eq!(finish.reason.as_ref(), REASON);
+    world.advance(GRACE);
+    cancelled(&world, change);
+    assert!(matches!(live_row(&world, chat.0).phase, tasks::Phase::Active(_)));
+}
+
+#[test]
+fn cancel_refuses_another_projects_unknown_closing_and_ended_tasks() {
+    let mut world = world(1861);
+    let task = world.assignments[0].0;
+    for (key, value) in [(KEY, cancel(task, PROJECT + 1, None)), (KEY + 1, cancel(u64::MAX, PROJECT, None))] {
+        act(&mut world, key, value);
+        assert_eq!(answered(&world), &people::Outcome::Refused(people::Refusal::Unknown));
+    }
+    act(&mut world, KEY + 2, cancel(task, PROJECT, None));
+    cancelled(&world, task);
+    assert!(matches!(live_row(&world, task).phase, tasks::Phase::Closing(_)));
+    act(&mut world, KEY + 3, cancel(task, PROJECT, None));
+    assert!(matches!(answered(&world), people::Outcome::Refused(people::Refusal::Ended { .. })));
+    world.end(tasks::End::Parked, 0);
+    assert!(world.store.rows.contains_key(&root::Key::Core(core::Key::Tasks(tasks::Key::Ended(task)))));
+    act(&mut world, KEY + 4, cancel(task, PROJECT, None));
+    assert!(matches!(answered(&world), people::Outcome::Refused(people::Refusal::Ended { .. })));
+}
+
+#[test]
+fn cancel_requires_a_grant_and_a_first_owner_without_retaining_the_refusal() {
+    for (granted, owner, why) in
+        [(false, true, people::Refusal::NotOffered), (true, false, people::Refusal::Role { held: None })]
+    {
+        let (mut config, limits) = configuration(1862);
+        if !granted {
+            config.core.grants = Box::new([]);
+        }
+        if !owner {
+            config.core.owners = Box::new([]);
+        }
+        let mut world = World::configured_unassigned(1862, false, config, limits);
+        let before = world.commits.len();
+        act(&mut world, KEY, cancel(1, PROJECT, None));
+        assert_eq!(answered(&world), &people::Outcome::Refused(why));
+        assert_eq!(world.commits.len(), before);
+    }
+}
+
+#[test]
+fn a_restart_replays_a_saved_cancel_after_its_grant_and_owner_are_removed() {
+    let mut world = world(1863);
+    let task = world.assignments[0].0;
+    let cut = Cut::Durable(world.store.applied + 1);
+    world.cut = Some(cut);
+    act(&mut world, KEY, cancel(task, PROJECT, None));
+    assert_eq!(world.reached_cut, Some(cut));
+    assert!(world.act_answers.is_empty());
+    let mut config = configuration(1863).0;
+    config.core.grants = Box::new([]);
+    config.core.owners = Box::new([]);
+    world.restart_with(config);
+    let before = world.commits.len();
+    act(&mut world, KEY, cancel(task, PROJECT, None));
+    assert!(matches!(answered(&world), people::Outcome::Compound { project: PROJECT, operations: 1, .. }));
+    assert_eq!(world.commits.len(), before);
+    cancelled(&world, task);
+}
+
+#[test]
+fn remove_project_is_not_offered_even_with_a_grant_and_never_retains_an_answer() {
+    let mut world = world(1864);
+    for project in [PROJECT, PROJECT + 1] {
+        let before = world.commits.len();
+        act(&mut world, KEY, people::Act::RemoveProject { project });
+        assert_eq!(answered(&world), &people::Outcome::Refused(people::Refusal::NotOffered));
+        assert_eq!(world.commits.len(), before);
+        assert!(!world.store.rows.contains_key(&root::Key::Core(core::Key::People(people::Key::Acted(
+            people::ActKey { connector: CONNECTOR, key: [KEY; 16] }
+        )))));
+    }
 }

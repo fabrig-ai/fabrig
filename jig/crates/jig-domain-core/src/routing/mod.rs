@@ -366,6 +366,7 @@ pub fn step(core: &mut Core, env: &Env<Limits>, event: Event) -> Requests {
             match batch.pop().expect("core route output count") {
                 Request::Decided => {}
                 request @ (Request::ProjectMade { .. }
+                | Request::ProjectRemoved { .. }
                 | Request::Write(_)
                 | Request::Ask { .. }
                 | Request::Held(_)
@@ -406,7 +407,11 @@ pub fn want_accounts(core: &mut Core, env: &Env<Limits>) -> Requests {
             match request {
                 Request::Write(_) => writes.push(request),
                 Request::Decided => {}
-                Request::ProjectMade { .. } | Request::Ask { .. } | Request::Held(_) | Request::Now(_) => {
+                Request::ProjectMade { .. }
+                | Request::ProjectRemoved { .. }
+                | Request::Ask { .. }
+                | Request::Held(_)
+                | Request::Now(_) => {
                     core.start.held.push(request);
                 }
             }

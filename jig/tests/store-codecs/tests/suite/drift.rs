@@ -62,7 +62,7 @@ fn the_tasks_familys_code_and_goldens_have_no_drift() {
 
 #[test]
 fn the_people_familys_code_and_goldens_have_no_drift() {
-    check("people", 13);
+    check("people", 14);
 }
 
 #[test]
@@ -126,7 +126,7 @@ fn layouts() -> String {
         ("component", "component", 3),
         ("core", "core", 6),
         ("tasks", "tasks", 9),
-        ("people", "people", 13),
+        ("people", "people", 14),
         ("notes", "notes", 1),
         ("accounts", "accounts", 2),
         ("settings", "settings", 1),

@@ -23,7 +23,7 @@ pub fn limits(domain: &domain::Limits) -> Option<Limits> {
     let tasks = crate::codec::tasks::limits(&domain.tasks)?;
     let notes = crate::codec::notes::limits(&domain.notes)?;
     let core = wire::Limits {
-        settings_refusal_value: u32::try_from(crate::people_v13::Refusal::encoded_bound(&crate::people_v13::CEILINGS)?)
+        settings_refusal_value: u32::try_from(crate::people_v14::Refusal::encoded_bound(&crate::people_v14::CEILINGS)?)
             .ok()?,
         phase_bytes_value: u32::try_from(crate::tasks_v9::PhaseRecord::encoded_bound(&tasks)?).ok()?,
         change_bytes_value: u32::try_from(crate::tasks_v9::ChangeRecord::encoded_bound(&tasks)?).ok()?,

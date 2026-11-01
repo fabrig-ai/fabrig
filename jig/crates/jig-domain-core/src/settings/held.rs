@@ -305,6 +305,7 @@ impl Core {
                 Request::Decided => decided = true,
                 Request::Write(Write::Save(crate::Record::Core(CoreRecord::Settings(Record::Extent { .. })))) => {}
                 request @ (Request::ProjectMade { .. }
+                | Request::ProjectRemoved { .. }
                 | Request::Write(_)
                 | Request::Ask { .. }
                 | Request::Held(_)

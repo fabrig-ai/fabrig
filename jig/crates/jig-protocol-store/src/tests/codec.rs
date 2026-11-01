@@ -560,7 +560,7 @@ fn core_limits() -> jig_domain_core::Limits {
     fixtures::CORE_LIMITS
 }
 
-fn people_limits() -> crate::people_v13::Limits {
+fn people_limits() -> crate::people_v14::Limits {
     crate::codec::people::limits(&core_limits()).expect("within people's ceilings")
 }
 
@@ -577,7 +577,7 @@ fn ask_round_trip(ask: jig_domain_people::Ask) {
     let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("bounded length"));
     value.encode(&mut writer).expect("measured room");
     let bytes = writer.finish();
-    let read = crate::people_v13::Ask::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("saved ask");
+    let read = crate::people_v14::Ask::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("saved ask");
     assert_eq!(crate::codec::people::decode_ask(read, &limits), Ok(ask));
 }
 
@@ -691,8 +691,8 @@ fn a_person_identity_field_past_its_limit_is_refused() {
             &people_limits(),
             &fixtures::model_names(&[])
         ),
-        Err(crate::people_v13::Problem {
-            path: crate::people_v13::Path::IdentityKeySubject,
+        Err(crate::people_v14::Problem {
+            path: crate::people_v14::Path::IdentityKeySubject,
             reason: skein_codec::Reason::Bound
         })
     );
@@ -706,8 +706,8 @@ fn a_people_row_of_another_version_does_not_decode() {
     *bytes.get_mut(1).expect("version prefix") = 9;
     assert_eq!(
         crate::codec::people::decode(&bytes, &limits, &names),
-        Err(crate::people_v13::Problem {
-            path: crate::people_v13::Path::RowVersion,
+        Err(crate::people_v14::Problem {
+            path: crate::people_v14::Path::RowVersion,
             reason: skein_codec::Reason::Version
         })
     );
@@ -1307,7 +1307,7 @@ fn retained_people_answers_keep_dependency_refusal_facts() {
 #[test]
 #[expect(clippy::disallowed_macros, reason = "ordinary tests build boundary text")]
 fn a_stored_project_name_is_bounded_and_utf8() {
-    use crate::people_v13 as wire;
+    use crate::people_v14 as wire;
     use skein_lib::{Reader, Writer};
     // store.md, 4.4: the name is UTF-8 text, at most 64 bytes.
     const NAME_BOUND: usize = 64;
@@ -1333,7 +1333,6 @@ fn a_stored_project_name_is_bounded_and_utf8() {
     }
 }
 
-#[test]
 fn acted_rows_round_trip_every_deployment_act() {
     use jig_domain_people::{Act, ActKey, Adoption, Outcome, Refusal, ResourceName, ResourceRole, Stored};
     for act in [
@@ -1343,6 +1342,14 @@ fn acted_rows_round_trip_every_deployment_act() {
             grace: Some(skein_lib::Duration::from_secs(5)),
             reason: b"closed".as_slice().into(),
         },
+        Act::Cancel {
+            project: 1,
+            task: u64::MAX,
+            grace: Some(skein_lib::Duration::from_secs(5)),
+            reason: b"cancelled".as_slice().into(),
+        },
+        Act::Cancel { project: 1, task: 1, grace: None, reason: Box::new([]) },
+        Act::RemoveProject { project: u32::MAX },
         Act::AddKey { provider: u32::MAX, join: Some(7), digest: [255; 32] },
         Act::RemoveAccount { account: u32::MAX },
         Act::MakeProject { maker: 1, name: "Tally".into(), policy: 1 },
@@ -1362,6 +1369,16 @@ fn acted_rows_round_trip_every_deployment_act() {
             at: skein_lib::Wall::from_nanos(u64::MAX),
         });
     }
+}
+
+fn a_project_removed_answer_is_retained() {
+    use jig_domain_people::{Act, ActKey, Outcome, Stored};
+    people_round_trip(Stored::Acted {
+        key: ActKey { connector: 1, key: [1; 16] },
+        act: Act::RemoveProject { project: 2 },
+        outcome: Outcome::ProjectRemoved { project: 2 },
+        at: skein_lib::Wall::from_nanos(19),
+    });
 }
 
 #[test]

@@ -1164,6 +1164,7 @@ pub(super) fn tag_tasks(
                     match ended.pop().expect("ended run outputs") {
                         Request::Decided => {}
                         request @ (Request::ProjectMade { .. }
+                        | Request::ProjectRemoved { .. }
                         | Request::Write(_)
                         | Request::Held(_)
                         | Request::Now(_)

@@ -172,6 +172,7 @@ fn a_connector_delivery_waits_for_the_last_commit_the_root_made() {
                 delivery = Some(*held);
             }
             Request::ProjectMade { .. }
+            | Request::ProjectRemoved { .. }
             | Request::Write(_)
             | Request::Ask { .. }
             | Request::Now(_)

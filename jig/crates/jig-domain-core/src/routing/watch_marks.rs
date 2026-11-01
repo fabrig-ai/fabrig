@@ -542,6 +542,7 @@ fn append(requests: Requests, out: &mut Queue<Request>) {
         match requests.pop().expect("watch route outputs") {
             Request::Decided => {}
             request @ (Request::ProjectMade { .. }
+            | Request::ProjectRemoved { .. }
             | Request::Write(_)
             | Request::Held(_)
             | Request::Now(_)

@@ -288,7 +288,7 @@ pub(crate) fn route_core_requests(
             core::Request::Held(output) => held::held(domain, env, decision, *output),
             core::Request::Now(output) => now::now(domain, env, decision, *output),
             core::Request::ProjectMade { project } => emit(decision, &env.limits, Delivery::ProjectMade { project }),
-            core::Request::Decided => {}
+            core::Request::ProjectRemoved { .. } | core::Request::Decided => {}
         }
     }
 }

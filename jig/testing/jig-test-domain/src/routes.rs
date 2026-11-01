@@ -107,7 +107,7 @@ pub(super) fn route_core(
             core::Request::Now(now) => route_now(domain, env, decision, *now, work),
             core::Request::Ask { connector, ask } => route_ask(domain, env, decision, connector, ask, work),
             core::Request::ProjectMade { project } => hold(decision, Delivery::ProjectMade { project }),
-            core::Request::Decided => {}
+            core::Request::ProjectRemoved { .. } | core::Request::Decided => {}
         }
     }
 }
@@ -1014,6 +1014,7 @@ fn application_answer(outcome: people::Outcome) -> connector::ApplicationCoreAns
         | people::Outcome::RolesSet { .. }
         | people::Outcome::Renamed { .. }
         | people::Outcome::ProjectMade { .. }
+        | people::Outcome::ProjectRemoved { .. }
         | people::Outcome::SettingsChanged { .. }
         | people::Outcome::MovedToNewest { .. }
         | people::Outcome::PolicyChanged { .. }

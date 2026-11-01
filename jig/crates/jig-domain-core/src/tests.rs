@@ -2341,7 +2341,10 @@ fn finish_watch_outputs(core: &mut Core, limits: &Limits) -> Box<[Request]> {
         let mut handoff = false;
         while let Some(request) = out.pop() {
             match request {
-                Request::ProjectMade { .. } | Request::Write(_) | Request::Ask { .. } => handoff = true,
+                Request::ProjectMade { .. }
+                | Request::ProjectRemoved { .. }
+                | Request::Write(_)
+                | Request::Ask { .. } => handoff = true,
                 request @ (Request::Held(_) | Request::Now(_) | Request::Decided) => requests.push(request).unwrap(),
             }
         }
@@ -2695,7 +2698,11 @@ fn read_start(core: &mut Core, limits: &Limits, sign_in: u64, read: reads::Read)
                 held = Some(*answer);
             }
             Request::Decided => {}
-            Request::ProjectMade { .. } | Request::Write(_) | Request::Ask { .. } | Request::Now(_) => {
+            Request::ProjectMade { .. }
+            | Request::ProjectRemoved { .. }
+            | Request::Write(_)
+            | Request::Ask { .. }
+            | Request::Now(_) => {
                 panic!("read changes nothing")
             }
         }
@@ -2713,7 +2720,11 @@ fn loaded_answer(core: &mut Core, limits: &Limits, load: Token, result: reads::L
                 answer = Some(value);
             }
             Request::Decided => {}
-            Request::ProjectMade { .. } | Request::Write(_) | Request::Ask { .. } | Request::Now(_) => {
+            Request::ProjectMade { .. }
+            | Request::ProjectRemoved { .. }
+            | Request::Write(_)
+            | Request::Ask { .. }
+            | Request::Now(_) => {
                 panic!("read decides nothing")
             }
         }

@@ -44,6 +44,7 @@ fn activity_decision(core: &mut Core, env: &Env<Limits>, event: Event) -> Vec<Re
             | Request::Ask { .. }
             | Request::Held(_)
             | Request::ProjectMade { .. }
+            | Request::ProjectRemoved { .. }
             | Request::Decided => {}
         }
     }

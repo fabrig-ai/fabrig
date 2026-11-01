@@ -67,3 +67,27 @@ fn grant_count_is_bounded_by_connector_numbers() {
         assert_eq!(crate::valid(&Limits { act_grants, ..LIMITS }), fits);
     }
 }
+
+#[test]
+fn cancel_and_remove_project_keep_their_own_answer_shapes() {
+    let act = Act::Cancel { project: 1, task: 1, grace: None, reason: Box::new([]) };
+    assert!(valid_outcome(&LIMITS, &act, &Outcome::Compound { project: 1, operations: 1, first_message: 1 }));
+    assert!(!valid_outcome(&LIMITS, &act, &Outcome::Compound { project: 2, operations: 1, first_message: 1 }));
+    let act = Act::RemoveProject { project: 1 };
+    assert!(valid_outcome(&LIMITS, &act, &Outcome::ProjectRemoved { project: 1 }));
+    assert!(!valid_outcome(&LIMITS, &act, &Outcome::ProjectRemoved { project: 2 }));
+    assert!(!valid_outcome(&LIMITS, &act, &Outcome::ProjectMade { project: 1 }));
+}
+
+#[test]
+fn cancel_admits_the_same_reason_bound_as_close() {
+    for (length, expected) in
+        [(LIMITS.words, Ok(())), (LIMITS.words + 1, Err(Refusal::Limit { which: LimitKind::Words }))]
+    {
+        let act =
+            Act::Cancel { project: 1, task: 1, grace: None, reason: vec![0; usize::try_from(length).unwrap()].into() };
+        assert_eq!(valid(&LIMITS, &act), expected);
+    }
+    let act = Act::Cancel { project: 1, task: 0, grace: None, reason: Box::new([]) };
+    assert_eq!(valid(&LIMITS, &act), Err(Refusal::Unknown));
+}

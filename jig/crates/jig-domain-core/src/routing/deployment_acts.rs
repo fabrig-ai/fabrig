@@ -21,6 +21,8 @@ pub(super) fn start(
         people::Act::AddKey { digest, .. } => Some(*digest),
         people::Act::MakeProject { .. }
         | people::Act::Close { .. }
+        | people::Act::Cancel { .. }
+        | people::Act::RemoveProject { .. }
         | people::Act::RemoveAccount { .. }
         | people::Act::Adopt { .. } => None,
     };
@@ -65,6 +67,15 @@ pub(super) fn route(
                 refused(work, request, why);
             }
         }
+        people::Act::Cancel { project, task, grace, reason } => {
+            if core.tasks.task(task).is_none() {
+                return super::result_reads::closed_subject(core, work, out, request, project, task);
+            }
+            if let Err(why) = cancel(core, work, request, project, task, grace, reason) {
+                refused(work, request, why);
+            }
+        }
+        people::Act::RemoveProject { .. } => refused(work, request, people::Refusal::NotOffered),
         people::Act::AddKey { provider, join, digest } => {
             account(core, work, request, people::AccountChange::AddKey { provider, join, digest });
         }
@@ -117,6 +128,26 @@ fn close(
         tasks::Party::Person(_) => {}
         tasks::Party::Task(_) | tasks::Party::Deployment { .. } => return Err(people::Refusal::NotOffered),
     }
+    cancel(core, work, request, project, task, grace, reason)
+}
+fn cancel(
+    core: &mut Core,
+    work: &mut Queue<Event>,
+    request: Token,
+    project: u32,
+    task: u64,
+    grace: Option<skein_lib::Duration>,
+    reason: Box<[u8]>,
+) -> Result<(), people::Refusal> {
+    let row = core.tasks.task(task).ok_or(people::Refusal::Unknown)?;
+    if row.project != project {
+        return Err(people::Refusal::Unknown);
+    }
+    match &row.phase {
+        tasks::Phase::Ended(ending) => return Err(super::refusals::ended(ending)),
+        tasks::Phase::Closing(closing) => return Err(super::refusals::ended(&closing.ending)),
+        tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Held { .. } => {}
+    }
     if core.person_tasks.len() == core.person_tasks.capacity() {
         return Err(people::Refusal::Limit { which: people::LimitKind::LiveTasks });
     }
@@ -128,9 +159,7 @@ fn close(
             .push(tasks::Operation::Cancel { task: *delegate, grace: None, message: None, reason: reason.clone() })
             .expect("one per delegate");
     }
-    operations
-        .push(tasks::Operation::Cancel { task, grace, message: None, reason })
-        .expect("conversation after delegates");
+    operations.push(tasks::Operation::Cancel { task, grace, message: None, reason }).expect("task after delegates");
     let mut first_message = 0;
     for at in 0..operations.len() {
         let operation = operations.get_mut(at).expect("bounded operation position");

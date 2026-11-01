@@ -534,6 +534,10 @@ pub enum Outcome {
     ProjectMade {
         project: u32,
     },
+    /// The project was removed from the deployment.
+    ProjectRemoved {
+        project: u32,
+    },
     /// One person's finite pool was opened or resized in its original period.
     PoolSet {
         project: u32,
@@ -653,6 +657,15 @@ pub enum Act {
         grace: Option<Duration>,
         reason: Box<[u8]>,
     },
+    Cancel {
+        project: u32,
+        task: u64,
+        grace: Option<Duration>,
+        reason: Box<[u8]>,
+    },
+    RemoveProject {
+        project: u32,
+    },
     /// The value travels beside the act, carried as a client's key is.
     AddKey {
         provider: u32,
@@ -676,11 +689,21 @@ pub enum ActKind {
     RemoveAccount,
     Adopt,
     MakeProject,
+    Cancel,
+    RemoveProject,
 }
 
 impl ActKind {
     /// Every deployment act kind; also bounds a configured grant's owned entries.
-    pub const ALL: &[Self] = &[Self::Close, Self::AddKey, Self::RemoveAccount, Self::Adopt, Self::MakeProject];
+    pub const ALL: &[Self] = &[
+        Self::Close,
+        Self::AddKey,
+        Self::RemoveAccount,
+        Self::Adopt,
+        Self::MakeProject,
+        Self::Cancel,
+        Self::RemoveProject,
+    ];
 }
 
 /// A connector's configured deployment authority (people.md, 5.3).

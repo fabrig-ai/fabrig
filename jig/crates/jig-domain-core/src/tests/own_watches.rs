@@ -29,6 +29,7 @@ fn sign_in(core: &mut Core, limits: &Limits, party: u8) -> (u64, Box<[Record]>) 
             | Request::Ask { .. }
             | Request::Now(_)
             | Request::ProjectMade { .. }
+            | Request::ProjectRemoved { .. }
             | Request::Decided => {}
         }
     }
@@ -306,7 +307,11 @@ fn whose_routes_a_read_and_its_whole_reply_and_refuses_it_while_stopping() {
                 }
             }
             Request::Write(_) => panic!("Whose writes nothing"),
-            Request::Ask { .. } | Request::Now(_) | Request::ProjectMade { .. } | Request::Decided => {}
+            Request::Ask { .. }
+            | Request::Now(_)
+            | Request::ProjectMade { .. }
+            | Request::ProjectRemoved { .. }
+            | Request::Decided => {}
         }
     }
     assert_eq!(replies, 1);
@@ -324,7 +329,11 @@ fn whose_routes_a_read_and_its_whole_reply_and_refuses_it_while_stopping() {
                 }
             }
             Request::Write(_) => panic!("Whose writes nothing while stopping"),
-            Request::Ask { .. } | Request::Now(_) | Request::ProjectMade { .. } | Request::Decided => {}
+            Request::Ask { .. }
+            | Request::Now(_)
+            | Request::ProjectMade { .. }
+            | Request::ProjectRemoved { .. }
+            | Request::Decided => {}
         }
     }
     assert!(answered);

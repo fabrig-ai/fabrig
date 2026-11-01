@@ -23,6 +23,7 @@ pub(super) fn append_people(core: &mut Core, env: &Env<Limits>, event: people::E
         match routed.pop().expect("party route count") {
             Request::Decided => {}
             request @ (Request::ProjectMade { .. }
+            | Request::ProjectRemoved { .. }
             | Request::Write(_)
             | Request::Ask { .. }
             | Request::Held(_)
@@ -41,6 +42,7 @@ pub(super) fn append_tasks(core: &mut Core, env: &Env<Limits>, event: tasks::Eve
         match routed.pop().expect("task route count") {
             Request::Decided => {}
             request @ (Request::ProjectMade { .. }
+            | Request::ProjectRemoved { .. }
             | Request::Write(_)
             | Request::Ask { .. }
             | Request::Held(_)
@@ -454,6 +456,7 @@ fn append_account(core: &mut Core, env: &Env<Limits>, event: accounts::Event, ou
         match routed.pop().expect("account route count") {
             Request::Decided => {}
             request @ (Request::ProjectMade { .. }
+            | Request::ProjectRemoved { .. }
             | Request::Write(_)
             | Request::Ask { .. }
             | Request::Held(_)
@@ -503,6 +506,7 @@ pub(super) fn tag_account(
                     match routed.pop().expect("grant output count") {
                         Request::Decided => {}
                         request @ (Request::ProjectMade { .. }
+                        | Request::ProjectRemoved { .. }
                         | Request::Write(_)
                         | Request::Ask { .. }
                         | Request::Held(_)
@@ -808,6 +812,7 @@ fn append_fleet(
         match routed.pop().expect("fleet output count") {
             Request::Decided => {}
             request @ (Request::ProjectMade { .. }
+            | Request::ProjectRemoved { .. }
             | Request::Write(_)
             | Request::Ask { .. }
             | Request::Held(_)

@@ -30,7 +30,7 @@ impl Acted {
 
 pub(super) fn valid(limits: &Limits, act: &Act) -> Result<(), Refusal> {
     match act {
-        Act::Close { task, reason, .. } => {
+        Act::Close { task, reason, .. } | Act::Cancel { task, reason, .. } => {
             if *task == 0 {
                 return Err(Refusal::Unknown);
             }
@@ -48,7 +48,7 @@ pub(super) fn valid(limits: &Limits, act: &Act) -> Result<(), Refusal> {
                 return Err(Refusal::Limit { which: LimitKind::Words });
             }
         }
-        Act::AddKey { .. } | Act::RemoveAccount { .. } => {}
+        Act::AddKey { .. } | Act::RemoveAccount { .. } | Act::RemoveProject { .. } => {}
     }
     Ok(())
 }
@@ -56,6 +56,8 @@ fn kind(act: &Act) -> ActKind {
     match act {
         Act::MakeProject { .. } => ActKind::MakeProject,
         Act::Close { .. } => ActKind::Close,
+        Act::Cancel { .. } => ActKind::Cancel,
+        Act::RemoveProject { .. } => ActKind::RemoveProject,
         Act::AddKey { .. } => ActKind::AddKey,
         Act::RemoveAccount { .. } => ActKind::RemoveAccount,
         Act::Adopt { .. } => ActKind::Adopt,
@@ -109,7 +111,7 @@ pub(super) fn admit(
             granted = true;
         }
     }
-    if !granted {
+    if !granted || kind(&act) == ActKind::RemoveProject {
         return answer(to, Outcome::Refused(Refusal::NotOffered), out);
     }
     if domain.owners.is_empty() {
@@ -222,6 +224,7 @@ fn permanent(outcome: &Outcome) -> bool {
         | Outcome::PolicyChanged { .. }
         | Outcome::Renamed { .. }
         | Outcome::ProjectMade { .. }
+        | Outcome::ProjectRemoved { .. }
         | Outcome::SettingsChanged { .. }
         | Outcome::MovedToNewest { .. }
         | Outcome::PoolSet { .. }
@@ -259,7 +262,7 @@ pub(super) fn valid_outcome(limits: &Limits, act: &Act, outcome: &Outcome) -> bo
         return true;
     }
     match act {
-        Act::Close { project, .. } => match outcome {
+        Act::Close { project, .. } | Act::Cancel { project, .. } => match outcome {
             Outcome::Compound { project: answered, operations, first_message } => {
                 answered == project && *operations != 0 && *operations <= limits.operations && *first_message != 0
             }
@@ -275,6 +278,7 @@ pub(super) fn valid_outcome(limits: &Limits, act: &Act, outcome: &Outcome) -> bo
             | Outcome::PolicyChanged { .. }
             | Outcome::Renamed { .. }
             | Outcome::ProjectMade { .. }
+            | Outcome::ProjectRemoved { .. }
             | Outcome::SettingsChanged { .. }
             | Outcome::MovedToNewest { .. }
             | Outcome::PoolSet { .. }
@@ -305,6 +309,9 @@ pub(super) fn valid_outcome(limits: &Limits, act: &Act, outcome: &Outcome) -> bo
             | Outcome::AccountSignedOut { .. }
             | Outcome::Refused(_) => false,
         },
+        Act::RemoveProject { project } => {
+            *project != crate::DEPLOYMENT && *outcome == Outcome::ProjectRemoved { project: *project }
+        }
         Act::AddKey { provider, join, digest } => super::valid_answer_shape(
             &crate::Ask::AccountChange {
                 holder: crate::AccountHolder::Deployment,

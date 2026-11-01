@@ -249,7 +249,7 @@ pub(crate) fn core_out(
             core::Request::Now(value) => core_now(domain, env, *value, work),
             core::Request::Ask { connector, ask } => core_ask(domain, env, decision, connector, ask, work),
             core::Request::ProjectMade { project } => held(decision, Output::ProjectMade { project }),
-            core::Request::Decided => {}
+            core::Request::ProjectRemoved { .. } | core::Request::Decided => {}
         }
     }
 }
@@ -321,6 +321,7 @@ fn core_held(
                 | jig_domain_people::Outcome::PoolSet { .. }
                 | jig_domain_people::Outcome::Renamed { .. }
                 | jig_domain_people::Outcome::ProjectMade { .. }
+                | jig_domain_people::Outcome::ProjectRemoved { .. }
                 | jig_domain_people::Outcome::SettingsChanged { .. }
                 | jig_domain_people::Outcome::MovedToNewest { .. }
                 | jig_domain_people::Outcome::EscalationDecided { .. }

@@ -163,6 +163,7 @@ pub(crate) fn document(
             | core::Request::Write(_)
             | core::Request::Ask { .. }
             | core::Request::ProjectMade { .. }
+            | core::Request::ProjectRemoved { .. }
             | core::Request::Decided) => forward(domain, env, decision, request, work),
         }
     }

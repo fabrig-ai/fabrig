@@ -642,6 +642,7 @@ fn append_stream(requests: Requests, out: &mut Queue<Request>) {
             request @ (Request::Held(_)
             | Request::Now(_)
             | Request::ProjectMade { .. }
+            | Request::ProjectRemoved { .. }
             | Request::Write(_)
             | Request::Ask { .. }) => {
                 out.push(request);

@@ -6,6 +6,8 @@ fn people_rows_read_back_as_written() {
     table([
         ("a_person_reads_back_with_its_identity", a_person_reads_back_with_its_identity),
         ("a_projects_policy_reads_back", a_projects_policy_reads_back),
+        ("acted_rows_round_trip_every_deployment_act", acted_rows_round_trip_every_deployment_act),
+        ("a_project_removed_answer_is_retained", a_project_removed_answer_is_retained),
         (
             "a_roles_models_follow_their_names_to_todays_configuration",
             a_roles_models_follow_their_names_to_todays_configuration,

@@ -355,6 +355,7 @@ pub fn finish_decision(core: &mut Core, env: &Env<Limits>) -> Requests {
             match watches.pop().expect("watch decision outputs") {
                 Request::Decided => {}
                 request @ (Request::ProjectMade { .. }
+                | Request::ProjectRemoved { .. }
                 | Request::Write(_)
                 | Request::Held(_)
                 | Request::Now(_)

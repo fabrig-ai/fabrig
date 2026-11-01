@@ -333,6 +333,7 @@ fn an_observers_core_role_refusals_match_their_offers() {
                     }
                     Request::Write(Write::Save(Record::Tasks(_))) => panic!("refused act wrote a task"),
                     Request::ProjectMade { .. }
+                    | Request::ProjectRemoved { .. }
                     | Request::Write(_)
                     | Request::Ask { .. }
                     | Request::Now(_)

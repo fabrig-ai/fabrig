@@ -358,7 +358,8 @@ impl Domain {
                         | jig_domain_core::Request::Ask { .. }
                         | jig_domain_core::Request::Held(_)
                         | jig_domain_core::Request::Now(_)
-                        | jig_domain_core::Request::ProjectMade { .. },
+                        | jig_domain_core::Request::ProjectMade { .. }
+                        | jig_domain_core::Request::ProjectRemoved { .. },
                     )
                     | None => unreachable!("configuration decides nothing"),
                 }
@@ -689,7 +690,8 @@ fn only_decided(requests: &jig_domain_core::Requests) -> bool {
             | jig_domain_core::Request::Ask { .. }
             | jig_domain_core::Request::Held(_)
             | jig_domain_core::Request::Now(_)
-            | jig_domain_core::Request::ProjectMade { .. } => return false,
+            | jig_domain_core::Request::ProjectMade { .. }
+            | jig_domain_core::Request::ProjectRemoved { .. } => return false,
         }
     }
     true

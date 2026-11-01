@@ -64,6 +64,7 @@ fn current_stream(out: &[Request]) -> &Request {
             | Request::Ask { .. }
             | Request::Held(..)
             | Request::ProjectMade { .. }
+            | Request::ProjectRemoved { .. }
             | Request::Decided => {}
         }
     }
@@ -74,6 +75,7 @@ fn only_decided(out: &[Request]) -> bool {
         match request {
             Request::Decided => {}
             Request::ProjectMade { .. }
+            | Request::ProjectRemoved { .. }
             | Request::Write(..)
             | Request::Ask { .. }
             | Request::Held(..)
@@ -87,6 +89,7 @@ fn has_write(out: &[Request]) -> bool {
         match request {
             Request::Write(..) => return true,
             Request::ProjectMade { .. }
+            | Request::ProjectRemoved { .. }
             | Request::Decided
             | Request::Ask { .. }
             | Request::Held(..)
@@ -140,6 +143,7 @@ fn has_watch_end(out: &[Request]) -> bool {
             | Request::Ask { .. }
             | Request::Now(..)
             | Request::ProjectMade { .. }
+            | Request::ProjectRemoved { .. }
             | Request::Decided => {}
         }
     }
@@ -251,6 +255,7 @@ fn delivered_run(out: &[Request]) -> Option<&Run> {
             | Request::Ask { .. }
             | Request::Now(..)
             | Request::ProjectMade { .. }
+            | Request::ProjectRemoved { .. }
             | Request::Decided => {}
         }
     }
