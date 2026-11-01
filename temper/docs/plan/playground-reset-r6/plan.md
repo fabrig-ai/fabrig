@@ -30,10 +30,11 @@ domain, view, tools and the client world.
 | 6 | `pd-accounts-uses`, `pd-people-purge`, `pd-store-reads`, `pd-tasks-erase`, `pd-test-connector` |
 | 7 | `bx-doc`, `bx-fixtures`, `bx-harness`, `bx-init`, `bx-walks`, `sv-family`, `sv-playground`, `sv-registry`, `sv-registry-setup`, `sv-removal`, `sv-resolve`, `sv-seed-kit`, `sv-service-fixtures`, `sv-startup-machine`, `sv-startup-refuse`, `sv-world-client-browser`, `sv-world-one-process`, `sv-world-real-loop`, `cl-world-forges` |
 | 8 | `bx-story-github`, `bx-story-playground`, `bx-story-reset-cut`, `bx-story-setup-cut`, `bx-unforge`, `cl-journeys`, `cl-world-pg`, `fe-config-drop`, `fe-demo-gone`, `fe-make-git`, `fe-world-remove`, `fe-world-reset`, `pd-client-view`, `pd-client-wire`, `pd-conformance`, `pd-core-decide`, `pd-core-erase`, `pd-core-release` |
+| 9 | `sv-skein-retire` (answer to `fe-remove`'s question, 2026-11-01; `fe-remove` needs it) |
 
 ## Critical path
 
-63 tasks, 5995 implementer-minutes estimated. By the specs' estimates the longest chain is
+64 tasks, 6065 implementer-minutes estimated. By the specs' estimates the longest chain is
 1080 minutes:
 
 `fe-surface` → `sv-family` → `sv-startup-machine` → `sv-registry` → `sv-registry-setup` →

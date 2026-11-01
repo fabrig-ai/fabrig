@@ -2,7 +2,7 @@
 id = "fe-remove"
 part = "rf"
 kind = "feature"
-needs = ["fe-make"]
+needs = ["fe-make", "sv-skein-retire"]
 files = ["temper/crates/temper-engine-domain-forge/**"]
 effort = "high"
 minutes = 110
@@ -102,3 +102,32 @@ Acceptance:
 
 - How entries and flights of the removed forge end, and every connector row family that
   can still name the forge after its record is erased.
+
+## Answers
+
+- 2026-11-01. Q: may this task add a forge-retirement API in skein-forge-client, or does a
+  prerequisite provide it? A: a prerequisite provides it, and this task now needs it:
+  `sv-skein-retire` adds `skein_forge_client::Event::Retire { forge }` (read its spec: the
+  writer dropped; every client entry on the forge settled `Failed(NotConnected)` at once,
+  or at its call's one terminal when a call is out; nothing named afterwards). Change no
+  skein file here. Use it so:
+  - In `remove`'s decision, after the `Writer(forge)` row's erase and the writer's drop from
+    `d.writers`, step `child(d, env, skein_forge_client::Event::Retire { forge }, out)`.
+    Its outcomes come back through `drain` as any `Outcome` does, erasing each settled
+    entry's `Entry` and `Flight` rows and telling its task. An entry of the forge not yet
+    handed to the child (`handoff != Handed`) is settled the same way by the connector
+    itself, as `withdraw` settles one today (an `Outcome::Failed(Error::NotConnected)`
+    pushed to `client_out`, then `drain`). Held entries (`held: true`, not the child's)
+    stay until their task's close settles them not made, as the pre-approved default says.
+    Do not call `not_made` for an entry the child holds.
+  - So "every `Flight` row of an entry on the forge erased" in the decision reads: erased as
+    each entry settles; an entry whose call is out settles, with its flight, at that call's
+    answer (serve's `Unregister` ends every open call of the forge at once,
+    `sv-skein-connection`'s `Remove`, and serve answers an ended forge's later calls
+    `NotConnected`). The first test's order is then: the record, `Unregister`, the writer,
+    each settled entry's erases and outcome, the kept acts.
+  - At a start, for each restored `Removing` record, `SendKeptActs` steps `Retire` again
+    before it sends the record's kept acts (after restore has ended; a forge with nothing
+    held answers nothing), and settles its not-handed entries as above.
+  - Add the test `a_removed_forges_entries_settle_and_none_is_named_afterwards` (an unsent,
+    a sent and a held entry on the forge, one on another forge untouched).
