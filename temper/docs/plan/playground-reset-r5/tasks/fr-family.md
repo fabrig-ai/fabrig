@@ -124,3 +124,15 @@ Acceptance:
 
 As `notes/common.md` says; every file outside the owned list you edited
 for forced arms, and any schema form you had to change.
+
+## Answers
+
+### 2026-11-01: Supply temper/docs/plan/playground-reset-r5/notes/remove-forge.md section 1 (recommended), or specify the exact forge Removal Rust and schema shapes directly? (playground-reset-r5/fr-family-1, foreman playground-reset-r5/fr-family/foreman-1)
+
+Use `Removal { pub group: bool, pub secrets: bool }` and schema `record Removal { group: bool secrets: bool }`.
+The cited `temper/docs/plan/playground-reset-r5/notes/remove-forge.md`, section 1, exists in this checkout.
+It specifies: “`removal: option Removal`.”
+The task’s acceptance requires this exact shape with `Clone, PartialEq, Eq, Debug`.
+The next run implements that definition and completes the task’s codec, round-trip coverage and remaining acceptance checks.
+
+The requested report file could not be written because this run’s filesystem is read-only.
