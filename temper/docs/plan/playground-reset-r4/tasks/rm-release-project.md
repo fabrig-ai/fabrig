@@ -22,8 +22,9 @@ the ask again; the second answer finds nothing left and answers at once.
 
 Acceptance:
 
-- `release::release(d, env, request, project, out)` (the body of
-  `fr-surface`'s stub): in one decision, erases (`Request::Erase`) and
+- `release::release(d, request, project, out)` (the body of
+  `fr-surface`'s stub, its merged signature; `domain.rs`'s dispatch
+  unchanged): in one decision, erases (`Request::Erase`) and
   drops from the connector's tables each `Repository` row whose
   `project` is the project, and with each the rows that link to it
   (those whose reconcile need is `Need::Repository(it)`: `Ci`, `BranchHead`
@@ -34,10 +35,14 @@ Acceptance:
   `Request::ProjectReleased { request, project }`.
 - A project with no rows answers at once; a second ask after a restart
   answers at once.
-- Rows of tasks still live are not this ask's: jig sends it only once
-  the project's tasks are erased (contracts 4); if one is still there,
-  leave the rows that name a live task and say so in a debug assertion's
-  message (no panic in release).
+- Task liveness is not the connector's to judge: jig sends the ask only
+  once the project's tasks are erased (contracts 4), so release erases
+  every row above whatever task it names, task-keyed rows (`Names`,
+  `Hold`, `Subscription`, change, issue, proposed effect, outbox entry)
+  included. Its one check is local: a flight or an unfinished release
+  (`flights`, `releases`) of a task whose rows it erases is a broken
+  contract, flagged by a `debug_assert!` whose message names the task
+  and the project; release builds erase and answer all the same.
 - The tests below pass, and the connector's reconcile tests.
 
 ## Inputs
@@ -93,3 +98,16 @@ Pre-approved options:
 
 fab's sections, and `## Interfaces`: `release::release` and the
 families it erases.
+
+## Answers
+
+2026-11-01. Q: how does release know which rows name a live task, (A) a
+guard from retained ownership rows or (B) task liveness passed in, and
+may `env` be added at `domain.rs`'s dispatch? A: neither. Contracts 4
+guarantees the project's tasks are erased before the ask, so release
+trusts it and erases every row of the project's repositories, task-keyed
+ones included; no guard keeps a repository, no new input crosses the
+connector's boundary. A flight or unfinished release on an erased
+repository's task is only flagged, by a `debug_assert!` naming the task
+(Acceptance). The signature stays the merged `release(d, request,
+project, out)`: no `env`, `domain.rs` changed for visibility only.
