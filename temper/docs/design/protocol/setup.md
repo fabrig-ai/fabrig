@@ -1861,6 +1861,15 @@ directory is empty (7.1).
     the step's bind. The port is written fixed, since the setup host gives the
     hook's address from the document at its start (5.3); a listener
     bound to port 0, its hooks given the address it reports, is later.
+- **Choosing ports for another box:** keep the first running and give
+  init three separate empty directories. Its occupied preferred ports
+  fall back by the rule above, and both documents name the chosen ports
+  consistently, including the forge remotes and the demo LLM endpoint.
+  The saved addresses stay fixed; a separate init releases its
+  reservations when it exits, so it does not reserve them for a later
+  box. A first-run `temper box` on empty directories keeps the
+  reservations through startup. The walk `box`, step 1, and the
+  `commands` page's init entry explain these choices (`temper help`).
 - **What it says,** on stderr: `init: wrote <path>` for each file;
   `init: this temper has no browser (built with TEMPER_BUNDLE=none):
   the browser is not served` from a binary built without its bundle;
@@ -1892,9 +1901,12 @@ directory is empty (7.1).
   crate tests, on scratch directories, check that the document init writes
   passes configuration.md, section 8, as `temper serve` checks it, with
   the agent's configuration it writes, at the fixed ports and at kernel's
-  ports, the five always distinct, with and without `claude` and git,
-  `clients.bundle` always `null`; each refusal writing nothing, the person's fallback login among
-  them; the files' modes; and the link's target. A box on a fresh init,
+  ports, the five always distinct, with and without `claude` and git;
+  a second init while the first holds its five listeners, on separate
+  directories, writes disjoint ports and matching listener, forge remote
+  and demo LLM addresses in both documents; `clients.bundle` always
+  `null`; each refusal writing nothing, the person's fallback login
+  among them; the files' modes; and the link's target. A box on a fresh init,
   among those tests, reaches `temper serve`'s sign-in link with forge 3
   dormant: no `forge-3` directory and nothing in the cache. The process
   tier starts a box on empty directories (13.4).

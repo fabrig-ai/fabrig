@@ -80,7 +80,23 @@ pub const COMMANDS: [Row; 21] = [
         line: "Write a deployment that starts, with temper's default configuration, into the three directories.",
         arguments: &[DIRECTORIES],
         settings: &[&directories::SETTINGS],
-        notes: "Refused, changing nothing, when the configuration directory already holds temper.json.",
+        notes: "Init chooses five distinct ports on `127.0.0.1`, preferring 8367 for
+clients, 8368 for owned Forgejo, 8369 for the fake forge, 8370 for the
+demo LLM and 8371 for webhooks. Each occupied port falls back to a free
+port from the kernel. It writes matching listener, forge remote and
+demo LLM addresses into `temper.json` and `agent.json`.
+
+To choose ports for another box, leave the first running and give init
+separate empty configuration, data and cache directories. No port flag
+or coordinated edits are needed. See temper help box, step 1.
+
+The saved addresses are fixed: later starts reuse them and refuse an
+occupied address. A separate `temper init` closes its reserved listeners
+on exit. On empty directories, `temper box` runs init itself and keeps
+all five reservations through startup; use that first-run path to avoid
+a gap between selection and startup.
+
+Refused, changing nothing, when the configuration directory already holds temper.json.",
         transition: false,
     },
     Row {
