@@ -514,14 +514,6 @@ fn ready_names_the_configured_model_without_an_account_row() {
     node(view.tree(), Role::Paragraph, "Model: the default model");
     assert!(f::find(view.tree(), Role::Link, b"Connect a model").is_none());
 }
-#[test]
-fn the_setup_strip_continues_to_ready_with_a_configured_model() {
-    let root = configured_model_fixture(Address::Chats { filter: ChatsFilter::All, start: false });
-    assert_eq!(
-        press(&root, Role::Link, "Continue setting up"),
-        d::Action::Pages(pages::Act::Go { address: Address::Welcome { step: Step::Ready } })
-    );
-}
 
 #[test]
 fn ready_names_the_new_chat_templates_model_and_effort() {
@@ -651,7 +643,7 @@ fn ready_under_way_lists_model_forge_and_project_with_folded_progress() {
 }
 
 #[test]
-fn model_choose_excludes_the_playgrounds_provider_before_and_after_retirement() {
+fn model_choose_excludes_the_playgrounds_provider_with_a_real_forge() {
     let address = Address::Welcome { step: Step::Model { way: None } };
     let (mut root, watch) = super::choice::playground_offers_root(address, true);
     let check = |root: &d::Domain| {
@@ -678,9 +670,7 @@ fn model_choose_excludes_the_playgrounds_provider_before_and_after_retirement() 
         );
     };
     check(&root);
-    let read = super::choice::retire_playground(&mut root, watch);
-    check(&root);
-    super::choice::answer_retired_playground(&mut root, read);
+    super::choice::connect_real_forge(&mut root, watch);
     check(&root);
 }
 

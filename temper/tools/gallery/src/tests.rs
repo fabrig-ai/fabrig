@@ -411,15 +411,7 @@ const HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Region, name: "A Forgejo elsewhere" },
         ],
     },
-    Holds {
-        name: "chats-setup-strip",
-        heading: "Chats",
-        parts: &[
-            Part::Named { role: Role::Region, name: "Setup" },
-            Part::Named { role: Role::Paragraph, name: "temper has no forge and no model yet." },
-            Part::Named { role: Role::Link, name: "Continue setting up" },
-        ],
-    },
+    Holds { name: "chats-not-started", heading: "Chats", parts: &[Part::Absent { role: Role::Region, name: "Setup" }] },
     Holds {
         name: "welcome-first-run-0",
         heading: "Welcome to temper",

@@ -167,33 +167,7 @@ fn signing_out_unwatches_the_forges() {
     assert!(root.client().document(forges::handle()).is_none());
     let State::Unknown = root.forges() else { panic!("forges cleared") };
 }
-#[test]
-fn the_forge_half_holds_until_a_forge_of_the_persons_connects() {
-    let demo = forge::family::demo(&demo::answer(b"title"), &w::CEILINGS).unwrap();
-    for (connection, expected) in [
-        (C::NotSetUp, true),
-        (C::SettingUp { step: None }, true),
-        (C::Connecting, true),
-        (C::Connected { id: 1, login: b"bot".as_slice().into() }, false),
-    ] {
-        assert_eq!(forge::demo::halves(Some(&demo), None, None, &rows(connection)).forge, expected);
-    }
-    let state = State::Rows(Box::new([row(
-        demo.forge,
-        Kind::Forgejo,
-        Mode::Fake,
-        C::Connected { id: 1, login: b"bot".as_slice().into() },
-        Offer::NotOffered,
-    )]));
-    assert!(forge::demo::halves(Some(&demo), None, None, &state).forge);
-}
-#[test]
-fn the_forge_half_does_not_hold_without_the_forges_rows() {
-    let demo = forge::family::demo(&demo::answer(b"title"), &w::CEILINGS).unwrap();
-    for state in [State::Unknown, State::Ended] {
-        assert!(!forge::demo::halves(Some(&demo), None, None, &state).forge);
-    }
-}
+
 fn setup(root: &mut crate::Domain) -> Queue<Request> {
     f::form_act(root, forge::Act::SetUp { forge: HERE })
 }

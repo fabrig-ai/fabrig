@@ -124,11 +124,6 @@ fn project_buttons(builder: &mut Builder, root: &Domain, words: &crate::words::W
         let mut projects = false;
         for selected in [true, false] {
             for row in &me.projects {
-                if let Some(demo) = root.forge().retired_demo()
-                    && demo.project == row.project
-                {
-                    continue;
-                }
                 if (Some(row.project) == root.pages().project()) == selected {
                     let name = crate::pages::project_name(Some(me), root.forge().demo(), row.project, words)
                         .expect("project from me has a name");
@@ -385,66 +380,6 @@ pub(crate) fn playground_banner(b: &mut Builder, root: &Domain, words: &crate::w
         b.close();
         return;
     }
-    match root.pages().address() {
-        Address::Accounts
-        | Address::ConnectModel { .. }
-        | Address::Welcome { .. }
-        | Address::ConnectForge { .. }
-        | Address::Forges => return,
-        Address::Chats { .. }
-        | Address::Chat { .. }
-        | Address::Task { .. }
-        | Address::Inbox { .. }
-        | Address::Adopt { .. } => {}
-    }
-    if let Some(setup) = temper_client_domain::forge::listed::setup(root) {
-        b.open(Role::Region);
-        b.style(crate::look::SETUP_STRIP);
-        b.name(&words.say(crate::words::Word::Setup, &[]));
-        let word = if setup.forge && setup.model {
-            crate::words::Word::SetupBoth
-        } else if setup.forge {
-            crate::words::Word::SetupForge
-        } else {
-            crate::words::Word::SetupModel
-        };
-        text(b, Role::Paragraph, &words.say(word, &[]), None);
-        setup_underway(b, root, words, bindings);
-        action(
-            b,
-            Role::Link,
-            &words.say(crate::words::Word::SetupContinue, &[]),
-            Act::Go { address: Address::Welcome { step: setup.step } },
-            false,
-            bindings,
-        );
-        if setup.playground {
-            action(
-                b,
-                Role::Button,
-                &words.say(crate::words::Word::WelcomePlayground, &[]),
-                Act::Playground,
-                false,
-                bindings,
-            );
-        }
-        b.close();
-    }
-}
-
-fn setup_underway(b: &mut Builder, root: &Domain, words: &crate::words::Words, bindings: &mut Bindings) -> bool {
-    let Some(row) = temper_client_domain::forge::connect::underway_forge(root.forges(), root.forge().demo()) else {
-        return false;
-    };
-    crate::forge::connect::status(b, root, words, row, false);
-    crate::forge::connect::link(
-        b,
-        words,
-        bindings,
-        crate::words::Word::ForgeView,
-        Address::ConnectForge { forge: Some(temper_client_domain::Choice::Forge(row.number)) },
-    );
-    true
 }
 
 fn forges_entry(builder: &mut Builder, root: &Domain, words: &crate::words::Words, bindings: &mut Bindings) {
