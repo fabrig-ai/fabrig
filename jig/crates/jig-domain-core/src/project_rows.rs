@@ -224,6 +224,6 @@ fn request_sweep(out: &mut Queue<Request>, owner: Token, sweep: Sweep) {
 }
 
 /// `pd-delete` continues the deletion here.
-fn rows_done(_core: &mut Core, _env: &Env<Limits>, _work: &mut Queue<Event>, _out: &mut Queue<Request>, _project: u32) {
-    crate::routing::removal::rows_erased(_core, _env, _work, _out, _project);
+fn rows_done(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Event>, out: &mut Queue<Request>, project: u32) {
+    crate::routing::removal::rows_erased(core, env, work, out, project);
 }

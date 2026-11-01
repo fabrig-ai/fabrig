@@ -83,6 +83,11 @@ pub(crate) fn route(
             },
             core::RestartStep::Open => {
                 let _request = domain.core.restart_done(step);
+                let requests = core::resume_removals(
+                    &mut domain.core,
+                    &Env { now: env.now, wall: env.wall, limits: env.limits.core },
+                );
+                crate::route::core_out(domain, env, decision, requests, work);
                 work.push(Work::Infrastructure(infrastructure::Event::SendCloses));
             }
         },

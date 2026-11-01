@@ -258,7 +258,7 @@ pub(crate) fn rows_erased(
 
 fn release(core: &mut Core, work: &mut Queue<Event>, out: &mut Queue<Request>, project: u32) {
     for index in 0..core.connectors.len() {
-        let connector = core.connectors[index];
+        let connector = *core.connectors.get(index).expect("configured connector index");
         let request = token(core);
         core.removal_releases.insert(request, project).expect("one release per configured connector and removal");
         out.push(Request::Ask { connector, ask: Ask::Effect(connector::Ask::ReleaseProject { request, project }) });
@@ -292,6 +292,7 @@ fn finish_release(core: &mut Core, work: &mut Queue<Event>, out: &mut Queue<Requ
     out.push(Request::Write(Write::Erase(Key::Core(CoreKey::Removal(project)))));
 }
 
+#[expect(clippy::manual_map, reason = "step code selects the kept stage without a closure")]
 fn stage(core: &Core, project: u32) -> Option<RemovalStage> {
     match core.removals.get(&project) {
         Some(row) => Some(row.stage),

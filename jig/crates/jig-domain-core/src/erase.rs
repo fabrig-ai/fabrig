@@ -199,12 +199,12 @@ pub(crate) fn erasing(core: &Core, task: u64) -> bool {
 
 /// The erasure's end; `pd-delete` continues the deletion here.
 fn finished(
-    _core: &mut Core,
-    _env: &Env<Limits>,
-    _work: &mut Queue<Event>,
-    _out: &mut Queue<Request>,
-    _project: u32,
-    _task: u64,
+    core: &mut Core,
+    env: &Env<Limits>,
+    work: &mut Queue<Event>,
+    out: &mut Queue<Request>,
+    project: u32,
+    task: u64,
 ) {
-    crate::routing::removal::erased(_core, _env, _work, _out, _project, _task);
+    crate::routing::removal::erased(core, env, work, out, project, task);
 }

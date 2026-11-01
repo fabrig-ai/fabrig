@@ -421,7 +421,7 @@ pub(crate) fn connector(
             }
         }
         connector::Event::ProjectReleased { request, project } => {
-            crate::routing::removal::released(core, work, &mut out, request, project)
+            crate::routing::removal::released(core, work, &mut out, request, project);
         }
         connector::Event::Procedure { .. }
         | connector::Event::SectionReady { .. }
