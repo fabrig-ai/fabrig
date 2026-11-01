@@ -135,3 +135,16 @@ refused and why (`Component::add`'s `Added::Closed` or
 most: no host, token or record bytes. Like `Unreachable`, it is an
 operator diagnostic, never a wire or stored value; a conversion refused
 keeps the existing variants (`Unreachable`, `Unreadable`, ...).
+
+2026-11-01. May this task remove the dead-code expectations its own
+calls leave unfulfilled, in `forge/tokens.rs`, `workers.rs` and
+`setup/lifecycle.rs`, and repair the three `List`-to-slice arguments in
+`clients/demo_tests.rs`? Yes (option A). Those expectations name this
+task in their reason ("fr-forge-added calls the dynamic table
+operations", "fr-forge-added uses the retained shell"): remove every
+such attribute, in any file of `temper-service`, once this task's code
+calls the item; each other line of those files stays. In
+`clients/demo_tests.rs` (lines 119, 134, 167), `&engine.workers.forges`
+becomes `engine.workers.forges.as_slice()`, as the file's other calls
+already read, and nothing else there changes. Both files join this
+task's scope for these edits only; list them in the report.
