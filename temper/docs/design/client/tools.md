@@ -1280,6 +1280,12 @@ may change with them.
   still gets the first answer; one under that name with another ask, or
   under a name another party's parked request holds (8.2), meets
   `Held`, and exits 1.
+- **A spent-pool refusal keeps its own figures first:**
+  `chat start: refused: your pool in project P had LEFT left, NEEDED needed`.
+  If today's `me` pool still has less than NEEDED, the `read it:` and
+  `raise it:` calls follow. With room now, the next line is
+  `now: your pool has L left; budget B; this key keeps its first answer: start new work with a new --key`.
+  Today's pool never replaces the refusal's figures.
 - **Names are the party's.** Agents sharing a party give their names a
   prefix of their own; the page `ctl` says so (11.5).
 - **Acts that decide name the revision the agent saw;** a moved one is

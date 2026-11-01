@@ -43,7 +43,7 @@ fn a_person_raises_a_spent_project_and_its_next_chat_runs() {
     assert_eq!(refused.status, 2);
     assert_eq!(
         String::from_utf8_lossy(&refused.stderr),
-        "chat start: refused: your pool in project 1 has 0 left; budget 100\nread it: project show 1\nraise it: project fund 1 AMOUNT --role 0, and first the project's if its period has no room: project fund 1 AMOUNT\n"
+        "chat start: refused: your pool in project 1 had 0 left, 1 needed\nread it: project show 1\nraise it: project fund 1 AMOUNT --role 0, and first the project's if its period has no room: project fund 1 AMOUNT\n"
     );
     let before = call(&mut front, &mut root, 4, &[b"project", b"show", b"1"]);
     assert!(before.contains("pool, party 1 "), "{before}");

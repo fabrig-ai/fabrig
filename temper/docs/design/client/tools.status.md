@@ -10,4 +10,4 @@
 
 - **Built:** 6.1: a heard question-answer notice prints its inbox acknowledgement in chat and task activity, including when its words are empty. 6.3: argument refusals retain their tool and form for argv and `--call`, and print the argument's type and bound from help's specification, or the missing/repeated/excessive rule, within 240 bytes with the tool's help call.
 
-- **Built:** 5.5, area 5: program declaration prints the box directory placeholders, the signed-in skip rule and the verify call; JSON next carries the command line.
+- **Built:** 5.5, area 5: program declaration prints the box directory placeholders, the signed-in skip rule and the verify call; JSON next carries the command line. 7: spent-pool refusals keep their first figures and distinguish today's room with the new-key remedy.
