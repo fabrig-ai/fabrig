@@ -26,11 +26,13 @@ standing rules: `notes/common.md`.
 | `cl-welcome` | client | cl-connect, cl-play-view | 110 | The welcome's three states and its Forge step's unfinished forge (draft `temper/docs/design/draft/playground-reset.md`, 6.3 and 6.4): empty, the welcome offers … |
 | `fr-box` | forge-records | - | 110 | The box runs groups from group files (draft `temper/docs/design/draft/playground-reset.md`, section 3, "The box knows kinds, not forges"; contracts, section 4):… |
 | `fr-ctl` | forge-records | fr-wire, cl-tools | 75 | `temper ctl` names a new forge, so the process tests and a person at a terminal make forges as the welcome does (draft `temper/docs/design/draft/playground-rese… |
+| `fr-demo` | forge-records | fr-domain, fr-root | 90 | The demo's forge becomes a record made at the demo's start, by the smallest change that keeps today's playground working (the forge part's brief; `notes/forge-r… |
 | `fr-domain` | forge-records | fr-family | 120 | The forge connector keeps forges as records (draft `temper/docs/design/draft/playground-reset.md`, section 3): `make_forge` numbers and saves one, restored reco… |
 | `fr-family` | forge-records | - | 90 | Add the forge connector's two new store families, `Forge` (31) and `ForgeNext` (32), with the record's types and their codec, restored into the connector but no… |
 | `fr-group` | forge-records | - | 90 | The box's group file: its codec, one module of `temper-forge-setup` (`group`), and the steps of one group built from it by its kind, owned (`temper-forge-setup`… |
 | `fr-machine` | forge-records | fr-family, fr-wire | 110 | The service's pure half of forge records: the document's machine member (`application.machine`), the fills that turn a person's choice into a `Template`, the pa… |
 | `fr-root` | forge-records | fr-family | 50 | The root carries the forge records' traffic between the connector and the service: the connector's `ForgeKept` becomes the root's request, and the playground's … |
+| `fr-shell` | forge-records | fr-box, fr-group, fr-svc-route | 110 | The meeting point, both real sides (draft `temper/docs/design/draft/playground-reset.md`, section 3): a fresh deployment under `temper box` whose document names… |
 | `fr-sk-connection` | forge-records | - | 100 | skein's forge connection component takes forges at runtime: a forge added after construction and a forge removed, so temper can configure a forge from a record … |
 | `fr-sk-setup` | forge-records | - | 60 | skein's setup host takes forges at runtime: a forge added after construction and a forge removed, so temper can set up or connect a forge it made from a record … |
 | `fr-svc-forges` | forge-records | fr-sk-connection, fr-sk-setup, fr-machine | 120 | The service configures a forge at runtime, as it configures the document's at start: every per-forge table sized from `forge.forges` instead of the configured c… |
@@ -49,6 +51,7 @@ standing rules: `notes/common.md`.
 | `jp-wire` | jig-remove-project | jp-acts, jp-people | 80 | Carry the owners' `Ask::RemoveProject` and its answer across jig's client wire (draft `temper/docs/design/draft/playground-reset.md`, section 5, "its client"), … |
 | `pg-jig-uses` | playground | jp-acts | 60 | Give jig a deployment act that sets an account's uses, so temper's playground can make its scripted account the deployment's with its uses naming the playground… |
 | `pg-wire` | playground | - | 60 | Add the playground's client wire beside today's demo forms, so the client part builds on it at once (draft `temper/docs/design/draft/playground-reset.md`, 6.1 a… |
+| `rf-family` | remove-forge | fr-demo | 90 | The removal's surface (draft `temper/docs/design/draft/playground-reset.md`, section 4; `notes/remove-forge.md`): store family 19 renamed from `DemoAct` to `Kep… |
 
 ## Critical path (as it stands)
 
