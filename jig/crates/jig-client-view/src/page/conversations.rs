@@ -146,7 +146,9 @@ pub(crate) fn answered(
 ) {
     let (request, handle) = request_and_handle;
     match purpose {
-        IntentPurpose::ProjectSettings => crate::page::project::owner_form::answered(domain, request, answer),
+        IntentPurpose::ProjectSettings => {
+            crate::page::project::owner_form::answered(domain, env, (request, handle), answer, out, lent);
+        }
         IntentPurpose::CreateGoal => {
             crate::page::project::goals::answered(domain, env, request, handle, answer, out, lent);
         }

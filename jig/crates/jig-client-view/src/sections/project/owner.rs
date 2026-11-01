@@ -126,6 +126,8 @@ pub(crate) fn max_nodes_with_card(l: &Limits, card: u32) -> Option<u32> {
         .checked_add(crate::sizes::refusal_nodes(l)?.checked_mul(3)?)?
         .checked_add(20)?
         .checked_add(128)?
+        // Delete control and confirmation: region, warning, name, send, dismiss.
+        .checked_add(6)?
         .checked_add(historical_nodes(l, card)?)
 }
 // Earlier period rows include their task chips/cards and pool budgets. The
@@ -543,6 +545,7 @@ pub(super) fn section(
         ProjectSection::Settings => {
             render(b, value, client, words, bindings);
             forms(b, value, client, words, bindings);
+            delete_form(b, value, client, words, bindings);
             super::historical_spend(b, client, words, bindings);
         }
         ProjectSection::Resources => resources(b, value, client, words, bindings),
@@ -1049,6 +1052,9 @@ fn review_form(
     words: &Words,
     bindings: &mut JigBindings,
 ) {
+    if state.delete.is_some() {
+        return;
+    }
     let text_limit = bindings.text_limit();
     if let Some(ask) = &state.review {
         region(b, words, P::Review, &[]);
@@ -1177,6 +1183,55 @@ fn holding_control(
     let mut holdings = source.clone();
     holdings.get_mut(index).expect("bounded selected holding").role = role;
     role_control(b, role, owner_form::action(Ask::SetRoles { project, holdings }), words, bindings);
+}
+fn delete_form(
+    b: &mut Builder,
+    value: &OwnerProject,
+    client: &Borrowed<'_>,
+    words: &Words,
+    bindings: &mut JigBindings,
+) {
+    if !owner_form::delete_offered(value) {
+        return;
+    }
+    let state = &client.project_page().settings;
+    let Some(typed) = &state.delete else {
+        crate::frame::control(b, words, bindings, Role::Button, JigPhrase::DeleteProject, &[], Act::OpenProjectDelete);
+        return;
+    };
+    named_region(b, words, JigPhrase::DeleteProject, &[]);
+    words.text(b, JigPhrase::DeleteProjectWarning, &[Hole::Name(value.name.bytes.bytes().into())]);
+    b.open(Role::TextField);
+    b.name(&words.say(JigPhrase::DeleteProjectName, &[]));
+    b.value(typed.bytes(), 0);
+    let pending = state.pending.is_some();
+    if pending {
+        b.state(skein_ui::State::Disabled);
+    } else {
+        b.bind(bindings.insert(JigMeaning::ProjectDeleteName));
+    }
+    b.close();
+    b.open(Role::Button);
+    b.name(&words.say(JigPhrase::DeleteProject, &[]));
+    if pending || typed.bytes() != value.name.bytes.bytes() {
+        b.state(skein_ui::State::Disabled);
+    } else {
+        b.bind(bindings.insert(JigMeaning::Action(Act::DeleteProject)));
+    }
+    if pending {
+        b.state(skein_ui::State::Busy);
+    }
+    b.close();
+    crate::frame::control(b, words, bindings, Role::Button, JigPhrase::Dismiss, &[], Act::Dismiss);
+    if let Some(refused) = &state.refused {
+        words.refusal(b, refused, bindings.text_limit());
+    }
+    if let Some(request) = state.pending
+        && let Some(intent) = client.intents().get(skein_lib::Id::from_token(request))
+    {
+        words.progress(b, intent.progress);
+    }
+    b.close();
 }
 fn service_form(
     b: &mut Builder,
