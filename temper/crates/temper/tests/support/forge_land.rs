@@ -1493,7 +1493,7 @@ impl LiveJudge<'_> {
                 self.phase = LivePhase::Created;
             }
             LivePhase::Created => {
-                self.tasks.chat = last["outcome"]["done"]["owner"]["created"]["first"]
+                self.tasks.chat = last["outcome"]["done"]["document"]["created"]["first"]
                     .as_u64()
                     .ok_or("created chat number missing")?;
                 self.wait_started = Some(now);

@@ -250,7 +250,7 @@ impl Referee<Process> for Judge {
                 String::from_utf8_lossy(&connected.stderr)
             );
             let answer = ctl::json(connected);
-            let address = answer["outcome"]["done"]["owner"]["account_sign_in_started"]["address"]
+            let address = answer["outcome"]["done"]["document"]["account_sign_in_started"]["address"]
                 .as_str()
                 .expect("sign-in address");
             assert!(address.starts_with("http://127.0.0.1:"), "local authorization address");

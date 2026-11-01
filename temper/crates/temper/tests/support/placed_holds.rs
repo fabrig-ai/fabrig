@@ -238,7 +238,7 @@ fn placed(calls: &[Ended]) -> Value {
     assert!(String::from_utf8_lossy(&calls[18].stdout).contains("you may lift it"));
     assert_eq!(task["hold"]["placed"]["hold"], STOP_HOLD, "derived message counter");
     assert_eq!(task["hold"]["placed"]["revision"], HOLD_REVISION);
-    assert_eq!(task["hold"]["owner"]["revision"], TASK_HOLD_REVISION);
+    assert_eq!(task["hold"]["revision"], TASK_HOLD_REVISION);
     // Chip attempts retain the last claimed identity even after a run parks.
     // The run documents above prove no attempt remains live after the stop.
     task["hold"]["placed"].clone()
@@ -281,7 +281,7 @@ pub fn proposal(scratch: &Path, config: &Path, flags: Vec<String>) {
                 "release",
                 "2",
                 "--hold",
-                &task["hold"]["owner"]["revision"].to_string(),
+                &task["hold"]["revision"].to_string(),
                 "--key",
                 "maintainer-release",
             ])

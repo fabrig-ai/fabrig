@@ -281,7 +281,7 @@ impl Judge {
             Stage::Chat => {
                 self.mark("signed in, key usable, adopted, chat created");
                 let packet = ctl::json(calls.ends().last().expect("chat creation"));
-                assert_eq!(packet["outcome"]["done"]["owner"]["created"]["first"], 1, "{packet}");
+                assert_eq!(packet["outcome"]["done"]["document"]["created"]["first"], 1, "{packet}");
                 // The chat's first reply acknowledges its already committed change task.
                 self.queue(
                     host,
