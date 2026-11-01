@@ -389,6 +389,18 @@ turn and no call, counts as not started: no try is spent on it. A kept
 task is never due, and a run of it that finishes done parks instead
 (5.7).
 
+**Nothing left to await.** After the ordinary unread-message wake rules,
+a result-ended agent task that parks still idle is due again if it is not
+kept, owes no requester question, has no open question, live delegate or
+pending proposal, and has no executor-taken timer or task watch. Topic
+subscriptions do not count: news is a hint (8.2). The tasks child asks the
+core to number a `NothingAwaited` notice whose words are: "Nothing more
+will come: your delegates have ended and no question waits. Finish with
+your result." It always wakes and merges in the dependency-met notice
+slot: an unread dependency-met notice already wakes it before this rule
+is reached. Each such park consumes a run try, retained across these
+wakes; exhausting the run tries ends the task failed. A task ended by its requester may remain idle (5.8).
+
 ### 5.3 Procedure tasks
 
 An active procedure task is stepped by the part of the engine that owns
@@ -1185,6 +1197,7 @@ circle, each for another of the set, so that none of them could end.
 | words | a party; a task holding a reference to it | a party's, yes; a task's, by policy |
 | news: a connector's event, classified | its subscriptions (8.4) | by policy |
 | a notice: a task it references done or held; a proposal passing through; a hold it waits for | its subscriptions; the core | by policy |
+| a notice: nothing left to await (5.2) | the core | yes |
 | a notice: its last pending dependency done or removed (5.7) | the core | yes |
 | a timer | itself | yes |
 
