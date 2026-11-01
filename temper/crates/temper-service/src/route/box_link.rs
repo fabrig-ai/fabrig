@@ -400,7 +400,9 @@ pub(crate) fn drain(engine: &mut crate::engine::Engine, out: &mut Queue<Out>) {
 
 /// Stage the host's whole group write before admitting its start (contracts T3).
 pub(crate) fn set_up_group(engine: &mut crate::engine::Engine, forge: u16, request: Token, entry: &[u8]) {
-    if entry.is_empty() {
+    if engine.group_starts.get(&forge).is_some() {
+        crate::setup::lifecycle::set_up_refused(engine, forge, request, temper_engine_domain_forge::SetUpRefusal::Busy);
+    } else if entry.is_empty() {
         let mut out = Queue::with_capacity(3);
         engine.box_link.ask(forge, request, &mut out);
         drain(engine, &mut out);

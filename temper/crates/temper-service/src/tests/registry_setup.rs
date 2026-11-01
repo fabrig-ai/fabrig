@@ -204,6 +204,44 @@ fn a_registered_owned_record_is_served_and_waits_for_its_group() {
     let Some(host::Kind::Forgejo(given)) = support::given(&service, 3) else { panic!("connected Given") };
     assert_eq!(given.bot_login, connected.bot.login);
     assert_eq!(given.bot_email, connected.bot.email);
+    registered_owned_setup(&mut service);
+}
+
+fn registered_owned_setup(service: &mut crate::Service) {
+    let request = Token::new(91);
+    let other = Token::new(92);
+    for token in [request, other] {
+        route::request(
+            service.engine.as_mut().unwrap(),
+            root::Request::SetUp {
+                forge: 1,
+                request: token,
+                org: b"work".as_slice().into(),
+                repository: b"hello".as_slice().into(),
+                playground: false,
+            },
+        );
+    }
+    let engine = service.engine.as_ref().unwrap();
+    assert!(engine.box_link.write.is_none(), "start waits for the group write");
+    let Some(root::Event::Forge(event)) = engine.events.iter().last() else { panic!("second setup answered") };
+    assert_eq!(
+        **event,
+        domain::Event::SetUpAnswered {
+            forge: 1,
+            request: other,
+            answer: domain::SetUpAnswer::Refused(domain::SetUpRefusal::Busy),
+        }
+    );
+    let write = service.take_group_write().expect("registered entry written before start");
+    assert_eq!(write.forge, 1);
+    assert_eq!(write.text, temper_forge_setup::setup::group_settings(OWNED, 1).unwrap());
+    assert!(service.take_group_write().is_none(), "no duplicate group write");
+    service.group_written(1, Ok(()));
+    let engine = service.engine.as_ref().unwrap();
+    assert_eq!(engine.box_link.write.as_deref(), Some(b"start 1\n".as_slice()));
+    let Some(root::Event::Forge(event)) = engine.events.iter().last() else { panic!("first setup answered") };
+    assert_eq!(**event, domain::Event::SetUpAnswered { forge: 1, request, answer: domain::SetUpAnswer::SettingUp });
 }
 #[test]
 fn a_registered_owned_record_reconciles_after_its_group_started() {
