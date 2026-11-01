@@ -178,6 +178,7 @@ fn demo_record(input: kit::ToApplication, demo: &crate::settings::Demo) -> Box<[
 #[test]
 fn the_demo_read_answers_the_configured_demo() {
     let demo = crate::settings::Demo {
+        fake: None,
         state: Some(forge::DemoState::Running),
         landing: b"main".as_slice().into(),
         key_file: b"/demo-key".as_slice().into(),

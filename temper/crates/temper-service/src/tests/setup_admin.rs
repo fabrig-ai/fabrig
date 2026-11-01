@@ -615,6 +615,7 @@ fn an_ended_forge_finishes_the_admin_run_without_keeping_the_token() {
     let run = pending(&mut service);
     let engine = service.engine.as_mut().unwrap();
     engine.demo = Some(crate::settings::Demo {
+        fake: None,
         project: 1,
         forge: 1,
         provider: 1,

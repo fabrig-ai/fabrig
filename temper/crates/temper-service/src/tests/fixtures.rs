@@ -64,6 +64,7 @@ pub fn engine() -> settings::Engine {
     // This typed fixture reaches the core's start; policy 1 needs 3250 bytes.
 
     settings::Engine {
+        owned: None,
         records_only: Box::new([]),
         jig,
         webhooks: None,

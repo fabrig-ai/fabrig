@@ -907,6 +907,7 @@ fn checked_start_with(
         files: settings::Files { entries: files.entries.clone() },
         forges: resolved.forges,
         demo: parsed.application.demo,
+        owned: parsed.application.owned,
         setup: setup_values,
         // Records-only local starts wait for the root to restore.
         records_only: match setup {

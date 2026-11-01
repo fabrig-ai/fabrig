@@ -1,6 +1,7 @@
 //! Temper's members, read strictly with jig's readers (protocol/configuration.md, 3, 4, 10).
 mod demo;
 mod landing;
+mod owned;
 mod public;
 mod read;
 pub mod sign_in;
@@ -21,6 +22,7 @@ pub struct Members {
     pub webhooks: Option<Webhooks>,
     pub forges: Box<[Forge]>,
     pub demo: Option<settings::Demo>,
+    pub owned: Option<temper_forge_setup::setup::Template>,
     pub asked_owned: Box<[u16]>,
     pub identities: Box<[Identity]>,
     pub landing: temper_engine_domain::LandingPolicy,
@@ -795,6 +797,12 @@ pub fn parse(
         Some(at) => clients(document, at, &path.member(b"clients"), true, problems),
         None => None,
     };
+    let owned_at = if object.member(document, b"owned").is_some() {
+        read::nullable(&mut object, document, b"owned", &path, problems)
+    } else {
+        None
+    };
+    let owned = owned::parse(document, owned_at, &bounds.setup, directories, problems);
     let sign_in_at = read::nullable(&mut object, document, b"sign_in", &path, problems);
     let sign_in = sign_in::parse(document, sign_in_at, jig, bounds.sign_in, directories, problems);
     let landing_at = read::required(&mut object, document, b"landing", &path, problems);
@@ -866,6 +874,7 @@ pub fn parse(
         webhooks,
         forges: forges.into_boxed(),
         demo,
+        owned,
         asked_owned: asked_owned(document, setup_at),
         identities: identities.into_boxed(),
         workers: workers.into_boxed(),

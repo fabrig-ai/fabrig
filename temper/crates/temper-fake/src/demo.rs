@@ -6,7 +6,7 @@ use jig_protocol_config::{self as config, Directory, Path};
 use skein_fake_llm_domain::api;
 use skein_json::Document as Json;
 use skein_lib::{List, bytes};
-use temper_forge_setup::setup::{Mode, Setup};
+use temper_forge_setup::setup::{Mode, Setup, Template, Want};
 
 /// The key file's read bound: the largest account key and its newline.
 /// jig's client-v11 Keyed.value ceiling is 4096 bytes; account keys are raw bytes.
@@ -48,6 +48,7 @@ pub struct Demo {
     llm: llm::Document,
     provider: u32,
     forge: u16,
+    fake: Option<Template>,
     project: u32,
 }
 impl Demo {
@@ -62,6 +63,10 @@ impl Demo {
     #[must_use]
     pub fn forge(&self) -> u16 {
         self.forge
+    }
+    #[must_use]
+    pub fn fake(&self) -> Option<&Template> {
+        self.fake.as_ref()
     }
     #[must_use]
     pub fn project(&self) -> u32 {
@@ -87,6 +92,7 @@ pub fn read(document: &Json, at: u32, facts: &Facts<'_>) -> Result<Option<Demo>,
     let mut o = read::object(document, at, &p)?;
     let llm_at = read::required(&mut o, document, b"llm", &p)?;
     let forge_at = read::required(&mut o, document, b"forge", &p)?;
+    let fake_at = o.member(document, b"fake");
     let project_at = read::required(&mut o, document, b"project", &p)?;
     read::finish(o, document, &p)?;
     let lp = p.member(b"llm");
@@ -100,6 +106,7 @@ pub fn read(document: &Json, at: u32, facts: &Facts<'_>) -> Result<Option<Demo>,
     read::finish(o, document, &lp)?;
     let listen = read::listen(document, listen_at, &lp.member(b"listen"))?;
     unique_listen(listen, facts, &lp.member(b"listen"))?;
+    let fake = machine_fake(document, fake_at, listen, facts, &p.member(b"fake"))?;
     let pp = lp.member(b"provider");
     let provider = read::integer(document, provider_at, u64::from(u32::MAX), &pp)?;
     let provider = u32::try_from(provider).expect("u32 bound");
@@ -128,14 +135,14 @@ pub fn read(document: &Json, at: u32, facts: &Facts<'_>) -> Result<Option<Demo>,
     let llm = llm::Document::checked(listen, key, None, models, scripts, &lp)?;
     let forge = read::integer(document, forge_at, u64::from(u16::MAX), &p.member(b"forge"))?;
     let forge = u16::try_from(forge).expect("u16 bound");
-    let fake = match facts.setup.entry(forge) {
+    let configured = match facts.setup.entry(forge) {
         Some(entry) => match &entry.mode {
             Mode::Fake(_) => true,
             Mode::Owned(_) | Mode::Managed { .. } => false,
         },
         None => false,
     };
-    if !fake {
+    if !configured {
         return Err(read::why(&p.member(b"forge"), b"names no fake setup entry"));
     }
     let project = read::integer(document, project_at, u64::from(u32::MAX), &p.member(b"project"))?;
@@ -143,7 +150,46 @@ pub fn read(document: &Json, at: u32, facts: &Facts<'_>) -> Result<Option<Demo>,
     if !facts.projects.contains(&project) {
         return Err(read::why(&p.member(b"project"), b"names no project"));
     }
-    Ok(Some(Demo { llm, provider, forge, project }))
+    Ok(Some(Demo { llm, provider, forge, fake, project }))
+}
+fn machine_fake(
+    document: &Json,
+    at: Option<u32>,
+    llm: SocketAddr,
+    facts: &Facts<'_>,
+    path: &Path,
+) -> Result<Option<Template>, Refusal> {
+    let Some(at) = at else { return Ok(None) };
+    if read::is_null(document, at) {
+        return Ok(None);
+    }
+    let mut problems = config::Problems::empty();
+    let template = Template::read(
+        document,
+        at,
+        Want::Fake,
+        &temper_forge_setup::limits::small(),
+        facts.directories,
+        path,
+        &mut problems,
+    );
+    if let Some(problem) = problems.problems.get(0) {
+        return Err(read::kind(&problem.path, problem.what));
+    }
+    let Some(template) = template else { return Err(read::why(path, b"invalid form")) };
+    let Mode::Fake(fake) = &template.mode else { unreachable!("checked fake template") };
+    let path = path.member(b"mode").member(b"fake").member(b"listen");
+    if facts.listeners.contains(&fake.listen) || fake.listen == llm {
+        return Err(read::why(&path, b"must be unique"));
+    }
+    for entry in &facts.setup.entries {
+        if let Mode::Owned(owned) = &entry.mode
+            && owned.listen == fake.listen
+        {
+            return Err(read::why(&path, b"must be unique"));
+        }
+    }
+    Ok(Some(template))
 }
 fn data_path(d: &Json, at: u32, directories: &config::Directories, p: &Path) -> Result<Box<[u8]>, Refusal> {
     let text = read::text(d, at, limits::PATH_BYTES, p)?;

@@ -60,7 +60,8 @@ pub(crate) fn run_configuration(
             .map(|(fd, _)| skein_shell::listener_at(fd).map(|address| (fd, address)))
             .collect::<Result<Vec<_>, _>>()
             .map_err(super::listeners_refusal)?;
-        let super::setup::Deployment { named, checked, demo, limits } = super::setup::check(bytes, &directories.jig())?;
+        let super::setup::Deployment { named, checked, demo, limits, owned: _ } =
+            super::setup::check(bytes, &directories.jig())?;
         let directory = super::path(&directories.data);
         let program = std::env::current_exe().map_err(|why| why.to_string())?;
         let environment = std::env::vars_os()
