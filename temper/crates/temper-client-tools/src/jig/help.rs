@@ -132,7 +132,7 @@ fn argument_record(argument: &Argument, limits: &Limits, out: &mut Writer) -> Re
     out.put(argument.line)?;
     out.put(b"\n")
 }
-fn argument_type(kind: Kind, out: &mut Writer) -> Result<(), Overflow> {
+pub(crate) fn argument_type(kind: Kind, out: &mut Writer) -> Result<(), Overflow> {
     out.put(match kind {
         Kind::Number | Kind::NumberRange { .. } => b"a number",
         Kind::Count => b"a count",
@@ -166,7 +166,7 @@ fn choices(words: &[&[u8]], prefixes: &[&[u8]], out: &mut Writer) -> Result<(), 
     }
     Ok(())
 }
-fn argument_bound(argument: &Argument, limits: &Limits, out: &mut Writer) -> Result<(), Overflow> {
+pub(crate) fn argument_bound(argument: &Argument, limits: &Limits, out: &mut Writer) -> Result<(), Overflow> {
     match bound(argument, limits) {
         Bound::None => {}
         Bound::Numbers { least, most } => {

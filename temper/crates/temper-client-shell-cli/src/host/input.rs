@@ -88,19 +88,13 @@ impl OneShot {
                     self.call = Some(Parsed::Call { call, json });
                     self.prepare_start();
                 }
-                Err(
-                    why @ (jig::argv::Usage::Timeout
-                    | jig::argv::Usage::WaitPart { .. }
-                    | jig::argv::Usage::TerminalPhase { .. }),
-                ) => {
+                Err(why) => {
                     let mut measured = skein_lib::Writer::new(1024);
                     temper_client_tools::table::refusal(why, &[], &mut measured).expect("refusal");
                     let mut exact = skein_lib::Writer::new(measured.written());
                     temper_client_tools::table::refusal(why, &[], &mut exact).expect("refusal");
                     self.fail(&exact.finish());
                 }
-                Err(jig::argv::Usage::AmendmentRevision) => self.fail(b"task amend needs --rev REV"),
-                Err(_) => self.fail(temper_client_tools::table::USAGE),
             },
             Parsed::Call { call, json } if arguments::key_file(&call).is_some() => {
                 let stripped = if call.tool == temper_client_tools::jig::rows::IMPORT_AT {

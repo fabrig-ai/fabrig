@@ -691,6 +691,27 @@ fn usage_exits_1_before_directory_opens() {
     assert!(f.no_directory());
 }
 #[test]
+fn a_json_argument_refusal_names_the_tool_before_opening_the_directory() {
+    for path in ["-", "/elsewhere/call.json"] {
+        let mut f = fixtures::Frame::read(&["--call", path]);
+        let call = br#"{"tool":"task activity","arguments":{"task":2,"limit":40}}"#;
+        if path == "-" {
+            f.input = call;
+        } else {
+            f.link = call;
+        }
+        f.drain();
+        assert_eq!(f.exit(), Some(Exit::Code(1)));
+        assert_eq!(
+            f.stderr(),
+            b"temper ctl: task activity: --limit COUNT takes a count from 1 to 32; temper ctl help task activity\n"
+        );
+        assert!(f.stdout().is_empty());
+        assert!(!f.opened(b"directory"));
+        assert_eq!(f.requests(), 0);
+    }
+}
+#[test]
 fn a_terminal_task_phase_names_until_ended_and_sends_nothing() {
     use temper_client_tools::jig::argv::Usage;
     assert_eq!(

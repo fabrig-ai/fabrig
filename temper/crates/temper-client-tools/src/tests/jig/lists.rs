@@ -41,7 +41,10 @@ fn a_composite_task_closes_its_related_watches() {
 }
 #[test]
 fn an_inbox_cursor_of_another_group_than_its_kind_exits_1() {
-    assert_eq!(fixtures::parse(fixtures::WRONG_INBOX_GROUP), Err(crate::jig::argv::Usage::Kind { argument: 3 }));
+    assert_eq!(
+        fixtures::parse(fixtures::WRONG_INBOX_GROUP),
+        Err(crate::jig::argv::Usage::Kind { tool: 1, form: 0, argument: 3 })
+    );
 }
 
 #[test]
@@ -208,7 +211,7 @@ fn parent_tasks_keep_the_other_query_keys_and_continuation() {
     for bad in ["x", "-1", "18446744073709551616"] {
         assert_eq!(
             fixtures::parse(&["task", "list", "--project", "3", "--parent", bad]),
-            Err(crate::jig::argv::Usage::Kind { argument: 7 })
+            Err(crate::jig::argv::Usage::Kind { tool: 2, form: 0, argument: 7 })
         );
     }
 }
