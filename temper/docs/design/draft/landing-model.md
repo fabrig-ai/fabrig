@@ -54,19 +54,20 @@ named `fab:<name>`; jig's are named as jig's.
   repair from main (section 8). **QA walks** feed a findings loop
   (section 9).
 - **Judgement is in agent tasks,** a fresh one for each decision; only
-  the chat runs long (section 10); custody lends accounts and workers
-  take runs (section 12); reports come from the store (section 13).
+  the chat and a goal's agent run long (section 10); custody lends
+  accounts and workers take runs (section 12); reports come from the
+  store (section 13).
 
 ## 2. Words
 
 Most words are jig's (task, goal, chat, template, charter, plan, spec,
 brief, run, try, kept, held, wake, timer, inbox, worker, slot,
-workspace, job, account, grant, recurring) or temper's (change,
-producer, landing queue, candidate, gate, receipt, tier, red, flake,
-fault, repair, resolution, update, finding, triage, and the walk, ladder
-and rung of `draft/v0.1.0.md`, cited from `testing.md` 2.4). jig's tries
-count failed attempts per class; here a change also has `tries`, its
-runs not landed. These are new, for what neither names:
+workspace, job, account, grant) or temper's (change, producer, landing
+queue, candidate, gate, receipt, tier, red, flake, fault, repair,
+resolution, update, finding, triage, and the walk, ladder and rung of
+`draft/v0.1.0.md`, cited from `testing.md` 2.4). jig's tries count
+failed attempts per class; here a change also has `tries`, its runs not
+landed. These are new, for what neither names:
 
 | Word | What it is |
 |---|---|
@@ -317,9 +318,9 @@ A ladder is a goal of `each` with rungs instead of parts (section 9).
   (`refused_paths`), is rejected.
 - **Selection** (`selection`) is the packages the candidate reaches and
   their reverse dependencies, with paths that always run and paths tests
-  read, or the whole suite. A candidate of paths no package holds runs
-  only `docs_gates`. Every `full_every`th candidate runs the full
-  selection.
+  read, or the whole suite. A candidate the selection finds
+  documentation-only runs only `docs_gates`. Every `full_every`th
+  candidate runs the full selection.
 - **The gates** (`gates`) run in a gate lane nothing else builds in; a
   counted baseline is recounted, refusing a raise. Gates of a change
   alone (`gate_set`) run before it is readied (7.2). CPU is measured;
@@ -786,5 +787,6 @@ Each waits for the numbers or the person's word that asks for it.
 - **The web UI:** the chat, the inbox and a public status page in a
   browser; a track of its own (the user, 11-01). Here everything goes
   through `temper ctl`.
+
 
 

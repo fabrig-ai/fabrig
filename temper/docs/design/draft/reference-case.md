@@ -415,7 +415,7 @@ with the pass.
 - **A lost worker:** B2 restarts while a run is in flight; the run ends
   lost and runs again elsewhere, and the engine releases its workspace's
   stale claim.
-- **The reports:** at midnight a recurring task writes the code and
+- **The reports:** at midnight the daily timer starts the code and
   landing reports for the chat; `temper ctl`'s status showed the
   overlap, the questions waiting and the accounts' pace throughout.
 
@@ -547,6 +547,7 @@ Evidence at fabrig 2075ff38b; unqualified documents are temper's
 | Workspaces and disk | 12.1 | code | fixed in part: a checkout cache (`worker.md` 5) | disk admission, sweeps, lanes, stale claims released |
 | Custody | 12.2 | code | generic in part: accounts with holders, a run's grant, limited until a reset, export and import (jig's `domain/accounts.md` 3.2, 3.4, 3.5) | swaps, limit checks, credentials lent to walks; moving a program's login between machines conflicts with `accounts.md` 6 |
 | Reports and status | 13 | code | lacks for ctl: recurring tasks fire per spend period, and nothing in ctl starts one (jig's `domain/tasks.md` 10) | the two reports on a daily timer; status counts in ctl; weights |
+
 
 
 
