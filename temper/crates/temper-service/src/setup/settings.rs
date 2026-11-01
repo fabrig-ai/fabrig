@@ -253,7 +253,7 @@ pub(crate) fn prepare(
 fn local_starts(config: &crate::settings::Engine, layer: &mut super::Layer, under_box: bool) -> Result<(), Problems> {
     let own = &config.limits;
     let demo_forge = match &config.demo {
-        Some(demo) if under_box => Some(demo.forge),
+        Some(demo) if under_box => demo.forge,
         Some(_) | None => None,
     };
     for setup in &config.setup {

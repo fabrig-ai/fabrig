@@ -277,7 +277,7 @@ fn demo_acceptance() {
             "asked":m["asked"], "otherwise":m["otherwise"]});
         assert_eq!(demo.llm(), &llm::Document::decode(&serde_json::to_vec(&standalone).unwrap()).unwrap());
         assert_eq!(demo.provider(), 3);
-        assert_eq!(demo.forge(), 1);
+        assert_eq!(demo.forge(), Some(1));
         assert_eq!(demo.project(), 1);
     }
 }
@@ -664,7 +664,7 @@ fn a_demo_reads_its_fake_beside_its_forge() {
     let mut d = fixture();
     machine_fake(&mut d);
     let parsed = read(&d).unwrap().unwrap();
-    assert_eq!(parsed.forge(), 1);
+    assert_eq!(parsed.forge(), Some(1));
     let entry = parsed.fake().unwrap().entry(9);
     assert_eq!(entry.forge, 9);
     assert_eq!(entry.directory.as_ref(), b"/data/forge-1");
@@ -688,4 +688,16 @@ fn a_demo_fake_on_another_ones_port_is_refused() {
             "{pointer}"
         );
     }
+}
+
+#[test]
+fn a_demo_with_fake_and_no_forge_reads() {
+    let mut d = fixture();
+    machine_fake(&mut d);
+    d["application"]["demo"].as_object_mut().unwrap().remove("forge");
+    let demo = read(&d).unwrap().unwrap();
+    assert_eq!(demo.forge(), None);
+    assert!(demo.fake().is_some());
+    d["application"]["demo"].as_object_mut().unwrap().remove("fake");
+    assert_eq!(read(&d).unwrap_err().line().as_ref(), b"application.demo: missing fake\n");
 }

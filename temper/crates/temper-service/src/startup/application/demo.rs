@@ -23,6 +23,7 @@ fn text(
         }
     }
 }
+#[expect(clippy::too_many_lines, reason = "the demo reads its optional forge reference and fake template together")]
 pub(super) fn parse(
     document: &Document,
     at: Option<u32>,
@@ -38,7 +39,16 @@ pub(super) fn parse(
     let path = Path::root().member(b"application").member(b"demo");
     let mut object = read::object(document, at, &path, problems)?;
     let project = read::number(&mut object, document, b"project", &path, problems)?;
-    let forge = read::short(&mut object, document, b"forge", &path, problems)?;
+    let forge = match object.member(document, b"forge") {
+        Some(at) => match config::read::integer(document, at, u64::from(u16::MAX)) {
+            Ok(value) => Some(u16::try_from(value).expect("u16 bound")),
+            Err(what) => {
+                problems.push(path.member(b"forge"), What::Jig(what));
+                return None;
+            }
+        },
+        None => None,
+    };
     let fake_at = object.member(document, b"fake");
     let mut found = config::Problems::empty();
     let fake_template = match fake_at {
@@ -70,9 +80,30 @@ pub(super) fn parse(
         let cue = text(document, &mut asked, b"cue", w::CEILINGS.demo_answer_cues_item, &path, problems)?;
         cues.push(cue).expect("bounded demo cues");
     }
+    let Some(number) = forge else {
+        let Some(template) = &fake_template else {
+            problems.push(path.member(b"fake"), What::Jig(config::What::Missing));
+            return None;
+        };
+        let temper_forge_setup::setup::Mode::Fake(fake) = &template.mode else { return None };
+        let repository = fake.repositories.first()?;
+        return Some(settings::Demo {
+            project,
+            forge,
+            provider,
+            owner: fake.owner.clone(),
+            name: repository.name.clone(),
+            cues: cues.into_boxed(),
+            landing: repository.landing.clone(),
+            key_file,
+            fake: fake_template,
+            state: None,
+            playground: None,
+        });
+    };
     let mut configured = false;
     for value in forges {
-        configured |= value.number == forge;
+        configured |= value.number == number;
     }
     if !configured {
         problems.push(path.member(b"forge"), What::Jig(config::What::Refers));
@@ -89,7 +120,7 @@ pub(super) fn parse(
     for (index, at) in entries.iter().enumerate() {
         let setup_path = read::index(&setup_path, index);
         let mut entry = read::object(document, *at, &setup_path, problems)?;
-        if read::short(&mut entry, document, b"forge", &setup_path, problems)? != forge {
+        if read::short(&mut entry, document, b"forge", &setup_path, problems)? != number {
             continue;
         }
         let at = read::required(&mut entry, document, b"mode", &setup_path, problems)?;

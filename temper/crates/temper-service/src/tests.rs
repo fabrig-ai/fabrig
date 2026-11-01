@@ -45,3 +45,5 @@ mod sign_in_configuration;
 mod provider;
 
 mod stock;
+
+mod playground_config;

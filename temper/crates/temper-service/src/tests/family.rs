@@ -184,7 +184,7 @@ fn the_demo_read_answers_the_configured_demo() {
         landing: b"main".as_slice().into(),
         key_file: b"/demo-key".as_slice().into(),
         project: 1,
-        forge: 2,
+        forge: Some(2),
         provider: 3,
         owner: b"demo".as_slice().into(),
         name: b"widget".as_slice().into(),
@@ -1378,7 +1378,7 @@ fn demo_read_tracks_not_started_running_and_ended() {
                 let answer = wire::decode_demo_answer(&record, &w::CEILINGS).unwrap();
                 assert_eq!(
                     (answer.provider(), answer.project(), answer.forge()),
-                    (demo.provider, demo.project, demo.forge)
+                    (demo.provider, demo.project, demo.forge.unwrap_or(0))
                 );
                 Some(answer.state().clone())
             }

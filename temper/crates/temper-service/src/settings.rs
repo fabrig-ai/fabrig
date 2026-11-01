@@ -8,7 +8,7 @@ pub struct Demo {
     /// The playground's fake forge template (contracts, 6).
     pub fake: Option<temper_forge_setup::setup::Template>,
     pub project: u32,
-    pub forge: u16,
+    pub forge: Option<u16>,
     pub provider: u32,
     pub owner: Box<[u8]>,
     pub name: Box<[u8]>,
@@ -29,18 +29,26 @@ impl Demo {
         use temper_engine_domain_forge as forge;
         let mut host = Box::default();
         for forge in forges {
-            if forge.number == self.forge {
+            if Some(forge.number) == self.forge {
                 host = crate::family::host(&forge.git);
                 break;
             }
         }
+        let record = match &self.fake {
+            Some(fake) => playground_forge(fake),
+            None => None,
+        };
+        if let Some(forge) = &record {
+            host = crate::family::host(&forge.git);
+        }
         forge::DemoConfig {
+            forge: record,
             provider: self.provider,
             deadline,
             adoption: forge::Adoption {
                 project: self.project,
                 home: true,
-                forge: self.forge,
+                forge: self.forge.unwrap_or(0),
                 host,
                 owner: self.owner.clone(),
                 name: self.name.clone(),
@@ -52,6 +60,52 @@ impl Demo {
             },
         }
     }
+}
+
+/// The playground's record before start assigns its number (draft playground-reset.md, 6.1).
+#[expect(clippy::disallowed_macros, reason = "SocketAddr display writes the HTTP authority, including IPv6 brackets")]
+fn playground_forge(fake: &temper_forge_setup::setup::Template) -> Option<temper_engine_domain_forge::Forge> {
+    use temper_engine_domain_forge::{Forge, Kind, record as r};
+    let entry = fake.entry(0);
+    let temper_forge_setup::setup::Mode::Fake(fake) = entry.mode else { return None };
+    let mut repositories = List::with_capacity(u32::try_from(fake.repositories.len()).expect("fake repositories"));
+    for repository in fake.repositories {
+        repositories
+            .push(r::FakeRepository { name: repository.name, landing: repository.landing })
+            .expect("fake repositories");
+    }
+    Some(Forge {
+        number: 0,
+        kind: Kind::Forgejo,
+        api: r::Address::Socket(fake.listen),
+        transport: r::Transport::Plaintext,
+        git: alloc::format!("http://{}", fake.listen).into_bytes().into_boxed_slice(),
+        git_program: Some(fake.git.clone()),
+        web: None,
+        read_only: false,
+        identity: r::Identity {
+            number: 0,
+            login: entry.bot.login.clone(),
+            name: entry.bot.login.clone(),
+            email: entry.bot.email.clone(),
+        },
+        files: None,
+        setup: Some(r::Setup {
+            directory: entry.directory,
+            bot: r::Account { login: entry.bot.login, email: entry.bot.email },
+            orgs: entry.orgs,
+            asked: entry.asked,
+            mode: r::SetupMode::Fake(r::FakeEntry {
+                listen: fake.listen,
+                git: fake.git,
+                owner: fake.owner,
+                repositories: repositories.into_boxed(),
+            }),
+        }),
+        first: None,
+        playground: true,
+        removing: false,
+    })
 }
 
 /// A forge temper works on (protocol/configuration.md, section 3, `forges`).

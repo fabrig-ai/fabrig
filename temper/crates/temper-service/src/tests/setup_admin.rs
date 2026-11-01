@@ -621,7 +621,7 @@ fn an_ended_forge_finishes_the_admin_run_without_keeping_the_token() {
     engine.demo = Some(crate::settings::Demo {
         fake: None,
         project: 1,
-        forge: 1,
+        forge: Some(1),
         provider: 1,
         owner: b"owner".as_slice().into(),
         name: b"ended".as_slice().into(),

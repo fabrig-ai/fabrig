@@ -491,7 +491,11 @@ impl Clients {
                     match crate::family::to_root(value, forges, demo, &temper_client_protocol_wire::v1::CEILINGS) {
                         Ok(mut value) => {
                             if let root::Event::Party(root::PartyInput::Application {
-                                request: root::Application::Forge(temper_engine_domain_forge::Ask::StartDemo),
+                                request:
+                                    root::Application::Forge(
+                                        temper_engine_domain_forge::Ask::StartDemo
+                                        | temper_engine_domain_forge::Ask::StartPlayground,
+                                    ),
                                 ..
                             }) = &value
                                 && let Some(demo) = demo
@@ -507,7 +511,7 @@ impl Clients {
                                 self.next_demo = self.next_demo.checked_add(1).expect("demo read sequence");
                                 self.demo_starts.insert(run, value).expect("bounded parked starts");
                                 self.demo_reads.push(crate::HandoverRead {
-                                    forge: demo.forge,
+                                    forge: demo.forge.unwrap_or(0),
                                     run,
                                     path: demo.key_file.clone(),
                                     max: 4097,
