@@ -19,9 +19,7 @@ const RESOURCES: &[(&str, bool, &str)] = &[
     ("workers/0/secret", false, "worker.secret"),
     ("workers/0/agent/configuration", true, "agent.json"),
     ("workers/0/agent/arguments/2", true, "agent.json"),
-    ("application/setup/0/directory", false, "demo/forge"),
-    ("application/setup/0/mode/fake/git", false, "demo/bin/git"),
-    ("application/setup/1/directory", false, "forge-3"),
+    ("application/demo/forge/mode/fake/git", false, "demo/bin/git"),
     ("application/demo/llm/key", false, "demo/llm.key"),
     ("application/workers/0/root", false, "workspaces"),
 ];
@@ -62,7 +60,7 @@ impl Source {
             None
         };
         let ports = ports(&temper)?;
-        let login = temper.string("application/setup/1/mode/owned/person/login")?;
+        let login = temper.string("application/machine/owned/mode/owned/person/login")?;
         let generated = temper_init::files(
             &temper_init::Facts {
                 binary: binary.as_os_str().as_bytes(),
@@ -155,8 +153,8 @@ fn port(value: &Json, pointer: &str) -> Result<NonZeroU16, String> {
 fn ports(value: &Json) -> Result<temper_init::Ports, String> {
     Ok(temper_init::Ports {
         clients: port(value, "application/clients/listener/socket")?,
-        owned: port(value, "application/setup/1/mode/owned/listen/socket")?,
-        forge: port(value, "application/setup/0/mode/fake/listen/socket")?,
+        owned: port(value, "application/machine/owned/mode/owned/listen/socket")?,
+        forge: port(value, "application/demo/forge/mode/fake/listen/socket")?,
         llm: port(value, "application/demo/llm/listen/socket")?,
         webhooks: port(value, "application/webhooks/listener/socket")?,
     })

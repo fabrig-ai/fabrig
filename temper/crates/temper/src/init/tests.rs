@@ -143,7 +143,7 @@ fn init_finds_ports_and_programs_and_writes_exact_modes_in_order() {
             serde_json::from_slice(&fs::read(path(&dirs.config).join("agent.json")).expect("agent")).expect("JSON");
         let llm: std::net::SocketAddr =
             agent["endpoints"][1]["address"].as_str().expect("LLM address").parse().expect("LLM socket");
-        let forge: std::net::SocketAddr = document["application"]["forges"][0]["api"]["socket"]
+        let forge: std::net::SocketAddr = document["application"]["demo"]["forge"]["mode"]["fake"]["listen"]["socket"]
             .as_str()
             .expect("forge address")
             .parse()
@@ -158,9 +158,8 @@ fn init_finds_ports_and_programs_and_writes_exact_modes_in_order() {
             assert_ne!(webhooks.port(), other.port(), "{row}: webhooks reservation differs");
         }
         assert!(TcpListener::bind(webhooks).is_err(), "{row}: webhooks reservation held");
-        assert_eq!(document["application"]["forges"][0]["git"], format!("http://{forge}"), "{row}");
         assert_eq!(
-            document["application"]["setup"][0]["mode"]["fake"]["listen"],
+            document["application"]["demo"]["forge"]["mode"]["fake"]["listen"],
             serde_json::json!({"socket": forge.to_string()}),
             "{row}"
         );
@@ -172,20 +171,20 @@ fn init_finds_ports_and_programs_and_writes_exact_modes_in_order() {
         assert_ne!(address.port(), forge.port(), "{row}: clients and forge reservations differ");
         assert_ne!(address.port(), llm.port(), "{row}: clients and LLM reservations differ");
         assert_ne!(forge.port(), llm.port(), "{row}: forge and LLM reservations differ");
-        let owned: std::net::SocketAddr = document["application"]["forges"][2]["api"]["socket"]
-            .as_str()
-            .expect("owned address")
-            .parse()
-            .expect("owned socket");
+        let owned: std::net::SocketAddr =
+            document["application"]["machine"]["owned"]["mode"]["owned"]["listen"]["socket"]
+                .as_str()
+                .expect("owned address")
+                .parse()
+                .expect("owned socket");
         let ports = [address.port(), owned.port(), forge.port(), llm.port(), webhooks.port()];
         for (index, port) in ports.iter().enumerate() {
             assert!(!ports[..index].contains(port), "{row}: five distinct reservations");
         }
         assert_eq!(owned.port() == preferred[1], !held && !same, "{row}");
         assert!(TcpListener::bind(owned).is_err(), "{row}: owned reservation held");
-        assert_eq!(document["application"]["forges"][2]["git"], format!("http://{owned}"), "{row}");
         assert_eq!(
-            document["application"]["setup"][1]["mode"]["owned"]["listen"],
+            document["application"]["machine"]["owned"]["mode"]["owned"]["listen"],
             serde_json::json!({"socket": owned.to_string()}),
             "{row}"
         );
@@ -321,13 +320,32 @@ fn generated_configuration_passes_the_same_checks_as_serve() {
     let written = write(&dirs, &env, &root.join("bin/temper"), [0, 0, 0, 0, 0]).expect("init");
     let bytes = fs::read(dirs.document()).expect("document");
     let deployment = crate::setup::check(&bytes, &dirs.jig()).expect("init document passes setup and named");
-    let owned = deployment.checked.setup.entry(3).expect("init declares the owned forge");
-    assert!(owned.asked, "forge 3 waits for the client");
-    assert!(matches!(owned.mode, temper_forge_setup::setup::Mode::Owned(_)));
+    assert!(deployment.checked.setup.entries.is_empty(), "init declares no forge");
+    assert!(deployment.named.forges.is_empty());
+    assert!(deployment.named.identities.is_empty());
+    let document: serde_json::Value = serde_json::from_slice(&bytes).expect("written JSON");
+    for member in ["setup", "forges", "identities"] {
+        assert!(document["application"].get(member).is_none());
+    }
+    let ports: [std::net::SocketAddr; 5] = [
+        "/application/clients/listener/socket",
+        "/application/webhooks/listener/socket",
+        "/application/machine/owned/mode/owned/listen/socket",
+        "/application/demo/forge/mode/fake/listen/socket",
+        "/application/demo/llm/listen/socket",
+    ]
+    .map(|pointer| {
+        document.pointer(pointer).expect("machine port").as_str().expect("socket").parse().expect("address")
+    });
+    assert_eq!(deployment.ports.as_ref(), &ports);
     let demo = deployment.demo.expect("init declares the demo");
     assert_eq!(demo.provider(), 3);
-    assert_eq!(demo.forge(), Some(1));
-    assert_eq!(demo.project(), Some(1));
+    assert!(demo.forge().is_none());
+    assert!(demo.project().is_none());
+    assert_eq!(demo.fake().listen, ports[3]);
+    assert_eq!(demo.fake().git.as_ref(), path(&dirs.data).join("demo/bin/git").as_os_str().as_bytes());
+    assert_eq!(demo.llm().listen(), ports[4]);
+    assert_eq!(document["application"]["demo"]["project"], serde_json::json!({"name": "Playground", "policy": 1}));
     crate::close(written.listeners.into_iter().map(|(fd, _)| fd).collect());
     fs::remove_dir_all(root).expect("cleanup");
 }
@@ -340,9 +358,9 @@ fn the_person_diagnostic_names_the_login_or_the_uid() {
         (
             FellBack,
             Some(b"Admin".as_slice()),
-            Some("init: Admin cannot be a Forgejo login: forge 3's person is person"),
+            Some("init: Admin cannot be a Forgejo login: the owned Forgejo's person is person"),
         ),
-        (FellBack, None, Some("init: uid 42 has no login in /etc/passwd: forge 3's person is person")),
+        (FellBack, None, Some("init: uid 42 has no login in /etc/passwd: the owned Forgejo's person is person")),
     ] {
         assert_eq!(person_line(person, login, 42).as_deref(), expected);
     }

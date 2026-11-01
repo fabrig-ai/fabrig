@@ -72,7 +72,7 @@ pub enum Content {
     },
 }
 
-/// The files to write and whether the machine's login names forge 3's person.
+/// The files to write and whether the machine's login names the owned Forgejo's person.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Answer {
     pub files: Box<[File]>,
