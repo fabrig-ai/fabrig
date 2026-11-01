@@ -1,6 +1,7 @@
 # Engine designer's progress
 
 final: tasks/store-families.md
+final: tasks/forge-asks.md
 
 ## Parts
 
@@ -18,6 +19,11 @@ final: tasks/store-families.md
 - `Forges` row is the inline variant `Stored::Forges { next }`: `boundary::Forges` is already the subject's type.
 - The new families' tables are sized by `l.client.repositories`, the bound sizing `configured` today, until the limits task moves every per-forge table to `forge.forges`.
 - `Configured::from_record` and `Forge::fits` land with the types in `store-families`, so the seed and the make path build on them at once.
+
+- `forge-asks` needs `store-families`: both edit `temper-engine-domain-forge`'s `boundary.rs` and `domain.rs` (different enums and regions; the lead may release them together if fab's merge is trusted there, at the risk of a conflict).
+- `Connect`'s forge is `ConnectForge::{Existing(u16), GitHub, Forgejo { address }}`: the person's input; the make path (`fr-make-forge`) turns it into a record. The client wire stays at `CLIENT_VERSION` 11, changed in place (client/README.md, 4.6).
+- `SetUp`'s stub sets up the lowest owned asked forge (the seeded document's); `fr-setup` makes the record from `application.owned`.
+- New answers: `RemoveAnswer::{Removing, Refused(NotOffered | NoSuchForge | Role)}`, `EndAnswer::{Reset, NotOffered}` (answered once the playground is gone); `StartPlayground` answers as `StartDemo` (`StartAnswer`).
 
 ## Contract problems
 
