@@ -130,6 +130,7 @@ fn forge_number(call: &Ended, number: u16) -> Value {
 }
 
 #[test]
+#[ignore = "managed Forgejo's git program: fe-make-git"]
 fn forgejo_elsewhere_and_a_key_reach_a_first_chat_on_the_fake_box() {
     elsewhere::run();
 }
