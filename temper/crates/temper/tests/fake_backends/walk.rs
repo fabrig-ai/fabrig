@@ -19,6 +19,7 @@ enum Act {
     After(ctl::NextCall),
     /// Follow the preceding act's printed address through the box's supervised peers.
     Visit,
+    VisitHops(usize),
     ProgramLogin(&'static str),
     Mark(&'static str),
 }
@@ -66,6 +67,7 @@ impl Walk {
         steps.extend(acts.into_iter().map(|act| match act {
             Act::Now(call) => Step::Run(call),
             Act::Visit => Step::Visit,
+            Act::VisitHops(hops) => Step::VisitHops(hops),
             Act::ProgramLogin(name) => Step::ProgramLogin(name),
             Act::Mark(name) => Step::Mark(name),
             Act::After(next) => Step::Then(Box::new(move |seen| {
@@ -138,6 +140,7 @@ mod adoption;
 mod chatgpt;
 mod elsewhere;
 mod github;
+mod go_on;
 mod here_key;
 mod program_here;
 
@@ -154,6 +157,11 @@ fn github_one_click_and_a_key_reach_a_first_chat_on_the_fake_box() {
 #[test]
 fn githubs_own_app_and_a_key_reach_a_first_chat_on_the_fake_box() {
     github::own_app();
+}
+
+#[test]
+fn github_gone_on_after_a_restart_reaches_a_first_chat_on_the_fake_box() {
+    go_on::run();
 }
 
 fn accounts() -> Act {

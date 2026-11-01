@@ -750,6 +750,7 @@ pub(crate) fn holds(rows: &[Row], condition: &[u8]) -> bool {
 // result, but share its bound so every encoding of the rows stays in step.
 const ROWS_JSON_DEPTH: u32 = 7;
 
+#[expect(clippy::too_many_lines, reason = "forge row facts share one encoder for reads, waits and digests")]
 fn encode_rows(rows: &[Row], digest: Option<Digest>, out: &mut Encoder) {
     out.object_start();
     out.key(b"forges");
@@ -806,6 +807,14 @@ fn encode_rows(rows: &[Row], digest: Option<Digest>, out: &mut Encoder) {
                 out.key(b"reason");
                 out.string(reason);
             }
+        }
+        out.key(b"finished");
+        out.boolean(row.finished);
+        out.key(b"app");
+        match row.app {
+            Some(domain::AppWay::Manifest) => out.string(b"manifest"),
+            Some(domain::AppWay::Pasted) => out.string(b"pasted"),
+            None => out.null(),
         }
         out.key(b"installations");
         out.array_start();

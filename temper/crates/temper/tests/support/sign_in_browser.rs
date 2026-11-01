@@ -48,6 +48,7 @@ pub struct Visitor {
     account_redirect: Option<Box<[u8]>>,
     last_redirect: Option<(u16, Box<[u8]>)>,
     hops: Vec<Hop>,
+    hop_limit: Option<usize>,
     target: String,
     authority: String,
     body: Vec<u8>,
@@ -81,6 +82,7 @@ impl Visitor {
             account_redirect: None,
             last_redirect: None,
             hops: Vec::new(),
+            hop_limit: None,
             target: String::new(),
             authority: String::new(),
             body: Vec::new(),
@@ -92,12 +94,19 @@ impl Visitor {
     /// literal address.
     pub(crate) fn hand(&mut self, url: &[u8]) {
         assert!(self.is_empty(), "previous visit drained");
+        self.hop_limit = None;
         self.http = http::Client::new(&limits().http);
         self.last_redirect = None;
         self.status = None;
         self.hops.clear();
         self.inbox.get_mut(..url.len()).expect("the URL fits the inbox").copy_from_slice(url);
         self.inbox_len = url.len();
+    }
+    /// Drain the visit after at most `hops` responses, without following its next link.
+    pub(crate) fn hand_until(&mut self, url: &[u8], hops: usize) {
+        assert!((1..=HOPS).contains(&hops), "visit limit fits the bounded chain");
+        self.hand(url);
+        self.hop_limit = Some(hops);
     }
     fn visit(&mut self, url: &[u8]) {
         let rest = url.strip_prefix(b"http://").expect("a plain HTTP URL");
@@ -223,7 +232,12 @@ impl Visitor {
                     self.calls.push(http::Request::Upload(Down::Finish));
                 }
                 http::Event::Done(_) => {
-                    self.page();
+                    if self.hop_limit.is_some_and(|limit| self.hops.len() >= limit) {
+                        self.account_redirect = None;
+                        self.form = None;
+                    } else {
+                        self.page();
+                    }
                     self.calls.push(http::Request::Close);
                     self.requests.push(io::Request::Close { entity: socket });
                 }

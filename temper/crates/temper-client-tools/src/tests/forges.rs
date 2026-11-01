@@ -156,7 +156,7 @@ fn every_state_renders_as_text_and_structured_json() {
         let document = concat(&[
             br#"{"forges":[{"number":3,"kind":"forgejo","read_only":false,"mode":"owned","offer":"offered","#,
             fields,
-            br#","installations":[],"ended":null,"first":null}]}"#,
+            br#","finished":false,"app":null,"installations":[],"ended":null,"first":null}]}"#,
         ]);
         let digest = jig::digest::Digest::of(&document).hex();
         let expected = concat(&[
@@ -181,6 +181,24 @@ fn every_state_renders_as_text_and_structured_json() {
     assert!(skein_lib::bytes::find(&plain.stdout, b"temper forge fetch 3").is_some());
     let json = forges::print_rows(Some(&[without]), true, None, &f::limits_root());
     assert!(skein_lib::bytes::find(&json.stdout, b"not_under_the_box").is_some());
+}
+#[test]
+fn forges_json_keeps_finished_and_the_apps_origin_as_separate_facts() {
+    use forge::forges::AppWay;
+    for (app, expected) in
+        [(None, b"null".as_slice()), (Some(AppWay::Manifest), br#""manifest""#), (Some(AppWay::Pasted), br#""pasted""#)]
+    {
+        for finished in [false, true] {
+            let mut row = row(C::Connected { id: 42, login: b"temper-fake[bot]".as_slice().into() });
+            row.kind = Kind::GitHub;
+            row.app = app;
+            row.finished = finished;
+            let json = forges::print_rows(Some(&[row]), true, None, &f::limits_root());
+            assert_eq!(json.status, 0);
+            let fields = concat(&[b"\"finished\":", if finished { b"true" } else { b"false" }, b",\"app\":", expected]);
+            assert!(f::json_has(&json, &fields), "{app:?}, finished {finished}");
+        }
+    }
 }
 #[test]
 fn settled_excludes_setting_up_and_connecting_and_connected_names_a_forge() {
