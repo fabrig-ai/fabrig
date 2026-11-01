@@ -70,7 +70,8 @@ impl Census {
                 | jig_domain_people::Key::Roles(_)
                 | jig_domain_people::Key::Policy(_)
                 | jig_domain_people::Key::Answer(_)
-                | jig_domain_people::Key::Acted(_),
+                | jig_domain_people::Key::Acted(_)
+                | jig_domain_people::Key::Deletion(_),
             )
             | Key::Notes(_)
             | Key::Accounts(_) => None,

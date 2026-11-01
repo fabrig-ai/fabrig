@@ -1343,7 +1343,16 @@ fn acted_rows_round_trip_every_deployment_act() {
             grace: Some(skein_lib::Duration::from_secs(5)),
             reason: b"closed".as_slice().into(),
         },
-        Act::AddKey { provider: u32::MAX, join: Some(7), digest: [255; 32] },
+        Act::AddKey {
+            provider: u32::MAX,
+            join: Some(7),
+            digest: [255; 32],
+            uses: Some(Box::new([jig_domain_people::Use::Project(3)])),
+        },
+        Act::AddKey { provider: 1, join: None, digest: [0; 32], uses: None },
+        Act::AddKey { provider: 1, join: None, digest: [0; 32], uses: Some(Box::new([])) },
+        Act::RemoveProject { project: 3 },
+        Act::Cancel { project: 3, task: u64::MAX, reason: b"cancel".as_slice().into() },
         Act::RemoveAccount { account: u32::MAX },
         Act::MakeProject { maker: 1, name: "Tally".into(), policy: 1 },
         Act::Adopt {
@@ -1368,6 +1377,7 @@ fn acted_rows_round_trip_every_deployment_act() {
 fn project_asks_answers_and_name_refusals_round_trip() {
     use jig_domain_people::{Ask, LimitKind, Malformed, NameRule, Outcome, Refusal, RequestKey, Stored};
     for (ask, outcome) in [
+        (Ask::RemoveProject { project: 3 }, Outcome::ProjectRemoved { project: 3 }),
         (Ask::Rename { project: 1, name: "Tally".into() }, Outcome::Renamed { project: 1 }),
         (Ask::MakeProject { name: "Tally".into(), policy: 1 }, Outcome::ProjectMade { project: 2 }),
     ] {
@@ -1428,4 +1438,12 @@ fn an_owing_reminder_survives_storage_with_small_caller_word_limits() {
     });
     let bytes = crate::codec::tasks::encode(&row, &limits, &[]).expect("fixed reminder fits");
     assert_eq!(crate::codec::tasks::decode(&bytes, &limits, &[]), Ok(row));
+}
+
+#[test]
+fn a_deletion_row_round_trips_at_each_stage() {
+    use jig_domain_people::{Stage, Stored};
+    for stage in [Stage::Ending, Stage::Erasing, Stage::Releasing] {
+        people_round_trip(Stored::Deletion { project: u32::MAX, stage });
+    }
 }

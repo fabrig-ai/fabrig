@@ -124,7 +124,7 @@ fn a_close_refuses_what_is_no_persons_live_conversation() {
 fn add_key(world: &mut World, key: u8, number: u64) {
     world.send(event(
         key,
-        people::Act::AddKey { provider: PROVIDER, join: Some(0), digest: [7; 32] },
+        people::Act::AddKey { provider: PROVIDER, join: Some(0), digest: [7; 32], uses: None },
         Some(core::Carried { number, digest: [7; 32] }),
     ));
 }
@@ -293,11 +293,11 @@ fn acts_refuse_a_missing_extra_or_mismatched_carried_value() {
     let chat = world.assignments[0].0;
     let before = world.people_answers.len() + world.act_answers.len();
     for (key, act_value, carried) in [
-        (KEY, people::Act::AddKey { provider: PROVIDER, join: Some(0), digest: [7; 32] }, None),
+        (KEY, people::Act::AddKey { provider: PROVIDER, join: Some(0), digest: [7; 32], uses: None }, None),
         (KEY + 1, close(chat, PROJECT, None), Some(core::Carried { number: 99, digest: [7; 32] })),
         (
             KEY + 2,
-            people::Act::AddKey { provider: PROVIDER, join: Some(0), digest: [7; 32] },
+            people::Act::AddKey { provider: PROVIDER, join: Some(0), digest: [7; 32], uses: None },
             Some(core::Carried { number: 100, digest: [8; 32] }),
         ),
     ] {

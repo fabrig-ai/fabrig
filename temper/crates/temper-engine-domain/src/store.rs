@@ -734,7 +734,8 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
                     jig_domain_people::Ask::Move { reason, .. } | jig_domain_people::Ask::Cancel { reason, .. } => {
                         u64::try_from(reason.len()).ok()
                     }
-                    jig_domain_people::Ask::ChangeSettings { .. }
+                    jig_domain_people::Ask::RemoveProject { .. }
+                    | jig_domain_people::Ask::ChangeSettings { .. }
                     | jig_domain_people::Ask::MoveToNewest { .. }
                     | jig_domain_people::Ask::Withdraw { .. }
                     | jig_domain_people::Ask::MarkSeen { .. }
@@ -768,7 +769,8 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
                 }?;
                 model_context_bytes(models)?.checked_add(payload)?.checked_add(program_answer_bytes(outcome)?)
             }
-            jig_domain_people::Stored::SignIn { .. }
+            jig_domain_people::Stored::Deletion { .. }
+            | jig_domain_people::Stored::SignIn { .. }
             | jig_domain_people::Stored::ReadResults { .. }
             | jig_domain_people::Stored::EndedRead { .. }
             | jig_domain_people::Stored::ReadConversation { .. } => Some(0),
@@ -777,8 +779,16 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
             }
             jig_domain_people::Stored::Acted { act, outcome, .. } => {
                 let payload = match act {
-                    jig_domain_people::Act::Close { reason, .. } => u64::try_from(reason.len()).ok()?,
-                    jig_domain_people::Act::AddKey { .. } | jig_domain_people::Act::RemoveAccount { .. } => 0,
+                    jig_domain_people::Act::Close { reason, .. } | jig_domain_people::Act::Cancel { reason, .. } => {
+                        u64::try_from(reason.len()).ok()?
+                    }
+                    jig_domain_people::Act::AddKey { uses, .. } => match uses {
+                        Some(uses) => u64::try_from(uses.len())
+                            .ok()?
+                            .checked_mul(u64::try_from(size_of::<jig_domain_people::Use>()).ok()?)?,
+                        None => 0,
+                    },
+                    jig_domain_people::Act::RemoveAccount { .. } | jig_domain_people::Act::RemoveProject { .. } => 0,
                     jig_domain_people::Act::Adopt { adoption, .. } => adoption_bytes(adoption)?,
                     jig_domain_people::Act::MakeProject { .. } => unreachable!("demo never makes a project"),
                 };
@@ -959,6 +969,7 @@ pub(crate) fn program_answer_bytes(outcome: &jig_domain_people::Outcome) -> Opti
         | Outcome::Compound { .. }
         | Outcome::CompoundRefused { .. }
         | Outcome::ProjectMade { .. }
+        | Outcome::ProjectRemoved { .. }
         | Outcome::Renamed { .. }
         | Outcome::Created { .. }
         | Outcome::MarkedSeen { .. }

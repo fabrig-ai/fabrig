@@ -72,7 +72,15 @@ pub(super) fn encode(
         domain::AccountChange::SetUses { account, uses } => {
             wire::AccountChange::SetUses(wire::AccountChangeSetUses::new(
                 limits,
-                wire::AccountChangeSetUsesParts { account: *account, uses: encode_uses(uses.as_deref(), limits)? },
+                wire::AccountChangeSetUsesParts {
+                    account: *account,
+                    uses: encode_uses(
+                        uses.as_deref(),
+                        limits,
+                        limits.account_change_set_uses_uses_some,
+                        wire::Path::AccountChangeSetUsesUses,
+                    )?,
+                },
             )?)
         }
     })
@@ -143,12 +151,14 @@ pub(super) fn decode(value: wire::AccountChange) -> Result<domain::AccountChange
         }
     })
 }
-fn encode_uses(
+pub(in super::super) fn encode_uses(
     uses: Option<&[domain::Use]>,
     limits: &wire::Limits,
+    bound: u32,
+    path: wire::Path,
 ) -> Result<Option<List<wire::AccountUse>>, wire::Problem> {
     let Some(uses) = uses else { return Ok(None) };
-    let mut out = List::with_capacity(limits.account_change_set_uses_uses_some);
+    let mut out = List::with_capacity(bound);
     for value in uses {
         let value = match value {
             domain::Use::Party(number) => wire::AccountUse::Party(wire::AccountUseParty::new(
@@ -161,15 +171,12 @@ fn encode_uses(
             )?),
         };
         if out.push(value).is_err() {
-            return Err(wire::Problem {
-                path: wire::Path::AccountChangeSetUsesUses,
-                reason: skein_codec::Reason::Bound,
-            });
+            return Err(wire::Problem { path, reason: skein_codec::Reason::Bound });
         }
     }
     Ok(Some(out))
 }
-fn decode_uses(uses: Option<List<wire::AccountUse>>) -> Option<Box<[domain::Use]>> {
+pub(in super::super) fn decode_uses(uses: Option<List<wire::AccountUse>>) -> Option<Box<[domain::Use]>> {
     let uses = uses?;
     let mut out = List::with_capacity(uses.len());
     for value in uses.into_boxed() {

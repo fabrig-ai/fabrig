@@ -609,6 +609,7 @@ fn saved_answer(rows: &[Request]) -> Stored {
                 | Stored::SignIn { .. }
                 | Stored::Roles { .. }
                 | Stored::Acted { .. }
+                | Stored::Deletion { .. }
                 | Stored::Policy { .. } => None,
             },
             Request::Reply { .. }
@@ -1226,6 +1227,7 @@ fn is_answer(request: &Request) -> bool {
             | Stored::SignIn { .. }
             | Stored::Roles { .. }
             | Stored::Acted { .. }
+            | Stored::Deletion { .. }
             | Stored::Policy { .. } => false,
         },
         Request::Reply { .. }
@@ -1251,6 +1253,7 @@ fn is_roles(request: &Request) -> bool {
             | Stored::SignIn { .. }
             | Stored::Answer { .. }
             | Stored::Acted { .. }
+            | Stored::Deletion { .. }
             | Stored::Policy { .. } => false,
         },
         Request::Reply { .. }
@@ -2474,3 +2477,5 @@ fn valid_refuses_each_unrepresentable_limit() {
 
 #[path = "tests/start.rs"]
 mod start;
+
+mod deletion;

@@ -108,6 +108,9 @@ pub fn party(event: core::Event) -> engine::Event {
 }
 fn unsupported_people(event: &people::Event) -> PartyInput {
     match event {
+        people::Event::Deletion { .. } => panic!("the client kit does not make People::Deletion"),
+        people::Event::EraseTask { .. } => panic!("the client kit does not make People::EraseTask"),
+        people::Event::DropProject { .. } => panic!("the client kit does not make People::DropProject"),
         people::Event::MoveChat { .. } => panic!("the client kit does not make People::MoveChat"),
         people::Event::ChatState { .. } => panic!("the client kit does not make People::ChatState"),
         people::Event::ConversationSeen { .. } => panic!("the client kit does not make People::ConversationSeen"),

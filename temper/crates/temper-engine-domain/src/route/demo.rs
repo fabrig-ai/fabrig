@@ -338,6 +338,7 @@ pub(crate) fn end_acted(
         }
         people::Outcome::SettingsChanged { .. }
         | people::Outcome::MovedToNewest { .. }
+        | people::Outcome::ProjectRemoved { .. }
         | people::Outcome::Renamed { .. }
         | people::Outcome::ProjectMade { .. }
         | people::Outcome::Created { .. }
