@@ -490,6 +490,20 @@ pub enum Contract {
     },
 }
 
+/// Explicit change-title bytes, boxed beside the result to keep inline carriers small.
+/// Admission bounds the words by the result contract (jig/docs/design/domain/tasks.md, 3 and 5.6).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ChangeTitle {
+    pub words: Box<[u8]>,
+}
+impl ChangeTitle {
+    /// Own a producer's title; the task entrance checks its byte bound.
+    #[must_use]
+    pub fn new(words: Box<[u8]>) -> Box<Self> {
+        Box::new(Self { words })
+    }
+}
+
 /// Owned executor outcome checked against the admitted task contract before lifecycle admission;
 /// connector interpretation and outward delivery remain with root. (domain/tasks.md, section 5.6).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -517,6 +531,8 @@ pub enum TaskResult {
         kind: u16,
         /** Opaque resulting resource identifier; root/connector interpretation remains outside tasks. */
         resource: u64,
+        /// Producer-supplied title, bounded independently by the contract and `Limits::result_bytes`.
+        title: Box<ChangeTitle>,
         /** Change-report bytes bounded by the admitted contract and `Limits::result_bytes`. */
         words: Box<[u8]>,
     },

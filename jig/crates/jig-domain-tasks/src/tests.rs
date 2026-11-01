@@ -161,3 +161,21 @@ fn procedure_inputs_select_news_and_results_without_text_inference() {
         assert_eq!(kind.procedure_input(), None);
     }
 }
+
+#[test]
+fn change_titles_and_words_have_independent_contract_bounds() {
+    let limits = revisions::LIMITS;
+    let contract = crate::Contract::Change { connector: 1, kind: 2, words: 4 };
+    for (title, words, accepted) in [(4, 4, true), (5, 4, false), (4, 5, false), (4, 0, true)] {
+        let result = crate::TaskResult::Change {
+            connector: 1,
+            kind: 2,
+            resource: 3,
+            title: crate::ChangeTitle::new(skein_lib::bytes::zeroed(title)),
+            words: skein_lib::bytes::zeroed(words),
+        };
+        assert_eq!(crate::run::valid_result(&contract, &result, &limits), accepted);
+        let tight = crate::Limits { result_bytes: 3, ..limits };
+        assert!(!crate::run::valid_result(&contract, &result, &tight));
+    }
+}

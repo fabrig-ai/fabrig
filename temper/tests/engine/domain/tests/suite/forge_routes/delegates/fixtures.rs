@@ -20,6 +20,7 @@ pub(crate) fn answer_producer(world: &mut World, producer: &engine::Assignment) 
         ANSWER,
         tasks::End::Finished {
             result: tasks::TaskResult::Change {
+                title: jig_domain_tasks::ChangeTitle::new(b"Small fix".as_slice().into()),
                 connector: CONNECTOR,
                 kind: CHANGE_KIND,
                 resource: temper_engine_domain_forge::tag(forge_world::REPO.forge, forge_world::REPO.repository),

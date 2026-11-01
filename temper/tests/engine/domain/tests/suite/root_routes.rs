@@ -2578,7 +2578,13 @@ fn a_plan_of_spikes_a_choice_and_changes_runs_in_dependency_order() {
     finish_task(
         &mut driver,
         &third,
-        tasks::TaskResult::Change { connector: 1, kind: 2, resource: 17, words: b"changed".as_slice().into() },
+        tasks::TaskResult::Change {
+            title: jig_domain_tasks::ChangeTitle::new(b"Change".as_slice().into()),
+            connector: 1,
+            kind: 2,
+            resource: 17,
+            words: b"changed".as_slice().into(),
+        },
     );
     let parent_row = driver
         .store

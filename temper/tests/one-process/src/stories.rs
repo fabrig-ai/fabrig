@@ -101,7 +101,10 @@ pub(crate) fn provider(story: Story) -> skein_fake_peers::llm::Peer {
         delegate["batch"][0]["spec"]["parameters"]
             .as_array_mut()
             .expect("parameters")
-            .push(serde_json::json!({"name":fixtures::PARAMETER_NAMES[2],"kind":"bytes","value":std::str::from_utf8(fixtures::MERGE_BRANCH).expect("fixture branch")}));
+            .extend([
+                serde_json::json!({"name":fixtures::PARAMETER_NAMES[2],"kind":"bytes","value":std::str::from_utf8(fixtures::MERGE_BRANCH).expect("fixture branch")}),
+                serde_json::json!({"name":10,"kind":"bytes","value":"Fix"}),
+            ]);
     }
     if matches!(story, Story::HeldChange) {
         // The producer fits; its spend leaves less than another run's allowance.

@@ -2094,6 +2094,7 @@ pub fn failed_ci_with_delayed_brief() -> (World, u64, u64) {
         5,
         tasks::End::Finished {
             result: tasks::TaskResult::Change {
+                title: jig_domain_tasks::ChangeTitle::new(b"Small fix".as_slice().into()),
                 connector: 0,
                 kind: 2,
                 resource: temper_engine_domain_forge::tag(forge_world::REPO.forge, forge_world::REPO.repository),

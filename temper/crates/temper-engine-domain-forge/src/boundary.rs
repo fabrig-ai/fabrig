@@ -747,7 +747,7 @@ pub struct ChangeRow {
     pub repository: skein_forge::api::Repository,
     pub branch: Box<[u8]>,
     pub base: Box<[u8]>,
-    /// Whole change words for the producer; the root accounts for task spec bytes.
+    /// Explicit pull title; the production brief stays in the task spec.
     pub title: Box<[u8]>,
     /// Whole pull body, fitted only when the open effect is made.
     pub body: Box<[u8]>,
@@ -1385,6 +1385,12 @@ pub enum Event {
     DelegateRefused {
         task: u64,
         child: u64,
+    },
+    /// Keep the successful producer's explicit title before its result wakes the change.
+    ProducedTitle {
+        task: u64,
+        child: u64,
+        title: Box<[u8]>,
     },
     /// Resolve the named child's terminal result before stepping again.
     DelegateResult {

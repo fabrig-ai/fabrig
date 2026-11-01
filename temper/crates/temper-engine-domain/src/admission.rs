@@ -145,6 +145,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::Restore { .. }
             | forge::Event::Restored { .. }
             | forge::Event::ReadAfresh
+            | forge::Event::ProducedTitle { .. }
             | forge::Event::SettleOutbox => true,
         },
     }

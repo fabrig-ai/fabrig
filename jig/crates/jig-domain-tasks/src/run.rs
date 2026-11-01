@@ -226,18 +226,33 @@ pub(crate) fn invalid_result(contract: &Contract, result: &TaskResult, limits: &
             }
             Contract::Approval { .. } | Contract::Report { .. } | Contract::Change { .. } => Some(InvalidResult::Form),
         },
-        TaskResult::Change { connector: actual_connector, kind: actual_kind, words, .. } => match contract {
-            Contract::Change { connector, kind, words: limit } => {
-                if connector != actual_connector || kind != actual_kind {
-                    Some(InvalidResult::Change)
-                } else if words.len() > skein_lib::length::usize_of(*limit) {
-                    Some(InvalidResult::Words)
-                } else {
-                    None
-                }
+        TaskResult::Change { connector, kind, title, words, .. } => {
+            invalid_change(contract, *connector, *kind, &title.words, words, limits)
+        }
+    }
+}
+
+fn invalid_change(
+    contract: &Contract,
+    connector: u16,
+    kind: u16,
+    title: &[u8],
+    words: &[u8],
+    limits: &Limits,
+) -> Option<InvalidResult> {
+    match contract {
+        Contract::Change { connector: expected_connector, kind: expected_kind, words: limit } => {
+            if connector != *expected_connector || kind != *expected_kind {
+                Some(InvalidResult::Change)
+            } else if title.len().max(words.len()) > skein_lib::length::usize_of(*limit)
+                || title.len().max(words.len()) > skein_lib::length::usize_of(limits.result_bytes)
+            {
+                Some(InvalidResult::Words)
+            } else {
+                None
             }
-            Contract::Approval { .. } | Contract::Report { .. } | Contract::Verdict { .. } => Some(InvalidResult::Form),
-        },
+        }
+        Contract::Approval { .. } | Contract::Report { .. } | Contract::Verdict { .. } => Some(InvalidResult::Form),
     }
 }
 
@@ -288,7 +303,8 @@ pub(crate) fn invalid_followups(
 
 pub(crate) fn result_bytes(result: &TaskResult) -> usize {
     match result {
-        TaskResult::Report { words } | TaskResult::Change { words, .. } => words.len(),
+        TaskResult::Report { words } => words.len(),
+        TaskResult::Change { title, words, .. } => title.words.len().max(words.len()),
         TaskResult::Verdict { words, fields, .. } => match crate::verdict::fields_bytes(fields) {
             Some(bytes) => bytes.saturating_add(words.len()),
             None => usize::MAX,
