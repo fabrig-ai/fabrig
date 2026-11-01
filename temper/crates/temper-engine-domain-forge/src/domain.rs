@@ -1150,7 +1150,10 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::DemoActs { acts } => crate::demo::acts(d, acts, out),
         Event::DemoActAnswered { key, keep } => crate::demo::act_answered(d, key, keep, out),
         Event::SendDemoActs => crate::demo::send_acts(d, out),
-        Event::SendKept => crate::kept::send_all(d, out),
+        Event::SendKept => {
+            crate::kept::send_all(d, out);
+            crate::playground::restarted(d, env, out);
+        }
         Event::KeptAnswered { key, keep } => crate::kept::answered(d, env, key, keep, out),
         Event::BoxRemoved { forge, removed } => crate::kept::box_answered(d, env, forge, removed, out),
         Event::ReleaseProject { request, project } => crate::release::release(d, request, project, out),
@@ -1289,13 +1292,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 crate::asks::remove_forge(d, env, request, token, forge, role, out);
             }
             crate::Ask::StartPlayground => crate::playground::start(d, env, request, token, out),
-            crate::Ask::EndPlayground => crate::asks::refuse(
-                d,
-                request,
-                token,
-                crate::Answered::EndPlayground(crate::EndAnswer::NotOffered),
-                out,
-            ),
+            crate::Ask::EndPlayground => crate::playground::end(d, env, request, token, out),
             crate::Ask::StartDemo => crate::demo::start(d, request, token, out),
             crate::Ask::Adopt(adoption) => adoption::start(d, env, request, token, retention, adoption, out),
             crate::Ask::SetUp { org, repository, project, playground } => {

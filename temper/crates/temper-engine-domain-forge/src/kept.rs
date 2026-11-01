@@ -43,7 +43,7 @@ pub(crate) fn send_all(d: &Domain, out: &mut Queue<Request>) {
 
 pub(crate) fn answered(d: &mut Domain, env: &Env<crate::Limits>, key: [u8; 16], keep: bool, out: &mut Queue<Request>) {
     if !keep {
-        erase(d, key, out);
+        erase(d, env, key, out);
     }
     crate::removal::finish(d, env, out);
 }
@@ -64,7 +64,7 @@ pub(crate) fn box_answered(
         let (key, act) = d.kept.iter().nth(index).expect("kept row");
         if *act == (KeptAct::BoxRemove { forge }) {
             let key = *key;
-            erase(d, key, out);
+            erase(d, env, key, out);
         } else {
             index = index.checked_add(1).expect("kept index space");
         }
@@ -92,8 +92,9 @@ pub(crate) fn erased_for(d: &Domain, forge: u16) -> bool {
     true
 }
 
-pub(crate) fn erase(d: &mut Domain, key: [u8; 16], out: &mut Queue<Request>) {
-    if d.kept.remove(&key).is_some() {
+pub(crate) fn erase(d: &mut Domain, env: &Env<crate::Limits>, key: [u8; 16], out: &mut Queue<Request>) {
+    if let Some(act) = d.kept.remove(&key) {
         out.push(Request::Erase { key: Key::Kept(key) });
+        crate::playground::kept_erased(d, env, act, out);
     }
 }

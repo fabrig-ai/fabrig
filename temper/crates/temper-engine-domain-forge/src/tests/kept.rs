@@ -82,11 +82,11 @@ fn erased_for_tells_when_a_forges_rows_are_gone() {
     crate::kept::keep(&mut d, &rows(), &mut out);
     assert!(!crate::kept::erased_for(&d, 1));
     assert!(crate::kept::erased_for(&d, 2));
-    crate::kept::erase(&mut d, rows()[3].key, &mut out);
+    crate::kept::erase(&mut d, &env(), rows()[3].key, &mut out);
     assert!(!crate::kept::erased_for(&d, 1), "cancel still names the forge's change");
-    crate::kept::erase(&mut d, rows()[0].key, &mut out);
+    crate::kept::erase(&mut d, &env(), rows()[0].key, &mut out);
     assert!(crate::kept::erased_for(&d, 1), "reset and project/account rows do not hold removal");
-    crate::kept::erase(&mut d, rows()[4].key, &mut out);
+    crate::kept::erase(&mut d, &env(), rows()[4].key, &mut out);
     assert!(!d.kept.contains_key(&rows()[4].key));
 }
 

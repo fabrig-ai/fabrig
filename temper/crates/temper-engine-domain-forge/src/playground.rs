@@ -1,16 +1,21 @@
-//! Playground start (temper/docs/design/draft/playground-reset.md, 6.1;
+//! Playground start and reset (temper/docs/design/draft/playground-reset.md, 6.1, 6.2;
 //! temper/docs/plan/playground-reset-r4/notes/contracts.md, 2).
 use crate::{Connection, Domain, Key, Limits, Playground, PlaygroundState, Request, StartAnswer, StartFailure, Stored};
 use skein_lib::{Env, Map, Queue, Token};
 
 #[derive(Debug)]
 pub(crate) struct State {
+    pub(crate) ends: Map<Token, Token>,
     pub(crate) pending: Map<Token, Token>,
     pub(crate) answers: Map<Token, StartAnswer>,
 }
 impl State {
     pub(crate) fn new(limits: &Limits) -> Self {
-        Self { pending: Map::with_capacity(limits.applications), answers: Map::with_capacity(limits.applications) }
+        Self {
+            ends: Map::with_capacity(limits.applications),
+            pending: Map::with_capacity(limits.applications),
+            answers: Map::with_capacity(limits.applications),
+        }
     }
 }
 
@@ -101,12 +106,15 @@ fn save(d: &Domain, out: &mut Queue<Request>) {
     out.push(Request::Save {
         read_afresh: None,
         release: None,
-        record: Stored::Playground(*d.playground.as_ref().expect("running playground")),
+        record: Stored::Playground(*d.playground.as_ref().expect("playground row")),
     });
 }
 
 pub(crate) fn made(d: &mut Domain, project: Option<u32>, account: Option<u32>, out: &mut Queue<Request>) {
-    let row = d.playground.as_mut().expect("active playground start");
+    let Some(row) = d.playground.as_mut() else { return };
+    if row.state == PlaygroundState::Resetting {
+        return;
+    }
     if let Some(project) = project {
         row.project = Some(project);
     }
@@ -123,5 +131,95 @@ pub(crate) fn answered(d: &mut Domain, answer: StartAnswer, out: &mut Queue<Requ
         d.playground_start.pending.remove(&request);
         d.playground_start.answers.insert(token, answer.clone()).expect("one answer per bounded start");
         out.push(Request::ApplicationDone { request, token });
+    }
+}
+
+pub(crate) fn end(d: &mut Domain, env: &Env<Limits>, request: Token, token: Token, out: &mut Queue<Request>) {
+    if d.demo.is_none() || d.playground.is_none() {
+        let answer = if d.demo.is_none() { crate::EndAnswer::NotOffered } else { crate::EndAnswer::Reset };
+        crate::asks::refuse(d, request, token, crate::Answered::EndPlayground(answer), out);
+        return;
+    }
+    if d.playground_start.ends.len() == d.playground_start.ends.capacity() {
+        out.push(Request::ApplicationAgain { request, why: jig_domain_people::Again::Busy });
+        return;
+    }
+    d.playground_start.ends.insert(request, token).expect("bounded ends");
+    if d.playground.as_ref().expect("playground").state == PlaygroundState::Running {
+        reset(d, env, out);
+    }
+}
+
+fn reset(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    d.playground.as_mut().expect("playground").state = PlaygroundState::Resetting;
+    save(d, out);
+    answered(d, StartAnswer::NotOffered, out);
+    next_step(d, env, out);
+}
+
+/// A kept act of the reset was erased: the next step (draft 6.2).
+pub(crate) fn kept_erased(d: &mut Domain, env: &Env<Limits>, act: crate::KeptAct, out: &mut Queue<Request>) {
+    let Some(row) = d.playground.as_mut() else { return };
+    if row.state != PlaygroundState::Resetting {
+        return;
+    }
+    match act {
+        crate::KeptAct::RemoveProject { project } if row.project == Some(project) => row.project = None,
+        crate::KeptAct::RemoveForge { forge } if row.forge == Some(forge) => row.forge = None,
+        crate::KeptAct::RemoveAccount { account } if row.account == Some(account) => row.account = None,
+        crate::KeptAct::Cancel { .. }
+        | crate::KeptAct::BoxRemove { .. }
+        | crate::KeptAct::RemoveProject { .. }
+        | crate::KeptAct::RemoveForge { .. }
+        | crate::KeptAct::RemoveAccount { .. } => return,
+    }
+    save(d, out);
+    next_step(d, env, out);
+}
+
+/// At each start, once the core is ready: a running playground is reset (D5).
+pub(crate) fn restarted(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    let Some(row) = d.playground else { return };
+    match row.state {
+        PlaygroundState::Running => reset(d, env, out),
+        PlaygroundState::Resetting => {
+            for number in 1..=3 {
+                if d.kept.contains_key(&crate::kept::key(b"playground reset", &[number])) {
+                    return;
+                }
+            }
+            next_step(d, env, out);
+        }
+    }
+}
+
+fn next_step(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    let row = d.playground.expect("resetting playground");
+    let (number, act) = if let Some(project) = row.project {
+        (1, crate::KeptAct::RemoveProject { project })
+    } else if let Some(forge) = row.forge {
+        (2, crate::KeptAct::RemoveForge { forge })
+    } else if let Some(account) = row.account {
+        (3, crate::KeptAct::RemoveAccount { account })
+    } else {
+        d.playground = None;
+        out.push(Request::Erase { key: Key::Playground });
+        for _ in 0..d.playground_start.ends.len() {
+            let Some((&request, &token)) = d.playground_start.ends.first() else { break };
+            d.playground_start.ends.remove(&request);
+            d.connect.answer(request, token, crate::Answered::EndPlayground(crate::EndAnswer::Reset), out);
+        }
+        return;
+    };
+    let key = crate::kept::key(b"playground reset", &[number]);
+    crate::kept::keep(d, &[crate::Kept { key, act }], out);
+    if let crate::KeptAct::RemoveForge { forge } = act {
+        match crate::removal::remove(d, env, forge, out) {
+            Ok(()) => {}
+            Err(crate::RemoveRefusal::NoSuchForge) => crate::kept::erase(d, env, key, out),
+            Err(crate::RemoveRefusal::NotOffered | crate::RemoveRefusal::Role) => {
+                unreachable!("internal removal has no admission refusal")
+            }
+        }
     }
 }

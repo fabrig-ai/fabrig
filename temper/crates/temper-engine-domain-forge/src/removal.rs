@@ -136,7 +136,7 @@ pub(crate) fn finish(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>
             }
         }
         for key in answers.into_boxed() {
-            crate::kept::erase(d, key, out);
+            crate::kept::erase(d, env, key, out);
         }
     }
 }

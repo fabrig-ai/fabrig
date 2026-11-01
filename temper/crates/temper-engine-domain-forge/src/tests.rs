@@ -19,6 +19,7 @@ mod limits;
 mod make;
 mod panel;
 mod playground;
+mod playground_reset;
 mod projection;
 mod purpose;
 mod reconcile;
