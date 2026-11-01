@@ -31,9 +31,24 @@ domain, view, tools and the client world.
 | 7 | `bx-doc`, `bx-fixtures`, `bx-harness`, `bx-init`, `bx-walks`, `sv-family`, `sv-playground`, `sv-registry`, `sv-registry-setup`, `sv-removal`, `sv-resolve`, `sv-seed-kit`, `sv-service-fixtures`, `sv-startup-machine`, `sv-startup-refuse`, `sv-world-client-browser`, `sv-world-one-process`, `sv-world-real-loop`, `cl-world-forges` |
 | 8 | `bx-story-github`, `bx-story-playground`, `bx-story-reset-cut`, `bx-story-setup-cut`, `bx-unforge`, `cl-journeys`, `cl-world-pg`, `fe-config-drop`, `fe-demo-gone`, `fe-make-git`, `fe-world-remove`, `fe-world-reset`, `pd-client-view`, `pd-client-wire`, `pd-conformance`, `pd-core-decide`, `pd-core-erase`, `pd-core-release` |
 
-## Critical path (as it stands)
+## Critical path
 
-`fe-surface` → the forge connector from records → `RemoveForge` → the playground's reset
-(engine) → the service's routing of each → the client's pages → the process-tier stories.
-jig's `pd` runs beside it; the reset's engine task needs jig's `RemoveProject` surface.
-Updated with each batch.
+63 tasks, 5995 implementer-minutes estimated. By the specs' estimates the longest chain is
+1080 minutes:
+
+`fe-surface` → `sv-family` → `sv-startup-machine` → `sv-registry` → `sv-registry-setup` →
+`sv-resolve` → `sv-removal` → `sv-playground` → `sv-service-fixtures` → `sv-startup-refuse`
+→ `fe-config-drop` → `fe-make-git`
+
+temper-service has one writer at a time. Close behind: the binary's chain to `bx-unforge`
+(1055: `bx-pipe` → `bx-compose` → `bx-doc` → `bx-init` → `bx-harness` → `bx-fixtures` →
+`bx-walks` → `bx-story-playground` → the three later stories at once → `bx-unforge`), the
+client to `cl-journeys` (950), and jig's core to `pd-conformance` (680). The playground's
+end-to-end tasks (`bx-story-playground`, `cl-world-pg`, `fe-world-reset`) wait on jig's
+`pd-core-release`.
+
+## Notes
+
+- `notes/contracts.md`: the binding shapes (J jig, T temper, G generated docs).
+- Each designer's `notes/<prefix>-progress.md`: its graph, its calls, the lead's answers;
+  `notes/fe-surface.md` and `notes/cl-wire.md`: shared shapes.
