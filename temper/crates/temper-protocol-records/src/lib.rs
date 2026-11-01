@@ -32,6 +32,19 @@ pub enum Item {
     Accepted,
     Origin,
 }
+/// Every forge record, in wire-code order (temper's contracts T5).
+pub const ITEMS: [Item; 10] = [
+    Item::AdminToken,
+    Item::ApiToken,
+    Item::GitToken,
+    Item::User,
+    Item::WebhookSecret,
+    Item::AppId,
+    Item::AppSlug,
+    Item::AppKey,
+    Item::Accepted,
+    Item::Origin,
+];
 impl Item {
     #[must_use]
     pub const fn code(self) -> u16 {
@@ -75,3 +88,14 @@ pub fn parse(number: u64) -> Option<(u16, u16, Item)> {
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Unreadable;
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn items_hold_each_item_once_in_code_order() {
+        for (index, item) in super::ITEMS.iter().enumerate() {
+            assert_eq!(usize::from(item.code()), index.checked_add(1).expect("ten items"));
+            assert_eq!(super::parse(super::number(7, *item)), Some((super::FAMILY_FORGE, 7, *item)));
+        }
+    }
+}

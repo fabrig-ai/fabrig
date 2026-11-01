@@ -504,7 +504,7 @@ fn a_forge_procedure_without_a_change_has_an_unknown_panel() {
     assert!(!world.front().watching_change(person, task));
 }
 
-fn demo_change_page(demo_forge: u16, ended: bool) {
+fn demo_change_page(demo_forge: u16, resetting: bool) {
     let mut world = fixtures::world(fixtures::SEED);
     *world.front() = Joint::with_change_landing(fixtures::SEED, &fixtures::domain_limits());
     world.front().engine.forge = Some(ForgeStand::with_checks(fixtures::REPOSITORIES, &[BUILD]));
@@ -517,7 +517,7 @@ fn demo_change_page(demo_forge: u16, ended: bool) {
         w::PlaygroundAnswer::new(
             &w::CEILINGS,
             w::PlaygroundAnswerParts {
-                state: if ended { w::PlaygroundState::Resetting } else { w::PlaygroundState::Running },
+                state: if resetting { w::PlaygroundState::Resetting } else { w::PlaygroundState::Running },
                 project: 1,
                 forge: demo_forge,
                 provider: 17,
@@ -549,9 +549,12 @@ fn demo_change_page(demo_forge: u16, ended: bool) {
     let outcome = world.run(Until::Done);
     assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
     let root = world.root(person).person();
-    if ended {
-        assert!(root.forge().demo().is_none());
-        assert_eq!(root.forge().retired_demo().expect("retired identity").forge, demo_forge);
+    if resetting {
+        assert_eq!(
+            root.forge().demo().expect("resetting playground").state,
+            temper_client_domain::forge::demo::DemoState::Resetting
+        );
+        assert!(root.forge().leaving());
     } else {
         assert_eq!(root.forge().demo().expect("started demo").forge, demo_forge);
     }
@@ -591,7 +594,7 @@ fn another_forges_change_keeps_its_link() {
     demo_change_page(REPOSITORY.forge + 1, false);
 }
 #[test]
-fn an_ended_demo_changes_address_stays_text() {
+fn a_resetting_playgrounds_change_address_stays_text() {
     demo_change_page(REPOSITORY.forge, true);
 }
 

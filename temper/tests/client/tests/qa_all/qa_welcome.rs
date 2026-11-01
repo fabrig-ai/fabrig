@@ -230,13 +230,13 @@ fn noncanonical_address_is_replaced_without_a_history_entry() {
 }
 
 #[test]
-#[ignore = "needs: non-null demo fixture and demo model/forge half controls; Joint answers every family read with none"]
+#[ignore = "needs: non-null playground fixture and playground lifecycle controls; Joint answers every family read with none"]
 fn playground_banner_follows_accounts_and_precedes_every_chatbar() {
     let mut world = f::accounts_world(f::SEED);
     let task = f::chat(world.front(), b"Playground banner QA");
     let client = world.client(f::PARTY, f::chat_page(task));
     // With the demo installed, compare semantic tree order on Chat,
-    // demo-project Chats (New chat), and ordinary Chats; repeat each half.
+    // demo-project Chats (New chat), and ordinary Chats.
     follow(&mut world, client, vec![see(Role::Region, b"Playground")]);
 }
 
@@ -247,5 +247,5 @@ fn running_demo_redirects_once_and_welcome_never_draws_banner() {
     let client = world.client(f::PARTY, welcome(Step::Welcome));
     follow(&mut world, client, vec![see(Role::Heading { level: 1 }, b"Chats")]);
     // Observe one replacement; reopening Welcome at Forge must stay there,
-    // with neither Playground nor the accounts banner nor setup strip.
+    // with neither Playground nor the accounts banner nor its banner.
 }

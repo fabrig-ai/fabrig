@@ -2,8 +2,8 @@
 id = "sv-world-one-process"
 part = "fs"
 kind = "migration"
-needs = ["sv-seed-kit", "sv-registry-setup"]
-files = ["temper/tests/one-process/**"]
+needs = ["sv-seed-kit", "sv-registry-setup", "sv-world-real-loop"]
+files = ["temper/tests/one-process/**", "temper/crates/temper-service/src/**"]
 effort = "high"
 minutes = 110
 +++
@@ -68,3 +68,31 @@ Acceptance:
 ## Report
 
 - The seeding point taken; every story whose expectations changed and why.
+
+## Answers
+
+2026-11-01. Q: the suite is red on service defects of the records path (`connected`'s
+writer 0, the GitHub workers held, the held-change restart); route them to the service's
+owners, or widen this task? A: both, by defect. Your pushed branch stays the start of the
+next run; keep the empty-start seeding point you took.
+- **`setup::lifecycle::connected` (writer 0, `same forge writer`):** not yours.
+  `sv-world-real-loop` was answered the same fix (its spec's `## Answers`), and this task
+  now needs it, so your next run starts from a trunk that has it. Do not edit
+  `setup/lifecycle.rs`.
+- **The GitHub and M15 stories held with no agents:** yours. `workers::limits` sizes
+  `credentials` by `settings.identities.len()`, zero once the document names no forge.
+  Size it by the forges kept at most, `settings.limits.forge_component.forges` (the draft,
+  section 3: limits are counts), and add a case to `src/tests/worker.rs` that a settings
+  with no document identity still gives `credentials` that count. Then confirm the four
+  stories; if one stays red on another service reader the document fed, the next bullet
+  applies to it.
+- **The held-change restart, and any story still red after these:** find its cause. When
+  it is a temper-service reader of the document's forges, identities or setup that the
+  records leave empty or zero, fix that reader to read the registry or the records, with a
+  lower-tier test in `src/tests/`, and list each under `## Changes`. Touch no other
+  service file and no service behaviour beyond such a reader; `sv-startup-refuse` deletes
+  the document halves later, so make no deletion here. A cause that is anything else
+  (an engine or domain fault, a wider change) goes in your report as a `Question:` with
+  its diagnosis.
+- `Cargo.lock`: leave it to the trunk as you did.
+

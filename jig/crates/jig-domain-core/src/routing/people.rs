@@ -152,6 +152,21 @@ pub(super) fn tag_people(
             }
             people::Request::Save { record } => {
                 super::view_routes::touch_people_row(core, &record);
+                let erasing = match &record {
+                    people::Stored::Deletion { stage, .. } => *stage == people::Stage::Erasing,
+                    people::Stored::Person { .. }
+                    | people::Stored::ReadResults { .. }
+                    | people::Stored::ReadConversation { .. }
+                    | people::Stored::EndedRead { .. }
+                    | people::Stored::SignIn { .. }
+                    | people::Stored::Roles { .. }
+                    | people::Stored::Policy { .. }
+                    | people::Stored::Answer { .. }
+                    | people::Stored::Acted { .. } => false,
+                };
+                if erasing {
+                    crate::deletion::erase::begin(core, env, &mut out);
+                }
                 Request::Write(Write::Save(Record::People(record)))
             }
             people::Request::Erase { key } => {
@@ -248,11 +263,13 @@ pub(super) fn tag_people(
                     continue;
                 }
                 match *ask {
-                    people::Ask::RemoveProject { .. } => {
-                        work.push(Event::People(people::Event::Decided {
-                            request,
-                            outcome: people::Outcome::Refused(people::Refusal::NotOffered),
-                        }));
+                    people::Ask::RemoveProject { project } => {
+                        if let Err(why) = super::deletion::remove_project(core, env, work, &mut out, request, project) {
+                            work.push(Event::People(people::Event::Decided {
+                                request,
+                                outcome: people::Outcome::Refused(why),
+                            }));
+                        }
                     }
                     people::Ask::Compound { operations, .. } => {
                         crate::compound::route(

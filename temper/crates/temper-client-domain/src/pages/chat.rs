@@ -644,6 +644,7 @@ impl Chat {
             | Act::StartChat
             | Act::RetryDemo
             | Act::Playground
+            | Act::LeavePlayground
             | Act::Suggest { .. }
             | Act::ChatFilter { .. }
             | Act::PlanFilter { .. }

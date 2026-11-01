@@ -480,8 +480,17 @@ pub enum PersonProposalRoute {
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum PersonTaskRoute {
-    Compound { project: u32, operations: u32, first_message: u64 },
-    PoolSet { project: u32, person: u64 },
+    /// Internal deletion compound; its terminal is consumed without a party answer.
+    Deletion,
+    Compound {
+        project: u32,
+        operations: u32,
+        first_message: u64,
+    },
+    PoolSet {
+        project: u32,
+        person: u64,
+    },
     Take(u64),
     HandBack(u64),
     Answer(u64),
@@ -489,7 +498,10 @@ pub enum PersonTaskRoute {
     Stop(u64),
     Release(u64),
     Lift(u64),
-    Amended { task: u64, released: bool },
+    Amended {
+        task: u64,
+        released: bool,
+    },
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]

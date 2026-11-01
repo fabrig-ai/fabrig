@@ -531,7 +531,7 @@ pub(super) fn proposal(
         }
         Proposer::Party(person) => {
             let value = core.tasks.person_proposal(person, number).ok_or(Missing::Ended)?;
-            if party != person && core.people.role(party, value.project).is_none() {
+            if party != person && core.visible_role(party, value.project).is_none() {
                 return Err(Missing::NotAllowed);
             }
             let since = match value.state {
@@ -682,7 +682,7 @@ pub fn person_from_row(
     row: &tasks::TaskRecord,
     decision: Wall,
 ) -> Result<PersonTask, Missing> {
-    if core.people.role(party, row.project).is_none() {
+    if core.visible_role(party, row.project).is_none() {
         return Err(Missing::NotAllowed);
     }
     let address = match row.executor {
@@ -739,7 +739,7 @@ pub fn result_from_row(
     row: &tasks::TaskRecord,
     decision: Wall,
 ) -> Result<ResultDoc, Missing> {
-    if core.people.role(party, row.project).is_none() {
+    if core.visible_role(party, row.project).is_none() {
         return Err(Missing::NotAllowed);
     }
     let value = match &row.phase {
@@ -1001,7 +1001,7 @@ fn reviewed_task_action(
     value: &tasks::Proposal,
 ) -> Result<ProposalAction, Missing> {
     if let tasks::ProposalAction::Settings { .. } = value.action {
-        if core.people.role(party, jig_domain_people::DEPLOYMENT) != Some(jig_domain_people::Role::Owner) {
+        if core.visible_role(party, jig_domain_people::DEPLOYMENT) != Some(jig_domain_people::Role::Owner) {
             return Err(Missing::NotAllowed);
         }
     } else {

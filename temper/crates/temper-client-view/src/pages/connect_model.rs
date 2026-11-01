@@ -721,9 +721,6 @@ fn facts(b: &mut Builder, root: &Domain, w: &Words, way: Way) {
         ),
     );
     b.close();
-    if page.playground {
-        text(b, w, Role::Paragraph, W::SteppedAside);
-    }
 }
 fn manage_usage(b: &mut Builder, root: &Domain, w: &Words, way: Way) {
     let Some(doc) = accounts::document(root.client()) else { return };

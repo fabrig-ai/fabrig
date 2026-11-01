@@ -2481,3 +2481,54 @@ mod start;
 mod deletion;
 
 mod deletion_purge;
+
+#[test]
+fn deleting_projects_leave_counts_and_cached_selection_without_dropping_rows() {
+    let mut test = Test::new(LIMITS);
+    test.signin(1, 10, identity(0, 1));
+    for (project, task, last_reply) in [(1, 7, 3), (2, 8, 1)] {
+        test.send(Event::Roles { project, holdings: Box::new([Holding { person: 1, role: Role::Member }]) });
+        let entry = Entry { task, project, whom: Whom::Person(1), kind: EntryKind::PersonTask, at: Wall::EPOCH };
+        let entries = if project == 1 {
+            Box::from([entry, Entry { kind: EntryKind::Reply { message: 9 }, ..entry }])
+        } else {
+            Box::from([entry])
+        };
+        test.send(Event::Waiting { task, entries });
+        test.send(Event::ChatState {
+            party: 1,
+            project,
+            task,
+            last_reply,
+            live: true,
+            seen: None,
+            replies: Box::new([ReplyRef {
+                entry: Entry { kind: EntryKind::ChatReply { message: last_reply }, ..entry },
+                activity: 1,
+            }]),
+        });
+        test.d.remember_result(
+            &LIMITS,
+            1,
+            ResultRef { project, task, position: task, at: Wall::EPOCH, forgettable: None },
+        );
+    }
+    assert_eq!(test.d.counts(&LIMITS, 1), Some(Counts { needs: 2, unread: 2, more_unread: true }));
+    test.send(Event::Deletion { project: 1, stage: Some(Stage::Ending) });
+    assert_eq!(test.d.counts(&LIMITS, 1), Some(Counts { needs: 1, unread: 2, more_unread: false }));
+    assert_eq!(test.d.needs(1), Some(1));
+    assert_eq!(
+        test.d.inbox_needs(&LIMITS, 1).unwrap().as_ref(),
+        &[Entry { task: 8, project: 2, whom: Whom::Person(1), kind: EntryKind::PersonTask, at: Wall::EPOCH },]
+    );
+    assert!(test.d.cached_waiting(&LIMITS, 1).unwrap().iter().all(|entry| entry.project == 2));
+    assert!(test.d.cached_updates(&LIMITS, 1).unwrap().iter().all(|update| match update {
+        Update::Result(row) => row.project == 2,
+        Update::Reply(row) => row.project == 2,
+        Update::ChatReply(row) => row.entry.project == 2,
+    }));
+    assert_eq!(test.d.project_members(1), Some([Holding { person: 1, role: Role::Member }].as_slice()));
+    assert_eq!(test.d.chat_owner(7), Some(1));
+    test.send(Event::Deletion { project: 1, stage: None });
+    assert_eq!(test.d.counts(&LIMITS, 1), Some(Counts { needs: 2, unread: 2, more_unread: true }));
+}

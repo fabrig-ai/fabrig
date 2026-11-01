@@ -971,46 +971,7 @@ fn running_setup_opened_in_second_tab_is_not_resent() {
 }
 
 #[test]
-fn setup_strip_tracks_progress_and_changes_its_continue_step() {
-    let mut world = world();
-    let client = open(&mut world, Address::Chats { filter: ChatsFilter::All, start: false });
-    follow(&mut world, client, vec![see(Role::Region, b"Setup")]);
-    follow(
-        &mut world,
-        client,
-        vec![
-            PersonStep::Press { find: Find::exactly_named(Role::Link, b"Continue setting up") },
-            see(Role::Heading { level: 1 }, b"Connect a forge"),
-            PersonStep::Go { address: Address::Chats { filter: ChatsFilter::All, start: false } },
-        ],
-    );
-    connection(&mut world, OWNED, forge::Connection::SettingUp { step: Some(forge::SetUpStep::Fetch) });
-    follow(&mut world, client, vec![see(Role::Link, b"View")]);
-    assert!(text(&world, client).contains("Forgejo on this machine · Setting up: fetching"));
-    follow(
-        &mut world,
-        client,
-        vec![
-            PersonStep::Press { find: Find::exactly_named(Role::Link, b"Continue setting up") },
-            see(Role::Heading { level: 1 }, b"Almost ready"),
-        ],
-    );
-}
-
-#[test]
-fn strip_exclusions_and_forges_navigation_current_match_pages() {
-    for page in [
-        Address::Forges,
-        flow(None),
-        Address::Accounts,
-        Address::Welcome { step: Step::Forge { forge: None } },
-        Address::Welcome { step: Step::Model { way: None } },
-        Address::Welcome { step: Step::Ready },
-    ] {
-        let mut world = world();
-        let client = open(&mut world, page);
-        follow(&mut world, client, vec![gone(Role::Region, b"Setup"), gone(Role::Region, b"Playground")]);
-    }
+fn forges_navigation_is_current_on_its_pages() {
     for page in [Address::Forges, flow(None)] {
         let mut world = world();
         let client = open(&mut world, page);
@@ -1028,17 +989,6 @@ fn non_owner_forges_page_explains_the_watch_refusal() {
 }
 
 #[test]
-#[ignore = "needs: a non-owner identity; `configured(false, ..)` still signs in the deployment's owner"]
-fn non_owner_setup_strip_only_names_the_missing_model() {
-    let mut world = configured(false, true, forge::Mode::Owned);
-    let client = open(&mut world, Address::Chats { filter: ChatsFilter::All, start: false });
-    follow(&mut world, client, vec![see(Role::Region, b"Setup")]);
-    let words = text(&world, client);
-    assert!(words.contains("temper has no model yet."), "{words}");
-    assert!(!words.contains("temper has no forge"), "forges are not this person's to set up: {words}");
-}
-
-#[test]
 #[ignore = "needs: Joint per-subject forges watch ledger, hold/release and refused/ended injection; verify one session watch, no retry after terminal and headings before delivery"]
 fn session_watch_survives_pages_and_stays_terminal_without_retry() {
     let mut world = world();
@@ -1053,27 +1003,6 @@ fn session_watch_survives_pages_and_stays_terminal_without_retry() {
     );
     // Hold first delivery: Forges must draw headings only. Refuse/end instead:
     // no rows or stale dot/banner; navigating must not open another watch.
-}
-
-#[test]
-#[ignore = "needs: Joint non-null Demo read fixture and demo lifecycle controls; fake playground row plus independently usable real account"]
-fn playground_forge_disappears_when_real_forge_connects() {
-    let mut world = world_for(FAKE);
-    connection(&mut world, FAKE, connected());
-    let client = open(&mut world, Address::Forges);
-    follow(&mut world, client, vec![see(Role::Disclosure, b"Playground forge")]);
-    connection(&mut world, OWNED, connected());
-    follow(&mut world, client, vec![gone(Role::Disclosure, b"Playground forge")]);
-}
-
-#[test]
-#[ignore = "needs: non-null Demo read fixture to exercise both halves, banner order, Connect a forge href, replacement by progress, exclusions and demo-to-setup/accounts seam"]
-fn playground_banner_replaces_connect_link_with_running_setup() {
-    let mut world = world();
-    let client = open(&mut world, Address::Chats { filter: ChatsFilter::All, start: false });
-    follow(&mut world, client, vec![see(Role::Region, b"Playground"), see(Role::Link, b"Connect a forge")]);
-    connection(&mut world, OWNED, forge::Connection::SettingUp { step: None });
-    follow(&mut world, client, vec![see(Role::Link, b"View"), gone(Role::Link, b"Connect a forge")]);
 }
 
 #[test]
@@ -1098,61 +1027,6 @@ fn browser_reload_preserves_running_setup_without_resending() {
     world.reload(client);
     follow(&mut world, client, vec![see(Role::Heading { level: 2 }, b"Setting up Forgejo on this machine")]);
     assert!(world.front().set_ups().is_empty());
-}
-
-#[test]
-fn accounts_banner_stays_above_setup_strip_on_eligible_pages() {
-    for (page, has_strip) in [
-        (Address::Chats { filter: ChatsFilter::All, start: false }, true),
-        (f::inbox(), true),
-        (Address::Adopt { project: 1 }, true),
-        (Address::Forges, false),
-        (flow(None), false),
-    ] {
-        // No usable account: the accounts document is not usable.
-        let mut world = configured_accounts(
-            true,
-            true,
-            &[
-                forge::Configured {
-                    admin_connect: false,
-                    bot: Box::new([]),
-                    owned: None,
-                    git: Box::new([]),
-                    web: None,
-                    read_only: false,
-                    number: OWNED,
-                    kind: forge::Kind::Forgejo,
-                    mode: forge::Mode::Owned,
-                    asked: true,
-                },
-                forge::Configured {
-                    admin_connect: false,
-                    bot: Box::new([]),
-                    owned: None,
-                    git: Box::new([]),
-                    web: None,
-                    read_only: false,
-                    number: GITHUB,
-                    kind: forge::Kind::GitHub,
-                    mode: forge::Mode::Connected,
-                    asked: false,
-                },
-            ],
-            false,
-        );
-        let client = open(&mut world, page);
-        let nodes = world.tree(client).nodes();
-        let banner = nodes.iter().position(|node| {
-            node.text.as_slice().iter().any(|run| run.text.as_ref() == b"Agents need an LLM account to run.")
-        });
-        assert!(banner.is_some(), "README.md 5.1 requires the accounts banner: {}", text(&world, client));
-        let strip = nodes.iter().position(|node| node.role == Role::Region && node.name.as_deref() == Some(b"Setup"));
-        assert_eq!(strip.is_some(), has_strip, "only eligible pages have a setup strip");
-        if let Some(strip) = strip {
-            assert!(banner.expect("banner exists") < strip, "accounts banner precedes setup strip");
-        }
-    }
 }
 
 #[test]

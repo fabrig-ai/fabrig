@@ -41,10 +41,14 @@ pub(crate) fn main(
         State::Ended => crate::cards::refusal(b, w, &jig_client::contract::Refusal::NotOffered),
         State::Rows(_) => {
             connect::text(b, w, Role::Paragraph, Word::ForgesDescription);
-            connect::link(b, w, bindings, Word::AddForge, Address::ConnectForge { forge: None });
+            if !root.forge().playground_running() {
+                connect::link(b, w, bindings, Word::AddForge, Address::ConnectForge { forge: None });
+            }
             if count == 0 {
                 connect::text(b, w, Role::Paragraph, Word::NoForges);
-                connect::link(b, w, bindings, Word::ConnectForge, Address::ConnectForge { forge: None });
+                if !root.forge().playground_running() {
+                    connect::link(b, w, bindings, Word::ConnectForge, Address::ConnectForge { forge: None });
+                }
             }
             for row in &rows {
                 personal(b, root, w, bindings, forge, row, sign_in);

@@ -73,17 +73,10 @@ fn real_account(root: &Domain) -> bool {
             }
         }
     }
-    if let Some(deployment) = forge::demo::owner_deployment(root.forge(), root.client()) {
-        for account in &deployment.accounts {
-            if account.provider.is_some() && account.provider != provider {
-                return true;
-            }
-        }
-    }
     false
 }
 
-/// The welcome and setup strip use the same model facts, including an ended watch.
+/// The scripted provider is not one of the person's model accounts.
 #[must_use]
 pub fn model_usable(root: &Domain) -> Option<bool> {
     let document = root.client().document(accounts::handle())?;
@@ -96,9 +89,10 @@ pub fn model_usable(root: &Domain) -> Option<bool> {
     };
     let Some(accounts) = accounts else { return Some(false) };
     let Some(provider) = root.forge().demo_provider() else { return Some(accounts.usable) };
-    Some(forge::demo::other_model_usable(
-        accounts,
-        forge::demo::owner_deployment(root.forge(), root.client()),
-        provider,
-    ))
+    for line in &accounts.accounts {
+        if forge::demo::usable_account(line, Some(provider)) {
+            return Some(true);
+        }
+    }
+    Some(false)
 }

@@ -143,11 +143,6 @@ fn setting_up_forgejo_here_from_the_welcome() {
         &mut now,
         d::Event::Went { place: d::Place::Address(Address::Chats { filter: ChatsFilter::All, start: false }) },
     );
-    let strip = view(&root);
-    node(&strip, Role::Region, b"Setup");
-    node(&strip, Role::Link, b"View");
-    node(&strip, Role::Paragraph, "Forgejo on this machine · Setting up: preparing".as_bytes());
-    assert!(strip.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&temper_client_view::look::NAV_LIMITED)));
     connection(&mut front, Connection::Connected { id: 1, login: b"temper".as_slice().into() });
     pump(
         &mut front,
@@ -218,7 +213,7 @@ fn model_follows_forgejo_from_setup_to_its_first_repository() {
 }
 
 #[test]
-fn a_connected_forge_and_usable_model_keep_setup_until_a_repository_is_adopted() {
+fn a_connected_forge_and_usable_model_resume_forge_until_a_repository_is_adopted() {
     use d::pages::connect_model::Act as A;
     let (mut front, mut root) = accounts::forge_fixture(fixtures::SEED);
     let mut now = Time::ZERO.saturating_add(Duration::from_secs(1));
@@ -229,9 +224,6 @@ fn a_connected_forge_and_usable_model_keep_setup_until_a_repository_is_adopted()
         &mut now,
         d::Event::Went { place: d::Place::Address(Address::Chats { filter: ChatsFilter::All, start: false }) },
     );
-    let strip = view(&root);
-    node(&strip, Role::Region, b"Setup");
-    node(&strip, Role::Link, b"View");
     let way = d::ModelWay { source: None, provider: accounts::PROVIDER, kind: d::WayKind::Key };
     for event in [
         d::Event::Went { place: d::Place::Address(Address::Welcome { step: Step::Model { way: Some(way) } }) },
@@ -249,7 +241,7 @@ fn a_connected_forge_and_usable_model_keep_setup_until_a_repository_is_adopted()
         d::Event::Went { place: d::Place::Address(Address::Chats { filter: ChatsFilter::All, start: false }) },
     );
     let ready = view(&root);
-    node(&ready, Role::Region, b"Setup");
+    assert!(!ready.tree().nodes().iter().any(|node| node.name.as_deref() == Some(b"Setup")));
     assert_eq!(
         d::pages::welcome::state(root.person()),
         Some(d::pages::welcome::State::Unfinished(Step::Forge { forge: None }))

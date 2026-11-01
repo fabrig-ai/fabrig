@@ -272,6 +272,7 @@ fn kept(request: &Ask) -> bool {
             | contract::Ask::MakeService { .. }
             | contract::Ask::SetPool { .. }
             | contract::Ask::Rename { .. }
+            | contract::Ask::RemoveProject { .. }
             | contract::Ask::MakeProject { .. }
             | contract::Ask::SignIn { .. }
             | contract::Ask::AccountChange { .. }

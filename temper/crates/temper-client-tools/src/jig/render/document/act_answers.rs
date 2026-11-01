@@ -218,6 +218,7 @@ pub(super) fn encode_owner_escalation_choice(
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "one exhaustive translation retains every owner outcome")]
 pub(super) fn encode_owner_outcome(
     value: &jig_client::contract::OwnerOutcome,
     out: &mut Encoder,
@@ -261,6 +262,15 @@ pub(super) fn encode_owner_outcome(
         jig_client::contract::OwnerOutcome::Renamed { project } => {
             out.object_start();
             out.key(b"renamed");
+            out.object_start();
+            out.key(b"project");
+            out.unsigned(u64::from(*project));
+            out.object_end();
+            out.object_end();
+        }
+        jig_client::contract::OwnerOutcome::ProjectRemoved { project } => {
+            out.object_start();
+            out.key(b"project_removed");
             out.object_start();
             out.key(b"project");
             out.unsigned(u64::from(*project));

@@ -37,8 +37,12 @@ fn navigation_links_have_addresses_and_install_action_links_keep_their_binding()
                 // it has no static destination until the forge answers.
                 assert_eq!(sample.name, "github-picker");
                 assert_eq!(forge, 2);
+            } else if let Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::LeavePlayground)) =
+                temper_client_view::act(&mut view, node, skein_ui::Act::Press)
+            {
+                assert!(samples::domain(&sample).forge().playground_running());
             } else {
-                panic!("{}: link {node:?} has neither a destination nor its install act", sample.name);
+                panic!("{}: link {node:?} has neither a destination nor its request act", sample.name);
             }
         }
     }
@@ -66,6 +70,28 @@ enum Part {
     PlanWithEnded { live: u32, ended: u32, before: &'static str, after: &'static str },
 }
 const HOLDS: [Holds; samples::N] = [
+    Holds {
+        name: "chats-playground",
+        heading: "What shall we change?",
+        parts: &[
+            Part::Named { role: Role::Region, name: "The playground" },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "This is the playground: a scripted model and in-memory forge. Use the wizard to ",
+            },
+            Part::Named { role: Role::Link, name: "set up temper" },
+            Part::Absent { role: Role::Link, name: "Connect a forge" },
+            Part::Absent { role: Role::Link, name: "View" },
+        ],
+    },
+    Holds {
+        name: "chats-playground-leaving",
+        heading: "What shall we change?",
+        parts: &[
+            Part::Named { role: Role::Status, name: "Leaving the playground…" },
+            Part::Absent { role: Role::Link, name: "set up temper" },
+        ],
+    },
     Holds {
         name: "forges-remove-confirm",
         heading: "Forges",
@@ -113,8 +139,11 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "chats-first-run-5",
-        heading: "Chats",
-        parts: &[Part::Named { role: Role::Link, name: "Manage usage" }],
+        heading: "What shall we change?",
+        parts: &[
+            Part::Named { role: Role::Link, name: "Manage usage" },
+            Part::Named { role: Role::Button, name: "Add CSV export to widget" },
+        ],
     },
     Holds {
         name: "welcome-paste-expired",
@@ -385,15 +414,7 @@ const HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Region, name: "A Forgejo elsewhere" },
         ],
     },
-    Holds {
-        name: "chats-setup-strip",
-        heading: "Chats",
-        parts: &[
-            Part::Named { role: Role::Region, name: "Setup" },
-            Part::Named { role: Role::Paragraph, name: "temper has no forge and no model yet." },
-            Part::Named { role: Role::Link, name: "Continue setting up" },
-        ],
-    },
+    Holds { name: "chats-not-started", heading: "Chats", parts: &[Part::Absent { role: Role::Region, name: "Setup" }] },
     Holds {
         name: "welcome-first-run-0",
         heading: "Welcome to temper",

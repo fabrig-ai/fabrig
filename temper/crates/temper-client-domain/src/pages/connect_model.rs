@@ -13,7 +13,6 @@ pub struct ConnectModel {
     pub program: Option<Box<[u8]>>,
     pub request: Request,
     /// Whether the scripted model was serving when this connection was sent.
-    pub playground: bool,
     pub elsewhere: bool,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -271,12 +270,6 @@ pub(crate) fn program_default(person: &[u8]) -> Box<[u8]> {
 
 impl Default for ConnectModel {
     fn default() -> Self {
-        Self {
-            holder: c::AccountHolder::Own,
-            program: None,
-            request: Request::default(),
-            playground: false,
-            elsewhere: false,
-        }
+        Self { holder: c::AccountHolder::Own, program: None, request: Request::default(), elsewhere: false }
     }
 }

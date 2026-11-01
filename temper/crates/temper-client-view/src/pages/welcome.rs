@@ -132,7 +132,8 @@ pub(crate) fn main(
     b.style(look::MAIN);
     b.style(look::WELCOME);
     steps(b, root, w, step);
-    let playground = root.demo_answered() && root.forge().demo().is_some() && !real_forge_begun(root);
+    let playground =
+        root.demo_answered() && root.forge().demo().is_some() && !root.forge().leaving() && !real_forge_begun(root);
     match step {
         Step::Welcome => {
             text(b, w, Role::Heading { level: 1 }, Word::WelcomeTitle);

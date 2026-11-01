@@ -453,7 +453,7 @@ fn closed_status(b: &mut Builder, words: &Words) {
 pub(crate) fn demo_start(root: &Domain) -> Option<&temper_client_domain::forge::Demo> {
     let Address::Chats { .. } = root.pages().address() else { return None };
     match root.demo() {
-        Some((demo, halves)) if halves.model && root.pages().project() == Some(demo.project) => Some(demo),
+        Some(demo) if root.pages().project() == Some(demo.project) => Some(demo),
         _ => None,
     }
 }

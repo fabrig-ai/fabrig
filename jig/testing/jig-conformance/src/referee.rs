@@ -310,6 +310,9 @@ pub enum Observed {
     Drained { at: u64 },
     /// A durable retention transaction erased an ended owner and its read marker.
     Forgotten { task: u64 },
+    /// A committed whole-task erasure releases its historical receipts, including
+    /// when bounded pages precede the final ended-owner erase.
+    Erased { task: u64 },
     /// A delivery reached a host, party, or system.
     Released { requires: Vec<Receipt> },
     /// A host saw a reserved assignment.
@@ -946,6 +949,17 @@ impl Referee {
                 self.seen.remove(&Receipt::Task(task));
                 self.seen.remove(&Receipt::Ended(task));
             }
+            Observed::Erased { task } => {
+                require(
+                    self.last.tasks.get(&task).is_none_or(Task::closed),
+                    Promise::Commit,
+                    "erasure names a live task",
+                )?;
+                self.seen.retain(|receipt| !erased_receipt(receipt, task));
+                if let Some(receipts) = &mut self.drained_receipts {
+                    receipts.retain(|receipt| !erased_receipt(receipt, task));
+                }
+            }
             Observed::Released { requires } => {
                 for receipt in requires {
                     require(
@@ -1192,5 +1206,19 @@ impl skein_world::domain::Expectations for Referee {
                 judge.expect(name, skein_lib::Duration::from_nanos(deadline.saturating_sub(now)));
             }
         }
+    }
+}
+
+fn erased_receipt(receipt: &Receipt, task: u64) -> bool {
+    match receipt {
+        Receipt::Task(owner) | Receipt::Ended(owner) | Receipt::Turn(owner, ..) | Receipt::Terminal(owner, ..) => {
+            *owner == task
+        }
+        Receipt::Claim(..)
+        | Receipt::Call(..)
+        | Receipt::SignIn(_)
+        | Receipt::Party(..)
+        | Receipt::Outbox(..)
+        | Receipt::Word(..) => false,
     }
 }

@@ -101,6 +101,102 @@ fn an_owner_renames_a_project_and_me_says_the_new_name() {
     );
 }
 
+fn deletable_project() -> c::OwnerProject {
+    c::OwnerProject {
+        number: PROJECT,
+        name: c::DocumentText::complete(text(b"First")),
+        acts: jig_client_world::test::list([c::Offered {
+            act: c::ActKind::RemoveProject,
+            admission: c::Admission::Allowed,
+            effect: None,
+        }]),
+        resources: skein_lib::List::with_capacity(0),
+        policy: c::OwnerProjectPolicy {
+            templates: skein_lib::List::with_capacity(0),
+            ceiling: c::OwnerAuthorityDocument::complete(c::OwnerAuthority {
+                models: None,
+                tools: 0,
+                grants: skein_lib::List::with_capacity(0),
+                delegation: c::OwnerDelegation { kinds: skein_lib::List::with_capacity(0), tasks: 0, depth: 0 },
+                spend: 0,
+                deadline: None,
+                notes: 0,
+                note_resources: skein_lib::List::with_capacity(0),
+            }),
+            period_spend: 0,
+            escalation_role: None,
+            projections: skein_lib::List::with_capacity(0),
+            roles: skein_lib::List::with_capacity(0),
+            requirements: skein_lib::List::with_capacity(0),
+            permissions: None,
+            permissions_cut: false,
+            cut: false,
+        },
+        members: skein_lib::List::with_capacity(0),
+        current_period: None,
+        pools: skein_lib::List::with_capacity(0),
+        configured_period: 0,
+        configured_pools: skein_lib::List::with_capacity(0),
+        configured_pools_cut: false,
+        spend: skein_lib::List::with_capacity(0),
+        recurring: skein_lib::List::with_capacity(0),
+        cut: false,
+    }
+}
+#[test]
+fn an_owner_deletes_a_project_by_typing_its_name() {
+    use jig_client_view::address::{Address, ProjectSection};
+    use skein_fake_person::{Find, Step};
+    use skein_ui::Role;
+    let mut world = stories::world(52);
+    let mut before = stories::frame(PARTY);
+    before.projects.get_mut(0).expect("project membership").role = c::HeldRole::Owner;
+    world.front().engine.act(Time::ZERO, Wall::EPOCH, Change::Me(before.clone())).expect("owner frame");
+    world
+        .front()
+        .engine
+        .act(Time::ZERO, Wall::EPOCH, Change::OwnerProject(Box::new(deletable_project())))
+        .expect("owner document");
+    let mut after = before;
+    after.projects.clear();
+    world
+        .front()
+        .engine
+        .script(jig_client_scripted_engine::Rule {
+            party: Some(PARTY),
+            ask: c::Ask::RemoveProject { project: PROJECT },
+            answer: c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::ProjectRemoved { project: PROJECT })),
+            changes: vec![Change::Me(after)],
+        })
+        .expect("deletion answer and project list");
+    let client = world.client(
+        PARTY,
+        jig_client_test_domain::Address::Jig(Address::Project { project: PROJECT, section: ProjectSection::Settings }),
+    );
+    let wait = Duration::from_secs(1);
+    world.person(
+        client,
+        vec![
+            Step::See { find: Find::exactly_named(Role::Button, b"Delete project"), within: wait },
+            Step::Press { find: Find::exactly_named(Role::Button, b"Delete project") },
+            Step::See { find: Find::text(b"Spend already made stays in the totals."), within: wait },
+            Step::Type {
+                find: Find::exactly_named(Role::TextField, b"Type the project name"),
+                words: b"First".as_slice().into(),
+            },
+            Step::Press { find: Find::exactly_named(Role::Button, b"Delete project") },
+            Step::See { find: Find::exactly_named(Role::Heading { level: 1 }, b"Inbox"), within: wait },
+        ],
+    );
+    assert_eq!(world.run(Until::Done).verdict, skein_world::domain::Verdict::Passed);
+    assert!(frame(&world, client).projects.is_empty());
+    assert_eq!(
+        answer(&mut world),
+        c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::ProjectRemoved { project: PROJECT }))
+    );
+    assert_eq!(world.front().engine.commits().iter().filter(|commit| commit.key.is_some()).count(), 1);
+}
+
 #[test]
 fn a_second_make_of_one_name_is_refused_as_name_taken() {
     let (mut world, client) = ready(true);

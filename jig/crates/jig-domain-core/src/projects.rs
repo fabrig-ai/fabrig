@@ -12,6 +12,69 @@ pub(crate) struct Made {
 }
 
 impl Core {
+    /// A deletion row closes the project immediately (playground-reset contracts, J3).
+    #[must_use]
+    pub fn deleting(&self, project: u32) -> bool {
+        self.people.deletion(project).is_some()
+    }
+
+    pub(crate) fn visible_role(&self, party: u64, project: u32) -> Option<people::Role> {
+        if self.deleting(project) { None } else { self.people.role(party, project) }
+    }
+
+    pub(crate) fn deleting_task(&self, task: u64) -> bool {
+        match self.tasks.task(task) {
+            Some(row) => self.deleting(row.project),
+            None => match self.archived_chats.get(&task) {
+                Some(row) => self.deleting(row.project),
+                None => false,
+            },
+        }
+    }
+
+    pub(crate) fn deleting_subject(&self, subject: &crate::documents::Subject) -> bool {
+        use crate::documents::{Proposer, Subject};
+        match subject {
+            Subject::Application { scope, .. } => match scope {
+                people::ApplicationScope::Project(project) => self.deleting(*project),
+                people::ApplicationScope::Own | people::ApplicationScope::Deployment => false,
+            },
+            Subject::Project { project } => self.deleting(*project),
+            Subject::Task { task }
+            | Subject::Tree { task }
+            | Subject::Run { task }
+            | Subject::Escalation { task }
+            | Subject::Question { task, .. }
+            | Subject::PersonTask { task }
+            | Subject::Result { task }
+            | Subject::Proposal { proposer: Proposer::Task(task), .. } => self.deleting_task(*task),
+            Subject::Proposal { proposer: Proposer::Party(party), number } => {
+                match self.tasks.person_proposal(*party, *number) {
+                    Some(row) => self.deleting(row.project),
+                    None => false,
+                }
+            }
+            Subject::Query { query } => match query.project {
+                Some(project) => self.deleting(project),
+                None => false,
+            },
+            Subject::Chips { tasks } => {
+                for task in tasks {
+                    if self.deleting_task(*task) {
+                        return true;
+                    }
+                }
+                false
+            }
+            Subject::Frame { .. }
+            | Subject::Inbox { .. }
+            | Subject::Accounts { .. }
+            | Subject::Settings
+            | Subject::Deployment
+            | Subject::Note { .. } => false,
+        }
+    }
+
     pub(crate) fn rename(
         &mut self,
         limits: &Limits,

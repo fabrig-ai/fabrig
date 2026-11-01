@@ -10,6 +10,8 @@ publish.workspace = true
 [dependencies]
 smith-agent-shell.workspace = true
 temper-engine-domain.workspace = true
+temper-engine-domain-forge.workspace = true
+temper-github-app.workspace = true
 skein-fake-person-browser.workspace = true
 skein-fake-person.workspace = true
 skein-fake-peers.workspace = true

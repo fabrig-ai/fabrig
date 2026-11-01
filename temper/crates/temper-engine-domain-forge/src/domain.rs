@@ -125,11 +125,14 @@ pub struct Domain {
     pub(crate) under_box: bool,
     pub(crate) demo: Option<crate::DemoConfig>,
     bindings: Map<Box<[u8]>, Box<[u8]>>,
-    playground: Option<crate::Playground>,
+    pub(crate) playground: Option<crate::Playground>,
     pub(crate) demo_state: Option<crate::DemoState>,
     pub(crate) demo_acts: Map<[u8; 16], crate::DemoActKind>,
-    pub(crate) demo_pending: Map<Token, Token>,
-    pub(crate) demo_answers: Map<Token, crate::StartAnswer>,
+    pub(crate) playground_pending: Map<Token, Token>,
+    pub(crate) playground_answers: Map<Token, crate::StartAnswer>,
+    pub(crate) playground_ends: Map<Token, Token>,
+    pub(crate) playground_end_answers: Map<Token, crate::EndAnswer>,
+    pub(crate) kept: Map<[u8; 16], crate::KeptAct>,
     pub(crate) connections: Map<u16, ConnectionState>,
     pub(crate) first: Map<u16, crate::First>,
     pub(crate) ended: Map<u16, (Box<[u8]>, Option<crate::AdminStop>)>,
@@ -212,7 +215,9 @@ impl Domain {
             }
         }
         self.first.remove(&number);
-        if let Some(first) = &record.first {
+        if record.state == crate::ForgeState::Kept
+            && let Some(first) = &record.first
+        {
             self.first.insert(number, first.clone()).expect("forge records bound first intents");
         }
         self.records.insert(number, record).expect("forge record admitted within limits");
@@ -292,10 +297,10 @@ impl Domain {
         if self.records.contains_key(&forge) { Some(u32::from(forge)) } else { None }
     }
 
-    /// Removing records, removed numbers and the ended demo cannot accept work.
+    /// Removing records and removed numbers cannot accept work.
     #[must_use]
     pub fn forge_ended(&self, forge: u16) -> bool {
-        let ended = match self.records.get(&forge) {
+        match self.records.get(&forge) {
             Some(record) => record.state == crate::ForgeState::Removing,
             None => {
                 forge > 0
@@ -303,13 +308,7 @@ impl Domain {
                     && !self.document_forges.contains_key(&forge)
                     && !self.identities.contains_key(&forge)
             }
-        };
-        ended
-            || (self.demo_state == Some(crate::DemoState::Ended)
-                && match &self.demo {
-                    Some(demo) => demo.adoption.forge == forge,
-                    None => false,
-                })
+        }
     }
 
     /// Before the first input, size the volatile routing tables by the connection component's bounds.
@@ -479,8 +478,11 @@ impl Domain {
         if let Some(answer) = self.connect.answers.get(&token) {
             return Some(answer.clone());
         }
-        if let Some(answer) = self.demo_answers.get(&token) {
+        if let Some(answer) = self.playground_answers.get(&token) {
             return Some(crate::Answered::StartPlayground(answer.clone()));
+        }
+        if let Some(answer) = self.playground_end_answers.get(&token) {
+            return Some(crate::Answered::EndPlayground(*answer));
         }
         if let Some((_, answer)) = self.setup_answers.get(&token) {
             return Some(crate::Answered::SetUp(*answer));
@@ -681,8 +683,11 @@ impl Domain {
             demo_state: None,
             bindings: Map::with_capacity(l.bindings),
             demo_acts: Map::with_capacity(crate::demo_act_bound(l).expect("validated act bound")),
-            demo_pending: Map::with_capacity(l.applications),
-            demo_answers: Map::with_capacity(l.applications),
+            playground_pending: Map::with_capacity(l.applications),
+            playground_answers: Map::with_capacity(l.applications),
+            playground_ends: Map::with_capacity(l.applications),
+            playground_end_answers: Map::with_capacity(l.applications),
+            kept: Map::with_capacity(crate::removal::bound(l).expect("validated kept act bound")),
             connections: Map::with_capacity(forge_capacity),
             first: Map::with_capacity(forge_capacity),
             ended: Map::with_capacity(forge_capacity),
@@ -1172,14 +1177,20 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         return;
     }
     match event {
-        Event::GroupRemoved { .. }
-        | Event::SecretsErased { .. }
-        | Event::KeptActAnswered { .. }
-        | Event::SendKeptActs
-        | Event::PlaygroundProject { .. }
-        | Event::PlaygroundAccount { .. }
-        | Event::PlaygroundAnswered { .. }
-        | Event::ResetActed { .. } => {}
+        Event::GroupRemoved { forge } => crate::removal::group_removed(d, env, forge, out),
+        Event::SecretsErased { forge } => crate::removal::secrets_erased(d, env, forge, out),
+        Event::KeptActAnswered { key, keep } => crate::removal::answered(d, env, key, keep, out),
+        Event::SendKeptActs => {
+            let row = d.playground;
+            crate::removal::send_kept(d, env, out);
+            if d.playground == row {
+                crate::playground::resume(d, env, out);
+            }
+        }
+        Event::PlaygroundProject { project } => crate::playground::project(d, project, out),
+        Event::PlaygroundAccount { account } => crate::playground::account(d, account, out),
+        Event::PlaygroundAnswered { answer } => crate::playground::answered(d, answer, out),
+        Event::ResetActed { act, keep } => crate::playground::acted(d, env, act, keep, out),
         Event::OrderLanding { task, changes } => crate::landing::order(d, task, &changes, out),
         Event::JoinLanding { task, member, after } => crate::landing::join(d, task, member, &after, out),
         Event::Landing { row } => crate::landing::register(d, env, row, out),
@@ -1209,7 +1220,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::DemoActs { acts } => crate::demo::acts(d, acts, out),
         Event::DemoActAnswered { key, keep } => crate::demo::act_answered(d, key, keep, out),
         Event::SendDemoActs => crate::demo::send_acts(d, out),
-        Event::DemoAnswered { answer } => crate::demo::answered(d, answer, out),
+        Event::DemoAnswered { .. } => {}
         Event::BoxClosed => {
             d.under_box = false;
             for (forge, _) in &d.configured {
@@ -1243,9 +1254,9 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             crate::connect::ended(d, forge, request, connected, why, stop, out);
         }
         Event::SetUpAnswered { forge: _, request, answer } => {
-            if d.demo_pending.contains_key(&request) {
+            if d.playground_pending.contains_key(&request) {
                 if let crate::SetUpAnswer::Refused(_) = answer {
-                    crate::demo::answered(
+                    crate::playground::answered(
                         d,
                         crate::StartAnswer::Failed(crate::StartFailure::Group { why: Box::from(b"busy".as_slice()) }),
                         out,
@@ -1268,7 +1279,6 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             match &state {
                 crate::Connection::Connected { id, .. } => {
                     d.ended.remove(&forge);
-                    crate::demo::connected(d, forge, out);
                     retire_ended(d, env, out);
                     assert!(
                         writer(d, env, skein_forge_client::Writer { forge, author: *id }, out),
@@ -1309,6 +1319,9 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             out.push(Request::MarkedForges);
         }
         Event::Installation { forge, installation, state } => {
+            if d.forge_ended(forge) {
+                return;
+            }
             match state {
                 Some(state) => {
                     d.installations.insert((forge, installation), state).expect("bounded installations");
@@ -1332,27 +1345,23 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 }
                 crate::forges::make(d, env, request, token, choice, out);
             }
-            ask @ (crate::Ask::RemoveForge { .. } | crate::Ask::EndPlayground) => {
+            crate::Ask::RemoveForge { forge } => {
                 if let Some(value) = carried {
                     out.push(Request::CarriedUnused { number: value.number });
                 }
-                let answer = match ask {
-                    crate::Ask::RemoveForge { .. } => {
-                        crate::Answered::RemoveForge(crate::RemoveAnswer::Refused(crate::RemoveRefusal::NoSuchForge))
-                    }
-                    crate::Ask::EndPlayground => crate::Answered::EndPlayground(crate::EndAnswer::NotOffered),
-                    crate::Ask::MakeForge { .. }
-                    | crate::Ask::Adopt(_)
-                    | crate::Ask::SetUp { .. }
-                    | crate::Ask::StartPlayground
-                    | crate::Ask::Connect { .. }
-                    | crate::Ask::Install { .. }
-                    | crate::Ask::Accept { .. }
-                    | crate::Ask::Reachable { .. } => unreachable!("surface refusal admission"),
-                };
-                d.connect.answer(request, token, answer, out);
+                let answer = crate::removal::requested(d, env, forge, out);
+                d.connect.answer(request, token, crate::Answered::RemoveForge(answer), out);
             }
-            crate::Ask::StartPlayground => crate::demo::start(d, request, token, out),
+            crate::Ask::StartPlayground | crate::Ask::EndPlayground => {
+                if let Some(value) = carried {
+                    out.push(Request::CarriedUnused { number: value.number });
+                }
+                if ask == crate::Ask::StartPlayground {
+                    crate::playground::start(d, env, request, token, out);
+                } else {
+                    crate::playground::end(d, env, request, token, out);
+                }
+            }
             crate::Ask::Adopt(adoption) => adoption::start(d, env, request, token, retention, adoption, out),
             crate::Ask::SetUp { forge, org, repository, project, playground } => {
                 let mut expired = None;
@@ -1719,6 +1728,10 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                     }
                     None => None,
                 };
+                let ended = match d.entries.get(&entry) {
+                    Some(row) => d.forge_ended(row.entry.repository.forge),
+                    None => false,
+                };
                 let mut projection = false;
                 for (_, row) in &d.issues {
                     projection |= row.pending == Some(entry);
@@ -1749,7 +1762,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                     | skein_forge_client::Outcome::Failed(_)
                     | skein_forge_client::Outcome::Raced { .. }
                     | skein_forge_client::Outcome::Withdrawn => {
-                        if !retain {
+                        if !retain || ended {
                             d.entries.remove(&entry);
                             emit(out, Request::Erase { key: Key::Entry(entry) });
                         }
@@ -5026,7 +5039,10 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
     match record {
         Stored::Forge(record) => d.keep_record(record),
         Stored::ForgeNumbers { next } => d.next_number = next,
-        Stored::Playground(_) | Stored::KeptAct(_) => {}
+        Stored::Playground(row) => crate::playground::restore(d, row),
+        Stored::KeptAct(row) => {
+            d.kept.insert(row.key, row).expect("restored kept act room checked");
+        }
         Stored::Landing(row) => {
             d.landing.rows.insert(row.landing.task, row).expect("restored landing within limits");
         }
@@ -5179,7 +5195,6 @@ fn settle_outbox(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 fn read_afresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     crate::landing::rebuild(d);
     d.restore_phase = RestorePhase::Active;
-    crate::demo::restart(d, out);
     d.restart_fresh = Some(false);
     let mut lost_runs = List::with_capacity(env.limits.holds);
     for (_, hold) in &d.holds {
@@ -5233,7 +5248,7 @@ fn retire_ended(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
             }
         }
     }
-    if !ended && d.demo_state != Some(crate::DemoState::Ended) {
+    if !ended {
         return;
     }
     let mut removed = List::with_capacity(env.limits.holds);
@@ -5528,10 +5543,10 @@ impl Domain {
                 }
                 (position, inserted)
             }
+            Stored::KeptAct(row) => (self.kept.range(..row.key).count(), !self.kept.contains_key(&row.key)),
             Stored::Forge(_)
             | Stored::ForgeNumbers { .. }
             | Stored::Playground(_)
-            | Stored::KeptAct(_)
             | Stored::Client(_)
             | Stored::Flight { .. }
             | Stored::Writer(_)
@@ -5543,6 +5558,7 @@ impl Domain {
         Some((u32::try_from(position).expect("retained rows fit their table capacity"), inserted))
     }
     /// Recover the durable key only after finding an unmade link.
+    #[expect(clippy::too_many_lines, reason = "one exhaustive recovery of a restored row's durable key")]
     pub(crate) fn restored_link_key(
         &self,
         kind: crate::RecordKind,
@@ -5641,14 +5657,53 @@ impl Domain {
                     unreachable!("client forge or repository link")
                 }
             },
+            RecordKind::KeptAct => {
+                let (key, _) = self.kept.iter().nth(index).expect("restored kept act retained");
+                Key::KeptAct(*key)
+            }
             RecordKind::Forge
             | RecordKind::ForgeNumbers
             | RecordKind::Playground
-            | RecordKind::KeptAct
             | RecordKind::Landed
             | RecordKind::Binding
             | RecordKind::DemoAct => unreachable!("row has no links"),
         };
         Some(key)
     }
+}
+
+/// Drop live state and settle writes through their owner's terminal path
+/// (temper/docs/design/draft/playground-reset.md, 4).
+pub(crate) fn retire_forge(d: &mut Domain, env: &Env<Limits>, forge: u16, out: &mut Queue<Request>) {
+    d.first.remove(&forge);
+    d.connections.remove(&forge);
+    d.ended.remove(&forge);
+    d.apps.remove(&forge);
+    let mut installations = List::with_capacity(d.installations.len());
+    for (key, _) in &d.installations {
+        if key.0 == forge {
+            installations.push(*key).expect("bounded installations");
+        }
+    }
+    for key in installations.into_boxed() {
+        d.installations.remove(&key);
+    }
+    out.push(Request::Erase { key: Key::Writer(forge) });
+    d.writers.remove(&forge);
+    child(d, env, skein_forge_client::Event::Retire { forge }, out);
+    let mut entries = List::with_capacity(d.entries.len());
+    for (number, row) in &d.entries {
+        if row.entry.repository.forge == forge && !row.held && row.handoff != Handoff::Handed {
+            entries.push((*number, row.entry.task)).expect("bounded entries");
+        }
+    }
+    for (entry, task) in entries.into_boxed() {
+        d.client_out.push(skein_forge_client::Request::Outcome {
+            entry,
+            task,
+            outcome: skein_forge_client::Outcome::Failed(skein_forge::api::Error::NotConnected),
+        });
+    }
+    drain(d, env, out);
+    retire_ended(d, env, out);
 }

@@ -67,6 +67,7 @@ pub(crate) fn act_kind_fields(value: &w::ActKind, _limits: &Limits) -> c::ActKin
         w::ActKind::DeleteNote => c::ActKind::DeleteNote,
         w::ActKind::Adopt => c::ActKind::Adopt,
         w::ActKind::Rename => c::ActKind::Rename,
+        w::ActKind::RemoveProject => c::ActKind::RemoveProject,
         w::ActKind::ChangePolicy => c::ActKind::ChangePolicy,
         w::ActKind::SetRoles => c::ActKind::SetRoles,
         w::ActKind::MakeService => c::ActKind::MakeService,
