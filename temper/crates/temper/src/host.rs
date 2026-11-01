@@ -67,6 +67,10 @@ impl skein_shell::Host for Host {
         Some(Exit::Code(code))
     }
     fn drain(&mut self) {
+        while let Some(resolve) = self.service.take_resolve() {
+            let answer = resolve_forge(&resolve);
+            self.service.resolved(resolve.forge, answer);
+        }
         while let Some(read) = self.service.take_handover_read() {
             let answer = read_handover(&read);
             self.service.handover_read(read.forge, read.run, answer);
@@ -104,6 +108,22 @@ impl skein_shell::Host for Host {
             self.service.check_wait_boundary(self.now);
         }
     }
+}
+
+fn resolve_forge(resolve: &temper_service::Resolve) -> Result<temper_service::ForgeRuntime, Box<[u8]>> {
+    use jig_protocol_config::Address;
+    use skein_forge_connection::settings::Transport;
+    let endpoint = Address::Host { name: resolve.host.clone(), port: resolve.port };
+    let address = crate::address(&endpoint)
+        .map_err(|why| format!("{}: {why}", String::from_utf8_lossy(&resolve.host)).into_bytes().into_boxed_slice())?;
+    let transport = match &resolve.tls {
+        None => Transport::Plaintext { name: Some(resolve.host.clone()) },
+        Some(tls) => Transport::Tls {
+            trust: crate::trust(tls.trust.as_deref()).map_err(|why| why.into_bytes().into_boxed_slice())?,
+            server_name: crate::server_name(&tls.server_name).map_err(|why| why.into_bytes().into_boxed_slice())?,
+        },
+    };
+    Ok(temper_service::ForgeRuntime { number: resolve.forge, address, transport })
 }
 
 pub(crate) fn read_handover(
@@ -709,4 +729,35 @@ fn forge_fit_endings_name_step_family_set_and_measured_limit() {
         assert_eq!(line, format!("temper serve: restart refused during connector 7 restore: {detail}\n"));
         assert_eq!(code, 1);
     }
+}
+
+#[test]
+#[expect(clippy::disallowed_types, reason = "the task measures the blocking host lookup on the builder")]
+fn resolve_forge_resolves_localhost_and_reads_machine_trust() {
+    let resolve = temper_service::Resolve {
+        forge: 7,
+        host: Box::from(b"localhost".as_slice()),
+        port: 443,
+        tls: Some(temper_service::Tls { server_name: Box::from(b"localhost".as_slice()), trust: None }),
+    };
+    let began = std::time::Instant::now();
+    let runtime = resolve_forge(&resolve).expect("localhost and machine trust");
+    eprintln!("resolve_forge localhost (including machine trust): {:?}", began.elapsed());
+    assert_eq!(runtime.number, resolve.forge);
+    assert!(runtime.address.ip().is_loopback());
+    assert_eq!(runtime.address.port(), 443);
+    let skein_forge_connection::settings::Transport::Tls { server_name, .. } = runtime.transport else {
+        panic!("resolved TLS transport")
+    };
+    assert_eq!(server_name, crate::server_name(b"localhost").expect("valid localhost name"));
+}
+#[test]
+#[expect(clippy::disallowed_types, reason = "the task measures the blocking host lookup on the builder")]
+fn resolve_forge_names_an_unknown_host() {
+    let resolve =
+        temper_service::Resolve { forge: 7, host: Box::from(b"unknown.invalid".as_slice()), port: 443, tls: None };
+    let began = std::time::Instant::now();
+    let words = resolve_forge(&resolve).expect_err("the reserved invalid domain cannot resolve");
+    eprintln!("resolve_forge unknown.invalid: {:?}", began.elapsed());
+    assert!(String::from_utf8_lossy(&words).contains("unknown.invalid"));
 }

@@ -126,6 +126,20 @@ pub enum HandoverUnread {
     Unsafe(skein_io::file::Unsafe),
     Kernel(i32),
 }
+/// Host io for a registered forge (temper/docs/design/protocol/setup.md, 8.3).
+#[derive(Debug)]
+pub struct Resolve {
+    pub forge: u16,
+    pub host: Box<[u8]>,
+    pub port: u16,
+    pub tls: Option<Tls>,
+}
+/// TLS names and the trust path; absent trust uses the machine's roots.
+#[derive(Debug)]
+pub struct Tls {
+    pub server_name: Box<[u8]>,
+    pub trust: Option<Box<[u8]>>,
+}
 #[derive(Debug)]
 pub struct HandoverRead {
     pub forge: u16,

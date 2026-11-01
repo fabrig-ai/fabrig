@@ -397,16 +397,27 @@ pub(crate) fn register(engine: &mut crate::engine::Engine, record: &temper_engin
         return;
     }
     let configured = crate::forges::settings(record);
-    let jig_protocol_config::Address::Addr(address) = configured.api else {
-        missing(engine, number, b"unreachable");
-        return;
+    let endpoint = match engine.forge.endpoint(number) {
+        Some(runtime) => {
+            let transport = match &runtime.transport {
+                skein_forge_connection::settings::Transport::Plaintext { name } => {
+                    host::Transport::Plaintext { name: name.clone() }
+                }
+                skein_forge_connection::settings::Transport::Tls { server_name, trust } => {
+                    host::Transport::Tls { server_name: server_name.clone(), trust: trust.clone() }
+                }
+            };
+            (skein_io::Addr::Ip(runtime.address), transport)
+        }
+        None => {
+            let jig_protocol_config::Address::Addr(address) = configured.api else {
+                missing(engine, number, b"unreachable");
+                return;
+            };
+            (address, host::Transport::Plaintext { name: None })
+        }
     };
-    let Ok(mut forge) = settings::host_forge(
-        &engine.setup.statics,
-        &configured,
-        entry.as_ref(),
-        (address, host::Transport::Plaintext { name: None }),
-    ) else {
+    let Ok(mut forge) = settings::host_forge(&engine.setup.statics, &configured, entry.as_ref(), endpoint) else {
         missing(engine, number, b"invalid setup settings");
         return;
     };
@@ -428,6 +439,16 @@ pub(crate) fn register(engine: &mut crate::engine::Engine, record: &temper_engin
     }
     if engine.setup.add(forge).is_err() {
         missing(engine, number, b"setup host refused forge");
+    }
+}
+/// Resume the local start trigger after its host io has completed.
+pub(crate) fn resolved(engine: &mut crate::engine::Engine, record: &temper_engine_domain_forge::ForgeRecord) {
+    register(engine, record);
+    if let Some(local) = engine.setup.lifecycle.local_mut(record.number) {
+        match local.trigger {
+            lifecycle::Trigger::Start | lifecycle::Trigger::Asked => local.pending = true,
+            lifecycle::Trigger::StartAsked | lifecycle::Trigger::StartDemo => {}
+        }
     }
 }
 fn missing(engine: &mut crate::engine::Engine, number: u16, reason: &'static [u8]) {
