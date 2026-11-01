@@ -1,7 +1,7 @@
 //! The box's ordered commands; each hides whether it is once, long or link.
 use crate::{
     check::joined,
-    setup::{Mode, Setup},
+    setup::{Entry, Mode, Setup},
 };
 use alloc::boxed::Box;
 use skein_lib::{Decimal, List, bytes};
@@ -36,7 +36,7 @@ pub struct Group {
 impl Group {
     /// The same group for forge `forge`: arguments equal to this group's
     /// decimal number, and matching space-separated words in names and the
-    /// label, become `forge`'s: the box knows kinds, not forges
+    /// label and started notices, become `forge`'s: the box knows kinds, not forges
     /// (temper/docs/plan/playground-reset-r4/notes/contracts.md, 3).
     #[must_use]
     pub fn numbered(&self, forge: u16) -> Group {
@@ -47,6 +47,7 @@ impl Group {
         group.label = numbered_words(&self.label, old.as_bytes(), new.as_bytes());
         for (_, step) in &mut group.steps {
             step.name = numbered_words(&step.name, old.as_bytes(), new.as_bytes());
+            step.started_notice = numbered_words(&step.started_notice, old.as_bytes(), new.as_bytes());
             for argument in &mut step.arguments {
                 if argument.as_ref() == old.as_bytes() {
                     *argument = bytes::copy_of(new.as_bytes());
@@ -187,6 +188,36 @@ fn forge(action: &[u8], flags: &[Box<[u8]>], number: u16, run: Option<&[u8]>) ->
     };
     Step::new(name, args.into_boxed(), if run.is_some() { Kind::Long } else { Kind::Once })
 }
+/// An owned Forgejo's group from its entry (protocol/setup.md, 7.1, 7.3).
+/// Fetch when fetched, prepare, Forgejo ready at its listen address, then
+/// its runner. Recorded, labelled `Forge N (Forgejo)`, before 0; none for
+/// another mode. The caller chooses whether Forgejo takes its listener.
+#[must_use]
+pub fn group(entry: &Entry, flags: &[Box<[u8]>], forgejo_listens: bool) -> Option<Group> {
+    let Mode::Owned(owned) = &entry.mode else { return None };
+    let mut steps = List::with_capacity(4);
+    if owned.fetch.forgejo || owned.fetch.runner {
+        steps.push((Stage::Fetch, forge(b"fetch", flags, entry.forge, None))).expect("fetch");
+    }
+    steps.push((Stage::Prepare, forge(b"prepare", flags, entry.forge, None))).expect("prepare");
+    // forge run absorbs Forgejo's KillParent (protocol/setup.md, 6.4, 7.1).
+    let mut step = forge(b"run", flags, entry.forge, Some(b"forgejo")).with_ready(owned.listen);
+    if forgejo_listens {
+        step = step.listening(Box::new([owned.listen]));
+    }
+    steps.push((Stage::Run, step)).expect("forgejo");
+    if owned.runner.is_some() {
+        steps.push((Stage::Run, forge(b"run", flags, entry.forge, Some(b"runner")))).expect("runner");
+    }
+    let digits = Decimal::of(u64::from(entry.forge));
+    Some(Group {
+        forge: entry.forge,
+        label: joined(&[b"Forge ", digits.as_bytes(), b" (Forgejo)"]),
+        recorded: true,
+        before: 0,
+        steps: steps.into_boxed(),
+    })
+}
 /// Carries the box's absolute directory flags after each command's words.
 /// Commands in setup order: owned processes, legacy reconciles, then serve;
 /// an asked forge's processes apart, in a group placed in that order.
@@ -205,34 +236,13 @@ pub fn steps(
     for e in &setup.entries {
         match &e.mode {
             Mode::Managed { .. } | Mode::Fake(_) => {}
-            Mode::Owned(o) => {
-                let mut group = List::with_capacity(5);
-                if o.fetch.forgejo || o.fetch.runner {
-                    group.push((Stage::Fetch, forge(b"fetch", flags, e.forge, None))).expect("fetch");
-                }
-                group.push((Stage::Prepare, forge(b"prepare", flags, e.forge, None))).expect("prepare");
-                // forge run absorbs Forgejo's KillParent (protocol/setup.md, 6.4, 7.1).
-                let mut step = forge(b"run", flags, e.forge, Some(b"forgejo")).with_ready(o.listen);
-                if forgejo_listens {
-                    step = step.listening(Box::new([o.listen]));
-                }
-                group.push((Stage::Run, step)).expect("forgejo");
-                if o.runner.is_some() {
-                    group.push((Stage::Run, forge(b"run", flags, e.forge, Some(b"runner")))).expect("runner");
-                }
+            Mode::Owned(_) => {
+                let mut owned = group(e, flags, forgejo_listens).expect("owned entry");
                 if e.asked {
-                    let digits = Decimal::of(u64::from(e.forge));
-                    asked
-                        .push(Group {
-                            forge: e.forge,
-                            label: joined(&[b"Forge ", digits.as_bytes(), b" (Forgejo)"]),
-                            recorded: true,
-                            before: out.len(),
-                            steps: group.into_boxed(),
-                        })
-                        .expect("entry capacity");
+                    owned.before = out.len();
+                    asked.push(owned).expect("entry capacity");
                 } else {
-                    for (_, step) in group.into_boxed() {
+                    for (_, step) in owned.steps {
                         out.push(step).expect("step capacity");
                     }
                 }

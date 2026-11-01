@@ -4,8 +4,47 @@ use alloc::boxed::Box;
 use skein_lib::{Decimal, List, Writer, bytes};
 use temper_forge_setup::{
     Group, Kind, Stage, Step, Steps,
-    setup::{Mode, Setup},
+    setup::{Entry, Mode, Setup},
 };
+
+/// A fake entry's group (protocol/setup.md, 7.3, 8.4): with `llm`,
+/// the playground's fake LLM then preparation and fake forge; without,
+/// the fake forge's two steps. Never recorded, before 0; none for another mode.
+#[must_use]
+pub fn group(entry: &Entry, llm: Option<core::net::SocketAddr>, flags: &[Box<[u8]>]) -> Option<Group> {
+    let Mode::Fake(fake) = &entry.mode else { return None };
+    let mut steps = List::with_capacity(3);
+    let label = if let Some(listen) = llm {
+        steps
+            .push((
+                Stage::Run,
+                command(b"fake llm", &[b"fake", b"llm"], flags, None, Kind::Long).listening(Box::new([listen])),
+            ))
+            .expect("fake LLM");
+        bytes::copy_of(b"Playground")
+    } else {
+        let digits = Decimal::of(u64::from(entry.forge));
+        fake_label(digits.as_bytes())
+    };
+    steps
+        .push((Stage::Prepare, command(b"prepare", &[b"forge", b"prepare"], flags, Some(entry.forge), Kind::Once)))
+        .expect("fake preparation");
+    steps
+        .push((
+            Stage::Run,
+            command(b"fake forge", &[b"fake", b"forge"], flags, Some(entry.forge), Kind::Long)
+                .listening(Box::new([fake.listen])),
+        ))
+        .expect("fake forge");
+    Some(Group { forge: entry.forge, label, recorded: false, before: 0, steps: steps.into_boxed() })
+}
+fn fake_label(number: &[u8]) -> Box<[u8]> {
+    let mut writer = Writer::new(b"Forge  (fake)".len().checked_add(number.len()).expect("bounded label"));
+    writer.put(b"Forge ").expect("label prefix");
+    writer.put(number).expect("forge number");
+    writer.put(b" (fake)").expect("label suffix");
+    writer.finish()
+}
 
 /// The demo's group, the fake LLM, then the demo forge's preparation
 /// and its fake forge (`application.demo.forge`, 8.4), is always asked,
@@ -47,18 +86,12 @@ pub fn steps(
         always.push(step).expect("first steps counted");
     }
     for entry in &setup.entries {
-        if let Mode::Fake(fake) = &entry.mode
-            && demo_forge != Some(entry.forge)
+        if demo_forge != Some(entry.forge)
+            && let Some(group) = group(entry, None, flags)
         {
-            always
-                .push(command(b"prepare", &[b"forge", b"prepare"], flags, Some(entry.forge), Kind::Once))
-                .expect("fake preparation");
-            always
-                .push(
-                    command(b"fake forge", &[b"fake", b"forge"], flags, Some(entry.forge), Kind::Long)
-                        .listening(Box::new([fake.listen])),
-                )
-                .expect("fake forge");
+            for (_, step) in group.steps {
+                always.push(step).expect("fake steps counted");
+            }
         }
     }
     for step in given.always {
@@ -71,33 +104,10 @@ pub fn steps(
             .expect("demo group"),
     );
     if let Some(demo) = demo {
-        let Mode::Fake(fake) = &setup.entry(demo.forge()).expect("checked demo forge").mode else {
-            unreachable!("demo has a fake forge")
-        };
-        asked
-            .push(Group {
-                forge: demo.forge(),
-                label: bytes::copy_of(b"Playground"),
-                recorded: false,
-                before: first_len,
-                steps: Box::new([
-                    (
-                        Stage::Run,
-                        command(b"fake llm", &[b"fake", b"llm"], flags, None, Kind::Long)
-                            .listening(Box::new([demo.llm().listen()])),
-                    ),
-                    (
-                        Stage::Prepare,
-                        command(b"prepare", &[b"forge", b"prepare"], flags, Some(demo.forge()), Kind::Once),
-                    ),
-                    (
-                        Stage::Run,
-                        command(b"fake forge", &[b"fake", b"forge"], flags, Some(demo.forge()), Kind::Long)
-                            .listening(Box::new([fake.listen])),
-                    ),
-                ]),
-            })
-            .expect("demo group counted");
+        let entry = setup.entry(demo.forge()).expect("checked demo forge");
+        let mut playground = group(entry, Some(demo.llm().listen()), flags).expect("demo has a fake forge");
+        playground.before = first_len;
+        asked.push(playground).expect("demo group counted");
     }
     for mut group in given.asked {
         group.before = group.before.checked_add(prefix).expect("bounded group position");

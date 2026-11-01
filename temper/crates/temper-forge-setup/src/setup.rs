@@ -167,15 +167,7 @@ impl Setup {
     ) -> Option<Self> {
         let mut ps = config::Problems::empty();
         let p = Path::root().member(b"application").member(b"setup");
-        let mut result = list(d, at, limits, &p, &mut ps);
-        if ps.is_empty()
-            && let Some(setup) = &mut result
-        {
-            for (index, entry) in setup.entries.iter_mut().enumerate() {
-                let p = p.child(config::Segment::Index(u32::try_from(index).expect("bounded entries")));
-                resolve_entry(&mut entry.directory, &mut entry.mode, directories, &p, &mut ps);
-            }
-        }
+        let result = list(d, at, limits, directories, &p, &mut ps);
         let clean = ps.is_empty();
         problems.append(ps);
         if clean { result } else { None }
@@ -191,6 +183,29 @@ impl Setup {
         }
         found
     }
+}
+/// Reads one setup entry and resolves its data/cache paths beneath `path`.
+pub(crate) fn read_entry(
+    d: &Document,
+    at: u32,
+    limits: &Limits,
+    directories: &config::Directories,
+    path: &Path,
+    problems: &mut config::Problems,
+    paths: &mut config::Problems,
+) -> Option<Entry> {
+    let mut parsed = config::Problems::empty();
+    let mut value = entry(d, at, limits, path, &mut parsed);
+    if parsed.is_empty()
+        && let Some(value) = &mut value
+    {
+        resolve_entry(&mut value.directory, &mut value.mode, directories, path, paths);
+    }
+    for problem in &parsed.problems {
+        problems.push(problem.path.clone(), problem.what);
+    }
+    problems.past = problems.past.saturating_add(parsed.past);
+    value
 }
 fn object(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<read::Object> {
     match read::Object::new(d, at) {
@@ -573,7 +588,14 @@ fn entry_members(
     Some(Template { directory: directory?, bot: account(d, bot_at?, &p.member(b"bot"), ps)?, orgs: orgs?, mode: mode? })
 }
 
-fn list(d: &Document, at: u32, limits: &Limits, p: &Path, ps: &mut config::Problems) -> Option<Setup> {
+fn list(
+    d: &Document,
+    at: u32,
+    limits: &Limits,
+    directories: &config::Directories,
+    p: &Path,
+    ps: &mut config::Problems,
+) -> Option<Setup> {
     let items = match read::list(d, at, 65_536) {
         Ok(v) => v,
         Err(w) => {
@@ -582,12 +604,19 @@ fn list(d: &Document, at: u32, limits: &Limits, p: &Path, ps: &mut config::Probl
         }
     };
     let mut entries = List::with_capacity(items.len());
+    let mut paths = config::Problems::empty();
     for (i, at) in items.iter().enumerate() {
-        if let Some(e) =
-            entry(d, *at, limits, &p.child(config::Segment::Index(u32::try_from(i).expect("bounded list"))), ps)
-        {
+        let path = p.child(config::Segment::Index(u32::try_from(i).expect("bounded list")));
+        if let Some(e) = read_entry(d, *at, limits, directories, &path, ps, &mut paths) {
             entries.push(e).expect("entry capacity");
         }
+    }
+    // A malformed list reports its entry forms before attempting path diagnostics.
+    if ps.is_empty() {
+        for problem in &paths.problems {
+            ps.push(problem.path.clone(), problem.what);
+        }
+        ps.past = ps.past.saturating_add(paths.past);
     }
     Some(Setup { entries: entries.into_boxed() })
 }

@@ -221,3 +221,57 @@ fn first_steps_precede_fakes_and_both_groups_without_entering_the_playground() {
         assert_eq!(given.label, ordinary.label);
     }
 }
+
+fn fake_entry(forge: u16) -> temper_forge_setup::setup::Entry {
+    let mut entry = demo::fixture()["application"]["setup"][0].clone();
+    entry["forge"] = json!(forge);
+    let bytes = serde_json::to_vec(&json!([entry])).unwrap();
+    let d = config::document(&bytes, &config::DocumentLimits { bytes: 65536, tokens: 65536, depth: 32 }).unwrap();
+    Setup::read(
+        &d,
+        0,
+        &temper_forge_setup::limits::small(),
+        &config::Directories::given(b"/config", b"/data", b"/cache").unwrap(),
+        &mut problem::Problems::empty(),
+    )
+    .unwrap()
+    .entries[0]
+        .clone()
+}
+
+#[test]
+fn the_playground_group_is_the_demos_group_in_steps() {
+    let value = demo::fixture();
+    let demo = demo::read(&value).unwrap().unwrap();
+    let flags: Vec<Box<[u8]>> =
+        ["--config", "C", "--data", "D", "--cache", "K"].iter().map(|flag| Box::from(flag.as_bytes())).collect();
+    let group = steps::group(&fake_entry(demo.forge()), Some(demo.llm().listen()), &flags).unwrap();
+    assert_eq!(group, checked_steps(&value, Box::new([])).asked[0]);
+}
+
+#[test]
+fn a_playground_group_numbered_is_the_group_for_that_number() {
+    for llm in [None, Some("127.0.0.1:8370".parse().unwrap())] {
+        let source = steps::group(&fake_entry(u16::MAX), llm, &[]).unwrap();
+        let target = steps::group(&fake_entry(7), llm, &[]).unwrap();
+        assert_eq!(source.numbered(7), target);
+    }
+}
+
+#[test]
+fn a_fake_forges_group_without_llm_has_its_two_steps() {
+    let entry = fake_entry(7);
+    let group = steps::group(&entry, None, &[]).unwrap();
+    assert_eq!(group.label.as_ref(), b"Forge 7 (fake)");
+    assert_eq!((group.forge, group.before, group.recorded), (7, 0, false));
+    assert_eq!(group.steps.len(), 2);
+    assert_eq!(group.steps[0], (Stage::Prepare, command("prepare 7", &["forge", "prepare", "7"], Kind::Once)));
+    let temper_forge_setup::setup::Mode::Fake(fake) = &entry.mode else { panic!("fake") };
+    assert_eq!(
+        group.steps[1],
+        (Stage::Run, command("fake forge 7", &["fake", "forge", "7"], Kind::Long).listening(Box::new([fake.listen])))
+    );
+    let mut other = entry;
+    other.mode = temper_forge_setup::setup::Mode::Managed { admin_token: None };
+    assert!(steps::group(&other, None, &[]).is_none());
+}

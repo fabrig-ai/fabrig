@@ -5,6 +5,7 @@ extern crate alloc;
 use alloc::boxed::Box;
 pub mod check;
 pub mod fetch;
+pub mod file;
 pub mod given;
 pub mod ini;
 pub mod limits;
@@ -22,7 +23,7 @@ pub mod state;
 pub mod step;
 pub mod upgrade;
 pub use setup::Setup;
-pub use step::{Group, Kind, Stage, Step, Steps, steps};
+pub use step::{Group, Kind, Stage, Step, Steps, group, steps};
 #[cfg(test)]
 mod tests;
 
