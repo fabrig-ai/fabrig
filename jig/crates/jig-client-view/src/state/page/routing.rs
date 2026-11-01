@@ -468,6 +468,7 @@ pub(crate) fn read_result(
         | Read::Settings
         | Read::Setting(_)
         | Read::Revision(_)
+        | Read::TaskText { .. }
         | Read::Revisions(_)
         | Read::Deployment => false,
         Read::Inbox { .. } => true,
@@ -529,7 +530,7 @@ fn original_read_valid(
     owner_escalation_read_valid(domain, token, result, lent)
         && owner_project_read_valid(domain, token, result)
         && owner_inbox_read_valid(domain, env, token, result, lent)
-        && ended_read_valid(domain, env, token, result, lent)
+        && ended_read_valid(domain, token, result, lent)
 }
 
 fn read_value(
@@ -548,6 +549,7 @@ fn read_value(
         | ReadValue::Settings(_)
         | ReadValue::Setting(_)
         | ReadValue::Revision(_)
+        | ReadValue::TaskText(_)
         | ReadValue::Revisions(_) => {}
         ReadValue::Project(value) => crate::state::page::project::owner_document(domain, value),
         ReadValue::Notes(page) => crate::state::page::project::notes::page(domain, source, *page),
@@ -634,6 +636,7 @@ fn owner_project_read_valid(domain: &Ui, token: Token, result: &ReadResult) -> b
             | ReadValue::Settings(_)
             | ReadValue::Setting(_)
             | ReadValue::Revision(_)
+            | ReadValue::TaskText(_)
             | ReadValue::Revisions(_)
             | ReadValue::Deployment(_) => return true,
         },
@@ -662,6 +665,7 @@ fn owner_project_read_valid(domain: &Ui, token: Token, result: &ReadResult) -> b
         | Read::Settings
         | Read::Setting(_)
         | Read::Revision(_)
+        | Read::TaskText { .. }
         | Read::Revisions(_)
         | Read::Deployment => false,
     }
@@ -697,6 +701,7 @@ fn owner_inbox_read_valid(
             | ReadValue::Settings(_)
             | ReadValue::Setting(_)
             | ReadValue::Revision(_)
+            | ReadValue::TaskText(_)
             | ReadValue::Revisions(_)
             | ReadValue::Deployment(_) => return true,
         },
@@ -725,6 +730,7 @@ fn owner_inbox_read_valid(
         | Read::Settings
         | Read::Setting(_)
         | Read::Revision(_)
+        | Read::TaskText { .. }
         | Read::Revisions(_)
         | Read::Deployment => return false,
     };
@@ -787,6 +793,7 @@ fn received_value(
             | Read::Settings
             | Read::Setting(_)
             | Read::Revision(_)
+            | Read::TaskText { .. }
             | Read::Revisions(_)
             | Read::Deployment => {}
         },
@@ -816,6 +823,7 @@ fn received_value(
                 | Read::Settings
                 | Read::Setting(_)
                 | Read::Revision(_)
+                | Read::TaskText { .. }
                 | Read::Revisions(_)
                 | Read::Deployment => return,
             };
@@ -840,6 +848,7 @@ fn received_value(
         | ReadValue::Settings(_)
         | ReadValue::Setting(_)
         | ReadValue::Revision(_)
+        | ReadValue::TaskText(_)
         | ReadValue::Revisions(_) => read_value(domain, env, source, value, out, lent),
     }
 }
@@ -910,13 +919,7 @@ fn ended_funders_fit(page: &contract::SpendPage, project: u32) -> bool {
 }
 
 /// Validate the retained original request before consuming its terminal.
-fn ended_read_valid(
-    domain: &Ui,
-    _env: &Env<crate::Config>,
-    token: Token,
-    result: &ReadResult,
-    lent: &jig_client::Client,
-) -> bool {
+fn ended_read_valid(domain: &Ui, token: Token, result: &ReadResult, lent: &jig_client::Client) -> bool {
     let value = match result {
         ReadResult::Value(value) => value,
         ReadResult::None(_) => return true,
@@ -926,29 +929,7 @@ fn ended_read_valid(
     };
     match value {
         ReadValue::EndedPage(page) => {
-            let task = match &read.what {
-                Read::Ended { task, .. } => *task,
-                Read::Tasks { .. }
-                | Read::Me
-                | Read::Task { .. }
-                | Read::Proposal { .. }
-                | Read::Escalation { .. }
-                | Read::Question { .. }
-                | Read::PersonTask { .. }
-                | Read::Result { .. }
-                | Read::History { .. }
-                | Read::Activity { .. }
-                | Read::Turn { .. }
-                | Read::Inbox { .. }
-                | Read::Spend { .. }
-                | Read::Project { .. }
-                | Read::Notes { .. }
-                | Read::Settings
-                | Read::Setting(_)
-                | Read::Revision(_)
-                | Read::Revisions(_)
-                | Read::Deployment => return false,
-            };
+            let Some(task) = ended_read_task(&read.what) else { return false };
             let source = match read.source {
                 Source::Window { number: super::task::ENDED_READ, .. } => true,
                 Source::Window { .. } | Source::Watch(_) | Source::Card(_) => false,
@@ -959,29 +940,7 @@ fn ended_read_valid(
                 && ended_edges_fit(page.before.as_ref(), page.after.as_ref(), lent.domain_limits().text)
         }
         ReadValue::Spend(page) => {
-            let project = match &read.what {
-                Read::Spend { project, .. } => *project,
-                Read::Tasks { .. }
-                | Read::Me
-                | Read::Task { .. }
-                | Read::Proposal { .. }
-                | Read::Escalation { .. }
-                | Read::Question { .. }
-                | Read::PersonTask { .. }
-                | Read::Result { .. }
-                | Read::Ended { .. }
-                | Read::History { .. }
-                | Read::Activity { .. }
-                | Read::Turn { .. }
-                | Read::Inbox { .. }
-                | Read::Project { .. }
-                | Read::Notes { .. }
-                | Read::Settings
-                | Read::Setting(_)
-                | Read::Revision(_)
-                | Read::Revisions(_)
-                | Read::Deployment => return false,
-            };
+            let Some(project) = spend_read_project(&read.what) else { return false };
             let source = match read.source {
                 Source::Window { number: super::project::SPEND_READ, .. } => true,
                 Source::Window { .. } | Source::Watch(_) | Source::Card(_) => false,
@@ -1014,9 +973,64 @@ fn ended_read_valid(
         | ReadValue::Settings(_)
         | ReadValue::Setting(_)
         | ReadValue::Revision(_)
+        | ReadValue::TaskText(_)
         | ReadValue::Revisions(_) => true,
     }
 }
+fn ended_read_task(what: &Read) -> Option<u64> {
+    match what {
+        Read::Ended { task, .. } => Some(*task),
+        Read::Tasks { .. }
+        | Read::Me
+        | Read::Task { .. }
+        | Read::Proposal { .. }
+        | Read::Escalation { .. }
+        | Read::Question { .. }
+        | Read::PersonTask { .. }
+        | Read::Result { .. }
+        | Read::History { .. }
+        | Read::Activity { .. }
+        | Read::Turn { .. }
+        | Read::Inbox { .. }
+        | Read::Spend { .. }
+        | Read::Project { .. }
+        | Read::Notes { .. }
+        | Read::Settings
+        | Read::Setting(_)
+        | Read::Revision(_)
+        | Read::TaskText { .. }
+        | Read::Revisions(_)
+        | Read::Deployment => None,
+    }
+}
+
+fn spend_read_project(what: &Read) -> Option<u32> {
+    match what {
+        Read::Spend { project, .. } => Some(*project),
+        Read::Tasks { .. }
+        | Read::Me
+        | Read::Task { .. }
+        | Read::Proposal { .. }
+        | Read::Escalation { .. }
+        | Read::Question { .. }
+        | Read::PersonTask { .. }
+        | Read::Result { .. }
+        | Read::Ended { .. }
+        | Read::History { .. }
+        | Read::Activity { .. }
+        | Read::Turn { .. }
+        | Read::Inbox { .. }
+        | Read::Project { .. }
+        | Read::Notes { .. }
+        | Read::Settings
+        | Read::Setting(_)
+        | Read::Revision(_)
+        | Read::TaskText { .. }
+        | Read::Revisions(_)
+        | Read::Deployment => None,
+    }
+}
+
 fn ended_edges_fit(before: Option<&contract::Cursor>, after: Option<&contract::Cursor>, text: u32) -> bool {
     if let Some(cursor) = before
         && !cursor.value.fits(text)
@@ -1055,6 +1069,7 @@ fn owner_escalation_read_valid(domain: &Ui, token: Token, result: &ReadResult, l
             | ReadValue::Settings(_)
             | ReadValue::Setting(_)
             | ReadValue::Revision(_)
+            | ReadValue::TaskText(_)
             | ReadValue::Revisions(_)
             | ReadValue::Deployment(_),
         )
@@ -1083,6 +1098,7 @@ fn owner_escalation_read_valid(domain: &Ui, token: Token, result: &ReadResult, l
         | Read::Settings
         | Read::Setting(_)
         | Read::Revision(_)
+        | Read::TaskText { .. }
         | Read::Revisions(_)
         | Read::Deployment => return false,
     };

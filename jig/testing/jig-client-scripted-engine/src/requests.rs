@@ -198,6 +198,7 @@ impl<A: crate::Application> Engine<A> {
                         | ReadValue::Settings(_)
                         | ReadValue::Setting(_)
                         | ReadValue::Revision(_)
+                        | ReadValue::TaskText(_)
                         | ReadValue::Revisions(_)
                         | ReadValue::Deployment(_),
                         Moved::Hold { .. }
@@ -236,6 +237,7 @@ impl<A: crate::Application> Engine<A> {
                                     | ReadValue::Settings(_)
                                     | ReadValue::Setting(_)
                                     | ReadValue::Revision(_)
+                                    | ReadValue::TaskText(_)
                                     | ReadValue::Revisions(_)
                                     | ReadValue::Deployment(_) => None,
                                 };
@@ -289,6 +291,7 @@ impl<A: crate::Application> Engine<A> {
                 ReadValue::Settings(_)
                 | ReadValue::Setting(_)
                 | ReadValue::Revision(_)
+                | ReadValue::TaskText(_)
                 | ReadValue::Revisions(_)
                 | ReadValue::Tasks(_)
                 | ReadValue::Project(_)
@@ -581,6 +584,7 @@ fn offers(value: &ReadValue) -> Option<&List<Offered>> {
         | ReadValue::Settings(_)
         | ReadValue::Setting(_)
         | ReadValue::Revision(_)
+        | ReadValue::TaskText(_)
         | ReadValue::Revisions(_)
         | ReadValue::Deployment(_) => None,
     }
@@ -616,6 +620,7 @@ fn ending(value: &ReadValue) -> Option<Ending> {
         | ReadValue::Settings(_)
         | ReadValue::Setting(_)
         | ReadValue::Revision(_)
+        | ReadValue::TaskText(_)
         | ReadValue::Revisions(_)
         | ReadValue::Deployment(_) => None,
     }

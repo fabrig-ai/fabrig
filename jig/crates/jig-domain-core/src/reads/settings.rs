@@ -91,7 +91,7 @@ pub(super) fn answer(destination: super::Destination, value: Answer) -> Queue<Re
         Answer::Revisions(value) => SettingsAnswer::Revisions(*value),
         Answer::None(Why::Busy) => return refused(to, key, crate::CallPart::Unavailable),
         Answer::None(_) => SettingsAnswer::Unknown,
-        Answer::Tasks(_) | Answer::Ended(_) | Answer::Page(_) => {
+        Answer::TaskText(_) | Answer::Tasks(_) | Answer::Ended(_) | Answer::Page(_) => {
             unreachable!("settings reads answer settings documents")
         }
     };
@@ -440,6 +440,7 @@ fn selected(scope: &Scope) -> (u32, u32, u32, bool) {
         Scope::EndedTasks
         | Scope::TaskRows { .. }
         | Scope::Tasks { .. }
+        | Scope::TaskText { .. }
         | Scope::Task { .. }
         | Scope::Proposal { .. }
         | Scope::Escalation { .. }

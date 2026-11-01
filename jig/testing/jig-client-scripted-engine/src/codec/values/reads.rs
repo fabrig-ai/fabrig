@@ -14,6 +14,20 @@ pub(in crate::codec) fn wire_read_value(value: &c::ReadValue, limits: &w::Limits
             limits,
             w::ReadRevisionAnswerParts { value: wire_revision_answer(value, limits)? },
         )?),
+        c::ReadValue::TaskText(value) => w::ReadValue::TaskText(w::TaskText::new(
+            limits,
+            w::TaskTextParts {
+                task: value.task,
+                field: match value.field {
+                    c::TaskTextField::Specification => w::TaskTextField::Specification,
+                    c::TaskTextField::Instructions => w::TaskTextField::Instructions,
+                },
+                from: value.from,
+                total: value.total,
+                next: value.next,
+                words: Box::from(value.text.bytes()),
+            },
+        )?),
         c::ReadValue::Revisions(value) => w::ReadValue::Revisions(wire_revisions_page(value, limits)?),
         c::ReadValue::Tasks(value) => w::ReadValue::Tasks(wire_task_page(value, limits)?),
         c::ReadValue::Project(value) => w::ReadValue::Project(wire_project(value, limits)?),

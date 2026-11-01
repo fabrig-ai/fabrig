@@ -1,6 +1,8 @@
 //! Specification source facts through the public task document constructor.
 use crate::tests::*;
 
+const FAILURE_WORDS: &[u8] = concat!("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "é CI failed: missing artifact").as_bytes();
+
 const UTF8_WORDS: &[u8] = b"~\0^\x01";
 
 #[test]
@@ -174,4 +176,90 @@ fn a_circle_hold_projection_cuts_the_chips_without_losing_the_source_cut() {
     let circle = task.hold.unwrap().circle.unwrap();
     assert_eq!(circle.tasks.as_ref(), &[9, 7]);
     assert!(circle.cut);
+}
+
+#[test]
+fn task_text_retrieval_preserves_failure_words_past_the_summary() {
+    let (core, mut limits) = make_tree();
+    limits.documents.text_bytes = 128;
+    let mut row = core.tasks.task(2).unwrap().clone();
+    let words = FAILURE_WORDS;
+    row.spec.words = Box::from(words);
+    row.instructions = Some(Box::from(words));
+    let task = task_from_row(&core, &limits, 1, &row, Wall::EPOCH).unwrap();
+    assert!(task.spec.words.cut);
+    assert!(task.instructions.as_ref().unwrap().cut);
+    for field in [crate::reads::TaskTextField::Specification, crate::reads::TaskTextField::Instructions] {
+        let mut from = 0;
+        let mut whole = skein_lib::Writer::new(words.len());
+        loop {
+            let chunk = crate::reads::task_text_from_row(&core, &limits, 1, &row, field, from).unwrap();
+            assert!(chunk.bytes.len() <= 128);
+            assert!(skein_lib::bytes::is_utf8(&chunk.bytes));
+            whole.put(&chunk.bytes).unwrap();
+            match chunk.next {
+                Some(next) => {
+                    assert!(next > from);
+                    from = next;
+                }
+                None => break,
+            }
+        }
+        let whole = whole.finish();
+        assert_eq!(whole.as_ref(), words);
+        assert!(whole.ends_with(b"CI failed: missing artifact"));
+    }
+}
+
+#[test]
+fn task_text_offsets_reject_mid_character_and_past_end_without_stalling() {
+    use crate::reads::{TaskTextField, Why, task_text_from_row};
+    let (core, mut limits) = make_tree();
+    let mut row = core.tasks.task(2).unwrap().clone();
+    row.spec.words = Box::from("éZ".as_bytes());
+    limits.documents.text_bytes = 1;
+    assert_eq!(task_text_from_row(&core, &limits, 1, &row, TaskTextField::Specification, 0), Err(Why::Busy));
+    for from in [1, 4, u64::MAX] {
+        assert_eq!(task_text_from_row(&core, &limits, 1, &row, TaskTextField::Specification, from), Err(Why::Unknown));
+    }
+    let end = task_text_from_row(&core, &limits, 1, &row, TaskTextField::Specification, 3).unwrap();
+    assert!(end.bytes.is_empty());
+    assert_eq!(end.next, None);
+    assert_eq!(task_text_from_row(&core, &limits, 99, &row, TaskTextField::Specification, 2), Err(Why::Unknown));
+}
+
+#[test]
+fn task_text_reads_live_sources_and_retained_suffixes_under_the_same_visibility() {
+    use crate::reads::{Answer, Read, TaskTextField};
+    let (mut core, mut limits) = watch_core();
+    limits.documents.text_bytes = 128;
+    let read = Read::TaskText { task: 1, field: TaskTextField::Specification, from: 0 };
+    let Held::Read { answer: Answer::TaskText(page), .. } = read_start(&mut core, &limits, 10, read) else {
+        panic!("live source answered without store")
+    };
+    assert_eq!(page.bytes, core.tasks.task(1).unwrap().spec.words);
+    let mut row = fixtures::ended_report(99, tasks::Party::Person(1));
+    row.spec.words = Box::from(FAILURE_WORDS);
+    let read = Read::TaskText { task: 99, field: TaskTextField::Specification, from: 127 };
+    let Held::ReadLoad { load, .. } = read_start(&mut core, &limits, 10, read) else { panic!("retained load") };
+    let loaded = crate::reads::Loaded::Page {
+        rows: Box::new([stored_row(Record::Tasks(tasks::Stored::Ended(Box::new(row))), None)]),
+        next: None,
+    };
+    let Answer::TaskText(page) = loaded_answer(&mut core, &limits, load, loaded).unwrap() else {
+        panic!("retained source chunk")
+    };
+    assert_eq!(page.bytes.as_ref(), "é CI failed: missing artifact".as_bytes());
+    assert_eq!(page.next, None);
+}
+
+#[test]
+fn task_instruction_text_uses_the_tasks_charter_revision_without_an_override() {
+    use crate::reads::{TaskTextField, task_text_from_row};
+    let (core, limits) = make_tree();
+    let row = core.tasks.task(2).unwrap();
+    let tasks::Executor::Agent { charter } = row.executor else { panic!("agent") };
+    assert_eq!(row.instructions, None);
+    let page = task_text_from_row(&core, &limits, 1, row, TaskTextField::Instructions, 0).unwrap();
+    assert_eq!(page.bytes.as_ref(), core.charter_at(charter, row.settings.task).unwrap().policy.instructions.as_ref());
 }
