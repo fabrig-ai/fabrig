@@ -10,13 +10,14 @@ pub const PROGRAM_VALID: Duration = Duration::from_nanos(u64::MAX);
 /// LLM keys do not expire; this grant horizon fits the worker wire's duration.
 pub const KEY_VALID: Duration = Duration::from_secs(100 * 365 * 24 * 60 * 60);
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub(crate) struct Keeping {
     pub(crate) request: Token,
     pub(crate) holder: Holder,
     pub(crate) provider: u32,
     pub(crate) join: Option<u32>,
     pub(crate) replacing: bool,
+    pub(crate) uses: Option<Box<[crate::Use]>>,
 }
 
 #[expect(clippy::too_many_arguments, reason = "one admitted account change and its carried number")]
@@ -29,15 +30,19 @@ pub(crate) fn add(
     join: Option<u32>,
     carried: u64,
     out: &mut Queue<Request>,
-    _uses: Option<Box<[crate::Use]>>,
+    uses: Option<Box<[crate::Use]>>,
 ) {
+    if !crate::records::valid_uses(uses.as_deref()) || (join.is_some() && uses.is_some()) {
+        answer(request, Refusal::Uses, out);
+        return;
+    }
     if let Err(refusal) = addable(domain, &env.limits, holder, provider, join) {
         answer(request, refusal, out);
         return;
     }
     let source = domain.take();
     domain.counted(out);
-    let keeping = Keeping { request, holder, provider, join, replacing: false };
+    let keeping = Keeping { request, holder, provider, join, replacing: false, uses };
     assert!(domain.keeping.insert(source, keeping) == Ok(None), "admitted keep with a new number");
     out.push(Request::Signing(Signing::Keep { source, carried, replaces: false }));
 }
@@ -93,7 +98,7 @@ pub(crate) fn replace(
         }
     };
     let provider = domain.accounts.get(&account).expect("checked account").provider;
-    let keeping = Keeping { request, holder, provider, join: Some(account), replacing: true };
+    let keeping = Keeping { request, holder, provider, join: Some(account), replacing: true, uses: None };
     assert!(domain.keeping.insert(source, keeping) == Ok(None), "one keep per source, admitted");
     out.push(Request::Signing(Signing::Keep { source, carried, replaces: true }));
 }
@@ -137,7 +142,7 @@ pub(crate) fn granted(domain: &mut Domain, env: &Env<Limits>, source: u32, out: 
                     provider: keeping.provider,
                     holder: keeping.holder,
                     place: domain.last_place(keeping.holder),
-                    uses: None,
+                    uses: keeping.uses,
                     plan: false,
                     subject: Box::new([]),
                     display: Box::new([]),

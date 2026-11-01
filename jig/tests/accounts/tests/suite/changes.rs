@@ -10,6 +10,11 @@ const OTHER: Holder = Holder::Party(8);
 const REQUEST: Token = Token::new(50);
 const PROVIDER: u32 = 1;
 const CARRIED: u64 = 1 << 63;
+const PROJECT: u32 = 2;
+const PAYER: u64 = 5;
+const PROJECT_ONLY: u32 = 10;
+const SHARED: u32 = 20;
+const DEFAULT_USES: u32 = 30;
 
 fn fresh() -> World {
     let mut world = World::with(providers(vec![provider(PROVIDER, true, true)]), &[]);
@@ -26,7 +31,10 @@ fn done() -> Request {
     Request::Answer { request: REQUEST, answer: Answer::Done }
 }
 fn add(world: &mut World, join: Option<u32>) -> u32 {
-    let outputs = change(world, Change::AddKey { provider: PROVIDER, join, carried: CARRIED, uses: None });
+    add_with_uses(world, join, None)
+}
+fn add_with_uses(world: &mut World, join: Option<u32>, uses: Option<Box<[Use]>>) -> u32 {
+    let outputs = change(world, Change::AddKey { provider: PROVIDER, join, carried: CARRIED, uses });
     outputs
         .iter()
         .find_map(
@@ -72,6 +80,68 @@ fn a_key_makes_an_account_once_it_is_kept() {
         |request| matches!(request, Request::Save { record: Stored::Account { number, .. } } if *number == account)
     ));
     assert!(outputs.iter().any(|request| matches!(request, Request::Save { record: Stored::Source { number, kind: Kind::Key, .. } } if *number == source)));
+}
+#[test]
+fn a_key_added_with_uses_makes_an_account_serving_them() {
+    for uses in [vec![], vec![Use::Party(PAYER), Use::Project(PROJECT)], (0..USES).map(Use::Project).collect()] {
+        let mut world = fresh();
+        let source = add_with_uses(&mut world, None, Some(uses.clone().into_boxed_slice()));
+        let outputs = grant(&mut world, source, 1);
+        let account = account_of(&world, source);
+        assert_eq!(world.domain.account(account).expect("new account").uses(), Some(uses.as_slice()));
+        assert!(outputs.iter().any(|request| matches!(request,
+            Request::Save { record: Stored::Account { number, uses: Some(saved), .. } }
+                if *number == account && saved.as_ref() == uses.as_slice()
+        )));
+    }
+}
+#[test]
+fn a_key_added_with_invalid_uses_makes_nothing() {
+    for uses in [vec![Use::Project(PROJECT); 2], (0..=USES).map(Use::Project).collect()] {
+        let mut world = fresh();
+        let next = world.domain.next_number();
+        assert_eq!(
+            change(
+                &mut world,
+                Change::AddKey {
+                    provider: PROVIDER,
+                    join: None,
+                    carried: CARRIED,
+                    uses: Some(uses.into_boxed_slice()),
+                }
+            ),
+            vec![refused(Refusal::Uses)]
+        );
+        assert_eq!(world.domain.accounts(), 0);
+        assert_eq!(world.domain.next_number(), next);
+        kept(&mut world, None);
+    }
+}
+#[test]
+fn a_key_joining_with_uses_keeps_the_accounts_uses() {
+    for uses in [vec![], vec![Use::Project(PROJECT)]] {
+        let mut world = fresh();
+        let original = [Use::Party(PAYER)];
+        let first = add_with_uses(&mut world, None, Some(Box::new(original)));
+        grant(&mut world, first, 1);
+        let account = account_of(&world, first);
+        let next = world.domain.next_number();
+        assert_eq!(
+            change(
+                &mut world,
+                Change::AddKey {
+                    provider: PROVIDER,
+                    join: Some(account),
+                    carried: CARRIED,
+                    uses: Some(uses.into_boxed_slice()),
+                }
+            ),
+            vec![refused(Refusal::Uses)]
+        );
+        assert_eq!(world.domain.next_number(), next);
+        kept(&mut world, Some(account));
+        assert_eq!(world.domain.account(account).expect("joined account").uses(), Some(original.as_slice()));
+    }
 }
 #[test]
 fn a_key_joins_the_holders_account_of_its_provider() {
@@ -309,6 +379,77 @@ fn uses_are_bounded_saved_and_restored() {
         change(&mut world, Change::SetUses { account, uses: uses.clone() });
         assert_eq!(world.domain.account(account).expect("account").uses(), uses.as_deref());
     }
+}
+fn account_with_uses(number: u32, holder: Holder, uses: Option<Box<[Use]>>) -> Stored {
+    Stored::Account { number, provider: PROVIDER, holder, place: 0, uses, subject: Box::new([]), display: Box::new([]) }
+}
+#[test]
+fn forgetting_a_project_drops_its_use_and_keeps_an_emptied_list() {
+    let rows = vec![
+        account_with_uses(PROJECT_ONLY, HOLDER, Some(Box::new([Use::Project(PROJECT)]))),
+        source(PROJECT_ONLY, PROJECT_ONLY + 1, 0, Kind::Key),
+        account_with_uses(SHARED, OTHER, Some(Box::new([Use::Party(PAYER), Use::Project(PROJECT)]))),
+        source(SHARED, SHARED + 1, 0, Kind::Key),
+        account_with_uses(DEFAULT_USES, Holder::Deployment, None),
+        source(DEFAULT_USES, DEFAULT_USES + 1, 0, Kind::Key),
+    ];
+    let mut world = World::with(providers(vec![provider(PROVIDER, true, true)]), &rows);
+    world.step(Event::Want);
+    let outputs = world.step(Event::ForgetProject { project: PROJECT });
+    let empty = account_with_uses(PROJECT_ONLY, HOLDER, Some(Box::new([])));
+    let shared = account_with_uses(SHARED, OTHER, Some(Box::new([Use::Party(PAYER)])));
+    assert_eq!(outputs, vec![Request::Save { record: empty.clone() }, Request::Save { record: shared.clone() }]);
+    let mut restart = World::with(providers(vec![provider(PROVIDER, true, true)]), &[]);
+    restart.restore(vec![
+        empty,
+        source(PROJECT_ONLY, PROJECT_ONLY + 1, 0, Kind::Key),
+        shared,
+        source(SHARED, SHARED + 1, 0, Kind::Key),
+        account_with_uses(DEFAULT_USES, Holder::Deployment, None),
+        source(DEFAULT_USES, DEFAULT_USES + 1, 0, Kind::Key),
+    ]);
+    restart.step(Event::Want);
+    for world in [&mut world, &mut restart] {
+        assert_eq!(world.domain.account(PROJECT_ONLY).expect("project only").uses(), Some([].as_slice()));
+        assert_eq!(world.domain.account(SHARED).expect("shared").uses(), Some([Use::Party(PAYER)].as_slice()));
+        assert_eq!(world.domain.account(DEFAULT_USES).expect("default uses").uses(), None);
+        assert!(world.step(Event::ForgetProject { project: PROJECT }).is_empty());
+    }
+}
+#[test]
+fn forgetting_a_project_leaves_unrelated_uses_untouched() {
+    for uses in [None, Some(vec![]), Some(vec![Use::Party(PAYER), Use::Project(PROJECT + 1)])] {
+        let uses = uses.map(Vec::into_boxed_slice);
+        let mut world = World::with(
+            providers(vec![provider(PROVIDER, true, true)]),
+            &[
+                account_with_uses(PROJECT_ONLY, HOLDER, uses.clone()),
+                source(PROJECT_ONLY, PROJECT_ONLY + 1, 0, Kind::Key),
+            ],
+        );
+        world.step(Event::Want);
+        assert!(world.step(Event::ForgetProject { project: PROJECT }).is_empty());
+        assert_eq!(world.domain.account(PROJECT_ONLY).expect("untouched").uses(), uses.as_deref());
+    }
+}
+#[test]
+fn forgetting_a_project_waits_for_restoration_and_stops_at_close() {
+    let uses = [Use::Project(PROJECT)];
+    let mut world = World::with(
+        providers(vec![provider(PROVIDER, true, true)]),
+        &[
+            account_with_uses(PROJECT_ONLY, HOLDER, Some(Box::new(uses))),
+            source(PROJECT_ONLY, PROJECT_ONLY + 1, 0, Kind::Key),
+        ],
+    );
+    assert!(world.step(Event::ForgetProject { project: PROJECT }).is_empty());
+    assert_eq!(world.domain.account(PROJECT_ONLY).expect("restoring").uses(), Some(uses.as_slice()));
+    world.step(Event::Want);
+    world.step(Event::Close);
+    assert!(world.step(Event::ForgetProject { project: PROJECT }).is_empty());
+    assert_eq!(world.domain.account(PROJECT_ONLY).expect("closing").uses(), Some(uses.as_slice()));
+    world.step(Event::Component(FromComponent::Closed));
+    assert!(world.step(Event::ForgetProject { project: PROJECT }).is_empty());
 }
 #[test]
 fn a_restart_names_each_party_source_before_wanting_it() {
