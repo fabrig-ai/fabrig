@@ -8,6 +8,11 @@ Designer of draft section 5, its testing in section 8, the jig half of 6.2, and 
 |---|---|---|
 | pd-acts | final | - |
 | pd-vocabulary | final | pd-acts |
+| pd-people-purge | final | pd-acts |
+| pd-tasks-erase | final | pd-vocabulary |
+| pd-accounts-uses | final | pd-vocabulary |
+| pd-store-reads | final | pd-vocabulary |
+| pd-test-connector | final | pd-vocabulary |
 
 ## Contract requests
 

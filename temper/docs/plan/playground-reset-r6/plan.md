@@ -27,6 +27,7 @@ domain, view, tools and the client world.
 | 3 | `fe-surface`, `bx-compose` |
 | 4 | `cl-choices`, `cl-ctl`, `cl-forges`, `cl-welcome` |
 | 5 | `cl-pg`, `cl-pg-goes`, `fe-kept-root`, `fe-make`, `fe-playground-forge`, `fe-playground-root`, `fe-records`, `fe-remove`, `pd-acts`, `pd-vocabulary` |
+| 6 | `pd-accounts-uses`, `pd-people-purge`, `pd-store-reads`, `pd-tasks-erase`, `pd-test-connector` |
 
 ## Critical path (as it stands)
 

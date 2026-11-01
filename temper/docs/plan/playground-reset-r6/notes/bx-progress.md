@@ -107,3 +107,11 @@ would let them run at once.
    `tests/fake_backends/walk/github.rs`). bx orders them in series by the one-writer rule.
    **Request:** the lead may let them run at once (after bx-story-playground, which makes
    `tests/reset/mod.rs`), which takes about four hours off the path.
+
+## The lead's answers (2026-11-01)
+
+1. Accepted: sv-removal takes `failed N ...` during a removal as not removed and sends again.
+2. Accepted: `application.machine.git_program` (contracts.md T4), parsed by
+   `sv-startup-machine`; the fake backends' rewrite sets it to `<data>/demo/bin/git`.
+3. Accepted: the three later stories need `bx-story-playground` only (and their fe/sv
+   tasks); `bx-unforge` needs all four.
