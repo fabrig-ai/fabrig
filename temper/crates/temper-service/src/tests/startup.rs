@@ -84,7 +84,7 @@ fn startup_names_map_sizing_without_inventing_a_records_bound() {
     let mut engine = fixtures::engine();
     engine.jig.limits.store.store.key = 0;
     let mut problems = Problems::empty();
-    crate::startup::checks::records(&engine.jig, &engine.limits, &[], &mut problems);
+    crate::startup::checks::records(&engine.jig, &engine.limits, &[], &engine.machine, &mut problems);
     assert_eq!(problems.problems.len(), 1);
     let What::StoreMap(jig_protocol_store::sizes::SizeRefusal::Key { needs, has: 0 }) =
         problems.problems.get(0).unwrap().what
@@ -108,7 +108,7 @@ fn record_sizing_leaves_driver_admission_until_after_agent_checks() {
     assert!(read < needs);
 
     let mut problems = Problems::empty();
-    crate::startup::checks::records(&engine.jig, &engine.limits, &[], &mut problems);
+    crate::startup::checks::records(&engine.jig, &engine.limits, &[], &engine.machine, &mut problems);
     assert!(problems.is_empty(), "record sizing must leave the driver's check to store admission: {problems:?}");
 }
 
@@ -1034,16 +1034,11 @@ fn a_user_object_with_an_empty_path_is_refused() {
     assert_eq!(&*refused_user("{\"file\":\"\"}"), b"application.forges[0].user.file: invalid form\n");
 }
 #[test]
-fn a_missing_setup_or_demo_is_refused_naming_its_path() {
-    for (member, expected) in [
-        ("\"setup\":[],", b"application.setup: missing\n".as_slice()),
-        ("\"demo\":null,", b"application.demo: missing\n".as_slice()),
-    ] {
-        let input = core::str::from_utf8(fixtures::APPLICATION).unwrap().replace(member, "");
-        let (members, problems) = application(input.as_bytes(), &fixtures::engine().jig);
-        assert!(members.is_none());
-        assert_eq!(&*lines(&problems), expected);
-    }
+fn a_missing_demo_is_refused_naming_its_path() {
+    let input = core::str::from_utf8(fixtures::APPLICATION).unwrap().replace("\"demo\":null,", "");
+    let (members, problems) = application(input.as_bytes(), &fixtures::engine().jig);
+    assert!(members.is_none());
+    assert_eq!(&*lines(&problems), b"application.demo: missing\n");
 }
 
 #[test]

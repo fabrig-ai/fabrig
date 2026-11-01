@@ -29,6 +29,7 @@ mod family;
 mod qa_box_link;
 mod root_checks;
 mod startup;
+mod startup_machine;
 mod system;
 
 mod forge;
