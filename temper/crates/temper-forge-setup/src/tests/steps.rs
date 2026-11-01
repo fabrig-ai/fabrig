@@ -174,3 +174,37 @@ fn forgejo_takes_its_listener_only_when_the_shell_can_identify_signal_senders() 
         }
     }
 }
+
+#[test]
+fn an_asked_group_numbered_again_is_the_group_set_up_for_that_number() {
+    for runner in [false, true] {
+        for fetched in [false, true] {
+            let source = fixtures::changed(b"\"forge\":2", b"\"forge\":65535,\"start\":\"asked\"");
+            let target = fixtures::changed_in(&source, b"\"forge\":65535", b"\"forge\":7");
+            let mut expected = None;
+            for input in [&source, &target] {
+                let mut setup = Setup::read(
+                    &fixtures::document(input),
+                    0,
+                    &crate::limits::small(),
+                    &jig_protocol_config::Directories::working(),
+                    &mut crate::problem::Problems::empty(),
+                )
+                .unwrap();
+                setup.entries = Box::new([setup.entries[1].clone()]);
+                let Mode::Owned(owned) = &mut setup.entries[0].mode else { panic!("owned") };
+                owned.fetch.forgejo = fetched;
+                owned.fetch.runner = fetched && runner;
+                if !runner {
+                    owned.runner = None;
+                }
+                let commands = steps(&setup, &flags(), Box::new([]), true);
+                if let Some(template) = expected.take() {
+                    assert_eq!(template, commands.asked[0]);
+                } else {
+                    expected = Some(commands.asked[0].numbered(7));
+                }
+            }
+        }
+    }
+}
