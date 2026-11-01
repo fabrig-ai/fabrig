@@ -1,7 +1,8 @@
 //! One process, joined through io's workers channel (protocol/README.md, 8).
 use crate::{
-    AccountsRuntime, End, Stop, Worker, accounts, clients, engine, limits, route::box_link, settings, stop, store,
-    translate, values, workers,
+    AccountsRuntime, End, Stop, Worker, accounts, clients, engine, limits,
+    route::{box_link, group_file},
+    settings, stop, store, translate, values, workers,
 };
 use alloc::boxed::Box;
 use jig_protocol_config::{Path, Problems, What};
@@ -383,7 +384,13 @@ impl Service {
     pub fn next_policy_deadline(&self) -> Option<Time> {
         accounts::earliest(
             match &self.engine {
-                Some(engine) => engine.next_deadline(),
+                Some(engine) => accounts::earliest(
+                    engine.next_deadline(),
+                    match &engine.box_link.files {
+                        Some(files) => files.next_deadline(),
+                        None => None,
+                    },
+                ),
                 None => None,
             },
             match &self.worker {
@@ -396,7 +403,13 @@ impl Service {
     #[must_use]
     pub fn work_pending(&self, now: Time) -> bool {
         (match &self.engine {
-            Some(engine) => engine.work_pending(now),
+            Some(engine) => {
+                engine.work_pending(now)
+                    || match &engine.box_link.files {
+                        Some(files) => files.work_pending(now),
+                        None => false,
+                    }
+            }
             None => false,
         }) || self.worker_runs()
             && match &self.worker {
@@ -512,8 +525,15 @@ impl Service {
     }
     /// Adopt the box's lines and requests (protocol/setup.md, 7.1).
     /// io may keep a bounded read pending until close cancels it.
-    /// On refusal the caller retains both descriptors.
-    pub fn adopt_box(&mut self, requests: Fd, answers: Fd, line_bytes: u32) -> Result<(), BoxRefusal> {
+    /// On refusal the caller retains all three descriptors.
+    pub fn adopt_box(
+        &mut self,
+        requests: Fd,
+        answers: Fd,
+        data: Fd,
+        effective_user: u32,
+        line_bytes: u32,
+    ) -> Result<(), BoxRefusal> {
         if self.box_pipe.is_some() {
             return Err(BoxRefusal::Adopted);
         }
@@ -524,7 +544,14 @@ impl Service {
         if self.io_env.limits.sockets.saturating_sub(self.io.sockets()) < 2 {
             return Err(BoxRefusal::Sockets { limit: self.io_env.limits.sockets });
         }
-        self.engine.as_mut().expect("box engine").box_link = box_link::Link::new(line_bytes, true);
+        let engine = self.engine.as_mut().expect("box engine");
+        engine.box_link = box_link::Link::new(line_bytes, true);
+        engine.box_link.files = Some(group_file::Files::new(
+            data,
+            effective_user,
+            self.io_env.limits.close_timeout,
+            u64::from_le_bytes(*engine.store.installation.first_chunk::<8>().expect("installation seed")),
+        ));
         let requests = self.io.adopt_write_pipe(requests, None).expect("two reserved pipe slots");
         let answers = self.io.adopt_read_pipe(answers).expect("second reserved pipe slot");
         self.box_pipe = Some(BoxPipe {
@@ -603,6 +630,10 @@ impl Service {
                         && engine.forge.io.is_empty()
                         && engine.forge.above.is_empty()
                         && engine.store.closed()
+                        && match &engine.box_link.files {
+                            Some(files) => files.closed(),
+                            None => true,
+                        }
                         && engine.workers.closed()
                         && engine.clients.closed
                         && engine.clients.io.is_empty()
@@ -709,6 +740,15 @@ impl Service {
     fn complete(&mut self, complete: Complete) {
         if store::owns(complete.op) {
             self.engine.as_mut().expect("engine store completion").store.complete(complete);
+        } else if crate::tokens::prefix(complete.op) == 12 {
+            self.engine
+                .as_mut()
+                .expect("box file engine")
+                .box_link
+                .files
+                .as_mut()
+                .expect("box file driver")
+                .complete(complete);
         } else if crate::tokens::prefix(complete.op) == 3 || crate::tokens::prefix(complete.op) == 6 {
             self.worker
                 .as_mut()
@@ -811,6 +851,18 @@ pub fn iterate(service: &mut Service, now: Time, wall: Wall) {
     close_sources(service);
     if let Some(engine) = &mut service.engine {
         engine.abort_if_ended();
+    }
+    if let Some(engine) = &mut service.engine {
+        let closing = engine.end.is_some();
+        group_file::drive(engine, now, closing);
+        if let Some(files) = &mut engine.box_link.files {
+            for _ in 0..files.submitted.len() {
+                if service.raw_submissions.room() == 0 {
+                    break;
+                }
+                service.raw_submissions.push(files.submitted.pop().expect("box file submissions"));
+            }
+        }
     }
     box_io(service);
     service.route_components();
@@ -974,8 +1026,8 @@ pub(crate) fn worker_alone_operations(io: &io::Limits, worker_operations: u32) -
     io::operations(io)?.checked_mul(io::MAX_OUT_DOWN.submissions)?.checked_add(worker_operations)
 }
 fn startup_operations(io: &io::Limits, worker_operations: u32) -> Option<u32> {
-    // Shared io successors, worker file operations and the three store drivers own the kernel credit.
-    worker_alone_operations(io, worker_operations)?.checked_add(store::OPERATIONS)
+    // Shared io successors, worker files, store drivers and box files own the kernel credit.
+    worker_alone_operations(io, worker_operations)?.checked_add(store::OPERATIONS)?.checked_add(group_file::OPERATIONS)
 }
 
 fn forget_handover(settings: &mut settings::Engine) {
@@ -1134,12 +1186,12 @@ mod box_tests {
             let mut line_bytes = 256;
             match expected {
                 BoxRefusal::Sockets { limit } => service.io_env.limits.sockets = limit,
-                BoxRefusal::Adopted => service.adopt_box(Fd::new(3), Fd::new(4), line_bytes).unwrap(),
+                BoxRefusal::Adopted => service.adopt_box(Fd::new(3), Fd::new(4), Fd::new(90), 0, line_bytes).unwrap(),
                 BoxRefusal::NoEngine => service.engine = None,
                 BoxRefusal::ZeroLine => line_bytes = 0,
             }
             let before = (service.io.sockets(), service.submissions.len());
-            assert_eq!(service.adopt_box(Fd::new(5), Fd::new(6), line_bytes), Err(expected));
+            assert_eq!(service.adopt_box(Fd::new(5), Fd::new(6), Fd::new(90), 0, line_bytes), Err(expected));
             assert_eq!((service.io.sockets(), service.submissions.len()), before);
             // In particular, no close or adoption was submitted for either fd.
         }

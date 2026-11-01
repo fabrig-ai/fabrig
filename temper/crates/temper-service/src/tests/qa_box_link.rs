@@ -8,11 +8,11 @@ use temper_engine_domain_forge::{Connection, SetUpStep};
 #[test]
 fn qa_unasked_and_invalid_lines_are_named_without_state_changes() {
     let mut stand = fixtures::one_process();
-    stand.service.adopt_box(Fd::new(3), Fd::new(4), fixtures::system::BOX_BYTES).unwrap();
-    fixtures::until_hosting(&mut stand);
+    stand.service.adopt_box(Fd::new(3), Fd::new(4), Fd::new(90), 0, fixtures::system::BOX_BYTES).unwrap();
+    super::box_link::until_hosting(&mut stand);
     crate::setup::lifecycle::state(stand.service.engine.as_mut().unwrap(), 3, Connection::NotSetUp);
     for _ in 0_u8..64 {
-        stand.turn();
+        super::box_link::turn(&mut stand);
     }
     for asked in [false, true] {
         if asked {
@@ -27,7 +27,7 @@ fn qa_unasked_and_invalid_lines_are_named_without_state_changes() {
                 },
             );
             for _ in 0_u8..64 {
-                stand.turn();
+                super::box_link::turn(&mut stand);
             }
         }
         for line in [
@@ -44,7 +44,7 @@ fn qa_unasked_and_invalid_lines_are_named_without_state_changes() {
                 stand.kernel.box_answers.push(*byte);
             }
             for _ in 0_u8..64 {
-                stand.turn();
+                super::box_link::turn(&mut stand);
             }
             let Some(crate::Note::BoxLink { .. }) = stand.service.notes().pop() else {
                 panic!("line {line:?} must be named");
@@ -62,11 +62,11 @@ fn qa_unasked_and_invalid_lines_are_named_without_state_changes() {
 #[test]
 fn qa_split_lines_and_coalesced_steps_keep_the_last_step() {
     let mut stand = fixtures::one_process();
-    stand.service.adopt_box(Fd::new(3), Fd::new(4), fixtures::system::BOX_BYTES).unwrap();
-    fixtures::until_hosting(&mut stand);
+    stand.service.adopt_box(Fd::new(3), Fd::new(4), Fd::new(90), 0, fixtures::system::BOX_BYTES).unwrap();
+    super::box_link::until_hosting(&mut stand);
     crate::setup::lifecycle::state(stand.service.engine.as_mut().unwrap(), 3, Connection::NotSetUp);
     for _ in 0_u8..64 {
-        stand.turn();
+        super::box_link::turn(&mut stand);
     }
     crate::route::request(
         stand.service.engine.as_mut().unwrap(),
@@ -79,13 +79,13 @@ fn qa_split_lines_and_coalesced_steps_keep_the_last_step() {
         },
     );
     for _ in 0_u8..64 {
-        stand.turn();
+        super::box_link::turn(&mut stand);
     }
     for byte in b"step 3 fet" {
         stand.kernel.box_answers.push(*byte);
     }
     for _ in 0_u8..64 {
-        stand.turn();
+        super::box_link::turn(&mut stand);
     }
     assert_eq!(stand.service.engine.as_ref().unwrap().domain.forge_connection(3), Connection::SettingUp { step: None });
     assert!(stand.service.notes().is_empty());
@@ -93,7 +93,7 @@ fn qa_split_lines_and_coalesced_steps_keep_the_last_step() {
         stand.kernel.box_answers.push(*byte);
     }
     for _ in 0_u8..64 {
-        stand.turn();
+        super::box_link::turn(&mut stand);
     }
     assert_eq!(
         stand.service.engine.as_ref().unwrap().domain.forge_connection(3),
@@ -103,7 +103,7 @@ fn qa_split_lines_and_coalesced_steps_keep_the_last_step() {
         stand.kernel.box_answers.push(*byte);
     }
     for _ in 0_u8..64 {
-        stand.turn();
+        super::box_link::turn(&mut stand);
     }
     assert_eq!(
         stand.service.engine.as_ref().unwrap().domain.forge_connection(3),
@@ -121,11 +121,11 @@ fn qa_line_byte_bound_includes_lf_and_recovers_after_overflow() {
         ("ééééééééééé", "failed 3 ééééééééééé\n", "failed 3 éééééééééééx\n"),
     ] {
         let mut stand = fixtures::one_process();
-        stand.service.adopt_box(Fd::new(3), Fd::new(4), BOUND).unwrap();
-        fixtures::until_hosting(&mut stand);
+        stand.service.adopt_box(Fd::new(3), Fd::new(4), Fd::new(90), 0, BOUND).unwrap();
+        super::box_link::until_hosting(&mut stand);
         crate::setup::lifecycle::state(stand.service.engine.as_mut().unwrap(), 3, Connection::NotSetUp);
         for _ in 0_u8..64 {
-            stand.turn();
+            super::box_link::turn(&mut stand);
         }
         crate::route::request(
             stand.service.engine.as_mut().unwrap(),
@@ -138,14 +138,14 @@ fn qa_line_byte_bound_includes_lf_and_recovers_after_overflow() {
             },
         );
         for _ in 0_u8..64 {
-            stand.turn();
+            super::box_link::turn(&mut stand);
         }
         assert_eq!(overflow.len(), usize::try_from(BOUND).unwrap() + 1);
         for byte in overflow.as_bytes() {
             stand.kernel.box_answers.push(*byte);
         }
         for _ in 0_u8..64 {
-            stand.turn();
+            super::box_link::turn(&mut stand);
         }
         assert_eq!(
             stand.service.engine.as_ref().unwrap().domain.forge_connection(3),
@@ -167,7 +167,7 @@ fn qa_line_byte_bound_includes_lf_and_recovers_after_overflow() {
             stand.kernel.box_answers.push(*byte);
         }
         for _ in 0_u8..64 {
-            stand.turn();
+            super::box_link::turn(&mut stand);
         }
         assert_eq!(
             stand.service.engine.as_ref().unwrap().domain.forge_connection(3),

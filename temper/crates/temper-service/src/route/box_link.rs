@@ -20,6 +20,8 @@ pub(crate) enum Refused {
 pub(crate) enum Out {
     /// A line for fd 3, its line feed included.
     Write(Box<[u8]>),
+    /// Write the group file before sending its start.
+    GroupFile { forge: u16 },
     /// The ask's one answer: setting up, or its refusal.
     Answered { forge: u16, request: Token, answer: Result<(), Refused> },
     /// The forge setting up: `None` at the ask, then each `step` line's step.
@@ -37,10 +39,12 @@ pub(crate) enum Out {
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Ask {
     Start(u16),
+    Writing(u16),
     Stop(u16),
 }
 
 pub(crate) struct Link {
+    pub(crate) files: Option<super::group_file::Files>,
     pub(crate) write: Option<Box<[u8]>>,
     ended: bool,
     asked: Option<Ask>,
@@ -56,6 +60,7 @@ impl Link {
     /// The routing only sends asks admitted by the domain.
     pub(crate) fn new(line_bytes: u32, _piped: bool) -> Link {
         Link {
+            files: None,
             write: None,
             ended: false,
             asked: None,
@@ -69,7 +74,7 @@ impl Link {
     /// The caller reserves three output slots before asking.
     pub(crate) fn ask(&mut self, forge: u16, request: Token, out: &mut Queue<Out>) {
         if self.held.is_some()
-            || self.asked == Some(Ask::Start(forge))
+            || (self.asked == Some(Ask::Start(forge)) || self.asked == Some(Ask::Writing(forge)))
             || self.ended
             || self.asked.is_none() && self.write.is_some()
         {
@@ -80,8 +85,7 @@ impl Link {
         if self.asked.is_some() {
             self.held = Some(forge);
         } else {
-            self.asked = Some(Ask::Start(forge));
-            out.push(Out::Write(start(forge)));
+            self.begin_start(forge, out);
         }
         out.push(Out::SettingUp { forge, step: None });
         out.push(Out::Answered { forge, request, answer: Ok(()) });
@@ -133,13 +137,40 @@ impl Link {
                         self.asked = Some(Ask::Stop(forge));
                         out.push(Out::Write(stop(forge)));
                     } else if let Some(forge) = self.held.take() {
-                        self.asked = Some(Ask::Start(forge));
-                        out.push(Out::Write(start(forge)));
+                        self.begin_start(forge, out);
                     }
                 }
             } else if self.partial.room() == 0 {
                 self.partial.clear();
                 self.skipping = true;
+            }
+        }
+    }
+    fn begin_start(&mut self, forge: u16, out: &mut Queue<Out>) {
+        if self.files.is_some() {
+            self.asked = Some(Ask::Writing(forge));
+            out.push(Out::GroupFile { forge });
+        } else {
+            self.asked = Some(Ask::Start(forge));
+            out.push(Out::Write(start(forge)));
+        }
+    }
+    pub(crate) fn file_written(&mut self, stored: bool, out: &mut Queue<Out>) {
+        let forge = match self.asked {
+            Some(Ask::Writing(forge)) => forge,
+            Some(Ask::Start(_) | Ask::Stop(_)) | None => return,
+        };
+        if stored {
+            self.asked = Some(Ask::Start(forge));
+            out.push(Out::Write(start(forge)));
+        } else {
+            self.asked = None;
+            out.push(Out::Failed { forge, why: b"group file not written".as_slice().into() });
+            if let Some(forge) = self.stop.take() {
+                self.asked = Some(Ask::Stop(forge));
+                out.push(Out::Write(stop(forge)));
+            } else if let Some(forge) = self.held.take() {
+                self.begin_start(forge, out);
             }
         }
     }
@@ -149,6 +180,9 @@ impl Link {
             return;
         }
         self.ended = true;
+        if let Some(files) = &mut self.files {
+            files.close();
+        }
         self.write = None;
         self.partial.clear();
         self.skipping = false;
@@ -220,7 +254,7 @@ fn line(asked: &mut Option<Ask>, line: &[u8], out: &mut Queue<Out>) {
         Reply::Failed(_, why) => {
             let stopping = match *asked {
                 Some(Ask::Stop(_)) => true,
-                Some(Ask::Start(_)) | None => false,
+                Some(Ask::Start(_) | Ask::Writing(_)) | None => false,
             };
             *asked = None;
             if stopping {
@@ -304,6 +338,15 @@ pub(crate) fn drain(engine: &mut crate::engine::Engine, out: &mut Queue<Out>) {
     use temper_engine_domain_forge::{Connection, SetUpRefusal, SetUpStep};
     for _ in 0..out.len() {
         match out.pop().expect("box link outputs") {
+            Out::GroupFile { forge } => {
+                if let Some(bytes) = group_bytes(engine, forge) {
+                    super::group_file::write(engine, forge, bytes);
+                } else {
+                    engine.box_link.asked = Some(Ask::Start(forge));
+                    assert!(engine.box_link.write.is_none(), "one box line pending");
+                    engine.box_link.write = Some(start(forge));
+                }
+            }
             Out::Write(line) => {
                 assert!(engine.box_link.write.is_none(), "one box line pending");
                 engine.box_link.write = Some(line);
@@ -342,4 +385,10 @@ pub(crate) fn drain(engine: &mut crate::engine::Engine, out: &mut Queue<Out>) {
             Out::Named(line) => engine.notes.push(crate::Note::BoxLink { line }),
         }
     }
+}
+
+fn group_bytes(engine: &crate::engine::Engine, forge: u16) -> Option<Box<[u8]>> {
+    let record = crate::forge::table::record(engine, forge)?;
+    let setup = record.setup.as_ref()?;
+    Some(super::group_file::render(forge, setup, record.playground))
 }
