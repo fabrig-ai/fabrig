@@ -30,15 +30,67 @@ fn demo_answer(bytes: &[u8]) {
         assert_eq!(temper_client_protocol_wire::demo_answer(&record).as_ref(), bytes, "DemoAnswer");
     }
 }
+fn playground_answer(bytes: &[u8]) {
+    if let Some(record) = temper_client_protocol_wire::decode_playground_answer(bytes, &v1::CEILINGS) {
+        assert_eq!(temper_client_protocol_wire::playground_answer(&record).as_ref(), bytes, "PlaygroundAnswer");
+    }
+}
+fn playground(rng: &mut Rng) -> v1::PlaygroundAnswer {
+    let state = match rng.below(4) {
+        0 => v1::PlaygroundState::Offered,
+        1 => v1::PlaygroundState::NotOffered,
+        2 => v1::PlaygroundState::Running,
+        _ => v1::PlaygroundState::Resetting,
+    };
+    let count = u32::try_from(rng.below(9)).expect("cue count");
+    let mut cues = skein_lib::List::with_capacity(count);
+    for _ in 0..count {
+        let length = usize::try_from(rng.between(1, 256)).expect("cue bytes");
+        let mut cue = skein_lib::bytes::zeroed(length);
+        cue.fill(b'a');
+        cues.push(cue).expect("cue room");
+    }
+    let forge = if rng.below(2) == 0 { None } else { Some(u16::try_from(rng.below(65_536)).expect("forge")) };
+    let project = if rng.below(2) == 0 { None } else { Some(u32::try_from(rng.below(1_u64 << 32)).expect("project")) };
+    v1::PlaygroundAnswer::new(
+        &v1::CEILINGS,
+        v1::PlaygroundAnswerParts {
+            state,
+            forge,
+            project,
+            provider: u32::try_from(rng.below(1_u64 << 32)).expect("provider"),
+            owner: temper_codecs_world::drawn(rng, 1024).into_boxed_slice(),
+            name: temper_codecs_world::drawn(rng, 1024).into_boxed_slice(),
+            cues,
+        },
+    )
+    .expect("bounded playground answer")
+}
 #[test]
 fn client_wire_decoders_never_panic_and_reencode_the_same() {
-    let decoders: [fn(&[u8]); 7] = [requesting, answer, reading, demo_answer, watching, forges, panel];
+    let decoders: [fn(&[u8]); 8] =
+        [requesting, answer, reading, demo_answer, playground_answer, watching, forges, panel];
     let mut rng = Rng::new(0x7e3d_0302);
     let goldens = temper_codecs_world::goldens("crates/temper-client-protocol-wire/golden");
+    let reset = v1::Answer::new(&v1::CEILINGS, v1::AnswerParts { outcome: v1::Outcome::Reset }).expect("reset answer");
+    let reset = temper_client_protocol_wire::answer(&reset);
+    answer(&reset);
     for _ in 0..2_000 {
-        let request = v1::Requesting::new(&v1::CEILINGS, v1::RequestingParts { request: v1::Request::StartDemo })
-            .expect("start request");
-        requesting(&temper_client_protocol_wire::requesting(&request));
+        answer(&temper_codecs_world::mutated(&mut rng, &reset));
+        let request = match rng.below(3) {
+            0 => v1::Request::StartDemo,
+            1 => v1::Request::StartPlayground,
+            _ => v1::Request::EndPlayground,
+        };
+        let request =
+            v1::Requesting::new(&v1::CEILINGS, v1::RequestingParts { request }).expect("start or end request");
+        let encoded = temper_client_protocol_wire::requesting(&request);
+        requesting(&encoded);
+        requesting(&temper_codecs_world::mutated(&mut rng, &encoded));
+        let record = playground(&mut rng);
+        let encoded = temper_client_protocol_wire::playground_answer(&record);
+        playground_answer(&encoded);
+        playground_answer(&temper_codecs_world::mutated(&mut rng, &encoded));
         let why = match rng.below(4) {
             0 => v1::StartFailure::Group(
                 v1::GroupFailed::new(

@@ -67,9 +67,9 @@ fn first(state: v1::FirstState) -> v1::FirstRepository {
     .expect("record within schema ceilings")
 }
 #[test]
-fn setup_and_every_first_repository_state_round_trip_at_version_eleven() {
+fn setup_and_every_first_repository_state_round_trip_at_version_twelve() {
     use temper_client_protocol_wire as wire;
-    assert_eq!(wire::CLIENT_VERSION, 11);
+    assert_eq!(wire::CLIENT_VERSION, 12);
     for project in [
         project(),
         v1::SetUpProject::New(
@@ -333,6 +333,62 @@ fn demo_states_round_trip_at_smallest_and_ceiling() {
         temper_client_protocol_wire::decode_requesting(&temper_client_protocol_wire::requesting(&record), &limits),
         Some(record)
     );
+}
+
+#[test]
+fn playground_states_round_trip_at_smallest_and_ceiling() {
+    let limits = v1::CEILINGS;
+    for state in [
+        v1::PlaygroundState::Offered,
+        v1::PlaygroundState::NotOffered,
+        v1::PlaygroundState::Running,
+        v1::PlaygroundState::Resetting,
+    ] {
+        for full in [false, true] {
+            let mut cues = List::with_capacity(limits.playground_answer_cues);
+            if full {
+                for _ in 0..limits.playground_answer_cues {
+                    cues.push(skein_lib::bytes::zeroed(
+                        usize::try_from(limits.playground_answer_cues_item).expect("ceiling"),
+                    ))
+                    .expect("cue room");
+                }
+            }
+            let field = if full { usize::try_from(limits.playground_answer_owner).expect("ceiling") } else { 0 };
+            let record = v1::PlaygroundAnswer::new(
+                &limits,
+                v1::PlaygroundAnswerParts {
+                    project: if full { Some(u32::MAX) } else { None },
+                    forge: if full { Some(u16::MAX) } else { None },
+                    provider: if full { u32::MAX } else { 0 },
+                    owner: skein_lib::bytes::zeroed(field),
+                    name: skein_lib::bytes::zeroed(field),
+                    state: state.clone(),
+                    cues,
+                },
+            )
+            .expect("playground answer");
+            let bytes = temper_client_protocol_wire::playground_answer(&record);
+            assert_eq!(temper_client_protocol_wire::decode_playground_answer(&bytes, &limits), Some(record));
+        }
+    }
+    for request in [v1::Request::StartPlayground, v1::Request::EndPlayground] {
+        let record = v1::Requesting::new(&limits, v1::RequestingParts { request }).expect("playground request");
+        assert_eq!(
+            temper_client_protocol_wire::decode_requesting(&temper_client_protocol_wire::requesting(&record), &limits),
+            Some(record)
+        );
+    }
+    let reading = v1::Reading::new(&limits, v1::ReadingParts { read: v1::Read::Playground }).expect("playground read");
+    assert_eq!(
+        temper_client_protocol_wire::decode_reading(&temper_client_protocol_wire::reading(&reading), &limits),
+        Some(reading)
+    );
+    let answer = v1::Answer::new(&limits, v1::AnswerParts { outcome: v1::Outcome::Reset }).expect("reset answer");
+    let bytes = temper_client_protocol_wire::answer(&answer);
+    let mut reader = Reader::new(&bytes);
+    assert_eq!(v1::Answer::decode(&limits, &mut reader), Ok(answer));
+    assert!(reader.is_empty());
 }
 
 #[test]

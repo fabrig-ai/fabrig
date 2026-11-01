@@ -42,7 +42,7 @@ pub const fn owner(number: u16) -> Option<Owner> {
     }
 }
 /// Every record's version, served by both ends (client/README.md, 4.6).
-pub const CLIENT_VERSION: u32 = 11;
+pub const CLIENT_VERSION: u32 = 12;
 
 /// The deployment's maximum number of forges (client/README.md, 4.6).
 pub const FORGES: u32 = 16;
@@ -120,6 +120,10 @@ pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
         change_panel_branch: bounds.field_bytes,
         change_panel_landing: bounds.field_bytes,
         change_panel_gates: GATES,
+        playground_answer_owner: bounds.field_bytes,
+        playground_answer_name: bounds.field_bytes,
+        playground_answer_cues: CUES,
+        playground_answer_cues_item: CUE_BYTES,
         demo_answer_owner: bounds.field_bytes,
         demo_answer_name: bounds.field_bytes,
         demo_answer_cues: CUES,
@@ -207,6 +211,29 @@ pub fn decode_demo_answer(bytes: &[u8], limits: &v1::Limits) -> Option<v1::DemoA
     Some(record)
 }
 
+/// Encode the playground's answer.
+#[must_use]
+pub fn playground_answer(record: &v1::PlaygroundAnswer) -> Box<[u8]> {
+    let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+    record.encode(&mut writer).expect("measured room");
+    writer.finish()
+}
+/// Decode a complete playground answer, refusing empty cues (client/README.md, 4.6).
+#[must_use]
+pub fn decode_playground_answer(bytes: &[u8], limits: &v1::Limits) -> Option<v1::PlaygroundAnswer> {
+    let mut reader = Reader::new(bytes);
+    let record = v1::PlaygroundAnswer::decode(limits, &mut reader).ok()?;
+    if !reader.is_empty() {
+        return None;
+    }
+    for cue in record.cues() {
+        if cue.is_empty() {
+            return None;
+        }
+    }
+    Some(record)
+}
+
 /// Encode which of the family's subjects is watched (client/README.md, 4.6).
 #[must_use]
 pub fn watching(record: &v1::Watching) -> Box<[u8]> {
@@ -272,7 +299,9 @@ pub fn decode_requesting(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Reques
         | v1::Request::Return(_)
         | v1::Request::Adopt(_)
         | v1::Request::SetUp(_)
-        | v1::Request::StartDemo => {}
+        | v1::Request::StartDemo
+        | v1::Request::StartPlayground
+        | v1::Request::EndPlayground => {}
     }
     Some(record)
 }

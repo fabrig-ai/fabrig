@@ -83,6 +83,9 @@ impl Harness {
             w::Request::Return(_)
             | w::Request::SetUp(_)
             | w::Request::StartDemo
+            // cl-* owns these; this fixture expects its existing operation.
+            | w::Request::StartPlayground
+            | w::Request::EndPlayground
             | w::Request::Accept(_)
             | w::Request::Reachable(_)
             | w::Request::Connect(_)

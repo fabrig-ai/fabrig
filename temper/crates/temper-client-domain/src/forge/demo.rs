@@ -500,7 +500,9 @@ pub fn answer(value: &jig_client::Answered, limits: &Limits) -> Option<StartAnsw
             w::StartFailure::Adoption => StartFailure::Adoption,
             w::StartFailure::NotConnected => StartFailure::NotConnected,
         }),
-        w::Outcome::Connecting
+        // cl-* owns reset; it is not a demo start answer.
+        w::Outcome::Reset
+        | w::Outcome::Connecting
         | w::Outcome::Link(_)
         | w::Outcome::ConnectRefused(_)
         | w::Outcome::Page(_)

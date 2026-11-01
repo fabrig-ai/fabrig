@@ -118,7 +118,9 @@ pub fn answer(record: &jig_client::Family, limits: &w::Limits, link: &link::Limi
         | w::Outcome::SetUpRefused(_)
         | w::Outcome::Running
         | w::Outcome::StartRefused(_)
-        | w::Outcome::StartFailed(_) => return None,
+        | w::Outcome::StartFailed(_)
+        // cl-* owns reset; it is not this operation's answer.
+        | w::Outcome::Reset => return None,
     })
 }
 #[must_use]
@@ -231,7 +233,9 @@ pub fn set_up_answer(record: &jig_client::Family, limits: &w::Limits) -> Option<
         | w::Outcome::ForgeRefused(_)
         | w::Outcome::Running
         | w::Outcome::StartRefused(_)
-        | w::Outcome::StartFailed(_) => return None,
+        | w::Outcome::StartFailed(_)
+        // cl-* owns reset; it is not this operation's answer.
+        | w::Outcome::Reset => return None,
     })
 }
 #[must_use]

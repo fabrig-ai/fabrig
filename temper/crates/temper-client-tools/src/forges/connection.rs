@@ -274,7 +274,10 @@ pub(super) fn told(state: &mut Forges, env: &Env<Limits>, told: &Told, out: &mut
                 | w::Request::Return(_)
                 | w::Request::Adopt(_)
                 | w::Request::SetUp(_)
-                | w::Request::StartDemo => {
+                | w::Request::StartDemo
+                // cl-* owns these; they cannot restore a connection.
+                | w::Request::StartPlayground
+                | w::Request::EndPlayground => {
                     return false;
                 }
             };
@@ -358,7 +361,9 @@ fn answer(value: &Answered, limits: &Limits) -> Option<Answer> {
         | w::Outcome::SetUpRefused(_)
         | w::Outcome::Running
         | w::Outcome::StartRefused(_)
-        | w::Outcome::StartFailed(_) => None,
+        | w::Outcome::StartFailed(_)
+        // cl-* owns reset; it is not a connection answer.
+        | w::Outcome::Reset => None,
     }
 }
 fn text(pending: &Pending, answer: &Answer, kept: bool, limits: &Limits, out: &mut Text) {
