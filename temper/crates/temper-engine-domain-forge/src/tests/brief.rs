@@ -541,3 +541,31 @@ fn dropping_a_busy_section_ends_its_retry() {
     assert!(out.is_empty());
     assert!(d.briefs_idle());
 }
+
+#[test]
+fn github_gate_timestamp_survives_a_truncated_log_at_shipped_limits() {
+    const LINE: &[u8] = b"Missing changes/31.md with the line: opened 2026-11-01T14:07:25Z";
+    let mut log = skein_lib::List::with_capacity(9000);
+    for _ in 0_u32..8192 {
+        log.push(b'x').expect("log room");
+    }
+    for byte in b"\n".iter().chain(LINE).chain(b"\njob changes failed\n") {
+        log.push(*byte).expect("log tail room");
+    }
+    for head in [HEAD, [0x31; 32]] {
+        let mut checks = red_checks();
+        checks[1].context = b"changes".as_slice().into();
+        checks[1].url = b"https://github.com/acme/widgets/actions/runs/22/job/31".as_slice().into();
+        checks[1].job = Some(JobAttempt { head, run: 22, job: 31, attempt: 2 });
+        // gather's repair head is HEAD: a pin from another head must stay unread.
+        let bytes = take(&mut gather(checks, log.as_slice(), SHIPPED_CI));
+        let words = text(&bytes);
+        if head == HEAD {
+            assert!(words.contains(text(LINE)), "{words}");
+            assert!(words.contains("[log truncated before this]"));
+        } else {
+            assert!(words.contains("[no pinned job log for this head]"));
+            assert!(!words.contains(text(LINE)));
+        }
+    }
+}
