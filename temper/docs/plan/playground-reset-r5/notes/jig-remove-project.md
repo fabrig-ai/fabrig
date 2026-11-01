@@ -169,3 +169,16 @@ The rows' step drives the tasks child directly from `removal/rows.rs`
 (`tasks::step` with its own follow queue, as `routing/tasks.rs`' `Ended`
 arm does for `DelegateResult`), so it needs no edit of `routing/tasks.rs`,
 which `jp-steps` owns.
+
+## 7. The lead's allowances (added at release)
+
+- **`jp-close` and `RemoveProject`'s interim refusal:** wherever `jp-acts`
+  put the *not offered* refusal of `RemoveProject` (the core's
+  `routing/deployment_acts.rs` or the people child's
+  `jig-domain-people/src/domain/acts.rs`), `jp-close` may change that one
+  arm to route the act to its closing decision, in either file.
+- **A removal sent again after it ended:** the deletion's last step erases
+  retained answers naming the project, so a `RemoveProject` sent again
+  after the deletion has finished is answered `Refused(Unknown)`. Its
+  senders (temper's parts `remove-forge` and `playground`) take that
+  answer as done, as the demo's end takes *unknown* for an account removed.
