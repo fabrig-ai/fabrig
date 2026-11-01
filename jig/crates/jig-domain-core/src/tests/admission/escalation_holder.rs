@@ -132,3 +132,23 @@ fn a_move_is_refused_while_nobody_holds_its_escalations() {
         Err(people::Refusal::NoEscalationHolder)
     );
 }
+
+#[test]
+fn a_chats_delegates_escalation_waits_for_the_chats_person() {
+    for (ending, expected) in [
+        (tasks::EndedBy::Result, tasks::EscalationHolder::Task(TASK)),
+        (tasks::EndedBy::Requester, tasks::EscalationHolder::Person(REQUESTER)),
+    ] {
+        let (mut core, limits) = tree_core();
+        make_task_ended_by(&mut core, &limits, TASK, ending);
+        let context = tasks::EscalationContext {
+            task: 2,
+            project: PROJECT,
+            requester: REQUESTER,
+            immediate: tasks::Party::Task(TASK),
+            why: tasks::Hold::Failures(tasks::Class::Run),
+            escalation: tasks::Escalation::Routing { revision: 1 },
+        };
+        assert_eq!(core.escalation_recipient(&limits, &context, Some(people::Role::Owner)), Some(expected));
+    }
+}

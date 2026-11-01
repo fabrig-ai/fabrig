@@ -2,6 +2,8 @@
 
 2026-11-01. Where temper's code lags or departs from [agent.md](agent.md).
 
+- **Built:** 8.2: a held change or goal under a chat waits in its person's escalation inbox at once; the stock chat tells them what it waits on and where to decide.
+
 - **Built:** 4.3.2, 4.6: a chat's report bound reaches neither its brief nor its Open replies; goals and delegates keep their result contracts.
 
 - **Built:** 4.3.2: the goal tool takes its goal's label and flags from template 2, so ended goals are listed by project and goal label; advisors stay unlabelled, untracked and plain.

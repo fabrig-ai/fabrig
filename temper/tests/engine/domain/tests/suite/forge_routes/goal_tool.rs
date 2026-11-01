@@ -607,3 +607,55 @@ fn an_agreed_brief_uses_the_persons_newest_consumed_chat_words() {
     ));
     assert_eq!(live(&world, task).spec.words.as_ref(), [WORDS, AGREED_SUFFIX, PERSON_HEADING, NEWEST].concat());
 }
+
+#[test]
+fn a_held_goal_under_a_chat_waits_in_its_persons_inbox_at_once() {
+    use jig_domain_core::{documents, reads};
+    let mut world = World::configured(true, true);
+    world.adopt();
+    world.send(protocol::hello_slots(Token::new(7), 2, Box::new([])));
+    let people::Ask::Create { project, mut batch } = adoption_chat(&world) else { panic!("create") };
+    batch[0].flags.ended_by = people::EndedBy::Requester;
+    batch[0].budget = people::Budget::AsAllowed { cap: Some(400) };
+    batch[0].authority.tools = 1 | 2 | 512;
+    batch[0].authority.delegation.tasks = 11;
+    batch[0].authority.delegation.depth = 3;
+    let chat = assigned_chat(&mut world, 92, people::Ask::Create { project, batch });
+    let task = delegated(call(
+        &mut world,
+        &chat,
+        GOAL_CALL,
+        engine::Tool::Goal { words: WORDS.into(), advisor: false, agree: true },
+    ));
+    world.until(Until::SecondAssignment);
+    let run = world.assigned.iter().find(|run| run.task == task).expect("goal assigned").clone();
+    let event = world.protocol.answer(
+        Token::new(7),
+        task,
+        run.attempt,
+        0,
+        tasks::End::Exceeded(tasks::Exceeded { bound: tasks::Bound::Reasoning, value: 2048 }),
+        engine::Parts::none(),
+    );
+    world.send(event);
+    world.until(Until::Ready);
+    assert!(matches!(live(&world, task).phase, tasks::Phase::Held { .. }), "{:?}", live(&world, task).phase);
+    let answer = world.party_read(reads::Read::Inbox {
+        group: reads::Group::Escalations,
+        filter: reads::Filter { project: Some(project), goal: None },
+        from: None,
+    });
+    let reads::Answer::Page(page) = answer else { panic!("person's escalation inbox: {answer:?}") };
+    assert!(
+        page.rows.iter().any(|row| matches!(row, reads::PageRow::Inbox(entry)
+        if matches!(&entry.task, documents::TaskLink::Live(chip) if chip.number == task)
+        && entry.object == documents::InboxObject::Escalation { revision: 1 })),
+        "inbox: {page:?}; escalation: {:?}",
+        live(&world, task).escalation
+    );
+    assert!(matches!(
+        live(&world, task).escalation,
+        tasks::Escalation::Waiting { holder: tasks::EscalationHolder::Person(_), .. }
+    ));
+    world.close();
+}

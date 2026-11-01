@@ -626,6 +626,11 @@ today's, until those land.
   so that the task's title is the work (4.3.2); a blank line follows,
   then the root's goal line and its line that the work is to be agreed,
   then the person's heading and words.
+- **A held change or goal waits for the person at once.** jig skips
+  conversations when it chooses the escalation's holder (jig's
+  `domain/tasks.md`, section 9). The chat tells the person in words
+  what its delegate waits on and that it waits in their inbox, then
+  waits for their decision.
 - **Designed, not built (J7, J8):** the goal's question stays with the
   chat (jig's `domain/tasks.md`, 8.5): the chat, woken by it, answers
   from what it knows (its person's priorities, its notes), or asks its
