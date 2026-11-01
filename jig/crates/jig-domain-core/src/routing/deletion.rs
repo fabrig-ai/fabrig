@@ -1,5 +1,5 @@
-//! Project deletion at Ending (temper/docs/design/draft/playground-reset.md, 5;
-//! temper/docs/plan/playground-reset-r6/notes/contracts.md, J3–J4).
+//! Project deletion at Ending (jig/docs/design/domain/core.md, 6.1;
+//! jig/docs/design/domain/tasks.md, 5.1).
 use super::children::{append_people, append_tasks};
 use crate::{Core, Event, Limits, PersonTaskRoute, Request};
 use jig_domain_people as people;

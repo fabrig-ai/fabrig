@@ -184,7 +184,11 @@ pub(crate) fn told(side: &mut Side, told: &Told, limits: Limits, out: &mut Queue
                 | jig_client::Outcome::Unconfirmed => Some(StartAnswer::Unknown),
             };
             side.demo.start = None;
-            if result == Some(StartAnswer::Running) && side.demo.selection == ProjectSelection::Starting {
+            let select_project = match &result {
+                Some(StartAnswer::Running | StartAnswer::Failed(_)) => true,
+                Some(StartAnswer::NotOffered | StartAnswer::Unknown | StartAnswer::EntranceRefused(_)) | None => false,
+            };
+            if select_project && side.demo.selection == ProjectSelection::Starting {
                 side.demo.selection = ProjectSelection::Reading;
             }
             side.demo.failure = match result {

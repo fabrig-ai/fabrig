@@ -178,10 +178,24 @@ pub fn request(
                 owner::Ask::RemoveForge { forge: remove.forge() },
             );
         }
-        v1::Request::EndPlayground
-        | v1::Request::Accept(_)
-        | v1::Request::Reachable(_)
-        | v1::Request::StartPlayground => {
+        request @ (v1::Request::StartPlayground | v1::Request::EndPlayground) => {
+            assert_eq!(scope, jig_client::contract::Scope::Deployment);
+            assert!(reader.is_empty(), "whole playground request");
+            let start = matches!(request, v1::Request::StartPlayground);
+            let mut event = deployment_request(
+                transport,
+                who,
+                attempt,
+                key,
+                ask,
+                if start { owner::Ask::StartPlayground } else { owner::Ask::EndPlayground },
+            );
+            if let engine::Event::Party(PartyInput::Application { carried: value, .. }) = &mut event {
+                *value = carried;
+            }
+            return event;
+        }
+        v1::Request::Accept(_) | v1::Request::Reachable(_) => {
             panic!("the client sends none yet")
         }
         v1::Request::Connect(connect) => {

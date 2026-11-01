@@ -22,6 +22,7 @@ pub fn one_process() -> SystemStand {
 pub fn one_process_under_box(under_box: bool) -> SystemStand {
     let mut settings = super::worker_settings();
     settings.jig.limits.core.tasks.run_inbox = 2;
+    settings.jig.limits.core.accounts.credentials = super::engine().limits.forge_component.forges;
     let agent = super::worker_agent();
     let limits = super::worker_limits();
     let worker = Worker::new(

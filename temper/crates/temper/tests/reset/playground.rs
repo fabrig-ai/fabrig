@@ -96,8 +96,8 @@ fn a_first_run_into_the_playground_and_out_by_its_reset_leaves_the_store_empty()
     assert_reset_accounts(empty_accounts);
     assert_playground_project(empty_projects, false);
     assert_eq!(not_started.exit, Some(Exit::Code(2)));
-    assert_eq!(not_started.stdout, b"refused: not offered\n");
-    assert!(not_started.stderr.is_empty(), "{}", String::from_utf8_lossy(&not_started.stderr));
+    assert!(not_started.stdout.is_empty());
+    assert_eq!(not_started.stderr, b"refused: not offered\n");
     assert_removed(&paths[1], forge);
     eprintln!(
         "reset: reset; forges empty; no scripted provider 3 account; no Playground project; \
