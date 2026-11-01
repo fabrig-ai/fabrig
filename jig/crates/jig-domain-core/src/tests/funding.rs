@@ -1,6 +1,7 @@
 //! Policy resize admission checks the open period's exact room before mutation.
 pub(in crate::tests) mod fixtures;
 pub(in crate::tests) mod periods;
+mod settings;
 use crate::{funding::PoolResize, tests::*};
 
 #[test]

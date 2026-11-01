@@ -16,9 +16,8 @@ Run a whole deployment on one machine, on loopback, from its configuration to a 
   `cargo build -p temper -p temper-fake-claude` from a checkout
   to put `fake-claude` beside `temper`, then
   `scripts/bundle.sh --loopback BUNDLE`.
-- **The directories:** `CONFIG`, `DATA` and `CACHE`, absolute, empty
-  and private to you (mode 0700, not reached through a link), and `DIR`,
-  private to you. Nothing else may use them.
+- **The directories:** `CONFIG`, `DATA` and `CACHE`: absolute, empty,
+  mode 0700, without links; `DIR`: private. All are yours alone.
 - **A model account** on real backends: an exported login or API key
   in a private file; a provider's sign-in in a browser on this
   machine; or Claude Code (`claude` on `PATH`), signed in at step 5
@@ -76,7 +75,7 @@ gone: step 5's way is then Claude Code's. Keep the demo, or a run's turn
 outgrows init's limits.
 
 If not: `temper init: CONFIG/temper.json: already exists` (exit 1):
-`CONFIG` holds a configuration; start from empty directories.
+start from empty directories.
 
 ## 2. Start the box
 
@@ -92,8 +91,7 @@ Fake backends:
 temper box --fake-backends --bundle BUNDLE --config CONFIG --data DATA --cache CACHE
 ```
 
-Keep it running in its own terminal or in the background, output to a
-file. Its sign-in link has its own line after
+Keep it running, logging to a file. Its sign-in link follows
 `Open this link in a browser on this machine.`
 
 Expect: real, `Logs: DATA/box/logs/`. Fake,
@@ -111,11 +109,10 @@ stored state is refused prints, in place of a sign-in link,
 `temper serve: restart refused during STEP`; the box starts serve
 again a few times, each saying the same, then gives up and exits 1:
 keep `DATA` as it is and report the line as a finding.
-A store an older build wrote, whose layout this build doesn't read,
-prints `temper serve: DATA/deployment holds a store from an older
+An incompatible store prints `temper serve: DATA/deployment holds a store from an older
 build, whose FAMILY family's layout differs from this build's, ...`,
-retried and given up the same way. Before the first release a store
-isn't translated. To start afresh, stop the box, move `active`,
+retried the same way. Stores aren't translated before the first
+release. To start afresh, stop the box, move `active`,
 `generations/` and `transcripts/` out of `DATA/deployment` together,
 and start it again: nothing is deleted, and the new store has no
 tasks, sign-ins, accounts or keys, so every client signs in again.
@@ -129,8 +126,13 @@ temper ctl DIR sign-in -
 temper ctl DIR me
 ```
 
-Expect: `party 1 · owner · Owner`, the owner of a new box; `me`
-then lists `1 · Project 1 · owner`.
+Expect: `party 1 · owner · Owner`; `me` lists `1 · Project 1 · owner`.
+
+First start made project 1 and its owner. After raising limits with
+`settings apply`, use `project fund` for its period, then role 0's
+pool, with distinct keys: temper help weekly-budget. Settings do not
+resize these budgets; policy 1 sizes future projects. Check both
+balances with `project show PROJECT`.
 
 If not: `temper ctl: the sign-in link was refused` (exit 1): the link
 was spent or expired. The box then prints `A fresh sign-in link:` and
@@ -138,14 +140,14 @@ a new link: sign in with it.
 
 ## 4. Set up Forgejo on this machine
 
-`PROJECT` is 1 on a new box, as `me` lists it.
+`PROJECT` is from `me`, 1 on a new box; setup adopts the repository into it.
 
 ```
 temper ctl DIR forge setup --org work --repository hello --project PROJECT --key KEY
 ```
 
-Expect: `setting up`, then `project: PROJECT · NAME`, the project
-and its name, then `Adopted work/hello on forge FORGE as owned.` and
+Expect: `setting up`, then `project: PROJECT · NAME`,
+then `Adopted work/hello on forge FORGE as owned.` and
 `It is the project's home.`
 
 At each Forgejo start the box prints its API and your login:
@@ -200,11 +202,10 @@ temper ctl DIR account list
 temper ctl DIR account verify ACCOUNT --source program
 ```
 
-`program-login` signs Claude Code in through this terminal into
-`PROGRAMS/NAME`. To use an existing signed-in directory in place,
-set `PROGRAMS` to its parent and `NAME` to its name; skip
-`program-login`. temper neither moves nor reads it; only one box
-uses it at a time.
+`program-login` signs Claude Code into `PROGRAMS/NAME` through this
+terminal. For an existing signed-in directory, set `PROGRAMS` to its
+parent, `NAME` to its name; skip `program-login`. temper neither moves
+nor reads it; only one box uses it at a time.
 
 Then:
 
@@ -233,11 +234,10 @@ temper ctl DIR task show TASK --until replied
 temper ctl DIR task show TASK --tree
 ```
 
-`TASK` is the chat's number, which the first call prints; the tree
-lists the change it started, `CHANGE`.
+The first call prints the chat's `TASK`; its tree lists `CHANGE`.
 
-Expect: `done: task TASK, chat`; the wait prints the task, its first
-line `task TASK · chat · ` and its phase, then `met`.
+Expect: `done: task TASK, chat`; the wait prints `task TASK · chat · `
+and its phase, then `met`.
 
 If not: on fake backends, the model answers every request with
 `Hello from the local fake model.` and starts no change: go to step 8.
@@ -252,8 +252,7 @@ temper ctl DIR change show CHANGE
 ```
 
 The change waits for CI at its head; the starter workflow passes.
-The pull request printed by `change show` has its diff, reviews,
-CI runs and logs.
+Its pull request has the diff, reviews, CI runs and logs.
 
 Expect: the change's panel, its first line `change CHANGE ·
 work/hello on forge FORGE · `, its branch and `into main`, then `met`;
