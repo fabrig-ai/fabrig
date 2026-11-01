@@ -4,3 +4,5 @@
 
 - **Built:** 1 to 10: operation API, whole authorities, queries, spans, account/model offers and preferences, projects, pasted sign-in and moves. 5.1: stable deadlines; Seen current-state reprocessing. 3.2: `MoveToNewest`. 5.1: `Task.settings`. 6: a held revision's charter read; a read's too-linked answer, naming the join bound. 3.2: Stop's placed hold; 5.6: HoldCategory::Placed. 3.2: `PolicyEdit::RoleSpend`. 6: the settings decision in a task's messages. 3.2: Lift; 5.6: the placed hold's document line and whether the reader may lift it; a release proposal's hold.
 - **Not yet:** 5.3: complete creating bounds/executors and UTF-8 result validation. 6: retained-transcript gone answer. 7.4: application streams. 11: distinct over-bound document answer unresolved. 3.2: Hold; 5.6: holds{project}.
+
+- **Built (2026-11-01):** 5.1, 7.2: live-tree folds name the nearest shown ancestor, with overflow merged into the root within the window's row bound; phase and held counts cover every unshown descendant.
