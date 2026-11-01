@@ -49,7 +49,7 @@ fn failed_setup_keeps_steps_and_names_the_failed_one() {
         (forge::Connection::SettingUp { step: None }, "Set up", SETUP_STEPS),
     ];
     for (state, label, failed) in cases {
-        let (mut front, mut root) = harness::forge_fixture(fixtures::SEED);
+        let (mut front, mut root) = harness::seeded_forge_fixture(fixtures::SEED);
         connection(&mut front, &mut root, state);
         connection(
             &mut front,
