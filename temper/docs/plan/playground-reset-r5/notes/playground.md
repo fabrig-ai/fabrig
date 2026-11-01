@@ -150,3 +150,39 @@ enum Outcome { ..., reset }               # EndPlayground's answer: the row is n
   links and the Playground sections of Forges and Accounts go; Forges
   lists the playground forge's row, Accounts the Scripted model, neither
   with anything to add while it runs.
+
+## 7. The playground's configuration (added after the forge part's note)
+
+- **The forge:** `NewForge::Playground`, made from the template the
+  service gives `Domain::configure_playground` from the machine's `fake`
+  member (`notes/forge-records.md`, sections 1 to 3). Its owner and first
+  repository (`playground`/`widget`, landing `main`) are that member's;
+  the playground's adoption is built from them, home, prefix `temper/`,
+  `Role::Owned`, CI on, no checks, as `settings::Demo::domain` builds it
+  today.
+- **The scripted model's facts** stay in the document, being an LLM
+  provider's (draft, section 1): `application.demo` becomes
+  `application.playground`, `{"llm": {"listen", "provider", "key",
+  "asked"}}` or `null` (no playground), today's `application.demo.llm`
+  unchanged inside it; its `project` and `forge` members go (the project
+  is made at the start, the forge is a record). The fake LLM
+  (`temper-fake`'s demo reader) and the service read `asked`'s cues and the
+  key file from it. With `application.playground` null or the machine's
+  `fake` null, the read answers `not_offered` and the start *not offered*.
+- **The deadline** for the forge to connect stays the service's
+  (today's `DemoConfig.deadline`), in the root's config.
+
+## 8. The engine's tasks and what each leaves
+
+- `pg-start` (forge connector, root, store codec, engine-domain world):
+  the row, the start, the offer, the demo's end on another forge's
+  connect gone; `EndPlayground` reaches the root and is answered *not
+  offered* until `pg-reset`; a `Running` row at a start asks its group
+  again as today's restart does, until `pg-reset`.
+- `pg-svc` (service, `temper init`'s template, the shell's readers of
+  `application.demo`, temper-fake's reader): the wire bridged to the root
+  for both requests and the read; `application.playground`; the grants.
+- `pg-reset` (forge connector, root, engine-domain world): section 4.
+- `pg-demo-out`: the demo's last names and forms (the wire's `start_demo`,
+  `Read::demo`, `DemoAnswer`; `KeptAct::Close`; the service's and shell's
+  `Demo` names).
