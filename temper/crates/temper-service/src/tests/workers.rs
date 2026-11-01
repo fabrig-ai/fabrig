@@ -125,8 +125,8 @@ fn an_assignment_carries_its_items_encoded_charter_and_identity_value() {
     let encoding = fixtures::encoding(&settings);
     let assignment = assignment_with_identity();
     let values = fixtures::values_with_identity(1, b"forge-token-1234");
-    let event =
-        crate::assignment::down(assignment, &settings.forges, &encoding, &values, Token::new(8), Time::ZERO).unwrap();
+    let event = crate::assignment::down(assignment, &fixtures::forges(), &encoding, &values, Token::new(8), Time::ZERO)
+        .unwrap();
     let jig_protocol_engine_workers::Event::Down {
         channel,
         down: jig_domain_host::LinkDown::Assign { assignment },
@@ -176,8 +176,8 @@ fn a_fresh_start_whose_tail_reaches_the_turns_headers_still_encodes() {
     });
     assignment.sections = sections.into_boxed_slice();
     let values = fixtures::values_with_identity(1, b"forge-token-1234");
-    let event =
-        crate::assignment::down(assignment, &settings.forges, &encoding, &values, Token::new(8), Time::ZERO).unwrap();
+    let event = crate::assignment::down(assignment, &fixtures::forges(), &encoding, &values, Token::new(8), Time::ZERO)
+        .unwrap();
     let jig_protocol_engine_workers::Event::Down { down: jig_domain_host::LinkDown::Assign { assignment }, .. } = event
     else {
         panic!("assignment event")
@@ -283,8 +283,8 @@ fn an_assignment_preserves_its_ordered_messages_and_answered_calls() {
         },
     }]);
     let values = fixtures::values_with_identity(1, b"forge-token-1234");
-    let event =
-        crate::assignment::down(assignment, &settings.forges, &encoding, &values, Token::new(8), Time::ZERO).unwrap();
+    let event = crate::assignment::down(assignment, &fixtures::forges(), &encoding, &values, Token::new(8), Time::ZERO)
+        .unwrap();
     let jig_protocol_engine_workers::Event::Down { down: host::LinkDown::Assign { assignment }, .. } = event else {
         panic!("assignment")
     };
@@ -568,7 +568,7 @@ fn a_program_grants_charter_keeps_its_source_account() {
     }]);
     let empty = crate::values::Values::new(0, 0);
     let jig_protocol_engine_workers::Event::Down { down: host::LinkDown::Assign { assignment: sent }, values, .. } =
-        crate::assignment::down(assignment, &settings.forges, &encoding, &empty, Token::new(8), Time::ZERO).unwrap()
+        crate::assignment::down(assignment, &fixtures::forges(), &encoding, &empty, Token::new(8), Time::ZERO).unwrap()
     else {
         panic!("assignment down")
     };
@@ -590,7 +590,7 @@ fn a_first_attempt_requests_saves_from_its_charters_resume_policy() {
         let mut run = fixtures::assignment_with(fixtures::repository(7, b"acme", b"shop"));
         run.run.policy.resume = resume;
         let jig_protocol_engine_workers::Event::Down { down: host::LinkDown::Assign { assignment }, parts, .. } =
-            crate::assignment::down(run, &settings.forges, &encoding, &values, Token::new(8), Time::ZERO).unwrap()
+            crate::assignment::down(run, &fixtures::forges(), &encoding, &values, Token::new(8), Time::ZERO).unwrap()
         else {
             panic!("assignment")
         };

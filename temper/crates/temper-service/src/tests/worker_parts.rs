@@ -163,9 +163,8 @@ use temper_worker_domain::wire;
 #[test]
 fn an_engine_s_items_reach_the_worker_s_workspace_field_for_field() {
     let assignment = fixtures::assignment_with(fixtures::repository(3, b"acme", b"app"));
-    let config = fixtures::engine();
     let limits = fixtures::wire_limits();
-    let items = translate::items(&assignment, &config.forges, &crate::forge::tokens::Tokens::empty(), &limits)
+    let items = translate::items(&assignment, &fixtures::forges(), &crate::forge::tokens::Tokens::empty(), &limits)
         .unwrap()
         .unwrap();
     for program in [None, Some(Box::from(b"/fake/git".as_slice()))] {

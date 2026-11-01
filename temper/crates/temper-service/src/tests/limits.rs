@@ -117,7 +117,7 @@ fn the_small_profile_passes_each_domains_validity() {
 
 #[test]
 fn the_wire_admits_a_moved_file_and_temper_values_stay_at_their_bound() {
-    let mut settings = fixtures::engine();
+    let mut settings = fixtures::document_engine();
     let moved = jig_protocol_accounts::moved::bound(&settings.jig.limits.driver.client.document);
     let value = settings.limits.records.value_bytes;
     assert!(moved > u64::from(value));
@@ -434,7 +434,7 @@ fn github_component_checks_key_deadline_and_renewal() {
         (b"forge_component.renew_before_ms", 1_800_001, "forge_component.renew_before_ms"),
         (b"forge_component.installations", 0, "forge_component"),
     ] {
-        let mut config = fixtures::engine();
+        let mut config = fixtures::document_engine();
         config.forges[0].kind = crate::settings::Kind::GitHub;
         config.forges[0].api_token = None;
         limits::apply(&mut config.limits, name, value).unwrap();

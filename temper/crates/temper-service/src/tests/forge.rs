@@ -21,7 +21,7 @@ fn a_removing_records_forge_is_ended_for_every_gate() {
     engine.step(root::Event::Forge(Box::new(domain::Event::Restore { record: domain::Stored::Forge(record) })));
     assert!(engine.demo.is_none());
     assert!(forge::ended(engine, 3));
-    assert!(!forge::ended(engine, 1), "the document's forge retains its gate");
+    assert!(!forge::ended(engine, 1), "the kept record retains its gate");
     while engine.events.pop().is_some() {}
     let call = Token::new(9001);
     let repository = skein_forge::api::Repository { forge: 3, repository: 41 };
@@ -58,8 +58,8 @@ fn a_removing_records_forge_is_ended_for_every_gate() {
 }
 #[test]
 fn a_stopped_forge_is_named_and_only_its_calls_are_not_connected() {
-    // Two configured forges and the machine's GitHub template.
-    const ORIGIN_NOTES: u32 = 3;
+    // The machine's GitHub template reserves its origin note.
+    const ORIGIN_NOTES: u32 = 1;
     use skein_forge::api::{Answer, Error, Op, Read, Repository};
     let mut service = fixtures::started_with_two_forges();
     let mut face = fixtures::ForgeFace::new();
