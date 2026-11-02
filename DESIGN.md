@@ -39,5 +39,6 @@ A draft being carried out may have an execution file beside it, `<name>.executio
 
 - A retired or superseded draft is deleted, not marked. A draft whose vision the design now carries in full is deleted or moved to `draft/archive/`.
 - Surviving sections are never renumbered, since code and documents cite them: a removed section leaves its number unused. Whoever removes or moves a document or section fixes every citation to it in the repository.
+- Citations are checked by code, not by hand: the queue rejects a branch with any broken path, section or status-label citation (`tools/citations/`). Before pushing, run `python3 -I -B tools/citations/citations.py --base origin/main` from the repository root, which lists each broken one by file and line, and spend no review on hunting them.
 - The reasons behind drafts go in `draft/notes.md`. Reviews, reports and debt inventories go in the tree's `docs/development/`, never in `docs/design/`.
 - Each tree's `docs/design/STATUS.md` indexes its status files under a one-paragraph summary.
