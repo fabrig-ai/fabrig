@@ -3,7 +3,7 @@ id = "change-by-rule"
 part = "change"
 kind = "feature"
 needs = ["change-requires"]
-files = ["temper/crates/temper-engine-domain-forge-change/src/boundary.rs", "temper/crates/temper-engine-domain-forge-change/src/domain.rs", "temper/crates/temper-engine-domain-forge-change/src/tests.rs", "temper/crates/temper-engine-domain-forge-change/src/tests/**", "temper/crates/temper-engine-domain-forge/src/domain.rs", "temper/tests/engine/domain/tests/suite/forge_routes.rs", "temper/tests/engine/domain/tests/suite/forge_routes/light_rules.rs", "temper/docs/design/domain/forge.status.md"]
+files = ["temper/crates/temper-engine-domain-forge-change/src/boundary.rs", "temper/crates/temper-engine-domain-forge-change/src/domain.rs", "temper/crates/temper-engine-domain-forge-change/src/tests.rs", "temper/crates/temper-engine-domain-forge-change/src/tests/**", "temper/crates/temper-engine-domain-forge/src/domain.rs", "temper/tests/engine/domain/tests/suite/forge_routes.rs", "temper/tests/engine/domain/tests/suite/forge_routes/light_rules.rs", "temper/tests/engine/domain/src/forge_routes.rs", "temper/docs/design/domain/forge.status.md"]
 effort = "high"
 minutes = 90
 +++
@@ -55,6 +55,9 @@ Owns the files in the header.
   repository without CI, 8.3), leave them as they are.
 - Stories: `temper/tests/engine/domain/tests/suite/forge_routes/light_rules.rs`, new, with its
   `#[path = "forge_routes/light_rules.rs"] mod light_rules;` in `suite/forge_routes.rs`.
+- Fixture: `temper/tests/engine/domain/src/forge_routes.rs`, one builder at the end of
+  `impl World`'s public methods, beside `with_forge_client` (see `## Answers`); the file is
+  changed on plan reference-m8's trunk too, so no other hunk.
 - Options: if a repair's or a resolution's lazy update reads `contains_base` elsewhere than
   through `Facts`, make it follow `updates` too and say so. If `Hold::Resolutions` at zero
   resolutions trips an assertion (a count, a panel figure), keep the hold and fix the
@@ -94,3 +97,21 @@ Owns the files in the header.
 
 As the implementer's text says. The words of the conflict's hold are task `change-words`'s:
 say what the hold reads today.
+
+## Answers
+
+2026-11-02. May the task add a hook to `temper/tests/engine/domain/src/forge_routes.rs` for
+the world's landing rules, or should the stories drive `Driver` instead of
+`change_tool::change`? Add the hook; the stories stay as Step 3 writes them. The file joins
+the header. The hook is one public builder, on `with_forge_client`'s pattern and placed
+right after it: `#[must_use] pub fn with_landing_deployment(mut self, rules:
+Box<[engine::LandingRule]>) -> Self`, doc "Replace the deployment's landing rules before
+the world's first input.", asserting as `with_forge_client` does that the world has not
+started (`env.now == Time::ZERO`, `!root.ready()`), setting `restart_config.landing.deployment`
+and rebuilding `root` from a copy of `restart_config`, so a restart keeps the rules. No
+other hunk in the file: no change to `configured_settings`, `StoryLimits` or any
+constructor. The stories build their world as `change_tool`'s stories do, then
+`.with_landing_deployment(...)` with Step 3's rule, its `connector` the one the world's other
+rules use (0 outside the stock worlds). If the bootstrap store's rows carry the landing rules
+so that rebuilding the root alone does not reach the forge, stop and say so (`Question:`)
+rather than widening the hook.
