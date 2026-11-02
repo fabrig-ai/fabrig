@@ -52,6 +52,46 @@ fn chat_fills_the_chat_template_into_one_as_allowed_task() {
     );
 }
 #[test]
+fn chat_from_fills_a_named_conversation_template() {
+    let mut me = me();
+    let project = shape_project(&mut me);
+    let base = project.templates.get(0).unwrap().clone();
+    // The two offered templates plus the named conversation's.
+    let mut templates = List::with_capacity(3);
+    for template in &project.templates {
+        templates.push(template.clone()).unwrap();
+    }
+    templates.push(Template { number: 3, executor: TemplateExecutor::Charter(3), ..base }).unwrap();
+    project.templates = templates;
+    // The fixture's charter and the named conversation's charter.
+    let mut charters = List::with_capacity(2);
+    for charter in &project.creating.as_ref().unwrap().within.charters {
+        charters.push(*charter).unwrap();
+    }
+    charters.push(3).unwrap();
+    project.creating.as_mut().unwrap().within.charters = charters;
+    let ask = chat_from(&me, PROJECT, 3, words()).unwrap();
+    let Ask::Create { project, .. } = &ask else { panic!("create") };
+    assert_eq!(*project, PROJECT);
+    let task = shape_task(ask);
+    assert_eq!(task.executor, Executor::Agent { charter: 3 });
+    assert!(task.flags.conversation);
+    assert_eq!(task.spec.words, words());
+}
+#[test]
+fn chat_from_template_1_is_chat() {
+    let me = me();
+    assert_eq!(chat_from(&me, PROJECT, CHAT, words()), chat(&me, PROJECT, words()));
+}
+#[test]
+fn chat_from_refuses_a_template_that_is_no_conversation() {
+    assert_eq!(chat_from(&me(), PROJECT, GOAL, words()), Err(NotOffered::Template));
+}
+#[test]
+fn chat_from_refuses_a_template_not_offered() {
+    assert_eq!(chat_from(&me(), PROJECT, 9, words()), Err(NotOffered::Template));
+}
+#[test]
 fn close_chat_cancels_the_chat_last_with_its_template_s_grace() {
     let delegates = [Delegate { task: CANCELLED, fate: Fate::Cancel }, Delegate { task: MOVED, fate: Fate::Move }];
     let Ask::Compound { project, operations } = close_chat(&me(), PROJECT, CHAT_TASK, &delegates, words()).unwrap()

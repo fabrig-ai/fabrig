@@ -71,8 +71,15 @@ fn creating(me: &Me, project: u32) -> Result<&Creating, NotOffered> {
     Err(NotOffered::Project)
 }
 pub fn chat(me: &Me, project: u32, words: Text) -> Result<Ask, NotOffered> {
+    chat_from(me, project, CHAT, words)
+}
+/// Fill a named conversation template (jig/docs/design/client/domain/client.md, 19).
+pub fn chat_from(me: &Me, project: u32, number: u32, words: Text) -> Result<Ask, NotOffered> {
     let creating = creating(me, project)?;
-    let template = template(me, project, CHAT).ok_or(NotOffered::Template)?;
+    let template = template(me, project, number).ok_or(NotOffered::Template)?;
+    if !template.flags.conversation {
+        return Err(NotOffered::Template);
+    }
     let task = fill(template, creating, words, None)?;
     Ok(Ask::Create { project, tasks: single(task) })
 }
