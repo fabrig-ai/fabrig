@@ -103,7 +103,7 @@ record ReportResult { words: bytes 65536 }
 record VerdictResult { code: u32 fields: bytes 65536 pieces ResultField words: bytes 65536 }
 record ChangeResult { connector: u16 kind: u16 resource: u64 title: bytes 65536 words: bytes 65536 }
 record FailureResult { reason: bytes 65536 }
-enum TaskResult { approved: Approved, report: ReportResult, verdict: VerdictResult, change: ChangeResult, failure: FailureResult }
+enum TaskResult { approved: Approved, report: ReportResult, verdict: VerdictResult, change: ChangeResult, failure: FailureResult, no_change: ReportResult }
 record Done { result: TaskResult }
 record Cancelled { by: Party at: u64 reason: bytes 65536 result: option TaskResult }
 enum Ending { done: Done, failed: FailureResult, cancelled: Cancelled }
@@ -179,7 +179,7 @@ enum NewsClass { wakes, kept, dropped }
 record ApprovalMessage { state: bytes 65536 words_present: bool }
 record VerdictMessage { code: u32 fields: bytes 65536 pieces ResultField }
 record ChangeMessage { connector: u16 kind: u16 resource: u64 }
-enum ResultKind { approved: ApprovalMessage, report, verdict: VerdictMessage, change: ChangeMessage, failed, cancelled }
+enum ResultKind { approved: ApprovalMessage, report, verdict: VerdictMessage, change: ChangeMessage, failed, cancelled, no_change }
 record EscalationMessage { task: u64 revision: u64 }
 record ProposalMessage { proposer: u64 proposal: u64 kind: ProposalKind }
 record StalledMessage { task: u64 }

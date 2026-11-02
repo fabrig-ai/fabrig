@@ -9,18 +9,13 @@ use temper_engine_smith::ChangeResource;
 const DELEGATE: &[u8] = br#"{"batch":[{"executor":{"kind":"procedure","connector":0,"code":2},"spec":{"words":"@coding Small fix","parameters":[{"name":1,"kind":"resource","connector":0,"resource":4294967298},{"name":2,"kind":"bytes","value":"main"}]},"contract":{"kind":"change","connector":0,"change_kind":1,"words":32},"authority":{"tools":1,"grants":[{"connector":0,"kind":2,"segments":["forge","forge.example","org"],"terminal":"open","last":"repo"},{"connector":0,"kind":3,"segments":["forge","forge.example","org"],"terminal":"open","last":"repo"},{"connector":0,"kind":4,"segments":["forge","forge.example","org"],"terminal":"open","last":"repo"}],"delegation":{"kinds":[{"kind":"agent","number":1}],"tasks":2,"depth":1},"budget":{"spend":20},"notes":0}}]}"#;
 
 fn chat_script() -> Script {
-    let call = |name: &[u8], arguments: &[u8]| Turn {
-        lines: Box::new([Line::Call { name: name.into(), arguments: arguments.into() }]),
-        finish: Finish::ToolCalls,
-        tokens: 20,
-    };
     Script {
         cue: b"@forge_chat".as_slice().into(),
         turns: Box::new([
-            call(b"delegate", DELEGATE),
-            call(b"wait", b"{}"),
-            call(b"wait", b"{}"),
-            call(b"wait", b"{}"),
+            model_call(b"delegate", DELEGATE),
+            model_call(b"wait", b"{}"),
+            model_call(b"wait", b"{}"),
+            model_call(b"wait", b"{}"),
         ]),
     }
 }
@@ -60,6 +55,10 @@ fn repair_script() -> Script {
 }
 
 fn start_change_world(passes: u32) -> (World, engine::Assignment) {
+    start_change_world_for(passes, b"@forge_chat")
+}
+
+fn start_change_world_for(passes: u32, words: &[u8]) -> (World, engine::Assignment) {
     let mut world = World::configured_policy(true, true, false, passes, None);
     world.adopt();
     world.send(smith_world::hello(2));
@@ -68,7 +67,7 @@ fn start_change_world(passes: u32) -> (World, engine::Assignment) {
         reply_to: ReplyTo::new(Token::new(92)),
         sign_in: world.signed_in.expect("owner session"),
         key: [92; 16],
-        ask: world.chat(1, b"@forge_chat"),
+        ask: world.chat(1, words),
     }));
     world.until(Until::Assigned);
     let chat = world.assigned[0].clone();
@@ -360,4 +359,84 @@ fn a_smith_change_with_failed_ci_is_repaired_reviewed_and_landed() {
             if matches!(change.change.state, temper_engine_domain_forge_change::State::Landed { .. })
                 && change.change.repairs == 1)
     )));
+}
+
+fn model_call(name: &[u8], arguments: &[u8]) -> Turn {
+    Turn {
+        lines: Box::new([Line::Call { name: name.into(), arguments: arguments.into() }]),
+        finish: Finish::ToolCalls,
+        tokens: 20,
+    }
+}
+
+fn dark_theme_script(producer: bool) -> Script {
+    if producer {
+        return Script {
+            cue: b"Add a dark theme to widget".as_slice().into(),
+            turns: Box::new([
+                model_call(b"read", br#"{"path":"src/lib.rs"}"#),
+                model_call(b"finish", br#"{"verdict":"no_change","body":"No widget UI exists: this repository has only a library function; no files changed."}"#),
+            ]),
+        };
+    }
+    Script {
+        cue: b"@forge_chat".as_slice().into(),
+        turns: Box::new([
+            model_call(b"change", br#"{"words":"Add a dark theme to widget"}"#),
+            model_call(b"wait", b"{}"),
+        ]),
+    }
+}
+
+#[test]
+fn a_dark_theme_request_without_a_widget_ends_with_no_change() {
+    let (mut world, chat) = start_change_world_for(1000, b"@forge_chat Add a dark theme to widget");
+    let agent = smith_world::scripted_agent_for(&chat, dark_theme_script(false));
+    let parent = run_smith(&mut world, &chat, agent, None);
+    assert!(matches!(parent.answer(), run::Answer::Parked { .. }));
+    world.until(Until::SecondAssignment);
+    let producer = world.assigned[1].clone();
+    assert_ne!(producer.task, chat.task, "{:?}", world.answers);
+    let agent = smith_world::scripted_coding_agent_for(&producer, dark_theme_script(true));
+    let producer_agent = run_smith(&mut world, &producer, agent, None);
+    assert!(
+        matches!(producer_agent.answer(), run::Answer::Accepted {
+        outcome: run::outcome::Declared::Verdict(verdict), ..
+    } if verdict.name.as_ref() == b"no_change"),
+        "{:?}",
+        producer_agent.answer()
+    );
+    for _ in 0..200 {
+        world.tick();
+    }
+    let resumed = world.assigned.get(2).expect("completed change wakes the chat").clone();
+    assert_eq!(resumed.task, chat.task);
+    let notice = resumed
+        .messages
+        .iter()
+        .find(|word| matches!(word.kind, tasks::MessageKind::Result(tasks::ResultKind::NoChange)))
+        .expect("explicit successful no-change result");
+    assert!(notice.words.starts_with(b"No widget UI exists"));
+    assert!(!world.store.rows.values().any(|row| matches!(row,
+        Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task)))
+        if matches!(task.escalation, tasks::Escalation::Waiting { .. }))));
+    assert!(world.store.rows.values().any(|stored| matches!(stored,
+        Record::Forge { row } if matches!(row.as_ref(), forge_top::Stored::Change(change)
+            if change.pull.is_none() && change.change.last_head.is_none()
+                && matches!(change.change.state, temper_engine_domain_forge_change::State::NoChange { .. })))));
+    let reply = Script {
+        cue: b"@forge_chat".as_slice().into(),
+        turns: Box::new([
+            Turn {
+                lines: Box::new([Line::Text { text: b"No changes were made: no widget UI exists.".as_slice().into() }]),
+                finish: Finish::Stop,
+                tokens: 20,
+            },
+            model_call(b"wait", b"{}"),
+        ]),
+    };
+    let agent = smith_world::scripted_agent_for(&resumed, reply);
+    let chat_agent = run_smith(&mut world, &resumed, agent, None);
+    assert!(chat_agent.turns().iter().flat_map(|turn| turn.messages.iter()).flat_map(|message| message.content.iter()).any(|block|
+        matches!(block, smith_domain::session::llm::Block::Text { text, .. } if text.starts_with(b"No changes were made"))));
 }

@@ -221,15 +221,9 @@ pub(crate) fn activation(
             if !old.narrowing
                 && crate::run::invalid_followups(&old.contract, result, followups, &environment.limits).is_none()
             {
-                match result {
-                    TaskResult::Verdict { .. } => {}
-                    TaskResult::Approved { .. }
-                    | TaskResult::Report { .. }
-                    | TaskResult::Change { .. }
-                    | TaskResult::Failure { .. } => {
-                        return refused(to, Some(number), Refusal::Contract, out);
-                    }
-                }
+                let TaskResult::Verdict { .. } = result else {
+                    return refused(to, Some(number), Refusal::Contract, out);
+                };
                 if !old.delegates.is_empty() {
                     return out.push(Request::Refused {
                         reply_to: to,

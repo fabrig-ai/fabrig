@@ -1669,6 +1669,41 @@ fn initial_change_title(parameters: &[tasks::Parameter]) -> Box<[u8]> {
 /// Register the connector's procedure beside the task's first due step.
 /// Parameter 1 names a project-unique repository tag, 2 the base,
 /// 3 an optional already-pushed branch, 4 the pull body, 5 priority, and 10 the pull title.
+fn change_delegate_status(kind: &tasks::MessageKind) -> Option<(forge_change::Status, bool, bool)> {
+    match kind {
+        tasks::MessageKind::Result(
+            tasks::ResultKind::NoChange
+            | tasks::ResultKind::Report
+            | tasks::ResultKind::Change { .. }
+            | tasks::ResultKind::Verdict { code: 1, .. },
+        ) => Some((forge_change::Status::Passed, false, false)),
+        tasks::MessageKind::Result(tasks::ResultKind::Failed) => Some((forge_change::Status::Failed, true, false)),
+        tasks::MessageKind::Result(tasks::ResultKind::Cancelled) => Some((forge_change::Status::Failed, false, true)),
+        tasks::MessageKind::Result(tasks::ResultKind::Verdict { .. } | tasks::ResultKind::Approved { .. }) => {
+            Some((forge_change::Status::Failed, false, false))
+        }
+        tasks::MessageKind::Escalation { .. }
+        | tasks::MessageKind::Proposal { .. }
+        | tasks::MessageKind::SettingsDecision { .. }
+        | tasks::MessageKind::ProposalDecision { .. }
+        | tasks::MessageKind::Words
+        | tasks::MessageKind::FinishRequested { .. }
+        | tasks::MessageKind::Amendment { .. }
+        | tasks::MessageKind::Question
+        | tasks::MessageKind::Answer { .. }
+        | tasks::MessageKind::Met { .. }
+        | tasks::MessageKind::Notice { .. }
+        | tasks::MessageKind::QuestionAnswered { .. }
+        | tasks::MessageKind::QuestionOwed
+        | tasks::MessageKind::NothingAwaited
+        | tasks::MessageKind::QuestionEnded { .. }
+        | tasks::MessageKind::Timer { .. }
+        | tasks::MessageKind::PersonStalled { .. }
+        | tasks::MessageKind::EffectNotMade { .. }
+        | tasks::MessageKind::News { .. } => None,
+    }
+}
+
 #[expect(clippy::too_many_lines, reason = "one procedure registration and fresh-step route")]
 pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tasks::RunContext) -> bool {
     let task = context.task;
@@ -1800,46 +1835,13 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
             if word.from != tasks::Party::Task(child) {
                 continue;
             }
-            let status = match word.kind {
-                tasks::MessageKind::Result(
-                    tasks::ResultKind::Report
-                    | tasks::ResultKind::Change { .. }
-                    | tasks::ResultKind::Verdict { code: 1, .. },
-                ) => Some((forge_change::Status::Passed, false, false)),
-                tasks::MessageKind::Result(tasks::ResultKind::Failed) => {
-                    Some((forge_change::Status::Failed, true, false))
-                }
-                tasks::MessageKind::Result(tasks::ResultKind::Cancelled) => {
-                    Some((forge_change::Status::Failed, false, true))
-                }
-                tasks::MessageKind::Result(tasks::ResultKind::Verdict { .. } | tasks::ResultKind::Approved { .. }) => {
-                    Some((forge_change::Status::Failed, false, false))
-                }
-                tasks::MessageKind::Escalation { .. }
-                | tasks::MessageKind::Proposal { .. }
-                | tasks::MessageKind::SettingsDecision { .. }
-                | tasks::MessageKind::ProposalDecision { .. }
-                | tasks::MessageKind::Words
-                | tasks::MessageKind::FinishRequested { .. }
-                | tasks::MessageKind::Amendment { .. }
-                | tasks::MessageKind::Question
-                | tasks::MessageKind::Answer { .. }
-                | tasks::MessageKind::Met { .. }
-                | tasks::MessageKind::Notice { .. }
-                | tasks::MessageKind::QuestionAnswered { .. }
-                | tasks::MessageKind::QuestionOwed
-                | tasks::MessageKind::NothingAwaited
-                | tasks::MessageKind::QuestionEnded { .. }
-                | tasks::MessageKind::Timer { .. }
-                | tasks::MessageKind::PersonStalled { .. }
-                | tasks::MessageKind::EffectNotMade { .. }
-                | tasks::MessageKind::News { .. } => None,
-            };
+            let status = change_delegate_status(&word.kind);
             if let Some((status, failed, cancelled)) = status {
                 domain.work.push(Work::Forge(forge::Event::DelegateResult {
                     task,
                     child,
                     status,
+                    no_change: word.kind == tasks::MessageKind::Result(tasks::ResultKind::NoChange),
                     failed,
                     cancelled,
                     words: word.words.clone(),
@@ -1881,6 +1883,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                         | forge_change::State::Repairing { .. }
                         | forge_change::State::Landing { .. }
                         | forge_change::State::Landed { .. }
+                        | forge_change::State::NoChange { .. }
                         | forge_change::State::Ended => false,
                     };
                     held && task.due_reason == tasks::Why::Released
@@ -2856,6 +2859,67 @@ fn landed_change(domain: &Domain, task: u64, merge: &[u8; 32], pull: u64, bound:
     }
 }
 
+fn finish_change_step(
+    domain: &Domain,
+    env: &Env<Limits>,
+    task: u64,
+    merge: &skein_forge::api::Commit,
+) -> ProcedureStep {
+    let pull = match domain.forge.change(task) {
+        Some(row) => row.pull,
+        None => None,
+    };
+    let Some(pull) = pull else {
+        return holds::decision(
+            domain,
+            env,
+            task,
+            Box::from(&b"landed change has no retained pull request identity"[..]),
+        );
+    };
+    ProcedureStep::new(StepEnd::Result(landed_change(domain, task, merge, pull, change_result_bound(domain, task))))
+}
+
+fn delegate_change_step(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    task: u64,
+    step: u64,
+    connector: u16,
+    code: u32,
+    kind: forge_change::Delegate,
+) {
+    let Some(delegate) = change_delegate(domain, env, task, kind) else {
+        let held = holds::decision(
+            domain,
+            env,
+            task,
+            Box::from(&b"change delegate cannot be described within its authority"[..]),
+        );
+        domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep {
+            task,
+            step,
+            connector,
+            code,
+            decision: append_change_replies(domain, env, task, held),
+        }));
+        return;
+    };
+    assert!(domain.forge_delegating.insert((task, step), kind).is_ok(), "one forge procedure delegate");
+    domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep {
+        task,
+        step,
+        connector,
+        code,
+        decision: append_change_replies(
+            domain,
+            env,
+            task,
+            ProcedureStep { batch: Box::new([delegate]), ..ProcedureStep::new(StepEnd::Wait) },
+        ),
+    }));
+}
+
 fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: forge_change::Decision) {
     let Some((connector, code, step)) = domain.core.tasks.procedure_due(task) else { return };
     if connector != domain.config.forge_connector || code != CHANGE_CODE {
@@ -2868,29 +2932,13 @@ fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: fo
             domain.forge.wait_change(&super::environment_forge(env), task, None);
             ProcedureStep::new(StepEnd::Wait)
         }
-        forge_change::Decision::Finish { merge } => {
-            let pull = match domain.forge.change(task) {
-                Some(row) => row.pull,
-                None => None,
+        forge_change::Decision::Finish { merge } => finish_change_step(domain, env, task, &merge),
+        forge_change::Decision::NoChange => {
+            let row = domain.forge.change(task).expect("completed no-change row");
+            let forge_change::State::NoChange { words } = &row.change.state else {
+                unreachable!("no-change decision retains its explanation")
             };
-            let Some(pull) = pull else {
-                let held = holds::decision(
-                    domain,
-                    env,
-                    task,
-                    Box::from(&b"landed change has no retained pull request identity"[..]),
-                );
-                domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep {
-                    task,
-                    step,
-                    connector,
-                    code,
-                    decision: append_change_replies(domain, env, task, held),
-                }));
-                return;
-            };
-            let bound = change_result_bound(domain, task);
-            ProcedureStep::new(StepEnd::Result(landed_change(domain, task, &merge, pull, bound)))
+            ProcedureStep::new(StepEnd::Result(tasks::TaskResult::NoChange { words: words.clone() }))
         }
         forge_change::Decision::Hold(why) => hold_change_decision(domain, env, task, why),
         forge_change::Decision::CancelGates { head } => cancel_change_gates(domain, task, head),
@@ -2910,35 +2958,7 @@ fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: fo
         forge_change::Decision::Cancel => unreachable!("cancel is routed before procedure admission"),
         forge_change::Decision::None | forge_change::Decision::Effect(_) => ProcedureStep::new(StepEnd::Wait),
         forge_change::Decision::Delegate(kind) => {
-            let Some(delegate) = change_delegate(domain, env, task, kind) else {
-                let held = holds::decision(
-                    domain,
-                    env,
-                    task,
-                    Box::from(&b"change delegate cannot be described within its authority"[..]),
-                );
-                domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep {
-                    task,
-                    step,
-                    connector,
-                    code,
-                    decision: append_change_replies(domain, env, task, held),
-                }));
-                return;
-            };
-            assert!(domain.forge_delegating.insert((task, step), kind).is_ok(), "one forge procedure delegate");
-            domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep {
-                task,
-                step,
-                connector,
-                code,
-                decision: append_change_replies(
-                    domain,
-                    env,
-                    task,
-                    ProcedureStep { batch: Box::new([delegate]), ..ProcedureStep::new(StepEnd::Wait) },
-                ),
-            }));
+            delegate_change_step(domain, env, task, step, connector, code, kind);
             return;
         }
     };
@@ -3011,7 +3031,6 @@ pub(crate) fn outputs(
                     "forge set up door reserved"
                 );
             }
-
             forge::Request::ApplicationPart { request, adoption, repository } => {
                 super::applications::part(domain, request, adoption, repository);
             }
@@ -3469,6 +3488,7 @@ pub(crate) fn outputs(
                 | forge_change::Decision::CancelGates { .. }
                 | forge_change::Decision::Ready
                 | forge_change::Decision::QueueRepair
+                | forge_change::Decision::NoChange
                 | forge_change::Decision::Finish { .. }
                 | forge_change::Decision::Hold(_) => change_decision(domain, env, task, choice),
                 forge_change::Decision::Cancel => cancel_change(domain, task),

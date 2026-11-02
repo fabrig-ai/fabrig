@@ -172,6 +172,9 @@ fn decode_delegate(value: w::Delegate) -> d::Delegate {
 }
 fn encode_live(value: &d::State) -> w::ChangeLive {
     match value {
+        d::State::NoChange { words } => w::ChangeLive::NoChange(
+            w::NoChange::new(&w::CEILINGS, w::NoChangeParts { words: words.clone() }).expect(FITS),
+        ),
         d::State::Ended => w::ChangeLive::Ended,
         d::State::Producing { requested } => w::ChangeLive::Producing(
             w::Producing::new(&w::CEILINGS, w::ProducingParts { requested: *requested }).expect(FITS),
@@ -195,6 +198,21 @@ fn encode_live(value: &d::State) -> w::ChangeLive {
         d::State::Gating { head, asked } => w::ChangeLive::Gating(
             w::Gating::new(&w::CEILINGS, w::GatingParts { head: *head, asked: encode_numbers(asked) }).expect(FITS),
         ),
+        pending @ (d::State::Ready { .. }
+        | d::State::Preparing { .. }
+        | d::State::Queued { .. }
+        | d::State::First { .. }
+        | d::State::Updating { .. }
+        | d::State::Resolving { .. }
+        | d::State::Repairing { .. }
+        | d::State::Landing { .. }
+        | d::State::Landed { .. }
+        | d::State::Held { .. }) => encode_progress(pending),
+    }
+}
+
+fn encode_progress(value: &d::State) -> w::ChangeLive {
+    match value {
         d::State::Ready { head, ready_since } => w::ChangeLive::Ready(
             w::ReadyHead::new(&w::CEILINGS, w::ReadyHeadParts { head: *head, ready_since: ready_since.as_nanos() })
                 .expect(FITS),
@@ -235,10 +253,21 @@ fn encode_live(value: &d::State) -> w::ChangeLive {
             w::LandedChange::new(&w::CEILINGS, w::LandedChangeParts { merge: *merge }).expect(FITS),
         ),
         d::State::Held { .. } => unreachable!("the bounded loop unwrapped every hold"),
+        d::State::NoChange { .. }
+        | d::State::Ended
+        | d::State::Producing { .. }
+        | d::State::Opening { .. }
+        | d::State::Recreating { .. }
+        | d::State::Reopening { .. }
+        | d::State::Checking { .. }
+        | d::State::CancellingGates { .. }
+        | d::State::Gating { .. } => unreachable!("preparation phases translated above"),
     }
 }
+
 fn decode_live(value: w::ChangeLive) -> d::State {
     match value {
+        w::ChangeLive::NoChange(value) => d::State::NoChange { words: value.into_parts().words },
         w::ChangeLive::Ended => d::State::Ended,
         w::ChangeLive::Producing(value) => {
             let w::ProducingParts { requested } = value.into_parts();
@@ -268,6 +297,20 @@ fn decode_live(value: w::ChangeLive) -> d::State {
             let w::GatingParts { head, asked } = value.into_parts();
             d::State::Gating { head, asked: asked.into_boxed() }
         }
+        pending @ (w::ChangeLive::Ready(_)
+        | w::ChangeLive::Preparing(_)
+        | w::ChangeLive::Queued(_)
+        | w::ChangeLive::First(_)
+        | w::ChangeLive::Updating(_)
+        | w::ChangeLive::Resolving(_)
+        | w::ChangeLive::Repairing(_)
+        | w::ChangeLive::Landing(_)
+        | w::ChangeLive::Landed(_)) => decode_progress(pending),
+    }
+}
+
+fn decode_progress(value: w::ChangeLive) -> d::State {
+    match value {
         w::ChangeLive::Ready(value) => {
             let w::ReadyHeadParts { head, ready_since } = value.into_parts();
             d::State::Ready { head, ready_since: Wall::from_nanos(ready_since) }
@@ -304,8 +347,18 @@ fn decode_live(value: w::ChangeLive) -> d::State {
             let w::LandedChangeParts { merge } = value.into_parts();
             d::State::Landed { merge }
         }
+        w::ChangeLive::NoChange(_)
+        | w::ChangeLive::Ended
+        | w::ChangeLive::Producing(_)
+        | w::ChangeLive::Opening(_)
+        | w::ChangeLive::Recreating(_)
+        | w::ChangeLive::Reopening(_)
+        | w::ChangeLive::Checking(_)
+        | w::ChangeLive::CancellingGates(_)
+        | w::ChangeLive::Gating(_) => unreachable!("preparation phases translated above"),
     }
 }
+
 fn encode_change_state(state: &d::State) -> w::ChangeState {
     let mut holds = List::with_capacity(8);
     let mut current = state;

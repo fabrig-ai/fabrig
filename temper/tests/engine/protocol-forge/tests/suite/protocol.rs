@@ -827,7 +827,6 @@ fn a_github_change_waits_out_a_ninety_second_ci_and_merges_on_its_verdict() {
     use skein_fake_forge_domain::api::Check;
     use skein_lib::Duration;
     use temper_service::limits::{Profile, profile};
-
     let shipped = profile(Profile::Small).forge;
     let (mut world, pushed, verdict, head) = ci_poll::pending_github_change(1000);
     let deadline =
@@ -862,6 +861,7 @@ fn a_github_change_waits_out_a_ninety_second_ci_and_merges_on_its_verdict() {
                         | change::Decision::Effect(_)
                         | change::Decision::Ready
                         | change::Decision::QueueRepair
+                        | change::Decision::NoChange
                         | change::Decision::Cancel => due = true,
                     }
                 }
@@ -1062,7 +1062,6 @@ fn a_landing_merges_on_its_own_wakes_before_any_resource_poll() {
     use skein_forge::api::{Change, Hint};
     use skein_forge_machine_world::joint;
     use skein_lib::Duration;
-
     const RESOURCE_POLL: Duration = Duration::from_secs(3600);
     const HORIZON: Duration = Duration::from_secs(60);
     const CI_DELAY: Duration = Duration::from_secs(5);
@@ -1169,6 +1168,7 @@ fn a_landing_merges_on_its_own_wakes_before_any_resource_poll() {
                                 task: 51,
                                 child,
                                 status: change::Status::Passed,
+                                no_change: false,
                                 failed: false,
                                 cancelled: false,
                                 words: b"passed".as_slice().into(),

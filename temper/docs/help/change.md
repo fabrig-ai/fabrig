@@ -25,8 +25,10 @@ A change is a task that writes one repository's branch and lands it: its pull re
   `repairs: N:` why each repair was asked, and `reviews:`
   each verdict at the head it judged, cut from the end and marked when
   long. It names no check or test the change didn't see. Or it fails,
-  or is cancelled, as any task; a coder that fails for good, or finds
-  nothing to change, doesn't fail it: it holds at `producing` (below).
+  or is cancelled, as any task. If its coder concludes the request does
+  not apply, it ends successfully with that explanation: no pull request,
+  merge, hold or escalation, and nothing claimed landed. A coder that fails
+  for good holds it at `producing` (below).
 
 ## How it changes
 
@@ -34,8 +36,8 @@ Its steps, as `step:` prints them:
 
 - `producing`: the coder writes the change in its files, and temper
   pushes its work as the change's branch once it finishes; a coder
-  that fails, or finds nothing to change, holds it here, with its
-  words;
+  that fails holds it here, with its words; a coder that explicitly
+  concludes no change applies ends the change successfully;
 - `opening`: temper opens its pull request;
 - `checking`: the forge's CI runs at its head;
 - `gating`: its blocking gates give their verdicts (temper help

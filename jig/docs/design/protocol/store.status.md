@@ -11,3 +11,5 @@
 - **Built:** 14: generation, upgrade, check and frame scenarios share the focused store suite; layout and manifest cases are table rows, copy-mutation and check/switch cuts have separate owners, and step-only duplicates are removed.
 
 - **Built:** 5.1: tasks v9 persists explicit change titles independently of result words; codecs enforce both bounds and the layout fingerprint changes with the schema.
+
+- **Built:** 5: the tasks family stores successful `NoChange` results and distinct requester notices in its current pre-release schema.

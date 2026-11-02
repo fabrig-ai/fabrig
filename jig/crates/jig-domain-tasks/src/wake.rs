@@ -82,19 +82,7 @@ fn rule(domain: &Domain, number: u64, word: &Word) -> WakeRule {
         MessageKind::Result(result) => match task.wake.results {
             ResultsWake::Never => WakeRule::Never,
             ResultsWake::Each => WakeRule::Immediate,
-            ResultsWake::LastOrFailure => match result {
-                crate::ResultKind::Failed | crate::ResultKind::Cancelled => WakeRule::Immediate,
-                crate::ResultKind::Approved { .. }
-                | crate::ResultKind::Report
-                | crate::ResultKind::Verdict { .. }
-                | crate::ResultKind::Change { .. } => {
-                    if task.delegates.is_empty() {
-                        WakeRule::Immediate
-                    } else {
-                        WakeRule::Never
-                    }
-                }
-            },
+            ResultsWake::LastOrFailure => result_wake(result, task.delegates.is_empty()),
         },
         MessageKind::Notice { .. } => task.wake.notices,
         MessageKind::Timer { .. } => {
@@ -319,5 +307,22 @@ pub(crate) fn restore(domain: &mut Domain, env: &Env<Limits>) {
     let numbers = crate::domain::snapshot(domain, env.limits.tasks);
     for number in numbers.into_boxed() {
         schedule(domain, env, number);
+    }
+}
+
+fn result_wake(result: &crate::ResultKind, no_delegates: bool) -> WakeRule {
+    match result {
+        crate::ResultKind::Failed | crate::ResultKind::Cancelled => WakeRule::Immediate,
+        crate::ResultKind::Approved { .. }
+        | crate::ResultKind::Report
+        | crate::ResultKind::Verdict { .. }
+        | crate::ResultKind::NoChange
+        | crate::ResultKind::Change { .. } => {
+            if no_delegates {
+                WakeRule::Immediate
+            } else {
+                WakeRule::Never
+            }
+        }
     }
 }

@@ -613,11 +613,11 @@ fn the_chats_words_report_only_the_landed_results_or_pull_requests_change() {
 #[test]
 fn the_coders_words_refuse_an_absent_fix_instead_of_adding_a_feature() {
     let words = include_str!("../stock/coding.txt");
-    assert!(words.contains("Change only what your words ask: if what they name as broken or to fix is not in the code, write nothing and finish with a failure saying what the code has instead; never add a feature in a fix's place."));
+    assert!(words.contains("Change only what your words ask: if what they name as broken or to fix is not in the code, write nothing and finish with the no_change verdict saying what the code has instead; never add a feature in a fix's place."));
 }
 
 #[test]
 fn the_coders_words_build_additions_in_the_code_there_is() {
     let words = include_str!("../stock/coding.txt");
-    assert!(words.contains("Where your words describe the code otherwise than it is, build what they ask to add in the code there is, under its names; finish with a failure only when it cannot be built there."));
+    assert!(words.contains("Where your words describe the code otherwise than it is, build what they ask to add in the code there is, under its names; finish with the no_change verdict only when it cannot be built there."));
 }

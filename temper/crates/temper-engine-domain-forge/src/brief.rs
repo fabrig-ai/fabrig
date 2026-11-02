@@ -193,29 +193,7 @@ pub(super) fn brief_pull(
         return Some(BriefRead::Failed);
     }
     let repository = row.repository;
-    let mode = match &row.change.state {
-        change::State::Resolving { base, .. } => PullMode::Conflict(*base),
-        change::State::Repairing { why: change::Repair::Semantic, .. } => {
-            PullMode::Semantic(row.change.clean.last().copied())
-        }
-        change::State::Gating { .. } => PullMode::Review,
-        change::State::Producing { .. }
-        | change::State::Opening { .. }
-        | change::State::Recreating { .. }
-        | change::State::Reopening { .. }
-        | change::State::CancellingGates { .. }
-        | change::State::Checking { .. }
-        | change::State::Queued { .. }
-        | change::State::First { .. }
-        | change::State::Ready { .. }
-        | change::State::Preparing { .. }
-        | change::State::Updating { .. }
-        | change::State::Repairing { .. }
-        | change::State::Landing { .. }
-        | change::State::Ended
-        | change::State::Landed { .. }
-        | change::State::Held { .. } => PullMode::Other,
-    };
+    let mode = pull_mode(&row.change.state, &row.change.clean);
     let Some(words) = pull_identity(domain, row, head, bytes) else { return Some(BriefRead::Failed) };
     let call = Token::new(owner.raw() | (1_u64 << 61_u32) | (1_u64 << 59_u32));
     let fetch = BriefFetch {
@@ -640,28 +618,8 @@ pub(super) fn brief_ci(
     let Some(row) = domain.change_for_pull(item.repository, item.number) else {
         return Some(BriefRead::Failed);
     };
-    let repairing = match row.change.state {
-        change::State::Repairing { .. } => true,
-        change::State::Producing { .. }
-        | change::State::Opening { .. }
-        | change::State::Recreating { .. }
-        | change::State::Reopening { .. }
-        | change::State::Checking { .. }
-        | change::State::Queued { .. }
-        | change::State::First { .. }
-        | change::State::Ready { .. }
-        | change::State::Preparing { .. }
-        | change::State::Updating { .. }
-        | change::State::Gating { .. }
-        | change::State::CancellingGates { .. }
-        | change::State::Resolving { .. }
-        | change::State::Landing { .. }
-        | change::State::Ended
-        | change::State::Landed { .. }
-        | change::State::Held { .. } => false,
-    };
-    if !repairing
-        || row.change.last_head != Some(head.0)
+    let change::State::Repairing { .. } = row.change.state else { return Some(BriefRead::Failed) };
+    if row.change.last_head != Some(head.0)
         || parts == 0
         || domain.brief_fetches.len() == domain.brief_fetches.capacity()
     {
@@ -819,4 +777,29 @@ pub(crate) fn drop_section(domain: &mut Domain, section: Token) {
         domain.brief_fetches.remove(&owner);
     }
     domain.brief_pending.remove(&section);
+}
+
+fn pull_mode(state: &change::State, clean: &[[u8; 32]]) -> PullMode {
+    match state {
+        change::State::Resolving { base, .. } => PullMode::Conflict(*base),
+        change::State::Repairing { why: change::Repair::Semantic, .. } => PullMode::Semantic(clean.last().copied()),
+        change::State::Gating { .. } => PullMode::Review,
+        change::State::Producing { .. }
+        | change::State::Opening { .. }
+        | change::State::Recreating { .. }
+        | change::State::Reopening { .. }
+        | change::State::CancellingGates { .. }
+        | change::State::Checking { .. }
+        | change::State::Queued { .. }
+        | change::State::First { .. }
+        | change::State::Ready { .. }
+        | change::State::Preparing { .. }
+        | change::State::Updating { .. }
+        | change::State::Repairing { .. }
+        | change::State::Landing { .. }
+        | change::State::NoChange { .. }
+        | change::State::Ended
+        | change::State::Landed { .. }
+        | change::State::Held { .. } => PullMode::Other,
+    }
 }

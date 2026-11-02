@@ -345,7 +345,7 @@ fn joinable(d: &Domain, project: u32, task: u64) -> bool {
         };
     }
     match row.change.state {
-        change::State::Ended | change::State::Landed { .. } => false,
+        change::State::NoChange { .. } | change::State::Ended | change::State::Landed { .. } => false,
         change::State::Producing { .. }
         | change::State::Opening { .. }
         | change::State::Recreating { .. }

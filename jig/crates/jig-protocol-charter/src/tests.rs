@@ -486,6 +486,11 @@ fn contract_text_is_bounded_and_change_checks_are_required() {
         value.contract = tasks::Contract::Change { connector: 1, kind: 1, words };
         let change = crate::assignment(value, Box::new([]), Box::new([]), false).expect("change");
         assert_eq!(change.contract.failure.expect("failure text").max, words.min(crate::CONTRACT_TEXT_MAX));
+        let no_change = &change.contract.verdicts[0];
+        assert_eq!(no_change.name.as_ref(), b"no_change");
+        assert_eq!(no_change.text_max, words.min(crate::CONTRACT_TEXT_MAX));
+        assert!(no_change.fields.is_empty());
+        assert_eq!((no_change.items.min, no_change.items.max), (0, 0));
         let rule = change.contract.change.expect("change rule");
         assert!(rule.checks_must_pass);
         assert_eq!(rule.checks_must_pass, crate::CONTRACT_CHECKS_MUST_PASS);

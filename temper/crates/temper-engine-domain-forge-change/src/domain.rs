@@ -37,26 +37,9 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
     {
         next.gate_failures = Box::new([]);
     }
-    let held = match &change.state {
-        State::Landed { merge } => return Stepped { change: next, decision: Decision::Finish { merge: *merge } },
-        State::Ended => return Stepped { change: next, decision: Decision::Cancel },
-        State::Held { .. } => true,
-        State::Producing { .. }
-        | State::Opening { .. }
-        | State::Recreating { .. }
-        | State::Reopening { .. }
-        | State::Checking { .. }
-        | State::Gating { .. }
-        | State::CancellingGates { .. }
-        | State::Queued { .. }
-        | State::First { .. }
-        | State::Ready { .. }
-        | State::Preparing { .. }
-        | State::Updating { .. }
-        | State::Resolving { .. }
-        | State::Repairing { .. }
-        | State::Landing { .. } => false,
-    };
+    if let Some(decision) = terminal(change) {
+        return Stepped { change: next, decision };
+    }
     match facts.pull {
         Pull::Merged { commit } => {
             next.state = State::Landed { merge: commit };
@@ -77,7 +60,7 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
     if let Some(why) = next.released.take() {
         return released_step(next, why, facts, standing);
     }
-    if held {
+    if let State::Held { .. } = change.state {
         return Stepped { change: next, decision: Decision::None };
     }
     if facts.writer_taken {
@@ -95,6 +78,41 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
     if facts.pull == Pull::Closed && closed_pull_holds(&change.state) {
         return hold(next, Hold::PullClosed);
     }
+    advance_phase(change, next, facts, standing, now, limits)
+}
+
+fn terminal(change: &Change) -> Option<Decision> {
+    match &change.state {
+        State::Landed { merge } => Some(Decision::Finish { merge: *merge }),
+        State::NoChange { .. } => Some(Decision::NoChange),
+        State::Ended => Some(Decision::Cancel),
+        State::Held { .. }
+        | State::Producing { .. }
+        | State::Opening { .. }
+        | State::Recreating { .. }
+        | State::Reopening { .. }
+        | State::Checking { .. }
+        | State::Gating { .. }
+        | State::CancellingGates { .. }
+        | State::Queued { .. }
+        | State::First { .. }
+        | State::Ready { .. }
+        | State::Preparing { .. }
+        | State::Updating { .. }
+        | State::Resolving { .. }
+        | State::Repairing { .. }
+        | State::Landing { .. } => None,
+    }
+}
+
+fn advance_phase(
+    change: &Change,
+    next: Change,
+    facts: &Facts,
+    standing: &Heard,
+    now: Wall,
+    limits: &Limits,
+) -> Stepped {
     match &change.state {
         State::Producing { requested } => producing(next, *requested, facts, standing, now, limits),
         State::Opening { requested } => opening(next, *requested, facts, standing, now, limits),
@@ -115,7 +133,9 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
         State::Resolving { requested, base } => resolving(next, *requested, *base, facts, standing, now, limits),
         State::Repairing { requested, why } => repairing(next, *requested, *why, facts, standing, now, limits),
         State::Landing { head } => landing(next, *head, standing, now, limits),
-        State::Landed { .. } | State::Ended | State::Held { .. } => unreachable!("terminal states returned above"),
+        State::Landed { .. } | State::NoChange { .. } | State::Ended | State::Held { .. } => {
+            unreachable!("terminal states returned above")
+        }
     }
 }
 
@@ -136,6 +156,7 @@ fn closed_pull_holds(state: &State) -> bool {
         | State::Repairing { .. }
         | State::Landing { .. }
         | State::Landed { .. }
+        | State::NoChange { .. }
         | State::Ended
         | State::Held { .. } => true,
     }
@@ -173,6 +194,7 @@ pub fn released(change: &Change, now: Wall) -> Change {
         | State::Repairing { .. }
         | State::Landing { .. }
         | State::Landed { .. }
+        | State::NoChange { .. }
         | State::Ended => {}
     }
     next
@@ -237,7 +259,7 @@ fn release(mut change: Change, was: &State, why: Hold, facts: &Facts) -> Stepped
                 | State::Queued { head, .. }
                 | State::First { head, .. }
                 | State::Gating { head, .. } => State::Gating { head: *head, asked: Box::new([]) },
-                State::Held { .. } | State::Landed { .. } | State::Ended => {
+                State::Held { .. } | State::Landed { .. } | State::NoChange { .. } | State::Ended => {
                     unreachable!("held state retains a live predecessor")
                 }
                 State::Producing { requested: true }

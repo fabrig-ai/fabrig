@@ -50,6 +50,18 @@ const BASE_WRITES: u32 = 2_118;
 // Writes for the system forge change world's twelve-task route.
 const CHANGE_WRITES: u32 = 8_696;
 
+fn change_charters(config: &mut engine::Config, limits: &mut engine::Limits) {
+    limits.tasks.executor_kinds = 3;
+    limits.tasks.charters = 2;
+    let mut reviewer = config.core.defaults.charters[0].clone();
+    reviewer.number = 4;
+    config.core.defaults.charters = Box::new([config.core.defaults.charters[0].clone(), reviewer]);
+}
+
+fn change_executors() -> Box<[authority::Executor]> {
+    Box::new([authority::Executor::Charter(1), authority::Executor::Charter(4), authority::Executor::Procedure(2)])
+}
+
 impl World {
     fn chat(&self, project: u32, words: &[u8]) -> people::Ask {
         walking::configured_chat(&self.creating, &self.store.rows, self.env.limits.tasks.tree_tasks, project, words)
@@ -97,7 +109,7 @@ impl World {
                 limits.tasks.depth = 3;
                 limits.tasks.parameters = 8;
                 limits.tasks.spec_bytes = 512;
-                limits.tasks.executor_kinds = 2;
+                change_charters(&mut config, &mut limits);
                 limits.tasks.authority_grants = 10;
                 limits.journal.run_bytes = 8192;
                 limits.tasks.authority_segments = 9;
@@ -105,7 +117,7 @@ impl World {
                 limits.tasks.contract_choices = 2;
                 limits.tasks.inbox_messages = 8;
                 limits.tasks.inbox_bytes = 1024;
-                limits.authority.executors = 2;
+                limits.authority.executors = 3;
                 limits.authority.batch = 2;
                 limits.authority.grants = 10;
                 limits.authority.segments = 8;
@@ -201,8 +213,7 @@ impl World {
                     assert!(config.landing.projects.insert(1, landing).is_ok());
                 }
                 if with_change {
-                    rules.ceiling.delegation.kinds =
-                        Box::new([authority::Executor::Charter(1), authority::Executor::Procedure(2)]);
+                    rules.ceiling.delegation.kinds = change_executors();
                     rules.ceiling.delegation.tasks = 8;
                     rules.ceiling.delegation.depth = 3;
                 }
@@ -267,7 +278,8 @@ impl World {
         let fake_env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: fake_config };
         // Keep room for the change world's complete decision.
         limits.journal.writes = CHANGE_WRITES;
-        let store = temper_engine_domain_world::fixtures::restored_store(bootstrap, &limits);
+        let store =
+            temper_engine_domain_world::fixtures::restored_over(Store::with_limits(&limits), bootstrap, &limits);
         Self {
             creating: jig_test_profile::fixtures::Creating::new(&config.core, limits.tasks.tree_tasks),
             root: engine::Domain::new(config, &limits).expect("valid engine configuration"),

@@ -368,6 +368,9 @@ secrets' store (section 9).
 
 ## 5. Records
 
+The tasks family also stores the additive successful `NoChange` result
+and its distinct result-notice kind, with the producer's bounded explanation.
+
 The current tasks family is version 9: its durable `MessageKind` adds
 `FinishRequested { revision }` for a cancel grace and `NothingAwaited`
 for a result-ended task with nothing pending (`../domain/tasks.md`, 5.2).
