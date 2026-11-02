@@ -48,6 +48,7 @@ fn raise_pool_ceiling(world: &mut World, seed: u64) {
                             .map(|kind| match kind {
                                 authority::Executor::Charter(code) => people::Executor::Charter(*code),
                                 authority::Executor::Procedure(code) => people::Executor::Procedure(*code),
+                                authority::Executor::Job(kind) => people::Executor::Job(*kind),
                                 authority::Executor::Role(role) => people::Executor::Role(*role),
                             })
                             .collect(),

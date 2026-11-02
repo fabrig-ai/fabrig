@@ -118,7 +118,7 @@ impl Worker {
         Ok(Self {
             git,
             sources: crate::program_sources::Component::new(config.limits.hub.detail_bytes),
-            root: root::Domain::new(&prepared.root),
+            root: root::Domain::new(&prepared.root, Box::new([])),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: prepared.root },
             agent: Agent {
                 run_limits: agent.run_limits,
@@ -555,6 +555,26 @@ impl Worker {
             }
             root::Request::CancelIo { owner } => {
                 self.git_request(temper_worker_protocol_git::Request::CancelIo { owner });
+            }
+            root::Request::Job { owner, op } => {
+                use root::tooling::{Event, Exit, Request};
+                let event = match op {
+                    Request::Write { .. } => Event::Written { owner, written: false },
+                    Request::Spawn { .. } => {
+                        self.events.push(root::Event::Job {
+                            owner,
+                            event: Event::Exited { owner, exit: Exit::Signal, tail: Box::new([]) },
+                        });
+                        Event::Gone { owner }
+                    }
+                    Request::Kill { .. } => Event::Gone { owner },
+                    Request::Read { .. } => Event::Read { owner, bytes: None },
+                    Request::Started { .. }
+                    | Request::StartRefused { .. }
+                    | Request::Ended { .. }
+                    | Request::Gone { .. } => return,
+                };
+                self.events.push(root::Event::Job { owner, event });
             }
             root::Request::CancelRelay { run, attempt, call } => {
                 self.link_down(self.env.now, link::Event::CancelRelay { run, attempt, call });

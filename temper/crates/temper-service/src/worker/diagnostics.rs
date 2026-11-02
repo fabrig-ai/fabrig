@@ -44,7 +44,7 @@ impl Worker {
 fn event_tag(event: &root::Event) -> WorkerEvent {
     match event {
         root::Event::SourceAnswered { .. } => WorkerEvent::SourceAnswered,
-        root::Event::Assign { .. } => WorkerEvent::Assign,
+        root::Event::Assign { .. } | root::Event::AssignJob { .. } => WorkerEvent::Assign,
         root::Event::Link(link) => match link {
             hub::LinkDown::Sources { .. } => WorkerEvent::Link(LinkEvent::Sources),
             hub::LinkDown::Check { .. } => WorkerEvent::Link(LinkEvent::Check),
@@ -62,7 +62,7 @@ fn event_tag(event: &root::Event) -> WorkerEvent {
         root::Event::GracePassed => WorkerEvent::GracePassed,
         root::Event::Resend { .. } => WorkerEvent::Resend,
         root::Event::RelayCancelled { .. } => WorkerEvent::RelayCancelled,
-        root::Event::Process(_) => WorkerEvent::Process,
+        root::Event::Process(_) | root::Event::Job { .. } => WorkerEvent::Process,
         root::Event::Live { .. } => WorkerEvent::Live,
         root::Event::Decoded { .. } => WorkerEvent::Decoded,
         root::Event::Encoded { .. } => WorkerEvent::Encoded,

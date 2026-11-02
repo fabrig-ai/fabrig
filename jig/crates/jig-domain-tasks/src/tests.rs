@@ -204,3 +204,19 @@ fn no_change_requires_a_change_contract_and_both_word_bounds() {
         ));
     }
 }
+
+/// Job allocations count toward admission bytes (jig/docs/design/domain/tasks.md, 3 and 5.3.1).
+#[test]
+fn job_spec_and_result_heap_bytes_include_their_allocations() {
+    use super::{End, JobSpec, TaskResult, task_bytes, terminal_bytes};
+    use revisions::{Harness, task};
+    let mut h = Harness::new();
+    h.make([task(1, &[])].into());
+    let row = h.domain.task(1).unwrap();
+    let before = task_bytes(row).unwrap();
+    let mut row = row.clone();
+    row.spec.job = Some(Box::new(JobSpec { bytes: Box::new([0xff; 7]), deadline: Duration::from_secs(1) }));
+    assert_eq!(task_bytes(&row), Some(before + u64::try_from(size_of::<JobSpec>()).unwrap() + 7));
+    let end = End::Finished { result: TaskResult::Job { bytes: Box::new([0xff; 11]) }, cancel_delegates: false };
+    assert_eq!(terminal_bytes(&end), Some(11));
+}

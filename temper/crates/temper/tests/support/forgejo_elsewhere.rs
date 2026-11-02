@@ -339,7 +339,7 @@ impl Referee<Process> for Judge {
             assert_eq!(row["state"], "connected");
             assert_eq!(row["mode"], "managed");
             if self.restarted {
-                // temper/docs/design/draft/playground-reset.md, 3: keep the first intent across restarts.
+                // temper/docs/design/protocol/setup.md, 6.7: keep the first intent across restarts.
                 assert_eq!(row["first"]["state"], "made");
                 assert_eq!(row["first"]["org"], "elsewhere");
                 assert_eq!(row["first"]["repository"], "first");

@@ -5017,12 +5017,21 @@ dependencies = [
  "smith-host-domain",
  "temper-engine-domain-forge",
  "temper-worker-domain-checkout",
+ "temper-worker-domain-tooling",
 ]
 
 [[package]]
 name = "temper-worker-domain-checkout"
 version = "0.0.0"
 dependencies = [
+ "skein-lib",
+]
+
+[[package]]
+name = "temper-worker-domain-tooling"
+version = "0.0.0"
+dependencies = [
+ "jig-domain-link",
  "skein-lib",
 ]
 

@@ -133,7 +133,7 @@ impl Side {
     pub const fn playground_failure(&self) -> Option<&playground::StartFailure> {
         self.playground.failure.as_ref()
     }
-    /// From the act's send until the read is none (temper/docs/design/draft/playground-reset.md, 6.2).
+    /// From the act's send until the read is none (temper/docs/design/client/README.md, 4.8).
     #[must_use]
     pub const fn leaving(&self) -> bool {
         self.playground.leaving

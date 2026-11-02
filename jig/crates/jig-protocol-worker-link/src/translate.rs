@@ -1,4 +1,5 @@
 //! The hub's records across the channel (protocol/channel.md, 5 and 6).
+//! Jobs use their own records (jig/docs/design/protocol/channel.md, 5.4).
 //! Pieces cross whole; only the root judges their kinds and offsets (6.4).
 use crate::{GrantValue, Request, Scheme};
 use alloc::boxed::Box;
@@ -53,16 +54,20 @@ pub(crate) fn hello(hello: host::Hello, limits: &wire::v9::Limits) -> Option<Fra
                 .ok()?;
         hosting.push(run).ok()?;
     }
+    let mut jobs = List::with_capacity(limits.hello_jobs);
+    for job in hello.jobs {
+        jobs.push(
+            wire::JobBound::new(
+                limits,
+                wire::JobBoundParts { kind: job.kind.0, spec: job.spec, result: job.result, deadline: job.deadline },
+            )
+            .ok()?,
+        )
+        .ok()?;
+    }
     let record = wire::Hello::new(
         limits,
-        wire::HelloParts {
-            slots: hello.slots,
-            stop_bound: hello.stop_bound,
-            bounds,
-            workstreams,
-            hosting,
-            jobs: List::with_capacity(0),
-        },
+        wire::HelloParts { slots: hello.slots, stop_bound: hello.stop_bound, bounds, workstreams, hosting, jobs },
     )
     .ok()?;
     let mut body = Writer::new(usize::try_from(record.measure()).ok()?);
@@ -72,7 +77,7 @@ pub(crate) fn hello(hello: host::Hello, limits: &wire::v9::Limits) -> Option<Fra
 
 pub(crate) fn up(up: host::LinkUp, parts: &[Part], limits: &wire::v9::Limits) -> Option<Frame> {
     match up {
-        host::LinkUp::JobAnswer { .. } => None,
+        host::LinkUp::JobAnswer { run, attempt, answer } => job_answer_frame(run, attempt, answer, parts, limits),
 
         host::LinkUp::Piece { run, attempt, piece } => {
             let value = wire::FactValue::Piece(piece_record(piece, limits)?);
@@ -162,6 +167,22 @@ pub(crate) fn up(up: host::LinkUp, parts: &[Part], limits: &wire::v9::Limits) ->
         }
     }
 }
+fn job_answer_frame(
+    run: Token,
+    attempt: Token,
+    answer: host::JobEnding,
+    parts: &[Part],
+    limits: &wire::v9::Limits,
+) -> Option<Frame> {
+    let record = wire::JobAnswer::new(
+        limits,
+        wire::JobAnswerParts { task: run.raw(), attempt: attempt.raw(), ending: job_ending(answer, parts, limits)? },
+    )
+    .ok()?;
+    let mut body = Writer::new(usize::try_from(record.measure()).ok()?);
+    record.encode(&mut body).ok()?;
+    frame(wire::Kind::JobAnswer.number(), body.finish())
+}
 fn piece_record(piece: host::Piece, limits: &wire::v9::Limits) -> Option<wire::Piece> {
     let kind = match piece.kind {
         host::LiveKind::Text => wire::LiveKind::Text,
@@ -247,6 +268,78 @@ fn ending(ending: host::Ending, parts: &[Part], limits: &wire::v9::Limits) -> Op
             let failure = failure(failed, parts, limits)?;
             wire::Ending::Failed(wire::Failed::new(limits, wire::FailedParts { failure, detail, work }).ok()?)
         }
+    })
+}
+fn job_ending(ending: host::JobEnding, parts: &[Part], limits: &wire::v9::Limits) -> Option<wire::JobEnding> {
+    Some(match ending {
+        host::JobEnding::Refused(refusal) => {
+            let value = match refusal {
+                host::JobRefusal::Busy => wire::JobRefusal::Busy,
+                host::JobRefusal::Invalid(invalid) => {
+                    let value = match invalid {
+                        host::JobInvalid::Kind => wire::JobInvalid::Kind,
+                        host::JobInvalid::Spec => wire::JobInvalid::Spec,
+                        host::JobInvalid::Deadline => wire::JobInvalid::Deadline,
+                        host::JobInvalid::Grants => wire::JobInvalid::Grants,
+                        host::JobInvalid::Start { why } => wire::JobInvalid::Start(
+                            wire::JobInvalidStart::new(limits, wire::JobInvalidStartParts { why }).ok()?,
+                        ),
+                    };
+                    wire::JobRefusal::Invalid(
+                        wire::JobInvalidValue::new(limits, wire::JobInvalidValueParts { value }).ok()?,
+                    )
+                }
+            };
+            wire::JobEnding::Refused(wire::JobRefusalValue::new(limits, wire::JobRefusalValueParts { value }).ok()?)
+        }
+        host::JobEnding::Finished { result, work: kept } => wire::JobEnding::Finished(
+            wire::JobFinished::new(limits, wire::JobFinishedParts { result, work: work(kept, parts, limits)? }).ok()?,
+        ),
+        host::JobEnding::Failed { failure, detail, work: kept } => wire::JobEnding::Failed(
+            wire::JobFailed::new(
+                limits,
+                wire::JobFailedParts {
+                    failure: job_failure(failure, parts, limits)?,
+                    detail,
+                    work: work(kept, parts, limits)?,
+                },
+            )
+            .ok()?,
+        ),
+    })
+}
+fn job_failure(value: host::JobFailure, parts: &[Part], limits: &wire::v9::Limits) -> Option<wire::JobFailure> {
+    Some(match value {
+        host::JobFailure::Unprepared(value) => {
+            let value = match value {
+                host::Preparation::Transient => wire::Preparation::Transient,
+                host::Preparation::Permanent { resource } => wire::Preparation::Permanent(
+                    wire::Resource::new(limits, wire::ResourceParts { resource: part(resource, parts).ok()? }).ok()?,
+                ),
+            };
+            wire::JobFailure::Unprepared(
+                wire::PreparationValue::new(limits, wire::PreparationValueParts { value }).ok()?,
+            )
+        }
+        host::JobFailure::Failed => wire::JobFailure::Failed,
+        host::JobFailure::Deadline => wire::JobFailure::Deadline,
+        host::JobFailure::Result => wire::JobFailure::Result,
+        host::JobFailure::Unstarted => wire::JobFailure::Unstarted,
+        host::JobFailure::Undelivered(value) => {
+            let value = match value {
+                host::DeliveryOutcome::Delivered => wire::DeliveryOutcome::Delivered,
+                host::DeliveryOutcome::Nothing => wire::DeliveryOutcome::Nothing,
+                host::DeliveryOutcome::Stale => wire::DeliveryOutcome::Stale,
+                host::DeliveryOutcome::Refused => wire::DeliveryOutcome::Refused,
+                host::DeliveryOutcome::Failed => wire::DeliveryOutcome::Failed,
+            };
+            wire::JobFailure::Undelivered(
+                wire::DeliveryOutcomeValue::new(limits, wire::DeliveryOutcomeValueParts { value }).ok()?,
+            )
+        }
+        host::JobFailure::Cancelled(value) => wire::JobFailure::Cancelled(
+            wire::CancelReasonValue::new(limits, wire::CancelReasonValueParts { value: cancel_reason(value) }).ok()?,
+        ),
     })
 }
 fn failure(failure: host::Failure, parts: &[Part], limits: &wire::v9::Limits) -> Option<wire::Failure> {
@@ -431,6 +524,10 @@ pub(crate) fn down(
         wire::Kind::SignOut => host::LinkDown::SignOut {
             name: host::SourceName::new(wire::SignOut::decode(limits, &mut reader).ok()?.name())?,
         },
+        wire::Kind::Job => {
+            let record = wire::Job::decode(limits, &mut reader).ok()?;
+            host::LinkDown::AssignJob { job: job_assignment(record, now, parts, next, out)? }
+        }
         wire::Kind::Assignment => {
             let record = wire::Assignment::decode(limits, &mut reader).ok()?;
             host::LinkDown::Assign { assignment: assignment(record, now, parts, next, out)? }
@@ -484,8 +581,7 @@ pub(crate) fn down(
             }
         }
         // TurnBusy is decoded below the hub by the component; up kinds are invalid here.
-        wire::Kind::Job
-        | wire::Kind::JobAnswer
+        wire::Kind::JobAnswer
         | wire::Kind::Logins
         | wire::Kind::SignedOut
         | wire::Kind::TurnBusy
@@ -543,6 +639,42 @@ fn transcript(bytes: &[u8]) -> Box<[Box<[u8]>]> {
         }
     }
     turns.into_boxed()
+}
+
+fn job_assignment(
+    record: wire::Job,
+    now: Time,
+    parts: &mut Queue<Part>,
+    next: &mut u64,
+    out: &mut Queue<Request>,
+) -> Option<host::JobAssignment> {
+    let record = record.into_parts();
+    for granted in &record.grants {
+        grant_form(granted.value())?;
+    }
+    let workspace = match record.workspace {
+        Some(workspace) => {
+            let workspace = workspace.into_parts();
+            let items = Token::new(*next);
+            *next = next.checked_add(1).expect("part tokens never wrap");
+            parts.push(Part { token: items, bytes: workspace.items });
+            Some(host::Workspace { workstream: workspace.workstream, items })
+        }
+        None => None,
+    };
+    let mut grants = List::with_capacity(record.grants.len());
+    for granted in record.grants.into_boxed() {
+        grants.push(grant(granted, now, out)?).expect("one slot per grant");
+    }
+    Some(host::JobAssignment {
+        run: Token::new(record.task),
+        attempt: Token::new(record.attempt),
+        kind: host::JobKind(record.kind),
+        spec: record.spec,
+        deadline: record.deadline,
+        workspace,
+        grants: grants.into_boxed(),
+    })
 }
 
 fn assignment(

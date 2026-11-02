@@ -1,0 +1,15 @@
+[package]
+name = "temper-worker-domain-tooling"
+description = "The worker's job capability: a job's command in its directory, sans-io"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+skein-lib.workspace = true
+jig-domain-link.workspace = true
+
+[lints]
+workspace = true

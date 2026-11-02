@@ -7,11 +7,11 @@
   `record` and `loopback-navigation` alone. 4.6: item 12, the
   playground's story A on the built playground and its log replayed
   natively (`../playground.status.md`).
-- **Departs:** 7.2: `tools/gallery/names.txt` holds 80 states and the
-  table 75. `chats-setup-strip` and `chat-first-run-7-T1` are gone and
-  `playground-resetting` is added, because forges are store records and
-  the playground is reset (`temper/docs/design/draft/playground-reset.md`,
-  3, 4, 6). `google-sign-in`, `forge-details`, `forge-setting-up-middle`,
-  `welcome-setup-failed`, `welcome-ready-under-way` and
-  `welcome-ready-adopted` are states the gallery holds that the table
-  does not list (`tools/gallery/src/samples.rs`).
+- **Departs:** 2.3: `?forge=elsewhere` still reads, as A Forgejo
+  elsewhere's Details (`temper-client-domain`'s `address.rs`
+  `forge_choice`), words for a forge added to the configuration by hand,
+  which names none (`forge.status.md`). 7.2: `google-sign-in`,
+  `forge-details`, `forge-setting-up-middle`, `welcome-setup-failed`,
+  `welcome-ready-under-way` and `welcome-ready-adopted` are states the
+  gallery holds (`tools/gallery/names.txt`, `tools/gallery/src/samples.rs`)
+  that the table does not list.

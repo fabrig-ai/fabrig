@@ -274,7 +274,7 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
 - **The chats' start is `?at=start`,** as the welcome's step is
   `?at=`: `/chats?at=start` is the Chats page
   with the focus in its start's text area ("Start a chat", or the
-  demo's start's while the demo's start is drawn in its place), the
+  playground's start's while the playground's start is drawn in its place), the
   address the inbox's "+ New chat" links to (`README.md`, 3.5's
   inbox); with a filter, `state` comes first,
   `/chats?state=live&at=start`. Every other `/chats` leaves the focus
@@ -289,12 +289,13 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   `/welcome?at=forge&forge=3`; its Model step its way, as
   `ConnectModel`'s: `/welcome?at=model&provider=1&way=key`.
 - **`ConnectForge`'s choice is its query:** none at Choose, so that
-  `/forges/connect` is the flow's first step; `?forge=N`, N a forge's
-  number in decimal, or `?forge=elsewhere`, for a Forgejo elsewhere
-  (`forge.md`, 5.4). A value that doesn't read as one, or a field of
-  another name, is dropped, and the address replaced with the printed
-  one. It reads a number, not the deployment's forges: a number that
-  names no forge shows Choose.
+  `/forges/connect` is the flow's first step; `?forge=github`,
+  `?forge=owned` or `?forge=managed`, a kind to make, GitHub, Forgejo
+  on this machine or Your Forgejo; or `?forge=N`, N a kept forge's
+  number in decimal (`forge.md`, 5.4). A value that doesn't read as
+  one, or a field of another name, is dropped, and the address
+  replaced with the printed one. It reads a number, not the
+  deployment's forges: a number that names no forge shows Choose.
 - **`ConnectModel`'s way is its query:** none at Choose, so that
   `/accounts/connect` is the flow's first step; `?provider=N&way=W`,
   N an LLM provider's number in decimal and W `sign-in`, `program` or
@@ -442,7 +443,7 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   left, with only the playground alternative at the right. Back and Later
   are bold terracotta, and the playground alternative is plain ink. Each
   keeps a focus ring.
-  The configured elsewhere admin's first-repository fields sit in an
+  A managed Forgejo's admin Details' first-repository fields sit in an
   outlined fieldset with "Your first repository" as its legend. The view's
   named Region and heading map to fieldset and legend through `look::ELEMENTS`,
   shared by the browser and gallery. Claude's program Details uses the same
@@ -718,10 +719,11 @@ proves.
 A page gets a story here only for what of its own a browser alone
 shows. The inbox, a task's page and the adoption form have none beyond
 their addresses: one story opens each present page's address directly
-and reads its heading. The task pages' story runs on `temper box`'s demo,
-with its own fakes, from a procedure's plan to its agent and back by
-the lineage bar, each by its address, and opens the agent's page fresh
-by its address. The procedure is the demo's change, drawn from its
+and reads its heading. The task pages' story runs on `temper box`'s
+playground, with its own fakes, from a procedure's plan to its agent
+and back by the lineage bar, each by its address, and opens the
+agent's page fresh by its address. The procedure is the playground's
+change, drawn from its
 panel (`README.md`, 5.10); the story reads its heading and its plan's
 agent, no more of it. The change's steps to landed, its gates, its
 bounds and its ended tasks hold nothing a browser alone shows: the
@@ -1021,7 +1023,7 @@ from the engine's own answers, is where the look is tuned.
 | `inbox-solo` | the solo world's inbox: a proposal, a question |
 | `task-solo-T3` | the solo world's goal T3, its plan and budget |
 | `accounts-solo` | the solo world's accounts |
-| `chats-first-run-1` | the first run's first screen: the demo's start |
+| `chats-first-run-1` | the first run's first screen: the playground's start |
 | `welcome-first-run-0` | the first run's welcome: its two cards |
 | `connect-forge-first-run-6` | the first run's `ConnectForge` at step 6: Forgejo here setting up, the box preparing |
 | `forges-first-run-7` | the first run's Forges at step 7: Forgejo here connected |
@@ -1043,9 +1045,8 @@ from the engine's own answers, is where the look is tuned.
 | `welcome-paste-lost`, `welcome-paste-unsent` | the address cleared after a lost or unsent finish request |
 | `forge-setup-failed` | the failed setup's reason and neutral retry act |
 | `forges-github-install` | GitHub's Forges row before installation, with its primary Install act |
-| `forge-admin-details` | the configured elsewhere admin, with its first-repository fieldset and legend |
-| `connect-forge-choose` | `ConnectForge`'s Choose: GitHub, Forgejo here and a Forgejo elsewhere |
-| `chats-setup-strip` | the chats with no demo, no usable account and no forge: the setup strip |
+| `forge-admin-details` | a managed Forgejo's admin Details, with its first-repository fieldset and legend |
+| `connect-forge-choose` | `ConnectForge`'s Choose: GitHub, Forgejo on this machine and Your Forgejo |
 | `adoption` | the adoption form, empty |
 | `adoption-filled` | the adoption form, filled in |
 | `adoption-refused` | the adoption form after a refusal, its alert |
@@ -1055,14 +1056,14 @@ from the engine's own answers, is where the look is tuned.
 | `chat-first-run-2-T1` | the first run's chat T1 at step 2, its change running |
 | `chat-first-run-3-T1` | the first run's chat T1 at step 3, its change landed |
 | `chat-first-run-4-T4` | the first run's chat T4 at step 4, waiting at rest for the person’s words |
-| `chat-first-run-7-T1` | the retired playground’s chat T1, closed at 21:19 with its transcript |
+| `playground-resetting` | the first run's Chats while the playground resets: "Leaving the playground…", and no playground's start |
 | `chats-first-run-5` | Chats after the first plan connects, its ChatGPT composer |
 | `inbox-reference` | the reference world's inbox |
 | `accounts-reference` | the reference world's accounts |
-| `accounts-first-run-1` | the first run's accounts at step 1: the demo's key |
+| `accounts-first-run-1` | the first run's accounts at step 1: the playground's account |
 | `signed-out` | signed out |
 | `out-of-date` | a bundle older than the engine |
-| `chats-empty` | the chats with none, outside the demo |
+| `chats-empty` | the chats with none, outside the playground |
 | `inbox-empty` | nothing needs the person |
 | `chat-closing` | `chat-solo-T6` with Close pressed: its confirmation |
 | `chat-rejecting` | `chat-solo-T10` with Reject pressed: the reason's box |

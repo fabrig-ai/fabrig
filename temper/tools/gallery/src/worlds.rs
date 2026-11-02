@@ -1,5 +1,5 @@
 //! Mockup documents, answered through the same windows as the engine.
-//! First-run records follow temper/docs/design/draft/playground-reset.md, 3 and 6.
+//! First-run records follow temper/docs/design/client/forge.md, 5.4; temper/docs/design/client/README.md, 3.5 and 4.8.
 #[path = "../../../testing/client_documents.rs"]
 #[expect(dead_code, reason = "shared document fixtures also supply the other client suites")]
 mod documents;

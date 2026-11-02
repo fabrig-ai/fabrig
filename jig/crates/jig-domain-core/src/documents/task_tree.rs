@@ -58,6 +58,8 @@ pub struct AuthorityLine {
 /// Result form and its admitted bounds, usable as a person task's form.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ContractLine {
+    /// Maximum application result bytes (jig/docs/design/domain/tasks.md, 5.3.1).
+    Job { bytes: u32 },
     /// Exact connector state required for approval; it is never shortened.
     Approval { state: Box<[u8]>, part: Part },
     /// A report in words.
@@ -406,6 +408,7 @@ pub(super) fn authority(limits: &Limits, value: &authority::Authority) -> Result
                 authority::Executor::Charter(number) => tasks::AuthorityExecutor::Charter(*number),
                 authority::Executor::Procedure(number) => tasks::AuthorityExecutor::Procedure(*number),
                 authority::Executor::Role(number) => tasks::AuthorityExecutor::Role(*number),
+                authority::Executor::Job(number) => tasks::AuthorityExecutor::Job(*number),
             })
             .expect("bounded executors");
     }
@@ -453,6 +456,7 @@ pub(super) fn contract(limits: &Limits, value: &tasks::Contract) -> Result<Contr
             }
             ContractLine::Approval { state: state.clone(), part: part.clone() }
         }
+        tasks::Contract::Job { bytes } => ContractLine::Job { bytes: *bytes },
         tasks::Contract::Report { words } => ContractLine::Report { words: *words },
         tasks::Contract::Change { connector, kind, words } => {
             ContractLine::Change { connector: *connector, kind: *kind, words: *words }
@@ -479,6 +483,7 @@ pub(super) fn contract(limits: &Limits, value: &tasks::Contract) -> Result<Contr
 
 pub(super) fn result_value(limits: &Limits, value: &tasks::TaskResult) -> Result<ResultValue, Missing> {
     Ok(match value {
+        tasks::TaskResult::Job { .. } => return Err(Missing::Unknown),
         tasks::TaskResult::Approved { state, words } => {
             if state.len() > skein_lib::length::usize_of(limits.documents.text_bytes) {
                 return Err(Missing::TooLarge);
@@ -900,7 +905,7 @@ fn task_with_lineage(
                 },
                 newest: core.current.newest(),
             }),
-            tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => None,
+            tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) | tasks::Executor::Job { .. } => None,
         },
         waits_on: crate::runs::waits::from_row(core, limits, row),
         label: row.label,
@@ -919,7 +924,7 @@ fn task_with_lineage(
         spec_revision: row.revisions.spec,
         person_revision: match row.executor {
             tasks::Executor::Person(_) => Some(row.revisions.person),
-            tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } => None,
+            tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } | tasks::Executor::Job { .. } => None,
         },
         taken_by: row.taken_by,
         activity: row.activity,
@@ -940,7 +945,7 @@ fn task_with_lineage(
                     None => None,
                 }
             }
-            tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => None,
+            tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) | tasks::Executor::Job { .. } => None,
         },
         llm: row.llm.clone(),
         kept_account: row.kept_account,

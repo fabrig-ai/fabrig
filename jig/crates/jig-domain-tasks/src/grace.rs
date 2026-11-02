@@ -53,7 +53,7 @@ pub(crate) fn check_finish(
         }
         Phase::Closing(_) | Phase::Ended(_) => return Err(Refusal::State),
     };
-    if cancel {
+    if cancel || crate::batch::matches_job(old.executor) {
         let mut selected = skein_lib::List::with_capacity(env.limits.tasks);
         for (child, _) in &domain.names {
             if staged.descendant(domain, *child, number, env.limits.tasks) {

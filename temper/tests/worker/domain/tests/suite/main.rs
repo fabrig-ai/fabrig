@@ -3,6 +3,7 @@
 #[global_allocator]
 static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
 
+mod jobs;
 mod orders;
 mod runtime;
 mod runtime_memory;

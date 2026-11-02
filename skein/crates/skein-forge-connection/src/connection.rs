@@ -112,7 +112,7 @@ struct JsonBody {
     below: bool,
     ended: bool,
 }
-/// Whether a connection still belongs to a configured forge (playground-reset.md, 4).
+/// Whether a connection still belongs to a configured forge (skein/docs/design/forge-connection.md, 3.1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) enum Membership {
     Configured,

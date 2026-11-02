@@ -431,7 +431,9 @@ impl Core {
             jig_domain_tasks::Stored::Live(task) => {
                 let agent_attempt = match task.executor {
                     tasks::Executor::Agent { .. } => task.attempt != 0,
-                    tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => false,
+                    tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) | tasks::Executor::Job { .. } => {
+                        false
+                    }
                 };
                 if agent_attempt
                     && self

@@ -504,7 +504,7 @@ pub(crate) fn route_activate(
         remember_due(core, context);
     } else if core.tasks.recurring_template(number).is_none() {
         match context.executor {
-            tasks::Executor::Person(_) => {}
+            tasks::Executor::Job { .. } | tasks::Executor::Person(_) => {}
             tasks::Executor::Procedure { connector, .. } => {
                 if let Some(step) = context.previous_attempt.checked_add(1) {
                     out.push(Request::Ask { connector, ask: Ask::StartProcedure { context, step } });

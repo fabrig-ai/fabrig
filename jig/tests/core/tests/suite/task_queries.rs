@@ -35,6 +35,7 @@ fn delegate_question(world: &mut jig_core_world::world::World, parent: u64) {
             budget: jig_domain_people::Budget::Named,
             executor: tasks::Executor::Agent { charter: 1 },
             spec: tasks::Spec {
+                job: None,
                 asks: false,
                 words: b"ask the requester".as_slice().into(),
                 parameters: Box::new([]),

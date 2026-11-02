@@ -31,7 +31,7 @@ The shapes every task builds to are `notes/contracts.md`; the standing rules
     and the hub's hosted job, with forced arms elsewhere.
   - `tasks/link-jobs.md`, high, ~120 min, needs `worker-wire-jobs`, `hub-jobs`: both links
     translate the job's records.
-  - `tasks/fleet-jobs.md`, high, ~170 min, needs `hub-jobs`: the fleet places a job on a host
+  - `tasks/fleet-jobs.md`, high, ~170 min, needs `hub-jobs`, `tasks-jobs-surface`: the fleet places a job on a host
     declaring its kind; hub-link's `StartJob`/`AssignedJob`; a job's answer as the tasks
     child's `End`; restart.
 - **worker-jobs** (`temper/docs/design/domain/worker.md, 4.4`), slice 1.
@@ -63,8 +63,9 @@ The shapes every task builds to are `notes/contracts.md`; the standing rules
 
 `client-jobs` (~120) → `tasks-jobs-surface` (~180) → `tasks-jobs-lifecycle` (~150; beside it
 `core-jobs-admit`, ~130) → `core-jobs-run` (~180), then fab's end check: about 630
-implementer-minutes, up to about 1260 with the buffer. `fleet-jobs` (after `hub-jobs`, ~160 +
-~170) joins it at `core-jobs-run` with time to spare. The worker side (`hub-jobs` →
+implementer-minutes, up to about 1260 with the buffer. `fleet-jobs` (~170, after `hub-jobs` and
+`tasks-jobs-surface`) joins it at `core-jobs-run` about 20 minutes after the lifecycle, so
+`client-jobs` → `tasks-jobs-surface` → `fleet-jobs` → `core-jobs-run` is about 650. The worker side (`hub-jobs` →
 `link-jobs`; `tooling-capability` and `hub-jobs` → `worker-jobs` → `service-jobs`, ~160 + ~120
 + ~170 + ~160) runs beside it, about as long.
 

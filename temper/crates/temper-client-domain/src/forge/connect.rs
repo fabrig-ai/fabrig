@@ -1,4 +1,4 @@
-//! Forge choices and unfinished records (temper/docs/design/draft/playground-reset.md, 3, 6.4).
+//! Forge choices and unfinished records (temper/docs/design/client/forge.md, 5.4; temper/docs/design/client/README.md, 3.5).
 use super::forges::{Connection, Kind, Mode, Offer, Row, State};
 use crate::Choice as AddressChoice;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

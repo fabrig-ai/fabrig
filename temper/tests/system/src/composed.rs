@@ -388,7 +388,7 @@ impl World {
             store,
             party: signed_in_party(),
             protocol: Protocol::default(),
-            worker: worker::Domain::new(&worker_limits),
+            worker: worker::Domain::new(&worker_limits, Box::new([])),
             worker_out: Queue::uncapped(),
             worker_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: worker_limits },
             // The worker's link has a channel open to the engine.
@@ -977,7 +977,7 @@ impl World {
 
     fn worker_request(&mut self, request: worker::Request) {
         match request {
-            worker::Request::Source { .. } | worker::Request::SourceFault => {
+            worker::Request::Job { .. } | worker::Request::Source { .. } | worker::Request::SourceFault => {
                 panic!("this fixture declares no program sources")
             }
             worker::Request::Hello(hello) => self.up(engine::Link::Hello { worker: 0, hello }),

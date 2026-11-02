@@ -252,6 +252,7 @@ pub fn ended_chat() -> Box<jig_domain_tasks::TaskRecord> {
         tracked: None,
         recurring: None,
         spec: tasks::Spec {
+            job: None,
             asks: false,
             words: b"chat".as_slice().into(),
             parameters: Box::new([]),
