@@ -27,6 +27,7 @@ fn model() -> core::Model {
 }
 fn charter() -> core::Charter {
     core::Charter {
+        documents: Box::new([]),
         number: 1,
         hosts: fleet::Kinds::Both,
         spend: 100,

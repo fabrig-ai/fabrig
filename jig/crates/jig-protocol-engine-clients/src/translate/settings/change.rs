@@ -104,6 +104,7 @@ fn charter(value: w::Charter) -> c::Charter {
         alternatives.push(model(value)).expect("same count");
     }
     c::Charter {
+        documents: Box::new([]),
         number: v.number,
         hosts: match v.hosts {
             w::SettingHosts::Workers => jig_domain_fleet::Kinds::Workers,
