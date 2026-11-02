@@ -564,17 +564,9 @@ fn program_contract(records: &[&smith_events::Record], leg: &Leg<'_>, settled: &
                 None
             }
         })
-        .unwrap_or_else(|| panic!("{}", report("the accepted init's typed tool inventory")));
-    for name in ["Read", "Glob", "Grep", "Write", "Edit", "Bash", "permission_prompt", "finish"] {
-        assert!(
-            tools.iter().any(|tool| tool.as_ref() == name.as_bytes()),
-            "{}",
-            report("init provides a required built in or smith tool")
-        );
+        .unwrap_or_else(|| panic!("{}", report("the first prompt's offered tools")));
+    let tools: Vec<&[u8]> = tools.iter().map(AsRef::as_ref).collect();
+    if let Some(fault) = support::program_contract::offered_tools_fault(&tools) {
+        panic!("{}", report(&fault));
     }
-    assert!(
-        tools.iter().all(|tool| tool.as_ref() != b"sub_agent"),
-        "{}",
-        report("init offers no sub agent capability")
-    );
 }
