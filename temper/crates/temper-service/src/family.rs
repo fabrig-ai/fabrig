@@ -436,6 +436,15 @@ fn panel_step(value: forge::PanelStep, limits: &w::Limits) -> Option<w::Step> {
         ),
         forge::PanelStep::Landing => w::Step::Landing,
         forge::PanelStep::Landed { merge } => w::Step::Landed(w::Landed::new(limits, w::LandedParts { merge }).ok()?),
+        forge::PanelStep::Verifying { merge, tiers } => {
+            w::Step::Verifying(w::Verifying::new(limits, w::VerifyingParts { merge, tiers: panel_tiers(tiers) }).ok()?)
+        }
+        forge::PanelStep::Red { merge, tiers } => {
+            w::Step::Red(w::Red::new(limits, w::RedParts { merge, tiers: panel_tiers(tiers) }).ok()?)
+        }
+        forge::PanelStep::Cleared { merge, tiers, uncleared } => w::Step::Cleared(
+            w::Cleared::new(limits, w::ClearedParts { merge, tiers: panel_tiers(tiers), uncleared }).ok()?,
+        ),
     })
 }
 
@@ -1174,4 +1183,12 @@ fn playground_answer(row: &forge::Playground, demo: &crate::settings::Demo, limi
     )
     .expect("playground checked at startup");
     wire::playground_answer(&answer)
+}
+
+fn panel_tiers(lines: Box<[Box<[u8]>]>) -> List<Box<[u8]>> {
+    let mut tiers = List::with_capacity(u32::try_from(lines.len()).expect("admitted tiers"));
+    for line in lines {
+        tiers.push(line).expect("admitted tiers");
+    }
+    tiers
 }

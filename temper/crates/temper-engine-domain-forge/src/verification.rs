@@ -112,7 +112,7 @@ pub(crate) fn judged(
             {
                 match &prior.blame {
                     Blame::Owns(_) | Blame::Suspect(_) if policy::repaired(&prior.blame, &verdict.failing) => {
-                        verification.repaired = Some(verdict.tip);
+                        verification.repaired = Some(crate::TierRepair { run: verdict.number, tip: verdict.tip });
                         changed = true;
                     }
                     Blame::Cleared | Blame::Owns(_) | Blame::Suspect(_) => {}
