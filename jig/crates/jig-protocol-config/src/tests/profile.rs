@@ -4,6 +4,8 @@ use crate::{Profile, profile};
 fn supplied_profiles_have_valid_domain_limits() {
     for selected in [Profile::Small, Profile::Standard] {
         let limits = profile(selected);
+        assert_eq!(limits.core.tasks.charter_documents, 2);
+        assert_eq!(limits.core.brief.sections, 8);
         assert!(jig_domain_core::valid(&limits.core), "{selected:?} core");
         assert!(jig_domain_host::valid_hub(&limits.hub), "{selected:?} hub");
     }
