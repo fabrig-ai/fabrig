@@ -44,3 +44,16 @@ id = 2
 story = "a client reads a task whose executor is Job { kind: 7 } as job 7, and Create naming a job is refused as not offered"
 parts = ["client-jobs"]
 walk = false
+
+[[part]]
+id = "job-tasks"
+title = "a procedure's step makes a job task; the tasks child, the store and the core carry it from due to its result"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/tasks.md, 5.3.1"
+
+[[slice]]
+id = 3
+story = "a procedure's step makes a job of a declared kind; it is claimed, placed on a worker declaring the kind, answered, and its result read by the procedure at its next step, across a restart"
+parts = ["job-tasks"]
+walk = false
