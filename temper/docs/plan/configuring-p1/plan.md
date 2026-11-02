@@ -12,7 +12,7 @@ status is incomplete.
 |---|---|---|---|
 | `chat-template` | jig's `shapes::chat_from`; temper's `chat start --template` | `jig-chat-from`, `ctl-chat-template` | released |
 | `running-revision` | the system world's story: a run keeps its task's revision, a chat moves, an advance moves the rest | `system-running-revision` | released |
-| `documents-jig` | jig's 17.9: the type, store, check and plan, configuration, client wire | `jig-documents-surface`, `jig-documents-store`, `jig-documents-core`, `jig-documents-config`, `jig-documents-wire` | released |
+| `documents-jig` | jig's 17.9: the type, store, check and plan, configuration, client wire | `jig-documents-surface`, `jig-documents-store`, `jig-documents-core`, `jig-documents-config`, `jig-documents-wire`, `temper-fixture-sections` | released |
 | `documents-temper` | temper's 13.7: the forge's gather, the root's binding, the settings file, the domain world's stories | `forge-document-gather`, `root-document-binding`, `settings-file-documents`, `domain-documents-stories` | released |
 
 ## Tasks so far
@@ -47,6 +47,10 @@ status is incomplete.
   member, `tasks.charter_documents`, Small's 8 sections, the start check naming both limits.
 - `jig-documents-wire` (jig client wire, contract, translates; ~90 min; needs the surface and
   the configuration, whose `clients.rs` gets the documents' bound row).
+- `temper-fixture-sections` (three temper test documents; ~30 min; needs the configuration): a
+  follow-up found after `jig-documents-config` was pushed: temper's start runs jig's
+  configuration check over the engine document, and the cluster, GitHub and real-loop documents
+  override `brief.sections` to 4; each goes to 8.
 - `root-document-binding` (temper-engine-domain, -smith, -service; ~150 min; needs the surface
   and the gather): the binding, the `Document` kind with its title, kinds 16+, the
   `document` budget, Small's 8 root sections, the room rule (forge sections never evict a
