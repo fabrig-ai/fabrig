@@ -173,6 +173,72 @@ fn failed_producer() -> (Change, Facts, Heard) {
     (failed.change, f, h)
 }
 
+fn failed_ci_repair() -> (Change, Facts, Heard, Limits) {
+    let limits = Limits { repairs: 3, ..LIMITS };
+    let mut f = facts();
+    f.ci.status = Status::Failed;
+    let c = change(State::Checking { head: HEAD });
+    let repair = step(&c, &f, &heard(), at(1), &limits);
+    assert_eq!(repair.decision, Decision::Delegate(Delegate::Repair(Repair::Ci)));
+    let h = Heard { delegate: Status::Failed, ..heard() };
+    let failed = step(&repair.change, &f, &h, at(2), &limits);
+    assert_eq!(failed.decision, Decision::Hold(Hold::Failed));
+    assert_eq!(failed.change.repairs, 1, "a permanent failure does not exhaust three repairs");
+    (failed.change, f, h, limits)
+}
+
+#[test]
+fn a_released_failed_ci_repair_requests_one_replacement_despite_the_stale_failure() {
+    // The change step is the lowest world: no connector or model causes this transition.
+    let (c, f, h, limits) = failed_ci_repair();
+    let reset = step(&released(&c, at(3)), &f, &h, at(3), &limits);
+    assert_eq!(reset.change.state, State::Repairing { requested: false, why: Repair::Ci });
+    assert_eq!(reset.change.repairs, 0);
+    let fresh = step(&reset.change, &f, &h, at(4), &limits);
+    assert_eq!(fresh.decision, Decision::Delegate(Delegate::Repair(Repair::Ci)));
+    assert_eq!(fresh.change.repairs, 1);
+    assert_eq!(fresh.change.last_head, Some(HEAD));
+    let pending = step(&fresh.change, &f, &heard(), at(5), &limits);
+    assert_eq!(pending.decision, Decision::Wait { until: Some(at(34)) });
+    assert_eq!(pending.change.repairs, 1);
+}
+
+#[test]
+fn a_released_failed_ci_repairs_replacement_requires_current_authority() {
+    use crate::{AuthorityHold, AuthorityLack, AuthorityRecovery};
+    let (c, f, h, limits) = failed_ci_repair();
+    let reset = step(&released(&c, at(3)), &f, &h, at(3), &limits);
+    let cause = AuthorityHold {
+        recovery: AuthorityRecovery { task: c.task, spec: 0, hold: 2, tasks: 2 },
+        lack: AuthorityLack::Tasks,
+        had: 0,
+        released: false,
+    };
+    let blocked = step(&reset.change, &f, &Heard { lacking: Some(cause), ..h }, at(4), &limits);
+    assert_eq!(blocked.decision, Decision::Hold(Hold::Authority(cause)));
+    assert_eq!(blocked.change.repairs, 0);
+    let bare = step(&released(&blocked.change, at(5)), &f, &Heard { lacking: Some(cause), ..h }, at(5), &limits);
+    assert_eq!(bare.decision, Decision::Hold(Hold::Authority(AuthorityHold { released: true, ..cause })));
+}
+
+#[test]
+fn a_released_failed_repair_keeps_its_reason_and_checks_the_current_base() {
+    let (c, mut f, h, limits) = failed_ci_repair();
+    for why in [Repair::Ci, Repair::Semantic, Repair::Gate(9), Repair::Landing { gate: 3 }] {
+        let mut held = c.clone();
+        held.state = State::Held { was: Box::new(State::Repairing { requested: true, why }), why: Hold::Failed };
+        let reset = step(&released(&held, at(3)), &f, &h, at(3), &limits);
+        let fresh = step(&reset.change, &f, &h, at(4), &limits);
+        assert_eq!(fresh.decision, Decision::Delegate(Delegate::Repair(why)));
+        assert_eq!(fresh.change.repairs, 1);
+        f.contains_base = Status::Failed;
+        let updating = step(&reset.change, &f, &h, at(4), &limits);
+        assert_eq!(updating.decision, Decision::Effect(Effect::Update { head: HEAD, base: BASE }));
+        assert_eq!(updating.change.repairs, 0, "taking the new base does not spend a repair");
+        f.contains_base = Status::Passed;
+    }
+}
+
 #[test]
 fn a_released_change_makes_a_fresh_producer_after_its_first_failed_for_good() {
     let (c, mut f, h) = failed_producer();

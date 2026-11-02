@@ -773,6 +773,82 @@ fn a_failed_ci_head_is_repaired_then_checked_again() {
     assert_eq!(world.writes(), before + 1); // only the merge is a connector write
 }
 
+fn failed_ci_repair_world() -> World {
+    let mut world = World::new(196);
+    world.adopt();
+    world.produce(b"temper/51");
+    let pull = world.open_pull(b"temper/51", b"main");
+    world.status(b"temper/51", skein_fake_forge_domain::api::Check::Failed);
+    let head = translate::commit(world.branch(b"temper/51"));
+    let mut row = change_row();
+    row.pull = Some(pull);
+    row.change.last_head = Some(head);
+    row.change.state = change::State::Checking { head };
+    world.event(top::Event::Change { row });
+    assert_eq!(
+        change_step(&mut world, 1, change::Status::Unknown, Box::new([])),
+        change::Decision::Delegate(change::Delegate::Repair(change::Repair::Ci))
+    );
+    world.event(top::Event::Delegated { task: 51, child: 52, kind: change::Delegate::Repair(change::Repair::Ci) });
+    world.event(top::Event::DelegateResult {
+        task: 51,
+        child: 52,
+        status: change::Status::Failed,
+        failed: true,
+        cancelled: false,
+        words: b"repair failed permanently".as_slice().into(),
+    });
+    assert_eq!(
+        change_step(&mut world, 2, change::Status::Unknown, Box::new([])),
+        change::Decision::Hold(change::Hold::Failed)
+    );
+    let Some(top::Stored::Change(saved)) = world.stored().get(&top::Key::Change(51)) else { panic!("retained change") };
+    assert_eq!(saved.change.repairs, 1);
+    assert_eq!(saved.delegate_status, change::Status::Failed);
+    world
+}
+
+#[test]
+fn a_released_failed_ci_repair_replaces_its_persisted_result_across_restart() {
+    let mut world = failed_ci_repair_world();
+    world.restart();
+    assert_eq!(
+        change_step_with_release(&mut world, 3, change::Status::Unknown, Box::new([]), true),
+        change::Decision::Delegate(change::Delegate::Repair(change::Repair::Ci))
+    );
+    let Some(top::Stored::Change(saved)) = world.stored().get(&top::Key::Change(51)) else { panic!("retained change") };
+    assert_eq!(saved.change.repairs, 1, "release resets the allowance and counts its replacement");
+    world.event(top::Event::Delegated { task: 51, child: 53, kind: change::Delegate::Repair(change::Repair::Ci) });
+    world.run_for(1);
+    world.restart();
+    world.event(top::Event::DelegateResult {
+        task: 51,
+        child: 52,
+        status: change::Status::Failed,
+        failed: true,
+        cancelled: false,
+        words: Box::new([]),
+    });
+    assert!(matches!(change_step(&mut world, 4, change::Status::Pending, Box::new([])), change::Decision::Wait { .. }));
+    let Some(top::Stored::Change(saved)) = world.stored().get(&top::Key::Change(51)) else { panic!("retained change") };
+    assert_eq!(saved.delegate, Some((53, change::Delegate::Repair(change::Repair::Ci))));
+    assert_eq!(saved.delegate_status, change::Status::Unknown);
+    assert_eq!(saved.change.repairs, 1);
+    world.push(b"temper/51", b"repaired");
+    world.status(b"temper/51", skein_fake_forge_domain::api::Check::Passed);
+    world.event(top::Event::DelegateResult {
+        task: 51,
+        child: 53,
+        status: change::Status::Passed,
+        failed: false,
+        cancelled: false,
+        words: b"repaired".as_slice().into(),
+    });
+    world.run_for(1);
+    world.restart();
+    assert_eq!(change_step(&mut world, 5, change::Status::Unknown, Box::new([])), change::Decision::Ready);
+}
+
 #[test]
 #[expect(clippy::too_many_lines, reason = "the full change story names each connector output explicitly")]
 fn a_change_produced_opened_checked_queued_and_landed() {

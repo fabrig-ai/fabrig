@@ -232,33 +232,40 @@ fn release(mut change: Change, was: &State, why: Hold, facts: &Facts) -> Stepped
         | Hold::Failed
         | Hold::Rejected
         | Hold::Authority(_) => {
-            change.state = match was {
-                State::Ready { head, .. }
-                | State::Queued { head, .. }
-                | State::First { head, .. }
-                | State::Gating { head, .. } => State::Gating { head: *head, asked: Box::new([]) },
-                State::Held { .. } | State::Landed { .. } | State::Ended => {
-                    unreachable!("held state retains a live predecessor")
-                }
-                State::Producing { requested: true }
-                    if why == Hold::Failed && facts.branch.is_none() && change.last_head.is_none() =>
-                {
-                    State::Producing { requested: false }
-                }
-                State::Producing { .. }
-                | State::Opening { .. }
-                | State::Recreating { .. }
-                | State::Reopening { .. }
-                | State::Checking { .. }
-                | State::Preparing { .. }
-                | State::CancellingGates { .. }
-                | State::Updating { .. }
-                | State::Resolving { .. }
-                | State::Repairing { .. }
-                | State::Landing { .. } => was.clone(),
-            };
+            change.state = released_state(&change, was, why, facts);
             Stepped { change, decision: Decision::None }
         }
+    }
+}
+
+fn released_state(change: &Change, was: &State, why: Hold, facts: &Facts) -> State {
+    match was {
+        State::Ready { head, .. }
+        | State::Queued { head, .. }
+        | State::First { head, .. }
+        | State::Gating { head, .. } => State::Gating { head: *head, asked: Box::new([]) },
+        State::Held { .. } | State::Landed { .. } | State::Ended => {
+            unreachable!("held state retains a live predecessor")
+        }
+        State::Producing { requested: true }
+            if why == Hold::Failed && facts.branch.is_none() && change.last_head.is_none() =>
+        {
+            State::Producing { requested: false }
+        }
+        State::Repairing { why: repair, .. } if why == Hold::Failed => {
+            State::Repairing { requested: false, why: *repair }
+        }
+        State::Producing { .. }
+        | State::Opening { .. }
+        | State::Recreating { .. }
+        | State::Reopening { .. }
+        | State::Checking { .. }
+        | State::Preparing { .. }
+        | State::CancellingGates { .. }
+        | State::Updating { .. }
+        | State::Resolving { .. }
+        | State::Repairing { .. }
+        | State::Landing { .. } => was.clone(),
     }
 }
 
@@ -732,6 +739,9 @@ fn repairing(
     now: Wall,
     limits: &Limits,
 ) -> Stepped {
+    if !requested {
+        return repair_due(change, why, facts, now, limits);
+    }
     delegated(change, requested, Delegate::Repair(why), facts, standing, now, limits)
 }
 
