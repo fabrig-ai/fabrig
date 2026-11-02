@@ -68,6 +68,7 @@ pub(crate) fn pop_activity(domain: &mut Hub) -> Option<LinkUp> {
             | LinkUp::AccountRefused { .. }
             | LinkUp::Call { .. }
             | LinkUp::Turn { .. }
+            | LinkUp::JobAnswer { .. }
             | LinkUp::Answer { .. } => true,
         };
         if valid_hub {

@@ -31,6 +31,9 @@ pub(in crate::codec) fn wire_chip_executor(
     limits: &w::Limits,
 ) -> Result<w::ChipExecutor, w::Problem> {
     Ok::<_, w::Problem>(match value {
+        c::ChipExecutor::Job { kind } => {
+            w::ChipExecutor::Job(w::ChipExecutorJob::new(limits, w::ChipExecutorJobParts { kind: *kind })?)
+        }
         c::ChipExecutor::Agent { charter } => w::ChipExecutor::Agent(w::ChipExecutorAgent::new(
             limits,
             w::ChipExecutorAgentParts { charter: *(charter) },

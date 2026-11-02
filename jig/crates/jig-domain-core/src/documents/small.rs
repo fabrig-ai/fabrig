@@ -55,6 +55,7 @@ pub(super) fn chip_from_row(limits: &Limits, row: &tasks::TaskRecord) -> Result<
         tasks::Executor::Agent { .. } => ExecutorKind::Agent,
         tasks::Executor::Procedure { .. } => ExecutorKind::Procedure,
         tasks::Executor::Person(_) => ExecutorKind::Person,
+        tasks::Executor::Job { .. } => ExecutorKind::Job,
     };
     let phase = match &row.phase {
         tasks::Phase::Waiting => {
@@ -77,7 +78,9 @@ pub(super) fn chip_from_row(limits: &Limits, row: &tasks::TaskRecord) -> Result<
                     None => None,
                 },
             },
-            tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } => PhaseLine::Active(*active),
+            tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } | tasks::Executor::Job { .. } => {
+                PhaseLine::Active(*active)
+            }
         },
         tasks::Phase::Closing(closing) => PhaseLine::Closing(closing.stage),
         tasks::Phase::Held { why, .. } => PhaseLine::Held { reason: *why, revision: row.revisions.hold },

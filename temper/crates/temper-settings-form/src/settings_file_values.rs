@@ -324,9 +324,16 @@ fn template_executor(d: &Decoder, at: u32) -> Result<c::TemplateExecutor, Error>
     Err(error(b"template_executor", b"unknown variant"))
 }
 fn task_contract_document(d: &Decoder, at: u32) -> Result<c::TaskContractDocument, Error> {
-    let fields = d.object(at, &[b"approval", b"report", b"verdict", b"change"])?;
+    let fields = d.object(at, &[b"approval", b"report", b"verdict", b"change", b"job"])?;
     if fields.len() != 1 {
         return Err(error(b"task_contract_document", b"one variant required"));
+    }
+    if let Some(at) = optional(&fields, b"job") {
+        let fields = d.object(at, &[b"bytes"])?;
+        return Ok(c::TaskContractDocument::Job {
+            bytes: u32::try_from(d.number(field(&fields, b"bytes")?)?)
+                .or(Err(error(b"task_contract_document_job_bytes", b"integer bound")))?,
+        });
     }
     if let Some(at) = optional(&fields, b"approval") {
         let fields = d.object(at, &[b"state", b"part"])?;
@@ -790,9 +797,14 @@ fn field_rule(d: &Decoder, at: u32) -> Result<c::FieldRule, Error> {
     })
 }
 fn owner_authority_executor(d: &Decoder, at: u32) -> Result<c::AuthorityExecutor, Error> {
-    let fields = d.object(at, &[b"charter", b"procedure", b"role"])?;
+    let fields = d.object(at, &[b"charter", b"procedure", b"role", b"job"])?;
     if fields.len() != 1 {
         return Err(error(b"owner_authority_executor", b"one variant required"));
+    }
+    if let Some(at) = optional(&fields, b"job") {
+        return Ok(c::AuthorityExecutor::Job(
+            u32::try_from(d.number(at)?).or(Err(error(b"owner_authority_executor_job", b"integer bound")))?,
+        ));
     }
     if let Some(at) = optional(&fields, b"charter") {
         return Ok(c::AuthorityExecutor::Charter(

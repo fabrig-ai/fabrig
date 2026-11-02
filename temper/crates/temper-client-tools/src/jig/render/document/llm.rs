@@ -225,6 +225,7 @@ fn refused(value: c::TaskWaitRefused, out: &mut Encoder) {
 }
 fn hello_refusal(value: c::HelloRefusal, out: &mut Encoder) {
     match value {
+        c::HelloRefusal::JobKinds => out.string(b"job_kinds"),
         c::HelloRefusal::ReservedChannel => out.string(b"reserved_channel"),
         c::HelloRefusal::Agent { why } => {
             out.object_start();
@@ -290,6 +291,7 @@ fn refused_text(value: c::TaskWaitRefused, out: &mut Text) {
 fn hello_refusal_text(value: c::HelloRefusal, out: &mut Text) {
     match value {
         c::HelloRefusal::Agent { why } => agent_shortfall_text(why, out),
+        c::HelloRefusal::JobKinds => out.put(b"its job kinds are not ascending and distinct"),
         c::HelloRefusal::ReservedChannel => out.put(b"channel zero belongs to the engine's own host"),
         c::HelloRefusal::Position { worker } => {
             out.put(b"unconfigured or occupied worker position ");

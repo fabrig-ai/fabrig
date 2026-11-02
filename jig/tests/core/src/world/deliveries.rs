@@ -118,6 +118,9 @@ impl World {
                     .push(super::AssignedTranscript { task: assignment.task, turns: assignment.transcript.clone() });
                 self.assigned = Some(assignment);
             }
+            root::Delivery::AssignedJob { channel, job, .. } => {
+                self.jobs.push((channel, job));
+            }
             root::Delivery::Core(core::Held::Grant { channel, run, attempt, grant }) => {
                 self.grant_delivered(channel, run, attempt, grant);
             }

@@ -228,6 +228,9 @@ pub(crate) fn wire_owner_authority_executor(
     limits: &w::Limits,
 ) -> Result<w::AuthorityExecutor, w::Problem> {
     Ok(match value {
+        c::AuthorityExecutor::Job(value) => {
+            w::AuthorityExecutor::Job(w::AuthorityExecutorJob::new(limits, w::AuthorityExecutorJobParts { value })?)
+        }
         c::AuthorityExecutor::Charter(value) => w::AuthorityExecutor::Charter(w::AuthorityExecutorCharter::new(
             limits,
             w::AuthorityExecutorCharterParts { value },

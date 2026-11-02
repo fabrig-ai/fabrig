@@ -9,6 +9,7 @@ mod exceeded;
 mod funding;
 mod holds;
 mod inbox;
+mod jobs;
 mod kept;
 mod lifecycle;
 mod llm;

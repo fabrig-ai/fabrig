@@ -3,6 +3,7 @@
 pub(crate) mod calls;
 pub(crate) mod controls;
 pub(crate) mod delegation;
+pub(crate) mod jobs;
 pub(crate) mod payloads;
 pub(crate) mod preparation;
 pub(crate) mod results;

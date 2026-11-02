@@ -51,6 +51,7 @@ pub(crate) fn stepped(
                 TaskResult::Approved { .. }
                 | TaskResult::Report { .. }
                 | TaskResult::Verdict { .. }
+                | TaskResult::Job { .. }
                 | TaskResult::NoChange { .. }
                 | TaskResult::Change { .. } => Ending::Done(result),
             };
@@ -76,7 +77,9 @@ fn fence(domain: &Domain, number: u64, step: u64, read: Option<u64>) -> Result<(
     let task = record(domain, number).ok_or(problem(number, Refusal::Unknown))?;
     match task.executor {
         Executor::Procedure { .. } => {}
-        Executor::Agent { .. } | Executor::Person(_) => return Err(problem(number, Refusal::Executor)),
+        Executor::Agent { .. } | Executor::Person(_) | Executor::Job { .. } => {
+            return Err(problem(number, Refusal::Executor));
+        }
     }
     if task.phase != Phase::Active(Active::Due) || task.attempt.checked_add(1) != Some(step) {
         return Err(problem(number, Refusal::Attempt));

@@ -221,6 +221,19 @@ fn task_text(
         true => out.put(b"chat"),
         false if task.goal == Some(task.chip.task) => out.put(b"goal"),
         false => match task.result_contract {
+            jig_client::contract::TaskContractDocument::Job { .. } => {
+                out.put(b"job");
+                match task.chip.executor {
+                    jig_client::contract::ChipExecutor::Job { kind } => {
+                        out.put(b" ");
+                        out.number(u64::from(kind));
+                    }
+                    jig_client::contract::ChipExecutor::Agent { .. }
+                    | jig_client::contract::ChipExecutor::Procedure { .. }
+                    | jig_client::contract::ChipExecutor::Party { .. }
+                    | jig_client::contract::ChipExecutor::Role { .. } => {}
+                }
+            }
             jig_client::contract::TaskContractDocument::Approval { .. } => out.put(b"approval"),
             jig_client::contract::TaskContractDocument::Report { .. } => out.put(b"report"),
             jig_client::contract::TaskContractDocument::Verdict { .. } => out.put(b"verdict"),

@@ -22,6 +22,7 @@ pub fn copy(config: &engine::Config) -> engine::Config {
     engine::Config {
         period_span: config.period_span,
         core: core::Config {
+            jobs: c.jobs.clone(),
             worker_names: c.worker_names.clone(),
             deployment: c.deployment,
             seed: c.seed,

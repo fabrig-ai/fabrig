@@ -53,7 +53,14 @@ fn until_pending(driver: &mut Driver) {
 
 /// A worker's hello with its own slots, stop bound and hosted runs.
 fn hello_with(channel: Token, slots: u32, stop_bound: Duration, hosting: Box<[host::Hosting]>) -> engine::Event {
-    let hello = host::Hello { slots, stop_bound, workstreams: Box::new([]), hosting, bounds: protocol::bounds() };
+    let hello = host::Hello {
+        jobs: Box::default(),
+        slots,
+        stop_bound,
+        workstreams: Box::new([]),
+        hosting,
+        bounds: protocol::bounds(),
+    };
     engine::Event::Worker(engine::WorkerInput::Link { channel, link: engine::Link::Hello { worker: 0, hello } })
 }
 
@@ -105,6 +112,7 @@ fn messages_to(driver: &Driver, run: &engine::Assignment) -> Vec<(u64, Box<[u8]>
             | host::LinkDown::TurnKept { .. }
             | host::LinkDown::Acknowledge { .. }
             | host::LinkDown::Cancel { .. }
+            | host::LinkDown::AssignJob { .. }
             | host::LinkDown::Grant { .. } => None,
         })
         .collect()
@@ -1891,7 +1899,13 @@ fn a_proposal_routed_past_a_procedure_to_a_person_is_accepted() {
 }
 
 fn period_specification() -> tasks::Spec {
-    tasks::Spec { asks: false, words: b"period work".as_slice().into(), parameters: Box::new([]), inputs: Box::new([]) }
+    tasks::Spec {
+        job: None,
+        asks: false,
+        words: b"period work".as_slice().into(),
+        parameters: Box::new([]),
+        inputs: Box::new([]),
+    }
 }
 
 #[test]
@@ -2485,7 +2499,13 @@ fn finish_task(driver: &mut Driver, assignment: &engine::Assignment, result: tas
 fn plain_delegate(words: &[u8]) -> engine::Delegate {
     engine::Delegate {
         executor: tasks::Executor::Agent { charter: 1 },
-        spec: tasks::Spec { asks: false, words: words.into(), parameters: Box::new([]), inputs: Box::new([]) },
+        spec: tasks::Spec {
+            job: None,
+            asks: false,
+            words: words.into(),
+            parameters: Box::new([]),
+            inputs: Box::new([]),
+        },
         contract: tasks::Contract::Report { words: 128 },
         authority: tasks::Authority {
             tools: tasks::Tools(0),

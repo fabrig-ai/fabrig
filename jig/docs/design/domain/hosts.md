@@ -195,7 +195,8 @@ On a worker:
 <application>-worker           the worker's root: the application's; routes among its children
 ├── jig-domain-host            the hub: hosted runs, admit, prepare, start, relay, park or end
 ├── smith-host-domain          the agent, smith's: processes, spawn, channel, watchdog, cancel then kill
-└── <workspace>                the application's: prepare, save, deliver, release (section 7)
+├── <workspace>                the application's: prepare, save, deliver, release (section 7)
+└── <jobs>                     the application's job capability, if it has one: its kinds, run, stop (6.9)
 ```
 
 A worker's root may compose `smith-inline-agent` in place of
@@ -203,8 +204,8 @@ A worker's root may compose `smith-inline-agent` in place of
 
 Each tree follows programming-model.md, 4.5. The hub knows a hosted run's
 lifecycle and nothing of the application's workspaces, of processes, of
-channels or of the core, and links no smith crate; the agent and the
-workspace are capabilities, which the root translates to and from with
+channels or of the core, and links no smith crate; the agent, the
+workspace and the job capability are capabilities, which the root translates to and from with
 small total functions, the same functions for both kinds of agent, since
 both speak smith's parent face, smith's payloads among them by hand-out
 (6.8). A hand-off goes from a capability to the hub, from the hub to a

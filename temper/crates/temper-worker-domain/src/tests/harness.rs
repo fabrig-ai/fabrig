@@ -33,7 +33,7 @@ impl Harness {
         let limits = fixtures::limits();
         assert!(valid(&limits));
         Harness {
-            domain: Domain::new(&limits),
+            domain: Domain::new(&limits, Box::new([])),
             out: Queue::uncapped(),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             owed: Queue::with_capacity(64),
@@ -131,6 +131,7 @@ impl Harness {
             | Request::Answer { .. }
             | Request::CancelRelay { .. }
             | Request::Stop
+            | Request::Job { .. }
             | Request::CancelIo { .. } => return,
         };
         self.owed.push(Event::Process(Box::new(event)));

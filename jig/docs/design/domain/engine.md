@@ -1064,6 +1064,14 @@ hosted run with no agent:
   items within the workspace's bounds, its spec and deadline within the
   tasks child's bounds, and its requester's authority over what its
   items write.
+- **Its kinds are the application's.** It declares each to the core
+  as it makes it (`jig-domain-core`'s `Config`), with the most bytes a
+  spec and a result of it may hold and its longest deadline. A batch
+  naming a job of a kind not declared, or a spec or deadline past its
+  kind's, is refused; the kind's result bound is the job's `Job`
+  contract. A job's executor is named by its kind in a delegation's
+  kinds (authority.md, section 3), and no party creates one
+  (`../client/domain/contract.md`, 5.7).
 - **Its claim** goes to a host whose hello declared its kind, whose
   bounds for that kind (its spec's and result's bytes, its deadline)
   cover the job's, and that has a free slot, as a run's does (section

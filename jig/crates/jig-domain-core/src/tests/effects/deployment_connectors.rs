@@ -141,6 +141,7 @@ fn deployment_complete_connector_registry_does_not_hide_original_refusal_history
                 worker: 0,
                 channel: Token::new(channel),
                 hello: fleet::Hello {
+                    jobs: Box::default(),
                     bounds: fixtures::bounds(),
                     stop_bound: limits.fleet.grace,
                     slots: 1,
@@ -195,6 +196,7 @@ fn a_refused_hello_shows_its_agent_shortfall() {
             worker: 0,
             channel: Token::new(9),
             hello: fleet::Hello {
+                jobs: Box::default(),
                 bounds,
                 slots: 1,
                 stop_bound: Duration::ZERO,
@@ -290,6 +292,7 @@ fn program_facts() -> (Core, Env<Limits>) {
             channel: Token::new(17),
             worker: 0,
             hello: fleet::Hello {
+                jobs: Box::default(),
                 bounds: fixtures::bounds(),
                 slots: 1,
                 stop_bound: Duration::ZERO,

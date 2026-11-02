@@ -18,6 +18,6 @@ fn the_two_call_agent_past_smalls_page_is_refused_by_name() {
         .expect_err("the old two-call shape exceeds Small's page");
     assert_eq!(
         temper_service::startup::lines(&refused).as_ref(),
-        b"application.limits.overrides.root.loads.transcript_bytes: its turn's transcript frame, 1791901 bytes, needs a store page past the profile's ceiling of 1590110 bytes\n"
+        b"application.limits.overrides.root.loads.transcript_bytes: its turn's transcript frame, 1791901 bytes, needs a store page past the profile's ceiling of 1606795 bytes\n"
     );
 }

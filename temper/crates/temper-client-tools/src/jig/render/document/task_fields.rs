@@ -6,6 +6,15 @@ pub(super) fn encode_task_contract_document(
     budget: &mut super::Cut,
 ) {
     match value {
+        jig_client::contract::TaskContractDocument::Job { bytes } => {
+            out.object_start();
+            out.key(b"job");
+            out.object_start();
+            out.key(b"bytes");
+            out.unsigned(u64::from(*bytes));
+            out.object_end();
+            out.object_end();
+        }
         jig_client::contract::TaskContractDocument::Approval { state, part } => {
             out.object_start();
             out.key(b"approval");

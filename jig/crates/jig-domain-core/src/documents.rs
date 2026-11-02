@@ -252,6 +252,8 @@ pub enum Count {
 /// A task's executor kind; its detail lives on the task document.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ExecutorKind {
+    /// An application job.
+    Job,
     /// An agent with a configured charter.
     Agent,
     /// A connector-owned procedure.

@@ -375,7 +375,11 @@ settings' 1 and the secrets' 1. The tasks family's durable
 and `NothingAwaited` for a result-ended task with nothing pending
 (`../domain/tasks.md`, 5.2), and it stores the successful `NoChange`
 result and its own result-notice kind, with the producer's bounded
-explanation. The accounts family's source hold includes *moving*
+explanation. It stores a job task (`../domain/tasks.md`, 5.3.1): its
+executor `Job { kind }`, its spec's bytes and deadline beside its words,
+its `Job` contract with its result's bound, and its result's bytes; and
+the tasks, people and settings families store a job kind among a
+delegation's kinds (`../domain/authority.md`, section 3). The accounts family's source hold includes *moving*
 (`../domain/accounts.md`, section 6). A store at another version of any
 family refuses to open under the format check (5.3).
 

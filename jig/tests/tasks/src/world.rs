@@ -109,7 +109,7 @@ pub fn task(number: u64, dependencies: &[u64]) -> New {
         project: 1,
         executor: Executor::Agent { charter: 1 },
         llm: None,
-        spec: Spec { asks: false, words: Box::new([1]), parameters: Box::new([]), inputs: Box::new([]) },
+        spec: Spec { job: None, asks: false, words: Box::new([1]), parameters: Box::new([]), inputs: Box::new([]) },
         contract: Contract::Report { words: 32 },
         authority: authority(),
         numbers: Numbers { budget: 100, spent: 0, spent_below: 0, reserved: 0 },
@@ -1362,6 +1362,7 @@ fn status(ending: &Ending) -> tasks::Status {
 fn result_notice(ending: Ending) -> (ResultKind, Box<[u8]>) {
     match ending {
         Ending::Done(result) => match result {
+            TaskResult::Job { bytes } => (ResultKind::Job, bytes),
             TaskResult::Approved { state, words } => {
                 let words_present = words.is_some();
                 let words = match words {

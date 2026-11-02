@@ -41,6 +41,8 @@ pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
         repository_remote: bounds.remote_bytes,
         repository_git_some: v1::CEILINGS.repository_git_some,
         items_repositories: bounds.repositories,
+        job_spec_command: v1::CEILINGS.job_spec_command,
+        job_spec_request: v1::CEILINGS.job_spec_request,
         left_landed: bounds.repositories,
         saved_repositories: bounds.repositories,
         files_files: bounds.conflicts,

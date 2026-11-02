@@ -984,6 +984,10 @@ fn wire_task_contract(
     limits: &w::Limits,
 ) -> Result<w::TaskContractDocument, w::Problem> {
     Ok(match value {
+        c::TaskContractDocument::Job { bytes } => w::TaskContractDocument::Job(w::TaskContractDocumentJob::new(
+            limits,
+            w::TaskContractDocumentJobParts { bytes: *bytes },
+        )?),
         c::TaskContractDocument::Approval { state, part } => {
             w::TaskContractDocument::Approval(w::TaskContractDocumentApproval::new(
                 limits,

@@ -22,6 +22,7 @@ fn records_1(bytes: &[u8]) {
     check!(Subscriptions, bytes);
     check!(Task, bytes);
     check!(ReadPosition, bytes);
+    check!(ExecutorKind, bytes);
     check!(TaskQuery, bytes);
     check!(WaitsOn, bytes);
     check!(ConversationRead, bytes);
