@@ -102,3 +102,16 @@ Pre-approved options:
 
 As the implementer's text says, and also: the task's spec parameters you chose; the words as
 printed; any landing story whose numbers moved.
+
+## Answers
+
+2026-11-02. The forge surface (`notes/contracts.md`, 4) is absent from `tiers-surface`'s branch:
+wait for it, or supply it here? Wait. `tiers-surface` owns that surface and its second run is
+under way; this task stays out of the forge crate. Start once `tiers-surface` has pushed it: merge
+`origin/reference-m8/tiers-surface` (or the trunk, once it has landed there) and check that
+`Request::{TierRun, TierDecision}`, `TierDecision`, `Event::{TierTask, TierRefused, StepTier,
+VetoTier}`, `TierHeard`, `TierRow` and the stubs `Domain::{tier_task, describe_tier_effect,
+change_verification}` are there. Code against the stubs as contracts.md, 4 gives them: a story
+that needs a filled `tier_task` or a non-`Unfollowed` verification builds it through the forge's
+public events where it can, else is left to `tiers-stories` and listed under Left. If the surface
+is still absent, stop again with the names missing; never add them in the forge crate.

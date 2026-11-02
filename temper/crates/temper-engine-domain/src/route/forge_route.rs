@@ -3401,6 +3401,9 @@ pub(crate) fn outputs(
                     domain.work.push(Work::Tasks(tasks::Event::Hold { task, why: tasks::Hold::Drift }));
                 }
             }
+            forge::Request::TierRun { .. } | forge::Request::TierDecision { .. } => {
+                // tiers-root supplies the tier task joins.
+            }
             forge::Request::LandingDecision { task, decision: choice, entry, evidence } => {
                 if let Some(entry) = entry {
                     let Some((_, _, step)) = domain.core.tasks.procedure_due(task) else { continue };

@@ -124,3 +124,13 @@ Pre-approved options:
 As the implementer's text says, and also: the fields added to `TierRow`; how the branch is
 deleted; what of the old code you took; anything `tiers-verification` or `tiers-reports` needs
 that you left as a hook.
+
+## Answers
+
+### 2026-11-02: Should this run resume after tiers-surface pushes its required interface (recommended), or should tiers-runs take over the missing surface work? (reference-m8/tiers-runs-1, foreman reference-m8/tiers-runs/foreman-1)
+
+Resume tiers-runs after tiers-surface pushes its required interface; the missing surface work remains tiers-surface’s.
+`tiers-runs.md` declares: `needs = ["tiers-surface", "tiers-policy", "tiers-config", "change-verifying"]`.
+`tiers-surface.md`, Goal: “After it, `tiers-runs` (the forge's bodies) and `tiers-root` (the root's joins) run side by side.”
+Its acceptance explicitly owns the missing tier types, requests, events, purpose tag 8, store families, receipt failures and read-method stubs.
+The next run consumes that prerequisite, implements tiers-runs and completes its acceptance checks.
