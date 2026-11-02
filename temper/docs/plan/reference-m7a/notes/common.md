@@ -43,3 +43,5 @@ binding: names, fields and types as written there.
 - **Docs read by tests:** `jig/docs/design/protocol/store.md` is compiled into
   `jig-protocol-store`'s words tests (`src/tests/words.rs`); a task that changes the store
   family runs them (`heavy cargo nextest run -p jig-protocol-store --lib -E 'test(/words/)'`).
+- **Paths a spec mistyped:** temper's gallery is `temper/tools/gallery/` (its `src/worlds.rs`);
+  `client-jobs`'s `tools/gallery/src/worlds.rs` means that file.
