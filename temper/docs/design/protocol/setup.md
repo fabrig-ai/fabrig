@@ -2248,7 +2248,7 @@ them as it does any Forgejo.
 - **A box restarted while the playground runs:** its fake forge keeps
   no state across its starts (below), so the engine's records of the
   branches it lost would outlive it. The start resets the playground,
-  as the banner does, and the person meets the welcome (section 16).
+  as the banner does, and the person meets the welcome.
 - **`application.demo`,** or null for none:
 
   ```
@@ -3317,10 +3317,6 @@ Each is intended; what it needs is named with it.
   Forgejo's web, with the scopes they choose; never the preparation's
   `admin_token`, which the engine's setup host alone takes (section
   9).
-- **A box restarted in the playground** (8.4). The fake forge keeps no
-  state across its starts, so the engine's records of the branches it
-  lost outlive it. Default: the start resets the playground, as the
-  banner does, and the person meets the welcome.
 - **The welcome's Default project after a start over** (6.7): the
   project a removed forge's first repository was to go into, made
   already, stays empty. Default: reused by the next set up's first
