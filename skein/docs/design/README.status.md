@@ -1,6 +1,5 @@
 # README: status
 
-2026-10-29. Where skein's code lags or departs from [README.md](README.md).
+2026-11-02. Where skein's code lags or departs from [README.md](README.md).
 
-- **Built:** 1 to 4: the index of parts, their crates and the kit's scope.
-- **Not yet:** —
+No gap: each part's gaps are in its own document's status.

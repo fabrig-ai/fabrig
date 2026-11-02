@@ -1,8 +1,7 @@
 # browser: status
 
-2026-10-29. Where skein's code lags or departs from [browser.md](browser.md).
+2026-11-02. Where skein's code lags or departs from [browser.md](browser.md).
 
-- **Built:** 2, 8: uncapped handoffs, edge-valid limits and scenario ceilings. 5, 6: a letter with Alt (`Key::Letter`) and a person's downloads (`Downloaded`, `Limits::downloads`); the rest unknown (partly built).
-- **Not yet:** 6, 7: native-dialog test and kit split. 11: containment sandbox, other browsers and richer text patterns.
-
-- **Built (2026-11-01):** 9: control-text faces and stale document nodes in the real look rig.
+- **Departs:** 5.1: the look's reads serve the lab's browser alone, whose
+  purpose, the lab, is retired; they await removal with it
+  (lab-browser.md).
