@@ -78,8 +78,7 @@ here is adopted, and nothing here is a part of v0.1.0 (`v0.1.0.md`).
   and level-triggered, so a busy metric never floods a client: the view
   reads the latest when it is ready.
 - **Not on streams.** An application's streams (7.4) carry what is not
-  committed state, marked provisional, and are designed but not built
-  (jig's `STATUS.md`). Metrics are derived from committed facts in the
+  committed state, marked provisional. Metrics are derived from committed facts in the
   decisions that commit them, so they are documents. A stream is for a
   live gauge the engine does not commit, a host's load if hosts ever
   report it (section 9).

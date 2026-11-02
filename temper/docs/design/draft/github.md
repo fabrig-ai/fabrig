@@ -196,10 +196,9 @@ is open section 19.
   once and never keeps, kept in the store before the core sees the
   request, as an LLM key is (jig's `domain/accounts.md`, section 5;
   jig's `protocol/client.md`, section 5). This is jig's "request
-  carrying a value", not yet built (jig's `STATUS.md`): Forgejo's
-  connect and an App pasted (6.5) wait on it; the manifest flow does
-  not, since GitHub hands the App's key to the engine's own exchange
-  (section 6).
+  carrying a value": Forgejo's connect and an App pasted (6.5) take it;
+  the manifest flow does not, since GitHub hands the App's key to the
+  engine's own exchange (section 6).
 - **credentials.md changes:** its table's rows for git identities, the
   forges' API tokens and webhook secrets name the store; its rule "no
   temper secret in jig's secrets' store" goes; "least power" is
