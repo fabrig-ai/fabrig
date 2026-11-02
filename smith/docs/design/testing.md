@@ -665,11 +665,9 @@ benchmarks/                      smith-bench, the benchmark harness (benchmarks.
 
 ## 9. Later
 
-- **The live reds the report names:** the live stories whose failure no
-  offline world shows, the refresh story's generation, the chat crossing
-  beyond its Claude leg and the second run's resume (testing.status.md,
-  2.3). Their repair starts from the first after-landing log whose
-  failure says why (2.3), in the lowest tier that shows it.
+- **A live red no offline world shows** (testing.status.md, 2.3): its
+  repair starts from the first after-landing log whose failure says why
+  (2.3), in the lowest tier that shows it.
 - **The key's story after landing.** The story on an Anthropic API key
   is the owner's for now (2.3): no shelf holds a key. It returns to the
   after-landing run when the pipeline has a key to lend, which is the
