@@ -7,6 +7,7 @@ const REPO: skein_forge::api::Repository = skein_forge::api::Repository { forge:
 const PROJECT: u32 = 5;
 const CHANGE: u64 = 51;
 const SECOND: u64 = 52;
+const TIER_TASK: u64 = 61;
 const OPEN: u64 = 11;
 const HEAD: skein_forge::api::Commit = [3; 32];
 const FIRST: skein_forge::api::Commit = [6; 32];
@@ -310,14 +311,7 @@ fn advance(d: &mut Domain, task: u64, wall: Wall, cancelled: bool) -> Queue<Requ
     out
 }
 
-fn judge(
-    d: &mut Domain,
-    tier: &[u8],
-    number: u64,
-    commits: &[skein_forge::api::Commit],
-    blames: Box<[policy::Blame]>,
-    failing: policy::Failures,
-) -> Queue<Request> {
+fn tier_run(d: &mut Domain, tier: &[u8], number: u64, commits: &[skein_forge::api::Commit]) -> policy::Run {
     let mut landings = List::uncapped();
     for commit in commits {
         landings.push(policy::Landing { commit: *commit, key: *commit }).expect("range");
@@ -332,6 +326,16 @@ fn judge(
                 repository: REPO,
                 tier: Box::from(tier),
                 task: None,
+                requested: false,
+                cancelled: false,
+                purpose: None,
+                pending: Box::new([]),
+                baseline: None,
+                branch: TierBranch::Absent,
+                flight: None,
+                held: None,
+                result: None,
+                received: false,
                 record: policy::Record {
                     sequence: number,
                     judged: None,
@@ -342,6 +346,19 @@ fn judge(
             },
         )
         .expect("tier");
+    run
+}
+
+fn judge(
+    d: &mut Domain,
+    tier: &[u8],
+    number: u64,
+    commits: &[skein_forge::api::Commit],
+    blames: Box<[policy::Blame]>,
+    failing: policy::Failures,
+) -> Queue<Request> {
+    let run = tier_run(d, tier, number, commits);
+    let tip = run.tip;
     let verdict = policy::Verdict { number, tip, key: tip, failing, landings: blames, flakes: Box::new([]) };
     let mut out = Queue::uncapped();
     let row = d.tiers.get_mut(&(REPO, Box::from(tier))).expect("tier");
@@ -351,11 +368,19 @@ fn judge(
 }
 
 fn green(d: &mut Domain, number: u64, commits: &[skein_forge::api::Commit]) -> Queue<Request> {
-    let mut blames = List::uncapped();
-    for _ in commits {
-        blames.push(policy::Blame::Cleared).expect("range");
-    }
-    judge(d, TIER, number, commits, blames.into_boxed(), policy::Failures::Tests(Box::new([])))
+    let run = tier_run(d, TIER, number, commits);
+    let row = d.tiers.get_mut(&(REPO, Box::from(TIER))).expect("tier");
+    row.task = Some(TIER_TASK);
+    row.result = Some(Receipt {
+        failures: None,
+        passed: true,
+        run: ReceiptRun { id: number, number, url: Box::new([]) },
+        candidate: run.tip,
+        ended: env().wall,
+    });
+    let mut out = Queue::uncapped();
+    tiers::step(d, &env(), TIER_TASK, OPEN, TierHeard { released: false, cancelled: false }, &mut out);
+    out
 }
 
 fn red(d: &mut Domain) {
@@ -400,8 +425,13 @@ fn two_landings_in_one_green_run_finish_cleared() {
     let mut d = verifying();
     green(&mut d, 1, &[FIRST, LAST]);
     let mut wakes = Queue::uncapped();
-    resume(&mut d, &env(), &mut wakes);
-    resume(&mut d, &env(), &mut wakes);
+    // The watcher may consume a resume before the bounded change wakes are emitted.
+    for _ in 0..=LIMITS.changes {
+        resume(&mut d, &env(), &mut wakes);
+        if d.procedure_wakes.is_empty() {
+            break;
+        }
+    }
     for (task, commit) in [(CHANGE, FIRST), (SECOND, LAST)] {
         assert!(contains(&wakes, &Request::WakeProcedure { task }));
         let out = advance(&mut d, task, env().wall, false);

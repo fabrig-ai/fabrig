@@ -1610,6 +1610,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 }
 
 #[expect(clippy::manual_map, reason = "step code uses explicit options without closures")]
+#[expect(clippy::too_many_lines, reason = "merge outcomes save the landing and its verification together")]
 fn outcome_facts(
     d: &mut Domain,
     env: &Env<Limits>,
