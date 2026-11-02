@@ -370,6 +370,18 @@ pub enum Missing {
 /// An observation of the root, which decides nothing (domain/root.md, 3 and 7.4).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Fact {
+    /// A forge read refused locally or by the connector, for operator diagnostics.
+    ReadRefused {
+        task: u64,
+        attempt: u64,
+        tool: Box<[u8]>,
+        layer: &'static str,
+        reason: &'static str,
+        findings: Box<[jig_domain_authority::Finding]>,
+        error: Option<skein_forge::api::Error>,
+    },
+    /// A decoded call refused at admission, before any tool runs.
+    CallAdmissionRefused { task: u64, attempt: u64, tool: Box<[u8]>, layer: &'static str, reason: &'static str },
     /// A fenced answer reported a permanent preparation failure.
     PreparationFailed { task: u64, attempt: u64, preparation: Preparation },
     /// The core refused a procedure's step; the root decides nothing (domain/root.md, 3 and 7.4).

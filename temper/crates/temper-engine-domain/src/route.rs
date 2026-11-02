@@ -2,6 +2,7 @@
 mod applications;
 mod asks;
 pub(crate) mod calendar;
+mod diagnostics;
 pub(crate) mod escalation;
 pub(crate) mod forge_route;
 pub(crate) mod held;

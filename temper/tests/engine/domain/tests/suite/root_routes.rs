@@ -1664,6 +1664,14 @@ fn a_pending_note_reserves_its_named_answer_until_the_store_returns() {
         host::LinkDown::Relayed { call, answer: host::Relayed::Busy, .. } if call.as_ref() == 3121_u64.to_be_bytes()
     )));
     assert_eq!(driver.answered(3121), None);
+    let facts: Vec<_> = std::iter::from_fn(|| driver.root.pop_fact()).collect();
+    assert!(
+        facts.iter().any(|fact| matches!(fact,
+            engine::Fact::CallAdmissionRefused { task, attempt, tool, layer: "core-call-room", .. }
+            if *task == assignment.task && *attempt == assignment.attempt && tool.as_ref() == b"engine"
+        )),
+        "call room pressure retains its layer: {facts:?}"
+    );
     // The recall's decision and its settled answer each take a call number (D15).
     assert_eq!(driver.store.header().calls, 2);
     assert!(matches!(driver.answered(3120),

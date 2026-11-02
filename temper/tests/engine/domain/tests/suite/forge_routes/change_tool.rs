@@ -473,6 +473,11 @@ fn a_read_with_an_unknown_name_names_the_project_repositories() {
         if named.as_ref() == b"org/missing" && repositories.as_ref() == [Box::from(b"org/repo".as_slice())]),
         "{answer:?}"
     );
+    let facts: Vec<_> = std::iter::from_fn(|| world.root.pop_fact()).collect();
+    assert!(facts.iter().any(|fact| matches!(fact,
+        engine::Fact::ReadRefused { task, attempt, tool, layer: "forge-route", reason: "repository name unresolved", .. }
+        if *task == chat.task && *attempt == chat.attempt && tool.as_ref() == b"engine"
+    )), "repository resolution retains its diagnostic layer: {facts:?}");
 }
 
 #[test]

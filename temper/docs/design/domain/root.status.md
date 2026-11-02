@@ -9,3 +9,5 @@
 - **Not yet:** 9.1: the rehearsing root (`temper upgrade --check`). 12: two proposal stories opt out of the oracle (an ended covering task's `Read::Task` panics in jig's `acts/bounds.rs`); one start story is ignored, a duplicate people identity panicking at `Person(2)` rather than refusing the page. 5.3: remaining forge reads. 5.3, 5.5, 5.6, 6, 9.1: settings kinds and merge resources within jig's decision. 7.1: saved-work branch. 7.4: preparation-failure detail on task pages; issued transcript-unloaded routing remains incomplete.
 
 - **Built:** 6: a landed change's third line, `Landed: pull request #N merged into BASE as SHORT.`. 7.2: a repair gathers its pull section and reason; admission-refused forge reads retry after client reclamation within the gather deadline; an unanswered sent read leaves a required section late and the task returns to Due after preparation backoff, with no attempt spent.
+
+- **Built:** 7.3: volatile read-refusal and call-admission facts reach operator notes and stderr with task, attempt, tool, layer and reason; authority findings remain in `ToolDenied` results. Diagnostic saturation changes no decision.

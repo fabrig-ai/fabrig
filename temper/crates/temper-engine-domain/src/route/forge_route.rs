@@ -19,6 +19,9 @@ use jig_domain_core::effects::connector::{EffectDescription, EffectForm, Recover
 mod landing_route;
 pub(crate) use landing_route::start_landing_step;
 use landing_route::{describe_landing_effect, landing_decision, start_landing};
+mod reads;
+use reads::read_answer;
+pub(crate) use reads::read_call;
 mod holds;
 pub(crate) use holds::{hold as hold_reason, refused_step, start_refused};
 
@@ -546,90 +549,6 @@ fn describe_agent(
         recovery,
     };
     Ok(EffectFlight::Call { description: Box::new(description), repository, effect: described.effect, key, resource })
-}
-
-pub(crate) fn read_call(
-    domain: &mut Domain,
-    env: &Env<Limits>,
-    _decision: &mut Decision,
-    to: ReplyTo,
-    key: CallKey,
-    repository: skein_forge::api::Repository,
-    read: skein_forge::api::Read,
-) {
-    let Some(adopted) = domain.forge.repository(repository) else {
-        return super::host_route::read(
-            domain,
-            to,
-            CallAnswer::ForgeRead(Box::new(Err(skein_forge::api::Error::Missing))),
-        );
-    };
-    let Some(context) = domain.core.tasks.delegation(key.task) else {
-        return super::host_route::read(
-            domain,
-            to,
-            CallAnswer::ForgeRead(Box::new(Err(skein_forge::api::Error::Forbidden))),
-        );
-    };
-    let name = read_name(adopted, &read, env.limits.authority.segments);
-    let allowed = match name {
-        Some(name) if context.project == adopted.project && adopted.kinds.read => {
-            let mut findings = Queue::uncapped();
-            domain.core.connector_read_admit(
-                key.task,
-                authority::Effect {
-                    connector: domain.config.forge_connector,
-                    kind: 1,
-                    name,
-                    state: [0; 32],
-                    price: None,
-                    access: effect_access(adopted, &forge::What::Repository, 1),
-                    additional: Box::new([]),
-                    guards: Box::new([]),
-                },
-                &mut findings,
-            ) == authority::Answer::Allow
-        }
-        Some(_) | None => false,
-    };
-    if !allowed {
-        return super::host_route::read(
-            domain,
-            to,
-            CallAnswer::ForgeRead(Box::new(Err(skein_forge::api::Error::Forbidden))),
-        );
-    }
-    let Some(serial) = domain.next_effect_owner.checked_add(1) else {
-        return super::host_route::read(
-            domain,
-            to,
-            CallAnswer::ForgeRead(Box::new(Err(skein_forge::api::Error::Busy))),
-        );
-    };
-    if serial >= 1_u64 << 61_u32 {
-        return super::host_route::read(
-            domain,
-            to,
-            CallAnswer::ForgeRead(Box::new(Err(skein_forge::api::Error::Busy))),
-        );
-    }
-    domain.next_effect_owner = serial;
-    let owner = Token::new(serial | (1_u64 << 61_u32));
-    assert!(domain.forge_reading.insert(owner, (to, key)) == Ok(None), "one fresh read correlation");
-    domain.work.push(Work::Forge(forge::Event::Client(skein_forge_client::Event::Read { owner, repository, read })));
-}
-
-/// Local admission waits in the host's bounded backoff, keeping the logical call unchanged
-/// (temper/docs/design/domain/forge.md, 5.3).
-fn read_answer(domain: &mut Domain, owner: Token, result: Result<skein_forge::api::Answer, skein_forge::api::Error>) {
-    let Some((to, _key)) = domain.forge_reading.remove(&owner) else { return };
-    if result == Err(skein_forge::api::Error::Busy) {
-        let right = to.into_token();
-        domain.call_renders.remove(&right);
-        crate::stopping::call(domain, ReplyTo::new(right));
-    } else {
-        super::host_route::read(domain, to, CallAnswer::ForgeRead(Box::new(result)));
-    }
 }
 
 #[expect(clippy::too_many_arguments, reason = "one typed task and connector subscription is routed together")]

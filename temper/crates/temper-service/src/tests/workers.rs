@@ -647,3 +647,88 @@ fn a_first_attempt_requests_saves_from_its_charters_resume_policy() {
         assert!(!decoded_charter(&assignment.assignment.charter).resume(), "the first attempt has no transcript yet");
     }
 }
+
+fn refused_read_call(service: &mut crate::Service, run: &temper_engine_domain::Assignment) {
+    use temper_engine_domain as root;
+    let name = jig_protocol_charter::call_name(&jig_protocol_charter::CallKey {
+        activation: run.attempt,
+        completion: 0,
+        position: 1,
+    });
+    service.engine.as_mut().unwrap().step(root::Event::Worker(root::WorkerInput::Link {
+        channel: Token::new(7),
+        link: root::Link::Up {
+            up: host::LinkUp::Call {
+                run: Token::new(run.task),
+                attempt: Token::new(run.attempt),
+                call: name,
+                tool: b"read_branch".as_slice().into(),
+                writes: false,
+                input: br#"{"repository":"acme/shop","branch":"main"}"#.as_slice().into(),
+                deadline: skein_lib::Duration::from_secs(10),
+            },
+            parts: root::Parts::none(),
+        },
+    }));
+}
+
+fn advance_refusal(service: &mut crate::Service) {
+    use temper_engine_domain as root;
+    let engine = service.engine.as_mut().unwrap();
+    for _ in 0_u32..32 {
+        if let Some(event) = engine.events.pop() {
+            engine.step(event);
+        }
+        root::release(&mut engine.domain, &engine.env, &mut engine.requests);
+        for _ in 0..engine.requests.len() {
+            let request = engine.requests.pop().unwrap();
+            crate::route::request(engine, request);
+        }
+        engine.store.iterate();
+        crate::engine::answer(engine);
+        engine.domain.reclaim();
+        for note in &engine.notes {
+            if let crate::Note::CallAdmissionRefused { .. } = note {
+                return;
+            }
+        }
+    }
+}
+
+#[test]
+fn call_admission_refusals_reach_operator_notes_through_the_service() {
+    let (mut service, run) = fixtures::claimed_chat();
+    refused_read_call(&mut service, &run);
+    advance_refusal(&mut service);
+    let mut found = false;
+    while let Some(note) = service.notes().pop() {
+        if let crate::Note::CallAdmissionRefused { task, attempt, tool, layer, reason } = note {
+            assert_eq!((task, attempt), (run.task, run.attempt));
+            assert_eq!(tool.as_ref(), b"read_branch");
+            assert_eq!((layer, reason), ("call-proof", "completion is zero"));
+            found = true;
+        }
+    }
+    assert!(found, "the shell receives the refusing layer and its reason");
+}
+
+#[test]
+fn refusal_notes_resume_after_the_operator_sink_drains() {
+    let (mut service, run) = fixtures::claimed_chat();
+    while service.notes().room() > 0 {
+        service.notes().push(crate::Note::ForgeLacking { number: 1, names: Box::new([]) });
+    }
+    refused_read_call(&mut service, &run);
+    advance_refusal(&mut service);
+    assert_eq!(service.engine.as_ref().unwrap().facts, 0, "a full note sink leaves the fact queued");
+    while service.notes().pop().is_some() {}
+    let engine = service.engine.as_mut().unwrap();
+    assert!(engine.work_pending(Time::ZERO));
+    crate::engine::clock(engine, Time::ZERO, skein_lib::Wall::EPOCH);
+    assert_eq!(engine.facts, 1);
+    assert_eq!(engine.domain.facts_lost(), 0);
+    let Some(crate::Note::CallAdmissionRefused { task, attempt, .. }) = service.notes().pop() else {
+        panic!("queued refusal reaches the operator");
+    };
+    assert_eq!((task, attempt), (run.task, run.attempt));
+}

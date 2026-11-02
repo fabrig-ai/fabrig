@@ -547,6 +547,20 @@ modification or the shell: a reviewer changes nothing.
 The change's agents ask no one, and take no questions, answers or words
 (8.2).
 
+A refused forge read keeps its refusing layer and reason. Connector authority
+findings reach the agent as `ToolDenied`, with the findings intact. The root
+also emits volatile operator facts for read refusals and call admission
+refusals: task, attempt, tool, layer and reason, with authority findings or
+the forge's error where present. The service routes these facts to its
+operator notes and `temper serve` prints them on stderr. Call-record and
+archive-read room pressure remains busy, retried by the host; observing it
+changes no admission or grant. These bounded diagnostics are not store rows
+or client wire fields, and overflow drops a fact and increments the root's
+lost-fact count. Claude built-in Read refusals instead retain the permission
+message in the recorded tool result (smith's `protocol/programs.md`, 5.4).
+A reviewer still fails when it cannot judge the change.
+
+
 ### 8.1 The configuring agent
 
 A chat from template 3, run by charter 3, both stock and both settings

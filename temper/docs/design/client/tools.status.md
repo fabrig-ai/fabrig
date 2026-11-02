@@ -1,6 +1,6 @@
 # tools: status
 
-2026-11-01. Where temper's code lags or departs from [tools.md](tools.md).
+2026-11-02. Where temper's code lags or departs from [tools.md](tools.md).
 
 - **Built:** 6: a question's text and JSON read-whole calls name the asked task, as its answer call does. 8.1: an empty sign-in link is refused before sending, including stdin ending before DIRECTORY is ready.
 
@@ -32,3 +32,6 @@
 
 - **Built (2026-11-01, plan phase-case):** 5.4: `--until phase:PHASE` parses its word in any ASCII case, `backing-off` also as `BackingOff` and `backing_off`; `help task show` and the `ctl` page say so.
 - **Not yet (14):** `--until phase:` in the header's words. The request asked that the spelling `task show` prints parse; the header prints jig's phrase-book word, which is the phase word only for `Waiting`, `Running`, `Closing` and `Held`. `Waiting for news`, `Due to run`, `Preparing a host`, `Claimed by a host`, `Retrying` and `ChipExecutor active` still give the usage line; `--json`'s words all parse.
+
+- **Built (2026-11-02, plan me-retention):** 6.1: `me` prints its retention in whole seconds, `retention: 86400 seconds` for a day, a remainder below a second dropped; a met wait on `me` prints it alike. `--json` keeps `"retention"` in nanoseconds. This is the second form the request allowed (QA `v0.1.0-ladder/finding-13`: `1 day`, or ctl's form elsewhere for durations); help named no form, so no help page changed.
+- **Not yet (6.1):** a refused worker hello's stop bound, in a task wait's refusal, prints `allowed grace N ns` (`render/document/llm.rs`, `HelloRefusal::StopBound`), jig's raw nanoseconds, not whole seconds. The plan kept to `me`'s one line. Its JSON `grace` stays in nanoseconds.
