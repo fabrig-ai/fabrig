@@ -3,7 +3,7 @@ id = "settings-wake-pace"
 part = "settings-wake"
 kind = "feature"
 needs = ["goal-jig-store", "goal-jig-client"]
-files = ["jig/crates/jig-domain-tasks/src/boundary.rs", "jig/crates/jig-domain-tasks/src/wake.rs", "jig/crates/jig-domain-tasks/src/tests/deadlines.rs", "jig/crates/jig-domain-people/src/amendment.rs", "jig/crates/jig-domain-core/src/admission/amendments.rs", "jig/crates/jig-protocol-store/schema/tasks-v9.schema", "jig/crates/jig-protocol-store/schema/people-v14.schema", "jig/crates/jig-protocol-store/src/generated/**", "jig/crates/jig-protocol-store/src/codec/tasks/phase.rs", "jig/crates/jig-protocol-store/src/codec/people/policy.rs", "jig/crates/jig-protocol-store/src/tests/fixtures.rs", "jig/crates/jig-protocol-store/golden/tasks/**", "jig/crates/jig-protocol-store/golden/people/**", "jig/crates/jig-client-protocol-wire/schema/client-v19.schema", "jig/crates/jig-client-protocol-wire/src/generated/**", "jig/crates/jig-client-protocol-wire/src/tests/fixtures.rs", "jig/crates/jig-client-protocol-wire/golden/**", "jig/crates/jig-protocol-engine-clients/src/translate/owner.rs", "jig/crates/jig-protocol-engine-clients/src/translate/asks.rs", "jig/crates/jig-client-domain/src/contract/wake.rs", "jig/crates/jig-client-protocol-link/src/translate/asks.rs", "jig/crates/jig-client-protocol-link/src/translate/facts_part1.rs", "jig/crates/jig-client-view/src/tree/fragments/wake.rs", "jig/crates/jig-client-view/src/words/wake_words.rs", "jig/crates/jig-client-view/src/tree/confirmation/amendment.rs", "jig/crates/jig-client-view/src/tests/tree/fragments/wake.rs", "jig/testing/jig-client-scripted-engine/src/codec/values/wake.rs", "jig/tests/tasks/tests/suite/pace.rs", "jig/tests/tasks/tests/suite/main.rs", "jig/tests/client-wire/tests/suite/fuzzy/client_wire.rs", "temper/crates/temper-client-tools/src/jig/render/document/templates.rs", "temper/crates/temper-client-view/src/pages/chats.rs", "jig/docs/design/domain/tasks.status.md"]
+files = ["jig/crates/jig-domain-tasks/src/boundary.rs", "jig/crates/jig-domain-tasks/src/wake.rs", "jig/crates/jig-domain-tasks/src/lib.rs", "jig/crates/jig-domain-tasks/src/control.rs", "jig/crates/jig-domain-tasks/src/tests/deadlines.rs", "jig/crates/jig-domain-people/src/amendment.rs", "jig/crates/jig-domain-core/src/admission/amendments.rs", "jig/crates/jig-protocol-store/schema/tasks-v9.schema", "jig/crates/jig-protocol-store/schema/people-v14.schema", "jig/crates/jig-protocol-store/src/generated/**", "jig/crates/jig-protocol-store/src/codec/tasks/phase.rs", "jig/crates/jig-protocol-store/src/codec/people/policy.rs", "jig/crates/jig-protocol-store/src/tests/fixtures.rs", "jig/crates/jig-protocol-store/golden/tasks/**", "jig/crates/jig-protocol-store/golden/people/**", "jig/crates/jig-client-protocol-wire/schema/client-v19.schema", "jig/crates/jig-client-protocol-wire/src/generated/**", "jig/crates/jig-client-protocol-wire/src/tests/fixtures.rs", "jig/crates/jig-client-protocol-wire/golden/**", "jig/crates/jig-protocol-engine-clients/src/translate/owner.rs", "jig/crates/jig-protocol-engine-clients/src/translate/asks.rs", "jig/crates/jig-client-domain/src/contract/wake.rs", "jig/crates/jig-client-protocol-link/src/translate/asks.rs", "jig/crates/jig-client-protocol-link/src/translate/facts_part1.rs", "jig/crates/jig-client-view/src/tree/fragments/wake.rs", "jig/crates/jig-client-view/src/words/wake_words.rs", "jig/crates/jig-client-view/src/tree/confirmation/amendment.rs", "jig/crates/jig-client-view/src/tests/tree/fragments/wake.rs", "jig/testing/jig-client-scripted-engine/src/codec/values/wake.rs", "jig/tests/tasks/tests/suite/pace.rs", "jig/tests/tasks/tests/suite/main.rs", "jig/tests/client-wire/tests/suite/fuzzy/client_wire.rs", "temper/crates/temper-client-tools/src/jig/render/document/templates.rs", "temper/crates/temper-client-view/src/pages/chats.rs", "jig/docs/design/domain/tasks.status.md"]
 effort = "high"
 minutes = 120
 +++
@@ -140,3 +140,24 @@ Owns the files in the header. The edits there:
 
 The implementer's text's report, plus: each compiler-forced arm by file, the goldens added,
 and the phrase id given to `Paced`.
+
+## Answers
+
+2026-11-02. May this task also change `jig-domain-tasks/src/lib.rs` and `src/control.rs`?
+Yes, both added to the header, each to the one edit its acceptance needs and no more:
+
+- `lib.rs`: `pub use wake::valid as wake_valid;` beside the crate's other root exports
+  (`settings-wake-charter` calls `jig_domain_tasks::wake_valid`). `bound-verdict-fields` also
+  owns `lib.rs`: keep the hunk to that line so the two merge.
+- `control.rs`, the amendment's wake check: `Refusal::Read` becomes `Refusal::Spec`, as
+  `batch.rs` refuses an invalid wake at the batch. It changes the refusal for an invalid
+  `Batch` amendment too, which is intended; no existing test pins `Read` there. Re-enable
+  `tests::deadlines::a_zero_pace_amendment_is_refused_without_changing_the_task` in the
+  focused run.
+
+The rest of the work stands as pushed in `789f023aee`; rerun the narrow tests of the two
+edits, the deadlines tests and the pace stories, then the focused run without the amendment
+exclusion. The settings size failure
+(`settings::a_revision_item_past_the_single_read_budget_answers_its_encoded_size`) is not
+this task's: report it under `## Left` with its log.
+
