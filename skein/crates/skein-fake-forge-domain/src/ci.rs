@@ -2,11 +2,10 @@
 //! branch's or a pull request's head, each context of the repository's checks
 //! is pending at once, then passes or fails after a drawn latency, or never
 //! reports, by the repository's chances; or, where a cue is configured, as the
-//! commit's file content or message says (testing.md, 4.2: the stand-in until CI
-//! follows content for real). Pull-file cues start a new run when a push
-//! head becomes a pull head, binding its number; other CI runs once per
-//! commit and repository. A context that reported may be run again once,
-//! by the repository's chance:
+//! commit's file content or message says (fake-forge.md, 2.3). Pull-file
+//! cues start a new run when a push head becomes a pull head, binding its
+//! number; other CI runs once per commit and repository. A context that
+//! reported may be run again once, by the repository's chance:
 //! pending again at once, then a verdict drawn again, so a head's CI can
 //! move after it settled. Users with write permission report statuses of
 //! their own.

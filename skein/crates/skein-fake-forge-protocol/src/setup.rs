@@ -1,4 +1,4 @@
-//! Setup's protocol state, separate from repository permissions (testing.md, 4.2).
+//! Setup's protocol state, separate from repository permissions (fake-forge.md, section 4).
 use crate::{Config, Limits, response::Reply};
 use alloc::boxed::Box;
 use skein_forge::forgejo::{
