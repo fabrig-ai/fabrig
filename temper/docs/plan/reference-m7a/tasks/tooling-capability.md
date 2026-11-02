@@ -2,7 +2,7 @@
 id = "tooling-capability"
 part = "worker-jobs"
 kind = "feature"
-needs = []
+needs = ["hub-jobs"]
 files = [
   "temper/crates/temper-worker-domain-tooling/**",
   "Cargo.toml",
@@ -113,3 +113,11 @@ Pre-approved options:
 
 As the implementer's text says, and also: the `Limits` fields chosen and their meaning; that
 `temper/docs/design/README.md`'s crate list needs the new crate; the job states you chose.
+
+## Answers
+
+2026-11-02. **Q:** `JobKind` and `JobBound` are missing from `jig-domain-link` at the base; wait
+for `hub-jobs` or bring them in here? **A:** Wait. `hub-jobs` owns them and `jig-domain-link`;
+this task now needs `hub-jobs`, and its next run starts from a trunk that has them. Do not
+define substitute types or touch `jig-domain-link`. Report `temper/docs/design/README.md`'s
+crate list under `## Left`, as the spec says.

@@ -35,7 +35,7 @@ The shapes every task builds to are `notes/contracts.md`; the standing rules
     declaring its kind; hub-link's `StartJob`/`AssignedJob`; a job's answer as the tasks
     child's `End`; restart.
 - **worker-jobs** (`temper/docs/design/domain/worker.md, 4.4`), slice 1.
-  - `tasks/tooling-capability.md`, high, ~150 min, needs nothing: the new crate
+  - `tasks/tooling-capability.md`, high, ~150 min, needs `hub-jobs` (`JobKind`, `JobBound`): the new crate
     `temper-worker-domain-tooling`, sans-io, uncomposed.
   - `tasks/worker-jobs.md`, high, ~170 min, needs `hub-jobs`, `tooling-capability`: the root
     composes it; hello's kinds; routing; delivery by the checkout's push.
