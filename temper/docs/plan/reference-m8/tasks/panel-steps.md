@@ -143,3 +143,17 @@ change, widened by the files now in its header; `notes/contracts.md`, 4 carries 
 The panel's cleared line for a repaired tier names `repaired.run`; for one cleared outright, its
 verdict's run. The earlier answer's rule stands for everything else in `verification.rs` and
 `tests/verification.rs`, and `tiers.rs` is still never edited.
+
+## Rebase (2026-11-02, step merge, foreman reference-m8/panel-steps/foreman-3)
+
+reconcile the v11 generated codec with trunk’s durable tier fields and this branch’s TierRepair.
+The merge conflicts in `temper/crates/temper-protocol-store/src/generated/v11.rs`.
+Trunk commit `906a6bb4a9` adds `TierProbeBranch`, `TierRow.probe`, and `TierFlight.report`.
+Branch commit `03a1be1d31` adds `TierRepair { run, tip }` and changes `TierVerification.repaired` to `Option<TierRepair>`.
+Preserve both sets of changes in the merged `schema/store-v11.schema`; keep version 11.
+Resolve the generated codec to contain both changes, then regenerate it and `golden/v11/**` from the combined schema:
+`SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'`
+Run the same command without `SKEIN_CODEGEN_WRITE` to confirm committed output matches.
+Retain the automatically merged tier-test and fuzzy-store changes from both sides.
+Validate with `heavy cargo nextest run -p temper-protocol-store`.
+No change to tier policy or `tiers.rs` is needed for this conflict.
