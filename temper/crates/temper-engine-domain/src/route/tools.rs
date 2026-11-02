@@ -108,6 +108,19 @@ pub(crate) fn relay_payload(
                 }
                 Tool::ReadNamed { .. } => unreachable!("named reads resolved before deciding"),
                 tool @ (Tool::Change { .. } | Tool::Goal { .. }) => {
+                    if let Tool::Change { changes } = &tool
+                        && match changes.as_ref() {
+                            [change] => change.name.is_some() || change.landing.is_some() || !change.after.is_empty(),
+                            _ => true,
+                        }
+                    {
+                        domain.work.push(Work::Core(core::Event::NamedAnswer {
+                            to: reply_to,
+                            key,
+                            part: core::CallPart::DelegationRefused(tasks::Problem::new(None, tasks::Refusal::Spec)),
+                        }));
+                        return;
+                    }
                     if let Tool::Goal { advisor, agree, .. } = &tool
                         && let Some(words) = super::goal::refusal(domain, key.task, *advisor, *agree)
                     {
@@ -130,8 +143,15 @@ pub(crate) fn relay_payload(
                     }
                     let expanded = match domain.core.tasks.delegation(key.task) {
                         Some(context) => {
-                            if let Tool::Change { words, repository } = tool {
-                                forge_route::chat_change(domain, env, &context, words, repository.as_deref())
+                            if let Tool::Change { changes } = tool {
+                                let change = changes.into_iter().next().expect("one plain change");
+                                forge_route::chat_change(
+                                    domain,
+                                    env,
+                                    &context,
+                                    change.words,
+                                    change.repository.as_deref(),
+                                )
                             } else {
                                 let Tool::Goal { words, advisor, agree } = tool else { unreachable!("goal or change") };
                                 if agree {
