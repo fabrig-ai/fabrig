@@ -26,12 +26,6 @@
   `amend_tools.rs` parses `--model` alone); the joined stories of
   `playground end`, `forge remove`, and a set up or a connect without
   FORGE, which `temper-client-tools`' own step tests hold alone.
-  8.1: a DIRECTORY that fails a step, an absent `address` included,
-  prints `DIRECTORY could not be read` without its step or error; a
-  FILE's failed read prints as DIRECTORY's; a key file's failed read
-  names no error; and `account import` and `forge connect` print a
-  DIRECTORY failure as their key file's (`temper-client-shell-cli`'s
-  `directory.rs`, `host/input.rs`).
 - **Departs:** 5.1: `project` is area 1's (`jig/rows.rs`
   `PROJECT_SHOW`, `PROJECT_FUND`), not area 3's; the placeholders add
   `HOST:PORT` and `URL`. 5.2: `settings show template|policy` takes
