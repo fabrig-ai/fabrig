@@ -597,11 +597,11 @@ and `connect-forge.html`.
     repository fields invalid, the fields kept for the person to fix.
     "Set up again" sends the fields the last `SetUp` sent. The
     welcome shows these Details too (`README.md`, 3.5). Not under
-    the box: "Set it up from a terminal", "temper was not started by
-    temper box, so it does not start a Forgejo itself. Run these, keep
-    the last two running (a service manager is best), then restart
-    temper:", the four commands of the row's not set up (below), and
-    no action;
+    the box, where an owned Forgejo is never set up, since its group is
+    the box's (`../protocol/setup.md`, 7.4): "Set it up under temper
+    box", "temper was not started by temper box, so it does not start a
+    Forgejo itself. Start temper with temper box to set one up here.",
+    and no action;
   - *Your Forgejo,* a forge to make: its addresses, "Its address", its
     API's host, "Its git base", the base of its remotes, and "Its web
     address", its pages, optional; then its admin's form, as a managed
@@ -768,7 +768,7 @@ says:
   | State | The row says |
   |---|---|
   | not connected | "Not connected", with Connect; where its records say why, "Not connected: its records are unreadable" or "Not connected: its records were made for KIND at ADDRESS", and connecting again overwrites them (`../protocol/forge.md`, at start) |
-  | not set up | an owned forge not prepared yet (`../protocol/setup.md`, 6.5): under the box, "Not set up", with "Set up a Forgejo here"; without it, "Not set up: run `temper forge fetch N`, `temper forge prepare N`, `temper forge run N forgejo` and `temper forge run N runner`, then restart `temper serve`", N its number, with no action |
+  | not set up | an owned forge not prepared yet (`../protocol/setup.md`, 6.5): under the box, "Not set up", with "Set up a Forgejo here"; without it, "Not set up: start temper with temper box", with no action, since its group is the box's (`../protocol/setup.md`, 7.4) |
   | setting up | the box runs its steps, asked: "Setting up: fetching", "Setting up: preparing" or "Setting up: starting", by the box's last word of the step it runs, else "Setting up" (`../protocol/setup.md`, 7.1); then "Connecting", as its handover is taken and reconciled (`../protocol/setup.md`, 5.1) |
   | set up failed | "Set up failed: STEP", naming the box's step, or, after the box's `started`, the engine's step that stopped (taking the handover, reconciling, removing the handover file; `../protocol/setup.md`, 6.5), with `temper box`'s output for the rest until its `failed` line carries a reason; with "Set up again"; the engine and every other forge run on |
   | connecting | "Connecting": a run holds the forge, and what it waits for: a managed or owned Forgejo's reconcile, the forge's answers to a check, or GitHub's conversion of its App; on GitHub, also connected with no accepted installation, "Connecting: installed nowhere yet" with none, or "Connecting: no installation accepted yet" with strays alone, with "Install on GitHub". The person's browser on GitHub is no run, and shows nowhere |
@@ -816,9 +816,12 @@ says:
   ORG/NAME failed: STEP", the step one of "checking the admin's
   token", "making the organization", "making the repository" (its
   bot's access with it) or "adding the starter workflow", beside "Set
-  up failed". It is the engine's memory alone: a restart drops the
-  line. The set up flow's Ready step and `temper ctl forge setup`
-  adopt the made repository into its project (`tools.md`, 5.5).
+  up failed". Made and failed are the engine's memory alone; the
+  intent is the forge's record's, so after a restart the line says
+  "Making ORG/NAME" until the repository is made again
+  (`../protocol/setup.md`, 6.7). The set up flow's Ready step and
+  `temper ctl forge setup` adopt the made repository into its project
+  (`tools.md`, 5.5).
 - **Its mode** (`../protocol/setup.md`, the modes): owned, where the
   forge's setup entry, kept on its record, owns it
   (`../protocol/forge.md`, 2.1); managed, where temper keeps a

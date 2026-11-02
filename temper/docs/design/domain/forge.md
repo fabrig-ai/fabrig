@@ -402,8 +402,11 @@ temper-engine-domain-forge              the connector's top: resources and holds
   a forge not kept or already ended, and *not taken* for the
   playground's forge, which the playground's reset removes in a
   decision of its own, the deployment's removal
-  (`../protocol/setup.md`, 8.4). In one decision the forge is ended;
-  the rest follows as kept acts:
+  (`../protocol/setup.md`, 8.4). The deployment removes a forge by that
+  reset alone, the connector's own act, which needs no grant: `engine.acts`
+  grants a connector jig's acts in the deployment's name (jig's
+  `domain/people.md`, 5.3), and a forge's removal is none of them. In
+  one decision the forge is ended; the rest follows as kept acts:
   - *ended at once,* as above, for any forge: its connection, its first
     repository's intent, a GitHub forge's installations and its writer
     are dropped, its reads and watches retired, and its repositories

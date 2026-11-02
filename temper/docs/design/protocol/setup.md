@@ -2150,10 +2150,12 @@ them as it does any Forgejo.
   scripted provider, `application.demo.llm.provider`.
 - **Offered while no real forge is kept:** `StartPlayground` is
   refused *not offered* while any forge but the playground's own is
-  kept, whatever its state: an unfinished one is started over first
-  (6.7), and a whole one is not; also while the row reads resetting,
-  and when the document has no `application.demo` or the machine no
-  `fake`. A real account alone does not end it. It is offered again
+  kept, whatever its state but ended: an unfinished one is started over
+  first (6.7), and a whole one is not; one ended, being removed
+  (`../domain/forge.md`, 4.1), is in no list and counts for nothing, as
+  the welcome counts it (`../client/README.md`, 3.5); also while the
+  row reads resetting, and when the document has no `application.demo`
+  or the machine no `fake`. A real account alone does not end it. It is offered again
   once its reset is done, while no real forge is kept: it has no ended
   state and no end but its reset, and no other forge's connect changes
   it.
@@ -2167,7 +2169,10 @@ them as it does any Forgejo.
   once that one answers. Without a pipe it asks nothing: the fakes are
   the runner's (7.4). Once the fake forge connects, its acts follow, in
   order, each under the sign-in of the person who sent the start, with a
-  key derived from the start's:
+  key derived from the start's, since the account's uses are its
+  holder's request, a first owner's for the deployment's account, which
+  no act in the deployment's name makes (jig's `domain/people.md`, 5.1
+  and 5.3):
   1. the scripted account: `llm.key`'s bytes less a final newline, as
      the deployment's account of `llm.provider`, by `AddKey { provider,
      join: None, digest }`, unless the deployment holds one of that
@@ -2203,13 +2208,17 @@ them as it does any Forgejo.
   (`../client/README.md`, 4.8), of the deployment's scope: in one
   decision the row reads *resetting*, a start under way is answered *not
   offered*, and the forge connector keeps the reset's acts, in order,
-  each the deployment's, the forge connector's own (jig's
-  `domain/people.md`, 5.3), granted by the document's `acts` (8.3), the
-  row's step naming the one under way, and each sent under a key
-  derived from the fake forge's number and the step:
+  each the deployment's, the row's step naming the one under way, and
+  each sent under a key derived from the fake forge's number and the
+  step; the project's and the account's are acts in the deployment's
+  name, the forge connector's own (jig's `domain/people.md`, 5.3),
+  granted by the document's `acts` (8.3), and the forge's is the
+  connector's own removal, which needs no grant:
   1. `project`: the playground's project deleted, by `RemoveProject`
-     (jig's `domain/people.md`, 5.2), its chats cancelled and erased
-     with it;
+     (jig's `domain/people.md`, 5.2), answered removed once the project
+     is closed, so the step passes then; its chats are cancelled and
+     erased with it in the deletion's own kept steps, which go on
+     beside the reset's next steps until whole;
   2. `forge`: the fake forge removed (`../domain/forge.md`, 4.1), its
      group stopped and its directory, file and record removed (7.1);
   3. `account`: the scripted account removed, by `RemoveAccount`;
@@ -3390,8 +3399,9 @@ listener's (`../client/forge.md`, the browser's steps).
   the machine names a place only to point at a fake (7.5).
 - **The clients' listener at a fixed address,** a loopback port the
   person's browser reaches, since GitHub's redirect and setup URLs name
-  it; its port 0 is refused at start while a GitHub forge is
-  kept.
+  it; a GitHub `Connect` on its port 0 is refused, naming
+  `application.clients.listener` (forge.md, 2.1; configuration.md,
+  section 3).
 - **A repository's own rules** are read and said at adoption, and never
   changed (`../domain/forge.md`, what adoption says of the branch's
   rules): a merge queue is taken as it is; required approvals need the

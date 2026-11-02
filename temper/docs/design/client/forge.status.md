@@ -29,4 +29,12 @@
   (`words.rs` `ForgeLeave`), where no banner says it: words for a forge
   added to the configuration by hand, and for a banner's set up under
   way, which the store's records and the playground's one line leave
-  without a place.
+  without a place. 5.4: without the box, Forgejo on this machine's
+  Details say "Set it up from a terminal" and the four `temper forge`
+  commands with a restart (`temper-client-view`'s `forge/connect.rs`,
+  `words.rs` `ForgeTerminal` and `ForgeTerminalDetails`), and a not set
+  up row names the same commands (`temper-client-domain`'s
+  `forge/words.rs` `set_up_commands`), commands that find no group's
+  file for a forge the box did not run (`../protocol/setup.md`, 7.4):
+  words for an owned forge set up by hand, which the box's group files
+  leave without a way.

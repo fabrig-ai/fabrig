@@ -218,7 +218,8 @@ skein-io socket
   - whether a pasted GitHub App is another's, read-only (setup.md,
     17.7);
   - its bot's git identity: a login, and the name and email it commits
-    as (2.5);
+    as, read on Forgejo alone: a GitHub forge commits as its App's bot,
+    from its `AppSlug` and `User` records (2.5);
   - for a first set up, the first repository's intent: its
     organization, name, project and runner label (setup.md, 6.7), kept
     so that a restart before the repository is made makes it at the next
@@ -475,8 +476,8 @@ skein-io socket
 ### 2.5 Git's tokens, and generations
 
 One git identity per forge (credentials.md, git identities): its number
-is the forge's, its login and author the record's bot (2.1), and its
-value the forge's.
+is the forge's, its login and author on Forgejo the record's bot (2.1)
+and on GitHub the App's (below), and its value the forge's.
 
 - **Forgejo's value** is the `GitToken` record's, its login the bot's
   (`User`): generation 1 at start, or at the first connect after the

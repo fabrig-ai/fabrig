@@ -792,8 +792,10 @@ keeps (`../protocol/configuration.md`, section 2).
     `client/domain/contract.md`, 5.1); and while a playground is read,
     when an account of that document is usable whose LLM provider is
     not the playground's, or, for an owner, one of the deployment's
-    (4.8). While the playground runs, the store reads empty, since it
-    keeps no real forge and its model counts for no one (4.8). Its facts are
+    (4.8). While the playground runs, its forge and its model count for
+    nothing, so the store reads as it would without it: empty, unless
+    an account of the person's own, added before, is usable, which
+    makes it unfinished at Forge (4.8). Its facts are
     in once the playground's read has answered, a playground or none,
     the `accounts` document is delivered, its accounts as far as it
     shows them, and the `forges` watch has delivered its rows. A read
@@ -1587,7 +1589,7 @@ for its kind, its user's login and its installations. Its nodes:
   bytes; `forge.md`, 5.4); and its
   offer, the forge domain's (`../domain/forge.md`, 4.1): offered, not
   under the box, or not offered, which is what "Set up a Forgejo here", "Set up again"
-  and the commands to run by hand follow (`forge.md`, 5.4). The read of the forges, the
+  and the words without the box follow (`forge.md`, 5.4). The read of the forges, the
   tools' `forge list` (`tools.md`, 5.5, area 6), is the watch's first
   document. *The client's forge side watches it once,* for the
   session, from when `me` is first delivered while the link is live,

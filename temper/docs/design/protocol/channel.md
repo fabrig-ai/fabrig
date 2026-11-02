@@ -246,8 +246,9 @@ record Entry    { account: u64  account_login: text  token: secret }
   `x-access-token`. No entry carries its expiry: the grant's validity,
   the earliest of them, bounds the value whole (credentials.md, section
   4).
-- **Its other fields** are the forge's record's bot (forge.md, 2.1): the
-  login, and the author's name and email; on GitHub the App's bot,
+- **Its other fields** are the login, and the author's name and email:
+  on Forgejo the forge's record's bot (forge.md, 2.1); on GitHub the
+  login above and the author the App's bot (forge.md, 2.5),
   `<slug>[bot]` and `<id>+<slug>[bot]@users.noreply.github.com`,
   `<slug>` the `AppSlug` record's and `<id>` the `User` record's. The login holds no `:` and no
   control byte; the name and the email are not empty and hold no NUL,
@@ -296,7 +297,7 @@ the routing in the step that routes the record:
 |---|---|---|---|
 | engine | items | the root's `Assignment` (its workspace's per-repository save destinations and `run.policy.resume`), and the kept forges' `git` bases and git programs | `Items`, or none for an empty workspace |
 | engine | parts | `Left`, `Saved`, `Preparation`, each if present | `Parts` |
-| engine | identity | the forge's records (Forgejo) or the GitHub forge's minted installation tokens (in memory), with its record's bot's login and author | `Identity`'s bytes |
+| engine | identity | the forge's records (Forgejo) or the GitHub forge's minted installation tokens (in memory), with its login and author: on Forgejo its record's bot's, on GitHub the App's (forge.md, 2.5) | `Identity`'s bytes |
 | worker | workspace | `Items`, or none | `wire::Workspace`, with per-repository `save` options |
 | worker | work | `wire::Work`, with each repository's tag and start | `Left`, `Saved` |
 | worker | preparation | `wire::Preparation`, with the repository's tag | `Preparation`, or none for a transient one |
