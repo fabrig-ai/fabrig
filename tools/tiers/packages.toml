@@ -7,7 +7,6 @@ browser-jig = [
 
 browser-skein = [
     "skein-browser-world",
-    "skein-lab-browser",
     "skein-ui-web-tests",
 ]
 
