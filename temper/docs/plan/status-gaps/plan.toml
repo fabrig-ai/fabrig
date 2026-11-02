@@ -84,3 +84,41 @@ The connected Forgejo (temper forge.status.md 2.2 and 2.6, setup.status.md 4) ca
 5. The paste: credentials.md 2.2's bundle layout of several items against the code's one-item Pasted (temper-secrets 1).
 Options: (a) recommended: temper's designer settles these first, then a later cut builds it (about 7 tasks: records, wire, engine domain, the service's Check meeting point, Replace, ctl, the web view). Suggested settlement: ForgeAsk gains connected: ManagedForge; How gains forgejo_tokens: ForgejoTokens {} and the requests replace: Replace { forge: u16 }, the values carried; Pasted holds a list of items in the codec's own form, credentials.md 2.2 saying so; the login kept in the forge record's bot; another user refused OtherUser; offered in ctl and on the web page; all in place at CLIENT_VERSION 11. (b) build only the engine and service side with (a)'s shapes, reached by tests alone, the client staying "not offered". (c) withdraw the connected Forgejo from the design.
 """
+
+[[part]]
+id = "jig-compat"
+title = "jig: TaskWaitRefused::Program and the kept Seen compatibility removed, temper's readers with them"
+mode = "direct"
+needs = []
+design = "jig/docs/design/protocol/client.md, 10"
+
+[[part]]
+id = "withdrawn-forms"
+title = "skein, smith, jig: the withdrawn compatibility forms removed (the codex dialect, the account-id grant, the identity profile, Anthropic's bearer route)"
+mode = "direct"
+needs = []
+design = "skein/docs/design/llm.md, 4.6"
+
+[[slice]]
+id = 5
+story = "a refused next run names only a host's hello, and a Seen an earlier client kept is dropped and erased, never restored"
+parts = ["jig-compat"]
+walk = false
+
+[[slice]]
+id = 6
+story = "smith and skein take an LLM endpoint only as openai or anthropic with a key, and jig refuses the withdrawn dialect"
+parts = ["withdrawn-forms"]
+walk = false
+
+[[question]]
+id = "withdrawn-forms"
+parts = ["withdrawn-forms"]
+text = """
+Removing the withdrawn forms (skein llm.status.md 4.6 and 4.7; smith STATUS.md and its agent, channel, hosts and llm status files) reaches further than the status files say, into things that are the user's:
+1. smith's product still runs on them, and no status file records it: smith-local-shell's presets hold a codex endpoint (dialect codex, the default account codex) and Anthropic's with identity claude-code; its ChatGPT sign-in reads the chatgpt_account_id claim and smith-local-service sends the withdrawn grant. smith's shell.md already names only openai and anthropic presets and refuses identity and dialect codex. Removing them ends smith's Codex (ChatGPT) and Claude Code identity routes for its users. The sign-in-wait draft is changing smith-local-shell/src/credentials/product.rs now.
+2. smith's channel wire: the withdrawn grant (channel-v5.schema, tag 2) and Cap::AccountId (tag 20) leave it, and smith's protocol/README.md 8 makes any change a reader notices a new version: channel v6 (jig names smith_channel::v5 in five files), or keep v5 and refuse those values.
+3. Stored data: charters and transcripts at dialect 1 and skein-llm's replay tag 1 stop resuming (local chats on the codex preset); skein-llm's Codex recordings (openai/fixtures) cannot be captured again, since no probe of a real service is allowed; temper-init's shipped agent.json template and deployments' agent.json carry "identity", which then is refused.
+4. jig's rule for an endpoint's dialect, which its design leaves open: accept only 2 and 3 (moving its fixtures that write 0 and 4), refuse 1 alone, or refuse nothing and let the charter's decode fail.
+Options: (a) recommended: remove them all as the designs say, in a later cut of five tasks in order (temper's configs and literals; jig's fixtures and its refusal of any dialect but 2 and 3; smith's product, after sign-in-wait lands; smith's agent, protocol and channel at v6; skein's routes), with smith's shell.status.md first recording the product's presets as a gap; the Codex recordings deleted, dialect-1 stores started afresh, temper's template without "identity". (b) remove only what smith's product does not use (the endpoint's account, the id-and-bearer grant's channel arm at v6) and keep the Codex and Claude Code routes, the designs and status files then saying they stay. (c) defer the item until smith's product has its replacement routes.
+"""
