@@ -400,11 +400,11 @@ the second once the reference case walks.
     more than; the reference's, sized for a goal of a hundred changes
     (`notes.md`, N21), once `reference-case.execution.md`'s M10 gives
     them, for 8.2;
-  - the project, with rung C's repository adopted, holding what section
-    14 asks of a repository: its `AGENTS.md`, its code and design rules,
-    `.temper/pre-pr`, its merge style; and, at a path the brief names,
-    `reference-code-production.md` and `reference-landing.md` as the
-    person's process documents.
+  - the project, with rung C's repository adopted, holding what the
+    golden's table asks of a repository: its `AGENTS.md`, its code and
+    design rules, `.temper/pre-pr`, its merge style; and, at a path the
+    brief names, `reference-code-production.md` and
+    `reference-landing.md` as the person's process documents.
 - **The pass plays the person** (`../../development/qa.md`, section 2),
   through 5.4's commands. Its first words name the two documents, as a
   person would: "set this project up to work the way these describe".
