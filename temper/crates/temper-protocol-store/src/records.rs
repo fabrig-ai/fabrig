@@ -142,6 +142,8 @@ pub(crate) fn limits(forge: &d::Limits) -> Option<w::Limits> {
         receipt_name_name: 32,
         receipt_run_url: 2048,
         tier_row_tier: 32,
+        tier_row_pending: forge.changes.checked_mul(2)?.checked_add(1)?,
+        tier_flight_pending: forge.client.rows,
         tier_run_landings: forge.changes.checked_mul(2)?.checked_add(1)?,
         tier_finding_blamed: forge.changes.checked_mul(2)?.checked_add(1)?,
         tier_finding_flakes: forge.tiers.failing_tests,

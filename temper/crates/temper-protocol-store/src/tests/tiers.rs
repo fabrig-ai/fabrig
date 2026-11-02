@@ -39,6 +39,16 @@ fn tier_records_keep_the_whole_policy_and_all_parts() {
     }
     let mut empty = full;
     empty.task = None;
+    empty.requested = false;
+    empty.cancelled = false;
+    empty.purpose = None;
+    empty.pending = Box::new([]);
+    empty.baseline = None;
+    empty.branch = d::TierBranch::Absent;
+    empty.flight = None;
+    empty.held = None;
+    empty.result = None;
+    empty.received = false;
     empty.record = p::Record { sequence: 0, judged: None, failing: p::Failures::Many, flakes: Box::new([]), run: None };
     round_trip(d::Stored::Tier(empty), 28);
 }
@@ -157,6 +167,50 @@ fn tier_family_bounds_follow_the_forge_and_full_row_measure() {
     assert_eq!(l.failing_test_test_id, fixtures::LIMITS.tiers.test_id_bytes);
     let row = records::encode(&d::Stored::Tier(fixtures::tier_row()));
     assert_eq!(u64::try_from(row.len()).unwrap(), crate::v11::TierRow::encoded_bound(l).unwrap() + 3);
-    assert_eq!(row.len(), 93_014);
+    assert_eq!(row.len(), 100_978);
     assert!(row.len() < 118_676);
+}
+
+#[test]
+fn tier_operations_keep_branch_states_faults_and_pending_tips() {
+    use temper_engine_domain_forge_landing::Fault;
+    for (branch, fault) in [
+        (d::TierBranch::Absent, Fault::SetUp),
+        (d::TierBranch::Made, Fault::Completion),
+        (d::TierBranch::Pending { entry: 31 }, Fault::NoStep),
+        (d::TierBranch::Made, Fault::Cancelled),
+        (d::TierBranch::Made, Fault::OtherCommit),
+        (d::TierBranch::Made, Fault::Lost),
+    ] {
+        let mut row = fixtures::tier_row();
+        row.branch = branch;
+        row.held = Some(fault);
+        row.flight.as_mut().unwrap().fault = Some(fault);
+        row.pending[0].key = None;
+        round_trip(d::Stored::Tier(row), 28);
+    }
+}
+#[test]
+fn tier_operation_lists_refuse_one_past_their_configured_bounds() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    for pending_tips in [true, false] {
+        let mut row = fixtures::tier_row();
+        if pending_tips {
+            let mut tips = skein_lib::List::with_capacity(u32::try_from(row.pending.len()).unwrap() + 1);
+            for tip in &row.pending {
+                tips.push(*tip).unwrap();
+            }
+            tips.push(d::TierLanding { commit: [99; 32], key: None }).unwrap();
+            row.pending = tips.into_boxed();
+        } else {
+            let flight = row.flight.as_mut().unwrap();
+            let mut jobs = skein_lib::List::with_capacity(u32::try_from(flight.pending.len()).unwrap() + 1);
+            for job in &flight.pending {
+                jobs.push(*job).unwrap();
+            }
+            jobs.push(skein_forge::api::JobAttempt { head: [4; 32], run: 71, job: 99, attempt: 1 }).unwrap();
+            flight.pending = jobs.into_boxed();
+        }
+        assert_eq!(records::decode(&records::encode(&d::Stored::Tier(row)), &bounds), Err(Undecodable));
+    }
 }

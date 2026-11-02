@@ -28,15 +28,38 @@ fn chatgpt_delivers_a_commit_in_place() {
 }
 
 #[test]
-fn a_run_refreshes_its_grant_at_the_issuer() {
+fn a_run_refreshes_its_grant_when_the_issuer_allows() {
     let mut environment = live::Environment::load(&["chatgpt"]);
     environment.refresh_lead = Some(live::REFRESH_LEAD_SECONDS);
     let clock = skein_shell::Clock::new();
-    let before = environment.refresh_facts();
+    let mut before = environment.refresh_facts();
+    let mut case = live::refresh_case(&before, clock.now().wall).unwrap_or_else(|message| panic!("{message}"));
+    let waited = match case {
+        live::RefreshCase::Wait { seconds } => {
+            std::thread::sleep(std::time::Duration::from_secs(seconds));
+            let waiting = before;
+            before = environment.refresh_facts();
+            let now = clock.now().wall;
+            assert_eq!(
+                live::refresh_case(&before, now),
+                Ok(live::RefreshCase::Refreshed),
+                "case=wait waited={seconds}s: the earliest refresh time must have passed; {}",
+                live::refresh_report(&waiting, &before, now)
+            );
+            case = live::RefreshCase::Refreshed;
+            format!(" waited={seconds}s")
+        }
+        live::RefreshCase::Refreshed | live::RefreshCase::Kept => String::new(),
+    };
     let scratch = Scratch::new();
     let completed = change(
         &environment,
-        Leg { story: "a_run_refreshes_its_grant_at_the_issuer", account: "chatgpt", invocation: 1, step: Step::Exec },
+        Leg {
+            story: "a_run_refreshes_its_grant_when_the_issuer_allows",
+            account: "chatgpt",
+            invocation: 1,
+            step: Step::Exec,
+        },
         &scratch,
         CHANGE,
         None,
@@ -44,7 +67,17 @@ fn a_run_refreshes_its_grant_at_the_issuer() {
     );
     let after = environment.refresh_facts();
     let refresh_report = live::refresh_report(&before, &after, clock.now().wall);
-    assert!(after.generation > before.generation, "the issuer refresh was kept; {refresh_report}\n{completed}");
+    match case {
+        live::RefreshCase::Refreshed => assert!(
+            after.generation > before.generation,
+            "case=refreshed{waited}: the issuer refresh was kept; {refresh_report}\n{completed}"
+        ),
+        live::RefreshCase::Kept => assert_eq!(
+            after.generation, before.generation,
+            "case=kept: no refresh before the issuer's earliest refresh time; {refresh_report}\n{completed}"
+        ),
+        live::RefreshCase::Wait { .. } => unreachable!("the refresh case was resolved before the run"),
+    }
 }
 
 #[test]
@@ -331,7 +364,7 @@ fn run(
         command(check_arguments),
         Box::default(),
         Capture::Raw,
-        bounds(Duration::from_secs(30), Duration::ZERO),
+        bounds(Duration::from_secs(live::CHECK_SECONDS), Duration::ZERO),
     )
     .expect("live check settles");
     let check_leg = Leg { step: Step::Check, ..leg };
@@ -360,7 +393,7 @@ fn run(
             account,
             trace,
         )))),
-        bounds(Duration::from_secs(260), teardown),
+        bounds(Duration::from_secs(live::EXEC_SECONDS), teardown),
     )
     .unwrap_or_else(|_| {
         panic!("shipped live exec settles\n{}", checked("check completed before exec settlement failed"))

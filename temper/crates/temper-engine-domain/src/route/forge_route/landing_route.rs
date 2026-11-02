@@ -185,7 +185,7 @@ pub(super) fn start_landing(domain: &mut Domain, env: &Env<Limits>, task: u64) {
         members.push(member).expect("admitted closure");
         asks.push(None).expect("admitted closure");
     }
-    let Some(seed) = domain.core.repair_seed(project) else { return };
+    let Some(seed) = domain.core.procedure_seed(project) else { return };
     let number = seed.number();
     domain.work.push(Work::Forge(forge::Event::Landing {
         row: forge::LandingRow {

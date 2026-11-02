@@ -12,6 +12,31 @@ pub const KEY: &str = "`ANTHROPIC_API_KEY` is not set";
 /// The refresh story's lead, in the settings' seconds: 400 days, past any access token's life.
 pub const REFRESH_LEAD_SECONDS: u64 = 400 * 86_400;
 
+/// The live check's hard bound, in seconds.
+pub const CHECK_SECONDS: u64 = 30;
+
+/// The live exec's hard bound, in seconds.
+pub const EXEC_SECONDS: u64 = 260;
+
+/// How far ahead an earliest refresh time must be for the refresh story to expect its record
+/// kept: longer than its check and exec bounds together (testing.md, 2.3).
+pub const EARLIEST_MARGIN_SECONDS: u64 = 300;
+
+/// A record without a refresh token needs a new sign-in before the refresh story.
+pub const NOT_REFRESHABLE: &str = "the record in `$SMITH_LIVE/tokens/chatgpt` holds no refresh token: run `XDG_CONFIG_HOME=$SMITH_LIVE/config smith login chatgpt`";
+
+/// The refresh story's case, from its record's refresh facts (testing.md, 2.3).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RefreshCase {
+    /// No earliest refresh time, or one at or before now: the run refreshes at once.
+    Refreshed,
+    /// An earliest refresh time more than the margin ahead: the run keeps the record.
+    Kept,
+    /// An earliest refresh time ahead within the margin: wait this many whole seconds,
+    /// which pass it, then choose again.
+    Wait { seconds: u64 },
+}
+
 /// The suite's durable user layer; each story requests only its own accounts.
 pub struct Environment {
     pub root: PathBuf,
@@ -72,6 +97,30 @@ impl Environment {
             }
         }
         configuration
+    }
+}
+
+/// The story's case for `facts` at `now`; a record without a refresh token is
+/// `Err(NOT_REFRESHABLE)`, whatever its earliest refresh time.
+pub fn refresh_case(
+    facts: &smith_local_shell::credentials::RefreshFacts,
+    now: skein_lib::Wall,
+) -> Result<RefreshCase, &'static str> {
+    if !facts.refreshable {
+        return Err(NOT_REFRESHABLE);
+    }
+    let Some(earliest) = facts.earliest_refresh_at else {
+        return Ok(RefreshCase::Refreshed);
+    };
+    let remaining = earliest.as_nanos().saturating_sub(now.as_nanos());
+    if remaining == 0 {
+        Ok(RefreshCase::Refreshed)
+    } else if remaining > skein_lib::Duration::from_secs(EARLIEST_MARGIN_SECONDS).as_nanos() {
+        Ok(RefreshCase::Kept)
+    } else {
+        let seconds =
+            remaining.div_ceil(1_000_000_000).checked_add(1).expect("the wait is at most the margin plus one");
+        Ok(RefreshCase::Wait { seconds })
     }
 }
 

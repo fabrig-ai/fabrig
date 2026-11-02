@@ -265,3 +265,27 @@ page }` answering `Answer::Commits { commits, more }`, oldest first), and
 `Cue::Tests`). The bounded inflater is private to `skein-forge`: no crate gains a dependency
 (forge.md, 2.1 holds). GitHub's dialect answers both reads `Refused`. temper persists neither
 answer.
+
+## 6. The tier task's deadline
+
+Added to section 4's surface (2026-11-02, an answer to `tiers-root`): the forge keeps a tier
+task's wait as it keeps a landing's (`wait_landing`, `offered_landing`), so the root never
+reuses a change's or a landing's bounded deadline map.
+
+```rust
+// temper-engine-domain-forge, src/tiers.rs
+impl Domain {
+    /// `TierDecision::Wait`'s `until`, else a poll from now (as `wait_landing`); woken by
+    /// `Request::WakeProcedure { task }` from `fire`.
+    pub fn wait_tier(&mut self, env: &Env<Limits>, task: u64, until: Option<Wall>);
+    /// The tier task was stepped: its deadline, if any, is spent.
+    pub fn offered_tier(&mut self, task: u64);
+}
+```
+
+The root calls them where the landing route calls the landing's: `offered_tier` as it starts or
+steps a tier task (`StartProcedure`, `WakeProcedure`, a release), `wait_tier` on
+`TierDecision::Wait`. The forge (`tiers-runs`) keeps the deadlines in a map of its own, sized to
+the tier tasks that can be live at once (one per configured tier), counts them in
+`next_wall_deadline` and fires them in `fire`, and drops a task's deadline when it ends or is
+restored, as the landing's `due` is.

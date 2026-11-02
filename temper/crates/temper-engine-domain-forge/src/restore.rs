@@ -342,6 +342,27 @@ fn derived(d: &Domain, l: &Limits) -> Result<(), RestoreFit> {
             }
         }
     }
+    for name in &crate::tiers::watched(d) {
+        let Some(resource) = super::to_client(name, l) else {
+            return Err(RestoreFit {
+                family: Some(RecordKind::Tier),
+                set: RestoreSet::NameBytes,
+                held: u64::from(l.name_bytes),
+                additional: 1,
+                limit: u64::from(l.name_bytes),
+            });
+        };
+        let held = watches.len();
+        if watches.insert(resource, ()).is_err() {
+            return Err(RestoreFit {
+                family: Some(RecordKind::Tier),
+                set: RestoreSet::Watches,
+                held: u64::from(held),
+                additional: 1,
+                limit: u64::from(watches.capacity()),
+            });
+        }
+    }
     // Each member/gate can contribute one rebuilt flight, before any allocation or u16 conversion.
     let members = l.landings.checked_mul(l.landing_members).expect("checked landing members");
     let limit = members.checked_mul(l.gates).expect("checked landing geometry");

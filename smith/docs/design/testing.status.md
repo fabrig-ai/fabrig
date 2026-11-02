@@ -14,11 +14,14 @@
     (shell.status.md).
   - 2.3: whether the three `live-smith` stories red at main
     `46e6e70d9b17` (Claude Code 2.1.312) pass on the current main is
-    unknown: no after-landing run of it is read. The refresh story's
-    generation, equal before and after its run, has no cause found in
-    code: offline, an exec on a raised lead refreshes a held record at
-    once and keeps one whose earliest refresh time is ahead
-    (`credentials.rs` in `tests/end-to-end`; 8).
+    unknown: no after-landing run of it is read.
+  - 2.3: the refresh story expects a refresh whatever its record's
+    earliest refresh time, so it fails live on a fresh record (the
+    after-landing run at main `df41529d3ee1`: the earliest refresh time
+    2336 s ahead, the generation unchanged), and is named for the
+    refresh alone: it does not choose its case from the record's facts,
+    wait for a near earliest refresh time, report the case it checked,
+    or fail by name on a record without a refresh token.
   - 6: job ends paired across the event stream (they are paired on the
     domain's facts only), state-digest replay (skein has none), and,
     with contained trees, containment (2.2).

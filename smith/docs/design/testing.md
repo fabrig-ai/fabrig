@@ -280,11 +280,31 @@ patch and drift tests check the generated `encoded_bound` and
     - a second run resumes it (`--chat`);
     - a chat started on ChatGPT, resumed on Claude, then on ChatGPT
       again, each run completing (domain/session.md, 8.2);
-    - a run refreshes its grant at the issuer: the story raises the
-      refresh lead, a policy value a test may set, to 400 days in the
-      settings' seconds (shell.md, 6.5), past any access token's life,
-      so its run refreshes at once, and checks that the record's
-      generation rose and the run completed;
+    - a run refreshes its grant when the issuer allows: the story
+      raises the refresh lead, a policy value a test may set, to 400
+      days in the settings' seconds (shell.md, 6.5), past any access
+      token's life, so that only the issuer's earliest refresh time
+      holds a refresh back: none is asked before it, whatever the lead
+      (skein's `oauth.md`, sections 2 and 6.3). OpenAI's issuer sets
+      one on every token it issues, a few minutes before the token
+      expires. The story reads the record's refresh facts before its
+      run, and checks the rule as the record stands:
+      - no earliest refresh time, or one past: the run refreshes at
+        once, the record's generation rose and the run completed;
+      - one more than five minutes ahead, longer than the story's
+        check and exec bounds together: the run completed on the held
+        token, and the generation is unchanged;
+      - one nearer: the story waits until it has passed, then expects
+        the refresh;
+      - a record without a refresh token fails by name, saying to sign
+        in again.
+
+      Pairs follow landings, often minutes apart, and a ChatGPT run
+      refreshes the record once it expires, so the pair's record is
+      usually fresh and its story usually checks the second case. The
+      refresh and rotation at the issuer then show in the first
+      ChatGPT run that meets an expired record, which cannot run
+      without them;
     - with a remote named, the push lands, and the test removes the
       branch afterwards.
   - **Outcomes, not words.** An LLM's words vary, so a story asks for a
@@ -321,11 +341,11 @@ patch and drift tests check the generated `encoded_bound` and
     record's refresh facts before and after its run, read through
     smith's own record reader: whether it holds a refresh token, and its
     access token's expiry and its earliest refresh time, each in whole
-    seconds from the story's clock, or none. The host's line for an
-    agent that failed is kept without its detail: its fixed words, the
-    agent's exit and whether it was forced. It never holds standard
-    output, a prompt, a completion, a tool's input or result, a file's
-    bytes or credential bytes.
+    seconds from the story's clock, or none, and which of its cases it
+    checked. The host's line for an agent that failed is kept without
+    its detail: its fixed words, the agent's exit and whether it was
+    forced. It never holds standard output, a prompt, a completion, a
+    tool's input or result, a file's bytes or credential bytes.
   - **What they show:** each provider's wire as it is today, refresh and
     rotation at the issuer, Claude Code's stream, prompt tool and login
     as its release has them, and a push to a real forge. A failure is
@@ -682,12 +702,6 @@ benchmarks/                      smith-bench, the benchmark harness (benchmarks.
 - **Both placements within the budgets:** which scenarios run twice once
   the inline agent is the product, and whether the spawned placement's
   share moves to the fuzzy sweeps.
-- **The refresh story and an earliest refresh time:** a record whose
-  issuer set an earliest refresh time is not refreshed before it,
-  whatever the lead (skein's `oauth.md`, section 2), so the story's run
-  cannot refresh at once then. Whether OpenAI's issuer sets one, and
-  what the story checks if it does, waits for the refresh facts the
-  story reports (2.3).
 
 ## 9. Later
 
