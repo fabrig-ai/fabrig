@@ -756,6 +756,20 @@ fn a_change_unnamed_after_its_pull_swap_was_queued_stays_unnamed() {
 }
 
 #[test]
+fn an_erased_tasks_unname_reaches_the_forge_as_unnamed() {
+    use super::{Work, forge};
+    let (mut domain, env, _) = restored_change([]);
+    let connector = domain.config.forge_connector;
+    super::effect_ask(&mut domain, &env, connector, jig_domain_core::effects::connector::Ask::Unname { task: 7 });
+    let Some(Work::Forge(forge::Event::Unnamed { task: 7 })) = domain.work.pop() else {
+        panic!("the erased task reaches the forge");
+    };
+    assert!(domain.work.is_empty());
+    super::effect_ask(&mut domain, &env, connector + 1, jig_domain_core::effects::connector::Ask::Unname { task: 7 });
+    assert!(domain.work.is_empty());
+}
+
+#[test]
 fn landing_words_name_the_pull_and_use_the_forges_address_when_it_fits() {
     use super::forge::Kind;
     let repository = adopted(1);

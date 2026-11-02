@@ -104,7 +104,7 @@ fn subscription() -> Stored {
 fn hold(task: u64, writer: Option<Writer>) -> Stored {
     Stored::Hold(Hold { name: branch(), task, writer, drift: None })
 }
-fn owner_rows() -> [Stored; 8] {
+fn owner_rows() -> [Stored; 7] {
     [
         Stored::Call {
             key: NamedCall { task: TASK, attempt: 1, completion: 1, position: 1 },
@@ -112,7 +112,6 @@ fn owner_rows() -> [Stored; 8] {
         },
         Stored::ProposedEffect(ProposedEffect { number: 1, resource: What::Repository, entry: status(ENTRY, TASK) }),
         hold(TASK, Some(Writer::Lost { task: TASK, attempt: 1 })),
-        Stored::Names { task: TASK, resources: Box::new([branch()]) },
         subscription(),
         Stored::Entry { entry: status(ENTRY, TASK), held: true },
         issue(false),
@@ -254,8 +253,8 @@ const REFERENCE_HEAP_CEILING: u64 = 3_900;
 
 #[test]
 fn retained_reconciliation_references_fit_their_heap_ceiling() {
-    let mut rows = skein_lib::List::with_capacity(LIMITS.tasks);
-    for task in 1..=u64::from(LIMITS.tasks) {
+    let mut rows = skein_lib::List::with_capacity(LIMITS.tasks + LIMITS.repositories);
+    for task in 1..=u64::from(LIMITS.tasks + LIMITS.repositories) {
         let mut resources = skein_lib::List::with_capacity(LIMITS.resources_per_task);
         for _ in 0..LIMITS.resources_per_task {
             resources
@@ -312,11 +311,15 @@ fn the_ended_forge_and_its_retired_owners_resolve() {
     }
 }
 #[test]
-fn a_mixed_resource_set_still_requires_its_live_owner() {
-    let d = ended_domain();
+fn a_kept_row_resolves_whatever_forges_it_names() {
+    let mut d = ended_domain();
+    outputs(&mut d, Event::Restore { record: Stored::Forge(removal::record(OTHER_FORGE, Mode::Connected)) });
+    let mut repository = adopted();
+    repository.provider.forge = OTHER_FORGE;
+    outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
     let mut other = branch();
     other.forge = OTHER_FORGE;
-    assert!(!resolved(&d, &Stored::Names { task: OTHER_TASK, resources: Box::new([branch(), other]) }, false));
+    assert!(resolved(&d, &Stored::Names { task: OTHER_TASK, resources: Box::new([branch(), other]) }, false));
 }
 
 #[test]
@@ -420,12 +423,12 @@ pub(super) fn empty_tasks() -> jig_domain_tasks::Domain {
 #[test]
 fn production_link_asserts_a_missing_task() {
     let mut d = domain();
-    outputs(&mut d, Event::Restore { record: Stored::Names { task: TASK, resources: Box::new([]) } });
+    outputs(&mut d, Event::Restore { record: call(TASK) });
     assert_eq!(
         d.missing_link(&empty_tasks()),
         Some(MissingLink {
-            kind: RecordKind::Names,
-            key: Key::Names(TASK),
+            kind: RecordKind::Call,
+            key: stored_key(&call(TASK)),
             need: Need::Task { task: TASK, retired: None }
         })
     );
@@ -563,15 +566,15 @@ fn production_link_requires_a_live_unfinished_issues_goal() {
 }
 
 #[test]
-#[should_panic(expected = "for Names(7)")]
+#[should_panic(expected = "for Call(NamedCall { task: 7")]
 fn reconcile_panics_on_a_missing_link() {
     let mut d = domain();
-    outputs(&mut d, Event::Restore { record: Stored::Names { task: TASK, resources: Box::new([]) } });
+    outputs(&mut d, Event::Restore { record: call(TASK) });
     assert_eq!(
         d.missing_link(&empty_tasks()),
         Some(MissingLink {
-            kind: RecordKind::Names,
-            key: Key::Names(TASK),
+            kind: RecordKind::Call,
+            key: stored_key(&call(TASK)),
             need: Need::Task { task: TASK, retired: None },
         })
     );
@@ -589,13 +592,21 @@ fn all_made_links_have_no_missing_link() {
 fn a_missing_link_names_its_row_after_rows_with_multiple_or_no_links() {
     let (mut d, _) = closing_history(Some(ENTRY), REPO);
     outputs(&mut d, Event::Restore { record: Stored::Landed { task: TASK, commit: [9; 32] } });
-    outputs(&mut d, Event::Restore { record: Stored::Names { task: OTHER_TASK, resources: Box::new([]) } });
+    outputs(
+        &mut d,
+        Event::Restore {
+            record: Stored::Names {
+                task: OTHER_TASK,
+                resources: Box::new([Name { forge: 1, repository: 99, what: What::Repository }]),
+            },
+        },
+    );
     assert_eq!(
         d.missing_link(&empty_tasks()),
         Some(MissingLink {
             kind: RecordKind::Names,
             key: Key::Names(OTHER_TASK),
-            need: Need::Task { task: OTHER_TASK, retired: None },
+            need: Need::Repository(OTHER_REPOSITORY),
         })
     );
 }
@@ -666,4 +677,74 @@ fn opaque_client_links_report_every_referencing_key() {
 #[test]
 fn references_keep_the_base_footprint() {
     assert_eq!(size_of::<crate::reconcile::Reference>(), 32);
+}
+
+#[test]
+fn a_start_keeps_the_names_of_tasks_jig_does_not_hold() {
+    for count in [LIMITS.repositories, LIMITS.repositories + 1] {
+        let mut d = domain();
+        outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+        for task in 1..=u64::from(count) {
+            outputs(
+                &mut d,
+                Event::Restore {
+                    record: Stored::Names {
+                        task,
+                        resources: Box::new([Name {
+                            forge: REPO.forge,
+                            repository: REPO.repository,
+                            what: What::Repository,
+                        }]),
+                    },
+                },
+            );
+        }
+        let tasks = empty_tasks();
+        d.link_names(&tasks, &LIMITS);
+        for task in 1..=u64::from(LIMITS.repositories) {
+            assert_eq!(d.names(task), None);
+            assert!(d.kept_names(task).is_some());
+        }
+        if count == LIMITS.repositories {
+            assert_eq!(d.fit_restored(&LIMITS), Ok(()));
+            d.reconcile(&tasks);
+        } else {
+            assert_eq!(
+                d.fit_restored(&LIMITS),
+                Err(RestoreFit {
+                    family: Some(RecordKind::Names),
+                    set: RestoreSet::Rows(RecordKind::Names),
+                    held: u64::from(LIMITS.repositories),
+                    additional: 1,
+                    limit: u64::from(LIMITS.repositories),
+                })
+            );
+        }
+    }
+}
+
+fn call(task: u64) -> Stored {
+    Stored::Call {
+        key: NamedCall { task, attempt: 1, completion: 1, position: 1 },
+        answer: CallPayload::Refused(skein_forge::api::Error::Refused),
+    }
+}
+
+#[test]
+fn a_kept_tasks_names_resolve_without_their_task() {
+    assert!(resolved(&held_domain(), &Stored::Names { task: TASK, resources: Box::new([branch()]) }, false));
+}
+
+#[test]
+fn a_kept_names_missing_repository_names_its_retained_key() {
+    let mut d = domain();
+    outputs(&mut d, Event::Restore { record: Stored::Names { task: TASK, resources: Box::new([branch()]) } });
+    let tasks = empty_tasks();
+    d.link_names(&tasks, &LIMITS);
+    assert_eq!(d.names(TASK), None);
+    assert!(d.kept_names(TASK).is_some());
+    assert_eq!(
+        d.missing_link(&tasks),
+        Some(MissingLink { kind: RecordKind::Names, key: Key::Names(TASK), need: Need::Repository(REPO) })
+    );
 }

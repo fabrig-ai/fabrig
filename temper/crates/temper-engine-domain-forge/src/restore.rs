@@ -62,7 +62,13 @@ impl Domain {
     }
 }
 
-fn room(family: RecordKind, set: RestoreSet, held: u32, limit: u32, replacing: bool) -> Result<(), RestoreFit> {
+pub(super) fn room(
+    family: RecordKind,
+    set: RestoreSet,
+    held: u32,
+    limit: u32,
+    replacing: bool,
+) -> Result<(), RestoreFit> {
     if replacing || held < limit {
         Ok(())
     } else {
