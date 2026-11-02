@@ -3,7 +3,7 @@ id = "change-words"
 part = "change"
 kind = "feature"
 needs = ["change-batch", "change-by-rule", "goal-forge-symbol"]
-files = ["temper/crates/temper-engine-domain-forge/src/boundary.rs", "temper/crates/temper-engine-domain-forge/src/domain.rs", "temper/crates/temper-engine-domain-forge/src/result.rs", "temper/crates/temper-engine-domain-forge/src/result_tests.rs", "temper/crates/temper-engine-domain/src/route.rs", "temper/crates/temper-engine-domain/src/route/forge_route.rs", "temper/crates/temper-protocol-store/schema/store-v11.schema", "temper/crates/temper-protocol-store/src/generated/**", "temper/crates/temper-protocol-store/golden/v11/**", "temper/crates/temper-protocol-store/src/records/change.rs", "temper/crates/temper-protocol-store/src/tests/**", "temper/tests/engine/domain/tests/suite/forge_routes/result.rs", "temper/tests/engine/domain/tests/suite/forge_routes/light_rules.rs", "temper/docs/design/domain/forge.status.md", "temper/docs/design/domain/agent.status.md"]
+files = ["temper/crates/temper-engine-domain-forge/src/boundary.rs", "temper/crates/temper-engine-domain-forge/src/lib.rs", "temper/crates/temper-protocol-store/src/lib.rs", "temper/crates/temper-engine-domain-forge/src/domain.rs", "temper/crates/temper-engine-domain-forge/src/result.rs", "temper/crates/temper-engine-domain-forge/src/result_tests.rs", "temper/crates/temper-engine-domain/src/route.rs", "temper/crates/temper-engine-domain/src/route/forge_route.rs", "temper/crates/temper-protocol-store/schema/store-v11.schema", "temper/crates/temper-protocol-store/src/generated/**", "temper/crates/temper-protocol-store/golden/v11/**", "temper/crates/temper-protocol-store/src/records/change.rs", "temper/crates/temper-protocol-store/src/tests/**", "temper/tests/engine/domain/tests/suite/forge_routes/result.rs", "temper/tests/engine/domain/tests/suite/forge_routes/light_rules.rs", "temper/docs/design/domain/forge.status.md", "temper/docs/design/domain/agent.status.md"]
 effort = "high"
 minutes = 100
 +++
@@ -109,3 +109,21 @@ Owns the files in the header.
 ## Report
 
 As the implementer's text says, with the store's schema line as written.
+
+## Answers
+
+2026-11-02. **Widen to the store's bound and the forge's payload sum, or leave them to
+another task?** Widen (A): this task's own acceptance (every `forge_routes` story, and the
+dependents its schema change breaks at startup) cannot hold without them. Both files are
+added to the header.
+
+- `temper/crates/temper-protocol-store/src/lib.rs`, `bounds`: `change_row_report:
+  forge.client.op_bytes`, beside the other forge-bounded fields. The root's validity
+  (`temper-engine-domain/src/limits.rs`, `op_bytes < tasks.result_bytes` refused) makes it
+  cover the producer's words; `bounds`' signature stays.
+- `temper/crates/temper-engine-domain-forge/src/lib.rs`, `stored_bytes`: the
+  `Stored::Change` sum adds `bytes(&row.report)?`.
+- Recompute the row-size pins after the bound, name the new figures, and rerun the
+  dependents that failed (`temper::suite`'s `configuration::`, `admission_edges::`,
+  `box_listeners::`, `fake::check_run`) before the broad run. Change nothing else in
+  either file.
