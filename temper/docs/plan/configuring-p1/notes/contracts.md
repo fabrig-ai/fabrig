@@ -149,7 +149,8 @@ The root (`temper/crates/temper-engine-domain`), built by `root-document-binding
   `root.brief.budgets.document`.
 - A document's `Name` is a forge branch when its connector is 0 and its segments read
   `forge HOST OWNER REPO branch SEGMENT...` (`temper/docs/design/domain/forge.md`, section 2);
-  any other is a Text section `This document's name is no forge branch.`, the forge not asked.
+  any other is answered `Missing` at its gather, the forge not asked: its section is titled
+  `Document PATH` and says its read failed.
 - `BriefBudgets.document: u32`, 4,096 in `small`, override `root.brief.budgets.document`;
   `root.brief.sections` 8 in `small`. The root's required forge sections replace optional core
   sections only, never a document.
