@@ -47,7 +47,7 @@ fn live_settings(
 fn the_refresh_story_lead_outlives_an_access_token() {
     let directory = std::path::Path::new("/unused/smith-live-story");
     let mut arguments = live::arguments("chatgpt", directory, true, false);
-    live::with_refresh_lead(&mut arguments, live::REFRESH_LEAD_MS);
+    live::with_refresh_lead(&mut arguments, live::REFRESH_LEAD_SECONDS);
     let settings = live_settings(arguments, directory);
     let (resolved, _document) =
         smith_local_shell::settings::resolve::resolve_startup(&settings).unwrap_or_else(|why| panic!("{}", why.line()));
