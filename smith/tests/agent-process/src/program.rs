@@ -417,6 +417,21 @@ impl Referee<Proc> for Judge {
     }
     fn observe(&mut self, now: Time, procs: &[Proc]) {
         self.waiting.observe(now, procs);
+        for (main_index, process) in procs.iter().enumerate() {
+            if let Proc::Fake(main) = process
+                && main.active_turn() == Some(2)
+                && main.pending_tool() == Some("finish")
+            {
+                for (index, child) in procs.iter().enumerate() {
+                    if index != main_index
+                        && let Proc::Fake(child) = child
+                    {
+                        assert!(child.exit().is_some(), "child program exit precedes main's second turn");
+                    }
+                }
+            }
+        }
+
         if let Proc::Parent(parent) = &procs[0] {
             self.ended = parent.peer.observed().iter().any(|frame| frame.kind == 0x0110);
         }
@@ -633,9 +648,10 @@ fn run_scenario(
         },
     );
 
+    // Each of main and two children checks its login before printing.
     let factory = smith_fake_claude::hosted(b"/programs/claude");
     world.host_startup(
-        HostedProgram { program: factory.program, make: make_fake, instances: 2, operations: factory.operations },
+        HostedProgram { program: factory.program, make: make_fake, instances: 6, operations: factory.operations },
         |spawn| {
             let launch = fake_launch(spawn);
             smith_fake_claude::config_root(&launch).into_iter().chain(smith_fake_claude::mcp_root(&launch)).collect()
@@ -645,7 +661,8 @@ fn run_scenario(
     world.host(HostedProgram {
         program: b"/programs/smith-agent".as_slice().into(),
         make: if case == Case::MissingServer { make_failed_relay } else { make_relay },
-        instances: 1,
+        // Main and two inspect-only children each keep a relay.
+        instances: 3,
         operations: smith_agent_shell::relay::operations(),
     });
     world.spawn_root(skein_sim::Handle::new(root.raw()), |root| {
@@ -851,4 +868,26 @@ pub(crate) fn answer_host(parent: &mut Parent) {
             parent.program_host_answers = Some(parent.program_host_answers.expect("enabled host") + 1);
         }
     }
+}
+
+/// A program main granting inspect-only children with the same model at high effort.
+#[must_use]
+pub fn child_charter() -> Box<[u8]> {
+    crate::wire::edit_charter(&crate::charter(), |parts| {
+        crate::wire::budget(parts, 8, 20);
+        let mut tools = parts.tools.clone().into_parts();
+        tools.families = smith_charter::Families::new(
+            &smith_charter::CEILINGS,
+            smith_charter::FamiliesParts { skein_bools: [true, false, false, true] },
+        )
+        .expect("child families");
+        parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("child tools");
+        let mut child = parts.main.clone().into_parts();
+        child.effort = Some(b"high".as_slice().into());
+        parts.models = skein_lib::List::with_capacity(1);
+        parts
+            .models
+            .push(smith_charter::Llm::new(&smith_charter::CEILINGS, child).expect("child model"))
+            .expect("declared child");
+    })
 }
