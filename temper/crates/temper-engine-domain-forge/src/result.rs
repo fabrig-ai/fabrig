@@ -147,6 +147,19 @@ impl ChangeResult {
         self.reviews.add(b" at ", bound);
         self.reviews.add(&crate::commit_text(head), bound);
     }
+    /// The producer's report followed by the landing's observations, cut together from the end.
+    #[must_use]
+    pub fn reported(&self, report: &[u8], head: &Commit, bound: u32) -> ResultText {
+        let mut words = ResultText::empty();
+        if !report.is_empty() {
+            words.add(b"Report:\n", bound);
+            words.add(report, bound);
+            words.add(b"\n", bound);
+        }
+        words.join(&self.words(head, bound), bound);
+        words
+    }
+
     /// Result suffix, including only checks read at the head that landed.
     #[must_use]
     pub fn words(&self, head: &Commit, bound: u32) -> ResultText {

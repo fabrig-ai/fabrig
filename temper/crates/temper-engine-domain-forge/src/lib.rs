@@ -438,6 +438,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             .checked_add(bytes(&row.base)?)?
             .checked_add(bytes(&row.title)?)?
             .checked_add(bytes(&row.body)?)?
+            .checked_add(bytes(&row.report)?)?
             .checked_add(
                 u64::try_from(row.change.gates.len())
                     .ok()?
