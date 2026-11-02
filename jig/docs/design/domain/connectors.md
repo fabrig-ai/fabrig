@@ -89,7 +89,8 @@ application root            routes between the core and every connector
   | name what a run of this task needs prepared; hand it over | its workspace items, with their size, and the application's credentials they need; the items |
   | what a run of this task left on its resources | taken: facts updated, procedures stepped |
   | adopt this resource into this project | adopted, with what may be done there and the parties it knows; refused |
-  | an act's answer, under its key, once durable | an act in the deployment's name, under a key of its own: a person's conversation closed, the deployment's key added or account removed, one of its resources adopted, a project made (people.md, 5.3) |
+  | release this project, being deleted, its tasks erased: drop what you keep of its adoptions and of your kinds' settings in its scope (people.md, 5.2); asked again at each start until answered | released, once that has committed; at once when nothing is kept |
+  | an act's answer, under its key, once durable | an act in the deployment's name, under a key of its own: a person's conversation closed, the deployment's key added or account removed, one of its resources adopted, a project made or deleted (people.md, 5.3) |
   | restart: restore these records; read afresh; settle the outbox | done |
 
 - **Tasks are named by number.** The connector keeps the numbers of the

@@ -129,8 +129,8 @@ the shell: fetch, skein's HTTP client, a socket            skein's HTTP server, 
   - the operations of `../client/domain/contract.md`, 3.2, one record
     each, by their names: `Create`, `Propose`, `Withdraw`, `Message`,
     `Amend`, `Cancel`, `Release`, `Stop`, `Move`, `Decide`, `Answer`,
-    `Take`, `HandBack`, `Seen`, `MakeProject`, `ChangeSettings`,
-    `MoveToNewest`, and the project's own; and
+    `Take`, `HandBack`, `Seen`, `MakeProject`, `RemoveProject`,
+    `ChangeSettings`, `MoveToNewest`, and the project's own; and
     `Compound { project, operations }` (3.4 of it). A change of settings
     carries each value as the configuration's member describes it, field
     for field, a charter's instructions as text and an application's

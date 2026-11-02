@@ -1,6 +1,6 @@
 # Parties
 
-Provisional, 2026-10-07, revised 2026-10-27. How people, and the
+Provisional, 2026-10-07, revised 2026-11-02. How people, and the
 services that act like them, take part: who they are and the credentials
 they sign in with, what their role in a project lets them do, the
 operations they ask of the engine and what waits for them, the
@@ -42,9 +42,14 @@ is still open is listed in section 12.
 - **The deployment's acts** are what a connector asks of the core in
   the deployment's name, where no client is there to ask: a person's
   conversation closed, the deployment's key added or account removed,
-  a resource adopted, a project made. No party makes them: a connector
-  the configuration grants each kind, while it names a first owner,
-  keyed as a party's request and answered to it once durable (5.3).
+  a resource adopted, a project made or deleted. No party makes them: a
+  connector the configuration grants each kind, while it names a first
+  owner, keyed as a party's request and answered to it once durable
+  (5.3).
+- **A project can be deleted,** by its owners or by the deployment's
+  act: closed at once, its tasks ended and then erased whole, then its
+  own rows, its adoptions released, each step kept until the deletion
+  is whole (5.2).
 - **A party's inbox** holds what waits for them: questions, proposals,
   escalations, the tasks they carry out, results and the turns of their
   conversations. What is addressed to a role waits for every party in it
@@ -67,6 +72,8 @@ capability. It keeps:
   their sign-ins, each named by its number;
 - **roles:** each live project's roles and who holds them, loaded at
   start and changed by commits;
+- **deletions:** each project being deleted and the step its deletion
+  has reached (5.2), until its last;
 - **requests in flight:** each party's pending requests, and each
   connector's pending acts in the deployment's name (5.3), by their
   keys, until answered, a compound request as one;
@@ -355,6 +362,7 @@ The operations as the client sends them are
 | `ChangeSettings`, in the deployment's scope | owner in the deployment for the deployment's items, and owner of each project whose items it names (section 3 and 4); the revision they saw, the newest; the set within the checks and bounds of engine.md, 17.1 and 17.8; every connector judging an item of its kinds accepting it | the settings changed in one decision, the new revision answered; running work staying or moved, as it asks (engine.md, 17.2 and 17.4) |
 | `MoveToNewest`, in the deployment's scope | owner in the deployment; a revision held | every live agent task on it that may move set to the newest, in one decision, those moved and those that could not counted in the answer (engine.md, 17.4) |
 | `MakeProject`, in the deployment's scope | owner in the deployment (section 3); a name in shape that no other project holds (core.md, 6.1); a policy among the settings (engine.md, 17.1); room in the deployment's projects | a project, numbered next, its policy a copy of the configured one, its maker its owner and only party (5.2) |
+| `RemoveProject` | owner of the project; a project that is live, not being deleted; never in a compound request | the project closed in the decision that admits it, answered removed then, and deleted whole in the steps that follow (5.2) |
 | edit or delete a note | the note's scope within their role | the note revised (engine.md, section 10) |
 | set a party's pool | owner | the pool opened or resized in the current period, what was spent and reserved kept |
 | an account request: sign in, sign out, add, replace or remove a key, declare or check a program's login, order, uses, resume, remove an account | the account's holder, not a role: a person for their own, a first owner for the deployment's (authority.md, 8.4) | accounts.md, section 5: the account's sources, states and uses changed; a value never committed |
@@ -412,7 +420,8 @@ The operations as the client sends them are
   Their other operations reach what the table says.
 - **What only parties do,** by design: carry out person tasks (`Take`,
   `HandBack`, and `Answer` with a result), stop runs, move tasks to
-  themselves, mark what they have seen, make and run projects (5.2), and act
+  themselves, mark what they have seen, make, run and delete projects
+  (5.2), and act
   on the LLM accounts they hold (accounts.md, section 5). A task places
   holds on the tasks below it too (tasks.md, 5.9; engine.md, 7.3), and
   only a party holds a project.
@@ -539,15 +548,68 @@ A crash keeps the project and its answer, or neither; a retry under the
 key then makes it once. Two makes naming one name: the first commit
 takes it, and the second is refused as *name taken*.
 
+A project is deleted (`RemoveProject`) by its owners (5.1), or by the
+deployment's act (5.3), whole: its decision closes it and keeps the
+deletion, and the rest follows in kept steps, each in decisions of its
+own, in this order:
+
+- **Closed at once.** In the decision that admits the deletion, which
+  answers it removed, the project takes nothing more: a task, words, an
+  adoption, a change of its settings, policy or roles, a deployment's
+  act on it, or any other request or watch on it is refused unknown, as
+  on a project that never was. It leaves every list and every party's
+  `me`, its roles are erased, and its name is free again from that
+  decision; its number is never given again (core.md, 6.1).
+- **Its tasks ended, then erased.** Each live task of the project is
+  cancelled by the deployment, as a conversation's close cancels it
+  (section 7): in the deployment's compound (tasks.md, section 7), each
+  live root with its tree, a conversation with its grace, as many
+  compounds as the operations per request take. Once none is live, each
+  of its tasks is erased whole, one at a time and with no horizon
+  waited for, as retention would erase it at the horizon: its record,
+  its rows in every index, its history, activity and terminals, its
+  read positions and its transcript's file (tasks.md, section 3;
+  `../protocol/store.md`, 8.5 and 11.1).
+- **Then its own rows:** its policy's copy and its overrides of
+  templates; its placed holds (tasks.md, 5.9); its pools in the current
+  period, and its period, closed into the history with their spend
+  (below); its notes (engine.md, section 10); the answers kept under
+  parties' and connectors' keys that named it (5.1, 5.3); and the
+  settings of its scope (engine.md, 17.5).
+- **Its adoptions released:** each connector is asked to release the
+  project, drops what it keeps of the project's adoptions and of its
+  own kinds' settings in the project's scope, and answers once that
+  has committed; the deletion ends when every connector has answered.
+- **What outlives it:** its spend, in the deployment's and its parties'
+  totals for the period, as closed periods and pools keep it, never per
+  task; and an account whose only use was the project keeps that use,
+  so that it pays for no one rather than for every payer (accounts.md,
+  4.2), while an account with other uses drops it. An act's or a
+  request's answer that named the project is erased with it, so that,
+  sent again, it is judged afresh and answered unknown, as one past its
+  retention is. Each party's inbox and read positions drop what named
+  its tasks.
+- **Kept until whole:** the deletion is a row of the people child's,
+  the project and the step it has reached (its tasks, its own rows, its
+  adoptions released), saved with each step's decision and erased with
+  the last, at most one per project the deployment has room for. At
+  each start, once the core is ready, each kept deletion goes on from
+  its step, its project closed from the start as from its decision, so
+  a deletion a restart cut ends whole and no start serves a
+  half-deleted project. Its own answer is kept while it lasts: sent
+  again under its key, the deletion is answered removed until it ends,
+  and unknown after.
+
 ### 5.3 The deployment's acts
 
 An application sometimes acts where no client is there to ask: at the
 end of what a person's conversations were about, at a start that a
-restart cut short. A connector then asks the core for one of a few
-acts in the deployment's name, as the deployment requests the tasks its
-configuration or a connector starts (tasks.md, section 3). An act has
-no party, no sign-in and no role: the configuration's grant and the
-act's own subject are its whole check.
+restart cut short, at the reset of what it made for a person (temper's
+playground: temper's `protocol/setup.md`, 8.4). A connector then asks
+the core for one of a few acts in the deployment's name, as the
+deployment requests the tasks its configuration or a connector starts
+(tasks.md, section 3). An act has no party, no sign-in and no role: the
+configuration's grant and the act's own subject are its whole check.
 
 - **Who may:** a connector the configuration grants that kind of act
   (`../protocol/configuration.md`, section 3), while the configuration
@@ -566,6 +628,7 @@ act's own subject are its whole check.
   | `RemoveAccount` | an account the deployment holds | the account removed (accounts.md, section 5) |
   | `Adopt` | one of the acting connector's own resources, as an owner's adoption names one, into a live project | adopted as an owner's adoption is, the connector asked and answering as it does a party's (connectors.md, section 12), the project's roles seeded from the parties the connector knows there, and no party made its owner |
   | `MakeProject` | as `MakeProject`'s (5.1), and an owner of the deployment, to be its maker | the project made (5.2), that owner its maker and only party |
+  | `RemoveProject` | a live project, not being deleted | the project deleted as its owners' `RemoveProject` deletes it (5.2), answered removed once closed |
 
   A subject outside its act's is refused, naming it: a task that is not
   a live conversation of a person, an account the deployment does not
@@ -601,10 +664,13 @@ act's own subject are its whole check.
   is made then. So a restart between an act's keep and its answer makes
   it once and answers it once. Past the retention it is judged afresh:
   a conversation closed since is refused as ended, an account removed
-  since as unknown, which its connector takes as done.
+  since as unknown, a project deleted since as unknown, once its
+  deletion has ended and its answer with it (5.2), which its connector
+  takes as done.
 - **The deployment, not a party:** an act makes no party, sign-in,
   inbox or role, and is in no `me`. A task it cancels is cancelled by
-  the deployment, with its reason. The value an `AddKey` carries is
+  the deployment, with its reason, and a project it deletes is deleted
+  as its owners' deletion is. The value an `AddKey` carries is
   kept by the application first, as a client's request's is
   (`../protocol/client.md`, section 5), and one the act leaves unused
   is said unused before its answer, for the application to erase. A
@@ -891,7 +957,21 @@ nothing made twice, and one the restart lost is made then; acts are
 refused, nothing made, while the configuration names no first owner,
 of a kind their connector is not granted, and on a subject outside
 their act's: a person's account, a task that is no conversation,
-another connector's resource.
+another connector's resource; an owner deletes a project with a live
+chat and its delegates, and a member is refused; the chat and its
+delegates are cancelled, then erased whole with their transcripts, its
+own rows erased and each connector asked to release it until it
+answers, and only its spend left in the period's totals; the deleted
+project refuses every request, act and watch as one never made, leaves
+every `me`, and its name is taken again by a new project of a new
+number; a deletion cut by a restart after any of its commits ends the
+same; a connector granted it deletes a project, and its act sent again
+is answered removed while the deletion lasts and unknown after.
+
+In jig's conformance world (testing.md, section 5), a project is deleted
+in a case for each family of jig's store, the core's, the tasks', the
+people's, the notes' and the accounts', and for the application's,
+each cut at every commit.
 
 Its referee: every request is answered once, after its commit; a
 compound request is made whole or not at all; no request is acted on
@@ -901,7 +981,10 @@ act in the deployment's name is made but by a connector granted its
 kind, while a first owner is configured, on its act's subject; what
 waits for a role leaves every inbox once one party acts on it; a
 person's words reach their task, or the task ends; nothing read comes
-back unread, across a restart or a task's end.
+back unread, across a restart or a task's end; a project being deleted
+takes no new task; a deletion a restart cut is resumed; and, once a
+deletion has ended, no row names its project or one of its tasks but
+what outlives it (5.2).
 
 ## 12. Open questions
 
@@ -915,6 +998,12 @@ back unread, across a restart or a task's end.
   project's; what an observer reads. A role in the project lets a party
   watch and read all of it.
 - **Roles that span projects,** as the inbox does.
+- **Who deletes a project:** its owners, and the deployment by its act
+  (5.2, 5.3). The deployment's owners over any project is later.
+  Default: as said.
+- **A deleted project's spend:** kept in the deployment's and its
+  parties' totals for the period, never per task (5.2). Default: as
+  said.
 - **Guests:** someone with no identity at any provider, invited to one
   conversation. An application's sign-in may mint an identity for an
   invitation; which role lets its holder take part in one conversation,
