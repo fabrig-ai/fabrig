@@ -340,6 +340,7 @@ pub(crate) fn start_brief(core: &mut Core, env: &Env<Limits>, work: &mut Queue<W
     out
 }
 
+#[expect(clippy::too_many_lines, reason = "one ordered plan places charter documents after the core's sections")]
 pub(crate) fn plan_brief(
     core: &Core,
     env: &Env<Limits>,
@@ -438,8 +439,33 @@ pub(crate) fn plan_brief(
             })
             .expect("attempt brief room");
     }
+    let charter = core.charter_of(task);
+    let mut documents = List::with_capacity(env.limits.tasks.charter_documents.min(wanted.room()));
+    for (index, document) in charter.documents.iter().enumerate() {
+        if wanted.room() == 0 {
+            break;
+        }
+        let token = Token::new(u64::try_from(index).expect("document index").checked_add(1).expect("document token"));
+        wanted
+            .push(brief::Planned::Connector {
+                connector: document.connector,
+                kind: crate::DOCUMENT_KIND,
+                token,
+                size: 0,
+                limit: env.limits.brief.read_bytes,
+                priority: crate::DOCUMENT_PRIORITY,
+                required: false,
+            })
+            .expect("document section room checked");
+        documents.push(crate::PlannedDocument { token, document: document.clone() }).expect("charter document bound");
+    }
     let parent = brief_parent(context.requester);
-    out.push(Request::Now(Box::new(Now::BriefCorePlanned { task, parent, sections: wanted, documents: Box::new([]) })));
+    out.push(Request::Now(Box::new(Now::BriefCorePlanned {
+        task,
+        parent,
+        sections: wanted,
+        documents: documents.into_boxed(),
+    })));
     out
 }
 
