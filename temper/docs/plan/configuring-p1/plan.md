@@ -12,8 +12,8 @@ status is incomplete.
 |---|---|---|---|
 | `chat-template` | jig's `shapes::chat_from`; temper's `chat start --template` | `jig-chat-from`, `ctl-chat-template` | released |
 | `running-revision` | the system world's story: a run keeps its task's revision, a chat moves, an advance moves the rest | `system-running-revision` | released |
-| `documents-jig` | jig's 17.9: the type, store, check and plan, configuration, client wire | `jig-documents-surface`, then the store, core, configuration and wire tasks | surface released; the rest to come |
-| `documents-temper` | temper's 13.7: the forge's gather, the root's binding, the settings file, the domain world's stories | `forge-document-gather`, then the binding, settings-file and stories tasks | gather released; the rest to come |
+| `documents-jig` | jig's 17.9: the type, store, check and plan, configuration, client wire | `jig-documents-surface`, `jig-documents-store`, `jig-documents-core`, `jig-documents-config`, `jig-documents-wire` | released |
+| `documents-temper` | temper's 13.7: the forge's gather, the root's binding, the settings file, the domain world's stories | `forge-document-gather`, `root-document-binding`, `settings-file-documents`, `domain-documents-stories` | released |
 
 ## Tasks so far
 
@@ -38,6 +38,24 @@ status is incomplete.
   at the branch head, the heading's part, the line-end cut, the sections saying why
   (contracts.md, section 3). Needs nothing: nothing sends it until the root's binding.
 
+- `jig-documents-store` (jig-protocol-store; ~75 min; needs the surface): the settings
+  schema's `Document`, the codec, regenerated code and goldens.
+- `jig-documents-core` (jig-domain-core; ~90 min; needs the surface): the check (bounds at
+  `restore_fit`, the connector at `check_set`), the price, and the plan at the run's charter
+  version, with the test that a run on an older revision plans its own documents.
+- `jig-documents-config` (jig-protocol-config; ~75 min; needs the surface): the `documents`
+  member, `tasks.charter_documents`, Small's 8 sections, the start check naming both limits.
+- `jig-documents-wire` (jig client wire, contract, translates; ~90 min; needs the surface and
+  the configuration, whose `clients.rs` gets the documents' bound row).
+- `root-document-binding` (temper-engine-domain, -smith, -service; ~150 min; needs the surface
+  and the gather): the binding, the `Document` kind with its title, kinds 16+, the
+  `document` budget, Small's 8 root sections, the room rule (forge sections never evict a
+  document), temper's start check, and the readers' tests the larger brief moves.
+- `settings-file-documents` (temper-settings-form, client tools; ~90 min; needs the wire): the
+  settings file's `documents`, their rendering, the field rows and the help page they render.
+- `domain-documents-stories` (temper/tests/engine/domain; ~90 min; needs the binding, the core
+  and the store): testing.md 6.4's four stories, end to end.
+
 Design this cut wrote for the documents: `temper/docs/design/protocol/configuration.md`, 13.7
 (the budget is `root.brief.budgets.document`, as section 7 has the others; the repository is
 the one adopted in any project; a settings file's `forge` is the host);
@@ -50,8 +68,31 @@ the status sentences each task deletes as it builds (jig's `engine.status.md`, 1
 ## Critical path, as it stands
 
 `jig-chat-from` (landed) → `ctl-chat-template` (slice 1); `system-running-revision` (landed,
-slice 2). Slice 3: `jig-documents-surface` → the core's plan and check → the root's binding
-(also after `forge-document-gather`) → the domain world's stories.
+slice 2). Slice 3, the critical path: `forge-document-gather` (~120 min, from the start) and
+`jig-documents-surface` (~75) → `root-document-binding` (~150) → `domain-documents-stories`
+(~90): about six hours of implementer time. Beside it: `jig-documents-config` (~75) →
+`jig-documents-wire` (~90) → `settings-file-documents` (~90), about four hours after the
+surface; `jig-documents-store` and `jig-documents-core` in parallel after the surface, both
+before the stories.
+
+## Decisions
+
+- **Revisions:** nothing to build (the survey's evidence, spot-checked: `run.rs`'s `prepare`,
+  `start.rs`'s `charter_with_history`); only the system world's proof and the status fixes.
+- **Where documents live:** on jig's `Charter`, not its `RunPolicy` (fewer literal sites; the
+  plan reads them from `charter_of`, at the run's revision).
+- **A document's title:** carried by the root's `ForgeBriefKind::Document(words)`, which is never
+  stored or sent on a wire; a missing section finds its document by its kind (16 + index), since
+  jig's `Missing` carries no token, so jig's brief child does not change.
+- **The start check:** at the configuration's and the service's start, never in
+  `jig_domain_core::valid`, so in-code fixtures keep their sections and the plan's room guard
+  leaves documents out.
+- **Sections:** Small's 8 for jig and for temper's root; temper's forge sections evict only
+  optional core sections, so 8 holds three required core sections, two documents and the forge's
+  three.
+- **The repository:** adopted in any project (13.7 says so now), no authority asked (17.9).
+- **The stories' world:** the engine's domain world (testing.md 6.4 says so now); the gather's
+  own cases are the forge crate's step tests.
 
 ## Overlaps with plans beside this one
 
