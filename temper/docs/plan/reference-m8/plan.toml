@@ -58,3 +58,44 @@ id = 2
 story = "the configuration names main's tiers and the verification bound, skein reads a run's report, and a change no tier follows still ends at landed"
 parts = ["skein-reads", "change-cleared", "tiers-config"]
 walk = false
+
+[[part]]
+id = "tiers-forge"
+title = "temper: the forge's tiers follow their branch, run, report, rerun, bisect and verify each landing"
+mode = "direct"
+needs = ["tiers-core", "tiers-config", "change-cleared", "skein-reads"]
+design = "temper/docs/design/domain/after-landing.md, 3"
+
+[[part]]
+id = "tiers-root"
+title = "temper: the root makes and steps the tier task with jig's zero-budget seed, and words a change cleared"
+mode = "direct"
+needs = ["procedure-funding", "change-cleared"]
+design = "temper/docs/design/domain/after-landing.md, 10"
+
+[[part]]
+id = "change-panel"
+title = "temper: the change panel and ctl after landing: verifying, red, cleared, --until cleared"
+mode = "direct"
+needs = ["tiers-forge"]
+design = "temper/docs/design/client/forge.md, 2.1"
+
+[[part]]
+id = "tiers-stories"
+title = "temper: a small change into main verified by main's tier, end to end in the engine's world"
+mode = "direct"
+needs = ["tiers-forge", "tiers-root", "change-panel"]
+design = "temper/docs/design/domain/after-landing.md, 12"
+
+[[part]]
+id = "help"
+title = "temper: help for tiers and a change living to cleared"
+mode = "direct"
+needs = ["change-panel", "tiers-root"]
+design = "temper/docs/design/domain/after-landing.md, 6"
+
+[[slice]]
+id = 3
+story = "a chat's small fix into main, verified by main's tier: green clears it and its result comes at cleared; a red reruns, blames and bisects, and ctl shows verifying, red and cleared"
+parts = ["tiers-forge", "tiers-root", "change-panel", "tiers-stories", "help"]
+walk = true
