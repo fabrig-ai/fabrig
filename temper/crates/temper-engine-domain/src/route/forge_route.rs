@@ -2921,10 +2921,15 @@ fn delegate_change_step(
 }
 
 fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: forge_change::Decision) {
-    let Some((connector, code, step)) = domain.core.tasks.procedure_due(task) else { return };
-    if connector != domain.config.forge_connector || code != CHANGE_CODE {
-        return;
-    }
+    let (connector, code, step) = match domain.core.tasks.procedure_due(task) {
+        Some(due) if due.0 == domain.config.forge_connector && due.1 == CHANGE_CODE => due,
+        Some(_) | None => {
+            if let forge_change::Decision::Delegate(kind) = choice {
+                domain.work.push(Work::Forge(forge::Event::DelegateAdmissionRefused { task, kind }));
+            }
+            return;
+        }
+    };
     domain.forge.offered_change(task);
     let mut again = false;
     let decision = match choice {
