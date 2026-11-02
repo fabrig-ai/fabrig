@@ -596,5 +596,4 @@ a wall time each test chooses.
 
 ## 8. Not built yet
 
-What of this document is not built is `STATUS.md`'s (its row in section 2,
-and section 3).
+What of this document is not built is in [`tls.status.md`](tls.status.md).

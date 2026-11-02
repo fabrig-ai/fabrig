@@ -706,5 +706,4 @@ never the whole input. Its steps are bounded by the input length.
 
 ## 9. Not built yet
 
-What of this document is not built is `STATUS.md`'s (its row in section 2,
-and section 3).
+What of this document is not built is in [`json.status.md`](json.status.md).

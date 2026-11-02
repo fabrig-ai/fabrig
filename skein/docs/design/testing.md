@@ -473,8 +473,7 @@ included, so that `tests/forge` stays within half of each suite's.
 
 ## 8. Not built yet
 
-What of this document is not built is `STATUS.md`'s (its row in section 2,
-and section 3).
+What of this document is not built is in [`testing.status.md`](testing.status.md).
 
 ## 9. Open questions
 

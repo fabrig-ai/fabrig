@@ -1499,8 +1499,7 @@ simulator's machine seam (testing.md, 4).
 
 ## 9. Remaining work
 
-What of this document is not built is `STATUS.md`'s (its row in section 2,
-and section 3).
+What of this document is not built is in [`io.status.md`](io.status.md).
 
 ## 10. Open questions
 

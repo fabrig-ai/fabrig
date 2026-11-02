@@ -484,8 +484,7 @@ processes, each a host of an `iterate` (a service, or a fake client):
 
 ## 8. Not built yet
 
-What of this document is not built is `STATUS.md`'s (its row in section 2,
-and section 3).
+What of this document is not built is in [`examples.status.md`](examples.status.md).
 
 ## 9. The UI example
 

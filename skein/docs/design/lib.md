@@ -705,5 +705,4 @@ traits, takes no closures, and uses no `dyn` (programming-model.md,
 
 ## 13. Not built yet
 
-What of this document is not built is `STATUS.md`'s (its row in section 2,
-and section 3).
+What of this document is not built is in [`lib.status.md`](lib.status.md).
