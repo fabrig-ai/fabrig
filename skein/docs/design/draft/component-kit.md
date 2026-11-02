@@ -1,7 +1,7 @@
 # A component kit, phase 1: lib's primitives and the io stage
 
-Draft, 2026-10-31. The first slice of the skein code-quality review of
-2026-10-31 (source `3371027`; `fab/review-2026-10-31/` in fab's home):
+Draft, 2026-10-31. The first part of [the skein code-quality review of
+2026-10-31](../../development/skein-review-2026-10-31.md):
 the primitives each component writes again for itself, moved into lib
 and io, and the call sites moved onto them. It changes no rule of the
 programming model or the testing strategy; section 6 asks whether one
@@ -73,7 +73,7 @@ From the review (themes 1b, 1c and 1d, decisions D6 and D9):
 | Part | Kind | What |
 |---|---|---|
 | kit-contract | contract | lib's missing primitives and the io stage, as a skeleton that lands alone |
-| echo-first | migration | the echo host on the shared stage; slice 1 |
+| echo-first | migration | the echo host on the shared stage, first |
 | stage-sites | migration | the other io stage sites, one crate per task |
 | lib-sites | migration | the private copies of lib's primitives, one crate per task |
 | world-surfaces | feature | `Referee` defaults, a provided `Host::next_deadline`, a forwarding `Host` |
@@ -103,7 +103,7 @@ moves in this part.
 ### 3.2 echo-first
 
 The echo example's host runs on the shared stage, and its story test is
-green on main. This is slice 1: the first root to run end to end on the
+green on main. It is the first root to run end to end on the
 contract.
 
 ### 3.3 stage-sites
