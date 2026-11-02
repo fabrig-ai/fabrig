@@ -142,6 +142,7 @@ temper-engine-domain-forge              the connector's top: resources and holds
 ├── skein-forge-client                  the working set, keeping up, fresh reads, the request budget, effects' keys, write lanes and recovery (skein's forge-client.md)
 ├── skein-forge                         the vocabulary the top and the client share: calls, answers, errors, hints (skein's forge.md, section 3)
 ├── temper-engine-domain-forge-change   the change procedure and the landing queues: decisions over facts
+├── temper-engine-domain-forge-landing  the landing by turn: decisions over a landing's state (landing.md)
 └── temper-engine-domain-forge-issues   the goals' issues: what each projects, when to write it
 ```
 
@@ -456,10 +457,9 @@ as any adoption of it is. Each row is a repository's id, its owner's id
 and login, its name and whether it is private.
 
 Every kind is read the same way: the connector asks the root, which has
-the routing run the setup host's plan `Reachable { forge,
-installation?, page }` (skein's `forge-setup.md`, 4.8;
-`../protocol/forge.md`, 2.6), pages counted
-from 1, at most `reachable` rows (`picker.page`), ending
+the routing run the setup host's plan `Reachable { forge, installation?,
+page }` (skein's `forge-setup.md`, 4.8; `../protocol/forge.md`, 2.6),
+pages counted from 1, at most `reachable` rows (`picker.page`), ending
 `Done(Reachable { rows, more })`. The plan writes nothing, so it runs
 beside the forge's one writing plan, and no call of the forge client
 reads the picker:
@@ -540,11 +540,11 @@ narrowed, and its changes wait.
   none: `status` is false in the kinds there from adoption on, and
   nothing is held for it. Every adoption on GitHub says that the gates'
   verdicts (8.3) stay temper's own, and that GitHub's rules cannot
-  require them. For a project that lands by turn, the App writes statuses and
-  dispatches workflows (`../protocol/setup.md`, 17.1), so that its
-  receipts and verdicts are mirrored (`landing.md`, 10), and adoption
-  says, for each landing branch, whether its bypass is `Always`, which
-  the turn needs (`landing.md`, 8).
+  require them. For a project that lands by turn, the App writes
+  statuses and dispatches workflows (`../protocol/setup.md`, 17.1), so
+  that its receipts and verdicts are mirrored (`landing.md`, 10), and
+  adoption says, for each landing branch, whether its bypass is
+  `Always`, which the turn needs (`landing.md`, 8).
 
 ## 5. What it holds, and keeping up
 
@@ -810,13 +810,13 @@ recovery are skein's `forge-client.md`, section 7. temper's effects:
   merged. It names the base too: the pull request is read afresh first,
   and one retargeted since the decision is not merged.
 - **A merge may be queued:** on a base the forge's merge queue guards,
-  the merge answers `Answer::Queued`, final for the call and not for
-  the entry: neither a merge nor a refusal. The entry is the client's
-  until a read finds the pull request merged or out of the queue
-  (skein's `forge.md`, 3.3; `forge-client.md`, 7.7): it is never sent
-  again, and it holds its lane, so a comment or a review on that pull
-  request waits until the queue decides. What follows is 9.1's.
-  Forgejo never answers it.
+  the merge answers `Answer::Queued`, final for the call and not for the
+  entry: neither a merge nor a refusal. The entry is the client's until
+  a read finds the pull request merged or out of the queue (skein's
+  `forge.md`, 3.3; `forge-client.md`, 7.7): it is never sent again, and
+  it holds its lane, so a comment or a review on that pull request waits
+  until the queue decides. What follows is 9.1's. Forgejo never answers
+  it.
 - **Failures:** a merge refused for a conflict, an update refused for a
   conflict, a pull request with nothing to merge, a protected branch and
   a forbidden write are each typed, and go to the procedure that asked,
@@ -878,10 +878,9 @@ LLM:
 - **overlap unknown** (a landing too large to list, a read that failed):
   wakes, since a wasted turn is cheaper than a missed conflict.
 - **A hold parked until a landing** (jig's `domain/tasks.md`, 5.9):
-  subscribed to the landings on a branch, with
-  path prefixes or none; a landing wakes it, and so lifts it, when one
-  of its files lies under a prefix, or with none named, or when the
-  overlap is unknown.
+  subscribed to the landings on a branch, with path prefixes or none; a
+  landing wakes it, and so lifts it, when one of its files lies under a
+  prefix, or with none named, or when the overlap is unknown.
 
 The files are read from the forge (a pull request's files, or the
 comparison of the branch's old and new tips), cached per head and cut at
@@ -1104,15 +1103,15 @@ delegate's terminal wakes it to offer the landed result.
   a person amends the change to drop the gate, then releases it, or
   cancels it.
 - **Asked for by the change, the project and the plan.** A change's own
-  gates are its parameters, amended while it is live (a coordinator
-  adds a memory-safety review to one change); the landing rules add
-  theirs to every change into a branch they cover (8.7). A gate added
-  while a change is queued takes it out of the queue until it has its
-  verdict. The rules' gates (8.9) are not copied
-  into a change when it is made, but taken at each step from the rules
-  the forge holds then, every rule covering the branch adding its own,
-  enforced or not; a gate a changed rule drops is no longer waited on,
-  and a review already running for it reports as an advisory one.
+  gates are its parameters, amended while it is live (a coordinator adds
+  a memory-safety review to one change); the landing rules add theirs to
+  every change into a branch they cover (8.7). A gate added while a
+  change is queued takes it out of the queue until it has its verdict.
+  The rules' gates (8.9) are not copied into a change when it is made,
+  but taken at each step from the rules the forge holds then, every rule
+  covering the branch adding its own, enforced or not; a gate a changed
+  rule drops is no longer waited on, and a review already running for it
+  reports as an advisory one.
 - **Valid at a head, and carried over clean updates.** A verdict is given
   at a head. Each gate says which later heads it still counts at
   (`freshness`): *exact*, the head itself; *clean*, every head reached
@@ -1128,10 +1127,11 @@ delegate's terminal wakes it to offer the landed result.
   there (4.4), the post, `Write::Status`, is refused at the connector,
   and nothing waits for it (skein's `forge-github.md`, 4.2). Every
   adoption there says so, and the verdict stays temper's own; the App
-  asks for no more (`../protocol/setup.md`, 17.1). Where an installation grants `statuses: write` (`../protocol/setup.md`,
-  17.1), adoption reads it, `status` is true in that repository's kinds,
-  and statuses are posted there as on Forgejo; an installation that has
-  not accepted the new permission keeps the refusal.
+  asks for no more (`../protocol/setup.md`, 17.1). Where an installation
+  grants `statuses: write` (`../protocol/setup.md`, 17.1), adoption
+  reads it, `status` is true in that repository's kinds, and statuses
+  are posted there as on Forgejo; an installation that has not accepted
+  the new permission keeps the refusal.
 - **When they run:** once CI passes on the head, by default, so a head
   CI fails costs no review; the change may ask to run them at once.
 
@@ -1312,10 +1312,11 @@ merge, kind 4, on a pattern of landing branches (jig's
   for them: temper's own default has none (`../README.md`, section 2).
 - **Landing rules** are settings, the forge's own kinds (8.9): the
   deployment's and each project's, each covering a pattern of landing
-  branches with CI, up to date, its gates and its approvals. A merge meets every rule that covers its
-  branch: a project's rules add to the deployment's, and never replace
-  them; gates a plan asks for on one change are the change's own (8.3),
-  and add to the rules', never replace them.
+  branches with CI, up to date, its gates and its approvals. A merge
+  meets every rule that covers its branch: a project's rules add to the
+  deployment's, and never replace them; gates a plan asks for on one
+  change are the change's own (8.3), and add to the rules', never
+  replace them.
 - **The usual rule** for `main`: CI passed at the head (or the
   repository's checks, without CI), the head up to date with the branch,
   and an agent's review as a gate. A project adds what it wants on every
@@ -1335,11 +1336,11 @@ merge, kind 4, on a pattern of landing branches (jig's
   (`../protocol/git.md`, 4.8), an update merges the base in
   (section 10), and a branch found moved backwards is drift (8.5).
 
-- **Two standing requirements** replace the four
-  above as landing rules' attachments (`../protocol/configuration.md`,
-  13.3). temper's stock rules attach both to the merge on every landing
-  branch, and the forge judges each over every enforcing rule covering
-  the merge's branch, as it holds the rules then:
+- **Two standing requirements** replace the four above as landing rules'
+  attachments (`../protocol/configuration.md`, 13.3). temper's stock
+  rules attach both to the merge on every landing branch, and the forge
+  judges each over every enforcing rule covering the merge's branch, as
+  it holds the rules then:
 
   | Requirement | Its parameters | Met | Wait | Refuse | Guarded or observed |
   |---|---|---|---|---|---|
@@ -1389,15 +1390,16 @@ What the connector makes of a change for the client's panel
   `../client/forge.md`, 9.2, **Its subject**.
 - **Kept as long as its record:** the record outlives the task's end, so
   a landed or cancelled change still has its panel.
-- **Its rules and its charter:** what the landing rules wait on at its head,
-  the rule and criterion its last verdict named (8.7), and the forge's
-  charter it was made with (8.9).
+- **Its rules and its charter:** what the landing rules wait on at its
+  head, the rule and criterion its last verdict named (8.7), and the
+  forge's charter it was made with (8.9).
 
 ### 8.9 The landing rules as settings
 
-As `../protocol/configuration.md`, section 13 has them, the forge owns three of temper's kinds of settings: the deployment's
-landing rules (kind 1), each project's (kind 2), and the forge's charter
-(kind 3), whose values it keeps in its own family, `Setting`
+As `../protocol/configuration.md`, section 13 has them, the forge owns
+three of temper's kinds of settings: the deployment's landing rules
+(kind 1), each project's (kind 2), and the forge's charter (kind 3),
+whose values it keeps in its own family, `Setting`
 (`../protocol/store.md`, section 2), while jig keeps their states and
 sizes and never reads them (jig's `domain/connectors.md`, section 17).
 
@@ -1426,10 +1428,11 @@ sizes and never reads them (jig's `domain/connectors.md`, section 17).
 
 ### 8.10 Drained
 
-A drain is jig's (jig's `domain/connectors.md`, 6.7). A change in a draining hold's scope is idle, and held, at its next step unless it is
+A drain is jig's (jig's `domain/connectors.md`, 6.7). A change in a
+draining hold's scope is idle, and held, at its next step unless it is
 landing: under the queue, while its merge is sent and not yet settled;
-under the turn, while its landing has begun its proof and not yet
-landed (`landing.md`, 4.2). Its producing, repair or resolution run finishes
+under the turn, while its landing has begun its proof and not yet landed
+(`landing.md`, 4.2). Its producing, repair or resolution run finishes
 its turn and parks, as every run under a drain does.
 
 ## 9. Landing queues
@@ -1647,12 +1650,6 @@ history they keep if temper is unplugged. Issues are projections (jig's
   links each change to its goal, across repositories too.
 - **Findings** are `findings.md`'s: labelled issues whose labels temper
   reads back, the one exception to "never read back" here.
-- **Findings as issues:** a bug found while exploring, a follow-up a
-  review raised, a flaky test, created by an agent's `effect_forge` tool
-  (`agent.md`, 4.3; jig's `domain/connectors.md`, 4.5), keyed. Their
-  state (open, taken up by a goal, dropped) is the store's, shown in the
-  client (`../client/forge.md`, 7.3); taking one up is a goal that
-  names it.
 - **A projection, not a procedure** (jig's `domain/connectors.md`,
   section 8). The `issues` child domain is fed each goal's state, its
   plan and its milestones by the root: it is part of tracking, not work
@@ -1857,12 +1854,12 @@ log's guid is kept across starts (`../protocol/forge.md`, 5.1).
 Each forge starts not connected, whatever it was before the restart, and
 is connected as the routing tells the root (`../protocol/forge.md`, 2.1
 and 8.1); the adopted repositories of each managed or owned Forgejo are
-named to the routing for its reconcile (4.2). Until a forge connects, its
-reads and entries answer `NotConnected`, which narrows nothing (4.1), so
-the steps below run on each forge as it connects. Before its records, the connector loads its kinds' values from its
-family `Setting`, is given the stock defaults and says which differ
-(8.9), so a restored change is judged by the rules as they are. temper's
-steps:
+named to the routing for its reconcile (4.2). Until a forge connects,
+its reads and entries answer `NotConnected`, which narrows nothing
+(4.1), so the steps below run on each forge as it connects. Before its
+records, the connector loads its kinds' values from its family
+`Setting`, is given the stock defaults and says which differ (8.9), so a
+restored change is judged by the rules as they are. temper's steps:
 
 1. it reads afresh each repository's landing branches' tips and each
    live pull request (head, state, mergeability, CI, its place in a
@@ -1887,8 +1884,8 @@ read once.
 ## 18. The world
 
 The connector's world, `tests/engine/forge`, runs its subtree with the
-fake forge below it (`testing.md`, 4.2) and the root scripted above
-it; the tiers that run it through bytes and on a real Forgejo are
+fake forge below it (`testing.md`, 4.2) and the root scripted above it;
+the tiers that run it through bytes and on a real Forgejo are
 `testing.md`, section 2. Its stories: a change produced, opened,
 checked, gated, queued and landed; CI failing, repaired; a gate asking
 for changes, repaired, its verdict given again; a gate added while
@@ -1900,17 +1897,17 @@ ahead of later ones; a conflict resolved from a merge in progress; a
 semantic conflict repaired; the branch's own CI broken by a landing
 temper did not make, the queue paused and repaired; its pull request
 closed by someone else, held, released and reopened; a landing that
-overlaps a goal's change, and one that does not; a goal's issue
-written, revised and closed; a merge whose answer is lost, found merged
-after a restart; a mergeability unsettled within the window, then
-settled; a forge preloaded with ten times the history, idle at the same
-cost. Of the rules as settings (8.9): a landing rule changed between two
-merges, the second judged by the new rule; a gate a rule adds asked for
-on a queued change, which leaves the queue, and a gate a rule drops no
-longer waited on; a project's rule adding an approval; a rule refused
-in its change's decision; a change kept on the charter it was made
-with, and one held when that charter is no longer offered; a restart
-that hands the values back before the records.
+overlaps a goal's change, and one that does not; a goal's issue written,
+revised and closed; a merge whose answer is lost, found merged after a
+restart; a mergeability unsettled within the window, then settled; a
+forge preloaded with ten times the history, idle at the same cost. Of
+the rules as settings (8.9): a landing rule changed between two merges,
+the second judged by the new rule; a gate a rule adds asked for on a
+queued change, which leaves the queue, and a gate a rule drops no longer
+waited on; a project's rule adding an approval; a rule refused in its
+change's decision; a change kept on the charter it was made with, and
+one held when that charter is no longer offered; a restart that hands
+the values back before the records.
 
 Its stories of access and of GitHub's ways, the root and routing
 scripted: a forge connected while temper runs, an adoption refused as
@@ -1973,9 +1970,10 @@ the group's commit.
   output instead is open.
 - **A failure that is the runner's, not the change's:** a job whose
   set-up step failed, or whose runner was lost, is a repair like any
-  other. Running the job again first, through the API, is
-  `../draft/ci-on-forgejo-17.md`, with the stalls' reasons and the
-  agents' log tools.
+  other under the queue, where landing by turn retries it, never
+  repaired (`landing.md`, 7.4). Running the job again first, through the
+  API, is `../draft/ci-on-forgejo-17.md`, with the stalls' reasons and
+  the agents' log tools.
 - **Two Forgejo behaviours no fact records yet** (`../protocol/forge.md`,
   section 14): that CI after a clean update runs on exactly the head the
   update made (section 10); and where a merge lands when its pull
