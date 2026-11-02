@@ -241,6 +241,26 @@ fn a_start_cut_by_a_restart_resets_the_playground() {
     }
 }
 #[test]
+fn a_restart_with_the_playground_running_resets_it() {
+    let (mut d, sign_in) = driver(true);
+    start(&mut d, sign_in);
+    let running = row(&d).expect("playground fixture");
+    assert_eq!(running.state, forge::PlaygroundState::Running);
+    let project = running.project.expect("playground project");
+    while !d.store.pending.is_empty() {
+        d.store.apply();
+    }
+    restart(&mut d, true);
+    finish_forge_removal(&mut d);
+    assert!(row(&d).is_none());
+    assert!(account_rows(&d).is_empty());
+    assert!(d.root.forges().rows.is_empty());
+    assert!(!d.store.rows.values().any(|record| matches!(record, engine::Record::Forge { row }
+        if matches!(row.as_ref(), forge::Stored::Forge(row) if row.number == running.forge)
+            || matches!(row.as_ref(), forge::Stored::Repository(row) if row.project == project))));
+    assert!(!d.store.rows.contains_key(&engine::Key::Core(core::Key::People(people::Key::Policy(project)))));
+}
+#[test]
 fn a_reset_cut_after_each_act_ends_whole_at_the_next_start() {
     for step in [forge::ResetStep::Project, forge::ResetStep::Forge, forge::ResetStep::Account] {
         let (mut d, sign_in) = driver(true);
