@@ -850,6 +850,16 @@ terminal client, the captures and the faults.
   The plan-face landing remains separate as the offline proof of the
   shared live driver's model face (2.7).
 
+- **The playground and the set up, in and out,** each a story of its
+  own (../protocol/setup.md, 13.4): a first run into the playground and
+  out by its reset, the store then read empty and the welcome at its
+  Forge step; a reset the box's death cut, ended whole at the next
+  start; a set up killed at each of its steps, found unfinished and
+  started over, Forgejo's binaries taken from the cache; and GitHub
+  gone on after a restart, on `temper box --fake-backends`' fake
+  GitHub. They need the box's processes and their deaths, so they stay
+  in this profile.
+
 - **The upgrade's commands,** through the real binary, whose patch sets
   are empty until the first release: `temper versions`' lines; `temper
   upgrade --check` over a stopped deployment's copy, saying the restores
@@ -1512,7 +1522,7 @@ skein's (skein's `fake-llm.md`):
     naming the task and the turn, and so is a document past the twin's
     bounds, which are the
     fake's, sized for twins from the first passing walk's transcripts
-    and checked as the demo's are.
+    and checked as the playground's are.
   - **Frames of the version its binary writes,** read from a deployment
     the same build ran and stopped cleanly; an older frame, or one
     uncommitted at the stop, is refused, naming it, since the twin is
@@ -1582,7 +1592,7 @@ loopback (section 5). temper's worlds add:
   program in the one-process world (4.3), as by the fake checkout in the
   domain worlds; and over its git route (skein's `fake-forge.md`,
   section 4) by the fake git program in the real loop (2.4), as in the
-  demo's processes (../protocol/setup.md, 8.4). Real git meets an owned
+  playground's processes (../protocol/setup.md, 8.4). Real git meets an owned
   Forgejo in the process and live tiers, and skein's throwaway Forgejo
   in temper's transcripts (2.6); a real-git bridge is an open question
   (section 10).
@@ -1664,7 +1674,7 @@ asks for file operations as io's kernel does, so the same core runs
 three ways: hosted by skein's world harness (its `HostedProgram`,
 spawned by name) on skein's fake machine, which runs no program of an
 application's; hosted on the real file system by the real loop; and as a
-process of its own, `temper fake git`, the demo's git. It stays
+process of its own, `temper fake git`, the playground's git. It stays
 temper's, as it fakes temper's git component's program, and is built on
 skein's fake forge, whose domain is its only remote state. It reaches
 that forge in one of two ways (skein's `fake-forge.md`, section 3):
@@ -1702,7 +1712,7 @@ loop (2.4) and from another process.
   section 9).
 - **Where it runs:** the one-process world (2.5) on the typed transport;
   the real loop (2.4) over the git route of the forge peer it hosts, so
-  that the gate runs the route; `temper fake git` in the demo and the
+  that the gate runs the route; `temper fake git` in the playground and the
   process tier. The domain worlds keep the fake checkout at the domain
   face.
 
@@ -1764,7 +1774,7 @@ its own:
   once, the listener found from the URL and from `.git/temper-remote`,
   and each exit. The transcripts run on the core whatever its remote.
   The real loop's stories run the route against skein's forge peer; the
-  process tier (2.6) runs `temper fake git` from the demo's link.
+  process tier (2.6) runs `temper fake git` from the playground's link.
 
 **The shell subset.** An LLM can type any command, and no fake can run a
 real build. The machine's sh interprets a small subset of POSIX sh: a few
