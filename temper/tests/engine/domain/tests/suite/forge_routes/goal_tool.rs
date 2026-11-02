@@ -13,6 +13,74 @@ const AT_BOUND: usize = 0;
 const ONE_PAST_BOUND: usize = 1; // One additional byte crosses the spec's bound.
 const NESTED_GOAL_CALL: u64 = GOAL_CALL + 1;
 const CONTINUED_CALL: u64 = NESTED_GOAL_CALL + 1;
+const ASK_PLAN: &[u8] =
+    b"this work is to be agreed: ask your requester your plan with message, as a question, and wait";
+
+#[test]
+fn an_agreed_goals_nested_goal_is_refused_with_its_plan_instruction() {
+    for (advisor, agree) in [(false, true), (false, false), (true, true)] {
+        let (mut world, chat, run) = running_goal_with_agreement(true);
+        refused_tool(
+            &mut world,
+            &run,
+            NESTED_GOAL_CALL,
+            engine::Tool::Goal { words: WORDS.into(), advisor, agree },
+            ASK_PLAN,
+        );
+        ask_plan_and_wait(&mut world, &chat, &run);
+    }
+}
+
+fn ask_plan_and_wait(world: &mut World, chat: &engine::Assignment, run: &engine::Assignment) {
+    const PLAN: &[u8] = b"Add CSV export with a header. Go ahead?";
+    let engine::CallAnswer::Sent { message } = call(
+        world,
+        run,
+        NESTED_GOAL_CALL + 2,
+        engine::Tool::Message { target: chat.task, form: engine::MessageForm::Question, words: PLAN.into() },
+    ) else {
+        panic!("plan question sent after refusal")
+    };
+    assert_plan_inbox(world, chat.task, message, PLAN);
+    refused_tool(
+        world,
+        run,
+        NESTED_GOAL_CALL + 3,
+        engine::Tool::Change { words: b"Add CSV export".as_slice().into(), repository: None },
+        format!("wait for the answer to question {message}").as_bytes(),
+    );
+    let read = Some(live(world, run.task).last_message);
+    world.send(protocol::turn(Token::new(7), run.task, run.attempt, 1, 0, read, b"Wait for the answer"));
+    world.until(Until::Ready);
+    let event =
+        world.protocol.answer(Token::new(7), run.task, run.attempt, 0, tasks::End::Parked, engine::Parts::none());
+    world.send(event);
+    world.until(Until::Ready);
+    assert_eq!(live(world, run.task).phase, tasks::Phase::Active(tasks::Active::Idle));
+    assert_eq!(live(world, run.task).questions.len(), 1);
+    assert_eq!(world.assigned.len(), 2, "no change starts before the answer");
+    assert!(!world.writes.iter().any(|write| matches!(write, skein_forge::api::Write::OpenPull { .. })));
+    assert_eq!(world.merges, 0);
+}
+
+fn assert_plan_inbox(world: &mut World, chat: u64, message: u64, plan: &[u8]) {
+    use jig_domain_core::{documents, reads};
+    let reads::Answer::Page(page) = world.party_read(reads::Read::Inbox {
+        group: reads::Group::Questions,
+        filter: reads::Filter { project: Some(1), goal: None },
+        from: None,
+    }) else {
+        panic!("person's question inbox")
+    };
+    assert!(page.rows.iter().any(|r| matches!(r, reads::PageRow::Inbox(entry)
+        if matches!(&entry.task, documents::TaskLink::Live(chip) if chip.number == chat)
+        && entry.object == documents::InboxObject::Question { message })));
+    let reads::Answer::Document(document) = world.party_read(reads::Read::Question { task: chat, message }) else {
+        panic!("person reads the plan question")
+    };
+    let documents::Document::Question(question) = document.as_ref() else { panic!("question document") };
+    assert_eq!(question.words.bytes.as_ref(), plan);
+}
 
 fn chat_world(cap: u64, tasks: u32, depth: u32) -> (World, engine::Assignment) {
     start_chat(World::configured(true, true), cap, tasks, depth, None)
@@ -289,10 +357,12 @@ fn a_goal_calls_change_and_its_change_is_made() {
 
 #[test]
 fn a_goals_advisor_is_admitted() {
-    let (mut world, _, run) = running_goal();
-    let advisor = delegated(goal(&mut world, &run, 94, true));
-    assert_eq!(live(&world, advisor).requester, tasks::Party::Task(run.task));
-    assert_eq!(live(&world, advisor).tracked, None);
+    for agree in [false, true] {
+        let (mut world, _, run) = running_goal_with_agreement(agree);
+        let advisor = delegated(goal(&mut world, &run, 94, true));
+        assert_eq!(live(&world, advisor).requester, tasks::Party::Task(run.task));
+        assert_eq!(live(&world, advisor).tracked, None);
+    }
 }
 
 #[test]
@@ -348,10 +418,11 @@ fn refused_goal(world: &mut World, run: &engine::Assignment, advisor: bool, expe
 fn refused_tool(world: &mut World, run: &engine::Assignment, name: u64, tool: engine::Tool, expected: &[u8]) {
     world.until(Until::Ready);
     let (applied, rows) = (world.store.applied, world.store.rows.clone());
+    let errors = world.call_errors.len();
     send_call(world, run, name, tool);
     world.until(Until::Ready);
     assert_eq!(
-        world.call_errors,
+        world.call_errors[errors..],
         [temper_engine_domain_world::forge_routes::CallError {
             call: name.to_be_bytes().into(),
             text: expected.into()
@@ -576,7 +647,7 @@ fn an_agreed_goals_change_before_asking_is_refused_by_name() {
         &run,
         NESTED_GOAL_CALL,
         engine::Tool::Change { words: b"Small fix".as_slice().into(), repository: None },
-        b"this work is to be agreed: ask your requester your plan with message, as a question, and wait",
+        ASK_PLAN,
     );
 }
 

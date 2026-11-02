@@ -22,7 +22,8 @@ A goal is a tracked task: work given a numeric priority, which orders the goals'
   own authority, last among the project's goals; or a party accepts a
   proposal that makes one; or an amendment tracks a task. An advisor
   is a goal's alone, and the run goes on after either refusal: a goal's
-  own `goal` without `advisor` is refused, `a goal starts an advisor
+  own `goal` without `advisor`, when the work is not marked to be agreed,
+  is refused, `a goal starts an advisor
   alone: set advisor, or make the change with change`; any other run's
   `goal` with `advisor` set, a chat's among them, is refused, `to change
   a repository, call change; a goal is for work they want to agree first
@@ -33,8 +34,11 @@ A goal is a tracked task: work given a numeric priority, which orders the goals'
   first, makes the goal owe its requester a question: its brief says so, and
   before that question is answered its `change` is refused, `wait for the
   answer to question N`; a goal that finishes before asking is woken to ask.
-  `agree` with `advisor` set is refused, `an advisor agrees nothing: set
-  agree or advisor, not both`.
+  For an agreed goal, calling `goal` with `agree` or without `advisor`
+  is refused, `this work is to be agreed: ask your requester your plan
+  with message, as a question, and wait`. It can still ask an advisor
+  without `agree`. Otherwise `agree` with `advisor` set is refused,
+  `an advisor agrees nothing: set agree or advisor, not both`.
   A goal waiting for your answer can park when its run reaches its turn
   limit. Its question stays in your inbox. Your answer wakes a new run with
   a fresh turn allowance; spending still counts against the goal's remaining

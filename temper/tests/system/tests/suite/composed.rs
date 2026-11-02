@@ -316,6 +316,36 @@ fn an_agreed_goals_earlier_wait_parks_and_resumes_with_stock_turns() {
     agreed_goal_walk(921, false);
 }
 
+#[test]
+fn an_agreed_goals_repeated_delegation_receives_the_plan_refusal_then_asks_and_waits() {
+    use skein_fake_llm_domain::api::Part;
+    use temper_system_world::composed::call;
+    const REQUEST: &[u8] = br#"{"words":"Add CSV export to widget. Before anything is changed, have the work tell me its plan and wait for my go-ahead.","agree":true}"#;
+    const REFUSAL: &[u8] =
+        b"this work is to be agreed: ask your requester your plan with message, as a question, and wait";
+    let mut script = plan_script(false);
+    // The repeated goal call is the observed transcript; asking and waiting are the repair oracle.
+    let mut turns = script.turns.into_vec();
+    turns.insert(0, call(b"goal", REQUEST));
+    script.turns = turns.into_boxed_slice();
+    let mut world = World::agreed_goal(922, script);
+    world.run();
+    assert!(
+        world
+            .agent()
+            .prompts()
+            .iter()
+            .flat_map(|prompt| &prompt.messages)
+            .flat_map(|message| &message.parts)
+            .any(|part| matches!(part,
+            Part::ToolOutput { output, is_error: true, .. } if output.as_ref() == REFUSAL))
+    );
+    assert!(matches!(world.agent().answer(), smith_domain_run::Answer::Parked { spent, .. } if spent.turns == 3));
+    world.pending_plan();
+    world.hold_goal(skein_lib::Duration::from_secs(121));
+    world.pending_plan();
+}
+
 fn plan_script(reads: bool) -> skein_fake_llm_domain::api::Script {
     use temper_system_world::composed::call;
     let mut turns = Vec::new();

@@ -1,6 +1,7 @@
 # agent: status
 
 2026-11-02. Where temper's code lags or departs from [agent.md](agent.md).
+The remaining gaps concern charters, settings, brief admission and result delivery.
 
 - **Not yet:** 4.1, 4.6: charters and their budgets as settings, read at
   the task's revision. 4.3: the check that each charter leaves its brief
