@@ -918,6 +918,7 @@ pub fn signed_worker() -> crate::Service {
         link: root::Link::Hello {
             worker: 0,
             hello: host::Hello {
+                jobs: Box::default(),
                 slots: 1,
                 stop_bound: skein_lib::Duration::from_millis(100),
                 workstreams: Box::new([]),

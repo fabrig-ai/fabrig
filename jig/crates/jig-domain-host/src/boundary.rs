@@ -6,12 +6,14 @@
 use alloc::boxed::Box;
 pub(crate) use jig_domain_link::{Grant, GrantTable, Hosting, Phase};
 
+use crate::JobKind;
 use skein_lib::{Duration, Token};
 
 /// parent -> host
 #[derive(PartialEq, Eq, Debug)]
 pub enum Event {
     Agent(FromAgent),
+    Job(FromJob),
     SourceAnswered {
         owner: Token,
         answer: crate::sources::Answer,
@@ -35,6 +37,7 @@ pub enum Event {
         stop_bound: Duration,
         workstreams: Box<[u64]>,
         bounds: crate::Bounds,
+        jobs: Box<[crate::JobBound]>,
     },
     Down(crate::LinkDown),
     /// Terminal for `Prepare`: the workspace is ready, and `workspace` names it
@@ -66,6 +69,12 @@ pub enum Event {
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
     Agent(ToAgent),
+    Job(ToJob),
+    DeliverJob {
+        owner: Token,
+        workspace: Token,
+        delivery: Box<[u8]>,
+    },
     Source {
         owner: Token,
         name: crate::SourceName,
@@ -533,6 +542,7 @@ impl Event {
                 crate::LinkDown::Sources { .. }
                 | crate::LinkDown::Check { .. }
                 | crate::LinkDown::SignOut { .. }
+                | crate::LinkDown::AssignJob { .. }
                 | crate::LinkDown::Assign { .. }
                 | crate::LinkDown::Message { .. } => true,
                 crate::LinkDown::Relayed { .. }
@@ -541,7 +551,8 @@ impl Event {
                 | crate::LinkDown::Cancel { .. }
                 | crate::LinkDown::Grant { .. } => false,
             },
-            Event::SourceAnswered { .. }
+            Event::Job(_)
+            | Event::SourceAnswered { .. }
             | Event::SourceLost
             | Event::RelayCancelled { .. }
             | Event::CancelAll { .. }
@@ -574,4 +585,101 @@ impl FromAgent {
             | FromAgent::Gone { .. } => false,
         }
     }
+}
+
+/// What the core gives the host for one job (jig/docs/design/domain/hosts.md, 6.9).
+#[derive(PartialEq, Eq, Hash, Debug)]
+pub struct JobAssignment {
+    /// The engine's names for the job task and this attempt at it.
+    pub run: Token,
+    pub attempt: Token,
+    pub kind: JobKind,
+    /// The application's bytes, carried and never read.
+    pub spec: Box<[u8]>,
+    pub deadline: Duration,
+    /// Nothing when the job has no workspace items.
+    pub workspace: Option<Workspace>,
+    /// The application's credentials its workspace needs: `Form::Application` only.
+    pub grants: Box<[Grant]>,
+}
+
+/// How a hosted job ended, as the hub answers it.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum JobEnding {
+    Refused(JobRefusal),
+    Finished { result: Box<[u8]>, work: Work },
+    Failed { failure: JobFailure, detail: Box<[u8]>, work: Work },
+}
+
+/// Why a hosted job failed (jig/docs/design/domain/hosts.md, 6.9): what the engine acts on.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum JobFailure {
+    /// Its workspace could not be prepared.
+    Unprepared(Preparation),
+    /// It ended and said it failed.
+    Failed,
+    /// Its deadline passed: it was stopped and its processes killed.
+    Deadline,
+    /// Its result holds more bytes than its kind's bound.
+    Result,
+    /// Its processes could not be started, or ended without its capability's word.
+    Unstarted,
+    /// What it made was not delivered: `Stale`, `Refused` or `Failed`, as the workspace said.
+    Undelivered(DeliveryOutcome),
+    Cancelled(Reason),
+}
+
+/// Why a job's assignment was refused at the entrance; a run's `Refusal` is unchanged.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum JobRefusal {
+    /// As a run's `Refusal::Busy`.
+    Busy,
+    Invalid(JobInvalid),
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum JobInvalid {
+    /// A kind this host does not run.
+    Kind,
+    /// More spec bytes than its kind's bound.
+    Spec,
+    /// A deadline longer than its kind's bound.
+    Deadline,
+    /// Its grants are not the application's, or more than the limits allow.
+    Grants,
+    /// The job capability refused its start; its words are for operators.
+    Start { why: Box<[u8]> },
+}
+
+/// host -> parent, inside `Request::Job(ToJob)`.
+#[derive(PartialEq, Eq, Debug)]
+pub enum ToJob {
+    /// Run the job until it ends or its deadline passes, in `workspace` if it has one.
+    Run { owner: Token, kind: JobKind, spec: Box<[u8]>, deadline: Duration, workspace: Option<Token> },
+    /// Stop it at once and kill its processes. `Gone` follows.
+    Stop { owner: Token },
+}
+
+/// parent -> host, inside `Event::Job(FromJob)`.
+#[derive(PartialEq, Eq, Debug)]
+pub enum FromJob {
+    /// Its first process started.
+    Started { owner: Token },
+    /// The capability refused to start it, before anything ran; nothing of it is live.
+    StartRefused { owner: Token, why: Box<[u8]> },
+    /// How it ended. At most once per job; a stopped job may end with nothing said.
+    Ended { owner: Token, end: JobEnd },
+    /// Terminal for `Run`: every process of the job is gone. `detail` is for operators.
+    Gone { owner: Token, detail: Box<[u8]> },
+}
+
+#[derive(PartialEq, Eq, Debug)]
+pub enum JobEnd {
+    /// It ended well, with its result and, for a kind that delivers, what to deliver: the
+    /// application's bytes, which the hub hands the workspace as they are.
+    Finished { result: Box<[u8]>, delivery: Option<Box<[u8]>> },
+    /// It ended and said it failed; `detail` is for operators.
+    Failed { detail: Box<[u8]> },
+    /// Its deadline passed and it was killed.
+    Deadline,
 }

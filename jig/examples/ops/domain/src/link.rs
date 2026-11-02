@@ -113,6 +113,19 @@ pub(crate) fn host_out(
 ) {
     for _ in 0..out.len() {
         match out.pop().expect("host requests") {
+            host::Request::Job(host::ToJob::Run { owner, .. }) => {
+                work.push(Work::Host(host::Event::Job(host::FromJob::StartRefused {
+                    owner,
+                    why: Box::from(&b"no job capability"[..]),
+                })));
+            }
+            host::Request::Job(host::ToJob::Stop { owner }) => {
+                work.push(Work::Host(host::Event::Job(host::FromJob::Gone { owner, detail: Box::new([]) })));
+            }
+            host::Request::DeliverJob { owner, .. } => work.push(Work::Host(host::Event::Delivered {
+                owner,
+                delivery: host::Delivery { outcome: host::DeliveryOutcome::Refused, changed: false, left: owner },
+            })),
             host::Request::Agent(request) => crate::domain::held(decision, Output::Agent(request)),
             host::Request::Up(value) => {
                 route(domain, env, decision, link::Event::Up { channel: Token::new(0), value }, false, work);

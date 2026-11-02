@@ -12,6 +12,7 @@ pub const ATTEMPT: Token = Token::new(3);
 
 pub fn hello() -> host::Hello {
     host::Hello {
+        jobs: Box::default(),
         slots: 2,
         stop_bound: Duration::from_secs(10),
         workstreams: Box::new([4, 5]),

@@ -5,8 +5,9 @@ use alloc::boxed::Box;
 use skein_lib::{Duration, List, Queue, Token};
 
 #[derive(Debug)]
-pub(crate) struct Kept {
-    pub(crate) answer: RunAnswer,
+pub(crate) enum Kept {
+    Run(RunAnswer),
+    Job(crate::JobEnding),
 }
 
 pub(crate) fn kept(domain: &Hub) -> u32 {
@@ -18,7 +19,10 @@ pub(crate) fn at(domain: &Hub, index: u32) -> Option<LinkUp> {
         if u32::try_from(at).expect("bounded answer slots") == index {
             let run = domain.hosted.get(*id).expect("an answer holds its slot");
             let answer = run.answer.as_ref().expect("indexed answer");
-            return Some(LinkUp::Answer { run: run.run, attempt: run.attempt, answer: answer.answer.clone() });
+            return Some(match answer {
+                Kept::Run(answer) => LinkUp::Answer { run: run.run, attempt: run.attempt, answer: answer.clone() },
+                Kept::Job(answer) => LinkUp::JobAnswer { run: run.run, attempt: run.attempt, answer: answer.clone() },
+            });
         }
     }
     None
@@ -52,5 +56,14 @@ pub(crate) fn opened(
                 .expect("answer retains its slot");
         }
     }
-    out.push(Request::Hello { hello: Hello { slots, stop_bound, workstreams, hosting: hosting.into_boxed(), bounds } });
+    out.push(Request::Hello {
+        hello: Hello {
+            slots,
+            stop_bound,
+            workstreams,
+            hosting: hosting.into_boxed(),
+            bounds,
+            jobs: domain.job_kinds.clone(),
+        },
+    });
 }

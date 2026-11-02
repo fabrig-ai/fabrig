@@ -77,7 +77,11 @@ pub(crate) fn keeps_payload(input: &WorkerInput) -> bool {
         WorkerInput::DecodedHostCall { .. }
         | WorkerInput::RenderedHostCall { .. }
         | WorkerInput::Link {
-            link: Link::Up { up: host::LinkUp::Turn { .. } | host::LinkUp::Answer { .. }, .. },
+            link:
+                Link::Up {
+                    up: host::LinkUp::Turn { .. } | host::LinkUp::JobAnswer { .. } | host::LinkUp::Answer { .. },
+                    ..
+                },
             ..
         } => true,
         WorkerInput::ResultRead { .. }

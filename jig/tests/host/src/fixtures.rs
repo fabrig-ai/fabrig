@@ -64,7 +64,12 @@ pub fn bounds() -> jig_domain_host::Bounds {
 }
 #[must_use]
 pub fn opened() -> Event {
-    Event::Opened { stop_bound: Duration::from_secs(2), workstreams: Box::new([3]), bounds: bounds() }
+    Event::Opened {
+        jobs: Box::default(),
+        stop_bound: Duration::from_secs(2),
+        workstreams: Box::new([3]),
+        bounds: bounds(),
+    }
 }
 
 /// A full start inbox with each message at the byte bound.

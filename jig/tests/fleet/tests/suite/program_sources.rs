@@ -43,6 +43,7 @@ impl World {
             worker,
             channel,
             hello: fleet::Hello {
+                jobs: Box::default(),
                 slots: 2,
                 stop_bound: Duration::from_secs(1),
                 workstreams: Box::new([]),

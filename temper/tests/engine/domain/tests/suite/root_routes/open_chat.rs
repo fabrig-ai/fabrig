@@ -415,6 +415,7 @@ fn an_open_chat_on_a_program_endpoint_starts() {
     let mut program_bounds = protocol::bounds();
     program_bounds.program_endpoints = Box::new([charter().policy.model.endpoint]);
     let program_hello = host::Hello {
+        jobs: Box::default(),
         slots: 1,
         stop_bound: Duration::from_millis(100),
         workstreams: Box::new([]),
