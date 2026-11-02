@@ -28,7 +28,7 @@ fn a_print_run_starts_with_its_init() {
     assert_eq!(init["tools"], json!(["Read", "Bash", "ungranted"]));
     assert_eq!(
         init["mcp_servers"],
-        json!([{"name":"smith", "status":"connected"}, {"name":"other", "status":"connected"}])
+        json!([{"name":"smith", "status":"connected", "source":"dynamic"}, {"name":"other", "status":"connected"}])
     );
     assert_eq!(init["capabilities"], json!(["stream"]));
     assert_eq!(init["model"], "test-model");
