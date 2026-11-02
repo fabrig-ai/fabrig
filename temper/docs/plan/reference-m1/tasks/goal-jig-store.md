@@ -89,3 +89,24 @@ The schema lines, the bounds chosen, the goldens regenerated, the tests and coun
   settings family's `Charter` change on this trunk moves the same `settings` line: if it has
   landed at your base, regenerate from the schema as it is). Then both formerly failing tests
   alone, and step 3's checks.
+
+## Rebase (2026-11-02, step merge, foreman reference-m1/goal-jig-store/foreman-2)
+
+rebase onto the landing trunk, retain job support and symbols/resources, and regenerate combined store artifacts.
+The merge conflicts with main commit `97159dc54e` (“jig: persist the job task surface while refusing admission”), brought into reference-m1 by `8305f532de`.
+Conflicting paths under `jig/crates/jig-protocol-store/`:
+- `src/generated/layouts.rs`
+- `src/generated/people_v14.rs`
+- `src/generated/settings_v1.rs`
+- `src/tests/codec.rs`
+- `src/tests/settings.rs`
+
+Keep the merged schemas’ `ExecutorJob` record and `Executor::job` arm alongside this task’s `Symbol`, `Template.resources`, and `Member.symbols` additions. Keep versions 1 and 14 and bounds 32.
+Regenerate `people_v14.rs` and `settings_v1.rs` from those combined schemas; never resolve generated hunks by hand.
+In `src/tests/codec.rs`, retain all incoming job tests and this task’s `a_stored_member_keeps_its_symbols`; retain the incoming `job: None` fixture initializer.
+In `src/tests/settings.rs`, retain both `job_delegation_kinds_round_trip_in_settings` and `a_template_with_resources_round_trips_through_the_settings_store`.
+Verify the automatically merged `src/codec/settings.rs` keeps both job executor translations and resource encoding/decoding.
+Run the spec’s drift regeneration to refresh generated codecs and goldens, then repeat without `SKEIN_CODEGEN_WRITE`.
+Regenerate layouts with `SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p jig-store-codecs-world --test drift -E 'test(=the_stores_layouts_have_no_drift)'`, then repeat without the variable.
+Relative to the landing base, only settings and people fingerprints should change; preserve its tasks fingerprint and existing tasks artifacts.
+Run both acceptance tests (two selected), the layout fingerprint checks, and step 3’s formatting, old-form, clippy and package checks.
