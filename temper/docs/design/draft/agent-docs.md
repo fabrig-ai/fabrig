@@ -6,14 +6,11 @@ words on temper#9: the readers are agents, since temper's command line
 is for automated, unattended delivery; people read the site, which is
 the user's and outside this draft; the text stays concise, with one
 consistent structure that never grows by accretion; and the tools may
-be renamed and regrouped where that serves. For agents it replaces
-`configuring.md` 7 (one source, three readers, written for people) and
-`../protocol/documentation.md` 1, 2, 4 and 7 (the register, the
-directory, the kinds and their bounds, `--help`, the site); it reshapes
-`../client/tools.md`'s names, its 5.4 (`wait`), 8.1 and 11.5, and
-`../qa.md` 3's citations of the box walk. Approved by the user on
-temper#13 (10-27), the command line regrouped as section 7 has it; each
-part becomes contract in the documents it names as it is built.
+be renamed and regrouped where that serves.
+`../protocol/documentation.md` and `../client/tools.md` build on it.
+Approved by the user on temper#13 (10-27), the command line regrouped
+as section 7 has it; each part becomes contract in the documents it
+names as it is built.
 
 ## 1. In one page
 
@@ -66,9 +63,10 @@ part becomes contract in the documents it names as it is built.
   a surprise in the model (the concept); configuring (the settings'
   concepts, their reference and the recipes).
 - **QA reads what a user reads.** A pass is given a walk and its rung
-  (`../qa.md`, section 3), never a list of commands, so a rename
-  reaches it through the walk. A step it finds only in the design or
-  the source is a finding (`../qa.md`, section 6).
+  (`../../development/qa.md`, section 3), never a list of commands, so
+  a rename reaches it through the walk. A step it finds only in the
+  design or the source is a finding (`../../development/qa.md`,
+  section 6).
 - **People read the site,** the user's: it may render any page of
   section 9's directory as it is; nothing here is written for it.
   `temper open`, a person's terminal, keeps its usage line alone.
@@ -331,9 +329,9 @@ temper ctl help [GROUP [VERB]]
 
 ### 8.3 Walked
 
-- **QA walks the walks,** on each rung (`../qa.md`, section 3): a step
-  that does not get a pass through is a finding, fixed in the code or,
-  where the walk was wrong, in the walk.
+- **QA walks the walks,** on each rung (`../../development/qa.md`,
+  section 3): a step that does not get a pass through is a finding,
+  fixed in the code or, where the walk was wrong, in the walk.
 - **Later, named:** a walk run as a story of the process tier on fake
   backends, its commands read from the walk itself; when a walk drifts
   in a way the parse misses.

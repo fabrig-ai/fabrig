@@ -273,7 +273,7 @@ drawn by `temper-client-view`:
   `status-page.md`, in the test.
 - **Its tools grow by three reads:** the facts' catalogue, each owner's
   sources with their keys and operations, from the documentation in the
-  binary (`configuring.md`, section 7); the dashboards and metrics as
+  binary (`../protocol/documentation.md`); the dashboards and metrics as
   they are; and a metric's values, as a person in the same role would
   see them. It proposes through the same `propose` call.
 - **It asks** what to watch, for whom (the scope) and over what span,

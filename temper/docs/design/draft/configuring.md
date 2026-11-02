@@ -1,9 +1,8 @@
 # Configuring temper by talking to it
 
 Draft, 2026-10-23. A person describes how they want work to go, and an
-agent configures temper to run it. It takes `first-release.md`'s
-section 7 further, from a session with the user that day, whose turns
-shaped it: settings that live in the store and never in the
+agent configures temper to run it, from a session with the user that
+day, whose turns shaped it: settings that live in the store and never in the
 configuration document, a change that new work follows while running
 work keeps what it started with, and a split between what temper
 enforces and what agents follow. It crosses jig and temper on purpose;
@@ -38,8 +37,9 @@ an owner splits it. Nothing here is adopted.
   plain words, with what temper enforces apart from what agents follow,
   and what the change does to running work.
 - **It explains, both ways** (section 6): it answers from the settings
-  and the documentation built into the binary (section 7), and it
-  describes the settings back as a workflow.
+  and the documentation built into the binary
+  (`../protocol/documentation.md`), and it describes the settings back
+  as a workflow.
 - **Its test** (section 8): given `reference-code-production.md`, it
   should propose the settings of its section 14, as far as the gaps
   that draft records let temper say them.
@@ -119,10 +119,10 @@ configures work:
 - **What stays in the document:** the directories, the listeners, the
   workers and their secrets' files, the limits (they size memory at the
   start), the first owners and the sign-in providers (needed before
-  anyone signs in), and, for now, the LLM providers and the forges'
-  addresses. Those two follow the same rule later, each its own design
-  (section 10): models are bit positions in authorities, and a forge's
-  number keys its records.
+  anyone signs in), and, for now, the LLM providers, which follow the
+  same rule later, a design of their own (section 10): models are bit
+  positions in authorities. Forges are records in the store already
+  (`playground-reset.md`, section 3).
 
 ### 3.2 Defaults and changes
 
@@ -309,8 +309,8 @@ made follows the new one, and what is in flight keeps the old.
   a goal's own branch, a coordinator's wake policy, the other gaps
   `reference-code-production.status.md` records. Each such answer is
   design input.
-- **What needs a restart,** it says too: a provider or a forge the
-  document does not name, a listener, a worker, a limit (3.1).
+- **What needs a restart,** it says too: a provider the document does
+  not name, a listener, a worker, a limit (3.1).
 
 ## 6. The configuring agent
 
@@ -328,18 +328,6 @@ made follows the new one, and what is in flight keeps the old.
 - **Later, it is woken by a landing** of a document a charter names,
   when the landing touches structure: "process.md changed; here is
   what it means for your setup".
-
-## 7. Documentation in the binary
-
-- **One source of user documentation, three readers:** the site's
-  documentation pages, the command line's help (`temper help <topic>`),
-  and the agent's context, in `temper box` and in a deployment, through
-  a tool that searches and reads it.
-- **Written for people who run temper,** not in the design documents'
-  register: the concepts (a task, a goal, a charter, a template, a
-  policy, a landing rule), recipes ("review before landing", "a tester
-  that cannot land", "a weekly budget") and the limits.
-- **Where its source lives** is open (section 10).
 
 ## 8. Its test
 
@@ -376,7 +364,7 @@ made follows the new one, and what is in flight keeps the old.
 
 ## 10. Open questions
 
-- **Settings in a repository** (from `first-release.md`, 7.2), a source
+- **Settings in a repository,** a source
   synced into the store's settings. What was said:
   - a local git repository in the deployment's data directory, written
     by temper: history, diffs and rollback, with no forge;
@@ -397,8 +385,8 @@ made follows the new one, and what is in flight keeps the old.
   store alone.
 - **An import:** a file of settings made into a proposal, for operators
   who keep configuration in files. Default: later.
-- **LLM providers and forges' addresses** in the store too, by 3.1's
-  rule. Default: later, each its own design.
+- **LLM providers** in the store too, by 3.1's rule. Default: later,
+  a design of their own.
 - **Delegates on their parent's revision,** as a change's option.
   Default: later.
 - **Hand edits** on "How work runs", by an owner who is also the one to
@@ -408,5 +396,3 @@ made follows the new one, and what is in flight keeps the old.
 - **A release's new defaults** reaching settings never changed, with no
   proposal. Default: yes, said in its release notes and its history
   line.
-- **Where the documentation's source lives.** Default: temper's
-  repository, beside its design.
