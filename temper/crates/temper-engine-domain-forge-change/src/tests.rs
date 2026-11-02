@@ -44,6 +44,7 @@ fn facts() -> Facts {
         base_ci: Ci { head: BASE, status: Status::Passed },
         base_tip: BASE,
         contains_base: Status::Passed,
+        updates: true,
         mergeable: Status::Passed,
         gates: Box::new([]),
         live_gate: None,
@@ -301,6 +302,30 @@ fn a_release_keeps_other_producing_holds_and_a_pushed_head_goes_on_without_a_new
     let next = decide(&reset.change, &f, &h);
     assert_eq!(next.change.state, State::Opening { requested: false });
     assert_eq!(next.change.last_head, Some(NEW));
+}
+
+#[test]
+fn a_conflict_under_rules_asking_no_update_holds_the_change() {
+    let c = change(State::First { head: HEAD, ready_since: at(0) });
+    let mut f = facts();
+    f.mergeable = Status::Failed;
+    f.updates = false;
+    let next = decide(&c, &f, &heard());
+    assert_eq!(next.change.state, State::Held { was: Box::new(c.state), why: Hold::Resolutions });
+    assert_eq!(next.decision, Decision::Hold(Hold::Resolutions));
+    assert_eq!(next.change.resolutions, 0);
+}
+
+#[test]
+fn a_conflict_under_rules_asking_up_to_date_is_resolved() {
+    let c = change(State::First { head: HEAD, ready_since: at(0) });
+    let mut f = facts();
+    f.mergeable = Status::Failed;
+    f.updates = true;
+    let next = decide(&c, &f, &heard());
+    assert_eq!(next.change.state, State::Resolving { requested: true, base: BASE });
+    assert_eq!(next.decision, Decision::Delegate(Delegate::Resolve { base: BASE }));
+    assert_eq!(next.change.resolutions, 1);
 }
 
 #[test]
