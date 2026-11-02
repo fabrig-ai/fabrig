@@ -109,7 +109,7 @@ producing ─ opening ─ checking ─ gating ─ queued ─ first ─ landing �
 | landed | its merge commit, and when |
 | verifying | landed, its merge commit, and the tiers following its landing branch that have not judged it yet, each with its run in flight, if any (`../domain/after-landing.md`, section 6) |
 | red | landed, its merge commit, and each tier whose verdict blames it, with the run and the failing tests blamed on it, counted, or "many" (`../domain/after-landing.md`, 5.3) |
-| cleared | landed and cleared by every tier following its landing branch, and the run that cleared it in each; or, past the project's verification bound with no verdict, "landed, uncleared": the change ended there (`../domain/after-landing.md`, section 6) |
+| cleared | landed and cleared by every tier following its landing branch, and the run that cleared it in each; or, past the project's verification bound with no verdict or cancelled while verifying, "landed, uncleared": the change ended there (`../domain/after-landing.md`, section 6) |
 
 On the change's task page, the steps its panel carries (9.2) and their
 words are `README.md`'s, 5.10: the steps as the mockup's six, each side
