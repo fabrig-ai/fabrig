@@ -36,6 +36,23 @@ pub struct Assignment {
     pub grants: Box<[jig_domain_accounts::Grant]>,
 }
 
+/// A job the core has claimed, for the fleet to place (jig/docs/design/domain/engine.md, 7.5).
+#[derive(PartialEq, Eq, Debug)]
+pub struct JobStart {
+    pub task: u64,
+    pub attempt: u64,
+    pub workstream: u64,
+    pub kind: jig_domain_link::JobKind,
+    pub spec: Box<[u8]>,
+    pub deadline: Duration,
+    /// Its contract's result bound, which the host's bound must cover.
+    pub result: u32,
+    /// The application's credentials its workspace needs.
+    pub grants: Box<[jig_domain_accounts::Grant]>,
+    /// The application's encoded workspace items, absent when the job needs none.
+    pub workspace: Option<Box<[u8]>>,
+}
+
 /// Bounds inherited from the composed children.
 #[derive(Clone, Copy, Debug)]
 pub struct Limits {
@@ -79,6 +96,7 @@ pub struct OutboxOwner {
 #[derive(Debug)]
 pub struct Link {
     assignments: Map<u64, Assignment>,
+    jobs: Map<u64, JobStart>,
     briefs: Map<u64, Box<[jig_domain_brief::GatherPlaced]>>,
     payloads: Map<Token, Payload>,
     next_payload: u64,
@@ -102,6 +120,7 @@ impl Link {
     pub fn new(limits: Limits, rng: Rng) -> Self {
         Self {
             assignments: Map::with_capacity(limits.assignments),
+            jobs: Map::with_capacity(limits.assignments),
             briefs: Map::with_capacity(limits.assignments),
             payloads: Map::with_capacity(limits.payloads),
             next_payload: 1,
@@ -274,6 +293,7 @@ impl Link {
     }
     #[must_use]
     pub fn take_assignment(&mut self, task: u64) -> Option<Assignment> {
+        self.jobs.remove(&task);
         self.assignments.remove(&task)
     }
     pub fn keep_assignment(&mut self, assignment: Assignment) {
@@ -295,6 +315,7 @@ impl Link {
 #[derive(Debug)]
 pub enum Event {
     Prepared { assignment: Assignment, writes: Box<[tasks::Name]> },
+    StartJob { job: JobStart },
     Start { task: u64, attempt: u64, kinds: fleet::Kinds, version: fleet::Version },
     Hello { channel: Token, worker: u32, hello: host::Hello },
     Up { channel: Token, value: host::LinkUp },
@@ -325,6 +346,7 @@ pub enum Request {
     Core(core::Event),
     Down { channel: Token, value: host::LinkDown },
     Assigned { channel: Token, assignment: Assignment },
+    AssignedJob { channel: Token, job: JobStart },
     ReadResult { payload: Token, outcome: Box<[u8]> },
     Relayed { channel: Token, run: Token, attempt: Token, call: Box<[u8]>, answer: Option<core::SettledCall> },
     Message { channel: Token, run: Token, attempt: Token, word: tasks::Word },
@@ -342,6 +364,25 @@ pub fn step(link: &mut Link, now: Time, event: Event, out: &mut Queue<Request>) 
             assignment.brief = link.take_brief(task).expect("completed brief");
             link.keep_assignment(assignment);
             out.push(Request::Core(core::Event::ClaimPrepared { task, attempt, budget, writes }));
+        }
+        Event::StartJob { job } => {
+            let (task, attempt) = (job.task, job.attempt);
+            let bound = jig_domain_link::JobBound {
+                kind: job.kind,
+                spec: u32::try_from(job.spec.len()).expect("validated job spec"),
+                result: job.result,
+                deadline: job.deadline,
+            };
+            let workstream = job.workstream;
+            link.jobs.insert(task, job).expect("one prepared job per claim");
+            out.push(Request::Core(core::Event::Fleet(fleet::Event::StartJob {
+                reply_to: ReplyTo::new(Token::new(task)),
+                run: Token::new(task),
+                attempt: Token::new(attempt),
+                workstream,
+                job: bound,
+                adopt: false,
+            })));
         }
         Event::Start { task, attempt, kinds, version } => {
             let assignment = link.assignment(task).expect("prepared assignment");
@@ -460,6 +501,24 @@ pub fn step(link: &mut Link, now: Time, event: Event, out: &mut Queue<Request>) 
             out.push(Request::Relayed { channel, run, attempt, call, answer });
         }
         Event::Assign { channel, run, attempt } => {
+            if let Some(job) = link.jobs.get(&run.raw()) {
+                assert_eq!(job.attempt, attempt.raw(), "current job assignment fence");
+                out.push(Request::AssignedJob {
+                    channel,
+                    job: JobStart {
+                        task: job.task,
+                        attempt: job.attempt,
+                        workstream: job.workstream,
+                        kind: job.kind,
+                        spec: job.spec.clone(),
+                        deadline: job.deadline,
+                        result: job.result,
+                        grants: job.grants.clone(),
+                        workspace: job.workspace.clone(),
+                    },
+                });
+                return;
+            }
             let assignment = link.take_assignment(run.raw()).expect("prepared claim has assignment");
             assert!(assignment.attempt == attempt.raw(), "current assignment fence");
             out.push(Request::Assigned { channel, assignment });
@@ -530,7 +589,9 @@ fn answer(domain: &mut Link, run: Token, attempt: Token, payload: Token, work: &
             other @ (host::Ending::Refused(_) | host::Ending::Parked { .. } | host::Ending::Failed { .. }),
         ) => payload::ending(other),
         Ending::Scripted(end) => end.clone(),
+        Ending::Job(ending) => payload::job_end(ending),
     };
+    domain.jobs.remove(&run.raw());
     work.push(Request::Core(result_event(domain, payload, end).expect("retained answer")));
 }
 #[must_use]

@@ -504,6 +504,7 @@ fn deep_child_rows_and_arbitrary_internal_payloads_are_refused_before_retention(
         worker: 0,
         channel: Token::new(1),
         hello: fleet::Hello {
+            jobs: Box::default(),
             stop_bound: skein_lib::Duration::from_secs(0),
             slots: 1,
             workstreams: Box::new([]),

@@ -134,6 +134,17 @@ pub enum Ask {
     UnsubscriptionDone { request: Token, key: CallKey },
     /// Complete a prepared claim through the connector that owns its writes.
     ClaimDone { task: u64, attempt: u64, kinds: fleet::Kinds, version: fleet::Version },
+    /// Start a claimed job after its decision is durable (jig/docs/design/domain/engine.md, 7.5).
+    JobClaimed {
+        task: u64,
+        attempt: u64,
+        kind: jig_domain_link::JobKind,
+        spec: Box<[u8]>,
+        deadline: skein_lib::Duration,
+        result: u32,
+        grants: Box<[jig_domain_accounts::Grant]>,
+        workspace: Option<Box<[u8]>>,
+    },
     /// Discard one rejected connector subscription flight.
     DropSubscription { request: Token },
     /// Ask a connector whether a refused repair belongs to a held task.
@@ -533,7 +544,14 @@ pub enum Event {
     /// The root assembled all selected connector sections, or found a missing owner.
     BriefAssembled { task: u64, ready: bool },
     /// The root translated the selected connector's workspace writes.
-    WorkspacePrepared { task: u64, attempt: u64, writes: Option<Box<[authority::Write]>>, credentials: Box<[u32]> },
+    WorkspacePrepared {
+        task: u64,
+        attempt: u64,
+        writes: Option<Box<[authority::Write]>>,
+        credentials: Box<[u32]>,
+        /// A job's application-encoded workspace items, within `Limits::run_bytes`.
+        workspace: Option<Box<[u8]>>,
+    },
     /// The root returned translated workspace names after assembling the run assignment.
     ClaimPrepared { task: u64, attempt: u64, budget: u64, writes: Box<[tasks::Name]> },
     /// A connector refused the held names of a pending task claim.
@@ -1015,6 +1033,7 @@ fn fleet_new_work(event: &fleet::Event) -> bool {
         | fleet::Event::Relay { .. } => true,
         fleet::Event::Logins { .. }
         | fleet::Event::SignedOut { .. }
+        | fleet::Event::StartJob { .. }
         | fleet::Event::Start { .. }
         | fleet::Event::Inbound { .. }
         | fleet::Event::Adopt { .. }

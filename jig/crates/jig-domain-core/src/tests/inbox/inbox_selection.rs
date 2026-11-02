@@ -909,7 +909,8 @@ fn inbox_context_memory_prices_every_reserved_container_and_complete_document_en
     // Four older held revision heads, each with its holder count, add 288 bytes.
     // Sixteen retained specification lines carry eight aligned bytes for asks.
     // Both value sets carry eight templates with sixteen-byte resource slices.
-    const SETTINGS_DOCUMENT: u64 = 120_496 + 4 * 72 + 16 * 8 + 2 * 8 * 16;
+    // Each retained specification line also carries an eight-byte job spec pointer.
+    const SETTINGS_DOCUMENT: u64 = 120_496 + 4 * 72 + 16 * 8 + 2 * 8 * 16 + 16 * 8;
 
     let (mut core, limits) = fixture();
     waiting(

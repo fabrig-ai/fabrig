@@ -266,6 +266,7 @@ fn pattern_fits(value: &authority::Pattern, limits: &authority::Limits) -> bool 
 
 fn contract_fits(value: &tasks::Contract, limits: &tasks::Limits) -> bool {
     match value {
+        tasks::Contract::Job { .. } => false,
         tasks::Contract::Report { words } | tasks::Contract::Change { words, .. } => *words <= limits.result_bytes,
         tasks::Contract::Approval { state, part } => {
             if state.len() > skein_lib::length::usize_of(limits.result_bytes) {
@@ -363,6 +364,7 @@ fn template_fault(
     limits: &Limits,
 ) -> Option<Fault> {
     match &template.contract {
+        tasks::Contract::Job { .. } => return Some(Fault::Reference),
         tasks::Contract::Change { connector, .. } => {
             if !connectors.contains(connector) {
                 return Some(Fault::Reference);
@@ -568,7 +570,7 @@ fn authority_refs(
                     }
                 }
             }
-            authority::Executor::Procedure(_) => {}
+            authority::Executor::Procedure(_) | authority::Executor::Job(_) => {}
         }
     }
     true

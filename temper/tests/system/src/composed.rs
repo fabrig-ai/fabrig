@@ -388,7 +388,7 @@ impl World {
             store,
             party: signed_in_party(),
             protocol: Protocol::default(),
-            worker: worker::Domain::new(&worker_limits),
+            worker: worker::Domain::new(&worker_limits, Box::new([])),
             worker_out: Queue::uncapped(),
             worker_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: worker_limits },
             // The worker's link has a channel open to the engine.
@@ -879,7 +879,8 @@ impl World {
             }
             // A live notice to the requester, with no reply right.
             Delivery::Result { .. } => {}
-            other @ (Delivery::PlaygroundNote { .. }
+            other @ (Delivery::AssignedJob { .. }
+            | Delivery::PlaygroundNote { .. }
             | Delivery::Host(_)
             | Delivery::Procedure { .. }
             | Delivery::Forges { .. }
@@ -977,7 +978,7 @@ impl World {
 
     fn worker_request(&mut self, request: worker::Request) {
         match request {
-            worker::Request::Source { .. } | worker::Request::SourceFault => {
+            worker::Request::Job { .. } | worker::Request::Source { .. } | worker::Request::SourceFault => {
                 panic!("this fixture declares no program sources")
             }
             worker::Request::Hello(hello) => self.up(engine::Link::Hello { worker: 0, hello }),
@@ -992,6 +993,7 @@ impl World {
                     | host::LinkUp::Unauthorized { .. }
                     | host::LinkUp::Limited { .. }
                     | host::LinkUp::AccountRefused { .. }
+                    | host::LinkUp::JobAnswer { .. }
                     | host::LinkUp::Answer { .. } => {}
                 }
                 self.up(engine::Link::Up { up, parts: engine::Parts::none() });

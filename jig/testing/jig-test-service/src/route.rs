@@ -1,5 +1,6 @@
 //! Exhaustive routing of the root's journal, with values kept in their owners (service.md, 4).
 use crate::{Engine, PartyOutput, clients, stop};
+use alloc::boxed::Box;
 use jig_domain_core as core;
 use jig_test_connector as connector;
 use jig_test_domain as root;
@@ -76,6 +77,28 @@ fn deliver(engine: &mut Engine, delivery: root::Delivery) {
             }
             if let Some(workers) = &mut engine.workers {
                 workers.send(engine.env.now, channel, down, &engine.values, &mut engine.events);
+            }
+        }
+        root::Delivery::AssignedJob { channel, job, items } => {
+            let parts: Box<[jig_protocol_worker_wire::Part]> = match items {
+                Some(bytes) => Box::new([jig_protocol_worker_wire::Part {
+                    token: job.workspace.as_ref().expect("job workspace items have a workspace").items,
+                    bytes,
+                }]),
+                None => Box::new([]),
+            };
+            let values = engine.values.grants(&job.grants, engine.env.now);
+            if let Some(workers) = &mut engine.workers {
+                workers.down(
+                    engine.env.now,
+                    jig_protocol_engine_workers::Event::Down {
+                        channel,
+                        down: jig_domain_host::LinkDown::AssignJob { job },
+                        parts,
+                        values,
+                    },
+                    &mut engine.events,
+                );
             }
         }
         root::Delivery::Assigned { channel, assignment } => {

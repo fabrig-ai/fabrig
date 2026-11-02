@@ -188,6 +188,7 @@ pub fn client_owner_authority(v: &n::Authority) -> c::Authority {
 }
 pub fn form_owner_authority_executor(v: c::AuthorityExecutor) -> n::AuthorityExecutor {
     match v {
+        c::AuthorityExecutor::Job(x) => n::AuthorityExecutor::Job(x),
         c::AuthorityExecutor::Charter(x) => n::AuthorityExecutor::Charter(x),
         c::AuthorityExecutor::Procedure(x) => n::AuthorityExecutor::Procedure(x),
         c::AuthorityExecutor::Role(x) => n::AuthorityExecutor::Role(x),
@@ -195,6 +196,7 @@ pub fn form_owner_authority_executor(v: c::AuthorityExecutor) -> n::AuthorityExe
 }
 pub fn client_owner_authority_executor(v: n::AuthorityExecutor) -> c::AuthorityExecutor {
     match v {
+        n::AuthorityExecutor::Job(x) => c::AuthorityExecutor::Job(x),
         n::AuthorityExecutor::Charter(x) => c::AuthorityExecutor::Charter(x),
         n::AuthorityExecutor::Procedure(x) => c::AuthorityExecutor::Procedure(x),
         n::AuthorityExecutor::Role(x) => c::AuthorityExecutor::Role(x),
@@ -834,6 +836,7 @@ pub fn form_task_contract_document(v: &c::TaskContractDocument) -> n::TaskContra
         c::TaskContractDocument::Approval { state, part } => {
             n::TaskContractDocument::Approval { state: state.clone(), part: form_owner_part(part) }
         }
+        c::TaskContractDocument::Job { bytes } => n::TaskContractDocument::Job { bytes: *bytes },
         c::TaskContractDocument::Report { words } => n::TaskContractDocument::Report { words: *words },
         c::TaskContractDocument::Verdict { choices, cut } => n::TaskContractDocument::Verdict {
             choices: {
@@ -855,6 +858,7 @@ pub fn client_task_contract_document(v: &n::TaskContractDocument) -> c::TaskCont
         n::TaskContractDocument::Approval { state, part } => {
             c::TaskContractDocument::Approval { state: state.clone(), part: client_owner_part(part) }
         }
+        n::TaskContractDocument::Job { bytes } => c::TaskContractDocument::Job { bytes: *bytes },
         n::TaskContractDocument::Report { words } => c::TaskContractDocument::Report { words: *words },
         n::TaskContractDocument::Verdict { choices, cut } => c::TaskContractDocument::Verdict {
             choices: {

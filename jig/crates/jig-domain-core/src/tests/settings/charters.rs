@@ -34,6 +34,7 @@ pub(in crate::tests) fn context(task: u64, charter: u32) -> Box<tasks::RunContex
         project: 1,
         executor: tasks::Executor::Agent { charter },
         spec: tasks::Spec {
+            job: None,
             asks: false,
             words: b"task".as_slice().into(),
             parameters: Box::new([]),

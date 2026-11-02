@@ -83,6 +83,7 @@ fn live_work(world: &mut jig_core_world::world::World, signed: u64) {
         worker: 0,
         channel: skein_lib::Token::new(7),
         hello: jig_domain_fleet::Hello {
+            jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(1),
             slots: 1,

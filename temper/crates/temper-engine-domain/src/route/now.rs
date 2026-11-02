@@ -280,7 +280,13 @@ fn workspace(domain: &mut Domain, env: &Env<Limits>, task: u64, attempt: u64, co
         Some(_) => credentials.into_boxed(),
         None => Box::new([]),
     };
-    domain.work.push(Work::Core(core::Event::WorkspacePrepared { task, attempt, writes, credentials }));
+    domain.work.push(Work::Core(core::Event::WorkspacePrepared {
+        task,
+        attempt,
+        writes,
+        credentials,
+        workspace: None,
+    }));
 }
 
 struct Prepared {

@@ -4,6 +4,7 @@ static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Co
 mod cascades;
 mod grants;
 mod hello;
+mod jobs;
 mod liveness;
 mod memory;
 mod opening;

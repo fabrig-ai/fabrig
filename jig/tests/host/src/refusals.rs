@@ -41,6 +41,7 @@ impl Referee {
                 | FromAgent::Faulted { .. }
                 | FromAgent::Gone { .. },
             )
+            | Event::Job(_)
             | Event::RelayCancelled { .. }
             | Event::CancelAll { .. }
             | Event::Opened { .. }
@@ -68,7 +69,9 @@ impl Referee {
             Request::Up(LinkUp::Answer { run, attempt, answer, .. }) => {
                 self.fence((*run, *attempt), answer.read, &answer.refused);
             }
-            Request::Up(_)
+            Request::Job(_)
+            | Request::DeliverJob { .. }
+            | Request::Up(_)
             | Request::Hello { .. }
             | Request::Agent(
                 ToAgent::Answer { .. }

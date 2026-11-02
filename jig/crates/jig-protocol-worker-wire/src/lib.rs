@@ -94,3 +94,11 @@ pub use v9::{
 };
 
 pub use v9::{InputCall, InputCallParts, LiveAsk, LiveAskParts, LiveKind, Piece, PieceParts};
+
+// Jobs use the worker channel's own records (jig/docs/design/protocol/channel.md, 5.4).
+pub use v9::{
+    DeliveryOutcomeValue, DeliveryOutcomeValueParts, Job, JobAnswer, JobAnswerParts, JobBound, JobBoundParts,
+    JobEnding, JobFailed, JobFailedParts, JobFailure, JobFinished, JobFinishedParts, JobInvalid, JobInvalidStart,
+    JobInvalidStartParts, JobInvalidValue, JobInvalidValueParts, JobParts, JobRefusal, JobRefusalValue,
+    JobRefusalValueParts,
+};

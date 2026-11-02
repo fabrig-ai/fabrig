@@ -17,6 +17,8 @@ fn limits_take_each_bound_from_its_source_field() {
             repository_remote: 48,
             repository_git_some: 4096,
             items_repositories: 2,
+            job_spec_command: 4096,
+            job_spec_request: 1_048_576,
             repository_save_some: 16,
             left_landed: 2,
             files_files: 2,
@@ -34,6 +36,39 @@ fn limits_take_each_bound_from_its_source_field() {
     );
     let bounds = crate::Bounds { repositories: 65, ..fixtures::BOUNDS };
     assert_eq!(crate::limits(&bounds), None, "past the repository ceiling");
+}
+
+/// temper/docs/design/protocol/tooling.md, 2 and 6: command and request bytes are bounded.
+#[test]
+fn a_job_specs_fields_stop_at_their_bounds_when_built_and_decoded() {
+    let limits = v1::Limits { job_spec_command: 8, job_spec_request: 16, ..fixtures::limits() };
+    for (command, bound, path) in
+        [(true, 8_usize, v1::Path::JobSpecCommand), (false, 16_usize, v1::Path::JobSpecRequest)]
+    {
+        for past in [false, true] {
+            let length = bound.checked_add(usize::from(past)).expect("test length");
+            let parts = v1::JobSpecParts {
+                command: if command { skein_lib::bytes::zeroed(length) } else { b"tool".as_slice().into() },
+                request: if command { b"{}".as_slice().into() } else { skein_lib::bytes::zeroed(length) },
+            };
+            let value = v1::JobSpec::new(&v1::CEILINGS, parts).expect("within schema ceilings");
+            let built = v1::JobSpec::new(&limits, value.clone().into_parts());
+            let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("bounded length"));
+            value.encode(&mut writer).expect("measured room");
+            let bytes = writer.finish();
+            let mut reader = skein_lib::Reader::new(&bytes);
+            let decoded = v1::JobSpec::decode(&limits, &mut reader);
+            if past {
+                let problem = v1::Problem { path, reason: skein_codec::Reason::Bound };
+                assert_eq!(built.expect_err("past bound"), problem);
+                assert_eq!(decoded.expect_err("past bound"), problem);
+            } else {
+                assert_eq!(built.expect("at bound"), value);
+                assert_eq!(decoded.expect("at bound"), value);
+                assert!(reader.is_empty());
+            }
+        }
+    }
 }
 
 #[test]

@@ -374,6 +374,7 @@ impl Task {
                 Some(crate::forge::panel::Subject { task: task.chip.task, project: task.project })
             }
             c::ChipExecutor::Procedure { .. }
+            | c::ChipExecutor::Job { .. }
             | c::ChipExecutor::Agent { .. }
             | c::ChipExecutor::Party { .. }
             | c::ChipExecutor::Role { .. } => None,
@@ -916,7 +917,7 @@ impl Task {
         let reads_ended = match task.chip.executor {
             c::ChipExecutor::Procedure { .. } => true,
             c::ChipExecutor::Agent { .. } => task.priority.is_some(),
-            c::ChipExecutor::Party { .. } | c::ChipExecutor::Role { .. } => false,
+            c::ChipExecutor::Job { .. } | c::ChipExecutor::Party { .. } | c::ChipExecutor::Role { .. } => false,
         };
         if reads_ended {
             if self.ended.is_none() {
@@ -929,9 +930,10 @@ impl Task {
         self.shape = match task.chip.executor {
             c::ChipExecutor::Agent { .. } if task.priority.is_some() => Shape::Tracked,
             c::ChipExecutor::Agent { .. } => Shape::Agent,
-            c::ChipExecutor::Procedure { .. } | c::ChipExecutor::Party { .. } | c::ChipExecutor::Role { .. } => {
-                Shape::HeaderAndPlan
-            }
+            c::ChipExecutor::Job { .. }
+            | c::ChipExecutor::Procedure { .. }
+            | c::ChipExecutor::Party { .. }
+            | c::ChipExecutor::Role { .. } => Shape::HeaderAndPlan,
         };
         if self.shape == Shape::Agent {
             if let Some(page) = self.latest.take()

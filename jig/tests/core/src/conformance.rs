@@ -302,6 +302,7 @@ impl Observer {
             | root::Delivery::ApplicationDocument { .. }
             | root::Delivery::ApplicationRead { .. }
             | root::Delivery::Projection { .. }
+            | root::Delivery::AssignedJob { .. }
             | root::Delivery::Link { .. }
             | root::Delivery::ProjectMade { .. }
             | root::Delivery::CallBusy { .. }

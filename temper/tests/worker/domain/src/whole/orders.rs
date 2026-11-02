@@ -105,6 +105,7 @@ fn collect(
             | Request::Process(_)
             | Request::Decode { .. }
             | Request::Encode { .. }
+            | Request::Job { .. }
             | Request::Fact { .. }) => panic!("failed prepares have no agent or source requests: {other:?}"),
         }
     }

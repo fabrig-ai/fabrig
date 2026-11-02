@@ -67,6 +67,7 @@ fn started_world_with_words(
         link: engine::Link::Hello {
             worker: 0,
             hello: host::Hello {
+                jobs: Box::default(),
                 slots: SLOTS,
                 stop_bound: Duration::from_millis(100),
                 workstreams: Box::new([]),

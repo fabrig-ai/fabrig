@@ -281,6 +281,7 @@ fn template(value: w::Template, models: &[crate::Model], limits: &w::Limits) -> 
 }
 fn contract(value: w::TaskContractDocument, limits: &w::Limits) -> Result<t::Contract, Untranslatable> {
     Ok(match value {
+        w::TaskContractDocument::Job(_) => return Err(bad()),
         w::TaskContractDocument::Report(value) => t::Contract::Report { words: value.words() },
         w::TaskContractDocument::Change(value) => {
             t::Contract::Change { connector: value.connector(), kind: value.kind(), words: value.words() }

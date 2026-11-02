@@ -4,6 +4,7 @@ family jig-worker-wire 9
 record Credential { name: text 256 secret: secret 1024 payload: u32 }
 
 # The worker's hello and agent bounds (protocol/channel.md, 5.1).
+record JobBound { kind: u32 spec: u32 result: u32 deadline: duration }
 record ModelBound { name: text 128 window: u32 output: u32 }
 record Bounds {
     models: list 64 ModelBound
@@ -24,6 +25,7 @@ record Hello {
     stop_bound: duration
     workstreams: list 65536 u64
     hosting: list 65536 Hosting
+    jobs: list 256 JobBound
     bounds: Bounds
 }
 
@@ -127,6 +129,29 @@ record Assignment {
     messages: list 1024 Message
     grants: list 64 Grant
 }
+# Jobs carry the application's bytes (jig/docs/design/protocol/channel.md, 5.4).
+record Job {
+    task: u64 attempt: u64 kind: u32
+    spec: bytes 67108864
+    deadline: duration
+    workspace: option Workspace
+    grants: list 64 Grant
+}
+record JobInvalidStart { why: bytes 4096 }
+enum JobInvalid { kind, spec, deadline, grants, start: JobInvalidStart }
+record JobInvalidValue { value: JobInvalid }
+enum JobRefusal { busy, invalid: JobInvalidValue }
+record JobRefusalValue { value: JobRefusal }
+record JobFinished { result: bytes 67108864 work: Work }
+record DeliveryOutcomeValue { value: DeliveryOutcome }
+enum JobFailure {
+    unprepared: PreparationValue, failed, deadline, result, unstarted,
+    undelivered: DeliveryOutcomeValue, cancelled: CancelReasonValue
+}
+record JobFailed { failure: JobFailure detail: bytes 4096 work: Work }
+enum JobEnding { refused: JobRefusalValue, finished: JobFinished, failed: JobFailed }
+record JobAnswer { task: u64 attempt: u64 ending: JobEnding }
+
 record Inbound { task: u64 attempt: u64 name: u64 sender: text 1024 words: text 1048576 finish_requested: bool }
 record RelayText { error: bool text: bytes 1048576 }
 enum RelayAnswer { text: RelayText, busy }

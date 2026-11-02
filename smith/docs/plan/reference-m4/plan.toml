@@ -2,6 +2,7 @@ draft = "reference-m4"
 repo = "fabrig"
 sources = ["smith/docs/plan/reference-m4/inputs/request.md", "temper/docs/design/draft/reference-case.execution.md", "temper/docs/design/draft/reference-code-production.md", "AGENTS.md", "DESIGN.md"]
 
+retired = true
 [buffer]
 low = 1.0
 high = 2.0

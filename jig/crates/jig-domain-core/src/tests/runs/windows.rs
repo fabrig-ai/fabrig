@@ -240,7 +240,13 @@ fn assert_closed_prepares(tail_bytes: u32, body: &[u8], expected_tail: &[u8]) {
     let out = watch_outputs(
         &mut core,
         &limits,
-        Event::WorkspacePrepared { task: 1, attempt, writes: Some(Box::new([])), credentials: Box::new([]) },
+        Event::WorkspacePrepared {
+            task: 1,
+            attempt,
+            writes: Some(Box::new([])),
+            credentials: Box::new([]),
+            workspace: None,
+        },
     );
     let mut prepared = false;
     for request in out {

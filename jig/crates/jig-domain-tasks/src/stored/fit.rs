@@ -26,6 +26,9 @@ pub(crate) fn numbers(value: Numbers) -> Result<(), RestoreCause> {
 fn spec(value: &Spec, limits: &Limits) -> Result<(), RestoreCause> {
     count(RestoreBound::Parameters, value.parameters.len(), limits.parameters)?;
     count(RestoreBound::Inputs, value.inputs.len(), limits.inputs)?;
+    if let Some(job) = &value.job {
+        count(RestoreBound::SpecBytes, job.bytes.len(), limits.spec_bytes)?;
+    }
     let mut bytes = value.words.len();
     for parameter in &value.parameters {
         match parameter {
@@ -79,6 +82,7 @@ pub(crate) fn name(value: &crate::Name, limits: &Limits) -> Result<(), RestoreCa
 
 fn contract(value: &Contract, limits: &Limits) -> Result<(), RestoreCause> {
     match value {
+        Contract::Job { bytes } => bound(RestoreBound::ResultBytes, u64::from(*bytes), u64::from(limits.result_bytes)),
         Contract::Approval { state, part } => {
             count(RestoreBound::ResultBytes, state.len(), limits.result_bytes)?;
             match &part.key {
@@ -126,6 +130,7 @@ fn fields(value: &[ResultField]) -> Result<usize, RestoreCause> {
 
 fn result(value: &TaskResult, limits: &Limits) -> Result<(), RestoreCause> {
     let bytes = match value {
+        TaskResult::Job { bytes } => bytes.len(),
         TaskResult::Report { words } | TaskResult::NoChange { words } => words.len(),
         TaskResult::Change { title, words, .. } => {
             count(RestoreBound::ResultBytes, title.words.len(), limits.result_bytes)?;
@@ -270,6 +275,17 @@ fn holdings(value: &[crate::Holding], limits: &Limits) -> Result<(), RestoreCaus
 }
 
 pub(super) fn task(limits: &Limits, value: &TaskRecord) -> Result<(), RestoreCause> {
+    if crate::batch::matches_job(value.executor) {
+        crate::batch::job_member(limits, &value.spec, &value.contract).or(Err(RestoreCause::Accounting))?;
+        if !crate::flags::valid(value.flags, value.executor, value.requester)
+            || value.llm.is_some()
+            || value.recurring.is_some()
+        {
+            return Err(RestoreCause::Accounting);
+        }
+    } else if value.spec.job.is_some() || crate::batch::job_contract(&value.contract) {
+        return Err(RestoreCause::Accounting);
+    }
     numbers(value.numbers)?;
     spec(&value.spec, limits)?;
     contract(&value.contract, limits)?;
@@ -357,7 +373,8 @@ fn payload(word: &crate::Word, limits: &Limits) -> Result<usize, RestoreCause> {
             fields(values)?.checked_add(word.words.len()).ok_or(RestoreCause::Accounting)
         }
         MessageKind::Result(
-            ResultKind::NoChange
+            ResultKind::Job
+            | ResultKind::NoChange
             | ResultKind::Report
             | ResultKind::Change { .. }
             | ResultKind::Failed
@@ -558,7 +575,7 @@ pub(super) fn linked_inbox(domain: &Domain, limits: &Limits, value: &TaskRecord)
 pub(super) fn settings(domain: &Domain, value: &TaskRecord) -> Result<(), RestoreCause> {
     match value.executor {
         Executor::Agent { .. } => {}
-        Executor::Procedure { .. } | Executor::Person(_) => return Ok(()),
+        Executor::Procedure { .. } | Executor::Person(_) | Executor::Job { .. } => return Ok(()),
     }
     let mut extra = u64::from(!domain.holders.contains_key(&value.settings.task));
     if let Some(run) = value.settings.run
@@ -575,7 +592,7 @@ pub(super) fn choice(domain: &Domain, value: &TaskRecord) -> Result<(), RestoreC
     let Some(choice) = &value.llm else { return Ok(()) };
     let charter = match value.executor {
         Executor::Agent { charter } => charter,
-        Executor::Procedure { .. } | Executor::Person(_) => return Ok(()),
+        Executor::Procedure { .. } | Executor::Person(_) | Executor::Job { .. } => return Ok(()),
     };
     let models = domain.charter_models(charter, value.settings.task).expect("charter linked");
     model(domain, models, choice.main)?;

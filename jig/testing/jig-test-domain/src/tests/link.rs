@@ -439,6 +439,7 @@ fn stopping_continues_a_projection_deferred_watch_without_another_commit() {
                 executor: tasks::Executor::Agent { charter: 1 },
                 llm: None,
                 spec: tasks::Spec {
+                    job: None,
                     asks: false,
                     words: b"queued goal change".as_slice().into(),
                     parameters: Box::new([]),
@@ -697,4 +698,53 @@ fn an_input_piece_reaches_the_core_with_its_provider_identity() {
         (b"call".as_slice(), b"tool".as_slice(), b"{}".as_slice())
     );
     assert_eq!(domain.pieces_dropped(), 0);
+}
+
+/// jig/docs/design/domain/engine.md, 7.5: a committed job retains its workspace bytes beside the hub record.
+#[test]
+fn a_job_assignment_carries_its_workspace_items_through_the_commit() {
+    let mut domain = fixtures::domain();
+    let env = fixtures::env();
+    let mut out = Queue::uncapped();
+    jig_domain_hub_link::step(
+        &mut domain.hub_link,
+        env.now,
+        jig_domain_hub_link::Event::StartJob {
+            job: jig_domain_hub_link::JobStart {
+                task: fixtures::RUN.raw(),
+                attempt: fixtures::ATTEMPT.raw(),
+                workstream: 9,
+                kind: host::JobKind(7),
+                spec: Box::from(b"spec".as_slice()),
+                deadline: Duration::from_secs(2),
+                result: 8,
+                grants: Box::new([]),
+                workspace: Some(Box::from(b"workspace".as_slice())),
+            },
+        },
+        &mut out,
+    );
+    drop(out.pop().expect("fleet start"));
+    let mut decision = domain.journal.decide();
+    link::held(
+        &mut domain,
+        env.now,
+        &mut decision,
+        jig_domain_hub_link::Event::Assign {
+            channel: fixtures::CHANNEL,
+            run: fixtures::RUN,
+            attempt: fixtures::ATTEMPT,
+        },
+    );
+    domain.journal.accept(decision);
+    let mut released = Queue::uncapped();
+    crate::release(&mut domain, &env, &mut released);
+    let Request::Deliver(Delivery::AssignedJob { channel, job, items }) = released.pop().expect("committed job") else {
+        panic!("job delivery")
+    };
+    assert_eq!(channel, fixtures::CHANNEL);
+    assert_eq!((job.run, job.attempt, job.kind.0), (fixtures::RUN, fixtures::ATTEMPT, 7));
+    assert_eq!(job.spec.as_ref(), b"spec");
+    assert_eq!(job.workspace, Some(host::Workspace { workstream: 9, items: fixtures::RUN }));
+    assert_eq!(items.as_deref(), Some(b"workspace".as_slice()));
 }

@@ -218,6 +218,7 @@ pub(crate) fn spec(value: people::Spec, limits: &tasks::Limits) -> Option<tasks:
         parameters.push(translated).ok()?;
     }
     Some(tasks::Spec {
+        job: None,
         asks: value.asks,
         words: value.words,
         parameters: parameters.into_boxed(),

@@ -192,7 +192,8 @@ worker, `Accept` or `Refuse` from the engine, then each side's `Terms`.
 - **The worker's hello is its first record,** after both terms, as
   `../domain/hosts.md`, section 2 has it: its slots, its stop bound
   (10.1 says what it counts), its agent's bounds as its agent
-  configuration declares them (5.1), the workstreams it holds, the runs
+  configuration declares them (5.1), the job kinds its job capability
+  runs, each with its bounds (5.4), the workstreams it holds, the runs
   it hosts and those whose turns or answer wait for acknowledgement.
 - **The engine's domain hears a channel only with its hello.** A channel
   refused during its opening, or lost before its hello, is never
@@ -202,8 +203,9 @@ worker, `Accept` or `Refuse` from the engine, then each side's `Terms`.
   bound not strictly shorter than the engine's grace; or an agent whose
   bounds cannot run the engine's charters, a model it declares among
   them held with a smaller window or output than configuration's
-  (`../domain/engine.md`, section 8). A model it does not declare is no
-  reason: runs that need it are not placed there. The engine's side
+  (`../domain/engine.md`, section 8); or job kinds not ascending and
+  distinct (5.4). A model or a job kind it does not declare is no
+  reason: runs and jobs that need it are not placed there. The engine's side
   then refuses the channel with *not admitted*, the fleet's reason as
   its text, and the worker redials after its backoff, as for any
   refusal.
@@ -226,10 +228,11 @@ answer, and a **notice** is not answered.
 
 | Record | Fields | Shape |
 |---|---|---|
-| hello | slots; stop bound, a duration; the agent's bounds: for each model it declares, its name, window and output; the most turns, spend, time and waiting a run may have; its checks' timeout; the largest message a run takes and how many its inbox holds; the turns it keeps unacknowledged (4.3); workstreams held; runs hosted, each with its task, attempt and phase; runs whose turns or answer wait for acknowledgement | first, once |
+| hello | slots; stop bound, a duration; the agent's bounds: for each model it declares, its name, window and output; the most turns, spend, time and waiting a run may have; its checks' timeout; the largest message a run takes and how many its inbox holds; the turns it keeps unacknowledged (4.3); the job kinds it runs, ascending and each once, each with the most bytes a spec and a result of it may hold and its longest deadline (5.4); workstreams held; runs hosted, jobs among them, each with its task, attempt and phase; runs whose turns or answer wait for acknowledgement | first, once |
 | turn | task, attempt; its number within the attempt; its cumulative spend; the last message it read, by name, if any; the messages refused since the run's previous turn, each by name with smith's reason: too large as the run reads it, the run's inbox full, a name in use, or the run ending; whether it opens a window; its bytes, smith's (6.1) | notice, kept by the hub until acknowledged |
 | call | task, attempt; the run's name for the call, as bytes (section 7); the host tool's name; whether it writes; its input; the time left on its deadline | call |
 | answer | task, attempt; the turns it took; what it spent; the last message it read, by name, if any: the unread fence; the messages refused since the run's last turn, each by name with smith's reason, as a turn carries them; how it ended: refused (busy, or invalid and what), ended with its result, smith's bytes (6.1), parked, or failed with its typed failure and bounded detail; what it left on resources and what it saved, each the application's bytes (6.2) | answer to an assignment, kept by the hub until acknowledged; a refusal, kept by nothing (below) |
+| job answer | task, attempt; how it ended: refused (busy, or invalid and what), finished with its result, the application's bytes, or failed with its typed failure and bounded detail (5.4); what it left on resources, the application's bytes (6.2) | answer to a job, kept by the hub until acknowledged; a refusal, kept by nothing |
 | fact | task, attempt; its value, activity or a piece (the schema's `FactValue`, so that "activity" stays the name of what carries no content): activity: the run's phase, a long operation begun (checks, an LLM completion or a command, with its span) or ended, or a count from smith's channel facts (its kind, its time, its count), all jig's typed activity, never smith's bytes; or a piece of live content: its turn, retry, kind (`text`, `reasoning` or `input`) and offset, and its bytes, when the assignment asked; or, from a host that gives it, a tool begun with its call's name, its tool and its input (6.4) | notice, best effort |
 | limited | task, attempt; an LLM account and its source; how long until it may be used again, only where its provider said | notice |
 | refused | task, attempt; an LLM account and its source; its provider's code and reason, as text within the detail's bound | notice |
@@ -286,6 +289,7 @@ answer, and a **notice** is not answered.
 | Record | Fields | Shape |
 |---|---|---|
 | assignment | task, attempt; the run's identity, 16 bytes (section 7); the workstream key and the workspace's items, the application's bytes; whether to save unfinished work; the ask for live content, a boolean for each kind (`../domain/hosts.md`, section 2); the charter, smith's bytes; the transcript, when the run resumes: its current window's turns, smith's bytes, from the last that opens a window (6.1); the calls committed since its last turn, each with its name, its tool and its answer; the start's messages: those waiting in the task's inbox, oldest first, as many as the run's inbox takes, each with its name, its sender's label and its words, the rest relayed as message records as the run reads (`../domain/tasks.md`, 8.2); its credential grants, each naming its form, which selects the table its value comes from, with their values: a credential with its scheme, or a program source's name (section 8) | call |
+| job | task, attempt; its kind; its spec, the application's bytes; its deadline; the workstream key and the workspace's items, the application's bytes; its credential grants, the application's only (section 8) (5.4) | call |
 | message | task, attempt; the message's name; its sender's label; its words | notice |
 | relayed | task, attempt; the call's name; the engine's answer: its text for the LLM and whether it is an error, or busy, to ask again after a backoff | answer to a call |
 | turn kept | task, attempt; the turn's number | notice |
@@ -341,6 +345,38 @@ answer, and a **notice** is not answered.
   with its channel is not sent again: its answer names the host as not
   signed out. The domains drop what they have seen
   (`../domain/engine.md`, section 8; `../domain/hosts.md`, 6.6).
+
+### 5.4 Jobs
+
+A job (`../domain/hosts.md`, 6.9) crosses as a run does, by records of
+its own where a run's carry an agent's parts:
+
+- **Its kinds, in the hello:** each kind a number the application
+  gives, with the most bytes a spec and a result of it may hold and the
+  longest deadline the worker runs one to, from its job capability; none
+  for a worker without one. The fleet places a job only where its kind
+  is declared and those bounds cover the job's (`../domain/engine.md`,
+  7.5).
+- **Down, a `job`** in place of an assignment: no identity, charter,
+  transcript, calls, messages, ask for live content, LLM account or
+  program source, and no save. Its grants are the application's
+  credentials its workspace needs, which the workspace keeps and the job
+  is never given. A `cancel` and an `acknowledge` are a run's, by task
+  and attempt.
+- **Up, a `job answer`** in place of an answer: no turns, spend, unread
+  fence or refusals, since a job takes no messages. Its typed failures
+  are: its workspace not prepared, transient or permanent as a run's;
+  failed, as the job said; its deadline passed; its result past its
+  kind's bound; not started, or ended without its capability's word;
+  undelivered, its delivery stale, refused or failed; cancelled, by the
+  engine, for lost contact or for shutdown. Invalid, at the entrance,
+  adds to a run's: a kind the worker does not run, and a spec or a
+  deadline past its kind's bounds.
+- **Hosted, it is listed** in the hello as a run is, its phase preparing,
+  starting, active, ending or answered, never waiting, and its answer
+  goes again after a redial until acknowledged (5.3).
+- **No turns, calls, facts of live content or account notices** cross
+  for a job.
 
 ## 6. Bytes of other owners
 

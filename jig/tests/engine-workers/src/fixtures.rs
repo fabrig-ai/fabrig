@@ -171,7 +171,14 @@ pub fn hello_record() -> jig_protocol_worker_wire::Hello {
     workstreams.push(9).expect("one workstream");
     wire::Hello::new(
         &codec,
-        wire::HelloParts { slots: 1, stop_bound: Duration::from_secs(20), workstreams, hosting, bounds },
+        wire::HelloParts {
+            slots: 1,
+            stop_bound: Duration::from_secs(20),
+            workstreams,
+            hosting,
+            bounds,
+            jobs: List::with_capacity(0),
+        },
     )
     .expect("hello")
 }

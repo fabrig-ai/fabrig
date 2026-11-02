@@ -1,5 +1,6 @@
 //! Funding and resource values shared by tasks rows (protocol/store.md, 5.1).
 use crate::tasks_v9 as wire;
+use alloc::boxed::Box;
 use jig_domain_tasks as domain;
 use skein_lib::{List, Wall};
 
@@ -185,6 +186,9 @@ pub fn authority_executor(
     limits: &wire::Limits,
 ) -> Result<wire::AuthorityExecutor, wire::Problem> {
     Ok(match value {
+        domain::AuthorityExecutor::Job(kind) => {
+            wire::AuthorityExecutor::Job(wire::AuthorityJob::new(limits, wire::AuthorityJobParts { kind: *kind })?)
+        }
         domain::AuthorityExecutor::Charter(charter) => {
             wire::AuthorityExecutor::Charter(wire::Charter::new(limits, wire::CharterParts { charter: *charter })?)
         }
@@ -200,6 +204,7 @@ pub fn authority_executor(
 #[must_use]
 pub fn read_authority_executor(value: wire::AuthorityExecutor) -> domain::AuthorityExecutor {
     match value {
+        wire::AuthorityExecutor::Job(value) => domain::AuthorityExecutor::Job(value.into_parts().kind),
         wire::AuthorityExecutor::Charter(value) => domain::AuthorityExecutor::Charter(value.into_parts().charter),
         wire::AuthorityExecutor::Procedure(value) => domain::AuthorityExecutor::Procedure(value.into_parts().code),
         wire::AuthorityExecutor::Role(value) => domain::AuthorityExecutor::Role(value.into_parts().role),
@@ -312,6 +317,9 @@ pub fn read_why(value: wire::Why) -> domain::Why {
 /// Translate the selected executor.
 pub fn executor(value: domain::Executor, limits: &wire::Limits) -> Result<wire::Executor, wire::Problem> {
     Ok(match value {
+        domain::Executor::Job { kind } => {
+            wire::Executor::Job(wire::JobExecutor::new(limits, wire::JobExecutorParts { kind })?)
+        }
         domain::Executor::Agent { charter } => {
             wire::Executor::Agent(wire::Agent::new(limits, wire::AgentParts { charter })?)
         }
@@ -328,6 +336,7 @@ pub fn executor(value: domain::Executor, limits: &wire::Limits) -> Result<wire::
 #[must_use]
 pub fn read_executor(value: wire::Executor) -> domain::Executor {
     match value {
+        wire::Executor::Job(value) => domain::Executor::Job { kind: value.into_parts().kind },
         wire::Executor::Agent(value) => domain::Executor::Agent { charter: value.into_parts().charter },
         wire::Executor::Procedure(value) => {
             let wire::ProcedureParts { connector, code } = value.into_parts();
@@ -375,7 +384,13 @@ pub fn read_parameter(value: wire::Parameter) -> domain::Parameter {
 }
 /// Translate a specification, checking its aggregate byte bound.
 pub fn spec(value: &domain::Spec, limits: &wire::Limits) -> Result<wire::Spec, wire::Problem> {
-    let domain::Spec { asks, words, parameters, inputs } = value;
+    let domain::Spec { asks, words, parameters, inputs, job } = value;
+    let job = match job {
+        Some(job) => {
+            Some(wire::JobSpec::new(limits, wire::JobSpecParts { bytes: job.bytes.clone(), deadline: job.deadline })?)
+        }
+        None => None,
+    };
     let mut members = List::with_capacity(limits.spec_parameters);
     let mut bytes = words.len();
     for item in parameters {
@@ -400,12 +415,22 @@ pub fn spec(value: &domain::Spec, limits: &wire::Limits) -> Result<wire::Spec, w
     }
     wire::Spec::new(
         limits,
-        wire::SpecParts { asks: *asks, words: words.clone(), parameters: members, inputs: references },
+        wire::SpecParts { job, asks: *asks, words: words.clone(), parameters: members, inputs: references },
     )
 }
 /// Read a specification, checking its aggregate byte bound.
 pub fn read_spec(value: wire::Spec, limits: &wire::Limits) -> Result<domain::Spec, wire::Problem> {
-    let wire::SpecParts { words, parameters, inputs, asks } = value.into_parts();
+    let wire::SpecParts { words, parameters, inputs, asks, job } = value.into_parts();
+    let job = match job {
+        Some(job) => {
+            let wire::JobSpecParts { bytes, deadline } = job.into_parts();
+            if bytes.len() > skein_lib::length::usize_of(limits.job_spec_bytes) {
+                return Err(problem(wire::Path::JobSpecBytes));
+            }
+            Some(Box::new(domain::JobSpec { bytes, deadline }))
+        }
+        None => None,
+    };
     let mut members = List::with_capacity(parameters.len());
     let mut bytes = words.len();
     for item in parameters.into_boxed() {
@@ -423,7 +448,7 @@ pub fn read_spec(value: wire::Spec, limits: &wire::Limits) -> Result<domain::Spe
     for input in inputs.into_boxed() {
         references.push(input.into_parts().value).expect("same number of inputs");
     }
-    Ok(domain::Spec { asks, words, parameters: members.into_boxed(), inputs: references.into_boxed() })
+    Ok(domain::Spec { job, asks, words, parameters: members.into_boxed(), inputs: references.into_boxed() })
 }
 /// Translate a connector part and its opaque key.
 pub fn part(value: &domain::Part, limits: &wire::Limits) -> Result<wire::Part, wire::Problem> {
@@ -480,6 +505,9 @@ fn problem(path: wire::Path) -> wire::Problem {
 pub fn contract(value: &domain::Contract, limits: &wire::Limits) -> Result<wire::Contract, wire::Problem> {
     check_contract(value, limits)?;
     Ok(match value {
+        domain::Contract::Job { bytes } => {
+            wire::Contract::Job(wire::JobContract::new(limits, wire::JobContractParts { bytes: *bytes })?)
+        }
         domain::Contract::Approval { state, part: value } => wire::Contract::Approval(wire::Approval::new(
             limits,
             wire::ApprovalParts { state: state.clone(), part: part(value, limits)? },
@@ -511,6 +539,7 @@ pub fn contract(value: &domain::Contract, limits: &wire::Limits) -> Result<wire:
 /// Read a result contract.
 pub fn read_contract(value: wire::Contract, limits: &wire::Limits) -> Result<domain::Contract, wire::Problem> {
     let value = match value {
+        wire::Contract::Job(value) => domain::Contract::Job { bytes: value.into_parts().bytes },
         wire::Contract::Approval(value) => {
             let wire::ApprovalParts { state, part: value } = value.into_parts();
             domain::Contract::Approval { state, part: read_part(value, limits)? }
@@ -724,6 +753,11 @@ fn pattern_bytes(value: &domain::Pattern) -> usize {
 fn check_contract(value: &domain::Contract, limits: &wire::Limits) -> Result<(), wire::Problem> {
     let bound = skein_lib::length::usize_of(limits.field_rule_name);
     match value {
+        domain::Contract::Job { bytes } => {
+            if skein_lib::length::usize_of(*bytes) > bound {
+                return Err(problem(wire::Path::JobContractBytes));
+            }
+        }
         domain::Contract::Report { words } => {
             if skein_lib::length::usize_of(*words) > bound {
                 return Err(problem(wire::Path::ReportWords));

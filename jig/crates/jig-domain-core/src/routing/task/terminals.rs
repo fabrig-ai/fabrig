@@ -123,6 +123,7 @@ pub(crate) fn writer_waiting(
     out: &mut Queue<Request>,
 ) {
     if core.claiming.remove(&task).is_some() {
+        drop(core.job_workspaces.remove(&task));
         core.restore_replaced_proof(task);
         out.push(Request::Now(Box::new(Now::DropAssignment { task })));
         let mut follow = Queue::uncapped();

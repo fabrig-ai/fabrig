@@ -33,6 +33,7 @@ fn listing(core: &mut core::Core, env: &Env<core::Limits>, worker: u32) -> Vec<(
             worker,
             channel,
             hello: fleet::Hello {
+                jobs: Box::default(),
                 bounds: jig_test_profile::fixtures::bounds(),
                 stop_bound: Duration::ZERO,
                 slots: 1,
