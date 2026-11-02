@@ -995,9 +995,9 @@ are the forge's part of a project's page (jig's
 `client/domain/pages.md`, 6.1):
 
 - **Each** shows its title, its repository and issue, the task that
-  filed it as a chip, when, and its state, which the store keeps: open,
-  taken up by a goal, dropped; `findings.md`'s kinds and states, `new`,
-  `routed`, `backlog` and `dropped`, as its labels say.
+  filed it as a chip, when, and its kind and state as its labels say
+  (`../domain/findings.md`, section 2): `new`, `routed`, `backlog` or
+  `dropped`.
 - **Taking one up** sets a goal that names it, the board's form with its
   words filled in (jig's `client/domain/pages.md`, 6.2), or starts a
   chat about it, with the finding named in the chat's first words, so

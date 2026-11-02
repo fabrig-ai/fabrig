@@ -11,11 +11,14 @@
   --under`, `task succeed --by`, `finding route`, `finding backlog`,
   `finding drop`, `qa choose`, `task hold`, `project hold` and `revision
   restore`; a settings file's items of temper's kinds and a proposal's
-  (`ProposalItems`). 5.5: areas 2 to 4, `goal start` with its model
-  flags and `task amend --budget` and `--tasks` among them; area 6's
-  `forge replace` and `forge forget`, with no request on the wire. 8.1:
-  `GROUP VERB --help`; `temper ctl` parses a leading `help` alone. 10:
-  the deployment's key added on a box, which no box test makes. 11.2:
+  (`ProposalItems`). 5.5: area 2's `goal start` with its model flags,
+  `proposal withdraw`, `seen`, and `task amend`'s `--budget` and
+  `--tasks`; area 3's `party make`, `sign-in --service`, `deployment
+  show`, `task move`, `task take`, `task hand-back`, and the project's
+  `policy`, `role` and `pool`; area 4's `create`, `propose` and
+  `compound`; area 6's `forge replace` and `forge forget`, with no
+  request on the wire. 8.1: `GROUP VERB --help`; `temper ctl` parses a
+  leading `help` alone. 11.2:
   the joined story of a model's amendment (`tests/client`'s
   `amend_tools.rs` parses `--model` alone).
 - **Departs:** 5.1: `project` is area 1's (`jig/rows.rs`

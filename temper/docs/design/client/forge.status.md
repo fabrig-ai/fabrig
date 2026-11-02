@@ -9,8 +9,8 @@
   5.1: "Land without CI" for a repository with no CI. 5.2: health. 5.3:
   the forge's part of a project's settings. 5.4: a row's summary by its
   name and host and its repositories' line, where the view says "forge N
-  · KIND" (`temper-client-view`'s `forge/forges.rs`); its Runs line, its
-  load, the App's setup URL and the `Lacking` line on the row; Replace
+  · KIND" (`temper-client-view`'s `forge/forges.rs`); its load, the
+  App's setup URL and the `Lacking` line on the row; Replace
   and Forget, with no request on the wire; the warning of no git on the
   machine. 6.2: a drift hold's card, what changed, by whom and when.
   7: a goal's issue, landings as news, findings on a project's page. 9:

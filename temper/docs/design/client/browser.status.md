@@ -8,14 +8,10 @@
   playground's story A on the built playground and its log replayed
   natively (`../playground.status.md`).
 - **Departs:** 7.2: `tools/gallery/names.txt` holds 80 states and the
-  table 69. `chats-setup-strip` and `chat-first-run-7-T1` are gone and
+  table 75. `chats-setup-strip` and `chat-first-run-7-T1` are gone and
   `playground-resetting` is added, because forges are store records and
   the playground is reset (`temper/docs/design/draft/playground-reset.md`,
-  3, 4, 6). `google-sign-in`, `welcome-model-renewed`,
-  `welcome-model-refused`, `welcome-paste-written`,
-  `welcome-paste-finishing`, `welcome-paste-address`,
-  `welcome-paste-state`, `welcome-paste-ended`, `welcome-paste-expired`,
-  `welcome-paste-unsent`, `forge-details`, `forge-setting-up-middle`,
+  3, 4, 6). `google-sign-in`, `forge-details`, `forge-setting-up-middle`,
   `welcome-setup-failed`, `welcome-ready-under-way` and
   `welcome-ready-adopted` are states the gallery holds that the table
   does not list (`tools/gallery/src/samples.rs`).
