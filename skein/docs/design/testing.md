@@ -9,8 +9,8 @@ document.
 
 ## 1. In one page
 
-- **skein tests the kit.** Its tiers stop at io under small example
-  services: an echo server, an HTTP server, and a client of it; and at a
+- **skein tests the kit.** Its tiers stop at io under a small example
+  service, the echo server and its fake client; and at a
   browser under the UI example, a small application on skein-ui. A
   service's domain, protocol layer and fakes are tested in the service's
   own tiers, which stand on skein's and do not retest them.
@@ -29,7 +29,7 @@ document.
 |---|---|---|
 | step tests | lib's containers and value types; each crate's step functions | lib.md, 10 |
 | machine worlds | HTTP, server-sent events, JSON, each side alone; the TLS client, against rustls's server in memory | http.md, 6; json.md, 6; tls.md, 5 |
-| protocol worlds | an LLM client's HTTP, server-sent events and JSON against a server's; skein-llm's subscription client against independent wire scenarios | http.md, 6; llm.md, Verification |
+| protocol worlds | an LLM client's HTTP, server-sent events and JSON against a server's; skein-llm's subscription client against independent wire scenarios | http.md, 6; llm.md, 5 |
 | io worlds | io over the simulator, with a scripted owner | io.md, 8 |
 | simulated worlds | the examples' `iterate`, each a process of the simulator | section 3 |
 | real loop | the examples under the shell, on the real kernel | section 3 |
@@ -48,21 +48,21 @@ the stage holds neither back. Incoming work is bounded by the world.
 
 ## 3. The examples
 
-Small services in `examples/`: an echo server, an HTTP server, and a
-client of it. They exist to be tested, and to be copied.
+A small service in `examples/`: the echo server, with its fake client.
+It exists to be tested, and to be copied.
 
-- **In simulated worlds,** each runs as a process of the simulator, with
+- **In simulated worlds,** it runs as a process of the simulator, with
   every layer real. It is the first tier where the loop runs, so it tests
   what the loop adds: the two passes, room checked at the kernel's queues
   and new work held at the root's watermark (programming-model.md, 7.1),
   deadlines across layers, and requests made in the down pass reaped in
   a later iteration.
-- **In the real loop,** they run under the shell on the real kernel: the
+- **In the real loop,** it runs under the shell on the real kernel: the
   ring, loopback sockets, a scratch directory as the root, real child
-  processes, the real clock, and TLS. It shows what only the real kernel
+  processes and the real clock. It shows what only the real kernel
   can: the ring adapter's `unsafe`, the probe at startup, signals read
   from a signalfd, and a process tree that ends.
-- **As a template,** a service's simulated worlds start from theirs.
+- **As a template,** a service's simulated worlds start from its.
 
 The UI example (examples.md, section 9) is an application's rather than
 a service's: a view on skein-ui, its browser shell and its server. Its

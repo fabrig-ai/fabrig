@@ -43,8 +43,8 @@ generated codecs, HTTP's client and the event-stream reader (http.md,
 section 2), and skein-ui's tree, view and words (ui.md), and its shell
 hands them what its platform streams. Nothing in them assumes a 64-bit
 `usize`: a conversion that could fail on a 32-bit target is checked.
-skein's gate builds the four for that target, and `skein-ui-web` beside
-them (testing.md, section 6).
+skein's gate checks them for that target with the other portable
+crates (testing.md, section 10).
 
 ## 3. Handles and slabs
 
