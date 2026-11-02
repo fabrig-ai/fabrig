@@ -87,3 +87,20 @@ Acceptance:
 ## Report
 
 The wire records changed, each translation, the tests and counts, and any option taken.
+
+## Answers
+
+2026-11-02. Q: May this task change jig-protocol-config's limit assembly to cap the wire's
+`NewTask.symbols` at `limits.core.tasks.holdings`, or does that condition go to a follow-up?
+A: Neither: the condition is revised, and no file is added. The engine's client translation
+bounds its lists by the wire's limits alone, as it does `dependencies` and the rest; the task
+limits are the core's. A member's symbols become holdings, and `tasks::bounded_batch` refuses
+a member with more than `limits.holdings` before the core keeps any
+(`jig/crates/jig-domain-core/src/effects/resources.rs`, `tasks::bounded_batch`). A template's
+`resources` past the holdings limit are `goal-jig-config`'s to refuse at start. So the
+acceptance's "refused past `limits.tasks.holdings`" reads: refused past the wire's
+`new_task_symbols` limit, under `w::Path::NewTaskSymbols`, which the pushed commit c9811266df
+does and tests. Leave jig-protocol-config and the profiles unchanged. Keep the pushed work:
+run the wider focused run the first run deferred (the changed reader packages' and direct
+dependents' focused suites), then report. If that run shows the core admitting a member past
+the holdings limit, name it under `## Left`; do not fix it here.
