@@ -495,6 +495,7 @@ fn adoption_reads_history_and_preserves_foreign_or_copied_marker_news() {
             | api::Answer::Runs { .. }
             | api::Answer::Run(_)
             | api::Answer::Tree { .. }
+            | api::Answer::Commits { .. }
             | api::Answer::Located { .. }
             | api::Answer::Pull(_)
             | api::Answer::Reviews { .. }
@@ -565,6 +566,7 @@ fn comment_ids(world: &World) -> skein_lib::List<u64> {
             | api::Answer::Runs { .. }
             | api::Answer::Run(_)
             | api::Answer::Tree { .. }
+            | api::Answer::Commits { .. }
             | api::Answer::Located { .. }
             | api::Answer::Pull(_)
             | api::Answer::Reviews { .. }
@@ -625,6 +627,7 @@ fn review_page_recovery_keeps_old_pending_submissions_without_duplicate_news() {
             | api::Answer::Runs { .. }
             | api::Answer::Run(_)
             | api::Answer::Tree { .. }
+            | api::Answer::Commits { .. }
             | api::Answer::Located { .. }
             | api::Answer::Item { .. }
             | api::Answer::Pull(_)
@@ -742,6 +745,7 @@ fn review_count(world: &World) -> u32 {
             | api::Answer::Runs { .. }
             | api::Answer::Run(_)
             | api::Answer::Tree { .. }
+            | api::Answer::Commits { .. }
             | api::Answer::Located { .. }
             | api::Answer::Item { .. }
             | api::Answer::Pull(_)

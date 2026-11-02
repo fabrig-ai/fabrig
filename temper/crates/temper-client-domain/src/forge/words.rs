@@ -618,9 +618,19 @@ pub enum ChangeWord {
     PrepareLine,
     HeldReady,
     HeldPreparing,
+    ClearedTag,
+    UnclearedTag,
+    VerifyingLine,
+    RedLine,
+    ClearedLine,
+    UnclearedLine,
+    HeldVerifying,
+    HeldRed,
+    HeldCleared,
+    HeldUncleared,
 }
 pub type ChangeRow = (ChangeWord, &'static [&'static [u8]], &'static [HoleKind]);
-pub const CHANGES: [ChangeRow; 94] = [
+pub const CHANGES: [ChangeRow; 104] = [
     (ChangeWord::Tag, &[b"Change \xc2\xb7 Task ", b""], &[Number]),
     (ChangeWord::Pull, &[b"PR #", b" \xc2\xb7 "], &[Number]),
     (ChangeWord::NoPull, &[b"No pull request yet \xc2\xb7 "], &[]),
@@ -715,6 +725,16 @@ pub const CHANGES: [ChangeRow; 94] = [
     (ChangeWord::PrepareLine, &[b"Being rebased onto ", b" for its landing."], &[Name]),
     (ChangeWord::HeldReady, &[b"ready"], &[]),
     (ChangeWord::HeldPreparing, &[b"preparing"], &[]),
+    (ChangeWord::ClearedTag, &[b"Cleared"], &[]),
+    (ChangeWord::UnclearedTag, &[b"Landed, uncleared"], &[]),
+    (ChangeWord::VerifyingLine, &[b"Verifying \xc2\xb7 merge commit ", b""], &[Name]),
+    (ChangeWord::RedLine, &[b"Red \xc2\xb7 merge commit ", b""], &[Name]),
+    (ChangeWord::ClearedLine, &[b"Cleared \xc2\xb7 merge commit ", b""], &[Name]),
+    (ChangeWord::UnclearedLine, &[b"Landed, uncleared \xc2\xb7 merge commit ", b""], &[Name]),
+    (ChangeWord::HeldVerifying, &[b"verifying"], &[]),
+    (ChangeWord::HeldRed, &[b"red"], &[]),
+    (ChangeWord::HeldCleared, &[b"cleared"], &[]),
+    (ChangeWord::HeldUncleared, &[b"landed, uncleared"], &[]),
 ];
 impl ChangeWord {
     #[must_use]
@@ -752,7 +772,11 @@ pub fn change_name_bytes(word: ChangeWord, index: usize) -> u32 {
         | ChangeWord::ResolveLine
         | ChangeWord::RepairSemantic => 256,
         ChangeWord::AuthorityHold | ChangeWord::Held => 512,
-        ChangeWord::LandedLine => 7,
+        ChangeWord::LandedLine
+        | ChangeWord::VerifyingLine
+        | ChangeWord::RedLine
+        | ChangeWord::ClearedLine
+        | ChangeWord::UnclearedLine => 7,
         ChangeWord::ReadyLine
         | ChangeWord::ReadyAloneLine
         | ChangeWord::HeldReady
@@ -806,7 +830,13 @@ pub fn change_name_bytes(word: ChangeWord, index: usize) -> u32 {
         | ChangeWord::HeldResolving
         | ChangeWord::HeldRepairing
         | ChangeWord::HeldLanding
+        | ChangeWord::ClearedTag
+        | ChangeWord::UnclearedTag
         | ChangeWord::HeldLanded
+        | ChangeWord::HeldVerifying
+        | ChangeWord::HeldRed
+        | ChangeWord::HeldCleared
+        | ChangeWord::HeldUncleared
         | ChangeWord::Stalled
         | ChangeWord::RepairsSpent
         | ChangeWord::ResolutionsSpent

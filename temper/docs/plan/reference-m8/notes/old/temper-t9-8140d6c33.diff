@@ -1,0 +1,2863 @@
+diff --git a/temper/crates/temper-engine-domain-forge-change/src/boundary.rs b/temper/crates/temper-engine-domain-forge-change/src/boundary.rs
+index bad14b847..28243895f 100644
+--- a/temper/crates/temper-engine-domain-forge-change/src/boundary.rs
++++ b/temper/crates/temper-engine-domain-forge-change/src/boundary.rs
+@@ -173,6 +173,8 @@ pub enum State {
+     Red { merge: Commit },
+     /// Merged at this commit and cleared: the result is given.
+     Cleared { merge: Commit },
++    /// Landed but ended before verification cleared (domain/after-landing.md, 6).
++    Uncleared { merge: Commit },
+     /// No write is made until a release lifts this cause.
+     Held { was: Box<State>, why: Hold },
+ }
+@@ -379,6 +381,7 @@ pub struct Limits {
+     pub resolutions: u32,
+     pub updates: u32,
+     pub stall: Duration,
++    pub verification_bound: Duration,
+     pub gates: u32,
+     pub clean_heads: u32,
+ }
+diff --git a/temper/crates/temper-engine-domain-forge-change/src/domain.rs b/temper/crates/temper-engine-domain-forge-change/src/domain.rs
+index c834c9870..b02d44996 100644
+--- a/temper/crates/temper-engine-domain-forge-change/src/domain.rs
++++ b/temper/crates/temper-engine-domain-forge-change/src/domain.rs
+@@ -24,9 +24,13 @@ pub fn step(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits:
+     stepped
+ }
+ 
++#[expect(
++    clippy::too_many_lines,
++    reason = "one coherent snapshot orders cancellation, drift and landing before phase decisions"
++)]
+ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: &Limits) -> Stepped {
+     if let Some(merge) = landed_merge(&change.state) {
+-        return verified(change.clone(), merge, facts.verification, standing.cancelled);
++        return verified(change.clone(), merge, facts.verification, standing.cancelled, now, limits);
+     }
+     let mut next = change.clone();
+     if change.gates.len() > usize::try_from(limits.gates).expect("u32 fits usize")
+@@ -41,7 +45,7 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits:
+         next.gate_failures = Box::new([]);
+     }
+     let held = match &change.state {
+-        State::Landed { .. } | State::Red { .. } | State::Cleared { .. } => {
++        State::Landed { .. } | State::Red { .. } | State::Cleared { .. } | State::Uncleared { .. } => {
+             unreachable!("verified states returned first")
+         }
+         State::Ended => return Stepped { change: next, decision: Decision::Cancel },
+@@ -64,8 +68,9 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits:
+     match facts.pull {
+         Pull::Merged { commit } => {
+             next.state = State::Landed { merge: commit };
++            next.since = now;
+             next.released = None;
+-            return verified(next, commit, facts.verification, standing.cancelled);
++            return verified(next, commit, facts.verification, standing.cancelled, now, limits);
+         }
+         Pull::Missing | Pull::Open { .. } | Pull::Closed => {}
+     }
+@@ -118,7 +123,12 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits:
+         State::Resolving { requested, base } => resolving(next, *requested, *base, facts, standing, now, limits),
+         State::Repairing { requested, why } => repairing(next, *requested, *why, facts, standing, now, limits),
+         State::Landing { head } => landing(next, *head, standing, now, limits),
+-        State::Landed { .. } | State::Red { .. } | State::Cleared { .. } | State::Ended | State::Held { .. } => {
++        State::Landed { .. }
++        | State::Red { .. }
++        | State::Cleared { .. }
++        | State::Uncleared { .. }
++        | State::Ended
++        | State::Held { .. } => {
+             unreachable!("terminal states returned above")
+         }
+     }
+@@ -126,7 +136,9 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits:
+ 
+ fn landed_merge(state: &State) -> Option<[u8; 32]> {
+     match state {
+-        State::Landed { merge } | State::Red { merge } | State::Cleared { merge } => Some(*merge),
++        State::Landed { merge } | State::Red { merge } | State::Cleared { merge } | State::Uncleared { merge } => {
++            Some(*merge)
++        }
+         State::Producing { .. }
+         | State::Opening { .. }
+         | State::Recreating { .. }
+@@ -146,19 +158,34 @@ fn landed_merge(state: &State) -> Option<[u8; 32]> {
+     }
+ }
+ 
+-fn verified(mut change: Change, merge: [u8; 32], verification: Verification, cancelled: bool) -> Stepped {
++fn verified(
++    mut change: Change,
++    merge: [u8; 32],
++    verification: Verification,
++    cancelled: bool,
++    now: Wall,
++    limits: &Limits,
++) -> Stepped {
++    if let State::Uncleared { .. } = change.state {
++        return Stepped { change, decision: Decision::Finish { merge } };
++    }
++    let until = Wall::from_nanos(change.since.as_nanos().saturating_add(limits.verification_bound.as_nanos()));
+     let decision = match verification {
+         Verification::Cleared => {
+             change.state = State::Cleared { merge };
+             Decision::Finish { merge }
+         }
++        Verification::Red | Verification::Verifying if cancelled || now >= until => {
++            change.state = State::Uncleared { merge };
++            Decision::Finish { merge }
++        }
+         Verification::Red => {
+             change.state = State::Red { merge };
+-            Decision::None
++            Decision::Wait { until: Some(until) }
+         }
+-        Verification::Verifying => Decision::None,
++        Verification::Verifying => Decision::Wait { until: Some(until) },
+     };
+-    Stepped { change, decision: if cancelled { Decision::Finish { merge } } else { decision } }
++    Stepped { change, decision }
+ }
+ 
+ fn closed_pull_holds(state: &State) -> bool {
+@@ -179,6 +206,7 @@ fn closed_pull_holds(state: &State) -> bool {
+         | State::Landed { .. }
+         | State::Red { .. }
+         | State::Cleared { .. }
++        | State::Uncleared { .. }
+         | State::Ended
+         | State::Held { .. } => true,
+     }
+@@ -217,6 +245,7 @@ pub fn released(change: &Change, now: Wall) -> Change {
+         | State::Landed { .. }
+         | State::Red { .. }
+         | State::Cleared { .. }
++        | State::Uncleared { .. }
+         | State::Ended => {}
+     }
+     next
+@@ -285,6 +314,7 @@ fn release(mut change: Change, was: &State, why: Hold, facts: &Facts) -> Stepped
+                 | State::Landed { .. }
+                 | State::Red { .. }
+                 | State::Cleared { .. }
++                | State::Uncleared { .. }
+                 | State::Ended => {
+                     unreachable!("held state retains a live predecessor")
+                 }
+diff --git a/temper/crates/temper-engine-domain-forge-change/src/tests.rs b/temper/crates/temper-engine-domain-forge-change/src/tests.rs
+index 03ad090c3..ad59fcb54 100644
+--- a/temper/crates/temper-engine-domain-forge-change/src/tests.rs
++++ b/temper/crates/temper-engine-domain-forge-change/src/tests.rs
+@@ -10,8 +10,15 @@ const HEAD: [u8; 32] = [1; 32];
+ const BASE: [u8; 32] = [2; 32];
+ const NEW: [u8; 32] = [3; 32];
+ const MERGE: [u8; 32] = [4; 32];
+-const LIMITS: Limits =
+-    Limits { repairs: 2, resolutions: 2, updates: 3, stall: Duration::from_secs(30), gates: 4, clean_heads: 4 };
++const LIMITS: Limits = Limits {
++    verification_bound: Duration::from_secs(60),
++    repairs: 2,
++    resolutions: 2,
++    updates: 3,
++    stall: Duration::from_secs(30),
++    gates: 4,
++    clean_heads: 4,
++};
+ fn at(seconds: u64) -> Wall {
+     Wall::from_nanos(seconds.saturating_mul(1_000_000_000))
+ }
+@@ -586,7 +593,7 @@ fn a_merged_change_waits_verifying() {
+         c.way = way;
+         let next = decide(&c, &f, &heard());
+         assert_eq!(next.change.state, State::Landed { merge: MERGE });
+-        assert_eq!(next.decision, Decision::None);
++        assert_eq!(next.decision, Decision::Wait { until: Some(at(61)) });
+     }
+ }
+ 
+@@ -603,11 +610,11 @@ fn a_red_change_waits_red_until_cleared() {
+     f.verification = Verification::Red;
+     let red = decide(&change(State::Landed { merge: MERGE }), &f, &heard());
+     assert_eq!(red.change.state, State::Red { merge: MERGE });
+-    assert_eq!(red.decision, Decision::None);
++    assert_eq!(red.decision, Decision::Wait { until: Some(at(60)) });
+     f.verification = Verification::Verifying;
+     let waiting = decide(&red.change, &f, &heard());
+     assert_eq!(waiting.change.state, State::Red { merge: MERGE });
+-    assert_eq!(waiting.decision, Decision::None);
++    assert_eq!(waiting.decision, Decision::Wait { until: Some(at(60)) });
+     f.verification = Verification::Cleared;
+     let cleared = decide(&waiting.change, &f, &heard());
+     assert_eq!(cleared.change.state, State::Cleared { merge: MERGE });
+@@ -630,3 +637,45 @@ fn a_cancelled_verifying_change_finishes_with_its_landing() {
+         assert_eq!(next.decision, Decision::Finish { merge: MERGE });
+     }
+ }
++
++fn verifying_at(state: State, verification: Verification, seconds: u64, cancelled: bool) -> crate::Stepped {
++    let mut f = facts();
++    f.verification = verification;
++    step(&change(state), &f, &Heard { cancelled, ..heard() }, at(seconds), &LIMITS)
++}
++#[test]
++fn a_verifying_change_waits_until_its_bound() {
++    let next = verifying_at(State::Landed { merge: MERGE }, Verification::Verifying, 59, false);
++    assert_eq!(next.decision, Decision::Wait { until: Some(at(60)) });
++}
++#[test]
++fn past_the_bound_a_verifying_change_ends_uncleared() {
++    for seconds in [60, 61] {
++        let next = verifying_at(State::Landed { merge: MERGE }, Verification::Verifying, seconds, false);
++        assert_eq!(next.change.state, State::Uncleared { merge: MERGE });
++        assert_eq!(next.decision, Decision::Finish { merge: MERGE });
++    }
++}
++#[test]
++fn a_red_change_past_the_bound_ends_uncleared() {
++    let next = verifying_at(State::Red { merge: MERGE }, Verification::Red, 60, false);
++    assert_eq!(next.change.state, State::Uncleared { merge: MERGE });
++    assert_eq!(next.decision, Decision::Finish { merge: MERGE });
++}
++#[test]
++fn cancelling_a_verifying_change_ends_it_uncleared_at_once() {
++    for state in [State::Landed { merge: MERGE }, State::Red { merge: MERGE }] {
++        let next = verifying_at(state, Verification::Verifying, 1, true);
++        assert_eq!(next.change.state, State::Uncleared { merge: MERGE });
++        assert_eq!(next.decision, Decision::Finish { merge: MERGE });
++    }
++}
++#[test]
++fn the_bound_counts_from_the_landing() {
++    let mut f = facts();
++    f.pull = Pull::Merged { commit: MERGE };
++    f.verification = Verification::Verifying;
++    let next = step(&change(State::Landing { head: HEAD }), &f, &heard(), at(100), &LIMITS);
++    assert_eq!(next.change.since, at(100));
++    assert_eq!(next.decision, Decision::Wait { until: Some(at(160)) });
++}
+diff --git a/temper/crates/temper-engine-domain-forge/src/boundary.rs b/temper/crates/temper-engine-domain-forge/src/boundary.rs
+index 3dbe49685..ceda58c1f 100644
+--- a/temper/crates/temper-engine-domain-forge/src/boundary.rs
++++ b/temper/crates/temper-engine-domain-forge/src/boundary.rs
+@@ -553,6 +553,8 @@ pub enum Class {
+ /// News delivered through a topic to task inboxes.
+ #[derive(Clone, PartialEq, Eq, Debug)]
+ pub enum News {
++    /// A late verdict on an ended change, kept for its goal.
++    Cleared { tier: Box<[u8]>, landing: skein_forge::api::Commit },
+     /// A landing a tier's verdict blames (domain/after-landing.md, 7).
+     Red {
+         tier: Box<[u8]>,
+@@ -660,6 +662,7 @@ impl ChangeRow {
+             change::State::Landed { .. }
+             | change::State::Red { .. }
+             | change::State::Cleared { .. }
++            | change::State::Uncleared { .. }
+             | change::State::Ended => true,
+             change::State::Producing { .. }
+             | change::State::Opening { .. }
+@@ -822,6 +825,9 @@ pub struct TierRow {
+     pub probe: Option<TierProbeBranch>,
+     pub flight: Option<TierFlight>,
+     pub result: Option<TierResult>,
++    pub held: Option<TierHeld>,
++    /// Reds awaiting findings, at most the tier range (2 * changes + 1).
++    pub reds: Box<[TierRed]>,
+ }
+ /// A landing waiting for its bounded filtered-tree key. A commit fallback is
+ /// saved as `Some(commit)` so recovery never repeats a failed walk.
+@@ -843,9 +849,30 @@ pub struct TierFlight {
+     pub report: Option<ReceiptRun>,
+     pub pending: Box<[skein_forge::api::JobAttempt]>,
+ }
++/// An exhausted runner fault and progress of its pending status.
++#[derive(Clone, PartialEq, Eq, Debug)]
++pub struct TierHeld {
++    pub fault: temper_engine_domain_forge_landing::Fault,
++    pub run: Option<ReceiptRun>,
++    pub status: TierBranch,
++}
++/// A red with no live goal, retained until findings consume it.
++#[derive(Clone, PartialEq, Eq, Debug)]
++pub struct TierRed {
++    pub landing: skein_forge::api::Commit,
++    pub blame: temper_engine_domain_forge_tiers::Blame,
++    pub run: ReceiptRun,
++}
++/// One late recipient already told, committed with its news.
++#[derive(Clone, Copy, PartialEq, Eq, Debug)]
++pub struct LateTold {
++    pub landing: skein_forge::api::Commit,
++    pub goal: u64,
++}
+ /// A terminal observation, committed before the verdict's status is admitted.
+ #[derive(Clone, PartialEq, Eq, Debug)]
+ pub struct TierResult {
++    pub told: Box<[LateTold]>,
+     pub verdict: temper_engine_domain_forge_tiers::Verdict,
+     pub run: ReceiptRun,
+     pub received: bool,
+@@ -922,7 +949,8 @@ pub struct LandingLog {
+ pub struct Logged {
+     pub commit: skein_forge::api::Commit,
+     pub seen: skein_lib::Wall,
+-    pub changes: Box<[u64]>,
++    /// Change task and pull number, retained after verification closes.
++    pub changes: Box<[(u64, u64)]>,
+     pub verdicts: Box<[Mark]>,
+ }
+ #[derive(Clone, PartialEq, Eq, Debug)]
+@@ -1407,6 +1435,7 @@ pub enum Event {
+         number: u64,
+     },
+     StepTier {
++        released: bool,
+         task: u64,
+         entry: u64,
+     },
+@@ -1499,6 +1528,10 @@ pub enum Event {
+ }
+ /// The connector's output to the root, including child API calls.
+ #[derive(PartialEq, Eq, Debug)]
++#[expect(
++    clippy::large_enum_variant,
++    reason = "typed rows stay inline in the output envelope; every queue slot is priced at its maximum"
++)]
+ pub enum Request {
+     LandingDecision {
+         task: u64,
+diff --git a/temper/crates/temper-engine-domain-forge/src/brief.rs b/temper/crates/temper-engine-domain-forge/src/brief.rs
+index 350e6c763..c14bb43da 100644
+--- a/temper/crates/temper-engine-domain-forge/src/brief.rs
++++ b/temper/crates/temper-engine-domain-forge/src/brief.rs
+@@ -178,6 +178,7 @@ pub(super) fn brief_pull(
+         | change::State::Landed { .. }
+         | change::State::Red { .. }
+         | change::State::Cleared { .. }
++        | change::State::Uncleared { .. }
+         | change::State::Held { .. } => PullMode::Other,
+     };
+     let words = BriefWords::with_capacity(bytes, false);
+@@ -563,6 +564,7 @@ pub(super) fn brief_ci(
+         | change::State::Landed { .. }
+         | change::State::Red { .. }
+         | change::State::Cleared { .. }
++        | change::State::Uncleared { .. }
+         | change::State::Held { .. } => false,
+     };
+     if !repairing
+diff --git a/temper/crates/temper-engine-domain-forge/src/domain.rs b/temper/crates/temper-engine-domain-forge/src/domain.rs
+index 1154ade93..90f8a9aa3 100644
+--- a/temper/crates/temper-engine-domain-forge/src/domain.rs
++++ b/temper/crates/temper-engine-domain-forge/src/domain.rs
+@@ -1400,7 +1400,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
+             crate::tiers::task(d, repository, tier, number, Some(task), out);
+         }
+         Event::TierRefused { repository, tier, number } => crate::tiers::task(d, repository, tier, number, None, out),
+-        Event::StepTier { task, entry } => crate::tiers::step(d, env, task, entry, out),
++        Event::StepTier { task, entry, released } => crate::tiers::step(d, env, task, entry, released, out),
+         Event::VetoTier { task, entry } => crate::tiers::veto(d, task, entry, out),
+         Event::StepChange { task, entry, heard, gates, queue_repair_active, kept } => {
+             step_change(d, env, StepInput { task, entry, heard, gates, queue_repair_active, kept }, out);
+@@ -1672,6 +1672,10 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+     read_afresh_complete(d, out);
+ }
+ 
++#[expect(
++    clippy::too_many_lines,
++    reason = "one settled outcome updates forge facts and the landing verification clock atomically"
++)]
+ fn outcome_facts(
+     d: &mut Domain,
+     env: &Env<Limits>,
+@@ -1753,8 +1757,43 @@ fn outcome_facts(
+                     None => task,
+                 };
+                 let repository = kept.entry.repository;
++                let skein_forge::api::Write::Merge { number: pull, .. } = kept.entry.effect.write else {
++                    unreachable!("merged outcome belongs to a merge")
++                };
+                 crate::verification::landed(d, repository, commit, change, out);
+-                crate::log::landed(d, repository, commit, change, env.wall, out);
++                crate::log::landed(d, repository, commit, (change, pull), env.wall, out);
++                let since = crate::log::seen(d, repository, commit).unwrap_or(env.wall);
++                if let Some(row) = d.changes.get_mut(&change) {
++                    // A found-again outcome preserves an existing verification
++                    // clock; its log also remembers the first observation.
++                    match row.change.state {
++                        change::State::Landed { .. }
++                        | change::State::Red { .. }
++                        | change::State::Cleared { .. }
++                        | change::State::Uncleared { .. } => {}
++                        change::State::Producing { .. }
++                        | change::State::Opening { .. }
++                        | change::State::Recreating { .. }
++                        | change::State::Reopening { .. }
++                        | change::State::Checking { .. }
++                        | change::State::Gating { .. }
++                        | change::State::Queued { .. }
++                        | change::State::First { .. }
++                        | change::State::Ready { .. }
++                        | change::State::Preparing { .. }
++                        | change::State::Updating { .. }
++                        | change::State::Resolving { .. }
++                        | change::State::Repairing { .. }
++                        | change::State::Landing { .. }
++                        | change::State::Held { .. }
++                        | change::State::Ended => {
++                            row.change.state = change::State::Landed { merge: commit };
++                            row.change.since = since;
++                            let row = row.clone();
++                            emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Change(row) });
++                        }
++                    }
++                }
+             }
+             if d.landed.len() < env.limits.landings.max(env.limits.changes) || d.landed.contains_key(&commit) {
+                 d.landed.insert(commit, task).expect("preflighted landed capacity");
+@@ -2507,7 +2546,10 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
+         return;
+     };
+     match row.change.state {
+-        change::State::Landed { merge } | change::State::Red { merge } | change::State::Cleared { merge } => {
++        change::State::Landed { merge }
++        | change::State::Red { merge }
++        | change::State::Cleared { merge }
++        | change::State::Uncleared { merge } => {
+             step_verified(d, env, task, merge, heard, out);
+             return;
+         }
+@@ -2622,7 +2664,13 @@ fn step_verified(
+         kept: false,
+         settling: None,
+     };
+-    let next = change::step(&row.change, &facts, &heard, env.wall, &env.limits.change_policy);
++    let next = change::step(
++        &row.change,
++        &facts,
++        &heard,
++        env.wall,
++        &crate::verification::change_limits(d, row.repository, env.limits.change_policy),
++    );
+     row.change = next.change;
+     d.changes.insert(task, row.clone()).expect("replaces change");
+     emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Change(row) });
+@@ -2862,6 +2910,7 @@ pub(crate) fn queue_ready(d: &Domain, row: &ChangeRow, l: &Limits) -> (List<chan
+             | change::State::Landed { .. }
+             | change::State::Red { .. }
+             | change::State::Cleared { .. }
++            | change::State::Uncleared { .. }
+             | change::State::Held { .. } => None,
+         };
+         if let Some(since) = since {
+@@ -2950,7 +2999,13 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &m
+         ..pending.heard
+     };
+     for _ in 0_u32..16 {
+-        let stepped = change::step(&row.change, &facts, &heard, env.wall, &env.limits.change_policy);
++        let stepped = change::step(
++            &row.change,
++            &facts,
++            &heard,
++            env.wall,
++            &crate::verification::change_limits(d, row.repository, env.limits.change_policy),
++        );
+         let advanced = stepped.change != row.change;
+         row.change = stepped.change;
+         let decision = stepped.decision;
+@@ -3011,6 +3066,7 @@ fn in_queue(state: &change::State) -> bool {
+         | change::State::Landed { .. }
+         | change::State::Red { .. }
+         | change::State::Cleared { .. }
++        | change::State::Uncleared { .. }
+         | change::State::Held { .. } => false,
+     }
+ }
+@@ -3659,6 +3715,7 @@ fn end_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Requ
+         change::State::Landed { merge } => change::State::Landed { merge: *merge },
+         change::State::Red { merge } => change::State::Red { merge: *merge },
+         change::State::Cleared { merge } => change::State::Cleared { merge: *merge },
++        change::State::Uncleared { merge } => change::State::Uncleared { merge: *merge },
+         change::State::Producing { .. }
+         | change::State::Opening { .. }
+         | change::State::Recreating { .. }
+@@ -4724,6 +4781,7 @@ pub(crate) fn classify(d: &Domain, subscription: &Subscriber, news: &News) -> Cl
+                 Some(_) => Class::Kept,
+             }
+         }
++        News::Cleared { .. } => Class::Kept,
+         News::Red { .. } | News::Ci { .. } | News::Changed { .. } => Class::Wakes,
+     }
+ }
+diff --git a/temper/crates/temper-engine-domain-forge/src/lib.rs b/temper/crates/temper-engine-domain-forge/src/lib.rs
+index cab9cf199..5d5aa6aad 100644
+--- a/temper/crates/temper-engine-domain-forge/src/lib.rs
++++ b/temper/crates/temper-engine-domain-forge/src/lib.rs
+@@ -318,7 +318,8 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
+             | change::State::Ended
+             | change::State::Landed { .. }
+             | change::State::Red { .. }
+-            | change::State::Cleared { .. } => Some(0),
++            | change::State::Cleared { .. }
++            | change::State::Uncleared { .. } => Some(0),
+         }
+     }
+     match record {
+diff --git a/temper/crates/temper-engine-domain-forge/src/log.rs b/temper/crates/temper-engine-domain-forge/src/log.rs
+index b76585ddd..f4b580ea5 100644
+--- a/temper/crates/temper-engine-domain-forge/src/log.rs
++++ b/temper/crates/temper-engine-domain-forge/src/log.rs
+@@ -46,21 +46,31 @@ pub(crate) fn landed(
+     d: &mut Domain,
+     repository: Repository,
+     commit: Commit,
+-    change: u64,
++    (change, pull): (u64, u64),
+     seen: Wall,
+     out: &mut Queue<Request>,
+ ) {
+     moved(d, repository, commit, seen, out);
+     let Some(row) = d.landing_logs.get_mut(&repository) else { return };
+     for entry in &mut row.landings {
+-        if entry.commit != commit || entry.changes.contains(&change) {
++        if entry.commit != commit {
++            continue;
++        }
++        let mut known = false;
++        for (task, _) in &entry.changes {
++            if *task == change {
++                known = true;
++                break;
++            }
++        }
++        if known {
+             continue;
+         }
+         let mut changes = List::with_capacity(d.tier_config_limits.changes);
+         for saved in &entry.changes {
+             changes.push(*saved).expect("admitted changes");
+         }
+-        changes.push(change).expect("changes bounded as Verification.changes");
++        changes.push((change, pull)).expect("changes bounded as Verification.changes");
+         entry.changes = changes.into_boxed();
+         save(row.clone(), out);
+         return;
+@@ -145,7 +155,7 @@ pub(crate) fn worst_case(l: &Limits) -> Option<u64> {
+     )?;
+     let entry = u64::try_from(size_of::<Logged>())
+         .ok()?
+-        .checked_add(u64::from(l.changes).checked_mul(8)?)?
++        .checked_add(u64::from(l.changes).checked_mul(16)?)?
+         .checked_add(marks)?;
+     // A replacement ring is built beside the retained row before insertion;
+     // emitted Save copies are charged by the root's output envelope.
+@@ -153,3 +163,12 @@ pub(crate) fn worst_case(l: &Limits) -> Option<u64> {
+         u64::from(l.repositories).checked_add(1)?.checked_mul(u64::from(l.landings_kept))?.checked_mul(entry)?;
+     Map::<Repository, LandingLog>::worst_case(l.repositories)?.checked_add(rings)
+ }
++
++pub(crate) fn seen(d: &Domain, repository: Repository, commit: Commit) -> Option<Wall> {
++    for entry in &d.landing_logs.get(&repository)?.landings {
++        if entry.commit == commit {
++            return Some(entry.seen);
++        }
++    }
++    None
++}
+diff --git a/temper/crates/temper-engine-domain-forge/src/panel.rs b/temper/crates/temper-engine-domain-forge/src/panel.rs
+index 24758728a..6842fa0e3 100644
+--- a/temper/crates/temper-engine-domain-forge/src/panel.rs
++++ b/temper/crates/temper-engine-domain-forge/src/panel.rs
+@@ -134,9 +134,10 @@ impl Domain {
+             change::State::Resolving { .. } => PanelStep::Resolving,
+             change::State::Repairing { why, .. } => PanelStep::Repairing(*why),
+             change::State::Landing { .. } => PanelStep::Landing,
+-            change::State::Landed { merge } | change::State::Red { merge } | change::State::Cleared { merge } => {
+-                PanelStep::Landed { merge: *merge }
+-            }
++            change::State::Landed { merge }
++            | change::State::Red { merge }
++            | change::State::Uncleared { merge }
++            | change::State::Cleared { merge } => PanelStep::Landed { merge: *merge },
+             change::State::Held { .. } => unreachable!("held steps unwrapped"),
+         };
+         let head = row.change.last_head;
+diff --git a/temper/crates/temper-engine-domain-forge/src/settle.rs b/temper/crates/temper-engine-domain-forge/src/settle.rs
+index 850ab970c..9788f83b3 100644
+--- a/temper/crates/temper-engine-domain-forge/src/settle.rs
++++ b/temper/crates/temper-engine-domain-forge/src/settle.rs
+@@ -146,6 +146,7 @@ pub(crate) fn cap(
+                 | change::State::Landed { .. }
+                 | change::State::Red { .. }
+                 | change::State::Cleared { .. }
++                | change::State::Uncleared { .. }
+                 | change::State::Held { .. } => false,
+             };
+             if first
+diff --git a/temper/crates/temper-engine-domain-forge/src/tests.rs b/temper/crates/temper-engine-domain-forge/src/tests.rs
+index 2154c3502..42769218f 100644
+--- a/temper/crates/temper-engine-domain-forge/src/tests.rs
++++ b/temper/crates/temper-engine-domain-forge/src/tests.rs
+@@ -97,6 +97,7 @@ const LIMITS: Limits = Limits {
+         interval: Duration::from_secs(5),
+     },
+     change_policy: temper_engine_domain_forge_change::Limits {
++        verification_bound: Duration::from_secs(7200),
+         repairs: 3,
+         resolutions: 3,
+         updates: 3,
+diff --git a/temper/crates/temper-engine-domain-forge/src/tests/fixtures.rs b/temper/crates/temper-engine-domain-forge/src/tests/fixtures.rs
+index 499142e49..2147b6311 100644
+--- a/temper/crates/temper-engine-domain-forge/src/tests/fixtures.rs
++++ b/temper/crates/temper-engine-domain-forge/src/tests/fixtures.rs
+@@ -47,6 +47,7 @@ pub fn begin_adoption(d: &mut Domain, request: Token, adoption: Adoption) -> Box
+ /// This change and its outbox entry identify the one opening in flight.
+ pub const CHANGE: u64 = 51;
+ pub const OPEN: u64 = 11;
++pub const PULL: u64 = 1; // The fixture's opened pull.
+ /// The branch pair differs so each fresh read has an unambiguous subject.
+ pub const HEAD: skein_forge::api::Commit = [3; 32];
+ pub const BASE: skein_forge::api::Commit = [4; 32];
+diff --git a/temper/crates/temper-engine-domain-forge/src/tests/log.rs b/temper/crates/temper-engine-domain-forge/src/tests/log.rs
+index 14ad4859a..2e094e268 100644
+--- a/temper/crates/temper-engine-domain-forge/src/tests/log.rs
++++ b/temper/crates/temper-engine-domain-forge/src/tests/log.rs
+@@ -21,7 +21,7 @@ fn a_queue_merge_is_logged_with_its_change() {
+         &[Logged {
+             commit: MERGE,
+             seen: env().wall,
+-            changes: Box::new([CHANGE]),
++            changes: Box::new([(CHANGE, fixtures::PULL)]),
+             verdicts: Box::new([
+                 Mark { tier: BROWSER.into(), verdict: Verdict::Verifying },
+                 Mark { tier: FUZZY.into(), verdict: Verdict::Verifying },
+@@ -41,7 +41,7 @@ fn the_seen_time_is_the_engines_when_the_move_was_seen() {
+     let seen = Wall::from_nanos(123);
+     push(&mut d, MERGE, seen);
+     let mut out = Queue::with_capacity(max_out(&LIMITS));
+-    log::landed(&mut d, REPO, MERGE, CHANGE, Wall::from_nanos(456), &mut out);
++    log::landed(&mut d, REPO, MERGE, (CHANGE, fixtures::PULL), Wall::from_nanos(456), &mut out);
+     assert_eq!(history(&d)[0].seen, seen);
+     assert_eq!(history(&d).len(), 1);
+ }
+@@ -96,14 +96,14 @@ fn a_turn_landing_is_logged_with_its_members_change() {
+     row.landing.members[0].gates = Box::new([]);
+     row.entries = Box::new([LandingEntry { entry: fixtures::OPEN, member: 0, gate: 0, operation: Operation::Merge }]);
+     let (d, _) = fixtures::merged_with_landing(true, Some(row));
+-    assert_eq!(history(&d)[0].changes.as_ref(), &[CHANGE]);
++    assert_eq!(history(&d)[0].changes.as_ref(), &[(CHANGE, fixtures::PULL)]);
+ }
+ 
+ #[test]
+ fn the_log_prices_retained_rings_and_one_replacement() {
+     // Small and owned keep two repository rings; init keeps three. Both
+     // charge a further ring while a move replaces one of the retained rows.
+-    assert_eq!(log::worst_case(&LIMITS), Some(12_368));
++    assert_eq!(log::worst_case(&LIMITS), Some(15_440));
+     let init = Limits { repositories: 3, ..LIMITS };
+-    assert_eq!(log::worst_case(&init), Some(16_336));
++    assert_eq!(log::worst_case(&init), Some(20_432));
+ }
+diff --git a/temper/crates/temper-engine-domain-forge/src/tests/tiers.rs b/temper/crates/temper-engine-domain-forge/src/tests/tiers.rs
+index 0b8023084..d7cb70404 100644
+--- a/temper/crates/temper-engine-domain-forge/src/tests/tiers.rs
++++ b/temper/crates/temper-engine-domain-forge/src/tests/tiers.rs
+@@ -84,7 +84,7 @@ fn the_tier_task_first_creates_its_branch_at_the_tip() {
+     let mut d = fixtures::tiered();
+     fixtures::tier_baseline(&mut d);
+     outputs(&mut d, Event::TierTask { repository: REPO, tier: BROWSER.into(), number: 1, task: CHANGE });
+-    let out = outputs(&mut d, Event::StepTier { task: CHANGE, entry: OPEN });
++    let out = outputs(&mut d, Event::StepTier { released: false, task: CHANGE, entry: OPEN });
+     let entry = d.entries.get(&OPEN).expect("branch outbox");
+     assert_eq!(
+         entry.entry.effect.write,
+@@ -113,7 +113,7 @@ fn a_veto_clears_the_uncommitted_branch_entry() {
+     let mut d = fixtures::tiered();
+     fixtures::tier_baseline(&mut d);
+     outputs(&mut d, Event::TierTask { repository: REPO, tier: BROWSER.into(), number: 1, task: CHANGE });
+-    outputs(&mut d, Event::StepTier { task: CHANGE, entry: OPEN });
++    outputs(&mut d, Event::StepTier { released: false, task: CHANGE, entry: OPEN });
+     outputs(&mut d, Event::VetoTier { task: CHANGE, entry: OPEN });
+     assert_eq!(fixtures::browser(&d).branch, TierBranch::Absent);
+     assert!(!d.entries.contains_key(&OPEN));
+@@ -186,7 +186,7 @@ fn a_made_branch_is_not_emitted_again_after_restore() {
+     row.task = Some(CHANGE);
+     row.branch = TierBranch::Made;
+     outputs(&mut d, Event::Restore { record: Stored::Tier(row) });
+-    let out = outputs(&mut d, Event::StepTier { task: CHANGE, entry: OPEN });
++    let out = outputs(&mut d, Event::StepTier { released: false, task: CHANGE, entry: OPEN });
+     let mut created = false;
+     for request in &out {
+         if let Request::TierEffect { entry, .. } = request
+@@ -251,7 +251,7 @@ fn made_branch() -> Domain {
+     d
+ }
+ fn dispatch(d: &mut Domain, entry: u64) -> Box<[Request]> {
+-    let out = outputs(d, Event::StepTier { task: TIER_TASK, entry });
++    let out = outputs(d, Event::StepTier { released: false, task: TIER_TASK, entry });
+     if let Some(saved) = d.entries.get_mut(&entry) {
+         saved.entry.start = Some(skein_forge_client::Position { at: env().now, comment: 0, review: 0, review_page: 1 });
+         let made = match &saved.entry.effect.write {
+@@ -330,7 +330,7 @@ fn completed(d: &mut Domain, conclusion: api::Conclusion, step: Option<u32>) {
+ }
+ fn judged(d: &mut Domain) -> Box<[Request]> {
+     dispatch(d, STATUS);
+-    let out = outputs(d, Event::StepTier { task: TIER_TASK, entry: RETRY });
++    let out = outputs(d, Event::StepTier { released: false, task: TIER_TASK, entry: RETRY });
+     if fixtures::browser(d).branch == (TierBranch::Pending { entry: RETRY }) {
+         let mut ignored = Queue::with_capacity(max_out(&LIMITS));
+         crate::tiers::outcome(
+@@ -340,7 +340,7 @@ fn judged(d: &mut Domain) -> Box<[Request]> {
+             &mut ignored,
+         );
+         d.entries.remove(&RETRY);
+-        return outputs(d, Event::StepTier { task: TIER_TASK, entry: RETRY });
++        return outputs(d, Event::StepTier { released: false, task: TIER_TASK, entry: RETRY });
+     }
+     out
+ }
+@@ -372,7 +372,7 @@ fn tier_decision(out: &[Request]) -> Option<&TierDecision> {
+ fn a_made_branch_dispatches_the_tiers_workflow_with_its_inputs() {
+     const HEX_TIP: &[u8] = b"0404040404040404040404040404040404040404040404040404040404040404";
+     let mut d = made_branch();
+-    let out = outputs(&mut d, Event::StepTier { task: TIER_TASK, entry: DISPATCH });
++    let out = outputs(&mut d, Event::StepTier { released: false, task: TIER_TASK, entry: DISPATCH });
+     assert_eq!(
+         effect_write(&out),
+         &api::Write::Dispatch {
+@@ -419,7 +419,7 @@ fn a_passed_run_judges_green_clears_its_range_and_wakes_its_changes() {
+ fn a_lost_run_is_retried_by_a_new_dispatch() {
+     let mut d = dispatched();
+     lost(&mut d);
+-    let out = outputs(&mut d, Event::StepTier { task: TIER_TASK, entry: RETRY });
++    let out = outputs(&mut d, Event::StepTier { released: false, task: TIER_TASK, entry: RETRY });
+     let api::Write::Dispatch { .. } = effect_write(&out) else { panic!("new dispatch after loss") };
+     assert_eq!(fixtures::browser(&d).record.run.as_ref().unwrap().faults, 1);
+ }
+@@ -427,7 +427,7 @@ fn a_lost_run_is_retried_by_a_new_dispatch() {
+ fn a_failed_job_of_the_set_up_is_rerun() {
+     let mut d = dispatched();
+     completed(&mut d, api::Conclusion::Failure, Some(0));
+-    let out = outputs(&mut d, Event::StepTier { task: TIER_TASK, entry: RETRY });
++    let out = outputs(&mut d, Event::StepTier { released: false, task: TIER_TASK, entry: RETRY });
+     assert_eq!(
+         effect_write(&out),
+         &api::Write::Rerun { attempt: api::JobAttempt { head: BASE, run: RUN_ID, job: 81, attempt: 1 } }
+@@ -441,8 +441,26 @@ fn a_third_fault_holds_the_task() {
+     lost(&mut d);
+     dispatch(&mut d, DISPATCH);
+     lost(&mut d);
+-    let out = outputs(&mut d, Event::StepTier { task: TIER_TASK, entry: STATUS });
+-    assert_eq!(out.as_ref(), &[Request::TierDecision { task: TIER_TASK, decision: TierDecision::Held }]);
++    let out = outputs(&mut d, Event::StepTier { released: false, task: TIER_TASK, entry: STATUS });
++    assert_eq!(
++        effect_write(&out),
++        &api::Write::Status {
++            commit: BASE,
++            context: b"temper/verdict/browser".as_slice().into(),
++            check: api::Check::Pending,
++            description: b"held after 3 runner faults, last: lost".as_slice().into(),
++            link: Box::new([]),
++        }
++    );
++    let mut ignored = Queue::with_capacity(max_out(&LIMITS));
++    crate::tiers::outcome(
++        &mut d,
++        STATUS,
++        skein_forge_client::Outcome::Made { made: skein_forge_client::Made::Set, found: false },
++        &mut ignored,
++    );
++    let out = outputs(&mut d, Event::StepTier { released: false, task: TIER_TASK, entry: RETRY });
++    assert_eq!(tier_decision(&out), Some(&TierDecision::Held));
+     assert_eq!(fixtures::browser(&d).record.run.as_ref().unwrap().faults, 3);
+     assert!(d.landing.receipts.is_empty());
+ }
+@@ -494,7 +512,7 @@ fn a_passed_receipt_at_the_tip_judges_with_no_branch_or_dispatch() {
+     let start = fixtures::tier_baseline(&mut d);
+     outputs(&mut d, Event::TierTask { repository: REPO, tier: BROWSER.into(), number: 1, task: TIER_TASK });
+     let posted = dispatch(&mut d, STATUS);
+-    let done = outputs(&mut d, Event::StepTier { task: TIER_TASK, entry: RETRY });
++    let done = outputs(&mut d, Event::StepTier { released: false, task: TIER_TASK, entry: RETRY });
+     assert_eq!(tier_runs(&start).len(), 1);
+     let api::Write::Status { check, .. } = effect_write(&posted) else { panic!("receipt posts one status") };
+     assert_eq!(*check, api::Check::Passed);
+@@ -541,16 +559,18 @@ fn a_restart_mid_run_finds_its_run_again_and_judges_it() {
+ #[test]
+ fn a_third_refused_dispatch_holds_the_task() {
+     let mut d = made_branch();
+-    outputs(&mut d, Event::StepTier { task: TIER_TASK, entry: DISPATCH });
++    outputs(&mut d, Event::StepTier { released: false, task: TIER_TASK, entry: DISPATCH });
+     let mut out: Box<[Request]> = Box::new([]);
+     for (failed, next) in [(DISPATCH, RETRY), (RETRY, STATUS), (STATUS, DISPATCH)] {
+         let mut ignored = Queue::with_capacity(max_out(&LIMITS));
+         crate::tiers::outcome(&mut d, failed, skein_forge_client::Outcome::Failed(api::Error::Missing), &mut ignored);
+         d.entries.remove(&failed);
+-        out = outputs(&mut d, Event::StepTier { task: TIER_TASK, entry: next });
++        out = outputs(&mut d, Event::StepTier { released: false, task: TIER_TASK, entry: next });
+     }
+     assert_eq!(fixtures::browser(&d).record.run.as_ref().unwrap().faults, 3);
+-    assert_eq!(tier_decision(&out), Some(&TierDecision::Held));
++    let api::Write::Status { check: api::Check::Pending, .. } = effect_write(&out) else {
++        panic!("held status is pending")
++    };
+ }
+ 
+ fn key_domain(ignored: &[&[u8]]) -> Domain {
+@@ -645,7 +665,7 @@ fn a_run_waits_for_its_ranges_keys_then_dispatches_with_its_key() {
+     assert_eq!(tier_runs(&second).as_slice(), &[(1, HEAD)]);
+     outputs(&mut d, Event::TierTask { repository: REPO, tier: BROWSER.into(), number: 1, task: TIER_TASK });
+     d.tier_rows.get_mut(&(REPO, BROWSER.into())).unwrap().branch = TierBranch::Made;
+-    let dispatched = outputs(&mut d, Event::StepTier { task: TIER_TASK, entry: DISPATCH });
++    let dispatched = outputs(&mut d, Event::StepTier { released: false, task: TIER_TASK, entry: DISPATCH });
+     let api::Write::Dispatch { inputs, .. } = effect_write(&dispatched) else { panic!("keyed dispatch") };
+     assert_eq!(inputs[1].name.as_ref(), b"temper_key");
+     assert_eq!(inputs[1].value.as_ref(), fixtures::BROWSER_HEAD_HEX);
+@@ -815,7 +835,7 @@ fn a_failed_runs_tests_are_read_from_its_junit_artifact() {
+ fn a_failed_runs_tests_are_read_from_its_lines_artifact() {
+     let mut d = red_range(&[MERGE]);
+     failed_part(&mut d);
+-    outputs(&mut d, Event::StepTier { task: TIER_TASK, entry: RETRY });
++    outputs(&mut d, Event::StepTier { released: false, task: TIER_TASK, entry: RETRY });
+     let (_, op) = fixtures::next_call(&mut d);
+     assert_eq!(
+         op,
+@@ -835,7 +855,7 @@ fn a_failed_run_whose_artifact_is_missing_is_a_fault_and_retried() {
+     d.tier_reads.insert(READ_OWNER, (REPO, BROWSER.into())).unwrap();
+     let mut out = Queue::with_capacity(max_out(&LIMITS));
+     crate::tiers::answered(&mut d, &env(), READ_OWNER, Err(api::Error::Missing), &mut out);
+-    let out = outputs(&mut d, Event::StepTier { task: TIER_TASK, entry: RETRY });
++    let out = outputs(&mut d, Event::StepTier { released: false, task: TIER_TASK, entry: RETRY });
+     let api::Write::Dispatch { .. } = effect_write(&out) else { panic!("the fault is retried by dispatch") };
+     assert_eq!(fixtures::browser(&d).record.run.as_ref().unwrap().faults, 1);
+     assert!(d.verifications.get(&(REPO, MERGE)).unwrap().tiers[0].verdict.is_none());
+@@ -898,7 +918,7 @@ fn new_failures_of_one_landing_are_its_own() {
+     assert_eq!(blame(&d, MERGE), &policy::Blame::Owns(failures()));
+ }
+ fn probe_step(d: &mut Domain, entry: u64) -> Box<[Request]> {
+-    let out = outputs(d, Event::StepTier { task: TIER_TASK, entry });
++    let out = outputs(d, Event::StepTier { released: false, task: TIER_TASK, entry });
+     if let api::Write::CreateBranch { .. } = effect_write(&out) {
+         let mut ignored = Queue::with_capacity(max_out(&LIMITS));
+         crate::tiers::outcome(
+@@ -966,7 +986,7 @@ fn a_probes_branch_is_made_at_its_landing_and_released_after() {
+     failed_part(&mut d);
+     report(&mut d, TWO_FAILURES, false);
+     dispatch(&mut d, STATUS); // post the verdict before deleting the last probe.
+-    let out = outputs(&mut d, Event::StepTier { task: TIER_TASK, entry: 303 });
++    let out = outputs(&mut d, Event::StepTier { released: false, task: TIER_TASK, entry: 303 });
+     assert_eq!(effect_write(&out), &api::Write::DeleteBranch { branch: b"temper/tier/browser.1.0".as_slice().into() });
+     let saved = &d.entries.get(&303).unwrap().entry;
+     assert_eq!(d.tier_effect_kind(saved), None);
+@@ -977,7 +997,7 @@ fn a_judged_runs_branch_is_released_before_its_task_is_done() {
+     let mut d = dispatched();
+     completed(&mut d, api::Conclusion::Success, None);
+     dispatch(&mut d, STATUS);
+-    let out = outputs(&mut d, Event::StepTier { task: TIER_TASK, entry: RETRY });
++    let out = outputs(&mut d, Event::StepTier { released: false, task: TIER_TASK, entry: RETRY });
+     assert_eq!(effect_write(&out), &api::Write::DeleteBranch { branch: b"temper/tier/browser.1".as_slice().into() });
+     assert_eq!(tier_decision(&out), Some(&TierDecision::Wait));
+     assert!(fixtures::browser(&d).result.as_ref().unwrap().applied);
+@@ -1035,7 +1055,7 @@ fn a_failed_deletion_holds_the_task_without_undoing_its_verdict() {
+     let mut d = red_range(&[MERGE]);
+     red(&mut d);
+     dispatch(&mut d, STATUS);
+-    outputs(&mut d, Event::StepTier { task: TIER_TASK, entry: 403 });
++    outputs(&mut d, Event::StepTier { released: false, task: TIER_TASK, entry: 403 });
+     let mut out = Queue::with_capacity(max_out(&LIMITS));
+     crate::tiers::outcome(&mut d, 403, skein_forge_client::Outcome::Failed(api::Error::Refused), &mut out);
+     let mut held = false;
+@@ -1058,7 +1078,7 @@ fn a_failed_last_probe_deletion_keeps_the_judged_verdict() {
+     failed_part(&mut d);
+     report(&mut d, TWO_FAILURES, false);
+     dispatch(&mut d, STATUS);
+-    let out = outputs(&mut d, Event::StepTier { task: TIER_TASK, entry: 403 });
++    let out = outputs(&mut d, Event::StepTier { released: false, task: TIER_TASK, entry: 403 });
+     assert_eq!(effect_write(&out), &api::Write::DeleteBranch { branch: b"temper/tier/browser.1.0".as_slice().into() });
+     let mut out = Queue::with_capacity(max_out(&LIMITS));
+     crate::tiers::outcome(&mut d, 403, skein_forge_client::Outcome::Failed(api::Error::Refused), &mut out);
+@@ -1074,7 +1094,7 @@ fn a_restart_while_reading_a_failed_report_reads_it_again() {
+     outputs(&mut d, Event::Restore { record: Stored::Tier(row) });
+     d.tier_follows.remove(&(REPO, BROWSER.into()));
+     crate::tiers::rebuild(&mut d);
+-    outputs(&mut d, Event::StepTier { task: TIER_TASK, entry: RETRY });
++    outputs(&mut d, Event::StepTier { released: false, task: TIER_TASK, entry: RETRY });
+     let (_, op) = fixtures::next_call(&mut d);
+     assert_eq!(
+         op,
+@@ -1137,7 +1157,7 @@ fn a_receipts_unreadable_run_does_not_hold_its_red_news() {
+             },
+         )
+         .unwrap();
+-    outputs(&mut d, Event::StepTier { task: TIER_TASK, entry: RETRY });
++    outputs(&mut d, Event::StepTier { released: false, task: TIER_TASK, entry: RETRY });
+     let mut read = None;
+     for (owner, candidate) in &d.tier_reads {
+         if *candidate == key {
+@@ -1146,7 +1166,7 @@ fn a_receipts_unreadable_run_does_not_hold_its_red_news() {
+     }
+     let mut out = Queue::with_capacity(max_out(&LIMITS));
+     crate::tiers::answered(&mut d, &env(), read.expect("receipt log read"), Err(api::Error::Busy), &mut out);
+-    let out = outputs(&mut d, Event::StepTier { task: TIER_TASK, entry: RETRY });
++    let out = outputs(&mut d, Event::StepTier { released: false, task: TIER_TASK, entry: RETRY });
+     let mut told = None;
+     for request in &out {
+         if let Request::News { task, news: News::Red { .. }, .. } = request {
+@@ -1155,3 +1175,202 @@ fn a_receipts_unreadable_run_does_not_hold_its_red_news() {
+     }
+     assert_eq!(told, Some(GOAL));
+ }
++
++fn held_run(fault: temper_engine_domain_forge_landing::Fault) -> Domain {
++    let mut d = dispatched();
++    let row = d.tier_rows.get_mut(&(REPO, BROWSER.into())).unwrap();
++    row.record.run.as_mut().unwrap().faults = 3; // One past the fixture's two retries.
++    row.held = Some(TierHeld {
++        fault,
++        status: TierBranch::Absent,
++        run: Some(ReceiptRun { id: RUN_ID, number: 1, url: b"https://forge/run/71".as_slice().into() }),
++    });
++    d
++}
++#[test]
++fn a_held_run_posts_why_on_its_tip_and_names_its_tier_and_run() {
++    use temper_engine_domain_forge_landing::Fault;
++    for (fault, words) in [
++        (Fault::SetUp, b"held after 3 runner faults, last: set-up".as_slice()),
++        (Fault::Completion, b"held after 3 runner faults, last: completion".as_slice()),
++        (Fault::NoStep, b"held after 3 runner faults, last: no step".as_slice()),
++        (Fault::Cancelled, b"held after 3 runner faults, last: cancelled".as_slice()),
++        (Fault::OtherCommit, b"held after 3 runner faults, last: other commit".as_slice()),
++        (Fault::Lost, b"held after 3 runner faults, last: lost".as_slice()),
++    ] {
++        let mut d = held_run(fault);
++        let out = outputs(&mut d, Event::StepTier { released: false, task: TIER_TASK, entry: STATUS });
++        assert_eq!(
++            effect_write(&out),
++            &api::Write::Status {
++                commit: BASE,
++                context: b"temper/verdict/browser".as_slice().into(),
++                check: api::Check::Pending,
++                description: words.into(),
++                link: b"https://forge/run/71".as_slice().into(),
++            }
++        );
++        assert_eq!(d.tier_effect_kind(&d.entries.get(&STATUS).unwrap().entry), Some((6, What::Repository)));
++    }
++}
++#[test]
++fn a_released_run_dispatches_again_with_its_faults_at_zero() {
++    let mut d = held_run(temper_engine_domain_forge_landing::Fault::SetUp);
++    let out = outputs(&mut d, Event::StepTier { released: true, task: TIER_TASK, entry: RETRY });
++    let api::Write::Dispatch { .. } = effect_write(&out) else { panic!("release dispatches again") };
++    assert_eq!(fixtures::browser(&d).record.run.as_ref().unwrap().faults, 0);
++    assert_eq!(fixtures::browser(&d).held, None);
++}
++#[test]
++fn a_permanently_failed_hold_status_still_holds_the_run() {
++    let mut d = held_run(temper_engine_domain_forge_landing::Fault::Completion);
++    outputs(&mut d, Event::StepTier { released: false, task: TIER_TASK, entry: STATUS });
++    let mut ignored = Queue::with_capacity(max_out(&LIMITS));
++    crate::tiers::outcome(&mut d, STATUS, skein_forge_client::Outcome::Failed(api::Error::Forbidden), &mut ignored);
++    let out = outputs(&mut d, Event::StepTier { released: false, task: TIER_TASK, entry: RETRY });
++    assert_eq!(tier_decision(&out), Some(&TierDecision::Held));
++    assert_eq!(fixtures::browser(&d).record.run.as_ref().unwrap().faults, 3);
++}
++
++const LATE_GOAL: u64 = 301;
++fn late_result(blame: policy::Blame, goal: bool) -> Domain {
++    let mut d = red_range(&[MERGE]);
++    let mut out = Queue::with_capacity(max_out(&LIMITS));
++    log::landed(&mut d, REPO, MERGE, (CHANGE, fixtures::PULL), env().wall, &mut out);
++    crate::verification::released(&mut d, CHANGE, &mut out);
++    if goal {
++        let topic = Topic::Landings { repository: REPO, branch: b"main".as_slice().into() };
++        d.subscriptions
++            .insert(
++                (LATE_GOAL, topic.clone()),
++                Subscriber {
++                    task: LATE_GOAL,
++                    number: LATE_GOAL,
++                    topic,
++                    own_change: None,
++                    goal_tasks: Some(Box::new([CHANGE])),
++                    paths: Box::new([]),
++                },
++            )
++            .unwrap();
++    }
++    let row = d.tier_rows.get_mut(&(REPO, BROWSER.into())).unwrap();
++    row.branch = TierBranch::Absent;
++    let run = row.record.run.as_ref().unwrap();
++    row.result = Some(TierResult {
++        told: Box::new([]),
++        run: ReceiptRun { id: RUN_ID, number: 1, url: b"https://forge/run/71".as_slice().into() },
++        received: false,
++        applied: true,
++        status: TierBranch::Made,
++        verdict: policy::Verdict {
++            number: run.number,
++            tip: run.tip,
++            key: run.key,
++            failing: match &blame {
++                policy::Blame::Cleared => policy::Failures::Tests(Box::new([])),
++                policy::Blame::Owns(failing) | policy::Blame::Suspect(failing) => failing.clone(),
++            },
++            landings: Box::new([blame]),
++            flakes: Box::new([]),
++        },
++    });
++    d
++}
++#[test]
++fn a_late_green_is_news_to_the_goal_of_its_ended_change() {
++    let mut d = late_result(policy::Blame::Cleared, true);
++    let out = outputs(&mut d, Event::StepTier { released: false, task: TIER_TASK, entry: STATUS });
++    assert!(out.contains(&Request::News {
++        task: LATE_GOAL,
++        subscription: LATE_GOAL,
++        topic: Topic::Landings { repository: REPO, branch: b"main".as_slice().into() },
++        news: News::Cleared { tier: BROWSER.into(), landing: MERGE },
++        class: Class::Kept,
++    }));
++    let out = outputs(&mut d, Event::StepTier { released: false, task: TIER_TASK, entry: RETRY });
++    let mut news = 0_u32;
++    for request in &out {
++        if let Request::News { .. } = request {
++            news = news.checked_add(1).unwrap();
++        }
++    }
++    assert_eq!(news, 0);
++}
++#[test]
++fn a_late_red_reaches_a_live_goal() {
++    let mut d = late_result(policy::Blame::Owns(failures()), true);
++    let mut row = d.tier_rows.remove(&(REPO, BROWSER.into())).unwrap();
++    let mut out = Queue::with_capacity(max_out(&LIMITS));
++    crate::verification::tell_late(&d, &mut row, b"last log line", &mut out);
++    let mut delivered = None;
++    for request in &out {
++        if let Request::News { task, class, news, .. } = request {
++            delivered = Some((*task, *class, news.clone()));
++        }
++    }
++    assert_eq!(
++        delivered,
++        Some((
++            LATE_GOAL,
++            Class::Wakes,
++            News::Red {
++                tier: BROWSER.into(),
++                landing: MERGE,
++                failing: failures(),
++                log: b"last log line".as_slice().into(),
++                run: ReceiptRun { id: RUN_ID, number: 1, url: b"https://forge/run/71".as_slice().into() },
++            }
++        ))
++    );
++    assert!(crate::verification::late_recipient(&d, &row).is_none());
++}
++#[test]
++fn a_late_red_with_no_live_goal_stays_on_the_tiers_record() {
++    let mut d = late_result(policy::Blame::Owns(failures()), false);
++    outputs(&mut d, Event::StepTier { released: false, task: TIER_TASK, entry: STATUS });
++    assert_eq!(
++        fixtures::browser(&d).reds.as_ref(),
++        &[TierRed {
++            landing: MERGE,
++            blame: policy::Blame::Owns(failures()),
++            run: ReceiptRun { id: RUN_ID, number: 1, url: b"https://forge/run/71".as_slice().into() },
++        }]
++    );
++}
++fn retained_reds(count: u32) -> Domain {
++    let mut d = late_result(policy::Blame::Owns(failures()), false);
++    let row = d.tier_rows.get_mut(&(REPO, BROWSER.into())).unwrap();
++    let mut reds = skein_lib::List::with_capacity(count);
++    for index in 0..count {
++        reds.push(TierRed {
++            landing: [u8::try_from(index.checked_add(100).unwrap()).unwrap(); 32],
++            blame: policy::Blame::Owns(failures()),
++            run: ReceiptRun { id: RUN_ID, number: 1, url: Box::new([]) },
++        })
++        .unwrap();
++    }
++    row.reds = reds.into_boxed();
++    d
++}
++#[test]
++fn a_full_red_record_preserves_the_current_verdict_and_holds() {
++    let capacity = LIMITS.changes * 2 + 1; // The existing tier range.
++    let mut d = retained_reds(capacity);
++    let out = outputs(&mut d, Event::StepTier { released: false, task: TIER_TASK, entry: STATUS });
++    assert_eq!(tier_decision(&out), Some(&TierDecision::Held));
++    assert_eq!(fixtures::browser(&d).reds.len(), usize::try_from(capacity).unwrap());
++    assert!(fixtures::browser(&d).result.is_some());
++}
++
++#[test]
++fn a_red_record_at_its_range_bound_keeps_the_last_red() {
++    let capacity = LIMITS.changes * 2 + 1; // The existing tier range.
++    let mut d = retained_reds(capacity - 1);
++    let out = outputs(&mut d, Event::StepTier { released: false, task: TIER_TASK, entry: STATUS });
++    let Some(TierDecision::Done { .. }) = tier_decision(&out) else {
++        panic!("a red at the bound is retained and finishes")
++    };
++    assert_eq!(fixtures::browser(&d).reds.len(), usize::try_from(capacity).unwrap());
++    assert_eq!(fixtures::browser(&d).reds.last().unwrap().landing, MERGE);
++}
+diff --git a/temper/crates/temper-engine-domain-forge/src/tests/verification.rs b/temper/crates/temper-engine-domain-forge/src/tests/verification.rs
+index bc915a3ad..963c1ab5f 100644
+--- a/temper/crates/temper-engine-domain-forge/src/tests/verification.rs
++++ b/temper/crates/temper-engine-domain-forge/src/tests/verification.rs
+@@ -45,7 +45,7 @@ fn a_landed_change_steps_with_no_read() {
+     let requests = fixtures::verification_step(&mut d);
+     assert!(requests.contains(&Request::ChangeDecision {
+         task: CHANGE,
+-        decision: change::Decision::None,
++        decision: change::Decision::Wait { until: Some(Wall::from_nanos(env().wall.as_nanos() + 7_200_000_000_000)) },
+         entry: None,
+         evidence: None
+     }));
+diff --git a/temper/crates/temper-engine-domain-forge/src/tiers.rs b/temper/crates/temper-engine-domain-forge/src/tiers.rs
+index 4239a8120..3d26fca96 100644
+--- a/temper/crates/temper-engine-domain-forge/src/tiers.rs
++++ b/temper/crates/temper-engine-domain-forge/src/tiers.rs
+@@ -83,14 +83,22 @@ fn red_news(
+     d: &mut Domain,
+     env: &Env<Limits>,
+     key: &(Repository, Box<[u8]>),
+-    row: &TierRow,
++    row: &mut TierRow,
+     out: &mut Queue<Request>,
+ ) -> bool {
+     let Some(result) = &row.result else { return true };
+     if !result.applied {
+         return true;
+     }
+-    if !crate::verification::untold(d, row.repository, &row.tier, result.verdict.number) {
++    let late = crate::verification::late_recipient(d, row);
++    if let Some((_, _, policy::Blame::Cleared)) = &late {
++        crate::verification::tell_late(d, row, b"", out);
++        save(row, out);
++        wait(row.task.expect("tier task"), out);
++        out.push(Request::WakeProcedure { task: row.task.expect("tier task") });
++        return false;
++    }
++    if !crate::verification::untold(d, row.repository, &row.tier, result.verdict.number) && late.is_none() {
+         // A goal may end during a log read. Keep its read owner alive until
+         // the terminal arrives before cleanup drops the tier's follower.
+         if d.tier_logs.contains_key(key) && reading(d, key) {
+@@ -116,7 +124,12 @@ fn red_news(
+         d.tier_reads.insert(owner, key.clone()).expect("tier read owner");
+     } else {
+         let log = Box::from(logs.words.as_slice());
+-        crate::verification::tell(d, row.repository, &row.tier, result.verdict.number, &result.run, &log, out);
++        if crate::verification::untold(d, row.repository, &row.tier, result.verdict.number) {
++            crate::verification::tell(d, row.repository, &row.tier, result.verdict.number, &result.run, &log, out);
++        } else {
++            crate::verification::tell_late(d, row, &log, out);
++            save(row, out);
++        }
+         wait(row.task.expect("tier task"), out);
+         out.push(Request::WakeProcedure { task: row.task.expect("tier task") });
+         return false;
+@@ -350,6 +363,8 @@ pub(crate) fn start_due(d: &mut Domain, env: &Env<Limits>, repository: Repositor
+ }
+ fn new_row(repository: Repository, tier: Box<[u8]>) -> TierRow {
+     TierRow {
++        held: None,
++        reds: Box::new([]),
+         repository,
+         tier,
+         record: policy::Record {
+@@ -445,6 +460,7 @@ fn start_due_for(
+                 policy::Next::Dispatch(next) | policy::Next::Held(next) => row.record.run = Some(next),
+                 policy::Next::Judged(verdict) => {
+                     row.result = Some(crate::TierResult {
++                        told: Box::new([]),
+                         verdict,
+                         run: receipt.expect("an immediate judgement uses a receipt").run,
+                         received: true,
+@@ -919,6 +935,7 @@ pub(crate) fn rebuild(d: &mut Domain) {
+         row.flight.as_mut().expect("saved follower").next = Some(skein_lib::Time::ZERO);
+     }
+ }
++#[expect(clippy::manual_map, reason = "the step translates optional run facts explicitly, without callbacks")]
+ fn advance(d: &Domain, row: &mut TierRow, follow: &mut crate::runs::Follow, outcome: policy::Outcome) {
+     let run = row.record.run.as_ref().expect("followed run");
+     let project = d.repositories.get(&row.repository).expect("adopted tier").project;
+@@ -940,6 +957,19 @@ fn advance(d: &Domain, row: &mut TierRow, follow: &mut crate::runs::Follow, outc
+             remember(row, follow);
+         }
+         policy::Next::Held(run) => {
++            row.held = Some(crate::TierHeld {
++                fault: match follow.outcome {
++                    Some(landing::Verdict::Fault(fault)) => fault,
++                    Some(landing::Verdict::Running | landing::Verdict::Passed | landing::Verdict::Failed) | None => {
++                        landing::Fault::NoStep
++                    }
++                },
++                run: match &follow.run {
++                    Some(run) => Some(crate::ReceiptRun { id: run.id, number: run.number, url: run.url.clone() }),
++                    None => None,
++                },
++                status: TierBranch::Absent,
++            });
+             row.record.run = Some(run);
+             remember(row, follow);
+             // The terminal fault is already counted; it must not be counted again.
+@@ -953,8 +983,14 @@ fn advance(d: &Domain, row: &mut TierRow, follow: &mut crate::runs::Follow, outc
+                     crate::ReceiptRun { id: run.id, number: run.number, url: run.url.clone() }
+                 }
+             };
+-            row.result =
+-                Some(crate::TierResult { verdict, run, received: false, status: TierBranch::Absent, applied: false });
++            row.result = Some(crate::TierResult {
++                told: Box::new([]),
++                verdict,
++                run,
++                received: false,
++                status: TierBranch::Absent,
++                applied: false,
++            });
+         }
+     }
+ }
+@@ -1006,7 +1042,7 @@ fn tier_entry(row: &TierRow, entry: u64, write: Write) -> skein_forge_client::En
+         queued: false,
+     }
+ }
+-pub(crate) fn step(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, out: &mut Queue<Request>) {
++pub(crate) fn step(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, released: bool, out: &mut Queue<Request>) {
+     let mut found = None;
+     for (key, row) in &d.tier_rows {
+         if row.task == Some(task) {
+@@ -1020,6 +1056,13 @@ pub(crate) fn step(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, out
+     };
+     let was_reading = reading(d, &key);
+     let mut row = d.tier_rows.remove(&key).expect("found tier");
++    if released && row.held.is_some() {
++        row.record.run.as_mut().expect("held run").faults = 0;
++        row.held = None;
++        row.flight = None;
++        d.tier_follows.remove(&key);
++        save(&row, out);
++    }
+     step_row(d, env, &key, &mut row, task, entry, out);
+     let repository = row.repository;
+     let done = row.record.run.is_none();
+@@ -1111,6 +1154,49 @@ fn cleanup(
+     false
+ }
+ 
++fn held_status(row: &TierRow) -> Write {
++    let held = row.held.as_ref().expect("held run");
++    let run = row.record.run.as_ref().expect("held range");
++    let kind: &[u8] = match held.fault {
++        landing::Fault::SetUp => b"set-up",
++        landing::Fault::Completion => b"completion",
++        landing::Fault::NoStep => b"no step",
++        landing::Fault::Cancelled => b"cancelled",
++        landing::Fault::OtherCommit => b"other commit",
++        landing::Fault::Lost => b"lost",
++    };
++    Write::Status {
++        commit: run.tip,
++        context: joined(&[b"temper/verdict/", &row.tier]),
++        check: skein_forge::api::Check::Pending,
++        description: joined(&[
++            b"held after ",
++            skein_lib::Decimal::of(u64::from(run.faults)).as_bytes(),
++            b" runner faults, last: ",
++            kind,
++        ]),
++        link: match &held.run {
++            Some(run) => run.url.clone(),
++            None => Box::new([]),
++        },
++    }
++}
++fn hold_run(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, entry: u64, out: &mut Queue<Request>) {
++    let task = row.task.expect("held tier task");
++    if row.held.is_none() {
++        row.held = Some(crate::TierHeld { fault: landing::Fault::Lost, run: None, status: TierBranch::Absent });
++    }
++    match row.held.as_ref().expect("held run").status {
++        TierBranch::Absent if d.entries.len() < env.limits.entries && !d.entries.contains_key(&entry) => {
++            let write = held_status(row);
++            row.held.as_mut().expect("held run").status = TierBranch::Pending { entry };
++            effect(d, row, entry, write, 8, 0, out);
++        }
++        TierBranch::Absent | TierBranch::Pending { .. } => wait(task, out),
++        TierBranch::Made => out.push(Request::TierDecision { task, decision: TierDecision::Held }),
++    }
++}
++
+ fn probe_ready(d: &mut Domain, row: &mut TierRow, entry: u64, out: &mut Queue<Request>) -> bool {
+     let run = row.record.run.as_ref().expect("probe's run");
+     let task = row.task.expect("probe's task");
+@@ -1148,7 +1234,7 @@ fn step_row(
+     };
+     let project = d.repositories.get(&row.repository).expect("adopted tier").project;
+     if run.faults > d.tier_settings.get(&project).expect("settings").verdict.retries {
+-        out.push(Request::TierDecision { task, decision: TierDecision::Held });
++        hold_run(d, env, row, entry, out);
+         return;
+     }
+     if row.result.is_none()
+@@ -1168,7 +1254,7 @@ fn step_row(
+     }
+     let run = row.record.run.as_ref().expect("checked live run");
+     if run.faults > d.tier_settings.get(&project).expect("settings").verdict.retries {
+-        out.push(Request::TierDecision { task, decision: TierDecision::Held });
++        hold_run(d, env, row, entry, out);
+         return;
+     }
+     if !red_news(d, env, key, row, out) {
+@@ -1335,6 +1421,10 @@ fn finish(
+     row: &mut TierRow,
+     out: &mut Queue<Request>,
+ ) {
++    if !crate::verification::retain_reds(d, row, out) {
++        out.push(Request::TierDecision { task: row.task.expect("full red record"), decision: TierDecision::Held });
++        return;
++    }
+     let result = row.result.take().expect("judgement applied and branches deleted");
+     let run = row.record.run.as_ref().expect("judged range");
+     let mut cleared = 0_u64;
+@@ -1529,6 +1619,11 @@ pub(crate) fn veto(d: &mut Domain, task: u64, entry: u64, out: &mut Queue<Reques
+         {
+             result.status = TierBranch::Absent;
+         }
++        if let Some(held) = &mut row.held
++            && held.status == (TierBranch::Pending { entry })
++        {
++            held.status = TierBranch::Made;
++        }
+         if let Some(flight) = &mut row.flight
+             && flight.entry == entry
+         {
+@@ -1541,6 +1636,10 @@ pub(crate) fn veto(d: &mut Domain, task: u64, entry: u64, out: &mut Queue<Reques
+     out.push(Request::Erase { key: crate::Key::Entry(entry) });
+ }
+ #[expect(clippy::match_like_matches_macro, reason = "the foundation uses explicit matches")]
++#[expect(
++    clippy::too_many_lines,
++    reason = "one settled effect advances branch, workflow, verdict or held-status progress atomically"
++)]
+ pub(crate) fn outcome(d: &mut Domain, entry: u64, outcome: skein_forge_client::Outcome, out: &mut Queue<Request>) {
+     use skein_forge_client::{Made, Outcome};
+     let mut found = None;
+@@ -1558,6 +1657,10 @@ pub(crate) fn outcome(d: &mut Domain, entry: u64, outcome: skein_forge_client::O
+                 Some(result) => result.status == (TierBranch::Pending { entry }),
+                 None => false,
+             }
++            || match &row.held {
++                Some(held) => held.status == (TierBranch::Pending { entry }),
++                None => false,
++            }
+         {
+             found = Some(key.clone());
+             break;
+@@ -1607,6 +1710,12 @@ pub(crate) fn outcome(d: &mut Domain, entry: u64, outcome: skein_forge_client::O
+                 row.probe = None;
+             }
+         }
++        if let Some(held) = &mut row.held
++            && held.status == pending
++        {
++            // Both a successful post and a permanent failure end the attempt.
++            held.status = TierBranch::Made;
++        }
+         if status_entry && made {
+             row.result.as_mut().expect("status result").status = TierBranch::Made;
+         }
+@@ -1649,6 +1758,18 @@ pub(crate) fn stored_bytes(row: &TierRow) -> Option<u64> {
+     let mut bytes = u64::try_from(row.tier.len())
+         .ok()?
+         .checked_add(array_bytes(row.pending.len(), size_of::<crate::TierLanding>())?)?;
++    if let Some(held) = &row.held
++        && let Some(run) = &held.run
++    {
++        bytes = bytes.checked_add(u64::try_from(run.url.len()).ok()?)?;
++    }
++    bytes = bytes.checked_add(array_bytes(row.reds.len(), size_of::<crate::TierRed>())?)?;
++    for red in &row.reds {
++        bytes = bytes.checked_add(u64::try_from(red.run.url.len()).ok()?)?;
++        if let policy::Blame::Owns(failing) | policy::Blame::Suspect(failing) = &red.blame {
++            bytes = bytes.checked_add(failures_bytes(failing)?)?;
++        }
++    }
+     bytes = bytes.checked_add(failures_bytes(&row.record.failing)?)?;
+     for flake in &row.record.flakes {
+         bytes = bytes
+@@ -1663,6 +1784,7 @@ pub(crate) fn stored_bytes(row: &TierRow) -> Option<u64> {
+     }
+     if let Some(result) = &row.result {
+         bytes = bytes
++            .checked_add(array_bytes(result.told.len(), size_of::<crate::LateTold>())?)?
+             .checked_add(failures_bytes(&result.verdict.failing)?)?
+             .checked_add(tests_bytes(&result.verdict.flakes)?)?
+             .checked_add(array_bytes(result.verdict.landings.len(), size_of::<policy::Blame>())?)?
+@@ -1717,12 +1839,25 @@ pub(crate) fn worst_case(l: &Limits) -> Option<u64> {
+     let landings = u64::from(l.changes.checked_mul(2)?.checked_add(1)?);
+     let tests = u64::from(l.failing_tests)
+         .checked_mul(u64::from(l.test_id_bytes).checked_add(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?)?;
++    // A full retained red record and its admission scratch coexist. Each red
++    // retains at most failing_tests ids and a bounded forge run URL.
++    let retained = landings
++        .checked_mul(u64::try_from(size_of::<crate::TierRed>()).ok()?.checked_add(tests)?.checked_add(2048)?)?
++        .checked_mul(2)?;
++    let recipients = landings
++        .checked_mul(u64::from(l.subscriptions))?
++        .checked_mul(u64::try_from(size_of::<crate::LateTold>()).ok()?)?
++        .checked_mul(2)?;
+     let payload = u64::try_from(crate::CHECK_NAME_BYTES)
+         .ok()?
+         .checked_add(landings.checked_mul(
+             u64::try_from(size_of::<policy::Landing>().checked_add(size_of::<crate::TierLanding>())?).ok()?,
+         )?)?
+         .checked_add(tests.checked_mul(5)?)?
++        .checked_add(retained)?
++        .checked_add(recipients)?
++        .checked_add(u64::try_from(size_of::<crate::LateTold>()).ok()?)?
++        .checked_add(2048)?
+         .checked_add(u64::from(l.failing_tests).checked_mul(u64::try_from(size_of::<policy::Flake>()).ok()?)?)?
+         .checked_add(landings.checked_mul(u64::try_from(size_of::<policy::Blame>()).ok()?.checked_add(tests)?)?)?;
+     // Two landing inputs and the bounded selection coexist in each dispatch.
+@@ -1843,6 +1978,14 @@ impl Domain {
+             Write::Rerun { attempt } if attempt.head == commit && row.flight.as_ref()?.entry == entry.number => {
+                 Some((17, What::Branch(path_parts(&current))))
+             }
++            Write::Status { .. }
++                if match &row.held {
++                    Some(held) => held.status == pending,
++                    None => false,
++                } && entry.effect.write == held_status(row) =>
++            {
++                Some((6, What::Repository))
++            }
+             Write::Status { .. }
+                 if row.result.as_ref()?.status == pending
+                     && entry.effect.write == status(&row.tier, row.result.as_ref()?) =>
+diff --git a/temper/crates/temper-engine-domain-forge/src/topics.rs b/temper/crates/temper-engine-domain-forge/src/topics.rs
+index b494a15ad..04b7010a3 100644
+--- a/temper/crates/temper-engine-domain-forge/src/topics.rs
++++ b/temper/crates/temper-engine-domain-forge/src/topics.rs
+@@ -243,6 +243,7 @@ fn finish(d: &mut Domain, pending: Pending, paths: Option<Box<[Box<[u8]>]>>) {
+ pub(crate) fn classify(d: &Domain, subscriber: &Subscriber, news: &News) -> Class {
+     let (after, files) = match news {
+         News::Landing { after, files, .. } => (after, files),
++        News::Cleared { .. } => return Class::Kept,
+         News::Red { .. } | News::Ci { .. } | News::Changed { .. } => return Class::Wakes,
+     };
+     let Some(tasks) = &subscriber.goal_tasks else { return domain::classify(d, subscriber, news) };
+@@ -267,6 +268,7 @@ pub(crate) fn classify(d: &Domain, subscriber: &Subscriber, news: &News) -> Clas
+             change::State::Landed { .. }
+             | change::State::Red { .. }
+             | change::State::Cleared { .. }
++            | change::State::Uncleared { .. }
+             | change::State::Ended => continue,
+             change::State::Producing { .. }
+             | change::State::Opening { .. }
+diff --git a/temper/crates/temper-engine-domain-forge/src/verification.rs b/temper/crates/temper-engine-domain-forge/src/verification.rs
+index c6627f0ae..257946491 100644
+--- a/temper/crates/temper-engine-domain-forge/src/verification.rs
++++ b/temper/crates/temper-engine-domain-forge/src/verification.rs
+@@ -417,3 +417,157 @@ impl Domain {
+         self.verifications.get(&(repository, commit))
+     }
+ }
++
++/// Supply the project's verification clock with the change's other limits.
++pub(crate) fn change_limits(d: &Domain, repository: Repository, mut limits: change::Limits) -> change::Limits {
++    if let Some(adopted) = d.repositories.get(&repository)
++        && let Some(settings) = d.tier_settings.get(&adopted.project)
++    {
++        limits.verification_bound = settings.bound;
++    }
++    limits
++}
++
++/// A late verdict uses the log after the last verification member closes.
++/// One recipient at a time keeps news and its durable acknowledgement atomic.
++pub(crate) fn late_recipient(d: &Domain, row: &crate::TierRow) -> Option<(Commit, crate::Subscriber, Blame)> {
++    let result = row.result.as_ref()?;
++    let range = &row.record.run.as_ref()?.landings;
++    let history = d.landing_logs.get(&row.repository)?;
++    for (landing, blame) in range.iter().zip(&result.verdict.landings) {
++        if d.verifications.contains_key(&(row.repository, landing.commit)) {
++            continue;
++        }
++        for entry in &history.landings {
++            if entry.commit != landing.commit {
++                continue;
++            }
++            for (_, subscriber) in &d.subscriptions {
++                if !hears_members(subscriber, row.repository, &entry.changes) {
++                    continue;
++                }
++                let mut told = false;
++                for mark in &result.told {
++                    if mark.landing == landing.commit && mark.goal == subscriber.task {
++                        told = true;
++                    }
++                }
++                if !told {
++                    return Some((landing.commit, subscriber.clone(), blame.clone()));
++                }
++            }
++        }
++    }
++    None
++}
++fn hears_members(subscriber: &crate::Subscriber, repository: Repository, members: &[(u64, u64)]) -> bool {
++    if let crate::Topic::Landings { repository: subscribed, .. } = subscriber.topic {
++        if subscribed != repository {
++            return false;
++        }
++    } else {
++        return false;
++    }
++    let Some(tasks) = &subscriber.goal_tasks else {
++        return false;
++    };
++    for (task, _) in members {
++        if tasks.contains(task) {
++            return true;
++        }
++    }
++    false
++}
++pub(crate) fn tell_late(d: &Domain, row: &mut crate::TierRow, log: &[u8], out: &mut Queue<Request>) {
++    let Some((landing, subscriber, blame)) = late_recipient(d, row) else {
++        return;
++    };
++    let result = row.result.as_mut().expect("late result");
++    let (news, class) = match blame {
++        Blame::Cleared => (crate::News::Cleared { tier: row.tier.clone(), landing }, crate::Class::Kept),
++        Blame::Owns(failing) | Blame::Suspect(failing) => (
++            crate::News::Red { tier: row.tier.clone(), landing, failing, run: result.run.clone(), log: Box::from(log) },
++            crate::Class::Wakes,
++        ),
++    };
++    out.push(Request::News {
++        task: subscriber.task,
++        subscription: subscriber.number,
++        topic: subscriber.topic,
++        news,
++        class,
++    });
++    let mut told = List::with_capacity(
++        u32::try_from(result.told.len()).expect("bounded recipients").checked_add(1).expect("one recipient"),
++    );
++    for mark in &result.told {
++        let mut live = false;
++        for (_, subscriber) in &d.subscriptions {
++            if subscriber.task == mark.goal {
++                live = true;
++            }
++        }
++        if live {
++            told.push(*mark).expect("existing recipients");
++        }
++    }
++    told.push(crate::LateTold { landing, goal: subscriber.task }).expect("new recipient");
++    result.told = told.into_boxed();
++}
++fn live_goal(d: &Domain, repository: Repository, landing: Commit) -> bool {
++    if let Some(verification) = d.verifications.get(&(repository, landing)) {
++        for (_, subscriber) in &d.subscriptions {
++            if hears(subscriber, verification) {
++                return true;
++            }
++        }
++    }
++    if let Some(history) = d.landing_logs.get(&repository) {
++        for entry in &history.landings {
++            if entry.commit == landing {
++                for (_, subscriber) in &d.subscriptions {
++                    if hears_members(subscriber, repository, &entry.changes) {
++                        return true;
++                    }
++                }
++            }
++        }
++    }
++    false
++}
++/// The existing range bounds stored reds; a full record preserves the current
++/// applied verdict and holds its task until findings can consume records.
++pub(crate) fn retain_reds(d: &Domain, row: &mut crate::TierRow, out: &mut Queue<Request>) -> bool {
++    let result = row.result.as_ref().expect("judged range");
++    let run = row.record.run.as_ref().expect("retained range");
++    let capacity = d.tier_config_limits.changes.checked_mul(2).expect("range").checked_add(1).expect("range tip");
++    let mut retained = List::with_capacity(capacity);
++    for red in &row.reds {
++        retained.push(red.clone()).expect("retained reds bound");
++    }
++    for (landing, blame) in run.landings.iter().zip(&result.verdict.landings) {
++        if !red(blame) || live_goal(d, row.repository, landing.commit) {
++            continue;
++        }
++        let mut duplicate = false;
++        for red in &row.reds {
++            if red.landing == landing.commit {
++                duplicate = true;
++            }
++        }
++        if duplicate {
++            continue;
++        }
++        if retained
++            .push(crate::TierRed { landing: landing.commit, blame: blame.clone(), run: result.run.clone() })
++            .is_err()
++        {
++            return false;
++        }
++    }
++    if row.reds.as_ref() != retained.as_slice() {
++        row.reds = retained.into_boxed();
++        out.push(Request::Save { read_afresh: None, release: None, record: Stored::Tier(row.clone()) });
++    }
++    true
++}
+diff --git a/temper/crates/temper-engine-domain-forge/src/views.rs b/temper/crates/temper-engine-domain-forge/src/views.rs
+index f6b5c59e7..164090607 100644
+--- a/temper/crates/temper-engine-domain-forge/src/views.rs
++++ b/temper/crates/temper-engine-domain-forge/src/views.rs
+@@ -358,7 +358,13 @@ impl Domain {
+                     commit: entry.commit,
+                     repository: name.into_boxed(),
+                     seen: entry.seen,
+-                    changes: entry.changes.clone(),
++                    changes: {
++                        let mut tasks = List::with_capacity(u32::try_from(entry.changes.len()).ok()?);
++                        for (task, _) in &entry.changes {
++                            tasks.push(*task).ok()?;
++                        }
++                        tasks.into_boxed()
++                    },
+                     verdicts: entry.verdicts.clone(),
+                 })
+                 .ok()?;
+diff --git a/temper/crates/temper-engine-domain/src/boundary.rs b/temper/crates/temper-engine-domain/src/boundary.rs
+index 5e490e643..aa209f8b3 100644
+--- a/temper/crates/temper-engine-domain/src/boundary.rs
++++ b/temper/crates/temper-engine-domain/src/boundary.rs
+@@ -687,6 +687,10 @@ pub enum PartyRequest {
+ }
+ 
+ #[derive(Debug)]
++#[expect(
++    clippy::large_enum_variant,
++    reason = "the root prices and carries typed child events inline in its bounded work queue"
++)]
+ pub(crate) enum Work {
+     SwitchChecked,
+     AdoptRestored,
+diff --git a/temper/crates/temper-engine-domain/src/route/forge_route.rs b/temper/crates/temper-engine-domain/src/route/forge_route.rs
+index 6d0131144..dad01ba3a 100644
+--- a/temper/crates/temper-engine-domain/src/route/forge_route.rs
++++ b/temper/crates/temper-engine-domain/src/route/forge_route.rs
+@@ -222,6 +222,12 @@ fn landing_pull(
+ fn news_words(news: &forge::News, limit: u32) -> Box<[u8]> {
+     let mut out = List::with_capacity(limit);
+     match news {
++        forge::News::Cleared { tier, landing } => {
++            append(&mut out, b"forge cleared in ");
++            append(&mut out, tier);
++            append(&mut out, b" at ");
++            append(&mut out, &commit_text(landing));
++        }
+         forge::News::Red { tier, landing, failing, run, log } => {
+             append(&mut out, b"forge red ");
+             append(&mut out, tier);
+@@ -1970,6 +1976,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
+                         | forge_change::State::Landing { .. }
+                         | forge_change::State::Red { .. }
+                         | forge_change::State::Cleared { .. }
++                        | forge_change::State::Uncleared { .. }
+                         | forge_change::State::Landed { .. }
+                         | forge_change::State::Ended => false,
+                     };
+@@ -2631,7 +2638,14 @@ pub(crate) fn start_tier(domain: &mut Domain, _env: &Env<Limits>, context: &task
+         return false;
+     }
+     let Some(entry) = crate::fresh(&mut domain.core.counters, Family::ConnectorRow) else { return false };
+-    domain.work.push(Work::Forge(forge::Event::StepTier { task: context.task, entry }));
++    domain.work.push(Work::Forge(forge::Event::StepTier {
++        released: match domain.core.tasks.task(context.task) {
++            Some(task) => task.due_reason == tasks::Why::Released,
++            None => false,
++        },
++        task: context.task,
++        entry,
++    }));
+     true
+ }
+ 
+@@ -2748,6 +2762,11 @@ fn start_queue_repair(domain: &mut Domain, env: &Env<Limits>, task: u64) -> bool
+     true
+ }
+ 
++#[expect(
++    clippy::manual_map,
++    clippy::match_like_matches_macro,
++    reason = "the root translates the task cancellation phase explicitly without callbacks"
++)]
+ fn change_landing_words(
+     domain: &Domain,
+     task: u64,
+@@ -2758,7 +2777,54 @@ fn change_landing_words(
+     let row = domain.forge.change(task).expect("landed change");
+     let repository = domain.forge.repository(row.repository);
+     let configured = domain.forge.configured(row.repository.forge);
+-    landing_words(merge, bound, repository, pull, configured, domain.forge.landing_verification(row.repository, *merge))
++    let verification = domain.forge.landing_verification(row.repository, *merge);
++    if let forge_change::State::Uncleared { .. } = row.change.state {
++        let phase = match domain.core.tasks.task(task) {
++            Some(row) => Some(&row.phase),
++            None => None,
++        };
++        let cancelled = match phase {
++            Some(
++                tasks::Phase::Closing(tasks::Closing { ending: tasks::Ending::Cancelled { .. }, .. })
++                | tasks::Phase::Held {
++                    was: tasks::Was::Closing(tasks::Closing { ending: tasks::Ending::Cancelled { .. }, .. }),
++                    ..
++                },
++            ) => true,
++            _ => false,
++        };
++        return uncleared_words(merge, bound, verification, cancelled);
++    }
++    landing_words(merge, bound, repository, pull, configured, verification)
++}
++
++/// Keep the qualification before optional pull details, within the task's contract.
++fn uncleared_words(
++    merge: &skein_forge::api::Commit,
++    bound: u32,
++    verification: Option<&forge::Verification>,
++    cancelled: bool,
++) -> Box<[u8]> {
++    let mut out = List::with_capacity(bound);
++    append(&mut out, &commit_text(merge));
++    if cancelled {
++        append(&mut out, b"\nlanded, uncleared: cancelled while verifying");
++    } else if let Some(verification) = verification {
++        for tier in &verification.tiers {
++            if tier.repaired.is_some() {
++                continue;
++            }
++            if let Some(forge::TierVerdict { blame: temper_engine_domain_forge_tiers::Blame::Cleared, .. }) =
++                tier.verdict
++            {
++                continue;
++            }
++            append(&mut out, b"\nlanded, uncleared: no verdict from ");
++            append(&mut out, &tier.tier);
++            append(&mut out, b" within the bound");
++        }
++    }
++    out.into_boxed()
+ }
+ 
+ /// Explain a failed review in the same decision that holds its change.
+diff --git a/temper/crates/temper-engine-domain/src/route/forge_route/tests.rs b/temper/crates/temper-engine-domain/src/route/forge_route/tests.rs
+index bd5eedae8..d1baa606b 100644
+--- a/temper/crates/temper-engine-domain/src/route/forge_route/tests.rs
++++ b/temper/crates/temper-engine-domain/src/route/forge_route/tests.rs
+@@ -664,3 +664,29 @@ fn a_repaired_changes_result_names_the_repair_before_its_pull() {
+         b"abcdef0123456789abcdef0123456789abcdef01\ncleared after red in browser, repaired by abababababab"
+     );
+ }
++
++#[test]
++fn an_uncleared_result_names_cancellation_within_its_contract() {
++    const WORDS: &[u8] = b"abcdef0123456789abcdef0123456789abcdef01\nlanded, uncleared: cancelled while verifying";
++    let bound = u32::try_from(WORDS.len()).unwrap();
++    for size in [bound, bound - 1] {
++        assert_eq!(super::uncleared_words(&SHA1, size, None, true).as_ref(), &WORDS[..usize::try_from(size).unwrap()]);
++    }
++}
++#[test]
++fn an_uncleared_result_names_every_tier_still_waiting() {
++    const WORDS: &[u8] = b"abcdef0123456789abcdef0123456789abcdef01\nlanded, uncleared: no verdict from browser within the bound\nlanded, uncleared: no verdict from fuzzy within the bound";
++    let row = super::forge::Verification {
++        repository: skein_forge::api::Repository { forge: 1, repository: 2 },
++        commit: SHA1,
++        repairs: None,
++        changes: Box::new([]),
++        tiers: Box::new([b"browser".as_slice(), b"fuzzy".as_slice()].map(|tier| super::forge::TierVerification {
++            told: Box::new([]),
++            tier: tier.into(),
++            verdict: None,
++            repaired: None,
++        })),
++    };
++    assert_eq!(super::uncleared_words(&SHA1, u32::try_from(WORDS.len()).unwrap(), Some(&row), false).as_ref(), WORDS);
++}
+diff --git a/temper/crates/temper-engine-domain/src/tests/resume_fixture.rs b/temper/crates/temper-engine-domain/src/tests/resume_fixture.rs
+index d9b2f1a3c..ad806fd8e 100644
+--- a/temper/crates/temper-engine-domain/src/tests/resume_fixture.rs
++++ b/temper/crates/temper-engine-domain/src/tests/resume_fixture.rs
+@@ -492,6 +492,7 @@ const FORGE_LIMITS: forge::Limits = forge::Limits {
+         interval: Duration::from_secs(5),
+     },
+     change_policy: temper_engine_domain_forge_change::Limits {
++        verification_bound: Duration::from_secs(7200),
+         repairs: 3,
+         resolutions: 3,
+         updates: 3,
+diff --git a/temper/crates/temper-fake/src/tests/check.rs b/temper/crates/temper-fake/src/tests/check.rs
+index faf546062..93caae302 100644
+--- a/temper/crates/temper-fake/src/tests/check.rs
++++ b/temper/crates/temper-fake/src/tests/check.rs
+@@ -91,6 +91,7 @@ pub const LIMITS: d::Limits = d::Limits {
+         interval: Duration::from_secs(5),
+     },
+     change_policy: temper_engine_domain_forge_change::Limits {
++        verification_bound: Duration::from_secs(7200),
+         repairs: 3,
+         resolutions: 3,
+         updates: 3,
+diff --git a/temper/crates/temper-protocol-store/schema/store-v10.schema b/temper/crates/temper-protocol-store/schema/store-v10.schema
+index c604a823b..fbab8694a 100644
+--- a/temper/crates/temper-protocol-store/schema/store-v10.schema
++++ b/temper/crates/temper-protocol-store/schema/store-v10.schema
+@@ -166,7 +166,7 @@ record Resolving { requested: bool base: fixed 32 }
+ record Repairing { requested: bool why: Repair }
+ record LandedChange { merge: fixed 32 }
+ record Preparing { from: fixed 32 main: fixed 32 ready_since: u64 }
+-enum ChangeLive { producing: Producing, opening: Producing, recreating: ChangeHead, reopening: Reopening, checking: ChangeHead, gating: Gating, queued: ReadyHead, first: ReadyHead, updating: Updating, resolving: Resolving, repairing: Repairing, landing: ChangeHead, landed: LandedChange, red: LandedChange, cleared: LandedChange, ended, ready: ReadyHead, preparing: Preparing }
++enum ChangeLive { producing: Producing, opening: Producing, recreating: ChangeHead, reopening: Reopening, checking: ChangeHead, gating: Gating, queued: ReadyHead, first: ReadyHead, updating: Updating, resolving: Resolving, repairing: Repairing, landing: ChangeHead, landed: LandedChange, red: LandedChange, cleared: LandedChange, ended, ready: ReadyHead, preparing: Preparing, uncleared: LandedChange }
+ record ChangeState { live: ChangeLive holds: list 8 ChangeHold }
+ record Gate { number: u64 kind: GateKind blocking: bool freshness: Freshness eager: bool }
+ record GateReport { number: u64 head: fixed 32 status: ChangeStatus }
+@@ -223,7 +223,10 @@ record Verification { repairs: option fixed 32 repository: Repository commit: fi
+ record LoggedRed { tests: option u32 }
+ enum LoggedVerdict { verifying, cleared, red: LoggedRed }
+ record Mark { tier: bytes 32 verdict: LoggedVerdict }
+-record Logged { commit: fixed 32 seen: u64 changes: list 65536 u64 verdicts: list 32 Mark }
++record LoggedChange { task: u64 pull: u64 }
++# Greatest member ceiling whose full 4096-entry log still fits u32 framing:
++# floor((floor((u32::MAX - 10) / 4096) - 1392) / 16) = 65448.
++record Logged { commit: fixed 32 seen: u64 changes: list 65448 LoggedChange verdicts: list 32 Mark }
+ record LandingLog { repository: Repository landings: list 4096 Logged }
+ # Family 25: one tier and its run in flight (domain/after-landing.md, 10).
+ record TierJudged { tip: fixed 32 key: fixed 32 }
+@@ -240,10 +243,14 @@ enum TierBranch { absent, pending: Number, made }
+ record ReceiptRun { id: u64 number: u64 url: bytes 2048 }
+ record TierFlight { next: option u64 entry: u64 start: option u64 since: option u64 waiting: bool fault: bool report: option ReceiptRun pending: list 65536 JobAttempt }
+ record TierJudgement { number: u64 tip: fixed 32 key: fixed 32 finding: TierFinding }
+-record TierResult { verdict: TierJudgement run: ReceiptRun received: bool status: TierBranch applied: bool }
++record LateTold { landing: fixed 32 goal: u64 }
++record TierResult { told: list 65536 LateTold verdict: TierJudgement run: ReceiptRun received: bool status: TierBranch applied: bool }
+ record TierPending { commit: fixed 32 key: option Commit }
+ record TierProbeBranch { landing: u32 branch: TierBranch }
+-record TierRow { repository: Repository tier: bytes 32 record: TierRecord pending: list 257 TierPending baseline: option TierPending task: option u64 branch: TierBranch probe: option TierProbeBranch flight: option TierFlight result: option TierResult }
++enum TierFault { set_up, completion, no_step, cancelled, other_commit, lost }
++record TierHeld { fault: TierFault run: option ReceiptRun status: TierBranch }
++record TierRed { landing: fixed 32 blame: Blame run: ReceiptRun }
++record TierRow { held: option TierHeld reds: list 257 TierRed repository: Repository tier: bytes 32 record: TierRecord pending: list 257 TierPending baseline: option TierPending task: option u64 branch: TierBranch probe: option TierProbeBranch flight: option TierFlight result: option TierResult }
+ # Families 23 and 24: landing state and receipts (domain/landing.md, 12).
+ record LandingAt { at: u64 }
+ enum LandingPlace { waiting, preparing, proving, proved: LandingAt, turn: LandingAt, landed, cancelled }
+diff --git a/temper/crates/temper-protocol-store/src/records.rs b/temper/crates/temper-protocol-store/src/records.rs
+index f6eeda41c..fb82baf66 100644
+--- a/temper/crates/temper-protocol-store/src/records.rs
++++ b/temper/crates/temper-protocol-store/src/records.rs
+@@ -190,6 +190,8 @@ pub(crate) fn limits(forge: &d::Limits) -> Option<w::Limits> {
+         receipt_name_name: 32,
+         receipt_run_url: 2048,
+         tier_flight_pending: forge.client.rows,
++        tier_row_reds: forge.changes.checked_mul(2)?.checked_add(1)?,
++        tier_result_told: forge.changes.checked_mul(2)?.checked_add(1)?.checked_mul(forge.subscriptions)?,
+         tier_row_tier: u32::try_from(d::CHECK_NAME_BYTES).ok()?,
+         tier_row_pending: forge.changes.checked_mul(2)?.checked_add(1)?,
+         tier_run_landings: forge.changes.checked_mul(2)?.checked_add(1)?,
+diff --git a/temper/crates/temper-protocol-store/src/records/change.rs b/temper/crates/temper-protocol-store/src/records/change.rs
+index ff32c7bf9..d5ccdf1dd 100644
+--- a/temper/crates/temper-protocol-store/src/records/change.rs
++++ b/temper/crates/temper-protocol-store/src/records/change.rs
+@@ -231,6 +231,9 @@ fn encode_live(value: &d::State) -> w::ChangeLive {
+         d::State::Red { merge } => {
+             w::ChangeLive::Red(w::LandedChange::new(&w::CEILINGS, w::LandedChangeParts { merge: *merge }).expect(FITS))
+         }
++        d::State::Uncleared { merge } => w::ChangeLive::Uncleared(
++            w::LandedChange::new(&w::CEILINGS, w::LandedChangeParts { merge: *merge }).expect(FITS),
++        ),
+         d::State::Cleared { merge } => w::ChangeLive::Cleared(
+             w::LandedChange::new(&w::CEILINGS, w::LandedChangeParts { merge: *merge }).expect(FITS),
+         ),
+@@ -300,6 +303,7 @@ fn decode_live(value: w::ChangeLive) -> d::State {
+             d::State::Landing { head }
+         }
+         w::ChangeLive::Red(value) => d::State::Red { merge: value.into_parts().merge },
++        w::ChangeLive::Uncleared(value) => d::State::Uncleared { merge: value.into_parts().merge },
+         w::ChangeLive::Cleared(value) => d::State::Cleared { merge: value.into_parts().merge },
+         w::ChangeLive::Landed(value) => {
+             let w::LandedChangeParts { merge } = value.into_parts();
+diff --git a/temper/crates/temper-protocol-store/src/records/log.rs b/temper/crates/temper-protocol-store/src/records/log.rs
+index 73db68f18..7cc811253 100644
+--- a/temper/crates/temper-protocol-store/src/records/log.rs
++++ b/temper/crates/temper-protocol-store/src/records/log.rs
+@@ -9,7 +9,12 @@ pub(super) fn encode(row: &d::LandingLog) -> w::LandingLog {
+     for entry in &row.landings {
+         let mut changes = List::with_capacity(u32::try_from(entry.changes.len()).expect(FITS));
+         for change in &entry.changes {
+-            changes.push(*change).expect(FITS);
++            changes
++                .push(
++                    w::LoggedChange::new(&w::CEILINGS, w::LoggedChangeParts { task: change.0, pull: change.1 })
++                        .expect(FITS),
++                )
++                .expect(FITS);
+         }
+         let mut verdicts = List::with_capacity(u32::try_from(entry.verdicts.len()).expect(FITS));
+         for mark in &entry.verdicts {
+@@ -62,11 +67,16 @@ pub(super) fn decode(row: w::LandingLog) -> Result<d::LandingLog, Undecodable> {
+             };
+             marks.push(d::Mark { tier, verdict }).expect(FITS);
+         }
++        let mut members = List::with_capacity(changes.len());
++        for member in changes.into_boxed() {
++            let w::LoggedChangeParts { task, pull } = member.into_parts();
++            members.push((task, pull)).expect(FITS);
++        }
+         decoded
+             .push(d::Logged {
+                 commit,
+                 seen: Wall::from_nanos(seen),
+-                changes: changes.into_boxed(),
++                changes: members.into_boxed(),
+                 verdicts: marks.into_boxed(),
+             })
+             .expect(FITS);
+diff --git a/temper/crates/temper-protocol-store/src/records/tiers.rs b/temper/crates/temper-protocol-store/src/records/tiers.rs
+index d36f6f18d..3b6d41e3b 100644
+--- a/temper/crates/temper-protocol-store/src/records/tiers.rs
++++ b/temper/crates/temper-protocol-store/src/records/tiers.rs
+@@ -247,6 +247,7 @@ pub(super) fn encode(row: &d::TierRow) -> w::TierRow {
+             w::TierResult::new(
+                 &w::CEILINGS,
+                 w::TierResultParts {
++                    told: encode_told(&r.told),
+                     verdict: w::TierJudgement::new(
+                         &w::CEILINGS,
+                         w::TierJudgementParts {
+@@ -278,6 +279,8 @@ pub(super) fn encode(row: &d::TierRow) -> w::TierRow {
+     w::TierRow::new(
+         &w::CEILINGS,
+         w::TierRowParts {
++            held: encode_held(row.held.as_ref()),
++            reds: encode_reds(&row.reds),
+             repository: names::encode_repository(row.repository),
+             tier: row.tier.clone(),
+             record,
+@@ -310,8 +313,20 @@ pub(super) fn encode(row: &d::TierRow) -> w::TierRow {
+     reason = "one durable row translation validates the related operation states without callbacks"
+ )]
+ pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
+-    let w::TierRowParts { repository, tier, record, pending, baseline, task, branch, probe, flight, result } =
+-        row.into_parts();
++    let w::TierRowParts {
++        held,
++        reds,
++        repository,
++        tier,
++        record,
++        pending,
++        baseline,
++        task,
++        branch,
++        probe,
++        flight,
++        result,
++    } = row.into_parts();
+     if tier.is_empty() {
+         return Err(Undecodable);
+     }
+@@ -382,11 +397,12 @@ pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
+     };
+     let result = match result {
+         Some(r) => {
+-            let w::TierResultParts { verdict, run, received, status, applied } = r.into_parts();
++            let w::TierResultParts { told, verdict, run, received, status, applied } = r.into_parts();
+             let w::TierJudgementParts { number, tip, key, finding } = verdict.into_parts();
+             let finding = decode_finding(finding)?;
+             let w::ReceiptRunParts { id, number: run_number, url } = run.into_parts();
+             Some(d::TierResult {
++                told: decode_told(told),
+                 verdict: p::Verdict {
+                     number,
+                     tip,
+@@ -414,6 +430,9 @@ pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
+         }
+         None => None,
+     };
++    if held.is_some() && (run.is_none() || task.is_none()) {
++        return Err(Undecodable);
++    }
+     if (baseline.is_some() && (judged.is_some() || run.is_some()))
+         || (flight.is_some() && (run.is_none() || task.is_none()))
+         || (result.is_some() && run.is_none())
+@@ -431,6 +450,8 @@ pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
+         }
+     }
+     Ok(d::TierRow {
++        held: decode_held(held),
++        reds: decode_reds(reds)?,
+         repository: names::decode_repository(repository),
+         tier,
+         record: p::Record {
+@@ -478,3 +499,94 @@ fn decode_receipt_run(run: w::ReceiptRun) -> d::ReceiptRun {
+     let w::ReceiptRunParts { id, number, url } = run.into_parts();
+     d::ReceiptRun { id, number, url }
+ }
++
++fn encode_told(told: &[d::LateTold]) -> List<w::LateTold> {
++    let mut values = List::with_capacity(u32::try_from(told.len()).expect(FITS));
++    for mark in told {
++        values
++            .push(
++                w::LateTold::new(&w::CEILINGS, w::LateToldParts { landing: mark.landing, goal: mark.goal })
++                    .expect(FITS),
++            )
++            .expect(FITS);
++    }
++    values
++}
++fn decode_told(told: List<w::LateTold>) -> Box<[d::LateTold]> {
++    let mut values = List::with_capacity(told.len());
++    for mark in told.into_boxed() {
++        let w::LateToldParts { landing, goal } = mark.into_parts();
++        values.push(d::LateTold { landing, goal }).expect(FITS);
++    }
++    values.into_boxed()
++}
++#[expect(clippy::manual_map, reason = "record translations use explicit matches without callbacks")]
++fn encode_held(held: Option<&d::TierHeld>) -> Option<w::TierHeld> {
++    use temper_engine_domain_forge_landing::Fault;
++    let held = held?;
++    let fault = match held.fault {
++        Fault::SetUp => w::TierFault::SetUp,
++        Fault::Completion => w::TierFault::Completion,
++        Fault::NoStep => w::TierFault::NoStep,
++        Fault::Cancelled => w::TierFault::Cancelled,
++        Fault::OtherCommit => w::TierFault::OtherCommit,
++        Fault::Lost => w::TierFault::Lost,
++    };
++    let run = match &held.run {
++        Some(run) => Some(encode_receipt_run(run)),
++        None => None,
++    };
++    Some(
++        w::TierHeld::new(&w::CEILINGS, w::TierHeldParts { fault, run, status: encode_branch(held.status) })
++            .expect(FITS),
++    )
++}
++#[expect(clippy::manual_map, reason = "record translations use explicit matches without callbacks")]
++fn decode_held(held: Option<w::TierHeld>) -> Option<d::TierHeld> {
++    use temper_engine_domain_forge_landing::Fault;
++    let w::TierHeldParts { fault, run, status } = held?.into_parts();
++    let fault = match fault {
++        w::TierFault::SetUp => Fault::SetUp,
++        w::TierFault::Completion => Fault::Completion,
++        w::TierFault::NoStep => Fault::NoStep,
++        w::TierFault::Cancelled => Fault::Cancelled,
++        w::TierFault::OtherCommit => Fault::OtherCommit,
++        w::TierFault::Lost => Fault::Lost,
++    };
++    let run = match run {
++        Some(run) => Some(decode_receipt_run(run)),
++        None => None,
++    };
++    Some(d::TierHeld { fault, run, status: decode_branch(status) })
++}
++fn encode_reds(reds: &[d::TierRed]) -> List<w::TierRed> {
++    let mut values = List::with_capacity(u32::try_from(reds.len()).expect(FITS));
++    for red in reds {
++        values
++            .push(
++                w::TierRed::new(
++                    &w::CEILINGS,
++                    w::TierRedParts {
++                        landing: red.landing,
++                        blame: verification::encode_blame(&red.blame),
++                        run: encode_receipt_run(&red.run),
++                    },
++                )
++                .expect(FITS),
++            )
++            .expect(FITS);
++    }
++    values
++}
++fn decode_reds(reds: List<w::TierRed>) -> Result<Box<[d::TierRed]>, Undecodable> {
++    let mut values = List::with_capacity(reds.len());
++    for red in reds.into_boxed() {
++        let w::TierRedParts { landing, blame, run } = red.into_parts();
++        let blame = verification::decode_blame(blame)?;
++        if blame == p::Blame::Cleared {
++            return Err(Undecodable);
++        }
++        values.push(d::TierRed { landing, blame, run: decode_receipt_run(run) }).expect(FITS);
++    }
++    Ok(values.into_boxed())
++}
+diff --git a/temper/crates/temper-protocol-store/src/tests/fixtures.rs b/temper/crates/temper-protocol-store/src/tests/fixtures.rs
+index 16771c7cb..b143457a3 100644
+--- a/temper/crates/temper-protocol-store/src/tests/fixtures.rs
++++ b/temper/crates/temper-protocol-store/src/tests/fixtures.rs
+@@ -75,6 +75,7 @@ pub const LIMITS: top::Limits = top::Limits {
+         interval: Duration::from_secs(5),
+     },
+     change_policy: temper_engine_domain_forge_change::Limits {
++        verification_bound: Duration::from_secs(7200),
+         repairs: 3,
+         resolutions: 3,
+         updates: 3,
+diff --git a/temper/crates/temper-protocol-store/src/tests/records.rs b/temper/crates/temper-protocol-store/src/tests/records.rs
+index daac6bb8f..ba0eaddf7 100644
+--- a/temper/crates/temper-protocol-store/src/tests/records.rs
++++ b/temper/crates/temper-protocol-store/src/tests/records.rs
+@@ -1116,7 +1116,7 @@ fn landing_logs_round_trip_changes_times_and_every_verdict() {
+             d::Logged {
+                 commit: [1; 32],
+                 seen: skein_lib::Wall::from_nanos(123),
+-                changes: Box::new([51]),
++                changes: Box::new([(51, 7)]),
+                 verdicts: Box::new([
+                     d::Mark { tier: b"browser".as_slice().into(), verdict: d::Verdict::Verifying },
+                     d::Mark { tier: b"fuzzy".as_slice().into(), verdict: d::Verdict::Cleared },
+diff --git a/temper/crates/temper-protocol-store/src/tests/sizes.rs b/temper/crates/temper-protocol-store/src/tests/sizes.rs
+index 1d92f2481..da1404482 100644
+--- a/temper/crates/temper-protocol-store/src/tests/sizes.rs
++++ b/temper/crates/temper-protocol-store/src/tests/sizes.rs
+@@ -7,7 +7,7 @@ fn the_application_sizes_are_the_largest_key_and_row() {
+     // Tier's full finding, pending range, flight and staged judgement are the largest row.
+     assert_eq!(
+         application(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes),
+-        Some(jig_protocol_store::sizes::Application { version: 10, key: 403, value: 178_046 })
++        Some(jig_protocol_store::sizes::Application { version: 10, key: 403, value: 292_096 })
+     );
+ }
+ #[test]
+@@ -75,12 +75,13 @@ fn plan_text_uses_the_body_bound_without_changing_the_format() {
+     assert_eq!(new_view - old_view, EXTRA_PLAN_BYTES);
+     // The schema's fixed framing plus the measured view; TierRow dominates Row.
+     // T7 adds the optional report (2069), optional probe (14), and applied flag (1).
++    // T9 adds held fault/status/link, range-bounded reds and late told recipients.
+     assert_eq!(old_view, 5238);
+     assert_eq!(new_view, 7286);
+     assert_eq!(crate::v10::IssueRow::worst_case_bytes(&before), Some(5657));
+     assert_eq!(crate::v10::IssueRow::worst_case_bytes(&after), Some(7705));
+     assert_eq!(crate::v10::IssueRow::worst_case_heap(&before), Some(5888));
+     assert_eq!(crate::v10::IssueRow::worst_case_heap(&after), Some(7936));
+-    assert_eq!(crate::v10::Row::worst_case_bytes(&before), Some(178_046));
+-    assert_eq!(crate::v10::Row::worst_case_bytes(&after), Some(178_046));
++    assert_eq!(crate::v10::Row::worst_case_bytes(&before), Some(292_096));
++    assert_eq!(crate::v10::Row::worst_case_bytes(&after), Some(292_096));
+ }
+diff --git a/temper/crates/temper-service/src/limits.rs b/temper/crates/temper-service/src/limits.rs
+index 1bbe49b17..0f82ce817 100644
+--- a/temper/crates/temper-service/src/limits.rs
++++ b/temper/crates/temper-service/src/limits.rs
+@@ -222,6 +222,7 @@ const FORGE: forge::Limits = forge::Limits {
+         interval: Duration::from_secs(5),
+     },
+     change_policy: temper_engine_domain_forge_change::Limits {
++        verification_bound: Duration::from_secs(7200),
+         // Repair attempts, from the engine forge world fixture.
+         repairs: 3,
+         // Resolution attempts, from the engine forge world fixture.
+diff --git a/temper/crates/temper-service/src/tests/limits.rs b/temper/crates/temper-service/src/tests/limits.rs
+index 0fa9842cb..a0fc063cc 100644
+--- a/temper/crates/temper-service/src/tests/limits.rs
++++ b/temper/crates/temper-service/src/tests/limits.rs
+@@ -550,5 +550,5 @@ fn the_log_fits_the_small_profiles_existing_application_row() {
+     let bounds = temper_protocol_store::bounds(&forge, words).expect("small store bounds");
+     let log = temper_protocol_store::v10::LandingLog::worst_case_bytes(bounds.limits()).expect("bounded log");
+     assert!(log + 3 <= u64::from(application.value), "version and Value tag frame the log");
+-    assert_eq!(log, 3146);
++    assert_eq!(log, 4170);
+ }
+diff --git a/temper/crates/temper/tests/figures/memory/init/engine/engine.txt b/temper/crates/temper/tests/figures/memory/init/engine/engine.txt
+index 8a42f7898..ace0023cf 100644
+--- a/temper/crates/temper/tests/figures/memory/init/engine/engine.txt
++++ b/temper/crates/temper/tests/figures/memory/init/engine/engine.txt
+@@ -1 +1 @@
+-163935471569
++163937739689
+diff --git a/temper/crates/temper/tests/figures/memory/init/engine/store.txt b/temper/crates/temper/tests/figures/memory/init/engine/store.txt
+index a4541d4b8..427a5fdaa 100644
+--- a/temper/crates/temper/tests/figures/memory/init/engine/store.txt
++++ b/temper/crates/temper/tests/figures/memory/init/engine/store.txt
+@@ -1 +1 @@
+-173239599564603
++173240184739579
+diff --git a/temper/crates/temper/tests/figures/memory/init/engine/system.txt b/temper/crates/temper/tests/figures/memory/init/engine/system.txt
+index 47a5597bc..86764aa52 100644
+--- a/temper/crates/temper/tests/figures/memory/init/engine/system.txt
++++ b/temper/crates/temper/tests/figures/memory/init/engine/system.txt
+@@ -1 +1 @@
+-461769203610095
++461775592904183
+diff --git a/temper/crates/temper/tests/figures/memory/owned/engine/engine.txt b/temper/crates/temper/tests/figures/memory/owned/engine/engine.txt
+index e4b360afe..655517c6a 100644
+--- a/temper/crates/temper/tests/figures/memory/owned/engine/engine.txt
++++ b/temper/crates/temper/tests/figures/memory/owned/engine/engine.txt
+@@ -1 +1 @@
+-220895398138
++220897196618
+diff --git a/temper/crates/temper/tests/figures/memory/owned/engine/store.txt b/temper/crates/temper/tests/figures/memory/owned/engine/store.txt
+index 4423f9cc1..e39bf1789 100644
+--- a/temper/crates/temper/tests/figures/memory/owned/engine/store.txt
++++ b/temper/crates/temper/tests/figures/memory/owned/engine/store.txt
+@@ -1 +1 @@
+-226181435969608
++226181899977464
+diff --git a/temper/crates/temper/tests/figures/memory/owned/engine/system.txt b/temper/crates/temper/tests/figures/memory/owned/engine/system.txt
+index 5c7c7730b..2369f3e63 100644
+--- a/temper/crates/temper/tests/figures/memory/owned/engine/system.txt
++++ b/temper/crates/temper/tests/figures/memory/owned/engine/system.txt
+@@ -1 +1 @@
+-622225316753106
++622230383071314
+diff --git a/temper/crates/temper/tests/figures/memory/worker-alone/worker/system.txt b/temper/crates/temper/tests/figures/memory/worker-alone/worker/system.txt
+index a6e2cb9a7..8cd59e9b5 100644
+--- a/temper/crates/temper/tests/figures/memory/worker-alone/worker/system.txt
++++ b/temper/crates/temper/tests/figures/memory/worker-alone/worker/system.txt
+@@ -1 +1 @@
+-10701198696
++10701198744
+diff --git a/temper/crates/temper/tests/startup.rs b/temper/crates/temper/tests/startup.rs
+index a18a4a263..7d5e30c7a 100644
+--- a/temper/crates/temper/tests/startup.rs
++++ b/temper/crates/temper/tests/startup.rs
+@@ -1028,6 +1028,18 @@ fn owned_memory_figures_match_startup_requirements_at_bounded_strings() {
+     let bounded = support::owned::bounded(scratch.path());
+     let required = bounded.requirements();
+     eprintln!("owned requirements: engine {}, worker {} bytes", required.engine_bytes, required.worker_bytes);
++    let store = temper_service::startup::store_limits(
++        &bounded.document,
++        &jig_protocol_config::Directories::working(),
++        Some(&bounded.agent),
++    )
++    .unwrap_or_else(|_| panic!("bounded owned store admits"));
++    let application = temper_protocol_store::application(&store.forge, store.store.core.tasks.spec_bytes)
++        .expect("owned application encodings fit");
++    eprintln!(
++        "owned largest store row: {} bytes; application row: {} bytes",
++        store.store.store.value, application.value
++    );
+     memory_figure("owned", &bounded.memory_terms(), required);
+     support::owned::check_memory("../../docs/examples/owned.json", required);
+     check_bounded_startup(&bounded, required);
+diff --git a/temper/tests/codecs/Cargo.toml b/temper/tests/codecs/Cargo.toml
+index 4cdfebcfb..0217e63a6 100644
+--- a/temper/tests/codecs/Cargo.toml
++++ b/temper/tests/codecs/Cargo.toml
+@@ -22,6 +22,7 @@ skein-forge-setup.workspace = true
+ temper-engine-domain-forge.workspace = true
+ skein-forge-client.workspace = true
+ temper-engine-domain-forge-change.workspace = true
++temper-engine-domain-forge-landing.workspace = true
+ temper-engine-domain-forge-tiers = { path = "../../crates/temper-engine-domain-forge-tiers" }
+ temper-engine-domain-forge-issues.workspace = true
+ jig-client-protocol-wire.workspace = true
+diff --git a/temper/tests/codecs/tests/store_verification.rs b/temper/tests/codecs/tests/store_verification.rs
+index bdd9548af..b0e9af515 100644
+--- a/temper/tests/codecs/tests/store_verification.rs
++++ b/temper/tests/codecs/tests/store_verification.rs
+@@ -37,6 +37,7 @@ fn red_and_cleared_changes_have_v10_goldens_and_round_trip() {
+     for (name, state) in [
+         ("change-red.bin", State::Red { merge: verification::COMMIT }),
+         ("change-cleared.bin", State::Cleared { merge: verification::COMMIT }),
++        ("change-uncleared.bin", State::Uncleared { merge: verification::COMMIT }),
+     ] {
+         golden(name, Stored::Change(verification::change_row(state)));
+     }
+diff --git a/temper/tests/codecs/tests/support/store.rs b/temper/tests/codecs/tests/support/store.rs
+index 003a0c8ab..ca86bdabd 100644
+--- a/temper/tests/codecs/tests/support/store.rs
++++ b/temper/tests/codecs/tests/support/store.rs
+@@ -72,6 +72,7 @@ pub const LIMITS: forge::Limits = forge::Limits {
+         interval: Duration::from_secs(5),
+     },
+     change_policy: temper_engine_domain_forge_change::Limits {
++        verification_bound: Duration::from_secs(7200),
+         repairs: 3,
+         resolutions: 3,
+         updates: 3,
+diff --git a/temper/tests/codecs/tests/support/tiers.rs b/temper/tests/codecs/tests/support/tiers.rs
+index cb47d6131..c1207f1d4 100644
+--- a/temper/tests/codecs/tests/support/tiers.rs
++++ b/temper/tests/codecs/tests/support/tiers.rs
+@@ -7,6 +7,8 @@ const TESTS: usize = 16; // small's failing_tests.
+ const TEST_BYTES: usize = 256; // small's test_id_bytes.
+ pub fn smallest() -> Stored {
+     Stored::Tier(TierRow {
++        held: None,
++        reds: Box::new([]),
+         repository: REPOSITORY,
+         tier: b"browser".as_slice().into(),
+         record: p::Record {
+@@ -37,6 +39,19 @@ pub fn fullest() -> Stored {
+         .collect();
+     let failures = p::Failures::Tests(tests.clone());
+     Stored::Tier(TierRow {
++        held: Some(temper_engine_domain_forge::TierHeld {
++            fault: temper_engine_domain_forge_landing::Fault::Completion,
++            run: Some(temper_engine_domain_forge::ReceiptRun { id: 71, number: 2, url: Box::new([b'u'; 2048]) }),
++            status: TierBranch::Pending { entry: 14 },
++        }),
++        reds: landings
++            .iter()
++            .map(|landing| temper_engine_domain_forge::TierRed {
++                landing: landing.commit,
++                blame: p::Blame::Owns(failures.clone()),
++                run: temper_engine_domain_forge::ReceiptRun { id: 71, number: 2, url: Box::new([b'u'; 2048]) },
++            })
++            .collect(),
+         repository: REPOSITORY,
+         tier: Box::new([b'a'; 32]),
+         record: p::Record {
+@@ -87,6 +102,10 @@ pub fn fullest() -> Stored {
+             pending: Box::new([skein_forge::api::JobAttempt { head: TIP, run: 71, job: 81, attempt: 2 }]),
+         }),
+         result: Some(temper_engine_domain_forge::TierResult {
++            told: landings
++                .iter()
++                .map(|landing| temper_engine_domain_forge::LateTold { landing: landing.commit, goal: 101 })
++                .collect(),
+             verdict: p::Verdict {
+                 number: 2,
+                 tip: TIP,
+diff --git a/temper/tests/engine/domain/src/forge_routes.rs b/temper/tests/engine/domain/src/forge_routes.rs
+index 57b0d4222..8f09d79ce 100644
+--- a/temper/tests/engine/domain/src/forge_routes.rs
++++ b/temper/tests/engine/domain/src/forge_routes.rs
+@@ -23,6 +23,27 @@ pub enum HoldWrite {
+     All,
+     Merge,
+     DeleteBranch(&'static [u8]),
++    TierHold,
++}
++
++fn held_write(hold: Option<HoldWrite>, op: &skein_forge::api::Op) -> bool {
++    match hold {
++        Some(HoldWrite::TierHold) => matches!(
++            op,
++            skein_forge::api::Op::Write(skein_forge::api::Write::Status {
++                check: skein_forge::api::Check::Pending,
++                ..
++            })
++        ),
++        Some(HoldWrite::All) => matches!(op, skein_forge::api::Op::Write(_)),
++        Some(HoldWrite::DeleteBranch(name)) => {
++            matches!(&op, skein_forge::api::Op::Write(skein_forge::api::Write::DeleteBranch { branch }) if branch.as_ref() == name)
++        }
++        Some(HoldWrite::Merge) => {
++            matches!(op, skein_forge::api::Op::Write(skein_forge::api::Write::Merge { .. }))
++        }
++        None => false,
++    }
+ }
+ 
+ #[expect(clippy::struct_excessive_bools, reason = "independent fixture switches select the forge stories")]
+@@ -100,6 +121,8 @@ pub struct StoryLimits {
+     pub tier_tree: bool,
+     pub tier_reports: bool,
+     pub tier_suspects: Option<temper_engine_domain_forge_tiers::Suspects>,
++    pub tier_bound: Option<Duration>,
++    pub change_words: Option<u32>,
+ }
+ 
+ fn tier_checks(nested: bool) -> Box<[engine::TierCheck]> {
+@@ -264,6 +287,8 @@ impl World {
+             tier_tree,
+             tier_reports,
+             tier_suspects,
++            tier_bound,
++            change_words: _,
+         } = timing;
+         let paths::Gate { approval, agent: agent_gate, owner: owner_gate } = gate;
+         let [(bootstrap, mut limits), (config, _)] = std::array::from_fn(|_| {
+@@ -294,6 +319,9 @@ impl World {
+                             }]),
+                             after: {
+                                 let mut after = after_landing();
++                                if let Some(bound) = tier_bound {
++                                    after.bound = bound;
++                                }
+                                 if let Some(suspects) = tier_suspects {
+                                     after.verdict.suspects = suspects;
+                                 }
+@@ -1345,16 +1373,7 @@ impl World {
+                     let event = engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Client(
+                         skein_forge_client::Event::Answered { free: 0, rate: None, call, cost: 1, result },
+                     )));
+-                    let held = match self.hold_write_answers {
+-                        Some(HoldWrite::All) => matches!(op, skein_forge::api::Op::Write(_)),
+-                        Some(HoldWrite::DeleteBranch(name)) => {
+-                            matches!(&op, skein_forge::api::Op::Write(skein_forge::api::Write::DeleteBranch { branch }) if branch.as_ref() == name)
+-                        }
+-                        Some(HoldWrite::Merge) => {
+-                            matches!(op, skein_forge::api::Op::Write(skein_forge::api::Write::Merge { .. }))
+-                        }
+-                        None => false,
+-                    };
++                    let held = held_write(self.hold_write_answers, &op);
+                     if held {
+                         self.held_write_answers.push(event);
+                     } else {
+@@ -1684,7 +1703,11 @@ pub fn change_world_in(
+                         ]),
+                         inputs: Box::new([]),
+                     },
+-                    contract: tasks::Contract::Change { connector: 0, kind: 1, words: 32 },
++                    contract: tasks::Contract::Change {
++                        connector: 0,
++                        kind: 1,
++                        words: world.timing.change_words.unwrap_or(32),
++                    },
+                     authority: child_authority,
+                     symbolic_grants: Box::new([tasks::Grant {
+                         connector: 0,
+@@ -1969,7 +1992,9 @@ pub fn box_limits() -> engine::Limits {
+ pub fn merged(state: &temper_engine_domain_forge_change::State) -> Option<skein_forge::api::Commit> {
+     use temper_engine_domain_forge_change::State;
+     match state {
+-        State::Landed { merge } | State::Red { merge } | State::Cleared { merge } => Some(*merge),
++        State::Landed { merge } | State::Red { merge } | State::Cleared { merge } | State::Uncleared { merge } => {
++            Some(*merge)
++        }
+         State::Producing { .. }
+         | State::Opening { .. }
+         | State::Recreating { .. }
+diff --git a/temper/tests/engine/domain/src/tier_runs.rs b/temper/tests/engine/domain/src/tier_runs.rs
+index a561e8a71..9924de2cd 100644
+--- a/temper/tests/engine/domain/src/tier_runs.rs
++++ b/temper/tests/engine/domain/src/tier_runs.rs
+@@ -34,6 +34,9 @@ fn tier(world: &World) -> &forge::TierRow {
+     row
+ }
+ pub fn park_owner(world: &mut World, run: &engine::Assignment) {
++    answer_owner(world, run, tasks::End::Parked);
++}
++fn answer_owner(world: &mut World, run: &engine::Assignment, end: tasks::End) {
+     let read = run.messages.iter().map(|word| word.number).max();
+     if read.is_some() {
+         world.send(protocol::turn(
+@@ -49,7 +52,7 @@ pub fn park_owner(world: &mut World, run: &engine::Assignment) {
+             world.tick();
+         }
+     }
+-    let mut event = world.protocol.answer(OWNER, run.task, run.attempt, 0, tasks::End::Parked, engine::Parts::none());
++    let mut event = world.protocol.answer(OWNER, run.task, run.attempt, 0, end, engine::Parts::none());
+     let engine::Event::Worker(engine::WorkerInput::Link {
+         link: engine::Link::Up { up: host::LinkUp::Answer { answer, .. }, .. },
+         ..
+@@ -212,3 +215,253 @@ pub fn case2_4_4() {
+         );
+     }
+ }
++
++/// The durable cuts T9 grows: time, member pulls, held progress, release and red.
++#[derive(Clone, Copy, PartialEq, Eq, Debug)]
++pub enum BoundCut {
++    Waiting,
++    Uncleared,
++    LogPulls,
++    HeldStatus,
++    Released,
++    Red,
++}
++const BOUND: skein_lib::Duration = skein_lib::Duration::from_secs(360);
++const RUN_TICKS: u32 = 1800; // The tier workflow's 90 s plus polling and effect admission.
++const BOUND_TICKS: u32 = 7000; // 360 s bound + two 90 s runs and polling, at 100 ms/tick.
++const BOUND_RESULT_BYTES: u32 = 100; // SHA-1 (40), newline (1), and the 59-byte uncleared reason.
++const BOUND_FAILURE: &[u8] = b"suite.runner_returned\n";
++fn change_row(world: &World, task: u64) -> &forge::ChangeRow {
++    let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge::Key::Change(task))) else {
++        panic!("retained change")
++    };
++    let forge::Stored::Change(row) = row.as_ref() else { panic!("change row") };
++    row
++}
++fn live(world: &World, task: u64) -> Option<&tasks::TaskRecord> {
++    match world.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(task)))) {
++        Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))) => Some(row),
++        _ => None,
++    }
++}
++fn bound_cold(world: &mut World, task: u64, cut: BoundCut) {
++    let since = change_row(world, task).change.since;
++    world.store.crash(71); // The root world's fixed deployment seed.
++    world.restart(true, true);
++    for _ in 0..SETTLE_TICKS {
++        world.tick();
++        assert!(
++            world.root.restart_failure().is_none(),
++            "cold {cut:?}: {:?}, {:?}",
++            world.root.restart_failure(),
++            world.root.forge_restore_failure()
++        );
++        if world.root.ready() {
++            assert_eq!(change_row(world, task).change.since, since, "cold {cut:?} keeps the landing clock");
++            return;
++        }
++    }
++    panic!("cold {cut:?} opens: {:?}", world.root.restart_step());
++}
++/// Runner faults hold the tier; a bounded change ends and its goal hears it.
++/// The goal finishes before the runner returns, so its late red awaits findings.
++#[expect(
++    clippy::too_many_lines,
++    reason = "one bounded story follows the runner outage, result, person's release and late red"
++)]
++pub fn bound_story(cut: Option<BoundCut>) {
++    let world = World::configured_limits(
++        true,
++        true,
++        false,
++        1000,
++        Gate::default(),
++        None,
++        StoryLimits {
++            tier: true,
++            tier_reports: true,
++            tier_bound: Some(BOUND),
++            change_words: Some(BOUND_RESULT_BYTES),
++            ..StoryLimits::default()
++        },
++    );
++    let (mut world, owner, producer, branch) =
++        change_world_in(world, Change { no_ci: false, owner_gate: false, tracked: true });
++    let task = change(&world, &producer);
++    let mut parked = BTreeSet::from([owner.attempt]);
++    park_owner(&mut world, &owner);
++    crate::forge_routes::produce_path_content(&mut world, &producer, &branch, b"failures", BOUND_FAILURE);
++    for _ in 0..SETTLE_TICKS {
++        owner_tick(&mut world, &owner, task, &mut parked);
++        if world.merges == 1
++            && matches!(change_row(&world, task).change.state, temper_engine_domain_forge_change::State::Landed { .. })
++            && world.store.pending.is_empty()
++        {
++            break;
++        }
++    }
++    assert_eq!(world.merges, 1);
++    let temper_engine_domain_forge_change::State::Landed { merge } = change_row(&world, task).change.state else {
++        panic!("verifying: {:?}", change_row(&world, task).change.state)
++    };
++    let pull = change_row(&world, task).pull.expect("landed pull");
++    let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge::Key::LandingLog(REPO))) else {
++        panic!("log")
++    };
++    let forge::Stored::LandingLog(log) = row.as_ref() else { panic!("landing log") };
++    assert!(log.landings.iter().any(|entry| entry.commit == merge && entry.changes.contains(&(task, pull))));
++    if matches!(cut, Some(BoundCut::Waiting | BoundCut::LogPulls)) {
++        bound_cold(&mut world, task, cut.expect("story state exists"));
++    }
++    // Let the original baseline finish green before faulting the runner.
++    for _ in 0..RUN_TICKS {
++        owner_tick(&mut world, &owner, task, &mut parked);
++        if tier(&world).record.sequence >= 1 {
++            break;
++        }
++    }
++    assert_eq!(tier(&world).record.sequence, 1, "baseline: {:?}", tier(&world));
++    world.fake_env.limits.lost = ALL_FAULTS;
++    if cut == Some(BoundCut::HeldStatus) {
++        world.hold_write_answers = Some(crate::forge_routes::HoldWrite::TierHold);
++    }
++    let mut held_cut = false;
++    for _ in 0..BOUND_TICKS {
++        owner_tick(&mut world, &owner, task, &mut parked);
++        let row = tier(&world);
++        if cut == Some(BoundCut::HeldStatus)
++            && !held_cut
++            && matches!(row.held.as_ref().map(|held| held.status), Some(forge::TierBranch::Pending { .. }))
++            && world.store.pending.is_empty()
++        {
++            bound_cold(&mut world, task, BoundCut::HeldStatus);
++            held_cut = true;
++        }
++        let row = tier(&world);
++        if let Some(tier_task) = row.task
++            && matches!(
++                live(&world, tier_task).map(|task| &task.phase),
++                Some(tasks::Phase::Held { why: tasks::Hold::Effects, .. })
++            )
++        {
++            break;
++        }
++    }
++    assert!(cut != Some(BoundCut::HeldStatus) || held_cut);
++    let tier_task = tier(&world).task.expect("held task");
++    assert!(
++        matches!(
++            live(&world, tier_task).map(|task| &task.phase),
++            Some(tasks::Phase::Held { why: tasks::Hold::Effects, .. })
++        ),
++        "tier held: {:?}",
++        tier(&world)
++    );
++    let words = &live(&world, tier_task).expect("story state exists").spec.words;
++    assert_eq!(words.as_ref(), b"Tier browser run 2");
++    assert_eq!(tier(&world).record.run.as_ref().expect("story state exists").faults, 3);
++    for _ in 0..BOUND_TICKS {
++        owner_tick(&mut world, &owner, task, &mut parked);
++        if ended(&world, task) && world.store.pending.is_empty() {
++            break;
++        }
++    }
++    assert!(ended(&world, task));
++    assert!(matches!(
++        change_row(&world, task).change.state,
++        temper_engine_domain_forge_change::State::Uncleared { .. }
++    ));
++    if cut == Some(BoundCut::Uncleared) {
++        bound_cold(&mut world, task, BoundCut::Uncleared);
++    }
++    let mut result_run = None;
++    for _ in 0..SETTLE_TICKS {
++        owner_tick(&mut world, &owner, task, &mut parked);
++        result_run = world
++            .assigned
++            .iter()
++            .rev()
++            .find(|run| {
++                run.task == owner.task
++                    && run.messages.iter().any(|word| {
++                        word.from == tasks::Party::Task(task) && matches!(word.kind, tasks::MessageKind::Result(_))
++                    })
++            })
++            .cloned();
++        if result_run.is_some() {
++            break;
++        }
++    }
++    let result_run = result_run.expect("goal hears its change's result");
++    assert!(result_run.messages.iter().any(|word| {
++        word.words
++            .windows(b"landed, uncleared: no verdict from browser within the bound".len())
++            .any(|words| words == b"landed, uncleared: no verdict from browser within the bound")
++    }));
++    answer_owner(
++        &mut world,
++        &result_run,
++        tasks::End::Finished {
++            result: tasks::TaskResult::Report { words: b"landed and uncleared".as_slice().into() },
++            cancel_delegates: false,
++        },
++    );
++    for _ in 0..SETTLE_TICKS {
++        world.tick();
++        if live(&world, owner.task).is_none() && world.store.pending.is_empty() {
++            break;
++        }
++    }
++    assert!(live(&world, owner.task).is_none(), "goal ends after its result");
++    world.fake_env.limits.lost = 0;
++    world.signed_in = None; // The world's sign-in lasts 60 s; the outage lasted longer.
++    world.sign_in();
++    let revision = live(&world, tier_task).expect("held tier task").revisions.hold;
++    world.send(engine::Event::Party(engine::PartyInput::Ask {
++        models: Box::new([]),
++        reply_to: skein_lib::ReplyTo::new(Token::new(950)),
++        sign_in: world.signed_in.expect("signed-in person"),
++        key: [95; 16],
++        ask: jig_domain_people::Ask::Release { project: 1, task: tier_task, revision, again: None },
++    }));
++    for _ in 0..SETTLE_TICKS {
++        world.tick();
++        if tier(&world).held.is_none()
++            && tier(&world).record.run.as_ref().is_some_and(|run| run.faults == 0)
++            && world.store.pending.is_empty()
++        {
++            break;
++        }
++    }
++    assert!(
++        tier(&world).held.is_none(),
++        "person releases: {:?}; core {:?}",
++        tier(&world),
++        live(&world, tier_task).map(|task| (&task.phase, task.revisions.hold, task.due_reason, &task.escalation))
++    );
++    assert_eq!(tier(&world).record.run.as_ref().expect("story state exists").faults, 0);
++    if cut == Some(BoundCut::Released) {
++        bound_cold(&mut world, task, BoundCut::Released);
++    }
++    for _ in 0..BOUND_TICKS {
++        world.tick();
++        if !tier(&world).reds.is_empty() && world.store.pending.is_empty() {
++            break;
++        }
++    }
++    assert_eq!(tier(&world).reds.len(), 1, "late red retained: {:?}", tier(&world));
++    assert_eq!(tier(&world).reds[0].landing, merge);
++    assert_eq!(
++        tier(&world).reds[0].blame,
++        temper_engine_domain_forge_tiers::Blame::Owns(temper_engine_domain_forge_tiers::Failures::Tests(Box::new([
++            b"suite.runner_returned".as_slice().into()
++        ])))
++    );
++    if cut == Some(BoundCut::Red) {
++        bound_cold(&mut world, task, BoundCut::Red);
++        assert_eq!(tier(&world).reds[0].landing, merge);
++    }
++}
++pub fn case2_5_4() {
++    bound_story(None);
++}
+diff --git a/temper/tests/engine/domain/tests/forge_routes.rs b/temper/tests/engine/domain/tests/forge_routes.rs
+index a4adedcc9..f728f302f 100644
+--- a/temper/tests/engine/domain/tests/forge_routes.rs
++++ b/temper/tests/engine/domain/tests/forge_routes.rs
+@@ -3344,3 +3344,6 @@ fn a_tier_run_is_made_while_the_period_is_reserved_whole() {
+         Record::Forge { row } if matches!(row.as_ref(), forge_top::Stored::Tier(row)
+             if row.record.judged.is_some() && row.record.run.is_none()))));
+ }
++
++#[path = "forge_routes/bound.rs"]
++mod bound;
+diff --git a/temper/tests/engine/domain/tests/forge_routes/bound.rs b/temper/tests/engine/domain/tests/forge_routes/bound.rs
+new file mode 100644
+index 000000000..31b2a2ae7
+--- /dev/null
++++ b/temper/tests/engine/domain/tests/forge_routes/bound.rs
+@@ -0,0 +1,18 @@
++use temper_engine_domain_world::tier_runs::{BoundCut, bound_story};
++#[test]
++fn a_runner_down_past_the_bound_ends_a_change_uncleared_and_its_late_red_is_kept() {
++    bound_story(None);
++}
++#[test]
++fn cold_restarts_keep_the_bound_uncleared_pulls_held_release_and_late_red() {
++    for cut in [
++        BoundCut::Waiting,
++        BoundCut::Uncleared,
++        BoundCut::LogPulls,
++        BoundCut::HeldStatus,
++        BoundCut::Released,
++        BoundCut::Red,
++    ] {
++        bound_story(Some(cut));
++    }
++}
+diff --git a/temper/tests/engine/domain/tests/fuzzy_case2.rs b/temper/tests/engine/domain/tests/fuzzy_case2.rs
+index 8a026dc03..eda0e25bf 100644
+--- a/temper/tests/engine/domain/tests/fuzzy_case2.rs
++++ b/temper/tests/engine/domain/tests/fuzzy_case2.rs
+@@ -3,3 +3,8 @@
+ fn fuzzy_case2_4_4() {
+     temper_engine_domain_world::tier_runs::case2_4_4();
+ }
++
++#[test]
++fn fuzzy_case2_5_4() {
++    temper_engine_domain_world::tier_runs::case2_5_4();
++}
+diff --git a/temper/tests/engine/domain/tests/landing_log.rs b/temper/tests/engine/domain/tests/landing_log.rs
+index 8bd39547a..4a4f0ac8e 100644
+--- a/temper/tests/engine/domain/tests/landing_log.rs
++++ b/temper/tests/engine/domain/tests/landing_log.rs
+@@ -20,7 +20,7 @@ fn wrapped_log() -> forge::LandingLog {
+         landings.push(forge::Logged {
+             commit: [number; 32],
+             seen: Wall::from_nanos(u64::from(number)),
+-            changes: if number % 3 == 0 { Box::new([]) } else { Box::new([u64::from(number)]) },
++            changes: if number % 3 == 0 { Box::new([]) } else { Box::new([(u64::from(number), u64::from(number))]) },
+             verdicts: Box::new([forge::Mark { tier: b"browser".as_slice().into(), verdict }]),
+         });
+     }
+@@ -109,7 +109,12 @@ fn a_cold_restart_reads_back_the_landing_log() {
+         assert_eq!(line.repository.as_ref(), b"org/repo");
+         assert_eq!(
+             (line.commit, line.seen, &line.changes, &line.verdicts),
+-            (entry.commit, entry.seen, &entry.changes, &entry.verdicts)
++            (
++                entry.commit,
++                entry.seen,
++                &entry.changes.iter().map(|(task, _)| *task).collect::<Vec<_>>().into_boxed_slice(),
++                &entry.verdicts
++            )
+         );
+     }
+     assert_eq!(before, after);
+diff --git a/temper/tests/engine/forge/src/changes.rs b/temper/tests/engine/forge/src/changes.rs
+index 6e6042770..ddad9af13 100644
+--- a/temper/tests/engine/forge/src/changes.rs
++++ b/temper/tests/engine/forge/src/changes.rs
+@@ -137,9 +137,10 @@ pub fn reviewed_change(queued: bool, freshness: change::Freshness) -> (World, sk
+ #[must_use]
+ pub fn merged(state: &change::State) -> Option<skein_forge::api::Commit> {
+     match state {
+-        change::State::Landed { merge } | change::State::Red { merge } | change::State::Cleared { merge } => {
+-            Some(*merge)
+-        }
++        change::State::Landed { merge }
++        | change::State::Red { merge }
++        | change::State::Cleared { merge }
++        | change::State::Uncleared { merge } => Some(*merge),
+         change::State::Producing { .. }
+         | change::State::Opening { .. }
+         | change::State::Recreating { .. }
+diff --git a/temper/tests/engine/forge/src/world.rs b/temper/tests/engine/forge/src/world.rs
+index 49f0878f1..59f5789f8 100644
+--- a/temper/tests/engine/forge/src/world.rs
++++ b/temper/tests/engine/forge/src/world.rs
+@@ -77,6 +77,7 @@ pub const LIMITS: top::Limits = top::Limits {
+         interval: Duration::from_secs(5),
+     },
+     change_policy: temper_engine_domain_forge_change::Limits {
++        verification_bound: Duration::from_secs(7200),
+         repairs: 3,
+         resolutions: 3,
+         updates: 3,
+diff --git a/temper/tests/engine/forge/tests/simulation.rs b/temper/tests/engine/forge/tests/simulation.rs
+index 3dbcca310..b5701f337 100644
+--- a/temper/tests/engine/forge/tests/simulation.rs
++++ b/temper/tests/engine/forge/tests/simulation.rs
+@@ -930,7 +930,14 @@ fn a_change_landed_where_its_repository_has_a_tier_lives_verifying() {
+         }
+     }
+     let merge = merge.expect("the merge is seen");
+-    assert_eq!(change_step(&mut world, LAST_ENTRY, change::Status::Passed, Box::new([])), change::Decision::None);
++    let Some(top::Stored::Change(row)) = world.stored().get(&top::Key::Change(CHANGE)) else {
++        panic!("the merged change remains stored while verifying");
++    };
++    let until = Wall::from_nanos(row.change.since.as_nanos() + skein_lib::Duration::from_secs(7200).as_nanos());
++    assert_eq!(
++        change_step(&mut world, LAST_ENTRY, change::Status::Passed, Box::new([])),
++        change::Decision::Wait { until: Some(until) }
++    );
+     let expected = top::Verification {
+         repairs: None,
+         repository: REPO,
+@@ -2303,7 +2310,7 @@ fn tier_step(world: &mut World, task: u64, entry: u64) -> bool {
+ }
+ fn tier_step_news(world: &mut World, task: u64, entry: u64, news: &mut Vec<(u64, top::News)>) -> bool {
+     world.take_seen();
+-    world.event(top::Event::StepTier { task, entry });
++    world.event(top::Event::StepTier { released: false, task, entry });
+     world.run_for(1);
+     let requests = world.take_seen();
+     let done = requests
+@@ -2475,7 +2482,7 @@ fn a_documentation_landing_every_tier_ignores_clears_at_once() {
+     let mut dispatched = 0;
+     // Receipt judgement needs the same status admission as a completed run.
+     for at in 0..TIER_STEPS {
+-        world.event(top::Event::StepTier { task: TIER_RANGE, entry: 1400 + at });
++        world.event(top::Event::StepTier { released: false, task: TIER_RANGE, entry: 1400 + at });
+         world.run_for(1);
+         let mut done = false;
+         for request in world.take_seen() {

@@ -8,7 +8,7 @@ use skein_lib::{List, Wall};
 
 use crate::{
     Ask, AuthorityHold, AuthorityLack, Change, Decision, Delegate, Effect, EffectResult, Facts, Freshness, Gate,
-    GateFailure, GateKind, Heard, Hold, Limits, Pull, Repair, State, Status, Stepped, Way,
+    GateFailure, GateKind, Heard, Hold, Limits, Pull, Repair, State, Status, Stepped, Verification, Way,
 };
 
 /// Decide one change from current forge and task facts, independent of its wake.
@@ -37,14 +37,14 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
     {
         next.gate_failures = Box::new([]);
     }
-    if let Some(decision) = terminal(change) {
-        return Stepped { change: next, decision };
+    if let Some(stepped) = after_landing(&next, facts, standing, now) {
+        return stepped;
     }
     match facts.pull {
         Pull::Merged { commit } => {
-            next.state = State::Landed { merge: commit };
+            next.state = State::Landed { merge: commit, since: now };
             next.released = None;
-            return Stepped { change: next, decision: Decision::Finish { merge: commit } };
+            return verifying(next, commit, now, facts, standing.cancelled, now);
         }
         Pull::Missing | Pull::Open { .. } | Pull::Closed => {}
     }
@@ -81,11 +81,32 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
     advance_phase(change, next, facts, standing, now, limits)
 }
 
-fn terminal(change: &Change) -> Option<Decision> {
-    match &change.state {
-        State::Landed { merge } => Some(Decision::Finish { merge: *merge }),
-        State::NoChange { .. } => Some(Decision::NoChange),
-        State::Ended => Some(Decision::Cancel),
+fn after_landing(change: &Change, facts: &Facts, standing: &Heard, now: Wall) -> Option<Stepped> {
+    let decision = match &change.state {
+        State::Landed { merge, .. } | State::Red { merge, .. } if standing.cancelled => {
+            let mut next = change.clone();
+            next.state = State::Uncleared { merge: *merge };
+            return Some(Stepped { change: next, decision: Decision::Finish { merge: *merge } });
+        }
+        State::Landed { merge, since } => {
+            return Some(verifying(change.clone(), *merge, *since, facts, standing.cancelled, now));
+        }
+        State::Red { merge, .. } => {
+            let mut next = change.clone();
+            let decision = match facts.verification {
+                Verification::Cleared => {
+                    next.state = State::Cleared { merge: *merge };
+                    Decision::Finish { merge: *merge }
+                }
+                Verification::Unfollowed | Verification::Verifying | Verification::Red => {
+                    Decision::Wait { until: None }
+                }
+            };
+            return Some(Stepped { change: next, decision });
+        }
+        State::Cleared { merge } | State::Uncleared { merge } => Decision::Finish { merge: *merge },
+        State::NoChange { .. } => Decision::NoChange,
+        State::Ended => Decision::Cancel,
         State::Held { .. }
         | State::Producing { .. }
         | State::Opening { .. }
@@ -101,8 +122,34 @@ fn terminal(change: &Change) -> Option<Decision> {
         | State::Updating { .. }
         | State::Resolving { .. }
         | State::Repairing { .. }
-        | State::Landing { .. } => None,
-    }
+        | State::Landing { .. } => return None,
+    };
+    Some(Stepped { change: change.clone(), decision })
+}
+
+fn verifying(mut change: Change, merge: [u8; 32], since: Wall, facts: &Facts, cancelled: bool, now: Wall) -> Stepped {
+    let until = Wall::from_nanos(since.as_nanos().saturating_add(facts.verification_bound.as_nanos()));
+    let decision = match facts.verification {
+        Verification::Unfollowed => Decision::Finish { merge },
+        Verification::Verifying | Verification::Red | Verification::Cleared if cancelled => {
+            change.state = State::Uncleared { merge };
+            Decision::Finish { merge }
+        }
+        Verification::Cleared => {
+            change.state = State::Cleared { merge };
+            Decision::Finish { merge }
+        }
+        Verification::Red => {
+            change.state = State::Red { merge, since };
+            Decision::Wait { until: None }
+        }
+        Verification::Verifying if now >= until => {
+            change.state = State::Uncleared { merge };
+            Decision::Finish { merge }
+        }
+        Verification::Verifying => Decision::Wait { until: Some(until) },
+    };
+    Stepped { change, decision }
 }
 
 fn advance_phase(
@@ -133,7 +180,13 @@ fn advance_phase(
         State::Resolving { requested, base } => resolving(next, *requested, *base, facts, standing, now, limits),
         State::Repairing { requested, why } => repairing(next, *requested, *why, facts, standing, now, limits),
         State::Landing { head } => landing(next, *head, standing, now, limits),
-        State::Landed { .. } | State::NoChange { .. } | State::Ended | State::Held { .. } => {
+        State::Landed { .. }
+        | State::Red { .. }
+        | State::Cleared { .. }
+        | State::Uncleared { .. }
+        | State::NoChange { .. }
+        | State::Ended
+        | State::Held { .. } => {
             unreachable!("terminal states returned above")
         }
     }
@@ -156,6 +209,9 @@ fn closed_pull_holds(state: &State) -> bool {
         | State::Repairing { .. }
         | State::Landing { .. }
         | State::Landed { .. }
+        | State::Red { .. }
+        | State::Cleared { .. }
+        | State::Uncleared { .. }
         | State::NoChange { .. }
         | State::Ended
         | State::Held { .. } => true,
@@ -194,6 +250,9 @@ pub fn released(change: &Change, now: Wall) -> Change {
         | State::Repairing { .. }
         | State::Landing { .. }
         | State::Landed { .. }
+        | State::Red { .. }
+        | State::Cleared { .. }
+        | State::Uncleared { .. }
         | State::NoChange { .. }
         | State::Ended => {}
     }
@@ -266,7 +325,13 @@ fn released_state(change: &Change, was: &State, why: Hold, facts: &Facts) -> Sta
         | State::Queued { head, .. }
         | State::First { head, .. }
         | State::Gating { head, .. } => State::Gating { head: *head, asked: Box::new([]) },
-        State::Held { .. } | State::Landed { .. } | State::NoChange { .. } | State::Ended => {
+        State::Held { .. }
+        | State::Landed { .. }
+        | State::Red { .. }
+        | State::Cleared { .. }
+        | State::Uncleared { .. }
+        | State::NoChange { .. }
+        | State::Ended => {
             unreachable!("held state retains a live predecessor")
         }
         State::Producing { requested: true }

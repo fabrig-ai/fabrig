@@ -51,6 +51,9 @@ mod producer_failure;
 #[path = "forge_routes/result.rs"]
 mod result;
 
+#[path = "forge_routes/tiers.rs"]
+mod tiers;
+
 #[path = "forge_routes/reviews.rs"]
 mod reviews;
 
@@ -1728,7 +1731,7 @@ fn a_worker_frozen_past_its_grace_resumes_with_a_push_in_hand_and_lands_nothing_
         .filter_map(|stored| match stored {
             Record::Forge { row, .. } => match row.as_ref() {
                 forge_top::Stored::Change(change) => match change.change.state {
-                    temper_engine_domain_forge_change::State::Landed { merge } => Some(merge),
+                    temper_engine_domain_forge_change::State::Landed { merge, .. } => Some(merge),
                     _ => None,
                 },
                 _ => None,

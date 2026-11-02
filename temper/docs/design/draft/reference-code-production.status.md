@@ -50,11 +50,11 @@
     producer's early start, its once rule, its refusal on a conflict, or
     an amendment refused for dropping a dependency a producer started
     from.
-  - **10, 14: g's tier (N5).** `../domain/after-landing.md`, sections 1 and
-    3: each tier follows every landing branch of its repository, and the
-    landings it covers live to cleared; section 2 clears landings as they
-    land only in a repository with no tier. No tier names the branches it
-    follows, and none sends its reds as news without a verdict.
+  - **10, 14: g's tier (N5).** `../domain/after-landing.md`, sections 1 to
+    3: a tier follows the one branch it names and judges the landings on
+    it; none follows the goals' own branches as they come and go, judges
+    no landing, runs at most once in a span, or sends its reds to the
+    goal as news without a verdict.
   - **11: catching up (N6).** `../domain/forge.md`, 10: a change never
     updates only because its base moved; 11.1: a goal's own branch takes
     the base's landings by an update. Neither has a catch-up change into

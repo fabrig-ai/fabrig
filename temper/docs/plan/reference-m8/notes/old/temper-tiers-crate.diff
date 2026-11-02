@@ -1,0 +1,1505 @@
+diff --git a/temper/crates/temper-engine-domain-forge-tiers/Cargo.toml b/temper/crates/temper-engine-domain-forge-tiers/Cargo.toml
+new file mode 100644
+index 000000000..e7e47e9ac
+--- /dev/null
++++ b/temper/crates/temper-engine-domain-forge-tiers/Cargo.toml
+@@ -0,0 +1,14 @@
++[package]
++name = "temper-engine-domain-forge-tiers"
++description = "Pure tier verdicts after landing for the forge connector"
++version.workspace = true
++edition.workspace = true
++license.workspace = true
++rust-version.workspace = true
++publish.workspace = true
++
++[dependencies]
++skein-lib.workspace = true
++
++[lints]
++workspace = true
+diff --git a/temper/crates/temper-engine-domain-forge-tiers/src/boundary.rs b/temper/crates/temper-engine-domain-forge-tiers/src/boundary.rs
+new file mode 100644
+index 000000000..dc257a070
+--- /dev/null
++++ b/temper/crates/temper-engine-domain-forge-tiers/src/boundary.rs
+@@ -0,0 +1,180 @@
++//! Top-owned tier records and verdicts (domain/after-landing.md, sections 2–5).
++use alloc::boxed::Box;
++
++pub type Commit = [u8; 32];
++/// A tier's key at a commit (domain/landing.md, 6.1), computed by the top.
++pub type Key = [u8; 32];
++/// A test's id, at most `Limits::test_id_bytes` bytes.
++pub type TestId = Box<[u8]>;
++
++/// Bounds on what a run reports (domain/after-landing.md, 4).
++#[derive(Clone, Copy, PartialEq, Eq, Debug)]
++pub struct Limits {
++    pub failing_tests: u32,
++    pub test_id_bytes: u32,
++}
++
++/// A project's settings the verdict reads (domain/after-landing.md, 11).
++#[derive(Clone, Copy, PartialEq, Eq, Debug)]
++pub struct Settings {
++    pub retries: u32,
++    pub suspects: Suspects,
++}
++/// Several landings' new failures: bisected, or every landing told.
++#[derive(Clone, Copy, PartialEq, Eq, Debug)]
++pub enum Suspects {
++    Bisect,
++    TellAll,
++}
++
++/// A tier's report file's format (domain/after-landing.md, 2).
++#[derive(Clone, Copy, PartialEq, Eq, Debug)]
++pub enum Format {
++    Junit,
++    Lines,
++}
++
++/// The failing tests a run names.
++#[derive(Clone, PartialEq, Eq, Debug)]
++pub enum Failures {
++    /// Sorted, unique, at most `failing_tests`; empty is none.
++    Tests(Box<[TestId]>),
++    /// Past `failing_tests`, or an id past `test_id_bytes`: blamed by
++    /// landing alone, never by test.
++    Many,
++}
++
++/// A report file its format cannot read.
++#[derive(Clone, Copy, PartialEq, Eq, Debug)]
++pub struct Unreadable;
++
++/// What the top observed of one dispatched part of a tier.
++#[derive(Clone, PartialEq, Eq, Debug)]
++pub enum Outcome {
++    Passed,
++    /// Failed naming these tests: never `Tests` empty.
++    Failed(Failures),
++    /// The runner's fault (domain/landing.md, 7.4), or a failed run whose
++    /// report is absent, unreadable or names no test (domain/after-landing.md, 4).
++    Fault,
++}
++
++/// A receipt at the tip's key, as a tier reads it (domain/landing.md, 6.2).
++#[derive(Clone, PartialEq, Eq, Debug)]
++pub enum Receipt {
++    Passed,
++    Failed(Failures),
++}
++
++/// A tier's record, the top's (store family 25, `Tier`).
++#[derive(Clone, PartialEq, Eq, Debug)]
++pub struct Record {
++    /// Judged runs so far; the next run is numbered `sequence + 1`.
++    pub sequence: u64,
++    /// The last judged tip and the tier's key there; none before the baseline.
++    pub judged: Option<Judged>,
++    /// The tier's failures at the last judged tip.
++    pub failing: Failures,
++    /// Flakes counted by test, sorted by test, at most `failing_tests`.
++    pub flakes: Box<[Flake]>,
++    /// The run in flight.
++    pub run: Option<Run>,
++}
++#[derive(Clone, Copy, PartialEq, Eq, Debug)]
++pub struct Judged {
++    pub tip: Commit,
++    pub key: Key,
++}
++#[derive(Clone, PartialEq, Eq, Debug)]
++pub struct Flake {
++    pub test: TestId,
++    pub count: u32,
++}
++
++/// A run in flight: its tip, its range and the part dispatched now.
++#[derive(Clone, PartialEq, Eq, Debug)]
++pub struct Run {
++    /// Its number in the tier's sequence.
++    pub number: u64,
++    pub tip: Commit,
++    /// The tier's key at the tip.
++    pub key: Key,
++    /// The landings in its range, oldest first; empty for the baseline.
++    pub landings: Box<[Landing]>,
++    pub part: Part,
++    /// Faults of this part so far.
++    pub faults: u32,
++}
++
++/// One landing in a run's range (domain/after-landing.md, 3): its commit, the
++/// last of its own range, and the tier's key there (the last landing's
++/// is the tip's).
++#[derive(Clone, Copy, PartialEq, Eq, Debug)]
++pub struct Landing {
++    pub commit: Commit,
++    pub key: Key,
++}
++
++/// The part of the tier dispatched now.
++#[derive(Clone, PartialEq, Eq, Debug)]
++pub enum Part {
++    /// The whole tier at the tip.
++    Whole,
++    /// The failed tests alone, again at the tip (5.2, 1).
++    Rerun { failed: Box<[TestId]> },
++    /// A probe: `tests` alone at landing `landing`'s commit (5.2, 4).
++    Probe { landing: u32, tests: Selection, finding: Finding },
++}
++/// What a probe runs: these tests alone, or, after many, the whole tier.
++#[derive(Clone, PartialEq, Eq, Debug)]
++pub enum Selection {
++    Tests(Box<[TestId]>),
++    All,
++}
++
++/// A verdict being found, kept across probes.
++#[derive(Clone, PartialEq, Eq, Debug)]
++pub struct Finding {
++    /// The run's failures once rerun: the tier's at the tip once judged.
++    pub failing: Failures,
++    /// Tests that failed, then passed alone.
++    pub flakes: Box<[TestId]>,
++    /// One per landing of the range, oldest first, so far.
++    pub blamed: Box<[Blame]>,
++}
++
++/// What a verdict lays on one landing for this tier (5.2, 5.3).
++#[derive(Clone, PartialEq, Eq, Debug)]
++pub enum Blame {
++    /// Nothing: cleared.
++    Cleared,
++    /// These new failures are its own.
++    Owns(Failures),
++    /// Told all: a suspect of these new failures, with every landing of its range.
++    Suspect(Failures),
++}
++
++/// A judged run's verdict.
++#[derive(Clone, PartialEq, Eq, Debug)]
++pub struct Verdict {
++    pub number: u64,
++    pub tip: Commit,
++    pub key: Key,
++    /// The tier's failures at the tip: the record's next `failing`.
++    pub failing: Failures,
++    /// One per landing of the range, oldest first.
++    pub landings: Box<[Blame]>,
++    pub flakes: Box<[TestId]>,
++}
++
++/// What the top does next for a tier.
++#[derive(Clone, PartialEq, Eq, Debug)]
++pub enum Next {
++    /// Dispatch `run.part` now: a new part, or the same again after a fault.
++    Dispatch(Run),
++    /// Judged: the top saves the verdict, then the record `judged` makes.
++    Judged(Verdict),
++    /// Past `retries`: held for a person's release (3), its landings
++    /// still verifying. The release dispatches `run` again, faults 0.
++    Held(Run),
++}
+diff --git a/temper/crates/temper-engine-domain-forge-tiers/src/lib.rs b/temper/crates/temper-engine-domain-forge-tiers/src/lib.rs
+new file mode 100644
+index 000000000..294b8b13a
+--- /dev/null
++++ b/temper/crates/temper-engine-domain-forge-tiers/src/lib.rs
+@@ -0,0 +1,24 @@
++//! Pure tier verdict policy (domain/after-landing.md, sections 2–5).
++//!
++//! This crate keeps no state and knows no forge call: the connector top owns
++//! the records, reads reports and receipts, and saves and dispatches each part.
++//! The policy is level-triggered: the same record and observations give the
++//! same decision. The top commits a decision before dispatching its part and
++//! passes each completion with that committed run.
++#![cfg_attr(not(test), no_std)]
++#![forbid(unsafe_code)]
++
++extern crate alloc;
++
++mod boundary;
++mod report;
++#[cfg(test)]
++mod tests;
++mod verdict;
++
++pub use boundary::{
++    Blame, Commit, Failures, Finding, Flake, Format, Judged, Key, Landing, Limits, Next, Outcome, Part, Receipt,
++    Record, Run, Selection, Settings, Suspects, TestId, Unreadable, Verdict,
++};
++pub use report::{failed, report};
++pub use verdict::{due, judged, repaired, start, step};
+diff --git a/temper/crates/temper-engine-domain-forge-tiers/src/report.rs b/temper/crates/temper-engine-domain-forge-tiers/src/report.rs
+new file mode 100644
+index 000000000..146411c4c
+--- /dev/null
++++ b/temper/crates/temper-engine-domain-forge-tiers/src/report.rs
+@@ -0,0 +1,344 @@
++//! Report bytes to failing test ids (domain/after-landing.md, sections 2 and 4).
++//!
++//! This boundary reads the two report encodings; the connector top owns
++//! artifact retrieval and run conclusions.
++use crate::{Failures, Format, Limits, Outcome, TestId, Unreadable};
++use alloc::boxed::Box;
++use skein_lib::{List, Writer, bytes};
++
++/// Reads a report, sorting and deduplicating its bounded failing ids.
++pub fn report(format: Format, file: &[u8], limits: &Limits) -> Result<Failures, Unreadable> {
++    match format {
++        Format::Lines => Ok(lines(file, *limits)),
++        Format::Junit => junit(file, *limits),
++    }
++}
++
++/// A failed run without a readable, nonempty report is a runner fault.
++#[must_use]
++pub fn failed(report: Option<Result<Failures, Unreadable>>) -> Outcome {
++    match report {
++        None | Some(Err(Unreadable)) => Outcome::Fault,
++        Some(Ok(Failures::Many)) => Outcome::Failed(Failures::Many),
++        Some(Ok(Failures::Tests(tests))) => {
++            if tests.is_empty() {
++                Outcome::Fault
++            } else {
++                Outcome::Failed(Failures::Tests(tests))
++            }
++        }
++    }
++}
++
++fn lines(file: &[u8], limits: Limits) -> Failures {
++    let mut failures = Failures::Tests(Box::new([]));
++    let mut from = 0_usize;
++    for (at, byte) in file.iter().enumerate() {
++        if *byte == b'\n' {
++            line(&mut failures, file.get(from..at).expect("line lies within file"), limits);
++            from = at.checked_add(1).expect("position within file");
++        }
++    }
++    line(&mut failures, file.get(from..).expect("last line lies within file"), limits);
++    failures
++}
++
++fn line(failures: &mut Failures, line: &[u8], limits: Limits) {
++    let line = line.strip_suffix(b"\r").unwrap_or(line);
++    if !line.is_empty() {
++        if line.len() > index(limits.test_id_bytes) {
++            *failures = Failures::Many;
++        } else {
++            insert(failures, Box::from(line), limits);
++        }
++    }
++}
++
++fn index(value: u32) -> usize {
++    usize::try_from(value).expect("u32 fits usize")
++}
++
++fn insert(failures: &mut Failures, test: TestId, limits: Limits) {
++    let tests = match failures {
++        Failures::Many => return,
++        Failures::Tests(tests) => tests,
++    };
++    if tests.binary_search(&test).is_ok() {
++        return;
++    }
++    if tests.len() >= index(limits.failing_tests) {
++        *failures = Failures::Many;
++        return;
++    }
++    let capacity = u32::try_from(tests.len()).expect("bounded ids").checked_add(1).expect("room for an id");
++    let mut ordered = List::with_capacity(capacity);
++    let mut new = Some(test);
++    for old in tests.iter() {
++        if let Some(test) = &new
++            && test < old
++        {
++            let test = new.take().expect("new id is pending");
++            ordered.push(test).expect("one new id fits");
++        }
++        ordered.push(old.clone()).expect("old ids fit");
++    }
++    if let Some(test) = new {
++        ordered.push(test).expect("one new id fits");
++    }
++    *tests = ordered.into_boxed();
++}
++
++#[derive(Debug)]
++struct Case {
++    // None is an id past the byte bound, remembered only if the case fails.
++    id: Option<TestId>,
++    failed: bool,
++}
++
++fn junit(file: &[u8], limits: Limits) -> Result<Failures, Unreadable> {
++    let mut failures = Failures::Tests(Box::new([]));
++    let mut suite = false;
++    let mut case: Option<Case> = None;
++    let mut from = 0_usize;
++    for (at, byte) in file.iter().enumerate() {
++        if at < from || *byte != b'<' {
++            continue;
++        }
++        let rest = file.get(at..).expect("tag starts within file");
++        let special = if rest.starts_with(b"<!--") {
++            Some(b"-->".as_slice())
++        } else if rest.starts_with(b"<![CDATA[") {
++            Some(b"]]>".as_slice())
++        } else if rest.starts_with(b"<?") {
++            Some(b"?>".as_slice())
++        } else {
++            None
++        };
++        if let Some(end) = special {
++            let position = bytes::find(rest, end).ok_or(Unreadable)?;
++            from = at.checked_add(position).ok_or(Unreadable)?.checked_add(end.len()).ok_or(Unreadable)?;
++            continue;
++        }
++        let end = tag_end(rest).ok_or(Unreadable)?;
++        from = at.checked_add(end).ok_or(Unreadable)?.checked_add(1).ok_or(Unreadable)?;
++        let tag = rest.get(1..end).ok_or(Unreadable)?;
++        let closing = tag.starts_with(b"/");
++        let tag = tag.strip_prefix(b"/").unwrap_or(tag);
++        let self_closing = tag.ends_with(b"/");
++        let tag = tag.strip_suffix(b"/").unwrap_or(tag);
++        let name_end = word_end(tag);
++        let name = tag.get(..name_end).ok_or(Unreadable)?;
++        let attributes = tag.get(name_end..).ok_or(Unreadable)?;
++        if name.is_empty() {
++            return Err(Unreadable);
++        }
++        if !closing && (name == b"testsuites" || name == b"testsuite") {
++            suite = true;
++        }
++        if name == b"testcase" {
++            if closing {
++                let ended = case.take().ok_or(Unreadable)?;
++                if ended.failed {
++                    match ended.id {
++                        Some(id) => insert(&mut failures, id, limits),
++                        None => failures = Failures::Many,
++                    }
++                }
++            } else {
++                if case.is_some() {
++                    return Err(Unreadable);
++                }
++                let name = attribute(attributes, Attribute::Name)?.ok_or(Unreadable)?;
++                let class = attribute(attributes, Attribute::Class)?.unwrap_or(b"");
++                let id = case_id(name, class, limits.test_id_bytes)?;
++                if !self_closing {
++                    case = Some(Case { id, failed: false });
++                }
++            }
++        } else if !closing
++            && (name == b"failure" || name == b"error")
++            && let Some(case) = &mut case
++        {
++            case.failed = true;
++        }
++    }
++    if !suite || case.is_some() {
++        return Err(Unreadable);
++    }
++    Ok(failures)
++}
++
++// Quotes may contain '>'; '<' in a tag is never a terminator.
++fn tag_end(tag: &[u8]) -> Option<usize> {
++    let mut quote = None;
++    for (at, byte) in tag.iter().enumerate().skip(1) {
++        match quote {
++            Some(open) => {
++                if *byte == open {
++                    quote = None;
++                }
++            }
++            None => match byte {
++                b'\'' | b'"' => quote = Some(*byte),
++                b'>' => return Some(at),
++                b'<' => return None,
++                _ => {}
++            },
++        }
++    }
++    None
++}
++
++fn space(byte: u8) -> bool {
++    byte == b' ' || byte == b'\t' || byte == b'\r' || byte == b'\n'
++}
++
++fn word_end(bytes: &[u8]) -> usize {
++    for (at, byte) in bytes.iter().enumerate() {
++        if space(*byte) || *byte == b'=' {
++            return at;
++        }
++    }
++    bytes.len()
++}
++
++fn trim(bytes: &[u8]) -> &[u8] {
++    for (at, byte) in bytes.iter().enumerate() {
++        if !space(*byte) {
++            return bytes.get(at..).expect("within attributes");
++        }
++    }
++    b""
++}
++
++#[derive(Clone, Copy, PartialEq, Eq, Debug)]
++enum Attribute {
++    Name,
++    Class,
++}
++
++fn attribute(attributes: &[u8], wanted: Attribute) -> Result<Option<&[u8]>, Unreadable> {
++    let wanted = match wanted {
++        Attribute::Name => b"name".as_slice(),
++        Attribute::Class => b"classname".as_slice(),
++    };
++    let mut rest = attributes;
++    let mut found = None;
++    // Each iteration consumes at least one byte; malformed attributes refuse.
++    for _ in 0..attributes.len() {
++        rest = trim(rest);
++        if rest.is_empty() {
++            break;
++        }
++        let end = word_end(rest);
++        if end == 0 {
++            return Err(Unreadable);
++        }
++        let key = rest.get(..end).ok_or(Unreadable)?;
++        rest = trim(rest.get(end..).ok_or(Unreadable)?);
++        rest = trim(rest.strip_prefix(b"=").ok_or(Unreadable)?);
++        let (&quote, value) = rest.split_first().ok_or(Unreadable)?;
++        if quote != b'\'' && quote != b'"' {
++            return Err(Unreadable);
++        }
++        let end = bytes::find(value, &[quote]).ok_or(Unreadable)?;
++        let attr = value.get(..end).ok_or(Unreadable)?;
++        if key == wanted {
++            found = Some(attr);
++        }
++        rest = value.get(end.checked_add(1).ok_or(Unreadable)?..).ok_or(Unreadable)?;
++        if let Some(byte) = rest.first()
++            && !space(*byte)
++        {
++            return Err(Unreadable);
++        }
++    }
++    Ok(found)
++}
++
++fn case_id(name: &[u8], class: &[u8], limit: u32) -> Result<Option<TestId>, Unreadable> {
++    let name = decode(name, limit)?;
++    let class = decode(class, limit)?;
++    let Some(name) = name else { return Ok(None) };
++    let Some(class) = class else { return Ok(None) };
++    if class.is_empty() {
++        return Ok(Some(name));
++    }
++    let Some(length) = class.len().checked_add(1) else { return Ok(None) };
++    let Some(length) = length.checked_add(name.len()) else { return Ok(None) };
++    if length > index(limit) {
++        return Ok(None);
++    }
++    let mut id = Writer::new(length);
++    id.put(&class).expect("id's computed length");
++    id.put(b".").expect("id's separator");
++    id.put(&name).expect("id's computed length");
++    Ok(Some(id.finish()))
++}
++
++fn decode(raw: &[u8], limit: u32) -> Result<Option<TestId>, Unreadable> {
++    let capacity = raw.len().min(index(limit));
++    let mut decoded = List::with_capacity(u32::try_from(capacity).expect("capacity bounded by u32"));
++    let mut oversized = false;
++    let mut from = 0_usize;
++    for (at, byte) in raw.iter().enumerate() {
++        if at < from {
++            continue;
++        }
++        if *byte != b'&' {
++            if decoded.push(*byte).is_err() {
++                oversized = true;
++            }
++            continue;
++        }
++        let rest = raw.get(at.checked_add(1).ok_or(Unreadable)?..).ok_or(Unreadable)?;
++        let end = bytes::find(rest, b";").ok_or(Unreadable)?;
++        let entity = rest.get(..end).ok_or(Unreadable)?;
++        let character = entity_char(entity).ok_or(Unreadable)?;
++        let mut buffer = [0_u8; 4];
++        let utf8 = character.encode_utf8(&mut buffer);
++        for byte in utf8.as_bytes() {
++            if decoded.push(*byte).is_err() {
++                oversized = true;
++            }
++        }
++        from = at.checked_add(end).ok_or(Unreadable)?.checked_add(2).ok_or(Unreadable)?;
++    }
++    if oversized { Ok(None) } else { Ok(Some(decoded.into_boxed())) }
++}
++
++fn entity_char(entity: &[u8]) -> Option<char> {
++    match entity {
++        b"amp" => Some('&'),
++        b"lt" => Some('<'),
++        b"gt" => Some('>'),
++        b"quot" => Some('"'),
++        b"apos" => Some('\''),
++        _ => {
++            let numeric = entity.strip_prefix(b"#")?;
++            let (digits, base) = match numeric.strip_prefix(b"x") {
++                Some(hex) => (hex, 16_u32),
++                None => (numeric, 10_u32),
++            };
++            if digits.is_empty() {
++                return None;
++            }
++            let mut value = 0_u32;
++            for byte in digits {
++                let digit = char::from(*byte).to_digit(base)?;
++                value = value.checked_mul(base)?.checked_add(digit)?;
++            }
++            // XML 1.0 character references exclude NUL and surrogate codepoints.
++            if value != 9
++                && value != 10
++                && value != 13
++                && !(0x20..=0xD7FF).contains(&value)
++                && !(0xE000..=0xFFFD).contains(&value)
++                && !(0x0001_0000..=0x0010_FFFF).contains(&value)
++            {
++                return None;
++            }
++            char::from_u32(value)
++        }
++    }
++}
+diff --git a/temper/crates/temper-engine-domain-forge-tiers/src/tests/mod.rs b/temper/crates/temper-engine-domain-forge-tiers/src/tests/mod.rs
+new file mode 100644
+index 000000000..e31460ff3
+--- /dev/null
++++ b/temper/crates/temper-engine-domain-forge-tiers/src/tests/mod.rs
+@@ -0,0 +1,81 @@
++//! Tier stories with small bounds (testing-strategy.md, section 10).
++#![expect(clippy::mod_module_files, reason = "T1 specifies shared helpers in src/tests/mod.rs")]
++use crate::{
++    Blame, Commit, Failures, Finding, Judged, Key, Landing, Limits, Next, Part, Record, Run, Settings, Suspects,
++    TestId, Verdict, start,
++};
++use alloc::boxed::Box;
++
++mod report;
++mod verdict;
++
++const BASE: Commit = [0; 32];
++const L1: Commit = [1; 32];
++const L2: Commit = [2; 32];
++const L3: Commit = [3; 32];
++const TIP: Commit = [4; 32];
++const K_DOCS: Key = [10; 32];
++const K_CODE: Key = [11; 32];
++const K_TESTS: Key = [12; 32];
++const K_TIP: Key = [13; 32];
++// Task T1's report bounds and retry budget.
++const LIMITS: Limits = Limits { failing_tests: 4, test_id_bytes: 16 };
++const SETTINGS: Settings = Settings { retries: 2, suspects: Suspects::Bisect };
++
++fn ids(names: &[&str]) -> Box<[TestId]> {
++    let mut ids = skein_lib::List::with_capacity(u32::try_from(names.len()).expect("fixture size fits"));
++    for name in names {
++        ids.push(Box::from(name.as_bytes())).expect("fixture ids fit");
++    }
++    let mut ids = ids.into_boxed();
++    ids.sort();
++    ids
++}
++
++fn tests(names: &[&str]) -> Failures {
++    Failures::Tests(ids(names))
++}
++
++fn landing(commit: Commit, key: Key) -> Landing {
++    Landing { commit, key }
++}
++
++fn record(failing: Failures) -> Record {
++    Record { sequence: 0, judged: Some(Judged { tip: BASE, key: K_DOCS }), failing, flakes: Box::new([]), run: None }
++}
++
++fn dispatched(next: Next) -> Run {
++    match next {
++        Next::Dispatch(run) => run,
++        Next::Judged(_) | Next::Held(_) => panic!("expected a dispatched tier part"),
++    }
++}
++
++fn verdict(next: Next) -> Verdict {
++    match next {
++        Next::Judged(verdict) => verdict,
++        Next::Dispatch(_) | Next::Held(_) => panic!("expected a judged tier"),
++    }
++}
++
++fn run(record: &Record, landings: Box<[Landing]>) -> Run {
++    dispatched(start(record, TIP, K_TIP, landings, None, &SETTINGS))
++}
++
++fn rerun(record: &Record, landings: Box<[Landing]>, failed: &[&str]) -> Run {
++    let mut run = run(record, landings);
++    run.part = Part::Rerun { failed: ids(failed) };
++    run
++}
++
++fn pair() -> Box<[Landing]> {
++    Box::new([landing(L1, K_CODE), landing(TIP, K_TIP)])
++}
++
++fn three() -> Box<[Landing]> {
++    Box::new([landing(L1, K_CODE), landing(L2, K_TESTS), landing(L3, K_TIP)])
++}
++
++fn finding(failing: Failures, blamed: &[Blame]) -> Finding {
++    Finding { failing, flakes: ids(&[]), blamed: Box::from(blamed) }
++}
+diff --git a/temper/crates/temper-engine-domain-forge-tiers/src/tests/report.rs b/temper/crates/temper-engine-domain-forge-tiers/src/tests/report.rs
+new file mode 100644
+index 000000000..9706ef9f2
+--- /dev/null
++++ b/temper/crates/temper-engine-domain-forge-tiers/src/tests/report.rs
+@@ -0,0 +1,120 @@
++use super::{LIMITS, tests};
++use crate::{Failures, Format, Outcome, Unreadable, failed, report};
++
++#[test]
++fn junit_names_failed_and_errored_cases_in_order() {
++    let file = br#"<?xml version="1.0"?>
++        <testsuites><testsuite name="nextest">
++        <testcase classname="suite" name="passes"/>
++        <testcase classname="suite" name="z"><failure message="a > b">bad</failure></testcase>
++        <testcase classname="suite" name="a"><error/></testcase>
++        <testcase classname="suite" name="skip"><skipped/></testcase>
++        <testcase classname="suite" name="a"><failure/></testcase>
++        </testsuite></testsuites>"#;
++    assert_eq!(report(Format::Junit, file, &LIMITS), Ok(tests(&["suite.a", "suite.z"])));
++}
++
++#[test]
++fn junit_decodes_named_and_numeric_entities_in_attributes() {
++    let file = br#"<testsuite>
++        <testcase classname="&lt;&gt;" name="&amp;&quot;&apos;&#65;&#x3B2;"><failure/></testcase>
++        <testcase name="alone"><error/></testcase>
++        <testcase classname="" name="empty"><failure/></testcase>
++        </testsuite>"#;
++    assert_eq!(report(Format::Junit, file, &LIMITS), Ok(tests(&["<>.&\"'Aβ", "alone", "empty"])));
++}
++
++#[test]
++fn malformed_junit_is_unreadable_even_without_a_failure() {
++    let malformed: &[&[u8]] = &[
++        b"<testsuite><testcase/></testsuite>",
++        b"<testsuite><testcase name='a'",
++        b"<testsuite><testcase name='a'><failure/></testsuite>",
++        b"<testcase name='a'><failure/></testcase>",
++        b"<testsuiteish/>",
++        b"<testsuite><!-- unterminated",
++        b"<testsuite><testcase name='&unknown;'/></testsuite>",
++        b"<testsuite><testcase name='&#xD800;'/></testsuite>",
++        b"<testsuite><testcase name='&#0;'/></testsuite>",
++        b"<testsuite><testcase name=a/></testsuite>",
++        b"<testsuite><testcase classname='x'/></testsuite>",
++    ];
++    for file in malformed {
++        assert_eq!(report(Format::Junit, file, &LIMITS), Err(Unreadable));
++    }
++}
++
++#[test]
++fn comments_and_cdata_do_not_invent_failed_tests() {
++    let file = br#"<testsuite>
++        <!-- <testcase name="ghost"><failure/></testcase> -->
++        <testcase name="passes"><![CDATA[<failure/>]]></testcase>
++        </testsuite>"#;
++    assert_eq!(report(Format::Junit, file, &LIMITS), Ok(tests(&[])));
++}
++
++#[test]
++fn lines_drop_cr_and_blanks_sorting_unique_ids() {
++    assert_eq!(report(Format::Lines, b"b\r\n\r\na\n\nb\na\r", &LIMITS), Ok(tests(&["a", "b"])));
++}
++
++#[test]
++fn report_count_accepts_four_and_refuses_five_unique_ids() {
++    let cases: &[(Format, &[u8], Failures)] = &[
++        (Format::Lines, b"a\nb\nc\nd\na", tests(&["a", "b", "c", "d"])),
++        (Format::Lines, b"a\nb\nc\nd\ne", Failures::Many),
++        (Format::Junit, br#"<testsuite><testcase name="a"><failure/></testcase><testcase name="b"><failure/></testcase><testcase name="c"><failure/></testcase><testcase name="d"><failure/></testcase></testsuite>"#, tests(&["a", "b", "c", "d"])),
++        (Format::Junit, br#"<testsuite><testcase name="a"><failure/></testcase><testcase name="b"><failure/></testcase><testcase name="c"><failure/></testcase><testcase name="d"><failure/></testcase><testcase name="e"><failure/></testcase></testsuite>"#, Failures::Many),
++    ];
++    for (format, file, expected) in cases {
++        assert_eq!(report(*format, file, &LIMITS), Ok(expected.clone()));
++    }
++}
++
++#[test]
++fn report_id_accepts_sixteen_bytes_and_refuses_seventeen() {
++    // T1's test_id_bytes bound is 16, including classname and separator.
++    const AT_BOUND: &str = "1234567890123456";
++    let cases: &[(Format, &[u8], Failures)] = &[
++        (Format::Lines, AT_BOUND.as_bytes(), tests(&[AT_BOUND])),
++        (Format::Lines, b"12345678901234567", Failures::Many),
++        (
++            Format::Junit,
++            br#"<testsuite><testcase classname="1234567" name="90123456"><error/></testcase></testsuite>"#,
++            tests(&["1234567.90123456"]),
++        ),
++        (
++            Format::Junit,
++            br#"<testsuite><testcase classname="1234567" name="901234567"><error/></testcase></testsuite>"#,
++            Failures::Many,
++        ),
++        (
++            Format::Junit,
++            br#"<testsuite><testcase name="123456789012345&#54;"><error/></testcase></testsuite>"#,
++            tests(&[AT_BOUND]),
++        ),
++    ];
++    for (format, file, expected) in cases {
++        assert_eq!(report(*format, file, &LIMITS), Ok(expected.clone()));
++    }
++}
++
++#[test]
++fn malformed_junit_stays_unreadable_after_an_oversized_id() {
++    let file = br#"<testsuite><testcase name="12345678901234567"><failure/></testcase><testcase"#;
++    assert_eq!(report(Format::Junit, file, &LIMITS), Err(Unreadable));
++}
++
++#[test]
++fn failed_run_without_named_tests_is_a_fault() {
++    for report in [None, Some(Err(Unreadable)), Some(Ok(tests(&[])))] {
++        assert_eq!(failed(report), Outcome::Fault);
++    }
++}
++
++#[test]
++fn failed_run_with_named_or_many_tests_is_red() {
++    for failures in [tests(&["a"]), Failures::Many] {
++        assert_eq!(failed(Some(Ok(failures.clone()))), Outcome::Failed(failures));
++    }
++}
+diff --git a/temper/crates/temper-engine-domain-forge-tiers/src/tests/verdict.rs b/temper/crates/temper-engine-domain-forge-tiers/src/tests/verdict.rs
+new file mode 100644
+index 000000000..1a0fe17f7
+--- /dev/null
++++ b/temper/crates/temper-engine-domain-forge-tiers/src/tests/verdict.rs
+@@ -0,0 +1,391 @@
++use super::{
++    BASE, K_CODE, K_DOCS, K_TESTS, K_TIP, L1, L2, L3, LIMITS, SETTINGS, TIP, dispatched, finding, ids, landing, pair,
++    record, rerun, run, tests, three, verdict,
++};
++use crate::{
++    Blame, Failures, Flake, Judged, Next, Outcome, Part, Receipt, Selection, Settings, Suspects, due, judged, repaired,
++    start, step,
++};
++use alloc::boxed::Box;
++
++#[test]
++fn due_waits_for_run_and_for_a_new_tip() {
++    let mut record = record(tests(&[]));
++    assert!(!due(&record, BASE), "the judged tip is already covered");
++    assert!(due(&record, TIP), "a new tip needs a run");
++    record.run = Some(run(&record, pair()));
++    assert!(!due(&record, TIP), "one tier has only one run in flight");
++}
++
++#[test]
++fn a_new_tier_is_due_for_its_baseline() {
++    let mut record = record(tests(&[]));
++    record.judged = None;
++    assert!(due(&record, BASE), "the baseline has not been judged");
++}
++
++#[test]
++fn a_green_run_clears_range_and_moves_record() {
++    let mut record = record(tests(&["a"]));
++    let run = run(&record, pair());
++    record.run = Some(run.clone());
++    let verdict = verdict(step(&record, &run, Outcome::Passed, &SETTINGS));
++    assert_eq!(verdict.landings.as_ref(), &[Blame::Cleared, Blame::Cleared]);
++    assert_eq!(
++        judged(&record, &verdict, &LIMITS),
++        crate::Record {
++            sequence: 1,
++            judged: Some(Judged { tip: TIP, key: K_TIP }),
++            failing: tests(&[]),
++            flakes: Box::new([]),
++            run: None,
++        }
++    );
++}
++
++#[test]
++fn a_whole_failure_reruns_only_the_failed_tests() {
++    let record = record(tests(&[]));
++    let run = run(&record, pair());
++    let rerun = dispatched(step(&record, &run, Outcome::Failed(tests(&["a", "b"])), &SETTINGS));
++    assert_eq!(rerun, crate::Run { part: Part::Rerun { failed: ids(&["a", "b"]) }, ..run });
++}
++
++#[test]
++fn a_flake_clears_range_and_is_counted_twice() {
++    let record = record(tests(&[]));
++    let run = rerun(&record, pair(), &["a"]);
++    let verdict = verdict(step(&record, &run, Outcome::Passed, &SETTINGS));
++    assert_eq!(verdict.landings.as_ref(), &[Blame::Cleared, Blame::Cleared]);
++    assert_eq!(verdict.failing, tests(&[]));
++    assert_eq!(verdict.flakes, ids(&["a"]));
++    let once = judged(&record, &verdict, &LIMITS);
++    assert_eq!(once.flakes.as_ref(), &[Flake { test: Box::from(b"a".as_slice()), count: 1 }]);
++    let next_run = rerun(&once, pair(), &["a"]);
++    let next_verdict = super::verdict(step(&once, &next_run, Outcome::Passed, &SETTINGS));
++    let twice = judged(&once, &next_verdict, &LIMITS);
++    assert_eq!(twice.sequence, 2);
++    assert_eq!(twice.flakes.as_ref(), &[Flake { test: Box::from(b"a".as_slice()), count: 2 }]);
++}
++
++#[test]
++fn one_landing_owns_only_new_confirmed_failures() {
++    let record = record(tests(&["a"]));
++    let run = rerun(&record, Box::new([landing(TIP, K_TIP)]), &["a", "b", "c"]);
++    let verdict = verdict(step(&record, &run, Outcome::Failed(tests(&["a", "b", "foreign"])), &SETTINGS));
++    assert_eq!(verdict.failing, tests(&["a", "b"]));
++    assert_eq!(verdict.flakes, ids(&["c"]));
++    assert_eq!(verdict.landings.as_ref(), &[Blame::Owns(tests(&["b"]))]);
++}
++
++#[test]
++fn unchanged_first_landing_is_skipped_by_the_probe() {
++    let record = record(tests(&[]));
++    let landings = Box::new([landing(L1, K_DOCS), landing(L2, K_TESTS), landing(L3, K_TIP)]);
++    let run = rerun(&record, landings, &["a", "b"]);
++    let probe = dispatched(step(&record, &run, Outcome::Failed(tests(&["a", "b"])), &SETTINGS));
++    assert_eq!(
++        probe.part,
++        Part::Probe {
++            landing: 1,
++            tests: Selection::Tests(ids(&["a", "b"])),
++            finding: finding(tests(&["a", "b"]), &[Blame::Cleared, Blame::Cleared, Blame::Cleared]),
++        }
++    );
++    let verdict = verdict(step(&record, &probe, Outcome::Failed(tests(&["a", "b"])), &SETTINGS));
++    assert_eq!(verdict.landings.as_ref(), &[Blame::Cleared, Blame::Owns(tests(&["a", "b"])), Blame::Cleared]);
++}
++
++#[test]
++fn unchanged_last_landing_needs_no_further_probe() {
++    let record = record(tests(&[]));
++    let run = rerun(&record, Box::new([landing(L1, K_CODE), landing(L2, K_TIP), landing(L3, K_TIP)]), &["a", "b"]);
++    let probe = dispatched(step(&record, &run, Outcome::Failed(tests(&["a", "b"])), &SETTINGS));
++    assert_eq!(
++        probe.part,
++        Part::Probe {
++            landing: 0,
++            tests: Selection::Tests(ids(&["a", "b"])),
++            finding: finding(tests(&["a", "b"]), &[Blame::Cleared, Blame::Cleared, Blame::Cleared]),
++        }
++    );
++    let verdict = verdict(step(&record, &probe, Outcome::Passed, &SETTINGS));
++    assert_eq!(verdict.landings.as_ref(), &[Blame::Cleared, Blame::Owns(tests(&["a", "b"])), Blame::Cleared]);
++}
++
++#[test]
++fn two_landings_own_the_tests_they_first_fail() {
++    let record = record(tests(&[]));
++    let run = rerun(&record, three(), &["a", "b"]);
++    let first = dispatched(step(&record, &run, Outcome::Failed(tests(&["a", "b"])), &SETTINGS));
++    let second = dispatched(step(&record, &first, Outcome::Failed(tests(&["a", "foreign"])), &SETTINGS));
++    assert_eq!(
++        second.part,
++        Part::Probe {
++            landing: 1,
++            tests: Selection::Tests(ids(&["b"])),
++            finding: finding(tests(&["a", "b"]), &[Blame::Owns(tests(&["a"])), Blame::Cleared, Blame::Cleared]),
++        }
++    );
++    let verdict = verdict(step(&record, &second, Outcome::Failed(tests(&["b"])), &SETTINGS));
++    assert_eq!(verdict.landings.as_ref(), &[Blame::Owns(tests(&["a"])), Blame::Owns(tests(&["b"])), Blame::Cleared]);
++}
++
++#[test]
++fn probes_preserve_inherited_failures_and_flakes() {
++    let record = record(tests(&["a"]));
++    let run = rerun(&record, three(), &["a", "b", "c", "d"]);
++    let first = dispatched(step(&record, &run, Outcome::Failed(tests(&["a", "b", "c"])), &SETTINGS));
++    let second = dispatched(step(&record, &first, Outcome::Failed(tests(&["b"])), &SETTINGS));
++    let verdict = verdict(step(&record, &second, Outcome::Passed, &SETTINGS));
++    assert_eq!(verdict.failing, tests(&["a", "b", "c"]));
++    assert_eq!(verdict.flakes, ids(&["d"]));
++    assert_eq!(verdict.landings.as_ref(), &[Blame::Owns(tests(&["b"])), Blame::Cleared, Blame::Owns(tests(&["c"]))]);
++}
++
++#[test]
++fn inherited_failures_clear_the_next_landing_without_repair() {
++    let record = record(tests(&["a", "b"]));
++    let run = rerun(&record, Box::new([landing(TIP, K_TIP)]), &["a", "b"]);
++    let verdict = verdict(step(&record, &run, Outcome::Failed(tests(&["a", "b"])), &SETTINGS));
++    assert_eq!(verdict.landings.as_ref(), &[Blame::Cleared]);
++    assert_eq!(verdict.failing, tests(&["a", "b"]));
++    assert!(!repaired(&Blame::Owns(tests(&["a", "b"])), &verdict.failing), "inherited tests still fail");
++}
++
++#[test]
++fn later_green_repairs_an_earlier_red_landing() {
++    let record = record(tests(&["a", "b"]));
++    let run = run(&record, pair());
++    let verdict = verdict(step(&record, &run, Outcome::Passed, &SETTINGS));
++    assert!(repaired(&Blame::Owns(tests(&["a", "b"])), &verdict.failing), "both blamed tests passed");
++}
++
++#[test]
++fn tell_all_names_every_landing_as_a_suspect() {
++    let record = record(tests(&[]));
++    let run = rerun(&record, pair(), &["a"]);
++    let settings = Settings { suspects: Suspects::TellAll, ..SETTINGS };
++    let verdict = verdict(step(&record, &run, Outcome::Failed(tests(&["a"])), &settings));
++    assert_eq!(verdict.landings.as_ref(), &[Blame::Suspect(tests(&["a"])), Blame::Suspect(tests(&["a"]))]);
++}
++
++#[test]
++fn many_failures_are_owned_without_a_test_rerun() {
++    let record = record(tests(&[]));
++    let run = run(&record, Box::new([landing(TIP, K_TIP)]));
++    let verdict = verdict(step(&record, &run, Outcome::Failed(Failures::Many), &SETTINGS));
++    assert_eq!(verdict.failing, Failures::Many);
++    assert_eq!(verdict.landings.as_ref(), &[Blame::Owns(Failures::Many)]);
++}
++
++#[test]
++fn many_failures_probe_the_whole_tier() {
++    let record = record(tests(&[]));
++    let run = run(&record, pair());
++    let probe = dispatched(step(&record, &run, Outcome::Failed(Failures::Many), &SETTINGS));
++    assert_eq!(
++        probe.part,
++        Part::Probe {
++            landing: 0,
++            tests: Selection::All,
++            finding: finding(Failures::Many, &[Blame::Cleared, Blame::Cleared]),
++        }
++    );
++    let verdict = verdict(step(&record, &probe, Outcome::Passed, &SETTINGS));
++    assert_eq!(verdict.landings.as_ref(), &[Blame::Cleared, Blame::Owns(Failures::Many)]);
++}
++
++#[test]
++fn a_red_whole_probe_owns_many_indivisibly() {
++    let record = record(tests(&[]));
++    for outcome in [Outcome::Failed(Failures::Many), Outcome::Failed(tests(&["a"]))] {
++        let run = run(&record, pair());
++        let probe = dispatched(step(&record, &run, Outcome::Failed(Failures::Many), &SETTINGS));
++        let verdict = verdict(step(&record, &probe, outcome, &SETTINGS));
++        assert_eq!(verdict.landings.as_ref(), &[Blame::Owns(Failures::Many), Blame::Cleared]);
++    }
++}
++
++#[test]
++fn many_after_many_is_inherited_whole() {
++    let record = record(Failures::Many);
++    let run = run(&record, pair());
++    let verdict = verdict(step(&record, &run, Outcome::Failed(Failures::Many), &SETTINGS));
++    assert_eq!(verdict.failing, Failures::Many);
++    assert_eq!(verdict.landings.as_ref(), &[Blame::Cleared, Blame::Cleared]);
++}
++
++#[test]
++fn named_failures_after_many_are_all_new() {
++    let record = record(Failures::Many);
++    let run = rerun(&record, Box::new([landing(TIP, K_TIP)]), &["a"]);
++    let verdict = verdict(step(&record, &run, Outcome::Failed(tests(&["a"])), &SETTINGS));
++    assert_eq!(verdict.landings.as_ref(), &[Blame::Owns(tests(&["a"]))]);
++}
++
++#[test]
++fn baseline_records_failures_without_blaming_any_landing() {
++    let mut record = record(tests(&[]));
++    record.judged = None;
++    let run = rerun(&record, Box::new([]), &["a"]);
++    let verdict = verdict(step(&record, &run, Outcome::Failed(tests(&["a"])), &SETTINGS));
++    assert_eq!(verdict.landings.as_ref(), &[]);
++    assert_eq!(judged(&record, &verdict, &LIMITS).failing, tests(&["a"]));
++}
++
++#[test]
++fn passed_receipt_judges_tip_without_dispatching() {
++    let record = record(tests(&["a"]));
++    let verdict = verdict(start(&record, TIP, K_TIP, pair(), Some(Receipt::Passed), &SETTINGS));
++    assert_eq!(verdict.failing, tests(&[]));
++    assert_eq!(verdict.landings.as_ref(), &[Blame::Cleared, Blame::Cleared]);
++}
++
++#[test]
++fn failed_receipt_blames_without_rerunning_tests() {
++    let record = record(tests(&[]));
++    let verdict = verdict(start(
++        &record,
++        TIP,
++        K_TIP,
++        Box::new([landing(TIP, K_TIP)]),
++        Some(Receipt::Failed(tests(&["a"]))),
++        &SETTINGS,
++    ));
++    assert_eq!(verdict.landings.as_ref(), &[Blame::Owns(tests(&["a"]))]);
++    assert_eq!(verdict.flakes, ids(&[]));
++}
++
++#[test]
++fn failed_receipt_starts_probes_when_range_needs_them() {
++    let record = record(tests(&[]));
++    let run = dispatched(start(&record, TIP, K_TIP, pair(), Some(Receipt::Failed(tests(&["a"]))), &SETTINGS));
++    assert_eq!(
++        run.part,
++        Part::Probe {
++            landing: 0,
++            tests: Selection::Tests(ids(&["a"])),
++            finding: finding(tests(&["a"]), &[Blame::Cleared, Blame::Cleared])
++        }
++    );
++}
++
++#[test]
++fn two_faults_retry_same_part_and_third_holds() {
++    let record = record(tests(&[]));
++    let whole = run(&record, pair());
++    let rerun = rerun(&record, pair(), &["a"]);
++    let probe = dispatched(step(&record, &rerun, Outcome::Failed(tests(&["a"])), &SETTINGS));
++    for run in [whole, rerun, probe] {
++        let one = dispatched(step(&record, &run, Outcome::Fault, &SETTINGS));
++        let two = dispatched(step(&record, &one, Outcome::Fault, &SETTINGS));
++        assert_eq!(one, crate::Run { faults: 1, ..run.clone() });
++        assert_eq!(two, crate::Run { faults: 2, ..run.clone() });
++        assert_eq!(step(&record, &two, Outcome::Fault, &SETTINGS), Next::Held(crate::Run { faults: 3, ..run }));
++    }
++}
++
++#[test]
++fn successful_part_resets_its_fault_count() {
++    let record = record(tests(&[]));
++    let mut run = run(&record, pair());
++    run.faults = SETTINGS.retries;
++    let next = dispatched(step(&record, &run, Outcome::Failed(tests(&["a"])), &SETTINGS));
++    assert_eq!(next.faults, 0);
++}
++
++#[test]
++fn one_changed_key_owns_without_a_probe() {
++    let record = record(tests(&[]));
++    let run = rerun(&record, Box::new([landing(L1, K_DOCS), landing(L2, K_TIP), landing(L3, K_TIP)]), &["a"]);
++    let verdict = verdict(step(&record, &run, Outcome::Failed(tests(&["a"])), &SETTINGS));
++    assert_eq!(verdict.landings.as_ref(), &[Blame::Cleared, Blame::Owns(tests(&["a"])), Blame::Cleared]);
++}
++
++#[test]
++fn no_changed_key_assigns_to_the_last_landing() {
++    let record = record(tests(&[]));
++    let run = rerun(&record, Box::new([landing(L1, K_DOCS), landing(TIP, K_DOCS)]), &["a"]);
++    let verdict = verdict(step(&record, &run, Outcome::Failed(tests(&["a"])), &SETTINGS));
++    assert_eq!(verdict.landings.as_ref(), &[Blame::Cleared, Blame::Owns(tests(&["a"]))]);
++}
++
++#[test]
++fn unexpected_rerun_tests_do_not_prevent_flake_detection() {
++    let record = record(tests(&[]));
++    let run = rerun(&record, pair(), &["a"]);
++    let verdict = verdict(step(&record, &run, Outcome::Failed(tests(&["foreign"])), &SETTINGS));
++    assert_eq!(verdict.failing, tests(&[]));
++    assert_eq!(verdict.flakes, ids(&["a"]));
++    assert_eq!(verdict.landings.as_ref(), &[Blame::Cleared, Blame::Cleared]);
++}
++
++#[test]
++fn oversized_rerun_conservatively_retains_the_selected_tests() {
++    let record = record(tests(&[]));
++    let run = rerun(&record, Box::new([landing(TIP, K_TIP)]), &["a"]);
++    let verdict = verdict(step(&record, &run, Outcome::Failed(Failures::Many), &SETTINGS));
++    assert_eq!(verdict.failing, tests(&["a"]));
++    assert_eq!(verdict.flakes, ids(&[]));
++    assert_eq!(verdict.landings.as_ref(), &[Blame::Owns(tests(&["a"]))]);
++}
++
++#[test]
++fn flakes_enter_in_order_without_displacing_existing_counts() {
++    let mut record = record(tests(&[]));
++    record.flakes = Box::new([
++        Flake { test: Box::from(b"b".as_slice()), count: 2 },
++        Flake { test: Box::from(b"d".as_slice()), count: u32::MAX },
++    ]);
++    let run = rerun(&record, pair(), &["a", "b", "c", "d"]);
++    let verdict = verdict(step(&record, &run, Outcome::Passed, &SETTINGS));
++    let next = judged(&record, &verdict, &LIMITS);
++    assert_eq!(
++        next.flakes.as_ref(),
++        &[
++            Flake { test: Box::from(b"a".as_slice()), count: 1 },
++            Flake { test: Box::from(b"b".as_slice()), count: 3 },
++            Flake { test: Box::from(b"c".as_slice()), count: 1 },
++            Flake { test: Box::from(b"d".as_slice()), count: u32::MAX },
++        ]
++    );
++}
++
++#[test]
++fn full_flake_record_keeps_old_counts_and_refuses_new() {
++    let mut record = record(tests(&[]));
++    record.flakes = Box::new([
++        Flake { test: Box::from(b"b".as_slice()), count: 1 },
++        Flake { test: Box::from(b"c".as_slice()), count: 1 },
++        Flake { test: Box::from(b"d".as_slice()), count: 1 },
++        Flake { test: Box::from(b"e".as_slice()), count: 1 },
++    ]);
++    let run = rerun(&record, pair(), &["a", "e"]);
++    let verdict = verdict(step(&record, &run, Outcome::Passed, &SETTINGS));
++    assert_eq!(
++        judged(&record, &verdict, &LIMITS).flakes.as_ref(),
++        &[
++            Flake { test: Box::from(b"b".as_slice()), count: 1 },
++            Flake { test: Box::from(b"c".as_slice()), count: 1 },
++            Flake { test: Box::from(b"d".as_slice()), count: 1 },
++            Flake { test: Box::from(b"e".as_slice()), count: 2 },
++        ]
++    );
++}
++
++#[test]
++fn repair_depends_on_the_blamed_failures_only() {
++    let cases = [
++        (Blame::Cleared, Failures::Many, true),
++        (Blame::Owns(tests(&["a"])), Failures::Many, false),
++        (Blame::Suspect(tests(&["a"])), tests(&["a", "b"]), false),
++        (Blame::Owns(tests(&["a"])), tests(&["b"]), true),
++        (Blame::Suspect(tests(&["a"])), tests(&["b"]), true),
++        (Blame::Owns(Failures::Many), tests(&["b"]), true),
++        (Blame::Suspect(Failures::Many), Failures::Many, false),
++    ];
++    for (blame, failing, expected) in cases {
++        assert_eq!(repaired(&blame, &failing), expected);
++    }
++}
+diff --git a/temper/crates/temper-engine-domain-forge-tiers/src/verdict.rs b/temper/crates/temper-engine-domain-forge-tiers/src/verdict.rs
+new file mode 100644
+index 000000000..2506c46b0
+--- /dev/null
++++ b/temper/crates/temper-engine-domain-forge-tiers/src/verdict.rs
+@@ -0,0 +1,303 @@
++//! Level-triggered verdict decisions (domain/after-landing.md, sections 3–5).
++use crate::{
++    Blame, Commit, Failures, Finding, Flake, Judged, Key, Landing, Limits, Next, Outcome, Part, Receipt, Record, Run,
++    Selection, Settings, Suspects, TestId, Verdict,
++};
++use alloc::boxed::Box;
++use skein_lib::List;
++
++/// On a tip's move, whether the tier needs a run.
++#[must_use]
++pub fn due(record: &Record, tip: Commit) -> bool {
++    if record.run.is_some() {
++        return false;
++    }
++    match record.judged {
++        Some(judged) => judged.tip != tip,
++        None => true,
++    }
++}
++
++/// Starts the next run, or judges the tip by its receipt.
++#[must_use]
++pub fn start(
++    record: &Record,
++    tip: Commit,
++    key: Key,
++    landings: Box<[Landing]>,
++    receipt: Option<Receipt>,
++    settings: &Settings,
++) -> Next {
++    let run = Run {
++        number: record.sequence.checked_add(1).expect("the tier sequence fits u64"),
++        tip,
++        key,
++        landings,
++        part: Part::Whole,
++        faults: 0,
++    };
++    match receipt {
++        None => Next::Dispatch(run),
++        Some(Receipt::Passed) => green(&run, Box::new([])),
++        Some(Receipt::Failed(failing)) => blame(record, &run, failing, Box::new([]), *settings),
++    }
++}
++
++/// Reads the completion of the committed part of a run.
++#[must_use]
++pub fn step(record: &Record, run: &Run, outcome: Outcome, settings: &Settings) -> Next {
++    let reported = match outcome {
++        Outcome::Fault => {
++            let mut retry = run.clone();
++            // Even u32::MAX retries has a terminal fault; it must not wrap.
++            let Some(faults) = run.faults.checked_add(1) else {
++                return Next::Held(retry);
++            };
++            retry.faults = faults;
++            return if faults <= settings.retries { Next::Dispatch(retry) } else { Next::Held(retry) };
++        }
++        Outcome::Passed => Failures::Tests(Box::new([])),
++        Outcome::Failed(failing) => failing,
++    };
++    match &run.part {
++        Part::Whole => match reported {
++            Failures::Tests(tests) => {
++                if tests.is_empty() {
++                    green(run, Box::new([]))
++                } else {
++                    dispatch(run, Part::Rerun { failed: tests })
++                }
++            }
++            Failures::Many => blame(record, run, Failures::Many, Box::new([]), *settings),
++        },
++        Part::Rerun { failed } => {
++            let confirmed = within(failed, &reported);
++            let flakes = select(failed, &confirmed, false);
++            blame(record, run, Failures::Tests(confirmed), flakes, *settings)
++        }
++        Part::Probe { landing, tests, finding } => {
++            let mut finding = finding.clone();
++            let (owned, remaining) = match tests {
++                Selection::All => match reported {
++                    Failures::Many => (Failures::Many, empty()),
++                    Failures::Tests(tests) => {
++                        if tests.is_empty() {
++                            (empty(), Failures::Many)
++                        } else {
++                            (Failures::Many, empty())
++                        }
++                    }
++                },
++                Selection::Tests(tests) => {
++                    let owned = within(tests, &reported);
++                    let remaining = select(tests, &owned, false);
++                    (Failures::Tests(owned), Failures::Tests(remaining))
++                }
++            };
++            own(&mut finding, *landing, owned);
++            probe(record, run, finding, remaining, Some(*landing))
++        }
++    }
++}
++
++fn empty() -> Failures {
++    Failures::Tests(Box::new([]))
++}
++
++fn none(failing: &Failures) -> bool {
++    match failing {
++        Failures::Tests(tests) => tests.is_empty(),
++        Failures::Many => false,
++    }
++}
++
++fn length(length: usize) -> u32 {
++    u32::try_from(length).expect("top-owned bounded slices fit u32")
++}
++
++fn cleared(run: &Run) -> Box<[Blame]> {
++    let mut blamed = List::with_capacity(length(run.landings.len()));
++    for _landing in &run.landings {
++        blamed.push(Blame::Cleared).expect("one blame per landing");
++    }
++    blamed.into_boxed()
++}
++
++fn finish(run: &Run, finding: Finding) -> Next {
++    Next::Judged(Verdict {
++        number: run.number,
++        tip: run.tip,
++        key: run.key,
++        failing: finding.failing,
++        landings: finding.blamed,
++        flakes: finding.flakes,
++    })
++}
++
++fn green(run: &Run, flakes: Box<[TestId]>) -> Next {
++    finish(run, Finding { failing: empty(), flakes, blamed: cleared(run) })
++}
++
++fn dispatch(run: &Run, part: Part) -> Next {
++    let mut next = run.clone();
++    next.part = part;
++    next.faults = 0;
++    Next::Dispatch(next)
++}
++
++/// Intersection or difference of two sorted sets, by a monotone merge.
++fn select(left: &[TestId], right: &[TestId], shared: bool) -> Box<[TestId]> {
++    let mut selected = List::with_capacity(length(left.len()));
++    let mut from = 0_usize;
++    for test in left {
++        for other in right.get(from..).expect("merge cursor stays within right") {
++            if other >= test {
++                break;
++            }
++            from = from.checked_add(1).expect("cursor within the slice");
++        }
++        if (right.get(from) == Some(test)) == shared {
++            selected.push(test.clone()).expect("a subset fits its source length");
++        }
++    }
++    selected.into_boxed()
++}
++
++// An oversized partial report cannot identify which selected tests passed:
++// conservatively retain the selection. Unrequested test ids never count.
++fn within(selected: &[TestId], reported: &Failures) -> Box<[TestId]> {
++    match reported {
++        Failures::Tests(tests) => select(selected, tests, true),
++        Failures::Many => Box::from(selected),
++    }
++}
++
++fn blame(record: &Record, run: &Run, failing: Failures, flakes: Box<[TestId]>, settings: Settings) -> Next {
++    let new = match &failing {
++        Failures::Tests(tests) => match &record.failing {
++            Failures::Tests(previous) => Failures::Tests(select(tests, previous, false)),
++            Failures::Many => failing.clone(),
++        },
++        Failures::Many => match &record.failing {
++            Failures::Many => empty(),
++            Failures::Tests(_) => Failures::Many,
++        },
++    };
++    let mut finding = Finding { failing, flakes, blamed: cleared(run) };
++    if none(&new) || run.landings.is_empty() {
++        return finish(run, finding);
++    }
++    if run.landings.len() == 1 {
++        own(&mut finding, 0, new);
++        return finish(run, finding);
++    }
++    match settings.suspects {
++        Suspects::TellAll => {
++            for blame in &mut finding.blamed {
++                *blame = Blame::Suspect(new.clone());
++            }
++            finish(run, finding)
++        }
++        Suspects::Bisect => probe(record, run, finding, new, None),
++    }
++}
++
++fn own(finding: &mut Finding, landing: u32, failing: Failures) {
++    if !none(&failing) {
++        let blame = finding.blamed.get_mut(usize::try_from(landing).expect("u32 fits usize"));
++        *blame.expect("a probe names a landing in its range") = Blame::Owns(failing);
++    }
++}
++
++#[expect(clippy::manual_map, reason = "the strict subset forbids closures")]
++fn probe(record: &Record, run: &Run, mut finding: Finding, remaining: Failures, after: Option<u32>) -> Next {
++    if none(&remaining) {
++        return finish(run, finding);
++    }
++    let mut previous = match record.judged {
++        Some(judged) => Some(judged.key),
++        None => None,
++    };
++    let mut first = None;
++    let mut last = None;
++    for (index, landing) in run.landings.iter().enumerate() {
++        let index = length(index);
++        let later = match after {
++            Some(after) => index > after,
++            None => true,
++        };
++        if later && previous != Some(landing.key) {
++            if first.is_none() {
++                first = Some(index);
++            }
++            last = Some(index);
++        }
++        previous = Some(landing.key);
++    }
++    let first = first.unwrap_or(length(run.landings.len()).checked_sub(1).expect("a non-baseline has landings"));
++    if last.is_none() || last == Some(first) {
++        own(&mut finding, first, remaining);
++        return finish(run, finding);
++    }
++    let tests = match remaining {
++        Failures::Tests(tests) => Selection::Tests(tests),
++        Failures::Many => Selection::All,
++    };
++    dispatch(run, Part::Probe { landing: first, tests, finding })
++}
++
++/// Saves the judged tip, failures and bounded cumulative flake counts.
++#[must_use]
++pub fn judged(record: &Record, verdict: &Verdict, limits: &Limits) -> Record {
++    let mut flakes = List::with_capacity(limits.failing_tests);
++    let mut previous = record.flakes.iter().peekable();
++    let mut room = limits.failing_tests.saturating_sub(length(record.flakes.len()));
++    for test in &verdict.flakes {
++        // Each old entry is visited once, and new entries enter in order.
++        for _ in 0..record.flakes.len() {
++            let Some(old) = previous.peek() else { break };
++            if old.test >= *test {
++                break;
++            }
++            let old = previous.next().expect("the peeked old entry");
++            flakes.push(old.clone()).expect("old flakes fit the bound");
++        }
++        let same = match previous.peek() {
++            Some(old) => old.test == *test,
++            None => false,
++        };
++        if same {
++            let old = previous.next().expect("the matching old entry");
++            flakes.push(Flake { test: test.clone(), count: old.count.saturating_add(1) }).expect("old flakes fit");
++        } else if room != 0 {
++            flakes.push(Flake { test: test.clone(), count: 1 }).expect("new flakes have room");
++            room = room.checked_sub(1).expect("room is nonzero");
++        }
++    }
++    for old in previous {
++        flakes.push(old.clone()).expect("old flakes fit the bound");
++    }
++    Record {
++        sequence: verdict.number,
++        judged: Some(Judged { tip: verdict.tip, key: verdict.key }),
++        failing: verdict.failing.clone(),
++        flakes: flakes.into_boxed(),
++        run: None,
++    }
++}
++
++/// Whether the judged run passed the failures blamed on a landing.
++#[must_use]
++pub fn repaired(blame: &Blame, failing: &Failures) -> bool {
++    let blamed = match blame {
++        Blame::Cleared => return true,
++        Blame::Owns(failures) | Blame::Suspect(failures) => failures,
++    };
++    match failing {
++        Failures::Many => false,
++        Failures::Tests(tests) => match blamed {
++            Failures::Many => true,
++            Failures::Tests(blamed) => select(blamed, tests, true).is_empty(),
++        },
++    }
++}

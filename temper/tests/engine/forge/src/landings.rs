@@ -16,6 +16,7 @@ pub fn turn_world() -> World {
         PROJECT,
         change::Way::Turn,
         Box::new([top::RepositoryGates {
+            tiers: Box::new([]),
             repository: REPO,
             gates: Box::new([landing::Gate {
                 name: Box::from(b"gate".as_slice()),

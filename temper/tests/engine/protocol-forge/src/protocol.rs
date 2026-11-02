@@ -548,6 +548,8 @@ impl Protocol {
                 | top::Request::GoalUntopic { .. }
                 | top::Request::ProjectionFailed { .. }
                 | top::Request::LandingDecision { .. }
+                | top::Request::TierRun { .. }
+                | top::Request::TierDecision { .. }
                 | top::Request::ChangeDecision { .. }
                 | top::Request::News { .. }
                 | top::Request::Read { .. }
@@ -693,5 +695,7 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::Forge(row) => top::Key::Forge(row.number),
         top::Stored::ForgeNumber { .. } => top::Key::ForgeNumber,
         top::Stored::Playground(_) => top::Key::Playground,
+        top::Stored::Tier(row) => top::Key::Tier { repository: row.repository, tier: row.tier.clone() },
+        top::Stored::Verification(row) => top::Key::Verification { repository: row.repository, commit: row.commit },
     }
 }

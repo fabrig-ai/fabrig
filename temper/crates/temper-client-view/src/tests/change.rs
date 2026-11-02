@@ -564,3 +564,49 @@ fn an_authority_hold_draws_its_count_release_and_way_out() {
     assert_eq!(notice.len(), 1);
     assert_eq!(f::node_text(&tree, notice[0]).as_ref(), joined(&[b"Held while gating: ", reason, b"."]).as_ref());
 }
+
+#[test]
+fn after_landing_page_draws_each_tier_line_and_the_merge() {
+    let mut tiers = List::with_capacity(2);
+    tiers.push(Box::from(b"fast run 2".as_slice())).unwrap();
+    tiers.push(Box::from(b"slow run 3 running".as_slice())).unwrap();
+    for (step, label) in [
+        (
+            w::Step::Verifying(
+                w::Verifying::new(&w::CEILINGS, w::VerifyingParts { merge: [0xab; 32], tiers: tiers.clone() }).unwrap(),
+            ),
+            "Verifying",
+        ),
+        (
+            w::Step::Red(w::Red::new(&w::CEILINGS, w::RedParts { merge: [0xab; 32], tiers: tiers.clone() }).unwrap()),
+            "Red",
+        ),
+        (
+            w::Step::Cleared(
+                w::Cleared::new(
+                    &w::CEILINGS,
+                    w::ClearedParts { merge: [0xab; 32], tiers: tiers.clone(), uncleared: false },
+                )
+                .unwrap(),
+            ),
+            "Cleared",
+        ),
+        (
+            w::Step::Cleared(
+                w::Cleared::new(
+                    &w::CEILINGS,
+                    w::ClearedParts { merge: [0xab; 32], tiers: tiers.clone(), uncleared: true },
+                )
+                .unwrap(),
+            ),
+            "Landed, uncleared",
+        ),
+    ] {
+        let tree = draw(parts(step));
+        let text = f::node_text(&tree, 0);
+        for fragment in [label.as_bytes(), b"abababa", b"fast run 2", b"slow run 3 running"] {
+            assert!(skein_lib::bytes::find(&text, fragment).is_some(), "missing {fragment:?}");
+        }
+        assert_eq!(styled(&tree, look::STEP_DONE).len(), 6);
+    }
+}

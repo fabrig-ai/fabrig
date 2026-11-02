@@ -40,6 +40,7 @@ fn setup() -> Domain {
         5,
         temper_engine_domain_forge_change::Way::Turn,
         Box::new([RepositoryGates {
+            tiers: Box::new([]),
             repository: REPO,
             gates: Box::new([policy::Gate {
                 name: Box::from(b"gate".as_slice()),
@@ -47,7 +48,14 @@ fn setup() -> Domain {
                 ignored: Box::new([]),
                 blocking: true
             }])
-        }])
+        }]),
+        AfterLanding {
+            verdict: temper_engine_domain_forge_tiers::Settings {
+                retries: 2,
+                suspects: temper_engine_domain_forge_tiers::Suspects::Bisect
+            },
+            bound: Duration::from_millis(7_200_000)
+        }
     ));
     d
 }
@@ -118,6 +126,7 @@ fn a_gate_whose_key_another_landing_dispatched_is_waiting() {
     d.landing.faults.insert((61, 0, 0), flight).unwrap();
     assert_eq!(view(&d, 61).members[0].gates[0].proof, GateProof::Dispatched { attempt: 2, run: Some(7) });
     let receipt = Receipt {
+        failures: None,
         passed: true,
         candidate: fixtures::HEAD,
         ended: env().wall,
@@ -170,7 +179,8 @@ fn a_landed_queue_change_is_a_change_document_and_has_no_turn_landing() {
     let mut d = domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     let mut row = fixtures::opening_row();
-    row.change.state = temper_engine_domain_forge_change::State::Landed { merge: fixtures::HEAD };
+    row.change.state =
+        temper_engine_domain_forge_change::State::Landed { merge: fixtures::HEAD, since: Wall::from_nanos(17) };
     row.pending = None;
     outputs(&mut d, Event::Restore { record: Stored::Change(row) });
     let Document::Change(panel) = document(&d, fixtures::CHANGE) else { panic!("queue change document") };
