@@ -227,38 +227,23 @@ section 14.
 
 ### 3.1 The manifest
 
-- **One manifest, two roles.** The root `Cargo.toml` is the workspace
-  and the package `smith`. Its binaries:
+- **The package's manifest.** `smith/Cargo.toml` is the package `smith`,
+  a member of the repository's one workspace (`AGENTS.md`, section 1).
+  Its binaries:
   - `src/main.rs`, the binary `smith` (`default-run`);
-  - `src/bin/smith-agent.rs`, the binary `smith-agent`.
+  - `src/bin/smith-agent.rs`, the binary `smith-agent`;
+  - `tests/end-to-end/fake-claude.rs`, the binary `fake-claude`, only
+    with the `end-to-end` feature, for the end-to-end tests.
 - **Nothing is discovered.** `autobins`, `autotests`, `autobenches` and
-  `autoexamples` are off, and every target is declared:
+  `autoexamples` are off, and every target is declared: the binaries
+  above, and the tests `end_to_end` (`tests/end-to-end/end_to_end.rs`,
+  with the `end-to-end` feature), `live` (`tests/end-to-end/live.rs`) and
+  `live_configuration` (`tests/end-to-end/live_configuration.rs`).
 
-  ```toml
-  [[bin]]
-  name = "smith"
-  path = "src/main.rs"
-
-  [[bin]]
-  name = "smith-agent"
-  path = "src/bin/smith-agent.rs"
-
-  [[test]]
-  name = "end_to_end"
-  path = "tests/end-to-end/end_to_end.rs"
-
-  [[test]]
-  name = "live"
-  path = "tests/end-to-end/live.rs"
-  ```
-
-  The end-to-end and live tests are the root package's own targets,
-  because cargo gives `CARGO_BIN_EXE_<name>` only to a package's own
-  tests (testing.md, section 7). The world crates under `tests/` stay
-  packages of their own.
-- **Bare commands keep their meaning.** `default-members` lists every
-  member, so a bare `cargo build` or `cargo test` covers the workspace.
-  The gate names `--workspace`.
+  The end-to-end and live tests are the package's own targets, because
+  cargo gives `CARGO_BIN_EXE_<name>` only to a package's own tests
+  (testing.md, section 7). The world crates under `tests/` stay packages
+  of their own. The gate names `--workspace`.
 - **Glue.** `main.rs`:
   1. parses its arguments into a command (2.3);
   2. reads the settings and runs `smith check`'s checks, refusing with
@@ -272,8 +257,8 @@ section 14.
   `smith-agent.rs` reads the configuration's path, starts
   `smith-agent-shell`, runs it with `drive`, and exits 0 after its
   answer or 1 when it could not answer (protocol/agent.md, section 6).
-- **MIT-licensed.** A `LICENSE` file at the root holds the MIT licence,
-  and every manifest, the root package's and each crate's, says
+- **MIT-licensed.** `smith/LICENSE` holds the MIT licence, and every
+  manifest, the package's and each crate's, takes the workspace's
   `license = "MIT"`. smith's registration with a provider is an
   open-source program's own (section 7).
 - **Files before the loop.** A shell may read whole files with std before
@@ -1402,9 +1387,8 @@ whether the settings are admitted.
 
 ## 10. The world
 
-Within the focused suite's 30 seconds (15 seconds before the user's doubling
-of 10-22, provisional) and the fuzzy suite's 120 seconds: (suite's 60:
-before the user's doubling of 10-22, provisional)
+Within the focused and fuzzy suites' budgets (testing-strategy.md,
+section 8):
 
 - **Step tests in `smith-local-shell`:**
   - each command's arguments to its typed value, and each usage error;
