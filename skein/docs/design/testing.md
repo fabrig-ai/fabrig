@@ -321,10 +321,12 @@ testing/skein-scratch           a scratch directory beneath the system's tempora
 testing/skein-world             the world harness: the simulated world's run with the referee, the trace and the heap, and the real ring's loop
 testing/skein-echo-client       the fake echo client, a step machine
 testing/skein-throwaway-forgejo the pinned Forgejo run on loopback in a scratch directory (fake-forge.md, 6)
+testing/skein-forge-conformance the conformance records the forge tools share, and their secret scans (fake-forge.md, 7)
 testing/skein-fake-channel      a scripted framed peer for a service's protocol worlds (channel.md)
 testing/skein-codegen           the codec generator, run by a consumer's tests (codec.md)
 testing/skein-browser           the browser kit, a step machine: headless Chromium over the DevTools protocol on a pipe (browser.md)
 testing/skein-fake-person       the person: targets by role, name and text, steps, the tree face, the random person (ui.md, 17.1)
+testing/skein-lab-browser       the lab's browser: headless Chromium on the browser kit, answering calls (lab-browser.md)
 testing/skein-fake-person-browser the person's face over the browser kit, and the harness: an application's server binary, Chromium and the peers a test lends in one loop; skein's stories for a browser shell (ui-web.md, 14.2)
 tests/heap                      the counting allocator's own tests, skein-heap-tests
 tests/echo                      the echo's simulated worlds and its real loop, skein-echo-world
@@ -344,16 +346,20 @@ tests/protocol                  the protocol worlds: an LLM client's stack again
 tests/llm                       skein-llm's subscription protocol worlds, fragmentation and fault sweeps, and bounds against the counting allocator, skein-llm-world
 tests/llm-connection            the LLM connection component's worlds, skein-llm-connection-world
 tests/oauth                     the OAuth client against the independent issuer, skein-oauth-world
+tests/oauth-accounts            the OAuth driver's worlds, its owner scripted, skein-oauth-accounts-world (oauth.md)
+tests/oauth-issuer              the client against the OAuth issuer, skein-oauth-issuer-world (oauth-issuer.md)
 tests/forge/machine             the forge component's machine world and the listener's, against a scripted HTTP peer and the fake's GitHub layer on its clock, and their peaks under scenario ceilings with the counting allocator, every holder filled (forge-connection.md, 10)
 tests/forge/protocol            the protocol world: the client and the component against the fake forge's protocol layer and domain, joined by streams cut at random, under a scripted durable owner that restarts; its fuzzy runs take seeds (forge-connection.md, 10)
 tests/forge/client              the client world: the client alone under a scripted parent, over the fake forge's domain (forge-client.md, 10)
 tests/forge/setup               the setup world: the host component over a store of items and the fake forge's setup routes and GitHub layer, through HTTP bytes, and its peak under a scenario ceiling with the counting allocator (forge-setup.md, 7)
 tests/forge/conformance         the conformance tool, outside the suites: a throwaway Forgejo driven, each fact the dialect relies on recorded (fake-forge.md, 7)
+tests/forge/github              GitHub's conformance tool, outside the suites: the hosted fake and owner fixtures (fake-forge.md, 11)
 tests/fake-forge                the fake forge's domain against the counting allocator, skein-fake-forge-tests
 tests/fake-peers                the LLM, OAuth and forge peers on loopback io against their clients, including GitHub's job-log redirect to its blob listener, skein-fake-peers-tests
 tests/fake-checkout             the fake checkout's leaf tests and its replay sweep against a small private remote, skein-fake-checkout-tests
 tests/channel                   the framed channel's machine and protocol worlds, skein-channel-world
 tests/codec                     a generated sample codec and its worlds, skein-codec-tests
+tests/codec-patches             the patch command's owner crate and its replayed history, skein-codec-patches (codec.md, 12.9)
 tests/kv                        the store over file io, the simulated kernel and a crashing fake disk, skein-kv-tests
 tests/browser                   the browser kit's machine world against a fake browser, its tests against real Chromium, and its peaks under scenario ceilings with the counting allocator, skein-browser-world
 tests/tls                       the TLS client's machine worlds against a rustls server in memory, the HTTP client stacked on it, and its peaks under scenario ceilings with the counting allocator, skein-tls-world
@@ -370,8 +376,7 @@ examples/ui/*                   the UI example: its view, its browser shell and 
 
 No crate under `crates/` has a `tests/` directory: its step tests are
 in `src/`, and whatever drives it from outside is a crate under `tests/`,
-named by its path. The fakes moved from `testing/` (temper's
-`draft/first-run.md`, 3.5) follow it too: the forge domain's memory test,
+named by its path. The fakes in `crates/` follow it too: the forge domain's memory test,
 the peers' tests and the checkout's are crates under `tests/`, and the
 protocol layer's fixtures are in its `src/tests/`. Such a crate is ordinary Rust (programming-model.md,
 10.2): what its test binaries share is its library, in `src/` (the
@@ -406,23 +411,19 @@ is held to the subset instead (testing-strategy.md, 4): it has no
 A machine's worlds are a crate of their own, `tests/<machine>`, with its
 transcripts in `transcripts/` beside its tests. The minimal machine joins
 the io worlds with files and processes; the protocol worlds are a crate
-of their own, `tests/protocol`. The gate runs formatting, the lints as errors, a build of `skein-lib`, `skein-codec`
-and `skein-http` alone for `wasm32-unknown-unknown` (lib.md, section 2),
-and clippy's lints as errors on that target for `skein-ui`,
-`skein-ui-web` and the UI example's view and browser shell, since the
-parts' platform halves compile only there (ui-web.md, section 14), and
-for the portable face of the shell and the simulated world (section
-10); then
+of their own, `tests/protocol`. The gate runs formatting, the lints as errors,
+clippy's lints as errors for `wasm32-unknown-unknown` over the portable
+crates (section 10) and the UI example's view and browser shell, since the
+parts' platform halves compile only there (ui-web.md, section 14); then
 the focused suite and the fuzzy suite, with nextest (section 7), and
-nothing slower. `scripts/browser.sh` is the browser tier, outside the
-gate: the UI example's
+nothing slower. The browser tier, outside the gate, is
+`tools/tiers/run skein browser`: the UI example's
 bundle, made with `skein-ui-bundle` from a module built with the dev
 profile (ui-web.md, 4.1), and the browser suite, which runs the browser
 kit's tests against Chromium and the UI example's tier on that bundle
 (ui-web.md, 14.1). The builds for that target need only the
-target installed: they run nothing, since lib, the codec, HTTP,
-skein-ui and the example's view hold no io and their tests run on the
-host, and skein-ui-web's platform half runs in the browser tier.
+target installed: they run nothing, since the portable crates' tests run
+on the host, and skein-ui-web's platform half runs in the browser tier.
 
 ## 7. Where things stand
 
@@ -433,23 +434,19 @@ Every tier follows testing-strategy.md, 8.1: CPU budget, wall hard limit,
 starved warning and the three-question repair rule.
 
 The two gate suites use the root `.config/nextest.toml`'s `default` and
-`fuzzy` profiles. Until the user sets their CPU budgets, their existing
-30 s and 120 s idle-machine figures stand (15 s and 60 s before the
-user's doubling of 10-22, provisional). The browser kit against real
+`fuzzy` profiles. Until the user sets their CPU budgets, their 30 s and
+120 s idle-machine figures stand. The browser kit against real
 Chromium and the UI example's browser tier use `browser-skein`
-(`cargo nextest run --workspace --profile browser-skein`; browser.md,
-section 9; ui-web.md, 14.1); their four-minute global timeout is a wall
+(`tools/tiers/run skein browser`; browser.md, section 9; ui-web.md,
+14.1); their four-minute global timeout is a wall
 backstop, separate from their CPU budget. skein-llm against real endpoints
 uses `live-skein`, with a key or a plan's token from the environment.
-These two slow tiers stay out of the gate and have CPU budgets and wall
-hard limits under 8.1. Schema, value, fingerprint, diff, patch, redirect
+These two slow tiers stay out of the gate, each with the user's CPU
+budget and wall hard limit under 8.1, in `tools/tiers/budgets.toml`. Schema, value, fingerprint, diff, patch, redirect
 admission and fake-browser checks run in focused step tests and worlds;
 seeded decoder comparisons, sign-in faults including restart, and the
 forge machine world's every-byte TLS sweep run in fuzzy.
 Measurements use the tier's profile and keep the same budget rule.
-The existing macos-26 focused-suite figure remains the user's 64 seconds,
-one and a half times the 42.4 seconds macOS run 40019066645 took, until
-its CPU budget is set; Linux's stays as above.
 
 Replay: a seed replays to the same trace of submissions and completions,
 and a JSON world, an HTTP world, an io world and an echo world to the
@@ -465,11 +462,8 @@ receive and output full at once. Reaching the limits is checked by those
 contents, never by nearly filling a formula (testing-strategy.md, 6).
 
 The forge's worlds (section 6) keep within a budget of their own: a step
-test under 40 ms (20 ms before the user's doubling of 10-22, provisional), a
-focused world test under one second (half a second before the user's
-doubling of 10-22, provisional), and a fuzzy run within 10 seconds (5
-seconds before the user's doubling of 10-22, provisional), its seeds
-included, so that `tests/forge` stays within half of each suite's.
+test under 40 ms, a focused world test under one second, and a fuzzy
+run within 10 seconds, its seeds included, so that `tests/forge` stays within half of each suite's.
 
 ## 8. Not built yet
 
@@ -483,8 +477,9 @@ What of this document is not built is in [`testing.status.md`](testing.status.md
   while nothing one service allocates is freed by another: true over the
   kernel boundary, whose backend hands every buffer back. A world that
   joins two services' layers in-process, passing a box from one to the
-  other, would need the hand-off counted. - The real loop in CI and
-  sanitizers on the ring adapter are the shell's (shell.md, 10).
+  other, would need the hand-off counted.
+- **The real loop in CI and sanitizers on the ring adapter** are the
+  shell's (shell.md, 10).
 
 ## 10. The portable target
 
