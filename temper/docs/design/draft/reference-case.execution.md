@@ -53,10 +53,11 @@ repository's `fab/roles/cut-run.md`):
    Later, and the entries they close in the drafts' statuses. Then the
    specs that cite it, released in batches while the implementers work
    on the earlier ones. Implementers never write the design. A section
-   once released is never rewritten, as a spec is not: a later batch
-   adds its own part. The cut is one call, bounded in time, so a
+   once released binds its specs: a later batch adds compatible detail
+   or its own part, and an incompatible change is a numbered revision
+   with new specs. The cut is one call of at most 90 minutes, so a
    milestone's request asks no more design than one cut writes, its
-   early release carrying the rest.
+   early release carrying the rest; one that needs more is too big.
 3. **Landed whole:** the trunk is checked and lands through the queue,
    and the plan's retire brings its statuses current.
 4. **Its walk:** a rung of the ladder's plan. fabrig/qa writes a brief in
