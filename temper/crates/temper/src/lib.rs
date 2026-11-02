@@ -30,6 +30,7 @@ pub mod fake;
 mod fake_backends;
 pub mod forge;
 mod forge_sign_in;
+pub mod github_logs;
 mod google_runtime;
 pub mod help;
 mod host;
@@ -359,7 +360,8 @@ fn github_runtime(
     } else {
         skein_forge_connection::settings::Transport::Plaintext { name: None }
     };
-    Ok(service::ForgeRuntime { number: 0, address, transport })
+    let log_origins = if machine.is_none() { github_logs::resolve(None, resolve)? } else { List::with_capacity(0) };
+    Ok(service::ForgeRuntime { number: 0, address, transport, log_origins })
 }
 fn prepare(directories: &Directories, bytes: &[u8], owned: &mut Vec<Fd>) -> Result<service::Service, String> {
     prepare_with_store(directories, bytes, owned).map(|(service, _)| service)

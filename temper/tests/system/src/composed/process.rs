@@ -35,6 +35,7 @@ pub(crate) struct Process {
     script: Script,
     /// The previous activation's concrete turns, which a resume restores.
     history: Option<smith::Transcript>,
+    mounts: Vec<(Vec<u8>, Vec<u8>)>,
     agent: Option<Agent>,
     up: VecDeque<agent::Up>,
     reading: Option<Token>,
@@ -48,6 +49,7 @@ pub(crate) struct Process {
     sent_turns: usize,
     sent_waits: usize,
     sent_calls: Vec<Token>,
+    sent_deliveries: usize,
     owner: Option<Token>,
     producer: Option<Producer>,
 }
@@ -60,11 +62,41 @@ struct Producer {
     holding: bool,
 }
 
+impl Producer {
+    fn hold(&mut self, record: &record::Turn, number: u32) -> host::Piece {
+        let mut text = Vec::new();
+        for message in &record.messages {
+            if message.role == llm::Role::Assistant {
+                for block in &message.content {
+                    if let llm::Block::Text { text: bytes, .. } = block {
+                        text.extend_from_slice(bytes);
+                    }
+                }
+            }
+        }
+        assert!(text.len() >= self.count, "one nonempty text slice per piece");
+        assert!(!self.holding, "one held reply turn");
+        for part in 0..self.count {
+            let from = text.len() * part / self.count;
+            let to = text.len() * (part + 1) / self.count;
+            self.pieces.push_back(host::Piece {
+                turn: number,
+                retry: 0,
+                kind: host::LiveKind::Text,
+                offset: u64::try_from(from).expect("bounded reply offset"),
+                bytes: text[from..to].into(),
+            });
+        }
+        self.holding = true;
+        self.pieces.pop_front().expect("the first reply piece")
+    }
+}
+
 /// What a process request needs of the world around it.
 pub(crate) struct Around<'a> {
     pub(crate) events: &'a mut VecDeque<worker::Event>,
     pub(crate) observed: &'a mut Observed,
-    pub(crate) disk: &'a Checkout,
+    pub(crate) disk: &'a mut Checkout,
     pub(crate) store: &'a Store,
     pub(crate) assignment: Option<&'a engine::Assignment>,
     pub(crate) repository: bool,
@@ -79,6 +111,7 @@ impl Process {
             seed,
             script,
             history: None,
+            mounts: Vec::new(),
             agent: None,
             up: VecDeque::new(),
             reading: None,
@@ -91,6 +124,7 @@ impl Process {
             sent_turns: 0,
             sent_waits: 0,
             sent_calls: Vec::new(),
+            sent_deliveries: 0,
             owner: None,
             producer: None,
         }
@@ -120,12 +154,22 @@ impl Process {
     pub(crate) fn resume(&mut self, script: Script) {
         let agent = self.agent.as_ref().expect("parked activation");
         assert!(matches!(agent.answer(), run::Answer::Parked { .. }));
-        let history = crate::world::transcript(agent);
+        let mut history = crate::world::transcript(agent);
+        if let Some(previous) = &self.history {
+            let mut turns = previous.turns.to_vec();
+            turns.extend(history.turns);
+            history.turns = turns.into_boxed_slice();
+        }
         let mut turns = self.script.turns.to_vec();
         turns.extend(script.turns);
         let script = Script { cue: self.script.cue.clone(), turns: turns.into_boxed_slice() };
         *self = Process::new(self.seed, script);
         self.history = Some(history);
+    }
+
+    /// Whether the next activation is waiting to spawn its process.
+    pub(crate) fn prepared(&self) -> bool {
+        self.agent.is_none()
     }
 
     /// The live or last activation's smith world.
@@ -180,6 +224,14 @@ impl Process {
             }
             agent::Down::Answer { call, reply } => {
                 around.observed.replies += 1;
+                if let agent::Reply::Delivery(delivery) = reply {
+                    self.agent
+                        .as_mut()
+                        .expect("live agent")
+                        .return_delivery(call, delivery)
+                        .expect("one delivery reply");
+                    return;
+                }
                 let submission = self
                     .agent()
                     .host_submissions()
@@ -189,7 +241,9 @@ impl Process {
                     .clone();
                 let reply = match reply {
                     agent::Reply::Host { error, body } => {
-                        assert!(durable(around.store, &submission.name, &body), "durable host-call decision");
+                        if submission.effect == run::HostEffect::Write {
+                            assert!(durable(around.store, &submission.name, &body), "durable host-call decision");
+                        }
                         run::HostReply::Answered(run::HostAnswer::new(body, error).expect("bounded host answer"))
                     }
                     agent::Reply::Withdrawn => run::HostReply::Withdrawn,
@@ -220,11 +274,14 @@ impl Process {
     fn start(&mut self, start: agent::Start, window: agent::Window, around: &Around<'_>) {
         assert!(self.agent.is_none());
         let assignment = around.assignment.expect("committed assignment");
-        assert_eq!(assignment.live, host::LiveAsk { text: true, reasoning: false, input: true });
         let asked = assignment.live;
         assert_eq!(
             start.live,
-            Some(agent::channel::LiveAsk { text: asked.text, reasoning: asked.reasoning, input: asked.input }),
+            (asked.text || asked.reasoning || asked.input).then_some(agent::channel::LiveAsk {
+                text: asked.text,
+                reasoning: asked.reasoning,
+                input: asked.input
+            }),
             "smith receives the assignment's live ask"
         );
         assert_eq!((start.logical_run.raw(), start.activation), (assignment.task, assignment.attempt));
@@ -242,6 +299,7 @@ impl Process {
         let largest = smith::max_turn_bytes(&settings.limits).expect("bounded Smith turn");
         let mut mounted = Disk::new();
         let workspace = mount(&start.directories, around.disk, &mut mounted);
+        self.mounts = mount_paths(&start.directories);
         let charter = start.charter.into_value();
         settings.job = Job::Reporting;
         settings.resume = transcript.is_some();
@@ -250,6 +308,7 @@ impl Process {
         settings.limits.run.host_tools =
             u32::try_from(temper_engine_smith::tools(Duration::from_secs(10)).len()).expect("tool count");
         settings.limits.run.brief_sections = 16;
+        settings.limits.run.host_reply_bytes = 8192;
         settings.limits.session.spend = charter.budget.spend;
         let event = smith::Event::Start(smith::Start {
             reply_to: ReplyTo::new(Token::new(402)),
@@ -266,6 +325,7 @@ impl Process {
         });
         let mut agent = Agent::with_workspace_scripts_start(settings, mounted, Box::new([self.script.clone()]), event);
         agent.enable_parent_host_calls();
+        agent.enable_parent_deliveries();
         self.agent = Some(agent);
     }
 
@@ -320,57 +380,26 @@ impl Process {
             self.up.push_back(agent::Up::Admitted);
             self.admitted = true;
         }
-        for submission in agent.pending_host_calls() {
-            if self.sent_calls.contains(&submission.relay.owner) {
-                continue;
-            }
-            self.sent_calls.push(submission.relay.owner);
-            let effect = match submission.effect {
-                run::HostEffect::Read => agent::Effect::Read,
-                run::HostEffect::Write => agent::Effect::Write,
-            };
+        host_calls(agent, &mut self.sent_calls, now, &mut self.up);
+        for submission in &agent.delivery_submissions()[self.sent_deliveries..] {
+            unmount(agent.disk(), around.disk, &self.mounts);
             self.up.push_back(agent::Up::Call {
-                call: submission.relay.owner,
-                name: agent::CallName {
-                    activation: submission.name.activation,
-                    completion: submission.name.completion,
-                    position: submission.name.position,
-                },
+                call: submission.owner,
+                name: submission.name,
                 deadline: now.saturating_add(submission.deadline.saturating_since(submission.at)),
-                ask: agent::Ask::Host { tool: submission.tool.clone(), effect, body: submission.input.bytes().into() },
+                ask: agent::Ask::Deliver {
+                    fields: agent::Fields::new(submission.change.clone(), u64::MAX).expect("bounded fields"),
+                },
             });
         }
+        self.sent_deliveries = agent.delivery_submissions().len();
         for (number, read, spent) in &agent.turn_metadata()[self.sent_turns..] {
             let index = usize::try_from(*number - 1).expect("positive turn");
             let record = agent.turns()[index].clone();
             if let Some(producer) = &mut self.producer {
-                let mut text = Vec::new();
-                for message in &record.messages {
-                    if message.role == llm::Role::Assistant {
-                        for block in &message.content {
-                            if let llm::Block::Text { text: bytes, .. } = block {
-                                text.extend_from_slice(bytes);
-                            }
-                        }
-                    }
-                }
-                assert!(text.len() >= producer.count, "one nonempty text slice per piece");
-                assert!(!producer.holding, "one held reply turn");
-                for part in 0..producer.count {
-                    let from = text.len() * part / producer.count;
-                    let to = text.len() * (part + 1) / producer.count;
-                    producer.pieces.push_back(host::Piece {
-                        turn: *number,
-                        retry: 0,
-                        kind: host::LiveKind::Text,
-                        offset: u64::try_from(from).expect("bounded reply offset"),
-                        bytes: text[from..to].into(),
-                    });
-                }
-                let piece = producer.pieces.pop_front().expect("the first reply piece");
+                let piece = producer.hold(&record, *number);
                 assert_eq!(self.reading.take(), self.owner, "a granted read for the live piece");
                 around.events.push_back(worker::Event::Live { agent: self.owner.expect("spawned agent"), piece });
-                producer.holding = true;
             }
             self.up.push_back(agent::Up::Turn {
                 turn: agent::Turn {
@@ -388,12 +417,8 @@ impl Process {
         }
         self.sent_waits = agent.waiting().len();
         if self.settled {
-            let mut read = None;
-            for (_, turn_read, _) in agent.turn_metadata() {
-                if turn_read.is_some() {
-                    read = *turn_read;
-                }
-            }
+            unmount(agent.disk(), around.disk, &self.mounts);
+            let read = agent.turn_metadata().iter().filter_map(|(_, read, _)| *read).next_back();
             let (turns, spent, result) = result(agent.answer());
             self.up.push_back(agent::Up::Answer { answer: agent::Answer { read, turns, spent, result } });
             self.answered = Some((turns, spent));
@@ -505,3 +530,60 @@ fn grants(grants: &[agent::Grant]) -> Box<[smith::Grant]> {
 
 #[cfg(test)]
 mod notices;
+
+// The process and worker see the same writable mount when the process exits.
+fn unmount(source: &Disk, destination: &mut Checkout, mounts: &[(Vec<u8>, Vec<u8>)]) {
+    let files = source.files();
+    for (local, remote) in mounts {
+        let removed = destination
+            .files()
+            .keys()
+            .filter_map(|path| {
+                let relative = path.strip_prefix(remote.as_slice())?;
+                (!files.contains_key([local.as_slice(), relative].concat().as_slice())).then(|| path.to_vec())
+            })
+            .collect::<Vec<_>>();
+        for path in removed {
+            destination.remove(&path);
+        }
+        for (path, content) in &files {
+            if let Some(relative) = path.strip_prefix(local.as_slice()) {
+                destination.write(&[remote.as_slice(), relative].concat(), content);
+            }
+        }
+    }
+}
+
+fn mount_paths(directories: &[agent::Directory]) -> Vec<(Vec<u8>, Vec<u8>)> {
+    let mut mounts = Vec::new();
+    for directory in directories {
+        if directory.writable {
+            let place = Place { git: None, workspace: directory.root, repository: directory.name.clone() };
+            mounts.push(([directory.name.as_ref(), b"/"].concat(), [git::path(&place).as_slice(), b"/"].concat()));
+        }
+    }
+    mounts
+}
+
+fn host_calls(agent: &Agent, sent_calls: &mut Vec<Token>, now: Time, up: &mut VecDeque<agent::Up>) {
+    for submission in agent.pending_host_calls() {
+        if sent_calls.contains(&submission.relay.owner) {
+            continue;
+        }
+        sent_calls.push(submission.relay.owner);
+        let effect = match submission.effect {
+            run::HostEffect::Read => agent::Effect::Read,
+            run::HostEffect::Write => agent::Effect::Write,
+        };
+        up.push_back(agent::Up::Call {
+            call: submission.relay.owner,
+            name: agent::CallName {
+                activation: submission.name.activation,
+                completion: submission.name.completion,
+                position: submission.name.position,
+            },
+            deadline: now.saturating_add(submission.deadline.saturating_since(submission.at)),
+            ask: agent::Ask::Host { tool: submission.tool.clone(), effect, body: submission.input.bytes().into() },
+        });
+    }
+}

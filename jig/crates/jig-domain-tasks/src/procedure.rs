@@ -51,6 +51,7 @@ pub(crate) fn stepped(
                 TaskResult::Approved { .. }
                 | TaskResult::Report { .. }
                 | TaskResult::Verdict { .. }
+                | TaskResult::NoChange { .. }
                 | TaskResult::Change { .. } => Ending::Done(result),
             };
             task_mut(domain, number).expect("procedure task live").record.phase =

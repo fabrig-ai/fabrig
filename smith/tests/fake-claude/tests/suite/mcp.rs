@@ -29,7 +29,7 @@ fn tool_result(run: &support::Run) -> Value {
 fn init_reports_the_configured_server_connected_with_its_tools() {
     let run = print::with_server(Story::default(), print::invocation(0), script(Answer::Text("done".into())));
     let init = &messages(&run)[0];
-    assert_eq!(init["mcp_servers"], json!([{"name":"smith", "status":"connected"}]));
+    assert_eq!(init["mcp_servers"], json!([{"name":"smith", "status":"connected", "source":"dynamic"}]));
     assert_eq!(init["tools"], json!(["Read", "Bash", "mcp__smith__finish"]));
     assert_eq!(run.server_exit, Some(Exit::Code(0)));
 }
@@ -51,7 +51,7 @@ fn one_non_object_schema_hides_every_server_tool_at_init() {
         let run = print::with_server(Story::default(), print::invocation(0), schema_script(schema));
         let init = &messages(&run)[0];
         assert_eq!(init["tools"], json!(["Read", "Bash"]));
-        assert_eq!(init["mcp_servers"], json!([{"name":"smith", "status":"connected"}]));
+        assert_eq!(init["mcp_servers"], json!([{"name":"smith", "status":"connected", "source":"dynamic"}]));
     }
 }
 
@@ -69,7 +69,7 @@ fn object_schemas_expose_every_server_tool_at_init() {
 fn a_server_that_cannot_start_is_reported_failed() {
     let config = br#"{"mcpServers":{"smith":{"command":"missing"}}}"#;
     let run = print::run(Story::default(), print::invocation(0), None, Some(config));
-    assert_eq!(messages(&run)[0]["mcp_servers"][0]["status"], "failed");
+    assert_eq!(messages(&run)[0]["mcp_servers"], json!([{"name":"smith","status":"failed","source":"dynamic"}]));
     assert_eq!(messages(&run)[0]["tools"], json!(["Read", "Bash"]));
     assert_eq!(run.records[0].exit, Some(Exit::Code(0)));
 }
@@ -241,7 +241,7 @@ fn a_relay_sized_tool_list_fits_the_memory_envelope() {
             ..ServerScript::default()
         },
     );
-    assert_eq!(messages(&run)[0]["mcp_servers"][0]["status"], "connected");
+    assert_eq!(messages(&run)[0]["mcp_servers"], json!([{"name":"smith","status":"connected","source":"dynamic"}]));
     let peaks = run.peaks.expect("world checks memory");
     eprintln!("relay-sized tool list process peaks: {peaks:?}");
     assert!(peaks.iter().all(|peak| *peak > 0));

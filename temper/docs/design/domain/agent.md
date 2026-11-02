@@ -148,13 +148,13 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   lacked, and the run may `propose` it instead.
 - **The host part's budget.** smith refuses a run whose host part (its
   host tools, instructions, brief, and finish and deliver schemas) passes
-  its bound, 51,870 bytes in the small profile, before any turn. The largest stock
+  its bound, 51,717 bytes in the small profile, before any turn. The largest stock
   charter's non-brief host part, charter 1 with a Change contract, is
   34,524 bytes; with the authorised brief's 14,592 body bytes and
   1,472 bytes for 64 stock sections' titles and framing (16 title bytes
-  and 7 framing bytes each), the sum is 50,588, leaving 1,282 bytes.
-  Charter 1 Open has 32,919 non-brief bytes and leaves 2,887; charter 2
-  has 32,119 and leaves 3,687; charter 4 has 30,640 and leaves 5,166.
+  and 7 framing bytes each), the sum is 50,588, leaving 1,129 bytes.
+  Charter 1 Open has 32,919 non-brief bytes and leaves 2,734; charter 2
+  has 32,119 and leaves 3,534; charter 4 has 30,640 and leaves 5,013.
   A gathered brief spends what the non-brief host part leaves. So a new
   host tool is offered only where a family and the charter gate it,
   never to every run, and a charter's room is measured before a tool
@@ -202,7 +202,7 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   the charter's own text, where the domain reads it, not a call into
   smith; a step test in `temper-engine-smith` holds the table equal to
   smith's own measure. The bound is the engine's size profile's, the
-  one its workers are configured from (51,870 in the small one); an
+  one its workers are configured from (51,717 in the small one); an
   engine without that figure skips the start's check. A run smith
   refuses for its host part anyway is held with smith's reason, the
   bound and the figure, never a bare "invalid".
@@ -279,11 +279,12 @@ forge's `read_branch` for its head, then `read_file`. It calls `change`
 with the person's request and only what it read, never describing code
 it has not read. For a fix, if the named fault is absent, it changes
 nothing and says what the code has. The stock coder likewise writes
-nothing and finishes with a failure saying what the code has when the
+nothing and finishes with the successful `no_change` verdict saying what the code has when the
 named fault is absent, never adding a feature in a fix's place. Where
 the change's words describe the code otherwise than it is, the coder
 builds what they ask to add in the code there is, under its names,
-finishing with a failure only when it cannot be built there. When a change
+finishing with `no_change` only when it cannot be built there.
+An error that prevents production is a failure and keeps its recovery hold. When a change
 lands, the chat names the pull request and merge commit from its result's
 `Landed` line, and describes what changed only as the result or pull request says,
 never by restating the request as done.
@@ -412,8 +413,12 @@ smith's (smith's `domain/run.md`, 7.1):
 |---|---|
 | a report: words, bounded | a report, and a failure, within the same bound |
 | a verdict from a closed list, each with the fields it requires and the follow-up tasks it may propose | a verdict for each choice, named by its number, with its fields and its words' bound; follow-ups as items, of the kinds of task the verdict may propose; a failure of at most 1,024 bytes |
-| a connector's result: a change landed | a change, requiring the fields `title` and `body`, each within the contract's bound, its checks required; a failure within the same bound |
+| a connector's result: a change landed or a successful no-change conclusion | a change, requiring the fields `title` and `body`, each within the contract's bound, its checks required; a `no_change` verdict with bounded text and no fields or items; a failure within the same bound |
 | an approval | a failure only, of at most 1,024 bytes: approvals are people's |
+
+The `no_change` verdict becomes jig's successful `NoChange` result. It
+retains the explanation, supplies no resource or landing, and ends the
+change without a hold or escalation. The requester receives that result.
 
 A change's result names the resource the worker's push and the forge
 settled, never one from the LLM's fields. Its explicit `title` and `body`
@@ -448,15 +453,21 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
   The stock demo is temper's fake model, declared with a window of
   177,523 tokens and an output of 8,192. At smith's 4/5 threshold,
   after two outputs the shared room is 125,634 bytes. Less smith's own
-  21,894 bytes, half of the remaining room gives the small profile's
-  51,870-byte host part and a quarter gives its 25,935-byte offer
+  22,200 bytes, half of the remaining room gives the small profile's
+  51,717-byte host part and a quarter gives its 25,858-byte offer
   (smith's `protocol/limits.md`, 3.9). Every stock charter retains it;
   its declared window is chosen to hold the stock tools and authorised
-  brief: ⌊(⌊177,523 × 4/5⌋ − 2 × 8,192 − 21,894) / 2⌋ = 51,870.
+  brief: ⌊(⌊177,523 × 4/5⌋ − 2 × 8,192 − 22,200) / 2⌋ = 51,717.
 - **Waiting and resuming:** the waiting time is the charter's; a
   coordinator's is zero. A chat resumes its transcript, and a
   coordinator starts fresh from its brief (jig's `domain/engine.md`,
-  7.4).
+  7.4). A goal under stock charter 1 also resumes. Its granted `wait` may
+  park in Finite wind-down, including the eighth completion after seven
+  ordinary completions. The pending plan question and its answer route remain
+  live while parked. The answer starts a fresh bounded activation with eight
+  turns and one reserved turn; its waking prompt supersedes prior exhaustion.
+  The task's monetary spending remains cumulative and each activation is
+  funded only from what remains.
 - **Its mode is its task's ending** (jig's `domain/tasks.md`, 5.8;
   `domain/hosts.md`, 8.1), the assignment's `ended_by`, whatever the
   charter: a task its result ends runs smith's `Finite` mode, and one
@@ -544,6 +555,20 @@ modification or the shell: a reviewer changes nothing.
 
 The change's agents ask no one, and take no questions, answers or words
 (8.2).
+
+A refused forge read keeps its refusing layer and reason. Connector authority
+findings reach the agent as `ToolDenied`, with the findings intact. The root
+also emits volatile operator facts for read refusals and call admission
+refusals: task, attempt, tool, layer and reason, with authority findings or
+the forge's error where present. The service routes these facts to its
+operator notes and `temper serve` prints them on stderr. Call-record and
+archive-read room pressure remains busy, retried by the host; observing it
+changes no admission or grant. These bounded diagnostics are not store rows
+or client wire fields, and overflow drops a fact and increments the root's
+lost-fact count. Claude built-in Read refusals instead retain the permission
+message in the recorded tool result (smith's `protocol/programs.md`, 5.4).
+A reviewer still fails when it cannot judge the change.
+
 
 ### 8.1 The configuring agent
 
@@ -651,7 +676,7 @@ of `../draft/v0.1.0.md`, 2.1.
   answers it there. The chat hears a notice that the question was
   answered, with the person's answer words cut at 256 bytes on a UTF-8
   boundary and marked when cut, and says so. The goal is kept while its
-  question waits
+  question waits, including when its ordinary turns expire after asking
   (jig's `domain/tasks.md`, 5.7): a run of it that finishes before the
   answer parks, and the answer wakes it. It then calls `change` with
   what was agreed, waits for its result and reports; the chat says what

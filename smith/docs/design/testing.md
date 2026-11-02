@@ -1,6 +1,6 @@
 # Testing smith
 
-Provisional, 2026-10-08, revised 2026-10-30. How smith is tested. The
+Provisional, 2026-10-08, revised 2026-11-02. How smith is tested. The
 strategy is skein's `docs/foundation/testing-strategy.md`: the tiers,
 faults, what every fake shares, what every world checks, scenarios and
 the referee, the two suites, and where a failure is fixed. This document
@@ -11,7 +11,8 @@ keeps what is smith's:
 - its scenarios and referee (section 5);
 - what its worlds check beyond the strategy (section 6);
 - its layout (section 7);
-- what is still open (section 8).
+- what is still open (section 8);
+- what is left for later (section 9).
 
 The stories each world tells are in the design of what it tests, in that
 document's "The world" section.
@@ -40,7 +41,9 @@ document's "The world" section.
 - **End to end, smith runs as it ships:** the root package's binaries as
   processes, against fakes in the focused suite, and against the real
   providers, their issuers, Claude Code and a git remote in a live suite
-  run by choice, on smith's own accounts, signed in once (2.3).
+  outside the gate, on smith's own accounts, signed in once: the
+  pipeline runs it after every landing, and the owner runs the story on
+  a key (2.3).
 - **Benchmarks are not tests.** Real agents on real models are measured
   in a tier of their own, outside both suites and the gate (2.4).
 - **One scenario, every tier its fakes reach.** The local host's
@@ -235,6 +238,18 @@ patch and drift tests check the generated `encoded_bound` and
     XDG_CONFIG_HOME=$SMITH_LIVE/config smith login claude    # Claude Code's own sign-in
     cargo nextest run --profile live-smith
     ```
+  - **After landing, and the owner's.** After every landing, the
+    pipeline runs `live-smith` on the logins it lends from its shelf:
+    smith's ChatGPT record and Claude Code's login. No shelf holds an
+    API key, so the story on a key is the owner's: it is ignored
+    (`#[ignore]`, whose reason says so), the profile's run leaves it
+    out, and the owner runs it alone, with `ANTHROPIC_API_KEY` set in
+    the environment:
+
+    ```sh
+    cargo nextest run --profile live-smith --run-ignored only \
+      -E 'test(=an_anthropic_key_delivers_a_commit_in_place)'
+    ```
   - **A missing setup fails by name,** saying what to run: "no record in
     `$SMITH_LIVE/tokens/chatgpt`: run `XDG_CONFIG_HOME=$SMITH_LIVE/config
     smith login chatgpt`", or "`ANTHROPIC_API_KEY` is not set".
@@ -260,15 +275,16 @@ patch and drift tests check the generated `encoded_bound` and
       which runs `claude -p` with the configuration directory
       `$SMITH_LIVE/programs/claude`; the story also checks what the fake
       program assumes (protocol/programs.md, section 8);
-    - the same outcome on a key: `--account anthropic-key`, smith's own
-      loop on Anthropic's model;
+    - the same outcome on a key, the owner's story (above):
+      `--account anthropic-key`, smith's own loop on Anthropic's model;
     - a second run resumes it (`--chat`);
     - a chat started on ChatGPT, resumed on Claude, then on ChatGPT
       again, each run completing (domain/session.md, 8.2);
     - a run refreshes its grant at the issuer: the story raises the
-      refresh lead, a policy value a test may set, so its run refreshes
-      at once, and checks that the record's generation rose and the run
-      completed;
+      refresh lead, a policy value a test may set, to 400 days in the
+      settings' seconds (shell.md, 6.5), past any access token's life,
+      so its run refreshes at once, and checks that the record's
+      generation rose and the run completed;
     - with a remote named, the push lands, and the test removes the
       branch afterwards.
   - **Outcomes, not words.** An LLM's words vary, so a story asks for a
@@ -276,6 +292,20 @@ patch and drift tests check the generated `encoded_bound` and
     checks that outcome and the typed events, read through `smith-events`
     and never as text: the answer, its exit code, and where the task
     appears in the prompts.
+  - **Each run's own records.** Every invocation names a trace of its
+    own. On a `program` account the run's records are the spawned
+    agent's, in that trace with `.agent` appended (protocol/events.md,
+    section 2): the referee takes the run's records from it, and the
+    host's end and exit from the product's stream, as smith-bench reads
+    a program run.
+  - **A failure says why, in typed facts.** A failing story's message,
+    at most 4 KiB, names its leg (the story, the account, which
+    invocation, check or exec), the assertion, and what the referee
+    read: exit, the run's typed end and failure, each session's resume
+    state, a file's relation to the expected bytes, a refreshed
+    record's generations, and standard error's counts and only its
+    lines of a fixed form. It never holds standard output, a prompt, a completion,
+    a tool's input or result, a file's bytes or credential bytes.
   - **What they show:** each provider's wire as it is today, refresh and
     rotation at the issuer, Claude Code's stream, prompt tool and login
     as its release has them, and a push to a real forge. A failure is
@@ -626,12 +656,21 @@ benchmarks/                      smith-bench, the benchmark harness (benchmarks.
 - **The sample host in the real loop:** whether a second host earns a
   real loop of its own, beside the local host's, now that an end-to-end
   story spawns `smith-agent` from it.
-- **Live tests on a schedule:** a live directory on the CI's machine,
-  signed in once, or keys kept as CI secrets, and how often to spend a
-  subscription's usage on them.
 - **A reacting person in skein:** whether a scripted neighbour that acts
   on what it observes is generic enough for skein's world kit. It moves
   there when a second service needs it.
 - **Both placements within the budgets:** which scenarios run twice once
   the inline agent is the product, and whether the spawned placement's
   share moves to the fuzzy sweeps.
+
+## 9. Later
+
+- **The live reds the report names:** the live stories whose failure no
+  offline world shows, the refresh story's generation, the chat crossing
+  beyond its Claude leg and the second run's resume (testing.status.md,
+  2.3). Their repair starts from the first after-landing log whose
+  failure says why (2.3), in the lowest tier that shows it.
+- **The key's story after landing.** The story on an Anthropic API key
+  is the owner's for now (2.3): no shelf holds a key. It returns to the
+  after-landing run when the pipeline has a key to lend, which is the
+  user's to give.

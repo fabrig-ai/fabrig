@@ -60,6 +60,12 @@ pub enum Read {
         attempt: u64,
         turn: u32,
     },
+    /// One chunk of stored specification words or effective instructions.
+    TaskText {
+        task: u64,
+        field: TaskTextField,
+        from: u64,
+    },
     /// One task.
     Task {
         task: u64,
@@ -161,6 +167,8 @@ pub struct NotePage {
 /// A read document or page.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum ReadValue {
+    /// Source text with explicit byte continuation.
+    TaskText(Box<TaskText>),
     Settings(Box<super::SettingsDocument>),
     Setting(Box<super::SettingDocument>),
     Revision(Box<super::RevisionAnswer>),
@@ -233,4 +241,24 @@ pub enum ReadResult {
     Value(ReadValue),
     /// Why no value came.
     None(ReadNone),
+}
+
+/// The independent task text sources available through bounded reads.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum TaskTextField {
+    /// The task's specification words.
+    Specification,
+    /// Override or charter instructions at the task's recorded settings revision.
+    Instructions,
+}
+
+/// A UTF-8 chunk, byte offsets and the complete source length.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct TaskText {
+    pub task: u64,
+    pub field: TaskTextField,
+    pub from: u64,
+    pub total: u64,
+    pub next: Option<u64>,
+    pub text: Text,
 }

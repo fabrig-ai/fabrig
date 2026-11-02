@@ -361,9 +361,47 @@ fn serve_prepares_a_worker_alone_without_a_deployment_or_setup_host() {
 }
 
 #[test]
+fn github_default_log_origins_include_the_second_results_host() {
+    fn resolve(configured: &jig_protocol_config::Address) -> Result<std::net::SocketAddr, String> {
+        let jig_protocol_config::Address::Host { port, .. } = configured else {
+            return Err("expected default host".into());
+        };
+        Ok(([192, 0, 2, 17], *port).into())
+    }
+    let roots = super::trust(None).expect("machine roots");
+    let runtime = super::github_runtime(None, &roots, resolve).expect("default resolves");
+    assert_eq!(runtime.log_origins.len(), 20);
+    assert!(
+        runtime
+            .log_origins
+            .iter()
+            .any(|entry| entry.origin.host.as_ref() == b"productionresultssa17.blob.core.windows.net")
+    );
+    assert!(runtime.log_origins.iter().all(|entry| entry.origin.tls && entry.origin.port == 443));
+}
+
+#[test]
+fn github_log_origins_skip_unresolved_defaults_but_refuse_explicit_hosts() {
+    fn missing(_: &jig_protocol_config::Address) -> Result<std::net::SocketAddr, String> {
+        Err("no address".into())
+    }
+    assert!(super::github_logs::resolve(None, missing).expect("offline startup").is_empty());
+    let explicit =
+        [skein_forge::github::redirect::Origin { tls: true, host: b"logs.example.test".as_slice().into(), port: 443 }];
+    let why = super::github_logs::resolve(Some(&explicit), missing).expect_err("explicit host must resolve");
+    assert!(why.contains("logs.example.test"));
+    assert!(super::github_logs::resolve(Some(&[]), missing).expect("disabled").is_empty());
+}
+
+#[test]
 fn github_runtime_holds_unresolved_hosts_and_uses_the_machine_socket() {
     fn reject_names(configured: &jig_protocol_config::Address) -> Result<std::net::SocketAddr, String> {
         match configured {
+            jig_protocol_config::Address::Host { name, port }
+                if name.as_ref() == b"productionresultssa1.blob.core.windows.net" =>
+            {
+                Ok(([192, 0, 2, 1], *port).into())
+            }
             jig_protocol_config::Address::Host { .. } => Err("no resolver in this test".into()),
             jig_protocol_config::Address::Addr(address) => Ok(address.socket().expect("socket fixture")),
         }
@@ -371,6 +409,7 @@ fn github_runtime_holds_unresolved_hosts_and_uses_the_machine_socket() {
     let roots = super::trust(None).expect("machine trust roots");
     let default = super::github_runtime(None, &roots, reject_names).expect("held default");
     assert_eq!(default.address, temper_service::forge::HELD_ADDRESS);
+    assert_eq!(default.log_origins.len(), 1);
     let machine = temper_forge_setup::machine::GitHubMachine {
         git: None,
         api: jig_protocol_config::Address::Addr(skein_io::Addr::Ip(([127, 0, 0, 1], 3001).into())),

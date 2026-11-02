@@ -60,11 +60,11 @@ fn a_person_asks_claude_code_to_land_a_change_on_the_owned_forge() {
 
 fn owned_forge_landing(model: support::forge_land::LiveModel<'_>) {
     use std::{fs, os::unix::fs::PermissionsExt};
-    use support::forge_land::{self, Face, LiveModel, LivePlan};
+    use support::forge_land::{self, Face, LivePlan};
     let clock = skein_shell::Clock::new();
     let started = clock.now().now;
     let deadline = started.saturating_add(Duration::from_secs(2_400));
-    let (store, kept) = forge_land::live_store(matches!(model, LiveModel::ChatGpt { account: Some(_) }));
+    let (store, kept) = forge_land::landing_store(model);
     let scratch = support::Scratch::live();
     let paths = ["config", "data", "cache"].map(|name| store.join(name));
     let address = if kept {

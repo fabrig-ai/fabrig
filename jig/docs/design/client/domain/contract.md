@@ -1037,6 +1037,7 @@ party reads is therefore never lost by a crash.
 | Read | From |
 |---|---|
 | `me` | live state |
+| `task_text{n, field, from}`: specification words or effective instructions, a UTF-8 chunk | live task source, or its retained owner row |
 | `task{n}`; `proposal{key}`; an escalation; a question; a person task | live state, or the store once ended or decided |
 | a result | the store, or live state while a stub names it |
 | a task's history, a page, for it or its subtree | the store |
@@ -1048,6 +1049,17 @@ party reads is therefore never lost by a crash.
 | the deployment | live state |
 | `settings`; `setting{kind, scope, number, revision}`: one setting's value whole, as the newest reads it, or, for a charter, as a held revision reads it, or, with `proposal`, as a pending proposal of settings would set it, or, of an application's kind, its state and size alone; `revision{n}`: a revision's record and its items, as it set them, an application's with their sizes alone; `revisions`: its records, a page, newest first | live state; the store's history, for a revision no longer held (`../../domain/engine.md`, 17.7) |
 | an application's read, naming its owner, its scope and its window (7.5) | its owner, the connector, through the engine's root |
+
+- **Task source text** is read independently of its overview. `field` selects
+  specification words or effective instructions: an agent's override, otherwise
+  its charter at the task's recorded settings revision. Each answer gives `task`,
+  `field`, `from`, `total`, `text` and `next`, byte offsets into that source.
+  The chunk is at most `documents.text_bytes`, ends at a UTF-8 boundary and
+  advances whenever `next` is present. A non-boundary or past-end offset is
+  unknown; a text window too small for the next character is busy. Visibility,
+  authentication and durable delivery are the task read's. Unavailable
+  instructions are unknown. Each read uses current task state; after an amendment
+  or settings move, restart at zero to read the new source consistently.
 
 - **An ended task is a finished read.** Opening its task or tree watch
   delivers its retained document once, then ends the watch (7.2). A

@@ -19,16 +19,18 @@ struct Live {
 }
 
 #[derive(Clone, Copy, Default)]
+#[expect(clippy::struct_excessive_bools, reason = "each flag selects an independent live protocol probe")]
 struct Options<'a> {
     permission: bool,
     thinking: bool,
     schema: Option<&'a str>,
     non_object: bool,
+    summary: bool,
 }
 
 impl Live {
     fn start(text: &str, options: Options<'_>) -> Self {
-        let Options { permission, thinking, schema, non_object } = options;
+        let Options { permission, thinking, schema, non_object, summary } = options;
         let root = std::env::var_os("SMITH_LIVE").filter(|value| !value.is_empty()).expect("$SMITH_LIVE unset");
         let root = smith_bench::guard::write_path(std::path::Path::new(&root)).expect("guarded $SMITH_LIVE");
         let configuration = std::env::var_os("SMITH_LIVE_CLAUDE")
@@ -45,16 +47,16 @@ impl Live {
         } else {
             r#"{"mcpServers":{}}"#.into()
         };
-        let mut arguments = vec![
-            "--session-id",
-            &probe.session,
-            "--mcp-config",
-            &mcp,
+        let mut arguments = vec!["--session-id", &probe.session];
+        if !summary {
+            arguments.extend(["--mcp-config", &mcp]);
+        }
+        arguments.extend([
             "--tools",
             if permission || schema.is_some() { "Read" } else { "" },
             "--max-turns",
             if permission || thinking || schema.is_some() { "4" } else { "1" },
-        ];
+        ]);
         if permission {
             arguments.extend([
                 "--permission-prompt-tool",
@@ -235,6 +237,28 @@ impl Drop for Live {
 }
 
 #[test]
+fn a_live_summary_session_offers_no_tools() {
+    const INIT_RECORDS: usize = 1000;
+    let mut live = Live::start(
+        "Summarize this conversation: the user said hello.",
+        Options { summary: true, ..Options::default() },
+    );
+    for _ in 0..INIT_RECORDS {
+        let message = live.message();
+        if message["type"] == "system" && message["subtype"] == "init" {
+            assert!(
+                message["tools"] == serde_json::json!([]) && message["mcp_servers"] == serde_json::json!([]),
+                "summary init offered tools={} and mcp_servers={}",
+                message["tools"],
+                message["mcp_servers"]
+            );
+            return;
+        }
+    }
+    panic!("summary init did not arrive");
+}
+
+#[test]
 fn a_live_second_message_needs_the_first_turns_context() {
     let mut live = Live::start("Remember the word persimmon. Reply with OK.", Options::default());
     live.result_text();
@@ -377,6 +401,17 @@ for line in sys.stdin:
     serde_json::json!({"mcpServers":{"smith":{"command":"/usr/bin/python3","args":[script,probe.home.path().join("prompt-shape"),if non_object {"non-object"} else if thinking {"thinking"} else {"prompt"}]}}}).to_string()
 }
 
+fn json_type(value: &serde_json::Value) -> &'static str {
+    match value {
+        serde_json::Value::Null => "null",
+        serde_json::Value::Bool(_) => "boolean",
+        serde_json::Value::Number(_) => "number",
+        serde_json::Value::String(_) => "string",
+        serde_json::Value::Array(_) => "array",
+        serde_json::Value::Object(_) => "object",
+    }
+}
+
 #[test]
 fn a_live_server_with_a_non_object_schema_lists_no_tools() {
     // The existing live turn probes allow this many records before a terminal.
@@ -385,7 +420,12 @@ fn a_live_server_with_a_non_object_schema_lists_no_tools() {
     for _ in 0..INIT_RECORDS {
         let message = live.message();
         if message["type"] == "system" && message["subtype"] == "init" {
-            assert_eq!(message["mcp_servers"], serde_json::json!([{"name":"smith","status":"connected"}]));
+            assert_eq!(
+                message["mcp_servers"],
+                serde_json::json!([{"name":"smith","status":"connected","source":"dynamic"}]),
+                "init mcp_servers has JSON type {}",
+                json_type(&message["mcp_servers"])
+            );
             assert!(
                 message["tools"]
                     .as_array()
@@ -461,9 +501,17 @@ fn a_live_thinking_turn_has_the_fakes_shape() {
         let record = live.message();
         if record["type"] == "system" && record["subtype"] == "thinking_tokens" {
             if let Some(estimated_tokens) = record.get("estimated_tokens") {
-                assert!(estimated_tokens.is_number());
+                assert!(
+                    estimated_tokens.is_number(),
+                    "system/thinking_tokens estimated_tokens must be a number, saw JSON type {}",
+                    json_type(estimated_tokens)
+                );
             }
-            assert!(record["estimated_tokens_delta"].is_u64());
+            assert!(
+                record["estimated_tokens_delta"].is_u64(),
+                "system/thinking_tokens estimated_tokens_delta must be an unsigned integer, saw JSON type {}",
+                json_type(&record["estimated_tokens_delta"])
+            );
             notice = true;
         }
         let event = &record["event"];
@@ -475,7 +523,11 @@ fn a_live_thinking_turn_has_the_fakes_shape() {
         if event["delta"]["type"] == "thinking_delta" {
             assert!(event["delta"]["thinking"].is_string());
             if let Some(estimated_tokens) = event["delta"].get("estimated_tokens") {
-                assert!(estimated_tokens.is_number());
+                assert!(
+                    estimated_tokens.is_number() || estimated_tokens.is_null(),
+                    "thinking_delta estimated_tokens must be a number or null, saw JSON type {}",
+                    json_type(estimated_tokens)
+                );
             }
             delta = true;
         }

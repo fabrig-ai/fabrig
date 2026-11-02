@@ -1301,8 +1301,8 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::Delegated { task, child, kind } => delegated(d, env, task, child, kind, out),
         Event::DelegateRefused { task, child } => delegate_refused(d, env, task, child, out),
         Event::DelegateAdmissionRefused { task, kind } => delegate_admission_refused(d, env, task, kind, out),
-        Event::DelegateResult { task, child, status, failed, cancelled, words } => {
-            delegate_result(d, env, task, child, status, failed, cancelled, &words, out);
+        Event::DelegateResult { task, child, status, no_change, failed, cancelled, words } => {
+            delegate_result(d, env, task, child, status, no_change, failed, cancelled, &words, out);
         }
         Event::StepChange { task, entry, heard, gates, queue_repair_active, kept } => {
             step_change(d, env, StepInput { task, entry, heard, gates, queue_repair_active, kept }, out);
@@ -2411,6 +2411,7 @@ fn delegate_result(
     task: u64,
     child: u64,
     status: change::Status,
+    no_change: bool,
     failed: bool,
     cancelled: bool,
     words: &[u8],
@@ -2422,60 +2423,19 @@ fn delegate_result(
         return;
     }
     row.delegate = None;
-    row.delegate_status = status;
+    row.delegate_status = if no_change { change::Status::Failed } else { status };
     match kind {
         change::Delegate::Gate { number, head } => {
-            let verdict: &[u8] = if cancelled {
-                b"cancelled"
-            } else if failed {
-                b"failed"
-            } else if status == change::Status::Passed {
-                b"approved"
-            } else {
-                b"changes requested"
-            };
-            for gate in &row.change.gates {
-                if gate.number == number && gate.kind == change::GateKind::Agent {
-                    row.result.reviewed(&head, verdict, env.limits.client.answer_bytes);
-                }
-            }
-            // A result racing the CI cancellation is no verdict or review failure.
-            let cancelling = row.change.state == (change::State::CancellingGates { head });
-            if cancelled || cancelling {
-                let saved = row.clone();
-                save_change(d, out, saved);
-                return;
-            }
-            let report = change::GateReport { number, head, status };
-            let mut verdicts = List::with_capacity(env.limits.change_policy.gates);
-            for old in &row.verdicts {
-                if old.number != number {
-                    verdicts.push(*old).expect("bounded prior gate reports");
-                }
-            }
-            if !failed && verdicts.push(report).is_err() {
+            if !record_review(row, env, number, head, (status, failed, cancelled), words) {
                 emit(out, Request::Refused { task });
                 return;
             }
-            row.verdicts = verdicts.into_boxed();
-            if failed {
-                row.change = change::review_failed(&row.change, number, head, env.wall, &env.limits.change_policy);
-            }
-            let mut remarks = List::with_capacity(env.limits.change_policy.gates);
-            for old in &row.gate_remarks {
-                if old.number != number {
-                    remarks.push(old.clone()).expect("bounded prior gate remarks");
-                }
-            }
-            let text = crate::ResultText { bytes: Box::from(words), cut: 0 };
-            let Some(words) = text.fitted(env.limits.client.answer_bytes) else {
-                emit(out, Request::Refused { task });
-                return;
-            };
-            remarks.push(crate::GateRemark { number, head, words }).expect("gate room checked");
-            row.gate_remarks = remarks.into_boxed();
         }
         change::Delegate::Produce => {
+            if no_change && let change::State::Producing { .. } = row.change.state {
+                row.change.state = change::State::NoChange { words: words.into() };
+                row.change.owns_turn = false;
+            }
             row.producer_failure = if failed && !words.is_empty() {
                 Some(crate::text::fit(
                     words,
@@ -2492,6 +2452,77 @@ fn delegate_result(
     save_change(d, out, saved);
 }
 
+fn review_terminal_words(status: change::Status, failed: bool, cancelled: bool) -> &'static [u8] {
+    if cancelled {
+        b"cancelled"
+    } else if failed {
+        b"failed"
+    } else if status == change::Status::Passed {
+        b"approved"
+    } else {
+        b"changes requested"
+    }
+}
+
+fn record_review(
+    row: &mut ChangeRow,
+    env: &Env<Limits>,
+    number: u64,
+    head: [u8; 32],
+    standing: (change::Status, bool, bool),
+    words: &[u8],
+) -> bool {
+    let (status, failed, cancelled) = standing;
+    let verdict = review_terminal_words(status, failed, cancelled);
+    for gate in &row.change.gates {
+        if gate.number == number && gate.kind == change::GateKind::Agent {
+            row.result.reviewed(&head, verdict, env.limits.client.answer_bytes);
+        }
+    }
+    // A result racing the CI cancellation is no verdict or review failure.
+    let cancelling = row.change.state == (change::State::CancellingGates { head });
+    if cancelled || cancelling {
+        return true;
+    }
+    let report = change::GateReport { number, head, status };
+    let mut verdicts = List::with_capacity(env.limits.change_policy.gates);
+    for old in &row.verdicts {
+        if old.number != number {
+            verdicts.push(*old).expect("bounded prior gate reports");
+        }
+    }
+    if !failed && verdicts.push(report).is_err() {
+        return false;
+    }
+    row.verdicts = verdicts.into_boxed();
+    if failed {
+        row.change = change::review_failed(&row.change, number, head, env.wall, &env.limits.change_policy);
+    }
+    let mut remarks = List::with_capacity(env.limits.change_policy.gates);
+    for old in &row.gate_remarks {
+        if old.number != number {
+            remarks.push(old.clone()).expect("bounded prior gate remarks");
+        }
+    }
+    let text = crate::ResultText { bytes: Box::from(words), cut: 0 };
+    let Some(words) = text.fitted(env.limits.client.answer_bytes) else {
+        return false;
+    };
+    remarks.push(crate::GateRemark { number, head, words }).expect("gate room checked");
+    row.gate_remarks = remarks.into_boxed();
+    true
+}
+
+fn change_terminal(row: &ChangeRow) -> Option<change::Decision> {
+    if row.change.state == change::State::Ended {
+        return Some(change::Decision::Cancel);
+    }
+    if let change::State::NoChange { .. } = row.change.state {
+        return Some(change::Decision::NoChange);
+    }
+    None
+}
+
 fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Queue<Request>) {
     if d.stopping {
         return;
@@ -2505,8 +2536,8 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         emit(out, Request::Refused { task });
         return;
     };
-    if row.change.state == change::State::Ended {
-        emit(out, Request::ChangeDecision { task, decision: change::Decision::Cancel, entry: None, evidence: None });
+    if let Some(decision) = change_terminal(row) {
+        emit(out, Request::ChangeDecision { task, decision, entry: None, evidence: None });
         return;
     }
     let mut owner = None;
@@ -2819,6 +2850,7 @@ pub(crate) fn queue_ready(d: &Domain, row: &ChangeRow, l: &Limits) -> (List<chan
             | change::State::Resolving { .. }
             | change::State::Repairing { .. }
             | change::State::Landing { .. }
+            | change::State::NoChange { .. }
             | change::State::Ended
             | change::State::Landed { .. }
             | change::State::Held { .. } => None,
@@ -2889,6 +2921,13 @@ fn titled_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<R
     Some(row)
 }
 
+fn change_standing(row: &ChangeRow, pending: &PendingStep) -> change::Heard {
+    change::Heard {
+        effect: if row.pending.is_some() { change::EffectResult::Pending } else { row.effect },
+        ..pending.heard
+    }
+}
+
 fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &mut Queue<Request>) {
     let Some(mut row) = titled_change(d, env, pending.task, out) else { return };
     let before = crate::panel::ready(&row);
@@ -2933,10 +2972,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &m
         accept_released_branch(d, env, &mut row, head, out);
     }
     let facts = change_facts(d, env, &row, pending, base_tip);
-    let heard = change::Heard {
-        effect: if row.pending.is_some() { change::EffectResult::Pending } else { row.effect },
-        ..pending.heard
-    };
+    let heard = change_standing(&row, pending);
     for _ in 0_u32..16 {
         let stepped = change::step(&row.change, &facts, &heard, env.wall, &env.limits.change_policy);
         let advanced = stepped.change != row.change;
@@ -2954,6 +2990,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &m
             | change::Decision::CancelGates { .. }
             | change::Decision::Ready
             | change::Decision::QueueRepair
+            | change::Decision::NoChange
             | change::Decision::Finish { .. }
             | change::Decision::Cancel
             | change::Decision::Hold(_)) => {
@@ -2997,6 +3034,7 @@ fn in_queue(state: &change::State) -> bool {
         | change::State::Resolving { .. }
         | change::State::Repairing { .. }
         | change::State::Landing { .. }
+        | change::State::NoChange { .. }
         | change::State::Ended
         | change::State::Landed { .. }
         | change::State::Held { .. } => false,
@@ -3665,6 +3703,7 @@ fn end_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Requ
         }
     }
     row.change.state = match &row.change.state {
+        change::State::NoChange { words } => change::State::NoChange { words: words.clone() },
         change::State::Landed { merge } => change::State::Landed { merge: *merge },
         change::State::Producing { .. }
         | change::State::Opening { .. }

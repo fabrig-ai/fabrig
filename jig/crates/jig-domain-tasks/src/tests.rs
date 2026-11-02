@@ -179,3 +179,28 @@ fn change_titles_and_words_have_independent_contract_bounds() {
         assert!(!crate::run::valid_result(&contract, &result, &tight));
     }
 }
+
+#[test]
+fn no_change_requires_a_change_contract_and_both_word_bounds() {
+    use crate::{Contract, TaskResult};
+    let limits = revisions::LIMITS;
+    let contract = Contract::Change { connector: 1, kind: 2, words: 4 };
+    for length in [0, 4, 5] {
+        let result = TaskResult::NoChange { words: skein_lib::bytes::zeroed(length) };
+        assert_eq!(crate::run::valid_result(&contract, &result, &limits), length <= 4);
+        assert_eq!(
+            crate::run::valid_result(&contract, &result, &crate::Limits { result_bytes: 3, ..limits }),
+            length <= 3
+        );
+        assert!(!crate::run::valid_result(&Contract::Report { words: 4 }, &result, &limits));
+        assert!(!crate::run::valid_result(&Contract::Verdict { choices: Box::new([]) }, &result, &limits));
+        assert!(!crate::run::valid_result(
+            &Contract::Approval {
+                state: Box::new([]),
+                part: crate::Part { connector: 1, kind: crate::PartKind::Result, key: crate::PartKey::Number(1) }
+            },
+            &result,
+            &limits
+        ));
+    }
+}

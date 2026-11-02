@@ -225,6 +225,7 @@ fn kind_bytes(kind: &crate::MessageKind) -> Option<u64> {
         crate::MessageKind::Result(crate::ResultKind::Approved { state, .. }) => bytes(state.len()),
         crate::MessageKind::Result(
             crate::ResultKind::Report
+            | crate::ResultKind::NoChange
             | crate::ResultKind::Change { .. }
             | crate::ResultKind::Failed
             | crate::ResultKind::Cancelled,
@@ -260,6 +261,7 @@ fn word_bytes(word: &crate::Word) -> Option<u64> {
         crate::MessageKind::Result(
             crate::ResultKind::Approved { .. }
             | crate::ResultKind::Report
+            | crate::ResultKind::NoChange
             | crate::ResultKind::Change { .. }
             | crate::ResultKind::Failed
             | crate::ResultKind::Cancelled,
@@ -288,7 +290,7 @@ fn word_bytes(word: &crate::Word) -> Option<u64> {
 
 fn result_bytes(result: &TaskResult) -> Option<u64> {
     match result {
-        TaskResult::Report { words } => bytes(words.len()),
+        TaskResult::Report { words } | TaskResult::NoChange { words } => bytes(words.len()),
         TaskResult::Change { title, words, .. } => bytes(size_of::<crate::ChangeTitle>())?
             .checked_add(bytes(title.words.len())?)?
             .checked_add(bytes(words.len())?),

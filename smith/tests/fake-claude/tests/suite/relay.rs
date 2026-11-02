@@ -18,7 +18,7 @@ fn result(run: &Run) -> &Value {
 #[test]
 fn the_relay_connects_claude_to_the_agent_s_server() {
     let run = relay::run(Story::default(), false, false);
-    assert_eq!(run.messages[0]["mcp_servers"], json!([{"name":"smith","status":"connected"}]));
+    assert_eq!(run.messages[0]["mcp_servers"], json!([{"name":"smith","status":"connected","source":"dynamic"}]));
     let tools = run.messages[0]["tools"].as_array().expect("tools");
     assert!(tools.contains(&json!("mcp__smith__finish")));
     assert!(!tools.contains(&json!("mcp__smith__permission_prompt")));
@@ -58,7 +58,7 @@ fn a_denied_builtin_returns_the_agent_s_message() {
 fn a_relay_with_the_wrong_secret_is_refused() {
     let run = relay::run(Story::default(), false, true);
     assert!(!run.seen.iter().any(|up| matches!(up, Up::Connected)));
-    assert_eq!(run.messages[0]["mcp_servers"], json!([{"name":"smith","status":"failed"}]));
+    assert_eq!(run.messages[0]["mcp_servers"], json!([{"name":"smith","status":"failed","source":"dynamic"}]));
     assert_eq!(run.relay_exit, Some(skein_io::kernel::Exit::Code(1)));
     assert_eq!(run.relay_detail, Some(b"smith-agent: the relay's agent refused it\n".as_slice()));
 }

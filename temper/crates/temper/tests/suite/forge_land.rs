@@ -378,7 +378,7 @@ fn a_claude_configuration_replaces_openai_and_keeps_the_demo() {
             {"name":"claude", "number":2, "dialect":2, "provider":"anthropic", "program":"claude_code",
                 "address":"api.anthropic.com:443", "transport":"tls", "server_name":"api.anthropic.com",
                 "identity":"plain", "connect":10000, "handshake":10000, "headers":[],
-                "models":[{"name":"sonnet", "prices":{"input":1, "cached":1, "output":1, "unit":1000},
+                "models":[{"name":"claude-haiku-5-5", "prices":{"input":1, "cached":1, "output":1, "unit":1000},
                     "window":1_048_576, "output":8192, "reasoning_item":65536, "head":60000, "idle":30000}]},
             agent_before["endpoints"][1]
         ])
@@ -389,12 +389,12 @@ fn a_claude_configuration_replaces_openai_and_keeps_the_demo() {
         value["engine"]["llm"],
         json!({
             "providers":[{"name":"anthropic", "number":2, "signed_in_plan":false,
-                "manage_usage":"https://claude.ai/settings/usage", "models":["sonnet"],
+                "manage_usage":"https://claude.ai/settings/usage", "models":["claude-haiku-5-5"],
                 "sources":{"programs":["claude_code"]}}, before["engine"]["llm"]["providers"][1]],
             "endpoints":[{"name":"claude", "number":2, "dialect":2, "provider":"anthropic", "program":"claude_code",
                 "address":{"host":"api.anthropic.com", "port":443}, "transport":"tls", "server_name":"api.anthropic.com",
                 "headers":[], "connect_ms":10000, "handshake_ms":10000}, before["engine"]["llm"]["endpoints"][1]],
-            "models":[{"name":"sonnet", "endpoint":"claude", "window":1_048_576, "output":8192,
+            "models":[{"name":"claude-haiku-5-5", "endpoint":"claude", "window":1_048_576, "output":8192,
                 "prices":{"input":1, "cached":1, "output":1, "unit":1000}}, before["engine"]["llm"]["models"][1]]
         })
     );
@@ -428,7 +428,10 @@ fn stock_charters_choose_claude_before_the_demo_model() {
         .expect("engine schema");
     let defaults = temper_service::stock::defaults(&engine.llm);
     for charter in &defaults.charters {
-        assert_eq!((charter.policy.model.name.as_ref(), charter.policy.model.endpoint), (b"sonnet".as_slice(), 2));
+        assert_eq!(
+            (charter.policy.model.name.as_ref(), charter.policy.model.endpoint),
+            (b"claude-haiku-5-5".as_slice(), 2)
+        );
         let alternatives: Vec<_> =
             charter.policy.alternatives.iter().map(|model| (model.name.as_ref(), model.endpoint)).collect();
         assert_eq!(alternatives, [(b"demo".as_slice(), 3)]);
@@ -456,6 +459,16 @@ fn a_claude_plan_declares_without_import_or_sign_in() {
 }
 
 fn stubbed_launcher(case: &str, body: &str, source: &str) -> (support::Scratch, std::process::Output) {
+    stubbed_story_launcher(case, body, source, "forge-land-claude", false)
+}
+
+fn stubbed_story_launcher(
+    case: &str,
+    body: &str,
+    source: &str,
+    story: &str,
+    default_store: bool,
+) -> (support::Scratch, std::process::Output) {
     use std::{fs, os::unix::fs::PermissionsExt};
     let scratch = support::Scratch::new(case);
     let login = scratch.path().join(source);
@@ -465,10 +478,12 @@ fn stubbed_launcher(case: &str, body: &str, source: &str) -> (support::Scratch, 
     let heavy = scratch.path().join("heavy");
     fs::write(&heavy, format!("#!/bin/sh\n{body}\n")).expect("offline queue stub");
     fs::set_permissions(&heavy, fs::Permissions::from_mode(0o700)).expect("executable stub");
-    let output = launcher(scratch.path(), "forge-land-claude", Some(&login))
-        .env("PATH", format!("{}:/usr/bin:/bin", scratch.path().display()))
-        .output()
-        .expect("stubbed launcher");
+    let mut command = launcher(scratch.path(), story, if story == "forge-land-claude" { Some(&login) } else { None });
+    command.env("PATH", format!("{}:/usr/bin:/bin", scratch.path().display()));
+    if default_store {
+        command.env_remove("TEMPER_LIVE_STORE");
+    }
+    let output = command.output().expect("stubbed launcher");
     (scratch, output)
 }
 
@@ -513,6 +528,57 @@ fn the_launcher_runs_only_the_claude_story_then_returns() {
     let arguments = std::fs::read_to_string(scratch.path().join("arguments")).expect("stub arguments");
     assert!(arguments.contains("test(=a_person_asks_claude_code_to_land_a_change_on_the_owned_forge)"));
     scratch.remove();
+}
+
+/// The launcher exports the stores' directory and keeps its story's store beneath it.
+#[test]
+fn the_launcher_gives_each_landing_story_its_own_store() {
+    let body = "printf '%s\\n' \"$TEMPER_LIVE_STORE\" \"$@\" >> \"$HOME/seen\"\nexit 0";
+    for (story, test, default_store) in [
+        ("forge-land", "a_person_asks_chatgpt_to_land_a_change_on_the_owned_forge", false),
+        ("forge-land-claude", "a_person_asks_claude_code_to_land_a_change_on_the_owned_forge", false),
+        ("forge-land", "a_person_asks_chatgpt_to_land_a_change_on_the_owned_forge", true),
+    ] {
+        let (scratch, output) =
+            stubbed_story_launcher("live-launcher-stores", body, "claude-login", story, default_store);
+        assert_eq!(output.status.code(), Some(0), "{}", String::from_utf8_lossy(&output.stderr));
+        let home = std::fs::canonicalize(scratch.path()).expect("resolved home");
+        let stores = home.join(if default_store { "src/rust/tmp/live-store" } else { "store" });
+        let stores = stores.to_str().expect("UTF-8 stores");
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(stdout.lines().any(|line| line == format!("kept store {stores}/{story}")), "{stdout}");
+        let seen = std::fs::read_to_string(scratch.path().join("seen")).expect("stub arguments and stores");
+        assert_eq!(
+            seen.lines().collect::<Vec<_>>(),
+            [
+                stores,
+                "cargo",
+                "nextest",
+                "run",
+                "-p",
+                "temper",
+                "--profile",
+                "live-temper",
+                "--no-run",
+                stores,
+                "cargo",
+                "nextest",
+                "run",
+                "-p",
+                "temper",
+                "--profile",
+                "live-temper",
+                "--ignore-default-filter",
+                "--run-ignored",
+                "only",
+                "--no-capture",
+                "-E",
+                &format!("binary(=live) & test(={test})"),
+            ],
+            "{story}, default_store={default_store}"
+        );
+        scratch.remove();
+    }
 }
 
 fn program_accounts() -> Value {
@@ -637,7 +703,11 @@ printf '%s\n' "$$" > "$TEMPER_LIVE_STORE/runner"
 kill -TERM "$PPID"
 # Stay alive until the launcher has run the hook, then accept its TERM.
 exec sleep 30"#;
-        let (scratch, output) = held_launcher("held-signal", story, body);
+        let body = body.replace(
+            "$TEMPER_LIVE_STORE",
+            if story == "forge-land" { "$TEMPER_LIVE_STORE/forge-land" } else { "$TEMPER_LIVE_STORE" },
+        );
+        let (scratch, output) = held_launcher("held-signal", story, &body);
         assert_eq!(output.status.code(), Some(143), "{}", String::from_utf8_lossy(&output.stderr));
         let stdout = String::from_utf8_lossy(&output.stdout);
         assert!(stdout.contains("HOOK RETURNED"), "{stdout}");
@@ -658,14 +728,14 @@ fn the_launcher_refuses_changed_ordinary_held_login_metadata() {
 
 #[test]
 fn the_launcher_records_a_failed_ordinary_return_hook() {
-    let body = r#"mkdir -p "$TEMPER_LIVE_STORE"
-printf '#!/bin/sh\nexit 9\n' > "$TEMPER_LIVE_STORE/give-back"
-chmod 700 "$TEMPER_LIVE_STORE/give-back"
+    let body = r#"mkdir -p "$TEMPER_LIVE_STORE/forge-land"
+printf '#!/bin/sh\nexit 9\n' > "$TEMPER_LIVE_STORE/forge-land/give-back"
+chmod 700 "$TEMPER_LIVE_STORE/forge-land/give-back"
 exit 17"#;
     let (scratch, output) = held_launcher("held-return-failure", "forge-land", body);
     assert_eq!(output.status.code(), Some(1));
     assert!(String::from_utf8_lossy(&output.stderr).contains("LOGIN NOT BACK: export/stat failed"));
-    assert!(scratch.path().join("store/give-back").is_file(), "store retained for recovery");
+    assert!(scratch.path().join("store/forge-land/give-back").is_file(), "store retained for recovery");
     scratch.remove();
 }
 
@@ -691,6 +761,31 @@ fn a_held_chatgpt_record_is_admitted_only_as_a_private_regular_file_never_named(
     std::os::unix::fs::symlink(&file, &link).expect("link");
     assert_eq!(held_account(&link), Err("TEMPER_LIVE_ACCOUNT is not a regular file"));
     assert_eq!(held_account(scratch.path()), Err("TEMPER_LIVE_ACCOUNT is not a regular file"));
+    scratch.remove();
+}
+
+/// domain/testing.md, 2.7: one `TEMPER_LIVE_STORE` holds a store per landing story.
+#[test]
+fn each_landing_story_takes_its_own_store_under_one_live_store() {
+    use std::{fs, os::unix::fs::PermissionsExt, path::Path};
+    use support::forge_land::{LiveModel, story_store};
+    let scratch = support::Scratch::new("live-story-stores");
+    let stores = scratch.path().join("parent/stores");
+    let chatgpt = LiveModel::ChatGpt { account: None };
+    let claude = LiveModel::ClaudeCode { login: Path::new("/held/claude-login") };
+    let chatgpt_store = stores.join("forge-land");
+    assert_eq!(story_store(&stores, chatgpt), Ok((chatgpt_store.clone(), false)));
+    for directory in [stores.parent().expect("stores parent"), &stores, &chatgpt_store] {
+        let metadata = fs::metadata(directory).expect("private directory");
+        assert!(metadata.is_dir());
+        assert_eq!(metadata.permissions().mode() & 0o777, 0o700);
+    }
+    fs::write(chatgpt_store.join("begun"), b"deployment begun").expect("begun deployment");
+    assert_eq!(story_store(&stores, claude), Ok((stores.join("forge-land-claude"), false)));
+    let missing = format!("kept store {} lacks config", chatgpt_store.display());
+    assert_eq!(story_store(&stores, chatgpt), Err(missing.clone()));
+    assert!(!chatgpt_store.join("config").exists(), "a kept store is never repaired");
+    assert_eq!(story_store(&stores, LiveModel::ChatGpt { account: Some(Path::new("/held/record")) }), Err(missing));
     scratch.remove();
 }
 

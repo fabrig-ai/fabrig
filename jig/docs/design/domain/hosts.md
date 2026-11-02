@@ -858,7 +858,10 @@ Its `assignment` builds that charter from the core's run charter, the brief and 
   `domain/run.md`, 7.1): a report; a verdict, with its labels, fields and
   follow-ups; a connector's result, as a delivery the run must make
   through its workspace before it finishes, with the fields its workspace
-  asks for; a failure. The core judges a result again as it commits it
+  asks for, or a successful `no_change` verdict with bounded explanation
+  and no fields or items; a failure. The no-change verdict maps to the
+  task's distinct successful `NoChange` result, with no resource.
+  The core judges a result again as it commits it
   (tasks.md, 5.6).
 - **Budget, models, waiting:** the run's budget, its turns, spend and
   time, its spend reserved from its task at its claim, in the

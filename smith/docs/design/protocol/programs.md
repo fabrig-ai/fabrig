@@ -1,6 +1,6 @@
 # Programs as backends
 
-Provisional, 2026-10-19. How smith's agent runs a run on an LLM program
+Provisional, 2026-10-19, revised 2026-11-02. How smith's agent runs a run on an LLM program
 in place of its own loop: the program, Claude Code first, runs as the
 agent's child, signed in by the person through the program's own flow,
 and the agent adapts it both ways. The agent process is agent.md's, the
@@ -379,7 +379,7 @@ open is section 9.
   user message,
   the run's note that the budget is spent and to finish now
   (domain/run.md, 9.1). From then on the agent refuses every call but
-  `finish`, `deliver` when granted and host tools declared for the reserve:
+  `finish`, granted `deliver` and `wait`, and host tools declared for the reserve:
   a built-in's at its permission
   prompt (5.4), and its own server's tools' as it answers them, each
   answered as not run, naming the calls allowed, as a call outside a
@@ -596,15 +596,16 @@ conditions. smith keeps each as a rule of its own:
     host's finish request.
 - **The live suite** runs the real program on a source signed in once
   (`docs/design/testing.md`, 2.3), and checks what the fake assumes: the
-  prompt tool's shape, `system/init`'s tools and capabilities, a limit's
-  events, that `-p` reads the login, and what 5.9 relies on: after a
-  turn's `result`, with its input left open, the same process takes a
-  second user message that needs the first turn's context, answers it
-  with a second `result`, and exits when its input closes; a turn
-  ended by an interrupt control request is followed by another in the
-  same process; a later `system/init` and `system/status` are met as
-  5.5 says. The fake sends what a real run was recorded sending, those
-  messages included.
+  prompt tool's shape, `system/init`'s tools and capabilities, a
+  summary session's `system/init` with no tools and no MCP servers
+  (5.8), a limit's events, that `-p` reads the login, and what 5.9
+  relies on: after a turn's `result`, with its input left open, the
+  same process takes a second user message that needs the first
+  turn's context, answers it with a second `result`, and exits when its
+  input closes; a turn ended by an interrupt control request is
+  followed by another in the same process; a later `system/init` and
+  `system/status` are met as 5.5 says. The fake sends what a real run
+  was recorded sending, those messages included.
 
 ## 9. Open questions
 

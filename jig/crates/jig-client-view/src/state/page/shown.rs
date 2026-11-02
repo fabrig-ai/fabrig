@@ -408,6 +408,7 @@ pub(crate) fn context_read(domain: &mut Ui, what: &jig_client::contract::Read) {
         Read::Settings
         | Read::Setting(_)
         | Read::Revision(_)
+        | Read::TaskText { .. }
         | Read::Revisions(_)
         | Read::Turn { .. }
         | Read::Me

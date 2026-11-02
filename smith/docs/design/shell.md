@@ -1,6 +1,6 @@
 # smith's shell and product
 
-Provisional, 2026-10-09, revised 2026-10-20. smith's shell layer: the crates that turn its
+Provisional, 2026-10-09, revised 2026-11-02. smith's shell layer: the crates that turn its
 services into processes, the root package whose binaries are glue, and
 the product `smith`, one process a person or a script runs. It covers
 the commands, the settings and their presets, credentials, the
@@ -592,9 +592,10 @@ Each source acts in its own way:
   settings give one (section 7); shows the authorization address, and,
   when `SSH_CONNECTION` is set in smith's own environment, the line
   `ssh -L <port>:127.0.0.1:<port> <this host>` for a browser on another
-  machine; waits for the browser's redirect; exchanges the code, checks
-  the ID token and the granted scopes, and keeps the record under its
-  lock (section 7).
+  machine; says it waits up to the sign-in deadline (10 minutes, 6.5)
+  for the browser's redirect, and says when that deadline ends the sign-in;
+  exchanges the code, checks the ID token and the granted scopes, and keeps
+  the record under its lock (section 7).
   - **Signing in again:** an account that holds a record signs in with
     its issued client id and its hints, and a sign-in whose subject is
     another's is refused (section 7).
@@ -739,7 +740,7 @@ account = "claude-alice"      # the endpoint's account, when its provider has se
 | `[endpoints.<name>]` | a preset, or its dialect, program, address, TLS name, trust and headers; and its account | `openai` and `anthropic` (6.2) |
 | `[accounts.<name>]` | its provider, its source and the source's keys (section 7) | none: no preset names an account |
 | `[programs]` | each program's path, by the program's name: `claude_code` | `claude`, found on `PATH` at startup |
-| `[deployment]` | declared deployment values | the profile's, 6.3 |
+| `[deployment]` | declared deployment values and policy values, a duration in whole seconds (the effective limits give it in milliseconds: protocol/limits.md, section 9) | the profile's, 6.3 and 6.5 |
 | `[workspace]` | directories, conventions, the contract, delivery fields, the title field, pushes | the workspace directory; a report |
 | `[environment]` | `inherit`, the names taken from smith's own environment, and `set` | the core list (section 8) |
 | `[build]` | a build preset and writable caches | none |
@@ -1093,6 +1094,7 @@ names (section 2.3):
 | `wrap_up` | 60 s, a child's final turn's allowance at most | provisional; the budget probe's `wrap-up` |
 | `cancel_grace` | 10 s | provisional |
 | `exit_grace` | derived: the agent's teardown bound, two `close`s, the event stream's `write_deadline` and its cancels' settling, plus one more `close` as a margin (skein's `shell.md`, section 13; protocol/limits.md, section 7); a setting below the bound is refused | decided as derived; the margin provisional |
+| `sign_in_time` | 10 minutes | provisional |
 | `refresh_lead` | 60 s before the access token expires | provisional; the `credentials` probe |
 
 ### 6.6 Instructions

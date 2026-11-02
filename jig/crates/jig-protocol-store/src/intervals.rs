@@ -194,10 +194,12 @@ pub fn scope(party: u64, scope: &core::reads::Scope) -> Option<Box<[Range]>> {
                 .expect("held interval");
             ranges.into_boxed()
         }
-        Scope::Task { task } | Scope::PersonTask { task } | Scope::Result { task } => Box::new([
-            point(&core::Key::Tasks(jig_domain_tasks::Key::Live(*task))),
-            point(&core::Key::Tasks(jig_domain_tasks::Key::Ended(*task))),
-        ]),
+        Scope::TaskText { task, .. } | Scope::Task { task } | Scope::PersonTask { task } | Scope::Result { task } => {
+            Box::new([
+                point(&core::Key::Tasks(jig_domain_tasks::Key::Live(*task))),
+                point(&core::Key::Tasks(jig_domain_tasks::Key::Ended(*task))),
+            ])
+        }
         Scope::Reply { task, activity } => {
             Box::new([point(&core::Key::Tasks(jig_domain_tasks::Key::Activity { task: *task, position: *activity }))])
         }

@@ -1,3 +1,4 @@
+use skein_fake_llm_domain::api;
 use skein_io::kernel;
 use smith_events::{AnswerClass, Event};
 use smith_local_process_world::fixture::contains;
@@ -76,8 +77,7 @@ fn a_cancelled_answer_completes_with_dropped_false() {
 #[test]
 fn a_chat_resumes_from_its_files_across_runs_of_the_binary() {
     let files = Files::new();
-    let mut first = World::new(1, &files, Placement::Spawned, b"First answer");
-    first.settle();
+    let mut first = first_report(&files, Placement::Spawned);
     assert_eq!(first.exit(), Some(kernel::Exit::Code(0)));
     assert_eq!(first.turns(), 1);
     let first_messages = first.queries()[0].messages.len();
@@ -87,13 +87,71 @@ fn a_chat_resumes_from_its_files_across_runs_of_the_binary() {
     assert_eq!(second.exit(), Some(kernel::Exit::Code(0)));
     assert_eq!(second.turns(), 2);
     assert!(second.queries()[0].messages.len() > first_messages, "saved conversation reached the provider");
-    assert!(
-        second.queries()[0].messages.iter().flat_map(|message| message.parts.iter()).any(|part| {
-            matches!(part, skein_fake_llm_domain::api::Part::ToolCall { name, arguments, .. }
-            if name.as_ref() == b"finish" && contains(arguments, b"First answer"))
-        }),
-        "the provider saw the previous finish result"
-    );
+    previous_finish_position(&second.queries()[0]);
+}
+
+fn first_report(files: &Files, placement: Placement) -> World {
+    let mut world = World::new(1, files, placement, b"First answer");
+    world.settle();
+    world
+}
+
+fn previous_finish_position(query: &api::Query) -> usize {
+    query
+        .messages
+        .iter()
+        .flat_map(|message| message.parts.iter())
+        .position(|part| {
+            matches!(part, api::Part::ToolCall { name, arguments, .. }
+                if name.as_ref() == b"finish" && contains(arguments, b"First answer"))
+        })
+        .expect("the provider saw the previous finish result")
+}
+
+#[test]
+fn a_report_chat_resumes_as_a_delivered_change() {
+    for placement in smith_local_process_world::fixture::PLACEMENTS {
+        let files = Files::new();
+        let first = first_report(&files, placement);
+        assert_eq!(first.exit(), Some(kernel::Exit::Code(0)));
+        drop(first);
+        let mut second = World::changed(2, &files, placement);
+        let before = second.head().expect("initial head");
+        second.settle();
+        assert_delivered_change(&second, before);
+        previous_finish_position(&second.queries()[0]);
+    }
+}
+
+#[test]
+fn a_resumed_chat_replays_its_reasoning_verbatim() {
+    let reasoning = br#"{"type":"reasoning","id":"rs_live_twin","encrypted_content":"opaque-twin","summary":[]}"#;
+    for placement in smith_local_process_world::fixture::PLACEMENTS {
+        let files = Files::new();
+        let mut first = World::reasoning(1, &files, placement, b"First answer", reasoning);
+        first.settle();
+        assert_eq!(first.exit(), Some(kernel::Exit::Code(0)));
+        drop(first);
+        let mut second = World::new(2, &files, placement, b"Second answer");
+        second.settle();
+        assert_eq!(second.exit(), Some(kernel::Exit::Code(0)));
+        let queries = second.queries();
+        let query = &queries[0];
+        let opaque: Vec<_> = query
+            .messages
+            .iter()
+            .flat_map(|message| message.parts.iter())
+            .enumerate()
+            .filter_map(
+                |(index, part)| {
+                    if let api::Part::Opaque { bytes } = part { Some((index, bytes.as_ref())) } else { None }
+                },
+            )
+            .collect();
+        assert_eq!(opaque.len(), 1, "the one reasoning item survived resume");
+        assert_eq!(opaque[0].1, reasoning, "the provider's reasoning bytes stayed unchanged");
+        assert!(opaque[0].0 < previous_finish_position(query), "reasoning precedes the saved finish call");
+    }
 }
 
 #[test]
@@ -174,14 +232,18 @@ fn a_change_is_committed_in_place_with_its_fields_as_the_message() {
         let mut world = World::changed(5, &files, placement);
         let before = world.head().expect("initial head");
         world.settle();
-        world.assert_ended(Ending::Change { before });
-        assert_eq!(world.exit(), Some(kernel::Exit::Code(0)));
-        let message = std::str::from_utf8(world.commit_message()).expect("commit UTF-8");
-        assert!(message.starts_with("Updated result\n\nCreated the result file"), "{message}");
-        assert!(message.contains("Smith-Delivery:"), "{message}");
-        assert_eq!(world.commit_files().get(b"result.txt".as_slice()).expect("committed file"), b"new\n");
-        assert!(!world.git_commands().iter().any(|args| args[0].as_ref() == b"push"));
+        assert_delivered_change(&world, before);
     }
+}
+
+fn assert_delivered_change(world: &World, before: Vec<u8>) {
+    world.assert_ended(Ending::Change { before });
+    assert_eq!(world.exit(), Some(kernel::Exit::Code(0)));
+    let message = std::str::from_utf8(world.commit_message()).expect("commit UTF-8");
+    assert!(message.starts_with("Updated result\n\nCreated the result file"), "{message}");
+    assert!(message.contains("Smith-Delivery:"), "{message}");
+    assert_eq!(world.commit_files().get(b"result.txt".as_slice()).expect("committed file"), b"new\n");
+    assert!(!world.git_commands().iter().any(|args| args[0].as_ref() == b"push"));
 }
 
 #[test]

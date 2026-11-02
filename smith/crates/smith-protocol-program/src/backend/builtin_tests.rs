@@ -6,7 +6,7 @@
 )]
 use super::*;
 use crate::backend::fixtures::COMPLETION;
-use alloc::{vec, vec::Vec};
+use alloc::{string::ToString, vec, vec::Vec};
 use fixtures::records as active;
 use fixtures::{env, request};
 use smith_domain::tools::{Effect, Grants};
@@ -950,4 +950,83 @@ fn read_record(message: &str, call: &str) -> Vec<u8> {
     record["message"]["id"] = serde_json::json!(message);
     record["message"]["content"][0]["id"] = serde_json::json!(call);
     serde_json::to_vec(&record).expect("JSON")
+}
+
+// Synthetic backend records exercise the permission contract; they are not a live transcript.
+fn read_turn(paths: &[&str]) -> (Backend, Queue<ToDomain>, Queue<Below>) {
+    let mut backend = active();
+    backend.mounts = Box::new([Mount { root: Token::new(40), host: b"/work/repo".as_slice().into(), writable: false }]);
+    let content: Vec<_> = paths.iter().enumerate().map(|(index, path)| {
+        serde_json::json!({"type":"tool_use","id":index.to_string(),"name":"Read","input":{"file_path":path}})
+    }).collect();
+    let record = serde_json::json!({"type":"assistant","message":{"id":"reads","content":content}});
+    let mut up = Queue::with_capacity(32);
+    let mut below = Queue::with_capacity(64);
+    backend.line(&env(0), &serde_json::to_vec(&record).expect("calls"), &mut up, &mut below);
+    completed(up.pop(), COMPLETION);
+    while backend.pop_measure().is_some() {}
+    let mut next = request(&backend);
+    let FromDomain::Complete { prompt, .. } = &mut next else { panic!("Complete") };
+    prompt.tools = Grants { inspect: true, modify: false, shell: false };
+    backend.resume(&env(0), Complete::from_request(next), &mut up, &mut below);
+    fixtures::connect_server(&mut backend);
+    (backend, up, below)
+}
+
+fn read_results(backend: &mut Backend, words: &[&str], error: bool, up: &mut Queue<ToDomain>) {
+    let content: Vec<_> = words.iter().enumerate().map(|(index, text)| {
+        serde_json::json!({"type":"tool_result","tool_use_id":index.to_string(),"content":text,"is_error":error})
+    }).collect();
+    let record = serde_json::json!({"type":"user","message":{"content":content}});
+    backend.line(&env(0), &serde_json::to_vec(&record).expect("results"), up, &mut Queue::with_capacity(64));
+    for (index, word) in words.iter().enumerate() {
+        let Some(ToDomain::BuiltinResult { owner, id, text, error: got }) = up.pop() else { panic!("recorded result") };
+        assert_eq!(owner, COMPLETION);
+        assert_eq!(id.as_ref(), index.to_string().as_bytes());
+        assert_eq!(text.as_ref(), word.as_bytes());
+        assert_eq!(got, error);
+    }
+    assert!(up.is_empty(), "one result for each read");
+}
+
+#[test]
+fn several_native_read_denials_keep_their_permission_reasons_in_results() {
+    let paths = ["/outside/a", "/work/repo/.git/config", "/elsewhere/b", "/work/repo/../c"];
+    let words = [
+        "path is outside the workspace: /outside/a",
+        "git directory is protected",
+        "path is outside the workspace: /elsewhere/b",
+        "path is outside the workspace: /work/repo/../c",
+    ];
+    let (mut backend, mut up, _) = read_turn(&paths);
+    for (index, path) in paths.iter().enumerate() {
+        native_prompt(&mut backend, &index.to_string(), "Read", serde_json::json!({"file_path":path}));
+        let reply = fixtures::server_reply(&mut backend);
+        let verdict: serde_json::Value =
+            serde_json::from_str(reply["result"]["content"][0]["text"].as_str().expect("text")).expect("verdict");
+        assert_eq!(verdict["behavior"], "deny");
+        assert_eq!(verdict["message"], words[index]);
+        assert!(backend.native.is_none(), "a denied read takes no snapshot");
+    }
+    read_results(&mut backend, &words, true, &mut up);
+}
+
+#[test]
+fn several_native_reads_in_one_turn_allow_read_only_reviewer_mounts() {
+    let paths = ["ci.yml", "CONTRIBUTING.md", "changes/2.md", "changes/3.md"];
+    let (mut backend, mut up, _) = read_turn(&paths);
+    for (index, path) in paths.iter().enumerate() {
+        let input = serde_json::json!({"file_path":path});
+        native_prompt(&mut backend, &index.to_string(), "Read", input.clone());
+        assert!(backend.native.is_some(), "whole reads snapshot before allow");
+        backend.native_event(
+            file::Event::Loaded { owner: backend.token(Owner::Native), bytes: b"review text".as_slice().into() },
+            &mut up,
+        );
+        let Some(ToDomain::ReadVersion { owner, place, .. }) = up.pop() else { panic!("version") };
+        assert_eq!(owner, COMPLETION);
+        assert_eq!(place.path.as_ref(), path.as_bytes());
+        allow_native(&mut backend, &input);
+    }
+    read_results(&mut backend, &["ci", "contributing", "change two", "change three"], false, &mut up);
 }

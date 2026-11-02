@@ -373,9 +373,11 @@ the tasks' 9, the people's 14, the notes' 1, the accounts' 2, the
 settings' 1 and the secrets' 1. The tasks family's durable
 `MessageKind` holds `FinishRequested { revision }` for a cancel grace
 and `NothingAwaited` for a result-ended task with nothing pending
-(`../domain/tasks.md`, 5.2). The accounts family's source hold includes
-*moving* (`../domain/accounts.md`, section 6). A store at another
-version of any family refuses to open under the format check (5.3).
+(`../domain/tasks.md`, 5.2), and it stores the successful `NoChange`
+result and its own result-notice kind, with the producer's bounded
+explanation. The accounts family's source hold includes *moving*
+(`../domain/accounts.md`, section 6). A store at another version of any
+family refuses to open under the format check (5.3).
 
 Settings (`../domain/engine.md`, section 17) are the core's two
 settings families (4.4), under a schema of their own, `settings`, whose

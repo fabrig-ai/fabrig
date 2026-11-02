@@ -281,6 +281,18 @@ fn page_failure(failure: Option<&jig_protocol_store::restore::Failure>) -> Strin
 
 fn note_line(note: temper_service::Note) -> String {
     match note {
+        temper_service::Note::ReadRefused { task, attempt, tool, layer, reason, findings, error } => {
+            format!(
+                "temper serve: read refused task={task} attempt={attempt} tool={} layer={layer} reason={reason} error={error:?} findings={findings:?}\n",
+                String::from_utf8_lossy(&tool)
+            )
+        }
+        temper_service::Note::CallAdmissionRefused { task, attempt, tool, layer, reason } => {
+            format!(
+                "temper serve: call admission refused task={task} attempt={attempt} tool={} layer={layer} reason={reason}\n",
+                String::from_utf8_lossy(&tool)
+            )
+        }
         temper_service::Note::Patched { of, patch, counts } => {
             format!("temper serve: {of:?} patch {patch}: {} records, {} commits\n", counts.records, counts.commits)
         }
@@ -302,69 +314,82 @@ fn note_line(note: temper_service::Note) -> String {
         temper_service::Note::ForgeLacking { number, names } => {
             format!("temper serve: forge {number}: App lacks {}\n", String::from_utf8_lossy(&names))
         }
-        temper_service::Note::SetUpRefused { number, why } => {
-            use temper_engine_domain_forge::SetUpRefusal;
-            let why = match why {
-                SetUpRefusal::NotUnderTheBox => "not under the box",
-                SetUpRefusal::NotOffered => "not offered",
-                SetUpRefusal::Busy => "busy",
-                SetUpRefusal::NewProject => "a new project waits on jig's projects at runtime",
-                SetUpRefusal::Invalid => "invalid: the organization, repository or project name is empty or too long",
-            };
-            format!("temper serve: forge {number}: set up refused: {why}\n")
-        }
+        temper_service::Note::SetUpRefused { number, why } => set_up_refused_line(number, why),
         temper_service::Note::Playground { line } | temper_service::Note::BoxLink { line } => {
             format!("{}\n", String::from_utf8_lossy(&line))
         }
         temper_service::Note::ForgeStopped { number, why } => stopped_line(number, why),
-        temper_service::Note::ForgeSetupStopped { number, why } => {
-            use temper_service::{SetupPlan, SetupStopped, SetupWhy};
-            let why = match why {
-                SetupStopped::NotPrepared => "prepare it with `temper forge prepare`".into(),
-                SetupStopped::Missing => "setup host missing".into(),
-                SetupStopped::Busy => "setup host busy".into(),
-                SetupStopped::Removal { path, errno } => {
-                    format!("removing the handover: {}: errno {errno}", crate::path(&path).display())
-                }
-                SetupStopped::Unreadable { path, why } => {
-                    format!("the handover is unreadable: {}: {why:?}", crate::path(&path).display())
-                }
-                SetupStopped::Stopped { plan, step } => {
-                    let reason = match step.why {
-                        SetupWhy::Refused(status) => format!("refused {status}"),
-                        why @ (SetupWhy::Missing
-                        | SetupWhy::NotAdmin
-                        | SetupWhy::BotIsAdmin
-                        | SetupWhy::Unmarked
-                        | SetupWhy::OtherUser
-                        | SetupWhy::OtherApp
-                        | SetupWhy::KeyForm
-                        | SetupWhy::Unknown
-                        | SetupWhy::Busy
-                        | SetupWhy::Crowded
-                        | SetupWhy::Down
-                        | SetupWhy::Unexpected) => format!("{why:?}"),
-                    };
-                    let action = match plan {
-                        SetupPlan::Reconcile => "reconciling",
-                        SetupPlan::TakeOver => "taking the handover",
-                        SetupPlan::Adopt => "adopting",
-                        SetupPlan::Create => "making",
-                    };
-                    format!("{action} stopped at {:?}: {reason}", step.stage)
-                }
-            };
-            format!("temper serve: forge {number}: Not connected: {why}\n")
-        }
+        temper_service::Note::ForgeSetupStopped { number, why } => setup_stopped_line(number, why),
         temper_service::Note::ForgeNotConnected { number, why } => {
             format!("temper serve: forge {number}: not connected: {why}\n")
         }
 
+        temper_service::Note::ForgeOrigin { number, origin } => origin_line(number, &origin),
         temper_service::Note::ForgeUnkept { number, installation } => {
             format!("temper serve: forge {number}: installation {installation}: not kept\n")
         }
     }
 }
+fn origin_line(number: u16, origin: &skein_forge::github::redirect::Origin) -> String {
+    let scheme = if origin.tls { "https" } else { "http" };
+    format!(
+        "temper serve: forge {number}: refused job-log origin {scheme}://{}:{}\n",
+        String::from_utf8_lossy(&origin.host),
+        origin.port
+    )
+}
+fn set_up_refused_line(number: u16, why: temper_engine_domain_forge::SetUpRefusal) -> String {
+    use temper_engine_domain_forge::SetUpRefusal;
+    let why = match why {
+        SetUpRefusal::NotUnderTheBox => "not under the box",
+        SetUpRefusal::NotOffered => "not offered",
+        SetUpRefusal::Busy => "busy",
+        SetUpRefusal::NewProject => "a new project waits on jig's projects at runtime",
+        SetUpRefusal::Invalid => "invalid: the organization, repository or project name is empty or too long",
+    };
+    format!("temper serve: forge {number}: set up refused: {why}\n")
+}
+
+fn setup_stopped_line(number: u16, why: temper_service::SetupStopped) -> String {
+    use temper_service::{SetupPlan, SetupStopped, SetupWhy};
+    let why = match why {
+        SetupStopped::NotPrepared => "prepare it with `temper forge prepare`".into(),
+        SetupStopped::Missing => "setup host missing".into(),
+        SetupStopped::Busy => "setup host busy".into(),
+        SetupStopped::Removal { path, errno } => {
+            format!("removing the handover: {}: errno {errno}", crate::path(&path).display())
+        }
+        SetupStopped::Unreadable { path, why } => {
+            format!("the handover is unreadable: {}: {why:?}", crate::path(&path).display())
+        }
+        SetupStopped::Stopped { plan, step } => {
+            let reason = match step.why {
+                SetupWhy::Refused(status) => format!("refused {status}"),
+                why @ (SetupWhy::Missing
+                | SetupWhy::NotAdmin
+                | SetupWhy::BotIsAdmin
+                | SetupWhy::Unmarked
+                | SetupWhy::OtherUser
+                | SetupWhy::OtherApp
+                | SetupWhy::KeyForm
+                | SetupWhy::Unknown
+                | SetupWhy::Busy
+                | SetupWhy::Crowded
+                | SetupWhy::Down
+                | SetupWhy::Unexpected) => format!("{why:?}"),
+            };
+            let action = match plan {
+                SetupPlan::Reconcile => "reconciling",
+                SetupPlan::TakeOver => "taking the handover",
+                SetupPlan::Adopt => "adopting",
+                SetupPlan::Create => "making",
+            };
+            format!("{action} stopped at {:?}: {reason}", step.stage)
+        }
+    };
+    format!("temper serve: forge {number}: Not connected: {why}\n")
+}
+
 fn refusal(reason: temper_service::Refusal) -> String {
     use temper_service::WorkerRefusalReason as Reason;
     match reason {
@@ -822,4 +847,43 @@ fn restore_pages_name_only_the_store_supplied_cause_family_and_key() {
             (format!("temper serve: restore tasks: {words}\n"), 1)
         );
     }
+}
+
+#[test]
+fn refusal_lines_name_the_task_attempt_tool_layer_and_reason() {
+    use temper_service::Note;
+    assert_eq!(
+        note_line(Note::CallAdmissionRefused {
+            task: 7,
+            attempt: 2,
+            tool: b"read_file".as_slice().into(),
+            layer: "core-call-room",
+            reason: "call record room full",
+        }),
+        "temper serve: call admission refused task=7 attempt=2 tool=read_file layer=core-call-room reason=call record room full\n"
+    );
+    let line = note_line(Note::ReadRefused {
+        task: 7,
+        attempt: 2,
+        tool: b"read_file".as_slice().into(),
+        layer: "authority",
+        reason: "connector read denied",
+        findings: Box::new([]),
+        error: None,
+    });
+    assert!(line.contains("task=7 attempt=2 tool=read_file layer=authority reason=connector read denied"));
+    assert!(line.contains("findings=[]"));
+}
+
+#[test]
+fn refused_job_log_origin_note_names_only_the_origin() {
+    let line = note_line(temper_service::Note::ForgeOrigin {
+        number: 7,
+        origin: skein_forge::github::redirect::Origin {
+            tls: true,
+            host: b"unrelated.example.test".as_slice().into(),
+            port: 443,
+        },
+    });
+    assert_eq!(line, "temper serve: forge 7: refused job-log origin https://unrelated.example.test:443\n");
 }

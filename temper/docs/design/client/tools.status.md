@@ -17,7 +17,10 @@
   show`, `task move`, `task take`, `task hand-back`, and the project's
   `policy`, `role` and `pool`; area 4's `create`, `propose` and
   `compound`; area 6's `forge replace` and `forge forget`, with no
-  request on the wire. 8.1: `GROUP VERB --help`; `temper ctl` parses a
+  request on the wire. 6.1: a task wait's refusal by a worker's hello
+  prints its stop bound as jig's nanoseconds, `allowed grace N ns`, not
+  whole seconds (`render/document/llm.rs`, `HelloRefusal::StopBound`).
+  8.1: `GROUP VERB --help`; `temper ctl` parses a
   leading `help` alone. 11.2:
   the joined story of a model's amendment (`tests/client`'s
   `amend_tools.rs` parses `--model` alone).

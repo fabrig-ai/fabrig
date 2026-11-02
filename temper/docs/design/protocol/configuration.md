@@ -239,7 +239,7 @@ which bounds its writers. Each:
 | `git` | string, or `null` | an `http` or `https` URL: a host, an optional port and an optional path; no user, query, fragment or final `/`; `http` only to a loopback host. `null` on GitHub alone, for `https://github.com` | the base of each repository's remote, `<git>/<owner>/<name>.git`, which the engine's routing makes (channel.md, section 4); and the host segment of the forge's resource paths: `git`'s host, with `:port` when it names a port |
 | `git_program` | a data path or an absolute path, or absent | within 4096 bytes, resolved under data as setup's `fake.git`; refused together with that member, naming both | the git executable workers run for this forge's repositories, for a custom git build or wrapper; absent keeps `workers[].git` (section 4), or the demo's existing `fake.git` (setup.md, 8.4) |
 | `web` | string, or `null` | on GitHub, a URL by `git`'s rule, `null` for `https://github.com`; on Forgejo, `null` | GitHub's browser pages: the manifest's form, the install link and an installation's pages (setup.md, connecting GitHub; `../client/forge.md`) |
-| `log_origins` | list of strings, or `null` | each an origin: `"https://<host>[:<port>]"`, TLS with `transport`'s trust (the machine's roots when it names none), or `"http://<host>[:<port>]"` to a loopback host alone, as skein's fake serves its logs; no path, user, query, fragment or final `/`; the port 443 or 80 when absent. Each host is resolved at start, and one that does not resolve refuses the start, naming the forge and the host; at most `forges.log_origins` (section 7). `null` is the kind's default: GitHub's `["https://productionresultssa1.blob.core.windows.net"]`, Forgejo's none | the origins to which a job log's redirect is followed (forge.md, GitHub's API as temper uses it); `[]` fetches no job log |
+| `log_origins` | list of strings, or `null` | each an origin: `"https://<host>[:<port>]"`, TLS with `transport`'s trust (the machine's roots when it names none), or `"http://<host>[:<port>]"` to a loopback host alone, as skein's fake serves its logs; no path, user, query, fragment or final `/`; the port 443 or 80 when absent. Each explicit host is resolved at start, and one that does not resolve refuses the start, naming the forge and the host; at most `forges.log_origins` (section 7). `null` is the kind's default: GitHub's twenty results hosts `https://productionresultssa0.blob.core.windows.net` through `https://productionresultssa19.blob.core.windows.net`, all TLS on port 443, Forgejo's none. Unresolved default hosts are skipped and named once in the log; defaults never refuse startup. If none resolves, no job log is fetched and that is named once | the origins to which a job log's redirect is followed (forge.md, GitHub's API as temper uses it); `[]` fetches no job log |
 | `app_read_only` | boolean in the kept GitHub forge record | set by `forge connect [FORGE] github-app APP FILE --read-only`; absent on the client wire means `false` | the paste check and reconcile leave the App's hook as they read it (setup.md, 17.7); without it they repair the hook. Every GitHub forge keeps unaccepted installations and shows them until accepted, regardless of this flag; installing, accepting and the forge component's reads and mints are unchanged |
 
 - **A forge's number is its stable id,** never its place in the list:
@@ -664,9 +664,9 @@ have one, an engine alone none. Each:
   | `forge_component.hook_secret_bytes` | a Forgejo forge's webhooks' secret; a GitHub forge has none (credentials.md, section 2) |
   | `records.value_bytes` | a forge's record or a carried value of temper's, the largest of any item; a pasted value past it is refused, named (credentials.md, 2.1 and 2.2). The client wire's value ceiling is the larger of it and a moved record's bound (jig's `protocol/client.md`, section 5; `../client/tools.md`, 12), so a moved record's file reaches the engine and temper's own values stay within this bound |
   | `forges.installations` | the installations a GitHub forge accepts, its `Accepted` record's ids (credentials.md, 2.1) |
-  | `forges.log_origins` | a forge's `log_origins`; at most 4 (section 3) |
+  | `forges.log_origins` | a forge's `log_origins`; default 20, at most 32 (section 3) |
   | `forge_component.installations` | the installations the component holds tokens for, per forge |
-  | `forge_component.log_origins` | the origins a job log's redirect may reach, per forge (default 4); as many origins said of other redirects are kept per forge (`Fact::Origin`, forge.md, 3.6) |
+  | `forge_component.log_origins` | the origins a job log's redirect may reach, per forge (default 20); as many origins said of other redirects are kept per forge (`Fact::Origin`, forge.md, 3.6) |
   | `forge_component.token_bytes` | a forge's token: an API token, a git token or a site admin's token (skein's `forge-connection.md`, 7.2) |
   | `forge_component.key_bytes` | a GitHub App's key |
   | `forge_component.renew_before_ms` | `renew_before`: how long before an installation's token expires it is minted again (credentials.md, section 5) |
@@ -783,7 +783,7 @@ have one, an engine alone none. Each:
     4 bytes it already counts, within each hub's `transcript_bytes`.
     Each failure names the bound, its bytes, and the figure it must
     hold: `workers[0].limits.overrides.hub.turn_bytes: 65536 bytes,
-    short of the agent's largest turn, 1067219 bytes`.
+    short of the agent's largest turn, 1066989 bytes`.
 - **In the cluster's shapes** (README, 15.1), each process checks what
   its document holds: an engine alone, every check above but the
   worker's and those of the turn's that need the agent; a worker alone,
@@ -1602,10 +1602,10 @@ init`'s document carries none of them (`setup.md`, 8.3).
   and propose, for `withdraw`), not charter 1's with settings added.
   smith's host part counts a run's brief beside its tools, so a brief
   is rendered within the room its charter leaves. The small profile
-  gives the host part 51,870 bytes: 34,524 for the largest stock
+  gives the host part 51,717 bytes: 34,524 for the largest stock
   charter's non-brief host part, 14,592 for the authorised brief and
   1,472 for its 64 sections' titles and framing, a sum of 50,588 with
-  1,282 of margin. The stock brief fits whole; cutting from its last
+  1,129 of margin. The stock brief fits whole; cutting from its last
   section is the fallback.
   Each charter leaves at least 2,048 bytes
   (`../domain/agent.md`, 4.3). A run is offered a family's tools
@@ -1832,27 +1832,24 @@ output (gpt-6.1-sol at effort high, output 32,000, for one) overrides the small 
 from the agent's largest turn, T, which the start checks name "the
 agent's largest turn" (`temper-service`'s `startup/checks.rs`).
 
-- **T,** smith's largest turn (`smith-agent-service`'s `profile.rs`),
-  from the smallest shared room over every configured model, on purpose,
-  so that one set of bounds holds whichever model a charter names
-  (smith's `limits.md`, 3.9). With `temper init`'s demo endpoint
-  configured, its 177,523-token window sets that room: T = 608,467 + 24
-  × output + 4 × `reasoning_item`, init's 1,067,219. A box without the
-  demo is sized by its own models: an OpenAI model of window 1,048,576
-  alone gives T = 1,143,386 + ⌈45 × output / 2⌉ + 4 × `reasoning_item`,
-  luna's 1,589,850, past init's limits, so such a box overrides them
-  as below, its declarations measured (`docs/examples/owned.json`'s
-  fit); a Claude model alone gives 1,593,254, whose store frame passes
-  small's page ceiling by 3,208 bytes, so a Claude-only box does not
-  start on the small profile (an open question, below). `temper init`
-  keeps the demo, temper's fake model, whose declared window gives
-  the 51,870-byte host part (13.4); its limits are sized for it.
+- **T,** the configured turn ceiling, must hold smith's largest measured
+  turn (`smith-agent-service`'s `profile.rs`). That measurement uses the
+  smallest shared room over every configured model, so one set of bounds
+  holds whichever model a charter names (smith's `limits.md`, 3.9).
+  With `temper init`'s demo endpoint, window 177,523, output 8,192 and
+  `reasoning_item` 65,536, the measured turn is 1,066,989 bytes. Init's
+  configured T of 1,067,219 leaves 230 bytes of room; its carrier ceilings
+  below remain sufficient. A box without the demo is measured from its
+  own models and must declare every carrier at least as large as that
+  measurement. `docs/examples/owned.json` supplies such declarations.
+  Init keeps the demo, whose window gives the 51,717-byte host part
+  (13.4), enough for the stock tools and authorised brief.
 - **The store's ceiling:** small's page holds a loaded transcript of at
   most 1,590,046 bytes (its 1,590,110 less the frame's 64), so T is at
   most that. At output 32,000, `reasoning_item` is at most 53,394; a box
   sets 32,768, its reasoning's bound per item, with room.
-- **Output 16,000** does not start on init's limits either: T is
-  1,254,611 at `reasoning_item` 65,536, past five of the rows below.
+- **Output 16,000** does not start on init's limits either; the example
+  below declares T as 1,254,611 at `reasoning_item` 65,536.
 - **The limits T sets,** "both hubs" being the engine's and each
   worker's; init's values are output 8,192's:
 

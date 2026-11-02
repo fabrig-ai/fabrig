@@ -1161,8 +1161,9 @@ section 8; testing-strategy.md, 2.9).
   completions, counted through ctl. Progress and final evidence reach
   the person through a private notice file, followed by the script and
   retained with the sign-in secret redacted. Its config, data, cache and
-  client roots stay in `TEMPER_LIVE_STORE` (by default
-  `$HOME/src/rust/tmp/live-store/forge-land`) on pass or failure. A
+  client roots stay in its own store, `forge-land` under
+  `TEMPER_LIVE_STORE` (by default `$HOME/src/rust/tmp/live-store`), on
+  pass or failure. A
   rerun uses the kept sign-in without a person and stops when that
   sign-in is expired or refused. It admits the deployment alone and
   makes its own client roots, so a sitting that failed before its
@@ -1174,13 +1175,14 @@ section 8; testing-strategy.md, 2.9).
 - **The owned-forge landing story on Claude Code,**
   `a_person_asks_claude_code_to_land_a_change_on_the_owned_forge`, run
   by `scripts/proof-live.sh forge-land-claude`: the same story, every
-  role on Claude Code, on a held login used in place
+  role on Claude Code on `claude-haiku-5-5`, on a held login used in place
   (../protocol/credentials.md, 3): `TEMPER_LIVE_CLAUDE` names the
   login's resting path, a signed-in configuration directory; the box's
   programs directory is its parent, and the source is declared by the
   directory's own name. Nothing of it is read or copied, and once the
   box has stopped the script checks the path by `stat` alone: a private
   directory, still there. Whoever runs it holds the login for the run.
+  Its store is `forge-land-claude` under `TEMPER_LIVE_STORE`.
 - **Its referee:** the process tier's, without the restart; and the
   completions, counted from the engine's transcripts. Each completion is
   a turn of main's conversation on either backend: on the program
@@ -1305,7 +1307,7 @@ section 8; testing-strategy.md, 2.9).
   (2.4). B0's three offline proofs are the ignored `proof_live` binary,
   run by `scripts/proof-live.sh rung-b0-offline` before the live story and never
   in the process profile. The offline command selects only `proof_live`
-  under the manual live profile's timeout horizon, overriding its default
+  under profile `live-temper`'s timeout horizon, overriding its default
   filter; it admits no live account. A driver's own fault is met there, never
   by spending a held login.
   - **What runs:** a fresh box as the help makes one, its owned Forgejo
@@ -1331,9 +1333,40 @@ section 8; testing-strategy.md, 2.9).
   - **Its other pairs** come as the rung's walks with GitHub and with
     Claude pass (`../draft/v0.1.0.md`, 2.2): the same story, its forge
     or its model named by the script's argument.
-- **Outside the suites:** nextest profile `live-temper`, run only by
-  `scripts/proof-live.sh` and `scripts/proof-live-github.sh`, one at a
-  time, never at the gate.
+- **After every landing,** the owned-forge landing pair, needing no person:
+  `a_person_asks_chatgpt_to_land_a_change_on_the_owned_forge` on a held ChatGPT
+  record (`TEMPER_LIVE_ACCOUNT`) and
+  `a_person_asks_claude_code_to_land_a_change_on_the_owned_forge` on a held Claude
+  Code login (`TEMPER_LIVE_CLAUDE`, with `claude` on the machine's `PATH`), both
+  from fab's shelf of logins. fab's after-landing run with `--live` runs profile
+  `live-temper` under `--run-ignored only`, whose default filter selects these two
+  alone. Automatic live runs take the cheapest models, as the user requires:
+  `gpt-6-luna` and `claude-haiku-5-5`.
+  - **One invocation, a store per story:** the runner sets one fresh
+    `TEMPER_LIVE_STORE`; each story takes its own store beneath it, named by the
+    script's argument for it, `forge-land` and `forge-land-claude`, so neither
+    reuses the other's deployment. Each store keeps the story's rules: fresh when
+    absent or empty, kept when it holds a deployment, and a held record moves into a
+    fresh store only.
+  - **The runner's part,** as `scripts/proof-live.sh`'s: a private `TMPDIR`; after
+    the invocation, whatever its end, the held record returned by
+    `forge-land/give-back` in `TEMPER_LIVE_STORE` where it exists, both logins
+    checked by `stat` alone, and any process left under the stores stopped.
+  - **Its bounds** are each story's own, within the profile's 50 minutes for the
+    pair. Never at the gate, and never run by an implementer.
+- **What stays the owner's,** ignored and run by hand: the process tier's chat on a
+  real model, `a_real_model_answers_a_chat_and_pushes_a_small_change` (a person's
+  sitting); `rung_b0_a_person_agrees_a_plan_before_the_change_lands` (the rung's
+  walk); `live_github`'s `a_chat_lands_a_change_on_github_com_through_a_restart`
+  (github.com); `live_github_managed`'s two; and `proof_live`'s three offline driver
+  proofs. The owner also runs the pair, one story at a time, through
+  `scripts/proof-live.sh forge-land` and `forge-land-claude`.
+- **Harness step checks run once,** in `suite` (`tests/suite/support_tests.rs`): no
+  live or process test repeats a focused one.
+- **Outside the suites:** nextest profile `live-temper`, whose default filter is the
+  landing pair above, run after every landing; `scripts/proof-live.sh` and
+  `scripts/proof-live-github.sh` select their own story over it
+  (`--ignore-default-filter` and their own filter), one at a time. Never at the gate.
 
 ## 3. Neighbours and their faces
 
@@ -2083,7 +2116,8 @@ The two suites are the strategy's (testing-strategy.md, section 8). In temper:
 - **Outside both suites:** the process tier's binary `process` and the
   live tier's binary `live`, which both suites' filters leave out, run
   under the nextest profiles `process-temper` and `live-temper`, the
-  live one by `scripts/proof-live.sh`. The gate never runs them.
+  live one after every landing and by `scripts/proof-live.sh` (2.7). The
+  gate never runs them.
 
 A fuzzy test lives in its world's crate, beside the focused ones, and
 uses that world: a world's settings, random ones included, are the
@@ -2299,3 +2333,10 @@ scripts/proof-live.sh               the live tier
 - **The machine's git in the process tier.** Default: whatever git the
   test host has, 2.41 or later, which ../protocol/git.md's start refuses below
   (../protocol/git.md, section 3); transcripts are of 2.53.
+
+## 11. Later
+
+- **The live pair's bound.** The owned-forge landing pair runs in one
+  invocation within profile `live-temper`'s 50 minutes, each story
+  bounding itself at 40 (2.7). The profile's figure is set from the
+  pair's first after-landing wall times, and is the user's.

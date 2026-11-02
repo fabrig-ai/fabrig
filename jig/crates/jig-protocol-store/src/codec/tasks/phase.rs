@@ -703,6 +703,10 @@ pub fn result(source: &domain::TaskResult, limits: &wire::Limits) -> Result<wire
             limits,
             wire::ApprovedParts { state: state.clone(), words: words.clone() },
         )?),
+        domain::TaskResult::NoChange { words } => wire::TaskResult::NoChange(wire::ReportResult::new(
+            limits,
+            wire::ReportResultParts { words: words.clone() },
+        )?),
         domain::TaskResult::Report { words } => {
             wire::TaskResult::Report(wire::ReportResult::new(limits, wire::ReportResultParts { words: words.clone() })?)
         }
@@ -739,6 +743,7 @@ pub fn read_result(source: wire::TaskResult, limits: &wire::Limits) -> Result<do
             let wire::ApprovedParts { state, words } = value.into_parts();
             domain::TaskResult::Approved { state, words }
         }
+        wire::TaskResult::NoChange(value) => domain::TaskResult::NoChange { words: value.into_parts().words },
         wire::TaskResult::Report(value) => domain::TaskResult::Report { words: value.into_parts().words },
         wire::TaskResult::Verdict(value) => {
             let wire::VerdictResultParts { code, fields, words } = value.into_parts();
@@ -767,7 +772,7 @@ fn check_result(source: &domain::TaskResult, limits: &wire::Limits) -> Result<()
             }
             bytes
         }
-        domain::TaskResult::Report { words } => words.len(),
+        domain::TaskResult::NoChange { words } | domain::TaskResult::Report { words } => words.len(),
         domain::TaskResult::Change { title, words, .. } => title.words.len().max(words.len()),
         domain::TaskResult::Failure { reason } => reason.len(),
     };

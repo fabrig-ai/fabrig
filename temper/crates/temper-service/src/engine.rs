@@ -8,6 +8,10 @@ use temper_engine_domain as root;
 // A pass keeps the shipped small profile's 22 release/resume cycles.
 const RELEASE_CYCLES: u32 = 22;
 
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "fact-drain readiness is independent of start, release and input admission"
+)]
 pub(crate) struct Engine {
     pub(crate) domain: root::Domain,
     pub(crate) env: Env<root::Limits>,
@@ -22,6 +26,7 @@ pub(crate) struct Engine {
     pub(crate) forge_records: crate::forge::records::Loader,
     pub(crate) admission: Option<skein_lib::Token>,
     pub(crate) facts: u64,
+    facts_waiting: bool,
     pub(crate) values: crate::values::Values,
     pub(crate) events: Queue<root::Event>,
     pub(crate) requests: Queue<root::Request>,
@@ -150,6 +155,7 @@ impl Engine {
             forge_records,
             admission: None,
             facts: 0,
+            facts_waiting: false,
             values,
             events: Queue::uncapped(),
             requests: Queue::uncapped(),
@@ -226,9 +232,21 @@ impl Engine {
             }
     }
     fn drain_facts(&mut self) {
+        self.facts_waiting = false;
         for _ in 0..root::FACTS {
-            if self.domain.pop_fact().is_none() {
+            if self.notes.room() == 0 {
+                self.facts_waiting = true;
                 break;
+            }
+            let Some(fact) = self.domain.pop_fact() else { break };
+            match fact {
+                root::Fact::ReadRefused { task, attempt, tool, layer, reason, findings, error } => {
+                    self.notes.push(crate::Note::ReadRefused { task, attempt, tool, layer, reason, findings, error });
+                }
+                root::Fact::CallAdmissionRefused { task, attempt, tool, layer, reason } => {
+                    self.notes.push(crate::Note::CallAdmissionRefused { task, attempt, tool, layer, reason });
+                }
+                root::Fact::PreparationFailed { .. } | root::Fact::StepRefused { .. } => {}
             }
             self.facts = self.facts.saturating_add(1);
         }
@@ -271,6 +289,7 @@ impl Engine {
             None => false,
         };
         components
+            || (self.facts_waiting && self.notes.room() > 0)
             || self.room()
                 && (self.begin
                     || self.release_pending()
@@ -319,6 +338,9 @@ impl Engine {
 
 /// Every child sees this iteration's time before an input can arm a deadline.
 pub(crate) fn clock(engine: &mut Engine, now: Time, wall: Wall) {
+    if engine.facts_waiting && engine.notes.room() > 0 {
+        engine.drain_facts();
+    }
     engine.env.now = now;
     engine.env.wall = wall;
     engine.store.clock(now, wall);
@@ -716,47 +738,17 @@ fn watcher(event: &root::Event) -> Option<skein_lib::Token> {
 
 pub(crate) fn forge_pass(engine: &mut Engine) {
     for _ in 0..engine.forge.above.len() {
+        if engine.notes.room() == 0 {
+            break;
+        }
         if engine.end.is_none()
             && (!engine.room() || engine.passing.is_some() || completes_pending(engine) == Some(true))
         {
             break;
         }
-        #[expect(clippy::match_same_arms, reason = "separate exhaustive facts name the tasks that give them meaning")]
         match engine.forge.above.pop().expect("forge outputs") {
-            skein_forge_connection::Event::Answered(answer) => {
-                if engine.end.is_some() {
-                    engine.forge.down(skein_forge_connection::Request::Returned(answer));
-                    continue;
-                }
-                if let Err(root::Event::Forge(event)) =
-                    root::try_step(&mut engine.domain, &engine.env, crate::forge::event(answer))
-                {
-                    engine.forge.down(skein_forge_connection::Request::Refused(
-                        crate::forge::back(event).expect("the routing hands the root only the component's answers"),
-                    ));
-                }
-                engine.drain_facts();
-            }
-            skein_forge_connection::Event::Hint(hinted) => {
-                if engine.drain.is_some()
-                    || engine.end.is_some()
-                    || engine.domain.forge_ended(hinted.hint.repository.forge)
-                {
-                    continue;
-                }
-                let connection = hinted.connection;
-                if let Err(root::Event::Forge(event)) =
-                    root::try_step(&mut engine.domain, &engine.env, crate::forge::hinted(hinted))
-                {
-                    let temper_engine_domain_forge::Event::Hint { hint } = *event else {
-                        unreachable!("hint retained by admission")
-                    };
-                    engine.forge.down(skein_forge_connection::Request::RefusedHint(
-                        skein_forge_connection::hooks::Hinted { connection, hint },
-                    ));
-                }
-                engine.drain_facts();
-            }
+            skein_forge_connection::Event::Answered(answer) => forge_answer(engine, answer),
+            skein_forge_connection::Event::Hint(hinted) => forge_hint(engine, hinted),
             skein_forge_connection::Event::Connected { forge } => crate::setup::lifecycle::connected(engine, forge),
             skein_forge_connection::Event::Installation { forge, installation, account, change } => {
                 crate::setup::lifecycle::installation(engine, forge, installation, account, change);
@@ -764,9 +756,9 @@ pub(crate) fn forge_pass(engine: &mut Engine) {
             skein_forge_connection::Event::GitToken { forge, installation, account, token, expires } => {
                 crate::forge::tokens::token(engine, forge, installation, account, token, expires);
             }
-            // temper-21 names unknown log origins, without deciding on them.
-            skein_forge_connection::Event::Fact { fact: skein_forge_connection::Fact::Origin { .. }, .. } => {}
-            // temper-21 logs gaps, without deciding on them.
+            skein_forge_connection::Event::Fact { forge, fact: skein_forge_connection::Fact::Origin { origin } } => {
+                crate::forge::origins::refused(engine, forge, origin);
+            }
             skein_forge_connection::Event::Fact { fact: skein_forge_connection::Fact::Gap, .. } => {}
             skein_forge_connection::Event::Fact {
                 forge,
@@ -784,24 +776,53 @@ pub(crate) fn forge_pass(engine: &mut Engine) {
                 }
             }
             skein_forge_connection::Event::ListenerLost => stop::hooks(engine),
-            skein_forge_connection::Event::Stopped { forge, why } => {
-                crate::forge::tokens::accepted(engine, forge, &[]);
-                crate::setup::lifecycle::stopped_connection(engine, forge);
-                crate::setup::lifecycle::state(
-                    engine,
-                    forge,
-                    temper_engine_domain_forge::Connection::Stopped {
-                        reason: crate::setup::lifecycle::stopped_text(why),
-                    },
-                );
-                // At most once per connect generation, possibly after Connected. temper-02 revisits
-                // dropping a full queue when runtime reconnects are routed.
-                if engine.notes.room() > 0 {
-                    engine.notes.push(crate::Note::ForgeStopped { number: forge, why });
-                }
-            }
+            skein_forge_connection::Event::Stopped { forge, why } => forge_stopped(engine, forge, why),
             skein_forge_connection::Event::Closed => engine.forge.closed = true,
         }
+    }
+}
+
+fn forge_answer(engine: &mut Engine, answer: skein_forge_connection::Answered) {
+    if engine.end.is_some() {
+        engine.forge.down(skein_forge_connection::Request::Returned(answer));
+        return;
+    }
+    if let Err(root::Event::Forge(event)) = root::try_step(&mut engine.domain, &engine.env, crate::forge::event(answer))
+    {
+        engine.forge.down(skein_forge_connection::Request::Refused(
+            crate::forge::back(event).expect("the routing hands the root only the component's answers"),
+        ));
+    }
+    engine.drain_facts();
+}
+fn forge_hint(engine: &mut Engine, hinted: skein_forge_connection::hooks::Hinted) {
+    if engine.drain.is_some() || engine.end.is_some() || engine.domain.forge_ended(hinted.hint.repository.forge) {
+        return;
+    }
+    let connection = hinted.connection;
+    if let Err(root::Event::Forge(event)) =
+        root::try_step(&mut engine.domain, &engine.env, crate::forge::hinted(hinted))
+    {
+        let temper_engine_domain_forge::Event::Hint { hint } = *event else {
+            unreachable!("hint retained by admission")
+        };
+        engine.forge.down(skein_forge_connection::Request::RefusedHint(skein_forge_connection::hooks::Hinted {
+            connection,
+            hint,
+        }));
+    }
+    engine.drain_facts();
+}
+fn forge_stopped(engine: &mut Engine, forge: u16, why: skein_forge_connection::Stopped) {
+    crate::forge::tokens::accepted(engine, forge, &[]);
+    crate::setup::lifecycle::stopped_connection(engine, forge);
+    crate::setup::lifecycle::state(
+        engine,
+        forge,
+        temper_engine_domain_forge::Connection::Stopped { reason: crate::setup::lifecycle::stopped_text(why) },
+    );
+    if engine.notes.room() > 0 {
+        engine.notes.push(crate::Note::ForgeStopped { number: forge, why });
     }
 }
 

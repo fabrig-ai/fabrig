@@ -225,8 +225,9 @@ that is not empty, or a message.
   itself where its instructions would have it delegate. A Finite run's
   opening, a sub-agent's and a resumed window's are as above.
   When concrete history is selected for resume, the waking prompt contains
-  the offered messages without a new instruction to begin; without offered
-  messages it says “Continue the saved conversation.” It first includes
+  an instruction that starts a fresh bounded activation and supersedes prior
+  exhaustion, followed by the offered messages without a new instruction to
+  begin. With no messages, that activation instruction stands alone. It first includes
   any host answers absent from the transcript (section 6). The session
   supplies this prompt as the result of a withheld `wait`, or as user text
   otherwise (section 6). The first turn told names the last offered message
@@ -512,6 +513,10 @@ host tool for it, as temper's `delegate` does.
 - **Awaiting** a first message is waiting without a session (3.4): told,
   timed and parked the same way. It has read nothing, so its waiting
   names no fence.
+- **Parking in Finite wind-down.** A granted main `wait` parks immediately,
+  including on the last reserved completion. Queued words stay unread for the
+  next activation; no further completion spends this activation's reserve.
+  This does not grant wait to a child or bypass hard monetary or wall limits.
 - **Parking.** Past its charter's waiting time it parks: every turn it
   took is sent, and it answers parked. A run whose ordinary time runs out
   while it waits parks too: it has nothing to finish, so it does not
@@ -529,7 +534,11 @@ host tool for it, as temper's `delegate` does.
   turn was never told, the agent having stopped between the two, or one
   the run withdrew and its host decided later), with their answers, so the
   LLM does not ask them again; and goes on with the messages that woke
-  it, which its start carries (3.2). Its waking prompt follows section
+  it, which its start carries (3.2). Each activation starts with fresh bounded
+  turns and wall time; its waking instruction explicitly supersedes exhaustion
+  and finish-now instructions retained from earlier activations. The host
+  supplies only the task funding still available, so monetary spend stays
+  cumulative and bounded across activations. Its waking prompt follows section
   3.4's resume form; it does not add a fresh begin instruction. A transcript
   it cannot use (another version, malformed, unresolved, too large) fails
   the run as transient, saying which (session.md, section 3), and the host decides
@@ -785,6 +794,7 @@ answers as it was ending; the host has the delivery's own answer.
      In Finite, main then gets at most the reserve's turns of completions,
      the first with the run's note that the budget is spent and it is to finish now
      with what it has. They offer only `finish`, `deliver` when granted,
+     granted `wait` to park until another message,
      and host tools whose declaration sets `reserve`: the same tool definitions
      are sent, and the note names the reserve host tools for meeting outstanding
      obligations. The model is told to choose among those only (session.md, section 5).
@@ -794,7 +804,7 @@ answers as it was ending; the host has the delivery's own answer.
 
   On a program backend, the program's turn is ended and the note sent
   as its next user message. The program's tools are not narrowed, so
-  the agent refuses every call but `finish`, granted `deliver` and host tools
+  the agent refuses every call but `finish`, granted `deliver`, granted `wait` and host tools
   declared for the reserve from then on,
   each as an invalid call is answered (protocol/programs.md, 5.7).
   An Open run on a program backend gets its last reply as
@@ -819,6 +829,8 @@ exact values are the facts', in milliseconds (protocol/events.md).
   and the turns and time the run has left above its reserve.
 - **Open replies,** under `## Replying` (section 6), and a last-reply note
   in place of Finite finishing instructions (9.1).
+- **The waking instruction** (section 6) scopes prior exhaustion to the earlier
+  activation and names the fresh allowance in `## Budget`.
 - **The wind-down's note** (9.1) and **a child's final-turn note** (5.3),
   appended.
 - **Threshold notes,** with messages mid-work (section 6): as the run's

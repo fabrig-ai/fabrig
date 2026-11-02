@@ -18,7 +18,7 @@ pub(in crate::backend) fn init_line(tools: &[&str]) -> Box<[u8]> {
             "lifecycle_wakeup_source_v1", "sdk_mcp_tools_list_changed", "sdk_mcp_manifests",
             "mcp_read_resource_v1", "mcp_tool_ui_meta_v1", "ui_surface_v1", "mcp_call_result_not_for_model_v1"],
         "additional_directories":[], "agents":[], "analytics_disabled":false, "apiKeySource":"none",
-        "claude_code_version":"2.1.311", "cwd":"", "original_cwd":"",
+        "claude_code_version":"2.1.312", "cwd":"", "original_cwd":"",
         "fast_mode_disabled_reason":null, "fast_mode_state":"off", "memory_paths":[],
         "messaging_socket_path":null, "model":"fake", "output_style":"default", "per_turn_effort_active":false,
         "permissionMode":"default", "plugins":[], "product_feedback_disabled":false,
@@ -71,4 +71,16 @@ fn an_init_refuses_missing_repeated_and_foreign_tools() {
             "{listed:?}"
         );
     }
+}
+
+#[test]
+fn a_2_1_312_init_names_its_server_source() {
+    let mut init: serde_json::Value =
+        serde_json::from_slice(&init_line(&["mcp__smith__finish", "mcp__smith__echo"])).expect("init JSON");
+    init["mcp_servers"] = json!([{"name":"smith","status":"connected","source":"dynamic"}]);
+    let line = serde_json::to_vec(&init).expect("init JSON");
+    assert_eq!(checked_init(&line, &tools(), DEPTH, super::super::Settings::stream_tokens(LINE_BYTES)), Some(()));
+    init["mcp_servers"].as_array_mut().expect("servers").push(json!({"name":"other","status":"connected"}));
+    let line = serde_json::to_vec(&init).expect("init JSON");
+    assert_eq!(checked_init(&line, &tools(), DEPTH, super::super::Settings::stream_tokens(LINE_BYTES)), None);
 }

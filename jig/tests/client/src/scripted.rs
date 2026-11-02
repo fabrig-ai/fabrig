@@ -471,6 +471,7 @@ impl Front<Test> for Scripted {
                     | Read::Settings
                     | Read::Setting(_)
                     | Read::Revision(_)
+                    | Read::TaskText { .. }
                     | Read::Revisions(_)
                     | Read::Deployment => self.last_object,
                 };
@@ -712,6 +713,7 @@ fn observe_change(change: &engine::Change, commit: u64, seen: &mut Vec<Observed>
                 | ReadValue::Settings(_)
                 | ReadValue::Setting(_)
                 | ReadValue::Revision(_)
+                | ReadValue::TaskText(_)
                 | ReadValue::Revisions(_)
                 | ReadValue::Deployment(_) => false,
             };
@@ -740,6 +742,7 @@ fn observe_change(change: &engine::Change, commit: u64, seen: &mut Vec<Observed>
                 | ReadValue::Settings(_)
                 | ReadValue::Setting(_)
                 | ReadValue::Revision(_)
+                | ReadValue::TaskText(_)
                 | ReadValue::Revisions(_)
                 | ReadValue::Deployment(_) => {}
             }

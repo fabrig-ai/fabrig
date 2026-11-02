@@ -48,7 +48,7 @@ pub enum Case {
     EarlyExit,
     /// The relay exits before connecting the program to smith's server.
     MissingServer,
-    /// The host brings prior turns to a program start.
+    /// Record a program start with the host's prior turns and full content capture.
     Transcript,
 }
 
@@ -105,7 +105,7 @@ impl Delegate for Proc {
 }
 
 fn configuration(case: Case) -> smith_agent_service::Config {
-    let mut config = if case == Case::Events {
+    let mut config = if matches!(case, Case::Events | Case::Transcript) {
         let mut limits = crate::limits();
         limits.llm.adapter.client.request = 1_048_576;
         crate::configuration_with_limits(skein_llm::Provider::OpenAiCodex, &limits)
@@ -172,7 +172,7 @@ fn configuration(case: Case) -> smith_agent_service::Config {
     config.limits.domain.run.check_tail = config.limits.domain.run.check_tail.min(256);
     config.limits.domain.run.host_reply_bytes = config.limits.domain.run.host_reply_bytes.min(4096);
     config.limits.domain.run.message_bytes = config.limits.domain.run.message_bytes.min(4096);
-    if matches!(case, Case::Tools | Case::Events) {
+    if matches!(case, Case::Tools | Case::Events | Case::Transcript) {
         config.limits.domain.run.outcome_bytes = 512;
         config.limits.domain.run.answer_bytes = 512;
         config.limits.domain.run.host_reply_bytes = 512;
@@ -181,11 +181,11 @@ fn configuration(case: Case) -> smith_agent_service::Config {
     }
     config.limits.domain.session.delegated_result_bytes =
         smith_domain::feedback_bound(&config.limits.domain.run).expect("complete bounded feedback");
-    if matches!(case, Case::Tools | Case::Events) {
+    if matches!(case, Case::Tools | Case::Events | Case::Transcript) {
         config.limits.events = Some(
             smith_agent_service::event_limits(
                 &config.limits,
-                if case == Case::Events {
+                if matches!(case, Case::Events | Case::Transcript) {
                     smith_protocol_events::sinks::Capture::Everything
                 } else {
                     smith_protocol_events::sinks::Capture::None
@@ -215,10 +215,10 @@ fn make_agent(spawn: &Spawn, inherited: &Inherited) -> Proc {
         smith_agent_shell::config::Configuration {
             memory: configuration.limits.memory,
             service: configuration,
-            trace: if matches!(case, Case::Tools | Case::Events) {
+            trace: if matches!(case, Case::Tools | Case::Events | Case::Transcript) {
                 Some(smith_agent_shell::trace::TraceConfig {
                     path: "/home/events.jsonl".into(),
-                    capture: if case == Case::Events {
+                    capture: if matches!(case, Case::Events | Case::Transcript) {
                         smith_protocol_events::sinks::Capture::Everything
                     } else {
                         smith_protocol_events::sinks::Capture::None
@@ -241,7 +241,7 @@ fn make_agent(spawn: &Spawn, inherited: &Inherited) -> Proc {
             seed: 7,
             pid: 101,
             trace: inherited.appends.first().map(|(_, fd)| *fd),
-            roots: if matches!(case, Case::Tools | Case::Events) {
+            roots: if matches!(case, Case::Tools | Case::Events | Case::Transcript) {
                 Some(
                     inherited
                         .roots
@@ -603,7 +603,7 @@ fn run_scenario(
                     name: b"programs".as_slice().into(),
                     path: b"/programs".as_slice().into(),
                 }];
-                if matches!(case, Case::Tools | Case::Events) {
+                if matches!(case, Case::Tools | Case::Events | Case::Transcript) {
                     roots.extend([
                         skein_world::StartupRoot {
                             name: b"cwd".as_slice().into(),
@@ -620,7 +620,7 @@ fn run_scenario(
         },
         |spawn| {
             let case: Case = serde_json::from_slice(&spawn.args[0]).expect("scenario");
-            if matches!(case, Case::Tools | Case::Events) {
+            if matches!(case, Case::Tools | Case::Events | Case::Transcript) {
                 vec![skein_world::StartupAppend {
                     name: b"trace".as_slice().into(),
                     root: b"/home".as_slice().into(),
@@ -657,7 +657,7 @@ fn run_scenario(
             ParentOptions {
                 message: initial.as_ref(),
                 setup: Setup {
-                    capture: if case == Case::Events {
+                    capture: if matches!(case, Case::Events | Case::Transcript) {
                         smith_protocol_events::sinks::Capture::Everything
                     } else {
                         smith_protocol_events::sinks::Capture::None
@@ -670,7 +670,7 @@ fn run_scenario(
         parent.program_messages = waiting::messages(releases.unwrap_or(&[]));
         parent
             .program_arguments(Box::new([serde_json::to_vec(&case).expect("case arguments").into()]), refresh.cloned());
-        if matches!(case, Case::Tools | Case::Events) {
+        if matches!(case, Case::Tools | Case::Events | Case::Transcript) {
             parent.peer = crate::host();
             parent.peer.play(tools_start(charter, value));
             parent.program_host_answers = Some(0);
@@ -733,7 +733,7 @@ fn run_scenario(
                 Proc::Parent(_) | Proc::Agent(_) | Proc::Fake(_) => None,
             })
             .collect(),
-        events: if matches!(case, Case::Tools | Case::Events) {
+        events: if matches!(case, Case::Tools | Case::Events | Case::Transcript) {
             let file = outcome.machine.files.open(base, b"home/events.jsonl", How::Read).expect("trace file");
             let size = u32::try_from(outcome.machine.files.stat(file).size).expect("trace size");
             let bytes = outcome.machine.files.read(file, 0, size).expect("event stream");

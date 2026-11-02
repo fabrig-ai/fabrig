@@ -19,6 +19,9 @@ use jig_domain_core::effects::connector::{EffectDescription, EffectForm, Recover
 mod landing_route;
 pub(crate) use landing_route::start_landing_step;
 use landing_route::{describe_landing_effect, landing_decision, start_landing};
+mod reads;
+use reads::read_answer;
+pub(crate) use reads::read_call;
 mod holds;
 pub(crate) use holds::{hold as hold_reason, refused_step, start_refused};
 
@@ -546,90 +549,6 @@ fn describe_agent(
         recovery,
     };
     Ok(EffectFlight::Call { description: Box::new(description), repository, effect: described.effect, key, resource })
-}
-
-pub(crate) fn read_call(
-    domain: &mut Domain,
-    env: &Env<Limits>,
-    _decision: &mut Decision,
-    to: ReplyTo,
-    key: CallKey,
-    repository: skein_forge::api::Repository,
-    read: skein_forge::api::Read,
-) {
-    let Some(adopted) = domain.forge.repository(repository) else {
-        return super::host_route::read(
-            domain,
-            to,
-            CallAnswer::ForgeRead(Box::new(Err(skein_forge::api::Error::Missing))),
-        );
-    };
-    let Some(context) = domain.core.tasks.delegation(key.task) else {
-        return super::host_route::read(
-            domain,
-            to,
-            CallAnswer::ForgeRead(Box::new(Err(skein_forge::api::Error::Forbidden))),
-        );
-    };
-    let name = read_name(adopted, &read, env.limits.authority.segments);
-    let allowed = match name {
-        Some(name) if context.project == adopted.project && adopted.kinds.read => {
-            let mut findings = Queue::uncapped();
-            domain.core.connector_read_admit(
-                key.task,
-                authority::Effect {
-                    connector: domain.config.forge_connector,
-                    kind: 1,
-                    name,
-                    state: [0; 32],
-                    price: None,
-                    access: effect_access(adopted, &forge::What::Repository, 1),
-                    additional: Box::new([]),
-                    guards: Box::new([]),
-                },
-                &mut findings,
-            ) == authority::Answer::Allow
-        }
-        Some(_) | None => false,
-    };
-    if !allowed {
-        return super::host_route::read(
-            domain,
-            to,
-            CallAnswer::ForgeRead(Box::new(Err(skein_forge::api::Error::Forbidden))),
-        );
-    }
-    let Some(serial) = domain.next_effect_owner.checked_add(1) else {
-        return super::host_route::read(
-            domain,
-            to,
-            CallAnswer::ForgeRead(Box::new(Err(skein_forge::api::Error::Busy))),
-        );
-    };
-    if serial >= 1_u64 << 61_u32 {
-        return super::host_route::read(
-            domain,
-            to,
-            CallAnswer::ForgeRead(Box::new(Err(skein_forge::api::Error::Busy))),
-        );
-    }
-    domain.next_effect_owner = serial;
-    let owner = Token::new(serial | (1_u64 << 61_u32));
-    assert!(domain.forge_reading.insert(owner, (to, key)) == Ok(None), "one fresh read correlation");
-    domain.work.push(Work::Forge(forge::Event::Client(skein_forge_client::Event::Read { owner, repository, read })));
-}
-
-/// Local admission waits in the host's bounded backoff, keeping the logical call unchanged
-/// (temper/docs/design/domain/forge.md, 5.3).
-fn read_answer(domain: &mut Domain, owner: Token, result: Result<skein_forge::api::Answer, skein_forge::api::Error>) {
-    let Some((to, _key)) = domain.forge_reading.remove(&owner) else { return };
-    if result == Err(skein_forge::api::Error::Busy) {
-        let right = to.into_token();
-        domain.call_renders.remove(&right);
-        crate::stopping::call(domain, ReplyTo::new(right));
-    } else {
-        super::host_route::read(domain, to, CallAnswer::ForgeRead(Box::new(result)));
-    }
 }
 
 #[expect(clippy::too_many_arguments, reason = "one typed task and connector subscription is routed together")]
@@ -1750,6 +1669,41 @@ fn initial_change_title(parameters: &[tasks::Parameter]) -> Box<[u8]> {
 /// Register the connector's procedure beside the task's first due step.
 /// Parameter 1 names a project-unique repository tag, 2 the base,
 /// 3 an optional already-pushed branch, 4 the pull body, 5 priority, and 10 the pull title.
+fn change_delegate_status(kind: &tasks::MessageKind) -> Option<(forge_change::Status, bool, bool)> {
+    match kind {
+        tasks::MessageKind::Result(
+            tasks::ResultKind::NoChange
+            | tasks::ResultKind::Report
+            | tasks::ResultKind::Change { .. }
+            | tasks::ResultKind::Verdict { code: 1, .. },
+        ) => Some((forge_change::Status::Passed, false, false)),
+        tasks::MessageKind::Result(tasks::ResultKind::Failed) => Some((forge_change::Status::Failed, true, false)),
+        tasks::MessageKind::Result(tasks::ResultKind::Cancelled) => Some((forge_change::Status::Failed, false, true)),
+        tasks::MessageKind::Result(tasks::ResultKind::Verdict { .. } | tasks::ResultKind::Approved { .. }) => {
+            Some((forge_change::Status::Failed, false, false))
+        }
+        tasks::MessageKind::Escalation { .. }
+        | tasks::MessageKind::Proposal { .. }
+        | tasks::MessageKind::SettingsDecision { .. }
+        | tasks::MessageKind::ProposalDecision { .. }
+        | tasks::MessageKind::Words
+        | tasks::MessageKind::FinishRequested { .. }
+        | tasks::MessageKind::Amendment { .. }
+        | tasks::MessageKind::Question
+        | tasks::MessageKind::Answer { .. }
+        | tasks::MessageKind::Met { .. }
+        | tasks::MessageKind::Notice { .. }
+        | tasks::MessageKind::QuestionAnswered { .. }
+        | tasks::MessageKind::QuestionOwed
+        | tasks::MessageKind::NothingAwaited
+        | tasks::MessageKind::QuestionEnded { .. }
+        | tasks::MessageKind::Timer { .. }
+        | tasks::MessageKind::PersonStalled { .. }
+        | tasks::MessageKind::EffectNotMade { .. }
+        | tasks::MessageKind::News { .. } => None,
+    }
+}
+
 #[expect(clippy::too_many_lines, reason = "one procedure registration and fresh-step route")]
 pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tasks::RunContext) -> bool {
     let task = context.task;
@@ -1881,46 +1835,13 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
             if word.from != tasks::Party::Task(child) {
                 continue;
             }
-            let status = match word.kind {
-                tasks::MessageKind::Result(
-                    tasks::ResultKind::Report
-                    | tasks::ResultKind::Change { .. }
-                    | tasks::ResultKind::Verdict { code: 1, .. },
-                ) => Some((forge_change::Status::Passed, false, false)),
-                tasks::MessageKind::Result(tasks::ResultKind::Failed) => {
-                    Some((forge_change::Status::Failed, true, false))
-                }
-                tasks::MessageKind::Result(tasks::ResultKind::Cancelled) => {
-                    Some((forge_change::Status::Failed, false, true))
-                }
-                tasks::MessageKind::Result(tasks::ResultKind::Verdict { .. } | tasks::ResultKind::Approved { .. }) => {
-                    Some((forge_change::Status::Failed, false, false))
-                }
-                tasks::MessageKind::Escalation { .. }
-                | tasks::MessageKind::Proposal { .. }
-                | tasks::MessageKind::SettingsDecision { .. }
-                | tasks::MessageKind::ProposalDecision { .. }
-                | tasks::MessageKind::Words
-                | tasks::MessageKind::FinishRequested { .. }
-                | tasks::MessageKind::Amendment { .. }
-                | tasks::MessageKind::Question
-                | tasks::MessageKind::Answer { .. }
-                | tasks::MessageKind::Met { .. }
-                | tasks::MessageKind::Notice { .. }
-                | tasks::MessageKind::QuestionAnswered { .. }
-                | tasks::MessageKind::QuestionOwed
-                | tasks::MessageKind::NothingAwaited
-                | tasks::MessageKind::QuestionEnded { .. }
-                | tasks::MessageKind::Timer { .. }
-                | tasks::MessageKind::PersonStalled { .. }
-                | tasks::MessageKind::EffectNotMade { .. }
-                | tasks::MessageKind::News { .. } => None,
-            };
+            let status = change_delegate_status(&word.kind);
             if let Some((status, failed, cancelled)) = status {
                 domain.work.push(Work::Forge(forge::Event::DelegateResult {
                     task,
                     child,
                     status,
+                    no_change: word.kind == tasks::MessageKind::Result(tasks::ResultKind::NoChange),
                     failed,
                     cancelled,
                     words: word.words.clone(),
@@ -1962,6 +1883,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                         | forge_change::State::Repairing { .. }
                         | forge_change::State::Landing { .. }
                         | forge_change::State::Landed { .. }
+                        | forge_change::State::NoChange { .. }
                         | forge_change::State::Ended => false,
                     };
                     held && task.due_reason == tasks::Why::Released
@@ -2937,6 +2859,67 @@ fn landed_change(domain: &Domain, task: u64, merge: &[u8; 32], pull: u64, bound:
     }
 }
 
+fn finish_change_step(
+    domain: &Domain,
+    env: &Env<Limits>,
+    task: u64,
+    merge: &skein_forge::api::Commit,
+) -> ProcedureStep {
+    let pull = match domain.forge.change(task) {
+        Some(row) => row.pull,
+        None => None,
+    };
+    let Some(pull) = pull else {
+        return holds::decision(
+            domain,
+            env,
+            task,
+            Box::from(&b"landed change has no retained pull request identity"[..]),
+        );
+    };
+    ProcedureStep::new(StepEnd::Result(landed_change(domain, task, merge, pull, change_result_bound(domain, task))))
+}
+
+fn delegate_change_step(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    task: u64,
+    step: u64,
+    connector: u16,
+    code: u32,
+    kind: forge_change::Delegate,
+) {
+    let Some(delegate) = change_delegate(domain, env, task, kind) else {
+        let held = holds::decision(
+            domain,
+            env,
+            task,
+            Box::from(&b"change delegate cannot be described within its authority"[..]),
+        );
+        domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep {
+            task,
+            step,
+            connector,
+            code,
+            decision: append_change_replies(domain, env, task, held),
+        }));
+        return;
+    };
+    assert!(domain.forge_delegating.insert((task, step), kind).is_ok(), "one forge procedure delegate");
+    domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep {
+        task,
+        step,
+        connector,
+        code,
+        decision: append_change_replies(
+            domain,
+            env,
+            task,
+            ProcedureStep { batch: Box::new([delegate]), ..ProcedureStep::new(StepEnd::Wait) },
+        ),
+    }));
+}
+
 fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: forge_change::Decision) {
     let Some((connector, code, step)) = domain.core.tasks.procedure_due(task) else { return };
     if connector != domain.config.forge_connector || code != CHANGE_CODE {
@@ -2949,29 +2932,13 @@ fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: fo
             domain.forge.wait_change(&super::environment_forge(env), task, None);
             ProcedureStep::new(StepEnd::Wait)
         }
-        forge_change::Decision::Finish { merge } => {
-            let pull = match domain.forge.change(task) {
-                Some(row) => row.pull,
-                None => None,
+        forge_change::Decision::Finish { merge } => finish_change_step(domain, env, task, &merge),
+        forge_change::Decision::NoChange => {
+            let row = domain.forge.change(task).expect("completed no-change row");
+            let forge_change::State::NoChange { words } = &row.change.state else {
+                unreachable!("no-change decision retains its explanation")
             };
-            let Some(pull) = pull else {
-                let held = holds::decision(
-                    domain,
-                    env,
-                    task,
-                    Box::from(&b"landed change has no retained pull request identity"[..]),
-                );
-                domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep {
-                    task,
-                    step,
-                    connector,
-                    code,
-                    decision: append_change_replies(domain, env, task, held),
-                }));
-                return;
-            };
-            let bound = change_result_bound(domain, task);
-            ProcedureStep::new(StepEnd::Result(landed_change(domain, task, &merge, pull, bound)))
+            ProcedureStep::new(StepEnd::Result(tasks::TaskResult::NoChange { words: words.clone() }))
         }
         forge_change::Decision::Hold(why) => hold_change_decision(domain, env, task, why),
         forge_change::Decision::CancelGates { head } => cancel_change_gates(domain, task, head),
@@ -2991,35 +2958,7 @@ fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: fo
         forge_change::Decision::Cancel => unreachable!("cancel is routed before procedure admission"),
         forge_change::Decision::None | forge_change::Decision::Effect(_) => ProcedureStep::new(StepEnd::Wait),
         forge_change::Decision::Delegate(kind) => {
-            let Some(delegate) = change_delegate(domain, env, task, kind) else {
-                let held = holds::decision(
-                    domain,
-                    env,
-                    task,
-                    Box::from(&b"change delegate cannot be described within its authority"[..]),
-                );
-                domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep {
-                    task,
-                    step,
-                    connector,
-                    code,
-                    decision: append_change_replies(domain, env, task, held),
-                }));
-                return;
-            };
-            assert!(domain.forge_delegating.insert((task, step), kind).is_ok(), "one forge procedure delegate");
-            domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep {
-                task,
-                step,
-                connector,
-                code,
-                decision: append_change_replies(
-                    domain,
-                    env,
-                    task,
-                    ProcedureStep { batch: Box::new([delegate]), ..ProcedureStep::new(StepEnd::Wait) },
-                ),
-            }));
+            delegate_change_step(domain, env, task, step, connector, code, kind);
             return;
         }
     };
@@ -3092,7 +3031,6 @@ pub(crate) fn outputs(
                     "forge set up door reserved"
                 );
             }
-
             forge::Request::ApplicationPart { request, adoption, repository } => {
                 super::applications::part(domain, request, adoption, repository);
             }
@@ -3147,14 +3085,7 @@ pub(crate) fn outputs(
                 domain.work.push(Work::Brief(event));
             }
             forge::Request::BriefTaken { .. } => unreachable!("the root takes completed sections directly"),
-            forge::Request::MarkedForges => {
-                let mut subjects = List::with_capacity(1);
-                subjects.push(Token::new(0)).expect("one forges subject");
-                domain.work.push(Work::Core(jig_domain_core::Event::Marked {
-                    connector: domain.config.forge_connector,
-                    subjects,
-                }));
-            }
+            forge::Request::MarkedForges => domain.mark_forges(),
             forge::Request::Marked { tasks } => {
                 const {
                     assert!(
@@ -3550,6 +3481,7 @@ pub(crate) fn outputs(
                 | forge_change::Decision::CancelGates { .. }
                 | forge_change::Decision::Ready
                 | forge_change::Decision::QueueRepair
+                | forge_change::Decision::NoChange
                 | forge_change::Decision::Finish { .. }
                 | forge_change::Decision::Hold(_) => change_decision(domain, env, task, choice),
                 forge_change::Decision::Cancel => cancel_change(domain, task),

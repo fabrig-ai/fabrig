@@ -137,6 +137,8 @@ pub enum ResultKind {
         state: Box<[u8]>,
         words_present: bool,
     },
+    /// Successful conclusion that the requested change does not apply.
+    NoChange,
     Report,
     Verdict {
         code: u32,
@@ -213,7 +215,11 @@ impl Word {
                 crate::verdict::fields_bytes(fields)?.checked_add(self.words.len())
             }
             MessageKind::Result(
-                ResultKind::Report | ResultKind::Change { .. } | ResultKind::Failed | ResultKind::Cancelled,
+                ResultKind::NoChange
+                | ResultKind::Report
+                | ResultKind::Change { .. }
+                | ResultKind::Failed
+                | ResultKind::Cancelled,
             )
             | MessageKind::Escalation { .. }
             | MessageKind::Proposal { .. }
@@ -534,6 +540,11 @@ pub enum TaskResult {
         /// Producer-supplied title, bounded independently by the contract and `Limits::result_bytes`.
         title: Box<ChangeTitle>,
         /** Change-report bytes bounded by the admitted contract and `Limits::result_bytes`. */
+        words: Box<[u8]>,
+    },
+    /// Successful no-change conclusion under a change contract; claims no resulting resource.
+    NoChange {
+        /// Explanation bounded by the admitted contract and `Limits::result_bytes`.
         words: Box<[u8]>,
     },
     /// Bounded failure result allowed by every contract; produces an `Ending::Failed`.

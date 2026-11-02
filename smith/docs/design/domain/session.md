@@ -296,7 +296,8 @@ child domain `smith-domain-session`, whose own child is the tools domain
   tools offered never change (section 3); the choice narrows what may be
   called.
   - The opener gives the choice when it continues the session, as a run
-    winding down offers only `finish` and `deliver` (run.md, section 9).
+    winding down offers `finish`, granted `deliver` and `wait`, and host tools
+    marked for the reserve (run.md, section 9).
     The session sets `None` on its own final turn (section 7), and on a
     compaction (8.2), whatever the conversation's choice.
   - A call outside the choice, one a dialect that cannot express `Only`

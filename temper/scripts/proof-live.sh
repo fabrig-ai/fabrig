@@ -87,7 +87,11 @@ if [ "${1-}" = forge-land ] || [ "${1-}" = forge-land-claude ] || [ "${1-}" = ru
         export TMPDIR=${TMPDIR:-$PWD/..}
         export TEMPER_LIVE_KEEP=${TEMPER_LIVE_KEEP:-$PWD/../live-evidence}
     else
-        store=${TEMPER_LIVE_STORE:-$HOME/src/rust/tmp/live-store/$1}
+        stores=${TEMPER_LIVE_STORE:-$HOME/src/rust/tmp/live-store}
+        mkdir -p -- "$stores"
+        stores=$(readlink -f -- "$stores")
+        store=$stores/$1
+        export TEMPER_LIVE_STORE="$stores"
     fi
     if [ -e "$store" ] || [ -L "$store" ]; then
         if [ ! -d "$store" ] || [ -n "$(ls -A -- "$store")" ]; then
@@ -98,7 +102,7 @@ if [ "${1-}" = forge-land ] || [ "${1-}" = forge-land-claude ] || [ "${1-}" = ru
     store_parent=$(dirname -- "$store")
     mkdir -p -- "$store_parent"
     store=$(readlink -f -- "$store")
-    export TEMPER_LIVE_STORE="$store"
+    if [ "$rung" = true ]; then export TEMPER_LIVE_STORE="$store"; fi
     if [ -n "${TEMPER_LIVE_ACCOUNT-}" ]; then
         # A held record moved in by ctl account import (client/tools.md, 5.5), which removes it.
         [ "$rerun" = false ] || { printf '%s\n' 'a held account moves into a fresh store only' >&2; exit 2; }
@@ -260,7 +264,7 @@ trap 'exit 143' TERM
 trap 'exit 129' HUP
 # A build failure or a signal also returns through finish, after stopping the box.
 # shellcheck disable=SC2086
-$heavy cargo nextest run -p temper --profile live --no-run
+$heavy cargo nextest run -p temper --profile live-temper --no-run
 if [ "$rerun" = false ] && [ -z "${TEMPER_LIVE_ACCOUNT-}" ] && [ -z "$claude_identity" ]; then
     printf '%s\n' 'Approve the printed ChatGPT address in a browser that reaches this machine.' \
         'For a remote browser: ssh -L 1455:127.0.0.1:1455 -L <client port>:127.0.0.1:<client port> HOST'
@@ -275,8 +279,8 @@ if [ -n "$store" ] && [ -d "$store" ]; then
 fi
 launched=true
 # shellcheck disable=SC2086
-TMPDIR=$scratch $heavy cargo nextest run -p temper --profile live --run-ignored only --no-capture \
-    -E "test(=$test_name)" &
+TMPDIR=$scratch $heavy cargo nextest run -p temper --profile live-temper --ignore-default-filter \
+    --run-ignored only --no-capture -E "binary(=live) & test(=$test_name)" &
 runner=$!
 tail -n +1 -f --sleep-interval=0.2 --pid="$runner" "$notice" &
 follower=$!

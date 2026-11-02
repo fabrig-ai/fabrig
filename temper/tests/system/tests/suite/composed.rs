@@ -304,3 +304,101 @@ fn a_withheld_store_commit_holds_the_party_reply_and_worker_assignment() {
     world.run();
     assert_eq!(world.observed.answers, 1);
 }
+
+// This system world is the lowest one with real engine, worker and smith tool choice.
+#[test]
+fn an_agreed_goals_seventh_completion_question_parks_at_the_stock_turn_boundary() {
+    agreed_goal_walk(920, true);
+}
+
+#[test]
+fn an_agreed_goals_earlier_wait_parks_and_resumes_with_stock_turns() {
+    agreed_goal_walk(921, false);
+}
+
+fn plan_script(reads: bool) -> skein_fake_llm_domain::api::Script {
+    use temper_system_world::composed::call;
+    let mut turns = Vec::new();
+    if reads {
+        turns.push(call(b"read_branch", br#"{"repository":".","branch":"main"}"#));
+        turns.push(call(b"read_branch", br#"{"branch":"main"}"#));
+        for path in [".", "src", "README.md", "src/main.rs"] {
+            turns.push(call(
+                b"read_file",
+                format!(r#"{{"head":"0000000000000000000000000000000000000001","path":"{path}","max_bytes":4096}}"#)
+                    .as_bytes(),
+            ));
+        }
+    }
+    turns
+        .push(call(b"message", br#"{"target":1,"form":"question","words":"Add CSV export with a header. Go ahead?"}"#));
+    turns.push(call(b"wait", b"{}"));
+    skein_fake_llm_domain::api::Script {
+        cue: b"Help the person with their work.".as_slice().into(),
+        turns: turns.into_boxed_slice(),
+    }
+}
+
+fn agreed_goal_walk(seed: u64, reads: bool) {
+    use skein_fake_llm_domain::api::Script;
+    use temper_system_world::composed::call;
+    let mut world = World::agreed_goal(seed, plan_script(reads));
+    world.run();
+    assert_eq!(world.assignment().task, 2);
+    assert_eq!((world.assignment().run.policy.turns, world.assignment().run.policy.reserve_turns), (8, 1));
+    assert!(
+        matches!(world.agent().answer(), smith_domain_run::Answer::Parked { spent, .. } if spent.turns == if reads { 8 } else { 2 })
+    );
+    if reads {
+        assert_plan_reads(&world);
+    }
+    world.pending_plan();
+    world.hold_goal(skein_lib::Duration::from_secs(121));
+    world.pending_plan();
+    world.next_script(Script {
+        cue: b"Read only what the change needs".as_slice().into(),
+        turns: Box::new([
+            call(b"write", br#"{"path":"export.csv","content":"fruit,count\n"}"#),
+            call(b"finish", br#"{"title":"Add CSV export","body":"Add the agreed header."}"#),
+        ]),
+    });
+    world.answer_goal(
+        b"Go ahead. The CSV's first line must be the header fruit,count.",
+        Script {
+            cue: b"Help the person with their work.".as_slice().into(),
+            turns: Box::new([
+                call(b"change", br#"{"words":"Add export.csv containing fruit,count and a newline"}"#),
+                call(b"wait", b"{}"),
+                call(b"finish", br#"{"report":"The agreed CSV export landed."}"#),
+            ]),
+        },
+    );
+    world.finish_goal();
+    world.assert_goal_landed();
+}
+
+fn assert_plan_reads(world: &World) {
+    use smith_domain_session::llm::{Block, Returned};
+    let outcomes = world
+        .agent()
+        .turns()
+        .iter()
+        .take(6)
+        .map(|turn| {
+            turn.messages
+                .iter()
+                .flat_map(|message| &message.content)
+                .filter_map(|block| match block {
+                    Block::ToolResult { result: Returned::Text { error, .. }, .. } => Some(*error),
+                    Block::Opaque { .. }
+                    | Block::Refusal { .. }
+                    | Block::Text { .. }
+                    | Block::ToolCall { .. }
+                    | Block::ToolResult { .. } => None,
+                })
+                .next_back()
+                .expect("each read has a result")
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(outcomes, [true, false, false, false, false, false]);
+}

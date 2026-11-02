@@ -1370,6 +1370,7 @@ fn result_notice(ending: Ending) -> (ResultKind, Box<[u8]>) {
                 };
                 (ResultKind::Approved { state, words_present }, words)
             }
+            TaskResult::NoChange { words } => (ResultKind::NoChange, words),
             TaskResult::Report { words } => (ResultKind::Report, words),
             TaskResult::Verdict { code, words, fields } => (ResultKind::Verdict { code, fields }, words),
             TaskResult::Change { connector, kind, resource, words, .. } => {

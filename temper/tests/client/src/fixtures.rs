@@ -25,6 +25,7 @@ pub fn forge_settings() -> temper_service::forges::Forges {
     {
         let mut table = temper_service::forges::Forges::with_capacity(1);
         assert!(table.insert(Forge {
+            log_origins: None,
             mode: temper_engine_domain_forge::Mode::Connected,
             number: 1,
             kind: Kind::Forgejo,
@@ -685,6 +686,7 @@ pub fn task_budget(front: &mut Joint, task: u64) -> jig_domain_core::documents::
                 reads::Answer::Setting(_)
                 | reads::Answer::Revision(_)
                 | reads::Answer::Revisions(_)
+                | reads::Answer::TaskText(_)
                 | reads::Answer::Tasks(_)
                 | reads::Answer::Page(_)
                 | reads::Answer::None(_) => None,

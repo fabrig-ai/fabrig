@@ -770,6 +770,7 @@ fn oversized_gate_remarks_are_marked_before_they_are_saved() {
             task: fixtures::CHANGE,
             child: 52,
             status: change::Status::Failed,
+            no_change: false,
             failed: false,
             cancelled: false,
             words: words.as_bytes().into(),

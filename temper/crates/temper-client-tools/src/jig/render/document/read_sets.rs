@@ -23,6 +23,9 @@ pub(super) fn text(
     }
     for (_, page) in reading.pages.range(..crate::jig::runner::proposal::FIRST) {
         match page {
+            Readout::Jig(c::ReadResult::Value(c::ReadValue::TaskText(page))) => {
+                super::super::task_source::text(page, limits, out);
+            }
             Readout::Jig(c::ReadResult::Value(c::ReadValue::Project(project))) => {
                 super::projects::text(project, call, limits, vocabulary, out);
             }
@@ -121,6 +124,9 @@ pub(super) fn encode(reading: &Reading, limits: &Limits, out: &mut Encoder, budg
             out.key(if *local == 1 { b"needs" } else { b"updates" });
         }
         match page {
+            Readout::Jig(c::ReadResult::Value(c::ReadValue::TaskText(page))) => {
+                super::super::task_source::encode(page, limits, out);
+            }
             Readout::Jig(c::ReadResult::Value(c::ReadValue::Project(project))) => {
                 super::projects::encode(project, call, limits, out, budget);
             }

@@ -191,6 +191,7 @@ pub fn decision(document: Option<&crate::contract::ReadValue>, act: ActKind) -> 
                 | ReadValue::Escalation(_)
                 | ReadValue::PersonTask(_)
                 | ReadValue::Me(_)
+                | ReadValue::TaskText(_)
                 | ReadValue::Tasks(_)
                 | ReadValue::Ended(_)
                 | ReadValue::Question(_)
@@ -221,6 +222,7 @@ fn decision_offers(value: &crate::contract::ReadValue) -> Option<&skein_lib::Lis
         ReadValue::PersonTask(value) => Some(&value.acts),
         ReadValue::Proposal(value) => Some(&value.acts),
         ReadValue::Me(_)
+        | ReadValue::TaskText(_)
         | ReadValue::Tasks(_)
         | ReadValue::Ended(_)
         | ReadValue::Question(_)

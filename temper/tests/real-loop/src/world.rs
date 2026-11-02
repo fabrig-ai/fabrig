@@ -983,6 +983,18 @@ fn github_cues(
 ) {
     let Kind::Forge(forge) = &mut children[0].kind else { panic!("GitHub root") };
     service.forge_address = forge.address();
+    if service.blob_address != forge.blob_address() {
+        service.blob_address = forge.blob_address();
+        if let Some(blob) = service.blob_address {
+            forge
+                .github_layer_mut()
+                .expect("GitHub layer")
+                .set_blob_origin(
+                    format!("http://productionresultssa17.blob.core.windows.net:{}", blob.port()).into_bytes().into(),
+                )
+                .expect("fake log origin");
+        }
+    }
     if let Some(address) = forge.address() {
         peer.bind(address);
     }

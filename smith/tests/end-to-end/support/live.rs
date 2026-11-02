@@ -9,9 +9,13 @@ pub const CLAUDE: &str =
     "no record in `$SMITH_LIVE/programs/claude`: run `XDG_CONFIG_HOME=$SMITH_LIVE/config smith login claude`";
 pub const KEY: &str = "`ANTHROPIC_API_KEY` is not set";
 
+/// The refresh story's lead, in the settings' seconds: 400 days, past any access token's life.
+pub const REFRESH_LEAD_SECONDS: u64 = 400 * 86_400;
+
 /// The suite's durable user layer; each story requests only its own accounts.
 pub struct Environment {
     pub root: PathBuf,
+    /// Override the deployment refresh lead in seconds.
     pub refresh_lead: Option<u64>,
 }
 
@@ -62,11 +66,11 @@ impl Environment {
     }
 }
 
-pub(super) fn root(value: Option<&std::ffi::OsStr>) -> Result<PathBuf, &'static str> {
+pub(crate) fn root(value: Option<&std::ffi::OsStr>) -> Result<PathBuf, &'static str> {
     value.filter(|value| !value.is_empty()).map(PathBuf::from).ok_or("$SMITH_LIVE unset")
 }
 
-pub(super) fn setup(root: &Path, account: &str, key: bool) -> Result<(), &'static str> {
+pub(crate) fn setup(root: &Path, account: &str, key: bool) -> Result<(), &'static str> {
     let (path, message) = match account {
         "chatgpt" => ("tokens/chatgpt", CHATGPT),
         "claude" => ("programs/claude", CLAUDE),
@@ -74,6 +78,34 @@ pub(super) fn setup(root: &Path, account: &str, key: bool) -> Result<(), &'stati
         _ => panic!("unknown live account"),
     };
     std::fs::symlink_metadata(root.join(path)).map(|_| ()).map_err(|_| message)
+}
+
+/// Insert `-c deployment.refresh_lead=<lead_seconds>` before the trailing prompt argument `-`.
+pub fn with_refresh_lead(arguments: &mut Vec<std::ffi::OsString>, lead_seconds: u64) {
+    let at = arguments.len().checked_sub(1).expect("prompt argument");
+    arguments.splice(at..at, ["-c".into(), format!("deployment.refresh_lead={lead_seconds}").into()]);
+}
+
+/// Insert `-c trace.path=<path>` before the trailing prompt argument `-`.
+pub fn with_trace(arguments: &mut Vec<std::ffi::OsString>, path: &Path) {
+    let at = arguments.len().checked_sub(1).expect("prompt argument");
+    let path = toml::Value::String(path.to_str().expect("trace path is UTF-8").into());
+    arguments.splice(at..at, ["-c".into(), format!("trace.path={path}").into()]);
+}
+
+/// The rendered settings an observer needs to tell a program account (smith-bench's `Prepared::rendered`).
+#[must_use]
+pub fn rendered(account: &str) -> serde_json::Value {
+    let (endpoint, source) = match account {
+        "claude" => ("anthropic", "program"),
+        "chatgpt" => ("openai", "sign_in"),
+        "anthropic-key" => ("anthropic", "env"),
+        _ => panic!("unknown live account"),
+    };
+    serde_json::json!({
+        "endpoints": {endpoint: {"account": account}},
+        "accounts": {account: {"source": source}},
+    })
 }
 
 /// Public command settings shared by live stories and their offline controls.

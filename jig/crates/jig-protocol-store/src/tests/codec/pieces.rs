@@ -99,6 +99,7 @@ fn saved_fields(
         task::TaskResult::Approved { .. }
         | task::TaskResult::Report { .. }
         | task::TaskResult::Change { .. }
+        | task::TaskResult::NoChange { .. }
         | task::TaskResult::Failure { .. } => unreachable!("verdict fixture"),
     }
 }

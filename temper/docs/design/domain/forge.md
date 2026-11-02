@@ -959,6 +959,12 @@ dependencies: skein's change lands before temper's that bumps its lock.
 
 ### 8.2 Its way to landing
 
+An explicit successful no-change result from the producer ends the change
+with its explanation, without opening a pull request, merging, holding or
+escalating. It claims nothing landed. The requester receives the successful
+result. Failure words never imply this outcome: production and forge errors
+keep their existing recovery holds.
+
 Under its project's queue, the default. Under its project's turn, a
 change has no checking step, and once ready its landing prepares,
 proves and lands it (`landing.md`, section 3).
@@ -1204,8 +1210,7 @@ delegate's terminal wakes it to offer the landed result.
   (4.1, 4.3), the stall does not count.
 - **A release** lifts what it releases: repairs, resolutions and updates
   count again from it, its stall is counted from it, and the change
-  decides afresh. A producer that fails for good, or finds nothing to
-  change (its failure saying so, in its own words), holds the change at
+  decides afresh. A producer that fails for good holds the change at
   producing, the hold carrying its words whole within the hold's bytes,
   so its requester hears why (its notice fitted to the requester's
   message bytes on its own, marked when cut) and its person decides:
@@ -1213,7 +1218,13 @@ delegate's terminal wakes it to offer the landed result.
   decision of its own here. At producing, with no head pushed
   (its producer failed for good), deciding afresh makes a fresh producer, one more of its
   tasks, holding by the rule above when its authority no longer covers
-  one. A change is a procedure, with no run of its own to repeat: a
+  one. A repair that fails for good holds at its attempted count; this
+  is a delegate failure, not repair exhaustion. Released, it asks for a
+  fresh repair with the same reason and current forge facts, under its
+  current authority, counted against the reset repair allowance. The
+  replacement's result supersedes the failed delegate's, including
+  after a restart; a pending replacement is not asked twice.
+  A change is a procedure, with no run of its own to repeat: a
   release asking to run it again is refused saying so, never as
   missing authority.
 

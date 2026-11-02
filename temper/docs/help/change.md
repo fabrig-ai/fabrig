@@ -25,8 +25,10 @@ A change is a task that writes one repository's branch and lands it: its pull re
   `repairs: N:` why each repair was asked, and `reviews:`
   each verdict at the head it judged, cut from the end and marked when
   long. It names no check or test the change didn't see. Or it fails,
-  or is cancelled, as any task; a coder that fails for good, or finds
-  nothing to change, doesn't fail it: it holds at `producing` (below).
+  or is cancelled, as any task. If its coder concludes the request does
+  not apply, it ends successfully with that explanation: no pull request,
+  merge, hold or escalation, and nothing claimed landed. A coder that fails
+  for good holds it at `producing` (below).
 
 ## How it changes
 
@@ -34,8 +36,8 @@ Its steps, as `step:` prints them:
 
 - `producing`: the coder writes the change in its files, and temper
   pushes its work as the change's branch once it finishes; a coder
-  that fails, or finds nothing to change, holds it here, with its
-  words;
+  that fails holds it here, with its words; a coder that explicitly
+  concludes no change applies ends the change successfully;
 - `opening`: temper opens its pull request;
 - `checking`: the forge's CI runs at its head;
 - `gating`: its blocking gates give their verdicts (temper help
@@ -84,6 +86,10 @@ failed for good`, or `a person rejected a gate`. A release resets its
 counts and goes on from where it was held; held at `producing` because
 its coder failed for good before pushing, it makes a fresh coder, one
 more of its tasks, or holds again if its authority can't cover one.
+Held at `repairing` because its repair failed for good, release makes
+a fresh repair for the same reason, counted against its reset repair
+limit, or holds again if its authority can't cover one. A failed repair
+counts as one attempt; it does not mean all its repairs are spent.
 Held at `producing`, its hold carries the coder's own words, why it
 made no change, whole within 512 bytes, and its chat hears them:
 cancel it if they hold, or release it if the coder was wrong. Its
@@ -103,6 +109,12 @@ forge's answer).
   repair; a person's rejection holds it; an advisory gate never blocks.
   A reviewer that gives no verdict is asked once more, then the change
   is held.
+  If a reviewer cannot read what it needs to judge, it fails saying why.
+  The operator's `temper serve` stderr names refused forge reads and call
+  admission by task, attempt, tool, layer and reason. Claude's built-in
+  Read denials appear in the task's recorded tool results. These operator
+  diagnostics are volatile; capture stderr when investigating a refusal.
+
 - **Gates are temper's:** a change's gates run in temper, and `change
   show` prints each, `gate 1 · review · blocking · approved`; temper
   posts none to the forge as a review or a status, so the pull

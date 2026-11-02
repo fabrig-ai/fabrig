@@ -146,6 +146,24 @@ pub struct SetupStep {
 /// Operator diagnostics taken by the shell (protocol/forge.md, 2.3).
 #[derive(PartialEq, Eq, Debug)]
 pub enum Note {
+    /// A forge read refusal with its task, tool, layer and authority findings.
+    ReadRefused {
+        task: u64,
+        attempt: u64,
+        tool: Box<[u8]>,
+        layer: &'static str,
+        reason: &'static str,
+        findings: Box<[jig_domain_authority::Finding]>,
+        error: Option<skein_forge::api::Error>,
+    },
+    /// A decoded call that could not enter the engine's admission room.
+    CallAdmissionRefused {
+        task: u64,
+        attempt: u64,
+        tool: Box<[u8]>,
+        layer: &'static str,
+        reason: &'static str,
+    },
     /// One patch finished before the store opened (jig's protocol/store.md, 10.2).
     Patched {
         of: jig_protocol_store::Owner,
@@ -194,6 +212,11 @@ pub enum Note {
     ForgeNotConnected {
         number: u16,
         why: NotConnected,
+    },
+    /// A refused job-log redirect, with no signed path or query (protocol/forge.md, 3.6).
+    ForgeOrigin {
+        number: u16,
+        origin: skein_forge::github::redirect::Origin,
     },
     ForgeUnkept {
         number: u16,

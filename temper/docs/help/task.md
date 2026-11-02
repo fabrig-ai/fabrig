@@ -15,7 +15,8 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
   is a delegate of its parent, and together they make a tree. A
   delegate's result reaches its parent, which its run hears as its
   rules for waking say. A change task is a delegate run by the forge,
-  whose result is a change landed (temper help box); it starts with
+  whose result is a change landed (temper help box) or an explanation
+  that no change applies; it starts with
   half of what its parent has left to spend. A change asks no one,
   and neither do the agents it delegates: a question or words sent to
   it by a task are answered that a change takes none, naming its
@@ -116,3 +117,11 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
   (temper help budget).
 - `task activity` and `task list` read 32 lines a page; a turn's part prints
   16384 bytes at a time.
+
+A task overview may cut `asked:` and `instructions:`. Its `read specification:`
+and `read instructions:` calls retrieve the source words a chunk at a time;
+JSON includes the calls under `text_reads`. `task activity` points to the same
+reads because its event log begins after the brief. `task text --json` gives
+`task`, `field`, `from`, `total`, `text` and `next`; null `next` ends the read.
+Use the printed offset, which keeps UTF-8 characters whole. After amending the
+task or moving its settings revision, restart at zero for its current text.

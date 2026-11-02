@@ -191,8 +191,8 @@ fn me_text(me: &Me, book: &Phrasebook, limits: &Limits, out: &mut Text) {
         out.put(b"+");
     }
     out.put(b"\nretention: ");
-    out.number(me.retention.as_nanos());
-    out.put(b" ns\n");
+    out.number(me.retention.as_nanos().checked_div(1_000_000_000).expect("nonzero divisor"));
+    out.put(b" seconds\n");
     offers::text(me, limits, out);
 }
 fn role(role: HeldRole, out: &mut Text) {
@@ -258,6 +258,7 @@ fn task_text(
     if let Some(instructions) = &task.instructions {
         instruction_words::text(instructions, out);
     }
+    super::task_source::summary(task, out);
     task_settings::text(task.settings.as_ref(), out);
     dependencies::text(task, me, book, out);
     llm::text_wait(task.run_wait, out);

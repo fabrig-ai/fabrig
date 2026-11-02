@@ -15,7 +15,7 @@
         "core.load_bytes": 8192,
         "core.load_slots": 8,
         "core.policy_bytes": 5120,
-        "core.resume_bytes": 1327964,
+        "core.resume_bytes": 1327735,
         "core.run_bytes": 4096,
         "core.templates": 2,
         "documents.chips": 2,
@@ -27,9 +27,9 @@
         "fleet.engine_slots": 0,
         "fleet.grace_ms": 3000,
         "fleet.turns": 8,
-        "hub.transcript_bytes": 5311856,
-        "hub.turn_bytes": 1327960,
-        "hub.turn_queue_bytes": 10623680,
+        "hub.transcript_bytes": 5310931,
+        "hub.turn_bytes": 1327731,
+        "hub.turn_queue_bytes": 10621848,
         "hub.turns": 1,
         "link.ping_ms": 100,
         "link.silence_ms": 1000,
@@ -236,11 +236,11 @@
         "forge.resources_per_task": 2,
         "forge_component.connections": 4,
         "git_component.stdout_bytes": 2048,
-        "root.journal.transcript_bytes": 1327964,
-        "root.loads.bytes": 1328208,
-        "root.loads.read_bytes": 2655920,
-        "root.loads.reply_bytes": 1328208,
-        "root.loads.transcript_bytes": 1327960
+        "root.journal.transcript_bytes": 1327735,
+        "root.loads.bytes": 1327979,
+        "root.loads.read_bytes": 2655462,
+        "root.loads.reply_bytes": 1327979,
+        "root.loads.transcript_bytes": 1327731
       }}
     }},
     "workers": []

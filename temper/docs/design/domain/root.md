@@ -769,6 +769,16 @@ which the forge keeps under the call's key and the root writes beside
 the call's record in the same commit. Asked again, the answer is put
 together again from both. A run's read is answered through the door.
 
+Read refusals also emit volatile root facts naming task, attempt, tool,
+refusing layer and reason (`agent.md`, 8). Authority findings survive as
+`ToolDenied`; local routing errors and forge errors retain their layer in
+the fact. Call admission distinguishes call-record room from archive-read
+room while keeping the host's busy response. The service drains the new
+facts into operator notes as note room returns; a full diagnostic sink
+changes no tool decision. The root's bounded fact queue counts overflow,
+and no diagnostic variant enters the store or client wire.
+
+
 ### 7.4 What a run left
 
 - **Pushed heads,** from the answer's parts, kept until the core says the

@@ -127,27 +127,7 @@ pub(crate) fn cap(
     let Some((start, end)) = window(d, row.task) else { return decision };
     match decision {
         change::Decision::Wait { until: Some(until) } => {
-            let first = match row.change.state {
-                change::State::First { .. } => true,
-                change::State::Producing { .. }
-                | change::State::Opening { .. }
-                | change::State::Recreating { .. }
-                | change::State::Reopening { .. }
-                | change::State::Checking { .. }
-                | change::State::Gating { .. }
-                | change::State::CancellingGates { .. }
-                | change::State::Queued { .. }
-                | change::State::Ready { .. }
-                | change::State::Preparing { .. }
-                | change::State::Updating { .. }
-                | change::State::Resolving { .. }
-                | change::State::Repairing { .. }
-                | change::State::Landing { .. }
-                | change::State::Ended
-                | change::State::Landed { .. }
-                | change::State::Held { .. } => false,
-            };
-            if first
+            if let change::State::First { .. } = row.change.state
                 && facts.contains_base == change::Status::Passed
                 && facts.mergeable == change::Status::Pending
                 && !facts.writer_taken
@@ -174,6 +154,7 @@ pub(crate) fn cap(
         | change::Decision::QueueRepair
         | change::Decision::Finish { .. }
         | change::Decision::Cancel
+        | change::Decision::NoChange
         | change::Decision::Hold(_) => decision,
     }
 }

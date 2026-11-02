@@ -315,3 +315,28 @@ fn said_origin_keeps_the_dialects_complete_bounded_host() {
     terminal(&mut h, 1, 2, Err(Error::Refused));
     assert_eq!(origins(&h).as_slice(), &[origin(&host)]);
 }
+
+#[test]
+fn a_second_results_host_is_followed_but_an_unrelated_origin_is_refused() {
+    let second = b"productionresultssa17.blob.core.windows.net";
+    let mut settings = settings();
+    let forge = settings.forges.get_mut(0).expect("forge");
+    forge.log_origins.push(LogOrigin { origin: origin(second), address: configured().address }).expect("second host");
+    let mut h = harness(settings);
+    log_read(&mut h, 1);
+    h.answer(FORGE, &redirect(second));
+    h.run(Duration::ZERO);
+    h.connected(LOG_ENDPOINT);
+    h.answer(LOG_ENDPOINT, &f::ok(b"log"));
+    terminal(
+        &mut h,
+        1,
+        3,
+        Ok(Answer::Job { attempt: attempt(), step: None, log: Box::from(b"log".as_slice()), truncated: false }),
+    );
+    assert!(origins(&h).is_empty());
+    log_read(&mut h, 2);
+    h.answer(FORGE, &redirect(b"unrelated.example.test"));
+    terminal(&mut h, 2, 2, Err(Error::Refused));
+    assert_eq!(origins(&h).as_slice(), &[origin(b"unrelated.example.test")]);
+}

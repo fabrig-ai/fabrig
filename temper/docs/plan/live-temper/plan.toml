@@ -1,0 +1,32 @@
+draft = "live-temper"
+repo = "fabrig"
+sources = ["temper/docs/plan/live-temper/inputs/request.md", "AGENTS.md"]
+
+# The two owned-forge landing stories run after every landing on shelf logins
+# (inputs/request.md, the user's decision of 11-02): the live-temper profile selects them
+# alone, each takes its own store under one TEMPER_LIVE_STORE, Claude runs on
+# claude-haiku-5-5, and testing.md 2.7 says what runs and what stays the owner's.
+# One direct part of three independent tasks, each built to notes/contracts.md.
+
+retired = true
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "live-pair"
+title = "the owned-forge landing pair runs after every landing, a fresh store each, on the cheapest models"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/testing.md, 2.7"
+
+[[slice]]
+id = 1
+story = "under --run-ignored only, profile live-temper lists exactly the two owned-forge landing stories, each takes its own store under one TEMPER_LIVE_STORE, and the Claude story asks for claude-haiku-5-5"
+parts = ["live-pair"]
+walk = false
+
+[[question]]
+id = "pair-timeout"
+text = """Profile live-temper's global-timeout is 50 minutes, set when the owner ran one story at a time; each landing story bounds itself at 40 minutes, and after every landing the two now run in one invocation, one after the other. If the first takes long, the 50 minutes stop the second, and it fails on the profile's bound rather than its own. No wall time of either story is recorded. Default taken: 50 minutes unchanged (task pair-profile). Options: keep 50 minutes and set the figure from the first after-landing runs' wall times, by your x1.5 rule (recommended); or raise it now to 85 minutes, both stories' bounds and 5 minutes."""
+parts = ["live-pair"]
