@@ -186,3 +186,14 @@ Pre-approved options:
 As the implementer's text says, and also: the stores' and the launcher's shapes chosen; the
 suite counts; shellcheck's output; under `## Left`, `jig/scripts/live-sign-in.sh`'s
 `--profile live`.
+
+## Answers
+
+2026-11-02. Q: shellcheck is not on hetzner9's PATH; install it, or supply one?
+A: Neither: installing a package on a builder is the user's, and no gate step runs
+shellcheck, so it does not block this task. Run `shellcheck` on the two scripts when
+`command -v shellcheck` finds it; otherwise run `bash -n` on both (it must pass), keep each
+`# shellcheck disable=...` directive directly above the nextest line it covers today, and
+report `shellcheck: not on PATH, not run; bash -n clean`. That stands in for the acceptance's
+shellcheck line and step 6's shellcheck command; everything else in the task is unchanged.
+Go on with the implementation.
