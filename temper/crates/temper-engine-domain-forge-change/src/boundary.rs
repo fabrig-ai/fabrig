@@ -169,6 +169,8 @@ pub enum State {
     Landing { head: Commit },
     /// The pull request merged at this commit.
     Landed { merge: Commit },
+    /// The producer concluded that the request does not apply, with no landing.
+    NoChange { words: Box<[u8]> },
     /// The task ended after its outstanding effects and holdings settled.
     Ended,
     /// No write is made until a release lifts this cause.
@@ -349,6 +351,8 @@ pub enum Decision {
     QueueRepair,
     /// Finish with the observed merge commit.
     Finish { merge: Commit },
+    /// Finish successfully with the producer's no-change explanation.
+    NoChange,
     /// Finish cancellation after the top settles pending effects.
     Cancel,
     /// Hold the task and tell its requester why.

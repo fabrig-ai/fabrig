@@ -366,6 +366,7 @@ pub(crate) fn watch_inputs(inbox: Box<[tasks::Word]>) -> Box<[observability::Wat
                         observability::ResultKind::Verdict { code, fields: values.into_boxed() }
                     }
                     tasks::ResultKind::Approved { .. }
+                    | tasks::ResultKind::NoChange
                     | tasks::ResultKind::Report
                     | tasks::ResultKind::Change { .. }
                     | tasks::ResultKind::Failed

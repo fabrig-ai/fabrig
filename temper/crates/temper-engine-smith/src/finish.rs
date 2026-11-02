@@ -84,6 +84,12 @@ pub fn result(answer: run::Answer, change: Option<ChangeResource>) -> Result<Ter
             let result = match outcome {
                 run::outcome::Declared::Report(report) => tasks::TaskResult::Report { words: report.text },
                 run::outcome::Declared::Failure(failure) => tasks::TaskResult::Failure { reason: failure.reason },
+                run::outcome::Declared::Verdict(verdict) if verdict.name.as_ref() == b"no_change" => {
+                    if !verdict.items.is_empty() || !verdict.fields.is_empty() || change.is_some() {
+                        return Err(Problem::Type(b"no_change"));
+                    }
+                    tasks::TaskResult::NoChange { words: verdict.text }
+                }
                 run::outcome::Declared::Verdict(verdict) => {
                     if !verdict.items.is_empty() {
                         return Err(Problem::Type(b"items"));

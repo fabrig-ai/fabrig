@@ -1727,3 +1727,31 @@ fn a_chats_answer_refusal_names_its_persons_inbox_question() {
         b"Refused: task 99 your person answers question 42 in their inbox",
     );
 }
+
+#[test]
+fn a_no_change_verdict_preserves_its_explanation_and_cannot_claim_a_resource() {
+    let answer = || {
+        let declared = run::outcome::Declared::Verdict(run::outcome::Verdict {
+            name: b"no_change".as_slice().into(),
+            text: b"No widget UI exists".as_slice().into(),
+            fields: Box::new([]),
+            items: Box::new([]),
+        });
+        run::Answer::Accepted { outcome: declared, spent: spend(3), turns: 1 }
+    };
+    assert_eq!(
+        result(answer(), None),
+        Ok(crate::Terminal {
+            cumulative: 3,
+            turns: 1,
+            end: tasks::End::Finished {
+                result: tasks::TaskResult::NoChange { words: b"No widget UI exists".as_slice().into() },
+                cancel_delegates: false,
+            },
+        })
+    );
+    assert_eq!(
+        result(answer(), Some(ChangeResource { connector: 1, kind: 2, resource: 42 })),
+        Err(Problem::Type(b"no_change"))
+    );
+}

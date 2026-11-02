@@ -271,7 +271,11 @@ fn terminal_change_ci_round_trips_with_or_without_an_observation() {
     const HEAD: skein_forge::api::Commit = [15; 32]; // change_row's last_head.
     const MERGE: skein_forge::api::Commit = [1; 32];
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
-    for state in [State::Landed { merge: MERGE }, State::Ended] {
+    for state in [
+        State::Landed { merge: MERGE },
+        State::Ended,
+        State::NoChange { words: b"No widget UI exists".as_slice().into() },
+    ] {
         for ci in [
             None,
             Some(Ci { head: HEAD, status: Status::Unknown }),

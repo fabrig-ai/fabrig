@@ -782,7 +782,7 @@ pub struct ChangeRow {
 impl ChangeRow {
     pub(crate) fn terminal(&self) -> bool {
         match self.change.state {
-            change::State::Landed { .. } | change::State::Ended => true,
+            change::State::Landed { .. } | change::State::NoChange { .. } | change::State::Ended => true,
             change::State::Producing { .. }
             | change::State::Opening { .. }
             | change::State::Recreating { .. }
@@ -1397,6 +1397,8 @@ pub enum Event {
         task: u64,
         child: u64,
         status: change::Status,
+        /// The child explicitly concluded that no change applies.
+        no_change: bool,
         /// The child failed to produce a result, rather than returning a negative verdict.
         failed: bool,
         /// The delegate was cancelled; it supplied no verdict and used no review retry.

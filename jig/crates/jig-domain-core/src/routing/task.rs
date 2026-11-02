@@ -238,7 +238,8 @@ fn question_event(core: &Core, event: tasks::Event) -> tasks::Event {
 
 pub(crate) fn result_words(result: tasks::TaskResult) -> Box<[u8]> {
     match result {
-        tasks::TaskResult::Report { words }
+        tasks::TaskResult::NoChange { words }
+        | tasks::TaskResult::Report { words }
         | tasks::TaskResult::Verdict { words, .. }
         | tasks::TaskResult::Change { words, .. } => words,
         tasks::TaskResult::Approved { words, .. } => match words {
@@ -271,6 +272,7 @@ pub(crate) fn result_notice(ending: tasks::Ending) -> (tasks::ResultKind, Box<[u
                 };
                 (tasks::ResultKind::Approved { state, words_present }, words)
             }
+            tasks::TaskResult::NoChange { words } => (tasks::ResultKind::NoChange, words),
             tasks::TaskResult::Report { words } => (tasks::ResultKind::Report, words),
             tasks::TaskResult::Verdict { code, words, fields } => (tasks::ResultKind::Verdict { code, fields }, words),
             tasks::TaskResult::Change { connector, kind, resource, words, .. } => {

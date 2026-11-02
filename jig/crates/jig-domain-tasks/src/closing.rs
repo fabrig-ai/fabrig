@@ -454,9 +454,19 @@ fn end_task(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue
         Status::Failed => crate::NoticeState::Failed,
         Status::Cancelled => crate::NoticeState::Cancelled,
     };
-    let words = match &ending {
+    let words = ending_words(&ending);
+    crate::subscriptions::notify_state(domain, number, state, words, out);
+    out.push(Request::Ended { task: number, requester, ending });
+    fact(domain, Fact::Ended { task: number, status });
+}
+
+fn ending_words(ending: &Ending) -> &[u8] {
+    match ending {
         Ending::Done(
-            TaskResult::Report { words } | TaskResult::Verdict { words, .. } | TaskResult::Change { words, .. },
+            TaskResult::NoChange { words }
+            | TaskResult::Report { words }
+            | TaskResult::Verdict { words, .. }
+            | TaskResult::Change { words, .. },
         ) => words.as_ref(),
         Ending::Done(TaskResult::Approved { words, .. }) => match words {
             Some(words) => words.as_ref(),
@@ -465,10 +475,7 @@ fn end_task(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue
         Ending::Done(TaskResult::Failure { reason }) | Ending::Failed { reason } | Ending::Cancelled { reason, .. } => {
             reason.as_ref()
         }
-    };
-    crate::subscriptions::notify_state(domain, number, state, words, out);
-    out.push(Request::Ended { task: number, requester, ending });
-    fact(domain, Fact::Ended { task: number, status });
+    }
 }
 
 fn end_milestone(ended: &mut crate::TaskRecord, at: skein_lib::Wall, out: &mut Queue<Request>) {

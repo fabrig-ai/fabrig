@@ -173,18 +173,8 @@ pub(crate) fn valid_result(contract: &Contract, result: &TaskResult, limits: &Li
 
 pub(crate) fn invalid_result(contract: &Contract, result: &TaskResult, limits: &Limits) -> Option<InvalidResult> {
     match result {
-        TaskResult::Approved { state, .. } => match contract {
-            Contract::Approval { state: expected, .. } => {
-                if state != expected {
-                    Some(InvalidResult::Form)
-                } else if result_bytes(result) > skein_lib::length::usize_of(limits.result_bytes) {
-                    Some(InvalidResult::Words)
-                } else {
-                    None
-                }
-            }
-            Contract::Report { .. } | Contract::Verdict { .. } | Contract::Change { .. } => Some(InvalidResult::Form),
-        },
+        TaskResult::NoChange { words } => invalid_no_change(contract, words, limits),
+        TaskResult::Approved { .. } => invalid_approval(contract, result, limits),
         TaskResult::Failure { reason } => match contract {
             Contract::Approval { .. }
             | Contract::Report { .. }
@@ -229,6 +219,36 @@ pub(crate) fn invalid_result(contract: &Contract, result: &TaskResult, limits: &
         TaskResult::Change { connector, kind, title, words, .. } => {
             invalid_change(contract, *connector, *kind, &title.words, words, limits)
         }
+    }
+}
+
+fn invalid_no_change(contract: &Contract, words: &[u8], limits: &Limits) -> Option<InvalidResult> {
+    match contract {
+        Contract::Change { words: bound, .. } => {
+            if words.len() <= skein_lib::length::usize_of((*bound).min(limits.result_bytes)) {
+                None
+            } else {
+                Some(InvalidResult::Words)
+            }
+        }
+        Contract::Approval { .. } | Contract::Report { .. } | Contract::Verdict { .. } => Some(InvalidResult::Form),
+    }
+}
+
+fn invalid_approval(contract: &Contract, result: &TaskResult, limits: &Limits) -> Option<InvalidResult> {
+    match contract {
+        Contract::Approval { state: expected, .. } => {
+            if let TaskResult::Approved { state, .. } = result
+                && state != expected
+            {
+                Some(InvalidResult::Form)
+            } else if result_bytes(result) > skein_lib::length::usize_of(limits.result_bytes) {
+                Some(InvalidResult::Words)
+            } else {
+                None
+            }
+        }
+        Contract::Report { .. } | Contract::Verdict { .. } | Contract::Change { .. } => Some(InvalidResult::Form),
     }
 }
 
@@ -303,7 +323,7 @@ pub(crate) fn invalid_followups(
 
 pub(crate) fn result_bytes(result: &TaskResult) -> usize {
     match result {
-        TaskResult::Report { words } => words.len(),
+        TaskResult::Report { words } | TaskResult::NoChange { words } => words.len(),
         TaskResult::Change { title, words, .. } => title.words.len().max(words.len()),
         TaskResult::Verdict { words, fields, .. } => match crate::verdict::fields_bytes(fields) {
             Some(bytes) => bytes.saturating_add(words.len()),
@@ -323,6 +343,7 @@ fn ending(result: TaskResult) -> Ending {
         TaskResult::Approved { .. }
         | TaskResult::Report { .. }
         | TaskResult::Verdict { .. }
+        | TaskResult::NoChange { .. }
         | TaskResult::Change { .. } => Ending::Done(result),
     }
 }
