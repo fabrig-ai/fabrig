@@ -88,8 +88,9 @@ fn read_op(read: &client::Read, l: &Limits) -> forge::Read {
             limit: l.rows,
         },
         client::Read::Run { run } => forge::Read::Run { run: *run },
-        client::Read::Artifact { .. } | client::Read::Commits { .. } => {
-            panic!("skein-fake-reports supplies artifact and commit reads")
+        client::Read::Artifact { run, name, .. } => forge::Read::Artifact { run: *run, name: name.clone() },
+        client::Read::Commits { before, after, .. } => {
+            forge::Read::Commits { before: number(*before), after: number(*after) }
         }
         client::Read::Tree { object, page } => forge::Read::GitTree {
             object: if commit(u64::from_be_bytes(object[8..16].try_into().expect("object count bytes"))) == *object {
@@ -248,6 +249,38 @@ pub fn answer_as(
     signatures: bool,
 ) -> client::Answer {
     match answer {
+        forge::Answer::Artifact { commit: head, artifact } => {
+            let client::Op::Read(client::Read::Artifact { max_bytes, .. }) = asked else {
+                panic!("artifact read");
+            };
+            let bytes = artifact.bytes;
+            let kept = bytes.len().min(usize::try_from(*max_bytes).expect("byte bound fits"));
+            client::Answer::File {
+                head: commit(head),
+                path: artifact.path,
+                bytes: Box::from(&bytes[..kept]),
+                truncated: kept < bytes.len(),
+            }
+        }
+        forge::Answer::Commits { commits } => {
+            let client::Op::Read(client::Read::Commits { page, .. }) = asked else {
+                panic!("commits read");
+            };
+            let size = usize::try_from(l.rows).expect("page size fits");
+            let skip = usize::try_from(page.saturating_sub(1)).expect("page fits").saturating_mul(size);
+            let more = commits.len() > skip.saturating_add(size);
+            let commits = commits
+                .into_iter()
+                .skip(skip)
+                .take(size)
+                .map(|value| client::CommitMessage {
+                    id: commit(value.id),
+                    parents: value.parents.into_iter().map(commit).collect(),
+                    message: value.message,
+                })
+                .collect();
+            client::Answer::Commits { commits, more }
+        }
         forge::Answer::Located { id } => client::Answer::Located { repository: id },
         forge::Answer::Items { items, more, now } => {
             let mut rows = List::with_capacity(l.rows);
@@ -359,6 +392,7 @@ pub fn answer_as(
         forge::Answer::Comment { .. }
         | forge::Answer::Dependencies(_)
         | forge::Answer::Labels(_)
+        | forge::Answer::Artifacts(_)
         | forge::Answer::Tree(_)
         | forge::Answer::Pages { .. }
         | forge::Answer::Page(_)

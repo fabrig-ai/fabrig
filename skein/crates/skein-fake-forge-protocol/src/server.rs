@@ -846,10 +846,12 @@ fn error_reply(server: &mut Server, env: &Env<Limits>, error: api::Error) {
 fn respond(server: &mut Server, reply: response::Reply) {
     let mut headers =
         List::with_capacity(u32::try_from(reply.headers.len()).expect("bounded headers").saturating_add(1));
+    let mut content_type = false;
     for header in reply.headers {
+        content_type |= header.name.eq_ignore_ascii_case(b"content-type");
         headers.push(header).expect("response headers");
     }
-    if !reply.body.is_empty() {
+    if !reply.body.is_empty() && !content_type {
         headers
             .push(Header {
                 name: bytes::copy_of(b"content-type"),

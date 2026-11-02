@@ -398,6 +398,40 @@ fn checks(config: &Config, setup: &Store, request: &Request, values: &[a::CheckS
 #[expect(clippy::too_many_lines, reason = "each domain answer has an explicit Forgejo document projection")]
 pub fn read(config: &Config, setup: &Store, request: &Request, answer: &a::Answer) -> Result<Answer, a::Error> {
     match answer {
+        a::Answer::Artifacts(values) => {
+            let Request::Artifacts { run, name, .. } = request else {
+                return Err(a::Error::Refused);
+            };
+            let mut out = List::with_capacity(u32::try_from(values.len()).expect("bounded artifacts"));
+            for value in values {
+                if name.is_none() || name.as_ref() == Some(&value.name) {
+                    out.push(d::Artifact {
+                        id: value.id,
+                        name: value.name.clone(),
+                        run_id: *run,
+                        size_in_bytes: value.size_in_bytes,
+                    })
+                    .expect("artifact subset");
+                }
+            }
+            Ok(Answer::Artifacts(out.into_boxed()))
+        }
+        a::Answer::Commits { commits } => {
+            let mut out = List::with_capacity(u32::try_from(commits.len()).expect("domain bound"));
+            for value in commits.iter().rev() {
+                let mut parents = List::with_capacity(u32::try_from(value.parents.len()).expect("bounded parents"));
+                for id in &value.parents {
+                    parents.push(routes::object(*id)).expect("one id per parent");
+                }
+                out.push(d::CommitMessage {
+                    id: routes::object(value.id),
+                    parents: parents.into_boxed(),
+                    message: value.message.clone(),
+                })
+                .expect("one row per commit");
+            }
+            Ok(Answer::Commits { commits: out.into_boxed() })
+        }
         a::Answer::Settings(settings) => repository(config, request, settings),
         a::Answer::Items { items, .. } => {
             let mut out = List::with_capacity(u32::try_from(items.len()).expect("domain bound"));
@@ -495,6 +529,7 @@ pub fn read(config: &Config, setup: &Store, request: &Request, answer: &a::Answe
         | a::Answer::Comment { .. }
         | a::Answer::Dependencies(_)
         | a::Answer::Labels(_)
+        | a::Answer::Artifact { .. }
         | a::Answer::Tree(_)
         | a::Answer::Directory(_)
         | a::Answer::File(_)

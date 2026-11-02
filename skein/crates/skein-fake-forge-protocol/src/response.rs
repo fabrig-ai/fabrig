@@ -51,6 +51,9 @@ fn number(answer: &Answer) -> Option<u64> {
         | Answer::Commit(_)
         | Answer::GitTree { .. }
         | Answer::Tree(_)
+        | Answer::Artifacts(_)
+        | Answer::Artifact { .. }
+        | Answer::Commits { .. }
         | Answer::Directory(_)
         | Answer::File(_)
         | Answer::Pages { .. }
@@ -65,10 +68,7 @@ fn number(answer: &Answer) -> Option<u64> {
 }
 pub fn follow(request: &Request, answer: &Answer) -> Result<Option<(a::Read, Select)>, a::Error> {
     let next = match request {
-        Request::Artifacts { .. }
-        | Request::ArtifactZip { .. }
-        | Request::Commits { .. }
-        | Request::Tokens { .. }
+        Request::Tokens { .. }
         | Request::CreateToken { .. }
         | Request::DeleteToken { .. }
         | Request::UserOf { .. }
@@ -150,16 +150,16 @@ pub fn follow(request: &Request, answer: &Answer) -> Result<Option<(a::Read, Sel
         | Request::RemoveReviewers { .. }
         | Request::Merge { .. }
         | Request::Update { .. }
+        | Request::Artifacts { .. }
+        | Request::ArtifactZip { .. }
+        | Request::Commits { .. }
         | Request::DeleteBranch { .. } => return Ok(None),
     };
     Ok(Some(next))
 }
 pub fn select(config: &Config, request: &Request, range: Option<Range>) -> Result<Select, a::Error> {
     match request {
-        Request::Artifacts { .. }
-        | Request::ArtifactZip { .. }
-        | Request::Commits { .. }
-        | Request::Tokens { .. }
+        Request::Tokens { .. }
         | Request::CreateToken { .. }
         | Request::DeleteToken { .. }
         | Request::UserOf { .. }
@@ -218,6 +218,9 @@ pub fn select(config: &Config, request: &Request, range: Option<Range>) -> Resul
         | Request::Pulls { .. }
         | Request::PullFiles { .. }
         | Request::Compare { .. }
+        | Request::Artifacts { .. }
+        | Request::ArtifactZip { .. }
+        | Request::Commits { .. }
         | Request::Tree { .. }
         | Request::WorkflowRuns { .. }
         | Request::Dispatch { .. }
@@ -419,6 +422,9 @@ fn document(
         | Answer::Labels(_)
         | Answer::GitTree { .. }
         | Answer::Tree(_)
+        | Answer::Artifacts(_)
+        | Answer::Artifact { .. }
+        | Answer::Commits { .. }
         | Answer::Directory(_)
         | Answer::File(_)
         | Answer::Pages { .. }
@@ -444,6 +450,21 @@ pub fn answer(
 ) -> Result<Reply, a::Error> {
     bounded::answer(config, limits, answer).ok_or(a::Error::TooLarge)?;
     match answer {
+        Answer::Artifact { artifact, .. } => {
+            let Request::ArtifactZip { .. } = request else {
+                return Err(a::Error::Refused);
+            };
+            let body = crate::zip::write(&artifact.path, &artifact.bytes, artifact.deflate, limits.raw_bytes)
+                .or(Err(a::Error::TooLarge))?;
+            return Ok(Reply {
+                status: 200,
+                headers: Box::new([skein_http::Header {
+                    name: bytes::copy_of(b"content-type"),
+                    value: bytes::copy_of(b"application/zip"),
+                }]),
+                body,
+            });
+        }
         Answer::Done | Answer::Merged(_) => {
             return Ok(Reply { status: status(request), headers: Box::from([]), body: Box::from([]) });
         }
@@ -484,6 +505,8 @@ pub fn answer(
         | Answer::Commit(_)
         | Answer::GitTree { .. }
         | Answer::Tree(_)
+        | Answer::Artifacts(_)
+        | Answer::Commits { .. }
         | Answer::Pages { .. }
         | Answer::Page(_)
         | Answer::Created(_)
@@ -500,6 +523,23 @@ pub fn answer(
     };
     let mut headers = List::with_capacity(1);
     match answer {
+        Answer::Artifacts(values) => {
+            let Request::Artifacts { name, .. } = request else {
+                return Err(a::Error::Refused);
+            };
+            let mut count = 0u64;
+            for value in values {
+                if name.is_none() || name.as_ref() == Some(&value.name) {
+                    count = count.saturating_add(1);
+                }
+            }
+            headers
+                .push(skein_http::Header {
+                    name: bytes::copy_of(b"x-total-count"),
+                    value: bytes::copy_of(Decimal::of(count).as_bytes()),
+                })
+                .expect("one header");
+        }
         Answer::PullFiles { more, .. } => headers
             .push(skein_http::Header {
                 name: bytes::copy_of(b"x-hasmore"),
@@ -529,6 +569,8 @@ pub fn answer(
         | Answer::Commit(_)
         | Answer::GitTree { .. }
         | Answer::Tree(_)
+        | Answer::Artifact { .. }
+        | Answer::Commits { .. }
         | Answer::Directory(_)
         | Answer::File(_)
         | Answer::Pages { .. }
@@ -857,6 +899,17 @@ mod bounded {
                     budget.row(0)?;
                 }
             }
+            a::Answer::Artifacts(values) => {
+                for value in values {
+                    budget.row(value.name.len())?;
+                }
+            }
+            a::Answer::Commits { commits } => {
+                for commit in commits {
+                    let parents = commit.parents.len().checked_mul(size_of::<skein_forge::forgejo::id::ObjectId>())?;
+                    budget.row(commit.message.len().checked_add(parents)?)?;
+                }
+            }
             a::Answer::Cloned { branches, .. } => {
                 for branch in branches {
                     budget.row(branch.branch.len())?;
@@ -880,6 +933,7 @@ mod bounded {
             | a::Answer::Labels(_)
             | a::Answer::Commit(_)
             | a::Answer::Tree(_)
+            | a::Answer::Artifact { .. }
             | a::Answer::Pages { .. }
             | a::Answer::Page(_)
             | a::Answer::Created(_)
