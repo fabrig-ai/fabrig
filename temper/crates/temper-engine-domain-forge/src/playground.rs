@@ -306,19 +306,15 @@ pub(crate) fn removed(d: &mut Domain, out: &mut Queue<Request>) {
     }
 }
 
+/// Reset a restored start or running playground (temper/docs/design/protocol/setup.md, 8.4).
 pub(crate) fn restart(d: &mut Domain, out: &mut Queue<Request>) {
     let Some(mut row) = d.playground else { return };
     match row.state {
-        PlaygroundState::Starting => {
+        PlaygroundState::Starting | PlaygroundState::Running => {
             d.playground_request = None;
             row.state = PlaygroundState::Resetting(ResetStep::Project);
             save(d, row, out);
             reset(d, out);
-        }
-        PlaygroundState::Running => {
-            if needs_group(d, row.forge) {
-                out.push(Request::BoxGroup { forge: row.forge, kind: BoxKind::Fake, request: Token::new(u64::MAX) });
-            }
         }
         PlaygroundState::Resetting(_) => reset(d, out),
     }
