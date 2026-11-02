@@ -390,7 +390,7 @@ experience; good defaults for a person's real work are open (section 8).
   argument; init when empty (3.3).
 - **Its steps,** from the document: the fakes' (3.5), fetch, prepare
   and run for each started owned forge, then `temper serve`; a dormant
-  forge's when asked (3.8). Its policy is section 7.2's, unchanged.
+  forge's when asked (3.8). Its policy is that of setup.md, 7.2, unchanged.
 - **Its stdout** is `temper serve`'s links alone, each whole; its
   terminal is quiet, and each step's lines are in its log (2.5).
 

@@ -534,7 +534,7 @@ sources in its holder's order. temper configures the LLM providers
   sound only because no worker outlives the engine: in standalone the
   worker is in the engine's process, and the cluster restarts whole,
   its workers stopped before its engine and never left under a new one
-  (README, 15.4; section 8).
+  (`README.md`, 15.4; section 8).
 
 ## 5. The forges' access
 
@@ -689,9 +689,9 @@ sources in its holder's order. temper configures the LLM providers
   value once a record is replaced or a token minted, which is sound only
   while no worker outlives the engine; a GitHub forge's identity moves
   about one generation an hour per installation. Default: standalone,
-  and the cluster restarted whole (README, 15.4); a fleet whose workers
+  and the cluster restarted whole (`README.md`, 15.4); a fleet whose workers
   outlive the engine waits for generations kept across starts, with
-  hosts apart (README, section 14).
+  hosts apart (`README.md`, section 14).
 - **A GitHub entry chosen by the owner's id.** The routing matches a
   repository to an entry by its owner's login, since an adopted
   repository keeps no owner's id, so an account renamed after adoption
