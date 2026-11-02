@@ -24,3 +24,5 @@
 - **Built:** 8.4: the GitHub gate regression retains the complete
   `opened 2026-11-01T14:07:25Z` line with a marked log cut at the shipped
   CI brief budget; a pin from another head remains unread.
+
+- **Built:** 8.2: the producer's explicit no-change result ends its change successfully, retains its explanation and notifies its requester without a pull request, merge or escalation. Failure results continue to hold.

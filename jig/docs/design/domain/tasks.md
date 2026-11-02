@@ -107,7 +107,10 @@ it is live:
     result-byte limit. The title metadata is boxed to keep inline result
     carriers small. An oversized title is refused before charging its
     attempt. Tasks accounts for both allocations and persistence
-    retains the title; inbox result notices carry the summary words;
+    retains the title; inbox result notices carry the summary words.
+    A change contract also accepts a successful `NoChange` result: an
+    explanation within both word bounds, with no resulting resource. It
+    ends done and its requester receives a distinct no-change result notice;
   - *a choice:* one of the options the spec lists, or an answer in
     words, for a person;
   - *an approval,* for a person, of a state a procedure names: the

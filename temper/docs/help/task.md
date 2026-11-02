@@ -15,7 +15,8 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
   is a delegate of its parent, and together they make a tree. A
   delegate's result reaches its parent, which its run hears as its
   rules for waking say. A change task is a delegate run by the forge,
-  whose result is a change landed (temper help box); it starts with
+  whose result is a change landed (temper help box) or an explanation
+  that no change applies; it starts with
   half of what its parent has left to spend. A change asks no one,
   and neither do the agents it delegates: a question or words sent to
   it by a task are answered that a change takes none, naming its

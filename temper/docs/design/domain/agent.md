@@ -280,11 +280,12 @@ forge's `read_branch` for its head, then `read_file`. It calls `change`
 with the person's request and only what it read, never describing code
 it has not read. For a fix, if the named fault is absent, it changes
 nothing and says what the code has. The stock coder likewise writes
-nothing and finishes with a failure saying what the code has when the
+nothing and finishes with the successful `no_change` verdict saying what the code has when the
 named fault is absent, never adding a feature in a fix's place. Where
 the change's words describe the code otherwise than it is, the coder
 builds what they ask to add in the code there is, under its names,
-finishing with a failure only when it cannot be built there. When a change
+finishing with `no_change` only when it cannot be built there.
+An error that prevents production is a failure and keeps its recovery hold. When a change
 lands, the chat names the pull request and merge commit from its result's
 `Landed` line, and describes what changed only as the result or pull request says,
 never by restating the request as done.
@@ -414,8 +415,12 @@ smith's (smith's `domain/run.md`, 7.1):
 |---|---|
 | a report: words, bounded | a report, and a failure, within the same bound |
 | a verdict from a closed list, each with the fields it requires and the follow-up tasks it may propose | a verdict for each choice, named by its number, with its fields and its words' bound; follow-ups as items, of the kinds of task the verdict may propose; a failure of at most 1,024 bytes |
-| a connector's result: a change landed | a change, requiring the fields `title` and `body`, each within the contract's bound, its checks required; a failure within the same bound |
+| a connector's result: a change landed or a successful no-change conclusion | a change, requiring the fields `title` and `body`, each within the contract's bound, its checks required; a `no_change` verdict with bounded text and no fields or items; a failure within the same bound |
 | an approval | a failure only, of at most 1,024 bytes: approvals are people's |
+
+The `no_change` verdict becomes jig's successful `NoChange` result. It
+retains the explanation, supplies no resource or landing, and ends the
+change without a hold or escalation. The requester receives that result.
 
 A change's result names the resource the worker's push and the forge
 settled, never one from the LLM's fields. Its explicit `title` and `body`

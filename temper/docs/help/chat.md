@@ -19,10 +19,11 @@ A chat is a conversation between a party and an agent in a project: an untracked
   with the host tool `change`, giving the party's request and only code
   it has read. If a fix's named fault is absent, it changes nothing and
   says what the code has. The coder also writes nothing and finishes
-  with a failure for an absent fault, never adding a feature in a fix's
-  place. If the change's words describe the code wrongly, the coder
+  successfully with a no-change explanation for an absent fault, never
+  adding a feature in a fix's place. If the change's words describe the code wrongly, the coder
   builds the requested addition in the code there is, under its names;
-  it fails only when the addition cannot be built there.
+  it ends with a no-change explanation only when the addition cannot be
+  built there. Production errors still hold the change for recovery.
   A change task, the chat's delegate, writes the change, opens its pull
   request and lands it; the chat hears its result (temper help task). Until a
   delegate reports, the chat says it is started, nothing more. When
