@@ -57,8 +57,9 @@ fn covers(
         && draft.tools & !bound.tools.0 == 0
         && draft.notes & !bound.notes.0 == 0
         && draft.delegation.tasks <= bound.tasks
-        && draft.delegation.depth <= bound.depth && draft.delegation.kinds.iter().all(|value| {
-        bound.executors.iter().any(|listed| match (listed, value) {
+        && draft.delegation.depth <= bound.depth
+        && draft.delegation.kinds.iter().all(|value| {
+            bound.executors.iter().any(|listed| match (listed, value) {
             (tasks::AuthorityExecutor::Charter(a), people::Executor::Charter(b))
             | (tasks::AuthorityExecutor::Procedure(a), people::Executor::Procedure(b))
             | (tasks::AuthorityExecutor::Role(a), people::Executor::Role(b))
@@ -72,14 +73,15 @@ fn covers(
                 | tasks::AuthorityExecutor::Procedure(_)
                 | tasks::AuthorityExecutor::Role(_),
                 people::Executor::Job(_),
-            ) => false,
-            (tasks::AuthorityExecutor::Charter(_), people::Executor::Procedure(_) | people::Executor::Role(_))
+            )
+            | (tasks::AuthorityExecutor::Charter(_), people::Executor::Procedure(_) | people::Executor::Role(_))
             | (tasks::AuthorityExecutor::Procedure(_), people::Executor::Charter(_) | people::Executor::Role(_))
             | (tasks::AuthorityExecutor::Role(_), people::Executor::Charter(_) | people::Executor::Procedure(_)) => {
                 false
             }
         })
-    }) && draft.grants.iter().all(|value| bound.grants.iter().any(|listed| grant(listed, value, implications)))
+        })
+        && draft.grants.iter().all(|value| bound.grants.iter().any(|listed| grant(listed, value, implications)))
         && draft.note_resources.iter().all(|value| {
             bound.note_resources.iter().any(|listed| {
                 listed.connector == value.connector && pattern(&listed.segments, &listed.last, &value.pattern)

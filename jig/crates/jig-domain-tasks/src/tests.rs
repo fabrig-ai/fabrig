@@ -211,7 +211,7 @@ fn job_spec_and_result_heap_bytes_include_their_allocations() {
     use super::{End, JobSpec, TaskResult, task_bytes, terminal_bytes};
     use revisions::{Harness, task};
     let mut h = Harness::new();
-    h.make(vec![task(1, &[])]);
+    h.make([task(1, &[])].into());
     let row = h.domain.task(1).unwrap();
     let before = task_bytes(row).unwrap();
     let mut row = row.clone();

@@ -1538,7 +1538,7 @@ fn job_values_round_trip_with_opaque_bytes_and_deadlines() {
     }
     for deadline in [skein_lib::Duration::ZERO, skein_lib::Duration::from_nanos(u64::MAX)] {
         let spec = t::Spec {
-            job: Some(Box::new(t::JobSpec { bytes: vec![0xff; 32].into_boxed_slice(), deadline })),
+            job: Some(Box::new(t::JobSpec { bytes: Box::new([0xff; 32]), deadline })),
             words: Box::new([]),
             parameters: Box::new([]),
             inputs: Box::new([]),
@@ -1552,9 +1552,9 @@ fn job_values_round_trip_with_opaque_bytes_and_deadlines() {
     let encoded = translate::contract(&contract, &limits).unwrap();
     let encoded = saved_wire(encoded, w::Contract::measure, w::Contract::encode, w::Contract::decode);
     assert_eq!(translate::read_contract(encoded, &limits), Ok(contract));
-    let result = t::TaskResult::Job {
-        bytes: vec![0xff; skein_lib::length::usize_of(limits.job_result_bytes)].into_boxed_slice(),
-    };
+    let mut bytes = skein_lib::bytes::zeroed(skein_lib::length::usize_of(limits.job_result_bytes));
+    bytes.fill(0xff);
+    let result = t::TaskResult::Job { bytes };
     let encoded = phase::result(&result, &limits).unwrap();
     let encoded = saved_wire(encoded, w::TaskResult::measure, w::TaskResult::encode, w::TaskResult::decode);
     assert_eq!(phase::read_result(encoded, &limits), Ok(result));
@@ -1570,7 +1570,7 @@ fn job_spec_bytes_one_past_the_bound_are_refused() {
     let limits = tasks_limits();
     let mut spec = spec_with_bytes(0);
     spec.job = Some(Box::new(jig_domain_tasks::JobSpec {
-        bytes: vec![0xff; 33].into_boxed_slice(),
+        bytes: Box::new([0xff; 33]),
         deadline: skein_lib::Duration::from_secs(7),
     }));
     assert_eq!(translate::spec(&spec, &limits), Err(bound_problem(w::Path::JobSpecBytes)));

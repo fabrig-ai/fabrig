@@ -1677,7 +1677,6 @@ fn initial_change_title(parameters: &[tasks::Parameter]) -> Box<[u8]> {
 /// 3 an optional already-pushed branch, 4 the pull body, 5 priority, and 10 the pull title.
 fn change_delegate_status(kind: &tasks::MessageKind) -> Option<(forge_change::Status, bool, bool)> {
     match kind {
-        tasks::MessageKind::Result(tasks::ResultKind::Job) => None,
         tasks::MessageKind::Result(
             tasks::ResultKind::NoChange
             | tasks::ResultKind::Report
@@ -1689,7 +1688,8 @@ fn change_delegate_status(kind: &tasks::MessageKind) -> Option<(forge_change::St
         tasks::MessageKind::Result(tasks::ResultKind::Verdict { .. } | tasks::ResultKind::Approved { .. }) => {
             Some((forge_change::Status::Failed, false, false))
         }
-        tasks::MessageKind::Escalation { .. }
+        tasks::MessageKind::Result(tasks::ResultKind::Job)
+        | tasks::MessageKind::Escalation { .. }
         | tasks::MessageKind::Proposal { .. }
         | tasks::MessageKind::SettingsDecision { .. }
         | tasks::MessageKind::ProposalDecision { .. }

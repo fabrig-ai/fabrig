@@ -952,8 +952,7 @@ impl Domain {
         record(domain, number)?;
         let task = record(domain, number).expect("activation names live task");
         match task.executor {
-            crate::Executor::Person(_) => return None,
-            crate::Executor::Job { .. } => return None,
+            crate::Executor::Person(_) | crate::Executor::Job { .. } => return None,
             crate::Executor::Agent { .. } | crate::Executor::Procedure { .. } => {}
         }
         let waiting = crate::proposals::waiting_for(domain, number);

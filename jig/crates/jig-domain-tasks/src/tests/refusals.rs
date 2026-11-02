@@ -85,11 +85,18 @@ fn a_batch_naming_a_job_is_refused_until_jobs_are_admitted() {
             creator: Party::Deployment { project: 1 },
             batch: Box::new([member]),
         });
-        assert!(
-            out.iter()
-                .any(|request| matches!(request, Request::Refused { problem, .. } if problem.why == Refusal::Executor))
-        );
+        let mut executor_refusal = false;
+        let mut changed = false;
+        for request in &out {
+            if let Request::Refused { problem, .. } = request {
+                executor_refusal = problem.why == Refusal::Executor;
+            }
+            if let Request::Activate { .. } | Request::Save { .. } = request {
+                changed = true;
+            }
+        }
+        assert!(executor_refusal);
         assert!(h.domain.task(1).is_none());
-        assert!(out.iter().all(|request| !matches!(request, Request::Activate { .. } | Request::Save { .. })));
+        assert!(!changed);
     }
 }
