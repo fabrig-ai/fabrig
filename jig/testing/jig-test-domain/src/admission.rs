@@ -47,6 +47,7 @@ pub fn class(event: &Event) -> Class {
                 | host::LinkUp::Limited { .. }
                 | host::LinkUp::AccountRefused { .. }
                 | host::LinkUp::Turn { .. }
+                | host::LinkUp::JobAnswer { .. }
                 | host::LinkUp::Answer { .. } => Class::Admitted,
             },
         },

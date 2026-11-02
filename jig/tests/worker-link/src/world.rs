@@ -239,7 +239,8 @@ impl World {
                     jig_domain_host::LinkDown::Acknowledge { run, attempt } => {
                         self.trace.push(Trace::Acknowledged(*run, *attempt));
                     }
-                    jig_domain_host::LinkDown::Assign { .. }
+                    jig_domain_host::LinkDown::AssignJob { .. }
+                    | jig_domain_host::LinkDown::Assign { .. }
                     | jig_domain_host::LinkDown::Message { .. }
                     | jig_domain_host::LinkDown::Cancel { .. }
                     | jig_domain_host::LinkDown::Sources { .. }

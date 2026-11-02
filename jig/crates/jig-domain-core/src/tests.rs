@@ -2063,6 +2063,7 @@ fn documents_deployment_keeps_lost_worker_attempts_and_translates_the_grace_cloc
             worker: 0,
             channel: Token::new(10),
             hello: fleet::Hello {
+                jobs: Box::default(),
                 bounds: fixtures::bounds(),
                 stop_bound: Duration::from_secs(1),
                 slots: 1,
@@ -2094,6 +2095,7 @@ fn documents_deployment_keeps_lost_worker_attempts_and_translates_the_grace_cloc
             worker: 1,
             channel: Token::new(11),
             hello: fleet::Hello {
+                jobs: Box::default(),
                 bounds: fixtures::bounds(),
                 stop_bound: Duration::ZERO,
                 slots: 2,

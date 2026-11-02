@@ -231,6 +231,7 @@ fn configured_chat(
         link: engine::Link::Hello {
             worker: 0,
             hello: host::Hello {
+                jobs: Box::default(),
                 slots: WORKER_SLOTS,
                 stop_bound: Duration::from_millis(100),
                 workstreams: Box::new([]),

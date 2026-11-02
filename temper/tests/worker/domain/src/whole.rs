@@ -209,6 +209,7 @@ impl World {
             | host::LinkUp::Unauthorized { .. }
             | host::LinkUp::Limited { .. }
             | host::LinkUp::AccountRefused { .. }
+            | host::LinkUp::JobAnswer { .. }
             | host::LinkUp::Answer { .. } => panic!("unscripted link record: {up:?}"),
         }
     }

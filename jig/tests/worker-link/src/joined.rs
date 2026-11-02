@@ -307,6 +307,7 @@ impl Joined {
                     | host::LinkUp::Limited { .. }
                     | host::LinkUp::Logins { .. }
                     | host::LinkUp::SignedOut { .. }
+                    | host::LinkUp::JobAnswer { .. }
                     | host::LinkUp::AccountRefused { .. } => None,
                 };
                 self.engine_root.push(request);
