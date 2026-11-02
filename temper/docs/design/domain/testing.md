@@ -1,6 +1,6 @@
 # Testing temper
 
-Provisional, 2026-10-03, revised 2026-10-30. How temper is tested. The
+Provisional, 2026-10-03, revised 2026-11-02. How temper is tested. The
 strategy is skein's `docs/foundation/testing-strategy.md`: the tiers,
 faults, what every fake shares, what every world checks, scenarios and
 the referee, the two suites, and where a failure is fixed. This document
@@ -1168,7 +1168,10 @@ section 8; testing-strategy.md, 2.9).
   fails promptly. Active work and final parked replies remain valid. A
   fresh client finds the same chat, pull and merge hash after the box
   restarts on its three directories, without another provider sign-in,
-  push or merge. It closes the chat and drains the box; the sitting
+  push or merge. The change's page says "Passed" for CI at its head on
+  both runs: a landed change keeps its last verdict at its head with its
+  record through the restart (forge.md, 8.8), as 2.6's restart stories
+  read it. It closes the chat and drains the box; the sitting
   allows ten minutes for sign-in, forty minutes in total and 1–25
   completions, counted through ctl. Progress and final evidence reach
   the person through a private notice file, followed by the script and
