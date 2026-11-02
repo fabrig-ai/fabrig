@@ -24,7 +24,10 @@ A change is a task that writes one repository's branch and lands it: its pull re
   `checks at HEAD:` each check at the landed head with its conclusion,
   `repairs: N:` why each repair was asked, and `reviews:`
   each verdict at the head it judged, cut from the end and marked when
-  long. It names no check or test the change didn't see. Or it fails,
+  long. It names no check or test the change didn't see. Where tiers
+  follow its landing branch (temper help tier), the result waits for
+  their verdicts and adds a line, `Cleared by TIER run N.`, or `Not
+  cleared: no verdict within the verification bound.` Or it fails,
   or is cancelled, as any task. If its coder concludes the request does
   not apply, it ends successfully with that explanation: no pull request,
   merge, hold or escalation, and nothing claimed landed. A coder that fails
@@ -61,7 +64,15 @@ Its steps, as `step:` prints them:
   `Repair the base's break at HEAD: BASE`),
   so `task show` names it; the change is checked again;
 - `landing`, then `landed`: temper merges it, and `change show` names
-  the merge commit.
+  the merge commit; a change no tier follows ends there;
+- `verifying`: landed, and a tier following its branch has not judged
+  it yet (temper help tier);
+- `red`: a tier's verdict blames its landing, naming the tier, the
+  run and the failing tests; it stays red until a later run passes
+  them;
+- `cleared`: every tier following its branch cleared it, and it ends
+  with its result; or `landed, uncleared`, past the verification
+  bound with no verdict.
 
 Where its project lands by turn (temper help landing), no CI runs at
 its head and it waits in no queue: `gating` follows `opening`, then:
@@ -121,7 +132,7 @@ forge's answer).
   request's reviews there may be empty.
 - **Bounded work:** past its limit of repairs, resolutions or updates,
   the change holds rather than trying again.
-- **The parent hears its result,** landed or not.
+- **The parent hears its result,** landed, and cleared where tiers follow its branch, or not.
 
 ## Acting on it
 
