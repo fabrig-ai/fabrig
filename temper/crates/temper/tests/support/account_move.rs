@@ -37,7 +37,7 @@ fn configure(directory: &Path, llm: SocketAddr) -> oauth::Peer {
     agent["endpoints"][0]["address"] = llm.to_string().into();
     super::write_private(&agent_path, &serde_json::to_vec(&agent).expect("agent JSON"));
     // Keep init's LLM registration, charters and worker, with no forge records
-    // (temper/docs/design/draft/playground-reset.md, 3).
+    // (temper/docs/design/protocol/setup.md, 8.3).
     let (_, fixture) = super::configuration::documents(
         directory,
         skein_scratch::paths::binary("temper").to_str().expect("a UTF-8 path"),

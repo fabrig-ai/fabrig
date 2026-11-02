@@ -1213,6 +1213,23 @@ fn a_directory_name_written_as_a_prefix_fails_with_the_path_it_resolved_to() {
 }
 
 #[test]
+fn a_write_under_the_one_directory_s_name_lands_beneath_it() {
+    const ONE: &[(&[u8], usize, bool)] = &[(b"work", 0, true)];
+    let fixture = Fixture::new();
+    let authority = mounted_authority(&fixture, ONE, MODIFY);
+    let mut world = World::new(Settings::calm(9110), fixture.checkout);
+    let session = world.session(
+        Time::ZERO,
+        authority,
+        vec![Step::Calls(vec![write(b"work/first.txt", b"first\n"), write(b"first.txt", b"first\n")])],
+    );
+    world.run(ITERATIONS);
+    assert_eq!(world.answers(session), vec![&written(true), &written(true)]);
+    assert_eq!(world.checkout().content(b"work/temper/work/first.txt"), Some(b"first\n".as_slice()));
+    assert_eq!(world.checkout().content(b"work/temper/first.txt"), Some(b"first\n".as_slice()));
+}
+
+#[test]
 fn a_host_alias_reaches_the_same_file() {
     let fixture = Fixture::new();
     let mut authority = fixture.authority(MODIFY);

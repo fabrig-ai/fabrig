@@ -1,5 +1,5 @@
 //! A cut setup starts over; a cut removal ends whole at startup.
-//! temper/docs/design/draft/playground-reset.md, 4, 6.4 and 8.
+//! temper/docs/design/domain/forge.md, 4.1; temper/docs/design/protocol/setup.md, 6.7 and 13.4.
 use super::support::{
     self,
     boxed::{self, BOX_DEADLINE, CtlOutcome},

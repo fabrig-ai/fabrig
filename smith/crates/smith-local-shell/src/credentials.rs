@@ -29,7 +29,7 @@ pub use login::{Environment, LoginOutcome, command};
 pub use product::{Location, Prepared, limits, prepare, record_generation};
 pub(crate) use product::{codex as product_codex, status_words};
 use program_check::ProgramStates;
-pub use sign_in::{Registered, registration};
+pub use sign_in::{RefreshFacts, Registered, refresh_facts, registration};
 use smith_agent_shell::config::ProgramName;
 
 /// An account's state reported without its credential value.

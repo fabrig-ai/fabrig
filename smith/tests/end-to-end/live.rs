@@ -11,7 +11,7 @@ use smith_local_process_world::referee::CheckoutRead;
 use smith_real_world::Scratch;
 use support::live_run::Expectation;
 
-const CHANGE: &str = "In repository repo, read original.txt, replace its content with exactly edited followed by one newline, create result.txt containing exactly new followed by one newline, and use the command tool to create command.txt containing exactly ran followed by one newline. Run the configured .smith-test/check checks without modifying that script. Finish with a change result, a short title and body, so the host delivers the checked commit. Do not run git commit or push yourself.";
+const CHANGE: &str = "In the working directory, read original.txt, replace its content with exactly edited followed by one newline, create result.txt containing exactly new followed by one newline, and use the command tool to create command.txt containing exactly ran followed by one newline. Run the configured .smith-test/check checks without modifying that script. Finish with a change result, a short title and body, so the host delivers the checked commit. Do not run git commit or push yourself.";
 
 const STDOUT_BYTES: usize = 20_000_000;
 
@@ -31,7 +31,8 @@ fn chatgpt_delivers_a_commit_in_place() {
 fn a_run_refreshes_its_grant_at_the_issuer() {
     let mut environment = live::Environment::load(&["chatgpt"]);
     environment.refresh_lead = Some(live::REFRESH_LEAD_SECONDS);
-    let before = environment.generation();
+    let clock = skein_shell::Clock::new();
+    let before = environment.refresh_facts();
     let scratch = Scratch::new();
     let completed = change(
         &environment,
@@ -41,8 +42,9 @@ fn a_run_refreshes_its_grant_at_the_issuer() {
         None,
         false,
     );
-    let after = environment.generation();
-    assert!(after > before, "the issuer refresh was kept; generation before={before} after={after}\n{completed}");
+    let after = environment.refresh_facts();
+    let refresh_report = live::refresh_report(&before, &after, clock.now().wall);
+    assert!(after.generation > before.generation, "the issuer refresh was kept; {refresh_report}\n{completed}");
 }
 
 #[test]
@@ -155,7 +157,7 @@ fn a_chat_crosses_from_chatgpt_to_claude_then_back() {
             },
             &scratch,
             &format!(
-                "Create {filename} in repository repo containing exactly {} followed by one newline. Finish with a report.",
+                "Create {filename} in the working directory containing exactly {} followed by one newline. Finish with a report.",
                 content.trim()
             ),
             Expectation { before: None, files: vec![(filename.as_bytes().to_vec(), content.as_bytes().to_vec())] },
@@ -167,10 +169,12 @@ fn a_chat_crosses_from_chatgpt_to_claude_then_back() {
         [("first.txt", b"first\n".as_slice()), ("second.txt", b"second\n"), ("third.txt", b"third\n")]
     {
         let found = std::fs::read(scratch.path().join("repo").join(file)).ok();
+        let misplaced = if found.is_none() { found_beneath(&scratch, file.as_bytes()) } else { None };
         assert!(
             found.as_deref() == Some(content),
-            "each completed run keeps its file\n{completed}\n{}",
-            file_report(file.as_bytes(), content, found.as_deref())
+            "each completed run keeps its file\n{completed}\n{}{}",
+            file_report(file.as_bytes(), content, found.as_deref()),
+            misplaced.as_deref().unwrap_or_default()
         );
     }
 }
@@ -528,14 +532,26 @@ fn assert_exec(
     for (path, content) in expectation.files {
         let path_text = std::str::from_utf8(&path).unwrap_or_else(|_| panic!("{}", report("test path")));
         let found = std::fs::read(scratch.path().join("repo").join(path_text)).ok();
+        let misplaced = if found.is_none() { found_beneath(scratch, &path) } else { None };
         assert!(
             found.as_deref() == Some(content.as_slice()),
-            "{}\n{}",
+            "{}\n{}{}",
             report("checkout file matches its prescribed content"),
-            file_report(&path, &content, found.as_deref())
+            file_report(&path, &content, found.as_deref()),
+            misplaced.as_deref().unwrap_or_default()
         );
     }
     report("completed")
+}
+
+fn found_beneath(scratch: &Scratch, path: &[u8]) -> Option<String> {
+    let path = std::str::from_utf8(path).ok()?;
+    scratch
+        .path()
+        .join("repo/repo")
+        .join(path)
+        .exists()
+        .then(|| format!("\nfile {path:?}: found at repo/{path} beneath the working directory instead"))
 }
 
 fn program_contract(records: &[&smith_events::Record], leg: &Leg<'_>, settled: &Settled<'_>, end: &smith_bench::End) {
@@ -564,17 +580,9 @@ fn program_contract(records: &[&smith_events::Record], leg: &Leg<'_>, settled: &
                 None
             }
         })
-        .unwrap_or_else(|| panic!("{}", report("the accepted init's typed tool inventory")));
-    for name in ["Read", "Glob", "Grep", "Write", "Edit", "Bash", "permission_prompt", "finish"] {
-        assert!(
-            tools.iter().any(|tool| tool.as_ref() == name.as_bytes()),
-            "{}",
-            report("init provides a required built in or smith tool")
-        );
+        .unwrap_or_else(|| panic!("{}", report("the first prompt's offered tools")));
+    let tools: Vec<&[u8]> = tools.iter().map(AsRef::as_ref).collect();
+    if let Some(fault) = support::program_contract::offered_tools_fault(&tools) {
+        panic!("{}", report(&fault));
     }
-    assert!(
-        tools.iter().all(|tool| tool.as_ref() != b"sub_agent"),
-        "{}",
-        report("init offers no sub agent capability")
-    );
 }

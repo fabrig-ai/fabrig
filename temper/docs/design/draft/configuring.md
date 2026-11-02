@@ -122,7 +122,7 @@ configures work:
   anyone signs in), and, for now, the LLM providers, which follow the
   same rule later, a design of their own (section 10): models are bit
   positions in authorities. Forges are records in the store already
-  (`playground-reset.md`, section 3).
+  (`archive/playground-reset.md`, section 3).
 
 ### 3.2 Defaults and changes
 

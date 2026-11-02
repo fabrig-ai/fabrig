@@ -615,6 +615,7 @@ pub mod live;
 pub mod live_report;
 
 pub mod live_run;
+pub mod program_contract;
 
 /// The agent's expected destination from the story's selected placement.
 #[must_use]

@@ -28,6 +28,26 @@ fn signed_in(turn: Turn) -> Scratch {
     scratch
 }
 
+fn signed_in_claude(turn: Turn) -> Scratch {
+    let scratch = Scratch::new();
+    let executable = skein_scratch::paths::binary("fake-claude");
+    let settings = format!(
+        "model='anthropic/claude-haiku-5-5'\n[programs]\nclaude_code='{}'\n\
+         [accounts.claude]\nprovider='anthropic'\nsource='program'\n\
+         [endpoints.anthropic]\naccount='claude'\nprogram='claude_code'\n",
+        executable.display()
+    );
+    let _file = support::user_layer(&scratch, settings.as_bytes());
+    let login = support::run_product(&scratch, &["login", "claude"], b"", None);
+    assert_eq!(login.code, 0, "fake Claude login succeeds");
+    std::fs::write(
+        scratch.path().join("state/smith/programs/claude").join(STORY_FILE),
+        Story { turns: vec![turn], ..Story::default() }.encode(),
+    )
+    .expect("scratch story file");
+    scratch
+}
+
 fn outcome() -> Step {
     Step::Outcome { input: json!({"outcome":{"form":"report","text":ANSWER,"fields":{}}}) }
 }
@@ -151,6 +171,65 @@ fn a_program_exec_traces_its_run_to_the_agent_file() {
             .any(|record| matches!(&record.event, Event::ToolCompleted(tool) if tool.tool.as_ref() == b"finish")),
         "the agent records the finish completion"
     );
+}
+
+#[test]
+fn a_program_exec_offers_the_live_claude_story_s_tools() {
+    use smith_events::{Event, Family};
+    let scratch = signed_in_claude(Turn::new(vec![outcome()]));
+    let trace = scratch.path().join("trace.jsonl");
+    let mut arguments = support::live::arguments("claude", scratch.path(), false, false);
+    support::live::with_trace(&mut arguments, &trace);
+    let arguments: Vec<_> = arguments.iter().map(|argument| argument.to_str().expect("scratch argument")).collect();
+    let ran = support::run_product(&scratch, &arguments, b"Ask first", None);
+    assert_eq!(ran.code, 0, "program exec succeeds");
+    let agent = records::agent(&trace);
+    let started = agent
+        .iter()
+        .find_map(|record| if let Event::RunStarted(start) = &record.event { Some(start) } else { None })
+        .expect("program admission event");
+    assert_eq!(
+        started.tools.families.as_slice(),
+        [Family::Inspect, Family::Modify, Family::Shell],
+        "the program has exactly the live story's granted capabilities"
+    );
+    let tools = agent
+        .iter()
+        .find_map(|record| {
+            if let Event::ResponseStarted(start) = &record.event {
+                start.prompt.as_ref().and_then(|prompt| prompt.tools.as_ref()).filter(|tools| !tools.is_empty())
+            } else {
+                None
+            }
+        })
+        .expect("the first prompt's offered tools");
+    let tools: Vec<&[u8]> = tools.iter().map(AsRef::as_ref).collect();
+    if let Some(fault) = support::program_contract::offered_tools_fault(&tools) {
+        panic!("{fault}");
+    }
+}
+
+#[test]
+fn the_offered_tools_check_names_each_departure() {
+    use support::program_contract::{OFFERED, offered_tools_fault};
+    let offered: Vec<_> = OFFERED.iter().map(|name| name.as_bytes()).chain([b"remove".as_slice()]).collect();
+    assert_eq!(offered_tools_fault(&offered), None, "the offered tools may include remove");
+    for name in OFFERED {
+        let missing: Vec<_> = offered.iter().copied().filter(|tool| *tool != name.as_bytes()).collect();
+        assert_eq!(
+            offered_tools_fault(&missing),
+            Some(format!("the first prompt offers no {name}")),
+            "a missing {name} is named"
+        );
+    }
+    for (name, expected) in [
+        ("finish", "the first prompt offers finish under a result contract"),
+        ("sub_agent", "the first prompt offers sub_agent"),
+    ] {
+        let mut tools = offered.clone();
+        tools.push(name.as_bytes());
+        assert_eq!(offered_tools_fault(&tools).as_deref(), Some(expected), "an offered {name} is named");
+    }
 }
 
 #[test]

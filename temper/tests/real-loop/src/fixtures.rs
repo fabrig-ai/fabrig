@@ -1,4 +1,4 @@
-//! Real-loop fixtures on kernel-assigned ports (temper/docs/design/draft/playground-reset.md, 3).
+//! Real-loop fixtures on kernel-assigned ports (temper/docs/design/protocol/forge.md, 2.1).
 mod kept;
 pub(crate) use kept::seed;
 pub use kept::{forgejo_record, seed_forgejo, seed_record};

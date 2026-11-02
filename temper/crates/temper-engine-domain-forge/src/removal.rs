@@ -1,4 +1,4 @@
-//! Forge removal (temper/docs/design/draft/playground-reset.md, 4).
+//! Forge removal (temper/docs/design/domain/forge.md, 4.1).
 use crate::{Answered, Domain, ForgeRefusal, ForgeState, Key, Mode, RemoveAnswer, Request, forges};
 use jig_domain_people::Role;
 use skein_lib::{List, Queue, Token};
