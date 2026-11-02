@@ -264,6 +264,14 @@ fn reviewer_reads_back_off_when_forge_admission_is_busy() {
     }
     assert_eq!(world.answers.len(), before, "admission Busy is not a model-visible forge error");
     assert_eq!(world.busy_calls, busy + 2, "both calls use the host's backoff path");
+    let facts: Vec<_> = std::iter::from_fn(|| world.root.pop_fact()).collect();
+    assert!(
+        facts.iter().any(|fact| matches!(fact,
+            engine::Fact::ReadRefused { task, attempt, tool, layer: "forge-client", error: Some(Error::Busy), .. }
+            if *task == reviewer.task && *attempt == reviewer.attempt && tool.as_ref() == b"engine"
+        )),
+        "forge admission pressure names its layer: {facts:?}"
+    );
     assert!(world.call_errors.is_empty());
     for event in completions {
         world.send(event);
@@ -407,8 +415,7 @@ fn a_changes_producer_reads_the_forge() {
     assert_eq!(head, translate::commit(1));
 }
 
-#[test]
-fn a_changes_grants_name_its_repository_alone() {
+fn repository_scoped_reviewer() -> (World, engine::Assignment, skein_forge::api::Commit) {
     let mut world = World::configured_policy(true, true, false, 1000, Gate { agent: true, ..Gate::default() }, None);
     world.adopt();
     world.send(protocol::hello_slots(CHANNEL, 2, Box::new([])));
@@ -447,6 +454,12 @@ fn a_changes_grants_name_its_repository_alone() {
     for (task, authority) in authorities {
         assert_repository_grants(task, &authority);
     }
+    (world, reviewer, head)
+}
+
+#[test]
+fn a_changes_grants_name_its_repository_alone() {
+    let (mut world, reviewer, head) = repository_scoped_reviewer();
     assert!(
         matches!(
             read(&mut world, &reviewer, 10, forge_world::REPO, Read::PullFiles { number: 1, head, page: 1 }),
@@ -468,6 +481,15 @@ fn a_changes_grants_name_its_repository_alone() {
         matches!(&answer, engine::CallAnswer::ToolDenied { findings, .. }
             if findings.contains(&authority::Finding::Grant { source: authority::Source::Task })),
         "review read must retain the refusing authority layer: {answer:?}"
+    );
+    let facts: Vec<_> = std::iter::from_fn(|| world.root.pop_fact()).collect();
+    assert!(
+        facts.iter().any(|fact| matches!(fact,
+            engine::Fact::ReadRefused { task, attempt, tool, layer: "authority", findings, .. }
+            if *task == reviewer.task && *attempt == reviewer.attempt && tool.as_ref() == b"engine"
+            && findings.contains(&authority::Finding::Grant { source: authority::Source::Task })
+        )),
+        "the operator diagnostic retains the finding and the reviewer correlation: {facts:?}"
     );
 }
 
@@ -1815,3 +1837,28 @@ fn a_gate_repairs_with_its_named_pull_before_its_whole_remarks() {
 
 #[path = "reviews/retier.rs"]
 mod retier;
+
+#[test]
+fn lost_read_diagnostics_change_no_reviewer_grant_or_answer() {
+    let (mut world, reviewer, head) = repository_scoped_reviewer();
+    restore_sibling_repository(&mut world);
+    for number in 0..=engine::FACTS {
+        let answer = read_answer(
+            &mut world,
+            &reviewer,
+            number + 20,
+            skein_forge::api::Repository { repository: 3, ..forge_world::REPO },
+            Read::File { head, path: b"ci.yml".as_slice().into(), max_bytes: 1024 },
+        );
+        assert!(matches!(answer, engine::CallAnswer::ToolDenied { .. }));
+    }
+    assert_eq!(world.root.facts_lost(), 1);
+    assert!(matches!(
+        read(&mut world, &reviewer, 100, forge_world::REPO, Read::PullFiles { number: 1, head, page: 1 }),
+        Ok(Answer::PullFiles { .. })
+    ));
+    assert_eq!(
+        std::iter::from_fn(|| world.root.pop_fact()).count(),
+        usize::try_from(engine::FACTS).expect("fact capacity fits usize")
+    );
+}
