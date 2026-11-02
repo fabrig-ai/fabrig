@@ -3,7 +3,7 @@ id = "tiers-config"
 part = "tiers-config"
 kind = "feature"
 needs = ["tiers-policy"]
-files = ["temper/crates/temper-service/src/startup/application/landing.rs", "temper/crates/temper-service/src/startup/checks.rs", "temper/crates/temper-service/src/limits.rs", "temper/crates/temper-service/src/limits/names.rs", "temper/crates/temper-engine-domain/src/translate.rs", "temper/crates/temper-engine-domain-forge/src/limits.rs", "temper/crates/temper-engine-domain-forge/Cargo.toml", "temper/crates/temper-engine-domain/Cargo.toml"]
+files = ["temper/crates/temper-service/src/startup/application/landing.rs", "temper/crates/temper-service/src/startup/checks.rs", "temper/crates/temper-service/src/limits.rs", "temper/crates/temper-service/src/limits/names.rs", "temper/crates/temper-engine-domain/src/translate.rs", "temper/crates/temper-engine-domain-forge/src/limits.rs", "temper/crates/temper-engine-domain-forge/Cargo.toml", "temper/crates/temper-engine-domain/Cargo.toml", "temper/crates/temper-service/Cargo.toml", "temper/crates/temper-engine-domain/src/lib.rs"]
 effort = "high"
 minutes = 150
 +++
@@ -68,9 +68,11 @@ Acceptance:
   `RepositoryGates::tiers`), `landing.rs` (`project_landing`, its per-project storage,
   `after_landing`) and `lib.rs` (exports). `temper-engine-domain/src/domain.rs`: passing
   `after` through, only.
-- Root `Cargo.toml` is not touched: the forge and engine crates gain
+- Root `Cargo.toml` is not touched: the forge, engine and service crates gain
   `temper-engine-domain-forge-tiers.workspace = true` in their own `Cargo.toml`; `Cargo.lock` as
   cargo writes it.
+- `temper-engine-domain/src/lib.rs`: `TierCheck` and `AfterLandingCheck` join the `translate`
+  export, only.
 - Readers, each only the new field in a literal (`tiers: Box::new([])`, the default settings) or
   the new argument: the forge's `Limits` literal in `temper-service/src/limits.rs`,
   `temper-engine-domain-forge/src/tests.rs`, `temper-engine-domain/src/tests/resume_fixture.rs`,
@@ -106,3 +108,13 @@ Pre-approved options:
 
 As the implementer's text says, and also: the refusals' words; the readers touched; the
 `failing_tests` bound you set and why.
+
+## Answers
+
+2026-11-02. May the task also change `temper-service/Cargo.toml` (the tiers crate as a
+dependency) and `temper-engine-domain/src/lib.rs` (export `TierCheck`, `AfterLandingCheck`)?
+Yes, both, and nothing more: the service names `temper_engine_domain_forge_tiers::Format`
+directly through its own dependency, as the old code did, with no re-export of `Format`
+elsewhere; the engine's `pub use translate::{...}` gains `TierCheck` and `AfterLandingCheck`,
+the spec's own types, so no public item beyond the spec. Both files are now in the header and
+under Owns.
