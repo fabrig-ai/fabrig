@@ -9,7 +9,7 @@ landing = "queue"
 
 [ladder]
 happy_path = "temper/docs/design/draft/v0.1.0.md, 2 and 4"
-backlog = "temper/docs/design/debt/v0.1.0-ladder.md"
+backlog = "temper/docs/development/v0.1.0-ladder.md"
 
 [[rung]]
 id = "r0"

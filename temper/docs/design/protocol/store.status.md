@@ -1,7 +1,6 @@
 # store: status
 
-2026-10-29. Where temper's code lags or departs from [store.md](store.md).
+2026-11-02. Where temper's code lags or departs from [store.md](store.md).
 
-- **Built:** 4: service and real-loop sizing use `sizes::Commits { in_flight: root.journal.commits, writes: root.journal.writes }`; temper names no skein `JournalLimits`.
-- **Built:** Named full-frame refusal routes through the existing uncommitted stop policy with commit/task/bytes/page diagnostic; canonical sizing is owned by jig. 4: store and secrets page floor covers the admitted full current transcript frame and checked map row; out-of-codec or out-of-profile bounds refuse admission. 2, 4: queue/protection/NotInstalled records, demo state, packed repository identities and kept DemoAct end operations; store v9. 2: family 21 Flight, a forge write in flight. 4: the store says what it holds: a retained refusal and every packed list, raw names as typed items. 2: families 23 Landing and 24 Receipt; the outbox's Write with a merge's how, an update's style, a status's words and link, Dispatch and Rerun. A restart's accounts rows are paged and compared by jig's typed restore position and its byte cursor, never by raw keys across the walk's two intervals.
-- **Not yet:** 2: demo's runtime-created project; remaining demo-start recovery completion unknown.
+- **Not yet:** 2: family 20 `Setting` (the schema reserves its byte); family 22 `Delivery` (no `Key` or `Stored` variant); and the families of after landing and findings, `Tier`, `Verification`, `LandingLog`, `Finding`, `Mark` and `QaPass`.
+- **Departs:** 2, 4: no `Demo` (17) or `DemoAct` (19) family, their bytes reserved and not reused; bytes 25 to 27 hold `Forge`, `ForgeNumber` and `Playground` (`temper-protocol-store/src/keys.rs`), because forges are store records and the playground is reset (`../draft/playground-reset.md`, 3, 4, 6). 4: `STORE_VERSION` is 11, moved before the first release where the rule keeps it in place (skein's `codec.md`, 5), because each stored-format break was made to refuse an older store by name.

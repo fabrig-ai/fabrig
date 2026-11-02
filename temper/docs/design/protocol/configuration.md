@@ -83,7 +83,7 @@ document says what temper adds. What is open is listed in section 11.
   dialling it. A document of none of the three is refused (section 2).
 - **The agent's configuration is smith's** (section 5), and `temper open`
   takes no file at all (section 9).
-- **Settings leave the document** (section 13; designed, not built):
+- **Settings leave the document** (section 13):
   jig's charters, templates, policies and rules, and temper's landing
   rules and forge's charter, become settings in the store, changed by a
   decision an owner accepts, with the binary's stock values as their
@@ -283,8 +283,8 @@ largest (section 7).
 
 **`landing`:** the deployment's and the projects' landing rules, the
 root's `LandingPolicy`. Leaving the document: section 13 makes them
-settings in the store, temper's kinds 1 and 2; until planned implementation builds
-it, they are configured here.
+settings in the store, temper's kinds 1 and 2; until its second step
+(13.6), they are configured here.
 
 ```
 "landing": {
@@ -293,7 +293,7 @@ it, they are configured here.
 }
 ```
 
-- **`by` and `gates`,** designed, not built, until kinds 4 and 5
+- **`by` and `gates`,** until kinds 4 and 5
   (section 13) are: how the project lands, `queue` when absent; under
   `turn`, each repository's test gates; and, by either way, its tiers;
   a `gates` entry being
@@ -303,7 +303,7 @@ it, they are configured here.
   "artifact": string, "format": "junit" | "lines"}]}`, a repository at
   most once (`../domain/landing.md`, 13.1; `../domain/after-landing.md`,
   section 11).
-- **The turn's project settings,** designed, not built, beside `by`:
+- **The turn's project settings,** beside `by`:
   `prepare` and `key`, paths in the project's home, or absent for
   temper's own; `home_revision`, the home's commit they run at;
   `prepare_timeout`; `pins`, a list of `{"downstream": REPOSITORY,
@@ -674,7 +674,7 @@ have one, an engine alone none. Each:
   | `forge_component.log_catch_up_ms` | `log_catch_up` (default 24 h): how far back the delivery log is read when a forge starts again within one process (skein's `forge-connection.md`, 6.5); at most a day, the log's own reach. temper keeps no `guid` across process starts: a process's first read of a forge's log keeps the newest and reads nothing back, and skein's forge client reads each adopted repository afresh at restart |
   | `forge_component.log_pages` | the pages one read of the delivery log takes (default 10) |
   | `forge_component.delivery_bytes` | a delivery read from the log (default 1 MiB) |
-  | `setup.orgs` | a managed entry's `orgs` (until temper-15); an owned entry names none |
+  | `setup.orgs` | a managed entry's `orgs`; an owned entry names none |
   | `setup.deadline_ms` | a setup plan's run, its wait for the forge among it |
   | `setup.backoff_ms`, `setup.backoff_max_ms` | a setup plan's first request made again, doubling |
   | `setup.states` | the setup host's states, held in memory, for the manifest's and the installation's returns |
@@ -1173,8 +1173,8 @@ one owned forge, with its own values (setup.md, 8.1).
   keep the demo endpoint configured, which sizes the room to fit.
 - **A made project's own landing rules.** `landing.projects` names
   seeded projects, so a project made after the first start has the
-  deployment's rules alone. Default: the deployment's. Designed in
-  section 13, not built: a project's rules are a setting its owners
+  deployment's rules alone. Default: the deployment's. Section 13
+  designs otherwise: a project's rules are a setting its owners
   change, kind 2, for any project, made or seeded.
 - **A forge removed while the store holds its repositories.** Default:
   the start is refused at the forge's restart step, naming the forge
@@ -1182,8 +1182,8 @@ one owned forge, with its own values (setup.md, 8.1).
 - **A project's landing rules changed after its first start.** They
   reach the forge's judges at the next start, but the project's policy
   keeps the requirements seeded at its first start. Default: a change
-  reaches the policy only through a policy change by a person. Designed
-  in section 13, not built: the rules leave the policies for two
+  reaches the policy only through a policy change by a person. Section
+  13 designs otherwise: the rules leave the policies for two
   standing requirements the forge judges over the rules it holds, so a
   change reaches the next merge.
 - **Requirements an application fixes** (13.3). The landing rules'
@@ -1423,8 +1423,7 @@ name with reset instructions, without generating a replacement on reuse.
 
 ## 13. Settings in the store
 
-Designed, not built: planned implementation of the configuring plan builds it
-(`../STATUS.md`). How work is run leaves the document for the store,
+How work is run leaves the document for the store,
 by the rule of `../draft/configuring.md`, 3.1: the document keeps
 what a start needs before it can read its store, and what belongs to
 the machine. The mechanism is jig's (jig's `domain/engine.md`, section
@@ -1473,8 +1472,8 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
 | 1, the deployment's landing rules | the deployment | a rule's, from 1; at most `forge.landing_rules` | a landing rule (below) | the deployment's owners |
 | 2, a project's landing rules | each project | a rule's, from 1; at most `forge.landing_rules` per project | a landing rule | that project's owners |
 | 3, the forge's charters | the deployment | 1, the change's; 2, its reviews' | a charter's number, a u32 | the deployment's owners |
-| 4, a project's landing (designed, not built) | each project | 1 | how the project lands, by queue or by turn, and the turn's settings (`../domain/landing.md`, 13.1) | that project's owners |
-| 5, a repository's gates (designed, not built) | each project | the repository's adoption, unique in the deployment: its forge's number shifted 16 bits left, with the forge's repository number below | a repository's test gates (`../domain/landing.md`, 13.1) | that project's owners |
+| 4, a project's landing | each project | 1 | how the project lands, by queue or by turn, and the turn's settings (`../domain/landing.md`, 13.1) | that project's owners |
+| 5, a repository's gates | each project | the repository's adoption, unique in the deployment: its forge's number shifted 16 bits left, with the forge's repository number below | a repository's test gates (`../domain/landing.md`, 13.1) | that project's owners |
 
 - **A landing rule's value** is a `LandingRule` record in temper's
   codec, section 3's rule member for member but `connector` and `kind`,
@@ -1573,28 +1572,27 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
 ### 13.4 temper's stock defaults
 
 The binary holds them, and gives them to jig's builder as `Config`'s
-defaults at each start (jig's `domain/engine.md`, 17.1): the values
-`temper init` writes into the document today (`setup.md`, 8.3), moved
-into the binary.
+defaults at each start (jig's `domain/engine.md`, 17.1); `temper
+init`'s document carries none of them (`setup.md`, 8.3).
 
 | Setting | Its value |
 |---|---|
-| charter 1, a chat's | the instructions in the `stock` module's `chat.txt`, worded by v0.1.0's ladder, whose walks test them (`../draft/v0.1.0.md`); this table holds the structure alone; models: every model `engine.llm` configures, in the document's order, the first its default; hosts `workers`; waiting 10 s; resume; a run of 8 turns and 120 s, a reserve of 1 turn and 60 s; a default spend of K (below); the inspect, modify and agents tool families, no shell; a call's timeout 10 s |
-| charter 2, a coding agent's | as charter 1, with today's `charters/coding.txt`, but a run of 16 turns and 120 s, a reserve of 1 turn and 60 s: the shipped model, `gpt-6-luna` at effort medium, reads before it writes, and 8 turns left the smallest change unwritten (`../draft/v0.1.0.md`'s rung A); K is unmoved, its floor of 4 units a run turn counting the chat's 8, so a coding agent at a cheap model's coarse prices is held to its spend before its 16 turns; a run that meets its 120 s before its turns is the figure to raise next |
-| charter 4, a reviewer's | its instructions in the `stock` module's `review.txt`, worded by v0.1.0's ladder, as `chat.txt` is; charter 2's models, hosts and run, so 16 turns; the inspect family and the forge's reads alone, no modify, no shell, no agents, no delegation; a review's verdict as its contract (`../domain/forge.md`, 8.3) |
-| template 1, a chat | jig's chat, run by charter 1, as `temper init` writes it today |
+| charter 1, a chat's | the instructions in the `stock` module's `chat.txt`; this table holds the structure alone; models: every model `engine.llm` configures, in the document's order, the first its default; hosts `workers`; waiting 10 s; resume; a run of 8 turns and 120 s, a reserve of 1 turn and 60 s; a default spend of K (below); the inspect, modify and agents tool families, no shell; a call's timeout 10 s |
+| charter 2, a coding agent's | as charter 1, with the `stock` module's `coding.txt`, but a run of 16 turns and 120 s, a reserve of 1 turn and 60 s: the shipped model, `gpt-6-luna` at effort medium, reads before it writes, and 8 turns leave the smallest change unwritten; K is unmoved, its floor of 4 units a run turn counting the chat's 8, so a coding agent at a cheap model's coarse prices is held to its spend before its 16 turns; a run that meets its 120 s before its turns is the figure to raise next |
+| charter 4, a reviewer's | its instructions in the `stock` module's `review.txt`; charter 2's models, hosts and run, so 16 turns; the inspect family and the forge's reads alone, no modify, no shell, no agents, no delegation; a review's verdict as its contract (`../domain/forge.md`, 8.3) |
+| template 1, a chat | jig's chat, run by charter 1 |
 | charter 3, the configuring agent's | as charter 1, with new instructions held in the binary (`../draft/configuring.md`, sections 2 and 5.2: split what temper enforces from what agents follow, offer a rule as structure where temper has it, ask until it can propose; `../domain/agent.md`, 8.1); jig's `settings` family (jig's `domain/engine.md`, 7.3), as `settings` and `propose_settings`, the forge's reads, `read_docs` and `withdraw`; no workspace's families (it has none), no delegation, no effects, no shell |
 | template 2, a goal | jig's goal, its executor chosen |
 | template 3, the configuring chat | a chat, flagged conversation and labelled as jig's chat is, run by charter 3 |
-| policy 1 | today's seeded project's policy, with no requirements: role 0 requests and decides everything, a period's spend of 48K for the project and for role 0, an authority's spend of 24K (below), with the rules' grants and delegation; its ceiling's and role 0's tool families 1,539, delegation, messages, reads and settings (jig's `ToolFamilies` Delegate, Message, Read and Settings), so that a chat reads the forge it works on and answers its delegates' questions, and a configuring chat (template 3) reads the settings and proposes, a proposal changing nothing until an owner decides it (jig's `domain/engine.md`, 17.6); its ceiling's and role 0's delegation 18 tasks 4 deep (the chat counted among them), so that a chat's advisor and two dependent delegates, each with its change's procedure and the procedure's six (a producer, a review, and two repairs each followed by its review), fit: 1 + 1 + 2 × 8 (`../draft/v0.1.0.md`, rung B2) |
+| policy 1 | today's seeded project's policy, with no requirements: role 0 requests and decides everything, a period's spend of 48K for the project and for role 0, an authority's spend of 24K (below), with the rules' grants and delegation; its ceiling's and role 0's tool families 1,539, delegation, messages, reads and settings (jig's `ToolFamilies` Delegate, Message, Read and Settings), so that a chat reads the forge it works on and answers its delegates' questions, and a configuring chat (template 3) reads the settings and proposes, a proposal changing nothing until an owner decides it (jig's `domain/engine.md`, 17.6); its ceiling's and role 0's delegation 18 tasks 4 deep (the chat counted among them), so that a chat's advisor and two dependent delegates, each with its change's procedure and the procedure's six (a producer, a review, and two repairs each followed by its review), fit: 1 + 1 + 2 × 8 |
 | the rules | today's: tools 1,539, delegation, messages, reads and settings, the forge's grants under `forge`, delegation to charters 1, 2, 3 and 4 and the change procedure, 18 tasks 4 deep, a spend and a period's spend of 48K, a run's spend from 2C to K (below); and 13.3's two requirements |
 | kind 1, rule 1 | everywhere (`forge`, open), enforced: CI passed, up to date, and gate 1, an agent's review, blocking, fresh at a clean head, as `docs/examples/owned.json` has it; no approvals. Until 13.6's second step it is `temper init`'s `application.landing` |
 | kind 3 | number 1, the change's charter: charter 2; number 2, its reviews' charter: charter 4 |
-| a period's span | 7 days, from each project's first period, renewed by the calendar (`../domain/root.md`, 5.7), so policy 1's period spend of 48K is a week's: the user's, confirmed on temper#14 (10-27). A constant of the stock until 13.6's second step, which makes it a setting of temper's, the deployment's |
+| a period's span | 7 days, from each project's first period, renewed by the calendar (`../domain/root.md`, 5.7), so policy 1's period spend of 48K is a week's. A constant of the stock until 13.6's second step, which makes it a setting of temper's, the deployment's |
 
 - **Each charter's host families** (its `tools`, jig's
   `domain/engine.md`, 7.1): charter 1, a chat's, names every host
-  family but settings, as every run was offered before; charter 2, a
+  family but settings; charter 2, a
   coding agent's (a change's producer, repairs and resolutions, and the
   implementers a coordinator delegates), names the read and message
   families alone, since it reads the change and CI, asks its requester,
@@ -1639,8 +1637,7 @@ into the binary.
   and prices coarse, smith's one-unit floor per completion still leaves
   a run its turns. A delegate is given half of what its
   parent has left (`../domain/agent.md`, 4.3.1, for `change`; a goal
-  likewise), so the stock sizes for the work it is used for (`../draft/v0.1.0.md`,
-  rungs A to B2): a change 5K, its six tasks (a producer, a review, two
+  likewise), so the stock sizes for the work it is used for: a change 5K, its six tasks (a producer, a review, two
   repairs and their reviews) run one after another, each returning what
   it leaves, so that a change whose runs each spent a whole K would be
   held for its budget at its sixth, naming it (`../domain/forge.md`,
@@ -1658,8 +1655,7 @@ into the binary.
   five executors, charters 1 to 4 and the change procedure;
   `clients.streams` and `clients_http.streams` to 8 (small's 2), since
   every `temper ctl` call holds a stream and a wait holds it for the
-  wait, so a person and a walk hold three to five at once (QA
-  20261028-0835-temper finding 2), with what carries each stream raised
+  wait, so a person and a walk hold three to five at once, with what carries each stream raised
   beside them, since a stream is a long-lived call on the jig mount and
   a connection to temper's server: the mount's HTTP calls and temper's
   server connections to the streams plus 4 (12 and 12), the 4 room for
@@ -1669,13 +1665,11 @@ into the binary.
   beside the exchanges (small's 8 and the 2 a sign-in unchanged); a
   full map answers a refusal naming its bound, never a panic; the four
   measured together against the declarations, the largest streams
-  figure that fits taken, its carriers 4 above it, if 8 does not, and a
-  rise the user's; and
+  figure that fits taken, its carriers 4 above it, if 8 does not; and
   `tasks.inbox_bytes` to 12,288, so that a goal that asked a question
   holds its news slot and an answer slot (two messages), four live
   delegates' 512 bytes each and one unread result (10,752 in all),
-  priced before it lands; a declared figure that rises goes to the
-  director. `tasks.result_bytes` stays small's 512, about 80 words,
+  priced before it lands. `tasks.result_bytes` stays small's 512, about 80 words,
   which holds a goal's and an advisor's report: jig's settings schema
   caps the record field it sizes, a tie for the format freeze. The
   box's live tasks stay small's unless a story shows them binding.
@@ -1713,10 +1707,8 @@ into the binary.
   then written in one form alone, the settings file's
   (`../client/tools.md`, 5.3), and the document's older forms of an
   authority, a pattern and a role's permissions (milliseconds, text
-  segments) meet nothing. It lands with the refusal of a member below
-  the floors (o/configuring-stock's T10), after the seed's `policy: 1`.
-- **Before the baseline** (`../draft/upgrades.md`, 4.1), when planned implementation
-  is planned to land: the settings change the store's families, so a
+  segments) meet nothing.
+- **Before the baseline** (`../draft/upgrades.md`, 4.1): the settings change the store's families, so a
   deployment is made again, and nothing is imported. A document `temper
   init` wrote carried the stock values, now the binary's; one an
   operator edited is told again, after the start, as a proposal ("Tell
@@ -1732,16 +1724,17 @@ into the binary.
   and refuses them for one that passes its own. temper passes its own
   from 13.6's first step, which needs nothing new of jig's settings;
   its second needs jig's application settings.
-- **Who writes them today, and loses them:** `temper init`'s document
-  and its `charters/` files (`setup.md`, 8.2 and 8.3); the box, which
-  has no document of its own but `temper init`'s (`setup.md`, section
-  7); `docs/examples/owned.json` and its instructions; the cluster fixture's engine
-  documents, whose stories apply their own values as a settings file
-  through ctl after sign-in; the fake backends' document rewriter (`temper-fake`'s
-  backends, which edits `engine.charters` today); the tests' documents
-  and builders (`../domain/testing.md`, 6.4). A generated document elsewhere, fabrig's, drops the six members;
-  what it set differently from the stock values becomes a proposal after
-  the deployment's first start.
+- **Their writers name none of them:** `temper init`'s document and
+  files (`setup.md`, 8.2 and 8.3); the box, which has no document of
+  its own but `temper init`'s (`setup.md`, section 7);
+  `docs/examples/owned.json` and its instructions; the cluster
+  fixture's engine documents, whose stories apply their own values as a
+  settings file through ctl after sign-in; the fake backends' document
+  rewriter (`temper-fake`'s backends); the tests' documents and
+  builders (`../domain/testing.md`, 6.4). A generated document
+  elsewhere, fabrig's, drops the six members; what it set differently
+  from the stock values becomes a proposal after the deployment's first
+  start.
 
 ### 13.6 In steps
 
@@ -1835,8 +1828,7 @@ section 2), by jig's charter documents (jig's `domain/engine.md`, 17.9).
 
 `temper init`'s limits hold its model, a window of 1,048,576 tokens and
 an output of 8,192 (13.4's C). A deployment that configures a larger
-output, as QA's boxes do (gpt-6.1-sol at effort high, output 32,000,
-`../qa.md`, 3), overrides the small profile's turn limits, each derived
+output (gpt-6.1-sol at effort high, output 32,000, for one) overrides the small profile's turn limits, each derived
 from the agent's largest turn, T, which the start checks name "the
 agent's largest turn" (`temper-service`'s `startup/checks.rs`).
 

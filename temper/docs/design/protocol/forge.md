@@ -316,8 +316,7 @@ skein-io socket
 - **Named to the root,** which shows the forge and why on its row, with
   Replace (client/forge.md, the deployment's page). The engine and every
   other forge run on; nothing is erased, and the next start tries the
-  same records. Pending in the code: it is named on `temper serve`'s
-  standard error, not yet to the root.
+  same records.
 - **The webhooks' listener** stays the engine's: one that fails stops
   the engine (section 5).
 
@@ -433,6 +432,7 @@ builds it; a full host answers `Why::Busy` at a Run's start, and the page shows 
 | `Reconcile { forge, adopted }` | each start of a managed or owned Forgejo; a managed connect; the box's `started`, after its `TakeOver` (2.2) | converges the forge on what the deployment needs (setup.md, section 5), then the forge connects |
 | `TakeOver { forge, admin_token }` | an owned or fake forge's start, or the box's `started`, whenever the handover file is present, even with a kept `AdminToken` (setup.md, 6.5) | keeps the handover's admin token; only after its `Done` and the record kept is the file removed, before reconcile |
 | `Adopt { forge, repository }` | a managed or owned forge's adoption, before its reads | gives the bot access to the repository (`../domain/forge.md`, 4.2) |
+| `Create { forge, org, repository, files }` | an owned or managed forge's first repository, at its set up (setup.md, 6.7) | the repository made in its organization, the bot given access, the owner's files put on its main (skein's `forge-setup.md`, 4.9) |
 | `Check { forge }` | a connected Forgejo's pasted tokens, and their replacement | both tokens answer as one user, and as the kept user on a replacement |
 | `Manifest { forge, target }` | GitHub's Connect, always for `Personal`: the App is the person's, public, and installs on any account GitHub offers them (setup.md, 17.2) | a fresh state, the form's target and the manifest; it ends `Done(Manifest { state, target, manifest })`, from which temper renders the manifest's page (client/forge.md, 9.1) |
 | `Convert { forge, code, state }` | GitHub's redirect back | the code exchanged for the App's id, slug and key, the conversion's webhook secret and OAuth pair never kept; the bot user found; it writes `AppId`, `AppSlug`, `AppKey` and `User` |
@@ -1055,7 +1055,7 @@ and 5's. What an owner owes the component is skein's
   forge connected at runtime has no writer in the configuration (2.2).
   The forge client keeps it as its own record, `writer(d, env, Writer {
   forge, author }, out)`: `Stored::Writer` under `Key::Writer(forge)`,
-  in temper's small store under its tag 16 (`STORE_VERSION` 3), restored
+  in temper's small store under its tag 16, restored
   at start, so a restored effect never meets `Forbidden` (skein's
   `forge-client.md`, 7.1).
 - **Hints,** as the vocabulary has them: `Hint { repository, change, key
