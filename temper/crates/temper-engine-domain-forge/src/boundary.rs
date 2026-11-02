@@ -870,6 +870,7 @@ pub struct LandingHeard {
 /// Family 24, a result of a run dispatched by temper (domain/landing.md, 6.2).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Receipt {
+    pub failures: Option<temper_engine_domain_forge_tiers::Failures>,
     pub passed: bool,
     pub run: ReceiptRun,
     pub candidate: skein_forge::api::Commit,
@@ -1017,6 +1018,8 @@ pub enum Stored {
     },
     /// The playground's durable progress (temper/docs/design/protocol/setup.md, 8.4).
     Playground(Playground),
+    Tier(TierRow),
+    Verification(Verification),
 }
 /// A bounded connector payload awaiting an authority holder's decision.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -1053,6 +1056,8 @@ pub enum Key {
     Forge(u16),
     ForgeNumber,
     Playground,
+    Tier { repository: skein_forge::api::Repository, tier: Box<[u8]> },
+    Verification { repository: skein_forge::api::Repository, commit: skein_forge::api::Commit },
 }
 /// A completed phase of the connector's restart contract.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -1129,6 +1134,26 @@ pub struct ChangeDependencies {
 /// A parent or child input to the connector top.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Event {
+    TierTask {
+        repository: skein_forge::api::Repository,
+        tier: Box<[u8]>,
+        number: u64,
+        task: u64,
+    },
+    TierRefused {
+        repository: skein_forge::api::Repository,
+        tier: Box<[u8]>,
+        number: u64,
+    },
+    StepTier {
+        task: u64,
+        entry: u64,
+        heard: TierHeard,
+    },
+    VetoTier {
+        task: u64,
+        entry: u64,
+    },
     /// Release adoptions after the project's tasks are erased
     /// (jig/docs/design/domain/people.md, 5.2; temper/docs/design/domain/forge.md, 4.1).
     ReleaseProject {
@@ -1514,6 +1539,18 @@ pub enum Event {
 /// The connector's output to the root, including child API calls.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
+    /// Make the tier run's task; the root answers `TierTask` or `TierRefused`.
+    TierRun {
+        repository: skein_forge::api::Repository,
+        tier: Box<[u8]>,
+        number: u64,
+        tip: skein_forge::api::Commit,
+    },
+    TierDecision {
+        task: u64,
+        decision: TierDecision,
+        entry: Option<u64>,
+    },
     /// The project's adoption erasures precede this post-commit reply.
     ProjectReleased {
         request: Token,
@@ -1804,4 +1841,44 @@ pub enum BindAnswer {
 pub struct Unfinished {
     pub entry: u64,
     pub task: u64,
+}
+
+/// A tier task's step (temper/docs/design/domain/after-landing.md, 10).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum TierDecision {
+    Wait { until: Option<skein_lib::Wall> },
+    Held { words: Box<[u8]> },
+    Done { words: Box<[u8]> },
+}
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct TierHeard {
+    pub released: bool,
+    pub cancelled: bool,
+}
+/// Family 28's policy and task (temper/docs/design/domain/after-landing.md, 10).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct TierRow {
+    pub repository: skein_forge::api::Repository,
+    pub tier: Box<[u8]>,
+    pub record: temper_engine_domain_forge_tiers::Record,
+    pub task: Option<u64>,
+}
+/// Family 29's landing verdicts (temper/docs/design/domain/after-landing.md, 10).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Verification {
+    pub repository: skein_forge::api::Repository,
+    pub commit: skein_forge::api::Commit,
+    pub changes: Box<[u64]>,
+    pub tiers: Box<[TierVerification]>,
+}
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct TierVerification {
+    pub tier: Box<[u8]>,
+    pub verdict: Option<TierVerdict>,
+    pub repaired: Option<skein_forge::api::Commit>,
+}
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct TierVerdict {
+    pub run: u64,
+    pub blame: temper_engine_domain_forge_tiers::Blame,
 }

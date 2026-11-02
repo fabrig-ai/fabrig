@@ -47,7 +47,9 @@ mod settle;
 #[cfg(test)]
 mod tests;
 pub mod text;
+mod tiers;
 mod topics;
+mod verification;
 pub use boundary::*;
 pub use brief::{HOME_SECTION_BYTES, hex, home_access_reason};
 pub use commit::commit_text;
@@ -226,6 +228,8 @@ pub fn stored_key(row: &Stored) -> Key {
         Stored::Forge(row) => Key::Forge(row.number),
         Stored::ForgeNumber { .. } => Key::ForgeNumber,
         Stored::Playground(_) => Key::Playground,
+        Stored::Tier(row) => Key::Tier { repository: row.repository, tier: row.tier.clone() },
+        Stored::Verification(row) => Key::Verification { repository: row.repository, commit: row.commit },
         Stored::Landing(row) => Key::Landing(row.landing.task),
         Stored::Receipt { key, .. } => Key::Receipt(key.clone()),
         Stored::Call { key, .. } => Key::Call(*key),
@@ -319,6 +323,8 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             }
             Some(held)
         }
+        Stored::Tier(row) => tiers::row_bytes(row),
+        Stored::Verification(row) => verification::row_bytes(row),
         Stored::Landing(row) => landing::row_bytes(row),
         Stored::Receipt { key, receipt } => landing::receipt_bytes(key, receipt),
         Stored::Call { answer, .. } => match answer {

@@ -15,13 +15,17 @@ mod forges;
 mod issues;
 mod landing;
 mod names;
+mod tiers;
 mod topics;
+mod verification;
 const FITS: &str = "admitted fields fit the schema";
 
 /// Encode every durable family admitted by the domain.
 #[must_use]
 pub fn encode(value: &d::Stored) -> Box<[u8]> {
     let value = match value {
+        d::Stored::Tier(row) => w::Value::Tier(Box::new(tiers::encode(row))),
+        d::Stored::Verification(row) => w::Value::Verification(verification::encode(row)),
         d::Stored::Forge(row) => w::Value::Forge(forges::encode(row)),
         d::Stored::ForgeNumber { last } => {
             w::Value::ForgeNumber(w::ForgeNumber::new(&w::CEILINGS, w::ForgeNumberParts { last: *last }).expect(FITS))
@@ -69,6 +73,8 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
 pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
     let row = w::Row::decode(bounds.limits(), &mut Reader::new(bytes)).or(Err(Undecodable))?;
     Ok(match row.into_parts().value {
+        w::Value::Tier(row) => d::Stored::Tier(tiers::decode(*row)?),
+        w::Value::Verification(row) => d::Stored::Verification(verification::decode(row)?),
         w::Value::Forge(row) => d::Stored::Forge(forges::decode(row)),
         w::Value::ForgeNumber(row) => {
             let w::ForgeNumberParts { last } = row.into_parts();
@@ -76,7 +82,7 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
         }
         w::Value::Playground(row) => d::Stored::Playground(forges::decode_playground(row)),
         w::Value::Landing(row) => d::Stored::Landing(landing::decode(row)),
-        w::Value::Receipt(row) => landing::decode_receipt(row),
+        w::Value::Receipt(row) => landing::decode_receipt(row)?,
         w::Value::Application(value) => application::decode(value, bounds)?,
         w::Value::Issue(value) => d::Stored::Issue(issues::decode(*value)),
         w::Value::Change(value) => d::Stored::Change(change::decode_change_row(*value)),
@@ -135,6 +141,18 @@ pub(crate) fn limits(forge: &d::Limits) -> Option<w::Limits> {
         landing_row_entries: forge.entries,
         receipt_name_name: 32,
         receipt_run_url: 2048,
+        tier_row_tier: 32,
+        tier_run_landings: forge.changes.checked_mul(2)?.checked_add(1)?,
+        tier_finding_blamed: forge.changes.checked_mul(2)?.checked_add(1)?,
+        tier_finding_flakes: forge.tiers.failing_tests,
+        tier_record_flakes: forge.tiers.failing_tests,
+        tier_flake_test: forge.tiers.test_id_bytes,
+        tier_tests_tests: forge.tiers.failing_tests,
+        verification_changes: forge.changes,
+        verification_tiers: forge.tiers.tiers,
+        tier_verification_tier: 32,
+        failed_tests_tests: forge.tiers.failing_tests,
+        failing_test_test_id: forge.tiers.test_id_bytes,
         effect_account_words: temper_engine_domain_forge::EFFECT_ACCOUNT_BYTES,
         answer_name_name: forge.client.answer_bytes,
         binding_address: 254,

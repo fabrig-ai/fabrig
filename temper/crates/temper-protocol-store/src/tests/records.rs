@@ -1158,6 +1158,7 @@ fn receipts_preserve_the_check_key_run_and_verdict() {
                     key: [3; 32],
                 },
                 receipt: forge::Receipt {
+                    failures: None,
                     passed,
                     run: forge::ReceiptRun { id: 7, number: 8, url: Box::from(b"https://forge/run/7".as_slice()) },
                     candidate: [4; 32],
