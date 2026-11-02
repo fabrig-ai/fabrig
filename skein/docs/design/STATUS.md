@@ -23,7 +23,10 @@ interrupted `Socket`, `Accept` or `Connect` (`shell.md`); and in three
 crates' `tests/` directories (`testing.md`). `README.md`, `channel.md`,
 `codec.md`, `kv.md`, `world.md`, `fake-checkout.md`, `fake-llm.md`,
 `forge-client.md`, `llm-connection.md`, `oauth.md`, `oauth-issuer.md`
-and `ui-text.md` have no gap. Of the drafts, `component-kit.md` waits on
+and `ui-text.md` have no gap. The foundation's rules
+(`../foundation/`) have no status file: of `testing-strategy.md`, 6, no
+tree runs transition coverage (`cargo llvm-cov`) or fuzzes a machine or a
+decoder (`cargo fuzz`). Of the drafts, `component-kit.md` waits on
 `lib.md` and `io.md` to name its items, and the design departs from
 `redb.md`: the store is `kv.md`'s own machine.
 
