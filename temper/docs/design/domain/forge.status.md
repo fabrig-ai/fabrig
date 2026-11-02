@@ -38,9 +38,6 @@
     page's line that a change takes no words.
   - 8.2: the pull request's body naming its goal's issue; a landed change
     living until its landing is cleared (`after-landing.md`, section 6).
-  - 8.1: a change's landing branch other than its repository's default,
-    its dependencies and several changes in one call, as `change` names
-    them (`temper-engine-domain/src/route/forge_route.rs`, `chat_change`).
   - 8.2 steps 3 and 6, 8.7, 10: checking and updating by the landing
     branch's rules: `Requires` and `requires` do not exist, and every
     change is checked by CI and updated, whatever its rules

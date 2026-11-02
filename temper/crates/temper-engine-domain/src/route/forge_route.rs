@@ -2024,16 +2024,102 @@ fn change_grants(
     Ok(grants.into_boxed())
 }
 
-/// Expand a chat's request; ordinary delegation shape and authority admission
-/// still decide the resulting batch by its original call name.
-pub(crate) fn chat_change(
+/// A change's expansion either refuses the batch or answers in the host's words.
+pub(crate) enum ChangeRefused {
+    Refusal(tasks::Refusal),
+    Words(Box<[u8]>),
+}
+
+/// Build a plan's changes together; jig admits all of them in one delegation.
+/// Plan members require the control family (domain/agent.md, 4.3.1).
+pub(crate) fn change_batch(
     domain: &Domain,
     env: &Env<Limits>,
+    task: u64,
     context: &tasks::DelegationContext,
-    words: Box<[u8]>,
-    named: Option<&[u8]>,
-) -> Result<super::Delegate, tasks::Refusal> {
-    let repositories = domain.forge.writable_repositories(context.project);
+    changes: &[crate::ChangeCall],
+) -> Result<Box<[super::Delegate]>, ChangeRefused> {
+    let plan = match changes {
+        [change] => change.name.is_some() || change.landing.is_some() || !change.after.is_empty(),
+        _ => true,
+    };
+    let control = jig_domain_core::ToolFamilies::JIG.control.0;
+    if plan && context.authority.tools.0 & control != control {
+        return Err(ChangeRefused::Words(Box::from(
+            b"change's landing, name, after and changes are a plan's: this task's authority lacks the control family (amend, cancel, release).".as_slice(),
+        )));
+    }
+    if let Some(words) = super::goal::change_refusal(domain, task) {
+        return Err(ChangeRefused::Words(words));
+    }
+    let Ok(count) = u32::try_from(changes.len()) else {
+        return Err(ChangeRefused::Refusal(tasks::Refusal::Batch));
+    };
+    if count == 0 {
+        return Err(ChangeRefused::Refusal(tasks::Refusal::Batch));
+    }
+    let available = context
+        .numbers
+        .budget
+        .checked_sub(context.numbers.spent)
+        .ok_or(ChangeRefused::Refusal(tasks::Refusal::Funding))?
+        .checked_sub(context.numbers.spent_below)
+        .ok_or(ChangeRefused::Refusal(tasks::Refusal::Funding))?
+        .checked_sub(context.numbers.reserved)
+        .ok_or(ChangeRefused::Refusal(tasks::Refusal::Funding))?;
+    let spend = (available / 2).checked_div(u64::from(count)).ok_or(ChangeRefused::Refusal(tasks::Refusal::Batch))?;
+    let mut remaining = context.clone();
+    let mut batch = List::with_capacity(count);
+    for (index, change) in changes.iter().enumerate() {
+        if plan && remaining.tasks_left <= 1 {
+            return Err(ChangeRefused::Refusal(tasks::Refusal::Tree));
+        }
+        let earlier = changes.get(..index).expect("earlier changes in this batch");
+        for prior in earlier {
+            if change.name.is_some() && change.name == prior.name {
+                return Err(ChangeRefused::Refusal(tasks::Refusal::Duplicate));
+            }
+        }
+        let Ok(dependency_count) = u32::try_from(change.after.len()) else {
+            return Err(ChangeRefused::Refusal(tasks::Refusal::Dependencies));
+        };
+        let mut dependencies = List::with_capacity(dependency_count);
+        for after in &change.after {
+            let dependency = match after {
+                crate::ChangeAfter::Task(number) => jig_domain_core::Dependency::Existing(*number),
+                crate::ChangeAfter::Name(name) => {
+                    let mut found = None;
+                    for (at, prior) in earlier.iter().enumerate() {
+                        if prior.name.as_deref() == Some(name.as_ref()) {
+                            found = Some(u32::try_from(at).expect("bounded change batch"));
+                            break;
+                        }
+                    }
+                    jig_domain_core::Dependency::Batch(
+                        found.ok_or(ChangeRefused::Refusal(tasks::Refusal::Dependencies))?,
+                    )
+                }
+            };
+            dependencies.push(dependency).expect("bounded change dependencies");
+        }
+        let repository = match change_repository(domain, context.project, change.repository.as_deref()) {
+            Ok(repository) => repository,
+            Err(why) => return Err(ChangeRefused::Refusal(why)),
+        };
+        let base = change_landing(domain, env, task, &repository, change.landing.as_ref())?;
+        let mut member = match chat_change(domain, env, &remaining, change, &repository, base, spend) {
+            Ok(member) => member,
+            Err(why) => return Err(ChangeRefused::Refusal(why)),
+        };
+        member.dependencies = dependencies.into_boxed();
+        remaining.tasks_left = remaining.tasks_left.saturating_sub(1).saturating_sub(member.authority.delegation.tasks);
+        batch.push(member).expect("bounded change batch");
+    }
+    Ok(batch.into_boxed())
+}
+
+fn change_repository(domain: &Domain, project: u32, named: Option<&[u8]>) -> Result<forge::Repository, tasks::Refusal> {
+    let repositories = domain.forge.writable_repositories(project);
     let mut chosen = None;
     for repository in &repositories {
         let fits = match named {
@@ -2047,7 +2133,68 @@ pub(crate) fn chat_change(
             chosen = Some(*repository);
         }
     }
-    let repository = chosen.ok_or(tasks::Refusal::Unknown)?;
+    Ok(chosen.ok_or(tasks::Refusal::Unknown)?.clone())
+}
+
+fn change_landing(
+    domain: &Domain,
+    env: &Env<Limits>,
+    task: u64,
+    repository: &forge::Repository,
+    landing: Option<&crate::ChangeLanding>,
+) -> Result<Box<[u8]>, ChangeRefused> {
+    match landing {
+        None => Ok(repository.settings.default_branch.clone()),
+        Some(crate::ChangeLanding::Branch(branch)) => {
+            branch_parts(branch, env.limits.forge.name_bytes).ok_or(ChangeRefused::Refusal(tasks::Refusal::Spec))?;
+            Ok(branch.clone())
+        }
+        Some(crate::ChangeLanding::Goal) => {
+            let root = domain.core.tasks.root(task).ok_or(ChangeRefused::Refusal(tasks::Refusal::Unknown))?;
+            let branch = tree_branch(repository, root, b'g', task, None, env.limits.forge.name_bytes)
+                .ok_or(ChangeRefused::Refusal(tasks::Refusal::Spec))?;
+            let name = forge::Name {
+                forge: repository.provider.forge,
+                repository: repository.provider.repository,
+                what: branch_what(&branch, env.limits.forge.name_bytes)
+                    .ok_or(ChangeRefused::Refusal(tasks::Refusal::Spec))?,
+            };
+            if let Some(hold) = domain.forge.hold(&name)
+                && hold.task == task
+            {
+                return Ok(branch);
+            }
+            let prefix = b"landing goal: this task holds no goal branch in ";
+            let repository = repository_name(repository);
+            let count = u32::try_from(
+                prefix
+                    .len()
+                    .checked_add(repository.len())
+                    .expect("bounded repository name")
+                    .checked_add(1)
+                    .expect("goal refusal's period"),
+            )
+            .expect("bounded goal refusal");
+            let mut words = List::with_capacity(count);
+            append(&mut words, prefix);
+            append(&mut words, &repository);
+            append(&mut words, b".");
+            Err(ChangeRefused::Words(words.into_boxed()))
+        }
+    }
+}
+
+/// Expand one change with its share of the call's remaining authority.
+/// Ordinary delegation admission decides the resulting batch by its call name.
+fn chat_change(
+    domain: &Domain,
+    env: &Env<Limits>,
+    context: &tasks::DelegationContext,
+    change: &crate::ChangeCall,
+    repository: &forge::Repository,
+    base: Box<[u8]>,
+    spend: u64,
+) -> Result<super::Delegate, tasks::Refusal> {
     // The procedure takes a task and a level, and its producer another of each; with none at
     // all, the delegation's own admission names the missing authority.
     if context.tasks_left == 1 {
@@ -2056,16 +2203,6 @@ pub(crate) fn chat_change(
     if context.authority.delegation.depth == 1 {
         return Err(tasks::Refusal::Depth);
     }
-    let available = context
-        .numbers
-        .budget
-        .checked_sub(context.numbers.spent)
-        .ok_or(tasks::Refusal::Funding)?
-        .checked_sub(context.numbers.spent_below)
-        .ok_or(tasks::Refusal::Funding)?
-        .checked_sub(context.numbers.reserved)
-        .ok_or(tasks::Refusal::Funding)?;
-    let spend = available / 2;
     if spend <= domain.core.authority.rules().minimum_run_spend {
         return Err(tasks::Refusal::Funding);
     }
@@ -2076,8 +2213,7 @@ pub(crate) fn chat_change(
     if domain.config.forge_charter != 4 {
         kinds.push(tasks::AuthorityExecutor::Charter(4)).expect("review kind");
     }
-    let gates =
-        configured_gates(domain, env, repository, &repository.settings.default_branch).ok_or(tasks::Refusal::Spec)?;
+    let gates = configured_gates(domain, env, repository, &base).ok_or(tasks::Refusal::Spec)?;
     for gate in &gates {
         if gate.kind == forge_change::GateKind::Person && !kinds.as_slice().contains(&tasks::AuthorityExecutor::Role(1))
         {
@@ -2096,12 +2232,8 @@ pub(crate) fn chat_change(
         executor: tasks::Executor::Procedure { connector: domain.config.forge_connector, code: CHANGE_CODE },
         spec: tasks::Spec {
             asks: false,
-            words,
-            parameters: Box::new(change_parameters(
-                domain.config.forge_connector,
-                repository.provider,
-                repository.settings.default_branch.clone(),
-            )),
+            words: change.words.clone(),
+            parameters: Box::new(change_parameters(domain.config.forge_connector, repository.provider, base)),
             inputs: Box::new([]),
         },
         // Leave room for the pull's words and address as well as the merge id.
