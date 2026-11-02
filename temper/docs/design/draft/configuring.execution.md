@@ -52,9 +52,9 @@ under Old code, assessed in hel8's `~/src/fabrig/coord/old-repos-value/`.
 
 ### P1. Documents, revisions, a chat's template
 
-- **Executes:** section 2's "Rules must reach the runs" (a charter's
-  documents), section 4 (a task runs under the revision it was made
-  in), and 5.4's first row.
+- **Executes:** `configuring.md`, section 2's "Rules must reach the
+  runs" (a charter's documents), its section 4 (a task runs under the
+  revision it was made in), and its 5.4's first row.
 - **Design:** none new. jig's `domain/engine.md`, 17.3 and 17.9;
   temper's `../protocol/configuration.md`, 13.7; `../domain/agent.md`,
   4.1 and 4.6; `../client/tools.md`, 5.3 (`chat start`'s `--template`).
@@ -77,7 +77,7 @@ under Old code, assessed in hel8's `~/src/fabrig/coord/old-repos-value/`.
 
 ### P2. Settings through ctl
 
-- **Executes:** 3.3 (a change touching a project's own policy;
+- **Executes:** `configuring.md`, 3.3 (a change touching a project's own policy;
   restoring a version) and 5.4, every row.
 - **Design:** the rules the design cites this draft for, in its own
   words (`configuring.status.md`'s first entry); a change of settings
@@ -101,7 +101,7 @@ under Old code, assessed in hel8's `~/src/fabrig/coord/old-repos-value/`.
 
 ### P3. The configuring agent
 
-- **Executes:** 5.3 and section 6.
+- **Executes:** `configuring.md`, 5.3 and section 6.
 - **Design:** `../domain/agent.md`, 8.1, as P2 left the settings;
   `../protocol/documentation.md`'s reference pages `configuration`,
   `configuration-engine` and `limits`, describing what M3 and P2 built.
@@ -119,7 +119,7 @@ under Old code, assessed in hel8's `~/src/fabrig/coord/old-repos-value/`.
 
 ### P4. Stage 1
 
-- **Executes:** 8.1.
+- **Executes:** `configuring.md`, 8.1.
 - **Design:** the golden, `reference-code-production.md`, section 14
   cut into obligations; its check in code and its judge; the box's
   prerequisites and limits; designed beside 6.4 in
@@ -132,7 +132,7 @@ under Old code, assessed in hel8's `~/src/fabrig/coord/old-repos-value/`.
 
 ### P5. Stage 2, rung D
 
-- **Executes:** 8.2.
+- **Executes:** `configuring.md`, 8.2.
 - **Needs:** rung C passed (`v0.1.0.md`, 2.1), the reference's limits
   from M10.
 - **Walk:** rung D.
