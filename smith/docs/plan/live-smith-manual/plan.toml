@@ -1,3 +1,24 @@
 draft = "live-smith-manual"
 repo = "fabrig"
 sources = ["smith/docs/plan/live-smith-manual/inputs/request.md", "AGENTS.md"]
+
+# One direct part of one task: the API-key live story is ignored, the owner's, and smith's testing
+# design (2.3) says what runs after landing and what the owner runs. The request is
+# inputs/request.md; shared rules are in notes/common.md; the cut is in plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "key-story-manual"
+title = "the API-key live story leaves the after-landing run and is the owner's"
+mode = "direct"
+needs = []
+design = "smith/docs/design/testing.md, 2.3"
+
+[[slice]]
+id = 1
+story = "`cargo nextest list --profile live-smith` holds every live story but `an_anthropic_key_delivers_a_commit_in_place`, which the owner runs with `--run-ignored only`, as smith/docs/design/testing.md, 2.3 says"
+parts = ["key-story-manual"]
+walk = false
