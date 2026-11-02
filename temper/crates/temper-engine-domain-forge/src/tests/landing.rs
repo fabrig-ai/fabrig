@@ -9,7 +9,18 @@ fn landing_fixture() -> Domain {
     row.pull = Some(1);
     row.change.landing = None;
     outputs(&mut d, Event::Restore { record: Stored::Change(row) });
-    assert!(d.project_landing(5, temper_engine_domain_forge_change::Way::Turn, Box::new([])));
+    assert!(d.project_landing(
+        5,
+        temper_engine_domain_forge_change::Way::Turn,
+        Box::new([]),
+        AfterLanding {
+            verdict: temper_engine_domain_forge_tiers::Settings {
+                retries: 2,
+                suspects: temper_engine_domain_forge_tiers::Suspects::Bisect
+            },
+            bound: Duration::from_millis(7_200_000)
+        }
+    ));
     d
 }
 fn landing_row(task: u64, phase: policy::Phase) -> LandingRow {
@@ -171,7 +182,18 @@ fn merged_owner(turn: bool) -> (Domain, Box<[Request]>) {
     d.changes.insert(fixtures::CHANGE, change).expect("member change");
     let task = if turn { 61 } else { fixtures::CHANGE };
     if turn {
-        assert!(d.project_landing(5, temper_engine_domain_forge_change::Way::Turn, Box::new([])));
+        assert!(d.project_landing(
+            5,
+            temper_engine_domain_forge_change::Way::Turn,
+            Box::new([]),
+            AfterLanding {
+                verdict: temper_engine_domain_forge_tiers::Settings {
+                    retries: 2,
+                    suspects: temper_engine_domain_forge_tiers::Suspects::Bisect
+                },
+                bound: Duration::from_millis(7_200_000)
+            }
+        ));
         member_landing(&mut d);
         let row = d.landing.rows.get_mut(&task).expect("landing");
         row.landing.phase = policy::Phase::Turn { at: env().wall };

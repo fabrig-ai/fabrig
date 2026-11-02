@@ -208,6 +208,7 @@ fn a_failed_dispatch_still_expires_after_restart() {
         landings::PROJECT,
         change::Way::Turn,
         Box::new([top::RepositoryGates {
+            tiers: Box::new([]),
             repository: REPO,
             gates: Box::new([landing::Gate {
                 name: Box::from(b"gate".as_slice()),

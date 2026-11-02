@@ -93,6 +93,13 @@ pub(super) fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), 
         b"forge.judge_criteria" => limits.forge.judge_criteria = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge.brief_sections" => limits.forge.brief_sections = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge.brief_bytes" => limits.forge.brief_bytes = u32::try_from(value).or(Err(Refused::Range))?,
+        b"forge.tiers.tiers" => limits.forge.tiers.tiers = u32::try_from(value).or(Err(Refused::Range))?,
+        b"forge.tiers.failing_tests" => {
+            limits.forge.tiers.failing_tests = u32::try_from(value).or(Err(Refused::Range))?
+        }
+        b"forge.tiers.test_id_bytes" => {
+            limits.forge.tiers.test_id_bytes = u32::try_from(value).or(Err(Refused::Range))?
+        }
         b"forge.queue_window_ms" => limits.forge.queue_window = duration(value)?,
         b"forge.client.pending" => limits.forge.client.pending = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge.client.calls" => limits.forge.client.calls = u32::try_from(value).or(Err(Refused::Range))?,

@@ -40,6 +40,7 @@ fn setup() -> Domain {
         5,
         temper_engine_domain_forge_change::Way::Turn,
         Box::new([RepositoryGates {
+            tiers: Box::new([]),
             repository: REPO,
             gates: Box::new([policy::Gate {
                 name: Box::from(b"gate".as_slice()),
@@ -47,7 +48,14 @@ fn setup() -> Domain {
                 ignored: Box::new([]),
                 blocking: true
             }])
-        }])
+        }]),
+        AfterLanding {
+            verdict: temper_engine_domain_forge_tiers::Settings {
+                retries: 2,
+                suspects: temper_engine_domain_forge_tiers::Suspects::Bisect
+            },
+            bound: Duration::from_millis(7_200_000)
+        }
     ));
     d
 }

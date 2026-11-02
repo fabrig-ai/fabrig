@@ -6,6 +6,7 @@ use skein_json::Document;
 use skein_lib::{List, Map};
 use temper_engine_domain::{self as engine, Approval, Freshness, Gate, LandingRule};
 use temper_engine_domain_forge::{CHECK_NAME_BYTES, WORKFLOW_BYTES};
+use temper_engine_domain_forge_tiers::Format;
 
 fn freshness(
     object: &mut config::read::Object,
@@ -251,6 +252,24 @@ fn optional_list(
         }
     }
 }
+fn optional_integer(
+    object: &mut config::read::Object,
+    document: &Document,
+    name: &[u8],
+    default: u64,
+    max: u64,
+    path: &Path,
+    problems: &mut Problems,
+) -> Option<u64> {
+    let Some(at) = object.member(document, name) else { return Some(default) };
+    match config::read::integer(document, at, max) {
+        Ok(value) => Some(value),
+        Err(what) => {
+            problems.push(path.member(name), What::Jig(what));
+            None
+        }
+    }
+}
 fn optional_word(
     object: &mut config::read::Object,
     document: &Document,
@@ -371,6 +390,7 @@ fn repository_checks(
     let forge = read::short(&mut object, document, b"forge", path, problems);
     let repository = read::number(&mut object, document, b"repository", path, problems);
     let gate_ats = optional_list(&mut object, document, b"gates", limits.gates, path, problems);
+    let tier_ats = optional_list(&mut object, document, b"tiers", limits.tiers.tiers, path, problems);
     read::finish(object, document, path, problems);
     let mut gates = List::with_capacity(limits.gates);
     if let Some(ats) = gate_ats {
@@ -400,9 +420,79 @@ fn repository_checks(
             }
         }
     }
+    let mut tiers = List::with_capacity(limits.tiers.tiers);
+    if let Some(ats) = tier_ats {
+        for (index, at) in ats.iter().enumerate() {
+            let path = read::index(&path.member(b"tiers"), index);
+            let Some(mut object) = read::object(document, *at, &path, problems) else { continue };
+            let check = check(&mut object, document, &path, limits, problems);
+            let artifact = checked_text(
+                &mut object,
+                document,
+                b"artifact",
+                u32::try_from(CHECK_NAME_BYTES).expect("artifact bound"),
+                &path,
+                problems,
+            );
+            let format = read::text(&mut object, document, b"format", &path, problems);
+            let branch = match object.member(document, b"branch") {
+                Some(at) => match config::read::text(document, at, 1_048_576) {
+                    Ok(value) => {
+                        read::form(!value.is_empty(), path.member(b"branch"), problems);
+                        Some(value)
+                    }
+                    Err(what) => {
+                        problems.push(path.member(b"branch"), What::Jig(what));
+                        None
+                    }
+                },
+                None => None,
+            };
+            read::finish(object, document, &path, problems);
+            if let Some(artifact) = &artifact {
+                read::form(!artifact.contains(&b'/'), path.member(b"artifact"), problems);
+            }
+            let format = match format.as_deref() {
+                Some(b"junit") => Some(Format::Junit),
+                Some(b"lines") => Some(Format::Lines),
+                Some(_) => {
+                    read::form(false, path.member(b"format"), problems);
+                    None
+                }
+                None => None,
+            };
+            if let Some(check) = check
+                && let Some(artifact) = artifact
+                && let Some(format) = format
+            {
+                for previous in &gates {
+                    if previous.name == check.name {
+                        problems.push(path.member(b"name"), What::Jig(config::What::Unique));
+                    }
+                }
+                for previous in &tiers {
+                    let previous: &engine::TierCheck = previous;
+                    if previous.name == check.name {
+                        problems.push(path.member(b"name"), What::Jig(config::What::Unique));
+                    }
+                }
+                tiers
+                    .push(engine::TierCheck {
+                        name: check.name,
+                        workflow: check.workflow,
+                        ignored: check.ignored,
+                        artifact,
+                        format,
+                        branch,
+                    })
+                    .expect("bounded tiers");
+            }
+        }
+    }
     Some(engine::RepositoryChecks {
         repository: skein_forge::api::Repository { forge: forge?, repository: repository? },
         gates: gates.into_boxed(),
+        tiers: tiers.into_boxed(),
     })
 }
 fn project_landing(
@@ -412,6 +502,8 @@ fn project_landing(
     limits: &temper_engine_domain_forge::Limits,
     problems: &mut Problems,
 ) -> Option<engine::ProjectLanding> {
+    let retries = optional_integer(object, document, b"tier_retries", 2, u64::from(u8::MAX), path, problems);
+    let bound = optional_integer(object, document, b"verification_bound_ms", 7_200_000, u64::MAX, path, problems);
     let by = optional_word(object, document, b"by", b"queue", path, problems)?;
     let by = match by.as_ref() {
         b"queue" => engine::Way::Queue,
@@ -435,5 +527,12 @@ fn project_landing(
             repositories.push(checks).expect("bounded repositories");
         }
     }
-    Some(engine::ProjectLanding { by, repositories: repositories.into_boxed() })
+    Some(engine::ProjectLanding {
+        by,
+        repositories: repositories.into_boxed(),
+        after: engine::AfterLandingCheck {
+            tier_retries: u8::try_from(retries?).expect("bounded retries"),
+            verification_bound_ms: bound?,
+        },
+    })
 }

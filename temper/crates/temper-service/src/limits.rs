@@ -190,6 +190,7 @@ const FORGE: forge::Limits = forge::Limits {
     key_entries: 16,
     key_path_bytes: 1024,
     trees_in_flight: 2,
+    tiers: temper_engine_domain_forge::TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
     // Project judge tables, from the engine forge world fixture.
     judge_projects: 2,
     // Criteria in each judge table, from the engine forge world fixture.
