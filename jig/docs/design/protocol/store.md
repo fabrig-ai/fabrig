@@ -108,8 +108,8 @@ skein-io                        files: the ring, or the simulator's disk
 ```
 
 - **A first start** is a directory with no `active`, and none of
-  `store/`, `secrets/` and `transcripts/` at its top (today's layout,
-  below). A `generations/` that holds only a `1/` whose `store/` and
+  `store/`, `secrets/` and `transcripts/` at its top (the layout before
+  generations, below). A `generations/` that holds only a `1/` whose `store/` and
   `secrets/` hold no file, beside at most its manifest or the manifest's temporary
   (`manifest.skein-<16 hex>`), is a first start a cut stopped before `active`
   named it (the stores' first open, which makes their files,
@@ -123,7 +123,7 @@ skein-io                        files: the ring, or the simulator's disk
   generation 1's manifest; then writes `active`, `1`, by io's durable
   replace expecting no file there (`Store` with `Absent`); then makes
   `transcripts/`. The maps are empty: the root's first commit writes
-  the format row, as it does today (5.3).
+  the format row (5.3).
 - **Strays.** `active` names a generation only once it is whole
   (10.4), and at most it and its previous (`active` less one) stand:
   every other entry of `generations/` is a stray, a copy a crash left
@@ -158,7 +158,7 @@ skein-io                        files: the ring, or the simulator's disk
   Nothing at open reads it: it is the operator's record of what an
   upgrade did, and what temper's `upgrade --check` and `versions`
   print (temper's `draft/upgrades.md`, 3.1).
-- **A directory in today's layout** (`store/`, `secrets/` or
+- **A directory in the layout before generations** (`store/`, `secrets/` or
   `transcripts/` at its top, and no `active`) is a store from an older
   build, made before generations. Generations never have the first
   two at the top, and a first start makes `transcripts/` last, after
@@ -235,7 +235,7 @@ skein-io                        files: the ring, or the simulator's disk
     `<deployment>` together, and start again: nothing is deleted, and
     the next start makes a new, empty store."
 - **A backup** copies, with the engine stopped, the deployment's
-  directory whole, as before. Online, which stays open (section 16),
+  directory whole. Online, which stays open (section 16),
   it would copy `active`, then the generation `active` names, then
   `transcripts/`, in that order, and rest on recovery's rule: no switch
   happens while the engine serves (patching is open's, 10.2), and a
@@ -349,7 +349,7 @@ child puts live first.
 | core | goals' projections (feed, plan rows, pending milestones), run proofs, calls committed since a live task's last turn, live agent tasks' conversations (their first attempt, their current window's start) | a goal's, then its own; task; task, attempt, completion, position; task | at start |
 | core | turns (in transcripts' files, section 8), terminals, decisions on proposals and escalations | task, attempt, turn; task, attempt; proposer, proposal; task, revision | on demand |
 | tasks | live tasks, each with its revision and its claim's (`../domain/engine.md`, 17.3), stubs naming ended results, the funders' live periods, writer slots, pools' slots, pending proposals | task; task; funder; slot; proposal | at start |
-| tasks | placed holds (`../domain/tasks.md`, 5.9), designed, not built: each one's owner, mode, scope, reason, what lifts it and its subscription, its revision and the tasks it exempts; a lifted one kept while a task it held is still held by it, erased with the last one's release | hold | at start, with the live tasks |
+| tasks | placed holds (`../domain/tasks.md`, 5.9): each one's owner, mode, scope, reason, what lifts it and its subscription, its revision and the tasks it exempts; a lifted one kept while a task it held is still held by it, erased with the last one's release | hold | at start, with the live tasks |
 | tasks | ended tasks, past periods, decided proposals, history, milestones, activity | task, then a position or revision; funder, period; proposal | on demand |
 | people | parties, sign-ins (no secret), roles, projects' names and whole policies (their ceilings, escalation roles and overrides of templates among them), seeded and made alike, read positions over results and over live conversations, answered keys within the retention, a party's or, for the deployment's acts, a connector's (`../domain/people.md`, 5.3), including typed policy-ceiling refusals (holder, dimension and optional scalar bound and requested values), program declarations and checks, their declared names, and sign-out/removal answers naming unconfirmed configured workers with their original failure reasons | as the people child keys them; a live conversation's position by party, then task | at start |
 | people | ended conversations' read positions (7.4) | task, then party | at start, by the census, every row (7.2); otherwise on demand |
@@ -368,27 +368,26 @@ secrets' store (section 9).
 
 ## 5. Records
 
-The current tasks family is version 9: its durable `MessageKind` adds
-`FinishRequested { revision }` for a cancel grace and `NothingAwaited`
-for a result-ended task with nothing pending (`../domain/tasks.md`, 5.2).
-Tasks version 8 stores
-refuse to open under the existing format check; no migration is added.
-Component2/core5/people8/notes1 remain unchanged. The accounts family
-is version 2: a source's hold adds *moving* (`../domain/accounts.md`,
-section 6); accounts version 1 stores refuse to open likewise.
+The families' current versions are the component's 3, the core's 6,
+the tasks' 9, the people's 14, the notes' 1, the accounts' 2, the
+settings' 1 and the secrets' 1. The tasks family's durable
+`MessageKind` holds `FinishRequested { revision }` for a cancel grace
+and `NothingAwaited` for a result-ended task with nothing pending
+(`../domain/tasks.md`, 5.2). The accounts family's source hold includes
+*moving* (`../domain/accounts.md`, section 6). A store at another
+version of any family refuses to open under the format check (5.3).
 
-Settings (`../domain/engine.md`, section 17) add the core's two
+Settings (`../domain/engine.md`, section 17) are the core's two
 settings families (4.4), under a schema of their own, `settings`, whose
 version the format row names beside the others' (5.3), so that their
-records change independently of the core's; and a revision on each task's
-record and claim changes the tasks family's schema. Until the first
+records change independently of the core's; and each task's record
+and claim carries a revision in the tasks family's schema. Until the first
 release, each family's version keeps its current number, and its schema,
 generated code and one set of golden bytes change in place. Versions
 move at a release, not when a change lands (skein's `codec.md`,
-section 5). The settings' first version defines every record of 17.7,
-charter versions
-and pending proposals' sets among them, whichever change first
-writes them. As every family's: each record stored at the top is
+section 5). The settings' version defines every record of 17.7,
+charter versions and pending proposals' sets among them. As every
+family's: each record stored at the top is
 versioned; a bytes field that holds a record or pieces of one says so;
 the keys' root type is jig's own and explicit. A store of an earlier
 version refuses to open under the format check (5.3). Before the baseline,
@@ -407,11 +406,10 @@ follow from the limits that bound each kind (5.4).
   and from the generated ones with small total functions, exhaustive both
   ways, so a domain change to a durable field breaks a translation's
   build the day it happens.
-Open's ending authority is carried in tasks v9 and people v13. Core's schema is v6; the format row requires these versions.
-
-- **Change results** retain an explicit title beside their words in tasks v9.
-  Both fields independently fit the result-byte limit; the schema and goldens
-  change in place under the pre-release layout rule above.
+- **A task's ending authority** is carried in the tasks and people
+  families.
+- **Change results** keep an explicit title beside their words in the
+  tasks family. Both fields independently fit the result-byte limit.
 
 - **Each record carries its family's version,** as every generated record
   does (skein's `codec.md`, section 5), which is what an upgrade will
@@ -431,7 +429,7 @@ Open's ending authority is carried in tasks v9 and people v13. Core's schema is 
 - **Authority models retain their selector** (`../domain/authority.md`,
   section 3). Literal ALL is distinct from a named set, including an
   explicit empty set and a set of all 64 configured models. The people
-  family (version 5) keeps one bounded name context per policy row or retained
+  family keeps one bounded name context per policy row or retained
   ask. Tagged authority masks reference that context, including nested Create members, Amend, compound operations,
   proposals and ChangePolicy roles. A retained ask's names are unique and sorted by their
   bytes (policy snapshot contexts follow configuration order), at most 64, each at most 4,096 UTF-8 bytes; these retained names
@@ -445,18 +443,18 @@ Open's ending authority is carried in tasks v9 and people v13. Core's schema is 
   retry returns its retained answer before current model-availability
   admission; another selector on that key is KeyConflict. A new key
   naming an unknown model is refused. Restoring effective policy maps
-  names to today's configuration, dropping removed names without an
+  names to the current configuration, dropping removed names without an
   error; only literal ALL gains a newly configured model. Answers and
   pending proposals retain their identity and outcome. A policy row
   holds no ceiling: each start restores it under configuration's.
-  The tasks family's version 5 rows retain only names their own named
+  The tasks family's rows retain only names their own named
   selectors reference, in canonical byte order, with masks reindexed to
   that context. Literal ALL and unrelated variants retain no names.
   Live/ended authorities, pending or decided proposals, recurring members
   and amendment history remap effective masks on load. These are effective
   snapshots; the original keyed ask remains people's.
 - **Added dependencies keep when and by whom.** The tasks family's
-  version 6 rows keep each live task's dependency with whether it was
+  rows keep each live task's dependency with whether it was
   named when the task was made or added by an amendment, and for an
   added one its wall and its maker, a party or a task
   (`../domain/tasks.md`, section 7); a hold for a circle of waits, with
@@ -487,9 +485,8 @@ Open's ending authority is carried in tasks v9 and people v13. Core's schema is 
 - **Golden bytes** in one set per family, for its current schema until
   the first release (skein's `codec.md`, section 5); a fuzz target per
   family's decoder; bounds at their limit and one past it.
-- **What jig's records hold, said** (skein's `codec.md`, section 3), in
-  place before the first release, in one change, since each word moves
-  its family's layout and makes older stores again (5.3): the core's
+- **What jig's records hold, said** (skein's `codec.md`, section 3),
+  each word part of its family's layout (5.3): the core's
   `TaskBytes`, `PhaseBytes`, `ChangeBytes` and `EndBytes` hold the tasks
   family's `TaskProblem`, `PhaseRecord`, `ChangeRecord` and `EndRecord`,
   and its `NoteBytes` the notes family's `Row`; people's and tasks'
@@ -559,8 +556,7 @@ Open's ending authority is carried in tasks v9 and people v13. Core's schema is 
     other commit.
   - **Read first,** by the kept text of the component's version the row
     names (skein's `codec.md`, 11), so a store behind reads its own
-    row; before the component's baseline, by its current codec, as
-    today.
+    row; before the component's baseline, by its current codec.
   - **Compared at open,** per owner, after the component's version and
     with the families' versions, before the header and the deployment
     (section 10, step 2):
@@ -649,14 +645,14 @@ Open's ending authority is carried in tasks v9 and people v13. Core's schema is 
 ### 5.4 Sizes
 
 `jig_protocol_store::sizes::frame(domain, transcript_bytes) -> Option<u32>`
-returns the maximum complete current TurnRecord frame for an admitted
-ordinary transcript byte bound. It copies the current codec limits,
-changes only that field's bound, uses the generated current record sizing
-and adds the actual frame wrapper shared with the encoder. A bound past
-the existing codec ceiling or an arithmetic overflow is refused, never
-clamped. Applications deriving page room combine it with the checked
-map key-plus-value bound; row, queue, read-slot and decoder ceilings are
-separate and need not grow with this admission counter.
+returns the largest complete current TurnRecord frame for an admitted
+ordinary transcript byte bound. It takes the codec's limits with that
+field's bound changed, the generated record sizing, and the frame
+wrapper the encoder shares. A bound past the codec's ceiling or an
+arithmetic overflow is refused, never clamped. Applications deriving
+page room combine it with the checked map key-plus-value bound; row,
+queue, read-slot and decoder ceilings are separate, and this bound
+does not grow them.
 
 The store's `Limits.commits` is its commit edge,
 `sizes::Commits { in_flight, writes }`: the commits it queues at once
@@ -725,12 +721,12 @@ admitted within that edge is never refused as too large.
   refused batch on disk. Its one terminal is
   `FrameTooLarge { number, task, bytes, limit }`, where `bytes` is the full
   encoded frame length and `limit` is `P`. There is no additional `Failed`
-  for that number. This terminal comes first, followed by the existing
+  for that number. This terminal comes first, followed by the
   failures of earlier pending commits, and the component stops as for an
   ordinary commit failure. Previously durable data remains recoverable.
   The event is strictly in-process: no journal record, stored family or
   wire message carries it. An application feeds the rejected number to its
-  existing uncommitted-commit policy and may report the named cause.
+  uncommitted-commit policy and may report the named cause.
 - **A commit's operations are bounded,** as skein-kv applies each commit
   in one step (skein's `kv.md`, section 7). Where removing a record would
   erase an unbounded number of rows (a transcript's attempts' places,
@@ -998,11 +994,8 @@ first by time is keyed reversed. skein-kv's load runs forwards only
   the core's schema says so: `transcript: bytes 8388608 holds
   smith-transcript Turn` (skein's `codec.md`, section 3). No frame is
   rewritten: one behind the binary's versions is patched each time it is
-  read (8.6). The word is core-v6's in place, before the baseline: it
-  moves the family's layout and no byte (skein's `codec.md`, section 9),
-  so a store of the build before it is older (5.3) and starts afresh, as
-  every store before the baseline does (temper's `draft/upgrades.md`,
-  4.1).
+  read (8.6). The word is core-v6's: it is part of the family's layout
+  and moves no byte (skein's `codec.md`, section 9).
 - **The map keeps each transcript's places,** in the component's own
   family: its committed length and the offset of its current window's
   first turn, one row per task with a transcript; and each attempt's
@@ -1014,8 +1007,7 @@ first by time is keyed reversed. skein-kv's load runs forwards only
   `protocol/transcript.md`, section 3). A patch marked fresh closes
   every live task's window, in the patched copy (10.2, step 4): the run
   proof's window says so (core-v6's `record Window { attempt: u64 turn:
-  u32 closed: bool }`, the flag in place before the baseline, beside the
-  holds word and with it).
+  u32 closed: bool }`).
 
 ### 8.2 Written before its commit
 
@@ -1118,7 +1110,7 @@ nothing is written.
   the transcripts' part for the whole run. They are not patching's
   (10.3), which go with the copy's open. A family with no kept text has
   none: every real set is empty until the baseline, so no machine is
-  made and every read runs as it does today.
+  made.
 - **A frame's versions** are read with its head, past the frame's
   length: the body's first two bytes, and the turn's first two, past the
   `transcript` field's length, after the fields the head reads already.
@@ -1130,14 +1122,14 @@ nothing is written.
   At its held turn the machine stops (`Step::Held`): at the first pass,
   smith's machine patches the turn from its version to smith's last
   kept, and its bytes go back with `put_content`; the passes after carry
-  them (`carry`). A body at the binary's version is decoded as before,
-  by the binary's codec, and its turn, if behind, is patched by smith's
+  them (`carry`). A body at the binary's version is decoded by the
+  binary's codec, and its turn, if behind, is patched by smith's
   machine alone, from smith's frames' root.
 - **One rule for versions.** Where a family has a machine, a version
   among its kept texts and before its last is patched, its last goes on
   as it is, and any other, older than its first or past its last, is a
   halt (`Decode` or `Order`), so the frame is unread. Where a family has
-  none, its bytes go on as they are, as today: a body its codec cannot
+  none, its bytes go on as they are: a body its codec cannot
   read is unread (8.3), and a turn's reader refuses a version not its
   own (smith's `protocol/transcript.md`, section 4).
 - **Owners' order.** The copy runs owners' patches in their pins' order
@@ -1182,12 +1174,11 @@ nothing is written.
   `Context`, its key set: reads come in any order and a frame is patched
   at each, so a frame's patch reads that frame alone (skein's
   `codec.md`, 11.5). The component's routing of `Request::Site` follows
-  its phase: a walk's while patching, as today, and the read waiting at
-  a site while serving, its token the read's; any other is refused, as
-  a site no walk waits for is today. No new variant: a shell that hands
-  sets answers `Site` while serving as while patching, and one that
-  hands none never sees it.
-- **One read at a time,** as today (`transcripts/read.rs`): a read
+  its phase: a walk's while patching, and the read waiting at a site
+  while serving, its token the read's; any other is refused, as a site
+  no walk waits for is. A shell that hands sets answers `Site` while
+  serving as while patching, and one that hands none never sees it.
+- **One read at a time** (`transcripts/read.rs`): a read
   waiting at a site holds the component's read, commits wait behind it
   as behind any read (`transcripts/write.rs`), and a machine serves one
   frame from `start` to `finish`.
@@ -1250,7 +1241,7 @@ nothing is written.
   A program source's login is not here: it is the program's own, on
   each host (`llm.md`, 5.5).
 - **Each row from a schema,** jig's family `secrets`
-  (`schema/secrets-v1.schema`, in place before the first release),
+  (`schema/secrets-v1.schema`),
   versioned records whose key says which:
   - `Digest { expiry: u64, digest: fixed 32 }`, a sign-in's (`[1, 0]`)
     and a service's (`[1, 1]`), an expiry of `u64::MAX` for a service's;
@@ -1279,18 +1270,16 @@ nothing is written.
   envelope does not decode fails the read and stops the engine, as a
   failed commit does (an older build's store was refused at open by its
   layout); a held record's digest is taken before it is decoded, so one
-  that does not decode can still be replaced, as today.
+  that does not decode can still be replaced.
 
-  Each `N` is the bound its value has today; the version, the tags and
-  the options add bytes, so each row's bound and the secrets' store's
-  worst case grow by them, measured, and a rise in a budget comes to
-  the user first. A held record is still decoded and checked by its own
-  code (skein's `decode_record` and its checks, `Moved`'s), the words
-  changing no decode. Adopting a carried value unwraps its `Carried`
-  and writes a `Source`; every digest a conditional write states
-  (`adopt`, `keep`'s replaced record, a key's) is the digest of the
-  value held, never of its envelope, so it is the same before and after
-  this change. The application's rows
+  Each `N` is its value's bound; the version, the tags and the options
+  add bytes, which each row's bound and the secrets' store's worst case
+  count. A held record is decoded and checked by its own code (skein's
+  `decode_record` and its checks, `Moved`'s), the words changing no
+  decode. Adopting a carried value unwraps its `Carried` and writes a
+  `Source`; every digest a conditional write states (`adopt`, `keep`'s
+  replaced record, a key's) is the digest of the value held, never of
+  its envelope. The application's rows
   are its own family's, by its own schema (temper's
   `protocol/credentials.md`, 2.1). jig's set names the family, `map:
   Secrets`, and its keys' ranges, the application's left out (10.3), so
@@ -1398,17 +1387,13 @@ nothing is written.
   a row is kept under, the sources' and accounts' drawn by the accounts'
   counter in the store (`[1, 4, 0]`), so that the start's sweep erases
   nothing it should keep and no number is drawn twice. Its last commit
-  is named in the manifest (section 2). As built, a kept family names
+  is named in the manifest (section 2). A kept family names
   its map (`KeptFamily::map`, 10.3): a secrets family is walked in the
   copy's secrets' store, each page one commit of that store's own,
   within that map's limits and record room, and the seal stays the
   store's (the secrets' store has no format row or header). A fixture
   family of the application's records proves it (`jig-test-patches`'
-  `fixture-token`), both numbers unchanged across the switch. Still
-  open: the sign-in and service secrets are the shell's own 40-byte
-  encoding and skein's OAuth records a hand codec of skein-oauth's (its
-  `RECORD_VERSION`), neither from a schema, so neither has a kept text
-  a patch could name, and no set keeps them (section 16).
+  `fixture-token`), both numbers unchanged across the switch.
 
 ## 10. Opening and restart
 
@@ -1461,7 +1446,8 @@ seeded, not that they are the three the shell serves the store with.
 2. **`active`,** a whole-file load of at most 21 bytes: a generation's
    number in decimal, with no leading zero, and a newline; anything
    else refuses, `Generations::Unreadable`. With none, the directory is
-   a first start's, or refused as today's layout (`Older::Directory`)
+   a first start's, or refused as the layout before generations
+   (`Older::Directory`)
    or as generations no `active` names (`Generations::Unnamed`), as
    section 2 says.
 3. **The active generation's maps:** its `store/` and `secrets/` must
@@ -1482,8 +1468,8 @@ seeded, not that they are the three the shell serves the store with.
    previous.
 6. **`transcripts/`** is made where it is missing.
 7. **At the binary's levels,** the open goes on with the rest of step 2
-   (the run proofs' cuts, the installation's identifier), as it always
-   has. Behind them, it patches a copy (10.2).
+   (the run proofs' cuts, the installation's identifier). Behind them,
+   it patches a copy (10.2).
 
 Each refusal names the deployment's directory and what to do: another
 process holding the lock is stopped first; an unreadable or missing
@@ -1785,8 +1771,8 @@ impl PatchSets {
   keys' encoders (section 12). A set with no kept text is an owner
   before its baseline, level none; otherwise its level is its patches'
   count. Every real set is empty until the baseline (temper's
-  `draft/upgrades.md`, 4.1), so no store is behind and open runs as it
-  always has; the component's tests hand it fixture owners' sets:
+  `draft/upgrades.md`, 4.1), so no store is behind and open patches
+  nothing; the component's tests hand it fixture owners' sets:
   `jig-test-patches` in the application's slot and `jig-test-patches-jig`
   in jig's, so that the order across owners is shown, and
   `jig-test-patches-smith` in smith's, a fixture turn family whose frames
@@ -1920,26 +1906,12 @@ pub struct Counts { pub records: u64, pub commits: u64 }
   site, and both shells would answer one `Halt::NoSite` (skein's
   `codec.md`, 11.4: a site its caller has no function for), as their
   routes already do for any token.
-- **What a shell downstream sees** (temper's `temper-service`, its
-  domain world's driver, `temper-github-app`): open's signature stays
-  as it is; its answer, `Opened`, gains `pending` (10.2, step 7), which
-  is false until a shell hands sets, and a root that sees it true asks
-  for `Request::Switch` before its runs are adopted. The component holds `PatchSets::NONE` until a shell hands
-  it sets, by a setter beside the constructors (`Store::patch_sets`,
-  additive); with none it never answers `Site` or `Patched` and never
-  wants `Request::Site`. The new refusals (10.1) reach shells whose
-  refusal matches already end in a wildcard (temper's: `Format` its
-  version stop, the rest unavailable), so these build as before, and
-  nothing downstream matches `Older` or `Generations`. The new `Event`
-  and `Request` variants do not build as before: a shell that matches
-  either exhaustively gains their arms with the build that adds them.
-  These shells are temper's store shell, engine, store route, accounts
-  and clients, and its domain world's driver; and jig's test service,
-  test stores and accounts worlds. Sets' new fields (`PatchSet::fresh`,
-  `KeptFamily::frames`, `KeptFamily::flights`) reach no shell downstream, since none builds a
-  set before the baseline; reads patched as they are read add no
-  variant. The closed window is the core's (`../domain/engine.md`,
-  section 6), and reaches temper's sources as no change.
+- **A shell with no sets.** The component holds `PatchSets::NONE`
+  until a shell hands it sets, by a setter beside the constructors
+  (`Store::patch_sets`); with none it never answers `Site` or
+  `Patched`, never wants `Request::Site`, and `Opened`'s `pending` is
+  false. A root that sees `pending` true asks for `Request::Switch`
+  before its runs are adopted (10.2, step 7).
 - **Held fields** are the component's: at `Step::Held`, the held
   family's own machine patches the held bytes, its own sites going up
   as above, and its bytes are put into the holder's (`put_content`),
@@ -2217,7 +2189,7 @@ Each within jig's suites' budgets.
   record, never regenerated by the test that reads them. A change to a
   name, to `active`'s form or to where a generation keeps its maps fails
   it, naming the layout: from the first release a later build reads this
-  layout as it finds it (temper's `draft/v0.1.0.md`, section 6). The
+  layout as it finds it (temper's `draft/v0.1.0.md`, section 5). The
   manifest's fields are the component's family's, which patches carry.
 - **Transcripts patched as read,** most of it at the lowest layer. Step
   tests in `jig-protocol-store` over `jig-test-patches-smith` (and a
@@ -2229,7 +2201,7 @@ Each within jig's suites' budgets.
   version before a machine's first or past its last unread; a site up
   and back on a read, a commit waiting behind it, and a stray `Site`
   refused in each phase; the frames' checks refusing at a serving open;
-  no machine and today's path with sets that keep no text; each
+  no machine with sets that keep no text; each
   machine's worst case against its measured peak; over skein-io's fault
   points, a cut at each step of a read changes no file. Fuzzed: a frame's decode with
   machines, over random fixture frames. One story in the store's world:
@@ -2256,8 +2228,8 @@ Each within jig's suites' budgets.
   closing run proof outside its decode limit, a mismatched key and proof,
   and a malformed run-proof key with `Check::Load` naming the offending
   key: the active generation and source stay unchanged, and the next
-  start sweeps the abandoned copy. The existing closing-write fault and
-  crash stories retain the switch-order evidence.
+  start sweeps the abandoned copy. The closing-write fault and crash
+  stories hold the switch's order.
 - **Fuzz targets** for each family's decoder and a frame's.
 - **On the real ring,** the reference binary (`service.md`, section 7)
   killed around each phase of a turn's commit and started again. A killed
@@ -2311,8 +2283,9 @@ Each within jig's suites' budgets.
   9. **the accounts' family:** the next number; each account with its
      holder, LLM provider, subject, display name and uses; each source
      with its place in its holder's order, kind, name for a program's,
-     and its hold, limited with its reset or refused; restored at start,
-     a record breaking the child's rules counted and left in the store;
+     and its hold, limited with its reset, refused or moving; restored at
+     start by fit and link, a set past its limit refusing the start and
+     a link the start cannot make a panic (`../domain/accounts.md`, 3.6);
      a source's record or key named by the source's number, and
      erased when the source goes (4.4, section 9;
      `../domain/accounts.md`, 3.5). The installation's identifier is the
