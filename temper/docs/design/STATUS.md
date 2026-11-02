@@ -2,13 +2,15 @@
 
 2026-11-02. Where temper's code lags or departs from its design, and its
 design from its drafts, from the status files below. The first
-milestone stands in the code (`README.md`). After landing and findings
-are not built, whole (`domain/after-landing.md`, `domain/findings.md`,
-with their families in `protocol/store.md` and their groups in
-`client/tools.md`). The worker runs jobs, but none of temper's kinds
-is built, so the project's tooling and the `Rewrite` delivery lag
-(`domain/worker.md`, `protocol/tooling.md`, `domain/landing.md`,
-`protocol/git.md`). Settings of temper's kinds lag: the landing rules
+milestone stands in the code (`README.md`). After landing is built for
+a repository's tiers, their verdicts and a change living to cleared;
+its reds to goals, trailers, what the forge shows and the landing log
+are not (`domain/after-landing.md`, `protocol/store.md`), nor are
+findings, whole (`domain/findings.md`, with their families in
+`protocol/store.md` and their groups in `client/tools.md`). The worker
+runs jobs, but none of temper's kinds is built, so the project's
+tooling and the `Rewrite` delivery lag (`domain/worker.md`,
+`protocol/tooling.md`, `domain/landing.md`, `protocol/git.md`). Settings of temper's kinds lag: the landing rules
 and the forge's charter are still read from the document
 (`domain/root.md`, `domain/forge.md`, `protocol/configuration.md`,
 `domain/agent.md`). Much of a change's own bounds, gates and charters,

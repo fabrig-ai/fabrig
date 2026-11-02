@@ -73,6 +73,14 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
   `temper_commit` and `temper_key`, and `temper_tests`, the ids to run
   alone, one per line, when temper gives them: it runs only those then.
   It uploads its report as the named artifact.
+- **The box's runner:** workflows using `temper-host` execute on the
+  host. JavaScript `uses:` actions such as `actions/checkout@v4` and
+  `actions/upload-artifact@v3` need compatible Node.js installed there
+  as `node`, on `application.machine.owned.runner.path` (default
+  `/usr/local/bin:/usr/bin:/bin`). After changing that configuration,
+  restart the box. An installation available only through an
+  interactive shell is insufficient: the runner uses the configured
+  PATH, not the shell's.
 - **ctl:** `change show TASK --until cleared` waits for a landed
   change's verdict, its step `verifying`, `red` or `cleared` naming the
   tiers and their runs; `task show` reads a tier's run task, and `task

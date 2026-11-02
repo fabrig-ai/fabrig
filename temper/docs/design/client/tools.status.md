@@ -20,8 +20,6 @@
   request on the wire. 6.1: a task wait's refusal by a worker's hello
   prints its stop bound as jig's nanoseconds, `allowed grace N ns`, not
   whole seconds (`render/document/llm.rs`, `HelloRefusal::StopBound`).
-  5.4, 5.5: `change show`'s `cleared` condition, `landed` met by the
-  steps after it, and its `--until cleared` following call.
   8.1: `GROUP VERB --help`; `temper ctl` parses a
   leading `help` alone. 11.2:
   the joined story of a model's amendment (`tests/client`'s

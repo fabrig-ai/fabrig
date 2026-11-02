@@ -225,6 +225,38 @@ fn help_prints_a_whole_page_and_names_an_unknown_one() {
 }
 
 #[test]
+fn box_and_tier_help_name_the_host_runners_node_prerequisite() {
+    for (page, heading) in [("box", "Before you start"), ("tier", "Acting on it")] {
+        let text = help::answer(&configured(&["help", page])).expect("help page");
+        let section = text
+            .split(&format!("## {heading}\n"))
+            .nth(1)
+            .expect("prerequisite section")
+            .split("\n## ")
+            .next()
+            .expect("section text")
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ");
+        for prerequisite in [
+            "`temper-host`",
+            "host",
+            "compatible Node.js",
+            "`node`",
+            "JavaScript `uses:` actions",
+            "`actions/checkout@v4`",
+            "`actions/upload-artifact@v3`",
+            "`application.machine.owned.runner.path`",
+            "`/usr/local/bin:/usr/bin:/bin`",
+            "restart",
+            "interactive shell is insufficient",
+        ] {
+            assert!(section.contains(prerequisite), "{page}: missing {prerequisite}: {section}");
+        }
+    }
+}
+
+#[test]
 fn box_and_change_help_locate_temper_review_gates_in_change_show() {
     let box_page = help::answer(&configured(&["help", "box"])).expect("box page");
     let step = box_page

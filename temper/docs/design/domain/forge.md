@@ -1583,9 +1583,9 @@ are comparable.
 - **Derived, not kept.** A queue is the ready changes into a branch,
   their priorities and their times; nothing of it is stored beyond the
   changes' own states, so a restart rebuilds it from them.
-- **The branch's own CI,** for a repository with no tier: a repository
-  with tiers is judged by their verdicts instead, and its queue never
-  pauses for them (`after-landing.md`, section 7). A landing temper did
+- **The branch's own CI,** for a branch no tier follows: a branch
+  tiers follow is judged by their verdicts instead, and its queue never
+  pauses for them (`after-landing.md`, sections 2 and 7). A landing temper did
   not make may break the branch. Once CI fails on the branch's tip, the queue pauses and one
   repair is made: a change task into that branch, first in its queue,
   its words, and its producer's, opening with what it repairs, as a
