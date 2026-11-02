@@ -55,7 +55,8 @@ pub(crate) fn limits() -> Limits {
 pub(crate) fn shared() -> Shared {
     Shared {
         calls: LIMITS.calls,
-        rows: LIMITS.rows,
+        // A commit range is read whole before its two-row owner page is cut.
+        rows: fixtures::shared().rows,
         answer_bytes: LIMITS.answer_bytes,
         op_bytes: LIMITS.op_bytes,
         lifetime: LIMITS.lifetime,

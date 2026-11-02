@@ -6,15 +6,14 @@ no root composes `smith-inline-agent`, so the engine's own slots, a
 hub's agent capability and the tools a worker begins with their calls
 are not in jig (`README.md`, `domain/README.md`, `domain/engine.md`,
 `domain/hosts.md`, `domain/root.md`, `protocol/README.md`,
-`protocol/channel.md`, `protocol/llm.md`, `protocol/service.md`). Jobs
-are not built (`domain/core.md`, `domain/tasks.md`, `domain/hosts.md`,
-`domain/engine.md`, `client/domain/contract.md`), nor TLS between hosts
-and contained process trees for workers' agents (the protocol
-documents), nor the store's retention, rehearsal and going back
-(`protocol/store.md`, `protocol/client.md`). Of the acts, `Hold`, `Move`
-under another task, `Succeed`, a settings revision's `Restore`,
-successors, markers, a drain and a conversation's questions lag
-(`domain/people.md`, `domain/tasks.md`, `domain/engine.md`,
+`protocol/channel.md`, `protocol/llm.md`, `protocol/service.md`). TLS
+between hosts and contained process trees for workers' agents are not
+built (the protocol documents), nor the store's retention, rehearsal and
+going back (`protocol/store.md`, `protocol/client.md`), nor a policy's
+job kinds in the operator's configuration (`protocol/configuration.md`).
+Of the acts, `Hold`, `Move` under another task, `Succeed`, a settings
+revision's `Restore`, successors, markers, a drain and a conversation's
+questions lag (`domain/people.md`, `domain/tasks.md`, `domain/engine.md`,
 `client/domain/contract.md`); of the client, a committed turn's objects,
 `me`'s `resolved_default`, a service's root, the one-shot mode and the
 drawing family (`client/domain/`); and `ops` standalone, with its
@@ -23,8 +22,9 @@ project's settings are not erased, nor is `RemoveProject` offered in
 the project's document (`domain/people.md`, `domain/connectors.md`,
 `client/domain/contract.md`). The code departs
 in a few single items (`README.md`, `client/domain/client.md`,
-`domain/engine.md`, `domain/root.md`, `examples.md`). `domain/providers.md` and `client/domain/README.md` have
-no gap of their own. jig has no drafts.
+`domain/engine.md`, `domain/root.md`, `examples.md`). `domain/core.md`,
+`domain/providers.md` and `client/domain/README.md` have no gap of their
+own. jig has no drafts.
 
 Design documents:
 - [`README.md`](README.status.md)

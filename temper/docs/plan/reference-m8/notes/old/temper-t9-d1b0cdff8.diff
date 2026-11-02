@@ -1,0 +1,43 @@
+diff --git a/temper/crates/temper-engine-domain/src/route/forge_route.rs b/temper/crates/temper-engine-domain/src/route/forge_route.rs
+index d4fcd7ef2..5f46315ff 100644
+--- a/temper/crates/temper-engine-domain/src/route/forge_route.rs
++++ b/temper/crates/temper-engine-domain/src/route/forge_route.rs
+@@ -345,6 +345,8 @@ fn read_name(repository: &forge::Repository, read: &skein_forge::api::Read, limi
+         | skein_forge::api::Read::Runs { .. }
+         | skein_forge::api::Read::Run { .. }
+         | skein_forge::api::Read::Tree { .. }
++        | skein_forge::api::Read::Artifact { .. }
++        | skein_forge::api::Read::Commits { .. }
+         | skein_forge::api::Read::Permission { .. } => None,
+     };
+     if let Some((kind, part)) = what {
+diff --git a/temper/crates/temper-engine-smith/src/answers.rs b/temper/crates/temper-engine-smith/src/answers.rs
+index 318cb05d2..34d25f41b 100644
+--- a/temper/crates/temper-engine-smith/src/answers.rs
++++ b/temper/crates/temper-engine-smith/src/answers.rs
+@@ -777,8 +777,8 @@ fn forge_answer(text: &mut Text, answer: &api::Answer) -> Result<(), Problem> {
+             api::BranchCreation::Created => text.add(b"Branch created")?,
+             api::BranchCreation::Exists => text.add(b"Branch already exists")?,
+         },
+-        api::Answer::Runs { .. } | api::Answer::Run(_) | api::Answer::Tree { .. } => {
+-            unreachable!("agent forge reads do not request Actions or trees")
++        api::Answer::Runs { .. } | api::Answer::Run(_) | api::Answer::Tree { .. } | api::Answer::Commits { .. } => {
++            unreachable!("agent forge reads do not request Actions, trees or commit ranges")
+         }
+         api::Answer::Queued => unreachable!("temper-12 gives merge queue answers meaning"),
+         api::Answer::Done => text.add(b"Done")?,
+diff --git a/temper/crates/temper/tests/support/case.rs b/temper/crates/temper/tests/support/case.rs
+index 3c9b70d50..90345cad4 100644
+--- a/temper/crates/temper/tests/support/case.rs
++++ b/temper/crates/temper/tests/support/case.rs
+@@ -247,7 +247,9 @@ pub fn run(
+         Some(skein_fake_forge_domain::api::Cue::File { path, green }) => {
+             json!({"path":text(&path),"green":text(&green)})
+         }
+-        Some(skein_fake_forge_domain::api::Cue::Message { .. }) => panic!("case forge message cue unsupported"),
++        Some(skein_fake_forge_domain::api::Cue::Message { .. } | skein_fake_forge_domain::api::Cue::Tests { .. }) => {
++            panic!("case forge requires a file cue")
++        }
+         None => Value::Null,
+     };
+     document["owner"] = "acme".into();

@@ -47,14 +47,18 @@ mod settle;
 #[cfg(test)]
 mod tests;
 pub mod text;
+mod tiers;
 mod topics;
+mod verification;
 pub use boundary::*;
 pub use brief::{HOME_SECTION_BYTES, hex, home_access_reason};
 pub use commit::commit_text;
 pub use domain::{Domain, RestoreFit, RestoreSet, fire, resume, step, tag, untag, writer};
 pub use gates::{GateCandidate, GateLast, GatePattern, GatePolicy, GateTemplate};
 pub use judge::{Criterion, Freshness as JudgeFreshness, Judges, Reviewer, Verdict as JudgeVerdict};
-pub use limits::{BOT_LOGIN_SUFFIX, CONNECT_WHY_BYTES, FIRST_NAME_BYTES, Limits, STOPPED_TEXT_BYTES, valid};
+pub use limits::{
+    BOT_LOGIN_SUFFIX, CONNECT_WHY_BYTES, FIRST_NAME_BYTES, Limits, STOPPED_TEXT_BYTES, TierLimits, valid,
+};
 pub use panel::{MARKED, PANEL_AHEAD, PANEL_GATES, PANEL_NAME_BYTES, Panel, PanelGate, PanelStep, PanelUsed};
 pub use temper_engine_domain_forge_landing::{CHECK_NAME_BYTES, WORKFLOW_BYTES};
 pub use temper_engine_domain_forge_landing::{Hold as LandingHold, Phase as LandingPhase};
@@ -224,6 +228,8 @@ pub fn stored_key(row: &Stored) -> Key {
         Stored::Forge(row) => Key::Forge(row.number),
         Stored::ForgeNumber { .. } => Key::ForgeNumber,
         Stored::Playground(_) => Key::Playground,
+        Stored::Tier(row) => Key::Tier { repository: row.repository, tier: row.tier.clone() },
+        Stored::Verification(row) => Key::Verification { repository: row.repository, commit: row.commit },
         Stored::Landing(row) => Key::Landing(row.landing.task),
         Stored::Receipt { key, .. } => Key::Receipt(key.clone()),
         Stored::Call { key, .. } => Key::Call(*key),
@@ -317,6 +323,8 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             }
             Some(held)
         }
+        Stored::Tier(row) => tiers::row_bytes(row),
+        Stored::Verification(row) => verification::row_bytes(row),
         Stored::Landing(row) => landing::row_bytes(row),
         Stored::Receipt { key, receipt } => landing::receipt_bytes(key, receipt),
         Stored::Call { answer, .. } => match answer {
@@ -601,6 +609,9 @@ fn change_state_bytes(value: &temper_engine_domain_forge_change::State, depth: u
         | change::State::Repairing { .. }
         | change::State::Landing { .. }
         | change::State::Ended
-        | change::State::Landed { .. } => Some(0),
+        | change::State::Landed { .. }
+        | change::State::Red { .. }
+        | change::State::Cleared { .. }
+        | change::State::Uncleared { .. } => Some(0),
     }
 }

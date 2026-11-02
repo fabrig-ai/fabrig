@@ -1013,3 +1013,476 @@ fn a_gate_repairs_words_open_with_its_number_kind_and_head() {
     }
     assert!(super::repair_words(&row, Repair::Gate(8), &[], 512).is_none(), "an unknown gate cannot be named");
 }
+
+fn procedure_root() -> (super::Domain, skein_lib::Env<super::Limits>) {
+    use super::{authority, forge};
+    let mut config = crate::tests::resume_fixture::config(7);
+    let kinds = Box::new([
+        authority::Executor::Charter(1),
+        authority::Executor::Procedure(super::LANDING_CODE),
+        authority::Executor::Procedure(super::AFTER_LANDING_CODE),
+    ]);
+    config.core.defaults.rules.maximum_run_spend = 1000;
+    config.core.defaults.rules.ceiling.delegation.kinds = kinds.clone();
+    config.core.seed_projects[0].policy.policy.ceiling.delegation.kinds = kinds;
+    let mut limits = crate::tests::resume_fixture::limits();
+    limits.authority.executors = 3;
+    limits.tasks.executor_kinds = 3;
+    limits.tasks.parameters = 4;
+    limits.tasks.spec_bytes = 256;
+    let (mut domain, env) = crate::tests::resume_fixture::root_with_config_and_limits(config, &limits);
+    for event in [
+        jig_domain_core::Event::Tasks(super::tasks::Event::Restored),
+        jig_domain_core::Event::Period { project: 1, period: 1, budget: 1000, next: None },
+    ] {
+        drop(jig_domain_core::step(&mut domain.core, &crate::limits::environment_core(&env), event));
+    }
+    domain.forge.restore_begin(env.wall);
+    let mut repository = adopted(1);
+    repository.project = 1;
+    let mut out = skein_lib::Queue::uncapped();
+    forge::step(
+        &mut domain.forge,
+        &super::super::environment_forge(&env),
+        forge::Event::Restore { record: forge::Stored::Repository(repository) },
+        &mut out,
+    );
+    (domain, env)
+}
+
+fn forge_request(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits>, request: super::forge::Request) {
+    let mut out = skein_lib::Queue::uncapped();
+    out.push(request);
+    let mut decision = super::Decision::decide(&mut domain.journal, &env.limits.journal);
+    super::outputs(domain, env, &mut decision, &mut out);
+    crate::decision::accept_routed(&mut domain.journal, &mut domain.core.counters, &env.limits.journal, decision, true)
+        .unwrap();
+}
+
+fn make_tier(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits>) -> u64 {
+    use super::{Work, forge, tasks};
+    let repository = adopted(1).provider;
+    forge_request(
+        domain,
+        env,
+        forge::Request::TierRun { repository, tier: Box::from(b"fuzzy".as_slice()), number: 7, tip: SHA1 },
+    );
+    let Some(Work::Core(event)) = domain.work.pop() else { panic!("make tier task") };
+    let jig_domain_core::Event::ConnectorRepair { executor, spec, contract, holdings, .. } = &event else {
+        panic!("deployment seed")
+    };
+    assert_eq!(*executor, tasks::Executor::Procedure { connector: 0, code: super::AFTER_LANDING_CODE });
+    assert_eq!(spec.words.as_ref(), b"Tier fuzzy run 7");
+    assert_eq!(
+        spec.parameters.as_ref(),
+        &[
+            tasks::Parameter::Resource { name: 1, connector: 0, resource: forge::tag(1, 1) },
+            tasks::Parameter::Bytes { name: 8, value: commit_text(&SHA1) },
+            tasks::Parameter::Bytes { name: 10, value: Box::from(b"fuzzy".as_slice()) },
+            tasks::Parameter::Number { name: 11, value: 7 },
+        ]
+    );
+    assert_eq!(*contract, tasks::Contract::Report { words: env.limits.tasks.result_bytes });
+    assert!(holdings.is_empty());
+    let Some(Work::Forge(forge::Event::TierTask { task, repository: got, tier, number: 7 })) = domain.work.pop() else {
+        panic!("answer tier task")
+    };
+    assert_eq!(got, repository);
+    assert_eq!(tier.as_ref(), b"fuzzy");
+    assert!(domain.work.is_empty());
+    drop(jig_domain_core::step(&mut domain.core, &crate::limits::environment_core(env), event));
+    let row = domain.core.tasks.task(task).expect("tier task admitted");
+    assert_eq!(row.numbers.budget, 0);
+    assert_eq!(row.requester, tasks::Party::Deployment { project: 1 });
+    task
+}
+
+#[test]
+fn a_tier_task_starts_while_the_period_is_reserved_whole() {
+    use super::tasks;
+    let (mut domain, env) = procedure_root();
+    let funder = tasks::Funder::Period { project: 1, period: domain.core.period(1) };
+    reserve_period(&mut domain, &env);
+    let ledger = *domain.core.tasks.funding(funder).expect("reserved period");
+    assert!(domain.core.repair_seed(1).is_none(), "agent repair still needs unreserved spend");
+    make_tier(&mut domain, &env);
+    assert_eq!(domain.core.tasks.funding(funder).unwrap().numbers.reserved, ledger.numbers.budget);
+}
+
+#[test]
+fn a_tier_without_a_project_seed_is_refused() {
+    use super::{Work, forge};
+    let (mut domain, env) = two_forges(); // The repository names project 5; only project 1 has a policy.
+    forge_request(
+        &mut domain,
+        &env,
+        forge::Request::TierRun {
+            repository: adopted(1).provider,
+            tier: Box::from(b"fuzzy".as_slice()),
+            number: 7,
+            tip: SHA1,
+        },
+    );
+    let Some(Work::Forge(forge::Event::TierRefused { repository, tier, number: 7 })) = domain.work.pop() else {
+        panic!("refuse missing seed")
+    };
+    assert_eq!(repository, adopted(1).provider);
+    assert_eq!(tier.as_ref(), b"fuzzy");
+    assert!(domain.work.is_empty());
+}
+
+#[test]
+fn a_held_tier_keeps_its_words_and_a_release_steps_it_again() {
+    use super::{Work, forge, tasks};
+    let (mut domain, env) = procedure_root();
+    let task = make_tier(&mut domain, &env);
+    offer_tier(&mut domain, &env, task);
+    let Some(Work::Forge(forge::Event::StepTier { task: got, heard, .. })) = domain.work.pop() else {
+        panic!("first tier step")
+    };
+    assert_eq!(got, task);
+    assert!(!heard.released && !heard.cancelled);
+    let words = b"Tier fuzzy run 7 held after 3 runner faults, last: dispatch";
+    forge_request(
+        &mut domain,
+        &env,
+        forge::Request::TierDecision {
+            task,
+            decision: forge::TierDecision::Held { words: Box::from(words.as_slice()) },
+            entry: None,
+        },
+    );
+    let Some(Work::Core(event)) = domain.work.pop() else { panic!("hold tier") };
+    let jig_domain_core::Event::ProcedureStep { decision, .. } = &event else { panic!("held step") };
+    assert_eq!(
+        decision.end,
+        super::StepEnd::HoldFrom {
+            why: tasks::Hold::Procedure,
+            source: Box::new(tasks::HoldSource::Account {
+                connector: 0,
+                entry: None,
+                words: Box::from(words.as_slice())
+            }),
+        }
+    );
+    assert!(decision.messages.is_empty());
+    drop(jig_domain_core::step(&mut domain.core, &crate::limits::environment_core(&env), event));
+    let tasks::Phase::Held { why, source, .. } = &domain.core.tasks.task(task).unwrap().phase else {
+        panic!("held tier")
+    };
+    assert_eq!(*why, tasks::Hold::Procedure);
+    assert_eq!(
+        source.as_deref(),
+        Some(&tasks::HoldSource::Account { connector: 0, entry: None, words: Box::from(words.as_slice()) })
+    );
+    let release = jig_domain_core::step(
+        &mut domain.core,
+        &crate::limits::environment_core(&env),
+        jig_domain_core::Event::Tasks(tasks::Event::Control {
+            reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(123)),
+            by: tasks::Party::Person(1),
+            task,
+            control: tasks::Control::Release { again: None, message: None },
+        }),
+    );
+    assert_eq!(domain.core.tasks.task(task).unwrap().due_reason, tasks::Why::Released, "{release:?}");
+    offer_tier(&mut domain, &env, task);
+    let Some(Work::Forge(forge::Event::StepTier { task: got, heard, .. })) = domain.work.pop() else {
+        panic!("released tier step")
+    };
+    assert_eq!(got, task);
+    assert!(heard.released && !heard.cancelled);
+}
+
+#[test]
+fn a_done_tier_ends_with_the_verdicts_words() {
+    use super::{Work, forge, tasks};
+    let (mut domain, env) = procedure_root();
+    let task = make_tier(&mut domain, &env);
+    let words = b"Tier fuzzy run 7: green, cleared 2 landings";
+    forge_request(
+        &mut domain,
+        &env,
+        forge::Request::TierDecision {
+            task,
+            decision: forge::TierDecision::Done { words: Box::from(words.as_slice()) },
+            entry: None,
+        },
+    );
+    let Some(Work::Core(event)) = domain.work.pop() else { panic!("finish tier") };
+    let jig_domain_core::Event::ProcedureStep { decision, .. } = &event else { panic!("done step") };
+    assert_eq!(decision.end, super::StepEnd::Result(tasks::TaskResult::Report { words: Box::from(words.as_slice()) }));
+    drop(jig_domain_core::step(&mut domain.core, &crate::limits::environment_core(&env), event));
+    let tasks::Phase::Closing(closing) = &domain.core.tasks.task(task).unwrap().phase else { panic!("closing tier") };
+    assert_eq!(closing.ending, tasks::Ending::Done(tasks::TaskResult::Report { words: Box::from(words.as_slice()) }));
+}
+
+fn reserve_period(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits>) {
+    use super::tasks;
+    let seed = domain.core.repair_seed(1).expect("unreserved period can fund an agent");
+    let task = seed.number();
+    drop(jig_domain_core::step(
+        &mut domain.core,
+        &crate::limits::environment_core(env),
+        jig_domain_core::Event::ConnectorRepair {
+            seed: Box::new(seed),
+            executor: tasks::Executor::Agent { charter: 1 },
+            spec: tasks::Spec {
+                job: None,
+                asks: false,
+                words: Box::from(b"reserve the period".as_slice()),
+                parameters: Box::new([]),
+                inputs: Box::new([]),
+            },
+            contract: tasks::Contract::Report { words: env.limits.tasks.result_bytes },
+            holdings: Box::new([]),
+        },
+    ));
+    assert_eq!(domain.core.tasks.task(task).unwrap().numbers.budget, 1000);
+    let funder = tasks::Funder::Period { project: 1, period: domain.core.period(1) };
+    let ledger = domain.core.tasks.funding(funder).unwrap();
+    assert_eq!(ledger.numbers.reserved, ledger.numbers.budget);
+}
+
+#[test]
+fn a_landing_by_turn_starts_while_the_period_is_reserved_whole() {
+    use super::{Work, forge, forge_change, tasks};
+    let (mut domain, env) = procedure_root();
+    reserve_period(&mut domain, &env);
+    let mut row = change_row(Some(7));
+    row.repository = adopted(1).provider;
+    row.change.way = forge_change::Way::Turn;
+    row.change.state = forge_change::State::Ready { head: SHA1, ready_since: env.wall };
+    let mut out = skein_lib::Queue::uncapped();
+    forge::step(
+        &mut domain.forge,
+        &super::super::environment_forge(&env),
+        forge::Event::Restore { record: forge::Stored::Change(row) },
+        &mut out,
+    );
+    assert!(domain.forge.project_landing(
+        1,
+        forge_change::Way::Turn,
+        Box::new([]),
+        forge::AfterLanding {
+            verdict: temper_engine_domain_forge_tiers::Settings {
+                retries: 2,
+                suspects: temper_engine_domain_forge_tiers::Suspects::Bisect
+            },
+            bound: skein_lib::Duration::from_secs(7200),
+        }
+    ));
+    super::start_landing(&mut domain, &env, 7);
+    let Some(Work::Forge(forge::Event::Landing { row })) = domain.work.pop() else { panic!("landing row") };
+    let task = row.landing.task;
+    assert_eq!(row.landing.members[0].change, 7);
+    let Some(Work::Core(event)) = domain.work.pop() else { panic!("landing task") };
+    drop(jig_domain_core::step(&mut domain.core, &crate::limits::environment_core(&env), event));
+    let row = domain.core.tasks.task(task).expect("zero-budget landing admitted");
+    assert_eq!(row.executor, tasks::Executor::Procedure { connector: 0, code: super::LANDING_CODE });
+    assert_eq!(row.numbers.budget, 0);
+    assert_eq!(row.spec.words.as_ref(), b"Land Change");
+}
+
+#[expect(clippy::manual_map, reason = "the strict subset uses explicit matches")]
+fn result_tier(name: &[u8], branch: Option<&[u8]>) -> crate::translate::TierCheck {
+    crate::translate::TierCheck {
+        name: name.into(),
+        workflow: Box::from(b"checks.yml".as_slice()),
+        ignored: Box::new([]),
+        artifact: Box::from(b"report".as_slice()),
+        format: temper_engine_domain_forge_tiers::Format::Lines,
+        branch: match branch {
+            Some(branch) => Some(Box::from(branch)),
+            None => None,
+        },
+    }
+}
+
+#[test]
+fn cleared_and_uncleared_results_qualify_the_landing_before_its_evidence() {
+    use super::{forge, forge_change};
+    for (state, line) in [
+        (forge_change::State::Cleared { merge: SHA1 }, b"Cleared by fuzzy, browser.".as_slice()),
+        (
+            forge_change::State::Uncleared { merge: SHA1 },
+            b"Not cleared: no verdict within the verification bound.".as_slice(),
+        ),
+    ] {
+        let (mut domain, env) = two_forges();
+        let mut row = change_row(Some(7));
+        row.change.state = state;
+        row.change.last_head = Some(SHA1);
+        domain
+            .config
+            .landings
+            .insert(
+                5,
+                crate::translate::ProjectLanding {
+                    by: crate::translate::Way::Queue,
+                    repositories: Box::new([crate::translate::RepositoryChecks {
+                        repository: row.repository,
+                        gates: Box::new([]),
+                        tiers: Box::new([
+                            result_tier(b"fuzzy", None),
+                            result_tier(b"release", Some(b"release/v1")),
+                            result_tier(b"browser", Some(b"main")),
+                        ]),
+                    }]),
+                    after: crate::translate::AfterLandingCheck { tier_retries: 2, verification_bound_ms: 7_200_000 },
+                },
+            )
+            .unwrap();
+        let mut out = skein_lib::Queue::uncapped();
+        forge::step(
+            &mut domain.forge,
+            &super::super::environment_forge(&env),
+            forge::Event::Restore { record: forge::Stored::Change(row) },
+            &mut out,
+        );
+        let words = super::change_landing_words(&domain, 7, &SHA1, 7, 512);
+        let expected = b"\nLanded: pull request #7 merged into main as abcdef012345.\n";
+        let at = skein_lib::bytes::find(&words, expected).expect("landing identity");
+        assert_eq!(&words[at + expected.len()..at + expected.len() + line.len()], line);
+        assert_eq!(words[at + expected.len() + line.len()], b'\n', "evidence follows verification");
+        let bound = u32::try_from(at + expected.len() + line.len()).unwrap();
+        let exact = super::change_landing_words(&domain, 7, &SHA1, 7, bound);
+        assert!(exact.ends_with(line));
+        let short = super::change_landing_words(&domain, 7, &SHA1, 7, bound - 1);
+        for part in short.windows(line.len() - 1) {
+            assert_ne!(part, &line[..line.len() - 1], "qualification is kept whole");
+        }
+    }
+}
+
+#[test]
+fn an_uncleared_cancelled_change_names_cancellation() {
+    use super::{forge, forge_change, tasks};
+    let (mut domain, env, task) =
+        crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: super::CHANGE_CODE });
+    let mut row = change_row(Some(7));
+    row.task = task;
+    row.change.task = task;
+    row.change.state = forge_change::State::Uncleared { merge: SHA1 };
+    domain.forge.restore_begin(env.wall);
+    let mut out = skein_lib::Queue::uncapped();
+    forge::step(
+        &mut domain.forge,
+        &super::super::environment_forge(&env),
+        forge::Event::Restore { record: forge::Stored::Change(row) },
+        &mut out,
+    );
+    drop(jig_domain_core::step(
+        &mut domain.core,
+        &crate::limits::environment_core(&env),
+        jig_domain_core::Event::Tasks(tasks::Event::Control {
+            reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(123)),
+            by: tasks::Party::Deployment { project: 1 },
+            task,
+            control: tasks::Control::Cancel { reason: Box::new([]), grace: None, message: None },
+        }),
+    ));
+    assert_eq!(
+        super::change_verification_words(&domain, task, &SHA1, 128).as_ref(),
+        b"Not cleared: cancelled while verifying."
+    );
+}
+
+fn offer_tier(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits>, task: u64) {
+    let context = domain.core.tasks.run_context(task).unwrap();
+    let (_, _, step) = domain.core.tasks.procedure_due(task).unwrap();
+    let mut decision = super::Decision::decide(&mut domain.journal, &env.limits.journal);
+    super::super::asks::ask(
+        domain,
+        env,
+        &mut decision,
+        domain.config.forge_connector,
+        jig_domain_core::Ask::StartProcedure { context, step },
+    );
+    crate::decision::accept_routed(&mut domain.journal, &mut domain.core.counters, &env.limits.journal, decision, true)
+        .unwrap();
+}
+
+#[test]
+fn a_tier_without_a_task_number_is_refused() {
+    use super::{Work, forge};
+    let (mut domain, env) = procedure_root();
+    let mut deployment = domain.core.counters.deployment();
+    deployment.tasks = u64::MAX;
+    domain.core.counters = crate::Counters::new(deployment);
+    forge_request(
+        &mut domain,
+        &env,
+        forge::Request::TierRun {
+            repository: adopted(1).provider,
+            tier: Box::from(b"fuzzy".as_slice()),
+            number: 7,
+            tip: SHA1,
+        },
+    );
+    let Some(Work::Forge(forge::Event::TierRefused { number: 7, .. })) = domain.work.pop() else {
+        panic!("exhausted task number refuses tier")
+    };
+    assert!(domain.work.is_empty());
+}
+
+#[test]
+fn a_waiting_tier_ends_its_step_and_is_stepped_on_a_forge_wake() {
+    use super::{Work, forge, tasks};
+    let (mut domain, env) = procedure_root();
+    let task = make_tier(&mut domain, &env);
+    forge_request(
+        &mut domain,
+        &env,
+        forge::Request::TierDecision {
+            task,
+            decision: forge::TierDecision::Wait { until: Some(skein_lib::Wall::from_nanos(100)) },
+            entry: None,
+        },
+    );
+    let Some(Work::Core(event)) = domain.work.pop() else { panic!("wait tier step") };
+    let jig_domain_core::Event::ProcedureStep { decision, .. } = &event else { panic!("wait step") };
+    assert_eq!(decision.end, super::StepEnd::Wait);
+    drop(jig_domain_core::step(&mut domain.core, &crate::limits::environment_core(&env), event));
+    assert!(domain.core.tasks.procedure_due(task).is_none());
+    forge_request(&mut domain, &env, forge::Request::WakeProcedure { task });
+    let Some(Work::Tasks(event @ tasks::Event::WakeProcedure { .. })) = domain.work.pop() else { panic!("wake tier") };
+    drop(jig_domain_core::step(
+        &mut domain.core,
+        &crate::limits::environment_core(&env),
+        jig_domain_core::Event::Tasks(event),
+    ));
+    offer_tier(&mut domain, &env, task);
+    let Some(Work::Forge(forge::Event::StepTier {
+        task: got,
+        heard: forge::TierHeard { released: false, cancelled: false },
+        ..
+    })) = domain.work.pop()
+    else {
+        panic!("step woken tier")
+    };
+    assert_eq!(got, task);
+    assert!(domain.work.is_empty());
+}
+
+#[test]
+fn a_tier_effect_without_a_description_is_vetoed_before_it_can_run() {
+    use super::{Work, forge, tasks};
+    let (mut domain, env) = procedure_root();
+    let task = make_tier(&mut domain, &env);
+    forge_request(
+        &mut domain,
+        &env,
+        forge::Request::TierDecision { task, decision: forge::TierDecision::Wait { until: None }, entry: Some(8) },
+    );
+    let Some(Work::Forge(forge::Event::VetoTier { task: got, entry: 8 })) = domain.work.pop() else {
+        panic!("veto tier entry")
+    };
+    assert_eq!(got, task);
+    let Some(Work::Tasks(tasks::Event::Hold { task: got, why: tasks::Hold::Effects })) = domain.work.pop() else {
+        panic!("hold refused effect")
+    };
+    assert_eq!(got, task);
+    assert!(domain.forge_effects.is_empty());
+    assert!(domain.work.is_empty());
+}

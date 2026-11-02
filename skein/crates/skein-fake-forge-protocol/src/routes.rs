@@ -124,6 +124,9 @@ pub fn repository(config: &Config, request: &Request) -> Option<Box<[u8]>> {
         | Request::Run { at, .. }
         | Request::Job { at, .. }
         | Request::Jobs { at, .. }
+        | Request::Artifacts { at, .. }
+        | Request::ArtifactZip { at, .. }
+        | Request::Commits { at, .. }
         | Request::JobLog { at, .. }
         | Request::CreateIssue { at, .. }
         | Request::OpenPull { at, .. }
@@ -263,7 +266,10 @@ pub fn op(config: &Config, request: &Request) -> Result<Op, a::Error> {
             let (page, limit) = page(config, *p);
             Read::PullFiles { number: *number, page, limit }
         }
-        Request::Compare { before, after, .. } => Read::Compare {
+        Request::Commits { before, after, .. } | Request::Compare { before, after, files: false, .. } => {
+            Read::Commits { before: commit(before).ok_or(missing)?, after: commit(after).ok_or(missing)? }
+        }
+        Request::Compare { before, after, files: true, .. } => Read::Compare {
             base: commit(before).ok_or(missing)?,
             head: commit(after).ok_or(missing)?,
             page: 1,
@@ -279,6 +285,8 @@ pub fn op(config: &Config, request: &Request) -> Result<Op, a::Error> {
             page: 1,
             limit: 1,
         },
+        Request::Artifacts { run, .. } => Read::Artifacts { run: *run },
+        Request::ArtifactZip { id, .. } => Read::ArtifactById { id: *id },
         Request::Run { run, .. } => Read::Run { run: *run },
         Request::Job { job, .. } => Read::Job { job: *job },
         Request::Jobs { run, .. } => Read::Jobs { run: *run },
@@ -437,6 +445,9 @@ fn write(config: &Config, request: &Request) -> Result<Op, a::Error> {
         | Request::Run { .. }
         | Request::Job { .. }
         | Request::Jobs { .. }
+        | Request::Artifacts { .. }
+        | Request::ArtifactZip { .. }
+        | Request::Commits { .. }
         | Request::JobLog { .. } => Err(a::Error::Refused),
     }
 }

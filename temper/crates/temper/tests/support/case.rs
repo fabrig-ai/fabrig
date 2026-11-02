@@ -216,7 +216,9 @@ pub fn run(
             json!({"path":text(&path),"green":text(&green)})
         }
         Some(
-            skein_fake_forge_domain::api::Cue::Message { .. } | skein_fake_forge_domain::api::Cue::PullFile { .. },
+            skein_fake_forge_domain::api::Cue::Message { .. }
+            | skein_fake_forge_domain::api::Cue::PullFile { .. }
+            | skein_fake_forge_domain::api::Cue::Tests { .. },
         ) => panic!("case forge cue unsupported"),
         None => Value::Null,
     };

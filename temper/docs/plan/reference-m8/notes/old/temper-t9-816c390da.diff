@@ -1,0 +1,2002 @@
+diff --git a/temper/crates/temper-engine-domain-forge/src/tests/fixtures.rs b/temper/crates/temper-engine-domain-forge/src/tests/fixtures.rs
+index 6f5494ad2..5e6f1a8a1 100644
+--- a/temper/crates/temper-engine-domain-forge/src/tests/fixtures.rs
++++ b/temper/crates/temper-engine-domain-forge/src/tests/fixtures.rs
+@@ -323,13 +323,27 @@ pub fn verification_step(d: &mut Domain) -> Box<[Request]> {
+ 
+ pub fn judge(d: &mut Domain, tier: &[u8], blame: temper_engine_domain_forge_tiers::Blame) -> Box<[Request]> {
+     let mut out = Queue::with_capacity(max_out(&LIMITS));
+-    crate::verification::judged(d, REPO, tier, &temper_engine_domain_forge_tiers::Verdict {
+-        number: OPEN, tip: MERGE, key: MERGE,
+-        failing: match &blame {
+-            temper_engine_domain_forge_tiers::Blame::Cleared => temper_engine_domain_forge_tiers::Failures::Tests(Box::new([])),
+-            temper_engine_domain_forge_tiers::Blame::Owns(f) | temper_engine_domain_forge_tiers::Blame::Suspect(f) => f.clone(),
+-        }, landings: Box::new([blame.clone()]), flakes: Box::new([]),
+-    }, &[(MERGE, blame)], &mut out);
++    crate::verification::judged(
++        d,
++        REPO,
++        tier,
++        &temper_engine_domain_forge_tiers::Verdict {
++            number: OPEN,
++            tip: MERGE,
++            key: MERGE,
++            failing: match &blame {
++                temper_engine_domain_forge_tiers::Blame::Cleared => {
++                    temper_engine_domain_forge_tiers::Failures::Tests(Box::new([]))
++                }
++                temper_engine_domain_forge_tiers::Blame::Owns(f)
++                | temper_engine_domain_forge_tiers::Blame::Suspect(f) => f.clone(),
++            },
++            landings: Box::new([blame.clone()]),
++            flakes: Box::new([]),
++        },
++        &[(MERGE, blame)],
++        &mut out,
++    );
+     let mut requests = skein_lib::List::with_capacity(out.len());
+     while let Some(request) = out.pop() {
+         requests.push(request).expect("sized to output");
+diff --git a/temper/crates/temper-engine-domain-forge/src/tests/tiers.rs b/temper/crates/temper-engine-domain-forge/src/tests/tiers.rs
+index 50fb20e0f..1620db2dd 100644
+--- a/temper/crates/temper-engine-domain-forge/src/tests/tiers.rs
++++ b/temper/crates/temper-engine-domain-forge/src/tests/tiers.rs
+@@ -256,15 +256,23 @@ fn dispatch(d: &mut Domain, entry: u64) -> Box<[Request]> {
+         saved.entry.start = Some(skein_forge_client::Position { at: env().now, comment: 0, review: 0, review_page: 1 });
+         let made = match &saved.entry.effect.write {
+             api::Write::CreateBranch { commit, .. } => skein_forge_client::Made::Branch(*commit),
+-            _ => skein_forge_client::Made::Set,
++            api::Write::CreateIssue { .. }
++            | api::Write::OpenPull { .. }
++            | api::Write::Post { .. }
++            | api::Write::Review { .. }
++            | api::Write::Edit { .. }
++            | api::Write::SetReviewers { .. }
++            | api::Write::Close { .. }
++            | api::Write::Reopen { .. }
++            | api::Write::Merge { .. }
++            | api::Write::Update { .. }
++            | api::Write::Status { .. }
++            | api::Write::Dispatch { .. }
++            | api::Write::Rerun { .. }
++            | api::Write::DeleteBranch { .. } => skein_forge_client::Made::Set,
+         };
+         let mut ignored = Queue::with_capacity(max_out(&LIMITS));
+-        crate::tiers::outcome(
+-            d,
+-            entry,
+-            skein_forge_client::Outcome::Made { made, found: false },
+-            &mut ignored,
+-        );
++        crate::tiers::outcome(d, entry, skein_forge_client::Outcome::Made { made, found: false }, &mut ignored);
+         d.entries.remove(&entry);
+     }
+     out
+@@ -325,9 +333,12 @@ fn judged(d: &mut Domain) -> Box<[Request]> {
+     let out = outputs(d, Event::StepTier { task: TIER_TASK, entry: RETRY });
+     if fixtures::browser(d).branch == (TierBranch::Pending { entry: RETRY }) {
+         let mut ignored = Queue::with_capacity(max_out(&LIMITS));
+-        crate::tiers::outcome(d, RETRY, skein_forge_client::Outcome::Made {
+-            made: skein_forge_client::Made::Set, found: false,
+-        }, &mut ignored);
++        crate::tiers::outcome(
++            d,
++            RETRY,
++            skein_forge_client::Outcome::Made { made: skein_forge_client::Made::Set, found: false },
++            &mut ignored,
++        );
+         d.entries.remove(&RETRY);
+         return outputs(d, Event::StepTier { task: TIER_TASK, entry: RETRY });
+     }
+@@ -736,7 +747,9 @@ const TWO_FAILURES: &[u8] = b"suite.first\nsuite.second\n";
+ fn tests() -> Box<[policy::TestId]> {
+     Box::new([b"suite.first".as_slice().into(), b"suite.second".as_slice().into()])
+ }
+-fn failures() -> policy::Failures { policy::Failures::Tests(tests()) }
++fn failures() -> policy::Failures {
++    policy::Failures::Tests(tests())
++}
+ fn red_range(commits: &[api::Commit]) -> Domain {
+     let mut d = made_branch();
+     let mut out = Queue::with_capacity(max_out(&LIMITS));
+@@ -748,7 +761,11 @@ fn red_range(commits: &[api::Commit]) -> Domain {
+     let run = row.record.run.as_mut().unwrap();
+     run.tip = *commits.last().unwrap();
+     run.key = run.tip;
+-    run.landings = commits.iter().map(|commit| policy::Landing { commit: *commit, key: *commit }).collect();
++    let mut landings = skein_lib::List::with_capacity(LIMITS.changes);
++    for commit in commits {
++        landings.push(policy::Landing { commit: *commit, key: *commit }).expect("range fits changes");
++    }
++    run.landings = landings.into_boxed();
+     dispatch(&mut d, DISPATCH);
+     d
+ }
+@@ -772,9 +789,13 @@ fn blame(d: &Domain, commit: api::Commit) -> &policy::Blame {
+     &d.verifications.get(&(REPO, commit)).unwrap().tiers[0].verdict.as_ref().unwrap().blame
+ }
+ fn finish_parts(d: &mut Domain) {
+-    for entry in 201..213 { // status, at most one probe deletion and the whole branch deletion.
++    for entry in 201..213 {
++        // status, at most one probe deletion and the whole branch deletion.
+         let out = dispatch(d, entry);
+-        if matches!(tier_decision(&out), Some(TierDecision::Done { .. })) { return; }
++        match tier_decision(&out) {
++            Some(TierDecision::Done { .. }) => return,
++            Some(TierDecision::Wait | TierDecision::Held) | None => {}
++        }
+     }
+     panic!("tier task finishes after its branch effects");
+ }
+@@ -793,7 +814,14 @@ fn a_failed_runs_tests_are_read_from_its_lines_artifact() {
+     failed_part(&mut d);
+     outputs(&mut d, Event::StepTier { task: TIER_TASK, entry: RETRY });
+     let (_, op) = fixtures::next_call(&mut d);
+-    assert_eq!(op, api::Op::Read(api::Read::Artifact { run: RUN_ID, name: b"report".as_slice().into(), max_bytes: LIMITS.client.answer_bytes }));
++    assert_eq!(
++        op,
++        api::Op::Read(api::Read::Artifact {
++            run: RUN_ID,
++            name: b"report".as_slice().into(),
++            max_bytes: LIMITS.client.answer_bytes
++        })
++    );
+     report(&mut d, TWO_FAILURES, false);
+     assert_eq!(fixtures::browser(&d).record.run.as_ref().unwrap().part, policy::Part::Rerun { failed: tests() });
+ }
+@@ -805,7 +833,7 @@ fn a_failed_run_whose_artifact_is_missing_is_a_fault_and_retried() {
+     let mut out = Queue::with_capacity(max_out(&LIMITS));
+     crate::tiers::answered(&mut d, &env(), READ_OWNER, Err(api::Error::Missing), &mut out);
+     let out = outputs(&mut d, Event::StepTier { task: TIER_TASK, entry: RETRY });
+-    assert!(matches!(effect_write(&out), api::Write::Dispatch { .. }));
++    let api::Write::Dispatch { .. } = effect_write(&out) else { panic!("the fault is retried by dispatch") };
+     assert_eq!(fixtures::browser(&d).record.run.as_ref().unwrap().faults, 1);
+     assert!(d.verifications.get(&(REPO, MERGE)).unwrap().tiers[0].verdict.is_none());
+ }
+@@ -829,10 +857,13 @@ fn failed_tests_rerun_alone_and_passing_alone_are_a_flake() {
+     completed(&mut d, api::Conclusion::Success, None);
+     finish_parts(&mut d);
+     assert_eq!(blame(&d, MERGE), &policy::Blame::Cleared);
+-    assert_eq!(fixtures::browser(&d).record.flakes.as_ref(), &[
+-        policy::Flake { test: b"suite.first".as_slice().into(), count: 1 },
+-        policy::Flake { test: b"suite.second".as_slice().into(), count: 1 },
+-    ]);
++    assert_eq!(
++        fixtures::browser(&d).record.flakes.as_ref(),
++        &[
++            policy::Flake { test: b"suite.first".as_slice().into(), count: 1 },
++            policy::Flake { test: b"suite.second".as_slice().into(), count: 1 },
++        ]
++    );
+     assert!(d.landing.receipts.is_empty(), "a partial rerun never makes a receipt");
+ }
+ #[test]
+@@ -851,7 +882,10 @@ fn failures_the_previous_run_had_are_inherited() {
+     assert_eq!(blame(&d, MERGE), &policy::Blame::Owns(failures()));
+     assert!(fixtures::browser(&d).record.failing == failures());
+     assert_eq!(blame(&d, HEAD), &policy::Blame::Cleared);
+-    assert_eq!(crate::verification::verification(&d, REPO, HEAD), temper_engine_domain_forge_change::Verification::Cleared);
++    assert_eq!(
++        crate::verification::verification(&d, REPO, HEAD),
++        temper_engine_domain_forge_change::Verification::Cleared
++    );
+ }
+ #[test]
+ fn new_failures_of_one_landing_are_its_own() {
+@@ -862,11 +896,14 @@ fn new_failures_of_one_landing_are_its_own() {
+ }
+ fn probe_step(d: &mut Domain, entry: u64) -> Box<[Request]> {
+     let out = outputs(d, Event::StepTier { task: TIER_TASK, entry });
+-    if matches!(effect_write(&out), api::Write::CreateBranch { .. }) {
++    if let api::Write::CreateBranch { .. } = effect_write(&out) {
+         let mut ignored = Queue::with_capacity(max_out(&LIMITS));
+-        crate::tiers::outcome(d, entry, skein_forge_client::Outcome::Made {
+-            made: skein_forge_client::Made::Branch(MERGE), found: false,
+-        }, &mut ignored);
++        crate::tiers::outcome(
++            d,
++            entry,
++            skein_forge_client::Outcome::Made { made: skein_forge_client::Made::Branch(MERGE), found: false },
++            &mut ignored,
++        );
+         d.entries.remove(&entry);
+     }
+     out
+@@ -896,9 +933,10 @@ fn a_landing_with_the_previous_key_is_never_probed() {
+     probe_step(&mut d, 301);
+     dispatch(&mut d, 302);
+     completed(&mut d, api::Conclusion::Success, None);
+-    assert_eq!(fixtures::browser(&d).result.as_ref().unwrap().verdict.landings.as_ref(), &[
+-        policy::Blame::Cleared, policy::Blame::Cleared, policy::Blame::Owns(failures()),
+-    ]);
++    assert_eq!(
++        fixtures::browser(&d).result.as_ref().unwrap().verdict.landings.as_ref(),
++        &[policy::Blame::Cleared, policy::Blame::Cleared, policy::Blame::Owns(failures()),]
++    );
+ }
+ #[test]
+ fn tell_all_makes_every_landing_of_the_range_a_suspect() {
+@@ -915,12 +953,16 @@ fn a_probes_branch_is_made_at_its_landing_and_deleted_after() {
+     let mut d = red_range(&[MERGE, HEAD, THIRD]);
+     red(&mut d);
+     let made = probe_step(&mut d, 301);
+-    assert_eq!(effect_write(&made), &api::Write::CreateBranch { branch: b"temper/tier/browser.1.0".as_slice().into(), commit: MERGE });
++    assert_eq!(
++        effect_write(&made),
++        &api::Write::CreateBranch { branch: b"temper/tier/browser.1.0".as_slice().into(), commit: MERGE }
++    );
+     let out = dispatch(&mut d, 302);
+     let api::Write::Dispatch { inputs, .. } = effect_write(&out) else { panic!("probe dispatch") };
+     assert_eq!(inputs[0].value, landing::inputs(MERGE, MERGE)[0].value);
+     failed_part(&mut d);
+     report(&mut d, TWO_FAILURES, false);
++    dispatch(&mut d, STATUS); // post the verdict before deleting the last probe.
+     let out = outputs(&mut d, Event::StepTier { task: TIER_TASK, entry: 303 });
+     assert_eq!(effect_write(&out), &api::Write::DeleteBranch { branch: b"temper/tier/browser.1.0".as_slice().into() });
+     let saved = &d.entries.get(&303).unwrap().entry;
+@@ -964,5 +1006,66 @@ fn a_red_landing_is_repaired_by_a_run_that_passes_its_tests() {
+     completed(&mut d, api::Conclusion::Success, None);
+     finish_parts(&mut d);
+     assert_eq!(d.verifications.get(&(REPO, MERGE)).unwrap().tiers[0].repaired, Some(HEAD));
+-    assert_eq!(crate::verification::verification(&d, REPO, MERGE), temper_engine_domain_forge_change::Verification::Cleared);
++    assert_eq!(
++        crate::verification::verification(&d, REPO, MERGE),
++        temper_engine_domain_forge_change::Verification::Cleared
++    );
++}
++
++#[test]
++fn a_failed_deletion_holds_the_task_without_undoing_its_verdict() {
++    let mut d = red_range(&[MERGE]);
++    red(&mut d);
++    dispatch(&mut d, STATUS);
++    outputs(&mut d, Event::StepTier { task: TIER_TASK, entry: 403 });
++    let mut out = Queue::with_capacity(max_out(&LIMITS));
++    crate::tiers::outcome(&mut d, 403, skein_forge_client::Outcome::Failed(api::Error::Refused), &mut out);
++    let mut held = false;
++    for request in &out {
++        if let Request::TierDecision { decision, .. } = request {
++            assert_eq!(decision, &TierDecision::Held);
++            held = true;
++        }
++    }
++    assert!(held);
++    assert_eq!(blame(&d, MERGE), &policy::Blame::Owns(failures()));
++    assert_eq!(fixtures::browser(&d).record.failing, failures());
++}
++#[test]
++fn a_failed_last_probe_deletion_keeps_the_judged_verdict() {
++    let mut d = red_range(&[MERGE, HEAD, THIRD]);
++    red(&mut d);
++    probe_step(&mut d, 301);
++    dispatch(&mut d, 302);
++    failed_part(&mut d);
++    report(&mut d, TWO_FAILURES, false);
++    dispatch(&mut d, STATUS);
++    let out = outputs(&mut d, Event::StepTier { task: TIER_TASK, entry: 403 });
++    assert_eq!(effect_write(&out), &api::Write::DeleteBranch { branch: b"temper/tier/browser.1.0".as_slice().into() });
++    let mut out = Queue::with_capacity(max_out(&LIMITS));
++    crate::tiers::outcome(&mut d, 403, skein_forge_client::Outcome::Failed(api::Error::Refused), &mut out);
++    assert_eq!(blame(&d, MERGE), &policy::Blame::Owns(failures()));
++    assert_eq!(fixtures::browser(&d).record.failing, failures());
++    assert!(fixtures::browser(&d).result.as_ref().unwrap().applied);
++}
++#[test]
++fn a_restart_while_reading_a_failed_report_reads_it_again() {
++    let mut d = red_range(&[MERGE]);
++    failed_part(&mut d);
++    let row = fixtures::browser(&d).clone();
++    outputs(&mut d, Event::Restore { record: Stored::Tier(row) });
++    d.tier_follows.remove(&(REPO, BROWSER.into()));
++    crate::tiers::rebuild(&mut d);
++    outputs(&mut d, Event::StepTier { task: TIER_TASK, entry: RETRY });
++    let (_, op) = fixtures::next_call(&mut d);
++    assert_eq!(
++        op,
++        api::Op::Read(api::Read::Artifact {
++            run: RUN_ID,
++            name: b"report".as_slice().into(),
++            max_bytes: LIMITS.client.answer_bytes
++        })
++    );
++    report(&mut d, TWO_FAILURES, false);
++    assert_eq!(fixtures::browser(&d).record.run.as_ref().unwrap().part, policy::Part::Rerun { failed: tests() });
+ }
+diff --git a/temper/crates/temper-engine-domain-forge/src/tiers.rs b/temper/crates/temper-engine-domain-forge/src/tiers.rs
+index 40f7d684d..a3e862711 100644
+--- a/temper/crates/temper-engine-domain-forge/src/tiers.rs
++++ b/temper/crates/temper-engine-domain-forge/src/tiers.rs
+@@ -210,6 +210,27 @@ pub(crate) fn restart(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request
+ pub(crate) fn start_due(d: &mut Domain, env: &Env<Limits>, repository: Repository, out: &mut Queue<Request>) {
+     start_due_for(d, env, repository, None, out);
+ }
++fn new_row(repository: Repository, tier: Box<[u8]>) -> TierRow {
++    TierRow {
++        repository,
++        tier,
++        record: policy::Record {
++            sequence: 0,
++            judged: None,
++            failing: policy::Failures::Tests(Box::new([])),
++            flakes: Box::new([]),
++            run: None,
++        },
++        pending: Box::new([]),
++        baseline: None,
++        task: None,
++        branch: TierBranch::Absent,
++        probe: None,
++        flight: None,
++        result: None,
++    }
++}
++
+ fn start_due_for(
+     d: &mut Domain,
+     env: &Env<Limits>,
+@@ -236,24 +257,7 @@ fn start_due_for(
+         let key = (repository, tier.clone());
+         let mut row = match d.tier_rows.remove(&key) {
+             Some(row) => row,
+-            None => TierRow {
+-                repository,
+-                tier,
+-                record: policy::Record {
+-                    sequence: 0,
+-                    judged: None,
+-                    failing: policy::Failures::Tests(Box::new([])),
+-                    flakes: Box::new([]),
+-                    run: None,
+-                },
+-                pending: Box::new([]),
+-                baseline: None,
+-                task: None,
+-                branch: TierBranch::Absent,
+-                probe: None,
+-                flight: None,
+-                result: None,
+-            },
++            None => new_row(repository, tier),
+         };
+         if row.record.judged.is_none() && row.record.run.is_none() && row.baseline.is_none() {
+             row.baseline = Some(crate::TierLanding { commit: tip, key: None });
+@@ -632,8 +636,9 @@ fn part_number(part: &policy::Part) -> u16 {
+     match part {
+         policy::Part::Whole => 0,
+         policy::Part::Rerun { .. } => 1,
+-        policy::Part::Probe { landing, .. } => u16::try_from(*landing)
+-            .expect("bounded range index").checked_add(2).expect("bounded probe part"),
++        policy::Part::Probe { landing, .. } => {
++            u16::try_from(*landing).expect("bounded range index").checked_add(2).expect("bounded probe part")
++        }
+     }
+ }
+ fn probe_branch(tier: &[u8], number: u64, landing: u32) -> Box<[u8]> {
+@@ -661,7 +666,7 @@ fn candidate(run: &policy::Run) -> (Commit, policy::Key, Option<&[policy::TestId
+     }
+ }
+ /// Whole inputs have landing's bound; the selection adds at most
+-/// failing_tests × (test_id_bytes + 1) bytes (domain/after-landing.md, 2, 4).
++/// `failing_tests` × (`test_id_bytes` + 1) bytes (domain/after-landing.md, 2, 4).
+ fn part_inputs(commit: Commit, key: policy::Key, tests: Option<&[policy::TestId]>) -> Box<[skein_forge::api::Input]> {
+     let base = crate::landing::inputs(commit, key);
+     let Some(tests) = tests else { return base };
+@@ -678,7 +683,8 @@ fn part_inputs(commit: Commit, key: policy::Key, tests: Option<&[policy::TestId]
+         value.put(test).expect("sized selection");
+         value.put(b"\n").expect("newline per id");
+     }
+-    inputs.push(skein_forge::api::Input { name: Box::from(b"temper_tests".as_slice()), value: value.finish() })
++    inputs
++        .push(skein_forge::api::Input { name: Box::from(b"temper_tests".as_slice()), value: value.finish() })
+         .expect("one selection input");
+     inputs.into_boxed()
+ }
+@@ -710,10 +716,16 @@ fn following(d: &Domain, row: &TierRow) -> crate::runs::Follow {
+         }
+         if let Some(report) = &flight.report {
+             follow.run = Some(skein_forge::api::Run {
+-                id: report.id, number: report.number, url: report.url.clone(),
+-                workflow: follow.workflow.clone(), commit, event: skein_forge::api::Event::Dispatch,
+-                actor: 0, state: skein_forge::api::RunState::Completed,
+-                conclusion: Some(skein_forge::api::Conclusion::Failure), created: skein_lib::Time::ZERO,
++                id: report.id,
++                number: report.number,
++                url: report.url.clone(),
++                workflow: follow.workflow.clone(),
++                commit,
++                event: skein_forge::api::Event::Dispatch,
++                actor: 0,
++                state: skein_forge::api::RunState::Completed,
++                conclusion: Some(skein_forge::api::Conclusion::Failure),
++                created: skein_lib::Time::ZERO,
+                 jobs: Box::new([]),
+             });
+             follow.outcome = Some(landing::Verdict::Failed);
+@@ -757,11 +769,17 @@ fn remember(row: &mut TierRow, follow: &crate::runs::Follow) {
+     });
+ }
+ pub(crate) fn rebuild(d: &mut Domain) {
++    // An in-flight read is transient. Re-wake each saved follower after the
++    // cold load, including a failed part awaiting its artifact (10).
+     for (key, row) in &d.tier_rows {
+-        if row.flight.is_some() && row.task.is_some() && row.result.is_none() {
++        if row.flight.is_some() && row.task.is_some() {
+             d.tier_follows.insert(key.clone(), following(d, row)).expect("one follower per tier");
+         }
+     }
++    for (key, _) in &d.tier_follows {
++        let row = d.tier_rows.get_mut(key).expect("followed tier");
++        row.flight.as_mut().expect("saved follower").next = Some(skein_lib::Time::ZERO);
++    }
+ }
+ fn advance(d: &Domain, row: &mut TierRow, follow: &mut crate::runs::Follow, outcome: policy::Outcome) {
+     let run = row.record.run.as_ref().expect("followed run");
+@@ -769,17 +787,17 @@ fn advance(d: &Domain, row: &mut TierRow, follow: &mut crate::runs::Follow, outc
+     let settings = d.tier_settings.get(&project).expect("tier settings");
+     match policy::step(&row.record, run, outcome, &settings.verdict) {
+         policy::Next::Dispatch(next) => {
+-            if next.part != run.part {
+-                row.record.run = Some(next);
+-                row.flight = None;
+-                *follow = following(d, row);
+-            } else {
++            if next.part == run.part {
+                 let attempt = u16::try_from(next.faults).expect("bounded retry").checked_add(1).expect("retry attempt");
+                 row.record.run = Some(next);
+                 crate::runs::retry(follow, attempt);
+                 if follow.start.is_none() {
+                     follow.since = None;
+                 }
++            } else {
++                row.record.run = Some(next);
++                row.flight = None;
++                *follow = following(d, row);
+             }
+             remember(row, follow);
+         }
+@@ -797,9 +815,8 @@ fn advance(d: &Domain, row: &mut TierRow, follow: &mut crate::runs::Follow, outc
+                     crate::ReceiptRun { id: run.id, number: run.number, url: run.url.clone() }
+                 }
+             };
+-            row.result = Some(crate::TierResult {
+-                verdict, run, received: false, status: TierBranch::Absent, applied: false,
+-            });
++            row.result =
++                Some(crate::TierResult { verdict, run, received: false, status: TierBranch::Absent, applied: false });
+         }
+     }
+ }
+@@ -814,7 +831,9 @@ fn observed(d: &Domain, row: &mut TierRow, follow: &mut crate::runs::Follow) {
+ fn report_read(d: &Domain, row: &TierRow, env: &Env<Limits>) -> Option<skein_forge::api::Read> {
+     let report = row.flight.as_ref()?.report.as_ref()?;
+     Some(skein_forge::api::Read::Artifact {
+-        run: report.id, name: configured(d, row).artifact, max_bytes: env.limits.client.answer_bytes,
++        run: report.id,
++        name: configured(d, row).artifact,
++        max_bytes: env.limits.client.answer_bytes,
+     })
+ }
+ fn wait(task: u64, out: &mut Queue<Request>) {
+@@ -878,6 +897,90 @@ pub(crate) fn step(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, out
+         start_due(d, env, repository, out);
+     }
+ }
++fn cleanup(
++    d: &mut Domain,
++    env: &Env<Limits>,
++    key: &(Repository, Box<[u8]>),
++    row: &mut TierRow,
++    entry: u64,
++    out: &mut Queue<Request>,
++) -> bool {
++    let run = row.record.run.as_ref().expect("cleanup's run");
++    let task = row.task.expect("cleanup's task");
++    // Delete each completed probe before another probe can be made. Its index
++    // remains durable even after the policy has advanced to the next part.
++    let cleanup = match &row.probe {
++        Some(probe) => match &row.result {
++            Some(result) => result.applied,
++            None => match &run.part {
++                policy::Part::Probe { landing, .. } => *landing != probe.landing,
++                policy::Part::Whole | policy::Part::Rerun { .. } => true,
++            },
++        },
++        None => false,
++    };
++    if cleanup {
++        let probe = row.probe.as_ref().expect("probe to delete");
++        if probe.branch == TierBranch::Made && !d.entries.contains_key(&entry) && d.entries.len() < env.limits.entries {
++            let landing = probe.landing;
++            let write = Write::DeleteBranch { branch: probe_branch(&row.tier, run.number, landing) };
++            row.probe.as_mut().expect("probe").branch = TierBranch::Pending { entry };
++            effect(
++                d,
++                row,
++                entry,
++                write,
++                6,
++                u16::try_from(landing).expect("range index").checked_add(2).expect("part"),
++                out,
++            );
++        } else {
++            wait(task, out);
++        }
++        return true;
++    }
++    if let Some(result) = &row.result
++        && result.applied
++    {
++        if row.branch == TierBranch::Absent {
++            finish(d, env, key, row, out);
++        } else if row.branch == TierBranch::Made
++            && !d.entries.contains_key(&entry)
++            && d.entries.len() < env.limits.entries
++        {
++            let write = Write::DeleteBranch { branch: branch(&row.tier, run.number) };
++            row.branch = TierBranch::Pending { entry };
++            effect(d, row, entry, write, 6, 0, out);
++        } else {
++            wait(task, out);
++        }
++        return true;
++    }
++    false
++}
++
++fn probe_ready(d: &mut Domain, row: &mut TierRow, entry: u64, out: &mut Queue<Request>) -> bool {
++    let run = row.record.run.as_ref().expect("probe's run");
++    let task = row.task.expect("probe's task");
++    match &run.part {
++        policy::Part::Probe { landing, .. } => {
++            if row.probe.is_none() {
++                let write = Write::CreateBranch { branch: part_branch(row), commit: candidate(run).0 };
++                let part = part_number(&run.part);
++                row.probe = Some(crate::TierProbeBranch { landing: *landing, branch: TierBranch::Pending { entry } });
++                effect(d, row, entry, write, 4, part, out);
++                return false;
++            }
++            if row.probe.as_ref().expect("probe branch").branch != TierBranch::Made {
++                wait(task, out);
++                return false;
++            }
++            true
++        }
++        policy::Part::Whole | policy::Part::Rerun { .. } => true,
++    }
++}
++
+ fn step_row(
+     d: &mut Domain,
+     env: &Env<Limits>,
+@@ -905,50 +1008,22 @@ fn step_row(
+         }
+         d.tier_follows.insert(key.clone(), follow).expect("one follow per tier");
+     }
+-    if let Some(result) = &row.result {
+-        if result.status == TierBranch::Made && !result.applied {
+-            apply(d, env, row, out);
+-        }
++    if let Some(result) = &row.result
++        && result.status == TierBranch::Made
++        && !result.applied
++    {
++        apply(d, env, row, out);
+     }
+     let run = row.record.run.as_ref().expect("checked live run");
+     if run.faults > d.tier_settings.get(&project).expect("settings").verdict.retries {
+         out.push(Request::TierDecision { task, decision: TierDecision::Held });
+         return;
+     }
+-    // Delete each completed probe before another probe can be made. Its index
+-    // remains durable even after the policy has advanced to the next part.
+-    let cleanup = match &row.probe {
+-        Some(probe) => row.result.is_some() || match &run.part {
+-            policy::Part::Probe { landing, .. } => *landing != probe.landing,
+-            policy::Part::Whole | policy::Part::Rerun { .. } => true,
+-        },
+-        None => false,
+-    };
+-    if cleanup {
+-        let probe = row.probe.as_ref().expect("probe to delete");
+-        if probe.branch == TierBranch::Made && !d.entries.contains_key(&entry) && d.entries.len() < env.limits.entries {
+-            let landing = probe.landing;
+-            let write = Write::DeleteBranch { branch: probe_branch(&row.tier, run.number, landing) };
+-            row.probe.as_mut().expect("probe").branch = TierBranch::Pending { entry };
+-            effect(d, row, entry, write, 6, u16::try_from(landing).expect("range index").checked_add(2).expect("part"), out);
+-        } else {
+-            wait(task, out);
+-        }
++    if cleanup(d, env, key, row, entry, out) {
+         return;
+     }
++    let run = row.record.run.as_ref().expect("live after cleanup");
+     if let Some(result) = &row.result {
+-        if result.applied {
+-            if row.branch == TierBranch::Absent {
+-                finish(d, env, key, row, out);
+-            } else if row.branch == TierBranch::Made && !d.entries.contains_key(&entry) && d.entries.len() < env.limits.entries {
+-                let write = Write::DeleteBranch { branch: branch(&row.tier, run.number) };
+-                row.branch = TierBranch::Pending { entry };
+-                effect(d, row, entry, write, 6, 0, out);
+-            } else {
+-                wait(task, out);
+-            }
+-            return;
+-        }
+         if result.status != TierBranch::Absent {
+             wait(task, out);
+             return;
+@@ -970,27 +1045,24 @@ fn step_row(
+         row.branch = TierBranch::Pending { entry };
+         effect(d, row, entry, write, 1, 0, out);
+     } else if row.branch == TierBranch::Made {
+-        if let policy::Part::Probe { landing, .. } = &run.part {
+-            if row.probe.is_none() {
+-                let write = Write::CreateBranch { branch: part_branch(row), commit: candidate(run).0 };
+-                let part = part_number(&run.part);
+-                row.probe = Some(crate::TierProbeBranch { landing: *landing, branch: TierBranch::Pending { entry } });
+-                effect(d, row, entry, write, 4, part, out);
+-                return;
+-            }
+-            if row.probe.as_ref().expect("probe branch").branch != TierBranch::Made {
+-                wait(task, out);
+-                return;
+-            }
++        if !probe_ready(d, row, entry, out) {
++            return;
+         }
++        let run = row.record.run.as_ref().expect("prepared part");
+         let mut follow = match d.tier_follows.remove(key) {
+             Some(follow) => follow,
+             None => following(d, row),
+         };
+         if !follow.waiting && !follow.writes.is_empty() {
+             let write = follow.write(entry).expect("pending write");
+-            let operation = if let Write::Rerun { .. } = &write { 3 }
+-                else if let policy::Part::Probe { .. } = &run.part { 5 } else { 2 };
++            let operation = if let Write::Rerun { .. } = &write {
++                3
++            } else {
++                match &run.part {
++                    policy::Part::Probe { .. } => 5,
++                    policy::Part::Whole | policy::Part::Rerun { .. } => 2,
++                }
++            };
+             let part = part_number(&run.part);
+             remember(row, &follow);
+             effect(d, row, entry, write, operation, part, out);
+@@ -1062,7 +1134,7 @@ fn status(tier: &[u8], result: &crate::TierResult) -> Write {
+     }
+ }
+ fn apply(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, out: &mut Queue<Request>) {
+-    let result = row.result.as_ref().expect("status posted").clone();
++    let result = row.result.as_ref().expect("status posted");
+     let run = row.record.run.as_ref().expect("judged range");
+     let mut landings = List::with_capacity(u32::try_from(run.landings.len()).expect("bounded range"));
+     for (landing, blame) in run.landings.iter().zip(&result.verdict.landings) {
+@@ -1089,12 +1161,21 @@ fn apply(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, out: &mut Queue<R
+             out,
+         );
+     }
++    let mut judged = policy::judged(
++        &row.record,
++        &result.verdict,
++        &policy::Limits { failing_tests: env.limits.failing_tests, test_id_bytes: env.limits.test_id_bytes },
++    );
++    // The task retains the range until cleanup completes, but judgement and
++    // flake counts survive a deletion that holds it (domain/after-landing.md, 10).
++    judged.run = row.record.run.take();
++    row.record = judged;
+     row.result.as_mut().expect("judged result").applied = true;
+     save(row, out);
+ }
+ fn finish(
+     d: &mut Domain,
+-    env: &Env<Limits>,
++    _env: &Env<Limits>,
+     key: &(Repository, Box<[u8]>),
+     row: &mut TierRow,
+     out: &mut Queue<Request>,
+@@ -1127,11 +1208,7 @@ fn finish(
+         skein_lib::Decimal::of(cleared).as_bytes(),
+         b" landings cleared",
+     ]);
+-    row.record = policy::judged(
+-        &row.record,
+-        &result.verdict,
+-        &policy::Limits { failing_tests: env.limits.failing_tests, test_id_bytes: env.limits.test_id_bytes },
+-    );
++    row.record.run = None;
+     let task = row.task.take().expect("tier task");
+     row.branch = TierBranch::Absent;
+     row.flight = None;
+@@ -1156,7 +1233,10 @@ pub(crate) fn answered(
+     }
+     let Some(mut row) = d.tier_rows.remove(&key) else { return };
+     let mut follow = d.tier_follows.remove(&key).expect("read's follower");
+-    let reporting = match &row.flight { Some(flight) => flight.report.is_some(), None => false };
++    let reporting = match &row.flight {
++        Some(flight) => flight.report.is_some(),
++        None => false,
++    };
+     let writer = d.writers.get(&row.repository.forge).copied().unwrap_or(0);
+     let listing = if let Ok(skein_forge::api::Answer::Runs { .. }) = &answer { true } else { false };
+     let ended = if reporting {
+@@ -1164,12 +1244,17 @@ pub(crate) fn answered(
+             false
+         } else {
+             let tier = configured(d, &row);
+-            let limits = policy::Limits { failing_tests: env.limits.failing_tests, test_id_bytes: env.limits.test_id_bytes };
++            let limits =
++                policy::Limits { failing_tests: env.limits.failing_tests, test_id_bytes: env.limits.test_id_bytes };
+             let outcome = match answer {
+                 // A cut report cannot name every failure: blame by landing alone
+                 // (domain/after-landing.md, 4), even when its prefix is parseable.
+-                Ok(skein_forge::api::Answer::File { truncated: true, .. }) => policy::Outcome::Failed(policy::Failures::Many),
+-                Ok(skein_forge::api::Answer::File { bytes, .. }) => policy::failed(Some(policy::report(tier.format, &bytes, &limits))),
++                Ok(skein_forge::api::Answer::File { truncated: true, .. }) => {
++                    policy::Outcome::Failed(policy::Failures::Many)
++                }
++                Ok(skein_forge::api::Answer::File { bytes, .. }) => {
++                    policy::failed(Some(policy::report(tier.format, &bytes, &limits)))
++                }
+                 Ok(_) | Err(_) => policy::failed(None),
+             };
+             advance(d, &mut row, &mut follow, outcome);
+@@ -1217,7 +1302,6 @@ pub(crate) fn deadline(d: &Domain) -> Option<skein_lib::Time> {
+     }
+     for (_, row) in &d.tier_rows {
+         if let Some(flight) = &row.flight
+-            && row.result.is_none()
+             && let Some(at) = flight.next
+         {
+             next = Some(match next {
+@@ -1246,8 +1330,7 @@ pub(crate) fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>)
+     }
+     let mut found = None;
+     for (key, row) in &d.tier_rows {
+-        if row.result.is_none()
+-            && let Some(flight) = &row.flight
++        if let Some(flight) = &row.flight
+             && let Some(at) = flight.next
+             && at <= env.now
+         {
+@@ -1304,7 +1387,10 @@ pub(crate) fn outcome(d: &mut Domain, entry: u64, outcome: skein_forge_client::O
+     let mut found = None;
+     for (key, row) in &d.tier_rows {
+         if row.branch == (TierBranch::Pending { entry })
+-            || match &row.probe { Some(probe) => probe.branch == (TierBranch::Pending { entry }), None => false }
++            || match &row.probe {
++                Some(probe) => probe.branch == (TierBranch::Pending { entry }),
++                None => false,
++            }
+             || match &row.flight {
+                 Some(flight) => flight.entry == entry,
+                 None => false,
+@@ -1339,7 +1425,13 @@ pub(crate) fn outcome(d: &mut Domain, entry: u64, outcome: skein_forge_client::O
+             row.branch = TierBranch::Made;
+         }
+         let deleting = match d.entries.get(&entry) {
+-            Some(saved) => if let Write::DeleteBranch { .. } = &saved.entry.effect.write { true } else { false },
++            Some(saved) => {
++                if let Write::DeleteBranch { .. } = &saved.entry.effect.write {
++                    true
++                } else {
++                    false
++                }
++            }
+             None => false,
+         };
+         if row.branch == pending && deleting {
+@@ -1565,28 +1657,59 @@ impl Domain {
+         let current = part_branch(row);
+         let (commit, key, tests) = candidate(run);
+         match &entry.effect.write {
+-            Write::CreateBranch { branch: name, commit: at } if
+-                (row.branch == pending && *name == whole && *at == run.tip)
+-                || (match &row.probe { Some(probe) => probe.branch == pending, None => false } && *name == current && *at == commit) =>
+-                Some((9, What::Branch(path_parts(name)))),
+-            Write::DeleteBranch { branch: name } if
+-                (row.branch == pending && *name == whole && row.result.as_ref()?.applied)
+-                || match &row.probe {
+-                    Some(probe) => probe.branch == pending && *name == probe_branch(&row.tier, run.number, probe.landing),
+-                    None => false,
+-                } => Some((15, What::Branch(path_parts(name)))),
+-            Write::Dispatch { workflow, branch: name, inputs } if
+-                *workflow == configured(self, row).workflow && *name == current
+-                && *inputs == part_inputs(commit, key, tests) && row.flight.as_ref()?.entry == entry.number =>
+-                Some((16, What::Branch(path_parts(name)))),
+-            Write::Rerun { attempt } if attempt.head == commit && row.flight.as_ref()?.entry == entry.number =>
+-                Some((17, What::Branch(path_parts(&current)))),
+-            Write::Status { .. } if row.result.as_ref()?.status == pending
+-                && entry.effect.write == status(&row.tier, row.result.as_ref()?) => Some((6, What::Repository)),
+-            Write::CreateBranch { .. } | Write::DeleteBranch { .. } | Write::Dispatch { .. } | Write::Rerun { .. }
+-            | Write::Status { .. } | Write::CreateIssue { .. } | Write::OpenPull { .. } | Write::Post { .. }
+-            | Write::Review { .. } | Write::Edit { .. } | Write::SetReviewers { .. } | Write::Close { .. }
+-            | Write::Reopen { .. } | Write::Merge { .. } | Write::Update { .. } => None,
++            Write::CreateBranch { branch: name, commit: at }
++                if (row.branch == pending && *name == whole && *at == run.tip)
++                    || (match &row.probe {
++                        Some(probe) => probe.branch == pending,
++                        None => false,
++                    } && *name == current
++                        && *at == commit) =>
++            {
++                Some((9, What::Branch(path_parts(name))))
++            }
++            Write::DeleteBranch { branch: name }
++                if (row.branch == pending && *name == whole && row.result.as_ref()?.applied)
++                    || match &row.probe {
++                        Some(probe) => {
++                            probe.branch == pending && *name == probe_branch(&row.tier, run.number, probe.landing)
++                        }
++                        None => false,
++                    } =>
++            {
++                Some((15, What::Branch(path_parts(name))))
++            }
++            Write::Dispatch { workflow, branch: name, inputs }
++                if *workflow == configured(self, row).workflow
++                    && *name == current
++                    && *inputs == part_inputs(commit, key, tests)
++                    && row.flight.as_ref()?.entry == entry.number =>
++            {
++                Some((16, What::Branch(path_parts(name))))
++            }
++            Write::Rerun { attempt } if attempt.head == commit && row.flight.as_ref()?.entry == entry.number => {
++                Some((17, What::Branch(path_parts(&current))))
++            }
++            Write::Status { .. }
++                if row.result.as_ref()?.status == pending
++                    && entry.effect.write == status(&row.tier, row.result.as_ref()?) =>
++            {
++                Some((6, What::Repository))
++            }
++            Write::CreateBranch { .. }
++            | Write::DeleteBranch { .. }
++            | Write::Dispatch { .. }
++            | Write::Rerun { .. }
++            | Write::Status { .. }
++            | Write::CreateIssue { .. }
++            | Write::OpenPull { .. }
++            | Write::Post { .. }
++            | Write::Review { .. }
++            | Write::Edit { .. }
++            | Write::SetReviewers { .. }
++            | Write::Close { .. }
++            | Write::Reopen { .. }
++            | Write::Merge { .. }
++            | Write::Update { .. } => None,
+         }
+     }
+ 
+diff --git a/temper/crates/temper-engine-domain-forge/src/verification.rs b/temper/crates/temper-engine-domain-forge/src/verification.rs
+index 7a01bbbf8..1e390a8e5 100644
+--- a/temper/crates/temper-engine-domain-forge/src/verification.rs
++++ b/temper/crates/temper-engine-domain-forge/src/verification.rs
+@@ -125,16 +125,19 @@ pub(crate) fn judged(
+     // fails any of their blamed tests repairs them, whether in this range or before it.
+     let mut keys = List::with_capacity(d.verifications.len());
+     for (key, _) in &d.verifications {
+-        if key.0 == repository { keys.push(*key).expect("verification count"); }
++        if key.0 == repository {
++            keys.push(*key).expect("verification count");
++        }
+     }
+     for key in &keys {
+         let row = d.verifications.get_mut(key).expect("collected verification");
+         let before = fact(row);
+         let mut changed = false;
+         for verification in &mut row.tiers {
+-            if verification.tier.as_ref() == tier && verification.repaired.is_none()
++            if verification.tier.as_ref() == tier
++                && verification.repaired.is_none()
+                 && let Some(verdict) = &verification.verdict
+-                && let Blame::Owns(_) | Blame::Suspect(_) = &verdict.blame
++                && red(&verdict.blame)
+                 && temper_engine_domain_forge_tiers::repaired(&verdict.blame, &judged.failing)
+             {
+                 verification.repaired = Some(judged.tip);
+@@ -156,7 +159,11 @@ pub(crate) fn judged(
+         let mut changed = false;
+         for verification in &mut row.tiers {
+             if verification.tier.as_ref() == tier {
+-                if let Some(TierVerdict { blame: Blame::Owns(_) | Blame::Suspect(_), .. }) = &verification.verdict {
++                let was_red = match &verification.verdict {
++                    Some(verdict) => red(&verdict.blame),
++                    None => false,
++                };
++                if was_red {
+                     continue;
+                 }
+                 let verdict = TierVerdict { run: judged.number, blame: blame.clone() };
+@@ -178,6 +185,13 @@ pub(crate) fn judged(
+     }
+ }
+ 
++fn red(blame: &Blame) -> bool {
++    match blame {
++        Blame::Cleared => false,
++        Blame::Owns(_) | Blame::Suspect(_) => true,
++    }
++}
++
+ pub(crate) fn released(d: &mut Domain, task: u64, out: &mut Queue<Request>) {
+     let mut found = None;
+     for (key, row) in &d.verifications {
+@@ -253,7 +267,10 @@ pub(crate) fn worst_case(l: &Limits) -> Option<u64> {
+     let configured = u64::from(l.repositories).checked_mul(
+         u64::try_from(size_of::<RepositoryTiers>()).ok()?.checked_add(u64::from(l.tiers).checked_mul(tier)?)?,
+     )?;
++    // Repair scans retain one key per live verification while updating rows.
++    let repair_keys = u64::from(l.changes).checked_mul(u64::try_from(size_of::<(Repository, Commit)>()).ok()?)?;
+     Map::<(Repository, Commit), Verification>::worst_case(l.changes)?
++        .checked_add(repair_keys)?
+         .checked_add(u64::from(l.changes).checked_mul(tiers.checked_add(8)?)?)?
+         .checked_add(Map::<u32, Box<[RepositoryTiers]>>::worst_case(l.judge_projects)?)?
+         .checked_add(u64::from(l.judge_projects).checked_mul(configured)?)?
+diff --git a/temper/crates/temper-protocol-store/src/records/tiers.rs b/temper/crates/temper-protocol-store/src/records/tiers.rs
+index fb516a01c..d36f6f18d 100644
+--- a/temper/crates/temper-protocol-store/src/records/tiers.rs
++++ b/temper/crates/temper-protocol-store/src/records/tiers.rs
+@@ -230,6 +230,10 @@ pub(super) fn encode(row: &d::TierRow) -> w::TierRow {
+                         },
+                         waiting: f.waiting,
+                         fault: f.fault,
++                        report: match &f.report {
++                            Some(run) => Some(encode_receipt_run(run)),
++                            None => None,
++                        },
+                         pending,
+                     },
+                 )
+@@ -264,6 +268,7 @@ pub(super) fn encode(row: &d::TierRow) -> w::TierRow {
+                     .expect(FITS),
+                     received: r.received,
+                     status: encode_branch(r.status),
++                    applied: r.applied,
+                 },
+             )
+             .expect(FITS),
+@@ -283,6 +288,16 @@ pub(super) fn encode(row: &d::TierRow) -> w::TierRow {
+             },
+             task: row.task,
+             branch,
++            probe: match &row.probe {
++                Some(probe) => Some(
++                    w::TierProbeBranch::new(
++                        &w::CEILINGS,
++                        w::TierProbeBranchParts { landing: probe.landing, branch: encode_branch(probe.branch) },
++                    )
++                    .expect(FITS),
++                ),
++                None => None,
++            },
+             flight,
+             result,
+         },
+@@ -295,7 +310,7 @@ pub(super) fn encode(row: &d::TierRow) -> w::TierRow {
+     reason = "one durable row translation validates the related operation states without callbacks"
+ )]
+ pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
+-    let w::TierRowParts { repository, tier, record, pending, baseline, task, branch, flight, result } =
++    let w::TierRowParts { repository, tier, record, pending, baseline, task, branch, probe, flight, result } =
+         row.into_parts();
+     if tier.is_empty() {
+         return Err(Undecodable);
+@@ -335,7 +350,7 @@ pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
+     };
+     let flight = match flight {
+         Some(f) => {
+-            let w::TierFlightParts { next, entry, start, since, waiting, fault, pending } = f.into_parts();
++            let w::TierFlightParts { next, entry, start, since, waiting, fault, report, pending } = f.into_parts();
+             let mut jobs = List::with_capacity(pending.len());
+             for attempt in pending.into_boxed() {
+                 jobs.push(super::answers::decode_job_attempt(attempt)).expect(FITS);
+@@ -356,7 +371,10 @@ pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
+                 },
+                 waiting,
+                 fault,
+-                report: None,
++                report: match report {
++                    Some(run) => Some(decode_receipt_run(run)),
++                    None => None,
++                },
+                 pending: jobs.into_boxed(),
+             })
+         }
+@@ -364,7 +382,7 @@ pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
+     };
+     let result = match result {
+         Some(r) => {
+-            let w::TierResultParts { verdict, run, received, status } = r.into_parts();
++            let w::TierResultParts { verdict, run, received, status, applied } = r.into_parts();
+             let w::TierJudgementParts { number, tip, key, finding } = verdict.into_parts();
+             let finding = decode_finding(finding)?;
+             let w::ReceiptRunParts { id, number: run_number, url } = run.into_parts();
+@@ -380,11 +398,22 @@ pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
+                 run: d::ReceiptRun { id, number: run_number, url },
+                 received,
+                 status: decode_branch(status),
+-                applied: false,
++                applied,
+             })
+         }
+         None => None,
+     };
++    let probe = match probe {
++        Some(probe) => {
++            let w::TierProbeBranchParts { landing, branch } = probe.into_parts();
++            let run = run.as_ref().ok_or(Undecodable)?;
++            if usize::try_from(landing).or(Err(Undecodable))? >= run.landings.len() {
++                return Err(Undecodable);
++            }
++            Some(d::TierProbeBranch { landing, branch: decode_branch(branch) })
++        }
++        None => None,
++    };
+     if (baseline.is_some() && (judged.is_some() || run.is_some()))
+         || (flight.is_some() && (run.is_none() || task.is_none()))
+         || (result.is_some() && run.is_none())
+@@ -418,7 +447,7 @@ pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
+         },
+         task,
+         branch,
+-        probe: None,
++        probe,
+         flight,
+         result,
+     })
+@@ -440,3 +469,12 @@ fn decode_branch(branch: w::TierBranch) -> d::TierBranch {
+         w::TierBranch::Pending(entry) => d::TierBranch::Pending { entry: entry.into_parts().number },
+     }
+ }
++
++fn encode_receipt_run(run: &d::ReceiptRun) -> w::ReceiptRun {
++    w::ReceiptRun::new(&w::CEILINGS, w::ReceiptRunParts { id: run.id, number: run.number, url: run.url.clone() })
++        .expect(FITS)
++}
++fn decode_receipt_run(run: w::ReceiptRun) -> d::ReceiptRun {
++    let w::ReceiptRunParts { id, number, url } = run.into_parts();
++    d::ReceiptRun { id, number, url }
++}
+diff --git a/temper/crates/temper-protocol-store/src/tests/sizes.rs b/temper/crates/temper-protocol-store/src/tests/sizes.rs
+index caed93f77..1d92f2481 100644
+--- a/temper/crates/temper-protocol-store/src/tests/sizes.rs
++++ b/temper/crates/temper-protocol-store/src/tests/sizes.rs
+@@ -7,7 +7,7 @@ fn the_application_sizes_are_the_largest_key_and_row() {
+     // Tier's full finding, pending range, flight and staged judgement are the largest row.
+     assert_eq!(
+         application(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes),
+-        Some(jig_protocol_store::sizes::Application { version: 10, key: 403, value: 175_962 })
++        Some(jig_protocol_store::sizes::Application { version: 10, key: 403, value: 178_046 })
+     );
+ }
+ #[test]
+@@ -74,13 +74,13 @@ fn plan_text_uses_the_body_bound_without_changing_the_format() {
+     let new_view = crate::v10::GoalView::worst_case_bytes(&after).expect("new view size");
+     assert_eq!(new_view - old_view, EXTRA_PLAN_BYTES);
+     // The schema's fixed framing plus the measured view; TierRow dominates Row.
+-    // TK adds 17 optional-key tags and the optional keyed baseline (66 bytes).
++    // T7 adds the optional report (2069), optional probe (14), and applied flag (1).
+     assert_eq!(old_view, 5238);
+     assert_eq!(new_view, 7286);
+     assert_eq!(crate::v10::IssueRow::worst_case_bytes(&before), Some(5657));
+     assert_eq!(crate::v10::IssueRow::worst_case_bytes(&after), Some(7705));
+     assert_eq!(crate::v10::IssueRow::worst_case_heap(&before), Some(5888));
+     assert_eq!(crate::v10::IssueRow::worst_case_heap(&after), Some(7936));
+-    assert_eq!(crate::v10::Row::worst_case_bytes(&before), Some(175_962));
+-    assert_eq!(crate::v10::Row::worst_case_bytes(&after), Some(175_962));
++    assert_eq!(crate::v10::Row::worst_case_bytes(&before), Some(178_046));
++    assert_eq!(crate::v10::Row::worst_case_bytes(&after), Some(178_046));
+ }
+diff --git a/temper/crates/temper/tests/figures/memory/init/engine/setup.txt b/temper/crates/temper/tests/figures/memory/init/engine/setup.txt
+index d45c1de55..e0e32a6c0 100644
+--- a/temper/crates/temper/tests/figures/memory/init/engine/setup.txt
++++ b/temper/crates/temper/tests/figures/memory/init/engine/setup.txt
+@@ -1 +1 @@
+-2906548289
++2906548609
+diff --git a/temper/crates/temper/tests/figures/memory/owned/engine/forge.txt b/temper/crates/temper/tests/figures/memory/owned/engine/forge.txt
+index a4f598944..a57de5c45 100644
+--- a/temper/crates/temper/tests/figures/memory/owned/engine/forge.txt
++++ b/temper/crates/temper/tests/figures/memory/owned/engine/forge.txt
+@@ -1 +1 @@
+-46776749
++46778621
+diff --git a/temper/crates/temper/tests/figures/memory/owned/engine/setup.txt b/temper/crates/temper/tests/figures/memory/owned/engine/setup.txt
+index 56b432dad..f49bb36ed 100644
+--- a/temper/crates/temper/tests/figures/memory/owned/engine/setup.txt
++++ b/temper/crates/temper/tests/figures/memory/owned/engine/setup.txt
+@@ -1 +1 @@
+-2906282546
++2906282866
+diff --git a/temper/tests/codecs/tests/support/tiers.rs b/temper/tests/codecs/tests/support/tiers.rs
+index 76ffc09c4..cb47d6131 100644
+--- a/temper/tests/codecs/tests/support/tiers.rs
++++ b/temper/tests/codecs/tests/support/tiers.rs
+@@ -68,7 +68,10 @@ pub fn fullest() -> Stored {
+             .collect(),
+         task: Some(51),
+         branch: TierBranch::Pending { entry: 11 },
+-        probe: None,
++        probe: Some(temper_engine_domain_forge::TierProbeBranch {
++            landing: 1,
++            branch: TierBranch::Pending { entry: 13 },
++        }),
+         flight: Some(temper_engine_domain_forge::TierFlight {
+             next: Some(skein_lib::Time::from_nanos(7)),
+             entry: 11,
+@@ -76,7 +79,11 @@ pub fn fullest() -> Stored {
+             since: Some(skein_lib::Time::from_nanos(4)),
+             waiting: false,
+             fault: false,
+-            report: None,
++            report: Some(temper_engine_domain_forge::ReceiptRun {
++                id: 71,
++                number: 2,
++                url: b"https://forge/run/71".as_slice().into(),
++            }),
+             pending: Box::new([skein_forge::api::JobAttempt { head: TIP, run: 71, job: 81, attempt: 2 }]),
+         }),
+         result: Some(temper_engine_domain_forge::TierResult {
+@@ -95,7 +102,7 @@ pub fn fullest() -> Stored {
+             },
+             received: false,
+             status: TierBranch::Pending { entry: 12 },
+-            applied: false,
++            applied: true,
+         }),
+     })
+ }
+diff --git a/temper/tests/engine/domain/src/forge_routes.rs b/temper/tests/engine/domain/src/forge_routes.rs
+index 6960cb342..f836d72c5 100644
+--- a/temper/tests/engine/domain/src/forge_routes.rs
++++ b/temper/tests/engine/domain/src/forge_routes.rs
+@@ -72,6 +72,11 @@ pub struct World {
+     pub busy_calls: u32,
+     pub tier: bool,
+     timing: StoryLimits,
++    restart_hello: Option<engine::Event>,
++    /// Reports supplied by restart stories at the same sans-io boundary as forge replies.
++    pub artifact_answers: VecDeque<Box<[u8]>>,
++    pub hold_artifacts: bool,
++    pub held_artifacts: Vec<engine::Request>,
+ }
+ 
+ #[expect(
+@@ -92,6 +97,8 @@ pub struct StoryLimits {
+     pub reserve_whole_period: bool,
+     /// Ignore one nested file so the key walker must read a directory.
+     pub tier_tree: bool,
++    pub tier_reports: bool,
++    pub tier_suspects: Option<temper_engine_domain_forge_tiers::Suspects>,
+ }
+ 
+ fn tier_checks(nested: bool) -> Box<[engine::TierCheck]> {
+@@ -254,6 +261,8 @@ impl World {
+             tier,
+             reserve_whole_period,
+             tier_tree,
++            tier_reports,
++            tier_suspects,
+         } = timing;
+         let paths::Gate { approval, agent: agent_gate, owner: owner_gate } = gate;
+         let [(bootstrap, mut limits), (config, _)] = std::array::from_fn(|_| {
+@@ -282,7 +291,13 @@ impl World {
+                                 gates: Box::new([]),
+                                 tiers: tier_checks(tier_tree),
+                             }]),
+-                            after: after_landing(),
++                            after: {
++                                let mut after = after_landing();
++                                if let Some(suspects) = tier_suspects {
++                                    after.verdict.suspects = suspects;
++                                }
++                                after
++                            },
+                         },
+                     )
+                     .expect("one configured project");
+@@ -330,7 +345,7 @@ impl World {
+                 reviewer.policy.agents = false;
+                 config.core.defaults.charters = Box::new([walking::charter(), producer, reviewer]);
+                 config.forge_charter = forge_charter.unwrap_or(1);
+-                limits.tasks.authority_grants = if tier { 14 } else { 11 };
++                limits.tasks.authority_grants = if tier { 15 } else { 11 };
+                 limits.journal.run_bytes = 8192;
+                 limits.tasks.authority_segments = 9;
+                 limits.tasks.authority_bytes = 512;
+@@ -339,7 +354,7 @@ impl World {
+                 limits.tasks.inbox_bytes = 1024;
+                 limits.authority.executors = 5;
+                 limits.authority.batch = 2;
+-                limits.authority.grants = if tier { 14 } else { 11 };
++                limits.authority.grants = if tier { 15 } else { 11 };
+                 limits.authority.segments = 8;
+                 limits.authority.segment_bytes = 64;
+                 limits.authority.writes = 2;
+@@ -422,7 +437,7 @@ impl World {
+                     for item in grants {
+                         expanded.push(item).expect("task grant bound");
+                     }
+-                    for kind in [6, 16, 17] {
++                    for kind in [6, 15, 16, 17] {
+                         expanded.push(authority::Grant { kind, ..grant.clone() }).expect("tier grant bound");
+                     }
+                     grants = expanded.into_boxed();
+@@ -501,8 +516,8 @@ impl World {
+                     paths::add_reader(&mut policy);
+                 }
+                 if turn {
+-                    limits.authority.grants = 14;
+-                    limits.tasks.authority_grants = 14;
++                    limits.authority.grants = if tier { 15 } else { 14 };
++                    limits.tasks.authority_grants = if tier { 15 } else { 14 };
+                     limits.authority.executors = 6;
+                     limits.tasks.executor_kinds = 6;
+                     limits.tasks.result_bytes = 256;
+@@ -510,7 +525,7 @@ impl World {
+                     if let Some(slots) = landing_members {
+                         limits.forge.landing_members = slots;
+                     }
+-                    let mut grants = List::with_capacity(14);
++                    let mut grants = List::with_capacity(limits.authority.grants);
+                     for grant in &rules.ceiling.grants {
+                         grants.push(grant.clone()).expect("ceiling grants");
+                     }
+@@ -698,9 +713,9 @@ impl World {
+                     let mut workflows = Vec::new();
+                     if turn {
+                         workflows.push(raw::Workflow {
+-                        fails: Box::new([]),
+-                        report: None,
+-                        select: None,
++                            fails: Box::new([]),
++                            report: None,
++                            select: None,
+                             file: b"gate.yml".as_slice().into(),
+                             jobs: Box::new([b"test".as_slice().into()]),
+                             latency_min: Duration::from_secs(1),
+@@ -712,16 +727,28 @@ impl World {
+                     }
+                     if tier {
+                         workflows.push(raw::Workflow {
+-                        fails: Box::new([]),
+-                        report: None,
+-                        select: None,
++                            fails: Box::new([]),
++                            report: if tier_reports {
++                                Some(raw::Report {
++                                    artifact: b"report".as_slice().into(),
++                                    format: raw::ReportFormat::Lines,
++                                    deflate: false,
++                                })
++                            } else {
++                                None
++                            },
++                            select: if tier_reports { Some(b"temper_tests".as_slice().into()) } else { None },
+                             file: b"browser.yml".as_slice().into(),
+                             jobs: Box::new([b"browser".as_slice().into()]),
+                             latency_min: Duration::from_secs(90),
+                             latency_max: Duration::from_secs(90),
+                             silent: 0,
+                             passes: 1000,
+-                            cue: None,
++                            cue: if tier_reports {
++                                Some(raw::Cue::Tests { path: b"failures".as_slice().into() })
++                            } else {
++                                None
++                            },
+                         });
+                     }
+                     workflows.into_boxed_slice()
+@@ -835,6 +862,10 @@ impl World {
+             busy_calls: 0,
+             tier,
+             timing,
++            restart_hello: None,
++            artifact_answers: VecDeque::new(),
++            hold_artifacts: false,
++            held_artifacts: Vec::new(),
+             merges: 0,
+             writes: Vec::new(),
+         }
+@@ -898,11 +929,14 @@ impl World {
+         self.period = None;
+         self.events.push_back(engine::Event::Restart { pending: self.store.pending_generation });
+         if !self.assigned.is_empty() {
+-            self.events.push_back(protocol::hello_slots(
++            self.restart_hello = Some(protocol::hello_slots(
+                 Token::new(7),
+-                if with_change { 2 } else { 1 },
++                self.env.limits.fleet.slots,
+                 self.assigned
+                     .iter()
++                    .filter(|assignment| matches!(self.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(assignment.task)))),
++                        Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))) if matches!(row.phase,
++                            tasks::Phase::Active(tasks::Active::Claimed { attempt } | tasks::Active::Running { attempt }) if attempt == assignment.attempt)))
+                     .map(|assignment| {
+                         protocol::hosting(assignment.task, assignment.attempt, jig_domain_host::Phase::Active)
+                     })
+@@ -973,6 +1007,12 @@ impl World {
+                     }));
+                 }
+                 engine::Request::Forge { call, repository, op } => {
++                    if self.hold_artifacts
++                        && matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Artifact { .. }))
++                    {
++                        self.held_artifacts.push(engine::Request::Forge { call, repository, op });
++                        continue;
++                    }
+                     if let Some(reads) = &mut self.held_reads
+                         && matches!(op, skein_forge::api::Op::Read(_))
+                         && self.store.rows.values().any(|row| matches!(row,
+@@ -1214,6 +1254,14 @@ impl World {
+ 
+     fn tick_with_reply_cut(&mut self, target: Option<u64>) -> bool {
+         let mut lost = false;
++        // The deployment header must exist before the hello can journal; hosted
++        // attempts must be known before adoption admits the restored claims
++        // (jig's domain/engine.md, 6).
++        if self.root.restart_step() == Some(jig_domain_core::RestartStep::LoadInbox)
++            && let Some(hello) = self.restart_hello.take()
++        {
++            self.events.push_front(hello);
++        }
+         self.env.now = self.env.now.saturating_add(Duration::from_millis(100));
+         self.env.wall = Wall::from_nanos(self.env.now.as_nanos());
+         self.fake_env.now = self.env.now;
+@@ -1260,6 +1308,23 @@ impl World {
+                             Err(translate::error(error, fake::time(&self.fake_env.limits, self.fake_env.now)))
+                         }
+                     };
++                    let mut result = result;
++                    if let Ok(skein_forge::api::Answer::Run(run)) = &mut result {
++                        let raw::Answer::Jobs(jobs) = self
++                            .fake
++                            .inspect(&self.fake_env.limits, b"org/repo", &raw::Read::Jobs { run: run.id })
++                            .expect("run jobs")
++                        else {
++                            panic!("jobs answer")
++                        };
++                        run.jobs = translate::run_jobs(jobs);
++                    }
++                    if matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Artifact { .. }))
++                        && let Ok(skein_forge::api::Answer::File { bytes, .. }) = &mut result
++                        && let Some(scripted) = self.artifact_answers.pop_front()
++                    {
++                        *bytes = scripted;
++                    }
+                     let event = engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Client(
+                         skein_forge_client::Event::Answered { free: 0, rate: None, call, cost: 1, result },
+                     )));
+@@ -1908,15 +1973,23 @@ pub fn produce(world: &mut World, producer: &engine::Assignment, branch: &[u8])
+     produce_content(world, producer, branch, b"review this diff")
+ }
+ pub fn produce_content(world: &mut World, producer: &engine::Assignment, branch: &[u8], content: &[u8]) -> [u8; 32] {
++    produce_path_content(world, producer, branch, b"file", content)
++}
++pub fn produce_path_content(
++    world: &mut World,
++    producer: &engine::Assignment,
++    branch: &[u8],
++    path: &[u8],
++    content: &[u8],
++) -> [u8; 32] {
+     const CHANNEL: Token = Token::new(7);
+-    const FILE: &[u8] = b"file";
+     let raw::Answer::Commit(base) =
+         world.external(2, raw::Op::Read(raw::Read::Branch { branch: b"main".as_slice().into() }))
+     else {
+         panic!("producer starts at current main")
+     };
+     world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.into(), commit: base }));
+-    let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", branch, FILE, content, 1)
++    let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", branch, path, content, 1)
+         .expect("producer pushed review head");
+     let event = world.protocol.answer(
+         CHANNEL,
+diff --git a/temper/tests/engine/domain/src/tier_runs.rs b/temper/tests/engine/domain/src/tier_runs.rs
+index a114e0c29..a561e8a71 100644
+--- a/temper/tests/engine/domain/src/tier_runs.rs
++++ b/temper/tests/engine/domain/src/tier_runs.rs
+@@ -33,7 +33,7 @@ fn tier(world: &World) -> &forge::TierRow {
+     let forge::Stored::Tier(row) = row.as_ref() else { panic!("tier row") };
+     row
+ }
+-fn park_owner(world: &mut World, run: &engine::Assignment) {
++pub fn park_owner(world: &mut World, run: &engine::Assignment) {
+     let read = run.messages.iter().map(|word| word.number).max();
+     if read.is_some() {
+         world.send(protocol::turn(
+diff --git a/temper/tests/engine/domain/tests/forge_routes.rs b/temper/tests/engine/domain/tests/forge_routes.rs
+index c83e38881..a4adedcc9 100644
+--- a/temper/tests/engine/domain/tests/forge_routes.rs
++++ b/temper/tests/engine/domain/tests/forge_routes.rs
+@@ -33,6 +33,9 @@ mod delegates;
+ #[path = "forge_routes/change_tool.rs"]
+ mod change_tool;
+ 
++#[path = "forge_routes/red_restart.rs"]
++mod red_restart;
++
+ #[path = "forge_routes/landing.rs"]
+ mod landing;
+ 
+diff --git a/temper/tests/engine/domain/tests/forge_routes/red_restart.rs b/temper/tests/engine/domain/tests/forge_routes/red_restart.rs
+new file mode 100644
+index 000000000..a715ffd5a
+--- /dev/null
++++ b/temper/tests/engine/domain/tests/forge_routes/red_restart.rs
+@@ -0,0 +1,141 @@
++//! The root cold-loads the exact records written while finding and repairing a red.
++use super::*;
++use temper_engine_domain_forge_tiers::{self as policy, Blame, Part, Suspects};
++use temper_engine_domain_world::forge_routes::produce_path_content;
++
++const TIER_TICKS: u32 = 1800; // the existing root tier story's 90 s workflow and poll allowance.
++const RED_TICKS: u32 = 3 * TIER_TICKS; // whole, rerun, and one oldest-landing probe.
++const FAILED: &[u8] = b"suite.first\nsuite.second\n";
++const WITH_FLAKE: &[u8] = b"suite.first\nsuite.flaky\nsuite.second\n";
++#[derive(Clone, Copy, Debug)]
++enum Cut {
++    Report,
++    Rerun,
++    ProbeBranch,
++    Probe,
++    Red,
++    Repaired,
++}
++fn tier(world: &World) -> Option<&forge_top::TierRow> {
++    world.store.rows.values().find_map(|record| match record {
++        Record::Forge { row } => match row.as_ref() {
++            forge_top::Stored::Tier(row) => Some(row),
++            _ => None,
++        },
++        Record::Core(_) => None,
++    })
++}
++fn verifications(world: &World) -> impl Iterator<Item = &forge_top::Verification> {
++    world.store.rows.values().filter_map(|record| match record {
++        Record::Forge { row } => match row.as_ref() {
++            forge_top::Stored::Verification(row) => Some(row),
++            _ => None,
++        },
++        Record::Core(_) => None,
++    })
++}
++fn reached(world: &World, cut: Cut) -> bool {
++    let Some(row) = tier(world) else { return false };
++    let run = row.record.run.as_ref();
++    match cut {
++        Cut::Report => row.flight.as_ref().is_some_and(|flight| flight.report.is_some()),
++        Cut::Rerun => run.is_some_and(|run| matches!(run.part, Part::Rerun { .. })) && row.flight.as_ref().is_some_and(|flight| flight.start.is_some() && flight.report.is_none()),
++        Cut::ProbeBranch => row.probe.as_ref().is_some_and(|probe| matches!(probe.branch, forge_top::TierBranch::Pending { .. })),
++        Cut::Probe => run.is_some_and(|run| matches!(run.part, Part::Probe { .. })) && row.flight.as_ref().is_some_and(|flight| flight.start.is_some() && flight.report.is_none()),
++        Cut::Red => !row.record.flakes.is_empty() && verifications(world).any(|verification| verification.tiers.iter().any(|tier| matches!(tier.verdict, Some(forge_top::TierVerdict { blame: Blame::Owns(_) | Blame::Suspect(_), .. })))) && world.store.rows.values().any(|record| matches!(record, Record::Forge { row } if matches!(row.as_ref(), forge_top::Stored::Change(row) if matches!(row.change.state, temper_engine_domain_forge_change::State::Red { .. })))),
++        Cut::Repaired => verifications(world).any(|verification| verification.tiers.iter().any(|tier| tier.repaired.is_some())),
++    }
++}
++fn cold_at(world: &mut World, cut: Cut) {
++    world.hold_artifacts = matches!(cut, Cut::Report);
++    world.hold_write_answers = if matches!(cut, Cut::ProbeBranch) { Some(HoldWrite::All) } else { None };
++    for _ in 0..RED_TICKS {
++        if reached(world, cut) && world.pending.is_empty() && world.store.pending.is_empty() {
++            world.hold_artifacts = false;
++            world.held_artifacts.clear(); // the old process's unsent read; the durable report state reissues it.
++            world.restart(true, true);
++            for _ in 0..TIER_TICKS {
++                world.tick();
++                if world.root.ready() {
++                    return;
++                }
++            }
++            panic!("restart at {cut:?} opens, step={:?}", world.root.restart_step());
++        }
++        world.tick();
++    }
++    panic!("cold cut {cut:?} reached; tier={:?}", tier(world));
++}
++fn produced_red_range(suspects: Suspects) -> World {
++    let world = World::configured_limits(
++        true,
++        true,
++        false,
++        1000,
++        Gate::default(),
++        None,
++        StoryLimits { tier: true, tier_reports: true, tier_suspects: Some(suspects), ..StoryLimits::default() },
++    );
++    let (mut world, owner, first, branch) =
++        change_world_in(world, Change { no_ci: false, owner_gate: false, tracked: true });
++    temper_engine_domain_world::tier_runs::park_owner(&mut world, &owner);
++    produce_path_content(&mut world, &first, &branch, b"failures", FAILED);
++    for _ in 0..TIER_TICKS {
++        world.tick();
++        if world.merges == 1 {
++            break;
++        }
++    }
++    let (mut world, _owner, second, branch) =
++        change_world_in(world, Change { no_ci: false, owner_gate: false, tracked: false });
++    produce_path_content(&mut world, &second, &branch, b"file", b"another read path");
++    for _ in 0..TIER_TICKS {
++        world.tick();
++        if world.merges == 2 {
++            break;
++        }
++    }
++    // The root's scripted artifact boundary adds one failure that passes alone;
++    // the fake still supplies conclusions, selected stable failures and probes.
++    world.artifact_answers = [Box::from(WITH_FLAKE), Box::from(FAILED)].into();
++    world
++}
++#[test]
++fn a_cold_restart_reads_back_every_red_record() {
++    let cases: &[(Suspects, &[Cut])] = &[
++        (Suspects::Bisect, &[Cut::Report, Cut::Rerun, Cut::ProbeBranch, Cut::Probe, Cut::Red]),
++        (Suspects::TellAll, &[Cut::Report, Cut::Rerun, Cut::Red]),
++    ];
++    for (suspects, cuts) in cases {
++        let mut world = produced_red_range(*suspects);
++        for cut in *cuts {
++            cold_at(&mut world, *cut);
++        }
++        let record = &tier(&world).expect("red tier restored").record;
++        assert_eq!(record.flakes.as_ref(), &[policy::Flake { test: b"suite.flaky".as_slice().into(), count: 1 }]);
++        let blamed: Vec<_> = verifications(&world)
++            .flat_map(|row| row.tiers.iter())
++            .filter_map(|tier| tier.verdict.as_ref())
++            .map(|verdict| &verdict.blame)
++            .collect();
++        assert!(blamed.iter().any(|blame| match suspects {
++            Suspects::Bisect => matches!(blame, Blame::Owns(_)),
++            Suspects::TellAll => matches!(blame, Blame::Suspect(_)),
++        }));
++        fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", b"failures", b"", 1)
++            .expect("outside repair removes the failing tests");
++        cold_at(&mut world, Cut::Repaired);
++        for _ in 0..TIER_TICKS {
++            world.tick();
++            if tier(&world).is_some_and(|row| {
++                row.record.run.is_none()
++                    && matches!(&row.record.failing, policy::Failures::Tests(tests) if tests.is_empty())
++            }) {
++                break;
++            }
++        }
++        assert!(world.root.ready());
++        assert_eq!(tier(&world).expect("repaired tier").record.failing, policy::Failures::Tests(Box::new([])));
++        assert!(world.store.rows.values().all(|record| !matches!(record, Record::Forge { row } if matches!(row.as_ref(), forge_top::Stored::Change(row) if matches!(row.change.state, temper_engine_domain_forge_change::State::Red { .. })))));
++    }
++}
+diff --git a/temper/tests/engine/forge/src/translate.rs b/temper/tests/engine/forge/src/translate.rs
+index 2b1ea7859..23a3e32e4 100644
+--- a/temper/tests/engine/forge/src/translate.rs
++++ b/temper/tests/engine/forge/src/translate.rs
+@@ -87,6 +87,10 @@ fn read_op(read: &client::Read, l: &Limits) -> forge::Read {
+             page: *page,
+             limit: l.rows,
+         },
++        client::Read::Artifact { run, name, .. } => forge::Read::Artifact { run: *run, name: name.clone() },
++        client::Read::Commits { before, after, .. } => {
++            forge::Read::Commits { before: number(*before), after: number(*after) }
++        }
+         client::Read::Run { run } => forge::Read::Run { run: *run },
+         client::Read::Tree { object, page } => forge::Read::GitTree {
+             object: if commit(u64::from_be_bytes(object[8..16].try_into().expect("object count bytes"))) == *object {
+@@ -245,6 +249,31 @@ pub fn answer_as(
+     signatures: bool,
+ ) -> client::Answer {
+     match answer {
++        forge::Answer::Artifact { commit: head, artifact } => {
++            let client::Op::Read(client::Read::Artifact { max_bytes, .. }) = asked else { panic!("artifact request") };
++            let cap = usize::try_from(*max_bytes).expect("answer bound fits");
++            client::Answer::File {
++                head: commit(head),
++                path: artifact.path,
++                truncated: artifact.bytes.len() > cap,
++                bytes: artifact.bytes[..artifact.bytes.len().min(cap)].into(),
++            }
++        }
++        forge::Answer::Commits { commits } => {
++            let client::Op::Read(client::Read::Commits { page, .. }) = asked else { panic!("commits request") };
++            let (from, to) = page_range(commits.len(), *page, l.rows);
++            client::Answer::Commits {
++                more: to < commits.len(),
++                commits: commits[from..to]
++                    .iter()
++                    .map(|value| client::CommitMessage {
++                        id: commit(value.id),
++                        parents: value.parents.iter().map(|id| commit(*id)).collect(),
++                        message: value.message.clone(),
++                    })
++                    .collect(),
++            }
++        }
+         forge::Answer::Located { id } => client::Answer::Located { repository: id },
+         forge::Answer::Items { items, more, now } => {
+             let mut rows = List::with_capacity(l.rows);
+@@ -352,7 +381,8 @@ pub fn answer_as(
+                 })
+                 .collect(),
+         },
+-        forge::Answer::Comment { .. }
++        forge::Answer::Artifacts(_)
++        | forge::Answer::Comment { .. }
+         | forge::Answer::Dependencies(_)
+         | forge::Answer::Labels(_)
+         | forge::Answer::Tree(_)
+@@ -476,6 +506,8 @@ fn pull_answer(asked: &client::Op, pull: forge::Pull, l: &Limits) -> client::Ans
+             | client::Read::Runs { .. }
+             | client::Read::Run { .. }
+             | client::Read::Tree { .. }
++            | client::Read::Artifact { .. }
++            | client::Read::Commits { .. }
+             | client::Read::Checks { .. }
+             | client::Read::Job { .. }
+             | client::Read::Protection { .. }
+diff --git a/temper/tests/engine/forge/src/world.rs b/temper/tests/engine/forge/src/world.rs
+index bae3d2545..1eaa6dc7e 100644
+--- a/temper/tests/engine/forge/src/world.rs
++++ b/temper/tests/engine/forge/src/world.rs
+@@ -133,6 +133,7 @@ impl World {
+             4,
+             true,
+             false,
++            false,
+         )
+     }
+     #[must_use]
+@@ -147,6 +148,23 @@ impl World {
+             4,
+             false,
+             true,
++            false,
++        )
++    }
++    /// Main, three member branches, the whole run, and its one probe coexist.
++    #[must_use]
++    pub fn tiered_reports() -> World {
++        Self::configured(
++            11,
++            LIMITS.facts,
++            false,
++            Some(skein_forge_client::Writer { forge: REPO.forge, author: 1 }),
++            None,
++            false,
++            6,
++            false,
++            true,
++            true,
+         )
+     }
+     /// Two repositories for the coordinator's landing history story; only app has a tier.
+@@ -162,6 +180,7 @@ impl World {
+             4,
+             false,
+             true,
++            false,
+             2,
+         )
+     }
+@@ -248,6 +267,7 @@ impl World {
+             4,
+             false,
+             false,
++            false,
+         )
+     }
+ 
+@@ -264,6 +284,7 @@ impl World {
+             4,
+             false,
+             false,
++            false,
+         )
+     }
+ 
+@@ -279,6 +300,7 @@ impl World {
+             branches,
+             false,
+             false,
++            false,
+         )
+     }
+ 
+@@ -300,6 +322,7 @@ impl World {
+ 
+     #[expect(
+         clippy::too_many_arguments,
++        clippy::too_many_lines,
+         clippy::fn_params_excessive_bools,
+         reason = "one shared fake fixture with independent scenario switches"
+     )]
+@@ -313,8 +336,9 @@ impl World {
+         branches: u32,
+         turn: bool,
+         tier: bool,
++        reports: bool,
+     ) -> World {
+-        Self::configured_repositories(seed, facts, hooked, writer, protection, signatures, branches, turn, tier, 1)
++        Self::configured_repositories(seed, facts, hooked, writer, protection, signatures, branches, turn, tier, reports, 1)
+     }
+     #[expect(
+         clippy::too_many_arguments,
+@@ -331,6 +355,7 @@ impl World {
+         branches: u32,
+         turn: bool,
+         tier: bool,
++        reports: bool,
+         repositories: u32,
+     ) -> World {
+         let limits = top::Limits {
+@@ -339,9 +364,27 @@ impl World {
+             client: skein_forge_client::Limits { facts, ..CLIENT },
+             ..LIMITS
+         };
++        let protection = if reports {
++            Some(raw::Protection {
++                linear: false,
++                code_owners: false,
++                bypassing_users: Box::new([]),
++                queue: false,
++                branch: b"main".as_slice().into(),
++                contexts: Box::new([b"build".as_slice().into()]),
++                approvals: 0,
++                dismiss_stale: false,
++            })
++        } else {
++            protection
++        };
+         let mut config = fake_config();
+         config.limits.branches = branches;
+         config.limits.repositories = repositories;
++        if reports {
++            // Initial tip, three producer heads and their three merge commits.
++            config.limits.statuses = 7;
++        }
+         config.limits.workflows = u32::from(turn) + u32::from(tier);
+         config.limits.workflow_runs = if turn || tier { 4 } else { 0 };
+         config.limits.bypassing_users = protection
+@@ -352,7 +395,7 @@ impl World {
+             &mut fake,
+             &config,
+             raw::Setup {
+-                workflows: workflows(turn, tier),
++                workflows: workflows(turn, tier, reports),
+                 id: 2,
+                 name: Box::from(&b"org/repo"[..]),
+                 default: Box::from(&b"main"[..]),
+@@ -418,7 +461,7 @@ impl World {
+     /// Construct and restart without any configured writer.
+     #[must_use]
+     pub fn writerless(seed: u64) -> World {
+-        Self::configured(seed, LIMITS.facts, false, None, None, false, 4, false, false)
++        Self::configured(seed, LIMITS.facts, false, None, None, false, 4, false, false, false)
+     }
+     pub fn give_writer(&mut self, writer: skein_forge_client::Writer) -> bool {
+         let accepted = top::writer(&mut self.top, &self.env, writer, &mut self.top_out);
+@@ -454,6 +497,7 @@ impl World {
+             4,
+             false,
+             false,
++            false,
+         )
+     }
+ 
+@@ -636,8 +680,11 @@ impl World {
+         self.produce_on_file(branch, base, b"file");
+     }
+     pub fn produce_on_file(&mut self, branch: &[u8], base: &[u8], path: &[u8]) {
++        self.produce_on_contents(branch, base, path, b"change");
++    }
++    pub fn produce_on_contents(&mut self, branch: &[u8], base: &[u8], path: &[u8], content: &[u8]) {
+         self.external(raw::Op::Git(raw::Git::Create { branch: branch.into(), commit: self.branch(base) }), 2);
+-        self.push_file(branch, path, b"change");
++        self.push_file(branch, path, content);
+     }
+     pub fn produce_file(&mut self, branch: &[u8], path: &[u8], content: &[u8]) {
+         self.external(raw::Op::Git(raw::Git::Create { branch: Box::from(branch), commit: 1 }), 2);
+@@ -746,6 +793,7 @@ impl World {
+     }
+ 
+     fn external(&mut self, op: raw::Op, user: u64) -> raw::Answer {
++        let description = format!("{op:?}");
+         let mut config = self.forge_env.limits;
+         config.latency_min = Duration::ZERO;
+         config.latency_max = Duration::ZERO;
+@@ -762,7 +810,9 @@ impl World {
+         for _ in 0..8 {
+             for _ in 0..self.forge_out.len() {
+                 match self.forge_out.pop().expect("fake output") {
+-                    forge::Request::Reply { result, .. } => answer = Some(result.expect("fixture succeeds")),
++                    forge::Request::Reply { result, .. } => {
++                        answer = Some(result.unwrap_or_else(|error| panic!("fixture {description}: {error:?}")));
++                    }
+                     hook @ forge::Request::Hook { .. } => self.hear(&hook),
+                 }
+             }
+@@ -1123,7 +1173,7 @@ fn add_kit(fake: &mut forge::Domain, config: &forge::Config) {
+     forge::grant(fake, b"org/kit", 1, raw::Permission::Admin);
+ }
+ 
+-fn workflows(turn: bool, tier: bool) -> Box<[raw::Workflow]> {
++fn workflows(turn: bool, tier: bool, reports: bool) -> Box<[raw::Workflow]> {
+     if turn {
+         Box::new([raw::Workflow {
+             fails: Box::new([]),
+@@ -1140,15 +1190,15 @@ fn workflows(turn: bool, tier: bool) -> Box<[raw::Workflow]> {
+     } else if tier {
+         Box::new([raw::Workflow {
+             fails: Box::new([]),
+-            report: None,
+-            select: None,
++            report: if reports { Some(raw::Report { artifact: b"report".as_slice().into(), format: raw::ReportFormat::Lines, deflate: false }) } else { None },
++            select: if reports { Some(b"temper_tests".as_slice().into()) } else { None },
+             file: b"browser.yml".as_slice().into(),
+             jobs: Box::new([b"browser".as_slice().into()]),
+             latency_min: Duration::from_secs(90),
+             latency_max: Duration::from_secs(90),
+             silent: 0,
+             passes: 1000,
+-            cue: None,
++            cue: if reports { Some(raw::Cue::Tests { path: b"failures".as_slice().into() }) } else { None },
+         }])
+     } else {
+         Box::new([])
+diff --git a/temper/tests/engine/forge/tests/simulation.rs b/temper/tests/engine/forge/tests/simulation.rs
+index fe92ccaa5..524e90e17 100644
+--- a/temper/tests/engine/forge/tests/simulation.rs
++++ b/temper/tests/engine/forge/tests/simulation.rs
+@@ -2329,13 +2329,22 @@ fn land_for_tier(world: &mut World, task: u64, branch: &[u8]) -> skein_forge::ap
+     land_file_for_tier(world, task, branch, b"file")
+ }
+ fn land_file_for_tier(world: &mut World, task: u64, branch: &[u8], path: &[u8]) -> skein_forge::api::Commit {
++    land_content_for_tier(world, task, branch, path, b"change")
++}
++fn land_content_for_tier(
++    world: &mut World,
++    task: u64,
++    branch: &[u8],
++    path: &[u8],
++    content: &[u8],
++) -> skein_forge::api::Commit {
+     let mut row = change_row();
+     row.task = task;
+     row.change.task = task;
+     row.branch = branch.into();
+     world.event(top::Event::Change { row });
+     change_step_task(world, task, task * 100, change::Status::Unknown, Box::new([]), false, false);
+-    world.produce_on_file(branch, b"main", path);
++    world.produce_on_contents(branch, b"main", path, content);
+     world.status(branch, skein_fake_forge_domain::api::Check::Passed);
+     for at in 1..24 {
+         change_step_task(world, task, task * 100 + at, change::Status::Passed, Box::new([]), false, false);
+@@ -2346,7 +2355,10 @@ fn land_file_for_tier(world: &mut World, task: u64, branch: &[u8], path: &[u8])
+     panic!("change {task} lands before the baseline ends: {:?}", world.change(task));
+ }
+ fn tier_world(ignored: &[&[u8]]) -> World {
+-    tier_history_world(World::tiered(), ignored)
++    tier_world_with_reports(ignored, false)
++}
++fn tier_world_with_reports(ignored: &[&[u8]], reports: bool) -> World {
++    tier_history_world(if reports { World::tiered_reports() } else { World::tiered() }, ignored)
+ }
+ 
+ fn tier_history_world(mut world: World, ignored: &[&[u8]]) -> World {
+@@ -2535,3 +2547,113 @@ fn a_coordinator_reads_the_landings_since_a_time() {
+     assert_eq!(after.logged[0].verdicts[0].verdict, top::Verdict::Cleared, "{:?}", browser_row(&world));
+     assert_eq!(after.logged[0].commit, before.logged[0].commit);
+ }
++
++const THIRD_CHANGE: u64 = 53;
++const TIER_INHERITED: u64 = 103;
++const RED_STEPS: u64 = 3 * TIER_STEPS; // whole run, selected rerun and probe each take 90 simulated seconds.
++const FAILING_IDS: &[u8] = b"suite.first\nsuite.second\n";
++fn finish_tier(world: &mut World, task: u64, first_entry: u64) {
++    for at in 0..RED_STEPS {
++        if tier_step(world, task, first_entry + at) {
++            return;
++        }
++    }
++    panic!("tier {task} completes: {:?}", browser_row(world));
++}
++fn start_report_baseline() -> World {
++    let mut world = tier_world_with_reports(&[b"docs"], true);
++    tier_hold(&mut world, TIER_BASELINE, 1);
++    tier_step(&mut world, TIER_BASELINE, 1000);
++    tier_step(&mut world, TIER_BASELINE, 1001);
++    world
++}
++fn next_report_range(world: &mut World) {
++    finish_tier(world, TIER_BASELINE, 1100);
++    release_tier(world, TIER_BASELINE, 1500);
++    tier_hold(world, TIER_RANGE, 2);
++}
++fn tier_blame(world: &World, commit: skein_forge::api::Commit) -> &temper_engine_domain_forge_tiers::Blame {
++    let Some(top::Stored::Verification(row)) = world.stored().get(&top::Key::Verification { repository: REPO, commit })
++    else {
++        panic!("verification")
++    };
++    &row.tiers[0].verdict.as_ref().expect("judged verification").blame
++}
++fn named_failures() -> temper_engine_domain_forge_tiers::Failures {
++    temper_engine_domain_forge_tiers::Failures::Tests(Box::new([
++        b"suite.first".as_slice().into(),
++        b"suite.second".as_slice().into(),
++    ]))
++}
++#[test]
++fn a_red_run_bisected_over_three_landings() {
++    use temper_engine_domain_forge_tiers::Blame;
++    let mut world = start_report_baseline();
++    let first = land_content_for_tier(&mut world, FIRST_CHANGE, b"temper/51", b"failures", FAILING_IDS);
++    let second = land_file_for_tier(&mut world, SECOND_CHANGE, b"temper/52", b"docs/guide.md");
++    let third = land_for_tier(&mut world, THIRD_CHANGE, b"temper/53");
++    next_report_range(&mut world);
++    world.take_calls();
++    finish_tier(&mut world, TIER_RANGE, 2000);
++    let probes: Vec<_> = world
++        .take_calls()
++        .into_iter()
++        .filter_map(|op| match op {
++            skein_forge::api::Op::Write(skein_forge::api::Write::CreateBranch { branch, commit })
++                if branch.starts_with(b"temper/tier/browser.2.") =>
++            {
++                Some((branch, commit))
++            }
++            skein_forge::api::Op::Read(_) | skein_forge::api::Op::Write(_) => None,
++        })
++        .collect();
++    assert_eq!(probes, vec![(Box::from(b"temper/tier/browser.2.0".as_slice()), first)]);
++    assert_eq!(tier_blame(&world, first), &Blame::Owns(named_failures()));
++    assert_eq!(tier_blame(&world, second), &Blame::Cleared);
++    assert_eq!(tier_blame(&world, third), &Blame::Cleared);
++    change_step_task(&mut world, FIRST_CHANGE, 3000, change::Status::Passed, Box::new([]), false, false);
++    assert_eq!(world.change(FIRST_CHANGE).change.state, change::State::Red { merge: first });
++    assert_eq!(
++        change_step_task(&mut world, SECOND_CHANGE, 3001, change::Status::Passed, Box::new([]), false, false),
++        change::Decision::Finish { merge: second }
++    );
++    assert_eq!(
++        change_step_task(&mut world, THIRD_CHANGE, 3002, change::Status::Passed, Box::new([]), false, false),
++        change::Decision::Finish { merge: third }
++    );
++    let skein_fake_forge_domain::api::Answer::Statuses(statuses) =
++        world.inspect(&skein_fake_forge_domain::api::Read::Statuses { commit: world.branch(b"main") })
++    else {
++        panic!("tip statuses")
++    };
++    assert!(statuses.iter().any(|status| status.context.as_ref() == b"temper/verdict/browser"
++        && status.state == skein_fake_forge_domain::api::Check::Failed
++        && status.description.as_ref() == b"red: 2 failing tests"));
++    assert!(!world.has_branch(b"temper/tier/browser.2.0"));
++    assert!(!world.has_branch(b"temper/tier/browser.2"));
++}
++#[test]
++fn inherited_failures_clear_the_landing_after_the_red_one() {
++    use temper_engine_domain_forge_tiers::Blame;
++    let mut world = start_report_baseline();
++    let first = land_content_for_tier(&mut world, FIRST_CHANGE, b"temper/51", b"failures", FAILING_IDS);
++    next_report_range(&mut world);
++    finish_tier(&mut world, TIER_RANGE, 2000);
++    release_tier(&mut world, TIER_RANGE, 2400);
++    let second = land_for_tier(&mut world, SECOND_CHANGE, b"temper/52");
++    for _ in 0..TIER_STEPS {
++        if browser_row(&world).record.run.is_some() {
++            break;
++        }
++        world.run_for(1);
++    }
++    tier_hold(&mut world, TIER_INHERITED, 3);
++    finish_tier(&mut world, TIER_INHERITED, 2500);
++    assert_eq!(tier_blame(&world, first), &Blame::Owns(named_failures()));
++    assert_eq!(tier_blame(&world, second), &Blame::Cleared);
++    assert_eq!(browser_row(&world).record.failing, named_failures());
++    assert_eq!(
++        change_step_task(&mut world, SECOND_CHANGE, 3000, change::Status::Passed, Box::new([]), false, false),
++        change::Decision::Finish { merge: second }
++    );
++}

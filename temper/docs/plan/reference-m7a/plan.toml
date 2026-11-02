@@ -8,6 +8,7 @@ sources = ["temper/docs/plan/reference-m7a/inputs/request.md", "temper/docs/desi
 # job tasks, and job tasks in jig's tasks child, store and core. Every schema changes in
 # place (pre-release). The merge job and its uses are M7b's.
 
+retired = true
 [buffer]
 low = 1.0
 high = 2.0

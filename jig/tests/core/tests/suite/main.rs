@@ -45,6 +45,7 @@ mod orders;
 mod parties;
 mod peers;
 mod placed_holds;
+mod procedure_seeds;
 mod procedure_steps;
 mod projections;
 mod projects;
