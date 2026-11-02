@@ -115,3 +115,13 @@ constructor. The stories build their world as `change_tool`'s stories do, then
 rules use (0 outside the stock worlds). If the bootstrap store's rows carry the landing rules
 so that rebuilding the root alone does not reach the forge, stop and say so (`Question:`)
 rather than widening the hook.
+
+## Rebase (2026-11-02, step merge, foreman reference-m1/change-by-rule/foreman-2)
+
+resolve forge.status.md by preserving both branches’ removal of completed gaps.
+The merge conflicts in `temper/docs/design/domain/forge.status.md`.
+Target-side commit `4d7d1123b9e4fe17d212679200ab05d9be99dc18` (“Build a plan's changes as one batch”) removes the **Not yet** 8.1 entry about landing branches, dependencies and several changes.
+This task removes the adjacent **Not yet** entry “8.2 steps 3 and 6, 8.7, 10” about checking and updating by landing rules.
+Resolve by deleting both entries, retaining all surrounding status text.
+`temper/tests/engine/domain/src/forge_routes.rs` merged automatically; preserve both the target’s `job: None` in `change_world_funded` and this task’s `with_landing_deployment` builder.
+No behavior change is needed for this refusal.
