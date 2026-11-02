@@ -79,6 +79,12 @@ pub(crate) fn route_connector_repair(
     contract: tasks::Contract,
     holdings: Box<[tasks::Holding]>,
 ) -> Queue<Request> {
+    if seed.budget == 0 {
+        match executor {
+            tasks::Executor::Procedure { .. } => {}
+            tasks::Executor::Agent { .. } | tasks::Executor::Person(_) => return Queue::uncapped(),
+        }
+    }
     if seed.open_period {
         work.push(Work::Event(Event::Tasks(tasks::Event::OpenPeriod {
             reply_to: ReplyTo::new(core.internal(Internal::Admission)),
