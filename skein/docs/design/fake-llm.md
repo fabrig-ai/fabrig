@@ -180,9 +180,10 @@ answer ownership is checked before effects or payload copies.
   Its turns count the query's assistant messages; past its last turn it
   answers "done". With no script cued, the domain answers at random:
   tool calls from the menu, or "done".
-- **A request may cue one too.** `Scripts { cued, asked, otherwise }` holds the scripts cued by
-  the system text, as above; those cued by the request, `asked`; and the
-  turns that answer when neither cues one, `otherwise`. An asked cue is
+- **A request may cue one too.** `Scripts { cued, asked, otherwise }`
+  holds the scripts cued by the system text, as above; those cued by
+  the request, `asked`; and the turns that answer when neither cues
+  one, `otherwise`. An asked cue is
   looked for in the text of the last user message that holds text, the
   person's latest request, and the earliest there wins, then the first
   listed. Its turns count the assistant messages after that message, so
