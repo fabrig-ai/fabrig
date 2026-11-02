@@ -574,11 +574,11 @@ before it writes.
   installation slows the calls of the others. Default: the least, since
   one owner seldom spends one installation's 5000 an hour; a budget per
   account would take the repository's account in each call.
-- **A keyed class in use.** No Forgejo write is `Keyed`. A dialect with a
-  deduplicating key would move a creation there; GitHub's design decides
-  (forge.md, section 10). Default: every Forgejo write keeps the class
-  section 7.3 gives it, and `Keyed` stays unused.
-- **Where `recovery` lives.** Forgejo's classes sit in the client. A
-  second dialect may carry its own (forge.md, section 4), the client then
-  taking the class as a value. Default: the classes stay in the client
-  until a second dialect is built.
+- **A keyed class in use.** No write is `Keyed`, Forgejo's or GitHub's.
+  A dialect with a deduplicating key would move a creation there.
+  Default: every write keeps the class section 7.3 gives it, and `Keyed`
+  stays unused.
+- **Where `recovery` lives.** The classes sit in the client, one per
+  write whatever the dialect. A dialect may carry its own (forge.md,
+  section 4), the client then taking the class as a value. Default: the
+  classes stay in the client, Forgejo and GitHub sharing them.
