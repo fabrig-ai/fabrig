@@ -1,8 +1,5 @@
 # browser: status
 
-2026-10-29. Where jig's code lags or departs from [browser.md](browser.md).
+2026-11-02. Where jig's code lags or departs from [browser.md](browser.md).
 
-- **Built:** 1 to 15, 18, 19: browser adapter, reference shell, guards and attack stories; 5.1, 10: kept-request close warning excludes new Seen. 12.2: public Host/Secure cookies.
-- **Not yet:** 12.2: certificate-name check between hosts. 15: two-person stories. 16: shared streams/HTTP/2, drawing kinds and ops browser shell.
-
-- **Built:** 15: `browser-jig` selects seven Chromium stories through the root tier runner: panic, two reloads, three attacks and the inbox. Spent-link, link-state and Host admission coverage stays in lower worlds.
+- **Departs:** 10: a `Seen` record an earlier client stored in the small store still restores, so it still raises the closing warning until its terminal erases it, because the client keeps the pre-release compatibility the design dropped (`client.status.md`, 10); a code task removes it.

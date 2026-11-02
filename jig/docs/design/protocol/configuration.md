@@ -271,8 +271,8 @@ not select accounts or infer provider membership. The public JSON refuses
   (`../domain/engine.md`, 11.1). Explicit intent previews itself;
   omitted intent with a chosen executor or no eligible model gives
   `None`. It is not a configuration member or a reservation, and
-  shapes never turn it into explicit intent. Create's once-at-creation
-  resolution remains `../domain/tasks.md`, section 3's.
+  shapes never turn it into explicit intent. Create resolves the
+  choice once, at creation (`../domain/tasks.md`, section 3).
 - **The engine never expands one into work.** The core validates the
   merged defaults above and keeps the
   configuration's templates, and each policy's overrides, only to serve
@@ -309,7 +309,7 @@ Templates optionally name `ended_by` as `result` (the default) or
 true`; effective executor overrides must preserve it. The delivered
 client template carries this flag into the NewTask record, without a
 template identity in the request. Tool-created and deployment tasks use
-Result explicitly; the tools gain no `ended_by` key.
+Result explicitly; the tools take no `ended_by` key.
 
 ## 4. jig's part for a worker
 
@@ -363,11 +363,11 @@ host's half reports it (`llm.md`, 5.5).
   components take, consistent with one another: a small one for one
   person's machine, a standard one for a team. A deployment names a
   profile and overrides any limit by its name.
-  Small's store page byte ceiling also admits applications deriving a
-  page floor from the largest shipped ordinary transcript's current full
-  frame. Its accounting-only ceiling leaves page rows, chunks, decoder
-  capacity, queues and read slots unchanged; the numeric ceiling and its
-  derivation live beside `STORE_KV` in the profile.
+  Small's store page byte ceiling admits an application's page floor
+  derived from the largest shipped ordinary transcript's full frame
+  (`store.md`, 5.4). The ceiling is accounting alone: page rows, chunks,
+  decoder capacity, queues and read slots keep their own bounds; the
+  number and its derivation live beside `STORE_KV` in the profile.
 - **Stream overrides carry their calls.** `clients.streams`,
   `clients.exchanges`, `clients_http.streams` and `clients_http.calls`
   are positive scalar overrides. When any is overridden, both carriers
@@ -391,13 +391,11 @@ host's half reports it (`llm.md`, 5.5).
   ownerless rows, fits authority's project capacity, and that count
   plus one, the deployment's roles (`../domain/people.md`, section 3),
   fits `limits.people.projects`, the people roster's capacity. A
-  violation returns the existing `What::Bound` at the projects path
-  before first-start mutation. The count is the configured rows, not a
+  violation is `What::Bound` at the projects path, before the first
+  start writes anything. The count is the configured rows, not a
   list's allocated capacity, and the deployment's roster is the only
-  one implied. `Core::new`
-  asserts the same people-roster relation as a programmer precondition
-  (`../domain/engine.md`, section 14); no new public error type is
-  needed.
+  one implied. `Core::new` asserts the same people-roster relation as
+  a programmer precondition (`../domain/engine.md`, section 14).
 - **Charters' budgets:** each charter's turns and time are above its
   reserve's, and its default budget holds its reserve and one of its
   default model's most costly completions (`../domain/authority.md`,
@@ -450,13 +448,12 @@ host's half reports it (`llm.md`, 5.5).
   per-party allowance or a network-concurrency limit. Ordinary admission
   reserves an answer for success or permanent routed refusal, and never
   evicts an unexpired answer. Replay or conflict for a retained key and
-  joins or conflicts for a pending key precede new admission. New
+  joins or conflicts for a pending key precede new admission. A
   top-level `Seen` neither reserves nor saves an answer; its flights use
-  the existing pending, waiter, load, journal and output room
-  independently, even when completed-answer places are full. Legacy
-  retained `Seen` answers occupy their old places until original expiry
-  (`../domain/people.md`, 5.1). These exceptions change no configured
-  limit or worst-case figure. Ordinary unique-key workload, permanent
+  the pending, waiter, load, journal and output room independently,
+  even when completed-answer places are full (`../domain/people.md`,
+  5.1). These exceptions change no configured limit or worst-case
+  figure. Ordinary unique-key workload, permanent
   refusals and pending reservations still need room throughout the
   advertised retention.
 - **A template's grace** is within the tasks child's limit on a grace's
@@ -487,7 +484,7 @@ host's half reports it (`llm.md`, 5.5).
   sum.
 
 The **effective store codec envelope** bounds the framed byte collections
-people-v13 derives from `core.policy_bytes` and `people.amendment_bytes`,
+people-v14 derives from `core.policy_bytes` and `people.amendment_bytes`,
 as well as its independent fields. Configuration checks it after overrides
 and again with the whole engine, beside settings history and journal-write
 admission. It probes the people codec and the combined store codec; it
@@ -521,9 +518,9 @@ outside the people envelope.
 The policy diagnostic includes its binding field; amendment's words are
 short even though its structured problem retains the bound:
 
-> limits.core.policy_bytes: 65536 exceeds the people-v13 codec envelope of 43695 bytes (PolicyValue.permissions would need 98304 bytes; ceiling 65536).
+> limits.core.policy_bytes: 65536 exceeds the people-v14 codec envelope of 43695 bytes (PolicyValue.permissions would need 98304 bytes; ceiling 65536).
 >
-> limits.people.amendment_bytes: 8193 exceeds the people-v13 codec envelope of 8192 bytes.
+> limits.people.amendment_bytes: 8193 exceeds the people-v14 codec envelope of 8192 bytes.
 
 Program-source capacity is per worker, independently of its run slots.
 It bounds whole source lists, inventories and pending sign-outs on both
