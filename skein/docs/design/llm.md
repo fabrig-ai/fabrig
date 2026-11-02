@@ -188,8 +188,8 @@ pub enum ToolChoice {
   definitions stay in the cached prefix.
 - **`Only` names offered tools,** each once, at least one; admission
   refuses anything else as `Invalid`.
-- **A dialect that cannot express `Only` renders `Auto`.** None does
-  today (sections 4.6 to 4.8).
+- **A dialect that cannot express `Only` renders `Auto`.** No dialect
+  expresses it (sections 4.7 and 4.8).
 - **The client does not filter.** A call outside the choice arrives as any
   call does, and the caller answers it, as not run.
 - **One call at a time where the caller takes one.** Where the declared
@@ -321,7 +321,7 @@ pub struct Report {
   arrived, with this status. Every failure after it carries it, a
   non-JSON error body's included. The other evidence is unsent, or
   possibly sent.
-- **A cut exchange is `Unavailable`** (added 2026-10-20). The
+- **A cut exchange is `Unavailable`.** The
   connection closing or failing before the request went out, after it
   and before a response, or within a response's head or body (http.md,
   section 3.4: `Closed`, `Truncated`, `Stream`) is no answer of the
@@ -834,7 +834,7 @@ bounds still hold.
   names, `MaxTokens` or `Refusal`. `response.failed`, or an `error` event,
   fails as its error's code says, as an HTTP error does; a stream that
   ends without one of them fails as `Protocol`.
-- **A compressed body** (added 2026-10-20). An endpoint may say that
+- **A compressed body.** An endpoint may say that
   it takes a request body in gzip (`Content-Encoding: gzip`, RFC 9110,
   8.4.1). The client then measures and renders the body as before,
   compresses it whole with skein-http's gzip encoder (http.md, section
@@ -1013,8 +1013,6 @@ unless marked:
   bound. Each capture must fit
   within a quarter of its bound. A fresh capture past a quarter is a
   warning to raise the bound, and is never met by a live failure first.
-  On 2026-10-10, bounds set at exactly the largest capture (1,935 bytes,
-  42 fields) failed every live Codex call.
 - **The error body's bound is a policy value,** since a body past it
   changes no class (4.2): 16 KiB for each route. That holds any
   provider's JSON error with room to spare, at a worst case the memory
