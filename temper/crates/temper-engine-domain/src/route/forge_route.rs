@@ -12,9 +12,12 @@ use jig_domain_brief as brief;
 use temper_engine_domain_forge_landing as landing;
 pub(crate) const CHANGE_CODE: u32 = 2;
 pub(crate) const LANDING_CODE: u32 = 3;
-#[expect(dead_code, reason = "reserved after-landing procedure (domain/after-landing.md)")]
 pub(crate) const AFTER_LANDING_CODE: u32 = 4;
 use jig_domain_core::effects::connector::{EffectDescription, EffectForm, Recovery};
+
+mod tier_route;
+pub(crate) use tier_route::start_tier_step;
+use tier_route::{describe_tier_effect, start_tier_run, tier_decision};
 
 mod landing_route;
 pub(crate) use landing_route::start_landing_step;
@@ -498,7 +501,10 @@ fn describe_agent(
     for (_, flight) in &domain.forge_effects {
         match flight {
             EffectFlight::Call { .. } => staged = staged.saturating_add(1),
-            EffectFlight::Procedure { .. } | EffectFlight::Landing { .. } | EffectFlight::Projection { .. } => {}
+            EffectFlight::Procedure { .. }
+            | EffectFlight::Landing { .. }
+            | EffectFlight::Tier { .. }
+            | EffectFlight::Projection { .. } => {}
         }
     }
     if !domain.forge.effect_room(&env.limits.forge, staged) {
@@ -2659,6 +2665,11 @@ fn change_landing_words(
         for part in parts {
             append(&mut out, part);
         }
+        let verification = change_verification_words(domain, task, merge, bound);
+        if !verification.is_empty() && verification.len() < usize::try_from(out.room()).expect("u32 fits usize") {
+            append(&mut out, b"\n");
+            append(&mut out, &verification);
+        }
     }
     let Some(head) = row.change.last_head else { return out.into_boxed() };
     let room = bound.saturating_sub(out.len()).saturating_sub(1);
@@ -2666,6 +2677,114 @@ fn change_landing_words(
     append(&mut out, b"\n");
     append(&mut out, &evidence);
     out.into_boxed()
+}
+
+/// The forge supplies run identities when retained; otherwise name the configured tiers
+/// following this landing's branch (temper/docs/design/domain/after-landing.md, 6).
+fn change_verification_words(domain: &Domain, task: u64, merge: &skein_forge::api::Commit, bound: u32) -> Box<[u8]> {
+    let row = domain.forge.change(task).expect("landed change");
+    let mut words = List::with_capacity(bound);
+    match row.change.state {
+        forge_change::State::Uncleared { .. } => {
+            let cancelled = change_cancelled(domain, task);
+            append(
+                &mut words,
+                if cancelled {
+                    b"Not cleared: cancelled while verifying."
+                } else {
+                    b"Not cleared: no verdict within the verification bound."
+                },
+            );
+        }
+        forge_change::State::Cleared { .. } => {
+            let Some(repository) = domain.forge.repository(row.repository) else { return Box::new([]) };
+            let Some(config) = domain.config.landings.get(&repository.project) else { return Box::new([]) };
+            let mut first = true;
+            for checks in &config.repositories {
+                if checks.repository != row.repository {
+                    continue;
+                }
+                for tier in &checks.tiers {
+                    let branch = match &tier.branch {
+                        Some(branch) => branch,
+                        None => &repository.settings.default_branch,
+                    };
+                    if *branch != row.base {
+                        continue;
+                    }
+                    append(&mut words, if first { b"Cleared by " } else { b", " });
+                    first = false;
+                    append(&mut words, &tier.name);
+                    if let Some(number) = tier_landing_run(domain, row.repository, &tier.name, merge) {
+                        append(&mut words, b" run ");
+                        append(&mut words, skein_lib::Decimal::of(number).as_bytes());
+                    }
+                }
+            }
+            if !first {
+                append(&mut words, b".");
+            }
+        }
+        forge_change::State::Producing { .. }
+        | forge_change::State::Opening { .. }
+        | forge_change::State::Recreating { .. }
+        | forge_change::State::Reopening { .. }
+        | forge_change::State::Checking { .. }
+        | forge_change::State::Gating { .. }
+        | forge_change::State::CancellingGates { .. }
+        | forge_change::State::Ready { .. }
+        | forge_change::State::Preparing { .. }
+        | forge_change::State::Queued { .. }
+        | forge_change::State::First { .. }
+        | forge_change::State::Updating { .. }
+        | forge_change::State::Resolving { .. }
+        | forge_change::State::Repairing { .. }
+        | forge_change::State::Landing { .. }
+        | forge_change::State::Landed { .. }
+        | forge_change::State::Red { .. }
+        | forge_change::State::Held { .. }
+        | forge_change::State::NoChange { .. }
+        | forge_change::State::Ended => {}
+    }
+    words.into_boxed()
+}
+
+fn change_cancelled(domain: &Domain, task: u64) -> bool {
+    let Some(row) = domain.core.tasks.task(task) else { return false };
+    let ending = match &row.phase {
+        tasks::Phase::Closing(closing) | tasks::Phase::Held { was: tasks::Was::Closing(closing), .. } => {
+            &closing.ending
+        }
+        tasks::Phase::Ended(ending) => ending,
+        tasks::Phase::Waiting
+        | tasks::Phase::Active(_)
+        | tasks::Phase::Held { was: tasks::Was::Waiting | tasks::Was::Active(_), .. } => return false,
+    };
+    match ending {
+        tasks::Ending::Cancelled { .. } => true,
+        tasks::Ending::Done(_) | tasks::Ending::Failed { .. } => false,
+    }
+}
+
+fn tier_landing_run(
+    domain: &Domain,
+    repository: skein_forge::api::Repository,
+    tier: &[u8],
+    merge: &skein_forge::api::Commit,
+) -> Option<u64> {
+    for task in domain.core.tasks.view_tasks() {
+        let Some(row) = domain.forge.tier_task(task.number) else { continue };
+        if row.repository != repository || row.tier.as_ref() != tier {
+            continue;
+        }
+        if let Some(judged) = &row.record.judged
+            && judged.tip == *merge
+            && row.record.sequence != 0
+        {
+            return Some(row.record.sequence);
+        }
+    }
+    None
 }
 
 /// Explain a failed review in the same decision that holds its change.
@@ -3401,8 +3520,30 @@ pub(crate) fn outputs(
                     domain.work.push(Work::Tasks(tasks::Event::Hold { task, why: tasks::Hold::Drift }));
                 }
             }
-            forge::Request::TierRun { .. } | forge::Request::TierDecision { .. } => {
-                // tiers-root supplies the tier task joins.
+            forge::Request::TierRun { repository, tier, number, tip } => {
+                start_tier_run(domain, env, repository, tier, number, tip);
+            }
+            forge::Request::TierDecision { task, decision: choice, entry } => {
+                if let Some(entry) = entry {
+                    let Some((_, _, step)) = domain.core.tasks.procedure_due(task) else { continue };
+                    if let Some(description) = describe_tier_effect(domain, env, task, entry) {
+                        let owner = effect_owner(domain);
+                        domain
+                            .forge_effects
+                            .insert(owner, EffectFlight::Tier { description: Box::new(description), entry, task })
+                            .expect("bounded tier effect handoff");
+                        domain.work.push(Work::Core(jig_domain_core::Event::EffectStart {
+                            owner,
+                            connector: domain.config.forge_connector,
+                            origin: jig_domain_core::EffectOrigin::Procedure { task, step, entry: Some(entry) },
+                        }));
+                    } else {
+                        domain.work.push(Work::Forge(forge::Event::VetoTier { task, entry }));
+                        domain.work.push(Work::Tasks(tasks::Event::Hold { task, why: tasks::Hold::Effects }));
+                    }
+                } else {
+                    tier_decision(domain, env, task, choice);
+                }
             }
             forge::Request::LandingDecision { task, decision: choice, entry, evidence } => {
                 if let Some(entry) = entry {
@@ -3536,6 +3677,11 @@ pub(crate) enum EffectFlight {
         entry: u64,
         task: u64,
         evidence: Option<Box<forge::LandingEvidence>>,
+    },
+    Tier {
+        description: Box<EffectDescription>,
+        entry: u64,
+        task: u64,
     },
     Procedure {
         description: Box<EffectDescription>,
@@ -3673,6 +3819,7 @@ pub(crate) fn effect_ask(
                     EffectFlight::Call { description, .. }
                     | EffectFlight::Procedure { description, .. }
                     | EffectFlight::Landing { description, .. }
+                    | EffectFlight::Tier { description, .. }
                     | EffectFlight::Projection { description, .. },
                 ) => description.clone(),
                 None => return,
@@ -3745,7 +3892,10 @@ pub(crate) fn effect_ask(
                     }));
                 }
                 Some(
-                    EffectFlight::Procedure { .. } | EffectFlight::Landing { .. } | EffectFlight::Projection { .. },
+                    EffectFlight::Procedure { .. }
+                    | EffectFlight::Landing { .. }
+                    | EffectFlight::Tier { .. }
+                    | EffectFlight::Projection { .. },
                 )
                 | None => {
                     unreachable!("agent effect proposal was described")
@@ -3793,7 +3943,11 @@ pub(crate) fn effect_ask(
                     assert!(kept.number == entry && kept.task == task, "admitted projection entry");
                     domain.work.push(Work::Forge(forge::Event::KeepProjection { row: *row, entry: kept }));
                 }
-                Some(EffectFlight::Procedure { entry: kept, .. } | EffectFlight::Landing { entry: kept, .. }) => {
+                Some(
+                    EffectFlight::Procedure { entry: kept, .. }
+                    | EffectFlight::Landing { entry: kept, .. }
+                    | EffectFlight::Tier { entry: kept, .. },
+                ) => {
                     assert!(kept == entry, "core releases the described procedure entry");
                 }
                 None => {}
@@ -3860,6 +4014,14 @@ pub(crate) fn effect_ask(
                     domain.work.push(Work::Forge(forge::Event::VetoLanding { task, entry }));
                     if answer == authority::Answer::Wait {
                         domain.forge.wait_landing(&super::environment_forge(env), task, None);
+                    } else {
+                        domain.work.push(Work::Tasks(tasks::Event::Hold { task, why: tasks::Hold::Effects }));
+                    }
+                }
+                Some(EffectFlight::Tier { entry, task, .. }) => {
+                    domain.work.push(Work::Forge(forge::Event::VetoTier { task, entry }));
+                    if answer == authority::Answer::Wait {
+                        domain.forge.wait_tier(&super::environment_forge(env), task, None);
                     } else {
                         domain.work.push(Work::Tasks(tasks::Event::Hold { task, why: tasks::Hold::Effects }));
                     }
@@ -3973,7 +4135,9 @@ fn judge_effect(
                 guarded,
             )
         }
-        Some(EffectFlight::Landing { evidence: None, .. }) => (authority::Verdict::Refuse, false),
+        Some(EffectFlight::Landing { evidence: None, .. } | EffectFlight::Tier { .. }) => {
+            (authority::Verdict::Refuse, false)
+        }
         Some(EffectFlight::Call { .. } | EffectFlight::Projection { .. }) | None => (authority::Verdict::Wait, false),
     }
 }
