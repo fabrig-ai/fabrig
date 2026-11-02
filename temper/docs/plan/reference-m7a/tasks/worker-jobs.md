@@ -112,3 +112,13 @@ Pre-approved options:
 As the implementer's text says, and also: the job directory's layout as built (for the design's
 status); where the kinds list lives; the service arms left for `service-jobs`; any checkout
 change.
+
+## Answers
+
+2026-11-02. Wait for `tooling-capability`, or implement against the contract before its crate
+exists? Neither is needed now: `tooling-capability` pushed its crate at 19:29:58 UTC
+(`origin/reference-m7a/tooling-capability`, `bb54393a74`, `temper/crates/temper-worker-domain-tooling/`),
+three minutes after run 1 stopped. Merge that branch and build against the crate as it is
+(its `Domain`, `step`, `Request`, `Event`, `End`, `Spec`, `Kind`, `Limits`); do not write a
+substitute. If its boundary departs from `notes/contracts.md`, section 8, follow the crate and
+report the difference; a change the crate itself needs is a question, not an edit.
