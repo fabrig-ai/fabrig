@@ -109,8 +109,9 @@ jig-client-world, jig-client-protocol-world, jig-client-wire-world   the client'
 - **Code cites a section** at module or type level, as
   `client/domain/client.md`, 8.2.
 - **skein's and smith's documents** are named with their project's name:
-  skein's `lib.md`, smith's `transcript.md`. skein's foundation documents
-  by their own names: `programming-model.md`, `testing-strategy.md`.
+  skein's `lib.md`, smith's `protocol/transcript.md`. skein's foundation
+  documents by their own names: `programming-model.md`,
+  `testing-strategy.md`.
 - **An application** appears only as an example, and says so: `ops` most
   often, jig's test application where a second example helps.
 - **A party** is whoever uses a client: a person, or a service
@@ -429,4 +430,5 @@ Each document lists its own; the ones that reach across:
 - **notifications beyond the client,** which are an application's
   connectors (`../../domain/people.md`, section 9).
 
-What waits, and for what, is `../../STATUS.md`'s, section 3.
+What is designed and not yet built is in each document's status file
+beside it, `<name>.status.md`.

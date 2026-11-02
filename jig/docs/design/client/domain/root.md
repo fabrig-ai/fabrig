@@ -454,8 +454,8 @@ what the engine made durable.
 ### 15.1 An application's own child domains
 
 An application's own child domain in the engine (`../../README.md`,
-section 4), whose families belong to no connector (a laboratory's
-evidence and verdicts), is an owner like a connector: numbered in the
+section 4), whose families belong to no connector (an application's
+own ledger of invoices, say), is an owner like a connector: numbered in the
 same enum, with a number no connector has; its client side a child of
 the client root; its families' requests, reads and subjects naming its
 number, which the engine's root routes to that child domain as it routes
