@@ -7,6 +7,9 @@ files = [
   "jig/crates/jig-domain-fleet/**",
   "jig/crates/jig-domain-hub-link/**",
   "jig/tests/fleet/**",
+  "jig/crates/jig-client-protocol-wire/**",
+  "jig/crates/jig-client-domain/src/contract/deployment.rs",
+  "jig/crates/jig-protocol-engine-clients/src/translate/deployment.rs",
 ]
 effort = "high"
 minutes = 170
@@ -160,3 +163,38 @@ you wrote.
 owns `TaskResult::Job { bytes }` and the rest of the job vocabulary in `jig-domain-tasks`; this
 task now needs it, and its next run starts from a trunk that has them. Do not define substitute
 types, leave an inert answer arm, or touch `jig-domain-tasks`. The acceptance is unchanged.
+
+2026-11-02. **Q:** May the fleet's job-kinds hello refusal be carried through the client's
+`HelloRefusal` vocabulary (schema, domain, translations, renderers), or must it stay in this
+task's crates? **A:** Carry it through; this widens the task. `jig/docs/design/protocol/channel.md,
+4.3` makes job kinds not ascending and distinct a fleet refusal, and
+`jig/docs/design/client/domain/contract.md, 5.1` has the client mirror the fleet's
+`HelloRefusal` through the shared deployment translation, so the vocabulary grows with it. The
+client wire is v19 extended in place before the first release (`jig/docs/design/protocol/client.md`,
+section 9; `client-jobs` did the same), so this is no new protocol version and not the user's
+to decide. Exactly:
+
+- `jig-domain-fleet`'s `HelloRefusal` gains a unit variant `JobKinds` (the hello's job kinds are
+  not ascending and distinct), recorded in the hello-refusal history as `Workers`, `Position`
+  and `StopBound` are.
+- `jig/crates/jig-client-protocol-wire/schema/client-v19.schema`: `job_kinds` appended last to
+  `enum HelloRefusal`, so every existing tag keeps its number; regenerate `generated/v19.rs` with
+  the crate's generator and update its golden records if any change.
+- `jig-client-domain`'s `contract/deployment.rs` `HelloRefusal` gains `JobKinds`; the translations
+  in `jig-protocol-engine-clients` (`translate/deployment.rs`, `hello`) and
+  `jig-client-protocol-link`, and `jig-client-scripted-engine`'s codec, map it one to one.
+- Renderers and views that match the enum exhaustively (`jig-client-view`'s
+  `tree/fragments/deployment/hello.rs`, temper's `temper-client-tools` `render/document/llm.rs`
+  and `temper-client-view` `choice.rs`, and any other the compiler names) give it plain words
+  beside their siblings', e.g. "its job kinds are not ascending and distinct". Fixtures only
+  where a literal is forced; a help or `docs/help` page that lists the reasons gains the line,
+  with its tests.
+- One unit test per translation that `JobKinds` round-trips, beside the existing hello-refusal
+  tests.
+- `temper/crates/temper-service/src/route.rs`'s fixed `not admitted` text is left as it is: it is
+  every fleet reason's today, and the acceptance asks only the not-admitted refusal with the
+  fleet's own reason, which the history and the client carry. Report it under `## Left` if you
+  judge the route should carry the reason's text.
+
+The front matter's `files` gains the client wire crate and the two deployment files; the rest
+are compiler-forced arms. The acceptance is otherwise unchanged.
