@@ -44,3 +44,42 @@ id = 3
 story = "the refresh story's run refreshes the lent ChatGPT record at once, and an offline test resolves its lead as 400 days"
 parts = ["refresh-lead"]
 walk = false
+
+[[part]]
+id = "claude-trace"
+title = "the live stories read a Claude run's detail records from its spawned agent's .agent trace"
+mode = "direct"
+needs = ["refresh-lead"]
+design = "smith/docs/design/protocol/events.md, 2; smith/docs/design/testing.md, 2.3"
+
+[[part]]
+id = "crossing-program"
+title = "the chat crossing's Claude leg: run.started.resumed on program runs and the summary session's init"
+mode = "direct"
+needs = ["claude-shapes"]
+design = "smith/docs/design/protocol/programs.md, 5.8 and 8; smith/docs/design/domain/session.md, 8.2"
+
+[[part]]
+id = "resume-twin"
+title = "the second-run resume story against the fakes: a report chat resumed as a change, reasoning replayed verbatim"
+mode = "direct"
+needs = []
+design = "smith/docs/design/domain/run.md, 6; smith/docs/design/domain/session.md, 3"
+
+[[slice]]
+id = 4
+story = "claude_delivers_a_commit_in_place finds its run's records, resume state included, in the spawned agent's trace"
+parts = ["claude-trace"]
+walk = false
+
+[[slice]]
+id = 5
+story = "a carried-over program run reports resumed, and the summary session's init is pinned offline and probed live"
+parts = ["crossing-program"]
+walk = false
+
+[[slice]]
+id = 6
+story = "a chat resumed from its files as a delivered change, replaying its reasoning, passes against the fakes"
+parts = ["resume-twin"]
+walk = false
