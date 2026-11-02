@@ -170,7 +170,7 @@ fn every_state_renders_as_text_and_structured_json() {
     let mut without = row(C::NotSetUp);
     without.offer = Offer::NotUnderTheBox;
     let plain = forges::print_rows(Some(&[without.clone()]), false, None, &f::limits_root());
-    assert!(skein_lib::bytes::find(&plain.stdout, b"temper forge fetch 3").is_some());
+    assert!(skein_lib::bytes::find(&plain.stdout, b"Not set up: start temper with temper box").is_some());
     let json = forges::print_rows(Some(&[without]), true, None, &f::limits_root());
     assert!(skein_lib::bytes::find(&json.stdout, b"not_under_the_box").is_some());
 }
@@ -281,17 +281,42 @@ fn setup_answers_print_their_words_json_and_status() {
     for (outcome, expected, status) in [
         (w::Outcome::SettingUp, b"setting up\n".as_slice(), 0),
         (w::Outcome::Unknown, b"unknown\n", 2),
-        (w::Outcome::SetUpRefused(w::SetUpRefused::new(&limits, w::SetUpRefusedParts { why: w::SetUpRefusal::Busy }).unwrap()), b"refused: busy\n", 2),
-        (w::Outcome::SetUpRefused(w::SetUpRefused::new(&limits, w::SetUpRefusedParts { why: w::SetUpRefusal::NotOffered }).unwrap()), b"refused: not offered\n", 2),
-        (w::Outcome::SetUpRefused(w::SetUpRefused::new(&limits, w::SetUpRefusedParts { why: w::SetUpRefusal::NotUnderTheBox }).unwrap()), b"refused: not under the box\nrun `temper forge fetch 3`, `temper forge prepare 3`, `temper forge run 3 forgejo` and `temper forge run 3 runner`, then restart `temper serve`\n", 2),
+        (
+            w::Outcome::SetUpRefused(
+                w::SetUpRefused::new(&limits, w::SetUpRefusedParts { why: w::SetUpRefusal::Busy }).unwrap(),
+            ),
+            b"refused: busy\n",
+            2,
+        ),
+        (
+            w::Outcome::SetUpRefused(
+                w::SetUpRefused::new(&limits, w::SetUpRefusedParts { why: w::SetUpRefusal::NotOffered }).unwrap(),
+            ),
+            b"refused: not offered\n",
+            2,
+        ),
+        (
+            w::Outcome::SetUpRefused(
+                w::SetUpRefused::new(&limits, w::SetUpRefusedParts { why: w::SetUpRefusal::NotUnderTheBox }).unwrap(),
+            ),
+            b"refused: not under the box\nStart temper with `temper box` to set one up here.\n",
+            2,
+        ),
     ] {
         for json in [false, true] {
             let mut root = f::signed_in(f::PARTY);
             let call = root.submit_prepared(f::call(&["forge", "setup", "3"]), json, None);
             let client::Ask::Family { scope, record } = root.adoption_bytes(call) else { panic!("family") };
             assert_eq!(*scope, c::Scope::Deployment);
-            let w::Request::SetUp(request) = wire::decode_requesting(&record.bytes, &limits).unwrap().into_parts().request else { panic!("set up"); };
-            assert_eq!(request.forge(), &w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: 3 }).unwrap()));
+            let w::Request::SetUp(request) =
+                wire::decode_requesting(&record.bytes, &limits).unwrap().into_parts().request
+            else {
+                panic!("set up");
+            };
+            assert_eq!(
+                request.forge(),
+                &w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: 3 }).unwrap())
+            );
             root.adoption_answer(call, outcome.clone());
             if status == 0 {
                 assert!(root.answer(call).is_none());
@@ -301,7 +326,16 @@ fn setup_answers_print_their_words_json_and_status() {
             let printed = root.answer(call).unwrap();
             assert_eq!(printed.status, status);
             let bytes = if status == 0 { &printed.stdout } else { &printed.stderr };
-            if json { assert!(bytes.starts_with(b"{")); } else { assert_eq!(bytes.as_ref(), expected); }
+            if json {
+                assert!(bytes.starts_with(b"{"));
+                if let w::Outcome::SetUpRefused(ref refusal) = outcome
+                    && *refusal.why() == w::SetUpRefusal::NotUnderTheBox
+                {
+                    assert_eq!(bytes.as_ref(), b"{\"refused\":{\"why\":\"not_under_the_box\"},\"next\":\"Start temper with `temper box` to set one up here.\"}");
+                }
+            } else {
+                assert_eq!(bytes.as_ref(), expected);
+            }
         }
     }
 }

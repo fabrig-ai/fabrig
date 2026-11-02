@@ -919,24 +919,8 @@ pub const fn set_up_outcome(outcome: super::forges::SetUpOutcome) -> &'static [u
         SetUpOutcome::Unknown => b"unknown",
     }
 }
-/// The manual steps, also printed beside a set-up refusal without the box.
-#[must_use]
-pub fn set_up_commands(number: u16) -> Box<[u8]> {
-    let n = skein_lib::Decimal::of(u64::from(number));
-    let n = n.as_bytes();
-    let parts: &[&[u8]] = &[
-        b"run `temper forge fetch ",
-        n,
-        b"`, `temper forge prepare ",
-        n,
-        b"`, `temper forge run ",
-        n,
-        b" forgejo` and `temper forge run ",
-        n,
-        b" runner`, then restart `temper serve`",
-    ];
-    join_words(parts)
-}
+/// ctl's line after a set up refused "not under the box" (client/tools.md, 5.5).
+pub const UNDER_THE_BOX: &[u8] = b"Start temper with `temper box` to set one up here.";
 fn join_words(parts: &[&[u8]]) -> Box<[u8]> {
     let mut size = 0usize;
     for part in parts {
@@ -997,7 +981,7 @@ pub fn forge_connection(row: &super::forges::Row) -> Box<[u8]> {
         C::NotConnected => Box::from(b"Not connected".as_slice()),
         C::NotSetUp => {
             if row.offer == Offer::NotUnderTheBox {
-                join_words(&[b"Not set up: ", &set_up_commands(row.number)])
+                Box::from(b"Not set up: start temper with temper box".as_slice())
             } else {
                 Box::from(b"Not set up".as_slice())
             }

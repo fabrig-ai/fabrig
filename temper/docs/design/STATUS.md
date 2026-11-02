@@ -19,8 +19,7 @@ commands and the baseline (`protocol/README.md`), and the release
 (`release.md`). Forges kept in the store, a forge's removal and the
 playground's reset are designed and built; the code departs where the
 box's group file holds a forge's kind alone (`protocol/setup.md`,
-`protocol/forge.md`, `protocol/README.md`) and where a box restart
-resumes a running playground (`protocol/setup.md`), and lags in a
+`protocol/forge.md`, `protocol/README.md`), and lags in a
 removal without the box (`domain/forge.md`) and a project's Delete
 (`client/README.md`); with `application.machine.github` null, GitHub's
 remotes come out malformed (`protocol/configuration.md`). The case library's

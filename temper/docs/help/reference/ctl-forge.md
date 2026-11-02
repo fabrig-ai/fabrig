@@ -37,8 +37,8 @@ starts Forgejo and its runner, then adopts the repository as the
 project's home, landing on main, with CI. Past the wait, it prints
 the forges and `not met: timeout` (exit 3): wait with forge list
 --until made:FORGE, then read it. `refused: not under the box` (exit
-2): the deployment is no box, and the refusal names the commands to
-run instead.
+2): the deployment is no box; start temper with `temper box` to set
+one up.
 ```
 
 ## forge connect
