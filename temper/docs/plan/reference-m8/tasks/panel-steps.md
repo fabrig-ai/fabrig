@@ -3,7 +3,7 @@ id = "panel-steps"
 part = "change-panel"
 kind = "feature"
 needs = ["tiers-verification"]
-files = ["temper/crates/temper-engine-domain-forge/src/panel.rs", "temper/crates/temper-engine-domain-forge/src/tests/panel.rs", "temper/crates/temper-client-protocol-wire/**", "temper/crates/temper-service/src/family.rs", "temper/crates/temper-service/src/tests/family.rs", "temper/crates/temper-client-domain/**", "temper/crates/temper-client-view/**", "temper/crates/temper-client-tools/src/change.rs", "temper/crates/temper-client-tools/src/tests/**", "temper/tests/client/**", "temper/docs/help/reference/ctl-change.md"]
+files = ["temper/crates/temper-engine-domain-forge/src/panel.rs", "temper/crates/temper-engine-domain-forge/src/tests/panel.rs", "temper/crates/temper-client-protocol-wire/**", "temper/crates/temper-service/src/family.rs", "temper/crates/temper-service/src/tests/family.rs", "temper/crates/temper-client-domain/**", "temper/crates/temper-client-view/**", "temper/crates/temper-client-tools/src/change.rs", "temper/crates/temper-client-tools/src/tests/**", "temper/tests/client/**", "temper/docs/help/reference/ctl-change.md", "temper/crates/temper-engine-domain-forge/src/boundary.rs", "temper/crates/temper-engine-domain-forge/src/verification.rs", "temper/crates/temper-engine-domain-forge/src/tests/verification.rs", "temper/crates/temper-protocol-store/schema/store-v11.schema", "temper/crates/temper-protocol-store/src/generated/v11.rs", "temper/crates/temper-protocol-store/golden/v11/**", "temper/crates/temper-protocol-store/src/records/verification.rs", "temper/crates/temper-protocol-store/src/tests/tiers.rs"]
 effort = "high"
 minutes = 240
 +++
@@ -112,3 +112,34 @@ panel test to confirm the base compiles. If the base still fails to compile on e
 files, it stops with a Question naming them. It never edits `tiers.rs`, `verification.rs` or
 `tests/verification.rs`. It reads verification rows only through the forge's accessors, adding
 a read-only one in `panel.rs` if one is missing, as Owns says.
+
+### 2026-11-02: Should tiers-verification retain the run that repaired each red tier, or may the panel name the repair commit instead? (reference-m8/panel-steps-2, foreman reference-m8/panel-steps/foreman-2)
+
+The verification retains the repairing run; the panel names that run, as
+`temper/docs/design/client/forge.md`, 2.1 says. The repair commit alone is not enough: the
+change's result words need the run too (`notes/contracts.md`, 4: `Cleared by TIER run N, which
+passed the failures blamed on it.`). tiers-verification has landed, so this task takes the
+change, widened by the files now in its header; `notes/contracts.md`, 4 carries it as revision 1:
+
+- `boundary.rs`: `TierVerification::repaired` becomes `Option<TierRepair>`, with a new public
+  `#[derive(Clone, Copy, PartialEq, Eq, Debug)] pub struct TierRepair { pub run: u64, pub tip:
+  Commit }` (the run's number in the tier's sequence and its tip), re-exported where
+  `TierVerdict` is.
+- `verification.rs`: where `judged` sets `repaired`, it sets `TierRepair { run: verdict.number,
+  tip: verdict.tip }`; every other reader keeps its meaning (`repaired.is_some()`). Nothing else
+  in the file changes; `tiers.rs` stays untouched (tiers-reports owns it).
+- The store, inside v11 (no new version: families 28 and 29 are this plan's own, not on main):
+  in `store-v11.schema`, `record TierRepair { run: u64 tip: fixed 32 }` before
+  `TierVerification`, whose field becomes `repaired: option TierRepair`; regenerate the code and
+  goldens with `SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p temper-codecs-world --test suite
+  -E 'test(drift::)'`, then run it again without the variable; `records/verification.rs`
+  translates both ways; `src/tests/tiers.rs`'s round trip carries a repair's run.
+- `tests/verification.rs`: `later_green_repairs_red_without_replacing_its_verdict` also asserts
+  the repair's run is run 2 after run 3 judges.
+- More packages pass: `heavy cargo nextest run -p temper-protocol-store`; `-p temper-codecs-world
+  --test suite -E 'test(drift::)'`; `-p temper-engine-domain-forge --lib -E
+  'test(/verification/)'`.
+
+The panel's cleared line for a repaired tier names `repaired.run`; for one cleared outright, its
+verdict's run. The earlier answer's rule stands for everything else in `verification.rs` and
+`tests/verification.rs`, and `tiers.rs` is still never edited.
