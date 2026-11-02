@@ -8,6 +8,7 @@ mod effects;
 mod fill;
 mod fixtures;
 mod funding;
+mod holdings;
 mod inbox;
 mod limits;
 mod reads;

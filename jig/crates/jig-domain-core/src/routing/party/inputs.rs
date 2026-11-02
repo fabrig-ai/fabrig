@@ -17,6 +17,7 @@ pub(crate) struct Inputs {
     pub project: u32,
     pub role: people::Role,
     pub members: Box<[tasks::New]>,
+    pub symbols: Box<[Box<[people::Symbol]>]>,
     pub given: Option<people::Given>,
     pub proposal: Option<(Box<[u8]>, u32)>,
     pub ids: Box<[u64]>,
@@ -35,7 +36,7 @@ pub(crate) fn begin(core: &mut Core, env: &Env<Limits>, routed: &mut Routed, mut
         }
     }
     if ids.is_empty() {
-        begin_creation(core, env, routed, request, kind(&mut flight, Box::new([])), flight.members);
+        begin_creation(core, env, routed, request, kind(&mut flight, Box::new([])), flight.members, flight.symbols);
         return;
     }
     flight.ids = ids.into_boxed();
@@ -126,7 +127,7 @@ pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, routed: &mut Routed, lo
         retain(core, &mut routed.out, request, flight);
     } else {
         let stubs = core::mem::replace(&mut flight.stubs, List::with_capacity(0)).into_boxed();
-        begin_creation(core, env, routed, request, kind(&mut flight, stubs), flight.members);
+        begin_creation(core, env, routed, request, kind(&mut flight, stubs), flight.members, flight.symbols);
     }
 }
 

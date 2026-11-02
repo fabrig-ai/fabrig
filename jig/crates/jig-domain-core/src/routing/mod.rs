@@ -114,11 +114,13 @@ pub(crate) struct Made {
 pub(crate) struct Creation {
     kind: CreationKind,
     members: Box<[tasks::New]>,
+    symbols: Box<[Box<[people::Symbol]>]>,
     at: usize,
     remaining: u32,
     holdings: List<tasks::Holding>,
     answered: List<u16>,
     failed: bool,
+    refused: Option<crate::HoldingsRefusal>,
 }
 
 #[derive(Debug)]
@@ -129,6 +131,7 @@ pub(crate) struct DelegateCreation {
     remaining: u32,
     answered: List<u16>,
     failed: bool,
+    refused: Option<crate::HoldingsRefusal>,
 }
 
 #[derive(Debug)]
@@ -144,6 +147,7 @@ pub(crate) struct ProcedureCreation {
     remaining: u32,
     answered: List<u16>,
     failed: bool,
+    refused: Option<crate::HoldingsRefusal>,
 }
 
 impl Core {
@@ -546,8 +550,8 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
         Event::Period { project, period, budget, next } => route_period(core, work, project, period, budget, next),
         Event::TranscriptLoaded { task, load } => run::preparation::transcript_loaded(core, env, work, task, load),
         Event::People(event) => route_people(core, env, work, event),
-        Event::Holdings { request, connector, holdings, .. } => {
-            route_holdings(core, env, work, request, connector, holdings)
+        Event::Holdings { request, connector, holdings, refused } => {
+            route_holdings(core, env, work, request, connector, holdings, refused)
         }
         Event::Fleet(event) => {
             let mut out = route_fleet(core, env, work, event);
@@ -627,14 +631,14 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
         Event::NamedAction { to, key, action } => named_action(core, env, work, to, key, action),
         Event::DelegateValidated { to, key, batch, stubs } => delegate_validated(core, env, to, key, batch, stubs),
         Event::DelegateInputFailed { to, key } => delegate_input_failed(work, to, key),
-        Event::DelegateHoldings { request, connector, holdings, .. } => {
-            delegate_holdings(core, env, work, request, connector, holdings)
+        Event::DelegateHoldings { request, connector, holdings, refused } => {
+            delegate_holdings(core, env, work, request, connector, holdings, refused)
         }
         Event::ProcedureStep { task, step, connector, code, decision: action } => {
             procedure_step(core, env, work, task, step, connector, code, action)
         }
-        Event::ProcedureHoldings { task, step, connector, holdings, .. } => {
-            procedure_holdings(core, env, work, task, step, connector, holdings)
+        Event::ProcedureHoldings { task, step, connector, holdings, refused } => {
+            procedure_holdings(core, env, work, task, step, connector, holdings, refused)
         }
         Event::Brief(event) => route_brief(core, env, event),
         Event::Account(event) => route_account(core, env, work, event),

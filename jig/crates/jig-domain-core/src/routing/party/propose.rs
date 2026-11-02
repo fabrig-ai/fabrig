@@ -31,6 +31,7 @@ pub(crate) fn propose_request(
                 person: creation.person,
                 project: creation.project,
                 role: creation.role,
+                symbols: create::symbols(&creation.batch),
                 members,
                 given: None,
                 proposal: Some((reason, to)),

@@ -1,14 +1,14 @@
 //! Store fill and admission at the high-water mark (protocol/store.md, 11.2).
 use super::*;
 
-fn filled_core(bytes: u64) -> (Core, Env<Limits>) {
+pub(super) fn filled_core(bytes: u64) -> (Core, Env<Limits>) {
     let (mut core, limits) = core();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     drop(step(&mut core, &env, Event::Fill { bytes }));
     (core, env)
 }
 
-fn signed_in(core: &mut Core, env: &Env<Limits>) {
+pub(super) fn signed_in(core: &mut Core, env: &Env<Limits>) {
     drop(step(
         core,
         env,
@@ -30,7 +30,7 @@ fn signed_in(core: &mut Core, env: &Env<Limits>) {
     drop(step(core, env, Event::Period { project: 1, period: 1, budget: 1000, next: None }));
 }
 
-fn ask(core: &mut Core, env: &Env<Limits>, ask: people::Ask) -> Queue<Request> {
+pub(super) fn ask(core: &mut Core, env: &Env<Limits>, ask: people::Ask) -> Queue<Request> {
     step(
         core,
         env,
@@ -44,7 +44,7 @@ fn ask(core: &mut Core, env: &Env<Limits>, ask: people::Ask) -> Queue<Request> {
     )
 }
 
-fn goal() -> people::Ask {
+pub(super) fn goal() -> people::Ask {
     let mut member = fixtures::member(b"new goal", 100);
     member.tracked = Some(1);
     people::Ask::Create { project: 1, batch: Box::new([member]) }
