@@ -107,3 +107,13 @@ Contract C3 requires: “a merge into g takes g’s writer slot while in flight�
 The report reproduces that acceptance failure; the pushed stories do not establish acceptance.
 Fab must make the production repair available before resuming this task. No repair commit is established by the supplied report.
 The next run verifies the writer assertion and remaining landing assertions, then completes the prescribed checks.
+
+### 2026-11-02: Should fab resume only after the goal-family production owner's merge writer-slot repair lands (recommended), or supply its repair commit if already available? The required writer assertion still fails on this checkout. (reference-m1/goal-forge-story-4, foreman reference-m1/goal-forge-story/foreman-4)
+
+Resume this story task only after the goal-family production owner’s writer-slot repair lands; retain the inside-change acceptance.
+The existing Answer requires: “Fab must make the production repair available before resuming this task.”
+Ownership is explicit: “the fix is that task’s crate, never this test’s.”
+Contract C3 requires: “a merge into g takes g’s writer slot while in flight”.
+The report reproduces that acceptance failure; pushed stories alone do not satisfy acceptance.
+No repair commit is established by the supplied report.
+After the production repair lands, the next run verifies the writer assertion and remaining landing assertions, then completes the prescribed checks.
