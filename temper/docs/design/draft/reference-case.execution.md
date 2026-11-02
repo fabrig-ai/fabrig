@@ -23,8 +23,10 @@ are named as theirs.
   its implementers as each part is ready. Shared design is kept to the
   least: no milestone designs ahead for another, and where several
   touch one section, each adds its own part (section 4).
-- **Each is walked as a rung:** a QA brief of the case's steps it makes
-  possible, driven through `temper ctl` alone.
+- **Done when it lands on main;** its walk, a QA brief of the case's
+  steps it makes possible through `temper ctl` alone, follows where
+  there is something to walk, blocks nothing, and sends its findings
+  back to the loop as fixes.
 - **A spine and three side tracks** (section 4). The spine is the goal's
   own branch (M1), then four milestones side by side on it (designers,
   questions, early starts, the merge job into it) and its landing (M2).
@@ -60,15 +62,18 @@ repository's `fab/roles/cut-run.md`):
    early release carrying the rest; one that needs more is too big.
 3. **Landed whole:** the trunk is checked and lands through the queue,
    and the plan's retire brings its statuses current.
-4. **Its walk:** a rung of the ladder's plan. fabrig/qa writes a brief in
-   a rung's form (`v0.1.0.md`, section 3): the case's steps the
-   milestone makes possible, with the case's names, on the case's
-   backends, through `temper ctl`. A step that needs a later milestone
-   is walked in its plainest form or left out, and the brief says
-   which. The walk's findings are repaired through the loop; the same
-   brief, rerun unchanged, is the pass.
-5. **Done** when its walk passes. Walks grow: each brief extends the
-   briefs of the milestones it needs, so M10's is the case.
+4. **Done** when its trunk has landed on main. A milestone that needs it
+   may start then.
+5. **Its walk, where there is something to walk:** a rung of the
+   ladder's plan, which blocks nothing. fabrig/qa judges whether what
+   landed makes a story walkable through `temper ctl`; if not yet, the
+   walk folds into a later milestone's. A brief is in a rung's form
+   (`v0.1.0.md`, section 3): the case's steps the milestone makes
+   possible, with the case's names, on the case's backends; a step that
+   needs a later milestone is walked in its plainest form or left out,
+   and the brief says which. Its findings go back to the loop as fixes.
+   Walks grow, each brief extending the earlier ones, so M10's is the
+   case.
 
 Its designers, its implementers and its walker are separate sessions.
 
@@ -86,15 +91,15 @@ so weigh that before starting from it.
 
 | | Milestone | Executes | Needs | Walks (case steps) | State |
 |---|---|---|---|---|---|
-| M0 | Ground: the playground's reset closed out; fab's designers write the design | | | | the close-out done; fab's change being built (agents/loop's `design-with-specs`) |
-| M1 | The goal's own branch | N3, N4, N15, N23; N22 in part | M0 | 1, 3, 7, 19 | not started |
+| M0 | Ground: the playground's reset closed out; fab's designers write the design | | | done 2026-11-02: the close-out landed; fab's designers write design with specs |
+| M1 | The goal's own branch | N3, N4, N15, N23; N22 in part | M0 | 1, 3, 7, 19 | cutting since 2026-11-02 20:42Z (plan `reference-m1`) |
 | M2 | The goal lands | N3 for L; N22's `mine` | M1 | 23, 24, 28 | not started |
 | M3 | Designers and the cut | N12, N13, N16, N19, N20 | M1 | 3, 4, 6, 22 | not started |
-| M4 | Surveys as sub-agents | N10 | M0 | 2, 5 | not started |
+| M4 | Surveys as sub-agents | N10 | M0 | 2, 5 | done: landed 2026-11-02 20:47Z (plan `reference-m4`); its walk folds into M3's |
 | M5 | Questions, and holds passed up | N1, N8 | M1 | 5, 9, 11, 14, 15, 18 | not started |
 | M6 | Early starts | N2, N14 | M1 | 4, 8, 10, 13, 17 | not started |
-| M7 | Jobs, the merge job, catching up | N6, N7 | M0; M1 for g, M2 for L | 12, 16, 21 | not started |
-| M8 | Tiers and verdicts on main | `after-landing.md`, 2 to 6; N5 for main | M0 | 25, 28 | not started |
+| M7 | Jobs, the merge job, catching up | N6, N7 | M0; M1 for g, M2 for L | 12, 16, 21 | M7a building (plan `reference-m7a`); M7b not started |
+| M8 | Tiers and verdicts on main | `after-landing.md`, 2 to 6; N5 for main | M0 | 25, 28 | building (plan `reference-m8`) |
 | M9 | Reds to the goal; g's tier | `after-landing.md`, 7; N5 for g; N22's `repairs` | M2, M8 | 20, 26, 27 | not started |
 | M10 | The case | N21; the reference's configuration whole | every one; rung B2 passed | 1 to 28 | not started |
 
@@ -202,16 +207,23 @@ section 14 it adds; Old code, the old branches it may start from.
   charters as settings of temper's kinds, out of `Config`'s
   `forge_charter`, so a change's producer and foreman each take a
   charter of their own (`../domain/root.md`, 6; `forge.md`, 8.1 and 8.9;
-  temper's `../protocol/configuration.md`, 13.2).
+  temper's `../protocol/configuration.md`, 13.2); M4's sub-agents
+  reachable from temper (fabrig/qa, 11-02): the box's smith profile
+  declares one conversation, so every `sub_agent` is refused as too
+  many, and `ctl`'s LLM choice for a task names no sub-agents.
 - **Configures:** the designer's charter; the coordinator's charter:
   the cut, the families' batches, revisions, the close-out; each
-  change's LLM choices, gpt-6.1-sol on smith's direct backend (N20).
+  change's LLM choices, gpt-6.1-sol on smith's direct backend (N20);
+  sub-agents in both charters, at Opus 5.5 and high.
 - **Old code:** jig's and temper's `configuring-revisions/charter-tools-r6`
   (the tool families a charter offers); `documents-r1` and
   `forge-kinds` (M1).
-- **Walk:** steps 1 to 6 without surveys, questions or early starts
-  (each designer starts once S has landed), and 22; with M2, the goal
-  then lands.
+- **Walk:** steps 1 to 6 without questions or early starts (each
+  designer starts once S has landed), and 22; with M2, the goal then
+  lands. M4's walk folds in here (fabrig/qa): a Claude Code chat asks
+  two inspect-only sub-agents to read two parts of the repository side
+  by side; both run at their own LLM choice, inspect only, seen through
+  `ctl`, each child's session ended on its budget.
 
 ### M4. Surveys as sub-agents
 
@@ -366,7 +378,7 @@ section 14 it adds; Old code, the old branches it may start from.
   coordinator's charter (all but M8).
 - **Walks go one at a time:** they share the held logins, one live run
   at a time (`v0.1.0.md`, 2.2), so they queue where builds run side by
-  side.
+  side. They hold up no milestone.
 
 ## 5. The case, step by step
 

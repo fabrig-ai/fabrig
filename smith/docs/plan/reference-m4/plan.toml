@@ -1,0 +1,86 @@
+draft = "reference-m4"
+repo = "fabrig"
+sources = ["smith/docs/plan/reference-m4/inputs/request.md", "temper/docs/design/draft/reference-case.execution.md", "temper/docs/design/draft/reference-code-production.md", "AGENTS.md", "DESIGN.md"]
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "close-lower"
+title = "a child conversation on a program ends with Lower::Close, mapped to FromDomain::Close"
+mode = "direct"
+needs = []
+design = "smith/docs/design/protocol/programs.md, 5.10"
+
+[[part]]
+id = "mcp-sub-agent"
+title = "the program's MCP server lists sub_agent inspect only and decodes its calls"
+mode = "direct"
+needs = []
+design = "smith/docs/design/protocol/programs.md, 5.3 and 5.10"
+
+[[part]]
+id = "events-offer"
+title = "run.started withholds no family on a program backend"
+mode = "direct"
+needs = []
+design = "smith/docs/design/protocol/events.md, 3.3"
+
+[[slice]]
+id = 1
+story = "each program-side half of sub-agents holds alone: the server lists sub_agent inspect only and decodes it, a program child's end is sent as Close, and run.started withholds no family"
+parts = ["close-lower", "mcp-sub-agent", "events-offer"]
+walk = false
+
+[[part]]
+id = "shell-reason"
+title = "smith check says a sub-agent runs on a program only on main's account"
+mode = "direct"
+needs = []
+design = "smith/docs/design/shell.md, 5.2"
+
+[[slice]]
+id = 2
+story = "smith check names why another program account's models stay out of a run"
+parts = ["shell-reason"]
+walk = false
+
+[[part]]
+id = "program-children"
+title = "a program run's sub-agent runs on a claude of its own, kept by the service beside main's"
+mode = "direct"
+needs = ["close-lower", "mcp-sub-agent", "events-offer"]
+design = "smith/docs/design/protocol/programs.md, 5.10"
+
+[[slice]]
+id = 3
+story = "on the fake Claude Code, a run's main asks one inspect-only sub-agent and finishes with its answer; the child is a claude of its own at its LLM's model and effort, ended with its conversation"
+parts = ["program-children"]
+walk = false
+
+[[part]]
+id = "side-by-side"
+title = "two inspect-only program children run side by side; a child's final turn; children stopped with their run"
+mode = "direct"
+needs = ["program-children"]
+design = "smith/docs/design/protocol/programs.md, 5.10"
+
+[[slice]]
+id = 4
+story = "two inspect-only children asked in one message run side by side, each a claude of its own answering with its report; a child's share ends in its final turn; a cancelled run stops its children"
+parts = ["side-by-side"]
+walk = false
+
+[[part]]
+id = "exec-children"
+title = "smith exec on Claude Code asks inspect-only sub-agents side by side, each answering with its report"
+mode = "direct"
+needs = ["program-children"]
+design = "smith/docs/design/protocol/programs.md, 5.10"
+
+[[slice]]
+id = 5
+story = "smith exec on a Claude Code account with sub_agents on asks two inspect-only sub-agents in one message; they run side by side, each a claude of its own, and each answers with its report"
+parts = ["exec-children"]
+walk = true

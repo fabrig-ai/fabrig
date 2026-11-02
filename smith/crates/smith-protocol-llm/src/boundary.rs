@@ -43,6 +43,10 @@ pub enum FromDomain {
     /// it early lets it complete normally. No terminal of its own is owed;
     /// an owner with no outstanding completion is ignored.
     Yield { owner: Token },
+    /// The owner's child conversation ended (smith_domain::Lower::Close). A backend
+    /// that keeps a process for it ends it; no terminal is owed.
+    #[expect(clippy::doc_markdown, reason = "the Close doc lines are contract C1 verbatim")]
+    Close { owner: Token },
 }
 
 /// One typed answer or text fact returned to the root domain.
