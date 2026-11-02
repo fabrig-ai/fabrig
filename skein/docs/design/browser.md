@@ -1,8 +1,6 @@
 # Browser
 
-Implemented, 2026-10-06, revised 2026-10-19; the lab's look reads (5.1)
-provisional, 2026-10-22; a key with Alt and a letter, and downloads,
-provisional, 2026-10-26. The design of
+Provisional, 2026-10-06, revised 2026-10-26. The design of
 `skein-browser`: a testing kit that drives a real, headless Chromium from
 a service's loop, so that a service with a web can test it as a person
 uses it. It is a step machine over the child's pipes, speaking the

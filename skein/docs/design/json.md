@@ -271,9 +271,9 @@ pub struct Position {
 - **`u32` throughout,** as `Limits::length` is: no position passes the
   document's end, and a `length` below `u32::MAX` (section 3.3) keeps the
   end's column and line, at most `length + 1`, within `u32`.
-- **Three counters, no heap.** The tokenizer counts as it reads, and its
-  `tokenizer_bound` is unchanged. `Token`, `Event` and `Error` are unchanged
-  (section 7).
+- **Three counters, no heap.** The tokenizer counts as it reads, and
+  they add nothing to `tokenizer_bound`. `Token`, `Event` and `Error`
+  carry no position (section 7).
 - **The collector's events and documents carry no positions.** A
   consumer that needs them reads through the tokenizer.
 
@@ -635,8 +635,7 @@ never the whole input. Its steps are bounded by the input length.
   disposition, every count's failure, a duplicate, a `Long` and a skip of
   each kind of value fell; and documents with unnamed fields added at
   random, which never change what is collected, only what is skipped.
-  It stands in for the fuzz target until a nightly toolchain is
-  installed.
+  A fuzz target runs beside it, on a nightly toolchain.
 
 ## 7. Decisions
 

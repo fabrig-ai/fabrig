@@ -252,10 +252,10 @@ and keep no copy of their own.
   hashed, not the state.
 - **The standard's bound,** 2^64 − 1 bits, is asserted: no bounded step
   hashes that much.
-- **The users move onto it.** skein-io's `digest` module keeps its public
+- **Its users.** skein-io's `digest` module keeps its public
   API, `Digest([u64; 4])` and `digest(&[u8])`, as a thin layer over lib's
   (io.md, section 5): its words are the digest's 32 bytes read as four
-  big-endian `u64`s, so no user of skein-io changes. `skein-oauth`'s PKCE
+  big-endian `u64`s. `skein-oauth`'s PKCE
   and `skein-ui-bundle`'s digests use lib's and keep no copy;
   `skein-ui-bundle`, a build tool in ordinary Rust (ui.md, section 2),
   depends on lib for it.

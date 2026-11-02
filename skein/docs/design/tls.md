@@ -503,9 +503,8 @@ a wall time each test chooses.
   each version, a protocol agreed, a retry, records read past a key
   update, a close in each wait the worlds reach, and each oddity of the
   neighbours. It draws no alert, no protocol error and no cookie too long
-  to echo: the focused tests reach those. It stands in for the fuzz
-  target (`fuzz/`, fed records under every demand), which waits for a
-  nightly toolchain.
+  to echo: the focused tests reach those. A fuzz target runs beside it
+  (`fuzz/`, fed records under every demand), on a nightly toolchain.
 - **The native face** (section 3.6): step tests in
   `crates/skein-tls/src/client/native/tests.rs`; a pair against a rustls
   server in memory (`tests/tls/tests/suite/native_output.rs`), the same over

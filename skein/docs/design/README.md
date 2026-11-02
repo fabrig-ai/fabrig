@@ -2,9 +2,8 @@
 
 Provisional, 2026-10-19. The index of skein's parts: what each holds,
 its crates and its design document, how the crates depend on one
-another, and what skein leaves to the services built on it. It was the
-repository's `README.md` until 2026-10-19. The rules every part follows
-are skein's foundation documents: `programming-model.md`,
+another, and what skein leaves to the services built on it. The rules
+every part follows are skein's foundation documents: `programming-model.md`,
 `testing-strategy.md` and `notes.md`. How a service is built on skein is
 `examples.md`, section 10. `STATUS.md` says how far the code is from
 this design.
