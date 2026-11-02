@@ -3,7 +3,7 @@ id = "tiers-surface"
 part = "tiers-forge"
 kind = "interface"
 needs = ["change-verifying", "tiers-config"]
-files = ["temper/crates/temper-engine-domain-forge/src/boundary.rs", "temper/crates/temper-engine-domain-forge/src/purpose.rs", "temper/crates/temper-engine-domain-forge/src/tiers.rs", "temper/crates/temper-engine-domain-forge/src/verification.rs", "temper/crates/temper-protocol-store/**", "temper/tests/codecs/**"]
+files = ["temper/crates/temper-engine-domain-forge/src/boundary.rs", "temper/crates/temper-engine-domain-forge/src/purpose.rs", "temper/crates/temper-engine-domain-forge/src/tiers.rs", "temper/crates/temper-engine-domain-forge/src/verification.rs", "temper/crates/temper-engine-domain-forge/src/domain.rs", "temper/crates/temper-engine-domain-forge/src/landing.rs", "temper/crates/temper-protocol-store/**", "temper/tests/codecs/**"]
 effort = "high"
 minutes = 180
 +++
@@ -71,8 +71,9 @@ Acceptance:
 ## Owns and may change
 
 - Owns the files and packages in the header, and in the forge crate the arms and stubs above in
-  `lib.rs`, `restore.rs`, `reconcile.rs`, `domain.rs` (event dispatch arms only) and
-  `src/tests/restore_fit.rs`.
+  `lib.rs`, `restore.rs`, `reconcile.rs`, `domain.rs` (event dispatch arms, and the two families'
+  retained storage and restore: see Answers) and `src/tests/restore_fit.rs`; in `landing.rs`,
+  the receipt's bound and size only (see Answers).
 - The root's `admission.rs` and `route/forge_route.rs`: the arms above only.
 - Not this task's: following, runs, verdicts, the change's facts (`tiers-runs`,
   `tiers-verification`); the root's tier task (`tiers-root`).
@@ -97,3 +98,18 @@ Pre-approved options:
 
 As the implementer's text says, and also: the sizes that moved; the regenerated goldens (count);
 any field you added beyond contracts.md, 4, and why.
+
+## Answers
+
+2026-11-02. May the task add the families' storage in `domain.rs` and the receipt's accounting
+in `landing.rs`, which the restore acceptance needs? Yes, at the least the acceptance needs:
+
+- `domain.rs`: `Domain` fields for the `Tier` and `Verification` rows, sized from
+  `repositories * tiers.tiers` and `changes`, initialized in construction; the restore dispatch
+  inserting their restored rows; their `restored_link_key` arms. Rows are kept and restored only:
+  no following, runs, verdicts or change facts (`tiers-runs`, `tiers-verification`), and the three
+  read methods stay stubs.
+- `landing.rs`: `receipt_slots` counts tiers beside gates
+  (`repositories * (gates + tiers) * receipts_per_gate`, checked arithmetic as today);
+  `receipt_bytes` counts the receipt's optional failures; construction sites set
+  `failures: None`. No other landing change.
