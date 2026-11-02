@@ -153,7 +153,7 @@ record Writable    { push: bytes  expected: option fixed 32  landing: option byt
 - **A fake forge's git is local.** Its program is a path on the
   engine's machine, so a fake forge serves workers on that machine
   alone, as its listener is loopback's (setup.md, 8.4): standalone's
-  worker, and the cluster's workers alone (README, 15.2). A worker on
+  worker, and the cluster's workers alone (`README.md`, 15.2). A worker on
   another host takes its own machine's git for every repository
   (configuration.md, section 4).
 - **Checked at the worker's entrance:** names, remotes, programs and

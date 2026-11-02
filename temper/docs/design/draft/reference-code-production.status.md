@@ -47,7 +47,7 @@
     6), 8.7 and 10: every change is checked by CI at its head and updated
     when first if it lacks its base's tip, whatever its landing branch's
     rule. A merge refused for a conflict sends the change back to first
-    and its update (section 6 and 8.2), which leaves a change under a rule
+    and its update (`../domain/forge.md`, section 6 and 8.2), which leaves a change under a rule
     that asks no update without a path to the merge job.
   - **6: a change's result (N15).** `../domain/forge.md`, 8.2, step 7: a
     change's result words are its landing's facts, without its producer's

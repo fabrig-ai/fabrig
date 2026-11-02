@@ -78,7 +78,7 @@ document says what temper adds. What is open is listed in section 11.
   when a GitHub forge is configured; the agent program is temper's own
   binary. `temper init` writes it, and every deployment is it.
 - **The cluster's two shapes,** for tests on one machine
-  (README, section 15): an engine alone, with no worker and a workers'
+  (`README.md`, section 15): an engine alone, with no worker and a workers'
   listener on loopback in plaintext, and a worker alone, with no engine,
   dialling it. A document of none of the three is refused (section 2).
 - **The agent's configuration is smith's** (section 5), and `temper open`
@@ -147,7 +147,7 @@ document says what temper adds. What is open is listed in section 11.
   The worker's `agent` names temper's own binary (section 5), which no
   check can tell from another program.
 - **The shape is read from the members,** before any other check, and
-  each shape's checks are its own (README, 15.1):
+  each shape's checks are its own (`README.md`, 15.1):
 
   | Shape | `engine` | `workers` | `application` |
   |---|---|---|---|
@@ -481,7 +481,7 @@ have one, an engine alone none. Each:
 - **A worker on another host** takes its own machine's git as its `git`:
   a fake forge is on loopback alone (setup.md, 8.4), and serves no
   worker on another host. The cluster's workers are on its machine, and
-  it serves them (README, 15.2).
+  it serves them (`README.md`, 15.2).
 
 ## 5. The agent's configuration
 
@@ -784,7 +784,7 @@ have one, an engine alone none. Each:
     Each failure names the bound, its bytes, and the figure it must
     hold: `workers[0].limits.overrides.hub.turn_bytes: 65536 bytes,
     short of the agent's largest turn, 1066989 bytes`.
-- **In the cluster's shapes** (README, 15.1), each process checks what
+- **In the cluster's shapes** (`README.md`, 15.1), each process checks what
   its document holds: an engine alone, every check above but the
   worker's and those of the turn's that need the agent; a worker alone,
   the worker's, the checkout's and the git component's, the channel's
@@ -1280,7 +1280,7 @@ variable, else its default.
   file and the demo model's key are data paths, and jig's secrets' store is in the deployment's directory.
 - **The box passes its three on** to each step, as flags, each absolute
   (setup.md, 7.1).
-- **Each of the cluster's processes has its own three** (README, 15.1):
+- **Each of the cluster's processes has its own three** (`README.md`, 15.1):
   an engine alone's data holds the deployment's directory and each
   worker's digest; a worker alone's, its secret and its root. No two
   processes share a data or cache directory.
