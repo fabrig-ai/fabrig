@@ -20,20 +20,41 @@ fn key_live_arguments_select_only_the_key() {
 }
 
 fn assert_account(account: &str) {
-    use smith_local_shell::{command, settings};
     let directory = std::path::Path::new("/unused/smith-live-story");
-    let command::Command::Exec(execution) =
-        command::parse(live::arguments(account, directory, true, false)).expect("live command parses")
-    else {
-        panic!("exec command")
-    };
-    let source = settings::Source { layer: settings::Layer::User, path: "/unused/live/config/smith/config.toml".into(), text: "credentials='/unused/live'\n[accounts.chatgpt]\nprovider='openai'\nsource='sign_in'\n[accounts.claude]\nprovider='anthropic'\nsource='program'\n[accounts.anthropic-key]\nprovider='anthropic'\nsource='env'\nvariable='ANTHROPIC_API_KEY'\n".into() };
-    let settings = settings::from_sources(&execution.shared, directory.into(), &[source])
-        .unwrap_or_else(|why| panic!("{}", why.line()));
-    let resolved = settings::resolve::select(&settings).unwrap_or_else(|why| panic!("{}", why.line()));
+    let settings = live_settings(live::arguments(account, directory, true, false), directory);
+    let resolved =
+        smith_local_shell::settings::resolve::select(&settings).unwrap_or_else(|why| panic!("{}", why.line()));
     assert!(
         resolved.accounts.len() == 1 && resolved.accounts.first().is_some_and(|selected| selected.name == account),
         "only this story's account is selected"
+    );
+}
+
+fn live_settings(
+    arguments: Vec<std::ffi::OsString>,
+    directory: &std::path::Path,
+) -> smith_local_shell::settings::Settings {
+    use smith_local_shell::{command, settings};
+    let command::Command::Exec(execution) = command::parse(arguments).expect("live command parses") else {
+        panic!("exec command")
+    };
+    let source = settings::Source { layer: settings::Layer::User, path: "/unused/live/config/smith/config.toml".into(), text: "credentials='/unused/live'\n[accounts.chatgpt]\nprovider='openai'\nsource='sign_in'\n[accounts.claude]\nprovider='anthropic'\nsource='program'\n[accounts.anthropic-key]\nprovider='anthropic'\nsource='env'\nvariable='ANTHROPIC_API_KEY'\n".into() };
+    settings::from_sources(&execution.shared, directory.into(), &[source])
+        .unwrap_or_else(|why| panic!("{}", why.line()))
+}
+
+#[test]
+fn the_refresh_story_lead_outlives_an_access_token() {
+    let directory = std::path::Path::new("/unused/smith-live-story");
+    let mut arguments = live::arguments("chatgpt", directory, true, false);
+    live::with_refresh_lead(&mut arguments, live::REFRESH_LEAD_MS);
+    let settings = live_settings(arguments, directory);
+    let (resolved, _document) =
+        smith_local_shell::settings::resolve::resolve_startup(&settings).unwrap_or_else(|why| panic!("{}", why.line()));
+    assert_eq!(
+        resolved.agent.profile.policy.refresh_lead,
+        Duration::from_secs(400 * 86_400),
+        "the refresh story's lead is 400 days"
     );
 }
 

@@ -9,6 +9,9 @@ pub const CLAUDE: &str =
     "no record in `$SMITH_LIVE/programs/claude`: run `XDG_CONFIG_HOME=$SMITH_LIVE/config smith login claude`";
 pub const KEY: &str = "`ANTHROPIC_API_KEY` is not set";
 
+/// The refresh story's baseline deployment lead.
+pub const REFRESH_LEAD_MS: u64 = 34_560_000;
+
 /// The suite's durable user layer; each story requests only its own accounts.
 pub struct Environment {
     pub root: PathBuf,
@@ -74,6 +77,12 @@ pub(super) fn setup(root: &Path, account: &str, key: bool) -> Result<(), &'stati
         _ => panic!("unknown live account"),
     };
     std::fs::symlink_metadata(root.join(path)).map(|_| ()).map_err(|_| message)
+}
+
+/// Insert the refresh lead setting before the trailing prompt argument `-`.
+pub fn with_refresh_lead(arguments: &mut Vec<std::ffi::OsString>, lead_ms: u64) {
+    let at = arguments.len().checked_sub(1).expect("prompt argument");
+    arguments.splice(at..at, ["-c".into(), format!("deployment.refresh_lead={lead_ms}").into()]);
 }
 
 /// Public command settings shared by live stories and their offline controls.
