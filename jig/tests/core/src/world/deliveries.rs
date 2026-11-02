@@ -118,6 +118,9 @@ impl World {
                     .push(super::AssignedTranscript { task: assignment.task, turns: assignment.transcript.clone() });
                 self.assigned = Some(assignment);
             }
+            root::Delivery::AssignedJob { channel, job, .. } => {
+                self.jobs.push((channel, job));
+            }
             root::Delivery::Core(core::Held::Grant { channel, run, attempt, grant }) => {
                 self.grant_delivered(channel, run, attempt, grant);
             }
@@ -217,7 +220,6 @@ impl World {
             }
             root::Delivery::Core(core::Held::PeopleReply { reply, .. }) => self.people_answers.push(reply),
             root::Delivery::ApplicationDocument { .. }
-            | root::Delivery::AssignedJob { .. }
             | root::Delivery::Link { .. }
             | root::Delivery::Core(
                 core::Held::Delivery { .. }

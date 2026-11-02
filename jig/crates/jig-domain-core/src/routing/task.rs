@@ -265,7 +265,7 @@ pub(crate) fn ending_words(ending: tasks::Ending) -> Box<[u8]> {
 pub(crate) fn result_notice(ending: tasks::Ending) -> (tasks::ResultKind, Box<[u8]>) {
     match ending {
         tasks::Ending::Done(result) => match result {
-            tasks::TaskResult::Job { .. } => (tasks::ResultKind::Job, Box::new([])),
+            tasks::TaskResult::Job { bytes } => (tasks::ResultKind::Job, bytes),
             tasks::TaskResult::Approved { state, words } => {
                 let words_present = words.is_some();
                 let words = match words {

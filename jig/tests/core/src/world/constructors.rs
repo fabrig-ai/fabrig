@@ -203,6 +203,7 @@ impl World {
             account_generations: std::collections::BTreeMap::new(),
             move_provider,
             assignments: Vec::new(),
+            jobs: Vec::new(),
             assignment_transcripts: Vec::new(),
             cancellations: Vec::new(),
             busy_turns: Vec::new(),

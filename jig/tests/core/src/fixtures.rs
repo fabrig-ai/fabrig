@@ -411,6 +411,12 @@ pub fn configure_resources(world: &mut crate::world::World) {
 #[must_use]
 pub fn job_world(seed: u64, ceiling: bool) -> (crate::world::World, u64) {
     let (mut configuration, mut limits) = crate::faults::plan_fixture(seed);
+    limits.core.fleet.workers = 3;
+    configuration.core.worker_names = Box::new([
+        b"caller".as_slice().into(),
+        b"first job worker".as_slice().into(),
+        b"second job worker".as_slice().into(),
+    ]);
     limits.core.authority.executors = 3;
     limits.core.tasks.executor_kinds = 3;
     limits.core.documents.executors = 3;

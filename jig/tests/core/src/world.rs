@@ -129,6 +129,8 @@ pub struct World {
     account_generations: std::collections::BTreeMap<u32, u64>,
     move_provider: Option<u32>,
     pub assignments: Vec<(u64, u64)>,
+    /// Job assignments released after their claim is durable.
+    pub jobs: Vec<(Token, jig_domain_host::JobAssignment)>,
     pub assignment_transcripts: Vec<AssignedTranscript>,
     pub cancellations: Vec<(u64, u64)>,
     pub busy_turns: Vec<(u64, u64, u32)>,
@@ -215,6 +217,32 @@ pub struct World {
 }
 
 impl World {
+    /// A scripted worker declares the job kinds it can host (engine.md, 7.5).
+    pub fn job_hello(&mut self, channel: Token, worker: u32, kinds: Box<[jig_domain_host::JobBound]>) {
+        let mut bounds = jig_test_profile::fixtures::bounds();
+        bounds.models = Box::new([]);
+        self.send(root::Event::Core(core::Event::Fleet(fleet::Event::Hello {
+            worker,
+            channel,
+            hello: fleet::Hello {
+                jobs: kinds,
+                bounds,
+                stop_bound: Duration::from_millis(100),
+                slots: 1,
+                workstreams: Box::new([]),
+                hosting: Box::new([]),
+            },
+        })));
+    }
+
+    /// Answer through the job's host link (jig/docs/design/domain/engine.md, 7.5).
+    pub fn answer_job(&mut self, channel: Token, task: Token, attempt: Token, ending: jig_domain_host::JobEnding) {
+        self.send(root::Event::Link {
+            channel,
+            link: root::link::Event::Up(jig_domain_host::LinkUp::JobAnswer { run: task, attempt, answer: ending }),
+        });
+    }
+
     /// Supply monotonic time and wall time independently, including wall corrections.
     pub fn set_clock(&mut self, now: Time, wall: Wall) {
         if self.supplied_wall.is_some() {

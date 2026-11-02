@@ -129,12 +129,20 @@ pub(crate) fn configured(settings: &Settings, model: &crate::Model) -> Option<u8
 
 impl Core {
     pub(crate) fn claim_done(&mut self, task: u64, attempt: u64, out: &mut Queue<crate::Request>) {
-        let Some(version) = self.charter_version(task) else { return };
         drop(self.replaced.remove(&task));
         let proof = self.proofs.get(&task).expect("claim proof pre-reserved");
         out.push(crate::Request::Write(crate::Write::Save(crate::Record::Core(crate::CoreRecord::RunProof(
             proof.clone(),
         )))));
+        match self.tasks.task(task).expect("claimed task").executor {
+            tasks::Executor::Job { .. } => {
+                crate::routing::run::jobs::claimed(self, task, attempt, out);
+                return;
+            }
+            tasks::Executor::Agent { .. } => {}
+            tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => unreachable!("claimed executor"),
+        }
+        let version = self.charter_version(task).expect("agent charter version");
         let kinds = match proof.host {
             fleet::HostKind::Engine => fleet::Kinds::Engine,
             fleet::HostKind::Worker => fleet::Kinds::Workers,
@@ -191,8 +199,15 @@ impl Core {
                 crate::RunAdmission::Allow(_) | crate::RunAdmission::Hold(_) => true,
                 crate::RunAdmission::Wait(_) => false,
             },
+            tasks::Executor::Job { .. } => {
+                match crate::routing::run::jobs::admission(self, context, self.run_wall, Box::new([])) {
+                    Ok(()) | Err(crate::RunAdmission::Hold(_)) => true,
+                    Err(crate::RunAdmission::Wait(_)) => false,
+                    Err(crate::RunAdmission::Allow(_)) => unreachable!("job admission has no run allowance"),
+                }
+            }
             tasks::Executor::Procedure { .. } => true,
-            tasks::Executor::Job { .. } | tasks::Executor::Person(_) => false,
+            tasks::Executor::Person(_) => false,
         }
     }
 

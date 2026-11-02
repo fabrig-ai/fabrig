@@ -323,6 +323,7 @@ pub struct Core {
     /// Live task preparation contexts.
     pub(crate) contexts: Map<u64, Box<tasks::RunContext>>,
     pub(crate) workspace_credentials: Map<u64, Box<[u32]>>,
+    pub(crate) job_workspaces: Map<u64, Box<[u8]>>,
     /// Recent transcript windows for runs being prepared.
     pub transcripts: Map<u64, Transcript>,
     /// Current durable claim evidence.
@@ -513,6 +514,7 @@ impl Core {
             run_wall: Wall::EPOCH,
             contexts: Map::with_capacity(limits.tasks.tasks),
             workspace_credentials: Map::with_capacity(limits.tasks.tasks),
+            job_workspaces: Map::with_capacity(limits.tasks.tasks),
             transcripts: Map::with_capacity(limits.tasks.tasks),
             proofs: Map::with_capacity(limits.tasks.tasks),
             replaced: Map::with_capacity(limits.tasks.tasks),

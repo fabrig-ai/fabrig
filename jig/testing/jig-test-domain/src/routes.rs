@@ -242,6 +242,29 @@ fn route_ask(
                 );
             }
         }
+        core::Ask::JobClaimed { task, attempt, kind, spec, deadline, result, grants, workspace } => {
+            if number == 1 {
+                drop(domain.workspace_writes.remove(&task));
+                crate::link::held(
+                    domain,
+                    env.now,
+                    decision,
+                    jig_domain_hub_link::Event::StartJob {
+                        job: jig_domain_hub_link::JobStart {
+                            task,
+                            attempt,
+                            workstream: task,
+                            kind,
+                            spec,
+                            deadline,
+                            result,
+                            grants,
+                            workspace,
+                        },
+                    },
+                );
+            }
+        }
         core::Ask::Close { task, .. } => {
             work.push(Work::Connector { number, event: connector::Event::Close { task } });
         }
@@ -413,6 +436,7 @@ fn route_now(
                     work.push(Work::Core(core::Event::WorkspacePrepared {
                         task,
                         attempt,
+                        workspace: None,
                         credentials: Box::new([]),
                         writes: None,
                     }));
@@ -448,7 +472,13 @@ fn route_now(
                 Some(credentials) => (credentials, Some(checks.into_boxed())),
                 None => (Box::<[u32]>::from([]), None),
             };
-            work.push(Work::Core(core::Event::WorkspacePrepared { task, attempt, credentials, writes }));
+            work.push(Work::Core(core::Event::WorkspacePrepared {
+                task,
+                attempt,
+                credentials,
+                writes,
+                workspace: None,
+            }));
         }
         core::Now::RunPrepared {
             live,
