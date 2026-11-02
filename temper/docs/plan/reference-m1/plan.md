@@ -38,9 +38,35 @@ Released (needs in brackets):
   change-by-rule, change-batch]; `goal-forge-symbol` [goal-jig-surface, goal-forge-branch];
   `goal-forge-story` [goal-jig-holdings, goal-forge-branch, goal-forge-symbol].
 
-To come: the settings family (`settings-landing-rules`, `settings-wake-pace`,
-`settings-wake-charter`, `settings-wake-clients`, `settings-reference-files`) and the walk
-slice.
+- settings-landing: `settings-landing-rules` [change-requires] (the forge's pure surface for
+  kinds 1 and 2, `requires` over the held rules; ported from temper's old
+  `configuring-stock/forge-kinds`).
+- settings-wake: `settings-wake-pace` [goal-jig-store, goal-jig-client];
+  `settings-wake-charter` [settings-wake-pace, goal-jig-holdings, goal-jig-config];
+  `settings-wake-clients` [settings-wake-charter].
+- settings-reference: `settings-pre-pr` [] (`.temper/pre-pr`: format and the old-form counts);
+  `settings-reference-files` [settings-wake-clients, goal-jig-client, change-call,
+  change-requires] (`temper/docs/examples/reference/settings.json` and `landing.json`, from
+  `notes/settings.md`).
+
+## Slices
+
+1. bound; 2. goal-jig and goal-forge; 3. change; 4. settings-landing; 5. settings-wake and
+settings-reference, **the walk** (`walk = true`): reference-case.md steps 1, 3, 7 and 19, then
+the goal's end with g kept, unlanded.
+
+## Left for later, and the user's questions
+
+- **The rest of the landing rules as settings** (`[[question]] landing-settings-rest`): it
+  needs jig's application settings (jig's `domain/engine.md`, 17.5 to 17.7), unbuilt, about
+  ten tasks. M1 keeps the rules in the document's `application.landing`; the reference's
+  `landing.json` carries main's rule and the goal branches' rule.
+- **What `.temper/pre-pr` runs** (`[[question]] pre-pr-checks`): the first edition runs
+  format and the old-form counts; lints and focused tests wait for the user's budget.
+- **For the walk's document:** applying the reference's settings on the box needs
+  `authority.executors` and `tasks.executor_kinds` at 8 (temper's `protocol/configuration.md`,
+  13.4); temper-init's template and `docs/examples/owned.json` still give 6
+  (`configuration.status.md`, Departs 13.4). The walk's document sets them.
 
 ## Order decided by the lead
 
@@ -56,9 +82,10 @@ stories. `goal-jig-surface`'s compiler-forced field lines in the root's `asks.rs
 
 `change-call` (75) -> `change-batch` (100) -> `goal-forge-branch` (110) ->
 `goal-forge-symbol` (75) -> `change-words` (100) -> `change-goal-story` (90): about 550
-implementer-minutes. The jig side (`goal-jig-surface` -> `goal-jig-store`/`config` ->
-`goal-jig-client` -> the settings family's wake tasks -> `settings-reference-files`) runs
-beside it.
+implementer-minutes. The jig side (`goal-jig-surface` (75) -> `goal-jig-store` (60) -> `goal-jig-client` (90) ->
+`settings-wake-pace` (120) -> `settings-wake-charter` (110) -> `settings-wake-clients` (100) ->
+`settings-reference-files` (60)), about 615 implementer-minutes, is as long: the walk waits
+for both lines.
 
 ## Overlaps with other plans
 
@@ -72,3 +99,6 @@ beside it.
   `forge_route.rs`, the forge-change crate, `store-v11.schema` and its goldens
   (`change-words`, a field on `ChangeRow`, in place), and `temper/docs/help/change.md`
   (`change-help`, against reference-m8's `help-pages`). Each spec keeps its hunks narrow.
+- reference-m7a: the settings-wake tasks in `jig-domain-tasks`, `jig-domain-core`,
+  `jig-protocol-store` and jig's client crates; reference-m8: `settings-wake-pace` in
+  `temper-client-view` (`pages/chats.rs`), `settings-landing-rules` in the forge crate.

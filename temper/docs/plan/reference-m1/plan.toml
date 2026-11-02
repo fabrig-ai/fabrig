@@ -58,3 +58,46 @@ id = 3
 story = "G's change makes two changes into g in one call, the second after the first; each opens, needs no CI and no update under the goal branches' rule, merges at its head as a merge commit; each result carries its producer's report; G ends with g kept"
 parts = ["change"]
 walk = false
+
+[[part]]
+id = "settings-landing"
+title = "the forge's landing rules as values of temper's kinds 1 and 2: judged, held, and read by requires as the compiled rules are"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/configuration.md, 13.2"
+
+[[part]]
+id = "settings-wake"
+title = "a charter's default wake policy, taken by a task whose batch names none, and a pace for news"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/tasks.md, 8.3"
+
+[[part]]
+id = "settings-reference"
+title = "the reference's configuration, first editions: the coordinator's and coding agent's charters, the template for drafts, the landing rules for main and goal branches, the repository's checks"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/configuration.md, 13.9"
+
+[[slice]]
+id = 4
+story = "the forge judges a landing rule of kind 1 or 2 as 13.2 refuses one, holds the rules it accepts, and answers requires over them as over the rules compiled from the document"
+parts = ["settings-landing"]
+walk = false
+
+[[slice]]
+id = 5
+story = "reference-case.md steps 1, 3, 7 and 19 through temper ctl: P starts a goal from the template for drafts; G becomes active holding g, made at main's tip; G specifies its changes itself, one after another, with change into g; each lands into g with no CI and no update, its result carrying its producer's report and waking G; a Left list becomes a change; the goal ends with g kept, unlanded"
+parts = ["settings-wake", "settings-reference"]
+walk = true
+
+[[question]]
+id = "landing-settings-rest"
+parts = ["settings-landing"]
+text = """M1's Builds names the landing rules as settings of temper's kinds, out of Config's landing member. Moving them needs jig's application settings (jig's domain/engine.md, 17.5 to 17.7), which are not built: jig's setting kinds are closed enums, no application declares a kind and no connector judges or keeps one. The rest is about ten tasks, four in jig then six in temper (the forge's Setting family in store-v11, routing through the root, standing requirements 5 and 6, the stock's kind declarations with application.landing refused, the entrance's decoding, ctl's landing-rule kind), two waves past the rest of M1. Default taken: settings-landing-rules (the forge's pure surface) is released, and M1 keeps the rules in the document's application.landing, the reference's landing.json carrying main's rule and the goal branches' rule (temper's protocol/configuration.md, 13.9); the walk needs nothing more. Options: (a, recommended) the rest goes with M3, whose forge's charters as settings (kind 3) need jig's application settings too, so jig's 17.5 to 17.7 is built once for both; (b) a second cut of this plan designs and releases the ten tasks now, beside the rest of M1."""
+
+[[question]]
+id = "pre-pr-checks"
+parts = ["settings-reference"]
+text = """The reference's project checks (.temper/pre-pr, temper's protocol/configuration.md, 13.9) are format, lints, the changed packages' focused tests and the counted baselines. They run in the box's worker at every delivery, so lints and tests are cargo builds there, whose machine, budget and timeouts are yours. Default taken: settings-pre-pr writes a first edition with the format check and the old-form counts only (no build); the lints and focused tests stay a Not yet in configuration.status.md. Options: (a, recommended) keep it so for M1's walk, the trunk's checks and g's tier (M9) covering lints and tests; (b) add clippy and the changed packages' focused tests now, with a timeout and a worker budget you set."""
