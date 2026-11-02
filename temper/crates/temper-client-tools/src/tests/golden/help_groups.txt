@@ -119,7 +119,7 @@ both do. `--until changed` returns at the subject's next change.
 - `forge list`: `settled`, no set up, connect or install in progress;
   `connected:FORGE`; `made:FORGE`, its first repository made;
 - `change show TASK`: `pull`, `ci:pending`, `ci:passed`, `ci:failed`,
-  `held`, `landed`.
+  `held`, `landed`, `cleared`.
 
 - **Keys:** an act takes `--key KEY` where its usage shows one,
   required or optional; reads and waits take none. Agents that share

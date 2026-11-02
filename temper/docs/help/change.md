@@ -65,14 +65,11 @@ Its steps, as `step:` prints them:
   so `task show` names it; the change is checked again;
 - `landing`, then `landed`: temper merges it, and `change show` names
   the merge commit; a change no tier follows ends there;
-- `verifying`: landed, and a tier following its branch has not judged
-  it yet (temper help tier);
-- `red`: a tier's verdict blames its landing, naming the tier, the
-  run and the failing tests; it stays red until a later run passes
-  them;
-- `cleared`: every tier following its branch cleared it, and it ends
-  with its result; or `landed, uncleared`, past the verification
-  bound with no verdict.
+- `verifying`: awaiting a tier's verdict;
+- `red`: blamed by a tier, naming the run and failing tests, until a
+  later run passes them;
+- `cleared`: all its tiers cleared it, and its result comes; with no
+  verdict by the verification bound, it ends `landed, uncleared`.
 
 Where its project lands by turn (temper help landing), no CI runs at
 its head and it waits in no queue: `gating` follows `opening`, then:
