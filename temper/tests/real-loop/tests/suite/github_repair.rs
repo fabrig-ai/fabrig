@@ -4,7 +4,7 @@ use skein_fake_forge_domain::{Observation, api};
 use skein_fake_llm_domain::api::Scripts;
 use temper_real_loop_world::{
     Exit, argv,
-    calls::{D1, Step, call, file, number, sign_in},
+    calls::{D1, Step, call, file, number, sign_in, until},
     fixtures,
     github::{self, check_chat_heard_the_landing_at, check_landing_at},
     landing, llm, run_github,
@@ -328,7 +328,13 @@ fn replacement_acts() -> Vec<Step> {
     acts.extend([
         call(D1, argv!["change", "show", number(CHANGE_TASK), "--until", "held", "--json"]),
         call(D1, argv!["task", "release", number(CHANGE_TASK), "--hold", "1"]),
-        call(D1, argv!["change", "show", number(CHANGE_TASK), "--until", "held", "--json"]),
+        // The replacement's no_change verdict creates hold 2; the panel can still show hold 1 after release.
+        until(
+            D1,
+            argv!["change", "show", number(CHANGE_TASK), "--until", "held", "--json"],
+            b"task release 2 --hold 2;",
+            b"task release 2 --hold 1;",
+        ),
         call(D1, argv!["task", "activity", number(CHANGE_TASK), "--json"]),
     ]);
     acts
