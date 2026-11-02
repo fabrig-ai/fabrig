@@ -62,7 +62,7 @@ pub(crate) fn build(selection: Selection, document: bool) -> Result<(Resolved, B
             outside_models.insert(
                 model,
                 if program {
-                    "a program runs no sub-agent"
+                    "a sub-agent runs on a program only on main's account"
                 } else if children {
                     "account has no source"
                 } else {
