@@ -248,7 +248,7 @@ With the user, 2026-10-23. Amends 3.9; the mechanics are
 | Configuration, data and cache directories (3.2) | temper: `protocol/configuration.md`; jig for its parts' paths | every deployment, with or without the box |
 | `temper init` (3.3) | temper: `protocol/setup.md`, section 8 | a person, a test or QA starting a deployment |
 | The fakes as product crates (3.5) | skein: `crates/`, from `testing/` | QA, the real loop, demos, a person trying a charter |
-| The fakes as the box's steps (3.5) | temper: `protocol/setup.md`, section 7 | QA's "temper in a box" (`qa.md`, 4.1) |
+| The fakes as the box's steps (3.5) | temper: `protocol/setup.md`, section 7 | QA's box on fake backends |
 | Adoption from a client tool (3.6) | temper: `../client/tools.md` | scripts and agents adopting repositories |
 | `temper forge fetch` (3.7) | temper: `protocol/setup.md`, 6.1; skein: the pins | any owned Forgejo |
 | A dormant owned forge (3.8) | temper: `protocol/setup.md`, sections 5 to 7 | any deployment offering an owned forge later |
@@ -498,8 +498,7 @@ experience; good defaults for a person's real work are open (section 8).
   The demo needs a git that reaches the fake forge across processes,
   not real git: its agent is the fake LLM, and nothing else reads its
   working trees. Default: the fake git program as a program of its
-  own, with its transport over the network, as the QA loop needs it
-  (`qa-loop.md`, section 11, item 2); the demo then needs no git on
+  own, with its transport over the network; the demo then needs no git on
   the machine. Real git against the fake forge is real-loop's later
   real-git bridge, for real agents on the fake forge (`../STATUS.md`).
 - **The default port.** Default: one unassigned port, chosen with the

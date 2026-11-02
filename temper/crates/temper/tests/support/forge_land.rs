@@ -1045,7 +1045,7 @@ pub(super) fn scoped_token(paths: &[PathBuf; 3], first: bool, number: u64, login
 
 /// Commands are admitted one at a time so a failure cannot start the next act.
 /// A fresh store's account comes from a person's sign-in, or from a held
-/// record moved in by `import`, as qa-live.md's 0b seed does (4.3), or a
+/// record moved in by `import` (client/tools.md, 5.5), or a
 /// held Claude Code directory declared and verified on the worker.
 #[must_use]
 pub fn live_commands(fresh: bool, model: LiveModel<'_>) -> (Vec<Vec<String>>, usize) {
