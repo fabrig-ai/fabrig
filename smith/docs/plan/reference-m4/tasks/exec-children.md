@@ -99,3 +99,11 @@ only:
 Keep the pushed stories as they are; they should pass once the fake does. Merge
 `origin/reference-m4/exec-children` first.
 
+
+2026-11-02. **The story's `CHILD_MODEL` is `anthropic/claude-haiku-5-5`, which production refuses
+as an unknown LLM: change the story or production?** The story. `sub_agent`'s `llm` names a model
+among the charter's models (`smith/docs/design/protocol/llm.md`, the tool table), which are bare
+names, and step 2 above already asks `claude-haiku-5-5`; production is right. Set
+`program_children.rs`' `CHILD_MODEL` to `"claude-haiku-5-5"`, nothing else of the stories
+changes. Then run the two-child story alone, then step 2's command with `--features end-to-end`
+(the `end_to_end` binary needs it; so do steps 3 and 4), and the rest of the steps.
