@@ -110,13 +110,29 @@ P, a person
 - **G holds g** (N3). Under its hold, each writer in its subtree writes g
   one at a time (jig's `domain/tasks.md`, 6.3): a merge into g, and, once
   L is made, L's update, repairs and resolution. G's own runs inspect
-  alone (`agent.md`, 4.3) and take no writer slot.
+  alone (`agent.md`, 4.3) and take no writer slot. g is a landing branch
+  with a queue, as any (`forge.md`, section 9), and the one that is held:
+  a change into it from outside G's subtree is refused at its batch,
+  naming G. As G closes, its hold's release deletes g if a change landed
+  it (its tip reachable from that change's landing branch), and
+  otherwise keeps it for a person to read, until deleted by hand or by
+  the deployment's retention.
 - **The plan is G's subtree** (jig's `domain/core.md`, 7.1): its
   structure is the tasks and their dependencies, which the engine runs
   and the store keeps as the plan's history; its text is the design in g
   (section 5); its authority is G's.
 - **Every change is G's delegate,** made by G's `change` calls (N22), so
   G is the requester each question and escalation of the plan reaches.
+  `change` takes, beside the words: the landing branch, `goal` for the
+  goal's own branch or a branch's name; the branch, `mine` for its
+  requester's held branch; dependencies, by task number or by a name
+  given in the same call; several changes in one call, made as one batch
+  (jig's `domain/tasks.md`, section 4); `questions` (section 8); its
+  agents' LLM choices (N19); its producer, a charter the run may
+  delegate to or the merge job (N13, N7); and `repairs`, a landing it
+  repairs. The root checks each field as it decides the delegate; a
+  charter's authority says whether its runs may set them: the
+  coordinator's may, a chat's sets none.
 
 ## 4. A draft becomes a goal
 
@@ -136,9 +152,12 @@ P, a person
   to `temper/<root>/g<root>` once the goal has its number, as a task's
   run branch is (`forge.md`, section 11). A small goal's template names
   none, and its changes land into main each. jig checks the batch as any
-  (jig's `domain/tasks.md`, section 4).
+  (jig's `domain/tasks.md`, section 4). A goal made by hand may name it
+  too, within its creator's authority. The choice is made with the goal,
+  which cannot take a hold once active (jig's `domain/tasks.md`, 6.2).
 - **G becomes active** at once, taking its hold, and the forge makes g at
-  main's tip (N3). G's first run begins the cut.
+  main's tip as the hold is taken (N3); failing, it holds G, saying why.
+  G's first run begins the cut.
 
 ## 5. The cut
 
@@ -151,7 +170,10 @@ G's runs read: a checkout of g, inspect only, no delivery (`agent.md`,
    status files.
 2. **Survey, if it judges it worth it.** Inspect-only sub-agents at
    high, one question each, side by side (smith's `domain/run.md`, 5.3);
-   their answers are their reports.
+   their answers are their reports. On Claude Code, smith serves its
+   `sub_agent` through the program's MCP server, each child a program
+   session of its own at the model and effort the LLM choice names
+   (N10).
 3. **Shape the plan:** the families of work, the shapes they share, the
    order between them, what was dropped and why, and the work the design
    already specifies, which needs no designer.
@@ -193,8 +215,11 @@ the design in g by path and section (`temper/docs/design/domain/forge.md,
 4.2`) and the status entries it closes; what it owns and must leave
 alone; its checks; its report. It is short: the design holds the
 detail, and the producer's checkout holds the design. Its parameters
-carry the rest: g as its landing branch, its dependencies, its
-producer's LLM choice (N19), and that its questions are relayed (N1).
+carry the rest: g as its landing branch, its dependencies, an LLM choice
+for each of its agents' roles (its producer, repairs and resolutions;
+its foremen; its reviews), each checked against its charter's models
+and the change's authority as a batch's is, a role without one taking
+its charter's default (N19), and that its questions are relayed (N1).
 
 **A revision of the design** is a change into g, a designer's. Once it
 lands, G amends the words of the live changes it concerns, naming the
@@ -239,8 +264,10 @@ rule for goal branches (N4):
    goes to a resolution, an agent in that merge in progress (`forge.md`,
    8.4); the merged head then merges into g.
 6. **Landed,** and done: no tier that judges landings follows g, so a
-   change into it has no verification (N5). Its result, its producer's
-   report after the landing's lines (N15), wakes G.
+   change into it has no verification (N5). Its result wakes G: its
+   result words carry, after its landing's three lines, its producer's
+   last report, then what the landing passed, cut from the end to the
+   result's bound and marked (N15).
 
 ## 7. Early starts
 
@@ -262,7 +289,9 @@ Done while kept, the producer's work waits: the change is not ready
 until its last dependency has landed, then merges as any change. Its
 head carries its dependencies' work as they pushed it, so a dependency
 that is dropped takes its dependent with it: G cancels and remakes the
-dependent rather than amending the dependency away (N2). Designers start
+dependent rather than amending the dependency away, and the forge
+refuses an amendment removing a dependency whose pushed head the
+change's producer started from, naming it (N2). Designers start
 early on S as producers do on code.
 
 ## 8. Questions
@@ -303,6 +332,14 @@ relays its agents' questions.
   reference); past it, the next is not given a foreman: the change holds
   itself, escalated to G. Released, the change relays that question to G
   with no foreman.
+- **The setting.** A change's `questions` parameter, from its maker or
+  the project's setting: `none`, the default, where its agents have no
+  Message family and a question is answered that a change takes none;
+  `foreman`, the route above; `up`, straight to its requester with no
+  foreman, a designer's change's. With either of the last two, its
+  producer, repairs and resolutions keep the Message family, a foreman
+  is made per question, and the change's own page lists its open
+  questions.
 - **Answers stay in the store:** the asked task's question positions and
   the change's history (jig's `domain/tasks.md`, 8.2). A ruling that
   concerns many changes becomes design: a designer's change into g, and
@@ -389,9 +426,11 @@ escalates to G as any change does.
 G's wake policy, the coordinator's charter's default (N23): questions,
 escalations, failures, every delegate's result, words from its
 delegates, its person's words, and news its connectors class as waking,
-paced. Each wake is a fresh run, its brief the goal, the plan's state
-and the messages that woke it (jig's `domain/engine.md`, 7.4); a message
-that arrives while G runs is relayed to that run instead.
+paced. A task made from a template takes its charter's policy; its
+creator may narrow or widen it. Each wake is a fresh run, its brief the
+goal, the plan's state and the messages that woke it (jig's
+`domain/engine.md`, 7.4); a message that arrives while G runs is relayed
+to that run instead.
 
 | Wake | G reads | G decides |
 |---|---|---|
@@ -420,7 +459,7 @@ What the reference sets, as settings (jig's `domain/engine.md`, section
 | the designer's charter | instructions: write the design where the project keeps it (here `docs/design`, the status file beside each document, its Later section), cite by path and section, list the family's changes in the report; Claude Code; the workspace, delivery, sub-agents, `message` for questions, `note`, `recall`; documents: the project's design rules | as a charter; a change's producer charter no (N22); sub-agents no (N10) |
 | the goal template for drafts | the coordinator's charter; section 4's LLM choice; tracked; a report; *its own goal branch* | yes, but its own branch no: templates name no resources (jig's `../protocol/configuration.md`, 3.1; N3) |
 | a small goal's template | as jig's goal template, no branch of its own | yes |
-| the coding agent's charter | charter 2, its instructions telling it to push early, finish with a Left list, mark a story that fails for code it does not own as ignored with the fault as its reason, and never fix what it does not own (N15); its run sized for the work (charter 2's 16 turns and 120 s are a small fix's) | yes, its text and run new |
+| the coding agent's charter | charter 2, its instructions telling it to push early, finish with a Left list, mark a story that fails for code it does not own as ignored with the fault as its reason, and never fix what it does not own, the change that fixes the fault removing the mark (N15); its run sized for the work (charter 2's 16 turns and 120 s are a small fix's) | yes, its text and run new |
 | the foreman's charter | read-only (inspect and the forge's reads); a verdict of answer, finish or escalate | as a charter; its use by the change no (N1) |
 | the forge's charters (kind 3) | 1, the change's: the coding agent's; 2, the reviews': unused; 3, the foreman's | kind 3 designed, not built; number 3 no (N1) |
 | each change's LLM choices | a coding producer, repairs and resolutions: gpt-6.1-sol at the spec's effort; a designer: section 4's choice; a foreman: gpt-6.1-sol, medium | no (N19) |
@@ -432,7 +471,7 @@ What the reference sets, as settings (jig's `domain/engine.md`, section
 | g's tier | the gate without its slowest suites, following goal branches, at most once per 20 minutes | no (N5) |
 | main's tiers | the slow suites, following main | designed (`after-landing.md`); following main only no (N5) |
 | questions | relayed through a foreman, four per change; a designer's straight up | no (N1) |
-| the merge job | the project's job that merges and recounts its counted baselines | no (N7) |
+| the merge job | `merge_job`, the project's job kind that merges and recounts its counted baselines | no (N7) |
 | the profile's limits | sized for a hundred changes under one goal, their reports and its calls | to check (N21) |
 
 ## 15. What is missing
