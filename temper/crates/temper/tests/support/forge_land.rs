@@ -1322,16 +1322,32 @@ pub struct LivePlan<'a> {
 }
 
 impl LivePlan<'_> {
-    fn install_return_hook(&self) {
+    /// The sitting's client directory, `client` beneath the run's root: every ctl call's
+    /// DIRECTORY, the held record's import and give-back included (domain/testing.md, 2.7).
+    #[must_use]
+    pub fn client_directory(&self) -> PathBuf {
+        self.client.join("client")
+    }
+
+    /// Install the held record's give-back in the story's store; `binary` is the temper
+    /// the hook runs.
+    pub fn install_return_hook(&self, binary: &std::path::Path) {
         if let LiveModel::ChatGpt { account: Some(account) } = self.model {
             super::held_login::return_hook(
-                &skein_scratch::paths::binary("temper"),
+                binary,
                 self.paths[0].parent().expect("store"),
-                self.client,
+                &self.client_directory(),
                 account,
             );
         }
     }
+
+    /// The held record's import as the sitting runs it, behind the give-back's lock.
+    #[must_use]
+    pub fn held_import(&self, binary: &std::path::Path, words: &[&str]) -> super::ctl::Call {
+        super::held_login::import_guard(binary, self.paths[0].parent().expect("store"), &self.client_directory(), words)
+    }
+
     fn starting_phase(&self) -> LivePhase {
         if self.first && !self.kept && matches!(self.model, LiveModel::ClaudeCode { .. }) {
             LivePhase::ProgramDeclared
@@ -2191,12 +2207,7 @@ impl LiveJudge<'_> {
             } else if words.starts_with(&["account", "import"])
                 && matches!(self.plan.model, LiveModel::ChatGpt { account: Some(_) })
             {
-                super::held_login::import_guard(
-                    &skein_scratch::paths::binary("temper"),
-                    self.plan.paths[0].parent().expect("store"),
-                    self.plan.client,
-                    &words,
-                )
+                self.plan.held_import(&skein_scratch::paths::binary("temper"), &words)
             } else {
                 super::ctl::Call::new(&words)
             }));
@@ -2299,7 +2310,7 @@ pub fn run_live(
     if let Face::Fake { peer, .. } = &face {
         peer.configure(&plan.paths[0]);
     }
-    plan.install_return_hook();
+    plan.install_return_hook(&skein_scratch::paths::binary("temper"));
     let clock = Clock::new();
     let mut binary = Binary::start_with_tree(
         Command {
