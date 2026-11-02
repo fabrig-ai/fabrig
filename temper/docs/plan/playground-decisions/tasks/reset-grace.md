@@ -8,6 +8,7 @@ files = [
   "temper/crates/temper-engine-domain/src/route/playground.rs",
   "temper/tests/engine/domain/tests/suite/reset.rs",
   "temper/docs/design/protocol/setup.status.md",
+  "temper/tests/engine/domain/tests/suite/removal.rs",
 ]
 effort = "high"
 minutes = 45
@@ -92,3 +93,12 @@ Acceptance:
 ## Report
 
 As the implementer's text says.
+
+## Answers
+
+2026-11-02. May the run add `grace: None` to `removal.rs`'s `erase_chat` (`people::Ask::RemoveProject
+{ project: 1 }`, ~281), outside this spec's files? Yes: the plan's "Known readers outside a spec"
+gives this compiler-forced field to whichever temper task meets it, and `kept-names` landed without
+it. In `temper/tests/engine/domain/tests/suite/removal.rs` add `grace: None` to that literal and
+change nothing else in the file; the file is now in `files` for that line alone. Then run the steps'
+remaining checks (the reset stories, clippy, the three package suites) and report them.
