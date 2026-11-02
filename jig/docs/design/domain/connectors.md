@@ -214,10 +214,6 @@ which it keeps. What the core gets is its **description:**
   the entry went out. An entry that went out is never withdrawn: what may
   have been made counts.
 
-Projection outbox outcomes settle resource writers without settling calls,
-holding a task or waking a procedure. Made, Failed, Withdrawn and NotMade
-release the writer; Uncertain and Held retain it for connector recovery.
-
 ### 4.3 Uncertainty and recovery classes
 
 - **Only what provably never reached the system did nothing.** Any other

@@ -623,12 +623,12 @@ one rule for every child and the store:
   (`../protocol/store.md`, 10.2 and section 14).
 
 A restart refused before the switch leaves the
-generation patched from active and unchanged (store.md, 10.2, step 7);
+generation patched from active and unchanged (`../protocol/store.md`, 10.2, step 7);
 one refused after it, at a later step, leaves the patched generation
 active and the one before it as `active` − 1, for the operator to go
 back to before its first commit of its own (temper's
 `draft/upgrades.md`, 3.2). A patch marked fresh has closed every live
-task's window in the copy (store.md, 10.2, step 4) and marked every
+task's window in the copy (`../protocol/store.md`, 10.2, step 4) and marked every
 claim crossed, so the restart restores the windows closed, adopts no
 crossed claim (step 3), and each task's next attempt starts fresh
 (7.2).
@@ -1145,7 +1145,7 @@ The fleet child domain knows the hosts and the runs they host:
   placed where smith would refuse its start, and no run refuses a
   message as too large or its start's messages as full.
   The core exposes these owned requirements as
-  `jig_domain_core::fleet_needs::configured(&Config, &Limits)`, for a
+  `jig_domain_core::settings::fleet_needs::configured(&Config, &Limits)`, for a
   validated configuration with the same limits used to construct the core.
   Its charter count must fit `limits.tasks.charters`, and each charter's
   main model plus alternatives must fit a `u32`. This projection does not

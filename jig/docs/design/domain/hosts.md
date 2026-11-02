@@ -84,9 +84,9 @@ Between the core's fleet and a host, whatever its shape:
     for each LLM account its check chose, its source's credential or a
     program source's name, and the application's credentials its
     workspace needs (engine.md, 7.1); and the **ask** for live content:
-    one boolean per kind, `text`, `reasoning`, which the core
-    sets for a run whose task is a conversation (engine.md, 7.1) and the
-    hub passes into smith's start (6.2, 6.5);
+    one boolean per kind, `text`, `input` and `reasoning`, the first two
+    set by the core for a run whose task is a conversation (engine.md,
+    7.1), which the hub passes into smith's start (6.2, 6.5);
   - **messages** for the run, named, in order (tasks.md, 8.2);
   - **answers** to the run's relayed calls;
   - **grants** renewed while the run lives: each new generation of a
@@ -900,7 +900,7 @@ Its `assignment` builds that charter from the core's run charter, the brief and 
   attempts with it, and takes none of that charter's new runs; its next
   hello is admitted or refused as any is. The same admission decision is public as
   `jig_domain_fleet::shortfall`, using the core's owned
-  `fleet_needs::configured` requirements, so an application's startup can
+  `settings::fleet_needs::configured` requirements, so an application's startup can
   diagnose its prospective host before it says hello. A start smith refuses
   all the same fails its
   attempt as invalid, naming why (6.3).

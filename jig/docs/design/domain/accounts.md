@@ -443,7 +443,7 @@ and refuse unknown or cyclic task chains without writing anything.
   name a project with another party (above). Tested by
   `a_key_naming_a_project_pays_for_a_persons_work_in_it_and_nowhere_else`
   and `a_plan_naming_a_project_still_does_not_cover_another_persons_work_in_it`
-  (`jig/crates/jig-domain-core/src/tests/coverage.rs`).
+  (`jig/crates/jig-domain-core/src/tests/runs/coverage.rs`).
 - **A shared project's automatic work** is so paid by a key: the
   deployment's, or a person's whose uses name the project. No plan pays
   for it (above).
@@ -661,8 +661,9 @@ construction, never by a person deleting a copy.
   the engine. A remotely hosted application asks OpenAI first
   (providers.md, 2.1). Default: the engine's machine (section 5).
 - **Who decides for the deployment's accounts** beyond its first owners:
-  a deployment-wide role, which jig's roles, all of them a project's,
-  do not give. Default: the first owners (3.2).
+  whether every owner in the deployment's roles (people.md, section 3)
+  does, not only those its configuration names. Default: the first
+  owners (3.2).
 - **An occurrence whose account no longer serves:** whether a recurring
   template's occurrence is refused, rather than made to wait for its
   account. Default: made, its run waiting (4.3).

@@ -107,7 +107,7 @@ iterate, after the step:
   to get around the journal.
 - **Every request says what it is.** The core and the connectors mark
   each request as part of the decision, held, or now (engine.md, 4.2).
-  The root keeps the mark: a held output goes to `d.hold`, a now one to
+  The root keeps the mark: a held output goes to `d.push_held`, a now one to
   `journal.now`. The door for outputs that decide nothing and show
   nothing durable is one call, so review finds every use.
 - **Admission is all or nothing,** by a watermark (skein's
