@@ -13,7 +13,12 @@ with what of 10 and 11 they need), skein's reads, jig's procedure funding. Out: 
 - `temper/docs/design/protocol/configuration.md`, section 3: a tier's `branch`, and the
   tiers' project settings `tier_retries` and `verification_bound` in the `landing` member;
   `temper/docs/design/domain/landing.md`, 13.1 to match.
-- Statuses: `after-landing.status.md` and `configuration.status.md` (Not yet);
+- `temper/docs/design/protocol/store.md`, section 2: families 28 `Tier`, 29 `Verification`, 30
+  `LandingLog`, findings 31 to 33; a tier receipt's failures; `Change`'s `Red`, `Cleared`,
+  `Uncleared`.
+- `temper/docs/design/client/forge.md`, 2.1 and 2.5, and `temper/docs/design/client/tools.md`,
+  5.4 and 5.5: the change panel's `verifying`, `red`, `cleared`; `change show --until cleared`.
+- Statuses: `after-landing`, `configuration`, `store`, client `forge` and `tools` (Not yet);
   `reference-landing.status.md` loses "6: main's tiers follow main"; the code-production
   draft's g's tier entry now names only what M9 adds.
 
