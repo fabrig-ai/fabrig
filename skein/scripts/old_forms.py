@@ -71,13 +71,13 @@ EXEMPT = {
 }
 BASELINE = Path('scripts/old-forms.txt')
 HEADER = (
-    "# Uses of the old forms (skein's docs/design/draft/dynamic-memory.md, 7, and component-kit.md, 4): "
+    "# Uses of the old forms (skein's docs/foundation/programming-model.md, 6.3, and component-kit.md, 4): "
     'each count may only fall.\n'
     '# Lower them with `python3 -I -B scripts/old_forms.py --write`; '
     'only the director raises one, recorded in a `# Raised:` line.\n'
 )
 RULE = (
-    "Uses of the old forms may only fall (skein's docs/design/draft/dynamic-memory.md, 7, "
+    "Uses of the old forms may only fall (skein's docs/foundation/programming-model.md, 6.3, "
     'and component-kit.md, 4): new code takes the new forms (Queue::uncapped, Journal::uncapped, '
     "decide, backlog, and the component kit's shared items in lib and io), "
     'or removes as many old uses as it adds.'

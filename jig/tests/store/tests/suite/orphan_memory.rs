@@ -1,5 +1,5 @@
 //! Count only this binary: the orphan queue costs what it holds, not
-//! the budget's most orphan tasks (skein's draft/dynamic-memory.md, 2).
+//! the budget's most orphan tasks (skein's programming-model.md, 6.1).
 use jig_store_world::World;
 use skein_heap::Meter;
 

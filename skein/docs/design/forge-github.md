@@ -157,7 +157,7 @@ the call fails `TooLarge` when a 50th page still has a next.
 | `Read::Items { since, page, kind }` | `GET R/issues?state=all[&since=<since>]&sort=updated&direction=asc&per_page=<size>&page=<page>` | omit `since` at zero: an epoch `since` lists nothing; otherwise send the UTC bound, inclusive. Each row a `Summary`: `number`; a `pull_request` member makes it a pull, and its `merged_at` makes one closed merged; `state`; `user.id`; `labels[].name`; `updated_at`; `title`; `body` (null as empty) and its key. A row of the other kind than the call's is skipped, and counts toward the page. Rows of one second are put in order of number before the page answers. `more` from `Link`; `now` from `Date` |
 | `Read::Item { number, after }` | `GET R/issues/<number>`; `GET R/issues/<number>/comments?per_page=<size>&page=<n>` from page 1, until the answer is full or a page has no next | the issue as a `Summary`; its comments with ids above `after`, oldest first, as forge.md 5.2's: `id`, `user.id`, `created_at`, `body` and its key, provenance, revision; `more` when one is left |
 | `Read::Pull { number }` | `GET R/pulls/<number>`; `GET R/commits/<head.sha>/status?per_page=1`; `GET R/commits/<head.sha>/check-runs?filter=latest&per_page=<size>&page=<n>`, every page; `GQ pull` when the pull is open and the repository's owner an organization, or merged (`merge_commit_sha` is absent at the pin) | `number`; `state`, `merged` making it merged; `head.ref`, `base.ref`, `head.sha`, `base.sha`; `merged` from `merge_commit_sha`, else `mergeCommit.oid`; `mergeable`, null as false; `requested_reviewers[].id`; `queued` from `mergeQueueEntry.position`; `dequeued` from the last `RemovedFromMergeQueueEvent`'s `reason`; `Ci` from both (4.4) |
-| `Read::PullFor { head, base }` | `GET R/pulls?state=open&head=<owner>:<head>&base=<base>&per_page=1`; when none, `GET R/pulls?state=all&head=<owner>:<head>&base=<base>&sort=created&direction=asc&per_page=1`; then as `Pull` for the number found | the open pull request for the head and base, else the oldest; `Missing` when there is none. `<owner>` is the repository's own: a fork's head is not followed (temper's draft 18) |
+| `Read::PullFor { head, base }` | `GET R/pulls?state=open&head=<owner>:<head>&base=<base>&per_page=1`; when none, `GET R/pulls?state=all&head=<owner>:<head>&base=<base>&sort=created&direction=asc&per_page=1`; then as `Pull` for the number found | the open pull request for the head and base, else the oldest; `Missing` when there is none. `<owner>` is the repository's own: a fork's head is not followed (temper's `draft/github.md`, 18) |
 | `Read::Reviews { number, page }` | `GET R/pulls/<number>/reviews?per_page=<size>&page=<page>` | as forge.md 5.2; `state` mapped `APPROVED` to `Approve`, `CHANGES_REQUESTED` to `RequestChanges`, `COMMENTED` and `DISMISSED` to `Comment`; `PENDING` and a null `submitted_at` skipped, counting toward the page; `commit_id`; `official` when `author_association` is `OWNER`, `MEMBER` or `COLLABORATOR` (section 15) |
 | `Read::Statuses { commit, page }` | `GET R/commits/<commit>/status?per_page=<size>&page=<page>` | `Ci` from `state` and `total_count`, 0 being `None`; each `statuses[]` row: `updated_at`, `context`, `state`, `description`, `target_url`; no job; `more` from `Link` |
 | `Read::Remarks { number, review, page }` | `GET R/pulls/<number>/reviews/<review>/comments?per_page=<size>&page=<page>` | `id`, `user.id`, `path`, `line`, else `original_line`, else 0, `body`; `more` from `Link` |
@@ -251,7 +251,7 @@ answer with `errors` is a refusal (section 7).
   enqueuePullRequest(input: {pullRequestId: $id, expectedHeadOid:
   $head}) { mergeQueueEntry { position } } }`.
 
-Batched reads are later (temper's draft 18).
+Batched reads are later (temper's `draft/github.md`, 18).
 
 ### 4.4 CI
 
@@ -271,7 +271,7 @@ Batched reads are later (temper's draft 18).
   another App's suite with no run lists no check run.
 - **Which checks are CI** is the adoption's, the client's: the branch's
   required checks when its rules name them, else the Actions workflows'
-  (temper's draft, 9). The dialect reads them all.
+  (temper's `draft/github.md`, 9). The dialect reads them all.
 - **An Actions job** has its own id, separate from the check-run id.
   For a failed check, `html_url` with the repository's owner and name and
   `/actions/runs/<run>/job/<job>` supplies candidate run and job ids;
@@ -286,7 +286,7 @@ Batched reads are later (temper's draft 18).
 
 ### 4.5 Actions, trees, refs and labels
 
-Designed, not built: the GitHub routes of forge.md 3.2's later calls.
+The GitHub routes of forge.md 3.2's Actions, tree, ref and label calls.
 
 | Call | Requests | Answer from |
 |---|---|---|
@@ -306,9 +306,9 @@ Designed, not built: the GitHub routes of forge.md 3.2's later calls.
   (5.3): `pulls_required`, whether any rule on the branch requires a
   pull request, and `pulls_bypass`, the App's bypass of the rulesets
   that do (`Never`, `PullsOnly` or `Always`, the least of them), beside
-  the aggregate `bypass` it has today.
+  the aggregate `bypass`.
 - **Stories against the fake GitHub** (fake-forge.md, sections 10 and
-  11), designed, not built: a workflow dispatched and its run found; a
+  11): a workflow dispatched and its run found; a
   status posted on a commit; a ref update fast-forwarded under `Always`;
   one refused as not a fast-forward; one refused under a rule without
   `Always`; a lost ref update's answer found made by its branch.
@@ -592,8 +592,8 @@ As forge.md section 7, in GitHub's words:
   `X-GitHub-Delivery`. The verdicts are forge.md 7's.
 - **Not yet reached:** GitHub delivers from the internet, and temper's
   App points its hook at an address that does not resolve (temper's
-  draft, 5). Every delivery fails and is listed in the log, which the
-  component reads (9.3). A public address is later (temper's draft 18);
+  `draft/github.md`, 5). Every delivery fails and is listed in the log, which the
+  component reads (9.3). A public address is later (temper's `draft/github.md`, 18);
   the fake's layer pushes to a listener when a test asks (fake-forge.md,
   section 10).
 
@@ -604,7 +604,7 @@ As forge.md section 7, in GitHub's words:
 `request.payload` give the same. The guid is a UUID's text, read into
 `[u8; 16]`; another text is malformed. The App receives `installation`,
 `installation_repositories` and `installation_target` without
-subscribing; the others are temper's draft section 5's, and no more.
+subscribing; the others are `EVENTS`' (section 11), and no more.
 
 | `X-GitHub-Event` | `github::Delivery` | `Hint` |
 |---|---|---|
@@ -692,9 +692,8 @@ Pure functions and decoders; forge-setup.md's plans run them.
   true, `hook_attributes { url, active: true }`, `default_permissions`
   and `default_events`. The values are the name, the url, the hook's
   url and the two return addresses; the permissions and events are the
-  module's constants, `PERMISSIONS` and `EVENTS` (temper's draft 5:
-  contents, pull requests, issues and merge queues write; checks,
-  statuses, actions, administration and metadata read; the fourteen
+  module's constants, `PERMISSIONS` and `EVENTS` (contents, pull
+  requests, issues and merge queues write; checks, statuses, actions, administration and metadata read; the fourteen
   events).
 - **The form's target:** `<web>/settings/apps/new?state=<s>` for a
   person or `<web>/organizations/<org>/settings/apps/new?state=<s>` for
@@ -736,20 +735,19 @@ Pure functions and decoders; forge-setup.md's plans run them.
   without it gets 2022-11-28, and GitHub supports a version for 24
   months after its next.
 - **`CHECKED`,** the date the live conformance last held on github.com
-  (the probes', 2026-10-20, until its first run).
+  (2026-10-20, until its first run).
 - **Readers:** the conformance (fake-forge.md, section 11), which
   records each fact of section 13 and finds a change.
 
 ## 13. What it relies on of GitHub
 
 Each fact by its conformance name, checked on the fake and, opt-in, on
-github.com (fake-forge.md, section 11); the probe that found it in
-temper's draft section 11.
+github.com (fake-forge.md, section 11).
 
 - **Tokens and identity:** `token-expires-in-an-hour`,
-  `token-narrowed-creates-not-edits` (P1); `rate-core-5000`, `jwt-calls-no-rate`
-  (P1); `viewer-is-bot`, `user-on-installation-403`,
-  `app-routes-401-on-installation-token` (P2); `jwt-iss-string`;
+  `token-narrowed-creates-not-edits`; `rate-core-5000`,
+  `jwt-calls-no-rate`; `viewer-is-bot`, `user-on-installation-403`,
+  `app-routes-401-on-installation-token`; `jwt-iss-string`;
   `bot-permission-is-not-a-role` (the App's bot's collaborator
   permission is `none` with an empty `role_name`, and the full mint's
   `permissions` name the installation's levels; observed 2026-10-23).
@@ -759,9 +757,9 @@ temper's draft section 11.
   "Resource not accessible by integration".
 - **Pull requests and CI:** `mergeable-null-then-settles`,
   `combined-pending-with-no-status`, `job-log-302-blob`,
-  `job-log-range-honoured` (P4); `merge-stale-409`,
+  `job-log-range-honoured`; `merge-stale-409`,
   `merge-after-move-not-merged`, `merge-unheld-by-ci`,
-  `update-stale-422`, `update-202-later` (P5); `etag-304-free` (P6).
+  `update-stale-422`, `update-202-later`; `etag-304-free`.
   Mergeability is null in the create response or a read soon after a head
   move, then boolean within the wait; the first read may already be boolean.
   The move fact requires either the recorded 405 or 409 and a pull read
@@ -775,17 +773,17 @@ temper's draft section 11.
   different sha on a merged pull; an open pull's stale sha remains 409.
 - **The log:** `log-lists-failed-deliveries`, `log-cursor-in-link`,
   `log-ids-19-digits`, `log-delivery-whole`,
-  `log-installation-events-unscoped` (P7);
+  `log-installation-events-unscoped`;
   `installation-target-in-log` (an App not subscribed to it). The fake checks
   an account rename; live records it unchecked because the run renames no
   account, so the event remains unobserved live.
 - **Rules and the queue:** `approve-own-422`, `ruleset-approval-405`,
-  `bypass-always-merges` (P8); `queue-direct-merge-405`,
+  `bypass-always-merges`; `queue-direct-merge-405`,
   `enqueue-stale-unprocessable`, `enqueue-pending-check-protected`,
   `queue-merged-no-merge-commit-sha`,
-  `queue-dequeued-delivered` (P9); `signatures-push-gh013` (P10);
+  `queue-dequeued-delivered`; `signatures-push-gh013`;
   `rules-branches-current-user-can-bypass`,
-  `classic-protection-404-under-rulesets` (P11). Own approval is 422 with
+  `classic-protection-404-under-rulesets`. Own approval is 422 with
   message Unprocessable Entity and a string error, Review Can not approve
   your own pull request. Pull request rules carry all five parameters:
   the approval count and the four booleans false, with an empty ref exclusion.
@@ -817,8 +815,8 @@ temper's draft section 11.
   group ci, or merge wait in a failed fact. Approval, admission, branch and
   check read refusals fail their fact; a raw enqueue refusal includes its GQ
   message. Later cases still run.
-- **Repositories and issues:** `installation-repositories-at-once`
-  (P12); `issues-list-pulls`, `new-issue-may-miss-listing` (P13).
+- **Repositories and issues:** `installation-repositories-at-once`;
+  `issues-list-pulls`, `new-issue-may-miss-listing`.
   The pull listing gets three tries, two seconds apart, without since.
   The new-issue fact records immediate visibility in an unfiltered listing;
   either visibility is valid. `issues-since-epoch-empty` first waits for its
@@ -844,8 +842,8 @@ temper's draft section 11.
   requires updated_at to advance. For setup and the component
   (forge-setup.md and forge-connection.md cite them):
   `inactive-hook-visible`, and `manifest-hook-invalid-host-accepted`
-  (an App hook at `https://<name>.invalid/`; the draft's Setup probe
-  saw `https://hooks.example-app.invalid/github` taken), both
+  (an App hook at `https://<name>.invalid/`, such as
+  `https://hooks.example-app.invalid/github`, is taken), both
   `unchecked` on github.com and held on the fake alone, since a live
   run changes nothing of the App (fake-forge.md, section 11); and
   `job-log-host-per-owner` (whether the log's redirect host differs

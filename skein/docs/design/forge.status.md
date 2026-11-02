@@ -1,6 +1,5 @@
 # forge: status
 
-2026-10-30. Where skein's code lags or departs from [forge.md](forge.md).
+2026-11-02. Where skein's code lags or departs from [forge.md](forge.md).
 
-- **Built:** 5.2, 9: `Checks` and `Statuses` resolve every Actions status's job attempt (Forgejo; GitHub's dialect resolves none). 2: product fakes. 3, 8, 10: protection facts, bypass and initial GitHub queue, credential and rate vocabulary. 3.2 to 3.7, 5.2: Actions (`Runs`, `Run`, `Dispatch`, `Rerun`), `Tree`, a merge's fast-forward only, an update by rebase, a status's words and link, on Forgejo; GitHub refuses them. 9: their facts recorded on Forgejo 17.0.0 and runner 13.2.0.
-- **Not yet:** 4.3: binary digests. 9: fact for an untaken job. 3, 8, 10: remaining GitHub vocabulary.
+- **Not yet:** 3.2: `Artifact`, `Commits`, `Labels`, `CreateLabel` and `UpdateRef`, and `CreateIssue`'s labels, in neither dialect (`skein-forge/src/api.rs`'s `Read` and `Write`). 3.6: `Protection`'s `pulls_required` and `pulls_bypass`. 3.7, 10: GitHub's dialect answers the Actions calls, `Tree`, a fast-forward-only merge and an update by rebase `Refused` (forge-github.md, 4.5). 9: no fact records that a job no runner took has no steps and no log, nor that comments take no page.

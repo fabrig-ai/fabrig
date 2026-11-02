@@ -159,7 +159,7 @@ pub enum Delivery {
 // application_documents::a_remediations_panel_says_restarting_then_waiting_for_healthy
 // and application_documents::an_incidents_subject_follows_an_alert_to_its_resolution.
 // A ceiling, a quarter above, rounded up to two significant digits
-// (skein's dynamic-memory draft, 7.1); it moves by hand only in the commit
+// (skein's testing-strategy.md, 6); it moves by hand only in the commit
 // of a real change that passes it, never on a type's size.
 const OPS_HEAP_CEILING: u64 = 19_000_000;
 

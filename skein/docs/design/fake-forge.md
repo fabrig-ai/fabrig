@@ -769,11 +769,10 @@ Each route is decoded by the server side of `skein_forge::github` and
 answered as GitHub answers. GitHub's quirks live here. The domain gains
 only what GitHub has and Forgejo lacks (10.2).
 
-Built here are the checks and job reads, signed job-log redirects, the
+The layer serves the checks and job reads, signed job-log redirects, the
 peer's blob listener and its redirect scenarios, drawn mergeability settle
-deadlines, person credentials and installation scopes/revocation, byte faults,
-and the service and hosted-peer allocator binaries. The remaining contracts
-below are tracked in STATUS.md.
+deadlines, person credentials, installation scopes and revocation, and byte
+faults; the service and the hosted peer each have an allocator binary.
 
 ### 10.1 What it serves
 
@@ -807,8 +806,7 @@ below are tracked in STATUS.md.
 
   The App's routes on another kind are `401`. `GET /user` on an
   installation's token is `403`. Tokens stay in the layer, as in
-  section 4. Person tokens, `GET /user` and the installation-token refusal
-  are built. Each person secret names a configured account's domain user;
+  section 4. Each person secret names a configured account's domain user;
   repository permissions and write authorship follow that user. An optional
   expiry on each configured person token emits
   `github-authentication-token-expiration` on that token's answers, in
@@ -842,7 +840,7 @@ below are tracked in STATUS.md.
   reads one, each row with its account's type and its creation time on
   the forge's clock. `DELETE /installation/token` revokes a token. The
   App's `DELETE /app/installations/<id>` removes an installation.
-  Revocation and the scope matrix are built: every routed REST request and
+  Every routed REST request and
   GraphQL document is checked against full, contents-only, expired, revoked,
   person and JWT credentials. Contents-only GraphQL refusals use `errors`.
   The conformance case records the mint response permissions object and
@@ -874,8 +872,7 @@ below are tracked in STATUS.md.
   it says otherwise, so that a story on real time sees a renewal. The
   layer keeps a bounded record of its git calls, each with its
   installation and the mint number of its token, which a scenario
-  reads to tell which token a push carried. The private git route, scenario's
-  token life and bounded git call record are built.
+  reads to tell which token a push carried.
 - **Ruleset mutations.** A person's `POST /repos/<o>/<n>/rulesets`
   replaces the domain's repository protection, requiring admin permission;
   `DELETE /repos/<o>/<n>/rulesets/<id>` removes it. The subset is strict:
@@ -1010,15 +1007,14 @@ below are tracked in STATUS.md.
   - the approval sentence is `At least 1 approving review is required
     by reviewers with write access.` for 1, and `At least 2 approving
     reviews are required by reviewers with write access.` for 2.
-    The singular is recorded in o/github live 2026-10-20, and the plural
-    for 2 in live session 1917; counts of 3 and up use the plural by
-    inference;
+    The singular and the plural for 2 are recorded live; counts of 3
+    and up use the plural by inference;
   - a branch that queues refuses a direct merge with `405`, the same
     header, then `Changes must be made through the merge queue\n\n`,
     then the unmet approval and context lines in the same order.
-    Live session 1917 records the queue line followed by the approval
+    A live record shows the queue line followed by the approval
     line. Context lines after the queue line are inferred: neither
-    shape was recorded with checks, and the session lists every
+    shape was recorded with checks, and the record lists every
     violated rule. With no unmet rules, only the queue line follows
     the header;
   - an enqueue refused for approvals answers HTTP `200`, with
@@ -1047,7 +1043,7 @@ below are tracked in STATUS.md.
   - as a ruleset, with its id and the App's `current_user_can_bypass`;
   - as classic protection, otherwise `404` "Branch not protected";
   - or both.
-- **Rates (built).** Every answer on a token carries `x-ratelimit-*` from the
+- **Rates.** Every answer on a token carries `x-ratelimit-*` from the
   domain's window: `rate_limit`, what remains of it, and its end. The
   App JWT calls carry none. A call refused for the rate (`limited`)
   is `403` with `x-ratelimit-remaining: 0`. A crowded one is `403` "You
@@ -1076,16 +1072,14 @@ below are tracked in STATUS.md.
 
 ### 10.2 What the domain gains
 
-These are small, and they land after forge-kit's steps on the fakes:
+These are small:
 
 - **Protection** gains `queue`, `linear`, `code_owners` and a list of
   bypassing users. A bypassing user's merge skips the checks and the
   approvals. The domain does not sign, so it keeps no signatures rule:
   the layer shows `required_signatures` from its `Config` and refuses a
-  push as `GH013` when the scenario asks for it.
-  The push refusal is not built: GitHub-world pushes reach the domain directly,
-  with no GitHub layer between them; the text waits for P10, and the domain's
-  `Rejected` stays the only push refusal.
+  push as `GH013` when the scenario asks for it. Its text is the one
+  `signatures-push-gh013` records (forge-github.md, section 13).
 - **The merge queue.** `Write::Enqueue { number, head }` refuses a moved
   head, as a merge does. An entry's group commit is the squash of its
   head onto the base's tip, or onto the entry ahead of it. That commit
@@ -1147,13 +1141,13 @@ These are contracts: a story that leans past one of them is wrong, not
 the fake.
 
 - **Only the dialect's routes and documents** are served. Others are
-  `404`, and other GraphQL documents are `errors`. Built, including bodyless
+  `404`, and other GraphQL documents are `errors`, including bodyless
   `HEAD` refusals and `OPTIONS`; representative unknown routes and documents
   have a table test.
 - **Plaintext, on loopback,** at three origins: `api`, which also
   serves `web`'s routes, `blob`, and an optional third one.
 - **Messages** follow the conformance's recorded texts for the refusals of
-  forge-github.md, section 7, and live session 1917. Section 10.1 marks
+  forge-github.md, section 7, and the live records of 10.1, which marks
   the inferred approval counts and queue context lines.
 - **Merges** follow the domain: squashes, whatever the method asked,
   and a queue's group is built from the entry ahead, not batched.
@@ -1202,15 +1196,14 @@ the fake.
 
 ## 11. GitHub's conformance
 
-`tests/forge/github` is built as a tool beside section 7's. It runs the same
+`tests/forge/github` is a tool beside section 7's. It runs the same
 cases against two targets and records each fact of forge-github.md,
 section 13, as `holds`, `fails` or `unchecked`. Its transcripts, facts,
 masking and refusal of leaked secrets are section 7's.
 
 - **The fake** (`--fake`, the default) is the GitHub layer in-process,
   hosted by the forge peer. It also runs as one test in the focused
-  suite, which refuses failed facts and unexpected unchecked facts. Required
-  signatures remain unchecked because their enforcement is unbuilt in the fake.
+  suite, which refuses failed facts and unexpected unchecked facts.
 - **github.com** (`--live <directory>`) is opt-in. It runs from the
   user's session alone, and only on the user's word. It is never
   run by a suite or a gate, and never from CI.

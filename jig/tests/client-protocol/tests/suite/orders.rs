@@ -1,5 +1,5 @@
 //! Durability and exchange order in a world with a scripted parent and slow store.
-//! See skein/docs/design/draft/dynamic-memory.md, 4.6.
+//! See skein/docs/foundation/programming-model.md, 7.2.
 use jig_client_domain::{Ask, Asker, Held, Key, Readable, contract};
 use jig_client_protocol_link::{Event, Link, Message, Record, Request, Saved};
 use jig_client_protocol_wire::v19 as w;

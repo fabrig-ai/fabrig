@@ -1,6 +1,6 @@
 //! Copy this entry-point shape. Every child hand-off belongs to the admitted
 //! decision, and its synchronous route finishes before the next entrance
-//! (domain/root.md, 3–4; skein's draft `dynamic-memory.md`, 4.6).
+//! (domain/root.md, 3–4; skein's `programming-model.md`, 7.2).
 use crate::{Event, Limits, Output, Record, Released, Store, Write};
 use alloc::boxed::Box;
 use jig_domain_core as core;

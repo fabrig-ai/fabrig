@@ -167,7 +167,7 @@ pub trait Application {
     /// The scenario's heap ceiling: the most the engine, with its peers'
     /// allocations after construction, may hold at an iteration. A named
     /// constant with headroom over the most a world's stories hold (skein's
-    /// dynamic-memory draft, 7.1), not the root's formula.
+    /// testing-strategy.md, 6), not the root's formula.
     fn maximum(config: &Self::Config) -> u64;
     /// Price ownership transferred from pre-existing configuration.
     /// A measured heap ceiling needs no configuration price (0).

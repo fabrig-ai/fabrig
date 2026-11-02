@@ -273,7 +273,7 @@ pub struct Limits {
     /// Journal release pacing and capacities used for conservative pricing.
     pub journal: JournalSizes,
     /// New external work waits while the backlog is at or past this many
-    /// entries (skein's draft `dynamic-memory.md`, 4.4); a pacing limit,
+    /// entries (skein's `programming-model.md`, 7.1); a pacing limit,
     /// not a memory one.
     pub watermark: u32,
     /// At most this many synchronous child continuations per decision.

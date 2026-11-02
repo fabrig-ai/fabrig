@@ -1,7 +1,7 @@
 # A component kit, phase 1: lib's primitives and the io stage
 
-Draft, 2026-10-31. The first slice of the skein code-quality review of
-2026-10-31 (source `3371027`; `fab/review-2026-10-31/` in fab's home):
+Draft, 2026-10-31. The first part of [the skein code-quality review of
+2026-10-31](../../development/skein-review-2026-10-31.md):
 the primitives each component writes again for itself, moved into lib
 and io, and the call sites moved onto them. It changes no rule of the
 programming model or the testing strategy; section 6 asks whether one
@@ -15,10 +15,9 @@ strategy](../../foundation/testing-strategy.md).
 ## 1. In one page
 
 - **Shared mechanism is written once.** A deadline helper, a lifecycle,
-  a growth rule, hex and decimal parsing and the io stage are each
-  written privately in 2 to 39 places today, and the copies have
-  drifted. Each moves to the crate whose role it fits: the generic
-  pieces to lib, the io stage to io.
+  a growth rule, hex and decimal parsing and the io stage, each written
+  privately in many places, have one home. Each moves to the crate
+  whose role it fits: the generic pieces to lib, the io stage to io.
 - **The model already allows it.** These are concrete step pieces that a
   component holds by value or calls as free functions: no trait, no
   generic item, no `dyn` (programming-model.md, 4 and 10). Only the
@@ -27,7 +26,7 @@ strategy](../../foundation/testing-strategy.md).
   skeleton, before any call site moves. Every later part uses that
   surface and adds to it only by amending it.
 - **One root end to end first.** The echo example's host moves onto the
-  shared stage before the other 38 sites do, and its story test stays
+  shared stage before the other sites do, and its story test stays
   green on main.
 - **Then crate by crate.** Each remaining site moves in crate-graph
   order, one crate per task: expand (the new form beside the old),
@@ -38,42 +37,31 @@ strategy](../../foundation/testing-strategy.md).
 
 ## 2. Why
 
-From the review (themes 1b, 1c and 1d, decisions D6 and D9):
+From the review (themes 1b, 1c and 1d, decisions D6 and D9), and as the
+code stands:
 
 - **Economy scores 2 of 5 in 11 of 12 areas.** The same mechanism is
   hand-written in each component, each dialect, each fake face and each
   test harness.
-- **The io stage is written in every host.** 39 `io::resume` call sites
-  sit outside skein-io. Only some check the kernel's submission room
-  before taking work, which testing-strategy.md 6 requires of every one.
-  The same ordering test exists twice, each `#[path]`-including another
-  crate's private source.
-- **lib's gaps are filled privately.** `earliest(Option<Time>, Time)`
-  four times, plus inline copies in forge-connection; `for _ in 0..len {
-  pop }` loops where `clear` is missing; the growth rule five times in
-  lib itself, each with its own `GROWTH_FLOOR`; the same `enum Lifecycle
-  { Live, Closing, Aborting, Closed }` in llm-connection and
-  oauth-accounts; no slab iteration, so oauth-accounts walks a linked
-  list over its slab nine times; `hex` four times and more, and decimal
-  parsing three times (HTTP's client and server `decimal` are
-  identical).
-- **The loop surfaces cost every test world.** `Referee::act`,
-  `next_deadline` and `overdue` have no defaults
-  (`testing/skein-world/src/referee.rs:49-60`), so about 20 referees
-  return `None` or do nothing. About 10 test `enum Process` dispatchers
-  forward `Host` method by method (44 to 70 lines each), and they have
-  drifted: `exit` and `state_digest` are forwarded in some and not in
-  others. Every host merges its mechanism and policy deadlines by hand.
-- **Two components miss a rule.** skein-forge-connection and
-  skein-forge-setup's host take no `Abort` request, which
-  programming-model.md 5.2 requires.
+- **The io stage is still driven by hand in hosts.** `io::resume` call
+  sites remain outside skein-io, in skein (`old-forms.txt`'s
+  `io_resume`) and in smith's and temper's hosts. Each must check the
+  kernel's submission room before it takes work (testing-strategy.md,
+  6), which the shared stage does for it.
+- **Some of lib's primitives are still copied privately:** an `earliest`
+  helper, a `Lifecycle` enum and `hex` or `decimal` functions
+  (`old-forms.txt`'s `earliest_helper`, `lifecycle_enum` and
+  `hex_decimal_fn`).
+- **Test dispatchers forward `Host` by hand.** Test `enum Process`
+  dispatchers forward `Host` method by method (`old-forms.txt`'s
+  `host_forwarder`).
 
 ## 3. The parts
 
 | Part | Kind | What |
 |---|---|---|
 | kit-contract | contract | lib's missing primitives and the io stage, as a skeleton that lands alone |
-| echo-first | migration | the echo host on the shared stage; slice 1 |
+| echo-first | migration | the echo host on the shared stage, first |
 | stage-sites | migration | the other io stage sites, one crate per task |
 | lib-sites | migration | the private copies of lib's primitives, one crate per task |
 | world-surfaces | feature | `Referee` defaults, a provided `Host::next_deadline`, a forwarding `Host` |
@@ -103,7 +91,7 @@ moves in this part.
 ### 3.2 echo-first
 
 The echo example's host runs on the shared stage, and its story test is
-green on main. This is slice 1: the first root to run end to end on the
+green on main. It is the first root to run end to end on the
 contract.
 
 ### 3.3 stage-sites
