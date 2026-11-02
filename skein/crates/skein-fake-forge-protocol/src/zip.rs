@@ -84,8 +84,8 @@ fn crc(bytes: &[u8]) -> u32 {
     let mut crc = u32::MAX;
     for byte in bytes {
         crc ^= u32::from(*byte);
-        for _ in 0..8 {
-            crc = (crc >> 1) ^ (0xedb8_8320 & 0u32.wrapping_sub(crc & 1));
+        for _ in 0_u8..8 {
+            crc = (crc >> 1_u32) ^ (0xedb8_8320 & 0u32.wrapping_sub(crc & 1));
         }
     }
     !crc

@@ -126,10 +126,10 @@ use skein_forge_client_world::translate::commit;
 
 fn workflow() -> raw::Workflow {
     raw::Workflow {
-            fails: Box::new([]),
-            flaky: Box::new([]),
-            report: None,
-            select: None,
+        fails: Box::new([]),
+        flaky: Box::new([]),
+        report: None,
+        select: None,
         file: Box::from(b"gate.yml".as_slice()),
         jobs: Box::new([Box::from(b"build".as_slice()), Box::from(b"test".as_slice())]),
         latency_min: Duration::from_secs(2),
@@ -510,4 +510,28 @@ fn commit_messages_cross_two_pages_through_the_fakes_http_routes() {
         assert_eq!(world.read(Read::Commits { before: commit(ROOT), after: commit(third), page }), Ok(expected));
     }
     world.finish();
+}
+
+#[test]
+fn junit_reports_are_cut_after_decoding_either_zip_format() {
+    const REPORT: &[u8] = b"<?xml version=\"1.0\" encoding=\"UTF-8\"?><testsuite><testcase name=\"a\"/><testcase name=\"b\"><failure/></testcase></testsuite>";
+    for deflate in [false, true] {
+        let mut workflow = report_workflow(&[b"b"], &[b"a"], deflate);
+        workflow.report.as_mut().expect("configured report").format = raw::ReportFormat::Junit;
+        let mut world = World::turn(61, Box::new([workflow]), Box::new([]));
+        let (head, run) = dispatch_report(&mut world, Some(b"b\na\n"));
+        for max_bytes in [20, u32::try_from(REPORT.len()).expect("fixture report fits")] {
+            let kept = usize::try_from(max_bytes).expect("fixture length fits");
+            assert_eq!(
+                world.read(Read::Artifact { run: run.id, name: Box::from(*b"tests"), max_bytes }),
+                Ok(Answer::File {
+                    head,
+                    path: Box::from(*b"report.xml"),
+                    bytes: Box::from(&REPORT[..kept]),
+                    truncated: kept < REPORT.len(),
+                })
+            );
+        }
+        world.finish();
+    }
 }

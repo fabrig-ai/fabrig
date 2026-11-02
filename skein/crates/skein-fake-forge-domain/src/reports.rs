@@ -1,4 +1,4 @@
-//! Test ids and completed runs' report files (fake-forge.md, 2.3).
+//! Test ids and completed runs' report files (skein/docs/design/fake-forge.md, 2.3).
 use crate::{
     Domain, Limits,
     actions::Run,

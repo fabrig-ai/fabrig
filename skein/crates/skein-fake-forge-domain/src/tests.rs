@@ -7,8 +7,8 @@ mod locate;
 mod next;
 mod promises;
 mod protection;
-mod reports;
 mod queue;
+mod reports;
 mod settle;
 mod trees;
 

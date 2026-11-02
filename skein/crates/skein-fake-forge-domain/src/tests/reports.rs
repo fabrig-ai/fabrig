@@ -1,5 +1,5 @@
 use super::*;
-use crate::api::{Artifact, Cue, Report, ReportFormat, Run, Job};
+use crate::api::{Artifact, Cue, Job, Report, ReportFormat, Run};
 const REPORT: &[u8] = b"tests";
 fn configured_report(config: Config, format: ReportFormat, fails: &[&[u8]], cue: Option<Cue>) -> Harness {
     configured_report_jobs(config, format, fails, &[], cue, &[b"tests"])
@@ -264,4 +264,104 @@ fn workflow_runs(h: &Harness) -> Box<[Run]> {
 fn run_jobs(h: &Harness, run: u64) -> Box<[Job]> {
     let Answer::Jobs(jobs) = h.inspect(&Read::Jobs { run }).unwrap() else { unreachable!("jobs") };
     jobs
+}
+
+#[test]
+fn an_artifact_appears_once_the_last_job_completes() {
+    let mut h = configured_report(CALM, ReportFormat::Lines, &[b"a"], None);
+    h.ok(ENGINE, dispatch());
+    let run = workflow_runs(&h)[0].id;
+    assert_eq!(h.inspect(&Read::Artifacts { run }), Ok(Answer::Artifacts(Box::new([]))));
+    assert_eq!(h.inspect(&Read::ArtifactById { id: run }), Err(Error::Missing(What::File)));
+    h.settle();
+    assert_eq!(
+        h.inspect(&Read::Artifacts { run }),
+        Ok(Answer::Artifacts(Box::new([crate::api::ArtifactInfo {
+            id: run,
+            name: copy_of(REPORT),
+            size_in_bytes: 2,
+        }])))
+    );
+    assert_eq!(h.inspect(&Read::ArtifactById { id: run }), h.inspect(&Read::Artifact { run, name: copy_of(REPORT) }));
+}
+
+#[test]
+fn junit_escapes_test_ids_and_normalizes_line_endings() {
+    let mut h = configured_report(CALM, ReportFormat::Junit, &[b"a<&\"'"], None);
+    assert_eq!(run_report(&mut h, Some(b"\r\na<&\"'\r\n\n")), Ok(junit(b"<?xml version=\"1.0\" encoding=\"UTF-8\"?><testsuite><testcase name=\"a&lt;&amp;&quot;&apos;\"><failure/></testcase></testsuite>")));
+}
+
+#[test]
+fn an_oversized_report_is_refused_before_a_run_is_created() {
+    let mut configured = setup();
+    configured.checks.contexts = Box::new([]);
+    configured.workflows = Box::new([crate::api::Workflow {
+        report: Some(Report { artifact: copy_of(REPORT), format: ReportFormat::Junit, deflate: false }),
+        ..workflow(&[b"tests"])
+    }]);
+    let mut h = Harness::with(CALM, configured);
+    // Even an empty JUnit document exceeds this fixture's 32 content bytes.
+    assert_eq!(h.call(ENGINE, dispatch()), Err(Error::TooLarge));
+    assert!(workflow_runs(&h).is_empty());
+}
+
+#[test]
+fn test_cues_override_a_context_without_changing_other_contexts() {
+    let mut configured = setup();
+    configured.checks.contexts = names(&[b"tests", b"other"]);
+    configured.checks.cues =
+        Box::new([crate::api::ContextCue { context: copy_of(b"tests"), cue: Cue::Tests { path: copy_of(b"ids") } }]);
+    let mut h = Harness::with(CALM, configured);
+    let mut parent = FIRST;
+    for (ids, expected) in [(b"\r\na\r\n".as_slice(), Check::Failed), (b"\n\r\n".as_slice(), Check::Passed)] {
+        let head = h.commit(parent, &[(b"ids", ids)]);
+        parent = head;
+        h.push(ENGINE, b"work", head).unwrap();
+        h.settle();
+        let Answer::Checks(checks) = h.inspect(&Read::Checks { commit: head }).unwrap() else { panic!("checks") };
+        assert_eq!(checks.len(), 2);
+        for check in checks {
+            assert_eq!(
+                check.status.state,
+                if check.status.context.as_ref() == b"tests" { expected } else { Check::Passed }
+            );
+        }
+    }
+}
+
+#[test]
+fn commit_ranges_exclude_the_old_history_and_keep_both_merge_parents() {
+    let mut h = Harness::new(CALM);
+    let left =
+        crate::commit(&mut h.domain, &h.env.limits, FIRST, files(&[(b"left", b"one")]), b"left\n").unwrap().unwrap();
+    let right =
+        crate::commit(&mut h.domain, &h.env.limits, FIRST, files(&[(b"right", b"two")]), b"right\n").unwrap().unwrap();
+    let merge = crate::merge_commit(
+        &mut h.domain,
+        &h.env.limits,
+        left,
+        right,
+        files(&[(b"left", b"one"), (b"right", b"two")]),
+        b"merge\n\nTrailer: kept\n",
+    )
+    .unwrap();
+    h.push(ENGINE, MAIN, merge).unwrap();
+    assert_eq!(
+        h.inspect(&Read::Commits { before: left, after: merge }),
+        Ok(Answer::Commits {
+            commits: Box::new([
+                crate::api::CommitMessage { id: right, parents: Box::new([FIRST]), message: copy_of(b"right\n") },
+                crate::api::CommitMessage {
+                    id: merge,
+                    parents: Box::new([left, right]),
+                    message: copy_of(b"merge\n\nTrailer: kept\n")
+                },
+            ])
+        })
+    );
+    assert_eq!(
+        h.inspect(&Read::Commits { before: merge, after: merge }),
+        Ok(Answer::Commits { commits: Box::new([]) })
+    );
+    assert_eq!(h.inspect(&Read::Commits { before: FIRST, after: 99 }), Err(Error::Missing(What::Commit)));
 }

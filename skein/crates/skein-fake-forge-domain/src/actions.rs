@@ -341,7 +341,9 @@ pub(crate) fn steps(context: &[u8], failing: Failing, cue: Option<&Cue>, pull: O
             number: WORKFLOW_STEP,
             name: match cue {
                 Some(Cue::PullFile { step, .. }) => copy_of(step),
-                Some(Cue::File { .. } | Cue::Message { .. } | Cue::Tests { .. }) | None => joined(context, &[b"Run ", context]),
+                Some(Cue::File { .. } | Cue::Message { .. } | Cue::Tests { .. }) | None => {
+                    joined(context, &[b"Run ", context])
+                }
             },
             status,
             log: log(context, failing, cue, pull, Some(1)).expect("workflow log"),

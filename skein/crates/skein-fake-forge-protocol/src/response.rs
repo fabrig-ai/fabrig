@@ -454,9 +454,8 @@ pub fn answer(
             let Request::ArtifactZip { .. } = request else {
                 return Err(a::Error::Refused);
             };
-            let body =
-                crate::zip::write(&artifact.path, &artifact.bytes, artifact.deflate, limits.raw_bytes)
-                    .or(Err(a::Error::TooLarge))?;
+            let body = crate::zip::write(&artifact.path, &artifact.bytes, artifact.deflate, limits.raw_bytes)
+                .or(Err(a::Error::TooLarge))?;
             return Ok(Reply {
                 status: 200,
                 headers: Box::new([skein_http::Header {

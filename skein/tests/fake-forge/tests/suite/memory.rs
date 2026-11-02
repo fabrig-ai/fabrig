@@ -7,8 +7,8 @@
 #![cfg(test)]
 
 use skein_fake_forge_domain::api::{
-    Answer, Check, Checks, ContextCue, Cue, Error, File, Git, Op, Order, Permission, Protection, Read, Report, ReportFormat, Setup, Verdict, Workflow,
-    Write,
+    Answer, Check, Checks, ContextCue, Cue, Error, File, Git, Op, Order, Permission, Protection, Read, Report,
+    ReportFormat, Setup, Verdict, Workflow, Write,
 };
 use skein_fake_forge_domain::{Config, Domain, Event, Limits, Request, Skew, fire, step};
 use skein_lib::{Duration, Env, List, Queue, ReplyTo, Time, Token, Wall, Writer};
@@ -477,6 +477,10 @@ fn fill(forge: &mut Measured, index: u64, first: u64) {
 const FILLED_FORGE_PEAK_CEILING: u64 = 87_000;
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one measured fixture keeps the filled repositories, reports and held range answers alive together"
+)]
 fn a_forge_filled_to_its_limits_stays_within_its_peak_ceiling() {
     let config = Config { limits: Limits { workflows: 1, workflow_runs: 2, ..LIMITS }, ..CONFIG };
     let mut forge = Measured::with(config, FILLED_FORGE_PEAK_CEILING);
@@ -513,13 +517,27 @@ fn a_forge_filled_to_its_limits_stays_within_its_peak_ceiling() {
     for index in 0..u64::from(LIMITS.repositories) {
         let repository = name(b'r', index);
         for _ in 0..config.limits.workflow_runs {
-            forge.ok(AUTHOR, &repository, Op::Write(Write::Dispatch {
-                workflow: Box::from(*b"r.yml"), branch: name(b'b', 0), inputs: Box::new([]),
-            }));
+            forge.ok(
+                AUTHOR,
+                &repository,
+                Op::Write(Write::Dispatch {
+                    workflow: Box::from(*b"r.yml"),
+                    branch: name(b'b', 0),
+                    inputs: Box::new([]),
+                }),
+            );
         }
-        let Answer::Runs(runs) = forge.domain.inspect(&config, &repository, &Read::Runs {
-            workflow: Some(Box::from(*b"r.yml")), commit: None, number: None, page: 1, limit: 0,
-        }).expect("completed workflow runs") else { panic!("runs answer") };
+        let Answer::Runs(runs) = forge
+            .domain
+            .inspect(
+                &config,
+                &repository,
+                &Read::Runs { workflow: Some(Box::from(*b"r.yml")), commit: None, number: None, page: 1, limit: 0 },
+            )
+            .expect("completed workflow runs")
+        else {
+            panic!("runs answer")
+        };
         assert_eq!(runs.len(), usize::try_from(config.limits.workflow_runs).expect("run count fits"));
         for run in runs {
             forge.ok(ADMIN, &repository, Op::Read(Read::Artifacts { run: run.id }));
