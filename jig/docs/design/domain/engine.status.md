@@ -1,14 +1,20 @@
 # engine: status
 
-2026-11-01. Where jig's code lags or departs from [engine.md](engine.md).
+2026-11-02. Where jig's code lags or departs from [engine.md](engine.md).
 
-- **Built:** 7.4: nothing-left-to-await notice and bounded run tries.
-
-- **Built:** 17.7: `settings::writes_bound` checked against the store's commit edge through `JournalSizes.writes`. 3: uncapped child hand-offs, no output maxima; authority's stored finding bound and people's settings-edge output bound. 5.1: `Limits::routes` bounds drains. 4 to 7, 9, 11, 13: client plumbing, ended indexes, dependencies, account/source placement, stable account deadlines and startup capacities. 6.1, 11: stop/finishing fence and projection-before-watch order. 6, 7.2: patched transcripts, fresh-window restart, and a fresh mark's crossed claims never adopted. 17.6: bounded settings proposals, owner decisions and restart. 17.2 to 17.4, 17.7, 17.8: a task's settings revision and its run's; revisions held while live work reads them and their charter versions, read at or before a revision; release with the last holder; a change's `Moves`, `MoveToNewest` and a conversation at its next run; the full bound replaces the newest-only interim; start restores held revisions, release keeps old versions; fleet needs by charter version. 15: settings stories of the bound and its recovery, a live run adopted on its version, a removed charter's delegation refused, a conversation's move, and held-version documents. 5.3: a brief's notes load refused for room sends its task back to due until a later ready turn, never retried in the same route nor counted as a refusal. 7.3: a run's `settings` reads create no call record. 17.6: run settings proposals for deployment owners. 7.3: release refused naming a placed hold's owner; propose's release of a task from a placed hold.
-- **Built:** 6: load, then link, the one start of every root (jig's reference roots, the ops example, temper). `Core::start_begin` takes the start's time once; the core asks `start::Phase` by phase (`LoadCore`, `LoadInbox`, `RestoreConnector`, `Link`, `Sweep`, `Switch`, `Wires`, `AdoptRuns`, `ReadAfresh`, `SettleOutbox`, `Open`) and resumes a commit's `Continuation` once it is released. Restores decode and fit, judging no record; a fit failure is a `start::Failure` (settings, project policy, held revisions or versions, accounts past a limit, a live set with its key, accounting, LLM choice), kept with its phase. Every link is made at `Link` and a missing one panics naming the record's key and the link (`Core::start_missing` for the store's missing owners); the sweep follows it. Every start takes `Switch` and commits the wires; nothing leaves the process before the mark.
-- **Built:** 15: the core world's `effects::World` runs the restart oracle when it drops (`close`): it settles, restarts cold and compares retained rows, transcripts and parties' documents through one durable projection, whose rebuilt fields are an account's last end, a chip's host, a task's next-run wait and a cancelled move's hold; `broken()` opts out a deliberately broken fixture.
-- **Built:** 9: a task's brief includes its contract only when its result ends it; a task its requester ends sees its spec without the contract.
-- **Not yet:** 6: `Core::new` without a start is ready, for the core's unit fixtures only; every root starts it.
-- **Not yet:** 15: 37 core-world stories opt out of the oracle with a named finding: 35 a claim the start settles (6, step 3) changing a task's `chip`, `acts` or run `settings`, which the projection keeps durable; a frame's `needs` with a person proposal left pending; `Deployment.messages` advancing on a retried deadline. The core world's `world` and `direct` drivers run no oracle. 2, 8: inline engine agents, hello placement barrier and two-claim placement balance. 4.2, 5.3: remaining point-load fences. 7.1, 9: brief's Lineage/Calls/Waiting; 7.2: objects made by turn calls. 11.1: resolved preview. 7.3: hold, lift.
-
-- **Built:** 11: an unknown unwatch receives its unwatched ending behind the commit barrier.
+- **Not yet:** 2, 8: runs on the engine's own slots under
+  `smith-inline-agent`; the engine hub's hello before placement; the
+  two-claim placement balance. 4.2, 5.3: the remaining point-load fences.
+  7.1, 9: the brief's lineage, calls and waiting sections. 7.2: what a
+  turn's calls made, written beside the turn. 7.3: `move`, `succeed`,
+  `hold` and `lift`. 7.5: jobs. 8: the client wire naming a shortfall's
+  charter for turns, time, waiting and checks. 11.1: `me`'s
+  `resolved_default`. 15: core-world stories that opt out of the restart
+  oracle with a named finding (`broken()` in `jig/tests/core`), most for
+  a claim the start settles (6, step 3) changing a task's `chip`, `acts`
+  or run `settings`, which the projection keeps durable, others for a
+  frame's `needs` with a person proposal left pending and
+  `Deployment.messages` advancing on a retried deadline; the core
+  world's `world` and `direct` drivers run no oracle.
+- **Departs:** 6: `Core::new` without a start is ready, because the
+  core's unit fixtures need no start; every root starts it.
