@@ -29,9 +29,7 @@
   its `--ended` adds the ended to the live. 5.3: `task stop` places a
   hold over the task's subtree (`jig/rows.rs` `STOP`), as jig's `Stop`
   does (jig's `domain/people.md`, 5.1), where its row holds the task;
-  `hold lift` is keyed optionally (`Keyed::Optional`). 5.5, area 5: a
-  moved file starts with its version, a u16 that `temper-client-shell-cli`'s
-  `host/input.rs` checks, and no `JIGM` magic. 12: an authority's
+  `hold lift` is keyed optionally (`Keyed::Optional`). 12: an authority's
   entries are 14 (`limits.rs`), and the client's `projects` bound, 2, is
   not in the table. 5.5, area 6, and 10: `playground start` sends
   `StartPlayground`, not `StartDemo`; `playground end` (`EndPlayground`)

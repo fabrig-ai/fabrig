@@ -780,9 +780,9 @@ The table grows area by area, each with its stories (section 11).
      request or answer kept (section 7). `task move` and `task take` are
      area 3's names.
    - **The file's form is jig's,** opaque to temper: a moved record,
-     `JIGM` and its version, then the application's name, the issuer,
-     the client id, the subject, the display name and skein's record
-     (jig's `protocol/llm.md`, 5.6). The application's name is
+     its version, then the application's name, the issuer, the client
+     id, the subject, the display name and skein's record (jig's
+     `protocol/llm.md`, 5.6). The application's name is
      `temper`, temper's root's constant, the same in every deployment
      and never configured, so a file moves between any two temper
      deployments whose LLM provider has the same registration (issuer
@@ -790,7 +790,7 @@ The table grows area by area, each with its stories (section 11).
      is refused "not ours" by another application built on jig.
    - **The file's versions** (`../draft/upgrades.md`, 4.2 to 4.4): it
      carries two families, each with its version, a version naming one
-     layout: jig's moved form (`JIGM`, form 1) and, inside it, skein's
+     layout: jig's moved form (form 1) and, inside it, skein's
      OAuth record (its `RECORD_VERSION`). It holds one value, not a
      store, so no store's levels; the nesting fixes a patch's order,
      the form's patches first, then skein's on the record inside it.
@@ -837,14 +837,13 @@ The table grows area by area, each with its stories (section 11).
    - **`account import`, step by step:** FILE is read as a key's file is
      (above), its bytes whole, nothing trimmed, within the bound of
      section 12; refused, exit 1, nothing sent, the line naming FILE's
-     fault and never its bytes. Its magic and form version are read
-     against the form this temper's jig reads (`jig-protocol-accounts`'
-     `moved::VERSION`): `JIGM` and a newer form, `temper ctl: FILE holds
-     a moved record of form vN; this temper reads up to vM: upgrade
-     temper`, exit 1, nothing sent, FILE kept. Any other start is sent,
-     and the engine refuses it "not ours", as it does a form newer than
-     the engine's jig reads when ctl's and the engine's jig differ
-     (section 15). `move_in` carries the bytes once under
+     fault and never its bytes. Its form version, the file's first two
+     bytes, is read against the form this temper's jig reads: a newer
+     form, `temper ctl: FILE holds a moved record of form vN; this temper
+     reads up to vM: upgrade temper`, exit 1, nothing sent, FILE kept.
+     Any other file is sent, and the engine refuses one it cannot read
+     "not ours", as it does a form newer than the engine's jig reads
+     when ctl's and the engine's jig differ (section 15). `move_in` carries the bytes once under
      `--key NAME`, never kept (section 7). Answered *moved in*, the tool
      prints the account, then removes FILE, whose record is dead once
      the engine refreshes it; a removal that fails exits 1, `temper
