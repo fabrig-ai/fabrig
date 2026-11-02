@@ -1,4 +1,4 @@
-//! Kept forge records and their setup (temper/docs/design/draft/playground-reset.md, 3, 4, 6.4).
+//! Kept forge records and their setup (temper/docs/design/client/forge.md, 5.4; temper/docs/design/client/README.md, 3.5).
 use super::{family, wire_limits};
 use alloc::boxed::Box;
 use jig_client::{Answered, Ask, Family, Watchable, contract as c};

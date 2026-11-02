@@ -173,7 +173,7 @@ fn resolve(
         | Ask::Reachable { .. }) => Ok(ask),
     }
 }
-/// Admission precedes the first save (temper/docs/design/draft/playground-reset.md, 3, 6.4).
+/// Admission precedes the first save (temper/docs/design/protocol/forge.md, 2.2; temper/docs/design/protocol/setup.md, 6.7).
 fn make(
     d: &mut Domain,
     forge: crate::ForgeAsk,

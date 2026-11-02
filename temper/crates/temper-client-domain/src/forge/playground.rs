@@ -1,4 +1,4 @@
-//! Playground lifecycle (temper/docs/design/draft/playground-reset.md, 6.1–6.3).
+//! Playground lifecycle (temper/docs/design/client/README.md, 3.5 and 4.8).
 use super::{Limits, Request, Side, family, wire_limits};
 pub use super::{Playground, PlaygroundState};
 use alloc::boxed::Box;
@@ -80,7 +80,7 @@ pub(crate) fn told(side: &mut Side, told: &Told, limits: Limits, out: &mut Queue
             if changed || was_leaving != side.playground.leaving {
                 side.changed();
             }
-            // Transitional rows are read until running or erased (6.1–6.2).
+            // Transitional rows are read until running or erased (4.8).
             if let Some(answer) = &side.playground.answer {
                 match answer.state {
                     PlaygroundState::Starting | PlaygroundState::Resetting => read(side, out),

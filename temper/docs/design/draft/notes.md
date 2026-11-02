@@ -61,7 +61,7 @@ and smith's are named as theirs.
 
 `playground-reset-r6`, 2026-11-01: the cut started at 09:18:21Z, the
 trunk's end check green at 15:41:43Z (T+6:23), first try; never landed
-(`ready = false`). The draft it implements is `playground-reset.md` in
+(`ready = false`). The draft it implements is `archive/playground-reset.md` in
 this directory.
 
 - **The cut:** one Claude call (Opus 5.5, high), 53 minutes, 4.3M weight;

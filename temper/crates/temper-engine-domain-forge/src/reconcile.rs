@@ -313,7 +313,7 @@ impl Domain {
     }
 
     // History survives removal without retaining its repository's row
-    // (temper/docs/design/draft/playground-reset.md, 4 and 9).
+    // (temper/docs/design/domain/forge.md, 4.1 and 20).
     const fn historical_repository(kind: RecordKind) -> bool {
         match kind {
             RecordKind::BranchHead

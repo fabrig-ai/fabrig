@@ -7,7 +7,7 @@ and the playground and the set up put on them, with no workaround left.
 Sections 3 to 6 are the change, section 7 its order. The code is built
 ahead of the design: the draft's close-out, which carries it into the
 documents section 10 names, comes first after this pass, before the
-reference drafts execute (`playground-reset.status.md`).
+reference drafts execute.
 
 ## 1. In one page
 
@@ -36,7 +36,7 @@ reference drafts execute (`playground-reset.status.md`).
   offered while no real forge is kept, and never again once one is
   (6.3).
 - **What stays in the document** after this draft: the LLM providers,
-  each a design of its own later (`configuring.md`, section 10). The
+  each a design of its own later (`../configuring.md`, section 10). The
   scripted provider can become the binary's stock first (6.1).
 - **Projects as they are** (the user, 10-28): the seeded project, the
   welcome's Default, the playground's: made as today. This draft only
@@ -47,21 +47,21 @@ reference drafts execute (`playground-reset.status.md`).
 - **A forge is a record of the forge connector,** as its repositories
   are: its kind (GitHub; Forgejo connected, managed or owned; fake), its
   addresses and its git program (the document's `git_program`,
-  `../protocol/configuration.md`, 3; GitHub's from
+  `../../protocol/configuration.md`, 3; GitHub's from
   `application.machine.github.git`), its bot's git identity, its
-  setup entry (`setup.md`, section 8, as the document has it today)
+  setup entry (`../../protocol/setup.md`, section 8, as the document has it today)
   and, for a first set up,
   the first repository's intent. The acts that set a forge up or
   connect it make it: `SetUp` and `Connect` carry what the document
   carried, and the forge is numbered next, never reused, since its
-  number keys its records (`../protocol/credentials.md`, the records).
+  number keys its records (`../../protocol/credentials.md`, the records).
 - **The intent is kept,** so a restart before the first repository
   makes it at the next connect, instead of losing it
-  (`../protocol/setup.md`, 6.7).
+  (`../../protocol/setup.md`, 6.7).
 - **The document keeps the machine's:** the clients' and webhooks'
   listeners, a box's owned Forgejo's port and the fakes' ports, which
   `temper init` chooses and the box holds from its start
-  (`../protocol/setup.md`, 7.1); the limits. A first run's document
+  (`../../protocol/setup.md`, 7.1); the limits. A first run's document
   names no forge.
 - **The box knows kinds, not forges.** Under the box, serve writes a
   group's settings, the forge's setup entry and its port, to
@@ -84,7 +84,7 @@ reference drafts execute (`playground-reset.status.md`).
   act, and the deployment's own when granted by `engine.acts` (jig's
   `domain/people.md`, 5.3). In one
   decision the forge is ended (below); the rest follows as kept acts.
-- **Ended at once,** as `../domain/forge.md` 4.1 ends the playground's
+- **Ended at once,** as `../../domain/forge.md` 4.1 ends the playground's
   forge today, for any forge: no list shows it, no call is served, its
   hints are dropped, the setup host sets it up no more, and its
   repositories leave their projects.
@@ -129,7 +129,7 @@ reference drafts execute (`playground-reset.status.md`).
 - **Then its own rows:** its policy's copy, its roles and parties, its
   pools in the current period, the settings of its scope (the connector
   owning each kind told, temper erasing its kinds 2, 4 and 5:
-  `../protocol/configuration.md`, 13.2), and its adoptions released,
+  `../../protocol/configuration.md`, 13.2), and its adoptions released,
   each connector told (temper's repository rows for it, section 4's
   rule). Its name is free again; its number is never reused.
 - **What outlives it:** spend, in the deployment's and the parties'
@@ -151,7 +151,7 @@ reference drafts execute (`playground-reset.status.md`).
 
 - **"Try the playground"** sends `StartPlayground`, the deployment's
   acts, as the demo's start makes them today
-  (`../protocol/setup.md`, 8.4): a `Playground` row, running, naming
+  (`../../protocol/setup.md`, 8.4): a `Playground` row, running, naming
   what it makes; the fake forge's record, its setup entry the
   playground's; the box asked for its group (section 3); the scripted
   account, the deployment's, its uses naming the playground's project
@@ -181,7 +181,7 @@ reference drafts execute (`playground-reset.status.md`).
   `RemoveAccount`; then the row erased, none again.
 - **The page** shows "Leaving the playground…" until the reset answers,
   then opens the welcome's Forge step, `/welcome?at=forge`
-  (`../client/journeys/welcome-set-up/02.html`): the store as a person
+  (`../../client/journeys/welcome-set-up/02.html`): the store as a person
   who pressed "Set up temper" from the welcome finds it.
 - **Cut by a restart,** the kept acts are sent again at the next start
   (sections 4 and 5), and the page shows the reset under way until the
@@ -213,7 +213,7 @@ reference drafts execute (`playground-reset.status.md`).
   unfinished forge, "FORGE · not finished", with Start over, which
   removes it (section 4) and opens the step's choices again. An owned
   Forgejo then sets up afresh: its binaries from the cache
-  (`../protocol/setup.md`, 6.6), its directory prepared anew.
+  (`../../protocol/setup.md`, 6.6), its directory prepared anew.
 - **GitHub goes on by default:** its App's records are kept as they
   come, so the step offers Go on, to the App's installation, before
   Start over, which removes the forge and names the App on GitHub as
@@ -240,7 +240,7 @@ reference drafts execute (`playground-reset.status.md`).
   killed during a reset, which ends whole at the next start; a set up
   killed at each step, found unfinished and started over, Forgejo's
   binaries taken from the cache; GitHub gone on after a restart, on
-  `temper box --fake-backends`' fake GitHub (`../protocol/setup.md`, 7.5).
+  `temper box --fake-backends`' fake GitHub (`../../protocol/setup.md`, 7.5).
 - **The engine's world:** a removal and a deletion cut by a crash after
   each kept act, resumed to the same end; nothing of the forge or the
   project read afterwards but what 4 and 5 keep.
@@ -253,7 +253,7 @@ reference drafts execute (`playground-reset.status.md`).
 
 - **A box restarted in the playground.** The fake forge keeps no state
   across its starts, so the engine's records of the branches it lost
-  outlive it (`../protocol/setup.md`, 8.4). Default: the start resets
+  outlive it (`../../protocol/setup.md`, 8.4). Default: the start resets
   the playground, as the banner does, and the person meets the welcome.
 - **A removed forge's history:** its repositories' names kept while a
   task names them (section 4), or erased at once. Default: kept.
@@ -268,13 +268,13 @@ reference drafts execute (`playground-reset.status.md`).
 
 ## 10. What it amends, once adopted
 
-`../protocol/configuration.md` (the forges' members leave the
-document), `../protocol/setup.md` 7.1 (the pipe's `remove` and the
+`../../protocol/configuration.md` (the forges' members leave the
+document), `../../protocol/setup.md` 7.1 (the pipe's `remove` and the
 groups' files), 8.3 (the default document names no forge) and 8.4 (the
-demo's start and end, replaced by 6.1 and 6.2); `../domain/forge.md`,
-4.1 (any forge ended, then removed); `../client/README.md`, 3.5 (the
-welcome's states) and 4.8 (the demo's halves); `../client/forge.md`
-(Remove); `configuring.md`, section 10 (forges' addresses no longer
+demo's start and end, replaced by 6.1 and 6.2); `../../domain/forge.md`,
+4.1 (any forge ended, then removed); `../../client/README.md`, 3.5 (the
+welcome's states) and 4.8 (the demo's halves); `../../client/forge.md`
+(Remove); `../configuring.md`, section 10 (forges' addresses no longer
 later); jig's
 `domain/people.md` (`RemoveProject`) and `domain/tasks.md` (erasure
 at once).

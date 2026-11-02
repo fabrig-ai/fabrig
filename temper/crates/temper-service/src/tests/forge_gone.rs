@@ -1,4 +1,4 @@
-//! Forge removal's service boundary (temper/docs/design/draft/playground-reset.md, 4).
+//! Forge removal's service boundary (temper/docs/design/protocol/forge.md, 2.3).
 use crate::tests::fixtures;
 use crate::{Service, forge::gone};
 use jig_protocol_store::{Event, SecretOwner, Secrets};

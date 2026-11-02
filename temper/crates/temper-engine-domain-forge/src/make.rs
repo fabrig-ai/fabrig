@@ -1,4 +1,4 @@
-//! Forge-making acts and kept first intent (temper/docs/design/draft/playground-reset.md, 3, 6.4).
+//! Forge-making acts and kept first intent (temper/docs/design/protocol/forge.md, 2.2; temper/docs/design/protocol/setup.md, 6.7).
 use super::{Domain, setup_login, setup_repository};
 use crate::{
     Ask, Bot, Connection, First, FirstIntent, FirstState, ForgeAsk, ForgeRecord, ForgeState, Kind, Limits, Making,

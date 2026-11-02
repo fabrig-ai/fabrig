@@ -175,6 +175,32 @@ impl RecordFailure {
     }
 }
 
+/// A saved sign-in record's refresh facts, without its tokens (shell.md, 7.3).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct RefreshFacts {
+    pub generation: u64,
+    /// Whether the record holds a refresh token.
+    pub refreshable: bool,
+    /// When its access token expires.
+    pub expires_at: skein_lib::Wall,
+    /// The issuer's earliest refresh time, when it set one.
+    pub earliest_refresh_at: Option<skein_lib::Wall>,
+}
+
+/// Read a saved record's refresh facts; `None` when there is no record.
+pub fn refresh_facts(file: &std::path::Path) -> Result<Option<RefreshFacts>, String> {
+    record(file)
+        .map(|record| {
+            record.map(|record| RefreshFacts {
+                generation: record.generation,
+                refreshable: record.refresh_token.is_some(),
+                expires_at: record.expires_at,
+                earliest_refresh_at: record.earliest_refresh_at,
+            })
+        })
+        .map_err(RecordFailure::line)
+}
+
 pub(super) fn record(file: &std::path::Path) -> Result<Option<oauth::SavedToken>, RecordFailure> {
     match skein_shell::read_private_file(file, document_limits().record_bytes, skein_shell::effective_user()) {
         Ok(bytes) => {
@@ -243,6 +269,60 @@ pub(super) fn private_source(
 mod tests {
     use super::*;
     use crate::settings::{Layer, Sourced};
+
+    #[test]
+    fn refresh_facts_read_no_token() {
+        use skein_lib::Wall;
+        use std::io::Write;
+        use std::os::unix::fs::OpenOptionsExt;
+
+        let scratch = skein_scratch::Scratch::new("smith-refresh-facts");
+        let expires_at = Wall::from_nanos(60_000_000_000);
+        let earliest = Wall::from_nanos(30_000_000_000);
+        for refreshable in [true, false] {
+            let mut saved =
+                super::super::env_record(b"synthetic-access", false, Wall::EPOCH).expect("synthetic record").record;
+            saved.generation = 7;
+            saved.expires_at = expires_at;
+            saved.refresh_token = refreshable.then(|| b"synthetic-refresh".as_slice().into());
+            saved.earliest_refresh_at = refreshable.then_some(earliest);
+            let bytes = oauth::encode_record(&saved, &document_limits()).expect("bounded record");
+            let path = scratch.path().join(if refreshable { "refreshable" } else { "access-only" });
+            let mut file = std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .mode(0o600)
+                .open(&path)
+                .expect("private record");
+            file.write_all(&bytes).expect("write synthetic record");
+            assert_eq!(
+                refresh_facts(&path),
+                Ok(Some(RefreshFacts {
+                    generation: 7,
+                    refreshable,
+                    expires_at,
+                    earliest_refresh_at: refreshable.then_some(earliest),
+                })),
+                "only refresh facts leave the record reader"
+            );
+        }
+        let absent = scratch.path().join("absent");
+        assert_eq!(refresh_facts(&absent), Ok(None), "an absent record has no facts");
+        let malformed = scratch.path().join("malformed");
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o600)
+            .open(&malformed)
+            .expect("private malformed record");
+        file.write_all(b"malformed record").expect("write malformed record");
+        assert_eq!(
+            refresh_facts(&malformed),
+            Err("unreadable sign-in record".into()),
+            "malformed records have the fixed record failure"
+        );
+    }
+
     fn account() -> Account {
         let fields = [
             ("source", "sign_in"),
