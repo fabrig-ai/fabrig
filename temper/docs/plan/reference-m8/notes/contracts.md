@@ -256,6 +256,12 @@ a line after today's `Landed:` line: `Cleared by TIER run N[, TIER run M].`; unc
 cleared: no verdict within the verification bound.` (or `... : cancelled while verifying.`);
 repaired after red, `Cleared by TIER run N, which passed the failures blamed on it.`
 
+Revision 1 (2026-11-02, an answer to `panel-steps`): a repair keeps its run, so the panel and
+the result can name it (`temper/docs/design/client/forge.md`, 2.1). `TierVerification::repaired`
+becomes `Option<TierRepair>`, `pub struct TierRepair { pub run: u64, pub tip: Commit }` (`Clone,
+Copy, PartialEq, Eq, Debug`); in the store, `record TierRepair { run: u64 tip: fixed 32 }` and
+`repaired: option TierRepair`, inside v11. `panel-steps` makes the change.
+
 ## 5. skein's reads
 
 As designed, no shape of this plan's: `skein/docs/design/forge.md`, 3.2, 3.3 and 5.2
