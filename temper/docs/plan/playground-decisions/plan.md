@@ -24,10 +24,11 @@ task names `notes/common.md`.
      forge crate): the release keeps the row, `Unnamed` is the erasure, a project's release
      clears its repositories from kept rows, a start splits live and kept rows, temper's root
      maps `Ask::Unname`; the engine world's joined story. temper-engine-domain's first writer.
-   - `unname-at-erasure` (jig-domain-core asks every connector `Unname` at a task's erasure;
-     jig's test domain and ops example take it), being written; it needs `kept-names` (temper's
-     root holds `Ask::Unname` in an `unreachable!` arm until then) and `deletion-grace` (the
-     crate's first writer).
+   - `tasks/unname-at-erasure.md`, medium, ~45 minutes, needs `kept-names` (temper's root holds
+     `Ask::Unname` in an `unreachable!` arm until then) and `deletion-grace` (jig-domain-core's
+     first writer): the erase walk's record decision and a forget ask every connector `Unname`;
+     jig's test domain routes it to nothing; the readers' worlds, temper's among them, run.
+     The lead added to jig's people.md 5.2 and 6 that an erasure tells every connector.
 3. **deletion-grace** (jig and temper, `jig/docs/design/domain/people.md, 5.2`), slice 3:
    decision 3, to C2. Its designer wrote the design first: people.md 1, 2, 5.1 to 5.3, 7 and 11
    (the request's grace, refused past the tasks child's bound, kept with the deletion, each
@@ -61,8 +62,8 @@ task names `notes/common.md`.
 
 `box-words` and `playground-restart-resets` landed. Now: `remove-project-grace` (~120) →
 `deletion-grace` (~120) → `unname-at-erasure`; beside it `kept-names` (~150) → `reset-grace`
-(~45) and `unname-at-erasure`. About four hours of implementer time on the longest chain, up to
-eight with the buffer.
+(~45) and `unname-at-erasure`. About five hours of implementer time on the longest chain (~285
+minutes), up to ten with the buffer.
 
 ## Overlaps
 
@@ -84,8 +85,20 @@ eight with the buffer.
   `domain.rs` in `unnamed` and `names` (their tier watches) and near `retire_ended`; unavoidable,
   since the release keeps its row there.
 
+## Known readers outside a spec
+
+- `temper/tests/engine/domain/tests/suite/removal.rs:277` builds `people::Ask::RemoveProject {
+  project: 1 }`, which `remove-project-grace`'s spec does not list. It needs `grace: None`, a
+  compiler-forced field the implementer's text allows in its tree: `kept-names` owns the file and
+  `reset-grace` builds that world, so whichever temper task meets it adds it; else the trunk's
+  end check.
+- After `unname-at-erasure`, every erased task reaches the forge connector as `Unnamed`, most
+  with no row: `unnamed` then sends the client its unchanged watch set, which changes nothing.
+
 ## Calls made
 
+- **jig-domain-core's order changed in flight:** `deletion-grace` first, `unname-at-erasure`
+  after `kept-names`, since jig may send `Unname` only once temper's root maps it.
 - **Decision 2's and 3's mechanisms are the lead's contracts** (`notes/contracts.md`), since the
   design states the rule and not how the connector learns of an erasure or how the grace reaches
   the deletion. C2 carries the grace in the request because the engine reads no template (jig's

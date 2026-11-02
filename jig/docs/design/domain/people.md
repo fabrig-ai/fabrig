@@ -596,7 +596,9 @@ refused for its grace.
   and with no horizon waited for, as retention would erase it at the
   horizon: its record, its rows in every index, its history, activity
   and terminals, its read positions and its transcript's file
-  (tasks.md, section 3; `../protocol/store.md`, 8.5 and 11.1).
+  (tasks.md, section 3; `../protocol/store.md`, 8.5 and 11.1). The
+  decision that erases each one tells every connector so
+  (`connectors.md`, 3.4).
 - **Then its own rows:** its policy's copy and its overrides of
   templates; its placed holds (tasks.md, 5.9); its pools in the current
   period, and its period, closed into the history with their spend
@@ -783,8 +785,9 @@ entry naming the task or proposal it is and its project:
     template keeps, so closed conversations stay readable;
   - *forgotten once read:* once it has ended, its requester has read its
     result and, for a conversation, its turns, and no live task names it,
-    its record and its read position are erased in one decision, so no
-    restart sees one without the other, and nothing read comes back
+    its record and its read position are erased in one decision, which
+    tells every connector the task is erased (`connectors.md`, 3.4), so
+    no restart sees one without the other, and nothing read comes back
     unread. The `Seen` after which it is read forgets it, while the
     party's inbox holds it (the bound below), in the `Seen`'s own
     decision: the mark and the erase commit together, so no restart sees

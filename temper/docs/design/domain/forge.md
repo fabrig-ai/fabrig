@@ -655,8 +655,8 @@ Held by skein's `forge-client.md`, section 3. temper's part:
 - **The live resources, and nothing else** (jig's
   `domain/connectors.md`, 3.4). A resource enters when a live task names
   it, and leaves when none does. The top names them to the client. A
-  task's names leave it at its release: what the connector keeps of
-  them for a kept task watches nothing (4.1).
+  task's names leave the working set at its release: what the
+  connector keeps of them for a kept task watches nothing (4.1).
 - **What temper watches:**
   - per repository: the landing branches' tips, and the CI on each tip;
   - per pull request temper owns that a live task names: its head and
