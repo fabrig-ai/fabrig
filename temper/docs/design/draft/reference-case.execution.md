@@ -52,7 +52,11 @@ repository's `fab/roles/cut-run.md`):
    document's status with a Not yet for what is still to build, its
    Later, and the entries they close in the drafts' statuses. Then the
    specs that cite it, released in batches while the implementers work
-   on the earlier ones. Implementers never write the design.
+   on the earlier ones. Implementers never write the design. A section
+   once released is never rewritten, as a spec is not: a later batch
+   adds its own part. The cut is one call, bounded in time, so a
+   milestone's request asks no more design than one cut writes, its
+   early release carrying the rest.
 3. **Landed whole:** the trunk is checked and lands through the queue,
    and the plan's retire brings its statuses current.
 4. **Its walk:** a rung of the ladder's plan. fabrig/qa writes a brief in
