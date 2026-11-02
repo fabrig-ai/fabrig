@@ -1,8 +1,6 @@
 # credentials: status
 
-2026-11-01. Where temper's code lags or departs from [credentials.md](credentials.md).
+2026-11-02. Where temper's code lags or departs from [credentials.md](credentials.md).
 
-- **Built:** 1 to 7: runtime LLM sources, durable key adoption/erasure, restore/sweep and program login. 2: forge records acknowledged after Kept. 3: pasted ChatGPT sign-in and account import/export; no handed-in account or borrowed live login. 4: GitHub installation-token generations, renewal and worker selection. 6: held terminal credential. 4: a stopped forge's git identity entries withdrawn at once.
-- **Not yet:** 8: forge as people's sign-in provider, credential backups, optional import, disconnect/reconnect generations, per-repository identities and App OAuth. Remaining legacy forge credentials and secret-audit coverage unknown.
-
-- **Built:** 3: the declaration act names the box directory placeholders; a program directory already signed in skips login and proceeds to account verify.
+- **Not yet:** 7: the worlds' search for issued secrets covers LLM access tokens, git tokens and a forge's API token (`tests/one-process/src/referee/secrets.rs`), Apps' keys and installations' tokens in one story (`tests/one-process/src/m15/observer.rs`), and the forge's protocol world one API token (`tests/engine/protocol-forge/src/fixtures.rs`): no world searches LLM keys, admins' tokens or webhooks' secrets.
+- **Departs:** 2.1, 4, 5: a forge's number is given at runtime and its mode is its store record's, not configuration's `forges` and `setup`, because forges are store records and the playground is reset (`../draft/playground-reset.md`, 3, 4, 6). 2.1, 5: `temper-service` keeps a Forgejo file-credential path (`settings::Forge.api_token` and `webhook_secret`, `file_access`, `file_api`) that only in-process test fixtures fill, its refusals naming `application.forges[N].api_token`, `app_key`, `webhook_secret` and `user`, members the document no longer has, because those fixtures still connect forges by these fields; a code task moves them to records.
