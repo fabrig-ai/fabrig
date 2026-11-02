@@ -100,7 +100,7 @@ impl Core {
                     );
                 }
             }
-            tasks::Executor::Person(_) | tasks::Executor::Procedure { .. } => {}
+            tasks::Executor::Person(_) | tasks::Executor::Procedure { .. } | tasks::Executor::Job { .. } => {}
         }
         if let Some(number) = row.placed {
             assert!(
@@ -442,6 +442,7 @@ impl Core {
             tasks::Executor::Person(tasks::PersonAddress::Person(person)) => self.link_person(source, person),
             tasks::Executor::Agent { .. }
             | tasks::Executor::Procedure { .. }
+            | tasks::Executor::Job { .. }
             | tasks::Executor::Person(tasks::PersonAddress::Role(_)) => {}
         }
     }

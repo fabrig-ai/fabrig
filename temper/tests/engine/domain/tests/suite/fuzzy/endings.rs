@@ -81,6 +81,7 @@ fn delegate_child(driver: &mut Driver, assignment: &engine::Assignment) {
     let child = engine::Delegate {
         executor: tasks::Executor::Agent { charter: 1 },
         spec: tasks::Spec {
+            job: None,
             asks: false,
             words: b"child".as_slice().into(),
             parameters: Box::new([]),

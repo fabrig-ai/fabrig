@@ -134,6 +134,8 @@ pub enum Last {
 /// execution routes. (domain/tasks.md, sections 2–3). (domain/authority.md, sections 3–7).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum AuthorityExecutor {
+    /// Permission to delegate to an application job kind (jig/docs/design/domain/authority.md, 3).
+    Job(u32),
     /// Permission to delegate to an agent charter.
     Charter(u32),
     /// `Procedure` permission carrier; the contracted task API exposes agent execution only.

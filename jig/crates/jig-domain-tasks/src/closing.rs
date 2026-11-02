@@ -350,7 +350,7 @@ fn end_task(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue
     crate::holds::release(domain, number);
     match ended.executor {
         Executor::Agent { .. } => domain.live_agents = domain.live_agents.checked_sub(1).expect("live agent removed"),
-        Executor::Person(_) | Executor::Procedure { .. } => {}
+        Executor::Person(_) | Executor::Procedure { .. } | Executor::Job { .. } => {}
     }
     domain.tasks.retire(id);
     if let Some(hold) = placed {
@@ -399,7 +399,7 @@ fn end_task(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue
                 task.record.revisions.person =
                     task.record.revisions.person.checked_add(1).expect("person input revision room");
             }
-            Executor::Agent { .. } | Executor::Procedure { .. } => {}
+            Executor::Agent { .. } | Executor::Procedure { .. } | Executor::Job { .. } => {}
         }
         match status {
             Status::Done => {
@@ -462,6 +462,7 @@ fn end_task(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue
 
 fn ending_words(ending: &Ending) -> &[u8] {
     match ending {
+        Ending::Done(TaskResult::Job { .. }) => &[],
         Ending::Done(
             TaskResult::NoChange { words }
             | TaskResult::Report { words }

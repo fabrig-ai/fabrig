@@ -171,6 +171,7 @@ fn start(world: &mut World, index: usize) {
                 executor: tasks::Executor::Procedure { connector: 2, code: infra::PROVISION_CODE },
                 llm: None,
                 spec: tasks::Spec {
+                    job: None,
                     asks: false,
                     words: b"pool holder".as_slice().into(),
                     parameters: Box::new([

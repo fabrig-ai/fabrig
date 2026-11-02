@@ -76,6 +76,7 @@ fn random_pool_sizes_shrink_and_grow_while_finishes_wait_for_their_commits() {
                         budget: jig_domain_people::Budget::Named,
                         executor: tasks::Executor::Agent { charter: 1 },
                         spec: tasks::Spec {
+                            job: None,
                             asks: false,
                             words: b"pool work".as_slice().into(),
                             parameters: Box::new([tasks::Parameter::Resource { name: 1, connector: 1, resource: 2 }]),
@@ -146,6 +147,7 @@ fn random_period_budgets_reset_before_a_standing_template_creates_its_next_batch
                         executor: tasks::Executor::Agent { charter: 1 },
                         llm: None,
                         spec: tasks::Spec {
+                            job: None,
                             asks: false,
                             words: b"period work".as_slice().into(),
                             parameters: Box::new([]),

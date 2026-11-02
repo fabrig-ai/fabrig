@@ -273,6 +273,7 @@ impl Core {
     #[must_use]
     pub fn delegation_executor(&self, project: u32, executor: tasks::Executor) -> Option<authority::Executor> {
         match executor {
+            tasks::Executor::Job { .. } => None,
             tasks::Executor::Agent { charter } => Some(authority::Executor::Charter(charter)),
             tasks::Executor::Procedure { code, .. } => Some(authority::Executor::Procedure(code)),
             tasks::Executor::Person(tasks::PersonAddress::Role(role)) => Some(authority::Executor::Role(role)),

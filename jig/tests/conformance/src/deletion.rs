@@ -215,6 +215,7 @@ fn task_rows(world: &mut World) {
             budget: people::Budget::Named,
             executor: tasks::Executor::Agent { charter: 1 },
             spec: tasks::Spec {
+                job: None,
                 asks: false,
                 words: b"delegate".as_slice().into(),
                 parameters: Box::new([]),

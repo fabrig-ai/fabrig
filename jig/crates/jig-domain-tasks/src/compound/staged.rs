@@ -65,7 +65,7 @@ impl CompoundTask<'_> {
             tracked: self.tracked,
             addressed: match self.executor {
                 Executor::Person(address) => Some(address),
-                Executor::Agent { .. } | Executor::Procedure { .. } => None,
+                Executor::Agent { .. } | Executor::Procedure { .. } | Executor::Job { .. } => None,
             },
             taken_by: self.taken_by,
             instructions: self.instructions.clone(),
@@ -78,7 +78,7 @@ impl CompoundTask<'_> {
     }
     fn wake(&mut self, word: &crate::Word) {
         let wakes = match self.executor {
-            Executor::Person(_) => false,
+            Executor::Person(_) | Executor::Job { .. } => false,
             Executor::Procedure { .. } | Executor::Agent { .. } => match word.kind {
                 crate::MessageKind::Answer { .. } => self.wake.answers,
                 crate::MessageKind::Question => self.wake.questions,
@@ -171,7 +171,7 @@ impl Staged {
             if *member == number {
                 return match executor {
                     Executor::Person(_) => true,
-                    Executor::Agent { .. } | Executor::Procedure { .. } => false,
+                    Executor::Agent { .. } | Executor::Procedure { .. } | Executor::Job { .. } => false,
                 };
             }
         }
@@ -488,7 +488,7 @@ impl Staged {
         if let Some(change) = addressed {
             if !match row.executor {
                 Executor::Person(_) => true,
-                Executor::Agent { .. } | Executor::Procedure { .. } => false,
+                Executor::Agent { .. } | Executor::Procedure { .. } | Executor::Job { .. } => false,
             } || !crate::control::valid_address(change.address)
             {
                 return Err(crate::Refusal::Executor);

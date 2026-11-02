@@ -129,6 +129,7 @@ pub(crate) fn configured(settings: &Settings, model: &crate::Model) -> Option<u8
 
 impl Core {
     pub(crate) fn claim_done(&mut self, task: u64, attempt: u64, out: &mut Queue<crate::Request>) {
+        let Some(version) = self.charter_version(task) else { return };
         drop(self.replaced.remove(&task));
         let proof = self.proofs.get(&task).expect("claim proof pre-reserved");
         out.push(crate::Request::Write(crate::Write::Save(crate::Record::Core(crate::CoreRecord::RunProof(
@@ -138,22 +139,22 @@ impl Core {
             fleet::HostKind::Engine => fleet::Kinds::Engine,
             fleet::HostKind::Worker => fleet::Kinds::Workers,
         };
-        let version = self.charter_version(task);
         for &connector in self.connectors.as_ref() {
             out.push(crate::Request::Ask { connector, ask: crate::Ask::ClaimDone { task, attempt, kinds, version } });
         }
     }
 
     /// The value read by this live agent's run, or its task before preparation.
-    pub(crate) fn charter_version(&self, task: u64) -> fleet::Version {
+    pub(crate) fn charter_version(&self, task: u64) -> Option<fleet::Version> {
         let row = self.tasks.task(task).expect("live agent task");
         let charter = match row.executor {
             tasks::Executor::Agent { charter } => charter,
+            tasks::Executor::Job { .. } => return None,
             tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => unreachable!("agent version"),
         };
         let revision = row.settings.run.unwrap_or(row.settings.task);
         let key = self.held.selected(&self.current, charter, revision).expect("run charter version");
-        fleet::Version { charter: key.charter, revision: key.revision }
+        Some(fleet::Version { charter: key.charter, revision: key.revision })
     }
 
     /// The newest charter, for work about to be made (engine.md, 17.3).
@@ -169,7 +170,7 @@ impl Core {
         let revision = row.settings.run.unwrap_or(row.settings.task);
         let charter = match row.executor {
             tasks::Executor::Agent { charter } => self.charter_at(charter, revision),
-            tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => None,
+            tasks::Executor::Procedure { .. } | tasks::Executor::Job { .. } | tasks::Executor::Person(_) => None,
         };
         charter.expect("agent task has configured charter")
     }
@@ -191,7 +192,7 @@ impl Core {
                 crate::RunAdmission::Wait(_) => false,
             },
             tasks::Executor::Procedure { .. } => true,
-            tasks::Executor::Person(_) => false,
+            tasks::Executor::Job { .. } | tasks::Executor::Person(_) => false,
         }
     }
 

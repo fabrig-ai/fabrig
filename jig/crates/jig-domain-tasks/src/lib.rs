@@ -130,7 +130,7 @@ pub use batch::{bounded_batch, valid_authority, valid_contract, valid_spec};
 pub use boundary::{
     Accepted, Active, Added, Bound, Cause, ChangeTitle, Circle, Closing, Contract, Deadline, DelegateState,
     DelegationContext, End, Ending, Event, Exceeded, Executor, FieldRule, Hold, HoldKind, HoldSource, Holding,
-    InvalidResult, Key, Kind, MessageKind, Name, New, NewsClass, NoticeState, Parameter, Party, PersonAddress,
+    InvalidResult, JobSpec, Key, Kind, MessageKind, Name, New, NewsClass, NoticeState, Parameter, Party, PersonAddress,
     PersonAnswer, PersonStallNotice, PersonWait, Phase, PoolSlots, Problem, ProcedureAmendment, ProcedureCancel,
     ProcedureDecision, ProcedureEnd, ProcedureInput, ProcedureMessage, QuestionCredit, QuestionNotice,
     RecurringOverlap, RecurringState, RecurringTemplate, Refusal, ReplyHint, Request, ResourceAccess, ResultField,

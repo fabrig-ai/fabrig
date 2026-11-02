@@ -73,6 +73,8 @@ pub fn limits(domain: &domain::Limits) -> Option<wire::Limits> {
         name_path: domain.hold_segments,
         bytes_parameter_value: domain.spec_bytes,
         spec_words: domain.spec_bytes,
+        job_spec_bytes: domain.spec_bytes,
+        job_result_bytes: domain.result_bytes,
         spec_parameters: domain.parameters,
         spec_inputs: domain.inputs,
         part_segment_bytes: domain.hold_bytes,

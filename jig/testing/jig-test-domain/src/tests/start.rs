@@ -328,6 +328,7 @@ fn populated_rows() -> Vec<Record> {
                 executor: tasks::Executor::Agent { charter: 1 },
                 llm: None,
                 spec: tasks::Spec {
+                    job: None,
                     asks: false,
                     words: b"live work".as_slice().into(),
                     parameters: Box::new([]),

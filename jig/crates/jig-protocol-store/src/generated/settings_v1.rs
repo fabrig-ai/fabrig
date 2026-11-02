@@ -229,6 +229,10 @@ pub enum Path {
     ExecutorRoleNumber,
     /// Bytes after `ExecutorRole`.
     ExecutorRoleTail,
+    /// The `kind` field of `ExecutorJob`.
+    ExecutorJobKind,
+    /// Bytes after `ExecutorJob`.
+    ExecutorJobTail,
     /// The tag of `Executor`.
     ExecutorTag,
     /// The `kinds` field of `Delegation`.
@@ -1542,6 +1546,37 @@ impl ExecutorRole {
 
 }
 
+/// Movable fields of `ExecutorJob`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ExecutorJobParts {
+    /// The `kind` field.
+    pub kind: u32,
+}
+
+/// `ExecutorJob` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ExecutorJob {
+    kind: u32,
+}
+
+impl ExecutorJob {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: ExecutorJobParts) -> Result<Self, Problem> {
+        let ExecutorJobParts { kind } = parts;
+        let value = Self { kind };
+        Ok(value)
+    }
+
+    /// Reads the `kind` field.
+    #[must_use]
+    pub fn kind(&self) -> u32 { self.kind }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> ExecutorJobParts { ExecutorJobParts { kind: self.kind } }
+
+}
+
 /// `Executor` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Executor {
@@ -1551,6 +1586,8 @@ pub enum Executor {
     Procedure(ExecutorProcedure),
     /// `role` carrying `ExecutorRole`.
     Role(ExecutorRole),
+    /// `job` carrying `ExecutorJob`.
+    Job(ExecutorJob),
 }
 
 impl Executor {
@@ -4730,6 +4767,35 @@ impl ExecutorRole {
     }
 }
 
+impl ExecutorJob {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_kind = &self.kind;
+        writer.put(&field_kind.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::ExecutorJobTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_kind = reader.u32().ok_or(Problem { path: Path::ExecutorJobKind, reason: skein_codec::Reason::Short })?;
+        Ok(Self { kind: decoded_kind })
+    }
+}
+
 impl Executor {
     /// Measures this variant's wire encoding.
     #[must_use]
@@ -4738,6 +4804,7 @@ impl Executor {
             Self::Charter(record) => 1_u32.checked_add(ExecutorCharter::measure(record)).expect("schema ceilings fit u32"),
             Self::Procedure(record) => 1_u32.checked_add(ExecutorProcedure::measure(record)).expect("schema ceilings fit u32"),
             Self::Role(record) => 1_u32.checked_add(ExecutorRole::measure(record)).expect("schema ceilings fit u32"),
+            Self::Job(record) => 1_u32.checked_add(ExecutorJob::measure(record)).expect("schema ceilings fit u32"),
         }
     }
 
@@ -4747,6 +4814,7 @@ impl Executor {
             Self::Charter(record) => { writer.put(&[0_u8])?; record.encode(writer)?; }
             Self::Procedure(record) => { writer.put(&[1_u8])?; record.encode(writer)?; }
             Self::Role(record) => { writer.put(&[2_u8])?; record.encode(writer)?; }
+            Self::Job(record) => { writer.put(&[3_u8])?; record.encode(writer)?; }
         }
         Ok(())
     }
@@ -4764,6 +4832,7 @@ impl Executor {
             0 => Self::Charter(ExecutorCharter::decode_from(limits, reader)?),
             1 => Self::Procedure(ExecutorProcedure::decode_from(limits, reader)?),
             2 => Self::Role(ExecutorRole::decode_from(limits, reader)?),
+            3 => Self::Job(ExecutorJob::decode_from(limits, reader)?),
             _ => return Err(Problem { path: Path::ExecutorTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -7763,6 +7832,34 @@ impl ExecutorRole {
     }
 }
 
+impl ExecutorJob {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(4_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
 impl Executor {
     /// Maximum encoded bytes among variants.
     #[must_use]
@@ -7774,7 +7871,7 @@ impl Executor {
     pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut biggest = 0_u64;
         biggest = biggest.max(ExecutorCharter::encoded_bound_within(limits)?).max(ExecutorProcedure::encoded_bound_within(limits)?);
-        biggest = biggest.max(ExecutorRole::encoded_bound_within(limits)?);
+        biggest = biggest.max(ExecutorRole::encoded_bound_within(limits)?).max(ExecutorJob::encoded_bound_within(limits)?);
         1_u64.checked_add(biggest)
     }
 
@@ -7788,7 +7885,7 @@ impl Executor {
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut biggest = 0_u64;
         biggest = biggest.max(ExecutorCharter::decoded_bound_within(limits)?).max(ExecutorProcedure::decoded_bound_within(limits)?);
-        biggest = biggest.max(ExecutorRole::decoded_bound_within(limits)?);
+        biggest = biggest.max(ExecutorRole::decoded_bound_within(limits)?).max(ExecutorJob::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
 }
@@ -9424,6 +9521,7 @@ pub fn encoded_bound(limits: &Limits) -> Option<u64> {
     biggest = biggest.max(ExecutorCharter::encoded_bound_within(limits)?);
     biggest = biggest.max(ExecutorProcedure::encoded_bound_within(limits)?);
     biggest = biggest.max(ExecutorRole::encoded_bound_within(limits)?);
+    biggest = biggest.max(ExecutorJob::encoded_bound_within(limits)?);
     biggest = biggest.max(Executor::encoded_bound_within(limits)?);
     biggest = biggest.max(Delegation::encoded_bound_within(limits)?);
     biggest = biggest.max(Models::encoded_bound_within(limits)?);
@@ -9508,6 +9606,7 @@ pub fn decoded_bound(limits: &Limits) -> Option<u64> {
     biggest = biggest.max(ExecutorCharter::decoded_bound_within(limits)?);
     biggest = biggest.max(ExecutorProcedure::decoded_bound_within(limits)?);
     biggest = biggest.max(ExecutorRole::decoded_bound_within(limits)?);
+    biggest = biggest.max(ExecutorJob::decoded_bound_within(limits)?);
     biggest = biggest.max(Executor::decoded_bound_within(limits)?);
     biggest = biggest.max(Delegation::decoded_bound_within(limits)?);
     biggest = biggest.max(Models::decoded_bound_within(limits)?);
@@ -9569,7 +9668,7 @@ pub fn decoded_bound(limits: &Limits) -> Option<u64> {
 
 #[cfg(test)]
 mod golden_tests {
-    use super::{CEILINGS, Text, TextParts, ModelName, ModelNameParts, Model, ModelParts, RunPolicy, RunPolicyParts, Kinds, Charter, CharterParts, CharterNumber, CharterNumberParts, TemplateNumber, TemplateNumberParts, PolicyNumber, PolicyNumberParts, Setting, Segment, SegmentParts, LastExact, LastExactParts, LastOpen, LastOpenParts, Last, Pattern, PatternParts, Grant, GrantParts, ResourceScope, ResourceScopeParts, ExecutorCharter, ExecutorCharterParts, ExecutorProcedure, ExecutorProcedureParts, ExecutorRole, ExecutorRoleParts, Executor, Delegation, DelegationParts, Models, ModelsParts, Budget, BudgetParts, Authority, AuthorityParts, Judge, JudgeParts, Observed, ObservedParts, Guard, Requirement, RequirementParts, Implication, ImplicationParts, Rules, RulesParts, Role, RoleParts, Policy, PolicyParts, PermissionRole, PermissionRoleParts, TemplateCharter, TemplateCharterParts, TemplateExecutor, Amount, AmountParts, AsAllowed, AsAllowedParts, TemplateBudget, Span, SpanParts, TemplateDeadline, TemplateOverride, TemplateOverrideParts, ConfiguredPolicy, ConfiguredPolicyParts, FieldRule, FieldRuleParts, Verdict, VerdictParts, PartKind, PartPath, PartPathParts, PartNumber, PartNumberParts, PartKey, Part, PartParts, Approval, ApprovalParts, Report, ReportParts, VerdictChoices, VerdictChoicesParts, Change, ChangeParts, Contract, Retention, EndedBy, Flags, FlagsParts, ModelEffort, ModelEffortParts, LlmChoice, LlmChoiceParts, Template, TemplateParts, Value, Party, PartyParts, Decider, Proposer, ProposalId, ProposalIdParts, Head, HeadParts, Set, SetParts, Edit, Item, ItemParts, Default, DefaultParts, Changed, ChangedParts, Revision, RevisionParts, Extent, ExtentParts, CharterVersion, CharterVersionParts, Proposal, ProposalParts, Path};
+    use super::{CEILINGS, Text, TextParts, ModelName, ModelNameParts, Model, ModelParts, RunPolicy, RunPolicyParts, Kinds, Charter, CharterParts, CharterNumber, CharterNumberParts, TemplateNumber, TemplateNumberParts, PolicyNumber, PolicyNumberParts, Setting, Segment, SegmentParts, LastExact, LastExactParts, LastOpen, LastOpenParts, Last, Pattern, PatternParts, Grant, GrantParts, ResourceScope, ResourceScopeParts, ExecutorCharter, ExecutorCharterParts, ExecutorProcedure, ExecutorProcedureParts, ExecutorRole, ExecutorRoleParts, ExecutorJob, ExecutorJobParts, Executor, Delegation, DelegationParts, Models, ModelsParts, Budget, BudgetParts, Authority, AuthorityParts, Judge, JudgeParts, Observed, ObservedParts, Guard, Requirement, RequirementParts, Implication, ImplicationParts, Rules, RulesParts, Role, RoleParts, Policy, PolicyParts, PermissionRole, PermissionRoleParts, TemplateCharter, TemplateCharterParts, TemplateExecutor, Amount, AmountParts, AsAllowed, AsAllowedParts, TemplateBudget, Span, SpanParts, TemplateDeadline, TemplateOverride, TemplateOverrideParts, ConfiguredPolicy, ConfiguredPolicyParts, FieldRule, FieldRuleParts, Verdict, VerdictParts, PartKind, PartPath, PartPathParts, PartNumber, PartNumberParts, PartKey, Part, PartParts, Approval, ApprovalParts, Report, ReportParts, VerdictChoices, VerdictChoicesParts, Change, ChangeParts, Contract, Retention, EndedBy, Flags, FlagsParts, ModelEffort, ModelEffortParts, LlmChoice, LlmChoiceParts, Template, TemplateParts, Value, Party, PartyParts, Decider, Proposer, ProposalId, ProposalIdParts, Head, HeadParts, Set, SetParts, Edit, Item, ItemParts, Default, DefaultParts, Changed, ChangedParts, Revision, RevisionParts, Extent, ExtentParts, CharterVersion, CharterVersionParts, Proposal, ProposalParts, Path};
     use super::Limits;
 
     use alloc::boxed::Box;
@@ -9622,7 +9721,7 @@ mod golden_tests {
         };
         at && past
     }
-    static GOLDEN_0: [Case; 220] = [
+    static GOLDEN_0: [Case; 224] = [
         ("record_text_smallest", || { let value = Text::new(&CEILINGS, TextParts { bytes: Box::from([].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Text::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_text_full", || { let value = Text::new(&CEILINGS, TextParts { bytes: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Text::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_model_name_smallest", || { let value = ModelName::new(&CEILINGS, ModelNameParts { name: Box::from([].as_slice()), efforts: skein_lib::List::with_capacity(0) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ModelName::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -9675,12 +9774,16 @@ mod golden_tests {
         ("record_executor_procedure_full", || { let value = ExecutorProcedure::new(&CEILINGS, ExecutorProcedureParts { number: u32::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ExecutorProcedure::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_executor_role_smallest", || { let value = ExecutorRole::new(&CEILINGS, ExecutorRoleParts { number: 0_u32 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ExecutorRole::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_executor_role_full", || { let value = ExecutorRole::new(&CEILINGS, ExecutorRoleParts { number: u32::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ExecutorRole::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_executor_job_smallest", || { let value = ExecutorJob::new(&CEILINGS, ExecutorJobParts { kind: 0_u32 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ExecutorJob::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_executor_job_full", || { let value = ExecutorJob::new(&CEILINGS, ExecutorJobParts { kind: u32::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ExecutorJob::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_executor_charter_smallest", || { let value = Executor::Charter(ExecutorCharter::new(&CEILINGS, ExecutorCharterParts { number: 0_u32 }).expect("golden within ceilings")); let bytes: &[u8] = &[0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Executor::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_executor_charter_full", || { let value = Executor::Charter(ExecutorCharter::new(&CEILINGS, ExecutorCharterParts { number: u32::MAX }).expect("golden within ceilings")); let bytes: &[u8] = &[0, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Executor::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_executor_procedure_smallest", || { let value = Executor::Procedure(ExecutorProcedure::new(&CEILINGS, ExecutorProcedureParts { number: 0_u32 }).expect("golden within ceilings")); let bytes: &[u8] = &[1, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Executor::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_executor_procedure_full", || { let value = Executor::Procedure(ExecutorProcedure::new(&CEILINGS, ExecutorProcedureParts { number: u32::MAX }).expect("golden within ceilings")); let bytes: &[u8] = &[1, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Executor::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_executor_role_smallest", || { let value = Executor::Role(ExecutorRole::new(&CEILINGS, ExecutorRoleParts { number: 0_u32 }).expect("golden within ceilings")); let bytes: &[u8] = &[2, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Executor::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_executor_role_full", || { let value = Executor::Role(ExecutorRole::new(&CEILINGS, ExecutorRoleParts { number: u32::MAX }).expect("golden within ceilings")); let bytes: &[u8] = &[2, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Executor::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_executor_job_smallest", || { let value = Executor::Job(ExecutorJob::new(&CEILINGS, ExecutorJobParts { kind: 0_u32 }).expect("golden within ceilings")); let bytes: &[u8] = &[3, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Executor::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_executor_job_full", || { let value = Executor::Job(ExecutorJob::new(&CEILINGS, ExecutorJobParts { kind: u32::MAX }).expect("golden within ceilings")); let bytes: &[u8] = &[3, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Executor::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_delegation_smallest", || { let value = Delegation::new(&CEILINGS, DelegationParts { kinds: skein_lib::List::with_capacity(0), tasks: 0_u32, depth: 0_u32 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Delegation::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_delegation_full", || { let value = Delegation::new(&CEILINGS, DelegationParts { kinds: { let mut items = skein_lib::List::with_capacity(1); items.push(Executor::Charter(ExecutorCharter::new(&CEILINGS, ExecutorCharterParts { number: u32::MAX }).expect("golden within ceilings"))).expect("one slot"); items }, tasks: u32::MAX, depth: u32::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 1, 0, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Delegation::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_models_smallest", || { let value = Models::new(&CEILINGS, ModelsParts { bits: 0_u64, all: false }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Models::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),

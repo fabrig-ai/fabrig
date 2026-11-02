@@ -56,7 +56,7 @@ fn load(domain: &mut Domain, limits: &Limits, stored: Stored) -> Result<(), crat
                 Executor::Agent { .. } => {
                     domain.live_agents = domain.live_agents.checked_add(1).expect("bounded restored agents");
                 }
-                Executor::Person(_) | Executor::Procedure { .. } => {}
+                Executor::Person(_) | Executor::Procedure { .. } | Executor::Job { .. } => {}
             }
             crate::settings::hold(domain, &task);
             let id = domain
@@ -162,7 +162,7 @@ fn links(domain: &Domain, task: &TaskRecord) {
                 );
             }
         }
-        Executor::Procedure { .. } | Executor::Person(_) => {}
+        Executor::Procedure { .. } | Executor::Person(_) | Executor::Job { .. } => {}
     }
     match task.requester {
         Party::Task(parent) => live_link(domain, key, parent),

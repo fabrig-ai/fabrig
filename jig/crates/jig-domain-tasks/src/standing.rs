@@ -12,7 +12,7 @@ pub(crate) fn renew(domain: &mut Domain, env: &Env<Limits>, number: u64, period:
     let Some(task) = record(domain, number) else { return };
     let procedure = match task.executor {
         Executor::Procedure { .. } => true,
-        Executor::Agent { .. } | Executor::Person(_) => false,
+        Executor::Agent { .. } | Executor::Person(_) | Executor::Job { .. } => false,
     };
     let live = match task.phase {
         Phase::Waiting | Phase::Active(_) | Phase::Held { .. } => true,
