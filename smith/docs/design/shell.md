@@ -1067,7 +1067,7 @@ The declared quantities of protocol/limits.md, section 2.2:
 | `budget.turns` | 512, a loop guard | provisional |
 | `budget.reserve` | 2 turns and 5 minutes | provisional; the budget probe |
 | waiting time | 15 minutes interactive; 0 for `smith exec` | provisional |
-| `sub_agents` | off | decided, until the reserve lands |
+| `sub_agents` | off | decided: children run one at a time, and the parallel-children probes are uncalibrated (`docs/development/benchmarks/sub-agents-by-default.md`) |
 
 ### 6.5 Policy values
 

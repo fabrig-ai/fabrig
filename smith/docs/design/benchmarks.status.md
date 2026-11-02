@@ -3,10 +3,14 @@
 2026-11-02. Where smith's code lags or departs from [benchmarks.md](benchmarks.md).
 
 - **Not yet:**
-  - 3.1, 11.5: the smoke suite's `smoke-tools`, `large-write`, `budget`
-    and `failures` probes hold no `[calibration]` block, so they gate
-    nothing; `cache-reuse/idle-gap` has no variant, and `budget/spend` is
-    missing from `suites/probes.toml`.
+  - 3.1, 5.2, 11.5: calibrations. The probes `budget`, `cache-reuse`,
+    `credentials`, `failures`, `follow-up`, `large-write`,
+    `parallel-children`, `parallel-read`, `paths`, `slow-completion` and
+    `smoke-tools` hold no `[calibration]` block, nor does one of
+    `tool-output`'s five variants, so they gate nothing
+    (`benchmarks/src/probe/gating.rs`), the smoke suite's among them.
+    `cache-reuse/idle-gap` has no variant, and `budget/spend` is missing
+    from `suites/probes.toml`.
   - 6: the Claude Code arm: `benchmarks/src/run.rs` refuses it.
   - 7: no `anthropic` arm (`agents/models.toml`'s `[working.anthropic]`
     is empty), and no suite runs `smith-claude-code`.

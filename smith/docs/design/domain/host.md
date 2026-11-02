@@ -273,9 +273,9 @@ policy.
   its own channel's losses; a host that keeps no transcript acknowledges
   at once.
 - **A turn the host cannot keep is never acknowledged.** An
-  acknowledgement means durable (protocol/channel.md, section 7). A host whose
-  store fails therefore drops the run at once (9.2): nothing the run says
-  after that could be kept, and its window would never open again.
+  acknowledgement means durable (protocol/channel.md, section 7). A host
+  whose store fails therefore drops the run at once (9.2): nothing the run
+  says after that could be kept, and its window would never open again.
   - **The drop releases the held turns.** It releases every turn held for
     the host, unacknowledged. The agent is gone once what the run started
     has settled, and does not wait for acknowledgements that can no
