@@ -1,8 +1,6 @@
 # contract: status
 
-2026-10-29. Where jig's code lags or departs from [contract.md](contract.md).
+2026-11-02. Where jig's code lags or departs from [contract.md](contract.md).
 
-- **Built:** 1 to 10: operation API, whole authorities, queries, spans, account/model offers and preferences, projects, pasted sign-in and moves. 5.1: stable deadlines; Seen current-state reprocessing. 3.2: `MoveToNewest`. 5.1: `Task.settings`. 6: a held revision's charter read; a read's too-linked answer, naming the join bound. 3.2: Stop's placed hold; 5.6: HoldCategory::Placed. 3.2: `PolicyEdit::RoleSpend`. 6: the settings decision in a task's messages. 3.2: Lift; 5.6: the placed hold's document line and whether the reader may lift it; a release proposal's hold.
-- **Not yet:** 5.3: complete creating bounds/executors and UTF-8 result validation. 6: retained-transcript gone answer. 7.4: application streams. 11: distinct over-bound document answer unresolved. 3.2: Hold; 5.6: holds{project}.
-
-- **Built (2026-11-01):** 5.1, 7.2: live-tree folds name the nearest shown ancestor, with overflow merged into the root within the window's row bound; phase and held counts cover every unshown descendant.
+- **Not yet:** 3.2: `Hold`; `Move` of a live task as its new requester; `Succeed` (`contract::Ask` has none of them). 5.1: `me`'s templates carry no `resolved_default` preview. 5.3: creating's executors list charters and procedures, not persons or roles (`CreateBounds`); a result's texts are not checked as UTF-8 where the tasks child admits a result. 5.6: the `holds{project}` read. 5.7: job tasks: the contract has no `Job` executor kind. 6: a turn read past its transcript's horizon: the client reads `Gone`, and no engine path answers it. 7.4: an application's streams.
+- **Departs:** 3.2: `RemoveProject` (`contract::Ask::RemoveProject`) deletes a project, which this document does not design, because the playground reset is built ahead of the design (`temper/docs/design/draft/playground-reset.md`, 5). 5.1: the client wire and the client still carry `TaskWaitRefused::Program`, which no engine path makes; the next client wire version removes it, with the view's phrases for it.
