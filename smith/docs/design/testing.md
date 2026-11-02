@@ -1,6 +1,6 @@
 # Testing smith
 
-Provisional, 2026-10-08, revised 2026-10-30. How smith is tested. The
+Provisional, 2026-10-08, revised 2026-11-02. How smith is tested. The
 strategy is skein's `docs/foundation/testing-strategy.md`: the tiers,
 faults, what every fake shares, what every world checks, scenarios and
 the referee, the two suites, and where a failure is fixed. This document
@@ -11,7 +11,8 @@ keeps what is smith's:
 - its scenarios and referee (section 5);
 - what its worlds check beyond the strategy (section 6);
 - its layout (section 7);
-- what is still open (section 8).
+- what is still open (section 8);
+- what is left for later (section 9).
 
 The stories each world tells are in the design of what it tests, in that
 document's "The world" section.
@@ -40,7 +41,9 @@ document's "The world" section.
 - **End to end, smith runs as it ships:** the root package's binaries as
   processes, against fakes in the focused suite, and against the real
   providers, their issuers, Claude Code and a git remote in a live suite
-  run by choice, on smith's own accounts, signed in once (2.3).
+  outside the gate, on smith's own accounts, signed in once: the
+  pipeline runs it after every landing, and the owner runs the story on
+  a key (2.3).
 - **Benchmarks are not tests.** Real agents on real models are measured
   in a tier of their own, outside both suites and the gate (2.4).
 - **One scenario, every tier its fakes reach.** The local host's
@@ -635,12 +638,16 @@ benchmarks/                      smith-bench, the benchmark harness (benchmarks.
 - **The sample host in the real loop:** whether a second host earns a
   real loop of its own, beside the local host's, now that an end-to-end
   story spawns `smith-agent` from it.
-- **Live tests on a schedule:** a live directory on the CI's machine,
-  signed in once, or keys kept as CI secrets, and how often to spend a
-  subscription's usage on them.
 - **A reacting person in skein:** whether a scripted neighbour that acts
   on what it observes is generic enough for skein's world kit. It moves
   there when a second service needs it.
 - **Both placements within the budgets:** which scenarios run twice once
   the inline agent is the product, and whether the spawned placement's
   share moves to the fuzzy sweeps.
+
+## 9. Later
+
+- **The key's story after landing.** The story on an Anthropic API key
+  is the owner's for now (2.3): no shelf holds a key. It returns to the
+  after-landing run when the pipeline has a key to lend, which is the
+  user's to give.
