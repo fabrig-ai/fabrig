@@ -1905,10 +1905,17 @@ pub struct Verification {
 pub struct TierVerification {
     pub tier: Box<[u8]>,
     pub verdict: Option<TierVerdict>,
-    pub repaired: Option<skein_forge::api::Commit>,
+    pub repaired: Option<TierRepair>,
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct TierVerdict {
     pub run: u64,
     pub blame: temper_engine_domain_forge_tiers::Blame,
+}
+
+/// The run that passed a landing's blamed failures (client/forge.md, 2.1).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct TierRepair {
+    pub run: u64,
+    pub tip: skein_forge::api::Commit,
 }

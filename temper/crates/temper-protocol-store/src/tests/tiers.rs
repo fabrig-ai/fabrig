@@ -70,7 +70,7 @@ fn verification_keeps_every_verdict_and_repair_and_receipts_keep_failures() {
                         d::TierVerification {
                             tier: Box::from(b"two".as_slice()),
                             verdict: Some(d::TierVerdict { run: 7, blame }),
-                            repaired: Some([8; 32]),
+                            repaired: Some(d::TierRepair { run: 2, tip: [8; 32] }),
                         },
                     ]),
                 }),

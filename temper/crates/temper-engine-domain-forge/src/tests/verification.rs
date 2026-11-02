@@ -466,11 +466,14 @@ fn later_green_repairs_red_without_replacing_its_verdict() {
     green(&mut d, 2, &[REPAIR]);
     advance(&mut d, SECOND, env().wall, false);
     let tier = &d.verifications.get(&(REPO, LAST)).expect("row").tiers[0];
-    assert_eq!(tier.repaired, Some(REPAIR));
+    assert_eq!(tier.repaired, Some(TierRepair { run: 2, tip: REPAIR }));
     assert_eq!(tier.verdict, Some(TierVerdict { run: 1, blame: policy::Blame::Owns(policy::Failures::Many) }));
     assert_eq!(d.change(SECOND).expect("change").change.state, change::State::Cleared { merge: LAST });
     green(&mut d, 3, &[HEAD]);
-    assert_eq!(d.verifications.get(&(REPO, LAST)).expect("row").tiers[0].repaired, Some(REPAIR));
+    assert_eq!(
+        d.verifications.get(&(REPO, LAST)).expect("row").tiers[0].repaired,
+        Some(TierRepair { run: 2, tip: REPAIR })
+    );
 }
 
 #[test]

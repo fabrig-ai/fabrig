@@ -270,7 +270,11 @@ fn tier_rows(rng: &mut Rng, bounds: &Bounds) {
         tiers: Box::new([forge::TierVerification {
             tier: Box::from(b"tier".as_slice()),
             verdict: if rng.below(2) == 0 { None } else { Some(forge::TierVerdict { run: rng.next_u64(), blame }) },
-            repaired: if rng.below(2) == 0 { None } else { Some([8; 32]) },
+            repaired: if rng.below(2) == 0 {
+                None
+            } else {
+                Some(temper_engine_domain_forge::TierRepair { run: 2, tip: [8; 32] })
+            },
         }]),
     });
     row_and_key(&row, rng, bounds);
