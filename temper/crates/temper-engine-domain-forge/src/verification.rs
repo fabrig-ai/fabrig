@@ -19,3 +19,12 @@ pub(crate) fn row_bytes(row: &Verification) -> Option<u64> {
     }
     Some(held)
 }
+
+/// The verification task fills this verdict join (temper/docs/design/domain/after-landing.md, 6).
+pub(crate) fn judged(
+    _d: &mut Domain,
+    _repository: skein_forge::api::Repository,
+    _tier: &[u8],
+    _verdict: &temper_engine_domain_forge_tiers::Verdict,
+) {
+}

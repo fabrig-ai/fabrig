@@ -142,7 +142,7 @@ pub struct Domain {
     pub(crate) connect: crate::connect::State,
     pub(crate) installations: Map<(u16, u64), crate::Installation>,
     pub(crate) repositories: Map<skein_forge::api::Repository, Repository>,
-    names: Map<u64, Box<[Name]>>,
+    pub(crate) names: Map<u64, Box<[Name]>>,
     holds: Map<Name, Hold>,
     pub(crate) subscriptions: Map<(u64, Topic), Subscriber>,
     pub(crate) goal_files: Map<u64, topics::Files>,
@@ -177,6 +177,7 @@ pub struct Domain {
     pub(crate) capabilities: Map<Token, crate::capabilities::Pending>,
     pub(crate) stopping: bool,
     pub(crate) landing: crate::landing::State,
+    pub(crate) tier_ops: crate::tiers::State,
     pub(crate) tiers: Map<(skein_forge::api::Repository, Box<[u8]>), crate::TierRow>,
     pub(crate) verifications: Map<(skein_forge::api::Repository, skein_forge::api::Commit), crate::Verification>,
     /// Restored timers stay passive until the scripted fresh-read stage (domain/root.md, 9.1).
@@ -584,6 +585,7 @@ impl Domain {
             identities: credentials,
             stopping: false,
             landing: crate::landing::State::new(l),
+            tier_ops: crate::tiers::State::new(l),
             tiers: Map::with_capacity(l.repositories.checked_mul(l.tiers.tiers).expect("checked tier capacity")),
             verifications: Map::with_capacity(l.changes),
             restore_phase: RestorePhase::Cold,
@@ -686,6 +688,7 @@ impl Domain {
         }
         .into_iter()
         .chain(self.playground_due)
+        .chain(crate::tiers::deadline(self))
         .min()
     }
 
@@ -696,7 +699,7 @@ impl Domain {
             return None;
         }
         let mut next: Option<skein_lib::Wall> = None;
-        for deadlines in [&self.projection_due, &self.change_due, &self.landing.due] {
+        for deadlines in [&self.projection_due, &self.change_due, &self.landing.due, &self.tier_ops.due] {
             for (_, deadline) in deadlines {
                 next = Some(match next {
                     Some(previous) => previous.min(*deadline),
@@ -1037,7 +1040,12 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         return;
     }
     match event {
-        Event::TierTask { .. } | Event::TierRefused { .. } | Event::StepTier { .. } | Event::VetoTier { .. } => {}
+        Event::TierTask { repository, tier, number, task } => {
+            crate::tiers::task(d, repository, tier, number, Some(task), out);
+        }
+        Event::TierRefused { repository, tier, number } => crate::tiers::task(d, repository, tier, number, None, out),
+        Event::StepTier { task, entry, heard } => crate::tiers::step(d, env, task, entry, heard, out),
+        Event::VetoTier { task, entry } => crate::tiers::veto(d, task, entry, out),
         Event::OrderLanding { task, changes } => crate::landing::order(d, task, &changes, out),
         Event::JoinLanding { task, member, after } => crate::landing::join(d, task, member, &after, out),
         Event::Landing { row } => crate::landing::register(d, env, row, out),
@@ -1325,6 +1333,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::Unsubscribe { task, topic } => unsubscribe(d, task, topic, out),
         Event::Hint { hint } => {
             crate::landing::hinted(d, &hint, out);
+            crate::tiers::hinted(d, &hint, out);
             let changes = d.changes_for(hint.repository, env.limits.changes);
             // An unrecognised resource (for example after a rename) cannot
             // establish irrelevance: retain the repository-wide fallback.
@@ -1369,6 +1378,10 @@ pub fn resume(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         drain(d, env, out);
         return;
     }
+    if d.tier_ops.dirty {
+        crate::tiers::watch(d, env, out);
+        return;
+    }
     crate::playground::expire(d, env.now, out);
     brief::expire(d, env.now, out);
     let before = out.len();
@@ -1408,6 +1421,7 @@ pub fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     }
     crate::playground::expire(d, env.now, out);
     brief::expire(d, env.now, out);
+    crate::tiers::fire(d, env, out);
     let mut goals = List::with_capacity(env.limits.issues);
     for (goal, when) in &d.projection_due {
         if *when <= env.wall && goals.room() > 0 {
@@ -1469,7 +1483,8 @@ pub(crate) fn child(d: &mut Domain, env: &Env<Limits>, event: skein_forge_client
 )]
 fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     for _ in 0..d.client_out.len() {
-        let request = d.client_out.pop().expect("counted child output");
+        // A handler may drain the remaining output while requesting its next read.
+        let Some(request) = d.client_out.pop() else { break };
         match request {
             skein_forge_client::Request::Settled { left } => {
                 let mut unfinished = List::with_capacity(env.limits.entries);
@@ -1504,6 +1519,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                 let lost_comment = projection && outcome == skein_forge_client::Outcome::Held && posting(d, entry);
                 d.named_outcome(entry, outcome);
                 outcome_facts(d, env, entry, task, outcome, out);
+                crate::tiers::outcome(d, entry, outcome, out);
                 let retain = crate::landing::outcome(d, entry, outcome, out);
                 match outcome {
                     skein_forge_client::Outcome::Uncertain | skein_forge_client::Outcome::Queued => {}
@@ -1562,7 +1578,9 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                 }
             }
             skein_forge_client::Request::Read { owner, result } => {
-                if d.landing.pending.contains_key(&owner) {
+                if d.tier_ops.reads.contains_key(&owner) {
+                    crate::tiers::answered(d, env, owner, result, out);
+                } else if d.landing.pending.contains_key(&owner) {
                     crate::landing::answered(d, env, owner, result, out);
                 } else if d.capabilities.contains_key(&owner) {
                     crate::capabilities::answered(d, env, owner, result, out);
@@ -1591,6 +1609,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     read_afresh_complete(d, out);
 }
 
+#[expect(clippy::manual_map, reason = "step code uses explicit options without closures")]
 fn outcome_facts(
     d: &mut Domain,
     env: &Env<Limits>,
@@ -1660,6 +1679,22 @@ fn outcome_facts(
             if d.landed.len() < env.limits.landings.max(env.limits.changes) || d.landed.contains_key(&commit) {
                 d.landed.insert(commit, task).expect("preflighted landed capacity");
                 emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Landed { commit, task } });
+                if let Some(change) = d.changes.get(&task) {
+                    let repository = change.repository;
+                    let branch = change.base.clone();
+                    let resource = skein_forge_client::Resource {
+                        repository,
+                        what: skein_forge_client::What::Branch(branch.clone()),
+                    };
+                    let before = match from_client(&resource, &env.limits) {
+                        Some(name) => match d.heads.get(&name) {
+                            Some(head) => Some(head.commit),
+                            None => None,
+                        },
+                        None => None,
+                    };
+                    crate::tiers::observed(d, env, repository, &branch, before, commit, out);
+                }
             }
         }
         skein_forge_client::Outcome::Made {
@@ -1715,7 +1750,7 @@ fn valid_name(d: &Domain, l: &Limits, name: &Name) -> bool {
     }
 }
 
-fn to_client(name: &Name, l: &Limits) -> Option<skein_forge_client::Resource> {
+pub(crate) fn to_client(name: &Name, l: &Limits) -> Option<skein_forge_client::Resource> {
     let repository = skein_forge::api::Repository { forge: name.forge, repository: name.repository };
     let what = match &name.what {
         What::Repository => skein_forge_client::What::Repository,
@@ -1739,7 +1774,7 @@ fn to_client(name: &Name, l: &Limits) -> Option<skein_forge_client::Resource> {
     Some(skein_forge_client::Resource { repository, what })
 }
 
-fn participating(d: &Domain, resource: &skein_forge_client::Resource) -> bool {
+pub(crate) fn participating(d: &Domain, resource: &skein_forge_client::Resource) -> bool {
     let (skein_forge_client::What::Issue(number) | skein_forge_client::What::Pull(number)) = &resource.what else {
         return false;
     };
@@ -1795,6 +1830,10 @@ fn names(d: &mut Domain, env: &Env<Limits>, task: u64, resources: Box<[Name]>, o
             return;
         }
     }
+    if !crate::tiers::add_watches(d, env, &mut watches) {
+        emit(out, Request::Refused { task });
+        return;
+    }
     let mut list: List<skein_forge_client::Watch> = List::with_capacity(env.limits.client.resources);
     for (_, watch) in &watches {
         list.push(watch.clone()).expect("map capped to watch list");
@@ -1847,6 +1886,20 @@ fn unnamed(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request
             }
             let participating = participating(d, &resource);
             if !present && list.push(skein_forge_client::Watch { resource, participating }).is_err() {
+                emit(out, Request::Refused { task });
+                return;
+            }
+        }
+    }
+    for name in &crate::tiers::watched(d) {
+        if let Some(resource) = to_client(name, &env.limits) {
+            let mut present = false;
+            for watch in &list {
+                if watch.resource == resource {
+                    present = true;
+                }
+            }
+            if !present && list.push(skein_forge_client::Watch { resource, participating: false }).is_err() {
                 emit(out, Request::Refused { task });
                 return;
             }
@@ -4606,6 +4659,7 @@ fn branch_changed(
         return;
     }
     emit(out, Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(row) });
+    crate::tiers::observed(d, env, resource.repository, &branch, previous, commit, out);
     let Some(before) = previous else { return };
     if before == commit {
         return;
@@ -5129,6 +5183,7 @@ fn read_afresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         ci_refresh(d, env, *repository, *head, out);
     }
     crate::landing::refresh(d, env, out);
+    crate::tiers::restart(d, env, out);
     child(d, env, skein_forge_client::Event::ReadAfresh, out);
 }
 
@@ -5238,6 +5293,7 @@ fn retire_ended(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                 .expect("existing bounded watch set");
         }
     }
+    assert!(crate::tiers::add_watches(d, env, &mut watches), "tier watch capacity");
     let mut list = List::with_capacity(env.limits.client.resources);
     for (_, watch) in &watches {
         list.push(watch.clone()).expect("bounded watches");
