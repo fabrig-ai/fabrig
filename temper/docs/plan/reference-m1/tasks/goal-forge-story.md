@@ -77,3 +77,14 @@ Acceptance, in a new module `forge_routes/goal_branch.rs` (declared in
 ## Report
 
 Each story and what it asserts, the tests and counts, and whether the inside change ran.
+
+## Answers
+
+### 2026-11-02: Should fab route the missing goal-branch merge writer slot to the goal-family production owner and then resume this task (recommended), or explicitly defer the inside-change acceptance? (reference-m1/goal-forge-story-1, foreman reference-m1/goal-forge-story/foreman-1)
+
+Route the failure to the goal-family production owner, then resume this story task; retain the inside-change acceptance.
+The spec’s “Owns and may change” settles ownership: “the fix is that task’s crate, never this test’s.”
+Contract C3 requires: “a merge into g takes g’s writer slot while in flight”.
+The acceptance includes the inside-change story when `landing: "goal"` is available; the run reports that it is available.
+Deferral is therefore not a pre-approved option, and the reported failure prevents accepting this task as done.
+After the production owner’s repair, resume the story task, verify the writer assertion and remaining landing assertions, and complete the prescribed checks.
