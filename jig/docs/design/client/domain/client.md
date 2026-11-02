@@ -1238,9 +1238,8 @@ on, and then a dependency it waits on, which is parked; then a refused
 start; and only then its stage, so a chat backing off is retrying and
 one claimed or running reads its host's report. A summary row, which
 holds no run wait, passes none and is never refused. A refusal is not a
-reply. The reference view shows Hello's observed
-kind, time and cause, or the task-specific program compatibility cause;
-it promises no automatic source switch.
+reply. The reference view shows the refusal's observed host kind, time
+and cause; it promises no automatic source switch.
 
 ## 20. Modes
 
