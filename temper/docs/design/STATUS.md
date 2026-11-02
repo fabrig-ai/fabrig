@@ -5,7 +5,8 @@ design from its drafts, from the status files below. The first
 milestone stands in the code (`README.md`). After landing and findings
 are not built, whole (`domain/after-landing.md`, `domain/findings.md`,
 with their families in `protocol/store.md` and their groups in
-`client/tools.md`). Nor are jobs, and with them the project's tooling
+`client/tools.md`). The worker runs jobs, but none of temper's kinds
+is built, so the project's tooling and the `Rewrite` delivery lag
 (`domain/worker.md`, `protocol/tooling.md`, `domain/landing.md`,
 `protocol/git.md`). Settings of temper's kinds lag: the landing rules
 and the forge's charter are still read from the document
