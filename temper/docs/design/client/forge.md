@@ -427,16 +427,12 @@ and `connect-forge.html`.
   `web` address's host, and "Playground forge" for the demo's
   (`README.md`, 5.6). PROJECT is a project as the banner names it
   (`README.md`, 5.1).
-- **What the row carries today** (`README.md`, 4.6): its number, kind,
-  mode, connection, offer, its first repository, on GitHub its
-  installations, and its last connect's end. Until it carries
-  its `web` address and the repositories adopted on it, each with its
-  project (a growth of the `forges` subject's row, and `CLIENT_VERSION`
-  with it), the summary is "forge N · KIND", another Forgejo is named
-  "Forgejo", and a connected row's line is its first repository once
-  made, "ORG/NAME · project PROJECT", or none. Opened, a row holds its
-  Account line, connected ("LOGIN · user ID"), and its actions as
-  offered today: "Set up again" on set up failed, "Open its set-up ›",
+- **What the row carries** (`README.md`, 4.6): its number, kind,
+  mode, connection, offer, its first repository, its `web` address, the
+  repositories adopted on it, each with its project, on GitHub its
+  installations, and its last connect's end. Opened, a row holds its
+  Account line, connected ("LOGIN · user ID"), and its actions: "Set up
+  again" on set up failed, "Open its set-up ›",
   a link to `ConnectForge` at it, while it sets up or connects, an
   owned forge's restart words when stopped, and, connected, "Adopt a
   repository", a link to `Adopt { project }` for the project the person
@@ -444,21 +440,19 @@ and `connect-forge.html`.
   GitHub, temper's App"), each installation by its account's login, or
   "installation ID" while the forge has not heard its account, with
   "suspended" and a stray's words (below) where they hold,
-  never yet "all repositories" or "selected repositories" nor a link to
+  never "all repositories" or "selected repositories" nor a link to
   the installation's page, which wait on the forge hearing an
   installation's selection (skein's installation events carry none);
   and "Install on another account", which sends `Install` with `back`,
   the Forges page's address, once an installation is accepted, or
   "Install on GitHub" before (the actions' table, below). Every row
   holds its last connect's line where it has one (the row's table,
-  below). Its Access and Runs lines, its load, the App's setup URL, the
-  `Lacking` line, and the actions that carry a pasted value but
-  Connect wait on their own work (`../STATUS.md`).
+  below).
 - **The playground's forge,** the fake the demo names, follows under
   the level-2 heading "The playground", folded, while the demo's forge
   half holds (`README.md`, 4.8): "Playground forge · the playground’s,
   until a forge of yours connects · OWNER/NAME"; opened, its Account
-  line. Once the demo has ended (`../draft/first-run.md`, 2.3), it
+  line. Once the demo has ended (`../draft/archive/first-run.md`, 2.3), it
   shows nowhere.
 - **Owned setup versions** come from the forge row's `owned` pins.
   Details names the Forgejo version in what temper box downloads;
@@ -593,7 +587,7 @@ and `connect-forge.html`.
     Setting up. The fields: "Organization", `work` until changed;
     "Repository", `hello`; and "Into a new project, named", the
     repository's name until changed: the first run offers no existing
-    project (`../draft/first-run.md`, 2.4). An organization, repository
+    project (`../draft/archive/first-run.md`, 2.4). An organization, repository
     or project's name left empty is the page's refusal,
     "Required.". The set up's refusals show under the button in its
     words (`README.md`, 4.6): `invalid`, which also marks the organization and
@@ -617,7 +611,7 @@ and `connect-forge.html`.
     entry in `application.setup` (`mode` `managed`, its bot); "Without
     it, temper takes its bot’s tokens only."; then "Restart temper box,
     then connect it from this page." These words stay: a Forgejo
-    elsewhere is added by hand and a restart (`../draft/first-run.md`,
+    elsewhere is added by hand and a restart (`../draft/archive/first-run.md`,
     section 4).
   - *A configured admin Forgejo:* "Connect as its admin", then "Paste a
     site admin’s token with the scopes write:admin, read:user,
@@ -742,15 +736,10 @@ and `connect-forge.html`.
   waits for its outcome; refused, the adoption's outcome shows in its
   words (`README.md`, 4.7). A client that did not send it (another
   tab, or after a reload) shows Ready on the row's made alone. With
-  no first repository on the row (a set up before first-repo's wire,
-  or one a restart has dropped): "FORGE is
+  no first repository on the row (one a restart has dropped): "FORGE is
   connected", "Connected as LOGIN.", "Adopt a repository", a link to
   `Adopt { project }`, and the Forges line.
-- **Ready, on GitHub,** until the picker's `Reachable` is built, is
-  Ready's with no first repository (above): "GitHub is connected",
-  "Connected as LOGIN.", the App's line of the row (below), "Adopt a
-  repository", a link to `Adopt { project }`, and the Forges line.
-  With the picker, it starts with the repository to start in, while
+- **Ready, on GitHub,** starts with the repository to start in, while
   none of the forge's is adopted: "Choose a repository to start in",
   "SLUG is installed on ACCOUNT, with all its repositories, N." or
   "…, with N repositories you chose.", then the repositories of its
@@ -893,7 +882,7 @@ admin", with its forge number and bot (`../protocol/setup.md`, section
 | Install the App; Install on another account | GitHub, connected: "Install on GitHub" before any accepted installation (Connecting), "Install on another account" after one, and Ready's "Choose its repositories on GitHub" | a fresh link to temper's App's install page, with `back`, where the browser goes in the page's own tab; the person picks the account and its repositories on GitHub, keeping GitHub's default, all of them, or choosing some, and the setup route sends the tab back to `back` |
 | New repository | Forgejo owned or managed, connected | the set up's same fields: organization (default `work`), repository (default `hello`) and a project, one of the person's or a new one; the general form of the first repository (`../protocol/setup.md`, section 15) |
 | Forget the admin's token | managed | the admin's token erased; the forge is connected, its bot and tokens kept, and adopting a repository grants nothing more: the person makes the bot a collaborator |
-| Set up a Forgejo here | the row's offer offered, not set up (`README.md`, 4.6) | its organization (default `work`), its repository (default `hello`) and its project, a new one named as the repository (`../draft/first-run.md`, 2.4), or, from the welcome's card under the box, `work`, `hello` and a new project `Default`, none of them asked (`README.md`, 3.5); then the box asked to run the forge's steps (`../protocol/setup.md`, 7.1): its binaries fetched, its preparation, Forgejo and its runner started, then its handover taken and reconciled, the repository made with the starter workflow (`../protocol/setup.md`, 6.7), and, once the row says it made, the client's `MakeProject` and `Adopt` into it; the card names the path of `person_password`, never its password (`../protocol/setup.md`, 6.5) |
+| Set up a Forgejo here | the row's offer offered, not set up (`README.md`, 4.6) | its organization (default `work`), its repository (default `hello`) and its project, a new one named as the repository (`../draft/archive/first-run.md`, 2.4), or, from the welcome's card under the box, `work`, `hello` and a new project `Default`, none of them asked (`README.md`, 3.5); then the box asked to run the forge's steps (`../protocol/setup.md`, 7.1): its binaries fetched, its preparation, Forgejo and its runner started, then its handover taken and reconciled, the repository made with the starter workflow (`../protocol/setup.md`, 6.7), and, once the row says it made, the client's `MakeProject` and `Adopt` into it; the card names the path of `person_password`, never its password (`../protocol/setup.md`, 6.5) |
 | Set up again | the row's offer offered, set up failed | the same ask again: what the last one left is kept, a fetched binary hashed and not fetched again |
 
 Connect, but on a stopped forge or one whose records say why it is not
@@ -1006,10 +995,9 @@ are the forge's part of a project's page (jig's
 `client/domain/pages.md`, 6.1):
 
 - **Each** shows its title, its repository and issue, the task that
-  filed it as a chip, when, and its state, which the store keeps: open,
-  taken up by a goal, dropped. Designed, not built: `findings.md`'s
-  kinds and states, `new`, `routed`, `backlog` and `dropped`, as its
-  labels say.
+  filed it as a chip, when, and its kind and state as its labels say
+  (`../domain/findings.md`, section 2): `new`, `routed`, `backlog` or
+  `dropped`.
 - **Taking one up** sets a goal that names it, the board's form with its
   words filled in (jig's `client/domain/pages.md`, 6.2), or starts a
   chat about it, with the finding named in the chat's first words, so
@@ -1276,8 +1264,6 @@ made by the forge connector from what it keeps of the change
 - **Conflicts seen early** (`../domain/forge.md`, section 20):
   warning two goals whose open changes conflict before either lands, as
   a panel on both.
-- **A queue's throughput:** if landings are ever batched, how a batch and
-  its bisection show.
 - **A person's approval as a rule,** posted on the forge as the person
   (`../README.md`, section 8), which the approval's card would then
   say.

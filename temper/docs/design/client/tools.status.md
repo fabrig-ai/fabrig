@@ -1,34 +1,44 @@
 # tools: status
 
-2026-11-01. Where temper's code lags or departs from [tools.md](tools.md).
+2026-11-02. Where temper's code lags or departs from [tools.md](tools.md).
 
-- **Built:** 6: a question's text and JSON read-whole calls name the asked task, as its answer call does. 8.1: an empty sign-in link is refused before sending, including stdin ending before DIRECTORY is ready.
-
-- **Built:** 5.4: one wait timer per admitted call, bounded by `Deadlines::with_capacity(rows)`; arming past capacity refuses, and the tools do not price the table.
-- **Built:** 4 to 8, 11 to 13, 15: ctl table/runner, named keys, reads/acts/waits, readable task results and cut-page continuations; whole amendments, account/model operations, private keys, import/export, forges/setup/demo and GitHub connect/install; `forge-accept F I` (area 6); `change N` and `wait change N` (5.4, area 6), a landed result line naming its pull request (6.1). 5.4, 6.3: authorized terminal task-read fallback. Settings/revision/change-settings tools. Settings proposals: `propose-settings`, `proposal`, `decide --running`, the proposal's recipient on the owner outcome. 11.5: `temper ctl help` prints the page `ctl`, then the tools. 5.1, 11.5: each tool's record whole: its line, what it prints, each argument's type, bound and line, its keying and its notes, the bounds from one function the parser shares; `help TOOL` and `help TOOL --json` print it. 5.3: `move-to-newest R`. 6.1: a task's `settings:` line. 11.4: running work keeps its revision. `forge-setup --playground`; an adoption refusal by cause, with its next call. 5.5, 6.3: ctl's import also reads the previous JIGM form by its magic, never writes it (decision 1345, until the held logins are re-exported). 5.5, 6.3: ctl's import also reads the old JIGM file's record in skein-oauth's pre-baseline SKOT form, inside the same temporary reader (until the held logins are re-exported). 7, 8.2: a kept request holds no other act; 5.4: a change's wait follows its task. 5.1, 5.4, 8.1 (part 3 of draft/agent-docs.md): tools named by their words, GROUP VERB (task show, forge setup), with GROUPS, help [GROUP [VERB]], --call's words and one vocabulary of placeholders held by a step test; a wait is a read: the nine watched reads take --since, --until (changed among the conditions) and --timeout, task tree reads a tree alone, and wait is gone; every printed act, read-on call and remedy in the new names; TOOLS keeps every index. task stop's hold over the task's subtree, its delegates held with it and resumed by its release. 5.2: a closed chat's conversation and run read from its kept record; 7: a close replayed answers its first answer; a budget hold says what to do; a held task's reason and way out, a panel's held writer or reviewer.  5.2, 5.3: `project show PROJECT` and `project fund PROJECT AMOUNT [--role ROLE]` (area 1), the reference page `ctl-project`. A long question prints cut and marked, with the activity read that holds it whole; `task answer` answers it as any other. 5.3: `project fund` answers with its edit, then the period and pools `now:`; a chat refused for a spent pool names it and its remedy (QA 20261027-1202, 1 and 2). 5.4: a first repository's setup waits its allowance on a live link; 7: every keyed act replays its first outcome; an ended task's cancel is refused. 6.3: an act refused for want of a retained answer's place prints the table's size and when it has room, exits 2, and waits when that is within its patience; the export's give-back too. 5.3: FIELDS, the settings file's form by shape beside the shared decoder, rendered as settings-fields and held to the decoder and the stock. hold lift; a task's placed-hold line in task show, with hold lift among its acts; task release refused naming the owner. 5.1: `landing show TASK [--project PROJECT]` and `landing list --project PROJECT [--ended]`. 5.4: a change wait rides an engine's restart: a watch let go as the engine stops is no end, and a cut read of task N retries within the link's 30 s deadline, failing past it with the link-down line. 4: no client output reservation. 8.2 step 4: kept finish notice uses the party last known after a stream drop.
-- **Not yet:** 5.1, 5.5: project names/new-project continuation. 5.5, 7, 9 to 15: goal model flags, deployment-key box proof, remaining catalogue/host facts and areas 2 to 4. 14: MCP endpoint. The joined model-amendment story remains. task hold, project hold, hold list. 11.4: running work's revision story moves from the process tier to the system world.
-
-- **Built:** 5.4, 6: a met text inbox wait prints the plain inbox read, with question words, read-whole and answer calls, and continuation, then `met`.
-
-- **Built:** 6.1: a heard question-answer notice prints its inbox acknowledgement in chat and task activity, including when its words are empty. 6.3: argument refusals retain their tool and form for argv and `--call`, and print the argument's type and bound from help's specification, or the missing/repeated/excessive rule, within 240 bytes with the tool's help call.
-
-- **Built:** 5.5, area 5: program declaration prints the box directory placeholders, the signed-in skip rule and the verify call; JSON next carries the command line. 7: spent-pool refusals keep their first figures and distinguish today's room with the new-key remedy.
-
-- **Built (2026-11-01):** 6.1: tree cuts print one total followed by one delegates read-on call per distinct fold parent.
-
-- **Built:** 5.3: `project fund` ceiling refusals name the rules, policy or role bound and its remedy; JSON preserves the ceiling's holder, dimension and value.
-
-- **Built:** 8.2: a full stream opening retries by backoff within the link deadline and proceeds when a stream frees; at the deadline, a still-full opening exits 1 with the engine's stream count and the wait/open-client remedy, within 240 bytes. The command reference notes explain that a call holds a stream for its span.
-
-- **Built:** 5.5 area 5, 6.1: account text prints numbered accounts and
-  sources, program states per host, sign-ins and last ends, readiness once
-  and differing deployment observations, supplied activity and verify calls.
-  Nested takes spend structural bytes, so a one-account owner with a few
-  hosts and offers is whole; text shares JSON's bounded projection and digest,
-  naming jig's readiness loss. `me` prints configured methods and usage links
-  as provider lines and keeps `cut:`. Model text keeps its field lines.
-
-- **Built:** 5.5: ctl connect `--read-only` carries and keeps the hook policy, and writable connects name the hook repair.
-
-- **Built (2026-11-01, plan phase-case):** 5.4: `--until phase:PHASE` parses its word in any ASCII case, `backing-off` also as `BackingOff` and `backing_off`; `help task show` and the `ctl` page say so.
-- **Not yet (14):** `--until phase:` in the header's words. The request asked that the spelling `task show` prints parse; the header prints jig's phrase-book word, which is the phase word only for `Waiting`, `Running`, `Closing` and `Held`. `Waiting for news`, `Due to run`, `Preparing a host`, `Claimed by a host`, `Retrying` and `ChipExecutor active` still give the usage line; `--json`'s words all parse.
+- **Not yet:** 5.1: the groups `goal`, `finding`, `qa`, `party` and
+  `deployment`, absent from `temper-client-tools`' `table.rs` `GROUPS`.
+  5.2: `repository receipts`, `finding list`, `finding show`, `qa marks`,
+  `qa passes`, `hold list`, and `settings show landing-rule` and
+  `forge-charter` (`jig/rows.rs` `SETTING` reads charters, templates,
+  policies and rules alone). 5.3: `chat start`'s `--template`; `task move
+  --under`, `task succeed --by`, `finding route`, `finding backlog`,
+  `finding drop`, `qa choose`, `task hold`, `project hold` and `revision
+  restore`; a settings file's items of temper's kinds and a proposal's
+  (`ProposalItems`). 5.5: area 2's `goal start` with its model flags,
+  `proposal withdraw`, `seen`, and `task amend`'s `--budget` and
+  `--tasks`; area 3's `party make`, `sign-in --service`, `deployment
+  show`, `task move`, `task take`, `task hand-back`, and the project's
+  `policy`, `role` and `pool`; area 4's `create`, `propose` and
+  `compound`; area 6's `forge replace` and `forge forget`, with no
+  request on the wire. 8.1: `GROUP VERB --help`; `temper ctl` parses a
+  leading `help` alone. 11.2:
+  the joined story of a model's amendment (`tests/client`'s
+  `amend_tools.rs` parses `--model` alone).
+- **Departs:** 5.1: `project` is area 1's (`jig/rows.rs`
+  `PROJECT_SHOW`, `PROJECT_FUND`), not area 3's; the placeholders add
+  `HOST:PORT` and `URL`. 5.2: `settings show template|policy` takes
+  `--revision` too; `landing show` takes `TASK [--project PROJECT]`, not
+  `LANDING`; `landing list` takes no `--newer-than` or `--after`, and
+  its `--ended` adds the ended to the live. 5.3: `task stop` places a
+  hold over the task's subtree (`jig/rows.rs` `STOP`), as jig's `Stop`
+  does (jig's `domain/people.md`, 5.1), where its row holds the task;
+  `hold lift` is keyed optionally (`Keyed::Optional`). 5.5, area 5: a
+  moved file starts with its version, a u16 that `temper-client-shell-cli`'s
+  `host/input.rs` checks, and no `JIGM` magic. 12: an authority's
+  entries are 14 (`limits.rs`), and the client's `projects` bound, 2, is
+  not in the table. 5.5, area 6, and 10: `playground start` sends
+  `StartPlayground`, not `StartDemo`; `playground end` (`EndPlayground`)
+  and `forge remove FORGE` (`RemoveForge`) are tools; `forge connect`
+  takes FORGE optionally for `github` and `forgejo-admin`, the latter
+  then with `--api`, `--git`, `--tls`, `--web` and `--git-program`; and
+  `forge setup` takes FORGE optionally, a new forge when absent
+  (`forges.rs`). These because forges are store records and the
+  playground is reset (`temper/docs/design/draft/playground-reset.md`,
+  3, 4, 6).

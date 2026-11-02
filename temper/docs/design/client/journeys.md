@@ -1,8 +1,6 @@
 # Journeys
 
-Provisional, 2026-10-26, from the user's draft
-(`../draft/look-recording.md`), revised the same day to its second
-pass. A journey is a walk through the
+Provisional, 2026-10-26. A journey is a walk through the
 browser's client (`browser.md`) recorded on a fresh `temper box
 --fake-backends`, then replayed natively through the shipped host and
 printed as the client's own pages, linked so that the same clicks walk
@@ -122,9 +120,7 @@ journeys, 10 what is open.
   browser's download, as `journey.recording`, from a link never added to
   the document. The recorder goes on after a save, so that each save is
   a whole recording and a later one holds more; the person saves once,
-  at the walk's end, and `again` saves as it goes (8.1). This departs
-  from the draft, whose save ends the recording: what the person does is
-  the same. A key's turn that gives the host nothing, a save's, is not
+  at the walk's end, and `again` saves as it goes (8.1). A key's turn that gives the host nothing, a save's, is not
   kept.
 - **One load of the page.** A recording starts with the page, at the
   printed link's first page, and is whole at each save. A departure ends
@@ -518,7 +514,7 @@ over skein's harness.
 
 ## 10. Open questions
 
-- **Typing:** the draft has every act mark its page; the design marks
+- **Typing:** whether every act marks its page; the design marks
   none for an `input` (3.4), since a page per keystroke would make a
   walk of typing. The user's word.
 - **The gallery's states,** set from hand-written worlds: whether each
