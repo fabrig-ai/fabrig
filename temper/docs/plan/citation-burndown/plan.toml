@@ -1,0 +1,3 @@
+draft = "citation-burndown"
+repo = "fabrig"
+sources = ["temper/docs/plan/citation-burndown/inputs/request.md", "AGENTS.md", "DESIGN.md"]
