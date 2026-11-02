@@ -15,6 +15,8 @@ use support::live_run::Expectation;
 
 const CHANGE: &str = "In repository repo, read original.txt, replace its content with exactly edited followed by one newline, create result.txt containing exactly new followed by one newline, and use the command tool to create command.txt containing exactly ran followed by one newline. Run the configured .smith-test/check checks without modifying that script. Finish with a change result, a short title and body, so the host delivers the checked commit. Do not run git commit or push yourself.";
 
+const STDOUT_BYTES: usize = 20_000_000;
+
 fn changed_files() -> Vec<(Vec<u8>, Vec<u8>)> {
     [("original.txt", "edited\n"), ("result.txt", "new\n"), ("command.txt", "ran\n"), ("checks-ran.txt", "checked\n")]
         .into_iter()
@@ -308,12 +310,14 @@ fn run(
         teardown,
         grace: Duration::from_secs(2),
         settlement: Duration::from_secs(10),
-        stdout: 20_000_000,
+        stdout: STDOUT_BYTES,
         stderr: 65_536,
         force_walk: true,
     };
     let change = expectation.before.is_some();
     let mut arguments = live::arguments(account, scratch.path(), change, push);
+    let trace = scratch.path().join(format!("trace-{}.jsonl", leg.invocation));
+    live::with_trace(&mut arguments, &trace);
     if let Some(lead) = environment.refresh_lead {
         live::with_refresh_lead(&mut arguments, lead);
     }
@@ -346,7 +350,13 @@ fn run(
         &clock,
         command(arguments),
         format!("{prompt}\n").into_bytes().into(),
-        Capture::Agent(Box::new(smith_bench::agent::Observing::Smith(observer(environment, scratch, teardown)))),
+        Capture::Agent(Box::new(smith_bench::agent::Observing::Smith(observer(
+            environment,
+            scratch,
+            teardown,
+            account,
+            trace,
+        )))),
         bounds(Duration::from_secs(260), teardown),
     )
     .unwrap_or_else(|_| {
@@ -379,6 +389,8 @@ fn observer(
     environment: &live::Environment,
     scratch: &Scratch,
     teardown: skein_lib::Duration,
+    account: &str,
+    trace: std::path::PathBuf,
 ) -> smith_bench::agent::smith::Observing {
     let registry = smith_bench::agent::smith::FaceSince {
         commit: String::new(),
@@ -395,13 +407,30 @@ fn observer(
         registry,
         settings: environment.root.join("config/smith/config.toml"),
         serial: None,
-        trace: None,
-        rendered: serde_json::Value::Null,
+        trace: Some(trace),
+        rendered: live::rendered(account),
         program: skein_scratch::paths::binary("smith"),
         state: scratch.path().join("state"),
         teardown,
     };
     smith_bench::agent::smith::Observing::new(prepared).expect("outside observer")
+}
+
+#[expect(clippy::disallowed_types, reason = "bounded outside observation of the settled agent trace")]
+fn agent_trace(path: Option<&std::path::Path>) -> Result<Vec<u8>, String> {
+    use std::io::Read;
+    let mut path = path.ok_or("program account requires a trace path")?.as_os_str().to_os_string();
+    path.push(".agent");
+    let mut bytes = Vec::new();
+    std::fs::File::open(path)
+        .map_err(|error| format!("agent trace open: {error}"))?
+        .take(u64::try_from(STDOUT_BYTES).expect("stdout bound fits u64").saturating_add(1))
+        .read_to_end(&mut bytes)
+        .map_err(|error| format!("agent trace read: {error}"))?;
+    if bytes.len() > STDOUT_BYTES {
+        return Err("agent trace exceeds the stdout bound".into());
+    }
+    Ok(bytes)
 }
 
 fn assert_exec(
@@ -418,17 +447,27 @@ fn assert_exec(
         panic!("{}", exec_report(leg, "exec observer", &Settled::of(result), &[], None))
     };
     let finish = observing.observer.finish();
+    let trace = observing.prepared.program_source().then(|| agent_trace(observing.prepared.trace.as_deref()));
+    if let Some(trace) = &trace {
+        // agent_trace feeds and finishes the spawned agent's observer.
+        observing.agent_trace(trace.as_deref().map_err(Clone::clone));
+    }
     let end = observing.observer.classify(result.exit, result.forced).end;
-    let records: Vec<_> = observing.observer.sessions().iter().flat_map(|session| &session.records).collect();
-    let error = match (result.error.as_deref(), finish.as_ref().err()) {
-        (None, None) => None,
-        (Some(error), None) => Some(error.to_owned()),
-        (None, Some(error)) => Some(error.what.clone()),
-        (Some(error), Some(fault)) => Some(format!("{error}; {}", fault.what)),
-    };
+    let detail_end = observing.events().classify(result.exit, result.forced).end;
+    let records: Vec<_> = observing.events().sessions().iter().flat_map(|session| &session.records).collect();
+    let mut reported = records.clone();
+    if observing.prepared.program_source() {
+        reported.extend(observing.observer.sessions().iter().flat_map(|session| &session.records));
+    }
+    let mut errors = Vec::new();
+    errors.extend(result.error.iter().cloned());
+    errors.extend(finish.as_ref().err().map(|fault| fault.what.clone()));
+    errors.extend(trace.as_ref().and_then(|trace| trace.as_ref().err()).cloned());
+    let error = (!errors.is_empty()).then(|| errors.join("; "));
     let settled = Settled { error: error.as_deref(), ..Settled::of(result) };
-    let report = |failed: &str| exec_report(leg, failed, &settled, &records, Some(&end));
+    let report = |failed: &str| exec_report(leg, failed, &settled, &reported, Some(&end));
     assert!(finish.is_ok(), "{}", report("complete typed event stream"));
+    assert!(trace.as_ref().is_none_or(Result::is_ok), "{}", report("read the bounded agent trace"));
     assert!(
         result.error.is_none() && result.forced == smith_bench::Forced::No && result.tree.live_pids.is_empty(),
         "{}",
@@ -436,6 +475,11 @@ fn assert_exec(
     );
     assert!(result.exit == smith_bench::Exit::Code(0), "{}", report("live exec succeeds"));
     assert!(matches!(end, smith_bench::End::Completed), "{}", report("typed answer and exit agree"));
+    assert!(
+        matches!(detail_end, smith_bench::End::Completed),
+        "{}",
+        exec_report(leg, "the run's typed detail stream completes", &settled, &reported, Some(&detail_end))
+    );
     assert!(
         records.iter().any(|record| matches!(&record.event, Event::RunStarted(start) if start.resumed == resumed)),
         "{}",

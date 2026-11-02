@@ -86,6 +86,28 @@ pub fn with_refresh_lead(arguments: &mut Vec<std::ffi::OsString>, lead_seconds: 
     arguments.splice(at..at, ["-c".into(), format!("deployment.refresh_lead={lead_seconds}").into()]);
 }
 
+/// Insert `-c trace.path=<path>` before the trailing prompt argument `-`.
+pub fn with_trace(arguments: &mut Vec<std::ffi::OsString>, path: &Path) {
+    let at = arguments.len().checked_sub(1).expect("prompt argument");
+    let path = toml::Value::String(path.to_str().expect("trace path is UTF-8").into());
+    arguments.splice(at..at, ["-c".into(), format!("trace.path={path}").into()]);
+}
+
+/// The rendered settings an observer needs to tell a program account (smith-bench's `Prepared::rendered`).
+#[must_use]
+pub fn rendered(account: &str) -> serde_json::Value {
+    let (endpoint, source) = match account {
+        "claude" => ("anthropic", "program"),
+        "chatgpt" => ("openai", "sign_in"),
+        "anthropic-key" => ("anthropic", "env"),
+        _ => panic!("unknown live account"),
+    };
+    serde_json::json!({
+        "endpoints": {endpoint: {"account": account}},
+        "accounts": {account: {"source": source}},
+    })
+}
+
 /// Public command settings shared by live stories and their offline controls.
 #[must_use]
 pub fn arguments(account: &str, directory: &Path, change: bool, push: bool) -> Vec<std::ffi::OsString> {
