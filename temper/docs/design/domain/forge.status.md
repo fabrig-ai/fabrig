@@ -1,6 +1,6 @@
 # forge: status
 
-2026-11-01. Where temper's code lags or departs from [forge.md](forge.md).
+2026-11-02. Where temper's code lags or departs from [forge.md](forge.md).
 
 - **Built:** 5.3, 8.3: an agent's forge-read admission Busy uses the host's
   bounded backoff instead of a model-visible error. Root-domain review
@@ -26,3 +26,5 @@
   CI brief budget; a pin from another head remains unread.
 
 - **Built:** 8.2: the producer's explicit no-change result ends its change successfully, retains its explanation and notifies its requester without a pull request, merge or escalation. Failure results continue to hold.
+
+- **Built:** 8.4: the real-loop GitHub repair reads the failed Actions job through the fake API and log redirect, delivers the complete `Missing changes/36.md with the line: opened 2026-11-02T11:37:21Z` diagnostic in the model request at the shipped brief budgets, writes the required file, pushes a passing head and lands once. The timestamp is absent from the starting checkout; the repair script is selected only by that diagnostic.

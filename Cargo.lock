@@ -4833,6 +4833,7 @@ dependencies = [
  "skein-oauth",
  "skein-scratch",
  "skein-shell",
+ "skein-tls",
  "skein-ui",
  "skein-ui-text",
  "skein-world",

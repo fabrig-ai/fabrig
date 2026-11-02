@@ -58,6 +58,7 @@ jig-channel-world.workspace = true
 jig-client-protocol-wire.workspace = true
 skein-lib.workspace = true
 skein-shell.workspace = true
+skein-tls.workspace = true
 
 [dev-dependencies]
 skein-ui.workspace = true
