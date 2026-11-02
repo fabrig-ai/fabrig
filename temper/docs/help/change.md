@@ -10,6 +10,12 @@ A change is a task that writes one repository's branch and lands it: its pull re
   `change`, giving the words and, where its project has several
   repositories it may write, which one. Its coder writes the change
   from those words alone (temper help task).
+  A run whose authority holds the control family (amend, cancel,
+  release) names, too, what a plan decides: `landing`, `goal` for its
+  own goal branch or a branch's name, else the default branch;
+  `after`, the changes it waits for, by task number or by a `name`
+  given in the same call; and `changes`, several changes made at
+  once, all or none.
 - **Its pull request title** comes from the coder's change result. Context
   at the beginning of the brief stays in the brief. Titles keep punctuation
   and are shortened at a UTF-8 boundary with “…” when the forge needs it.
@@ -20,7 +26,8 @@ A change is a task that writes one repository's branch and lands it: its pull re
   how many repairs, resolutions and updates it has used of its limits.
 - **Its result** is the change landed: its merge commit, its pull
   request with its address, a line `Landed: pull request #N merged into
-  BASE as SHORT.`, then what the landing passed as the change saw it:
+  BASE as SHORT.`, then `Report:` and its coder's last report, then
+  what the landing passed as the change saw it:
   `checks at HEAD:` each check at the landed head with its conclusion,
   `repairs: N:` why each repair was asked, and `reviews:`
   each verdict at the head it judged, cut from the end and marked when
@@ -42,14 +49,17 @@ Its steps, as `step:` prints them:
   that fails holds it here, with its words; a coder that explicitly
   concludes no change applies ends the change successfully;
 - `opening`: temper opens its pull request;
-- `checking`: the forge's CI runs at its head;
+- `checking`: the forge's CI runs at its head, where its landing
+  branch's rules ask CI passed (temper help landing-rule);
 - `gating`: its blocking gates give their verdicts (temper help
   landing-rule);
 - `queued`: it waits its turn in its landing branch's queue, `queued:
   place N`;
 - `first`: at the front, temper checks CI and the blocking gates again;
 - `updating`: a branch behind its landing branch is updated by the
-  forge, which merges the base in;
+  forge, which merges the base in, where its landing branch's rules
+  ask up to date; under rules that ask none, a change whose merge
+  conflicts is held, saying so;
 - `resolving`: an agent resolves a conflict with the base and pushes
   the merge commit;
 - `repairing`: an agent repairs it, after CI failed at its head (a
