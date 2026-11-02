@@ -877,7 +877,7 @@ from its restore on.
 
 ### 9.2 Stopping
 
-A stop settles first (`draft/upgrades.md`, section 8), then the core
+A stop settles first (`../draft/upgrades.md`, section 8), then the core
 drains as jig's `domain/engine.md`, 6.1 says.
 
 - **Settling.** Told to stop, the root tells the forge to settle
