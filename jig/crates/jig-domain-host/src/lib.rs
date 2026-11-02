@@ -6,6 +6,8 @@
 //! to the core, workspace and agent capabilities; an engine root gives it a
 //! direct link that is never lost and no workspace. The agent may be a process
 //! or an inline agent, and the host does not distinguish them.
+//! The same slots host jobs through the root's job capability (jig/docs/design/domain/hosts.md, 6.9),
+//! without an agent or a save.
 //! The run lifecycle arms no timers; its callers bound each wait. The source
 //! machine owns periodic checks, driven by its parent through `next_deadline`
 //! and `resume`. Facts are best effort and never govern a decision.
@@ -23,6 +25,7 @@ mod call;
 mod domain;
 mod facts;
 mod hosted;
+mod jobs;
 mod limits;
 mod link;
 mod live;
@@ -36,8 +39,9 @@ mod turns;
 pub use activity::AgentActivity;
 pub use boundary::{
     AgentFailure, AnsweredCall, Ask, Assignment, Bound, CallAnswer, Delivery, DeliveryOutcome, Ending, Event, Exceeded,
-    Failure, Finish, FromAgent, Invalid, MessageRefusal, Preparation, Reason, Refusal, Refused, Request, RunAnswer,
-    RunAssignment, RunFailure, SettledAnswer, Start, StartCause, StartMessage, ToAgent, Turn, Work, Workspace,
+    Failure, Finish, FromAgent, FromJob, Invalid, JobAssignment, JobEnd, JobEnding, JobFailure, JobInvalid, JobRefusal,
+    MessageRefusal, Preparation, Reason, Refusal, Refused, Request, RunAnswer, RunAssignment, RunFailure,
+    SettledAnswer, Start, StartCause, StartMessage, ToAgent, ToJob, Turn, Work, Workspace,
 };
 pub use domain::{Hub, fire_sources, resume, resume_runs, sources_due, step};
 pub use facts::Fact;
@@ -48,6 +52,6 @@ pub use link::{LinkDown, LinkUp, Relayed};
 pub use jig_domain_link::{PROGRAM_ENDPOINTS, SourceName, valid_program_endpoints};
 
 pub use jig_domain_link::{
-    Bounds, CountKind, Form, Grant, GrantTable, Hello, Hosting, Login, LoginMethod, LoginState, ModelBound,
-    Operation as AgentOperation, Phase, Scheme, SignOutResult, SourceFailure,
+    Bounds, CountKind, Form, Grant, GrantTable, Hello, Hosting, JobBound, JobKind, Login, LoginMethod, LoginState,
+    ModelBound, Operation as AgentOperation, Phase, Scheme, SignOutResult, SourceFailure,
 };
