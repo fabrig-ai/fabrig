@@ -1,3 +1,39 @@
 draft = "live-temper-stories"
 repo = "fabrig"
 sources = ["temper/docs/plan/live-temper-stories/inputs/request.md", "AGENTS.md"]
+
+# fab's after-landing pair failed both owned-forge landing stories (inputs/request.md, 11-02).
+# The ChatGPT story's cause is its harness: the held record's import guard and give-back name
+# the run's root as ctl's DIRECTORY, not its `client` directory, which has no `address`; ctl's
+# catch-all then printed "record fileDIRECTORY could not be read". The Claude story's judge
+# required each parent's ended delegates on one uncut page. Two direct parts, three tasks.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "client-words"
+title = "a DIRECTORY or FILE that fails says which step and which error"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/tools.md, 8.1"
+
+[[part]]
+id = "landing-story"
+title = "the landing story imports into its client directory and reads the ended delegates whole"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/testing.md, 2.7"
+
+[[slice]]
+id = 1
+story = "temper ctl on a DIRECTORY with no address says it is not signed in, and any other failed step names the step and the error, never glued to record file"
+parts = ["client-words"]
+walk = false
+
+[[slice]]
+id = 2
+story = "the ChatGPT landing story imports the held record into the sitting's client directory and gives it back from there, and both landing stories read the chat's and the change's ended delegates whole by --after"
+parts = ["landing-story"]
+walk = false
