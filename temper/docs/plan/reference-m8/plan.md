@@ -30,12 +30,38 @@ take. The plan's retire may delete `notes/old/` (git keeps it).
 |---|---|---|---|
 | procedure-funding | jig-procedure-seed | | jig |
 | tiers-core | tiers-policy | | temper (new pure crate) |
+| skein-reads | skein-reads | | skein (forge kit, Forgejo dialect) |
+| skein-reads | skein-fake-reports | skein-reads | skein (fake forge) |
+| change-cleared | change-verifying | | temper (change crate, store's change records) |
+| tiers-config | tiers-config | tiers-policy | temper (service, translate, forge config and limits) |
 
 ## Critical path, as it stands
 
 tiers-policy and skein's reads, then the forge connector's tiers (following, runs, receipts,
 the tier task), then reruns and bisect, the change's life to cleared and the bound, then the
 world stories and ctl; the walked slice is the last. Later batches name it task by task.
+
+## Decisions
+
+- **Store families** 28 `Tier`, 29 `Verification`, 30 `LandingLog` (designed, not built in M8);
+  findings move to 31 to 33: bytes 25 to 27 hold `Forge`, `ForgeNumber`, `Playground` today
+  (`temper/docs/design/protocol/store.md`, 2). In place in v11, before the first release.
+- **No landing log in M8:** after-landing.md 8 is out; a late verdict after the bound stays on
+  the tier's record; its news to goals stays Not yet.
+- **The change panel** gains `verifying`, `red`, `cleared` (`temper/docs/design/client/forge.md`,
+  2.1) and `change show --until cleared` (`temper/docs/design/client/tools.md`, 5.4, 5.5), so the
+  walk reads the verdict through `ctl`.
+- **A change no tier follows ends at `Landed`, as today;** only a followed landing reaches
+  `Cleared` or `Uncleared` (contracts.md, 2), so no existing story changes.
+- **skein's inflater stays private to `skein-forge`;** no design change (forge.md, 2.1).
+- **Configuration:** `verification_bound_ms` (the document's `_ms` rule), `tier_retries`; no
+  `suspects` or `red_pauses` member in M8 (bisect; section 7 is M9's).
+
+## Overlaps inside this plan
+
+- `change-verifying` and `tiers-config` run side by side and both touch
+  `temper-engine-domain-forge` (`boundary.rs`, `landing.rs`, `lib.rs`: arms against new types)
+  and a few test fixtures' literals; their hunks differ.
 
 ## Overlaps with drafts beside this one
 

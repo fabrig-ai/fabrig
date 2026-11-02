@@ -1,0 +1,364 @@
+diff --git a/temper/crates/temper-engine-domain-forge/src/tests/tiers.rs b/temper/crates/temper-engine-domain-forge/src/tests/tiers.rs
+index 1620db2dd..42a4e817d 100644
+--- a/temper/crates/temper-engine-domain-forge/src/tests/tiers.rs
++++ b/temper/crates/temper-engine-domain-forge/src/tests/tiers.rs
+@@ -353,6 +353,9 @@ fn effect_write(out: &[Request]) -> &api::Write {
+         if let Request::TierEffect { entry, .. } = request {
+             return &entry.effect.write;
+         }
++        if let Request::Save { record: Stored::Entry { entry, .. }, release: Some(_), .. } = request {
++            return &entry.effect.write;
++        }
+     }
+     unreachable!("the step made an effect")
+ }
+@@ -949,7 +952,7 @@ fn tell_all_makes_every_landing_of_the_range_a_suspect() {
+     }
+ }
+ #[test]
+-fn a_probes_branch_is_made_at_its_landing_and_deleted_after() {
++fn a_probes_branch_is_made_at_its_landing_and_released_after() {
+     let mut d = red_range(&[MERGE, HEAD, THIRD]);
+     red(&mut d);
+     let made = probe_step(&mut d, 301);
+@@ -966,17 +969,32 @@ fn a_probes_branch_is_made_at_its_landing_and_deleted_after() {
+     let out = outputs(&mut d, Event::StepTier { task: TIER_TASK, entry: 303 });
+     assert_eq!(effect_write(&out), &api::Write::DeleteBranch { branch: b"temper/tier/browser.1.0".as_slice().into() });
+     let saved = &d.entries.get(&303).unwrap().entry;
+-    assert_eq!(d.tier_effect_kind(saved).unwrap().0, 15);
++    assert_eq!(d.tier_effect_kind(saved), None);
++    assert_release(&out, 303);
+ }
+ #[test]
+-fn a_judged_runs_branch_is_deleted_before_its_task_is_done() {
++fn a_judged_runs_branch_is_released_before_its_task_is_done() {
+     let mut d = dispatched();
+     completed(&mut d, api::Conclusion::Success, None);
+     dispatch(&mut d, STATUS);
+     let out = outputs(&mut d, Event::StepTier { task: TIER_TASK, entry: RETRY });
+     assert_eq!(effect_write(&out), &api::Write::DeleteBranch { branch: b"temper/tier/browser.1".as_slice().into() });
+-    assert!(tier_decision(&out).is_none());
++    assert_eq!(tier_decision(&out), Some(&TierDecision::Wait));
+     assert!(fixtures::browser(&d).result.as_ref().unwrap().applied);
++    assert_release(&out, RETRY);
++}
++fn assert_release(out: &[Request], number: u64) {
++    let mut found = false;
++    for request in out {
++        if let Request::TierEffect { .. } = request {
++            panic!("cleanup is not an authority-gated effect")
++        }
++        if let Request::Save { record: Stored::Entry { entry, .. }, release: Some(release), .. } = request {
++            assert_eq!((*release, entry.number), (number, number));
++            found = true;
++        }
++    }
++    assert!(found, "cleanup hands its durable entry to the client after commit");
+ }
+ #[test]
+ fn a_restart_mid_probe_follows_it_to_its_verdict() {
+diff --git a/temper/crates/temper-engine-domain-forge/src/tiers.rs b/temper/crates/temper-engine-domain-forge/src/tiers.rs
+index a3e862711..88c49def7 100644
+--- a/temper/crates/temper-engine-domain-forge/src/tiers.rs
++++ b/temper/crates/temper-engine-domain-forge/src/tiers.rs
+@@ -841,7 +841,23 @@ fn wait(task: u64, out: &mut Queue<Request>) {
+ }
+ fn effect(d: &mut Domain, row: &TierRow, entry: u64, write: Write, operation: u8, part: u16, out: &mut Queue<Request>) {
+     let task = row.task.expect("effect task");
+-    let entry = skein_forge_client::Entry {
++    let entry = tier_entry(row, entry, write);
++    save(row, out);
++    crate::domain::keep_entry(d, entry.clone(), None, out);
++    out.push(Request::TierEffect { task, entry, purpose: purpose(d, row, operation, part) });
++}
++// Cleanup is committed straight to the forge client, as domain::enqueue_release
++// does (domain/forge.md, 11). The tier row owns its pending branch; no generic
++// release row, hold, task name, or jig effect authority is allocated.
++fn release(d: &mut Domain, row: &TierRow, number: u64, write: Write, out: &mut Queue<Request>) {
++    let entry = tier_entry(row, number, write);
++    save(row, out);
++    crate::domain::keep_entry(d, entry, Some(number), out);
++    wait(row.task.expect("release task"), out);
++}
++fn tier_entry(row: &TierRow, entry: u64, write: Write) -> skein_forge_client::Entry {
++    let task = row.task.expect("tier task");
++    skein_forge_client::Entry {
+         number: entry,
+         task,
+         repository: row.repository,
+@@ -850,10 +866,7 @@ fn effect(d: &mut Domain, row: &TierRow, entry: u64, write: Write, operation: u8
+         attempt: None,
+         failures: 0,
+         queued: false,
+-    };
+-    save(row, out);
+-    crate::domain::keep_entry(d, entry.clone(), None, out);
+-    out.push(Request::TierEffect { task, entry, purpose: purpose(d, row, operation, part) });
++    }
+ }
+ pub(crate) fn step(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, out: &mut Queue<Request>) {
+     let mut found = None;
+@@ -925,15 +938,7 @@ fn cleanup(
+             let landing = probe.landing;
+             let write = Write::DeleteBranch { branch: probe_branch(&row.tier, run.number, landing) };
+             row.probe.as_mut().expect("probe").branch = TierBranch::Pending { entry };
+-            effect(
+-                d,
+-                row,
+-                entry,
+-                write,
+-                6,
+-                u16::try_from(landing).expect("range index").checked_add(2).expect("part"),
+-                out,
+-            );
++            release(d, row, entry, write, out);
+         } else {
+             wait(task, out);
+         }
+@@ -950,7 +955,7 @@ fn cleanup(
+         {
+             let write = Write::DeleteBranch { branch: branch(&row.tier, run.number) };
+             row.branch = TierBranch::Pending { entry };
+-            effect(d, row, entry, write, 6, 0, out);
++            release(d, row, entry, write, out);
+         } else {
+             wait(task, out);
+         }
+@@ -1667,17 +1672,6 @@ impl Domain {
+             {
+                 Some((9, What::Branch(path_parts(name))))
+             }
+-            Write::DeleteBranch { branch: name }
+-                if (row.branch == pending && *name == whole && row.result.as_ref()?.applied)
+-                    || match &row.probe {
+-                        Some(probe) => {
+-                            probe.branch == pending && *name == probe_branch(&row.tier, run.number, probe.landing)
+-                        }
+-                        None => false,
+-                    } =>
+-            {
+-                Some((15, What::Branch(path_parts(name))))
+-            }
+             Write::Dispatch { workflow, branch: name, inputs }
+                 if *workflow == configured(self, row).workflow
+                     && *name == current
+diff --git a/temper/crates/temper-engine-domain/src/route/forge_route.rs b/temper/crates/temper-engine-domain/src/route/forge_route.rs
+index 5f46315ff..2ec5f6851 100644
+--- a/temper/crates/temper-engine-domain/src/route/forge_route.rs
++++ b/temper/crates/temper-engine-domain/src/route/forge_route.rs
+@@ -772,7 +772,7 @@ pub(crate) fn task_holdings(
+     let eligible = match executor {
+         tasks::Executor::Person(_) => false,
+         tasks::Executor::Procedure { connector, code } => {
+-            connector == domain.config.forge_connector && (code == 1 || code == CHANGE_CODE || code == 4)
++            connector == domain.config.forge_connector && (code == 1 || code == CHANGE_CODE)
+         }
+         tasks::Executor::Agent { .. } => !child_of_change,
+     };
+@@ -780,7 +780,7 @@ pub(crate) fn task_holdings(
+         return Some(Box::new([]));
+     }
+     let mut selected = List::with_capacity(env.limits.forge.resources_per_task);
+-    if let tasks::Executor::Procedure { connector, code: 1 | CHANGE_CODE | 4 } = executor
++    if let tasks::Executor::Procedure { connector, code: 1 | CHANGE_CODE } = executor
+         && connector == domain.config.forge_connector
+     {
+         let mut repository = None;
+@@ -2475,26 +2475,14 @@ fn start_tier_run(
+         inputs: Box::new([]),
+     };
+     let executor = tasks::Executor::Procedure { connector: domain.config.forge_connector, code: 4 };
+-    let Some(row) = domain.forge.tier_row(repository, &tier) else { return false };
+-    let received = match &row.result {
+-        Some(result) => result.received,
+-        None => false,
+-    };
+-    let holdings = if received {
+-        Box::new([])
+-    } else {
+-        let Some(holdings) = task_holdings(domain, env, project, task, task, executor, &spec, None) else {
+-            return false;
+-        };
+-        holdings
+-    };
+     domain.work.push(Work::Forge(forge::Event::TierTask { repository, tier, number, task }));
+     domain.work.push(Work::Core(jig_domain_core::Event::ConnectorRepair {
+         seed: Box::new(seed),
+         executor,
+         spec,
+         contract: tasks::Contract::Report { words: env.limits.tasks.result_bytes },
+-        holdings,
++        // The tier row owns its branches and releases them before Done.
++        holdings: Box::new([]),
+     }));
+     true
+ }
+diff --git a/temper/tests/engine/domain/src/forge_routes.rs b/temper/tests/engine/domain/src/forge_routes.rs
+index f836d72c5..a6cf0167c 100644
+--- a/temper/tests/engine/domain/src/forge_routes.rs
++++ b/temper/tests/engine/domain/src/forge_routes.rs
+@@ -22,6 +22,7 @@ use temper_engine_forge_world::{self as forge_world, translate};
+ pub enum HoldWrite {
+     All,
+     Merge,
++    DeleteBranch(&'static [u8]),
+ }
+ 
+ #[expect(clippy::struct_excessive_bools, reason = "independent fixture switches select the forge stories")]
+@@ -345,7 +346,7 @@ impl World {
+                 reviewer.policy.agents = false;
+                 config.core.defaults.charters = Box::new([walking::charter(), producer, reviewer]);
+                 config.forge_charter = forge_charter.unwrap_or(1);
+-                limits.tasks.authority_grants = if tier { 15 } else { 11 };
++                limits.tasks.authority_grants = if tier { 14 } else { 11 };
+                 limits.journal.run_bytes = 8192;
+                 limits.tasks.authority_segments = 9;
+                 limits.tasks.authority_bytes = 512;
+@@ -354,7 +355,7 @@ impl World {
+                 limits.tasks.inbox_bytes = 1024;
+                 limits.authority.executors = 5;
+                 limits.authority.batch = 2;
+-                limits.authority.grants = if tier { 15 } else { 11 };
++                limits.authority.grants = if tier { 14 } else { 11 };
+                 limits.authority.segments = 8;
+                 limits.authority.segment_bytes = 64;
+                 limits.authority.writes = 2;
+@@ -437,7 +438,7 @@ impl World {
+                     for item in grants {
+                         expanded.push(item).expect("task grant bound");
+                     }
+-                    for kind in [6, 15, 16, 17] {
++                    for kind in [6, 16, 17] {
+                         expanded.push(authority::Grant { kind, ..grant.clone() }).expect("tier grant bound");
+                     }
+                     grants = expanded.into_boxed();
+@@ -516,8 +517,8 @@ impl World {
+                     paths::add_reader(&mut policy);
+                 }
+                 if turn {
+-                    limits.authority.grants = if tier { 15 } else { 14 };
+-                    limits.tasks.authority_grants = if tier { 15 } else { 14 };
++                    limits.authority.grants = 14;
++                    limits.tasks.authority_grants = 14;
+                     limits.authority.executors = 6;
+                     limits.tasks.executor_kinds = 6;
+                     limits.tasks.result_bytes = 256;
+@@ -1330,6 +1331,9 @@ impl World {
+                     )));
+                     let held = match self.hold_write_answers {
+                         Some(HoldWrite::All) => matches!(op, skein_forge::api::Op::Write(_)),
++                        Some(HoldWrite::DeleteBranch(name)) => {
++                            matches!(&op, skein_forge::api::Op::Write(skein_forge::api::Write::DeleteBranch { branch }) if branch.as_ref() == name)
++                        }
+                         Some(HoldWrite::Merge) => {
+                             matches!(op, skein_forge::api::Op::Write(skein_forge::api::Write::Merge { .. }))
+                         }
+diff --git a/temper/tests/engine/domain/tests/forge_routes/red_restart.rs b/temper/tests/engine/domain/tests/forge_routes/red_restart.rs
+index a715ffd5a..a8530be20 100644
+--- a/temper/tests/engine/domain/tests/forge_routes/red_restart.rs
++++ b/temper/tests/engine/domain/tests/forge_routes/red_restart.rs
+@@ -13,6 +13,8 @@ enum Cut {
+     Rerun,
+     ProbeBranch,
+     Probe,
++    ProbeRelease,
++    RunRelease,
+     Red,
+     Repaired,
+ }
+@@ -34,6 +36,11 @@ fn verifications(world: &World) -> impl Iterator<Item = &forge_top::Verification
+         Record::Core(_) => None,
+     })
+ }
++fn release_entry(world: &World, number: u64) -> bool {
++    matches!(world.store.rows.get(&Key::Forge(forge_top::Key::Entry(number))),
++        Some(Record::Forge { row }) if matches!(row.as_ref(), forge_top::Stored::Entry { entry, .. }
++            if matches!(entry.effect.write, skein_forge::api::Write::DeleteBranch { .. })))
++}
+ fn reached(world: &World, cut: Cut) -> bool {
+     let Some(row) = tier(world) else { return false };
+     let run = row.record.run.as_ref();
+@@ -42,13 +49,26 @@ fn reached(world: &World, cut: Cut) -> bool {
+         Cut::Rerun => run.is_some_and(|run| matches!(run.part, Part::Rerun { .. })) && row.flight.as_ref().is_some_and(|flight| flight.start.is_some() && flight.report.is_none()),
+         Cut::ProbeBranch => row.probe.as_ref().is_some_and(|probe| matches!(probe.branch, forge_top::TierBranch::Pending { .. })),
+         Cut::Probe => run.is_some_and(|run| matches!(run.part, Part::Probe { .. })) && row.flight.as_ref().is_some_and(|flight| flight.start.is_some() && flight.report.is_none()),
++        Cut::ProbeRelease => row.probe.as_ref().is_some_and(|probe| match probe.branch {
++            forge_top::TierBranch::Pending { entry } => release_entry(world, entry),
++            forge_top::TierBranch::Absent | forge_top::TierBranch::Made => false,
++        }),
++        Cut::RunRelease => match row.branch {
++            forge_top::TierBranch::Pending { entry } => release_entry(world, entry),
++            forge_top::TierBranch::Absent | forge_top::TierBranch::Made => false,
++        },
+         Cut::Red => !row.record.flakes.is_empty() && verifications(world).any(|verification| verification.tiers.iter().any(|tier| matches!(tier.verdict, Some(forge_top::TierVerdict { blame: Blame::Owns(_) | Blame::Suspect(_), .. })))) && world.store.rows.values().any(|record| matches!(record, Record::Forge { row } if matches!(row.as_ref(), forge_top::Stored::Change(row) if matches!(row.change.state, temper_engine_domain_forge_change::State::Red { .. })))),
+         Cut::Repaired => verifications(world).any(|verification| verification.tiers.iter().any(|tier| tier.repaired.is_some())),
+     }
+ }
+ fn cold_at(world: &mut World, cut: Cut) {
+     world.hold_artifacts = matches!(cut, Cut::Report);
+-    world.hold_write_answers = if matches!(cut, Cut::ProbeBranch) { Some(HoldWrite::All) } else { None };
++    world.hold_write_answers = match cut {
++        Cut::ProbeBranch => Some(HoldWrite::All),
++        Cut::ProbeRelease => Some(HoldWrite::DeleteBranch(b"temper/tier/browser.2.0")),
++        Cut::RunRelease => Some(HoldWrite::DeleteBranch(b"temper/tier/browser.2")),
++        Cut::Report | Cut::Rerun | Cut::Probe | Cut::Red | Cut::Repaired => None,
++    };
+     for _ in 0..RED_TICKS {
+         if reached(world, cut) && world.pending.is_empty() && world.store.pending.is_empty() {
+             world.hold_artifacts = false;
+@@ -103,8 +123,11 @@ fn produced_red_range(suspects: Suspects) -> World {
+ #[test]
+ fn a_cold_restart_reads_back_every_red_record() {
+     let cases: &[(Suspects, &[Cut])] = &[
+-        (Suspects::Bisect, &[Cut::Report, Cut::Rerun, Cut::ProbeBranch, Cut::Probe, Cut::Red]),
+-        (Suspects::TellAll, &[Cut::Report, Cut::Rerun, Cut::Red]),
++        (
++            Suspects::Bisect,
++            &[Cut::Report, Cut::Rerun, Cut::ProbeBranch, Cut::Probe, Cut::ProbeRelease, Cut::RunRelease, Cut::Red],
++        ),
++        (Suspects::TellAll, &[Cut::Report, Cut::Rerun, Cut::RunRelease, Cut::Red]),
+     ];
+     for (suspects, cuts) in cases {
+         let mut world = produced_red_range(*suspects);
+diff --git a/temper/tests/engine/forge/src/world.rs b/temper/tests/engine/forge/src/world.rs
+index 1eaa6dc7e..b2ba2bfff 100644
+--- a/temper/tests/engine/forge/src/world.rs
++++ b/temper/tests/engine/forge/src/world.rs
+@@ -905,12 +905,15 @@ impl World {
+                         self.stored.insert(key(&record), record).expect("world store capacity");
+                     }
+                 }
+-                top::Request::Save { record, .. } => {
++                top::Request::Save { record, release, .. } => {
+                     if matches!(record, top::Stored::Writer(_)) {
+                         self.writer_saves += 1;
+                     }
+                     let key = key(&record);
+                     self.stored.insert(key, record).expect("world store capacity");
++                    if let Some(entry) = release {
++                        self.to_top.push((self.generation, top::Event::Committed { entry }));
++                    }
+                 }
+                 top::Request::Erase { key } => {
+                     self.stored.remove(&key).expect("erased row exists");
+diff --git a/temper/tests/engine/forge/tests/simulation.rs b/temper/tests/engine/forge/tests/simulation.rs
+index 524e90e17..1a6130bbb 100644
+--- a/temper/tests/engine/forge/tests/simulation.rs
++++ b/temper/tests/engine/forge/tests/simulation.rs
+@@ -2290,16 +2290,6 @@ fn browser_row(world: &World) -> &top::TierRow {
+     row
+ }
+ fn tier_hold(world: &mut World, task: u64, number: u64) {
+-    let branch = format!("browser.{number}").into_bytes().into_boxed_slice();
+-    world.event(top::Event::Hold {
+-        task,
+-        resource: top::Name {
+-            forge: REPO.forge,
+-            repository: REPO.repository,
+-            what: top::What::Branch(Box::new([b"temper".as_slice().into(), b"tier".as_slice().into(), branch])),
+-        },
+-        from: None,
+-    });
+     world.event(top::Event::TierTask { repository: REPO, tier: b"browser".as_slice().into(), number, task });
+ }
+ fn tier_step(world: &mut World, task: u64, entry: u64) -> bool {

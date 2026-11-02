@@ -85,8 +85,8 @@ The steps of `../domain/forge.md`, 8.2, with the one it is at and
 why:
 
 ```
-producing ─ opening ─ checking ─ gating ─ queued ─ first ─ landing ─ landed
-                 repairing · updating · resolving · recreating · reopening
+producing ─ opening ─ checking ─ gating ─ queued ─ first ─ landing ─ landed ─ verifying ─ cleared
+                 repairing · updating · resolving · recreating · reopening        red
 ```
 
 | Step | It says |
@@ -103,6 +103,9 @@ producing ─ opening ─ checking ─ gating ─ queued ─ first ─ landing �
 | recreating, reopening | after drift released (6.2): its branch made again at the head temper last knew, or its pull request reopened or retargeted back |
 | landing | merging at its head |
 | landed | its merge commit, and when |
+| verifying | landed, its merge commit, and the tiers following its landing branch that have not judged it yet, each with its run in flight, if any (`../domain/after-landing.md`, section 6) |
+| red | landed, its merge commit, and each tier whose verdict blames it, with the run and the failing tests blamed on it, counted, or "many" (`../domain/after-landing.md`, 5.3) |
+| cleared | landed and cleared by every tier following its landing branch, and the run that cleared it in each; or, past the project's verification bound with no verdict, "landed, uncleared": the change ended there (`../domain/after-landing.md`, section 6) |
 
 On the change's task page, the steps its panel carries (9.2) and their
 words are `README.md`'s, 5.10: the steps as the mockup's six, each side
@@ -185,10 +188,11 @@ What the first milestone needs of the forge's parts (`../README.md`,
 section 2, steps 6 and 7):
 
 - **Its result,** a connector's result (jig's
-  `client/domain/objects.md`, section 8): landed, with its pull
+  `client/domain/objects.md`, section 8), given at cleared
+  (`../domain/after-landing.md`, section 6): landed, with its pull
   request's number and title, its merge commit (through GitHub's merge
   queue, the commit its group landed), and the address of each on the
-  forge; or ended otherwise, with what became of its pull request
+  forge, and cleared, or uncleared past the verification bound; or ended otherwise, with what became of its pull request
   and its branch. It shows on the change's page, in the chat that
   delegated it, as its delegate's result, and in the update of the
   person who asked for it.

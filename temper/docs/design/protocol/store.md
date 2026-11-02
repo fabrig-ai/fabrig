@@ -95,14 +95,18 @@ section 7).
   `Landing`, keyed by the landing's task, a landing's state; 24
   `Receipt`, keyed by the project, the repository, the gate and the
   key, a gate's result under a key, bounded by `receipts_per_gate`;
-  25 `Tier`, keyed by repository and tier, its run in flight, last
-  judged tip, failures and flakes; 26 `Verification`, keyed by
+  28 `Tier`, keyed by repository and tier, its run in flight, last
+  judged tip, failures and flakes; 29 `Verification`, keyed by
   repository and landing commit, a landing's tier verdicts, the
   failures blamed on it and what repaired it
-  (`../domain/after-landing.md`, section 10); 27 `LandingLog`, keyed by
+  (`../domain/after-landing.md`, section 10); 30 `LandingLog`, keyed by
   repository, its last landings with their times, changes, trailers and
-  verdicts (`../domain/after-landing.md`, section 10); 28 `Finding`, 29
-  `Mark` and 30 `QaPass` (`../domain/findings.md`, section 9).
+  verdicts (`../domain/after-landing.md`, section 10); 31 `Finding`, 32
+  `Mark` and 33 `QaPass` (`../domain/findings.md`, section 9). A
+  receipt of a tier's keeps its failing tests (`../domain/after-landing.md`,
+  section 2), and the `Change` family's `Landed` state means verifying,
+  `Red`, `Cleared` and `Uncleared` joining it after its last state
+  (`../domain/after-landing.md`, section 6).
 - **Loaded:** every family at the forge's restart step, and never
   otherwise. No party reads them: the engine serves none of the forge's
   client parts but the adoption form (`../client/README.md`, section 4).

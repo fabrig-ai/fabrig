@@ -76,3 +76,192 @@ with no probe; a landing whose key equals the one before it is skipped; `Many` (
 tier, and a `Many` landing is repaired by any judged run whose failures are by test; new
 flakes past `failing_tests` on the record are not kept; a failed receipt at the tip counts
 as a rerun that failed again.
+
+## 2. A change lives to cleared: `temper-engine-domain-forge-change`
+
+`temper/docs/design/domain/after-landing.md`, section 6; `temper/docs/design/protocol/store.md`,
+section 2. `Landed` keeps its name and now means landed and verifying; three states join after
+the last existing variant (in the store's `ChangeLive`, after `no_change`, so no existing
+variant's number moves).
+
+```rust
+pub enum State {
+    // ... every existing variant, in place ...
+    Landed { merge: Commit, since: Wall },   // `since`: when the top first saw the merge
+    // ...
+    Red { merge: Commit, since: Wall },       // a tier's verdict blames its landing
+    Cleared { merge: Commit },                // every tier following its branch cleared it
+    Uncleared { merge: Commit },              // past the bound with no verdict, or cancelled verifying
+}
+
+/// What the top reads of the change's landing's verification, every step.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Verification {
+    /// No tier follows the branch it landed on (or it has not landed): cleared as it lands.
+    Unfollowed,
+    /// Some tier following its branch has not judged it yet.
+    Verifying,
+    /// A tier's verdict blames it and no later run has passed those failures.
+    Red,
+    /// Every tier following its branch has cleared it.
+    Cleared,
+}
+
+pub struct Facts {
+    // ... every existing field ...
+    pub verification: Verification,
+    /// The project's `verification_bound` (configuration.md, 3: `verification_bound_ms`).
+    pub verification_bound: skein_lib::Duration,
+}
+```
+
+The steps (`domain.rs`):
+
+- `Pull::Merged { commit }` on a change not yet landed: `Landed { merge, since: now }`; then, in
+  the same step, `Unfollowed` finishes at once, `Decision::Finish { merge }`, the state staying
+  `Landed` (so a change no tier follows ends exactly as today); `Cleared` goes to `Cleared` and
+  finishes; `Red` goes to `Red` and waits; `Verifying` waits, `Decision::Wait { until: Some(since
+  + verification_bound) }`.
+- `Landed` (verifying) on a later step: as above by `facts.verification`; past
+  `since + verification_bound` with `Verifying`, `Uncleared` and `Decision::Finish { merge }`.
+- `Red`: `Cleared` finishes at `Cleared`; otherwise waits with no deadline (the bound counts only
+  while no verdict has come).
+- Cancelled while `Landed` (verifying) or `Red`: `Uncleared`, `Decision::Finish { merge }`
+  (after-landing.md 6: cancelling a verifying change ends it landed and uncleared).
+- `terminal()`: `Cleared` and `Uncleared` finish, as `Landed` does today; `Landed` and `Red` are
+  no longer terminal by state alone: they step by `facts.verification` as above, so a `Landed`
+  change stepped again with `Unfollowed` finishes again, exactly as today.
+- The top words a finished change's result from its final state: `Landed` as today; `Cleared`
+  and `Uncleared` as section 4's words say.
+
+## 3. Tiers in the configuration
+
+`temper/docs/design/protocol/configuration.md`, section 3; `temper/docs/design/domain/landing.md`,
+13.1; `temper/docs/design/domain/after-landing.md`, sections 2 and 11.
+
+```rust
+// temper-engine-domain, src/translate.rs (the configuration's typed form)
+pub struct ProjectLanding { pub by: Way, pub repositories: Box<[RepositoryChecks]>, pub after: AfterLandingCheck }
+pub struct RepositoryChecks { pub repository: Repository, pub gates: Box<[GateCheck]>, pub tiers: Box<[TierCheck]> }
+pub struct TierCheck {
+    pub name: Box<[u8]>, pub workflow: Box<[u8]>, pub ignored: Box<[Box<[u8]>]>,
+    pub artifact: Box<[u8]>, pub format: temper_engine_domain_forge_tiers::Format,
+    pub branch: Option<Box<[u8]>>,           // absent: the repository's landing branch
+}
+pub struct AfterLandingCheck { pub tier_retries: u8, pub verification_bound_ms: u64 }  // defaults 2, 7_200_000
+
+// temper-engine-domain-forge, src/boundary.rs
+pub struct Tier {
+    pub name: Box<[u8]>, pub workflow: Box<[u8]>, pub ignored: Box<[Box<[u8]>]>,
+    pub artifact: Box<[u8]>, pub format: temper_engine_domain_forge_tiers::Format,
+    pub branch: Option<Box<[u8]>>,
+}
+pub struct RepositoryGates { pub repository: Repository, pub gates: Box<[landing::Gate]>, pub tiers: Box<[Tier]> }
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct AfterLanding { pub verdict: temper_engine_domain_forge_tiers::Settings, pub bound: skein_lib::Duration }
+
+impl Domain {
+    /// grows one argument; kept per project beside its way and gates
+    pub fn project_landing(&mut self, project: u32, way: change::Way,
+                           gates: Box<[RepositoryGates]>, after: AfterLanding) -> bool;
+    /// read by the forge's tiers and the root's change facts
+    pub fn after_landing(&self, project: u32) -> Option<AfterLanding>;
+}
+
+// temper-engine-domain-forge, src/limits.rs: one nested field on `Limits`
+pub struct TierLimits { pub tiers: u32, pub failing_tests: u32, pub test_id_bytes: u32 }
+// `Limits { ..., pub tiers: TierLimits }`; the small profile 2, 16, 256; limit names
+// `forge.tiers.tiers`, `forge.tiers.failing_tests`, `forge.tiers.test_id_bytes`.
+```
+
+`AfterLanding::verdict` is `Settings { retries: tier_retries, suspects: Suspects::Bisect }`: the
+configuration names no `suspects` in M8. A tier's name is a gate's (letters, digits, `-`, `_`),
+at most 32 bytes, unique among its repository's gates and tiers; an `artifact` is non-empty,
+at most a gate name's bytes, with no `/`; a repository's tiers at most `forge.tiers.tiers`.
+
+## 4. The forge's tier surface: `temper-engine-domain-forge`
+
+`temper/docs/design/domain/after-landing.md`, sections 3, 6 and 10. A tier run is a procedure
+task of the forge's, `tier`, code 4 (`AFTER_LANDING_CODE` in
+`temper/crates/temper-engine-domain/src/route/forge_route.rs`), made by the root when the forge
+asks, mirroring the landing task's plumbing (`Event::Landing`, `StepLanding`, `VetoLanding`,
+`Request::LandingDecision`, `describe_landing_effect`).
+
+```rust
+// boundary.rs
+pub enum Request { /* ... */
+    /// Make the tier's run task, number `number`, at `tip` (the root answers TierTask or TierRefused).
+    TierRun { repository: Repository, tier: Box<[u8]>, number: u64, tip: Commit },
+    /// The tier task's step: wait, hold saying why, or end done with the verdict's words.
+    TierDecision { task: u64, decision: TierDecision, entry: Option<u64> },
+}
+pub enum TierDecision { Wait { until: Option<Wall> }, Held { words: Box<[u8]> }, Done { words: Box<[u8]> } }
+pub enum Event { /* ... */
+    TierTask { repository: Repository, tier: Box<[u8]>, number: u64, task: u64 },
+    TierRefused { repository: Repository, tier: Box<[u8]>, number: u64 },
+    StepTier { task: u64, entry: u64, heard: TierHeard },
+    VetoTier { task: u64, entry: u64 },
+}
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct TierHeard { pub released: bool, pub cancelled: bool }
+
+// purpose.rs: tag 8, 30 bytes with the tag
+pub enum EffectPurpose { /* ... */
+    Tier { repository: Repository, tier: u16, run: u64, operation: u8, part: u16 },
+}
+// operation: 0 the run's branch, 1 the dispatch, 2 a rerun, 3 a probe's branch,
+// 4 a probe's dispatch, 5 a branch's deletion, 6 the status, 7 a comment (6 and 7 unused in M8)
+
+// the store families (store.md, 2): 28 Tier, 29 Verification
+pub enum Stored { /* ... */ Tier(TierRow), Verification(Verification) }
+pub enum Key { /* ... */
+    Tier { repository: Repository, tier: Box<[u8]> },
+    Verification { repository: Repository, commit: Commit },
+}
+pub struct TierRow {
+    pub repository: Repository,
+    pub tier: Box<[u8]>,
+    pub record: temper_engine_domain_forge_tiers::Record,
+    pub task: Option<u64>,
+    // the run's operational state (pending tips, baseline, branches, flights, held fault):
+    // the tiers-forge task's, which may add fields here and in the store's record.
+}
+pub struct Verification {
+    pub repository: Repository,
+    pub commit: Commit,
+    pub changes: Box<[u64]>,                    // the change tasks it landed, oldest first
+    pub tiers: Box<[TierVerification]>,         // the tiers following its branch at landing
+}
+pub struct TierVerification {
+    pub tier: Box<[u8]>,
+    pub verdict: Option<TierVerdict>,           // None while verifying
+    pub repaired: Option<Commit>,               // the landing whose run passed its failures (5.3)
+}
+pub struct TierVerdict { pub run: u64, pub blame: temper_engine_domain_forge_tiers::Blame }
+pub struct Receipt { /* ... */ pub failures: Option<temper_engine_domain_forge_tiers::Failures> }
+
+impl Domain {
+    pub fn tier_task(&self, task: u64) -> Option<&TierRow>;
+    pub fn describe_tier_effect(&self, task: u64, entry: u64)
+        -> Option<(api::Repository, crate::What, crate::AgentEffect)>;
+    /// The verification of a change task's landing, for its facts (section 2).
+    pub fn change_verification(&self, task: u64) -> temper_engine_domain_forge_change::Verification;
+}
+```
+
+The words: a tier task's words name the tier and the run, `Tier NAME run N`; held, `Tier NAME run
+N held after K runner faults, last: KIND`; done, `Tier NAME run N: green, cleared L landings` or
+`Tier NAME run N: red, F tests failing, blamed on L landings`. A change's result at cleared adds
+a line after today's `Landed:` line: `Cleared by TIER run N[, TIER run M].`; uncleared, `Not
+cleared: no verdict within the verification bound.` (or `... : cancelled while verifying.`);
+repaired after red, `Cleared by TIER run N, which passed the failures blamed on it.`
+
+## 5. skein's reads
+
+As designed, no shape of this plan's: `skein/docs/design/forge.md`, 3.2, 3.3 and 5.2
+(`Read::Artifact { run, name, max_bytes }` answering `File`; `Read::Commits { before, after,
+page }` answering `Answer::Commits { commits, more }`, oldest first), and
+`skein/docs/design/fake-forge.md`, 2.3 (a workflow's `fails`, `flaky`, `report`, `select`;
+`Cue::Tests`). The bounded inflater is private to `skein-forge`: no crate gains a dependency
+(forge.md, 2.1 holds). GitHub's dialect answers both reads `Refused`. temper persists neither
+answer.

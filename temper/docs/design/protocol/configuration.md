@@ -306,9 +306,9 @@ settings in the store, temper's kinds 1 and 2; until its second step
   branch it follows, by its name on the forge, the repository's landing
   branch when absent (`../domain/after-landing.md`, section 2).
 - **The tiers' project settings,** beside `by`, by either way:
-  `tier_retries`, a u8, 2 when absent; `verification_bound`, seconds as
-  a u32, 7200 when absent (`../domain/after-landing.md`, sections 3 and
-  6).
+  `tier_retries`, a u8, 2 when absent; `verification_bound_ms`, the
+  project's verification bound, a u64, 7,200,000 (two hours) when absent
+  (`../domain/after-landing.md`, sections 3 and 6).
 - **The turn's project settings,** beside `by`:
   `prepare` and `key`, paths in the project's home, or absent for
   temper's own; `home_revision`, the home's commit they run at;

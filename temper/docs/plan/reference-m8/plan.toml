@@ -31,3 +31,30 @@ id = 1
 story = "a tier's runs are judged by the pure policy (green clears, a red reruns, blames and bisects), and a deployment procedure starts under a period reserved whole"
 parts = ["procedure-funding", "tiers-core"]
 walk = false
+
+[[part]]
+id = "skein-reads"
+title = "skein: Read::Artifact and Read::Commits in Forgejo's dialect, and the fake forge's run reports"
+mode = "direct"
+needs = []
+design = "skein/docs/design/forge.md, 3.2"
+
+[[part]]
+id = "change-cleared"
+title = "temper: a change lives landed, verifying, red, cleared or uncleared"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/after-landing.md, 6"
+
+[[part]]
+id = "tiers-config"
+title = "temper: tiers, the branch each follows, and the project's tier settings, read from the configuration"
+mode = "direct"
+needs = ["tiers-core"]
+design = "temper/docs/design/protocol/configuration.md, 3"
+
+[[slice]]
+id = 2
+story = "the configuration names main's tiers and the verification bound, skein reads a run's report, and a change no tier follows still ends at landed"
+parts = ["skein-reads", "change-cleared", "tiers-config"]
+walk = false
