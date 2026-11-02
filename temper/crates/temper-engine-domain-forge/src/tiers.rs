@@ -833,6 +833,7 @@ fn finish(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, out: &mut Queue<
             ])
         }
     };
+    crate::verification::judged(d, row.repository, &row.tier, &verdict, &run.landings, out);
     row.record = p::judged(
         &row.record,
         &verdict,
@@ -849,7 +850,6 @@ fn finish(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, out: &mut Queue<
     row.cancelled = false;
     save(row, out);
     decision(task, crate::TierDecision::Done { words }, None, out);
-    crate::verification::judged(d, row.repository, &row.tier, &verdict);
 }
 fn reading(d: &Domain, key: &(Repository, Box<[u8]>)) -> bool {
     for (owner, candidate) in &d.tier_ops.reads {

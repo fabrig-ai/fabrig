@@ -198,7 +198,7 @@ pub struct Domain {
     judge_criteria: u32,
     projection_due: Map<u64, skein_lib::Wall>,
     change_due: Map<u64, skein_lib::Wall>,
-    procedure_wakes: Map<u64, bool>,
+    pub(crate) procedure_wakes: Map<u64, bool>,
     pub(crate) settling: Map<u64, crate::settle::Settle>,
 }
 
@@ -1610,6 +1610,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 }
 
 #[expect(clippy::manual_map, reason = "step code uses explicit options without closures")]
+#[expect(clippy::too_many_lines, reason = "merge outcomes save the landing and its verification together")]
 fn outcome_facts(
     d: &mut Domain,
     env: &Env<Limits>,
@@ -1676,6 +1677,16 @@ fn outcome_facts(
         }
         skein_forge_client::Outcome::Made { made: skein_forge_client::Made::Merged(commit), .. } => {
             let task = crate::landing::merged_owner(d, task, entry);
+            if !d.releases.contains_key(&task) {
+                crate::verification::landed(d, commit, task, out);
+                if let Some(row) = d.changes.get_mut(&task)
+                    && landed_commit(&row.change.state).is_none()
+                {
+                    row.change.state = change::State::Landed { merge: commit, since: env.wall };
+                    let saved = row.clone();
+                    save_change(d, out, saved);
+                }
+            }
             if d.landed.len() < env.limits.landings.max(env.limits.changes) || d.landed.contains_key(&commit) {
                 d.landed.insert(commit, task).expect("preflighted landed capacity");
                 emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Landed { commit, task } });
@@ -2598,6 +2609,10 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         emit(out, Request::ChangeDecision { task, decision, entry: None, evidence: None });
         return;
     }
+    if let Some(merge) = landed_commit(&row.change.state) {
+        step_verified(d, env, task, merge, heard, out);
+        return;
+    }
     let mut owner = None;
     for (token, pending) in &d.steps {
         if pending.task == task {
@@ -2661,6 +2676,68 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         skein_forge_client::Event::Read { owner, repository, read: skein_forge::api::Read::Branch { branch } },
         out,
     );
+}
+
+fn landed_commit(state: &change::State) -> Option<skein_forge::api::Commit> {
+    match state {
+        change::State::Landed { merge, .. }
+        | change::State::Red { merge, .. }
+        | change::State::Cleared { merge }
+        | change::State::Uncleared { merge } => Some(*merge),
+        change::State::Producing { .. }
+        | change::State::Opening { .. }
+        | change::State::Recreating { .. }
+        | change::State::Reopening { .. }
+        | change::State::Checking { .. }
+        | change::State::Gating { .. }
+        | change::State::CancellingGates { .. }
+        | change::State::Ready { .. }
+        | change::State::Preparing { .. }
+        | change::State::Queued { .. }
+        | change::State::First { .. }
+        | change::State::Updating { .. }
+        | change::State::Resolving { .. }
+        | change::State::Repairing { .. }
+        | change::State::Landing { .. }
+        | change::State::NoChange { .. }
+        | change::State::Ended
+        | change::State::Held { .. } => None,
+    }
+}
+
+fn step_verified(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    task: u64,
+    merge: skein_forge::api::Commit,
+    heard: change::Heard,
+    out: &mut Queue<Request>,
+) {
+    let mut row = d.changes.get(&task).expect("known landed change").clone();
+    let pending = PendingStep {
+        task,
+        entry: 0,
+        stage: StepStage::Branch,
+        heard,
+        gates: Box::new([]),
+        queue_repair_active: false,
+        kept: false,
+        branch: row.change.last_head,
+        base_tip: Some(merge),
+        pull: None,
+        ci: change::Status::Unknown,
+        base_ci: change::Status::Unknown,
+        contains_base: change::Status::Unknown,
+        reviews: Box::new([]),
+        reviews_complete: true,
+        woken: false,
+    };
+    let facts = change_facts(d, env, &row, &pending, merge);
+    let stepped = change::step(&row.change, &facts, &heard, env.wall, &env.limits.change_policy);
+    row.change = stepped.change;
+    d.changes.insert(task, row.clone()).expect("replaces change");
+    save_change(d, out, row);
+    emit(out, Request::ChangeDecision { task, decision: stepped.decision, entry: None, evidence: None });
 }
 
 fn status(ci: skein_forge::api::Ci) -> change::Status {
@@ -3125,8 +3202,13 @@ fn change_facts(
     pending: &PendingStep,
     base_tip: skein_forge::api::Commit,
 ) -> change::Facts {
-    // tiers-config and tiers-forge replace this default with project settings and verification facts.
-    const VERIFICATION_BOUND: Duration = Duration::from_secs(7200);
+    let verification_bound = match d.repositories.get(&row.repository) {
+        Some(repository) => match d.after_landing(repository.project) {
+            Some(after) => after.bound,
+            None => Duration::from_secs(7200),
+        },
+        None => Duration::from_secs(7200),
+    };
     let pull = match &pending.pull {
         Some(pull) if pull.merged.is_some() => change::Pull::Merged { commit: pull.merged.expect("checked merged") },
         Some(pull) if pull.state == skein_forge::api::State::Closed => change::Pull::Closed,
@@ -3158,8 +3240,8 @@ fn change_facts(
     };
     let window = crate::settle::window(d, row.task);
     change::Facts {
-        verification: change::Verification::Unfollowed,
-        verification_bound: VERIFICATION_BOUND,
+        verification: d.change_verification(row.task),
+        verification_bound,
         ask: crate::landing::ask_for(d, row),
         branch: pending.branch,
         expected_base: base_tip,
@@ -3762,6 +3844,7 @@ fn release_pull(d: &mut Domain, env: &Env<Limits>, row: &mut ReleaseRow, entry: 
 
 /// The panel outlives its task, but never its task's live state (domain/forge.md, 8.3).
 fn end_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
+    crate::verification::released(d, task, out);
     let Some(row) = d.changes.get_mut(&task) else { return };
     let before = crate::panel::ready(row);
     let mut merge = None;
@@ -5737,3 +5820,7 @@ impl Domain {
         unreachable!("unmade link has a referencing retained row")
     }
 }
+
+#[cfg(test)]
+#[path = "tests/verification.rs"]
+mod verification_tests;
