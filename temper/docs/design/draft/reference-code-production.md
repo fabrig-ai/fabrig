@@ -149,9 +149,10 @@ P, a person
   authority sized for a plan of up to a hundred changes (N21); its wake
   policy is the charter's default (N23).
 - **Its own branch, by template** (N3). The template for drafts names
-  *its own goal branch*, a symbolic resource the forge offers, resolved
-  to `temper/<root>/g<root>` once the goal has its number, as a task's
-  run branch is (`forge.md`, section 11). A small goal's template names
+  *its own goal branch*, a symbolic resource the forge offers on a
+  tracked task only, resolved to `temper/<root>/g<root>` in the project's
+  home repository once the goal has its number, as a task's run branch
+  is (`forge.md`, section 11). A small goal's template names
   none, and its changes land into main each. jig checks the batch as any
   (jig's `domain/tasks.md`, section 4). A goal made by hand may name it
   too, within its creator's authority. The choice is made with the goal,
@@ -284,7 +285,9 @@ starts early under N2's rules:
   dependencies to land;
 - once: a producer that asks, or fails for want of its dependencies'
   work, does not start early again: the next waits for them to land;
-- a producer continuing from saved work merges g's tip into it first.
+- a producer continuing from saved work or from its pushed branch
+  merges g's tip into it first; a conflict is left in its checkout as a
+  merge in progress.
 
 Done while kept, the producer's work waits: the change is not ready
 until its last dependency has landed, then merges as any change. Its
@@ -337,9 +340,9 @@ A change relays its agents' questions (N1).
   Message family and a question is answered that a change takes none;
   `foreman`, the route above; `up`, straight to its requester with no
   foreman, a designer's change's. With either of the last two, its
-  producer, repairs and resolutions keep the Message family, a foreman
-  is made per question, and the change's own page lists its open
-  questions.
+  producer, repairs and resolutions keep the Message family, and the
+  change's own page lists its open questions; with `foreman`, each
+  question gets a foreman of its own, within the bound.
 - **Answers stay in the store:** the asked task's question positions and
   the change's history (jig's `domain/tasks.md`, 8.2). A ruling that
   concerns many changes becomes design: a designer's change into g, and
@@ -425,12 +428,13 @@ escalates to G as any change does.
 
 G's wake policy, the coordinator's charter's default (N23): questions,
 escalations, failures, every delegate's result, words from its
-delegates, its person's words, and news its connectors class as waking,
-paced. A task made from a template takes its charter's policy; its
-creator may narrow or widen it. Each wake is a fresh run, its brief the
-goal, the plan's state and the messages that woke it (jig's
-`domain/engine.md`, 7.4); a message that arrives while G runs is relayed
-to that run instead.
+delegates and its person's words, at once; news its connectors class as
+waking (a red of g's tier, a landing that touches the goal's open
+work), batched by age, at most once in 30 minutes. A task made from a
+template takes its charter's policy; its creator may narrow or widen it.
+Each wake is a fresh run, its brief the goal, the plan's state and the
+messages that woke it (jig's `domain/engine.md`, 7.4); a message that
+arrives while G runs is relayed to that run instead.
 
 | Wake | G reads | G decides |
 |---|---|---|
