@@ -177,6 +177,7 @@ pub fn task_authority() -> jig_domain_tasks::Authority {
 pub fn task_spec() -> jig_domain_tasks::Spec {
     use jig_domain_tasks::{Parameter, Spec};
     Spec {
+        job: None,
         asks: false,
         words: Box::from(b"spec".as_slice()),
         parameters: Box::new([

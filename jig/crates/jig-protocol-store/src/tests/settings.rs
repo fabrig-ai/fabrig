@@ -323,3 +323,18 @@ fn live_settings_remap_efforts_by_name_and_refuse_missing_efforts() {
     let s::Value::Template(value) = changed.value.unwrap() else { panic!("template") };
     assert_eq!(value.llm.unwrap().main.model, u8::MAX);
 }
+
+/// Settings' policies retain job kinds (jig/docs/design/protocol/store.md, 5.1).
+#[test]
+fn job_delegation_kinds_round_trip_in_settings() {
+    let limits = codec::limits(&fixtures::CORE_LIMITS).unwrap();
+    let mut value = rules();
+    value.ceiling.models = a::Models::ALL;
+    value.ceiling.delegation.kinds = Box::new([a::Executor::Job(0), a::Executor::Job(u32::MAX)]);
+    let row = s::Record::Default {
+        setting: s::Setting::Rules,
+        default: s::Default { revision: 1, value: s::Value::Rules(Box::new(value)) },
+    };
+    let bytes = codec::settings::encode(&row, &limits.settings, &[]).unwrap();
+    assert_eq!(codec::settings::decode(&row.key(), &bytes, &limits.settings, &[]), Ok(row));
+}

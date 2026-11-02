@@ -154,6 +154,9 @@ fn spec_bytes(spec: &Spec) -> Option<u64> {
     let mut total = bytes(spec.words.len())?
         .checked_add(bytes(size_of_val(&*spec.parameters))?)?
         .checked_add(bytes(size_of_val(&*spec.inputs))?)?;
+    if let Some(job) = &spec.job {
+        total = total.checked_add(bytes(size_of::<crate::JobSpec>())?)?.checked_add(bytes(job.bytes.len())?)?;
+    }
     for parameter in &spec.parameters {
         match parameter {
             Parameter::Bytes { value, .. } => total = total.checked_add(bytes(value.len())?)?,
@@ -213,7 +216,7 @@ fn contract_bytes(contract: &Contract) -> Option<u64> {
             }
             Some(total)
         }
-        Contract::Report { .. } | Contract::Change { .. } => Some(0),
+        Contract::Job { .. } | Contract::Report { .. } | Contract::Change { .. } => Some(0),
     }
 }
 
@@ -225,6 +228,7 @@ fn kind_bytes(kind: &crate::MessageKind) -> Option<u64> {
         crate::MessageKind::Result(crate::ResultKind::Approved { state, .. }) => bytes(state.len()),
         crate::MessageKind::Result(
             crate::ResultKind::Report
+            | crate::ResultKind::Job
             | crate::ResultKind::NoChange
             | crate::ResultKind::Change { .. }
             | crate::ResultKind::Failed
@@ -261,6 +265,7 @@ fn word_bytes(word: &crate::Word) -> Option<u64> {
         crate::MessageKind::Result(
             crate::ResultKind::Approved { .. }
             | crate::ResultKind::Report
+            | crate::ResultKind::Job
             | crate::ResultKind::NoChange
             | crate::ResultKind::Change { .. }
             | crate::ResultKind::Failed
@@ -290,6 +295,7 @@ fn word_bytes(word: &crate::Word) -> Option<u64> {
 
 fn result_bytes(result: &TaskResult) -> Option<u64> {
     match result {
+        TaskResult::Job { bytes: value } => bytes(value.len()),
         TaskResult::Report { words } | TaskResult::NoChange { words } => bytes(words.len()),
         TaskResult::Change { title, words, .. } => bytes(size_of::<crate::ChangeTitle>())?
             .checked_add(bytes(title.words.len())?)?

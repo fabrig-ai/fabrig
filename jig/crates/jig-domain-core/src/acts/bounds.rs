@@ -267,7 +267,7 @@ pub(crate) fn create_start(
             }
             authority::Executor::Charter(charter)
         }
-        tasks::Executor::Person(_) => return Err(people::Refusal::NotOffered),
+        tasks::Executor::Job { .. } | tasks::Executor::Person(_) => return Err(people::Refusal::NotOffered),
         tasks::Executor::Procedure { connector, code } => {
             if code == 0 || !core.connectors.contains(&connector) {
                 return Err(people::Refusal::NotOffered);

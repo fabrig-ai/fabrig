@@ -70,7 +70,9 @@ pub fn address_admit(row: &crate::TaskRecord, addressed: &Option<AddressChange>)
         Some(change) => {
             match row.executor {
                 crate::Executor::Person(_) => {}
-                crate::Executor::Agent { .. } | crate::Executor::Procedure { .. } => return Err(Refusal::Executor),
+                crate::Executor::Agent { .. } | crate::Executor::Procedure { .. } | crate::Executor::Job { .. } => {
+                    return Err(Refusal::Executor);
+                }
             }
             if !valid_address(change.address) {
                 return Err(Refusal::Executor);
@@ -97,7 +99,9 @@ pub fn instruction_admit(
             }
             match executor {
                 crate::Executor::Agent { .. } => Ok(()),
-                crate::Executor::Procedure { .. } | crate::Executor::Person(_) => Err(Refusal::Executor),
+                crate::Executor::Procedure { .. } | crate::Executor::Person(_) | crate::Executor::Job { .. } => {
+                    Err(Refusal::Executor)
+                }
             }
         }
     }
@@ -144,7 +148,7 @@ fn settings(task: &crate::TaskRecord) -> Settings {
         tracked: task.tracked,
         addressed: match task.executor {
             crate::Executor::Person(address) => Some(address),
-            crate::Executor::Agent { .. } | crate::Executor::Procedure { .. } => None,
+            crate::Executor::Agent { .. } | crate::Executor::Procedure { .. } | crate::Executor::Job { .. } => None,
         },
         taken_by: task.taken_by,
         instructions: task.instructions.clone(),
@@ -544,7 +548,7 @@ fn check_amend_fields(
     };
     let person_changed = match old.executor {
         crate::Executor::Person(_) => spec_changed || dependencies_changed || address_changed,
-        crate::Executor::Agent { .. } | crate::Executor::Procedure { .. } => false,
+        crate::Executor::Agent { .. } | crate::Executor::Procedure { .. } | crate::Executor::Job { .. } => false,
     };
     if (changed && old.revisions.spec == u64::MAX) || (person_changed && old.revisions.person == u64::MAX) {
         return Err(Refusal::State);

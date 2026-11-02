@@ -187,7 +187,7 @@ pub(crate) fn executor(executor: tasks::Executor, choice: Option<&tasks::LlmChoi
     {
         match executor {
             tasks::Executor::Agent { .. } => {}
-            tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => {
+            tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) | tasks::Executor::Job { .. } => {
                 return Err(tasks::Refusal::Llm { model: choice.main.model, why: tasks::LlmFault::Procedure });
             }
         }

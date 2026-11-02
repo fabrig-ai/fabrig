@@ -132,6 +132,7 @@ pub enum MessageKind {
 /// Terminal shape carried with a delegate's bounded message words.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ResultKind {
+    Job,
     /// Exact approved state; presence distinguishes absent from empty explanation words.
     Approved {
         state: Box<[u8]>,
@@ -215,7 +216,8 @@ impl Word {
                 crate::verdict::fields_bytes(fields)?.checked_add(self.words.len())
             }
             MessageKind::Result(
-                ResultKind::NoChange
+                ResultKind::Job
+                | ResultKind::NoChange
                 | ResultKind::Report
                 | ResultKind::Change { .. }
                 | ResultKind::Failed
@@ -301,6 +303,8 @@ pub enum Executor {
     Procedure { connector: u16, code: u32 },
     /// A person or any current holder of a project role answers in the people inbox.
     Person(PersonAddress),
+    /// Application job kind (jig/docs/design/domain/tasks.md, 5.3.1).
+    Job { kind: u32 },
 }
 
 /// Opaque person-task destination; root authenticates the identity or role membership.
@@ -429,6 +433,8 @@ pub enum Parameter {
 /// Owned task description supplied by root, bounded at admission (domain/tasks.md, section 3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Spec {
+    /// Application bytes, present exactly for a job executor (jig/docs/design/domain/tasks.md, 5.3.1).
+    pub job: Option<Box<JobSpec>>,
     /// Owned UTF-8 specification words; combined with text-valued parameters, bounded by
     /// `Limits::spec_bytes`.
     pub words: Box<[u8]>,
@@ -439,6 +445,13 @@ pub struct Spec {
     pub inputs: Box<[u64]>,
     /// Immutable obligation to ask its requester a question (domain/tasks.md, 5.7).
     pub asks: bool,
+}
+
+/// A job task's application bytes and per-attempt deadline (jig/docs/design/domain/tasks.md, 5.3.1).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct JobSpec {
+    pub bytes: Box<[u8]>,
+    pub deadline: Duration,
 }
 
 /// One required named machine field and its value byte cap.
@@ -473,6 +486,8 @@ pub struct Verdict {
 /// admission. (domain/tasks.md, sections 3 and 5.6).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Contract {
+    /// Maximum application result bytes (jig/docs/design/domain/tasks.md, 5.3.1).
+    Job { bytes: u32 },
     /// Approval of exact opaque connector state (domain/people.md, section 8).
     Approval { state: Box<[u8]>, part: crate::Part },
     /// Bounded report result.
@@ -514,6 +529,8 @@ impl ChangeTitle {
 /// connector interpretation and outward delivery remain with root. (domain/tasks.md, section 5.6).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum TaskResult {
+    /// Opaque application result (jig/docs/design/domain/tasks.md, 5.3.1).
+    Job { bytes: Box<[u8]> },
     /// Exact state approved by the addressed person, with optional explanation.
     Approved { state: Box<[u8]>, words: Option<Box<[u8]>> },
     /// Successful bounded report matching a report contract.

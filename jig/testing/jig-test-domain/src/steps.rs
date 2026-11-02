@@ -202,5 +202,5 @@ pub fn procedure_input(context: &tasks::RunContext, code: u16, resource: connect
 }
 
 fn specification(words: Box<[u8]>) -> tasks::Spec {
-    tasks::Spec { asks: false, words, parameters: Box::new([]), inputs: Box::new([]) }
+    tasks::Spec { job: None, asks: false, words, parameters: Box::new([]), inputs: Box::new([]) }
 }

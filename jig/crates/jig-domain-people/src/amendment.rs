@@ -149,6 +149,7 @@ pub struct Delegation {
 /// One requested child executor kind.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Executor {
+    Job(u32),
     Charter(u32),
     Procedure(u32),
     Role(u32),

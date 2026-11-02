@@ -70,6 +70,7 @@ fn fixture_with_delegates() -> (World, root::Config, u64, [u64; 2]) {
         budget: jig_domain_people::Budget::Named,
         executor: tasks::Executor::Agent { charter: 1 },
         spec: tasks::Spec {
+            job: None,
             asks: false,
             words: Box::from(&b"delegate"[..]),
             parameters: Box::new([]),

@@ -42,7 +42,7 @@ pub fn shaped(flags: Flags, executor: crate::Executor) -> bool {
     }
     let agent = match executor {
         crate::Executor::Agent { .. } => true,
-        crate::Executor::Person(_) | crate::Executor::Procedure { .. } => false,
+        crate::Executor::Person(_) | crate::Executor::Procedure { .. } | crate::Executor::Job { .. } => false,
     };
     flags.conversation && agent
 }

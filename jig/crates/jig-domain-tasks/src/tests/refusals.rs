@@ -62,3 +62,41 @@ fn an_answers_refusals_are_kept_without_a_turn_or_charge() {
     }
     assert!(kept, "answer refusal row is durable");
 }
+
+/// Job surface admission stays closed (jig/docs/design/domain/tasks.md, 5.3.1).
+#[test]
+fn a_batch_naming_a_job_is_refused_until_jobs_are_admitted() {
+    use crate::{Executor, JobSpec, Refusal};
+    use skein_lib::Duration;
+    let job = Some(Box::new(JobSpec { bytes: Box::new([0xff]), deadline: Duration::from_secs(7) }));
+    for (executor, spec) in [
+        (Executor::Job { kind: 7 }, None),
+        (Executor::Job { kind: 7 }, job.clone()),
+        (Executor::Agent { charter: 1 }, job.clone()),
+        (Executor::Procedure { connector: 1, code: 1 }, job.clone()),
+        (Executor::Person(crate::PersonAddress::Person(1)), job),
+    ] {
+        let mut h = Harness::new();
+        let mut member = task(1, &[]);
+        member.executor = executor;
+        member.spec.job = spec;
+        let out = h.send(Event::Make {
+            reply_to: super::revisions::to(),
+            creator: Party::Deployment { project: 1 },
+            batch: Box::new([member]),
+        });
+        let mut executor_refusal = false;
+        let mut changed = false;
+        for request in &out {
+            if let Request::Refused { problem, .. } = request {
+                executor_refusal = problem.why == Refusal::Executor;
+            }
+            if let Request::Activate { .. } | Request::Save { .. } = request {
+                changed = true;
+            }
+        }
+        assert!(executor_refusal);
+        assert!(h.domain.task(1).is_none());
+        assert!(!changed);
+    }
+}
