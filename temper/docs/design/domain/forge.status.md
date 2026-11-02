@@ -29,8 +29,7 @@
     `change_policy` and its charters the deployment's
     (`temper-engine-domain/src/route/forge_route.rs`, `start_change`); its
     page's line that a change takes no words.
-  - 8.2: the pull request's body naming its goal's issue; a landed change
-    living until its landing is cleared (`after-landing.md`, section 6).
+  - 8.2: the pull request's body naming its goal's issue.
   - 8.3: a person's approval as a gate; a review's lens; gates run at once
     when the change asks; a verdict posted as a commit status; the review
     charter, kind 3's number 2, is fixed at charter 4.
@@ -45,6 +44,9 @@
   - 8.8: the rule and criterion a change waits on, and its charter, on its
     panel.
   - 8.10: a change drained.
+  - 9: a branch a tier follows still pauses its queue on its own CI's
+    red and makes a repair, where its tiers judge it instead
+    (`temper-engine-domain-forge-change/src/domain.rs`, `base_ci`).
   - 11.1: a goal's own branch.
   - 12: the issue's milestones but its lifecycle and revisions: the plan
     accepted, a change landed or held, a report kept.

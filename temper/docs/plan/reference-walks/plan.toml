@@ -1,0 +1,17 @@
+# Walks of the reference case's milestones (temper/docs/design/draft/reference-case.execution.md,
+# section 2): a milestone is done when it lands; its walk follows where `temper ctl` has a story to
+# walk, blocks nothing, and its findings go to fab's findings loop as fixes. Each rung is a story on
+# one backend: its brief is the kit, then the story's brief, read in order.
+draft = "reference-walks"
+repo = "fabrig"
+landing = "queue"
+
+[ladder]
+happy_path = "temper/docs/design/draft/reference-case.execution.md, 2"
+backlog = "temper/docs/development/reference-walks.md"
+
+[[rung]]
+id = "rm8"
+backend = "chatgpt-forgejo"
+brief = ["kit.md", "rung-m8.md"]
+after = []
