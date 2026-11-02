@@ -37,3 +37,16 @@ id = 2
 story = "a box restarted while the playground runs comes back with the playground reset: no row, no scripted account, its fake forge removed, the person on the welcome"
 parts = ["playground-restart"]
 walk = false
+
+[[part]]
+id = "deletion-grace"
+title = "jig and temper: a deleted project's conversations asked to finish within the grace its RemoveProject carries, the chat template's"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/people.md, 5.2"
+
+[[slice]]
+id = 3
+story = "an owner deletes a project with a live chat and its delegates, with the chat template's grace: the delegates are cancelled, the chat asked to finish and cancelled when the grace ends, then all erased; the playground's reset gives its chats the same"
+parts = ["deletion-grace"]
+walk = false

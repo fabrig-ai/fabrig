@@ -20,12 +20,25 @@ task names `notes/common.md`.
    forge's repository rows stay while any kept task names them. Expected tasks:
    `unname-at-erasure` (jig-domain-core) and `kept-names` (temper-engine-domain-forge and the
    root's mapping, after `playground-restart-resets`).
-3. **deletion grace** (jig and temper, `jig/docs/design/domain/people.md, 5.2`): decision 3.
-   Its designer is writing the design and specs to C2: `RemoveProject` carries a grace within the
-   tasks child's bound, the deletion keeps it and cancels each live conversation as a close does;
-   clients fill it from `me`; temper's root fills the reset's from its chat template. Expected:
-   an interface task (wire, contract, people, store row, in place), jig-domain-core's admission
-   and cancel, temper's root.
+3. **deletion-grace** (jig and temper, `jig/docs/design/domain/people.md, 5.2`), slice 3:
+   decision 3, to C2. Its designer wrote the design first: people.md 1, 2, 5.1 to 5.3, 7 and 11
+   (the request's grace, refused past the tasks child's bound, kept with the deletion, each
+   conversation closed as the deployment's `Close` closes one), tasks.md 7, client.md 19
+   (`shapes::remove_project`), contract.md 3.2, jig's store.md 4.4 and temper's setup.md 8.4
+   (the reset's grace, template 1's, which temper's root reads); the lead placed temper's
+   client/README.md 3.5 and jig's configuration.md 3.1 to match.
+   - `tasks/remove-project-grace.md`, interface, high, ~120 minutes, needs nothing: the field
+     carried everywhere with no change of meaning: client-v19 and people-v14 in place, goldens
+     regenerated, the people child keeping it, the core's party route matching the project
+     alone, temper's two literals `grace: None`.
+   - `tasks/remove-project-shape.md`, medium, ~25 minutes, needs `remove-project-grace`:
+     jig-client's `shapes::remove_project`.
+   - `tasks/deletion-grace.md`, high, ~120 minutes, needs `remove-project-grace`:
+     jig-domain-core checks the grace at admission and closes each conversation with it; the
+     core world's story. jig-domain-core's first writer in this plan.
+   - `reset-grace` (temper's root fills the reset's grace from template 1), high, ~45 minutes,
+     written and held until `kept-names` is in the plan: it needs `remove-project-grace`,
+     `kept-names` (temper-engine-domain's first writer) and `playground-restart-resets`.
 4. **Decision 4 needs no change:** `setup.md` 8.4 already runs the start's acts under the
    sign-in of the person who sent the start, and no status file leaves it open (checked
    `rg` over every `*.status.md` and `STATUS.md` of temper and jig on 2026-11-02).
@@ -38,8 +51,10 @@ task names `notes/common.md`.
 
 ## Critical path
 
-As it stands: `playground-restart-resets` (~60 minutes) → `kept-names` (designing) → the grace
-family's temper task. The grace family's interface task (wire and store) is likely the longest.
+`box-words` and `playground-restart-resets` landed. Now: `remove-project-grace` (~120) →
+`deletion-grace` (~120) → `unname-at-erasure` (the names family, after `kept-names`); and
+`kept-names` (designing) → `reset-grace` (~45). About four hours of implementer time on the
+longest chain, up to eight with the buffer.
 
 ## Overlaps
 
@@ -50,7 +65,13 @@ family's temper task. The grace family's interface task (wire and store) is like
 - `playground-restart-resets` and the `reference-m8` branches: `domain.rs`'s `read_afresh`
   gains a line there; this task changes `playground.rs` alone.
 - `setup.status.md`: `v0.1.0-ladder/finding-5` adds a line after its Departs; this plan edits the
-  Departs line (`playground-restart-resets`) and the Not yet line (the grace family).
+  Departs line (`playground-restart-resets`) and the Not yet line (`reset-grace`, after it).
+- `remove-project-grace` and `reference-m1/goal-jig-store`: both change `people-v14.schema` in
+  place; the generated `people_v14.rs`, `layouts.rs` and the people goldens conflict wherever the
+  two meet, mended by regenerating, never by hand. `client-v19.schema` likewise with the
+  `reference-m1` settings branches.
+- jig's `tasks.md` 7 and `tasks.status.md`: edited away from the `reference-m1` hunks
+  (854-927, 1306-1346, the status's first lines).
 
 ## Calls made
 

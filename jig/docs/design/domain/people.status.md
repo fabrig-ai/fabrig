@@ -9,18 +9,19 @@
   erases none of the core's settings records of the project's scope, and
   `Ask::ReleaseProject` asks a connector to release its adoptions alone
   (`jig-domain-core/src/admission/deletion.rs`, `rows` and `release`).
+  5.2: a deleted project's conversations asked to finish within the
+  grace its `RemoveProject` gives (5.1, 5.3 and 7): neither the people
+  child's `Ask::RemoveProject` and `Act::RemoveProject` nor the
+  deletion's row (`Stored::Deletion`) carries a grace, and the
+  deletion's `cancel` cancels every live root with none
+  (`jig-domain-core/src/admission/deletion.rs`).
   6: retention; a delegate's question to a conversation kept with the
   conversation. 7: a chat answering its delegates' questions and asking
   its person by a person task.
-- **Departs:** 5.2: a deleted project's live tasks are cancelled with no
-  grace, a conversation among them (`jig-domain-core/src/admission/deletion.rs`,
-  `cancel`, `grace: None`), because `RemoveProject` names no grace and
-  the engine reads no template; whether a deletion gives its
-  conversations their close's grace is the user's to decide. 6, 8: the
-  person's own answer is off by default, behind `Core::person_answers()`
-  (`jig-domain-core/src/inbox.rs`), because each application opts in
-  before the first step, as temper does. With it off, the asked task
-  answers and relays. With it on, credits stored before it was set,
-  naming a task answerer, route by the question's current inbox owner,
-  and moving a recipient re-points its incoming person-answerer credits
-  to its new person.
+- **Departs:** 6, 8: the person's own answer is off by default, behind
+  `Core::person_answers()` (`jig-domain-core/src/inbox.rs`), because
+  each application opts in before the first step, as temper does. With
+  it off, the asked task answers and relays. With it on, credits stored
+  before it was set, naming a task answerer, route by the question's
+  current inbox owner, and moving a recipient re-points its incoming
+  person-answerer credits to its new person.
