@@ -446,6 +446,10 @@ pub fn authority(document: &AuthorityDocument, out: &mut Text) {
     for kind in &value.delegation.kinds {
         out.put(b" ");
         match kind {
+            AuthorityExecutor::Job(n) => {
+                out.put(b"job ");
+                out.number(u64::from(*n));
+            }
             AuthorityExecutor::Charter(n) => {
                 out.put(b"charter ");
                 out.number(u64::from(*n));
