@@ -13,7 +13,9 @@
     goal's, kept after a goal that never landed it.
   - **3, 5: the merge job before a resolution (N7).** `../domain/forge.md`,
     8.4 and 10: an update refused for a conflict goes to a resolution
-    agent, with no job before it.
+    agent, with no job before it. `../protocol/tooling.md`, sections 1 and
+    4: the project's tooling has `prepare` and `key` alone, run for a
+    turn, and no merge job.
   - **6: main's tiers follow main (N5).** `../domain/after-landing.md`,
     sections 1 and 3: each tier follows every landing branch of its
     repository, goal branches included.
