@@ -1362,7 +1362,7 @@ fn status(ending: &Ending) -> tasks::Status {
 fn result_notice(ending: Ending) -> (ResultKind, Box<[u8]>) {
     match ending {
         Ending::Done(result) => match result {
-            TaskResult::Job { .. } => (ResultKind::Job, Box::new([])),
+            TaskResult::Job { bytes } => (ResultKind::Job, bytes),
             TaskResult::Approved { state, words } => {
                 let words_present = words.is_some();
                 let words = match words {

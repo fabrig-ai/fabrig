@@ -275,6 +275,17 @@ fn holdings(value: &[crate::Holding], limits: &Limits) -> Result<(), RestoreCaus
 }
 
 pub(super) fn task(limits: &Limits, value: &TaskRecord) -> Result<(), RestoreCause> {
+    if crate::batch::matches_job(value.executor) {
+        crate::batch::job_member(limits, &value.spec, &value.contract).or(Err(RestoreCause::Accounting))?;
+        if !crate::flags::valid(value.flags, value.executor, value.requester)
+            || value.llm.is_some()
+            || value.recurring.is_some()
+        {
+            return Err(RestoreCause::Accounting);
+        }
+    } else if value.spec.job.is_some() || crate::batch::job_contract(&value.contract) {
+        return Err(RestoreCause::Accounting);
+    }
     numbers(value.numbers)?;
     spec(&value.spec, limits)?;
     contract(&value.contract, limits)?;
