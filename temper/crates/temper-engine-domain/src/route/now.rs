@@ -354,7 +354,7 @@ fn run_prepared(domain: &mut Domain, env: &Env<Limits>, prepared: Prepared) {
     }
     domain.work.push(Work::Forge(super::forge::Event::Names { task, resources: claim_names }));
     for name in workspace.own_holds {
-        domain.work.push(Work::Forge(super::forge::Event::Hold { task, resource: name, from: None }));
+        domain.work.push(Work::Forge(super::forge::Event::Hold { entry: 0, task, resource: name, from: None }));
     }
     domain.work.push(Work::Core(core::Event::ClaimPrepared { task, attempt, budget, writes: hub_writes.into_boxed() }));
 }

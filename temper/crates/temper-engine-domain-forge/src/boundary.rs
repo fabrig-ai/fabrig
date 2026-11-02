@@ -1305,6 +1305,7 @@ pub enum Event {
     },
     /// Take a hold or hand one down from its current holder.
     Hold {
+        entry: u64,
         task: u64,
         resource: Name,
         from: Option<u64>,
@@ -1663,6 +1664,12 @@ pub enum Request {
     /// A request exceeds the connector's configured bounds.
     Refused {
         task: u64,
+    },
+    /// A goal's own branch could not be made (domain/forge.md, 11.1).
+    MakeFailed {
+        task: u64,
+        resource: Name,
+        reason: Box<[u8]>,
     },
     /// A run ended, but its branch could not be read afresh.
     LostReadFailed {

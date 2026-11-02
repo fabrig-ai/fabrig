@@ -529,6 +529,7 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::Taken { .. }
                 | top::Request::Refused { .. }
                 | top::Request::LostReadFailed { .. }
+                | top::Request::MakeFailed { .. }
                 | top::Request::Outcome { .. }
                 | top::Request::ProjectionOutcome { .. }
                 | top::Request::NotMade { .. }
@@ -630,7 +631,7 @@ fn held_branch(world: &mut Protocol) -> (top::Name, skein_forge::api::Commit) {
     };
     world.event(top::Event::Change { row: change_row() });
     world.event(top::Event::Names { task: 51, resources: Box::new([name.clone()]) });
-    world.event(top::Event::Hold { task: 51, resource: name.clone(), from: None });
+    world.event(top::Event::Hold { entry: 0, task: 51, resource: name.clone(), from: None });
     world.run_for(1);
     world.event(top::Event::Claim { task: 51, attempt: 1, writes: Box::new([name.clone()]), holders: Box::new([]) });
     world.produce(b"temper/51");
@@ -1080,7 +1081,7 @@ fn a_landing_merges_on_its_own_wakes_before_any_resource_poll() {
     let deadline = Wall::from_nanos(start.as_nanos() + HORIZON.as_nanos());
     let run = branch_name(b"temper/1/r1");
     world.event(top::Event::Names { task: 1, resources: Box::new([run.clone()]) });
-    world.event(top::Event::Hold { task: 1, resource: run, from: None });
+    world.event(top::Event::Hold { entry: 0, task: 1, resource: run, from: None });
     let mut row = change_row();
     row.change.since = start;
     row.change.gates = Box::new([change::Gate {
@@ -1093,7 +1094,7 @@ fn a_landing_merges_on_its_own_wakes_before_any_resource_poll() {
     world.event(top::Event::Change { row });
     let branch = branch_name(b"temper/51");
     world.event(top::Event::Names { task: 51, resources: Box::new([branch.clone(), main_name()]) });
-    world.event(top::Event::Hold { task: 51, resource: branch.clone(), from: None });
+    world.event(top::Event::Hold { entry: 0, task: 51, resource: branch.clone(), from: None });
     world.run_for(0);
     let mut due = true;
     let mut until = None;

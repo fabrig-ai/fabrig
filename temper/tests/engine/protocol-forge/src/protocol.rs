@@ -531,6 +531,7 @@ impl Protocol {
                 | top::Request::Taken { .. }
                 | top::Request::Refused { .. }
                 | top::Request::LostReadFailed { .. }
+                | top::Request::MakeFailed { .. }
                 | top::Request::Outcome { .. }
                 | top::Request::ProjectionOutcome { .. }
                 | top::Request::NotMade { .. }
