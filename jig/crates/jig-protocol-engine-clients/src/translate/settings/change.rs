@@ -249,8 +249,14 @@ fn template(value: w::Template, models: &[crate::Model], limits: &w::Limits) -> 
         }
         None => None,
     };
+    let mut resources = List::with_capacity(v.resources.len());
+    for symbol in v.resources.into_boxed() {
+        resources
+            .push(jig_domain_people::Symbol { connector: symbol.connector(), symbol: symbol.symbol() })
+            .expect("same capacity");
+    }
     Ok(c::Template {
-        resources: Box::new([]),
+        resources: resources.into_boxed(),
         number: v.number,
         name: v.name.into_parts().bytes,
         executor: operations::executor(v.executor),

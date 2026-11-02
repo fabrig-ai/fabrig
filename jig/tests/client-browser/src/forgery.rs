@@ -12,6 +12,7 @@ const REQUEST_KEY: [u8; 16] = [0x46; 16];
 
 fn task() -> c::NewTask {
     c::NewTask {
+        symbols: List::with_capacity(0),
         llm: None,
         deadline: jig_client_domain::contract::NewDeadline::Named,
         executor: c::Executor::Person(c::PersonAddress::Role(PERSON_ROLE)),

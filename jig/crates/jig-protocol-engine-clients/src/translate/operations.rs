@@ -271,8 +271,9 @@ fn batch(
     let mut reader = skein_lib::Reader::new(bytes);
     for _ in 0..tasks.capacity() {
         let bytes = asks::item(&mut reader, path)?;
-        let Ok(task) = w::NewTask::decode(limits, &mut skein_lib::Reader::new(&bytes)) else {
-            return Err(Untranslatable { path });
+        let task = match w::NewTask::decode(limits, &mut skein_lib::Reader::new(&bytes)) {
+            Ok(task) => task,
+            Err(problem) => return Err(Untranslatable { path: problem.path }),
         };
         tasks.push(member(task, models, limits, names)?).expect("counted pieces");
     }
@@ -295,9 +296,16 @@ fn member(
             })
             .expect("same capacity");
     }
+    if v.symbols.len() > limits.new_task_symbols {
+        return Err(Untranslatable { path: w::Path::NewTaskSymbols });
+    }
+    let mut symbols = List::with_capacity(v.symbols.len());
+    for symbol in v.symbols.into_boxed() {
+        symbols.push(p::Symbol { connector: symbol.connector(), symbol: symbol.symbol() }).expect("same capacity");
+    }
     let flags = v.flags.into_parts();
     Ok(p::Member {
-        symbols: Box::new([]),
+        symbols: symbols.into_boxed(),
         deadline: match v.deadline {
             w::NewDeadline::Named => p::Deadline::Named,
             w::NewDeadline::Span(value) => p::Deadline::Span(value.value()),
