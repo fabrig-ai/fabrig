@@ -1,5 +1,5 @@
 //! Full golden rows decode within their decoded bounds (skein's codec.md, 6).
-use jig_protocol_store::{accounts_v2, component_v3, core_v6, notes_v1, people_v14, secrets_v1, tasks_v9};
+use jig_protocol_store::{accounts_v2, component_v3, core_v6, notes_v1, people_v14, secrets_v1, settings_v1, tasks_v9};
 use skein_heap::Meter;
 use skein_lib::Reader;
 
@@ -186,5 +186,34 @@ fn each_full_secrets_row_decodes_within_its_heap_bound() {
     });
     check("secrets", "next_carried", secrets_v1::NextCarried::decoded_bound(limits).expect("counter heap"), |golden| {
         secrets_v1::NextCarried::decode(limits, &mut Reader::new(golden)).expect("full counter")
+    });
+}
+
+#[test]
+fn every_full_settings_record_decodes_within_its_heap_bound() {
+    let limits = &settings_v1::CEILINGS;
+    check("settings", "document", settings_v1::Document::decoded_bound(limits).expect("document bound"), |golden| {
+        settings_v1::Document::decode(limits, &mut Reader::new(golden)).expect("full document")
+    });
+    check("settings", "charter", settings_v1::Charter::decoded_bound(limits).expect("charter bound"), |golden| {
+        settings_v1::Charter::decode(limits, &mut Reader::new(golden)).expect("full charter")
+    });
+    check("settings", "default", settings_v1::Default::decoded_bound(limits).expect("default bound"), |golden| {
+        settings_v1::Default::decode(limits, &mut Reader::new(golden)).expect("full default")
+    });
+    check("settings", "changed", settings_v1::Changed::decoded_bound(limits).expect("changed bound"), |golden| {
+        settings_v1::Changed::decode(limits, &mut Reader::new(golden)).expect("full change")
+    });
+    check("settings", "revision", settings_v1::Revision::decoded_bound(limits).expect("revision bound"), |golden| {
+        settings_v1::Revision::decode(limits, &mut Reader::new(golden)).expect("full revision")
+    });
+    check(
+        "settings",
+        "charter_version",
+        settings_v1::CharterVersion::decoded_bound(limits).expect("version bound"),
+        |golden| settings_v1::CharterVersion::decode(limits, &mut Reader::new(golden)).expect("full version"),
+    );
+    check("settings", "proposal", settings_v1::Proposal::decoded_bound(limits).expect("proposal bound"), |golden| {
+        settings_v1::Proposal::decode(limits, &mut Reader::new(golden)).expect("full proposal")
     });
 }
