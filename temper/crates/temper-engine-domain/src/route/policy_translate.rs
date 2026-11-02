@@ -195,6 +195,7 @@ pub(crate) fn gate_templates(
                     },
                 },
                 gates: gates.into_boxed(),
+                requires: forge::Requires { ci: rule.ci, up_to_date: rule.up_to_date },
             })
             .ok()?;
     }
