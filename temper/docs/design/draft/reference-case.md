@@ -6,9 +6,8 @@ cleared, showing each mechanism of `reference-code-production.md` and
 `playground-reset.md` draft in this directory. It keeps that run's names
 and kinds of event and drops its repetition: 64 changes become nine,
 five designers two, 54 questions five, and nine checks along the way
-one. `reference-notes.md`, 2.3 maps each step to the run, and its N
-numbers are the design changes each step needs. It replaces the case's
-third edition (N24).
+one. `notes.md`, 2.3 maps each step to the run, and its N numbers are
+the choices each step rests on.
 
 ## 1. In one page
 
@@ -171,7 +170,7 @@ parameters (N22) and their agents' LLM choices (N19). Beyond those:
 - **Designed, not built:** a change that starts kept (4, 8); mid-run
   delivery (8, N14); jobs, for the merge job (12, 16, 21); after landing
   (25 to 27).
-- **Changes to designs** (`reference-notes.md`): N1, a change's questions
+- **Changes to designs** (`notes.md`, section 4): N1, a change's questions
   relayed (5, 9, 11, 14, 15); N2, early starts (4, 8, 11, 13, 17); N4,
   the light rules (7, 12, 16); N5, g's tier and its news, main's tiers
   following main (20, 25); N6, the catch-up (21); N7, the merge job (12,

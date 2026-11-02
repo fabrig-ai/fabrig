@@ -7,9 +7,9 @@ configuration that sets it up, and what is missing. It is the way a
 project develops itself through temper: one repository, a person who
 writes design drafts, designers who turn them into design, coding agents
 who make the code meet it. How the goal lands is `reference-landing.md`;
-`reference-case.md` walks both on one small goal; `reference-notes.md`
-holds the evidence and the changes to existing designs, N1 to N24, cited
-here by number.
+`reference-case.md` walks both on one small goal; `notes.md` holds the
+evidence and the reasons for each choice, N1 to N24, cited here by
+number.
 
 Unqualified, `forge.md`, `landing.md`, `after-landing.md`, `agent.md`
 and `worker.md` are temper's `../domain/` documents; jig's and smith's
@@ -469,7 +469,7 @@ rather than the goal's own (N3).
 
 - Several goals at once, their branches overlapping: a probe's report of
   the overlap to both coordinators, and checkpoint landings
-  (`reference-notes.md`, section 5).
+  (`reference-landing.md`, section 11).
 - The order of work within one goal when capacity is short: repairs and
   resolutions before new producers (N9).
 - An LLM choice per kind of wake, so a change's result read costs less
