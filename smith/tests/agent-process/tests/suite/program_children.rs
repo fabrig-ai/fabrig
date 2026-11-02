@@ -7,6 +7,12 @@ use smith_agent_process_world::{
 use smith_events::{ConversationEnd, ConversationKind, Event};
 use smith_fake_claude::{Decision, Script, Seen, Step, Story, Turn};
 
+fn argument<'a>(arguments: &'a [String], flag: &str) -> Option<&'a str> {
+    let mut arguments = arguments.iter();
+    arguments.find(|argument| argument.as_str() == flag)?;
+    arguments.next().map(String::as_str)
+}
+
 fn run(modify: bool) -> Run {
     let tools = if modify { vec!["inspect", "modify"] } else { vec!["inspect"] };
     let story = Story {
@@ -72,12 +78,12 @@ fn a_program_main_reads_its_sub_agents_answer() {
     let child = run
         .invocations
         .iter()
-        .find(|invocation| invocation.arguments.windows(2).any(|pair| pair == ["--effort", "high"]))
+        .find(|invocation| argument(&invocation.arguments, "--effort") == Some("high"))
         .expect("child invocation at its own effort");
     let args = &child.arguments;
     assert_eq!(args[0], "-p");
-    assert!(args.windows(2).any(|pair| pair == ["--model", "fake"]));
-    assert!(args.windows(2).any(|pair| pair == ["--tools", "Read,Glob,Grep"]));
+    assert_eq!(argument(args, "--model"), Some("fake"));
+    assert_eq!(argument(args, "--tools"), Some("Read,Glob,Grep"));
     assert!(args.iter().any(|arg| arg == "--permission-prompt-tool"));
     assert!(args.iter().any(|arg| arg == "--mcp-config"));
     assert!(!args.iter().any(|arg| arg == "--json-schema"));
@@ -162,10 +168,7 @@ fn a_program_main_reads_two_children_from_one_message() {
     );
     accepted(&run);
     assert_eq!(
-        run.invocations
-            .iter()
-            .filter(|invocation| invocation.arguments.windows(2).any(|pair| pair == ["--effort", "high"]))
-            .count(),
+        run.invocations.iter().filter(|invocation| argument(&invocation.arguments, "--effort") == Some("high")).count(),
         2
     );
     let children: Vec<_> = run
@@ -239,13 +242,13 @@ fn two_program_children_run_side_by_side_and_each_answers() {
     let children: Vec<_> = run
         .invocations
         .iter()
-        .filter(|invocation| invocation.arguments.windows(2).any(|pair| pair == ["--effort", "high"]))
+        .filter(|invocation| argument(&invocation.arguments, "--effort") == Some("high"))
         .collect();
     assert_eq!(children.len(), 2);
     for child in children {
         assert_eq!(child.arguments[0], "-p");
-        assert!(child.arguments.windows(2).any(|pair| pair == ["--model", "fake"]));
-        assert!(child.arguments.windows(2).any(|pair| pair == ["--tools", "Read,Glob,Grep"]));
+        assert_eq!(argument(&child.arguments, "--model"), Some("fake"));
+        assert_eq!(argument(&child.arguments, "--tools"), Some("Read,Glob,Grep"));
     }
     let openings: Vec<_> = run
         .events
