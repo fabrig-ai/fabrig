@@ -775,7 +775,9 @@ account = "claude-alice"      # the endpoint's account, when its provider has se
   and, with `sub_agents` on, every model a preset knows or settings
   declare whose endpoint has an account whose source is not a program;
   the asking LLM names one of them, or gets main's (domain/run.md, 5.3).
-  A sub-agent never runs on a program (protocol/programs.md, section 2).
+  A sub-agent runs on a program only on main's account, as the models
+  of main's endpoint do (protocol/programs.md, 5.10); another program
+  account's models stay out.
   Every model main's endpoint declares is also the run's, so that
   `/model` may choose any of them (4.1): they share main's account and
   connections, and the derivation is the largest of them. An endpoint
