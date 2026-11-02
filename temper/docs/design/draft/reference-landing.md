@@ -213,21 +213,6 @@ done by hand when it happened. They are this reference's first stories:
 - a red after landing, triaged and repaired by a change naming it, the
   goal cleared by the repair.
 
-## 10. What is missing
-
-| Gap | Where | Note | Status |
-|---|---|---|---|
-| a change whose branch is its requester's held branch; moves by its requester's delegates as its new head | temper | N3 | missing; contradicts `forge.md`, 8.1 and 8.5 |
-| the goal's own branch, kept after a goal that never landed it | jig, temper | N3 | missing |
-| the merge job before a resolution | jig, temper | N7 | jobs designed, not built |
-| tiers naming the branches they follow | temper | N5 | missing |
-| tiers following main, verdicts, a change living to cleared, reds to goals | temper | `after-landing.md` | designed; no status file; little code found |
-| the coordinator's `change` with `repairs` and its requester's branch | temper | N22 | missing |
-| a flake at the gate rerun before a repair | temper | N17 | Later |
-
-The queue itself, the update, the resolution, repairs, bounds and holds
-are built (`forge.status.md`).
-
 ## 11. Later
 
 - **Several goals at once,** their branches overlapping. A mechanical

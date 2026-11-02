@@ -58,10 +58,11 @@ are named as theirs.
   change, writes what the goal leaves into the branch (N16); then the
   coordinator makes the goal's landing, a change into main whose branch
   is the goal's (`reference-landing.md`).
-- **Mostly configuration,** with a few things to build (section 15):
-  chiefly the coordinator's `change` with all its parameters (N22), the
-  goal's own branch (N3), the change's question route (N1), its kept
-  start (N2) and the merge job (N7).
+- **Mostly configuration** (section 14), with a few mechanisms the
+  design lacks (`reference-code-production.status.md`): chiefly the
+  coordinator's `change` with all its parameters (N22), the goal's own
+  branch (N3), the change's question route (N1), its kept start (N2) and
+  the merge job (N7).
 
 ## 2. Roles
 
@@ -453,56 +454,26 @@ to that run instead.
 What the reference sets, as settings (jig's `domain/engine.md`, section
 17; temper's `../protocol/configuration.md`, section 13):
 
-| Setting | The reference | Exists |
-|---|---|---|
-| the coordinator's charter | instructions for the cut, answers, holds, catch-ups, triage, the close-out and the landing; Claude Code; tools: `change` (N22), `delegate` (person tasks, a triage), `amend`, `cancel`, `release`, `decide`, `decide_escalation`, `propose`, `subscribe_forge`, `subscribe`, `note`, `recall`, `message`, `wait`, the workspace's inspect, sub-agents; starts fresh; waiting 0; its default wake policy (section 13); documents: the project's `AGENTS.md` and code rules | as a charter; `change`'s parameters no (N22); its wake policy no (N23); sub-agents on Claude Code no (N10) |
-| the designer's charter | instructions: write the design where the project keeps it (here `docs/design`, the status file beside each document, its Later section), cite by path and section, list the family's changes in the report; Claude Code; the workspace, delivery, sub-agents, `message` for questions, `note`, `recall`; documents: the project's design rules | as a charter; a change's producer charter no (N22); sub-agents no (N10) |
-| the goal template for drafts | the coordinator's charter; section 4's LLM choice; tracked; a report; *its own goal branch* | yes, but its own branch no: templates name no resources (jig's `../protocol/configuration.md`, 3.1; N3) |
-| a small goal's template | as jig's goal template, no branch of its own | yes |
-| the coding agent's charter | charter 2, its instructions telling it to push early, finish with a Left list, mark a story that fails for code it does not own as ignored with the fault as its reason, and never fix what it does not own, the change that fixes the fault removing the mark (N15); its run sized for the work (charter 2's 16 turns and 120 s are a small fix's) | yes, its text and run new |
-| the foreman's charter | read-only (inspect and the forge's reads); a verdict of answer, finish or escalate | as a charter; its use by the change no (N1) |
-| the forge's charters (kind 3) | 1, the change's: the coding agent's; 2, the reviews': unused; 3, the foreman's | kind 3 designed, not built; number 3 no (N1) |
-| each change's LLM choices | a coding producer, repairs and resolutions: gpt-6.1-sol at the spec's effort; a designer: section 4's choice; a foreman: gpt-6.1-sol, medium | no (N19) |
-| the project's policy and rules | tool families with notes; delegation to the coordinator's, the designer's, the coding agent's and the foreman's charters, the change procedure and the merge job; tasks and depth for the plan (N21) | as settings; their values new |
-| the landing rule for goal branches | pattern `… branch temper`, open; no CI, not up to date | no (N4) |
-| the landing rule for main | CI passed, up to date, enforced | yes |
-| the repository's merge style | a merge commit | yes (`forge.md`, 4.4) |
-| the project's checks | `.temper/pre-pr`: format, lints, the package's focused tests, the counted baselines | the convention yes; the file new |
-| g's tier | the gate without its slowest suites, following goal branches, at most once per 20 minutes | no (N5) |
-| main's tiers | the slow suites, following main | designed (`after-landing.md`); following main only no (N5) |
-| questions | relayed through a foreman, four per change; a designer's straight up | no (N1) |
-| the merge job | `merge_job`, the project's job kind that merges and recounts its counted baselines | no (N7) |
-| the profile's limits | sized for a hundred changes under one goal, their reports and its calls | to check (N21) |
-
-## 15. What is missing
-
-| Gap | Where | Note | Status |
-|---|---|---|---|
-| `change` for a coordinator: several changes in one batch, a landing branch, its requester's branch, dependencies, `questions`, LLM choices, a producer's charter, `repairs` | temper | N22 | `change` takes words alone (`agent.md`, 4.3.1) |
-| a goal's own branch: named by its template, held by the goal, made as the hold is taken, written by its subtree one merge at a time, refused to others | jig, temper | N3 | contradicts `forge.md`, section 2 and section 11; jig's templates name no resources, and jig names no effect of taking a hold |
-| a charter's default wake policy in configuration | jig | N23 | missing |
-| a change relays its agents' questions, through a foreman or straight up; a question bound | temper | N1 | contradicts `forge.md`, 8.1 and `agent.md`, 8.2 |
-| a change that starts kept | jig, temper | N2 | designed, not built |
-| a producer's checkout at the landing tip with its dependencies' heads; the early-start rules | temper | N2 | missing |
-| checking and updating as the landing rules say; a refused merge to the merge job | temper | N4 | contradicts `forge.md`, 8.2 and 8.7 |
-| tiers that name the branches they follow; g's tier, its reds as news to the goal | temper | N5 | missing |
-| catching up along the way by a change into g | temper | N6 | contradicts `forge.md`, 10 and 11.1 |
-| jobs; the merge job | jig, temper | N7 | jobs designed, not built |
-| sub-agents on a program backend, each naming its LLM | smith | N10 | open question (smith's `protocol/programs.md`, section 9) |
-| a designer as a change's producer | temper | N13 | needs N22's producer charter |
-| `deliver` mid-run for a producer | temper | N14 | designed (`agent.md`, 4.3), not built |
-| a change's result carries its producer's report | temper | N15 | missing: the result is the landing's facts (`forge.md`, 8.2) |
-| a change names its agents' LLM choices | temper | N19 | missing |
-| implementers on gpt-6.1-sol | smith | N20 | the direct backend has it; Codex as a program is Later |
-| limits for a goal of this size | configuration | N21 | to check |
-
-jig's primitives cover the structure: goals, coordinators called fresh,
-batches with dependencies, dependencies added later, kept tasks,
-questions and answers, person tasks, holds, writer slots and their
-handing, escalations, wake policies, notes, the LLM choice with
-sub-agents, and templates. What temper offers a run over them is
-narrower than the plan needs (N22), and its goal branch is a change
-rather than the goal's own (N3).
+| Setting | The reference |
+|---|---|
+| the coordinator's charter | instructions for the cut, answers, holds, catch-ups, triage, the close-out and the landing; Claude Code; tools: `change` (N22), `delegate` (person tasks, a triage), `amend`, `cancel`, `release`, `decide`, `decide_escalation`, `propose`, `subscribe_forge`, `subscribe`, `note`, `recall`, `message`, `wait`, the workspace's inspect, sub-agents; starts fresh; waiting 0; its default wake policy (section 13); documents: the project's `AGENTS.md` and code rules |
+| the designer's charter | instructions: write the design where the project keeps it (here `docs/design`, the status file beside each document, its Later section), cite by path and section, list the family's changes in the report; Claude Code; the workspace, delivery, sub-agents, `message` for questions, `note`, `recall`; documents: the project's design rules |
+| the goal template for drafts | the coordinator's charter; section 4's LLM choice; tracked; a report; *its own goal branch* |
+| a small goal's template | as jig's goal template, no branch of its own |
+| the coding agent's charter | charter 2, its instructions telling it to push early, finish with a Left list, mark a story that fails for code it does not own as ignored with the fault as its reason, and never fix what it does not own, the change that fixes the fault removing the mark (N15); its run sized for the work (charter 2's 16 turns and 120 s are a small fix's) |
+| the foreman's charter | read-only (inspect and the forge's reads); a verdict of answer, finish or escalate |
+| the forge's charters (kind 3) | 1, the change's: the coding agent's; 2, the reviews': unused; 3, the foreman's |
+| each change's LLM choices | a coding producer, repairs and resolutions: gpt-6.1-sol at the spec's effort; a designer: section 4's choice; a foreman: gpt-6.1-sol, medium |
+| the project's policy and rules | tool families with notes; delegation to the coordinator's, the designer's, the coding agent's and the foreman's charters, the change procedure and the merge job; tasks and depth for the plan (N21) |
+| the landing rule for goal branches | pattern `… branch temper`, open; no CI, not up to date |
+| the landing rule for main | CI passed, up to date, enforced |
+| the repository's merge style | a merge commit |
+| the project's checks | `.temper/pre-pr`: format, lints, the package's focused tests, the counted baselines |
+| g's tier | the gate without its slowest suites, following goal branches, at most once per 20 minutes |
+| main's tiers | the slow suites, following main |
+| questions | relayed through a foreman, four per change; a designer's straight up |
+| the merge job | `merge_job`, the project's job kind that merges and recounts its counted baselines |
+| the profile's limits | sized for a hundred changes under one goal, their reports and its calls |
 
 ## 16. Later
 
@@ -521,6 +492,7 @@ rather than the goal's own (N3).
   structure review of the plan.
 - Changes into a goal branch without a pull request each.
 - Where builds run, and how many at once.
+- Codex as a program backend, beside Claude Code (N20).
 
 ## 17. Open questions
 

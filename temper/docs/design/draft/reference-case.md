@@ -159,22 +159,7 @@ P
 
 ## 9. What it rests on
 
-Every step runs in or around g, so each needs the goal's own branch
-(N3), and every change G makes needs its `change` with all their
-parameters (N22) and their agents' LLM choices (N19). Beyond those:
-
-- **Built, configuration alone:** the goal and its template (1); a
-  designer's question and a person's decision on a hold passed up (5,
-  18); a merge held while kept (10); notes (20); CI at a head, the queue,
-  the update and the merge (23, 24).
-- **Designed, not built:** a change that starts kept (4, 8); mid-run
-  delivery (8, N14); jobs, for the merge job (12, 16, 21); after landing
-  (25 to 27).
-- **Changes to designs** (`notes.md`, section 4): N1, a change's questions
-  relayed (5, 9, 11, 14, 15); N2, early starts (4, 8, 11, 13, 17); N4,
-  the light rules (7, 12, 16); N5, g's tier and its news, main's tiers
-  following main (20, 25); N6, the catch-up (21); N7, the merge job (12,
-  16, 21); N10, sub-agents on Claude Code (2, 5); N12, the plan in g (4,
-  15, 20); N13, designers as changes (3, 4, 6, 15, 22); N15, a result
-  carrying its report (6, 14, 19); N16, the close-out (22); N23, the
-  coordinator's wake policy (every wake of G).
+Every step runs in or around g, so each rests on the goal's own branch
+(N3), and every change G makes on its `change` with all their
+parameters (N22) and their agents' LLM choices (N19). Where the design
+still lags each step is `reference-case.status.md`.
