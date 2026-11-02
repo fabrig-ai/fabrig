@@ -308,7 +308,7 @@ pub fn stderr_lines(stderr: &[u8], account: &str) -> (usize, usize, Vec<String>)
         let bytes = bytes.strip_suffix(b"\n").unwrap_or(bytes);
         let bytes = bytes.strip_suffix(b"\r").unwrap_or(bytes);
         if let Ok(line) = std::str::from_utf8(bytes)
-            && allowed_line(line, account)
+            && let Some(line) = allowed_line(line, account)
         {
             kept.push(line.into());
         }
@@ -316,8 +316,8 @@ pub fn stderr_lines(stderr: &[u8], account: &str) -> (usize, usize, Vec<String>)
     (stderr.len(), count, kept)
 }
 
-fn allowed_line(line: &str, account: &str) -> bool {
-    matches!(
+fn allowed_line<'a>(line: &'a str, account: &str) -> Option<&'a str> {
+    let complete = matches!(
         line,
         "smith: local host started"
             | "smith: agent started"
@@ -328,7 +328,36 @@ fn allowed_line(line: &str, account: &str) -> bool {
         || credential_line(line, account)
         || ["codex", "anthropic"].iter().any(|account| {
             line == format!("smith: warning: {}", smith_local_shell::credentials::Credential::NotSignedIn.line(account))
-        })
+        });
+    if complete { Some(line) } else { agent_failure_line(line) }
+}
+
+fn agent_failure_line(line: &str) -> Option<&str> {
+    const PREFIX: &str = "smith: run failed: the agent ";
+    let rest = line.strip_prefix(PREFIX)?;
+    let form = rest.split_once(": ").map_or(rest, |(form, _)| form);
+    let (words, end) = form.split_once(" (")?;
+    if !matches!(
+        words,
+        "could not start"
+            | "ended without answering"
+            | "broke the channel rules"
+            | "exceeded its receiving bound"
+            | "made no progress"
+            | "reached its wall time bound"
+    ) {
+        return None;
+    }
+    let end = end.strip_suffix("; terminated").or_else(|| end.strip_suffix("; killed")).unwrap_or(end);
+    let end = end.strip_suffix(')')?;
+    let valid = matches!(end, "exit not observed" | "not spawned" | "inline run settled")
+        || end
+            .strip_prefix("exit ")
+            .is_some_and(|value| value.parse::<u8>().is_ok_and(|number| number.to_string() == value))
+        || end
+            .strip_prefix("signal ")
+            .is_some_and(|value| value.parse::<u32>().is_ok_and(|number| number.to_string() == value));
+    if valid { line.get(..PREFIX.len().checked_add(form.len()).expect("substring length fits")) } else { None }
 }
 
 fn credential_line(line: &str, account: &str) -> bool {
@@ -467,7 +496,7 @@ fn conversation_end(value: &smith_events::ConversationEnd) -> &'static str {
     }
 }
 
-fn notice_kind(value: &smith_events::NoticeKind) -> &'static str {
+fn notice_kind(value: &smith_events::NoticeKind) -> &str {
     match value {
         smith_events::NoticeKind::ReasoningDropped => "ReasoningDropped",
         smith_events::NoticeKind::CredentialUnauthorized => "CredentialUnauthorized",
@@ -475,7 +504,16 @@ fn notice_kind(value: &smith_events::NoticeKind) -> &'static str {
         smith_events::NoticeKind::AccountRefused => "AccountRefused",
         smith_events::NoticeKind::ForcedExit => "ForcedExit",
         smith_events::NoticeKind::TeardownAborted => "TeardownAborted",
-        smith_events::NoticeKind::Unknown(_) => "unknown",
+        smith_events::NoticeKind::Unknown(kind) => {
+            if !kind.is_empty()
+                && kind.len() <= 32
+                && kind.iter().all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || *byte == b'_')
+            {
+                std::str::from_utf8(kind).expect("ASCII identifier")
+            } else {
+                "unknown"
+            }
+        }
     }
 }
 

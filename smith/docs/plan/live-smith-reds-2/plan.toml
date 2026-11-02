@@ -1,0 +1,59 @@
+draft = "live-smith-reds-2"
+repo = "fabrig"
+sources = ["smith/docs/plan/live-smith-reds-2/inputs/request.md", "AGENTS.md"]
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "claude-tools"
+title = "the Claude story checks what a result-contract program run is offered: no finish, the tool named on failure"
+mode = "direct"
+needs = []
+design = "smith/docs/design/protocol/programs.md, 5.3 and 5.5"
+
+[[slice]]
+id = 1
+story = "claude_delivers_a_commit_in_place checks the first prompt's offered tools as programs.md 5.5 has them, and an offline fake-backed twin runs the same check"
+parts = ["claude-tools"]
+walk = false
+
+[[part]]
+id = "report-lines"
+title = "a failing live leg keeps the host's agent-failure line without its detail, and names an unknown notice by its kind"
+mode = "direct"
+needs = []
+design = "smith/docs/design/testing.md, 2.3"
+
+[[slice]]
+id = 2
+story = "the next red of the chat crossing's Claude leg says whether the host killed its agent, and with which fault"
+parts = ["report-lines"]
+walk = false
+
+[[part]]
+id = "crossing"
+title = "the chat crossing names files in the working directory, and a fake-backed exec chat crosses Direct, program, Direct"
+mode = "direct"
+needs = []
+design = "smith/docs/design/testing.md, 2.3; smith/docs/design/domain/tools.md, 2; smith/docs/design/protocol/programs.md, 5.8"
+
+[[slice]]
+id = 3
+story = "a_chat_crosses_from_chatgpt_to_claude_then_back asks for files as the run names them, and its three legs run offline through the product"
+parts = ["crossing"]
+walk = false
+
+[[part]]
+id = "refresh"
+title = "a fake-backed exec on a raised lead refreshes at once, and the live refresh story reports its record's refresh facts"
+mode = "direct"
+needs = []
+design = "smith/docs/design/testing.md, 2.3 and 8; skein/docs/design/oauth.md, 2"
+
+[[slice]]
+id = 4
+story = "the refresh story's product path is pinned offline, and its next live red says whether the record could be refreshed"
+parts = ["refresh"]
+walk = false

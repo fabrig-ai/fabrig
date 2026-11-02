@@ -341,6 +341,60 @@ fn a_refresh_refused_as_sign_in_again_drops_an_owner_kept_record() {
 }
 
 #[test]
+fn a_just_kept_refresh_waits_for_its_lead_or_half_its_remaining_lifetime() {
+    // skein/docs/design/oauth.md, 6.3: never back to back, measured when kept.
+    for (lead, next) in [(60, 16), (10, 20)] {
+        let profile = Limits { refresh_lead: Duration::from_secs(lead), ..limits() };
+        let account = refresh_account(0, ([127, 0, 0, 1], 31000).into());
+        let mut owner = private::Owner::configured([account], &profile);
+        owner.ask(Request::Grant { account: 0 });
+        assert!(owner.above.is_empty(), "a loaded record within its lead refreshes before lending");
+        let identity = owner.sent();
+        let body = br#"{"access_token":"access","refresh_token":"next","expires_in":30}"#;
+        let response = private::Owner::response(body);
+        let mut remaining = response.as_ref();
+        let mut kept = false;
+        let mut closed = false;
+        for _ in 0_u32..64 {
+            owner.fire();
+            closed |= owner.finish_socket(identity, &mut remaining);
+            if let Some(Event::Keep { account: 0, record }) = owner.above.pop() {
+                assert!(!kept, "only the first refresh asks to keep");
+                assert_eq!(record.generation, 1);
+                assert!(owner.above.is_empty(), "the candidate is kept before lending");
+                owner.env.now = Time::from_nanos(2_000_000_000);
+                owner.env.wall = Wall::from_nanos(2_000_000_000);
+                owner.ask(Request::Kept { account: 0, generation: 1, keeping: Keeping::Kept });
+                assert_granted(owner.above.pop(), 1, 28);
+                kept = true;
+                closed |= owner.finish_socket(identity, &mut remaining);
+            }
+            if kept && closed {
+                break;
+            }
+        }
+        assert!(kept && closed && remaining.is_empty(), "the first refresh and its keep settle");
+        owner.component.reclaim();
+        assert_eq!(owner.component.next_deadline(), Some(Time::ZERO.saturating_add(Duration::from_secs(next))));
+        for nanos in
+            [2_000_000_000, next.checked_mul(1_000_000_000).expect("fixture time").checked_sub(1).expect("before lead")]
+        {
+            owner.env.now = Time::from_nanos(nanos);
+            owner.env.wall = Wall::from_nanos(nanos);
+            owner.fire();
+            assert!(owner.above.is_empty() && owner.io.is_empty(), "no second refresh before the next lead");
+            assert!(!owner.component.has_work(), "the held grant waits for its timer");
+        }
+        owner.env.now = Time::ZERO.saturating_add(Duration::from_secs(next));
+        owner.env.wall = Wall::from_nanos(owner.env.now.as_nanos());
+        let identity = owner.sent();
+        let mut events = owner.finish_tokens(identity, body);
+        assert_granted(events.pop(), 2, 30);
+        assert!(events.is_empty() && owner.above.is_empty() && owner.io.is_empty(), "one more refresh at the lead");
+    }
+}
+
+#[test]
 fn an_exchange_bound_refuses_a_second_account_before_admitting_its_grant() {
     let mut limits = limits();
     limits.exchanges = 1;
