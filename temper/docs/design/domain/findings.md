@@ -1,6 +1,6 @@
 # Findings and QA after landing
 
-Provisional, 2026-10-27. Designed, not built. Something found that is
+Provisional, 2026-10-27. Something found that is
 not its finder's to fix now (a QA pass's finding, a flake, a red whose
 goal has ended, a review's follow-up) is a finding: a labelled issue in
 the project's home, whose labels temper reads back, so that it can be
@@ -202,8 +202,7 @@ is open is section 10.
 - **In the store:** `Finding` (by the home's issue), `Mark` (by
   landing), `QaPass` (by its task), through the baseline's rules.
 - **Settings,** with kind 4: findings on or off; the triager; the
-  chooser; the tester charter; the project's areas. Until kind 4 is
-  built, in the document's `landing` member, as `by` is (`landing.md`,
+  chooser; the tester charter; the project's areas. Until kind 4 is a setting, in the document's `landing` member, as `by` is (`landing.md`,
   13.1): `findings`, true or false (false by default), and each
   repository's `area` beside its gates.
 

@@ -427,7 +427,7 @@ For a project with no prepare command, one member per repository:
     FastForwardOnly }`);
   - **on GitHub,** which merges no pull request fast-forward, by
     updating main's ref to the candidate, fast-forward only (skein's
-    `Write::UpdateRef`), designed, not built. The update is a push, so
+    `Write::UpdateRef`). The update is a push, so
     it passes a rule requiring a pull request only where temper's App
     may always bypass it (`Always`; `PullsOnly` is not enough:
     `forge.md`, 4.4). A ruleset's bypass covers every rule in it, so it
@@ -476,7 +476,7 @@ For a project with no prepare command, one member per repository:
 - **First proved, first landed:** the turn goes to the landing whose
   proof completed first. Priorities order the dispatch of gates when
   runners are scarce, never the turn.
-- **The reservation** (designed; built with conflicts): a landing whose
+- **The reservation:** a landing whose
   proof went stale `stale_proofs` times (2 by default) reserves the
   project's next turn for its repositories. While it proves again,
   another landing touching them may prove but not take the turn. The
@@ -501,7 +501,7 @@ Three kinds join `forge.md`'s section 6, each a row of its own:
 
 | Kind | Effect | What it is | Recovery class | Found again after an uncertain failure |
 |---|---|---|---|---|
-| 19 | update a branch's ref, fast-forward only (GitHub's turn, designed, not built) | a transition: main moved to the candidate | conditional: the forge refuses a move that is not a fast-forward | main at the candidate, or at a commit containing it |
+| 19 | update a branch's ref, fast-forward only (GitHub's turn) | a transition: main moved to the candidate | conditional: the forge refuses a move that is not a fast-forward | main at the candidate, or at a commit containing it |
 | 16 | dispatch a workflow | a creation: a run of a workflow at a branch, with inputs | unrecoverable: the forge keeps no key for it | among the runs of its workflow at its commit made after the entry's start |
 | 17 | rerun a job | a transition: the job's next attempt | unrecoverable: the forge checks no attempt | the job's attempt moved past the one named |
 
@@ -554,7 +554,7 @@ Three kinds join `forge.md`'s section 6, each a row of its own:
   (`../protocol/store.md`, section 2), through the baseline's goldens
   (`../draft/upgrades.md`).
 - **Bounded** by the forge's limits (`../protocol/configuration.md`,
-  section 7), designed, not built: `landings`, live landings per
+  section 7): `landings`, live landings per
   deployment; `landing_members`, members per landing; `gates`, test
   gates per repository; `receipts_per_gate`; `ignored_paths`, per gate,
   each within a branch name's bounds; and `inputs`, within skein's
@@ -588,7 +588,7 @@ Kind 4's members, each with its default and the section it serves:
 | `findings`: on or off; `triager` and `chooser`, a task or a role; `tester_charter`; `areas`, each a repository and an area | off; the person's chat; the chat; none | `findings.md`, 2, 6, 8 |
 | `questions_on_forge` | off | `forge.md`, 12.1 |
 
-- **Until both kinds are built** on jig's application settings (jig's
+- **Until both kinds are settings** on jig's application settings (jig's
   `domain/engine.md`, 17.5), a project's `by` and its repositories'
   gates are configured in the document's `landing` member
   (`../protocol/configuration.md`, section 3), as the landing rules
@@ -674,7 +674,7 @@ across a restart of the binary. The forge's world holds:
   lands as it is;
 - **a restart** mid-proof finds its run, and mid-turn settles its merge;
 - **under `queue`,** every story of `forge.md`'s world passes unchanged.
-- **on the fake GitHub,** designed, not built: a landing of one under
+- **on the fake GitHub:** a landing of one under
   the App's `Always` bypass, its gate dispatched and its receipt posted,
   main fast-forwarded by a ref update; a lost ref update found made; a
   repository without `Always` refused, naming the bypass and how a

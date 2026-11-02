@@ -476,8 +476,8 @@ What temper adds to the core's usual routes (jig's `domain/engine.md`,
   same way before the step's decision is complete; one the core refuses
   leaves the change's state as it was.
 - **The forge is every requirement's judge:** temper's landing rules are
-  the forge's criteria (section 6; forge.md, 8.7). Designed, not built:
-  the forge judges two standing requirements over the landing rules it
+  the forge's criteria (section 6; forge.md, 8.7). The forge judges two
+  standing requirements over the landing rules it
   holds (`../protocol/configuration.md`, 13.3), and the root gives it,
   with each ask, the merge's resources by the forge's names, the path
   read back as section 6 makes it.
@@ -490,7 +490,9 @@ What temper adds to the core's usual routes (jig's `domain/engine.md`,
 
 ### 5.6 Settings
 
-Designed, not built (`../protocol/configuration.md`, section 13).
+The settings of temper's kinds are `../protocol/configuration.md`,
+section 13's.
+
 
 - **temper's kinds are the forge's.** A change of settings naming items
   of temper's kinds reaches the root within the change's decision, as a
@@ -585,15 +587,12 @@ Small total functions, one per pair of vocabularies, matching
 exhaustively with no `_` arm (jig's `domain/root.md`, section 6).
 
 - **Configuration,** `Config`, field by field as
-  `../protocol/configuration.md`, section 3 says: `core` to the core
-  whole; `forge` to the forge, its namespace the deployment's id;
-  `identities`, each forge's git identity, to the forge; `landing`
-  translated (below); `forge_charter` kept, the charter of every agent
-  task the forge's procedures make. Designed, not built: `landing` and
-  `forge_charter` leave `Config` for settings: `core` carries jig's
-  kinds' stock defaults and temper's kinds' declarations, and the
-  forge's configuration temper's kinds' stock defaults
-  (`../protocol/configuration.md`, 13.4). The root holds its configuration to
+  `../protocol/configuration.md`, section 3 says: `core` to the core whole, with jig's kinds' stock defaults and
+  temper's kinds' declarations; `forge` to the forge, its namespace the
+  deployment's id, with temper's kinds' stock defaults
+  (`../protocol/configuration.md`, 13.4); `identities`, each forge's git
+  identity, to the forge. The landing rules and the forge's charter are
+  settings of temper's kinds (5.6), not members of `Config`. The root holds its configuration to
   its limits as it is made, and a start that breaks one is refused,
   naming it (`../protocol/configuration.md`, section 2): one connector;
   the configured workers within the fleet's configured count and name bytes
@@ -604,19 +603,11 @@ exhaustively with no `_` arm (jig's `domain/root.md`, section 6).
   owner's project naming its escalation role; the landing rules and the
   permission mappings within a row's bytes, and within the forge's
   judges' tables.
-- **The landing policy,** `LandingPolicy`: the deployment's rules and
-  each project's, each a `LandingRule` on a pattern of landing branches.
-  Each criterion of a rule (CI, up to date, a gate, an approval) becomes
-  two values under one index: a requirement on the forge's merge, for
-  authority, judged by the forge and guarded or observed as forge.md, 8.7
-  says; and the forge's own criterion, by which its judge reads the
-  facts. A rule that does not enforce gives the forge its criteria and
-  authority no requirement. As the root is made, the deployment's
-  requirements join the configured rules and each project's its policy;
-  a rule's gates become the forge's gate templates, which every change
-  into a covered branch asks for (forge.md, 8.3). Designed, not built:
-  nothing is compiled. The rules are values of temper's kinds, which the
-  forge holds as it is told them (5.6); the stock rules carry two
+- **The landing policy:** the deployment's rules and each project's,
+  each a `LandingRule` on a pattern of landing branches, whose gates
+  every change into a covered branch asks for (forge.md, 8.3). Nothing
+  is compiled: the rules are values of temper's kinds, which the forge
+  holds as it is told them (5.6) and judges (forge.md, 8.7); the stock rules carry two
   standing requirements on the forge's merge, and no rule or policy of
   jig's changes with a landing rule (`../protocol/configuration.md`,
   13.3).
@@ -672,7 +663,7 @@ exhaustively with no `_` arm (jig's `domain/root.md`, section 6).
   the id's digits is not refused, and the result never passes it.
 - **A change's delegates,** in the core's terms: an agent task under the
   forge's charter for producing, repairs, resolutions, and agents' and
-  checks' gates (designed, not built: the charter the change was made
+  checks' gates (the charter the change was made
   with, kept on it, which its procedure's delegation grants;
   `../protocol/configuration.md`, 13.2); a person task for the project's maintainers for a
   person's gate. Its parameters name the repository, its base and the
@@ -847,7 +838,7 @@ each step the core asks for:
    forge links them, judging none: a record whose forge, repository or
    task the restart does not hold is a writer's bug, and its link
    panics, as jig's children's do (jig's `domain/engine.md`, section 6).
-   Designed, not built: before them, the forge loads its kinds' values
+   Before them, the forge loads its kinds' values
    from its family `Setting`, is given temper's stock defaults, and
    tells the core which differ (5.6). Then **the switch**
    (jig's `start::Phase::Switch`), at every start: over a generation the store

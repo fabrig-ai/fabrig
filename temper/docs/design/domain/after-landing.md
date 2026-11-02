@@ -7,8 +7,8 @@ is cleared, so that a goal ends only when its work is verified. It
 holds for every landing on a repository's landing branch, by queue
 (`forge.md`, sections 8 to 10), by turn (`landing.md`), or by anyone
 outside temper. Findings, where a verdict files a flake or a red whose
-goal has ended, are `findings.md`'s; until they are built, a verdict
-keeps them in its own record. What is still open is section 13.
+goal has ended, are `findings.md`'s; a project without findings keeps
+them in the verdict's own record. What is still open is section 13.
 
 ## 1. In one page
 
@@ -267,7 +267,7 @@ red by earlier failures it does not run (5.3).
   artifact by name, unzipped (one file, stored or deflated), cut to
   `max_bytes`; and `Read::Commits { before, after, page }`, the commits
   of a range with their messages, oldest first.
-- **In the store,** designed, not built: `Tier`, keyed by repository and
+- **In the store:** `Tier`, keyed by repository and
   tier, its run in flight, its last judged tip and failures, its
   flakes, the reds of no goal's until findings take them (section 7),
   with a count of those dropped past their bound, and a held run's last
@@ -300,7 +300,7 @@ red by earlier failures it does not run (5.3).
 Beside kind 5's gates, each repository's tiers; with kind 4, the
 project's `tier_retries` (2), `verification_bound` (two hours), several
 suspects' rule (`bisect` or `tell all`), and whether a red pauses its
-repository (no). Until the kinds are built, in the document's `landing`
+repository (no). Until the kinds are settings, in the document's `landing`
 member, as the gates are (`landing.md`, 13.1).
 
 ## 12. The world

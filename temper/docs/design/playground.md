@@ -56,10 +56,9 @@ desktop browsers are well supported (the user, 10-26).
   document configures the demo alone, so the client should offer no Set
   up temper, no Connect a forge and no Connect a model. That is the
   client's rule for every deployment that configures them out, never a
-  branch for the playground (`../client/README.md`). Until it is built,
+  branch for the playground (`client/README.md`). Until section 11's question is answered,
   the welcome offers Set up temper beside Try the playground, as on any
-  deployment, and the playground's stories never press it (section
-  11).
+  deployment, and the playground's stories never press it.
 - **The frame around the client** is the page's own, not the client's:
   what this is ("temper's playground: a scripted model and forge,
   running in your browser"), the world's controls (pause, speed, reset,
@@ -83,7 +82,7 @@ desktop browsers are well supported (the user, 10-26).
 | `temper-playground-world` | `tests/playground` | the stories walked natively, through the client's host (section 9) |
 
 - **`temper-playground` depends on product crates alone,** on every
-  target: what the one-process world takes today from test kits (jig's
+  target: what the one-process world takes from test kits (jig's
   channel world's documents, smith's process world's profile, limits and
   error pipe, skein's LLM world) becomes the playground's own documents,
   or is taken from the product crates that hold it (skein's simulated

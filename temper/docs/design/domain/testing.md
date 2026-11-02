@@ -631,9 +631,7 @@ in the lower world that owns it, never here.
        in whole seconds at GitHub's hour, which a real clock can only
        wait for;
     7. a repository granted on GitHub appearing in the picker;
-    8. Forgejo connected, managed and owned from the client; its code
-       waits for jig's request carrying a value and a jig
-       repin.
+    8. Forgejo connected, managed and owned from the client.
   - **After each:** no secret outside jig's secrets' store: none in a
     root, a fact, a store record but the secrets' store's, a request or
     an answer (../protocol/credentials.md, section 7); and no carried
@@ -1943,7 +1941,7 @@ library's files, over the one `Observed`, which grows only by fields, and
 each oracle step has unit tests that a mutated observation fails. The
 person's push to kit's main is a step of the real loop's calls, a named
 file with its words committed on the fake forge's main, as the person
-pushes it today.
+pushes it.
 
 | Step | Its story shows | It leaves out, and what holds it |
 |---|---|---|

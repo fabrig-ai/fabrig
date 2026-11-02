@@ -458,7 +458,7 @@ and login, its name and whether it is private.
 Every kind is read the same way: the connector asks the root, which has
 the routing run the setup host's plan `Reachable { forge,
 installation?, page }` (skein's `forge-setup.md`, 4.8;
-`../protocol/forge.md`, 2.6; pending in skein's code), pages counted
+`../protocol/forge.md`, 2.6), pages counted
 from 1, at most `reachable` rows (`picker.page`), ending
 `Done(Reachable { rows, more })`. The plan writes nothing, so it runs
 beside the forge's one writing plan, and no call of the forge client
@@ -813,8 +813,7 @@ recovery are skein's `forge-client.md`, section 7. temper's effects:
   the merge answers `Answer::Queued`, final for the call and not for
   the entry: neither a merge nor a refusal. The entry is the client's
   until a read finds the pull request merged or out of the queue
-  (skein's `forge.md`, 3.3; `forge-client.md`, 7.7, pending in skein's
-  code): it is never sent
+  (skein's `forge.md`, 3.3; `forge-client.md`, 7.7): it is never sent
   again, and it holds its lane, so a comment or a review on that pull
   request waits until the queue decides. What follows is 9.1's.
   Forgejo never answers it.
@@ -844,7 +843,7 @@ recovery are skein's `forge-client.md`, section 7. temper's effects:
 | CI on a head | a head's CI, as 5.3 reads it, changes | changes; tasks that subscribe |
 | a pull request's state | opened, closed, merged, its head moved, its mergeability known | changes; tasks that subscribe |
 | comments and reviews on a participating object | another party writes there | the task dealing with it (section 13) |
-| a project's findings, designed, not built | a finding is filed, or its labels change | the project's triager (`findings.md`, section 6) |
+| a project's findings | a finding is filed, or its labels change | the project's triager (`findings.md`, section 6) |
 
 The change child domain reads its facts directly and needs no
 subscription; topics are for tasks whose executors are agents, and for
@@ -878,8 +877,8 @@ LLM:
 - **no overlap:** kept, for its next run to read;
 - **overlap unknown** (a landing too large to list, a read that failed):
   wakes, since a wasted turn is cheaper than a missed conflict.
-- **A hold parked until a landing** (jig's `domain/tasks.md`, 5.9),
-  designed, not built: subscribed to the landings on a branch, with
+- **A hold parked until a landing** (jig's `domain/tasks.md`, 5.9):
+  subscribed to the landings on a branch, with
   path prefixes or none; a landing wakes it, and so lifts it, when one
   of its files lies under a prefix, or with none named, or when the
   overlap is unknown.
@@ -1109,7 +1108,7 @@ delegate's terminal wakes it to offer the landed result.
   adds a memory-safety review to one change); the landing rules add
   theirs to every change into a branch they cover (8.7). A gate added
   while a change is queued takes it out of the queue until it has its
-  verdict. Designed, not built (8.9): the rules' gates are not copied
+  verdict. The rules' gates (8.9) are not copied
   into a change when it is made, but taken at each step from the rules
   the forge holds then, every rule covering the branch adding its own,
   enforced or not; a gate a changed rule drops is no longer waited on,
@@ -1129,11 +1128,10 @@ delegate's terminal wakes it to offer the landed result.
   there (4.4), the post, `Write::Status`, is refused at the connector,
   and nothing waits for it (skein's `forge-github.md`, 4.2). Every
   adoption there says so, and the verdict stays temper's own; the App
-  asks for no more (`../protocol/setup.md`, 17.1). Designed, not built:
-  where an installation grants `statuses: write` (`../protocol/setup.md`,
+  asks for no more (`../protocol/setup.md`, 17.1). Where an installation grants `statuses: write` (`../protocol/setup.md`,
   17.1), adoption reads it, `status` is true in that repository's kinds,
   and statuses are posted there as on Forgejo; an installation that has
-  not accepted the new permission keeps today's refusal.
+  not accepted the new permission keeps the refusal.
 - **When they run:** once CI passes on the head, by default, so a head
   CI fails costs no review; the change may ask to run them at once.
 
@@ -1312,11 +1310,9 @@ merge, kind 4, on a pattern of landing branches (jig's
   It is the one thing temper reads of what people write on its pull
   requests (section 13). A project has approvals only if its rules ask
   for them: temper's own default has none (`../README.md`, section 2).
-- **Landing rules** come from the configuration, the deployment's and
-  each project's (`../protocol/configuration.md`, section 3, `landing`),
-  each covering a pattern of landing branches with CI, up to date, its
-  gates and its approvals. Designed, not built: they are settings, the
-  forge's own kinds (8.9). A merge meets every rule that covers its
+- **Landing rules** are settings, the forge's own kinds (8.9): the
+  deployment's and each project's, each covering a pattern of landing
+  branches with CI, up to date, its gates and its approvals. A merge meets every rule that covers its
   branch: a project's rules add to the deployment's, and never replace
   them; gates a plan asks for on one change are the change's own (8.3),
   and add to the rules', never replace them.
@@ -1339,7 +1335,7 @@ merge, kind 4, on a pattern of landing branches (jig's
   (`../protocol/git.md`, 4.8), an update merges the base in
   (section 10), and a branch found moved backwards is drift (8.5).
 
-- **Designed, not built: two standing requirements** replace the four
+- **Two standing requirements** replace the four
   above as landing rules' attachments (`../protocol/configuration.md`,
   13.3). temper's stock rules attach both to the merge on every landing
   branch, and the forge judges each over every enforcing rule covering
@@ -1393,14 +1389,13 @@ What the connector makes of a change for the client's panel
   `../client/forge.md`, 9.2, **Its subject**.
 - **Kept as long as its record:** the record outlives the task's end, so
   a landed or cancelled change still has its panel.
-- **Designed, not built:** what the landing rules wait on at its head,
+- **Its rules and its charter:** what the landing rules wait on at its head,
   the rule and criterion its last verdict named (8.7), and the forge's
   charter it was made with (8.9).
 
 ### 8.9 The landing rules as settings
 
-Designed, not built (`../protocol/configuration.md`, section 13). The
-forge owns three of temper's kinds of settings: the deployment's
+As `../protocol/configuration.md`, section 13 has them, the forge owns three of temper's kinds of settings: the deployment's
 landing rules (kind 1), each project's (kind 2), and the forge's charter
 (kind 3), whose values it keeps in its own family, `Setting`
 (`../protocol/store.md`, section 2), while jig keeps their states and
@@ -1431,8 +1426,7 @@ sizes and never reads them (jig's `domain/connectors.md`, section 17).
 
 ### 8.10 Drained
 
-Designed, not built (jig's `domain/connectors.md`, 6.7). A change in a
-draining hold's scope is idle, and held, at its next step unless it is
+A drain is jig's (jig's `domain/connectors.md`, 6.7). A change in a draining hold's scope is idle, and held, at its next step unless it is
 landing: under the queue, while its merge is sent and not yet settled;
 under the turn, while its landing has begun its proof and not yet
 landed (`landing.md`, 4.2). Its producing, repair or resolution run finishes
@@ -1520,7 +1514,7 @@ adoption says so, 4.4) lands through that queue. Forgejo keeps none.
   5.1), and found by the client's read of the pull request: the merge's
   entry stays open in the client until that read finds the pull request
   merged or out of the queue (skein's `forge.md`, 3.3;
-  `forge-client.md`, 7.7, pending in skein's code).
+  `forge-client.md`, 7.7).
 - **Landed:** the change is landed (8.2), and its landing's commit is
   the queue's group's (`Pull.merged`), not the head temper saw: the
   forge merged that head onto the queue's base with the changes ahead
@@ -1651,9 +1645,8 @@ history they keep if temper is unplugged. Issues are projections (jig's
   which the issue is closed.
 - **Pull requests refer to it** ("Part of `ai/temper#12`"), so the forge
   links each change to its goal, across repositories too.
-- **Findings,** designed, not built, are `findings.md`'s: labelled
-  issues whose labels temper reads back, the one exception to "never
-  read back" here. Until it is built, as follows.
+- **Findings** are `findings.md`'s: labelled issues whose labels temper
+  reads back, the one exception to "never read back" here.
 - **Findings as issues:** a bug found while exploring, a follow-up a
   review raised, a flaky test, created by an agent's `effect_forge` tool
   (`agent.md`, 4.3; jig's `domain/connectors.md`, 4.5), keyed. Their
@@ -1866,8 +1859,7 @@ is connected as the routing tells the root (`../protocol/forge.md`, 2.1
 and 8.1); the adopted repositories of each managed or owned Forgejo are
 named to the routing for its reconcile (4.2). Until a forge connects, its
 reads and entries answer `NotConnected`, which narrows nothing (4.1), so
-the steps below run on each forge as it connects. Designed, not built:
-before its records, the connector loads its kinds' values from its
+the steps below run on each forge as it connects. Before its records, the connector loads its kinds' values from its
 family `Setting`, is given the stock defaults and says which differ
 (8.9), so a restored change is judged by the rules as they are. temper's
 steps:
@@ -1912,7 +1904,7 @@ overlaps a goal's change, and one that does not; a goal's issue
 written, revised and closed; a merge whose answer is lost, found merged
 after a restart; a mergeability unsettled within the window, then
 settled; a forge preloaded with ten times the history, idle at the same
-cost. Designed, not built (8.9): a landing rule changed between two
+cost. Of the rules as settings (8.9): a landing rule changed between two
 merges, the second judged by the new rule; a gate a rule adds asked for
 on a queued change, which leaves the queue, and a gate a rule drops no
 longer waited on; a project's rule adding an approval; a rule refused
