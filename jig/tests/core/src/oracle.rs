@@ -19,6 +19,7 @@ pub(crate) fn configuration(source: &root::Config) -> root::Config {
         first: source.first.clone(),
         second: source.second.clone(),
         core: core::Config {
+            jobs: core.jobs.clone(),
             worker_names: core.worker_names.clone(),
             deployment: core.deployment,
             seed: core.seed,
