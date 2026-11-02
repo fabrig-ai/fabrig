@@ -1,11 +1,11 @@
 # The forge connector
 
-Provisional, 2026-10-04, revised 2026-10-30. How temper drives a forge,
+Provisional, 2026-10-04, revised 2026-11-02. How temper drives a forge,
 Forgejo or GitHub: the forge as a connector on jig's contract (jig's
 `domain/connectors.md`), with its resources, effects, topics, procedures,
-requirements and reads; a forge connected or not; adopting repositories,
-and what the picker offers; keeping up; a change's way to landing and
-the requirements its merge meets; landing queues, a forge's own merge
+requirements and reads; a forge connected or not, and removed; adopting
+repositories, and what the picker offers; keeping up; a change's way to
+landing and the requirements its merge meets; landing queues, a forge's own merge
 queue among them; updates and conflicts; issues; and the ways temper
 takes part in what others own. Its protocol layer, the component that
 makes each call to a forge and hears its deliveries, is
@@ -46,6 +46,11 @@ makes each call to a forge and hears its deliveries, is
   A forge not connected answers every call `NotConnected` at once, and
   adopts nothing. Its writer, given when it connects, is the forge
   client's own record, restored at start (4.1).
+- **A forge can be removed,** whole, by the deployment's owners: ended
+  at once, its live work cancelled, its secrets and records erased, its
+  box group stopped and its directory removed, each act kept until the
+  removal is whole; nothing on the forge is undone but what temper ran
+  (4.1).
 - **Adoption picks from what temper can reach:** a GitHub App's
   installations, what a connected Forgejo's API token can push to, or
   any repository of a managed or owned Forgejo, where adoption first
@@ -194,8 +199,9 @@ temper-engine-domain-forge              the connector's top: resources and holds
 - **The adoption request is the forge's own,** keyed as any party's
   request (`../client/README.md`, 4.4): the root takes it from the protocol
   layer typed, and the connector refuses a forge the deployment does not
-  configure; then locates the repository (`Read::Locate { owner, name }`,
-  answered `Answer::Located { repository }`); then the root makes jig's
+  keep, and an ended one as not connected (4.1); then locates the
+  repository (`Read::Locate { owner, name }`, answered
+  `Answer::Located { repository }`); then the root makes jig's
   adoption request on the person's behalf (jig's `domain/people.md`,
   5.1), in which the connector reads what temper may do there (below)
   before the core commits the adoption (jig's `domain/connectors.md`,
@@ -207,9 +213,10 @@ temper-engine-domain-forge              the connector's top: resources and holds
   ends, to give again when the request is sent again (jig's
   `domain/connectors.md`, 5.5; `../protocol/store.md`, section 2).
 - **The forge's host** in a repository's resource path, and in what a
-  person reads of it, is the forge's as configured: the host of its `git`
-  base, with `:port` when it names one (`../protocol/configuration.md`,
-  section 3). The adoption does not ask a person for it.
+  person reads of it, is the forge's as its record has it: the host of
+  its `git` base, with `:port` when it names one
+  (`../protocol/forge.md`, 2.1). The adoption does not ask a person for
+  it.
 - **What temper may do is read at adoption:** its user's permission on
   the repository; the repository's settings (the merge styles it allows,
   its default branch); the branch protection on the landing branch; and,
@@ -278,7 +285,7 @@ temper-engine-domain-forge              the connector's top: resources and holds
   effect of the connector's (4.2), and so are the labels a project's
   findings use (`findings.md`, section 2).
 
-### 4.1 Connected or not
+### 4.1 Connected or not, ended and removed
 
 - **The root knows each forge's connection** from the routing's events
   (`../protocol/forge.md`, 8.1): not connected; not set up, an owned
@@ -320,18 +327,18 @@ temper-engine-domain-forge              the connector's top: resources and holds
   entry failed `NotConnected` is committed again once the forge
   connects, since it reached no forge. The client shows why on the
   forge's row (`../client/forge.md`, the deployment's page).
-- **The offer to set a forge up,** decided here alone. The host gives
-  the connector, at construction as it gives the configuration, each
-  configured forge's number, kind, mode and setup start, and whether
-  serve runs under the box (`--box`, `../protocol/setup.md`, 7.1). One
-  function gives a forge's offer from those, the box and the forge's
-  connection: *offered* for an owned forge whose setup says `"start":
-  "asked"`, under the box with its pipe open, its connection not set up,
+- **The offer to set a forge up,** decided here alone. The connector
+  keeps each forge's record, its number, kind, mode and setup start
+  among it (`../protocol/forge.md`, 2.1), and the host tells it, at
+  construction, whether serve runs under the box (`--box`,
+  `../protocol/setup.md`, 7.1). One function gives a forge's offer from
+  those, the box and the forge's connection: *offered* for an owned
+  forge whose setup says `"start": "asked"`, under the box with its pipe open, its connection not set up,
   setting up or set up failed (setting up so that its row keeps showing
   the set up under way); *not under the box* for such a forge, in such a
   state, without the box or once its pipe closed; *not offered*
-  otherwise, and for a forge not configured. The row and the answer read
-  the same function, so they never disagree. The same function gives
+  otherwise, and for a forge not kept or ended. The row and the answer
+  read the same function, so they never disagree. The same function gives
   each action's offer from the forge's kind, mode, setup and connection:
   the engine domain decides every action a row offers, including
   "Connect as its admin", which needs a managed setup entry
@@ -352,12 +359,12 @@ temper-engine-domain-forge              the connector's top: resources and holds
   that stopped (`../protocol/forge.md`, 2.8), offered again. `SetUp` is
   a keyed request, admitted by the core first (`../client/README.md`,
   section 8): the connector keeps its answer as its outcome, in memory
-  alone, the latest per configured forge under its request's token and
-  one more for any forge not configured, and answers unknown for a token
+  alone, the latest per kept forge under its request's token and
+  one more for any forge not kept, and answers unknown for a token
   it no longer holds.
 - **The deployment's forges,** the subject `forges`
   (`../client/forge.md`, 5.4): the connector makes its document, one
-  row per configured forge in number order, but an ended one (below),
+  row per kept forge in number order, but an ended one (below),
   each its number, kind, mode, connection as the routing last told it,
   offer, first repository, on GitHub its installations as the routing
   last told each (`Event::Installation`: its id, its account when
@@ -376,40 +383,93 @@ temper-engine-domain-forge              the connector's top: resources and holds
   first read tells only those not accepted or changed (skein's
   `forge-connection.md`, 4.4); the account is filled from the first
   `GitToken` minted for it (5.3 there), and changes follow as before.
-- **The demo's forge, ended** (`../protocol/setup.md`, 8.4): the
-  connector's own state, not the routing's. It holds the demo's `Demo`
-  record as it restores it and writes it, and the demo's forge is ended
-  from a start whose record reads ended, as from the end's decision
-  on. The end is decided here, in the step that takes a connection: the
-  first time the routing tells a configured forge other than the
-  demo's connected, while the record is none or running, the connector
-  saves ended, ends the demo's forge, asks the box link for `stop
-  FORGE` when the demo ran and the pipe is open (`../protocol/forge.md`,
-  2.8), and answers a start held for its acts *not offered*. An ended
-  forge is in no list: no row of `forges`, so that `temper ctl forge
-  list` names it no more, no offer, so that `SetUp` is
-  refused "not offered", nothing in the picker (4.3), and nothing in the
-  setup host's scans, which read the same state; the routing's events
-  for it change nothing (`../protocol/forge.md`, 8.1), so that a read
-  waiting on its connection (16) is never asked again. Its writer stays
-  the forge client's record, and its rows stay, so that what it did
-  reads as before.
+- **A forge ended** is one being removed (below), from its removal's
+  decision on: the connector's own state, kept in its record
+  (`../protocol/forge.md`, 2.1), not the routing's, so a start finds it
+  ended as the decision left it. An ended forge is in no list: no row
+  of `forges`, so that `temper ctl forge list` names it no more, no
+  offer, so that `SetUp` is refused "not offered", nothing in the
+  picker (4.3), and nothing in the setup host's scans, which read the
+  same state. Its connection reads not connected, so every call, read,
+  effect and adoption on it is answered `NotConnected` (above) and no
+  call reaches it; its hints are dropped; and the routing's events for
+  it change nothing (`../protocol/forge.md`, 8.1), so that a read
+  waiting on its connection (16) is never asked again.
+- **Removing a forge,** `RemoveForge { forge }`
+  (`../client/forge.md`, 5.4): a request of the deployment's scope,
+  keyed as any party's (`../client/README.md`, section 8), its owners'
+  alone, refused *role* to any other party; refused *no such forge* for
+  a forge not kept or already ended, and *not taken* for the
+  playground's forge, which the playground's reset removes in a
+  decision of its own, the deployment's removal
+  (`../protocol/setup.md`, 8.4). In one decision the forge is ended;
+  the rest follows as kept acts:
+  - *ended at once,* as above, for any forge: its connection, its first
+    repository's intent, a GitHub forge's installations and its writer
+    are dropped, its reads and watches retired, and its repositories
+    leave their projects (below);
+  - *its live work cancelled:* each live change on its repositories is
+    cancelled by the deployment, as the deployment's compound cancels
+    (jig's `domain/tasks.md`, section 7), so its tasks end as a cancel
+    ends them; each of its outbox's entries is withdrawn, sent or not,
+    and a release on it (8.6) closes no pull request and deletes no
+    branch, its hold erased. A chat that worked on it stays open; its
+    next delegation to the forge is refused as on a forge not connected;
+  - *its box group stopped and removed,* an owned forge's or a fake's:
+    the connector asks `remove N` on the pipe (`../protocol/setup.md`,
+    7.1), and the box stops the group and removes its file, its
+    `started` record and the forge's directory, and keeps the cache,
+    Forgejo's binaries with it. A connected or managed forge has no
+    group to remove, nor has any forge without the box
+    (`../protocol/setup.md`, 7.4): for it the act is answered in the
+    removal's decision;
+  - *its secrets erased at once:* the service drops the forge from the
+    forge component and the setup host, which forget its calls, runs and
+    callbacks (skein's `forge-connection.md`, 3.1; skein's
+    `forge-setup.md`, 6.3), and erases each of its secrets, the admin's
+    token, the bot's tokens, the webhooks' secret and the App's key
+    among them (`../protocol/forge.md`, 2.3);
+  - *its records erased:* its writer and its outbox's entries in its
+    decision; each of its repositories' rows once no kept task names
+    it, so that a chat that worked on one still reads its name until
+    the chat itself is erased; and its record once both acts below are
+    answered and its repositories' rows are gone, its number never given
+    again;
+  - *on the forge itself,* nothing is undone but what temper ran: an
+    owned Forgejo goes with its directory; a managed Forgejo's bot and
+    hooks stay, and the page says so; a GitHub App stays the person's,
+    and the page links to its settings to delete it
+    (`../client/forge.md`, 5.4). temper's branches and pull requests
+    there stay as they are;
+  - *kept until whole:* the record keeps which of the two acts that
+    follow its decision, the secrets erased and the group removed, has
+    been answered, and each one not yet answered is asked again at each
+    start until it is, so that a removal a restart cut ends whole
+    (section 16).
 - **A repository ended** is one adopted from an ended forge. Nothing
   is stored for it: it ends with its forge. It leaves every list of a
   project's repositories: the project's home, so that the project's
   next adoption may name a home, the one-home check skipping it; the
   context repositories a workspace is given (`items`); and the adopted
-  ids the setup host reconciles. Its row stays, and a lookup by its
-  name or tag answers it, so that its tasks, chats and landings read as
-  before.
+  ids the setup host reconciles. Until its forge's removal erases its
+  row (above), a lookup by its name or tag answers it, so that its
+  tasks, chats and landings read as before.
+- **A project deleted** (jig's `domain/people.md`, 5.2): when the core
+  asks the connector to release the project, the connector erases the
+  rows of the repositories the project adopted, and the forge client's
+  row of each, by a removed forge's rule (above), at once, since the
+  project's tasks that named them are erased by then; a row another
+  project adopted stays. temper's kinds' settings in the project's
+  scope go as `../protocol/configuration.md`, 13.2 says. It answers the
+  core once that has committed, and again, at once, when asked again.
 - **An adoption on a forge not connected** is refused as such, before
   any read, and the client offers Connect; the picker offers none of
   that forge's repositories (4.3). One on a connecting forge waits for
   it, as above.
 - **The writer given at runtime.** The forge client refuses every effect
   on a forge with no writer, `Forbidden` (skein's `forge-client.md`,
-  7.1). The configuration names none (`../protocol/configuration.md`,
-  the forges): the connector gives the client a forge's writer, its
+  7.1). The forge's record names none (`../protocol/forge.md`, 2.1):
+  the connector gives the client a forge's writer, its
   user's id (the Forgejo user, or the GitHub App's bot user), when the
   routing says the forge is connected (`../protocol/forge.md`, 2.2),
   through the client's `writer(d, env, Writer { forge, author }, out)`.
@@ -424,7 +484,7 @@ temper-engine-domain-forge              the connector's top: resources and holds
   takes them all before `Restored`, and runs no restored effect before
   it, so a restored effect never meets `Forbidden` (skein's
   `forge-client.md`, section 8; section 16). The connector keeps no
-  copy.
+  copy, and erases it in a removal's decision (above).
 
 ### 4.2 Access at adoption
 
@@ -1869,7 +1929,9 @@ log's guid is kept across starts (`../protocol/forge.md`, 5.1).
 
 Each forge starts not connected, whatever it was before the restart, and
 is connected as the routing tells the root (`../protocol/forge.md`, 2.1
-and 8.1); the adopted repositories of each managed or owned Forgejo are
+and 8.1); an ended forge stays ended, and each act its removal has not
+heard answered, its secrets erased or its group removed, is asked again
+(4.1); the adopted repositories of each managed or owned Forgejo are
 named to the routing for its reconcile (4.2). Until a forge connects,
 its reads and entries answer `NotConnected`, which narrows nothing
 (4.1), so the steps below run on each forge as it connects. Before its
@@ -1932,7 +1994,7 @@ restored at the next start; an owned forge set up from the client,
 each state's row and `SetUp`'s answer checked together, with and
 without the box: asked when offered and none sets up, "busy" while
 any sets up, "not offered" connecting, connected, stopped, not owned
-or asked, or not configured, "not under the box" without the box and
+or asked, or not kept, "not under the box" without the box and
 after `BoxClosed`, each state the routing tells kept as told and none
 restored; a forge stopped while a change waits on it,
 nothing narrowed, its entry committed again once it connects; a managed
@@ -1948,6 +2010,16 @@ the head read afresh; no commit status written on GitHub, and nothing
 held for it. The forge below is skein's fake, its GitHub layer
 included: no example calls github.com or uses a real credential.
 
+Its stories of removal: a forge removed with a change on it, its
+watches retired and nothing read of it after. With the root's, in the
+engine's world (`tests/engine/domain`): a removal, and a project's
+deletion (jig's `domain/people.md`, 5.2), each cut by a crash after
+each kept act and resumed at the next start to the same end, a chat
+that worked on the forge reading its repository's name until the chat
+is erased; a removed forge's number never given again; and nothing of
+the forge or the project read afterwards but what 4.1 and jig's
+`domain/people.md`, 5.2 keep.
+
 Its referee, beyond jig's for every connector (jig's
 `domain/connectors.md`, section 15): nothing lands without every
 requirement its branch's enforced rules name, guarded ones met at the
@@ -1960,7 +2032,9 @@ temper's own pushes are never taken for drift; the calls made while
 idle are bounded by the limits; nothing is narrowed, and no change held,
 for a forge not connected; a change whose merge was answered queued is
 not merged again until the forge has landed or ejected it, and lands at
-the group's commit.
+the group's commit; nothing is written to, read of or listed for a
+forge once its removal's decision has committed, and a removal ends
+whole.
 
 ## 20. Open questions
 
@@ -2035,8 +2109,11 @@ the group's commit.
   else's merge, said at adoption; signing is later.
 - **Connecting a forge as another user** (4.1): refused, since the keys
   and echoes already on the forge are the old user's. Moving a
-  deployment to another App or user, and disconnecting a forge, are
-  later.
+  deployment to another App or user is later; a forge goes whole, by
+  its removal (4.1).
+- **A removed forge's history** (4.1): its repositories' names kept
+  while a task names them, or erased with the forge at once. Default:
+  kept.
 - **Which checks are CI on GitHub, without required checks:** temper's
   draft (`../draft/github.md`, section 9) takes the repository's Actions
   workflows' check runs there, so that another App's check run (a
