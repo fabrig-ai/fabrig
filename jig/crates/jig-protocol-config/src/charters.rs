@@ -93,6 +93,7 @@ fn charter(
     let call_timeout = check::duration(&mut object, document, b"call_timeout_ms", path, problems);
     object.finish(document, path, problems);
     let charter = Charter {
+        documents: Box::new([]),
         number: number?,
         hosts: hosts?,
         spend: spend?,

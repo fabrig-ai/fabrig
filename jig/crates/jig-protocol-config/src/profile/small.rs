@@ -56,6 +56,7 @@ pub(super) const TASKS: tasks::Limits = tasks::Limits {
     saved_resources: 4,
     contract_choices: 1,
     charters: 4,
+    charter_documents: 2,
     revisions: 4,
     versions: 8,
     authority_grants: 4,
