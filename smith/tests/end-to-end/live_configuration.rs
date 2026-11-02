@@ -19,6 +19,44 @@ fn key_live_arguments_select_only_the_key() {
     assert_account("anthropic-key");
 }
 
+#[test]
+fn the_claude_live_story_reads_its_agent_trace() {
+    let directory = std::path::Path::new("/unused/smith-live-story");
+    let trace = directory.join("trace-1.jsonl");
+    let mut arguments = live::arguments("claude", directory, true, false);
+    live::with_trace(&mut arguments, &trace);
+    let at = arguments.len().checked_sub(1).expect("prompt argument");
+    arguments.splice(at..at, ["-c".into(), "programs.claude_code='/bin/true'".into()]);
+    let settings = live_settings(arguments, directory);
+    let (resolved, _document) =
+        smith_local_shell::settings::resolve::resolve_startup(&settings).unwrap_or_else(|why| panic!("{}", why.line()));
+    assert_eq!(resolved.agent.trace.expect("configured trace").path, trace);
+    for (account, program) in [("claude", true), ("chatgpt", false)] {
+        let observing = trace_observer(account, &trace);
+        assert_eq!(observing.prepared.program_source(), program, "{account}'s record source");
+    }
+}
+
+fn trace_observer(account: &str, trace: &std::path::Path) -> smith_bench::agent::smith::Observing {
+    use smith_bench::agent::smith::{FaceSince, Observing, Prepared, Receiving, events::Shape};
+    Observing::new(Prepared {
+        face: Shape::Exec,
+        registry: FaceSince {
+            commit: String::new(),
+            shape: Shape::Exec,
+            receiving: Receiving { string: 64, content: 4096, items: 32, encoded_line: 65_536 },
+        },
+        settings: "/unused/config/smith/config.toml".into(),
+        serial: None,
+        trace: Some(trace.into()),
+        rendered: live::rendered(account),
+        program: "/unused/smith".into(),
+        state: "/unused/state".into(),
+        teardown: Duration::ZERO,
+    })
+    .expect("outside observer")
+}
+
 fn assert_account(account: &str) {
     let directory = std::path::Path::new("/unused/smith-live-story");
     let settings = live_settings(live::arguments(account, directory, true, false), directory);
