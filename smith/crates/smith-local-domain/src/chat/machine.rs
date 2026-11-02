@@ -147,7 +147,7 @@ pub(super) fn loaded(
     domain: &mut Domain,
     env: &Env<Limits>,
     state: Option<ChatState>,
-    transcript: Option<agent::Transcript>,
+    transcript: Option<smith_host_domain::Transcript>,
     deliveries: Box<[DeliveryRecord]>,
     out: &mut Queue<Request>,
 ) {

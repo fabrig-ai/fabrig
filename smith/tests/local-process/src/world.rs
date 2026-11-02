@@ -653,6 +653,7 @@ impl World {
         };
         if let Some(history) = transcript {
             let assistant_messages = history
+                .value()
                 .turns
                 .iter()
                 .flat_map(|turn| turn.messages.iter())
@@ -1090,7 +1091,7 @@ impl World {
         else {
             unreachable!("chat codec terminal")
         };
-        transcript.map_or(0, |history| history.turns.len())
+        transcript.map_or(0, |history| history.value().turns.len())
     }
 }
 impl CheckoutRead for World {

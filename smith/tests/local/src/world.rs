@@ -1044,7 +1044,10 @@ impl World {
                 } else {
                     self.events.push_back(Event::Loaded {
                         state: self.store.state,
-                        transcript: self.store.history(),
+                        transcript: self
+                            .store
+                            .history()
+                            .map(|value| local::Transcript::new(value, u64::MAX).expect("world history ownership")),
                         deliveries: self.store.deliveries.values().cloned().collect::<Vec<_>>().into_boxed_slice(),
                     });
                 }
