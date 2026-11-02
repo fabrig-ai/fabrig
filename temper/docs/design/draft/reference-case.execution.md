@@ -142,7 +142,11 @@ section 14 it adds; Old code, the old branches it may start from.
   (`forge.md`, 8.2 steps 3 and 6, 8.7, section 10); a result's words
   carrying the producer's report (`forge.md`, 8.2 step 7).
 - **Builds:** jig (templates, holds, writer slots, wake policies,
-  limits); temper's forge connector and `change`.
+  limits); temper's forge connector and `change`; the landing rules as
+  settings of temper's kinds, out of `Config`'s `landing` member, so a
+  goal branches' rule stands beside main's (`../domain/root.md`, 5.5,
+  5.6 and 6; `forge.md`, 8.9; temper's `../protocol/configuration.md`,
+  13.2 and 13.3), as designed and not built.
 - **Configures:** the coordinator's charter, its first edition (a plan
   of changes G specifies itself, results and Left lists, the goal's
   end); the goal template for drafts; the coding agent's charter (Left
@@ -151,6 +155,7 @@ section 14 it adds; Old code, the old branches it may start from.
 - **Old code:** jig `upgrades-6/j12-verdict-fields-2` (a result's bound
   past the settings schema's cap); jig's and temper's
   `configuring-revisions/documents-r1` (a charter's documents); temper
+  `configuring-stock/forge-kinds` (temper's kinds as settings); temper
   `holds/forge-step-admitted-12`, a bug its walk may meet (a change held
   for effects, then released, left with no producer).
 - **Walk:** steps 1, 3 (G specifies its changes itself, one after
@@ -193,12 +198,17 @@ section 14 it adds; Old code, the old branches it may start from.
   against its charter's models); jig's `domain/core.md`, 7.1 (a plan's
   text in the repository's design).
 - **Builds:** temper's `change` and change procedure (a producer's
-  charter, an LLM choice per role); jig's check of them.
+  charter, an LLM choice per role); jig's check of them; the forge's
+  charters as settings of temper's kinds, out of `Config`'s
+  `forge_charter`, so a change's producer and foreman each take a
+  charter of their own (`../domain/root.md`, 6; `forge.md`, 8.1 and 8.9;
+  temper's `../protocol/configuration.md`, 13.2).
 - **Configures:** the designer's charter; the coordinator's charter:
   the cut, the families' batches, revisions, the close-out; each
   change's LLM choices, gpt-6.1-sol on smith's direct backend (N20).
 - **Old code:** jig's and temper's `configuring-revisions/charter-tools-r6`
-  (the tool families a charter offers); `documents-r1` (M1).
+  (the tool families a charter offers); `documents-r1` and
+  `forge-kinds` (M1).
 - **Walk:** steps 1 to 6 without surveys, questions or early starts
   (each designer starts once S has landed), and 22; with M2, the goal
   then lands.
