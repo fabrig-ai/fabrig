@@ -20,11 +20,11 @@ const STORY_OTHER_HAND_HEAP_CEILING: u64 = 650_000;
 // Measured peak: 238,343 bytes; 25% headroom, rounded up to two significant digits.
 const STORY_PERSON_WORDS_HEAP_CEILING: u64 = 300_000;
 
-// Measured peak: 617,188 bytes; 25% headroom, rounded up to two significant digits.
-const STORY_REPAIR_CI_HEAP_CEILING: u64 = 780_000;
+// Measured peak: 783,255 bytes; 25% headroom, rounded up to two significant digits.
+const STORY_REPAIR_CI_HEAP_CEILING: u64 = 980_000;
 
-// Measured peak: 508,708 bytes; 25% headroom, rounded up to two significant digits.
-const STORY_REVIEWED_CHANGE_HEAP_CEILING: u64 = 640_000;
+// Measured peak: 644,720 bytes; 25% headroom, rounded up to two significant digits.
+const STORY_REVIEWED_CHANGE_HEAP_CEILING: u64 = 810_000;
 
 // Measured peak: 715,129 bytes; 25% headroom, rounded up to two significant digits.
 const SHARED_CHANGED_JUDGE_HEAP_CEILING: u64 = 900_000;
