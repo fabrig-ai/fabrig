@@ -111,7 +111,24 @@ changing these:
 Each family's designer adds one line under its entry's heading below as it settles a name
 another family uses; nothing else of this note changes after release.
 
-- C2:
-- C4:
-- C7:
+- C2: a template's optional `"resources": [{"connector": c, "symbol": s}]` (jig's
+  `protocol/configuration.md`, 3.3); Rust `jig_domain_people::Symbol { connector: u16,
+  symbol: u16 }`, `jig_domain_core::Template.resources: Box<[Symbol]>` and a batch member's
+  `jig_domain_people::Member.symbols: Box<[Symbol]>` (the client's `NewTask.symbols`); the
+  forge's *its own goal branch* is the forge connector's symbol 1 (temper's `forge.md`,
+  section 2). A symbol adds a hold, never a grant: the task's authority says what it may do.
+- C4: `change` takes `{"words", "repository", "name", "landing", "after"}` for one change or
+  `{"changes": [{...}, ...]}` for a batch (`landing`: `"goal"` or a branch's name; `after`:
+  task numbers or earlier names); decoded as `temper_engine_domain::Tool::Change { changes:
+  Box<[ChangeCall]> }` (`ChangeLanding::{Goal, Branch}`, `ChangeAfter::{Task, Name}`). Only a
+  run whose authority holds jig's control family (`ToolFamilies::JIG.control`, 4) may set the
+  members past `words` and `repository`: the coordinator's policy grants it, the stock's does
+  not (agent.md, 4.3.1). C5's `Requires` lives in `temper-engine-domain-forge/src/gates.rs`,
+  `Domain::requires(&self, repository: &Repository, branch: &[u8]) -> Requires`.
+- C7: the pace is `WakeRule::Paced { span: Duration }` in `jig_domain_tasks`, `jig_domain_people` and `jig_client::contract` (stored `paced: WakePace { span }`, wire `paced: WakeRulePaced { span }`), at most once in `span` from the task's last run's start (`TaskRecord::run_since`); a charter's default is `jig_domain_core::settings::Charter`'s `wake: jig_domain_tasks::WakePolicy`, read when a batch entry's `wake` is `None` (`people::Member.wake` and the core's `Delegate.wake` become `Option`), `WakePolicy::DEFAULT` for every other executor; configuration's charter member `wake`, optional (absent, `WakePolicy::DEFAULT`): `{"words": R, "notices": R, "news": R, "results": "never"|"each"|"last_or_failure", "questions": b, "answers": b, "timers": b}`, R `"never"`, `"immediate"`, `{"batch": {"count": n, "age_ms": n}}` or `{"paced": {"span_ms": n}}`; a settings file's charter `wake` member the same members in the file's own forms (`temper/docs/help/reference/settings-fields.md`: durations in nanoseconds), R `"never"`, `"immediate"`, `{"batch": {"count": n, "age": ns}}` or `{"paced": ns}`; the coordinator's: words, notices immediate, news `{"paced": {"span_ms": 1800000}}`, results `"each"`, questions, answers, timers true.
 - The reference's configuration (settings family): where its first editions live.
+  `temper/docs/examples/reference/`: `settings.json`, a settings file for `temper ctl settings
+  apply` (charter 5 the coordinator's, charter 2 the coding agent's, template 4 the goal
+  template for drafts), and `landing.json`, the document's `application.landing` value
+  (main's rule and the goal branches' rule) until the landing rules are settings
+  (`temper/docs/design/protocol/configuration.md`, 13.9).

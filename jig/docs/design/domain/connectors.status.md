@@ -10,4 +10,7 @@
   declares one (a procedure's executor is its connector and code alone,
   `jig-domain-tasks`'s `Executor::Procedure`). 6.3: every effect of a
   step within its one decision.
+  3.1: symbols: the core passes none to a connector
+  (`jig-domain-core/src/vocabulary.rs`, `Ask::TaskHoldings`).
+  4.7: a taking's effects: `Ask::Hold` carries no outbox entry.
   6.7: a procedure told to drain. 13: request budgets.

@@ -301,8 +301,10 @@ any `delegate` (jig's authority, named and decided once):
   them. Never the home by default: a project's home may be another
   forge's (the demo's);
 - **the delegate:** the change procedure (forge.md, 8.1) with the words,
-  the repository's resource and its default branch as the landing
-  branch; a change's contract;
+  the repository's resource and its landing branch: the one the call
+  names (below), or with none the repository's default branch; a
+  change's contract, its words bounded by the deployment's
+  `tasks.result_bytes`;
 - **its authority, the run's own narrowed:** the run's grants of the
   forge's reads (kind 1, forge.md, section 2) and of the kinds a change
   makes (forge.md, section 6: a push, open, merge, edit, update, close
@@ -315,10 +317,61 @@ any `delegate` (jig's authority, named and decided once):
   fewer than the run has left, and a depth of at most 2; no notes; half of
   what the run's budget has left, so that it can still read the result
   and answer, refused when that is no more than a run's minimum. That
-  half is a default, open to tuning.
+  half is a default, open to tuning. Several changes in one call share
+  that half equally.
 
 A `delegate` refused for an executor or a grant says, too, that a
 repository change is `change`'s.
+
+**What a plan decides.** Beside the words and the repository, a call
+names what a plan decides of each change, and the root still builds the
+delegate from what it knows:
+
+```
+{"words": "...", "repository": "owner/name",
+ "name": "parser", "landing": "goal", "after": [41, "lexer"]}
+{"changes": [{"name": "lexer", "words": "...", "landing": "goal"},
+             {"name": "parser", "words": "...", "landing": "goal", "after": ["lexer"]}]}
+```
+
+- **`landing`:** `"goal"`, the requester's own goal branch,
+  `temper/<root>/g<task>` in the change's repository (forge.md, section
+  11), which the requester holds; or a branch's name in the repository;
+  left out, the repository's default branch. `"goal"` from a run whose
+  task holds no goal branch in that repository is refused, saying so; a
+  name that is not a branch's (an empty segment) is refused, naming it;
+  a branch the repository lacks holds the change at its opening, the
+  forge refusing its pull request (forge.md, 8.2).
+- **`name`:** a name for the change within the call, at most 64 bytes,
+  unique in it, which another change of the same call names in its
+  `after`; it names nothing once the call is decided.
+- **`after`:** the change's dependencies (jig's `domain/tasks.md`,
+  section 4): a task number, one of the run's task's live delegates, or
+  the `name` of an earlier change in the same call. The change waits on
+  them as any task does, so it starts once each has ended done; a name
+  the call does not give before it, or a task jig refuses, refuses the
+  call, naming it.
+- **`changes`:** several changes in one call, each an object of the
+  members above but `changes`, made as one batch (jig's
+  `domain/tasks.md`, section 4): all of them or none, the call's answer
+  naming each change's task in the call's order. A call names either
+  `words` or `changes`, never both; `changes` holds at least one.
+- **Who may set them:** the members past `words` and `repository` are a
+  plan's, and only a run whose task's authority holds jig's control
+  family (amend and cancel, with `release`: jig's `domain/authority.md`,
+  section 3) may set them: a plan's maker amends, cancels and releases
+  what it makes. The stock policy's families leave it out, so a chat sets
+  none. `change`'s declaration offers them only where the run's
+  authority holds that family (4.3, the host part's budget), and the root
+  refuses a call naming one from a run without it, beyond authority,
+  naming the family, as it decides the delegate. What each member sets is
+  checked as the rest of the batch is: its landing branch by the change's
+  grants on the repository, its dependencies by jig's batch.
+- **Members to come** join each change's object, each optional and
+  checked by the root as it decides that change's delegate, leaving
+  these as they are: the change's branch, `mine` for its requester's
+  held branch; its questions; its agents' LLM choices; its producer, a
+  charter or a job; the landing it repairs.
 
 #### 4.3.2 A goal, in the run's words
 
@@ -742,6 +795,10 @@ host:
   it allows for the other families too, which the host part's budget
   (4.3) may force, and how a brief teaches an LLM when to delegate a task
   rather than a sub-agent.
+- **Who may name a plan's members of `change`:** the control family
+  says it (4.3.1), since a plan's maker amends, cancels and releases what
+  it makes. A family of its own would let a policy grant control without
+  plans, or plans without control.
 - **A goal's question kept with its chat** (jig's `domain/tasks.md`,
   8.5): the chat, woken by it, would answer from what it knows (its
   person's priorities, its notes), or ask its person a question of its

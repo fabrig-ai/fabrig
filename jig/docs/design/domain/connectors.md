@@ -123,6 +123,13 @@ application root            routes between the core and every connector
 - **Names after a task:** a connector may define resources named after
   the task that makes them, under a prefix of the deployment's, which a
   batch names symbolically (authority.md, section 4).
+- **Symbols:** a connector may offer numbered symbols, each a resource
+  it names after a task once the task has its number (a forge's *its own
+  goal branch*), which a batch member or a template names
+  (`../protocol/configuration.md`, 3.3). The connector says, per symbol,
+  the name it resolves to and the hold it takes, and which tasks may name
+  it (tracked ones only, say); it refuses a batch naming a symbol it does
+  not offer that task, naming the symbol (tasks.md, 6.2).
 
 ### 3.2 Roles
 
@@ -146,10 +153,16 @@ connector says what they apply to:
   shrinks below its holders keeps them, and the connector says which
   holder's allocation is gone, which is drift (tasks.md, 6.6);
 - **whether a taken hold refuses or waits** (tasks.md, 6.2);
+- **what a taking does** to the resource, as effects of its own (4.7):
+  a branch made at its base's tip, say;
 - **what a release does** to the resource, per way its task ended (4.6).
 
 Shared resources take no hold: writing into them is ordered by the
-connector's own mechanics, such as a landing queue. Such a queue is
+connector's own mechanics, such as a landing queue. A held resource may
+be ordered by such a queue too: a goal's own branch, held by its goal,
+that its goal's changes land into one at a time. The queue then orders
+only writes made under the hold, by the holder's delegates, each taking
+the resource's writer slot as it writes (tasks.md, 6.1 and 6.3). Such a queue is
 outside the waits the core checks for circles (tasks.md, 6.7), so its
 connector keeps it clear of them: a task kept by a dependency (tasks.md,
 5.7) leaves it, and comes back once it goes on, so that no task in it
@@ -320,6 +333,22 @@ is news for the closing task.
 Infrastructure's closing table is bounded by its configured tasks plus
 procedures plus effects. This is independent of the refresh table's
 bound: a restart can have more fresh reads under way than closing tasks.
+
+### 4.7 Takings
+
+- **A taking may have effects,** as a release does. When a task takes a
+  write hold (tasks.md, 6.2), the core tells the hold's connector, with a
+  numbered outbox entry of the taking's own; per kind of resource, the
+  connector says what taking it does: none, for most; a forge's goal
+  branch is made at its base's tip.
+- **Keyed by the task and the resource,** in the outbox as any effect
+  (4.2), taking the resource's writer slot while in flight (tasks.md,
+  6.3). The connector orders its own later uses of the resource after
+  them: a write into a branch still being made waits for it.
+- **A taking's effect failed for good holds the task** (tasks.md, 5.5),
+  its words the connector's, saying why: the resource it could not make
+  and what its system answered. The task keeps its holds, and its
+  requester decides, as for any effect that failed for good.
 
 ## 5. Facts and events
 
