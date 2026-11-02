@@ -543,13 +543,36 @@ pub(crate) fn release(d: &mut Domain, project: u32, request: Token, out: &mut Qu
         }
     }
     let changed = !repositories.is_empty();
-    for provider in repositories.into_boxed() {
-        d.repositories.remove(&provider);
-        emit(out, Request::Erase { key: Key::Repository(provider) });
-        emit(out, Request::Erase { key: Key::Client(skein_forge_client::Key::Repository(provider)) });
+    for provider in &repositories {
+        d.repositories.remove(provider);
+        emit(out, Request::Erase { key: Key::Repository(*provider) });
+        emit(out, Request::Erase { key: Key::Client(skein_forge_client::Key::Repository(*provider)) });
     }
     if changed {
         emit(out, Request::MarkedForges);
     }
+    let mut changed_rows = List::with_capacity(d.kept.capacity());
+    for (task, names) in &d.kept {
+        let mut remaining = List::with_capacity(u32::try_from(names.len()).expect("bounded kept names"));
+        for name in names {
+            let provider = api::Repository { forge: name.forge, repository: name.repository };
+            if !repositories.as_slice().contains(&provider) {
+                remaining.push(name.clone()).expect("bounded kept names");
+            }
+        }
+        if remaining.as_slice() != names.as_ref() {
+            changed_rows.push((*task, remaining.into_boxed())).expect("bounded kept rows");
+        }
+    }
+    for (task, resources) in changed_rows.into_boxed() {
+        if resources.is_empty() {
+            d.kept.remove(&task);
+            emit(out, Request::Erase { key: Key::Names(task) });
+        } else {
+            d.kept.insert(task, resources.clone()).expect("replaces kept row");
+            emit(out, Request::Save { record: Stored::Names { task, resources }, release: None, read_afresh: None });
+        }
+    }
+    crate::removal::unnamed(d, out);
     emit(out, Request::ProjectReleased { request });
 }

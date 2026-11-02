@@ -3886,8 +3886,12 @@ pub(crate) fn effect_ask(
                 },
             )));
         }
+        jig_domain_core::effects::connector::Ask::Unname { task } => {
+            if number == domain.config.forge_connector {
+                domain.work.push(Work::Forge(forge::Event::Unnamed { task }));
+            }
+        }
         jig_domain_core::effects::connector::Ask::Names { .. }
-        | jig_domain_core::effects::connector::Ask::Unname { .. }
         | jig_domain_core::effects::connector::Ask::Hold { .. }
         | jig_domain_core::effects::connector::Ask::ReleaseHold { .. }
         | jig_domain_core::effects::connector::Ask::Writer { .. }
