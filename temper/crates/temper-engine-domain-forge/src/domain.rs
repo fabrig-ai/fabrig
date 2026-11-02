@@ -3119,6 +3119,10 @@ fn change_facts(
         Some(repository) => repository.ci,
         None => true,
     };
+    let requires = match d.repositories.get(&row.repository) {
+        Some(repository) => d.requires(repository, &row.base),
+        None => crate::Requires { ci: true, up_to_date: true },
+    };
     let window = crate::settle::window(d, row.task);
     change::Facts {
         ask: crate::landing::ask_for(d, row),
@@ -3127,14 +3131,15 @@ fn change_facts(
         pull,
         ci: change::Ci {
             head: pending.branch.unwrap_or([0; 32]),
-            status: if has_ci { pending.ci } else { change::Status::Passed },
+            status: if has_ci && requires.ci { pending.ci } else { change::Status::Passed },
         },
         base_ci: change::Ci {
             head: base_tip,
-            status: if !has_ci || row.base_repair { change::Status::Passed } else { pending.base_ci },
+            status: if !has_ci || !requires.ci || row.base_repair { change::Status::Passed } else { pending.base_ci },
         },
         base_tip,
-        contains_base: pending.contains_base,
+        contains_base: if requires.up_to_date { pending.contains_base } else { change::Status::Passed },
+        updates: requires.up_to_date,
         mergeable: match &pending.pull {
             Some(pull) if pull.mergeable => change::Status::Passed,
             Some(_) if window.is_some() => change::Status::Pending,

@@ -249,6 +249,8 @@ pub struct Facts {
     pub base_ci: Ci,
     pub base_tip: Commit,
     pub contains_base: Status,
+    /// Whether its landing branch's rules ask up to date (domain/forge.md, 8.7).
+    pub updates: bool,
     pub mergeable: Status,
     pub gates: Box<[GateReport]>,
     /// The head of the top's outstanding gate delegate, until its terminal result.
