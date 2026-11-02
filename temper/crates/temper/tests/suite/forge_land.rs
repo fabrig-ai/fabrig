@@ -946,6 +946,9 @@ fn an_ended_delegate_read_refuses_live_rows_a_cut_without_a_cursor_and_a_33rd_pa
         for _ in 1..EndedDelegates::PAGES {
             assert!(ended.read(&delegate_read(&[4], false, Some("4"))).expect("within page bound").is_some());
         }
-        assert_eq!(ended.read(&delegate_read(&[], false, None)), Err("ended delegates exceed 32-page bound".to_owned()));
+        assert_eq!(
+            ended.read(&delegate_read(&[], false, None)),
+            Err("ended delegates exceed 32-page bound".to_owned())
+        );
     }
 }

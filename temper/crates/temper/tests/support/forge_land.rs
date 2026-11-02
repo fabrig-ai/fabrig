@@ -1541,6 +1541,7 @@ enum LivePhase {
     Progress,
     Snapshot,
     Pages,
+    Ended,
     Closing,
     Done,
     Returning,
@@ -1574,7 +1575,7 @@ struct LiveJudge<'a> {
     phase: LivePhase,
     snapshot: Option<String>,
     replies: std::collections::BTreeMap<u64, serde_json::Value>,
-    tasks_at: usize,
+    ended: Option<EndedDelegates>,
     tools: std::collections::BTreeSet<String>,
     ended_at: Option<u64>,
     pages: usize,
@@ -1672,6 +1673,13 @@ impl LiveJudge<'_> {
                 self.phase = LivePhase::Pages;
             }
             LivePhase::Pages => self.read_page(calls, &last)?,
+            LivePhase::Ended => {
+                if let Some(words) = self.ended.as_mut().ok_or("ended delegate reader missing")?.read(&last)? {
+                    self.pending.push_back(words);
+                } else {
+                    self.queue_closing();
+                }
+            }
             LivePhase::Closing => {
                 self.check_landing(calls)?;
                 self.phase = LivePhase::Done;
@@ -1822,10 +1830,8 @@ impl LiveJudge<'_> {
 
         Ok(())
     }
-    fn read_page(&mut self, calls: &super::ctl::Calls, last: &serde_json::Value) -> Result<(), String> {
+    fn read_page(&mut self, _calls: &super::ctl::Calls, last: &serde_json::Value) -> Result<(), String> {
         let chat = self.tasks.chat.to_string();
-        let change = self.tasks.change.to_string();
-        let project = self.tasks.project.to_string();
         self.pages += 1;
         require(self.pages <= 32, "bounded conversation pages")?;
         let activity = &last["activity"];
@@ -1851,21 +1857,10 @@ impl LiveJudge<'_> {
             self.queue(&["task", "show", &chat, "--json"]);
             self.phase = LivePhase::Snapshot;
         } else {
-            self.tasks_at = calls.ends().len();
-            for parent in [&chat, &change] {
-                self.queue(&["task", "list", "--project", &project, "--parent", parent, "--ended", "--json"]);
-            }
-            if !self.plan.first {
-                let key = format!("close-live-chat-{chat}");
-                for args in [
-                    &["chat", "close", &chat, "--key", &key, "--json"][..],
-                    &["task", "tree", &chat, "--until", "ended", "--timeout", "300s", "--json"],
-                    &["task", "list", "--project", &project, "--json"],
-                ] {
-                    self.queue(args);
-                }
-            }
-            self.phase = LivePhase::Closing;
+            let ended = EndedDelegates::new(self.tasks.project, [self.tasks.chat, self.tasks.change]);
+            self.pending.push_back(ended.first());
+            self.ended = Some(ended);
+            self.phase = LivePhase::Ended;
         }
 
         Ok(())
@@ -1913,21 +1908,7 @@ impl LiveJudge<'_> {
         }
         let page = live_change_page(client_address(calls)?, self.plan.client, self.tasks.change);
         require(self.tools.contains("change"), "the chat's committed change call succeeded")?;
-        let mut delegates = [Vec::new(), Vec::new()];
-        for (offset, tasks) in delegates.iter_mut().enumerate() {
-            let value = live_json(&calls.ends()[self.tasks_at + offset])?;
-            require(value["live"] == serde_json::json!([]) && value["live_after"].is_null(), "no live delegates")?;
-            let ended = &value["ended"]["rows"];
-            require(ended["cut"] == false, "whole delegate set")?;
-            require(ended["after"].is_null(), "whole delegate set")?;
-            *tasks = ended["rows"]
-                .as_array()
-                .ok_or("ended delegates missing")?
-                .iter()
-                .map(|row| row["chip"]["task"].as_u64().ok_or("delegate task missing"))
-                .collect::<Result<_, _>>()?;
-            tasks.sort_unstable();
-        }
+        let delegates = self.ended.take().ok_or("ended delegate reader missing")?.whole();
         require(delegates[0].contains(&self.tasks.change), "change task belongs to the chat that called change")?;
         require(!self.tools.contains("delegate"), "no raw delegate started the task")?;
         let mut tasks = vec![self.tasks.chat, self.tasks.change];
@@ -1962,6 +1943,21 @@ impl LiveJudge<'_> {
     }
 }
 impl LiveJudge<'_> {
+    fn queue_closing(&mut self) {
+        if !self.plan.first {
+            let chat = self.tasks.chat.to_string();
+            let project = self.tasks.project.to_string();
+            let key = format!("close-live-chat-{chat}");
+            for args in [
+                &["chat", "close", &chat, "--key", &key, "--json"][..],
+                &["task", "tree", &chat, "--until", "ended", "--timeout", "300s", "--json"],
+                &["task", "list", "--project", &project, "--json"],
+            ] {
+                self.queue(args);
+            }
+        }
+        self.phase = LivePhase::Closing;
+    }
     fn queue_delegates(&mut self) {
         self.queue(&["task", "show", &self.tasks.chat.to_string(), "--json"]);
         self.queue(&[
@@ -2441,7 +2437,7 @@ pub fn run_live(
         plan,
         snapshot: None,
         replies: std::collections::BTreeMap::new(),
-        tasks_at: 0,
+        ended: None,
         tools: std::collections::BTreeSet::new(),
         ended_at: None,
         pages: 0,
