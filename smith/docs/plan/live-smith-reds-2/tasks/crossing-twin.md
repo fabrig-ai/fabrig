@@ -3,9 +3,9 @@ id = "crossing-twin"
 part = "crossing"
 kind = "feature"
 needs = []
-files = ["smith/tests/end-to-end/chat_crossing.rs", "smith/tests/end-to-end/end_to_end.rs"]
+files = ["smith/tests/end-to-end/chat_crossing.rs", "smith/tests/end-to-end/end_to_end.rs", "smith/crates/smith-local-protocol/src/store.rs", "smith/crates/smith-host-domain/src/values.rs", "smith/crates/smith-host-domain/src/channel.rs", "smith/crates/smith-host-protocol/src/translate.rs", "smith/crates/smith-host-protocol/src/component.rs", "smith/crates/smith-host-protocol/src/tests.rs", "smith/crates/smith-protocol-translate/src/transcript.rs", "smith/crates/smith-protocol-translate/src/turn.rs", "smith/crates/smith-local-domain/src/agent.rs", "smith/crates/smith-local-service/src/host_io.rs"]
 effort = "high"
-minutes = 120
+minutes = 240
 +++
 # A fake-backed exec chat crosses Direct, program, Direct through the product
 
@@ -108,3 +108,46 @@ Acceptance:
 
 The story's first result, any fix (crate, test, red and green), the files changed, the test runs
 (selected, passed), the story's wall time, and implementation and check minutes apart.
+
+## Answers
+
+2026-11-02. Question (run crossing-twin-1): authorize the cross-crate repair that keeps a carried
+transcript's endpoint through the host's forwarding, or leave the red for a later plan?
+
+Answer: **the repair is authorized in this task**; the red story stays as committed (`24037da5c2`)
+and goes green here. The red is a departure from the design, not a new decision:
+smith/docs/design/protocol/transcript.md, 4 says a window on an endpoint "the agent's configuration
+does not name" is carried over, not refused, and 8 says turns go back on resume as they were told.
+Today the host decodes the stored window with the leg's configuration (`smith-local-protocol`
+`store.rs`), loses the unconfigured endpoint's name (`endpoint: None`), and then cannot re-encode
+it for Start (`smith-host-protocol` `translate.rs` through `encode_turn`), so the spawned agent is
+never started and is killed as `Agent`/`Signal(9)`. No stored format, wire protocol or design
+changes: the agent receives the v6 turn bytes the store already holds, under the existing channel
+schema, and resolves the names itself against its own configuration, as it already does.
+
+- **Shape, in order of preference.** (1) The host forwards the saved window's turn bodies verbatim:
+  the store returns them with the decoded transcript, the host's Start carries them beside the
+  decoded `Transcript` (which the host keeps for its own checks), and `encode_start` puts them in
+  the Start's transcript piece instead of re-encoding the decoded turns. (2) Only if (1) cannot hold
+  (the host changes the transcript between the store and Start, so the saved bytes are no longer
+  the history it sends), the decoded turn keeps its saved endpoint name when the configuration does
+  not resolve it, and `encode_turn` writes that name back; say in the report why (1) did not hold.
+  Never a substitute endpoint, an extra model or grant, or a configuration workaround (no adding the
+  old endpoint to the leg's agent configuration).
+- **Lowest world first, red before, green after:** a unit test in the lowest crate the shape
+  touches (for (1), `smith-host-protocol`'s `tests.rs`: `encode_start` of a resumed Start whose
+  saved window ran on an endpoint the given `Endpoints` does not name succeeds, and the frame's
+  transcript decodes to the saved bodies byte for byte; for (2), `smith-protocol-translate`:
+  `decode_transcript` then `encode_turn` with such `Endpoints` gives back the saved name), then the
+  product story `an_exec_chat_crosses_from_direct_to_a_program_and_back` green, with legs 2 and 3
+  and the summary/window ordering checked.
+- **Owns and may change, widened:** the crates on that path, `smith-local-protocol`,
+  `smith-host-domain`, `smith-host-protocol`, `smith-protocol-translate`, `smith-local-domain`,
+  `smith-local-service` (the frontmatter's `files` list the likely files), and the construction
+  sites and tests in other crates that a changed type forces to compile, nothing more. Not
+  `smith-transcript`'s codec, not `smith-channel`'s generated schema, not any `docs/design/` (what
+  the design's status file should say goes in the report).
+- **Checks:** fmt; clippy with `-D warnings` on every changed package; each changed package's tests
+  and its direct dependents' (AGENTS.md, 6), one command at a time; the whole `end_to_end` binary.
+  If a stored format, the channel schema or a second protocol turns out to need changing, stop and
+  ask, as before.
