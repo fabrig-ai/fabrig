@@ -165,4 +165,4 @@ both do. `--until changed` returns at the subject's next change.
   seconds, then exits 1. Reads and waits never wait for `DIR`.
 - A kept request is answered only within its retention; past it, its
   outcome is unknown, and reading again tells what happened.
-- ctl opens no browser and runs no program.
+- ctl opens no browser, runs no program.
