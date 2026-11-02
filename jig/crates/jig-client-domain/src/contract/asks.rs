@@ -212,6 +212,7 @@ pub enum Ask {
     /// Remove a project as its owner (jig/docs/design/domain/people.md, 5.2).
     RemoveProject {
         project: u32,
+        grace: Option<Duration>,
     },
     /// Make a project in the deployment scope (contract.md, 7.5).
     MakeProject {

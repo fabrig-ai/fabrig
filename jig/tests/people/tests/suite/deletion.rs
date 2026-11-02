@@ -1,7 +1,7 @@
 //! Deletion progress and retained project keys (jig/docs/design/domain/people.md, 5.2).
 use jig_domain_people::{
-    self as p, Act, ActGrant, ActKey, ActKind, Ask, DeletionStep, Domain, Event, Holding, Key, Outcome, Refusal, Reply,
-    Request, RequestKey, Role, Stored,
+    self as p, Act, ActGrant, ActKey, ActKind, Ask, DeletionStep, Domain, Event, Holding, KeptDeletion, Key, Outcome,
+    Refusal, Reply, Request, RequestKey, Role, Stored,
 };
 use jig_people_world::{LIMITS, fixtures::people_member, identity};
 use skein_lib::{Env, List, Queue, ReplyTo, Time, Token, Wall};
@@ -96,20 +96,21 @@ fn adoption() -> p::Adoption {
 
 #[test]
 fn a_deletion_row_is_kept_advanced_and_erased() {
+    let grace = Some(skein_lib::Duration::from_millis(5000));
     let mut people = People::new();
     for step in [DeletionStep::Tasks, DeletionStep::Rows, DeletionStep::Release] {
-        let row = Stored::Deletion { project: PROJECT, step };
+        let row = Stored::Deletion { project: PROJECT, step, grace };
         assert_eq!(
-            people.send(Event::Deleting { project: PROJECT, step: Some(step) }),
+            people.send(Event::Deleting { project: PROJECT, step: Some(step), grace }),
             [Request::Save { record: row.clone() }]
         );
         assert_eq!(people.rows.get(&Key::Deletion(PROJECT)), Some(&row));
         assert_eq!(people.domain.deletions().len(), 1);
-        assert_eq!(people.domain.deletions().get(&PROJECT), Some(&step));
+        assert_eq!(people.domain.deletions().get(&PROJECT), Some(&KeptDeletion { step, grace }));
     }
-    people.send(Event::Deleting { project: OTHER, step: Some(DeletionStep::Tasks) });
+    people.send(Event::Deleting { project: OTHER, step: Some(DeletionStep::Tasks), grace });
     assert_eq!(
-        people.send(Event::Deleting { project: PROJECT, step: None }),
+        people.send(Event::Deleting { project: PROJECT, step: None, grace }),
         [Request::Erase { key: Key::Deletion(PROJECT) }]
     );
     assert!(!people.rows.contains_key(&Key::Deletion(PROJECT)));
@@ -120,18 +121,21 @@ fn a_deletion_row_is_kept_advanced_and_erased() {
 #[test]
 fn a_kept_deletion_restores_at_start() {
     for selected in [DeletionStep::Tasks, DeletionStep::Rows, DeletionStep::Release] {
+        let grace = Some(skein_lib::Duration::from_millis(5000));
         let mut people = People::new();
         people.domain = Domain::new(&LIMITS, Box::new([]), 1, Box::new([]));
         people.domain.start_restore(people.env.wall);
         for project in 1..=LIMITS.projects {
-            assert!(people.send(Event::Restore { record: Stored::Deletion { project, step: selected } }).is_empty());
+            assert!(
+                people.send(Event::Restore { record: Stored::Deletion { project, step: selected, grace } }).is_empty()
+            );
         }
         assert!(people.domain.start_link(&people.env));
         people.domain.start_sweep();
         assert!(people.domain.start_complete(&people.env));
         assert!(people.domain.ready());
         assert_eq!(people.domain.deletions().len(), LIMITS.projects);
-        assert_eq!(people.domain.deletions().get(&PROJECT), Some(&selected));
+        assert_eq!(people.domain.deletions().get(&PROJECT), Some(&KeptDeletion { step: selected, grace }));
     }
 }
 
@@ -141,9 +145,12 @@ fn too_many_deletion_rows_refuse_the_start() {
     people.env.limits.projects = 1;
     people.domain = Domain::new(&people.env.limits, Box::new([]), 1, Box::new([]));
     people.domain.start_restore(people.env.wall);
-    people.send(Event::Restore { record: Stored::Deletion { project: PROJECT, step: DeletionStep::Tasks } });
+    people
+        .send(Event::Restore { record: Stored::Deletion { project: PROJECT, step: DeletionStep::Tasks, grace: None } });
     assert_eq!(
-        people.send(Event::Restore { record: Stored::Deletion { project: OTHER, step: DeletionStep::Tasks } }),
+        people.send(Event::Restore {
+            record: Stored::Deletion { project: OTHER, step: DeletionStep::Tasks, grace: None }
+        }),
         [Request::RestoreRefused {
             key: Key::Deletion(OTHER),
             refusal: Refusal::Limit { which: p::LimitKind::Restore }
@@ -215,7 +222,7 @@ fn a_closed_project_refuses_party_asks_as_one_never_made() {
             Ask::Withdraw { project, proposal: 1 },
             Ask::SetRoles { project, holdings: Box::new([]) },
             rename(project),
-            Ask::RemoveProject { project },
+            Ask::RemoveProject { project, grace: None },
             Ask::Adopt { project, adoption: adoption() },
             Ask::Create { project, batch: Box::new([people_member(b"work", 1)]) },
             Ask::Cancel { project, task: 1, grace: None, reason: Box::new([]) },
@@ -246,7 +253,7 @@ fn forgetting_a_project_erases_its_retained_answers_and_acts() {
         people.send(Event::Decided { request, outcome });
     }
     for (key, act, outcome) in [
-        (1, Act::RemoveProject { project: PROJECT }, Outcome::ProjectRemoved { project: PROJECT }),
+        (1, Act::RemoveProject { project: PROJECT, grace: None }, Outcome::ProjectRemoved { project: PROJECT }),
         (
             2,
             Act::MakeProject { maker: PERSON, name: "Made".into(), policy: 1 },
@@ -279,7 +286,7 @@ fn forgetting_a_project_erases_its_retained_answers_and_acts() {
         [Request::Reply { reply: Reply::Outcome(Outcome::Renamed { project: OTHER }), .. }]
     ));
     route(&people.ask(1, rename(PROJECT)));
-    route(&people.act(1, Act::RemoveProject { project: PROJECT }));
+    route(&people.act(1, Act::RemoveProject { project: PROJECT, grace: None }));
     assert!(people.send(Event::ForgetProject { project: PROJECT }).is_empty());
 }
 
@@ -287,16 +294,16 @@ fn forgetting_a_project_erases_its_retained_answers_and_acts() {
 fn a_removal_answer_stays_through_release_and_goes_with_its_deletion_row() {
     for connector in [false, true] {
         let mut people = People::new();
-        let act = Act::RemoveProject { project: PROJECT };
-        let ask = Ask::RemoveProject { project: PROJECT };
+        let act = Act::RemoveProject { project: PROJECT, grace: None };
+        let ask = Ask::RemoveProject { project: PROJECT, grace: None };
         let admitted = if connector { people.act(1, act.clone()) } else { people.ask(1, ask.clone()) };
         let request = route(&admitted);
         let outcome = Outcome::ProjectRemoved { project: PROJECT };
-        people.send(Event::Deleting { project: PROJECT, step: Some(DeletionStep::Tasks) });
+        people.send(Event::Deleting { project: PROJECT, step: Some(DeletionStep::Tasks), grace: None });
         people.send(Event::Decided { request, outcome: outcome.clone() });
         people.send(Event::CloseProject { project: PROJECT });
         for step in [DeletionStep::Rows, DeletionStep::Release] {
-            people.send(Event::Deleting { project: PROJECT, step: Some(step) });
+            people.send(Event::Deleting { project: PROJECT, step: Some(step), grace: None });
             people.send(Event::ForgetProject { project: PROJECT });
             let replay = if connector { people.act(1, act.clone()) } else { people.ask(1, ask.clone()) };
             let expected = if connector {
@@ -311,7 +318,7 @@ fn a_removal_answer_stays_through_release_and_goes_with_its_deletion_row() {
         } else {
             Key::Answer(RequestKey { person: PERSON, key: [1; 16] })
         };
-        let erased = people.send(Event::Deleting { project: PROJECT, step: None });
+        let erased = people.send(Event::Deleting { project: PROJECT, step: None, grace: None });
         assert!(erased.contains(&Request::Erase { key: answer }));
         assert!(!people.rows.contains_key(&answer));
         assert!(!people.rows.contains_key(&Key::Deletion(PROJECT)));
@@ -321,7 +328,7 @@ fn a_removal_answer_stays_through_release_and_goes_with_its_deletion_row() {
 #[test]
 fn an_owner_may_ask_to_remove_a_project_and_a_member_may_not() {
     let mut people = People::new();
-    let ask = Ask::RemoveProject { project: PROJECT };
+    let ask = Ask::RemoveProject { project: PROJECT, grace: None };
     let request = route(&people.ask(1, ask.clone()));
     let outcome = Outcome::ProjectRemoved { project: PROJECT };
     people.send(Event::Decided { request, outcome: outcome.clone() });
@@ -345,11 +352,11 @@ fn an_owner_may_ask_to_remove_a_project_and_a_member_may_not() {
 fn remove_project_is_valid_for_a_nonzero_project() {
     let mut people = People::new();
     assert_eq!(
-        people.act(1, Act::RemoveProject { project: 0 }),
+        people.act(1, Act::RemoveProject { project: 0, grace: None }),
         [Request::Acted { to: to(), outcome: Outcome::Refused(Refusal::Unknown) }]
     );
     for project in [1, u32::MAX] {
-        let request = route(&people.act(1, Act::RemoveProject { project }));
+        let request = route(&people.act(1, Act::RemoveProject { project, grace: None }));
         people.send(Event::Decided { request, outcome: Outcome::ProjectRemoved { project } });
         people.send(Event::ForgetProject { project });
     }

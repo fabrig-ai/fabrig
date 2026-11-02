@@ -46,7 +46,7 @@ enum Start {
 /// (domain/people.md, sections 2–6).
 #[derive(Debug)]
 pub struct Domain {
-    deletions: Map<u32, crate::DeletionStep>,
+    deletions: Map<u32, crate::KeptDeletion>,
     start: Start,
     start_at: Option<Wall>,
     restore_failure: Option<crate::RestoreFailure>,
@@ -91,7 +91,7 @@ pub struct Domain {
 impl Domain {
     /// Kept deletions, restored at start (jig/docs/design/domain/people.md, 5.2).
     #[must_use]
-    pub fn deletions(&self) -> &Map<u32, crate::DeletionStep> {
+    pub fn deletions(&self) -> &Map<u32, crate::KeptDeletion> {
         &self.deletions
     }
 
@@ -498,7 +498,7 @@ pub fn outputs_bound(limits: &Limits) -> u32 {
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     domain.input();
     match event {
-        Event::Deleting { project, step } => deletion::keep(domain, project, step, out),
+        Event::Deleting { project, step, grace } => deletion::keep(domain, project, step, grace, out),
         Event::CloseProject { project } => deletion::close(domain, project, out),
         Event::ForgetProject { project } => deletion::forget(domain, project, out),
         Event::Act { reply_to, connector, key, act } => {

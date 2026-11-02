@@ -106,7 +106,7 @@ pub(crate) fn project(ask: &Ask) -> Option<u32> {
         | Ask::MakeService { project, .. }
         | Ask::Adopt { project, .. }
         | Ask::SetRoles { project, .. }
-        | Ask::RemoveProject { project }
+        | Ask::RemoveProject { project, .. }
         | Ask::Rename { project, .. }
         | Ask::ChangePolicy { project, .. }
         | Ask::SetPool { project, .. }
