@@ -99,7 +99,7 @@ so weigh that before starting from it.
 | M5 | Questions, and holds passed up | N1, N8 | M1 | 5, 9, 11, 14, 15, 18 | not started |
 | M6 | Early starts | N2, N14 | M1 | 4, 8, 10, 13, 17 | not started |
 | M7 | Jobs, the merge job, catching up | N6, N7 | M0; M1 for g, M2 for L | 12, 16, 21 | M7a done: landed 2026-11-02 21:34Z (plan `reference-m7a`); M7b not started |
-| M8 | Tiers and verdicts on main | `after-landing.md`, 2 to 6; N5 for main | M0 | 25, 28 | building (plan `reference-m8`) |
+| M8 | Tiers and verdicts on main | `after-landing.md`, 2 to 6; N5 for main | M0 | 25, 28 | trunk readied for main 2026-11-02 22:26Z (plan `reference-m8`) |
 | M9 | Reds to the goal; g's tier | `after-landing.md`, 7; N5 for g; N22's `repairs` | M2, M8 | 20, 26, 27 | not started |
 | M10 | The case | N21; the reference's configuration whole | every one; rung B2 passed | 1 to 28 | not started |
 
@@ -295,7 +295,10 @@ section 14 it adds; Old code, the old branches it may start from.
   job its producer (`agent.md`, 4.3.1).
 - **Builds, in two parts:** M7a, jobs in jig and temper's worker, from
   M0, as already designed; M7b, the merge job and its three uses: a
-  merge into g and a catch-up (after M1), L's update (after M2).
+  merge into g and a catch-up (after M1), L's update (after M2). M7b
+  also lets a role's authority name a job kind in jig's configuration,
+  which M7a's retire found missing (jig's `protocol/configuration.md`,
+  section 3).
 - **Configures:** `merge_job`, the project's kind that merges and
   recounts its counted baselines; the coordinator's charter:
   catch-ups, landing news paced at most once in 30 minutes (N23).
@@ -352,6 +355,12 @@ section 14 it adds; Old code, the old branches it may start from.
   whole, as one reference profile, its limits sized for a goal of a
   hundred changes (N21: temper's `../protocol/configuration.md`, 13.4
   and section 7, `agent.md`, 4.3.1, jig's `domain/engine.md`, 17.9).
+  It revisits `.temper/pre-pr` with numbers (the user, 2026-11-02): M1's
+  first edition runs the format check and the old-form counts, with no
+  build, and the coding agent's charter asks for clippy and the changed
+  packages' focused tests. Whether the script runs them too is decided
+  from the reds that reach a goal's branch, their repairs' cost and the
+  check's time at each push.
 - **Old code:** jig `github-pilot/t28-land-r4` (a batch refused for room
   waits for it); temper `configuring-revisions/settings-file` and
   `docs-reference/*`, background for the profile's sizing.
