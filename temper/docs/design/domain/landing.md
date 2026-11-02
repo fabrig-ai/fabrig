@@ -169,10 +169,12 @@ producing ─► opening ─► ready ─► preparing ─► proving ─► tur
   in which its first member becomes ready, with that member and every
   change joined to it. Members joined later are added by the connector
   in the decision that joins them.
-- **Requested by the deployment on the project's behalf,** funded from
-  the project's spend, reserving `1K` of the project's period, with the
-  authority the project's policy gives landings (jig's `domain/authority.md`, section 6), as a branch's
-  repair under `queue` is (`forge.md`, section 9). It answers to no one:
+- **Requested by the deployment on the project's behalf,** with the
+  authority the project's policy gives landings, as a branch's repair
+  under `queue` is (`forge.md`, section 9); funded from the project's
+  spend, made with a budget of zero, its priced effects funded at the
+  effect from the period's unreserved spend, so that a period reserved
+  whole never stops it (jig's `domain/authority.md`, section 6). It answers to no one:
   its escalations go to the project's escalation role, and its members'
   goals hear of it as news.
 - **Its members' change tasks wait on it:** each steps only on its
