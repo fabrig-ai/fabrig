@@ -8,6 +8,7 @@ sources = ["temper/docs/plan/live-temper-stories/inputs/request.md", "AGENTS.md"
 # catch-all then printed "record fileDIRECTORY could not be read". The Claude story's judge
 # required each parent's ended delegates on one uncut page. Two direct parts, three tasks.
 
+retired = true
 [buffer]
 low = 1.0
 high = 2.0
