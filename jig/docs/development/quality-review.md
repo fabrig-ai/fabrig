@@ -5,7 +5,8 @@ review's Phases 0 to 3 carried out, and `main` `4a6683c72` (temper's
 playground reset) merged in. What the review left out of scope, what the
 run did not finish, and what the run and two runs beside it found on the
 way. Findings and recommendations, not decisions; each says what would pay
-it back.
+it back. Every item in sections 2 to 7 is open unless it is marked fixed or
+resolved; section 8's are paid.
 
 Sources:
 - **The review:** "jig code-quality review, 2026-10-31", on `main`
@@ -16,7 +17,7 @@ Sources:
   108 Codex task reports (`jq-*`). The jig findings of the playground-reset
   run (`pg-*`) and of the repair of `main` after the day's landings
   (`mr-*`) are included too. They are in `~/src/fabrig/coord/` on hel8.
-- [`docs/development/tech-debt.md`](../../development/tech-debt.md): the
+- [`docs/development/tech-debt.md`](tech-debt.md): the
   earlier pass. Its sections 2, 3, 7, 10, 11 and 12 are stale after this
   run (section 8 here).
 
@@ -55,7 +56,7 @@ checked on `1b5c98834`; "unsure" means a report or survey left it open.
 
 1. **The charter's deliver rail.** temper's design says a run that cannot
    deliver cannot write
-   ([`temper/docs/design/domain/agent.md`](../../../../temper/docs/design/domain/agent.md),
+   ([`temper/docs/design/domain/agent.md`](../../../temper/docs/design/domain/agent.md),
    near its charter rules). temper's own code had `modify = policy.modify
    && deliver.is_some()`. After the charter policy moved into jig (item 11),
    `jig-protocol-charter`'s `assignment` grants `policy.modify`, and the
@@ -75,7 +76,7 @@ checked on `1b5c98834`; "unsure" means a report or survey left it open.
    v14, with their status files. (`pg-integrate-jig-*`; playground plan
    §5)
 3. **Stale design texts:**
-   - [`protocol/llm.md`](../protocol/llm.md) 5.6 still describes the
+   - [`protocol/llm.md`](../design/protocol/llm.md) 5.6 still describes the
      moved-record reader (JIGM/SKOT) the run deleted. Verified.
      (`jq-accounts-component`)
    - `temper/docs/design/protocol/configuration.md` (around line 539)
@@ -89,7 +90,7 @@ checked on `1b5c98834`; "unsure" means a report or survey left it open.
    - `application_part_request` (green-2);
    - the test-only `next_finishing_deadline` and `finishing_due` (core-timers).
 
-   Pays back: their lines in [`domain/engine.md`](../domain/engine.md), or
+   Pays back: their lines in [`domain/engine.md`](../design/domain/engine.md), or
    the test-only ones behind the test service. Also unsure: `engine.md` 4.3
    may need words now that completion is an empty request batch
    (`jq-core-decided-2`).

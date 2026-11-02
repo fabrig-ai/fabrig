@@ -456,10 +456,10 @@ For a party with a role on the deployment:
   each project; pending proposals; what was refused for want of room,
   recently.
 
-The existing LLM accounts section also renders the public offers and the
-viewer's provider/payer readiness through reusable fragments. These fragments
-may be composed on an application's own accounts page. No reference route,
-place or navigation is added; unknown and cut facts remain visible.
+The LLM accounts section also renders the public offers and the viewer's
+provider/payer readiness through reusable fragments. These fragments may be
+composed on an application's own accounts page. The reference UI has no route,
+place or navigation of its own for them; unknown and cut facts stay visible.
 Readiness reads each candidate host's rule and program logins, using the same
 facts as a run's check. Another provider's sources do not impose a deployment-wide
 barrier. A pending inventory keeps that host unknown for every provider, because
