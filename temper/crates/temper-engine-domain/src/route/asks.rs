@@ -100,7 +100,7 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
         core::Ask::Gather { section, budget } => Some(brief::GatherRequest::Gather { connector, section, budget }),
         core::Ask::CutTo { section, size } => Some(brief::GatherRequest::CutTo { connector, section, size }),
         core::Ask::Drop { section } => Some(brief::GatherRequest::Drop { connector, section }),
-        core::Ask::Hold { task, resource, .. } => {
+        core::Ask::Hold { entry, task, resource, .. } => {
             if connector == domain.config.forge_connector
                 && let Some(name) =
                     forge_route::forge_name(domain.config.forge_connector, &resource, env.limits.forge.name_bytes)
@@ -109,7 +109,7 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                     Some(row) if row.task != task => Some(row.task),
                     Some(_) | None => None,
                 };
-                domain.work.push(Work::Forge(forge::Event::Hold { task, resource: name, from }));
+                domain.work.push(Work::Forge(forge::Event::Hold { entry, task, resource: name, from }));
             }
             None
         }

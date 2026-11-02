@@ -1826,7 +1826,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
         domain
             .work
             .push(Work::Forge(forge::Event::Names { task, resources: Box::new([branch_name.clone(), base_name]) }));
-        domain.work.push(Work::Forge(forge::Event::Hold { task, resource: branch_name, from: None }));
+        domain.work.push(Work::Forge(forge::Event::Hold { entry: 0, task, resource: branch_name, from: None }));
         if let Some(goal) = tracked_ancestor(domain, context.requester) {
             subscribe_goal(domain, env, goal, forge::Topic::Landings { repository: provider, branch: base.clone() });
         }
@@ -3352,6 +3352,10 @@ pub(crate) fn outputs(
                         b"forge resource request refused; check resource access and configured bounds",
                     );
                 }
+            }
+            forge::Request::MakeFailed { task, resource, reason } => {
+                let words = holds::make_words(domain, &resource, &reason);
+                holds::hold_as(domain, task, tasks::Hold::EffectFailed, &words);
             }
             forge::Request::LostReadFailed { task, attempt, resource, reason } => {
                 let words = holds::lost_words(domain, task, attempt, &resource, reason);
