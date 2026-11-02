@@ -284,7 +284,7 @@ The model says: "no field is meaningful in some states only… never a lifecycle
 
 **Departures recorded nowhere:**
 - T4, everywhere;
-- runtime `Add`/`Remove`/`Abort` in forge-connection and forge-setup, designed only in `temper/docs/design/draft/playground-reset.md` (11 cites);
+- runtime `Add`/`Remove`/`Abort` in forge-connection and forge-setup, designed only in `temper/docs/design/draft/archive/playground-reset.md` (11 cites);
 - `Delegate` (a blanket generic trait whose own comment says it departs from the model) and `next_mechanism_deadline`;
 - skein-browser's second, recursive JSON parser;
 - `Step<T>` and `Answer<'a>` in the GitHub dialect;

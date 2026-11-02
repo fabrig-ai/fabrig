@@ -1,4 +1,4 @@
-//! Kept forge records (temper/docs/design/draft/playground-reset.md, 3–4).
+//! Kept forge records (temper/docs/design/protocol/forge.md, 2.1; temper/docs/design/domain/forge.md, 4.1).
 use super::*;
 
 pub(super) fn record(number: u16) -> ForgeRecord {

@@ -1,4 +1,4 @@
-//! Durable forge and playground rows (temper/docs/design/draft/playground-reset.md, 3, 4 and 6.1).
+//! Durable forge and playground rows (temper/docs/design/protocol/store.md, 2).
 use super::{FITS, w};
 use temper_engine_domain_forge as d;
 

@@ -1,4 +1,4 @@
-//! Kept forge removal (temper/docs/design/draft/playground-reset.md, 4).
+//! Kept forge removal (temper/docs/design/domain/forge.md, 4.1).
 #![expect(
     clippy::disallowed_methods,
     clippy::match_like_matches_macro,

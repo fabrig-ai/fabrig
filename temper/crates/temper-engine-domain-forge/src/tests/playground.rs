@@ -1,4 +1,4 @@
-//! Playground starts and reset cuts (temper/docs/design/draft/playground-reset.md, 6.1–6.3).
+//! Playground starts and reset cuts (temper/docs/design/protocol/setup.md, 8.4).
 #![expect(clippy::disallowed_methods, reason = "ordinary tests inspect their captured request stream")]
 #![expect(clippy::match_like_matches_macro, reason = "explicit test patterns keep matches out of step crates")]
 use super::*;

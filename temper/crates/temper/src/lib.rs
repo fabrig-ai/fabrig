@@ -340,7 +340,7 @@ fn accounts(engine: &config::Engine) -> Result<service::AccountsRuntime, String>
     accounts_runtime::resolve(engine)
 }
 
-/// Resolve the machine's GitHub host once at start (temper/docs/design/draft/playground-reset.md, 3).
+/// Resolve the machine's GitHub host once at start (temper/docs/design/protocol/configuration.md, 3).
 fn github_runtime(
     machine: Option<&temper_forge_setup::machine::GitHubMachine>,
     roots: &skein_tls::Config,

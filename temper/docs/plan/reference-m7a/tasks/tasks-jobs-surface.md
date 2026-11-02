@@ -132,3 +132,18 @@ Pre-approved options:
 As the implementer's text says, and also: every inert arm you wrote in a deciding match, by
 file and function (the later tasks replace them: list them so they can); the store's shape for
 `Spec::job`; any arm where neither rule above fit and what you did.
+
+## Answers
+
+2026-11-02. **Trim the turn fixture's input, or raise `TURN_OVERLAP_BYTES` to 2520?** Raise it
+to 2520, in `jig/tests/client-protocol/src/fixtures.rs`, with one more line in the comment above
+it in the form of its others: "A job spec's pointer adds eight bytes to the task owner." The
+constant is not a user's budget (`AGENTS.md`, section 7 means test tiers' CPU budgets and
+timeouts): it is the fixture's `load_bytes`, the exact measured cost of the single row, set
+between that row and the activity row (2768) so the test reads the turn whole once. The
+`Spec::job` field grows the stored owner, so the new value is a literal the field forces, within
+this task's leave for `jig/tests/**`; the comment lines above it show the same rise each time the
+owner grew. Leave `TURN_INPUT` as it is. Then run
+`heavy cargo nextest run -p jig-client-protocol-world --test suite -E 'test(=turn_read::a_page_sized_turn_is_read_whole_once)'`
+and finish the checks the first run left (the standalone drift run, the store's words tests, the
+focused run across the changed packages).

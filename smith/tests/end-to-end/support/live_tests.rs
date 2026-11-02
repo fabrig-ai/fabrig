@@ -394,6 +394,22 @@ fn stderr_keeps_only_complete_allow_listed_forms() {
         "smith: run failed: out of memory: used 1 of 2",
         "smith: run failed: out of time: used 1 of 2 private",
         "smith: account other has no credential: run `smith login other`",
+        "smith: run failed: the agent private words (signal 9): private tail",
+        "smith: run failed: the agent ended without answering (exit private): private tail",
+        "smith: run failed: the agent ended without answering (exit 256): private tail",
+        "smith: run failed: the agent ended without answering (signal 4294967296): private tail",
+        "smith: run failed: the agent ended without answering (signal +9): private tail",
+        "smith: run failed: the agent ended without answering (signal -9): private tail",
+        "smith: run failed: the agent ended without answering (signal 09): private tail",
+        "smith: run failed: the agent ended without answering (signal ): private tail",
+        "smith: run failed: the agent ended without answering (signal 9 ); killed: private tail",
+        "smith: run failed: the agent ended without answering (signal 9); stopped: private tail",
+        "smith: run failed: the agent ended without answering (signal 9); killed; terminated: private tail",
+        "smith: run failed: the agent ended without answering (signal 9) private tail",
+        "smith: run failed: the agent ended without answering (signal 9):private tail",
+        "smith: run failed: the agent ended without answering: private tail (signal 9)",
+        "smith: run failed: the agent ended without answering (unknown)",
+        "smith: run failed: the agent ended without answering",
     ];
     let stderr = format!("{}\n{}\n", allowed.join("\n"), rejected.join("\n"));
     let (bytes, lines, kept) = stderr_lines(stderr.as_bytes(), "claude");
@@ -402,6 +418,84 @@ fn stderr_keeps_only_complete_allow_listed_forms() {
     assert_eq!(kept, allowed, "only complete allow-listed lines survive");
     assert_eq!(stderr_lines(b"", "claude"), (0, 0, vec![]), "empty stderr has no lines");
     assert_eq!(stderr_lines(b"private\n\xff", "claude"), (9, 2, vec![]), "invalid UTF-8 counts without rendering");
+}
+
+#[test]
+fn stderr_keeps_an_agent_failure_without_its_detail() {
+    for words in [
+        "could not start",
+        "ended without answering",
+        "broke the channel rules",
+        "exceeded its receiving bound",
+        "made no progress",
+        "reached its wall time bound",
+    ] {
+        for end in [
+            "exit 0",
+            "exit 255",
+            "signal 9",
+            "signal 4294967295",
+            "exit not observed",
+            "not spawned",
+            "inline run settled",
+        ] {
+            for forced in ["", "; terminated", "; killed"] {
+                let expected = format!("smith: run failed: the agent {words} ({end}){forced}");
+                for detail in ["", ": ", ": private tail: more private bytes"] {
+                    let stderr = format!("{expected}{detail}\n");
+                    let (bytes, lines, kept) = stderr_lines(stderr.as_bytes(), "claude");
+                    assert_eq!(bytes, stderr.len(), "detail bytes are counted");
+                    assert_eq!(lines, 1, "the failure is one line");
+                    assert_eq!(kept, vec![expected.clone()], "only the fixed failure survives: {stderr}");
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn an_unknown_notice_is_named_by_its_kind() {
+    use smith_events::{Event, Level, Notice, NoticeKind, Record};
+    let leg = Leg { story: "notice_kinds", account: "claude", invocation: 1, step: Step::Exec };
+    let settled = Settled {
+        exit: smith_bench::Exit::Code(1),
+        forced: smith_bench::Forced::No,
+        error: None,
+        live_pids: 0,
+        stderr: b"",
+    };
+    for (kind, expected) in [
+        (b"not_contained".as_slice(), "not_contained"),
+        (b"a0_", "a0_"),
+        (b"abcdefghijklmnopqrstuvwxyz012345", "abcdefghijklmnopqrstuvwxyz012345"),
+        (b"abcdefghijklmnopqrstuvwxyz0123456", "unknown"),
+        (b"abcdefghijklmnopqrstuvwxyz01234567890123", "unknown"),
+        (b"not-contained", "unknown"),
+        (b"not contained", "unknown"),
+        (b"Not_contained", "unknown"),
+        (b"not_contained\n", "unknown"),
+        (b"\xff", "unknown"),
+        (b"", "unknown"),
+    ] {
+        let record = Record {
+            t_ms: 0,
+            event: Event::Notice(Notice {
+                level: Level::Warning,
+                kind: NoticeKind::Unknown(kind.into()),
+                run: None,
+                account: None,
+                reset_ms: None,
+                code: Some(b"private-notice-code".as_slice().into()),
+                bytes: None,
+                exit: None,
+                forced: None,
+            }),
+        };
+        let report = exec_report(&leg, "notice kind", &settled, &[&record], None);
+        let notice = report.lines().find(|line| line.starts_with("session=1 notice"));
+        assert_eq!(notice, Some(format!("session=1 notice kind={expected}").as_str()), "bounded kind: {kind:?}");
+        assert!(!report.contains("private-"), "notice metadata stays out: {report}");
+    }
 }
 
 #[test]

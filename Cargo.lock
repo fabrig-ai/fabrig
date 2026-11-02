@@ -5017,6 +5017,7 @@ dependencies = [
  "smith-host-domain",
  "temper-engine-domain-forge",
  "temper-worker-domain-checkout",
+ "temper-worker-domain-tooling",
 ]
 
 [[package]]

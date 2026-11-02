@@ -105,3 +105,17 @@ Pre-approved options:
 
 As the implementer's text says, and also: the profile's job limits as built; how the tail is
 captured; whether the job's group kill needed anything of skein's io beyond what it has.
+
+## Answers
+
+2026-11-02. Rerun after `worker-jobs` supplies the root's job interfaces, or widen this task to
+build them? Rerun; do not widen. `Event::AssignJob`, `Request::Job`, `Event::Job`, the
+capability's composition and `route.rs`'s job arms are `worker-jobs`'s acceptance, and that task
+is still running (its second answer is on the trunk). Keep run 1's `JobSpec` schema commit
+(`a9b74c42e7`, `origin/reference-m7a/service-jobs`) and build on it. Start by merging
+`origin/reference-m7a/worker-jobs`; if `temper-worker-domain`'s `boundary.rs` still lacks
+`Event::AssignJob` and `Request::Job`, stop at once with that evidence rather than build
+against a guess. Once they are there, follow the root's boundary as `worker-jobs` built it
+(where the kinds list and the job limits live included); report any difference from
+`notes/contracts.md`, section 8. Replace the inert service arms `worker-jobs` wrote, named in
+its report.

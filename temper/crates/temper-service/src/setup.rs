@@ -106,7 +106,7 @@ impl Layer {
             }
         }
     }
-    /// Keep the shell-resolved endpoint before the forge joins setup (draft/playground-reset.md, 3).
+    /// Keep the shell-resolved endpoint before the forge joins setup (temper/docs/design/protocol/forge.md, 2.6).
     pub(crate) fn resolved(&mut self, endpoint: crate::ForgeRuntime) {
         if let Some(runtime) = &mut self.runtime {
             runtime.resolved(endpoint);
@@ -359,7 +359,7 @@ impl Layer {
     }
 }
 /// Stop serving a removed forge, including events already queued by its host
-/// (temper/docs/design/draft/playground-reset.md, 4).
+/// (temper/docs/design/protocol/forge.md, 2.3).
 pub(crate) fn forget(engine: &mut crate::engine::Engine, forge: u16) {
     let layer = &mut engine.setup;
     layer.served.remove(&forge);
