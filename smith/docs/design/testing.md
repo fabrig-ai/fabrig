@@ -130,7 +130,7 @@ patch and drift tests check the generated `encoded_bound` and
   - TLS;
   - signals;
   - a process tree that ends;
-  - once contained trees exist, containment (section 6).
+  - with contained trees, containment (section 6).
 - It runs in the focused suite, and fails, saying why, where `io_uring`,
   git, rg or sh is missing.
 
@@ -496,12 +496,10 @@ Every world checks what the strategy lists (testing-strategy.md, section
   uses `MEMORY_CONTENT_EDGE_RECORDS = 98`, from two parallel tools,
   sixteen completion blocks and four jobs. Its wider fuzzy scenario uses
   `WIDE_CONTENT_EDGE_RECORDS = 105`, from three parallel tools with the
-  same blocks and jobs. The protocol-LLM root memory scenario uses
+  same blocks and jobs. The agent world's restored-memory scenario uses
   `ROOT_MEMORY_CONTENT_EDGE_RECORDS = 283`, from one parallel tool,
-  sixty-four completion blocks and four jobs. Calm fact settings use
-  `CALM_RUN_FACTS = 24` (two observations per eight messages plus eight
-  lifecycle facts) and `CALM_TOOLS_FACTS = 6` (four jobs plus two
-  lifecycle facts). Each constant has an origin comment beside it.
+  sixty-four completion blocks and four jobs. Each constant has an
+  origin comment beside it.
   These settings are independent of any entrance allowance; the domain
   fact queues remain uncapped.
 - **Memory returns when its use ends** (protocol/limits.md, sections 5
@@ -528,7 +526,7 @@ Every world checks what the strategy lists (testing-strategy.md, section
   - the scratch directory changed only where the scenario expects;
   - nothing is left running: the agent finished, and every child was
     reaped, each job's process group included.
-- **Containment, once contained trees exist** (protocol/agent.md, sections
+- **Containment, with contained trees** (protocol/agent.md, sections
   2 and 3; protocol/hosts.md, section 3), in the real loop:
   - **writes stay in the view:** commands that try to write outside the
     writable directories, a git directory included, fail, and the
@@ -554,7 +552,7 @@ The strategy's two suites (testing-strategy.md, section 8) make the gate:
   tests, replay, facts changing nothing and memory under scenario ceilings;
   the real loop; the end-to-end tests against fakes; and the benchmark
   harness's offline tests;
-- **fuzzy tests:** each world's `tests/fuzzy_*.rs`, sweeps over seeds
+- **fuzzy tests:** each world's `tests/suite/fuzzy/`, sweeps over seeds
   under faults; the run's world also draws message timings, budgets and
   shares (domain/run.md, section 13), the session's world its usage,
   appended sizes, rendered sizes and their bytes-to-token ratios
@@ -577,12 +575,13 @@ own command (2.4).
 ## 7. Layout
 
 ```
-Cargo.toml                       the workspace, and the root package smith
+Cargo.toml                       the package smith, a member of the repository's workspace
 src/main.rs                      the binary smith: glue
 src/bin/smith-agent.rs           the binary smith-agent: glue
 crates/*/src/tests.rs            step tests
 crates/smith-*-service           the profile, and its derivation properties
 crates/smith-*-shell             the shells' parsing, settings and refusals
+crates/smith-local-protocol/tests the chat store's real-directory layout cases (2.5)
 tests/codecs                     the codecs: goldens, drift, bounds, fuzzy decoding
 tests/tools                      the tools child domain's world
 tests/session                    the session child domain's world
@@ -597,15 +596,19 @@ tests/agent-process              simulated world: the agent service
 tests/hosts                      simulated world: a sample host and the agent it spawns
 tests/local-process              simulated world: the local host and its peers
 tests/real                       the real loop
-tests/*/tests/*.rs               a world's focused tests
-tests/*/tests/fuzzy_*.rs         its fuzzy tests
-tests/end-to-end/end_to_end.rs   end to end against fakes: a root package target
-tests/end-to-end/live.rs         the live suite: a root package target
+tests/fake-claude                smith-fake-claude: the fake program a program backend runs (section 4)
+tests/transcript-patches         the transcript patches' fixture family (protocol/transcript.md, section 12)
+tests/*/tests/suite/             a world's focused tests: one suite binary per world
+tests/*/tests/suite/fuzzy/       its fuzzy tests
+tests/end-to-end/end_to_end.rs   end to end against fakes: a package target, with its modules beside it
+tests/end-to-end/fake-claude.rs  the fake program's binary, for end to end
+tests/end-to-end/live.rs         the live suite: a package target
+tests/end-to-end/live_configuration.rs  the live configuration's focused checks: a package target
 tests/end-to-end/support/        their shared setup
 benchmarks/                      smith-bench, the benchmark harness (benchmarks.md)
 ```
 
-- **The end-to-end and live tests are the root package's `[[test]]`
+- **The end-to-end and live tests are the package's `[[test]]`
   targets** (shell.md, section 3.1). Cargo gives a package's own tests
   the paths of its binaries, and `tests/end-to-end/` holds no manifest,
   so it is not a package of its own. The real-program probes in

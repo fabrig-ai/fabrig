@@ -71,7 +71,7 @@ root package's (section 3). The layers are those of skein's echo
 |---|---|---|
 | `smith-agent-service` | service | the agent's `iterate`; the `standard` profile's deployment values and their derivation into every layer's limits, as step code with its tests |
 | `smith-local-service` | service | the local host's `iterate`: the local domain, which owns its agent as a child (the inline agent, or `smith-host-domain` for a spawned one), composed with the effects: the LLM and machine components, the chat store, the terminal and the event sink; the host's and the local layers' share of the profile |
-| `smith-inline-agent` | domain | smith's side of the one-host draft: a run as a composed `smith-domain` that speaks `smith-host-domain`'s vocabulary (domain/host.md) |
+| `smith-inline-agent` | domain | an agent capability in its host's process: a run as a composed `smith-domain` that speaks `smith-host-domain`'s vocabulary (domain/host.md) |
 | `smith-events` | codec | the event vocabulary (protocol/events.md), encoded over skein-json, with its goldens |
 | `smith-local-protocol` | protocol | the chat store and delivery records over skein io (protocol/hosts.md, section 5.3); the credentials directory's keys and installation identifier, as private files (section 7) |
 | `smith-agent-shell` | shell | the agent process (2.2) |
@@ -227,38 +227,23 @@ section 14.
 
 ### 3.1 The manifest
 
-- **One manifest, two roles.** The root `Cargo.toml` is the workspace
-  and the package `smith`. Its binaries:
+- **The package's manifest.** `smith/Cargo.toml` is the package `smith`,
+  a member of the repository's one workspace (`AGENTS.md`, section 1).
+  Its binaries:
   - `src/main.rs`, the binary `smith` (`default-run`);
-  - `src/bin/smith-agent.rs`, the binary `smith-agent`.
+  - `src/bin/smith-agent.rs`, the binary `smith-agent`;
+  - `tests/end-to-end/fake-claude.rs`, the binary `fake-claude`, only
+    with the `end-to-end` feature, for the end-to-end tests.
 - **Nothing is discovered.** `autobins`, `autotests`, `autobenches` and
-  `autoexamples` are off, and every target is declared:
+  `autoexamples` are off, and every target is declared: the binaries
+  above, and the tests `end_to_end` (`tests/end-to-end/end_to_end.rs`,
+  with the `end-to-end` feature), `live` (`tests/end-to-end/live.rs`) and
+  `live_configuration` (`tests/end-to-end/live_configuration.rs`).
 
-  ```toml
-  [[bin]]
-  name = "smith"
-  path = "src/main.rs"
-
-  [[bin]]
-  name = "smith-agent"
-  path = "src/bin/smith-agent.rs"
-
-  [[test]]
-  name = "end_to_end"
-  path = "tests/end-to-end/end_to_end.rs"
-
-  [[test]]
-  name = "live"
-  path = "tests/end-to-end/live.rs"
-  ```
-
-  The end-to-end and live tests are the root package's own targets,
-  because cargo gives `CARGO_BIN_EXE_<name>` only to a package's own
-  tests (testing.md, section 7). The world crates under `tests/` stay
-  packages of their own.
-- **Bare commands keep their meaning.** `default-members` lists every
-  member, so a bare `cargo build` or `cargo test` covers the workspace.
-  The gate names `--workspace`.
+  The end-to-end and live tests are the package's own targets, because
+  cargo gives `CARGO_BIN_EXE_<name>` only to a package's own tests
+  (testing.md, section 7). The world crates under `tests/` stay packages
+  of their own. The gate names `--workspace`.
 - **Glue.** `main.rs`:
   1. parses its arguments into a command (2.3);
   2. reads the settings and runs `smith check`'s checks, refusing with
@@ -272,8 +257,8 @@ section 14.
   `smith-agent.rs` reads the configuration's path, starts
   `smith-agent-shell`, runs it with `drive`, and exits 0 after its
   answer or 1 when it could not answer (protocol/agent.md, section 6).
-- **MIT-licensed.** A `LICENSE` file at the root holds the MIT licence,
-  and every manifest, the root package's and each crate's, says
+- **MIT-licensed.** `smith/LICENSE` holds the MIT licence, and every
+  manifest, the package's and each crate's, takes the workspace's
   `license = "MIT"`. smith's registration with a provider is an
   open-source program's own (section 7).
 - **Files before the loop.** A shell may read whole files with std before
@@ -310,7 +295,7 @@ Shared flags:
 | Flag | Meaning |
 |---|---|
 | `-C DIR` | the workspace: one directory, writable; a git working tree is a repository. The current directory by default |
-| `--dir NAME=PATH[:ro\|rw]` | another directory of the workspace, beside `-C`'s, called `NAME` (one safe path component), read-only with `:ro`, writable without a suffix or with `:rw`; repeatable (added 2026-10-20; see below) |
+| `--dir NAME=PATH[:ro\|rw]` | another directory of the workspace, beside `-C`'s, called `NAME` (one safe path component), read-only with `:ro`, writable without a suffix or with `:rw`; repeatable (see below) |
 | `-m ENDPOINT/NAME` | the main model |
 | `--effort LEVEL` | its reasoning effort |
 | `--account NAME` | the account main's endpoint runs on, for this invocation (5.2) |
@@ -318,7 +303,7 @@ Shared flags:
 | `-c KEY=VALUE` | a setting, by its dotted path, as a TOML value; repeatable (5.1) |
 | `--trace PATH` | append the event stream to `PATH` |
 
-- **Several directories** (added 2026-10-20). With `--dir`, the
+- **Several directories.** With `--dir`, the
   workspace holds `-C`'s directory first, as the working directory, and
   each `--dir` after it in the order given (domain/tools.md, section 2).
   The working directory is then named by its own last path component,
@@ -478,7 +463,7 @@ One run, then exit:
   `$XDG_RUNTIME_DIR` when it is set, else beneath the system's temporary
   directory (`$TMPDIR`, else `/tmp`), and never beneath the state
   directory, so a run's chat sits apart from the disk the run's own
-  builds fill (revised 2026-10-20). The credentials directory is kept as
+  builds fill. The credentials directory is kept as
   usual. A run on a program leaves the program's own session in the
   source's configuration directory, where no later run looks for it
   (protocol/programs.md, 5.8).
@@ -1082,7 +1067,7 @@ The declared quantities of protocol/limits.md, section 2.2:
 | `budget.turns` | 512, a loop guard | provisional |
 | `budget.reserve` | 2 turns and 5 minutes | provisional; the budget probe |
 | waiting time | 15 minutes interactive; 0 for `smith exec` | provisional |
-| `sub_agents` | off | decided, until the reserve lands |
+| `sub_agents` | off | decided: children run one at a time, and the parallel-children probes are uncalibrated (`docs/development/benchmarks/sub-agents-by-default.md`) |
 
 ### 6.5 Policy values
 
@@ -1099,8 +1084,8 @@ names (section 2.3):
 | `shell_timeout` | 2 minutes | provisional; the tool-output probe |
 | `check_timeout` | 5 minutes, which the default reserve's 5 minutes holds (domain/run.md, 9.1) | provisional |
 | `tool_deadline` | 20 minutes, the most a command's call may ask for | provisional; the tool-output probe |
-| `job_poll` | 30 s, a `job` call's wait when it asks for none (added 2026-10-20) | provisional; the tool-output probe's `background` |
-| `job_wait` | 5 minutes, the longest yield or wait a call may ask for (revised 2026-10-20: 30 s, which was also the default) | provisional; the dogfood's polls |
+| `job_poll` | 30 s, a `job` call's wait when it asks for none | provisional; the tool-output probe's `background` |
+| `job_wait` | 5 minutes, the longest yield or wait a call may ask for | provisional; the dogfood's polls |
 | `parallel_tools` | 4 adjacent reads run at once | provisional; the parallel-read probe |
 | `group_stop` | 1 s for each of its three steps | provisional; the process-tree probe |
 | `close` | 5 s | provisional |
@@ -1108,7 +1093,7 @@ names (section 2.3):
 | `wrap_up` | 60 s, a child's final turn's allowance at most | provisional; the budget probe's `wrap-up` |
 | `cancel_grace` | 10 s | provisional |
 | `exit_grace` | derived: the agent's teardown bound, two `close`s, the event stream's `write_deadline` and its cancels' settling, plus one more `close` as a margin (skein's `shell.md`, section 13; protocol/limits.md, section 7); a setting below the bound is refused | decided as derived; the margin provisional |
-| `refresh_lead` | 60 s before the access token expires (added 2026-10-20) | provisional; the `credentials` probe |
+| `refresh_lead` | 60 s before the access token expires | provisional; the `credentials` probe |
 
 ### 6.6 Instructions
 
@@ -1119,35 +1104,31 @@ settings set no `instructions` (5.2; domain/run.md, section 3.1).
   and tasks alike.
 - **Its topics, in this order:**
   1. carrying the request to its end, within its scope, by the plan or
-     the steps it gives, in their order, and never by what it rules out
-     (revised 2026-10-20);
+     the steps it gives, in their order, and never by what it rules out;
   2. finding files, with `list` and `search` first, then reading the
      lines the work needs: the documents the request names (its task,
      its plan, the guides it points to) read together in the first
      response, each from its start in the default window; code, a
      window from where a search found it, one window wide enough for
      the part the work needs rather than several small ones, and a
-     whole file only when the work needs all of it (revised
-     2026-10-20);
+     whole file only when the work needs all of it;
   3. batching in one response every call that waits on no other's
      answer: reads, lists, searches and commands that change nothing,
      with a running job's poll beside them; and a change's edits,
      across its files, one `edit` per file in one response, then the
-     command that checks them (revised 2026-10-20);
+     command that checks them;
   4. changing files with `edit` and `write`, never through the shell,
      the smallest change first, with every replacement one file needs
      in one `edit`, and an existing file written whole only when most
-     of it changes (revised 2026-10-20), as code the repository's
+     of it changes, as code the repository's
      reviewer would accept by its guides, with no public item, lint
-     exception or unreachable path the change does not need (revised
-     2026-10-20);
+     exception or unreachable path the change does not need;
   5. running the tests the change needs, each check once on the same
      files, and long commands as jobs whose polls go beside other work
-     (domain/tools.md, section 5; revised 2026-10-20);
+     (domain/tools.md, section 5);
   6. not reverting changes the model did not make;
   7. the report that `finish` carries, as soon as the work is done and
-     checked, with no reading or running for the report alone (revised
-     2026-10-20);
+     checked, with no reading or running for the report alone;
   8. that a compaction does not end the work.
 - **It names only smith's own tools** (domain/run.md, section 5.1), and
   says nothing that the run's own sections of the system text already
@@ -1276,7 +1257,7 @@ whatever its source (domain/host.md, section 7).
   released when it is closed or its process ends, never left behind by
   a crash. A process that finds it busy asks again on a timer, within
   the driver's lock wait (skein's `oauth.md`, 6.7), and then the write
-  fails as busy, for now, and the grant is asked for again.
+  fails as busy, and the grant is asked for again.
 - **A refresh refused for good,** such as `invalid_grant` or
   `refresh_token_reused`, means the account must sign in again (exit 3,
   4.3); a transient failure keeps the record, and is retried.
@@ -1352,7 +1333,7 @@ whether the settings are admitted.
   creating and changing nothing. A cache it cannot confirm (absent, not a
   directory, or denied, with the kernel's error) is a warning naming the
   cache and why: a build that never writes there is not stopped by it.
-  Once contained trees exist, they are the writable part of the view
+  With contained trees, they are the writable part of the view
   (protocol/agent.md, section 3).
 - **Wrapper warnings.** A build preset names the wrappers its tools may
   be configured with, such as `rustc-wrapper` for `rust`. `smith check`
@@ -1361,9 +1342,9 @@ whether the settings are admitted.
   configured it.
 - **Credential-like names.** `smith check` warns when a variable the
   commands would see has a name that suggests a credential.
-- **Per-tree limits later.** CPU, memory and process limits per command
-  tree come with contained trees. Until then, settings do not stand in
-  for them.
+- **Per-tree limits come with contained trees.** CPU, memory and process
+  limits per command tree are theirs, and settings do not stand in for
+  them.
 
 ## 9. One process
 
@@ -1406,9 +1387,8 @@ whether the settings are admitted.
 
 ## 10. The world
 
-Within the focused suite's 30 seconds (15 seconds before the user's doubling
-of 10-22, provisional) and the fuzzy suite's 120 seconds: (suite's 60:
-before the user's doubling of 10-22, provisional)
+Within the focused and fuzzy suites' budgets (testing-strategy.md,
+section 8):
 
 - **Step tests in `smith-local-shell`:**
   - each command's arguments to its typed value, and each usage error;
@@ -1484,7 +1464,7 @@ before the user's doubling of 10-22, provisional)
 - **A chat's account between invocations:** a chat resumed with another
   account is carried over (4.1). Default: allowed, said once on the
   status line.
-- **A chat's directories between invocations** (added 2026-10-20): a
+- **A chat's directories between invocations:** a
   chat resumed with other `--dir` directories than it began with.
   Default: the workspace is the resumed invocation's, and the
   transcript's paths into a directory no longer named are read as they

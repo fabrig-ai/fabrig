@@ -454,14 +454,6 @@ directory, each record under its lock (`docs/design/shell.md`, section
   - each with the inline agent, and with a spawned agent, resumes,
     replays and lines crossing the answer included.
 
-## 8. From temper
-
-- **The worker's agent child's protocol half** becomes
-  `smith-host-protocol`, without temper's names.
-- **The worker's push** stays temper's, as its delivery (temper's
-  `domain/agent.md`, section 6).
-- **The local host is new.**
-
 ## 9. Open questions
 
 - **A richer terminal:** a full-screen view of a chat, and several chats at

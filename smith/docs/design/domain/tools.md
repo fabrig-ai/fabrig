@@ -51,8 +51,8 @@ listed in section 8.
   - `/name/...` is a path within the directory called `name`, and
     `list /` answers the directories' names from the session's
     authority, without io;
-  - until contained trees give commands the same view, a host absolute
-    path within a directory is an alias for the same place, so a path a
+  - while commands see the host's own paths, without contained trees
+    (section 5), a host absolute path within a directory is an alias for the same place, so a path a
     command printed can be given to a tool. An absolute path at or
     beneath a directory's host path, compared by whole names, reads as
     that alias; any other reads as `/name/...`.
@@ -137,7 +137,7 @@ workspace that can write can remove, with no shell needed.
   path order, within its caps on hits and bytes, and counts the rest.
 - **`write { path, content }`** makes the file hold `content`, creating
   it if there is none, and first the directories its path names that do
-  not exist, within the directory the path is in (added 2026-10-20). A
+  not exist, within the directory the path is in. A
   directory it made stays if the store then fails.
 - **`edit { path, edits }`** applies `edits` in order, each an `old`
   snippet, its `new` replacement and whether to replace `all`
@@ -145,7 +145,7 @@ workspace that can write can remove, with no shell needed.
   `old` must occur exactly once, or at least once with `all`. If any
   edit fails, none is applied, and the outcome names the first that
   failed and why. The file is stored once.
-  - **A no-op edit is a match** (added 2026-10-20). An `old` equal to
+  - **A no-op edit is a match.** An `old` equal to
     its `new` must match as any `old` does, and changes nothing. A call
     is refused as unchanged only when its edits together leave the file
     as it was loaded.
@@ -193,9 +193,7 @@ workspace that can write can remove, with no shell needed.
   made meanwhile by another session, or by anything else, is caught.
   A session knows the 256 files it read or wrote last; one it knew
   before those is forgotten, and must be read again before a `write`
-  replaces it (revised 2026-10-20: 16 files were too few for a change
-  across a crate, and a whole file's contents were refused after their
-  generation).
+  replaces it. 256 files hold what a change across a crate reads.
 - **Read before remove.** A `remove` deletes a file only if its
   session's LLM has read its current version, as a `write` replacing it
   would need, or an empty directory; never a directory with anything in
@@ -215,8 +213,7 @@ workspace that can write can remove, with no shell needed.
   path names, and a path with a `.git` part, in any case, is refused: the
   host must not have to trust what a repository's own configuration
   became. The directories a `write` makes follow its store's rules: inside
-  a writable directory, no symbolic link on any part, no `.git` part
-  (added 2026-10-20).
+  a writable directory, no symbolic link on any part, no `.git` part.
 - **Limits are told.** Every limit a tool applies is stated to the LLM
   with its unit and its maximum: a read's window, what a write or an
   edit may carry, a command's deadline, yield and kept output, a job's
@@ -238,7 +235,7 @@ workspace that can write can remove, with no shell needed.
 
   A file past `file_bytes` is answered as too large, by `read` and by
   `edit` alike. The tools' descriptions state both bounds.
-- **A size refusal says what to do** (added 2026-10-12). Whatever is
+- **A size refusal says what to do.** Whatever is
   answered as too large, a call, a `write`'s content, a file or an
   `edit`'s result, the LLM is told what was too large, its size, and the
   bound it passed, with its unit. A `write` whose content passes the
@@ -280,7 +277,7 @@ workspace that can write can remove, with no shell needed.
     head to its tail, and the count of bytes dropped between them.
 - **A command has its own process group,** and a timeout signals the
   group, so what the command started ends with it, not only the shell.
-  A process that leaves its group is beyond this until contained trees.
+  A process that leaves its group is beyond this without contained trees.
 - **A job** is a command that a `shell` call left running past its
   yield. It belongs to the session that started it.
   - **Its start.** The yield is `yield_seconds`, clamped to `job_wait`
@@ -303,8 +300,8 @@ workspace that can write can remove, with no shell needed.
     its exit, `timed_out` naming the deadline it passed, `stopped`, or
     `cancelled`. It waits for the end up to `wait_seconds`, or `job_poll`
     when it asks for none, clamped to `job_wait`, before it answers
-    `running` (revised 2026-10-20: the default and the ceiling were one
-    value, so a poll could not wait longer than it waited by default).
+    `running`. The default and the ceiling are two values, so a poll may
+    ask to wait longer than it waits by default.
   - **Reads of one job consume its output in admission order.**
     `job_reader_idle` permits only one active reader of a job; queued
     reads retain their admission order, including when a wait is ended
@@ -349,12 +346,12 @@ workspace that can write can remove, with no shell needed.
   - **Within its activation.** A job never survives its activation: a
     session resumed in a later activation has none, and a `job` call
     naming an earlier one is invalid.
-- **Containment is skein's contained trees, later.** A command's tree is
-  then to see the workspace's view: it writes only the writable
+- **Containment is skein's contained trees.** A command's tree sees the
+  workspace's view: it writes only the writable
   directories, and every git directory is read-only to it, since the
   host commits the checked tree, merges in progress included, and the
   LLM needs no git writes. Searches and listings see every directory
-  read-only. Resource limits per tree come with them. Until then a
+  read-only. Resource limits per tree come with them. Without them a
   command is not confined: `write` and `edit` keep section 4's rules,
   and a command has only the permissions of the agent's user
   (protocol/agent.md, section 3).
@@ -433,7 +430,7 @@ prove on a real kernel.
 
 ## 8. Open questions
 
-- **A wait ended by output** (added 2026-10-20): whether a `job` call's
+- **A wait ended by output:** whether a `job` call's
   wait should also end when the job writes something new, so that a
   poll sees a failure early. It would wake a streaming build at every
   line, so a poll waits for the end, `job_poll` by default, as Codex's
@@ -454,14 +451,6 @@ prove on a real kernel.
   fixed mounts, which the tools then accept.
 - **A run's own environment:** a typed, bounded charter overlay, merged
   in one place, only once a host needs one.
-
-## 9. From temper
-
-temper's agent's tools domain, as it was, with `edit` taking several
-replacements and needing a match rather than a read, `list` answering a
-tree, output budgets the LLM chooses within ceilings, and one path
-namespace; only the names of what it confines for (temper's worker)
-become the host's.
 
 ## 10. On a program backend
 

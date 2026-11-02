@@ -1,8 +1,8 @@
 # run: status
 
-2026-10-29. Where smith's code lags or departs from [run.md](run.md).
+2026-11-02. Where smith's code lags or departs from [run.md](run.md).
 
-- **Built:** 3.1, 6, 9.1: explicit Open mode, text-only replies that listen, and native text-only final turns. 3.3, 5.3, 8.1, 9.1: framed compaction summaries, jobs, checks and budgets. 3.4: an Open run opens with its person's words as main's first user message.
-- **Not yet:** 5.1: MCP tool source. 5.3, 15: work beside writing children and children from a parent prefix. 6, 9.2: mid-work messages and threshold notes.
-
-- **Built:** 9.1: Finite reserve choices and notes retain host tools marked `reserve`; Open final replies remain text only.
+- **Not yet:** 6, 9.2: messages mid-work and threshold notes. The run
+  offers queued messages only at main's opening and when main yields
+  (`smith-domain-run/src/run.rs`, `continue_messages`), and no note marks
+  the budget's thresholds.

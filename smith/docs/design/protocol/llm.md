@@ -66,7 +66,9 @@ A completion's prompt is built from what the domain gives:
   sends it, Anthropic's as `max_tokens`, and the withdrawn Codex route
   takes none, so there it stays a local bound on the answer (skein's
   `llm.md`, section 4);
-- **the endpoint's options,** from its configuration: reasoning effort;
+- **the endpoint's options,** from its configuration, and the reasoning
+  effort the conversation's LLM asks for in its charter (charter.md,
+  section 2);
 - **the affinity,** the conversation's (2.1).
 
 ### 2.1 Affinity
@@ -137,6 +139,7 @@ A completion's prompt is built from what the domain gives:
 | `search` | `pattern`; optionally `path` and `glob`, to search within |
 | `write` | `path`, and `content`, the whole file, at most the tool payload in bytes |
 | `edit` | `path`, and `edits`, each an `old`, a `new` and optionally `all`, in the dialect's edit format |
+| `remove` | `path`, a file read at its current version or an empty directory (domain/tools.md, section 3) |
 | `shell` | `command`; optionally `timeout_seconds`, at most the effective maximum, `output_bytes`, at most the output ceiling, and `yield_seconds`, at most `job_wait` |
 | `job` | `job`, the number of a job its session answered `running`; optionally `wait_seconds`, by default `job_poll` and at most `job_wait`, `output_bytes`, at most the output ceiling, and `stop`, a boolean |
 | `finish` | the result contract's forms (below) |
@@ -169,10 +172,9 @@ A completion's prompt is built from what the domain gives:
     from its start;
   - `job`: that it reads a job's output since its last answer, and its
     end once it has ended; `wait_seconds` in seconds, its default
-    `job_poll` and its ceiling `job_wait` (revised 2026-10-20); that a
+    `job_poll` and its ceiling `job_wait`; that a
     poll is best asked to wait about as long as the job has left, so
-    that one poll sees its end, and needs no deliberation of its own
-    (added 2026-10-20); that beside any other call of its response
+    that one poll sees its end, and needs no deliberation of its own; that beside any other call of its response
     it waits no longer than they run, so such a poll costs nothing, and
     that it waits as it asks only in a response of `job` calls alone;
     `stop`, which
@@ -391,8 +393,8 @@ A completion's prompt is built from what the domain gives:
   only. The service applies the channel's main-ordinary-completion rule:
   sub-agents and compactions produce no channel pieces. The component
   only hands over selected measures; it coalesces none and knows no turn
-  or retry. The event sink ignores input measures. Reasoning deltas stay
-  unbuilt. Nothing of any delta reaches the domain beyond byte counts.
+  or retry. The event sink ignores input measures. No reasoning delta is
+  handed over (section 12). Nothing of any delta reaches the domain beyond byte counts.
 - **The guard, before an ordinary request is sent.** When the session
   gives a request the line, its last prompt's reported size and where
   the new part starts (domain/session.md, 8.1), this layer measures the
@@ -632,25 +634,12 @@ component and skein's client against scripted byte peers, in each dialect.
 
 All run in virtual time, in milliseconds each, within the focused suite.
 
-## 11. From temper
-
-- **Kept, from temper's `protocol/llm.md`:**
-  - fixed schemas for the workspace's tools;
-  - total decoding with typed problems;
-  - failures classified and never retried below the domain;
-  - opaque blocks kept verbatim;
-  - cache markers placed by the dialect, now skein's.
-- **Moved to skein:** the providers' codecs, the client, identity profiles,
-  and captured traffic for tests.
-- **Gone:** the engine's tools' schemas, now temper's host tools.
-
 ## 12. Open questions
 
 - **More providers:** other dialects and local models. They are skein's
   client's to add, and configuration's to name.
 - **Reasoning as it streams:** the channel carries its kind, but this
-  component still drops its deltas. Arguments are built (section 6).
-  Readable reasoning also needs each provider asked for it.
+  component hands over no reasoning delta (section 6). Readable reasoning also needs each provider asked for it.
 - **MCP tools:** schemas passed through like host tools', once MCP is a
   tool source.
 - **Edit formats:** which format each dialect is offered, once measured;
