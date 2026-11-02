@@ -573,7 +573,7 @@ the forge's, judged in the change's decision:
 | Kind | Scope | Numbers | Value |
 |---|---|---|---|
 | 4, a project's landing | each project | 1 | the members below |
-| 5, a repository's gates | each project | the repository's adoption, unique in the deployment (its forge's number shifted 16 bits left, with the forge's repository number below) | the repository (its forge and id); `gates`, its test gates, each a name, the workflow's file, its ignored paths, and whether it blocks; `tiers`, each a name, the workflow's file, its ignored paths, the artifact and its format (`after-landing.md`, section 2) |
+| 5, a repository's gates | each project | the repository's adoption, unique in the deployment (its forge's number shifted 16 bits left, with the forge's repository number below) | the repository (its forge and id); `gates`, its test gates, each a name, the workflow's file, its ignored paths, and whether it blocks; `tiers`, each a name, the workflow's file, its ignored paths, the artifact and its format, and the branch it follows (`after-landing.md`, section 2) |
 
 Kind 4's members, each with its default and the section it serves:
 
@@ -589,8 +589,10 @@ Kind 4's members, each with its default and the section it serves:
 | `questions_on_forge` | off | `forge.md`, 12.1 |
 
 - **Until both kinds are settings** on jig's application settings (jig's
-  `domain/engine.md`, 17.5), a project's `by` and its repositories'
-  gates are configured in the document's `landing` member
+  `domain/engine.md`, 17.5), a project's `by`, its `tier_retries` and
+  `verification_bound` (`verification_bound_ms` there), and its
+  repositories' gates and tiers are
+  configured in the document's `landing` member
   (`../protocol/configuration.md`, section 3), as the landing rules are,
   and read at the start.
 - **`turn` is refused** for a project with a repository where temper

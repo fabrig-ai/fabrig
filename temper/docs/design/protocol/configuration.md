@@ -293,9 +293,15 @@ settings in the store, temper's kinds 1 and 2; until its second step
   `{"forge": u16, "repository": u64, "gates": [{"name": string,
   "workflow": string, "ignored": [string], "blocking": boolean}],
   "tiers": [{"name": string, "workflow": string, "ignored": [string],
-  "artifact": string, "format": "junit" | "lines"}]}`, a repository at
-  most once (`../domain/landing.md`, 13.1; `../domain/after-landing.md`,
-  section 11).
+  "artifact": string, "format": "junit" | "lines", "branch": string}]}`,
+  a repository at most once (`../domain/landing.md`, 13.1;
+  `../domain/after-landing.md`, section 11). A tier's `branch` is the
+  branch it follows, by its name on the forge, the repository's landing
+  branch when absent (`../domain/after-landing.md`, section 2).
+- **The tiers' project settings,** beside `by`, by either way:
+  `tier_retries`, a u8, 2 when absent; `verification_bound_ms`, the
+  project's verification bound, a u64, 7,200,000 (two hours) when absent
+  (`../domain/after-landing.md`, sections 3 and 6).
 - **The turn's project settings,** beside `by`:
   `prepare` and `key`, paths in the project's home, or absent for
   temper's own; `home_revision`, the home's commit they run at;

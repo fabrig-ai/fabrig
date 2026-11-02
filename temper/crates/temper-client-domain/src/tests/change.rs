@@ -157,3 +157,53 @@ fn merge_digits_are_lower_case_and_stop_at_seven_nibbles() {
     let [Hole::Name(digits)] = holes.as_ref() else { panic!("merge digits") };
     assert_eq!(digits.as_ref(), b"0123abc");
 }
+
+#[test]
+fn after_landing_steps_keep_the_merge_tiers_and_completed_slots() {
+    let mut tiers = List::with_capacity(1);
+    tiers.push(Box::from(b"fast run 2".as_slice())).unwrap();
+    for (step, word, held) in [
+        (
+            w::Step::Verifying(
+                w::Verifying::new(&w::CEILINGS, w::VerifyingParts { merge: [0xab; 32], tiers: tiers.clone() }).unwrap(),
+            ),
+            W::VerifyingLine,
+            W::HeldVerifying,
+        ),
+        (
+            w::Step::Red(w::Red::new(&w::CEILINGS, w::RedParts { merge: [0xab; 32], tiers: tiers.clone() }).unwrap()),
+            W::RedLine,
+            W::HeldRed,
+        ),
+        (
+            w::Step::Cleared(
+                w::Cleared::new(
+                    &w::CEILINGS,
+                    w::ClearedParts { merge: [0xab; 32], tiers: tiers.clone(), uncleared: false },
+                )
+                .unwrap(),
+            ),
+            W::ClearedLine,
+            W::HeldCleared,
+        ),
+        (
+            w::Step::Cleared(
+                w::Cleared::new(
+                    &w::CEILINGS,
+                    w::ClearedParts { merge: [0xab; 32], tiers: tiers.clone(), uncleared: true },
+                )
+                .unwrap(),
+            ),
+            W::UnclearedLine,
+            W::HeldUncleared,
+        ),
+    ] {
+        assert_eq!(change::slot(&step), Slots { current: None, done: 6 });
+        assert_eq!(change::held_step(&step), held);
+        let panel = p::panel(17, step);
+        assert_eq!(change::line(&panel).0, word);
+        let state = crate::forge::panel::State::Shown(Box::new(panel));
+        let shown = change::shown(&state).unwrap();
+        assert_eq!(shown.tiers(), tiers.as_slice());
+    }
+}

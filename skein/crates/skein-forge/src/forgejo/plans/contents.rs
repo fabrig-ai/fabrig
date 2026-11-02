@@ -70,6 +70,8 @@ impl Plan {
             | api::Read::Runs { .. }
             | api::Read::Run { .. }
             | api::Read::Tree { .. }
+            | api::Read::Artifact { .. }
+            | api::Read::Commits { .. }
             | api::Read::Job { .. } => return Err(api::Error::InvalidAnswer),
         };
         Ok(Self {
@@ -247,7 +249,9 @@ impl Plan {
                     Err(_) => Err(api::Error::TooLarge),
                 }
             }
-            d::Row::Found(_)
+            d::Row::Artifact(_)
+            | d::Row::CommitMessage(_)
+            | d::Row::Found(_)
             | d::Row::Reachable(_)
             | d::Row::Token(_)
             | d::Row::User(_)

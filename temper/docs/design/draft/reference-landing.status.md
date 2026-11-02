@@ -16,9 +16,6 @@
     agent, with no job before it. `../protocol/tooling.md`, sections 1 and
     4: the project's tooling has `prepare` and `key` alone, run for a
     turn, and no merge job.
-  - **6: main's tiers follow main (N5).** `../domain/after-landing.md`,
-    sections 1 and 3: each tier follows every landing branch of its
-    repository, goal branches included.
   - **6: a repair names its red (N22).** `../domain/agent.md`, 4.3.1:
     `change` takes no `repairs`, which `../domain/after-landing.md`,
     section 7 gives a repair.

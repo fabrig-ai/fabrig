@@ -676,8 +676,9 @@ pub enum Word {
 // The welcome's Forgejo card adds four literal phrases and segments.
 // Eighteen playground, removal and forge choice literals.
 pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
-const PHRASES: u32 = 1189;
-const SEGMENTS: u32 = 2088;
+// The post-landing panel has ten phrases and eighteen segments.
+const PHRASES: u32 = 1199;
+const SEGMENTS: u32 = 2106;
 const ALL: [Word; 607] = [
     Word::PlaygroundBanner,
     Word::PlaygroundSetUp,

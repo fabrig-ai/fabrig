@@ -25,6 +25,8 @@ pub enum State {
     Running,
     Held,
     Landed,
+    Cleared,
+    Uncleared,
     Done,
     Failed,
     Cancelled,
@@ -92,6 +94,15 @@ pub fn facts(task: &c::Task) -> Facts<'_> {
         Some(c::ResultValue::Approved { words: None, .. }) | None => None,
     }
     .or(reason);
+    if state == State::Landed
+        && let Some(words) = words
+    {
+        if skein_lib::bytes::find(words, b"\nCleared by ").is_some() {
+            state = State::Cleared;
+        } else if skein_lib::bytes::find(words, b"\nNot cleared:").is_some() {
+            state = State::Uncleared;
+        }
+    }
     let said = match words {
         Some(words) => Some(match if state == State::Landed { merge_commit(words) } else { None } {
             Some(commit) => Said::Merge(commit.get(..7).expect("commit has seven hex bytes")),
@@ -105,7 +116,11 @@ pub fn facts(task: &c::Task) -> Facts<'_> {
         state,
         title: task.chip.title.bytes(),
         said,
-        steps: if kind == Kind::Change { Some(if state == State::Landed { 4 } else { 0 }) } else { None },
+        steps: if kind == Kind::Change {
+            Some(if state == State::Landed || state == State::Cleared || state == State::Uncleared { 4 } else { 0 })
+        } else {
+            None
+        },
     }
 }
 /// The first line of the engine's landing words is its lowercase merge commit id.

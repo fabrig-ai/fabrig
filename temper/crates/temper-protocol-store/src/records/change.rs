@@ -207,6 +207,9 @@ fn encode_live(value: &d::State) -> w::ChangeLive {
         | d::State::Repairing { .. }
         | d::State::Landing { .. }
         | d::State::Landed { .. }
+        | d::State::Red { .. }
+        | d::State::Cleared { .. }
+        | d::State::Uncleared { .. }
         | d::State::Held { .. }) => encode_progress(pending),
     }
 }
@@ -249,8 +252,19 @@ fn encode_progress(value: &d::State) -> w::ChangeLive {
         d::State::Landing { head } => {
             w::ChangeLive::Landing(w::ChangeHead::new(&w::CEILINGS, w::ChangeHeadParts { head: *head }).expect(FITS))
         }
-        d::State::Landed { merge } => w::ChangeLive::Landed(
-            w::LandedChange::new(&w::CEILINGS, w::LandedChangeParts { merge: *merge }).expect(FITS),
+        d::State::Landed { merge, since } => w::ChangeLive::Landed(
+            w::LandedChange::new(&w::CEILINGS, w::LandedChangeParts { merge: *merge, since: since.as_nanos() })
+                .expect(FITS),
+        ),
+        d::State::Red { merge, since } => w::ChangeLive::Red(
+            w::LandedChange::new(&w::CEILINGS, w::LandedChangeParts { merge: *merge, since: since.as_nanos() })
+                .expect(FITS),
+        ),
+        d::State::Cleared { merge } => w::ChangeLive::Cleared(
+            w::MergeChange::new(&w::CEILINGS, w::MergeChangeParts { merge: *merge }).expect(FITS),
+        ),
+        d::State::Uncleared { merge } => w::ChangeLive::Uncleared(
+            w::MergeChange::new(&w::CEILINGS, w::MergeChangeParts { merge: *merge }).expect(FITS),
         ),
         d::State::Held { .. } => unreachable!("the bounded loop unwrapped every hold"),
         d::State::NoChange { .. }
@@ -305,7 +319,10 @@ fn decode_live(value: w::ChangeLive) -> d::State {
         | w::ChangeLive::Resolving(_)
         | w::ChangeLive::Repairing(_)
         | w::ChangeLive::Landing(_)
-        | w::ChangeLive::Landed(_)) => decode_progress(pending),
+        | w::ChangeLive::Landed(_)
+        | w::ChangeLive::Red(_)
+        | w::ChangeLive::Cleared(_)
+        | w::ChangeLive::Uncleared(_)) => decode_progress(pending),
     }
 }
 
@@ -344,9 +361,15 @@ fn decode_progress(value: w::ChangeLive) -> d::State {
             d::State::Landing { head }
         }
         w::ChangeLive::Landed(value) => {
-            let w::LandedChangeParts { merge } = value.into_parts();
-            d::State::Landed { merge }
+            let w::LandedChangeParts { merge, since } = value.into_parts();
+            d::State::Landed { merge, since: Wall::from_nanos(since) }
         }
+        w::ChangeLive::Red(value) => {
+            let w::LandedChangeParts { merge, since } = value.into_parts();
+            d::State::Red { merge, since: Wall::from_nanos(since) }
+        }
+        w::ChangeLive::Cleared(value) => d::State::Cleared { merge: value.into_parts().merge },
+        w::ChangeLive::Uncleared(value) => d::State::Uncleared { merge: value.into_parts().merge },
         w::ChangeLive::NoChange(_)
         | w::ChangeLive::Ended
         | w::ChangeLive::Producing(_)

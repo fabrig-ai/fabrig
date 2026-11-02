@@ -24,8 +24,9 @@ finish within the grace its `RemoveProject` gives, nor is
 `RemoveProject` offered in the project's document (`domain/people.md`,
 `domain/connectors.md`, `client/domain/contract.md`). The code departs
 in a few single items (`README.md`, `client/domain/client.md`,
-`domain/engine.md`, `domain/root.md`, `examples.md`). `domain/providers.md` and `client/domain/README.md` have
-no gap of their own. jig has no drafts.
+`domain/engine.md`, `domain/root.md`, `examples.md`). `domain/core.md`,
+`domain/providers.md` and `client/domain/README.md` have no gap of their
+own. jig has no drafts.
 
 Design documents:
 - [`README.md`](README.status.md)

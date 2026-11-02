@@ -3,7 +3,9 @@
 2026-11-02. Where temper's code lags or departs from [forge.md](forge.md).
 
 - **Not yet:** 2.1, 3: the `Changes` page, its queues and a queued
-  change's place (no `Changes` address in `temper-client-domain`). 2.3:
+  change's place (no `Changes` address in `temper-client-domain`).
+  2.1, 2.5: the steps after `landed` (`verifying`, `red`, `cleared`)
+  and a result given at cleared. 2.3:
   amending a change's gates from its panel. 4: approvals, a person
   task's card at a head and the forge's reviews counted in the panel.
   5.1: "Land without CI" for a repository with no CI. 5.2: health. 5.3:

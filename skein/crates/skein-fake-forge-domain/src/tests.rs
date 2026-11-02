@@ -8,6 +8,7 @@ mod next;
 mod promises;
 mod protection;
 mod queue;
+mod reports;
 mod settle;
 mod trees;
 

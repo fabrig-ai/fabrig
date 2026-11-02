@@ -96,5 +96,9 @@ limit of the worker's jobs (`../domain/worker.md`, 4.4).
 
 ## 7. Open questions
 
+- **The worker's `PATH` and its jobs' limits as configuration:** section
+  2's `PATH` and section 6's limits have no member of the worker's
+  (`configuration.md`, section 4) and no override (section 7 of
+  `configuration.md`); which they become is the first kind's.
 - **A command's own network:** whether a worker gives it none, so that
   a pin bump needs nothing fetched, or the project's.

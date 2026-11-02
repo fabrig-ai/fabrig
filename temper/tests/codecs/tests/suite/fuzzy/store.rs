@@ -203,6 +203,106 @@ fn forge_rows(rng: &mut Rng, bounds: &Bounds) {
         account: optional_number(rng),
     });
     row_and_key(&row, rng, bounds);
+    tier_rows(rng, bounds);
+}
+
+fn tier_rows(rng: &mut Rng, bounds: &Bounds) {
+    use temper_engine_domain_forge_tiers as p;
+    let repository = skein_forge::api::Repository {
+        forge: u16::try_from(rng.below(65_536)).expect("u16"),
+        repository: u32::try_from(rng.below(4_294_967_296)).expect("u32"),
+    };
+    let failures = drawn_failures(rng);
+    let blame = match rng.below(3) {
+        0 => p::Blame::Cleared,
+        1 => p::Blame::Owns(failures.clone()),
+        _ => p::Blame::Suspect(failures.clone()),
+    };
+    let tests = Box::new([Box::from(b"a".as_slice()), Box::from(b"z".as_slice())]);
+    let part = match rng.below(3) {
+        0 => p::Part::Whole,
+        1 => p::Part::Rerun { failed: tests.clone() },
+        _ => p::Part::Probe {
+            landing: 0,
+            tests: if rng.below(2) == 0 { p::Selection::All } else { p::Selection::Tests(tests.clone()) },
+            finding: p::Finding { failing: failures.clone(), flakes: tests, blamed: Box::new([blame.clone()]) },
+        },
+    };
+    let run = if rng.below(2) == 0 {
+        None
+    } else {
+        Some(p::Run {
+            number: rng.next_u64(),
+            tip: [3; 32],
+            key: [4; 32],
+            faults: u32::try_from(rng.below(4_294_967_296)).expect("u32"),
+            landings: Box::new([p::Landing { commit: [1; 32], key: [2; 32] }]),
+            part,
+        })
+    };
+    let row = forge::Stored::Tier(forge::TierRow {
+        requested: false,
+        cancelled: false,
+        purpose: None,
+        pending: Box::new([]),
+        baseline: None,
+        branch: forge::TierBranch::Absent,
+        probe: None,
+        flight: None,
+        held: None,
+        result: None,
+        received: false,
+        repository,
+        tier: Box::from(b"tier".as_slice()),
+        task: if rng.below(2) == 0 { None } else { Some(rng.next_u64()) },
+        record: p::Record {
+            sequence: rng.next_u64(),
+            judged: if rng.below(2) == 0 { None } else { Some(p::Judged { tip: [5; 32], key: [6; 32] }) },
+            failing: failures.clone(),
+            flakes: Box::new([p::Flake { test: Box::from(b"flake".as_slice()), count: 2 }]),
+            run,
+        },
+    });
+    row_and_key(&row, rng, bounds);
+    let row = forge::Stored::Verification(forge::Verification {
+        repository,
+        commit: [7; 32],
+        changes: Box::new([rng.next_u64(), rng.next_u64()]),
+        tiers: Box::new([forge::TierVerification {
+            tier: Box::from(b"tier".as_slice()),
+            verdict: if rng.below(2) == 0 { None } else { Some(forge::TierVerdict { run: rng.next_u64(), blame }) },
+            repaired: if rng.below(2) == 0 {
+                None
+            } else {
+                Some(temper_engine_domain_forge::TierRepair { run: 2, tip: [8; 32] })
+            },
+        }]),
+    });
+    row_and_key(&row, rng, bounds);
+    let row = forge::Stored::Receipt {
+        key: forge::ReceiptKey {
+            project: 5,
+            repository,
+            check: forge::Check::Tier(Box::from(b"tier".as_slice())),
+            key: [9; 32],
+        },
+        receipt: forge::Receipt {
+            failures: if rng.below(2) == 0 { None } else { Some(failures) },
+            passed: false,
+            run: forge::ReceiptRun { id: rng.next_u64(), number: rng.next_u64(), url: Box::new([]) },
+            candidate: [10; 32],
+            ended: skein_lib::Wall::EPOCH,
+        },
+    };
+    row_and_key(&row, rng, bounds);
+}
+fn drawn_failures(rng: &mut Rng) -> temper_engine_domain_forge_tiers::Failures {
+    use temper_engine_domain_forge_tiers::Failures;
+    match rng.below(3) {
+        0 => Failures::Many,
+        1 => Failures::Tests(Box::new([])),
+        _ => Failures::Tests(Box::new([Box::from(b"a".as_slice()), Box::from(b"z".as_slice())])),
+    }
 }
 
 fn drawn_field(rng: &mut Rng) -> Box<[u8]> {

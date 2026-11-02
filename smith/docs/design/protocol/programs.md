@@ -722,6 +722,11 @@ conditions. smith keeps each as a rule of its own:
   configuration directory interfere. Default: one at a time where the
   host can choose (`docs/design/benchmarks.md`, section 10). A run's
   own children share main's (5.10), which the live suite checks.
+- **Writing children on a program backend:** whether a child may be
+  granted modify or shell there, holding the run's lease (domain/run.md,
+  5.3) while the agent holds the program's own calls at the prompt,
+  since Claude Code alone decides which of its calls run together.
+  Default: children read only (5.10), as the surveys they serve need.
 - **A session not kept:** whether the agent removes the program session
   of a conversation its host does not keep, when that conversation ends.
   Where the program keeps a session is its own, and undocumented.

@@ -800,6 +800,9 @@ fn pull_mode(state: &change::State, clean: &[[u8; 32]]) -> PullMode {
         | change::State::NoChange { .. }
         | change::State::Ended
         | change::State::Landed { .. }
+        | change::State::Red { .. }
+        | change::State::Cleared { .. }
+        | change::State::Uncleared { .. }
         | change::State::Held { .. } => PullMode::Other,
     }
 }
