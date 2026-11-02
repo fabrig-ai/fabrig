@@ -258,7 +258,8 @@ are built (`forge.status.md`).
 ## 11. Later
 
 - Two goals landing near each other, their branches overlapping: a
-  report to both coordinators before the second lands.
+  probe's report to both coordinators, and checkpoint landings into main
+  (`reference-notes.md`, section 5).
 - A red after landing bisected within a goal's landing, over its
   changes' merges, to find the change that brought it.
 - Several repositories, one goal: a branch per repository, each held by

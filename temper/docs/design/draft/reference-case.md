@@ -79,7 +79,7 @@ P
 
 | # | Who | What happens | Shows |
 |---|---|---|---|
-| 1 | P | starts a goal from the project's template for drafts, its words: "Implement `temper/docs/design/draft/playground-reset.md`." The root names g among the goal's resources; G becomes active holding it, and the forge makes g at main's tip | a goal from a template, with its charter and LLM choice; the goal's own branch (N3) |
+| 1 | P | starts a goal from the project's template for drafts, its words: "Implement `temper/docs/design/draft/playground-reset.md`." The template names *its own goal branch*, resolved to g; G becomes active holding it, and the forge makes g at main's tip | a goal from a template, with its charter, its LLM choice and its own branch (N3) |
 | 2 | G | its first run reads the draft, the guides and the designs it touches, and asks four inspect-only sub-agents at high, side by side, what the code does today (forges as records, the playground, deleting a project, the box's groups) | surveys as sub-agents (N10) |
 | 3 | G | shapes the plan: two families need a designer (bx, fe); both refuse removals, so how a removal is refused is a shared shape; sv-skein-setup needs none, skein's design already saying it. First batch: S, its words the refusal's shape and where it goes; Dbx and Dfe, after S, each told its family; C1. G parks | batches; the shared design and designers as changes (N13); a change G specifies itself |
 | 4 | S | its producer, under the designer's charter, writes the refusal's section into the forge's design and a status entry for it, and pushes. Dbx and Dfe start kept on S, their producers from S's pushed head (N2). S lands into g; their merges may follow | the design written into g (N12); designers starting early |

@@ -131,10 +131,11 @@ P, a person
   tracked at the project's priority, a report's contract, and an
   authority sized for a plan of up to a hundred changes (N21); its wake
   policy is the charter's default (N23).
-- **temper's root names its branch.** The project's setting says goals
-  land through their own branch; the root names the goal's,
-  `temper/<root>/g<root>`, among the resources it writes, as it names a
-  task's run branch (`forge.md`, section 11). jig checks the batch as any
+- **Its own branch, by template** (N3). The template for drafts names
+  *its own goal branch*, a symbolic resource the forge offers, resolved
+  to `temper/<root>/g<root>` once the goal has its number, as a task's
+  run branch is (`forge.md`, section 11). A small goal's template names
+  none, and its changes land into main each. jig checks the batch as any
   (jig's `domain/tasks.md`, section 4).
 - **G becomes active** at once, taking its hold, and the forge makes g at
   main's tip (N3). G's first run begins the cut.
@@ -417,8 +418,8 @@ What the reference sets, as settings (jig's `domain/engine.md`, section
 |---|---|---|
 | the coordinator's charter | instructions for the cut, answers, holds, catch-ups, triage, the close-out and the landing; Claude Code; tools: `change` (N22), `delegate` (person tasks, a triage), `amend`, `cancel`, `release`, `decide`, `decide_escalation`, `propose`, `subscribe_forge`, `subscribe`, `note`, `recall`, `message`, `wait`, the workspace's inspect, sub-agents; starts fresh; waiting 0; its default wake policy (section 13); documents: the project's `AGENTS.md` and code rules | as a charter; `change`'s parameters no (N22); its wake policy no (N23); sub-agents on Claude Code no (N10) |
 | the designer's charter | instructions: write the design where the project keeps it (here `docs/design`, the status file beside each document, its Later section), cite by path and section, list the family's changes in the report; Claude Code; the workspace, delivery, sub-agents, `message` for questions, `note`, `recall`; documents: the project's design rules | as a charter; a change's producer charter no (N22); sub-agents no (N10) |
-| the goal template for drafts | the coordinator's charter; section 4's LLM choice; tracked; a report | yes (jig's `../protocol/configuration.md`, 3.1) |
-| goals land through their own branch | the project's setting, on | no (N3) |
+| the goal template for drafts | the coordinator's charter; section 4's LLM choice; tracked; a report; *its own goal branch* | yes, but its own branch no: templates name no resources (jig's `../protocol/configuration.md`, 3.1; N3) |
+| a small goal's template | as jig's goal template, no branch of its own | yes |
 | the coding agent's charter | charter 2, its instructions telling it to push early, finish with a Left list, mark a story that fails for code it does not own as ignored with the fault as its reason, and never fix what it does not own (N15); its run sized for the work (charter 2's 16 turns and 120 s are a small fix's) | yes, its text and run new |
 | the foreman's charter | read-only (inspect and the forge's reads); a verdict of answer, finish or escalate | as a charter; its use by the change no (N1) |
 | the forge's charters (kind 3) | 1, the change's: the coding agent's; 2, the reviews': unused; 3, the foreman's | kind 3 designed, not built; number 3 no (N1) |
@@ -439,7 +440,7 @@ What the reference sets, as settings (jig's `domain/engine.md`, section
 | Gap | Where | Note | Status |
 |---|---|---|---|
 | `change` for a coordinator: several changes in one batch, a landing branch, its requester's branch, dependencies, `questions`, LLM choices, a producer's charter, `repairs` | temper | N22 | `change` takes words alone (`agent.md`, 4.3.1) |
-| a goal's own branch: named by the root, held by the goal, made as the hold is taken, written by its subtree one merge at a time, refused to others | jig, temper | N3 | contradicts `forge.md`, section 2 and section 11; jig names no effect of taking a hold |
+| a goal's own branch: named by its template, held by the goal, made as the hold is taken, written by its subtree one merge at a time, refused to others | jig, temper | N3 | contradicts `forge.md`, section 2 and section 11; jig's templates name no resources, and jig names no effect of taking a hold |
 | a charter's default wake policy in configuration | jig | N23 | missing |
 | a change relays its agents' questions, through a foreman or straight up; a question bound | temper | N1 | contradicts `forge.md`, 8.1 and `agent.md`, 8.2 |
 | a change that starts kept | jig, temper | N2 | designed, not built |
@@ -466,8 +467,9 @@ rather than the goal's own (N3).
 
 ## 16. Later
 
-- Several goals at once, their branches overlapping: a report of the
-  overlap to both coordinators.
+- Several goals at once, their branches overlapping: a probe's report of
+  the overlap to both coordinators, and checkpoint landings
+  (`reference-notes.md`, section 5).
 - The order of work within one goal when capacity is short: repairs and
   resolutions before new producers (N9).
 - An LLM choice per kind of wake, so a change's result read costs less

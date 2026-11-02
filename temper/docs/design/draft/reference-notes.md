@@ -302,14 +302,25 @@ changing designs and code; the drafts cite them by number.
   writes under a task above it that does"); its landing is an ordinary
   change into main whose branch is its requester's.
 - **Draft rules:**
-  - **Named by the root.** A project's setting, `goal_branch`, off or on.
-    On, the root names, for each goal made in the project,
-    `temper/<root>/g<root>` in the project's home repository among the
-    resources the goal writes, as it names a task's run branch
-    (`forge.md`, section 11); jig's templates name no resources (jig's
-    `../protocol/configuration.md`, 3.1), so the root fills it in. The
-    choice is the project's, not each plan's, since a goal cannot take a
-    hold once active (jig's `domain/tasks.md`, 6.2).
+  - **Chosen by template.** A goal's own branch is part of the shape of
+    work, so the template for that shape names it. jig's templates name
+    no resources (jig's `../protocol/configuration.md`, 3.1), since a
+    concrete resource depends on who makes the task; they may name the
+    symbolic resources a connector names after a task, which depend on
+    nothing but the task, resolved as a batch's are once the task has
+    its number (jig's `domain/authority.md`, section 4: "its own
+    environment", "its runs' branches"). The forge offers one, *its own
+    goal branch*: `temper/<root>/g<root>` in the project's home
+    repository, on a tracked task only. The reference's template for
+    drafts names it; a small goal's template does not, and that goal's
+    changes land into main each, as `forge.md`, 11.1 advises for most
+    work. A project offers both templates through its policy, and a
+    person chooses the shape by choosing the template; a goal made by
+    hand may name it too, within its creator's authority. The choice is
+    made with the goal, since a goal cannot take a hold once active
+    (jig's `domain/tasks.md`, 6.2). The jig change is small and not
+    temper's alone: an incident template could name its own
+    environment the same way.
   - **Made as the hold is taken.** In jig, a connector says what taking a
     hold does, as it says what a release does (jig's
     `domain/connectors.md`, 3.3; `domain/tasks.md`, 6.5). The forge makes
@@ -753,5 +764,18 @@ changing designs and code; the drafts cite them by number.
   share the foreman settles (N1, N8); catch-ups and their conflicts per
   goal (N6); flakes at the gate (N17); the coordinator's wakes and their
   cost at xhigh (N11); the size of designers' reports (N15, N21).
-- Overlaps between goal branches beside each other, reported (fab's
-  overlap probe), once two goals run at once.
+- **Several goals at once.** A mechanical probe merges each pair of live
+  goal branches, and each with main, without pushing (`git merge-tree`),
+  and sends their conflicts to both goals as news (fab's overlap probe,
+  built and never logged: 2.2). A goal that meets one may land a
+  checkpoint: a change into main on a branch made at a commit of its own
+  branch, checked whole by the full gate, which the other goal then takes
+  by its ordinary catch-up, while its own branch goes on. Goals never
+  merge each other's unlanded branches: a branch carrying another goal's
+  unlanded work cannot land without it, which makes two goals one landing
+  (the trains the landing model dropped) and a dropped goal a hole in the
+  other (N2's rule for dependencies, across goals). A semantic probe, the
+  gate on a speculative merge, costs a CI run per pair and waits for
+  numbers. Needs: the probe and its news kind, `change` from a commit of
+  the goal's branch (N22), and the coordinator's judgement of when a
+  commit is a coherent checkpoint.
