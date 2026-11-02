@@ -302,6 +302,7 @@ fn delegate(world: &mut World, count: usize) -> Result<(), Violation> {
             budget: people::Budget::Named,
             executor: tasks::Executor::Agent { charter: 1 },
             spec: tasks::Spec {
+                job: None,
                 asks: false,
                 words: b"shared delegate".as_slice().into(),
                 parameters: Box::new([]),
@@ -535,6 +536,7 @@ impl ScenarioApplication for Ops {
                             llm: None,
                             reason: b"run evidence".as_slice().into(),
                             spec: Some(tasks::Spec {
+                                job: None,
                                 asks: false,
                                 words: b"run choice".as_slice().into(),
                                 parameters: Box::new([]),
@@ -856,6 +858,7 @@ fn standing(world: &mut World) {
                 executor: tasks::Executor::Agent { charter: 1 },
                 llm: None,
                 spec: tasks::Spec {
+                    job: None,
                     asks: false,
                     words: b"standing batch".as_slice().into(),
                     parameters: Box::new([]),

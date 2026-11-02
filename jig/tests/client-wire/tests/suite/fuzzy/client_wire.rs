@@ -1,4 +1,5 @@
 //! Arbitrary and mutated client bytes (skein's codec.md, section 6).
+//! Job arms follow jig/docs/design/client/domain/contract.md, 5.7.
 use jig_client_protocol_wire::v19::*;
 use skein_lib::{Reader, Rng, Writer};
 use std::{fs, path::Path};
@@ -53,6 +54,7 @@ fn records_1(bytes: &[u8]) {
     check!(ChipExecutorProcedure, bytes);
     check!(ExecutorParty, bytes);
     check!(ExecutorRole, bytes);
+    check!(ChipExecutorJob, bytes);
     check!(ChipExecutor, bytes);
     check!(Phase, bytes);
     check!(RunStageClaimed, bytes);
@@ -118,6 +120,7 @@ fn records_3(bytes: &[u8]) {
     check!(ExecutorAgent, bytes);
     check!(ExecutorProcedure, bytes);
     check!(ExecutorPerson, bytes);
+    check!(ExecutorJob, bytes);
     check!(Executor, bytes);
     check!(WakeRuleBatch, bytes);
     check!(WakeRule, bytes);
@@ -241,6 +244,7 @@ fn records_6(bytes: &[u8]) {
     check!(AuthorityExecutorCharter, bytes);
     check!(AuthorityExecutorProcedure, bytes);
     check!(AuthorityExecutorRole, bytes);
+    check!(AuthorityExecutorJob, bytes);
     check!(AuthorityExecutor, bytes);
     check!(Delegation, bytes);
     check!(ResourceScope, bytes);
@@ -487,6 +491,7 @@ fn records_12(bytes: &[u8]) {
     check!(TaskContractDocumentReport, bytes);
     check!(TaskContractDocumentVerdict, bytes);
     check!(TaskContractDocumentChange, bytes);
+    check!(TaskContractDocumentJob, bytes);
     check!(TaskContractDocument, bytes);
     check!(TaskStatus, bytes);
     check!(TaskLinkLive, bytes);

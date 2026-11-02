@@ -12,6 +12,7 @@ pub const ATTEMPT: Token = Token::new(3);
 
 pub fn hello() -> host::Hello {
     host::Hello {
+        jobs: Box::default(),
         slots: 2,
         stop_bound: Duration::from_secs(10),
         workstreams: Box::new([4, 5]),
@@ -110,6 +111,7 @@ pub fn domain() -> Domain {
             first: jig_test_connector_world::config(1),
             second: jig_test_connector_world::config(2),
             core: core::Config {
+                jobs: Box::new([]),
                 worker_names: Box::new([b"alpha".as_slice().into(), b"beta".as_slice().into()]),
                 deployment: [1; 16],
                 seed: 1,

@@ -335,6 +335,7 @@ pub fn live_task(number: u64) -> core::Record {
         recurring: None,
         tracked: None,
         spec: tasks::Spec {
+            job: None,
             asks: false,
             words: Box::from(b"scripted task".as_slice()),
             parameters: Box::new([]),

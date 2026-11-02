@@ -8,6 +8,7 @@ sources = ["temper/docs/plan/live-temper-stories-2/inputs/request.md", "AGENTS.m
 # the code keeps it and the process tier's restart worlds read `Passed`; the live story's
 # expectation is stale. One direct part, one task: the stories read the process worlds' check.
 
+retired = true
 [buffer]
 low = 1.0
 high = 2.0

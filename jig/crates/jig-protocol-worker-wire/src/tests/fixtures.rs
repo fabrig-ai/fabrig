@@ -27,6 +27,12 @@ pub const LIMITS: v9::Limits = v9::Limits {
     model_bound_name: 16,
     bounds_models: 2,
     bounds_program_endpoints: v9::CEILINGS.bounds_program_endpoints,
+    hello_jobs: 2,
+    job_spec: 32,
+    job_grants: 2,
+    job_invalid_start_why: 16,
+    job_finished_result: 32,
+    job_failed_detail: 16,
     hello_workstreams: 2,
     hello_hosting: 2,
     turn_refused: 2,
@@ -113,13 +119,23 @@ pub fn hello_fullest() -> Hello {
             .push(Hosting::new(&LIMITS, HostingParts { task: 3, attempt: 4, phase }).expect("hosting record"))
             .expect("two hosting slots");
     }
-    Hello::new(&LIMITS, HelloParts { slots: 2, stop_bound: Duration::from_secs(95), workstreams, hosting, bounds })
-        .expect("full hello within small list limits")
+    Hello::new(
+        &LIMITS,
+        HelloParts {
+            slots: 2,
+            stop_bound: Duration::from_secs(95),
+            workstreams,
+            hosting,
+            bounds,
+            jobs: List::with_capacity(0),
+        },
+    )
+    .expect("full hello within small list limits")
 }
 
 pub fn hello_smallest() -> Hello {
-    // Four empty counts, plus the hello's and agent bounds' fixed fields.
-    Hello::decode(&LIMITS, &mut skein_lib::Reader::new(&[0; 76])).expect("smallest hello")
+    // Five empty counts, plus the hello's and agent bounds' fixed fields.
+    Hello::decode(&LIMITS, &mut skein_lib::Reader::new(&[0; 80])).expect("smallest hello")
 }
 
 pub const MESSAGE_FIRST: u64 = 41;

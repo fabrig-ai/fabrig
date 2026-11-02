@@ -25,7 +25,8 @@ record ResourceScope { connector: u16 pattern: Pattern }
 record ExecutorCharter { value: u32 }
 record ExecutorProcedure { value: u32 }
 record ExecutorRole { value: u32 }
-enum Executor { charter: ExecutorCharter, procedure: ExecutorProcedure, role: ExecutorRole }
+record ExecutorJob { kind: u32 }
+enum Executor { charter: ExecutorCharter, procedure: ExecutorProcedure, role: ExecutorRole, job: ExecutorJob }
 record Delegation { kinds: bytes 65536 pieces Executor tasks: u32 depth: u32 }
 record ModelSetNamed { bits: u64 }
 enum ModelSet { all, named: ModelSetNamed }

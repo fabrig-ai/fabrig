@@ -86,6 +86,9 @@ fn body(b: &mut Builder, value: &Authority, words: &Words, text_limit: u32, rows
     text(b, words, AuthorityPhrase::Delegation, &[]);
     for kind in value.delegation.kinds.iter().take(skein_lib::length::usize_of(rows)) {
         match kind {
+            AuthorityExecutor::Job(code) => {
+                words.text(b, crate::words::phrases::jig::JigPhrase::Job, &[Hole::Number(u64::from(*code))]);
+            }
             AuthorityExecutor::Charter(code) => number(b, words, AuthorityPhrase::Charter, u64::from(*code)),
             AuthorityExecutor::Procedure(code) => number(b, words, AuthorityPhrase::Procedure, u64::from(*code)),
             AuthorityExecutor::Role(code) => number(b, words, AuthorityPhrase::Role, u64::from(*code)),

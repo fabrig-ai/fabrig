@@ -1,6 +1,10 @@
 //! One worker root and its channels, with values below the domain (jig's
 //! protocol/service.md, 6).
 mod diagnostics;
+mod jobs;
+#[cfg(test)]
+#[path = "tests/worker_jobs.rs"]
+mod tests;
 use crate::{
     identities::IdentityTable,
     settings::{Agent, Files},
@@ -37,6 +41,7 @@ pub struct Worker {
     pub(super) root: root::Domain,
     pub(crate) env: Env<root::Limits>,
     pub(crate) git: crate::worker_git::Git,
+    jobs: jobs::Jobs,
     agent: Agent,
     sources: crate::program_sources::Component,
     link: link::Component,
@@ -114,11 +119,12 @@ impl Worker {
             .or(Err(problem(b"limits", What::Bound)))?;
         let slots = config.slots;
         let git = crate::worker_git::Git::new(settings, limits, &runtime.path, runtime.root, seed)?;
-        let operations = git.component.operations().checked_add(2).ok_or(problem(b"limits", What::Bound))?;
+        let operations = worker_settings::operations(git.component.limits()).ok_or(problem(b"limits", What::Bound))?;
         Ok(Self {
             git,
+            jobs: jobs::Jobs::new(slots),
             sources: crate::program_sources::Component::new(config.limits.hub.detail_bytes),
-            root: root::Domain::new(&prepared.root),
+            root: root::Domain::new(&prepared.root, Box::new([])),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: prepared.root },
             agent: Agent {
                 run_limits: agent.run_limits,
@@ -211,6 +217,7 @@ impl Worker {
         }
         self.aborted = Some(());
         self.stopping = true;
+        self.jobs_fire(self.env.now, true);
         self.git.component.abort(&mut self.git.out);
         self.git_drain();
         for _ in 0..self.events.len() {
@@ -235,6 +242,11 @@ impl Worker {
     }
     #[must_use]
     pub fn accepts(&self, event: &io::Event) -> bool {
+        if let Some(owner) = event.owner()
+            && self.jobs.accepts(owner)
+        {
+            return true;
+        }
         if self.git.component.accepts(event) {
             return true;
         }
@@ -298,6 +310,12 @@ impl Worker {
         }
     }
     pub fn up(&mut self, now: Time, mut event: io::Event) {
+        if let Some(owner) = event.owner()
+            && self.jobs.accepts(owner)
+        {
+            self.job_up(event);
+            return;
+        }
         if self.git.component.accepts(&event) {
             self.git.component.up(now, event, &mut self.git.out);
             self.git_drain();
@@ -377,6 +395,7 @@ impl Worker {
         }
         self.values.expire(now);
     }
+    #[expect(clippy::too_many_lines, reason = "the worker link dispatch keeps every protocol request arm together")]
     pub(crate) fn link(&mut self, _now: Time, request: link::Request) {
         match request {
             link::Request::Ready => {
@@ -403,6 +422,11 @@ impl Worker {
             {
                 let items = worker_route::items(&assignment, &parts, &self.payload);
                 self.engine.push(root::Event::Assign { assignment, items });
+            }
+            link::Request::Down { down: hub::LinkDown::AssignJob { job }, parts } => {
+                let items = worker_route::job_items(&job, &parts, &self.payload);
+                let spec = worker_route::job_spec(&job.spec, &self.payload);
+                self.engine.push(root::Event::AssignJob { job, items, spec });
             }
             link::Request::Down { down, .. } => self.engine.push(root::Event::Link(down)),
             link::Request::Value { account, generation, expires, value } => {
@@ -556,6 +580,9 @@ impl Worker {
             root::Request::CancelIo { owner } => {
                 self.git_request(temper_worker_protocol_git::Request::CancelIo { owner });
             }
+            root::Request::Job { owner, op } => {
+                self.job_request(owner, op);
+            }
             root::Request::CancelRelay { run, attempt, call } => {
                 self.link_down(self.env.now, link::Event::CancelRelay { run, attempt, call });
             }
@@ -682,6 +709,7 @@ impl Worker {
     pub fn iterate(&mut self, now: Time, wall: Wall) {
         self.env.now = now;
         self.env.wall = wall;
+        self.jobs_fire(now, false);
         self.sources.fire(now, &mut self.events, &mut self.io);
         self.started = true;
         if !self.git.started && !self.stopping {
@@ -786,6 +814,7 @@ impl Worker {
             self.values.next_expiry(),
             self.git.component.next_deadline(),
             self.sources.next_deadline(),
+            self.jobs.deadline(),
         ]
         .into_iter()
         .flatten()
@@ -816,7 +845,7 @@ impl Worker {
             }
     }
     pub(super) fn closed(&self) -> bool {
-        self.closed && self.sources.settled() && self.processes.is_empty() && self.io.is_empty()
+        self.closed && self.jobs.empty() && self.sources.settled() && self.processes.is_empty() && self.io.is_empty()
     }
     #[must_use]
     pub fn is_empty(&self) -> bool {
@@ -836,6 +865,10 @@ impl Worker {
         }
     }
     pub fn complete(&mut self, now: Time, complete: io::kernel::Complete) -> Result<(), io::kernel::Complete> {
+        let complete = match self.job_complete(complete) {
+            Ok(()) => return Ok(()),
+            Err(complete) => complete,
+        };
         if self.git.component.owns(complete.op) {
             self.git.component.complete(now, complete, &mut self.git.out);
             self.git_drain();

@@ -120,6 +120,7 @@ use crate::limits::Limits;
 /// An attempt the fleet tracks.
 #[derive(Debug)]
 pub(crate) struct Attempt {
+    pub(crate) job: Option<jig_domain_link::JobBound>,
     /// Its run's name, and its own, as the parent and the workers give them.
     pub(crate) run: Token,
     pub(crate) token: Token,
@@ -316,6 +317,41 @@ pub(crate) fn start(
     let id = *domain.names.get(&(run, attempt)).expect("inserted attempt");
     domain.attempts.get_mut(id).expect("inserted attempt").placement = placement;
     true
+}
+
+/// A job shares claims, slots and recovery with runs (jig/docs/design/domain/engine.md, 7.5).
+#[expect(clippy::too_many_arguments, reason = "the job claim carries its placement bounds and recovery mode")]
+pub(crate) fn start_job(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    to: ReplyTo,
+    run: Token,
+    attempt: Token,
+    workstream: u64,
+    job: jig_domain_link::JobBound,
+    restoring: bool,
+    out: &mut Queue<Request>,
+) {
+    let accepted = if restoring {
+        adopt(domain, env, to, run, attempt, 0, out)
+    } else {
+        start(
+            domain,
+            env,
+            to,
+            run,
+            attempt,
+            workstream,
+            Kinds::Both,
+            crate::Version { charter: 0, revision: 0 },
+            None,
+            Assignment { turns: Token::new(0), answered: Token::new(0) },
+            out,
+        )
+    };
+    if accepted && let Some(&id) = domain.names.get(&(run, attempt)) {
+        domain.attempts.get_mut(id).expect("accepted job claim").job = Some(job);
+    }
 }
 
 /// Adopt: a stray claimed, a kept answer handed over, or a claim adrift
@@ -559,6 +595,7 @@ pub(crate) fn place(
             kinds,
             version,
             entry.assignment,
+            entry.job,
             channel,
             names,
             env,
@@ -884,21 +921,24 @@ pub(crate) fn resume(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Req
                 unreachable!("only a waiting attempt is queued")
             }
         };
-        let channel = match entry.placement {
-            Some(placement) => match channel::constrained(domain, placement, kinds) {
-                Some(id)
-                    if crate::needs::fits(
-                        &domain.needs,
-                        version,
-                        &domain.channels.get(id).expect("connected host").evidence,
-                        placement.kind,
-                    ) =>
-                {
+        let channel = match entry.job {
+            Some(job) => channel::choose_job(domain, workstream, job),
+            None => match entry.placement {
+                Some(placement) => match channel::constrained(domain, placement, kinds) {
                     Some(id)
-                }
-                Some(_) | None => None,
+                        if crate::needs::fits(
+                            &domain.needs,
+                            version,
+                            &domain.channels.get(id).expect("connected host").evidence,
+                            placement.kind,
+                        ) =>
+                    {
+                        Some(id)
+                    }
+                    Some(_) | None => None,
+                },
+                None => channel::choose(domain, workstream, kinds, version),
             },
-            None => channel::choose(domain, workstream, kinds, version),
         };
         if let Some(channel) = channel {
             chosen = Some((id, channel));
@@ -1138,6 +1178,7 @@ fn assigned(
     kinds: Kinds,
     version: crate::Version,
     assignment: Assignment,
+    job: Option<jig_domain_link::JobBound>,
     channel: Id<Channel>,
     names: Names,
     env: &Env<Limits>,
@@ -1149,14 +1190,17 @@ fn assigned(
     if entry.kind == HostKind::Worker {
         channel::cache(entry, &env.limits, workstream);
     }
-    out.push(Request::Assign {
-        channel: entry.token,
-        kind: entry.kind,
-        run: names.run,
-        attempt: names.attempt,
-        activation: names.attempt.raw(),
-        assignment,
-    });
+    match job {
+        Some(_) => out.push(Request::AssignJob { channel: entry.token, run: names.run, attempt: names.attempt }),
+        None => out.push(Request::Assign {
+            channel: entry.token,
+            kind: entry.kind,
+            run: names.run,
+            attempt: names.attempt,
+            activation: names.attempt.raw(),
+            assignment,
+        }),
+    }
     out.push(Request::Placed { run: names.run, attempt: names.attempt });
     facts.push(Fact::Placed);
     State::Claimed { to, at: Where::On(channel), workstream, kinds, version }
@@ -1222,6 +1266,7 @@ fn found(
 fn insert(domain: &mut Domain, run: Token, attempt: Token, listed: bool, assignment: Assignment, state: State) {
     let Ok(id) = domain.attempts.insert(Attempt {
         run,
+        job: None,
         token: attempt,
         listed,
         kept: 0,

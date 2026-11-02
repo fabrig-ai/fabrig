@@ -28,6 +28,7 @@ pub(crate) fn live_task(tracked: Option<u32>, executor: tasks::Executor) -> (cra
                 executor,
                 llm: None,
                 spec: tasks::Spec {
+                    job: None,
                     asks: false,
                     words: b"live goal".as_slice().into(),
                     parameters: Box::new([]),

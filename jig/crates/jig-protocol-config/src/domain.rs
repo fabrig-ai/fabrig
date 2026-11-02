@@ -383,7 +383,7 @@ fn authority_refs(
                     }
                 }
             }
-            jig_domain_authority::Executor::Procedure(_) => {}
+            jig_domain_authority::Executor::Procedure(_) | jig_domain_authority::Executor::Job(_) => {}
         }
     }
 }

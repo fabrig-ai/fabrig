@@ -83,6 +83,9 @@ fn decode_last(value: wire::Last) -> authority::Last {
 }
 fn encode_executor(value: &authority::Executor, limits: &wire::Limits) -> Result<wire::Executor, wire::Problem> {
     Ok(match value {
+        authority::Executor::Job(kind) => {
+            wire::Executor::Job(wire::ExecutorJob::new(limits, wire::ExecutorJobParts { kind: *kind })?)
+        }
         authority::Executor::Charter(entry) => {
             wire::Executor::Charter(wire::ExecutorCharter::new(limits, wire::ExecutorCharterParts { number: *entry })?)
         }
@@ -97,6 +100,7 @@ fn encode_executor(value: &authority::Executor, limits: &wire::Limits) -> Result
 }
 fn decode_executor(value: wire::Executor) -> authority::Executor {
     match value {
+        wire::Executor::Job(entry) => authority::Executor::Job(entry.into_parts().kind),
         wire::Executor::Charter(entry) => {
             let wire::ExecutorCharterParts { number } = entry.into_parts();
             authority::Executor::Charter(number)
@@ -256,6 +260,7 @@ fn decode_part_key(value: wire::PartKey) -> tasks::PartKey {
 }
 fn encode_contract(value: &tasks::Contract, limits: &wire::Limits) -> Result<wire::Contract, wire::Problem> {
     Ok(match value {
+        tasks::Contract::Job { .. } => return Err(bound()),
         tasks::Contract::Approval { state, part } => wire::Contract::Approval(wire::Approval::new(
             limits,
             wire::ApprovalParts { state: (*(state)).clone(), part: encode_part(part, limits)? },

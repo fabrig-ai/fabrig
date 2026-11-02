@@ -303,6 +303,7 @@ pub fn config(seed: u64) -> engine::Config {
             seed,
             // The worlds' workers run apart from the engine (domain/root.md, 2).
             workers_in_process: false,
+            jobs: Box::new([]),
             worker_names: Box::new([Box::from(b"worker".as_slice())]),
             hub_turns: HUB_TURNS,
             owners: Box::new([people::InitialOwner {
@@ -937,6 +938,7 @@ impl World {
                 .expect("committed result reaches person once"),
             Delivery::PlaygroundNote { .. }
             | Delivery::Host(_)
+            | Delivery::AssignedJob { .. }
             | Delivery::Link { .. }
             | Delivery::ForgeCall { .. }
             | Delivery::Bound { .. }

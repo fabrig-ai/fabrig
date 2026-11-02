@@ -140,6 +140,7 @@ fn delivered(delivery: root::Delivery) -> Option<kit::Event> {
         | root::Delivery::Relay { .. }
         | root::Delivery::ReadEscalationDecision { .. }
         | root::Delivery::Fleet(_)
+        | root::Delivery::AssignedJob { .. }
         | root::Delivery::Assigned { .. }
         | root::Delivery::ReadLoad { .. }
         | root::Delivery::Drained

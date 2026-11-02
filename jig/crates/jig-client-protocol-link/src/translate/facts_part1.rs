@@ -231,6 +231,7 @@ pub(crate) fn hold_reason_fields(
 
 pub(crate) fn executor(value: &w::Executor) -> c::Executor {
     match value {
+        w::Executor::Job(row) => c::Executor::Job { kind: row.kind() },
         w::Executor::Agent(row) => c::Executor::Agent { charter: row.charter() },
         w::Executor::Procedure(row) => c::Executor::Procedure { connector: row.connector(), code: row.code() },
         w::Executor::Person(row) => c::Executor::Person(person_address(row.value())),

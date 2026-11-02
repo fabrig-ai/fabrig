@@ -226,6 +226,7 @@ impl Peers {
             | root::Delivery::ApplicationDocument { .. }
             | root::Delivery::ApplicationRead { .. }
             | root::Delivery::Projection { .. }
+            | root::Delivery::AssignedJob { .. }
             | root::Delivery::Link { .. }
             | root::Delivery::ProjectMade { .. }
             | root::Delivery::CallBusy { .. }
@@ -421,7 +422,7 @@ fn waiting(store: &Store, party: &parties::Party) -> Option<parties::Waiting> {
         let visible = match task.executor {
             tasks::Executor::Person(tasks::PersonAddress::Person(holder)) => holder == person,
             tasks::Executor::Person(tasks::PersonAddress::Role(role)) => role == role_number(party.role),
-            tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } => false,
+            tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } | tasks::Executor::Job { .. } => false,
         };
         if visible
             && task.taken_by.is_none_or(|holder| holder == person)

@@ -28,6 +28,7 @@ pub(crate) fn card(b: &mut Builder, task: &c::Task, words: &Words, bindings: &mu
         Kind::Change => Word::DelegationChange,
         Kind::Report => Word::DelegationReport,
         Kind::Verdict => Word::DelegationVerdict,
+        Kind::Job => Word::DelegationJob,
         Kind::Approval => Word::DelegationApproval,
     };
     text(b, Role::Paragraph, &words.say(kind, &[Hole::Number(facts.task)]));

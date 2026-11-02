@@ -324,6 +324,38 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             }
             None
         }
+        core::Ask::JobClaimed { task, attempt, kind, spec, deadline, result, grants, workspace } => {
+            if connector == domain.config.forge_connector {
+                let mut out = Queue::uncapped();
+                jig_domain_hub_link::step(
+                    &mut domain.hub_link,
+                    env.now,
+                    jig_domain_hub_link::Event::StartJob {
+                        job: jig_domain_hub_link::JobStart {
+                            task,
+                            attempt,
+                            workstream: task,
+                            kind,
+                            spec,
+                            deadline,
+                            result,
+                            grants,
+                            workspace,
+                        },
+                    },
+                    &mut out,
+                );
+                for _ in 0..out.len() {
+                    let jig_domain_hub_link::Request::Core(core::Event::Fleet(event)) =
+                        out.pop().expect("link job start")
+                    else {
+                        unreachable!("a job start routes to the fleet")
+                    };
+                    emit(decision, &env.limits, Delivery::Fleet(event));
+                }
+            }
+            None
+        }
         core::Ask::DropSubscription { request } => {
             if connector == domain.config.forge_connector {
                 drop(domain.forge_subscribing.remove(&request));
@@ -354,6 +386,7 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
         core::Ask::StartProcedure { context, step } => {
             let task = context.task;
             let code = match context.executor {
+                tasks::Executor::Job { .. } => return,
                 tasks::Executor::Procedure { code, .. } => code,
                 tasks::Executor::Agent { .. } | tasks::Executor::Person(_) => {
                     unreachable!("procedure route owns a procedure context")

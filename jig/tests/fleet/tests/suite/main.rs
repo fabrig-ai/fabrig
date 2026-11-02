@@ -2,6 +2,7 @@
 static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
 
 mod host_kinds;
+mod jobs;
 mod memory;
 mod models;
 mod notices;

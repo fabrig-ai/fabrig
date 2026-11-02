@@ -10,6 +10,7 @@ publish.workspace = true
 [dependencies]
 skein-lib.workspace = true
 temper-worker-domain-checkout.workspace = true
+temper-worker-domain-tooling.workspace = true
 jig-domain-host.workspace = true
 smith-host-domain.workspace = true
 

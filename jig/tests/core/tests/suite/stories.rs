@@ -80,6 +80,7 @@ fn a_plan_of_reports_and_a_procedure_is_revised_midway_and_done() {
                 release: None,
                 instructions: None,
                 spec: Some(tasks::Spec {
+                    job: None,
                     asks: false,
                     words: b"revised report".as_slice().into(),
                     parameters: Box::new([]),
@@ -160,6 +161,7 @@ fn a_recurring_task_creates_one_batch_per_period_after_the_reset() {
                 executor: tasks::Executor::Agent { charter: 1 },
                 llm: None,
                 spec: tasks::Spec {
+                    job: None,
                     asks: false,
                     words: b"period work".as_slice().into(),
                     parameters: Box::new([]),

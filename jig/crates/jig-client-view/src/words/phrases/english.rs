@@ -1102,6 +1102,9 @@ pub fn language() -> Language {
                 Segment::Hole { index: 1, kind: HoleKind::Number },
                 Segment::Text(copy_of(b" left")),
             ]),
+            JigPhrase::Job => {
+                Box::new([Segment::Text(copy_of(b"job ")), Segment::Hole { index: 0, kind: HoleKind::Number }])
+            }
             JigPhrase::Agent => Box::new([Segment::Text(copy_of(b"Agent"))]),
             JigPhrase::Procedure => Box::new([Segment::Text(copy_of(b"Procedure"))]),
             JigPhrase::Person | JigPhrase::FramePerson => Box::new([Segment::Text(copy_of(b"Person"))]),

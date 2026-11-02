@@ -14,6 +14,7 @@ doctest = false
 [dependencies]
 skein-lib.workspace = true
 jig-domain-fleet.workspace = true
+jig-domain-link.workspace = true
 skein-world.workspace = true
 
 # Ordinary Rust (programming-model.md, 10.2), so not the step crates' lints.

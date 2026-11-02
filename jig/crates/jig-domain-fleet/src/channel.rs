@@ -42,6 +42,7 @@ use crate::limits::Limits;
 /// A worker in contact.
 #[derive(Debug)]
 pub(crate) struct Channel {
+    pub(crate) jobs: Box<[jig_domain_link::JobBound]>,
     pub(crate) evidence: crate::Bounds,
     pub(crate) program_endpoints: Box<[u32]>,
     pub(crate) sources: crate::sources::Sources,
@@ -153,6 +154,16 @@ pub(crate) fn hello(
         domain.facts.push(Fact::Dropped);
         return;
     }
+    let mut previous = None;
+    for bound in &hello.jobs {
+        if let Some(kind) = previous
+            && kind >= bound.kind
+        {
+            refuse(domain, env, channel, &hello, crate::HelloRefusal::JobKinds, out);
+            return;
+        }
+        previous = Some(bound.kind);
+    }
     if !crate::valid_program_endpoints(&hello.bounds.program_endpoints) {
         // Malformed metadata has no charter shortfall: reject the channel without
         // publishing an invented admission dimension.
@@ -174,6 +185,7 @@ pub(crate) fn hello(
             host.declarations = crate::needs::declarations(&domain.needs, &hello.bounds.models);
             host.evidence = crate::needs::evidence(&domain.catalogue, &hello.bounds);
             host.program_endpoints = hello.bounds.program_endpoints;
+            host.jobs = hello.jobs;
             domain.engine_hello = crate::domain::EngineHello::Admitted;
             domain.standing_engine = None;
             domain.placing = true;
@@ -193,8 +205,9 @@ pub(crate) fn hello(
         refuse(domain, env, channel, &hello, why, out);
         return;
     }
-    let Hello { slots, workstreams, hosting, stop_bound: _, bounds } = hello;
+    let Hello { slots, workstreams, hosting, stop_bound: _, bounds, jobs } = hello;
     let mut worker = Channel {
+        jobs,
         evidence: crate::needs::evidence(&domain.catalogue, &bounds),
         program_endpoints: bounds.program_endpoints,
         declarations: crate::needs::declarations(&domain.needs, &bounds.models),
@@ -365,5 +378,36 @@ pub(crate) fn constrained(domain: &Domain, placement: crate::PlacementConstraint
     {
         return None;
     }
+    Some(id)
+}
+
+/// Jobs use declared bounds and room alone (jig/docs/design/domain/engine.md, 7.5).
+pub(crate) fn choose_job(domain: &Domain, workstream: u64, job: jig_domain_link::JobBound) -> Option<Id<Channel>> {
+    let mut best = None;
+    for (_, &id) in &domain.tokens {
+        let channel = domain.channels.get(id).expect("connected channel");
+        let free = channel.slots.saturating_sub(channel.hosts.len());
+        if free == 0 || channel.draining {
+            continue;
+        }
+        let mut covers = false;
+        for bound in &channel.jobs {
+            covers |= bound.kind == job.kind
+                && bound.spec >= job.spec
+                && bound.result >= job.result
+                && bound.deadline >= job.deadline;
+        }
+        if !covers {
+            continue;
+        }
+        if channel.kind == HostKind::Worker && holds(channel, workstream).is_some() {
+            return Some(id);
+        }
+        match best {
+            Some((_, most)) if most >= free => {}
+            Some(_) | None => best = Some((id, free)),
+        }
+    }
+    let (id, _) = best?;
     Some(id)
 }

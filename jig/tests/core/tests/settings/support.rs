@@ -396,6 +396,7 @@ pub(super) fn settings_run(settings_family: bool, history: Option<u32>) -> (Worl
         worker: 0,
         channel: Token::new(7),
         hello: jig_domain_fleet::Hello {
+            jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(1),
             slots: 1,

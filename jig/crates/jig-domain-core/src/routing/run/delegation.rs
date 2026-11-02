@@ -379,6 +379,16 @@ pub(crate) fn procedure_step(
             crate::routing::effect::procedure::problem(task, why),
         );
     }
+    for member in &mut decision.batch {
+        if let Err(why) = crate::runs::delegation::job_member(&core.jobs, member) {
+            return crate::routing::effect::procedure::refused(
+                core,
+                task,
+                step,
+                crate::routing::effect::procedure::problem(task, why),
+            );
+        }
+    }
     let parts = match crate::routing::effect::procedure::parts(core, env, task, &decision) {
         Ok(parts) => parts,
         Err(why) => return crate::routing::effect::procedure::refused(core, task, step, why),
@@ -627,6 +637,7 @@ pub(crate) fn start_recurring(
             executor: tasks::Executor::Procedure { connector: crate::RECURRING, code: 1 },
             llm: None,
             spec: tasks::Spec {
+                job: None,
                 asks: false,
                 words: b"recurring".as_slice().into(),
                 parameters: Box::new([]),

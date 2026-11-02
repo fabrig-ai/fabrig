@@ -162,7 +162,8 @@ pub(crate) fn delivered(peers: &mut Neighbours, store: &Store, delivery: &root::
             }
             peers.query.next.clone_from(next);
         }
-        root::Delivery::Link { .. }
+        root::Delivery::AssignedJob { .. }
+        | root::Delivery::Link { .. }
         | root::Delivery::ProjectMade { .. }
         | root::Delivery::CallBusy { .. }
         | root::Delivery::ApplicationDocument { .. }

@@ -167,7 +167,7 @@ fn fill(
             }
             NewContract::Verdict { choices: choices.clone() }
         }
-        TaskContractDocument::Approval { .. } => return Err(NotOffered::Template),
+        TaskContractDocument::Job { .. } | TaskContractDocument::Approval { .. } => return Err(NotOffered::Template),
     };
     if template.shallower == 0 {
         return Err(NotOffered::Template);
@@ -257,7 +257,7 @@ fn listed(within: &CreateBounds, executor: &Executor) -> bool {
                 }
             }
         }
-        Executor::Person(_) => {}
+        Executor::Job { .. } | Executor::Person(_) => {}
     }
     false
 }

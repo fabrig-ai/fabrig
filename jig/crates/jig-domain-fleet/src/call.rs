@@ -51,6 +51,9 @@ fn live(domain: &Domain, id: Id<Attempt>) -> Live {
     let Some(entry) = domain.attempts.get(id) else {
         return Live::Not;
     };
+    if entry.job.is_some() {
+        return Live::Not;
+    }
     match &entry.state {
         State::Claimed { at: Where::On(channel), .. } => Live::On(channel::token(&domain.channels, *channel)),
         State::Claimed { at: Where::Adrift { .. }, .. } => Live::Adrift,
@@ -143,6 +146,12 @@ pub(crate) fn relayed(domain: &mut Domain, to: ReplyTo, answer: Token, out: &mut
 
 /// A message is handed to the claimed host of its fenced attempt.
 pub(crate) fn inbound(domain: &mut Domain, run: Token, attempt: Token, message: Message, out: &mut Queue<Request>) {
+    if let Some(&id) = domain.names.get(&(run, attempt))
+        && domain.attempts.get(id).expect("named attempt").job.is_some()
+    {
+        out.push(Request::Undelivered { run, attempt, message, undelivered: Undelivered::Gone });
+        return;
+    }
     let undelivered = match domain.names.get(&(run, attempt)) {
         Some(&id) => match &domain.attempts.get(id).expect("a named attempt is tracked").state {
             State::Claimed { at: Where::On(channel), .. } => {

@@ -122,6 +122,7 @@ impl ClientPeer {
             },
             root::Delivery::Projection { .. }
             | root::Delivery::Message { .. }
+            | root::Delivery::AssignedJob { .. }
             | root::Delivery::Link { .. }
             | root::Delivery::ProjectMade { .. }
             | root::Delivery::CallBusy { .. }

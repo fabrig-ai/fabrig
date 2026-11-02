@@ -116,6 +116,35 @@ pub(crate) fn stage(
         }
         saving |= repository.save.is_some();
     }
+    let token = stage_items(domain, run.run, run.attempt, workstream, items)?;
+    run.workspace = Some(host::Workspace { workstream, items: token });
+    run.save = saving;
+    Some(assignment)
+}
+
+/// Jobs stage the same checkout items, with no saved-work destination
+/// (temper/docs/design/domain/worker.md, 4.4).
+pub(crate) fn stage_job(domain: &mut Domain, job: &mut host::JobAssignment, mut items: wire::Workspace) -> Option<()> {
+    if items.repositories.is_empty() {
+        job.workspace = None;
+        return Some(());
+    }
+    for repository in &mut items.repositories {
+        repository.save = None;
+    }
+    let workstream = job.workspace.expect("the root checked the workstream").workstream;
+    let token = stage_items(domain, job.run, job.attempt, workstream, items)?;
+    job.workspace = Some(host::Workspace { workstream, items: token });
+    Some(())
+}
+
+fn stage_items(
+    domain: &mut Domain,
+    run: Token,
+    attempt: Token,
+    workstream: u64,
+    items: wire::Workspace,
+) -> Option<Token> {
     let count = u32::try_from(items.repositories.len()).expect("checked item count");
     let mut tags = List::with_capacity(count);
     let mut from_saved = List::with_capacity(count);
@@ -147,11 +176,9 @@ pub(crate) fn stage(
     domain.next_items = domain.next_items.checked_add(1).expect("a u64 of items outlasts the worker");
     let old = domain.items.insert(token, entry).expect("checked for room above");
     assert!(old.is_none(), "each items' token is new");
-    let old = domain.items_by_run.insert((run.run, run.attempt), token).expect("room for each staged run");
+    let old = domain.items_by_run.insert((run, attempt), token).expect("room for each staged run");
     assert!(old.is_none(), "the root dropped an attempt it hosts");
-    run.workspace = Some(host::Workspace { workstream, items: token });
-    run.save = saving;
-    Some(assignment)
+    Some(token)
 }
 
 /// temper's parts of `answer`, matched by its tokens: what the run left on
@@ -609,6 +636,32 @@ pub(crate) fn directories(domain: &mut Domain, workspace: Token) -> (Token, Box<
     (directory, roots.into_boxed())
 }
 
+/// The prepared checkout's directory and writable repository name, for a job.
+pub(crate) fn job_directory(domain: &Domain, workspace: Token) -> (Token, Option<Box<[u8]>>) {
+    let record = domain.workspaces.get(Id::from_token(workspace)).expect("a prepared job workspace");
+    let directory = match record.state {
+        State::Ready { directory, .. } => directory,
+        State::Preparing { .. } | State::Releasing | State::Closed => unreachable!("a job starts after prepare"),
+    };
+    let mut writable = None;
+    for root in &record.roots {
+        if root.writable {
+            if writable.is_some() {
+                return (directory, None);
+            }
+            writable = Some(root.name.clone());
+        }
+    }
+    (directory, writable)
+}
+
+/// The engine identity of the job whose workspace is being delivered.
+pub(crate) fn job_run(domain: &Domain, workspace: Token) -> (Token, Token) {
+    let record = domain.workspaces.get(Id::from_token(workspace)).expect("a prepared job workspace");
+    let hosting = domain.host.hosting(record.run).expect("a job holds its workspace through delivery");
+    (hosting.run, hosting.attempt)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -617,7 +670,7 @@ mod tests {
     #[test]
     fn a_workspace_keeps_two_forges_repositories_with_one_id() {
         let limits = fixtures::limits();
-        let mut domain = Domain::new(&limits);
+        let mut domain = Domain::new(&limits, Box::new([]));
         let tags = [temper_engine_domain_forge::tag(1, 1), temper_engine_domain_forge::tag(3, 1)];
         let mut items = fixtures::items(&[b"playground", b"work"]);
         for (repository, tag) in items.repositories.iter_mut().zip(tags) {

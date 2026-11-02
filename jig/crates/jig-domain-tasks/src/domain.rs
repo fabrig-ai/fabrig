@@ -161,7 +161,9 @@ impl Domain {
             }
             let charter = match row.executor {
                 crate::Executor::Agent { charter } => charter,
-                crate::Executor::Procedure { .. } | crate::Executor::Person(_) => continue,
+                crate::Executor::Procedure { .. } | crate::Executor::Person(_) | crate::Executor::Job { .. } => {
+                    continue;
+                }
             };
             let mut models = None;
             let mut revision = 0;
@@ -403,7 +405,7 @@ impl Domain {
             let row = record(self, *number).expect("live name");
             let procedure = match row.executor {
                 crate::Executor::Procedure { .. } => true,
-                crate::Executor::Agent { .. } | crate::Executor::Person(_) => false,
+                crate::Executor::Agent { .. } | crate::Executor::Person(_) | crate::Executor::Job { .. } => false,
             };
             if row.project == project
                 && row.root == *number
@@ -434,7 +436,7 @@ impl Domain {
             return None;
         }
         match record.executor {
-            crate::Executor::Agent { .. } | crate::Executor::Person(_) => None,
+            crate::Executor::Agent { .. } | crate::Executor::Person(_) | crate::Executor::Job { .. } => None,
             crate::Executor::Procedure { connector, code } => Some((connector, code, record.attempt.checked_add(1)?)),
         }
     }
@@ -460,7 +462,9 @@ impl Domain {
                 && match record.phase {
                     Phase::Waiting | Phase::Active(_) => match record.executor {
                         crate::Executor::Agent { .. } => true,
-                        crate::Executor::Procedure { .. } | crate::Executor::Person(_) => false,
+                        crate::Executor::Procedure { .. }
+                        | crate::Executor::Person(_)
+                        | crate::Executor::Job { .. } => false,
                     },
                     Phase::Closing(_) | Phase::Held { .. } | Phase::Ended(_) => false,
                 },
@@ -734,7 +738,15 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             }
             crate::Cause::Unpriced => match end {
                 crate::End::FinishedWithFollowups { .. } => {
-                    refused(reply_to, Some(task), Refusal::Contract, out);
+                    let job = match record(domain, task) {
+                        Some(row) => crate::batch::matches_job(row.executor),
+                        None => false,
+                    };
+                    if job {
+                        crate::run::activation(domain, env, reply_to, task, attempt, end, saved, out);
+                    } else {
+                        refused(reply_to, Some(task), Refusal::Contract, out);
+                    }
                 }
                 crate::End::Finished { .. }
                 | crate::End::Exceeded(_)
@@ -855,7 +867,7 @@ pub(crate) fn wake_procedure(domain: &mut Domain, env: &Env<Limits>, task: u64, 
     let wake = match record(domain, task) {
         Some(row) => match row.executor {
             crate::Executor::Procedure { .. } => row.phase == Phase::Active(Active::Idle),
-            crate::Executor::Agent { .. } | crate::Executor::Person(_) => false,
+            crate::Executor::Agent { .. } | crate::Executor::Person(_) | crate::Executor::Job { .. } => false,
         },
         None => false,
     };
@@ -914,7 +926,7 @@ pub(crate) fn activate(domain: &mut Domain, number: u64, out: &mut Queue<Request
         crate::Executor::Procedure { .. } => {
             task_mut(domain, number).expect("live procedure").procedure_offered = offered;
         }
-        crate::Executor::Agent { .. } | crate::Executor::Person(_) => {}
+        crate::Executor::Agent { .. } | crate::Executor::Person(_) | crate::Executor::Job { .. } => {}
     }
     if let Some(context) = domain.run_context(number) {
         out.push(Request::Activate { context });
@@ -949,7 +961,7 @@ impl Domain {
         let task = record(domain, number).expect("activation names live task");
         match task.executor {
             crate::Executor::Person(_) => return None,
-            crate::Executor::Agent { .. } | crate::Executor::Procedure { .. } => {}
+            crate::Executor::Agent { .. } | crate::Executor::Procedure { .. } | crate::Executor::Job { .. } => {}
         }
         let waiting = crate::proposals::waiting_for(domain, number);
         let escalations = crate::escalation::waiting_for(domain, number);
@@ -1450,7 +1462,7 @@ pub(crate) fn make_admitted(
             crate::Executor::Agent { .. } => {
                 domain.live_agents = domain.live_agents.checked_add(1).expect("bounded live agents");
             }
-            crate::Executor::Person(_) | crate::Executor::Procedure { .. } => {}
+            crate::Executor::Person(_) | crate::Executor::Procedure { .. } | crate::Executor::Job { .. } => {}
         }
         let id = domain.tasks.insert(task).expect("batch slab room admitted");
         let indexed = domain.names.insert(number, id);

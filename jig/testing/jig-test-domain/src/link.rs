@@ -102,6 +102,7 @@ pub fn down(domain: &mut Domain, delivery: Delivery) -> Delivery {
             }
         }
         other @ (Delivery::Start(_)
+        | Delivery::AssignedJob { .. }
         | Delivery::Link { .. }
         | Delivery::Message { .. }
         | Delivery::CallBusy { .. }
@@ -125,6 +126,27 @@ fn delivery(domain: &mut Domain, value: jig_domain_hub_link::Request, writes: bo
     let value = match value {
         Output::Core(core::Event::Fleet(event)) => Delivery::Fleet(event),
         Output::Assigned { channel, assignment } => Delivery::Assigned { channel, assignment },
+        Output::AssignedJob { channel, job } => {
+            let items = job.workspace;
+            let workspace = if items.is_some() {
+                Some(host::Workspace { workstream: job.workstream, items: Token::new(job.task) })
+            } else {
+                None
+            };
+            Delivery::AssignedJob {
+                channel,
+                items,
+                job: host::JobAssignment {
+                    run: Token::new(job.task),
+                    attempt: Token::new(job.attempt),
+                    kind: job.kind,
+                    spec: job.spec,
+                    deadline: job.deadline,
+                    workspace,
+                    grants: job.grants,
+                },
+            }
+        }
         Output::Down { channel, value } => Delivery::Link { channel, down: value },
         Output::Message { channel, run, attempt, word } => {
             Delivery::Message { channel, task: run.raw(), attempt: attempt.raw(), word }
@@ -172,6 +194,7 @@ pub(super) fn route(
             value @ (jig_domain_hub_link::Request::Message { .. }
             | jig_domain_hub_link::Request::Down { .. }
             | jig_domain_hub_link::Request::Assigned { .. }
+            | jig_domain_hub_link::Request::AssignedJob { .. }
             | jig_domain_hub_link::Request::Relayed { .. }) => {
                 let value = delivery(domain, value, false);
                 domain.journal.now(value).expect("uncapped link delivery door");

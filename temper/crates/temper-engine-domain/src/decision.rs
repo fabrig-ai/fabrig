@@ -47,6 +47,13 @@ pub struct Limits {
 /// resumed by the root and never passed to the protocol as child events.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Delivery {
+    /// A job and its opaque workspace items, held behind the assignment's commit.
+    AssignedJob {
+        channel: Token,
+        job: jig_domain_host::JobAssignment,
+        items: Option<Box<[u8]>>,
+    },
+
     /// Adoption release reaches the core after its erasures commit
     /// (jig/docs/design/domain/people.md, 5.2; temper/docs/design/domain/forge.md, 4.1).
     ProjectReleased {
@@ -475,6 +482,7 @@ impl Decision {
             Delivery::Assigned { assignment, .. } => assignment_within(assignment, limits),
             Delivery::Host(host) => host_within(host, limits),
             Delivery::SourceSignedOut { .. }
+            | Delivery::AssignedJob { .. }
             | Delivery::Link { .. }
             | Delivery::ProjectMade { .. }
             | Delivery::ProjectReleased { .. }
@@ -656,7 +664,8 @@ pub const fn valid(limits: &Limits) -> bool {
 fn fleet_delivery_within(event: &jig_domain_fleet::Event) -> bool {
     use jig_domain_fleet::Event;
     match event {
-        Event::Start { .. }
+        Event::StartJob { .. }
+        | Event::Start { .. }
         | Event::TurnKept { .. }
         | Event::Acknowledge { .. }
         | Event::Cancel { .. }

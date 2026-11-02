@@ -243,7 +243,9 @@ pub(crate) fn start(
                         && row.attempt.checked_add(1) == Some(step)
                         && match row.executor {
                             tasks::Executor::Procedure { connector, .. } => connector == number,
-                            tasks::Executor::Agent { .. } | tasks::Executor::Person(_) => false,
+                            tasks::Executor::Agent { .. }
+                            | tasks::Executor::Person(_)
+                            | tasks::Executor::Job { .. } => false,
                         }
                 }
                 None => false,
@@ -861,7 +863,9 @@ fn origin_current(core: &Core, connector: u16, origin: &EffectOrigin) -> bool {
                     && row.attempt.checked_add(1) == Some(*step)
                     && match row.executor {
                         tasks::Executor::Procedure { connector: number, .. } => number == connector,
-                        tasks::Executor::Agent { .. } | tasks::Executor::Person(_) => false,
+                        tasks::Executor::Agent { .. } | tasks::Executor::Person(_) | tasks::Executor::Job { .. } => {
+                            false
+                        }
                     }
             }
             None => false,
@@ -1405,7 +1409,7 @@ fn settled(
     let procedure = match core.tasks.task(task) {
         Some(row) => match row.executor {
             tasks::Executor::Procedure { .. } => true,
-            tasks::Executor::Agent { .. } | tasks::Executor::Person(_) => false,
+            tasks::Executor::Agent { .. } | tasks::Executor::Person(_) | tasks::Executor::Job { .. } => false,
         },
         None => false,
     };

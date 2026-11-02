@@ -1,0 +1,59 @@
+draft = "reference-m7a"
+repo = "fabrig"
+sources = ["temper/docs/plan/reference-m7a/inputs/request.md", "temper/docs/design/draft/reference-case.execution.md", "temper/docs/design/draft/reference-code-production.md", "AGENTS.md", "DESIGN.md"]
+
+# M7a of reference-case.execution.md: jobs in jig and temper's worker, as designed
+# (inputs/request.md). Four families, built to notes/contracts.md: the worker's channel
+# (jig's link values, hub, wire, links and fleet), temper's job capability, the client's
+# job tasks, and job tasks in jig's tasks child, store and core. Every schema changes in
+# place (pre-release). The merge job and its uses are M7b's.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "worker-channel"
+title = "a job crosses jig's worker channel: the hello's kinds, the hub's hosted job, the wire, the links and the fleet's placement"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/hosts.md, 6.9"
+
+[[part]]
+id = "worker-jobs"
+title = "temper's worker runs a job of a declared kind as the project's command in its checkout, through temper-worker-domain-tooling"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/worker.md, 4.4"
+
+[[part]]
+id = "client-jobs"
+title = "the client names a job task: Job { kind }, its contract and a delegation's job kinds; Create refuses one"
+mode = "direct"
+needs = []
+design = "jig/docs/design/client/domain/contract.md, 5.7"
+
+[[slice]]
+id = 1
+story = "a worker whose hello declares kind 7 is assigned a job of it, runs it in its checkout, and answers its result, kept until acknowledged"
+parts = ["worker-channel", "worker-jobs"]
+walk = false
+
+[[slice]]
+id = 2
+story = "a client reads a task whose executor is Job { kind: 7 } as job 7, and Create naming a job is refused as not offered"
+parts = ["client-jobs"]
+walk = false
+
+[[part]]
+id = "job-tasks"
+title = "a procedure's step makes a job task; the tasks child, the store and the core carry it from due to its result"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/tasks.md, 5.3.1"
+
+[[slice]]
+id = 3
+story = "a procedure's step makes a job of a declared kind; it is claimed, placed on a worker declaring the kind, answered, and its result read by the procedure at its next step, across a restart"
+parts = ["job-tasks"]
+walk = false

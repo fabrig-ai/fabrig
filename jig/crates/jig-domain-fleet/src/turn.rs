@@ -74,6 +74,10 @@ pub(crate) fn received(
         return;
     };
     let entry = domain.attempts.get(id).expect("a named attempt is tracked");
+    if entry.job.is_some() {
+        drop(domain, body, out);
+        return;
+    }
     let held = entry.kept;
     let pending = match face(domain, entry) {
         Face::Live { channel: Some(owned) } if owned == channel => Pending::Handed,
@@ -116,7 +120,7 @@ pub(crate) fn received(
 pub(crate) fn kept(domain: &mut Domain, run: Token, attempt: Token, turn: u32, out: &mut Queue<Request>) {
     let Some(&id) = domain.names.get(&(run, attempt)) else { return };
     let entry = domain.attempts.get_mut(id).expect("a named attempt is tracked");
-    if turn <= entry.kept {
+    if entry.job.is_some() || turn <= entry.kept {
         return;
     }
     assert!(entry.kept.checked_add(1) == Some(turn), "the parent commits turns consecutively");
@@ -164,6 +168,7 @@ pub(crate) fn resume(domain: &mut Domain, out: &mut Queue<Request>) {
     for (&key, pending) in &domain.turns {
         let action = match domain.attempts.get(key.0) {
             None => true,
+            Some(entry) if entry.job.is_some() => true,
             Some(entry) => match face(domain, entry) {
                 Face::Fenced { .. } => true,
                 Face::Live { .. } => match pending {
@@ -191,6 +196,10 @@ pub(crate) fn resume(domain: &mut Domain, out: &mut Queue<Request>) {
                 drop(domain, body, out);
                 return;
             };
+            if entry.job.is_some() {
+                drop(domain, body, out);
+                return;
+            }
             let (run, attempt, turn) = (entry.run, entry.token, key.1);
             let kept = turn <= entry.kept;
             match face(domain, entry) {
