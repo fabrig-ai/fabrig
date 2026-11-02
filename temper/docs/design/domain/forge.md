@@ -1171,7 +1171,12 @@ delegate's terminal wakes it to offer the landed result.
   whose id may differ from the check-run id (skein's `forge-github.md`,
   4.4). A log cut keeps its end, including a gate's complete timestamp
   line when it fits, and marks the missing prefix. A pin for another
-  head is never read.
+  head is never read. On GitHub, streaming retention ends at the runner's
+  failed-process line before post-job cleanup (skein's `forge-github.md`,
+  10); without that marker it falls back to the job tail. The `read_job`
+  host answer reserves its rendered metadata and truncation marker within
+  the configured answer allowance, prices escaped bytes, and keeps the
+  log suffix that fits. It does not require a larger raw read allowance.
   Planning reserves the repair reason's allotment (CI's or reviews')
   before sizing the pull section's contents, retaining the core's
   context. When the brief cannot hold both section caps, their gathered

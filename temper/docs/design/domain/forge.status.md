@@ -33,4 +33,13 @@
 
 - **Built:** 8.2: the producer's explicit no-change result ends its change successfully, retains its explanation and notifies its requester without a pull request, merge or escalation. Failure results continue to hold.
 
-- **Built:** 8.4: the real-loop GitHub repair reads the failed Actions job through the fake API and log redirect, delivers the complete `Missing changes/36.md with the line: opened 2026-11-02T11:37:21Z` diagnostic in the model request at the shipped brief budgets, writes the required file, pushes a passing head and lands once. The timestamp is absent from the starting checkout; the repair script is selected only by that diagnostic.
+- **Built:** 8.4: the real-loop GitHub repair reads the failed Actions job through the fake API and log redirect, delivers the complete `Missing changes/40.md with the line: opened 2026-11-02T14:01:43Z` diagnostic in the model request at the shipped brief budgets, writes the required file, pushes a passing head and lands once. The timestamp is absent from the starting checkout; the repair script is selected only by that diagnostic.
+
+- **Built:** 8.4: the fake-GitHub real-loop repair calls `read_job` at the
+  pinned head/run/job/attempt with `max_bytes: 1024`, receives the complete
+  `Missing changes/40.md with the line: opened 2026-11-02T14:01:43Z`
+  diagnostic before trailing checkout cleanup, writes the note, pushes a
+  passing head on the same pull and lands once. Replacement repair after
+  release receives the diagnostic again. The fixture grants forge reads;
+  the starting tree contains no timestamp. Host rendering accounts for
+  escaped bytes, metadata, cut marker and the configured settled-call bound.
