@@ -385,6 +385,35 @@ impl Domain {
     ) -> Option<Box<[crate::GateCandidate]>> {
         crate::gates::candidates(&self.gate_policy, limits, project, name)
     }
+    /// Read the landing branch's procedure waits (temper/docs/design/domain/forge.md, 8.7).
+    #[must_use]
+    pub fn requires(&self, repository: &Repository, branch: &[u8]) -> crate::Requires {
+        fn branch_resource_name(repository: &Repository, branch: &[u8]) -> Option<Box<[Box<[u8]>]>> {
+            let mut segments = List::uncapped();
+            for segment in [b"forge".as_slice(), &repository.host, &repository.owner, &repository.name, b"branch"] {
+                if segment.is_empty() {
+                    return None;
+                }
+                segments.push(Box::from(segment)).ok()?;
+            }
+            let mut start = 0;
+            for at in 0..=branch.len() {
+                if at == branch.len() || branch.get(at) == Some(&b'/') {
+                    let part = branch.get(start..at)?;
+                    if part.is_empty() {
+                        return None;
+                    }
+                    segments.push(Box::from(part)).ok()?;
+                    start = at.checked_add(1)?;
+                }
+            }
+            Some(segments.into_boxed())
+        }
+        match branch_resource_name(repository, branch) {
+            Some(name) => crate::gates::requires(&self.gate_policy, repository.project, &name),
+            None => crate::Requires { ci: true, up_to_date: true },
+        }
+    }
     #[must_use]
     pub fn configured_gates(
         &self,
