@@ -388,31 +388,20 @@ engine's protocol layer
 
 - **The file's form,** one account a file, opaque, private and never
   printed: the versioned record `Moved` of `jig-protocol-accounts`'
-  family `jig-accounts` (`schema/moved-v1.schema`, in place of the
-  hand-written `JIGM` form before the first release, at its version,
-  1): the application's name (its root gives it to the accounts'
-  protocol layer), the issuer, the client id the record refreshes with
-  (the one its LLM provider issued, kept in the record, or the
-  registration's own where none was issued), the subject, the display
-  name, and the record, `secret N holds skein-oauth SavedToken`
-  (skein's `oauth.md`, 6.4). Each part has its bound, the whole at most
-  their sum. The generated decode refuses another version, a part past
-  its bound, and a short or trailing input; the moves then refuse an
-  empty part but the display name, which may be empty, and decode the
-  record with skein's `decode_record`, as today, refusing one skein does
-  not read;
-  a file of another version is refused by name, and the account is
-  moved again from a deployment of the same release. For now the moves
-  also read the hand-written form before it, `JIGM` and its version, by
-  its magic before any version is read, and never write it: accounts
-  moved out before the schema keep importing, and their next move out
-  writes the schema's form. Such a file carries skein's record in its
-  own hand-written form, `SKOT` and its version, which skein no longer
-  reads (skein's `oauth.md`, 6.4): the same reader reads it, rebuilds
-  the record and checks it through skein's current code. That reader
-  goes, whole, before the first release, once those files are moved out
-  again. A file the moves cannot decode is refused as unreadable, never
-  as another application's.
+  family `jig-accounts` (`schema/moved-v1.schema`, at its version, 1):
+  the application's name (its root gives it to the accounts' protocol
+  layer), the issuer, the client id the record refreshes with (the one
+  its LLM provider issued, kept in the record, or the registration's own
+  where none was issued), the subject, the display name, and the
+  record, `secret N holds skein-oauth SavedToken` (skein's `oauth.md`,
+  6.4). Each part has its bound, the whole at most their sum. The
+  generated decode refuses another version, a part past its bound, and
+  a short or trailing input; the moves then refuse an empty part but
+  the display name, which may be empty, and decode the record with
+  skein's `decode_record`, refusing one skein does not read; a file of
+  another version is refused by name, and the account is moved again
+  from a deployment of the same release. A file the moves cannot decode
+  is refused as unreadable, never as another application's.
 - **Out.** The child releases the source and asks to withdraw it,
   giving its account's display name for the file. The
   routing removes it from the driver; at `removed`, it reads the
