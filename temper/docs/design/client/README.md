@@ -1,6 +1,6 @@
 # temper's client
 
-Provisional, 2026-10-14, revised 2026-10-24. temper's client: temper's own
+Provisional, 2026-10-14, revised 2026-11-02. temper's client: temper's own
 presentation on jig's client, `jig-client`. Its crates; its client root,
 which holds `jig-client` and temper's pages, the LLM accounts' and the
 forges' among them; the forge's client family, its words, its one form
@@ -2794,8 +2794,11 @@ supplies it: the page computes none (jig's `client/domain/contract.md`,
 - **Gates at its head:** a region of rows, each a name and its state.
   First "CI at its head": "Not yet" while CI is unknown, "Running"
   while pending, "Passed", "Failed". On a landed change, unknown CI is
-  "Not read since the restart": the panel forgets CI at a restart, and
-  a landed change's is not read again (`../domain/forge.md`, 8.8). Then each gate, in the supplied
+  "Not read since the restart": a landed change keeps the verdict last
+  read at its head with its record, through a restart too, so its CI is
+  unknown only when no step read one at that head between the engine's
+  last start and the landing, and no step reads it after
+  (`../domain/forge.md`, 8.8). Then each gate, in the supplied
   order: "Gate N · review", "· approval" or "· check", then "·
   blocking" or "· advisory", and its verdict: "Not yet" with none,
   "Waiting" pending, "Approved", "Changes asked". With no gate, a last

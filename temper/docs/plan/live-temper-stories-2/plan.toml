@@ -1,0 +1,26 @@
+draft = "live-temper-stories-2"
+repo = "fabrig"
+sources = ["temper/docs/plan/live-temper-stories-2/inputs/request.md", "AGENTS.md"]
+
+# fab's after-landing pair at 6ce795f9d ran both owned-forge landing stories to the landing
+# and the restart, then failed `ci_shown` (inputs/request.md, 11-02). The design moved on 10-27:
+# a landed change keeps its last CI verdict with its record through a restart (forge.md, 8.8),
+# the code keeps it and the process tier's restart worlds read `Passed`; the live story's
+# expectation is stale. One direct part, one task: the stories read the process worlds' check.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "landed-ci"
+title = "the owned-forge landing stories read CI Passed on the landed change after the restart"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/testing.md, 2.7"
+
+[[slice]]
+id = 1
+story = "both owned-forge landing stories, and the process tier's restart worlds through the same check, read CI at its head Passed on the landed change's page before and after the box restarts"
+parts = ["landed-ci"]
+walk = false
