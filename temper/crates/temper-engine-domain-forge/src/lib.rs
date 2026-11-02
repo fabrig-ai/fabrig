@@ -43,6 +43,7 @@ pub mod runs;
 mod views;
 pub use reconcile::{MissingLink, Need, RecordKind};
 pub mod resources;
+pub mod settings;
 mod settle;
 #[cfg(test)]
 mod tests;

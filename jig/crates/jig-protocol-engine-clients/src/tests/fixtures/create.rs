@@ -116,6 +116,7 @@ fn member(role: bool, authority: w::Authority, expected: p::Authority) -> (w::Ne
 }
 fn expected_member(role: bool, expected: p::Authority) -> p::Member {
     p::Member {
+        symbols: Box::new([]),
         deadline: jig_domain_people::Deadline::Named,
         executor: if role {
             p::TaskExecutor::Person(p::PersonAddress::Role(ROLE))

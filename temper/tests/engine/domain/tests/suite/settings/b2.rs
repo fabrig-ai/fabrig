@@ -243,7 +243,9 @@ fn repair_change(driver: &mut Driver, coordinator: &engine::Assignment, number: 
         driver,
         coordinator,
         number,
-        engine::Tool::Change { repository: None, words: b"Repair twice, then land".as_slice().into() },
+        engine::Tool::Change {
+            changes: Box::new([engine::ChangeCall::words(b"Repair twice, then land".as_slice().into(), None)]),
+        },
     );
     let engine::CallAnswer::Delegated(made) = answer else {
         panic!("change admitted: {answer:?}");

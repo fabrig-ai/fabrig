@@ -269,6 +269,7 @@ fn member(
     }
     let flags = v.flags.into_parts();
     Ok(p::Member {
+        symbols: Box::new([]),
         deadline: match v.deadline {
             w::NewDeadline::Named => p::Deadline::Named,
             w::NewDeadline::Span(value) => p::Deadline::Span(value.value()),

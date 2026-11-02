@@ -24,6 +24,7 @@ mod removal;
 mod requires;
 mod restore_fit;
 mod runs;
+mod settings;
 mod stopping;
 mod views;
 use alloc::boxed::Box;

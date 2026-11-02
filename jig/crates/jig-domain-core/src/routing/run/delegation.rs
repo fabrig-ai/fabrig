@@ -497,6 +497,8 @@ pub(crate) fn procedure_step(
                         number: member.number,
                         executor: member.executor,
                         spec: member.spec.clone(),
+                        tracked: member.tracked.is_some(),
+                        symbols: Box::new([]),
                     })
                     .expect("one holdings request per member");
             }
@@ -717,6 +719,8 @@ fn holdings_need(root: u64, members: &[tasks::New], capacity: u32) -> List<Holdi
                 number: member.number,
                 executor: member.executor,
                 spec: member.spec.clone(),
+                tracked: member.tracked.is_some(),
+                symbols: Box::new([]),
             })
             .expect("one holdings request per member");
     }

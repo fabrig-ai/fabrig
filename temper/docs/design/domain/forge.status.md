@@ -49,10 +49,6 @@
   - 8.2 step 7: a landed change's result words without its producer's
     report, and bounded at 512 bytes whatever `tasks.result_bytes` is
     (`forge_route.rs`, `chat_change` and `change_landing_words`).
-  - 8.4: a change held for effects before its producer was asked, then
-    released, keeps a producer asked for and never made: Active, idle,
-    no producer (`forge_route.rs`, `change_decision`, drops the decision
-    of a step jig no longer has due, and nothing resets `requested`).
   - 8.3: a person's approval as a gate; a review's lens; gates run at once
     when the change asks; a verdict posted as a commit status; the review
     charter, kind 3's number 2, is fixed at charter 4.

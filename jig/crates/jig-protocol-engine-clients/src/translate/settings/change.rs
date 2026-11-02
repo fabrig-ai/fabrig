@@ -250,6 +250,7 @@ fn template(value: w::Template, models: &[crate::Model], limits: &w::Limits) -> 
         None => None,
     };
     Ok(c::Template {
+        resources: Box::new([]),
         number: v.number,
         name: v.name.into_parts().bytes,
         executor: operations::executor(v.executor),

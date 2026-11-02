@@ -471,6 +471,8 @@ fn creation_holdings(core: &Core, out: &mut Queue<Request>, request: Token, new:
                 number: new.number,
                 executor: new.executor,
                 spec: new.spec.clone(),
+                tracked: new.tracked.is_some(),
+                symbols: Box::new([]),
             },
         });
     }
