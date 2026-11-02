@@ -46,7 +46,12 @@ impl Plan {
         let redirect = redirect::parse(location, length, length)?;
         self.stage = Stage::Log;
         self.response = Response::Head;
-        Ok(Some(Step::Redirect { redirect, retention: Retention::Tail { bytes: self.raw_cap } }))
+        let retention = if self.job_step.is_some() {
+            Retention::FailedStep { bytes: self.raw_cap }
+        } else {
+            Retention::Tail { bytes: self.raw_cap }
+        };
+        Ok(Some(Step::Redirect { redirect, retention }))
     }
     pub(super) fn job_raw(&mut self, bytes: Box<[u8]>, more: bool, bounds: Bounds) -> Result<Option<Step>, api::Error> {
         let Read::Job { attempt, .. } = self.read else {

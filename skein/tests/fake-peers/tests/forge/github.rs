@@ -7,6 +7,7 @@ use skein_fake_forge_github::{
 };
 use skein_fake_peers::forge::{Forge, Observation, Peer};
 use skein_fake_peers_tests as support;
+use skein_forge::github::plans::plan::Retention;
 use skein_forge::{
     api,
     github::{
@@ -20,6 +21,7 @@ use skein_forge::{
         request::Method,
     },
 };
+use skein_forge_connection::grow::Tail;
 use skein_io::kernel::{Complete, Done, Family, Fd, Op, Submit};
 use skein_json::tokenizer;
 use skein_lib::{
@@ -403,23 +405,7 @@ impl World {
                     }
                     events
                 }
-                Step::Redirect { redirect, retention } => {
-                    let address = self.github.blob_address().expect("bound blob origin");
-                    assert_eq!(redirect.origin.port, address.port());
-                    assert!(!redirect.origin.tls);
-                    assert_eq!(redirect.origin.host.as_ref(), address.ip().to_string().as_bytes());
-                    let response = self.fetch_blob(&redirect.target, false);
-                    assert_eq!(response.status, 200);
-                    let github::plans::plan::Retention::Tail { bytes } = retention else {
-                        panic!("job log retains tail")
-                    };
-                    let cap = usize::try_from(bytes).expect("u32 fits usize");
-                    let start = response.body.len().saturating_sub(cap);
-                    vec![
-                        Heard::Head { status: response.status, head: github::header::Head::new() },
-                        Heard::Done(Body::Raw { bytes: f::boxed(&response.body[start..]), more: start != 0 }),
-                    ]
-                }
+                Step::Redirect { redirect, retention } => self.job_log_events(&redirect, retention),
             };
             let mut next = None;
             for event in events {
@@ -431,6 +417,25 @@ impl World {
             step = next.expect("exchange advances plan");
         }
         panic!("bounded plan settles")
+    }
+    fn job_log_events(&mut self, redirect: &github::redirect::Redirect, retention: Retention) -> Vec<Heard> {
+        let address = self.github.blob_address().expect("bound blob origin");
+        assert_eq!(redirect.origin.port, address.port());
+        assert!(!redirect.origin.tls);
+        assert_eq!(redirect.origin.host.as_ref(), address.ip().to_string().as_bytes());
+        let response = self.fetch_blob(&redirect.target, false);
+        assert_eq!(response.status, 200);
+        let mut tail = match retention {
+            Retention::Tail { bytes } => Tail::new(bytes, bytes),
+            Retention::FailedStep { bytes } => Tail::failed_step(bytes, bytes),
+            Retention::Head { .. } | Retention::Whole { .. } => panic!("job log retains a suffix"),
+        };
+        tail.write(&response.body);
+        let more = tail.dropped();
+        vec![
+            Heard::Head { status: response.status, head: github::header::Head::new() },
+            Heard::Done(Body::Raw { bytes: tail.finish(), more }),
+        ]
     }
     fn settle(&mut self) {
         self.github.shutdown();

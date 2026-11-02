@@ -58,22 +58,54 @@ impl Grow {
         self.bytes.capacity()
     }
 }
-/// A body's last `max` bytes, replacing the oldest once full.
+/// A body's last `max` bytes, optionally ending at its first failed process.
 #[derive(Debug)]
 pub struct Tail {
     grow: Grow,
     start: u32,
     dropped: bool,
+    failure: Option<FailureEnd>,
+}
+/// Recognises the runner's process-failure line across body chunks.
+#[derive(Debug)]
+struct FailureEnd {
+    matched: u8,
+    ended: bool,
+}
+impl FailureEnd {
+    fn byte(&mut self, byte: u8) {
+        const MARKER: &[u8] = b"##[error]Process completed with exit code ";
+        if usize::from(self.matched) == MARKER.len() {
+            self.ended = byte == b'\n';
+        } else if MARKER.get(usize::from(self.matched)) == Some(&byte) {
+            self.matched = self.matched.saturating_add(1);
+        } else {
+            self.matched = u8::from(byte == b'#');
+        }
+    }
 }
 impl Tail {
     /// Starts at `first` bytes, growing up to `max`.
     #[must_use]
     pub fn new(first: u32, max: u32) -> Self {
-        Self { grow: Grow::new(first, max), start: 0, dropped: false }
+        Self { grow: Grow::new(first, max), start: 0, dropped: false, failure: None }
+    }
+    /// Retain through the first runner process-failure line, draining cleanup.
+    /// Without that line, retain the job tail. Memory stays within `max` bytes.
+    #[must_use]
+    pub fn failed_step(first: u32, max: u32) -> Self {
+        Self { failure: Some(FailureEnd { matched: 0, ended: false }), ..Self::new(first, max) }
     }
     /// Appends each byte, replacing the oldest when full.
     pub fn write(&mut self, piece: &[u8]) {
         for byte in piece {
+            if let Some(failure) = &mut self.failure {
+                if failure.ended {
+                    self.dropped = true;
+                    continue;
+                }
+                failure.byte(*byte);
+            }
             if self.grow.room() > 0 {
                 self.grow.write(core::slice::from_ref(byte)).expect("Room for one byte");
             } else {
@@ -85,7 +117,7 @@ impl Tail {
             }
         }
     }
-    /// Whether any earlier byte was dropped.
+    /// Whether any prefix or cleanup byte was omitted.
     #[must_use]
     pub fn dropped(&self) -> bool {
         self.dropped

@@ -95,15 +95,7 @@ fn github_failed_step_diagnostic_survives_post_job_cleanup() {
         log.extend_from_slice(b"2026-11-02T14:01:46Z git config --local --get-regexp http.extraheader\n");
     }
     log.truncate(LOG_BYTES);
-    let mut w = world_answers(
-        None,
-        None,
-        vec![
-            Answer { request: JOB, response: plaintext(metadata) },
-            Answer::served(LOG),
-            Answer { request: BLOB, response: plaintext(&log) },
-        ],
-    );
+    let mut w = plaintext_job(metadata, &log);
     read(&mut w, 2, 1024);
     let Ok(Value::Job { attempt: pinned, step, log, truncated }) = &w.answered(2).expect("job answer").result else {
         panic!("read within the admitted answer bound")
@@ -118,6 +110,37 @@ fn github_failed_step_diagnostic_survives_post_job_cleanup() {
     );
     finish(&mut w, READY_REQUESTS + usize::try_from(FOLLOW_COST).unwrap());
 }
+fn fixture_step() -> api::Step {
+    api::Step { number: 1, name: Box::from(*b"changes") }
+}
+
+#[test]
+fn github_job_without_a_failed_step_keeps_cleanup_in_the_job_tail() {
+    let metadata =
+        br#"{"id":1,"run_id":1,"run_attempt":1,"head_sha":"910a2dec89025cc1000000000000000100000000","steps":[]}"#;
+    let mut w = plaintext_job(metadata, b"##[error]Process completed with exit code 1.\ncleanup\n");
+    read(&mut w, 2, 8);
+    terminal(
+        &w,
+        2,
+        FOLLOW_COST,
+        &Ok(Value::Job { attempt: attempt(), step: None, log: Box::from(*b"cleanup\n"), truncated: true }),
+    );
+    finish(&mut w, READY_REQUESTS + usize::try_from(FOLLOW_COST).unwrap());
+}
+
+fn plaintext_job(metadata: &[u8], log: &[u8]) -> Machine {
+    world_answers(
+        None,
+        None,
+        vec![
+            Answer { request: JOB, response: plaintext(metadata) },
+            Answer::served(LOG),
+            Answer { request: BLOB, response: plaintext(log) },
+        ],
+    )
+}
+
 fn job_log_origins() -> List<LogOrigin> {
     let mut origins = List::with_capacity(2);
     for host in [b"logs.example.test".as_slice(), b"productionresultssa17.blob.core.windows.net"] {
@@ -162,7 +185,7 @@ fn github_job_log_follows_once_and_keeps_whole_or_tail() {
             &w,
             call,
             FOLLOW_COST,
-            &Ok(Value::Job { attempt: attempt(), step: None, log: Box::from(log), truncated }),
+            &Ok(Value::Job { attempt: attempt(), step: Some(fixture_step()), log: Box::from(log), truncated }),
         );
     }
     assert_eq!(w.blob_records().len(), 2);
@@ -188,7 +211,12 @@ fn github_blob_carries_neither_credential_nor_range() {
         &w,
         2,
         FOLLOW_COST,
-        &Ok(Value::Job { attempt: attempt(), step: None, log: Box::from(b" failed\n".as_slice()), truncated: true }),
+        &Ok(Value::Job {
+            attempt: attempt(),
+            step: Some(fixture_step()),
+            log: Box::from(b" failed\n".as_slice()),
+            truncated: true,
+        }),
     );
     finish(&mut w, READY_REQUESTS + usize::try_from(FOLLOW_COST).unwrap());
 }
@@ -332,7 +360,12 @@ fn github_job_log_can_redirect_to_a_second_results_host() {
         &w,
         2,
         FOLLOW_COST,
-        &Ok(Value::Job { attempt: attempt(), step: None, log: Box::from(b" failed\n".as_slice()), truncated: true }),
+        &Ok(Value::Job {
+            attempt: attempt(),
+            step: Some(fixture_step()),
+            log: Box::from(b" failed\n".as_slice()),
+            truncated: true,
+        }),
     );
     assert!(w.facts().is_empty());
     assert_eq!(w.blob_records().len(), 1);

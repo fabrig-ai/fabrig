@@ -680,14 +680,7 @@ impl Connection {
                             let retention = exchange
                                 .retention
                                 .unwrap_or(github::plans::plan::Retention::Head { bytes: self.shared.answer_bytes });
-                            let (range, cap) = match retention {
-                                github::plans::plan::Retention::Head { bytes }
-                                | github::plans::plan::Retention::Whole { bytes } => (Range::Head(bytes), bytes),
-                                github::plans::plan::Retention::Tail { bytes } => (Range::Tail(bytes), bytes),
-                            };
-                            self.raw_range = range;
-                            self.raw_cap = cap.min(self.shared.answer_bytes);
-                            self.begin_raw(env, response.framing);
+                            self.begin_github_raw(env, response.framing, retention);
                         } else {
                             self.receive = Receiving::Empty;
                             self.http_down(env, http::Request::Discard);
@@ -749,6 +742,26 @@ impl Connection {
                     self.http_down(env, http::Request::Discard);
                 }
             }
+        }
+    }
+    fn begin_github_raw(
+        &mut self,
+        env: &Env<Limits>,
+        framing: http::Framing,
+        retention: github::plans::plan::Retention,
+    ) {
+        use github::plans::plan::Retention;
+        let (range, cap) = match retention {
+            Retention::Head { bytes } | Retention::Whole { bytes } => (Range::Head(bytes), bytes),
+            Retention::Tail { bytes } | Retention::FailedStep { bytes } => (Range::Tail(bytes), bytes),
+        };
+        self.raw_range = range;
+        self.raw_cap = cap.min(self.shared.answer_bytes);
+        self.begin_raw(env, framing);
+        if let Retention::FailedStep { .. } = retention
+            && let Receiving::Tail { tail, .. } = &mut self.receive
+        {
+            *tail = Tail::failed_step(env.limits.chunk, self.raw_cap);
         }
     }
     fn begin_raw(&mut self, env: &Env<Limits>, framing: http::Framing) {
