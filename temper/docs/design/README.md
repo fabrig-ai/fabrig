@@ -189,11 +189,8 @@ forge, temper adds:
 - **`release.md`:** the download: the one Linux binary of a release,
   its identity and floors, what the machine must have, how a release
   is made, and its walk on a fresh machine.
-- **`qa.md`:** temper's binding for QA after landing (agents'
-  `docs/design/qa-flow.md`): whom a pass plays, its box and rungs, its
-  hands, its reads of the forge, and what makes a finding.
-- **`draft/`:** drafts, not contract. The lab binding was retired for
-  `qa.md`'s process; the remaining lab drafts are historical.
+- **`draft/`:** the drafts, the vision this design is written from
+  (the repository's `AGENTS.md`, section 9).
 - **`STATUS.md`:** how far the code is from this design.
 
 ## 7. Conventions

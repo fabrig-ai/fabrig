@@ -1345,7 +1345,7 @@ section 8; testing-strategy.md, 2.9).
     the run (agents' `qa-flow.md`, 10.2).
   - **Its acts are the brief's,** the person's words included, through
     `temper ctl`; the forge's by the box's person, its read and write
-    header files (`../qa.md`, 4), as the brief's person acts.
+    header files (`../protocol/setup.md`, 7.3), as the brief's person acts.
   - **Its Musts are the brief's "What passes",** read through temper
     and through Forgejo's API, each a comparison of the two accounts.
   - **Its bounds are the passing walk's,** as its report states them:
@@ -2132,8 +2132,7 @@ The two suites are the strategy's (testing-strategy.md, section 8). In temper:
 - **Outside both suites:** the process tier's binary `process` and the
   live tier's binary `live`, which both suites' filters leave out, run
   under the nextest profiles `process-temper` and `live-temper`, the live one
-  by `scripts/proof-live.sh`. The gate never runs them. The lab was retired
-  for `../qa.md`'s process.
+  by `scripts/proof-live.sh`. The gate never runs them.
 
 A fuzzy test lives in its world's crate, beside the focused ones, and
 uses that world: a world's settings, random ones included, are the
