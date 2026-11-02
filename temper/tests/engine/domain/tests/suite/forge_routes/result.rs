@@ -175,7 +175,7 @@ fn a_landed_change_carries_its_producers_report() {
     };
     let forge_top::Stored::Change(row) = row.as_ref() else { panic!("change row") };
     assert_eq!(row.report.as_ref(), REPORT);
-    let temper_engine_domain_forge_change::State::Landed { merge } = row.change.state else { panic!("landed") };
+    let temper_engine_domain_forge_change::State::Landed { merge, .. } = row.change.state else { panic!("landed") };
     let merge = String::from_utf8(forge_top::commit_text(&merge).into_vec()).expect("hexadecimal merge");
     let head =
         String::from_utf8(forge_top::commit_text(&translate::commit(head)).into_vec()).expect("hexadecimal head");
