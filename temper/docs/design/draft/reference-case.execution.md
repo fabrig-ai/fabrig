@@ -219,9 +219,12 @@ section 14 it adds; Old code, the old branches it may start from.
   the cut, the families' batches, revisions, the close-out; each
   change's LLM choices, gpt-6.1-sol on smith's direct backend (N20);
   sub-agents in both charters, at Opus 5.5 and high.
+- **A charter's documents** are built by `configuring.execution.md`'s
+  P1 (plan `configuring-p1`, started 2026-11-02), not here: M3's
+  charters naming documents (`AGENTS.md`, the design rules) wait for P1
+  to land.
 - **Old code:** jig's and temper's `configuring-revisions/charter-tools-r6`
-  (the tool families a charter offers); `documents-r1` and
-  `forge-kinds` (M1).
+  (the tool families a charter offers); `forge-kinds` (M1).
 - **Walk:** steps 1 to 6 without questions or early starts (each
   designer starts once S has landed), and 22; with M2, the goal then
   lands. M4's walk folds in here (fabrig/qa): a Claude Code chat asks
