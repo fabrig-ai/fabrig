@@ -1,11 +1,9 @@
 //! Shipped smith on its own live accounts (smith/docs/design/testing.md, section 2.3).
 //! The live profile selects these stories serially, without retries.
 
-#[path = "support/live.rs"]
-pub mod live;
-#[path = "support/live_report.rs"]
-pub mod live_report;
 pub mod support;
+
+pub use support::{live, live_report};
 
 use live_report::{Leg, Settled, Step, exec_report, file_report};
 use smith_events::{Block, Event};

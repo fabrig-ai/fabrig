@@ -66,11 +66,11 @@ impl Environment {
     }
 }
 
-pub(super) fn root(value: Option<&std::ffi::OsStr>) -> Result<PathBuf, &'static str> {
+pub(crate) fn root(value: Option<&std::ffi::OsStr>) -> Result<PathBuf, &'static str> {
     value.filter(|value| !value.is_empty()).map(PathBuf::from).ok_or("$SMITH_LIVE unset")
 }
 
-pub(super) fn setup(root: &Path, account: &str, key: bool) -> Result<(), &'static str> {
+pub(crate) fn setup(root: &Path, account: &str, key: bool) -> Result<(), &'static str> {
     let (path, message) = match account {
         "chatgpt" => ("tokens/chatgpt", CHATGPT),
         "claude" => ("programs/claude", CLAUDE),
