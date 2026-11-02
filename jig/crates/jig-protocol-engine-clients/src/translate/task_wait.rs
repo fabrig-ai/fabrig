@@ -19,20 +19,6 @@ pub(super) fn waiting(value: Option<d::TaskRunWait>, limits: &w::Limits) -> Resu
                             why: super::deployment::hello(why, limits)?,
                         },
                     )?),
-                    d::TaskWaitRefused::Program(value) => w::TaskWaitRefused::Program(w::TaskWaitRefusedProgram::new(
-                        limits,
-                        w::TaskWaitRefusedProgramParts {
-                            value: match value {
-                                d::OpenProgram::Model => w::TaskWaitProgram::Model,
-                                d::OpenProgram::Source { account, source } => {
-                                    w::TaskWaitProgram::Source(w::TaskWaitProgramSource::new(
-                                        limits,
-                                        w::TaskWaitProgramSourceParts { account, source },
-                                    )?)
-                                }
-                            },
-                        },
-                    )?),
                 },
             },
         )?),

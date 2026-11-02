@@ -5,10 +5,10 @@ use skein_lib::{Reader, Writer};
 #[test]
 fn refused_task_documents_reject_truncated_or_unknown_nested_tags() {
     let limits = super::fixtures::limits();
-    // Outer refusal, program arm, source arm, then the two little-endian u32s.
-    let wait_bytes = [3, 1, 1, 42, 0, 0, 0, 91, 0, 0, 0];
-    let wait = w::TaskRunWait::decode(&limits, &mut Reader::new(&wait_bytes)).expect("source wait");
-    assert_eq!(wait.measure(), 11, "one-field records have no separate header");
+    // Outer refusal, hello arm, worker kind, receipt time, reserved-channel cause.
+    let wait_bytes = [3, 0, 0, 42, 0, 0, 0, 0, 0, 0, 0, 1];
+    let wait = w::TaskRunWait::decode(&limits, &mut Reader::new(&wait_bytes)).expect("hello wait");
+    assert_eq!(wait.measure(), 12, "one-field records have no separate header");
     let mut parts = super::fixtures::task(&limits).into_parts();
     parts.run_wait = Some(wait);
     parts.lineage = skein_lib::List::with_capacity(1);
@@ -30,7 +30,7 @@ fn refused_task_documents_reject_truncated_or_unknown_nested_tags() {
             skein_codec::Reason::Short
         );
     }
-    for tag in 0..3 {
+    for tag in [0, 1, 2, 11] {
         let mut invalid = bytes.clone();
         invalid[offset + tag] = 255;
         assert_eq!(

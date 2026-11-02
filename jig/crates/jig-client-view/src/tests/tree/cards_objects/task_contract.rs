@@ -142,21 +142,17 @@ fn maximum_nested_task_contracts_fit_the_page_bound_and_preserve_every_raw_slot_
 #[test]
 fn refused_chat_header_shows_the_supplied_cause_and_receipt_time() {
     let mut goldens = Goldens::new("tree/cards_objects/task_contract/refused_chat_header");
-    for cause in [
-        TaskWaitRefused::Program(OpenProgram::Model),
-        TaskWaitRefused::Program(OpenProgram::Source { account: 17, source: 23 }),
-        TaskWaitRefused::Hello { kind: HostKind::Worker, at: Wall::EPOCH, why: HelloRefusal::Position { worker: 7 } },
-    ] {
-        let mut row = task_doc(&[]);
-        row.flags.conversation = true;
-        row.waits_on = WaitsOn::Nothing;
-        row.run_wait = Some(TaskRunWait::Refused(cause));
-        row.chip.phase = Phase::Due;
-        row.chip.details = Box::new(ChipPhaseFacts {
-            phase: ChipPhase::Active(RunStage::Due),
-            details: Box::new(crate::tests::tree::fragments::chip::details()),
-        });
-        let (tree, _) = page(row);
-        goldens.check(&tree);
-    }
+    let cause =
+        TaskWaitRefused::Hello { kind: HostKind::Worker, at: Wall::EPOCH, why: HelloRefusal::Position { worker: 7 } };
+    let mut row = task_doc(&[]);
+    row.flags.conversation = true;
+    row.waits_on = WaitsOn::Nothing;
+    row.run_wait = Some(TaskRunWait::Refused(cause));
+    row.chip.phase = Phase::Due;
+    row.chip.details = Box::new(ChipPhaseFacts {
+        phase: ChipPhase::Active(RunStage::Due),
+        details: Box::new(crate::tests::tree::fragments::chip::details()),
+    });
+    let (tree, _) = page(row);
+    goldens.check(&tree);
 }

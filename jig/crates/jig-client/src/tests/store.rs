@@ -325,21 +325,30 @@ fn reloading_mixed_work_restores_only_the_actual_ordinary_record() {
     assert_eq!(c.machine.pending(SECOND), None);
 }
 #[test]
-fn a_kept_seen_record_decodes_restores_and_erases_without_resaving() {
+fn a_kept_seen_record_decodes_is_dropped_and_erased_at_start() {
     for first_sent in [None, Some(skein_lib::Wall::EPOCH)] {
         let mut records = skein_lib::List::with_capacity(1);
-        records.push(fixtures::kept_seen(SECOND, SEEN_NAME, first_sent)).unwrap();
+        let record = fixtures::kept_seen(SECOND, SEEN_NAME, first_sent);
+        let stored_key = record.key.clone();
+        records.push(record).unwrap();
         let mut c = Client::with_kept(records);
-        assert_eq!(c.requests(), &[Request::Told { told: Told::Kept { key: SECOND, request: fixtures::seen() } },]);
+        let [Request::Told { told: Told::Dropped { count: 1 } }, Request::Erase { records: erased }] = c.requests()
+        else {
+            panic!("dropped Seen erased at start: {:?}", c.requests());
+        };
+        assert_eq!(erased.as_slice(), &[stored_key]);
+        assert_eq!(c.machine.pending(SECOND), None);
+        assert!(fixtures::saved(c.requests()).is_empty());
+        c.step(Event::Stored); // The dropped record's erase.
+        assert!(c.requests().is_empty());
         c.step(Event::SignIn { with: With::Held(skein_lib::Secret::new(Box::new([7; 40]))) });
         c.stream(fixtures::hello(jig_client_protocol_wire::VERSION));
         let watch = c.opened_watch();
         c.step(Event::Stored); // Only the stream-name write.
         c.stream(fixtures::frame(watch));
         assert!(fixtures::saved(c.requests()).is_empty());
-        assert_eq!(keyed_keys(c.requests()).as_slice(), &[SEEN_NAME]);
-        let exchange = c.exchange();
-        complete_seen(&mut c, exchange);
+        assert!(keyed_keys(c.requests()).is_empty());
+        assert_eq!(c.machine.pending(SECOND), None);
         later_stop(&mut c);
     }
 }
