@@ -67,6 +67,9 @@ fn check_with_result_proposal(
             let Some(parent) = record(domain, number) else {
                 return Err(problem(Some(number), Refusal::Unknown));
             };
+            if let Executor::Job { .. } = parent.executor {
+                return Err(problem(Some(number), Refusal::Executor));
+            }
             if let Some(proposal) = result_proposal
                 && !matches_result_action(parent, proposal, batch)
             {
@@ -257,11 +260,18 @@ fn check_members(
         if let Err(why) = crate::goals::room(domain, new.project, adding, limits) {
             return Err(problem(number, why));
         }
-        if new.spec.job.is_some() {
+        if new.spec.job.is_some() && !matches_job(new.executor) {
             return Err(problem(number, Refusal::Executor));
         }
         match new.executor {
-            Executor::Job { .. } => return Err(problem(number, Refusal::Executor)),
+            Executor::Job { .. } => {
+                if !job_creator(parent) {
+                    return Err(problem(number, Refusal::Executor));
+                }
+                if let Err(why) = job_member(limits, &new.spec, &new.contract) {
+                    return Err(problem(number, why));
+                }
+            }
             Executor::Agent { charter } => {
                 if domain.charter_models(charter, domain.newest()).is_none() {
                     return Err(problem(number, Refusal::Executor));
@@ -286,7 +296,9 @@ fn check_members(
         if !crate::wake::valid(&new.wake) {
             return Err(problem(number, Refusal::Spec));
         }
-        if !valid_contract(limits, &new.contract) {
+        if !valid_contract(limits, &new.contract)
+            || job_contract(&new.contract) && !matches_job(new.executor)
+        {
             return Err(problem(number, Refusal::Contract));
         }
         if !valid_authority(limits, &new.authority) {
@@ -331,6 +343,49 @@ fn check_members(
                 return Err(problem(number, Refusal::Dependencies));
             }
         }
+    }
+    Ok(())
+}
+
+/// A job delegates nothing and only a procedure creates one (jig/docs/design/domain/tasks.md, 5.3.1).
+pub(crate) fn job_creator(parent: Option<&crate::TaskRecord>) -> bool {
+    match parent {
+        Some(parent) => match parent.executor {
+            Executor::Procedure { .. } => true,
+            Executor::Agent { .. } | Executor::Person(_) | Executor::Job { .. } => false,
+        },
+        None => false,
+    }
+}
+
+pub(crate) fn matches_job(executor: Executor) -> bool {
+    match executor {
+        Executor::Job { .. } => true,
+        Executor::Agent { .. } | Executor::Procedure { .. } | Executor::Person(_) => false,
+    }
+}
+
+pub(crate) fn job_contract(contract: &Contract) -> bool {
+    match contract {
+        Contract::Job { .. } => true,
+        Contract::Approval { .. } | Contract::Report { .. } | Contract::Verdict { .. } | Contract::Change { .. } => false,
+    }
+}
+
+/// Shared admission and restore shape (jig/docs/design/domain/tasks.md, 5.3.1).
+pub(crate) fn job_member(limits: &Limits, spec: &Spec, contract: &Contract) -> Result<(), Refusal> {
+    let Some(job) = &spec.job else { return Err(Refusal::Spec) };
+    if job.bytes.len() > skein_lib::length::usize_of(limits.spec_bytes)
+        || job.deadline == skein_lib::Duration::ZERO
+        || !spec.words.is_empty()
+        || !spec.parameters.is_empty()
+        || !spec.inputs.is_empty()
+        || spec.asks
+    {
+        return Err(Refusal::Spec);
+    }
+    if !job_contract(contract) || !valid_contract(limits, contract) {
+        return Err(Refusal::Contract);
     }
     Ok(())
 }

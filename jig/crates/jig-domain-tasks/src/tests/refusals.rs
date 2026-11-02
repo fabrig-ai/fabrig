@@ -63,40 +63,170 @@ fn an_answers_refusals_are_kept_without_a_turn_or_charge() {
     assert!(kept, "answer refusal row is durable");
 }
 
-/// Job surface admission stays closed (jig/docs/design/domain/tasks.md, 5.3.1).
-#[test]
-fn a_batch_naming_a_job_is_refused_until_jobs_are_admitted() {
-    use crate::{Executor, JobSpec, Refusal};
-    use skein_lib::Duration;
-    let job = Some(Box::new(JobSpec { bytes: Box::new([0xff]), deadline: Duration::from_secs(7) }));
-    for (executor, spec) in [
-        (Executor::Job { kind: 7 }, None),
-        (Executor::Job { kind: 7 }, job.clone()),
-        (Executor::Agent { charter: 1 }, job.clone()),
-        (Executor::Procedure { connector: 1, code: 1 }, job.clone()),
-        (Executor::Person(crate::PersonAddress::Person(1)), job),
-    ] {
-        let mut h = Harness::new();
-        let mut member = task(1, &[]);
-        member.executor = executor;
-        member.spec.job = spec;
-        let out = h.send(Event::Make {
-            reply_to: super::revisions::to(),
-            creator: Party::Deployment { project: 1 },
-            batch: Box::new([member]),
-        });
-        let mut executor_refusal = false;
-        let mut changed = false;
-        for request in &out {
-            if let Request::Refused { problem, .. } = request {
-                executor_refusal = problem.why == Refusal::Executor;
-            }
-            if let Request::Activate { .. } | Request::Save { .. } = request {
-                changed = true;
-            }
+fn job(number: u64) -> crate::New {
+    let mut member = task(number, &[]);
+    member.executor = crate::Executor::Job { kind: 7 };
+    member.spec.job = Some(Box::new(crate::JobSpec {
+        bytes: Box::new([0xff]),
+        deadline: skein_lib::Duration::from_secs(7),
+    }));
+    member.spec.words = Box::new([]);
+    member.contract = crate::Contract::Job { bytes: 16 };
+    member.numbers = crate::Numbers { budget: 0, spent: 0, spent_below: 0, reserved: 0 };
+    member.authority.budget.spend = 0;
+    member.funder = crate::Funder::Task(1);
+    member
+}
+
+fn procedure() -> Harness {
+    let mut h = Harness::new();
+    let mut parent = task(1, &[]);
+    parent.executor = crate::Executor::Procedure { connector: 1, code: 1 };
+    h.make([parent].into());
+    h
+}
+
+fn admission(h: &mut Harness, creator: Party, member: crate::New) -> Option<crate::Refusal> {
+    let out = h.send(Event::Make { reply_to: super::revisions::to(), creator, batch: Box::new([member]) });
+    for request in out {
+        if let Request::Refused { problem, .. } = request {
+            return Some(problem.why);
         }
-        assert!(executor_refusal);
-        assert!(h.domain.task(1).is_none());
-        assert!(!changed);
     }
+    None
+}
+
+/// A procedure makes its job with bounded bytes (jig/docs/design/domain/tasks.md, 5.3.1).
+#[test]
+fn a_procedures_batch_admits_a_job_with_its_spec_and_contract() {
+    let mut h = procedure();
+    let member = job(2);
+    assert_eq!(admission(&mut h, Party::Task(1), member.clone()), None);
+    let row = h.domain.task(2).unwrap();
+    assert_eq!(row.executor, member.executor);
+    assert_eq!(row.spec, member.spec);
+    assert_eq!(row.contract, member.contract);
+}
+
+/// Only procedures create jobs; jobs delegate nothing (jig/docs/design/domain/tasks.md, 5.3.1).
+#[test]
+fn a_job_is_refused_unless_a_procedure_makes_it() {
+    for creator in [Party::Person(9), Party::Deployment { project: 1 }, Party::Task(1), Party::Task(2)] {
+        let mut h = procedure();
+        assert_eq!(admission(&mut h, Party::Task(1), job(2)), None);
+        crate::domain::task_mut(&mut h.domain, 1).unwrap().record.executor = crate::Executor::Agent { charter: 1 };
+        assert_eq!(admission(&mut h, creator, job(3)), Some(crate::Refusal::Executor));
+        assert!(h.domain.task(3).is_none());
+    }
+    let mut h = procedure();
+    crate::domain::task_mut(&mut h.domain, 1).unwrap().record.executor =
+        crate::Executor::Person(crate::PersonAddress::Person(9));
+    assert_eq!(admission(&mut h, Party::Task(1), job(2)), Some(crate::Refusal::Executor));
+    let mut h = procedure();
+    assert_eq!(admission(&mut h, Party::Task(1), job(2)), None);
+    assert_eq!(admission(&mut h, Party::Task(2), task(3, &[])), Some(crate::Refusal::Executor));
+}
+
+/// A job spec is only nonzero-deadline bounded bytes (jig/docs/design/domain/tasks.md, 5.3.1).
+#[test]
+fn a_job_without_its_spec_or_with_words_is_refused() {
+    for fault in 0..7 {
+        let mut h = procedure();
+        let mut member = job(2);
+        match fault {
+            0 => member.spec.job = None,
+            1 => member.spec.words = Box::new([1]),
+            2 => member.spec.inputs = Box::new([1]),
+            3 => member.spec.asks = true,
+            4 => member.spec.job.as_mut().unwrap().deadline = skein_lib::Duration::ZERO,
+            5 => member.spec.job.as_mut().unwrap().bytes = vec![0; 65].into_boxed_slice(),
+            6 => member.spec.parameters = Box::new([crate::Parameter::Number { name: 1, value: 1 }]),
+            _ => unreachable!(),
+        }
+        assert_eq!(admission(&mut h, Party::Task(1), member), Some(crate::Refusal::Spec));
+        assert!(h.domain.task(2).is_none());
+    }
+}
+
+/// Job contracts belong only to jobs within the bound (jig/docs/design/domain/tasks.md, 5.3.1).
+#[test]
+fn a_job_contract_must_be_a_job_and_within_the_result_bound() {
+    for fault in 0..3 {
+        let mut h = procedure();
+        let mut member = job(2);
+        match fault {
+            0 => member.contract = crate::Contract::Report { words: 16 },
+            1 => {
+                member.executor = crate::Executor::Agent { charter: 1 };
+                member.spec.job = None;
+            }
+            2 => member.contract = crate::Contract::Job { bytes: 33 },
+            _ => unreachable!(),
+        }
+        assert_eq!(admission(&mut h, Party::Task(1), member), Some(crate::Refusal::Contract));
+    }
+}
+
+/// A job is result-ended and never a conversation (jig/docs/design/domain/tasks.md, 5.3.1).
+#[test]
+fn a_job_is_never_a_conversation() {
+    let mut h = procedure();
+    let mut member = job(2);
+    member.flags.conversation = true;
+    assert_eq!(admission(&mut h, Party::Task(1), member), Some(crate::Refusal::Contract));
+    let mut member = job(2);
+    member.flags.ended_by = crate::EndedBy::Requester;
+    assert_eq!(admission(&mut h, Party::Task(1), member), Some(crate::Refusal::Contract));
+}
+
+/// A spec's job bytes belong only to jobs (jig/docs/design/domain/tasks.md, 5.3.1).
+#[test]
+fn other_executors_refuse_a_job_spec() {
+    for executor in [crate::Executor::Agent { charter: 1 },
+        crate::Executor::Procedure { connector: 1, code: 1 },
+        crate::Executor::Person(crate::PersonAddress::Person(1))] {
+        let mut h = procedure();
+        let mut member = job(2);
+        member.executor = executor;
+        assert_eq!(admission(&mut h, Party::Task(1), member), Some(crate::Refusal::Executor));
+    }
+}
+
+/// Restoration checks job shape and its linked procedure (jig/docs/design/domain/tasks.md, 5.3.1).
+#[test]
+fn restoring_a_job_checks_its_spec_contract_and_creator() {
+    let mut h = procedure();
+    assert_eq!(admission(&mut h, Party::Task(1), job(2)), None);
+    let row = h.domain.task(2).unwrap().clone();
+    let mut cold = Harness::new();
+    cold.domain = crate::Domain::new(&h.env.limits, 91, 1, crate::tests::charters(), Box::new([0]));
+    cold.send(Event::Restore { record: crate::Stored::Live(Box::new(row.clone())) });
+    assert!(cold.domain.restore_failure().is_none());
+    for fault in 0..7 {
+        let mut bad = row.clone();
+        match fault {
+            0 => bad.spec.job = None,
+            1 => bad.spec.words = Box::new([1]),
+            2 => bad.contract = crate::Contract::Report { words: 16 },
+            3 => bad.spec.job.as_mut().unwrap().deadline = skein_lib::Duration::ZERO,
+            4 => bad.flags.conversation = true,
+            5 => bad.executor = crate::Executor::Agent { charter: 1 },
+            6 => bad.contract = crate::Contract::Job { bytes: 33 },
+            _ => unreachable!(),
+        }
+        cold.domain = crate::Domain::new(&h.env.limits, 91, 1, crate::tests::charters(), Box::new([0]));
+        cold.send(Event::Restore { record: crate::Stored::Live(Box::new(bad)) });
+        assert!(cold.domain.restore_failure().is_some());
+    }
+    let mut cold = crate::Domain::new(&h.env.limits, 91, 1, crate::tests::charters(), Box::new([0]));
+    let mut out = skein_lib::Queue::uncapped();
+    for stored in h.stored.values().filter(|stored| stored.key().live()) {
+        let mut stored = stored.clone();
+        if let crate::Stored::Live(row) = &mut stored {
+            if row.number == 1 { row.executor = crate::Executor::Agent { charter: 1 }; }
+        }
+        crate::step(&mut cold, &h.env, Event::Restore { record: stored }, &mut out);
+    }
+    crate::step(&mut cold, &h.env, Event::Check, &mut out);
+    assert!(cold.restore_failure().is_some());
 }

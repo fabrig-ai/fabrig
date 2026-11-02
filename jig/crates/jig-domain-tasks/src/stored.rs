@@ -267,6 +267,15 @@ pub(crate) fn check(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Requ
 }
 
 fn linked_fit(domain: &Domain, limits: &Limits, task: &TaskRecord) -> Result<(), crate::RestoreCause> {
+    if crate::batch::matches_job(task.executor) {
+        let parent = match task.requester {
+            Party::Task(number) => record(domain, number),
+            Party::Person(_) | Party::Deployment { .. } => None,
+        };
+        if !crate::batch::job_creator(parent) {
+            return Err(crate::RestoreCause::Accounting);
+        }
+    }
     let mut tasks = 0_u64;
     let mut goals = 0_u64;
     for (other, _) in &domain.names {
