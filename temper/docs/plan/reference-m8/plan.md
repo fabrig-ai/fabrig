@@ -34,12 +34,28 @@ take. The plan's retire may delete `notes/old/` (git keeps it).
 | skein-reads | skein-fake-reports | skein-reads | skein (fake forge) |
 | change-cleared | change-verifying | | temper (change crate, store's change records) |
 | tiers-config | tiers-config | tiers-policy | temper (service, translate, forge config and limits) |
+| tiers-forge | tiers-surface | change-verifying, tiers-config | temper (forge types, purpose 8, store 28 and 29) |
+| tiers-forge | tiers-runs | tiers-surface, tiers-policy, tiers-config, change-verifying | temper (forge: following, runs, receipts, faults) |
+| tiers-forge | tiers-verification | tiers-runs | temper (forge: verification rows, change facts) |
+| tiers-forge | tiers-reports | tiers-runs, skein-reads, skein-fake-reports | temper (forge: reports, reruns, probes; forge world) |
+| tiers-root | tiers-root | tiers-surface, jig-procedure-seed, change-verifying | temper (root: tier task, seed, words) |
+| change-panel | panel-steps | tiers-verification | temper (panel, client wire, ctl, client view) |
+| tiers-stories | tiers-stories | tiers-root, tiers-verification, tiers-reports, panel-steps | temper (domain world stories) |
+| help | help-pages | panel-steps, tiers-root | temper (help text the lead wrote) |
 
-## Critical path, as it stands
+## Critical path
 
-tiers-policy and skein's reads, then the forge connector's tiers (following, runs, receipts,
-the tier task), then reruns and bisect, the change's life to cleared and the bound, then the
-world stories and ctl; the walked slice is the last. Later batches name it task by task.
+tiers-policy (done) and change-verifying, then tiers-config, then tiers-surface, then
+tiers-runs, then tiers-reports (which also waits for skein-reads and skein-fake-reports), then
+tiers-stories. Beside it: tiers-root after tiers-surface; tiers-verification after tiers-runs,
+beside tiers-reports; panel-steps after tiers-verification; help-pages last but one. Slice 3,
+the walked one, is whole when tiers-stories and help-pages land.
+
+## What is left as Not yet after M8
+
+after-landing.md 7 (M9), 8 and 9 (not the reference's), the landing log (family 30) and a late
+verdict's news to goals (6), `suspects` and `red_pauses` as settings; the retire brings the
+statuses current with what landed.
 
 ## Decisions
 
@@ -62,6 +78,10 @@ world stories and ctl; the walked slice is the last. Later batches name it task 
 - `change-verifying` and `tiers-config` run side by side and both touch
   `temper-engine-domain-forge` (`boundary.rs`, `landing.rs`, `lib.rs`: arms against new types)
   and a few test fixtures' literals; their hunks differ.
+- `tiers-verification` and `tiers-reports` run side by side in the forge crate:
+  `verification.rs` and the change facts in `domain.rs` are the first's, `tiers.rs` the
+  second's, the first touching `tiers.rs` only at the call into `verification::judged`.
+- `tiers-root` (the root) runs beside `tiers-runs` (the forge), both built to contracts.md, 4.
 
 ## Overlaps with drafts beside this one
 
