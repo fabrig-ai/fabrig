@@ -393,8 +393,8 @@ A completion's prompt is built from what the domain gives:
   only. The service applies the channel's main-ordinary-completion rule:
   sub-agents and compactions produce no channel pieces. The component
   only hands over selected measures; it coalesces none and knows no turn
-  or retry. The event sink ignores input measures. Reasoning deltas stay
-  unbuilt. Nothing of any delta reaches the domain beyond byte counts.
+  or retry. The event sink ignores input measures. No reasoning delta is
+  handed over (section 12). Nothing of any delta reaches the domain beyond byte counts.
 - **The guard, before an ordinary request is sent.** When the session
   gives a request the line, its last prompt's reported size and where
   the new part starts (domain/session.md, 8.1), this layer measures the
@@ -639,8 +639,7 @@ All run in virtual time, in milliseconds each, within the focused suite.
 - **More providers:** other dialects and local models. They are skein's
   client's to add, and configuration's to name.
 - **Reasoning as it streams:** the channel carries its kind, but this
-  component still drops its deltas. Arguments are built (section 6).
-  Readable reasoning also needs each provider asked for it.
+  component hands over no reasoning delta (section 6). Readable reasoning also needs each provider asked for it.
 - **MCP tools:** schemas passed through like host tools', once MCP is a
   tool source.
 - **Edit formats:** which format each dialect is offered, once measured;

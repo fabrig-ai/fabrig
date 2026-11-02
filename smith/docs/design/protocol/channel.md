@@ -152,9 +152,9 @@ of domain/host.md, section 2.
 - **the ask,** if the host wants live content: one boolean for each
   kind of it, `text`, `reasoning` and `input` (section 4). An absent ask,
   or one with every kind false, asks for nothing, and nothing is sent.
-  The agent sends only the kinds it builds, now `text` and `input`: an ask for
-  another kind is not refused, and gets nothing. The ask holds for every
-  activation the start opens, and a resume's start makes its own;
+  The agent sends `text` and `input` only: an ask for another kind is not
+  refused, and gets nothing. The ask holds for every activation the start
+  opens, and a resume's start makes its own;
 - **the window:** how many turns, and how many bytes of them, may be
   unacknowledged (section 7). It must hold at least one turn of the largest
   size the agent may send, or the start is invalid. A host that keeps no
@@ -316,7 +316,7 @@ edge is independent of the channel's own flow control (section 7).
     back across turns, waits and the answer;
   - a long done ends a long operation still open;
   - a piece comes only while the run is admitted and has not answered,
-    only for a kind the start asked for and the agent builds, and its
+    only for a kind the start asked for and the agent sends, and its
     turn is the last one told plus one. Within a stream, a retry never
     goes back, a piece starts at or after the end of the one before it,
     and the bytes of a stream start at offset 0 in each retry;
@@ -579,4 +579,4 @@ a trace is kept is the agent's configuration (agent.md).
   such as a call's model or a tool's name. Content is answered: it crosses
   as live content (section 4), never as a fact.
 - **Reasoning as it streams:** the schema carries its kind (section 4);
-  building it and asking each provider for readable reasoning is later work.
+  whether to produce it, asking each provider for readable reasoning.

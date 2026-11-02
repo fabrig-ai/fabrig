@@ -130,7 +130,7 @@ patch and drift tests check the generated `encoded_bound` and
   - TLS;
   - signals;
   - a process tree that ends;
-  - once contained trees exist, containment (section 6).
+  - with contained trees, containment (section 6).
 - It runs in the focused suite, and fails, saying why, where `io_uring`,
   git, rg or sh is missing.
 
@@ -526,7 +526,7 @@ Every world checks what the strategy lists (testing-strategy.md, section
   - the scratch directory changed only where the scenario expects;
   - nothing is left running: the agent finished, and every child was
     reaped, each job's process group included.
-- **Containment, once contained trees exist** (protocol/agent.md, sections
+- **Containment, with contained trees** (protocol/agent.md, sections
   2 and 3; protocol/hosts.md, section 3), in the real loop:
   - **writes stay in the view:** commands that try to write outside the
     writable directories, a git directory included, fail, and the

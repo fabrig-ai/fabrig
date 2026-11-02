@@ -422,9 +422,7 @@ and the prompt on standard input. **Observe** the output as it arrives,
 as neutral observations: a response and its usage, a tool call, a child,
 the answer, which ends task wall time and starts teardown. **Collect**,
 once the tree has ended, what the agent persisted, as metrics with their
-scope and convention. **Classify** one end (section 8.3). Claude Code is
-built after Codex, and designed now so that it is one module and its
-files.
+scope and convention. **Classify** one end (section 8.3).
 
 | Step | Smith | Codex | Claude Code |
 |---|---|---|---|
@@ -515,8 +513,7 @@ files.
   of the harness's, and on `anthropic` with a key. smith on a Claude
   subscription runs Claude Code's loop under smith's adapter
   (protocol/programs.md): its results are an arm of their own,
-  `smith-claude-code`, never pooled with smith's own loop's, and it is
-  not measured until the program backend is built.
+  `smith-claude-code`, never pooled with smith's own loop's.
 
 ## 8. The result schema
 
@@ -710,8 +707,8 @@ answer is a warning on a completed attempt.
   with its own temporary directory, build caches and target directory,
   warmed outside the timer and copied by reflink where the filesystem
   allows. A grader reaches the workspace's copy only after the tree has
-  ended. Until contained trees exist nothing keeps an agent from the
-  user's files; the scope gate looks for it, and lists the user's entries
+  ended. Without contained trees nothing keeps an agent from the
+  user's files, so the scope gate looks for it, and lists the user's entries
   under `/tmp` before and after each attempt: a new or changed one is a
   write outside the workspace.
 - **Process trees.** An attempt ends when its whole tree has ended. At
@@ -721,7 +718,7 @@ answer is a warning on a completed attempt.
   with the attempt's flags;
   another agent's from its pinned configuration)
   plus that grace. Accounting of a whole tree (a cgroup scope, its CPU
-  and peak memory) is skein's to add first; until then each attempt runs
+  and peak memory) is skein's; without it each attempt runs
   in its own process group, and its resources carry the narrower scope.
 - **Setup is not the agent's.** A seed digest that differs, a failed
   warm-up, a refused configuration or missing credentials end the attempt
@@ -751,17 +748,17 @@ Code.
 | `budget` | the reserve, wind-down, the final turn, budget text, the clamped share, real spend (domain/run.md, sections 5.3 and 9) | `starvation`: a tight budget and a delegated survey. `wrap-up`: a child given `max_turns` 3. `child-quota`: a child given `max_turns` 2. `visibility`: a report of what is left. `spend`: notional prices, a ceiling about twice a calibrated spend | `starvation`: accepted, main's last completion after the child's return, turns within budget. `wrap-up`: under `everything`, `stop: budget` and text, the last request at `tool_choice` `none`. `child-quota`: the child answers within two turns, its `share` in `conversation.opened`. `visibility`: main reports what is left as it was last told before the report (with a child, the last child's usage line, domain/run.md 9.2). The told turns and time equal the `budget` record of the step that wrote them, time in whole seconds rounded down; a mismatch there is smith's. The report repeats the told values; a mismatch there is the model's. No child opens into the reserve. `spend`: never past the ceiling | under a minute each |
 | `parallel-read` | calls per response and the reads run at once (protocol/limits.md, sections 2.2 and 2.3) | twenty files read in one step | the reads in one response's calls; no `limit` failure; no failed send | thirty seconds |
 | `parallel-children` | concurrent conversations, a pool at capacity waits, the write lease (domain/run.md, section 5.3; protocol/limits.md, section 2.2) | four read-only children in parallel, one directory each. `reviews`: three independent reviews | two children overlapping in time; no call refused by the pool | a minute |
-| `failures` | typed failures in words, headless exit codes, limit failures and HTTP status, clipped provider text (domain/host.md, section 8; shell.md, section 4.3) | `unknown-model`; `derived-limit`, by a test profile; `one-turn`, a budget of one turn, which cannot hold the finishing reserve; `bad-setting`, a malformed setting | a run's failure in `run.completed`'s typed failure: the class, and the HTTP status and clipped provider text, or the limit and bound. `unknown-model` declares the model's `window` and `output`, so that its request reaches the provider. `one-turn` is refused at the entrance (domain/run.md, 9.1): `run.completed` `refused` with `invalid` naming the budget's reserve, and no provider request. `bad-setting` and `derived-limit` are refused at startup, in either mode (shell.md, 4.1): exit 2, standard error naming the setting, or the limit and bound, no provider request, and no run, so no `run.completed`. Headless only (shell.md, 4.3): the exit code of the class and standard error's last line, judged from 10.5's `smith exec`, "not yet: 10.5" until then. A run that runs out of budget once admitted is the budget probes' | seconds |
+| `failures` | typed failures in words, headless exit codes, limit failures and HTTP status, clipped provider text (domain/host.md, section 8; shell.md, section 4.3) | `unknown-model`; `derived-limit`, by a test profile; `one-turn`, a budget of one turn, which cannot hold the finishing reserve; `bad-setting`, a malformed setting | a run's failure in `run.completed`'s typed failure: the class, and the HTTP status and clipped provider text, or the limit and bound. `unknown-model` declares the model's `window` and `output`, so that its request reaches the provider. `one-turn` is refused at the entrance (domain/run.md, 9.1): `run.completed` `refused` with `invalid` naming the budget's reserve, and no provider request. `bad-setting` and `derived-limit` are refused at startup, in either mode (shell.md, 4.1): exit 2, standard error naming the setting, or the limit and bound, no provider request, and no run, so no `run.completed`. Headless only (shell.md, 4.3): the exit code of the class and standard error's last line, judged from `smith exec`. A run that runs out of budget once admitted is the budget probes' | seconds |
 | `paths` | one path namespace (domain/tools.md, section 2) | `app` writable and `spec` read-only: read both, answer in `app`. `single`: one directory, its name never needed. The prompt names the files as any agent finds them on disk, from the working directory `app`: `spec`'s through `../spec/` (domain/tools.md, section 2: siblings by path). smith's own text tells its model `/spec/...`, and either route must resolve. Every agent runs in `app`, with `spec` beside it, read-only and protected | no `missing` verdict or path refused as outside; at most two completions before `finish` | seconds |
 | `tool-output` | output budgets, read windows and timeouts as the model chooses them; UTF-8 passed through; jobs (domain/tools.md, sections 3 and 5) | `test-output`: which assertion fails, in over ten kilobytes of output. `quote`: a sentence deep in a long document. `timeout`: a command past its timeout, and one asking past the ceiling. `utf-8`: replace an en dash. `background`: a command of about a minute started as a job, beside reads the answer also needs | one shell call; at most two reads; `timed_out` naming its bound, `clamped` set, no hang; one edit, matching first time. `background`: the command answered `running`, a completion started between the job's start and its end, one terminal for the job | seconds each; `background` a minute |
 | `process-tree` | a command in its own process group, signalled whole (domain/tools.md, section 5) | `sh -c 'sleep 600 & wait'` with a short timeout | no `sleep` left, by tree accounting; answered within timeout and grace; accepted | seconds |
 | `credentials` | a sign-in record shared across processes (shell.md, 7.3) | two smith attempts at once on one `sign_in` account of the harness's, the refresh lead raised so that both refresh | both accepted; the record's generation rose, and no refresh was refused as reused | seconds |
 | `slow-completion` | deadlines that measure progress; an oversized reasoning item as a typed failure (protocol/limits.md, section 7) | long reasoning at high effort, from a real provider (a fake slow source is the deterministic worlds', not this probe's) | the answer accepted; no timeout of any phase while events arrive; no reasoning-size failure; the call lasting over 60 s, the whole-response cap the spike's attempts were cut at (findings S5). An attempt under 60 s is "not exercised": neither a pass nor a fail, counted like a model deviation (more than two in twelve strengthen the prompt, or raise the effort). Recorded per provider and model, for shell.md's `head`, `idle` and `reasoning_item`: `first_byte_ms`, `largest_gap_ms`, the call's length and the largest reasoning item | minutes; occasional |
 
-Later, as their behaviour is built: **`mid-work`**, a message offered
+Two probes more: **`mid-work`**, a message offered
 between completions of long work, and threshold notes the same way;
 **`build-environment`**, a seed with an ambient build wrapper that builds
-and tests, once trees declare build profiles.
+and tests, for trees that declare build profiles.
 
 ### 11.2 Passive checks
 

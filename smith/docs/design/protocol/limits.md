@@ -942,7 +942,7 @@ losslessly by count.
 - **A ceiling per attempt:** whether a model's declaration may add one,
   for a provider that streams without end.
 - **A host answer's own bound:** whether host tools' answers get a
-  quantity of their own rather than `tool_payload`. Messages now take
+  quantity of their own rather than `tool_payload`. Messages take
   theirs from one offer (3.9).
 - **A window's halves:** the room left after smith's own part goes half
   to the host's text and half to messages. Proposed as a first split;

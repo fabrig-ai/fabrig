@@ -291,5 +291,5 @@ first (run.md, 5.1); tools compiled in are an open question (section 8).
 - **Tools compiled in:** whether a project may add owned tools at build
   time, as a child domain the run composes, or only through MCP servers.
 - **Workspaces beyond directories:** a remote filesystem, an object
-  store, a sandbox; today a host mounts them as directories, or offers
+  store, a sandbox; a host mounts them as directories, or offers
   them as host tools.

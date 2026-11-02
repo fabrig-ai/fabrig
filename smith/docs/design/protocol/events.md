@@ -690,4 +690,4 @@ The vocabulary is pre-release, like every format (README.md, section 8).
   write was torn); or io's write stream survives a failed write and
   takes later sends (a change to skein's `io.md`, 3.3). io's fault could
   also carry the kernel's reason (a full disk, a read-only file system),
-  which it does not today.
+  which it does not.

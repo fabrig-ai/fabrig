@@ -1257,7 +1257,7 @@ whatever its source (domain/host.md, section 7).
   released when it is closed or its process ends, never left behind by
   a crash. A process that finds it busy asks again on a timer, within
   the driver's lock wait (skein's `oauth.md`, 6.7), and then the write
-  fails as busy, for now, and the grant is asked for again.
+  fails as busy, and the grant is asked for again.
 - **A refresh refused for good,** such as `invalid_grant` or
   `refresh_token_reused`, means the account must sign in again (exit 3,
   4.3); a transient failure keeps the record, and is retried.
@@ -1333,7 +1333,7 @@ whether the settings are admitted.
   creating and changing nothing. A cache it cannot confirm (absent, not a
   directory, or denied, with the kernel's error) is a warning naming the
   cache and why: a build that never writes there is not stopped by it.
-  Once contained trees exist, they are the writable part of the view
+  With contained trees, they are the writable part of the view
   (protocol/agent.md, section 3).
 - **Wrapper warnings.** A build preset names the wrappers its tools may
   be configured with, such as `rustc-wrapper` for `rust`. `smith check`
@@ -1342,9 +1342,9 @@ whether the settings are admitted.
   configured it.
 - **Credential-like names.** `smith check` warns when a variable the
   commands would see has a name that suggests a credential.
-- **Per-tree limits later.** CPU, memory and process limits per command
-  tree come with contained trees. Until then, settings do not stand in
-  for them.
+- **Per-tree limits come with contained trees.** CPU, memory and process
+  limits per command tree are theirs, and settings do not stand in for
+  them.
 
 ## 9. One process
 

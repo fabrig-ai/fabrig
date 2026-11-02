@@ -426,8 +426,8 @@ the inline agent it is the `smith` product:
   plain directory's files kept as they are, changed or not by a bounded
   snapshot, and a tree past its bounds counted as changed
   (protocol/hosts.md, section 5.5).
-- **Host tools:** none of its own at first; tools from MCP servers it is
-  configured with, once MCP is a tool source.
+- **Host tools:** none of its own. Tools from MCP servers it is
+  configured with are an open question (protocol/hosts.md, section 9).
 
 It runs its agent inline, in its own process (section 9), except a run
 whose account's source is a program, which the inline agent cannot run:

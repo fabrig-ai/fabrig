@@ -21,7 +21,7 @@ What is still open is listed in section 11.
   domain entities and back. Every decision is the domain's: deadlines,
   retries, what a failure means, whether to accept a peer. The protocol
   layer runs the timers and the attempts (programming-model.md, section 4).
-- **Three peers today, one component each.** The agent talks to:
+- **Three peers, one component each.** The agent talks to:
   - its host, over a channel;
   - LLM providers, through skein's LLM client;
   - the machine (files and processes), through skein's io.
@@ -138,9 +138,9 @@ host would be another.
   cannot run, and offers it for every run later, with contained trees
   (hosts.md, section 5.6; programs.md, section 2). The process tree is
   the run's containment (domain/host.md, section 4).
-- **A connected agent** is not available yet: it waits on the domain. The
-  components allow it, but admission, cancellation, a lost connection and
-  the daemon's own life have no contract yet. The domain today:
+- **A connected agent** waits on the domain (section 11). The components
+  allow it, but admission, cancellation, a lost connection and the
+  daemon's own life have no contract. The domain:
   - runs one run per agent process;
   - supervises only a process its host spawned (domain/host.md, sections 1
     and 4).
@@ -391,7 +391,7 @@ it.
     every world inherits it (testing-strategy.md, section 6);
   - a step's trace output with its room reserved, settling the trace
     queue (notes.md).
-- **Process groups now, contained trees later:**
+- **Process groups, and contained trees:**
   - each child io spawns leads a process group of its own, which a
     deadline or a stop signals whole (skein's `io.md`, section 6);
   - contained trees: spawned within a deadline, with an environment given

@@ -51,8 +51,8 @@ listed in section 8.
   - `/name/...` is a path within the directory called `name`, and
     `list /` answers the directories' names from the session's
     authority, without io;
-  - until contained trees give commands the same view, a host absolute
-    path within a directory is an alias for the same place, so a path a
+  - while commands see the host's own paths, without contained trees
+    (section 5), a host absolute path within a directory is an alias for the same place, so a path a
     command printed can be given to a tool. An absolute path at or
     beneath a directory's host path, compared by whole names, reads as
     that alias; any other reads as `/name/...`.
@@ -277,7 +277,7 @@ workspace that can write can remove, with no shell needed.
     head to its tail, and the count of bytes dropped between them.
 - **A command has its own process group,** and a timeout signals the
   group, so what the command started ends with it, not only the shell.
-  A process that leaves its group is beyond this until contained trees.
+  A process that leaves its group is beyond this without contained trees.
 - **A job** is a command that a `shell` call left running past its
   yield. It belongs to the session that started it.
   - **Its start.** The yield is `yield_seconds`, clamped to `job_wait`
@@ -346,12 +346,12 @@ workspace that can write can remove, with no shell needed.
   - **Within its activation.** A job never survives its activation: a
     session resumed in a later activation has none, and a `job` call
     naming an earlier one is invalid.
-- **Containment is skein's contained trees, later.** A command's tree is
-  then to see the workspace's view: it writes only the writable
+- **Containment is skein's contained trees.** A command's tree sees the
+  workspace's view: it writes only the writable
   directories, and every git directory is read-only to it, since the
   host commits the checked tree, merges in progress included, and the
   LLM needs no git writes. Searches and listings see every directory
-  read-only. Resource limits per tree come with them. Until then a
+  read-only. Resource limits per tree come with them. Without them a
   command is not confined: `write` and `edit` keep section 4's rules,
   and a command has only the permissions of the agent's user
   (protocol/agent.md, section 3).

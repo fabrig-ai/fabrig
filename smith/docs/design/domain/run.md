@@ -537,15 +537,14 @@ host tool for it, as temper's `delegate` does.
   dialect, account or backend is not refused: it is carried over
   (session.md, 8.2). A run that does not resume starts fresh from its
   brief, which carries what the host thinks it needs.
-- **Messages mid-work,** designed here and built later. Between
+- **Messages mid-work.** Between
   completions, not only when main yields, the run offers its queued
   messages to the working session, which appends them after the results
   of the calls it just ran, in its next request; the turn that reads them
   is told with them, its fence naming the last. Nothing in flight is
   interrupted and nothing already sent changes, so the prefix holds and
   every rule above stands. The run's threshold notes on its budget take
-  the same path, as text the run wrote, with no name (9.2). Until then, a
-  message waits for main to yield, also while main waits on a sub-agent.
+  the same path, as text the run wrote, with no name (9.2).
 
 ## 7. Results
 
@@ -1030,7 +1029,7 @@ timings, budgets and shares within its own (`docs/design/testing.md`).
 
 ## 15. Open questions
 
-- **A sub-agent's result:** its final message today; whether a sub-agent
+- **A sub-agent's result:** its final message; whether a sub-agent
   may be given a contract of its own.
 - **A run's refusal on the channel:** a run that refuses its start for
   policy answers failed; whether refusal wants a kind of its own.
