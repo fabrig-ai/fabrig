@@ -12,8 +12,9 @@ the reference's M1 to M10.
 - **Five phases,** P1 to P5 (section 3), set with fabrig/dogfood and the
   user on 2026-11-02 so that no two plans' designers write one section
   at once: the reference's M1 and M3 write jig's `domain/engine.md`,
-  section 17, temper's `../protocol/configuration.md`, section 13 and
-  `../domain/agent.md`, 8.1, and P2 and P3 follow M3 there.
+  17.5 to 17.7, temper's `../protocol/configuration.md`, 13.2 to 13.4
+  and 13.9, and `../domain/agent.md`, 4.3.1, and P2 and P3 follow M3
+  beside them.
 - **P1 now:** what is designed and touches nothing in flight: a
   charter's documents, charters read at their task's revision, and
   `chat start --template`. The reference's M3 takes a charter's
@@ -71,22 +72,27 @@ under Old code, assessed in hel8's `~/src/fabrig/coord/old-repos-value/`.
   `configuring-revisions/story` (a charter's version forwarded to a run;
   running work keeping and moving its revision).
 - **Walk:** folds into P2's.
-- **Done** when it lands; fabrig/dogfood then notes in
-  `reference-case.execution.md` that M3 takes a charter's documents
-  from here.
+- **Done** when it lands. As P1 starts, fabrig/dogfood notes in M3's
+  entry of `reference-case.execution.md` that P1 builds a charter's
+  documents, and that M3's charters naming documents wait for P1 to
+  land.
 
 ### P2. Settings through ctl
 
-- **Executes:** `configuring.md`, 3.3 (a change touching a project's own policy;
-  restoring a version) and 5.4, every row.
-- **Design:** the rules the design cites this draft for, in its own
-  words (`configuring.status.md`'s first entry); a change of settings
+- **Executes:** `configuring.md`, 3.3 (a change touching a project's
+  own policy; restoring a version) and 5.4's rows but the first, which
+  is P1's.
+- **Design:** the rules jig's `domain/engine.md`, 17.9 and 17.10 and
+  temper's `../protocol/configuration.md`, section 13 cite this draft
+  for, in their own words (`configuring.status.md`'s first entry; those
+  `../domain/agent.md`, 8.1 cites are P3's); a change of settings
   touching a project's own policy, decided by one person holding both
   roles (jig's `domain/engine.md`, 17.2 and 17.6, jig's
   `domain/people.md`, 5.2, temper's `../protocol/configuration.md`,
   13.1, `../client/tools.md`, 5.3); restore and temper's kinds (jig's
-  `domain/engine.md`, 17.5 and 17.10), the status's entry closed one way
-  or recorded as a departure the user decides.
+  `domain/engine.md`, 17.10), the status's entry closed one way or
+  recorded as a departure the user decides; what that asks of 17.5,
+  M3's, written after M3 lands.
 - **Builds:** the items of temper's kinds in a settings file and in a
   proposal's review; `settings show landing-rule` and `forge-charter`;
   `revision restore`; a proposal's items touching a project's policy.
@@ -96,13 +102,17 @@ under Old code, assessed in hel8's `~/src/fabrig/coord/old-repos-value/`.
   `configuring-revisions/settings-file`.
 - **Walk:** a settings file of each kind proposed, shown, accepted and
   restored through `temper ctl`; P1's document reaching a run's brief.
-- **Starts** when M3's cut has released its design into M3's trunk;
-  its specs that build on M3's kinds wait for M3 to land.
+- **Starts early,** an exception to section 2, fabrig/dogfood's
+  (11-02): once P1 has landed and M3's cut has released its design into
+  M3's trunk, P2's designers read that trunk and write only the
+  sections named above, none of which M3 writes. Its trunk takes M3's
+  later revisions by an update from M3's, and it lands after M3.
 
 ### P3. The configuring agent
 
 - **Executes:** `configuring.md`, 5.3 and section 6.
-- **Design:** `../domain/agent.md`, 8.1, as P2 left the settings;
+- **Design:** `../domain/agent.md`, 8.1, as P2 left the settings, the
+  rules it cites this draft for in its own words;
   `../protocol/documentation.md`'s reference pages `configuration`,
   `configuration-engine` and `limits`, describing what M3 and P2 built.
 - **Builds:** charter 3 and template 3 in the stock; the `settings`
