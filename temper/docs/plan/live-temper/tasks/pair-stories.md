@@ -197,3 +197,9 @@ shellcheck, so it does not block this task. Run `shellcheck` on the two scripts 
 report `shellcheck: not on PATH, not run; bash -n clean`. That stands in for the acceptance's
 shellcheck line and step 6's shellcheck command; everything else in the task is unchanged.
 Go on with the implementation.
+
+2026-11-02. Q: may the run drop `LiveModel` from `owned_forge_landing`'s `use` line in
+`live.rs` (63), unused once line 67 calls `landing_store(model)`?
+A: Yes. `live.rs`'s owned lines are 67 and the `use` line 63; on 63 remove `LiveModel` alone
+(`use support::forge_land::{self, Face, LivePlan};`), nothing else of the file. Then finish
+step 6 (clippy `-D warnings`, the focused `temper` run) and step 7 as written.
