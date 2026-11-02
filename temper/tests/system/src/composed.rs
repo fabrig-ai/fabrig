@@ -34,6 +34,8 @@ use temper_worker_domain as worker;
 use temper_worker_domain_world::protocol as worker_protocol;
 
 mod agreement;
+#[cfg(test)]
+mod chat;
 mod link;
 mod process;
 
