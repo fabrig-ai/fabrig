@@ -28,6 +28,10 @@ open is section 9.
   tools limited to the families the charter grants, and every call of
   one asked of smith's policy through its permission prompt, so that
   none runs unseen by the host (section 5).
+- **Sub-agents are programs of their own.** smith's `sub_agent` is
+  served through the agent's own MCP server, and each child is a
+  program session of its own at the model and effort its LLM names,
+  inspect only, side by side with the others (5.10).
 - **The terms are rules:** the program as its publisher ships it, each
   person's own subscription through the publisher's flow, nobody paying
   for or reselling its use, its name in plain text only (section 6).
@@ -66,13 +70,18 @@ open is section 9.
   in its host's process, with no child of its own (domain/host.md, 9.1),
   so it runs the direct backend only. A host runs a run whose grant
   names a program source on a spawned agent.
-- **Sub-agents are not offered on a program backend.** Main's
-  conversation is the program's: the program's own sub-agents are
-  withheld (5.3), and smith's `sub_agent` is not served, so a charter's
-  sub-agents family is withheld from the LLM and the run's tools say so
-  (events.md, 3.3). A sub-agent's LLM never runs on one either: a start
-  that grants a program source for a sub-agent's LLM's account, and
-  not for main's, is refused at the entrance (domain/run.md, section 4).
+- **Sub-agents are smith's, each a program of its own.** Main's
+  conversation is the program's, and the program's own sub-agents are
+  withheld (5.3). smith's `sub_agent` is served through the agent's own
+  MCP server when the charter grants the sub-agents family, and the run
+  answers each call by starting a child: a program session of its own,
+  the agent's child too, at the model and effort of the LLM the call
+  names, or main's, on the program source its account is granted.
+  Children on a program backend are granted inspect alone and run side
+  by side (5.10). A sub-agent's LLM never runs on a program under a
+  direct main: a start that grants a program source for a sub-agent's
+  LLM's account, and not for main's, is refused at the entrance
+  (domain/run.md, section 4).
 - **Open runs keep the program across their turns** (5.9): a text reply
   ends the program's turn, not the program, and the run listens as on
   the direct backend; a message while it listens is the program's next
@@ -490,6 +499,78 @@ backend (domain/run.md, sections 6, 7.2 and 9.1).
 - **The fake program** plays it (section 8): several turns on one
   input, a `result` each, until its input closes.
 
+### 5.10 Sub-agents
+
+A survey is a question asked side by side with others, each answered
+with its report: smith's `sub_agent` (domain/run.md, 5.3) on a program
+backend.
+
+- **Served by the agent's own server.** When the charter grants the
+  sub-agents family, the agent's MCP server (5.3) lists `sub_agent`
+  beside the run's other tools, its `inputSchema` the direct backend's
+  with `tools` narrowed to `inspect`, and the run answers each call as
+  on the direct backend: it opens a child, and the child's answer is
+  the call's result.
+- **Inspect only.** A child on a program backend is granted inspect
+  alone, so none holds the run's lease (domain/run.md, 5.3) and none
+  writes beside the program's own calls. A call that asks for modify or
+  shell is answered invalid, naming its `tools` field, as any value its
+  schema does not allow is, and no child opens.
+- **Side by side.** The program may ask one message's calls one at a
+  time; the run answers them as the message's calls, as on the direct
+  backend, opening its inspect-only children together, so they run side
+  by side whatever order the program asks them in, and each result
+  goes back as the program asks for it.
+- **Each child a program of its own** when its LLM's account is
+  granted the program source, as main's is (section 3): a second
+  program process, the agent's child, started for the child's
+  conversation and ended with it, and checked first as main's is
+  (section 3). It is started as 5.1 says, with what differs:
+
+  | The child's | Claude Code |
+  |---|---|
+  | brief, with `## Your share` (domain/run.md, 5.3) | `--append-system-prompt-file`, in a private directory of its own |
+  | LLM, the one the call names or main's | `--model`, `--effort` |
+  | inspect | `--tools Read,Glob,Grep`, each call asking at the prompt (5.4) |
+  | served tools: none | the agent's server for it lists the prompt tool alone: no host tool, no `finish`, `deliver`, `wait` or `remove`, and no `sub_agent`, since a child opens no children |
+  | no result contract | no `--json-schema`: its answer is its last text |
+  | session | `--session-id` derived as 5.8 says from its own conversation, never resumed |
+
+  Its stream is told as its conversation's, as main's is (5.5): its
+  `system/init` checked, each assistant message a completion of the
+  child's priced at its LLM's prices, its built-in calls judged at the
+  prompt as main's (5.4). The child shares main's configuration
+  directory, each program with a session of its own.
+- **A child on a credential,** an LLM whose endpoint names no program,
+  runs on the direct backend with that credential, as on a direct main;
+  a program source is never granted for a child's account alone
+  (section 2).
+- **Its share, as the direct backend's.** Its turns are the agent's
+  count of its completions, its time the agent's clock, and its spend
+  counted against the run's one budget through its call's result. Its
+  final turn (domain/run.md, 5.3) is given as main's wind-down is
+  (5.7): the agent ends the child's program turn with an interrupt,
+  its calls left unanswered answered as not run, and sends the
+  final-turn note as its next user message, opening with the line 5.9
+  gives; from then on every call it makes is refused at the prompt as
+  not run. The text of the turn that follows is its answer, given with
+  `stop: budget`. `--max-turns` is the charter's turns, a guard behind
+  the agent's count.
+- **Its end.** Its answer is the text of its last assistant message at
+  its turn's `result`; the run gives it to its parent as on the direct
+  backend, cut to its answer cap and with the run's usage line. Its
+  conversation then ends, and the agent closes the program's input; a
+  program that has not exited within the agent's grace is stopped as a
+  cancel is (5.7), and its private files are removed. A child closed
+  early, its call withdrawn at its deadline, the run winding down or
+  cancelled, is stopped as a cancel is, and returns unanswered as on
+  the direct backend (domain/run.md, 9.1).
+- **Its failures are its call's.** A child whose program cannot start,
+  exits before its answer or sends what does not decode (5.6) fails as
+  a direct child whose completion fails does, and its call is answered
+  failed; main goes on. A usage limit or a lost login on its account is
+  told as 5.6 says, the notice sent for its account.
+
 ## 6. The terms it keeps
 
 Anthropic allows a person's own Claude Code to run in a product under
@@ -517,7 +598,8 @@ conditions. smith keeps each as a rule of its own:
 
 - **The budget:** the program makes its completions without smith
   reserving each one's most first, so a run may pass its ordinary pool
-  by one completion, which the reserve takes, and stops at its next
+  by one completion of each of its programs then running, main's and
+  its children's (5.10), which the reserve takes, and stops at its next
   turn (5.7).
 - **The program's, not smith's:** the bounds on a tool's output, a
   command's timeout, read before write and match before edit. The
@@ -553,7 +635,8 @@ conditions. smith keeps each as a rule of its own:
   which Claude Code says will stop being the default. The agent never
   passes `--bare`, and the live suite finds the release in which `-p`
   stops reading the login.
-- **Sub-agents** are not offered (section 2).
+- **Children read only:** a child on a program backend is granted
+  inspect alone (5.10), where a direct backend's may write.
 
 ## 8. Testing: the fake program
 
@@ -593,7 +676,12 @@ conditions. smith keeps each as a rule of its own:
   - an Open run (5.9): a reply, a message while it listens answered in
     the same process, a park past the waiting interval and its resume,
     a turn with no text nudged, and the wind-down's last reply after a
-    host's finish request.
+    host's finish request;
+  - sub-agents (5.10): two inspect-only children asked in one message,
+    each a program of its own, running side by side and each answering
+    with its report; a call asking a child to write, answered invalid;
+    a child's final turn; and children stopped with their run.
+    A child's script is cued by its brief.
 - **The live suite** runs the real program on a source signed in once
   (`docs/design/testing.md`, 2.3), and checks what the fake assumes: the
   prompt tool's shape, `system/init`'s tools and capabilities, a
@@ -604,8 +692,10 @@ conditions. smith keeps each as a rule of its own:
   turn's context, answers it with a second `result`, and exits when its
   input closes; a turn ended by an interrupt control request is
   followed by another in the same process; a later `system/init` and
-  `system/status` are met as 5.5 says. The fake sends what a real run
-  was recorded sending, those messages included.
+  `system/status` are met as 5.5 says; and two children of one run
+  (5.10), each a program of its own on main's configuration directory,
+  answering side by side. The fake sends what a real run was recorded
+  sending, those messages included.
 
 ## 9. Open questions
 
@@ -621,16 +711,14 @@ conditions. smith keeps each as a rule of its own:
   loopback listener of the agent's (skein's `io.md`, 3.2), its address
   and a secret of the run's own in the MCP configuration's private file,
   and every connection without the secret refused.
-- **Sub-agents on a program backend:** whether smith's `sub_agent` is
-  served to the program, each child a direct session or a program of
-  its own. Default: not offered (section 2).
 - **A refusal from the program:** whether Claude Code tells an account's
   refusal (not eligible, a scope not granted) apart from its other
   errors. Default: it is not told apart, and fails the run as its
   model's (5.6).
 - **Runs at once on one login:** whether runs that share a
   configuration directory interfere. Default: one at a time where the
-  host can choose (`docs/design/benchmarks.md`, section 10).
+  host can choose (`docs/design/benchmarks.md`, section 10). A run's
+  own children share main's (5.10), which the live suite checks.
 - **A session not kept:** whether the agent removes the program session
   of a conversation its host does not keep, when that conversation ends.
   Where the program keeps a session is its own, and undocumented.

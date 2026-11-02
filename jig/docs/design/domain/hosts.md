@@ -813,7 +813,7 @@ Its `assignment` builds that charter from the core's run charter, the brief and 
   | jig's family | In smith |
   |---|---|
   | inspecting, modifying, the shell | smith's inspect, modify and shell, when the run has a workspace; on a program backend, the program's built-in tools of these families, each call asked of smith's policy through the program's permission prompt (smith's `protocol/programs.md`, 5.3 and 5.4) |
-  | sub-agents | smith's sub-agents, on the direct backend; none on a program backend (smith's `protocol/programs.md`, section 2) |
+  | sub-agents | smith's sub-agents; on a program backend, inspect only, each a program session of its own (smith's `protocol/programs.md`, 5.10) |
   | the engine's tools (engine.md, 7.3) | host tools, each declared with its schema, its description and whether it writes |
   | each connector's reads, and the effects and topics it offers to agents | host tools, declared by the application; its effects through the engine's `effect`, its topics through `subscribe` |
   | waiting, by its wake policy | smith's `wait` |
