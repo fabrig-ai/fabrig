@@ -72,5 +72,5 @@ pub use end::EndCause;
 pub use facts::Fact;
 pub use limits::{AgentLimits, Limits, max_line_bytes, valid};
 
-// The credential event exposes these forms to its callers.
-pub use smith_host_domain::{Form, Scheme, SourceName};
+// Events expose credential forms and bounded saved history to their callers.
+pub use smith_host_domain::{Form, Scheme, SourceName, Transcript};

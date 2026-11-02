@@ -218,7 +218,7 @@ impl Domain {
     pub fn forges(&self) -> forge::Forges {
         self.forge.forges()
     }
-    /// The playground row as the service reads it (temper/docs/design/draft/playground-reset.md, 6.1–6.2).
+    /// The playground row as the service reads it (temper/docs/design/protocol/setup.md, 8.4).
     #[must_use]
     pub fn playground(&self) -> Option<&forge::Playground> {
         self.forge.playground()

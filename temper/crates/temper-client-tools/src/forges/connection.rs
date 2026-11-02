@@ -1,4 +1,4 @@
-//! Forge connections (temper/docs/design/draft/playground-reset.md, 3).
+//! Forge connections (temper/docs/design/client/tools.md, 5.5).
 use super::{ACCEPT, CONNECT, Forges, INSTALL, domain, finish};
 use crate::{
     jig::{

@@ -1,5 +1,5 @@
 //! First-repository promises exercised through the person and ctl on the real engine.
-//! The kept owned forge follows temper/docs/design/draft/playground-reset.md, 3.
+//! The kept owned forge follows temper/docs/design/protocol/forge.md, 2.1.
 use jig_client_world::harness::{ClientId, Until, World};
 use skein_fake_person::{Find, Step};
 use skein_lib::Token;

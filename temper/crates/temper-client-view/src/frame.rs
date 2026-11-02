@@ -343,7 +343,7 @@ pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::wo
     builder.close();
 }
 
-/// The playground's reset line (temper/docs/design/draft/playground-reset.md, 6.1, 6.2).
+/// The playground's reset line (temper/docs/design/client/README.md, 5.1).
 pub(crate) fn playground_banner(
     b: &mut Builder,
     root: &Domain,

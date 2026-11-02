@@ -9,11 +9,11 @@ pub const BINDING: u8 = 18;
 // Family bytes 17 and 19 are reserved and are not reused.
 /// A write with a committed attempt (protocol/store.md, 2).
 pub const FLIGHT: u8 = 21;
-/// Forge records (temper/docs/design/draft/playground-reset.md, 3).
+/// Forge records (temper/docs/design/protocol/store.md, 2).
 pub const FORGE: u8 = 25;
-/// Last forge number given (temper/docs/design/draft/playground-reset.md, 3).
+/// Last forge number given (temper/docs/design/protocol/store.md, 2).
 pub const FORGE_NUMBER: u8 = 26;
-/// Playground state (temper/docs/design/draft/playground-reset.md, 6.1).
+/// Playground state (temper/docs/design/protocol/store.md, 2).
 pub const PLAYGROUND: u8 = 27;
 
 fn write_name(writer: &mut KeyWriter, name: &forge::Name) {

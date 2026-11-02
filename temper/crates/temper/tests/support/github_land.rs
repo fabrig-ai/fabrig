@@ -650,7 +650,7 @@ impl Referee<cluster::Root> for Judge {
                 .expect("fixed workers listener");
             let directory = self.members.dir("engine");
             super::forgejo::bootstrap(&directory.join("config"), &directory.join("data"), &directory.join("cache"));
-            // temper/docs/design/protocol/setup.md, 17.7; temper/docs/design/draft/playground-reset.md, 3.
+            // temper/docs/design/protocol/setup.md, 17.7; temper/docs/design/protocol/forge.md, 2.1.
             let mut record = temper_real_loop_world::fixtures::forgejo_record(address);
             record.kind = temper_engine_domain_forge::Kind::GitHub;
             record.place.web = Some(format!("http://{address}").into_bytes().into());

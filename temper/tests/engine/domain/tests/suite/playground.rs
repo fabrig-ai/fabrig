@@ -1,4 +1,4 @@
-//! Playground acts and restart reset (temper/docs/design/draft/playground-reset.md, 6.1–6.2).
+//! Playground acts and restart reset (temper/docs/design/protocol/setup.md, 8.4).
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
 use jig_domain_people as people;

@@ -1,4 +1,4 @@
-//! Setup limits (temper/docs/design/draft/playground-reset.md, 3).
+//! Setup limits (temper/docs/design/protocol/configuration.md, 7).
 use crate::{
     given, limits,
     problem::{Problems, What},
@@ -26,7 +26,7 @@ pub(crate) fn joined(parts: &[&[u8]]) -> Box<[u8]> {
     }
     w.finish()
 }
-/// Applies the machine's setup limits (temper/docs/design/draft/playground-reset.md, 3).
+/// Applies the machine's setup limits (temper/docs/design/protocol/configuration.md, 7).
 pub fn limits(overrides: &[(Box<[u8]>, u64)]) -> Result<(Limits, u64), Problems> {
     let mut ps = Problems::empty();
     let mut limits = limits::small();

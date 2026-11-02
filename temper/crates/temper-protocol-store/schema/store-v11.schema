@@ -234,7 +234,7 @@ record ReceiptKey { project: u32 repository: Repository check_name: ReceiptCheck
 record ReceiptRun { id: u64 number: u64 url: bytes 2048 }
 record Receipt { passed: bool run: ReceiptRun candidate: fixed 32 ended: u64 }
 record ReceiptRow { key: ReceiptKey receipt: Receipt }
-# 04.2: families 25 to 27 (temper/docs/design/draft/playground-reset.md, 3 and 6.1).
+# 04.2: families 25 to 27 (temper/docs/design/protocol/store.md, 2).
 enum ForgeKind { forgejo, github }
 enum ForgeMode { connected, managed, owned, fake }
 record Address { host: bytes 255 port: u16 tls: option bytes 255 }
