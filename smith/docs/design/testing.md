@@ -496,12 +496,10 @@ Every world checks what the strategy lists (testing-strategy.md, section
   uses `MEMORY_CONTENT_EDGE_RECORDS = 98`, from two parallel tools,
   sixteen completion blocks and four jobs. Its wider fuzzy scenario uses
   `WIDE_CONTENT_EDGE_RECORDS = 105`, from three parallel tools with the
-  same blocks and jobs. The protocol-LLM root memory scenario uses
+  same blocks and jobs. The agent world's restored-memory scenario uses
   `ROOT_MEMORY_CONTENT_EDGE_RECORDS = 283`, from one parallel tool,
-  sixty-four completion blocks and four jobs. Calm fact settings use
-  `CALM_RUN_FACTS = 24` (two observations per eight messages plus eight
-  lifecycle facts) and `CALM_TOOLS_FACTS = 6` (four jobs plus two
-  lifecycle facts). Each constant has an origin comment beside it.
+  sixty-four completion blocks and four jobs. Each constant has an
+  origin comment beside it.
   These settings are independent of any entrance allowance; the domain
   fact queues remain uncapped.
 - **Memory returns when its use ends** (protocol/limits.md, sections 5

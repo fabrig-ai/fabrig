@@ -309,14 +309,14 @@ that is not empty, or a message.
 
 | Source | Tools | Who answers | Effect |
 |---|---|---|---|
-| the workspace | `read`, `list`, `search`; `write`, `edit`, `shell`; `job` | the session, through its tools (tools.md) | reads; writes; `job` reads, and writes with `stop` |
+| the workspace | `read`, `list`, `search`; `write`, `edit`, `remove`; `shell`, `job` | the session, through its tools (tools.md) | reads; writes; `job` reads, and writes with `stop` |
 | the run | `finish`, `deliver`, `wait`, sub-agents | the run | `finish` and `deliver` write; a sub-agent's follows its tools |
 | the host | declared in the charter | the host, relayed | as declared |
 | MCP servers, later | as each server lists them | the protocol layer, as opaque calls | as the charter declares |
 
 Names are unique across sources; a declared tool may not take one of
 smith's, nor `permission_prompt`, which a program backend keeps for its
-prompt tool (programs.md, 5.3). The charter's families say which of
+prompt tool (protocol/programs.md, 5.3). The charter's families say which of
 smith's tools the LLM sees; a host tool is offered exactly when it is
 declared.
 

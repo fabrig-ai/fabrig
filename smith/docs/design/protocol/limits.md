@@ -448,7 +448,7 @@ terms (channel.md, sections 2 and 7):
 
 One entrance at the host-channel seam needs `EdgeRoom { to_domain: 1,
 below: 6 }`: one owner event and six lower operations. `EDGE_ROOM` holds
-that edge credit, exposed by `edge_room(&Limits)`. An entrance waits
+that edge credit, exposed by `edge_room()`. An entrance waits
 until both destinations have that room; `send_live` and `offer_fact`
 instead drop the piece or fact and count the loss.
 
@@ -471,7 +471,7 @@ process, compose the chain and check the edge bounds before the loop
 **Admission by a watermark** (skein's programming-model.md, 7.1). The queues between the service's own children (the
 domain's events and requests, the LLM's, the machine's, IO's and the
 file driver's) are uncapped: no child reserves room in another, and
-startup no longer asks `queue` to hold any child's largest output. Two
+startup does not ask `queue` to hold any child's largest output. Two
 kinds of queue keep their caps, as edges: the three the host's channel
 fills and drains, and the kernel's submissions and completions, which
 the shell fills from outside the service. New work, the host's `Start`
@@ -484,7 +484,7 @@ iteration. The agent service ships `DEFAULT_PACING = 2_302` as the
 backlog watermark, per-stage work quantum and pending-message room
 (programming-model.md, 7.1). It is a pacing choice, independent of a
 domain's largest output. At the host-channel seam, the service keeps
-`edge_room(&Limits)`, `EdgeRoom { to_domain: 1, below: 6 }` (3.6), before
+`edge_room()`, `EdgeRoom { to_domain: 1, below: 6 }` (3.6), before
 entering the channel; this credit belongs to that edge.
 
 - **Requests precede the next domain entrance.**

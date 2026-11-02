@@ -66,7 +66,9 @@ A completion's prompt is built from what the domain gives:
   sends it, Anthropic's as `max_tokens`, and the withdrawn Codex route
   takes none, so there it stays a local bound on the answer (skein's
   `llm.md`, section 4);
-- **the endpoint's options,** from its configuration: reasoning effort;
+- **the endpoint's options,** from its configuration, and the reasoning
+  effort the conversation's LLM asks for in its charter (charter.md,
+  section 2);
 - **the affinity,** the conversation's (2.1).
 
 ### 2.1 Affinity
@@ -137,6 +139,7 @@ A completion's prompt is built from what the domain gives:
 | `search` | `pattern`; optionally `path` and `glob`, to search within |
 | `write` | `path`, and `content`, the whole file, at most the tool payload in bytes |
 | `edit` | `path`, and `edits`, each an `old`, a `new` and optionally `all`, in the dialect's edit format |
+| `remove` | `path`, a file read at its current version or an empty directory (domain/tools.md, section 3) |
 | `shell` | `command`; optionally `timeout_seconds`, at most the effective maximum, `output_bytes`, at most the output ceiling, and `yield_seconds`, at most `job_wait` |
 | `job` | `job`, the number of a job its session answered `running`; optionally `wait_seconds`, by default `job_poll` and at most `job_wait`, `output_bytes`, at most the output ceiling, and `stop`, a boolean |
 | `finish` | the result contract's forms (below) |
