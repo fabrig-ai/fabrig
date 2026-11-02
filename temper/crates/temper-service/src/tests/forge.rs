@@ -429,7 +429,7 @@ fn temper_word_keeps_the_marker_bytes_and_length() {
         forge::settings(&fixtures::forges(), fixtures::forge_runtime(), None, &mut found).expect("fixture settings");
     let defaults = config.limits.forge_component;
     assert!(settings.forges.get(0).unwrap().log_origins.is_empty());
-    assert_eq!((defaults.log_origins, defaults.log_pages, defaults.delivery_bytes), (4, 10, 1_048_576));
+    assert_eq!((defaults.log_origins, defaults.log_pages, defaults.delivery_bytes), (20, 10, 1_048_576));
     assert_eq!(defaults.log_poll, Duration::from_secs(5));
     assert_eq!(defaults.log_catch_up, Duration::from_secs(86_400));
     assert_eq!(settings.word.as_ref(), b"temper");

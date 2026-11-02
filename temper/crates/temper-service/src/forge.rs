@@ -163,7 +163,7 @@ pub fn small(forge: &forge::Limits) -> skein_forge_connection::Limits {
         token_bytes: limits::FORGE_TOKEN_BYTES,
         key_bytes: u32::try_from(skein_tls::RS256_KEY_BYTES).expect("RS256 key bound fits u32"),
         installations: limits::FORGE_INSTALLATIONS,
-        log_origins: 4,
+        log_origins: 20,
         log_poll: Duration::from_secs(5),
         log_catch_up: Duration::from_secs(86_400),
         log_pages: 10,

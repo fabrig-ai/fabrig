@@ -361,6 +361,39 @@ fn serve_prepares_a_worker_alone_without_a_deployment_or_setup_host() {
 }
 
 #[test]
+fn github_default_log_origins_include_the_second_results_host() {
+    fn resolve(configured: &jig_protocol_config::Address) -> Result<std::net::SocketAddr, String> {
+        let jig_protocol_config::Address::Host { port, .. } = configured else {
+            return Err("expected default host".into());
+        };
+        Ok(([192, 0, 2, 17], *port).into())
+    }
+    let roots = super::trust(None).expect("machine roots");
+    let runtime = super::github_runtime(None, &roots, resolve).expect("default resolves");
+    assert_eq!(runtime.log_origins.len(), 20);
+    assert!(
+        runtime
+            .log_origins
+            .iter()
+            .any(|entry| entry.origin.host.as_ref() == b"productionresultssa17.blob.core.windows.net")
+    );
+    assert!(runtime.log_origins.iter().all(|entry| entry.origin.tls && entry.origin.port == 443));
+}
+
+#[test]
+fn github_log_origins_skip_unresolved_defaults_but_refuse_explicit_hosts() {
+    fn missing(_: &jig_protocol_config::Address) -> Result<std::net::SocketAddr, String> {
+        Err("no address".into())
+    }
+    assert!(super::github_logs::resolve(None, missing).expect("offline startup").is_empty());
+    let explicit =
+        [skein_forge::github::redirect::Origin { tls: true, host: b"logs.example.test".as_slice().into(), port: 443 }];
+    let why = super::github_logs::resolve(Some(&explicit), missing).expect_err("explicit host must resolve");
+    assert!(why.contains("logs.example.test"));
+    assert!(super::github_logs::resolve(Some(&[]), missing).expect("disabled").is_empty());
+}
+
+#[test]
 fn github_runtime_holds_unresolved_hosts_and_uses_the_machine_socket() {
     fn reject_names(configured: &jig_protocol_config::Address) -> Result<std::net::SocketAddr, String> {
         match configured {
