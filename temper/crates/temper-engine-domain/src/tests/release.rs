@@ -1,5 +1,5 @@
 //! Project release answers cross the journal barrier
-//! (temper/docs/design/draft/playground-reset.md, 5).
+//! (jig/docs/design/domain/people.md, 5.2; temper/docs/design/domain/forge.md, 4.1).
 use super::*;
 use temper_engine_domain_forge as forge;
 

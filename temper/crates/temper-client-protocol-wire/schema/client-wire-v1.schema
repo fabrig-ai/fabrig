@@ -9,7 +9,7 @@ enum Role { owned, adopted, fork, context }
 record Adopt { project: u32 home: bool forge: u16 owner: bytes 1024 name: bytes 1024 prefix: bytes 1024 role: Role landing: bytes 1024 ci: bool checks: list 64 u32 }
 
 # The family's keyed requests and setup outcome (client/README.md, 4.6).
-# temper/docs/design/draft/playground-reset.md, 3: kept and new forges.
+# temper/docs/design/client/README.md, 4.6: kept and new forges.
 record Kept { forge: u16 }
 record ManagedForge { host: bytes 255 port: u16 tls: option bytes 255 git: bytes 2048 web: option bytes 2048 git_program: option bytes 4096 }
 enum ForgeAsk { github, owned, managed: ManagedForge }
@@ -30,7 +30,7 @@ record Install { forge: u16 back: option bytes 512 }
 record Reachable { forge: u16 installation: option u64 page: u32 }
 record Accept { forge: u16 installation: u64 }
 
-# temper/docs/design/draft/playground-reset.md, 4 and 6: removal and reset.
+# temper/docs/design/client/README.md, 4.6: removal and reset.
 record RemoveForge { forge: u16 }
 enum Request { adopt: Adopt, set_up: SetUp, return_: Return, connect: Connect, install: Install, reachable: Reachable, accept: Accept, remove_forge: RemoveForge, start_playground, end_playground }
 versioned record Requesting { request: Request }
@@ -73,11 +73,11 @@ record OwnedForge { forgejo: bytes 64 runner: option bytes 64 password: bytes 51
 record ForgeRow { number: u16 kind: Kind mode: Mode connection: Connection offer: Offer first: option FirstRepository installations: list 64 Installation ended: option ConnectStopped app: option AppWay web: option bytes 2048 repositories: list 16 Adoption owned: option OwnedForge admin: bool ended_stop: option AdminStop read_only: bool }
 versioned record Forges { forges: list 16 ForgeRow }
 
-# The playground read (temper/docs/design/draft/playground-reset.md, 6.1).
+# The playground read (temper/docs/design/client/README.md, 4.6).
 enum Read { playground }
 versioned record Reading { read: Read }
 
-# temper/docs/design/draft/playground-reset.md, 6.1: no playground is no record.
+# temper/docs/design/client/README.md, 4.6: no playground is no record.
 enum PlaygroundState { starting, running, resetting }
 versioned record PlaygroundAnswer { forge: u16 project: option u32 provider: u32 owner: bytes 1024 name: bytes 1024 state: PlaygroundState cues: list 8 text 256 }
 
@@ -136,7 +136,7 @@ record Page { rows: list 100 Reached more: bool }
 # outcome None; client/README.md, 4.7, "unknown past the retention").
 record AcceptedInstallation { installation: u64 }
 
-# temper/docs/design/draft/playground-reset.md, 4 and 6.2.
+# temper/docs/design/client/README.md, 4.6.
 enum EndRefusal { not_offered }
 record EndRefused { why: EndRefusal }
 record RemoveRefused { why: ForgeRefusal }

@@ -1,5 +1,5 @@
 //! Real engine root on its direct store driver, with jig's protocol correlation.
-//! Forge records and playground scripts (temper/docs/design/draft/playground-reset.md, 3 and 8).
+//! Forge records and playground scripts (temper/docs/design/client/forge.md, 5.4; temper/docs/design/client/README.md, 10).
 pub mod account_acts;
 use crate::app::Event;
 use crate::{app::Temper, fixtures, translate};

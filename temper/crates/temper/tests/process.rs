@@ -394,7 +394,7 @@ fn boxed_example(scratch: &support::Scratch) -> support::owned::Owned {
     support::owned::lay(scratch.path(), &owned);
     std::fs::write(scratch.path().join("temper.json"), support::owned::example_document(scratch.path(), &owned))
         .expect("box example");
-    // A retained group starts only with its started record (temper/docs/design/draft/playground-reset.md, 3).
+    // A retained group starts only with its started record (temper/docs/design/protocol/setup.md, 7.1).
     for directory in ["box/groups", "box/started"] {
         std::fs::create_dir_all(scratch.path().join(directory)).expect("box group directory");
     }

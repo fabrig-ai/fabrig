@@ -1,4 +1,4 @@
-//! Slot removal's data boundary (temper/docs/design/draft/playground-reset.md, 4).
+//! Slot removal's data boundary (temper/docs/design/protocol/setup.md, 7.1).
 use crate::forge::remove_directory;
 use std::fs;
 

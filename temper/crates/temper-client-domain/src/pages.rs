@@ -17,7 +17,7 @@ pub mod delegation;
 pub mod inbox;
 pub mod task;
 pub mod welcome;
-/// The chosen playground waits for its project membership (temper/docs/design/draft/playground-reset.md, 6.1).
+/// The chosen playground waits for its project membership (temper/docs/design/client/README.md, 4.8).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum PlaygroundChoice {
     Idle,
@@ -860,7 +860,7 @@ fn choose_project(pages: &mut Pages, client: &Client, project: u32) {
     }
 }
 
-/// Select the chosen playground once its record and membership arrive (temper/docs/design/draft/playground-reset.md, 6.1).
+/// Select the chosen playground once its record and membership arrive (temper/docs/design/client/README.md, 4.8).
 pub(crate) fn playground_project(pages: &mut Pages, client: &Client, project: Option<u32>) {
     if pages.playground_choice == PlaygroundChoice::Waiting
         && let Some(project) = project

@@ -2,7 +2,7 @@
 use alloc::boxed::Box;
 use skein_lib::{List, Secret};
 
-/// The scripted provider and its key file (temper/docs/design/draft/playground-reset.md, 6.1).
+/// The scripted provider and its key file (temper/docs/design/protocol/setup.md, 8.4).
 #[derive(Debug)]
 pub struct Demo {
     pub provider: u32,
@@ -13,7 +13,7 @@ pub struct Demo {
     pub key_file: Box<[u8]>,
 }
 
-/// A runtime forge row made from its kept record (temper/docs/design/draft/playground-reset.md, 3).
+/// A runtime forge row made from its kept record (temper/docs/design/protocol/forge.md, 2.1).
 #[derive(Clone, Debug)]
 pub struct Forge {
     /// Resolved configured job-log origins; none uses the kind's runtime defaults
@@ -57,7 +57,7 @@ pub enum Transport {
     Tls { server_name: Box<[u8]>, trust: Option<Box<[u8]>> },
 }
 
-/// A runtime git identity made from its kept forge (temper/docs/design/draft/playground-reset.md, 3).
+/// A runtime git identity made from its kept forge (temper/docs/design/protocol/forge.md, 2.1).
 #[derive(Clone, Debug)]
 pub struct Identity {
     pub number: u32,

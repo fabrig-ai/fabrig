@@ -1,5 +1,5 @@
 //! The machine on skein-io, with one bounded chunk per child pipe.
-//! Kind files and removers follow temper/docs/design/draft/playground-reset.md, 3 and 4.
+//! Kind files and removers follow temper/docs/design/protocol/setup.md, 7.1.
 use crate::{
     layout::{self, Placed},
     limits::{Limits, Unfit},

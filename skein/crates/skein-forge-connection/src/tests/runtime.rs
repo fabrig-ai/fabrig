@@ -1,4 +1,4 @@
-//! Runtime membership (temper/docs/design/draft/playground-reset.md, 3 and 4).
+//! Runtime membership (skein/docs/design/forge-connection.md, 3.1).
 use super::{fixtures as f, github_start as gh};
 use crate::{Event, Request, Settings, settings::Forge, start::Start};
 use alloc::boxed::Box;
