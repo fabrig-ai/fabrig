@@ -15,12 +15,15 @@ them in the verdict's own record. What is still open is section 13.
 - **A tier** is a check too slow or too broad for a gate (a browser
   suite, an exhaustive profile), defined like a gate: a dispatch-only
   workflow, its ignored paths, its key (section 2). It also names where
-  its run reports its failing tests.
-- **Tiers follow the mains, not the landings** (section 3). When a
-  landing branch's tip moves, by temper or by anyone, each of its
-  repository's tiers runs on it: one run per tier and branch at a time,
-  the next taking the newest tip, so one run covers every landing since
-  the last. A tip whose key has a receipt is judged by it, with no run.
+  its run reports its failing tests, and the branch it follows: its
+  repository's landing branch, main, unless it names another.
+- **Tiers follow their branch, not the landings** (section 3). When the
+  tip of the branch a tier follows moves, by temper or by anyone, the
+  tier runs on it: one run per tier at a time, the next taking the
+  newest tip, so one run covers every landing since the last. A tip
+  whose key has a receipt is judged by it, with no run. A landing on a
+  branch no tier follows, a goal's own branch while its repository's
+  tiers follow main, is cleared as it lands.
 - **A run reports** pass or fail, and its failing tests by id, read from
   its artifact (section 4). A run that names no tests when it fails, or
   never ends, is a fault, never a red.
@@ -49,9 +52,16 @@ them in the verdict's own record. What is still open is section 13.
 
 - **A repository's tiers** are settings beside its gates (section 11):
   each a name (letters, digits, `-` and `_`, at most 32 bytes), a
-  workflow's file, its ignored paths, and its report: the
+  workflow's file, its ignored paths, its report: the
   name of the artifact its run uploads and its format, a JUnit file or
-  one test id per line.
+  one test id per line; and the branch it follows.
+- **The branch a tier follows** (`../draft/notes.md`, N5) is named by
+  the tier, `branch`, a branch of its repository; absent, it is the
+  landing branch the repository's adoption names (`forge.md`, section 4), its
+  main. A tier follows that branch alone: a move of any other branch of
+  its repository (a goal's own branch, a release branch) starts none of
+  its runs, and none of its verdicts judges a landing there. Following
+  two branches takes two tiers, which may name one workflow.
 - **A tier's key** is a gate's (`landing.md`, 6.1), over the tier's own
   definition and ignored paths, and its receipts are a gate's: kept per
   project by key, made only from runs temper dispatched (`landing.md`,
@@ -71,7 +81,9 @@ them in the verdict's own record. What is still open is section 13.
 - **Only a whole run makes a receipt.** A rerun of failed tests and a
   bisect's probe run a part of the tier, so their outcomes are kept on
   the tier's record for the verdict they serve, never as receipts.
-- **A repository with no tier** clears its landings as they land.
+- **A landing on a branch no tier follows,** in a repository with no
+  tier or on a branch none of its tiers names, is cleared as it
+  lands.
 - **A tier's start:** when a tier is first configured, it runs once at
   its branch's tip, the baseline. Its failures, if any, are failing at
   the baseline: blamed on no landing, inherited by the first run after
@@ -80,10 +92,12 @@ them in the verdict's own record. What is still open is section 13.
 
 ## 3. Following the mains
 
-- **On each move of a landing branch's tip,** read as `forge.md`, 7.2
-  reads landings, each tier of its repository with no run in flight
-  starts one at the new tip. One with a run in flight waits, and when
-  that run ends, the next starts at the newest tip, if it moved since.
+- **On each move of the tip of a branch a tier follows,** read as
+  `forge.md`, 7.2 reads landings, each tier following it with no run in
+  flight starts one at the new tip. One with a run in flight waits, and
+  when that run ends, the next starts at the newest tip, if it moved
+  since. The forge follows a branch for its tiers as long as one names
+  it, whether or not a goal or a change follows it too.
 - **A tip whose key has a receipt** is judged by the receipt, with no
   run: a documentation landing clears at once where every tier ignores
   it.
@@ -148,8 +162,8 @@ red by earlier failures it does not run (5.3).
 
 - **Red only by failures blamed on it,** per tier.
 - **Cleared,** per tier, by the first judged run whose range holds it
-  and blames it nothing; across tiers, once every tier of its
-  repository has cleared it.
+  and blames it nothing; across tiers, once every tier following its
+  branch has cleared it.
 - **Once red, red** until a later run passes the failures blamed on it:
   then it is cleared, repaired by the landings in that run's range that
   name it (7).
@@ -165,7 +179,8 @@ red by earlier failures it does not run (5.3).
 ```
 
 - **Landed means verifying.** The task lives, with no run, until its
-  landing is cleared in every tier of its repository; its branch's
+  landing is cleared in every tier following the branch it landed on
+  (at once, where no tier follows it: section 2); its branch's
   hold stays until then, and the branch is deleted as the task closes
   (`forge.md`, 11), by queue and by turn alike.
 - **Its result is given at cleared,** naming the landing and, for a red
@@ -297,7 +312,8 @@ red by earlier failures it does not run (5.3).
 
 ## 11. Settings
 
-Beside kind 5's gates, each repository's tiers; with kind 4, the
+Beside kind 5's gates, each repository's tiers, each with the branch
+it follows (section 2); with kind 4, the
 project's `tier_retries` (2), `verification_bound` (two hours), several
 suspects' rule (`bisect` or `tell all`), and whether a red pauses its
 repository (no). Until the kinds are settings, in the document's
@@ -323,6 +339,9 @@ with failing tests by id and uploading their artifacts:
 - **a repair** naming a red landing clears it, "repaired by";
 - **a documentation landing** every tier ignores clears at once;
 - **a landing temper did not make** is in a range like any other;
+- **a branch no tier follows:** a change landing into a goal's own
+  branch, in a repository whose tiers follow main, is cleared as it
+  lands, and the move starts no run;
 - **under queue and by turn,** the same stories.
 - **The reference case** (`../draft/reference-case.md`): these mechanics
   open its steps 25 to 27, a red of main's tier triaged and repaired by
