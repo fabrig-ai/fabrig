@@ -1,7 +1,6 @@
 //! The CDP parameters the browser sends. One description is written twice:
 //! measuring before allocation, then writing exactly the measured length.
 
-use crate::boundary::{Motion, Rect, Scheme};
 use alloc::boxed::Box;
 
 use skein_json::writer::{Encoder, Limits as JsonLimits};
@@ -9,8 +8,6 @@ use skein_json::writer::{Encoder, Limits as JsonLimits};
 #[derive(Debug)]
 pub(crate) enum Params<'a> {
     Empty,
-    Frame(&'a [u8]),
-    CaretSheet(&'a [u8]),
     Dialog {
         accept: bool,
     },
@@ -21,7 +18,6 @@ pub(crate) enum Params<'a> {
         selector: &'a [u8],
     },
     Node(u64),
-    Children(u64),
     Object(&'a [u8]),
     Context(&'a [u8]),
     Downloads {
@@ -75,15 +71,6 @@ pub(crate) enum Params<'a> {
         height: u64,
         mobile: bool,
     },
-    Media {
-        scheme: Scheme,
-        motion: Motion,
-    },
-    Push(u64),
-    Shot {
-        clip: Rect,
-        scale: u8,
-    },
     HistoryEntry(u64),
     Describe {
         backend: u64,
@@ -107,16 +94,6 @@ impl Params<'_> {
         json.object_start();
         match self {
             Params::Empty => {}
-            Params::Frame(frame) => {
-                json.key(b"frameId");
-                json.string(frame);
-            }
-            Params::CaretSheet(sheet) => {
-                json.key(b"styleSheetId");
-                json.string(sheet);
-                json.key(b"text");
-                json.string(b"* { caret-animation: manual !important }");
-            }
             Params::Dialog { accept } => {
                 json.key(b"accept");
                 json.boolean(*accept);
@@ -132,14 +109,6 @@ impl Params<'_> {
                 json.unsigned(*node);
                 json.key(b"selector");
                 json.string(selector);
-            }
-            Params::Children(node) => {
-                json.key(b"nodeId");
-                json.unsigned(*node);
-                json.key(b"depth");
-                json.signed(-1);
-                json.key(b"pierce");
-                json.boolean(true);
             }
             Params::Node(node) => {
                 json.key(b"nodeId");
@@ -283,59 +252,6 @@ impl Params<'_> {
                 json.unsigned(1);
                 json.key(b"mobile");
                 json.boolean(*mobile);
-            }
-            Params::Media { scheme, motion } => {
-                json.key(b"features");
-                json.array_start();
-                for (name, value) in [
-                    (
-                        b"prefers-color-scheme".as_slice(),
-                        match scheme {
-                            Scheme::Light => b"light".as_slice(),
-                            Scheme::Dark => b"dark".as_slice(),
-                        },
-                    ),
-                    (
-                        b"prefers-reduced-motion".as_slice(),
-                        match motion {
-                            Motion::Reduce => b"reduce".as_slice(),
-                            Motion::NoPreference => b"no-preference".as_slice(),
-                        },
-                    ),
-                ] {
-                    json.object_start();
-                    json.key(b"name");
-                    json.string(name);
-                    json.key(b"value");
-                    json.string(value);
-                    json.object_end();
-                }
-                json.array_end();
-            }
-            Params::Push(node) => {
-                json.key(b"backendNodeIds");
-                json.array_start();
-                json.unsigned(*node);
-                json.array_end();
-            }
-            Params::Shot { clip, scale } => {
-                json.key(b"format");
-                json.string(b"png");
-                json.key(b"clip");
-                json.object_start();
-                json.key(b"x");
-                json.signed(clip.x);
-                json.key(b"y");
-                json.signed(clip.y);
-                json.key(b"width");
-                json.unsigned(clip.width);
-                json.key(b"height");
-                json.unsigned(clip.height);
-                json.key(b"scale");
-                json.unsigned(u64::from(*scale));
-                json.object_end();
-                json.key(b"captureBeyondViewport");
-                json.boolean(true);
             }
             Params::HistoryEntry(entry) => {
                 json.key(b"entryId");

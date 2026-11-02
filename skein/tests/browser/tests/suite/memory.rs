@@ -92,31 +92,6 @@ fn selector_and_attribute_storage_stays_under_the_peak_ceiling() {
     assert_eq!(meter.held(), 0);
 }
 
-use crate::support::look_memory;
-// Whole-world peak for this scenario: 83,602 B measured, plus a quarter, rounded up
-// to two significant digits.
-const BROWSER_LOOK_PEAK_CEILING: u64 = 110_000;
-
-#[test]
-fn look_requests_and_answers_at_their_limits_stay_under_the_peak_ceiling() {
-    let limits = Limits { entries: 16, properties: 8, message: 32768, command: 4096, ..compact_limits() };
-    let meter = Meter::new();
-    meter.start();
-    let mut world = World::with_limits(limits);
-    world.start();
-    world.open();
-    look_memory::drive(&mut world, limits);
-    let measured = meter.end();
-    println!("{}: peak {} bytes", module_path!(), measured.peak());
-    assert!(
-        measured.peak() <= BROWSER_LOOK_PEAK_CEILING,
-        "peak {} exceeds ceiling {BROWSER_LOOK_PEAK_CEILING}",
-        measured.peak()
-    );
-    drop(world);
-    assert_eq!(meter.held(), 0);
-}
-
 // Whole-world peak for this scenario: 16,260 B measured, plus a quarter, rounded up
 // to two significant digits.
 const BROWSER_DOWNLOAD_PEAK_CEILING: u64 = 21_000;
