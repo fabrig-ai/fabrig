@@ -230,6 +230,9 @@ fn pull_answer(config: &Config, setup: &Store, request: &Request, value: &a::Pul
         | Request::Pulls { .. }
         | Request::PullFiles { .. }
         | Request::Compare { .. }
+        | Request::Artifacts { .. }
+        | Request::ArtifactZip { .. }
+        | Request::Commits { .. }
         | Request::Contents { .. }
         | Request::Raw { .. }
         | Request::Tree { .. }
@@ -308,6 +311,9 @@ fn checks(config: &Config, setup: &Store, request: &Request, values: &[a::CheckS
         | Request::Pulls { .. }
         | Request::PullFiles { .. }
         | Request::Compare { .. }
+        | Request::Artifacts { .. }
+        | Request::ArtifactZip { .. }
+        | Request::Commits { .. }
         | Request::Contents { .. }
         | Request::Raw { .. }
         | Request::Tree { .. }
@@ -552,6 +558,9 @@ fn collaborators(
         | Request::Pulls { .. }
         | Request::PullFiles { .. }
         | Request::Compare { .. }
+        | Request::Artifacts { .. }
+        | Request::ArtifactZip { .. }
+        | Request::Commits { .. }
         | Request::Contents { .. }
         | Request::Raw { .. }
         | Request::Tree { .. }
