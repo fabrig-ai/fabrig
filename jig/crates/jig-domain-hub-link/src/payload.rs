@@ -41,6 +41,7 @@ pub enum Ending {
 #[must_use]
 pub fn up(domain: &mut Link, channel: Token, up: host::LinkUp) -> Option<core::Event> {
     let event = match up {
+        host::LinkUp::JobAnswer { .. } => return None,
         host::LinkUp::Piece { run, attempt, piece } => return live_piece(domain, run, attempt, piece),
         host::LinkUp::Logins { logins } => fleet::Event::Logins { channel, logins },
         host::LinkUp::SignedOut { name, result } => fleet::Event::SignedOut { channel, name, result },

@@ -1,3 +1,4 @@
+mod jobs;
 use jig_domain_host::FromAgent;
 use jig_domain_host::ToAgent;
 use jig_domain_host::{LinkDown, LinkUp};
@@ -263,6 +264,7 @@ enum Taken {
     Gone { owner: Token },
     Delivered { call: Token },
     Saved { owner: Token },
+    JobAssign { run: Token, attempt: Token },
     Other,
 }
 
@@ -342,6 +344,9 @@ pub struct World {
     stats: Stats,
     trace: Trace,
     refusals: crate::refusals::Referee,
+    job_keys: BTreeSet<(Token, Token)>,
+    job_answers: BTreeMap<(Token, Token), host::JobEnding>,
+    job_kinds: Box<[host::JobBound]>,
 }
 
 impl World {
@@ -384,6 +389,9 @@ impl World {
             stats: Stats::default(),
             trace,
             refusals: crate::refusals::Referee::default(),
+            job_keys: BTreeSet::new(),
+            job_answers: BTreeMap::new(),
+            job_kinds: Box::new([]),
         };
         if let Some(outage) = settings.outage {
             let lost = Time::ZERO.saturating_add(outage.at.draw(&mut rng));
@@ -460,6 +468,7 @@ impl World {
     }
 
     /// One iteration of the loop, as the shell would run it.
+    #[expect(clippy::too_many_lines, reason = "the loop checks each routed decision in order")]
     fn iterate(&mut self) {
         self.stage.tick(self.now);
         self.deliver();
@@ -488,6 +497,12 @@ impl World {
                     assert_eq!(count, 1, "a fresh duplicate assignment call is answered once");
                     self.duplicate_answered();
                     self.path("duplicate assignments");
+                }
+                Taken::JobAssign { run, attempt } => {
+                    assert_eq!(count, 1, "a job is refused or prepared");
+                    let request = self.stage.out.pop().expect("counted");
+                    self.job_assigned(run, attempt, &request);
+                    self.route(request);
                 }
                 Taken::Assign { run, attempt } => {
                     assert_eq!(count, 1, "an assignment is refused or prepared");
@@ -595,6 +610,11 @@ impl World {
             return Taken::Stale;
         }
         match event {
+            Event::Job(event) => {
+                self.parent.job_event(event);
+                Taken::Other
+            }
+            Event::Down(LinkDown::AssignJob { job }) => Taken::JobAssign { run: job.run, attempt: job.attempt },
             Event::Down(LinkDown::Acknowledge { run, attempt }) => Taken::Acknowledged { run: *run, attempt: *attempt },
             Event::Down(LinkDown::Assign { assignment }) => {
                 Taken::Assign { run: assignment.assignment.run, attempt: assignment.assignment.attempt }
@@ -724,7 +744,7 @@ impl World {
                 }
             }
             Taken::Shutdown => self.shut = true,
-            Taken::Assign { .. } | Taken::Stale | Taken::Duplicate | Taken::Other => {}
+            Taken::JobAssign { .. } | Taken::Assign { .. } | Taken::Stale | Taken::Duplicate | Taken::Other => {}
         }
         None
     }
@@ -765,7 +785,8 @@ impl World {
                 | LinkUp::Limited { .. }
                 | LinkUp::AccountRefused { .. }
                 | LinkUp::Call { .. }
-                | LinkUp::Turn { .. },
+                | LinkUp::Turn { .. }
+                | LinkUp::JobAnswer { .. },
             )
             | Request::CancelRelay { .. }
             | Request::Agent(
@@ -776,6 +797,8 @@ impl World {
                 | ToAgent::Cancel { .. }
                 | ToAgent::Acknowledge { .. },
             )
+            | Request::Job(_)
+            | Request::DeliverJob { .. }
             | Request::Hello { .. }
             | Request::Abort { .. }
             | Request::Deliver { .. }
@@ -787,6 +810,7 @@ impl World {
     /// Checks that a hello lists every run whose answer is not acknowledged,
     /// then lets the engine catch up and sends the answers the host keeps.
     fn hello(&mut self, hello: &host::Hello) {
+        assert_eq!(hello.jobs, self.job_kinds, "the hello declares the root job capability");
         let mut hosting = BTreeSet::new();
         for entry in &hello.hosting {
             hosting.insert((entry.run, entry.attempt));
@@ -801,6 +825,7 @@ impl World {
     }
 
     /// Hands the host's `request` to whom it is for, checking it on the way.
+    #[expect(clippy::too_many_lines, reason = "one exhaustive match checks every host output at its destination")]
     fn route(&mut self, request: Request) {
         self.refusals.request(&request);
         self.trace.log(self.now, format_args!("host -> {request:?}"));
@@ -816,6 +841,10 @@ impl World {
                 | LinkUp::AccountRefused { .. },
             ) => {
                 self.send_engine(request);
+            }
+            Request::Up(LinkUp::JobAnswer { run, attempt, answer }) => {
+                self.job_answered(run, attempt, &answer);
+                self.send_engine(Request::Up(LinkUp::JobAnswer { run, attempt, answer }));
             }
             Request::Up(LinkUp::Answer { run, attempt, answer }) => {
                 if let Some(owner) = self.admitted.get(&(run, attempt)).copied() {
@@ -897,7 +926,9 @@ impl World {
                 self.hosted.get_mut(&owner).expect("a start is of a hosted run").launch = Launch::Asked;
                 self.parcel(request);
             }
-            Request::Deliver { .. }
+            Request::Job(_)
+            | Request::DeliverJob { .. }
+            | Request::Deliver { .. }
             | Request::Save { .. }
             | Request::Release { .. }
             | Request::Agent(ToAgent::Grant { .. }) => self.parcel(request),
@@ -957,6 +988,7 @@ impl World {
                     self.stage.push(Arrival { event, stale, duplicate: false });
                 }
                 Delivery::Engine(request) => {
+                    self.trace.log(self.now, format_args!("engine <- {request:?}"));
                     if let Request::Up(LinkUp::Call { run, attempt, call, .. }) = &request
                         && !self.relays.contains(&(*run, *attempt, call.clone()))
                     {
@@ -974,7 +1006,8 @@ impl World {
                     self.outs(outs);
                 }
                 Delivery::Back => {
-                    self.stage.push(Arrival { event: crate::fixtures::opened(), stale: false, duplicate: false });
+                    let event = self.job_opened();
+                    self.stage.push(Arrival { event, stale: false, duplicate: false });
                 }
                 Delivery::Shutdown => {
                     let event = Event::CancelAll { reason: Reason::Shutdown };

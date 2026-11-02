@@ -28,6 +28,7 @@ pub(crate) fn hello(record: wire::Hello) -> Option<host::Hello> {
             .expect("one slot per decoded run");
     }
     Some(host::Hello {
+        jobs: Box::default(),
         slots: fields.slots,
         stop_bound: fields.stop_bound,
         workstreams: fields.workstreams.into_boxed(),
@@ -475,6 +476,8 @@ pub(crate) fn down(
     limits: &wire::v9::Limits,
 ) -> Option<Down> {
     match down {
+        host::LinkDown::AssignJob { .. } => None,
+
         host::LinkDown::Sources { sources } => {
             if !host::sources::unique(&sources) {
                 return None;

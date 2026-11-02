@@ -106,6 +106,7 @@ impl World {
                     worker: 0,
                     channel: Token::new(7),
                     hello: fleet::Hello {
+                        jobs: Box::default(),
                         bounds: jig_test_profile::fixtures::bounds(),
                         stop_bound: Duration::from_millis(100),
                         slots: limits.core.fleet.slots,
@@ -145,6 +146,7 @@ impl World {
                 worker: 0,
                 channel: Token::new(0),
                 hello: fleet::Hello {
+                    jobs: Box::default(),
                     bounds: jig_test_profile::fixtures::bounds(),
                     stop_bound: Duration::ZERO,
                     slots: self.limits.core.fleet.engine_slots,

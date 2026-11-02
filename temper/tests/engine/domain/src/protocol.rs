@@ -50,6 +50,7 @@ pub fn hello_at(channel: Token, worker: u32, slots: u32, hosting: Box<[host::Hos
         engine::Link::Hello {
             worker,
             hello: host::Hello {
+                jobs: Box::default(),
                 slots,
                 stop_bound: Duration::from_millis(100),
                 workstreams: Box::new([]),

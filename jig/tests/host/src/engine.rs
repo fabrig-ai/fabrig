@@ -189,6 +189,9 @@ impl Engine {
     /// Takes the host's request `request`, which is for the engine.
     pub fn take(&mut self, request: Request) -> Vec<Act> {
         match request {
+            Request::Up(LinkUp::JobAnswer { run, attempt, answer: _ }) => {
+                vec![Self::host(Event::Down(LinkDown::Acknowledge { run, attempt }), false)]
+            }
             Request::Source { .. } | Request::SourceFault => unreachable!("source scheduling has its own world"),
             Request::Up(
                 LinkUp::Logins { .. }
@@ -211,7 +214,9 @@ impl Engine {
             Request::Up(LinkUp::Turn { .. }) | Request::Agent(ToAgent::Acknowledge { .. }) => {
                 unreachable!("turns are exercised by turn_world")
             }
-            Request::Hello { .. }
+            Request::Job(_)
+            | Request::DeliverJob { .. }
+            | Request::Hello { .. }
             | Request::CancelRelay { .. }
             | Request::Prepare { .. }
             | Request::Abort { .. }

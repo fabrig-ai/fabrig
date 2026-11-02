@@ -72,6 +72,8 @@ pub(crate) fn hello(hello: host::Hello, limits: &wire::v9::Limits) -> Option<Fra
 
 pub(crate) fn up(up: host::LinkUp, parts: &[Part], limits: &wire::v9::Limits) -> Option<Frame> {
     match up {
+        host::LinkUp::JobAnswer { .. } => None,
+
         host::LinkUp::Piece { run, attempt, piece } => {
             let value = wire::FactValue::Piece(piece_record(piece, limits)?);
             fact_frame(run, attempt, value, limits)
