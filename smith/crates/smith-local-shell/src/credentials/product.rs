@@ -190,7 +190,7 @@ pub fn client_limits() -> skein_oauth::ClientLimits {
         code_bytes: 4096,
         url_bytes: 8192,
         request_bytes: 16_384,
-        sign_in_time: Duration::from_secs(120),
+        sign_in_time: Duration::from_secs(600),
         request_time: Duration::from_secs(20),
         backoff_base: Duration::from_secs(1),
         backoff_ceiling: Duration::from_secs(8),
