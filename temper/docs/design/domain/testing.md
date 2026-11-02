@@ -49,9 +49,7 @@ and what is still open (section 10).
 - **No fake of temper's own components:** the system world runs the real
   engine and worker.
 - **Two suites, and two tiers outside them.** The focused and the fuzzy
-  suites keep their 30 s (15 s before the user's doubling of 10-22,
-  provisional) and 120 s (60 s before the user's doubling of 10-22,
-  provisional), which nextest enforces; the process and live tiers run by
+  suites keep their 30 s and 120 s, which nextest enforces; the process and live tiers run by
   their scripts, never at the gate. The process tier holds only what
   processes show, within its 6 minutes (2.6).
 
@@ -305,8 +303,7 @@ in the lower world that owns it, never here.
     inbox. The fake forge's one repository stands as widget, its tree
     holding widget's source, and its CI follows the edit (4.2); the story's
     fixture, scripts and checks are its own, in its test file, on the tier's
-    shared hosts. It is fuzzy, past the 2 s guide (1 s guide before the
-    user's doubling of 10-22, provisional) by the change procedure's landing
+    shared hosts. It is fuzzy, past the 2 s guide by the change procedure's landing
     path, as `suite::fuzzy::landing` is, and its forge's records stay within the
     harness's bound.
 - **The first run's repair,** one story (`suite::fuzzy::repair`), on the first
@@ -356,8 +353,7 @@ in the lower world that owns it, never here.
     (../client/README.md, 5.7, whose drawing the view's tests own); T1
     told that result before its report. Its fixture sizes the brief's
     CI section to carry the failure whole.
-  - It is fuzzy, past the 2 s guide (1 s guide before the user's doubling of
-    10-22, provisional) by the landing path and its repair, as
+  - It is fuzzy, past the 2 s guide by the landing path and its repair, as
     `suite::fuzzy::green_light` is, and its forge's records stay within the
     harness's bound. Its fixture, scripts and checks are its own, in its
     test file, on the tier's shared hosts.
@@ -605,8 +601,7 @@ in the lower world that owns it, never here.
        installation, and the change task's result names the pull request
        and its merge commit, which is the tip of `main` on the layer and
        holds the coder's README. The chat hears the landing before
-       replying. A whole chat: at most 3 s (1.5 s before the user's
-       doubling of 10-22, provisional);
+       replying. A whole chat: at most 3 s;
     2. GitHub connected through the manifest flow from `temper ctl`,
        the browser's steps as the requests above: story 6's start, so
        that one chat shows both, while story 1 connects its App by the
@@ -644,13 +639,8 @@ in the lower world that owns it, never here.
     root, a fact, a store record but the secrets' store's, a request or
     an answer (../protocol/credentials.md, section 7); and no carried
     value left once its run has ended (../protocol/forge.md, 2.6).
-  - **Each at most 1 s (0.5 s before the user's doubling of 10-22,
-    provisional),** half the tier's 2 s (1 s before the user's doubling of
-    10-22, provisional) story guide, or 3 s (1.5 s before the user's
-    doubling of 10-22, provisional) for one that runs a whole chat (its
-    agents, git and `ctl`), and the tier's sum within its 15 s (13 s before
-    the user's increase of 10-24; 6.5 s before the user's doubling of 10-22,
-    provisional) ceiling (6.1). Their cases are tested below: the records'
+  - **Each at most 1 s,** half the tier's 2 s story guide, or 3 s for one that runs a whole chat (its
+    agents, git and `ctl`), and the tier's sum within its 15 s ceiling (6.1). Their cases are tested below: the records'
     and the identity's codecs in step tests,
     the routing, GitHub's routes and Google's sign-in on the clients'
     listener in `temper-service`'s own tests (../protocol/forge.md,
@@ -801,8 +791,7 @@ terminal client, the captures and the faults.
     agent left;
   - no git identity's value or API token in a domain's state, a store
     record or an agent process's environment.
-- **Budget:** a story aims at 2 s (1 s before the user's doubling of 10-22,
-  provisional) (6.1); sweeps of drawn kills are fuzzy tests.
+- **Budget:** a story aims at 2 s (6.1); sweeps of drawn kills are fuzzy tests.
 
 ### 2.6 The process tier
 
@@ -1076,8 +1065,7 @@ terminal client, the captures and the faults.
 
 - **Outside the gate suites:** nextest profile `process-temper`, run once
   the binary and the fake `claude` are built, with `TEMPER_TEST_CLAUDE` set.
-  The 6-minute aim (3 minutes before the user's doubling of 10-22,
-  provisional) is the starting point for the process tier's CPU budget,
+  The 6-minute aim is the starting point for the process tier's CPU budget,
   the user's to set from measurements, separate from its wall hard limit.
   Both follow testing-strategy.md, 8.1 and its three-question repair rule:
   a story moves only if what it checks belongs in another tier.
@@ -1154,8 +1142,7 @@ section 8; testing-strategy.md, 2.9).
   change's branch on the forge is at the run's commit; it does not wait for
   the change to land. A story also ends at its task's first terminal
   failure, which fails the test at once, naming it: it never waits out the
-  run's 30 minutes (15 minutes before the user's doubling of 10-22,
-  provisional) after its task has ended. An account limited, refused or
+  run's 30 minutes after its task has ended. An account limited, refused or
   needing sign-in fails the test the same way, naming the account's state
   and its reset, since its task would wait for it (jig's
   `domain/authority.md`, 8.3).
@@ -1201,13 +1188,11 @@ section 8; testing-strategy.md, 2.9).
   backend, each assistant message the program writes (smith's
   `protocol/programs.md`, 5.5), so the count holds for Claude Code's
   runs as for direct ones.
-- **Budget:** at most 25 completions and 30 minutes (15 minutes before the
-  user's doubling of 10-22, provisional) in all. The live configuration's
+- **Budget:** at most 25 completions and 30 minutes in all. The live configuration's
   charters bound each run's turns so the two stories together make at most
   25 completions, which smith's agent holds on either backend (on the
   program backend with `--max-turns` behind its own count; smith's
-  `protocol/programs.md`, 5.7), the script stops the run at 30 minutes (15
-  minutes before the user's doubling of 10-22, provisional), and the test
+  `protocol/programs.md`, 5.7), the script stops the run at 30 minutes, and the test
   fails when the transcripts count more than 25. Each run's summary, a
   failed run's included, records its completions and its wall time, which a
   plan totals (skein's `development.md`, 5.5).
@@ -2062,42 +2047,34 @@ The two suites are the strategy's (testing-strategy.md, section 8). In temper:
 - **Fuzzy tests** are each world's `tests/suite/fuzzy/*.rs` modules. A sweep
   settles each random world under every invariant, and reaches every
   ending among them.
-- **Budgets.** The suites' 30 s (15 s before the user's doubling of 10-22,
-  provisional) and 120 s (60 s before the user's doubling of 10-22,
-  provisional) stand until the user sets their CPU budgets from measured
+- **Budgets.** The suites' 30 s and 120 s stand until the user sets their CPU budgets from measured
   numbers; they are separate from the profiles' wall hard limits. Within
   them, guides:
   - the worlds below the domain other than the real loop (the protocol,
     machine, client, one-process and reconcile worlds) together at most 8 s
-    (4 s before the user's doubling of 10-22, provisional) of the default
+    of the default
     suite;
   - the real-loop world's tests, its stories included, together at most 15 s
-    (13 s before the user's increase of 10-24; 6.5 s before the user's
-    doubling of 10-22, provisional) of the default suite: a standing ceiling,
+    of the default suite: a standing ceiling,
     the same for each plan, sized to the smoke
     that 2.4 keeps the real loop to ("one end-to-end path per feature, and
     each behaviour and corner case tested in the lower world that owns it,
     never here"), which the user revisits when the sum reaches it;
   - the worlds below the domain, the real loop included, together at most 80
-    s (40 s before the user's doubling of 10-22, provisional) of the fuzzy
+    s of the fuzzy
     suite;
-  - a focused protocol-world test at most 1 s (0.5 s before the user's
-    doubling of 10-22, provisional), and a one-process or real-loop story at
-    most 2 s (1 s before the user's doubling of 10-22, provisional);
-  - a GitHub story of the real loop (2.4) at most 1 s (0.5 s before the
-    user's doubling of 10-22, provisional), and one that runs a whole chat
-    (its agents, git and `ctl`) at most 3 s (1.5 s before the user's
-    doubling of 10-22, provisional), so that its eight stay within the real
+  - a focused protocol-world test at most 1 s, and a one-process or real-loop story at
+    most 2 s;
+  - a GitHub story of the real loop (2.4) at most 1 s, and one that runs a whole chat
+    (its agents, git and `ctl`) at most 3 s, so that its eight stay within the real
     loop's ceiling with the rest; a whole-chat GitHub story that would pass
     the ceiling goes to the user with its numbers.
 
   A test that misses its guide follows the three questions in 8.1; it
   moves only if what it checks belongs in another tier. It is never
   merged with another or named as an exception: a real-loop
-  story with CI and webhooks (2.4) is held to the 2 s (1 s before the user's
-  doubling of 10-22, provisional) as any other. If GitHub's stories would
-  push the real loop's sum past 15 s (13 s before the user's increase of
-  10-24; 6.5 s before the user's doubling of 10-22, provisional), the ceiling
+  story with CI and webhooks (2.4) is held to the 2 s as any other. If GitHub's stories would
+  push the real loop's sum past 15 s, the ceiling
   goes to the user, as below, and no real-loop story moves to the fuzzy
   suite to make room for them: cost never decides a test's tier.
 - **The worlds' sums are measured as the suites' rules are:** each test's
@@ -2113,21 +2090,14 @@ The two suites are the strategy's (testing-strategy.md, section 8). In temper:
   the director's decision 1260).
 - **The sums are the worlds' guides, never a landing's.** A test within its
   own guide lands. A plan that adds to these worlds gives both default-suite
-  sums at its base and at its end: the other worlds' against 8 s (4 s before
-  the user's doubling of 10-22, provisional), the real loop's against 15 s
-  (13 s before the user's increase of 10-24; 6.5 s before the user's doubling
-  of 10-22, provisional). When the other worlds together pass 8 s (4 s before
-  the user's doubling of 10-22,
-  provisional), or the real-loop world 15 s (13 s before the user's increase
-  of 10-24; 6.5 s before the user's doubling of 10-22, provisional), their
+  sums at its base and at its end: the other worlds' against 8 s, the real loop's against 15 s
+ . When the other worlds together pass 8 s, or the real-loop world 15 s, their
   slowest tests are profiled, then made cheaper at the cause the profile
   shows, or moved only where their checks belong under 8.1,
   by steps a plan names. A plan whose end finds the real loop's sum at 15 s
-  (13 s before the user's increase of 10-24; 6.5 s before the user's doubling
-  of 10-22, provisional) or past it puts the ceiling to the user, as skein's
+  or past it puts the ceiling to the user, as skein's
   `development.md`, 10.4, "What goes to
-  the user", says; until the user moves it, the 15 s (13 s before the user's
-  increase of 10-24; 6.5 s before the user's doubling of 10-22, provisional)
+  the user", says; until the user moves it, the 15 s
   stands.
 - **Outside both suites:** the process tier's binary `process` and the
   live tier's binary `live`, which both suites' filters leave out, run
@@ -2210,7 +2180,7 @@ and one smoke above:
 | fuzzy, in an existing sweep | one operation in the forge world's `suite::fuzzy::simulation`: random changes of landing rules among the changes stepping and merging; its referee holds that no merge lands without each requirement of the rules held at its decision | within the fuzzy suite's 120 s, measured with it; no new binary |
 | the client and the engine, joined (6.3) | "Tell temper how you work" starting the configuring chat, whose run proposes; "How work runs" read at its defaults and after a change, with its revisions in use; a proposal's review page split into temper enforces and your agents follow, with its effect; one accepted, making a revision; one withdrawn as stale; a member's, waiting for an owner | about 0.4 s against the 8 s guide |
 | the one-process world (2.5) | its fixture's document without the six members; its restart story with one change of settings before it | no new story |
-| the real loop (2.4) | one smoke: a gate added to a project's landing rule from the client, the next change asking for its review and landing after it | at most 2 s, its guide; about 11.5 s of the 15 s ceiling (13 s before the user's increase of 10-24), from 9.5 s at its last measure (case 2’s M4) |
+| the real loop (2.4) | one smoke: a gate added to a project's landing rule from the client, the next change asking for its review and landing after it | at most 2 s, its guide; about 11.5 s of the 15 s ceiling, from 9.5 s at its last measure (case 2’s M4) |
 | the system world (2.1) | running work keeping its revision, and `revision advance` moving it, one story (`../client/tools.md`, 11.4) | at most 2 s, a world story's aim (6.1) |
 | the process tier | Owned Forgejo gates, real signals and process-tree supervision only (2.6). Settings reads, proposals, owner decisions and held revisions use the CLI machine, core and system worlds. | process-temper; one focused wiring smoke |
 
@@ -2233,8 +2203,7 @@ and one smoke above:
   engine's domain world (how a merge is judged), so their focused and fuzzy
   scenarios run before it lands.
 - **Measured** at planned implementation's base and end, by 6.1's rule. Should the
-  smoke miss its 2 s, or the real loop pass its 15 s (13 s before the user's
-  increase of 10-24), the plan goes to the user with its numbers; no story
+  smoke miss its 2 s, or the real loop pass its 15 s, the plan goes to the user with its numbers; no story
   is cut or moved to fit.
 
 ## 7. Layout
