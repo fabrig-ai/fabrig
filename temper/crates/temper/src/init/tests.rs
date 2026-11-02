@@ -90,7 +90,6 @@ fn a_port_another_init_listens_on_between_bind_and_listen_gets_a_kernel_port() {
     io.close(other);
 }
 #[test]
-#[expect(clippy::too_many_lines, reason = "one facts table checks reservations, file modes and optional programs")]
 fn init_finds_ports_and_programs_and_writes_exact_modes_in_order() {
     let mut rows = Vec::new();
     for held in [false, true] {
@@ -108,110 +107,98 @@ fn init_finds_ports_and_programs_and_writes_exact_modes_in_order() {
             fs::remove_file(root.join("bin/git")).expect("no git on PATH");
         }
         let binary = root.join("bin/temper");
-        let listeners = [
-            TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).expect("preferred clients listener"),
-            TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).expect("preferred owned listener"),
-            TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).expect("preferred forge listener"),
-            TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).expect("preferred LLM listener"),
-            TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).expect("preferred webhooks listener"),
-        ];
-        let mut preferred = listeners.each_ref().map(|listener| listener.local_addr().expect("port").port());
-        if same {
-            preferred = [preferred[0], preferred[0], preferred[0], preferred[3], preferred[0]];
+        let (preferred, holder) = preferred_ports(held, same);
+        let first = write(&dirs, &env, &binary, preferred).expect("first init");
+        let ports = check_deployment(&dirs, &binary, &first, &row, claude, git);
+        for (at, available) in [!held, !held && !same, !held && !same, !held, !held && !same].into_iter().enumerate() {
+            assert_eq!(ports[at] == preferred[at], available, "{row}: preferred port {at}");
         }
-        let holder = if held {
-            Some(listeners)
-        } else {
-            drop(listeners);
-            None
-        };
-        let written = write(&dirs, &env, &binary, preferred).expect("init");
-        check_files(&dirs, &binary, &written, &row);
-        let document: serde_json::Value =
-            serde_json::from_slice(&fs::read(dirs.document()).expect("document")).expect("JSON");
-        let address: std::net::SocketAddr = document["application"]["clients"]["listener"]["socket"]
-            .as_str()
-            .expect("address")
-            .parse()
-            .expect("socket");
-        assert_eq!(address.port() == preferred[0], !held, "{row}");
-        assert!(TcpListener::bind(address).is_err(), "{row}: clients reservation held");
-        assert!(document["application"]["clients"]["bundle"].is_null());
-        assert!(document["application"]["clients"].as_object().expect("clients object").contains_key("public"));
-        assert!(document["application"]["clients"]["public"].is_null());
-        let agent: serde_json::Value =
-            serde_json::from_slice(&fs::read(path(&dirs.config).join("agent.json")).expect("agent")).expect("JSON");
-        let llm: std::net::SocketAddr =
-            agent["endpoints"][1]["address"].as_str().expect("LLM address").parse().expect("LLM socket");
-        let forge: std::net::SocketAddr = document["application"]["machine"]["fake"]["listen"]["socket"]
-            .as_str()
-            .expect("forge address")
-            .parse()
-            .expect("forge socket");
-        let webhooks: std::net::SocketAddr = document["application"]["webhooks"]["listener"]["socket"]
-            .as_str()
-            .expect("webhooks address")
-            .parse()
-            .expect("webhooks socket");
-        assert_eq!(webhooks.port() == preferred[4], !held && !same, "{row}");
-        for other in [address, forge, llm] {
-            assert_ne!(webhooks.port(), other.port(), "{row}: webhooks reservation differs");
+        let second_root = root.join("second");
+        fs::create_dir(&second_root).expect("second deployment");
+        let second_dirs = directories(&second_root);
+        // The first deployment holds all five preferred ports while the second initializes.
+        let second = write(&second_dirs, &env, &binary, ports).expect("second init beside the first");
+        let second_ports = check_deployment(&second_dirs, &binary, &second, &row, claude, git);
+        for port in second_ports {
+            assert!(!ports.contains(&port), "{row}: deployments have disjoint ports");
         }
-        assert!(TcpListener::bind(webhooks).is_err(), "{row}: webhooks reservation held");
-        assert_eq!(document["application"]["machine"]["fake"]["remote"], format!("http://{forge}"), "{row}");
-        assert_eq!(
-            document["application"]["machine"]["fake"]["listen"],
-            serde_json::json!({"socket": forge.to_string()}),
-            "{row}"
-        );
-        assert_eq!(
-            document["application"]["demo"]["llm"]["listen"],
-            serde_json::json!({"socket": llm.to_string()}),
-            "{row}"
-        );
-        assert_ne!(address.port(), forge.port(), "{row}: clients and forge reservations differ");
-        assert_ne!(address.port(), llm.port(), "{row}: clients and LLM reservations differ");
-        assert_ne!(forge.port(), llm.port(), "{row}: forge and LLM reservations differ");
-        let owned: std::net::SocketAddr = document["application"]["machine"]["owned"]["listen"]["socket"]
-            .as_str()
-            .expect("owned address")
-            .parse()
-            .expect("owned socket");
-        let ports = [address.port(), owned.port(), forge.port(), llm.port(), webhooks.port()];
-        for (index, port) in ports.iter().enumerate() {
-            assert!(!ports[..index].contains(port), "{row}: five distinct reservations");
-        }
-        assert_eq!(owned.port() == preferred[1], !held && !same, "{row}");
-        assert!(TcpListener::bind(owned).is_err(), "{row}: owned reservation held");
-        assert_eq!(document["application"]["machine"]["owned"]["remote"], format!("http://{owned}"), "{row}");
-        assert_eq!(
-            document["application"]["machine"]["owned"]["listen"],
-            serde_json::json!({"socket": owned.to_string()}),
-            "{row}"
-        );
-        assert_eq!(forge.port() == preferred[2], !held && !same, "{row}");
-        assert!(TcpListener::bind(forge).is_err(), "{row}: forge reservation held");
-        assert_eq!(
-            document["engine"]["llm"]["endpoints"][1]["address"],
-            serde_json::json!({"socket": llm.to_string()}),
-            "{row}"
-        );
-        assert_eq!(llm.port() == preferred[3], !held, "{row}");
-        assert!(TcpListener::bind(llm).is_err(), "{row}: llm reservation held");
-        for (fd, port) in &written.listeners {
-            let address = skein_shell::listener_at(*fd).expect("held descriptor is listening");
-            assert_eq!(address.port(), port.get(), "{row}: descriptor matches written port");
-            assert!(ports.contains(&port.get()), "{row}: descriptor's port is in the document");
-        }
-
-        assert_eq!(agent["programs"].as_object().expect("programs").contains_key("claude_code"), claude);
-        assert_eq!(written.missing_git, !git);
-        assert_eq!(document["application"]["workers"][0]["git"].is_null(), !git);
-        check_agent(&dirs, agent);
         drop(holder);
-        crate::close(written.listeners.into_iter().map(|(fd, _)| fd).collect());
+        for written in [first, second] {
+            crate::close(written.listeners.into_iter().map(|(fd, _)| fd).collect());
+        }
         fs::remove_dir_all(root).expect("cleanup");
     }
+}
+
+fn preferred_ports(held: bool, same: bool) -> ([u16; 5], Option<[TcpListener; 5]>) {
+    let listeners = [0; 5].map(|_| TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).expect("preferred listener"));
+    let mut preferred = listeners.each_ref().map(|listener| listener.local_addr().expect("port").port());
+    if same {
+        preferred = [preferred[0], preferred[0], preferred[0], preferred[3], preferred[0]];
+    }
+    let holder = if held {
+        Some(listeners)
+    } else {
+        drop(listeners);
+        None
+    };
+    (preferred, holder)
+}
+
+fn check_deployment(
+    dirs: &Directories,
+    binary: &Path,
+    written: &Written,
+    row: &str,
+    claude: bool,
+    git: bool,
+) -> [u16; 5] {
+    check_files(dirs, binary, written, row);
+    let document: serde_json::Value =
+        serde_json::from_slice(&fs::read(dirs.document()).expect("document")).expect("JSON");
+    let agent: serde_json::Value =
+        serde_json::from_slice(&fs::read(path(&dirs.config).join("agent.json")).expect("agent")).expect("JSON");
+    assert!(document["application"]["clients"]["bundle"].is_null());
+    assert!(document["application"]["clients"].as_object().expect("clients object").contains_key("public"));
+    assert!(document["application"]["clients"]["public"].is_null());
+    assert_eq!(agent["programs"].as_object().expect("programs").contains_key("claude_code"), claude);
+    assert_eq!(written.missing_git, !git);
+    assert_eq!(document["application"]["workers"][0]["git"].is_null(), !git);
+    let ports = check_listeners(&document, &agent, written, row);
+    check_agent(dirs, agent);
+    ports
+}
+
+fn check_listeners(document: &serde_json::Value, agent: &serde_json::Value, written: &Written, row: &str) -> [u16; 5] {
+    let application = &document["application"];
+    let addresses = [
+        &application["clients"]["listener"]["socket"],
+        &application["machine"]["owned"]["listen"]["socket"],
+        &application["machine"]["fake"]["listen"]["socket"],
+        &agent["endpoints"][1]["address"],
+        &application["webhooks"]["listener"]["socket"],
+    ]
+    .map(|value| value.as_str().expect("address").parse::<std::net::SocketAddr>().expect("socket"));
+    let ports = addresses.map(|address| address.port());
+    for (index, address) in addresses.iter().enumerate() {
+        assert_eq!(address.ip(), std::net::Ipv4Addr::LOCALHOST, "{row}: loopback listener");
+        assert!(!ports[..index].contains(&address.port()), "{row}: five distinct reservations");
+        assert!(TcpListener::bind(address).is_err(), "{row}: reservation held");
+    }
+    for (name, address) in [("owned", addresses[1]), ("fake", addresses[2])] {
+        assert_eq!(application["machine"][name]["remote"], format!("http://{address}"), "{row}");
+        assert_eq!(application["machine"][name]["listen"], serde_json::json!({"socket": address.to_string()}), "{row}");
+    }
+    let llm = serde_json::json!({"socket": addresses[3].to_string()});
+    assert_eq!(application["demo"]["llm"]["listen"], llm, "{row}");
+    assert_eq!(document["engine"]["llm"]["endpoints"][1]["address"], llm, "{row}");
+    assert_eq!(written.listeners.len(), ports.len(), "{row}: five held descriptors");
+    for (fd, port) in &written.listeners {
+        let address = skein_shell::listener_at(*fd).expect("held descriptor is listening");
+        assert_eq!(address.port(), port.get(), "{row}: descriptor matches written port");
+        assert!(ports.contains(&port.get()), "{row}: descriptor's port is in the document");
+    }
+    ports
 }
 
 fn check_agent(dirs: &Directories, mut document: serde_json::Value) {

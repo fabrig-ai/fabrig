@@ -141,12 +141,37 @@ fn each_result_kind_reads_back() {
             fields: Box::new([ResultField { name: Box::from(b"k".as_slice()), value: Box::from(b"value".as_slice()) }]),
             words: Box::from(b"v".as_slice()),
         },
-        TaskResult::Change { connector: 2, kind: 3, resource: 31, words: Box::from(b"change".as_slice()) },
+        TaskResult::Change {
+            title: jig_domain_tasks::ChangeTitle::new(b"Change".as_slice().into()),
+            connector: 2,
+            kind: 3,
+            resource: 31,
+            words: Box::from(b"change".as_slice()),
+        },
         TaskResult::Failure { reason: Box::from(b"failed".as_slice()) },
     ] {
         assert_eq!(saved_result(&source), Ok(source));
     }
 }
+#[test]
+fn change_title_survives_persistence_at_its_independent_byte_bound() {
+    let bound = usize::try_from(tasks_limits().change_result_title).expect("title bound");
+    let result = jig_domain_tasks::TaskResult::Change {
+        connector: 2,
+        kind: 3,
+        resource: 31,
+        title: jig_domain_tasks::ChangeTitle::new(skein_lib::bytes::zeroed(bound)),
+        words: skein_lib::bytes::zeroed(bound),
+    };
+    assert_eq!(saved_result(&result), Ok(result.clone()));
+    let jig_domain_tasks::TaskResult::Change { words, connector, kind, resource, .. } = result else {
+        panic!("change")
+    };
+    let title = jig_domain_tasks::ChangeTitle::new(skein_lib::bytes::zeroed(bound + 1));
+    let over = jig_domain_tasks::TaskResult::Change { connector, kind, resource, title, words };
+    assert_eq!(saved_result(&over), Err(bound_problem(crate::tasks_v9::Path::TaskResultTag)));
+}
+
 fn result_with_state(bytes: usize) -> jig_domain_tasks::TaskResult {
     jig_domain_tasks::TaskResult::Approved { state: skein_lib::bytes::zeroed(bytes), words: Some(Box::new([1])) }
 }

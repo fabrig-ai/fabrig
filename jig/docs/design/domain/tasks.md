@@ -101,7 +101,13 @@ it is live:
     tasks it may propose and of which kinds;
   - *a connector's result:* what a connector's procedure produces, such
     as a change landed or an environment ready; the connector keeps it
-    under the task's number, and the task keeps words that summarise it;
+    under the task's number, and the task keeps words that summarise it. A
+    change-shaped result also keeps an explicit title as opaque bytes,
+    independently bounded by the contract's words cap and the deployment's
+    result-byte limit. The title metadata is boxed to keep inline result
+    carriers small. An oversized title is refused before charging its
+    attempt. Tasks accounts for both allocations and persistence
+    retains the title; inbox result notices carry the summary words;
   - *a choice:* one of the options the spec lists, or an answer in
     words, for a person;
   - *an approval,* for a person, of a state a procedure names: the

@@ -409,6 +409,10 @@ follow from the limits that bound each kind (5.4).
   build the day it happens.
 Open's ending authority is carried in tasks v9 and people v13. Core's schema is v6; the format row requires these versions.
 
+- **Change results** retain an explicit title beside their words in tasks v9.
+  Both fields independently fit the result-byte limit; the schema and goldens
+  change in place under the pre-release layout rule above.
+
 - **Each record carries its family's version,** as every generated record
   does (skein's `codec.md`, section 5), which is what an upgrade will
   need.

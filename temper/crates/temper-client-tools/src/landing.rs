@@ -31,7 +31,7 @@ pub const READ: Tool = Tool {
     ]],
     keyed: Keyed::Never,
     area: 6,
-    notes: b"A landing lands its changes by turn: each gate is proved by a receipt\nof its key, then main is fast-forwarded to each candidate. A task with\nno landing fails, `no landing for task TASK` (exit 2).\n",
+    notes: b"A landing lands its changes by turn: each gate is proved by a receipt\nof its key, then main is fast-forwarded to each candidate. A task with\nno landing fails, `no landing for task TASK` (exit 2).\nQueue changes have no landing task; read them with `change show TASK`.\n",
 };
 pub const LIST: Tool = Tool {
     name: b"landing list",
@@ -45,7 +45,7 @@ pub const LIST: Tool = Tool {
     ]],
     keyed: Keyed::Never,
     area: 6,
-    notes: b"Without --ended, the live landings alone. `landing show TASK` reads one.\n",
+    notes: b"Without --ended, the live landings alone. `landing show TASK` reads one.\nThese are turn landings. Queue merges create no landing task and do not\nappear here, including with --ended. Read a queue change with `change show TASK`.\n",
 };
 
 #[derive(Debug)]
@@ -224,61 +224,15 @@ pub(crate) fn told(state: &mut Landings, client: &Client, env: &Env<Limits>, tol
     let printed = match told {
         Told::Page { page, .. } if watch.read == Some(handle) => {
             watch.read = None;
-            let task = match page {
-                Readout::Jig(c::ReadResult::Value(value)) => render::read_task(value),
-                Readout::Limit | Readout::NotServed { .. } | Readout::Jig(_) | Readout::Family { .. } => None,
-            };
-            if let Some((task, _)) = task {
-                if Some(task.chip.task) != watch.task {
-                    let printed = render::failure(b"unexpected task document", watch.called.json, 1);
-                    complete(state, number, printed, out);
-                    return;
-                }
-                watch.project = Some(task.project);
-                open(watch, &env.limits, out);
-                return;
-            }
-            match page {
-                Readout::Jig(c::ReadResult::None(c::ReadNone::Unknown | c::ReadNone::Gone)) => {
-                    missing(watch.task.expect("landing task"), watch.called.json)
-                }
-                Readout::Limit | Readout::NotServed { .. } | Readout::Jig(_) | Readout::Family { .. } => render::read(
-                    page,
-                    client,
-                    Handle { asker: crate::root::RUNNER.asker(), number: 0 },
-                    watch.called.json,
-                    &env.limits.tools,
-                    &crate::root::Parts,
-                ),
-            }
+            let Some(printed) = read_project(watch, client, env, page, out) else { return };
+            printed
         }
         Told::Changed { .. } if watch.panel == Some(handle) => {
             let Some(doc) = client.document(handle) else { return };
             if (doc.state == State::Opening || doc.state == State::Behind) && doc.latest.is_none() {
                 return;
             }
-            match doc.latest {
-                Some(Latest::Family(record))
-                    if record.family == wire::FORGE && record.version == wire::CLIENT_VERSION =>
-                {
-                    let limits = forge::wire_limits(&env.limits.domain.forge).expect("checked limits");
-                    match watch.task {
-                        Some(task) => match wire::decode_landing_panel(&record.bytes, &limits) {
-                            Some(panel) if panel.task() == task && Some(panel.project()) == watch.project => {
-                                print(&panel, watch.called.json, &env.limits)
-                            }
-                            _ => render::failure(b"unexpected landing document", watch.called.json, 1),
-                        },
-                        None => match wire::decode_landings_panel(&record.bytes, &limits) {
-                            Some(panel) if Some(panel.project()) == watch.project => {
-                                print_list(&panel, watch.called.json, &env.limits)
-                            }
-                            _ => render::failure(b"unexpected landings document", watch.called.json, 1),
-                        },
-                    }
-                }
-                _ => gone(watch, &env.limits),
-            }
+            read_document(watch, doc.latest, env)
         }
         Told::Ended { why, .. } if watch.panel == Some(handle) => match why {
             Why::Unknown | Why::SubjectEnded => gone(watch, &env.limits),
@@ -298,6 +252,70 @@ pub(crate) fn told(state: &mut Landings, client: &Client, env: &Env<Limits>, tol
         | Told::Page { .. } => return,
     };
     complete(state, number, printed, out);
+}
+
+fn read_project(
+    watch: &mut Watching,
+    client: &Client,
+    env: &Env<Limits>,
+    page: &Readout,
+    out: &mut Queue<Out>,
+) -> Option<jig::Printed> {
+    let task = match page {
+        Readout::Jig(c::ReadResult::Value(value)) => render::read_task(value),
+        Readout::Limit | Readout::NotServed { .. } | Readout::Jig(_) | Readout::Family { .. } => None,
+    };
+    if let Some((task, _)) = task {
+        if Some(task.chip.task) != watch.task {
+            let printed = render::failure(b"unexpected task document", watch.called.json, 1);
+            return Some(printed);
+        }
+        watch.project = Some(task.project);
+        open(watch, &env.limits, out);
+        return None;
+    }
+    Some(match page {
+        Readout::Jig(c::ReadResult::None(c::ReadNone::Unknown | c::ReadNone::Gone)) => {
+            missing(watch.task.expect("landing task"), watch.called.json)
+        }
+        Readout::Limit | Readout::NotServed { .. } | Readout::Jig(_) | Readout::Family { .. } => render::read(
+            page,
+            client,
+            Handle { asker: crate::root::RUNNER.asker(), number: 0 },
+            watch.called.json,
+            &env.limits.tools,
+            &crate::root::Parts,
+        ),
+    })
+}
+fn read_document(watch: &Watching, latest: Option<&Latest>, env: &Env<Limits>) -> jig::Printed {
+    match latest {
+        Some(Latest::Family(record)) if record.family == wire::FORGE && record.version == wire::CLIENT_VERSION => {
+            let limits = forge::wire_limits(&env.limits.domain.forge).expect("checked limits");
+            match watch.task {
+                Some(task) => read_landing(watch, task, &record.bytes, &limits, &env.limits),
+                None => match wire::decode_landings_panel(&record.bytes, &limits) {
+                    Some(panel) if Some(panel.project()) == watch.project => {
+                        print_list(&panel, watch.called.json, &env.limits)
+                    }
+                    _ => render::failure(b"unexpected landings document", watch.called.json, 1),
+                },
+            }
+        }
+        _ => gone(watch, &env.limits),
+    }
+}
+fn read_landing(watch: &Watching, task: u64, bytes: &[u8], limits: &w::Limits, root: &Limits) -> jig::Printed {
+    if let Some(panel) = wire::decode_landing_panel(bytes, limits) {
+        if panel.task() == task && Some(panel.project()) == watch.project {
+            return print(&panel, watch.called.json, root);
+        }
+    } else if let Some(panel) = wire::decode_change_panel(bytes, limits)
+        && panel.task() == task
+    {
+        return missing(task, watch.called.json);
+    }
+    render::failure(b"unexpected landing document", watch.called.json, 1)
 }
 
 fn phase(phase: &w::LandingPhase) -> &'static [u8] {

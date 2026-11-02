@@ -714,13 +714,14 @@ pub fn result(source: &domain::TaskResult, limits: &wire::Limits) -> Result<wire
                 wire::VerdictResultParts { code: *code, fields: members, words: words.clone() },
             )?)
         }
-        domain::TaskResult::Change { connector, kind, resource, words } => {
+        domain::TaskResult::Change { connector, kind, resource, title, words } => {
             wire::TaskResult::Change(wire::ChangeResult::new(
                 limits,
                 wire::ChangeResultParts {
                     connector: *connector,
                     kind: *kind,
                     resource: *resource,
+                    title: title.words.clone(),
                     words: words.clone(),
                 },
             )?)
@@ -745,8 +746,8 @@ pub fn read_result(source: wire::TaskResult, limits: &wire::Limits) -> Result<do
             domain::TaskResult::Verdict { code, fields: members, words }
         }
         wire::TaskResult::Change(value) => {
-            let wire::ChangeResultParts { connector, kind, resource, words } = value.into_parts();
-            domain::TaskResult::Change { connector, kind, resource, words }
+            let wire::ChangeResultParts { connector, kind, resource, title, words } = value.into_parts();
+            domain::TaskResult::Change { connector, kind, resource, title: domain::ChangeTitle::new(title), words }
         }
         wire::TaskResult::Failure(value) => domain::TaskResult::Failure { reason: value.into_parts().reason },
     };
@@ -766,7 +767,8 @@ fn check_result(source: &domain::TaskResult, limits: &wire::Limits) -> Result<()
             }
             bytes
         }
-        domain::TaskResult::Report { words } | domain::TaskResult::Change { words, .. } => words.len(),
+        domain::TaskResult::Report { words } => words.len(),
+        domain::TaskResult::Change { title, words, .. } => title.words.len().max(words.len()),
         domain::TaskResult::Failure { reason } => reason.len(),
     };
     if bytes > skein_lib::length::usize_of(limits.result_field_value) {

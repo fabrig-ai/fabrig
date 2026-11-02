@@ -10,6 +10,9 @@ A change is a task that writes one repository's branch and lands it: its pull re
   `change`, giving the words and, where its project has several
   repositories it may write, which one. Its coder writes the change
   from those words alone (temper help task).
+- **Its pull request title** comes from the coder's change result. Context
+  at the beginning of the brief stays in the brief. Titles keep punctuation
+  and are shortened at a UTF-8 boundary with “…” when the forge needs it.
 - **Its panel,** as `change show` prints it: `change TASK ·
   OWNER/NAME on forge FORGE · BRANCH into BASE`, its pull request and
   its address, `step:` and the step, `way: turn · landing task N`

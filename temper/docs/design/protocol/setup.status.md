@@ -9,3 +9,8 @@
 - **Built:** 8.3: kept GitHub records join the running setup host with the forge component's TLS endpoint. Held setup entries keep `127.0.0.1:0`; startup name resolution replaces both components' entries before setup can dial.
 
 - **Built:** 17.3 to 17.7: every GitHub forge keeps unaccepted installations; ctl `--read-only` persists the hook policy and leaves the hook as read at paste and reconcile.
+
+- **Built:** 8.2: help names preferred ports, automatic fallback, separate
+  directories and fixed saved addresses, and first-run box reservations.
+  Binary crate tests hold two deployments' listeners and check disjoint
+  ports and matching addresses across both generated documents.

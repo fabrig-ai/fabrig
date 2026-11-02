@@ -84,15 +84,20 @@ impl Driver {
             Self::Github(_) => crate::github_fixture::PATH,
         }
     }
-    pub fn commit_tree(&mut self, parent: u64, tree: Box<[raw::File]>) -> u64 {
+    /// Prepares a commit on either fake domain without moving a branch.
+    pub(crate) fn prepare_commit(&mut self, parent: u64, tree: Box<[raw::File]>, message: &[u8]) -> u64 {
         dispatch!(
             self,
             w,
-            fake::commit(&mut w.domain, &w.fake_env.limits, parent, tree, b"directory fixture")
+            fake::commit(&mut w.domain, &w.fake_env.limits, parent, tree, message)
                 .expect("tree fits")
                 .expect("changed tree")
         )
     }
+    pub fn commit_tree(&mut self, parent: u64, tree: Box<[raw::File]>) -> u64 {
+        self.prepare_commit(parent, tree, b"directory fixture")
+    }
+
     pub fn direct(&mut self, op: raw::Op) -> Result<raw::Answer, raw::Error> {
         dispatch!(self, w, w.direct(op))
     }

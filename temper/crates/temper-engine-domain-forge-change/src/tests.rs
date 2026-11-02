@@ -284,6 +284,24 @@ fn a_conflict_leaves_the_queue_and_reasks_gates_after_resolution() {
     assert!(two.change.clean.is_empty());
 }
 #[test]
+fn an_update_conflict_resolves_after_release_and_keeps_its_resolution_bound() {
+    let updating = State::Updating { from: HEAD, base: BASE, ready_since: at(0) };
+    let held = change(State::Held { was: Box::new(updating.clone()), why: Hold::Failed });
+    let lifted = released(&held, at(2));
+    let resumed = step(&lifted, &facts(), &heard(), at(3), &LIMITS);
+    assert_eq!(resumed.change.state, updating);
+    let mut h = heard();
+    h.effect = EffectResult::Conflict;
+    for mut c in [change(updating), resumed.change] {
+        let one = decide(&c, &facts(), &h);
+        assert_eq!(one.decision, Decision::Delegate(Delegate::Resolve { base: BASE }));
+        assert_eq!(one.change.resolutions, 1);
+        assert!(!one.change.owns_turn);
+        c.resolutions = LIMITS.resolutions;
+        assert_eq!(decide(&c, &facts(), &h).decision, Decision::Hold(Hold::Resolutions));
+    }
+}
+#[test]
 fn a_failed_check_takes_the_base_before_a_repair_and_both_bounds_hold() {
     let mut f = facts();
     f.ci.status = Status::Failed;

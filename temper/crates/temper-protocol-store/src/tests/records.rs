@@ -927,8 +927,8 @@ fn review_failure_counts_take_the_gate_bound() {
 fn change_record_words_use_the_task_bound_instead_of_operation_bytes() {
     const SPEC_BYTES: u32 = 2048;
     let mut change = fixtures::change_row(temper_engine_domain_forge_change::State::Producing { requested: false });
-    change.title = Box::new([b'x'; 2048]);
-    change.body = change.title.clone();
+    change.title = Box::new([b't'; 256]);
+    change.body = Box::new([b'x'; 2048]);
     let row = forge::Stored::Change(change);
     let bytes = records::encode(&row);
     let bounds = crate::bounds(&fixtures::LIMITS, SPEC_BYTES).unwrap();

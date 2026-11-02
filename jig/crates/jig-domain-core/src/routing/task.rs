@@ -273,7 +273,7 @@ pub(crate) fn result_notice(ending: tasks::Ending) -> (tasks::ResultKind, Box<[u
             }
             tasks::TaskResult::Report { words } => (tasks::ResultKind::Report, words),
             tasks::TaskResult::Verdict { code, words, fields } => (tasks::ResultKind::Verdict { code, fields }, words),
-            tasks::TaskResult::Change { connector, kind, resource, words } => {
+            tasks::TaskResult::Change { connector, kind, resource, words, .. } => {
                 (tasks::ResultKind::Change { connector, kind, resource }, words)
             }
             tasks::TaskResult::Failure { reason } => (tasks::ResultKind::Failed, reason),
