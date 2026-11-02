@@ -1864,9 +1864,11 @@ pub struct TierRow {
     pub pending: Box<[TierLanding]>,
     pub baseline: Option<TierLanding>,
     pub branch: TierBranch,
+    /// The current or completed probe, retained until its branch is released.
+    pub probe: Option<TierProbeBranch>,
     pub flight: Option<TierFlight>,
     pub held: Option<landing::Fault>,
-    /// A whole run or cached receipt awaiting branch release and judgement.
+    /// The final part observation or cached receipt awaiting release and judgement.
     pub result: Option<Receipt>,
     pub received: bool,
 }
@@ -1881,6 +1883,11 @@ pub enum TierBranch {
     Pending { entry: u64 },
     Made,
 }
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct TierProbeBranch {
+    pub landing: u32,
+    pub branch: TierBranch,
+}
 /// Durable follower progress; trees and workflow details are read again after restart.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct TierFlight {
@@ -1892,6 +1899,8 @@ pub struct TierFlight {
     pub run: Option<u64>,
     pub pending: Box<[skein_forge::api::JobAttempt]>,
     pub fault: Option<landing::Fault>,
+    /// A failed part awaiting its artifact, read again after restart.
+    pub report: Option<ReceiptRun>,
 }
 /// Family 29's landing verdicts (temper/docs/design/domain/after-landing.md, 10).
 #[derive(Clone, PartialEq, Eq, Debug)]
