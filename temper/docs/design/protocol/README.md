@@ -1,6 +1,6 @@
 # The protocol layer
 
-Provisional, 2026-10-03, revised 2026-10-26. temper's protocol layer:
+Provisional, 2026-10-03, revised 2026-11-02. temper's protocol layer:
 how temper composes jig's protocol layer with components of its own (its
 forge's, its checkout's, its client's) into the processes of one binary.
 jig owns the layer's shape (jig's `protocol/README.md`) and the services'
@@ -172,7 +172,7 @@ deployment     temper init [DIRECTORIES]
                temper versions
                temper upgrade --check DIRECTORY | --back
                temper program-login [DIRECTORIES] NAME
-               temper forge fetch|prepare|sign-in [DIRECTORIES] FORGE
+               temper forge fetch|prepare|sign-in|remove [DIRECTORIES] FORGE
                temper forge run [DIRECTORIES] FORGE forgejo|runner
 clients        temper ctl DIRECTORY GROUP VERB [ARGUMENT...] [--json]
                temper ctl DIRECTORY --call FILE [--json]
@@ -300,18 +300,31 @@ default; the document is `temper.json` in the configuration directory
   agent's configuration, makes the source's configuration directory, and
   replaces itself by the program's own sign-in (credentials.md, section
   3). The engine need not run.
-- **The forge's setup** (setup.md), each command reading and checking
-  the whole document as `temper serve` does (configuration.md, section
-  8), FORGE a forge's `number`; reconcile is the engine setup host's
-  plan (forge.md, 2.6):
+- **The forge's setup** (setup.md), FORGE a forge's number, as its
+  record has it (forge.md, 2.1) and the Forges page shows it; reconcile
+  is the engine setup host's plan (forge.md, 2.6). The box knows kinds,
+  not forges: `fetch`, `prepare` and `run` read the forge's kind and
+  setup entry from its group's file, `<data>/box/groups/FORGE`, which
+  `temper serve` writes as it asks for the group (setup.md, 7.1),
+  refusing a forge with none, and each reads and checks the whole
+  document as `temper serve` does (configuration.md, section 8):
   - `temper forge prepare`: an owned forge's preparation, before its
     Forgejo runs; it ends when done (setup.md, 6.3);
   - `temper forge run`: checks the binary and the preparation, takes
     the forge's lock, and replaces itself by `forgejo web` or
     `forgejo-runner daemon`, whose process a host supervises (setup.md,
     6.4);
-  - `temper box`: the configuration's steps as child processes, in
-    order, restarted when they exit and stopped in reverse order; its
+  - `temper forge remove`: an owned or fake forge's directory under
+    data removed, `forge-N` or the playground's, by the kind its group's
+    file names: the box's remover step, run once a removed forge's group
+    has stopped (setup.md, 7.1; forge.md, 2.3 and 2.8). It refuses a
+    path outside data or one within the cache, which it keeps,
+    Forgejo's binaries with it, and a directory already gone is no
+    failure; it reads no document and touches no store, so a forge is
+    removed from the client, never by this command alone;
+  - `temper box`: its steps as child processes, `temper serve` and the
+    groups it has started for forges, each by its kind (setup.md, 7.1),
+    in order, restarted when they exit and stopped in reverse order; its
     stdout is `temper serve`'s sign-in links, each line whole; its
     stderr, a terminal's, the box's own lines alone, each step's lines
     in its log under the data directory, and on stderr too, prefixed by
@@ -331,7 +344,7 @@ Standalone, one person's machine:
 temper serve                           one process, one loop: temper-service's system module
 ├── the engine's service               section 6
 │   ├── listens: the in-process name "workers"; the clients' listener and, when configured, the webhooks' listener, TCP on loopback
-│   └── connects: each configured forge's API (HTTP; TLS unless the forge is on loopback)
+│   └── connects: each kept forge's API (HTTP; TLS unless the forge is on loopback)
 ├── the worker's service               section 7
 │   └── dials: the in-process name "workers"
 ├── temper internal agent AGENT.json   a child process per run, in a process group of its own
@@ -411,7 +424,7 @@ box's host and the fake git program's core:
 | Crate | Kind | Holds | Depends on |
 |---|---|---|---|
 | `crates/temper-service` | services | the engine's and the worker's services and their one-process composition, in an engine, a worker and a system module, as jig's reference service is: each `iterate`, the routing, the clients' listener with jig's clients' component and its default HTTP mapping mounted, temper's forge routes, and the browser's page and bundle served (`../client/browser.md`, 2.2), startup from configuration's bytes, start and end; temper's profile `small` | the roots, `temper-engine-smith`, jig's components, smith's host half and codecs, temper's codec crates and components, `skein-forge-connection`, `skein-io`, `skein-json` |
-| `crates/temper` | binary | the commands of section 4, copied from jig's reference binary; for each that reads the document, `temper-service`'s startup, with `setup` and the setup's and the box's limits checked by their own crates (configuration.md, section 2) | `temper-service`, `skein-shell`, `smith-agent-shell`, `smith-local-service`'s profile, `skein-oauth-accounts`, `jig-client-shell-native`, the client crates, `temper-forge-setup-shell`, `temper-box`, `temper-client-bundle` |
+| `crates/temper` | binary | the commands of section 4, copied from jig's reference binary; for each that reads the document, `temper-service`'s startup, with `machine` and the setup's and the box's limits checked by their own crates (configuration.md, section 2) | `temper-service`, `skein-shell`, `smith-agent-shell`, `smith-local-service`'s profile, `skein-oauth-accounts`, `jig-client-shell-native`, the client crates, `temper-forge-setup-shell`, `temper-box`, `temper-client-bundle` |
 | `crates/temper-forge-setup` | step code | the forge's setup, but for reconcile, which is skein's (`skein-forge-setup`): its types and checks, and the setup mapped onto reconcile's given values, with the kit's check of them; the preparation's machine; `app.ini` and the runner's files; the processes' specs; the configuration's steps, `steps` and `Step`. Names no host | setup.md, section 11 |
 | `crates/temper-forge-setup-shell` | hosts | ordinary Rust: the hosts of `temper forge prepare` and `run`: commands, files, the forge's locks and the exec (setup.md, 6.4); HTTP on skein-http over skein-io | setup.md, section 11 |
 | `crates/temper-box` | machine, host | the box's machine, step code, and its host, ordinary Rust, on skein-io's processes; nothing of the setup but its steps (setup.md, 7.3) | setup.md, section 11 |
@@ -477,7 +490,7 @@ temper-service, engine module           iterate: io ↔ components ↔ root
     ├── the clients' listener           temper's: TCP on loopback (../client/README.md, section 8)
     │   └── jig-protocol-engine-clients-http   jig's default HTTP mapping, under /jig, with its example guards
     ├── jig-protocol-engine-clients     the clients' component: jig's messages; the forge's client family as bytes (../client/README.md, section 8)
-    ├── skein-forge-connection          the forge component: every configured forge's API; the webhooks' listener, TCP on loopback (forge.md)
+    ├── skein-forge-connection          the forge component: every kept forge's API; the webhooks' listener, TCP on loopback (forge.md)
     ├── the setup host                  skein-forge-setup's in-process host: the setup's plans (forge.md, 2.6)
     ├── the identities' table           git identities' values (credentials.md, section 4)
     └── timers                          the root's and every component's deadlines
@@ -529,7 +542,7 @@ Starting, ending, `iterate`'s passes, room and timers are jig's
   the root's `ForgeWorkspace` as temper's workspace items, with
   `temper-protocol-worker-wire`, making each repository's remote from its
   forge's `git` base and the repository's owner and name
-  (configuration.md, section 3), with the owner's account id on a GitHub
+  (forge.md, 2.1), with the owner's account id on a GitHub
   forge, so workers need no forge configuration.
   As it decodes an answer, it decodes the work and the preparation into
   the root's `Parts` (channel.md, sections 4, 5 and 7;
@@ -719,9 +732,9 @@ section 8 give them. temper's sit beside them:
     release on and written in the current at its next write; the
     preparation writes it before the engine starts, so it follows the
     forge's own upgrade, whose going back is its dump (setup.md, 6.3).
-    The worker's secret and digest (hex digits and a newline), the demo
-    model's key, the forge's sign-in client secret (setup.md, 6.8), the
-    box's started markers (an empty file each) and the admin token's
+    The worker's secret and digest (hex digits and a newline), the
+    scripted model's key, the forge's sign-in client secret (setup.md,
+    6.8), the box's group files and started markers (setup.md, 7.1) and the admin token's
     handover are fixed forms, never versioned: a change is a new file
     name, read beside the old one for as long as a release may find it.
     The engine writes no small file before its start's wires are durable

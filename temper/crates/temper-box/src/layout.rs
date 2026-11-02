@@ -94,7 +94,7 @@ pub fn label(steps: &[Placed], forge: u16) -> Option<&[u8]> {
     None
 }
 
-/// A kind's slot names its bound forge in its arguments and output (temper/docs/design/draft/playground-reset.md, 3).
+/// A kind's slot names its bound forge in its arguments and output (temper/docs/design/protocol/setup.md, 7.1).
 #[must_use]
 pub fn bound(template: &Step, forge: u16) -> Step {
     let digits = Decimal::of(u64::from(forge));

@@ -1,4 +1,4 @@
-//! Machine and client settings, read strictly (temper/docs/design/draft/playground-reset.md, 3).
+//! Machine and client settings, read strictly (temper/docs/design/protocol/configuration.md, 3).
 mod demo;
 mod landing;
 mod public;
@@ -380,7 +380,7 @@ pub fn parse(
         landing_projects,
     })
 }
-/// The startup files named by the application (playground-reset.md, 3).
+/// The startup files named by the application (temper/docs/design/protocol/configuration.md, 3).
 pub fn files(members: &Members) -> Box<[config::File]> {
     let mut files = List::with_capacity(
         members.limits.forge.forges.checked_mul(4).expect("bounded forge files").checked_add(2).expect("sign-in files"),

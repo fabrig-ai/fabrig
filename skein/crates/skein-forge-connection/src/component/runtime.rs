@@ -1,4 +1,4 @@
-//! Runtime forge membership (temper/docs/design/draft/playground-reset.md, 3 and 4).
+//! Runtime forge membership (skein/docs/design/forge-connection.md, 3.1).
 use super::{Component, Event, Limits, Start, initial};
 use crate::settings::{Forge, Kind};
 use alloc::boxed::Box;

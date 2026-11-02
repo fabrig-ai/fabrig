@@ -1,4 +1,4 @@
-//! Kept forges join the setup host and lifecycle (temper/docs/design/draft/playground-reset.md, 3 and 6.4).
+//! Kept forges join the setup host and lifecycle (temper/docs/design/protocol/forge.md, 2.6; temper/docs/design/protocol/setup.md, 6.7).
 use super::{lifecycle, settings};
 use alloc::boxed::Box;
 use skein_forge_setup::host;

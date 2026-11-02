@@ -1,4 +1,4 @@
-//! Supplied accounts and the playground model (temper/docs/design/draft/playground-reset.md, 6.1 and 6.4).
+//! Supplied accounts and the playground model (temper/docs/design/client/README.md, 3.5 and 4.8).
 use crate::{
     accounts::{
         Bindings, Meaning,

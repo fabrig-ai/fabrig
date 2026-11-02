@@ -332,7 +332,7 @@ impl Created {
 fn read_document(path: &Path, bound: u32) -> Result<Box<[u8]>, String> {
     skein_shell::read_file(path, bound).map_err(|why| format!("{}: {}", path.display(), super::unread(why)))
 }
-/// The box's group selects its machine kind (temper/docs/design/draft/playground-reset.md, 3).
+/// The box's group selects its machine kind (temper/docs/design/protocol/setup.md, 7.1).
 fn forge_entry(
     bytes: &[u8],
     directories: &super::Directories,

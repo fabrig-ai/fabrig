@@ -1,4 +1,4 @@
-//! Runtime setup entries (temper/docs/design/draft/playground-reset.md, 3).
+//! Runtime setup entries (temper/docs/design/protocol/forge.md, 2.6).
 use alloc::boxed::Box;
 use core::net::SocketAddr;
 /// A Forgejo account temper names.

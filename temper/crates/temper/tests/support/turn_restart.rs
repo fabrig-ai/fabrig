@@ -1,6 +1,6 @@
 //! Cold restart evidence through the native person, ctl and the owned Forgejo
 //! (temper/docs/design/domain/landing.md, 7 and 15;
-//! temper/docs/design/draft/playground-reset.md, 3).
+//! temper/docs/design/protocol/forge.md, 2.1).
 use super::{
     ANSWER, ChatJudge, ChatPhase, Ending, LANDING, Process, WITHIN, ctl, fake_llm,
     forgejo::{JobBarrier, Throwaway},

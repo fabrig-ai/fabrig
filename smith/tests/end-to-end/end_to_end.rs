@@ -1,3 +1,4 @@
+mod chat_crossing;
 mod credentials;
 mod program_check;
 mod program_children;

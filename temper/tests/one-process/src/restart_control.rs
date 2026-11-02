@@ -1,4 +1,4 @@
-//! The managed forge fixture and its setup credentials (temper/docs/design/draft/playground-reset.md, 3).
+//! The managed forge fixture and its setup credentials (temper/docs/design/protocol/forge.md, 2.1).
 use crate::fixtures;
 pub(crate) const ADMIN_TOKEN: &[u8] = b"restart-admin-token";
 pub(crate) const API_TOKEN: &[u8] = b"0000000000000000000000000000000000000002";

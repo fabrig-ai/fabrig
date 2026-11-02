@@ -5,8 +5,8 @@ adds to temper's client: a change's way to landing and its result, a
 project's landing queues, approvals at a head, the forge's holds in
 words, repositories with their health and landing rules, the picker of
 repositories to adopt, goals, findings and landings as the forge shows
-them, and the forge's part of the deployment, where each configured
-forge is connected. jig's pages and cards (jig's `client/domain/pages.md`
+them, and the forge's part of the deployment, where a forge is set
+up, connected or removed. jig's pages and cards (jig's `client/domain/pages.md`
 and jig's `client/domain/objects.md`) leave a slot for each part a
 connector shows (jig's `client/domain/root.md`, section 6), and
 temper's pages and cards, its own after them, show the same parts
@@ -51,13 +51,17 @@ section 10.
 - **What the forge did not tell temper is said:** a repository with no
   webhooks, protection temper could not read, a branch someone else
   moved, a job's log on a host temper does not read (5.4).
-- **Forges are connected from the client.** Configuration names each
-  forge, never its access; on the deployment's `Forges` page (5.4) a
-  person whose role holds the deployment's connectors connects it:
-  GitHub through an App made from temper's manifest, or one of their
-  own, its key pasted; Forgejo with its bot's tokens pasted, or a site
-  admin's token from which temper makes its bot. The page says what
-  temper is there, what stopped it, and offers Replace.
+- **Forges are made and connected from the client.** A forge is a
+  record the store keeps, made by the set up or the connect that brings
+  it (`../protocol/forge.md`, 2.1 and 2.2); no configuration names one.
+  On the deployment's `Forges` page (5.4) and its flow, a person whose
+  role holds the deployment's connectors sets up a Forgejo on this
+  machine, or connects GitHub through an App made from temper's
+  manifest, or one of their own, its key pasted, or a Forgejo of
+  theirs with a site admin's token from which temper makes its bot.
+  The page lists the forges kept, says what temper is there and what
+  stopped it, offers Replace, and removes a forge, confirmed, saying
+  what goes and what stays on the forge.
 - **Adoption picks from what temper can reach** (5.1): per connected
   forge, the repositories temper can reach there, a page at a time by
   number, and "Not listed" for one named by owner and name, with what
@@ -268,7 +272,7 @@ says it has been replaced.
 
 The adoption form is `README.md`, 4.4, on temper's `Adopt` page,
 and its outcome 4.7. With the forge's documents served, the form chooses
-among the configured forges by name, says whether the project has a
+among the deployment's forges by name, says whether the project has a
 home, and, before the adoption is confirmed, shows what temper found
 there (`../domain/forge.md`, section 4): temper's permission, the
 merge styles the repository allows and so whether it may merge, the
@@ -399,16 +403,16 @@ standalone the deployment's owner; any other's read is refused, in
 jig's words (`README.md`, section 8). Their mockups are `forges.html`
 and `connect-forge.html`.
 
-- **The Forges page** lists the person's forges: each configured forge,
-  fakes aside, whose connection is setting up, set up failed, connecting,
-  connected or stopped, or not connected where its records say why. A
-  forge not connected or not set up, with nothing to say, is not
-  listed: it is a choice of the flow. After the page's level-1 heading
+- **The Forges page** lists the person's forges: each forge the store
+  keeps (`../protocol/forge.md`, 2.1), fakes aside, in number order,
+  whatever its connection; a fresh deployment lists none until one is
+  set up or connected. After the page's level-1 heading
   "Forges", the level-2 heading "Your forges", with their count, the
   line "Each forge temper is connected to, or setting up. Add one to
   bring its repositories to temper." and "+ Add a forge", a link to
   `ConnectForge`; with none, "No forge of yours yet." and "Connect a
-  forge", the same link. Each row is a disclosure, folded to its
+  forge", the same link. While the playground runs, neither link is
+  drawn: there is nothing to add (`README.md`, 4.8). Each row is a disclosure, folded to its
   summary: its name, "forge N · KIND · WEB" (its number, its kind and
   its `web` address), its connection's words (below) and its line:
   connected, its repositories, "OWNER/NAME · project PROJECT" each;
@@ -424,7 +428,7 @@ and `connect-forge.html`.
   answers at once, and Forgejo opens signed in.
 - **A forge's name:** "Forgejo on this machine" for an owned Forgejo,
   "GitHub" for GitHub, "Forgejo at HOST" for another Forgejo, HOST its
-  `web` address's host, and "Playground forge" for the demo's
+  `web` address's host, and "Playground forge" for the playground's
   (`README.md`, 5.6). PROJECT is a project as the banner names it
   (`README.md`, 5.1).
 - **What the row carries** (`README.md`, 4.6): its number, kind,
@@ -447,13 +451,26 @@ and `connect-forge.html`.
   the Forges page's address, once an installation is accepted, or
   "Install on GitHub" before (the actions' table, below). Every row
   holds its last connect's line where it has one (the row's table,
-  below).
-- **The playground's forge,** the fake the demo names, follows under
-  the level-2 heading "The playground", folded, while the demo's forge
-  half holds (`README.md`, 4.8): "Playground forge · the playground’s,
-  until a forge of yours connects · OWNER/NAME"; opened, its Account
-  line. Once the demo has ended (`../draft/archive/first-run.md`, 2.3), it
-  shows nowhere.
+  below), and, last, "Remove" (Removing a forge, below).
+- **Removing a forge** (`../domain/forge.md`, 4.1): "Remove", on every
+  row of the person's, asks first, in the row: "Remove this forge?",
+  then what goes and what stays on the forge, by its kind and mode: an
+  owned Forgejo, "Its Forgejo, its directory and its repositories' work
+  here go."; a managed or connected Forgejo, "Its bot and hooks stay on
+  your Forgejo."; GitHub, "The GitHub App stays yours: delete it in its
+  settings.", with "the App's settings", an external link to
+  `WEB/settings/apps`, WEB the forge's `web` address, github.com's
+  without one; then "Remove", which sends `RemoveForge { forge }`
+  (`README.md`, 4.6 and section 8), disabled while it is out.
+  Answered removed, the forge leaves the rows; refused, the refusal
+  shows under it in `ForgeRefusal`'s words (Details, below). The
+  playground's forge has no Remove: its reset removes it
+  (`README.md`, 4.8).
+- **The playground's forge,** the playground's fake, follows under the
+  level-2 heading "The playground", folded, while the playground is
+  read (`README.md`, 4.8): "Playground forge", its summary OWNER/NAME,
+  the playground's repository; opened, its Account line. Once the
+  playground is reset, it shows nowhere.
 - **Owned setup versions** come from the forge row's `owned` pins.
   Details names the Forgejo version in what temper box downloads;
   the first of Each step's five lines names both Forgejo and runner
@@ -463,67 +480,52 @@ and `connect-forge.html`.
   Connect a forge and the welcome. Preparing names no future login.
 - **Connecting a forge,** `ConnectForge { forge }`, is four steps,
   named along its top: Choose, Details, Setting up ("Connecting" for a
-  Forgejo elsewhere) and Ready. GitHub's, through temper's App, is
+  Forgejo of the person's) and Ready. GitHub's, through temper's App, is
   three, Choose, Connecting and Ready, with no step of temper's
   between Choose and GitHub; an App of the person's own adds Details
   (with the user, 2026-10-23). `forge` is none at Choose,
-  or the choice: a forge's number, or "a Forgejo elsewhere"
-  (`browser.md`, 2.3). The step shown is the choice's: none, Choose;
-  a forge whose row offers its connect or set up, or a Forgejo
-  elsewhere, Details (on GitHub, an App of the person's own); a forge
+  or the choice: a kind to make, GitHub, Forgejo on this machine or
+  Your Forgejo, or a kept forge's number (`browser.md`, 2.3). The step
+  shown is the choice's: none, Choose; a kind to make, or a forge whose
+  row offers its connect or set up, Details (on GitHub, an App of the
+  person's own); a forge
   setting up, set up failed or connecting, Setting up, or Connecting;
   a forge connected, Ready, but a GitHub forge with no accepted
   installation, Connecting (below). A number that names no row, or
-  the demo's forge, is Choose. The page's level-1 heading is "Connect a
+  the playground's forge, is Choose; at Choose, a forge of the
+  person's cut short is shown in the choices' place, "FORGE · not
+  finished", with "Start over" and, on GitHub, "Go on", as the
+  welcome's Forge step shows it (`README.md`, 3.5, The welcome). The page's level-1 heading is "Connect a
   forge", above the steps, and each step's content is in one card,
   under its level-2 heading.
-  Leaving the flow leaves what runs running; the banner then says it.
-- **Choose** is a card for each forge offered to connect, in this
-  order, each with its level-2 heading, its words, a muted line and
-  its link, "Choose" (a Forgejo elsewhere's "Show how"):
-  - *GitHub,* a GitHub forge not connected: "Your repositories on
-    GitHub. temper makes its own App there; you choose the account and
-    the repositories it may use." · "In this tab, on GitHub · about two
-    minutes"; in its link's place the button "Connect GitHub" alone,
-    which sends `Connect` (below) and takes the tab to GitHub. Nothing
-    asks for an organization: the App is made under the person's own
-    account, and GitHub's install page offers every account they may
-    install it on. v0.1.0 offers temper's App alone (the user,
-    2026-10-26): an App of the person's own keeps its Details, which
-    the card no longer links to, here or on the welcome's Forge step;
-    its address, the GitHub forge's (`browser.md`, 2.3), still opens
-    them;
-  - *Forgejo on this machine,* an owned Forgejo not set up whose offer
-    is offered or not under the box (`README.md`, 4.6): "A forge of
-    your own, run by temper box. No account needed: temper makes your
-    first repository, and you start in it." · "Here · about a minute",
-    or, not under the box, "Needs four commands and a restart". On the
-    welcome's Forge step it is the one Forgejo card, holding both of
-    Forgejo's ways, owned and connected (the user, 2026-10-27; 10):
-    its heading "Forgejo", its words "A forge of your own. temper can
-    start it and manage it, or you can connect your own deployment.",
-    its muted line as above, its button "Run on this machine" in
-    "Choose"'s place, and beside it the quiet link "Or connect your
-    deployment" to the help page `server`, "Run temper on a server",
-    on GitHub (`https://github.com/fabrig-ai/temper/blob/main/docs/help/server.md`),
-    since the browser serves no help pages. Under the box the button
-    sends the set up at once (`README.md`, 3.5); not under it, it opens
-    the card's Details, as "Choose" does;
-  - *Forgejo at HOST,* a configured Forgejo whose `admin` is true and
-    which is not connected: "temper connects as its site admin, makes
-    its bot and your first repository." and "Connect as its admin".
-    HOST is `row.web` when present, otherwise "forge N". The legacy
-    managed object configuration has `admin` false and offers no card.
-    It is Connect a forge's alone: the welcome's Forge step leaves it
-    out, and offers GitHub and its one Forgejo card, as its mockup
-    draws them (the user, 2026-10-26, a stop-gap: 10). An address that
-    names the forge still opens its Details there;
-  - *A Forgejo elsewhere,* always on Connect a forge: "Your own Forgejo
-    server. temper connects as its admin, or with its bot’s tokens." ·
-    "Needs a change to temper’s configuration and a restart". The
-    welcome's Forge step leaves it out too, since v0.1.0 supports the
-    owned mode alone (the user, 2026-10-26, a stop-gap: 10); an address
-    that names it still opens its Details there.
+  Leaving the flow leaves what runs running; the Forges entry's dot
+  then says it (Elsewhere, below).
+- **Choose** is a card for each kind of forge temper can make, in
+  this order, each with its level-2 heading, its words, a muted line
+  and its link, named as its heading; the choice makes the forge's
+  record as its request is admitted, never before
+  (`../protocol/forge.md`, 2.2). While the playground is read, Choose
+  offers no card: there is nothing to add (`README.md`, 4.8). The
+  welcome's Forge step offers the same cards (`README.md`, 3.5):
+  - *GitHub:* "Your repositories on GitHub. temper makes its own App
+    there; you choose the account and the repositories it may use." ·
+    "In this tab, on GitHub · about two minutes"; in its link's place
+    the button "Connect GitHub" alone, which sends `Connect` of a new
+    GitHub forge (below) and takes the tab to GitHub. Nothing asks for
+    an organization: the App is made under the person's own account,
+    and GitHub's install page offers every account they may install it
+    on. v0.1.0 offers temper's App alone (the user, 2026-10-26): an App
+    of the person's own keeps its Details, which the card does not link
+    to, here or on the welcome's Forge step; its address, a kept GitHub
+    forge's (`browser.md`, 2.3), opens them;
+  - *Forgejo on this machine,* while no owned Forgejo is kept but one
+    whose offer is offered (`README.md`, 4.6): "A forge of your own,
+    run by temper box. No account needed: temper makes your first
+    repository, and you start in it." · "Here · about a minute"; its
+    link opens its Details;
+  - *Your Forgejo:* "Your own Forgejo server. temper connects as its
+    admin, or with its bot’s tokens."; its link opens its Details,
+    where its addresses make a managed forge.
 - **Details** are the choice's, under its level-2 heading, after "‹ All
   forges", a link back to Choose:
   - *GitHub,* an App of the person's own, at the GitHub forge's
@@ -583,8 +585,9 @@ and `connect-forge.html`.
     repository; "Its CI jobs run on this machine, as you, with no
     isolation." and "Forgejo stops when temper box stops. Its
     repositories are kept in temper’s data directory."; and "Set up a
-    Forgejo here", which sends `SetUp` and, once accepted, shows
-    Setting up. The fields: "Organization", `work` until changed;
+    Forgejo here", which sends `SetUp` of a new owned Forgejo
+    (`README.md`, 4.6, `Making`), or of the kept one, and, once
+    accepted, shows Setting up. The fields: "Organization", `work` until changed;
     "Repository", `hello`; and "Into a new project, named", the
     repository's name until changed: the first run offers no existing
     project (`../draft/archive/first-run.md`, 2.4). An organization, repository
@@ -593,27 +596,20 @@ and `connect-forge.html`.
     words (`README.md`, 4.6): `invalid`, which also marks the organization and
     repository fields invalid, the fields kept for the person to fix.
     "Set up again" sends the fields the last `SetUp` sent. The
-    welcome skips these Details under the box: its card sends the
-    `SetUp` itself, with fixed fields (`README.md`, 3.5). Not under
-    the box: "Set it up from a terminal", "temper was not started by
-    temper box, so it does not start a Forgejo itself. Run these, keep
-    the last two running (a service manager is best), then restart
-    temper:", the four commands of the row's not set up (below), and
-    no action;
-  - *A Forgejo elsewhere:* "Add its address to the configuration and
-    restart temper box. Then connect as its admin, and temper makes and
-    keeps its bot, or paste its bot’s tokens."; the entries to add to
-    the document, each in a block of code: its forge in
-    `application.forges` (`number` the next one unused, `kind`
-    `forgejo`, its `api`, `transport`, `git`, `web` and `log_origins`
-    for a host `forge.example`), its git identity in
-    `application.identities`, and, to connect as its admin, its setup
-    entry in `application.setup` (`mode` `managed`, its bot); "Without
-    it, temper takes its bot’s tokens only."; then "Restart temper box,
-    then connect it from this page." These words stay: a Forgejo
-    elsewhere is added by hand and a restart (`../draft/archive/first-run.md`,
-    section 4).
-  - *A configured admin Forgejo:* "Connect as its admin", then "Paste a
+    welcome shows these Details too (`README.md`, 3.5). Not under
+    the box, where an owned Forgejo is never set up, since its group is
+    the box's (`../protocol/setup.md`, 7.4): "Set it up under temper
+    box", "temper was not started by temper box, so it does not start a
+    Forgejo itself. Start temper with temper box to set one up here.",
+    and no action;
+  - *Your Forgejo,* a forge to make: its addresses, "Its address", its
+    API's host, "Its git base", the base of its remotes, and "Its web
+    address", its pages, optional; then its admin's form, as a managed
+    Forgejo's (below). "Connect as its admin" sends `Connect` of a new
+    managed forge, `ManagedForge` naming those addresses (`README.md`,
+    4.6), which the request's decision makes as its record
+    (`../protocol/forge.md`, 2.2); with no address, nothing is sent.
+  - *A managed Forgejo,* kept or to make: "Connect as its admin", then "Paste a
     site admin’s token with the scopes write:admin, read:user,
     write:organization and write:repository. temper keeps it, and uses it
     only to make its bot and your first repository, and to give the bot
@@ -625,7 +621,8 @@ and `connect-forge.html`.
     (`docker`). Its hint is "Its CI runs on your forge’s runners with this
     label. Forgejo’s runner registers as docker unless told otherwise."
     The button "Connect as its admin" sends `Connect { forge, how:
-    ForgejoAdmin { first: Some(FirstAsk) } }`, with the four fields and
+    ForgejoAdmin { first: Some(FirstAsk) } }`, `forge` the kept forge's
+    number or the new one's addresses, with the four fields and
     the token carried as item 1, a single-item bundle with its six-byte
     header, at most 4 KiB. No RSA armour restoration applies. Sending
     empties the token field; a stop empties it again and keeps the other
@@ -684,8 +681,7 @@ and `connect-forge.html`.
   name the versions the row's `owned` pins, "Fetching Forgejo 17.0.0
   and its runner 13.2.0"; the person's login stays off until the row
   carries it. Then "You may
-  leave this page: the steps go on, and the banner says where they
-  are." A failed setup keeps all five steps: those before the failed
+  leave this page: the steps go on." A failed setup keeps all five steps: those before the failed
   step are done, that step is marked failed (✕), and those after it
   are to come. After the list, "STEP failed: WHY", STEP one of
   "Fetching", "Preparing", "Starting", "Connecting" or "Making
@@ -757,14 +753,12 @@ and `connect-forge.html`.
   (`../domain/forge.md`, section 4), "Open PROJECT", "Open on GitHub
   ↗", the repository's page in a tab of its own, and the Forges
   line.
-- **Elsewhere:** while a forge sets up or connects, the banner says it,
-  "FORGE · CONNECTION", its name and its connection's words, with
-  "View", a link to the flow at it (`README.md`, 5.1); the navigation's
+- **Elsewhere:** the navigation's
   "Forges" carries a dot, amber while a forge sets up or connects, red
   while one needs the person: set up failed, stopped, or not connected
   with a reason (`README.md`, 5.3). The dot's words, the entry's state
   in words: "a forge is setting up" or "a forge needs you". The
-  demo's forge is none of them.
+  playground's forge is none of them.
 
 A row for each forge, by its number, its kind and its `web` address,
 says:
@@ -774,7 +768,7 @@ says:
   | State | The row says |
   |---|---|
   | not connected | "Not connected", with Connect; where its records say why, "Not connected: its records are unreadable" or "Not connected: its records were made for KIND at ADDRESS", and connecting again overwrites them (`../protocol/forge.md`, at start) |
-  | not set up | an owned forge not prepared yet (`../protocol/setup.md`, 6.5): under the box, "Not set up", with "Set up a Forgejo here"; without it, "Not set up: run `temper forge fetch N`, `temper forge prepare N`, `temper forge run N forgejo` and `temper forge run N runner`, then restart `temper serve`", N its number, with no action |
+  | not set up | an owned forge not prepared yet (`../protocol/setup.md`, 6.5): under the box, "Not set up", with "Set up a Forgejo here"; without it, "Not set up: start temper with temper box", with no action, since its group is the box's (`../protocol/setup.md`, 7.4) |
   | setting up | the box runs its steps, asked: "Setting up: fetching", "Setting up: preparing" or "Setting up: starting", by the box's last word of the step it runs, else "Setting up" (`../protocol/setup.md`, 7.1); then "Connecting", as its handover is taken and reconciled (`../protocol/setup.md`, 5.1) |
   | set up failed | "Set up failed: STEP", naming the box's step, or, after the box's `started`, the engine's step that stopped (taking the handover, reconciling, removing the handover file; `../protocol/setup.md`, 6.5), with `temper box`'s output for the rest until its `failed` line carries a reason; with "Set up again"; the engine and every other forge run on |
   | connecting | "Connecting": a run holds the forge, and what it waits for: a managed or owned Forgejo's reconcile, the forge's answers to a check, or GitHub's conversion of its App; on GitHub, also connected with no accepted installation, "Connecting: installed nowhere yet" with none, or "Connecting: no installation accepted yet" with strays alone, with "Install on GitHub". The person's browser on GitHub is no run, and shows nowhere |
@@ -822,11 +816,15 @@ says:
   ORG/NAME failed: STEP", the step one of "checking the admin's
   token", "making the organization", "making the repository" (its
   bot's access with it) or "adding the starter workflow", beside "Set
-  up failed". It is the engine's memory alone: a restart drops the
-  line. The set up flow's Ready step and `temper ctl forge setup`
-  adopt the made repository into its project (`tools.md`, 5.5).
+  up failed". Made and failed are the engine's memory alone; the
+  intent is the forge's record's, so after a restart the line says
+  "Making ORG/NAME" until the repository is made again
+  (`../protocol/setup.md`, 6.7). The set up flow's Ready step and
+  `temper ctl forge setup` adopt the made repository into its project
+  (`tools.md`, 5.5).
 - **Its mode** (`../protocol/setup.md`, the modes): owned, where the
-  configuration's setup owns the forge; managed, where temper keeps a
+  forge's setup entry, kept on its record, owns it
+  (`../protocol/forge.md`, 2.1); managed, where temper keeps a
   site admin's token for it; connected otherwise.
 - **Its Access line,** on Forgejo: "Site admin, with temper's own token"
   for owned; "Site admin, with a token you gave" for managed; "Its bot's
@@ -852,14 +850,16 @@ says:
   `http://<listener>/forges/<n>/github/setup`, with redirect on update,
   no callback URL and no user's authorization at install
   (`../protocol/setup.md`, 17.3).
-- **A job's log on an origin temper does not read:** "A job's log is on
-  ORIGIN, which temper does not read: add it to this forge's
-  `log_origins` and restart." (`../protocol/configuration.md`, the
-  forges' members), until a start names it: the forge's `Fact::Origin`
-  (`../protocol/forge.md`, 3.6), kept per forge in memory, at most
-  `log_origins` of them, and forgotten when the forge next connects. The
-  same line is in the engine's log, once until a start names the
-  origin.
+- **A job's log on an origin temper does not read:** "Job-log origin
+  refused: ORIGIN", ORIGIN its scheme, host and port, in the last
+  connect's line's place while no connect's stop holds it: the forge's
+  latest `Fact::Origin` (`../protocol/forge.md`, 3.6), kept per forge
+  in memory, at most `forge_component.log_origins` of them, and
+  forgotten when the forge next connects. The line names no fix, since
+  no setting adds an origin: a job log is read only from the origins
+  its forge's kind names, GitHub's results hosts, none for a Forgejo or
+  a GitHub the machine names, and a check's failure then shows without
+  its log. The same origin is in the engine's log, once a start.
 - **Its load:** its request budget and what uses it (fresh reads,
   writes, keeping up, the slow pass; `../domain/forge.md`, 5.4); a
   pause for its rate, and until when; its outbox, the effects waiting
@@ -868,22 +868,21 @@ says:
 
 Its actions, each a request of the forge's family (`README.md`, section
 8), offered by kind, mode, setup and state. The engine domain decides
-every offer; the client reads it (`../domain/forge.md`, 4.1). "A Forgejo
-elsewhere" names the managed setup entry needed for "Connect as its
-admin", with its forge number and bot (`../protocol/setup.md`, section
-8). The bot-token paste is not offered by the current client:
+every offer; the client reads it (`../domain/forge.md`, 4.1). The
+bot-token paste is not offered by the current client:
 
 | Action | Offered | What it does |
 |---|---|---|
-| Connect | GitHub, not connected or stopped | "Connect GitHub", with `back`, the page's address to come back to: the answer is a link to the manifest's page (9.1), a path on the page's own origin, `/forges/N/github/manifest?state=S`; without `back`, the terminal's link is the whole address on the clients' listener. The browser goes to it in the page's own tab; the page posts temper's manifest to GitHub, the person creates the App under their own account and installs it on an account GitHub offers, and the setup route sends the tab back to `back`. Or "Connect an App of your own": its id, and its private key pasted as GitHub gives it; no webhook secret is asked, since temper points the App's hook at `https://SLUG.invalid/` and hears changes from its delivery log |
+| Connect | GitHub, to make, or kept, not connected or stopped | "Connect GitHub", with `back`, the page's address to come back to: the answer is a link to the manifest's page (9.1), a path on the page's own origin, `/forges/N/github/manifest?state=S`; without `back`, the terminal's link is the whole address on the clients' listener. The browser goes to it in the page's own tab; the page posts temper's manifest to GitHub, the person creates the App under their own account and installs it on an account GitHub offers, and the setup route sends the tab back to `back`. Or "Connect an App of your own": its id, and its private key pasted as GitHub gives it; no webhook secret is asked, since temper points the App's hook at `https://SLUG.invalid/` and hears changes from its delivery log |
 | Connect (not offered) | Forgejo through its bot's tokens | its bot's API token, its git token and, where the person made hooks to temper's listener, their secret, pasted together; both tokens must answer as one user |
-| Connect | Forgejo with `admin` true, not connected or connecting | "Connect as its admin": a site admin's token pasted, with the first repository, project and runner label (default `docker`); Reconcile makes or finds the marked bot, then Create makes the repository; only after Done is the admin token kept and the forge connected; never `TakeOver` (`../protocol/setup.md`, 5.5) |
+| Connect | Forgejo with `admin` true, not connected or connecting, or one to make by its addresses | "Connect as its admin": a site admin's token pasted, with the first repository, project and runner label (default `docker`); Reconcile makes or finds the marked bot, then Create makes the repository; only after Done is the admin token kept and the forge connected; never `TakeOver` (`../protocol/setup.md`, 5.5) |
 | Replace | GitHub, connected or stopped; a Forgejo of the connected mode, connected or stopped | a new App key, or a new API token, git token or both, pasted, which must answer as the forge's user (on GitHub, the same App); the old is erased once the new is kept |
 | Install the App; Install on another account | GitHub, connected: "Install on GitHub" before any accepted installation (Connecting), "Install on another account" after one, and Ready's "Choose its repositories on GitHub" | a fresh link to temper's App's install page, with `back`, where the browser goes in the page's own tab; the person picks the account and its repositories on GitHub, keeping GitHub's default, all of them, or choosing some, and the setup route sends the tab back to `back` |
 | New repository | Forgejo owned or managed, connected | the set up's same fields: organization (default `work`), repository (default `hello`) and a project, one of the person's or a new one; the general form of the first repository (`../protocol/setup.md`, section 15) |
 | Forget the admin's token | managed | the admin's token erased; the forge is connected, its bot and tokens kept, and adopting a repository grants nothing more: the person makes the bot a collaborator |
-| Set up a Forgejo here | the row's offer offered, not set up (`README.md`, 4.6) | its organization (default `work`), its repository (default `hello`) and its project, a new one named as the repository (`../draft/archive/first-run.md`, 2.4), or, from the welcome's card under the box, `work`, `hello` and a new project `Default`, none of them asked (`README.md`, 3.5); then the box asked to run the forge's steps (`../protocol/setup.md`, 7.1): its binaries fetched, its preparation, Forgejo and its runner started, then its handover taken and reconciled, the repository made with the starter workflow (`../protocol/setup.md`, 6.7), and, once the row says it made, the client's `MakeProject` and `Adopt` into it; the card names the path of `person_password`, never its password (`../protocol/setup.md`, 6.5) |
+| Set up a Forgejo here | an owned Forgejo to make, under the box, or the row's offer offered, not set up (`README.md`, 4.6) | its organization (default `work`), its repository (default `hello`) and its project, a new one named as the repository (`../draft/archive/first-run.md`, 2.4), on `ConnectForge` and the welcome alike (`README.md`, 3.5); then the box asked to run the forge's steps (`../protocol/setup.md`, 7.1): its binaries fetched, its preparation, Forgejo and its runner started, then its handover taken and reconciled, the repository made with the starter workflow (`../protocol/setup.md`, 6.7), and, once the row says it made, the client's `MakeProject` and `Adopt` into it; the card names the path of `person_password`, never its password (`../protocol/setup.md`, 6.5) |
 | Set up again | the row's offer offered, set up failed | the same ask again: what the last one left is kept, a fetched binary hashed and not fetched again |
+| Remove | every forge of the person's, the playground's aside | "Remove", confirmed in its row, its words naming what goes and what stays on the forge (Removing a forge, above); then `RemoveForge`, which ends the forge at once and removes it whole (`../domain/forge.md`, 4.1) |
 
 Connect, but on a stopped forge or one whose records say why it is not
 connected, "Connect as its admin" and "Set up a Forgejo here" are the
@@ -918,7 +917,7 @@ page, the adoption form and its outcome, a change's panel and its hold.
 |---|---|
 | `NotConnected` | on the forge's row, "Not connected", with Connect (5.4); the adoption form lists none of its repositories, and an adoption on it is refused, "Forge F is not connected." |
 | `NotInstalled`, no accepted installation on the owner | "temper's App is not installed on OWNER.", with "Install on another account"; a push to it is refused, as "temper's App is not installed on the account owning NAME." (`../protocol/channel.md`, section 6) |
-| `Missing`, on a repository whose account has an installation of selected repositories | "OWNER/NAME is not granted to temper's App.", linked to the installation's page on GitHub: `WEB/settings/installations/ID` for a person's account, `WEB/organizations/ORG/settings/installations/ID` for an organization's, WEB the forge's configured `web` address and ID the installation's |
+| `Missing`, on a repository whose account has an installation of selected repositories | "OWNER/NAME is not granted to temper's App.", linked to the installation's page on GitHub: `WEB/settings/installations/ID` for a person's account, `WEB/organizations/ORG/settings/installations/ID` for an organization's, WEB the forge's `web` address and ID the installation's |
 | `Missing` otherwise | not found, as `README.md`, 4.7 says |
 | `Stopped { why }`, told to the root | on the forge's row, "Stopped: WHY", with Replace (5.4); its calls answer `NotConnected` until its next connect, shown as that row says |
 | an installation suspended | "suspended" on the installation, on the forge's row and on each repository of it (5.2); its calls are refused as no access |
@@ -927,9 +926,9 @@ page, the adoption form and its outcome, a change's panel and its hold.
 | `Unmarked`, connecting as the admin a forge whose user lacks temper's mark | "LOGIN is not temper's bot: add `temper:bot` to its full name on Forgejo, then connect again." |
 
 The installation's page and the App's settings are built by the engine
-from the configured `web` address, never from an address a forge's
-answer gave, so a link the client shows points at the configured forge
-alone. SLUG is the App's slug, as the forge's row shows it (5.4).
+from the `web` address the forge's record keeps, never from an
+address a forge's answer gave, so a link the client shows points at
+that forge alone. SLUG is the App's slug, as the forge's row shows it (5.4).
 
 ## 6. Holds, in the forge's words
 
@@ -1029,8 +1028,8 @@ and subjects, under the forge's owner number, each naming its scope, a
 project or the deployment (jig's `client/domain/contract.md`, 7.5; jig's
 `client/domain/root.md`, section 7), their records in
 `temper-client-protocol-wire` beside `Adopt` (`README.md`, 4.6).
-The first read served is the demo's (`README.md`, 4.6 and 4.8), from
-the configuration alone; the first watch, a change's panel (9.2); then
+The first read served is the playground's (`README.md`, 4.6 and
+4.8), from its `Playground` row; the first watch, a change's panel (9.2); then
 the deployment's part, its forges (5.4), as the subject `forges`, whose
 rows carry each forge's number, kind, mode and connection (`README.md`,
 4.6); the rest of a forge's row (its `web` address, its last connect's
@@ -1051,7 +1050,8 @@ and its hold (2.5) follow.
 | the picker (5.1) | temper's `Adopt` page, through the `Reachable` request (`README.md`, section 8) | `../protocol/forge.md`, the setup's host's `Reachable`; `../domain/forge.md`, section 4 |
 | each forge's connection, its mode, installations and actions (5.4, 5.5) | temper's `Forges` page; the deployment's part | `../protocol/forge.md`, at start, connecting at runtime, a forge stopped, GitHub's installations and the setup's host; `../protocol/credentials.md`, the forges' records |
 | the browser's steps of a connect (9.1) | none of jig's: temper's routes on the clients' listener | `../protocol/forge.md`, the setup's host |
-| the demo: its project, forge, repository and suggested requests | the deployment's read, `Demo` (`README.md`, 4.6), for the demo's banner and the chats page | `../protocol/setup.md`, 8.4 |
+| the playground: its forge, project, model, repository, state and suggested requests | the deployment's read, `playground` (`README.md`, 4.6), for its banner, its pages and the chats page; its start and its reset, `StartPlayground` and `EndPlayground` | `../protocol/setup.md`, 8.4 |
+| a forge removed | the deployment's request `RemoveForge` (`README.md`, 4.6), from the Forges page | `../domain/forge.md`, 4.1 |
 | temper's settings: a landing rule's value, the forge's charter, and a pending proposal's items of temper's kinds | the deployment's reads `Setting { kind, scope, number }` and `ProposalItems { proposer, number }`, beside jig's `settings` document, which gives their states and sizes | `../protocol/configuration.md`, 13.2; jig's `domain/engine.md`, 17.5 |
 
 ### 9.1 The browser's steps, on the clients' listener
@@ -1071,7 +1071,7 @@ nothing of temper's client calls them. Every other path, the client's
 | `GET /forges/N/github/redirect?code=C&state=S` | `Convert`: the code exchanged for the App's id, slug and key, each kept before the browser is answered, and its user; the App's hook points at `https://SLUG.invalid/`, so no webhook secret is kept on GitHub; then `Install` for a fresh state, held with the connect's `back`, whose link answers the browser, and the forge connects | `302` to the install page, `Install`'s link for that state |
 | `GET /forges/N/github/setup?installation_id=I&setup_action=A&state=S` | `Accept`: the installation checked and accepted, then the forge's installations handed to its component again | `303` to the state's `back`; with none, `200`, a short page: "temper has the installation; you may close this tab." |
 
-N is the forge's `number`, WEB its configured `web` address and
+N is the forge's `number`, WEB its record's `web` address and
 LISTENER the clients' listener's address, as temper builds the
 manifest from it (`../protocol/forge.md`, the setup's host).
 
@@ -1093,7 +1093,7 @@ manifest from it (`../protocol/forge.md`, the setup's host).
   type `back_forward`), so that back from GitHub's form stops on the
   page rather than posting again; `Cache-Control: no-store` and
   `Referrer-Policy: no-referrer`. It loads nothing, runs nothing but
-  that script, and may post only to the configured forge.
+  that script, and may post only to the forge's `web`.
 - **The state is the only authenticator.** A route takes no cookie and
   no credential of jig's: the state, 128 bits or more drawn by the
   setup's host for one connect or one install, is good once, for its
@@ -1151,8 +1151,8 @@ manifest from it (`../protocol/forge.md`, the setup's host).
   show; where it doesn't, the tab lands on Forges.
 - **Bounds and others:** a query malformed or past `routes.query_bytes`
   is answered `400`, in the refused page's words and headers; a method
-  other than `GET` is answered `405`; a forge not configured, or one
-  that is not GitHub, `404`; any other path under
+  other than `GET` is answered `405`; a forge the store does not keep,
+  or one that is not GitHub, `404`; any other path under
   `/forges/N/github/`, not found.
 - **A fixed address with a GitHub forge.** The App's `redirect_url` and
   `setup_url` are those whole URLs on the clients' listener, and
@@ -1175,7 +1175,7 @@ manifest from it (`../protocol/forge.md`, the setup's host).
   `fixtures::http::Peer`; the bytes through the fake's GitHub layer are
   the real loop's (`../domain/testing.md`, 2.4), whose browser's tier
   opens the manifest's page once to see it post its form, by itself, to
-  the configured `web`; no test calls github.com.
+  the forge's `web`; no test calls github.com.
 
 ### 9.2 A change's panel, watched
 
@@ -1232,7 +1232,7 @@ made by the forge connector from what it keeps of the change
     update's carry counted (`../domain/forge.md`, 8.3);
   - its repairs, resolutions and updates, each used of its limit (8.4).
 - **The address on the forge is the engine's.** The routing builds it as
-  it encodes the document, from the forge's configured addresses and its
+  it encodes the document, from the addresses the forge's record keeps and its
   kind: `WEB/OWNER/NAME/pull/N` on GitHub, WEB its `web`, github.com's
   when null; `GIT/OWNER/NAME/pulls/N` on Forgejo, GIT its `git` base,
   since Forgejo serves its pages where it serves its repositories and
@@ -1273,17 +1273,15 @@ made by the forge connector from what it keeps of the change
   autocomplete off, its text masked) would keep the PEM's lines as
   GitHub gives them and retire the restore. A change to skein's
   builder and page, not temper's.
-- **The welcome's forge choices** (5.4). Default, a stop-gap: Connect
-  a forge's, less a configured admin Forgejo's card and A Forgejo
-  elsewhere, which v0.1.0 offers on Connect a forge alone. The user's
+- **The welcome's forge choices** (5.4; `README.md`, 3.5). Default:
+  Connect a forge's cards and their Details, the same on the welcome,
+  Forgejo on this machine's Details before its set up. The user's
   direction (2026-10-26) is that the welcome's items be fixed rather
-  than taken from the configuration; its shape is open. On 2026-10-27
-  the user asked for one Forgejo card, run on this machine or a
-  deployment of one's own (the look request `welcome-forgejo-card`),
-  and, for now, no Details for Forgejo on this machine under the box:
-  the card sets it up at once with `work`, `hello` and a project
-  `Default` (`README.md`, 3.5). Both wait on the user's review of
-  these pages.
+  than taken from the configuration; its shape is open. The user's
+  request of 2026-10-27, one Forgejo card, run on this machine or a
+  deployment of one's own, set up at once with `work`, `hello` and a
+  project `Default` (the look request `welcome-forgejo-card`), waits
+  on the user's review of these pages.
 - **An App of one's own, offered again** (5.4). Default: GitHub's card
   offers Connect GitHub alone, and the own App's Details are reached by
   their address; a link returns to the card once v0.1.0's successor
@@ -1297,9 +1295,6 @@ made by the forge connector from what it keeps of the change
   Forgejo's tokens); a managed forge is mended by connecting as its
   admin again, reconcile making the bot's tokens anew for the same
   user; an owned one by its preparation and a restart.
-- **Disconnecting a forge** from the client. Default: later; a forge's
-  records are overwritten by connecting again, and those of a forge the
-  configuration stops naming are named once in the engine's log.
 - **The picker's pages kept.** Default: none; each page is a fresh read
   of the forge through the setup host's `Reachable` plan, asked by
   number, so a

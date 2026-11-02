@@ -46,7 +46,7 @@ pub struct Domain {
     pub(crate) child: Child,
     pub(crate) ending: crate::end::End,
     pub(crate) chat: Chat,
-    transcript: Option<agent::Transcript>,
+    transcript: Option<smith_host_domain::Transcript>,
     records: Map<agent::run::CallName, DeliveryRecord>,
     delivery: Option<InPlace>,
     saving: Option<DeliveryRecord>,

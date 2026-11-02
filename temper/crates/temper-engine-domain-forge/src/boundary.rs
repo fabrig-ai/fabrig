@@ -262,13 +262,13 @@ pub enum StartFailure {
     Adoption,
     NotConnected,
 }
-/// The playground's scripted provider and start deadline (temper/docs/design/draft/playground-reset.md, 6.1).
+/// The playground's scripted provider and start deadline (temper/docs/design/protocol/setup.md, 8.4).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct PlaygroundConfig {
     pub provider: u32,
     pub deadline: skein_lib::Duration,
 }
-/// The reset's acts (temper/docs/design/draft/playground-reset.md, 6.2).
+/// The reset's acts (temper/docs/design/protocol/setup.md, 8.4).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum ResetAct {
     RemoveProject { project: u32 },
@@ -320,21 +320,21 @@ pub struct Configured {
     /// The configuration's `start: asked`; false is the ordinary automatic start.
     pub asked: bool,
 }
-/// Where a forge's API is reached (temper/docs/design/draft/playground-reset.md, 3).
+/// Where a forge's API is reached (temper/docs/design/protocol/forge.md, 2.1).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Address {
     pub host: Box<[u8]>,
     pub port: u16,
     pub tls: Option<Box<[u8]>>,
 }
-/// A forge's API, remote base and pages (temper/docs/design/draft/playground-reset.md, 3).
+/// A forge's API, remote base and pages (temper/docs/design/protocol/forge.md, 2.1).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Place {
     pub api: Address,
     pub git: Box<[u8]>,
     pub web: Option<Box<[u8]>>,
 }
-/// The machine's places (temper/docs/design/draft/playground-reset.md, 3).
+/// The machine's places (temper/docs/design/protocol/configuration.md, 3).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Machine {
     pub owned: Option<Place>,
@@ -342,14 +342,14 @@ pub struct Machine {
     pub github: Place,
     pub github_git_program: Option<Box<[u8]>>,
 }
-/// The bot's login and commit author (temper/docs/design/draft/playground-reset.md, 3).
+/// The bot's login and commit author (temper/docs/design/protocol/forge.md, 2.1).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Bot {
     pub login: Box<[u8]>,
     pub name: Box<[u8]>,
     pub email: Box<[u8]>,
 }
-/// The first repository's intent (temper/docs/design/draft/playground-reset.md, 3).
+/// The first repository's intent (temper/docs/design/protocol/forge.md, 2.1).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct FirstIntent {
     pub playground: bool,
@@ -358,7 +358,7 @@ pub struct FirstIntent {
     pub project: SetUpProject,
     pub label: Box<[u8]>,
 }
-/// A forge kept in the connector's store (temper/docs/design/draft/playground-reset.md, 3).
+/// A forge kept in the connector's store (temper/docs/design/protocol/forge.md, 2.1).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct ForgeRecord {
     pub number: u16,
@@ -373,32 +373,32 @@ pub struct ForgeRecord {
     pub asked: bool,
     pub first: Option<FirstIntent>,
 }
-/// Kept, or ended with removal's answers (temper/docs/design/draft/playground-reset.md, 4).
+/// Kept, or ended with removal's answers (temper/docs/design/domain/forge.md, 4.1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum ForgeState {
     Kept,
     Ended { secrets_erased: bool, box_removed: bool },
 }
-/// A kept forge or a new one numbered next (temper/docs/design/draft/playground-reset.md, 3).
+/// A kept forge or a new one numbered next (temper/docs/design/protocol/forge.md, 2.1).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Making {
     Kept(u16),
     New(ForgeAsk),
 }
-/// A new forge's input, completed by the machine's places (temper/docs/design/draft/playground-reset.md, 3).
+/// A new forge's input, completed by the machine's places (temper/docs/design/protocol/configuration.md, 3).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum ForgeAsk {
     GitHub,
     Owned,
     Managed { place: Place, git_program: Option<Box<[u8]>> },
 }
-/// The box group's kind (temper/docs/design/draft/playground-reset.md, 3).
+/// The box group's kind (temper/docs/design/protocol/setup.md, 7.1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum BoxKind {
     Owned,
     Fake,
 }
-/// The playground's row; no row is none (temper/docs/design/draft/playground-reset.md, 6.1–6.2).
+/// The playground's row; no row is none (temper/docs/design/protocol/setup.md, 8.4).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Playground {
     pub state: PlaygroundState,
@@ -406,27 +406,27 @@ pub struct Playground {
     pub project: Option<u32>,
     pub account: Option<u32>,
 }
-/// The playground's progress (temper/docs/design/draft/playground-reset.md, 6.1–6.2).
+/// The playground's progress (temper/docs/design/protocol/setup.md, 8.4).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum PlaygroundState {
     Starting,
     Running,
     Resetting(ResetStep),
 }
-/// The reset's ordered acts (temper/docs/design/draft/playground-reset.md, 6.2).
+/// The reset's ordered acts (temper/docs/design/protocol/setup.md, 8.4).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum ResetStep {
     Project,
     Forge,
     Account,
 }
-/// Removal's answer (temper/docs/design/draft/playground-reset.md, 4).
+/// Removal's answer (temper/docs/design/domain/forge.md, 4.1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum RemoveAnswer {
     Removed,
     Refused(ForgeRefusal),
 }
-/// Reset's answer (temper/docs/design/draft/playground-reset.md, 6.2).
+/// Reset's answer (temper/docs/design/protocol/setup.md, 8.4).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum EndAnswer {
     Reset,
@@ -987,13 +987,13 @@ pub enum Stored {
         key: ReceiptKey,
         receipt: Receipt,
     },
-    /// A forge's durable setup and removal state (temper/docs/design/draft/playground-reset.md, 3 and 4).
+    /// A forge's durable setup and removal state (temper/docs/design/protocol/forge.md, 2.1; temper/docs/design/domain/forge.md, 4.1).
     Forge(ForgeRecord),
-    /// The last forge number given (temper/docs/design/draft/playground-reset.md, 3).
+    /// The last forge number given (temper/docs/design/protocol/forge.md, 2.1).
     ForgeNumber {
         last: u16,
     },
-    /// The playground's durable progress (temper/docs/design/draft/playground-reset.md, 6.1).
+    /// The playground's durable progress (temper/docs/design/protocol/setup.md, 8.4).
     Playground(Playground),
 }
 /// A bounded connector payload awaiting an authority holder's decision.
@@ -1108,12 +1108,12 @@ pub struct ChangeDependencies {
 #[derive(PartialEq, Eq, Debug)]
 pub enum Event {
     /// Release adoptions after the project's tasks are erased
-    /// (temper/docs/design/draft/playground-reset.md, 5).
+    /// (jig/docs/design/domain/people.md, 5.2; temper/docs/design/domain/forge.md, 4.1).
     ReleaseProject {
         project: u32,
         request: Token,
     },
-    /// Removal completions (temper/docs/design/draft/playground-reset.md, 4).
+    /// Removal completions (temper/docs/design/domain/forge.md, 4.1).
     SecretsErased {
         forge: u16,
     },
@@ -1496,19 +1496,19 @@ pub enum Request {
     ProjectReleased {
         request: Token,
     },
-    /// Make or refresh the runtime (temper/docs/design/draft/playground-reset.md, 3).
+    /// Make or refresh the runtime (temper/docs/design/protocol/forge.md, 2.2).
     ForgeKept(ForgeRecord),
-    /// Drop the runtime and erase secrets (temper/docs/design/draft/playground-reset.md, 4).
+    /// Drop the runtime and erase secrets (temper/docs/design/protocol/forge.md, 2.3).
     ForgeGone {
         forge: u16,
     },
-    /// Start a box group by kind (temper/docs/design/draft/playground-reset.md, 3).
+    /// Start a box group by kind (temper/docs/design/protocol/setup.md, 7.1).
     BoxGroup {
         forge: u16,
         kind: BoxKind,
         request: Token,
     },
-    /// Remove the box group (temper/docs/design/draft/playground-reset.md, 4).
+    /// Remove the box group (temper/docs/design/protocol/setup.md, 7.1).
     BoxRemove {
         forge: u16,
     },
@@ -1527,12 +1527,12 @@ pub enum Request {
         request: Token,
         answer: BindAnswer,
     },
-    /// Make the playground's ordinary records (temper/docs/design/draft/playground-reset.md, 6.1).
+    /// Make the playground's ordinary records (temper/docs/design/protocol/setup.md, 8.4).
     PlaygroundActs {
         request: Token,
         forge: u16,
     },
-    /// Send the reset's kept act (temper/docs/design/draft/playground-reset.md, 6.2).
+    /// Send the reset's kept act (temper/docs/design/protocol/setup.md, 8.4).
     ResetAct {
         key: [u8; 16],
         act: ResetAct,

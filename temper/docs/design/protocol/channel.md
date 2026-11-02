@@ -1,6 +1,6 @@
 # temper's parts on jig's channel
 
-Provisional, 2026-10-03, revised 2026-10-29. What temper carries on the
+Provisional, 2026-10-03, revised 2026-11-02. What temper carries on the
 channel between its engine and a worker: its parts inside jig's records,
 under its payload version, and a git identity's value inside a credential
 grant. The channel is jig's (jig's `protocol/channel.md`), and this
@@ -35,7 +35,7 @@ tested. What is open is listed in section 10.
   up.
 - **The remote is made on the engine,** from its forge's `git` base, its
   owner and its name, so workers need no forge configuration (section 4).
-  So is its git, where its forge has its own: a fake forge's program,
+  So is its git, where its forge has its own: the forge's git program,
   named in each of its repositories' items; none names the worker's.
 - **Translation is small total functions** in the routing, exhaustive
   both ways, holding no state. The composed system world calls the same
@@ -122,8 +122,8 @@ record Writable    { push: bytes  expected: option fixed 32  landing: option byt
 |---|---|---|
 | `tag` | `tag`, the deployment's tag: the forge's number and the repository's id, packed (`../domain/forge.md`, section 4) | `tag`, echoed in what landed |
 | `name` | `name` | `name`: the directory, one path component, unique in the workspace |
-| `remote` | made: the `git` of the configured forge whose number is `provider.forge`, `/`, `owner`, `/`, `name`, `.git` (configuration.md, section 3) | `remote`, never interpreted by the domain; the git component's URL (git.md, section 3) |
-| `git` | made by the routing: the `git` of the setup entry faking the forge whose number is `provider.forge`, resolved to an absolute path (setup.md, 8.2); none for every other forge | `git`, never interpreted by the domain; the program the git component runs for every operation on the repository, and `workers[].git` for none (git.md, section 3) |
+| `remote` | made: the `git` base of the forge whose number is `provider.forge`, its record's (forge.md, 2.1), `/`, `owner`, `/`, `name`, `.git` | `remote`, never interpreted by the domain; the git component's URL (git.md, section 3) |
+| `git` | made by the routing: the git program of the forge whose number is `provider.forge`, its record's, or for the playground's fake forge the machine's fake `git` (configuration.md, section 3), resolved to an absolute path; none for a forge with none | `git`, never interpreted by the domain; the program the git component runs for every operation on the repository, and `workers[].git` for none (git.md, section 3) |
 | `start` | `ForgeStart::Base`, `Branch`, `Saved`, `Merge { branch, base }`; the engine never asks for a commit | `Start`, all five |
 | `access` | `push: Some(branch)` is `writable { push: branch, expected: none, landing }`; `landing` is the change's landing branch only for an inherited writable producer starting on its push branch; `None` push is `read_only` | `Access`; landing is bounded by the branch-name limit |
 | `identity` | `identity`: the number of the forge's git identity, the credential jig grants the attempt (credentials.md, section 4) | `identity`, the grant's number in the application's table |
@@ -150,12 +150,12 @@ record Writable    { push: bytes  expected: option fixed 32  landing: option byt
 - **The remote and the git** are the fields the routing makes rather
   than copies; everything a worker needs to reach the forge, but the
   credential, is in them. The credential is the grant's (section 6).
-- **A fake forge's git is local.** Its program is a path on the
-  engine's machine, so a fake forge serves workers on that machine
-  alone, as its listener is loopback's (setup.md, 8.4): standalone's
-  worker, and the cluster's workers alone (`README.md`, 15.2). A worker on
-  another host takes its own machine's git for every repository
-  (configuration.md, section 4).
+- **A forge's git program is local.** It is a path on the engine's
+  machine, so a forge that names one serves workers on that machine
+  alone, as a fake forge's listener is loopback's (setup.md, 8.4):
+  standalone's worker, and the cluster's workers alone (`README.md`,
+  15.2). A worker on another host takes its own machine's git for every
+  repository (configuration.md, section 4).
 - **Checked at the worker's entrance:** names, remotes, programs and
   branches within its limits, a program that is not an absolute path,
   and a repository named twice are refused as an
@@ -246,11 +246,11 @@ record Entry    { account: u64  account_login: text  token: secret }
   `x-access-token`. No entry carries its expiry: the grant's validity,
   the earliest of them, bounds the value whole (credentials.md, section
   4).
-- **Its other fields** are configuration's or the forge's defaults
-  (configuration.md, section 3): the login, and the author's name and
-  email, by default on GitHub the bot's, `<slug>[bot]` and
-  `<id>+<slug>[bot]@users.noreply.github.com`, `<slug>` the `AppSlug`
-  record's and `<id>` the `User` record's. The login holds no `:` and no
+- **Its other fields** are the login, and the author's name and email:
+  on Forgejo the forge's record's bot (forge.md, 2.1); on GitHub the
+  login above and the author the App's bot (forge.md, 2.5),
+  `<slug>[bot]` and `<id>+<slug>[bot]@users.noreply.github.com`,
+  `<slug>` the `AppSlug` record's and `<id>` the `User` record's. The login holds no `:` and no
   control byte; the name and the email are not empty and hold no NUL,
   newline, `<` or `>`.
 - **Generations.** Each change of value is a new generation, strictly
@@ -281,8 +281,9 @@ record Entry    { account: u64  account_login: text  token: secret }
   (skein-lib's `Secret`, the schema's `secret`); the login and the author
   are not secret. No root, fact, store record or log holds the value.
 - **Its size** must fit jig's bound on a grant's value (section 8), which
-  configuration checks for every identity at start; a GitHub forge's
-  grows with `forges.installations`. A GitHub entry's token is bounded
+  the start checks for the largest identity a kept forge can have, its
+  login and author at their bounds (configuration.md, section 3); a
+  GitHub forge's grows with `forges.installations`. A GitHub entry's token is bounded
   by the forge component's `token_bytes` (configuration.md, section 7),
   not by Forgejo's token's bound, so that the list fits jig's bound.
 
@@ -294,9 +295,9 @@ the routing in the step that routes the record:
 
 | Side | Function | From | To |
 |---|---|---|---|
-| engine | items | the root's `Assignment` (its workspace's per-repository save destinations and `run.policy.resume`) and the configured forges' `git` bases | `Items`, or none for an empty workspace |
+| engine | items | the root's `Assignment` (its workspace's per-repository save destinations and `run.policy.resume`), and the kept forges' `git` bases and git programs | `Items`, or none for an empty workspace |
 | engine | parts | `Left`, `Saved`, `Preparation`, each if present | `Parts` |
-| engine | identity | the forge's records (Forgejo) or the GitHub forge's minted installation tokens (in memory), with the identity's configured login and author | `Identity`'s bytes |
+| engine | identity | the forge's records (Forgejo) or the GitHub forge's minted installation tokens (in memory), with its login and author: on Forgejo its record's bot's, on GitHub the App's (forge.md, 2.5) | `Identity`'s bytes |
 | worker | workspace | `Items`, or none | `wire::Workspace`, with per-repository `save` options |
 | worker | work | `wire::Work`, with each repository's tag and start | `Left`, `Saved` |
 | worker | preparation | `wire::Preparation`, with the repository's tag | `Preparation`, or none for a transient one |
@@ -331,13 +332,13 @@ the routing in the step that routes the record:
 
   | jig's size | temper's largest | From |
   |---|---|---|
-  | `items` | `Items` | the engine: the forge's `resources_per_task` and `name_bytes`, the longest configured `git` base and the longest fake forge's program; the worker: the checkout's `repositories` and `name_bytes`, and 4,096 bytes per program, Linux's `PATH_MAX` |
+  | `items` | `Items` | the engine: the forge's `resources_per_task` and `name_bytes`, the longest remote (below) and 4,096 bytes per program; the worker: the checkout's `repositories` and `name_bytes`, and 4,096 bytes per program, Linux's `PATH_MAX` |
   | `left` | `Left` | the checkout's `repositories` |
   | `saved` | `Saved` | the checkout's `repositories`, `conflicts` and `path_bytes`, and `PushDiagnostic::CAPACITY` |
   | `resource` | `Preparation` | fixed |
   | `evidence` | smith's delivery reply | smith's channel limits, as the hub's `delivery_evidence_bytes` takes them |
-  | `grant` | max(credential value bound, program source name bound 32, generated `Identity::encoded_bound`), which grows with `forges.installations` on a GitHub forge | jig's accounts (jig's `protocol/llm.md`, section 6); configuration's identities, `records.value_bytes` and `forges.installations`, checked to fit jig's grant bound at start (configuration.md, section 3) |
-  | `credentials` | the number of git identities | configuration (configuration.md, section 3) |
+  | `grant` | max(credential value bound, program source name bound 32, generated `Identity::encoded_bound`), which grows with `forges.installations` on a GitHub forge | jig's accounts (jig's `protocol/llm.md`, section 6); an identity's login and author at their bounds, `records.value_bytes` and `forges.installations`, checked to fit jig's grant bound at start (configuration.md, section 3) |
+  | `credentials` | the number of git identities, one per kept forge | `forge.forges` (configuration.md, section 7) |
 
 - **Within jig's ceilings.** Each must fit the ceiling jig's schema gives
   its field; `temper serve` refuses a start whose limits pass one, naming
@@ -373,11 +374,16 @@ the routing in the step that routes the record:
   takes the engine's; an engine whose limits pass a worker's is refused
   at the opening.
 - **The remote fits the worker's names.** The longest remote the routing
-  can make, the longest `git` base, two `/`, an owner and a name of the
-  forge's `name_bytes` and `.git`, must be within the checkout's
-  `name_bytes`, and so must the forge's names and branches; otherwise the
-  start is refused, naming the limit. A fake forge's program, resolved,
-  is at most 4,096 bytes, or the start is refused, naming its path.
+  can make, a `git` base, two `/`, an owner and a name of the forge's
+  `name_bytes` and `.git`, must be within the checkout's `name_bytes`,
+  and so must the forge's names and branches. The start holds the
+  machine's places to it, the longest of `machine`'s remotes' bases and
+  github.com's (configuration.md, section 3), and refuses one that
+  passes, naming the limit; a Forgejo connected as its admin, whose base
+  the person gives, is refused at its connect when its remote could pass
+  it, naming its base. A forge's git program, resolved, is at most 4,096
+  bytes: the machine's at start, naming its path, and a connect's by the
+  client wire's bound on it (`../client/README.md`, section 8).
 - **Memory:** the routing holds a part only while it encodes or decodes
   it, within the codec's worst case; the identities' tables hold one
   value per identity and generation, at most two generations on a worker.
