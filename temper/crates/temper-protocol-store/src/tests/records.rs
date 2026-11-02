@@ -1393,3 +1393,21 @@ fn a_changes_producer_report_survives_the_store() {
     let row = forge::Stored::Change(row);
     assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
 }
+
+#[test]
+fn a_producer_report_is_bounded_by_the_forge_operation_bytes() {
+    let bound = fixtures::LIMITS.client.op_bytes;
+    let bounds = crate::bounds(&fixtures::LIMITS, bound).expect("fixture bounds");
+    assert_eq!(bounds.limits().change_row_report, bound);
+    for length in [bound, bound + 1] {
+        let mut row = fixtures::change_row(temper_engine_domain_forge_change::State::Producing { requested: true });
+        row.report = skein_lib::bytes::zeroed(usize::try_from(length).expect("u32 fits usize"));
+        let row = forge::Stored::Change(row);
+        let decoded = records::decode(&records::encode(&row), &bounds);
+        if length == bound {
+            assert_eq!(decoded, Ok(row));
+        } else {
+            assert_eq!(decoded, Err(crate::Undecodable));
+        }
+    }
+}
