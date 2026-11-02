@@ -1,5 +1,5 @@
-//! What a world does to the forge from outside its API (fake-forge.md,
-//! 2.4): it sets up repositories and their users, makes a repository
+//! What a world does to the forge from outside its API
+//! (skein/docs/design/fake-forge.md, 2.4): it sets up repositories and their users, makes a repository
 //! unreachable or refusing, commits as a working tree's git does, and has
 //! another party advance a branch.
 //!

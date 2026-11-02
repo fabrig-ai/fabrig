@@ -270,8 +270,8 @@ pub struct Hosting {
     pub phase: Phase,
 }
 
-/// Where a hosted run is in its lifecycle (domain/hosts.md, 6.2), as a hello
-/// says.
+/// Where a hosted run is in its lifecycle (jig/docs/design/domain/hosts.md,
+/// 6.2), as a hello says.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Phase {
     Preparing,

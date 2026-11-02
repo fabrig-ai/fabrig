@@ -1,4 +1,5 @@
-//! Task addresses, a fresh open and lineage (client/browser.md, 4.6, item 11).
+//! Task addresses, a fresh open and lineage (temper/docs/design/client/browser.md,
+//! 4.6, item 11).
 //! The client world's task scenarios and the terminal's agent-page golden
 //! hold the page contents; Chromium holds the first full load at `/tasks/3`.
 use skein_fake_person::{Find, Step as PersonStep, Target};

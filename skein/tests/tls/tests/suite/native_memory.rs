@@ -1,5 +1,5 @@
 //! Native TLS heap steps under scenario ceilings (tls.md, 3.6 and 5;
-//! testing-strategy.md, 6). The real peer runs between steps. All emitted
+//! skein/docs/foundation/testing-strategy.md, 6). The real peer runs between steps. All emitted
 //! boxes are copied into reserved harness buffers and dropped before checking;
 //! caller plaintext is charged separately. A complete sealed box dropped by
 //! an encryption error remains a step allocation, never a handed-out box.

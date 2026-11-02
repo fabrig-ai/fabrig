@@ -1,6 +1,7 @@
-//! What the fleet relays between the parent and the runs (domain/engine.md,
-//! section 8; domain/hosts.md, section 2): inbound events down, a run's host calls
-//! up and their answers back, its facts up. Each goes through
+//! What the fleet relays between the parent and the runs
+//! (jig/docs/design/domain/engine.md, section 8;
+//! jig/docs/design/domain/hosts.md, section 2): inbound events down, a run's
+//! host calls up and their answers back, its facts up. Each goes through
 //! only while its attempt is the parent's live claim; what comes for an
 //! attempt cancelled, replaced, lost or answered is dropped (attempts are
 //! fenced), and an inbound event that reaches no worker goes back to the

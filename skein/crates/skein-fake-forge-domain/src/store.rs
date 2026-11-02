@@ -1,4 +1,4 @@
-//! The store: repositories and what they hold (fake-forge.md, 2.2).
+//! The store: repositories and what they hold (skein/docs/design/fake-forge.md, 2.2).
 //!
 //! A repository has its users' permissions, its labels, its items (issues and
 //! pull requests, numbered together from one), its branches and the commits

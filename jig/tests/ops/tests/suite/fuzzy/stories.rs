@@ -6,7 +6,7 @@ use jig_ops_world::conformance::night;
 fn every_night_commit_recovers_one_conditional_scale() {
     // Sweep the one procedure-only story, with one pinned seed. The alert's
     // six selected cut positions run in fuzzy_alert_cuts; the other stories' cuts
-    // (examples.md, 7.3) are not run.
+    // (jig/docs/design/examples.md, 7.3) are not run.
     let baseline = night(17, Cut::None);
     for commit in 1..=baseline.outcome().commits {
         let world = night(17, Cut::AfterCommit(commit));
