@@ -1,6 +1,5 @@
 # llm: status
 
-2026-10-29. Where skein's code lags or departs from [llm.md](llm.md).
+2026-11-02. Where skein's code lags or departs from [llm.md](llm.md).
 
-- **Built:** 4: edge and derived-capacity checks through `client::valid`, edge bounds and scenario ceilings without a client heap sum. 2.2, 4.7, 4.8: requests ask for one call where the caller declares one. 2.5: cut HTTP exchanges report `Unavailable`; 4.8: Codex requests sent gzip.
-- **Not yet:** 4.6, 4.7: withdrawn routes still present. 6, 7: Codex routing state, WebSocket and remaining transport/capture questions.
+- **Not yet:** 4.6, 4.7: removal of the withdrawn routes, the Codex route and Anthropic's bearer route with its identity profile. smith still uses them (`smith-protocol-llm/src/endpoints.rs`, `smith-agent-shell/src/config/endpoints.rs`), and jig does not refuse the withdrawn dialect: `jig-protocol-config/src/llm.rs` reads an endpoint's `dialect` as any count, and jig's fixtures write 1.

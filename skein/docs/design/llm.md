@@ -667,7 +667,7 @@ refuses the configuration and names the relationship:
 **Withdrawn.** ChatGPT's Codex subscription route stays for the callers
 that use it and takes no new one. The public route of section 4.8
 replaces it, and it is removed once its last caller has moved
-(`STATUS.md`). Its requests, tool choice, usage, cut calls and reasoning
+(llm.status.md). Its requests, tool choice, usage, cut calls and reasoning
 opt-in are section 4.8's, which holds the Responses dialect; it differs
 in these alone:
 
@@ -715,7 +715,7 @@ ordering, delta types, cumulative usage patches and completion at `message_stop`
   instruction that goes as the first system block. The route and its
   profile stay for the callers that use them and take no new one; a key
   replaces them, and they are removed once their last caller has moved
-  (`STATUS.md`). `Credential::anthropic`, a bearer, goes with them.
+  (llm.status.md). `Credential::anthropic`, a bearer, goes with them.
 - **`max_tokens` comes from the declared output.** It is the prompt's
   output cap, which the caller sets from its model's declared output, or
   lower; a prompt without one sends the endpoint's declared output. There
