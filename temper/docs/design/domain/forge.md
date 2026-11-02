@@ -963,7 +963,7 @@ An explicit successful no-change result from the producer ends the change
 with its explanation, without opening a pull request, merging, holding or
 escalating. It claims nothing landed. The requester receives the successful
 result. Failure words never imply this outcome: production and forge errors
-keep their existing recovery holds.
+keep their recovery holds.
 
 Under its project's queue, the default. Under its project's turn, a
 change has no checking step, and once ready its landing prepares,

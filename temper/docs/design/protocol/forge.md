@@ -663,7 +663,7 @@ temper sets one thing, where a job log may be read from:
   component's `Fact::Origin` names that origin once for each connect
   (2.4). The routing keeps it per forge in memory, at most
   `forge_component.log_origins` of them, and forgets them at the forge's
-  next connect. The latest distinct origin appears in that forge's existing row
+  next connect. The latest distinct origin appears in that forge's row
   diagnostic (client/forge.md, the deployment's page), when no connect
   failure occupies it. The routing logs each of the first
   `forge_component.log_origins` distinct refused origins once per start,
