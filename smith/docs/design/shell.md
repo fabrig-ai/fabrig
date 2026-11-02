@@ -1109,7 +1109,7 @@ names (section 2.3):
 | `wrap_up` | 60 s, a child's final turn's allowance at most | provisional; the budget probe's `wrap-up` |
 | `cancel_grace` | 10 s | provisional |
 | `exit_grace` | derived: the agent's teardown bound, two `close`s, the event stream's `write_deadline` and its cancels' settling, plus one more `close` as a margin (skein's `shell.md`, section 13; protocol/limits.md, section 7); a setting below the bound is refused | decided as derived; the margin provisional |
-| `sign_in_time` | 10 minutes (raised from 120 s, 2026-11-02) | provisional |
+| `sign_in_time` | 10 minutes, a browser sign-in's deadline (4.5) and skein's `oauth.md` sign-in deadline; no profile value: the product's client limits fix it, and `smith check` does not print it (raised from 120 s, 2026-11-02) | provisional |
 | `refresh_lead` | 60 s before the access token expires (added 2026-10-20) | provisional; the `credentials` probe |
 
 ### 6.6 Instructions
