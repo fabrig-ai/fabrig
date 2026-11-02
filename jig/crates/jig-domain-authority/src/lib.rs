@@ -61,8 +61,8 @@ pub use boundary::{
 };
 pub use ceilings::{Ceiling, CeilingDimension, CeilingHolder, policy_ceiling};
 pub use check::{
-    check_batch, check_call, check_effect, check_projection, check_request, check_request_with_standing, check_run,
-    covers, needed_judges, needs,
+    JobAsk, check_batch, check_call, check_effect, check_job, check_projection, check_request,
+    check_request_with_standing, check_run, covers, needed_judges, needs,
 };
 pub use domain::{Domain, Event, PolicyFact, PolicyRefusal, policy_refusal, step, valid_rules};
 pub use limits::{Limits, rules_bound, stored_finding_limit};
