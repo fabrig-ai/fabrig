@@ -154,8 +154,8 @@ setup.md's (section 9). What is open is listed in section 8.
     and `api.github.com:443` for GitHub's `null`. Equal origins are the
     same forge; the text is shown as is.
 
-  A record of another version is refused, naming it (README.md, section
-  9); a change of an item's meaning is a new item, under a new code.
+  A record of another version is an unreadable row (below); a change of
+  an item's meaning is a new item, under a new code.
   temper keeps the values opaque, hands them back unchanged on the setup
   host's read, and decodes only what builds an access. A value is at
   most `records.value_bytes` (configuration.md, section 7), checked

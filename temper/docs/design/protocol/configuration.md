@@ -1724,6 +1724,17 @@ init`'s document carries none of them (`setup.md`, 8.3).
   and refuses them for one that passes its own. temper passes its own
   from 13.6's first step, which needs nothing new of jig's settings;
   its second needs jig's application settings.
+- **Their writers name none of them:** `temper init`'s document and
+  files (`setup.md`, 8.2 and 8.3); the box, which has no document of
+  its own but `temper init`'s (`setup.md`, section 7);
+  `docs/examples/owned.json` and its instructions; the cluster
+  fixture's engine documents, whose stories apply their own values as a
+  settings file through ctl after sign-in; the fake backends' document
+  rewriter (`temper-fake`'s backends); the tests' documents and
+  builders (`../domain/testing.md`, 6.4). A generated document
+  elsewhere, fabrig's, drops the six members; what it set differently
+  from the stock values becomes a proposal after the deployment's first
+  start.
 
 ### 13.6 In steps
 
