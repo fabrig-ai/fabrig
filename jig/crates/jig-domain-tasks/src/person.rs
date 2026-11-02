@@ -98,6 +98,7 @@ pub(crate) fn answer(
         TaskResult::Approved { .. }
         | TaskResult::Report { .. }
         | TaskResult::Verdict { .. }
+        | TaskResult::NoChange { .. }
         | TaskResult::Change { .. } => false,
     };
     if (!failed || crate::run::ends::kept(domain, number).dependencies)
@@ -120,6 +121,7 @@ pub(crate) fn answer(
         TaskResult::Approved { .. }
         | TaskResult::Report { .. }
         | TaskResult::Verdict { .. }
+        | TaskResult::NoChange { .. }
         | TaskResult::Change { .. } => Ending::Done(result),
     };
     let row = &mut task_mut(domain, number).expect("live person task").record;

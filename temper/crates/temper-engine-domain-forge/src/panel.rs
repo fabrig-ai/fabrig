@@ -116,7 +116,7 @@ impl Domain {
             state = was;
         }
         let step = match state {
-            change::State::Ended => PanelStep::Ended,
+            change::State::NoChange { .. } | change::State::Ended => PanelStep::Ended,
             change::State::Producing { .. } => PanelStep::Producing,
             change::State::Opening { .. } => PanelStep::Opening,
             change::State::Recreating { .. } => PanelStep::Recreating,

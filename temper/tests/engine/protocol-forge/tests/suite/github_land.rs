@@ -165,6 +165,7 @@ fn scheduled_landing(world: &mut Protocol, first_entry: u64, seconds: u64) -> Ve
                     | change::Decision::Effect(_)
                     | change::Decision::Ready
                     | change::Decision::QueueRepair
+                    | change::Decision::NoChange
                     | change::Decision::Cancel => due = true,
                 }
             }
@@ -172,9 +173,7 @@ fn scheduled_landing(world: &mut Protocol, first_entry: u64, seconds: u64) -> Ve
         if !finishes.is_empty() {
             break;
         }
-        if until.is_some_and(|at| world.wall() >= at) {
-            due = true;
-        }
+        due |= until.is_some_and(|at| world.wall() >= at);
         if due {
             due = false;
             until = None;
@@ -366,6 +365,7 @@ fn ruleset_refuses_merge_without_landing() {
             | change::Decision::Effect(_)
             | change::Decision::Ready
             | change::Decision::QueueRepair
+            | change::Decision::NoChange
             | change::Decision::Cancel => {}
         }
     }

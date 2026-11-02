@@ -2270,6 +2270,7 @@ fn a_failed_producer_keeps_its_words_through_restart_and_holds_at_producing() {
         task: 51,
         child: PRODUCER,
         status: change::Status::Failed,
+        no_change: false,
         failed: true,
         cancelled: false,
         words: REASON.into(),

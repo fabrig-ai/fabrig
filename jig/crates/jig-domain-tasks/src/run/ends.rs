@@ -150,6 +150,7 @@ fn done(result: &TaskResult) -> bool {
         TaskResult::Approved { .. }
         | TaskResult::Report { .. }
         | TaskResult::Verdict { .. }
+        | TaskResult::NoChange { .. }
         | TaskResult::Change { .. } => true,
     }
 }

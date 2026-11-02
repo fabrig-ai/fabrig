@@ -136,6 +136,7 @@ fn each_result_kind_reads_back() {
     for source in [
         TaskResult::Approved { state: Box::from(b"state".as_slice()), words: Some(Box::from(b"yes".as_slice())) },
         TaskResult::Report { words: Box::from(b"report".as_slice()) },
+        TaskResult::NoChange { words: Box::from(b"not applicable".as_slice()) },
         TaskResult::Verdict {
             code: 7,
             fields: Box::new([ResultField { name: Box::from(b"k".as_slice()), value: Box::from(b"value".as_slice()) }]),

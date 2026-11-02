@@ -491,7 +491,7 @@ pub(super) fn result_value(limits: &Limits, value: &tasks::TaskResult) -> Result
                 },
             }
         }
-        tasks::TaskResult::Report { words } => {
+        tasks::TaskResult::Report { words } | tasks::TaskResult::NoChange { words } => {
             ResultValue::Report(super::small::text(words, limits.documents.text_bytes))
         }
         tasks::TaskResult::Verdict { code, words, fields } => {

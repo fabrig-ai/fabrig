@@ -126,7 +126,7 @@ fn fields(value: &[ResultField]) -> Result<usize, RestoreCause> {
 
 fn result(value: &TaskResult, limits: &Limits) -> Result<(), RestoreCause> {
     let bytes = match value {
-        TaskResult::Report { words } => words.len(),
+        TaskResult::Report { words } | TaskResult::NoChange { words } => words.len(),
         TaskResult::Change { title, words, .. } => {
             count(RestoreBound::ResultBytes, title.words.len(), limits.result_bytes)?;
             words.len()
@@ -357,7 +357,11 @@ fn payload(word: &crate::Word, limits: &Limits) -> Result<usize, RestoreCause> {
             fields(values)?.checked_add(word.words.len()).ok_or(RestoreCause::Accounting)
         }
         MessageKind::Result(
-            ResultKind::Report | ResultKind::Change { .. } | ResultKind::Failed | ResultKind::Cancelled,
+            ResultKind::NoChange
+            | ResultKind::Report
+            | ResultKind::Change { .. }
+            | ResultKind::Failed
+            | ResultKind::Cancelled,
         )
         | MessageKind::Words
         | MessageKind::Question

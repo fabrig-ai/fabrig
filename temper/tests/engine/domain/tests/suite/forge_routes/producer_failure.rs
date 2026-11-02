@@ -1,4 +1,4 @@
-//! A producer's no-change explanation is the change's hold account and the chat's news.
+//! Explicit no-change completion and production failures in the engine domain world.
 use super::*;
 use jig_domain_core::reads;
 use temper_engine_domain_forge_change::{Hold, State};
@@ -8,6 +8,10 @@ const STEPS: u32 = 200;
 const REASON: &[u8] = b"the repository has no search UI: it is a CSV command-line program; no files changed";
 
 pub(super) fn failed_production(reason: &[u8]) -> (World, engine::Assignment, u64) {
+    production(tasks::TaskResult::Failure { reason: reason.into() })
+}
+
+fn production(result: tasks::TaskResult) -> (World, engine::Assignment, u64) {
     let mut world = World::configured_limits(
         true,
         true,
@@ -34,18 +38,65 @@ pub(super) fn failed_production(reason: &[u8]) -> (World, engine::Assignment, u6
         producer.task,
         producer.attempt,
         5,
-        tasks::End::Finished { result: tasks::TaskResult::Failure { reason: reason.into() }, cancel_delegates: false },
+        tasks::End::Finished { result, cancel_delegates: false },
         engine::Parts::none(),
     );
     world.send(event);
     let change = made[0].task;
     for _ in 0..STEPS {
         world.tick();
-        if matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }) {
+        if world.store.rows.contains_key(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(change))))
+            || matches!(live_task(&world, change).phase, tasks::Phase::Held { .. })
+        {
             return (world, chat, change);
         }
     }
-    panic!("failed production did not hold its change");
+    panic!("production did not settle its change");
+}
+
+#[test]
+fn an_inapplicable_change_finishes_without_a_hold() {
+    let (mut world, chat, change) = production(tasks::TaskResult::NoChange { words: REASON.into() });
+    let key = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(change)));
+    let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(row)))) = world.store.rows.get(&key)
+    else {
+        panic!("no-change task ended")
+    };
+    assert!(matches!(&row.phase, tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::NoChange { words }))
+        if words.as_ref() == REASON));
+    assert!(!world.store.rows.values().any(|row| matches!(row,
+        Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task)))
+        if matches!(task.escalation, tasks::Escalation::Waiting { .. }))));
+    let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::Change(change))) else {
+        panic!("durable change")
+    };
+    let forge_top::Stored::Change(row) = row.as_ref() else { panic!("durable change") };
+    assert!(row.pull.is_none());
+    assert_eq!(world.merges, 0);
+    let resumed = super::reviews::next_assignment(&mut world, 2);
+    assert_eq!(resumed.task, chat.task);
+    let notice = resumed
+        .messages
+        .iter()
+        .find(|word| {
+            word.from == tasks::Party::Task(change)
+                && word.kind == tasks::MessageKind::Result(tasks::ResultKind::NoChange)
+        })
+        .expect("requester hears the successful no-change result");
+    assert_eq!(notice.words.as_ref(), REASON);
+    let read = resumed.messages.iter().map(|word| word.number).max();
+    let reply = b"No changes were made: the repository has no search UI.";
+    world.send(protocol::turn(CHANNEL, resumed.task, resumed.attempt, 1, 1, read, reply));
+    for _ in 0..STEPS {
+        world.tick();
+    }
+    let reads::Answer::Ended(past) =
+        world.party_read(reads::Read::Turn { task: chat.task, attempt: resumed.attempt, turn: 1 })
+    else {
+        panic!("person reads the reply")
+    };
+    let reads::EndedValue::Turn(turn) = past.value else { panic!("chat turn") };
+    assert_eq!(turn.transcript.as_ref(), reply);
 }
 
 fn account(world: &World, change: u64) -> &[u8] {
@@ -59,7 +110,7 @@ fn account(world: &World, change: u64) -> &[u8] {
 }
 
 #[test]
-fn an_inapplicable_producers_words_reach_its_hold_and_its_chats_reply() {
+fn a_failed_producers_words_reach_its_hold_and_its_chats_reply() {
     let (mut world, chat, change) = failed_production(REASON);
     assert_eq!(account(&world, change), REASON);
     let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::Change(change))) else {

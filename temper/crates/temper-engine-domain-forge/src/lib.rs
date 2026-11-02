@@ -289,35 +289,6 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } => Some(0),
         }
     }
-    fn state(value: &change::State, depth: u32) -> Option<u64> {
-        if depth > 16 {
-            return None;
-        }
-        match value {
-            change::State::Gating { asked, .. } => {
-                u64::try_from(asked.len()).ok()?.checked_mul(u64::try_from(size_of::<u64>()).ok()?)
-            }
-            change::State::Held { was, .. } => {
-                u64::try_from(size_of::<change::State>()).ok()?.checked_add(state(was, depth.checked_add(1)?)?)
-            }
-            change::State::Producing { .. }
-            | change::State::Opening { .. }
-            | change::State::Recreating { .. }
-            | change::State::Reopening { .. }
-            | change::State::Checking { .. }
-            | change::State::CancellingGates { .. }
-            | change::State::Queued { .. }
-            | change::State::First { .. }
-            | change::State::Ready { .. }
-            | change::State::Preparing { .. }
-            | change::State::Updating { .. }
-            | change::State::Resolving { .. }
-            | change::State::Repairing { .. }
-            | change::State::Landing { .. }
-            | change::State::Ended
-            | change::State::Landed { .. } => Some(0),
-        }
-    }
     match record {
         Stored::Forge(row) => {
             let mut held = bytes(&row.place.api.host)?
@@ -492,7 +463,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                 Some(words) => bytes(words)?,
                 None => 0,
             })?
-            .checked_add(state(&row.change.state, 0)?),
+            .checked_add(change_state_bytes(&row.change.state, 0)?),
         Stored::Issue(row) => {
             let before = match &row.before {
                 Some(before) => before.milestones.len(),
@@ -599,4 +570,37 @@ pub fn binding_address(address: &[u8]) -> bool {
         }
     }
     at
+}
+
+fn change_state_bytes(value: &temper_engine_domain_forge_change::State, depth: u32) -> Option<u64> {
+    use core::mem::size_of;
+    use temper_engine_domain_forge_change as change;
+    if depth > 16 {
+        return None;
+    }
+    match value {
+        change::State::NoChange { words } => u64::try_from(words.len()).ok(),
+        change::State::Gating { asked, .. } => {
+            u64::try_from(asked.len()).ok()?.checked_mul(u64::try_from(size_of::<u64>()).ok()?)
+        }
+        change::State::Held { was, .. } => {
+            u64::try_from(size_of::<change::State>()).ok()?.checked_add(change_state_bytes(was, depth.checked_add(1)?)?)
+        }
+        change::State::Producing { .. }
+        | change::State::Opening { .. }
+        | change::State::Recreating { .. }
+        | change::State::Reopening { .. }
+        | change::State::Checking { .. }
+        | change::State::CancellingGates { .. }
+        | change::State::Queued { .. }
+        | change::State::First { .. }
+        | change::State::Ready { .. }
+        | change::State::Preparing { .. }
+        | change::State::Updating { .. }
+        | change::State::Resolving { .. }
+        | change::State::Repairing { .. }
+        | change::State::Landing { .. }
+        | change::State::Ended
+        | change::State::Landed { .. } => Some(0),
+    }
 }
