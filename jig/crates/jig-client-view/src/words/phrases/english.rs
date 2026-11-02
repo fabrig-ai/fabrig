@@ -74,22 +74,6 @@ pub fn language() -> Language {
             JigPhrase::SettingFaultOwner => {
                 Box::new([Segment::Text(copy_of(b"Setting policy owner role cannot be a root requester"))])
             }
-            JigPhrase::OpenProgramModel => Box::new([Segment::Text(copy_of(b"This model runs through a program"))]),
-            JigPhrase::OpenProgramUnavailable => {
-                Box::new([Segment::Text(copy_of(b"A chat can't stay open through a program yet"))])
-            }
-            JigPhrase::OpenProgramChooseModel => {
-                Box::new([Segment::Text(copy_of(b"To chat now, choose a model that doesn't run through a program"))])
-            }
-            JigPhrase::OpenProgramSource => Box::new([
-                Segment::Text(copy_of(b"Account ")),
-                Segment::Hole { index: 0, kind: HoleKind::Number },
-                Segment::Text(copy_of(b" would use its program source ")),
-                Segment::Hole { index: 1, kind: HoleKind::Number },
-            ]),
-            JigPhrase::OpenProgramNoSwitch => {
-                Box::new([Segment::Text(copy_of(b"This chat does not switch to another source on its own"))])
-            }
             JigPhrase::RefusedWorkerAt => Box::new([
                 Segment::Text(copy_of(b"A worker was refused at ")),
                 Segment::Hole { index: 0, kind: HoleKind::Wall },

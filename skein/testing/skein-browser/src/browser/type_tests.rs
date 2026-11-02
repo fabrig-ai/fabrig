@@ -1,5 +1,4 @@
 //! Paste semantics at the Chromium text-insertion boundary.
-use super::look::Css;
 use super::{Browser, Page, Phase};
 use crate::boundary::{Event, Request};
 use crate::{Limits, wire::decode::Document};
@@ -31,8 +30,6 @@ impl Peer {
                 load: None,
                 load_due: None,
                 closed: false,
-                css: Css::Disabled,
-                caret_document: None,
             },
             env.limits.pages
         ));

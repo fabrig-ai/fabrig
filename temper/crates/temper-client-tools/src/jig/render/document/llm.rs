@@ -208,10 +208,6 @@ fn refused(value: c::TaskWaitRefused, out: &mut Encoder) {
     out.key(b"refused");
     out.object_start();
     match value {
-        c::TaskWaitRefused::Program(value) => {
-            out.key(b"program");
-            open_program(value, out);
-        }
         c::TaskWaitRefused::Hello { kind, at, why } => {
             out.key(b"hello");
             out.object_start();
@@ -226,22 +222,6 @@ fn refused(value: c::TaskWaitRefused, out: &mut Encoder) {
     }
     out.object_end();
     out.object_end();
-}
-fn open_program(value: c::OpenProgram, out: &mut Encoder) {
-    match value {
-        c::OpenProgram::Model => out.string(b"model"),
-        c::OpenProgram::Source { account, source } => {
-            out.object_start();
-            out.key(b"source");
-            out.object_start();
-            out.key(b"account");
-            out.unsigned(u64::from(account));
-            out.key(b"source");
-            out.unsigned(u64::from(source));
-            out.object_end();
-            out.object_end();
-        }
-    }
 }
 fn hello_refusal(value: c::HelloRefusal, out: &mut Encoder) {
     match value {
@@ -298,25 +278,12 @@ fn agent_numbers(variant: &[u8], charter: u32, model: u32, out: &mut Encoder) {
 fn refused_text(value: c::TaskWaitRefused, out: &mut Text) {
     out.put(b"refused, ");
     match value {
-        c::TaskWaitRefused::Program(value) => open_program_text(value, out),
         c::TaskWaitRefused::Hello { kind, at, why } => {
             out.put(host_kind(kind));
             out.put(b" refused at ");
             super::utc(at, out);
             out.put(b": ");
             hello_refusal_text(why, out);
-        }
-    }
-}
-fn open_program_text(value: c::OpenProgram, out: &mut Text) {
-    match value {
-        c::OpenProgram::Model => out.put(b"model runs through a program"),
-        c::OpenProgram::Source { account, source } => {
-            out.put(b"source ");
-            out.number(u64::from(source));
-            out.put(b" of account ");
-            out.number(u64::from(account));
-            out.put(b" runs through a program");
         }
     }
 }

@@ -8,8 +8,6 @@ DevTools protocol (CDP), with no dependency beyond skein. Its first user
 is temper's browser shell (temper's `client/browser.md`, section 4); the
 person's browser face in `skein-fake-person-browser`, and the UI
 example's browser tier through it, are others (ui-web.md, section 14).
-The lab's browser (lab-browser.md) uses it too, and is alone in using
-its look reads (5.1).
 
 ## 1. In one page
 
@@ -26,13 +24,6 @@ its look reads (5.1).
   should show. It reads no page state, and the one script it runs in the
   page is the expression `document`, which names the page's current
   document as a find's root (sections 4 and 6).
-- **The look's reads are the lab's, never a test's.** The lab's browser
-  (lab-browser.md) asks what a person's eyes take in but no role names:
-  a part's computed style, its box and the faces that drew it, the tree
-  with its headings' levels, a shot clipped to a part at twice the scale,
-  and the viewport and media the page is drawn for. They are one request
-  of their own (5.1). A test that leaned on them would hold a page to
-  its look, not to its use, and its shots would become goldens.
 - **Actions check what a person would.** A press lands only on something
   on screen, enabled and not covered by something else. Otherwise it is
   refused, saying why, and the test can wait and try again.
@@ -148,8 +139,7 @@ caps, as for any machine stacked on a stream (io.md, 2).
   is decoded into its PNG's bytes.
 - **The domains used:** `Browser` and `Target` (contexts, pages,
   sessions); `Page` (navigation and its lifecycle, screenshots);
-  `Emulation` (a fixed viewport; the look's metrics and media); `CSS`
-  (the look's computed style and faces); `Accessibility` and `DOM` (finding
+  `Emulation` (a fixed viewport); `Accessibility` and `DOM` (finding
   nodes, a scope's object, their boxes, the hit test, focus, scrolling
   into view); `Input` (mouse, keys, text, composition); and `Runtime`,
   `Log` and `Inspector` (the document's object, exceptions, console and
@@ -189,7 +179,6 @@ pub enum Request {                                       // from the test
     Attribute { page: Token, op: Token, selector: Box<[u8]>, name: Box<[u8]> },  // of the first element a CSS selector finds
     Snapshot   { page: Token, op: Token },               // the accessibility tree, as text
     Screenshot { page: Token, op: Token },
-    Look   { page: Token, op: Token, look: Look },       // the lab's alone (5.1)
     Close  { entity: Token },                            // a page, a person, or the browser
 }
 
@@ -206,7 +195,6 @@ pub enum Event {                                         // to the test
     Screenshot { op: Token, png: Box<[u8]> },
     Address { op: Token, url: Box<[u8]> },               // the history's current entry
     Attribute { op: Token, read: Read },
-    Looked  { op: Token, looked: Looked },               // a look's answer (5.1)
     Downloaded { person: Token, name: Box<[u8]>, path: Box<[u8]> },  // a file one of its pages saved, complete
     Trouble { page: Token, trouble: Trouble, text: Box<[u8]> },  // an exception, a console or log error, a crash, a dialog, a download failed
     Closed  { owner: Token },                            // terminal
@@ -294,86 +282,10 @@ pub enum Read    { NoElement, NoAttribute, Value(Box<[u8]>) }  // Value: whole, 
   browser's address bar shows it, so that a test sees the address the
   page's own code put there.
 - **Every operation has one terminal event:** `Found`, `Met`, `Missed`,
-  `Done`, `Refused`, `Snapshot`, `Screenshot`, `Address`,
-  `Attribute` or `Looked`. Every
-  person, page and the browser itself ends with one `Closed`. `Warned` is
+  `Done`, `Refused`, `Snapshot`, `Screenshot`, `Address`
+  or `Attribute`. Every person, page and the browser itself ends with one `Closed`. `Warned` is
   not terminal: a go reports it at most once, before its terminal
   (section 6).
-
-### 5.1 The look's reads
-
-```rust
-pub enum Look {
-    Viewport { width: u32, height: u32, mobile: bool, scheme: Scheme, motion: Motion },
-    Tree,                                                // the accessibility tree, as entries
-    Select { selector: Box<[u8]> },                      // the first element a CSS selector finds
-    Style  { node: Node, properties: List<Box<[u8]>> },  // computed values, faces, border box
-    Shot   { clip: Option<Rect>, scale: u8 },            // none: the viewport; scale 1 or 2
-}
-pub enum Scheme { Light, Dark }
-pub enum Motion { Reduce, NoPreference }
-
-pub enum Looked {
-    Viewport,
-    Tree(List<Entry>),
-    Selected(Option<Node>),
-    Style { values: List<Property>, faces: List<Face>, rect: Option<Rect> },
-    Shot(Box<[u8]>),                                     // PNG
-}
-pub struct Entry { node: Option<Node>, depth: u32, role: Box<[u8]>, name: Box<[u8]>, level: u32,
-                   value: Box<[u8]>, states: States, multiline: bool }
-pub struct Property { name: Box<[u8]>, value: Box<[u8]> }       // a computed value, whole
-pub struct Face  { family: Box<[u8]>, custom: bool, glyphs: u32 }   // custom: a web font
-```
-
-- **Refused at once,** before any command: a style naming more than
-  `Limits::properties` properties, or a property name or a selector
-  past `Limits::text`, is refused `Limit`; a viewport or a clip without
-  width or height, or a shot's scale other than 1 or 2, `Protocol`.
-- **For the lab's browser alone** (lab-browser.md), which captures a
-  page's look beside its mockup. No test sends `Look`: each test crate's
-  `clippy.toml` names `skein_browser::boundary::Look` among its
-  disallowed types, and a product's test crates do the same (section
-  10). Every other request stays a person's.
-- **A viewport** is the page's metrics at scale 1 (its width, height,
-  and `mobile`, a phone's handling of the page's viewport tag) and its
-  media: the colour scheme and the motion it prefers. It holds until the
-  next, or the page's close. The lab opens a page at `about:blank`, sets
-  its viewport, then goes to its address.
-- **The tree** is the accessibility tree under the document, in document
-  order, ignored nodes left out and their children lifted to their
-  depth: each entry its backend node (none for a node without one), its
-  depth from the root, its role, its name cut at `Limits::text`, and its
-  level, a heading's or a tree item's, 0 for none; its value, cut the
-  same, and its states, as a find's `Seen` has them, and whether a text
-  box takes several lines (`multiline`), for the hand's outline
-  (lab-browser.md, 8.4). Past `Limits::entries` it is refused `Limit`,
-  never cut, since the lab reads it whole.
-- **A select** finds an element by a CSS selector, as an attribute read
-  does (section 5): for a mockup's part that has no role of its own.
-  Its answer is the node, or none.
-- **A style** reads a node's computed values for the properties named,
-  in the order named, each whole, as the browser computes them (`16px`,
-  `rgb(17, 17, 17)`), refused `Limit` past `Limits::text`, and empty for
-  a property the browser does not compute; the faces that drew the text
-  within the node, its descendants' among them, by family, whether a web font, and their glyphs; and its
-  border box in the document's CSS pixels, none for a node without a box
-  (one not displayed). Its faces past `Limits::entries` are refused
-  `Limit`. A find's boxes are content
-  boxes in the viewport, as a press needs them; a style's is what a crop
-  needs.
-- **A shot** is a PNG of the clip, in the document's CSS pixels, drawn
-  at its scale, whether or not the clip is in the viewport; refused
-  `Limit` past `Limits::screenshot`. Scale 2 draws the clip again at
-  twice its pixels, as a crop to compare closely needs: no image is
-  scaled up after it is drawn.
-- **A shot draws the caret steady:** before its first shot of a
-  document, the look adds the document a stylesheet of the inspector's
-  (`CSS.createStyleSheet`, no page script) holding
-  `* { caret-animation: manual !important }`, so a focused field's
-  caret is drawn whole in every shot rather than in its blink's phase.
-  The caret's colour and the field's computed values stay the page's;
-  a later document gets its own, at its first shot.
 
 ## 6. The operations
 
@@ -397,11 +309,6 @@ to the next command, never a closure waiting on a reply:
 | attribute | the current document's root (`DOM.getDocument`, its root alone); the first element under it the selector finds (`DOM.querySelector`), `NoElement` if none; its attributes (`DOM.getAttributes`), the named one's value, or `NoAttribute`; refused `Protocol` for a selector Chromium cannot parse, and `Limit` for a value past `Limits::text`, which is never cut, since a test uses it whole |
 | snapshot | the accessibility tree under the document, as indented lines of role, name, value and states, cut at `Limits::snapshot` |
 | screenshot | the viewport as PNG, under `Limits::screenshot` |
-| look: viewport | `Emulation.setDeviceMetricsOverride` with scale 1, then `Emulation.setEmulatedMedia` with `prefers-color-scheme` and `prefers-reduced-motion`; `Looked` |
-| look: tree | `Accessibility.getFullAXTree`; its nodes in document order from the root, by their children, with depth and level |
-| look: select | as an attribute read's first two steps; the element's backend node, or none |
-| look: style | the page's `CSS` domain enabled, once (it needs `DOM`'s, which every page has); the node pushed to the front end by its backend id (`DOM.pushNodesByBackendIdsToFrontend`, after `DOM.getDocument`); `CSS.getComputedStyleForNode`, the named properties kept; `CSS.getPlatformFontsForNode`; `DOM.getBoxModel`'s border quad and the layout metrics, for the document's box; refused `Gone` for a node since removed |
-| look: shot | `Page.captureScreenshot` as PNG, its clip with its scale, beyond the viewport |
 
 - **A find by words reads each name whole,** as the reply carries it,
   before a kept name is cut to `Limits::text`. Its reply holds every node
@@ -427,8 +334,7 @@ to the next command, never a closure waiting on a reply:
   until the navigation commits, as a go's does. A find in flight when the
   navigation begins starts again, and asks once it has committed. An
   attribute read waits and starts again the same way, so that it reads
-  one document from its root to its answer, and so do the look's tree,
-  select and style; a look's viewport and shot do not wait.
+  one document from its root to its answer.
 - **A press at a point reaches a shape of an inline SVG.** The hit test
   there lands on the shape, inside the node that holds it, and the mouse
   goes down on the shape; something over the shape covers it, as it would
@@ -507,8 +413,7 @@ example) expects it. That is the test's harness, not the kit.
 `Limits` bound persons, pages, operations in flight, commands in flight,
 downloads in flight,
 a message each way, matches kept per query, the bytes of a name or
-value, a snapshot, a screenshot, a look's tree entries and properties
-(`Limits::entries`, `Limits::properties`), a `Trouble`'s text and
+value, a snapshot, a screenshot, a `Trouble`'s text and
 stderr's tail.
 They also set the poll interval and the answer deadline. Commands are
 sized before they are written, and replies are kept only as their
@@ -532,10 +437,6 @@ named scenario ceiling with headroom.
   - replies that come late, interleaved with events, or never;
   - a page or the browser crashing in the middle of an operation;
   - a message past the limit.
-
-  The look's reads are there too: a viewport, a tree with ignored nodes
-  and headings, a select, a style of a node that vanishes between its
-  steps, a shot past the limit.
 
   A referee holds the contracts: one terminal per operation, nothing
   after `Closed`, every command answered or failed, and a press never
@@ -563,15 +464,7 @@ named scenario ceiling with headroom.
   directory with the page's bytes, `Downloaded` naming it, and a person
   with no directory saving none), and a letter (alone, it types; with
   Alt and Shift, the page hears its code, both modifiers and no text).
-  The look's reads have theirs: a page at a phone's
-  viewport whose media queries show the scheme and the motion it was given,
-  by a part they name; a tree's depths and its headings' levels; a
-  selector's node, and none; a styled part's computed values, its faces (a
-  web font served by the fixture, DejaVu Sans from the fonts' directory the
-  lab's browser's story names (lab-browser.md, 6), and a fallback) and its
-  box; text and placeholder faces of form controls; a style read of an old
-  document's node refused after navigation; and a part's shot at scale 2,
-  twice its box's size, far down the page. The keys a native date or time field takes, and their order, are the
+  The keys a native date or time field takes, and their order, are the
   face's facts, checked with its others in this suite (ui-web.md, 14.1). A
   new Chromium version is a run of these, and a fact that changed is fixed
   in the fake first. They need Chromium and do not replay, so they form a
@@ -594,9 +487,7 @@ The kit's tests are a crate of their own, `tests/browser`
   - Chromium's path, in its configuration;
   - a face that turns its person's actions into the kit's requests;
   - a harness that fails a test on unexpected `Trouble` and writes the
-    snapshot, the screenshot and stderr's tail into the failure report;
-  - `skein_browser::boundary::Look` among its test crates' disallowed
-    types (5.1).
+    snapshot, the screenshot and stderr's tail into the failure report.
 
   An application on skein-ui takes the face and the harness from
   `skein-fake-person-browser` (ui-web.md, 14.2).

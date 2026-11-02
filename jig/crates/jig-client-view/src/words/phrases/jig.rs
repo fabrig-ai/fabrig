@@ -37,11 +37,6 @@ pub enum JigPhrase {
     NameDigits,
     EngineLimitProjects,
 
-    OpenProgramModel,
-    OpenProgramUnavailable,
-    OpenProgramChooseModel,
-    OpenProgramSource,
-    OpenProgramNoSwitch,
     RefusedWorkerAt,
     RefusedEngineAt,
     MalformedEndedBy,
@@ -1100,11 +1095,6 @@ impl JigPhrase {
             Self::NameSpace => 7834,
             Self::NameDigits => 7835,
             Self::EngineLimitProjects => 7836,
-            Self::OpenProgramModel => 7816,
-            Self::OpenProgramUnavailable => 7817,
-            Self::OpenProgramChooseModel => 7818,
-            Self::OpenProgramSource => 7819,
-            Self::OpenProgramNoSwitch => 7820,
             Self::RefusedWorkerAt => 7821,
             Self::RefusedEngineAt => 7822,
             Self::MalformedEndedBy => 7823,
@@ -1753,10 +1743,6 @@ impl JigPhrase {
             | Self::SettingFaultBudget
             | Self::SettingFaultGrace
             | Self::SettingFaultOwner
-            | Self::OpenProgramModel
-            | Self::OpenProgramUnavailable
-            | Self::OpenProgramChooseModel
-            | Self::OpenProgramNoSwitch
             | Self::DependencyParked
             | Self::CircleHold
             | Self::CircleLifts
@@ -2304,8 +2290,7 @@ impl JigPhrase {
             | Self::DependencyDone
             | Self::CircleWaitsFor
             | Self::ResultsThrough => Box::new([HoleShape { kind: HoleKind::Number, bytes: 0 }]),
-            Self::OpenProgramSource
-            | Self::PolicyEffect
+            Self::PolicyEffect
             | Self::RunRetryFailed
             | Self::SpecificationNumber
             | Self::CreateProcedure
@@ -2410,7 +2395,7 @@ impl JigPhrase {
     }
 }
 /// Every jig phrase; loading checks this whole contract.
-pub const ALL: [JigPhrase; 646] = [
+pub const ALL: [JigPhrase; 641] = [
     JigPhrase::TooLinked,
     JigPhrase::SettingsChanged,
     JigPhrase::MovedToNewest,
@@ -2440,11 +2425,6 @@ pub const ALL: [JigPhrase; 646] = [
     JigPhrase::NameSpace,
     JigPhrase::NameDigits,
     JigPhrase::EngineLimitProjects,
-    JigPhrase::OpenProgramModel,
-    JigPhrase::OpenProgramUnavailable,
-    JigPhrase::OpenProgramChooseModel,
-    JigPhrase::OpenProgramSource,
-    JigPhrase::OpenProgramNoSwitch,
     JigPhrase::RefusedWorkerAt,
     JigPhrase::RefusedEngineAt,
     JigPhrase::MalformedEndedBy,

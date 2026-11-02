@@ -264,33 +264,3 @@ fn completed_and_placeholder() -> Element {
     page.append(mapped(tree.get(0).expect("text area"), 3));
     page
 }
-
-#[test]
-fn chromium_reads_completion_and_keeps_a_placeholders_field_name() {
-    let chromium = chromium();
-    let profile = Profile::fresh();
-    let mut rig = Rig::new(&chromium, &profile.0, Scenario::Facts);
-    rig.fixed_page(fixed_page());
-    rig.capture_tree();
-    rig.run();
-    let tree = rig.tree.expect("accessibility tree requested");
-    let field = tree
-        .iter()
-        .find(|entry| entry.role.as_ref() == b"textbox" && entry.name.as_ref() == b"Message")
-        .expect("the placeholder leaves the field named exactly Message");
-    assert!(field.multiline);
-    let entries = tree.as_slice();
-    let item = entries
-        .iter()
-        .position(|entry| entry.role.as_ref() == b"listitem" && entry.name.is_empty())
-        .expect("the completed list item");
-    let depth = entries[item].depth;
-    let words: Vec<_> = entries
-        .iter()
-        .skip(item + 1)
-        .take_while(|entry| entry.depth > depth)
-        .filter(|entry| entry.role.as_ref() == b"StaticText")
-        .map(|entry| entry.name.as_ref())
-        .collect();
-    assert_eq!(words, [b"Branch pushed".as_slice(), b"completed"], "only non-ignored words are read in item order");
-}
