@@ -1,6 +1,6 @@
 pub(crate) mod fixtures;
 use crate::{directory, limits};
-use skein_io::kernel::{Exit, ServiceSignal};
+use skein_io::kernel::{Error, Exit, ServiceSignal};
 const SIGN_IN_FIRST: skein_lib::Duration = skein_lib::Duration::from_millis(100);
 const DEADLINE_TICK: skein_lib::Duration = skein_lib::Duration::from_nanos(1); // The clock's smallest step.
 const SIGN_IN_FILE_CALL: &[u8] = br#"{"tool":"sign-in","arguments":{"file":"link-file"}}"#;
@@ -125,6 +125,63 @@ fn a_zero_byte_token_is_not_signed_in() {
     f.run();
     assert_eq!(f.stderr(), b"temper ctl: DIRECTORY is not signed in\n");
     assert_eq!(f.exit(), Some(Exit::Code(1)));
+}
+/// client/tools.md, 8.1: `address` is written by sign-in, so a DIRECTORY without it is not signed in.
+#[test]
+fn a_directory_without_an_address_is_not_signed_in() {
+    let mut f = fixtures::Frame::act(fixtures::CHAT);
+    f.address_error = Some(Error::NotFound);
+    f.run();
+    assert_eq!(str::from_utf8(f.stderr()).expect("diagnostic"), "temper ctl: DIRECTORY is not signed in\n");
+    assert_eq!(f.exit(), Some(Exit::Code(1)));
+    assert_eq!(f.requests(), 0);
+}
+/// client/tools.md, 8.1: a step's failure names the step and the error.
+#[test]
+fn a_directory_step_that_fails_names_the_step_and_the_error() {
+    const LONG_ADDRESS: &[u8] = &[b'a'; limits::ADDRESS as usize + 1];
+    const LONG_TOKEN: &[u8] = &[b't'; fixtures::TOKEN_BYTES.len() + 1];
+    for (address_error, token_error, address, token, line) in [
+        (
+            Some(Error::Permission),
+            None,
+            b"http://127.0.0.1:4000\n".as_slice(),
+            fixtures::TOKEN_BYTES,
+            "temper ctl: DIRECTORY could not be read: address: Permission\n",
+        ),
+        (
+            None,
+            Some(Error::Permission),
+            b"http://127.0.0.1:4000\n",
+            fixtures::TOKEN_BYTES,
+            "temper ctl: DIRECTORY could not be read: token: Permission\n",
+        ),
+        (
+            None,
+            None,
+            LONG_ADDRESS,
+            fixtures::TOKEN_BYTES,
+            "temper ctl: DIRECTORY could not be read: address: too large\n",
+        ),
+        (
+            None,
+            None,
+            b"http://127.0.0.1:4000\n",
+            LONG_TOKEN,
+            "temper ctl: DIRECTORY could not be read: token: too large\n",
+        ),
+    ] {
+        let mut f = fixtures::Frame::act(fixtures::CHAT);
+        f.address_error = address_error;
+        f.token_error = token_error;
+        f.address = address;
+        f.token = token;
+        f.run();
+        assert_eq!(str::from_utf8(f.stderr()).expect("diagnostic"), line);
+        assert_eq!(f.exit(), Some(Exit::Code(1)));
+        assert_eq!(f.requests(), 0);
+        assert!(skein_lib::bytes::find(f.stderr(), fixtures::TOKEN_BYTES).is_none());
+    }
 }
 #[test]
 fn a_read_never_opens_the_store() {
