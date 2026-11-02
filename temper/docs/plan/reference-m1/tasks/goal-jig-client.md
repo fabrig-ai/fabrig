@@ -104,3 +104,24 @@ does and tests. Leave jig-protocol-config and the profiles unchanged. Keep the p
 run the wider focused run the first run deferred (the changed reader packages' and direct
 dependents' focused suites), then report. If that run shows the core admitting a member past
 the holdings limit, name it under `## Left`; do not fix it here.
+
+## Rebase (2026-11-02, step merge, foreman reference-m1/goal-jig-client/foreman-2)
+
+Rebase the client symbols change onto the landing trunk, retaining its job support and landed store implementation.
+The merge failed on five content conflicts; no test failure is reported.
+The conflicting upstream work includes main’s 8e66ed292d (client job wire) and 97159dc54e (stored job surface), integrated through 8305f532de.
+The trunk also contains 9a033b61d1, the landed goal-jig-store implementation.
+Replay c9811266df onto the landing base without replaying the older goal-jig-store implementation ee34070001.
+Keep the trunk versions of:
+- jig/crates/jig-protocol-store/src/generated/people_v14.rs
+- jig/crates/jig-protocol-store/src/generated/settings_v1.rs
+- jig/crates/jig-protocol-store/src/tests/codec.rs
+- jig/crates/jig-protocol-store/src/tests/settings.rs
+
+Those versions already contain the symbols/resources tests alongside the job tests; no store repair is needed.
+In jig/crates/jig-client-protocol-wire/schema/client-v19.schema, preserve upstream job records and variants while retaining this task’s Symbol, NewTask.symbols and Template.resources additions.
+Regenerate src/generated/v19.rs and client goldens from the combined schema; never resolve generated code by hand.
+Use the spec’s drift generation command, then run it without SKEIN_CODEGEN_WRITE.
+Check the automatically merged translations retain both job handling and symbols/resources handling.
+Keep NewTaskSymbols bounded by the wire limit, as the answer requires; leave jig-protocol-config and profiles unchanged.
+Run the three named acceptance tests and the wider focused suites required by the answer, including changed reader packages and direct dependents.
