@@ -59,6 +59,7 @@ pub struct LandingPolicy {
 pub struct ProjectLanding {
     pub by: Way,
     pub repositories: Box<[RepositoryChecks]>,
+    pub after: AfterLandingCheck,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Way {
@@ -69,6 +70,7 @@ pub enum Way {
 pub struct RepositoryChecks {
     pub repository: skein_forge::api::Repository,
     pub gates: Box<[GateCheck]>,
+    pub tiers: Box<[TierCheck]>,
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct GateCheck {
@@ -76,6 +78,22 @@ pub struct GateCheck {
     pub workflow: Box<[u8]>,
     pub ignored: Box<[Box<[u8]>]>,
     pub blocking: bool,
+}
+/// A repository's tier and the branch it follows (domain/after-landing.md, 2).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct TierCheck {
+    pub name: Box<[u8]>,
+    pub workflow: Box<[u8]>,
+    pub ignored: Box<[Box<[u8]>]>,
+    pub artifact: Box<[u8]>,
+    pub format: temper_engine_domain_forge_tiers::Format,
+    pub branch: Option<Box<[u8]>>,
+}
+/// A project's verification settings (protocol/configuration.md, 3).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct AfterLandingCheck {
+    pub tier_retries: u8,
+    pub verification_bound_ms: u64,
 }
 pub(crate) fn project_landing(forge: &mut forge::Domain, project: u32, landing: &ProjectLanding) -> bool {
     let mut repositories =
@@ -92,8 +110,25 @@ pub(crate) fn project_landing(forge: &mut forge::Domain, project: u32, landing: 
                 })
                 .expect("counted gates");
         }
+        let mut tiers = skein_lib::List::with_capacity(u32::try_from(repository.tiers.len()).expect("tiers"));
+        for tier in &repository.tiers {
+            tiers
+                .push(forge::Tier {
+                    name: tier.name.clone(),
+                    workflow: tier.workflow.clone(),
+                    ignored: tier.ignored.clone(),
+                    artifact: tier.artifact.clone(),
+                    format: tier.format,
+                    branch: tier.branch.clone(),
+                })
+                .expect("counted tiers");
+        }
         repositories
-            .push(forge::RepositoryGates { repository: repository.repository, gates: gates.into_boxed() })
+            .push(forge::RepositoryGates {
+                repository: repository.repository,
+                gates: gates.into_boxed(),
+                tiers: tiers.into_boxed(),
+            })
             .expect("counted repositories");
     }
     forge.project_landing(
@@ -103,6 +138,13 @@ pub(crate) fn project_landing(forge: &mut forge::Domain, project: u32, landing: 
             Way::Turn => temper_engine_domain_forge_change::Way::Turn,
         },
         repositories.into_boxed(),
+        forge::AfterLanding {
+            verdict: temper_engine_domain_forge_tiers::Settings {
+                retries: u32::from(landing.after.tier_retries),
+                suspects: temper_engine_domain_forge_tiers::Suspects::Bisect,
+            },
+            bound: skein_lib::Duration::from_millis(landing.after.verification_bound_ms),
+        },
     )
 }
 

@@ -19,7 +19,7 @@ pub(crate) struct State {
     pub(crate) rows: Map<u64, LandingRow>,
     pub(crate) due: Map<u64, Wall>,
     pub(crate) receipts: Map<ReceiptKey, Receipt>,
-    pub(crate) projects: Map<u32, (change::Way, Box<[RepositoryGates]>)>,
+    pub(crate) projects: Map<u32, (change::Way, Box<[RepositoryGates]>, crate::AfterLanding)>,
     pub(crate) pending: Map<Token, Pending>,
     pub(crate) keys: Map<Position, (api::Commit, policy::Key)>,
     pub(crate) main_keys: Map<RepositoryGate, KeyAt>,
@@ -93,12 +93,12 @@ impl State {
     }
     pub fn way(&self, project: u32) -> change::Way {
         match self.projects.get(&project) {
-            Some((way, _)) => *way,
+            Some((way, _, _)) => *way,
             None => change::Way::Queue,
         }
     }
     pub(crate) fn gates(&self, project: u32, repository: api::Repository) -> &[policy::Gate] {
-        if let Some((_, repositories)) = self.projects.get(&project) {
+        if let Some((_, repositories, _)) = self.projects.get(&project) {
             for row in repositories {
                 if row.repository == repository {
                     return &row.gates;
@@ -108,9 +108,49 @@ impl State {
         &[]
     }
 }
+fn valid_tier(tier: &crate::Tier, limits: &Limits) -> bool {
+    if tier.name.is_empty()
+        || tier.name.len() > policy::CHECK_NAME_BYTES
+        || tier.workflow.is_empty()
+        || tier.workflow.len() > policy::WORKFLOW_BYTES
+        || tier.workflow.contains(&b'/')
+        || tier.artifact.is_empty()
+        || tier.artifact.len() > policy::CHECK_NAME_BYTES
+        || tier.artifact.contains(&b'/')
+        || tier.ignored.len() > usize::try_from(limits.ignored_paths).expect("u32 fits")
+    {
+        return false;
+    }
+    if let Some(branch) = &tier.branch
+        && branch.is_empty()
+    {
+        return false;
+    }
+    for byte in &tier.name {
+        if !byte.is_ascii_alphanumeric() && *byte != b'_' && *byte != b'-' {
+            return false;
+        }
+    }
+    for path in &tier.ignored {
+        if path.is_empty()
+            || path.len() > usize::try_from(limits.name_bytes).expect("u32 fits")
+            || path.first() == Some(&b'/')
+            || path.last() == Some(&b'/')
+        {
+            return false;
+        }
+    }
+    true
+}
 impl Domain {
     /// A project's way and repository test gates (domain/landing.md, 13.1).
-    pub fn project_landing(&mut self, project: u32, way: change::Way, gates: Box<[RepositoryGates]>) -> bool {
+    pub fn project_landing(
+        &mut self,
+        project: u32,
+        way: change::Way,
+        gates: Box<[RepositoryGates]>,
+        after: crate::AfterLanding,
+    ) -> bool {
         let l = &self.landing.limits;
         if gates.len() > usize::try_from(l.repositories).expect("u32 fits") {
             return false;
@@ -129,6 +169,24 @@ impl Domain {
             }
             if repository.gates.len() > usize::try_from(l.gates).expect("u32 fits") {
                 return false;
+            }
+            if repository.tiers.len() > usize::try_from(l.tiers.tiers).expect("u32 fits") {
+                return false;
+            }
+            for (index, tier) in repository.tiers.iter().enumerate() {
+                if !valid_tier(tier, l) {
+                    return false;
+                }
+                for gate in &repository.gates {
+                    if gate.name == tier.name {
+                        return false;
+                    }
+                }
+                for prior in repository.tiers.get(..index).expect("preceding tiers") {
+                    if prior.name == tier.name {
+                        return false;
+                    }
+                }
             }
             for (index, gate) in repository.gates.iter().enumerate() {
                 if gate.name.is_empty()
@@ -160,7 +218,16 @@ impl Domain {
                 }
             }
         }
-        self.landing.projects.insert(project, (way, gates)).is_ok()
+        self.landing.projects.insert(project, (way, gates, after)).is_ok()
+    }
+    /// The project's retained verification settings (domain/after-landing.md, 11).
+    #[must_use]
+    #[expect(clippy::manual_map, reason = "the foundation uses explicit options without callbacks")]
+    pub fn after_landing(&self, project: u32) -> Option<crate::AfterLanding> {
+        match self.landing.projects.get(&project) {
+            Some((_, _, after)) => Some(*after),
+            None => None,
+        }
     }
     /// The connected changes of a pending cross-repository dependency, upstream
     /// first. The root supplies jig's current graph on each decision; no graph is

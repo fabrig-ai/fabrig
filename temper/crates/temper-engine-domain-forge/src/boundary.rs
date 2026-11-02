@@ -812,6 +812,23 @@ impl ChangeRow {
 pub struct RepositoryGates {
     pub repository: skein_forge::api::Repository,
     pub gates: Box<[landing::Gate]>,
+    pub tiers: Box<[Tier]>,
+}
+/// A repository's tier and followed branch (temper/docs/design/domain/after-landing.md, 2).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Tier {
+    pub name: Box<[u8]>,
+    pub workflow: Box<[u8]>,
+    pub ignored: Box<[Box<[u8]>]>,
+    pub artifact: Box<[u8]>,
+    pub format: temper_engine_domain_forge_tiers::Format,
+    pub branch: Option<Box<[u8]>>,
+}
+/// A project's verification settings (temper/docs/design/domain/after-landing.md, 11).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct AfterLanding {
+    pub verdict: temper_engine_domain_forge_tiers::Settings,
+    pub bound: skein_lib::Duration,
 }
 /// Why a landing cannot be made (domain/landing.md, 12).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

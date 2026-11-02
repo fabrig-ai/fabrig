@@ -554,8 +554,10 @@ impl World {
                         .insert(
                             1,
                             engine::ProjectLanding {
+                                after: engine::AfterLandingCheck { tier_retries: 2, verification_bound_ms: 7_200_000 },
                                 by: engine::Way::Turn,
                                 repositories: Box::new([engine::RepositoryChecks {
+                                    tiers: Box::new([]),
                                     repository: forge_world::REPO,
                                     gates: Box::new([engine::GateCheck {
                                         name: b"gate".as_slice().into(),

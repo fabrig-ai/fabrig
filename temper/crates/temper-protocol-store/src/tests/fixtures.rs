@@ -56,6 +56,7 @@ pub const LIMITS: top::Limits = top::Limits {
     key_entries: 16,
     key_path_bytes: 1024,
     trees_in_flight: 2,
+    tiers: temper_engine_domain_forge::TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
     judge_projects: 2,
     judge_criteria: 8,
     brief_sections: 32,
