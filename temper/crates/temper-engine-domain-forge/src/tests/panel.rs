@@ -36,7 +36,10 @@ fn each_step_and_held_step_comes_from_the_retained_record() {
             PanelStep::Repairing(change::Repair::Gate(7)),
         ),
         (change::State::Landing { head }, PanelStep::Landing),
-        (change::State::Landed { merge: fixtures::BASE }, PanelStep::Landed { merge: fixtures::BASE }),
+        (
+            change::State::Landed { merge: fixtures::BASE, since: Wall::from_nanos(17) },
+            PanelStep::Landed { merge: fixtures::BASE },
+        ),
     ];
     for (state, step) in rows {
         for hold in [None, Some(change::Hold::Stalled)] {
@@ -345,7 +348,7 @@ fn ci_replacements_mark_once_and_repeated_reads_are_inert() {
 
 #[test]
 fn terminal_panel_rejects_a_saved_verdict_at_another_head() {
-    for state in [change::State::Landed { merge: fixtures::BASE }, change::State::Ended] {
+    for state in [change::State::Landed { merge: fixtures::BASE, since: Wall::from_nanos(17) }, change::State::Ended] {
         let mut row = fixtures::opening_row();
         row.change.state = state;
         row.ci = Some(change::Ci { head: fixtures::BASE, status: change::Status::Passed });

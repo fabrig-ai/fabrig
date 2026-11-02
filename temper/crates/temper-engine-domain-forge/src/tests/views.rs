@@ -178,7 +178,8 @@ fn a_landed_queue_change_is_a_change_document_and_has_no_turn_landing() {
     let mut d = domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     let mut row = fixtures::opening_row();
-    row.change.state = temper_engine_domain_forge_change::State::Landed { merge: fixtures::HEAD };
+    row.change.state =
+        temper_engine_domain_forge_change::State::Landed { merge: fixtures::HEAD, since: Wall::from_nanos(17) };
     row.pending = None;
     outputs(&mut d, Event::Restore { record: Stored::Change(row) });
     let Document::Change(panel) = document(&d, fixtures::CHANGE) else { panic!("queue change document") };

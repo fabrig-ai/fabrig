@@ -412,7 +412,12 @@ fn joinable(d: &Domain, project: u32, task: u64) -> bool {
         };
     }
     match row.change.state {
-        change::State::NoChange { .. } | change::State::Ended | change::State::Landed { .. } => false,
+        change::State::NoChange { .. }
+        | change::State::Ended
+        | change::State::Landed { .. }
+        | change::State::Red { .. }
+        | change::State::Cleared { .. }
+        | change::State::Uncleared { .. } => false,
         change::State::Producing { .. }
         | change::State::Opening { .. }
         | change::State::Recreating { .. }
@@ -851,10 +856,29 @@ pub(crate) fn answered(
                         Ok(_) | Err(_) => {
                             // Its change can finish and release the branch as soon as
                             // the merge is read back, before this landing's next read.
-                            let landed = if let change::State::Landed { merge } = change.change.state {
-                                Some(merge)
-                            } else {
-                                member.landed
+                            let landed = match change.change.state {
+                                change::State::Landed { merge, .. }
+                                | change::State::Red { merge, .. }
+                                | change::State::Cleared { merge }
+                                | change::State::Uncleared { merge } => Some(merge),
+                                change::State::Producing { .. }
+                                | change::State::Opening { .. }
+                                | change::State::Recreating { .. }
+                                | change::State::Reopening { .. }
+                                | change::State::Checking { .. }
+                                | change::State::Gating { .. }
+                                | change::State::Ready { .. }
+                                | change::State::Preparing { .. }
+                                | change::State::CancellingGates { .. }
+                                | change::State::Queued { .. }
+                                | change::State::First { .. }
+                                | change::State::Updating { .. }
+                                | change::State::Resolving { .. }
+                                | change::State::Repairing { .. }
+                                | change::State::Landing { .. }
+                                | change::State::NoChange { .. }
+                                | change::State::Ended
+                                | change::State::Held { .. } => member.landed,
                             };
                             let Some(head) = landed else {
                                 wait(p.task, env, out);

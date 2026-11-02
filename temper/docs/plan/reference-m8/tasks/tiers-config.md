@@ -3,7 +3,7 @@ id = "tiers-config"
 part = "tiers-config"
 kind = "feature"
 needs = ["tiers-policy"]
-files = ["temper/crates/temper-service/src/startup/application/landing.rs", "temper/crates/temper-service/src/startup/checks.rs", "temper/crates/temper-service/src/limits.rs", "temper/crates/temper-service/src/limits/names.rs", "temper/crates/temper-engine-domain/src/translate.rs", "temper/crates/temper-engine-domain-forge/src/limits.rs", "temper/crates/temper-engine-domain-forge/Cargo.toml", "temper/crates/temper-engine-domain/Cargo.toml", "temper/crates/temper-service/Cargo.toml", "temper/crates/temper-engine-domain/src/lib.rs"]
+files = ["temper/crates/temper-service/src/startup/application/landing.rs", "temper/crates/temper-service/src/startup/checks.rs", "temper/crates/temper-service/src/limits.rs", "temper/crates/temper-service/src/limits/names.rs", "temper/crates/temper-engine-domain/src/translate.rs", "temper/crates/temper-engine-domain-forge/src/limits.rs", "temper/crates/temper-engine-domain-forge/Cargo.toml", "temper/crates/temper-engine-domain/Cargo.toml", "temper/crates/temper-service/Cargo.toml", "temper/crates/temper-engine-domain/src/lib.rs", "temper/tests/engine/forge/Cargo.toml"]
 effort = "high"
 minutes = 150
 +++
@@ -68,9 +68,9 @@ Acceptance:
   `RepositoryGates::tiers`), `landing.rs` (`project_landing`, its per-project storage,
   `after_landing`) and `lib.rs` (exports). `temper-engine-domain/src/domain.rs`: passing
   `after` through, only.
-- Root `Cargo.toml` is not touched: the forge, engine and service crates gain
-  `temper-engine-domain-forge-tiers.workspace = true` in their own `Cargo.toml`; `Cargo.lock` as
-  cargo writes it.
+- Root `Cargo.toml` is not touched: the forge, engine and service crates, and the forge world
+  (`temper/tests/engine/forge/Cargo.toml`), gain `temper-engine-domain-forge-tiers.workspace = true`
+  in their own `Cargo.toml`; `Cargo.lock` as cargo writes it.
 - `temper-engine-domain/src/lib.rs`: `TierCheck` and `AfterLandingCheck` join the `translate`
   export, only.
 - Readers, each only the new field in a literal (`tiers: Box::new([])`, the default settings) or
@@ -117,4 +117,14 @@ Yes, both, and nothing more: the service names `temper_engine_domain_forge_tiers
 directly through its own dependency, as the old code did, with no re-export of `Format`
 elsewhere; the engine's `pub use translate::{...}` gains `TierCheck` and `AfterLandingCheck`,
 the spec's own types, so no public item beyond the spec. Both files are now in the header and
+under Owns.
+
+2026-11-02. May `temper/tests/engine/forge/Cargo.toml` gain `temper-engine-domain-forge-tiers`
+so the forge world can build the `AfterLanding` argument? Yes, that one line and nothing more
+in the manifest: the world is a reader of the forge's boundary, and `AfterLanding::verdict` is
+the tiers crate's `Settings` as `notes/contracts.md`, 3 has it, so no re-export or helper is
+added to the forge for it. In `world.rs` the world's own `project_landing` keeps its
+signature; its two calls (about 140 and 531) pass the default settings, `AfterLanding {
+verdict: Settings { retries: 2, suspects: Suspects::Bisect }, bound: 7,200,000 ms }`, the
+configuration's defaults, so its callers do not change. The manifest is now in the header and
 under Owns.
