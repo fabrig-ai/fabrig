@@ -149,11 +149,13 @@ impl OneShot {
         }
     }
     pub(super) fn key_file_fail(&mut self, call: &jig::call::Call, reason: &[u8]) {
+        let Some(rest) = reason.strip_prefix(b"key file").or_else(|| reason.strip_prefix(b"record file")) else {
+            self.fail(reason);
+            return;
+        };
         if call.tool == temper_client_tools::jig::rows::IMPORT_AT {
             let mut message = b"record file".to_vec();
-            message.extend_from_slice(
-                reason.strip_prefix(b"key file").unwrap_or(reason.strip_prefix(b"record file").unwrap_or(reason)),
-            );
+            message.extend_from_slice(rest);
             self.fail(&message);
         } else if TOOLS[usize::from(call.tool)].name == b"forge connect" {
             let mut message = reason.to_vec();

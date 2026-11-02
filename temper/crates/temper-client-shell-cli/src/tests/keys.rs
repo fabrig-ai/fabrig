@@ -96,6 +96,23 @@ fn json_cannot_name_a_key_file() {
 
 const APP: &[&[u8]] =
     &[b"forge", b"connect", b"3", b"github-app", b"4242", b"/linked-parent/link-file", b"--key", b"app"];
+#[test]
+fn a_key_calls_directory_failure_prints_the_directorys_line_alone() {
+    for (words, address_error, linked_leaf, line) in [
+        (ADD, Some(Error::NotFound), None, "temper ctl: DIRECTORY is not signed in\n"),
+        (APP, Some(Error::NotFound), None, "temper ctl: DIRECTORY is not signed in\n"),
+        (ADD, None, Some(Error::Permission), "temper ctl: key file could not be read: Permission\n"),
+    ] {
+        let mut f = fixtures::Frame::act(words);
+        f.link = b"private-value\n";
+        f.address_error = address_error;
+        f.linked_leaf = linked_leaf;
+        f.drain();
+        assert_eq!(f.exit(), Some(Exit::Code(1)));
+        assert_eq!(f.requests(), 0);
+        assert_eq!(str::from_utf8(f.stderr()).expect("diagnostic"), line);
+    }
+}
 const APP_BOUND: &[u8] = &[b'p'; 4089];
 const APP_OVER: &[u8] = &[b'p'; 4090];
 const APP_NEWLINE: &[u8] = &{
