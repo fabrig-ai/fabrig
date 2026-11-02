@@ -1,3 +1,20 @@
 draft = "live-smith-reds-3"
 repo = "fabrig"
 sources = ["smith/docs/plan/live-smith-reds-3/inputs/request.md", "AGENTS.md"]
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "refresh-story"
+title = "the live refresh story checks the issuer's earliest refresh time as its record stands: refreshed when past, kept when ahead"
+mode = "direct"
+needs = []
+design = "smith/docs/design/testing.md, 2.3"
+
+[[slice]]
+id = 1
+story = "a_run_refreshes_its_grant_when_the_issuer_allows chooses its case from the record's refresh facts, and the after-landing pair runs it green on the fresh record it lends"
+parts = ["refresh-story"]
+walk = false
