@@ -3,6 +3,15 @@
 2026-11-02. Where temper's code lags or departs from [forge.md](forge.md).
 
 - **Not yet:**
+  - 2, 11, 11.1: a goal's own branch held by its goal: the forge holds no
+    `g` branch, makes none at a taking and keeps none at a release, and
+    every branch hold waits (`temper-engine-domain-forge/src/resources.rs`,
+    `BRANCH_HOLD`).
+  - 2, 11.1: the symbol *its own goal branch*: the forge offers none, and no
+    change is refused for a landing branch another goal holds
+    (`temper-engine-domain/src/route/forge_route.rs`, `task_holdings`).
+    11, 11.1: a goal's own branch deleted as its goal closes once a change
+    has landed it: the release keeps it whatever way the goal ended.
   - 4.1: a removal without the box, its group's act answered in its
     decision: an owned or fake forge's removal asks the box link for
     `remove N` whether or not a pipe is there, and without one waits for
@@ -29,6 +38,21 @@
     page's line that a change takes no words.
   - 8.2: the pull request's body naming its goal's issue; a landed change
     living until its landing is cleared (`after-landing.md`, section 6).
+  - 8.1: a change's landing branch other than its repository's default,
+    its dependencies and several changes in one call, as `change` names
+    them (`temper-engine-domain/src/route/forge_route.rs`, `chat_change`).
+  - 8.2 steps 3 and 6, 8.7, 10: checking and updating by the landing
+    branch's rules: `Requires` and `requires` do not exist, and every
+    change is checked by CI and updated, whatever its rules
+    (`temper-engine-domain-forge-change/src/domain.rs`); a conflict under
+    rules asking no update is resolved rather than held.
+  - 8.2 step 7: a landed change's result words without its producer's
+    report, and bounded at 512 bytes whatever `tasks.result_bytes` is
+    (`forge_route.rs`, `chat_change` and `change_landing_words`).
+  - 8.4: a change held for effects before its producer was asked, then
+    released, keeps a producer asked for and never made: Active, idle,
+    no producer (`forge_route.rs`, `change_decision`, drops the decision
+    of a step jig no longer has due, and nothing resets `requested`).
   - 8.3: a person's approval as a gate; a review's lens; gates run at once
     when the change asks; a verdict posted as a commit status; the review
     charter, kind 3's number 2, is fixed at charter 4.

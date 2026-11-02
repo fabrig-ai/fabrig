@@ -20,17 +20,55 @@ The cross-family shapes are `notes/contracts.md` (C1 to C8); the standing rules,
 
 ## Tasks so far
 
-- `bound-verdict-fields` (bound): `VERDICT_FIELDS = 512`, a verdict's fields counted apart
-  from `result_bytes`; ported from jig's old `upgrades-6/j12-verdict-fields-2`. Needs none.
+Released (needs in brackets):
+
+- bound: `bound-verdict-fields` [].
+- goal-jig: `goal-jig-writers` [] (stories only); `goal-jig-surface` [] (the interface:
+  `people::Symbol`, `Member.symbols`, `Template.resources`, the holdings asks' `tracked` and
+  symbols, `HoldingsRefusal`, a taking's outbox entry); `goal-jig-holdings` [surface];
+  `goal-jig-store` [surface, bound-verdict-fields]; `goal-jig-config` [surface];
+  `goal-jig-client` [surface, config, store].
+- change: `change-requires` [] (C5's `Requires`, `Domain::requires`); `change-held-release`
+  [] (the held-then-released change left with no producer, still on main); `change-call` []
+  (the call's parsed shape); `change-by-rule` [requires]; `change-batch` [call,
+  held-release]; `change-words` [batch, by-rule, goal-forge-symbol]; `change-help`
+  [words]; `change-goal-story` [words, goal-forge-symbol, goal-forge-branch,
+  goal-forge-story].
+- goal-forge: `goal-forge-branch` [goal-jig-surface, change-requires, change-held-release,
+  change-by-rule, change-batch]; `goal-forge-symbol` [goal-jig-surface, goal-forge-branch];
+  `goal-forge-story` [goal-jig-holdings, goal-forge-branch, goal-forge-symbol].
+
+To come: the settings family (`settings-landing-rules`, `settings-wake-pace`,
+`settings-wake-charter`, `settings-wake-clients`, `settings-reference-files`) and the walk
+slice.
+
+## Order decided by the lead
+
+One task writes a file at a time. The forge crate's `domain.rs` and `boundary.rs`, and the
+root's `forge_route.rs`, are written by both the goal and the change families, so they go in
+one line: `change-requires` and `change-held-release`, then `change-by-rule` and
+`change-batch`, then `goal-forge-branch`, `goal-forge-symbol`, then `change-words`, then the
+stories. `goal-jig-surface`'s compiler-forced field lines in the root's `asks.rs` and
+`forge_route.rs` run beside `change-held-release`: field-only hunks, accepted.
+`goal-jig-store` follows `bound-verdict-fields` (both in `jig-protocol-store`).
 
 ## Critical path, as it stands
 
-The goal family's jig surface (a template's own resources, a hold's taking effect), then the
-forge's g, then the reference's template for drafts and the walk slice. The change family
-runs beside it from the trunk; the settings family's rules-as-settings beside both.
+`change-call` (75) -> `change-batch` (100) -> `goal-forge-branch` (110) ->
+`goal-forge-symbol` (75) -> `change-words` (100) -> `change-goal-story` (90): about 550
+implementer-minutes. The jig side (`goal-jig-surface` -> `goal-jig-store`/`config` ->
+`goal-jig-client` -> the settings family's wake tasks -> `settings-reference-files`) runs
+beside it.
 
 ## Overlaps with other plans
 
 - reference-m7a changes `jig-domain-core`, `jig-domain-tasks` and `jig-protocol-store` on its
   trunk; `bound-verdict-fields` touches each in a few lines (`limits.rs`, `verdict.rs`,
   `activity.rs`, `codec/settings.rs`): unavoidable, since the bound lives there.
+- reference-m7a: `goal-jig-surface` and `goal-jig-holdings` in `jig-domain-core`'s routing
+  (field-only hunks in `run/delegation.rs`, `task/terminals.rs`); `goal-jig-client` in
+  `jig-client-protocol-wire`.
+- reference-m8: the forge crate (`domain.rs`, `boundary.rs`, `gates.rs`), the root's
+  `forge_route.rs`, the forge-change crate, `store-v11.schema` and its goldens
+  (`change-words`, a field on `ChangeRow`, in place), and `temper/docs/help/change.md`
+  (`change-help`, against reference-m8's `help-pages`). Each spec keeps its hunks narrow.

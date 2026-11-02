@@ -25,3 +25,36 @@ id = 1
 story = "a deployment whose result bound is 2048 bytes opens its store and admits verdicts of up to 512 fields"
 parts = ["bound"]
 walk = false
+
+[[part]]
+id = "goal-jig"
+title = "jig: a template's own resources as connectors' symbols, a hold's taking with effects, held resources a queue orders, writer slots by what a run writes"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/tasks.md, 6.2"
+
+[[part]]
+id = "goal-forge"
+title = "temper: the goal's own branch g, held by its goal, made at main's tip as its hold is taken, kept as it closes"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/forge.md, 11.1"
+
+[[part]]
+id = "change"
+title = "change with a plan's members (landing, name, after, a batch); checking and updating by the landing branch's rules; a result carrying its producer's report"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/agent.md, 4.3.1"
+
+[[slice]]
+id = 2
+story = "a tracked goal whose batch names its own goal branch becomes active holding g, made at main's tip; an untracked one naming it is refused; a change into g from outside G's subtree is refused naming G; G's end keeps g"
+parts = ["goal-jig", "goal-forge"]
+walk = false
+
+[[slice]]
+id = 3
+story = "G's change makes two changes into g in one call, the second after the first; each opens, needs no CI and no update under the goal branches' rule, merges at its head as a merge commit; each result carries its producer's report; G ends with g kept"
+parts = ["change"]
+walk = false
