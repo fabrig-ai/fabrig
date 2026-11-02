@@ -390,16 +390,20 @@ the second once the reference case walks.
   settings nor the documentation in the binary carry a recipe of it
   (section 10), so the agent works from the description alone.
 - **What the box brings, not the agent:** what needs a restart (5.3)
-  and what lives in repositories. The pass's brief lists it and the pass
-  confirms each through `temper ctl` before the chat starts:
+  and what lives in repositories. The pass's brief lists it, and the
+  pass confirms it before the chat starts: temper's part through
+  `temper ctl`, the repository's through the forge's API as an observer
+  (`../../development/qa.md`, section 5), the limits against the box's
+  document:
   - the providers and models the reference names (Opus 5.5 for the
     coordinator and designers, gpt-6.1-sol on smith's direct backend
     for producers, `notes.md`, N20), with the accounts they run on, and
     a real model for the configuring chat;
-  - the limits: the stock's for this stage, which the proposal needs no
-    more than; the reference's, sized for a goal of a hundred changes
-    (`notes.md`, N21), once `reference-case.execution.md`'s M10 gives
-    them, for 8.2;
+  - the limits: for this stage, room for the settings the reference
+    adds beside the stock's, its coordinator's, designer's and foreman's
+    charters among them, which Small's charters cannot hold; for 8.2,
+    the reference's, sized for a goal of a hundred changes (`notes.md`,
+    N21), once `reference-case.execution.md`'s M10 gives them;
   - the project, with rung C's repository adopted, holding what the
     golden's table asks of a repository: its `AGENTS.md`, its code and
     design rules, `.temper/pre-pr`, its merge style; and, at a path the
