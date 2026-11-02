@@ -115,3 +115,13 @@ change_verification}` are there. Code against the stubs as contracts.md, 4 gives
 that needs a filled `tier_task` or a non-`Unfollowed` verification builds it through the forge's
 public events where it can, else is left to `tiers-stories` and listed under Left. If the surface
 is still absent, stop again with the names missing; never add them in the forge crate.
+
+2026-11-02. `TierDecision::Wait` carries a deadline, but the forge has no tier wait and the
+change's and landing's deadline maps are sized to their own tasks: supply it here, or have the
+forge's owner supply it? Neither crosses: the answer added `Domain::wait_tier(env, task, until)`
+and `Domain::offered_tier(task)` to the forge's `tiers.rs` as no-op stubs (`notes/contracts.md`,
+6); `tiers-runs` fills them. Call them as `landing_route.rs` calls `wait_landing` and
+`offered_landing`: `offered_tier` where the tier task is started or stepped, `wait_tier` on
+`Wait { until }`; reuse neither `wait_change` nor `wait_landing`. The forge crate stays out of
+this task. A story that needs the deadline to fire (a wake at `until`) waits on the stubs being
+filled: leave it to `tiers-stories` and list it under Left; the unit stories in Goal need none.

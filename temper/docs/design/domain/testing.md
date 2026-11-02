@@ -1184,6 +1184,15 @@ section 8; testing-strategy.md, 2.9).
   `temper ctl account import FILE --key connect-plan`, which removes
   FILE, and waits for it usable in place of the person's sign-in, as an
   account import does; the script refuses it with a kept store.
+  Every ctl call of a sitting names one DIRECTORY, `client` beneath the
+  run's root in the store (`first`, `second`, or tagged on a kept
+  store): the import, the held record's give-back and the sitting's
+  reads alike (../client/tools.md, 8.1). The chat's ended delegates and
+  the change's are read whole, a page at a time: `task list --project
+  PROJECT --parent TASK --ended --json`, then the same with `--after`
+  and the cursor the page printed (`ended.rows.after.value`), until a
+  page prints none (../client/tools.md, 5.2); a page cut with no cursor,
+  or past 32 pages in all, fails the story, naming it.
 - **The owned-forge landing story on Claude Code,**
   `a_person_asks_claude_code_to_land_a_change_on_the_owned_forge`, run
   by `scripts/proof-live.sh forge-land-claude`: the same story, every
@@ -1367,6 +1376,15 @@ section 8; testing-strategy.md, 2.9).
     the invocation, whatever its end, the held record returned by
     `forge-land/give-back` in `TEMPER_LIVE_STORE` where it exists, both logins
     checked by `stat` alone, and any process left under the stores stopped.
+  - **What the stories need of the runner,** and nothing else:
+    `TEMPER_LIVE_STORE`, an absolute path, made 0700 with its parents when
+    absent; `TEMPER_LIVE_ACCOUNT`, the held record, a regular file of the
+    runner's user, mode 0600, in a directory that user may write, since the
+    import removes the file; `TEMPER_LIVE_CLAUDE`, the login's resting path,
+    and `claude` on `PATH`; a private `TMPDIR`. No directory above these
+    needs a mode or a name: ctl opens DIRECTORY and FILE through their
+    parents and checks DIRECTORY, its files and FILE alone
+    (../client/tools.md, 8.1).
   - **Its bounds** are each story's own, within the profile's 50 minutes for the
     pair. Never at the gate, and never run by an implementer.
 - **What stays the owner's,** ignored and run by hand: the process tier's chat on a

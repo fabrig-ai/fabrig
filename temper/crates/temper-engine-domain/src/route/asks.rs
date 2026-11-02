@@ -359,6 +359,8 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                 }
             } else if connector == domain.config.forge_connector && code == forge_route::LANDING_CODE {
                 forge_route::start_landing_step(domain, env, &context);
+            } else if connector == domain.config.forge_connector && code == forge_route::AFTER_LANDING_CODE {
+                forge_route::start_tier_step(domain, env, &context);
             } else {
                 emit(decision, &env.limits, Delivery::Procedure { task, step, connector, code });
             }

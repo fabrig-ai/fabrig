@@ -94,6 +94,41 @@ fn the_refresh_story_lead_outlives_an_access_token() {
 }
 
 #[test]
+fn the_refresh_story_chooses_its_case_from_the_record() {
+    use live::RefreshCase::{Kept, Refreshed, Wait};
+    use skein_lib::Wall;
+    use smith_local_shell::credentials::RefreshFacts;
+
+    let now = Wall::from_nanos(10_000_000_000_000);
+    for (refreshable, earliest, expected) in [
+        (true, None, Ok(Refreshed)),
+        (true, Some(9_999_000_000_000), Ok(Refreshed)),
+        (true, Some(10_000_000_000_000), Ok(Refreshed)),
+        (true, Some(12_336_000_000_000), Ok(Kept)),
+        (true, Some(10_301_000_000_000), Ok(Kept)),
+        (true, Some(10_300_000_000_001), Ok(Kept)),
+        (true, Some(10_300_000_000_000), Ok(Wait { seconds: 301 })),
+        (true, Some(10_120_500_000_000), Ok(Wait { seconds: 122 })),
+        (false, None, Err(live::NOT_REFRESHABLE)),
+        (false, Some(12_336_000_000_000), Err(live::NOT_REFRESHABLE)),
+    ] {
+        let facts = RefreshFacts {
+            generation: 7,
+            refreshable,
+            expires_at: Wall::from_nanos(u64::MAX),
+            earliest_refresh_at: earliest.map(Wall::from_nanos),
+        };
+        assert_eq!(live::refresh_case(&facts, now), expected, "refresh facts: {facts:?}");
+    }
+    const {
+        assert!(
+            live::EARLIEST_MARGIN_SECONDS > live::CHECK_SECONDS + live::EXEC_SECONDS,
+            "the earliest refresh margin outlasts the check and exec bounds together"
+        );
+    }
+}
+
+#[test]
 fn the_refresh_report_names_facts_without_token_bytes() {
     use skein_lib::Wall;
     use smith_local_shell::credentials::{RefreshFacts, env_record, refresh_facts, token_limits};

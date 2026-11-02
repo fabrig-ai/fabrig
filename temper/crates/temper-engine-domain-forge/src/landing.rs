@@ -218,7 +218,20 @@ impl Domain {
                 }
             }
         }
-        self.landing.projects.insert(project, (way, gates, after)).is_ok()
+        let mut has_tiers = false;
+        if let Some((_, old, _)) = self.landing.projects.get(&project) {
+            for repository in old {
+                has_tiers |= !repository.tiers.is_empty();
+            }
+        }
+        for repository in &gates {
+            has_tiers |= !repository.tiers.is_empty();
+        }
+        let saved = self.landing.projects.insert(project, (way, gates, after)).is_ok();
+        if saved && has_tiers {
+            self.tier_ops.dirty = true;
+        }
+        saved
     }
     /// The project's retained verification settings (domain/after-landing.md, 11).
     #[must_use]
@@ -1473,7 +1486,7 @@ fn purpose_identity(row: &LandingRow, member: u16, gate: u16, operation: u8, att
     .identity()
     .expect("fixed purpose")
 }
-fn inputs(candidate: api::Commit, key: policy::Key) -> Box<[api::Input]> {
+pub(crate) fn inputs(candidate: api::Commit, key: policy::Key) -> Box<[api::Input]> {
     let mut length = 32;
     if candidate[20..] == [0; 12] {
         length = 20;
@@ -1580,12 +1593,22 @@ fn keep(
     );
 }
 
-fn put_receipt(d: &mut Domain, env: &Env<Limits>, key: ReceiptKey, receipt: Receipt, out: &mut Queue<Request>) {
+#[expect(clippy::manual_map, reason = "step code uses explicit options without closures")]
+pub(crate) fn put_receipt(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    key: ReceiptKey,
+    receipt: Receipt,
+    out: &mut Queue<Request>,
+) {
     let mut count = 0_u32;
     let mut oldest: Option<(Wall, ReceiptKey)> = None;
     let protected = match &key.check {
         Check::Gate(name) => d.landing.main_keys.get(&(key.repository, name.clone())).copied(),
-        Check::Tier(_) => None,
+        Check::Tier(name) => match d.tier_ops.tip_keys.get(&(key.repository, name.clone())) {
+            Some(judged) => Some((judged.tip, judged.key)),
+            None => None,
+        },
     };
     for (saved, value) in &d.landing.receipts {
         if saved.project != key.project || saved.repository != key.repository || saved.check != key.check {
