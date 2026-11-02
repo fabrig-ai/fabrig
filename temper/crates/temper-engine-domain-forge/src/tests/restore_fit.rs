@@ -21,6 +21,7 @@ fn row(kind: RecordKind, number: u32) -> Stored {
             pending: Box::new([]),
             baseline: None,
             branch: TierBranch::Absent,
+            probe: None,
             flight: None,
             held: None,
             result: None,

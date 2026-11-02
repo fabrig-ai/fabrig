@@ -247,6 +247,7 @@ fn tier_rows(rng: &mut Rng, bounds: &Bounds) {
         pending: Box::new([]),
         baseline: None,
         branch: forge::TierBranch::Absent,
+        probe: None,
         flight: None,
         held: None,
         result: None,
