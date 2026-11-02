@@ -121,6 +121,7 @@ fn set_tasks(limits: &mut jig_domain_tasks::Limits, name: &[u8], value: u64) -> 
         saved_resources,
         contract_choices,
         charters,
+        charter_documents: _,
         versions: _,
         revisions: _,
         authority_grants,

@@ -617,7 +617,13 @@ fn decode_charter(value: wire::Charter) -> core::Charter {
     let field_policy = decode_run_policy(policy);
     let field_hosts = decode_kinds(hosts);
     let field_spend = spend;
-    core::Charter { number: field_number, policy: field_policy, hosts: field_hosts, spend: field_spend }
+    core::Charter {
+        number: field_number,
+        policy: field_policy,
+        hosts: field_hosts,
+        spend: field_spend,
+        documents: Box::new([]),
+    }
 }
 fn encode_segment(value: &[u8], limits: &wire::Limits) -> Result<wire::Segment, wire::Problem> {
     let field_bytes = Box::from(value);

@@ -439,7 +439,7 @@ pub(crate) fn plan_brief(
             .expect("attempt brief room");
     }
     let parent = brief_parent(context.requester);
-    out.push(Request::Now(Box::new(Now::BriefCorePlanned { task, parent, sections: wanted })));
+    out.push(Request::Now(Box::new(Now::BriefCorePlanned { task, parent, sections: wanted, documents: Box::new([]) })));
     out
 }
 
