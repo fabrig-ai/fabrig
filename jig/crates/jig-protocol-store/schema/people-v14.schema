@@ -116,7 +116,8 @@ enum EndedBy { result, requester }
 record Flags { conversation: bool listed: bool retention: Retention ended_by: EndedBy }
 record DeadlineSpan { value: duration }
 enum Deadline { named, span: DeadlineSpan }
-record Member { deadline: Deadline executor: TaskExecutor words: bytes 8192 parameters: bytes 65536 pieces Parameter inputs: bytes 65536 pieces Number64 contract: Contract authority: Authority budget: Budget wake: WakePolicy dependencies: bytes 65536 pieces Dependency named: bytes 65536 pieces Grant tracked: option u32 label: u32 flags: Flags llm: option LlmChoice }
+record Symbol { connector: u16 symbol: u16 }
+record Member { deadline: Deadline executor: TaskExecutor words: bytes 8192 parameters: bytes 65536 pieces Parameter inputs: bytes 65536 pieces Number64 contract: Contract authority: Authority budget: Budget wake: WakePolicy dependencies: bytes 65536 pieces Dependency named: bytes 65536 pieces Grant symbols: list 32 Symbol tracked: option u32 label: u32 flags: Flags llm: option LlmChoice }
 record OperationCancel { task: u64 reason: bytes 8192 grace: option u64 }
 record OperationMove { task: u64 reason: bytes 8192 }
 record OperationAmend { task: u64 revision: u64 amendment: Amendment release: option u64 }

@@ -339,3 +339,34 @@ fn job_delegation_kinds_round_trip_in_settings() {
     let bytes = codec::settings::encode(&row, &limits.settings, &[]).unwrap();
     assert_eq!(codec::settings::decode(&row.key(), &bytes, &limits.settings, &[]), Ok(row));
 }
+
+#[test]
+fn a_template_with_resources_round_trips_through_the_settings_store() {
+    const BOUND: u16 = 32;
+    let limits = codec::limits(&fixtures::CORE_LIMITS).expect("store limits");
+    let names = Box::new([catalogue_name(b"one"), catalogue_name(b"two")]);
+    assert_eq!(limits.settings.template_resources, u32::from(BOUND));
+    for count in [0, 2, BOUND, BOUND + 1] {
+        let mut template = template();
+        let mut symbols = skein_lib::List::with_capacity(u32::from(count));
+        for symbol in 0..count {
+            symbols.push(people::Symbol { connector: u16::MAX - symbol, symbol }).expect("symbol fixture count");
+        }
+        template.resources = symbols.into_boxed();
+        let row = core::Record::Core(core::CoreRecord::Settings(s::Record::Default {
+            setting: s::Setting::Template(template.number),
+            default: s::Default { value: s::Value::Template(Box::new(template)), revision: 1 },
+        }));
+        if count > BOUND {
+            assert!(codec::encode(&row, &limits, &*names).is_none(), "one past the resource bound");
+            continue;
+        }
+        let bytes = codec::encode(&row, &limits, &*names).expect("bounded resources");
+        assert_eq!(codec::decode(&row.key(), &bytes, &limits, &*names), Some(row.clone()));
+        if count == BOUND {
+            let mut narrower = limits;
+            narrower.settings.template_resources = u32::from(BOUND - 1);
+            assert!(codec::decode(&row.key(), &bytes, &narrower, &*names).is_none(), "decoded resource bound");
+        }
+    }
+}

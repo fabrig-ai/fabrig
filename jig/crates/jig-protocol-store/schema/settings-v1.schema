@@ -62,7 +62,8 @@ enum EndedBy { result, requester }
 record Flags { conversation: bool listed: bool retention: Retention ended_by: EndedBy }
 record ModelEffort { model: u8 effort: option u8 }
 record LlmChoice { account: option u32 main: ModelEffort subagents: list 64 ModelEffort }
-record Template { number: u32 name: bytes 65536 executor: TemplateExecutor contract: Contract shallower: u32 budget: TemplateBudget deadline: TemplateDeadline tracked: option u32 flags: Flags label: u32 grace: option duration llm: option LlmChoice }
+record Symbol { connector: u16 symbol: u16 }
+record Template { number: u32 name: bytes 65536 executor: TemplateExecutor contract: Contract shallower: u32 budget: TemplateBudget deadline: TemplateDeadline tracked: option u32 flags: Flags label: u32 grace: option duration llm: option LlmChoice resources: list 32 Symbol }
 enum Value { charter: boxed Charter, template: boxed Template, policy: boxed ConfiguredPolicy, rules: boxed Rules }
 record Party { number: u64 }
 enum Decider { first_start, release, party: Party }
