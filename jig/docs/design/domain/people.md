@@ -323,9 +323,9 @@ pending flights suffices, with no counter or limit of its own. Each
 admitted ordinary flight thus retains its reserved place through saving
 its answer.
 
-After a `Seen` completes, its key is free. A retry is processed against
-the current subject and authority, and a different ask under the freed
-key is a new request.
+Keeping no answer, a `Seen`'s key is free once it completes. A retry is
+processed against the current subject and authority, and a different
+ask under the freed key is a new request.
 
 The operations as the client sends them are
 `../client/domain/contract.md`, 3.2:
