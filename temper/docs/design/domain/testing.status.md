@@ -16,4 +16,6 @@
   below Chromium. The two direct GitHub landing variants share
   `suite::github_land::a_chats_change_lands_on_connected_github`.
 
+- **After landing (11-02):** 2.7: profile `live-temper` selects the owned-forge landing pair alone, run by fab's `--live` under `--run-ignored only` on shelf logins; each story takes its own store under one `TEMPER_LIVE_STORE`; Claude Code runs on `claude-haiku-5-5`. The pair's first after-landing result is fab's to record; fab's runner (its LIVE table, the store, the logins' return) is the agents repository's. The 42 harness step tests counted as duplicates (the after-landing audit at de07a0b2c) need no deletion: 1425451fb7 (11-01) moved them into `suite/support_tests.rs`.
+
 - **Harness (11-01):** the turn-restart referee uses its own future poll/progress deadlines; it does not inherit an unadvanced merge poll from the base chat referee. The isolated cancellation proof used 32.509 CPU s after this change, versus 46.750 s before. An earlier full run met an uncertain initial pull update; the unchanged case passed once alone. Both logs are in the al-temper-process report (hetzner6); this intermittent owned-integration finding remains visible.
