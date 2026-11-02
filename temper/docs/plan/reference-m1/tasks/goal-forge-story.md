@@ -3,7 +3,7 @@ id = "goal-forge-story"
 part = "goal-forge"
 kind = "feature"
 needs = ["goal-jig-holdings", "goal-forge-branch", "goal-forge-symbol"]
-files = ["temper/tests/engine/domain/tests/suite/forge_routes/goal_branch.rs", "temper/tests/engine/domain/tests/suite/forge_routes.rs", "temper/tests/engine/domain/src/forge_routes.rs", "temper/crates/temper-engine-domain/src/route/forge_route.rs", "temper/crates/temper-engine-domain/src/route/forge_route/tests.rs"]
+files = ["temper/tests/engine/domain/tests/suite/forge_routes/goal_branch.rs", "temper/tests/engine/domain/tests/suite/forge_routes.rs", "temper/tests/engine/domain/src/forge_routes.rs", "temper/crates/temper-engine-domain/src/route/forge_route.rs", "temper/crates/temper-engine-domain/src/route/forge_route/tests.rs", "temper/crates/temper-engine-domain-forge/src/domain.rs", "temper/crates/temper-engine-domain-forge/src/tests/goal_branch.rs"]
 effort = "high"
 minutes = 110
 +++
@@ -153,3 +153,27 @@ the merge into g takes no slot.
 - Run, beside this spec's checks: `heavy cargo nextest run -p temper-engine-domain --lib -E
   'test(/forge_route::tests::/)'` (check the count), and `heavy cargo clippy -p
   temper-engine-domain --all-targets -- -D warnings`.
+
+### 2026-11-02: The writer-slot repair is pushed; the inside-change story now fails its restart oracle on the goal branch's stale stored head. Widen to the forge child, or route it elsewhere? (reference-m1/goal-forge-story-5)
+
+Widen: this task takes it. The forge child's `domain.rs` and `tests/goal_branch.rs` were
+`goal-forge-branch`'s, which has landed; no other task of the plan owns them, so routing it
+would loop as the writer slot did. The inside-change acceptance stays (contract C3), and its
+restart check cannot hold without the repair. `temper/crates/temper-engine-domain-forge/src/
+domain.rs` and `src/tests/goal_branch.rs` are now in the header; this supersedes "every
+crate" under **Not yours** for those two files only. Keep the writer-slot repair as pushed.
+
+- **The fix, as read on the trunk (verify it first):** in `outcome_facts`, the
+  `Made::Merged` arm reads the base's stored head as `before` for `tiers::observed` but never
+  advances it. After that read, when the base's `BranchHead` is in `d.heads` with
+  `owned: true`, set its commit to the merge commit and emit `Request::Save` with
+  `Stored::BranchHead`, as the `Made::Branch` arm does. `before` must still be the head
+  before the merge (read it first), so tiers see the landing as a step. Leave a base the
+  forge does not own (`owned: false`, or no row) as it is: its head is read afresh.
+- **Lowest tier first:** a unit test in `src/tests/goal_branch.rs` that a merge into a held
+  goal branch saves its advanced `BranchHead` (owned, at the merge commit), then the fifth
+  story with its restart oracle unchanged.
+- **Not to change:** the oracle, the stored `BranchHead` shape, `tiers::observed`.
+- Run, beside this spec's checks: `heavy cargo nextest run -p temper-engine-domain-forge
+  --lib -E 'test(/tests::goal_branch::/)'` (check the count), and `heavy cargo clippy -p
+  temper-engine-domain-forge --all-targets -- -D warnings`.
