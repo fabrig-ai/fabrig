@@ -134,3 +134,14 @@ Owns the files in the header. The edits there:
 
 The implementer's text's report, plus: each literal site changed by file, and whether any
 temper test's expected policy moved.
+
+## Answers
+
+2026-11-02. May this task add `pub use wake::valid as wake_valid;` to
+`jig-domain-tasks/src/lib.rs`, or does `settings-wake-pace` supply it? `settings-wake-pace`
+supplies it: its acceptance requires the root export, and its spec now owns `lib.rs` for that
+one line (its `## Answers`). This task does not edit `jig-domain-tasks`. On resuming from
+`acd3a1920c`, merge `origin/reference-m1/settings-wake-pace` again; once it carries
+`jig_domain_tasks::wake_valid`, call it from `settings/check.rs` as the acceptance says. If the
+merged branch still lacks the export, stop and report that, rather than adding it here: two
+branches adding the export would collide.
