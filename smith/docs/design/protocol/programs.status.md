@@ -7,4 +7,6 @@
   (`smith-protocol-program/src/backend/stream.rs`) checks its tools and
   MCP servers only. 8: whether the live suite passes on Claude Code
   2.1.312, its two agent-process probes and the summary session's probe
-  among them, is unknown (testing.status.md, 2.3).
+  among them, is unknown: they passed in the after-landing run at main
+  `df41529d3ee1`, whose Claude Code release is unknown
+  (testing.status.md, 2.3).

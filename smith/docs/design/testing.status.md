@@ -12,16 +12,11 @@
   - 2.3: the live stories choose their account with
     `-c endpoints.<name>.account=`, since `--account` is not built
     (shell.status.md).
-  - 2.3: whether the three `live-smith` stories red at main
-    `46e6e70d9b17` (Claude Code 2.1.312) pass on the current main is
-    unknown: no after-landing run of it is read.
-  - 2.3: the refresh story expects a refresh whatever its record's
-    earliest refresh time, so it fails live on a fresh record (the
-    after-landing run at main `df41529d3ee1`: the earliest refresh time
-    2336 s ahead, the generation unchanged), and is named for the
-    refresh alone: it does not choose its case from the record's facts,
-    wait for a near earliest refresh time, report the case it checked,
-    or fail by name on a record without a refresh token.
+  - 2.3: whether the refresh story passes live is unknown: main holds
+    it as 2.3 has it from `c2922ded2b10`, and no after-landing run of a
+    main holding it is read. The last run read, at main
+    `df41529d3ee1`, passed every other story it runs, its Claude Code
+    release unknown.
   - 6: job ends paired across the event stream (they are paired on the
     domain's facts only), state-digest replay (skein has none), and,
     with contained trees, containment (2.2).
