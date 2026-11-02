@@ -130,7 +130,7 @@ pipes      stdin (written, then closed), stdout, stderr
 | `protocol.version=2` | fetch by any object id (gitprotocol-v2: wants are not limited to advertised refs) |
 | `protocol.allow=never` | no transport by default: not `file`, `ssh` or `ext` |
 | `protocol.https.allow=always` | the forge's transport |
-| `protocol.http.allow=always` | the forge's transport where configuration allows plaintext, on loopback only (configuration.md, section 3) |
+| `protocol.http.allow=always` | the forge's transport where its record's remotes' base is plaintext, on loopback only (forge.md, 2.1; configuration.md, section 3) |
 | `credential.helper=` | the empty value clears the list: no credential helper runs |
 | `http.sslVerify=true` | the forge's certificate is always checked |
 | `gc.auto=0` | no automatic garbage collection, which detaches and outlives the invocation |
@@ -701,9 +701,9 @@ checks this document's contract:
   since its start as uncommitted. Moving it costs a fifth invocation
   (`git reset -q <commit>`).
 - **A forge whose certificate needs its own trust for git.** Default: the
-  machine's roots; configuration gives a trust file for the API only
-  (configuration.md, section 3). Between hosts, the trust would come with
-  the workspace's items.
+  machine's roots, for git as for the forge's API, whose record names
+  its TLS name alone (forge.md, 2.1). Between hosts, the trust would
+  come with the workspace's items.
 - **Git LFS.** Default: not supported; no filter is configured, so a
   repository's large files stay pointer files in its working tree.
 - **Another git's messages.** Default: classified against 2.53's, from

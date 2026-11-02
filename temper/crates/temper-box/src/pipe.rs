@@ -1,4 +1,4 @@
-//! The bounded box pipe (temper/docs/design/draft/playground-reset.md, 3 and 4).
+//! The bounded box pipe (temper/docs/design/protocol/setup.md, 7.1).
 use crate::lines::joined;
 use alloc::boxed::Box;
 use skein_io::kernel::Exit;

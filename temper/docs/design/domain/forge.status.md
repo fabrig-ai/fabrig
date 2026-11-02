@@ -3,6 +3,14 @@
 2026-11-02. Where temper's code lags or departs from [forge.md](forge.md).
 
 - **Not yet:**
+  - 4.1: a removal without the box, its group's act answered in its
+    decision: an owned or fake forge's removal asks the box link for
+    `remove N` whether or not a pipe is there, and without one waits for
+    an answer that never comes, so it is never whole and the
+    playground's reset stops at its forge
+    (`temper-engine-domain-forge/src/removal.rs`, `begin`, sets
+    `box_removed` by the forge's mode alone;
+    `temper-service/src/route/box_link.rs`, `remove`).
   - 4.4, 8.3: on GitHub, statuses and dispatches by temper's App for a
     project that lands by turn, and verdicts posted where an installation
     grants `statuses: write`; `status` is false there.
@@ -42,7 +50,11 @@
   - 13: participating objects beyond their news; a landing waiting for
     someone else's merge where temper may not merge (also 4.4 and 9).
   - 14: upstream contributions.
-- **Departs:** 4.1: the demo's forge, ended, and its `Demo` record are
-  gone; a forge can be removed and the playground is a project and forge of
-  ordinary records (`temper-engine-domain-forge/src/removal.rs`), because
-  forges are store records and the playground is reset (`temper/docs/design/draft/playground-reset.md`, 3, 4, 6).
+- **Departs:** 4.1: a removed forge's repositories' rows are erased
+  once no live task, hold or subscription names them, a task's names
+  going at its release (`temper-engine-domain-forge/src/domain.rs`,
+  `erase_removed_repositories` and `unnamed`), not once no kept task
+  does, so a chat that worked on one reads its name until the chat
+  ends, not until it is erased, because the connector keeps names for
+  live tasks alone; which rule holds is the user's to decide (section
+  20).

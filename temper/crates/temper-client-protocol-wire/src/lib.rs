@@ -1,5 +1,5 @@
 //! The forge family's client records (client/README.md, sections 4.6 and 8).
-//! Forge creation and playground reads: temper/docs/design/draft/playground-reset.md, 3 and 6.1.
+//! Forge creation and playground reads: temper/docs/design/client/README.md, 4.6.
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
@@ -197,7 +197,7 @@ pub fn playground_answer(record: &v1::PlaygroundAnswer) -> Box<[u8]> {
     record.encode(&mut writer).expect("measured room");
     writer.finish()
 }
-/// Decode a complete playground answer, refusing empty cues (temper/docs/design/draft/playground-reset.md, 6.1).
+/// Decode a complete playground answer, refusing empty cues (temper/docs/design/client/README.md, 4.6).
 #[must_use]
 pub fn decode_playground_answer(bytes: &[u8], limits: &v1::Limits) -> Option<v1::PlaygroundAnswer> {
     let mut reader = Reader::new(bytes);
@@ -294,7 +294,7 @@ pub fn decode_requesting(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Reques
     Some(record)
 }
 
-// temper/docs/design/draft/playground-reset.md, 3: managed addresses enter whole.
+// temper/docs/design/client/README.md, 4.6: managed addresses enter whole.
 fn valid_making(making: &v1::Making) -> bool {
     match making {
         v1::Making::Kept(_) => true,

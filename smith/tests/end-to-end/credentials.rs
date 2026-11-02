@@ -1,5 +1,13 @@
 //! Credential commands on scratch state, the fake issuer and fake program.
 use super::support;
+use skein_lib::{Duration, Wall};
+use skein_shell::{Clock, Host};
+use skein_world::end_to_end::{Mode, Streams};
+use smith_local_process_world::{
+    process::{IssuerProcess, Proc},
+    terminal::{Action, Terminal},
+    world,
+};
 use smith_real_world::Scratch;
 use std::os::unix::fs::DirBuilderExt;
 
@@ -31,19 +39,19 @@ fn record(scratch: &Scratch, name: &str) -> skein_oauth::SavedToken {
     skein_oauth::decode_record(bytes.expose(), &limits()).expect("credential fixture")
 }
 
-fn seed_bytes(subject: &[u8]) -> Vec<u8> {
+fn seed_bytes(subject: &[u8], expires_at: Wall, earliest_refresh_at: Option<Wall>) -> Vec<u8> {
     let record = skein_oauth::SavedToken {
         issued_client_id: Some(b"oaiapp_for_work".as_slice().into()),
         granted_scopes: Some(FULL_SCOPE.into()),
         subject: Some(subject.into()),
         id_token: Some(b"prior-id-for-work".as_slice().into()),
-        earliest_refresh_at: None,
+        earliest_refresh_at,
         key: 0,
         generation: 1,
         access_token: b"access-for-work".as_slice().into(),
         refresh_token: Some(b"refresh-for-work".as_slice().into()),
         metadata: None,
-        expires_at: skein_lib::Wall::from_nanos(u64::MAX),
+        expires_at,
     };
     skein_oauth::encode_record(&record, &limits()).expect("credential fixture").into_vec()
 }
@@ -55,7 +63,187 @@ fn seed(scratch: &Scratch, name: &str, subject: &[u8]) {
         .mode(0o700)
         .create(path.parent().expect("credential fixture"))
         .expect("credential fixture");
-    support::provider_login::keep_record(&path, &seed_bytes(subject)).expect("credential fixture");
+    support::provider_login::keep_record(&path, &seed_bytes(subject, Wall::from_nanos(u64::MAX), None))
+        .expect("credential fixture");
+}
+
+// smith/docs/design/testing.md, 2.3 and 8; skein/docs/design/oauth.md, 6.3.
+fn refresh_fixture(scratch: &Scratch, earliest_refresh_at: Option<Wall>) -> (Box<[u8]>, Box<[u8]>) {
+    let now = Clock::new().now().wall;
+    let expires_at = Wall::from_nanos(
+        now.as_nanos().checked_add(Duration::from_secs(3600).as_nanos()).expect("fixture expiry fits"),
+    );
+    let held = world::login_at(now, false);
+    let issued = world::login_at(expires_at, false);
+    let bytes = seed_bytes(b"person-for-work", expires_at, earliest_refresh_at);
+    let mut record = skein_oauth::decode_record(&bytes, &limits()).expect("current fixture record");
+    record.issued_client_id = Some(b"client".as_slice().into());
+    record.access_token.clone_from(&held);
+    record.refresh_token = Some(b"refresh-old".as_slice().into());
+    let path = path(scratch, "test");
+    std::fs::DirBuilder::new()
+        .recursive(true)
+        .mode(0o700)
+        .create(path.parent().expect("tokens parent"))
+        .expect("private fixture tokens");
+    support::provider_login::keep_record(
+        &path,
+        &skein_oauth::encode_record(&record, &limits()).expect("current fixture encoding"),
+    )
+    .expect("current fixture kept");
+    let host = smith_real_world::loopback();
+    let configuration = format!(
+        "model='codex/gpt-6-luna'\neffort='low'\ninstructions='@local-shell Assist'\n\
+         [accounts.test]\nsource='sign_in'\nclient_id='client'\nscope='{scope}'\n\
+         authorization_url='http://{host}:34444/authorize'\ntoken_url='http://{host}:34444/token'\n\
+         redirect_uri='http://127.0.0.1:{}/callback'\ntoken_format='form'\n\
+         [endpoints.codex]\naccount='test'\naddress='{host}:34443'\nserver_name='skein.test'\n\
+         trust.system=false\ntrust.der=['{}']\n",
+        smith_real_world::redirect_port(),
+        scratch.path().join("root.der").display(),
+        scope = std::str::from_utf8(FULL_SCOPE).expect("fixture scope text"),
+    );
+    let _file = support::user_layer(scratch, configuration.as_bytes());
+    (held, issued)
+}
+
+fn exec_on_raised_lead(scratch: &Scratch, accepted: Box<[u8]>, refreshed: Box<[u8]>) -> (support::Ran, u64) {
+    use smith_real_world::settled::assert_no_children;
+    use support::Process;
+
+    assert_no_children();
+    let mut binary = support::start(
+        ["exec", "--json", "-c", "deployment.refresh_lead=34560000", "Ask first"].into_iter().map(Into::into).collect(),
+        scratch.path(),
+        Mode::Pipes,
+    );
+    let streams = binary.take_streams().expect("exec streams");
+    let descriptors = streams.descriptors();
+    let Streams::Pipes { input, output } = streams else { unreachable!("exec pipes") };
+    let clock = Clock::new();
+    let now = clock.now().now;
+    let mut world =
+        skein_world::real::World::new(support::Settling::new(now, now.saturating_add(Duration::from_secs(10))));
+    world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));
+    world.spawn_with_fds(descriptors, || {
+        Process::Script(Proc::Terminal(Box::new(Terminal::piped(input, output, vec![Action::Eof]))))
+    });
+    world.spawn(|| {
+        Process::Script(Proc::Peer(Box::new(world::headless_provider(
+            false,
+            skein_llm::Credential {
+                value: accepted,
+                account_id: b"acc".as_slice().into(),
+                scheme: skein_llm::Scheme::Bearer,
+            },
+        ))))
+    });
+    world.spawn(|| {
+        Process::Script(Proc::Issuer(Box::new(IssuerProcess::with_token(
+            skein_fake_peers::Transport::Plaintext,
+            34_444,
+            refreshed,
+        ))))
+    });
+    let outcome = world.run(&clock, Duration::from_secs(12));
+    assert!(outcome.procs.iter().all(Host::is_empty), "exec, person, provider and issuer drain");
+    let Process::Binary(binary) = outcome.procs.first().expect("exec observation") else { unreachable!("exec binary") };
+    let Process::Script(Proc::Terminal(person)) = outcome.procs.get(1).expect("person observation") else {
+        unreachable!("exec person")
+    };
+    let Process::Script(Proc::Issuer(issuer)) = outcome.procs.get(3).expect("issuer observation") else {
+        unreachable!("fake issuer")
+    };
+    let Some(skein_io::kernel::Exit::Code(code)) = binary.exit_status() else {
+        let errors = String::from_utf8_lossy(binary.stderr());
+        let panic_at = errors.lines().find(|line| line.starts_with("thread 'main' panicked at "));
+        let statuses: Vec<_> = issuer
+            .peer()
+            .observations()
+            .iter()
+            .filter_map(|observation| {
+                if let skein_fake_peers::oauth::Observation::Answered { status, .. } = observation {
+                    Some(*status)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        panic!(
+            "exec exit={:?}, stderr bytes={}, panic location={panic_at:?}, issuer statuses={statuses:?}, posts={}, generation={}",
+            binary.exit_status(),
+            binary.stderr().len(),
+            smith_local_process_world::oauth::posts(issuer.peer()),
+            record(scratch, "test").generation
+        );
+    };
+    let posts = smith_local_process_world::oauth::posts(issuer.peer());
+    let answered = issuer
+        .peer()
+        .observations()
+        .iter()
+        .filter(|observation| matches!(observation, skein_fake_peers::oauth::Observation::Answered { status: 200, .. }))
+        .count();
+    assert_eq!(u64::try_from(answered).expect("bounded issuer observations"), posts, "refresh POSTs succeed");
+    assert_no_children();
+    (support::Ran { code, stdout: person.shown().into(), stderr: binary.stderr().into() }, posts)
+}
+
+fn accepted_exec(ran: &support::Ran) {
+    // The binary harness captures at most 64 KiB per stream.
+    const STREAM_BYTES: u32 = 65_536;
+    assert_eq!(ran.code, 0, "fake-backed exec succeeds");
+    let limits = {
+        let mut limits = smith_events::fixture::SMALL;
+        limits.string = STREAM_BYTES;
+        limits.content = STREAM_BYTES;
+        limits.items = STREAM_BYTES;
+        limits
+    };
+    let records: Vec<_> = ran
+        .stdout
+        .split(|byte| *byte == b'\n')
+        .filter(|line| !line.is_empty())
+        .map(|line| {
+            smith_events::read_with_ceiling(line, &limits, STREAM_BYTES)
+                .expect("typed exec event")
+                .expect("known exec event")
+        })
+        .collect();
+    let answers: Vec<_> = records
+        .iter()
+        .filter_map(|record| {
+            if let smith_events::Event::RunCompleted(answer) = &record.event { Some(&answer.status) } else { None }
+        })
+        .collect();
+    assert_eq!(answers, [&smith_events::Status::Accepted], "one accepted answer");
+    no_values(ran);
+}
+
+#[test]
+fn an_exec_on_a_raised_lead_refreshes_its_record_at_once() {
+    let scratch = Scratch::new();
+    let (_held, issued) = refresh_fixture(&scratch, None);
+    assert_eq!(record(&scratch, "test").generation, 1);
+    let (ran, refreshes) = exec_on_raised_lead(&scratch, issued.clone(), issued);
+    accepted_exec(&ran);
+    assert_eq!(refreshes, 1, "one refresh answered at the issuer");
+    assert_eq!(record(&scratch, "test").generation, 2, "refreshed record kept");
+}
+
+#[test]
+fn an_exec_before_the_earliest_refresh_time_keeps_its_record() {
+    let scratch = Scratch::new();
+    let now = Clock::new().now().wall;
+    let earliest = Wall::from_nanos(
+        now.as_nanos().checked_add(Duration::from_secs(3600).as_nanos()).expect("fixture earliest refresh fits"),
+    );
+    let (held, issued) = refresh_fixture(&scratch, Some(earliest));
+    assert_eq!(record(&scratch, "test").generation, 1);
+    let (ran, refreshes) = exec_on_raised_lead(&scratch, held, issued);
+    accepted_exec(&ran);
+    assert_eq!(refreshes, 0, "no refresh before the earliest refresh time");
+    assert_eq!(record(&scratch, "test").generation, 1, "held record stays current");
 }
 
 fn no_values(ran: &support::Ran) {
@@ -205,7 +393,7 @@ fn a_racing_first_login_preserves_the_winner() {
         .mode(0o700)
         .create(path(&scratch, "test").parent().expect("tokens parent"))
         .expect("tokens fixture");
-    let winner = seed_bytes(b"person-for-home");
+    let winner = seed_bytes(b"person-for-home", Wall::from_nanos(u64::MAX), None);
     let (ran, urls, _) = support::provider_login::run_arriving(
         &scratch,
         "test",

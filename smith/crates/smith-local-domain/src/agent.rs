@@ -1,6 +1,7 @@
 //! Agent composition and typed parent commands (domain/host.md, sections 8
 //! and 9.4). This module retains the child and its receiving bounds; it knows
-//! no process descriptors, credentials, wire bytes or durable store format.
+//! no process descriptors, credentials or durable store format. Saved history
+//! moves with its uninterpreted bytes for the spawned child.
 //! Commands and terminals enter either child; its outputs remain ordered
 //! for the local policy to consume.
 
@@ -57,7 +58,12 @@ pub(crate) fn prepare_start(
     };
     let charter = host::Charter::new(source.charter, charter_bytes).ok_or(BridgeError::Charter)?;
     let transcript = match source.transcript {
-        Some(history) => Some(host::Transcript::new(history, transcript_bytes).ok_or(BridgeError::Transcript)?),
+        Some(history) => {
+            if history.owned_bytes() > transcript_bytes {
+                return Err(BridgeError::Transcript);
+            }
+            Some(history)
+        }
         None => None,
     };
     let Ok(count) = u32::try_from(source.answered.len()) else {
@@ -254,7 +260,7 @@ pub(crate) struct RunStart {
     pub(crate) activation: u64,
     pub(crate) charter: run::charter::Charter,
     pub(crate) workspace: Option<run::Workspace>,
-    pub(crate) transcript: Option<root::Transcript>,
+    pub(crate) transcript: Option<host::Transcript>,
     pub(crate) answered: Box<[root::AnsweredCall]>,
     pub(crate) grants: Box<[host::Grant]>,
 }

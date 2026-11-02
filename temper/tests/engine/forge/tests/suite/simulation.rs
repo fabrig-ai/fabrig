@@ -2367,7 +2367,7 @@ fn a_failed_producer_keeps_its_words_through_restart_and_holds_at_producing() {
     assert_eq!(world.writes(), 0, "no pull request or other write for an inapplicable change");
 }
 
-// Removal retires every live watch (temper/docs/design/draft/playground-reset.md, 4).
+// Removal retires every live watch (temper/docs/design/domain/forge.md, 4.1).
 #[test]
 fn a_removed_forge_reads_nothing_after() {
     let mut world = World::writerless(204);

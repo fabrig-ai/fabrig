@@ -810,7 +810,7 @@ impl Component {
                     Keeping::Kept => {
                         let generation = candidate.generation;
                         let subject = candidate.subject.clone();
-                        *slot = recorded(candidate, env, held);
+                        *slot = just_kept(candidate, env, held);
                         if exchange.signing_in() {
                             up.push(Event::SignedIn {
                                 account: number(&self.names, account),
@@ -1226,6 +1226,18 @@ fn turn_of(exchange: &Exchange, lifecycle: Lifecycle, now: Time) -> Option<Turn>
         return Some(Turn::Progress);
     }
     None
+}
+
+fn just_kept(record: SavedToken, env: &Env<Limits>, held: bool) -> State {
+    let half = Duration::from_nanos(record.remaining(env.wall).as_nanos().checked_div(2).expect("nonzero divisor"));
+    let mut state = recorded(record, env, held);
+    match &mut state {
+        State::Record { lead, .. } => {
+            *lead = (*lead).max(env.now.saturating_add(half));
+        }
+        State::Empty | State::Loaded { .. } => unreachable!("record installed after keeping"),
+    }
+    state
 }
 
 fn recorded(record: SavedToken, env: &Env<Limits>, held: bool) -> State {

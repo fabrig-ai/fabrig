@@ -57,10 +57,10 @@ pub struct Answered {
 /// From the routing.
 #[derive(Debug)]
 pub enum Request {
-    /// Takes a forge at runtime (temper/docs/design/draft/playground-reset.md, 3).
+    /// Takes a forge at runtime (skein/docs/design/forge-connection.md, 3.1).
     /// An existing number or an addition past `Limits::forges` is ignored.
     Add(crate::settings::Forge),
-    /// Drops a forge and ends its calls `Unavailable` (playground-reset.md, 4).
+    /// Drops a forge and ends its calls `Unavailable` (skein/docs/design/forge-connection.md, 3.1).
     Remove { forge: u16 },
     /// Hands or replaces a forge's access (forge-connection.md, 3.5): at most one
     /// Connected and at most one Stopped per generation, including refusal after Ready.

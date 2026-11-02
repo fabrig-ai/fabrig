@@ -101,7 +101,7 @@ fn configured_accounts(owner: bool, under_box: bool, rows: &[forge::Configured],
             .collect();
         store.seed(Box::new([]), accounts);
     }
-    // temper/docs/design/draft/playground-reset.md, 3: kept records supply the fixture's forges.
+    // temper/docs/design/client/forge.md, 5.4: kept records supply the fixture's forges.
     let forges = store
         .rows
         .iter()

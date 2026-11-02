@@ -808,8 +808,9 @@ end.
 |---|---|
 | `Request::Run { run, plan }` | `Event::Need { run, need }`: a `Read` or a `Write` |
 | `Request::Answer { run, answer }`: `Read(value)` or `Written` | `Event::Done { run, outcome }` |
-| `Request::Close` | `Event::Stop { run, failure }` |
-| | `Event::Closed` |
+| `Request::Add(forge)` | `Event::Stop { run, failure }` |
+| `Request::Remove { forge }` | `Event::Closed` |
+| `Request::Close` | |
 
 - **A run** is the owner's number for one plan:
   `Reconcile { forge, adopted }`, `Adopt { forge, repository }`,
@@ -833,6 +834,19 @@ end.
 - **Each run ends once,** `Done` or `Stop`, within `deadline`. `Close`
   ends every run unheard and the host says `Closed` when io has settled
   every socket.
+- **A forge added or removed while it runs,** so that a service sets
+  up the forges it makes and removes without a restart. `Add` hands one
+  forge's settings, as construction names them, checked as
+  construction checks each forge: a number the host holds, a forge past
+  its `forges`, or one a check refuses is ignored, since the owner
+  checks its settings first. `Remove` drops one forge and forgets its
+  runs and callbacks: each of its live runs ends at once with its
+  `Stop`, the one it held or, at the step `Admin`, `Down`, naming
+  `remove`; its connections are aborted, a connection still settling
+  after its run's end among them, an exchange in flight unheard; and
+  its states (5.7) are forgotten, so that no plan takes a callback to
+  it. A run for a forge the host does not hold stops at once,
+  `Unexpected`. Another forge's runs go on.
 
 ### 6.4 The items
 
@@ -865,9 +879,10 @@ answered, and a connect sent, only on what a restart would find.
 The host checks limits and settings before it starts, for Forgejo and
 GitHub alike: the given plans must fit their decoder, page and transport
 bounds, and every derived capacity must be representable. The settings
-are fixed for a `Host`'s life; an owner builds it once at start from its
-configured forges. Its configuration compatibility check is `supports`:
-a forge must support the requested plan.
+change only by `Add` and `Remove` (6.3): an owner builds the `Host`
+once at start, from the forges it holds then, and adds and removes
+forges as it makes and drops them. Its configuration compatibility
+check is `supports`: a forge must support the requested plan.
 
 - **One slot holds a run and its connection.** A run has at most one
   connection open, and a run that has ended keeps its slot until its
@@ -903,6 +918,11 @@ The tiers and budgets are testing-strategy.md's and skein's `testing.md`.
   installation uninstalled and a young one left; a picker's installation
   not accepted, and a mint's `404`, each `Missing`, and the minted token
   in no item, outcome or failure; each item's decoder at its bounds. The
+  host's forges added and removed (6.3): an added forge serving a run;
+  an add past `forges`, of a number held, or of settings a check
+  refuses, ignored; a removal ending its runs with their `Stop` and
+  aborting their connections, one still settling and one io has not
+  yet named among them; a run for a forge not held stopped at once. The
   documents are tested with `skein-forge` (forge.md, section 11;
   forge-github.md, section 14).
 - **The setup world** (testing-strategy.md, 2.4), in skein's
