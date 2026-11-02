@@ -96,7 +96,7 @@ pub(crate) fn within(policy: &GatePolicy, limits: &Limits) -> bool {
     }
     true
 }
-fn covers(pattern: &GatePattern, name: &[Box<[u8]>]) -> bool {
+pub(crate) fn covers(pattern: &GatePattern, name: &[Box<[u8]>]) -> bool {
     if name.get(..pattern.segments.len()) != Some(pattern.segments.as_ref()) {
         return false;
     }
