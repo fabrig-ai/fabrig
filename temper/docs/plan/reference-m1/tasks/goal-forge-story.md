@@ -88,3 +88,12 @@ Contract C3 requires: “a merge into g takes g’s writer slot while in flight�
 The acceptance includes the inside-change story when `landing: "goal"` is available; the run reports that it is available.
 Deferral is therefore not a pre-approved option, and the reported failure prevents accepting this task as done.
 After the production owner’s repair, resume the story task, verify the writer assertion and remaining landing assertions, and complete the prescribed checks.
+
+### 2026-11-02: The required goal-branch merge writer repair is still absent on this checkout. Should fab route it to the goal-family production owner and resume after it lands (recommended), or supply the repair commit if it already exists? (reference-m1/goal-forge-story-2, foreman reference-m1/goal-forge-story/foreman-2)
+
+Route the missing merge writer-slot repair to the goal-family production owner, then resume this story task; retain the inside-change acceptance.
+The spec’s existing answer says: “Route the failure to the goal-family production owner, then resume this story task; retain the inside-change acceptance.”
+Ownership is explicit: “the fix is that task’s crate, never this test’s.”
+Contract C3 requires: “a merge into g takes g’s writer slot while in flight”.
+The resumed report reproduces that acceptance failure; pushed stories alone do not satisfy acceptance.
+After the production repair lands, resume this task, verify the writer assertion and remaining landing assertions, and complete the prescribed checks.
