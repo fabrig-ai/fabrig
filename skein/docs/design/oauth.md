@@ -562,6 +562,13 @@ never renames or reuses one on its own. An account has:
   rejection of the same generation fails the grant. No refresh is asked
   before the record's earliest refresh time (section 2); a grant asked for
   meanwhile is answered with the token held while it is valid.
+- **Never back to back.** A record the component has just kept from its own
+  sign-in or refresh is not refreshed by its lead before half its remaining
+  lifetime has passed: its next refresh is at the later of its lead before
+  expiry and that half. A refresh lead longer than a token's lifetime thus
+  refreshes a held grant at once, then at each half-life, never in a loop.
+  A record loaded or read, not kept by this exchange, keeps its lead as it
+  is, so that a raised lead refreshes it at once.
 - **A wanted account** is refreshed at its refresh lead before expiry
   whether or not a grant is held, so that an idle account keeps its refresh
   token alive and a run finds a fresh token. With no grant held, the new
