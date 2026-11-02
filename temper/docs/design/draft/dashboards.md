@@ -345,7 +345,7 @@ memory, run by the metric's owner within its decision's budget, over
 the same facts and buckets, its code shown folded on the review page
 beside the agent's words. wasm with a fuel meter is the likely choice
 over an embedded Lua: one toolchain, and temper already builds for
-wasm32 (`browser-playground.md`). Default: none.
+wasm32 (`../playground.md`). Default: none.
 
 ## 8. Bounds
 

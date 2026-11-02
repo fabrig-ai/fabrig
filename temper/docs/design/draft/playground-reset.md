@@ -271,7 +271,7 @@ From the code at `main` 3714194a9, with 41b98d50d's welcome:
   killed during a reset, which ends whole at the next start; a set up
   killed at each step, found unfinished and started over, Forgejo's
   binaries taken from the cache; GitHub gone on after a restart, on
-  `temper box --fake-backends`' fake GitHub (`fake-backends.md`).
+  `temper box --fake-backends`' fake GitHub (`../protocol/setup.md`, 7.5).
 - **The engine's world:** a removal and a deletion cut by a crash after
   each kept act, resumed to the same end; nothing of the forge or the
   project read afterwards but what 4 and 5 keep.
