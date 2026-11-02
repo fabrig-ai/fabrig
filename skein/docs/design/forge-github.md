@@ -924,7 +924,7 @@ component's worlds run it (fake-forge.md, sections 10 and 11).
 ## 16. The live conformance's organization selection
 
 The live fixture format is described in fake-forge.md, section 11, and
-`tests/forge/github/README.md`. At startup, before minting tokens or making
+`skein/tests/forge/github/README.md`. At startup, before minting tokens or making
 repository changes, the runner reads each installation's probe repository
 with that owner's person token. The first probe whose `owner.type` is
 `Organization` selects the installation for every merge-queue case,
