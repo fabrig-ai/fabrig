@@ -642,6 +642,7 @@ fn read_key(what: &jig_client::contract::Read) -> Option<ObjectKey> {
         | Read::Settings
         | Read::Setting(_)
         | Read::Revision(_)
+        | Read::TaskText { .. }
         | Read::Revisions(_)
         | Read::Deployment => None,
     }
@@ -857,6 +858,7 @@ pub(crate) fn ended_read(result: &jig_client::contract::ReadResult) -> Option<&j
             | ReadValue::Settings(_)
             | ReadValue::Setting(_)
             | ReadValue::Revision(_)
+            | ReadValue::TaskText(_)
             | ReadValue::Revisions(_) => None,
         },
         ReadResult::None(_) => None,
@@ -890,6 +892,7 @@ fn read_body(key: ObjectKey, value: jig_client::contract::ReadValue) -> Option<B
         | ReadValue::Settings(_)
         | ReadValue::Setting(_)
         | ReadValue::Revision(_)
+        | ReadValue::TaskText(_)
         | ReadValue::Revisions(_)
         | ReadValue::Deployment(_) => None,
         ReadValue::Notes(page) => {

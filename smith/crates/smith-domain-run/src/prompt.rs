@@ -4,7 +4,7 @@
 //! 3.3, 3.4, 5.3 and 9.2). Both then receive selected guides, run mechanics and
 //! budget prose fixed at their opening.
 //! `opening` composes a fresh main brief or begin instruction and its bounded message offer;
-//! with concrete history, it offers only messages or a saved-conversation continuation.
+//! with concrete history, it scopes prior exhaustion to its activation before offering waking messages.
 //! No prompt state is retained here; title/text meaning and authority are never
 //! inferred. `system` and `child` consume only admitted immutable source data;
 //! session receiving bytes still decide whether the rendered opening fits.
@@ -24,6 +24,9 @@ use crate::conventions;
 use crate::outcome::{FieldRule, OutcomeSpec, TextSpec, VerdictRule};
 use crate::prepare::{Found, Guide};
 use crate::workspace::{self, Directory, Workspace};
+
+/// A waking instruction scopes exhaustion to the activation that spent its allowance.
+const RESUME: &[u8] = b"A new activation starts with the fresh bounded turns and wall time in ## Budget. Earlier exhaustion and finish-now instructions are superseded for this activation. Continue the saved work; spending remains bounded by the task\'s remaining funds.";
 
 /// The first user instruction of a Finite main or child conversation.
 pub(crate) const BEGIN: &[u8] = b"Begin the work your brief describes.";
@@ -84,7 +87,7 @@ fn render_fixed(text: &mut Text) {
     text.put(WAIT);
     render_finishing(text, &OutcomeSpec { change: None, verdicts: Box::new([]), failure: None, report: None }, false);
     render_answering(text);
-    text.put(&begin(false, false, None));
+    text.put(&begin(false, true, None));
     text.put(b"\n\n");
     render_fixed_budget(text);
     render_wind_down(
@@ -164,8 +167,15 @@ pub(crate) fn opening(charter: &Charter, resumed: bool, messages: Option<Box<[u8
 }
 
 fn begin(brief: bool, resumed: bool, messages: Option<Box<[u8]>>) -> Box<[u8]> {
+    if resumed {
+        let mut measured = Text::measuring();
+        render_resume(&mut measured, messages.as_deref());
+        let mut text = measured.writing();
+        render_resume(&mut text, messages.as_deref());
+        return text.finish();
+    }
     match messages {
-        Some(messages) if resumed || !brief => messages,
+        Some(messages) if !brief => messages,
         Some(messages) => {
             let length =
                 BEGIN.len().checked_add(2).expect("fixed prefix").checked_add(messages.len()).expect("bounded offer");
@@ -175,9 +185,16 @@ fn begin(brief: bool, resumed: bool, messages: Option<Box<[u8]>>) -> Box<[u8]> {
             writer.put(&messages).expect("measured offer");
             writer.finish()
         }
-        None if resumed => Box::from(b"Continue the saved conversation.".as_slice()),
         None if brief => Box::from(BEGIN),
         None => Box::from(b"Begin the work your instructions describe.".as_slice()),
+    }
+}
+
+fn render_resume(text: &mut Text, messages: Option<&[u8]>) {
+    text.put(RESUME);
+    if let Some(messages) = messages {
+        text.put(b"\n\n");
+        text.put(messages);
     }
 }
 
@@ -197,7 +214,7 @@ pub(crate) fn wind_down_note(
 
 /// A final completion that yields without finishing asks again within its cap.
 pub(crate) fn finish_now() -> Box<[u8]> {
-    skein_lib::bytes::copy_of(b"Finish now with what you have. Use finish, or deliver when offered.")
+    skein_lib::bytes::copy_of(b"Finish now with what you have. Use finish, or deliver when offered, or wait when offered to park until another message.")
 }
 
 /// A final Open completion that has not replied asks again within its cap.
@@ -219,7 +236,7 @@ fn render_wind_down(mode: Mode, cause: crate::wind_down::Cause, text: &mut Text,
     render_duration(text, reserve.time);
     match mode {
         Mode::Finite => {
-            text.put(b" to finish. Use only finish, or deliver when offered");
+            text.put(b" to finish. Use only finish, or deliver when offered, or wait when offered to park until another message");
             render_reserve_tools(text, tools);
             text.put(b".");
         }

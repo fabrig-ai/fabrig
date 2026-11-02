@@ -443,7 +443,7 @@ fn assert_rewritten(history: &root::Transcript, prompt: &llm::Prompt) {
     let waking = prompt.messages.last().expect("observed waking User");
     assert_eq!(waking.role, llm::Role::User);
     let [llm::Block::Text { text, replay: None }] = waking.content.as_ref() else { panic!("waking text") };
-    assert_eq!(text.as_ref(), b"Continue the saved conversation.");
+    assert_eq!(text.as_ref(), smith_agent_world::fixture::RESUME);
 }
 
 struct Counted {
@@ -921,11 +921,7 @@ fn generate_prefix(counted: &mut Counted, messages: u32, cycles: u32) -> Limits 
     counted.prefix = Some(prefix);
     assert_generated(counted.prefix.as_ref().expect("observed selected history"), messages);
     counted.saved = counted.prefix.as_ref().map(copy_transcript);
-    let first = counted.initial.as_ref().expect("observed fresh root prompt");
-    let [llm::Block::Text { text, replay: None }] = first.messages[0].content.as_ref() else {
-        panic!("observed fresh waking text")
-    };
-    let capped = cap(counted, text);
+    let capped = cap(counted, smith_agent_world::fixture::RESUME);
     let tight = Limits {
         session: session::Limits { history_bytes: capped, ..counted.env.limits.session },
         ..counted.env.limits
@@ -983,18 +979,8 @@ fn restore_exact(counted: &mut Counted, messages: u32, cycles: u32, tight: &Limi
     let [llm::Block::Text { text: waking, replay: None }] = waking.content.as_ref() else {
         panic!("plain resumed waking text")
     };
-    // Restore retains the original task, but opens with the shorter resumed
-    // wake. Fill that observed room in one saved text, preserving the LARGE
-    // message and every history envelope.
-    let padding = tight.session.history_bytes.checked_sub(cap(counted, waking)).expect("shorter resumed opening");
-    let history = counted.prefix.as_mut().expect("generated prefix");
-    let last = history.turns.last_mut().expect("generated turns").messages.last_mut().expect("saved assistant");
-    let [session::llm::Block::Text { text, replay: None }] = last.content.as_mut() else {
-        panic!("observed saved assistant text")
-    };
-    let mut padded = text.to_vec();
-    padded.resize(padded.len() + usize::try_from(padding).expect("bounded wake difference"), b'x');
-    *text = padded.into_boxed_slice();
+    // The unchanged source history and independently specified resumed wake
+    // attain the receiving payload cap, preserving the LARGE message and envelopes.
     assert_eq!(cap(counted, waking), tight.session.history_bytes, "history plus observed wake attains the payload cap");
     counted.replace_root(tight);
     counted.start(counted.prefix.as_ref().map(copy_transcript), true);
@@ -1064,8 +1050,8 @@ fn refuse_one_over(counted: &mut Counted, cycles: u32, tight: &Limits) {
                     | session::llm::Block::ToolResult { .. } => None,
                 })
                 .expect("literal generated large message");
-            // restore_exact filled the observed resumed wake's headroom in
-            // this prefix, so one more byte is exactly over receiving credit.
+            // The prefix and resumed wake attain the receiving cap, so one
+            // more byte is exactly over receiving credit.
             *text = vec![b'x'; LARGE + 1].into_boxed_slice();
         }
         counted.start(Some(history), true);

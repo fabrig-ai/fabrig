@@ -156,7 +156,7 @@ fn no_workspace_host_answer_wait_park_and_native_transcript_resume() {
         let mut third_prefix = second_prefix.clone();
         third_prefix.extend([
             message(Role::Assistant, vec![text(FIRST), tool(b"call_0000000000000002", b"wait", b"{}")]),
-            message(Role::User, vec![result(b"call_0000000000000002", b"Continue the saved conversation.")]),
+            message(Role::User, vec![result(b"call_0000000000000002", smith_agent_world::fixture::RESUME)]),
         ]);
         observe_usage(&first, &[first_prefix, second_prefix], &[17, 11], true, dialect.reasoning());
         no_workspace(&first);

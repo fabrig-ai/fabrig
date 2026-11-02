@@ -335,7 +335,7 @@ pub fn owned_worker_agent() -> settings::Agent {
                 start_messages: 8,
                 host_ask_input: 4_098,
                 field_text: 4_096,
-                turn_body: 1_589_850,
+                turn_body: 1_589_621,
                 accepted_result: 8_192,
                 ..smith_channel::CEILINGS
             },

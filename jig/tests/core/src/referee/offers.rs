@@ -308,7 +308,8 @@ fn read_subject(read: &core::reads::Read) -> Option<Subject> {
         core::reads::Read::Question { task, message } => Some(Subject::Question { task: *task, message: *message }),
         core::reads::Read::PersonTask { task } => Some(Subject::PersonTask { task: *task }),
         core::reads::Read::Result { task } => Some(Subject::Result { task: *task }),
-        core::reads::Read::Frame
+        core::reads::Read::TaskText { .. }
+        | core::reads::Read::Frame
         | core::reads::Read::Deployment
         | core::reads::Read::Application { .. }
         | core::reads::Read::Reply { .. }

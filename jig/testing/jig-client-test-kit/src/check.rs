@@ -93,6 +93,7 @@ impl Check {
                 | ReadValue::Settings(_)
                 | ReadValue::Setting(_)
                 | ReadValue::Revision(_)
+                | ReadValue::TaskText(_)
                 | ReadValue::Revisions(_)
                 | ReadValue::Deployment(_) => {}
             },

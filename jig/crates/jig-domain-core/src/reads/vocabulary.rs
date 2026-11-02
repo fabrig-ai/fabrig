@@ -75,6 +75,8 @@ pub enum Scope {
     SettingsHistory { first: u32, last: u32, newest: u32, whole: bool },
     /// A task query's live group and its indexed ended group.
     Tasks { query: documents::TaskQuery },
+    /// Source text from a live or retained task, in bounded byte chunks.
+    TaskText { task: u64, field: super::TaskTextField, from: u64 },
     /// One retained task.
     Task { task: u64 },
     /// One immutable proposal and its final routing.
@@ -160,6 +162,12 @@ pub enum Read {
     },
     /// The authenticated party's frame.
     Frame,
+    /// Source words with an explicit continuation byte offset.
+    TaskText {
+        task: u64,
+        field: super::TaskTextField,
+        from: u64,
+    },
     /// A task overview, live or ended.
     Task {
         task: u64,
@@ -421,6 +429,8 @@ pub enum EndedGroup {
 /// Exactly one terminal, held until its preceding decisions are durable.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Answer {
+    /// One source text chunk.
+    TaskText(Box<super::TaskText>),
     Setting(Box<SettingDocument>),
     Revision(Box<RevisionAnswer>),
     Revisions(Box<RevisionsPage>),
