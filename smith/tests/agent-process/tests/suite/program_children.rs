@@ -190,8 +190,7 @@ fn a_program_main_reads_two_children_from_one_message() {
 }
 
 fn finish() -> Turn {
-    Turn::new(vec![Step::Call {
-        tool: "finish".into(),
+    Turn::new(vec![Step::Outcome {
         input: json!({"outcome":{"form":"report","text":"children surveyed","fields":{}}}),
     }])
 }
@@ -218,10 +217,9 @@ fn two_program_children_run_side_by_side_and_each_answers() {
             Turn::new(vec![Step::Together(
                 [("CUE-ALPHA", "alpha"), ("CUE-BETA", "beta")]
                     .into_iter()
-                    .map(|(cue, word)| Step::CallChecked {
+                    .map(|(cue, word)| Step::Call {
                         tool: "sub_agent".into(),
                         input: json!({"brief":format!("{cue} Read the workspace and report {word}."),"tools":["inspect"],"llm":"fake"}),
-                        contains: word.into(),
                     })
                     .collect(),
             )]),
@@ -298,17 +296,22 @@ fn a_program_childs_final_turn_answers_for_its_budget() {
         ],
         cued: vec![Script {
             cue: "CUE-ALPHA".into(),
-            turns: vec![Turn::new(vec![read("/work/repo/a"), read("/library/a"), Step::Hang])],
-        }],
-        asked: vec![Script {
-            cue: "Your share is ending.".into(),
-            turns: vec![Turn::new(vec![read("/library/a"), Step::Text("final survey".into())])],
+            turns: vec![
+                Turn::new(vec![read("/work/repo/a"), read("/library/a"), Step::Hang]),
+                Turn::new(vec![Step::Text("final survey".into())]),
+            ],
         }],
         ..Default::default()
     };
     let run = story_run(&story);
     accepted(&run);
-    assert_eq!(run.seen.iter().filter(|seen| **seen == Seen::Interrupted).count(), 1);
+    assert_eq!(
+        run.seen.iter().filter(|seen| **seen == Seen::Interrupted).count(),
+        1,
+        "seen={:?}, received={:?}",
+        run.seen,
+        run.received
+    );
     let result = results(&run).into_iter().next().expect("child result");
     let smith_transcript::Returned::Said(said) = result.returned() else { panic!("child answer") };
     assert!(!said.error());
@@ -330,16 +333,10 @@ fn a_program_childs_final_turn_answers_for_its_budget() {
                 && text.contains("Your share is ending.")
         })
     }));
-    assert!(run.seen.iter().any(|seen| matches!(seen, Seen::Prompted { decision: Decision::Deny(message), .. } if message.starts_with("not run:"))));
-    assert_eq!(
-        run.seen.iter().filter(|seen| matches!(seen, Seen::Acted { .. })).count(),
-        1,
-        "no read runs after the share ends"
-    );
+    assert!(!run.seen.iter().any(|seen| matches!(seen, Seen::Acted { .. })), "the interrupt ends the pending read");
 }
 
-#[test]
-fn a_cancelled_program_run_stops_its_children() {
+fn cancelled_child(step: Step) -> Run {
     let story = Story {
         turns: vec![Turn::new(vec![
             Step::Call {
@@ -348,7 +345,7 @@ fn a_cancelled_program_run_stops_its_children() {
             },
             Step::Hang,
         ])],
-        cued: vec![Script { cue: "CUE-ALPHA".into(), turns: vec![Turn::new(vec![Step::Hang])] }],
+        cued: vec![Script { cue: "CUE-ALPHA".into(), turns: vec![Turn::new(vec![step])] }],
         ..Default::default()
     };
     let run = program_world::cancel_with_child(&story, &program_world::child_charter());
@@ -359,8 +356,24 @@ fn a_cancelled_program_run_stops_its_children() {
         run.invocations.iter().filter(|invocation| invocation.arguments.first().is_some_and(|arg| arg == "-p")).count(),
         2
     );
-    let signals: Vec<_> = run.seen.iter().filter(|seen| matches!(seen, Seen::Interrupted | Seen::Terminated)).collect();
-    assert_eq!(signals, [&Seen::Interrupted, &Seen::Interrupted, &Seen::Terminated, &Seen::Terminated]);
-    assert!(results(&run).iter().any(|result| matches!(result.returned(), smith_transcript::Returned::Said(said) if said.error() && skein_lib::bytes::find(said.text(), b"unanswered end=").is_some())));
+    let results = results(&run);
+    assert_eq!(results.len(), 1, "the cancelled child call settles once");
+    assert!(matches!(results[0].returned(), smith_transcript::Returned::Withdrawn));
+    assert!(run.seen.contains(&Seen::Called { tool: "sub_agent".into(), error: true }));
     assert!(run.run_directories.is_empty());
+    run
+}
+
+#[test]
+fn a_cancelled_program_run_stops_its_children() {
+    let run = cancelled_child(Step::Hang);
+    let signals: Vec<_> = run.seen.iter().filter(|seen| matches!(seen, Seen::Interrupted | Seen::Terminated)).collect();
+    assert_eq!(signals, [&Seen::Interrupted, &Seen::Interrupted]);
+}
+
+#[test]
+fn a_cancelled_program_run_terminates_a_deaf_child() {
+    let run = cancelled_child(Step::Deaf);
+    let signals: Vec<_> = run.seen.iter().filter(|seen| matches!(seen, Seen::Interrupted | Seen::Terminated)).collect();
+    assert_eq!(signals, [&Seen::Interrupted, &Seen::Interrupted, &Seen::Terminated]);
 }
