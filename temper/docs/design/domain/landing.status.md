@@ -1,8 +1,19 @@
 # landing: status
 
-2026-11-01. Where temper's code lags or departs from [landing.md](landing.md).
+2026-11-02. Where temper's code lags or departs from [landing.md](landing.md).
 
-- **Built:** 1 to 3, 5.2, 6, 7, 8, 10 to 12, 14 (in part), 15 (in part): a project lands by turn, set in the document's `landing` member (`by`, each repository's gates), refused on GitHub; a change under the turn: ready with no checking step, the forge's rebase as its prepare, a landing repair; a landing of one or of changes joined across repositories by a dependency given by an amendment, upstream first, its task a forge procedure (code 3) the deployment makes on the project's behalf, holding the project's ceiling; two live landings never merged, the dependent's waiting, prepared, for its turn; a member cancelled leaves it; keys from the forge's trees; receipts kept by key (families 23 `Landing`, 24 `Receipt`), a key never run twice; dispatch-only gates dispatched for a key with none, runs found and followed by polling to their receipts, a runner's fault rerun up to two retries, then held; `temper/gate/<name>` on the candidate; the turn: the first proved, each member's base checked and each merged fast-forward only by the landing, upstream first, one at a time, a member read back merged landed for good while the rest prepare again (8, the partial turn); restart mid-proof finds its run; `landing show TASK`, `landing list --project PROJECT`; a change's panel names its way and its landing.
-- **Not yet:** 4.1: `with`, a dependent made with its dependency started kept (jig's `connectors.md` 6.1), pin-only members; 5.3: the project's prepare and key; 6.2: the baseline; 9: the reservation; 11: a held landing task's step state before its admission (jig's `connectors.md` 6.3); 13.1: kinds 4 and 5 as settings; 14: `repository receipts`, a landing's acts; the authority narrowed to its kinds (jig); the reference case's 4.1, 4.3, 6.1 to 6.3. 16: two turn-restart process stories become the one with the runner's cancellation.
-
-- **Verified:** 14: a queue change without a landing row retains a change document and an empty landing list, including ended landings. The landing reader treats a matching change document as no landing (exit 2 in text and JSON); wrong tasks, wrong landing projects and malformed documents remain errors. The CLI host preserves the missing-landing and invalid-document exit statuses in both modes.
+- **Not yet:** 4.1: `with`; a dependent made with its dependency, started
+  kept (jig's `domain/connectors.md`, 6.1); pin-only members; a stack of
+  members in one repository, whose second member a later landing takes
+  (`temper-engine-domain-forge/src/landing.rs`). 5.3, 6.1: the project's
+  prepare and key commands, as jobs (`worker.md`, 4.4). 6.2: the baseline
+  at main's tip; a failed receipt rerun first when its tests match open
+  flake findings (`findings.md`, section 5). 8, 11, 16: GitHub's turn, main's
+  ref fast-forwarded (kind 19), and its stories on the fake GitHub. 9: the
+  reservation; stale proofs are counted and reserve nothing. 13.1: kinds 4
+  and 5 as settings. 13.2: adoption's checks under `turn` of each gate's
+  workflow and its triggers, and of the forge's autodetect of a manual
+  merge. 14: `repository receipts`.
+- **Departs:** 8, 13.1: `turn` is refused for every repository on GitHub
+  (`temper-engine-domain-forge/src/landing.rs`, `project_landing`), not only
+  where temper cannot fast-forward main, because GitHub's turn is not built.

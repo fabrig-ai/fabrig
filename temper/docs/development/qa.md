@@ -1,12 +1,14 @@
 # QA of temper
 
 Provisional, 2026-10-26, with the user. What a pass of QA after landing
-(agents' `docs/design/qa-flow.md`) needs of temper: whom it plays, the
-deployment it drives, the hands it holds, how it reads the forge and how
-it checks an outcome. Who marks, chooses, starts and triages is
-agents' `qa-flow.md`; the pass's steps and report are agents'
-`roles/qa.md`. This document says only what those leave to the product,
-and a pass reads it after its brief. The lab's binding and experiments were retired for this process on 10-27. What is still open is section 8.
+needs of temper: whom it plays, the deployment it drives, the hands it
+holds, how it reads the forge and how it checks an outcome. Who marks,
+chooses, starts and triages, and the pass's steps and report, are the
+agents repository's QA flow. This document says only what those leave
+to the product, and a pass reads it after its brief. The product's
+contracts it relies on are temper's design: the box's forge hands
+(`../design/protocol/setup.md`, 7.3) and ctl's help
+(`../design/client/tools.md`, 11.5). What is still open is section 8.
 
 ## 1. In one page
 
@@ -19,7 +21,7 @@ and a pass reads it after its brief. The lab's binding and experiments were reti
   user's choice (the user, 10-26). Our passes choose `curl` (section 5).
 - **temper says what it is doing, why, and where; the forge shows what
   is there.** A change's step, hold and landing are temper's; its diff,
-  reviews, CI logs and branches are the forge's (`client/forge.md`,
+  reviews, CI logs and branches are the forge's (`../design/client/forge.md`,
   section 1).
 - **The deployment is a box,** on its fake backends first, then on real
   ones a rung at a time, as the brief names (section 3).
@@ -40,26 +42,26 @@ and a pass reads it after its brief. The lab's binding and experiments were reti
 ## 2. Whom a pass plays
 
 - **An agent working for a person,** with the person's credential,
-  signed in by the box's printed link (`client/tools.md`, section 9).
+  signed in by the box's printed link (`../design/client/tools.md`, section 9).
   ctl is its tool for temper; what it uses for anything else is its
   own, as for any of temper's users.
 - **temper's part, through ctl:** tasks, chats and their activity; a
   change's way to landing, its step in words, its hold, its place in a
   queue, its gates' verdicts and, landed, its merge commit, read with
   `change show TASK`; the forges and their repositories. Each comes with the ids
-  and links that find it on the forge (`client/tools.md`, 5.5, area 6).
+  and links that find it on the forge (`../design/client/tools.md`, 5.5, area 6).
 - **The forge's part, on the forge:** a pull request's diff, files and
   reviews; CI's runs, jobs and logs; branches and their heads. A part
   temper does not serve says "Shown on the forge.", with the resource
-  in the forge's words (`client/tools.md`, 5.2).
+  in the forge's words (`../design/client/tools.md`, 5.2).
 - **What temper owns on the forge changes through temper:** its
   branches, its pull requests and their landing. What a person does on
   the forge (a review, an approval at a head, a comment, a push to a
   branch of their own) they do there as themselves, and temper reads it
-  (`client/forge.md`, sections 4 and 6).
+  (`../design/client/forge.md`, sections 4 and 6).
 - **temper's own agents are another user.** A chat or a coder reads the
   forge only through its host's read tools, within its authority, since
-  a worker holds no forge credential (`domain/agent.md`, 4.3). A pass
+  a worker holds no forge credential (`../design/domain/agent.md`, 4.3). A pass
   tests that as one of temper's features, as any other.
 
 ## 3. The deployment
@@ -71,10 +73,10 @@ and a pass reads it after its brief. The lab's binding and experiments were reti
 
   | Rung | Forges | Model | Accounts held |
   |---|---|---|---|
-  | fakes | `--fake-backends` (`protocol/setup.md`, 7.5): GitHub and a Forgejo elsewhere faked; Forgejo here real, from the box's cache | the fake model, by the key file the box prints | none |
-  | a real model | Forgejo here, set up through ctl, as the walk `box` sets it up; the box walked from its start to the account's export | ChatGPT, a held login imported and exported back, or a key read from a private file (`client/tools.md`, 5.5, area 5); the box's agents on `gpt-6-luna` at effort medium, its budget raised if needed (below) | the model's |
+  | fakes | `--fake-backends` (`../design/protocol/setup.md`, 7.5): GitHub and a Forgejo elsewhere faked; Forgejo here real, from the box's cache | the fake model, by the key file the box prints | none |
+  | a real model | Forgejo here, set up through ctl, as the walk `box` sets it up; the box walked from its start to the account's export | ChatGPT, a held login imported and exported back, or a key read from a private file (`../design/client/tools.md`, 5.5, area 5); the box's agents on `gpt-6-luna` at effort medium, its budget raised if needed (below) | the model's |
   | GitHub | GitHub, through an App kept for QA, on a repository kept for it | as the rung below | the App's key and its installation |
-  | Claude | Forgejo here, as a real model's rung | Claude Code on a person's own login, a held configuration directory used in place (`protocol/credentials.md`, 3) | the model's |
+  | Claude | Forgejo here, as a real model's rung | Claude Code on a person's own login, a held configuration directory used in place (`../design/protocol/credentials.md`, 3) | the model's |
 
 - **The real model's agents run `gpt-6-luna` at effort medium** (the
   user, 10-28: back to init's shipped model after what `gpt-6.1-sol`
@@ -85,7 +87,7 @@ and a pass reads it after its brief. The lab's binding and experiments were reti
   `["medium", "high", "low"]` in `temper.json`'s `engine.llm` model, the
   first being what a task with no choice of its own takes. Every charter
   takes the first configured model as its main model, and the stock's
-  spends are sized from it at the start (`protocol/configuration.md`,
+  spends are sized from it at the start (`../design/protocol/configuration.md`,
   13.4). After the start, `temper ctl settings show charter 1` names
   `gpt-6-luna`; a box that shows otherwise is a setup to redo, not a
   finding. A chat is started with `--model gpt-6-luna --effort medium`
@@ -173,11 +175,11 @@ and a pass reads it after its brief. The lab's binding and experiments were reti
   defaults are not a QA box's to change (temper#16).
 - **Down before up:** the director opens a rung once the rung below has
   run clean at a `main` no older, and a rung's open findings hold the
-  rungs above it (`draft/qa-live.md`, 3.2, without the lab's verdicts).
-- **Real accounts are the user's,** held on the machine `qa-flow.md`
-  names, used by path and never read, and given back before the box
+  rungs above it.
+- **Real accounts are the user's,** held on the machine the agents
+  repository's QA flow names, used by path and never read, and given back before the box
   stops: an imported login exported to its file. Their spend is
-  `qa-flow.md`'s open question (its section 9).
+  an open question of that QA flow.
 
 ## 4. The hands
 
@@ -192,25 +194,22 @@ and a pass reads it after its brief. The lab's binding and experiments were reti
   its observations. A value the box prints for a person to paste (a
   model key, a fake's admin token, a PEM) reaches temper through ctl,
   as the welcome's paste does.
-- **What the box prints** today: its sign-in link, and on fake backends
-  the fakes' addresses and the files a person pastes (the walk `box`,
-  on fake backends). For the forge's two hands it
-  is to print, for each forge it sets up or fakes, the forge's API and
-  the person (section 7):
+- **What the box prints:** its sign-in link; on fake backends the
+  fakes' addresses and the files a person pastes (the walk `box`, on
+  fake backends); and, for the forge it owns, the forge's API and the
+  person's login:
 
   ```text
-  HH:MM:SSZ Forge 3 (Forgejo): api http://ADDR/api/v1
-  HH:MM:SSZ Forge 3 (Forgejo): person LOGIN, read header FILE, write header FILE
+  HH:MM:SSZ Forgejo: api http://ADDR/api/v1
+  HH:MM:SSZ Forgejo: person LOGIN
   ```
 
+  The person's two header files are `person_read.header` and
+  `person_write.header` in `DATA/forge-FORGE/` (`temper help box`).
+  `../design/protocol/setup.md`, 7.3 has the box print their paths too.
   Each header file holds one line, `Authorization: token TOKEN`, private
   to the box's user, so that a pass passes a token by its path and never
   reads it.
-- **Until it does,** on the box's Forgejo here, the pass signs in on
-  Forgejo's web as the person with `person_password`, changes it as
-  Forgejo asks (`protocol/setup.md`, 6.5), and makes the two tokens as a
-  person makes them; on the fake Forgejo elsewhere, the admin token file
-  the box prints serves both. It reports the minutes under Automation.
 
 ## 5. Reading the forge
 
@@ -260,10 +259,10 @@ curl -fsS -H @READ "$API/repos/OWNER/NAME/pulls/7"
 ## 6. Checking an outcome
 
 - **Each case, one loop:** act through ctl and wait on it
-  (`client/tools.md`, 5.4); read temper's account; follow its ids and
+  (`../design/client/tools.md`, 5.4); read temper's account; follow its ids and
   links to the forge; compare.
 - **A case's line says both,** what temper said and what the forge
-  showed, in agents' `roles/qa.md`, section 3's shape.
+  showed, in the shape the agents repository's QA role gives.
 - **A finding is one of:**
   - **No way to the forge:** an outcome temper reports with no id or
     link to its place there, such as "Landed" with no pull request.
@@ -279,7 +278,7 @@ curl -fsS -H @READ "$API/repos/OWNER/NAME/pulls/7"
     section 6): a writer's bug; the finding names the record and the
     link from serve's log, with the case that wrote the record.
 - **Not a finding:** that the pass read the forge, or how.
-- **Known gaps:** what the design has and `STATUS.md` lists as not yet
+- **Known gaps:** what the design has and its status files list as not yet
   built goes under Blocked, once, with what the pass did instead.
 
 ## 7. What it asks of temper
@@ -287,21 +286,21 @@ curl -fsS -H @READ "$API/repos/OWNER/NAME/pulls/7"
 - **The box's forge hands** (section 4): for each forge it sets up or
   fakes, its API's address, the person's login, and a read and a write
   token as header files, printed with its other lines
-  (`protocol/setup.md`, 7.3).
+  (`../design/protocol/setup.md`, 7.3).
 - **ctl's help** in these terms: the forge read as the agent chooses,
   and what temper owns there changed only through temper
-  (`client/tools.md`, 11.5).
+  (`../design/client/tools.md`, 11.5).
 
 ## 8. Open questions
 
 - **The GitHub rung's App:** made by the user for QA, or from temper's
   manifest. An installation that exists already is accepted with no
-  browser, by `forge accept FORGE INSTALLATION` (`client/tools.md`, 5.5,
+  browser, by `forge accept FORGE INSTALLATION` (`../design/client/tools.md`, 5.5,
   area 6).
-- **Real accounts' holding and spend:** `qa-flow.md`, section 9.
+- **Real accounts' holding and spend:** the agents repository's QA flow.
 - **Holding section 5 to the fake:** a step test that decodes each read
   with skein-forge's Forgejo requests, as the help's ctl lines are held
-  to ctl's parser (`protocol/documentation.md`, section 1). Default:
+  to ctl's parser (`../design/protocol/documentation.md`, section 1). Default:
   none, until a pass meets a read the fake refuses.
-- **The browser:** a pass drives ctl; driving temper's pages waits in
-  `draft/qa-web.md`, whose lab process is retired.
+- **The browser:** a pass drives ctl; driving temper's pages waits for
+  a design of its own.

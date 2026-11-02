@@ -3,12 +3,12 @@
 Provisional, 2026-10-27. What follows a landing: the slower checks a
 repository runs on its newest main (its tiers), the verdict each run
 gives the landings it covers, and a change that lives until its landing
-is cleared, so that a goal ends only when its work is verified. It
-holds for every landing on a repository's landing branch, by queue
+is cleared, so that a goal ends only when its work is verified. It holds
+for every landing on a repository's landing branch, by queue
 (`forge.md`, sections 8 to 10), by turn (`landing.md`), or by anyone
 outside temper. Findings, where a verdict files a flake or a red whose
-goal has ended, are `findings.md`'s; until they are built, a verdict
-keeps them in its own record. What is still open is section 13.
+goal has ended, are `findings.md`'s; a project without findings keeps
+them in the verdict's own record. What is still open is section 13.
 
 ## 1. In one page
 
@@ -267,18 +267,18 @@ red by earlier failures it does not run (5.3).
   artifact by name, unzipped (one file, stored or deflated), cut to
   `max_bytes`; and `Read::Commits { before, after, page }`, the commits
   of a range with their messages, oldest first.
-- **In the store,** designed, not built: `Tier`, keyed by repository and
-  tier, its run in flight, its last judged tip and failures, its
-  flakes, the reds of no goal's until findings take them (section 7),
-  with a count of those dropped past their bound, and a held run's last
-  fault (section 3); `Verification`, keyed by repository and landing commit,
-  for temper's own landings alone, made with the landing's `Landed`
-  row and erased when its last change closes, so bounded by `changes`:
-  the changes it landed, each tier's verdict (cleared, owns failures,
-  or suspected of them), the failures blamed on it and the commit that
-  repaired it; the `Change` family's landed state means verifying, and
-  `Red` and `Cleared` join it. Through the baseline's rules
-  (`landing.md`, section 12).
+- **In the store:** `Tier`, keyed by repository and tier, its run in
+  flight, its last judged tip and failures, its flakes, the reds of no
+  goal's until findings take them (section 7), with a count of those
+  dropped past their bound, and a held run's last fault (section 3);
+  `Verification`, keyed by repository and landing commit, for temper's
+  own landings alone, made with the landing's `Landed` row and erased
+  when its last change closes, so bounded by `changes`: the changes it
+  landed, each tier's verdict (cleared, owns failures, or suspected of
+  them), the failures blamed on it and the commit that repaired it; the
+  `Change` family's landed state means verifying, and `Red` and
+  `Cleared` join it. Through the baseline's rules (`landing.md`, section
+  12).
 - **The landing log,** a family of its own, `LandingLog`, per adopted
   repository: its last `landings_kept` landings, each with its commit,
   the engine's wall time when it saw the move, its changes (none for a
@@ -300,8 +300,8 @@ red by earlier failures it does not run (5.3).
 Beside kind 5's gates, each repository's tiers; with kind 4, the
 project's `tier_retries` (2), `verification_bound` (two hours), several
 suspects' rule (`bisect` or `tell all`), and whether a red pauses its
-repository (no). Until the kinds are built, in the document's `landing`
-member, as the gates are (`landing.md`, 13.1).
+repository (no). Until the kinds are settings, in the document's
+`landing` member, as the gates are (`landing.md`, 13.1).
 
 ## 12. The world
 
@@ -324,10 +324,9 @@ with failing tests by id and uploading their artifacts:
 - **a documentation landing** every tier ignores clears at once;
 - **a landing temper did not make** is in a range like any other;
 - **under queue and by turn,** the same stories.
-- **The reference case** (`../draft/reference-case.md`): these
-  mechanics open its step 4.1's tier judged by its receipt, act 3's
-  steps 6.1 and 6.2, and step 9.4's ends, whose stories on fakes run in this
-  world, and which rung C walks on real backends.
+- **The reference case** (`../draft/reference-case.md`): these mechanics
+  open its steps 25 to 27, a red of main's tier triaged and repaired by
+  a change that names it.
 
 ## 13. Open questions
 

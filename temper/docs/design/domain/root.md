@@ -14,10 +14,10 @@ and the agent agent.md. What is still open is listed in section 13.
 ## 1. In one page
 
 - **temper's root composes jig's core and the forge.** Its children are
-  jig's core, `jig-domain-core`, the forge connector's four crates, and
-  the calendar, which renews each project's funding period (5.7).
-  It alone faces the engine's protocol layer (section 3;
-  `../protocol/README.md`, section 6).
+  jig's core, `jig-domain-core`, the forge connector's crates, and the
+  calendar, `temper-engine-domain-calendar`, which renews each project's
+  funding period (5.7). It alone faces the engine's protocol layer
+  (section 3; `../protocol/README.md`, section 6).
 - **It routes and translates; jig's core decides.** What commits
   together, what waits for a commit, the order of a restart and the check
   on every effect are the core's or the journal's (jig's
@@ -52,10 +52,11 @@ and the agent agent.md. What is still open is listed in section 13.
 temper-engine-domain                       the root: the journal, routing, translation, putting outputs together
 ├── jig-domain-core                        jig's core and its children (jig's domain/engine.md, section 3)
 ├── temper-engine-domain-forge             the forge connector's top (forge.md, section 3)
-    ├── skein-forge-client                 the working set, keeping up, fresh reads, the request budget, effects' keys, write lanes (skein's forge-client.md)
-    ├── temper-engine-domain-forge-change  the change procedure and the landing queues
-    └── temper-engine-domain-forge-issues  the goals' issues
-└── calendar                               each project's funding period, renewed on a span (5.7)
+│   ├── skein-forge-client                 the working set, keeping up, fresh reads, the request budget, effects' keys, write lanes (skein's forge-client.md)
+│   ├── temper-engine-domain-forge-change  the change procedure and the landing queues
+│   ├── temper-engine-domain-forge-landing the landing by turn (landing.md)
+│   └── temper-engine-domain-forge-issues  the goals' issues
+└── temper-engine-domain-calendar          each project's funding period, renewed on a span (5.7)
 ```
 
 - **One connector, the forge.** Configuration names the core one
@@ -476,11 +477,11 @@ What temper adds to the core's usual routes (jig's `domain/engine.md`,
   same way before the step's decision is complete; one the core refuses
   leaves the change's state as it was.
 - **The forge is every requirement's judge:** temper's landing rules are
-  the forge's criteria (section 6; forge.md, 8.7). Designed, not built:
-  the forge judges two standing requirements over the landing rules it
-  holds (`../protocol/configuration.md`, 13.3), and the root gives it,
-  with each ask, the merge's resources by the forge's names, the path
-  read back as section 6 makes it.
+  the forge's criteria (section 6; forge.md, 8.7). The forge judges two
+  standing requirements over the landing rules it holds
+  (`../protocol/configuration.md`, 13.3), and the root gives it, with
+  each ask, the merge's resources by the forge's names, the path read
+  back as section 6 makes it.
 - **Made after the commit:** the core's held output to make an entry is
   released once its commit is durable, fed back to the forge, which makes
   its API call (`Request::Forge`) behind every commit before it.
@@ -490,7 +491,9 @@ What temper adds to the core's usual routes (jig's `domain/engine.md`,
 
 ### 5.6 Settings
 
-Designed, not built (`../protocol/configuration.md`, section 13).
+The settings of temper's kinds are `../protocol/configuration.md`,
+section 13's.
+
 
 - **temper's kinds are the forge's.** A change of settings naming items
   of temper's kinds reaches the root within the change's decision, as a
@@ -586,40 +589,29 @@ exhaustively with no `_` arm (jig's `domain/root.md`, section 6).
 
 - **Configuration,** `Config`, field by field as
   `../protocol/configuration.md`, section 3 says: `core` to the core
-  whole; `forge` to the forge, its namespace the deployment's id;
-  `identities`, each forge's git identity, to the forge; `landing`
-  translated (below); `forge_charter` kept, the charter of every agent
-  task the forge's procedures make. Designed, not built: `landing` and
-  `forge_charter` leave `Config` for settings: `core` carries jig's
-  kinds' stock defaults and temper's kinds' declarations, and the
-  forge's configuration temper's kinds' stock defaults
-  (`../protocol/configuration.md`, 13.4). The root holds its configuration to
+  whole, with jig's kinds' stock defaults and temper's kinds'
+  declarations; `forge` to the forge, its namespace the deployment's id,
+  with temper's kinds' stock defaults (`../protocol/configuration.md`,
+  13.4); `identities`, each forge's git identity, to the forge. The
+  landing rules and the forge's charter are settings of temper's kinds
+  (5.6), not members of `Config`. The root holds its configuration to
   its limits as it is made, and a start that breaks one is refused,
   naming it (`../protocol/configuration.md`, section 2): one connector;
-  the configured workers within the fleet's configured count and name bytes
-  (jig's Membership);
-  the deployment's provider other than 0, the forge's sign-in; each
-  charter's run within an assignment's bytes; the forge's charter
-  one of the core's; the resume limit within a row's bytes; each seeded
-  owner's project naming its escalation role; the landing rules and the
-  permission mappings within a row's bytes, and within the forge's
-  judges' tables.
-- **The landing policy,** `LandingPolicy`: the deployment's rules and
-  each project's, each a `LandingRule` on a pattern of landing branches.
-  Each criterion of a rule (CI, up to date, a gate, an approval) becomes
-  two values under one index: a requirement on the forge's merge, for
-  authority, judged by the forge and guarded or observed as forge.md, 8.7
-  says; and the forge's own criterion, by which its judge reads the
-  facts. A rule that does not enforce gives the forge its criteria and
-  authority no requirement. As the root is made, the deployment's
-  requirements join the configured rules and each project's its policy;
-  a rule's gates become the forge's gate templates, which every change
-  into a covered branch asks for (forge.md, 8.3). Designed, not built:
-  nothing is compiled. The rules are values of temper's kinds, which the
-  forge holds as it is told them (5.6); the stock rules carry two
-  standing requirements on the forge's merge, and no rule or policy of
-  jig's changes with a landing rule (`../protocol/configuration.md`,
-  13.3).
+  the configured workers within the fleet's configured count and name
+  bytes (jig's Membership); the deployment's provider other than 0, the
+  forge's sign-in; each charter's run within an assignment's bytes; the
+  forge's charter one of the core's; the resume limit within a row's
+  bytes; each seeded owner's project naming its escalation role; the
+  landing rules and the permission mappings within a row's bytes, and
+  within the forge's judges' tables.
+- **The landing policy:** the deployment's rules and each project's,
+  each a `LandingRule` on a pattern of landing branches, whose gates
+  every change into a covered branch asks for (forge.md, 8.3). Nothing
+  is compiled: the rules are values of temper's kinds, which the forge
+  holds as it is told them (5.6) and judges (forge.md, 8.7); the stock
+  rules carry two standing requirements on the forge's merge, and no
+  rule or policy of jig's changes with a landing rule
+  (`../protocol/configuration.md`, 13.3).
 - **Names.** The root makes two names from the forge's own (the forge,
   the repository's id, what in it): a path for authority (`forge`, the
   forge's host, the owner, the name, then `branch` and its segments, or
@@ -672,17 +664,17 @@ exhaustively with no `_` arm (jig's `domain/root.md`, section 6).
   the id's digits is not refused, and the result never passes it.
 - **A change's delegates,** in the core's terms: an agent task under the
   forge's charter for producing, repairs, resolutions, and agents' and
-  checks' gates (designed, not built: the charter the change was made
-  with, kept on it, which its procedure's delegation grants;
-  `../protocol/configuration.md`, 13.2); a person task for the project's maintainers for a
-  person's gate. Its parameters name the repository, its base and the
-  change's branch, and a resolution's base commit or a gate's number and
-  head, each commit as text: its id in lowercase hexadecimal, 40 digits
-  for a SHA-1 id and 64 for a SHA-256 one, as the forge's ids are
-  written (skein's `forge.md`, 5.1), since a task's parameters
-  are text (jig's `client/domain/contract.md`, 5.3); its contract is a
-  change, or a gate's verdict; its authority is the change's, its budget
-  what the change has left, with no delegation of its own.
+  checks' gates (the charter the change was made with, kept on it, which
+  its procedure's delegation grants; `../protocol/configuration.md`,
+  13.2); a person task for the project's maintainers for a person's
+  gate. Its parameters name the repository, its base and the change's
+  branch, and a resolution's base commit or a gate's number and head,
+  each commit as text: its id in lowercase hexadecimal, 40 digits for a
+  SHA-1 id and 64 for a SHA-256 one, as the forge's ids are written
+  (skein's `forge.md`, 5.1), since a task's parameters are text (jig's
+  `client/domain/contract.md`, 5.3); its contract is a change, or a
+  gate's verdict; its authority is the change's, its budget what the
+  change has left, with no delegation of its own.
 - **A collaborator's permission** on the forge (read, write, admin)
   becomes the role its project's configured mapping names, as a
   repository is adopted (forge.md, section 4).
@@ -819,7 +811,7 @@ together again from both. A run's read is answered through the door.
   and proposals) are loads the root makes for the core and answers back
   in its terms; a full table of them answers busy.
 - **An issued transcript load that fails** answers the core's
-  `TranscriptUnread`, retiring its read once; an answer to a stale
+  `TranscriptLoad::Unread`, retiring its read once; an answer to a stale
   preparation is ignored. The core owns the window policy (jig's
   `domain/engine.md`, 7.2): a closed window starts fresh with an empty
   tail and no added failure or refusal, while an open window keeps its
@@ -847,21 +839,20 @@ each step the core asks for:
    forge links them, judging none: a record whose forge, repository or
    task the restart does not hold is a writer's bug, and its link
    panics, as jig's children's do (jig's `domain/engine.md`, section 6).
-   Designed, not built: before them, the forge loads its kinds' values
-   from its family `Setting`, is given temper's stock defaults, and
-   tells the core which differ (5.6). Then **the switch**
-   (jig's `start::Phase::Switch`), at every start: over a generation the store
-   holds pending (jig's `protocol/store.md`, 10.2, step 7) the root asks
-   the store to switch and goes on once it answers; then it commits the
-   start's wires (jig's `protocol/store.md`, 5.3). Nothing leaves the
-   process before that commit is durable, the accounts' driver made
-   after it (jig's `protocol/llm.md`, 5.1); over a pending generation
-   the restores' commits before it land in the copy alone, and a refusal
-   before the switch leaves the generation patched from active (jig's
-   `domain/engine.md`, section 6).
-   A rehearsing root (`../protocol/README.md`, section 4, `temper
-   upgrade --check`) ends before this step, reporting the restores
-   whole.
+   Before them, the forge loads its kinds' values from its family
+   `Setting`, is given temper's stock defaults, and tells the core which
+   differ (5.6). Then **the switch** (jig's `start::Phase::Switch`), at
+   every start: over a generation the store holds pending (jig's
+   `protocol/store.md`, 10.2, step 7) the root asks the store to switch
+   and goes on once it answers; then it commits the start's wires (jig's
+   `protocol/store.md`, 5.3). Nothing leaves the process before that
+   commit is durable, the accounts' driver made after it (jig's
+   `protocol/llm.md`, 5.1); over a pending generation the restores'
+   commits before it land in the copy alone, and a refusal before the
+   switch leaves the generation patched from active (jig's
+   `domain/engine.md`, section 6). A rehearsing root
+   (`../protocol/README.md`, section 4, `temper upgrade --check`) ends
+   before this step, reporting the restores whole.
 4. **Runs adopted:** the claims to the fleet, those on in-process
    workers settled at once (section 2).
 5. **The forge reads afresh,** then **settles its outbox** (forge.md,
@@ -877,7 +868,7 @@ from its restore on.
 
 ### 9.2 Stopping
 
-A stop settles first (`draft/upgrades.md`, section 8), then the core
+A stop settles first (`../draft/upgrades.md`, section 8), then the core
 drains as jig's `domain/engine.md`, 6.1 says.
 
 - **Settling.** Told to stop, the root tells the forge to settle
