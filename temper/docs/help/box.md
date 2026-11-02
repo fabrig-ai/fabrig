@@ -9,19 +9,25 @@ Run a whole deployment on one machine, on loopback, from its configuration to a 
 - **The binary:** `temper` on `PATH`, git 2.41 or later. From a checkout:
   `scripts/install.sh "$HOME/.local"`; builds need Rust's
   `wasm32-unknown-unknown` target.
+- **Host actions:** `temper-host` needs compatible Node.js on the host
+  as `node` for JavaScript `uses:` actions: `actions/checkout@v4`,
+  `actions/upload-artifact@v3`. Put it on
+  `application.machine.owned.runner.path` (default
+  `/usr/local/bin:/usr/bin:/bin`); restart the box after changing it.
+  Availability only in an interactive shell is insufficient:
+  the runner uses the configured PATH.
 - **Real or fake backends:** choose before step 2; never mix them.
-  Real needs a model account, fetches Forgejo and its runner on first
+  Real needs a model account and fetches Forgejo and its runner on first
   use. Fake needs no account: GitHub, model, sign-in and remote Forgejo
-  are fakes on loopback; local Forgejo stays real. From a checkout, run
+  are fakes on loopback; local Forgejo stays real. From a checkout:
   `cargo build -p temper -p temper-fake-claude` to put `fake-claude`
   beside `temper`, then `scripts/bundle.sh --loopback BUNDLE`.
 - **The directories:** `CONFIG`, `DATA` and `CACHE`: absolute, empty,
-  private to you (0700), not reached through links. `DIR`: private to you. Nothing
-  else may use these directories.
-- **A model account** on real backends: an exported login or API key
-  in a private file; a provider's browser sign-in on this machine; or
-  Claude Code (`claude` on `PATH`), signed in at step 5 or in a
-  configuration directory you hold.
+  private (0700), without links. `DIR`: private. No other use of them.
+- **A model account** for real backends: a login export or API key
+  in a private file; browser sign-in on this machine; or Claude Code
+  (`claude` on `PATH`), signed in at step 5 or in your configuration
+  directory.
 - `BUNDLE`: the loopback bundle directory, on fake backends.
 - `REQUEST`: the change request file.
 - `CHANGE`: the change task's number (step 6).
@@ -35,20 +41,18 @@ Run a whole deployment on one machine, on loopback, from its configuration to a 
 temper init --config CONFIG --data DATA --cache CACHE
 ```
 
-Init chooses five loopback ports, preferring 8367–8371 for clients,
-owned Forgejo, fake forge, demo LLM and webhooks. Occupied ports fall
-back to free kernel ports, matching in both configuration files.
-For another box, keep the first running and use separate empty
-`CONFIG`, `DATA` and `CACHE`: let init choose ports.
+Init chooses five loopback ports: 8367–8371 for clients, owned Forgejo,
+fake forge, demo LLM and webhooks, or free kernel ports if occupied.
+Both configuration files agree. For another box, keep the first running
+and use separate empty `CONFIG`, `DATA` and `CACHE`.
 
-Saved addresses are fixed; later starts refuse occupied ones. A separate
-init releases reservations on exit. To keep them through startup,
-run step 2's `temper box` on empty directories: it runs init and retains
-all five listeners. Finish edits before starting; fake backends require
+Later starts refuse occupied saved addresses. Init releases ports on
+exit; step 2's `temper box` on empty directories runs init and retains
+the listeners. Finish edits before starting; fake backends require
 `CONFIG` unchanged from init.
 
 Expect: `init: wrote DATA/worker.secret`; the last line names step 2's
-command for real backends.
+real-backend command.
 
 **Claude Code:** replace OpenAI's provider with Anthropic's below.
 `MODEL`: a Claude Code model, such as `sonnet` or `opus`.
@@ -98,7 +102,7 @@ Fake backends:
 temper box --fake-backends --bundle BUNDLE --config CONFIG --data DATA --cache CACHE
 ```
 
-Keep it running in a terminal or in the background, output to a file.
+Keep it running; in the background, send output to a file.
 Its sign-in link follows `Open this link in a browser on this machine.`
 
 Expect: real, `Logs: DATA/box/logs/`. Fake,
@@ -107,19 +111,17 @@ the next lines, `box: model key FILE` and
 `box: GitHub own App id 1, key file FILE`, the files later steps read.
 
 If not: `missing or nonexecutable adapter`: build `fake-claude` beside
-`temper`. `not in current init shape`: `CONFIG` changed after init;
-start from empty directories. `retained documents must be private
-files`: `chmod 600` the effective document. Refused stored state prints
-`temper serve: restore KIND: REASON` or
-`temper serve: restart refused during STEP`; the box retries, then
-exits 1. Keep `DATA` and report the line as a finding.
+`temper`. `not in current init shape`: use empty directories; `CONFIG`
+changed after init. `retained documents must be private files`:
+`chmod 600` the effective document. Refused state prints
+`temper serve: restore KIND: REASON` or `temper serve: restart refused
+during STEP`; retries end at exit 1. Keep `DATA` and report the line.
 An incompatible store prints `temper serve: DATA/deployment holds a
 store from an older build, whose FAMILY family's layout differs from
-this build's, ...`, retried the same way. Stores aren't translated
-before the first release. To start afresh, stop the box, move `active`,
-`generations/` and `transcripts/` out of `DATA/deployment` together,
-then restart. Nothing is deleted; the new store has no tasks, sign-ins,
-accounts or keys. Every client signs in again.
+this build's, ...`, with the same retries. No store translation before
+the first release. To start afresh, stop the box and move `active`,
+`generations/` and `transcripts/` out of `DATA/deployment` together.
+Restart creates an empty store; every client signs in again.
 
 ## 3. Sign in
 
@@ -176,20 +178,19 @@ shows in `temper ctl DIR forge list`, with its reason.
 Choose one way. `me` lists providers; `temper init` makes OpenAI
 provider 1.
 
-A login exported from another deployment:
+A login from another deployment:
 
 ```
 temper ctl DIR account import FILE --key KEY
 ```
 
-A provider's browser sign-in; any HTTP client completes the fake:
+Browser sign-in (any HTTP client completes the fake):
 
 ```
 temper ctl DIR account connect PROVIDER --key KEY
 ```
 
-An API key from a private file; on fake backends, the model key file
-the box printed:
+An API key in a private file; on fake backends, the printed model key file:
 
 ```
 temper ctl DIR account add-key PROVIDER FILE --deployment --key KEY
@@ -205,9 +206,9 @@ temper ctl DIR account list
 temper ctl DIR account verify ACCOUNT --source program
 ```
 
-`program-login` signs Claude Code in here into `PROGRAMS/NAME`.
-For an existing login, set `PROGRAMS` to its parent, `NAME` to its
-name and skip `program-login`. Only one box uses it at a time.
+`program-login` signs Claude Code into `PROGRAMS/NAME` here.
+For an existing login, use its parent as `PROGRAMS`, its name as `NAME`,
+and skip `program-login`. Only one box uses it at a time.
 
 Then:
 
@@ -241,7 +242,7 @@ temper ctl DIR task show TASK --tree
 earlier pages.
 
 Expect: `done: task TASK, chat`; the wait's `task TASK · chat · `
-panel ends `met`; `chat show` prints the agent's reply.
+panel ends `met`; `chat show` prints the reply.
 
 If not: fake backends reply `Hello from the local fake model.`
 without a change: go to step 8. `chat exceeds offered bounds`
@@ -289,15 +290,13 @@ temper ctl DIR account export ACCOUNT FILE
 Expect: `moved out: account ACCOUNT to FILE`; the box's last line
 ends `Stopped`.
 
-If not: `account export: not signed in` (exit 2): no sign-in to move;
-add a key again where needed.
+If not: `account export: not signed in` (exit 2): add a key where needed.
 `temper ctl: the engine holds its N answers of the last day; room again
 at TIME` (exit 2): no room for the move's answers; nothing moved.
 Keep the box running and export again after TIME.
-`temper ctl: unsent` (exit 1): the engine was busy; nothing moved.
-Export again later. Any other failure: keep the box running; the
-engine keeps the account and cancels the move at its deadline.
-Export again after it.
+`temper ctl: unsent` (exit 1): busy engine, nothing moved; export later.
+Other failures: keep the box running; the engine keeps
+the account and cancels the move at its deadline. Export after it.
 
 ## Clean up
 
