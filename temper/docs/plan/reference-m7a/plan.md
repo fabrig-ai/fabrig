@@ -29,31 +29,42 @@ The shapes every task builds to are `notes/contracts.md`; the standing rules
     place: the hello's `jobs`, `Job`, `JobAnswer`, their kinds.
   - `tasks/hub-jobs.md`, high, ~160 min, needs nothing: `JobKind`/`JobBound`/`Hello::jobs`
     and the hub's hosted job, with forced arms elsewhere.
-  - Later batch: `link-jobs` (the two link crates' translations; needs both above),
-    `fleet-jobs` (placement on a declaring host, the engine side of the answer, restart).
+  - `tasks/link-jobs.md`, high, ~120 min, needs `worker-wire-jobs`, `hub-jobs`: both links
+    translate the job's records.
+  - `tasks/fleet-jobs.md`, high, ~170 min, needs `hub-jobs`: the fleet places a job on a host
+    declaring its kind; hub-link's `StartJob`/`AssignedJob`; a job's answer as the tasks
+    child's `End`; restart.
 - **worker-jobs** (`temper/docs/design/domain/worker.md, 4.4`), slice 1.
   - `tasks/tooling-capability.md`, high, ~150 min, needs nothing: the new crate
     `temper-worker-domain-tooling`, sans-io, uncomposed.
-  - Later batch: `worker-jobs` (the root composes it; the service's processes, files, spec
-    decoding, the hello's kinds, the delivery's push; needs `hub-jobs`, `link-jobs`,
-    `tooling-capability`).
+  - `tasks/worker-jobs.md`, high, ~170 min, needs `hub-jobs`, `tooling-capability`: the root
+    composes it; hello's kinds; routing; delivery by the checkout's push.
+  - `tasks/service-jobs.md`, high, ~160 min, needs `worker-jobs`, `link-jobs`: the spec's
+    record and decoding, the operations on skein's io, the profile's job limits.
 - **client-jobs** (`jig/docs/design/client/domain/contract.md, 5.7`), slice 2.
   - `tasks/client-jobs.md`, medium, ~120 min, needs nothing: the client wire, domain, link,
     view, temper's client arms; Create refuses a job.
-- **job-tasks** (`jig/docs/design/domain/tasks.md, 5.3.1`), later batch, slice 3:
-  `tasks-jobs-surface` (the variants in tasks, authority, the store's families and the core's
-  forced arms; needs `client-jobs`), then `tasks-jobs-lifecycle` (the tasks child),
-  `core-jobs-admit` (a procedure's step makes a job) and `fleet-jobs` side by side, then
-  `core-jobs-run` (claim, placement, answer, restart).
+- **job-tasks** (`jig/docs/design/domain/tasks.md, 5.3.1`), slice 3.
+  - `tasks/tasks-jobs-surface.md`, medium, ~180 min, needs `client-jobs`: the variants in tasks,
+    authority, the store's three families, the core's and temper's forced arms, inert (the
+    batch refuses a job); the engine-clients mappings.
+  - Next batch (a designer's): `tasks-jobs-lifecycle` and `core-jobs-admit` side by side after
+    the surface, then `core-jobs-run` (needs both and `fleet-jobs`).
 
 ## Critical path, as it stands
 
-`client-jobs` (~120) → `tasks-jobs-surface` → `core-jobs-admit` / `tasks-jobs-lifecycle` →
-`core-jobs-run`, then fab's end check. The worker side (`hub-jobs` → `link-jobs` →
-`worker-jobs`) runs beside it.
+`client-jobs` (~120) → `tasks-jobs-surface` (~180) → `core-jobs-admit` / `tasks-jobs-lifecycle`
+→ `core-jobs-run`, then fab's end check: about nine hours of implementer time, eighteen with
+the buffer. The worker side (`hub-jobs` → `link-jobs`, `fleet-jobs`, `worker-jobs` →
+`service-jobs`) runs beside it and joins at `core-jobs-run` through `fleet-jobs`.
 
 ## Overlaps
 
+- **Within the plan, crates shared by tasks that may run at once,** in distinct files or hunks:
+  `fleet-jobs` adds forced arms in `jig-domain-core`'s routing and in the engine roots'
+  `link.rs` while `tasks-jobs-surface` adds executor arms in other core files;
+  `worker-jobs` adds inert arms in `temper-service`'s worker files, which `service-jobs`
+  (after it) owns.
 - Within the plan, `worker-wire-jobs` and `hub-jobs` both touch
   `jig/crates/jig-protocol-worker-link/src/translate.rs` (the hello's wire literal; the job
   answer's arm in `up`), distinct functions; `hub-jobs`'s forced `Hello::jobs` literals touch

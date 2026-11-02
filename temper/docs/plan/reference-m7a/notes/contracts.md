@@ -212,6 +212,13 @@ pub struct JobSpec {
   `Failed` and `Deadline` the run's own; `Unstarted` the agent's; `Result` invalid;
   `Undelivered(Failed)` transient; `Cancelled(Contact | Shutdown)` lost; `Cancelled(Engine)` a
   cancel's end.
+- **A job's answer reaches the tasks child as an existing `End`,** no new variant:
+  `JobEnding::Finished { result, .. }` is `End::Finished { result: TaskResult::Job { bytes:
+  result }, cancel_delegates: false }`; `Failed { failure, .. }` is `End::Failed(class)` by the
+  classes above; `Refused(JobRefusal::Busy)` is `End::Refused`; `Refused(JobRefusal::Invalid(_))`
+  is `End::Failed` of the permanent class, as an assignment its host found invalid. The
+  function that maps one to the other is `jig-domain-hub-link`'s, beside the run's
+  `result_event` (`fleet-jobs`).
 
 ## 5. The core: `jig-domain-core`
 
