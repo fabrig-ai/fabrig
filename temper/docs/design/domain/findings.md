@@ -147,9 +147,9 @@ is open is section 10.
   adoption, with whether it is off. On GitHub, whatever it says, and on
   any other forge, a finding closed in the minute after a landing whose
   commits name it is the keyword's, and temper reopens it with a
-  comment saying it closes once its landing is cleared, until the
-  draft's B6 check (whether the setting also stops a commit's keyword
-  under a ref update) says the reopening can go.
+  comment saying it closes once its landing is cleared, until a check
+  of whether the setting also stops a commit's keyword under a ref
+  update says the reopening can go.
 - **From a repository other than the home,** `Fixes #n` would name that
   repository's own issue n. There a change names a finding by the
   trailer `Fixes-finding: n`, which no forge reads; temper reads it in
@@ -223,6 +223,4 @@ counted when seen again; a person relabelling one `state:backlog`,
 read back; the triager routing one to a goal; a landing with `Fixes
 #n` closing it once cleared, and the forge's keyword closing reopened
 before; a gate's failure matching only flakes rerun once; a QA pass on
-the newest cleared main, its tester's report filed. They open the
-reference case's act 3 steps 6.3 and 6.4 (`../draft/reference-case.md`),
-which rung C walks on real backends.
+the newest cleared main, its tester's report filed.

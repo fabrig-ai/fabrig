@@ -575,8 +575,7 @@ the forge's, judged in the change's decision:
 | 4, a project's landing | each project | 1 | the members below |
 | 5, a repository's gates | each project | the repository's adoption, unique in the deployment (its forge's number shifted 16 bits left, with the forge's repository number below) | the repository (its forge and id); `gates`, its test gates, each a name, the workflow's file, its ignored paths, and whether it blocks; `tiers`, each a name, the workflow's file, its ignored paths, the artifact and its format (`after-landing.md`, section 2) |
 
-Kind 4's members, each with its default and the document it serves
-(`../draft/landing-model.md`, section 14):
+Kind 4's members, each with its default and the section it serves:
 
 | Member | Default | Serves |
 |---|---|---|
@@ -680,10 +679,6 @@ across a restart of the binary. The forge's world holds:
   main fast-forwarded by a ref update; a lost ref update found made; a
   repository without `Always` refused, naming the bypass and how a
   person grants it; a required merge queue refused.
-- **The reference case** (`../draft/reference-case.md`): these
-  mechanics open its act 1's steps 4.1, 4.3 and 4.4 and its act 2's
-  steps 5.1 to 5.6, whose stories on fakes (`fuzzy_case3_4_1`, ...) run in
-  this world, and which rung C walks on real backends.
 
 ## 17. Open questions
 

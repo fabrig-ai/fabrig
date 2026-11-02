@@ -540,8 +540,7 @@ narrowed, and its changes wait.
   none: `status` is false in the kinds there from adoption on, and
   nothing is held for it. Every adoption on GitHub says that the gates'
   verdicts (8.3) stay temper's own, and that GitHub's rules cannot
-  require them. Designed, not built (`../draft/landing-model.md`, F3):
-  for a project that lands by turn, the App writes statuses and
+  require them. For a project that lands by turn, the App writes statuses and
   dispatches workflows (`../protocol/setup.md`, 17.1), so that its
   receipts and verdicts are mirrored (`landing.md`, 10), and adoption
   says, for each landing branch, whether its bypass is `Always`, which
@@ -1131,7 +1130,7 @@ delegate's terminal wakes it to offer the landed result.
   and nothing waits for it (skein's `forge-github.md`, 4.2). Every
   adoption there says so, and the verdict stays temper's own; the App
   asks for no more (`../protocol/setup.md`, 17.1). Designed, not built:
-  where an installation grants `statuses: write` (B3, `../protocol/setup.md`,
+  where an installation grants `statuses: write` (`../protocol/setup.md`,
   17.1), adoption reads it, `status` is true in that repository's kinds,
   and statuses are posted there as on Forgejo; an installation that has
   not accepted the new permission keeps today's refusal.
@@ -1696,8 +1695,7 @@ history they keep if temper is unplugged. Issues are projections (jig's
 
 ### 12.1 Questions on the forge
 
-Designed, not built, and Later's (`../draft/landing-model.md`, 16). Off by
-default: a project's setting turns it on.
+Off by default: a project's setting turns it on.
 
 - **A question to a person on the forge:** a person task asking in
   words (jig's `domain/people.md`, section 8), addressed to a party
