@@ -1,0 +1,3 @@
+draft = "live-temper-stories"
+repo = "fabrig"
+sources = ["temper/docs/plan/live-temper-stories/inputs/request.md", "AGENTS.md"]
