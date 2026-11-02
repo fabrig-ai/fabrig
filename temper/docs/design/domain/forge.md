@@ -1183,7 +1183,7 @@ delegate's terminal wakes it to offer the landed result.
 - **A step its authority no longer covers holds it too.** A change's
   delegates (its producer, a review, a review asked again, a repair, a
   resolution) are made under the change's own authority, its tasks
-  consumed by each (jig's `authority.md`, section 5). A step whose
+  consumed by each (jig's `domain/authority.md`, section 5). A step whose
   delegate that authority no longer covers (the tasks its subtree may
   make all made, its depth, its spend below a run's reserve) holds the
   change, naming what it lacks and what it had ("its 6 tasks are
