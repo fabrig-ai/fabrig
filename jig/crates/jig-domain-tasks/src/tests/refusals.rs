@@ -66,10 +66,8 @@ fn an_answers_refusals_are_kept_without_a_turn_or_charge() {
 fn job(number: u64) -> crate::New {
     let mut member = task(number, &[]);
     member.executor = crate::Executor::Job { kind: 7 };
-    member.spec.job = Some(Box::new(crate::JobSpec {
-        bytes: Box::new([0xff]),
-        deadline: skein_lib::Duration::from_secs(7),
-    }));
+    member.spec.job =
+        Some(Box::new(crate::JobSpec { bytes: Box::new([0xff]), deadline: skein_lib::Duration::from_secs(7) }));
     member.spec.words = Box::new([]);
     member.contract = crate::Contract::Job { bytes: 16 };
     member.numbers = crate::Numbers { budget: 0, spent: 0, spent_below: 0, reserved: 0 };
@@ -130,7 +128,7 @@ fn a_job_is_refused_unless_a_procedure_makes_it() {
 /// A job spec is only nonzero-deadline bounded bytes (jig/docs/design/domain/tasks.md, 5.3.1).
 #[test]
 fn a_job_without_its_spec_or_with_words_is_refused() {
-    for fault in 0..7 {
+    for fault in 0_u8..7 {
         let mut h = procedure();
         let mut member = job(2);
         match fault {
@@ -139,7 +137,7 @@ fn a_job_without_its_spec_or_with_words_is_refused() {
             2 => member.spec.inputs = Box::new([1]),
             3 => member.spec.asks = true,
             4 => member.spec.job.as_mut().unwrap().deadline = skein_lib::Duration::ZERO,
-            5 => member.spec.job.as_mut().unwrap().bytes = vec![0; 65].into_boxed_slice(),
+            5 => member.spec.job.as_mut().unwrap().bytes = Box::new([0; 65]),
             6 => member.spec.parameters = Box::new([crate::Parameter::Number { name: 1, value: 1 }]),
             _ => unreachable!(),
         }
@@ -151,7 +149,7 @@ fn a_job_without_its_spec_or_with_words_is_refused() {
 /// Job contracts belong only to jobs within the bound (jig/docs/design/domain/tasks.md, 5.3.1).
 #[test]
 fn a_job_contract_must_be_a_job_and_within_the_result_bound() {
-    for fault in 0..3 {
+    for fault in 0_u8..3 {
         let mut h = procedure();
         let mut member = job(2);
         match fault {
@@ -182,9 +180,11 @@ fn a_job_is_never_a_conversation() {
 /// A spec's job bytes belong only to jobs (jig/docs/design/domain/tasks.md, 5.3.1).
 #[test]
 fn other_executors_refuse_a_job_spec() {
-    for executor in [crate::Executor::Agent { charter: 1 },
+    for executor in [
+        crate::Executor::Agent { charter: 1 },
         crate::Executor::Procedure { connector: 1, code: 1 },
-        crate::Executor::Person(crate::PersonAddress::Person(1))] {
+        crate::Executor::Person(crate::PersonAddress::Person(1)),
+    ] {
         let mut h = procedure();
         let mut member = job(2);
         member.executor = executor;
@@ -202,7 +202,7 @@ fn restoring_a_job_checks_its_spec_contract_and_creator() {
     cold.domain = crate::Domain::new(&h.env.limits, 91, 1, crate::tests::charters(), Box::new([0]));
     cold.send(Event::Restore { record: crate::Stored::Live(Box::new(row.clone())) });
     assert!(cold.domain.restore_failure().is_none());
-    for fault in 0..7 {
+    for fault in 0_u8..7 {
         let mut bad = row.clone();
         match fault {
             0 => bad.spec.job = None,
@@ -220,15 +220,30 @@ fn restoring_a_job_checks_its_spec_contract_and_creator() {
     }
     let mut cold = crate::Domain::new(&h.env.limits, 91, 1, crate::tests::charters(), Box::new([0]));
     let mut out = skein_lib::Queue::uncapped();
-    for stored in h.stored.values().filter(|stored| stored.key().live()) {
+    for stored in h.stored.values() {
+        if !stored.key().live() {
+            continue;
+        }
         let mut stored = stored.clone();
-        if let crate::Stored::Live(row) = &mut stored {
-            if row.number == 1 { row.executor = crate::Executor::Agent { charter: 1 }; }
+        if let crate::Stored::Live(row) = &mut stored
+            && row.number == 1
+        {
+            row.executor = crate::Executor::Agent { charter: 1 };
         }
         crate::step(&mut cold, &h.env, Event::Restore { record: stored }, &mut out);
     }
     crate::step(&mut cold, &h.env, Event::Check, &mut out);
     assert!(cold.restore_failure().is_some());
+}
+
+fn assert_refusal(out: &[Request], why: crate::Refusal) {
+    let mut refused = false;
+    for request in out {
+        if let Request::Refused { problem, .. } = request {
+            refused |= problem.why == why;
+        }
+    }
+    assert!(refused, "{out:?}");
 }
 
 fn running_job() -> Harness {
@@ -238,8 +253,13 @@ fn running_job() -> Harness {
     h.send(Event::Prepare { reply_to: super::revisions::to(), task: 2 });
     assert_eq!(h.domain.task(2).unwrap().phase, crate::Phase::Active(crate::Active::Preparing));
     h.send(Event::Claim {
-        reply_to: super::revisions::to(), task: 2, attempt: 1,
-        resumed: false, budget: 0, account: None, writes: Box::new([]),
+        reply_to: super::revisions::to(),
+        task: 2,
+        attempt: 1,
+        resumed: false,
+        budget: 0,
+        account: None,
+        writes: Box::new([]),
     });
     h.send(Event::Started { task: 2, attempt: 1 });
     assert_eq!(h.domain.task(2).unwrap().phase, crate::Phase::Active(crate::Active::Running { attempt: 1 }));
@@ -251,18 +271,25 @@ fn running_job() -> Harness {
 fn a_job_refuses_parks_followups_exceeded_and_recheck_without_changing_its_attempt() {
     let mut h = running_job();
     let before = h.domain.task(2).unwrap().clone();
-    for end in [crate::End::Parked, crate::End::Recheck,
+    for end in [
+        crate::End::Parked,
+        crate::End::Recheck,
         crate::End::Exceeded(crate::Exceeded { bound: crate::Bound::Items, value: 1 }),
         crate::End::FinishedWithFollowups {
             result: crate::TaskResult::Job { bytes: Box::new([]) },
             followups: crate::ResultFollowups::Delegates(Box::new([])),
-        }] {
+        },
+    ] {
         for cause in [crate::Cause::Unpriced, crate::Cause::Priced { cumulative: 0 }] {
             let out = h.send(Event::Activation {
-                reply_to: super::revisions::to(), task: 2, attempt: 1, end: end.clone(), saved: None, cause,
+                reply_to: super::revisions::to(),
+                task: 2,
+                attempt: 1,
+                end: end.clone(),
+                saved: None,
+                cause,
             });
-            assert!(out.iter().any(|request| matches!(request,
-                Request::Refused { problem, .. } if problem.why == crate::Refusal::Executor)), "{out:?}");
+            assert_refusal(&out, crate::Refusal::Executor);
             assert_eq!(h.domain.task(2), Some(&before));
         }
     }
@@ -277,10 +304,15 @@ fn a_job_claim_refuses_an_account_or_a_nonzero_budget() {
     let before = h.domain.task(2).unwrap().clone();
     for (budget, account, why) in [(1, None, crate::Refusal::Funding), (0, Some(1), crate::Refusal::Executor)] {
         let out = h.send(Event::Claim {
-            reply_to: super::revisions::to(), task: 2, attempt: 1,
-            resumed: false, budget, account, writes: Box::new([]),
+            reply_to: super::revisions::to(),
+            task: 2,
+            attempt: 1,
+            resumed: false,
+            budget,
+            account,
+            writes: Box::new([]),
         });
-        assert!(out.iter().any(|request| matches!(request, Request::Refused { problem, .. } if problem.why == why)));
+        assert_refusal(&out, why);
         assert_eq!(h.domain.task(2), Some(&before));
     }
 }
@@ -290,13 +322,31 @@ fn a_job_claim_refuses_an_account_or_a_nonzero_budget() {
 fn a_job_result_is_bounded_bytes_or_a_failure() {
     let contract = crate::Contract::Job { bytes: 16 };
     let limits = super::revisions::LIMITS;
-    assert_eq!(crate::run::invalid_result(&contract, &crate::TaskResult::Job { bytes: Box::new([0xff; 16]) }, &limits), None);
-    assert_eq!(crate::run::invalid_result(&contract, &crate::TaskResult::Job { bytes: Box::new([0xff; 17]) }, &limits), Some(crate::InvalidResult::Words));
-    for result in [crate::TaskResult::Report { words: Box::new([]) }, crate::TaskResult::NoChange { words: Box::new([]) }] {
+    assert_eq!(
+        crate::run::invalid_result(&contract, &crate::TaskResult::Job { bytes: Box::new([0xff; 16]) }, &limits),
+        None
+    );
+    assert_eq!(
+        crate::run::invalid_result(&contract, &crate::TaskResult::Job { bytes: Box::new([0xff; 17]) }, &limits),
+        Some(crate::InvalidResult::Words)
+    );
+    for result in
+        [crate::TaskResult::Report { words: Box::new([]) }, crate::TaskResult::NoChange { words: Box::new([]) }]
+    {
         assert_eq!(crate::run::invalid_result(&contract, &result, &limits), Some(crate::InvalidResult::Form));
     }
-    assert_eq!(crate::run::invalid_result(&contract, &crate::TaskResult::Failure { reason: Box::new([1]) }, &limits), None);
-    assert_eq!(crate::run::invalid_result(&crate::Contract::Report { words: 16 }, &crate::TaskResult::Job { bytes: Box::new([]) }, &limits), Some(crate::InvalidResult::Form));
+    assert_eq!(
+        crate::run::invalid_result(&contract, &crate::TaskResult::Failure { reason: Box::new([1]) }, &limits),
+        None
+    );
+    assert_eq!(
+        crate::run::invalid_result(
+            &crate::Contract::Report { words: 16 },
+            &crate::TaskResult::Job { bytes: Box::new([]) },
+            &limits
+        ),
+        Some(crate::InvalidResult::Form)
+    );
 }
 
 /// A job refusal pauses without consuming a try (jig/docs/design/domain/tasks.md, 5.3.1 and 5.5).
@@ -304,12 +354,39 @@ fn a_job_result_is_bounded_bytes_or_a_failure() {
 fn a_job_refusal_pauses_without_a_try() {
     let mut h = running_job();
     h.send(Event::Activation {
-        reply_to: super::revisions::to(), task: 2, attempt: 1,
-        end: crate::End::Refused, saved: None, cause: crate::Cause::Unpriced,
+        reply_to: super::revisions::to(),
+        task: 2,
+        attempt: 1,
+        end: crate::End::Refused,
+        saved: None,
+        cause: crate::Cause::Unpriced,
     });
     let row = h.domain.task(2).unwrap();
-    assert!(matches!(row.phase, crate::Phase::Active(crate::Active::BackingOff { .. })));
+    let crate::Phase::Active(crate::Active::BackingOff { .. }) = row.phase else { panic!("job backs off") };
     assert_eq!(row.tries, crate::Tries::NONE);
     assert_eq!(row.refusals, 1);
     assert_eq!(row.last_answer, Some(1));
+}
+
+/// Jobs share procedures' LLM and recurring refusals (jig/docs/design/domain/tasks.md, 5.3.1).
+#[test]
+fn a_job_refuses_an_llm_choice_and_recurrence() {
+    let mut h = procedure();
+    let mut member = job(2);
+    member.llm = Some(crate::LlmChoice {
+        account: None,
+        main: crate::ModelEffort { model: 0, effort: None },
+        subagents: Box::new([]),
+    });
+    assert_eq!(
+        admission(&mut h, Party::Task(1), member),
+        Some(crate::Refusal::Llm { model: 0, why: crate::LlmFault::Procedure })
+    );
+    let mut member = job(2);
+    member.recurring = Some(Box::new(crate::RecurringTemplate {
+        key: 1,
+        batch: Box::new([]),
+        overlap: crate::RecurringOverlap::Skip,
+    }));
+    assert_eq!(admission(&mut h, Party::Task(1), member), Some(crate::Refusal::Spec));
 }

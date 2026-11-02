@@ -67,7 +67,7 @@ fn check_with_result_proposal(
             let Some(parent) = record(domain, number) else {
                 return Err(problem(Some(number), Refusal::Unknown));
             };
-            if let Executor::Job { .. } = parent.executor {
+            if matches_job(parent.executor) {
                 return Err(problem(Some(number), Refusal::Executor));
             }
             if let Some(proposal) = result_proposal
@@ -296,9 +296,7 @@ fn check_members(
         if !crate::wake::valid(&new.wake) {
             return Err(problem(number, Refusal::Spec));
         }
-        if !valid_contract(limits, &new.contract)
-            || job_contract(&new.contract) && !matches_job(new.executor)
-        {
+        if !valid_contract(limits, &new.contract) || job_contract(&new.contract) && !matches_job(new.executor) {
             return Err(problem(number, Refusal::Contract));
         }
         if !valid_authority(limits, &new.authority) {
@@ -368,7 +366,9 @@ pub(crate) fn matches_job(executor: Executor) -> bool {
 pub(crate) fn job_contract(contract: &Contract) -> bool {
     match contract {
         Contract::Job { .. } => true,
-        Contract::Approval { .. } | Contract::Report { .. } | Contract::Verdict { .. } | Contract::Change { .. } => false,
+        Contract::Approval { .. } | Contract::Report { .. } | Contract::Verdict { .. } | Contract::Change { .. } => {
+            false
+        }
     }
 }
 

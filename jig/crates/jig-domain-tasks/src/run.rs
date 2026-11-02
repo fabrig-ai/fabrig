@@ -192,9 +192,10 @@ pub(crate) fn invalid_result(contract: &Contract, result: &TaskResult, limits: &
                     Some(InvalidResult::Words)
                 }
             }
-            Contract::Approval { .. } | Contract::Report { .. } | Contract::Verdict { .. } | Contract::Change { .. } => {
-                Some(InvalidResult::Form)
-            }
+            Contract::Approval { .. }
+            | Contract::Report { .. }
+            | Contract::Verdict { .. }
+            | Contract::Change { .. } => Some(InvalidResult::Form),
         },
         TaskResult::NoChange { words } => invalid_no_change(contract, words, limits),
         TaskResult::Approved { .. } => invalid_approval(contract, result, limits),
