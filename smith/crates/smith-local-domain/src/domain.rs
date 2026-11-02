@@ -436,7 +436,8 @@ fn route_agent(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>)
                 | smith_inline_agent::Lower::Probe { .. }
                 | smith_inline_agent::Lower::Check { .. }
                 | smith_inline_agent::Lower::Abort { .. }
-                | smith_inline_agent::Lower::Yield { .. }) => out.push(Request::Lower { agent, request }),
+                | smith_inline_agent::Lower::Yield { .. }
+                | smith_inline_agent::Lower::Close { .. }) => out.push(Request::Lower { agent, request }),
             },
             Some(Output::Process(request)) => out.push(Request::Process(request)),
             None => break,

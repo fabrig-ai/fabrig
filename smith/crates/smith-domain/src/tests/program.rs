@@ -204,3 +204,123 @@ fn an_open_finish_yields_the_main_completion_owner_once() {
     assert_eq!(harness.next().as_ref(), &[Request::Lower(crate::Lower::Yield { owner })]);
     assert!(harness.next().is_empty());
 }
+
+/// A direct main with a named model for its child on endpoint one.
+fn child_policy() -> Charter {
+    let mut selected = charter();
+    selected.models = Box::new([Llm { model: bytes(b"model-b"), ..selected.llm.clone() }]);
+    selected.llm.endpoint = Endpoint(2);
+    selected
+}
+
+fn named_child() -> Ask {
+    Ask::SubAgent {
+        brief: bytes(b"Find the bug."),
+        families: Families { tools: Tools { inspect: true, modify: false, shell: false }, agents: false },
+        llm: Some(bytes(b"model-b")),
+        share: run::Share::UNASKED,
+    }
+}
+
+#[test]
+fn a_program_child_that_answers_sends_close_once() {
+    let mut h = program();
+    let (_, main, prompt) = h.admit(7, child_policy());
+    assert_eq!(prompt.endpoint, crate::llm::Endpoint(2));
+    let (child, prompt) = completing(h.answer(main, Box::new([served(b"a1", named_child())])));
+    assert_ne!(child, main);
+    assert_eq!(prompt.endpoint, crate::llm::Endpoint(1));
+    assert_eq!(prompt.asker, crate::llm::Asker::Child);
+    assert!(h.next().is_empty(), "no close before the child's completion terminal");
+    assert!(h.says(child, b"It is in main.rs.").is_empty());
+    assert_eq!(h.next().as_ref(), &[Request::Lower(crate::Lower::Close { owner: child })]);
+    let (owner, prompt) = completing(h.next());
+    assert_eq!(owner, main);
+    let [Block::ToolResult { id, result: Returned::Text { text, error: false, replay: None } }] = last(&prompt) else {
+        panic!("child answer: {:?}", last(&prompt));
+    };
+    assert_eq!(id.as_ref(), b"a1");
+    assert_eq!(text.as_ref(), b"It is in main.rs.\n\nChild usage: used 1 turns and 0 seconds; stopped for budget: no; ordinary left 8 turns and 600 seconds.");
+    assert!(h.next().is_empty(), "close is sent once");
+    assert!(h.answer(main, Box::new([served(b"f1", verdict(b"approve"))])).is_empty());
+    let emitted = h.next();
+    let [Request::Answer { answer: run::Answer::Accepted { .. }, .. }] = emitted.as_ref() else {
+        panic!("accepted run: {emitted:?}");
+    };
+    assert!(h.next().is_empty());
+}
+
+#[test]
+fn a_cancelled_program_child_sends_close_after_its_cancel() {
+    let mut h = program();
+    let (run, main, _) = h.admit(7, child_policy());
+    let (child, prompt) = completing(h.answer(main, Box::new([served(b"a1", named_child())])));
+    assert_eq!(prompt.asker, crate::llm::Asker::Child);
+    assert_eq!(prompt.endpoint, crate::llm::Endpoint(1));
+    assert!(h.step(Event::Cancel { run }).is_empty());
+    assert!(h.next().is_empty(), "main's close withdraws its child call");
+    assert_eq!(h.next().as_ref(), &[Request::Lower(crate::Lower::Cancel { owner: child })]);
+    assert!(h.next().is_empty(), "close waits for the cancellation terminal");
+    assert_eq!(
+        h.step(Event::Below(crate::Below::Cancelled { owner: child })).as_ref(),
+        &[Request::Lower(crate::Lower::Close { owner: child })]
+    );
+    let emitted = h.next();
+    let [Request::Answer { answer: run::Answer::Failed { failure: run::Failure::Cancelled, .. }, .. }] =
+        emitted.as_ref()
+    else {
+        panic!("cancelled run: {emitted:?}");
+    };
+    assert!(h.next().is_empty(), "close is sent once");
+}
+
+#[test]
+fn a_direct_child_and_main_send_no_close() {
+    let mut h = Harness::new();
+    let (_, main, _) = h.admit(7, child_policy());
+    let (child, prompt) = completing(h.answer(main, Box::new([served(b"a1", named_child())])));
+    assert_eq!(prompt.asker, crate::llm::Asker::Child);
+    assert!(h.says(child, b"It is in main.rs.").is_empty());
+    assert!(h.next().is_empty(), "a direct child ends without Close");
+    let (owner, prompt) = completing(h.next());
+    assert_eq!(owner, main);
+    let [Block::ToolResult { result: Returned::Text { error: false, .. }, .. }] = last(&prompt) else {
+        panic!("child answer: {:?}", last(&prompt));
+    };
+    assert!(h.next().is_empty());
+    assert!(h.answer(main, Box::new([served(b"f1", verdict(b"approve"))])).is_empty());
+    let emitted = h.next();
+    let [Request::Answer { answer: run::Answer::Accepted { .. }, .. }] = emitted.as_ref() else {
+        panic!("accepted run: {emitted:?}");
+    };
+    assert!(h.next().is_empty(), "main ends without Close");
+}
+
+#[test]
+fn a_program_child_compacts_without_closing_its_conversation() {
+    let mut h = program();
+    let (_, main, _) = h.admit(7, child_policy());
+    let (child, _) = completing(h.answer(main, Box::new([served(b"a1", named_child())])));
+    assert!(h.answer(child, Box::new([served(b"f1", verdict(b"approve"))])).is_empty());
+    let (owner, _) = completing(h.next());
+    assert_eq!(owner, child);
+    let (owner, prompt) = completing(h.step(Event::Below(crate::Below::Failed {
+        owner: child,
+        failure: crate::llm::Failure::ContextTooLong,
+        evidence: crate::llm::Evidence::Unsent,
+        detail: Box::default(),
+        report: crate::llm::Report::none(),
+    })));
+    assert_eq!(owner, child);
+    let crate::llm::Purpose::Compaction { .. } = prompt.purpose else { panic!("summary prompt") };
+    assert!(h.next().is_empty(), "asking for a summary sends no Close");
+    let (owner, prompt) = completing(h.says(child, b"Summary of the investigation."));
+    assert_eq!(owner, child);
+    let crate::llm::Purpose::Ordinary { .. } = prompt.purpose else { panic!("ordinary prompt after summary") };
+    assert!(h.next().is_empty(), "the compaction terminal sends no Close");
+    assert!(h.says(child, b"It is in main.rs.").is_empty());
+    assert_eq!(h.next().as_ref(), &[Request::Lower(crate::Lower::Close { owner: child })]);
+    let (owner, _) = completing(h.next());
+    assert_eq!(owner, main);
+    assert!(h.next().is_empty(), "only the conversation's end sends Close");
+}
