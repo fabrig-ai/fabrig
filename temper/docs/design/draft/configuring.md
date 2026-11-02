@@ -12,8 +12,8 @@ an owner splits it. Nothing here is adopted.
 ## 1. In one page
 
 - **The person never learns the words.** They describe how they work,
-  in their own words or by pointing at a document, as agents'
-  `roles/owners.md` and `roles/director.md` describe ours. temper answers with a
+  in their own words or by pointing at a document, as
+  `reference-code-production.md` describes ours. temper answers with a
   proposal, "here is how I'll run that", in their words with the
   settings underneath (section 5).
 - **Structure becomes settings; rules stay text** (section 2). What
@@ -40,9 +40,9 @@ an owner splits it. Nothing here is adopted.
 - **It explains, both ways** (section 6): it answers from the settings
   and the documentation built into the binary (section 7), and it
   describes the settings back as a workflow.
-- **Its test** (section 8): given `owners.md` and `director.md`, it
-  should produce the encoding `temper-on-temper.md` made by hand, as far
-  as that draft's gaps (its 6.8) let temper say it.
+- **Its test** (section 8): given `reference-code-production.md`, it
+  should propose the settings of its section 14, as far as the gaps
+  that draft records let temper say them.
 
 ## 2. Structure and rules
 
@@ -51,33 +51,34 @@ an owner splits it. Nothing here is adopted.
   temper wakes, schedules, permits, pays for, lands or holds, it is
   structure, and becomes settings. If only the agent reading it would
   act differently, it is a rule, and stays text that runs read.
-- **`owners.md`, sorted:**
+- **The reference process, sorted** (`reference-code-production.md`):
 
-  | From `owners.md` | Kind | In temper |
+  | From the reference | Kind | In temper |
   |---|---|---|
-  | Owners on Opus, testers on Codex by default, Claude for taste | structure | the charters' models, and the effort a parent picks within them |
-  | An owner runs on the machine its work runs on | structure | its charter's hosts |
-  | A fresh session at each milestone's end | structure | the charter's resume; by phase is a gap (`temper-on-temper.md`, 6.8) |
-  | Every change lands through `land`, its gate passed | structure | the landing rule |
-  | A milestone's cap is 4 hours | nearly | a deadline on the sub-owner's template, but jig's deadline holds what runs too, where the cap lets it finish (6.8 there) |
-  | At most four milestones per mission | rule | the owner counts; the engine has no such bound |
-  | A tester reads the design only, never the code under test | rule | authority is per repository, not per path |
-  | Upstream first | rule, using structure | the owner makes the dependency; the engine releases it |
-  | Notes, the closing note, small tasks, a world's test cost | rule | text |
+  | The coordinator on Opus 5.5 at xhigh, its surveys at high; producers on gpt-6.1-sol | structure | the charters' models, and each change's LLM choices (`notes.md`, N19) |
+  | A goal per draft, holding a branch of its own | structure | the goal template; its own branch is a gap (`notes.md`, N3) |
+  | Every change of the goal lands into its branch, with no CI | structure | a landing rule for goal branches (`notes.md`, N4) |
+  | The coordinator woken at once by questions and results, by a tier's red at most every 30 minutes | structure | its charter's wake policy (`notes.md`, N23) |
+  | At most four questions per change, through a foreman | structure | the change's question bound (`notes.md`, N1) |
+  | Designers write the design under `docs/design`, a status file beside each document | rule | the designer's charter's instructions |
+  | A producer pushes early and finishes with a Left list | rule | the coding agent's charter's instructions |
+  | A producer never fixes what it does not own | rule | authority is per repository, not per path |
+  | `.temper/pre-pr` passes before delivery | rule, using structure | the project's checks; the engine runs none of it |
 
-- **Rules say how agents use the structure.** "Upstream first" is a
-  rule; the dependency it asks the owner to make is the engine's. The
-  agent configures the mechanisms, and the rules stay where the person
-  wrote them, so most changes to a process need no configuring at all.
+- **Rules say how agents use the structure.** "Designers first" is a
+  rule; the dependency it asks the coordinator to make is the engine's.
+  The agent configures the mechanisms, and the rules stay where the
+  person wrote them, so most changes to a process need no configuring at
+  all.
 - **A rule may become structure** where temper's model has it, and the
-  agent offers it: "I can make the 4-hour cap a deadline temper holds,
-  though it holds what runs too; 'at most four milestones' stays a rule
-  your owners follow". The person chooses what is guaranteed. The
-  tester's row is the honest answer the other way: it looks enforceable,
-  and is not.
+  agent offers it: "I can hold each change to four questions; 'push
+  early' stays a rule your producers follow". The person chooses what is
+  guaranteed. The producer's last row is the honest answer the other
+  way: it looks enforceable, and is not.
 - **Rules must reach the runs.** A run reads `AGENTS.md` in its
   workspace's repositories (`../domain/agent.md`, 4.5), and a run with no
-  repository has no workspace, so a chat cannot read `owners.md`. A
+  repository has no workspace, so a chat cannot read the process's
+  document. A
   charter's instructions may therefore name documents, each a
   repository, a path and its landing branch, which the engine reads into
   each run's brief: a rule that lands reaches the next run. A
@@ -224,9 +225,9 @@ made follows the new one, and what is in flight keeps the old.
 - **Removing is free.** A removed charter lives in the revisions that
   hold it while tasks use them. That answers jig's open question on
   parts removed at a restart (jig's `protocol/configuration.md`, section
-  9), and two of `temper-on-temper.md`'s, 6.8: retiring a charter (no
-  new work under it; what runs finishes) and whether a charter's change
-  reaches tasks already running (not unless they move).
+  9), and two questions of a process that changes: retiring a charter
+  (no new work under it; what runs finishes) and whether a charter's
+  change reaches tasks already running (not unless they move).
 - **Bounded.** At most a limit's number of revisions are in use, and
   the charters they hold within another. A change that would need more
   is refused, naming the tasks that hold the oldest, with moving them
@@ -305,8 +306,9 @@ made follows the new one, and what is in flight keeps the old.
 ### 5.3 What it cannot do
 
 - **What temper cannot model,** it says, and offers the nearest thing:
-  parking an owner, a cap that holds new starts only, the other gaps of
-  `temper-on-temper.md`, 6.8. Each such answer is design input.
+  a goal's own branch, a coordinator's wake policy, the other gaps
+  `reference-code-production.status.md` records. Each such answer is
+  design input.
 - **What needs a restart,** it says too: a provider or a forge the
   document does not name, a listener, a worker, a limit (3.1).
 
@@ -324,8 +326,8 @@ made follows the new one, and what is in flight keeps the old.
   which is also how its test reads (section 8).
 - **Its charter** is a stock one, a default like the others (3.2).
 - **Later, it is woken by a landing** of a document a charter names,
-  when the landing touches structure: "owners.md changed; here is what
-  it means for your setup".
+  when the landing touches structure: "process.md changed; here is
+  what it means for your setup".
 
 ## 7. Documentation in the binary
 
@@ -347,11 +349,13 @@ made follows the new one, and what is in flight keeps the old.
   stale; running work moved; a document a charter names, changed. The
   revisions' own: a change during a run, a restart with old revisions in
   use, the bound reached.
-- **The encoding as a golden:** `temper-on-temper.md`'s section 4 turned
-  into a set of settings. `owners.md` and `director.md` go through a
-  real model, and its proposal is scored against the golden, within
-  6.8's gaps. A lab experiment, run when the agent's instructions or the
-  documentation change, not in the gate.
+- **The reference as a golden:** `reference-code-production.md`,
+  section 14, as a set of settings. The draft goes through a real model
+  as the person's description, and its proposal is scored against the
+  golden, within the gaps `reference-code-production.status.md`
+  records. A walk, run when the agent's instructions or the
+  documentation change, not in the gate; v0.1.0's rung D walks it on
+  real backends (`v0.1.0.md`, 2.1).
 
 ## 9. Order
 
@@ -367,8 +371,8 @@ made follows the new one, and what is in flight keeps the old.
 3. **Mockups:** "How work runs", the card and the review page.
 4. **The code,** jig's, then temper's.
 5. **The documentation in the binary.**
-6. **The configuring agent,** its stories, then the golden and the
-   experiment.
+6. **The configuring agent,** its stories, then the golden and its
+   walk.
 
 ## 10. Open questions
 

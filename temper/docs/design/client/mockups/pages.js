@@ -176,7 +176,7 @@
   // and the gaps temper lacks for what a page draws (the README lists
   // them).
   function ref(name) { return name ? `<i class="case-ref" title="The reference case's name">${esc(name)}</i>` : ''; }
-  function gap(id, what) { return `<i class="gap" title="temper-on-temper.md ${esc(id)}: ${esc(what)}. Drawn ahead of temper's design.">gap ${esc(id)}</i>`; }
+  function gap(id, what) { return `<i class="gap" title="Gap ${esc(id)}: ${esc(what)}. Drawn ahead of temper's design.">gap ${esc(id)}</i>`; }
 
   // A piece the engine can't supply yet, shown only under View → Future,
   // marked with what would supply it: a mission, a draft, or "not

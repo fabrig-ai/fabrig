@@ -371,9 +371,9 @@ wasm32 (`../playground.md`). Default: none.
   is refused its dashboards; the fake person reads a chart's words.
 - **The status page as a golden.** agents' `status-page.md` goes through
   a real model as the person's description, and the proposal is scored
-  against a dashboard made by hand, within the gaps below. A lab
-  experiment, run when the agent's instructions or the documentation
-  change, not in the gate (`configuring.md`, section 8).
+  against a dashboard made by hand, within the gaps below. A walk, run
+  when the agent's instructions or the documentation change, not in the
+  gate (`configuring.md`, section 8).
 - **What it maps to:**
 
   | The status page | temper's dashboard | Gap |
@@ -392,8 +392,8 @@ wasm32 (`../playground.md`). Default: none.
   | their tokens and cache hits | none | token counts stay in smith's turns |
   | subscriptions: use and pace | budgets: spend against each period's budget, its projection; accounts by state | a provider's plan use, beyond limited |
 
-- **The gaps are the experiment's other output:** each a fact to design
-  by its owner, or to leave out, as `temper-on-temper.md`'s 6.8 is for
+- **The gaps are the walk's other output:** each a fact to design by
+  its owner, or to leave out, as the reference's gaps are for
   `configuring.md`.
 
 ## 10. Order
@@ -406,8 +406,7 @@ wasm32 (`../playground.md`). Default: none.
    panels, and the review with its preview.
 3. **The code,** jig's, then temper's: the metrics, the dashboards
    child, the panels in `temper-client-view`.
-4. **The agent's reads,** its stories, then the golden and the
-   experiment.
+4. **The agent's reads,** its stories, then the golden and its walk.
 
 ## 11. Open questions
 

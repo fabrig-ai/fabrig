@@ -66,7 +66,7 @@ Anything else on a page is the UI's own words, and those name no workflow: the d
 
 ### 2.2 Drawn ahead of temper
 
-What temper does not have yet, drawn as temper-on-temper.md's section 6 wants it and marked with its gap while **Annotations** is on:
+What temper does not have yet, drawn ahead of its design and marked with its gap's label while **Annotations** is on:
 
 - **6.3, plan usage:** a program's 5-hour and weekly windows on the accounts page, the week with its pace; the director's check reads them. A ChatGPT plan shows none: its usage is ChatGPT's settings' to show (jig's `domain/providers.md`, 2.6), so its row shows its limit's state and "Manage usage ↗", which opens them.
 - **6.4, worker health:** the ops strip on the workers page, an ops application's report of load and disk.
