@@ -55,7 +55,8 @@ record ChipExecutorAgent { charter: u32 }
 record ChipExecutorProcedure { connector: u16 kind: u32 }
 record ExecutorParty { party: u64 }
 record ExecutorRole { project: u32 role: u32 }
-enum ChipExecutor { agent: ChipExecutorAgent, procedure: ChipExecutorProcedure, party: ExecutorParty, role: ExecutorRole }
+record ChipExecutorJob { kind: u32 }
+enum ChipExecutor { agent: ChipExecutorAgent, procedure: ChipExecutorProcedure, party: ExecutorParty, role: ExecutorRole, job: ChipExecutorJob }
 enum Phase { waiting, idle, due, preparing, claimed, running, backing_off, active, closing, held, ended, done, failed, cancelled }
 record RunStageClaimed { attempt: u64 }
 record RunStageRunning { attempt: u64 }
@@ -116,7 +117,8 @@ record AttemptFailure { attempt: u64 class: FailureClass reason: text 65536 at: 
 record ExecutorAgent { charter: u32 }
 record ExecutorProcedure { connector: u16 code: u32 }
 record ExecutorPerson { value: PersonAddress }
-enum Executor { agent: ExecutorAgent, procedure: ExecutorProcedure, person: ExecutorPerson }
+record ExecutorJob { kind: u32 }
+enum Executor { agent: ExecutorAgent, procedure: ExecutorProcedure, person: ExecutorPerson, job: ExecutorJob }
 record WakeRuleBatch { count: u32 age: duration }
 enum WakeRule { never, immediate, batch: WakeRuleBatch }
 enum ResultsWake { never, each, last_or_failure }
@@ -243,7 +245,8 @@ record Grant { connector: u16 kind: u16 pattern: Pattern }
 record AuthorityExecutorCharter { value: u32 }
 record AuthorityExecutorProcedure { value: u32 }
 record AuthorityExecutorRole { value: u32 }
-enum AuthorityExecutor { charter: AuthorityExecutorCharter, procedure: AuthorityExecutorProcedure, role: AuthorityExecutorRole }
+record AuthorityExecutorJob { value: u32 }
+enum AuthorityExecutor { charter: AuthorityExecutorCharter, procedure: AuthorityExecutorProcedure, role: AuthorityExecutorRole, job: AuthorityExecutorJob }
 record Delegation { kinds: list 32 AuthorityExecutor tasks: u32 depth: u32 }
 record ResourceScope { connector: u16 pattern: Pattern }
 record ModelSetNames { names: list 64 text 4096 }
@@ -456,7 +459,7 @@ record ReadSpend { project: u32 after: option Cursor }
 record ReadProject { project: u32 }
 record ReadNotes { scope: NoteScope description: option text 65536 after: option Cursor }
 enum PhaseClass { working, waiting, held, closing, ended }
-enum ExecutorKind { agent, procedure, person }
+enum ExecutorKind { agent, procedure, person, job }
 enum QueryOrder { number, changed, activity, priority, ended }
 record TaskQuery { project: option u32 requester: option Requester root: option u64 parent: option u64 label: option u32 phase: option PhaseClass executor: option ExecutorKind tracked: option bool order: QueryOrder }
 record ReadTasks { query: TaskQuery live: option Cursor ended: option Cursor }
@@ -517,7 +520,8 @@ record TaskContractDocumentApproval { state: bytes 65536 part: Part }
 record TaskContractDocumentReport { words: u32 }
 record TaskContractDocumentVerdict { choices: bytes 16777216 cut: bool }
 record TaskContractDocumentChange { connector: u16 kind: u16 words: u32 }
-enum TaskContractDocument { approval: TaskContractDocumentApproval, report: TaskContractDocumentReport, verdict: TaskContractDocumentVerdict, change: TaskContractDocumentChange }
+record TaskContractDocumentJob { bytes: u32 }
+enum TaskContractDocument { approval: TaskContractDocumentApproval, report: TaskContractDocumentReport, verdict: TaskContractDocumentVerdict, change: TaskContractDocumentChange, job: TaskContractDocumentJob }
 record TaskLinkLive { value: Chip }
 record TaskLinkRetained { chip: Chip at: option u64 }
 record TaskLinkStored { number: u64 status: option TaskStatus }

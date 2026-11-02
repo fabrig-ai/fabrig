@@ -571,7 +571,10 @@ fn finish_document(mut t: c::Task) -> c::Task {
     let executor = t.chip.executor;
     match executor {
         c::ChipExecutor::Agent { .. } => {}
-        c::ChipExecutor::Procedure { .. } | c::ChipExecutor::Party { .. } | c::ChipExecutor::Role { .. } => {
+        c::ChipExecutor::Job { .. }
+        | c::ChipExecutor::Procedure { .. }
+        | c::ChipExecutor::Party { .. }
+        | c::ChipExecutor::Role { .. } => {
             t.settings = None;
         }
     }
@@ -592,6 +595,7 @@ fn finish_document(mut t: c::Task) -> c::Task {
         | c::Phase::Cancelled => c::ChipPhase::Active(c::RunStage::Idle),
     };
     details.executor = match executor {
+        c::ChipExecutor::Job { kind } => c::Executor::Job { kind },
         c::ChipExecutor::Agent { charter } => c::Executor::Agent { charter },
         c::ChipExecutor::Procedure { connector, kind } => c::Executor::Procedure { connector, code: kind },
         c::ChipExecutor::Party { .. } | c::ChipExecutor::Role { .. } => {

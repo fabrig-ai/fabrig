@@ -303,6 +303,7 @@ pub(crate) fn documents_owner_authority_executor_fields(
     _limits: &Limits,
 ) -> c::AuthorityExecutor {
     match value {
+        w::AuthorityExecutor::Job(row) => c::AuthorityExecutor::Job(row.value()),
         w::AuthorityExecutor::Charter(row) => c::AuthorityExecutor::Charter(row.value()),
         w::AuthorityExecutor::Procedure(row) => c::AuthorityExecutor::Procedure(row.value()),
         w::AuthorityExecutor::Role(row) => c::AuthorityExecutor::Role(row.value()),
@@ -554,6 +555,7 @@ pub(crate) fn documents_task_contract_document_fields(
     limits: &Limits,
 ) -> Result<c::TaskContractDocument, w::Problem> {
     Ok(match value {
+        w::TaskContractDocument::Job(row) => c::TaskContractDocument::Job { bytes: row.bytes() },
         w::TaskContractDocument::Approval(row) => c::TaskContractDocument::Approval {
             state: documents_raw(row.state(), limits)?,
             part: facts_owner_part(row.part(), limits),
@@ -992,6 +994,9 @@ pub(crate) fn asks_wire_owner_authority_executor(
     limits: &w::Limits,
 ) -> Result<w::AuthorityExecutor, w::Problem> {
     Ok(match value {
+        c::AuthorityExecutor::Job(value) => {
+            w::AuthorityExecutor::Job(w::AuthorityExecutorJob::new(limits, w::AuthorityExecutorJobParts { value })?)
+        }
         c::AuthorityExecutor::Charter(value) => w::AuthorityExecutor::Charter(w::AuthorityExecutorCharter::new(
             limits,
             w::AuthorityExecutorCharterParts { value },
@@ -1318,6 +1323,10 @@ pub(crate) fn settings_wire_task_contract(
     limits: &w::Limits,
 ) -> Result<w::TaskContractDocument, w::Problem> {
     Ok(match value {
+        c::TaskContractDocument::Job { bytes } => w::TaskContractDocument::Job(w::TaskContractDocumentJob::new(
+            limits,
+            w::TaskContractDocumentJobParts { bytes: *bytes },
+        )?),
         c::TaskContractDocument::Approval { state, part } => {
             w::TaskContractDocument::Approval(w::TaskContractDocumentApproval::new(
                 limits,

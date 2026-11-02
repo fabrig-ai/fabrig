@@ -205,6 +205,7 @@ fn new_task(v: &c::NewTask, limits: &w::Limits) -> Result<w::NewTask, w::Problem
         named.push(asks::wire_owner_grant(grant, limits)?).expect("same capacity");
     }
     let executor = match v.executor {
+        c::Executor::Job { kind } => w::Executor::Job(w::ExecutorJob::new(limits, w::ExecutorJobParts { kind })?),
         c::Executor::Agent { charter } => {
             w::Executor::Agent(w::ExecutorAgent::new(limits, w::ExecutorAgentParts { charter })?)
         }
