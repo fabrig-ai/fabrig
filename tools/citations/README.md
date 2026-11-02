@@ -15,9 +15,10 @@ python3 -I -B tools/citations/test_citations.py
   fails too, at the citing file: whoever removes or moves a section fixes its citations.
 - **The full run** (`--all`) lists every broken citation; the count is to reach zero.
 - Both read committed trees through `git archive`: commit before checking.
-- **What is read:** every tree's `docs/` (but `docs/development/` files dated in their name, which
-  describe the tree at their date), every `AGENTS.md` and `CLAUDE.md`, and the comments of
-  `.rs .py .sh .toml .js` files. Strings in code are test data, not citations.
+- **What is read:** every tree's `docs/`, every `AGENTS.md` and `CLAUDE.md`, and the comments of
+  `.rs .py .sh .toml .js` files. Strings in code are test data, not citations. Left out:
+  `docs/plan/`, fab's records of a change (a task spec cites what its task deletes), and
+  `docs/development/` files dated in their name, which describe the tree at their date.
 - **Not citations:** another repository's documents ("hearth's `domain/store.md`", "the agents
   repository's `docs/design/fab.md`"), dates after a path, and RFC sections.
 - **`allow.txt`** excuses what must stay as it is, one line each: `FILE TARGET # reason`, FILE a
