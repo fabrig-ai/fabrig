@@ -193,7 +193,13 @@ fn accepted_exec(ran: &support::Ran) {
     // The binary harness captures at most 64 KiB per stream.
     const STREAM_BYTES: u32 = 65_536;
     assert_eq!(ran.code, 0, "fake-backed exec succeeds");
-    let limits = smith_events::Limits { string: STREAM_BYTES, content: STREAM_BYTES, items: STREAM_BYTES };
+    let limits = {
+        let mut limits = smith_events::fixture::SMALL;
+        limits.string = STREAM_BYTES;
+        limits.content = STREAM_BYTES;
+        limits.items = STREAM_BYTES;
+        limits
+    };
     let records: Vec<_> = ran
         .stdout
         .split(|byte| *byte == b'\n')
