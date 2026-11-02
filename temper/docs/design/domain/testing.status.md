@@ -23,7 +23,10 @@
   agents repository), neither story has run live on its own store, nor the
   Claude Code one on `claude-haiku-5-5`; the pair's `#[ignore]` reasons
   still say "a person's sitting" and "owner-run only"
-  (`crates/temper/tests/live.rs`). 4.3: the shell subset;
+  (`crates/temper/tests/live.rs`). 2.7: the owned-forge landing story's
+  held-record import and give-back name the run's root as DIRECTORY, not
+  its `client` directory; it reads each parent's ended delegates as one
+  uncut page (`crates/temper/tests/support/forge_land.rs`). 4.3: the shell subset;
   skein's fake machine runs no `sh` and no `rg`. 4.3, 7:
   `temper-fake-git-hosted` in `crates/`; it is in `testing/`. 6.4: the
   settings stories that need temper's kinds of settings (`root.md`'s
