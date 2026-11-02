@@ -9,5 +9,6 @@
 - **Departs:** 7.4: the readiness backend makes an interrupted `Socket`,
   `Accept` or `Connect` again, as it does every operation but `Open` and
   `Close` (`readiness.rs`, `attempt`), where the ring completes them
-  `Other(EINTR)`; a `Connect` made again calls `connect` a second time.
-  The rule is open (section 10), and no reason is recorded.
+  `Other(EINTR)`; a `Connect` made again calls `connect` a second time,
+  which a socket whose connection is under way answers `EALREADY`. The
+  rule is open (section 10), and no reason is recorded.
