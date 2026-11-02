@@ -224,12 +224,14 @@ fn green_run_releases_its_branch_and_makes_a_receipt() {
     assert!(released);
     assert!(d.describe_tier_effect(TIER_TASK, RELEASE).is_none());
     made(&mut d, RELEASE, skein_forge_client::Made::Set);
+    d.wait_tier(&env(), TIER_TASK, None);
     let out = tier_step(&mut d, RELEASE + 1, false);
     assert_eq!(
         choice(&out),
         Some(&TierDecision::Done { words: b"Tier browser run 1: green, cleared 0 landings".as_slice().into() })
     );
     assert!(row(&d).record.run.is_none());
+    assert_eq!(d.next_wall_deadline(), None);
     assert!(row(&d).pending.is_empty());
     assert_eq!(row(&d).record.judged.unwrap().tip, BASE);
     assert!(d.landing.receipts.iter().any(|(key, receipt)| key.check == Check::Tier(TIER.into())
@@ -523,4 +525,82 @@ fn a_vetoed_dispatch_is_a_fault_on_the_next_step() {
     let api::Write::Dispatch { .. } = d.entries.get(&(DISPATCH + 1)).unwrap().entry.effect.write else {
         panic!("vetoed dispatch is retried")
     };
+}
+
+#[test]
+fn waiting_tier_task_wakes_at_its_wall_deadline() {
+    for until in [Some(Wall::from_nanos(env().wall.as_nanos() + Duration::from_secs(2).as_nanos())), None] {
+        let mut d = configured(None);
+        baseline(&mut d);
+        attach(&mut d, 1, TIER_TASK);
+        let deadline = until.unwrap_or(Wall::from_nanos(env().wall.as_nanos() + LIMITS.client.poll.as_nanos()));
+        d.wait_tier(&env(), TIER_TASK, until);
+        assert_eq!(d.next_wall_deadline(), Some(deadline));
+        let mut clock = env();
+        clock.wall = Wall::from_nanos(deadline.as_nanos() - 1);
+        let mut out = Queue::uncapped();
+        fire(&mut d, &clock, &mut out);
+        assert!(!collect(out).contains(&Request::WakeProcedure { task: TIER_TASK }));
+        assert_eq!(d.next_wall_deadline(), Some(deadline));
+
+        clock.wall = deadline;
+        let mut out = Queue::uncapped();
+        fire(&mut d, &clock, &mut out);
+        assert_eq!(
+            collect(out).iter().filter(|request| **request == Request::WakeProcedure { task: TIER_TASK }).count(),
+            1
+        );
+        assert_eq!(d.next_wall_deadline(), None);
+        let mut out = Queue::uncapped();
+        fire(&mut d, &clock, &mut out);
+        assert!(!collect(out).contains(&Request::WakeProcedure { task: TIER_TASK }));
+    }
+}
+
+#[test]
+fn offered_tier_spends_only_its_own_wait() {
+    let mut d = configured(None);
+    baseline(&mut d);
+    attach(&mut d, 1, TIER_TASK);
+    assert_eq!(d.tier_ops.due.capacity(), LIMITS.repositories * LIMITS.tiers.tiers);
+    d.wait_tier(&env(), TIER_TASK, Some(env().wall));
+    d.wait_landing(&env(), NEXT_TASK, None);
+    d.offered_tier(TIER_TASK);
+    let poll = Wall::from_nanos(env().wall.as_nanos() + LIMITS.client.poll.as_nanos());
+    assert_eq!(d.next_wall_deadline(), Some(poll));
+    d.offered_landing(NEXT_TASK);
+    assert_eq!(d.next_wall_deadline(), None);
+    let mut clock = env();
+    clock.wall = poll;
+    let mut out = Queue::uncapped();
+    fire(&mut d, &clock, &mut out);
+    assert!(!collect(out).contains(&Request::WakeProcedure { task: TIER_TASK }));
+}
+
+#[test]
+fn cancelling_a_tier_task_drops_its_wait() {
+    let mut d = dispatched();
+    d.wait_tier(&env(), TIER_TASK, None);
+    outputs(
+        &mut d,
+        Event::StepTier { task: TIER_TASK, entry: RELEASE, heard: TierHeard { released: false, cancelled: true } },
+    );
+    assert!(d.next_wall_deadline().is_some());
+    made(&mut d, RELEASE, skein_forge_client::Made::Set);
+    let out = tier_step(&mut d, RELEASE + 1, false);
+    assert_eq!(choice(&out), Some(&TierDecision::Done { words: b"Tier browser cancelled".as_slice().into() }));
+    assert!(row(&d).task.is_none());
+    assert_eq!(d.next_wall_deadline(), None);
+}
+
+#[test]
+fn restart_spends_tier_waits_and_wakes_their_tasks() {
+    let saved = row(&dispatched()).clone();
+    let mut d = restoring(None);
+    outputs(&mut d, Event::Restore { record: Stored::Tier(saved) });
+    d.wait_tier(&env(), TIER_TASK, None);
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    let out = outputs(&mut d, Event::ReadAfresh);
+    assert!(out.contains(&Request::WakeProcedure { task: TIER_TASK }));
+    assert_eq!(d.next_wall_deadline(), None);
 }

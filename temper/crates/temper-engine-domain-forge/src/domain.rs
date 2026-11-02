@@ -699,7 +699,7 @@ impl Domain {
             return None;
         }
         let mut next: Option<skein_lib::Wall> = None;
-        for deadlines in [&self.projection_due, &self.change_due, &self.landing.due] {
+        for deadlines in [&self.projection_due, &self.change_due, &self.landing.due, &self.tier_ops.due] {
             for (_, deadline) in deadlines {
                 next = Some(match next {
                     Some(previous) => previous.min(*deadline),

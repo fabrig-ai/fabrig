@@ -10,6 +10,7 @@ use temper_engine_domain_forge_tiers as p;
 #[derive(Debug)]
 pub(crate) struct State {
     pub(crate) dirty: bool,
+    pub(crate) due: Map<u64, Wall>,
     pub(crate) tip_keys: Map<(Repository, Box<[u8]>), p::Judged>,
     walks: Map<(Repository, Box<[u8]>), Walk>,
     pub(crate) reads: Map<Token, (Repository, Box<[u8]>)>,
@@ -20,6 +21,7 @@ impl State {
         let count = l.repositories.checked_mul(l.tiers.tiers).expect("checked tier count");
         Self {
             dirty: false,
+            due: Map::with_capacity(count),
             tip_keys: Map::with_capacity(count),
             walks: Map::with_capacity(count),
             reads: Map::with_capacity(count.checked_mul(2).expect("tier reads")),
@@ -837,6 +839,7 @@ fn finish(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, out: &mut Queue<
         &p::Limits { failing_tests: env.limits.tiers.failing_tests, test_id_bytes: env.limits.tiers.test_id_bytes },
     );
     let task = row.task.take().expect("tier task");
+    d.offered_tier(task);
     row.flight = None;
     row.result = None;
     row.held = None;
@@ -920,10 +923,10 @@ pub(crate) fn step(
             TierBranch::Pending { .. } => wait(task, out),
             TierBranch::Absent => {
                 d.tier_ops.follows.remove(&key);
-                if heard.cancelled {
-                    row.cancelled = true;
+                if row.cancelled {
                     row.record.run = None;
                     row.task = None;
+                    d.offered_tier(task);
                     row.requested = false;
                     row.flight = None;
                     row.result = None;
@@ -1084,6 +1087,16 @@ pub(crate) fn deadline(d: &Domain) -> Option<Time> {
     next
 }
 pub(crate) fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    let mut tasks = List::with_capacity(d.tier_ops.due.capacity());
+    for (task, when) in &d.tier_ops.due {
+        if *when <= env.wall {
+            tasks.push(*task).expect("one deadline per admitted tier task");
+        }
+    }
+    for task in &tasks {
+        d.tier_ops.due.remove(task);
+        out.push(Request::WakeProcedure { task: *task });
+    }
     let mut due = None;
     for (key, walk) in &d.tier_ops.walks {
         if let Some(at) = walk.next
@@ -1230,6 +1243,7 @@ pub(crate) fn veto(d: &mut Domain, task: u64, entry: u64, out: &mut Queue<Reques
     out.push(Request::Erase { key: crate::Key::Entry(entry) });
 }
 pub(crate) fn restart(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    d.tier_ops.due = Map::with_capacity(d.tier_ops.due.capacity());
     let mut keys = List::with_capacity(d.tiers.capacity());
     for (key, _) in &d.tiers {
         keys.push(key.clone()).expect("bounded tiers");
@@ -1256,9 +1270,17 @@ pub(crate) fn restart(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request
 }
 impl Domain {
     /// The top owns each tier task's deadline (temper/docs/design/domain/after-landing.md, 10).
-    pub fn wait_tier(&mut self, _env: &Env<Limits>, _task: u64, _until: Option<Wall>) {}
+    pub fn wait_tier(&mut self, env: &Env<Limits>, task: u64, until: Option<Wall>) {
+        let until = match until {
+            Some(until) => until,
+            None => Wall::from_nanos(env.wall.as_nanos().saturating_add(env.limits.client.poll.as_nanos())),
+        };
+        self.tier_ops.due.insert(task, until).expect("one deadline per admitted tier task");
+    }
     /// The tier task was stepped: its deadline, if any, is spent.
-    pub fn offered_tier(&mut self, _task: u64) {}
+    pub fn offered_tier(&mut self, task: u64) {
+        self.tier_ops.due.remove(&task);
+    }
 
     #[must_use]
     #[expect(clippy::manual_find, reason = "step code searches explicitly without callbacks")]
