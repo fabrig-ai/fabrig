@@ -11,9 +11,10 @@ and how it is tested. jig's client is jig's `client/domain/client.md`, its
 API jig's `client/domain/contract.md` and its protocol jig's
 `protocol/client.md`: this document takes them as given and cites them.
 The forge's parts of the client are `forge.md`, the browser `browser.md`,
-and the agents' tools, `temper ctl`, `tools.md`. The mockups (`mockups/`)
-are the pages' design: their look, their parts and their order, their
-words and where each act leads; this document holds what each page
+and the agents' tools, `temper ctl`, `tools.md`. temper is the source
+of truth for what it draws; the mockups (`mockups/`) design what it
+does not draw yet: their look, their parts and their order, their
+words and where each act leads. This document holds what each page
 reads, watches and does, and cites them for the rest
 (`mockups/README.md`, section 1). What is still open is listed in
 section 11.
@@ -32,9 +33,8 @@ section 11.
 - **Its pages,** on jig's (jig's `client/domain/pages.md`): the inbox
   (home), the chats, a chat, a project's board, a task's page, the
   changes, the forge's adoption form, the forges, and the LLM accounts
-  (3.5); designed, not built, "How work runs" and a proposal of
-  settings' review (5.13). The
-  mockups design them: their look, parts, words and acts. What no page
+  (3.5); "How work runs" and a proposal of settings' review (5.13).
+  The mockups design them: their look, parts, words and acts. What no page
   shows is open (section 11).
 - **Its cards are its own.** A proposal, a question, a held task, a
   person task, a result, an entry of activity, an outcome and each
@@ -318,9 +318,9 @@ a committed reply always arrives without a further delivery to prompt it
 asks again).
 
 Each page has an address, and watches what it shows while it is open;
-leaving it closes its handles. Its mockup is its design: its look, its
-parts and their order, its words and where its acts lead
-(`mockups/README.md`). Lists of tasks are
+leaving it closes its handles. Its mockup designs what temper does not
+draw yet: its look, its parts and their order, its words and where its
+acts lead (`mockups/README.md`, section 1). Lists of tasks are
 task queries (jig's `client/domain/contract.md`, 6.1): the chat and
 goal templates' labels are jig's defaults, which temper's configuration
 keeps (`../protocol/configuration.md`, section 2).
@@ -339,8 +339,8 @@ keeps (`../protocol/configuration.md`, section 2).
 | `Welcome { step }` | `welcome.html`; the first run's step 0 | the first run's welcome, until the person has chosen: "Try the playground" or "Set up temper", the latter a wizard of Welcome, Forge, Model and Ready, its `step` (5.6; `../draft/archive/first-run.md`, 2.3) | the demo's state (4.8); `accounts`; the `forges` watch, for a person whose role holds the deployment's forges; the forge's, as `ConnectForge` reads it | start the playground; `ConnectForge`'s and `ConnectModel`'s acts |
 | `Accounts` | `accounts.html` | the person's LLM accounts, then, for an owner, the deployment's, each row folded until opened: its LLM provider and display name, its holder, its deciding source's state and its line (5.5, An account's line); opened, that state's words and acts, its sources in order, each with its state in words and, for a program's, on which hosts (5.5), what it pays for, the runs using it and the tasks waiting for it (facts jig gives the deployment's accounts alone for now, so a person's own leave them out: 5.5) and its acts; the checks under way, and how the last ended; then the playground's account, folded, while the demo's model half holds; "+ Connect a model", to `ConnectModel` | `accounts` (jig's `client/domain/contract.md`, 7.1); `me`'s LLM providers | sign in again or add a key from a state's acts, as `ConnectModel`'s ways; sign a source out; add a key to an account; replace a key; remove a source or an account; check a program's login again; move an account, or a source, up or down; resume a limited source |
 | `ConnectModel { way }` | `connect-model.html` | connecting one more LLM account, `way` the way it is at, or none at Choose: Choose, a card for each way its providers offer (5.5, The ways); Signing in, at the provider, for a sign-in, or Details, a way's field, for a key or a program's login; and Ready, the account made, or how the sign-in ended (5.5, A sign-in) | `accounts`; `me`'s LLM providers | sign in with an LLM provider; add a key as an account of its own; declare a program's login |
-| `HowWorkRuns` (designed, not built) | none yet: the user's, from the branch `configuring-mockups` (5.13) | the settings in the person's words: the newest revision and who decided it; "Tell temper how you work"; pending proposals of settings; roles, ways to start work, rules, running work and history, each row tagged Default, Changed or Added (5.13) | `settings`; each setting shown, `setting` (jig's `client/domain/contract.md`, 5.1 and 6) | start the configuring chat; move a revision's tasks to the newest; propose a reset, a removal or a restore |
-| `Proposal { proposal }` (designed, not built) | none yet (5.13) | a proposal of settings: temper enforces and your agents follow, its effect on running work, the settings folded; withdrawn when stale; accepted (5.13) | the `proposal`; `settings`; each item's setting before | accept, choosing whether running work moves; reject with a reason; change something, in the chat |
+| `HowWorkRuns` | none: the user's (5.13) | the settings in the person's words: the newest revision and who decided it; "Tell temper how you work"; pending proposals of settings; roles, ways to start work, rules, running work and history, each row tagged Default, Changed or Added (5.13) | `settings`; each setting shown, `setting` (jig's `client/domain/contract.md`, 5.1 and 6) | start the configuring chat; move a revision's tasks to the newest; propose a reset, a removal or a restore |
+| `Proposal { proposal }` | none: the user's (5.13) | a proposal of settings: temper enforces and your agents follow, its effect on running work, the settings folded; withdrawn when stale; accepted (5.13) | the `proposal`; `settings`; each item's setting before | accept, choosing whether running work moves; reject with a reason; change something, in the chat |
 
 - **Words and facts:** a chat's status from jig's facts (jig's
   `client/domain/client.md`, section 19), in jig's words, with temper's
@@ -1872,8 +1872,7 @@ you", a text node of its own after the entry's name, read from the
 person's own accounts, the demo's provider's left out: red for a
 deciding source refused, needing a sign-in, misconfigured or
 unloaded, before amber for one limited; current on `Accounts` and
-`ConnectModel`; both whatever the project; and, designed, not built,
-"How work runs", to `HowWorkRuns`, current there and on `Proposal`
+`ConnectModel`; both whatever the project; and "How work runs", to `HowWorkRuns`, current there and on `Proposal`
 (5.13), whatever the project. With no project chosen, the
 project's entries are not offered. The mockups' "Tasks", a list of a
 project's tasks, and "Workers", the deployment's hosts, are not in the
@@ -2792,7 +2791,7 @@ supplies it: the page computes none (jig's `client/domain/contract.md`,
   - not drawn: the mockup's case name beside the tag, a reference
     world's;
   - not drawn: the "Changes" breadcrumb, the bar naming its way as
-    5.1's does (the `Changes` page is not built); "Its tasks"'s
+    5.1's does; "Its tasks"'s
     subtitle ("made by the change procedure…"); and "its landing rules
     add none" after "No other gate.", which the panel cannot tell from
     a rule not read;
@@ -3001,14 +3000,11 @@ Its rules:
 
 ### 5.13 How work runs, and a proposal of settings
 
-Designed, not built (`../protocol/configuration.md`, section 13; jig's
-`domain/engine.md`, section 17, for the settings, their revisions and
-their proposals; the draft `../draft/configuring.md`, section 5). These
-pages are the user's to make: the user works on them from the mockups
-drawn ahead on temper's branch `configuring-mockups`, and the option
-pages once put to the user are withdrawn. Until the user's pages land,
-this section is the draft they start from; the configuring plan builds
-the settings first for `temper ctl` (its planned implementation).
+The settings, their revisions and their proposals are
+`../protocol/configuration.md`, section 13, and jig's
+`domain/engine.md`, section 17; the draft is `../draft/configuring.md`,
+section 5. The pages' look and place are the user's to make (section
+11).
 
 - **Two pages and a card.** `HowWorkRuns`, "How work runs", lists the
   settings in the person's words; `Proposal { proposal }`, under it,
@@ -3747,8 +3743,7 @@ The tiers, the fakes and the budgets are `../domain/testing.md`'s (sections 2,
 4 and 6.1); the client's joint world is its 2.1 and 6.3. The client's
 own tests:
 
-- **How work runs and a proposal of settings** (5.13), designed, not
-  built: step tests of their rows, card and review from jig's
+- **How work runs and a proposal of settings** (5.13): step tests of their rows, card and review from jig's
   documents, and the gallery's and goldens' pages
   (`../domain/testing.md`, 6.4).
 - **Credential-boundary consumption** is checked in the existing
@@ -4091,7 +4086,7 @@ own tests:
   error page, and its person finishes by pasting that page's address
   (3.5, `ConnectModel`, From another computer), or through a tunnel
   (the walk `box`, its account step). The person says which (with the
-  user, 2026-10-23, and decision 971). Candidates for telling by
+  user, 2026-10-23). Candidates for telling by
   itself: before the browser leaves, the page asks the listener for a
   one-time code the engine gave it for this sign-in, and only a browser
   that gets it goes on in its own tab, the others in a tab of their own
@@ -4138,15 +4133,11 @@ own tests:
 - **Hiding the demo** (`../draft/archive/first-run.md`, 2.2): the banner and
   the suggestions show while their halves hold (4.8). Default: nothing
   hides them, and nothing is kept to dismiss them.
-- **"Reset demo"** (the first-run mockup's earlier draft): the demo's
+- **"Reset demo":** the demo's
   chats and their work set aside for a fresh start. Default: not
   offered.
-- **"Signed in as the deployment’s owner"** (5.6) reads `me`'s role on
-  the deployment, which the engine gives only once it seeds the
-  deployment's owner (jig's t31a). Default: the project's role
-  meanwhile ("Signed in as the project’s owner").
 - **The demo's and the agent's placeholders** ("Try a suggested
-  request…", the first-run mockup's earlier draft; "Write to T12…", the
+  request…"; "Write to T12…", the
   agent's task's composer, 5.11): skein-ui's text area takes a
   placeholder, which a chat's composer draws (3.5). Default: neither
   drawn, the agent's waiting for its page's owner.
@@ -4196,7 +4187,7 @@ own tests:
   is the candidate, about 1.5 to 3 thousand lines. Default: the
   stand-in. The change's task page draws its live step from its panel
   (5.10); the card does not watch it.
-- **"Landed into main"** (the first-run mockup's earlier draft): the
+- **"Landed into main":** the
   branch a change lands into is a parameter of the forge's procedure,
   which jig's contract does not type, and the landing words name the
   merge commit alone. Default: "Landed · merge commit …"; the result's words
@@ -4205,8 +4196,8 @@ own tests:
   request merged by someone else is landed like any landing
   (`forge.md`, 6.2), CI or not. Default: the words, until the live
   stages.
-- **The pull request's link on the card** (the first-run mockup's
-  earlier draft, "OWNER/NAME#N on Demo forge", now Playground forge): the forge's part, which the forge's
+- **The pull request's link on the card** ("OWNER/NAME#N on
+  Playground forge"): the forge's part, which the forge's
   side does not read yet (4.2). Default: the link to the task's page.
 - **An added dependency** on a task's page (5.8, 5.9):
   `Dependency.added` says when and by whom a dependency was added.
@@ -4311,13 +4302,10 @@ own tests:
   `settings` document counts the live tasks holding each revision, but
   a task query has no revision among its keys (jig's
   `client/domain/contract.md`, 6.1), and nothing says before a move or
-  an acceptance how many tasks could not move. Default, asked of jig in
-  the configuring plan's planned implementation (revisions held by tasks, with moves):
+  an acceptance how many tasks could not move. Default, asked of jig:
   a task query keyed by revision, its live group only (a scan, which
   costs live tasks no more than any key), and a proposal's or a move's
-  count of tasks that could not move. Until then "Running work" and the
+  count of tasks that could not move; without it, "Running work" and the
   review page draw counts alone and say in words which tasks stay.
-- **How work runs' place and look** (5.13). The user's to make, from
-  the mockups on the branch `configuring-mockups`; the option pages put
-  to the user are withdrawn. Default: 5.13 as drawn, until the user's
-  pages land.
+- **How work runs' place and look** (5.13): the user's to make, with
+  no mockup yet. Default: 5.13 as drawn.
