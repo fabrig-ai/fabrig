@@ -1,9 +1,8 @@
 # Configuring temper by talking to it
 
 Draft, 2026-10-23. A person describes how they want work to go, and an
-agent configures temper to run it. It takes `first-release.md`'s
-section 7 further, from a session with the user that day, whose turns
-shaped it: settings that live in the store and never in the
+agent configures temper to run it, from a session with the user that
+day, whose turns shaped it: settings that live in the store and never in the
 configuration document, a change that new work follows while running
 work keeps what it started with, and a split between what temper
 enforces and what agents follow. It crosses jig and temper on purpose;
@@ -12,8 +11,8 @@ an owner splits it. Nothing here is adopted.
 ## 1. In one page
 
 - **The person never learns the words.** They describe how they work,
-  in their own words or by pointing at a document, as agents'
-  `roles/owners.md` and `roles/director.md` describe ours. temper answers with a
+  in their own words or by pointing at a document, as
+  `reference-code-production.md` describes ours. temper answers with a
   proposal, "here is how I'll run that", in their words with the
   settings underneath (section 5).
 - **Structure becomes settings; rules stay text** (section 2). What
@@ -38,11 +37,12 @@ an owner splits it. Nothing here is adopted.
   plain words, with what temper enforces apart from what agents follow,
   and what the change does to running work.
 - **It explains, both ways** (section 6): it answers from the settings
-  and the documentation built into the binary (section 7), and it
-  describes the settings back as a workflow.
-- **Its test** (section 8): given `owners.md` and `director.md`, it
-  should produce the encoding `temper-on-temper.md` made by hand, as far
-  as that draft's gaps (its 6.8) let temper say it.
+  and the documentation built into the binary
+  (`../protocol/documentation.md`), and it describes the settings back
+  as a workflow.
+- **Its test** (section 8): given `reference-code-production.md`, it
+  should propose the settings of its section 14, as far as the gaps
+  that draft records let temper say them.
 
 ## 2. Structure and rules
 
@@ -51,33 +51,34 @@ an owner splits it. Nothing here is adopted.
   temper wakes, schedules, permits, pays for, lands or holds, it is
   structure, and becomes settings. If only the agent reading it would
   act differently, it is a rule, and stays text that runs read.
-- **`owners.md`, sorted:**
+- **The reference process, sorted** (`reference-code-production.md`):
 
-  | From `owners.md` | Kind | In temper |
+  | From the reference | Kind | In temper |
   |---|---|---|
-  | Owners on Opus, testers on Codex by default, Claude for taste | structure | the charters' models, and the effort a parent picks within them |
-  | An owner runs on the machine its work runs on | structure | its charter's hosts |
-  | A fresh session at each milestone's end | structure | the charter's resume; by phase is a gap (`temper-on-temper.md`, 6.8) |
-  | Every change lands through `land`, its gate passed | structure | the landing rule |
-  | A milestone's cap is 4 hours | nearly | a deadline on the sub-owner's template, but jig's deadline holds what runs too, where the cap lets it finish (6.8 there) |
-  | At most four milestones per mission | rule | the owner counts; the engine has no such bound |
-  | A tester reads the design only, never the code under test | rule | authority is per repository, not per path |
-  | Upstream first | rule, using structure | the owner makes the dependency; the engine releases it |
-  | Notes, the closing note, small tasks, a world's test cost | rule | text |
+  | The coordinator on Opus 5.5 at xhigh, its surveys at high; producers on gpt-6.1-sol | structure | the charters' models, and each change's LLM choices (`notes.md`, N19) |
+  | A goal per draft, holding a branch of its own | structure | the goal template; its own branch is a gap (`notes.md`, N3) |
+  | Every change of the goal lands into its branch, with no CI | structure | a landing rule for goal branches (`notes.md`, N4) |
+  | The coordinator woken at once by questions and results, by a tier's red at most every 30 minutes | structure | its charter's wake policy (`notes.md`, N23) |
+  | At most four questions per change, through a foreman | structure | the change's question bound, which no design has yet (`notes.md`, N1) |
+  | Designers write the design under `docs/design`, a status file beside each document | rule | the designer's charter's instructions |
+  | A producer pushes early and finishes with a Left list | rule | the coding agent's charter's instructions |
+  | A producer never fixes what it does not own | rule | authority is per repository, not per path |
+  | `.temper/pre-pr` passes before delivery | rule | the project's checks, which the producer runs (`../domain/agent.md`, 4.5); the engine runs none of it |
 
-- **Rules say how agents use the structure.** "Upstream first" is a
-  rule; the dependency it asks the owner to make is the engine's. The
-  agent configures the mechanisms, and the rules stay where the person
-  wrote them, so most changes to a process need no configuring at all.
+- **Rules say how agents use the structure.** "Designers first" is a
+  rule; the dependency it asks the coordinator to make is the engine's.
+  The agent configures the mechanisms, and the rules stay where the
+  person wrote them, so most changes to a process need no configuring at
+  all.
 - **A rule may become structure** where temper's model has it, and the
-  agent offers it: "I can make the 4-hour cap a deadline temper holds,
-  though it holds what runs too; 'at most four milestones' stays a rule
-  your owners follow". The person chooses what is guaranteed. The
-  tester's row is the honest answer the other way: it looks enforceable,
-  and is not.
+  agent offers it: "I can make each family's changes wait for its
+  designer, as dependencies temper holds; 'push early' stays a rule your
+  producers follow". The person chooses what is guaranteed. The producer's last row is the honest answer the other
+  way: it looks enforceable, and is not.
 - **Rules must reach the runs.** A run reads `AGENTS.md` in its
   workspace's repositories (`../domain/agent.md`, 4.5), and a run with no
-  repository has no workspace, so a chat cannot read `owners.md`. A
+  repository has no workspace, so a chat cannot read the process's
+  document. A
   charter's instructions may therefore name documents, each a
   repository, a path and its landing branch, which the engine reads into
   each run's brief: a rule that lands reaches the next run. A
@@ -96,8 +97,8 @@ The user's rule: `temper.json` keeps only what the process needs before
 it can read its store, and what belongs to the machine; everything else
 is a setting in the store. Projects already left it: jig makes them at
 runtime, and the first run makes them as the person goes
-(`first-run.md`, 2.4). This draft moves the rest of what configures
-work:
+(`archive/first-run.md`, 2.4). This draft moves the rest of what
+configures work:
 
 | Setting | In the document today | Read | So |
 |---|---|---|---|
@@ -118,10 +119,10 @@ work:
 - **What stays in the document:** the directories, the listeners, the
   workers and their secrets' files, the limits (they size memory at the
   start), the first owners and the sign-in providers (needed before
-  anyone signs in), and, for now, the LLM providers and the forges'
-  addresses. Those two follow the same rule later, each its own design
-  (section 10): models are bit positions in authorities, and a forge's
-  number keys its records.
+  anyone signs in), and, for now, the LLM providers, which follow the
+  same rule later, a design of their own (section 10): models are bit
+  positions in authorities. Forges are records in the store already
+  (`playground-reset.md`, section 3).
 
 ### 3.2 Defaults and changes
 
@@ -224,9 +225,9 @@ made follows the new one, and what is in flight keeps the old.
 - **Removing is free.** A removed charter lives in the revisions that
   hold it while tasks use them. That answers jig's open question on
   parts removed at a restart (jig's `protocol/configuration.md`, section
-  9), and two of `temper-on-temper.md`'s, 6.8: retiring a charter (no
-  new work under it; what runs finishes) and whether a charter's change
-  reaches tasks already running (not unless they move).
+  9), and two questions of a process that changes: retiring a charter
+  (no new work under it; what runs finishes) and whether a charter's
+  change reaches tasks already running (not unless they move).
 - **Bounded.** At most a limit's number of revisions are in use, and
   the charters they hold within another. A change that would need more
   is refused, naming the tasks that hold the oldest, with moving them
@@ -247,8 +248,8 @@ made follows the new one, and what is in flight keeps the old.
 ### 5.1 Where they meet it
 
 - **The stock defaults are enough to start.** The first run's wizard
-  (`first-run.md`, 2.3) grows no step. After its Ready, and on an empty
-  "How work runs" page, one offer: "Tell temper how you work".
+  (`archive/first-run.md`, 2.3) grows no step. After its Ready, and on
+  an empty "How work runs" page, one offer: "Tell temper how you work".
 - **The conversation is a chat** from a stock template whose charter is
   the configuring agent's: nothing particular in jig, and a setting
   itself, so it can be reconfigured.
@@ -305,10 +306,11 @@ made follows the new one, and what is in flight keeps the old.
 ### 5.3 What it cannot do
 
 - **What temper cannot model,** it says, and offers the nearest thing:
-  parking an owner, a cap that holds new starts only, the other gaps of
-  `temper-on-temper.md`, 6.8. Each such answer is design input.
-- **What needs a restart,** it says too: a provider or a forge the
-  document does not name, a listener, a worker, a limit (3.1).
+  a goal's own branch, a coordinator's wake policy, the other gaps
+  `reference-code-production.status.md` records. Each such answer is
+  design input.
+- **What needs a restart,** it says too: a provider the document does
+  not name, a listener, a worker, a limit (3.1).
 
 ## 6. The configuring agent
 
@@ -324,20 +326,8 @@ made follows the new one, and what is in flight keeps the old.
   which is also how its test reads (section 8).
 - **Its charter** is a stock one, a default like the others (3.2).
 - **Later, it is woken by a landing** of a document a charter names,
-  when the landing touches structure: "owners.md changed; here is what
-  it means for your setup".
-
-## 7. Documentation in the binary
-
-- **One source of user documentation, three readers:** the site's
-  documentation pages, the command line's help (`temper help <topic>`),
-  and the agent's context, in `temper box` and in a deployment, through
-  a tool that searches and reads it.
-- **Written for people who run temper,** not in the design documents'
-  register: the concepts (a task, a goal, a charter, a template, a
-  policy, a landing rule), recipes ("review before landing", "a tester
-  that cannot land", "a weekly budget") and the limits.
-- **Where its source lives** is open (section 10).
+  when the landing touches structure: "process.md changed; here is
+  what it means for your setup".
 
 ## 8. Its test
 
@@ -347,11 +337,13 @@ made follows the new one, and what is in flight keeps the old.
   stale; running work moved; a document a charter names, changed. The
   revisions' own: a change during a run, a restart with old revisions in
   use, the bound reached.
-- **The encoding as a golden:** `temper-on-temper.md`'s section 4 turned
-  into a set of settings. `owners.md` and `director.md` go through a
-  real model, and its proposal is scored against the golden, within
-  6.8's gaps. A lab experiment, run when the agent's instructions or the
-  documentation change, not in the gate.
+- **The reference as a golden:** `reference-code-production.md`,
+  section 14, as a set of settings. The draft goes through a real model
+  as the person's description, and its proposal is scored against the
+  golden, within the gaps `reference-code-production.status.md`
+  records. A walk, run when the agent's instructions or the
+  documentation change, not in the gate; v0.1.0's rung D walks it on
+  real backends (`v0.1.0.md`, 2.1).
 
 ## 9. Order
 
@@ -367,12 +359,12 @@ made follows the new one, and what is in flight keeps the old.
 3. **Mockups:** "How work runs", the card and the review page.
 4. **The code,** jig's, then temper's.
 5. **The documentation in the binary.**
-6. **The configuring agent,** its stories, then the golden and the
-   experiment.
+6. **The configuring agent,** its stories, then the golden and its
+   walk.
 
 ## 10. Open questions
 
-- **Settings in a repository** (from `first-release.md`, 7.2), a source
+- **Settings in a repository,** a source
   synced into the store's settings. What was said:
   - a local git repository in the deployment's data directory, written
     by temper: history, diffs and rollback, with no forge;
@@ -386,16 +378,15 @@ made follows the new one, and what is in flight keeps the old.
     held in memory, with test-grade promises;
   - a split to weigh: what concerns working on a product (charters,
     gates, landing rules) in the product's own repository, as
-    `AGENTS.md` is today (`factory.md`: product knowledge is data in the
-    product's repository); what concerns the deployment (workers,
+    `AGENTS.md` is today; what concerns the deployment (workers,
     accounts, budgets, capacities) with the deployment.
 
   Charters naming documents (section 2) take part of it. Default: the
   store alone.
 - **An import:** a file of settings made into a proposal, for operators
   who keep configuration in files. Default: later.
-- **LLM providers and forges' addresses** in the store too, by 3.1's
-  rule. Default: later, each its own design.
+- **LLM providers** in the store too, by 3.1's rule. Default: later,
+  a design of their own.
 - **Delegates on their parent's revision,** as a change's option.
   Default: later.
 - **Hand edits** on "How work runs", by an owner who is also the one to
@@ -405,5 +396,3 @@ made follows the new one, and what is in flight keeps the old.
 - **A release's new defaults** reaching settings never changed, with no
   proposal. Default: yes, said in its release notes and its history
   line.
-- **Where the documentation's source lives.** Default: temper's
-  repository, beside its design.

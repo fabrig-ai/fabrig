@@ -6,8 +6,8 @@ an agent that you want a dashboard like the one I pointed [at] and it
 configures temper to show that dashboard in the client. Sort of "UI as
 data" approach with some flexible palette of options/widgets can be
 used to expose engine data (possibly with custom calculations. LUA?)".
-The page pointed at is https://status.fabrig.ai, which agents'
-`scripts/devel/status-page` writes (agents' `docs/design/status-page.md`).
+The page pointed at is https://status.fabrig.ai, a status page of
+agents' (`docs/design/status-page.md` there).
 It takes `configuring.md` from the settings to the client's pages, on
 the settings jig has since designed (jig's `domain/engine.md`, section
 17). It crosses jig and temper on purpose; an owner splits it. Nothing
@@ -29,10 +29,9 @@ here is adopted, and nothing here is a part of v0.1.0 (`v0.1.0.md`).
   keep (section 3); *metrics*, named calculations over one owner's
   facts, settings too (section 4); *panels*, a dashboard's parts from a
   closed palette, each showing metrics (section 5).
-- **The hard part is the numbers, not the panels.** agents'
-  `status-page` spends more than half of its two thousand lines on
-  twelve sources and their medians, p90s, rates and paces; its layout
-  is the easy part.
+- **The hard part is the numbers, not the panels.** A status page
+  spends most of its code on its sources and their medians, p90s,
+  rates and paces; its layout is the easy part.
   jig's client reads windows of tasks by a fixed set of keys, and
   nothing aggregates (jig's `client/domain/contract.md`, 6.1): a client
   cannot compute "p90 of gate time per repository, the last week" from
@@ -68,8 +67,8 @@ here is adopted, and nothing here is a part of v0.1.0 (`v0.1.0.md`).
   against a revision and checked whole (17.2); a run whose charter gives
   it the settings family proposes a set (17.6). A dashboard and the
   metrics it shows are items of one set, accepted or refused together.
-- **On temper's kinds.** temper declares three kinds today, all the
-  forge's (`../protocol/configuration.md`, 13.2). This draft adds a
+- **On temper's kinds.** temper's kinds are all the forge's
+  (`../protocol/configuration.md`, 13.2). This draft adds a
   dashboard kind, scoped to the deployment or to each project, owned by
   a small child of temper's root, the dashboards child, and the forge's
   metrics kind (section 4). jig adds a metric kind of its own.
@@ -273,7 +272,7 @@ drawn by `temper-client-view`:
   `status-page.md`, in the test.
 - **Its tools grow by three reads:** the facts' catalogue, each owner's
   sources with their keys and operations, from the documentation in the
-  binary (`configuring.md`, section 7); the dashboards and metrics as
+  binary (`../protocol/documentation.md`); the dashboards and metrics as
   they are; and a metric's values, as a person in the same role would
   see them. It proposes through the same `propose` call.
 - **It asks** what to watch, for whom (the scope) and over what span,
@@ -345,7 +344,7 @@ memory, run by the metric's owner within its decision's budget, over
 the same facts and buckets, its code shown folded on the review page
 beside the agent's words. wasm with a fuel meter is the likely choice
 over an embedded Lua: one toolchain, and temper already builds for
-wasm32 (`browser-playground.md`). Default: none.
+wasm32 (`../playground.md`). Default: none.
 
 ## 8. Bounds
 
@@ -371,9 +370,9 @@ wasm32 (`browser-playground.md`). Default: none.
   is refused its dashboards; the fake person reads a chart's words.
 - **The status page as a golden.** agents' `status-page.md` goes through
   a real model as the person's description, and the proposal is scored
-  against a dashboard made by hand, within the gaps below. A lab
-  experiment, run when the agent's instructions or the documentation
-  change, not in the gate (`configuring.md`, section 8).
+  against a dashboard made by hand, within the gaps below. A walk, run
+  when the agent's instructions or the documentation change, not in the
+  gate (`configuring.md`, section 8).
 - **What it maps to:**
 
   | The status page | temper's dashboard | Gap |
@@ -386,14 +385,14 @@ wasm32 (`browser-playground.md`). Default: none.
   | landings per hour, recent outcomes | changes ended, by outcome; a rate | a landing's own time: its change's ended time stands in |
   | land gates: count, failures, median, p90, by repository | gate tasks ended: count, ratio failed, quantiles, by repository | none |
   | gate steps (fmt, clippy, tests) | none | CI's steps are not kept, and CI is forgotten at a restart |
-  | builds by kind, heavy's queue | runs' wait for a host slot | heavy is the factory's, not temper's |
+  | builds by kind, heavy's queue | runs' wait for a host slot | heavy is fabrig's build tooling, not temper's |
   | machines: load, memory, disk | hosts: connected, slots used and free | hosts report no load, memory or disk |
   | implementer runs by model and effort: duration | runs ended by model and effort: count, quantiles | none |
   | their tokens and cache hits | none | token counts stay in smith's turns |
   | subscriptions: use and pace | budgets: spend against each period's budget, its projection; accounts by state | a provider's plan use, beyond limited |
 
-- **The gaps are the experiment's other output:** each a fact to design
-  by its owner, or to leave out, as `temper-on-temper.md`'s 6.8 is for
+- **The gaps are the walk's other output:** each a fact to design by
+  its owner, or to leave out, as the reference's gaps are for
   `configuring.md`.
 
 ## 10. Order
@@ -406,8 +405,7 @@ wasm32 (`browser-playground.md`). Default: none.
    panels, and the review with its preview.
 3. **The code,** jig's, then temper's: the metrics, the dashboards
    child, the panels in `temper-client-view`.
-4. **The agent's reads,** its stories, then the golden and the
-   experiment.
+4. **The agent's reads,** its stories, then the golden and its walk.
 
 ## 11. Open questions
 

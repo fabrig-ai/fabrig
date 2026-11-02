@@ -2,9 +2,10 @@
 
 Report, 2026-10-20. An investigation, read-only, of how feasible it is
 for `temper serve` to rebuild its domain from a new configuration
-document in the same process, its listeners and connections kept. Run on
-Codex for the first-run design session (`first-run.md`, section 7),
-against the primary checkouts' `main` named below; its citations are
+document in the same process, its listeners and connections kept. Run
+on Codex for the first-run design session
+(`../design/draft/archive/first-run.md`, section 7), against the
+primary checkouts' `main` named below; its citations are
 `repository/path:line` at those commits. A record, not contract.
 
 **Feasible, but there is no ready-made domain-swap operation.** My estimate is **medium** for a restricted restart at a safe point, **large** for transparent restart during active execution with arbitrary configuration changes.
