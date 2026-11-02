@@ -679,9 +679,19 @@ subscribing; the others are `EVENTS`' (section 11), and no more.
 - **The component follows it** to an origin among its `log_origins`,
   sending nothing of the forge's, and an origin it does not know is
   `Refused` and a diagnostic (forge-connection.md, section 4).
-- **The log is read whole** as it streams, its last `max_bytes` kept
-  within the answer's bound, `truncated` when bytes before them were
-  read. GitHub's log is the job's, not a step's.
+- **The log is read whole** as it streams, within the component's input
+  bound. GitHub serves the job's log. With a failed step in the validated
+  metadata, `Retention::FailedStep` keeps at most `max_bytes` ending at
+  the first runner `##[error]Process completed with exit code ` line's
+  newline. Later bytes, including post-job checkout cleanup, are drained
+  without replacing that suffix. Recognition crosses stream chunks and
+  uses constant state beside the bounded suffix. Without a failed step,
+  or without that runner marker, the job's last `max_bytes` are kept.
+  The step name shares the answer's bound with the log. `truncated` says
+  that any prefix or cleanup bytes were omitted.
+- **Later:** identifying failed action boundaries without a runner process
+  marker. Those logs use the bounded job-tail fallback; no read window or
+  stored request shape is added here.
 
 ## 11. The setup's documents
 

@@ -286,7 +286,7 @@ fn worker(engine: &mut Engine, request: root::WorkerRequest) {
                         answer: jig_domain_core::SettledAnswer::Host { error, body },
                     }));
                 }
-                root::HostDelivery::Render { to, answer, .. } => engine.events.push(crate::tools::render(to, &answer)),
+                root::HostDelivery::Render { to, answer, tool, .. } => render_host(engine, to, &answer, &tool),
                 root::HostDelivery::Answer { channel, task, attempt, name, call } => engine.workers.send(
                     engine.env.now,
                     channel,
@@ -332,6 +332,12 @@ fn worker(engine: &mut Engine, request: root::WorkerRequest) {
 
 fn forge_rows(engine: &Engine, forges: temper_engine_domain_forge::Forges) -> Option<Box<[u8]>> {
     crate::family::forges(engine.forge.origins.rows(forges), &temper_client_protocol_wire::v1::CEILINGS)
+}
+
+fn render_host(engine: &mut Engine, to: skein_lib::ReplyTo, answer: &root::CallAnswer, tool: &[u8]) {
+    let bytes =
+        engine.env.limits.call_answer_bytes.saturating_sub(u32::try_from(tool.len()).expect("bounded tool name"));
+    engine.events.push(crate::tools::render(to, answer, bytes));
 }
 
 #[cfg(test)]

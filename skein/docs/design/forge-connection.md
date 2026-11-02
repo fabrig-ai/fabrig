@@ -440,6 +440,10 @@ and port of `Location`, and its target is the path and query.
   within the call's deadline, and is counted in the call. The API's
   connection goes back idle. Its answer streams through the plan as
   the log's body. A redirect answered by a redirect fails `Unavailable`.
+  The exchange carries the plan's retention unchanged: a failed-step suffix
+  stops at the runner's failed-process line while the connection drains
+  cleanup within `body_bytes_in` (forge-github.md, 10). Head and job-tail
+  retention keep their bounds and meaning.
 
 ## 5. Credentials and their renewal
 
