@@ -769,6 +769,7 @@ fn seed_with_landing() -> crate::Config {
     use jig_domain_tasks as tasks;
     let mut configured = config(1);
     configured.core.defaults.templates = Box::new([jig_domain_core::Template {
+        resources: Box::new([]),
         number: 1,
         name: b"goal".as_slice().into(),
         executor: people::TemplateExecutor::Chosen,

@@ -8,6 +8,7 @@ use skein_lib::{Duration, Env, Time};
 
 fn template() -> Template {
     Template {
+        resources: Box::new([]),
         number: 1,
         name: Box::from(b"chat".as_slice()),
         executor: people::TemplateExecutor::Charter(1),
