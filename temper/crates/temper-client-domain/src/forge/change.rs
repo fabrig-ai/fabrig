@@ -36,7 +36,9 @@ pub fn slot(step: &w::Step) -> Slots {
         },
         w::Step::Landing => 5,
         w::Step::Ended => return Slots { current: None, done: 0 },
-        w::Step::Landed(_) => return Slots { current: None, done: 6 },
+        w::Step::Landed(_) | w::Step::Verifying(_) | w::Step::Red(_) | w::Step::Cleared(_) => {
+            return Slots { current: None, done: 6 };
+        }
     };
     Slots { current: Some(current), done: current }
 }
@@ -87,6 +89,9 @@ pub fn queue(step: &w::Step) -> Option<Queue<'_>> {
         | w::Step::Repairing(_)
         | w::Step::Landing
         | w::Step::Landed(_)
+        | w::Step::Verifying(_)
+        | w::Step::Red(_)
+        | w::Step::Cleared(_)
         | w::Step::Ended => None,
     }
 }
@@ -133,14 +138,11 @@ pub fn line(panel: &w::ChangePanel) -> Said {
             w::Reason::Semantic => return landing_line(W::RepairSemantic, panel),
         },
         w::Step::Landing => W::LandingLine,
-        w::Step::Landed(landed) => {
-            let mut digits = [0; 7];
-            for (i, digit) in digits.iter_mut().enumerate() {
-                let byte = *landed.merge().get(i / 2).expect("seven nibbles in 32 bytes");
-                let nibble = if i % 2 == 0 { byte >> 4_u8 } else { byte & 15 };
-                *digit = *b"0123456789abcdef".get(usize::from(nibble)).expect("hex nibble");
-            }
-            return (W::LandedLine, Box::new([Hole::Name(copy_of(&digits))]));
+        w::Step::Landed(landed) => return merged_line(W::LandedLine, landed.merge()),
+        w::Step::Verifying(value) => return merged_line(W::VerifyingLine, value.merge()),
+        w::Step::Red(value) => return merged_line(W::RedLine, value.merge()),
+        w::Step::Cleared(value) => {
+            return merged_line(if value.uncleared() { W::UnclearedLine } else { W::ClearedLine }, value.merge());
         }
     };
     (word, Box::new([]))
@@ -149,7 +151,7 @@ fn landing_line(word: W, panel: &w::ChangePanel) -> Said {
     (word, Box::new([Hole::Name(copy_of(panel.landing()))]))
 }
 #[must_use]
-pub const fn held_step(step: &w::Step) -> W {
+pub fn held_step(step: &w::Step) -> W {
     match step {
         w::Step::Ready(_) => W::HeldReady,
         w::Step::Preparing(_) => W::HeldPreparing,
@@ -167,6 +169,15 @@ pub const fn held_step(step: &w::Step) -> W {
         w::Step::Landing => W::HeldLanding,
         w::Step::Ended => W::EndedLine,
         w::Step::Landed(_) => W::HeldLanded,
+        w::Step::Verifying(_) => W::HeldVerifying,
+        w::Step::Red(_) => W::HeldRed,
+        w::Step::Cleared(value) => {
+            if value.uncleared() {
+                W::HeldUncleared
+            } else {
+                W::HeldCleared
+            }
+        }
     }
 }
 #[must_use]
@@ -253,6 +264,30 @@ impl<'a> Change<'a> {
         queue(self.panel.step())
     }
     #[must_use]
+    pub fn tiers(self) -> &'a [Box<[u8]>] {
+        match self.panel.step() {
+            w::Step::Verifying(value) => value.tiers().as_slice(),
+            w::Step::Red(value) => value.tiers().as_slice(),
+            w::Step::Cleared(value) => value.tiers().as_slice(),
+            w::Step::Ready(_)
+            | w::Step::Preparing(_)
+            | w::Step::Producing
+            | w::Step::Opening
+            | w::Step::Recreating
+            | w::Step::Reopening
+            | w::Step::Checking
+            | w::Step::Gating
+            | w::Step::Queued(_)
+            | w::Step::First
+            | w::Step::Updating
+            | w::Step::Resolving
+            | w::Step::Repairing(_)
+            | w::Step::Landing
+            | w::Step::Landed(_)
+            | w::Step::Ended => &[],
+        }
+    }
+    #[must_use]
     pub fn line(self) -> Said {
         line(self.panel)
     }
@@ -299,7 +334,9 @@ impl<'a> Change<'a> {
     pub fn ci(self) -> W {
         match self.panel.ci() {
             w::Ci::Unknown => match self.panel.step() {
-                w::Step::Landed(_) | w::Step::Ended => W::NotRead,
+                w::Step::Landed(_) | w::Step::Verifying(_) | w::Step::Red(_) | w::Step::Cleared(_) | w::Step::Ended => {
+                    W::NotRead
+                }
                 w::Step::Ready(_)
                 | w::Step::Preparing(_)
                 | w::Step::Producing
@@ -339,4 +376,14 @@ impl<'a> Change<'a> {
         }
         result
     }
+}
+
+fn merged_line(word: W, merge: &[u8; 32]) -> Said {
+    let mut digits = [0; 7];
+    for (i, digit) in digits.iter_mut().enumerate() {
+        let byte = *merge.get(i / 2).expect("seven nibbles in 32 bytes");
+        let nibble = if i % 2 == 0 { byte >> 4_u8 } else { byte & 15 };
+        *digit = *b"0123456789abcdef".get(usize::from(nibble)).expect("hex nibble");
+    }
+    (word, Box::new([Hole::Name(copy_of(&digits))]))
 }

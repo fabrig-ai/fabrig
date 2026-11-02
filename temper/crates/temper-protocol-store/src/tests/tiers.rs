@@ -45,6 +45,7 @@ fn tier_records_keep_the_whole_policy_and_all_parts() {
     empty.pending = Box::new([]);
     empty.baseline = None;
     empty.branch = d::TierBranch::Absent;
+    empty.probe = None;
     empty.flight = None;
     empty.held = None;
     empty.result = None;
@@ -70,7 +71,7 @@ fn verification_keeps_every_verdict_and_repair_and_receipts_keep_failures() {
                         d::TierVerification {
                             tier: Box::from(b"two".as_slice()),
                             verdict: Some(d::TierVerdict { run: 7, blame }),
-                            repaired: Some([8; 32]),
+                            repaired: Some(d::TierRepair { run: 2, tip: [8; 32] }),
                         },
                     ]),
                 }),
@@ -167,7 +168,7 @@ fn tier_family_bounds_follow_the_forge_and_full_row_measure() {
     assert_eq!(l.failing_test_test_id, fixtures::LIMITS.tiers.test_id_bytes);
     let row = records::encode(&d::Stored::Tier(fixtures::tier_row()));
     assert_eq!(u64::try_from(row.len()).unwrap(), crate::v11::TierRow::encoded_bound(l).unwrap() + 3);
-    assert_eq!(row.len(), 100_978);
+    assert_eq!(row.len(), 103_061);
     assert!(row.len() < 118_676);
 }
 

@@ -79,6 +79,12 @@ pub struct Bounds {
 #[must_use]
 pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
     let limits = v1::Limits {
+        verifying_tiers: 32,
+        verifying_tiers_item: 128,
+        red_tiers: 32,
+        red_tiers_item: 128,
+        cleared_tiers: 32,
+        cleared_tiers_item: 128,
         authority_hold_reason: 512,
         owned_forge_forgejo: 64,
         owned_forge_runner_some: 64,

@@ -755,7 +755,14 @@ pub fn assert_task(run: &str, calls: &[super::Ended], stderr: &str, evidence: &E
         "the worker cloned the starter workflow: {producer}"
     );
     assert!(page.contains("work/hello"), "{run}: {page}");
-    assert!(page.contains("CI at its head\nPassed"), "{run}: terminal CI stays at the pull's head: {page}");
+    assert_landed_ci(run, page);
+}
+
+/// CI on temper's change page: passed at the landed change's head, at the
+/// landing and after a restart, which keeps it with the change's record
+/// (domain/forge.md, 8.8).
+pub fn assert_landed_ci(run: &str, page: &str) {
+    assert!(page.contains("CI at its head\nPassed"), "{run}: CI at the landed change's head: {page}");
 }
 
 #[must_use]

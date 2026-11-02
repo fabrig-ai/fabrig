@@ -3,7 +3,7 @@ id = "tiers-stories"
 part = "tiers-stories"
 kind = "feature"
 needs = ["tiers-root", "tiers-verification", "tiers-reports", "panel-steps"]
-files = ["temper/tests/engine/domain/tests/suite/forge_routes/tiers.rs", "temper/tests/engine/domain/src/tier_runs.rs", "temper/tests/engine/domain/src/forge_routes.rs", "temper/tests/engine/domain/src/lib.rs", "temper/tests/engine/domain/tests/suite/forge_routes.rs"]
+files = ["temper/tests/engine/domain/tests/suite/forge_routes/tiers.rs", "temper/tests/engine/domain/src/tier_runs.rs", "temper/tests/engine/domain/src/forge_routes.rs", "temper/tests/engine/domain/src/lib.rs", "temper/tests/engine/domain/tests/suite/forge_routes.rs", "temper/tests/engine/domain/Cargo.toml", "Cargo.lock"]
 effort = "high"
 minutes = 240
 +++
@@ -86,3 +86,14 @@ Pre-approved options:
 
 As the implementer's text says, and also: each story's seed and simulated time; any story
 ignored, why and whose.
+
+## Answers
+
+### 2026-11-02: May this task add `temper-engine-domain-forge-tiers.workspace = true` to `temper/tests/engine/domain/Cargo.toml`? (reference-m8/tiers-stories-1, foreman reference-m8/tiers-stories/foreman-1)
+
+Yes: that one line, in `[dependencies]` beside `temper-engine-domain-forge-change`, and the
+`Cargo.lock` entry it makes, nothing else in either file. The world names the tier's `Format`
+(`notes/contracts.md`, 3: `TierCheck::format`), and the workspace already declares the crate.
+Both files are now in the header. Resume from the pushed `reference-m8/tiers-stories`; merge
+`origin/reference-m8/panel-steps` again before the panel's stories, since panel-steps is
+resuming with a widened change (a tier's repairing run in the verification).

@@ -1,6 +1,6 @@
 # The run
 
-Provisional, 2026-10-05, revised 2026-10-21. What a smith run is, as a
+Provisional, 2026-10-05, revised 2026-11-02. What a smith run is, as a
 domain layer: one activation of an agent, from the charter its host gives
 it to the answer it gives back. It is the child domain `smith-domain-run`,
 composed with its sessions by `smith-domain` (README.md, section 4). The
@@ -433,6 +433,14 @@ section 6).
   share, so a brief names the paths, the decisions already made and the
   scope; independent reading splits among inspect-only children, which
   run side by side; a writing child runs alone.
+- **On a program backend** (protocol/programs.md, 5.10), the run serves
+  `sub_agent` through the agent's MCP server and answers it as here,
+  each child a program session of its own at the model and effort of
+  its LLM, or a direct session where its LLM's endpoint names no
+  program. Its children are granted inspect alone: none holds the
+  lease, and they run side by side. Its share, its final turn, its
+  result and its spend are this section's; how the program is told
+  them is the program's document's.
 
 Within a run, sub-agents: cheap, sharing its workspace and budget, ended
 with the call that asked for them. Work that should outlive the run, run

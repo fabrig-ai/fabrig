@@ -489,3 +489,129 @@ fn a_preparing_change_has_a_panel() {
         assert_eq!(got.hold, if held { Some(change::Hold::Stalled) } else { None });
     }
 }
+
+#[test]
+fn after_landing_steps_keep_each_tiers_verdict_and_repairing_run() {
+    use temper_engine_domain_forge_tiers::{Blame, Failures};
+    let merge = fixtures::BASE;
+    let lines: Box<[Box<[u8]>]> = Box::new([
+        Box::from(b"fast run 2".as_slice()),
+        Box::from(b"slow run 1 \xc2\xb7 many tests".as_slice()),
+        Box::from(b"later waiting".as_slice()),
+    ]);
+    for (state, expected) in [
+        (change::State::Landed { merge, since: env().wall }, PanelStep::Verifying { merge, tiers: lines.clone() }),
+        (change::State::Red { merge, since: env().wall }, PanelStep::Red { merge, tiers: lines.clone() }),
+        (change::State::Cleared { merge }, PanelStep::Cleared { merge, tiers: lines.clone(), uncleared: false }),
+        (change::State::Uncleared { merge }, PanelStep::Cleared { merge, tiers: lines.clone(), uncleared: true }),
+    ] {
+        let mut row = fixtures::opening_row();
+        row.change.state = state;
+        let mut d = with_row(row);
+        let verification = Verification {
+            repository: REPO,
+            commit: merge,
+            changes: Box::new([fixtures::CHANGE]),
+            tiers: Box::new([
+                TierVerification {
+                    tier: Box::from(b"fast".as_slice()),
+                    verdict: Some(TierVerdict { run: 1, blame: Blame::Owns(Failures::Many) }),
+                    repaired: Some(TierRepair { run: 2, tip: fixtures::HEAD }),
+                },
+                TierVerification {
+                    tier: Box::from(b"slow".as_slice()),
+                    verdict: Some(TierVerdict { run: 1, blame: Blame::Suspect(Failures::Many) }),
+                    repaired: None,
+                },
+                TierVerification { tier: Box::from(b"later".as_slice()), verdict: None, repaired: None },
+            ]),
+        };
+        d.verifications.insert((REPO, merge), verification).expect("verification room");
+        assert_eq!(panel(&d).step, expected);
+    }
+}
+
+#[test]
+fn tier_lines_show_runs_in_flight_counted_blame_and_outright_clearance() {
+    use temper_engine_domain_forge_tiers as p;
+    let merge = fixtures::BASE;
+    let mut row = fixtures::opening_row();
+    row.change.state = change::State::Landed { merge, since: env().wall };
+    let mut d = with_row(row);
+    let tier: Box<[u8]> = Box::from(b"running".as_slice());
+    d.tiers
+        .insert(
+            (REPO, tier.clone()),
+            TierRow {
+                repository: REPO,
+                tier,
+                task: Some(61),
+                requested: false,
+                cancelled: false,
+                purpose: None,
+                pending: Box::new([]),
+                baseline: None,
+                branch: TierBranch::Absent,
+                probe: None,
+                flight: None,
+                held: None,
+                result: None,
+                received: false,
+                record: p::Record {
+                    sequence: 7,
+                    judged: None,
+                    failing: p::Failures::Tests(Box::new([])),
+                    flakes: Box::new([]),
+                    run: Some(p::Run {
+                        number: 7,
+                        tip: merge,
+                        key: merge,
+                        landings: Box::new([]),
+                        part: p::Part::Whole,
+                        faults: 0,
+                    }),
+                },
+            },
+        )
+        .expect("tier room");
+    d.verifications
+        .insert(
+            (REPO, merge),
+            Verification {
+                repository: REPO,
+                commit: merge,
+                changes: Box::new([fixtures::CHANGE]),
+                tiers: Box::new([
+                    TierVerification { tier: Box::from(b"running".as_slice()), verdict: None, repaired: None },
+                    TierVerification {
+                        tier: Box::from(b"red".as_slice()),
+                        verdict: Some(TierVerdict {
+                            run: 4,
+                            blame: p::Blame::Owns(p::Failures::Tests(Box::new([
+                                Box::from(b"one".as_slice()),
+                                Box::from(b"two".as_slice()),
+                            ]))),
+                        }),
+                        repaired: None,
+                    },
+                    TierVerification {
+                        tier: Box::from(b"green".as_slice()),
+                        verdict: Some(TierVerdict { run: 5, blame: p::Blame::Cleared }),
+                        repaired: None,
+                    },
+                ]),
+            },
+        )
+        .expect("verification room");
+    assert_eq!(
+        panel(&d).step,
+        PanelStep::Verifying {
+            merge,
+            tiers: Box::new([
+                Box::from(b"running run 7 running".as_slice()),
+                Box::from(b"red run 4 \xc2\xb7 2 tests".as_slice()),
+                Box::from(b"green run 5".as_slice()),
+            ])
+        }
+    );
+}

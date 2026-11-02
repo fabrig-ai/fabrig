@@ -119,6 +119,20 @@ pub struct World {
 
 impl World {
     #[must_use]
+    pub fn tiered(seed: u64, workflow: raw::Workflow) -> World {
+        Self::configured(
+            seed,
+            LIMITS.facts,
+            false,
+            Some(skein_forge_client::Writer { forge: REPO.forge, author: 1 }),
+            None,
+            false,
+            6,
+            false,
+            Some(workflow),
+        )
+    }
+    #[must_use]
     pub fn turn() -> World {
         Self::configured(
             11,
@@ -129,6 +143,7 @@ impl World {
             false,
             4,
             true,
+            None,
         )
     }
     pub fn project_landing(
@@ -151,6 +166,8 @@ impl World {
         );
         if accepted {
             self.landing_config = Some((project, way, gates));
+            top::resume(&mut self.top, &self.env, &mut self.top_out);
+            self.take_top();
         }
         accepted
     }
@@ -192,6 +209,7 @@ impl World {
             false,
             4,
             false,
+            None,
         )
     }
 
@@ -207,6 +225,7 @@ impl World {
             signatures,
             4,
             false,
+            None,
         )
     }
 
@@ -221,6 +240,7 @@ impl World {
             false,
             branches,
             false,
+            None,
         )
     }
 
@@ -250,7 +270,9 @@ impl World {
         signatures: bool,
         branches: u32,
         turn: bool,
+        tier: Option<raw::Workflow>,
     ) -> World {
+        let tiered = tier.is_some();
         let limits = top::Limits {
             landings: if turn { 2 } else { LIMITS.landings },
             facts,
@@ -259,8 +281,19 @@ impl World {
         };
         let mut config = fake_config();
         config.limits.branches = branches;
-        config.limits.workflows = u32::from(turn);
-        config.limits.workflow_runs = if turn { 4 } else { 0 };
+        if tiered {
+            config.limits.statuses = 16;
+            config.limits.content_bytes = 512;
+            config.limits.commits = 32;
+        }
+        config.limits.workflows = u32::from(turn || tiered);
+        config.limits.workflow_runs = if tiered {
+            16
+        } else if turn {
+            4
+        } else {
+            0
+        };
         config.limits.bypassing_users = protection
             .as_ref()
             .map_or(0, |rule| u32::try_from(rule.bypassing_users.len()).expect("fixture bypass list"));
@@ -269,23 +302,7 @@ impl World {
             &mut fake,
             &config,
             raw::Setup {
-                workflows: if turn {
-                    Box::new([raw::Workflow {
-                        fails: Box::new([]),
-                        flaky: Box::new([]),
-                        report: None,
-                        select: None,
-                        file: Box::from(b"gate.yml".as_slice()),
-                        jobs: Box::new([Box::from(b"test".as_slice())]),
-                        latency_min: Duration::from_secs(2),
-                        latency_max: Duration::from_secs(2),
-                        silent: 0,
-                        passes: 1000,
-                        cue: None,
-                    }])
-                } else {
-                    Box::new([])
-                },
+                workflows: workflows(turn, tier),
                 id: 2,
                 name: Box::from(&b"org/repo"[..]),
                 default: Box::from(&b"main"[..]),
@@ -350,7 +367,17 @@ impl World {
     /// Construct and restart without any configured writer.
     #[must_use]
     pub fn writerless(seed: u64) -> World {
-        Self::configured(seed, LIMITS.facts, false, None, None, false, 4, false)
+        Self::configured(seed, LIMITS.facts, false, None, None, false, 4, false, None)
+    }
+    pub fn tier_failures(&mut self, failing_tests: u32) {
+        self.env.limits.tiers.failing_tests = failing_tests;
+    }
+    pub fn runner_lost(&mut self, lost: u32) {
+        self.forge_env.limits.lost = lost;
+    }
+    #[must_use]
+    pub fn has_branch(&self, branch: &[u8]) -> bool {
+        self.forge.branch(b"org/repo", branch).is_some()
     }
     pub fn give_writer(&mut self, writer: skein_forge_client::Writer) -> bool {
         let accepted = top::writer(&mut self.top, &self.env, writer, &mut self.top_out);
@@ -374,6 +401,7 @@ impl World {
             false,
             4,
             false,
+            None,
         )
     }
 
@@ -805,12 +833,15 @@ impl World {
                         self.stored.insert(key(&record), record).expect("world store capacity");
                     }
                 }
-                top::Request::Save { record, .. } => {
+                top::Request::Save { record, release, .. } => {
                     if matches!(record, top::Stored::Writer(_)) {
                         self.writer_saves += 1;
                     }
                     let key = key(&record);
                     self.stored.insert(key, record).expect("world store capacity");
+                    if let Some(entry) = release {
+                        self.to_top.push((self.generation, top::Event::Committed { entry }));
+                    }
                 }
                 top::Request::Erase { key } => {
                     self.stored.remove(&key).expect("erased row exists");
@@ -1062,6 +1093,28 @@ fn configured_forge() -> top::Configured {
         web: None,
         read_only: false,
         asked: false,
+    }
+}
+
+fn workflows(turn: bool, tier: Option<raw::Workflow>) -> Box<[raw::Workflow]> {
+    if let Some(tier) = tier {
+        Box::new([tier])
+    } else if turn {
+        Box::new([raw::Workflow {
+            fails: Box::new([]),
+            flaky: Box::new([]),
+            report: None,
+            select: None,
+            file: Box::from(b"gate.yml".as_slice()),
+            jobs: Box::new([Box::from(b"test".as_slice())]),
+            latency_min: Duration::from_secs(2),
+            latency_max: Duration::from_secs(2),
+            silent: 0,
+            passes: 1000,
+            cue: None,
+        }])
+    } else {
+        Box::new([])
     }
 }
 
