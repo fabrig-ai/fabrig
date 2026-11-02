@@ -100,7 +100,7 @@ pub(crate) fn check(
 ) -> Result<(), Refusal> {
     let charter = match executor {
         Executor::Agent { charter } => charter,
-        Executor::Procedure { .. } | Executor::Person(_) => {
+        Executor::Procedure { .. } | Executor::Person(_) | Executor::Job { .. } => {
             return Err(Refusal::Llm { model: choice.main.model, why: LlmFault::Procedure });
         }
     };

@@ -381,6 +381,7 @@ fn bound_problem(path: crate::tasks_v9::Path) -> crate::tasks_v9::Problem {
 }
 fn spec_with_bytes(bytes: usize) -> jig_domain_tasks::Spec {
     jig_domain_tasks::Spec {
+        job: None,
         asks: false,
         words: Box::new([]),
         parameters: Box::new([jig_domain_tasks::Parameter::Bytes { name: 1, value: skein_lib::bytes::zeroed(bytes) }]),
@@ -1509,4 +1510,87 @@ fn a_nothing_awaited_notice_survives_storage_with_small_caller_limits() {
     });
     let bytes = crate::codec::tasks::encode(&row, &limits, &[]).expect("fixed notice fits");
     assert_eq!(crate::codec::tasks::decode(&bytes, &limits, &[]), Ok(row));
+}
+
+/// Application job values survive total store translations (jig/docs/design/protocol/store.md, 5.1).
+#[test]
+fn job_values_round_trip_with_opaque_bytes_and_deadlines() {
+    use crate::{
+        codec::tasks::{activity, phase, value as translate},
+        tasks_v9 as w,
+    };
+    use jig_domain_tasks as t;
+    let limits = tasks_limits();
+    for kind in [0, u32::MAX] {
+        let executor = t::Executor::Job { kind };
+        let encoded = translate::executor(executor, &limits).unwrap();
+        let encoded = saved_wire(encoded, w::Executor::measure, w::Executor::encode, w::Executor::decode);
+        assert_eq!(translate::read_executor(encoded), executor);
+        let delegation = t::AuthorityExecutor::Job(kind);
+        let encoded = translate::authority_executor(&delegation, &limits).unwrap();
+        let encoded = saved_wire(
+            encoded,
+            w::AuthorityExecutor::measure,
+            w::AuthorityExecutor::encode,
+            w::AuthorityExecutor::decode,
+        );
+        assert_eq!(translate::read_authority_executor(encoded), delegation);
+    }
+    for deadline in [skein_lib::Duration::ZERO, skein_lib::Duration::from_nanos(u64::MAX)] {
+        let spec = t::Spec {
+            job: Some(Box::new(t::JobSpec { bytes: vec![0xff; 32].into_boxed_slice(), deadline })),
+            words: Box::new([]),
+            parameters: Box::new([]),
+            inputs: Box::new([]),
+            asks: false,
+        };
+        let encoded = translate::spec(&spec, &limits).unwrap();
+        let encoded = saved_wire(encoded, w::Spec::measure, w::Spec::encode, w::Spec::decode);
+        assert_eq!(translate::read_spec(encoded, &limits), Ok(spec));
+    }
+    let contract = t::Contract::Job { bytes: limits.job_result_bytes };
+    let encoded = translate::contract(&contract, &limits).unwrap();
+    let encoded = saved_wire(encoded, w::Contract::measure, w::Contract::encode, w::Contract::decode);
+    assert_eq!(translate::read_contract(encoded, &limits), Ok(contract));
+    let result = t::TaskResult::Job {
+        bytes: vec![0xff; skein_lib::length::usize_of(limits.job_result_bytes)].into_boxed_slice(),
+    };
+    let encoded = phase::result(&result, &limits).unwrap();
+    let encoded = saved_wire(encoded, w::TaskResult::measure, w::TaskResult::encode, w::TaskResult::decode);
+    assert_eq!(phase::read_result(encoded, &limits), Ok(result));
+    let encoded = activity::result_kind(&t::ResultKind::Job, &limits).unwrap();
+    let encoded = saved_wire(encoded, w::ResultKind::measure, w::ResultKind::encode, w::ResultKind::decode);
+    assert_eq!(activity::read_result_kind(encoded, &limits), Ok(t::ResultKind::Job));
+}
+
+/// The spec's application bytes obey their own bound (jig/docs/design/protocol/store.md, 5.1).
+#[test]
+fn job_spec_bytes_one_past_the_bound_are_refused() {
+    use crate::{codec::tasks::value as translate, tasks_v9 as w};
+    let limits = tasks_limits();
+    let mut spec = spec_with_bytes(0);
+    spec.job = Some(Box::new(jig_domain_tasks::JobSpec {
+        bytes: vec![0xff; 33].into_boxed_slice(),
+        deadline: skein_lib::Duration::from_secs(7),
+    }));
+    assert_eq!(translate::spec(&spec, &limits), Err(bound_problem(w::Path::JobSpecBytes)));
+    let wider = w::Limits { job_spec_bytes: 33, ..limits };
+    let encoded = translate::spec(&spec, &wider).unwrap();
+    assert_eq!(translate::read_spec(encoded.clone(), &limits), Err(bound_problem(w::Path::JobSpecBytes)));
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(encoded.measure()));
+    encoded.encode(&mut writer).unwrap();
+    let bytes = writer.finish();
+    assert_eq!(
+        w::Spec::decode(&limits, &mut skein_lib::Reader::new(&bytes)),
+        Err(bound_problem(w::Path::JobSpecBytes))
+    );
+}
+
+/// People's delegations retain job kinds (jig/docs/design/protocol/store.md, 5.1).
+#[test]
+fn job_delegation_kinds_round_trip_in_people() {
+    let mut policy = fixtures::people_policy();
+    policy.ceiling.delegation.kinds = Box::new([jig_domain_people::Executor::Job(u32::MAX)]);
+    policy.roles[0].authority.delegation.kinds = Box::new([jig_domain_people::Executor::Job(0)]);
+    people_round_trip(jig_domain_people::Stored::Policy { project: 3, name: Box::from("Jobs"), value: policy });
 }

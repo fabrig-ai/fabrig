@@ -51,7 +51,7 @@ pub(crate) fn prepare(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, numbe
     let task = task_mut(domain, number).expect("entrance names task");
     match task.record.executor {
         crate::Executor::Agent { .. } => {}
-        crate::Executor::Procedure { .. } | crate::Executor::Person(_) => {
+        crate::Executor::Procedure { .. } | crate::Executor::Person(_) | crate::Executor::Job { .. } => {
             return refused(to, Some(number), Refusal::Executor, out);
         }
     }
@@ -173,10 +173,12 @@ pub(crate) fn valid_result(contract: &Contract, result: &TaskResult, limits: &Li
 
 pub(crate) fn invalid_result(contract: &Contract, result: &TaskResult, limits: &Limits) -> Option<InvalidResult> {
     match result {
+        TaskResult::Job { .. } => Some(InvalidResult::Form),
         TaskResult::NoChange { words } => invalid_no_change(contract, words, limits),
         TaskResult::Approved { .. } => invalid_approval(contract, result, limits),
         TaskResult::Failure { reason } => match contract {
-            Contract::Approval { .. }
+            Contract::Job { .. }
+            | Contract::Approval { .. }
             | Contract::Report { .. }
             | Contract::Verdict { .. }
             | Contract::Change { .. } => {
@@ -195,7 +197,9 @@ pub(crate) fn invalid_result(contract: &Contract, result: &TaskResult, limits: &
                     Some(InvalidResult::Words)
                 }
             }
-            Contract::Approval { .. } | Contract::Verdict { .. } | Contract::Change { .. } => Some(InvalidResult::Form),
+            Contract::Job { .. } | Contract::Approval { .. } | Contract::Verdict { .. } | Contract::Change { .. } => {
+                Some(InvalidResult::Form)
+            }
         },
         TaskResult::Verdict { code, words, fields } => match contract {
             Contract::Verdict { choices } => {
@@ -214,7 +218,9 @@ pub(crate) fn invalid_result(contract: &Contract, result: &TaskResult, limits: &
                 }
                 Some(InvalidResult::Verdict)
             }
-            Contract::Approval { .. } | Contract::Report { .. } | Contract::Change { .. } => Some(InvalidResult::Form),
+            Contract::Job { .. } | Contract::Approval { .. } | Contract::Report { .. } | Contract::Change { .. } => {
+                Some(InvalidResult::Form)
+            }
         },
         TaskResult::Change { connector, kind, title, words, .. } => {
             invalid_change(contract, *connector, *kind, &title.words, words, limits)
@@ -231,7 +237,9 @@ fn invalid_no_change(contract: &Contract, words: &[u8], limits: &Limits) -> Opti
                 Some(InvalidResult::Words)
             }
         }
-        Contract::Approval { .. } | Contract::Report { .. } | Contract::Verdict { .. } => Some(InvalidResult::Form),
+        Contract::Job { .. } | Contract::Approval { .. } | Contract::Report { .. } | Contract::Verdict { .. } => {
+            Some(InvalidResult::Form)
+        }
     }
 }
 
@@ -248,7 +256,9 @@ fn invalid_approval(contract: &Contract, result: &TaskResult, limits: &Limits) -
                 None
             }
         }
-        Contract::Report { .. } | Contract::Verdict { .. } | Contract::Change { .. } => Some(InvalidResult::Form),
+        Contract::Job { .. } | Contract::Report { .. } | Contract::Verdict { .. } | Contract::Change { .. } => {
+            Some(InvalidResult::Form)
+        }
     }
 }
 
@@ -272,7 +282,9 @@ fn invalid_change(
                 None
             }
         }
-        Contract::Approval { .. } | Contract::Report { .. } | Contract::Verdict { .. } => Some(InvalidResult::Form),
+        Contract::Job { .. } | Contract::Approval { .. } | Contract::Report { .. } | Contract::Verdict { .. } => {
+            Some(InvalidResult::Form)
+        }
     }
 }
 
@@ -315,7 +327,11 @@ pub(crate) fn invalid_followups(
             Some(InvalidResult::Verdict)
         }
         (
-            Contract::Approval { .. } | Contract::Report { .. } | Contract::Change { .. } | Contract::Verdict { .. },
+            Contract::Job { .. }
+            | Contract::Approval { .. }
+            | Contract::Report { .. }
+            | Contract::Change { .. }
+            | Contract::Verdict { .. },
             _,
         ) => Some(InvalidResult::Form),
     }
@@ -323,6 +339,7 @@ pub(crate) fn invalid_followups(
 
 pub(crate) fn result_bytes(result: &TaskResult) -> usize {
     match result {
+        TaskResult::Job { bytes } => bytes.len(),
         TaskResult::Report { words } | TaskResult::NoChange { words } => words.len(),
         TaskResult::Change { title, words, .. } => title.words.len().max(words.len()),
         TaskResult::Verdict { words, fields, .. } => match crate::verdict::fields_bytes(fields) {
@@ -343,6 +360,7 @@ fn ending(result: TaskResult) -> Ending {
         TaskResult::Approved { .. }
         | TaskResult::Report { .. }
         | TaskResult::Verdict { .. }
+        | TaskResult::Job { .. }
         | TaskResult::NoChange { .. }
         | TaskResult::Change { .. } => Ending::Done(result),
     }
