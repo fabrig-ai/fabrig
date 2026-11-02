@@ -135,15 +135,22 @@ fn context_page(
 }
 
 pub(super) fn job(answer: a::Answer, repository: &[u8], limits: &Limits, domain: &Domain) -> Response {
-    let a::Answer::Job { job, .. } = answer else {
+    let a::Answer::Job { job, steps } = answer else {
         return answers::failed();
     };
     let Some(count) = domain.job_commit(repository, job.id) else {
         return answers::missing(limits);
     };
+    let mut step = None;
+    for row in steps {
+        if row.status == a::StepStatus::Failure {
+            step = Some(api::Step { number: row.number, name: row.name });
+            break;
+        }
+    }
     answers::response(
         200,
-        &Body::Job(&d::Job { id: job.id, run: job.run, attempt: job.attempt, head: commit(count), step: None }),
+        &Body::Job(&d::Job { id: job.id, run: job.run, attempt: job.attempt, head: commit(count), step }),
         limits,
     )
 }

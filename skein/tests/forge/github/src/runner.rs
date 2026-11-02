@@ -7,6 +7,7 @@ use crate::{
     mask::Mask,
     wire::{Request, Response},
 };
+use skein_forge::github::plans::plan::Retention;
 use skein_forge::{
     api,
     github::{self, request::Method},
@@ -17,6 +18,7 @@ use skein_forge_conformance::{
     json,
     write::{self, SecretKind, Secrets},
 };
+use skein_forge_connection::grow::Tail;
 use skein_lib::{Duration, Wall};
 use std::{fmt::Write as _, fs, path::Path};
 const WORD: &[u8] = b"conformance";
@@ -758,26 +760,7 @@ impl<'a> Runner<'a> {
                     }
                     events
                 }
-                Step::Redirect { redirect, retention } => {
-                    let host = std::str::from_utf8(&redirect.origin.host)?;
-                    let target = std::str::from_utf8(&redirect.target)?;
-                    let mut request = Request::new(
-                        Method::Get,
-                        if self.fake() { target.into() } else { format!("https://{host}{target}") },
-                        None,
-                        b"",
-                    );
-                    request.blob = true;
-                    let r = self.ask(&request)?;
-                    let github::plans::plan::Retention::Tail { bytes } = retention else {
-                        return Err("unexpected log retention".into());
-                    };
-                    let start = r.body.len().saturating_sub(usize::try_from(bytes)?);
-                    vec![
-                        Heard::Head { status: r.status, head: github::header::Head::new() },
-                        Heard::Done(Body::Raw { bytes: fake::boxed(&r.body[start..]), more: start != 0 }),
-                    ]
-                }
+                Step::Redirect { redirect, retention } => self.job_log_events(&redirect, retention)?,
             };
             let mut next = None;
             for event in events {
@@ -792,6 +775,36 @@ impl<'a> Runner<'a> {
             step = next.ok_or("dialect plan did not advance")?;
         }
         Err("dialect plan progress bound".into())
+    }
+    fn job_log_events(
+        &mut self,
+        redirect: &github::redirect::Redirect,
+        retention: Retention,
+    ) -> Result<Vec<github::plans::Heard>> {
+        use github::plans::{Body, Heard};
+        let host = std::str::from_utf8(&redirect.origin.host)?;
+        let target = std::str::from_utf8(&redirect.target)?;
+        let mut request = Request::new(
+            Method::Get,
+            if self.fake() { target.into() } else { format!("https://{host}{target}") },
+            None,
+            b"",
+        );
+        request.blob = true;
+        let r = self.ask(&request)?;
+        let mut tail = match retention {
+            Retention::Tail { bytes } => Tail::new(bytes, bytes),
+            Retention::FailedStep { bytes } => Tail::failed_step(bytes, bytes),
+            Retention::Head { .. } | Retention::Whole { .. } => {
+                return Err("unexpected log retention".into());
+            }
+        };
+        tail.write(&r.body);
+        let more = tail.dropped();
+        Ok(vec![
+            Heard::Head { status: r.status, head: github::header::Head::new() },
+            Heard::Done(Body::Raw { bytes: tail.finish(), more }),
+        ])
     }
     pub fn remove_rules(&mut self) -> Result<()> {
         for (id, made) in self.journal.pending.clone() {

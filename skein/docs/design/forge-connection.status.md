@@ -6,3 +6,8 @@
 - **Not yet:** 6: TLS listener. 10: remaining GitHub cases, details unknown.
 
 - **Built (2026-11-01):** 10: boundary and every-byte TLS faults in the fuzzy machine-world suite, with no separate exhaustive tier.
+
+- **Built:** 4.5: GitHub failed-step retention crosses arbitrary chunks and
+  drains cleanup without replacing the diagnostic; input and retained-byte
+  limits remain separate. Unconfigured origins, credential-free follows,
+  second redirects and attempt checks retain their regressions.

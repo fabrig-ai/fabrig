@@ -275,7 +275,7 @@ fn job_resolves_the_repository_and_fits_log_beside_the_failed_step() {
     let Some(Step::Redirect { retention, .. }) = call.head(302, Some(b"https://logs.example.test/job")) else {
         panic!("redirect")
     };
-    assert_eq!(retention, Retention::Tail { bytes: 1 });
+    assert_eq!(retention, Retention::FailedStep { bytes: 1 });
     call.head(200, None);
     assert_eq!(
         call.heard(Heard::Done(Body::Raw { bytes: Box::from(*b"log"), more: false })),
@@ -316,4 +316,25 @@ fn job_rejects_an_unsolicited_partial_blob_before_reading_its_body() {
     let mut call = Call::new(8, true, bounds());
     call.redirected();
     assert_eq!(call.head(206, None), Some(failed(api::Error::InvalidAnswer)));
+}
+
+#[test]
+fn failed_job_redirect_selects_failed_step_retention_with_the_answer_room() {
+    let mut call = Call::new(1024, true, Bounds { answer_bytes: 1024, ..bounds() });
+    let step = api::Step { number: 3, name: Box::from(*b"check changes") };
+    assert_eq!(call.job(document::Job { step: Some(step.clone()), ..metadata() }), Some(Step::send(request(true))));
+    let Some(Step::Redirect { retention, .. }) = call.head(302, Some(b"https://logs.example.test/job")) else {
+        panic!("failed job redirect")
+    };
+    assert_eq!(retention, Retention::FailedStep { bytes: 1011 });
+    assert_eq!(call.head(200, None), None);
+    assert_eq!(
+        call.heard(Heard::Done(Body::Raw { bytes: Box::from(*b"diagnostic\n"), more: true })),
+        Some(Step::Done(Ok(api::Answer::Job {
+            attempt: attempt(),
+            step: Some(step),
+            log: Box::from(*b"diagnostic\n"),
+            truncated: true,
+        })))
+    );
 }

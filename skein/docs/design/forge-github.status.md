@@ -19,3 +19,10 @@
   refusal over the wire and repeats the attempt. The finding's raw
   exchange is unavailable, so the scenario is not a conformance claim
   about GitHub's exact conflict message.
+
+- **Built:** 10: failed-step streaming retention keeps the suffix through
+  the runner's first failed-process line, draining post-job cleanup. The
+  fake-GitHub machine regression reproduces an 11,807-byte log with its
+  complete diagnostic 2,200 bytes before EOF at a 1,024-byte read. Connection
+  tests split the marker at every chunk size and exercise tiny caps and the
+  job-tail fallback. Attempt validation and redirect protections stay in force.
