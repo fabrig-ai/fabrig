@@ -9,6 +9,7 @@ pub(in crate::codec) fn wire_template(value: &c::Template, limits: &w::Limits) -
     w::Template::new(
         limits,
         w::TemplateParts {
+            resources: skein_lib::List::with_capacity(0),
             number: value.number,
             name: wire_document_text(&value.name, limits)?,
             executor: wire_template_executor(&value.executor, limits)?,

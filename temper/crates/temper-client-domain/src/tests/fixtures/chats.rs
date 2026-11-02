@@ -16,6 +16,7 @@ pub fn me() -> Me {
     let mut templates = List::with_capacity(ONE);
     templates
         .push(Template {
+            resources: List::with_capacity(0),
             number: TEMPLATE,
             name: DocumentText::complete(acts::text(b"Chat")),
             executor: TemplateExecutor::Charter(CHARTER),

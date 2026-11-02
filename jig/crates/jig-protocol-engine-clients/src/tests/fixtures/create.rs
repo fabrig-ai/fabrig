@@ -82,6 +82,7 @@ fn member(role: bool, authority: w::Authority, expected: p::Authority) -> (w::Ne
     let task = w::NewTask::new(
         &l,
         w::NewTaskParts {
+            symbols: List::with_capacity(0),
             llm: if role { None } else { Some(careful_and_quick(&l)) },
             deadline: w::NewDeadline::Named,
             executor,
