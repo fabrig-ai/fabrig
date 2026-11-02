@@ -1736,13 +1736,29 @@ fn outcome_facts(
                         repository,
                         what: skein_forge_client::What::Branch(branch.clone()),
                     };
-                    let before = match from_client(&resource, &env.limits) {
-                        Some(name) => match d.heads.get(&name) {
+                    let name = from_client(&resource, &env.limits);
+                    let before = match &name {
+                        Some(name) => match d.heads.get(name) {
                             Some(head) => Some(head.commit),
                             None => None,
                         },
                         None => None,
                     };
+                    if let Some(name) = name
+                        && let Some(head) = d.heads.get_mut(&name)
+                        && head.owned
+                    {
+                        head.commit = commit;
+                        emit(
+                            out,
+                            Request::Save {
+                                read_afresh: None,
+                                release: None,
+                                record: Stored::BranchHead(head.clone()),
+                            },
+                        );
+                        child(d, env, skein_forge_client::Event::Pushed { resource, commit }, out);
+                    }
                     crate::tiers::observed(d, env, repository, &branch, before, commit, out);
                 }
             }

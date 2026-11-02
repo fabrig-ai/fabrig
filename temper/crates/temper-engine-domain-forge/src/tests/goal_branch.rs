@@ -353,3 +353,128 @@ fn a_goal_branch_making_restored_before_sending_keeps_its_taking_entry() {
     assert!(made.contains(&self::made()), "{made:?}");
     assert_eq!(d.hold(&name(GOAL_BRANCH)).unwrap().writer, None);
 }
+
+const MERGING: u64 = 23;
+const MERGED: skein_forge::api::Commit = [9; 32];
+const MERGE_CALLS: u32 = 8; // Inbox, pull and branch reads, merge, then its proof.
+
+fn merge_into_goal(d: &mut Domain) -> Box<[Request]> {
+    let mut row = fixtures::opening_row();
+    row.base = GOAL_BRANCH.into();
+    row.pull = Some(1);
+    row.pending = Some(MERGING);
+    row.change.state = temper_engine_domain_forge_change::State::Landing { head: fixtures::HEAD };
+    d.changes.insert(row.task, row).expect("fixture change");
+    let mut entry = entry();
+    entry.number = MERGING;
+    entry.task = fixtures::CHANGE;
+    entry.effect = skein_forge_client::Effect {
+        write: Write::Merge { number: 1, head: fixtures::HEAD, how: skein_forge::api::MergeHow::Style },
+        condition: skein_forge_client::Condition::Merge { base: GOAL_BRANCH.into() },
+    };
+    outputs(d, Event::Enqueue { entry });
+    outputs(d, Event::Committed { entry: MERGING });
+    let mut merged = false;
+    for _ in 0..MERGE_CALLS {
+        let (call, op) = fixtures::next_call(d);
+        let answer = match op {
+            Op::Read(Read::Items { .. }) => Answer::Items { items: Box::new([]), more: false, now: env().now },
+            Op::Read(Read::Branch { branch }) if branch.as_ref() == GOAL_BRANCH => Answer::Commit(TIP),
+            Op::Read(Read::Branch { branch }) if branch.as_ref() == b"temper/51" => Answer::Commit(fixtures::HEAD),
+            Op::Read(Read::Pull { number: 1 }) => {
+                let mut pull = fixtures::open_pull();
+                pull.base = GOAL_BRANCH.into();
+                if merged {
+                    pull.state = skein_forge::api::State::Closed;
+                    pull.merged = Some(MERGED);
+                }
+                Answer::Pull(pull)
+            }
+            Op::Write(Write::Merge { head, .. }) => {
+                assert_eq!(head, fixtures::HEAD);
+                merged = true;
+                Answer::Merged(MERGED)
+            }
+            other @ (Op::Read(_) | Op::Write(_)) => panic!("unexpected goal merge call: {other:?}"),
+        };
+        let requests = fixtures::answer(d, call, Ok(answer));
+        if requests.contains(&Request::Outcome {
+            entry: MERGING,
+            task: fixtures::CHANGE,
+            account: None,
+            outcome: skein_forge_client::Outcome::Made { made: skein_forge_client::Made::Merged(MERGED), found: false },
+        }) {
+            assert!(merged, "outcome follows the merge write");
+            return requests;
+        }
+    }
+    panic!("goal merge did not settle")
+}
+
+#[test]
+fn a_merge_into_a_held_goal_branch_saves_only_an_owned_heads_advance() {
+    for owned in [Some(true), Some(false), None] {
+        let mut d = fresh();
+        take(&mut d);
+        fixtures::answer_next(&mut d, Ok(Answer::Commit(TIP)));
+        if let Some(owned) = owned {
+            d.heads.get_mut(&name(GOAL_BRANCH)).expect("goal head").owned = owned;
+        } else {
+            d.heads.remove(&name(GOAL_BRANCH));
+        }
+        let requests = merge_into_goal(&mut d);
+        let advanced = BranchHead { name: name(GOAL_BRANCH), commit: MERGED, owned: true };
+        assert_eq!(
+            requests.contains(&Request::Save {
+                read_afresh: None,
+                release: None,
+                record: Stored::BranchHead(advanced.clone())
+            }),
+            owned == Some(true),
+            "owned={owned:?}: {requests:?}"
+        );
+        match owned {
+            Some(owned) => {
+                let expected = BranchHead { name: name(GOAL_BRANCH), commit: if owned { MERGED } else { TIP }, owned };
+                assert_eq!(d.heads.get(&name(GOAL_BRANCH)), Some(&expected), "owned={owned}");
+            }
+            None => assert_eq!(d.heads.get(&name(GOAL_BRANCH)), None),
+        }
+        for request in &requests {
+            if let Request::Save { record: Stored::BranchHead(head), .. } = request {
+                assert_eq!(owned, Some(true), "an unowned or absent head is read afresh");
+                assert_eq!(head, &advanced);
+            }
+        }
+    }
+}
+
+#[test]
+fn a_merge_into_a_watched_goal_branch_saves_the_clients_advanced_tip() {
+    let mut d = fresh();
+    take(&mut d);
+    fixtures::answer_next(&mut d, Ok(Answer::Commit(TIP)));
+    outputs(&mut d, Event::Names { task: GOAL, resources: Box::new([name(GOAL_BRANCH)]) });
+    fixtures::answer_next(&mut d, Ok(Answer::Items { items: Box::new([]), more: false, now: env().now }));
+    let (call, op) = fixtures::next_call(&mut d);
+    assert_eq!(op, Op::Read(Read::Branch { branch: GOAL_BRANCH.into() }));
+    let watched = fixtures::answer(&mut d, call, Ok(Answer::Commit(TIP)));
+    assert_saved_goal_tip(&watched, TIP);
+    let requests = merge_into_goal(&mut d);
+    assert_saved_goal_tip(&requests, MERGED);
+}
+
+fn assert_saved_goal_tip(requests: &[Request], tip: skein_forge::api::Commit) {
+    let resource =
+        skein_forge_client::Resource { repository: REPO, what: skein_forge_client::What::Branch(GOAL_BRANCH.into()) };
+    let mut saved = false;
+    for request in requests {
+        if let Request::Save { record: Stored::Client(skein_forge_client::Stored::Live(row)), .. } = request
+            && row.watch.resource == resource
+        {
+            assert_eq!(row.cached.tip, Some(tip));
+            saved = true;
+        }
+    }
+    assert!(saved, "the client's advanced tip is durable: {requests:?}");
+}
