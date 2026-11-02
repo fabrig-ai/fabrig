@@ -782,7 +782,12 @@ pub struct ChangeRow {
 impl ChangeRow {
     pub(crate) fn terminal(&self) -> bool {
         match self.change.state {
-            change::State::Landed { .. } | change::State::NoChange { .. } | change::State::Ended => true,
+            change::State::Landed { .. }
+            | change::State::Red { .. }
+            | change::State::Cleared { .. }
+            | change::State::Uncleared { .. }
+            | change::State::NoChange { .. }
+            | change::State::Ended => true,
             change::State::Producing { .. }
             | change::State::Opening { .. }
             | change::State::Recreating { .. }
@@ -807,6 +812,23 @@ impl ChangeRow {
 pub struct RepositoryGates {
     pub repository: skein_forge::api::Repository,
     pub gates: Box<[landing::Gate]>,
+    pub tiers: Box<[Tier]>,
+}
+/// A repository's tier and followed branch (temper/docs/design/domain/after-landing.md, 2).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Tier {
+    pub name: Box<[u8]>,
+    pub workflow: Box<[u8]>,
+    pub ignored: Box<[Box<[u8]>]>,
+    pub artifact: Box<[u8]>,
+    pub format: temper_engine_domain_forge_tiers::Format,
+    pub branch: Option<Box<[u8]>>,
+}
+/// A project's verification settings (temper/docs/design/domain/after-landing.md, 11).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct AfterLanding {
+    pub verdict: temper_engine_domain_forge_tiers::Settings,
+    pub bound: skein_lib::Duration,
 }
 /// Why a landing cannot be made (domain/landing.md, 12).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -848,6 +870,7 @@ pub struct LandingHeard {
 /// Family 24, a result of a run dispatched by temper (domain/landing.md, 6.2).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Receipt {
+    pub failures: Option<temper_engine_domain_forge_tiers::Failures>,
     pub passed: bool,
     pub run: ReceiptRun,
     pub candidate: skein_forge::api::Commit,
@@ -917,10 +940,6 @@ pub enum CallPayload {
 
 /// The connector's durable records, wrapped by the root store.
 #[derive(Clone, PartialEq, Eq, Debug)]
-#[expect(
-    clippy::large_enum_variant,
-    reason = "durable rows move whole through the bounded store queue priced at startup"
-)]
 pub enum Stored {
     /// The connector part of a live named call.
     Call {
@@ -995,6 +1014,8 @@ pub enum Stored {
     },
     /// The playground's durable progress (temper/docs/design/protocol/setup.md, 8.4).
     Playground(Playground),
+    Tier(TierRow),
+    Verification(Verification),
 }
 /// A bounded connector payload awaiting an authority holder's decision.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -1031,6 +1052,8 @@ pub enum Key {
     Forge(u16),
     ForgeNumber,
     Playground,
+    Tier { repository: skein_forge::api::Repository, tier: Box<[u8]> },
+    Verification { repository: skein_forge::api::Repository, commit: skein_forge::api::Commit },
 }
 /// A completed phase of the connector's restart contract.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -1107,6 +1130,26 @@ pub struct ChangeDependencies {
 /// A parent or child input to the connector top.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Event {
+    TierTask {
+        repository: skein_forge::api::Repository,
+        tier: Box<[u8]>,
+        number: u64,
+        task: u64,
+    },
+    TierRefused {
+        repository: skein_forge::api::Repository,
+        tier: Box<[u8]>,
+        number: u64,
+    },
+    StepTier {
+        task: u64,
+        entry: u64,
+        heard: TierHeard,
+    },
+    VetoTier {
+        task: u64,
+        entry: u64,
+    },
     /// Release adoptions after the project's tasks are erased
     /// (jig/docs/design/domain/people.md, 5.2; temper/docs/design/domain/forge.md, 4.1).
     ReleaseProject {
@@ -1492,6 +1535,18 @@ pub enum Event {
 /// The connector's output to the root, including child API calls.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
+    /// Make the tier run's task; the root answers `TierTask` or `TierRefused`.
+    TierRun {
+        repository: skein_forge::api::Repository,
+        tier: Box<[u8]>,
+        number: u64,
+        tip: skein_forge::api::Commit,
+    },
+    TierDecision {
+        task: u64,
+        decision: TierDecision,
+        entry: Option<u64>,
+    },
     /// The project's adoption erasures precede this post-commit reply.
     ProjectReleased {
         request: Token,
@@ -1782,4 +1837,94 @@ pub enum BindAnswer {
 pub struct Unfinished {
     pub entry: u64,
     pub task: u64,
+}
+
+/// A tier task's step (temper/docs/design/domain/after-landing.md, 10).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum TierDecision {
+    Wait { until: Option<skein_lib::Wall> },
+    Held { words: Box<[u8]> },
+    Done { words: Box<[u8]> },
+}
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct TierHeard {
+    pub released: bool,
+    pub cancelled: bool,
+}
+/// Family 28's policy and task (temper/docs/design/domain/after-landing.md, 10).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct TierRow {
+    pub repository: skein_forge::api::Repository,
+    pub tier: Box<[u8]>,
+    pub record: temper_engine_domain_forge_tiers::Record,
+    pub task: Option<u64>,
+    pub requested: bool,
+    pub cancelled: bool,
+    pub purpose: Option<crate::purpose::EffectPurpose>,
+    pub pending: Box<[TierLanding]>,
+    pub baseline: Option<TierLanding>,
+    pub branch: TierBranch,
+    /// The current or completed probe, retained until its branch is released.
+    pub probe: Option<TierProbeBranch>,
+    pub flight: Option<TierFlight>,
+    pub held: Option<landing::Fault>,
+    /// The final part observation or cached receipt awaiting release and judgement.
+    pub result: Option<Receipt>,
+    pub received: bool,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct TierLanding {
+    pub commit: skein_forge::api::Commit,
+    pub key: Option<[u8; 32]>,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum TierBranch {
+    Absent,
+    Pending { entry: u64 },
+    Made,
+}
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct TierProbeBranch {
+    pub landing: u32,
+    pub branch: TierBranch,
+}
+/// Durable follower progress; trees and workflow details are read again after restart.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct TierFlight {
+    pub entry: u64,
+    pub start: Option<skein_lib::Time>,
+    pub since: Option<skein_lib::Time>,
+    pub waiting: bool,
+    pub next: Option<skein_lib::Time>,
+    pub run: Option<u64>,
+    pub pending: Box<[skein_forge::api::JobAttempt]>,
+    pub fault: Option<landing::Fault>,
+    /// A failed part awaiting its artifact, read again after restart.
+    pub report: Option<ReceiptRun>,
+}
+/// Family 29's landing verdicts (temper/docs/design/domain/after-landing.md, 10).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Verification {
+    pub repository: skein_forge::api::Repository,
+    pub commit: skein_forge::api::Commit,
+    pub changes: Box<[u64]>,
+    pub tiers: Box<[TierVerification]>,
+}
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct TierVerification {
+    pub tier: Box<[u8]>,
+    pub verdict: Option<TierVerdict>,
+    pub repaired: Option<TierRepair>,
+}
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct TierVerdict {
+    pub run: u64,
+    pub blame: temper_engine_domain_forge_tiers::Blame,
+}
+
+/// The run that passed a landing's blamed failures (client/forge.md, 2.1).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct TierRepair {
+    pub run: u64,
+    pub tip: skein_forge::api::Commit,
 }

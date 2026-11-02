@@ -14,6 +14,35 @@ fn name(number: u32) -> Name {
 fn row(kind: RecordKind, number: u32) -> Stored {
     let n = u64::from(number);
     match kind {
+        RecordKind::Tier => Stored::Tier(TierRow {
+            requested: false,
+            cancelled: false,
+            purpose: None,
+            pending: Box::new([]),
+            baseline: None,
+            branch: TierBranch::Absent,
+            probe: None,
+            flight: None,
+            held: None,
+            result: None,
+            received: false,
+            repository: skein_forge::api::Repository { forge: 1, repository: number },
+            tier: Box::from(b"tier".as_slice()),
+            record: temper_engine_domain_forge_tiers::Record {
+                sequence: 0,
+                judged: None,
+                failing: temper_engine_domain_forge_tiers::Failures::Tests(Box::new([])),
+                flakes: Box::new([]),
+                run: None,
+            },
+            task: None,
+        }),
+        RecordKind::Verification => Stored::Verification(Verification {
+            repository: REPO,
+            commit: [u8::try_from(number).unwrap(); 32],
+            changes: Box::new([]),
+            tiers: Box::new([]),
+        }),
         RecordKind::Forge => Stored::Forge(records::record(u16::try_from(number).expect("fixture forge"))),
         RecordKind::Landing => Stored::Landing(LandingRow {
             landing: policy::Landing {
@@ -35,6 +64,7 @@ fn row(kind: RecordKind, number: u32) -> Stored {
                 key: [0; 32],
             },
             receipt: Receipt {
+                failures: None,
                 passed: true,
                 run: ReceiptRun { id: n, number: n, url: Box::new([]) },
                 candidate: [0; 32],
@@ -126,7 +156,9 @@ fn owned_tables_fit_at_limit_replace_and_refuse_one_more() {
     use RecordKind as K;
     for (kind, limit) in [
         (K::Landing, LIMITS.landings),
-        (K::Receipt, LIMITS.repositories * LIMITS.gates * LIMITS.receipts_per_gate),
+        (K::Receipt, LIMITS.repositories * (LIMITS.gates + LIMITS.tiers.tiers) * LIMITS.receipts_per_gate),
+        (K::Tier, LIMITS.repositories * LIMITS.tiers.tiers),
+        (K::Verification, LIMITS.changes),
         (K::Application, LIMITS.applications),
         (K::Call, LIMITS.named_calls),
         (K::Repository, LIMITS.repositories),
@@ -556,7 +588,7 @@ fn a_zero_capacity_table_refuses_its_first_row() {
         (RecordKind::Call, Limits { named_calls: 0, ..LIMITS }),
         (RecordKind::Change, Limits { changes: 0, ..LIMITS }),
         (RecordKind::Issue, Limits { issues: 0, ..LIMITS }),
-        (RecordKind::Receipt, Limits { gates: 0, ..LIMITS }),
+        (RecordKind::Verification, Limits { changes: 0, ..LIMITS }),
     ] {
         let mut d = Domain::new(
             &limits,
@@ -670,4 +702,95 @@ fn restoring_a_row_requires_the_start_observation() {
     let mut d = domain();
     let mut out = Queue::uncapped();
     step(&mut d, &env(), Event::Restore { record: application(1, Wall::EPOCH) }, &mut out);
+}
+
+#[test]
+fn unknown_tier_events_keep_state_and_hold_the_step() {
+    let mut d = domain();
+    let before = alloc::format!("{d:?}");
+    for event in [
+        Event::TierTask { repository: REPO, tier: Box::from(b"tier".as_slice()), number: 1, task: 23 },
+        Event::TierRefused { repository: REPO, tier: Box::from(b"tier".as_slice()), number: 1 },
+        Event::VetoTier { task: 23, entry: 5 },
+    ] {
+        assert!(outputs(&mut d, event).is_empty());
+    }
+    let out =
+        outputs(&mut d, Event::StepTier { task: 23, entry: 5, heard: TierHeard { released: true, cancelled: true } });
+    let [Request::TierDecision { task, decision, entry }] = out.as_ref() else { panic!("one tier decision") };
+    assert_eq!(
+        (*task, decision, *entry),
+        (23, &TierDecision::Held { words: b"Tier run is unavailable".as_slice().into() }, None)
+    );
+    assert_eq!(alloc::format!("{d:?}"), before);
+    assert_eq!(d.tier_task(23), None);
+    assert!(d.describe_tier_effect(23, 5).is_none());
+    assert_eq!(d.change_verification(23), temper_engine_domain_forge_change::Verification::Unfollowed);
+}
+
+#[test]
+fn tier_families_retain_rows_and_report_their_missing_repository() {
+    for kind in [RecordKind::Tier, RecordKind::Verification] {
+        let mut d = domain();
+        let record = row(kind, 2);
+        let key = stored_key(&record);
+        restore(&mut d, record.clone());
+        if kind == RecordKind::Tier {
+            let Stored::Tier(row) = &record else { unreachable!("tier fixture") };
+            assert_eq!(d.tiers.get(&(row.repository, row.tier.clone())), Some(row));
+        } else {
+            let Stored::Verification(row) = &record else { unreachable!("verification fixture") };
+            assert_eq!(d.verifications.get(&(row.repository, row.commit)), Some(row));
+        }
+        assert_eq!(
+            d.missing_link(&reconcile::empty_tasks()),
+            Some(MissingLink { kind, key, need: Need::Repository(REPO) })
+        );
+        restore(&mut d, Stored::Repository(adopted()));
+        assert_eq!(d.missing_link(&reconcile::empty_tasks()), None);
+    }
+    let mut d = domain();
+    let Stored::Tier(mut tier) = row(RecordKind::Tier, 2) else { unreachable!("tier fixture") };
+    tier.task = Some(51);
+    let key = Key::Tier { repository: tier.repository, tier: tier.tier.clone() };
+    restore(&mut d, Stored::Repository(adopted()));
+    restore(&mut d, Stored::Tier(tier));
+    assert_eq!(
+        d.missing_link(&reconcile::empty_tasks()),
+        Some(MissingLink { kind: RecordKind::Tier, key, need: Need::Task { task: 51, retired: Some(1) } })
+    );
+}
+
+#[test]
+fn receipts_keep_tier_room_when_no_gates_are_configured() {
+    let limits = Limits { gates: 0, ..LIMITS };
+    let mut d = Domain::new(
+        &limits,
+        4,
+        skein_forge_client::Config { namespace: b"test".as_slice().into(), writers: Box::new([]) },
+        &[],
+        &[],
+        false,
+    )
+    .unwrap();
+    let capacity = LIMITS.repositories * LIMITS.tiers.tiers * LIMITS.receipts_per_gate;
+    let env = Env { limits, ..env() };
+    let mut out = Queue::uncapped();
+    d.restore_begin(Wall::EPOCH);
+    for number in 1..=capacity {
+        step(&mut d, &env, Event::Restore { record: row(RecordKind::Receipt, number) }, &mut out);
+    }
+    assert_eq!(d.restore_fit_failure(), None);
+    step(&mut d, &env, Event::Restore { record: row(RecordKind::Receipt, capacity.checked_add(1).unwrap()) }, &mut out);
+    assert_eq!(
+        d.restore_fit_failure(),
+        Some(&RestoreFit {
+            family: Some(RecordKind::Receipt),
+            set: RestoreSet::Rows(RecordKind::Receipt),
+            held: u64::from(capacity),
+            additional: 1,
+            limit: u64::from(capacity)
+        })
+    );
+    assert!(out.is_empty());
 }

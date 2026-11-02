@@ -491,8 +491,13 @@ pub(crate) fn result(b: &mut Builder, task: &c::Task, words: &Words, style: skei
     let facts = delegation::facts(task);
     match facts.state {
         ResultState::Running | ResultState::Held => return,
-        ResultState::Done | ResultState::Landed | ResultState::Failed | ResultState::Cancelled | ResultState::Ended => {
-        }
+        ResultState::Done
+        | ResultState::Landed
+        | ResultState::Cleared
+        | ResultState::Uncleared
+        | ResultState::Failed
+        | ResultState::Cancelled
+        | ResultState::Ended => {}
     }
     region(b, Word::GoalResult, words);
     b.style(style);

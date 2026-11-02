@@ -56,6 +56,7 @@ pub const LIMITS: top::Limits = top::Limits {
     key_entries: 16,
     key_path_bytes: 1024,
     trees_in_flight: 2,
+    tiers: temper_engine_domain_forge::TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
     judge_projects: 2,
     judge_criteria: 8,
     brief_sections: 32,
@@ -149,7 +150,7 @@ fn client_key(random: &mut Rng) -> skein_forge_client::Key {
 #[expect(clippy::disallowed_macros, reason = "property inputs number canonical member addresses")]
 pub fn key(random: &mut Rng) -> top::Key {
     let number = random.next_u64();
-    match random.below(24) {
+    match random.below(26) {
         0 => top::Key::Call(top::NamedCall {
             task: number,
             attempt: random.next_u64(),
@@ -187,7 +188,9 @@ pub fn key(random: &mut Rng) -> top::Key {
         }),
         21 => top::Key::Forge(u16::try_from(random.below(65_536)).expect("u16")),
         22 => top::Key::ForgeNumber,
-        _ => top::Key::Playground,
+        23 => top::Key::Playground,
+        24 => top::Key::Tier { repository: repository(random), tier: Box::from(b"tier".as_slice()) },
+        _ => top::Key::Verification { repository: repository(random), commit: commit(random) },
     }
 }
 pub fn core_keys() -> [jig_domain_core::Key; 4] {
@@ -794,7 +797,7 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
 }
 pub fn change_states() -> List<temper_engine_domain_forge_change::State> {
     use temper_engine_domain_forge_change::{Hold, Repair, State};
-    let mut states = List::with_capacity(19);
+    let mut states = List::with_capacity(22);
     for state in [
         State::Producing { requested: true },
         State::Opening { requested: false },
@@ -809,7 +812,10 @@ pub fn change_states() -> List<temper_engine_domain_forge_change::State> {
         State::Resolving { requested: true, base: [13; 32] },
         State::Repairing { requested: true, why: Repair::Gate(14) },
         State::Landing { head: [15; 32] },
-        State::Landed { merge: [16; 32] },
+        State::Landed { merge: [16; 32], since: skein_lib::Wall::from_nanos(17) },
+        State::Red { merge: [18; 32], since: skein_lib::Wall::from_nanos(19) },
+        State::Cleared { merge: [20; 32] },
+        State::Uncleared { merge: [21; 32] },
         State::Ended,
         State::Repairing { requested: false, why: Repair::Ci },
         State::Repairing { requested: true, why: Repair::Semantic },
@@ -903,5 +909,88 @@ pub fn forge_record() -> top::ForgeRecord {
             project: top::SetUpProject::New(b"project".as_slice().into()),
             label: b"playground".as_slice().into(),
         }),
+    }
+}
+
+/// A policy row with every bounded collection full.
+pub fn tier_row() -> top::TierRow {
+    use temper_engine_domain_forge_tiers as p;
+    let mut tests = List::with_capacity(LIMITS.tiers.failing_tests);
+    let mut flakes = List::with_capacity(LIMITS.tiers.failing_tests);
+    for n in 0..LIMITS.tiers.failing_tests {
+        let mut test = skein_lib::bytes::zeroed(usize::try_from(LIMITS.tiers.test_id_bytes).unwrap());
+        test.fill(u8::try_from(n.checked_add(1).unwrap()).unwrap());
+        flakes.push(p::Flake { test: test.clone(), count: u32::MAX }).unwrap();
+        tests.push(test).unwrap();
+    }
+    let tests = tests.into_boxed();
+    let failures = p::Failures::Tests(tests.clone());
+    let mut landings = List::with_capacity(2 * LIMITS.changes + 1);
+    let mut blamed = List::with_capacity(landings.capacity());
+    for n in 0..landings.capacity() {
+        landings
+            .push(p::Landing { commit: [u8::try_from(n).unwrap(); 32], key: [u8::try_from(n).unwrap(); 32] })
+            .unwrap();
+        blamed.push(p::Blame::Owns(failures.clone())).unwrap();
+    }
+    let landings = landings.into_boxed();
+    let mut pending = List::with_capacity(u32::try_from(landings.len()).unwrap());
+    for landing in &landings {
+        pending.push(top::TierLanding { commit: landing.commit, key: Some(landing.key) }).unwrap();
+    }
+    let pending = pending.into_boxed();
+    let mut jobs = List::with_capacity(LIMITS.client.rows);
+    for id in 0..LIMITS.client.rows {
+        jobs.push(skein_forge::api::JobAttempt { head: [4; 32], run: 71, job: u64::from(id), attempt: 1 }).unwrap();
+    }
+    top::TierRow {
+        requested: true,
+        cancelled: true,
+        purpose: Some(top::purpose::EffectPurpose::Tier { repository: REPO, tier: 0, run: 3, operation: 1, part: 2 }),
+        pending,
+        baseline: Some(top::TierLanding { commit: [1; 32], key: Some([2; 32]) }),
+        branch: top::TierBranch::Pending { entry: 17 },
+        probe: Some(top::TierProbeBranch { landing: 1, branch: top::TierBranch::Pending { entry: 19 } }),
+        flight: Some(top::TierFlight {
+            entry: 18,
+            start: Some(skein_lib::Time::ZERO),
+            since: Some(skein_lib::Time::ZERO),
+            waiting: true,
+            next: Some(skein_lib::Time::ZERO),
+            run: Some(71),
+            pending: jobs.into_boxed(),
+            fault: Some(temper_engine_domain_forge_landing::Fault::Lost),
+            report: Some(top::ReceiptRun { id: 71, number: 1, url: Box::new([b'u'; 2048]) }),
+        }),
+        held: Some(temper_engine_domain_forge_landing::Fault::Cancelled),
+        result: Some(top::Receipt {
+            passed: false,
+            failures: Some(failures.clone()),
+            candidate: [4; 32],
+            ended: skein_lib::Wall::EPOCH,
+            run: top::ReceiptRun { id: 71, number: 1, url: Box::new([b'u'; 2048]) },
+        }),
+        received: true,
+        repository: REPO,
+        tier: Box::new([b'a'; 32]),
+        task: Some(51),
+        record: p::Record {
+            sequence: 2,
+            judged: Some(p::Judged { tip: [2; 32], key: [3; 32] }),
+            failing: failures.clone(),
+            flakes: flakes.into_boxed(),
+            run: Some(p::Run {
+                number: 3,
+                tip: [4; 32],
+                key: [5; 32],
+                faults: 2,
+                part: p::Part::Probe {
+                    landing: 1,
+                    tests: p::Selection::Tests(tests.clone()),
+                    finding: p::Finding { failing: failures.clone(), flakes: tests, blamed: blamed.into_boxed() },
+                },
+                landings,
+            }),
+        },
     }
 }

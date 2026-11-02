@@ -155,7 +155,7 @@ pub fn panel_rows() -> List<v1::ChangePanel> {
     use v1::{Ci, Hold, Reason, Step};
     let limits = limits();
     let gate = Reason::Gate(v1::GateReason::new(&limits, v1::GateReasonParts { gate: 9 }).expect("gate reason"));
-    let mut panels = List::with_capacity(18);
+    let mut panels = List::with_capacity(22);
     for (step, hold, ci, [head, pull, runs]) in [
         (
             Step::Ready(v1::InLanding::new(&limits, v1::InLandingParts { landing: None }).unwrap()),
@@ -207,6 +207,39 @@ pub fn panel_rows() -> List<v1::ChangePanel> {
         ),
         (Step::Landing, None, Ci::Passed, [true, true, true]),
         (
+            Step::Verifying(
+                v1::Verifying::new(&limits, v1::VerifyingParts { merge: [8; 32], tiers: tier_lines() })
+                    .expect("verifying"),
+            ),
+            None,
+            Ci::Passed,
+            [true; 3],
+        ),
+        (
+            Step::Red(v1::Red::new(&limits, v1::RedParts { merge: [8; 32], tiers: tier_lines() }).expect("red")),
+            None,
+            Ci::Passed,
+            [true; 3],
+        ),
+        (
+            Step::Cleared(
+                v1::Cleared::new(&limits, v1::ClearedParts { merge: [8; 32], tiers: tier_lines(), uncleared: false })
+                    .expect("cleared"),
+            ),
+            None,
+            Ci::Passed,
+            [true; 3],
+        ),
+        (
+            Step::Cleared(
+                v1::Cleared::new(&limits, v1::ClearedParts { merge: [8; 32], tiers: tier_lines(), uncleared: true })
+                    .expect("uncleared"),
+            ),
+            None,
+            Ci::Passed,
+            [true; 3],
+        ),
+        (
             Step::Landed(v1::Landed::new(&limits, v1::LandedParts { merge: [0x47; 32] }).expect("merge")),
             None,
             Ci::Passed,
@@ -232,7 +265,10 @@ pub fn panel_rows() -> List<v1::ChangePanel> {
             | Step::Repairing(_)
             | Step::Landing
             | Step::Ended
-            | Step::Landed(_) => {}
+            | Step::Landed(_)
+            | Step::Verifying(_)
+            | Step::Red(_)
+            | Step::Cleared(_) => {}
         }
         parts.step = step;
         parts.hold = hold;
@@ -267,7 +303,7 @@ pub fn panel_rows() -> List<v1::ChangePanel> {
                     .expect("twelve gates");
             }
         }
-        panels.push(v1::ChangePanel::new(&limits, parts).expect("panel row")).expect("fifteen rows");
+        panels.push(v1::ChangePanel::new(&limits, parts).expect("panel row")).expect("panel rows");
     }
     panels
 }
@@ -329,4 +365,10 @@ pub fn trailing(bytes: &[u8]) -> Box<[u8]> {
 
 fn set_up_refused(why: v1::SetUpRefusal) -> v1::Outcome {
     v1::Outcome::SetUpRefused(v1::SetUpRefused::new(&limits(), v1::SetUpRefusedParts { why }).expect("setup refusal"))
+}
+
+fn tier_lines() -> List<Box<[u8]>> {
+    let mut lines = List::with_capacity(1);
+    lines.push(Box::from(b"fast run 2".as_slice())).expect("one line");
+    lines
 }

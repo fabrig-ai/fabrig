@@ -324,6 +324,9 @@ mod tests {
                 | w::Step::Repairing(_)
                 | w::Step::Landing
                 | w::Step::Landed(_)
+                | w::Step::Verifying(_)
+                | w::Step::Red(_)
+                | w::Step::Cleared(_)
                 | w::Step::Ended => {
                     assert!(forge::change::queue(&step).is_none(), "no queue position supplied at {step:?}");
                 }

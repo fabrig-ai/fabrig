@@ -1,0 +1,241 @@
+diff --git a/temper/crates/temper-client-protocol-wire/golden/enum_logged_verdict_cleared_full.bin b/temper/crates/temper-client-protocol-wire/golden/enum_logged_verdict_cleared_full.bin
+new file mode 100644
+index 000000000..6b2aaa764
+--- /dev/null
++++ b/temper/crates/temper-client-protocol-wire/golden/enum_logged_verdict_cleared_full.bin
+@@ -0,0 +1 @@
++
+\ No newline at end of file
+diff --git a/temper/crates/temper-client-protocol-wire/golden/enum_logged_verdict_cleared_smallest.bin b/temper/crates/temper-client-protocol-wire/golden/enum_logged_verdict_cleared_smallest.bin
+new file mode 100644
+index 000000000..6b2aaa764
+--- /dev/null
++++ b/temper/crates/temper-client-protocol-wire/golden/enum_logged_verdict_cleared_smallest.bin
+@@ -0,0 +1 @@
++
+\ No newline at end of file
+diff --git a/temper/crates/temper-client-protocol-wire/golden/enum_logged_verdict_red_full.bin b/temper/crates/temper-client-protocol-wire/golden/enum_logged_verdict_red_full.bin
+new file mode 100644
+index 000000000..a4923380a
+--- /dev/null
++++ b/temper/crates/temper-client-protocol-wire/golden/enum_logged_verdict_red_full.bin
+@@ -0,0 +1 @@
++ÿÿÿÿ
+\ No newline at end of file
+diff --git a/temper/crates/temper-client-protocol-wire/golden/enum_logged_verdict_red_smallest.bin b/temper/crates/temper-client-protocol-wire/golden/enum_logged_verdict_red_smallest.bin
+new file mode 100644
+index 000000000..5407bf3dd
+Binary files /dev/null and b/temper/crates/temper-client-protocol-wire/golden/enum_logged_verdict_red_smallest.bin differ
+diff --git a/temper/crates/temper-client-protocol-wire/golden/enum_logged_verdict_verifying_full.bin b/temper/crates/temper-client-protocol-wire/golden/enum_logged_verdict_verifying_full.bin
+new file mode 100644
+index 000000000..f76dd238a
+Binary files /dev/null and b/temper/crates/temper-client-protocol-wire/golden/enum_logged_verdict_verifying_full.bin differ
+diff --git a/temper/crates/temper-client-protocol-wire/golden/enum_logged_verdict_verifying_smallest.bin b/temper/crates/temper-client-protocol-wire/golden/enum_logged_verdict_verifying_smallest.bin
+new file mode 100644
+index 000000000..f76dd238a
+Binary files /dev/null and b/temper/crates/temper-client-protocol-wire/golden/enum_logged_verdict_verifying_smallest.bin differ
+diff --git a/temper/crates/temper-client-protocol-wire/golden/enum_watch_landings_full.bin b/temper/crates/temper-client-protocol-wire/golden/enum_watch_landings_full.bin
+index 6c0d9cf01..26e757bb7 100644
+--- a/temper/crates/temper-client-protocol-wire/golden/enum_watch_landings_full.bin
++++ b/temper/crates/temper-client-protocol-wire/golden/enum_watch_landings_full.bin
+@@ -1 +1 @@
+-ÿÿÿÿ
+\ No newline at end of file
++ÿÿÿÿÿÿÿÿÿÿÿÿ
+\ No newline at end of file
+diff --git a/temper/crates/temper-client-protocol-wire/golden/enum_watch_landings_smallest.bin b/temper/crates/temper-client-protocol-wire/golden/enum_watch_landings_smallest.bin
+index f8287f3da..8dbc1c88d 100644
+Binary files a/temper/crates/temper-client-protocol-wire/golden/enum_watch_landings_smallest.bin and b/temper/crates/temper-client-protocol-wire/golden/enum_watch_landings_smallest.bin differ
+diff --git a/temper/crates/temper-client-protocol-wire/golden/record_landings_panel_full.bin b/temper/crates/temper-client-protocol-wire/golden/record_landings_panel_full.bin
+index c297ee807..423e5a527 100644
+Binary files a/temper/crates/temper-client-protocol-wire/golden/record_landings_panel_full.bin and b/temper/crates/temper-client-protocol-wire/golden/record_landings_panel_full.bin differ
+diff --git a/temper/crates/temper-client-protocol-wire/golden/record_landings_panel_smallest.bin b/temper/crates/temper-client-protocol-wire/golden/record_landings_panel_smallest.bin
+index c199934b5..c4d7ddb32 100644
+Binary files a/temper/crates/temper-client-protocol-wire/golden/record_landings_panel_smallest.bin and b/temper/crates/temper-client-protocol-wire/golden/record_landings_panel_smallest.bin differ
+diff --git a/temper/crates/temper-client-protocol-wire/golden/record_landings_subject_full.bin b/temper/crates/temper-client-protocol-wire/golden/record_landings_subject_full.bin
+index 142086a7a..d47cef7bd 100644
+--- a/temper/crates/temper-client-protocol-wire/golden/record_landings_subject_full.bin
++++ b/temper/crates/temper-client-protocol-wire/golden/record_landings_subject_full.bin
+@@ -1 +1 @@
+-ÿÿÿÿ
+\ No newline at end of file
++ÿÿÿÿÿÿÿÿÿÿÿÿ
+\ No newline at end of file
+diff --git a/temper/crates/temper-client-protocol-wire/golden/record_landings_subject_smallest.bin b/temper/crates/temper-client-protocol-wire/golden/record_landings_subject_smallest.bin
+index 40b450dd9..ab2c68467 100644
+Binary files a/temper/crates/temper-client-protocol-wire/golden/record_landings_subject_smallest.bin and b/temper/crates/temper-client-protocol-wire/golden/record_landings_subject_smallest.bin differ
+diff --git a/temper/crates/temper-client-protocol-wire/golden/record_logged_line_full.bin b/temper/crates/temper-client-protocol-wire/golden/record_logged_line_full.bin
+new file mode 100644
+index 000000000..8cf532275
+Binary files /dev/null and b/temper/crates/temper-client-protocol-wire/golden/record_logged_line_full.bin differ
+diff --git a/temper/crates/temper-client-protocol-wire/golden/record_logged_line_smallest.bin b/temper/crates/temper-client-protocol-wire/golden/record_logged_line_smallest.bin
+new file mode 100644
+index 000000000..6048a30cd
+Binary files /dev/null and b/temper/crates/temper-client-protocol-wire/golden/record_logged_line_smallest.bin differ
+diff --git a/temper/crates/temper-client-protocol-wire/golden/record_logged_mark_full.bin b/temper/crates/temper-client-protocol-wire/golden/record_logged_mark_full.bin
+new file mode 100644
+index 000000000..f7e9e1118
+Binary files /dev/null and b/temper/crates/temper-client-protocol-wire/golden/record_logged_mark_full.bin differ
+diff --git a/temper/crates/temper-client-protocol-wire/golden/record_logged_mark_smallest.bin b/temper/crates/temper-client-protocol-wire/golden/record_logged_mark_smallest.bin
+new file mode 100644
+index 000000000..40b450dd9
+Binary files /dev/null and b/temper/crates/temper-client-protocol-wire/golden/record_logged_mark_smallest.bin differ
+diff --git a/temper/crates/temper-client-protocol-wire/golden/record_logged_red_full.bin b/temper/crates/temper-client-protocol-wire/golden/record_logged_red_full.bin
+new file mode 100644
+index 000000000..2321334cd
+--- /dev/null
++++ b/temper/crates/temper-client-protocol-wire/golden/record_logged_red_full.bin
+@@ -0,0 +1 @@
++ÿÿÿÿ
+\ No newline at end of file
+diff --git a/temper/crates/temper-client-protocol-wire/golden/record_logged_red_smallest.bin b/temper/crates/temper-client-protocol-wire/golden/record_logged_red_smallest.bin
+new file mode 100644
+index 000000000..f76dd238a
+Binary files /dev/null and b/temper/crates/temper-client-protocol-wire/golden/record_logged_red_smallest.bin differ
+diff --git a/temper/crates/temper-client-protocol-wire/schema/client-wire-v1.schema b/temper/crates/temper-client-protocol-wire/schema/client-wire-v1.schema
+index 6c779cb23..1a12cce96 100644
+--- a/temper/crates/temper-client-protocol-wire/schema/client-wire-v1.schema
++++ b/temper/crates/temper-client-protocol-wire/schema/client-wire-v1.schema
+@@ -78,7 +78,7 @@ record ChangeSubject { task: u64 }
+ record Pull { number: u64 address: bytes 2048 }
+ # A landing's watched panel (domain/landing.md, section 14).
+ record LandingSubject { task: u64 }
+-record LandingsSubject { project: u32 ended: bool }
++record LandingsSubject { project: u32 ended: bool newer_than: option u64 }
+ enum Watch { change: ChangeSubject, forges, landing: LandingSubject, landings: LandingsSubject }
+ enum LandingPhase { waiting, preparing, proving, proved, turn, landed, held, cancelled }
+ record Receipted { run: u64 number: u64 address: bytes 2048 }
+@@ -90,7 +90,11 @@ record HeldFaults { member: u16 gate: u16 }
+ enum LandingHold { faults: HeldFaults }
+ versioned record LandingPanel { task: u64 project: u32 phase: LandingPhase hold: option LandingHold members: list 8 Member preparation: u16 stale_proofs: u32 turn: option u64 }
+ record LandingLine { task: u64 phase: LandingPhase changes: list 8 u64 repositories: list 8 bytes 2048 landed: list 8 fixed 32 }
+-versioned record LandingsPanel { project: u32 turn: option u64 landings: list 64 LandingLine }
++record LoggedRed { tests: option u32 }
++enum LoggedVerdict { verifying, cleared, red: LoggedRed }
++record LoggedMark { tier: bytes 32 verdict: LoggedVerdict }
++record LoggedLine { commit: fixed 32 repository: bytes 2048 seen: u64 changes: list 65536 u64 verdicts: list 32 LoggedMark }
++versioned record LandingsPanel { project: u32 turn: option u64 landings: list 32 LandingLine newer_than: option u64 logged: list 32 LoggedLine after: option bytes 64 }
+ versioned record Watching { watch: Watch }
+ record Queued { place: u32 ahead: list 64 u64 }
+ record GateReason { gate: u64 }
+diff --git a/temper/crates/temper-client-protocol-wire/src/lib.rs b/temper/crates/temper-client-protocol-wire/src/lib.rs
+index 0f99312c1..190318430 100644
+--- a/temper/crates/temper-client-protocol-wire/src/lib.rs
++++ b/temper/crates/temper-client-protocol-wire/src/lib.rs
+@@ -113,7 +113,13 @@ pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
+         landing_line_repositories: 8,
+         landing_line_repositories_item: 2048,
+         landing_line_landed: 8,
+-        landings_panel_landings: 64,
++        landings_panel_landings: 32,
++        landings_panel_logged: 32,
++        landings_panel_after_some: 64,
++        logged_line_repository: 2048,
++        logged_line_changes: 65536,
++        logged_line_verdicts: 32,
++        logged_mark_tier: 32,
+         queued_ahead: TASKS_AHEAD,
+         change_panel_owner: bounds.field_bytes,
+         change_panel_name: bounds.field_bytes,
+diff --git a/temper/crates/temper-client-protocol-wire/src/tests.rs b/temper/crates/temper-client-protocol-wire/src/tests.rs
+index 11174c42a..336137180 100644
+--- a/temper/crates/temper-client-protocol-wire/src/tests.rs
++++ b/temper/crates/temper-client-protocol-wire/src/tests.rs
+@@ -94,7 +94,13 @@ fn limits_take_each_bound_from_its_source_field() {
+             landing_line_repositories: 8,
+             landing_line_repositories_item: 2048,
+             landing_line_landed: 8,
+-            landings_panel_landings: 64,
++            landings_panel_landings: 32,
++            landings_panel_logged: 32,
++            landings_panel_after_some: 64,
++            logged_line_repository: 2048,
++            logged_line_changes: 65536,
++            logged_line_verdicts: 32,
++            logged_mark_tier: 32,
+             queued_ahead: crate::TASKS_AHEAD,
+             change_panel_owner: 16,
+             change_panel_name: 16,
+@@ -986,7 +992,8 @@ fn landing_watches_round_trip_without_trailing_bytes() {
+     for watch in [
+         v1::Watch::Landing(v1::LandingSubject::new(&limits, v1::LandingSubjectParts { task: 61 }).expect("task")),
+         v1::Watch::Landings(
+-            v1::LandingsSubject::new(&limits, v1::LandingsSubjectParts { project: 1, ended: true }).expect("project"),
++            v1::LandingsSubject::new(&limits, v1::LandingsSubjectParts { project: 1, ended: true, newer_than: None })
++                .expect("project"),
+         ),
+     ] {
+         let watching = v1::Watching::new(&limits, v1::WatchingParts { watch }).expect("watch");
+diff --git a/temper/crates/temper-client-shell-terminal/src/limits.rs b/temper/crates/temper-client-shell-terminal/src/limits.rs
+index 1a569c454..303277749 100644
+--- a/temper/crates/temper-client-shell-terminal/src/limits.rs
++++ b/temper/crates/temper-client-shell-terminal/src/limits.rs
+@@ -51,7 +51,7 @@ pub fn native() -> Limits {
+                     watches: 16, // Includes the shared me watch.
+                     turn_bytes: 1_048_576,
+                     backoff: jig_client::Backoff { first: Duration::from_secs(1), most: Duration::from_secs(30) },
+-                    authority: 14,
++                    authority: 14, // Must hold the engine's complete stock authority list.
+                     heartbeat: Duration::from_secs(30),
+                     reads: 16,
+                     parts: 16,
+diff --git a/temper/crates/temper-client-shell-web/src/limits.rs b/temper/crates/temper-client-shell-web/src/limits.rs
+index d8fdde7e0..e79d9c67b 100644
+--- a/temper/crates/temper-client-shell-web/src/limits.rs
++++ b/temper/crates/temper-client-shell-web/src/limits.rs
+@@ -45,7 +45,7 @@ pub fn client() -> client::Limits {
+             watches: 16, // Includes the shared me watch.
+             turn_bytes: 1_048_576,
+             backoff: jig_client::Backoff { first: Duration::from_secs(1), most: Duration::from_secs(30) },
+-            authority: 14,
++            authority: 14, // Must hold the engine's complete stock authority list.
+             heartbeat: Duration::from_secs(30),
+             reads: 16,
+             parts: 16,
+diff --git a/temper/crates/temper-fake/src/check.rs b/temper/crates/temper-fake/src/check.rs
+index 0280f16e1..1b8879c21 100644
+--- a/temper/crates/temper-fake/src/check.rs
++++ b/temper/crates/temper-fake/src/check.rs
+@@ -77,6 +77,7 @@ const WORD: &[u8] = b"temper";
+ /// Read every row in temper's interval, with keys relative to jig's application
+ /// tag, as `temper_protocol_store::interval()` and `records::row` require.
+ #[expect(clippy::type_complexity, reason = "the reader supplies raw KV key/value pairs")]
++#[expect(clippy::too_many_lines, reason = "one exhaustive store evidence pass retains every durable family")]
+ pub fn evidence(forge: u16, rows: &[(Box<[u8]>, Box<[u8]>)], limits: &d::Limits) -> Result<Evidence, Reason> {
+     // Evidence can outlive the task limits of the engine which wrote it.
+     let bounds = temper_protocol_store::bounds(limits, temper_protocol_store::v10::CEILINGS.change_row_title)
+@@ -141,6 +142,7 @@ pub fn evidence(forge: u16, rows: &[(Box<[u8]>, Box<[u8]>)], limits: &d::Limits)
+             }
+             d::Stored::Demo(_)
+             | d::Stored::DemoAct(_)
++            | d::Stored::Verification(_)
+             | d::Stored::Flight { .. }
+             | d::Stored::Call { .. }
+             | d::Stored::ProposedEffect(_)
+@@ -156,7 +158,9 @@ pub fn evidence(forge: u16, rows: &[(Box<[u8]>, Box<[u8]>)], limits: &d::Limits)
+             | d::Stored::Application { .. }
+             | d::Stored::Binding { .. }
+             | d::Stored::Landing(_)
+-            | d::Stored::Receipt { .. } => {}
++            | d::Stored::Receipt { .. }
++            | d::Stored::LandingLog(_)
++            | d::Stored::Tier(_) => {}
+         }
+     }
+     let client = client.ok_or(Reason::ClientUnknown)?;
+diff --git a/temper/crates/temper-fake/src/tests/check.rs b/temper/crates/temper-fake/src/tests/check.rs
+index 1e8a48c8a..9a509c419 100644
+--- a/temper/crates/temper-fake/src/tests/check.rs
++++ b/temper/crates/temper-fake/src/tests/check.rs
+@@ -73,6 +73,11 @@ pub const LIMITS: d::Limits = d::Limits {
+     trees_in_flight: 2,
+     judge_projects: 2,
+     judge_criteria: 8,
++    tiers: 2,
++    landings_kept: 16,
++
++    failing_tests: 16,
++    test_id_bytes: 256,
+     brief_sections: 32,
+     brief_bytes: 4096,
+     client: CLIENT,

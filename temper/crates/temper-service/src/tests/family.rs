@@ -2003,3 +2003,35 @@ fn end_playground_answers_reset() {
         w::Outcome::Reset
     );
 }
+
+#[test]
+fn after_landing_steps_translate_all_tier_lines_and_uncleared() {
+    let lines: Box<[Box<[u8]>]> =
+        Box::new([Box::from(b"fast run 2".as_slice()), Box::from(b"slow run 3 running".as_slice())]);
+    for input in [
+        forge::PanelStep::Verifying { merge: [8; 32], tiers: lines.clone() },
+        forge::PanelStep::Red { merge: [8; 32], tiers: lines.clone() },
+        forge::PanelStep::Cleared { merge: [8; 32], tiers: lines.clone(), uncleared: false },
+        forge::PanelStep::Cleared { merge: [8; 32], tiers: lines.clone(), uncleared: true },
+    ] {
+        let mut value = panel();
+        value.step = input.clone();
+        let got = decoded_panel(value, &fixtures::forge_table(&[]));
+        match (input, got.step()) {
+            (forge::PanelStep::Verifying { merge, tiers }, w::Step::Verifying(value)) => {
+                assert_eq!(*value.merge(), merge);
+                assert_eq!(value.tiers().as_slice(), tiers.as_ref());
+            }
+            (forge::PanelStep::Red { merge, tiers }, w::Step::Red(value)) => {
+                assert_eq!(*value.merge(), merge);
+                assert_eq!(value.tiers().as_slice(), tiers.as_ref());
+            }
+            (forge::PanelStep::Cleared { merge, tiers, uncleared }, w::Step::Cleared(value)) => {
+                assert_eq!(*value.merge(), merge);
+                assert_eq!(value.tiers().as_slice(), tiers.as_ref());
+                assert_eq!(value.uncleared(), uncleared);
+            }
+            _ => panic!("step preserved"),
+        }
+    }
+}

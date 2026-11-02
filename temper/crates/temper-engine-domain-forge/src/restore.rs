@@ -104,6 +104,13 @@ fn answer_rows(answer: &skein_forge::api::Answer) -> u64 {
             }
             largest
         }
+        Answer::Commits { commits, .. } => {
+            let mut largest = count(commits.len());
+            for commit in commits {
+                largest = largest.max(count(commit.parents.len()));
+            }
+            largest
+        }
         Answer::Tree { entries, .. } => count(entries.len()),
         Answer::Items { items, .. } => {
             let mut largest = count(items.len());
@@ -175,6 +182,20 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
                 d.landing.rows.contains_key(&row.landing.task),
             )
         }
+        Stored::Tier(row) => room(
+            K::Tier,
+            Rows(K::Tier),
+            d.tiers.len(),
+            d.tiers.capacity(),
+            d.tiers.contains_key(&(row.repository, row.tier.clone())),
+        ),
+        Stored::Verification(row) => room(
+            K::Verification,
+            Rows(K::Verification),
+            d.verifications.len(),
+            d.verifications.capacity(),
+            d.verifications.contains_key(&(row.repository, row.commit)),
+        ),
         Stored::Receipt { key, .. } => room(
             K::Receipt,
             Rows(K::Receipt),
@@ -325,6 +346,27 @@ fn derived(d: &Domain, l: &Limits) -> Result<(), RestoreFit> {
                     limit: u64::from(watches.capacity()),
                 });
             }
+        }
+    }
+    for name in &crate::tiers::watched(d) {
+        let Some(resource) = super::to_client(name, l) else {
+            return Err(RestoreFit {
+                family: Some(RecordKind::Tier),
+                set: RestoreSet::NameBytes,
+                held: u64::from(l.name_bytes),
+                additional: 1,
+                limit: u64::from(l.name_bytes),
+            });
+        };
+        let held = watches.len();
+        if watches.insert(resource, ()).is_err() {
+            return Err(RestoreFit {
+                family: Some(RecordKind::Tier),
+                set: RestoreSet::Watches,
+                held: u64::from(held),
+                additional: 1,
+                limit: u64::from(watches.capacity()),
+            });
         }
     }
     // Each member/gate can contribute one rebuilt flight, before any allocation or u16 conversion.

@@ -28,6 +28,8 @@ pub enum RecordKind {
     Flight,
     Landing,
     Receipt,
+    Tier,
+    Verification,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Need {
@@ -70,8 +72,10 @@ pub(crate) fn capacity(l: &Limits) -> Option<u32> {
         .checked_add(l.tasks.checked_mul(3)?)? // Release: task, root, pending name.
         .checked_add(l.applications)? // Application: adopted repository, if any.
         .checked_add(l.client.repositories)? // Writer: configured forge.
+        .checked_add(l.repositories.checked_mul(l.tiers.tiers)?.checked_mul(2)?)?
+        .checked_add(l.changes)?
         .checked_add(l.landings.checked_mul(l.landing_members)?)?
-        .checked_add(l.repositories.checked_mul(l.gates)?.checked_mul(l.receipts_per_gate)?)
+        .checked_add(l.repositories.checked_mul(l.gates.checked_add(l.tiers.tiers)?)?.checked_mul(l.receipts_per_gate)?)
 }
 impl Need {
     pub(super) fn repository(self, repository: Repository) -> bool {
@@ -142,6 +146,14 @@ impl Reconciliation {
                 }
                 Ok(())
             }
+            Stored::Tier(row) => {
+                self.repository(RecordKind::Tier, row.repository)?;
+                if let Some(task) = row.task {
+                    self.task(RecordKind::Tier, task, Some(row.repository.forge))?;
+                }
+                Ok(())
+            }
+            Stored::Verification(row) => self.repository(RecordKind::Verification, row.repository),
             Stored::Receipt { key, .. } => self.repository(RecordKind::Receipt, key.repository),
             Stored::Call { key, .. } => self.task(RecordKind::Call, key.task, None),
             Stored::ProposedEffect(row) => self.entry(RecordKind::ProposedEffect, &row.entry),
@@ -309,7 +321,9 @@ impl Domain {
             | RecordKind::Issue
             | RecordKind::Application
             | RecordKind::Landing
-            | RecordKind::Receipt => true,
+            | RecordKind::Receipt
+            | RecordKind::Tier
+            | RecordKind::Verification => true,
             RecordKind::Forge
             | RecordKind::Call
             | RecordKind::ProposedEffect

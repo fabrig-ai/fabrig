@@ -116,6 +116,7 @@ pub struct World {
 
 #[derive(Clone, Copy, Default)]
 pub struct StoryLimits {
+    pub tier: Option<crate::tier_runs::Tier>,
     pub turn: bool,
     pub across: bool,
     pub library_gate_latency: Option<Duration>,
@@ -272,6 +273,7 @@ impl World {
             tasks,
             across,
             library_gate_latency,
+            tier,
         } = timing;
         let paths::Gate { approval, agent: agent_gate, owner: owner_gate } = gate;
         let [(bootstrap, mut limits), (config, _)] = std::array::from_fn(|_| {
@@ -497,7 +499,7 @@ impl World {
                     limits.fleet.attempts = 3;
                     limits.fleet.workstreams = 3;
                 }
-                if turn {
+                if turn || tier.is_some() {
                     limits.authority.grants = 14;
                     limits.tasks.authority_grants = 14;
                     limits.authority.executors = 6;
@@ -554,15 +556,24 @@ impl World {
                         .insert(
                             1,
                             engine::ProjectLanding {
-                                by: engine::Way::Turn,
+                                after: engine::AfterLandingCheck {
+                                    tier_retries: 2,
+                                    verification_bound_ms: tier.map_or(7_200_000, |tier| tier.bound_ms),
+                                },
+                                by: if turn { engine::Way::Turn } else { engine::Way::Queue },
                                 repositories: Box::new([engine::RepositoryChecks {
+                                    tiers: if tier.is_some() { crate::tier_runs::checks() } else { Box::new([]) },
                                     repository: forge_world::REPO,
-                                    gates: Box::new([engine::GateCheck {
-                                        name: b"gate".as_slice().into(),
-                                        workflow: b"gate.yml".as_slice().into(),
-                                        ignored: Box::new([b"docs".as_slice().into()]),
-                                        blocking: true,
-                                    }]),
+                                    gates: if turn {
+                                        Box::new([engine::GateCheck {
+                                            name: b"gate".as_slice().into(),
+                                            workflow: b"gate.yml".as_slice().into(),
+                                            ignored: Box::new([b"docs".as_slice().into()]),
+                                            blocking: true,
+                                        }])
+                                    } else {
+                                        Box::new([])
+                                    },
                                 }]),
                             },
                         )
@@ -680,21 +691,38 @@ impl World {
             fake_config.limits.workflows = 1;
             fake_config.limits.workflow_runs = 8;
         }
+        if tier.is_some() {
+            // The baseline, range, rerun and probes coexist with ordinary CI runs.
+            fake_config.limits.workflows = 2;
+            fake_config.limits.workflow_runs = 16;
+            fake_config.limits.branches = 16;
+            // Four live changes retain producer and merge statuses beside the baseline.
+            fake_config.limits.statuses = 16;
+            // The two failed test cases and JUnit wrapper exceed a source file's 128 bytes.
+            fake_config.limits.content_bytes = 512;
+        }
         let mut fake = fake::Domain::new(&fake_config, 71);
         let setup = raw::Setup {
-            workflows: if turn {
-                Box::new([raw::Workflow {
-                    file: b"gate.yml".as_slice().into(),
-                    jobs: Box::new([b"test".as_slice().into()]),
-                    latency_min: Duration::from_secs(1),
-                    latency_max: Duration::from_secs(1),
-                    silent: 0,
-                    passes: 1000,
-                    cue: None,
-                }])
-            } else {
-                Box::new([])
-            },
+            workflows: crate::tier_runs::workflows(
+                tier,
+                if turn {
+                    Box::new([raw::Workflow {
+                        fails: Box::new([]),
+                        flaky: Box::new([]),
+                        report: None,
+                        select: None,
+                        file: b"gate.yml".as_slice().into(),
+                        jobs: Box::new([b"test".as_slice().into()]),
+                        latency_min: Duration::from_secs(1),
+                        latency_max: Duration::from_secs(1),
+                        silent: 0,
+                        passes: 1000,
+                        cue: None,
+                    }])
+                } else {
+                    Box::new([])
+                },
+            ),
             id: 2,
             name: Box::from(&b"org/repo"[..]),
             default: Box::from(&b"main"[..]),
@@ -758,7 +786,7 @@ impl World {
             Some((_, _, Some(deployment))) => *deployment,
             Some((_, _, None)) | None => temper_engine_domain_world::store::widest(),
         };
-        if turn {
+        if turn || tier.is_some() {
             store_limits.tasks.executor_kinds = limits.tasks.executor_kinds;
             store_limits.tasks.authority_grants = limits.tasks.authority_grants;
             store_limits.authority.grants = limits.authority.grants;

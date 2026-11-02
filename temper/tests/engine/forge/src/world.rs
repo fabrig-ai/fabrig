@@ -58,6 +58,7 @@ pub const LIMITS: top::Limits = top::Limits {
     key_entries: 16,
     key_path_bytes: 1024,
     trees_in_flight: 2,
+    tiers: temper_engine_domain_forge::TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
     judge_projects: 2,
     judge_criteria: 8,
     brief_sections: 32,
@@ -118,6 +119,20 @@ pub struct World {
 
 impl World {
     #[must_use]
+    pub fn tiered(seed: u64, workflow: raw::Workflow) -> World {
+        Self::configured(
+            seed,
+            LIMITS.facts,
+            false,
+            Some(skein_forge_client::Writer { forge: REPO.forge, author: 1 }),
+            None,
+            false,
+            6,
+            false,
+            Some(workflow),
+        )
+    }
+    #[must_use]
     pub fn turn() -> World {
         Self::configured(
             11,
@@ -128,6 +143,7 @@ impl World {
             false,
             4,
             true,
+            None,
         )
     }
     pub fn project_landing(
@@ -136,9 +152,22 @@ impl World {
         way: temper_engine_domain_forge_change::Way,
         gates: Box<[top::RepositoryGates]>,
     ) -> bool {
-        let accepted = self.top.project_landing(project, way, gates.clone());
+        let accepted = self.top.project_landing(
+            project,
+            way,
+            gates.clone(),
+            top::AfterLanding {
+                verdict: temper_engine_domain_forge_tiers::Settings {
+                    retries: 2,
+                    suspects: temper_engine_domain_forge_tiers::Suspects::Bisect,
+                },
+                bound: Duration::from_millis(7_200_000),
+            },
+        );
         if accepted {
             self.landing_config = Some((project, way, gates));
+            top::resume(&mut self.top, &self.env, &mut self.top_out);
+            self.take_top();
         }
         accepted
     }
@@ -180,6 +209,7 @@ impl World {
             false,
             4,
             false,
+            None,
         )
     }
 
@@ -195,6 +225,7 @@ impl World {
             signatures,
             4,
             false,
+            None,
         )
     }
 
@@ -209,6 +240,7 @@ impl World {
             false,
             branches,
             false,
+            None,
         )
     }
 
@@ -238,7 +270,9 @@ impl World {
         signatures: bool,
         branches: u32,
         turn: bool,
+        tier: Option<raw::Workflow>,
     ) -> World {
+        let tiered = tier.is_some();
         let limits = top::Limits {
             landings: if turn { 2 } else { LIMITS.landings },
             facts,
@@ -247,8 +281,19 @@ impl World {
         };
         let mut config = fake_config();
         config.limits.branches = branches;
-        config.limits.workflows = u32::from(turn);
-        config.limits.workflow_runs = if turn { 4 } else { 0 };
+        if tiered {
+            config.limits.statuses = 16;
+            config.limits.content_bytes = 512;
+            config.limits.commits = 32;
+        }
+        config.limits.workflows = u32::from(turn || tiered);
+        config.limits.workflow_runs = if tiered {
+            16
+        } else if turn {
+            4
+        } else {
+            0
+        };
         config.limits.bypassing_users = protection
             .as_ref()
             .map_or(0, |rule| u32::try_from(rule.bypassing_users.len()).expect("fixture bypass list"));
@@ -257,19 +302,7 @@ impl World {
             &mut fake,
             &config,
             raw::Setup {
-                workflows: if turn {
-                    Box::new([raw::Workflow {
-                        file: Box::from(b"gate.yml".as_slice()),
-                        jobs: Box::new([Box::from(b"test".as_slice())]),
-                        latency_min: Duration::from_secs(2),
-                        latency_max: Duration::from_secs(2),
-                        silent: 0,
-                        passes: 1000,
-                        cue: None,
-                    }])
-                } else {
-                    Box::new([])
-                },
+                workflows: workflows(turn, tier),
                 id: 2,
                 name: Box::from(&b"org/repo"[..]),
                 default: Box::from(&b"main"[..]),
@@ -334,7 +367,17 @@ impl World {
     /// Construct and restart without any configured writer.
     #[must_use]
     pub fn writerless(seed: u64) -> World {
-        Self::configured(seed, LIMITS.facts, false, None, None, false, 4, false)
+        Self::configured(seed, LIMITS.facts, false, None, None, false, 4, false, None)
+    }
+    pub fn tier_failures(&mut self, failing_tests: u32) {
+        self.env.limits.tiers.failing_tests = failing_tests;
+    }
+    pub fn runner_lost(&mut self, lost: u32) {
+        self.forge_env.limits.lost = lost;
+    }
+    #[must_use]
+    pub fn has_branch(&self, branch: &[u8]) -> bool {
+        self.forge.branch(b"org/repo", branch).is_some()
     }
     pub fn give_writer(&mut self, writer: skein_forge_client::Writer) -> bool {
         let accepted = top::writer(&mut self.top, &self.env, writer, &mut self.top_out);
@@ -358,6 +401,7 @@ impl World {
             false,
             4,
             false,
+            None,
         )
     }
 
@@ -527,7 +571,18 @@ impl World {
         )
         .expect("same configured connector");
         if let Some((project, way, gates)) = &self.landing_config {
-            assert!(self.top.project_landing(*project, *way, gates.clone()));
+            assert!(self.top.project_landing(
+                *project,
+                *way,
+                gates.clone(),
+                top::AfterLanding {
+                    verdict: temper_engine_domain_forge_tiers::Settings {
+                        retries: 2,
+                        suspects: temper_engine_domain_forge_tiers::Suspects::Bisect,
+                    },
+                    bound: Duration::from_millis(7_200_000),
+                },
+            ));
         }
         let mut rows = List::with_capacity(self.stored.len());
         for (_, record) in &self.stored {
@@ -778,12 +833,15 @@ impl World {
                         self.stored.insert(key(&record), record).expect("world store capacity");
                     }
                 }
-                top::Request::Save { record, .. } => {
+                top::Request::Save { record, release, .. } => {
                     if matches!(record, top::Stored::Writer(_)) {
                         self.writer_saves += 1;
                     }
                     let key = key(&record);
                     self.stored.insert(key, record).expect("world store capacity");
+                    if let Some(entry) = release {
+                        self.to_top.push((self.generation, top::Event::Committed { entry }));
+                    }
                 }
                 top::Request::Erase { key } => {
                     self.stored.remove(&key).expect("erased row exists");
@@ -837,6 +895,8 @@ impl World {
                 | top::Request::GoalUntopic { .. }
                 | top::Request::ProjectionFailed { .. }
                 | top::Request::LandingDecision { .. }
+                | top::Request::TierRun { .. }
+                | top::Request::TierDecision { .. }
                 | top::Request::ChangeDecision { .. }
                 | top::Request::News { .. }
                 | top::Request::Read { .. }
@@ -958,6 +1018,8 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::Forge(row) => top::Key::Forge(row.number),
         top::Stored::ForgeNumber { .. } => top::Key::ForgeNumber,
         top::Stored::Playground(_) => top::Key::Playground,
+        top::Stored::Tier(row) => top::Key::Tier { repository: row.repository, tier: row.tier.clone() },
+        top::Stored::Verification(row) => top::Key::Verification { repository: row.repository, commit: row.commit },
     }
 }
 
@@ -1031,6 +1093,28 @@ fn configured_forge() -> top::Configured {
         web: None,
         read_only: false,
         asked: false,
+    }
+}
+
+fn workflows(turn: bool, tier: Option<raw::Workflow>) -> Box<[raw::Workflow]> {
+    if let Some(tier) = tier {
+        Box::new([tier])
+    } else if turn {
+        Box::new([raw::Workflow {
+            fails: Box::new([]),
+            flaky: Box::new([]),
+            report: None,
+            select: None,
+            file: Box::from(b"gate.yml".as_slice()),
+            jobs: Box::new([Box::from(b"test".as_slice())]),
+            latency_min: Duration::from_secs(2),
+            latency_max: Duration::from_secs(2),
+            silent: 0,
+            passes: 1000,
+            cue: None,
+        }])
+    } else {
+        Box::new([])
     }
 }
 
