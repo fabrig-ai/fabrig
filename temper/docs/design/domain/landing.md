@@ -590,7 +590,8 @@ Kind 4's members, each with its default and the section it serves:
 
 - **Until both kinds are settings** on jig's application settings (jig's
   `domain/engine.md`, 17.5), a project's `by`, its `tier_retries` and
-  `verification_bound`, and its repositories' gates and tiers are
+  `verification_bound` (`verification_bound_ms` there), and its
+  repositories' gates and tiers are
   configured in the document's `landing` member
   (`../protocol/configuration.md`, section 3), as the landing rules are,
   and read at the start.

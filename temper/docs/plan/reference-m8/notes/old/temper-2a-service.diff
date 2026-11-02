@@ -1,0 +1,734 @@
+diff --git a/temper/crates/temper-service/Cargo.toml b/temper/crates/temper-service/Cargo.toml
+index 6944f33af..5f2593277 100644
+--- a/temper/crates/temper-service/Cargo.toml
++++ b/temper/crates/temper-service/Cargo.toml
+@@ -56,6 +56,7 @@ smith-host-protocol.workspace = true
+ smith-host-domain.workspace = true
+ temper-engine-domain.workspace = true
+ temper-engine-domain-forge.workspace = true
++temper-engine-domain-forge-tiers.workspace = true
+ skein-forge-client.workspace = true
+ temper-engine-domain-forge-change.workspace = true
+ temper-engine-domain-forge-issues.workspace = true
+diff --git a/temper/crates/temper-service/src/clients/translation.rs b/temper/crates/temper-service/src/clients/translation.rs
+index 4d0d6d66b..2f4136a67 100644
+--- a/temper/crates/temper-service/src/clients/translation.rs
++++ b/temper/crates/temper-service/src/clients/translation.rs
+@@ -176,7 +176,9 @@ pub fn not_ready(input: root::PartyInput) -> Option<kit::Event> {
+         root::PartyInput::Read { reply_to, .. } => {
+             Some(kit::Event::Read { reply: reply_to, answer: core::reads::Answer::None(core::reads::Why::Busy) })
+         }
+-        root::PartyInput::Watch { watcher, .. } | root::PartyInput::WatchRun { watcher, .. } => {
++        root::PartyInput::Watch { watcher, .. }
++        | root::PartyInput::WatchRun { watcher, .. }
++        | root::PartyInput::LoggedLandings { watcher, .. } => {
+             Some(kit::Event::WatchRefused { watcher, why: core::WatchRefusal::Busy })
+         }
+         root::PartyInput::Unwatch { .. }
+diff --git a/temper/crates/temper-service/src/family.rs b/temper/crates/temper-service/src/family.rs
+index b8ad0c799..8df7a52e7 100644
+--- a/temper/crates/temper-service/src/family.rs
++++ b/temper/crates/temper-service/src/family.rs
+@@ -280,11 +280,23 @@ pub fn to_root(
+                             subject: Token::new(subject.task()),
+                         }
+                     }
+-                    w::Watch::Landings(subject) => jig_domain_core::documents::Watched::Application {
+-                        scope,
+-                        connector: wire::FORGE,
+-                        subject: Token::new(forge::landings_subject(subject.project(), subject.ended())),
+-                    },
++                    w::Watch::Landings(subject) => {
++                        if let Some(nanos) = subject.newer_than() {
++                            return Ok(root::Event::Party(root::PartyInput::LoggedLandings {
++                                watcher,
++                                sign_in,
++                                scope,
++                                project: subject.project(),
++                                newer_than: skein_lib::Wall::from_nanos(*nanos),
++                                window,
++                            }));
++                        }
++                        jig_domain_core::documents::Watched::Application {
++                            scope,
++                            connector: wire::FORGE,
++                            subject: Token::new(forge::landings_subject(subject.project(), subject.ended())),
++                        }
++                    }
+                     w::Watch::Change(_) | w::Watch::Landing(_) => {
+                         return Err(Box::new(kit::Event::WatchRefused {
+                             watcher,
+@@ -948,6 +960,7 @@ fn admin_stop(stop: forge::AdminStop, limits: &w::Limits) -> Option<w::AdminStop
+ 
+ /// Encode a whole landing document, with deployment addresses at this boundary.
+ #[must_use]
++#[expect(clippy::manual_map, reason = "the foundation uses explicit matches without closures")]
+ pub fn document(value: forge::Document, forges: &[crate::settings::Forge], limits: &w::Limits) -> Option<Box<[u8]>> {
+     match value {
+         forge::Document::Change(value) => panel(value, forges, limits),
+@@ -1017,15 +1030,65 @@ pub fn document(value: forge::Document, forges: &[crate::settings::Forge], limit
+                     )
+                     .ok()?;
+             }
++            let mut logged = List::with_capacity(u32::try_from(value.logged.len()).ok()?);
++            for entry in value.logged {
++                logged.push(logged_line(entry, limits)?).ok()?;
++            }
++            let newer_than = match value.newer_than {
++                Some(wall) => Some(wall.as_nanos()),
++                None => None,
++            };
++            // Jig family windows accept its document Number cursor: tag 0 and
++            // the little-endian offset (jig's protocol/client.md, 6).
++            let after = match value.after {
++                Some(number) => {
++                    let mut bytes = List::with_capacity(9);
++                    bytes.push(0).ok()?;
++                    for byte in number.to_le_bytes() {
++                        bytes.push(byte).ok()?;
++                    }
++                    Some(bytes.into_boxed())
++                }
++                None => None,
++            };
+             let panel = w::LandingsPanel::new(
+                 limits,
+-                w::LandingsPanelParts { project: value.project, turn: value.turn, landings },
++                w::LandingsPanelParts { newer_than, logged, after, project: value.project, turn: value.turn, landings },
+             )
+             .ok()?;
+             Some(wire::landings_panel(&panel))
+         }
+     }
+ }
++fn logged_line(entry: forge::LoggedLine, limits: &w::Limits) -> Option<w::LoggedLine> {
++    let mut changes = List::with_capacity(u32::try_from(entry.changes.len()).ok()?);
++    for change in entry.changes {
++        changes.push(change).ok()?;
++    }
++    let mut verdicts = List::with_capacity(u32::try_from(entry.verdicts.len()).ok()?);
++    for mark in entry.verdicts {
++        let verdict = match mark.verdict {
++            forge::Verdict::Verifying => w::LoggedVerdict::Verifying,
++            forge::Verdict::Cleared => w::LoggedVerdict::Cleared,
++            forge::Verdict::Red { tests } => {
++                w::LoggedVerdict::Red(w::LoggedRed::new(limits, w::LoggedRedParts { tests }).ok()?)
++            }
++        };
++        verdicts.push(w::LoggedMark::new(limits, w::LoggedMarkParts { tier: mark.tier, verdict }).ok()?).ok()?;
++    }
++    w::LoggedLine::new(
++        limits,
++        w::LoggedLineParts {
++            commit: entry.commit,
++            repository: entry.repository,
++            seen: entry.seen.as_nanos(),
++            changes,
++            verdicts,
++        },
++    )
++    .ok()
++}
++
+ fn landing_member(
+     member: forge::LandingMember,
+     forges: &[crate::settings::Forge],
+diff --git a/temper/crates/temper-service/src/limits.rs b/temper/crates/temper-service/src/limits.rs
+index aa078b643..23e95c1f3 100644
+--- a/temper/crates/temper-service/src/limits.rs
++++ b/temper/crates/temper-service/src/limits.rs
+@@ -192,6 +192,14 @@ const FORGE: forge::Limits = forge::Limits {
+     judge_projects: 2,
+     // Criteria in each judge table, from the engine forge world fixture.
+     judge_criteria: 8,
++    // Tiers per repository (domain/after-landing.md, 2).
++    tiers: 2,
++    landings_kept: 16,
++
++    // Failing tests named by one tier run (domain/after-landing.md, 4).
++    failing_tests: 16,
++    // Bytes of one failing test id (domain/after-landing.md, 4).
++    test_id_bytes: 256,
+     // Forge brief sections gathering at once, from the engine forge world fixture.
+     brief_sections: 32,
+     // Bytes of one gathered forge section: at least the root's brief.read_bytes.
+diff --git a/temper/crates/temper-service/src/limits/names.rs b/temper/crates/temper-service/src/limits/names.rs
+index 8c16f5616..885ea1089 100644
+--- a/temper/crates/temper-service/src/limits/names.rs
++++ b/temper/crates/temper-service/src/limits/names.rs
+@@ -87,6 +87,10 @@ pub(super) fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(),
+         b"forge.adoptions" => limits.forge.adoptions = u32::try_from(value).or(Err(Refused::Range))?,
+         b"forge.applications" => limits.forge.applications = u32::try_from(value).or(Err(Refused::Range))?,
+         b"forge.collaborators" => limits.forge.collaborators = u32::try_from(value).or(Err(Refused::Range))?,
++        b"forge.landings_kept" => limits.forge.landings_kept = u32::try_from(value).or(Err(Refused::Range))?,
++        b"forge.tiers" => limits.forge.tiers = u32::try_from(value).or(Err(Refused::Range))?,
++        b"forge.failing_tests" => limits.forge.failing_tests = u32::try_from(value).or(Err(Refused::Range))?,
++        b"forge.test_id_bytes" => limits.forge.test_id_bytes = u32::try_from(value).or(Err(Refused::Range))?,
+         b"forge.landings" => limits.forge.landings = u32::try_from(value).or(Err(Refused::Range))?,
+         b"forge.judge_projects" => limits.forge.judge_projects = u32::try_from(value).or(Err(Refused::Range))?,
+         b"forge.judge_criteria" => limits.forge.judge_criteria = u32::try_from(value).or(Err(Refused::Range))?,
+diff --git a/temper/crates/temper-service/src/startup/application/landing.rs b/temper/crates/temper-service/src/startup/application/landing.rs
+index d078f8e47..76fb7eb24 100644
+--- a/temper/crates/temper-service/src/startup/application/landing.rs
++++ b/temper/crates/temper-service/src/startup/application/landing.rs
+@@ -6,6 +6,7 @@ use skein_json::Document;
+ use skein_lib::{List, Map};
+ use temper_engine_domain::{self as engine, Approval, Freshness, Gate, LandingRule};
+ use temper_engine_domain_forge::{CHECK_NAME_BYTES, WORKFLOW_BYTES};
++use temper_engine_domain_forge_tiers::{Format, Settings, Suspects};
+ 
+ fn freshness(
+     object: &mut config::read::Object,
+@@ -252,6 +253,24 @@ fn optional_list(
+         }
+     }
+ }
++fn optional_integer(
++    object: &mut config::read::Object,
++    document: &Document,
++    name: &[u8],
++    default: u64,
++    max: u64,
++    path: &Path,
++    problems: &mut Problems,
++) -> Option<u64> {
++    let Some(at) = object.member(document, name) else { return Some(default) };
++    match config::read::integer(document, at, max) {
++        Ok(value) => Some(value),
++        Err(what) => {
++            problems.push(path.member(name), What::Jig(what));
++            None
++        }
++    }
++}
+ fn optional_word(
+     object: &mut config::read::Object,
+     document: &Document,
+@@ -324,7 +343,7 @@ fn check(
+         object,
+         document,
+         b"name",
+-        u32::try_from(CHECK_NAME_BYTES).expect("check name bound"),
++        u32::try_from(CHECK_NAME_BYTES).expect("check name bound fits u32"),
+         path,
+         problems,
+     );
+@@ -332,7 +351,7 @@ fn check(
+         object,
+         document,
+         b"workflow",
+-        u32::try_from(WORKFLOW_BYTES).expect("workflow bound"),
++        u32::try_from(WORKFLOW_BYTES).expect("workflow bound fits u32"),
+         path,
+         problems,
+     );
+@@ -372,8 +391,10 @@ fn repository_checks(
+     let forge = read::short(&mut object, document, b"forge", path, problems);
+     let repository = read::number(&mut object, document, b"repository", path, problems);
+     let gate_ats = optional_list(&mut object, document, b"gates", limits.gates, path, problems);
++    let tier_ats = optional_list(&mut object, document, b"tiers", limits.tiers, path, problems);
+     read::finish(object, document, path, problems);
+     let mut gates = List::with_capacity(limits.gates);
++    let mut tiers = List::with_capacity(limits.tiers);
+     if let Some(ats) = gate_ats {
+         for (index, at) in ats.iter().enumerate() {
+             let path = read::index(&path.member(b"gates"), index);
+@@ -401,9 +422,64 @@ fn repository_checks(
+             }
+         }
+     }
++    if let Some(ats) = tier_ats {
++        for (index, at) in ats.iter().enumerate() {
++            let path = read::index(&path.member(b"tiers"), index);
++            let Some(mut object) = read::object(document, *at, &path, problems) else { continue };
++            let check = check(&mut object, document, &path, limits, problems);
++            let artifact = checked_text(
++                &mut object,
++                document,
++                b"artifact",
++                u32::try_from(CHECK_NAME_BYTES).expect("artifact name bound fits u32"),
++                &path,
++                problems,
++            );
++            let format = read::text(&mut object, document, b"format", &path, problems);
++            read::finish(object, document, &path, problems);
++            if let Some(artifact) = &artifact {
++                read::form(!artifact.contains(&b'/'), path.member(b"artifact"), problems);
++            }
++            let format = match format.as_deref() {
++                Some(b"junit") => Some(Format::Junit),
++                Some(b"lines") => Some(Format::Lines),
++                Some(_) => {
++                    read::form(false, path.member(b"format"), problems);
++                    None
++                }
++                None => None,
++            };
++            if let Some(check) = check
++                && let Some(artifact) = artifact
++                && let Some(format) = format
++            {
++                for previous in &gates {
++                    if previous.name == check.name {
++                        problems.push(path.member(b"name"), What::Jig(config::What::Unique));
++                    }
++                }
++                for previous in &tiers {
++                    let previous: &engine::TierCheck = previous;
++                    if previous.name == check.name {
++                        problems.push(path.member(b"name"), What::Jig(config::What::Unique));
++                    }
++                }
++                tiers
++                    .push(engine::TierCheck {
++                        name: check.name,
++                        workflow: check.workflow,
++                        ignored: check.ignored,
++                        artifact,
++                        format,
++                    })
++                    .expect("bounded tiers");
++            }
++        }
++    }
+     Some(engine::RepositoryChecks {
+         repository: skein_forge::api::Repository { forge: forge?, repository: repository? },
+         gates: gates.into_boxed(),
++        tiers: tiers.into_boxed(),
+     })
+ }
+ fn project_landing(
+@@ -414,8 +490,22 @@ fn project_landing(
+     forges: &[super::Forge],
+     problems: &mut Problems,
+ ) -> Option<engine::ProjectLanding> {
+-    let by = optional_word(object, document, b"by", b"queue", path, problems)?;
+-    let by = match by.as_ref() {
++    let by = optional_word(object, document, b"by", b"queue", path, problems);
++    let ats = optional_list(object, document, b"gates", limits.repositories, path, problems);
++    let retries = optional_integer(object, document, b"tier_retries", 2, u64::from(u32::MAX), path, problems);
++    let bound = optional_integer(object, document, b"verification_bound_ms", 7_200_000, u64::MAX, path, problems);
++    let suspects = optional_word(object, document, b"suspects", b"bisect", path, problems);
++    let pause = match object.member(document, b"pause_on_red") {
++        Some(at) => match config::read::boolean(document, at) {
++            Ok(value) => Some(value),
++            Err(what) => {
++                problems.push(path.member(b"pause_on_red"), What::Jig(what));
++                None
++            }
++        },
++        None => Some(false),
++    };
++    let by = match by?.as_ref() {
+         b"queue" => engine::Way::Queue,
+         b"turn" => engine::Way::Turn,
+         _ => {
+@@ -423,33 +513,50 @@ fn project_landing(
+             return None;
+         }
+     };
+-    let ats = optional_list(object, document, b"gates", limits.repositories, path, problems)?;
++    let suspects = match suspects?.as_ref() {
++        b"bisect" => Suspects::Bisect,
++        b"tell_all" => Suspects::TellAll,
++        _ => {
++            read::form(false, path.member(b"suspects"), problems);
++            return None;
++        }
++    };
+     let mut repositories = List::with_capacity(limits.repositories);
+-    for (index, at) in ats.iter().enumerate() {
+-        let path = read::index(&path.member(b"gates"), index);
+-        if let Some(checks) = repository_checks(document, *at, &path, limits, problems) {
+-            let mut found = false;
+-            for forge in forges {
+-                if forge.number == checks.repository.forge {
+-                    found = true;
+-                    read::form(
+-                        by != engine::Way::Turn || forge.kind != crate::settings::Kind::GitHub,
+-                        path.member(b"repository"),
+-                        problems,
+-                    );
++    if let Some(ats) = ats {
++        for (index, at) in ats.iter().enumerate() {
++            let path = read::index(&path.member(b"gates"), index);
++            if let Some(checks) = repository_checks(document, *at, &path, limits, problems) {
++                let mut found = false;
++                for forge in forges {
++                    if forge.number == checks.repository.forge {
++                        found = true;
++                        read::form(
++                            by != engine::Way::Turn || forge.kind != crate::settings::Kind::GitHub,
++                            path.member(b"repository"),
++                            problems,
++                        );
++                    }
+                 }
+-            }
+-            if !found {
+-                problems.push(path.member(b"forge"), What::Jig(config::What::Refers));
+-            }
+-            for previous in &repositories {
+-                let previous: &engine::RepositoryChecks = previous;
+-                if previous.repository == checks.repository {
+-                    problems.push(path.member(b"repository"), What::Jig(config::What::Unique));
++                if !found {
++                    problems.push(path.member(b"forge"), What::Jig(config::What::Refers));
+                 }
++                for previous in &repositories {
++                    let previous: &engine::RepositoryChecks = previous;
++                    if previous.repository == checks.repository {
++                        problems.push(path.member(b"repository"), What::Jig(config::What::Unique));
++                    }
++                }
++                repositories.push(checks).expect("bounded repositories");
+             }
+-            repositories.push(checks).expect("bounded repositories");
+         }
+     }
+-    Some(engine::ProjectLanding { by, repositories: repositories.into_boxed() })
++    Some(engine::ProjectLanding {
++        by,
++        repositories: repositories.into_boxed(),
++        after: engine::AfterLanding {
++            verdict: Settings { retries: u32::try_from(retries?).expect("bounded retries"), suspects },
++            bound: skein_lib::Duration::from_millis(bound?),
++            pause_on_red: pause?,
++        },
++    })
+ }
+diff --git a/temper/crates/temper-service/src/tests/family.rs b/temper/crates/temper-service/src/tests/family.rs
+index f7fa4228a..9616cbe37 100644
+--- a/temper/crates/temper-service/src/tests/family.rs
++++ b/temper/crates/temper-service/src/tests/family.rs
+@@ -1752,6 +1752,9 @@ fn a_landing_view_encodes_to_its_panel() {
+ #[test]
+ fn a_landings_view_encodes_to_its_list() {
+     let value = forge::LandingsView {
++        newer_than: None,
++        logged: Box::new([]),
++        after: None,
+         project: 7,
+         turn: Some(61),
+         landings: Box::new([forge::LandingLine {
+@@ -1781,7 +1784,11 @@ fn the_landings_subject_names_no_task() {
+                     &w::CEILINGS,
+                     w::WatchingParts {
+                         watch: w::Watch::Landings(
+-                            w::LandingsSubject::new(&w::CEILINGS, w::LandingsSubjectParts { project, ended }).unwrap(),
++                            w::LandingsSubject::new(
++                                &w::CEILINGS,
++                                w::LandingsSubjectParts { project, ended, newer_than: None },
++                            )
++                            .unwrap(),
+                         ),
+                     },
+                 )
+@@ -1842,3 +1849,57 @@ fn the_landings_subject_names_no_task() {
+     let kit::Event::WatchRefused { watcher, why } = *refused else { panic!("unknown watch") };
+     assert_eq!((watcher, why), (WATCHER, jig_domain_core::WatchRefusal::Unknown));
+ }
++
++#[test]
++fn landing_history_keeps_the_wires_full_wall_precision() {
++    const SINCE: u64 = 123_456_789;
++    let subject = w::LandingsSubject::new(
++        &w::CEILINGS,
++        w::LandingsSubjectParts { project: 7, ended: false, newer_than: Some(SINCE) },
++    )
++    .unwrap();
++    let watching = w::Watching::new(&w::CEILINGS, w::WatchingParts { watch: w::Watch::Landings(subject) }).unwrap();
++    let event = family::to_root(
++        watch_exchange(wire::FORGE, wire::CLIENT_VERSION, wire::watching(&watching)),
++        &[],
++        None,
++        &w::CEILINGS,
++    )
++    .unwrap();
++    let root::Event::Party(root::PartyInput::LoggedLandings { project, newer_than, .. }) = event else {
++        panic!("history watch")
++    };
++    assert_eq!((project, newer_than.as_nanos()), (7, SINCE));
++}
++
++#[test]
++fn a_logged_page_keeps_its_marks_time_and_document_cursor() {
++    let view = forge::LandingsView {
++        project: 7,
++        turn: None,
++        landings: Box::new([]),
++        newer_than: Some(skein_lib::Wall::from_nanos(123)),
++        logged: Box::new([forge::LoggedLine {
++            commit: [5; 32],
++            repository: b"acme/shop".as_slice().into(),
++            seen: skein_lib::Wall::from_nanos(456),
++            changes: Box::new([51]),
++            verdicts: Box::new([forge::Mark {
++                tier: b"browser".as_slice().into(),
++                verdict: forge::Verdict::Red { tests: None },
++            }]),
++        }]),
++        after: Some(32),
++    };
++    let bytes = family::document(forge::Document::Landings(view), &[], &w::CEILINGS).unwrap();
++    let panel = wire::decode_landings_panel(&bytes, &w::CEILINGS).unwrap();
++    assert_eq!(panel.newer_than(), &Some(123));
++    assert_eq!(panel.after().as_deref(), Some([0, 32, 0, 0, 0, 0, 0, 0, 0].as_slice()));
++    let line = panel.logged().get(0).unwrap();
++    assert_eq!((line.commit(), line.repository(), line.seen()), (&[5; 32], b"acme/shop".as_slice(), 456));
++    assert_eq!(line.changes().as_slice(), &[51]);
++    let mark = line.verdicts().get(0).unwrap();
++    assert_eq!(mark.tier(), b"browser");
++    let w::LoggedVerdict::Red(red) = mark.verdict() else { panic!("red many") };
++    assert_eq!(red.tests(), &None);
++}
+diff --git a/temper/crates/temper-service/src/tests/fixtures/startup.rs b/temper/crates/temper-service/src/tests/fixtures/startup.rs
+index f5cdc4118..d1d81aa42 100644
+--- a/temper/crates/temper-service/src/tests/fixtures/startup.rs
++++ b/temper/crates/temper-service/src/tests/fixtures/startup.rs
+@@ -143,6 +143,8 @@ fn turn_limits(path: &[u8], json: &[u8]) -> Box<[u8]> {
+             ("hub.turn_queue_bytes", u64::from(turn) * 8),
+             ("core.resume_bytes", u64::from(resume)),
+             ("authority.grants", 16),
++            ("authority.executors", 6),
++            ("tasks.executor_kinds", 6),
+             ("notes.scopes", 32),
+         ]
+     } else if path == b"workers[0].limits.overrides" {
+diff --git a/temper/crates/temper-service/src/tests/limits.rs b/temper/crates/temper-service/src/tests/limits.rs
+index c0e7afa17..8ec182339 100644
+--- a/temper/crates/temper-service/src/tests/limits.rs
++++ b/temper/crates/temper-service/src/tests/limits.rs
+@@ -539,3 +539,15 @@ fn token_rows_include_schema_framing_in_startup_admission() {
+         assert_eq!(crate::startup::lines(&problems).as_ref(), expected.as_bytes());
+     }
+ }
++
++#[test]
++fn the_log_fits_the_small_profiles_existing_application_row() {
++    let forge = limits::profile(limits::Profile::Small).forge;
++    let words = jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.tasks.spec_bytes;
++    let application = temper_protocol_store::application(&forge, words).expect("small application sizes");
++    assert_eq!((application.key, application.value), (257, 797_295));
++    let bounds = temper_protocol_store::bounds(&forge, words).expect("small store bounds");
++    let log = temper_protocol_store::v10::LandingLog::worst_case_bytes(bounds.limits()).expect("bounded log");
++    assert!(log + 3 <= u64::from(application.value), "version and Value tag frame the log");
++    assert_eq!(log, 3146);
++}
+diff --git a/temper/crates/temper-service/src/tests/startup.rs b/temper/crates/temper-service/src/tests/startup.rs
+index da63aebbd..1b2a9742d 100644
+--- a/temper/crates/temper-service/src/tests/startup.rs
++++ b/temper/crates/temper-service/src/tests/startup.rs
+@@ -2569,3 +2569,212 @@ fn landing_configuration_reads_the_way_and_bounded_repository_gates() {
+     assert_eq!(landing.by, temper_engine_domain::Way::Queue);
+     assert!(landing.repositories.is_empty());
+ }
++
++// The application fixture seeds project 1 and forge 1.
++const LANDING_PROJECT: u32 = 1;
++const PROJECT_CHECKS: &[u8] = br#"[{"project":1,"rules":[],"by":"turn","gates":[{"forge":1,"repository":7,"gates":[{"name":"focused","workflow":"check.yml","ignored":["docs","a/b"],"blocking":true}],"tiers":[{"name":"fuzzy","workflow":"fuzzy.yml","ignored":["notes"],"artifact":"failures","format":"junit"},{"name":"browser","workflow":"browser.yml","ignored":[],"artifact":"tests","format":"lines"}]}],"tier_retries":3,"verification_bound_ms":9000,"suspects":"tell_all","pause_on_red":true}]"#;
++fn landing_checks_input() -> Box<[u8]> {
++    fixtures::with(fixtures::APPLICATION, b"landing.projects", PROJECT_CHECKS)
++}
++fn parsed_project(input: &[u8]) -> temper_engine_domain::ProjectLanding {
++    let jig = fixtures::engine().jig;
++    let (members, problems) = application(input, &jig);
++    assert_eq!(lines(&problems).as_ref(), b"");
++    let mut landing = members.unwrap().landing;
++    landing.landings.remove(&LANDING_PROJECT).unwrap()
++}
++#[test]
++fn a_landing_project_with_no_new_member_takes_every_default() {
++    use temper_engine_domain::{AfterLanding, ProjectLanding, Way};
++    use temper_engine_domain_forge_tiers::{Settings, Suspects};
++    assert_eq!(
++        parsed_project(fixtures::APPLICATION),
++        ProjectLanding {
++            by: Way::Queue,
++            repositories: Box::new([]),
++            after: AfterLanding {
++                verdict: Settings { retries: 2, suspects: Suspects::Bisect },
++                bound: skein_lib::Duration::from_millis(7_200_000),
++                pause_on_red: false
++            }
++        }
++    );
++}
++#[test]
++fn a_projects_gates_and_tiers_are_read_in_order() {
++    use temper_engine_domain::{GateCheck, RepositoryChecks, TierCheck, Way};
++    use temper_engine_domain_forge_tiers::Format;
++    let project = parsed_project(&landing_checks_input());
++    assert_eq!(project.by, Way::Turn);
++    assert_eq!(
++        project.repositories.as_ref(),
++        [RepositoryChecks {
++            repository: skein_forge::api::Repository { forge: 1, repository: 7 },
++            gates: Box::new([GateCheck {
++                name: b"focused".as_slice().into(),
++                workflow: b"check.yml".as_slice().into(),
++                ignored: Box::new([b"docs".as_slice().into(), b"a/b".as_slice().into()]),
++                blocking: true
++            }]),
++            tiers: Box::new([
++                TierCheck {
++                    name: b"fuzzy".as_slice().into(),
++                    workflow: b"fuzzy.yml".as_slice().into(),
++                    ignored: Box::new([b"notes".as_slice().into()]),
++                    artifact: b"failures".as_slice().into(),
++                    format: Format::Junit
++                },
++                TierCheck {
++                    name: b"browser".as_slice().into(),
++                    workflow: b"browser.yml".as_slice().into(),
++                    ignored: Box::new([]),
++                    artifact: b"tests".as_slice().into(),
++                    format: Format::Lines
++                },
++            ]),
++        }]
++    );
++}
++#[test]
++fn after_landing_settings_are_read() {
++    use temper_engine_domain::AfterLanding;
++    use temper_engine_domain_forge_tiers::{Settings, Suspects};
++    assert_eq!(
++        parsed_project(&landing_checks_input()).after,
++        AfterLanding {
++            verdict: Settings { retries: 3, suspects: Suspects::TellAll },
++            bound: skein_lib::Duration::from_millis(9000),
++            pause_on_red: true,
++        }
++    );
++}
++#[test]
++fn a_repository_with_no_checks_and_checks_with_no_ignored_paths_take_defaults() {
++    let input = fixtures::with(&landing_checks_input(), b"landing.projects[0].gates", br#"[{"forge":1,"repository":7},{"forge":1,"repository":8,"gates":[{"name":"check","workflow":"check.yml","blocking":false}],"tiers":[{"name":"tier","workflow":"tier.yml","artifact":"report","format":"lines"}]}]"#);
++    let project = parsed_project(&input);
++    assert!(project.repositories[0].gates.is_empty());
++    assert!(project.repositories[0].tiers.is_empty());
++    assert!(project.repositories[1].gates[0].ignored.is_empty());
++    assert!(project.repositories[1].tiers[0].ignored.is_empty());
++}
++type CheckBoundRow = (&'static [u8], Box<str>, &'static str);
++fn check_bound_rows(extra: u32) -> Box<[CheckBoundRow]> {
++    use temper_engine_domain_forge::{CHECK_NAME_BYTES, WORKFLOW_BYTES};
++    let limits = crate::limits::profile(crate::limits::Profile::Small).forge;
++    let gates: Box<[_]> = (0..limits.gates.checked_add(extra).unwrap())
++        .map(|index| format!(r#"{{"name":"gate{index}","workflow":"check.yml","blocking":false}}"#))
++        .collect();
++    let tiers: Box<[_]> = (0..limits.tiers.checked_add(extra).unwrap())
++        .map(|index| format!(r#"{{"name":"tier{index}","workflow":"tier.yml","artifact":"report","format":"lines"}}"#))
++        .collect();
++    let ignored: Box<[_]> = (0..limits.ignored_paths.checked_add(extra).unwrap()).map(|_| r#""docs""#).collect();
++    let repositories: Box<[_]> = (0..limits.repositories.checked_add(extra).unwrap())
++        .map(|index| format!(r#"{{"forge":1,"repository":{index}}}"#))
++        .collect();
++    let name_bytes = CHECK_NAME_BYTES.checked_add(usize::try_from(extra).unwrap()).unwrap();
++    let workflow_bytes = WORKFLOW_BYTES.checked_add(usize::try_from(extra).unwrap()).unwrap();
++    let path_bytes = usize::try_from(limits.name_bytes.checked_add(extra).unwrap()).unwrap();
++    Box::new([
++        (b"landing.projects[0].gates[0].tiers", format!("[{}]", tiers.join(",")).into_boxed_str(), "gates[0].tiers"),
++        (b"landing.projects[0].gates[0].gates", format!("[{}]", gates.join(",")).into_boxed_str(), "gates[0].gates"),
++        (
++            b"landing.projects[0].gates[0].gates[0].ignored",
++            format!("[{}]", ignored.join(",")).into_boxed_str(),
++            "gates[0].gates[0].ignored",
++        ),
++        (
++            b"landing.projects[0].gates[0].gates[0].name",
++            format!("\"{}\"", "n".repeat(name_bytes)).into_boxed_str(),
++            "gates[0].gates[0].name",
++        ),
++        (
++            b"landing.projects[0].gates[0].gates[0].workflow",
++            format!("\"{}\"", "w".repeat(workflow_bytes)).into_boxed_str(),
++            "gates[0].gates[0].workflow",
++        ),
++        (
++            b"landing.projects[0].gates[0].gates[0].ignored[0]",
++            format!("\"{}\"", "p".repeat(path_bytes)).into_boxed_str(),
++            "gates[0].gates[0].ignored[0]",
++        ),
++        (
++            b"landing.projects[0].gates[0].tiers[0].artifact",
++            format!("\"{}\"", "a".repeat(name_bytes)).into_boxed_str(),
++            "gates[0].tiers[0].artifact",
++        ),
++        (b"landing.projects[0].gates", format!("[{}]", repositories.join(",")).into_boxed_str(), "gates"),
++    ])
++}
++
++#[test]
++fn each_bound_of_an_entry_refuses_one_past_it() {
++    let jig = fixtures::engine().jig;
++    for (member, value, line) in check_bound_rows(1) {
++        let (members, problems) = application(&fixtures::with(&landing_checks_input(), member, value.as_bytes()), &jig);
++        assert!(members.is_none(), "{line}");
++        assert_eq!(
++            lines(&problems).as_ref(),
++            format!("application.landing.projects[0].{line}: past its bound\n").as_bytes()
++        );
++    }
++}
++#[test]
++fn each_bound_of_an_entry_takes_its_bound() {
++    let jig = fixtures::engine().jig;
++    for (member, value, line) in check_bound_rows(0) {
++        let (members, problems) = application(&fixtures::with(&landing_checks_input(), member, value.as_bytes()), &jig);
++        assert_eq!(lines(&problems).as_ref(), b"", "{line}");
++        assert!(members.is_some(), "{line}");
++    }
++}
++#[test]
++fn malformed_checks_are_refused() {
++    let jig = fixtures::engine().jig;
++    for (member, value, line, reason) in [
++        ("gates[0].gates[0].name", r#""a/b""#, "gates[0].gates[0].name", "invalid form"),
++        ("gates[0].gates[0].name", r#""""#, "gates[0].gates[0].name", "invalid form"),
++        ("gates[0].tiers[0].name", r#""focused""#, "gates[0].tiers[0].name", "must be unique"),
++        ("gates[0].tiers[1].name", r#""fuzzy""#, "gates[0].tiers[1].name", "must be unique"),
++        ("gates[0].gates[0].workflow", r#""a/b""#, "gates[0].gates[0].workflow", "invalid form"),
++        ("gates[0].gates[0].workflow", r#""""#, "gates[0].gates[0].workflow", "invalid form"),
++        ("gates[0].gates[0].ignored[0]", r#""/docs""#, "gates[0].gates[0].ignored[0]", "invalid form"),
++        ("gates[0].gates[0].ignored[0]", r#""docs/""#, "gates[0].gates[0].ignored[0]", "invalid form"),
++        ("gates[0].gates[0].ignored[0]", r#""a//b""#, "gates[0].gates[0].ignored[0]", "invalid form"),
++        ("gates[0].gates[0].ignored[0]", r#""a/./b""#, "gates[0].gates[0].ignored[0]", "invalid form"),
++        ("gates[0].gates[0].ignored[0]", r#""../x""#, "gates[0].gates[0].ignored[0]", "invalid form"),
++        ("gates[0].gates[0].ignored[0]", r#""""#, "gates[0].gates[0].ignored[0]", "invalid form"),
++        ("gates[0].tiers[0].artifact", r#""""#, "gates[0].tiers[0].artifact", "invalid form"),
++        ("gates[0].tiers[0].artifact", r#""a/b""#, "gates[0].tiers[0].artifact", "invalid form"),
++        ("gates[0].tiers[0].format", r#""xml""#, "gates[0].tiers[0].format", "invalid form"),
++        ("by", r#""merge""#, "by", "invalid form"),
++        ("suspects", r#""all""#, "suspects", "invalid form"),
++        (
++            "gates",
++            r#"[{"forge":1,"repository":7},{"forge":1,"repository":7}]"#,
++            "gates[1].repository",
++            "must be unique",
++        ),
++        ("gates[0].forge", "2", "gates[0].forge", "unknown reference"),
++    ] {
++        let input = fixtures::with(
++            &landing_checks_input(),
++            format!("landing.projects[0].{member}").as_bytes(),
++            value.as_bytes(),
++        );
++        let (members, problems) = application(&input, &jig);
++        assert!(members.is_none(), "{member}");
++        assert_eq!(
++            lines(&problems).as_ref(),
++            format!("application.landing.projects[0].{line}: {reason}\n").as_bytes(),
++            "{member}"
++        );
++    }
++}
++#[test]
++fn turn_into_a_github_repository_is_refused() {
++    let jig = fixtures::engine().jig;
++    let input = github_input(core::str::from_utf8(&landing_checks_input()).unwrap());
++    let (members, problems) = application(input.as_bytes(), &jig);
++    assert!(members.is_none());
++    assert_eq!(lines(&problems).as_ref(), b"application.landing.projects[0].gates[0].repository: invalid form\n");
++}
