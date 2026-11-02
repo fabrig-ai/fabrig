@@ -94,3 +94,15 @@ Acceptance:
 
 As the implementer's text says, and also: each figure moved with its values, and the tests'
 count.
+
+## Rebase (2026-11-02, step merge, foreman configuring-p1/jig-documents-config/foreman-1)
+
+Resolve engine.status.md by preserving both tasks’ gap removals.
+The merge conflicts only in `jig/docs/design/domain/engine.status.md`.
+Integration commit `e2144bb2c9250d4c1710127f6d5702e2d8306c21` removes the core-check/planning gap; branch commit `8dfe554922` removes the adjacent configuration gap.
+Resolve the overlapping hunk with both sentences absent. Keep these remaining gaps:
+```text
+  17.9: the settings store keeps no documents.
+  17.9: the client wire's charter carries no documents.
+```
+Preserve all other status text and incoming changes. No code change is needed for this refusal.
