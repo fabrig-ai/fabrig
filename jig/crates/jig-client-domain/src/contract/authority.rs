@@ -26,10 +26,12 @@ pub struct Grant {
 }
 /// Authority executor codes, distinct from a task's concrete executor.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+/// Job tasks: jig/docs/design/client/domain/contract.md, 5.7.
 pub enum AuthorityExecutor {
     Charter(u32),
     Procedure(u32),
     Role(u32),
+    Job(u32),
 }
 /// Delegation ceilings and the exact allowed executor codes.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
