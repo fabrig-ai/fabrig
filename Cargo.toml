@@ -272,6 +272,7 @@ members = [
     "temper/crates/temper-engine-smith",
     "temper/crates/temper-engine-domain-forge-change",
     "temper/crates/temper-engine-domain-forge-landing",
+    "temper/crates/temper-engine-domain-forge-tiers",
     "temper/crates/temper-engine-domain-forge-issues",
     "temper/crates/temper-engine-domain-forge",
     "temper/crates/temper-worker-domain",
@@ -490,6 +491,7 @@ temper-engine-domain-calendar = { path = "temper/crates/temper-engine-domain-cal
 temper-engine-smith = { path = "temper/crates/temper-engine-smith" }
 temper-engine-domain-forge-change = { path = "temper/crates/temper-engine-domain-forge-change" }
 temper-engine-domain-forge-landing = { path = "temper/crates/temper-engine-domain-forge-landing" }
+temper-engine-domain-forge-tiers = { path = "temper/crates/temper-engine-domain-forge-tiers" }
 temper-engine-domain-forge-issues = { path = "temper/crates/temper-engine-domain-forge-issues" }
 temper-engine-domain-forge = { path = "temper/crates/temper-engine-domain-forge" }
 temper-worker-domain = { path = "temper/crates/temper-worker-domain" }
