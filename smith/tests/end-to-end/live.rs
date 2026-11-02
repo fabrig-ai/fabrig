@@ -31,7 +31,8 @@ fn chatgpt_delivers_a_commit_in_place() {
 fn a_run_refreshes_its_grant_at_the_issuer() {
     let mut environment = live::Environment::load(&["chatgpt"]);
     environment.refresh_lead = Some(live::REFRESH_LEAD_SECONDS);
-    let before = environment.generation();
+    let clock = skein_shell::Clock::new();
+    let before = environment.refresh_facts();
     let scratch = Scratch::new();
     let completed = change(
         &environment,
@@ -41,8 +42,9 @@ fn a_run_refreshes_its_grant_at_the_issuer() {
         None,
         false,
     );
-    let after = environment.generation();
-    assert!(after > before, "the issuer refresh was kept; generation before={before} after={after}\n{completed}");
+    let after = environment.refresh_facts();
+    let refresh_report = live::refresh_report(&before, &after, clock.now().wall);
+    assert!(after.generation > before.generation, "the issuer refresh was kept; {refresh_report}\n{completed}");
 }
 
 #[test]
