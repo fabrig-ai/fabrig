@@ -3,7 +3,7 @@ id = "ctl-chat-template"
 part = "chat-template"
 kind = "feature"
 needs = ["jig-chat-from"]
-files = ["temper/crates/temper-client-tools/src/jig/rows.rs", "temper/crates/temper-client-tools/src/jig/runner/acts.rs", "temper/crates/temper-client-tools/src/tests/jig.rs", "temper/crates/temper-client-tools/src/tests/jig/chat_template.rs", "temper/crates/temper-client-tools/src/tests/help.rs", "temper/crates/temper-client-tools/src/tests/golden/**", "temper/crates/temper-client-tools/src/tests/fixtures/**", "temper/docs/help/reference/ctl-chat.md", "temper/docs/help/chat.md", "temper/docs/help/template.md", "temper/docs/design/client/tools.status.md"]
+files = ["temper/crates/temper-client-tools/src/jig/rows.rs", "temper/crates/temper-client-tools/src/jig/argv.rs", "temper/crates/temper-client-tools/src/jig/runner/acts.rs", "temper/crates/temper-client-tools/src/tests/jig.rs", "temper/crates/temper-client-tools/src/tests/jig/chat_template.rs", "temper/crates/temper-client-tools/src/tests/jig/choices.rs", "temper/crates/temper-client-tools/src/tests/help.rs", "temper/crates/temper-client-tools/src/tests/golden/**", "temper/crates/temper-client-tools/src/tests/fixtures/**", "temper/docs/help/reference/ctl-chat.md", "temper/docs/help/chat.md", "temper/docs/help/template.md", "temper/docs/design/client/tools.status.md"]
 effort = "high"
 minutes = 60
 +++
@@ -82,6 +82,10 @@ Acceptance:
 - Owns the files in the header. Its fixtures (`src/tests/fixtures/acts.rs`,
   `fixtures/choices.rs`) may change only for the moved indices (`call_words(CREATE_CHAT_CALL,
   1)` becomes index 2) and a third template where a story needs one.
+- `src/jig/argv.rs` and `src/tests/jig/choices.rs` may change only for the moved indices:
+  `check_form`'s `check_choice(call, 2, 3, limits)` for `chat start` becomes
+  `check_choice(call, 3, 4, limits)`, and `choices.rs`'s text index and the model and effort
+  argument indices in its expected `Usage` values move by one.
 - Read only: `temper-client-domain` and `temper-client-view`, whose chat pages keep
   `shapes::chat`; `temper/tests/client` (no joined story is this task's).
 - Pre-approved: if `Kind::Number` renders the flag's line otherwise than
@@ -145,3 +149,13 @@ becomes
 
 As the implementer's text says, and also: the goldens regenerated, the rendered flag line, and
 the tests' count.
+
+## Answers
+
+2026-11-02. May the task change `src/jig/argv.rs` and `src/tests/jig/choices.rs` for the
+shifted chat argument indices? Yes: both are now in the header's files, for the moved indices
+alone (see "Owns and may change"). `--template` after `--project` moves the words, `--model` and
+`--effort` from 1, 2, 3 to 2, 3, 4, so `check_form`'s `chat start` check becomes
+`check_choice(call, 3, 4, limits)`, and `choices.rs`'s `call_words(CREATE_CHAT_CALL, 1)` becomes
+index 2 and its expected `Usage` argument indices move by one. Nothing else of either file
+changes.
