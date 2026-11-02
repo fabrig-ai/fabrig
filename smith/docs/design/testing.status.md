@@ -12,17 +12,13 @@
   - 2.3: the live stories choose their account with
     `-c endpoints.<name>.account=`, since `--account` is not built
     (shell.status.md).
-  - 2.3: three `live-smith` stories fail live (the after-landing run at
-    main `46e6e70d9b17`, Claude Code 2.1.312): the Claude story requires
-    `finish` among a result-contract run's offered tools; the chat
-    crossing's prompt names the directory, and its Claude leg once ended
-    with the spawned agent killed by signal 9 before its run started,
-    cause unknown; the refresh story's generation does not rise, though
-    its lead resolves as 400 days, cause not found in code. The live
-    report keeps no record refresh facts, no agent failure line, no
-    unknown notice's kind and no missing file found elsewhere; no
-    offline story crosses a chat Direct, program, Direct through the
-    product or refreshes on a raised lead.
+  - 2.3: the refresh story expects a refresh whatever its record's
+    earliest refresh time, so it fails live on a fresh record (the
+    after-landing run at main `df41529d3ee1`: the earliest refresh time
+    2336 s ahead, the generation unchanged), and is named for the
+    refresh alone: it does not choose its case from the record's facts,
+    wait for a near earliest refresh time, report the case it checked,
+    or fail by name on a record without a refresh token.
   - 6: job ends paired across the event stream (they are paired on the
     domain's facts only), state-digest replay (skein has none), and,
     with contained trees, containment (2.2).

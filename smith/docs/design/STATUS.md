@@ -15,9 +15,9 @@ dialect 1, and their removal is not yet (`protocol/agent.md`,
 them: live content in one process (`domain/host.md`), messages mid-work
 and threshold notes (`domain/run.md`), what a program offers read from
 its `system/init` and a live run on Claude Code 2.1.312
-(`protocol/programs.md`), three live stories red with no cause found
-(`testing.md`), the `--account` flag (`shell.md`, `testing.md`), and the
-benchmarks' calibrations and arms, with three departures
+(`protocol/programs.md`), the live refresh story's expectation on a
+fresh record (`testing.md`), the `--account` flag (`shell.md`,
+`testing.md`), and the benchmarks' calibrations and arms, with three departures
 (`benchmarks.md`). `domain/session.md`,
 `protocol/charter.md`, `protocol/limits.md` and `protocol/transcript.md`
 have no gap. smith has no drafts.
