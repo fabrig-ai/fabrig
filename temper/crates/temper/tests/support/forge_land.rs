@@ -789,7 +789,7 @@ pub fn landing_store(model: LiveModel<'_>) -> (PathBuf, bool) {
 }
 
 /// Make the stores' directory (0700, with its parents) when absent, then reserve
-/// `stores/<story>` as `reserve_live_store` does; a held ChatGPT record moves into a fresh
+/// `stores/<story>` as `reserve_live_store` does; a held `ChatGPT` record moves into a fresh
 /// store only.
 pub fn story_store(stores: &std::path::Path, model: LiveModel<'_>) -> Result<(PathBuf, bool), String> {
     use std::os::unix::fs::DirBuilderExt;
