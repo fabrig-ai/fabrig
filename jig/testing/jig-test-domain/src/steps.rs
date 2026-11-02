@@ -60,6 +60,35 @@ pub(crate) fn translate(
                 ..core::ProcedureStep::new(core::StepEnd::Wait)
             });
         }
+        connector::StepDecision::Job { kind, spec, deadline } => {
+            let mut authority = domain.core.tasks.task(task).expect("procedure task live").authority.clone();
+            authority.budget.spend = 0;
+            authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
+            return Some(core::ProcedureStep {
+                batch: Box::new([core::Delegate {
+                    deadline: tasks::Deadline::Named,
+                    label: 0,
+                    flags: tasks::Flags::PLAIN,
+                    tracked: None,
+                    budget: jig_domain_people::Budget::Named,
+                    executor: tasks::Executor::Job { kind },
+                    spec: tasks::Spec {
+                        words: Box::new([]),
+                        parameters: Box::new([]),
+                        inputs: Box::new([]),
+                        asks: false,
+                        job: Some(Box::new(tasks::JobSpec { bytes: spec, deadline })),
+                    },
+                    contract: tasks::Contract::Job { bytes: 0 },
+                    authority,
+                    llm: None,
+                    symbolic_grants: Box::new([]),
+                    dependencies: Box::new([]),
+                    wake: tasks::WakePolicy::DEFAULT,
+                }]),
+                ..core::ProcedureStep::new(core::StepEnd::Wait)
+            });
+        }
         connector::StepDecision::Delegate { kinds } => {
             let row = domain.core.tasks.task(task).expect("procedure task live");
             let capacity = u32::try_from(kinds.len()).expect("bounded program");

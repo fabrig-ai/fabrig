@@ -343,6 +343,8 @@ pub enum ProcedureAction {
     Effect { kind: u16, purpose: u64, target: u64 },
     /// Make a bounded batch of child tasks.
     Delegate { kinds: Box<[u16]> },
+    /// Make one job delegate (jig/docs/design/domain/engine.md, 7.5).
+    Job { kind: u32, spec: Box<[u8]>, deadline: Duration },
     /// Amend the delegate using the last revision told back.
     Amend { words: u64, priority: Option<u32> },
     /// Ask the delegate to finish within its grace.
@@ -424,6 +426,8 @@ pub enum ProcedureSignal {
 pub enum StepDecision {
     Effect(Effect),
     Delegate { kinds: Box<[u16]> },
+    /// Make one job delegate (jig/docs/design/domain/engine.md, 7.5).
+    Job { kind: u32, spec: Box<[u8]>, deadline: Duration },
     Amend { task: u64, revision: u64, words: u64, priority: Option<u32> },
     Cancel { task: u64, grace: Duration },
     Message { task: u64, words: u64 },
