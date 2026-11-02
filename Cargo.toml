@@ -55,7 +55,6 @@ members = [
     "skein/testing/skein-codegen",
     "skein/testing/skein-conformance",
     "skein/testing/skein-browser",
-    "skein/testing/skein-lab-browser",
     "skein/testing/skein-echo-client",
     "skein/crates/skein-fake-machine",
     "skein/testing/skein-fake-channel",

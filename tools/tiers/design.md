@@ -66,7 +66,7 @@ fake-backend tests execute that adapter as the `temper` binary's sibling.
 A failed binary build returns 2 and starts no later step.
 
 All other configured pairs run nextest alone. Tier tests also use binaries
-from their own packages (`skein-lab-browser`, `harness_fixture`, `jig-test`,
+from their own packages (`harness_fixture`, `jig-test`,
 `smith`, `temper`); Cargo/nextest builds those integration-test targets.
 The browser servers cross package boundaries and require the explicit builds
 above. Smith's selected live tests use the `smith` package's own binaries;

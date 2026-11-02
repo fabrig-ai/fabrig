@@ -113,7 +113,7 @@ filter = "(package(/^temper(-|$)/) | package(=git-transcripts)) & (test(/^fuzzy_
 priority = 20
 
 [profile.browser-skein]
-default-filter = "((package(=skein-browser-world) | package(=skein-ui-web-tests) | package(=skein-lab-browser)) & binary(/^browser_/)) & (package(/^skein-/) | package(=forgejo-conformance) | package(=github-conformance))"
+default-filter = "((package(=skein-browser-world) | package(=skein-ui-web-tests)) & binary(/^browser_/)) & (package(/^skein-/) | package(=forgejo-conformance) | package(=github-conformance))"
 global-timeout = "4m"
 slow-timeout = { period = "40s", terminate-after = 3 }
 test-threads = 1

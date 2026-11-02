@@ -62,9 +62,6 @@ struct Page {
     load: Option<Load>,
     load_due: Option<Time>,
     closed: bool,
-    css: look::Css,
-    // The loader id whose inspector sheet draws the caret steady (browser.md, 5.1).
-    caret_document: Option<Box<[u8]>>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -98,7 +95,6 @@ enum OpKind {
     Key { key: Key, shift: bool },
     Address,
     Attribute { selector: Box<[u8]>, name: Box<[u8]>, until: Time },
-    Look { look: crate::boundary::Look, state: look::State },
     Snapshot,
     Screenshot,
 }
@@ -163,7 +159,6 @@ enum Step {
     AttributeRoot,
     AttributeSelector,
     AttributeValue,
-    Look(look::Step),
     Snapshot,
     Screenshot,
 }
@@ -446,8 +441,6 @@ impl Browser {
         if queued
             && (method.starts_with(b"Accessibility.")
                 || method.starts_with(b"DOM.")
-                // The shot's CSS setup can run during navigation; CSS reads wait.
-                || method.starts_with(b"CSS.get")
                 || method == b"Runtime.evaluate"
                 || address)
         {
@@ -592,8 +585,6 @@ impl Browser {
                         frame: None,
                         navigating: false,
                         opening: true,
-                        css: look::Css::Disabled,
-                        caret_document: None,
                         load: None,
                         load_due: None,
                         closed: false,
@@ -708,7 +699,6 @@ impl Browser {
                 }
                 self.issue_step(env, op, b"Page.captureScreenshot", &Params::Empty, Step::Screenshot);
             }
-            Request::Look { page, op, look } => self.request_look(env, page, op, look),
             Request::Close { entity } => self.close(env, entity),
         }
     }
@@ -1271,7 +1261,6 @@ pub fn fire(browser: &mut Browser, env: &Env<Limits>, now: Time, above: &mut Que
                         | OpKind::Type { .. }
                         | OpKind::Key { .. }
                         | OpKind::Attribute { .. }
-                        | OpKind::Look { .. }
                         | OpKind::Address
                         | OpKind::Snapshot
                         | OpKind::Screenshot,
@@ -1286,8 +1275,6 @@ pub fn fire(browser: &mut Browser, env: &Env<Limits>, now: Time, above: &mut Que
                 browser.start_find(env, op);
             } else if let Some(Operation { kind: OpKind::Attribute { .. }, .. }) = browser.op(op) {
                 browser.start_attribute(env, op);
-            } else if let Some(Operation { kind: OpKind::Look { .. }, .. }) = browser.op(op) {
-                browser.start_look(env, op);
             } else {
                 browser.finish_refused(op, Refusal::Timeout);
             }
@@ -1393,7 +1380,7 @@ impl Browser {
             return;
         }
         if let PendingKind::Step(op, Step::AttributeSelector | Step::AttributeValue) = kind
-            && look::node_missing(&message)
+            && node_missing(&message)
         {
             // A render replaced the element between the selector and its
             // read: the read starts again from the document until its
@@ -1406,10 +1393,6 @@ impl Browser {
             } else {
                 self.finish_refused(op, Refusal::Gone);
             }
-            return;
-        }
-        if let PendingKind::Step(op, Step::Look(step)) = kind {
-            self.look_error(env, op, step, &message);
             return;
         }
         let why = if contains(&message, b"No node found at given location") {
@@ -1582,7 +1565,6 @@ impl Browser {
                     | OpKind::Type { .. }
                     | OpKind::Key { .. }
                     | OpKind::Attribute { .. }
-                    | OpKind::Look { .. }
                     | OpKind::Address
                     | OpKind::Snapshot
                     | OpKind::Screenshot => {}
@@ -1747,7 +1729,7 @@ impl Browser {
 
     fn restart_finds(&mut self, env: &Env<Limits>, page: Token) {
         for op in self.ops.iter_mut().flatten() {
-            if op.page == page && look::waits_for_document(&op.kind) {
+            if op.page == page && waits_for_document(&op.kind) {
                 op.due = Some(env.now);
             }
         }
@@ -1756,7 +1738,7 @@ impl Browser {
         self.pending.retain(|pending| {
             if let PendingKind::Step(token, _) = pending.kind {
                 for op in ops.iter().flatten() {
-                    if op.token == token && op.page == page && look::waits_for_document(&op.kind) {
+                    if op.token == token && op.page == page && waits_for_document(&op.kind) {
                         outgoing.retain(|command| command.id != pending.id);
                         return false;
                     }
@@ -2130,7 +2112,6 @@ impl Browser {
                     self.issue_key(env, token, key, shift, false);
                 }
             }
-            Step::Look(step) => self.look_reply(env, token, step, result),
             Step::AttributeRoot | Step::AttributeSelector | Step::AttributeValue => {
                 self.attribute_reply(env, token, step, result);
             }
@@ -2261,7 +2242,6 @@ impl Browser {
             | Step::KeyDown
             | Step::KeyUp
             | Step::Character { .. }
-            | Step::Look(_)
             | Step::AttributeRoot
             | Step::AttributeSelector
             | Step::AttributeValue
@@ -2274,7 +2254,6 @@ impl Browser {
 }
 
 mod attribute;
-mod look;
 
 #[cfg(test)]
 #[path = "browser/type_tests.rs"]
@@ -2287,3 +2266,23 @@ mod download;
 
 #[cfg(test)]
 mod credit_tests;
+
+fn waits_for_document(kind: &OpKind) -> bool {
+    match kind {
+        OpKind::Find { .. } | OpKind::Attribute { .. } => true,
+        OpKind::Go(_)
+        | OpKind::Press { .. }
+        | OpKind::Type { .. }
+        | OpKind::Key { .. }
+        | OpKind::Address
+        | OpKind::Snapshot
+        | OpKind::Screenshot => false,
+    }
+}
+
+fn node_missing(message: &[u8]) -> bool {
+    contains(message, b"No node found")
+        || contains(message, b"Could not find node")
+        || contains(message, b"Cannot find node")
+        || contains(message, b"No node with given id")
+}

@@ -935,10 +935,6 @@ Each within skein's suites' budgets (testing-strategy.md, section 8).
     Chromium, which a find of that role asks the kit for (a text field:
     `textbox`; `spinbutton` for a number's, `Date` for a date's and
     `InputTime` for a time's; 14.1);
-  - and back, for the lab's hand (lab-browser.md, 8.4): a browser role
-    to the role that lists it first, a text box by whether it takes
-    several lines, beside the mapping and tested against it, so that
-    the role shown finds what it was shown for;
   - names by words in them or exactly (browser.md, section 5), and the
     n-th match in document order where a find asks for one past the
     first, failing when the kit kept fewer than it asks (its

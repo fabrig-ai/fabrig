@@ -1,5 +1,4 @@
 //! A fake CDP peer for an attribute read whose element a render replaces.
-use super::super::look::Css;
 use super::super::{Browser, Page, Phase, fire};
 use crate::boundary::{Event, Read, Refusal, Request};
 use crate::{Limits, wire::decode::Document};
@@ -34,8 +33,6 @@ impl Peer {
                 load: None,
                 load_due: None,
                 closed: false,
-                css: Css::Disabled,
-                caret_document: None,
             },
             env.limits.pages
         ));

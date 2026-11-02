@@ -42,8 +42,7 @@ impl Browser {
                 }
             }
             Step::AttributeValue => self.attribute_value(env, token, result),
-            Step::Look(_)
-            | Step::History
+            Step::History
             | Step::Go
             | Step::Query
             | Step::Box
@@ -106,8 +105,7 @@ impl Browser {
         match self.op(token) {
             Some(Operation { kind, .. }) => match kind {
                 OpKind::Attribute { selector, name, .. } => Some((selector, name)),
-                OpKind::Look { .. }
-                | OpKind::Go(_)
+                OpKind::Go(_)
                 | OpKind::Find { .. }
                 | OpKind::Press { .. }
                 | OpKind::Type { .. }
