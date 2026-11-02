@@ -1,0 +1,53 @@
+draft = "citation-burndown"
+repo = "fabrig"
+sources = ["temper/docs/plan/citation-burndown/inputs/request.md", "AGENTS.md", "DESIGN.md"]
+
+# The citation count to zero (inputs/request.md): 67 findings at 17273de9e2, each owned by one
+# task (notes/findings.md). Three docs tasks fix the real breaks, one per tree that has them;
+# the checker task fixes nine misreadings, each with its test; the last task writes allow.txt
+# for what must stay and checks `citations.py --all` exits 0 on the trunk. plan.md says why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "jig"
+title = "jig: store.md's items in 10.1 and 15 as numbered headings, so 10.1.2, 10.1.5, 15.1 and 15.7 resolve"
+mode = "direct"
+needs = []
+design = "jig/docs/design/protocol/store.md, 10.1 and 15"
+
+[[part]]
+id = "skein"
+title = "skein: forge-github.md 16 names the live fixtures' README by its path from the root"
+mode = "direct"
+needs = []
+design = "skein/docs/design/forge-github.md, 16"
+
+[[part]]
+id = "temper"
+title = "temper: six citations name their file and section, and the retired plan its moved backlog"
+mode = "direct"
+needs = []
+design = "DESIGN.md, 4"
+
+[[part]]
+id = "checker"
+title = "tools/citations: nine misreadings read right, each with its test"
+mode = "direct"
+needs = []
+design = "tools/citations/README.md"
+
+[[part]]
+id = "zero"
+title = "allow.txt for what must stay, and citations.py --all at zero on the trunk"
+mode = "direct"
+needs = ["jig", "skein", "temper", "checker"]
+design = "tools/citations/README.md"
+
+[[slice]]
+id = 1
+story = "`python3 -I -B tools/citations/citations.py --all` exits 0: each finding fixed in its text, read right by the checker, or listed in allow.txt with its reason"
+parts = ["jig", "skein", "temper", "checker", "zero"]
+walk = false
