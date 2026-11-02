@@ -1,8 +1,17 @@
 # testing: status
 
-2026-10-29. Where smith's code lags or departs from [testing.md](testing.md).
+2026-11-02. Where smith's code lags or departs from [testing.md](testing.md).
 
-- **Built:** Simulated, real-loop, process and opt-in live tiers. 2.5, 6.1: real-directory adapter cases share the focused suite. 2.5: whole upper assertions kept until lower seams exist. 6: measured total-peak ceilings.
-- **Not yet:** 2.1, 2.2, 6: fault sweeps, real signals, richer referees, tiny limits, paired job ends, state-digest replay and containment. 2.3, 4, 8: own-account live checks exist but have not run.
-
-- **Built:** 2.5, 6: patch fixture coverage is focused, including landed-data validation; shared live-support checks compile once in the unconditional focused configuration target.
+- **Not yet:**
+  - 2.1: only the local-process world sweeps the simulator's faults
+    (`tests/local-process/tests/suite/fuzzy/world.rs`), and no world
+    asserts that each fault fell.
+  - 2.2: the real loop runs one story (`tests/real`,
+    `a_chat_ends_with_a_commit_in_place`): no real signal is sent, and
+    the local host's simulated scenarios do not run there.
+  - 2.3: the live stories choose their account with
+    `-c endpoints.<name>.account=`, since `--account` is not built
+    (shell.status.md).
+  - 6: job ends paired across the event stream (they are paired on the
+    domain's facts only), state-digest replay (skein has none), and,
+    with contained trees, containment (2.2).
