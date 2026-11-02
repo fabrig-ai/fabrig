@@ -30,6 +30,7 @@ pub fn assignment(assignment: &engine::Assignment) -> (host::Assignment, wire::W
     let forges = {
         let mut table = temper_service::forges::Forges::with_capacity(1);
         assert!(table.insert(settings::Forge {
+            log_origins: None,
             mode: temper_engine_domain_forge::Mode::Connected,
             number: temper_engine_forge_world::REPO.forge,
             kind: settings::Kind::Forgejo,

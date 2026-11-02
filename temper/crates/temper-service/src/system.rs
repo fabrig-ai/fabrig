@@ -213,8 +213,9 @@ impl Service {
             clients.configure_google(sign_in, settings.limits.sign_in, seeds, &settings.jig);
         }
         let setup = crate::setup::prepare(&settings, &mut forge_settings, &seeds.crypto, box_line_bytes.is_some())?;
-        let forge = crate::forge::Layer::new(forge_settings, settings.limits.forge_component, &shared, &[])
+        let mut forge = crate::forge::Layer::new(forge_settings, settings.limits.forge_component, &shared, &[])
             .expect("checked forge limits");
+        forge.log_origin_limit = settings.limits.forges.log_origins;
         let notes = Queue::with_capacity(settings.limits.forge.forges);
         let configured = Box::new([]);
         let workers = workers::Workers::configured(&mut settings, seeds.deployment)?;

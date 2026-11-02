@@ -16,6 +16,9 @@ pub struct Demo {
 /// A runtime forge row made from its kept record (temper/docs/design/draft/playground-reset.md, 3).
 #[derive(Clone, Debug)]
 pub struct Forge {
+    /// Resolved configured job-log origins; none uses the kind's runtime defaults
+    /// (temper/docs/design/protocol/configuration.md, 3).
+    pub log_origins: Option<List<skein_forge_connection::settings::LogOrigin>>,
     pub mode: temper_engine_domain_forge::Mode,
     pub number: u16,
     pub kind: Kind,

@@ -46,6 +46,7 @@ fn routing_service_at(
     let mut runtime = List::with_capacity(1);
     runtime
         .push(crate::ForgeRuntime {
+            log_origins: List::with_capacity(0),
             number: 1,
             address: ([127, 0, 0, 1], 3000).into(),
             transport: skein_forge_connection::settings::Transport::Plaintext { name: None },
@@ -471,6 +472,7 @@ fn tls_forges() -> (fixtures::ConfiguredEngine, List<crate::ForgeRuntime>) {
         let (trust, _) = skein_tls::Config::from_der(core::slice::from_ref(&root), &[name.as_bytes()]).unwrap();
         runtime
             .push(crate::ForgeRuntime {
+                log_origins: List::with_capacity(0),
                 number,
                 address: (address, 443).into(),
                 transport: skein_forge_connection::settings::Transport::Tls {
@@ -2051,6 +2053,7 @@ fn tls_github_service(address: core::net::SocketAddr) -> crate::Service {
     };
     service.configure_forge_runtime(
         crate::ForgeRuntime {
+            log_origins: List::with_capacity(0),
             number: 0,
             address,
             transport: skein_forge_connection::settings::Transport::Tls {
