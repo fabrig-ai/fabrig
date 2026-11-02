@@ -386,7 +386,7 @@ wasm32 (`../playground.md`). Default: none.
   | landings per hour, recent outcomes | changes ended, by outcome; a rate | a landing's own time: its change's ended time stands in |
   | land gates: count, failures, median, p90, by repository | gate tasks ended: count, ratio failed, quantiles, by repository | none |
   | gate steps (fmt, clippy, tests) | none | CI's steps are not kept, and CI is forgotten at a restart |
-  | builds by kind, heavy's queue | runs' wait for a host slot | heavy is the factory's, not temper's |
+  | builds by kind, heavy's queue | runs' wait for a host slot | heavy is fabrig's build tooling, not temper's |
   | machines: load, memory, disk | hosts: connected, slots used and free | hosts report no load, memory or disk |
   | implementer runs by model and effort: duration | runs ended by model and effort: count, quantiles | none |
   | their tokens and cache hits | none | token counts stay in smith's turns |

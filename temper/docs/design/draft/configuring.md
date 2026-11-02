@@ -390,8 +390,7 @@ made follows the new one, and what is in flight keeps the old.
     held in memory, with test-grade promises;
   - a split to weigh: what concerns working on a product (charters,
     gates, landing rules) in the product's own repository, as
-    `AGENTS.md` is today (`factory.md`: product knowledge is data in the
-    product's repository); what concerns the deployment (workers,
+    `AGENTS.md` is today; what concerns the deployment (workers,
     accounts, budgets, capacities) with the deployment.
 
   Charters naming documents (section 2) take part of it. Default: the
