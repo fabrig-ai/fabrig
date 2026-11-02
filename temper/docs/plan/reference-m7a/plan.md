@@ -32,7 +32,7 @@ The shapes every task builds to are `notes/contracts.md`; the standing rules
   - Later batch: `link-jobs` (the two link crates' translations; needs both above),
     `fleet-jobs` (placement on a declaring host, the engine side of the answer, restart).
 - **worker-jobs** (`temper/docs/design/domain/worker.md, 4.4`), slice 1.
-  - `tasks/tooling-capability.md`, high, ~150 min, needs nothing: the new crate
+  - `tasks/tooling-capability.md`, high, ~150 min, needs `hub-jobs` (`JobKind`, `JobBound`): the new crate
     `temper-worker-domain-tooling`, sans-io, uncomposed.
   - Later batch: `worker-jobs` (the root composes it; the service's processes, files, spec
     decoding, the hello's kinds, the delivery's push; needs `hub-jobs`, `link-jobs`,
