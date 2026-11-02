@@ -207,16 +207,23 @@ section 14 it adds; Old code, the old branches it may start from.
   charters as settings of temper's kinds, out of `Config`'s
   `forge_charter`, so a change's producer and foreman each take a
   charter of their own (`../domain/root.md`, 6; `forge.md`, 8.1 and 8.9;
-  temper's `../protocol/configuration.md`, 13.2).
+  temper's `../protocol/configuration.md`, 13.2); M4's sub-agents
+  reachable from temper (fabrig/qa, 11-02): the box's smith profile
+  declares one conversation, so every `sub_agent` is refused as too
+  many, and `ctl`'s LLM choice for a task names no sub-agents.
 - **Configures:** the designer's charter; the coordinator's charter:
   the cut, the families' batches, revisions, the close-out; each
-  change's LLM choices, gpt-6.1-sol on smith's direct backend (N20).
+  change's LLM choices, gpt-6.1-sol on smith's direct backend (N20);
+  sub-agents in both charters, at Opus 5.5 and high.
 - **Old code:** jig's and temper's `configuring-revisions/charter-tools-r6`
   (the tool families a charter offers); `documents-r1` and
   `forge-kinds` (M1).
-- **Walk:** steps 1 to 6 without surveys, questions or early starts
-  (each designer starts once S has landed), and 22; with M2, the goal
-  then lands.
+- **Walk:** steps 1 to 6 without questions or early starts (each
+  designer starts once S has landed), and 22; with M2, the goal then
+  lands. M4's walk folds in here (fabrig/qa): a Claude Code chat asks
+  two inspect-only sub-agents to read two parts of the repository side
+  by side; both run at their own LLM choice, inspect only, seen through
+  `ctl`, each child's session ended on its budget.
 
 ### M4. Surveys as sub-agents
 
