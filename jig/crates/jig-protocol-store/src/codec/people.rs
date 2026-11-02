@@ -157,9 +157,13 @@ pub fn encode(
     names: &[core::settings::ModelName],
 ) -> Result<Box<[u8]>, wire::Problem> {
     let value = match row {
-        domain::Stored::Deletion { project, step } => wire::Value::Deletion(wire::StoredDeletion::new(
+        domain::Stored::Deletion { project, step, grace } => wire::Value::Deletion(wire::StoredDeletion::new(
             limits,
-            wire::StoredDeletionParts { project: *project, step: encode_deletion_step(*step) },
+            wire::StoredDeletionParts {
+                project: *project,
+                step: encode_deletion_step(*step),
+                grace: compound::encode_grace(*grace),
+            },
         )?),
         domain::Stored::Person { number, identity } => wire::Value::Person(wire::StoredPerson::new(
             limits,
@@ -232,8 +236,8 @@ pub fn decode(
     let wire::RowParts { value } = wire::Row::decode(limits, &mut Reader::new(bytes))?.into_parts();
     let row = match value {
         wire::Value::Deletion(value) => {
-            let wire::StoredDeletionParts { project, step } = value.into_parts();
-            domain::Stored::Deletion { project, step: decode_deletion_step(step) }
+            let wire::StoredDeletionParts { project, step, grace } = value.into_parts();
+            domain::Stored::Deletion { project, step: decode_deletion_step(step), grace: compound::decode_grace(grace) }
         }
         wire::Value::Person(value) => {
             let wire::StoredPersonParts { number, identity } = value.into_parts();

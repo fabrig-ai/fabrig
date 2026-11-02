@@ -89,7 +89,7 @@ fn removing_a_project_closes_it_and_answers_in_one_decision() {
         &mut work,
         &mut out,
         Token::new(90),
-        people::Act::RemoveProject { project: 1 },
+        people::Act::RemoveProject { project: 1, grace: None },
     );
     assert_eq!(outcome(&core, work), people::Outcome::ProjectRemoved { project: 1 });
     assert!(!core.open_project(1));
@@ -111,7 +111,7 @@ fn an_owners_ask_removes_it_and_a_members_is_refused() {
             person: 1,
             project: 1,
             role: Some(role),
-            ask: Box::new(people::Ask::RemoveProject { project: 1 }),
+            ask: Box::new(people::Ask::RemoveProject { project: 1, grace: None }),
             models: Box::new([]),
         });
         let mut work = Queue::uncapped();
@@ -127,6 +127,24 @@ fn an_owners_ask_removes_it_and_a_members_is_refused() {
 }
 
 #[test]
+fn an_owners_graced_removal_is_admitted_as_an_ungraced_one() {
+    let (mut core, limits) = core();
+    let mut child = Queue::uncapped();
+    child.push(people::Request::Route {
+        request: Token::new(90),
+        person: 1,
+        project: 1,
+        role: Some(people::Role::Owner),
+        ask: Box::new(people::Ask::RemoveProject { project: 1, grace: Some(Duration::from_millis(5000)) }),
+        models: Box::new([]),
+    });
+    let mut work = Queue::uncapped();
+    let _requests = crate::routing::party::people::tag_people(&mut core, &environment(&limits), child, &mut work);
+    assert_eq!(outcome(&core, work), people::Outcome::ProjectRemoved { project: 1 });
+    assert!(!core.open_project(1));
+}
+
+#[test]
 fn removing_an_unknown_or_deleting_project_is_refused_unknown() {
     let (mut core, limits) = core();
     let _started = begin(&mut core, &limits, 1);
@@ -139,7 +157,7 @@ fn removing_an_unknown_or_deleting_project_is_refused_unknown() {
             &mut work,
             &mut out,
             Token::new(90),
-            people::Act::RemoveProject { project },
+            people::Act::RemoveProject { project, grace: None },
         );
         assert_eq!(outcome(&core, work), people::Outcome::Refused(people::Refusal::Unknown));
         assert!(out.is_empty());

@@ -180,7 +180,7 @@ fn act(world: &mut World, key: u8, act: people::Act) {
 }
 
 fn remove(world: &mut World, key: u8) {
-    act(world, key, people::Act::RemoveProject { project: PROJECT });
+    act(world, key, people::Act::RemoveProject { project: PROJECT, grace: None });
 }
 
 fn deletion() -> root::Key {
@@ -300,7 +300,7 @@ fn scope_names(scope: &notes::Scope, project: u32) -> bool {
 
 fn ask_names(ask: &people::Ask, project: u32) -> bool {
     match ask {
-        people::Ask::RemoveProject { project: owner }
+        people::Ask::RemoveProject { project: owner, .. }
         | people::Ask::Compound { project: owner, .. }
         | people::Ask::Create { project: owner, .. }
         | people::Ask::EditNote { project: owner, .. }
@@ -348,7 +348,7 @@ fn people_names(row: &people::Stored, project: u32) -> bool {
         people::Stored::Acted { act, .. } => match act {
             people::Act::Close { project: owner, .. }
             | people::Act::Adopt { project: owner, .. }
-            | people::Act::RemoveProject { project: owner } => *owner == project,
+            | people::Act::RemoveProject { project: owner, .. } => *owner == project,
             people::Act::MakeProject { .. } | people::Act::AddKey { .. } | people::Act::RemoveAccount { .. } => false,
         },
         people::Stored::Answer { ask, .. } => ask_names(ask, project),
@@ -571,7 +571,10 @@ fn a_closed_project_refuses_every_entry_as_one_never_made() {
             people::Act::Adopt { project: PROJECT, adoption: adoption() },
             people::Act::Adopt { project: UNKNOWN, adoption: adoption() },
         ),
-        (people::Act::RemoveProject { project: PROJECT }, people::Act::RemoveProject { project: UNKNOWN }),
+        (
+            people::Act::RemoveProject { project: PROJECT, grace: None },
+            people::Act::RemoveProject { project: UNKNOWN, grace: None },
+        ),
     ]
     .into_iter()
     .enumerate()

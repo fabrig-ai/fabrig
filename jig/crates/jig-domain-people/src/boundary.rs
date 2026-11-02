@@ -227,7 +227,7 @@ pub enum NoteChange {
 )]
 pub enum Ask {
     /// Delete an owned project (jig/docs/design/domain/people.md, 5.2).
-    RemoveProject { project: u32 },
+    RemoveProject { project: u32, grace: Option<Duration> },
     /// Deployment owner changes settings, whose value the core holds during admission.
     ChangeSettings { against: u32, digest: [u8; 32] },
     /// Deployment owner moves live agent tasks to the newest (engine.md, 17.4; people.md, 5.1).
@@ -677,6 +677,7 @@ pub enum Act {
     /// (jig/docs/design/domain/people.md, 5.2). Answered once the project is closed.
     RemoveProject {
         project: u32,
+        grace: Option<Duration>,
     },
 }
 
@@ -755,7 +756,7 @@ impl Key {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Stored {
     /// Kept deletion (jig/docs/design/domain/people.md, 5.2).
-    Deletion { project: u32, step: DeletionStep },
+    Deletion { project: u32, step: DeletionStep, grace: Option<Duration> },
     /// Connector-scoped act and its permanent answer (people.md, 5.3).
     Acted { key: ActKey, act: Act, outcome: Outcome, at: Wall },
     /// Persistent party identity; provider/subject and party numbers must be unique on restore.
@@ -836,12 +837,20 @@ pub enum DeletionStep {
     Release,
 }
 
+/// A kept deletion's step and the grace its conversations are cancelled with
+/// (jig/docs/design/domain/people.md, 5.2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct KeptDeletion {
+    pub step: DeletionStep,
+    pub grace: Option<Duration>,
+}
+
 /// Root-to-child inputs; authenticated identity, authoritative roles and restored records
 /// cross this boundary without protocol secrets. (domain/people.md, sections 3–5).
 #[derive(PartialEq, Eq, Debug)]
 pub enum Event {
     /// Keep or erase a deletion row (jig/docs/design/domain/people.md, 5.2).
-    Deleting { project: u32, step: Option<DeletionStep> },
+    Deleting { project: u32, step: Option<DeletionStep>, grace: Option<Duration> },
     /// Remove project roles from memory and storage (jig/docs/design/domain/people.md, 5.2).
     CloseProject { project: u32 },
     /// Erase retained project answers and acts (jig/docs/design/domain/people.md, 5.2).
