@@ -134,3 +134,14 @@ Resume tiers-runs after tiers-surface pushes its required interface; the missing
 `tiers-surface.md`, Goal: “After it, `tiers-runs` (the forge's bodies) and `tiers-root` (the root's joins) run side by side.”
 Its acceptance explicitly owns the missing tier types, requests, events, purpose tag 8, store families, receipt failures and read-method stubs.
 The next run consumes that prerequisite, implements tiers-runs and completes its acceptance checks.
+
+### 2026-11-02: the tier task's deadline (asked by reference-m8/tiers-root-2)
+
+Widened: `notes/contracts.md`, 6 adds `Domain::wait_tier(env, task, until)` and
+`Domain::offered_tier(task)` to `tiers.rs`, as no-op stubs on the trunk; fill them here, as
+`landing.rs`'s `wait_landing` and `offered_landing` are: `until`, else `env.wall` plus
+`limits.client.poll`; a deadline map of the tiers' own, sized to the tier tasks live at once
+(one per configured tier, so the repositories' bound times `limits.tiers.tiers`), never
+`change_due` or the landing's `due`; counted in `next_wall_deadline` and fired in `fire` as
+`Request::WakeProcedure { task }`; dropped when the task ends and rebuilt or cleared on restore
+as the landing's are. Add one unit story: a tier task waited with a deadline is woken at it.
