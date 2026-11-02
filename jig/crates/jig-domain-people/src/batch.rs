@@ -47,7 +47,7 @@ pub struct Member {
     pub authority: Authority,
     pub budget: Budget,
     pub deadline: Deadline,
-    pub wake: WakePolicy,
+    pub wake: Option<WakePolicy>,
     pub dependencies: Box<[Dependency]>,
     pub named: Box<[Grant]>,
     /// Connectors' symbols this member holds, each resolved by its connector once the task has its number

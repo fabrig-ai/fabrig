@@ -608,16 +608,16 @@ fn encode_charter(value: &core::Charter, limits: &wire::Limits) -> Result<wire::
     let field_spend = value.spend;
     wire::Charter::new(
         limits,
-        wire::CharterParts { number: field_number, policy: field_policy, hosts: field_hosts, spend: field_spend },
+        wire::CharterParts { number: field_number, policy: field_policy, hosts: field_hosts, spend: field_spend, wake: encode_wake(&value.wake, limits)? },
     )
 }
 fn decode_charter(value: wire::Charter) -> core::Charter {
-    let wire::CharterParts { number, policy, hosts, spend } = value.into_parts();
+    let wire::CharterParts { number, policy, hosts, spend, wake } = value.into_parts();
     let field_number = number;
     let field_policy = decode_run_policy(policy);
     let field_hosts = decode_kinds(hosts);
     let field_spend = spend;
-    core::Charter { number: field_number, policy: field_policy, hosts: field_hosts, spend: field_spend }
+    core::Charter { number: field_number, policy: field_policy, hosts: field_hosts, spend: field_spend, wake: decode_wake(wake) }
 }
 fn encode_segment(value: &[u8], limits: &wire::Limits) -> Result<wire::Segment, wire::Problem> {
     let field_bytes = Box::from(value);
@@ -1833,4 +1833,43 @@ fn remap_value(
         }
         settings::Value::Charter(_) => {}
     }
+}
+
+fn encode_wake_rule(value: tasks::WakeRule, limits: &wire::Limits) -> Result<wire::WakeRule, wire::Problem> {
+    Ok(match value {
+        tasks::WakeRule::Never => wire::WakeRule::Never,
+        tasks::WakeRule::Immediate => wire::WakeRule::Immediate,
+        tasks::WakeRule::Batch { count, age } => wire::WakeRule::Batch(wire::WakeBatch::new(limits, wire::WakeBatchParts { count, age })?),
+        tasks::WakeRule::Paced { span } => wire::WakeRule::Paced(wire::WakePace::new(limits, wire::WakePaceParts { span })?),
+    })
+}
+fn decode_wake_rule(value: wire::WakeRule) -> tasks::WakeRule {
+    match value {
+        wire::WakeRule::Never => tasks::WakeRule::Never,
+        wire::WakeRule::Immediate => tasks::WakeRule::Immediate,
+        wire::WakeRule::Batch(value) => { let wire::WakeBatchParts { count, age } = value.into_parts(); tasks::WakeRule::Batch { count, age } },
+        wire::WakeRule::Paced(value) => tasks::WakeRule::Paced { span: value.span() },
+    }
+}
+fn encode_wake(value: &tasks::WakePolicy, limits: &wire::Limits) -> Result<wire::WakePolicy, wire::Problem> {
+    wire::WakePolicy::new(limits, wire::WakePolicyParts {
+        words: encode_wake_rule(value.words, limits)?,
+        notices: encode_wake_rule(value.notices, limits)?,
+        news: encode_wake_rule(value.news, limits)?,
+        results: match value.results {
+            tasks::ResultsWake::Never => wire::ResultsWake::Never,
+            tasks::ResultsWake::Each => wire::ResultsWake::Each,
+            tasks::ResultsWake::LastOrFailure => wire::ResultsWake::LastOrFailure,
+        },
+        questions: value.questions, answers: value.answers, timers: value.timers,
+    })
+}
+fn decode_wake(value: wire::WakePolicy) -> tasks::WakePolicy {
+    let wire::WakePolicyParts { words, notices, news, results, questions, answers, timers } = value.into_parts();
+    tasks::WakePolicy { words: decode_wake_rule(words), notices: decode_wake_rule(notices), news: decode_wake_rule(news),
+        results: match results {
+            wire::ResultsWake::Never => tasks::ResultsWake::Never,
+            wire::ResultsWake::Each => tasks::ResultsWake::Each,
+            wire::ResultsWake::LastOrFailure => tasks::ResultsWake::LastOrFailure,
+        }, questions, answers, timers }
 }

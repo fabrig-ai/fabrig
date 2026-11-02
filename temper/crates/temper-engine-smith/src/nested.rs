@@ -47,8 +47,8 @@ pub(crate) fn delegate(value: &Value) -> Result<engine::Delegate, Problem> {
         None => Box::new([]),
     };
     let wake = match value.field(b"wake")? {
-        Some(wake) => wake_policy(wake)?,
-        None => tasks::WakePolicy::DEFAULT,
+        Some(wake) => Some(wake_policy(wake)?),
+        None => None,
     };
     Ok(engine::Delegate {
         deadline,

@@ -237,7 +237,10 @@ fn new_task(
         funder: tasks::Funder::Pool { project: *project, person: *person, period: core.period(*project) },
         dependencies: dependencies.into_boxed(),
         holdings: Box::new([]),
-        wake: crate::admission::amendments::wake(member.wake),
+        wake: match member.wake {
+            Some(wake) => crate::admission::amendments::wake(wake),
+            None => crate::admission::amendments::default_wake(core, &executor),
+        },
         recurring: None,
         tracked: member.tracked,
         label: member.label,

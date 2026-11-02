@@ -190,6 +190,15 @@ fn wake_rule(value: people::WakeRule) -> tasks::WakeRule {
     }
 }
 
+pub(crate) fn default_wake(core: &Core, executor: &tasks::Executor) -> tasks::WakePolicy {
+    if let tasks::Executor::Agent { charter } = executor
+        && let Some(charter) = core.current.charter(*charter)
+    {
+        return charter.wake;
+    }
+    tasks::WakePolicy::DEFAULT
+}
+
 pub(crate) fn wake(value: people::WakePolicy) -> tasks::WakePolicy {
     tasks::WakePolicy {
         words: wake_rule(value.words),

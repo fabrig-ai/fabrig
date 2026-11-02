@@ -318,6 +318,9 @@ fn contract_fits(value: &tasks::Contract, limits: &tasks::Limits) -> bool {
     }
 }
 fn charter_fault(charter: &crate::Charter, settings: &Settings, limits: &Limits) -> Option<Fault> {
+    if !tasks::wake_valid(&charter.wake) {
+        return Some(Fault::Shape);
+    }
     let policy = &charter.policy;
     if !model_valid(&policy.model, settings) {
         return Some(Fault::Reference);
