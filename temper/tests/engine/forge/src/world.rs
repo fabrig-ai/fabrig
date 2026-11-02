@@ -137,7 +137,18 @@ impl World {
         way: temper_engine_domain_forge_change::Way,
         gates: Box<[top::RepositoryGates]>,
     ) -> bool {
-        let accepted = self.top.project_landing(project, way, gates.clone());
+        let accepted = self.top.project_landing(
+            project,
+            way,
+            gates.clone(),
+            top::AfterLanding {
+                verdict: temper_engine_domain_forge_tiers::Settings {
+                    retries: 2,
+                    suspects: temper_engine_domain_forge_tiers::Suspects::Bisect,
+                },
+                bound: Duration::from_millis(7_200_000),
+            },
+        );
         if accepted {
             self.landing_config = Some((project, way, gates));
         }
@@ -528,7 +539,18 @@ impl World {
         )
         .expect("same configured connector");
         if let Some((project, way, gates)) = &self.landing_config {
-            assert!(self.top.project_landing(*project, *way, gates.clone()));
+            assert!(self.top.project_landing(
+                *project,
+                *way,
+                gates.clone(),
+                top::AfterLanding {
+                    verdict: temper_engine_domain_forge_tiers::Settings {
+                        retries: 2,
+                        suspects: temper_engine_domain_forge_tiers::Suspects::Bisect,
+                    },
+                    bound: Duration::from_millis(7_200_000),
+                },
+            ));
         }
         let mut rows = List::with_capacity(self.stored.len());
         for (_, record) in &self.stored {
