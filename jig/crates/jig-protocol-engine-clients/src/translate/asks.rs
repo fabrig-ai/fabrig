@@ -304,6 +304,7 @@ fn wake_rule(value: w::WakeRule) -> p::WakeRule {
         w::WakeRule::Never => p::WakeRule::Never,
         w::WakeRule::Immediate => p::WakeRule::Immediate,
         w::WakeRule::Batch(v) => p::WakeRule::Batch { count: v.count(), age: v.age() },
+        w::WakeRule::Paced(v) => p::WakeRule::Paced { span: v.span() },
     }
 }
 pub(super) fn wake(value: w::WakePolicy) -> p::WakePolicy {

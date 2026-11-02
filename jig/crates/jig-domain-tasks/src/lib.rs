@@ -166,6 +166,7 @@ pub use value::{
     Authority, AuthorityExecutor, Budget, Delegation, Funder, Grant, Last, Models, Numbers, Pattern, ResourceScope,
     Scopes, Tools,
 };
+pub use wake::valid as wake_valid;
 
 pub use run::run_attempt;
 
