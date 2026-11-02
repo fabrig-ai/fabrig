@@ -2,30 +2,30 @@
 
 2026-11-02. Where temper's code lags or departs from its design, and its
 design from its drafts, from the status files below. The first
-milestone stands in the code (`README.md`). After landing and findings are designed and not built, whole
-(`domain/after-landing.md`, `domain/findings.md`, with their families in
-`protocol/store.md` and their groups in `client/tools.md`), nor are jobs,
-so neither the project's tooling (`domain/worker.md`,
-`protocol/tooling.md`, `domain/landing.md`, `protocol/git.md`). Settings
-of temper's kinds lag: the landing rules and the forge's charter are
-still read from the document (`domain/root.md`, `domain/forge.md`,
-`protocol/configuration.md`, `domain/agent.md`). Much of a change's own
-bounds, gates and charters, the forge's merge queue and a goal's issue
-lag (`domain/forge.md`); so do the client's Board, Changes and How work
-runs pages and many of ctl's tools (`client/README.md`,
-`client/forge.md`, `client/tools.md`), `temper-playground`
-(`playground.md`, `domain/testing.md`), upgrades' commands and the
-baseline (`protocol/README.md`), and the release (`release.md`). The
-playground reset is built ahead of the design: forges are store records
-and the playground is reset, recorded as Departs in the client's
-documents, `domain/forge.md`, `playground.md` and the protocol's, until
-`draft/playground-reset.md` is closed out, which comes before the
-reference drafts execute. The case library's purpose is retired
-(`domain/testing.md`). Of the drafts, the reference drafts are what the
-design lags most (`draft/notes.md`, N1 to N24, in their three statuses);
-the others record what their design carries and where it lags or
-departs. `README.md`, `domain/README.md` and `protocol/llm.md` have no
-gap.
+milestone stands in the code (`README.md`). After landing and findings
+are not built, whole (`domain/after-landing.md`, `domain/findings.md`,
+with their families in `protocol/store.md` and their groups in
+`client/tools.md`). Nor are jobs, and with them the project's tooling
+(`domain/worker.md`, `protocol/tooling.md`, `domain/landing.md`,
+`protocol/git.md`). Settings of temper's kinds lag: the landing rules
+and the forge's charter are still read from the document
+(`domain/root.md`, `domain/forge.md`, `protocol/configuration.md`,
+`domain/agent.md`). Much of a change's own bounds, gates and charters,
+the forge's merge queue and a goal's issue lag (`domain/forge.md`); so
+do the client's Board, Changes and How work runs pages and many of
+ctl's tools (`client/README.md`, `client/forge.md`, `client/tools.md`),
+`temper-playground` (`playground.md`, `domain/testing.md`), upgrades'
+commands and the baseline (`protocol/README.md`), and the release
+(`release.md`). The playground reset is built ahead of the design:
+forges are store records and the playground is reset, recorded as
+Departs in the client's documents, `domain/forge.md`, `playground.md`
+and the protocol's, until `draft/playground-reset.md` is closed out,
+which comes before the reference drafts execute. The case library's
+purpose is retired (`domain/testing.md`). Of the drafts, the reference
+drafts are what the design lags most (`draft/notes.md`, N1 to N24, in
+their three statuses); the others record what the design carries of
+them and where it lags or departs. `README.md`, `domain/README.md` and
+`protocol/llm.md` have no gap.
 
 Design documents:
 - [`README.md`](README.status.md)
