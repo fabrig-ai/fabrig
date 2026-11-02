@@ -198,12 +198,12 @@ fn replay(step: forge::ResetStep) {
 
 #[test]
 fn the_reset_deletes_the_project_with_the_chat_templates_grace() {
+    // The reset crash-cut walk's bound also reaches the project's saved act.
+    const STEPS: usize = 400;
     let (mut d, sign_in) = driver(true);
     start(&mut d, sign_in);
     let project = row(&d).expect("running playground").project.expect("playground project");
     application(&mut d, sign_in, 82, forge::Ask::EndPlayground, false);
-    // The reset crash-cut walk's bound also reaches the project's saved act.
-    const STEPS: usize = 400;
     for _ in 0..STEPS {
         if let Some((_, writes)) = d.store.pending.front() {
             let grace = writes.iter().find_map(|write| {
