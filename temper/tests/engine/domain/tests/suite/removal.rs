@@ -278,7 +278,7 @@ fn erase_chat(d: &mut Driver, chat: u64) {
         reply_to: ReplyTo::new(Token::new(202)),
         sign_in: session(d),
         key: [202; 16],
-        ask: people::Ask::RemoveProject { project: 1 },
+        ask: people::Ask::RemoveProject { project: 1, grace: None },
     }));
     d.pump();
     d.fire_at(Duration::from_nanos(d.env.now.saturating_add(Duration::from_secs(5)).as_nanos()));

@@ -703,8 +703,17 @@ fn at_switch(pending: bool) -> (Domain, Env<Limits>) {
 }
 
 pub(super) fn at_phase(pending: bool, target: jig_domain_core::start::Phase) -> (Domain, Env<Limits>) {
+    at_phase_with_limits(pending, target, &super::resume_fixture::limits())
+}
+
+pub(super) fn at_phase_with_limits(
+    pending: bool,
+    target: jig_domain_core::start::Phase,
+    limits: &Limits,
+) -> (Domain, Env<Limits>) {
     use jig_domain_core::start::{Action, Phase, SweepInput};
-    let (mut domain, env) = cold();
+    let mut domain = Domain::new(super::resume_fixture::config(7), limits).unwrap();
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits };
     domain.start_wall = Some(env.wall);
     domain.start_pending = pending;
     domain.core_header_loaded = true;
