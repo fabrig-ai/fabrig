@@ -512,12 +512,10 @@ credential waits. With no reset, no polling deadline is invented.
 
 Recurring templates check explicit hints against the project's payer at start,
 regardless of their members' declared funders, and again before each occurrence.
-There is no per-occurrence refusal outcome yet. If an account has disappeared,
-changed provider or ceased to serve the project, the occurrence is created and
-its next run waits, naming the account and its typed admission reason in the
-Task document. This exceptional wait is rechecked from current facts; it does
-not silently choose a different account. A later occurrence-refusal outcome
-will replace this fallback.
+If an account has disappeared, changed provider or ceased to serve the project,
+the occurrence is created and its next run waits, naming the account and its
+typed admission reason in the Task document. This exceptional wait is rechecked
+from current facts; it does not silently choose a different account.
 
 The grant number passed as smith's account is the selected **source** number.
 Changing sources within one billing account therefore conservatively causes
@@ -668,6 +666,9 @@ construction, never by a person deleting a copy.
 - **Who decides for the deployment's accounts** beyond its first owners:
   a deployment-wide role, which jig's roles, all of them a project's,
   do not give. Default: the first owners (3.2).
+- **An occurrence whose account no longer serves:** whether a recurring
+  template's occurrence is refused, rather than made to wait for its
+  account. Default: made, its run waiting (4.3).
 - **Program logins on a shared host,** once a run's process tree is
   contained from the programs directory: whether the rule of 3.4 then
   goes, or stays for a program's own tools. Default: the rule holds.

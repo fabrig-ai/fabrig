@@ -135,7 +135,7 @@ Who carries a task out. A task has one:
   turns.
 - **A person:** a party who answers through a client: a choice, a
   decision, an approval, an answer (people.md, section 8).
-- **A job,** designed, not built: a program of the application's, run
+- **A job:** a program of the application's, run
   on a host in a workspace its items prepare, with no LLM: given its
   spec, it runs to an end within its deadline and answers a result in
   the application's bytes, or fails. A procedure delegates one for

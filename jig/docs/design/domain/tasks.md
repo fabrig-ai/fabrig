@@ -423,9 +423,9 @@ or ends the task done, is refused whole (5.7).
 
 ### 5.3.1 Job tasks
 
-Designed, not built (core.md, 3.2; hosts.md, 6.9). A job task is made by
-a procedure's step, as its delegate, with the job's kind, its spec, its
-workspace's items and its deadline. It is due once its dependencies are
+A job task (core.md, 3.2; hosts.md, 6.9) is made by a procedure's step,
+as its delegate, with the job's kind, its spec, its workspace's items
+and its deadline. It is due once its dependencies are
 done, claimed by the fleet on a host that runs its kind, active while
 it runs, and ends done with its result; past its tries it is held, as
 any task is (5.5), and its procedure, hearing it, decides what that
@@ -694,7 +694,7 @@ finish, the run's own, keeps its retry policy whoever ends the task.
 
 ### 5.9 Placed holds: owners, modes and scopes
 
-Designed, not built. A placed hold is one a party or a task places by an
+A placed hold is one a party or a task places by an
 act, to stop or pause work: a person pausing a goal, a coordinator
 parking a delegate, a project drained to change its rules. The holds the
 core places itself (5.5: tries, stalls, bounds, drift, effects, budget,
@@ -1170,7 +1170,7 @@ circle, each for another of the set, so that none of them could end.
     reference to their scope (engine.md, section 10); and, only when
     named in the result, its subscriptions. Its requester still hears
     its result.
-- **Questions outlive their asker,** designed, not built: a task that
+- **Questions outlive their asker:** a task that
   finishes done or failed with person tasks still open that ask in
   words detaches them in its finish's decision, before its closing
   waits for its delegates (5.1), so that they never keep it from
@@ -1280,7 +1280,7 @@ A wake policy is data, from a closed vocabulary:
   *wakes*, *kept* (news, but nothing the task must act on now), or
   *dropped* (not the task's concern after all, and not kept). The task's
   policy may lower a class, never raise it;
-- **markers,** designed, not built: names a connector offers on its
+- **markers:** names a connector offers on its
   news (a forge's commit trailers), numbered by the application across
   its connectors, at most 32, so that a policy holds them as one set
   of bits (`markers: u32`, the policy staying a copied value); the
@@ -1367,7 +1367,7 @@ proposed, what an action needs, and what an acceptance funds.
   proposes a batch or an amendment: a party makes no effect, and their
   authority is their role's, which the project's owners change
   (people.md, 5.2). Either may propose a change of settings, in the
-  deployment's scope (below), and, designed, not built, a task's
+  deployment's scope (below), and a task's
   release from a placed hold, which waits for the hold's owner alone
   (5.9).
 - **A proposal of settings** (engine.md, 17.6) holds a set of settings
@@ -1549,7 +1549,7 @@ go beyond its task's authority, their proposal accepted and the
 follow-ups run before the result reaches the requester, and another
 whose proposal is rejected, its result delivered at once.
 
-Its stories of placed holds (5.9), designed, not built: a person's stop
+Its stories of placed holds (5.9): a person's stop
 of a goal, its runs and its delegates' runs cancelled, a maintainer's
 release refused for it as the person's, the coordinator above it
 proposing the release, the person accepting it in their inbox, and the

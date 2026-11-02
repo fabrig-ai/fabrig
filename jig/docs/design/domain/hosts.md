@@ -315,7 +315,6 @@ These commands take no run slot. An unconfigured program counts as an
 absent login: it cannot sign in or use a program login. A failed check after
 an exit or timeout keeps withholding new placement until a later check
 establishes absence, because a lost reply does not prove the login absent.
-The joint holder check will narrow this restriction to the person's runs.
 Shutdown reports an active sign-out's actual result once it settles; only a
 queued sign-out that never started fails as closed. Channel loss suppresses
 its old-channel reply, while the replacement channel starts with a fresh
@@ -722,7 +721,7 @@ reach past the grace.
 
 ### 6.9 Jobs
 
-Designed, not built. A job task (core.md, 3.2) is hosted as a run is,
+A job task (core.md, 3.2) is hosted as a run is,
 with no agent:
 
 - **Its assignment** is a run's but for the agent's part: the job's
@@ -917,9 +916,7 @@ smith runs an Open run on a program backend, keeping the program across
 its turns (smith's `protocol/programs.md`, 5.9): selection and the
 claim's recheck judge its models and grants by the same view as any
 task's, each source, account and host still checked and the binding
-revalidated exactly, and no run waits as `OpenProgram`. The client's
-`TaskWaitRefused.program` arm, which would name that wait, stays on the
-wire with no producer.
+revalidated exactly, and no run waits as `OpenProgram`.
 
 Each admitted hello declares the program endpoint numbers its channel
 serves, the engine host's among them, fixed for that channel. At most 64 distinct

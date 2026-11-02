@@ -947,8 +947,8 @@ These per-tool declarations change within the existing call envelope.
 | `decide` | accepts, rejects or passes up a proposal or an escalation waiting for it, an escalation naming its hold's revision (tasks.md, section 9) | done; beyond its authority, and passed up; moved, with what it is now |
 | `propose` | an action beyond its authority, with a reason: a batch, an amendment, an effect, or a widening of its own authority (authority.md, section 9) | proposed, and to whom; refused, when nobody may accept it (tasks.md, section 9) |
 | `withdraw` | its own pending proposal (tasks.md, section 9) | withdrawn; already decided, and how |
-| `move`, `succeed`, designed, not built | moves a task below it, or that it was introduced to and may amend, under another live task it may amend; names a live task the successor of an ended task below it (tasks.md, section 7) | moved; named; refused, and why |
-| `hold`, `lift`, designed, not built | places a hold of its own, stop or drain, over the subtree of a task below it, with a reason, and optionally the event that lifts it: a connector's event its topic offers, a task's end, or a time (tasks.md, 5.9); lifts a hold it may lift, naming its revision | the hold's number and revision; lifted; refused, naming its owner, and whether a proposal could be accepted |
+| `move`, `succeed` | moves a task below it, or that it was introduced to and may amend, under another live task it may amend; names a live task the successor of an ended task below it (tasks.md, section 7) | moved; named; refused, and why |
+| `hold`, `lift` | places a hold of its own, stop or drain, over the subtree of a task below it, with a reason, and optionally the event that lifts it: a connector's event its topic offers, a task's end, or a time (tasks.md, 5.9); lifts a hold it may lift, naming its revision | the hold's number and revision; lifted; refused, naming its owner, and whether a proposal could be accepted |
 | `settings`, when its charter gives the family | reads the settings, or one setting whole, as a party's read does (`../client/domain/contract.md`, 5.1); proposes a change of settings against the revision it read, with a reason (17.6) | the settings; proposed, and to whom; stale, naming the newest; refused, when nobody may accept it |
 | `introduce` | two tasks it references, each given a reference to the other, within their limits (tasks.md, 8.5) | done; no reference; refused, and why |
 | `subscribe`, `unsubscribe` | a topic a connector offers to agents (connectors.md, 5.3), under a read grant on the resources the connector says it concerns (authority.md, 8.5); a referenced task's state; a timer (tasks.md, 8.4) | done; refused, and why |
@@ -997,7 +997,7 @@ make (people.md, 5.1), checked by the same rules (authority.md, 8.1 and
 `delegate` is `Create`;
 `message` is `Message`, and `Answer` for a question; `propose`,
 `withdraw`, `amend`, `cancel`, `release` and `decide` are theirs by
-name, and so, designed, not built, are `hold` and `lift`. What only parties do stays theirs (people.md, 5.1): carrying out
+name, and so are `hold` and `lift`. What only parties do stays theirs (people.md, 5.1): carrying out
 person tasks, stopping runs, moving tasks, marking what they have seen,
 and running the project. `introduce` is a task's alone: only a task
 holds references (tasks.md, 8.5).
@@ -1061,8 +1061,8 @@ call writes over a change its run was not shown.
 
 ### 7.5 Jobs
 
-Designed, not built (core.md, 3.2; hosts.md, 6.9; tasks.md, 5.3.1). A
-job task becomes a hosted run with no agent:
+A job task (core.md, 3.2; hosts.md, 6.9; tasks.md, 5.3.1) becomes a
+hosted run with no agent:
 
 - **Its check** needs no LLM account, no charter, no model and no
   program's login: its kind among those the application declares, its
@@ -1161,8 +1161,7 @@ The fleet child domain knows the hosts and the runs they host:
   bounds if any charter applies. Turns, time, waiting and checks name the
   failing charter's number; model window and output also name the model's
   position. Callers can then read required and offered amounts without
-  repeating admission policy. The current client wire still reports turns,
-  time, waiting and checks as dimensions without a charter number.
+  repeating admission policy.
 - **Standing hello refusals are volatile facts.** The fleet keeps the latest
   actual refusal for each host kind, even with no diagnostic history room.
   Admitting a hello clears only that kind's fact; duplicate hellos neither
@@ -2195,8 +2194,6 @@ judges and keeps it within the change's decision.
   and the keeping are the connector's, in its own terms.
 
 ### 17.6 A proposal of settings
-
-Its code comes after the rest (`../STATUS.md`).
 
 - **Proposed by a member or a run.** A party with a role in the
   deployment or in a project proposes a set with `Propose` (people.md,
