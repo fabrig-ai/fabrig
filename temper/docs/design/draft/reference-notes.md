@@ -645,8 +645,9 @@ changing designs and code; the drafts cite them by number.
   stay where they are (placed holds, a conversation's questions, jobs);
   its batches, trains, keys per package, provers, serializer, leases and
   workspaces lent are dropped; landing by turn stays as built, an option
-  (`reference-landing.md`, section 8, item by item).
-- **The citation sweep** that deletes it must move its citations in
+  (`reference-landing.md`, section 8, item by item). It is deleted from
+  the drafts, readable in history at `8a4c5bcd9f`.
+- **The citation sweep** must move its citations in
   jig's `domain/tasks.md`, 7 (J5) and 8.5 (J7, J8); temper's
   `forge.md`, 4.4 (F3) and 12.1; `agent.md`, 8.2 and 8.3;
   `landing.md`, 13.1; `testing.md`; `../protocol/setup.md`, 17.1 (F3);

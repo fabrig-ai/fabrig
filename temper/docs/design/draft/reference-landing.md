@@ -2,8 +2,9 @@
 
 Draft, 2026-11-02. How the reference lands what code production made: a
 goal's branch into main as one change, the few small changes around it,
-and their verification after landing. It supersedes `landing-model.md`
-(section 8 says where each of its items goes). Code production is
+and their verification after landing. It supersedes `landing-model.md`,
+deleted and readable in history at `8a4c5bcd9f` (section 8 says where
+each of its items goes). Code production is
 `reference-code-production.md`; `reference-case.md` walks both;
 `reference-notes.md` holds the evidence and the design changes, cited by
 number.
