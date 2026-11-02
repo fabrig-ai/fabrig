@@ -240,7 +240,8 @@ enum Failures { tests: FailedTests, many }
 record BlamedFailures { failures: Failures }
 enum Blame { cleared, owns: BlamedFailures, suspect: BlamedFailures }
 record TierVerdict { run: u64 blame: Blame }
-record TierVerification { tier: bytes 32 verdict: option TierVerdict repaired: option fixed 32 }
+record TierRepair { run: u64 tip: fixed 32 }
+record TierVerification { tier: bytes 32 verdict: option TierVerdict repaired: option TierRepair }
 record Verification { repository: Repository commit: fixed 32 changes: list 65536 u64 tiers: list 32 TierVerification }
 record TierJudged { tip: fixed 32 key: fixed 32 }
 record TierFlake { test: bytes 4096 count: u32 }
@@ -256,9 +257,10 @@ record TierPending { commit: fixed 32 key: option fixed 32 }
 record TierBranchEntry { entry: u64 }
 enum TierBranch { absent, pending: TierBranchEntry, made }
 enum TierFault { setup, completion, no_step, cancelled, other_commit, lost }
-record TierFlight { entry: u64 start: option u64 since: option u64 waiting: bool next: option u64 run: option u64 pending: list 65536 JobAttempt fault: option TierFault }
+record TierProbeBranch { landing: u32 branch: TierBranch }
+record TierFlight { entry: u64 start: option u64 since: option u64 waiting: bool next: option u64 run: option u64 pending: list 65536 JobAttempt fault: option TierFault report: option ReceiptRun }
 record Receipt { failures: option Failures passed: bool run: ReceiptRun candidate: fixed 32 ended: u64 }
-record TierRow { repository: Repository tier: bytes 32 record: TierRecord task: option u64 requested: bool cancelled: bool purpose: option fixed 30 pending: list 257 TierPending baseline: option TierPending branch: TierBranch flight: option TierFlight held: option TierFault result: option Receipt received: bool }
+record TierRow { repository: Repository tier: bytes 32 record: TierRecord task: option u64 requested: bool cancelled: bool purpose: option fixed 30 pending: list 257 TierPending baseline: option TierPending branch: TierBranch probe: option TierProbeBranch flight: option TierFlight held: option TierFault result: option Receipt received: bool }
 record ReceiptRow { key: ReceiptKey receipt: Receipt }
 # 04.2: families 25 to 27 (temper/docs/design/protocol/store.md, 2).
 enum ForgeKind { forgejo, github }

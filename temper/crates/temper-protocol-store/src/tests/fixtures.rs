@@ -950,6 +950,7 @@ pub fn tier_row() -> top::TierRow {
         pending,
         baseline: Some(top::TierLanding { commit: [1; 32], key: Some([2; 32]) }),
         branch: top::TierBranch::Pending { entry: 17 },
+        probe: Some(top::TierProbeBranch { landing: 1, branch: top::TierBranch::Pending { entry: 19 } }),
         flight: Some(top::TierFlight {
             entry: 18,
             start: Some(skein_lib::Time::ZERO),
@@ -959,6 +960,7 @@ pub fn tier_row() -> top::TierRow {
             run: Some(71),
             pending: jobs.into_boxed(),
             fault: Some(temper_engine_domain_forge_landing::Fault::Lost),
+            report: Some(top::ReceiptRun { id: 71, number: 1, url: Box::new([b'u'; 2048]) }),
         }),
         held: Some(temper_engine_domain_forge_landing::Fault::Cancelled),
         result: Some(top::Receipt {

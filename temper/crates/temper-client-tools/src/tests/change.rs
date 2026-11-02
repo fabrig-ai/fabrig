@@ -770,3 +770,58 @@ fn reviewer_read_refusals_keep_their_ordinary_status_and_line() {
         assert_eq!(answer.stderr.as_ref(), line);
     }
 }
+
+fn after_step(which: u8) -> w::Step {
+    let mut tiers = List::with_capacity(1);
+    let line: &[u8] = match which {
+        0 => b"fast run 2 running",
+        1 => b"fast run 2 \xc2\xb7 2 tests",
+        _ => b"fast run 3",
+    };
+    tiers.push(Box::from(line)).unwrap();
+    match which {
+        0 => w::Step::Verifying(w::Verifying::new(&w::CEILINGS, w::VerifyingParts { merge: [34; 32], tiers }).unwrap()),
+        1 => w::Step::Red(w::Red::new(&w::CEILINGS, w::RedParts { merge: [34; 32], tiers }).unwrap()),
+        _ => w::Step::Cleared(
+            w::Cleared::new(&w::CEILINGS, w::ClearedParts { merge: [34; 32], tiers, uncleared: which == 3 }).unwrap(),
+        ),
+    }
+}
+#[test]
+fn after_landing_text_and_json_keep_tier_lines_merge_and_following_call() {
+    for (which, line) in [
+        (0, b"step: verifying \xc2\xb7 fast run 2 running".as_slice()),
+        (1, b"step: red \xc2\xb7 fast run 2 \xc2\xb7 2 tests".as_slice()),
+        (2, b"step: cleared \xc2\xb7 fast run 3".as_slice()),
+        (3, b"step: landed, uncleared\n".as_slice()),
+    ] {
+        let value = panel(after_step(which));
+        let text = change::print(Some(&value), false, None, b"", &f::limits_root(), &change::Holds::new());
+        assert_eq!(text.status, 0);
+        contains(&text.stdout, line);
+        contains(&text.stdout, b"2222222222222222222222222222222222222222");
+        assert_eq!(skein_lib::bytes::find(&text.stdout, b"--until cleared").is_some(), which < 2);
+        let json = change::print(Some(&value), true, None, b"", &f::limits_root(), &change::Holds::new());
+        contains(&json.stdout, br#""tiers":["fast run "#);
+        contains(&json.stdout, br#""merge":"2222222222222222222222222222222222222222""#);
+    }
+}
+#[test]
+fn landed_is_met_by_every_later_step_and_cleared_waits_through_red() {
+    for which in 0..4 {
+        let mut root = f::signed_in(f::PARTY);
+        let call = root.submit(&["change", "show", "2", "--project", "1", "--until", "landed"]);
+        deliver(&mut root, panel(after_step(which)));
+        assert_eq!(root.answer(call).unwrap().status, 0);
+    }
+    for final_step in [2, 3] {
+        let mut root = f::signed_in(f::PARTY);
+        let call = root.submit(&["change", "show", "2", "--project", "1", "--until", "cleared"]);
+        for pending in [0, 1] {
+            deliver(&mut root, panel(after_step(pending)));
+            assert!(root.answer(call).is_none());
+        }
+        deliver(&mut root, panel(after_step(final_step)));
+        assert_eq!(root.answer(call).unwrap().status, 0);
+    }
+}

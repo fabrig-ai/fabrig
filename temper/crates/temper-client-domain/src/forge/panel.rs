@@ -1,6 +1,7 @@
 //! A procedure's whole panel, watched while its task page is open
 //! (client/forge.md, 9.2; client/README.md, 4.6).
 use super::{Limits, Request, Side, wire_limits};
+use crate::pages::delegation::State as DelegationState;
 use alloc::boxed::Box;
 use jig_client::{Client, Handle, Latest, Watchable, Why, contract as c};
 use skein_lib::Queue;
@@ -56,9 +57,13 @@ pub(crate) fn refreshable(task: &c::Task, forge: u16) -> bool {
         | c::Phase::Closing
         | c::Phase::Held => true,
     };
+    let ended = crate::pages::delegation::facts(task).state;
     procedure
         && change
-        && (live || crate::pages::delegation::facts(task).state == crate::pages::delegation::State::Landed)
+        && (live
+            || ended == DelegationState::Landed
+            || ended == DelegationState::Cleared
+            || ended == DelegationState::Uncleared)
 }
 pub(super) fn refresh(side: &mut Side, limits: Limits, subject: Subject, out: &mut Queue<Request>) {
     let Some(panel) = &side.panel else { return };

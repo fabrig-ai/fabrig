@@ -147,7 +147,11 @@ fn workflow(d: &Domain, conclusion: api::Conclusion, failed_step: Option<u32>) -
         id: RUN,
         number: 1,
         workflow: b"tier.yml".as_slice().into(),
-        commit: row(d).record.run.as_ref().unwrap().tip,
+        commit: d
+            .tier_ops
+            .follows
+            .get(&(REPO, TIER.into()))
+            .map_or(row(d).record.run.as_ref().unwrap().tip, |follow| follow.commit),
         event: api::Event::Dispatch,
         actor: 7,
         state: api::RunState::Completed,
@@ -307,6 +311,9 @@ fn setup_fault_is_retried_then_green() {
 fn failed_run_without_a_report_is_a_fault() {
     let mut d = dispatched();
     completed(&mut d, api::Conclusion::Failure, Some(1));
+    let mut out = Queue::uncapped();
+    d.tier_ops.reads.insert(READ, (REPO, TIER.into())).unwrap();
+    crate::tiers::answered(&mut d, &env(), READ, Err(api::Error::Missing), &mut out);
     let run = row(&d).record.run.as_ref().unwrap();
     assert_eq!((run.faults, &run.part), (1, &p::Part::Whole));
     assert!(row(&d).result.is_none());
@@ -604,3 +611,5 @@ fn restart_spends_tier_waits_and_wakes_their_tasks() {
     assert!(out.contains(&Request::WakeProcedure { task: TIER_TASK }));
     assert_eq!(d.next_wall_deadline(), None);
 }
+
+mod reports;

@@ -192,6 +192,16 @@ pub(super) fn encode(row: &d::TierRow) -> w::TierRow {
                     w::TierBranchEntry::new(&w::CEILINGS, w::TierBranchEntryParts { entry }).expect(FITS),
                 ),
             },
+            probe: match &row.probe {
+                Some(probe) => Some(
+                    w::TierProbeBranch::new(
+                        &w::CEILINGS,
+                        w::TierProbeBranchParts { landing: probe.landing, branch: encode_branch(probe.branch) },
+                    )
+                    .expect(FITS),
+                ),
+                None => None,
+            },
             flight: match &row.flight {
                 Some(flight) => Some(encode_flight(flight)),
                 None => None,
@@ -223,6 +233,7 @@ pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
         baseline,
         branch,
         flight,
+        probe,
         held,
         result,
         received,
@@ -281,6 +292,7 @@ pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
             w::TierBranch::Made => d::TierBranch::Made,
             w::TierBranch::Pending(entry) => d::TierBranch::Pending { entry: entry.into_parts().entry },
         },
+        probe: decode_probe(probe, run.as_ref())?,
         flight: match flight {
             Some(flight) => Some(decode_flight(flight)),
             None => None,
@@ -370,6 +382,16 @@ fn encode_flight(flight: &d::TierFlight) -> w::TierFlight {
                 Some(at) => Some(at.as_nanos()),
                 None => None,
             },
+            report: match &flight.report {
+                Some(run) => Some(
+                    w::ReceiptRun::new(
+                        &w::CEILINGS,
+                        w::ReceiptRunParts { id: run.id, number: run.number, url: run.url.clone() },
+                    )
+                    .expect(FITS),
+                ),
+                None => None,
+            },
             run: flight.run,
             pending,
             fault: match flight.fault {
@@ -382,7 +404,7 @@ fn encode_flight(flight: &d::TierFlight) -> w::TierFlight {
 }
 #[expect(clippy::manual_map, reason = "step translations use explicit options")]
 fn decode_flight(flight: w::TierFlight) -> d::TierFlight {
-    let w::TierFlightParts { entry, start, since, waiting, next, run, pending, fault } = flight.into_parts();
+    let w::TierFlightParts { entry, start, since, waiting, next, run, pending, fault, report } = flight.into_parts();
     let mut attempts = List::with_capacity(pending.len());
     for attempt in pending.into_boxed() {
         attempts.push(answers::decode_job_attempt(attempt)).expect(FITS);
@@ -402,11 +424,51 @@ fn decode_flight(flight: w::TierFlight) -> d::TierFlight {
             Some(at) => Some(Time::from_nanos(at)),
             None => None,
         },
+        report: match report {
+            Some(run) => {
+                let w::ReceiptRunParts { id, number, url } = run.into_parts();
+                Some(d::ReceiptRun { id, number, url })
+            }
+            None => None,
+        },
         run,
         pending: attempts.into_boxed(),
         fault: match fault {
             Some(fault) => Some(decode_fault(fault)),
             None => None,
         },
+    }
+}
+
+fn encode_branch(branch: d::TierBranch) -> w::TierBranch {
+    match branch {
+        d::TierBranch::Absent => w::TierBranch::Absent,
+        d::TierBranch::Made => w::TierBranch::Made,
+        d::TierBranch::Pending { entry } => w::TierBranch::Pending(
+            w::TierBranchEntry::new(&w::CEILINGS, w::TierBranchEntryParts { entry }).expect(FITS),
+        ),
+    }
+}
+fn decode_branch(branch: w::TierBranch) -> d::TierBranch {
+    match branch {
+        w::TierBranch::Absent => d::TierBranch::Absent,
+        w::TierBranch::Made => d::TierBranch::Made,
+        w::TierBranch::Pending(entry) => d::TierBranch::Pending { entry: entry.into_parts().entry },
+    }
+}
+
+fn decode_probe(
+    probe: Option<w::TierProbeBranch>,
+    run: Option<&p::Run>,
+) -> Result<Option<d::TierProbeBranch>, Undecodable> {
+    match probe {
+        Some(probe) => {
+            let w::TierProbeBranchParts { landing, branch } = probe.into_parts();
+            if usize::try_from(landing).or(Err(Undecodable))? >= run.ok_or(Undecodable)?.landings.len() {
+                return Err(Undecodable);
+            }
+            Ok(Some(d::TierProbeBranch { landing, branch: decode_branch(branch) }))
+        }
+        None => Ok(None),
     }
 }

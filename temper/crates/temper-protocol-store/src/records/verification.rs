@@ -56,7 +56,20 @@ pub(super) fn encode(row: &d::Verification) -> w::Verification {
             .push(
                 w::TierVerification::new(
                     &w::CEILINGS,
-                    w::TierVerificationParts { tier: tier.tier.clone(), verdict, repaired: tier.repaired },
+                    w::TierVerificationParts {
+                        tier: tier.tier.clone(),
+                        verdict,
+                        repaired: match tier.repaired {
+                            Some(repair) => Some(
+                                w::TierRepair::new(
+                                    &w::CEILINGS,
+                                    w::TierRepairParts { run: repair.run, tip: repair.tip },
+                                )
+                                .expect(FITS),
+                            ),
+                            None => None,
+                        },
+                    },
                 )
                 .expect(FITS),
             )
@@ -101,6 +114,7 @@ pub(super) fn decode_blame(value: w::Blame) -> Result<Blame, Undecodable> {
     })
 }
 
+#[expect(clippy::manual_map, reason = "step translations use explicit matches without closures")]
 pub(super) fn decode(row: w::Verification) -> Result<d::Verification, Undecodable> {
     let w::VerificationParts { repository, commit, changes, tiers } = row.into_parts();
     let mut decoded = List::with_capacity(tiers.len());
@@ -125,6 +139,10 @@ pub(super) fn decode(row: w::Verification) -> Result<d::Verification, Undecodabl
                 let w::TierVerdictParts { run, blame } = verdict.into_parts();
                 Some(d::TierVerdict { run, blame: decode_blame(blame)? })
             }
+            None => None,
+        };
+        let repaired = match repaired {
+            Some(repair) => Some(d::TierRepair { run: repair.run(), tip: *repair.tip() }),
             None => None,
         };
         decoded.push(d::TierVerification { tier, verdict, repaired }).expect(FITS);
