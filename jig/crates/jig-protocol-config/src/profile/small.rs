@@ -128,7 +128,7 @@ pub(super) const AUTHORITY: authority::Limits = authority::Limits {
     writes: 4,
 };
 pub(super) const BRIEF: brief::Limits =
-    brief::Limits { briefs: 4, sections: 4, read_bytes: 8_192, brief_bytes: 16_384 };
+    brief::Limits { briefs: 4, sections: 8, read_bytes: 8_192, brief_bytes: 16_384 };
 pub(super) const ACCOUNTS: accounts::Limits = accounts::Limits {
     accounts: 4,
     holder_accounts: 4,

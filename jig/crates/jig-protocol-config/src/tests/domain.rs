@@ -3,6 +3,38 @@ use crate::{What, tests::fixtures};
 fn engine() -> crate::Engine {
     fixtures::engine(fixtures::ENGINE_SMALL).expect("whole engine fixture")
 }
+
+#[test]
+fn a_start_requires_room_for_the_cores_sections_and_charter_documents() {
+    for (documents, sections, admitted, overrides) in [
+        (0, 5, false, br#""tasks.charter_documents":0,"brief.sections":5"#.as_slice()),
+        (0, 6, true, br#""tasks.charter_documents":0,"brief.sections":6"#),
+        (2, 7, false, br#""tasks.charter_documents":2,"brief.sections":7"#),
+        (2, 8, true, br#""tasks.charter_documents":2,"brief.sections":8"#),
+    ] {
+        let prefix = br#"{"profile":"small","overrides":{"#;
+        let mut limits =
+            skein_lib::Writer::new(overrides.len().checked_add(prefix.len()).unwrap().checked_add(2).unwrap());
+        limits.put(prefix).unwrap();
+        limits.put(overrides).unwrap();
+        limits.put(b"}}").unwrap();
+        let bytes = fixtures::with(fixtures::ENGINE_SMALL, br#"{"profile": "small"}"#, &limits.finish());
+        let result = fixtures::engine(&bytes);
+        if admitted {
+            let engine = result.expect("the core's sections and documents fit");
+            assert_eq!(engine.limits.core.brief.sections, sections);
+            assert_eq!(engine.limits.core.tasks.charter_documents, documents);
+        } else {
+            let problems = result.expect_err("one section below the required room");
+            assert_eq!(problems.problems.len(), 2);
+            for (index, name) in [b"brief.sections".as_slice(), b"tasks.charter_documents"].into_iter().enumerate() {
+                let problem = problems.problems.get(u32::try_from(index).unwrap()).unwrap();
+                assert_eq!(problem.path, fixtures::path(&[b"limits", b"overrides", name]));
+                assert_eq!(problem.what, What::Bound);
+            }
+        }
+    }
+}
 pub(super) fn core_config(document: &[u8]) -> jig_domain_core::Config {
     let mut engine = fixtures::engine(document).expect("checked engine");
     engine.charters[0].policy.instructions = Box::from(&b"Answer the question."[..]);
