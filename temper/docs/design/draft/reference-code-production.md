@@ -279,7 +279,8 @@ and its merge waits for it (jig's `domain/tasks.md`, 5.7). Its producer
 starts early under N2's rules:
 
 - once each pending dependency has a pushed head and none of them is
-  kept by a dependency of its own;
+  kept by a dependency of its own (one level; a dependency kept only by
+  its own relayed question does not block);
 - from g's tip with those heads merged in, in dependency order; a
   conflict there refuses the early start, and the change waits for its
   dependencies to land;
@@ -399,8 +400,9 @@ Main's tiers follow main only.
 While the goal works, main moves with other landings. G hears those that
 touch the goal's open work as news (`forge.md`, 7.3), its wake policy
 pacing them (at most once in 30 minutes: N23), and takes them by a
-catch-up change into g (N6): its producer the merge job, merging main's
-tip into a branch made at g's tip and settling what the project's
+catch-up change into g (N6), its words naming main's commit: its
+producer the merge job, merging that commit into a branch made at g's
+tip and settling what the project's
 tooling knows; what is left goes to a resolution in that merge in
 progress; the result lands into g through its queue like any change.
 One catch-up is live at a time; one that fails past its bounds holds and
@@ -466,7 +468,7 @@ What the reference sets, as settings (jig's `domain/engine.md`, section
 | the coding agent's charter | charter 2, its instructions telling it to push early, finish with a Left list, mark a story that fails for code it does not own as ignored with the fault as its reason, and never fix what it does not own, the change that fixes the fault removing the mark (N15); its run sized for the work (charter 2's 16 turns and 120 s are a small fix's) |
 | the foreman's charter | read-only (inspect and the forge's reads); a verdict of answer, finish or escalate |
 | the forge's charters (kind 3) | 1, the change's: the coding agent's; 2, the reviews': unused; 3, the foreman's |
-| each change's LLM choices | a coding producer, repairs and resolutions: gpt-6.1-sol at the spec's effort; a designer: section 4's choice; a foreman: gpt-6.1-sol, medium |
+| each change's LLM choices | a coding producer, repairs and resolutions: gpt-6.1-sol at the spec's effort, on smith's direct backend with an OpenAI account's key (N20); a designer: section 4's choice; a foreman: gpt-6.1-sol, medium |
 | the project's policy and rules | tool families with notes; delegation to the coordinator's, the designer's, the coding agent's and the foreman's charters, the change procedure and the merge job; tasks and depth for the plan (N21) |
 | the landing rule for goal branches | pattern `… branch temper`, open; no CI, not up to date |
 | the landing rule for main | CI passed, up to date, enforced |
