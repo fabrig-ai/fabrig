@@ -3085,14 +3085,7 @@ pub(crate) fn outputs(
                 domain.work.push(Work::Brief(event));
             }
             forge::Request::BriefTaken { .. } => unreachable!("the root takes completed sections directly"),
-            forge::Request::MarkedForges => {
-                let mut subjects = List::with_capacity(1);
-                subjects.push(Token::new(0)).expect("one forges subject");
-                domain.work.push(Work::Core(jig_domain_core::Event::Marked {
-                    connector: domain.config.forge_connector,
-                    subjects,
-                }));
-            }
+            forge::Request::MarkedForges => domain.mark_forges(),
             forge::Request::Marked { tasks } => {
                 const {
                     assert!(

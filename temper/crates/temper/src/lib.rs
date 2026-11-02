@@ -30,6 +30,7 @@ pub mod fake;
 mod fake_backends;
 pub mod forge;
 mod forge_sign_in;
+pub mod github_logs;
 mod google_runtime;
 pub mod help;
 mod host;
@@ -359,18 +360,7 @@ fn github_runtime(
     } else {
         skein_forge_connection::settings::Transport::Plaintext { name: None }
     };
-    let mut log_origins = List::with_capacity(1);
-    if machine.is_none() {
-        let host: Box<[u8]> = Box::from(b"productionresultssa1.blob.core.windows.net".as_slice());
-        let configured = config::Address::Host { name: host.clone(), port: 443 };
-        let address = resolve(&configured).map_err(|why| format!("GitHub log origin: {why}"))?;
-        log_origins
-            .push(skein_forge_connection::settings::LogOrigin {
-                origin: skein_forge::github::redirect::Origin { tls: true, host, port: 443 },
-                address: skein_io::Addr::Ip(address),
-            })
-            .expect("one default GitHub log origin");
-    }
+    let log_origins = if machine.is_none() { github_logs::resolve(None, resolve)? } else { List::with_capacity(0) };
     Ok(service::ForgeRuntime { number: 0, address, transport, log_origins })
 }
 fn prepare(directories: &Directories, bytes: &[u8], owned: &mut Vec<Fd>) -> Result<service::Service, String> {

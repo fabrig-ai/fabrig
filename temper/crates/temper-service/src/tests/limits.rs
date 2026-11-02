@@ -36,7 +36,7 @@ fn no_two_component_prefixes_meet() {
 #[test]
 fn an_override_sets_the_field_its_dotted_name_names() {
     let mut limits = limits::profile(limits::Profile::Small);
-    assert_eq!((limits.forges.log_origins, limits.forge_component.log_origins), (4, 4));
+    assert_eq!((limits.forges.log_origins, limits.forge_component.log_origins), (20, 20));
     assert_eq!(limits.forge_component.log_poll, Duration::from_secs(5));
     assert_eq!(limits.forge_component.log_catch_up, Duration::from_secs(86_400));
     assert_eq!(limits.forge_component.log_pages, 10);
@@ -333,7 +333,9 @@ fn log_limits_check_zero_capacity_and_timing_relations() {
     for (origins, capacity, poll, catch_up, expected) in [
         (4, 4, 5000, day, ""),
         (4, 5, 5000, day, ""),
-        (5, 5, 5000, day, "forges.log_origins: must agree with forges.log_origins (at most 4)\n"),
+        (20, 20, 5000, day, ""),
+        (32, 32, 5000, day, ""),
+        (33, 33, 5000, day, "forges.log_origins: must agree with forges.log_origins (at most 32)\n"),
         (2, 2, 5000, day, ""),
         (3, 2, 5000, day, "forges.log_origins: must agree with forge_component.log_origins\n"),
         (4, 4, day, day, ""),

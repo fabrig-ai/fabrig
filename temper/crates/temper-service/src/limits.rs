@@ -337,7 +337,7 @@ pub fn profile(profile: Profile) -> Limits {
             routes: Routes { query_bytes: 2048 },
             setup: temper_forge_setup::limits::host(),
             records: Records { value_bytes: 4096 },
-            forges: Forges { installations: FORGE_INSTALLATIONS, log_origins: 4 },
+            forges: Forges { installations: FORGE_INSTALLATIONS, log_origins: 20 },
             forge_component: crate::forge::small(&FORGE),
             root: ROOT,
             forge: FORGE,

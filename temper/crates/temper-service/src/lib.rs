@@ -213,6 +213,11 @@ pub enum Note {
         number: u16,
         why: NotConnected,
     },
+    /// A refused job-log redirect, with no signed path or query (protocol/forge.md, 3.6).
+    ForgeOrigin {
+        number: u16,
+        origin: skein_forge::github::redirect::Origin,
+    },
     ForgeUnkept {
         number: u16,
         installation: u64,

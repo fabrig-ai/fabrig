@@ -44,14 +44,7 @@ fn world(third_origin: Option<&[u8]>, blob_redirect: Option<&[u8]>, calls: &[&'s
         user: 9,
         webhook_secret: None,
     });
-    forge.log_origins = List::with_capacity(1);
-    forge
-        .log_origins
-        .push(LogOrigin {
-            origin: origin(b"logs.example.test", github::BLOB_ADDRESS.port()),
-            address: skein_io::Addr::Ip(github::BLOB_ADDRESS),
-        })
-        .expect("one configured blob origin");
+    forge.log_origins = job_log_origins();
     let script = [
         "GET /app/installations?per_page=100&page=1",
         "GET /app/installations?per_page=100&page=2",
@@ -75,6 +68,18 @@ fn world(third_origin: Option<&[u8]>, blob_redirect: Option<&[u8]>, calls: &[&'s
     );
     world.run_for(SECOND);
     world
+}
+fn job_log_origins() -> List<LogOrigin> {
+    let mut origins = List::with_capacity(2);
+    for host in [b"logs.example.test".as_slice(), b"productionresultssa17.blob.core.windows.net"] {
+        origins
+            .push(LogOrigin {
+                origin: origin(host, github::BLOB_ADDRESS.port()),
+                address: skein_io::Addr::Ip(github::BLOB_ADDRESS),
+            })
+            .expect("two results hosts");
+    }
+    origins
 }
 fn attempt() -> api::JobAttempt {
     // The first repository's initial commit starts the fixture's first run and job.
@@ -268,4 +273,20 @@ fn github_failed_checks_pin_jobs_whose_logs_keep_the_gate_timestamp() {
     checks_log(&mut w, skein_fake_forge_protocol::routes::object(1).bytes, 2);
     checks_log(&mut w, skein_fake_forge_protocol::routes::object(2).bytes, 4);
     finish(&mut w, READY_REQUESTS + 12);
+}
+
+#[test]
+fn github_job_log_can_redirect_to_a_second_results_host() {
+    let mut w = world(Some(b"http://productionresultssa17.blob.core.windows.net:3001"), None, &[JOB, LOG, BLOB]);
+    read(&mut w, 2, TAIL_BYTES);
+    terminal(
+        &w,
+        2,
+        FOLLOW_COST,
+        &Ok(Value::Job { attempt: attempt(), step: None, log: Box::from(b" failed\n".as_slice()), truncated: true }),
+    );
+    assert!(w.facts().is_empty());
+    assert_eq!(w.blob_records().len(), 1);
+    assert!(!w.blob_records().iter().next().expect("one blob read").authorization);
+    finish(&mut w, READY_REQUESTS + usize::try_from(FOLLOW_COST).unwrap());
 }

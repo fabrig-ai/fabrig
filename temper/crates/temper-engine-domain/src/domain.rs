@@ -194,6 +194,14 @@ impl Domain {
         self.revision = self.revision.checked_add(1).expect("root revision space");
     }
 
+    /// Wake deployment-row subscribers after volatile routing diagnostics change.
+    pub fn mark_forges(&mut self) {
+        self.changed();
+        let mut subjects = List::with_capacity(1);
+        subjects.push(Token::new(0)).expect("one forges subject");
+        self.work.push(Work::Core(jig_domain_core::Event::Marked { connector: self.config.forge_connector, subjects }));
+    }
+
     /// Routing capacities are fixed before the first input and priced by the service.
     pub fn connection_limits(&mut self, forges: u32, installations: u32) {
         self.changed();

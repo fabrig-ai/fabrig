@@ -2369,3 +2369,20 @@ fn starting_over_waits_for_the_removal_without_sending_twice() {
     assert!(f::find(view.tree(), Role::Button, b"Remove").is_none());
     words_in_order(view.tree(), &["The GitHub App stays yours: delete it in its settings.", "Start over"]);
 }
+
+#[test]
+fn a_connected_github_row_shows_the_refused_log_origin() {
+    let mut rows = github_rows(true);
+    let mut parts = rows.get(0).unwrap().clone().into_parts();
+    parts.ended = Some(
+        w::ConnectStopped::new(
+            &w::CEILINGS,
+            w::ConnectStoppedParts { why: b"Job-log origin refused: https://unrelated.test:443".as_slice().into() },
+        )
+        .unwrap(),
+    );
+    *rows.get_mut(0).unwrap() = w::ForgeRow::new(&w::CEILINGS, parts).unwrap();
+    let root = f::forge_root(Address::Forges, rows);
+    let view = f::browser_page_view(&root);
+    words_in_order(view.tree(), &["Job-log origin refused: https://unrelated.test:443"]);
+}

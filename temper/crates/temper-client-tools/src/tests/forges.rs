@@ -1357,3 +1357,14 @@ fn new_owned_forge_setup_adopts_on_the_number_in_the_forges_read() {
     assert_eq!(adopted.owner.as_ref(), b"work");
     assert_eq!(adopted.name.as_ref(), b"hello");
 }
+
+#[test]
+fn human_forges_shows_a_refused_job_log_origin_as_a_diagnostic() {
+    let mut row = row(C::Connected { id: 42, login: b"my-app[bot]".as_slice().into() });
+    row.kind = Kind::GitHub;
+    row.ended = Some(b"Job-log origin refused: https://unrelated.test:443".as_slice().into());
+    let plain = forges::print_rows(Some(&[row]), false, None, &f::limits_root());
+    assert_eq!(plain.status, 0);
+    assert!(skein_lib::bytes::find(&plain.stdout, b"Job-log origin refused: https://unrelated.test:443").is_some());
+    assert!(skein_lib::bytes::find(&plain.stdout, b"The last connect stopped").is_none());
+}

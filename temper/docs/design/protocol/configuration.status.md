@@ -15,4 +15,4 @@
 
 - **Built:** 13.4: fresh-activation waking instructions and Finite reserve waiting are included in smith's measured fixed prompt; the derived host part is 51,717 bytes and retains the whole stock brief.
 
-- **Built:** 3, 7: service settings retain a nullable resolved job-log allow-list and the shell supplies GitHub's default origin. Startup and runtime endpoint construction preserve explicit lists and an explicit empty list, within the forge and component origin limits.
+- **Built:** 3, 7: service settings retain a nullable resolved job-log allow-list. The shell supplies GitHub's twenty default TLS results hosts, skipping and naming unresolved defaults without refusing startup. Explicit hosts resolve strictly, and startup/runtime endpoint construction preserves explicit and empty lists. Both origin limits default to 20; configuration caps a forge's list at 32.

@@ -101,6 +101,15 @@ head, run, job and attempt values with `read_job` to read its log; a
 check-run number can differ from the job number. If no job attempt was
 resolved, the check says so.
 
+GitHub job logs follow redirects only to permitted origins. The default
+permits its twenty results hosts, `productionresultssa0.blob.core.windows.net`
+through `productionresultssa19.blob.core.windows.net`, using TLS on port 443.
+An unresolved default host is skipped and named in the serve log; when none
+resolves, no job log is fetched. A refused redirect's origin is shown on the
+forge's row and logged without its signed path or query. Add an explicit
+origin and restart if needed; an explicit unresolved host refuses startup,
+and an empty origin list disables job logs.
+
 ## Limits
 
 - temper cannot replace a forge's key: a second connect is refused

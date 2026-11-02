@@ -1109,9 +1109,14 @@ pub fn installation_words(installation: &super::forges::Installation) -> Box<[u8
         if installation.stray { b" \xc2\xb7 not accepted \xc2\xb7 kept" } else { b"" },
     ])
 }
+/// The last connect failure or refused job-log origin, ready to print.
 #[must_use]
 pub fn last_connect(row: &super::forges::Row) -> Option<Box<[u8]>> {
-    Some(join_words(&[b"The last connect stopped: ", &lossy(row.ended.as_ref()?)]))
+    let why = row.ended.as_ref()?;
+    if why.starts_with(b"Job-log origin refused: ") {
+        return Some(lossy(why));
+    }
+    Some(join_words(&[b"The last connect stopped: ", &lossy(why)]))
 }
 #[must_use]
 pub fn app_refusal(why: super::github::Answer, forge: u16) -> Option<Box<[u8]>> {

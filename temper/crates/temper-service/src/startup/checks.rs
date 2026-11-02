@@ -1036,8 +1036,8 @@ pub fn records(jig: &config::Engine, limits: &limits::Limits, problems: &mut Pro
             against(problems, name, other);
         }
     }
-    if limits.forges.log_origins > 4 {
-        against(problems, b"forges.log_origins", b"forges.log_origins (at most 4)");
+    if limits.forges.log_origins > 32 {
+        against(problems, b"forges.log_origins", b"forges.log_origins (at most 32)");
     }
     if limits.forges.log_origins > component.log_origins {
         against(problems, b"forges.log_origins", b"forge_component.log_origins");

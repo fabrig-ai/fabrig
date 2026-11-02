@@ -13,8 +13,8 @@ use temper_real_loop_world::{
 const ONE_MERGE: usize = 1;
 const TWO_PUSHES: usize = 2;
 
-const DIAGNOSTIC: &[u8] = b"Missing changes/36.md with the line: opened 2026-11-02T11:37:21Z";
-const REQUIRED: &str = "opened 2026-11-02T11:37:21Z\n";
+const DIAGNOSTIC: &[u8] = b"Missing changes/38.md with the line: opened 2026-11-02T12:52:15Z";
+const REQUIRED: &str = "opened 2026-11-02T12:52:15Z\n";
 const REPAIR_CUE: &[u8] = b"Repair the failed CI on the change branch";
 // Producer, five repair turns and the review fit within sixteen units.
 // The review keeps B2's four-unit floor.
@@ -32,7 +32,7 @@ fn repair_fixture() -> github::Fixture {
         .map(|(path, content)| api::File { path: path.as_bytes().into(), content: content.as_bytes().into() })
         .into();
         setup.checks.cue = Some(api::Cue::PullFile {
-            path: b"changes/36.md".as_slice().into(),
+            path: b"changes/38.md".as_slice().into(),
             no_pull: api::Check::Passed,
             step: b"changes".as_slice().into(),
             log: DIAGNOSTIC.into(),
@@ -108,7 +108,7 @@ fn a_chats_failed_github_check_is_repaired_at_a_new_head_and_lands_once() {
         assert_eq!(call.exit, Some(Exit::Code(0)), "call {index}: {call:?}");
     }
     let main = ran.github().branches.get(b"main".as_slice()).expect("landed main");
-    assert_eq!(main.tree.get(b"changes/36.md".as_slice()).expect("repair file"), REQUIRED.as_bytes());
+    assert_eq!(main.tree.get(b"changes/38.md".as_slice()).expect("repair file"), REQUIRED.as_bytes());
     let commit = check_landing_at(&ran, CHANGE_READ);
     check_chat_heard_the_landing_at(&ran, &commit, CHANGE_READ, CHAT_READ);
 }
@@ -239,7 +239,7 @@ fn repair_scripts(at: std::net::SocketAddr) -> Scripts {
             call(b"list", json!({"path":"."})),
             call(b"read", json!({"path":"src/main.rs"})),
             call(b"read", json!({"path":".github/workflows/ci.yml"})),
-            call(b"write", json!({"path":"changes/36.md","content":REQUIRED})),
+            call(b"write", json!({"path":"changes/38.md","content":REQUIRED})),
             call(
                 b"finish",
                 json!({"form":"change","fields":{"title":"Supply the gate timestamp","body":"Repair CI."}}),
@@ -247,4 +247,56 @@ fn repair_scripts(at: std::net::SocketAddr) -> Scripts {
         ]),
     });
     llm::cued(scripts.into_boxed_slice())
+}
+
+fn refused_repair_scripts(at: std::net::SocketAddr) -> Scripts {
+    use serde_json::json;
+    use skein_fake_llm_domain::api::{Finish, Line, Turn};
+    let mut scripts = repair_scripts(at);
+    let script = scripts.cued.last_mut().expect("repair script");
+    script.turns = Box::new([Turn {
+        lines: Box::new([Line::Call {
+            name: b"finish".as_slice().into(),
+            arguments: serde_json::to_vec(&json!({"form":"verdict","label":"no_change",
+                "text":"Declining this repair for the release regression.","fields":{},"items":[]}))
+            .expect("no-change verdict JSON")
+            .into(),
+        }]),
+        finish: Finish::ToolCalls,
+        tokens: 20,
+    }]);
+    scripts
+}
+
+fn replacement_acts() -> Vec<Step> {
+    let mut acts = repair_acts();
+    acts.truncate(6);
+    acts.extend([
+        call(D1, argv!["change", "show", number(CHANGE_TASK), "--until", "held", "--json"]),
+        call(D1, argv!["task", "release", number(CHANGE_TASK), "--hold", "1"]),
+        call(D1, argv!["change", "show", number(CHANGE_TASK), "--until", "held", "--json"]),
+        call(D1, argv!["task", "activity", number(CHANGE_TASK), "--json"]),
+    ]);
+    acts
+}
+
+#[test]
+fn a_replacement_github_repair_after_release_receives_the_job_log_again() {
+    let ran = run_github(repair_fixture(), refused_repair_scripts, replacement_acts);
+    let prompts: Vec<_> = ran
+        .llm()
+        .iter()
+        .filter_map(|seen| {
+            let skein_fake_peers::llm::Observation::Query { query, .. } = seen else { return None };
+            skein_lib::bytes::find(&query.system, REPAIR_CUE).is_some().then_some(&query.system)
+        })
+        .collect();
+    assert_eq!(prompts.len(), 2, "first repair and replacement after release");
+    for prompt in prompts {
+        assert!(skein_lib::bytes::find(prompt, DIAGNOSTIC).is_some());
+    }
+    assert!(!ran.github().observations().iter().any(|row| matches!(row, Observation::Merged { .. })));
+    for (index, call) in ran.calls().iter().enumerate() {
+        assert_eq!(call.exit, Some(Exit::Code(0)), "call {index}: {call:?}");
+    }
 }
