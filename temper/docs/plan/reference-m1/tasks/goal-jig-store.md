@@ -3,7 +3,7 @@ id = "goal-jig-store"
 part = "goal-jig"
 kind = "feature"
 needs = ["goal-jig-surface", "bound-verdict-fields"]
-files = ["jig/crates/jig-protocol-store/schema/settings-v1.schema", "jig/crates/jig-protocol-store/schema/people-v14.schema", "jig/crates/jig-protocol-store/src/generated/settings_v1.rs", "jig/crates/jig-protocol-store/src/generated/people_v14.rs", "jig/crates/jig-protocol-store/golden/**", "jig/crates/jig-protocol-store/src/codec/settings.rs", "jig/crates/jig-protocol-store/src/codec/people/batch.rs", "jig/crates/jig-protocol-store/src/tests/**", "jig/tests/store-codecs/**"]
+files = ["jig/crates/jig-protocol-store/schema/settings-v1.schema", "jig/crates/jig-protocol-store/schema/people-v14.schema", "jig/crates/jig-protocol-store/src/generated/settings_v1.rs", "jig/crates/jig-protocol-store/src/generated/people_v14.rs", "jig/crates/jig-protocol-store/src/generated/layouts.rs", "jig/crates/jig-protocol-store/src/codec/people.rs", "jig/crates/jig-protocol-store/golden/**", "jig/crates/jig-protocol-store/src/codec/settings.rs", "jig/crates/jig-protocol-store/src/codec/people/batch.rs", "jig/crates/jig-protocol-store/src/tests/**", "jig/tests/store-codecs/**"]
 effort = "medium"
 minutes = 60
 +++
@@ -75,3 +75,17 @@ Acceptance:
 ## Report
 
 The schema lines, the bounds chosen, the goldens regenerated, the tests and counts.
+
+## Answers
+
+- 2026-11-02. May this task regenerate `src/generated/layouts.rs`, whose settings and people
+  fingerprints its schema changes make stale? Yes: the file is generated from the schemas this
+  task changes, and the task's full checks (`the_stores_layouts_have_no_drift`,
+  `current_layouts_are_the_eight_distinct_runtime_schema_fingerprints`) cannot pass without
+  it; it is now in the header, with `codec/people.rs` (the `Limits.member_symbols` line the
+  compiler required). Regenerate it, never by hand: `SKEIN_CODEGEN_WRITE=1 heavy cargo nextest
+  run -p jig-store-codecs-world --test drift -E 'test(=the_stores_layouts_have_no_drift)'`,
+  then the same without the variable; only the `settings` and `people` lines may change (the
+  settings family's `Charter` change on this trunk moves the same `settings` line: if it has
+  landed at your base, regenerate from the schema as it is). Then both formerly failing tests
+  alone, and step 3's checks.
