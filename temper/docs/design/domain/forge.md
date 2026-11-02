@@ -419,7 +419,7 @@ temper-engine-domain-forge              the connector's top: resources and holds
   echoes already on the forge are the old user's.
 - **The forge client keeps the writer as its own record** (skein's
   `forge-client.md`, 7.1): `Stored::Writer` under `Key::Writer(forge)`,
-  in temper's small store under its tag 16 (`STORE_VERSION` 3), and
+  in temper's small store under its tag 16, and
   restored at start among the forge's rows, in any order: the client
   takes them all before `Restored`, and runs no restored effect before
   it, so a restored effect never meets `Forbidden` (skein's
