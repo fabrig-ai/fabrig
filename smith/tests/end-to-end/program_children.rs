@@ -11,6 +11,12 @@ const CHILD_MODEL: &str = "claude-haiku-5-5";
 const ALPHA: &str = "ALPHA-REPORT";
 const BETA: &str = "BETA-REPORT";
 
+fn argument<'a>(arguments: &'a [String], flag: &str) -> Option<&'a str> {
+    let mut arguments = arguments.iter();
+    arguments.find(|argument| argument.as_str() == flag)?;
+    arguments.next().map(String::as_str)
+}
+
 fn signed_in(story: &Story) -> Scratch {
     let scratch = Scratch::new();
     let executable = skein_scratch::paths::binary("fake-claude");
@@ -70,18 +76,14 @@ fn exec_on_claude_asks_two_sub_agents_side_by_side() {
     let calls = invocations(&scratch);
     let print: Vec<_> = calls.iter().filter(|arguments| arguments.first().is_some_and(|arg| arg == "-p")).collect();
     assert_eq!(print.len(), 3, "main and two children use the account directory");
-    let main: Vec<_> = print
-        .iter()
-        .filter(|arguments| arguments.windows(2).any(|pair| pair == ["--model", "claude-opus-5-5"]))
-        .collect();
+    let main: Vec<_> =
+        print.iter().filter(|arguments| argument(arguments, "--model") == Some("claude-opus-5-5")).collect();
     assert_eq!(main.len(), 1, "main uses its selected model");
-    let children: Vec<_> = print
-        .iter()
-        .filter(|arguments| arguments.windows(2).any(|pair| pair == ["--model", "claude-haiku-5-5"]))
-        .collect();
+    let children: Vec<_> =
+        print.iter().filter(|arguments| argument(arguments, "--model") == Some(CHILD_MODEL)).collect();
     assert_eq!(children.len(), 2, "each child uses the model its call names");
     for child in children {
-        assert!(child.windows(2).any(|pair| pair == ["--tools", "Read,Glob,Grep"]));
+        assert_eq!(argument(child, "--tools"), Some("Read,Glob,Grep"));
         assert!(!child.iter().any(|argument| argument == "--json-schema"));
     }
 }
@@ -107,5 +109,5 @@ fn exec_on_claude_refuses_a_writing_sub_agent() {
     let calls = invocations(&scratch);
     let print: Vec<_> = calls.iter().filter(|arguments| arguments.first().is_some_and(|arg| arg == "-p")).collect();
     assert_eq!(print.len(), 1, "a writing request opens no child program");
-    assert!(print[0].windows(2).any(|pair| pair == ["--model", "claude-opus-5-5"]));
+    assert_eq!(argument(print[0], "--model"), Some("claude-opus-5-5"));
 }
