@@ -9,7 +9,7 @@ use skein_forge_connection::{
 use skein_forge_machine_world::{
     fixtures::{self, FORGE},
     github::{self, Fake},
-    machine::{Answer, Machine, Pause},
+    machine::{Answer, Machine, Pause, Response},
 };
 use skein_lib::{Duration, List, Secret};
 
@@ -36,6 +36,9 @@ fn origin(host: &[u8], port: u16) -> Origin {
     Origin { tls: false, host: Box::from(host), port }
 }
 fn world(third_origin: Option<&[u8]>, blob_redirect: Option<&[u8]>, calls: &[&'static str]) -> Machine {
+    world_answers(third_origin, blob_redirect, calls.iter().copied().map(Answer::served).collect())
+}
+fn world_answers(third_origin: Option<&[u8]>, blob_redirect: Option<&[u8]>, answers: Vec<Answer>) -> Machine {
     let mut settings = fixtures::settings();
     let forge = settings.forges.get_mut(0).expect("GitHub fixture");
     forge.kind = Kind::GitHub;
@@ -54,8 +57,8 @@ fn world(third_origin: Option<&[u8]>, blob_redirect: Option<&[u8]>, calls: &[&'s
         LOCATE,
     ]
     .into_iter()
-    .chain(calls.iter().copied())
     .map(Answer::served)
+    .chain(answers)
     .collect();
     let mut world = Machine::github(SEED, fixtures::limits(), settings, script);
     *world.github_fake_mut() = Fake::job_logs(SEED, third_origin, blob_redirect);
@@ -68,6 +71,52 @@ fn world(third_origin: Option<&[u8]>, blob_redirect: Option<&[u8]>, calls: &[&'s
     );
     world.run_for(SECOND);
     world
+}
+
+const BURIED_DIAGNOSTIC: &[u8] = b"Missing changes/40.md with the line: opened 2026-11-02T14:01:43Z";
+
+fn plaintext(body: &[u8]) -> Response {
+    let mut response = format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n", body.len()).into_bytes();
+    response.extend_from_slice(body);
+    Response::Bytes(response)
+}
+
+#[test]
+fn github_failed_step_diagnostic_survives_post_job_cleanup() {
+    const LOG_BYTES: usize = 11_807;
+    const DIAGNOSTIC_FROM_END: usize = 2_200;
+    let metadata = br#"{"id":1,"run_id":1,"run_attempt":1,"head_sha":"910a2dec89025cc1000000000000000100000000","steps":[{"number":1,"name":"Set up job","conclusion":"success"},{"number":2,"name":"Checkout","conclusion":"success"},{"number":3,"name":"Each pull request adds changes/<its number>.md","conclusion":"failure"},{"number":4,"name":"Post Checkout","conclusion":"success"}]}"#;
+    let mut log = b"2026-11-02T14:01:44Z ##[group]Run check changes\n2026-11-02T14:01:44Z ##[endgroup]\n".to_vec();
+    log.resize(LOG_BYTES - DIAGNOSTIC_FROM_END, b'\n');
+    log.extend_from_slice(BURIED_DIAGNOSTIC);
+    log.extend_from_slice(b"\n2026-11-02T14:01:45Z ##[error]Process completed with exit code 1.\n");
+    log.extend_from_slice(b"2026-11-02T14:01:46Z Post job cleanup.\n");
+    while log.len() < LOG_BYTES {
+        log.extend_from_slice(b"2026-11-02T14:01:46Z git config --local --get-regexp http.extraheader\n");
+    }
+    log.truncate(LOG_BYTES);
+    let mut w = world_answers(
+        None,
+        None,
+        vec![
+            Answer { request: JOB, response: plaintext(metadata) },
+            Answer::served(LOG),
+            Answer { request: BLOB, response: plaintext(&log) },
+        ],
+    );
+    read(&mut w, 2, 1024);
+    let Ok(Value::Job { attempt: pinned, step, log, truncated }) = &w.answered(2).expect("job answer").result else {
+        panic!("read within the admitted answer bound")
+    };
+    assert_eq!(*pinned, attempt());
+    assert_eq!(step.as_ref().expect("failed step").number, 3);
+    assert!(*truncated);
+    assert!(log.len() <= 1024);
+    assert!(
+        log.windows(BURIED_DIAGNOSTIC.len()).any(|line| line == BURIED_DIAGNOSTIC),
+        "the failed step's diagnostic must remain reachable after cleanup"
+    );
+    finish(&mut w, READY_REQUESTS + usize::try_from(FOLLOW_COST).unwrap());
 }
 fn job_log_origins() -> List<LogOrigin> {
     let mut origins = List::with_capacity(2);
