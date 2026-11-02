@@ -1720,6 +1720,29 @@ fn describe_change_effect(
     })
 }
 
+/// Branch writes use the stored hold name for jig's writer slot
+/// (temper/docs/design/domain/forge.md, 11.1).
+/// Authority names remain separate: every additional authority resource needs a grant.
+fn change_effect_hold(domain: &Domain, env: &Env<Limits>, task: u64, kind: u16) -> Option<tasks::Name> {
+    let row = domain.forge.change(task)?;
+    let branch = match kind {
+        4 => &row.base,
+        9 | 11 => &row.branch,
+        _ => return None,
+    };
+    let resource = hub_name(
+        domain.config.forge_connector,
+        &forge::Name {
+            forge: row.repository.forge,
+            repository: row.repository.repository,
+            what: branch_what(branch, env.limits.forge.name_bytes)?,
+        },
+        &env.limits.tasks,
+    )?;
+    domain.core.tasks.holder(&resource)?;
+    Some(resource)
+}
+
 /// Once a pull is known its keep supplies the base and CI, within the same two names.
 /// Only a task still named is renamed: its release's unnamed ends the watch.
 fn watch_change_pull(domain: &mut Domain, env: &Env<Limits>, row: &forge::ChangeRow) {
@@ -3823,7 +3846,38 @@ pub(crate) fn outputs(
                         match describe_change_effect(domain, env, task, effect, &evidence) {
                             Some(description) => {
                                 let Some((_, _, step)) = domain.core.tasks.procedure_due(task) else { continue };
+                                let writer = change_effect_hold(domain, env, task, description.effect.kind);
+                                if let Some(resource) = &writer
+                                    && !domain.core.tasks.effect_writer_ready(
+                                        &env.limits.tasks,
+                                        task,
+                                        resource,
+                                        Some(entry),
+                                    )
+                                {
+                                    domain.work.push(Work::Forge(forge::Event::VetoChange {
+                                        task,
+                                        entry,
+                                        prior: evidence.prior,
+                                    }));
+                                    change_decision(domain, env, task, forge_change::Decision::Wait { until: None });
+                                    continue;
+                                }
                                 let owner = effect_owner(domain);
+                                if let Some(resource) = &writer {
+                                    // Reserve before yielding to authority; another admission must see this slot.
+                                    let routed = jig_domain_core::step(
+                                        &mut domain.core,
+                                        &crate::limits::environment_core(env),
+                                        jig_domain_core::Event::Tasks(tasks::Event::EffectInFlight {
+                                            reply_to: ReplyTo::new(owner),
+                                            task,
+                                            resource: resource.clone(),
+                                            entry,
+                                        }),
+                                    );
+                                    super::route_core_requests(domain, env, decision, routed);
+                                }
                                 assert!(
                                     domain
                                         .forge_effects
@@ -3833,7 +3887,8 @@ pub(crate) fn outputs(
                                                 description: Box::new(description),
                                                 entry,
                                                 task,
-                                                evidence: Box::new(evidence)
+                                                evidence: Box::new(evidence),
+                                                writer,
                                             }
                                         )
                                         .is_ok(),
@@ -3925,6 +3980,7 @@ pub(crate) enum EffectFlight {
         entry: u64,
         task: u64,
         evidence: Box<forge::ChangeEvidence>,
+        writer: Option<tasks::Name>,
     },
 }
 
@@ -4192,7 +4248,10 @@ pub(crate) fn effect_ask(
         }
         jig_domain_core::effects::connector::Ask::Drop { owner, answer, findings, why } => {
             match domain.forge_effects.remove(&owner) {
-                Some(EffectFlight::Procedure { entry, task, evidence, description }) => {
+                Some(EffectFlight::Procedure { entry, task, evidence, description, writer }) => {
+                    if let Some(resource) = writer {
+                        domain.work.push(Work::Tasks(tasks::Event::EffectSettled { resource, entry }));
+                    }
                     domain.work.push(Work::Forge(forge::Event::VetoChange { task, entry, prior: evidence.prior }));
                     if answer == authority::Answer::Wait {
                         domain.forge.wait_change(&super::environment_forge(env), task, None);
