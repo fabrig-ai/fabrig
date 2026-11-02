@@ -112,29 +112,7 @@ pub(crate) fn decoded(domain: &mut Domain, env: &Env<Limits>, decision: &mut Dec
     let body = super::checked_call(body, &env.limits);
     let key =
         CallKey { task: flight.task, attempt: flight.attempt, completion: body.completion, position: body.position };
-    // A call no retry can make valid is answered as an error; one that waits
-    // for room is answered busy, and its run asks it again after a backoff
-    // (jig's `domain/engine.md`, 5.1).
-    let invalid = body.completion == 0 || !super::current_proof(domain, key.task, key.attempt);
-    let reading = crate::translate::is_settings_read(&body.tool);
-    let busy = !reading
-        && (!domain.core.call_room(key)
-            || (super::call_needs_input(&body.tool) && domain.archive_reads.len() >= domain.archive_reads.capacity()));
-    if invalid || busy {
-        let flight = domain.call_renders.remove(&right).expect("current typed flight");
-        let answer = if invalid {
-            Payload::SettledCall(SettledCall {
-                serial: 0,
-                tool: flight.tool,
-                answer: SettledAnswer::Host { error: true, body: Box::from(&b"invalid call"[..]) },
-            })
-        } else {
-            Payload::Busy
-        };
-        let id = domain.hub_link.retain(answer);
-        domain.work.push(Work::Fleet(fleet::Event::Relayed { to, answer: id }));
-        return;
-    }
+    let Some(to) = admit(domain, to, key, &body.tool) else { return };
     let render = if let crate::Tool::Settings { from, read } = &body.tool {
         let requested = match read {
             jig_domain_core::SettingsRead::Revision { number } => Some(u64::from(*number)),
@@ -159,6 +137,51 @@ pub(crate) fn decoded(domain: &mut Domain, env: &Env<Limits>, decision: &mut Dec
     flight.render = render;
     flight.key = Some(key);
     relay_payload(domain, env, decision, to, key, body);
+}
+
+fn admit(domain: &mut Domain, to: ReplyTo, key: CallKey, tool: &crate::Tool) -> Option<ReplyTo> {
+    let refusal = if key.completion == 0 {
+        Some(("call-proof", "completion is zero", true))
+    } else if !super::current_proof(domain, key.task, key.attempt) {
+        Some(("call-proof", "task attempt is not current", true))
+    } else if crate::translate::is_settings_read(tool) {
+        None
+    } else if !domain.core.call_room(key) {
+        let reason =
+            if domain.core.pending_calls.contains_key(&key) { "named call pending" } else { "call record room full" };
+        Some(("core-call-room", reason, false))
+    } else if super::call_needs_input(tool) && domain.archive_reads.len() >= domain.archive_reads.capacity() {
+        Some(("archive-read-room", "archive read room full", false))
+    } else {
+        None
+    };
+    let Some((layer, reason, invalid)) = refusal else {
+        return Some(to);
+    };
+    let right = to.into_token();
+    let flight = domain.call_renders.remove(&right).expect("current typed flight");
+    super::diagnostics::emit(
+        domain,
+        crate::Fact::CallAdmissionRefused {
+            task: key.task,
+            attempt: key.attempt,
+            tool: flight.tool.clone(),
+            layer,
+            reason,
+        },
+    );
+    let answer = if invalid {
+        Payload::SettledCall(SettledCall {
+            serial: 0,
+            tool: flight.tool,
+            answer: SettledAnswer::Host { error: true, body: Box::from(&b"invalid call"[..]) },
+        })
+    } else {
+        Payload::Busy
+    };
+    let id = domain.hub_link.retain(answer);
+    domain.work.push(Work::Fleet(fleet::Event::Relayed { to: ReplyTo::new(right), answer: id }));
+    None
 }
 
 pub(crate) fn render(domain: &mut Domain, limits: &Limits, decision: &mut Decision, to: ReplyTo, answer: CallAnswer) {
@@ -319,6 +342,10 @@ pub(crate) fn relayed(
 pub(crate) fn read(domain: &mut Domain, to: ReplyTo, answer: CallAnswer) {
     let right = to.into_token();
     let to = ReplyTo::new(right);
+    let key = domain.call_renders.get(&right).expect("a read answers its decoded flight").key.expect("decoded read");
+    if let CallAnswer::ReadRepositoryRefused { .. } = &answer {
+        super::diagnostics::read(domain, key, "forge-route", "repository name unresolved", None, Box::new([]));
+    }
     let flight = domain.call_renders.get(&right).expect("a read answers its decoded flight");
     let request = crate::boundary::delivery_output(Delivery::Host(Box::new(HostDelivery::Render {
         to,

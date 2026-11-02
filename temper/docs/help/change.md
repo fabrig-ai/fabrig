@@ -103,6 +103,12 @@ forge's answer).
   repair; a person's rejection holds it; an advisory gate never blocks.
   A reviewer that gives no verdict is asked once more, then the change
   is held.
+  If a reviewer cannot read what it needs to judge, it fails saying why.
+  The operator's `temper serve` stderr names refused forge reads and call
+  admission by task, attempt, tool, layer and reason. Claude's built-in
+  Read denials appear in the task's recorded tool results. These operator
+  diagnostics are volatile; capture stderr when investigating a refusal.
+
 - **Gates are temper's:** a change's gates run in temper, and `change
   show` prints each, `gate 1 · review · blocking · approved`; temper
   posts none to the forge as a review or a status, so the pull

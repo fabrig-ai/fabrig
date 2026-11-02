@@ -18,3 +18,5 @@
 - **Built:** 5, 8.2: a person's inbox answer notice names the asker and says it has the answer and does the work when another task asked; the chat acknowledges the work goes ahead without calling `change` or `goal`. The notice carries the answer words, cut at 256 bytes, to a live run and the inbox at start; empty stored notices keep their words-free line.
 
 - **Built:** 4.3.2, 8.2: every Finite charter 1 run retains `message` in its reserve, so an owed plan question can reach the person on its last turn.
+
+- **Built:** 8: forge read authority refusals retain `ToolDenied` findings; volatile read and call-admission facts name task, attempt, tool, refusing layer and reason and reach operator notes and stderr.
