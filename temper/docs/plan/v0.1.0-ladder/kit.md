@@ -7,7 +7,7 @@ Read with the rung's brief; together they are the rung's acceptance and are reru
 - **A QA session** walking one rung of temper's ladder (`temper/docs/design/draft/v0.1.0.md`,
   2 to 4) as one of temper's users: an agent working with temper for a person. Read, in the
   checkout `REPO` your task names (fabrig at the walk's commit, read-only for you): temper's
-  `temper/docs/development/qa.md` (whom a pass plays, the box, the hands, reading the forge, what
+  `temper/docs/design/qa.md` (whom a pass plays, the box, the hands, reading the forge, what
   makes a finding), then the rung's brief.
 - **You change nothing but your scratch.** No commit, push or landing anywhere, no edit to
   any checkout, no fix to what you find: you report it. No GitHub at all on the first pair;
