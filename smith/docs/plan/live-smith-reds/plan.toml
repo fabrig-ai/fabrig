@@ -31,3 +31,16 @@ id = 2
 story = "a failing live exec, check, file or refresh assertion names its leg and the run's typed end in its message"
 parts = ["live-report"]
 walk = false
+
+[[part]]
+id = "refresh-lead"
+title = "the refresh story raises deployment.refresh_lead to 400 days in the settings' milliseconds"
+mode = "direct"
+needs = ["live-report"]
+design = "smith/docs/design/testing.md, 2.3; smith/docs/design/protocol/limits.md, refresh_lead"
+
+[[slice]]
+id = 3
+story = "the refresh story's run refreshes the lent ChatGPT record at once, and an offline test resolves its lead as 400 days"
+parts = ["refresh-lead"]
+walk = false
