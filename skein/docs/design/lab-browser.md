@@ -171,24 +171,21 @@ skein-lab-browser --chromium PATH --fonts DIR --scratch DIR --out DIR
   press, a typed field or a shot at another scale is drawn whole, as a
   fresh one is: on the lab's Chromium, a shot after a click otherwise
   differs between fresh browsers in a few dozen pixels by a shade or
-  two, and W1's look met the same drift between its seeds (temper's
-  `qa-web.md`, 3.4). A page's first drawing is the same either way,
+  two. A page's first drawing is the same either way,
   byte for byte. Switching off the GPU, its compositing or its raster
-  as well changed no shot, so they stay as the kit sets them.
+  as well changes no shot, so they stay as the kit sets them.
 - **One tile a viewport:** the program also starts Chromium with its
   raster tiles and its untiled layers 2048 pixels square
   (`--default-tile-width=2048`, `--default-tile-height=2048`,
   `--max-untiled-layer-width=2048`, `--max-untiled-layer-height=2048`),
   so a viewport the lab shoots is drawn in one tile, with no seams:
-  with partial raster off alone, a viewport's shot still differed
-  between fresh browsers at the tile seams, a few pixels on one row or
-  column, a shade or three apart. The tile size alone does not hold,
+  with partial raster off alone, a viewport's shot differs between
+  fresh browsers at the tile seams, a few pixels on one row or column,
+  a shade or three apart. The tile size alone does not hold,
   since Chromium tiles a layer past its untiled limits whatever the tile
-  size (`cc/layers/tile_size_calculator.cc`). With the four, six
-  captures of temper's look held one digest for every viewport and
-  crop, in 63.9 s a capture against 65.9 s; they draw edges and corners
-  a shade apart from the default tiling, so a first drawing differs
-  from the one before them, once.
+  size (`cc/layers/tile_size_calculator.cc`). With the four, captures
+  of one page hold one digest for every viewport and crop; they draw
+  edges and corners a shade apart from the default tiling.
 - **Its bounds:** a request's first line is read up to 8 KiB, and a
   `trouble` reports at most 64 refusals, the rest as one `network`
   entry counting them.
@@ -289,7 +286,7 @@ The lab's, outside skein: it names the program, Chromium and the fonts' director
 
 ## 8. The hand
 
-A driver's browser in a product's cluster (temper's `qa-web.md`, section 6): the
+A driver's browser in a product's cluster: the
 same program in a second form, holding one person's page on the
 product's origin and answering a person's calls, which the lab's tools
 send. The agent finds and acts as a world's fake
@@ -337,8 +334,7 @@ skein-lab-browser hand --chromium PATH --fonts DIR --scratch DIR --out DIR
   starts reading it, the connections before it answered or closed), or
   sends more than 128 KiB, is closed unanswered: a caller stalled ahead
   of it delays a queued call, and never costs it its answer.
-- **A loopback listener, not a socket in a directory** (temper's `qa-web.md`'s
-  6.1 named one): skein's io has no Unix sockets, and a listener on
+- **A loopback listener, not a socket in a directory:** skein's io has no Unix sockets, and a listener on
   port 0 reported by a ready line is how the lab's processes meet. It is
   the lab's tool's endpoint: an agent's
   own commands open no socket, and reach it only through `browse`,
@@ -486,8 +482,7 @@ main
   its standard error. A page's script that replaces its address leaves
   nothing to redact; one that keeps it shows `<link>` to `address`.
 - **What still holds it** is the run's own record of the seed (the
-  standard input of the seed's action that sent it), as the ctl
-  level's seed holds its link (temper's `qa.md`, 4.3), the product's
+  standard input of the seed's action that sent it), the product's
   printed lines, and the run's captures of them (a ready line's, an
   awaited line's); none is in an agent's view,
   and the link is spent before the driver starts. What shows a run to a
@@ -506,8 +501,7 @@ main
   `address` is the page's, read when the entry came; `call` is the
   number of the call in flight, counted from 1 in the order accepted,
   and `during` its name, or 0 and null between calls. So a product's
-  check can name each entry's page by its address (temper's `qa-web.md`,
-  8.1), and
+  check can name each entry's page by its address, and
   leave out what a seed's call caused.
 - **The `trouble` call** answers the entries since the last one, at
   most 64, `more` counting the rest, each an `ENTRY`, `{"kind","text","address"}`.
@@ -562,9 +556,7 @@ tests share `json` through the lab-browser library target.
 
 ### 8.10 The look's reads
 
-A live scene's page is the hand's page as the seed left it (temper's
-`qa-web.md`,
-3.3): focus after a send, a page after a reload, a dialog in the top
+A live scene's page is the hand's page as the seed left it: focus after a send, a page after a reload, a dialog in the top
 layer, none of which a page opened afresh shows. So the capture reads
 it in place, by the kit's look reads (browser.md, 5.1), which the hand
 answers to the lab alone.
