@@ -77,13 +77,16 @@ pub(crate) fn status(b: &mut Builder, state: State, words: &Words) {
     let (phase, token) = match state {
         State::Running => (c::Phase::Running, look::STATUS_ACTIVE),
         State::Held => (c::Phase::Held, look::STATUS_HELD),
-        State::Landed | State::Done => (c::Phase::Done, look::STATUS_DONE),
+        State::Landed | State::Cleared | State::Uncleared | State::Done => (c::Phase::Done, look::STATUS_DONE),
         State::Failed => (c::Phase::Failed, look::STATUS_HELD),
         State::Cancelled => (c::Phase::Cancelled, look::STATUS_QUIET),
         State::Ended => (c::Phase::Ended, look::STATUS_QUIET),
     };
     let name = if state == State::Landed {
         words.say(Word::Landed, &[])
+    } else if state == State::Cleared || state == State::Uncleared {
+        use temper_client_domain::forge::words::ChangeWord as W;
+        crate::pages::change::say(words, if state == State::Cleared { W::ClearedTag } else { W::UnclearedTag }, &[])
     } else {
         words.say_word(jig_client::words::Word::Phase(phase), &[])
     };

@@ -1,6 +1,7 @@
 //! Requests counted at their HTTP entrance (fake-forge.md, section 4).
 use skein_lib::Map;
-pub(crate) const ROUTES: u32 = 81;
+// 73 HTTP routes and the ten git routes.
+pub(crate) const ROUTES: u32 = 83;
 use skein_forge::forgejo::request::Request;
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Route {
@@ -59,6 +60,9 @@ pub enum Route {
     Permission,
     PullFiles,
     Compare,
+    Artifacts,
+    ArtifactZip,
+    Commits,
     Contents,
     Raw,
     Tree,
@@ -134,6 +138,9 @@ impl Route {
             | Self::Collaborators
             | Self::Permission
             | Self::PullFiles
+            | Self::Artifacts
+            | Self::ArtifactZip
+            | Self::Commits
             | Self::Compare
             | Self::Contents
             | Self::Raw
@@ -212,7 +219,10 @@ pub fn route(request: &Request) -> Route {
         Request::Collaborators { .. } => Route::Collaborators,
         Request::Permission { .. } => Route::Permission,
         Request::PullFiles { .. } => Route::PullFiles,
-        Request::Compare { .. } => Route::Compare,
+        Request::Artifacts { .. } => Route::Artifacts,
+        Request::ArtifactZip { .. } => Route::ArtifactZip,
+        Request::Commits { .. } | Request::Compare { files: false, .. } => Route::Commits,
+        Request::Compare { files: true, .. } => Route::Compare,
         Request::Contents { .. } => Route::Contents,
         Request::Raw { .. } => Route::Raw,
         Request::Tree { .. } => Route::Tree,

@@ -1,4 +1,4 @@
-//! The connector's whole change document (domain/forge.md, 8.8).
+//! The connector's whole change document (domain/forge.md, 8.8; client/forge.md, 2.1).
 use crate::{ChangeRow, Domain, Limits};
 use alloc::boxed::Box;
 use jig_domain_people::ApplicationScope;
@@ -32,6 +32,9 @@ pub enum PanelStep {
     Repairing(change::Repair),
     Landing,
     Landed { merge: [u8; 32] },
+    Verifying { merge: [u8; 32], tiers: Box<[Box<[u8]>]> },
+    Red { merge: [u8; 32], tiers: Box<[Box<[u8]>]> },
+    Cleared { merge: [u8; 32], tiers: Box<[Box<[u8]>]>, uncleared: bool },
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct PanelGate {
@@ -79,6 +82,9 @@ impl Panel {
                 PanelStep::Queued { place, ahead } => {
                     *place > 0 && ahead.len() <= usize::try_from(PANEL_AHEAD).expect("u32 fits usize")
                 }
+                PanelStep::Verifying { tiers, .. }
+                | PanelStep::Red { tiers, .. }
+                | PanelStep::Cleared { tiers, .. } => tiers.len() <= 32 && tier_lines_within(tiers),
                 PanelStep::Ready { .. }
                 | PanelStep::Preparing { .. }
                 | PanelStep::Producing
@@ -99,9 +105,62 @@ impl Panel {
 }
 
 impl Domain {
+    fn panel_tiers(&self, verification: &crate::Verification) -> Box<[Box<[u8]>]> {
+        use temper_engine_domain_forge_tiers::{Blame, Failures};
+        let mut lines = List::with_capacity(u32::try_from(verification.tiers.len()).expect("admitted tiers"));
+        for tier in &verification.tiers {
+            let mut run = None;
+            let mut suffix: &[u8] = b"";
+            let mut count = None;
+            if let Some(repair) = tier.repaired {
+                run = Some(repair.run);
+            } else if let Some(verdict) = &tier.verdict {
+                run = Some(verdict.run);
+                match &verdict.blame {
+                    Blame::Cleared => {}
+                    Blame::Owns(Failures::Many) | Blame::Suspect(Failures::Many) => suffix = b" \xc2\xb7 many tests",
+                    Blame::Owns(Failures::Tests(tests)) | Blame::Suspect(Failures::Tests(tests)) => {
+                        count = Some(u64::try_from(tests.len()).expect("admitted tests"));
+                        suffix = if tests.len() == 1 { b" test" } else { b" tests" };
+                    }
+                }
+            } else {
+                for ((repository, name), row) in &self.tiers {
+                    if *repository == verification.repository
+                        && *name == tier.tier
+                        && let Some(flight) = &row.record.run
+                    {
+                        run = Some(flight.number);
+                    }
+                }
+                suffix = if run.is_some() { b" running" } else { b" waiting" };
+            }
+            let number = skein_lib::Decimal::of(run.unwrap_or(0));
+            let counted = skein_lib::Decimal::of(count.unwrap_or(0));
+            let parts: [&[u8]; 6] = [
+                &tier.tier,
+                if run.is_some() { b" run " } else { b"" },
+                if run.is_some() { number.as_bytes() } else { b"" },
+                if count.is_some() { b" \xc2\xb7 " } else { b"" },
+                if count.is_some() { counted.as_bytes() } else { b"" },
+                suffix,
+            ];
+            let mut length = 0_usize;
+            for part in parts {
+                length = length.checked_add(part.len()).expect("bounded tier line");
+            }
+            let mut line = skein_lib::Writer::new(length);
+            for part in parts {
+                line.put(part).expect("measured tier line");
+            }
+            lines.push(line.finish()).expect("admitted tiers");
+        }
+        lines.into_boxed()
+    }
     /// Purely read a retained change in the project that holds its repository.
     #[must_use]
     #[expect(clippy::manual_map, reason = "the strict subset uses explicit matches")]
+    #[expect(clippy::too_many_lines, reason = "the panel reads every retained step and its facts together")]
     pub fn panel(&self, task: u64, scope: ApplicationScope, now: Wall, limits: &Limits) -> Option<Panel> {
         let ApplicationScope::Project(project) = scope else { return None };
         let row = self.changes.get(&task)?;
@@ -134,7 +193,25 @@ impl Domain {
             change::State::Resolving { .. } => PanelStep::Resolving,
             change::State::Repairing { why, .. } => PanelStep::Repairing(*why),
             change::State::Landing { .. } => PanelStep::Landing,
-            change::State::Landed { merge } => PanelStep::Landed { merge: *merge },
+            change::State::Landed { merge, .. } => match self.verifications.get(&(row.repository, *merge)) {
+                Some(verification) => PanelStep::Verifying { merge: *merge, tiers: self.panel_tiers(verification) },
+                None => PanelStep::Landed { merge: *merge },
+            },
+            change::State::Red { merge, .. } => PanelStep::Red {
+                merge: *merge,
+                tiers: match self.verifications.get(&(row.repository, *merge)) {
+                    Some(v) => self.panel_tiers(v),
+                    None => Box::new([]),
+                },
+            },
+            change::State::Cleared { merge } | change::State::Uncleared { merge } => PanelStep::Cleared {
+                merge: *merge,
+                tiers: match self.verifications.get(&(row.repository, *merge)) {
+                    Some(v) => self.panel_tiers(v),
+                    None => Box::new([]),
+                },
+                uncleared: *state == change::State::Uncleared { merge: *merge },
+            },
             change::State::Held { .. } => unreachable!("held steps unwrapped"),
         };
         let head = row.change.last_head;
@@ -268,4 +345,13 @@ pub(crate) fn queue_before(
         return false;
     }
     change::Ready::before(a, b, limits.queue_window, now)
+}
+
+fn tier_lines_within(lines: &[Box<[u8]>]) -> bool {
+    for line in lines {
+        if line.len() > 128 {
+            return false;
+        }
+    }
+    true
 }

@@ -85,7 +85,7 @@ fn a_recorded_merged_pull_lands_without_a_matching_pushed_head() {
     let d = producing_with_history(true, false, true);
     assert_eq!(
         d.change(fixtures::CHANGE).expect("known change").change.state,
-        temper_engine_domain_forge_change::State::Landed { merge: fixtures::BASE }
+        temper_engine_domain_forge_change::State::Landed { merge: fixtures::BASE, since: env().wall }
     );
 }
 
@@ -94,7 +94,10 @@ fn a_merged_pull_at_the_pushed_head_is_recovered_after_restart() {
     let d = producing_with_history(false, true, true);
     let row = d.change(fixtures::CHANGE).expect("recovered change");
     assert_eq!(row.pull, Some(1));
-    assert_eq!(row.change.state, temper_engine_domain_forge_change::State::Landed { merge: fixtures::BASE });
+    assert_eq!(
+        row.change.state,
+        temper_engine_domain_forge_change::State::Landed { merge: fixtures::BASE, since: env().wall }
+    );
 }
 
 #[test]

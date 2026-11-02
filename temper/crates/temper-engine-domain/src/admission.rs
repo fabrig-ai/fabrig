@@ -80,6 +80,10 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::Landing { .. }
             | forge::Event::VetoLanding { .. }
             | forge::Event::StepLanding { .. }
+            | forge::Event::TierTask { .. }
+            | forge::Event::TierRefused { .. }
+            | forge::Event::StepTier { .. }
+            | forge::Event::VetoTier { .. }
             | forge::Event::Settle
             | forge::Event::AppRecorded { .. }
             | forge::Event::PlaygroundMade { .. }

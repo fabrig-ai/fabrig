@@ -1,0 +1,1997 @@
+diff --git a/temper/crates/temper-protocol-store/Cargo.toml b/temper/crates/temper-protocol-store/Cargo.toml
+index 473d37f09..e22e3b3d6 100644
+--- a/temper/crates/temper-protocol-store/Cargo.toml
++++ b/temper/crates/temper-protocol-store/Cargo.toml
+@@ -20,6 +20,7 @@ temper-engine-domain-forge-change.workspace = true
+ temper-engine-domain-forge-issues.workspace = true
+ 
+ temper-engine-domain-forge-landing = { path = "../temper-engine-domain-forge-landing" }
++temper-engine-domain-forge-tiers = { path = "../temper-engine-domain-forge-tiers" }
+ 
+ [dev-dependencies]
+ temper-engine-domain.workspace = true
+@@ -27,5 +28,6 @@ jig-domain-core.workspace = true
+ jig-domain-tasks.workspace = true
+ jig-domain-notes.workspace = true
+ 
++
+ [lints]
+ workspace = true
+diff --git a/temper/crates/temper-protocol-store/golden/change-cleared.bin b/temper/crates/temper-protocol-store/golden/change-cleared.bin
+new file mode 100644
+index 000000000..34b6fc148
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/change-cleared.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/change-red.bin b/temper/crates/temper-protocol-store/golden/change-red.bin
+new file mode 100644
+index 000000000..4d65b1256
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/change-red.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/enum_blame_cleared_full.bin b/temper/crates/temper-protocol-store/golden/enum_blame_cleared_full.bin
+new file mode 100644
+index 000000000..f76dd238a
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/enum_blame_cleared_full.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/enum_blame_cleared_smallest.bin b/temper/crates/temper-protocol-store/golden/enum_blame_cleared_smallest.bin
+new file mode 100644
+index 000000000..f76dd238a
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/enum_blame_cleared_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/enum_blame_owns_full.bin b/temper/crates/temper-protocol-store/golden/enum_blame_owns_full.bin
+new file mode 100644
+index 000000000..89f0ea1eb
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/enum_blame_owns_full.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/enum_blame_owns_smallest.bin b/temper/crates/temper-protocol-store/golden/enum_blame_owns_smallest.bin
+new file mode 100644
+index 000000000..606a865ef
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/enum_blame_owns_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/enum_blame_suspect_full.bin b/temper/crates/temper-protocol-store/golden/enum_blame_suspect_full.bin
+new file mode 100644
+index 000000000..7690dcb4e
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/enum_blame_suspect_full.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/enum_blame_suspect_smallest.bin b/temper/crates/temper-protocol-store/golden/enum_blame_suspect_smallest.bin
+new file mode 100644
+index 000000000..6b0d5f685
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/enum_blame_suspect_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/enum_change_live_cancelling_gates_full.bin b/temper/crates/temper-protocol-store/golden/enum_change_live_cancelling_gates_full.bin
+index ad2d4b08f..390aa06bb 100644
+--- a/temper/crates/temper-protocol-store/golden/enum_change_live_cancelling_gates_full.bin
++++ b/temper/crates/temper-protocol-store/golden/enum_change_live_cancelling_gates_full.bin
+@@ -1 +1 @@
+-ееееееееееееееееееееееееееееееее
+\ No newline at end of file
++ееееееееееееееееееееееееееееееее
+\ No newline at end of file
+diff --git a/temper/crates/temper-protocol-store/golden/enum_change_live_cancelling_gates_smallest.bin b/temper/crates/temper-protocol-store/golden/enum_change_live_cancelling_gates_smallest.bin
+index 90673387d..bd30c52f8 100644
+Binary files a/temper/crates/temper-protocol-store/golden/enum_change_live_cancelling_gates_smallest.bin and b/temper/crates/temper-protocol-store/golden/enum_change_live_cancelling_gates_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/enum_change_live_cleared_full.bin b/temper/crates/temper-protocol-store/golden/enum_change_live_cleared_full.bin
+new file mode 100644
+index 000000000..ad2d4b08f
+--- /dev/null
++++ b/temper/crates/temper-protocol-store/golden/enum_change_live_cleared_full.bin
+@@ -0,0 +1 @@
++ееееееееееееееееееееееееееееееее
+\ No newline at end of file
+diff --git a/temper/crates/temper-protocol-store/golden/enum_change_live_cleared_smallest.bin b/temper/crates/temper-protocol-store/golden/enum_change_live_cleared_smallest.bin
+new file mode 100644
+index 000000000..90673387d
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/enum_change_live_cleared_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/enum_change_live_ended_full.bin b/temper/crates/temper-protocol-store/golden/enum_change_live_ended_full.bin
+index 67c329761..c30d0581b 100644
+--- a/temper/crates/temper-protocol-store/golden/enum_change_live_ended_full.bin
++++ b/temper/crates/temper-protocol-store/golden/enum_change_live_ended_full.bin
+@@ -1 +1 @@
+-
+\ No newline at end of file
++
+\ No newline at end of file
+diff --git a/temper/crates/temper-protocol-store/golden/enum_change_live_ended_smallest.bin b/temper/crates/temper-protocol-store/golden/enum_change_live_ended_smallest.bin
+index 67c329761..c30d0581b 100644
+--- a/temper/crates/temper-protocol-store/golden/enum_change_live_ended_smallest.bin
++++ b/temper/crates/temper-protocol-store/golden/enum_change_live_ended_smallest.bin
+@@ -1 +1 @@
+-
+\ No newline at end of file
++
+\ No newline at end of file
+diff --git a/temper/crates/temper-protocol-store/golden/enum_change_live_preparing_full.bin b/temper/crates/temper-protocol-store/golden/enum_change_live_preparing_full.bin
+index b51da55d6..34cd5218a 100644
+--- a/temper/crates/temper-protocol-store/golden/enum_change_live_preparing_full.bin
++++ b/temper/crates/temper-protocol-store/golden/enum_change_live_preparing_full.bin
+@@ -1 +1 @@
+-ееееееееееееееееееееееееееееееееееееееееееееееееееееееееееееееее        
+\ No newline at end of file
++ееееееееееееееееееееееееееееееееееееееееееееееееееееееееееееееее        
+\ No newline at end of file
+diff --git a/temper/crates/temper-protocol-store/golden/enum_change_live_preparing_smallest.bin b/temper/crates/temper-protocol-store/golden/enum_change_live_preparing_smallest.bin
+index 512cb0673..35741284f 100644
+Binary files a/temper/crates/temper-protocol-store/golden/enum_change_live_preparing_smallest.bin and b/temper/crates/temper-protocol-store/golden/enum_change_live_preparing_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/enum_change_live_ready_full.bin b/temper/crates/temper-protocol-store/golden/enum_change_live_ready_full.bin
+index ee612048e..151c8aa72 100644
+--- a/temper/crates/temper-protocol-store/golden/enum_change_live_ready_full.bin
++++ b/temper/crates/temper-protocol-store/golden/enum_change_live_ready_full.bin
+@@ -1 +1 @@
+-ееееееееееееееееееееееееееееееее        
+\ No newline at end of file
++ееееееееееееееееееееееееееееееее        
+\ No newline at end of file
+diff --git a/temper/crates/temper-protocol-store/golden/enum_change_live_ready_smallest.bin b/temper/crates/temper-protocol-store/golden/enum_change_live_ready_smallest.bin
+index f86ca1fd6..2009db30c 100644
+Binary files a/temper/crates/temper-protocol-store/golden/enum_change_live_ready_smallest.bin and b/temper/crates/temper-protocol-store/golden/enum_change_live_ready_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/enum_change_live_red_full.bin b/temper/crates/temper-protocol-store/golden/enum_change_live_red_full.bin
+new file mode 100644
+index 000000000..3d22d5b12
+--- /dev/null
++++ b/temper/crates/temper-protocol-store/golden/enum_change_live_red_full.bin
+@@ -0,0 +1 @@
++ееееееееееееееееееееееееееееееее
+\ No newline at end of file
+diff --git a/temper/crates/temper-protocol-store/golden/enum_change_live_red_smallest.bin b/temper/crates/temper-protocol-store/golden/enum_change_live_red_smallest.bin
+new file mode 100644
+index 000000000..7637630bf
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/enum_change_live_red_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/enum_failures_many_full.bin b/temper/crates/temper-protocol-store/golden/enum_failures_many_full.bin
+new file mode 100644
+index 000000000..6b2aaa764
+--- /dev/null
++++ b/temper/crates/temper-protocol-store/golden/enum_failures_many_full.bin
+@@ -0,0 +1 @@
++
+\ No newline at end of file
+diff --git a/temper/crates/temper-protocol-store/golden/enum_failures_many_smallest.bin b/temper/crates/temper-protocol-store/golden/enum_failures_many_smallest.bin
+new file mode 100644
+index 000000000..6b2aaa764
+--- /dev/null
++++ b/temper/crates/temper-protocol-store/golden/enum_failures_many_smallest.bin
+@@ -0,0 +1 @@
++
+\ No newline at end of file
+diff --git a/temper/crates/temper-protocol-store/golden/enum_failures_tests_full.bin b/temper/crates/temper-protocol-store/golden/enum_failures_tests_full.bin
+new file mode 100644
+index 000000000..cadbaa89a
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/enum_failures_tests_full.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/enum_failures_tests_smallest.bin b/temper/crates/temper-protocol-store/golden/enum_failures_tests_smallest.bin
+new file mode 100644
+index 000000000..40b450dd9
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/enum_failures_tests_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/enum_logged_verdict_cleared_full.bin b/temper/crates/temper-protocol-store/golden/enum_logged_verdict_cleared_full.bin
+new file mode 100644
+index 000000000..6b2aaa764
+--- /dev/null
++++ b/temper/crates/temper-protocol-store/golden/enum_logged_verdict_cleared_full.bin
+@@ -0,0 +1 @@
++
+\ No newline at end of file
+diff --git a/temper/crates/temper-protocol-store/golden/enum_logged_verdict_cleared_smallest.bin b/temper/crates/temper-protocol-store/golden/enum_logged_verdict_cleared_smallest.bin
+new file mode 100644
+index 000000000..6b2aaa764
+--- /dev/null
++++ b/temper/crates/temper-protocol-store/golden/enum_logged_verdict_cleared_smallest.bin
+@@ -0,0 +1 @@
++
+\ No newline at end of file
+diff --git a/temper/crates/temper-protocol-store/golden/enum_logged_verdict_red_full.bin b/temper/crates/temper-protocol-store/golden/enum_logged_verdict_red_full.bin
+new file mode 100644
+index 000000000..a4923380a
+--- /dev/null
++++ b/temper/crates/temper-protocol-store/golden/enum_logged_verdict_red_full.bin
+@@ -0,0 +1 @@
++    
+\ No newline at end of file
+diff --git a/temper/crates/temper-protocol-store/golden/enum_logged_verdict_red_smallest.bin b/temper/crates/temper-protocol-store/golden/enum_logged_verdict_red_smallest.bin
+new file mode 100644
+index 000000000..5407bf3dd
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/enum_logged_verdict_red_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/enum_logged_verdict_verifying_full.bin b/temper/crates/temper-protocol-store/golden/enum_logged_verdict_verifying_full.bin
+new file mode 100644
+index 000000000..f76dd238a
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/enum_logged_verdict_verifying_full.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/enum_logged_verdict_verifying_smallest.bin b/temper/crates/temper-protocol-store/golden/enum_logged_verdict_verifying_smallest.bin
+new file mode 100644
+index 000000000..f76dd238a
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/enum_logged_verdict_verifying_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/enum_tier_branch_absent_full.bin b/temper/crates/temper-protocol-store/golden/enum_tier_branch_absent_full.bin
+new file mode 100644
+index 000000000..f76dd238a
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/enum_tier_branch_absent_full.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/enum_tier_branch_absent_smallest.bin b/temper/crates/temper-protocol-store/golden/enum_tier_branch_absent_smallest.bin
+new file mode 100644
+index 000000000..f76dd238a
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/enum_tier_branch_absent_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/enum_tier_branch_made_full.bin b/temper/crates/temper-protocol-store/golden/enum_tier_branch_made_full.bin
+new file mode 100644
+index 000000000..25cb955ba
+--- /dev/null
++++ b/temper/crates/temper-protocol-store/golden/enum_tier_branch_made_full.bin
+@@ -0,0 +1 @@
++
+\ No newline at end of file
+diff --git a/temper/crates/temper-protocol-store/golden/enum_tier_branch_made_smallest.bin b/temper/crates/temper-protocol-store/golden/enum_tier_branch_made_smallest.bin
+new file mode 100644
+index 000000000..25cb955ba
+--- /dev/null
++++ b/temper/crates/temper-protocol-store/golden/enum_tier_branch_made_smallest.bin
+@@ -0,0 +1 @@
++
+\ No newline at end of file
+diff --git a/temper/crates/temper-protocol-store/golden/enum_tier_branch_pending_full.bin b/temper/crates/temper-protocol-store/golden/enum_tier_branch_pending_full.bin
+new file mode 100644
+index 000000000..852cab0a8
+--- /dev/null
++++ b/temper/crates/temper-protocol-store/golden/enum_tier_branch_pending_full.bin
+@@ -0,0 +1 @@
++        
+\ No newline at end of file
+diff --git a/temper/crates/temper-protocol-store/golden/enum_tier_branch_pending_smallest.bin b/temper/crates/temper-protocol-store/golden/enum_tier_branch_pending_smallest.bin
+new file mode 100644
+index 000000000..22fd28d4e
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/enum_tier_branch_pending_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/enum_tier_part_probe_full.bin b/temper/crates/temper-protocol-store/golden/enum_tier_part_probe_full.bin
+new file mode 100644
+index 000000000..03c931121
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/enum_tier_part_probe_full.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/enum_tier_part_probe_smallest.bin b/temper/crates/temper-protocol-store/golden/enum_tier_part_probe_smallest.bin
+new file mode 100644
+index 000000000..75013c277
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/enum_tier_part_probe_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/enum_tier_part_rerun_full.bin b/temper/crates/temper-protocol-store/golden/enum_tier_part_rerun_full.bin
+new file mode 100644
+index 000000000..9649445bc
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/enum_tier_part_rerun_full.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/enum_tier_part_rerun_smallest.bin b/temper/crates/temper-protocol-store/golden/enum_tier_part_rerun_smallest.bin
+new file mode 100644
+index 000000000..51d72fb29
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/enum_tier_part_rerun_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/enum_tier_part_whole_full.bin b/temper/crates/temper-protocol-store/golden/enum_tier_part_whole_full.bin
+new file mode 100644
+index 000000000..f76dd238a
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/enum_tier_part_whole_full.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/enum_tier_part_whole_smallest.bin b/temper/crates/temper-protocol-store/golden/enum_tier_part_whole_smallest.bin
+new file mode 100644
+index 000000000..f76dd238a
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/enum_tier_part_whole_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/enum_tier_selection_all_full.bin b/temper/crates/temper-protocol-store/golden/enum_tier_selection_all_full.bin
+new file mode 100644
+index 000000000..6b2aaa764
+--- /dev/null
++++ b/temper/crates/temper-protocol-store/golden/enum_tier_selection_all_full.bin
+@@ -0,0 +1 @@
++
+\ No newline at end of file
+diff --git a/temper/crates/temper-protocol-store/golden/enum_tier_selection_all_smallest.bin b/temper/crates/temper-protocol-store/golden/enum_tier_selection_all_smallest.bin
+new file mode 100644
+index 000000000..6b2aaa764
+--- /dev/null
++++ b/temper/crates/temper-protocol-store/golden/enum_tier_selection_all_smallest.bin
+@@ -0,0 +1 @@
++
+\ No newline at end of file
+diff --git a/temper/crates/temper-protocol-store/golden/enum_tier_selection_tests_full.bin b/temper/crates/temper-protocol-store/golden/enum_tier_selection_tests_full.bin
+new file mode 100644
+index 000000000..cadbaa89a
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/enum_tier_selection_tests_full.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/enum_tier_selection_tests_smallest.bin b/temper/crates/temper-protocol-store/golden/enum_tier_selection_tests_smallest.bin
+new file mode 100644
+index 000000000..40b450dd9
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/enum_tier_selection_tests_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/enum_value_landing_log_full.bin b/temper/crates/temper-protocol-store/golden/enum_value_landing_log_full.bin
+new file mode 100644
+index 000000000..fdaa7432d
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/enum_value_landing_log_full.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/enum_value_landing_log_smallest.bin b/temper/crates/temper-protocol-store/golden/enum_value_landing_log_smallest.bin
+new file mode 100644
+index 000000000..7b2997580
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/enum_value_landing_log_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/enum_value_receipt_full.bin b/temper/crates/temper-protocol-store/golden/enum_value_receipt_full.bin
+index a29801e21..0986cee57 100644
+Binary files a/temper/crates/temper-protocol-store/golden/enum_value_receipt_full.bin and b/temper/crates/temper-protocol-store/golden/enum_value_receipt_full.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/enum_value_receipt_smallest.bin b/temper/crates/temper-protocol-store/golden/enum_value_receipt_smallest.bin
+index 1eedc1495..d3e6fe6c6 100644
+Binary files a/temper/crates/temper-protocol-store/golden/enum_value_receipt_smallest.bin and b/temper/crates/temper-protocol-store/golden/enum_value_receipt_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/enum_value_tier_full.bin b/temper/crates/temper-protocol-store/golden/enum_value_tier_full.bin
+new file mode 100644
+index 000000000..dd12aca47
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/enum_value_tier_full.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/enum_value_tier_smallest.bin b/temper/crates/temper-protocol-store/golden/enum_value_tier_smallest.bin
+new file mode 100644
+index 000000000..c1b072972
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/enum_value_tier_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/enum_value_verification_full.bin b/temper/crates/temper-protocol-store/golden/enum_value_verification_full.bin
+new file mode 100644
+index 000000000..cc25398e9
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/enum_value_verification_full.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/enum_value_verification_smallest.bin b/temper/crates/temper-protocol-store/golden/enum_value_verification_smallest.bin
+new file mode 100644
+index 000000000..c4624e395
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/enum_value_verification_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_blamed_failures_full.bin b/temper/crates/temper-protocol-store/golden/record_blamed_failures_full.bin
+new file mode 100644
+index 000000000..cadbaa89a
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/record_blamed_failures_full.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_blamed_failures_smallest.bin b/temper/crates/temper-protocol-store/golden/record_blamed_failures_smallest.bin
+new file mode 100644
+index 000000000..40b450dd9
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/record_blamed_failures_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_failed_tests_full.bin b/temper/crates/temper-protocol-store/golden/record_failed_tests_full.bin
+new file mode 100644
+index 000000000..e3fd456c5
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/record_failed_tests_full.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_failed_tests_smallest.bin b/temper/crates/temper-protocol-store/golden/record_failed_tests_smallest.bin
+new file mode 100644
+index 000000000..593f4708d
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/record_failed_tests_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_failing_test_full.bin b/temper/crates/temper-protocol-store/golden/record_failing_test_full.bin
+new file mode 100644
+index 000000000..2d7f3dc08
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/record_failing_test_full.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_failing_test_smallest.bin b/temper/crates/temper-protocol-store/golden/record_failing_test_smallest.bin
+new file mode 100644
+index 000000000..593f4708d
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/record_failing_test_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_landing_log_full.bin b/temper/crates/temper-protocol-store/golden/record_landing_log_full.bin
+new file mode 100644
+index 000000000..e05e839b2
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/record_landing_log_full.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_landing_log_smallest.bin b/temper/crates/temper-protocol-store/golden/record_landing_log_smallest.bin
+new file mode 100644
+index 000000000..cb43b5ce1
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/record_landing_log_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_logged_full.bin b/temper/crates/temper-protocol-store/golden/record_logged_full.bin
+new file mode 100644
+index 000000000..ae54e00c6
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/record_logged_full.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_logged_red_full.bin b/temper/crates/temper-protocol-store/golden/record_logged_red_full.bin
+new file mode 100644
+index 000000000..2321334cd
+--- /dev/null
++++ b/temper/crates/temper-protocol-store/golden/record_logged_red_full.bin
+@@ -0,0 +1 @@
++    
+\ No newline at end of file
+diff --git a/temper/crates/temper-protocol-store/golden/record_logged_red_smallest.bin b/temper/crates/temper-protocol-store/golden/record_logged_red_smallest.bin
+new file mode 100644
+index 000000000..f76dd238a
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/record_logged_red_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_logged_smallest.bin b/temper/crates/temper-protocol-store/golden/record_logged_smallest.bin
+new file mode 100644
+index 000000000..2a560968c
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/record_logged_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_mark_full.bin b/temper/crates/temper-protocol-store/golden/record_mark_full.bin
+new file mode 100644
+index 000000000..f7e9e1118
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/record_mark_full.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_mark_smallest.bin b/temper/crates/temper-protocol-store/golden/record_mark_smallest.bin
+new file mode 100644
+index 000000000..40b450dd9
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/record_mark_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_receipt_full.bin b/temper/crates/temper-protocol-store/golden/record_receipt_full.bin
+index 26ed242c7..f0891864d 100644
+Binary files a/temper/crates/temper-protocol-store/golden/record_receipt_full.bin and b/temper/crates/temper-protocol-store/golden/record_receipt_full.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_receipt_row_full.bin b/temper/crates/temper-protocol-store/golden/record_receipt_row_full.bin
+index fff4cfd6d..cbb6bcf08 100644
+Binary files a/temper/crates/temper-protocol-store/golden/record_receipt_row_full.bin and b/temper/crates/temper-protocol-store/golden/record_receipt_row_full.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_receipt_row_smallest.bin b/temper/crates/temper-protocol-store/golden/record_receipt_row_smallest.bin
+index 5762fdd10..adcdbf36b 100644
+Binary files a/temper/crates/temper-protocol-store/golden/record_receipt_row_smallest.bin and b/temper/crates/temper-protocol-store/golden/record_receipt_row_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_receipt_smallest.bin b/temper/crates/temper-protocol-store/golden/record_receipt_smallest.bin
+index a98577ba1..78f259baa 100644
+Binary files a/temper/crates/temper-protocol-store/golden/record_receipt_smallest.bin and b/temper/crates/temper-protocol-store/golden/record_receipt_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_tier_finding_full.bin b/temper/crates/temper-protocol-store/golden/record_tier_finding_full.bin
+new file mode 100644
+index 000000000..d57e52991
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/record_tier_finding_full.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_tier_finding_smallest.bin b/temper/crates/temper-protocol-store/golden/record_tier_finding_smallest.bin
+new file mode 100644
+index 000000000..e91e775a1
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/record_tier_finding_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_tier_flake_full.bin b/temper/crates/temper-protocol-store/golden/record_tier_flake_full.bin
+new file mode 100644
+index 000000000..e1e78eb82
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/record_tier_flake_full.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_tier_flake_smallest.bin b/temper/crates/temper-protocol-store/golden/record_tier_flake_smallest.bin
+new file mode 100644
+index 000000000..1b1cb4d44
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/record_tier_flake_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_tier_flight_full.bin b/temper/crates/temper-protocol-store/golden/record_tier_flight_full.bin
+new file mode 100644
+index 000000000..aaf7ec250
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/record_tier_flight_full.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_tier_flight_smallest.bin b/temper/crates/temper-protocol-store/golden/record_tier_flight_smallest.bin
+new file mode 100644
+index 000000000..969007c54
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/record_tier_flight_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_tier_judged_full.bin b/temper/crates/temper-protocol-store/golden/record_tier_judged_full.bin
+new file mode 100644
+index 000000000..8a057f900
+--- /dev/null
++++ b/temper/crates/temper-protocol-store/golden/record_tier_judged_full.bin
+@@ -0,0 +1 @@
++ееееееееееееееееееееееееееееееееееееееееееееееееееееееееееееееее
+\ No newline at end of file
+diff --git a/temper/crates/temper-protocol-store/golden/record_tier_judged_smallest.bin b/temper/crates/temper-protocol-store/golden/record_tier_judged_smallest.bin
+new file mode 100644
+index 000000000..9017fd98b
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/record_tier_judged_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_tier_judgement_full.bin b/temper/crates/temper-protocol-store/golden/record_tier_judgement_full.bin
+new file mode 100644
+index 000000000..aa10183cf
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/record_tier_judgement_full.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_tier_judgement_smallest.bin b/temper/crates/temper-protocol-store/golden/record_tier_judgement_smallest.bin
+new file mode 100644
+index 000000000..1cc80899a
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/record_tier_judgement_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_tier_landing_full.bin b/temper/crates/temper-protocol-store/golden/record_tier_landing_full.bin
+new file mode 100644
+index 000000000..8a057f900
+--- /dev/null
++++ b/temper/crates/temper-protocol-store/golden/record_tier_landing_full.bin
+@@ -0,0 +1 @@
++ееееееееееееееееееееееееееееееееееееееееееееееееееееееееееееееее
+\ No newline at end of file
+diff --git a/temper/crates/temper-protocol-store/golden/record_tier_landing_smallest.bin b/temper/crates/temper-protocol-store/golden/record_tier_landing_smallest.bin
+new file mode 100644
+index 000000000..9017fd98b
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/record_tier_landing_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_tier_pending_full.bin b/temper/crates/temper-protocol-store/golden/record_tier_pending_full.bin
+new file mode 100644
+index 000000000..b7fa5b079
+--- /dev/null
++++ b/temper/crates/temper-protocol-store/golden/record_tier_pending_full.bin
+@@ -0,0 +1 @@
++ееееееееееееееееееееееееееееееееееееееееееееееееееееееееееееееее
+\ No newline at end of file
+diff --git a/temper/crates/temper-protocol-store/golden/record_tier_pending_smallest.bin b/temper/crates/temper-protocol-store/golden/record_tier_pending_smallest.bin
+new file mode 100644
+index 000000000..ed24586ec
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/record_tier_pending_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_tier_probe_full.bin b/temper/crates/temper-protocol-store/golden/record_tier_probe_full.bin
+new file mode 100644
+index 000000000..a9a34adfb
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/record_tier_probe_full.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_tier_probe_smallest.bin b/temper/crates/temper-protocol-store/golden/record_tier_probe_smallest.bin
+new file mode 100644
+index 000000000..5984bf61e
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/record_tier_probe_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_tier_record_full.bin b/temper/crates/temper-protocol-store/golden/record_tier_record_full.bin
+new file mode 100644
+index 000000000..0ea29b3e4
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/record_tier_record_full.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_tier_record_smallest.bin b/temper/crates/temper-protocol-store/golden/record_tier_record_smallest.bin
+new file mode 100644
+index 000000000..80e37ce29
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/record_tier_record_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_tier_result_full.bin b/temper/crates/temper-protocol-store/golden/record_tier_result_full.bin
+new file mode 100644
+index 000000000..e195c6b40
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/record_tier_result_full.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_tier_result_smallest.bin b/temper/crates/temper-protocol-store/golden/record_tier_result_smallest.bin
+new file mode 100644
+index 000000000..e029ba32d
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/record_tier_result_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_tier_row_full.bin b/temper/crates/temper-protocol-store/golden/record_tier_row_full.bin
+new file mode 100644
+index 000000000..592eecbdf
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/record_tier_row_full.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_tier_row_smallest.bin b/temper/crates/temper-protocol-store/golden/record_tier_row_smallest.bin
+new file mode 100644
+index 000000000..d57d0f62e
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/record_tier_row_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_tier_run_full.bin b/temper/crates/temper-protocol-store/golden/record_tier_run_full.bin
+new file mode 100644
+index 000000000..842d61077
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/record_tier_run_full.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_tier_run_smallest.bin b/temper/crates/temper-protocol-store/golden/record_tier_run_smallest.bin
+new file mode 100644
+index 000000000..6b30e67af
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/record_tier_run_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_tier_tests_full.bin b/temper/crates/temper-protocol-store/golden/record_tier_tests_full.bin
+new file mode 100644
+index 000000000..e3fd456c5
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/record_tier_tests_full.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_tier_tests_smallest.bin b/temper/crates/temper-protocol-store/golden/record_tier_tests_smallest.bin
+new file mode 100644
+index 000000000..593f4708d
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/record_tier_tests_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_tier_verdict_full.bin b/temper/crates/temper-protocol-store/golden/record_tier_verdict_full.bin
+new file mode 100644
+index 000000000..bbe5e274a
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/record_tier_verdict_full.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_tier_verdict_smallest.bin b/temper/crates/temper-protocol-store/golden/record_tier_verdict_smallest.bin
+new file mode 100644
+index 000000000..bc8840b22
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/record_tier_verdict_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_tier_verification_full.bin b/temper/crates/temper-protocol-store/golden/record_tier_verification_full.bin
+new file mode 100644
+index 000000000..a1c62e74f
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/record_tier_verification_full.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_tier_verification_smallest.bin b/temper/crates/temper-protocol-store/golden/record_tier_verification_smallest.bin
+new file mode 100644
+index 000000000..ab2c68467
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/record_tier_verification_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_verification_full.bin b/temper/crates/temper-protocol-store/golden/record_verification_full.bin
+new file mode 100644
+index 000000000..bb3af60a2
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/record_verification_full.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/record_verification_smallest.bin b/temper/crates/temper-protocol-store/golden/record_verification_smallest.bin
+new file mode 100644
+index 000000000..1bb91b845
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/record_verification_smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/tier-fullest.bin b/temper/crates/temper-protocol-store/golden/tier-fullest.bin
+new file mode 100644
+index 000000000..98bd31499
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/tier-fullest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/tier-smallest.bin b/temper/crates/temper-protocol-store/golden/tier-smallest.bin
+new file mode 100644
+index 000000000..2b27f2e64
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/tier-smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/verification-fullest.bin b/temper/crates/temper-protocol-store/golden/verification-fullest.bin
+new file mode 100644
+index 000000000..40bf70b7c
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/verification-fullest.bin differ
+diff --git a/temper/crates/temper-protocol-store/golden/verification-smallest.bin b/temper/crates/temper-protocol-store/golden/verification-smallest.bin
+new file mode 100644
+index 000000000..f7de32055
+Binary files /dev/null and b/temper/crates/temper-protocol-store/golden/verification-smallest.bin differ
+diff --git a/temper/crates/temper-protocol-store/schema/store-v10.schema b/temper/crates/temper-protocol-store/schema/store-v10.schema
+index 362b3ac19..a09d671b6 100644
+--- a/temper/crates/temper-protocol-store/schema/store-v10.schema
++++ b/temper/crates/temper-protocol-store/schema/store-v10.schema
+@@ -169,7 +169,7 @@ record Resolving { requested: bool base: fixed 32 }
+ record Repairing { requested: bool why: Repair }
+ record LandedChange { merge: fixed 32 }
+ record Preparing { from: fixed 32 main: fixed 32 ready_since: u64 }
+-enum ChangeLive { producing: Producing, opening: Producing, recreating: ChangeHead, reopening: Reopening, checking: ChangeHead, gating: Gating, queued: ReadyHead, first: ReadyHead, updating: Updating, resolving: Resolving, repairing: Repairing, landing: ChangeHead, landed: LandedChange, ended, cancelling_gates: ChangeHead, ready: ReadyHead, preparing: Preparing }
++enum ChangeLive { producing: Producing, opening: Producing, recreating: ChangeHead, reopening: Reopening, checking: ChangeHead, gating: Gating, queued: ReadyHead, first: ReadyHead, updating: Updating, resolving: Resolving, repairing: Repairing, landing: ChangeHead, landed: LandedChange, red: LandedChange, cleared: LandedChange, ended, cancelling_gates: ChangeHead, ready: ReadyHead, preparing: Preparing }
+ record ChangeState { live: ChangeLive holds: list 8 ChangeHold }
+ record Gate { number: u64 kind: GateKind blocking: bool freshness: Freshness eager: bool }
+ record GateReport { number: u64 head: fixed 32 status: ChangeStatus }
+@@ -216,6 +216,39 @@ record DemoAct { key: fixed 16 act: DemoActKind }
+ # Family 21: writes with a committed attempt (protocol/store.md, 2).
+ # Key family 20 is reserved for Setting, still design-only. Value tags are codec-local.
+ record Flight { task: u64 entry: u64 }
++# Family 26: verification of one landing (domain/after-landing.md, 10).
++record FailingTest { test_id: bytes 4096 }
++record FailedTests { tests: list 1024 FailingTest }
++enum Failures { tests: FailedTests, many }
++record BlamedFailures { failures: Failures }
++enum Blame { cleared, owns: BlamedFailures, suspect: BlamedFailures }
++record TierVerdict { run: u64 blame: Blame }
++record TierVerification { tier: bytes 32 verdict: option TierVerdict repaired: option fixed 32 }
++record Verification { repository: Repository commit: fixed 32 changes: list 65536 u64 tiers: list 32 TierVerification }
++# Family 27: retained landing history (domain/after-landing.md, 10).
++record LoggedRed { tests: option u32 }
++enum LoggedVerdict { verifying, cleared, red: LoggedRed }
++record Mark { tier: bytes 32 verdict: LoggedVerdict }
++record Logged { commit: fixed 32 seen: u64 changes: list 65536 u64 verdicts: list 32 Mark }
++record LandingLog { repository: Repository landings: list 4096 Logged }
++# Family 25: one tier and its run in flight (domain/after-landing.md, 10).
++record TierJudged { tip: fixed 32 key: fixed 32 }
++record TierFlake { test: bytes 4096 count: u32 }
++record TierLanding { commit: fixed 32 key: fixed 32 }
++record TierTests { tests: list 1024 FailingTest }
++enum TierSelection { tests: TierTests, all }
++record TierFinding { failing: Failures flakes: list 1024 FailingTest blamed: list 257 Blame }
++record TierProbe { landing: u32 tests: TierSelection finding: TierFinding }
++enum TierPart { whole, rerun: TierTests, probe: TierProbe }
++record TierRun { number: u64 tip: fixed 32 key: fixed 32 landings: list 257 TierLanding part: TierPart faults: u32 }
++record TierRecord { sequence: u64 judged: option TierJudged failing: Failures flakes: list 1024 TierFlake run: option TierRun }
++enum TierBranch { absent, pending: Number, made }
++record TierFlight { next: option u64 entry: u64 start: option u64 since: option u64 waiting: bool fault: bool pending: list 65536 JobAttempt }
++record TierJudgement { number: u64 tip: fixed 32 key: fixed 32 finding: TierFinding }
++record ReceiptRun { id: u64 number: u64 url: bytes 2048 }
++record TierResult { verdict: TierJudgement run: ReceiptRun received: bool status: TierBranch }
++record TierPending { commit: fixed 32 key: option Commit }
++record TierRow { repository: Repository tier: bytes 32 record: TierRecord pending: list 257 TierPending baseline: option TierPending task: option u64 branch: TierBranch flight: option TierFlight result: option TierResult }
+ # Families 23 and 24: landing state and receipts (domain/landing.md, 12).
+ record LandingAt { at: u64 }
+ enum LandingPlace { waiting, preparing, proving, proved: LandingAt, turn: LandingAt, landed, cancelled }
+@@ -238,8 +271,7 @@ record LandingRow { landing: LandingState asks: list 64 LandingAskSlot entries:
+ record ReceiptName { name: bytes 32 }
+ enum ReceiptCheck { gate: ReceiptName, tier: ReceiptName }
+ record ReceiptKey { project: u32 repository: Repository check_name: ReceiptCheck key: fixed 32 }
+-record ReceiptRun { id: u64 number: u64 url: bytes 2048 }
+-record Receipt { passed: bool run: ReceiptRun candidate: fixed 32 ended: u64 }
++record Receipt { failures: option Failures passed: bool run: ReceiptRun candidate: fixed 32 ended: u64 }
+ record ReceiptRow { key: ReceiptKey receipt: Receipt }
+-enum Value { call: Call, proposed_effect: ProposedEffect, repository: Adopted, hold: Hold, names: Names, subscription: Subscriber, branch_head: BranchHead, pull_state: PullState, ci: CiState, landed: Landed, entry: EntryRow, client: ClientRow, change: boxed ChangeRow, issue: boxed IssueRow, release: ReleaseRow, application: Application, writer: ForgeWriter, demo: Demo, binding: Binding, demo_act: DemoAct, flight: Flight, landing: LandingRow, receipt: ReceiptRow }
++enum Value { call: Call, proposed_effect: ProposedEffect, repository: Adopted, hold: Hold, names: Names, subscription: Subscriber, branch_head: BranchHead, pull_state: PullState, ci: CiState, landed: Landed, entry: EntryRow, client: ClientRow, change: boxed ChangeRow, issue: boxed IssueRow, release: ReleaseRow, application: Application, writer: ForgeWriter, demo: Demo, binding: Binding, demo_act: DemoAct, flight: Flight, landing: LandingRow, receipt: ReceiptRow, tier: boxed TierRow, verification: Verification, landing_log: LandingLog }
+ versioned record Row { value: Value }
+diff --git a/temper/crates/temper-protocol-store/src/keys.rs b/temper/crates/temper-protocol-store/src/keys.rs
+index d1b692d0a..23bb89e90 100644
+--- a/temper/crates/temper-protocol-store/src/keys.rs
++++ b/temper/crates/temper-protocol-store/src/keys.rs
+@@ -10,6 +10,12 @@ pub const BINDING: u8 = 18;
+ pub const DEMO_ACT: u8 = 19;
+ /// A write with a committed attempt (protocol/store.md, 2).
+ pub const FLIGHT: u8 = 21;
++/// One landing's verification (protocol/store.md, 2; domain/after-landing.md, 10).
++pub const VERIFICATION: u8 = 26;
++/// One repository tier (domain/after-landing.md, 10).
++pub const TIER: u8 = 25;
++/// A repository landing log (domain/after-landing.md, 10).
++pub const LANDING_LOG: u8 = 27;
+ 
+ fn write_name(writer: &mut KeyWriter, name: &forge::Name) {
+     writer.u64(u64::from(name.forge)).u64(u64::from(name.repository));
+@@ -78,9 +84,14 @@ pub fn largest(limits: &forge::Limits) -> Option<u32> {
+ 
+ /// Encode one relative key, or refuse it when it exceeds `limit`.
+ #[must_use]
++#[expect(clippy::too_many_lines, reason = "one exhaustive table encodes every durable key family")]
+ pub fn encode(key: &forge::Key, limit: u32) -> Option<Box<[u8]>> {
+     let mut writer = KeyWriter::new(limit);
+     match key {
++        forge::Key::LandingLog(repository) => {
++            writer.tag(LANDING_LOG);
++            write_repository(&mut writer, *repository);
++        }
+         forge::Key::Landing(task) => {
+             writer.tag(23).u64(*task);
+         }
+@@ -164,6 +175,16 @@ pub fn encode(key: &forge::Key, limit: u32) -> Option<Box<[u8]>> {
+             }
+             writer.tag(BINDING).bytes(address);
+         }
++        forge::Key::Tier { repository, tier } => {
++            writer.tag(TIER);
++            write_repository(&mut writer, *repository);
++            writer.bytes(tier);
++        }
++        forge::Key::Verification { repository, commit } => {
++            writer.tag(VERIFICATION);
++            write_repository(&mut writer, *repository);
++            writer.bytes(commit);
++        }
+         forge::Key::Flight { task, entry } => {
+             writer.tag(FLIGHT).u64(*task).u64(*entry);
+         }
+@@ -207,6 +228,23 @@ pub fn decode(bytes: &[u8], limits: &forge::Limits) -> Option<forge::Key> {
+         14 => forge::Key::Release(reader.u64()?),
+         15 => forge::Key::Application(reader.u64()?),
+         16 => forge::Key::Writer(u16::try_from(reader.u64()?).ok()?),
++        TIER => {
++            let repository = read_repository(&mut reader)?;
++            let tier = reader.bytes()?;
++            if tier.is_empty() || tier.len() > forge::CHECK_NAME_BYTES {
++                return None;
++            }
++            for byte in &tier {
++                if !byte.is_ascii_alphanumeric() && *byte != b'-' && *byte != b'_' {
++                    return None;
++                }
++            }
++            forge::Key::Tier { repository, tier }
++        }
++        LANDING_LOG => forge::Key::LandingLog(read_repository(&mut reader)?),
++        VERIFICATION => {
++            forge::Key::Verification { repository: read_repository(&mut reader)?, commit: read_commit(&mut reader)? }
++        }
+         FLIGHT => forge::Key::Flight { task: reader.u64()?, entry: reader.u64()? },
+         DEMO_ACT => forge::Key::DemoAct(reader.bytes()?.as_ref().try_into().ok()?),
+         17 => forge::Key::Demo(u16::try_from(reader.u64()?).ok()?),
+diff --git a/temper/crates/temper-protocol-store/src/records.rs b/temper/crates/temper-protocol-store/src/records.rs
+index 4b329c683..bd4758b19 100644
+--- a/temper/crates/temper-protocol-store/src/records.rs
++++ b/temper/crates/temper-protocol-store/src/records.rs
+@@ -8,6 +8,9 @@ mod api;
+ mod application;
+ mod change;
+ mod client;
++mod log;
++mod tiers;
++mod verification;
+ #[cfg(test)]
+ pub(crate) use api::encode_error;
+ mod entries;
+@@ -42,6 +45,9 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
+             w::Binding::new(&w::CEILINGS, w::BindingParts { address: address.clone(), subject: subject.clone() })
+                 .expect(FITS),
+         ),
++        d::Stored::LandingLog(row) => w::Value::LandingLog(log::encode(row)),
++        d::Stored::Tier(row) => w::Value::Tier(Box::new(tiers::encode(row))),
++        d::Stored::Verification(row) => w::Value::Verification(verification::encode(row)),
+         d::Stored::Flight { task, entry } => {
+             w::Value::Flight(w::Flight::new(&w::CEILINGS, w::FlightParts { task: *task, entry: *entry }).expect(FITS))
+         }
+@@ -94,7 +100,7 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
+     let row = w::Row::decode(bounds.limits(), &mut Reader::new(bytes)).or(Err(Undecodable))?;
+     Ok(match row.into_parts().value {
+         w::Value::Landing(row) => d::Stored::Landing(landing::decode(row)),
+-        w::Value::Receipt(row) => landing::decode_receipt(row),
++        w::Value::Receipt(row) => landing::decode_receipt(row)?,
+         w::Value::Application(value) => application::decode(value, bounds)?,
+         w::Value::Issue(value) => d::Stored::Issue(issues::decode(*value)),
+         w::Value::Change(value) => d::Stored::Change(change::decode_change_row(*value)),
+@@ -105,6 +111,9 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
+             }
+             d::Stored::Binding { address, subject }
+         }
++        w::Value::LandingLog(row) => d::Stored::LandingLog(log::decode(row)?),
++        w::Value::Tier(row) => d::Stored::Tier(tiers::decode(*row)?),
++        w::Value::Verification(row) => d::Stored::Verification(verification::decode(row)?),
+         w::Value::Flight(row) => {
+             let w::FlightParts { task, entry } = row.into_parts();
+             d::Stored::Flight { task, entry }
+@@ -181,6 +190,24 @@ pub(crate) fn limits(forge: &d::Limits) -> Option<w::Limits> {
+         receipt_name_name: 32,
+         receipt_run_url: 2048,
+         effect_account_words: temper_engine_domain_forge::EFFECT_ACCOUNT_BYTES,
++        tier_flight_pending: forge.client.rows,
++        tier_row_tier: u32::try_from(d::CHECK_NAME_BYTES).ok()?,
++        tier_row_pending: forge.changes.checked_mul(2)?.checked_add(1)?,
++        tier_run_landings: forge.changes.checked_mul(2)?.checked_add(1)?,
++        tier_finding_blamed: forge.changes.checked_mul(2)?.checked_add(1)?,
++        tier_finding_flakes: forge.failing_tests,
++        tier_record_flakes: forge.failing_tests,
++        tier_flake_test: forge.test_id_bytes,
++        tier_tests_tests: forge.failing_tests,
++        landing_log_landings: forge.landings_kept,
++        logged_changes: forge.changes,
++        logged_verdicts: forge.tiers,
++        mark_tier: u32::try_from(d::CHECK_NAME_BYTES).ok()?,
++        verification_changes: forge.changes,
++        verification_tiers: forge.tiers,
++        tier_verification_tier: u32::try_from(d::CHECK_NAME_BYTES).ok()?,
++        failed_tests_tests: forge.failing_tests,
++        failing_test_test_id: forge.test_id_bytes,
+         answer_name_name: forge.client.answer_bytes,
+         binding_address: 254,
+         binding_subject: 255,
+diff --git a/temper/crates/temper-protocol-store/src/records/change.rs b/temper/crates/temper-protocol-store/src/records/change.rs
+index ed1a750ae..14a3177ff 100644
+--- a/temper/crates/temper-protocol-store/src/records/change.rs
++++ b/temper/crates/temper-protocol-store/src/records/change.rs
+@@ -231,6 +231,12 @@ fn encode_live(value: &d::State) -> w::ChangeLive {
+         d::State::Landing { head } => {
+             w::ChangeLive::Landing(w::ChangeHead::new(&w::CEILINGS, w::ChangeHeadParts { head: *head }).expect(FITS))
+         }
++        d::State::Red { merge } => {
++            w::ChangeLive::Red(w::LandedChange::new(&w::CEILINGS, w::LandedChangeParts { merge: *merge }).expect(FITS))
++        }
++        d::State::Cleared { merge } => w::ChangeLive::Cleared(
++            w::LandedChange::new(&w::CEILINGS, w::LandedChangeParts { merge: *merge }).expect(FITS),
++        ),
+         d::State::Landed { merge } => w::ChangeLive::Landed(
+             w::LandedChange::new(&w::CEILINGS, w::LandedChangeParts { merge: *merge }).expect(FITS),
+         ),
+@@ -300,6 +306,8 @@ fn decode_live(value: w::ChangeLive) -> d::State {
+             let w::ChangeHeadParts { head } = value.into_parts();
+             d::State::Landing { head }
+         }
++        w::ChangeLive::Red(value) => d::State::Red { merge: value.into_parts().merge },
++        w::ChangeLive::Cleared(value) => d::State::Cleared { merge: value.into_parts().merge },
+         w::ChangeLive::Landed(value) => {
+             let w::LandedChangeParts { merge } = value.into_parts();
+             d::State::Landed { merge }
+diff --git a/temper/crates/temper-protocol-store/src/records/landing.rs b/temper/crates/temper-protocol-store/src/records/landing.rs
+index ea1f93624..ff588449b 100644
+--- a/temper/crates/temper-protocol-store/src/records/landing.rs
++++ b/temper/crates/temper-protocol-store/src/records/landing.rs
+@@ -289,6 +289,7 @@ pub(super) fn decode(row: w::LandingRow) -> top::LandingRow {
+         entries: decoded_entries.into_boxed(),
+     }
+ }
++#[expect(clippy::manual_map, reason = "the foundation uses explicit options without callbacks")]
+ pub(super) fn encode_receipt(key: &top::ReceiptKey, receipt: &top::Receipt) -> w::ReceiptRow {
+     let (name, tier) = match &key.check {
+         top::Check::Gate(name) => (name.clone(), false),
+@@ -312,27 +313,40 @@ pub(super) fn encode_receipt(key: &top::ReceiptKey, receipt: &top::Receipt) -> w
+     .expect(FITS);
+     let receipt = w::Receipt::new(
+         &w::CEILINGS,
+-        w::ReceiptParts { passed: receipt.passed, run, candidate: receipt.candidate, ended: receipt.ended.as_nanos() },
++        w::ReceiptParts {
++            failures: match &receipt.failures {
++                Some(f) => Some(super::verification::encode_failures(f)),
++                None => None,
++            },
++            passed: receipt.passed,
++            run,
++            candidate: receipt.candidate,
++            ended: receipt.ended.as_nanos(),
++        },
+     )
+     .expect(FITS);
+     w::ReceiptRow::new(&w::CEILINGS, w::ReceiptRowParts { key, receipt }).expect(FITS)
+ }
+-pub(super) fn decode_receipt(row: w::ReceiptRow) -> top::Stored {
++pub(super) fn decode_receipt(row: w::ReceiptRow) -> Result<top::Stored, super::Undecodable> {
+     let w::ReceiptRowParts { key, receipt } = row.into_parts();
+     let w::ReceiptKeyParts { project, repository, check_name, key } = key.into_parts();
+     let check = match check_name {
+         w::ReceiptCheck::Gate(name) => top::Check::Gate(name.into_parts().name),
+         w::ReceiptCheck::Tier(name) => top::Check::Tier(name.into_parts().name),
+     };
+-    let w::ReceiptParts { passed, run, candidate, ended } = receipt.into_parts();
++    let w::ReceiptParts { failures, passed, run, candidate, ended } = receipt.into_parts();
+     let w::ReceiptRunParts { id, number, url } = run.into_parts();
+-    top::Stored::Receipt {
++    Ok(top::Stored::Receipt {
+         key: top::ReceiptKey { project, repository: names::decode_repository(repository), check, key },
+         receipt: top::Receipt {
+             passed,
++            failures: match failures {
++                Some(f) => Some(super::verification::decode_failures(f)?),
++                None => None,
++            },
+             run: top::ReceiptRun { id, number, url },
+             candidate,
+             ended: Wall::from_nanos(ended),
+         },
+-    }
++    })
+ }
+diff --git a/temper/crates/temper-protocol-store/src/records/log.rs b/temper/crates/temper-protocol-store/src/records/log.rs
+new file mode 100644
+index 000000000..73db68f18
+--- /dev/null
++++ b/temper/crates/temper-protocol-store/src/records/log.rs
+@@ -0,0 +1,75 @@
++//! Family 27's total translations (protocol/store.md, 2).
++use super::{FITS, names, w};
++use crate::Undecodable;
++use skein_lib::{List, Wall};
++use temper_engine_domain_forge as d;
++
++pub(super) fn encode(row: &d::LandingLog) -> w::LandingLog {
++    let mut landings = List::with_capacity(u32::try_from(row.landings.len()).expect(FITS));
++    for entry in &row.landings {
++        let mut changes = List::with_capacity(u32::try_from(entry.changes.len()).expect(FITS));
++        for change in &entry.changes {
++            changes.push(*change).expect(FITS);
++        }
++        let mut verdicts = List::with_capacity(u32::try_from(entry.verdicts.len()).expect(FITS));
++        for mark in &entry.verdicts {
++            let verdict = match mark.verdict {
++                d::Verdict::Verifying => w::LoggedVerdict::Verifying,
++                d::Verdict::Cleared => w::LoggedVerdict::Cleared,
++                d::Verdict::Red { tests } => {
++                    w::LoggedVerdict::Red(w::LoggedRed::new(&w::CEILINGS, w::LoggedRedParts { tests }).expect(FITS))
++                }
++            };
++            verdicts
++                .push(w::Mark::new(&w::CEILINGS, w::MarkParts { tier: mark.tier.clone(), verdict }).expect(FITS))
++                .expect(FITS);
++        }
++        let seen = entry.seen.as_nanos();
++        landings
++            .push(
++                w::Logged::new(&w::CEILINGS, w::LoggedParts { commit: entry.commit, seen, changes, verdicts })
++                    .expect(FITS),
++            )
++            .expect(FITS);
++    }
++    w::LandingLog::new(
++        &w::CEILINGS,
++        w::LandingLogParts { repository: names::encode_repository(row.repository), landings },
++    )
++    .expect(FITS)
++}
++
++pub(super) fn decode(row: w::LandingLog) -> Result<d::LandingLog, Undecodable> {
++    let w::LandingLogParts { repository, landings } = row.into_parts();
++    let mut decoded = List::with_capacity(landings.len());
++    for entry in landings.into_boxed() {
++        let w::LoggedParts { commit, seen, changes, verdicts } = entry.into_parts();
++        let mut marks = List::with_capacity(verdicts.len());
++        for mark in verdicts.into_boxed() {
++            let w::MarkParts { tier, verdict } = mark.into_parts();
++            if tier.is_empty() {
++                return Err(Undecodable);
++            }
++            for byte in &tier {
++                if !byte.is_ascii_alphanumeric() && *byte != b'-' && *byte != b'_' {
++                    return Err(Undecodable);
++                }
++            }
++            let verdict = match verdict {
++                w::LoggedVerdict::Verifying => d::Verdict::Verifying,
++                w::LoggedVerdict::Cleared => d::Verdict::Cleared,
++                w::LoggedVerdict::Red(red) => d::Verdict::Red { tests: *red.tests() },
++            };
++            marks.push(d::Mark { tier, verdict }).expect(FITS);
++        }
++        decoded
++            .push(d::Logged {
++                commit,
++                seen: Wall::from_nanos(seen),
++                changes: changes.into_boxed(),
++                verdicts: marks.into_boxed(),
++            })
++            .expect(FITS);
++    }
++    Ok(d::LandingLog { repository: names::decode_repository(repository), landings: decoded.into_boxed() })
++}
+diff --git a/temper/crates/temper-protocol-store/src/records/tiers.rs b/temper/crates/temper-protocol-store/src/records/tiers.rs
+new file mode 100644
+index 000000000..724a57905
+--- /dev/null
++++ b/temper/crates/temper-protocol-store/src/records/tiers.rs
+@@ -0,0 +1,439 @@
++//! Family 25's bounded policy record (protocol/store.md, 2).
++use super::{FITS, names, verification, w};
++use crate::Undecodable;
++use alloc::boxed::Box;
++use skein_lib::List;
++use temper_engine_domain_forge as d;
++use temper_engine_domain_forge_tiers as p;
++
++fn encode_tests(tests: &[Box<[u8]>]) -> List<w::FailingTest> {
++    let mut values = List::with_capacity(u32::try_from(tests.len()).expect(FITS));
++    for test in tests {
++        values
++            .push(w::FailingTest::new(&w::CEILINGS, w::FailingTestParts { test_id: test.clone() }).expect(FITS))
++            .expect(FITS);
++    }
++    values
++}
++fn decode_tests(tests: List<w::FailingTest>) -> Result<Box<[Box<[u8]>]>, Undecodable> {
++    let mut values = List::with_capacity(tests.len());
++    for test in tests.into_boxed() {
++        let test = test.into_parts().test_id;
++        if test.is_empty() {
++            return Err(Undecodable);
++        }
++        if let Some(previous) = values.as_slice().last()
++            && previous >= &test
++        {
++            return Err(Undecodable);
++        }
++        values.push(test).expect(FITS);
++    }
++    Ok(values.into_boxed())
++}
++fn encode_landings(landings: &[p::Landing]) -> List<w::TierLanding> {
++    let mut values = List::with_capacity(u32::try_from(landings.len()).expect(FITS));
++    for landing in landings {
++        values
++            .push(
++                w::TierLanding::new(&w::CEILINGS, w::TierLandingParts { commit: landing.commit, key: landing.key })
++                    .expect(FITS),
++            )
++            .expect(FITS);
++    }
++    values
++}
++fn decode_landings(landings: List<w::TierLanding>) -> Box<[p::Landing]> {
++    let mut values = List::with_capacity(landings.len());
++    for landing in landings.into_boxed() {
++        let w::TierLandingParts { commit, key } = landing.into_parts();
++        values.push(p::Landing { commit, key }).expect(FITS);
++    }
++    values.into_boxed()
++}
++#[expect(clippy::manual_map, reason = "step translations use explicit matches")]
++fn encode_pending_landing(landing: &d::TierLanding) -> w::TierPending {
++    let key = match landing.key {
++        Some(commit) => Some(w::Commit::new(&w::CEILINGS, w::CommitParts { commit }).expect(FITS)),
++        None => None,
++    };
++    w::TierPending::new(&w::CEILINGS, w::TierPendingParts { commit: landing.commit, key }).expect(FITS)
++}
++#[expect(clippy::manual_map, reason = "step translations use explicit matches")]
++fn decode_pending_landing(landing: w::TierPending) -> d::TierLanding {
++    let w::TierPendingParts { commit, key } = landing.into_parts();
++    let key = match key {
++        Some(key) => Some(key.into_parts().commit),
++        None => None,
++    };
++    d::TierLanding { commit, key }
++}
++fn encode_pending(landings: &[d::TierLanding]) -> List<w::TierPending> {
++    let mut values = List::with_capacity(u32::try_from(landings.len()).expect(FITS));
++    for landing in landings {
++        values.push(encode_pending_landing(landing)).expect(FITS);
++    }
++    values
++}
++fn decode_pending(landings: List<w::TierPending>) -> Box<[d::TierLanding]> {
++    let mut values = List::with_capacity(landings.len());
++    for landing in landings.into_boxed() {
++        values.push(decode_pending_landing(landing)).expect(FITS);
++    }
++    values.into_boxed()
++}
++fn encode_finding(finding: &p::Finding) -> w::TierFinding {
++    let mut blamed = List::with_capacity(u32::try_from(finding.blamed.len()).expect(FITS));
++    for blame in &finding.blamed {
++        blamed.push(verification::encode_blame(blame)).expect(FITS);
++    }
++    w::TierFinding::new(
++        &w::CEILINGS,
++        w::TierFindingParts {
++            failing: verification::encode_failures(&finding.failing),
++            flakes: encode_tests(&finding.flakes),
++            blamed,
++        },
++    )
++    .expect(FITS)
++}
++fn decode_finding(finding: w::TierFinding) -> Result<p::Finding, Undecodable> {
++    let w::TierFindingParts { failing, flakes, blamed } = finding.into_parts();
++    let mut values = List::with_capacity(blamed.len());
++    for blame in blamed.into_boxed() {
++        values.push(verification::decode_blame(blame)?).expect(FITS);
++    }
++    Ok(p::Finding {
++        failing: verification::decode_failures(failing)?,
++        flakes: decode_tests(flakes)?,
++        blamed: values.into_boxed(),
++    })
++}
++fn encode_run(run: &p::Run) -> w::TierRun {
++    let part = match &run.part {
++        p::Part::Whole => w::TierPart::Whole,
++        p::Part::Rerun { failed } => w::TierPart::Rerun(
++            w::TierTests::new(&w::CEILINGS, w::TierTestsParts { tests: encode_tests(failed) }).expect(FITS),
++        ),
++        p::Part::Probe { landing, tests, finding } => {
++            let tests = match tests {
++                p::Selection::All => w::TierSelection::All,
++                p::Selection::Tests(tests) => w::TierSelection::Tests(
++                    w::TierTests::new(&w::CEILINGS, w::TierTestsParts { tests: encode_tests(tests) }).expect(FITS),
++                ),
++            };
++            w::TierPart::Probe(
++                w::TierProbe::new(
++                    &w::CEILINGS,
++                    w::TierProbeParts { landing: *landing, tests, finding: encode_finding(finding) },
++                )
++                .expect(FITS),
++            )
++        }
++    };
++    w::TierRun::new(
++        &w::CEILINGS,
++        w::TierRunParts {
++            number: run.number,
++            tip: run.tip,
++            key: run.key,
++            landings: encode_landings(&run.landings),
++            part,
++            faults: run.faults,
++        },
++    )
++    .expect(FITS)
++}
++fn decode_run(run: w::TierRun) -> Result<p::Run, Undecodable> {
++    let w::TierRunParts { number, tip, key, landings, part, faults } = run.into_parts();
++    let landings = decode_landings(landings);
++    let part = match part {
++        w::TierPart::Whole => p::Part::Whole,
++        w::TierPart::Rerun(tests) => p::Part::Rerun { failed: decode_tests(tests.into_parts().tests)? },
++        w::TierPart::Probe(probe) => {
++            let w::TierProbeParts { landing, tests, finding } = probe.into_parts();
++            let tests = match tests {
++                w::TierSelection::All => p::Selection::All,
++                w::TierSelection::Tests(tests) => p::Selection::Tests(decode_tests(tests.into_parts().tests)?),
++            };
++            let finding = decode_finding(finding)?;
++            if usize::try_from(landing).or(Err(Undecodable))? >= landings.len()
++                || finding.blamed.len() != landings.len()
++            {
++                return Err(Undecodable);
++            }
++            p::Part::Probe { landing, tests, finding }
++        }
++    };
++    Ok(p::Run { number, tip, key, landings, part, faults })
++}
++#[expect(clippy::manual_map, reason = "step translations use explicit matches")]
++#[expect(clippy::too_many_lines, reason = "one complete durable tier row translation")]
++pub(super) fn encode(row: &d::TierRow) -> w::TierRow {
++    let mut flakes = List::with_capacity(u32::try_from(row.record.flakes.len()).expect(FITS));
++    for flake in &row.record.flakes {
++        flakes
++            .push(
++                w::TierFlake::new(&w::CEILINGS, w::TierFlakeParts { test: flake.test.clone(), count: flake.count })
++                    .expect(FITS),
++            )
++            .expect(FITS);
++    }
++    let judged = match row.record.judged {
++        Some(j) => Some(w::TierJudged::new(&w::CEILINGS, w::TierJudgedParts { tip: j.tip, key: j.key }).expect(FITS)),
++        None => None,
++    };
++    let run = match &row.record.run {
++        Some(run) => Some(encode_run(run)),
++        None => None,
++    };
++    let record = w::TierRecord::new(
++        &w::CEILINGS,
++        w::TierRecordParts {
++            sequence: row.record.sequence,
++            judged,
++            failing: verification::encode_failures(&row.record.failing),
++            flakes,
++            run,
++        },
++    )
++    .expect(FITS);
++    let branch = match row.branch {
++        d::TierBranch::Absent => w::TierBranch::Absent,
++        d::TierBranch::Made => w::TierBranch::Made,
++        d::TierBranch::Pending { entry } => {
++            w::TierBranch::Pending(w::Number::new(&w::CEILINGS, w::NumberParts { number: entry }).expect(FITS))
++        }
++    };
++    let flight = match &row.flight {
++        Some(f) => {
++            let mut pending = List::with_capacity(u32::try_from(f.pending.len()).expect(FITS));
++            for attempt in &f.pending {
++                pending.push(super::answers::encode_job_attempt(attempt)).expect(FITS);
++            }
++            Some(
++                w::TierFlight::new(
++                    &w::CEILINGS,
++                    w::TierFlightParts {
++                        next: match f.next {
++                            Some(at) => Some(at.as_nanos()),
++                            None => None,
++                        },
++                        entry: f.entry,
++                        start: match f.start {
++                            Some(at) => Some(at.as_nanos()),
++                            None => None,
++                        },
++                        since: match f.since {
++                            Some(at) => Some(at.as_nanos()),
++                            None => None,
++                        },
++                        waiting: f.waiting,
++                        fault: f.fault,
++                        pending,
++                    },
++                )
++                .expect(FITS),
++            )
++        }
++        None => None,
++    };
++    let result = match &row.result {
++        Some(r) => Some(
++            w::TierResult::new(
++                &w::CEILINGS,
++                w::TierResultParts {
++                    verdict: w::TierJudgement::new(
++                        &w::CEILINGS,
++                        w::TierJudgementParts {
++                            number: r.verdict.number,
++                            tip: r.verdict.tip,
++                            key: r.verdict.key,
++                            finding: encode_finding(&p::Finding {
++                                failing: r.verdict.failing.clone(),
++                                flakes: r.verdict.flakes.clone(),
++                                blamed: r.verdict.landings.clone(),
++                            }),
++                        },
++                    )
++                    .expect(FITS),
++                    run: w::ReceiptRun::new(
++                        &w::CEILINGS,
++                        w::ReceiptRunParts { id: r.run.id, number: r.run.number, url: r.run.url.clone() },
++                    )
++                    .expect(FITS),
++                    received: r.received,
++                    status: encode_branch(r.status),
++                },
++            )
++            .expect(FITS),
++        ),
++        None => None,
++    };
++    w::TierRow::new(
++        &w::CEILINGS,
++        w::TierRowParts {
++            repository: names::encode_repository(row.repository),
++            tier: row.tier.clone(),
++            record,
++            pending: encode_pending(&row.pending),
++            baseline: match &row.baseline {
++                Some(baseline) => Some(encode_pending_landing(baseline)),
++                None => None,
++            },
++            task: row.task,
++            branch,
++            flight,
++            result,
++        },
++    )
++    .expect(FITS)
++}
++#[expect(
++    clippy::too_many_lines,
++    clippy::manual_map,
++    reason = "one durable row translation validates the related operation states without callbacks"
++)]
++pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
++    let w::TierRowParts { repository, tier, record, pending, baseline, task, branch, flight, result } =
++        row.into_parts();
++    if tier.is_empty() {
++        return Err(Undecodable);
++    }
++    for byte in &tier {
++        if !byte.is_ascii_alphanumeric() && *byte != b'-' && *byte != b'_' {
++            return Err(Undecodable);
++        }
++    }
++    let w::TierRecordParts { sequence, judged, failing, flakes, run } = record.into_parts();
++    let judged = match judged {
++        Some(j) => {
++            let w::TierJudgedParts { tip, key } = j.into_parts();
++            Some(p::Judged { tip, key })
++        }
++        None => None,
++    };
++    let run = match run {
++        Some(run) => Some(decode_run(run)?),
++        None => None,
++    };
++    let mut values = List::with_capacity(flakes.len());
++    for flake in flakes.into_boxed() {
++        let w::TierFlakeParts { test, count } = flake.into_parts();
++        if let Some(previous) = values.as_slice().last() {
++            let previous: &p::Flake = previous;
++            if previous.test >= test {
++                return Err(Undecodable);
++            }
++        }
++        values.push(p::Flake { test, count }).expect(FITS);
++    }
++    let branch = match branch {
++        w::TierBranch::Absent => d::TierBranch::Absent,
++        w::TierBranch::Made => d::TierBranch::Made,
++        w::TierBranch::Pending(n) => d::TierBranch::Pending { entry: n.into_parts().number },
++    };
++    let flight = match flight {
++        Some(f) => {
++            let w::TierFlightParts { next, entry, start, since, waiting, fault, pending } = f.into_parts();
++            let mut jobs = List::with_capacity(pending.len());
++            for attempt in pending.into_boxed() {
++                jobs.push(super::answers::decode_job_attempt(attempt)).expect(FITS);
++            }
++            Some(d::TierFlight {
++                next: match next {
++                    Some(at) => Some(skein_lib::Time::from_nanos(at)),
++                    None => None,
++                },
++                entry,
++                start: match start {
++                    Some(at) => Some(skein_lib::Time::from_nanos(at)),
++                    None => None,
++                },
++                since: match since {
++                    Some(at) => Some(skein_lib::Time::from_nanos(at)),
++                    None => None,
++                },
++                waiting,
++                fault,
++                pending: jobs.into_boxed(),
++            })
++        }
++        None => None,
++    };
++    let result = match result {
++        Some(r) => {
++            let w::TierResultParts { verdict, run, received, status } = r.into_parts();
++            let w::TierJudgementParts { number, tip, key, finding } = verdict.into_parts();
++            let finding = decode_finding(finding)?;
++            let w::ReceiptRunParts { id, number: run_number, url } = run.into_parts();
++            Some(d::TierResult {
++                verdict: p::Verdict {
++                    number,
++                    tip,
++                    key,
++                    failing: finding.failing,
++                    flakes: finding.flakes,
++                    landings: finding.blamed,
++                },
++                run: d::ReceiptRun { id, number: run_number, url },
++                received,
++                status: decode_branch(status),
++            })
++        }
++        None => None,
++    };
++    if (baseline.is_some() && (judged.is_some() || run.is_some()))
++        || (flight.is_some() && (run.is_none() || task.is_none()))
++        || (result.is_some() && run.is_none())
++    {
++        return Err(Undecodable);
++    }
++    if let Some(result) = &result {
++        let run = run.as_ref().ok_or(Undecodable)?;
++        if result.verdict.number != run.number
++            || result.verdict.tip != run.tip
++            || result.verdict.key != run.key
++            || result.verdict.landings.len() != run.landings.len()
++        {
++            return Err(Undecodable);
++        }
++    }
++    Ok(d::TierRow {
++        repository: names::decode_repository(repository),
++        tier,
++        record: p::Record {
++            sequence,
++            judged,
++            failing: verification::decode_failures(failing)?,
++            flakes: values.into_boxed(),
++            run,
++        },
++        pending: decode_pending(pending),
++        baseline: match baseline {
++            Some(baseline) => Some(decode_pending_landing(baseline)),
++            None => None,
++        },
++        task,
++        branch,
++        flight,
++        result,
++    })
++}
++
++fn encode_branch(branch: d::TierBranch) -> w::TierBranch {
++    match branch {
++        d::TierBranch::Absent => w::TierBranch::Absent,
++        d::TierBranch::Made => w::TierBranch::Made,
++        d::TierBranch::Pending { entry } => {
++            w::TierBranch::Pending(w::Number::new(&w::CEILINGS, w::NumberParts { number: entry }).expect(FITS))
++        }
++    }
++}
++fn decode_branch(branch: w::TierBranch) -> d::TierBranch {
++    match branch {
++        w::TierBranch::Absent => d::TierBranch::Absent,
++        w::TierBranch::Made => d::TierBranch::Made,
++        w::TierBranch::Pending(entry) => d::TierBranch::Pending { entry: entry.into_parts().number },
++    }
++}
+diff --git a/temper/crates/temper-protocol-store/src/records/verification.rs b/temper/crates/temper-protocol-store/src/records/verification.rs
+new file mode 100644
+index 000000000..6c0d0780f
+--- /dev/null
++++ b/temper/crates/temper-protocol-store/src/records/verification.rs
+@@ -0,0 +1,138 @@
++//! Family 26's bounded translations (protocol/store.md, 2).
++use super::{FITS, names, w};
++use crate::Undecodable;
++use skein_lib::List;
++use temper_engine_domain_forge as d;
++use temper_engine_domain_forge_tiers::{Blame, Failures};
++
++pub(super) fn encode_failures(value: &Failures) -> w::Failures {
++    match value {
++        Failures::Many => w::Failures::Many,
++        Failures::Tests(tests) => {
++            let mut encoded = List::with_capacity(u32::try_from(tests.len()).expect(FITS));
++            for test in tests {
++                encoded
++                    .push(w::FailingTest::new(&w::CEILINGS, w::FailingTestParts { test_id: test.clone() }).expect(FITS))
++                    .expect(FITS);
++            }
++            w::Failures::Tests(w::FailedTests::new(&w::CEILINGS, w::FailedTestsParts { tests: encoded }).expect(FITS))
++        }
++    }
++}
++
++pub(super) fn encode_blame(value: &Blame) -> w::Blame {
++    match value {
++        Blame::Cleared => w::Blame::Cleared,
++        Blame::Owns(failures) => w::Blame::Owns(
++            w::BlamedFailures::new(&w::CEILINGS, w::BlamedFailuresParts { failures: encode_failures(failures) })
++                .expect(FITS),
++        ),
++        Blame::Suspect(failures) => w::Blame::Suspect(
++            w::BlamedFailures::new(&w::CEILINGS, w::BlamedFailuresParts { failures: encode_failures(failures) })
++                .expect(FITS),
++        ),
++    }
++}
++
++#[expect(clippy::manual_map, reason = "step translations use explicit matches without closures")]
++pub(super) fn encode(row: &d::Verification) -> w::Verification {
++    let mut changes = List::with_capacity(u32::try_from(row.changes.len()).expect(FITS));
++    for task in &row.changes {
++        changes.push(*task).expect(FITS);
++    }
++    let mut tiers = List::with_capacity(u32::try_from(row.tiers.len()).expect(FITS));
++    for tier in &row.tiers {
++        let verdict = match &tier.verdict {
++            Some(verdict) => Some(
++                w::TierVerdict::new(
++                    &w::CEILINGS,
++                    w::TierVerdictParts { run: verdict.run, blame: encode_blame(&verdict.blame) },
++                )
++                .expect(FITS),
++            ),
++            None => None,
++        };
++        tiers
++            .push(
++                w::TierVerification::new(
++                    &w::CEILINGS,
++                    w::TierVerificationParts { tier: tier.tier.clone(), verdict, repaired: tier.repaired },
++                )
++                .expect(FITS),
++            )
++            .expect(FITS);
++    }
++    w::Verification::new(
++        &w::CEILINGS,
++        w::VerificationParts {
++            repository: names::encode_repository(row.repository),
++            commit: row.commit,
++            changes,
++            tiers,
++        },
++    )
++    .expect(FITS)
++}
++
++pub(super) fn decode_failures(value: w::Failures) -> Result<Failures, Undecodable> {
++    Ok(match value {
++        w::Failures::Many => Failures::Many,
++        w::Failures::Tests(tests) => {
++            let mut decoded = List::with_capacity(tests.tests().len());
++            for test in tests.into_parts().tests.into_boxed() {
++                let test = test.into_parts().test_id;
++                if let Some(previous) = decoded.as_slice().last()
++                    && previous >= &test
++                {
++                    return Err(Undecodable);
++                }
++                decoded.push(test).expect(FITS);
++            }
++            Failures::Tests(decoded.into_boxed())
++        }
++    })
++}
++
++pub(super) fn decode_blame(value: w::Blame) -> Result<Blame, Undecodable> {
++    Ok(match value {
++        w::Blame::Cleared => Blame::Cleared,
++        w::Blame::Owns(value) => Blame::Owns(decode_failures(value.into_parts().failures)?),
++        w::Blame::Suspect(value) => Blame::Suspect(decode_failures(value.into_parts().failures)?),
++    })
++}
++
++pub(super) fn decode(row: w::Verification) -> Result<d::Verification, Undecodable> {
++    let w::VerificationParts { repository, commit, changes, tiers } = row.into_parts();
++    let mut decoded = List::with_capacity(tiers.len());
++    for tier in tiers.into_boxed() {
++        let w::TierVerificationParts { tier, verdict, repaired } = tier.into_parts();
++        if tier.is_empty() {
++            return Err(Undecodable);
++        }
++        for byte in &tier {
++            if !byte.is_ascii_alphanumeric() && *byte != b'-' && *byte != b'_' {
++                return Err(Undecodable);
++            }
++        }
++        for previous in &decoded {
++            let previous: &d::TierVerification = previous;
++            if previous.tier == tier {
++                return Err(Undecodable);
++            }
++        }
++        let verdict = match verdict {
++            Some(verdict) => {
++                let w::TierVerdictParts { run, blame } = verdict.into_parts();
++                Some(d::TierVerdict { run, blame: decode_blame(blame)? })
++            }
++            None => None,
++        };
++        decoded.push(d::TierVerification { tier, verdict, repaired }).expect(FITS);
++    }
++    Ok(d::Verification {
++        repository: names::decode_repository(repository),
++        commit,
++        changes: changes.into_boxed(),
++        tiers: decoded.into_boxed(),
++    })
++}
+diff --git a/temper/crates/temper-protocol-store/src/tests/fixtures.rs b/temper/crates/temper-protocol-store/src/tests/fixtures.rs
+index 3b94a0c2a..3789116ae 100644
+--- a/temper/crates/temper-protocol-store/src/tests/fixtures.rs
++++ b/temper/crates/temper-protocol-store/src/tests/fixtures.rs
+@@ -57,6 +57,11 @@ pub const LIMITS: top::Limits = top::Limits {
+     trees_in_flight: 2,
+     judge_projects: 2,
+     judge_criteria: 8,
++    tiers: 2,
++    landings_kept: 16,
++
++    failing_tests: 16,
++    test_id_bytes: 256,
+     brief_sections: 32,
+     brief_bytes: 4096,
+     client: CLIENT,
+@@ -148,7 +153,7 @@ fn client_key(random: &mut Rng) -> skein_forge_client::Key {
+ #[expect(clippy::disallowed_macros, reason = "property inputs number canonical member addresses")]
+ pub fn key(random: &mut Rng) -> top::Key {
+     let number = random.next_u64();
+-    match random.below(23) {
++    match random.below(25) {
+         0 => top::Key::Call(top::NamedCall {
+             task: number,
+             attempt: random.next_u64(),
+@@ -176,7 +181,7 @@ pub fn key(random: &mut Rng) -> top::Key {
+         19 => top::Key::DemoAct([u8::try_from(random.below(256)).expect("byte"); 16]),
+         20 => top::Key::Flight { task: number, entry: random.next_u64() },
+         21 => top::Key::Landing(number),
+-        _ => top::Key::Receipt(top::ReceiptKey {
++        22 => top::Key::Receipt(top::ReceiptKey {
+             project: u32::try_from(random.below(4_294_967_296)).expect("u32"),
+             repository: repository(random),
+             check: if random.below(2) == 0 {
+@@ -186,6 +191,8 @@ pub fn key(random: &mut Rng) -> top::Key {
+             },
+             key: commit(random),
+         }),
++        23 => top::Key::Verification { repository: repository(random), commit: commit(random) },
++        _ => top::Key::LandingLog(repository(random)),
+     }
+ }
+ pub fn core_keys() -> [jig_domain_core::Key; 4] {
+@@ -791,7 +798,7 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
+ }
+ pub fn change_states() -> List<temper_engine_domain_forge_change::State> {
+     use temper_engine_domain_forge_change::{Hold, Repair, State};
+-    let mut states = List::with_capacity(19);
++    let mut states = List::with_capacity(21);
+     for state in [
+         State::Producing { requested: true },
+         State::Opening { requested: false },
+@@ -808,6 +815,8 @@ pub fn change_states() -> List<temper_engine_domain_forge_change::State> {
+         State::Landing { head: [15; 32] },
+         State::Landed { merge: [16; 32] },
+         State::Ended,
++        State::Red { merge: [16; 32] },
++        State::Cleared { merge: [16; 32] },
+         State::Repairing { requested: false, why: Repair::Ci },
+         State::Repairing { requested: true, why: Repair::Semantic },
+     ] {
+diff --git a/temper/crates/temper-protocol-store/src/tests/records.rs b/temper/crates/temper-protocol-store/src/tests/records.rs
+index a1fd2e11e..c7c17cec5 100644
+--- a/temper/crates/temper-protocol-store/src/tests/records.rs
++++ b/temper/crates/temper-protocol-store/src/tests/records.rs
+@@ -1143,6 +1143,7 @@ fn receipts_preserve_the_check_key_run_and_verdict() {
+                 },
+                 receipt: forge::Receipt {
+                     passed,
++                    failures: None,
+                     run: forge::ReceiptRun { id: 7, number: 8, url: Box::from(b"https://forge/run/7".as_slice()) },
+                     candidate: [4; 32],
+                     ended: skein_lib::Wall::from_nanos(9),
+@@ -1170,3 +1171,35 @@ fn a_changes_failed_effect_account_survives_the_store() {
+     let row = forge::Stored::Change(row);
+     assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+ }
++
++#[test]
++fn landing_logs_round_trip_changes_times_and_every_verdict() {
++    use temper_engine_domain_forge as d;
++    let row = d::Stored::LandingLog(d::LandingLog {
++        repository: skein_forge::api::Repository { forge: 1, repository: 2 },
++        landings: Box::new([
++            d::Logged {
++                commit: [1; 32],
++                seen: skein_lib::Wall::from_nanos(123),
++                changes: Box::new([51]),
++                verdicts: Box::new([
++                    d::Mark { tier: b"browser".as_slice().into(), verdict: d::Verdict::Verifying },
++                    d::Mark { tier: b"fuzzy".as_slice().into(), verdict: d::Verdict::Cleared },
++                ]),
++            },
++            d::Logged {
++                commit: [2; 32],
++                seen: skein_lib::Wall::from_nanos(456),
++                changes: Box::new([]),
++                verdicts: Box::new([
++                    d::Mark { tier: b"browser".as_slice().into(), verdict: d::Verdict::Red { tests: Some(2) } },
++                    d::Mark { tier: b"fuzzy".as_slice().into(), verdict: d::Verdict::Red { tests: None } },
++                ]),
++            },
++        ]),
++    });
++    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
++    let key = crate::keys::encode(&d::stored_key(&row), u32::MAX).unwrap();
++    assert_eq!(key.as_ref(), &[27, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2]);
++    assert_eq!(records::row(&key, &records::encode(&row), &bounds), Ok(row));
++}
+diff --git a/temper/crates/temper-protocol-store/src/tests/sizes.rs b/temper/crates/temper-protocol-store/src/tests/sizes.rs
+index 392d3b7cc..caed93f77 100644
+--- a/temper/crates/temper-protocol-store/src/tests/sizes.rs
++++ b/temper/crates/temper-protocol-store/src/tests/sizes.rs
+@@ -4,15 +4,10 @@ use temper_engine_domain_forge as forge;
+ 
+ #[test]
+ fn the_application_sizes_are_the_largest_key_and_row() {
+-    // Change's eight remarks hold 4096 bytes each; eight failure counts add 100 bytes.
+-    // Authority causes add 42 bytes to each of eight holds, drift and released.
+-    // Way and landing add ten bytes.
+-    // Terminal CI adds a presence byte, a 32-byte head and a one-byte status.
+-    // The effect account adds 1 presence + 8 entry + 4 length + 512 words = 525 bytes.
+-    // Result evidence adds four 4096-byte prefixes, cut counts, a head and repair count.
++    // Tier's full finding, pending range, flight and staged judgement are the largest row.
+     assert_eq!(
+         application(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes),
+-        Some(jig_protocol_store::sizes::Application { version: 10, key: 403, value: 52_975 })
++        Some(jig_protocol_store::sizes::Application { version: 10, key: 403, value: 175_962 })
+     );
+ }
+ #[test]
+@@ -78,13 +73,14 @@ fn plan_text_uses_the_body_bound_without_changing_the_format() {
+     let old_view = crate::v10::GoalView::worst_case_bytes(&before).expect("old view size");
+     let new_view = crate::v10::GoalView::worst_case_bytes(&after).expect("new view size");
+     assert_eq!(new_view - old_view, EXTRA_PLAN_BYTES);
+-    // The schema's fixed framing plus the measured view; ChangeRow still dominates Row.
++    // The schema's fixed framing plus the measured view; TierRow dominates Row.
++    // TK adds 17 optional-key tags and the optional keyed baseline (66 bytes).
+     assert_eq!(old_view, 5238);
+     assert_eq!(new_view, 7286);
+     assert_eq!(crate::v10::IssueRow::worst_case_bytes(&before), Some(5657));
+     assert_eq!(crate::v10::IssueRow::worst_case_bytes(&after), Some(7705));
+     assert_eq!(crate::v10::IssueRow::worst_case_heap(&before), Some(5888));
+     assert_eq!(crate::v10::IssueRow::worst_case_heap(&after), Some(7936));
+-    assert_eq!(crate::v10::Row::worst_case_bytes(&before), Some(52_975));
+-    assert_eq!(crate::v10::Row::worst_case_bytes(&after), Some(52_975));
++    assert_eq!(crate::v10::Row::worst_case_bytes(&before), Some(175_962));
++    assert_eq!(crate::v10::Row::worst_case_bytes(&after), Some(175_962));
+ }
+diff --git a/temper/tests/codecs/Cargo.toml b/temper/tests/codecs/Cargo.toml
+index 6260f90c5..4cdfebcfb 100644
+--- a/temper/tests/codecs/Cargo.toml
++++ b/temper/tests/codecs/Cargo.toml
+@@ -22,6 +22,7 @@ skein-forge-setup.workspace = true
+ temper-engine-domain-forge.workspace = true
+ skein-forge-client.workspace = true
+ temper-engine-domain-forge-change.workspace = true
++temper-engine-domain-forge-tiers = { path = "../../crates/temper-engine-domain-forge-tiers" }
+ temper-engine-domain-forge-issues.workspace = true
+ jig-client-protocol-wire.workspace = true
+ temper-client-protocol-wire.workspace = true
+diff --git a/temper/tests/codecs/tests/store_verification.rs b/temper/tests/codecs/tests/store_verification.rs
+new file mode 100644
+index 000000000..26c509fe9
+--- /dev/null
++++ b/temper/tests/codecs/tests/store_verification.rs
+@@ -0,0 +1,126 @@
++//! Verification and the change's post-merge states at the v10 baseline.
++#[path = "support/store.rs"]
++mod fixture;
++#[path = "support/tiers.rs"]
++mod tiers;
++#[path = "support/verification.rs"]
++mod verification;
++use temper_engine_domain_forge::{Key, Stored, TierVerdict};
++use temper_engine_domain_forge_tiers::{Blame, Failures};
++use temper_protocol_store::{keys, records};
++
++fn golden(name: &str, row: Stored) {
++    let bounds =
++        temper_protocol_store::bounds(&fixture::LIMITS, fixture::LIMITS.client.op_bytes).expect("fixture bounds");
++    let bytes = records::encode(&row);
++    let path = skein_scratch::paths::package().join("../../crates/temper-protocol-store/golden").join(name);
++    if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1") {
++        std::fs::write(&path, &bytes).expect("write golden");
++    }
++    assert_eq!(std::fs::read(path).expect("committed golden").as_slice(), bytes.as_ref());
++    let key = keys::encode(&temper_engine_domain_forge::stored_key(&row), u32::MAX).expect("key fits");
++    assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
++}
++
++#[test]
++fn verification_smallest_and_fullest_rows_have_v10_goldens_and_round_trip() {
++    for (name, row) in
++        [("verification-smallest.bin", verification::smallest()), ("verification-fullest.bin", verification::fullest())]
++    {
++        golden(name, row);
++    }
++}
++
++#[test]
++fn red_and_cleared_changes_have_v10_goldens_and_round_trip() {
++    use temper_engine_domain_forge_change::State;
++    for (name, state) in [
++        ("change-red.bin", State::Red { merge: verification::COMMIT }),
++        ("change-cleared.bin", State::Cleared { merge: verification::COMMIT }),
++    ] {
++        golden(name, Stored::Change(verification::change_row(state)));
++    }
++}
++
++#[test]
++fn verification_verdicts_keep_cleared_and_many_failures() {
++    for blame in [Blame::Cleared, Blame::Owns(Failures::Many), Blame::Suspect(Failures::Many)] {
++        let Stored::Verification(mut row) = verification::smallest() else { panic!("fixture verification") };
++        row.tiers[0].verdict = Some(TierVerdict { run: 1, blame });
++        let row = Stored::Verification(row);
++        let bounds = temper_protocol_store::bounds(&fixture::LIMITS, fixture::LIMITS.client.op_bytes).expect("bounds");
++        assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
++    }
++}
++
++#[test]
++fn verification_refuses_each_field_one_past_its_runtime_bound() {
++    let row = verification::fullest();
++    let bytes = records::encode(&row);
++    for limits in [
++        temper_engine_domain_forge::Limits { tiers: fixture::LIMITS.tiers - 1, ..fixture::LIMITS },
++        temper_engine_domain_forge::Limits { failing_tests: fixture::LIMITS.failing_tests - 1, ..fixture::LIMITS },
++        temper_engine_domain_forge::Limits { test_id_bytes: fixture::LIMITS.test_id_bytes - 1, ..fixture::LIMITS },
++    ] {
++        let bounds = temper_protocol_store::bounds(&limits, limits.client.op_bytes).expect("smaller bounds");
++        assert_eq!(records::decode(&bytes, &bounds), Err(temper_protocol_store::Undecodable));
++    }
++}
++
++#[test]
++fn verification_keys_use_family_26_and_require_the_whole_key() {
++    let key = Key::Verification { repository: verification::REPOSITORY, commit: verification::COMMIT };
++    let bytes = keys::encode(&key, u32::MAX).expect("key fits");
++    assert_eq!(bytes[0], 26);
++    assert_eq!(keys::decode(&bytes, &fixture::LIMITS), Some(key));
++    for length in 0..bytes.len() {
++        assert_eq!(keys::decode(&bytes[..length], &fixture::LIMITS), None);
++    }
++    let row = verification::smallest();
++    let bounds = temper_protocol_store::bounds(&fixture::LIMITS, fixture::LIMITS.client.op_bytes).expect("bounds");
++    let other = keys::encode(&Key::Verification { repository: verification::REPOSITORY, commit: [9; 32] }, u32::MAX)
++        .expect("key fits");
++    assert_eq!(records::row(&other, &records::encode(&row), &bounds), Err(temper_protocol_store::Undecodable));
++}
++
++#[test]
++fn tier_smallest_and_fullest_rows_have_v10_goldens_and_round_trip() {
++    for (name, row) in [("tier-smallest.bin", tiers::smallest()), ("tier-fullest.bin", tiers::fullest())] {
++        golden(name, row);
++    }
++}
++#[test]
++fn tier_ranges_and_tests_refuse_one_past_each_runtime_bound() {
++    let bytes = records::encode(&tiers::fullest());
++    for limits in [
++        temper_engine_domain_forge::Limits { changes: fixture::LIMITS.changes - 1, ..fixture::LIMITS },
++        temper_engine_domain_forge::Limits { failing_tests: fixture::LIMITS.failing_tests - 1, ..fixture::LIMITS },
++        temper_engine_domain_forge::Limits { test_id_bytes: fixture::LIMITS.test_id_bytes - 1, ..fixture::LIMITS },
++    ] {
++        let bounds = temper_protocol_store::bounds(&limits, limits.client.op_bytes).expect("bounds");
++        assert_eq!(records::decode(&bytes, &bounds), Err(temper_protocol_store::Undecodable));
++    }
++}
++
++#[test]
++fn a_tiers_unresolved_and_fallback_keys_round_trip() {
++    const FIRST: [u8; 32] = [7; 32];
++    const SECOND: [u8; 32] = [8; 32];
++    let Stored::Tier(mut row) = tiers::smallest() else { panic!("tier fixture") };
++    row.pending = Box::new([
++        temper_engine_domain_forge::TierLanding { commit: FIRST, key: None },
++        temper_engine_domain_forge::TierLanding { commit: SECOND, key: Some(SECOND) },
++    ]);
++    let row = Stored::Tier(row);
++    let bounds = temper_protocol_store::bounds(&fixture::LIMITS, fixture::LIMITS.client.op_bytes).expect("bounds");
++    assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
++}
++
++#[test]
++fn a_tiers_baseline_key_walk_survives_the_store() {
++    let Stored::Tier(mut row) = tiers::smallest() else { panic!("tier fixture") };
++    row.baseline = Some(temper_engine_domain_forge::TierLanding { commit: [7; 32], key: None });
++    let row = Stored::Tier(row);
++    let bounds = temper_protocol_store::bounds(&fixture::LIMITS, fixture::LIMITS.client.op_bytes).expect("bounds");
++    assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
++}
+diff --git a/temper/tests/codecs/tests/support/store.rs b/temper/tests/codecs/tests/support/store.rs
+index 3b540ddfa..7b1af8793 100644
+--- a/temper/tests/codecs/tests/support/store.rs
++++ b/temper/tests/codecs/tests/support/store.rs
+@@ -29,6 +29,11 @@ pub const LIMITS: forge::Limits = forge::Limits {
+     trees_in_flight: 2,
+     judge_projects: 2,
+     judge_criteria: 8,
++    tiers: 2,
++    landings_kept: 16,
++
++    failing_tests: 16,
++    test_id_bytes: 256,
+     brief_sections: 32,
+     brief_bytes: 4096,
+     client: skein_forge_client::Limits {
+diff --git a/temper/tests/codecs/tests/support/tiers.rs b/temper/tests/codecs/tests/support/tiers.rs
+new file mode 100644
+index 000000000..dbaf08ede
+--- /dev/null
++++ b/temper/tests/codecs/tests/support/tiers.rs
+@@ -0,0 +1,97 @@
++use temper_engine_domain_forge::{Stored, TierBranch, TierRow};
++use temper_engine_domain_forge_tiers as p;
++const REPOSITORY: skein_forge::api::Repository = skein_forge::api::Repository { forge: 1, repository: 2 };
++const TIP: [u8; 32] = [3; 32];
++const RANGE: usize = 17; // small's 2 * changes (8) + 1.
++const TESTS: usize = 16; // small's failing_tests.
++const TEST_BYTES: usize = 256; // small's test_id_bytes.
++pub fn smallest() -> Stored {
++    Stored::Tier(TierRow {
++        repository: REPOSITORY,
++        tier: b"browser".as_slice().into(),
++        record: p::Record {
++            sequence: 0,
++            judged: None,
++            failing: p::Failures::Tests(Box::new([])),
++            flakes: Box::new([]),
++            run: None,
++        },
++        pending: Box::new([]),
++        baseline: None,
++        task: None,
++        branch: TierBranch::Absent,
++        flight: None,
++        result: None,
++    })
++}
++pub fn fullest() -> Stored {
++    let tests: Box<[_]> = (0..TESTS)
++        .map(|n| vec![u8::try_from(n + 1).expect("bounded test index"); TEST_BYTES].into_boxed_slice())
++        .collect();
++    let landings: Box<[_]> = (0..RANGE)
++        .map(|n| p::Landing {
++            commit: [u8::try_from(n).expect("bounded landing index"); 32],
++            key: [u8::try_from(n).expect("bounded landing index"); 32],
++        })
++        .collect();
++    let failures = p::Failures::Tests(tests.clone());
++    Stored::Tier(TierRow {
++        repository: REPOSITORY,
++        tier: Box::new([b'a'; 32]),
++        record: p::Record {
++            sequence: 1,
++            judged: Some(p::Judged { tip: TIP, key: TIP }),
++            failing: failures.clone(),
++            flakes: tests.iter().map(|test| p::Flake { test: test.clone(), count: u32::MAX }).collect(),
++            run: Some(p::Run {
++                number: 2,
++                tip: TIP,
++                key: TIP,
++                landings: landings.clone(),
++                faults: 2,
++                part: p::Part::Probe {
++                    landing: 1,
++                    tests: p::Selection::Tests(tests.clone()),
++                    finding: p::Finding {
++                        failing: failures.clone(),
++                        flakes: tests,
++                        blamed: vec![p::Blame::Owns(failures); RANGE].into_boxed_slice(),
++                    },
++                },
++            }),
++        },
++        baseline: None,
++        pending: landings
++            .iter()
++            .map(|l| temper_engine_domain_forge::TierLanding { commit: l.commit, key: Some(l.key) })
++            .collect(),
++        task: Some(51),
++        branch: TierBranch::Pending { entry: 11 },
++        flight: Some(temper_engine_domain_forge::TierFlight {
++            next: Some(skein_lib::Time::from_nanos(7)),
++            entry: 11,
++            start: Some(skein_lib::Time::from_nanos(3)),
++            since: Some(skein_lib::Time::from_nanos(4)),
++            waiting: false,
++            fault: false,
++            pending: Box::new([skein_forge::api::JobAttempt { head: TIP, run: 71, job: 81, attempt: 2 }]),
++        }),
++        result: Some(temper_engine_domain_forge::TierResult {
++            verdict: p::Verdict {
++                number: 2,
++                tip: TIP,
++                key: TIP,
++                failing: p::Failures::Many,
++                landings: vec![p::Blame::Cleared; RANGE].into_boxed_slice(),
++                flakes: Box::new([]),
++            },
++            run: temper_engine_domain_forge::ReceiptRun {
++                id: 71,
++                number: 2,
++                url: b"https://forge/run/71".as_slice().into(),
++            },
++            received: false,
++            status: TierBranch::Pending { entry: 12 },
++        }),
++    })
++}
+diff --git a/temper/tests/codecs/tests/support/verification.rs b/temper/tests/codecs/tests/support/verification.rs
+new file mode 100644
+index 000000000..53ea4aaac
+--- /dev/null
++++ b/temper/tests/codecs/tests/support/verification.rs
+@@ -0,0 +1,89 @@
++use temper_engine_domain_forge::{Stored, TierVerdict, TierVerification, Verification};
++use temper_engine_domain_forge_tiers::{Blame, Failures};
++
++// Small's bounds (domain/after-landing.md, 4).
++pub const FAILING_TESTS: usize = 16;
++pub const TEST_ID_BYTES: usize = 256;
++pub const REPOSITORY: skein_forge::api::Repository = skein_forge::api::Repository { forge: 1, repository: 2 };
++pub const COMMIT: [u8; 32] = [3; 32];
++pub const TASK: u64 = 51;
++
++pub fn smallest() -> Stored {
++    Stored::Verification(Verification {
++        repository: REPOSITORY,
++        commit: COMMIT,
++        changes: Box::new([TASK]),
++        tiers: Box::new([TierVerification { tier: b"browser".as_slice().into(), verdict: None, repaired: None }]),
++    })
++}
++
++pub fn fullest() -> Stored {
++    let mut tests = Vec::with_capacity(FAILING_TESTS);
++    for test in 0..FAILING_TESTS {
++        tests.push(vec![u8::try_from(test).expect("fixture test index"); TEST_ID_BYTES].into_boxed_slice());
++    }
++    let failures = Failures::Tests(tests.into_boxed_slice());
++    Stored::Verification(Verification {
++        repository: REPOSITORY,
++        commit: COMMIT,
++        changes: Box::new([TASK]),
++        tiers: Box::new([
++            TierVerification {
++                tier: Box::new([b'a'; 32]),
++                verdict: Some(TierVerdict { run: 1, blame: Blame::Owns(failures.clone()) }),
++                repaired: Some([4; 32]),
++            },
++            TierVerification {
++                tier: Box::new([b'b'; 32]),
++                verdict: Some(TierVerdict { run: 2, blame: Blame::Suspect(failures) }),
++                repaired: None,
++            },
++        ]),
++    })
++}
++
++pub fn change_row(state: temper_engine_domain_forge_change::State) -> temper_engine_domain_forge::ChangeRow {
++    use temper_engine_domain_forge_change as change;
++    temper_engine_domain_forge::ChangeRow {
++        task: TASK,
++        repository: REPOSITORY,
++        branch: b"temper/51".as_slice().into(),
++        base: b"main".as_slice().into(),
++        title: b"Fix".as_slice().into(),
++        body: Box::new([]),
++        priority: 0,
++        change: change::Change {
++            way: change::Way::Queue,
++            landing: None,
++            task: TASK,
++            state,
++            gates: Box::new([]),
++            clean: Box::new([]),
++            gate_failures: Box::new([]),
++            repairs: 0,
++            resolutions: 0,
++            updates: 0,
++            since: skein_lib::Wall::EPOCH,
++            ready_since: None,
++            owns_turn: false,
++            last_head: Some(COMMIT),
++            released: None,
++        },
++        ci: None,
++        result: temper_engine_domain_forge::ChangeResult::empty(),
++        producing_charter: 1,
++        review_charter: 2,
++        pull: Some(1),
++        pending: None,
++        effect: change::EffectResult::Made,
++        delegate: None,
++        delegate_status: change::Status::Passed,
++        verdicts: Box::new([]),
++        gate_remarks: Box::new([]),
++        drift: None,
++        base_repair: false,
++        queue_repair: None,
++        queue_repairs: 0,
++        effect_account: None,
++    }
++}

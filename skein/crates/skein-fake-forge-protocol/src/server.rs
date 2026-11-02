@@ -659,6 +659,9 @@ fn missing_scope(request: &Request, scopes: &Scopes) -> Option<&'static [u8]> {
     let (granted, read, write): (bool, &[u8], &[u8]) = match request {
         Request::Repository { .. }
         | Request::Branch { .. }
+        | Request::Artifacts { .. }
+        | Request::ArtifactZip { .. }
+        | Request::Commits { .. }
         | Request::Contents { .. }
         | Request::Raw { .. }
         | Request::CreateFile { .. }
@@ -782,6 +785,9 @@ fn table(service: &Service, request: &Request, user: u64) -> Option<documents::A
         | Request::Permission { .. }
         | Request::PullFiles { .. }
         | Request::Compare { .. }
+        | Request::Artifacts { .. }
+        | Request::ArtifactZip { .. }
+        | Request::Commits { .. }
         | Request::Contents { .. }
         | Request::Raw { .. }
         | Request::Tree { .. }
@@ -840,10 +846,12 @@ fn error_reply(server: &mut Server, env: &Env<Limits>, error: api::Error) {
 fn respond(server: &mut Server, reply: response::Reply) {
     let mut headers =
         List::with_capacity(u32::try_from(reply.headers.len()).expect("bounded headers").saturating_add(1));
+    let mut content_type = false;
     for header in reply.headers {
+        content_type |= header.name.eq_ignore_ascii_case(b"content-type");
         headers.push(header).expect("response headers");
     }
-    if !reply.body.is_empty() {
+    if !reply.body.is_empty() && !content_type {
         headers
             .push(Header {
                 name: bytes::copy_of(b"content-type"),

@@ -32,12 +32,12 @@ pub const READ: Tool = Tool {
         positional(b"task", b"TASK", Kind::NumberRange { min: 1, max: u64::MAX }, Required, b"The change task's number"),
         flag(b"project", b"PROJECT", Kind::Project { empty: false }, Optional, b"Its project; the task's when absent"),
         flag(b"since", b"DIGEST", Kind::Digest, Optional, b"Wait until it differs from the read that printed DIGEST"),
-        flag(b"until", b"CONDITION", Kind::Word { set: &[b"pull", b"ci:pending", b"ci:passed", b"ci:failed", b"held", b"landed", b"changed"] }, Optional, b"Wait until it holds: pull, ci:pending, ci:passed, ci:failed, held, landed, or changed"),
+        flag(b"until", b"CONDITION", Kind::Word { set: &[b"pull", b"ci:pending", b"ci:passed", b"ci:failed", b"held", b"landed", b"changed", b"cleared"] }, Optional, b"Wait until it holds: pull, ci:pending, ci:passed, ci:failed, held, landed, cleared, or changed"),
         flag(b"timeout", b"DURATION", Kind::Duration, Optional, b"How long a wait lasts; 300 seconds when absent, at most 3600"),
     ]],
     keyed: Keyed::Never,
     area: 6,
-    notes: b"Until it lands, it prints `next: temper ctl DIR change show TASK\n--until landed`, or, while a task is held, `next: temper ctl DIR\ntask show N`; landed, its merge commit. A wait for its landing ends\nat a hold, `not met: held` (exit 3). A task with no change fails,\n`no change panel for task N` (exit 2). The forge holds its diff,\nreviews and logs: read them there.\n",
+    notes: b"Until it lands, it prints `next: temper ctl DIR change show TASK\n--until landed`, or, while a task is held, `next: temper ctl DIR\ntask show N`; while verifying or red, `next: temper ctl DIR change show TASK\n--until cleared`; landed, its merge commit. A wait for its landing ends\nat a hold, `not met: held` (exit 3). A task with no change fails,\n`no change panel for task N` (exit 2). The forge holds its diff,\nreviews and logs: read them there.\n",
 };
 #[derive(Debug)]
 pub(crate) struct Changes {
@@ -743,6 +743,7 @@ fn delivered(watch: &mut Watching, env: &Env<Limits>) -> Option<jig::Printed> {
         Some(b"ci:failed") => Some(*panel.ci() == w::Ci::Failed),
         Some(b"held") => Some(watch.holds.any(panel)),
         Some(b"landed") => Some(landed(panel.step()).is_some()),
+        Some(b"cleared") => Some(progress(panel.step()) == Progress::Cleared),
         None => None,
         _ => unreachable!("checked condition"),
     };
@@ -751,10 +752,13 @@ fn delivered(watch: &mut Watching, env: &Env<Limits>) -> Option<jig::Printed> {
     }
     let met = jig::wait::met(watch.since, watch.first, digest, holds);
     watch.first = Some(watch.first.unwrap_or(digest));
-    if !met && condition == Some(b"landed") && watch.holds.any(panel) {
+    if !met && (condition == Some(b"landed") || condition == Some(b"cleared")) && watch.holds.any(panel) {
         return Some(print(Some(panel), watch.called.json, Some(false), b"held", &env.limits, &watch.holds));
     }
-    if met || watch.final_panel || landed(panel.step()).is_some() {
+    if met
+        || watch.final_panel
+        || (progress(panel.step()) == Progress::Ended || progress(panel.step()) == Progress::Cleared)
+    {
         Some(print(Some(panel), watch.called.json, Some(met), b"ended", &env.limits, &watch.holds))
     } else {
         None
@@ -792,9 +796,12 @@ pub(crate) fn fire(state: &mut Changes, env: &Env<Limits>, out: &mut Queue<Out>)
 }
 
 use skein_json::writer::Encoder;
-fn landed(step: &w::Step) -> Option<&w::Landed> {
+fn landed(step: &w::Step) -> Option<&[u8; 32]> {
     match step {
-        w::Step::Landed(landed) => Some(landed),
+        w::Step::Landed(landed) => Some(landed.merge()),
+        w::Step::Verifying(value) => Some(value.merge()),
+        w::Step::Red(value) => Some(value.merge()),
+        w::Step::Cleared(value) => Some(value.merge()),
         w::Step::Ready(_)
         | w::Step::Preparing(_)
         | w::Step::Producing
@@ -830,7 +837,10 @@ fn step(step: &w::Step) -> &'static [u8] {
         | w::Step::Resolving
         | w::Step::Repairing(_)
         | w::Step::Landing
-        | w::Step::Landed(_) => phrase(words::held_step(step)),
+        | w::Step::Landed(_)
+        | w::Step::Verifying(_)
+        | w::Step::Red(_)
+        | w::Step::Cleared(_) => phrase(words::held_step(step)),
     }
 }
 fn phrase(word: forge::words::ChangeWord) -> &'static [u8] {
@@ -885,6 +895,9 @@ fn repair(step: &w::Step) -> Option<&'static [u8]> {
         | w::Step::Resolving
         | w::Step::Landing
         | w::Step::Landed(_)
+        | w::Step::Verifying(_)
+        | w::Step::Red(_)
+        | w::Step::Cleared(_)
         | w::Step::Ended => None,
     }
 }
@@ -920,6 +933,7 @@ fn used_json(used: &w::Used, out: &mut Encoder) {
     out.unsigned(u64::from(used.limit()));
     out.object_end();
 }
+#[expect(clippy::too_many_lines, reason = "the change document emits its fields in one fixed order")]
 fn encode(panel: &w::ChangePanel, digest: Option<Digest>, holds: &Holds, out: &mut Encoder) {
     out.object_start();
     out.key(b"task");
@@ -956,8 +970,16 @@ fn encode(panel: &w::ChangePanel, digest: Option<Digest>, holds: &Holds, out: &m
     out.string(step(panel.step()));
     out.key(b"merge");
     match landed(panel.step()) {
-        Some(landed) => out.string(&hex(landed.merge())),
+        Some(merge) => out.string(&hex(merge)),
         None => out.null(),
+    }
+    if progress(panel.step()) == Progress::Verifying || progress(panel.step()) == Progress::Cleared {
+        out.key(b"tiers");
+        out.array_start();
+        for line in tier_lines(panel.step()) {
+            out.string(line);
+        }
+        out.array_end();
     }
     out.key(b"queue");
     match words::queue(panel.step()) {
@@ -1061,6 +1083,7 @@ fn json(
         encode(panel.expect("read panel"), digest, holds, out);
     }
 }
+#[expect(clippy::too_many_lines, reason = "the change read prints its panel and following call together")]
 fn text(
     panel: Option<&w::ChangePanel>,
     digest: Option<Digest>,
@@ -1098,7 +1121,26 @@ fn text(
             out.put(b" \xc2\xb7 merge commit ");
             out.put(&hex(landed.merge()));
         }
+        let uncleared = if let w::Step::Cleared(value) = panel.step() { value.uncleared() } else { false };
+        if !uncleared {
+            for line in tier_lines(panel.step()) {
+                out.put(b" \xc2\xb7 ");
+                out.put(line);
+            }
+        }
         out.put(b"\n");
+        if progress(panel.step()) == Progress::Verifying || progress(panel.step()) == Progress::Cleared {
+            out.put(b"merge commit ");
+            out.put(&hex(landed(panel.step()).expect("landed step")));
+            out.put(b"\n");
+        }
+        if uncleared {
+            for line in tier_lines(panel.step()) {
+                out.put(b"tier: ");
+                out.put(line);
+                out.put(b"\n");
+            }
+        }
         text_way(panel, out);
         if let Some(hold) = panel.hold() {
             out.put(b"held: ");
@@ -1142,7 +1184,11 @@ fn text(
             out.put(b"next: temper ctl DIR task show ");
             out.number(if holds.own.is_some() { panel.task() } else { panel.runs().expect("held delegate") });
             out.put(b"\n");
-        } else if landed(panel.step()).is_none() {
+        } else if progress(panel.step()) == Progress::Verifying {
+            out.put(b"next: temper ctl DIR change show ");
+            out.number(panel.task());
+            out.put(b" --until cleared\n");
+        } else if landed(panel.step()).is_none() && *panel.step() != w::Step::Ended {
             out.put(b"next: temper ctl DIR change show ");
             out.number(panel.task());
             out.put(b" --until landed\n");
@@ -1278,5 +1324,58 @@ pub(crate) fn print(
         status: if met == Some(false) { 3 } else { 0 },
         stdout: bytes,
         stderr: Box::default(),
+    }
+}
+
+fn tier_lines(step: &w::Step) -> &[Box<[u8]>] {
+    match step {
+        w::Step::Verifying(value) => value.tiers().as_slice(),
+        w::Step::Red(value) => value.tiers().as_slice(),
+        w::Step::Cleared(value) => value.tiers().as_slice(),
+        w::Step::Ready(_)
+        | w::Step::Preparing(_)
+        | w::Step::Producing
+        | w::Step::Opening
+        | w::Step::Recreating
+        | w::Step::Reopening
+        | w::Step::Checking
+        | w::Step::Gating
+        | w::Step::Queued(_)
+        | w::Step::First
+        | w::Step::Updating
+        | w::Step::Resolving
+        | w::Step::Repairing(_)
+        | w::Step::Landing
+        | w::Step::Landed(_)
+        | w::Step::Ended => &[],
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Progress {
+    Before,
+    Verifying,
+    Cleared,
+    Ended,
+}
+fn progress(step: &w::Step) -> Progress {
+    match step {
+        w::Step::Verifying(_) | w::Step::Red(_) => Progress::Verifying,
+        w::Step::Cleared(_) => Progress::Cleared,
+        w::Step::Landed(_) | w::Step::Ended => Progress::Ended,
+        w::Step::Ready(_)
+        | w::Step::Preparing(_)
+        | w::Step::Producing
+        | w::Step::Opening
+        | w::Step::Recreating
+        | w::Step::Reopening
+        | w::Step::Checking
+        | w::Step::Gating
+        | w::Step::Queued(_)
+        | w::Step::First
+        | w::Step::Updating
+        | w::Step::Resolving
+        | w::Step::Repairing(_)
+        | w::Step::Landing => Progress::Before,
     }
 }

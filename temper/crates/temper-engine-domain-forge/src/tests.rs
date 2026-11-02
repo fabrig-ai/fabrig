@@ -27,6 +27,7 @@ mod restore_fit;
 mod runs;
 mod settings;
 mod stopping;
+mod tiers;
 mod views;
 use alloc::boxed::Box;
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
@@ -90,6 +91,7 @@ const LIMITS: Limits = Limits {
     key_entries: 16,
     key_path_bytes: 1024,
     trees_in_flight: 2,
+    tiers: TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
     judge_projects: 2,
     judge_criteria: 8,
     brief_sections: 32,
@@ -378,6 +380,8 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ForgeGone { .. }
         | Request::BoxGroup { .. }
         | Request::BoxRemove { .. }
+        | Request::TierRun { .. }
+        | Request::TierDecision { .. }
         | Request::RestartDone { .. } => panic!("permission call"),
     };
     assert_eq!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Permission { user: 7 }));
@@ -454,6 +458,8 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ForgeGone { .. }
         | Request::BoxGroup { .. }
         | Request::BoxRemove { .. }
+        | Request::TierRun { .. }
+        | Request::TierDecision { .. }
         | Request::RestartDone { .. } => panic!("branches call"),
     };
     assert!(
@@ -527,6 +533,8 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ForgeGone { .. }
         | Request::BoxGroup { .. }
         | Request::BoxRemove { .. }
+        | Request::TierRun { .. }
+        | Request::TierDecision { .. }
         | Request::RestartDone { .. } => panic!("settings follows collision read"),
     }
 }
@@ -2294,9 +2302,17 @@ fn turn_refuses_github_but_queue_remains_available() {
                 5,
                 way,
                 Box::new([RepositoryGates {
+                    tiers: Box::new([]),
                     repository: skein_forge::api::Repository { forge, repository: 2 },
                     gates: Box::new([])
-                }])
+                }]),
+                AfterLanding {
+                    verdict: temper_engine_domain_forge_tiers::Settings {
+                        retries: 2,
+                        suspects: temper_engine_domain_forge_tiers::Suspects::Bisect
+                    },
+                    bound: Duration::from_millis(7_200_000)
+                }
             ),
             expected
         );
@@ -2328,7 +2344,14 @@ fn repository_gate_and_ignored_path_counts_hold_at_their_bounds() {
             d.project_landing(
                 5,
                 Way::Turn,
-                Box::new([RepositoryGates { repository: REPO, gates: gates.into_boxed() }])
+                Box::new([RepositoryGates { tiers: Box::new([]), repository: REPO, gates: gates.into_boxed() }]),
+                AfterLanding {
+                    verdict: temper_engine_domain_forge_tiers::Settings {
+                        retries: 2,
+                        suspects: temper_engine_domain_forge_tiers::Suspects::Bisect
+                    },
+                    bound: Duration::from_millis(7_200_000)
+                }
             ),
             expected
         );

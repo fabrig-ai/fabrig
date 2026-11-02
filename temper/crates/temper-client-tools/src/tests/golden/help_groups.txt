@@ -119,7 +119,7 @@ both do. `--until changed` returns at the subject's next change.
 - `forge list`: `settled`, no set up, connect or install in progress;
   `connected:FORGE`; `made:FORGE`, its first repository made;
 - `change show TASK`: `pull`, `ci:pending`, `ci:passed`, `ci:failed`,
-  `held`, `landed`.
+  `held`, `landed`, `cleared`.
 
 - **Keys:** an act takes `--key KEY` where its usage shows one,
   required or optional; reads and waits take none. Agents that share
@@ -165,7 +165,7 @@ both do. `--until changed` returns at the subject's next change.
   seconds, then exits 1. Reads and waits never wait for `DIR`.
 - A kept request is answered only within its retention; past it, its
   outcome is unknown, and reading again tells what happened.
-- ctl opens no browser and runs no program.
+- ctl opens no browser, runs no program.
 sign-in  Sign in with the link the deployment printed
 sign-out  End the sign-in and leave the token empty
 pending  List the requests DIR keeps, without reaching the engine
