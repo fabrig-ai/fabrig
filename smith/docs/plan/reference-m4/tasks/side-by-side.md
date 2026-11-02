@@ -3,7 +3,7 @@ id = "side-by-side"
 part = "side-by-side"
 kind = "feature"
 needs = ["program-children"]
-files = ["smith/tests/agent-process/tests/suite/program_children.rs", "smith/tests/agent-process/src/program.rs", "smith/tests/agent-process/tests/live/program.rs", "smith/crates/smith-protocol-program/src/**", "smith/crates/smith-agent-service/src/service/program.rs", "smith/crates/smith-agent-service/src/service/program/**"]
+files = ["smith/tests/agent-process/tests/suite/program_children.rs", "smith/tests/agent-process/src/program.rs", "smith/tests/agent-process/tests/live/program.rs", "smith/crates/smith-protocol-program/src/**", "smith/crates/smith-agent-service/src/service/program.rs", "smith/crates/smith-agent-service/src/service/program/**", "smith/crates/smith-domain-session/src/session.rs", "smith/crates/smith-domain-session/src/tests.rs"]
 effort = "high"
 minutes = 120
 +++
@@ -126,3 +126,26 @@ stories?** The stories; this task still does not change the fake. Merge
   cancelled. Both stories are in `program_children.rs`; nothing sends a signal to a program that
   has exited.
 
+2026-11-02. **A child's final-turn answer closes as `closed`, not `budget`: fix the session's
+close path, or relax the assertion?** Fix the session; keep the assertion. `smith/docs/design/domain/session.md`,
+section 7 says the session yields the final-turn answer "as its last, its budget spent", and
+`smith/docs/design/protocol/events.md`'s `conversation.closed` has `budget` with `which` for it;
+`resumed` already ends such a session with `End::Budget { spent }`, but `close` in
+`smith-domain-session/src/session.rs` turns `State::Yielded` into `End::Closed` whatever the final
+turn said. The task now also owns that file and its `src/tests.rs`, for this alone:
+
+- In `close`, a `State::Yielded` session whose `final_turn.spent()` is `Some(spent)` closes with
+  `End::Budget { spent }` (`which` the dimension that started the final turn); every other
+  yielded session still closes with `End::Closed`. Nothing else in the session changes.
+- Its unit test in `src/tests.rs`, red before: a child given its final turn by turns answers,
+  yields with `Yield::Budget`, is closed (`Event::Close`) and ends `End::Budget { spent:
+  Dimension::Turns }`, and an ordinary yielded session closed the same way still ends
+  `End::Closed`.
+- Checks, one at a time, besides those already listed: `heavy cargo clippy -p
+  smith-domain-session --all-targets -- -D warnings`; `heavy cargo nextest run -p
+  smith-domain-session`; `heavy cargo nextest run -p smith-session-world`; `heavy cargo nextest
+  run -p smith-run-world`; `heavy cargo nextest run -p smith-agent-world --test suite -E
+  'test(/budget/)'`. The fix reaches the API backend's children too: an existing test there that
+  asserts `closed` for a child that answered in its final turn is asserting the old fault; update
+  it to `budget` and say so, but stop and ask if any other test turns red.
+- Keep main's report through `Step::Outcome` in the final-turn story, as your run did.
