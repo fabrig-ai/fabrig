@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-01. Where temper's code lags or departs from [testing.md](testing.md).
+2026-11-02. Where temper's code lags or departs from [testing.md](testing.md).
 
 - **Built:** 2 to 4, 6.3: domain/system/codec/joint, real-loop, browser, process and live tiers; cluster loss/restart/fencing, interrupted account transfer, owned Forgejo CI and the focused fake wiring smoke. 2 to 4: the process and browser tiers' stories follow today's client pages, with a model where a story starts a chat (10-26). 2.7: the owned-forge landing story, green live on ChatGPT with a moved-in account (10-26), its kept-store rerun past an earlier sitting's open chat. 5.3: shared reference-case library, act 1, act 2 and act 3 through 6.5; limited two-repository 6.6 smoke. 6.4: settings/restore boundaries. 6.8: M1's end message, M2's sub-owner on it, a tester without forge effects whose test lands through A1's change. 6.7 at its cap, on jig's rail and spans. 2.4: every real-loop story ends the work it started or declares its leftovers, which the judge checks at the stop (10-26). 2.4: `suite::fuzzy::green_light` on `goal` and `change`. 4.1: `tools/twin`, its round trip on the green light. 2.4: rung B0's twin, from its first passing walk's transcripts, replaces `suite::fuzzy::green_light`. 2.7: rung B0's live story, `proof-live.sh rung-b0`, green on ChatGPT and an owned Forgejo (10-27). 2.4: rung B1's twin, from its passing walk's transcripts, replaces `suite::fuzzy::repair`. 2.4: inbox answers reach the goal directly as its requester's answer; the chat receives the notice naming the asker that has the answer and does the work, and acknowledges it without another `goal`, `change` or `message` relay. B0/B1's structured fixture edits are recorded in `temper/tests/real-loop/tests/fixtures/README.md`; the next passing walks on main re-record them.
 - **Not yet:** 2.4: remaining terminal/link/setup/webhook/real-agent/real-git paths. 2.6: rebound-Host/board stories; reference-case worker-drain race. 2.7: live GitHub success, Claude Code paths and first-terminal-failure stop. 4.3: rg/sh subset. 5.1: shipped-profile limits everywhere. 5.3: full 6.6, 6.7, 6.8 and later case gaps. 6: digests, transition coverage, event fuzzing and containment. The twin's `asked` scripts for fresh Open chats; lags until `ready/temper/demo-cues` lands.
@@ -16,6 +16,28 @@
   below Chromium. The two direct GitHub landing variants share
   `suite::github_land::a_chats_change_lands_on_connected_github`.
 
-- **After landing (11-02):** 2.7: profile `live-temper` selects the owned-forge landing pair alone, run by fab's `--live` under `--run-ignored only` on shelf logins; each story takes its own store under one `TEMPER_LIVE_STORE`; Claude Code runs on `claude-haiku-5-5`. The pair's first after-landing result is fab's to record; fab's runner (its LIVE table, the store, the logins' return) is the agents repository's. The 42 harness step tests counted as duplicates (the after-landing audit at de07a0b2c) need no deletion: 1425451fb7 (11-01) moved them into `suite/support_tests.rs`.
+- **After landing (11-02):** 2.7, built: profile `live-temper`'s default
+  filter selects the owned-forge landing pair alone, so it runs nothing
+  without `--run-ignored only`; each story takes its own store,
+  `forge-land` or `forge-land-claude`, under one `TEMPER_LIVE_STORE`
+  (`support::forge_land::landing_store`), checked offline by
+  `suite::forge_land::each_landing_story_takes_its_own_store_under_one_live_store`
+  and `the_launcher_gives_each_landing_story_its_own_store`; Claude Code
+  runs on `claude-haiku-5-5`; `proof-live.sh` and `proof-live-github.sh`
+  select their story over `live-temper` with `--ignore-default-filter`.
+  Not yet: no after-landing run of the pair. fab's runner (its LIVE table,
+  a fresh `TEMPER_LIVE_STORE`, `--run-ignored only`, a private `TMPDIR`, the
+  record's give-back, the logins' `stat`, stopping what is left) is the
+  agents repository's, after this; the first result is fab's to record.
+  Neither story has run live since the per-story stores, nor the Claude
+  one ever on `claude-haiku-5-5`, and no wall time of either is recorded: whether the
+  profile's 50 minutes hold both 40-minute stories in one invocation is
+  the user's question, open, 50 minutes kept until it is answered (11).
+  Departures: `tools/tiers/packages.toml`'s `live-temper` binaries stay
+  `[]`, against the request (`temper/docs/plan/live-temper/inputs/request.md`):
+  that table names `[[bin]]` targets, each built by `--bin`
+  (`tools/tiers/design.md`, 2.1), `live` is a `[[test]]` target, and the
+  profile's filter selects it. The pair's `#[ignore]` reasons in `live.rs`
+  still read "a person's sitting" and "owner-run only".
 
 - **Harness (11-01):** the turn-restart referee uses its own future poll/progress deadlines; it does not inherit an unadvanced merge poll from the base chat referee. The isolated cancellation proof used 32.509 CPU s after this change, versus 46.750 s before. An earlier full run met an uncertain initial pull update; the unchanged case passed once alone. Both logs are in the al-temper-process report (hetzner6); this intermittent owned-integration finding remains visible.
