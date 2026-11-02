@@ -257,40 +257,50 @@ impl Directory {
             (Stage::Exists, file::Event::Failed { error: Error::NotFound, .. }) => {
                 self.fail(b"DIRECTORY does not exist");
             }
-            (Stage::Token, file::Event::Failed { error: Error::NotFound, .. }) => {
+            (Stage::Address | Stage::Token, file::Event::Failed { error: Error::NotFound, .. }) => {
                 self.fail(b"DIRECTORY is not signed in");
             }
-            (stage, event) => match stage {
-                Stage::KeyOpen | Stage::KeyStat | Stage::KeyRead | Stage::KeyClose => self.answer_key(event),
-                Stage::RecordCreate
-                | Stage::RecordWrite
-                | Stage::RecordSync
-                | Stage::RecordDirectory
-                | Stage::RecordRemove
-                | Stage::Start
-                | Stage::Exists
-                | Stage::Checked
-                | Stage::Private
-                | Stage::Lock
-                | Stage::Address
-                | Stage::Token
-                | Stage::Link
-                | Stage::Store
-                | Stage::Ready
-                | Stage::Closing => self.fail(b"DIRECTORY could not be read"),
-            },
+            (stage, event) => {
+                let words = answer_words(&event);
+                let message = match stage {
+                    Stage::KeyOpen | Stage::KeyStat | Stage::KeyRead | Stage::KeyClose => {
+                        self.answer_key(event);
+                        return;
+                    }
+                    Stage::Link => {
+                        let part = if self.text_root.is_some() { "text file" } else { "FILE" };
+                        format!("{part} could not be read: {words}")
+                    }
+                    Stage::Store => format!("DIRECTORY could not be written: address: {words}"),
+                    Stage::Lock => format!("DIRECTORY could not be read: lock: {words}"),
+                    Stage::Address => format!("DIRECTORY could not be read: address: {words}"),
+                    Stage::Token => format!("DIRECTORY could not be read: token: {words}"),
+                    Stage::RecordCreate
+                    | Stage::RecordWrite
+                    | Stage::RecordSync
+                    | Stage::RecordDirectory
+                    | Stage::RecordRemove
+                    | Stage::Start
+                    | Stage::Exists
+                    | Stage::Checked
+                    | Stage::Private
+                    | Stage::Ready
+                    | Stage::Closing => format!("DIRECTORY could not be read: open: {words}"),
+                };
+                self.fail(message.as_bytes());
+            }
         }
     }
     fn answer_key(&mut self, event: file::Event) {
         match event {
             file::Event::Failed { error, .. } => {
-                self.fail(if error == Error::NotFound {
-                    b"key file not found"
+                if error == Error::NotFound {
+                    self.fail(b"key file not found");
                 } else if error == Error::TooManyLinks {
-                    b"key file must not be a link"
+                    self.fail(b"key file must not be a link");
                 } else {
-                    b"key file could not be read"
-                });
+                    self.fail(format!("key file could not be read: {error:?}").as_bytes());
+                }
             }
             file::Event::Opened { .. } => self.stage = Stage::KeyStat,
             file::Event::Stated { stat, .. } => {
@@ -334,7 +344,7 @@ impl Directory {
             | file::Event::Renamed { .. }
             | file::Event::Removed { .. }
             | file::Event::Listed { .. }
-            | file::Event::Cancelled { .. } => self.fail(b"key file could not be read"),
+            | file::Event::Cancelled { .. } => self.fail(b"key file could not be read: unexpected answer"),
         }
     }
     pub(crate) fn progress(&mut self, now: Time) {
@@ -571,7 +581,7 @@ impl Directory {
     }
     pub(crate) fn load_link(&mut self, path: &[u8]) {
         if self.file_root.is_none() {
-            self.fail(b"DIRECTORY could not be read: link file has no parent");
+            self.fail(b"FILE could not be read: file has no parent");
             return;
         }
         self.link_max = limits::LINK;
@@ -595,6 +605,33 @@ impl Directory {
     }
     fn request(&mut self, now: Time, request: file::Request) {
         file_layer::down(&mut self.io, now, request, &mut self.events, &mut self.submissions);
+    }
+}
+/// What a failed or unexpected answer says (client/tools.md, 8.1): the file layer's error
+/// by name, `too large`, or `unexpected answer`; never an event's bytes.
+fn answer_words(event: &file::Event) -> String {
+    match event {
+        file::Event::Failed { error, .. } => format!("{error:?}"),
+        file::Event::TooLarge { .. } => "too large".into(),
+        file::Event::Locked { .. }
+        | file::Event::Busy { .. }
+        | file::Event::Made { .. }
+        | file::Event::Refused { .. }
+        | file::Event::Opened { .. }
+        | file::Event::Loaded { .. }
+        | file::Event::Scanned { .. }
+        | file::Event::Stored { .. }
+        | file::Event::Conflict { .. }
+        | file::Event::Stated { .. }
+        | file::Event::Written { .. }
+        | file::Event::Read { .. }
+        | file::Event::Cut { .. }
+        | file::Event::Synced { .. }
+        | file::Event::Closed { .. }
+        | file::Event::Renamed { .. }
+        | file::Event::Removed { .. }
+        | file::Event::Listed { .. }
+        | file::Event::Cancelled { .. } => "unexpected answer".into(),
     }
 }
 /// The address is numeric HTTP, one newline-terminated line, on loopback.

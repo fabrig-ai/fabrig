@@ -1396,6 +1396,22 @@ temper ctl help [GROUP [VERB]]
 - **`address`** is `temper-client-shell-cli`'s: one line,
   `http://HOST:PORT`, `0o600`, written by `sign-in` and read by every
   other call.
+- **A DIRECTORY the call cannot use** ends it, exit 1, with one line
+  naming what failed: `DIRECTORY does not exist`; `DIRECTORY is not
+  private` (or its `address` or `token`); `DIRECTORY is not signed in`,
+  with no `address`, no `token` or a zero-byte one; `DIRECTORY is busy
+  with another call` (8.3); otherwise the step and the error,
+  `DIRECTORY could not be read: STEP: ERROR`, STEP `open`, `lock`,
+  `address` or `token`, or `DIRECTORY could not be written: address:
+  ERROR` when `sign-in` writes it. ERROR is the file layer's error by
+  its name (`NotFound`, `Permission`, ...), `too large` past the file's
+  bound, or `unexpected answer`.
+- **A FILE the call reads** that cannot be read ends it the same way,
+  naming the file and the error: `FILE could not be read: ERROR` for
+  `sign-in`'s link and `--call`'s call, `text file could not be read:
+  ERROR` for a text file, `key file could not be read: ERROR` for a key
+  file, `record file` for `account import`'s. A DIRECTORY failure is
+  never printed as a FILE's, nor a FILE's as DIRECTORY's.
 - **`--call FILE`** reads one call as JSON, `{"tool": ..., "arguments":
   {...}}`, from FILE, or from stdin for `-`.
 - **A call `--call` reads gives no argument of the type a file** (5.1),
