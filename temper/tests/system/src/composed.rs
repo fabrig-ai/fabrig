@@ -992,6 +992,7 @@ impl World {
                     | host::LinkUp::Unauthorized { .. }
                     | host::LinkUp::Limited { .. }
                     | host::LinkUp::AccountRefused { .. }
+                    | host::LinkUp::JobAnswer { .. }
                     | host::LinkUp::Answer { .. } => {}
                 }
                 self.up(engine::Link::Up { up, parts: engine::Parts::none() });

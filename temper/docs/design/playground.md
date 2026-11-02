@@ -13,10 +13,11 @@ desktop browsers are well supported (the user, 10-26).
 ## 1. In one page
 
 - **The box's playground, with no box.** The playground a person meets
-  in `temper box` ("Try the playground": the Scripted model, the
-  Playground forge, `playground/widget`; `protocol/setup.md`, 8.4)
-  runs in the visitor's browser: nothing to install, no account, no
-  server, no real model.
+  in `temper box` runs in the visitor's browser: "Try the playground"
+  makes its ordinary records, the Playground forge, the Scripted model
+  and the Playground project with `playground/widget` adopted, and the
+  banner's "set up temper" resets them (`protocol/setup.md`, 8.4).
+  Nothing to install, no account, no server, no real model.
 - **Product code on fakes, with no fake branch.** The engine, the
   worker, the store, the agents and the client are the shipped crates.
   Only the composition differs: the simulator's machine for the
@@ -47,19 +48,24 @@ desktop browsers are well supported (the user, 10-26).
 
 - **A loading line,** then the client as the box's person sees it after
   following the printed link: signed in as the deployment's owner, on
-  the welcome. The visitor chooses "Try the playground", and the demo's
-  start makes the project Playground, adds the Scripted model and
-  adopts `playground/widget` (`protocol/setup.md`, 8.4). From there,
-  the box's playground: the banner, the three suggested requests, a
-  change followed from a branch to `main`.
-- **Only what the deployment can do is offered.** The playground's
-  document configures the demo alone, so the client should offer no Set
-  up temper, no Connect a forge and no Connect a model. That is the
-  client's rule for every deployment that configures them out, never a
-  branch for the playground (`client/README.md`). Until section 11's
-  question is answered, the welcome offers Set up temper beside Try the
-  playground, as on any deployment, and the playground's stories never
-  press it.
+  the welcome. The visitor chooses "Try the playground", which sends
+  `StartPlayground`: the playground's ordinary records are made, the
+  fake forge's, the scripted account and the project Playground, and
+  `playground/widget` is adopted into it once the fake forge connects
+  (`protocol/setup.md`, 8.4). From there, the box's playground: the
+  banner, the three suggested requests, a change followed from a branch
+  to `main`.
+- **Only what the deployment can do is offered.** While the playground
+  runs, its pages offer nothing to add, no forge and no model, as on
+  any deployment (`client/README.md`, 4.8). The playground's world can
+  set nothing up, so the client should offer neither the welcome's Set
+  up temper nor the banner's "set up temper", which resets the
+  playground (`EndPlayground`) and opens the welcome's Forge step. That
+  is the client's rule for every deployment that can set nothing up,
+  never a branch for the playground (`client/README.md`). Until section
+  11's question is answered, the welcome offers Set up temper beside
+  Try the playground, and the banner its link, as on any deployment,
+  and the playground's stories press neither.
 - **The frame around the client** is the page's own, not the client's:
   what this is ("temper's playground: a scripted model and forge,
   running in your browser"), the world's controls (pause, speed, reset,
@@ -112,9 +118,13 @@ desktop browsers are well supported (the user, 10-26).
   (`domain/testing.md`, 2.5) without its harness: no referee, no fake
   person, no terminal client, no captures and no fault schedule.
 - **No box.** The fakes are the world's processes, as for a deployment
-  without the box (`protocol/setup.md`, 7.4): the forge a `fake`
-  setup entry whose handover the composition lays on the disk, the
-  model the demo's provider. The demo's start asks nothing of a pipe.
+  without the box (`protocol/setup.md`, 7.4), at the fakes' places the
+  document names: the forge whose record `StartPlayground` makes, its
+  setup entry the playground's, whose handover the composition lays on
+  the disk, and the model the scripted provider, at the fake LLM's
+  endpoint (`protocol/setup.md`, 8.4). `StartPlayground` asks no group
+  of a pipe: the fake forge connects as its process answers, and its
+  reset removes no group.
 - **Calm at every layer:** no fault in the simulator, the fake LLM or the
   fake forge.
 - **One seed:** every seed of the world (the simulator's, the
@@ -133,8 +143,9 @@ desktop browsers are well supported (the user, 10-26).
 
 ### 5.1 What a story is
 
-- **Data, no code:** the deployment's document, which is the demo's
-  part with the forge, the provider and the project; the fake LLM's and
+- **Data, no code:** the deployment's document, which names the
+  scripted provider and the fakes' places, and no forge and no project,
+  which `StartPlayground` makes (`protocol/setup.md`, 8.4); the fake LLM's and
   the fake forge's documents, in `temper-fake`'s form of a document of
   its own (`protocol/setup.md`, 8.4), which hold the scripts and the
   seeded repositories with their files, CI and cues; its pace; and a
@@ -294,10 +305,10 @@ desktop browsers are well supported (the user, 10-26).
 
 ## 11. Open questions
 
-- **What the welcome offers on a deployment that can set nothing up:**
-  the client tells nothing of it today, and the welcome is the user's
-  page. Default: the welcome as it is, Set up temper unpressed, until
-  the user says what replaces it.
+- **What the welcome and the banner offer on a deployment that can set
+  nothing up:** the client tells nothing of it, and the welcome is the
+  user's page. Default: both as they are, Set up temper and the
+  banner's link unpressed, until the user says what replaces them.
 - **The memory bar for a desktop browser:** the draft's 256 MiB was a
   phone's; measured first, then the user's.
 - **The welcome, or straight in.** Default: the welcome, the product's

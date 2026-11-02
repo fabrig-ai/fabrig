@@ -10,7 +10,7 @@ pub struct Limits {
     pub source_interval: skein_lib::Duration,
     /// Positive deadline span for one source check or sign-out command.
     pub source_timeout: skein_lib::Duration,
-    /// Runs hosted at once: the run slots. An assignment beyond them is
+    /// Runs and jobs hosted at once: the shared slots. An assignment beyond them is
     /// refused as busy.
     pub slots: u32,
     /// Distinct grants retained for a hosted attempt.
@@ -52,10 +52,11 @@ pub struct Limits {
     pub turn_queue_bytes: u64,
 }
 
-/// The host calls in flight at once, across runs, under `limits`, or `None` if
-/// they do not fit a `u32`.
+/// Calls in flight across slots, reserving one delivery per job even when
+/// runs admit no calls (jig/docs/design/domain/hosts.md, 6.9).
+/// Returns `None` if the capacity does not fit a `u32`.
 pub(crate) fn calls(limits: &Limits) -> Option<u32> {
-    limits.slots.checked_mul(limits.run_calls)
+    limits.slots.checked_mul(limits.run_calls.max(1))
 }
 
 /// Whether these limits are representable: every edge bound they size

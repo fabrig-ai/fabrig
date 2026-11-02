@@ -534,7 +534,7 @@ fn locate_refused(d: &mut Domain, env: &Env<Limits>, request: Token, why: Adopti
 }
 
 /// Release adoptions after the core has erased the project's tasks
-/// (temper/docs/design/draft/playground-reset.md, 5).
+/// (jig/docs/design/domain/people.md, 5.2; temper/docs/design/domain/forge.md, 4.1).
 pub(crate) fn release(d: &mut Domain, project: u32, request: Token, out: &mut Queue<Request>) {
     let mut repositories = List::with_capacity(d.repositories.capacity());
     for (provider, row) in &d.repositories {

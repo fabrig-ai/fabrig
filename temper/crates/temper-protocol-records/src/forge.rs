@@ -65,7 +65,7 @@ impl Rows {
     pub fn new() -> Self {
         Self { forges: Map::with_capacity(FORGES) }
     }
-    /// Drop every loaded secret of a removed forge (temper/docs/design/draft/playground-reset.md, 4).
+    /// Drop every loaded secret of a removed forge (temper/docs/design/protocol/forge.md, 2.3).
     pub fn remove(&mut self, forge: u16) {
         self.forges.remove(&forge);
     }

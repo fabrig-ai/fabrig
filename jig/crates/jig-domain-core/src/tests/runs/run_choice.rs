@@ -57,6 +57,7 @@ fn host_with_endpoints(
             worker: u32::from(channel == SECOND),
             channel,
             hello: fleet::Hello {
+                jobs: Box::default(),
                 bounds,
                 stop_bound: Duration::ZERO,
                 slots: 1,
@@ -144,6 +145,7 @@ fn a_lower_numbered_goals_waiting_run_starts_first() {
                 worker: 0,
                 channel: FIRST,
                 hello: fleet::Hello {
+                    jobs: Box::default(),
                     bounds: fixtures::bounds(),
                     stop_bound: Duration::ZERO,
                     slots: SLOTS,
@@ -902,6 +904,7 @@ fn due_and_preparing_documents_refine_only_the_host_wait_from_an_actual_refused_
                 channel,
                 worker: 0,
                 hello: fleet::Hello {
+                    jobs: Box::default(),
                     bounds,
                     stop_bound: Duration::ZERO,
                     slots: 1,
@@ -941,6 +944,7 @@ fn due_and_preparing_documents_refine_only_the_host_wait_from_an_actual_refused_
                 channel,
                 worker: 0,
                 hello: fleet::Hello {
+                    jobs: Box::default(),
                     bounds: fleet::Bounds { turns: 0, ..fixtures::bounds() },
                     stop_bound: Duration::ZERO,
                     slots: 1,
@@ -965,6 +969,7 @@ fn a_standing_refusal_does_not_replace_account_or_credential_waits_or_placed_wor
             channel: Token::new(99),
             worker: 0,
             hello: fleet::Hello {
+                jobs: Box::default(),
                 bounds: fleet::Bounds { turns: 0, ..fixtures::bounds() },
                 stop_bound: Duration::ZERO,
                 slots: 1,

@@ -208,7 +208,11 @@ it is live:
     to the deployment's retention horizon, and whole while none is set
     (`../protocol/store.md`, 11.1); or *forgotten once read*, erased once
     its requester, a party, has read it. When and how is people.md,
-    section 6.
+    section 6. Whatever its class, a task of a project being deleted is
+    erased whole once every task of the project has ended, with no
+    horizon waited for, as its retention would erase it at the horizon,
+    its transcript's file with it (people.md, 5.2;
+    `../protocol/store.md`, 8.5 and 11.1).
 
   The label and the flags are what a task is made as: no amendment
   changes them (section 7).
@@ -365,7 +369,8 @@ waiting ──► active ──► closing ──► done, failed or cancelled
 - **Done, failed, cancelled:** ended. Its result is a message to its
   requester, and kept. An ended task leaves the engine's working set once
   that message is committed, leaving a stub while live tasks name it;
-  the store keeps it all.
+  the store keeps it all, until its retention class erases it, or its
+  project's deletion does (section 3).
 - **Held:** stopped for a decision, from waiting, active or closing. It
   says why (5.5). A release returns it where it was, the reason it was
   held judged afresh.
@@ -1111,6 +1116,11 @@ circle, each for another of the set, so that none of them could end.
   counts; a task waiting for holds leaves their queues. Each task ends
   once its own closing is done, deepest first, and its requester hears
   that it ended cancelled, with what it had done.
+- **A project deleted** (people.md, 5.2) cancels each of its live
+  tasks, by the deployment's compound (below), each live root with its
+  tree, a conversation with its grace, and takes no new task from that
+  decision; once none is live, each of its tasks is erased whole
+  (section 3).
 - **Cancelling with a grace.** A cancel may give a grace, within the
   longest the tasks child allows (section 11), so that a task finishes
   what it can before it is cut off: a conversation closed by its person,
@@ -1190,9 +1200,9 @@ circle, each for another of the set, so that none of them could end.
   decision, each of its live delegates cancelled or moved to its party,
   then itself cancelled with a grace; a project's goals are reordered at
   once; a held task is amended and released. The deployment's compound,
-  a connector's act in its name (people.md, 5.3), only cancels: an
-  operation of another kind, or on a task of another project, refuses
-  it whole.
+  a connector's act in its name (people.md, 5.3) or a project's
+  deletion (people.md, 5.2), only cancels: an operation of another
+  kind, or on a task of another project, refuses it whole.
 
 ## 8. Messages
 

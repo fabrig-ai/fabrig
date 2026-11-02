@@ -193,7 +193,7 @@ pub(crate) fn hello(
         refuse(domain, env, channel, &hello, why, out);
         return;
     }
-    let Hello { slots, workstreams, hosting, stop_bound: _, bounds } = hello;
+    let Hello { slots, workstreams, hosting, stop_bound: _, bounds, jobs: _ } = hello;
     let mut worker = Channel {
         evidence: crate::needs::evidence(&domain.catalogue, &bounds),
         program_endpoints: bounds.program_endpoints,

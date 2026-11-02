@@ -111,7 +111,7 @@ fn usable(call: &Ended) -> bool {
 }
 
 // A first run keeps no forge until SetUp or Connect makes its record
-// (temper/docs/design/draft/playground-reset.md, 3).
+// (temper/docs/design/protocol/forge.md, 2.2).
 fn forge_rows(call: &Ended) -> Vec<Value> {
     let document = ctl::json(call);
     let document = if document.get("met").is_some() { &document["forges"] } else { &document };

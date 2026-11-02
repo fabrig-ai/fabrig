@@ -20,7 +20,7 @@ is open section 19.
 ## 1. In one page
 
 - **Connect, then add repositories, any time.** A forge is a record in
-  the store, made as it is set up or connected (`playground-reset.md`,
+  the store, made as it is set up or connected (`archive/playground-reset.md`,
   section 3), never a credential in a file and never a repository list.
   A person connects the forge from temper's client, then adds
   repositories to a project from a list of those temper can reach, now
@@ -82,7 +82,7 @@ is open section 19.
 ### 2.1 Connecting a forge
 
 - **A forge's record names the forge, not its access**
-  (`playground-reset.md`, section 3). Each forge's kind and addresses:
+  (`archive/playground-reset.md`, section 3). Each forge's kind and addresses:
   for Forgejo its `api`, `transport` and `git`; for GitHub, whose
   addresses default to github.com's and are given only to point at a
   fake. No token, user id, webhook secret or repository.

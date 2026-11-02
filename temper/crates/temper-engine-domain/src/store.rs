@@ -572,7 +572,7 @@ impl Record {
 /// (domain/root.md, 8).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Write {
-    /// Whole-task transcript erasure (temper/docs/design/draft/playground-reset.md, 5; jig/docs/design/protocol/store.md, 8.5, 11.1).
+    /// Whole-task transcript erasure (jig/docs/design/domain/people.md, 5.2; temper/docs/design/domain/forge.md, 4.1; jig/docs/design/protocol/store.md, 8.5, 11.1).
     DropTranscript { task: u64 },
     /// Persist the shell-supplied wire versions in the start’s mark.
     Wires,

@@ -1,4 +1,4 @@
-//! Kept forges and their navigation dot (temper/docs/design/draft/playground-reset.md, 3, 6.1).
+//! Kept forges and their navigation dot (temper/docs/design/client/forge.md, 5.4; temper/docs/design/client/README.md, 4.8).
 use super::{
     Playground, connect,
     forges::{Connection, Mode, Row, State},

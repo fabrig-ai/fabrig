@@ -1,4 +1,4 @@
-//! Forge commands and slot removal (temper/docs/design/draft/playground-reset.md, 3 and 4).
+//! Forge commands and slot removal (temper/docs/design/protocol/setup.md, 7.1).
 use std::{
     ffi::OsString,
     fs,
@@ -317,7 +317,7 @@ fn webhook_listener(named: &temper_service::startup::Named) -> Result<Option<cor
 #[cfg(test)]
 mod tests;
 
-/// Composes a group's kind with the machine (temper/docs/design/draft/playground-reset.md, 3).
+/// Composes a group's kind with the machine (temper/docs/design/protocol/setup.md, 7.1).
 pub(crate) fn entry(
     directories: &super::Directories,
     bytes: &[u8],
@@ -336,7 +336,7 @@ fn group_kind(directories: &super::Directories, number: u16) -> Result<temper_fo
         skein_shell::read_file(&path, 16).map_err(|why| format!("{}: {}", path.display(), super::unread(why)))?;
     machine::parse_group_file(&bytes).ok_or_else(|| format!("{}: invalid group kind", path.display()))
 }
-/// Removes a slot's directory beneath data, keeping the cache (3, 4).
+/// Removes a slot's directory beneath data, keeping the cache (7.1).
 fn remove(directories: &super::Directories, number: u16) -> Result<(), String> {
     let kind = group_kind(directories, number)?;
     let data = super::path(&directories.data);

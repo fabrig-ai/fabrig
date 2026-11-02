@@ -112,3 +112,27 @@ Pre-approved options:
 As the implementer's text says, and also: the job directory's layout as built (for the design's
 status); where the kinds list lives; the service arms left for `service-jobs`; any checkout
 change.
+
+## Answers
+
+2026-11-02. Wait for `tooling-capability`, or implement against the contract before its crate
+exists? Neither is needed now: `tooling-capability` pushed its crate at 19:29:58 UTC
+(`origin/reference-m7a/tooling-capability`, `bb54393a74`, `temper/crates/temper-worker-domain-tooling/`),
+three minutes after run 1 stopped. Merge that branch and build against the crate as it is
+(its `Domain`, `step`, `Request`, `Event`, `End`, `Spec`, `Kind`, `Limits`); do not write a
+substitute. If its boundary departs from `notes/contracts.md`, section 8, follow the crate and
+report the difference; a change the crate itself needs is a question, not an edit.
+
+2026-11-02. Extend the checkout and the git protocol with a local HEAD read so a delivering
+kind pushes the command's own commit, or defer that? Defer: no new operation, no change to
+`temper-worker-domain-checkout`, `temper-worker-protocol-git` or the fake checkout. A
+delivering kind's delivery is the checkout's existing `Write::Push` as it is
+(`notes/contracts.md`, section 8): the checkout commits the writable repository's tree as the
+command left it on its head and pushes that, as a run's delivery is (`worker.md, 4.4`).
+Whether a command's own commits, and a merge commit's parents, are delivered as they are is
+the merge job's design (`temper/docs/design/domain/worker.md, 12`), M7b's. In
+`a_delivering_kinds_job_pushes_its_writable_repositorys_head_before_answering`, the test
+kind's command leaves its change in the tree, uncommitted; the story asserts the checkout's
+push and the answer after it, and the stale refusal as failed undelivered. Report, for the
+design's status: a delivering kind delivers its tree committed by the checkout, not the
+command's commits.
