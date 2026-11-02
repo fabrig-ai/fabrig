@@ -490,6 +490,7 @@ fn ended_session(
     turns: u32,
     reported: session::llm::Usage,
     detail: Box<[u8]>,
+    out: &mut Queue<Request>,
 ) -> run::Event {
     let run = run::owner(&domain.run, opener).expect("run outlives its conversation");
     let id = peer(domain, opener);
@@ -498,8 +499,14 @@ fn ended_session(
     let account = peer.account;
     let retry_at = peer.retry_at;
     let report = peer.report.clone();
-    if domain.peers.get(id).expect("session retains peer").is_main() {
+    if peer.is_main() {
         domain.pending.remove(&run);
+    } else if let Some(owner) = peer.session {
+        let charter = run::conversation_charter(&domain.run, opener).expect("run outlives its conversation");
+        let llm = charter.model(model).expect("peer keeps its opening model");
+        if domain.config.program(llm.endpoint).is_some() {
+            out.push(Request::Lower(Lower::Close { owner }));
+        }
     }
     free(domain, id);
     run::Event::Ended {
@@ -591,7 +598,7 @@ fn from_session(domain: &mut Domain, env: &Env<Limits>, request: session::Reques
             run::Event::Used { conversation: opener, spend: translate::spend(1, usage) }
         }
         session::Request::Ended { opener, end, turns, usage: _, reported, detail } => {
-            ended_session(domain, opener, end, turns, reported, detail)
+            ended_session(domain, opener, end, turns, reported, detail, out)
         }
         session::Request::Delegate { owner, opener, call, deadline, origin } => {
             delegated(domain, owner, opener, call, deadline, origin)

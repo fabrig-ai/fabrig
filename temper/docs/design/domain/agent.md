@@ -452,8 +452,9 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
   and the account the run's claim chose for each LLM provider (jig's
   `domain/accounts.md`, 4.3). Their credentials, or a program source's
   name, come to the agent as grants through the worker
-  (`../protocol/credentials.md`, section 3). A run on a program has no
-  sub-agents (smith's `protocol/programs.md`, section 2).
+  (`../protocol/credentials.md`, section 3). A run on a program has
+  smith's sub-agents, inspect only, each a program session of its own
+  (smith's `protocol/programs.md`, 5.10).
   The stock demo is temper's fake model, declared with a window of
   177,523 tokens and an output of 8,192. At smith's 4/5 threshold,
   after two outputs the shared room is 125,634 bytes. Less smith's own

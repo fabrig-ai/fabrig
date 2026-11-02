@@ -156,7 +156,7 @@ pub(crate) struct Print {
     directory: std::path::PathBuf,
     next_tool: u64,
     expected_reply: Option<String>,
-    together: std::collections::VecDeque<(ToolCall, Effect)>,
+    together: std::collections::VecDeque<(ToolCall, Effect, Option<String>)>,
 }
 
 impl Print {
@@ -822,8 +822,9 @@ impl Print {
 
     fn tool_result(&mut self, id: String, text: String, failed: bool) -> Vec<Effect> {
         let mut effects = vec![self.emit(json!({"type":"user", "message":{"role":"user", "content":[{"type":"tool_result", "tool_use_id":id, "content":text, "is_error":failed}]}}))];
-        if let Some((pending, call)) = self.together.pop_front() {
+        if let Some((pending, call, contains)) = self.together.pop_front() {
             self.pending = Some(pending);
+            self.expected_reply = contains;
             self.state = State::Calling;
             effects.push(call);
         } else {
@@ -835,8 +836,13 @@ impl Print {
     fn together(&mut self, steps: Vec<Step>, thinking: Option<u64>) -> Vec<Effect> {
         let mut blocks = Vec::new();
         for step in steps {
+            let mut contains = None;
             let effects = match step {
                 Step::Call { tool, input } => self.tool(tool, input, ToolAction::Server, None),
+                Step::CallChecked { tool, input, contains: expected } => {
+                    contains = Some(expected);
+                    self.tool(tool, input, ToolAction::Server, None)
+                }
                 Step::Builtin { tool, input, result } => self.tool(tool, input, ToolAction::Scripted(result), None),
                 Step::Act { tool, input } => {
                     if !["Read", "Write", "Edit"].contains(&tool.as_str()) {
@@ -844,7 +850,7 @@ impl Print {
                     }
                     self.tool(tool, input, ToolAction::Act, None)
                 }
-                _ => return error("Together requires Call, Builtin or Act", 1),
+                _ => return error("Together requires Call, CallChecked, Builtin or Act", 1),
             };
             let pending = self.pending.take().expect("tool prepared");
             let name = if pending.action.builtin() {
@@ -856,7 +862,7 @@ impl Print {
                 json!({"type":"tool_use","id":pending.id,"name":name,"input":pending.input,"caller":{"type":"direct"}}),
             );
             let call = effects.into_iter().find(|effect| matches!(effect, Effect::McpCall { .. })).expect("tool RPC");
-            self.together.push_back((pending, call));
+            self.together.push_back((pending, call, contains));
         }
         if blocks.is_empty() {
             return self.steps();
@@ -874,8 +880,9 @@ impl Print {
             &self.story.usage,
         );
         assistant["message"]["content"] = json!(blocks);
-        let (pending, call) = self.together.pop_front().expect("nonempty group");
+        let (pending, call, contains) = self.together.pop_front().expect("nonempty group");
         self.pending = Some(pending);
+        self.expected_reply = contains;
         self.state = State::Calling;
         let mut effects = Vec::new();
         if self.texts > 1 {

@@ -1301,7 +1301,7 @@ impl<B: Backend> World<B> {
             Request::MessageRefused { .. }
             | Request::Refused { .. }
             | Request::Limited { .. }
-            | Request::Lower(smith_domain::Lower::Yield { .. }) => {}
+            | Request::Lower(smith_domain::Lower::Yield { .. } | smith_domain::Lower::Close { .. }) => {}
         }
     }
 

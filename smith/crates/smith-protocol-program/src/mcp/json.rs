@@ -202,6 +202,18 @@ pub(crate) fn outcome_input(document: &Document, object: u32, bound: u32) -> Opt
     raw(document, input, bound)
 }
 
+/// Program children read only (protocol/programs.md, 5.10); every other schema byte is kept.
+pub(crate) fn sub_agent_schema(schema: &[u8]) -> Box<[u8]> {
+    let families = br#"["inspect","modify","shell"]"#;
+    let start = skein_lib::bytes::find(schema, families).expect("direct sub_agent tool families");
+    let end = start.checked_add(families.len()).expect("enum within direct schema");
+    join(&[
+        schema.get(..start).expect("prefix before enum"),
+        br#"["inspect"]"#,
+        schema.get(end..).expect("suffix after enum"),
+    ])
+}
+
 pub(crate) fn tool_list(tools: &[Tool], bound: u32, schema_bytes: u32) -> Result<Box<[u8]>, Refused> {
     let mut bytes = List::with_capacity(bound);
     for byte in b"{\"tools\":[" {
