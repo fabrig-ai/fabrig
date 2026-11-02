@@ -1,7 +1,8 @@
 //! Retained tier policy rows (temper/docs/design/domain/after-landing.md, 10).
-use crate::{Domain, TierRow};
+use crate::{Domain, Limits, TierRow};
 use alloc::boxed::Box;
 use core::mem::size_of;
+use skein_lib::{Env, Wall};
 use temper_engine_domain_forge_tiers as p;
 
 impl Domain {
@@ -17,6 +18,11 @@ impl Domain {
     ) -> Option<(skein_forge::api::Repository, crate::What, crate::AgentEffect)> {
         None
     }
+    /// The top owns each tier task's deadline, as a landing's (after-landing.md, 10):
+    /// `TierDecision::Wait`'s `until`, else a poll from now, woken by `Request::WakeProcedure`.
+    pub fn wait_tier(&mut self, _env: &Env<Limits>, _task: u64, _until: Option<Wall>) {}
+    /// The tier task was stepped: its deadline, if any, is spent.
+    pub fn offered_tier(&mut self, _task: u64) {}
 }
 pub(crate) fn tests_bytes(tests: &[Box<[u8]>]) -> Option<u64> {
     let mut held = u64::try_from(tests.len()).ok()?.checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?;
