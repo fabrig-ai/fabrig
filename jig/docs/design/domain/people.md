@@ -313,21 +313,19 @@ retained-key replay or conflict and pending-key joins or conflicts are
 checked before a new request needs room. An identical pending request
 joins its waiters; a different ask under that key conflicts.
 
-A new top-level `Seen` uses the same keyed transport and pending checks,
+A top-level `Seen` uses the same keyed transport and pending checks,
 but bypasses completed-answer capacity and saves no `Answer`, on success
-or routed refusal. It still needs the existing bounded pending, flight,
-waiter, load, journal and output room. Ordinary admission counts retained
-answers plus only the ordinary flights that reserve answers, excluding
-`Seen`; a bounded scan of pending flights suffices, with no new counter
-or limit. Each admitted ordinary flight thus retains its reserved place
-through saving its answer.
+or routed refusal, so it progresses while the answers' places are full.
+It needs the bounded pending, flight, waiter, load, journal and output
+room. Ordinary admission counts retained answers plus only the ordinary
+flights that reserve answers, excluding `Seen`; a bounded scan of
+pending flights suffices, with no counter or limit of its own. Each
+admitted ordinary flight thus retains its reserved place through saving
+its answer.
 
-After a new `Seen` completes, its key is free. A retry is processed
-against the current subject and authority, and a different ask under the
-freed key is a new request. Legacy retained `Seen` answers still restore,
-replay or conflict until their original expiry, occupying their old
-answer places without early erasure or reclassification. New `Seen`
-requests can progress while those places are full.
+After a `Seen` completes, its key is free. A retry is processed against
+the current subject and authority, and a different ask under the freed
+key is a new request.
 
 The operations as the client sends them are
 `../client/domain/contract.md`, 3.2:

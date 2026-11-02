@@ -603,7 +603,7 @@ Nothing decides on a fact.
   come up smith's channel, which the host's half decodes (smith's
   `protocol/channel.md`, sections 3 and 4); in `smith-inline-agent`'s
   host they are drained in the process (5.2). A run whose assignment does
-  not ask gives none, as every host did before: its words appear as each
+  not ask gives none: its words appear as each
   turn commits. A sub-agent's or a compaction's completion gives no text.
 - **A tool begun with its call, only from a host that has it:** a hub
   whose agent is `smith-inline-agent` hands up a tool begun naming its
@@ -648,7 +648,7 @@ Nothing decides on a fact.
 - **One text, whatever its host.** Above the hub, the core's views, the
   client and the application see a run's text the same way from an agent
   process and from `smith-inline-agent`.
-- **What jig still asks of smith, later:** the LLM component's abort and
+- **What jig asks of smith, later:** the LLM component's abort and
   closed terminal (`../protocol/README.md`, section 11).
 - **A conversation's delegated tasks give no text.** Only the run of the
   conversation's own task is asked; a task it delegates streams nothing
@@ -711,7 +711,7 @@ reach past the grace.
     (6.5), so the hub and jig's channel carry jig's activity, never
     smith's facts. Each live piece from smith's channel goes to the hub
     as jig's typed piece, and to the agent process's watchdog as its
-    progress, as before (5.1).
+    progress (5.1).
 - **Who links smith:** `jig-protocol-charter` (section 8), a client's
   decoding of turns (`../client/domain/client.md`, section 10), and an
   application's roots that compose smith's agent capability, with their
@@ -947,14 +947,14 @@ agent for ever.
   waits. A proposal or an escalation relayed to a run and decided before
   its turn commits, often by a call in that very turn, still ends read
   when the turn names it (tasks.md, section 9).
-- **A grace asks the run to finish.** Jig keeps `FinishRequested { revision }`
+- **A grace asks the run to finish.** jig keeps `FinishRequested { revision }`
   as a durable inbox kind, separately reserved from merged amendments. Its
   live message and its carried Start message translate to smith's
   `finish_requested: true`; every other kind translates to false. The
   owned kind travels through held deliveries, without querying later task
-  state. In an Open run, admission enters smith's existing wind-down, so
-  its next text parks. Finite runs hear an ordinary amendment; cancellation,
-  refusals and read fences keep their existing meaning. The hub carries the
+  state. In an Open run, admission enters smith's wind-down, so its next
+  text parks. Finite runs hear an ordinary amendment, and the flag changes
+  nothing of cancellation, refusals or read fences. The hub carries the
   flag without linking smith; application roots only translate it.
 - **The start carries the inbox,** as many of its messages as the run's
   inbox takes, oldest first; the rest are relayed as the run reads
@@ -1045,8 +1045,8 @@ agent for ever.
   its parent, so the person sees the delegate write; whether that asks
   of the assignment, or of the views, is open.
 - **Reasoning as it streams.** Its kind is in the wire (6.5), but smith
-  has no producer for it. Input is now produced by agent processes;
-  reasoning still needs each provider asked for readable reasoning.
+  has no producer for it. Agent processes produce input; reasoning needs
+  each provider asked for readable reasoning.
 
 - **Fairness on the engine's loop:** whether runs in the engine need a
   share of each iteration, so many chats never slow the engine's

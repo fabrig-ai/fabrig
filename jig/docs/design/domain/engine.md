@@ -424,9 +424,8 @@ section 9). Accounts' source deadlines retain both clocks where the
 limit or retry is created (`accounts.md`, 3.5): timers use `Deadline.at`,
 and every projection and stored reset uses its source-owned
 `Deadline.wall`, never a conversion at read or save time. Restore keeps
-the exact wall and maps it to the new monotonic clock once. The existing
-optional wall reset and client fields keep their layouts. Fleet grace
-and adrift times remain the fleet's separate concern.
+the exact wall and maps it to the new monotonic clock once. Fleet grace
+and adrift times are the fleet's own (section 8).
 
 ### 5.5 What the core asks of the store
 
@@ -788,7 +787,7 @@ Restoration refuses duplicate provider bindings and a surviving source whose
 account or provider disagrees. Removed rows remain legitimate history. Adoption
 offers grants only from the recorded surviving sources, never replacements;
 an unavailable recorded grant can renew on its original source, and an absent
-worker settles through fleet's existing grace. A new assignment rechecks the
+worker settles through the fleet's grace (section 8). A new assignment rechecks the
 recorded bindings and current coverage.
 
 The check joins each candidate host's kept program logins to the accounts' issued
@@ -797,10 +796,7 @@ rule, including retained providers. Deployment-held logins restrict no run;
 a deployment with at most one person is unaffected. A program source is chosen
 only where its login is usable; the engine never takes one. A program source's
 run is granted its source's name and runs on smith's program backend, for the
-program its endpoint names (`../protocol/configuration.md`, section 3). Until
-configuration's providers-only conversion, legacy
-model account fields seed deployment-held accounts only; neither admission nor
-the per-run charter routes by them.
+program its endpoint names (`../protocol/configuration.md`, section 3).
 
 ### 7.2 Transcripts
 
@@ -936,7 +932,6 @@ JSON names models and efforts by their configured indices; account numbers
 are durable names. Omitting the choice keeps the delegate's charter default
 or the amended task's existing choice. A choice grants no additional models:
 the core checks inherited authority and the prospective financial payer.
-These per-tool declarations change within the existing call envelope.
 
 | Tool | What it does | Answers |
 |---|---|---|
@@ -1340,12 +1335,12 @@ computes for them is said below (11.1 to 11.5).
   core through the people's timer (people.md, section 3); stopping still
   completes watch endings and the drain notification (section 6.1).
 - **An ended task or tree opens as a finished read**
-  (`../client/domain/contract.md`, 7.2). Construction uses one of the
-  existing bounded task loads, held behind preceding commits. The core
+  (`../client/domain/contract.md`, 7.2). Construction uses a bounded
+  task load (5.3), held behind preceding commits. The core
   checks the sign-in and retained row's project on completion, makes the
   final document without restoring the row, and closes the watch after
   its delivery terminal. A close during the load drains construction
-  without delivering. Live watches keep their existing pacing.
+  without delivering. Live watches are paced as every watch is.
 - **Watches are never stored.** A restart (section 6) starts with none,
   and is told nothing of the deliveries made before it; each client
   opens its watches again (`../protocol/client.md`, section 4).
@@ -2054,8 +2049,7 @@ section 17; the records are `../protocol/store.md`, 4.4.
   the newest's, for what is about to be made. Every site of the core
   that reads a charter reads it through one of them. An application
   that reads a task's charter through `charter_of` reads the task's own
-  version with no change of its own: temper's forge routing, which
-  takes an effect call's timeout from `charter_of(task)`, needs none.
+  version with no change of its own.
   An amendment of a task's LLM choice is checked against its own
   version's models, a delegate's against the newest's.
 - **Held revisions.** The newest is held, and so is every revision a

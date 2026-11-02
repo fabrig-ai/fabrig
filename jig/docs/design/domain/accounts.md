@@ -353,8 +353,6 @@ says (`../protocol/llm.md`, section 5) and what runs' agents notice
   Timers use `at`; every task wait, account and deployment document,
   and stored reset uses the retained `wall`, exactly. Later clock
   samples and wall corrections do not change an existing deadline.
-  The existing event and step environment suffice; no new `Event` is
-  needed.
 - **Limit merging keeps the same precedence.** A later reset replaces
   both `at` and `wall`; an earlier reset keeps the old pair, and a tie
   keeps the old pair too. A limit with no reset overrides a timed
@@ -365,9 +363,8 @@ says (`../protocol/llm.md`, section 5) and what runs' agents notice
   time (engine.md, 5.4): a restart preserves that saved wall exactly,
   maps it once to a fresh monotonic
   `at`, lifts a limit whose reset passed while the engine was down,
-  and holds a later one until it. The existing optional wall reset
-  represents both timed and indefinite limits; no store or wire layout
-  changes. A source held moving is stored so, and a restart brings it
+  and holds a later one until it. The optional wall reset
+  represents both timed and indefinite limits. A source held moving is stored so, and a restart brings it
   back as a cancelled move does (section 6). A program's login on a
   worker is not stored: its
   half reports it as `logins`, which follow the worker's hello
