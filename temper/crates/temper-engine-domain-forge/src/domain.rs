@@ -2853,6 +2853,9 @@ pub(crate) fn queue_ready(d: &Domain, row: &ChangeRow, l: &Limits) -> (List<chan
             | change::State::NoChange { .. }
             | change::State::Ended
             | change::State::Landed { .. }
+            | change::State::Red { .. }
+            | change::State::Cleared { .. }
+            | change::State::Uncleared { .. }
             | change::State::Held { .. } => None,
         };
         if let Some(since) = since {
@@ -3037,6 +3040,9 @@ fn in_queue(state: &change::State) -> bool {
         | change::State::NoChange { .. }
         | change::State::Ended
         | change::State::Landed { .. }
+        | change::State::Red { .. }
+        | change::State::Cleared { .. }
+        | change::State::Uncleared { .. }
         | change::State::Held { .. } => false,
     }
 }
@@ -3061,6 +3067,8 @@ fn change_facts(
     pending: &PendingStep,
     base_tip: skein_forge::api::Commit,
 ) -> change::Facts {
+    // tiers-config and tiers-forge replace this default with project settings and verification facts.
+    const VERIFICATION_BOUND: Duration = Duration::from_secs(7200);
     let pull = match &pending.pull {
         Some(pull) if pull.merged.is_some() => change::Pull::Merged { commit: pull.merged.expect("checked merged") },
         Some(pull) if pull.state == skein_forge::api::State::Closed => change::Pull::Closed,
@@ -3092,6 +3100,8 @@ fn change_facts(
     };
     let window = crate::settle::window(d, row.task);
     change::Facts {
+        verification: change::Verification::Unfollowed,
+        verification_bound: VERIFICATION_BOUND,
         ask: crate::landing::ask_for(d, row),
         branch: pending.branch,
         expected_base: base_tip,
@@ -3704,7 +3714,10 @@ fn end_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Requ
     }
     row.change.state = match &row.change.state {
         change::State::NoChange { words } => change::State::NoChange { words: words.clone() },
-        change::State::Landed { merge } => change::State::Landed { merge: *merge },
+        change::State::Landed { merge, since } => change::State::Landed { merge: *merge, since: *since },
+        change::State::Red { merge, since } => change::State::Red { merge: *merge, since: *since },
+        change::State::Cleared { merge } => change::State::Cleared { merge: *merge },
+        change::State::Uncleared { merge } => change::State::Uncleared { merge: *merge },
         change::State::Producing { .. }
         | change::State::Opening { .. }
         | change::State::Recreating { .. }
@@ -3722,7 +3735,7 @@ fn end_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Requ
         | change::State::Landing { .. }
         | change::State::Ended
         | change::State::Held { .. } => match merge {
-            Some(merge) => change::State::Landed { merge },
+            Some(merge) => change::State::Landed { merge, since: env.wall },
             None => change::State::Ended,
         },
     };

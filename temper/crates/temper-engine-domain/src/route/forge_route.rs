@@ -1883,6 +1883,9 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                         | forge_change::State::Repairing { .. }
                         | forge_change::State::Landing { .. }
                         | forge_change::State::Landed { .. }
+                        | forge_change::State::Red { .. }
+                        | forge_change::State::Cleared { .. }
+                        | forge_change::State::Uncleared { .. }
                         | forge_change::State::NoChange { .. }
                         | forge_change::State::Ended => false,
                     };

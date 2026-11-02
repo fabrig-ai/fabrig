@@ -54,6 +54,8 @@ fn facts() -> Facts {
         queue_repair_active: false,
         kept: false,
         settling: None,
+        verification: crate::Verification::Unfollowed,
+        verification_bound: Duration::from_secs(7200),
     }
 }
 fn heard() -> Heard {
@@ -155,7 +157,7 @@ fn a_change_is_produced_opened_checked_queued_and_landed() {
     assert_eq!(decide(&eight.change, &f, &heard()).decision, Decision::Wait { until: Some(at(31)) });
     f.pull = Pull::Merged { commit: MERGE };
     let nine = decide(&eight.change, &f, &heard());
-    assert_eq!(nine.change.state, State::Landed { merge: MERGE });
+    assert_eq!(nine.change.state, State::Landed { merge: MERGE, since: at(1) });
     assert_eq!(nine.decision, Decision::Finish { merge: MERGE });
 }
 fn failed_producer() -> (Change, Facts, Heard) {
@@ -471,7 +473,7 @@ fn generated_phase_cells_decide_the_same_from_the_same_snapshot() {
         State::Resolving { requested: true, base: BASE },
         State::Repairing { requested: true, why: Repair::Ci },
         State::Landing { head: HEAD },
-        State::Landed { merge: MERGE },
+        State::Landed { merge: MERGE, since: at(1) },
         State::Held { was: Box::new(State::Checking { head: HEAD }), why: Hold::Stalled },
     ];
     let statuses = [Status::Unknown, Status::Pending, Status::Passed, Status::Failed];
@@ -669,7 +671,7 @@ fn a_cancel_ends_every_held_cause_unless_the_change_landed() {
         let mut f = facts();
         f.pull = Pull::Merged { commit: MERGE };
         let landed = decide(&c, &f, &h);
-        assert_eq!(landed.change.state, State::Landed { merge: MERGE });
+        assert_eq!(landed.change.state, State::Landed { merge: MERGE, since: at(1) });
         assert_eq!(landed.decision, Decision::Finish { merge: MERGE });
     }
 }
@@ -813,3 +815,5 @@ fn a_live_advisory_gate_does_not_hold_a_green_head() {
     f.ci.status = Status::Failed;
     assert_eq!(decide(&c, &f, &heard()).decision, Decision::CancelGates { head: HEAD });
 }
+
+mod verifying;
