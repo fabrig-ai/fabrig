@@ -248,6 +248,29 @@ fn box_and_change_help_locate_temper_review_gates_in_change_show() {
 }
 
 #[test]
+fn tier_help_explains_the_baseline_before_any_landing() {
+    let page = help::answer(&configured(&["help", "tier"])).expect("tier page");
+    let section = page
+        .split("## What it is\n")
+        .nth(1)
+        .expect("what it is")
+        .split("\n## ")
+        .next()
+        .expect("section text")
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    for explanation in [
+        "A newly configured tier first runs at its followed branch's current tip as a baseline, without any landing.",
+        "Baseline failures are blamed on no landing and inherited by the next run.",
+        "Subsequent ranges start after the baseline tip.",
+        "Landings arriving during the baseline wait for the next run to verify them.",
+    ] {
+        assert!(section.contains(explanation), "tier help must explain: {explanation}\n{section}");
+    }
+}
+
+#[test]
 fn help_prints_the_landing_page() {
     assert_eq!(
         help::answer(&configured(&["help", "landing"])).expect("landing page").as_bytes(),
