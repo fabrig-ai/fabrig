@@ -738,7 +738,15 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             }
             crate::Cause::Unpriced => match end {
                 crate::End::FinishedWithFollowups { .. } => {
-                    refused(reply_to, Some(task), Refusal::Contract, out);
+                    let job = match record(domain, task) {
+                        Some(row) => crate::batch::matches_job(row.executor),
+                        None => false,
+                    };
+                    if job {
+                        crate::run::activation(domain, env, reply_to, task, attempt, end, saved, out);
+                    } else {
+                        refused(reply_to, Some(task), Refusal::Contract, out);
+                    }
                 }
                 crate::End::Finished { .. }
                 | crate::End::Exceeded(_)
@@ -952,8 +960,8 @@ impl Domain {
         record(domain, number)?;
         let task = record(domain, number).expect("activation names live task");
         match task.executor {
-            crate::Executor::Person(_) | crate::Executor::Job { .. } => return None,
-            crate::Executor::Agent { .. } | crate::Executor::Procedure { .. } => {}
+            crate::Executor::Person(_) => return None,
+            crate::Executor::Agent { .. } | crate::Executor::Procedure { .. } | crate::Executor::Job { .. } => {}
         }
         let waiting = crate::proposals::waiting_for(domain, number);
         let escalations = crate::escalation::waiting_for(domain, number);

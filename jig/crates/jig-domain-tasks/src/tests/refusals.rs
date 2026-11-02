@@ -230,3 +230,86 @@ fn restoring_a_job_checks_its_spec_contract_and_creator() {
     crate::step(&mut cold, &h.env, Event::Check, &mut out);
     assert!(cold.restore_failure().is_some());
 }
+
+fn running_job() -> Harness {
+    let mut h = procedure();
+    assert_eq!(admission(&mut h, Party::Task(1), job(2)), None);
+    assert!(h.domain.run_context(2).is_some());
+    h.send(Event::Prepare { reply_to: super::revisions::to(), task: 2 });
+    assert_eq!(h.domain.task(2).unwrap().phase, crate::Phase::Active(crate::Active::Preparing));
+    h.send(Event::Claim {
+        reply_to: super::revisions::to(), task: 2, attempt: 1,
+        resumed: false, budget: 0, account: None, writes: Box::new([]),
+    });
+    h.send(Event::Started { task: 2, attempt: 1 });
+    assert_eq!(h.domain.task(2).unwrap().phase, crate::Phase::Active(crate::Active::Running { attempt: 1 }));
+    h
+}
+
+/// Forbidden job terminals leave even a priced attempt live (jig/docs/design/domain/tasks.md, 5.3.1).
+#[test]
+fn a_job_refuses_parks_followups_exceeded_and_recheck_without_changing_its_attempt() {
+    let mut h = running_job();
+    let before = h.domain.task(2).unwrap().clone();
+    for end in [crate::End::Parked, crate::End::Recheck,
+        crate::End::Exceeded(crate::Exceeded { bound: crate::Bound::Items, value: 1 }),
+        crate::End::FinishedWithFollowups {
+            result: crate::TaskResult::Job { bytes: Box::new([]) },
+            followups: crate::ResultFollowups::Delegates(Box::new([])),
+        }] {
+        for cause in [crate::Cause::Unpriced, crate::Cause::Priced { cumulative: 0 }] {
+            let out = h.send(Event::Activation {
+                reply_to: super::revisions::to(), task: 2, attempt: 1, end: end.clone(), saved: None, cause,
+            });
+            assert!(out.iter().any(|request| matches!(request,
+                Request::Refused { problem, .. } if problem.why == crate::Refusal::Executor)), "{out:?}");
+            assert_eq!(h.domain.task(2), Some(&before));
+        }
+    }
+}
+
+/// A job claim reserves zero and has no LLM account (jig/docs/design/domain/tasks.md, 5.3.1).
+#[test]
+fn a_job_claim_refuses_an_account_or_a_nonzero_budget() {
+    let mut h = procedure();
+    assert_eq!(admission(&mut h, Party::Task(1), job(2)), None);
+    h.send(Event::Prepare { reply_to: super::revisions::to(), task: 2 });
+    let before = h.domain.task(2).unwrap().clone();
+    for (budget, account, why) in [(1, None, crate::Refusal::Funding), (0, Some(1), crate::Refusal::Executor)] {
+        let out = h.send(Event::Claim {
+            reply_to: super::revisions::to(), task: 2, attempt: 1,
+            resumed: false, budget, account, writes: Box::new([]),
+        });
+        assert!(out.iter().any(|request| matches!(request, Request::Refused { problem, .. } if problem.why == why)));
+        assert_eq!(h.domain.task(2), Some(&before));
+    }
+}
+
+/// A Job contract checks result form and bytes (jig/docs/design/domain/tasks.md, 5.3.1).
+#[test]
+fn a_job_result_is_bounded_bytes_or_a_failure() {
+    let contract = crate::Contract::Job { bytes: 16 };
+    let limits = super::revisions::LIMITS;
+    assert_eq!(crate::run::invalid_result(&contract, &crate::TaskResult::Job { bytes: Box::new([0xff; 16]) }, &limits), None);
+    assert_eq!(crate::run::invalid_result(&contract, &crate::TaskResult::Job { bytes: Box::new([0xff; 17]) }, &limits), Some(crate::InvalidResult::Words));
+    for result in [crate::TaskResult::Report { words: Box::new([]) }, crate::TaskResult::NoChange { words: Box::new([]) }] {
+        assert_eq!(crate::run::invalid_result(&contract, &result, &limits), Some(crate::InvalidResult::Form));
+    }
+    assert_eq!(crate::run::invalid_result(&contract, &crate::TaskResult::Failure { reason: Box::new([1]) }, &limits), None);
+    assert_eq!(crate::run::invalid_result(&crate::Contract::Report { words: 16 }, &crate::TaskResult::Job { bytes: Box::new([]) }, &limits), Some(crate::InvalidResult::Form));
+}
+
+/// A job refusal pauses without consuming a try (jig/docs/design/domain/tasks.md, 5.3.1 and 5.5).
+#[test]
+fn a_job_refusal_pauses_without_a_try() {
+    let mut h = running_job();
+    h.send(Event::Activation {
+        reply_to: super::revisions::to(), task: 2, attempt: 1,
+        end: crate::End::Refused, saved: None, cause: crate::Cause::Unpriced,
+    });
+    let row = h.domain.task(2).unwrap();
+    assert!(matches!(row.phase, crate::Phase::Active(crate::Active::BackingOff { .. })));
+    assert_eq!(row.tries, crate::Tries::NONE);
+    assert_eq!(row.refusals, 1);
+    assert_eq!(row.last_answer, Some(1));
+}

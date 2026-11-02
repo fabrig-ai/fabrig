@@ -436,6 +436,9 @@ fn check_amend_fields(
         return Err(Refusal::Reference);
     }
     let old = staged.record(domain, number).ok_or(Refusal::Unknown)?;
+    if crate::batch::matches_job(old.executor) {
+        return Err(Refusal::Executor);
+    }
     if let Some(Tracking::Tracked { .. }) = amendment.tracked
         && old.tracked.is_none()
         && let Err(why) = staged.goals(domain, old.project, &env.limits)
