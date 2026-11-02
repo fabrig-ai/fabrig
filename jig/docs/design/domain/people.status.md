@@ -9,11 +9,6 @@
   erases none of the core's settings records of the project's scope, and
   `Ask::ReleaseProject` asks a connector to release its adoptions alone
   (`jig-domain-core/src/admission/deletion.rs`, `rows` and `release`).
-  5.2: a deleted project's conversations asked to finish within the
-  grace its `RemoveProject` gives (5.1, 5.3 and 7): the core neither
-  checks nor keeps the request's grace, and the
-  deletion's `cancel` cancels every live root with none
-  (`jig-domain-core/src/admission/deletion.rs`).
   6: retention; a delegate's question to a conversation kept with the
   conversation. 7: a chat answering its delegates' questions and asking
   its person by a person task.

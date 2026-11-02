@@ -54,8 +54,8 @@ pub(crate) fn route(
     act: people::Act,
 ) {
     match act {
-        people::Act::RemoveProject { project, .. } => {
-            if let Err(why) = crate::admission::deletion::begin(core, env, work, out, request, project) {
+        people::Act::RemoveProject { project, grace } => {
+            if let Err(why) = crate::admission::deletion::begin(core, env, work, out, request, project, grace) {
                 refused(work, request, why);
             }
         }
