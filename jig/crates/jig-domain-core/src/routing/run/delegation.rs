@@ -379,6 +379,16 @@ pub(crate) fn procedure_step(
             crate::routing::effect::procedure::problem(task, why),
         );
     }
+    for member in &mut decision.batch {
+        if let Err(why) = crate::runs::delegation::job_member(&core.jobs, member) {
+            return crate::routing::effect::procedure::refused(
+                core,
+                task,
+                step,
+                crate::routing::effect::procedure::problem(task, why),
+            );
+        }
+    }
     let parts = match crate::routing::effect::procedure::parts(core, env, task, &decision) {
         Ok(parts) => parts,
         Err(why) => return crate::routing::effect::procedure::refused(core, task, step, why),

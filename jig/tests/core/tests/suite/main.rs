@@ -36,6 +36,7 @@ mod funding;
 mod host_tools;
 mod inbox_selection_memory;
 mod instructions;
+mod jobs;
 mod joint_clock;
 mod memory;
 mod operations;
