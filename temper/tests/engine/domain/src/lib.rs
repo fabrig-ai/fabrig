@@ -24,6 +24,7 @@ pub mod fixtures;
 pub mod forge_routes;
 pub mod forge_stand;
 pub mod oracle;
+pub mod tier_runs;
 
 /// Take ready journal output, then admit one owner continuation if none was ready.
 pub fn poll(

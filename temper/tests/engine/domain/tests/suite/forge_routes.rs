@@ -48,6 +48,9 @@ mod producer_failure;
 #[path = "forge_routes/result.rs"]
 mod result;
 
+#[path = "forge_routes/tiers.rs"]
+mod tiers;
+
 #[path = "forge_routes/reviews.rs"]
 mod reviews;
 
