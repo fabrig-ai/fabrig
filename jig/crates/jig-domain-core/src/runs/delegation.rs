@@ -189,8 +189,9 @@ impl Core {
         }
         let mut asked = List::with_capacity(limits.batch);
         for member in batch {
-            if matches!(member.executor, tasks::Executor::Job { .. }) {
-                return Err(delegate_refused(None, tasks::Refusal::Executor));
+            match member.executor {
+                tasks::Executor::Job { .. } => return Err(delegate_refused(None, tasks::Refusal::Executor)),
+                tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => {}
             }
             if let tasks::Executor::Agent { charter } = member.executor
                 && self.charter(charter).is_none()

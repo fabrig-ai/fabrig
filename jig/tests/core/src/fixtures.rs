@@ -406,3 +406,39 @@ pub fn configure_resources(world: &mut crate::world::World) {
         ]),
     );
 }
+
+/// A procedure with one declared job kind (jig/docs/design/domain/engine.md, 7.5).
+#[must_use]
+pub fn job_world(seed: u64, ceiling: bool) -> (crate::world::World, u64) {
+    let (mut configuration, mut limits) = crate::faults::plan_fixture(seed);
+    limits.core.authority.executors = 3;
+    limits.core.tasks.executor_kinds = 3;
+    limits.core.documents.executors = 3;
+    configuration.core.jobs = Box::new([jig_domain_host::JobBound {
+        kind: jig_domain_host::JobKind(7),
+        spec: 64,
+        result: 32,
+        deadline: skein_lib::Duration::from_secs(60),
+    }]);
+    let kinds: Box<[authority::Executor]> =
+        Box::new([authority::Executor::Charter(1), authority::Executor::Procedure(1), authority::Executor::Job(7)]);
+    configuration.core.defaults.rules.ceiling.delegation.kinds.clone_from(&kinds);
+    let policy = &mut configuration.core.seed_projects[0].policy.policy;
+    if ceiling {
+        policy.ceiling.delegation.kinds.clone_from(&kinds);
+        policy.roles[0].authority.delegation.kinds = kinds;
+    }
+    crate::peers::journal(&mut limits);
+    let mut world =
+        crate::world::World::new(Setup { seed, configuration: Some(configuration), limits, ..Setup::default() });
+    world.hold_procedures = true;
+    let run = world.assignments[0];
+    let mut procedure = member(&world, tasks::Executor::Procedure { connector: 1, code: 1 }, b"procedure");
+    if ceiling {
+        procedure.authority.delegation.kinds = Box::new([tasks::AuthorityExecutor::Job(7)]);
+    } else {
+        procedure.authority.delegation.kinds = Box::new([]);
+    }
+    let task = delegate(&mut world, run, 1, procedure);
+    (world, task)
+}

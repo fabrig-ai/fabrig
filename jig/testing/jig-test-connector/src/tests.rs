@@ -906,13 +906,20 @@ fn a_procedure_job_waits_for_delegate_done_before_finishing() {
         crate::ProcedureAction::Finish { result: crate::ProcedureResult::Succeeded },
     ]);
     let first = run(&mut connector, procedure_event(crate::ProcedureSignal::Activate));
-    assert_eq!(first.get(1), Some(&Request::Step {
-        task: 9,
-        decision: crate::StepDecision::Job { kind: 7, spec: Box::new([1, 2]), deadline },
-    }));
+    assert_eq!(
+        first.get(1),
+        Some(&Request::Step {
+            task: 9,
+            decision: crate::StepDecision::Job { kind: 7, spec: Box::new([1, 2]), deadline },
+        })
+    );
     assert!(run(&mut connector, procedure_event(crate::ProcedureSignal::Message)).is_empty());
     let finished = run(&mut connector, procedure_event(crate::ProcedureSignal::DelegateDone));
-    assert_eq!(finished.last(), Some(&Request::Step {
-        task: 9, decision: crate::StepDecision::Finish { result: crate::ProcedureResult::Succeeded },
-    }));
+    assert_eq!(
+        finished.last(),
+        Some(&Request::Step {
+            task: 9,
+            decision: crate::StepDecision::Finish { result: crate::ProcedureResult::Succeeded },
+        })
+    );
 }
