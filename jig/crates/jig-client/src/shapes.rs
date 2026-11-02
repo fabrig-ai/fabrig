@@ -209,6 +209,7 @@ fn fill(
         llm = Some(choice.clone());
     }
     Ok(NewTask {
+        symbols: template.resources.clone(),
         deadline,
         executor,
         spec: Specification { asks: false, words, parameters: List::with_capacity(0), inputs: List::with_capacity(0) },

@@ -337,6 +337,7 @@ fn catalogue_rows(models: List<c::MeModel>) -> d::Domain {
     project
         .templates
         .push(c::Template {
+            resources: List::with_capacity(0),
             number: 1,
             name: c::DocumentText::complete(c::Text::new(Box::from(*b"Chat"), 32).unwrap()),
             executor: c::TemplateExecutor::Charter(1),

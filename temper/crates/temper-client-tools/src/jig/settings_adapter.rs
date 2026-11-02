@@ -905,6 +905,7 @@ pub fn form_template(v: &c::Template) -> n::Template {
 }
 pub fn client_template(v: &n::Template) -> c::Template {
     c::Template {
+        resources: List::with_capacity(0),
         number: v.number,
         name: client_document_text(&v.name),
         executor: client_template_executor(v.executor),

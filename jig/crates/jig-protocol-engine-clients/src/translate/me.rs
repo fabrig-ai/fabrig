@@ -126,9 +126,16 @@ pub(super) fn template(
     models: &[crate::Model],
     limits: &w::Limits,
 ) -> Result<w::Template, w::Problem> {
+    let mut resources = List::with_capacity(super::count(value.resources.len())?);
+    for item in &value.resources {
+        resources
+            .push(w::Symbol::new(limits, w::SymbolParts { connector: item.connector, symbol: item.symbol })?)
+            .expect("one row per symbol");
+    }
     w::Template::new(
         limits,
         w::TemplateParts {
+            resources,
             number: value.number,
             name: w::DocumentText::new(
                 limits,

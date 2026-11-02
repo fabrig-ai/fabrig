@@ -2124,6 +2124,7 @@ fn base_frame(person: &str, project: &str) -> c::Me {
     let mut templates = List::with_capacity(1);
     templates
         .push(c::Template {
+            resources: List::with_capacity(0),
             number: 1,
             name: doc("chat"),
             executor: c::TemplateExecutor::Charter(1),

@@ -219,6 +219,7 @@ fn new_task(v: &c::NewTask, limits: &w::Limits) -> Result<w::NewTask, w::Problem
     w::NewTask::new(
         limits,
         w::NewTaskParts {
+            symbols: super::documents::me::wire_symbols(&v.symbols, limits)?,
             executor,
             spec: asks::wire_specification(&v.spec, limits)?,
             contract: new_contract(&v.contract, limits)?,
@@ -333,6 +334,7 @@ fn restore_task(v: &w::NewTask, limits: &crate::Limits) -> Result<c::NewTask, w:
         }
     };
     Ok(c::NewTask {
+        symbols: super::documents::me::symbols(v.symbols()),
         deadline: match v.deadline() {
             w::NewDeadline::Named => c::NewDeadline::Named,
             w::NewDeadline::Span(value) => c::NewDeadline::Span(value.value()),

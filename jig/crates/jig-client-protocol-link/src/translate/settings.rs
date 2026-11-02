@@ -950,6 +950,7 @@ fn wire_template(value: &c::Template, limits: &w::Limits) -> Result<w::Template,
     w::Template::new(
         limits,
         w::TemplateParts {
+            resources: super::documents::me::wire_symbols(&value.resources, limits)?,
             number: value.number,
             name: wire_document_text(&value.name, limits)?,
             executor: super::operations::executor(value.executor, limits)?,
