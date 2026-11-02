@@ -54,6 +54,176 @@ class Citations(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn(f"{DESIGN}/c.md:5: path gone.md", result.stdout)
 
+    def test_a_path_two_directories_up_is_read(self):
+        self.write(f"{DESIGN}/x/y/c.md",
+                   "# c\n\n## 1. One\n\nSee `../../a.md`, 2.1, and `../../a.md`, 7.\n")
+        self.commit("head")
+        result = self.since_base()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(f"section {DESIGN}/a.md 7", result.stdout)
+        self.assertNotIn(f"{DESIGN}/a.md 2.1", result.stdout)
+
+    def test_a_path_more_than_two_directories_up_is_read(self):
+        self.write(f"{DESIGN}/x/y/z/c.md",
+                   "# c\n\nSee `../../../a.md`, 2, and `../../../a.md`, 7.\n")
+        self.commit("head")
+        result = self.since_base()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(f"section {DESIGN}/a.md 7", result.stdout)
+        self.assertNotIn(f"{DESIGN}/a.md 2 (", result.stdout)
+
+    def test_a_possessive_or_parenthesised_section_is_the_cited_files(self):
+        forms = ("`a.md`'s, section {}", "`a.md`’s, {}", "`a.md`'s section {}",
+                 "`a.md` (section {} holds it)", "a.md's, section {}", "a.md's, {}",
+                 "a.md's section {}", "a.md (section {} holds it)")
+        citations = "\n\n".join(form.format(n) for form in forms for n in ("2.1", "9"))
+        self.write(f"{DESIGN}/c.md", "# c\n\n" + citations
+                   + "\n\nRead a.md's 32 bytes and `a.md`'s 32 bytes.\n")
+        self.commit("head")
+        result = self.since_base()
+        self.assertEqual(result.returncode, 1)
+        findings = result.stdout.splitlines()
+        self.assertEqual(len(findings), len(forms), result.stdout)
+        self.assertTrue(all(f"section {DESIGN}/a.md 9 (" in line for line in findings), result.stdout)
+
+    def test_its_with_a_capital_is_the_cited_files(self):
+        sentences = [f"{case(word)} sections 7 and 8 are stale."
+                     for word in ("its", "their", "that", "this")
+                     for case in (str.lower, str.title, str.upper)]
+        self.write(f"{DESIGN}/c.md", "# c\n\nSee [a](a.md). " + " ".join(sentences)
+                   + "\n\nSee section 9 here.\n")
+        self.commit("head")
+        result = self.since_base()
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(len(result.stdout.splitlines()), 1, result.stdout)
+        self.assertIn(f"section-self {DESIGN}/c.md 9", result.stdout)
+
+    def test_its_after_another_trees_path_is_that_trees(self):
+        self.write("jig/docs/design/domain/e.md", "# e\n\n## 1. One\n")
+        self.write("jig/docs/design/domain/t.md", "# t\n\n## 4. Four\n\n## 9. Nine\n")
+        self.write("temper/docs/design/domain/t.md", "# t\n\n## 4. Four\n\n## 7. Seven\n\n## 9. Nine\n")
+        self.write("temper/docs/design/c.md",
+                   "# c\n\njig's `domain/e.md`, section 1, and its `domain/t.md`, sections 4 and 9.\n\n"
+                   "jig's `domain/e.md`, section 1, and its `domain/t.md`, sections 4 and 7.\n")
+        self.commit("head")
+        result = self.since_base()
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(len(result.stdout.splitlines()), 1, result.stdout)
+        self.assertIn("section jig/docs/design/domain/t.md 7", result.stdout)
+
+    def test_its_uses_the_nearest_explicit_owner_in_the_same_sentence(self):
+        self.write("jig/docs/design/e.md", DOC)
+        self.write("smith/docs/design/e.md", DOC)
+        self.write("smith/docs/design/t.md", DOC)
+        self.write("jig/docs/design/t.md", "# t\n")
+        self.write("temper/docs/design/t.md", "# t\n\n## 7. Seven\n")
+        self.write("temper/docs/design/c.md",
+                   "# c\n\njig's `e.md`, smith's `e.md`, and its `t.md`, section 2.1.\n\n"
+                   "smith's `e.md`. Its `t.md`, section 7.\n\n"
+                   "smith's `e.md`, but `t.md`, section 7.\n")
+        self.commit("head")
+        result = self.since_base()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_an_rfcs_parenthesised_section_is_the_rfcs(self):
+        self.write(f"{DESIGN}/c.md",
+                   "# c\n\nRFC 9500's `testRSA2048` (section 2.1) supplies the key.\n\n"
+                   "RFC 9500’s test key (section 2.1) and RFC 9500's key (section 2.1).\n\n"
+                   "RFC 9500's (section 2.1) and RFC 6749, section 5.1.\n\n"
+                   "RFC 9500's second test key (section 9).\n\n"
+                   "Our `testRSA2048` (section 9) supplies the key.\n")
+        self.commit("head")
+        result = self.since_base()
+        self.assertEqual(result.returncode, 1)
+        findings = result.stdout.splitlines()
+        self.assertEqual(len(findings), 2, result.stdout)
+        self.assertTrue(all(f"section-self {DESIGN}/c.md 9 (" in line for line in findings), result.stdout)
+
+    def test_a_count_after_a_path_is_not_a_section(self):
+        self.write(f"{DESIGN}/c.md",
+                   "# c\n\nskein's `a.md`, 21 places; `a.md`, 2 places.\n\n"
+                   "See `a.md`, 9, and `gone.md`, 21 places.\n\n"
+                   "See `a.md`, section 8 places the rule here.\n")
+        self.commit("head")
+        result = self.since_base()
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(len(result.stdout.splitlines()), 3, result.stdout)
+        self.assertIn(f"section {DESIGN}/a.md 9", result.stdout)
+        self.assertIn(f"section {DESIGN}/a.md 8", result.stdout)
+        self.assertIn("path gone.md", result.stdout)
+
+    def test_a_status_file_by_step_labels_steps(self):
+        self.write(f"{DESIGN}/a.status.md", "# Status\n\nBy step:\n\n- **14, 22:** waiting.\n")
+        self.write(f"{DESIGN}/b.status.md", "# Status\n\n**Not yet:** 14: waiting.\n")
+        self.commit("head")
+        result = self.since_base()
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(len(result.stdout.splitlines()), 1, result.stdout)
+        self.assertIn(f"status-label {DESIGN}/b.md 14", result.stdout)
+
+    def test_by_step_must_precede_the_first_label_and_only_skips_labels(self):
+        self.write(f"{DESIGN}/a.status.md",
+                   "# Status\n\n- **2:** waiting. By step:\n\n- **14:** waiting.\n")
+        self.write(f"{DESIGN}/b.status.md",
+                   "# Status\n\nBy step:\n\n- **14:** waiting; see section 9.\n")
+        self.commit("head")
+        result = self.since_base()
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(len(result.stdout.splitlines()), 2, result.stdout)
+        self.assertIn(f"status-label {DESIGN}/a.md 14", result.stdout)
+        self.assertIn(f"section-self {DESIGN}/b.md 9", result.stdout)
+
+    def test_a_list_items_heading_path_owns_its_bare_sections(self):
+        self.write(f"{DESIGN}/c.md",
+                   "# c\n\n- **`a.md`:** 1, the first; section 2, the second.\n"
+                   "  Another sentence with `b.md`; section 2.1 still belongs to the heading.\n"
+                   "  See section 5 for the missing rule.\n"
+                   "6. **a.md:** A different item. Its state (section 2.1) is defined.\n"
+                   "  Section references include section 5 too.\n")
+        self.commit("head")
+        result = self.since_base()
+        self.assertEqual(result.returncode, 1)
+        findings = result.stdout.splitlines()
+        self.assertEqual(len(findings), 2, result.stdout)
+        self.assertTrue(all(f"section-self {DESIGN}/c.md|{DESIGN}/a.md 5 (" in line
+                            for line in findings), result.stdout)
+
+    def test_a_heading_path_does_not_own_the_next_list_item(self):
+        self.write(f"{DESIGN}/c.md",
+                   "# c\n\n- **`a.md`:** See section 2.1.\n"
+                   "- A different item; section 2.1 is local.\n\n"
+                   "Outside the list, section 2.1 is local.\n\n"
+                   "- **`gone.md`:** A missing heading path.\n")
+        self.commit("head")
+        result = self.since_base()
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(len(result.stdout.splitlines()), 3, result.stdout)
+        self.assertEqual(result.stdout.count(f"section-self {DESIGN}/c.md 2.1 ("), 2, result.stdout)
+        self.assertIn("path gone.md", result.stdout)
+
+    def test_a_link_to_a_tracked_page_resolves(self):
+        self.write(f"{DESIGN}/page.html", "<p>A tracked page.</p>\n")
+        self.write(f"{DESIGN}/c.md",
+                   "# c\n\n[p](page.html) and [q](page.html?world=x&step=5#part) exist.\n\n"
+                   "[g](gone.html) does not.\n")
+        self.commit("head")
+        self.write(f"{DESIGN}/gone.html", "<p>Untracked.</p>\n")
+        result = self.since_base()
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(len(result.stdout.splitlines()), 1, result.stdout)
+        self.assertIn("path gone.html", result.stdout)
+
+    def test_a_page_must_be_tracked_at_the_checked_commit(self):
+        self.write(f"{DESIGN}/page.html", "<p>A tracked page.</p>\n")
+        self.write(f"{DESIGN}/c.md", "# c\n\n[p](page.html?world=x#part) exists.\n")
+        self.commit("linked page")
+        self.git("rm", f"{DESIGN}/page.html")
+        self.commit("remove page")
+        result = self.since_base()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("path page.html (", result.stdout)
+        self.assertEqual(self.run_check("--all", "--head", "HEAD~1").returncode, 0)
+
     def test_removing_a_cited_section_fails_where_it_is_cited(self):
         self.write(f"{DESIGN}/a.md", DOC.replace("### 2.1 Part", "### 2.2 Part"))
         self.commit("head")
