@@ -52,7 +52,7 @@ impl Driver {
         limits.agent.unacknowledged_bytes = owned * u64::from(WINDOW);
         limits.bounds.unacknowledged = WINDOW;
         let mut driver = Self {
-            domain: Domain::new(&limits),
+            domain: Domain::new(&limits, Box::new([])),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             out: Queue::with_capacity(OUTPUTS),
             immediate: VecDeque::new(),
@@ -141,6 +141,7 @@ impl Driver {
                     | Request::Answer { .. }
                     | Request::Stop
                     | Request::Io { .. }
+                    | Request::Job { .. }
                     | Request::CancelIo { .. }) => self.requests.push(request),
                 }
             }
