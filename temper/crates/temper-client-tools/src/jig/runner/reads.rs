@@ -71,7 +71,7 @@ fn start_reading(
     met_inbox: Option<Printed>,
     out: &mut Queue<Out>,
 ) {
-    let mut reading = Reading {
+    let reading = Reading {
         called,
         command_prefix: runner.parts.expect("host vocabulary").command_prefix(),
         pending: 0,
@@ -83,6 +83,14 @@ fn start_reading(
         question: None,
         met_inbox,
     };
+    if reading.called.call.tool <= 3 {
+        start_overview(runner, client, env, reading, out);
+    } else {
+        start_detail(runner, client, env, reading, out);
+    }
+}
+
+fn start_overview(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut reading: Reading, out: &mut Queue<Out>) {
     let task = number(&reading.called.call, 0).unwrap_or(0);
     match reading.called.call.tool {
         1 => {
@@ -124,10 +132,22 @@ fn start_reading(
                 watch(runner, &mut reading, 4, c::Subject::Run { task, turn: None, offset: 0 }, out);
             }
         }
+        _ => unreachable!("overview read"),
+    }
+    runner.active.insert(reading.called.call_number, reading);
+}
+
+fn start_detail(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut reading: Reading, out: &mut Queue<Out>) {
+    let task = number(&reading.called.call, 0).unwrap_or(0);
+    match reading.called.call.tool {
         4 => thread_start(runner, env, &mut reading, task, out),
         5 => {
             let before = cursor(&reading.called.call, 1);
             read(runner, &mut reading, 1, c::Read::Activity { task, before }, out);
+        }
+        rows::TASK_TEXT_AT => {
+            let what = task_text_read(&reading.called.call);
+            read(runner, &mut reading, 1, what, out);
         }
         6 => {
             let Some(Value::Turn(name)) = value(&reading.called.call, 1) else { return };
@@ -168,6 +188,15 @@ fn start_reading(
     }
     runner.active.insert(reading.called.call_number, reading);
 }
+
+fn task_text_read(call: &Call) -> c::Read {
+    let field = match value(call, 1) {
+        Some(Value::Word(1)) => c::TaskTextField::Instructions,
+        _ => c::TaskTextField::Specification,
+    };
+    c::Read::TaskText { task: number(call, 0).unwrap_or(0), field, from: number(call, 2).unwrap_or(0) }
+}
+
 fn thread_start(runner: &Runner, env: &Env<Limits>, reading: &mut Reading, task: u64, out: &mut Queue<Out>) {
     let mut thread = Thread::new(
         task,

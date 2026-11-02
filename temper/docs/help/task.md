@@ -116,3 +116,11 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
   (temper help budget).
 - `task activity` and `task list` read 32 lines a page; a turn's part prints
   16384 bytes at a time.
+
+A task overview may cut `asked:` and `instructions:`. Its `read specification:`
+and `read instructions:` calls retrieve the source words a chunk at a time;
+JSON includes the calls under `text_reads`. `task activity` points to the same
+reads because its event log begins after the brief. `task text --json` gives
+`task`, `field`, `from`, `total`, `text` and `next`; null `next` ends the read.
+Use the printed offset, which keeps UTF-8 characters whole. After amending the
+task or moving its settings revision, restart at zero for its current text.

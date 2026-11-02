@@ -803,6 +803,7 @@ fn read_value(w: World, what: &c::Read, then: Then) -> Option<c::ReadValue> {
         c::Read::Settings
         | c::Read::Setting(_)
         | c::Read::Revision(_)
+        | c::Read::TaskText { .. }
         | c::Read::Revisions(_)
         | c::Read::Me
         | c::Read::Turn { .. }

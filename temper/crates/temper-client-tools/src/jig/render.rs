@@ -6,6 +6,7 @@ pub(crate) mod holds;
 pub(crate) mod lists;
 pub(crate) mod outcome;
 pub mod pending;
+pub(super) mod task_source;
 mod turn;
 use crate::jig::{Limits, runner::Printed};
 use alloc::boxed::Box;
@@ -36,7 +37,8 @@ impl<'a> Part<'a> {
             ReadValue::Tasks(value) => Some(Self::TaskPage(value)),
             ReadValue::Task(value) => Some(Self::Task(value)),
             ReadValue::Ended(value) => Some(Self::Task(ended_task(value)?.0)),
-            ReadValue::Settings(_)
+            ReadValue::TaskText(_)
+            | ReadValue::Settings(_)
             | ReadValue::Setting(_)
             | ReadValue::Revision(_)
             | ReadValue::Revisions(_)
@@ -302,6 +304,11 @@ pub(crate) fn reads(
                 return failure(b"unknown revision", reading.called.json, 2);
             }
             Readout::Jig(ReadResult::Value(value)) => {
+                if let ReadValue::TaskText(page) = value
+                    && !task_source::fits(page, limits)
+                {
+                    return failure(b"result limit", reading.called.json, 1);
+                }
                 if check_selected(&reading.called.call, *local, value).is_err() {
                     return failure(b"tools' bug; unexpected document; report it as a finding", reading.called.json, 1);
                 }
@@ -373,7 +380,8 @@ pub(crate) fn reads(
 
 fn check_selected(call: &crate::jig::call::Call, local: u32, value: &ReadValue) -> Result<(), ()> {
     match (call.tool, local, value) {
-        (1, _, ReadValue::Inbox(_))
+        (crate::jig::rows::TASK_TEXT_AT, 1, ReadValue::TaskText(_))
+        | (1, _, ReadValue::Inbox(_))
         | (crate::jig::rows::PROPOSAL_AT, 1, ReadValue::Proposal(_))
         | (crate::jig::rows::PROJECT_SHOW_AT | crate::jig::rows::PROJECT_FUND_AT, 1, ReadValue::Project(_))
         | (2, 1, ReadValue::Tasks(_))

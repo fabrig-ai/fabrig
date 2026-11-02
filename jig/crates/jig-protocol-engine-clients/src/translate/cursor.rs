@@ -202,7 +202,10 @@ fn take_cursor(r: &mut skein_lib::Reader<'_>) -> Option<reads::Cursor> {
 }
 fn put_scope(w: &mut Writer, value: &reads::Scope) -> Option<()> {
     match value {
-        reads::Scope::EndedTasks | reads::Scope::TaskRows { .. } | reads::Scope::SettingsHistory { .. } => return None,
+        reads::Scope::TaskText { .. }
+        | reads::Scope::EndedTasks
+        | reads::Scope::TaskRows { .. }
+        | reads::Scope::SettingsHistory { .. } => return None,
         reads::Scope::Task { task } => {
             w.byte(0)?;
             w.u64(*task)?;

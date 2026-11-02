@@ -22,7 +22,9 @@ pub mod indexed;
 pub(crate) mod indexes;
 mod rows;
 pub mod settings;
+mod task_text;
 mod turn;
+pub use task_text::{TaskText, TaskTextField, task_text_from_row};
 mod vocabulary;
 pub(crate) mod watches;
 
@@ -59,7 +61,7 @@ pub fn admits(party: u64, scope: &Scope, key: &crate::Key) -> bool {
             }
             Key::Core(_) | Key::Tasks(_) | Key::People(_) | Key::Notes(_) | Key::Accounts(_) => false,
         },
-        Scope::Task { task } | Scope::PersonTask { task } | Scope::Result { task } => {
+        Scope::TaskText { task, .. } | Scope::Task { task } | Scope::PersonTask { task } | Scope::Result { task } => {
             key == &Key::Tasks(TaskKey::Live(*task)) || key == &Key::Tasks(TaskKey::Ended(*task))
         }
         Scope::Reply { task, activity } => key == &Key::Tasks(TaskKey::Activity { task: *task, position: *activity }),
@@ -153,6 +155,7 @@ fn terminal(reply: ReplyTo, answer: Answer) -> Queue<Request> {
 
 pub(crate) fn scope(read: &Read) -> Option<Scope> {
     match read {
+        Read::TaskText { task, field, from } => Some(Scope::TaskText { task: *task, field: *field, from: *from }),
         Read::Task { task } => Some(Scope::Task { task: *task }),
         Read::Proposal { proposer, proposal } => Some(Scope::Proposal { proposer: *proposer, proposal: *proposal }),
         Read::Escalation { task } => Some(Scope::Escalation { task: *task }),
@@ -193,6 +196,7 @@ fn cursor(read: &Read) -> Option<&Cursor> {
         | Read::Spend { from, .. } => from.as_ref(),
         Read::Activity { before, .. } => before.as_ref(),
         Read::Frame
+        | Read::TaskText { .. }
         | Read::Task { .. }
         | Read::Proposal { .. }
         | Read::Escalation { .. }
@@ -225,7 +229,8 @@ fn subject(read: &Read, party: u64) -> Option<Subject> {
         Read::Deployment => Some(Subject::Deployment),
         Read::Inbox { .. } => Some(Subject::Inbox { party }),
         Read::Tasks { query, .. } => Some(Subject::Query { query: *query }),
-        Read::Setting { .. }
+        Read::TaskText { .. }
+        | Read::Setting { .. }
         | Read::Revision { .. }
         | Read::Revisions { .. }
         | Read::Application { .. }
@@ -246,6 +251,7 @@ fn backwards(scope: &Scope) -> bool {
         Scope::EndedTasks
         | Scope::TaskRows { .. }
         | Scope::SettingsHistory { .. }
+        | Scope::TaskText { .. }
         | Scope::Task { .. }
         | Scope::Question { .. }
         | Scope::PersonTask { .. }
@@ -275,6 +281,7 @@ fn refused_application(reply: ReplyTo, read: &Read, why: Why) -> Queue<Request> 
             out
         }
         Read::Frame
+        | Read::TaskText { .. }
         | Read::Task { .. }
         | Read::Proposal { .. }
         | Read::Escalation { .. }
@@ -327,6 +334,7 @@ pub(crate) fn start(core: &mut Core, env: &Env<Limits>, reply: ReplyTo, sign_in:
             return out;
         }
         Read::Frame
+        | Read::TaskText { .. }
         | Read::Task { .. }
         | Read::Proposal { .. }
         | Read::Escalation { .. }
@@ -362,6 +370,7 @@ pub(crate) fn start(core: &mut Core, env: &Env<Limits>, reply: ReplyTo, sign_in:
         | Read::Tasks { .. }
         | Read::Application { .. }
         | Read::Frame
+        | Read::TaskText { .. }
         | Read::Task { .. }
         | Read::Proposal { .. }
         | Read::Escalation { .. }
@@ -392,6 +401,7 @@ fn bounded_query(read: &Read, limits: &Limits) -> bool {
                 }
         }
         Read::Frame
+        | Read::TaskText { .. }
         | Read::Task { .. }
         | Read::Proposal { .. }
         | Read::Escalation { .. }
@@ -465,6 +475,11 @@ fn start_jig(
 ) -> Queue<Request> {
     if !bounded_query(&read, &env.limits) {
         return terminal(reply, Answer::None(Why::Busy));
+    }
+    if let Read::TaskText { task, field, from } = &read
+        && let Some(row) = core.tasks.task(*task)
+    {
+        return terminal(reply, task_text::answer(core, &env.limits, party, row, *field, *from));
     }
     let target = scope(&read);
     let Some(start) = read_start(&read, party) else {

@@ -2,6 +2,7 @@ use super::fixtures;
 use crate::{jig, table};
 use skein_lib::List;
 const GOLDENS: &[(Option<u8>, &str)] = &[
+    (Some(jig::rows::TASK_TEXT_AT), "help_task_text"),
     (Some(jig::rows::LIFT_AT), "help_hold_lift"),
     (Some(3), "help_task_show"),
     (Some(12), "help_proposal_decide"),
@@ -112,6 +113,7 @@ const USAGES: &[&[u8]] = &[
     b"landing list --project PROJECT [--ended]\n",
     b"forge remove FORGE [--key KEY]\n",
     b"playground end [--key KEY]\n",
+    b"task text TASK [--field specification|instructions] [--from OFFSET]\n",
 ];
 #[test]
 fn a_tools_usage_reads_as_the_design_writes_it() {

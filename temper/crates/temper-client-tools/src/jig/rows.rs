@@ -841,3 +841,33 @@ pub const PROJECT_FUND: Tool = Tool {
     notes: b"An owner's chats are funded from their pool, and pools reserve from the project's period. Raise both with two calls: project fund PROJECT AMOUNT first, then project fund PROJECT AMOUNT --role ROLE. A role's raise past the period's room is refused, exit 2, naming what the period has left. A cut keeps each budget at what it has used. A key replay prints the original edit, then today's balances marked now:. JSON has answer (project, optional role, period_spend) and now (the project read).\n",
 };
 pub const LIFT_AT: u8 = 55;
+
+/// The bounded source-text read's position in the tools table.
+pub const TASK_TEXT_AT: u8 = 60;
+/// Retrieve stored task words without the overview's text truncation.
+pub const TASK_TEXT: Tool = Tool {
+    name: b"task text",
+    line: b"Read a chunk of a task's specification or effective instructions",
+    prints: b"The source words, byte offsets and total size; then a continuation call or `no more`",
+    result: b"task-text",
+    forms: &[&[
+        positional(b"task", b"TASK", Kind::Number, Required, b"The task's number"),
+        flag(
+            b"field",
+            b"specification|instructions",
+            Kind::Word { set: &[b"specification", b"instructions"] },
+            Optional,
+            b"Which source to read; specification when absent",
+        ),
+        flag(
+            b"from",
+            b"OFFSET",
+            Kind::Number,
+            Optional,
+            b"Byte offset printed by the previous chunk; zero when absent",
+        ),
+    ]],
+    keyed: Keyed::Never,
+    area: 1,
+    notes: b"Each chunk keeps UTF-8 characters whole. Follow the printed call\nuntil no more. Instructions use the task's override, or its charter\nat the task's recorded settings revision.\n",
+};
