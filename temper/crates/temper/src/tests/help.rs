@@ -225,6 +225,38 @@ fn help_prints_a_whole_page_and_names_an_unknown_one() {
 }
 
 #[test]
+fn box_and_tier_help_name_the_host_runners_node_prerequisite() {
+    for (page, heading) in [("box", "Before you start"), ("tier", "Acting on it")] {
+        let text = help::answer(&configured(&["help", page])).expect("help page");
+        let section = text
+            .split(&format!("## {heading}\n"))
+            .nth(1)
+            .expect("prerequisite section")
+            .split("\n## ")
+            .next()
+            .expect("section text")
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ");
+        for prerequisite in [
+            "`temper-host`",
+            "host",
+            "compatible Node.js",
+            "`node`",
+            "JavaScript `uses:` actions",
+            "`actions/checkout@v4`",
+            "`actions/upload-artifact@v3`",
+            "`application.machine.owned.runner.path`",
+            "`/usr/local/bin:/usr/bin:/bin`",
+            "restart",
+            "interactive shell is insufficient",
+        ] {
+            assert!(section.contains(prerequisite), "{page}: missing {prerequisite}: {section}");
+        }
+    }
+}
+
+#[test]
 fn box_and_change_help_locate_temper_review_gates_in_change_show() {
     let box_page = help::answer(&configured(&["help", "box"])).expect("box page");
     let step = box_page
@@ -277,6 +309,68 @@ fn help_prints_the_landing_page() {
         include_bytes!("../../../../docs/help/landing.md")
     );
 }
+
+#[test]
+fn tier_help_contains_a_complete_landing_configuration_example() {
+    let text = help::answer(&configured(&["help", "tier"])).expect("tier page");
+    let example = fenced_lines(&text).into_iter().map(|(_, line)| line).collect::<Vec<_>>().join("\n");
+    let example: serde_json::Value = serde_json::from_str(&example).expect("tier configuration JSON");
+    let landing = &example["application"]["landing"];
+    assert!(landing["deployment"].is_array(), "deployment rules");
+    let projects = landing["projects"].as_array().expect("landing projects");
+    assert_eq!(projects.len(), 1);
+    let project = &projects[0];
+    assert_eq!(project["project"], 1);
+    assert!(project["rules"].is_array(), "project rules");
+    assert_eq!(project["by"], "queue");
+    assert_eq!(project["tier_retries"], 2);
+    assert_eq!(project["verification_bound_ms"], 7_200_000);
+    let repositories = project["gates"].as_array().expect("project repository entries");
+    assert_eq!(repositories.len(), 1);
+    let repository = &repositories[0];
+    assert_eq!(repository["forge"], 1);
+    assert_eq!(repository["repository"], 7);
+    assert!(repository["gates"].is_array(), "repository workflow gates");
+    let tiers = repository["tiers"].as_array().expect("repository tiers");
+    assert_eq!(tiers.len(), 1);
+    let tier = &tiers[0];
+    assert_eq!(tier["name"], "browser");
+    assert_eq!(tier["workflow"], "browser.yml");
+    assert_eq!(tier["artifact"], "report");
+    assert_eq!(tier["format"], "junit");
+    assert_eq!(tier["ignored"], serde_json::json!(["docs"]));
+}
+
+#[test]
+fn tier_help_explains_report_formats_and_preserving_configuration() {
+    let text = help::answer(&configured(&["help", "tier"])).expect("tier page");
+    let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    for instruction in [
+        "CONFIG/temper.json",
+        "application.landing.projects[].gates[].tiers",
+        "`junit` for JUnit reports",
+        "`lines` for one failing test id per line",
+        "project's `gates` array holds repository entries",
+        "repository's `gates` array holds workflow gates",
+        "project, forge and repository numbers",
+        "Preserve the existing configuration",
+        "restart",
+        "`tier_retries` and `verification_bound_ms` beside the project's `by`",
+    ] {
+        assert!(text.contains(instruction), "missing {instruction}: {text}");
+    }
+}
+
+#[test]
+fn tier_configuration_is_reachable_through_help_search() {
+    let search = help::answer(&configured(&["help", "--search", "tiers"])).expect("tier search");
+    assert!(search.lines().any(|line| line.starts_with("tier: Acting on it: ")), "{search}");
+    for name in ["tier", "landing", "deployment"] {
+        let text = help::answer(&configured(&["help", name])).expect("help page");
+        assert_eq!(text, temper_docs::find(name.as_bytes()).expect("compiled page").text);
+    }
+}
+
 #[test]
 fn help_search_names_the_server_section_or_says_nothing_matches() {
     let text = help::answer(&configured(&["help", "--search", "WireGuard"])).expect("WireGuard section");
