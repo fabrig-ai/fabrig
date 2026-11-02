@@ -9,6 +9,7 @@ mod fill;
 mod fixtures;
 mod funding;
 mod inbox;
+mod jobs;
 mod limits;
 mod reads;
 mod routing;
@@ -416,6 +417,7 @@ pub(crate) fn config(seed: u64) -> Config {
         requirements: Box::new([]),
     };
     Config {
+        jobs: Box::new([]),
         worker_names: Box::new([b"alpha".as_slice().into(), b"beta".as_slice().into()]),
         deployment: [31; 16],
         seed,
@@ -607,6 +609,7 @@ fn make_task_ended_by(core: &mut Core, limits: &Limits, number: u64, ended_by: t
         executor: tasks::Executor::Agent { charter: 1 },
         llm: None,
         spec: tasks::Spec {
+            job: None,
             asks: false,
             words: b"A task title\nThe specification".as_slice().into(),
             parameters: Box::new([]),
@@ -861,6 +864,7 @@ fn new_row(core: &Core, number: u64, funder: tasks::Funder, tracked: Option<u32>
         executor: tasks::Executor::Agent { charter: 1 },
         llm: None,
         spec: tasks::Spec {
+            job: None,
             asks: false,
             words: b"Work\nDetailed instructions".as_slice().into(),
             parameters: Box::new([]),
@@ -2063,6 +2067,7 @@ fn documents_deployment_keeps_lost_worker_attempts_and_translates_the_grace_cloc
             worker: 0,
             channel: Token::new(10),
             hello: fleet::Hello {
+                jobs: Box::default(),
                 bounds: fixtures::bounds(),
                 stop_bound: Duration::from_secs(1),
                 slots: 1,
@@ -2094,6 +2099,7 @@ fn documents_deployment_keeps_lost_worker_attempts_and_translates_the_grace_cloc
             worker: 1,
             channel: Token::new(11),
             hello: fleet::Hello {
+                jobs: Box::default(),
                 bounds: fixtures::bounds(),
                 stop_bound: Duration::ZERO,
                 slots: 2,

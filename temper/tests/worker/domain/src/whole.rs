@@ -18,6 +18,7 @@ use temper_worker_domain::{
 
 use crate::protocol;
 
+pub mod jobs;
 pub mod orders;
 
 const RUN: Token = Token::new(81);
@@ -94,7 +95,7 @@ impl World {
         forge.create_branch(REMOTE, b"saved", first).expect("saved");
         Self {
             attempt: ATTEMPT,
-            domain: Domain::new(&limits),
+            domain: Domain::new(&limits, Box::new([])),
             out: Queue::uncapped(),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             owed: VecDeque::new(),
@@ -188,7 +189,9 @@ impl World {
                 self.owed.push_back(Event::Activity { owner, activity: protocol::activity(&body) });
             }
             Request::Io { owner, op, deadline } => self.io(owner, op, deadline),
-            Request::CancelRelay { .. } | Request::CancelIo { .. } => panic!("unscripted request"),
+            Request::Job { .. } | Request::CancelRelay { .. } | Request::CancelIo { .. } => {
+                panic!("unscripted request")
+            }
         }
     }
 
@@ -209,6 +212,7 @@ impl World {
             | host::LinkUp::Unauthorized { .. }
             | host::LinkUp::Limited { .. }
             | host::LinkUp::AccountRefused { .. }
+            | host::LinkUp::JobAnswer { .. }
             | host::LinkUp::Answer { .. } => panic!("unscripted link record: {up:?}"),
         }
     }

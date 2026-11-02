@@ -371,6 +371,7 @@ impl Parties {
             | root::Delivery::Projection { .. }
             | root::Delivery::Message { .. }
             | root::Delivery::Assigned { .. }
+            | root::Delivery::AssignedJob { .. }
             | root::Delivery::Link { .. }
             | root::Delivery::ProjectMade { .. }
             | root::Delivery::CallBusy { .. }
@@ -629,6 +630,7 @@ fn query_subject(watched: &Watched, row: &tasks::TaskRecord) -> bool {
         tasks::Executor::Agent { .. } => ExecutorKind::Agent,
         tasks::Executor::Procedure { .. } => ExecutorKind::Procedure,
         tasks::Executor::Person(_) => ExecutorKind::Person,
+        tasks::Executor::Job { .. } => ExecutorKind::Job,
     };
     query.project.is_none_or(|key| key == row.project)
         && query.label.is_none_or(|key| key == row.label)

@@ -345,6 +345,7 @@ impl Engine {
                 | root::Delivery::Projection { .. }
                 | root::Delivery::Message { .. }
                 | root::Delivery::CallAnswer { .. }
+                | root::Delivery::AssignedJob { .. }
                 | root::Delivery::Assigned { .. }
                 | root::Delivery::Fleet(_)
                 | root::Delivery::System { .. }

@@ -52,6 +52,7 @@ fn a_compound_makes_its_operations_in_order_in_one_step() {
     let mut test = chat::cohort();
     let first = Amendment {
         spec: Some(Spec {
+            job: None,
             asks: false,
             words: b"first".as_slice().into(),
             parameters: Box::new([]),
@@ -61,6 +62,7 @@ fn a_compound_makes_its_operations_in_order_in_one_step() {
     };
     let second = Amendment {
         spec: Some(Spec {
+            job: None,
             asks: false,
             words: b"second".as_slice().into(),
             parameters: Box::new([]),
@@ -114,6 +116,7 @@ fn an_amendment_then_a_release_of_one_held_task_are_made_together() {
     test.send(place(FIRST, REQUESTER, REQUESTER));
     let change = Amendment {
         spec: Some(Spec {
+            job: None,
             asks: false,
             words: b"changed".as_slice().into(),
             parameters: Box::new([]),

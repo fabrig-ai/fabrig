@@ -36,11 +36,15 @@ pub enum Watched {
 pub(crate) fn refreshable(task: &c::Task, forge: u16) -> bool {
     let procedure = match task.chip.executor {
         c::ChipExecutor::Procedure { connector, kind } => connector == forge && kind == 2,
-        c::ChipExecutor::Agent { .. } | c::ChipExecutor::Party { .. } | c::ChipExecutor::Role { .. } => false,
+        c::ChipExecutor::Job { .. }
+        | c::ChipExecutor::Agent { .. }
+        | c::ChipExecutor::Party { .. }
+        | c::ChipExecutor::Role { .. } => false,
     };
     let change = match task.result_contract {
         c::TaskContractDocument::Change { connector, .. } => connector == forge,
-        c::TaskContractDocument::Report { .. }
+        c::TaskContractDocument::Job { .. }
+        | c::TaskContractDocument::Report { .. }
         | c::TaskContractDocument::Verdict { .. }
         | c::TaskContractDocument::Approval { .. } => false,
     };

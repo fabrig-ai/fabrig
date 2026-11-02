@@ -86,6 +86,15 @@ pub(super) fn encode_ending(value: &jig_client::contract::Ending, out: &mut Enco
 
 pub(super) fn encode_executor(value: &jig_client::contract::ChipExecutor, out: &mut Encoder, _budget: &mut super::Cut) {
     match value {
+        jig_client::contract::ChipExecutor::Job { kind } => {
+            out.object_start();
+            out.key(b"job");
+            out.object_start();
+            out.key(b"kind");
+            out.unsigned(u64::from(*kind));
+            out.object_end();
+            out.object_end();
+        }
         jig_client::contract::ChipExecutor::Agent { charter } => {
             out.object_start();
             out.key(b"agent");

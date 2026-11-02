@@ -1,5 +1,6 @@
 //! Core startup values from the checked engine part (configuration.md, 3 and 8).
 use crate::{Address, Engine, ProviderKind};
+use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
 use jig_domain_core as domain;
 use skein_io::Addr;
@@ -57,6 +58,7 @@ pub fn core(engine: &Engine, deployment: [u8; 16], seed: u64) -> domain::Config 
         }
     }
     domain::Config {
+        jobs: Box::new([]),
         worker_names: {
             let mut names = List::with_capacity(engine.limits.link.names);
             for worker in &engine.hosts.workers {

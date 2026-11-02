@@ -17,6 +17,7 @@ pub(crate) fn selects(query: &TaskQuery, task: &Task) -> bool {
         | Phase::Active => PhaseClass::Working,
     };
     let executor = match task.chip.executor {
+        c::ChipExecutor::Job { .. } => ExecutorKind::Job,
         c::ChipExecutor::Agent { .. } => ExecutorKind::Agent,
         c::ChipExecutor::Procedure { .. } => ExecutorKind::Procedure,
         c::ChipExecutor::Party { .. } | c::ChipExecutor::Role { .. } => ExecutorKind::Person,

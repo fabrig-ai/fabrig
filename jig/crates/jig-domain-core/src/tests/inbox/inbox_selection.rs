@@ -908,7 +908,8 @@ fn inbox_context_memory_prices_every_reserved_container_and_complete_document_en
     // bounded review/item-head carriers add 115,248 bytes at this fixture.
     // Four older held revision heads, each with its holder count, add 288 bytes.
     // Sixteen retained specification lines carry eight aligned bytes for asks.
-    const SETTINGS_DOCUMENT: u64 = 120_496 + 4 * 72 + 16 * 8;
+    // Each line also carries an eight-byte job spec pointer.
+    const SETTINGS_DOCUMENT: u64 = 120_496 + 4 * 72 + 16 * 8 + 16 * 8;
 
     let (mut core, limits) = fixture();
     waiting(

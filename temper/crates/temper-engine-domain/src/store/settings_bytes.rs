@@ -134,7 +134,7 @@ fn pattern(pattern: &authority::Pattern) -> Option<u64> {
 }
 fn contract(contract: &tasks::Contract) -> Option<u64> {
     match contract {
-        tasks::Contract::Report { .. } | tasks::Contract::Change { .. } => Some(0),
+        tasks::Contract::Report { .. } | tasks::Contract::Change { .. } | tasks::Contract::Job { .. } => Some(0),
         tasks::Contract::Approval { state, part } => {
             let mut bytes = u64::try_from(state.len()).ok()?;
             if let tasks::PartKey::Path(segments) = &part.key {

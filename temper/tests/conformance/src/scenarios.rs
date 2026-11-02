@@ -413,6 +413,7 @@ impl ScenarioApplication for Temper {
                                 project: 1,
                                 executor: tasks::Executor::Agent { charter: 1 },
                                 spec: tasks::Spec {
+                                    job: None,
                                     asks: false,
                                     words: b"period work".as_slice().into(),
                                     parameters: Box::new([]),
@@ -687,6 +688,7 @@ pub(crate) fn change(world: &mut World, completion: u32) -> Result<(), Violation
                 batch: Box::new([engine::Delegate {
                     executor: tasks::Executor::Procedure { connector: 0, code: 2 },
                     spec: tasks::Spec {
+                        job: None,
                         asks: false,
                         words: b"Small fix".as_slice().into(),
                         parameters: Box::new([

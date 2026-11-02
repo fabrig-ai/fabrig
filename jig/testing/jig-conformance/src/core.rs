@@ -53,6 +53,7 @@ pub fn scope(value: &authority::Authority) -> r::Scope {
                 authority::Executor::Charter(number) => (0, *number),
                 authority::Executor::Procedure(number) => (1, *number),
                 authority::Executor::Role(number) => (2, *number),
+                authority::Executor::Job(number) => (3, *number),
             })
             .collect(),
         descendants: value.delegation.tasks,
@@ -99,6 +100,7 @@ fn task_scope(value: &tasks::Authority) -> r::Scope {
                 tasks::AuthorityExecutor::Charter(number) => (0, *number),
                 tasks::AuthorityExecutor::Procedure(number) => (1, *number),
                 tasks::AuthorityExecutor::Role(number) => (2, *number),
+                tasks::AuthorityExecutor::Job(number) => (3, *number),
             })
             .collect(),
         descendants: value.delegation.tasks,
@@ -145,6 +147,7 @@ pub fn task(value: &tasks::TaskRecord) -> r::Task {
         source: source(value.requester),
         scope: task_scope(&value.authority),
         executor: match value.executor {
+            tasks::Executor::Job { kind } => (3, kind),
             tasks::Executor::Agent { charter } => (0, charter),
             tasks::Executor::Procedure { code, .. } => (1, code),
             tasks::Executor::Person(tasks::PersonAddress::Role(role)) => (2, role),
@@ -992,6 +995,7 @@ fn person_scope(value: &people::Authority) -> r::Scope {
                 people::Executor::Charter(n) => (0, *n),
                 people::Executor::Procedure(n) => (1, *n),
                 people::Executor::Role(n) => (2, *n),
+                people::Executor::Job(n) => (3, *n),
             })
             .collect(),
         descendants: value.delegation.tasks,

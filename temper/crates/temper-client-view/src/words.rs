@@ -248,6 +248,7 @@ pub enum Word {
     CloseCannotReopen,
     RefusalSentences,
     HelloReservedChannel,
+    HelloJobKinds,
     HelloStopBound,
     AgentTurns,
     AgentSpend,
@@ -544,6 +545,9 @@ pub enum Word {
     QuestionAnswered,
     Held,
     PersonTask,
+    Job,
+    JobContract,
+    DelegationJob,
     Task,
     Project,
     Reply,
@@ -673,9 +677,9 @@ pub enum Word {
 // Eighteen playground, removal and forge choice literals.
 pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The post-landing panel has ten phrases and eighteen segments.
-const PHRASES: u32 = 1195;
-const SEGMENTS: u32 = 2098;
-const ALL: [Word; 603] = [
+const PHRASES: u32 = 1199;
+const SEGMENTS: u32 = 2106;
+const ALL: [Word; 607] = [
     Word::PlaygroundBanner,
     Word::PlaygroundSetUp,
     Word::PlaygroundLeaving,
@@ -905,6 +909,7 @@ const ALL: [Word; 603] = [
     Word::CloseCannotReopen,
     Word::RefusalSentences,
     Word::HelloReservedChannel,
+    Word::HelloJobKinds,
     Word::HelloStopBound,
     Word::AgentTurns,
     Word::AgentSpend,
@@ -1194,6 +1199,9 @@ const ALL: [Word; 603] = [
     Word::QuestionAnswered,
     Word::Held,
     Word::PersonTask,
+    Word::Job,
+    Word::JobContract,
+    Word::DelegationJob,
     Word::Task,
     Word::Project,
     Word::Reply,
@@ -1520,6 +1528,7 @@ impl Word {
             Self::CloseCannotReopen => 1262,
             Self::RefusalSentences => 1263,
             Self::HelloReservedChannel => 1268,
+            Self::HelloJobKinds => 2154,
             Self::HelloStopBound => 1269,
             Self::AgentTurns => 1270,
             Self::AgentSpend => 1271,
@@ -1814,6 +1823,9 @@ impl Word {
             Self::QuestionAnswered => 2021,
             Self::Held => 119,
             Self::PersonTask => 120,
+            Self::Job => 2030,
+            Self::JobContract => 2031,
+            Self::DelegationJob => 2032,
             Self::Task => 122,
             Self::Project => 123,
             Self::Reply => 124,
@@ -2480,6 +2492,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ChatClosed | Word::ClosedChats => (&[b"Closed"], &[]),
         Word::CloseCannotReopen => (&[b"A closed chat can't be reopened."], &[]),
         Word::RefusalSentences | Word::TimePair => (&[b"", b" ", b""], &[Name, Name]),
+        Word::HelloJobKinds => (&[b"Its job kinds are not ascending and distinct."], &[]),
         Word::HelloReservedChannel => (&[b"Channel zero belongs to the engine's own host."], &[]),
         Word::HelloStopBound => (&[b"It would not stop before the engine's grace ends."], &[]),
         Word::AgentTurns => (&[b"Agent turns too few."], &[]),
@@ -2664,6 +2677,9 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::Question => (&[b"Question"], &[]),
         Word::QuestionAnswered => (&[b"You answered question ", b" in your inbox"], &[Number]),
         Word::Held => (&[b"Held"], &[]),
+        Word::Job => (&[b"job ", b""], &[Number]),
+        Word::JobContract => (&[b"job"], &[]),
+        Word::DelegationJob => (&[b"T", b" \xc2\xb7 job"], &[Number]),
         Word::PersonTask => (&[b"Person task"], &[]),
         Word::Task => (&[b"Task ", b""], &[Number]),
         Word::ReadingTask => (&[b"Reading task ", b"\xe2\x80\xa6"], &[Number]),

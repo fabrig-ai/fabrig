@@ -82,7 +82,9 @@ pub(crate) fn route_connector_repair(
     if seed.budget == 0 {
         match executor {
             tasks::Executor::Procedure { .. } => {}
-            tasks::Executor::Agent { .. } | tasks::Executor::Person(_) => return Queue::uncapped(),
+            tasks::Executor::Agent { .. } | tasks::Executor::Person(_) | tasks::Executor::Job { .. } => {
+                return Queue::uncapped();
+            }
         }
     }
     if seed.open_period {
@@ -244,6 +246,7 @@ fn question_event(core: &Core, event: tasks::Event) -> tasks::Event {
 
 pub(crate) fn result_words(result: tasks::TaskResult) -> Box<[u8]> {
     match result {
+        tasks::TaskResult::Job { .. } => Box::new([]),
         tasks::TaskResult::NoChange { words }
         | tasks::TaskResult::Report { words }
         | tasks::TaskResult::Verdict { words, .. }
@@ -270,6 +273,7 @@ pub(crate) fn ending_words(ending: tasks::Ending) -> Box<[u8]> {
 pub(crate) fn result_notice(ending: tasks::Ending) -> (tasks::ResultKind, Box<[u8]>) {
     match ending {
         tasks::Ending::Done(result) => match result {
+            tasks::TaskResult::Job { bytes } => (tasks::ResultKind::Job, bytes),
             tasks::TaskResult::Approved { state, words } => {
                 let words_present = words.is_some();
                 let words = match words {

@@ -185,8 +185,36 @@ fn operation_project(value: &w::Operation) -> u32 {
     }
 }
 
-/// Project mismatch is a typed refusal before the core sees any operation.
+/// Party-created jobs and project mismatches are typed refusals before the core sees them.
+/// Job admission: jig/docs/design/client/domain/contract.md, 5.7.
 pub(crate) fn refused(record: &w::Ask, limits: &w::Limits) -> Result<Option<w::KeyedAnswer>, w::Problem> {
+    if let w::Ask::Create(value) = record {
+        let mut reader = skein_lib::Reader::new(value.tasks());
+        while let Some(bytes) = wire_piece(&mut reader)? {
+            let task = w::NewTask::decode(limits, &mut skein_lib::Reader::new(&bytes))?;
+            match task.executor() {
+                w::Executor::Job(_) => {
+                    let answer = w::Final::Refused(w::Refused::new(
+                        limits,
+                        w::RefusedParts { refusal: w::Refusal::NotOffered, at: None },
+                    )?);
+                    let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
+                    answer.encode(&mut out).expect("measured answer");
+                    return match super::answers::owned(
+                        w::Owner::Jig,
+                        jig_client_protocol_wire::VERSION,
+                        out.finish(),
+                        limits,
+                    ) {
+                        Ok(answer) => Ok(Some(answer)),
+                        Err(problem) => Err(problem),
+                    };
+                }
+                w::Executor::Agent(_) | w::Executor::Procedure(_) | w::Executor::Person(_) => {}
+            }
+        }
+        return Ok(None);
+    }
     let w::Ask::Compound(value) = record else {
         return Ok(None);
     };
@@ -274,6 +302,7 @@ fn member(
             w::NewDeadline::Span(value) => p::Deadline::Span(value.value()),
         },
         executor: match v.executor {
+            w::Executor::Job(_) => return Err(Untranslatable { path: w::Path::NewTaskExecutor }),
             w::Executor::Agent(v) => p::TaskExecutor::Agent { charter: v.charter() },
             w::Executor::Procedure(v) => p::TaskExecutor::Procedure { connector: v.connector(), code: v.code() },
             w::Executor::Person(v) => p::TaskExecutor::Person(match v.value() {

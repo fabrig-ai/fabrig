@@ -104,7 +104,7 @@ fn unsupported_and_oversized_instruction_edits_leave_the_task_unchanged() {
         let before = h.domain.task(1).unwrap().clone();
         let edit = match executor {
             Executor::Agent { .. } => change(&oversized()),
-            Executor::Procedure { .. } | Executor::Person(_) => change(b"agent only"),
+            Executor::Procedure { .. } | Executor::Person(_) | Executor::Job { .. } => change(b"agent only"),
         };
         let out = amend(&mut h, edit);
         assert!(out.iter().any(|r| match r {

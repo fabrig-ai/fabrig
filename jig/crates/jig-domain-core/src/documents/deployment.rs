@@ -368,7 +368,10 @@ pub(super) fn deployment(
                         false
                     }
                 }
-                tasks::Executor::Agent { .. } | tasks::Executor::Person(_) | tasks::Executor::Procedure { .. } => false,
+                tasks::Executor::Agent { .. }
+                | tasks::Executor::Person(_)
+                | tasks::Executor::Procedure { .. }
+                | tasks::Executor::Job { .. } => false,
             };
             if running {
                 if runs.room() > 0 {

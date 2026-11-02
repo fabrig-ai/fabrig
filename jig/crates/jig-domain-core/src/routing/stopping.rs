@@ -244,6 +244,7 @@ impl Core {
             && self.replaced.is_empty()
             && self.contexts.is_empty()
             && self.workspace_credentials.is_empty()
+            && self.job_workspaces.is_empty()
             && self.transcripts.is_empty()
             && self.restoring_proofs.is_empty()
             && self.unreported_restored.is_empty()

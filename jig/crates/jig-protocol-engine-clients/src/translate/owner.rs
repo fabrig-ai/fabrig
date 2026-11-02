@@ -82,6 +82,7 @@ pub fn ledger(value: &d::Ledger, limits: &w::Limits) -> Result<w::PoolLedger, w:
 }
 pub fn executor(value: t::Executor, limits: &w::Limits) -> Result<w::Executor, w::Problem> {
     Ok(match value {
+        t::Executor::Job { kind } => w::Executor::Job(w::ExecutorJob::new(limits, w::ExecutorJobParts { kind })?),
         t::Executor::Agent { charter } => {
             w::Executor::Agent(w::ExecutorAgent::new(limits, w::ExecutorAgentParts { charter })?)
         }
@@ -319,6 +320,9 @@ pub fn authority(
 
 pub fn authority_executor(value: t::AuthorityExecutor, limits: &w::Limits) -> Result<w::AuthorityExecutor, w::Problem> {
     Ok(match value {
+        t::AuthorityExecutor::Job(value) => {
+            w::AuthorityExecutor::Job(w::AuthorityExecutorJob::new(limits, w::AuthorityExecutorJobParts { value })?)
+        }
         t::AuthorityExecutor::Charter(number) => w::AuthorityExecutor::Charter(w::AuthorityExecutorCharter::new(
             limits,
             w::AuthorityExecutorCharterParts { value: number },
@@ -435,6 +439,10 @@ pub fn subscription(value: t::Subscription, limits: &w::Limits) -> Result<w::Sub
 }
 pub fn contract(value: &d::ContractLine, limits: &w::Limits) -> Result<w::TaskContractDocument, w::Problem> {
     Ok(match value {
+        d::ContractLine::Job { bytes } => w::TaskContractDocument::Job(w::TaskContractDocumentJob::new(
+            limits,
+            w::TaskContractDocumentJobParts { bytes: *bytes },
+        )?),
         d::ContractLine::Approval { state, part: value } => {
             w::TaskContractDocument::Approval(w::TaskContractDocumentApproval::new(
                 limits,

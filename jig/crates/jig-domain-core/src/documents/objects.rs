@@ -340,12 +340,14 @@ fn amendment(
                 Some(change) => Some(change.address),
                 None => match row.executor {
                     tasks::Executor::Person(address) => Some(address),
-                    tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } => None,
+                    tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } | tasks::Executor::Job { .. } => {
+                        None
+                    }
                 },
             },
             None => match row.executor {
                 tasks::Executor::Person(address) => Some(address),
-                tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } => None,
+                tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } | tasks::Executor::Job { .. } => None,
             },
         },
         taken_by: match change {
@@ -370,7 +372,7 @@ fn amendment(
                     None => None,
                 }
             }
-            tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => None,
+            tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) | tasks::Executor::Job { .. } => None,
         },
         spec: spec(limits, description),
         authority: super::act_authority(limits, authority)?,
@@ -696,7 +698,9 @@ pub fn person_from_row(
     }
     let address = match row.executor {
         tasks::Executor::Person(address) => address,
-        tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } => return Err(Missing::Unknown),
+        tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } | tasks::Executor::Job { .. } => {
+            return Err(Missing::Unknown);
+        }
     };
     let mut results = List::with_capacity(limits.documents.lines);
     for task in row.dependencies.iter().chain(row.spec.inputs.iter()).take(bound(limits)) {
@@ -781,7 +785,7 @@ pub fn result_from_row(
                 Some(answer) => Some(answer.by),
                 None => None,
             },
-            tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } => None,
+            tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } | tasks::Executor::Job { .. } => None,
         },
         delegates,
         followups: Some(followups),

@@ -141,6 +141,7 @@ impl Domain {
         let mut tokens = Map::with_capacity(channels_count);
         if limits.engine_slots > 0 {
             let engine = Channel {
+                jobs: Box::new([]),
                 evidence: crate::needs::empty_evidence(),
                 program_endpoints: Box::new([]),
                 worker: None,
@@ -486,6 +487,9 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             ) {
                 crate::grants::keep(domain, env, run, attempt, &[], &grants, out);
             }
+        }
+        Event::StartJob { reply_to, run, attempt, workstream, job, adopt } => {
+            attempt::start_job(domain, env, reply_to, run, attempt, workstream, job, adopt, out);
         }
         Event::Inbound { run, attempt, message } => call::inbound(domain, run, attempt, message, out),
         Event::Relay { channel, run, attempt, call } => {

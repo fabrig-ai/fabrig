@@ -1,6 +1,7 @@
 //! The host child domain's state and its entry points (section 3).
 
 use crate::{LinkDown, LinkUp};
+use alloc::boxed::Box;
 use skein_lib::{Env, Id, Map, Queue, Slab, Token};
 
 use crate::boundary::{Event, Hosting, Reason, Request};
@@ -13,6 +14,7 @@ use crate::turns::Turns;
 /// The host child domain's state.
 #[derive(Debug)]
 pub struct Hub {
+    pub(crate) job_kinds: Box<[crate::JobBound]>,
     pub(crate) sources: crate::sources::Domain,
     /// The run slots.
     pub(crate) hosted: Slab<Hosted>,
@@ -36,6 +38,7 @@ impl Hub {
     pub fn new(limits: &Limits) -> Hub {
         let calls = limits::calls(limits).expect("valid_hub accepted the limits");
         Hub {
+            job_kinds: Box::new([]),
             sources: crate::sources::Domain::new(limits.program_sources),
             hosted: Slab::with_capacity(limits.slots),
             names: Map::with_capacity(limits.slots),
@@ -113,7 +116,10 @@ impl Hub {
         };
         match self.calls.get(id).expect("found relay").state {
             call::State::Relayed { .. } => true,
-            call::State::Delivering { .. } | call::State::Settling | call::State::Closed => false,
+            call::State::JobDelivering
+            | call::State::Delivering { .. }
+            | call::State::Settling
+            | call::State::Closed => false,
         }
     }
 
@@ -263,11 +269,25 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
             }
             hosted::cancel_all(domain, reason);
         }
-        Event::Opened { stop_bound, workstreams, bounds } => {
+        Event::Opened { stop_bound, workstreams, bounds, jobs } => {
+            domain.job_kinds = jobs;
             crate::answers::opened(domain, env.limits.slots, stop_bound, workstreams, bounds, out);
         }
-        Event::Prepared { owner, workspace } => hosted::prepared(domain, owner, workspace, out),
-        Event::Unprepared { owner, failure, detail } => hosted::unprepared(domain, env, owner, failure, detail, out),
+        Event::Job(event) => crate::jobs::reported(domain, env, event, out),
+        Event::Prepared { owner, workspace } => {
+            if crate::jobs::owns(domain, owner) {
+                crate::jobs::prepared(domain, owner, workspace, out);
+            } else {
+                hosted::prepared(domain, owner, workspace, out);
+            }
+        }
+        Event::Unprepared { owner, failure, detail } => {
+            if crate::jobs::owns(domain, owner) {
+                crate::jobs::unprepared(domain, env, owner, failure, detail, out);
+            } else {
+                hosted::unprepared(domain, env, owner, failure, detail, out);
+            }
+        }
         Event::Agent(crate::FromAgent::Started { owner, agent }) => hosted::started(domain, env, owner, agent, out),
         Event::Agent(crate::FromAgent::StartRefused { owner, why, cause }) => {
             hosted::start_refused(domain, env, owner, why, cause, out);
@@ -278,7 +298,13 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
         Event::Agent(crate::FromAgent::Yielded { owner }) => hosted::yielded(domain, owner, out),
         Event::Agent(crate::FromAgent::Faulted { owner, fault }) => hosted::faulted(domain, env, owner, fault, out),
         Event::Agent(crate::FromAgent::Gone { owner, detail }) => hosted::gone(domain, env, owner, detail, out),
-        Event::Delivered { owner, delivery } => hosted::delivered(domain, owner, delivery, out),
+        Event::Delivered { owner, delivery } => {
+            if crate::jobs::delivery_owner(domain, owner) {
+                crate::jobs::delivered(domain, owner, delivery, out);
+            } else {
+                hosted::delivered(domain, owner, delivery, out);
+            }
+        }
         Event::Saved { owner, at } => hosted::saved(domain, owner, at, out),
         Event::Down(down) => match down {
             LinkDown::Sources { sources } => crate::sources::replace(&mut domain.sources, env, sources, out),
@@ -287,6 +313,7 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
             LinkDown::Message { run, attempt, name, sender, words, finish_requested } => {
                 hosted::inbound(domain, env, run, attempt, name, sender, words, finish_requested, out);
             }
+            LinkDown::AssignJob { job } => crate::jobs::assign(domain, env, job, out),
             LinkDown::Assign { assignment } => hosted::assign(domain, env, assignment, out),
             LinkDown::TurnKept { run, attempt, turn } => hosted::acknowledge_turn(domain, env, run, attempt, turn, out),
             LinkDown::Grant { run, attempt, grant } => hosted::grant(domain, run, attempt, grant, out),

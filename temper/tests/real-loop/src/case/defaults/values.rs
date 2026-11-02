@@ -78,6 +78,7 @@ fn ceiling(value: &authority::Authority) -> Value {
         kinds.push(match kind {
             authority::Executor::Charter(n) => json!({"charter":n}),
             authority::Executor::Procedure(n) => json!({"procedure":n}),
+            authority::Executor::Job(n) => json!({"job":n}),
             authority::Executor::Role(n) => json!({"role":n}),
         });
     }

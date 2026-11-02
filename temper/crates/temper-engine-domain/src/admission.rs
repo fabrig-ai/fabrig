@@ -42,6 +42,7 @@ pub fn completes(event: &Event) -> bool {
                             | LinkUp::Limited { .. }
                             | LinkUp::AccountRefused { .. }
                             | LinkUp::Turn { .. }
+                            | LinkUp::JobAnswer { .. }
                             | LinkUp::Answer { .. },
                         ..
                     },

@@ -20,6 +20,7 @@ pub(super) fn hello(b: &mut Builder, words: &Words, value: &HelloRefusalLine, po
 pub(crate) fn refusal(b: &mut Builder, words: &Words, why: HelloRefusal) {
     match why {
         HelloRefusal::Agent { why } => agent(b, words, why),
+        HelloRefusal::JobKinds => text(b, words, P::HelloRefusalJobKinds, &[]),
         HelloRefusal::ReservedChannel => text(b, words, P::HelloRefusalReservedChannel, &[]),
         HelloRefusal::Workers { limit } => {
             text(b, words, P::HelloRefusalWorkers, &[]);

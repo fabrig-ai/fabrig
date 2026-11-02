@@ -279,6 +279,7 @@ fn a_projection_feed_then_committed_resume_delivers_the_watch() {
                 executor: tasks::Executor::Agent { charter: 1 },
                 llm: None,
                 spec: tasks::Spec {
+                    job: None,
                     asks: false,
                     words: b"goal".as_slice().into(),
                     parameters: Box::new([]),
@@ -399,6 +400,7 @@ fn stopping_continues_projection_deferred_finishing_without_new_commits() {
                 executor: tasks::Executor::Agent { charter: 1 },
                 llm: None,
                 spec: tasks::Spec {
+                    job: None,
                     asks: false,
                     words: b"queued goal before Stop".as_slice().into(),
                     parameters: Box::new([]),

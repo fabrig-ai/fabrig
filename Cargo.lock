@@ -902,6 +902,7 @@ dependencies = [
  "jig-domain-authority",
  "jig-domain-brief",
  "jig-domain-fleet",
+ "jig-domain-link",
  "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",
@@ -1048,6 +1049,7 @@ name = "jig-fleet-world"
 version = "0.0.0"
 dependencies = [
  "jig-domain-fleet",
+ "jig-domain-link",
  "skein-lib",
  "skein-world",
 ]
@@ -5030,12 +5032,21 @@ dependencies = [
  "smith-host-domain",
  "temper-engine-domain-forge",
  "temper-worker-domain-checkout",
+ "temper-worker-domain-tooling",
 ]
 
 [[package]]
 name = "temper-worker-domain-checkout"
 version = "0.0.0"
 dependencies = [
+ "skein-lib",
+]
+
+[[package]]
+name = "temper-worker-domain-tooling"
+version = "0.0.0"
+dependencies = [
+ "jig-domain-link",
  "skein-lib",
 ]
 

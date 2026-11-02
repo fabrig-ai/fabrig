@@ -524,6 +524,7 @@ fn core_ask(
         ) => {
             let task = context.task;
             let code = match context.executor {
+                tasks::Executor::Job { .. } => return,
                 tasks::Executor::Procedure { code, .. } => code,
                 tasks::Executor::Agent { .. } | tasks::Executor::Person(_) => {
                     unreachable!("core-selected procedure executor")
@@ -612,6 +613,31 @@ fn core_ask(
         (Some(Connector::Infrastructure), core::Ask::ClaimDone { task, attempt, kinds, version }) => {
             crate::link::route(domain, env, decision, LinkEvent::Start { task, attempt, kinds, version }, true, work);
         }
+        (
+            Some(Connector::Infrastructure),
+            core::Ask::JobClaimed { task, attempt, kind, spec, deadline, result, grants, workspace },
+        ) => {
+            crate::link::route(
+                domain,
+                env,
+                decision,
+                LinkEvent::StartJob {
+                    job: jig_domain_hub_link::JobStart {
+                        task,
+                        attempt,
+                        workstream: task,
+                        kind,
+                        spec,
+                        deadline,
+                        result,
+                        grants,
+                        workspace,
+                    },
+                },
+                true,
+                work,
+            );
+        }
         (Some(Connector::Infrastructure), core::Ask::Close { task, .. }) => {
             work.push(Work::Infrastructure(infrastructure::Event::Close { task }));
         }
@@ -656,7 +682,10 @@ fn core_ask(
         }
         (
             Some(Connector::Observability) | None,
-            core::Ask::DropApplication { .. } | core::Ask::ClaimDone { .. } | core::Ask::UnsubscriptionDone { .. },
+            core::Ask::DropApplication { .. }
+            | core::Ask::ClaimDone { .. }
+            | core::Ask::JobClaimed { .. }
+            | core::Ask::UnsubscriptionDone { .. },
         )
         | (None, core::Ask::Close { .. } | core::Ask::Release { .. } | core::Ask::SubscriptionDone { .. })
         | (
@@ -1265,6 +1294,7 @@ fn core_now(
             work.push(Work::Core(core::Event::WorkspacePrepared {
                 task,
                 attempt,
+                workspace: None,
                 credentials: Box::new([]),
                 writes: Some(Box::new([])),
             }));

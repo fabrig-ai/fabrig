@@ -17,7 +17,7 @@ use crate::boundary::{Event, Request};
 use crate::domain::Domain;
 use crate::limits::Limits;
 use crate::workspace::{self, Write};
-use crate::{agents, translate};
+use crate::{agents, jobs, tooling, translate};
 
 /// What the host reads: this iteration's times, and its own limits.
 pub(crate) const fn host_env(env: &Env<Limits>) -> Env<host::Limits> {
@@ -41,6 +41,11 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &
             host_step(domain, env, host::Event::SourceAnswered { owner, answer });
         }
         Event::Assign { assignment, items } => assign(domain, env, assignment, items, out),
+        Event::AssignJob { job, items, spec } => jobs::assign(domain, env, job, items, spec, out),
+        Event::Job { owner, event } => jobs::event(domain, env, owner, event),
+        Event::Link(host::LinkDown::AssignJob { job }) => {
+            jobs::assign(domain, env, job, Err(wire::Undecodable), Err(wire::Undecodable), out);
+        }
         Event::Link(host::LinkDown::Assign { assignment }) => {
             let items = wire::Workspace { repositories: Box::new([]) };
             assign(domain, env, assignment, Ok(items), out);
@@ -49,12 +54,14 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &
             host_step(domain, env, host::Event::Down(host::LinkDown::Acknowledge { run, attempt }));
             if !domain.host.is_hosting(run, attempt) {
                 workspace::forget(domain, run, attempt);
+                domain.job_specs.remove(&(run, attempt));
             }
         }
         Event::Link(down) => host_step(domain, env, host::Event::Down(down)),
         Event::Ready => {
             domain.past = false;
             let opened = host::Event::Opened {
+                jobs: domain.tooling.bounds(),
                 stop_bound: env.limits.stop_bound,
                 workstreams: workstreams(&domain.checkout),
                 bounds: env.limits.bounds.clone(),
@@ -187,8 +194,8 @@ fn workstreams(checkout: &checkout::Domain) -> Box<[u64]> {
 }
 
 /// Routes what the child domains emitted, and what that leads to, until all
-/// three have emitted all they will in this entry point: what smith emitted
-/// first, then the checkout's, then the hub's, so that each capability's
+/// four have emitted all they will in this entry point: what smith emitted
+/// first, then the checkout's and tooling's, then the hub's, so that each capability's
 /// requests are routed before the hub asks it anything more (W1;
 /// `domain/worker.md`, 3.1). It follows its own pushes, looking at the
 /// capability queues again after each hub request. Within one step,
@@ -204,6 +211,8 @@ pub(crate) fn hand_off(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<R
             }
         } else if let Some(request) = domain.checkout_out.pop() {
             from_checkout(domain, env, request, out);
+        } else if let Some(request) = domain.tooling_out.pop() {
+            jobs::up(domain, env, request, out);
         } else if let Some(request) = domain.host_out.pop() {
             from_host(domain, env, request, out);
         } else {
@@ -232,6 +241,10 @@ fn from_host(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out
         }
         host::Request::SourceFault => out.push(Request::SourceFault),
         host::Request::Up(host::LinkUp::Answer { run, attempt, answer }) => answered(domain, run, attempt, answer, out),
+        host::Request::Up(host::LinkUp::JobAnswer { run, attempt, answer }) => {
+            jobs::answered(domain, run, attempt, &answer);
+            out.push(Request::Link(host::LinkUp::JobAnswer { run, attempt, answer }));
+        }
         host::Request::Up(up) => out.push(Request::Link(up)),
         host::Request::Hello { hello } => {
             out.push(Request::Hello(hello));
@@ -242,8 +255,20 @@ fn from_host(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out
                 }
             }
             for index in 0..domain.host.kept_answers() {
-                if let Some(host::LinkUp::Answer { run, attempt, answer }) = domain.host.answer_at(index) {
-                    answered(domain, run, attempt, answer, out);
+                if let Some(up) = domain.host.answer_at(index) {
+                    match up {
+                        host::LinkUp::Answer { run, attempt, answer } => answered(domain, run, attempt, answer, out),
+                        up @ (host::LinkUp::JobAnswer { .. }
+                        | host::LinkUp::Piece { .. }
+                        | host::LinkUp::Logins { .. }
+                        | host::LinkUp::SignedOut { .. }
+                        | host::LinkUp::Activity { .. }
+                        | host::LinkUp::Unauthorized { .. }
+                        | host::LinkUp::Limited { .. }
+                        | host::LinkUp::AccountRefused { .. }
+                        | host::LinkUp::Turn { .. }
+                        | host::LinkUp::Call { .. }) => out.push(Request::Link(up)),
+                    }
                 }
             }
         }
@@ -255,6 +280,15 @@ fn from_host(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out
         }
         host::Request::Save { owner, workspace } => workspace::save(domain, env, owner, workspace),
         host::Request::Release { workspace } => workspace::release(domain, env, workspace),
+        host::Request::Job(host::ToJob::Run { owner, kind, spec: _, deadline, workspace }) => {
+            jobs::run(domain, env, owner, kind, deadline, workspace);
+        }
+        host::Request::Job(host::ToJob::Stop { owner }) => {
+            jobs::step(domain, env, tooling::Event::Stop { owner });
+        }
+        host::Request::DeliverJob { owner, workspace, delivery } => {
+            jobs::deliver(domain, env, owner, workspace, &delivery);
+        }
         host::Request::Agent(request) => agents::to_agent(domain, env, request, out),
     }
 }

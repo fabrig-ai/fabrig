@@ -272,6 +272,8 @@ pub enum JigPhrase {
     TasksMissing,
     /// Agent.
     Agent,
+    /// A job and its kind (0), jig/docs/design/client/domain/contract.md, 5.7.
+    Job,
     /// Procedure.
     Procedure,
     /// Person.
@@ -1278,6 +1280,7 @@ impl JigPhrase {
             Self::DeadlineMissing => 62,
             Self::TasksMissing => 63,
             Self::Agent => 64,
+            Self::Job => 7924,
             Self::Procedure => 65,
             Self::Person => 66,
             Self::RoleExecutor => 67,
@@ -2275,6 +2278,7 @@ impl JigPhrase {
             | Self::LoadingDependency
             | Self::DelegateCancel
             | Self::DropDependency
+            | Self::Job
             | Self::Charter
             | Self::Priority
             | Self::Closing
@@ -2395,7 +2399,7 @@ impl JigPhrase {
     }
 }
 /// Every jig phrase; loading checks this whole contract.
-pub const ALL: [JigPhrase; 641] = [
+pub const ALL: [JigPhrase; 642] = [
     JigPhrase::TooLinked,
     JigPhrase::SettingsChanged,
     JigPhrase::MovedToNewest,
@@ -2607,6 +2611,7 @@ pub const ALL: [JigPhrase; 641] = [
     JigPhrase::DeadlineMissing,
     JigPhrase::TasksMissing,
     JigPhrase::Agent,
+    JigPhrase::Job,
     JigPhrase::Procedure,
     JigPhrase::Person,
     JigPhrase::RoleExecutor,

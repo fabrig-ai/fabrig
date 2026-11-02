@@ -236,6 +236,15 @@ pub fn encode_template_executor(value: c::TemplateExecutor, out: &mut Encoder) {
 }
 pub fn encode_task_contract_document(value: &c::TaskContractDocument, out: &mut Encoder) {
     match value {
+        c::TaskContractDocument::Job { bytes } => {
+            out.object_start();
+            out.key(b"job");
+            out.object_start();
+            out.key(b"bytes");
+            out.unsigned(u64::from(*bytes));
+            out.object_end();
+            out.object_end();
+        }
         c::TaskContractDocument::Approval { state, part } => {
             out.object_start();
             out.key(b"approval");
@@ -659,6 +668,12 @@ pub fn encode_field_rule(value: &c::FieldRule, out: &mut Encoder) {
 pub fn encode_owner_authority_executor(value: c::AuthorityExecutor, out: &mut Encoder) {
     let value = &value;
     match value {
+        c::AuthorityExecutor::Job(value) => {
+            out.object_start();
+            out.key(b"job");
+            out.unsigned(u64::from(*value));
+            out.object_end();
+        }
         c::AuthorityExecutor::Charter(value) => {
             out.object_start();
             out.key(b"charter");

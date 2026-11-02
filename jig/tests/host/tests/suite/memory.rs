@@ -127,6 +127,9 @@ impl Measured {
                     | ToAgent::Grant { .. }
                     | ToAgent::Acknowledge { .. },
                 )
+                | Request::Up(LinkUp::JobAnswer { .. })
+                | Request::Job(_)
+                | Request::DeliverJob { .. }
                 | Request::Release { .. } => Asked::Other,
             });
         }
@@ -494,6 +497,8 @@ fn source_replacement_at_capacity_completes_every_check() {
                 | Request::Prepare { .. }
                 | Request::Abort { .. }
                 | Request::Save { .. }
+                | Request::Job(_)
+                | Request::DeliverJob { .. }
                 | Request::Release { .. }) => panic!("unexpected source output: {other:?}"),
             }
         }
@@ -549,6 +554,7 @@ fn maximum_input_pieces_keep_their_payloads_and_order() {
             | LinkUp::AccountRefused { .. }
             | LinkUp::Turn { .. }
             | LinkUp::Call { .. }
+            | LinkUp::JobAnswer { .. }
             | LinkUp::Answer { .. }) => panic!("unexpected queued record: {other:?}"),
         }
     }

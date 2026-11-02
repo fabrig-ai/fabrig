@@ -96,6 +96,9 @@ fn saved_fields(
     let decoded = tasks_v9::TaskResult::decode(limits, &mut Reader::new(&bytes))?;
     match tasks::phase::read_result(decoded, limits)? {
         task::TaskResult::Verdict { fields, .. } => Ok(fields),
+        task::TaskResult::Job { .. } => {
+            Err(tasks_v9::Problem { path: tasks_v9::Path::TaskResultTag, reason: skein_codec::Reason::Malformed })
+        }
         task::TaskResult::Approved { .. }
         | task::TaskResult::Report { .. }
         | task::TaskResult::Change { .. }
