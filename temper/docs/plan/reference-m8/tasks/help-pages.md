@@ -244,3 +244,13 @@ As the implementer's text says, and also: any line a test made you change, befor
      `tests::words::help_lists_groups_then_a_group_then_a_tool`, and check that its diff is the
      `cleared` of `ctl.md`'s edit alone.
   Continue from the pushed branch `reference-m8/help-pages`.
+
+2026-11-02, second.
+
+- **`ctl.md` is 8,195 bytes, three over its bound: may its last line be shortened, with the
+  matching extra line in `help_groups.txt`?** Yes. In `ctl.md`, replace `- ctl opens no browser
+  and runs no program.` with `- ctl opens no browser, runs no program.` (the line the bound test
+  names, under Owns' line rule; the page is then 8,192 bytes). Regenerate `help_groups.txt` by its
+  route; its diff from main is then the `cleared` of `ctl.md`'s edit and this line, nothing else.
+  Then run the refused rule and Goal's acceptance whole. No bound is raised. Continue from the
+  pushed branch `reference-m8/help-pages`.
