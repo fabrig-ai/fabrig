@@ -425,7 +425,7 @@ pub fn valid(limits: &Limits) -> bool;
   from its key file's loader up, use a 3072-bit key generated in their
   scratch directory instead (jig's are).
 - **Against a real client:** Forgejo, in temper's process tier, through
-  jig's provider (temper's draft `sign-in.md`, section 8).
+  jig's provider (temper's `protocol/sign-in.md`, section 8).
 
 ## 10. Open questions
 
