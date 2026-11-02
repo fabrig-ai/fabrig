@@ -5027,6 +5027,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-worker-domain-tooling"
+version = "0.0.0"
+dependencies = [
+ "jig-domain-link",
+ "skein-lib",
+]
+
+[[package]]
 name = "temper-worker-domain-world"
 version = "0.0.0"
 dependencies = [
