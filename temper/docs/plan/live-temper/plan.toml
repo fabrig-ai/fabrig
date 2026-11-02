@@ -8,6 +8,7 @@ sources = ["temper/docs/plan/live-temper/inputs/request.md", "AGENTS.md"]
 # claude-haiku-5-5, and testing.md 2.7 says what runs and what stays the owner's.
 # One direct part of three independent tasks, each built to notes/contracts.md.
 
+retired = true
 [buffer]
 low = 1.0
 high = 2.0

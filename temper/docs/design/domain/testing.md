@@ -1323,7 +1323,7 @@ section 8; testing-strategy.md, 2.9).
   (2.4). B0's three offline proofs are the ignored `proof_live` binary,
   run by `scripts/proof-live.sh rung-b0-offline` before the live story and never
   in the process profile. The offline command selects only `proof_live`
-  under the manual live profile's timeout horizon, overriding its default
+  under profile `live-temper`'s timeout horizon, overriding its default
   filter; it admits no live account. A driver's own fault is met there, never
   by spending a held login.
   - **Their stories are the third edition's** of the reference case
@@ -2165,7 +2165,8 @@ The two suites are the strategy's (testing-strategy.md, section 8). In temper:
 - **Outside both suites:** the process tier's binary `process` and the
   live tier's binary `live`, which both suites' filters leave out, run
   under the nextest profiles `process-temper` and `live-temper`, the live one
-  by `scripts/proof-live.sh`. The gate never runs them. The lab was retired
+  after every landing and by `scripts/proof-live.sh` (2.7). The gate never
+  runs them. The lab was retired
   for `../qa.md`'s process.
 
 A fuzzy test lives in its world's crate, beside the focused ones, and
@@ -2384,3 +2385,10 @@ scripts/proof-live.sh               the live tier
 - **The machine's git in the process tier.** Default: whatever git the
   test host has, 2.41 or later, which ../protocol/git.md's start refuses below
   (../protocol/git.md, section 3); transcripts are of 2.53.
+
+## 11. Later
+
+- **The live pair's bound.** The owned-forge landing pair runs in one
+  invocation within profile `live-temper`'s 50 minutes, each story
+  bounding itself at 40 (2.7). The profile's figure is set from the
+  pair's first after-landing wall times, and is the user's.
