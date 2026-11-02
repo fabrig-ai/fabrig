@@ -77,9 +77,12 @@ pub fn encode(request: &Request, limits: &Limits) -> Result<Encoded, Refusal> {
         | Request::PostStatus { .. }
         | Request::CreateBranch { .. }
         | Request::DeleteBranch { .. } => writes::encode(request, limits),
-        Request::PullFiles { .. }
+        Request::Artifacts { .. }
+        | Request::ArtifactZip { .. }
+        | Request::PullFiles { .. }
         | Request::Compare { .. }
         | Request::Contents { .. }
+        | Request::Commits { .. }
         | Request::Raw { .. }
         | Request::Tree { .. }
         | Request::WorkflowRuns { .. }
@@ -136,6 +139,8 @@ enum DecoderState {
 #[must_use]
 pub fn decoder(request: &Request, limits: &Limits) -> Option<Decoder> {
     let kind = match request {
+        Request::Artifacts { .. } => Kind::Action(ActionKind::Artifacts),
+        Request::Commits { .. } => Kind::File(FileKind::Range),
         Request::CreateFile { .. } => Kind::Setup(setup::SetupKind::CreatedFile),
         Request::CreateRepository { .. } => Kind::Setup(setup::SetupKind::CreatedRepository),
         Request::Org { .. } | Request::CreateOrg { .. } => Kind::Setup(setup::SetupKind::Org),
@@ -146,7 +151,8 @@ pub fn decoder(request: &Request, limits: &Limits) -> Option<Decoder> {
         | Request::EditOrgHook { .. }
         | Request::CreateRepoHook { .. }
         | Request::EditRepoHook { .. } => Kind::Setup(setup::SetupKind::Hook),
-        Request::DeleteRepoHook { .. }
+        Request::ArtifactZip { .. }
+        | Request::DeleteRepoHook { .. }
         | Request::AddCollaborator { .. }
         | Request::DeleteOrgHook { .. }
         | Request::DeleteToken { .. }
@@ -211,7 +217,7 @@ pub fn decoder(request: &Request, limits: &Limits) -> Option<Decoder> {
         Kind::Reachable(kind) => DecoderState::Reachable(reachable::Reachable::new(kind)),
         Kind::Error => DecoderState::Error(writes::Error::new()),
         Kind::Write(_) | Kind::Delivery(_) => unreachable!("answer kind selection"),
-        Kind::File(kind) => DecoderState::Files(Box::new(files::Files::new(kind))),
+        Kind::File(kind) => DecoderState::Files(Box::new(files::Files::new(kind, limits.inner))),
         Kind::Action(kind) => DecoderState::Actions(actions::Actions::new(kind)),
         Kind::Review(kind) => DecoderState::Reviews(Box::new(reviews::Reviews::new(kind))),
         Kind::Branch(kind) => DecoderState::Branches(Box::new(branches::Branches::new(kind, limits))),
