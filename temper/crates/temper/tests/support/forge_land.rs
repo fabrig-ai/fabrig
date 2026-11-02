@@ -1171,7 +1171,7 @@ impl LiveModel<'_> {
     pub const fn name(self) -> &'static str {
         match self {
             Self::ChatGpt { .. } => "gpt-6-luna",
-            Self::ClaudeCode { .. } => "sonnet",
+            Self::ClaudeCode { .. } => "claude-haiku-5-5",
         }
     }
     const fn unavailable(self) -> &'static str {

@@ -378,7 +378,7 @@ fn a_claude_configuration_replaces_openai_and_keeps_the_demo() {
             {"name":"claude", "number":2, "dialect":2, "provider":"anthropic", "program":"claude_code",
                 "address":"api.anthropic.com:443", "transport":"tls", "server_name":"api.anthropic.com",
                 "identity":"plain", "connect":10000, "handshake":10000, "headers":[],
-                "models":[{"name":"sonnet", "prices":{"input":1, "cached":1, "output":1, "unit":1000},
+                "models":[{"name":"claude-haiku-5-5", "prices":{"input":1, "cached":1, "output":1, "unit":1000},
                     "window":1_048_576, "output":8192, "reasoning_item":65536, "head":60000, "idle":30000}]},
             agent_before["endpoints"][1]
         ])
@@ -389,12 +389,12 @@ fn a_claude_configuration_replaces_openai_and_keeps_the_demo() {
         value["engine"]["llm"],
         json!({
             "providers":[{"name":"anthropic", "number":2, "signed_in_plan":false,
-                "manage_usage":"https://claude.ai/settings/usage", "models":["sonnet"],
+                "manage_usage":"https://claude.ai/settings/usage", "models":["claude-haiku-5-5"],
                 "sources":{"programs":["claude_code"]}}, before["engine"]["llm"]["providers"][1]],
             "endpoints":[{"name":"claude", "number":2, "dialect":2, "provider":"anthropic", "program":"claude_code",
                 "address":{"host":"api.anthropic.com", "port":443}, "transport":"tls", "server_name":"api.anthropic.com",
                 "headers":[], "connect_ms":10000, "handshake_ms":10000}, before["engine"]["llm"]["endpoints"][1]],
-            "models":[{"name":"sonnet", "endpoint":"claude", "window":1_048_576, "output":8192,
+            "models":[{"name":"claude-haiku-5-5", "endpoint":"claude", "window":1_048_576, "output":8192,
                 "prices":{"input":1, "cached":1, "output":1, "unit":1000}}, before["engine"]["llm"]["models"][1]]
         })
     );
@@ -428,7 +428,7 @@ fn stock_charters_choose_claude_before_the_demo_model() {
         .expect("engine schema");
     let defaults = temper_service::stock::defaults(&engine.llm);
     for charter in &defaults.charters {
-        assert_eq!((charter.policy.model.name.as_ref(), charter.policy.model.endpoint), (b"sonnet".as_slice(), 2));
+        assert_eq!((charter.policy.model.name.as_ref(), charter.policy.model.endpoint), (b"claude-haiku-5-5".as_slice(), 2));
         let alternatives: Vec<_> =
             charter.policy.alternatives.iter().map(|model| (model.name.as_ref(), model.endpoint)).collect();
         assert_eq!(alternatives, [(b"demo".as_slice(), 3)]);
