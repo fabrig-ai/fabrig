@@ -1,7 +1,5 @@
 # service: status
 
-2026-10-29. Where jig's code lags or departs from [service.md](service.md).
+2026-11-02. Where jig's code lags or departs from [service.md](service.md).
 
-- **Built:** 1 to 3, 7, 8, 10: application listener and bundle, reference mount, browser tier and worker program logins; 8: focused process restart, SIGTERM during sign-in and bundle-page wiring; account lifecycle and moves are covered below the process layer. 1, 7: uncapped internal hand-offs; kernel staging sized by edge budgets (store 12, service io operations plus 12, worker kernel budget); store and client correlations grow.
-- **Not yet:** 2, 6, 10: inline agents/client. 6, 7: containment and non-loopback TLS. 7, 8: ops standalone. Live sign-in fails on real plan at the recorded smith pin.
-- **Built:** 7: starting/not-ready lasts until the reference root reports ready.
+- **Not yet:** 2, 6, 10: agents in a host's own process (`smith-inline-agent`). 10: a client the process holds, over an in-process transport. 6, 7: contained process trees, and TLS between hosts. 7, 8: `ops`'s service and `ops` standalone: `jig/examples/ops` has no service. 8: the live story fails on a real plan.
