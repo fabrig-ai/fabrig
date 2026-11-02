@@ -15,7 +15,7 @@
   frame's `needs` with a person proposal left pending and
   `Deployment.messages` advancing on a retried deadline; the core
   world's `world` and `direct` drivers run no oracle.
-  17.9: the settings store keeps no documents. 17.9: the
+  17.9: the
   configuration reads no `documents` member and no
   `tasks.charter_documents`, and Small's brief has 4 sections, not 8.
   17.9: the client wire's charter carries no documents.
