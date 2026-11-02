@@ -35,13 +35,30 @@ pub enum Payload {
 pub enum Ending {
     Scripted(tasks::End),
     Link(host::Ending),
+    Job(host::JobEnding),
 }
 
 /// Retain a worker's bytes and translate only their boundary metadata.
 #[must_use]
 pub fn up(domain: &mut Link, channel: Token, up: host::LinkUp) -> Option<core::Event> {
     let event = match up {
-        host::LinkUp::JobAnswer { .. } => return None,
+        host::LinkUp::JobAnswer { run, attempt, answer } => {
+            let kind = match &answer {
+                host::JobEnding::Finished { .. } => fleet::Answer::Ended,
+                host::JobEnding::Failed { .. } => fleet::Answer::Failed { turned: None },
+                host::JobEnding::Refused(host::JobRefusal::Busy) => fleet::Answer::Busy,
+                host::JobEnding::Refused(host::JobRefusal::Invalid(_)) => fleet::Answer::Invalid,
+            };
+            let payload = domain.retain(Payload::Answer {
+                task: run.raw(),
+                attempt: attempt.raw(),
+                cumulative: 0,
+                read: None,
+                refused: Box::new([]),
+                end: Ending::Job(answer),
+            });
+            fleet::Event::Answer { channel, run, attempt, answer: kind, payload }
+        }
         host::LinkUp::Piece { run, attempt, piece } => return live_piece(domain, run, attempt, piece),
         host::LinkUp::Logins { logins } => fleet::Event::Logins { channel, logins },
         host::LinkUp::SignedOut { name, result } => fleet::Event::SignedOut { channel, name, result },
@@ -222,4 +239,35 @@ fn live_piece(domain: &mut Link, run: Token, attempt: Token, piece: host::Piece)
     }
     domain.pieces_dropped = domain.pieces_dropped.saturating_add(1);
     None
+}
+
+/// A job carries its bytes directly, with no result read (jig/docs/design/domain/engine.md, 7.5).
+pub(crate) fn job_end(ending: &host::JobEnding) -> tasks::End {
+    match ending {
+        host::JobEnding::Finished { result, .. } => {
+            tasks::End::Finished { result: tasks::TaskResult::Job { bytes: result.clone() }, cancel_delegates: false }
+        }
+        host::JobEnding::Refused(host::JobRefusal::Busy) => tasks::End::Refused,
+        host::JobEnding::Refused(host::JobRefusal::Invalid(_)) => tasks::End::Failed(tasks::Class::Permanent),
+        host::JobEnding::Failed { failure, .. } => match failure {
+            host::JobFailure::Unprepared(host::Preparation::Transient)
+            | host::JobFailure::Undelivered(host::DeliveryOutcome::Failed) => {
+                tasks::End::Failed(tasks::Class::Transient)
+            }
+            host::JobFailure::Unprepared(host::Preparation::Permanent { .. })
+            | host::JobFailure::Undelivered(host::DeliveryOutcome::Stale | host::DeliveryOutcome::Refused) => {
+                tasks::End::Failed(tasks::Class::Permanent)
+            }
+            host::JobFailure::Failed | host::JobFailure::Deadline => tasks::End::Failed(tasks::Class::Run),
+            host::JobFailure::Unstarted => tasks::End::Failed(tasks::Class::Agent),
+            host::JobFailure::Result => tasks::End::Failed(tasks::Class::Invalid),
+            host::JobFailure::Cancelled(host::Reason::Contact | host::Reason::Shutdown) => {
+                tasks::End::Failed(tasks::Class::Lost)
+            }
+            host::JobFailure::Cancelled(host::Reason::Engine) => tasks::End::Refused,
+            host::JobFailure::Undelivered(host::DeliveryOutcome::Delivered | host::DeliveryOutcome::Nothing) => {
+                tasks::End::Failed(tasks::Class::Invalid)
+            }
+        },
+    }
 }

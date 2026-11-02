@@ -75,6 +75,7 @@ struct RunOptions<'a> {
     history: Option<&'a [Box<[u8]>]>,
     releases: Option<&'a [HostMessage]>,
     change_after_snapshot: bool,
+    cancel_with_child: bool,
 }
 
 enum Proc {
@@ -400,11 +401,24 @@ struct Judge {
     wait_for_exit: bool,
     ended: bool,
     waiting: waiting::Release,
+    cancel_with_child: bool,
 }
 
 impl Referee<Proc> for Judge {
     fn act(&mut self, now: Time, procs: &mut [Proc]) {
         self.waiting.act(now, procs);
+        if self.cancel_with_child
+            && procs
+                .iter()
+                .filter(|process| matches!(process, Proc::Fake(fake) if fake.active_turn().is_some()))
+                .count()
+                == 2
+        {
+            if let Proc::Parent(parent) = &mut procs[0] {
+                parent.cancel_pending = true;
+            }
+            self.cancel_with_child = false;
+        }
         if self.cancel.is_some_and(|at| now >= at) {
             if let Proc::Parent(parent) = &mut procs[0]
                 && !parent.peer.observed().iter().any(|frame| frame.kind == 0x0110)
@@ -417,6 +431,21 @@ impl Referee<Proc> for Judge {
     }
     fn observe(&mut self, now: Time, procs: &[Proc]) {
         self.waiting.observe(now, procs);
+        for (main_index, process) in procs.iter().enumerate() {
+            if let Proc::Fake(main) = process
+                && main.active_turn() == Some(2)
+                && main.pending_tool() == Some("finish")
+            {
+                for (index, child) in procs.iter().enumerate() {
+                    if index != main_index
+                        && let Proc::Fake(child) = child
+                    {
+                        assert!(child.exit().is_some(), "child program exit precedes main's second turn");
+                    }
+                }
+            }
+        }
+
         if let Proc::Parent(parent) = &procs[0] {
             self.ended = parent.peer.observed().iter().any(|frame| frame.kind == 0x0110);
         }
@@ -435,7 +464,7 @@ impl Referee<Proc> for Judge {
         self.cancel.or(self.waiting.deadline())
     }
     fn passed(&self) -> bool {
-        self.cancel.is_none() && self.waiting.passed() && (!self.wait_for_exit || self.ended)
+        self.cancel.is_none() && !self.cancel_with_child && self.waiting.passed() && (!self.wait_for_exit || self.ended)
     }
     fn last_word(&self) -> skein_world::LastWord {
         skein_world::LastWord::LastExpectation
@@ -490,7 +519,7 @@ fn fixture(story: &Story, login: Option<&[u8]>, case: Case) -> (Files, Opened) {
     if let Some(login) = login {
         items.push(Item::file(b"programs/source/fake-claude.login", login).mode(0o600));
     }
-    if case == Case::Tools {
+    if matches!(case, Case::Tools | Case::Events | Case::Transcript) {
         items.extend([
             Item::file(b"work/repo/a", b"before\n"),
             Item::directory(b"work/repo/empty"),
@@ -525,6 +554,18 @@ pub fn run_after_snapshot(story: &Story, charter: &[u8]) -> Run {
         charter,
         &crate::program(b"source"),
         RunOptions { login: Some(b"claude.ai"), change_after_snapshot: true, ..RunOptions::default() },
+    )
+}
+
+/// Cancel once main and its child's first program turns have both started.
+#[must_use]
+pub fn cancel_with_child(story: &Story, charter: &[u8]) -> Run {
+    run_scenario(
+        Case::Events,
+        story,
+        charter,
+        &crate::program(b"source"),
+        RunOptions { login: Some(b"claude.ai"), cancel_with_child: true, ..RunOptions::default() },
     )
 }
 
@@ -571,7 +612,7 @@ fn run_scenario(
     value: &smith_channel::GrantValue,
     options: RunOptions<'_>,
 ) -> Run {
-    let RunOptions { login, refresh, history, releases, change_after_snapshot } = options;
+    let RunOptions { login, refresh, history, releases, change_after_snapshot, cancel_with_child } = options;
     let mut story = story.clone();
     if !case.completes() && story.turns.is_empty() {
         story.turns.push(smith_fake_claude::Turn::new(vec![smith_fake_claude::Step::Hang]));
@@ -586,6 +627,7 @@ fn run_scenario(
             ended: false,
             waiting: releases.map_or_else(|| waiting::Release::new(case == Case::Waiting), waiting::Release::open),
             cancel: if case.completes() { None } else { Some(Time::ZERO.saturating_add(Duration::from_millis(50))) },
+            cancel_with_child,
         })
         .with_machine(machine);
     let operations = smith_agent_service::program_operations(&configuration(case))
@@ -633,9 +675,10 @@ fn run_scenario(
         },
     );
 
+    // Each of main and two children checks its login before printing.
     let factory = smith_fake_claude::hosted(b"/programs/claude");
     world.host_startup(
-        HostedProgram { program: factory.program, make: make_fake, instances: 2, operations: factory.operations },
+        HostedProgram { program: factory.program, make: make_fake, instances: 6, operations: factory.operations },
         |spawn| {
             let launch = fake_launch(spawn);
             smith_fake_claude::config_root(&launch).into_iter().chain(smith_fake_claude::mcp_root(&launch)).collect()
@@ -645,7 +688,8 @@ fn run_scenario(
     world.host(HostedProgram {
         program: b"/programs/smith-agent".as_slice().into(),
         make: if case == Case::MissingServer { make_failed_relay } else { make_relay },
-        instances: 1,
+        // Main and two inspect-only children each keep a relay.
+        instances: 3,
         operations: smith_agent_shell::relay::operations(),
     });
     world.spawn_root(skein_sim::Handle::new(root.raw()), |root| {
@@ -851,4 +895,26 @@ pub(crate) fn answer_host(parent: &mut Parent) {
             parent.program_host_answers = Some(parent.program_host_answers.expect("enabled host") + 1);
         }
     }
+}
+
+/// A program main granting inspect-only children with the same model at high effort.
+#[must_use]
+pub fn child_charter() -> Box<[u8]> {
+    crate::wire::edit_charter(&crate::charter(), |parts| {
+        crate::wire::budget(parts, 8, 20);
+        let mut tools = parts.tools.clone().into_parts();
+        tools.families = smith_charter::Families::new(
+            &smith_charter::CEILINGS,
+            smith_charter::FamiliesParts { skein_bools: [true, false, false, true] },
+        )
+        .expect("child families");
+        parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("child tools");
+        let mut child = parts.main.clone().into_parts();
+        child.effort = Some(b"high".as_slice().into());
+        parts.models = skein_lib::List::with_capacity(1);
+        parts
+            .models
+            .push(smith_charter::Llm::new(&smith_charter::CEILINGS, child).expect("child model"))
+            .expect("declared child");
+    })
 }

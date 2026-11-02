@@ -30,7 +30,6 @@ struct Options<'a> {
 
 impl Live {
     fn start(text: &str, options: Options<'_>) -> Self {
-        let Options { permission, thinking, schema, non_object, summary } = options;
         let root = std::env::var_os("SMITH_LIVE").filter(|value| !value.is_empty()).expect("$SMITH_LIVE unset");
         let root = smith_bench::guard::write_path(std::path::Path::new(&root)).expect("guarded $SMITH_LIVE");
         let configuration = std::env::var_os("SMITH_LIVE_CLAUDE")
@@ -41,6 +40,11 @@ impl Live {
             std::fs::symlink_metadata(&configuration).is_ok(),
             "no configured Claude directory: set SMITH_LIVE_CLAUDE or prepare $SMITH_LIVE/programs/claude"
         );
+        Self::start_with_configuration(text, options, configuration)
+    }
+
+    fn start_with_configuration(text: &str, options: Options<'_>, configuration: std::path::PathBuf) -> Self {
+        let Options { permission, thinking, schema, non_object, summary } = options;
         let probe = Probe::new();
         let mcp = if permission || thinking || schema.is_some() || non_object {
             prompt_server(&probe, thinking || schema.is_some(), non_object)
@@ -653,4 +657,33 @@ fn a_live_contract_takes_a_wrapped_outcome() {
         assert_eq!(result["structured_output"]["outcome"]["form"], form);
         live.close_input();
     }
+}
+
+#[test]
+fn two_live_programs_on_one_configuration_answer_at_once() {
+    let mut alpha = Live::start("Reply with the word persimmon and nothing else.", Options::default());
+    let mut beta = Live::start_with_configuration(
+        "Reply with the word kumquat and nothing else.",
+        Options::default(),
+        alpha.configuration.clone(),
+    );
+    for (name, live, word) in [("alpha", &mut alpha, "persimmon"), ("beta", &mut beta, "kumquat")] {
+        let mut finished = false;
+        for _ in 0..1000 {
+            let message = live.message();
+            if message["type"] == "result" {
+                let subtype = message["subtype"].as_str().unwrap_or("missing");
+                assert!(message["is_error"] == false && subtype == "success", "{name} result subtype={subtype}");
+                assert!(
+                    message["result"].as_str().is_some_and(|text| text.to_lowercase().contains(word)),
+                    "{name} result subtype={subtype} omitted its word; output withheld"
+                );
+                finished = true;
+                break;
+            }
+        }
+        assert!(finished, "{name} ended without a result");
+    }
+    alpha.close_input();
+    beta.close_input();
 }

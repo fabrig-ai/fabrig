@@ -100,3 +100,13 @@ fn a_person_answer_notice_keeps_its_question_number() {
 }
 
 mod jobs;
+
+/// jig/docs/design/protocol/channel.md, 4.3: the fleet's job refusal survives wire receipt.
+#[test]
+fn job_kinds_hello_refusal_round_trips() {
+    let refusal = w::HelloRefusal::JobKinds;
+    let mut writer = skein_lib::Writer::new(usize::try_from(refusal.measure()).unwrap());
+    refusal.encode(&mut writer).unwrap();
+    let decoded = w::HelloRefusal::decode(fixtures::limits().wire(), &mut Reader::new(&writer.finish())).unwrap();
+    assert_eq!(translate::documents::hello_refusal_fields(&decoded), c::HelloRefusal::JobKinds);
+}

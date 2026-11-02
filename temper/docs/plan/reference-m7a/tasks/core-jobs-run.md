@@ -225,3 +225,14 @@ As the implementer's text says, and also: where the job's branches sit; the star
 (`Ask::JobClaimed` or otherwise) and each root arm; what of `fleet-jobs`'s names you used and
 any field you filled; any hub-link or test-domain change and why; anything the restart oracle
 showed.
+
+## Answers
+
+### 2026-11-02: Should core-jobs-run resume after fleet-jobs publishes JobStart, Event::StartJob and its job-answer path (recommended), or should that missing prerequisite implementation be explicitly reassigned here? (reference-m7a/core-jobs-run-1, foreman reference-m7a/core-jobs-run/foreman-1)
+
+Resume core-jobs-run after fleet-jobs supplies JobStart, Event::StartJob and its job-answer path; that prerequisite remains fleet-jobs’s work.
+The spec declares `needs = ["tasks-jobs-lifecycle", "core-jobs-admit", "fleet-jobs"]`.
+Its hub-link exception is “its core-facing side only”; explicitly, “the fleet's path is `fleet-jobs`'s.”
+Its Inputs require “`tasks/fleet-jobs.md` and its report: the names this task calls (`Event::StartJob`, `JobStart` …)” and “how a job's answer reaches the core.”
+The next core-jobs-run run uses that completed prerequisite, finishes the roots’ routes, world support and six stories, and runs the specified checks.
+Acceptance remains incomplete; the pushed checkpoint is not accepted as done.

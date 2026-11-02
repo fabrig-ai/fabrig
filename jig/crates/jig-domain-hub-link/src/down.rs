@@ -31,6 +31,14 @@ pub fn down(link: &mut Link, value: core::Held) -> Result<(Token, host::LinkDown
         core::Held::Grant { channel, run, attempt, grant } if link.connected(channel) => {
             (channel, host::LinkDown::Grant { run, attempt, grant })
         }
+        core::Held::TaskTerminalAcknowledged { task, attempt } => {
+            if let Some(job) = link.jobs.get(&task)
+                && job.attempt == attempt
+            {
+                link.jobs.remove(&task);
+            }
+            return Err(core::Held::TaskTerminalAcknowledged { task, attempt });
+        }
         core::Held::Refuse { channel } => {
             link.disconnect(channel);
             return Err(core::Held::Refuse { channel });
@@ -56,7 +64,6 @@ pub fn down(link: &mut Link, value: core::Held) -> Result<(Token, host::LinkDown
         | core::Held::PeopleReply { .. }
         | core::Held::CallAnswer { .. }
         | core::Held::Result { .. }
-        | core::Held::TaskTerminalAcknowledged { .. }
         | core::Held::TaskTurnKept { .. }
         | core::Held::TurnBusy { .. }
         | core::Held::StopRun { .. }

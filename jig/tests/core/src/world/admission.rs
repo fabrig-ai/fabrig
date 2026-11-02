@@ -92,6 +92,7 @@ impl World {
                 })));
             }
             other @ (root::Delivery::ProjectMade { .. }
+            | root::Delivery::AssignedJob { .. }
             | root::Delivery::Link { .. }
             | root::Delivery::CallBusy { .. }
             | root::Delivery::ApplicationDocument { .. }

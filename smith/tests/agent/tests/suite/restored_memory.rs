@@ -587,7 +587,7 @@ impl Counted {
                     assert_eq!(host_run, WORKER);
                     self.long_open = self.long_open.checked_sub(1).expect("terminal belongs to observed provider work");
                 }
-                Request::Lower(smith_domain::Lower::Yield { .. }) => {}
+                Request::Lower(smith_domain::Lower::Yield { .. } | smith_domain::Lower::Close { .. }) => {}
                 Request::Lower(smith_domain::Lower::Cancel { owner }) => {
                     let complete = self.complete.as_ref().expect("pending compaction is cancelled before typed work");
                     assert_eq!(complete.owner, owner);

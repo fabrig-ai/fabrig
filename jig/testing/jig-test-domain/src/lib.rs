@@ -68,6 +68,9 @@ pub enum Write {
 /// What the journal releases after its commit, or through its read door.
 #[derive(Debug)]
 pub enum Delivery {
+    /// A job and its opaque workspace items, held behind the assignment's commit.
+    AssignedJob { channel: Token, job: jig_domain_host::JobAssignment, items: Option<Box<[u8]>> },
+
     /// The root heard this project made after its commit.
     ProjectMade { project: u32 },
     /// A typed hub record for a worker channel.
@@ -906,6 +909,7 @@ pub fn release(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>)
                 step(domain, env, event);
             }
             other @ (Delivery::ApplicationDocument { .. }
+            | Delivery::AssignedJob { .. }
             | Delivery::Link { .. }
             | Delivery::ApplicationRead { .. }
             | Delivery::Application { .. }

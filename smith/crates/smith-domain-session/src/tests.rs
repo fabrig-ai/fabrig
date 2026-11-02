@@ -1186,6 +1186,29 @@ fn closing_a_session_with_nothing_in_flight_ends_it_at_once() {
 }
 
 #[test]
+fn closing_a_yielded_final_answer_keeps_its_budget_dimension() {
+    for final_turn in [false, true] {
+        let mut harness = Harness::new(&LIMITS);
+        let mut selected = spec();
+        if final_turn {
+            selected.budget.turns = 1;
+            selected.final_turn =
+                Some(crate::FinalTurn { note: bytes(b"Answer now."), allowance: Duration::from_secs(1) });
+        }
+        let (owner, prompt) = harness.open_with(1, selected);
+        let (choice, stop, end) = if final_turn {
+            (crate::llm::ToolChoice::None, Yield::Budget, End::Budget { spent: Dimension::Turns })
+        } else {
+            (crate::llm::ToolChoice::Auto, Yield::Done, End::Closed)
+        };
+        assert_eq!(prompt.choice, choice);
+        assert_eq!(yielded(harness.step(Event::Completed { owner, completion: done() })), (1, stop, bytes(b"done")));
+        assert_eq!(harness.step(Event::Close { session: owner }), Some(ended(end, 1)));
+        assert_eq!(harness.domain.next_deadline(), None);
+    }
+}
+
+#[test]
 fn closing_a_session_that_is_already_closing_changes_nothing() {
     let mut h = Harness::new(&LIMITS);
     let (owner, _) = h.open(1);

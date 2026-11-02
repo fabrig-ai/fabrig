@@ -740,6 +740,7 @@ fn refused(w: &Words, times: &mut Times, why: c::TaskWaitRefused) -> Box<[u8]> {
 }
 fn hello_refusal(w: &Words, why: c::HelloRefusal) -> Box<[u8]> {
     match why {
+        c::HelloRefusal::JobKinds => w.say(W::HelloJobKinds, &[]),
         c::HelloRefusal::ReservedChannel => w.say(W::HelloReservedChannel, &[]),
         c::HelloRefusal::Position { worker } => w.say(W::HelloPosition, &[Hole::Number(u64::from(worker))]),
         c::HelloRefusal::Workers { limit } => {
