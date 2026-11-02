@@ -3,6 +3,55 @@ use crate::{End, Stop, forge, limits};
 use skein_forge_connection::{StartRead, Stopped};
 use skein_lib::{Duration, Time, Token};
 use temper_engine_domain as root;
+
+#[test]
+fn github_job_log_origins_reach_startup_and_runtime_endpoints() {
+    let mut forges = fixtures::forges();
+    forges[0].kind = crate::settings::Kind::GitHub;
+    let default = job_origins(b"productionresultssa1.blob.core.windows.net", 443);
+    let custom = job_origins(b"logs.test", 9000);
+    for override_origins in [None, Some(custom), Some(skein_lib::List::with_capacity(0))] {
+        forges[0].log_origins = override_origins;
+        let expected = forges[0].log_origins.as_ref().unwrap_or(&default);
+        let mut runtime = fixtures::forge_runtime();
+        runtime.get_mut(0).unwrap().log_origins = default.clone();
+        let mut service = fixtures::started_with_two_forges();
+        service.engine.as_mut().unwrap().forge.github = Some(crate::ForgeRuntime {
+            number: 0,
+            address: ([127, 0, 0, 1], 3000).into(),
+            transport: skein_forge_connection::settings::Transport::Plaintext { name: None },
+            log_origins: default.clone(),
+        });
+        let mut found = jig_protocol_config::Problems::empty();
+        let configured = forge::settings(&forges, runtime, None, &mut found).unwrap();
+        assert_eq!(configured.forges.get(0).unwrap().log_origins.as_slice(), expected.as_slice());
+        let endpoint = crate::forges::endpoint(service.engine.as_ref().unwrap(), &forges[0]).unwrap();
+        assert_eq!(endpoint.log_origins.as_slice(), expected.as_slice());
+    }
+}
+
+fn job_origins(host: &[u8], port: u16) -> skein_lib::List<skein_forge_connection::settings::LogOrigin> {
+    let mut origins = skein_lib::List::with_capacity(1);
+    origins
+        .push(skein_forge_connection::settings::LogOrigin {
+            origin: skein_forge::github::redirect::Origin { tls: port == 443, host: host.into(), port },
+            address: skein_io::Addr::Ip(([127, 0, 0, 1], port).into()),
+        })
+        .unwrap();
+    origins
+}
+
+#[test]
+fn runtime_job_origins_keep_the_forges_count_limit() {
+    let mut forges = fixtures::forges();
+    let origin = job_origins(b"logs.test", 9000).get(0).unwrap().clone();
+    forges[0].log_origins = Some(skein_lib::List::from_boxed(Box::new([origin.clone(), origin])));
+    let mut service = fixtures::started_with_two_forges();
+    let engine = service.engine.as_mut().unwrap();
+    engine.forge.log_origin_limit = 1;
+    assert!(crate::forges::endpoint(engine, &forges[0]).is_none());
+}
+
 #[test]
 fn a_stopped_forge_is_named_and_only_its_calls_are_not_connected() {
     use skein_forge::api::{Answer, Error, Op, Read, Repository};
@@ -574,6 +623,7 @@ fn records_service() -> (crate::Service, skein_lib::Secret) {
         forges.push(forge).unwrap();
         runtime
             .push(crate::ForgeRuntime {
+                log_origins: List::with_capacity(0),
                 number,
                 address: ([127, 0, 0, 1], 2999_u16.checked_add(number).unwrap()).into(),
                 transport: skein_forge_connection::settings::Transport::Plaintext { name: None },

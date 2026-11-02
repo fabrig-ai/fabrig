@@ -113,6 +113,7 @@ pub fn guard_engine() -> settings::Engine {
 
 pub fn forges() -> Box<[settings::Forge]> {
     Box::new([settings::Forge {
+        log_origins: None,
         mode: temper_engine_domain_forge::Mode::Connected,
         number: 1,
         kind: settings::Kind::Forgejo,
@@ -134,6 +135,7 @@ pub fn forge_table(forges: &[settings::Forge]) -> crate::forges::Forges {
     let mut table = crate::forges::Forges::with_capacity(u32::try_from(forges.len()).unwrap());
     for forge in forges {
         assert!(table.insert(settings::Forge {
+            log_origins: forge.log_origins.clone(),
             mode: forge.mode,
             number: forge.number,
             kind: forge.kind,
@@ -454,6 +456,7 @@ fn start_with_worker(
         sources = Box::new([first, second]);
         let first = runtime.into_boxed().into_iter().next().unwrap();
         let second = crate::ForgeRuntime {
+            log_origins: skein_lib::List::with_capacity(0),
             number: 2,
             address: ([127, 0, 0, 1], 3001).into(),
             transport: skein_forge_connection::settings::Transport::Plaintext { name: None },
@@ -993,6 +996,7 @@ pub fn forge_runtime() -> skein_lib::List<crate::ForgeRuntime> {
     let mut runtime = skein_lib::List::with_capacity(1);
     runtime
         .push(crate::ForgeRuntime {
+            log_origins: skein_lib::List::with_capacity(0),
             number: 1,
             address: core::net::SocketAddr::from(([127, 0, 0, 1], 3000)),
             transport: skein_forge_connection::settings::Transport::Plaintext { name: None },

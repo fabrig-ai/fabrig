@@ -25,6 +25,7 @@ pub fn forge_settings() -> temper_service::forges::Forges {
     {
         let mut table = temper_service::forges::Forges::with_capacity(1);
         assert!(table.insert(Forge {
+            log_origins: None,
             mode: temper_engine_domain_forge::Mode::Connected,
             number: 1,
             kind: Kind::Forgejo,

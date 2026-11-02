@@ -359,7 +359,19 @@ fn github_runtime(
     } else {
         skein_forge_connection::settings::Transport::Plaintext { name: None }
     };
-    Ok(service::ForgeRuntime { number: 0, address, transport })
+    let mut log_origins = List::with_capacity(1);
+    if machine.is_none() {
+        let host: Box<[u8]> = Box::from(b"productionresultssa1.blob.core.windows.net".as_slice());
+        let configured = config::Address::Host { name: host.clone(), port: 443 };
+        let address = resolve(&configured).map_err(|why| format!("GitHub log origin: {why}"))?;
+        log_origins
+            .push(skein_forge_connection::settings::LogOrigin {
+                origin: skein_forge::github::redirect::Origin { tls: true, host, port: 443 },
+                address: skein_io::Addr::Ip(address),
+            })
+            .expect("one default GitHub log origin");
+    }
+    Ok(service::ForgeRuntime { number: 0, address, transport, log_origins })
 }
 fn prepare(directories: &Directories, bytes: &[u8], owned: &mut Vec<Fd>) -> Result<service::Service, String> {
     prepare_with_store(directories, bytes, owned).map(|(service, _)| service)

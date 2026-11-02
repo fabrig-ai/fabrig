@@ -651,7 +651,12 @@ impl Bounded {
                 }
             };
             forges
-                .push(temper_service::ForgeRuntime { number: forge.number, address: forge.address, transport })
+                .push(temper_service::ForgeRuntime {
+                    log_origins: skein_lib::List::with_capacity(0),
+                    number: forge.number,
+                    address: forge.address,
+                    transport,
+                })
                 .expect("configured forge count");
         }
         forges
@@ -738,6 +743,7 @@ pub fn bounded(directory: &Path) -> Bounded {
         directory,
         value,
         temper_service::ForgeRuntime {
+            log_origins: skein_lib::List::with_capacity(0),
             number: 1,
             address: owned.forgejo,
             transport: skein_forge_connection::settings::Transport::Plaintext { name: None },
@@ -759,6 +765,7 @@ pub fn bounded_records(directory: &Path) -> Bounded {
         directory,
         value,
         temper_service::ForgeRuntime {
+            log_origins: skein_lib::List::with_capacity(0),
             number: 1,
             address: owned.forgejo,
             transport: skein_forge_connection::settings::Transport::Plaintext { name: None },
@@ -808,6 +815,7 @@ pub fn bounded_template(directory: &Path) -> Bounded {
         directory,
         value,
         temper_service::ForgeRuntime {
+            log_origins: skein_lib::List::with_capacity(0),
             number: 2,
             address: "127.255.255.254:65535".parse().expect("resolved GitHub stand-in"),
             transport: skein_forge_connection::settings::Transport::Tls {
@@ -869,6 +877,7 @@ pub fn deployment_profile(directory: &Path, relative: &str) -> Bounded {
         for forge in &named.forges {
             forges
                 .push(temper_service::ForgeRuntime {
+                    log_origins: skein_lib::List::with_capacity(0),
                     number: forge.number,
                     address: "127.0.0.1:3000".parse().expect("fake forge"),
                     transport: skein_forge_connection::settings::Transport::Plaintext { name: None },
@@ -933,6 +942,7 @@ fn bounded_document(directory: &Path, mut value: serde_json::Value, forge: tempe
             assert!(matches!(local.transport, temper_service::startup::Transport::Plaintext));
             forges
                 .push(temper_service::ForgeRuntime {
+                    log_origins: skein_lib::List::with_capacity(0),
                     number: local.number,
                     address: address.socket().expect("local forge socket"),
                     transport: skein_forge_connection::settings::Transport::Plaintext { name: None },

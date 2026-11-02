@@ -30,6 +30,8 @@ pub struct ForgeRuntime {
     pub number: u16,
     pub address: core::net::SocketAddr,
     pub transport: skein_forge_connection::settings::Transport,
+    /// The kind's default job-log origins, resolved by the shell before serving.
+    pub log_origins: List<skein_forge_connection::settings::LogOrigin>,
 }
 /// Pair the configuration and shell endpoints by forge number.
 pub fn settings(
@@ -83,7 +85,7 @@ pub fn settings(
                 address: skein_io::Addr::Ip(endpoint.address),
                 transport,
                 access: if held(&forge.api, endpoint.address) { None } else { file_access(forge) },
-                log_origins: List::with_capacity(0),
+                log_origins: forge.log_origins.clone().unwrap_or(endpoint.log_origins),
             })
             .expect("configured forge capacity");
     }
@@ -202,6 +204,7 @@ pub(crate) struct Layer {
     pub(crate) held: Map<u16, Box<[u8]>>,
     pub(crate) endpoints: Map<u16, skein_forge_connection::settings::Forge>,
     pub(crate) github: Option<ForgeRuntime>,
+    pub(crate) log_origin_limit: u32,
     pub(crate) roots: Option<skein_tls::Config>,
     pub(crate) webhooks: bool,
     pub(crate) file_access: Map<u16, ()>,
@@ -261,6 +264,7 @@ impl Layer {
         Ok(Self {
             endpoints,
             github: None,
+            log_origin_limit: limits.log_origins,
             roots,
             webhooks: settings.webhooks.is_some(),
             file_access,

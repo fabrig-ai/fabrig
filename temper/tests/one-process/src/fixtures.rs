@@ -300,6 +300,7 @@ pub(crate) fn forges() -> List<temper_service::ForgeRuntime> {
     let mut forges = List::with_capacity(1);
     forges
         .push(temper_service::ForgeRuntime {
+            log_origins: skein_lib::List::with_capacity(0),
             number: 1,
             address: FORGE,
             transport: skein_forge_connection::settings::Transport::Plaintext { name: None },
