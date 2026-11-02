@@ -97,7 +97,10 @@ pub(crate) fn composer(
     if let Some(task) = task {
         match task.chip.executor {
             c::ChipExecutor::Agent { .. } => {}
-            c::ChipExecutor::Procedure { .. } | c::ChipExecutor::Party { .. } | c::ChipExecutor::Role { .. } => return,
+            c::ChipExecutor::Job { .. }
+            | c::ChipExecutor::Procedure { .. }
+            | c::ChipExecutor::Party { .. }
+            | c::ChipExecutor::Role { .. } => return,
         }
     }
     let draft = root.pages().choice();

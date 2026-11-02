@@ -91,6 +91,10 @@ pub(in crate::codec) fn wire_authority_executor(
     limits: &w::Limits,
 ) -> Result<w::AuthorityExecutor, w::Problem> {
     Ok::<_, w::Problem>(match value {
+        c::AuthorityExecutor::Job(value) => w::AuthorityExecutor::Job(w::AuthorityExecutorJob::new(
+            limits,
+            w::AuthorityExecutorJobParts { value: *value },
+        )?),
         c::AuthorityExecutor::Charter(value) => w::AuthorityExecutor::Charter(w::AuthorityExecutorCharter::new(
             limits,
             w::AuthorityExecutorCharterParts { value: *(value) },

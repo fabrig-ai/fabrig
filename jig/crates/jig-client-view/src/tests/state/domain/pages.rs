@@ -262,6 +262,7 @@ fn task_sections_and_activity_sources_follow_the_executor() {
         );
         assert!(domain.task_page().header.is_some());
         match executor {
+            ChipExecutor::Job { .. } => assert!(requests.is_empty()),
             ChipExecutor::Agent { .. } => {
                 assert_eq!(requests.len(), 2);
                 let Request::Client {

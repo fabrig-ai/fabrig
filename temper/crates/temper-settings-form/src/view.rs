@@ -82,6 +82,7 @@ pub enum AuthorityExecutor {
     Charter(u32),
     Procedure(u32),
     Role(u32),
+    Job(u32),
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Delegation {
@@ -388,6 +389,7 @@ pub enum TaskContractDocument {
     Report { words: u32 },
     Verdict { choices: List<VerdictChoice>, cut: bool },
     Change { connector: u16, kind: u16, words: u32 },
+    Job { bytes: u32 },
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct TaskFlags {
