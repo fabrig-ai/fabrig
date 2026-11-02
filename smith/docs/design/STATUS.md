@@ -12,13 +12,14 @@ the `codex` dialect, the account-id grant, an endpoint's `account` and
 its identity profile, are still accepted, since jig's worlds still write
 dialect 1, and their removal is not yet (`protocol/agent.md`,
 `protocol/channel.md`, `protocol/hosts.md`, `protocol/llm.md`). Beside
-them: live content in one process (`domain/host.md`), messages mid-work
-and threshold notes (`domain/run.md`), what a program offers read from
-its `system/init` and a live run on Claude Code 2.1.312
-(`protocol/programs.md`), the live refresh story's expectation on a
-fresh record (`testing.md`), the `--account` flag (`shell.md`,
-`testing.md`), and the benchmarks' calibrations and arms, with three departures
-(`benchmarks.md`). `domain/session.md`,
+them: live content in one process and a grant refreshed while a chat
+starts (`domain/host.md`), messages mid-work and threshold notes
+(`domain/run.md`), what a program offers read from its `system/init`
+and a live run on Claude Code 2.1.312 (`protocol/programs.md`), whether
+three live stories red at their last run pass now and the live refresh
+story's expectation on a fresh record (`testing.md`), the `--account`
+flag (`shell.md`, `testing.md`), and the benchmarks' calibrations and
+arms, with three departures (`benchmarks.md`). `domain/session.md`,
 `protocol/charter.md`, `protocol/limits.md` and `protocol/transcript.md`
 have no gap. smith has no drafts.
 
