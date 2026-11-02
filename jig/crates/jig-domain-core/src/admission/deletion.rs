@@ -91,14 +91,14 @@ fn keep(
     project: u32,
     step: Option<people::DeletionStep>,
 ) {
-    crate::routing::deletion_people(core, env, people::Event::Deleting { project, step }, out);
+    crate::routing::deletion_people(core, env, people::Event::Deleting { project, step, grace: None }, out);
 }
 
 /// Loading permits a freed name beside its new holder; only open names must be unique.
 pub(crate) fn restored(core: &mut Core) -> bool {
     let mut kept = List::with_capacity(core.people.deletions().len());
-    for (&project, &step) in core.people.deletions() {
-        kept.push((project, step)).expect("kept deletion count");
+    for (&project, deletion) in core.people.deletions() {
+        kept.push((project, deletion.step)).expect("kept deletion count");
     }
     for &(project, step) in &kept {
         restore_project(core, project, step);

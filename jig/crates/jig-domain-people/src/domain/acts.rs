@@ -39,7 +39,7 @@ impl Acted {
 
 pub(super) fn valid(limits: &Limits, act: &Act) -> Result<(), Refusal> {
     match act {
-        Act::RemoveProject { project } => {
+        Act::RemoveProject { project, .. } => {
             if *project == 0 {
                 return Err(Refusal::Unknown);
             }
