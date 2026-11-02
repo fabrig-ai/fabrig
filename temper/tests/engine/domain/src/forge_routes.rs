@@ -847,6 +847,17 @@ impl World {
         self
     }
 
+    /// Replace the deployment's landing rules before the world's first input.
+    #[must_use]
+    pub fn with_landing_deployment(mut self, rules: Box<[engine::LandingRule]>) -> Self {
+        assert_eq!(self.env.now, Time::ZERO, "landing rules precede world startup");
+        assert!(!self.root.ready(), "landing rules precede bootstrap");
+        self.restart_config.landing.deployment = rules;
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("valid deployment landing rules");
+        self
+    }
+
     #[must_use]
     pub fn chat(&self, project: u32, words: &[u8]) -> people::Ask {
         walking::configured_chat(&self.creating, &self.store.rows, self.env.limits.tasks.tree_tasks, project, words)
