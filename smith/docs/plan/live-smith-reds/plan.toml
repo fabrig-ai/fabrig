@@ -18,3 +18,16 @@ id = 1
 story = "the two agent-process live probes expect what Claude Code 2.1.312 sends, and the fake sends it"
 parts = ["claude-shapes"]
 walk = false
+
+[[part]]
+id = "live-report"
+title = "a failing smith::live story reports its typed reason, without credential bytes"
+mode = "direct"
+needs = []
+design = "smith/docs/design/testing.md, 2.3"
+
+[[slice]]
+id = 2
+story = "a failing live exec, check, file or refresh assertion names its leg and the run's typed end in its message"
+parts = ["live-report"]
+walk = false
