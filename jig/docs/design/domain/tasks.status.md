@@ -4,12 +4,6 @@
 
 - **Not yet:** 5.3.1: job tasks. 5.9: a drain; a project's scope; a
   party's proposal of a release; a hold parked until an event.
-  6.1: a write into a held resource from outside the holder's subtree
-  refused at its batch, naming the holder: a holdings answer refuses only
-  as `LimitKind::Holds` (`jig-domain-core/src/routing/party/holdings.rs`).
-  6.2: a batch member's symbols and a connector's refusal of one: the
-  core's `Ask::TaskHoldings` carries the executor and specification alone
-  (`jig-domain-core/src/vocabulary.rs`).
   7: a
   widening funded by whoever gives it (the task's existing funder is
   charged); moving a task under another task; successors; questions that
