@@ -12,6 +12,9 @@
   - 2.3: the live stories choose their account with
     `-c endpoints.<name>.account=`, since `--account` is not built
     (shell.status.md).
+  - 2.3: whether the three `live-smith` stories red at main
+    `46e6e70d9b17` (Claude Code 2.1.312) pass on the current main is
+    unknown: no after-landing run of it is read.
   - 2.3: the refresh story expects a refresh whatever its record's
     earliest refresh time, so it fails live on a fresh record (the
     after-landing run at main `df41529d3ee1`: the earliest refresh time
