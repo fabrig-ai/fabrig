@@ -3,7 +3,7 @@ id = "exec-children"
 part = "exec-children"
 kind = "feature"
 needs = ["program-children"]
-files = ["smith/tests/end-to-end/program_children.rs", "smith/tests/end-to-end/end_to_end.rs"]
+files = ["smith/tests/end-to-end/program_children.rs", "smith/tests/end-to-end/end_to_end.rs", "smith/tests/fake-claude/src/print.rs", "smith/tests/fake-claude/src/story.rs", "smith/tests/fake-claude/tests/suite/turns.rs"]
 effort = "high"
 minutes = 75
 +++
@@ -73,3 +73,29 @@ Acceptance:
 
 The stories as written, any setting the helper needed, the test runs (selected, passed), and
 implementation and check minutes apart.
+
+## Answers
+
+2026-11-02. **The fake rejects `Step::CallChecked` inside `Step::Together`: who adds it?**
+This task does; its acceptance cannot hold without it, and `side-by-side` no longer needs it (it
+uses `Step::Call` and reads main's told results from the transcript). Widened to own, test code
+only:
+
+- `smith/tests/fake-claude/src/print.rs`: `together` accepts `Step::CallChecked` beside `Call`,
+  `Builtin` and `Act`; each queued call carries its own expected reply (the `together` queue's
+  entries gain the `contains`, or `None`), and `tool_result`'s and `together`'s `pop_front` set
+  `expected_reply` from the entry they start, so each call's reply is checked against its own
+  text in the order they run. `interrupt_result` already clears both. Nothing else of the fake
+  changes.
+- `smith/tests/fake-claude/src/story.rs`: `Step::Together`'s doc names `CallChecked` among its
+  steps.
+- `smith/tests/fake-claude/tests/suite/turns.rs`: one test beside the file's `Together` tests: a
+  `Together` of two `CallChecked` whose first reply holds its text and whose second does not
+  observes `Called { error: false }` then `Called { error: true }`. Run it with
+  `heavy cargo nextest run -p smith-fake-claude --test suite -E 'test(/together/)'`, then
+  `heavy cargo nextest run -p smith-fake-claude` and
+  `heavy cargo clippy -p smith-fake-claude --all-targets -- -D warnings`.
+
+Keep the pushed stories as they are; they should pass once the fake does. Merge
+`origin/reference-m4/exec-children` first.
+

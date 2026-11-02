@@ -98,3 +98,31 @@ Acceptance:
 Each story's red run (or why it was green at once), every production change and its unit test,
 the pre-approved options you took, the live probe as written, the test runs (selected, passed),
 and implementation and check minutes apart.
+
+## Answers
+
+2026-11-02. **The fake cannot play three of the stories as specified: change the fake, or the
+stories?** The stories; this task still does not change the fake. Merge
+`origin/reference-m4/side-by-side` first and keep its work.
+
+- **Side by side:** main's turn 1 is `Step::Together` of two `Step::Call { tool: "sub_agent", .. }`
+  (contract C4), not `CallChecked`; assert that main's two told `sub_agent` results hold the two
+  words from the transcript, as the trunk's `a_program_main_reads_two_children_from_one_message`
+  does (`results(&run)`). Task `exec-children` adds `CallChecked` inside `Together` to the fake;
+  this story does not wait for it.
+- **The final turn:** no `asked` script. A `cued` script's turns count every user message
+  (`story.rs`, `Story::cued`), and the final-turn note is the child's second user message, so
+  give the `CUE-ALPHA` script a second turn holding the answer
+  (`Turn::new(vec![Step::Text("final survey".into())])`; or a `read` first if the story checks
+  that a later call is refused as not run). The one-turn script played the default turn (`Done.`)
+  after the note. If the story still sees two interrupts with that second turn, it is a finding:
+  diagnose it, fix it in `smith-protocol-program` under the pre-approved final-turn option with
+  its unit test; if the cause is the fake's, stop and ask with the trace.
+- **The cancel:** `Step::Hang` is a program that stops at the interrupt, so its story asserts the
+  graceful stop: the child's and main's `Interrupted`, both programs exited, no `Terminated`, the
+  child's call unanswered and the run cancelled. Add
+  `a_cancelled_program_run_terminates_a_deaf_child`: the child's script is `Step::Deaf`; past the
+  grace its program is `Terminated` (after its `Interrupted`), and the run still answers
+  cancelled. Both stories are in `program_children.rs`; nothing sends a signal to a program that
+  has exited.
+
