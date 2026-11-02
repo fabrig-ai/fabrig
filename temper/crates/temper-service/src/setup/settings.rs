@@ -121,6 +121,7 @@ fn resolved(layer: &mut super::Layer, forges: &skein_forge_connection::Settings)
     for endpoint in &forges.forges {
         match endpoint.address {
             skein_io::Addr::Ip(address) => layer.resolved(crate::ForgeRuntime {
+                log_origins: endpoint.log_origins.clone(),
                 number: endpoint.number,
                 address,
                 transport: match &endpoint.transport {

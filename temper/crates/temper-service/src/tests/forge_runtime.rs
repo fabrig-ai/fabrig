@@ -295,6 +295,7 @@ fn a_kept_github_uses_the_machine_endpoint_and_the_records_tls_name() {
     let roots = roots();
     service.configure_forge_runtime(
         crate::ForgeRuntime {
+            log_origins: List::with_capacity(0),
             number: 0,
             address: ([192, 0, 2, 9], 443).into(),
             transport: skein_forge_connection::settings::Transport::Tls {
