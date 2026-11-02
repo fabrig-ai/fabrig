@@ -20,6 +20,8 @@ pub struct Template {
     /// The LLM choice a task filled from it carries, each model configured with an effort it
     /// takes; none for its charter's default (configuration.md, 3.1; domain/tasks.md, 3).
     pub llm: Option<jig_domain_tasks::LlmChoice>,
+    /// Connectors' symbols a task filled from this template holds (protocol/configuration.md, 3.3).
+    pub resources: Box<[jig_domain_people::Symbol]>,
 }
 
 /// Apply the project's named overrides in configuration order (configuration.md, 3.1).

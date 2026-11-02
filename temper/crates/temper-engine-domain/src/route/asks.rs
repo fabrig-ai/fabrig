@@ -100,7 +100,7 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
         core::Ask::Gather { section, budget } => Some(brief::GatherRequest::Gather { connector, section, budget }),
         core::Ask::CutTo { section, size } => Some(brief::GatherRequest::CutTo { connector, section, size }),
         core::Ask::Drop { section } => Some(brief::GatherRequest::Drop { connector, section }),
-        core::Ask::Hold { task, resource } => {
+        core::Ask::Hold { task, resource, .. } => {
             if connector == domain.config.forge_connector
                 && let Some(name) =
                     forge_route::forge_name(domain.config.forge_connector, &resource, env.limits.forge.name_bytes)
@@ -186,13 +186,13 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             }
             None
         }
-        core::Ask::TaskHoldings { request, project, root, number, executor, spec } => {
+        core::Ask::TaskHoldings { request, project, root, number, executor, spec, .. } => {
             let holdings = if connector == domain.config.forge_connector {
                 forge_route::task_holdings(domain, env, project, root, number, executor, &spec, None)
             } else {
                 None
             };
-            domain.work.push(Work::Core(core::Event::Holdings { request, connector, holdings }));
+            domain.work.push(Work::Core(core::Event::Holdings { refused: None, request, connector, holdings }));
             None
         }
         core::Ask::DelegateHoldings { request, from, members } => {
@@ -218,7 +218,7 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             } else {
                 None
             };
-            domain.work.push(Work::Core(core::Event::DelegateHoldings { request, connector, holdings }));
+            domain.work.push(Work::Core(core::Event::DelegateHoldings { refused: None, request, connector, holdings }));
             None
         }
         core::Ask::ProcedureHoldings { task, step, members } => {
@@ -244,7 +244,13 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             } else {
                 None
             };
-            domain.work.push(Work::Core(core::Event::ProcedureHoldings { task, step, connector, holdings }));
+            domain.work.push(Work::Core(core::Event::ProcedureHoldings {
+                refused: None,
+                task,
+                step,
+                connector,
+                holdings,
+            }));
             None
         }
         core::Ask::ProjectGoal { feed } => {
