@@ -1291,6 +1291,14 @@ fn encode_template(value: &core::Template, limits: &wire::Limits) -> Result<wire
         Some(entry) => Some(encode_llm_choice(entry, limits)?),
         None => None,
     };
+    let mut resources = List::with_capacity(limits.template_resources);
+    for resource in &value.resources {
+        let symbol =
+            wire::Symbol::new(limits, wire::SymbolParts { connector: resource.connector, symbol: resource.symbol })?;
+        if resources.push(symbol).is_err() {
+            return Err(wire::Problem { path: wire::Path::TemplateResources, reason: skein_codec::Reason::Bound });
+        }
+    }
     wire::Template::new(
         limits,
         wire::TemplateParts {
@@ -1306,6 +1314,7 @@ fn encode_template(value: &core::Template, limits: &wire::Limits) -> Result<wire
             label: field_label,
             grace: field_grace,
             llm: field_llm,
+            resources,
         },
     )
 }
@@ -1323,6 +1332,7 @@ fn decode_template(value: wire::Template) -> core::Template {
         label,
         grace,
         llm,
+        resources,
     } = value.into_parts();
     let field_number = number;
     let field_name = name;
@@ -1339,8 +1349,13 @@ fn decode_template(value: wire::Template) -> core::Template {
         Some(entry) => Some(decode_llm_choice(entry)),
         None => None,
     };
+    let mut symbols = List::with_capacity(resources.len());
+    for resource in resources.into_boxed() {
+        let wire::SymbolParts { connector, symbol } = resource.into_parts();
+        symbols.push(people::Symbol { connector, symbol }).expect("decoded resources bound");
+    }
     core::Template {
-        resources: Box::new([]),
+        resources: symbols.into_boxed(),
         number: field_number,
         name: field_name,
         executor: field_executor,
