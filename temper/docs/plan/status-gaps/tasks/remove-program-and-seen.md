@@ -25,6 +25,7 @@ files = [
   "temper/crates/temper-client-tools/src/jig/render/document/llm.rs",
   "temper/crates/temper-client-tools/src/tests/jig/reads.rs",
   "jig/docs/design/STATUS.md",
+  "jig/docs/design/domain/hosts.md",
   "jig/docs/design/domain/hosts.status.md",
   "jig/docs/design/domain/people.status.md",
   "jig/docs/design/protocol/client.status.md",
@@ -150,6 +151,8 @@ Design and status (as `notes/common.md` says):
   holds is restored as any kept request, told `Kept`, never saved again, and erased at its
   terminal." becomes "A `Seen` record the small store holds is not read: it is dropped, counted
   in `Dropped`, and its key erased at start."
+- `jig/docs/design/domain/hosts.md`, 8.1: the sentence's last clause ", and no run waits as
+  `OpenProgram`" is deleted, the sentence ending "the binding revalidated exactly."
 - `temper/docs/design/client/README.md`, 3.5 (~lines 936-941): delete the two program causes,
   "for the model, "This model runs through a program. ..."; for an account's source, "Account A
   would use its program source S. ..."", leaving the host's hello and the rest as they are.
@@ -202,3 +205,14 @@ Pre-approved options:
 As the implementer's text says, and also: the goldens deleted and regenerated (by `git diff
 --stat`); how the people domain's sweep erases a skipped `Seen` answer (or the option taken);
 each temper edit, by file.
+
+## Answers
+
+2026-11-02 (answer call, for run `remove-program-and-seen-1`):
+
+- **May the task also edit `jig/docs/design/domain/hosts.md`, 8.1, to delete "and no run waits
+  as `OpenProgram`"?** Yes. The acceptance's `rg` cannot hold without it, and the clause states
+  only the removed form's absence, so deleting it is the rule of `notes/common.md` ("a sentence
+  about something removed is deleted"). Delete ", and no run waits as `OpenProgram`", leaving
+  "... and the binding revalidated exactly." Change nothing else in `hosts.md`; the file is now in
+  `files` and in "Design and status". Do not exempt the sentence from the search.
