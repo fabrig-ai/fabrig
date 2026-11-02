@@ -84,3 +84,14 @@ Pre-approved options:
 
 As the implementer's text says, and also: how a verdict wakes its changes; what a late verdict
 does.
+
+## Answers
+
+### 2026-11-02: Resume after tiers-runs supplies its production verdict caller (recommended), or accept this consumer-only handoff with that integration pending? (reference-m8/tiers-verification-1, foreman reference-m8/tiers-verification/foreman-1)
+
+Resume tiers-verification after tiers-runs supplies its production verdict caller; the producer remains tiers-runs’s.
+`temper/docs/plan/reference-m8/tasks/tiers-verification.md` declares `needs = ["tiers-runs"]`.
+Its acceptance specifies “`judged(d, repository, tier, &verdict)` (called by `tiers-runs`)”.
+Its ownership permits “in `tiers.rs`, nothing but the call into `verification::judged` if its arguments need to grow.”
+Its required checks include “clippy over every package you changed”; the report says that check fails and production acceptance remains blocked.
+The next run consumes the completed prerequisite, updates only the permitted caller arguments as needed, and completes the required checks before reporting Done.
