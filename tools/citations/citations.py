@@ -101,7 +101,7 @@ def walk(root, every_md=False):
                     yield rel, False
                 elif name in ("AGENTS.md", "CLAUDE.md") and "fixtures" not in parts:
                     yield rel, False
-                elif len(parts) >= 3 and parts[0] in TREES and parts[1] == "docs":
+                elif len(parts) >= 3 and parts[0] in TREES and parts[1] == "docs" and parts[2] != "plan":
                     if not (parts[2] == "development" and DATED.search(name)):
                         yield rel, False
             elif name.endswith(CODE_EXT) and not every_md:

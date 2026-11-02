@@ -107,6 +107,14 @@ class Citations(unittest.TestCase):
         result = self.since_base()
         self.assertEqual(result.returncode, 0, result.stdout)
 
+    def test_plans_are_not_read(self):
+        self.write("skein/docs/plan/p/tasks/t.md", "# t\n\nDelete `../../../design/a.md`, 2.1.\n")
+        self.commit("plan")
+        self.write(f"{DESIGN}/a.md", DOC.replace("### 2.1 Part", "### 2.2 Part"))
+        self.write(f"{DESIGN}/b.md", "# b\n\n## 1. One\n")
+        self.commit("head")
+        self.assertEqual(self.since_base().returncode, 0)
+
     def test_allow_txt_excuses_a_listed_citation(self):
         self.write(f"{DESIGN}/c.md", "# c\n\n## 1. One\n\nThe probe's `CONTRIBUTING.md`.\n")
         self.write("tools/citations/allow.txt", f"{DESIGN}/c.* CONTRIBUTING.md # the probe repository's file\n")
