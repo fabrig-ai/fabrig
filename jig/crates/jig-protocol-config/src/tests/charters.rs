@@ -16,6 +16,77 @@ fn a_charter_whose_budget_holds_its_reserve_is_read() {
     let engine = fixtures::engine(fixtures::ENGINE_SMALL).expect("valid charter");
     assert_eq!(engine.charters.len(), 1);
     assert_eq!(engine.charters[0].spend, 20);
+    assert!(engine.charters[0].documents.is_empty());
+}
+
+fn with_documents(value: &[u8]) -> Box<[u8]> {
+    let start = b"\"documents\":";
+    let end = b",\"instructions\": \"charters/chat.txt\"";
+    let mut member =
+        skein_lib::Writer::new(start.len().checked_add(value.len()).unwrap().checked_add(end.len()).unwrap());
+    member.put(start).unwrap();
+    member.put(value).unwrap();
+    member.put(end).unwrap();
+    let member = member.finish();
+    fixtures::with(fixtures::ENGINE_SMALL, br#""instructions": "charters/chat.txt""#, &member)
+}
+
+#[test]
+fn a_charters_documents_are_read_whole_in_order() {
+    let bytes = with_documents(
+        br#"[
+        {"connector":1,"name":["project","branch"],"path":"docs/rules.md"},
+        {"connector":1,"name":["other"],"path":"notes.md","heading":"Rules"}
+    ]"#,
+    );
+    let engine = fixtures::engine(&bytes).expect("two charter documents");
+    assert_eq!(
+        engine.charters[0].documents.as_ref(),
+        &[
+            jig_domain_core::Document {
+                connector: 1,
+                name: jig_domain_authority::Name {
+                    segments: Box::new([Box::from(b"project".as_slice()), Box::from(b"branch".as_slice())])
+                },
+                path: Box::from(b"docs/rules.md".as_slice()),
+                heading: None,
+            },
+            jig_domain_core::Document {
+                connector: 1,
+                name: jig_domain_authority::Name { segments: Box::new([Box::from(b"other".as_slice())]) },
+                path: Box::from(b"notes.md".as_slice()),
+                heading: Some(Box::from(b"Rules".as_slice())),
+            },
+        ]
+    );
+}
+
+#[test]
+fn malformed_charter_documents_are_refused_at_their_paths() {
+    let documents = fixtures::path(&[b"charters"]).child(crate::Segment::Index(0)).member(b"documents");
+    let item = documents.child(crate::Segment::Index(0));
+    for (value, path, what) in [
+        (b"{}".as_slice(), documents, What::Kind),
+        (b"[false]", item.clone(), What::Kind),
+        (br#"[{"connector":"1","name":[],"path":"a"}]"#, item.member(b"connector"), What::Kind),
+        (br#"[{"connector":1,"name":"a","path":"a"}]"#, item.member(b"name"), What::Kind),
+        (
+            br#"[{"connector":1,"name":[1],"path":"a"}]"#,
+            item.member(b"name").child(crate::Segment::Index(0)),
+            What::Kind,
+        ),
+        (br#"[{"connector":1,"name":[],"path":false}]"#, item.member(b"path"), What::Kind),
+        (br#"[{"connector":1,"name":[],"path":"a","heading":null}]"#, item.member(b"heading"), What::Kind),
+        (br#"[{"connector":1,"name":[],"path":"a","extra":true}]"#, item.member(b"extra"), What::Unknown),
+        (br#"[{"name":[],"path":"a"}]"#, item.member(b"connector"), What::Missing),
+        (br#"[{"connector":1,"path":"a"}]"#, item.member(b"name"), What::Missing),
+        (br#"[{"connector":1,"name":[]}]"#, item.member(b"path"), What::Missing),
+        (br#"[{"connector":1,"connector":1,"name":[],"path":"a"}]"#, item.member(b"connector"), What::Duplicate),
+    ] {
+        let problems = fixtures::engine(&with_documents(value)).expect_err("malformed document");
+        let problem = problems.problems.get(0).unwrap();
+        assert_eq!((&problem.path, problem.what), (&path, what), "{value:?}");
+    }
 }
 
 fn a_charter_turns_not_above_its_reserve_are_refused() {
