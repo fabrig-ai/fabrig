@@ -284,9 +284,10 @@ section 14 it adds; Old code, the old branches it may start from.
   merge into g refused for a conflict) and 11 (catching up);
   `reference-landing.md`, sections 3, step 6 (L's update in conflict)
   and 5.
-- **Design:** jobs are designed and not built (jig's `domain/core.md`,
-  3.2, `domain/tasks.md`, 5.3.1, `domain/engine.md`, 7.5 and
-  `domain/hosts.md`, 6.9; `worker.md`, 4.4). The merge job is not
+- **Design:** jobs are designed and, by M7a, built (jig's
+  `domain/core.md`, 3.2, `domain/tasks.md`, 5.3.1, `domain/engine.md`,
+  7.5 and `domain/hosts.md`, 6.9; `worker.md`, 4.4); temper's worker
+  declares no kind yet. The merge job is not
   designed: `landing.md`, 5.3, `forge.md`, 8.4 and section 10, temper's
   `../protocol/tooling.md`, sections 1 and 4, and
   `../protocol/configuration.md`, section 13 (`merge_job`); nor a

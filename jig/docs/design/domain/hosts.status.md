@@ -4,5 +4,5 @@
 
 - **Not yet:** 3, 5.2, 6.5, 11: `smith-inline-agent` as a hub's agent
   capability. 4: an admitted run's answers passing a held assignment.
-  6.1: the engine hub's hello before placement. 6.9: jobs.
-  10: an agent process's tree contained.
+  6.1: the engine hub's hello before placement. 10: an agent process's
+  tree contained.
