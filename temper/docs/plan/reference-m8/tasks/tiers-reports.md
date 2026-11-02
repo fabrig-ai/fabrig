@@ -82,3 +82,14 @@ Pre-approved options:
 
 As the implementer's text says, and also: `max_bytes` as you computed it; the stories and their
 seeds; what of t9 you took.
+
+## Answers
+
+### 2026-11-02: Resume tiers-reports after tiers-runs pushes its run orchestration (recommended), or authorize tiers-reports to take over that prerequisite? (reference-m8/tiers-reports-1, foreman reference-m8/tiers-reports/foreman-1)
+
+Resume tiers-reports after tiers-runs pushes its run orchestration; the prerequisite remains tiers-runs’s.
+`tiers-reports.md` declares: `needs = ["tiers-runs", "skein-reads", "skein-fake-reports"]`.
+Its step 2 says: “Unit tests beside `tiers-runs`', then the forge world's stories.”
+`tiers-runs.md` assigns dispatch, follow, retries, restart state and unit stories to tiers-runs; its ownership says “`tiers-verification` and `tiers-reports` come after”.
+The checkout confirms the reported orchestration stubs and empty tier-event arm.
+The next run consumes the pushed tiers-runs prerequisite, then implements report reads, reruns and probes and completes tiers-reports’s acceptance checks.
