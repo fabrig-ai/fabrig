@@ -423,8 +423,7 @@ in one place.
 
 The client plan built the client against the scripted engine, and met
 the engine only near its end: the drift came at once (sections 2 and 3).
-skein's development.md, section 5.3 ("The meeting point comes first"),
-now asks every plan for what this section recommended: one thin story
+What this section recommends for every plan: one thin story
 end to end as soon as the far side can answer, a translation exhaustive
 both ways from the first types, and a fake's scenarios run against the
 real side.
