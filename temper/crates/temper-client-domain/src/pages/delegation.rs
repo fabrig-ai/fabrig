@@ -18,6 +18,7 @@ pub enum Kind {
     Report,
     Verdict,
     Approval,
+    Job,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum State {
@@ -53,6 +54,7 @@ pub fn facts(task: &c::Task) -> Facts<'_> {
         c::TaskContractDocument::Change { .. } => Kind::Change,
         c::TaskContractDocument::Report { .. } => Kind::Report,
         c::TaskContractDocument::Verdict { .. } => Kind::Verdict,
+        c::TaskContractDocument::Job { .. } => Kind::Job,
         c::TaskContractDocument::Approval { .. } => Kind::Approval,
     };
     let ended = match &task.result {

@@ -2,6 +2,7 @@ draft = "github-repair-race"
 repo = "fabrig"
 sources = ["temper/docs/plan/github-repair-race/inputs/request.md", "temper/docs/plan/github-repair-race/inputs/fix.patch", "AGENTS.md"]
 
+retired = true
 [buffer]
 low = 1.0
 high = 2.0

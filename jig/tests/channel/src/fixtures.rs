@@ -412,6 +412,7 @@ pub(crate) fn peer_hello() -> skein_channel::Frame {
             stop_bound: Duration::from_secs(15),
             workstreams: List::with_capacity(0),
             hosting: List::with_capacity(0),
+            jobs: List::with_capacity(0),
             bounds,
         },
     )

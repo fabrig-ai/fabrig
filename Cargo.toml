@@ -277,6 +277,7 @@ members = [
     "temper/crates/temper-engine-domain-forge",
     "temper/crates/temper-worker-domain",
     "temper/crates/temper-worker-domain-checkout",
+    "temper/crates/temper-worker-domain-tooling",
     "temper/tests/fake-checkout",
     "temper/tests/engine/domain",
     "temper/tests/system",
@@ -496,6 +497,7 @@ temper-engine-domain-forge-issues = { path = "temper/crates/temper-engine-domain
 temper-engine-domain-forge = { path = "temper/crates/temper-engine-domain-forge" }
 temper-worker-domain = { path = "temper/crates/temper-worker-domain" }
 temper-worker-domain-checkout = { path = "temper/crates/temper-worker-domain-checkout" }
+temper-worker-domain-tooling = { path = "temper/crates/temper-worker-domain-tooling" }
 jig-core-world = { path = "jig/tests/core" }
 jig-tasks-world = { path = "jig/tests/tasks" }
 jig-people-world = { path = "jig/tests/people" }

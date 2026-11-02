@@ -31,6 +31,7 @@ impl Core {
     #[must_use = "retain the checked choice or its waiting reason"]
     pub fn run_choice(&self, task: u64) -> Result<RunChoice, RunWait> {
         let row = self.tasks.task(task).ok_or(RunWait::Host)?;
+        let version = self.charter_version(task).ok_or(RunWait::Host)?;
         let payer = self.tasks.payer(task).ok_or(RunWait::Host)?;
         if row.kept_account.is_none()
             && let jig_domain_tasks::Funder::Recurring { .. } = row.funder
@@ -66,7 +67,6 @@ impl Core {
         let kinds = self.charter_of(task).hosts;
         let main = crate::settings::fleet_needs::model(&policy.model);
         let models = core::slice::from_ref(&main);
-        let version = self.charter_version(task);
         let mut facts = List::with_capacity(self.host_fact_capacity());
         for account in &candidates {
             let mut tried = List::with_capacity(self.fleet.host_capacity());

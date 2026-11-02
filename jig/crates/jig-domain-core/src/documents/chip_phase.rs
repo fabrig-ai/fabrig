@@ -116,7 +116,7 @@ pub(super) fn from_row(limits: &Limits, row: &tasks::TaskRecord) -> Result<ChipD
             tasks::Executor::Procedure { connector, code } => {
                 Some(Part { connector, kind: PartKind::Procedure, key: PartKey::Number(u64::from(code)) })
             }
-            tasks::Executor::Agent { .. } | tasks::Executor::Person(_) => None,
+            tasks::Executor::Agent { .. } | tasks::Executor::Person(_) | tasks::Executor::Job { .. } => None,
         },
         live_delegates: u32::try_from(row.delegates.len()).expect("bounded direct delegates"),
         closing_connectors: None,

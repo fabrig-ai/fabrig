@@ -271,3 +271,138 @@ fn payloads_and_root_continuations_share_one_token_sequence() {
     assert!(link.take_payload(judge).is_none());
     assert!(link.take_payload(body).is_some());
 }
+
+fn job() -> JobStart {
+    JobStart {
+        task: RUN.raw(),
+        attempt: ATTEMPT.raw(),
+        workstream: 8,
+        kind: jig_domain_link::JobKind(7),
+        spec: Box::from(&b"spec"[..]),
+        deadline: Duration::from_secs(2),
+        result: 16,
+        grants: Box::new([]),
+        workspace: Some(Box::from(&b"workspace items"[..])),
+    }
+}
+
+/// jig/docs/design/domain/engine.md, 7.5: a job crosses the committed assignment door, including retries.
+#[test]
+fn a_job_start_is_retained_for_placement_and_busy_replacement() {
+    let mut link = link();
+    let mut out = Queue::uncapped();
+    step(&mut link, Time::ZERO, Event::StartJob { job: job() }, &mut out);
+    let Request::Core(core::Event::Fleet(fleet::Event::StartJob { run, attempt, job: bound, adopt, .. })) =
+        out.pop().unwrap()
+    else {
+        panic!("fleet job start")
+    };
+    assert_eq!(
+        (run, attempt, bound.kind, bound.spec, bound.result, bound.deadline, adopt),
+        (RUN, ATTEMPT, job().kind, 4, 16, job().deadline, false)
+    );
+    for channel in [Token::new(1), Token::new(2)] {
+        step(&mut link, Time::ZERO, Event::Assign { channel, run, attempt }, &mut out);
+        let Request::AssignedJob { channel: placed, job: assigned } = out.pop().unwrap() else {
+            panic!("assigned job")
+        };
+        assert_eq!((placed, assigned), (channel, job()));
+    }
+}
+
+/// jig/docs/design/domain/engine.md, 7.5: an answer becomes the tasks child's existing End.
+#[test]
+fn a_jobs_answer_reaches_the_core_as_its_end() {
+    let work = host::Work { left: None, saved: None };
+    for (ending, answer, end) in [
+        (
+            host::JobEnding::Finished { result: Box::from(&b"bytes"[..]), work: work.clone() },
+            fleet::Answer::Ended,
+            tasks::End::Finished {
+                result: tasks::TaskResult::Job { bytes: Box::from(&b"bytes"[..]) },
+                cancel_delegates: false,
+            },
+        ),
+        (
+            host::JobEnding::Failed { failure: host::JobFailure::Deadline, detail: Box::new([]), work: work.clone() },
+            fleet::Answer::Failed { turned: None },
+            tasks::End::Failed(tasks::Class::Run),
+        ),
+        (
+            host::JobEnding::Failed {
+                failure: host::JobFailure::Unprepared(host::Preparation::Permanent { resource: None }),
+                detail: Box::new([]),
+                work,
+            },
+            fleet::Answer::Failed { turned: None },
+            tasks::End::Failed(tasks::Class::Permanent),
+        ),
+        (
+            host::JobEnding::Refused(host::JobRefusal::Invalid(host::JobInvalid::Kind)),
+            fleet::Answer::Invalid,
+            tasks::End::Failed(tasks::Class::Permanent),
+        ),
+        (host::JobEnding::Refused(host::JobRefusal::Busy), fleet::Answer::Busy, tasks::End::Refused),
+    ] {
+        let mut link = link();
+        let mut out = Queue::uncapped();
+        let Some(core::Event::Fleet(fleet::Event::Answer { run, attempt, answer: kind, payload, .. })) =
+            up(&mut link, CHANNEL, host::LinkUp::JobAnswer { run: RUN, attempt: ATTEMPT, answer: ending })
+        else {
+            panic!("fleet answer")
+        };
+        assert_eq!(kind, answer);
+        step(&mut link, Time::ZERO, Event::AnswerPayload { run, attempt, payload }, &mut out);
+        let Request::Core(core::Event::AnswerPayload { run, attempt, cumulative, end: ended, read, refused, .. }) =
+            out.pop().unwrap()
+        else {
+            panic!("core end")
+        };
+        assert_eq!((run, attempt, cumulative, ended, read), (RUN, ATTEMPT, 0, end, None));
+        assert!(refused.is_empty());
+        assert!(out.is_empty(), "job results require no protocol read");
+        step(&mut link, Time::ZERO, Event::DropPayload { payload }, &mut out);
+        assert_eq!(link.payload_count(), 0);
+    }
+}
+
+/// jig/docs/design/domain/engine.md, 7.5: every job failure has a task retry class.
+#[test]
+fn job_failures_keep_their_contract_classes() {
+    use host::{DeliveryOutcome as D, JobFailure as F, Preparation as P, Reason as R};
+    use tasks::Class as C;
+    for (failure, expected) in [
+        (F::Unprepared(P::Transient), C::Transient),
+        (F::Unprepared(P::Permanent { resource: None }), C::Permanent),
+        (F::Failed, C::Run),
+        (F::Deadline, C::Run),
+        (F::Unstarted, C::Agent),
+        (F::Result, C::Invalid),
+        (F::Undelivered(D::Stale), C::Permanent),
+        (F::Undelivered(D::Refused), C::Permanent),
+        (F::Undelivered(D::Failed), C::Transient),
+        (F::Cancelled(R::Contact), C::Lost),
+        (F::Cancelled(R::Shutdown), C::Lost),
+    ] {
+        let ending =
+            host::JobEnding::Failed { failure, detail: Box::new([]), work: host::Work { left: None, saved: None } };
+        assert_eq!(payload::job_end(&ending), tasks::End::Failed(expected));
+    }
+}
+
+/// jig/docs/design/domain/engine.md, 7.5: a terminal frees retained job bytes, including a lost claim's.
+#[test]
+fn a_job_terminal_releases_its_assignment_and_keeps_a_newer_attempts() {
+    let mut link = link();
+    let mut out = Queue::uncapped();
+    step(&mut link, Time::ZERO, Event::StartJob { job: job() }, &mut out);
+    for attempt in [ATTEMPT.raw().checked_sub(1).expect("earlier attempt"), ATTEMPT.raw()] {
+        let Err(core::Held::TaskTerminalAcknowledged { task, attempt: returned }) =
+            down(&mut link, core::Held::TaskTerminalAcknowledged { task: RUN.raw(), attempt })
+        else {
+            panic!("root terminal continues")
+        };
+        assert_eq!((task, returned), (RUN.raw(), attempt));
+        assert_eq!(link.jobs.len(), u32::from(attempt != ATTEMPT.raw()));
+    }
+}

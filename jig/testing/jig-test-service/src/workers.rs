@@ -267,6 +267,7 @@ fn listeners_open(listeners: &List<(Token, Option<Token>)>) -> bool {
 
 fn delivery(now: Time, channel: Token, down: host::LinkDown, values: &Values) -> kit::Event {
     let grants = match &down {
+        host::LinkDown::AssignJob { job } => values.grants(&job.grants, now),
         host::LinkDown::Assign { assignment } => values.grants(&assignment.assignment.grants, now),
         host::LinkDown::Grant { grant, .. } => values.grants(::core::slice::from_ref(grant), now),
         host::LinkDown::Sources { .. }

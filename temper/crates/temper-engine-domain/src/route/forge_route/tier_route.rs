@@ -42,6 +42,7 @@ fn make_tier_run(
         seed: Box::new(seed),
         executor: tasks::Executor::Procedure { connector: domain.config.forge_connector, code: AFTER_LANDING_CODE },
         spec: tasks::Spec {
+            job: None,
             asks: false,
             words: words.into_boxed(),
             parameters: Box::new([

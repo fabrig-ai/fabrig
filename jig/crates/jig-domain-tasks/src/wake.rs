@@ -187,7 +187,7 @@ pub(crate) fn after_message(
             | MessageKind::Timer { .. } => WakeRule::Immediate,
         },
         crate::Executor::Agent { .. } => rule(domain, number, &word),
-        crate::Executor::Person(_) => WakeRule::Never,
+        crate::Executor::Person(_) | crate::Executor::Job { .. } => WakeRule::Never,
     };
     let ready = match decision {
         WakeRule::Never => false,
@@ -316,6 +316,7 @@ fn result_wake(result: &crate::ResultKind, no_delegates: bool) -> WakeRule {
         crate::ResultKind::Approved { .. }
         | crate::ResultKind::Report
         | crate::ResultKind::Verdict { .. }
+        | crate::ResultKind::Job
         | crate::ResultKind::NoChange
         | crate::ResultKind::Change { .. } => {
             if no_delegates {

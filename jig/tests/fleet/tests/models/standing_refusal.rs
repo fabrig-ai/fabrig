@@ -17,7 +17,14 @@ impl Fleet {
         self.send(Event::Hello {
             channel: Token::new(channel),
             worker,
-            hello: Hello { slots: 1, stop_bound, bounds, workstreams: Box::new([]), hosting: Box::new([]) },
+            hello: Hello {
+                jobs: Box::default(),
+                slots: 1,
+                stop_bound,
+                bounds,
+                workstreams: Box::new([]),
+                hosting: Box::new([]),
+            },
         });
     }
     fn refused(&self, kinds: Kinds) -> Option<(HostKind, u64, HelloRefusal)> {

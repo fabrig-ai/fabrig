@@ -460,7 +460,7 @@ impl Core {
         let row = self.tasks.task(task)?;
         let procedure = match row.executor {
             tasks::Executor::Procedure { .. } => true,
-            tasks::Executor::Agent { .. } | tasks::Executor::Person(_) => false,
+            tasks::Executor::Agent { .. } | tasks::Executor::Person(_) | tasks::Executor::Job { .. } => false,
         };
         let funded = match row.funder {
             tasks::Funder::Period { project, .. } => project == row.project,

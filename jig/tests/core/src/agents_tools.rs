@@ -71,6 +71,7 @@ fn reconnect(world: &mut World, key: core::CallKey) {
         worker: 0,
         channel: Token::new(CHANNEL),
         hello: fleet::Hello {
+            jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(100),
             slots: jig_test_profile::limits().core.fleet.slots,

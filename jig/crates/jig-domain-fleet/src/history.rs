@@ -8,6 +8,8 @@ use skein_lib::{Duration, Time, Token, Wall};
 pub enum HelloRefusal {
     /// Channel zero belongs to the engine's configured host.
     ReservedChannel,
+    /// The hello's job kinds are not ascending and distinct.
+    JobKinds,
     /// The agent cannot hold a configured charter for this host kind.
     Agent { why: crate::AgentShortfall },
     /// The connected worker set has no admission room.
@@ -64,7 +66,8 @@ pub(crate) fn lost(domain: &mut crate::Domain, host: LostHost) {
 pub(crate) fn refused(domain: &mut crate::Domain, record: HelloRefusalRecord) {
     match record.why {
         HelloRefusal::ReservedChannel => {}
-        HelloRefusal::Agent { .. }
+        HelloRefusal::JobKinds
+        | HelloRefusal::Agent { .. }
         | HelloRefusal::Workers { .. }
         | HelloRefusal::Position { .. }
         | HelloRefusal::StopBound { .. } => {

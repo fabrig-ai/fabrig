@@ -142,6 +142,8 @@ pub struct Config {
     pub seed_projects: Box<[SeedProject]>,
     /// Numbered connectors the application routes for task lifecycle handoffs.
     pub connectors: Box<[u16]>,
+    /// Application job kinds and their bounds (jig/docs/design/domain/engine.md, 7.5).
+    pub jobs: Box<[jig_domain_link::JobBound]>,
 }
 
 /// Immutable deployment and run settings used by core decisions.
@@ -266,6 +268,7 @@ pub struct Core {
     pub(crate) restart_attempts: u32,
     /// Application connectors addressed only by number.
     pub connectors: Box<[u16]>,
+    pub(crate) jobs: Box<[jig_domain_link::JobBound]>,
     /// Subjects owned by the parent; the child echoes each watch token.
     pub(crate) view_names: skein_lib::Slab<WatchedSubject>,
     pub(crate) changed_views: skein_lib::Set<skein_lib::Id<WatchedSubject>>,
@@ -320,6 +323,7 @@ pub struct Core {
     /// Live task preparation contexts.
     pub(crate) contexts: Map<u64, Box<tasks::RunContext>>,
     pub(crate) workspace_credentials: Map<u64, Box<[u32]>>,
+    pub(crate) job_workspaces: Map<u64, Box<[u8]>>,
     /// Recent transcript windows for runs being prepared.
     pub transcripts: Map<u64, Transcript>,
     /// Current durable claim evidence.
@@ -383,6 +387,15 @@ impl Core {
             "core prices every configured connector number"
         );
         assert_connector_registry(&config.connectors);
+        let mut previous = None;
+        for job in &config.jobs {
+            if let Some(kind) = previous {
+                assert!(kind < job.kind, "job kinds are ascending and distinct");
+            }
+            assert!(job.spec <= limits.tasks.spec_bytes, "job specs fit the tasks child");
+            assert!(job.result <= limits.tasks.result_bytes, "job results fit the tasks child");
+            previous = Some(job.kind);
+        }
         for grant in &config.grants {
             assert!(config.connectors.contains(&grant.connector), "acts name configured connectors");
         }
@@ -487,6 +500,7 @@ impl Core {
             permission_roles: Map::with_capacity(limits.authority.projects),
             template_overrides: Map::with_capacity(limits.authority.projects),
             connectors: config.connectors,
+            jobs: config.jobs,
             pending_calls: Map::with_capacity(limits.call_records),
             call_parts: Map::with_capacity(limits.call_records),
             call_settled: Map::with_capacity(limits.call_records),
@@ -500,6 +514,7 @@ impl Core {
             run_wall: Wall::EPOCH,
             contexts: Map::with_capacity(limits.tasks.tasks),
             workspace_credentials: Map::with_capacity(limits.tasks.tasks),
+            job_workspaces: Map::with_capacity(limits.tasks.tasks),
             transcripts: Map::with_capacity(limits.tasks.tasks),
             proofs: Map::with_capacity(limits.tasks.tasks),
             replaced: Map::with_capacity(limits.tasks.tasks),

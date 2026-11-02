@@ -23,6 +23,7 @@ fn procedure() -> (crate::Domain, Env<crate::Limits>, u64) {
                 executor: tasks::Executor::Procedure { connector: domain.config.forge_connector, code: 2 },
                 llm: None,
                 spec: tasks::Spec {
+                    job: None,
                     asks: false,
                     words: b"live goal".as_slice().into(),
                     parameters: Box::new([]),

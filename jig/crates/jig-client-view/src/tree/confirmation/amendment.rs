@@ -353,7 +353,10 @@ fn task_address(doc: &Task) -> Option<AddressChange> {
     let address = match doc.chip.executor {
         ChipExecutor::Party { party } => PersonAddress::Party(party),
         ChipExecutor::Role { project, role } if project == doc.project => PersonAddress::Role(role),
-        ChipExecutor::Role { .. } | ChipExecutor::Agent { .. } | ChipExecutor::Procedure { .. } => return None,
+        ChipExecutor::Role { .. }
+        | ChipExecutor::Agent { .. }
+        | ChipExecutor::Job { .. }
+        | ChipExecutor::Procedure { .. } => return None,
     };
     Some(AddressChange { revision, address })
 }

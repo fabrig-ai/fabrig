@@ -257,6 +257,7 @@ impl Driver {
             | Delivery::SourceSignedOut { .. }
             | Delivery::Application { .. }
             | Delivery::Host(_)
+            | Delivery::AssignedJob { .. }
             | Delivery::Link { .. }
             | Delivery::ForgeCommitted { .. }
             | Delivery::ForgeCall { .. }

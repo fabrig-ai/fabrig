@@ -19,6 +19,7 @@ pub(crate) fn document_text(value: &w::DocumentText, limits: &Limits) -> Result<
 
 pub(crate) fn executor(value: &w::ChipExecutor) -> c::ChipExecutor {
     match value {
+        w::ChipExecutor::Job(row) => c::ChipExecutor::Job { kind: row.kind() },
         w::ChipExecutor::Agent(row) => c::ChipExecutor::Agent { charter: row.charter() },
         w::ChipExecutor::Procedure(row) => c::ChipExecutor::Procedure { connector: row.connector(), kind: row.kind() },
         w::ChipExecutor::Party(row) => c::ChipExecutor::Party { party: row.party() },

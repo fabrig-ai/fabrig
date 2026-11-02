@@ -43,6 +43,7 @@ pub(in crate::codec) fn wire_hello_refusal(
             limits,
             w::HelloRefusalAgentParts { why: wire_agent_shortfall(why, limits)? },
         )?),
+        c::HelloRefusal::JobKinds => w::HelloRefusal::JobKinds,
         c::HelloRefusal::ReservedChannel => w::HelloRefusal::ReservedChannel,
         c::HelloRefusal::Position { worker } => w::HelloRefusal::Position(w::HelloRefusalPosition::new(
             limits,

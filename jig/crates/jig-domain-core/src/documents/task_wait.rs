@@ -44,7 +44,7 @@ pub enum TaskSourceState {
 
 pub(super) fn waiting(core: &Core, row: &tasks::TaskRecord) -> Option<TaskRunWait> {
     match row.executor {
-        tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => return None,
+        tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) | tasks::Executor::Job { .. } => return None,
         tasks::Executor::Agent { .. } => {}
     }
     match row.phase {

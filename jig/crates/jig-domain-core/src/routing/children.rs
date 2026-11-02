@@ -223,7 +223,13 @@ pub(crate) fn tag_fleet(
                     }
                 }
                 // The fleet has already classified a crossed claim's end.
-                let end = if !proof.crossed && never_reported && proof.turn.is_none() && !committed_call {
+                let job = match core.tasks.task(run.raw()).expect("lost task").executor {
+                    tasks::Executor::Job { .. } => true,
+                    tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => {
+                        false
+                    }
+                };
+                let end = if !job && !proof.crossed && never_reported && proof.turn.is_none() && !committed_call {
                     tasks::End::Refused
                 } else {
                     tasks::End::Failed(tasks::Class::Lost)
@@ -277,6 +283,16 @@ pub(crate) fn tag_fleet(
                 }
                 super::view::routes::touch_number(core, &env.limits, run.raw());
                 Request::Held(Box::new(Held::Assign { channel, run, attempt, activation, assignment }))
+            }
+            fleet::Request::AssignJob { channel, run, attempt } => {
+                super::view::routes::touch_number(core, &env.limits, run.raw());
+                Request::Held(Box::new(Held::Assign {
+                    channel,
+                    run,
+                    attempt,
+                    activation: attempt.raw(),
+                    assignment: fleet::Assignment { turns: run, answered: run },
+                }))
             }
             fleet::Request::Inbound { channel, run, attempt, message } => {
                 let deliver = match core.relaying.remove(&run.raw()) {
@@ -626,6 +642,7 @@ pub(crate) fn route_fleet(
         | fleet::Event::Check { .. }
         | fleet::Event::SignOut { .. }
         | fleet::Event::SignedOut { .. }
+        | fleet::Event::StartJob { .. }
         | fleet::Event::Start { .. }
         | fleet::Event::Adopt { .. }
         | fleet::Event::Cross { .. }
@@ -714,7 +731,8 @@ fn host_shape(event: &fleet::Event) -> bool {
         | fleet::Event::Loaded
         | fleet::Event::Hello { .. }
         | fleet::Event::Lost { .. } => true,
-        fleet::Event::Start { .. }
+        fleet::Event::StartJob { .. }
+        | fleet::Event::Start { .. }
         | fleet::Event::Adopt { .. }
         | fleet::Event::Cross { .. }
         | fleet::Event::Cancel { .. }

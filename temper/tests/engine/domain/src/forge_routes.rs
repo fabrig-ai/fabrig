@@ -1680,6 +1680,7 @@ pub fn change_world_funded(
                 batch: Box::new([engine::Delegate {
                     executor: tasks::Executor::Procedure { connector: 0, code: 2 },
                     spec: tasks::Spec {
+                        job: None,
                         asks: false,
                         words: Box::from(&b"Small fix"[..]),
                         parameters: Box::new([

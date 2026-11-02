@@ -149,6 +149,7 @@ fn a_charter_for_workers_only_waits_while_only_engine_slots_are_free() {
                 worker: 0,
                 channel: Token::new(5),
                 hello: Hello {
+                    jobs: Box::default(),
                     bounds: jig_fleet_world::fixtures::bounds(),
                     slots: 1,
                     stop_bound: Duration::from_secs(1),
@@ -189,6 +190,7 @@ fn a_worker_holding_the_workstream_is_preferred_over_a_free_engine_slot() {
                 worker: 0,
                 channel: Token::new(11),
                 hello: Hello {
+                    jobs: Box::default(),
                     bounds: jig_fleet_world::fixtures::bounds(),
                     slots: 1,
                     stop_bound: Duration::from_secs(1),
@@ -278,6 +280,7 @@ fn a_worker_refused_for_its_agent_hosts_nothing() {
                 worker: 0,
                 channel: Token::new(5),
                 hello: Hello {
+                    jobs: Box::default(),
                     bounds,
                     slots: 1,
                     stop_bound: Duration::ZERO,
@@ -367,6 +370,7 @@ fn startup_and_hello_check_only_the_charters_for_the_host_kind() {
                 worker: 0,
                 channel,
                 hello: Hello {
+                    jobs: Box::default(),
                     bounds,
                     slots: 1,
                     stop_bound: Duration::ZERO,

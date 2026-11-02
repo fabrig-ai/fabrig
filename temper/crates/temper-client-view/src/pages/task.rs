@@ -350,6 +350,9 @@ pub(crate) fn header(
 
 pub(crate) fn executor(b: &mut Builder, executor: c::ChipExecutor, words: &Words) {
     let word = match executor {
+        c::ChipExecutor::Job { kind } => {
+            return text(b, Role::Paragraph, &words.say(Word::Job, &[Hole::Number(u64::from(kind))]));
+        }
         c::ChipExecutor::Agent { .. } => Word::Agent,
         c::ChipExecutor::Procedure { .. } => Word::Procedure,
         c::ChipExecutor::Party { .. } | c::ChipExecutor::Role { .. } => Word::PersonTask,
@@ -454,6 +457,7 @@ pub(crate) fn asked(b: &mut Builder, task: &c::Task, words: &Words) {
         Kind::Report => Word::GoalReport,
         Kind::Change => Word::GoalChange,
         Kind::Verdict => Word::GoalVerdict,
+        Kind::Job => Word::JobContract,
         Kind::Approval => Word::GoalApproval,
     };
     let name = words.say(kind, &[]);
@@ -740,7 +744,10 @@ impl<'a> Plan<'a> {
     fn of(page: &'a task::Task, task: &c::Task) -> Self {
         let word = match task.chip.executor {
             c::ChipExecutor::Procedure { .. } => Word::ItsTasks,
-            c::ChipExecutor::Agent { .. } | c::ChipExecutor::Party { .. } | c::ChipExecutor::Role { .. } => Word::Plan,
+            c::ChipExecutor::Job { .. }
+            | c::ChipExecutor::Agent { .. }
+            | c::ChipExecutor::Party { .. }
+            | c::ChipExecutor::Role { .. } => Word::Plan,
         };
         let ended = match &page.ended {
             Some(task::Ended { page: Some(page), .. }) => Some((

@@ -26,6 +26,10 @@ fn deadline(draft: Option<Wall>, latest: Option<Wall>) -> bool {
 /// Judge a creation from the supplied factual executor, budget and deadline bounds.
 #[must_use]
 pub fn creation(offer: &Admission, executor: Executor, budget: u64, at: Option<Wall>) -> Admission {
+    match executor {
+        Executor::Job { .. } => return Admission::Refused(Refusal::NotOffered),
+        Executor::Agent { .. } | Executor::Procedure { .. } | Executor::Person(_) => {}
+    }
     match offer {
         Admission::Bounded { within, beyond: outside } => match within {
             Bounds::Create(super::CreateBounds {
@@ -40,7 +44,7 @@ pub fn creation(offer: &Admission, executor: Executor, budget: u64, at: Option<W
             }) => {
                 let mut listed = false;
                 match executor {
-                    Executor::Person(_) => return Admission::Refused(Refusal::NotOffered),
+                    Executor::Person(_) | Executor::Job { .. } => return Admission::Refused(Refusal::NotOffered),
                     Executor::Agent { charter } => {
                         for number in charters {
                             if *number == charter {

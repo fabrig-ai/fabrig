@@ -68,6 +68,7 @@ fn reserved_period(pool: u64) -> (core::Core, Env<core::Limits>) {
 
 fn spec() -> tasks::Spec {
     tasks::Spec {
+        job: None,
         asks: false,
         words: b"deployment procedure".as_slice().into(),
         parameters: Box::new([]),

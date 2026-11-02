@@ -140,6 +140,7 @@ fn delegations_with_one_repository_id_take_their_own_forges_holding() {
     let connector = domain.config.forge_connector;
     for number in [1, 3] {
         let spec = tasks::Spec {
+            job: None,
             asks: false,
             words: Box::new([]),
             inputs: Box::new([]),
@@ -1213,6 +1214,7 @@ fn reserve_period(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits
             seed: Box::new(seed),
             executor: tasks::Executor::Agent { charter: 1 },
             spec: tasks::Spec {
+                job: None,
                 asks: false,
                 words: Box::from(b"reserve the period".as_slice()),
                 parameters: Box::new([]),

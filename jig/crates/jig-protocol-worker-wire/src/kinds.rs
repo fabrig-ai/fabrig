@@ -26,6 +26,8 @@ pub enum Kind {
     SignOut,
     Logins,
     SignedOut,
+    Job,
+    JobAnswer,
 }
 
 impl Kind {
@@ -72,6 +74,8 @@ pub const KINDS: &[KindRule] = &[
     KindRule { kind: 0x0188, direction: Direction::FromResponder, body: Kind::Sources },
     KindRule { kind: 0x0189, direction: Direction::FromResponder, body: Kind::Check },
     KindRule { kind: 0x018a, direction: Direction::FromResponder, body: Kind::SignOut },
+    KindRule { kind: 0x018b, direction: Direction::FromResponder, body: Kind::Job },
+    KindRule { kind: 0x018c, direction: Direction::FromInitiator, body: Kind::JobAnswer },
 ];
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -104,6 +108,8 @@ pub fn schema(limits: &v9::Limits) -> Result<Schema, Overflow> {
             Kind::SignOut => v9::SignOut::encoded_bound(limits),
             Kind::Logins => v9::Logins::encoded_bound(limits),
             Kind::SignedOut => v9::SignedOut::encoded_bound(limits),
+            Kind::Job => v9::Job::encoded_bound(limits),
+            Kind::JobAnswer => v9::JobAnswer::encoded_bound(limits),
             Kind::Grant => v9::Granted::encoded_bound(limits),
         };
         let largest = largest.ok_or(Overflow::Body)?;

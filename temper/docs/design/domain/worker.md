@@ -339,6 +339,21 @@ smith's agent processes, and declares in its hello the kinds it runs:
 | 1, prepare | a landing's candidate for one repository (`landing.md`, 5.3): the project's prepare command, or temper's own rebase of a stack when the project names none | the repository, its main's tip, its members' heads in order, the upstream candidates and the pins between them, the command and the home's revision | the candidate's commit, or the conflict's member and files; each gate's key, when the project's key command is named |
 | 2, key | a gate's key at a candidate, by the project's key command (`landing.md`, 6.1) | the repository, the candidate, the gate, the command and the home's revision | the key |
 
+- **Its kinds are entries** the root gives the capability: each a
+  kind's number, the command's verb (its second argument,
+  `../protocol/tooling.md`, section 2) and whether it delivers. The hello
+  declares each with the worker's limits for jobs: its spec's and
+  result's bytes and its longest deadline. Prepare and key are the first
+  two, by the table; a worker declares a kind only once it is built, and
+  none before.
+- **One spec and one result for every kind:** the spec, temper's record
+  in its payload codec, the command's path in the project's home and the
+  request file's bytes; the result, the result file's bytes as the
+  command wrote them. Exit 0 and 3 finish the job with that result
+  (`../protocol/tooling.md`, section 1); any other exit fails it as its
+  own, with the end of its error output as detail; a result file missing
+  or past its bound fails it too. The engine's procedure that made the
+  job reads the result.
 - **In the checkout,** prepared from the job's items as a run's
   workspace is (section 5): the repository at its main's tip, each
   member's head fetched beside it, each upstream at its candidate, and
@@ -354,7 +369,11 @@ smith's agent processes, and declares in its hello the kinds it runs:
   may not be a fast-forward, made only for a prepare job's candidate;
   a lease refused fails the job as permanent until the branch is read
   afresh, and the landing prepares again. The rewrite is the change's,
-  not drift (`forge.md`, 8.5). A key job delivers nothing.
+  not drift (`forge.md`, 8.5). A key job delivers nothing. A delivering
+  kind other than prepare delivers, on exit 0, the head of the repository
+  its items name as writable, as a fast-forward onto that branch through
+  the checkout's push (section 5), as a run's delivery is; a push refused
+  fails the job as undelivered.
 - **The worker's limits** bound a job's spec, its result, its output
   files and its processes, and a job beyond them is refused as invalid.
 
@@ -618,6 +637,9 @@ for; and that nothing is live once it settles.
 
 ## 12. Open questions
 
+- **The merge job's entry,** a later plan's: its verb, its request and result files, and whether its
+  merge commit is delivered as a delivering kind's head is, are the
+  merge job's design, with `../protocol/tooling.md`'s command for it.
 - **A push's message:** the worker commits the run's title and body; how
   a change's pull request takes them, and whether a squash keeps them.
 - **An assignment naming an expected head.** The worker enforces one when

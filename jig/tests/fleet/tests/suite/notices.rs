@@ -32,6 +32,7 @@ fn hello(channel: Token) -> Event {
         worker: u32::try_from(channel.raw()).expect("fixture channel") % jig_fleet_world::LIMITS.configured_workers,
         channel,
         hello: Hello {
+            jobs: Box::default(),
             bounds: jig_fleet_world::fixtures::bounds(),
             slots: 1,
             stop_bound: Duration::from_secs(1),

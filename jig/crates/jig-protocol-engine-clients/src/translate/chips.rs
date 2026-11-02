@@ -375,6 +375,12 @@ fn compact(value: &d::PhaseLine) -> w::Phase {
 }
 fn chip_executor(value: &d::Chip, limits: &w::Limits) -> Result<w::ChipExecutor, w::Problem> {
     Ok(match value.details.executor {
+        t::Executor::Job { kind } => {
+            if value.executor != d::ExecutorKind::Job {
+                return Err(problem(skein_codec::Reason::Malformed));
+            }
+            w::ChipExecutor::Job(w::ChipExecutorJob::new(limits, w::ChipExecutorJobParts { kind })?)
+        }
         t::Executor::Agent { charter } => {
             if value.executor != d::ExecutorKind::Agent {
                 return Err(problem(skein_codec::Reason::Malformed));

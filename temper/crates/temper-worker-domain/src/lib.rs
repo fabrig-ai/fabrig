@@ -15,6 +15,7 @@
 //! temper-worker-domain                 faces the protocol; the hub's link; routes; translates
 //! ├── jig-domain-host                  jig's hub: hosted runs, admit, prepare, start, relay, park or end
 //! ├── temper-worker-domain-checkout    workspaces: prepare, commit, push, save; the cache
+//! ├── temper-worker-domain-tooling     job commands: files, processes and results
 //! └── smith-host-domain                agent processes: spawn, channel, watchdog, cancel then kill
 //! ```
 //!
@@ -25,8 +26,8 @@
 //! the hello, assignments, messages, relays, turns and answers, which it
 //! keeps until the engine acknowledges them; the link's mechanics (dialling,
 //! the grace, relays across channels) are jig's worker link, in the protocol
-//! layer, which tells the domain what it notices. The checkout and smith's
-//! host domain are the hub's capabilities; the three share no types, so the
+//! layer, which tells the domain what it notices. The checkout, job capability and smith's
+//! host domain are the hub's capabilities; they share no types, so the
 //! root translates between them through small total functions, keeping for
 //! each workspace what each side names it by, and temper's own parts: the
 //! workspace items down, what a run left on the forge up, beside jig's
@@ -53,6 +54,7 @@ mod boundary;
 mod domain;
 mod facts;
 mod hand_out;
+mod jobs;
 mod limits;
 mod push;
 mod route;
@@ -72,3 +74,4 @@ pub use limits::{Limits, SEPARATOR, Unfit, WATERMARK, unfit, valid};
 pub use jig_domain_host as host;
 pub use smith_host_domain as agent;
 pub use temper_worker_domain_checkout as checkout;
+pub use temper_worker_domain_tooling as tooling;

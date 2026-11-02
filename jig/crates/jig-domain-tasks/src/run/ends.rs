@@ -103,7 +103,7 @@ impl Kept {
     /// Whether a wake may make this executor Due; a person or a procedure is never kept from its step.
     pub(crate) fn may_be_due(self, executor: Executor) -> bool {
         match executor {
-            Executor::Agent { .. } => !self.blocks_claims(),
+            Executor::Agent { .. } | Executor::Job { .. } => !self.blocks_claims(),
             Executor::Person(_) | Executor::Procedure { .. } => true,
         }
     }
@@ -150,6 +150,7 @@ fn done(result: &TaskResult) -> bool {
         TaskResult::Approved { .. }
         | TaskResult::Report { .. }
         | TaskResult::Verdict { .. }
+        | TaskResult::Job { .. }
         | TaskResult::NoChange { .. }
         | TaskResult::Change { .. } => true,
     }

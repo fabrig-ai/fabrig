@@ -33,7 +33,7 @@ fn action_for_check(core: &Core, action: &tasks::ProposalAction, decision: Wall)
                 let executor = match member.executor {
                     tasks::Executor::Agent { charter } => authority::Executor::Charter(charter),
                     tasks::Executor::Procedure { code, .. } => authority::Executor::Procedure(code),
-                    tasks::Executor::Person(_) => return None,
+                    tasks::Executor::Job { .. } | tasks::Executor::Person(_) => return None,
                 };
                 members
                     .push(authority::Delegate {

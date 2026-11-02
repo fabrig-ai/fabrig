@@ -166,6 +166,7 @@ impl Walking {
                             budget: jig_domain_people::Budget::Named,
                             executor: tasks::Executor::Procedure { connector: 1, code: 1 },
                             spec: tasks::Spec {
+                                job: None,
                                 asks: false,
                                 words: b"run the check".as_slice().into(),
                                 parameters: Box::new([]),
@@ -268,7 +269,8 @@ impl Walking {
             | root::Delivery::Core(
                 core::Held::Delivery { .. } | core::Held::WatchEnded { .. } | core::Held::Grant { .. },
             ) => {}
-            other @ (root::Delivery::Link { .. }
+            other @ (root::Delivery::AssignedJob { .. }
+            | root::Delivery::Link { .. }
             | root::Delivery::ProjectMade { .. }
             | root::Delivery::CallBusy { .. }
             | root::Delivery::CallAnswer { .. }

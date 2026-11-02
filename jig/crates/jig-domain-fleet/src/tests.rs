@@ -159,6 +159,7 @@ impl Harness {
             keys.push(*key).unwrap();
         }
         let hello = Hello {
+            jobs: Box::default(),
             bounds: fixtures::bounds(),
             stop_bound: Duration::from_secs(0),
             slots,
@@ -461,6 +462,7 @@ fn retained_host_and_hello_history_is_bounded_and_independent_of_diagnostics() {
             worker: 0,
             channel: C3,
             hello: Hello {
+                jobs: Box::default(),
                 bounds: fixtures::bounds(),
                 stop_bound: LIMITS.grace,
                 slots: u32::MAX,
@@ -1300,6 +1302,7 @@ fn declared_stop_bounds_must_be_strictly_below_the_engine_grace() {
     ] {
         let mut h = Harness::new(LIMITS);
         let hello = Hello {
+            jobs: Box::default(),
             bounds: fixtures::bounds(),
             stop_bound,
             slots: 2,
@@ -1364,3 +1367,5 @@ mod grants;
 mod needs;
 
 mod crossed;
+
+mod jobs;
