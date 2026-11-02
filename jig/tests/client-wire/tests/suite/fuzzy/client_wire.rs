@@ -123,6 +123,7 @@ fn records_3(bytes: &[u8]) {
     check!(ExecutorJob, bytes);
     check!(Executor, bytes);
     check!(WakeRuleBatch, bytes);
+    check!(WakeRulePaced, bytes);
     check!(WakeRule, bytes);
     check!(ResultsWake, bytes);
     check!(WakePolicy, bytes);

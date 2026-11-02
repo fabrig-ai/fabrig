@@ -120,7 +120,8 @@ record ExecutorPerson { value: PersonAddress }
 record ExecutorJob { kind: u32 }
 enum Executor { agent: ExecutorAgent, procedure: ExecutorProcedure, person: ExecutorPerson, job: ExecutorJob }
 record WakeRuleBatch { count: u32 age: duration }
-enum WakeRule { never, immediate, batch: WakeRuleBatch }
+record WakeRulePaced { span: duration }
+enum WakeRule { never, immediate, batch: WakeRuleBatch, paced: WakeRulePaced }
 enum ResultsWake { never, each, last_or_failure }
 record WakePolicy { words: WakeRule notices: WakeRule news: WakeRule results: ResultsWake questions: bool answers: bool timers: bool }
 record PersonStallNotice { message: u64 at: u64 activity: u64 }

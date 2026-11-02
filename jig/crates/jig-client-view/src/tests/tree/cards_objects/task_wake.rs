@@ -37,7 +37,7 @@ fn whole_wake_channel_edits_preserve_batched_rules_flags_and_separate_subscripti
             let mut expected = initial.wake;
             expected.words = match rule {
                 WakeRule::Never => WakeRule::Immediate,
-                WakeRule::Immediate | WakeRule::Batch { .. } => WakeRule::Never,
+                WakeRule::Immediate | WakeRule::Batch { .. } | WakeRule::Paced { .. } => WakeRule::Never,
             };
             assert_eq!(selected.wake, Some(expected));
             assert!(selected.dependencies.is_none());

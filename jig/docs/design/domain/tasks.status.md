@@ -7,8 +7,8 @@
   7: a
   widening funded by whoever gives it (the task's existing funder is
   charged); moving a task under another task; successors; questions that
-  outlive their asker. 8.3: markers. 8.3: a pace (no `WakeRule` paces a
-  kind); a charter's default wake policy: jig's `Charter` carries none, and
+  outlive their asker. 8.3: markers. 8.3: a charter's default wake
+  policy: jig's `Charter` carries none, and
   a batch entry naming no policy takes `WakePolicy::DEFAULT`, which wakes on
   the last delegate's result (`jig-protocol-tools/src/nested.rs`).
   8.5: a conversation's questions.

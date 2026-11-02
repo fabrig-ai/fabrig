@@ -82,7 +82,14 @@ pub struct WakePolicy {
 pub enum WakeRule {
     Never,
     Immediate,
-    Batch { count: u32, age: Duration },
+    Batch {
+        count: u32,
+        age: Duration,
+    },
+    /// At most once in `span` from the task's last run's start (domain/tasks.md, 8.3).
+    Paced {
+        span: Duration,
+    },
 }
 
 /// How delegate results wake their requester.

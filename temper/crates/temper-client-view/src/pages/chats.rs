@@ -357,7 +357,7 @@ pub(crate) fn status(
         && let Some(wake) = wake
         && match wake.words {
             WakeRule::Never => false,
-            WakeRule::Immediate | WakeRule::Batch { .. } => true,
+            WakeRule::Immediate | WakeRule::Batch { .. } | WakeRule::Paced { .. } => true,
         }
     {
         Some(words.say(Word::WaitingForYourWords, &[]))
