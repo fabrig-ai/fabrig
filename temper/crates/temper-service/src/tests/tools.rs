@@ -126,7 +126,7 @@ fn the_largest_smith_call_name_fits_the_documentation_allowance() {
 }
 #[test]
 fn a_decided_answer_is_rendered_as_smiths_text() {
-    let event = crate::tools::render(TO, &root::CallAnswer::NoteWritten { name: 4, revision: 2 });
+    let event = crate::tools::render(TO, &root::CallAnswer::NoteWritten { name: 4, revision: 2 }, 1024);
     let root::Event::Worker(root::WorkerInput::RenderedHostCall { to, answer }) = event else {
         panic!("rendered answer")
     };

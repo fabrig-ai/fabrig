@@ -932,7 +932,7 @@ fn a_job_answer_names_its_failed_step_before_its_log() {
     let step = Some(api::Step { number: 1, name: Box::from(&b"build"[..]) });
     let read = api::Answer::Job { attempt, step, log: Box::from(&b"failing check build 3\n"[..]), truncated: true };
     let rendered = answer(&engine::CallAnswer::ForgeRead(Box::new(Ok(read))));
-    assert_eq!(rendered.text(), b"Job 8 run 7, failed step 1 build:\n[earlier log bytes cut]\nfailing check build 3\n");
+    assert_eq!(rendered.text(), b"Job 8 run 7, failed step 1 build:\n[log bytes cut]\nfailing check build 3\n");
     assert!(!rendered.error(), "A read answer is no error");
 }
 
@@ -1754,4 +1754,43 @@ fn a_no_change_verdict_preserves_its_explanation_and_cannot_claim_a_resource() {
         result(answer(), Some(ChangeResource { connector: 1, kind: 2, resource: 42 })),
         Err(Problem::Type(b"no_change"))
     );
+}
+
+#[test]
+fn job_answers_fit_metadata_and_escaped_log_bytes_within_the_host_bound() {
+    use skein_forge::api;
+    let diagnostic = b"Missing changes/40.md with the line: opened 2026-11-02T14:01:43Z\n";
+    for cap in [128, 1024, 4096] {
+        for byte in [0, b'\t', 255, b'x'] {
+            let mut log = vec![byte; 6000];
+            log.extend_from_slice(diagnostic);
+            let read = api::Answer::Job {
+                attempt: api::JobAttempt { head: [1; 32], run: 7, job: 8, attempt: 2 },
+                step: Some(api::Step { number: 3, name: Box::from(*b"build\t") }),
+                log: log.into_boxed_slice(),
+                truncated: false,
+            };
+            let rendered = crate::answer_bounded(&engine::CallAnswer::ForgeRead(Box::new(Ok(read))), cap);
+            assert!(!rendered.error());
+            assert!(rendered.text().len() <= usize::try_from(cap).unwrap());
+            assert!(rendered.text().ends_with(diagnostic));
+            assert!(skein_lib::bytes::find(rendered.text(), b"[log bytes cut]").is_some());
+        }
+    }
+}
+
+#[test]
+fn job_metadata_refusals_fit_even_a_tiny_host_bound() {
+    use skein_forge::api;
+    for cap in [0, 1, 16, 32] {
+        let read = api::Answer::Job {
+            attempt: api::JobAttempt { head: [1; 32], run: 7, job: 8, attempt: 2 },
+            step: Some(api::Step { number: 3, name: vec![255; 64].into_boxed_slice() }),
+            log: Box::from(*b"diagnostic"),
+            truncated: false,
+        };
+        let rendered = crate::answer_bounded(&engine::CallAnswer::ForgeRead(Box::new(Ok(read))), cap);
+        assert!(rendered.error());
+        assert!(rendered.text().len() <= usize::try_from(cap).unwrap());
+    }
 }

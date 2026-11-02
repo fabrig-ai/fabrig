@@ -348,7 +348,7 @@ A read.
 
 ## read_job
 
-Read one CI job's log, cut at a byte limit.
+Read one CI job's failed-step end or job tail, cut at a byte limit.
 
 A read.
 

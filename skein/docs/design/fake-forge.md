@@ -967,6 +967,8 @@ faults; the service and the hosted peer each have an allocator binary.
   success otherwise. The run and job use the same ids and logs as other
   Actions cases; the GitHub layer renders them in `reads/checks.rs`. CI runs
   once per commit and repository, coalescing overlapping fixture triggers.
+  A job's metadata renders the domain's first failed step by number and
+  name, or an empty steps list when none failed.
 - **A job's log** is a `302` to the blob origin: a second listener of
   the peer, the origin `http://<blob>`. The target is a path signed for
   600 seconds on the forge's clock. The blob listener serves the job's

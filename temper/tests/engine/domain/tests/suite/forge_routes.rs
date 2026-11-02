@@ -753,7 +753,7 @@ fn check_gate_repair(no_ci: bool) {
 }
 
 /// Temper 03.1's fake workflow step and log literals, read by hand.
-const BUILD_STEP: &[u8] = b"Failed step: 1 Run build\nEnd of its log:\n[log truncated before this]\n";
+const BUILD_STEP: &[u8] = b"Failed step: 1 Run build\nEnd of its log:\n[log bytes cut]\n";
 const BUILD_LOG_END: &[u8] = b"failing check build 3\n";
 /// Temper 03.1's cancelled job's completion log, read by hand.
 const JOB_LOG_END: &[u8] = b"job build cancelled\n";
@@ -858,7 +858,7 @@ fn a_failed_ci_with_no_failed_step_briefs_the_end_of_the_jobs_log() {
     let repair = failed_ci_repair(&mut world, &producer, &branch, &[b"build"]);
     let words = ci_words(&repair);
     assert!(
-        contains(words, b"No step failed. End of the job's log:\n[log truncated before this]\n"),
+        contains(words, b"No step failed. End of the job's log:\n[log bytes cut]\n"),
         "{}",
         String::from_utf8_lossy(words)
     );

@@ -13,6 +13,7 @@ skein-lib.workspace = true
 skein-sim.workspace = true
 
 [dev-dependencies]
+skein-forge-connection.workspace = true
 skein-world.workspace = true
 rustls = { workspace = true, features = ["std"] }
 skein-heap.workspace = true

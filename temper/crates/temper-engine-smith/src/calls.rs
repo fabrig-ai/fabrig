@@ -119,7 +119,7 @@ const FILE_SPEC: Spec = Spec {
 const JOB_SCHEMA: &[u8] = br#"{"type":"object","additionalProperties":false,"properties":{"repository":{"type":"string","description":"The repository, as owner/name; leave it out, or empty, when the project has one."},"head":{"type":"string","description":"The commit's id the CI ran on: 40 or 64 lowercase hexadecimal digits."},"run":{"type":"integer","description":"The CI run's id.","minimum":1,"maximum":18446744073709551615},"job":{"type":"integer","description":"The CI job's id, which may be 0 on Forgejo.","minimum":0,"maximum":18446744073709551615},"attempt":{"type":"integer","description":"The attempt's number, which may be 0 on Forgejo.","minimum":0,"maximum":4294967295},"max_bytes":{"type":"integer","description":"At most this many bytes; the read's limit when absent.","minimum":1,"maximum":4294967295}},"required":["head","run","job","attempt"]}"#;
 const JOB_SPEC: Spec = Spec {
     name: b"read_job",
-    description: b"Read one CI job's log, cut at a byte limit.",
+    description: b"Read one CI job's failed-step end or job tail, cut at a byte limit.",
     schema: JOB_SCHEMA,
     effect: run::HostEffect::Read,
 };
