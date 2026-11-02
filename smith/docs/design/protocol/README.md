@@ -174,7 +174,7 @@ host would be another.
 | `smith-protocol-program` | component | a run on a program backend: the program's status, command, settings and stream, and the agent's MCP server with its permission prompt, through skein's io, translated to and from `smith-domain` (programs.md) |
 | `smith-host-protocol` | component | the host's half: skein's channel and smith's codecs on the streams it is given, translated to and from `smith-host-domain` (hosts.md) |
 | `smith-local-protocol` | protocol layer | the local host's: the terminal, transcripts in files, signing in and committing in place (hosts.md) |
-| `smith-inline-agent` | domain | an agent capability in its host's process: one composed `smith-domain` per run, speaking `smith-host-domain`'s vocabulary; smith's side of jig's one host (domain/host.md, section 9) |
+| `smith-inline-agent` | domain | an agent capability in its host's process: one composed `smith-domain` per run, speaking `smith-host-domain`'s vocabulary (domain/host.md, section 9) |
 | `smith-agent-service`, `smith-local-service` | service | the agent process's and the product's `iterate`; each holds its profiles as step code, the `standard` profile among them, derives its limits and checks them (limits.md), and owns its event sink (events.md) |
 | `smith-agent-shell` | shell | the agent process, as a library: its configuration, its startup, and the one adapter that its binary and the worlds both run (agent.md) |
 | `smith-local-shell` | shell | the product, as a library: its commands, settings, credentials, composition and front ends (`docs/design/shell.md`) |

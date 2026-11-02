@@ -71,7 +71,7 @@ root package's (section 3). The layers are those of skein's echo
 |---|---|---|
 | `smith-agent-service` | service | the agent's `iterate`; the `standard` profile's deployment values and their derivation into every layer's limits, as step code with its tests |
 | `smith-local-service` | service | the local host's `iterate`: the local domain, which owns its agent as a child (the inline agent, or `smith-host-domain` for a spawned one), composed with the effects: the LLM and machine components, the chat store, the terminal and the event sink; the host's and the local layers' share of the profile |
-| `smith-inline-agent` | domain | smith's side of the one-host draft: a run as a composed `smith-domain` that speaks `smith-host-domain`'s vocabulary (domain/host.md) |
+| `smith-inline-agent` | domain | an agent capability in its host's process: a run as a composed `smith-domain` that speaks `smith-host-domain`'s vocabulary (domain/host.md) |
 | `smith-events` | codec | the event vocabulary (protocol/events.md), encoded over skein-json, with its goldens |
 | `smith-local-protocol` | protocol | the chat store and delivery records over skein io (protocol/hosts.md, section 5.3); the credentials directory's keys and installation identifier, as private files (section 7) |
 | `smith-agent-shell` | shell | the agent process (2.2) |
