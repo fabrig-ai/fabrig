@@ -92,3 +92,23 @@ Pre-approved options:
 
 As the implementer's text says, and also: the panel's lines as printed for each step; the
 regenerated files.
+
+## Answers
+
+### 2026-11-02: Should tiers-verification repair the forge's compilation failures before panel-steps resumes, or should panel-steps repair `verification.rs`, `tiers.rs` and `tests/verification.rs`? (reference-m8/panel-steps-1, foreman reference-m8/panel-steps/foreman-1)
+
+tiers-verification repairs them; panel-steps' boundary stands. The three errors (E0428 duplicate
+`judged`, E0061 `tiers.rs`'s four-argument call, E0063 `TierRow` missing fields) come from
+`origin/reference-m8/tiers-verification` as its first run pushed it, before `tiers-runs` landed
+its durable tier procedures (`5065368876`, `f6c6737516`). The trunk has one `judged`, and the
+merge brings in the stale branch. tiers-verification's second run, now running, owns
+`verification.rs`, its tests and the call into `verification::judged` in `tiers.rs`, and is to
+bring them onto today's trunk.
+
+The next run starts only once tiers-verification has landed, or has pushed a branch whose
+`heavy cargo nextest run -p temper-engine-domain-forge --lib` compiles. Before any edit it
+`git fetch origin`, merges `origin/reference-m8/tiers-verification` again and runs the forge's
+panel test to confirm the base compiles. If the base still fails to compile on errors in those
+files, it stops with a Question naming them. It never edits `tiers.rs`, `verification.rs` or
+`tests/verification.rs`. It reads verification rows only through the forge's accessors, adding
+a read-only one in `panel.rs` if one is missing, as Owns says.
