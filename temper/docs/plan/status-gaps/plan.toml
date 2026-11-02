@@ -1,0 +1,3 @@
+draft = "status-gaps"
+repo = "fabrig"
+sources = ["temper/docs/plan/status-gaps/inputs/request.md", "AGENTS.md"]
