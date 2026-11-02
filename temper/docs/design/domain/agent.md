@@ -634,12 +634,6 @@ of `../draft/v0.1.0.md`, 2.1.
   `domain/tasks.md`, section 9). The chat tells the person in words
   what its delegate waits on and that it waits in their inbox, then
   waits for their decision.
-- **The goal's question stays with the chat** (jig's `domain/tasks.md`,
-  8.5): the chat, woken by it, answers from what it knows (its person's
-  priorities, its notes), or asks its person a question of its own in
-  its own words, which is an entry of the person's inbox, and answers
-  the goal once it has the person's answer. Where jig's conversations
-  keep no questions, the route below holds.
 - Every Finite charter 1 run keeps `message` in smith's reserve; the owing fact is enforced at the root and is not known when the worker builds the charter.
 - **The goal asks its requester,** the chat, with `message` in the
   question form, before it calls `change`, and waits. jig puts the
@@ -717,6 +711,11 @@ host:
   it allows for the other families too, which the host part's budget
   (4.3) may force, and how a brief teaches an LLM when to delegate a task
   rather than a sub-agent.
+- **A goal's question kept with its chat** (jig's `domain/tasks.md`,
+  8.5): the chat, woken by it, would answer from what it knows (its
+  person's priorities, its notes), or ask its person a question of its
+  own and answer the goal once it has the answer, in place of 8.2's
+  route through the person's inbox. Default: 8.2's route.
 - **A cancel's grace:** jig's `cancel` takes one, if the run gives it
   (jig's `domain/engine.md`, 7.3); temper's takes none.
 - **A code graph** for a workspace (worker.md, section 12), as an MCP

@@ -12,5 +12,4 @@
   a chat's `deliver` before its end
   (`tests/real-loop/tests/suite/adoption_hold.rs`, ignored). 4.4: a verdict's
   follow-up tasks. 8: a change's agents under charters of its own
-  (`forge.md`, 8.1). 8.2: a goal's question kept with its chat (jig's
-  `domain/tasks.md`, 8.5); it waits in the person's inbox.
+  (`forge.md`, 8.1).

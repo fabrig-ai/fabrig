@@ -811,7 +811,7 @@ together again from both. A run's read is answered through the door.
   and proposals) are loads the root makes for the core and answers back
   in its terms; a full table of them answers busy.
 - **An issued transcript load that fails** answers the core's
-  `TranscriptUnread`, retiring its read once; an answer to a stale
+  `TranscriptLoad::Unread`, retiring its read once; an answer to a stale
   preparation is ignored. The core owns the window policy (jig's
   `domain/engine.md`, 7.2): a closed window starts fresh with an empty
   tail and no added failure or refusal, while an open window keeps its

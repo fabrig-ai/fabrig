@@ -196,14 +196,17 @@ contracts it relies on are temper's design: the box's forge hands
   as the welcome's paste does.
 - **What the box prints:** its sign-in link; on fake backends the
   fakes' addresses and the files a person pastes (the walk `box`, on
-  fake backends); and, for each forge it sets up or fakes, the forge's
-  API and the person (`../design/protocol/setup.md`, 7.3):
+  fake backends); and, for the forge it owns, the forge's API and the
+  person's login:
 
   ```text
-  HH:MM:SSZ Forge 3 (Forgejo): api http://ADDR/api/v1
-  HH:MM:SSZ Forge 3 (Forgejo): person LOGIN, read header FILE, write header FILE
+  HH:MM:SSZ Forgejo: api http://ADDR/api/v1
+  HH:MM:SSZ Forgejo: person LOGIN
   ```
 
+  The person's two header files are `person_read.header` and
+  `person_write.header` in `DATA/forge-FORGE/` (`temper help box`).
+  `../design/protocol/setup.md`, 7.3 has the box print their paths too.
   Each header file holds one line, `Authorization: token TOKEN`, private
   to the box's user, so that a pass passes a token by its path and never
   reads it.
