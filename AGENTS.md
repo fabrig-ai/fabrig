@@ -92,6 +92,8 @@ Beside every draft and every design document is its status file, `<name>.status.
 - **Departs:** 4.1: ..., because ...
 ```
 
+A draft being carried out may have an execution file beside it, `<name>.execution.md`: the milestones that carry it into the design and the code, each with the draft's part it executes, what it needs, the steps its walk covers and its state, kept current. It designs nothing: each milestone writes its own design from the draft as it runs. It goes when its draft does.
+
 - A retired or superseded draft is deleted, not marked. A draft whose vision the design now carries in full is deleted or moved to `draft/archive/`.
 - Surviving sections are never renumbered, since code and documents cite them: a removed section leaves its number unused. Whoever removes or moves a document or section fixes every citation to it in the repository.
 - The reasons behind drafts go in `draft/notes.md`. Reviews, reports and debt inventories go in the tree's `docs/development/`, never in `docs/design/`.
