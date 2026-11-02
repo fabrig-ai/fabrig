@@ -1118,6 +1118,7 @@ fn released_into(
         }
         delivery @ (Delivery::PlaygroundNote { .. }
         | Delivery::Host(_)
+        | Delivery::AssignedJob { .. }
         | Delivery::Link { .. }
         | Delivery::ForgeCall { .. }
         | Delivery::Bound { .. }

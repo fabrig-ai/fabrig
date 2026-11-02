@@ -879,7 +879,8 @@ impl World {
             }
             // A live notice to the requester, with no reply right.
             Delivery::Result { .. } => {}
-            other @ (Delivery::PlaygroundNote { .. }
+            other @ (Delivery::AssignedJob { .. }
+            | Delivery::PlaygroundNote { .. }
             | Delivery::Host(_)
             | Delivery::Procedure { .. }
             | Delivery::Forges { .. }

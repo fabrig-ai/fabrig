@@ -1048,6 +1048,7 @@ name = "jig-fleet-world"
 version = "0.0.0"
 dependencies = [
  "jig-domain-fleet",
+ "jig-domain-link",
  "skein-lib",
  "skein-world",
 ]

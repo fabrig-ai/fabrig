@@ -235,6 +235,10 @@ fn store(engine: &mut Engine, request: root::StoreRequest) {
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "one exhaustive dispatcher routes worker requests and their committed deliveries"
+)]
 fn worker(engine: &mut Engine, request: root::WorkerRequest) {
     match request {
         root::WorkerRequest::Host(request) => match *request {
@@ -254,6 +258,26 @@ fn worker(engine: &mut Engine, request: root::WorkerRequest) {
             engine.events.push(crate::tools::result(payload, &outcome, change));
         }
         root::WorkerRequest::Deliver(delivery) => match delivery {
+            root::Delivery::AssignedJob { channel, job, items } => {
+                let parts: Box<[jig_protocol_worker_wire::Part]> = match items {
+                    Some(bytes) => Box::new([jig_protocol_worker_wire::Part {
+                        token: job.workspace.as_ref().expect("job workspace items have a workspace").items,
+                        bytes,
+                    }]),
+                    None => Box::new([]),
+                };
+                let values = engine.values.grants(&job.grants, engine.env.now);
+                engine.workers.down(
+                    engine.env.now,
+                    jig_protocol_engine_workers::Event::Down {
+                        channel,
+                        down: jig_domain_host::LinkDown::AssignJob { job },
+                        parts,
+                        values,
+                    },
+                    &mut engine.events,
+                );
+            }
             root::Delivery::Assigned { channel, assignment } => {
                 engine.workers.assignment(engine.env.now, channel, assignment, &engine.values, &mut engine.events);
             }

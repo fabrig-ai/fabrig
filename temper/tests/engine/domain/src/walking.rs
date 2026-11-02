@@ -937,6 +937,7 @@ impl World {
                 .expect("committed result reaches person once"),
             Delivery::PlaygroundNote { .. }
             | Delivery::Host(_)
+            | Delivery::AssignedJob { .. }
             | Delivery::Link { .. }
             | Delivery::ForgeCall { .. }
             | Delivery::Bound { .. }

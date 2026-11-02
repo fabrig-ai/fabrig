@@ -48,6 +48,25 @@ fn outputs(
                 let assignment = crate::assemble::assignment(domain, env, &assignment).expect("validated charter");
                 Released::Host(host::Event::Down(host::LinkDown::Assign { assignment }))
             }
+            link::Request::AssignedJob { channel, job } => {
+                assert!(channel == Token::new(0), "ops engine's permanent link");
+                Released::Host(host::Event::Down(host::LinkDown::AssignJob {
+                    job: host::JobAssignment {
+                        run: Token::new(job.task),
+                        attempt: Token::new(job.attempt),
+                        kind: job.kind,
+                        spec: job.spec,
+                        deadline: job.deadline,
+                        workspace: match job.workspace {
+                            Some(_) => {
+                                Some(host::Workspace { workstream: job.workstream, items: Token::new(job.task) })
+                            }
+                            None => None,
+                        },
+                        grants: job.grants,
+                    },
+                }))
+            }
             link::Request::ReadResult { payload, outcome } => {
                 now(domain, Output::ReadResult { payload, outcome });
                 continue;

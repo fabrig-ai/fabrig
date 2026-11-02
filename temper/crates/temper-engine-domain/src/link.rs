@@ -147,7 +147,8 @@ pub(crate) fn route(domain: &mut Domain, event: hub::Event) {
                 let request = Request::Worker(WorkerRequest::ReadResult { payload, outcome });
                 assert!(crate::domain::now(domain, request), "result read door reserved");
             }
-            hub::Request::Assigned { .. }
+            hub::Request::AssignedJob { .. }
+            | hub::Request::Assigned { .. }
             | hub::Request::Down { .. }
             | hub::Request::Relayed { .. }
             | hub::Request::Message { .. }
@@ -167,6 +168,27 @@ pub(crate) fn delivery(domain: &mut Domain, event: hub::Event) -> crate::Deliver
     match out.pop().expect("link delivery") {
         hub::Request::Assigned { channel, assignment: value } => {
             crate::Delivery::Assigned { channel, assignment: assignment(domain, value) }
+        }
+        hub::Request::AssignedJob { channel, job } => {
+            let items = job.workspace;
+            let workspace = if items.is_some() {
+                Some(host::Workspace { workstream: job.workstream, items: Token::new(job.task) })
+            } else {
+                None
+            };
+            crate::Delivery::AssignedJob {
+                channel,
+                items,
+                job: host::JobAssignment {
+                    run: Token::new(job.task),
+                    attempt: Token::new(job.attempt),
+                    kind: job.kind,
+                    spec: job.spec,
+                    deadline: job.deadline,
+                    workspace,
+                    grants: job.grants,
+                },
+            }
         }
         hub::Request::Message { channel, run, attempt, word } => {
             crate::Delivery::Link { channel, down: message(run, attempt, &word) }

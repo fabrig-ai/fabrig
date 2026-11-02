@@ -655,6 +655,7 @@ impl Session {
             root::Delivery::ProjectMade { .. } => {}
             other @ (root::Delivery::Projection { .. }
             | root::Delivery::Message { .. }
+            | root::Delivery::AssignedJob { .. }
             | root::Delivery::Link { .. }
             | root::Delivery::CallBusy { .. }
             | root::Delivery::CallAnswer { .. }

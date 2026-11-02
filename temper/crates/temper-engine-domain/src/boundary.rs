@@ -825,6 +825,7 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
         | Delivery::Load { .. }
         | Delivery::ReadEscalationDecision { .. }) => Request::ToChild(Released(delivery)),
         delivery @ (Delivery::Host(_)
+        | Delivery::AssignedJob { .. }
         | Delivery::Link { .. }
         | Delivery::Procedure { .. }
         | Delivery::Assigned { .. }

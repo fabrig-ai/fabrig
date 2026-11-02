@@ -675,7 +675,7 @@ record HelloRefusalAgent { why: AgentShortfall }
 record HelloRefusalWorkers { limit: u32 }
 record HelloRefusalPosition { worker: u32 }
 record HelloRefusalStopBound { grace: duration }
-enum HelloRefusal { agent: HelloRefusalAgent, reserved_channel, workers: HelloRefusalWorkers, stop_bound: HelloRefusalStopBound, position: HelloRefusalPosition }
+enum HelloRefusal { agent: HelloRefusalAgent, reserved_channel, workers: HelloRefusalWorkers, stop_bound: HelloRefusalStopBound, position: HelloRefusalPosition, job_kinds }
 record TaskWaitHello { kind: HostKind at: u64 why: HelloRefusal }
 enum TaskWaitRefused { hello: TaskWaitHello }
 record TaskRunWaitRefused { value: TaskWaitRefused }

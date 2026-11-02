@@ -122,6 +122,7 @@ pub enum DeploymentPhrase {
     HelloRefusalReservedChannel,
     HelloRefusalWorkers,
     HelloRefusalPosition,
+    HelloRefusalJobKinds,
     HelloRefusalStopBound,
     PersonCapacityActionCreate,
     PersonCapacityActionCompound,
@@ -237,7 +238,7 @@ pub enum DeploymentPhrase {
     StoreBytes,
     StoreMark,
 }
-pub const ALL: [DeploymentPhrase; 291] = [
+pub const ALL: [DeploymentPhrase; 292] = [
     DeploymentPhrase::Agent(AgentPhrase::Model),
     DeploymentPhrase::Agent(AgentPhrase::Window),
     DeploymentPhrase::Agent(AgentPhrase::Output),
@@ -395,6 +396,7 @@ pub const ALL: [DeploymentPhrase; 291] = [
     DeploymentPhrase::HelloRefusalReservedChannel,
     DeploymentPhrase::HelloRefusalWorkers,
     DeploymentPhrase::HelloRefusalPosition,
+    DeploymentPhrase::HelloRefusalJobKinds,
     DeploymentPhrase::HelloRefusalStopBound,
     DeploymentPhrase::PersonCapacityActionCreate,
     DeploymentPhrase::PersonCapacityActionCompound,
@@ -645,6 +647,7 @@ impl DeploymentPhrase {
                 Self::HelloRefusalReservedChannel => 9301,
                 Self::HelloRefusalWorkers => 9302,
                 Self::HelloRefusalPosition => 9718,
+                Self::HelloRefusalJobKinds => 12004,
                 Self::HelloRefusalStopBound => 9303,
                 Self::PersonCapacityActionCreate => 9422,
                 Self::PersonCapacityActionCompound => 9423,
@@ -826,6 +829,7 @@ impl DeploymentPhrase {
             | Self::AccountStateMisconfigured
             | Self::AccountStateClosing
             | Self::AccountStateMoving
+            | Self::HelloRefusalJobKinds
             | Self::HelloRefusalReservedChannel
             | Self::HelloRefusalWorkers
             | Self::HelloRefusalStopBound
@@ -1093,6 +1097,7 @@ impl DeploymentPhrase {
             Self::AccountStateMoving => b"moving",
             Self::HelloRefusalReservedChannel => b"Channel zero belongs to the engine's own host",
             Self::HelloRefusalWorkers => b"No room for another worker",
+            Self::HelloRefusalJobKinds => b"Its job kinds are not ascending and distinct.",
             Self::HelloRefusalPosition => b"Unconfigured or occupied worker position ",
             Self::HelloRefusalStopBound => b"It would not stop before the engine's grace ends",
             Self::PersonCapacityActionCreate => b"Person Capacity Action Create",
