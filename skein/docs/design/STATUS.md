@@ -13,14 +13,13 @@ GitHub's Actions routes and the fake forge's run reports (`forge.md`,
 and http's collector have no fuzz target (`json.md`, `tls.md`,
 `http.md`), and the withdrawn LLM routes still stand while smith uses
 them (`llm.md`). Single items lag in `lib.md`, `examples.md` and
-`ui.md`. The code departs where the forge components take and drop a
-forge while they run, because the playground is reset
-(`forge-connection.md`, `forge-setup.md`); in the readiness backend's
+`ui.md`. The code departs in the readiness backend's
 retry of an interrupted `Socket`, `Accept` or `Connect` (`shell.md`); and in three
 crates' `tests/` directories (`testing.md`). `README.md`, `channel.md`,
 `codec.md`, `kv.md`, `world.md`, `fake-checkout.md`, `fake-llm.md`,
-`forge-client.md`, `llm-connection.md`, `oauth.md`, `oauth-issuer.md`
-and `ui-text.md` have no gap. The foundation's rules
+`forge-client.md`, `forge-connection.md`, `forge-setup.md`,
+`llm-connection.md`, `oauth.md`, `oauth-issuer.md` and `ui-text.md` have
+no gap. The foundation's rules
 (`../foundation/`) have no status file: of `testing-strategy.md`, 6, no
 tree runs transition coverage (`cargo llvm-cov`) or fuzzes a machine or a
 decoder (`cargo fuzz`). Of the drafts, `component-kit.md` waits on
