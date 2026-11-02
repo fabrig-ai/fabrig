@@ -1,4 +1,4 @@
-//! Finite waits at a turn boundary preserve work for a fresh activation (smith/docs/design/domain/run.md, sections 6 and 9.1).
+//! Finite waits at a turn boundary preserve work for a fresh activation.
 use super::*;
 
 #[test]
