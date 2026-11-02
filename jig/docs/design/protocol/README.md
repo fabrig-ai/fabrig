@@ -182,7 +182,7 @@ An application that mixes the last two has both.
 | `jig-protocol-config` | parsing | engine, worker | jig's part of a configuration, parsed and checked (`configuration.md`) |
 | `jig-protocol-store` | component, codecs | engine | jig's records and the application's on skein-kv, transcripts' files, the secrets' store (`store.md`) |
 | `jig-client-protocol-wire` | codecs | engine, client | jig's wire records, both ends, from schemas: jig's messages, their operations and compound requests, subjects and reads, documents, the stream's events, the small store's records (`client.md`, section 3) |
-| `jig-protocol-engine-clients` | component | engine | the clients' component: jig's messages from the application's transport, each with its credential as opaque bytes, and to it; a `Mint` from the application's server; streams and their pacing; credentials minted, verified, expired and revoked, the printed link's secret; translation to and from the core's vocabulary. No HTTP, path, cookie or listener (`client.md`, 4.2) |
+| `jig-protocol-engine-clients` | component | engine | the clients' component: jig's messages from the application's transport, each with its credential as opaque bytes, and to it; a `Mint` from the application's server; streams and their pacing; credentials minted, verified, expired and revoked, the printed link's secret; the OpenID provider's codes and access tokens (`client.md`, section 18); translation to and from the core's vocabulary. No HTTP, path, cookie or listener (`client.md`, 4.2) |
 | `jig-protocol-engine-clients-http` | mapping | engine | the default HTTP mapping's engine end: its routes under the prefix the application mounts it at, the stream as server-sent events, the credential as a cookie or a bearer, and the example guards (`client.md`, section 17; `browser.md`, 12.2) |
 | `jig-client-protocol-link` | component | client | jig's messages encoded and decoded, the stream's events, the small store's records; no HTTP (`client.md`, 4.3) |
 | `jig-client-protocol-http` | mapping | client | the default HTTP mapping's client end: a message as a method, a path, headers and a body; the stream's server-sent events cut into events; for the host and wasm32 (`client.md`, 17.4) |
@@ -406,7 +406,7 @@ Each is generic, and says nothing about jig.
   - `skein-ui-web`, the browser parts each usable alone and their
     default mapping of roles to elements, beside which jig's own parts
     sit (`browser.md`, 5.1): their platform halves call through the glue
-    crates, `wasm-bindgen`, `js-sys` and `web-sys`, pinned in skein's
+    crates, `wasm-bindgen`, `js-sys` and `web-sys`, pinned in the
     workspace, which with their dependencies are the only `unsafe` such
     a client runs (`programming-model.md`, section 2.1);
     `jig-client-shell-web` forbids it in its own code;
@@ -440,11 +440,11 @@ Each is generic, and says nothing about jig.
 
 ## 11. What jig needs from smith
 
-- **What smith gives:** charter v2, with each model's window, output and
+- **What smith gives:** its charter, with each model's window, output and
   prices with cache writes, and the budget's reserve (smith's
-  `protocol/charter.md`, section 2); transcript v5,
-  whose turns say whether they open a window (smith's
-  `protocol/transcript.md`, section 3); channel v2, with a start's
+  `protocol/charter.md`, section 2); its transcript, whose turns say
+  whether they open a window (smith's `protocol/transcript.md`, section
+  3); its channel, with a start's
   messages and the run's identity, messages refused at the kit's
   entrance, the answer's final fence, and content-free facts (smith's
   `protocol/channel.md`, sections 3 to 8); the host domain and its host
@@ -474,7 +474,8 @@ Each is generic, and says nothing about jig.
     start, one boolean per kind (`text`, `reasoning`, `input`), and
     jig's assignment carries the ask, set for a run whose task is a
     conversation. smith sends, best effort and counted when dropped, the
-    main conversation's pieces of the kinds it builds (now `text`), each
+    main conversation's pieces of the kinds it builds (`text` and
+    `input`), each
     naming the turn it will be told as, its completion's retry, its kind
     and its offset, all before that turn's record. An ask for a kind
     smith does not build is not refused, and gets nothing. Without the
