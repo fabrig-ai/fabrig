@@ -311,7 +311,6 @@ a host (temper's worker, smith's local host, ...)
   - its parts;
   - what it owes the domain, and what skein owes it;
   - its world;
-  - what it keeps from temper;
   - what is open.
 
 ## 8. Versions
@@ -353,9 +352,7 @@ to an older reader or writer. Each has one version at a time.
     cache-write price, and the budget's reserve (charter.md, section 5);
   - **transcripts' third:** a turn's kind and the window turn, the
     affinity, optional usage with reasoning tokens, the cut call, and a
-    message's blocks from calls per response (transcript.md, section 6).
-    The conversation vocabulary's first version stays with temper's
-    legacy run (domain/README.md, section 7);
+    message's blocks from calls per response (transcript.md, section 6);
   - **the events' first** (events.md).
 - **Then, with accounts and programs,** in one release:
   - **the channel's fourth,** after live text's third: grants as a
@@ -478,29 +475,6 @@ it.
     (testing-strategy.md, 2.5).
 - **Later, and only if measured:** Codex's routing state and reasoning
   context, and an incremental transport over WebSocket.
-
-## 10. From temper
-
-- **Kept:**
-  - from temper's channel: its framing, opening, bounds and golden frames
-    (channel.md);
-  - from its LLM translation: tools' schemas, decoding with typed problems,
-    failure classes, and providers' opaque blocks (llm.md).
-- **Gone:**
-  - temper's magic;
-  - a name and a secret on a pipe's opening;
-  - snapshots;
-  - endpoints' addresses, since skein's LLM client owns transport;
-  - temper's payloads;
-  - a push as a request of its own, since delivery is smith's.
-- **The channel between temper's engine and its workers** is jig's,
-  on skein's channel and codecs (jig's `protocol/channel.md`), with
-  temper's parts in it (temper's `protocol/channel.md`). Its hop to the
-  agent is this directory's.
-- **The agent's half of `temper-agent-protocol`** becomes this directory's
-  components. temper keeps its own half: rendering the brief, mapping the
-  charter, and its tools' schemas and answers (temper's `domain/agent.md`,
-  section 4; temper's `protocol/llm.md`, sections 4 and 5).
 
 ## 11. Open questions
 

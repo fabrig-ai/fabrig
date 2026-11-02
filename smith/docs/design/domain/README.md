@@ -1,11 +1,9 @@
 # smith
 
 Provisional, 2026-10-05, revised 2026-10-16. smith is a kit for building flexible LLM
-agents, and a standard agent built from it. Like temper, it is built on
-skein and follows skein's foundation documents. It grew from temper's
-agent, and temper is its first host. Nothing here depends on temper:
-temper is named only as an example, and section 7 says what changed from
-temper's agent.
+agents, and a standard agent built from it. It is built on skein and
+follows skein's foundation documents. Nothing here depends on its hosts:
+jig and temper are named only as examples.
 
 ## 1. In one page
 
@@ -284,34 +282,7 @@ first (run.md, 5.1); tools compiled in are an open question (section 8).
 - **A host's documents** are named with their project: temper's
   `domain/worker.md`. They are examples, never relied on.
 - **Each document** says in one page what it is, then its parts, what it
-  owes and is owed below the domain, its world, what it keeps from temper,
-  and what is open.
-
-## 7. From temper
-
-What changes from temper's agent:
-
-- **Closed tool sets open.** A run served `finish` and sub-agents, and
-  the design added the engine's tools by name; now a run serves `finish`,
-  `deliver`, `wait` and sub-agents, and relays any host tool its charter
-  declares. temper's grants for the forge and outlets go: both are host
-  tools.
-- **A change is no longer a pull request.** Its title and body are fields
-  temper's contract requires; pushing is temper's delivery; a branch that
-  moved is a stale delivery.
-- **`.temper/pre-pr` and `AGENTS.md` are conventions** temper's charters
-  name; smith's defaults are `.smith/check` and `AGENTS.md`.
-- **Verdict lists fixed in code go;** the contract carries them.
-- **The brief arrives rendered.** Its typed sections and their rendering
-  are temper's.
-- **Budgets are in the host's unit,** with prices; the token split of
-  temper's engine goes.
-- **The agent's protocol layer** is smith's, and its channel smith's own,
-  which temper's worker speaks as a host (host.md, section 3).
-- **One transcript version.** smith's transcripts are the conversation
-  vocabulary's current version, which reads no other
-  (`protocol/transcript.md`, section 6); the first, and the legacy run
-  that opens it, stay with temper until its cutover.
+  owes and is owed below the domain, its world, and what is open.
 
 ## 8. Open questions
 

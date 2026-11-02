@@ -760,12 +760,3 @@ budgets.
   within a turn and never keeps it in a transcript.
 - **Provider-native compaction:** a dialect's own compaction items,
   replayed verbatim, as a later optimisation of section 8.2.
-
-## 12. From temper
-
-The session is temper's agent's, as its second version: turns told with
-names resolved, transcripts versioned, prices and spend in a unit,
-history checked before a completion. temper's first version, which
-tickets made meaningful only inside its session, stays with temper's
-legacy run until temper's cutover; smith starts at the second. Windows,
-the affinity and tool choice are new.

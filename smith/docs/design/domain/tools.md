@@ -455,14 +455,6 @@ prove on a real kernel.
 - **A run's own environment:** a typed, bounded charter overlay, merged
   in one place, only once a host needs one.
 
-## 9. From temper
-
-temper's agent's tools domain, as it was, with `edit` taking several
-replacements and needing a match rather than a read, `list` answering a
-tree, output budgets the LLM chooses within ceilings, and one path
-namespace; only the names of what it confines for (temper's worker)
-become the host's.
-
 ## 10. On a program backend
 
 A run on a program backend (protocol/programs.md) has none of this

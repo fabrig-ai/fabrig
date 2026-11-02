@@ -558,11 +558,9 @@ A child a host embeds, beside or instead of `smith-host-domain`:
   and no domain parses: the spawned kind's bytes are
   `smith-host-protocol`'s, below `smith-host-domain` (skein's
   `programming-model.md`, section 4).
-- **smith's own.** `smith-inline-agent` is built in smith, with jig's
-  `jig-inline-agent` as a reference for its shape, not as code to keep in
-  step: the typed face, the workspace routing and the stop ladder (9.2)
-  are smith's design. jig is not changed by this work; whether it later
-  takes smith's is jig's (section 11).
+- **smith's own.** The typed face, the workspace routing and the stop
+  ladder (9.2) are smith's design; jig's hosts compose
+  `smith-inline-agent` as it is (jig's `domain/hosts.md`, section 5.2).
 - **A wall bound, and no progress watchdog** (9.1).
 
 ## 10. The world
@@ -623,22 +621,6 @@ sends one to three
 lines at random moments, with store delays and the end of input
 anywhere. Simulated time is free, so these fit the focused and fuzzy
 budgets.
-
-## 11. From temper
-
-- **The contract and the channel** are temper's channel's agent hop, as
-  temper's design changed it (turns, transcripts, messages carried whole,
-  relayed calls with names, spend, waiting), with temper's names gone:
-  runs are a host's, push is delivery, and the engine's tools are host
-  tools.
-- **`smith-host-domain`** is temper's worker's agent child domain, as
-  temper's `domain/worker.md`, section 6, describes it: one process per
-  run, the watchdog, cancel then kill.
-- **The inline agent** follows jig's `jig-inline-agent`, the first of its
-  kind, in shape, and is smith's own: typed, with a workspace and the
-  drop's settlement. smith's APIs change freely for it; jig and temper
-  adapt separately, on their own schedule.
-- **The local host** is new.
 
 ## 12. Open questions
 

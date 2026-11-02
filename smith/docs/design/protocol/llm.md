@@ -632,18 +632,6 @@ component and skein's client against scripted byte peers, in each dialect.
 
 All run in virtual time, in milliseconds each, within the focused suite.
 
-## 11. From temper
-
-- **Kept, from temper's `protocol/llm.md`:**
-  - fixed schemas for the workspace's tools;
-  - total decoding with typed problems;
-  - failures classified and never retried below the domain;
-  - opaque blocks kept verbatim;
-  - cache markers placed by the dialect, now skein's.
-- **Moved to skein:** the providers' codecs, the client, identity profiles,
-  and captured traffic for tests.
-- **Gone:** the engine's tools' schemas, now temper's host tools.
-
 ## 12. Open questions
 
 - **More providers:** other dialects and local models. They are skein's

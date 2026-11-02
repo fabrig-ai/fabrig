@@ -407,17 +407,6 @@ spawns one (hosts.md, section 5.2).
   allocator, one measured total peak under a ceiling with headroom per
   scenario (limits.md, section 11).
 
-## 9. From temper
-
-- **Kept:** temper's agent's tools below the domain, unchanged in what they
-  do, and its log for operators on standard error.
-- **New:**
-  - views with read-only git directories, with contained trees;
-  - process groups for every command, check and search;
-  - the commands' environment in configuration;
-  - declared quantities, with their derivation and checks;
-  - the event stream.
-
 ## 10. Open questions
 
 - **A daemon:** listening for connections and deciding on a credential

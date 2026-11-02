@@ -222,9 +222,7 @@ jobs of every earlier window and activation.
 
 ## 6. Versions
 
-- **Version 2 is the first,** continuing the conversation vocabulary whose
-  first version stays with temper's legacy run (domain/README.md,
-  section 7).
+- **Version 2 is the first.**
 - **Version 3** adds:
   - a turn's kind, and the window turn;
   - the affinity, in a transcript's opening turn;
@@ -325,14 +323,6 @@ jobs of every earlier window and activation.
     turn, and on no other, and a host resuming from the last of them.
 - **A large transcript:** at the resume limit, one window at its largest,
   its measured total peak under a scenario ceiling with headroom.
-
-## 10. From temper
-
-- **Kept:** temper's second conversation version: turns told with names
-  resolved, versioned, with opaque blocks verbatim and spend in a unit.
-- **Gone:** snapshots, and tickets meaningful only inside the session that
-  made them.
-- **New:** windows, the affinity kept once, and optional usage.
 
 ## 11. Open questions
 

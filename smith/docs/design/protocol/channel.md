@@ -601,30 +601,6 @@ a trace is kept is the agent's configuration (agent.md).
   - pieces of a kind the start did not ask for: none;
   - no credential's value in a turn, a fact, a piece or a domain.
 
-## 11. From temper
-
-- **Kept from temper's channel's agent hop,** in its second version:
-  - the start, with a transcript and conflicted files;
-  - numbered turns with spend and the last message read;
-  - calls, withdrawals, long operations and waiting;
-  - notices of rejected and exhausted accounts;
-  - grants as values beside names;
-  - the answer's turn count and spend.
-- **New:**
-  - acknowledgements on this hop, within a window;
-  - admitted;
-  - named messages with a sender's label, carried in the start too, each
-    with one terminal;
-  - the run's identity, and the answer's fence;
-  - deliveries answered in smith's terms;
-  - typed failures;
-  - smith's refusal reasons.
-- **Gone:**
-  - snapshots;
-  - endpoints in the start, since the agent is configured with its own;
-  - temper's kinds and their numbers;
-  - the push, which becomes a delivery.
-
 ## 12. Open questions
 
 - **A transcript in pieces,** if a start's frame proves too large to hold

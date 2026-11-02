@@ -677,12 +677,6 @@ The vocabulary is pre-release, like every format (README.md, section 8).
 - **Its consumers** read through the same reader: the live tests, and
   the benchmarks' harness (`docs/design/benchmarks.md`).
 
-## 9. From temper
-
-- **Kept:** the agent's log for operators on standard error (agent.md,
-  section 9).
-- **New:** the event vocabulary.
-
 ## 10. Open questions
 
 - **A published schema:** a JSON Schema of the records for consumers

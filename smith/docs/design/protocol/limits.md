@@ -934,13 +934,6 @@ losslessly by count.
   adjacent reads than `parallel_tools`,
   the rest run as the next batch once the first has answered.
 
-## 12. From temper
-
-- **Kept:** limits per layer and refusal at the entrance
-  (programming-model.md, sections 6 and 7).
-- **New:** declared quantities and their derivation, relationships
-  checked by name, the LLM pool, and limits as per-call outcomes.
-
 ## 13. Open questions
 
 - **Calls past `calls_per_response`:** whether skein marks the calls

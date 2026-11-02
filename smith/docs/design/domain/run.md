@@ -1029,26 +1029,6 @@ These are domain-speed stories under a deterministic clock and seed,
 within the focused suite's budget; the fuzzy suite draws message
 timings, budgets and shares within its own (`docs/design/testing.md`).
 
-## 14. From temper
-
-- **The run, as temper built it, stays:** charters judged at the
-  entrance, sessions with budgets and retries, typed tools, finishing
-  with checks, a delivery's feedback.
-- **Served tools grow** from `finish` and sub-agents to `deliver` and
-  `wait`; **host tools** replace the engine's tools as a closed list, and
-  the forge and outlet grants, which nothing served.
-- **The result contract** gains reports and declared failures, and
-  carries the verdict lists temper's agent fixed in code; a change's
-  title and body become fields.
-- **Push becomes delivery,** its reasons the host's, its bounded
-  diagnostic tail kept; a moved branch is a stale delivery.
-- **Conventions** replace `.temper/pre-pr` and `AGENTS.md` in code.
-- **Budgets** move from temper's token split to the host's unit with
-  prices.
-- **New, as temper's `domain/agent.md` planned them:** messages, `wait`,
-  parking, resuming from a transcript, calls asked again, delivering
-  mid-run, and merges in progress.
-
 ## 15. Open questions
 
 - **A sub-agent's result:** its final message today; whether a sub-agent

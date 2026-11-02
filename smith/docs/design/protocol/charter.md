@@ -254,20 +254,6 @@ and a refusal names what was too large.
   check that smith's codec and entrance admit it, as temper's
   `domain/agent.md`, section 9, plans.
 
-## 9. From temper
-
-- **Kept:** the charter's content as temper's design changed it, and
-  temper's verdicts, carried as data.
-- **Gone:**
-  - roles and task kinds;
-  - verdict lists fixed in code;
-  - a change's title and body as fields of their own, now names the host
-    requires;
-  - a token split for the budget, now spend in the host's unit with prices,
-    and a reserve to finish with;
-  - endpoints described in the start, now names the agent's configuration
-    resolves.
-
 ## 10. Open questions
 
 - **Conventions' home:** in the charter, as here, or in the agent's
