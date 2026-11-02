@@ -280,6 +280,7 @@ impl World {
                 | Request::Lost { .. }
                 | Request::Withdrawn { .. }
                 | Request::Refused { .. }
+                | Request::AssignJob { .. }
                 | Request::Observed { .. } => panic!("unexpected turn-world request: {request:?}"),
             }
         }

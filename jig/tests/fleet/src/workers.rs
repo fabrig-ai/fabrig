@@ -97,7 +97,7 @@ impl World {
         }
         self.stats.admitted += 1;
         self.admitted.insert((run, attempt));
-        let plan = if self.rng.chance(self.settings.parks) {
+        let plan = if self.settings.job.is_none() && self.rng.chance(self.settings.parks) {
             Kind::Parked
         } else if self.rng.chance(self.settings.fails) {
             Kind::Failed
@@ -112,7 +112,9 @@ impl World {
             entry.cache.pop_front();
         }
         self.after(self.settings.run, Delivery::Ends { worker, run, attempt });
-        self.after(self.settings.call_gap, Delivery::Call { worker, run, attempt });
+        if self.settings.job.is_none() {
+            self.after(self.settings.call_gap, Delivery::Call { worker, run, attempt });
+        }
     }
 
     /// The run ends as it planned, unless it has ended already.

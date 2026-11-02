@@ -166,3 +166,12 @@ fn a_job_chip_round_trips_wire_to_domain_to_wire() {
     assert_eq!(restored, chip);
     assert_eq!(facts::chip(&restored, limits.wire()), Ok(wire));
 }
+
+/// jig/docs/design/protocol/channel.md, 4.3: scripted engines carry the fleet's reason.
+#[test]
+fn job_kinds_hello_refusal_round_trips() {
+    let record = values::wire_hello_refusal(&c::HelloRefusal::JobKinds, &w::CEILINGS).expect("unit refusal");
+    let bytes = encoded(&record, w::HelloRefusal::measure, w::HelloRefusal::encode).expect("encoded refusal");
+    let decoded = w::HelloRefusal::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("decoded refusal");
+    assert_eq!(decoded, record);
+}

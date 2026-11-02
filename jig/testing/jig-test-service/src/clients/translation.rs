@@ -117,6 +117,7 @@ pub(crate) fn application(value: root::Delivery) -> Option<kit::Event> {
         | root::Delivery::Message { .. }
         | root::Delivery::Core(..)
         | root::Delivery::CallAnswer { .. }
+        | root::Delivery::AssignedJob { .. }
         | root::Delivery::Assigned { .. }
         | root::Delivery::Fleet(..)
         | root::Delivery::System { .. }

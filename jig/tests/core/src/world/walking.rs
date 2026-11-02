@@ -269,7 +269,8 @@ impl Walking {
             | root::Delivery::Core(
                 core::Held::Delivery { .. } | core::Held::WatchEnded { .. } | core::Held::Grant { .. },
             ) => {}
-            other @ (root::Delivery::Link { .. }
+            other @ (root::Delivery::AssignedJob { .. }
+            | root::Delivery::Link { .. }
             | root::Delivery::ProjectMade { .. }
             | root::Delivery::CallBusy { .. }
             | root::Delivery::CallAnswer { .. }
