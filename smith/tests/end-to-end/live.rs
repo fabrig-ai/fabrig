@@ -30,7 +30,7 @@ fn chatgpt_delivers_a_commit_in_place() {
 #[test]
 fn a_run_refreshes_its_grant_at_the_issuer() {
     let mut environment = live::Environment::load(&["chatgpt"]);
-    environment.refresh_lead = Some(34_560_000);
+    environment.refresh_lead = Some(live::REFRESH_LEAD_SECONDS);
     let before = environment.generation();
     let scratch = Scratch::new();
     let completed = change(
@@ -315,8 +315,7 @@ fn run(
     let change = expectation.before.is_some();
     let mut arguments = live::arguments(account, scratch.path(), change, push);
     if let Some(lead) = environment.refresh_lead {
-        let at = arguments.len().checked_sub(1).expect("prompt argument");
-        arguments.splice(at..at, ["-c".into(), format!("deployment.refresh_lead={lead}").into()]);
+        live::with_refresh_lead(&mut arguments, lead);
     }
     let mut check_arguments = vec!["check".into(), "--json".into()];
     check_arguments.extend(arguments.clone());
