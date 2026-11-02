@@ -7,4 +7,4 @@ The design carries sections 2 to 6: jig's `domain/engine.md`, section 17 (settin
 - **Design lags:**
   - 2, 3.1, 3.2, 4, 5: the design takes some rules from this draft by citing it rather than saying them: `../protocol/configuration.md`, 13 (3.1's rule, 3.2's release defaults, 4's always-current authority, 5.1, 5.2, and in 13.7 a charter's documents from 2), `../domain/agent.md`, 8.1 (2, 5 and 6), jig's `domain/engine.md`, 17.9 (2) and 17.10 (3.3).
   - 2: the reference's structure rows wait on designs the reference names: a goal's own branch (`notes.md`, N3), a landing rule for goal branches (N4), a change's LLM choices (N19), a charter's wake policy (N23) and a change's question bound (N1); `../domain/agent.md`, 8.2 has a change's agents ask no question.
-  - 8: no design document holds the configuring agent's golden, the reference's settings scored against a real model's proposal (v0.1.0's rung D); `../domain/agent.md` 8.3, which held it, is deleted, its number unused.
+  - 8: no design document holds the configuring agent's golden, the reference's settings scored against a real model's proposal (v0.1.0's rung D).
