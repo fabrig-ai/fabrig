@@ -881,3 +881,74 @@ fn an_imported_records_path_is_printed_as_file() {
         assert_eq!(printed_command(&words(kept)), words(kept));
     }
 }
+
+fn delegate_read(rows: &[u64], cut: bool, after: Option<&str>) -> Value {
+    json!({
+        "live": [], "live_after": null,
+        "ended": {"rows": {
+            "rows": rows.iter().map(|task| json!({"chip": {"task": task}})).collect::<Vec<_>>(),
+            "cut": cut,
+            "after": after.map(|value| json!({"value": value}))
+        }}
+    })
+}
+
+/// domain/testing.md, 2.7: the chat's and the change's ended delegates are read whole,
+/// a page at a time, by the cursor each page prints.
+#[test]
+fn ended_delegates_are_read_whole_by_their_cursor() {
+    use support::forge_land::EndedDelegates;
+    let mut ended = EndedDelegates::new(2, [2, 3]);
+    assert_eq!(ended.first(), ["task", "list", "--project", "2", "--parent", "2", "--ended", "--json"]);
+    for (read, expected) in [
+        (
+            delegate_read(&[3], false, Some("3")),
+            vec!["task", "list", "--project", "2", "--parent", "2", "--ended", "--json", "--after", "3"],
+        ),
+        (
+            delegate_read(&[5], true, Some("5")),
+            vec!["task", "list", "--project", "2", "--parent", "2", "--ended", "--json", "--after", "5"],
+        ),
+        (delegate_read(&[], false, None), vec!["task", "list", "--project", "2", "--parent", "3", "--ended", "--json"]),
+    ] {
+        assert_eq!(ended.read(&read), Ok(Some(expected.into_iter().map(str::to_owned).collect())), "{read}");
+    }
+    assert_eq!(ended.read(&delegate_read(&[7, 6], false, None)), Ok(None));
+    assert_eq!(ended.whole(), [vec![3, 5], vec![6, 7]]);
+}
+
+/// domain/testing.md, 2.7: what the story refuses of a delegate page, naming it.
+#[test]
+fn an_ended_delegate_read_refuses_live_rows_a_cut_without_a_cursor_and_a_33rd_page() {
+    use support::forge_land::EndedDelegates;
+    let mut live_row = delegate_read(&[], false, None);
+    live_row["live"] = json!([{"chip": {"task": 4}}]);
+    let mut live_after = delegate_read(&[], false, None);
+    live_after["live_after"] = json!({"value": "4"});
+    let mut missing_task = delegate_read(&[4], false, None);
+    missing_task["ended"]["rows"]["rows"] = json!([{"chip": {}}]);
+    let mut missing_rows = delegate_read(&[], false, None);
+    missing_rows["ended"]["rows"]["rows"] = Value::Null;
+    for (read, expected) in [
+        (live_row, "no live delegates"),
+        (live_after, "no live delegates"),
+        (delegate_read(&[4], true, None), "ended delegate page cut without a cursor"),
+        (missing_task, "delegate task missing (chip.task)"),
+        (missing_rows, "ended delegate rows missing"),
+    ] {
+        let mut ended = EndedDelegates::new(2, [2, 3]);
+        assert_eq!(ended.read(&read), Err(expected.to_owned()), "{read}");
+    }
+    // The bound holds within one parent and across both parents.
+    for first in [delegate_read(&[3], false, Some("3")), delegate_read(&[], false, None)] {
+        let mut ended = EndedDelegates::new(2, [2, 3]);
+        assert!(ended.read(&first).expect("first delegate page").is_some());
+        for _ in 1..EndedDelegates::PAGES {
+            assert!(ended.read(&delegate_read(&[4], false, Some("4"))).expect("within page bound").is_some());
+        }
+        assert_eq!(
+            ended.read(&delegate_read(&[], false, None)),
+            Err("ended delegates exceed 32-page bound".to_owned())
+        );
+    }
+}
