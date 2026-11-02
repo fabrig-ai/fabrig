@@ -3,7 +3,7 @@ id = "root-document-binding"
 part = "documents-temper"
 kind = "feature"
 needs = ["jig-documents-surface", "forge-document-gather"]
-files = ["temper/crates/temper-engine-domain/src/boundary.rs", "temper/crates/temper-engine-domain/src/assemble.rs", "temper/crates/temper-engine-domain/src/route/now.rs", "temper/crates/temper-engine-domain/src/limits.rs", "temper/crates/temper-engine-domain/src/link.rs", "temper/crates/temper-engine-domain/src/budget.rs", "temper/crates/temper-engine-domain/src/store/settings_bytes.rs", "temper/crates/temper-engine-domain/src/tests.rs", "temper/crates/temper-engine-domain/src/tests/documents.rs", "temper/crates/temper-engine-domain/src/tests/resume_fixture.rs", "temper/crates/temper-engine-domain/src/route/forge_route/tests.rs", "temper/crates/temper-engine-smith/src/start.rs", "temper/crates/temper-engine-smith/src/tests.rs", "temper/crates/temper-service/src/limits.rs", "temper/crates/temper-service/src/limits/names.rs", "temper/crates/temper-service/src/startup/checks.rs", "temper/crates/temper-service/src/tests/**", "temper/tests/engine/domain/src/walking.rs", "temper/docs/design/protocol/configuration.status.md"]
+files = ["temper/crates/temper-engine-domain/src/boundary.rs", "temper/crates/temper-engine-domain/src/domain.rs", "temper/crates/temper-engine-domain/src/assemble.rs", "temper/crates/temper-engine-domain/src/route/now.rs", "temper/crates/temper-engine-domain/src/limits.rs", "temper/crates/temper-engine-domain/src/link.rs", "temper/crates/temper-engine-domain/src/budget.rs", "temper/crates/temper-engine-domain/src/store/settings_bytes.rs", "temper/crates/temper-engine-domain/src/tests.rs", "temper/crates/temper-engine-domain/src/tests/documents.rs", "temper/crates/temper-engine-domain/src/tests/resume_fixture.rs", "temper/crates/temper-engine-domain/src/route/forge_route/tests.rs", "temper/crates/temper-engine-smith/src/start.rs", "temper/crates/temper-engine-smith/src/tests.rs", "temper/crates/temper-service/src/limits.rs", "temper/crates/temper-service/src/limits/names.rs", "temper/crates/temper-service/src/startup/checks.rs", "temper/crates/temper-service/src/tests/**", "temper/tests/engine/domain/src/walking.rs", "temper/docs/design/protocol/configuration.status.md"]
 effort = "high"
 minutes = 150
 +++
@@ -120,3 +120,14 @@ Acceptance:
 
 As the implementer's text says, and also: every assertion and figure that moved with its values,
 where the titles are kept and freed, and the tests' count.
+
+## Answers
+
+- 2026-11-02. *May the titles' storage go in `temper-engine-domain/src/domain.rs`, which
+  the files omitted?* Yes: `domain.rs` is now in the header. Add one field to `Domain`, a map
+  keyed by the brief's task holding its planned documents' titles (each entry at most
+  `tasks.charter_documents` titles), made with capacity `brief.briefs` at `Domain`'s
+  construction beside `brief_connectors`, and its emptiness joined to the idle check beside
+  `brief_connectors.is_empty()`. The binding inserts the entry; `Complete` reads it for a
+  `Missing` document kind and removes it; an abandonment removes it where the brief's rows are
+  dropped. Nothing else in `domain.rs` changes; report the field and where it is freed.
