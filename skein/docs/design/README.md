@@ -38,7 +38,7 @@ this design.
 | lib | `skein-lib` | handles, slabs, bounded containers, cursors, streams, deadlines, time | [lib.md](lib.md) |
 | the kernel boundary | `skein-io` (`kernel`) | the records io submits to a backend and the completions it gets back | [kernel.md](kernel.md) |
 | io | `skein-io` | sockets, pipes, files, processes, signals to the service | [io.md](io.md) |
-| the shell kit | `skein-shell` | the io_uring backend, the clock, the seed, startup | [shell.md](shell.md) |
+| the shell kit | `skein-shell`, `skein-fail-stop` | the io_uring backend, the clock, the seed, startup; the panic hook every binary's `main` installs first | [shell.md](shell.md) |
 | the simulator | `skein-sim` | the simulated kernel and its faults; beside it, the conformance suite (`skein-conformance`) | [simulator.md](simulator.md) |
 | the fake LLM | `skein-fake-llm-domain`, `skein-fake-llm-protocol` | shared bounded scripts and independent byte peers; application worlds supply tools and policy | [fake-llm.md](fake-llm.md) |
 | the key-value store | `skein-kv` | ordered byte keys and values in memory, made durable by a commit log and snapshots on io's files | [kv.md](kv.md) |
@@ -55,11 +55,11 @@ this design.
 | LLM connections | `skein-llm-connection` | a protocol layer's component that runs LLM calls end to end: connecting, TLS, deadlines, reuse | [llm-connection.md](llm-connection.md) |
 | OAuth | `skein-oauth`, `skein-oauth-accounts`, `skein-fake-oauth` | bounded sign-in and refresh client; the driver that runs it end to end for its owner, listener, connection and keeping included; an independent rotating issuer for worlds | [oauth.md](oauth.md) |
 | the OAuth issuer | `skein-oauth-issuer` | OpenID Connect's issuer, stateless: an authorization and a token request checked, an ID token signed, the discovery document, key set and userinfo answer | [oauth-issuer.md](oauth-issuer.md) |
-| the forge's vocabulary and dialects | `skein-forge` | a code forge's calls and documents, deliveries and credentials, neutral and rendered by a dialect; Forgejo's built, GitHub's later | [forge.md](forge.md) |
+| the forge's vocabulary and dialects | `skein-forge` | a code forge's calls and documents, deliveries and credentials, neutral and rendered by a dialect, Forgejo's or GitHub's | [forge.md](forge.md), [forge-github.md](forge-github.md) |
 | the forge component | `skein-forge-connection` | a protocol layer's component that runs a forge's calls end to end: connecting, TLS, credentials, deliveries | [forge-connection.md](forge-connection.md) |
 | the forge client | `skein-forge-client` | a bounded view of a forge for its owner's domain, and each write made at most once | [forge-client.md](forge-client.md) |
 | the forge setup | `skein-forge-setup` | makes a forge ready for a service: the identity, credentials, repositories and hooks it acts with | [forge-setup.md](forge-setup.md) |
-| the fake forge | `skein-fake-forge-domain`, `skein-fake-forge-protocol`, `skein-throwaway-forgejo` | for tests: a forge's state and git, Forgejo's API over it, a forge peer on loopback, the pinned Forgejo run in a scratch, and the conformance that holds the dialect to it | [fake-forge.md](fake-forge.md) |
+| the fake forge | `skein-fake-forge-domain`, `skein-fake-forge-protocol`, `skein-fake-forge-github`, `skein-fake-peers`, `skein-throwaway-forgejo` | for tests: a forge's state and git, Forgejo's API over it, GitHub's API and blob layer, a forge peer on loopback beside the LLM's and OAuth's, the pinned Forgejo run in a scratch, and the conformance that holds the dialect to it | [fake-forge.md](fake-forge.md) |
 | the browser kit | `skein-browser` | for tests: a headless Chromium driven over the DevTools protocol on a pipe, by role and name, from the loop | [browser.md](browser.md) |
 | the UI kit | `skein-ui` | a semantic tree of an application's state, by accessibility roles, built, diffed into patches, its acts bound to their owners; words, Markdown, scenes | [ui.md](ui.md) |
 | the text shell | `skein-ui-text` | the tree printed as lines, a typed line read as an act, for a terminal or a pipe | [ui-text.md](ui-text.md) |
@@ -73,37 +73,43 @@ this design.
 ```
 crate          depends on
 skein-lib      nothing
+skein-fail-stop nothing
 skein-io       lib
 skein-http     lib
 skein-json     lib
 skein-channel  lib
 skein-codec    lib
-skein-codegen  nothing from skein (a generator, in consumers' tests)
+skein-codegen  codec, fail-stop (a generator, in consumers' tests)
 skein-tls      lib, rustls (and ring beneath it)
 skein-llm      lib, http, json
 skein-llm-connection lib, io, tls, llm
-skein-oauth    lib, json
+skein-oauth    lib, json, codec, tls
 skein-oauth-accounts lib, io, http, tls, oauth
-skein-fake-oauth lib, json, oauth
+skein-fake-oauth lib, json, oauth, tls
 skein-oauth-issuer lib, json, tls
 skein-forge    lib, json
 skein-forge-client lib, forge
 skein-forge-connection lib, io, http, tls, json, forge
-skein-forge-setup lib, io, http, json, forge
+skein-forge-setup lib, io, http, tls, json, forge
 skein-fake-forge-domain lib
 skein-fake-forge-protocol lib, http, json, forge, fake-forge-domain
-skein-throwaway-forgejo lib, io, http, json, shell, forge
+skein-fake-forge-github lib, http, tls, json, forge, fake-forge-domain, fake-forge-protocol
+skein-fake-llm-domain lib
+skein-fake-llm-protocol lib, http, json, llm, fake-llm-domain
+skein-fake-peers lib, io, http, llm, oauth, shell, fake-llm-*, fake-oauth, fake-forge-*; rustls
+skein-fake-checkout nothing
+skein-throwaway-forgejo lib, io, http, json, shell, forge, fail-stop, world
 skein-browser  lib, json
 skein-ui       lib
 skein-ui-text  lib, io, ui
 skein-ui-web   lib, ui; on wasm32, wasm-bindgen, js-sys, web-sys
-skein-ui-bundle nothing from skein (a tool), wasm-bindgen-cli-support
+skein-ui-bundle lib, fail-stop (a tool), wasm-bindgen-cli-support
 skein-fake-person lib, ui
-skein-fake-person-browser lib, io, ui-web, fake-person, browser
+skein-fake-person-browser lib, io, http, shell, ui, ui-web, browser, fake-person, fake-peers, scratch, world
 skein-shell    lib, io; natively, io-uring (Linux) and libc (shell.md, 14)
 skein-sim      lib, io
 skein-sim-world lib, io, sim, shell (its Host)
-skein-fake-machine lib, io, sim
+skein-fake-machine lib, io, sim, sim-world
 skein-kv       lib, io
 skein-playground lib, io, http, sim-world, ui-web; on wasm32, wasm-bindgen, js-sys, web-sys
 ```
@@ -117,8 +123,8 @@ parts' glue, `wasm-bindgen`, `js-sys` and `web-sys`, with the bundler's
 
 ## 4. Not in skein
 
-- **Domains, and protocols only one application speaks:** temper's
-  protocol between worker and engine. They are built on skein's machines.
+- **Domains, and protocols only one application speaks:** jig's
+  protocol between engine and workers. They are built on skein's machines.
 - **What a service does with an LLM:** its tools and their execution,
   when to sign in or refresh a credential, and whether to retry. The
   calls, their connections and OAuth's documents are skein's.
