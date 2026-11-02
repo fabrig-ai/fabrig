@@ -75,6 +75,7 @@ struct RunOptions<'a> {
     history: Option<&'a [Box<[u8]>]>,
     releases: Option<&'a [HostMessage]>,
     change_after_snapshot: bool,
+    cancel_with_child: bool,
 }
 
 enum Proc {
@@ -400,11 +401,24 @@ struct Judge {
     wait_for_exit: bool,
     ended: bool,
     waiting: waiting::Release,
+    cancel_with_child: bool,
 }
 
 impl Referee<Proc> for Judge {
     fn act(&mut self, now: Time, procs: &mut [Proc]) {
         self.waiting.act(now, procs);
+        if self.cancel_with_child
+            && procs
+                .iter()
+                .filter(|process| matches!(process, Proc::Fake(fake) if fake.active_turn().is_some()))
+                .count()
+                == 2
+        {
+            if let Proc::Parent(parent) = &mut procs[0] {
+                parent.cancel_pending = true;
+            }
+            self.cancel_with_child = false;
+        }
         if self.cancel.is_some_and(|at| now >= at) {
             if let Proc::Parent(parent) = &mut procs[0]
                 && !parent.peer.observed().iter().any(|frame| frame.kind == 0x0110)
@@ -450,7 +464,7 @@ impl Referee<Proc> for Judge {
         self.cancel.or(self.waiting.deadline())
     }
     fn passed(&self) -> bool {
-        self.cancel.is_none() && self.waiting.passed() && (!self.wait_for_exit || self.ended)
+        self.cancel.is_none() && !self.cancel_with_child && self.waiting.passed() && (!self.wait_for_exit || self.ended)
     }
     fn last_word(&self) -> skein_world::LastWord {
         skein_world::LastWord::LastExpectation
@@ -505,7 +519,7 @@ fn fixture(story: &Story, login: Option<&[u8]>, case: Case) -> (Files, Opened) {
     if let Some(login) = login {
         items.push(Item::file(b"programs/source/fake-claude.login", login).mode(0o600));
     }
-    if case == Case::Tools {
+    if matches!(case, Case::Tools | Case::Events | Case::Transcript) {
         items.extend([
             Item::file(b"work/repo/a", b"before\n"),
             Item::directory(b"work/repo/empty"),
@@ -540,6 +554,18 @@ pub fn run_after_snapshot(story: &Story, charter: &[u8]) -> Run {
         charter,
         &crate::program(b"source"),
         RunOptions { login: Some(b"claude.ai"), change_after_snapshot: true, ..RunOptions::default() },
+    )
+}
+
+/// Cancel once main and its child's first program turns have both started.
+#[must_use]
+pub fn cancel_with_child(story: &Story, charter: &[u8]) -> Run {
+    run_scenario(
+        Case::Events,
+        story,
+        charter,
+        &crate::program(b"source"),
+        RunOptions { login: Some(b"claude.ai"), cancel_with_child: true, ..RunOptions::default() },
     )
 }
 
@@ -586,7 +612,7 @@ fn run_scenario(
     value: &smith_channel::GrantValue,
     options: RunOptions<'_>,
 ) -> Run {
-    let RunOptions { login, refresh, history, releases, change_after_snapshot } = options;
+    let RunOptions { login, refresh, history, releases, change_after_snapshot, cancel_with_child } = options;
     let mut story = story.clone();
     if !case.completes() && story.turns.is_empty() {
         story.turns.push(smith_fake_claude::Turn::new(vec![smith_fake_claude::Step::Hang]));
@@ -601,6 +627,7 @@ fn run_scenario(
             ended: false,
             waiting: releases.map_or_else(|| waiting::Release::new(case == Case::Waiting), waiting::Release::open),
             cancel: if case.completes() { None } else { Some(Time::ZERO.saturating_add(Duration::from_millis(50))) },
+            cancel_with_child,
         })
         .with_machine(machine);
     let operations = smith_agent_service::program_operations(&configuration(case))
