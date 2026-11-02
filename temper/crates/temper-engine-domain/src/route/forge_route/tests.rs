@@ -460,6 +460,96 @@ fn a_change_from_inside_the_goals_subtree_into_its_branch_is_admitted() {
 }
 
 #[test]
+fn a_change_merge_into_a_held_branch_reserves_its_writer_before_authority_and_releases_on_veto() {
+    use super::{Work, forge, forge_change, tasks};
+    use jig_domain_core::effects::connector;
+    const ENTRY: u64 = 11;
+    let (mut domain, mut env) = goal_holds_branch();
+    // forge, host, owner, repository, branch, temper, root, marker/task.
+    env.limits.authority.segments = 8;
+    make_goal_task(&mut domain, &env, GOAL_CHANGE, tasks::Party::Task(GOAL_TASK), Box::new([]));
+    let mut row = change_row(Some(1));
+    row.task = GOAL_CHANGE;
+    row.change.task = GOAL_CHANGE;
+    row.repository = adopted(1).provider;
+    row.base = Box::from(b"temper/8/g8".as_slice());
+    let prior = row.change.clone();
+    let resource = super::hub_name(
+        domain.config.forge_connector,
+        &forge::Name {
+            forge: row.repository.forge,
+            repository: row.repository.repository,
+            what: super::branch_what(&row.base, env.limits.forge.name_bytes).unwrap(),
+        },
+        &env.limits.tasks,
+    )
+    .unwrap();
+    let authority_name = super::resource_name(
+        &adopted(1),
+        &super::branch_what(&row.base, env.limits.forge.name_bytes).unwrap(),
+        env.limits.authority.segments,
+    )
+    .unwrap();
+    let mut out = skein_lib::Queue::uncapped();
+    forge::step(
+        &mut domain.forge,
+        &super::super::environment_forge(&env),
+        forge::Event::Restore { record: forge::Stored::Change(row) },
+        &mut out,
+    );
+    while domain.work.pop().is_some() {}
+    forge_request(
+        &mut domain,
+        &env,
+        forge::Request::ChangeDecision {
+            task: GOAL_CHANGE,
+            decision: forge_change::Decision::Effect(forge_change::Effect::Merge { head: SHA1, base: SHA1 }),
+            entry: Some(ENTRY),
+            evidence: Some(forge::ChangeEvidence {
+                prior,
+                head: Some(SHA1),
+                base_tip: SHA1,
+                contains_base: forge_change::Status::Passed,
+                ci: forge_change::Status::Passed,
+                gates: Box::new([]),
+                reviews: Box::new([]),
+                reviews_complete: true,
+            }),
+        },
+    );
+    assert_eq!(domain.core.tasks.writer(&resource).unwrap().writer, tasks::Writer::Effect { entry: ENTRY });
+    let Some(Work::Core(jig_domain_core::Event::EffectStart { owner, .. })) = domain.work.pop() else {
+        panic!("the reserved merge goes to authority")
+    };
+    let Some(super::EffectFlight::Procedure { description, writer, .. }) = domain.forge_effects.get(&owner) else {
+        panic!("merge description")
+    };
+    assert_eq!(writer.as_ref(), Some(&resource));
+    assert_eq!(description.effect.name, authority_name, "authority still checks the forge branch's grant");
+    assert!(description.effect.additional.is_empty(), "the stored hold name needs no authority grant");
+    super::effect_ask(
+        &mut domain,
+        &env,
+        0,
+        connector::Ask::Drop {
+            owner,
+            answer: super::authority::Answer::Wait,
+            findings: Box::new([]),
+            why: connector::EffectRefusal::Authority,
+        },
+    );
+    let Some(Work::Tasks(event @ tasks::Event::EffectSettled { .. })) = domain.work.pop() else {
+        panic!("authority veto releases its reservation")
+    };
+    drop(jig_domain_core::step(
+        &mut domain.core,
+        &crate::limits::environment_core(&env),
+        jig_domain_core::Event::Tasks(event),
+    ));
+    assert!(domain.core.tasks.writer(&resource).is_none());
+}
+
+#[test]
 fn saved_resources_keep_the_forge_in_their_path() {
     use super::forge;
     let tags = [forge::tag(1, 1), forge::tag(3, 1)];
@@ -724,6 +814,7 @@ fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
         review_charter: 4,
         effect_account: None,
         producer_failure: None,
+        report: Box::new([]),
     }
 }
 

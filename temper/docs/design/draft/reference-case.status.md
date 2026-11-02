@@ -21,8 +21,7 @@ where, document by document. By step (sections 3 to 7):
   - **6, 14, 19:** a change's result carrying its producer's report (N15).
   - **7, 12, 16:** the light rules into g (N4).
   - **12, 16, 21:** the merge job (N7).
-  - **20, 25:** g's tier and its reds as news; main's tiers following main
-    (N5).
+  - **20:** g's tier and its reds as news (N5).
   - **21:** a catch-up change into g (N6).
   - **23, 28:** L on g, its requester's held branch; g released as G
     closes (N3).
