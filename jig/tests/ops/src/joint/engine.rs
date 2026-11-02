@@ -46,7 +46,7 @@ pub struct Peers {
 // 72,017,730 bytes at jig 4cd5d46966, in
 // fuzzy_joint::p_story_survives_seeded_commit_crashes_and_random_presses.
 // A ceiling, a quarter above, rounded up to two significant digits
-// (skein's dynamic-memory draft, 7.1); it moves by hand only in the commit
+// (skein's testing-strategy.md, 6); it moves by hand only in the commit
 // of a real change that passes it, never on a type's size.
 const OPS_JOINT_HEAP_CEILING: u64 = 91_000_000;
 

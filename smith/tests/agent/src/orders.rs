@@ -1,7 +1,7 @@
 //! Entrance and reclaim observations for root handoff order scenarios.
 //! The recorder copies facts and request identities; it never schedules work.
 //! Contract: smith/docs/design/domain/run.md, sections 3.2, 5.3 and 13;
-//! skein/docs/design/draft/dynamic-memory.md, section 4.6.
+//! skein/docs/foundation/programming-model.md, section 7.2.
 
 use skein_lib::{Time, Token};
 use smith_domain::{Fact, Request, llm};

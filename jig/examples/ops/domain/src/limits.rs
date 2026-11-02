@@ -25,7 +25,7 @@ pub struct Limits {
     /// Held outputs the journal releases in one call (`domain/root.md` 4).
     pub release: u32,
     /// New external work waits while the backlog is at or past this many
-    /// entries (skein's draft `dynamic-memory.md`, 4.4); a pacing limit,
+    /// entries (skein's `programming-model.md`, 7.1); a pacing limit,
     /// not a memory one.
     pub watermark: u32,
     /// Maximum synchronous continuations for one admitted event.

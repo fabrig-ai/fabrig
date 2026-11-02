@@ -43,8 +43,8 @@ pub struct Transcript {
 
 impl Core {
     /// The bytes the run preparations hold or are about to hold, for a
-    /// composing root's byte budget (skein's draft `dynamic-memory.md`,
-    /// 4.5): each preparation counts at its resume allowance from its start
+    /// composing root's byte budget (skein's `programming-model.md`,
+    /// 6.1): each preparation counts at its resume allowance from its start
     /// until its load is in, then at the turn bodies and text it keeps.
     #[must_use]
     pub fn transcript_bytes(&self) -> u64 {

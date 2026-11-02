@@ -226,7 +226,7 @@ fn split(domain: &Domain, env: &Env<Limits>, event: Event) -> (Event, Option<Eve
     }
 }
 
-/// What the root holds of admitted work, in entries (dynamic-memory.md, 4.1).
+/// What the root holds of admitted work, in entries (skein's programming-model.md, 7.1).
 pub(crate) fn backlog(domain: &Domain) -> u64 {
     domain.journal.backlog()
 }

@@ -11,12 +11,12 @@ import unittest
 SCRIPT = Path(__file__).with_name("old_forms.py").resolve()
 FORMS = ("max_out", "JournalRoom", "takes", "worst_case")
 HEADER = (
-    "# Uses of the old forms (skein's docs/design/draft/dynamic-memory.md, 7): each count may only fall.\n"
+    "# Uses of the old forms (skein's docs/foundation/programming-model.md, 6.3): each count may only fall.\n"
     "# Lower them with `python3 -I -B scripts/old_forms.py --write`; "
     "only the director raises one, recorded in a `# Raised:` line.\n"
 )
 RULE = (
-    "Uses of the old forms may only fall (skein's docs/design/draft/dynamic-memory.md, 7): "
+    "Uses of the old forms may only fall (skein's docs/foundation/programming-model.md, 6.3): "
     "new code takes the new forms (Queue::uncapped, Journal::uncapped, decide, backlog), "
     "or removes as many old uses as it adds."
 )
