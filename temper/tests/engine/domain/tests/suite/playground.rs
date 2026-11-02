@@ -125,6 +125,14 @@ fn finish_forge_removal(d: &mut Driver) {
     d.send(engine::Event::Forge(Box::new(forge::Event::BoxRemoved { forge: 1 })));
     d.settle();
 }
+// A running playground resets on restart (temper/docs/design/protocol/setup.md, 8.4); settle its removal
+// before the retained-row oracle takes the story's final snapshot.
+fn end(d: &mut Driver, sign_in: u64) {
+    application(d, sign_in, 82, forge::Ask::EndPlayground, false);
+    d.settle();
+    finish_forge_removal(d);
+    assert!(row(d).is_none(), "playground reset before cold readback");
+}
 #[test]
 fn a_start_adds_the_account_makes_the_project_sets_its_uses_and_adopts() {
     let (mut d, sign_in) = driver(true);
@@ -142,6 +150,7 @@ fn a_start_adds_the_account_makes_the_project_sets_its_uses_and_adopts() {
     )));
     assert!(d.store.rows.values().any(|record| matches!(record, engine::Record::Forge { row }
         if matches!(row.as_ref(), forge::Stored::Repository(row) if row.project == 2 && row.owner.as_ref() == b"playground" && row.name.as_ref() == b"widget" && row.prefix.as_ref() == b"temper/" && row.home && row.ci))));
+    end(&mut d, sign_in);
 }
 #[test]
 fn the_scripted_account_uses_name_the_playground_project_alone() {
@@ -150,6 +159,7 @@ fn the_scripted_account_uses_name_the_playground_project_alone() {
     assert!(account_rows(&d).iter().any(|row| matches!(row, accounts::Stored::Account {
         holder: accounts::Holder::Deployment, uses: Some(uses), ..
     } if uses.as_ref() == [accounts::Use::Project(2)])));
+    end(&mut d, sign_in);
 }
 #[test]
 fn a_held_deployment_account_is_not_added_again() {
@@ -169,6 +179,7 @@ fn a_held_deployment_account_is_not_added_again() {
     assert_eq!(row(&d).expect("playground fixture").state, forge::PlaygroundState::Running);
     assert_eq!(account_rows(&d).len(), 1);
     assert!(d.delivered.iter().any(|delivery| matches!(delivery, Delivery::CarriedUnused { number: 81 })));
+    end(&mut d, sign_in);
 }
 #[test]
 fn the_reset_removes_the_project_then_the_forge_then_the_account() {
