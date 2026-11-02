@@ -377,7 +377,7 @@ domain, and holds no clock of its own.
   a branch's deletion answer `204` with no body; deleting a branch that is
   not there answers `500`; a failed job's completion step reports
   `failure`; a push to a pull request's head or base starts a mergeability
-  check. Forge.md, section 9 names the fact that records each, or lists
+  check. `forge.md`, section 9 names the fact that records each, or lists
   those not yet. A reviewer's request answers with no body, where Forgejo
   sends the pull's reviews, which no client reads.
 - **Faults move down to bytes.** A call refused for its rate is `429` with
