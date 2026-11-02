@@ -138,14 +138,26 @@ pub enum Actor {
 /// Job tasks: jig/docs/design/client/domain/contract.md, 5.7.
 pub enum ChipExecutor {
     /// An agent and its charter.
-    Agent { charter: u32 },
+    Agent {
+        charter: u32,
+    },
     /// A connector procedure.
-    Procedure { connector: u16, kind: u32 },
+    Procedure {
+        connector: u16,
+        kind: u32,
+    },
     /// A named party.
-    Party { party: u64 },
+    Party {
+        party: u64,
+    },
     /// Any party holding a role.
-    Role { project: u32, role: u32 },
-    Job { kind: u32 },
+    Role {
+        project: u32,
+        role: u32,
+    },
+    Job {
+        kind: u32,
+    },
 }
 
 /// The task phase, without words from the view.

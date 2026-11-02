@@ -304,3 +304,28 @@ fn the_addresss_own_section_is_marked_current_on_an_arranged_page() {
 fn task_sections_preserve_executor_facts() {
     task_sections(words());
 }
+
+/// A job's document names its executor and result bound (jig/docs/design/client/domain/contract.md, 5.7).
+#[test]
+fn a_job_task_document_renders_job_and_kind() {
+    let (mut d, out) = entered(Address::Task { task: 8, section: TaskSection::Overview });
+    let watch = out
+        .iter()
+        .find_map(|r| match r {
+            Request::Client {
+                asked: jig_client::Event::Watch { handle, subject: jig_client::Watchable::Jig(Subject::Task { .. }) },
+            } => Some(*handle),
+            _ => None,
+        })
+        .unwrap();
+    let mut doc = crate::tests::tree::cards_objects::task_doc(&[]);
+    doc.chip.executor = ChipExecutor::Job { kind: 7 };
+    doc.chip.details.details.executor = Executor::Job { kind: 7 };
+    doc.settings = None;
+    doc.result_contract = TaskContractDocument::Job { bytes: 4096 };
+    deliver(&mut d, watch, Delivery::Task(Box::new(doc)));
+    let (tree, _) = build(&d, 3, words());
+    assert!(crate::tests::kit::contains(&tree, b"job 7"));
+    assert!(crate::tests::kit::contains(&tree, b"Job result byte limit 4096"));
+    Goldens::new("tree/work_pages/job_task").check(&tree);
+}

@@ -12,6 +12,9 @@ mod watches;
 fn create_naming_a_job_is_refused_as_not_offered() {
     use crate::contract::{self as c, Admission, Executor, Refusal};
     for offer in [Admission::Allowed, Admission::Refused(Refusal::Unknown)] {
-        assert_eq!(c::admission::creation(&offer, Executor::Job { kind: 7 }, 0, None), Admission::Refused(Refusal::NotOffered));
+        assert_eq!(
+            c::admission::creation(&offer, Executor::Job { kind: 7 }, 0, None),
+            Admission::Refused(Refusal::NotOffered)
+        );
     }
 }
