@@ -143,3 +143,56 @@ fn github_watched_absent_branch_resolves_repository_once() {
     assert_eq!(world.github_branch_reads(branch), 4);
     assert_eq!(world.github_repository_reads(), 1);
 }
+
+fn conflicting_pull(world: &mut World) -> (u64, skein_forge::api::Commit) {
+    use skein_fake_forge_domain::api as raw;
+    let raw::Answer::Commit(parent) =
+        world.direct(raw::Op::Read(raw::Read::Branch { branch: Box::from(b"main".as_slice()) })).expect("initial base")
+    else {
+        panic!("initial base")
+    };
+    let commit = world.prepare_commit(
+        parent,
+        Box::new([raw::File { path: Box::from(b"one".as_slice()), content: Box::from(b"head".as_slice()) }]),
+        b"feature",
+    );
+    world
+        .direct(raw::Op::Git(raw::Git::Push { branch: Box::from(b"feature".as_slice()), commit, expected: None }))
+        .expect("feature branch");
+    let raw::Answer::Created(number) = world
+        .direct(raw::Op::Write(raw::Write::OpenPull {
+            title: Box::from(b"feature".as_slice()),
+            body: Box::from(b"body".as_slice()),
+            head: Box::from(b"feature".as_slice()),
+            base: Box::from(b"main".as_slice()),
+            opens_empty: true,
+        }))
+        .expect("pull")
+    else {
+        panic!("pull number")
+    };
+    let base = world
+        .tree(Box::new([raw::File { path: Box::from(b"one".as_slice()), content: Box::from(b"base".as_slice()) }]));
+    let Answer::Commit(head) =
+        world.read(Read::Branch { branch: Box::from(b"feature".as_slice()) }).expect("feature head")
+    else {
+        panic!("head")
+    };
+    assert_ne!(base, head);
+    (number, head)
+}
+
+#[test]
+fn github_ambiguous_update_conflict_reaches_the_owner_on_both_attempts() {
+    use skein_forge::api::{Error, UpdateStyle, Write};
+    use skein_forge_client::Outcome;
+    let mut world = World::github_ambiguous_updates(71);
+    world.run_for(Duration::from_secs(1));
+    let (number, head) = conflicting_pull(&mut world);
+    for _attempt in 0..2 {
+        assert_eq!(world.write(Write::Update { number, style: UpdateStyle::Merge }), Outcome::Failed(Error::Conflict));
+        let Answer::Pull(pull) = world.read(Read::Pull { number }).expect("unchanged head") else { panic!("pull") };
+        assert_eq!(pull.commit, head);
+    }
+    invariants(&mut world);
+}

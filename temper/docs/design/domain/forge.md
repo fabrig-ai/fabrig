@@ -659,6 +659,16 @@ tip, the pull request's reviews, and the files of the pull requests an
 overlap compares. These are also the facts the forge's requirements are
 judged on (8.7).
 
+An agent's fresh read refused `Busy` by the client's local admission
+returns the host's predecision Busy reply, never a rendered forge-read
+error. The root releases that attempt's read correlation and rendering
+flight. The host retries the same logical call after its backoff, within
+the caller's deadline; cancellation ends that wait. Each retry goes
+through the same authority and client admission checks, preserving the
+call slab limit and background reserve (skein's `forge-client.md`, 5–6).
+An admitted answer or any other terminal forge error follows the normal
+read-answer path once.
+
 - **CI on a commit** is read as its checks, skein's `Read::Checks`: the
   commit statuses and, on GitHub, the check runs, each a row with its
   context and verdict (skein's `forge.md`, 5.2; `forge-github.md`, 4.4),
@@ -907,13 +917,20 @@ branch. Its parameters:
 - **the pull request's title and body,** or what to make them from, and
   the goal it is part of. The change's words are its spec, kept whole
   for its producer's brief and bounded by the task's own limits, never
-  by the forge's. The pull's title is the first sentence of the words'
-  first line, with its trailing full stop dropped, cut at a word to the
-  forge's title bound (at a character when no space fits), marked with
-  “…” only when cut mid-sentence. The body holds the words whole, fitted
-  to the forge client's operation bound and marked when cut. A goal's
-  issue title is made the same way from its spec, and a landing's name
-  prefixes the change's title with “Land ”, fitted to its task bound.
+  by the forge's. The producing task's successful result supplies the pull's
+  explicit title, retained with that result and copied into the change before
+  opening. A visible pushed branch waits for this metadata; it alone cannot
+  open the pull. This wait keeps the producing phase's stall deadline.
+  The title is fitted to 256 UTF-8 bytes, preserving punctuation
+  and marking a cut with “…”; it is never interpreted as sentences. A handed-in
+  branch supplies its title as bytes parameter 10. A missing or empty title on
+  that path uses “Update repository”, never context from the brief. The body
+  holds the supplied body or the words whole, fitted to the forge client's
+  operation bound and marked when cut. The complete production brief stays in
+  the task spec, separately from the title and body. A goal's issue title uses
+  its spec's first sentence, with the trailing full stop dropped and a cut at
+  a word marked with “…”; a landing's name prefixes the explicit change title
+  with “Land ”, fitted to its task bound without sentence extraction.
   A change is never refused or held for the length of its words;
 - **its bounds:** repairs, resolutions, updates, and the stall of each
   wait.
@@ -1080,6 +1097,8 @@ delegate's terminal wakes it to offer the landed result.
   repair's bound on nothing the change's diff did. A change's agents
   hold the forge's reads (kind 1) beside the kinds it makes (section 6),
   so that a reviewer can read its own pull request.
+  Temporary local read contention follows the host backoff in 5.3;
+  it supplies no review failure or verdict while the read can retry.
 - **A blocking gate that says no:** a review that asks for changes, or a
   check that fails, is a repair, given its remarks (8.4); a declined
   approval holds the change, with the person's reason. The verdict

@@ -6,3 +6,5 @@ Prints: `landings of project PROJECT`, the turn, and a line per landing: its tas
 --json: the record landings.
 Key: none.
 Without --ended, the live landings alone. `landing show TASK` reads one.
+These are turn landings. Queue merges create no landing task and do not
+appear here, including with --ended. Read a queue change with `change show TASK`.

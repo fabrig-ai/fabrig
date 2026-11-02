@@ -10,6 +10,10 @@ use smith_local_service::{Accounts, CredentialRequest, Settled};
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum State {
     SignIn,
+    /// A Visit was shown; retain its deadline to distinguish earlier exchange failures.
+    Waiting {
+        deadline: Time,
+    },
     SignOut,
     Rollback,
 }
@@ -29,42 +33,47 @@ pub(super) struct Login {
 }
 
 impl Login {
-    fn terminal(&mut self, terminal: Settled) {
-        match terminal {
-            Settled::SignedIn { subject, missing } => {
-                if let Some(subject) = subject {
-                    for (name, file) in &self.others {
-                        match sign_in::record(file) {
-                            Ok(Some(record)) if record.subject.as_deref() == Some(subject.as_ref()) => {
-                                eprintln!("smith: account {}: already signed in as account {name}", self.name);
-                                self.state = State::Rollback;
-                                self.driver.sign_out(0);
-                                return;
-                            }
-                            Err(_) => {
-                                eprintln!("smith: account {name}: unreadable sign-in record");
-                                self.state = State::Rollback;
-                                self.driver.sign_out(0);
-                                return;
-                            }
-                            Ok(Some(_) | None) => {}
-                        }
+    fn signed_in(&mut self, subject: Option<Box<[u8]>>, missing: &[u8]) {
+        if let Some(subject) = subject {
+            for (name, file) in &self.others {
+                match sign_in::record(file) {
+                    Ok(Some(record)) if record.subject.as_deref() == Some(subject.as_ref()) => {
+                        eprintln!("smith: account {}: already signed in as account {name}", self.name);
+                        self.state = State::Rollback;
+                        self.driver.sign_out(0);
+                        return;
                     }
-                }
-                if missing.is_empty() {
-                    if self.notice {
-                        eprintln!("{}", registration::NOTICE);
+                    Err(_) => {
+                        eprintln!("smith: account {name}: unreadable sign-in record");
+                        self.state = State::Rollback;
+                        self.driver.sign_out(0);
+                        return;
                     }
-                    eprintln!("account {}: signed in", self.name);
-                    self.outcome = Some(LoginOutcome::Usable);
-                } else {
-                    eprintln!(
-                        "Signed in without plan usage: run `smith login {}` again and allow it, or use a key",
-                        self.name
-                    );
-                    self.outcome = Some(LoginOutcome::Unavailable);
+                    Ok(Some(_) | None) => {}
                 }
             }
+        }
+        if missing.is_empty() {
+            if self.notice {
+                eprintln!("{}", registration::NOTICE);
+            }
+            eprintln!("account {}: signed in", self.name);
+            self.outcome = Some(LoginOutcome::Usable);
+        } else {
+            eprintln!("Signed in without plan usage: run `smith login {}` again and allow it, or use a key", self.name);
+            self.outcome = Some(LoginOutcome::Unavailable);
+        }
+    }
+
+    fn visit(&mut self, url: &[u8]) {
+        let deadline = self.driver.next_deadline().expect("a Visit keeps the sign-in deadline");
+        self.state = State::Waiting { deadline };
+        eprintln!("{}", visit_lines(url, self.ssh.as_deref()));
+    }
+
+    fn terminal(&mut self, terminal: Settled, now: Time) {
+        match terminal {
+            Settled::SignedIn { subject, missing } => self.signed_in(subject, &missing),
             Settled::SignedOut { revoked } => {
                 if !revoked {
                     eprintln!("account {}: disconnect smith at {}", self.name, registration::DISCONNECT);
@@ -74,29 +83,8 @@ impl Login {
                     Some(if self.state == State::Rollback { LoginOutcome::Refused } else { LoginOutcome::Usable });
             }
             Settled::Failed { failure, .. } => {
-                let refused = match failure {
-                    skein_oauth_accounts::Failure::Exchange(skein_oauth::Failure::ClientRejected) => {
-                        eprintln!("smith: account {}: the provider refused smith's registration", self.name);
-                        true
-                    }
-                    skein_oauth_accounts::Failure::AnotherSubject => {
-                        eprintln!("smith: account {}: another subject was refused", self.name);
-                        true
-                    }
-                    skein_oauth_accounts::Failure::Busy
-                    | skein_oauth_accounts::Failure::NotGranted
-                    | skein_oauth_accounts::Failure::NotKept
-                    | skein_oauth_accounts::Failure::Expired
-                    | skein_oauth_accounts::Failure::Unloaded { .. }
-                    | skein_oauth_accounts::Failure::Exchange(_) => {
-                        eprintln!(
-                            "account {}: {}",
-                            self.name,
-                            if self.state == State::SignOut { "not signed out" } else { "not signed in" }
-                        );
-                        false
-                    }
-                };
+                let (line, refused) = failure_line(&self.name, self.state, failure, now);
+                eprintln!("{line}");
                 self.outcome = Some(if refused || self.state == State::Rollback {
                     LoginOutcome::Refused
                 } else {
@@ -115,14 +103,7 @@ impl Host for Login {
         self.driver.advance(now, wall, &mut self.out);
         while let Some(request) = self.out.pop() {
             match request {
-                CredentialRequest::Visit { url } => {
-                    eprintln!("Sign in: {}", String::from_utf8_lossy(&url));
-                    if let Some(host) = &self.ssh
-                        && let Some(port) = redirect_port(&url)
-                    {
-                        eprintln!("ssh -L {port}:127.0.0.1:{port} {host}");
-                    }
-                }
+                CredentialRequest::Visit { url } => self.visit(&url),
                 CredentialRequest::SignedIn { .. }
                 | CredentialRequest::Failed { .. }
                 | CredentialRequest::Closed
@@ -131,7 +112,7 @@ impl Host for Login {
             }
         }
         while let Some((_, terminal)) = self.driver.settled() {
-            self.terminal(terminal);
+            self.terminal(terminal, now);
         }
         if self.outcome.is_some() && !self.closing {
             self.driver.cancel(0);
@@ -162,6 +143,58 @@ impl Host for Login {
     }
     fn exit(&self) -> Option<kernel::Exit> {
         self.outcome.map(|outcome| kernel::Exit::Code(outcome.code()))
+    }
+}
+
+fn sign_in_minutes() -> u64 {
+    super::super::super::product::client_limits()
+        .sign_in_time
+        .as_nanos()
+        .div_euclid(skein_lib::Duration::from_secs(60).as_nanos())
+}
+
+fn visit_lines(url: &[u8], ssh: Option<&str>) -> String {
+    let forwarding = if let Some(host) = ssh
+        && let Some(port) = redirect_port(url)
+    {
+        format!("ssh -L {port}:127.0.0.1:{port} {host}\n")
+    } else {
+        String::new()
+    };
+    format!(
+        "Sign in: {}\n{forwarding}Waiting up to {} minutes for the browser.",
+        String::from_utf8_lossy(url),
+        sign_in_minutes()
+    )
+}
+
+fn browser_deadline_passed(state: State, now: Time) -> bool {
+    match state {
+        State::Waiting { deadline } => now >= deadline,
+        State::SignIn | State::SignOut | State::Rollback => false,
+    }
+}
+
+fn failure_line(name: &str, state: State, failure: skein_oauth_accounts::Failure, now: Time) -> (String, bool) {
+    use skein_oauth_accounts::Failure;
+    match failure {
+        Failure::Exchange(skein_oauth::Failure::ClientRejected) => {
+            (format!("smith: account {name}: the provider refused smith's registration"), true)
+        }
+        Failure::AnotherSubject => (format!("smith: account {name}: another subject was refused"), true),
+        Failure::Exchange(skein_oauth::Failure::TimedOut) if browser_deadline_passed(state, now) => (
+            format!("account {name}: not signed in: no answer from the browser within {} minutes", sign_in_minutes()),
+            false,
+        ),
+        Failure::Busy
+        | Failure::NotGranted
+        | Failure::NotKept
+        | Failure::Expired
+        | Failure::Unloaded { .. }
+        | Failure::Exchange(_) => (
+            format!("account {name}: {}", if state == State::SignOut { "not signed out" } else { "not signed in" }),
+            false,
+        ),
     }
 }
 

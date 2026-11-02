@@ -56,8 +56,8 @@ impl Bounds {
 pub fn bounds(forge: &temper_engine_domain_forge::Limits, change_words: u32) -> Option<Bounds> {
     let limits = v11::Limits {
         effect_account_words: temper_engine_domain_forge::EFFECT_ACCOUNT_BYTES,
-        // A change retains its task's spec, independently of forge operation bytes.
-        change_row_title: change_words,
+        // Explicit titles fit the forge; the body retains the task words.
+        change_row_title: 256,
         change_row_body: change_words,
         dispatch_input_name: 255,
         dispatch_input_value: forge.client.op_bytes,

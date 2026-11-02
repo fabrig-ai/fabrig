@@ -261,6 +261,19 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
     close(domain, env, decision, out);
 }
 
+fn keep_produced_title(domain: &mut Domain, record: &core::Record) {
+    if let core::Record::Tasks(tasks::Stored::Ended(row)) = record
+        && let tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Change { title, .. })) = &row.phase
+        && let tasks::Party::Task(task) = row.requester
+    {
+        domain.work.push(Work::Forge(forge::Event::ProducedTitle {
+            task,
+            child: row.number,
+            title: title.words.clone(),
+        }));
+    }
+}
+
 /// Route one core batch: writes join the decision, asks and outputs go to their owners.
 pub(crate) fn route_core_requests(
     domain: &mut Domain,
@@ -272,6 +285,7 @@ pub(crate) fn route_core_requests(
     for _ in 0..output.len() {
         match output.pop().expect("core output count") {
             core::Request::Write(core::Write::Save(record)) => {
+                keep_produced_title(domain, &record);
                 if let core::Record::Core(core::CoreRecord::Call(row)) = &record {
                     let answer = forge_route::effect_answer(domain, row.key, &row.part);
                     if let core::CallPart::Effect { .. } = row.part {

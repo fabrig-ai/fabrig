@@ -6,29 +6,28 @@ Run a whole deployment on one machine, on loopback, from its configuration to a 
 
 ## Before you start
 
-- **The binary:** `temper` on `PATH`, and git 2.41 or later. Install
-  from a checkout with `scripts/install.sh "$HOME/.local"`;
-  builds need Rust's `wasm32-unknown-unknown` target.
+- **The binary:** `temper` on `PATH`, git 2.41 or later. From a checkout:
+  `scripts/install.sh "$HOME/.local"`; builds need Rust's
+  `wasm32-unknown-unknown` target.
 - **Real or fake backends:** choose before step 2; never mix them.
-  Real uses a model account and fetches Forgejo and its runner on
-  first use. Fake needs no account: GitHub, the model, sign-in and
-  remote Forgejo are fakes on loopback; local Forgejo stays real. Run
-  `cargo build -p temper -p temper-fake-claude` from a checkout
-  to put `fake-claude` beside `temper`, then
-  `scripts/bundle.sh --loopback BUNDLE`.
-- **The directories:** `CONFIG`, `DATA` and `CACHE`, absolute, empty
-  and private to you (mode 0700, not reached through a link), and `DIR`,
-  private to you. Nothing else may use them.
+  Real needs a model account, fetches Forgejo and its runner on first
+  use. Fake needs no account: GitHub, model, sign-in and remote Forgejo
+  are fakes on loopback; local Forgejo stays real. From a checkout, run
+  `cargo build -p temper -p temper-fake-claude` to put `fake-claude`
+  beside `temper`, then `scripts/bundle.sh --loopback BUNDLE`.
+- **The directories:** `CONFIG`, `DATA` and `CACHE`: absolute, empty,
+  private to you (0700), not reached through links. `DIR`: private to you. Nothing
+  else may use these directories.
 - **A model account** on real backends: an exported login or API key
-  in a private file; a provider's sign-in in a browser on this
-  machine; or Claude Code (`claude` on `PATH`), signed in at step 5
-  or using a signed-in configuration directory you hold.
-- `BUNDLE`: the loopback bundle's directory, on fake backends.
-- `REQUEST`: the file asking for the change.
-- `CHANGE`: the change task's number from step 6.
-- `FORGE`: the box's Forgejo's number, from step 4.
-- `NAME`: a Claude Code login's name, 1 to 32 lower-case letters,
-  digits or hyphens (step 5).
+  in a private file; a provider's browser sign-in on this machine; or
+  Claude Code (`claude` on `PATH`), signed in at step 5 or in a
+  configuration directory you hold.
+- `BUNDLE`: the loopback bundle directory, on fake backends.
+- `REQUEST`: the change request file.
+- `CHANGE`: the change task's number (step 6).
+- `FORGE`: the box's Forgejo's number (step 4).
+- `NAME`: a Claude Code login, 1–32 lowercase letters, digits or
+  hyphens (step 5).
 
 ## 1. Write the configuration
 
@@ -36,17 +35,26 @@ Run a whole deployment on one machine, on loopback, from its configuration to a 
 temper init --config CONFIG --data DATA --cache CACHE
 ```
 
-Before starting, finish configuration changes. Fake backends require
-`CONFIG` unchanged from `temper init`.
+Init chooses five loopback ports, preferring 8367–8371 for clients,
+owned Forgejo, fake forge, demo LLM and webhooks. Occupied ports fall
+back to free kernel ports, matching in both configuration files.
+For another box, keep the first running and use separate empty
+`CONFIG`, `DATA` and `CACHE`: let init choose ports.
 
-Expect: `init: wrote DATA/worker.secret`, with `DATA` the path you
-gave; the last line names the step 2 command for real backends.
+Saved addresses are fixed; later starts refuse occupied ones. A separate
+init releases reservations on exit. To keep them through startup,
+run step 2's `temper box` on empty directories: it runs init and retains
+all five listeners. Finish edits before starting; fake backends require
+`CONFIG` unchanged from init.
+
+Expect: `init: wrote DATA/worker.secret`; the last line names step 2's
+command for real backends.
 
 **Claude Code:** replace OpenAI's provider with Anthropic's below.
-`MODEL` is a Claude Code model, such as `sonnet` or `opus`.
-`PROGRAMS` is its private login directory, such as `DATA/programs`,
-or the parent of your signed-in Claude Code directory (step 5).
-`DIR/temper.json` and `DIR/agent.json` are scratch copies.
+`MODEL`: a Claude Code model, such as `sonnet` or `opus`.
+`PROGRAMS`: its private login directory, such as `DATA/programs`,
+or your signed-in directory's parent (step 5).
+`DIR` holds scratch copies.
 
 ```
 jq --arg model MODEL '.engine.llm |= (
@@ -69,14 +77,12 @@ jq --arg model MODEL --arg claude "$(command -v claude)" --arg programs PROGRAMS
   CONFIG/agent.json > DIR/agent.json && cat DIR/agent.json > CONFIG/agent.json
 ```
 
-Expect: no output; `jq -c '[.engine.llm.models[].name]'
-CONFIG/temper.json` prints `["MODEL","demo"]`, and `me` later lists
-provider 2, Anthropic, with its program `claude_code`. Provider 1 is
-gone: step 5's way is then Claude Code's. Keep the demo, or a run's turn
-outgrows init's limits.
+Expect: no output; `me` later lists provider 2, Anthropic, program
+`claude_code`. Use Claude Code's way in step 5. Keep the demo model
+to stay within init's limits.
 
 If not: `temper init: CONFIG/temper.json: already exists` (exit 1):
-`CONFIG` holds a configuration; start from empty directories.
+Use empty directories.
 
 ## 2. Start the box
 
@@ -92,33 +98,28 @@ Fake backends:
 temper box --fake-backends --bundle BUNDLE --config CONFIG --data DATA --cache CACHE
 ```
 
-Keep it running in its own terminal or in the background, output to a
-file. Its sign-in link has its own line after
-`Open this link in a browser on this machine.`
+Keep it running in a terminal or in the background, output to a file.
+Its sign-in link follows `Open this link in a browser on this machine.`
 
 Expect: real, `Logs: DATA/box/logs/`. Fake,
 `box: effective configuration DATA/box/fake-backends/config`; among
 the next lines, `box: model key FILE` and
 `box: GitHub own App id 1, key file FILE`, the files later steps read.
 
-If not: `missing or nonexecutable adapter`: build `fake-claude`
-beside `temper`, as `Before you start` says. `not in current init
-shape`: `CONFIG` was changed after `temper init`; start again from
-empty directories. `retained documents must be private files`: an
-effective document lost its mode; `chmod 600` it. A start whose
-stored state is refused prints, in place of a sign-in link,
+If not: `missing or nonexecutable adapter`: build `fake-claude` beside
+`temper`. `not in current init shape`: `CONFIG` changed after init;
+start from empty directories. `retained documents must be private
+files`: `chmod 600` the effective document. Refused stored state prints
 `temper serve: restore KIND: REASON` or
-`temper serve: restart refused during STEP`; the box starts serve
-again a few times, each saying the same, then gives up and exits 1:
-keep `DATA` as it is and report the line as a finding.
-A store an older build wrote, whose layout this build doesn't read,
-prints `temper serve: DATA/deployment holds a store from an older
-build, whose FAMILY family's layout differs from this build's, ...`,
-retried and given up the same way. Before the first release a store
-isn't translated. To start afresh, stop the box, move `active`,
+`temper serve: restart refused during STEP`; the box retries, then
+exits 1. Keep `DATA` and report the line as a finding.
+An incompatible store prints `temper serve: DATA/deployment holds a
+store from an older build, whose FAMILY family's layout differs from
+this build's, ...`, retried the same way. Stores aren't translated
+before the first release. To start afresh, stop the box, move `active`,
 `generations/` and `transcripts/` out of `DATA/deployment` together,
-and start it again: nothing is deleted, and the new store has no
-tasks, sign-ins, accounts or keys, so every client signs in again.
+then restart. Nothing is deleted; the new store has no tasks, sign-ins,
+accounts or keys. Every client signs in again.
 
 ## 3. Sign in
 
@@ -129,16 +130,21 @@ temper ctl DIR sign-in -
 temper ctl DIR me
 ```
 
-Expect: `party 1 · owner · Owner`, the owner of a new box; `me`
-then lists `1 · Project 1 · owner`.
+Expect: `party 1 · owner · Owner`; `me` lists `1 · Project 1 · owner`.
 
-If not: `temper ctl: the sign-in link was refused` (exit 1): the link
-was spent or expired. The box then prints `A fresh sign-in link:` and
-a new link: sign in with it.
+First start made project 1 and its owner. After raising limits with
+`settings apply`, use `project fund` for its period, then role 0's
+pool, with distinct keys: temper help weekly-budget. Settings do not
+resize these budgets; policy 1 sizes future projects. Check both
+balances with `project show PROJECT`.
+
+If not: `temper ctl: the sign-in link was refused` (exit 1): spent or
+expired. Use the new link after `A fresh sign-in link:`.
 
 ## 4. Set up Forgejo on this machine
 
-`PROJECT` is 1 on a new box, as `me` lists it.
+Use the project `me` lists, 1 on a new box: setup adopts the repository
+into this existing project.
 
 ```
 temper ctl DIR forge setup --org work --repository hello --project PROJECT --key KEY
@@ -176,8 +182,7 @@ A login exported from another deployment:
 temper ctl DIR account import FILE --key KEY
 ```
 
-A provider's sign-in, opened in a browser on this machine; on fake
-backends, any HTTP client completes it:
+A provider's browser sign-in; any HTTP client completes the fake:
 
 ```
 temper ctl DIR account connect PROVIDER --key KEY
@@ -200,11 +205,9 @@ temper ctl DIR account list
 temper ctl DIR account verify ACCOUNT --source program
 ```
 
-`program-login` signs Claude Code in through this terminal into
-`PROGRAMS/NAME`. To use an existing signed-in directory in place,
-set `PROGRAMS` to its parent and `NAME` to its name; skip
-`program-login`. temper neither moves nor reads it; only one box
-uses it at a time.
+`program-login` signs Claude Code in here into `PROGRAMS/NAME`.
+For an existing login, set `PROGRAMS` to its parent, `NAME` to its
+name and skip `program-login`. Only one box uses it at a time.
 
 Then:
 
@@ -212,9 +215,8 @@ Then:
 temper ctl DIR account list --until usable
 ```
 
-Expect: `moved in: account N`, the address to open, `done: add-key`,
-or `Program source S: NAME` and the command to run on each host,
-then `asked` for the verify; the wait ends with `met`.
+Expect: `moved in: account N`, an address, `done: add-key`, or
+`Program source S: NAME`, then `asked` for verify; the wait ends `met`.
 
 If not: `key file mode 0o644 permits group or other access` (exit 1):
 `chmod 600 FILE`, then the same call with the same key. The person's
@@ -233,11 +235,10 @@ temper ctl DIR task show TASK --until replied
 temper ctl DIR task show TASK --tree
 ```
 
-`TASK` is the chat's number, which the first call prints; the tree
-lists the change it started, `CHANGE`.
+`TASK` is the printed chat number; its tree lists `CHANGE`.
 
-Expect: `done: task TASK, chat`; the wait prints the task, its first
-line `task TASK · chat · ` and its phase, then `met`.
+Expect: `done: task TASK, chat`; the wait prints
+`task TASK · chat · `, its phase, then `met`.
 
 If not: on fake backends, the model answers every request with
 `Hello from the local fake model.` and starts no change: go to step 8.
@@ -251,9 +252,9 @@ temper ctl DIR change show CHANGE --until landed --timeout 3600
 temper ctl DIR change show CHANGE
 ```
 
-The change waits for CI at its head; the starter workflow passes.
-The pull request printed by `change show` has its diff, reviews,
-CI runs and logs.
+The starter CI passes.
+The pull request printed by `change show` has its diff, CI runs and
+logs; temper's review gate is read with `change show`.
 
 Expect: the change's panel, its first line `change CHANGE ·
 work/hello on forge FORGE · `, its branch and `into main`, then `met`;

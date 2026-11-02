@@ -509,8 +509,11 @@ READ [--since DIGEST] [--until CONDITION] [--timeout DURATION]
   TASK`, and `task tree TASK` needs no condition of its own.
 - **`phase:<phase>`** names the client's phase in lower case, hyphenated:
   `waiting`, `idle`, `due`, `preparing`, `claimed`, `running`,
-  `backing-off`, `active`, `closing`, `held`. The ended phases, `ended`,
-  `done`, `failed` and `cancelled`, are never conditions: the engine
+  `backing-off`, `active`, `closing`, `held`. The word parses in any
+  ASCII case (`Running`, `RUNNING`), and `backing-off` also as
+  `BackingOff` and as `--json`'s `backing_off`; refusals and echoes print
+  the lower-case word, and `help task show` lists the words. The ended
+  phases, `ended`, `done`, `failed` and `cancelled`, are never conditions: the engine
   ends a task's watch as the task ends (jig's
   `client/domain/contract.md`, 7.2), so a delivery may never show one.
   `--until phase:done` and its kin are usage errors, exit 1, naming
@@ -1030,6 +1033,11 @@ digest: task 7c1e09a2b44f0d13
 - **Spend in the deployment's units,** as `me`, the settings and the
   stock state budgets (`../protocol/configuration.md`, 13.4): a task's
   spent and budget print as those numbers, never scaled.
+- **A duration in whole seconds,** `N seconds`, a remainder below a
+  second dropped, never scaled to minutes, hours or days: the form help
+  prints a bound in (`at most 3600 seconds`). `me`'s retention prints
+  `retention: 86400 seconds` for a day. Under `--json`, jig's integers:
+  nanoseconds (6.2).
 - **The header** is the task's number, its kind, its phase in jig's
   words, its project and its tracking. Its kind is `chat` for a
   conversation, `goal` for a goal (the task its own goal), and
@@ -1960,6 +1968,12 @@ Each is named here and designed when it comes.
 - **An older moved form patched at `account import`** (5.5, area 5, the
   file's versions): jig's form patches, then skein's record patches,
   before the engine's checks, when a form 2 exists.
+- **`--until phase:` in the words `task show` prints** (5.4, 6.1): the
+  header prints jig's phrase-book word, and several are no phase word
+  (`Waiting for news`, `Due to run`, `Preparing a host`, `Claimed by a
+  host`, `Retrying`, `ChipExecutor active`); a wait takes the phase
+  word, in any case, until the header and the condition share one
+  spelling.
 
 ## 15. Open questions
 

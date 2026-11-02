@@ -67,6 +67,23 @@ fn a_find_asks_each_accessible_role_of_the_person_role() {
     );
 }
 #[test]
+fn a_heading_query_has_no_level_filter() {
+    let mut face = face();
+    let title = b"Export widget's table as CSV";
+    let find = Find::exactly_named(Role::Heading { level: 1 }, title);
+    assert_eq!(face.find(&find), Found::Pending);
+    let Request::Find { op, query, .. } = face.requests().next().expect("heading query") else {
+        panic!("expected find");
+    };
+    assert_eq!(query.role.as_ref(), b"heading");
+    assert_eq!(query.name.as_ref(), title);
+    let card_heading = Seen { role: b"heading".as_slice().into(), name: title.as_slice().into(), ..seen(b"") };
+    let mut nodes = List::with_capacity(1);
+    nodes.push(card_heading).expect("room for the card heading");
+    face.event(&Event::Found { op, seen: nodes, more: 0 });
+    assert_eq!(face.find(&find), Found::Node(FOUND_TARGET));
+}
+#[test]
 fn the_face_is_pending_until_the_kit_answers() {
     let mut face = face();
     let find = Find::named(Role::TextField, b"Title");

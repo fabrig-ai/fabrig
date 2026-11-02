@@ -675,8 +675,8 @@ fn a_settling_change_relies_on_its_own_pull_watch_but_keeps_its_deadline() {
     }
 }
 
-// Exercise admission, retained words, and the actual operation handed to the client.
-fn projected_words(words: &[u8]) -> skein_forge::api::Write {
+// Exercise admission, retained title and body, and the operation handed to the client.
+fn projected_words(explicit_title: &[u8], words: &[u8]) -> skein_forge::api::Write {
     let mut d = domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
@@ -686,7 +686,7 @@ fn projected_words(words: &[u8]) -> skein_forge::api::Write {
     row.pending = None;
     row.effect = temper_engine_domain_forge_change::EffectResult::None;
     row.change.state = temper_engine_domain_forge_change::State::Opening { requested: false };
-    row.title = words.into();
+    row.title = explicit_title.into();
     row.body = words.into();
     let registered = outputs(&mut d, Event::Change { row });
     for request in &registered {
@@ -694,7 +694,7 @@ fn projected_words(words: &[u8]) -> skein_forge::api::Write {
             panic!("change registration refused: {request:?}");
         }
     }
-    assert_eq!(d.change(fixtures::CHANGE).unwrap().title.as_ref(), words);
+    assert_eq!(d.change(fixtures::CHANGE).unwrap().title.as_ref(), explicit_title);
     assert_eq!(d.change(fixtures::CHANGE).unwrap().body.as_ref(), words);
     start_opening(&mut d, fixtures::CHANGE, FIRST_ENTRY);
     fixtures::missing_pull_reads(&mut d);
@@ -711,7 +711,8 @@ fn projected_words(words: &[u8]) -> skein_forge::api::Write {
 #[test]
 fn change_words_past_operation_bound_register_whole_and_open_with_marked_cuts() {
     let words = "界".repeat(700);
-    let skein_forge::api::Write::OpenPull { title, body, .. } = projected_words(words.as_bytes()) else {
+    let skein_forge::api::Write::OpenPull { title, body, .. } = projected_words(words.as_bytes(), words.as_bytes())
+    else {
         panic!("open pull")
     };
     assert!(title.len() <= 256);
@@ -723,30 +724,34 @@ fn change_words_past_operation_bound_register_whole_and_open_with_marked_cuts() 
 }
 
 #[test]
-fn change_words_within_operation_bound_open_unchanged_with_first_line_title() {
+fn change_words_within_operation_bound_keep_the_explicit_title() {
     let words = b"Small fix\nKeep the full specification.";
-    let skein_forge::api::Write::OpenPull { title, body, .. } = projected_words(words) else { panic!("open pull") };
+    let skein_forge::api::Write::OpenPull { title, body, .. } = projected_words(b"Small fix", words) else {
+        panic!("open pull")
+    };
     assert_eq!(title.as_ref(), b"Small fix");
     assert_eq!(body.as_ref(), words);
 }
 
 #[test]
-fn change_paragraph_opens_with_first_sentence_title_and_whole_body() {
+fn change_paragraph_keeps_title_punctuation_and_whole_body() {
     let words = b"Add CSV export to the widget. Read src/main.rs to see how the widget works. Keep the export simple.";
-    let skein_forge::api::Write::OpenPull { title, body, .. } = projected_words(words) else { panic!("open pull") };
-    assert_eq!(title.as_ref(), b"Add CSV export to the widget");
+    let skein_forge::api::Write::OpenPull { title, body, .. } = projected_words(b"Add CSV v1.2. export!", words) else {
+        panic!("open pull")
+    };
+    assert_eq!(title.as_ref(), b"Add CSV v1.2. export!");
     assert_eq!(body.as_ref(), words);
 }
 
 #[test]
-fn change_long_first_sentence_title_cuts_at_a_word() {
+fn change_long_explicit_title_fits_the_byte_bound() {
     const WORDS: usize = 50; // Eight bytes per word exceed the pull's 256-byte title bound.
-    const KEPT_WORDS: usize = 31; // 31 * 8 - 1 + 3 marker bytes fit; one more word does not.
     let words = "Exports ".repeat(WORDS) + "widgets. Keep the full specification.";
-    let skein_forge::api::Write::OpenPull { title, .. } = projected_words(words.as_bytes()) else {
+    let skein_forge::api::Write::OpenPull { title, .. } = projected_words(words.as_bytes(), words.as_bytes()) else {
         panic!("open pull")
     };
-    assert_eq!(title.as_ref(), ("Exports ".repeat(KEPT_WORDS - 1) + "Exports…").as_bytes());
+    assert_eq!(title.len(), 256);
+    assert_eq!(title.strip_suffix("…".as_bytes()).expect("marked cut"), &words.as_bytes()[..253]);
 }
 
 #[test]
@@ -783,4 +788,53 @@ fn oversized_gate_remarks_are_marked_before_they_are_saved() {
     assert_eq!(&saved[kept + 2..saved.len() - b" bytes cut]\n".len()], count.as_bytes());
     assert!(saved.ends_with(b" bytes cut]\n"));
     assert!(saved.len() <= usize::try_from(LIMITS.client.answer_bytes).expect("test fixture"));
+}
+
+#[test]
+fn awaiting_a_producer_title_keeps_the_changes_stall_deadline() {
+    use temper_engine_domain_forge_change as change;
+    for expired in [false, true] {
+        let mut d = domain();
+        outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+        outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        outputs(&mut d, Event::ReadAfresh);
+        outputs(&mut d, Event::SettleOutbox);
+        let mut row = fixtures::opening_row();
+        row.pending = None;
+        row.effect = change::EffectResult::None;
+        row.title = Box::new([]);
+        row.delegate = Some((52, change::Delegate::Produce));
+        row.change.state = change::State::Producing { requested: true };
+        row.change.since = if expired {
+            Wall::from_nanos(env().wall.as_nanos().saturating_sub(LIMITS.change_policy.stall.as_nanos()))
+        } else {
+            env().wall
+        };
+        outputs(&mut d, Event::Change { row });
+        fixtures::missing_pull(&mut d);
+        let finished = fixtures::finish_missing(&mut d);
+        let decision = if expired {
+            change::Decision::Hold(change::Hold::Stalled)
+        } else {
+            change::Decision::Wait { until: Some(WAIT_UNTIL) }
+        };
+        assert!(
+            finished.contains(&Request::ChangeDecision {
+                task: fixtures::CHANGE,
+                decision,
+                entry: None,
+                evidence: None,
+            }),
+            "title wait: {finished:?}"
+        );
+        if expired {
+            assert_eq!(
+                d.change(fixtures::CHANGE).expect("change").change.state,
+                change::State::Held {
+                    was: Box::new(change::State::Producing { requested: true }),
+                    why: change::Hold::Stalled,
+                }
+            );
+        }
+    }
 }

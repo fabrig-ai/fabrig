@@ -11,3 +11,11 @@
   through the same validated Actions link; an explicit other App stays
   unpinned. Step and fake-GitHub machine regressions compose Checks and
   Job for two failed heads and retain the gate's timestamp in the log tail.
+
+- **Built:** 5.2, 7: ambiguous update stale refusals get one bounded pull
+  verification. A moved head stays `Stale`; an unchanged open head yields
+  `Conflict` even with an optimistic mergeability hint. Step regressions
+  cover verification failures; the fake GitHub protocol world varies the
+  refusal over the wire and repeats the attempt. The finding's raw
+  exchange is unavailable, so the scenario is not a conformance claim
+  about GitHub's exact conflict message.

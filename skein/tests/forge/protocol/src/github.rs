@@ -134,6 +134,7 @@ pub(crate) struct Github {
     lines: Vec<Vec<u8>>,
     totals: Accounting,
     lose_creation: bool,
+    pub(crate) ambiguous_updates: bool,
     seed: u64,
     key: &'static [u8],
 }
@@ -185,6 +186,7 @@ impl Github {
             secrets: Vec::new(),
             mints: 0,
             lose_creation: false,
+            ambiguous_updates: false,
             seed,
             key: fixture::key(),
         };
@@ -328,6 +330,26 @@ impl Github {
             }
         }
     }
+    fn response(&mut self, request: &ApiRequest<'_>, wall: Wall) -> skein_fake_forge_github::service::Response {
+        let mut outcome = self.service.request(request, wall, ReplyTo::new(Token::new(77)));
+        let mut response = loop {
+            outcome = match outcome {
+                Outcome::Reply(response) => break response,
+                Outcome::Admit(admission) => self.service.admit(
+                    admission,
+                    &mut self.domain,
+                    &Env { now: self.fake_env.now, wall, limits: self.fake_env.limits },
+                    ReplyTo::new(Token::new(77)),
+                ),
+                Outcome::Call(pending, event) => self.continue_call(pending, event),
+            };
+        };
+        // This scenario varies the refusal spelling while preserving the fake conflict.
+        if self.ambiguous_updates && request.target.ends_with(b"/update-branch") && response.status == 422 {
+            response.body = Box::from("{\"message\":\"expected head sha didn’t match current head ref.\"}".as_bytes());
+        }
+        response
+    }
     fn serve(&mut self, peer: &mut Peer, env: &Env<http::Limits>) {
         let call = peer.head.take().expect("request head");
         let method = match call.method {
@@ -348,21 +370,10 @@ impl Github {
             body: &peer.body,
         };
         if call.target.as_ref() == b"/graphql" {
-            assert_eq!(peer.body.as_slice(), br#"{"query":"query { viewer { login databaseId } }"}"#);
+            let trace = peer.traces.get_mut(peer.entrance.checked_sub(1).expect("served request")).expect("trace");
+            trace.own = peer.body.as_slice() == br#"{"query":"query { viewer { login databaseId } }"}"#;
         }
-        let mut outcome = self.service.request(&request, env.wall, ReplyTo::new(Token::new(77)));
-        let response = loop {
-            outcome = match outcome {
-                Outcome::Reply(response) => break response,
-                Outcome::Admit(admission) => self.service.admit(
-                    admission,
-                    &mut self.domain,
-                    &Env { now: self.fake_env.now, wall: env.wall, limits: self.fake_env.limits },
-                    ReplyTo::new(Token::new(77)),
-                ),
-                Outcome::Call(pending, event) => self.continue_call(pending, event),
-            };
-        };
+        let response = self.response(&request, env.wall);
         if call.target.ends_with(b"/access_tokens") && response.status == 201 {
             // Keep the fake's minted response as a private credential observation,
             // including the narrower git token that never authenticates an API call.

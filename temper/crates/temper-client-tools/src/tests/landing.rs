@@ -183,6 +183,28 @@ fn a_landing_the_engine_does_not_know_fails_with_exit_2() {
         assert_eq!(root.watches.len(), 1);
     }
 }
+#[test]
+fn a_landed_queue_change_has_no_landing_in_text_or_json() {
+    for json in [false, true] {
+        let mut root = f::signed_in(f::PARTY);
+        root.pending_reads.push(1);
+        let call = root.submit_prepared(f::call(&["landing", "show", "3"]), json, None);
+        root.serve(call, f::task_result(f::goal(3, c::WaitsOn::Nothing)));
+        let step = w::Step::Landed(w::Landed::new(&w::CEILINGS, w::LandedParts { merge: [34; 32] }).unwrap());
+        let mut parts = super::change::panel(step).into_parts();
+        parts.task = 3;
+        let subject = landing::subject(Some(3), 1, false, &root.limits);
+        deliver(&mut root, subject, wire::change_panel(&w::ChangePanel::new(&w::CEILINGS, parts).unwrap()));
+        let answer = root.answer(call).unwrap();
+        assert_eq!(answer.status, 2, "json={json}");
+        assert!(answer.stdout.is_empty());
+        assert_eq!(
+            answer.stderr.as_ref(),
+            if json { b"{\"error\":\"no landing for task 3\"}".as_slice() } else { b"no landing for task 3\n" }
+        );
+        assert_eq!(root.watches.len(), 1, "only me remains watched");
+    }
+}
 fn list(turn: Option<u64>, tasks: &[u64]) -> w::LandingsPanel {
     let mut landings = List::with_capacity(u32::try_from(tasks.len()).unwrap());
     for task in tasks {
@@ -460,6 +482,34 @@ fn a_refused_landing_or_landings_watch_prints_not_allowed() {
                 if json { b"{\"error\":\"not_allowed\"}".as_slice() } else { b"not_allowed\n" }
             );
             assert_eq!(root.watches.len(), 1, "only me remains watched");
+        }
+    }
+}
+
+#[test]
+fn wrong_change_tasks_and_wrong_landing_projects_remain_document_errors() {
+    let change = wire::change_panel(&super::change::panel(w::Step::Checking));
+    let mut parts = panel(w::LandingPhase::Landed).into_parts();
+    parts.project = 2;
+    let wrong_project = wire::landing_panel(&w::LandingPanel::new(&w::CEILINGS, parts).unwrap());
+    for json in [false, true] {
+        for bytes in [change.clone(), wrong_project.clone(), Box::default()] {
+            let mut root = f::signed_in(f::PARTY);
+            let call = root.submit_prepared(f::call(&["landing", "show", "61", "--project", "1"]), json, None);
+            let subject = landing::subject(Some(61), 1, false, &root.limits);
+            deliver(&mut root, subject, bytes);
+            let answer = root.answer(call).unwrap();
+            assert_eq!(answer.status, 1);
+            assert!(answer.stdout.is_empty());
+            assert_eq!(
+                answer.stderr.as_ref(),
+                if json {
+                    b"{\"error\":\"unexpected landing document\"}".as_slice()
+                } else {
+                    b"unexpected landing document\n"
+                }
+            );
+            assert_eq!(root.watches.len(), 1);
         }
     }
 }

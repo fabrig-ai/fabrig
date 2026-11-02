@@ -15,14 +15,7 @@ fn read(
     read: Read,
 ) -> Result<Answer, Error> {
     let before = world.answers.len();
-    let event = world.protocol.call(
-        CHANNEL,
-        run.task,
-        run.attempt,
-        u64::from(number),
-        engine::Call { completion: number, position: 1, tool: engine::Tool::ReadForge { repository, read } },
-    );
-    world.send(event);
+    ask_read(world, run, number, repository, read);
     for _ in 0..MAX_TICKS {
         world.tick();
         if let Some(answer) = world.answers.get(before) {
@@ -54,6 +47,7 @@ fn produce(world: &mut World, producer: &engine::Assignment, branch: &[u8]) -> [
         5,
         tasks::End::Finished {
             result: tasks::TaskResult::Change {
+                title: jig_domain_tasks::ChangeTitle::new(b"Small fix".as_slice().into()),
                 connector: 0,
                 kind: 2,
                 resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
@@ -68,10 +62,23 @@ fn produce(world: &mut World, producer: &engine::Assignment, branch: &[u8]) -> [
 }
 
 pub(super) fn review_world() -> (World, engine::Assignment, [u8; 32]) {
-    let (mut world, _, producer, branch) = change_world_with_gate(false, 1000, None, true);
+    review_in(World::configured_policy(true, true, false, 1000, Gate { agent: true, ..Gate::default() }, None))
+}
+
+fn review_in(world: World) -> (World, engine::Assignment, [u8; 32]) {
+    let (mut world, _, producer, branch) = change_world_in(world, Change::default());
     let head = produce(&mut world, &producer, &branch);
     let reviewer = next_assignment(&mut world, 2);
     (world, reviewer, head)
+}
+
+fn review_read_budget(pending: u32, reserve: u32) -> (World, engine::Assignment, [u8; 32]) {
+    let world = World::configured_policy(true, true, false, 1000, Gate { agent: true, ..Gate::default() }, None);
+    let mut client = world.env.limits.forge.client;
+    client.pending = pending;
+    client.calls = pending.min(client.calls);
+    client.reserve = reserve;
+    review_in(world.with_forge_client(client))
 }
 
 #[test]
@@ -183,6 +190,197 @@ fn a_changes_reviewer_reads_its_own_pull() {
         panic!("items")
     };
     assert!(items.iter().any(|item| item.number == pull.number && item.title.as_ref() == b"Small fix"));
+}
+
+fn ask_read(
+    world: &mut World,
+    run: &engine::Assignment,
+    number: u32,
+    repository: skein_forge::api::Repository,
+    read: Read,
+) {
+    let event = world.protocol.call(
+        CHANNEL,
+        run.task,
+        run.attempt,
+        u64::from(number),
+        engine::Call { completion: number, position: 1, tool: engine::Tool::ReadForge { repository, read } },
+    );
+    world.send(event);
+}
+
+/// Hold the fake's terminals, filling the client's logical call slab before a tool arrives.
+fn occupy_read_capacity(world: &mut World) -> Vec<engine::Event> {
+    for serial in 0..world.env.limits.forge.client.pending {
+        world.send(engine::Event::Forge(Box::new(forge_top::Event::Client(skein_forge_client::Event::Read {
+            owner: Token::new(10_000 + u64::from(serial)),
+            repository: forge_world::REPO,
+            read: Read::Branch { branch: b"main".as_slice().into() },
+        }))));
+    }
+    let mut held = Vec::new();
+    for _ in 0..8 {
+        world.tick();
+        let mut remaining = std::collections::VecDeque::new();
+        while let Some(event) = world.events.pop_front() {
+            if matches!(&event, engine::Event::Forge(event)
+                if matches!(event.as_ref(), forge_top::Event::Client(skein_forge_client::Event::Answered { .. })))
+            {
+                held.push(event);
+            } else {
+                remaining.push_back(event);
+            }
+        }
+        world.events = remaining;
+    }
+    assert!(!held.is_empty(), "another admitted call holds capacity");
+    held
+}
+
+#[test]
+fn reviewer_reads_back_off_when_forge_admission_is_busy() {
+    // B1 edition 2, first review, task activity 6: Pull and Checks fail during repair.
+    // The root domain world is lowest: skein's refusal is valid; temper routes it to the worker.
+    let (mut world, reviewer, head) = review_read_budget(2, 0);
+    let completions = occupy_read_capacity(&mut world);
+    let before = world.answers.len();
+    let busy = world.busy_calls;
+    ask_read(&mut world, &reviewer, 10, forge_world::REPO, Read::Pull { number: 1 });
+    ask_read(&mut world, &reviewer, 11, forge_world::REPO, Read::Checks { commit: head });
+    for _ in 0..8 {
+        world.tick();
+    }
+    assert_eq!(world.answers.len(), before, "admission Busy is not a model-visible forge error");
+    assert_eq!(world.busy_calls, busy + 2, "both calls use the host's backoff path");
+    assert!(world.call_errors.is_empty());
+    for event in completions {
+        world.send(event);
+    }
+    // The scripted worker plays the host's retry after capacity has progressed.
+    for _ in 0..8 {
+        world.tick();
+    }
+    let pull = read(&mut world, &reviewer, 10, forge_world::REPO, Read::Pull { number: 1 });
+    assert!(matches!(pull, Ok(Answer::Pull(pull)) if pull.number == 1 && pull.commit == head));
+    assert_review_checks(read(&mut world, &reviewer, 11, forge_world::REPO, Read::Checks { commit: head }));
+    for _ in 0..8 {
+        world.tick();
+    }
+    assert_eq!(world.answers.len(), before + 2, "each pending call has one terminal answer");
+}
+
+#[test]
+fn reviewer_read_backoff_ends_when_the_reviewer_is_cancelled() {
+    let (mut world, reviewer, _) = review_read_budget(2, 0);
+    let held = occupy_read_capacity(&mut world);
+    let before = world.answers.len();
+    ask_read(&mut world, &reviewer, 10, forge_world::REPO, Read::Pull { number: 1 });
+    for _ in 0..8 {
+        world.tick();
+    }
+    assert_eq!(world.busy_calls, 1);
+    assert_eq!(world.answers.len(), before);
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        reply_to: ReplyTo::new(Token::new(30_000)),
+        sign_in: world.signed_in.expect("owner signed in"),
+        models: Box::new([]),
+        key: [30; 16],
+        ask: people::Ask::Cancel {
+            project: 1,
+            task: reviewer.task,
+            reason: b"stop review".as_slice().into(),
+            grace: None,
+        },
+    }));
+    for event in held {
+        world.send(event);
+    }
+    for _ in 0..20 {
+        world.tick();
+    }
+    assert!(matches!(live_task(&world, reviewer.task).phase, tasks::Phase::Closing(_)));
+    assert_eq!(world.answers.len(), before, "the cancelled host sends no retry");
+    assert!(world.call_errors.is_empty());
+}
+
+#[test]
+fn reviewer_read_errors_are_terminal_without_backoff() {
+    let (mut world, reviewer, _) = review_world();
+    let busy = world.busy_calls;
+    assert_eq!(read(&mut world, &reviewer, 10, forge_world::REPO, Read::Pull { number: 999 }), Err(Error::Missing));
+    for _ in 0..8 {
+        world.tick();
+    }
+    assert_eq!(world.busy_calls, busy);
+    assert_eq!(
+        world
+            .answers
+            .iter()
+            .filter(|answer| matches!(answer,
+        engine::CallAnswer::ForgeRead(result) if result.as_ref() == &Err(Error::Missing)))
+            .count(),
+        1
+    );
+}
+
+fn assert_review_checks(answer: Result<Answer, Error>) {
+    let Ok(Answer::Checks(checks)) = answer else { panic!("review checks: {answer:?}") };
+    assert_eq!(checks.len(), 1);
+    assert_eq!(checks[0].context.as_ref(), b"build");
+    assert_eq!(checks[0].check, skein_forge::api::Check::Passed);
+}
+
+/// Charge the foreground share with a fake answer, leaving logical call room free.
+fn spend_foreground_share(world: &mut World) {
+    world.send(engine::Event::Forge(Box::new(forge_top::Event::Client(skein_forge_client::Event::Read {
+        owner: Token::new(20_000),
+        repository: forge_world::REPO,
+        read: Read::Branch { branch: b"main".as_slice().into() },
+    }))));
+    for _ in 0..8 {
+        world.tick();
+        if let Some(index) = world.events.iter().position(|event| {
+            matches!(event,
+            engine::Event::Forge(event) if matches!(event.as_ref(),
+                forge_top::Event::Client(skein_forge_client::Event::Answered { .. })))
+        }) {
+            let mut event = world.events.remove(index).expect("selected forge terminal");
+            let engine::Event::Forge(forge) = &mut event else { unreachable!() };
+            let forge_top::Event::Client(skein_forge_client::Event::Answered { cost, .. }) = forge.as_mut() else {
+                unreachable!()
+            };
+            *cost = world.env.limits.forge.client.rate - world.env.limits.forge.client.reserve;
+            world.send(event);
+            return;
+        }
+    }
+    panic!("foreground read did not reach the fake");
+}
+
+#[test]
+fn reviewer_reads_back_off_for_the_background_reserve() {
+    let (mut world, reviewer, head) = review_read_budget(16, 1);
+    spend_foreground_share(&mut world);
+    let before = world.answers.len();
+    let busy = world.busy_calls;
+    // A due keeping read must get the reserved request before another fresh read.
+    world.env.now = world.env.now.saturating_add(world.env.limits.forge.client.poll);
+    world.env.wall = skein_lib::Wall::from_nanos(world.env.now.as_nanos());
+    for _ in 0..8 {
+        engine::fire(&mut world.root, &world.env);
+    }
+    assert!(world.pending.len() < world.env.limits.forge.client.pending as usize);
+    ask_read(&mut world, &reviewer, 10, forge_world::REPO, Read::Checks { commit: head });
+    for _ in 0..8 {
+        world.tick();
+    }
+    assert_eq!(world.answers.len(), before);
+    assert_eq!(world.busy_calls, busy + 1, "background reserve uses host backoff despite free call slots");
+    for _ in 0..110 {
+        world.tick();
+    }
+    assert_review_checks(read(&mut world, &reviewer, 10, forge_world::REPO, Read::Checks { commit: head }));
+    assert_eq!(world.answers.len(), before + 1);
 }
 
 #[test]
@@ -1135,6 +1333,7 @@ fn a_review_at_a_head_whose_ci_fails_is_cancelled_and_the_repair_is_funded() {
         3,
         tasks::End::Finished {
             result: tasks::TaskResult::Change {
+                title: jig_domain_tasks::ChangeTitle::new(b"Small fix".as_slice().into()),
                 connector: 0,
                 kind: 2,
                 resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
@@ -1207,6 +1406,7 @@ fn a_review_at_a_head_whose_ci_fails_is_cancelled_and_the_repair_is_funded() {
         0,
         tasks::End::Finished {
             result: tasks::TaskResult::Change {
+                title: jig_domain_tasks::ChangeTitle::new(b"Small fix".as_slice().into()),
                 connector: 0,
                 kind: 2,
                 resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),

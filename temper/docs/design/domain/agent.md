@@ -418,7 +418,10 @@ smith's (smith's `domain/run.md`, 7.1):
 | an approval | a failure only, of at most 1,024 bytes: approvals are people's |
 
 A change's result names the resource the worker's push and the forge
-settled, never one from the LLM's fields, and its words are the `body`.
+settled, never one from the LLM's fields. Its explicit `title` and `body`
+are preserved independently through jig's typed result and durable codec, each
+within the contract's words bound. The change procedure uses the title for
+the pull request, without deriving it from the production brief.
 The core judges a result again as it commits it, against the contract
 and the state as it is now (jig's `domain/tasks.md`, 5.6).
 

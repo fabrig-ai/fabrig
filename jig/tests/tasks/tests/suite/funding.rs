@@ -266,14 +266,24 @@ fn a_claim_holds_only_its_capped_allowance_and_returns_the_unused_part() {
 
 #[test]
 fn oversized_terminal_does_not_charge_or_copy_and_sources_refuse_at_capacity() {
-    let mut w = World::new(77, LIMITS);
-    w.make(Party::Person(9), vec![task(1, &[])]);
-    w.claim(1, 1);
-    let before = w.records.clone();
-    assert!(
-        matches!(end(&mut w,1,1,End::Finished { result:TaskResult::Report { words:vec![0;1024].into_boxed_slice() },cancel_delegates:false },2),Reply::Refused(problem) if problem.why==Refusal::Contract)
-    );
-    assert_eq!(w.records, before);
+    for result in [
+        TaskResult::Report { words: vec![0; 1024].into_boxed_slice() },
+        TaskResult::Change {
+            connector: 1,
+            kind: 2,
+            resource: 3,
+            title: jig_domain_tasks::ChangeTitle::new(vec![0; 1024].into_boxed_slice()),
+            words: Box::new([]),
+        },
+    ] {
+        let mut w = World::new(77, LIMITS);
+        w.make(Party::Person(9), vec![task(1, &[])]);
+        w.claim(1, 1);
+        let before = w.records.clone();
+        let answer = end(&mut w, 1, 1, End::Finished { result, cancel_delegates: false }, 2);
+        assert!(matches!(answer, Reply::Refused(problem) if problem.why == Refusal::Contract));
+        assert_eq!(w.records, before);
+    }
     let mut w = World::new(78, tasks::Limits { funders: 1, ..LIMITS });
     let before = w.records.clone();
     w.open_period(1, 100);

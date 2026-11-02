@@ -92,6 +92,7 @@ pub(crate) fn worker_event(peers: &mut Peers, up: workers::Up) -> engine::Event 
             {
                 end = tasks::End::Finished {
                     result: tasks::TaskResult::Change {
+                        title: jig_domain_tasks::ChangeTitle::new(b"Change".as_slice().into()),
                         connector: 0,
                         kind: 2,
                         resource: temper_engine_domain_forge::tag(

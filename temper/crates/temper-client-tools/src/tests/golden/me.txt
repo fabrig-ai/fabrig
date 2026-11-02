@@ -3,7 +3,7 @@ projects:
   1 · shop · owner
 needs: 1 · questions 1 · proposals 0 · escalations 0 · person tasks 0
 updates: 0
-retention: 1000000000000 ns
+retention: 1000 seconds
 providers:
 cut: false
 digest: me 171d77fe373628a9

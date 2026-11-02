@@ -191,8 +191,8 @@ fn me_text(me: &Me, book: &Phrasebook, limits: &Limits, out: &mut Text) {
         out.put(b"+");
     }
     out.put(b"\nretention: ");
-    out.number(me.retention.as_nanos());
-    out.put(b" ns\n");
+    out.number(me.retention.as_nanos().checked_div(1_000_000_000).expect("nonzero divisor"));
+    out.put(b" seconds\n");
     offers::text(me, limits, out);
 }
 fn role(role: HeldRole, out: &mut Text) {

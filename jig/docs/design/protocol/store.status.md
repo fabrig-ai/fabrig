@@ -9,3 +9,5 @@
 - **Not yet:** 7.3, 11.1, 15: retention and cut-before-first-row history/spend/notes. 14: ops real-store worlds and kill at every turn-commit phase. Direct-read room failure/closing-proof changes, key moves remain.
 
 - **Built:** 14: generation, upgrade, check and frame scenarios share the focused store suite; layout and manifest cases are table rows, copy-mutation and check/switch cuts have separate owners, and step-only duplicates are removed.
+
+- **Built:** 5.1: tasks v9 persists explicit change titles independently of result words; codecs enforce both bounds and the layout fingerprint changes with the schema.

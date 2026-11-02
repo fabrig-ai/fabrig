@@ -1642,6 +1642,7 @@ fn documents_retained_results_and_ended_delegates_preserve_cancellation_facts() 
         }),
         tasks::Ending::Failed { reason: Box::from(&b"Failure"[..]) },
         tasks::Ending::Done(tasks::TaskResult::Change {
+            title: jig_domain_tasks::ChangeTitle::new(b"Small fix".as_slice().into()),
             connector: 2,
             kind: 3,
             resource: 4,

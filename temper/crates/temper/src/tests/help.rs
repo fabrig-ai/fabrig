@@ -211,6 +211,29 @@ fn help_prints_a_whole_page_and_names_an_unknown_one() {
 }
 
 #[test]
+fn box_and_change_help_locate_temper_review_gates_in_change_show() {
+    let box_page = help::answer(&configured(&["help", "box"])).expect("box page");
+    let step = box_page
+        .split("## 7. Follow the change to its landing\n")
+        .nth(1)
+        .expect("box step 7")
+        .split("\n## ")
+        .next()
+        .expect("step text")
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(!step.contains("diff, reviews"), "{step}");
+    assert!(step.contains("The pull request printed by `change show` has its diff, CI runs and logs;"), "{step}");
+    assert!(step.contains("temper's review gate is read with `change show`."), "{step}");
+
+    let change = help::answer(&configured(&["help", "change"])).expect("change page");
+    let change = change.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(change.contains("a change's gates run in temper, and `change show` prints each"), "{change}");
+    assert!(change.contains("temper posts none to the forge as a review or a status"), "{change}");
+}
+
+#[test]
 fn help_prints_the_landing_page() {
     assert_eq!(
         help::answer(&configured(&["help", "landing"])).expect("landing page").as_bytes(),
@@ -226,6 +249,15 @@ fn help_search_names_the_server_section_or_says_nothing_matches() {
         help::answer(&configured(&["help", "--search", "zzzznotadocword"])),
         Err("temper: nothing matches\n".into())
     );
+}
+
+#[test]
+fn help_search_finds_port_selection_in_init_and_the_box_walk() {
+    let text =
+        help::answer(&configured(&["help", "--search", "ports", "init"])).expect("help explains init's port selection");
+    for section in ["box: 1. Write the configuration: ", "commands: temper init: "] {
+        assert!(text.lines().any(|line| line.starts_with(section)), "{section} missing from {text}");
+    }
 }
 
 #[test]
