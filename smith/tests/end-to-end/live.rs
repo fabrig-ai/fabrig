@@ -11,7 +11,7 @@ use smith_local_process_world::referee::CheckoutRead;
 use smith_real_world::Scratch;
 use support::live_run::Expectation;
 
-const CHANGE: &str = "In repository repo, read original.txt, replace its content with exactly edited followed by one newline, create result.txt containing exactly new followed by one newline, and use the command tool to create command.txt containing exactly ran followed by one newline. Run the configured .smith-test/check checks without modifying that script. Finish with a change result, a short title and body, so the host delivers the checked commit. Do not run git commit or push yourself.";
+const CHANGE: &str = "In the working directory, read original.txt, replace its content with exactly edited followed by one newline, create result.txt containing exactly new followed by one newline, and use the command tool to create command.txt containing exactly ran followed by one newline. Run the configured .smith-test/check checks without modifying that script. Finish with a change result, a short title and body, so the host delivers the checked commit. Do not run git commit or push yourself.";
 
 const STDOUT_BYTES: usize = 20_000_000;
 
@@ -155,7 +155,7 @@ fn a_chat_crosses_from_chatgpt_to_claude_then_back() {
             },
             &scratch,
             &format!(
-                "Create {filename} in repository repo containing exactly {} followed by one newline. Finish with a report.",
+                "Create {filename} in the working directory containing exactly {} followed by one newline. Finish with a report.",
                 content.trim()
             ),
             Expectation { before: None, files: vec![(filename.as_bytes().to_vec(), content.as_bytes().to_vec())] },
@@ -167,10 +167,12 @@ fn a_chat_crosses_from_chatgpt_to_claude_then_back() {
         [("first.txt", b"first\n".as_slice()), ("second.txt", b"second\n"), ("third.txt", b"third\n")]
     {
         let found = std::fs::read(scratch.path().join("repo").join(file)).ok();
+        let misplaced = if found.is_none() { found_beneath(&scratch, file.as_bytes()) } else { None };
         assert!(
             found.as_deref() == Some(content),
-            "each completed run keeps its file\n{completed}\n{}",
-            file_report(file.as_bytes(), content, found.as_deref())
+            "each completed run keeps its file\n{completed}\n{}{}",
+            file_report(file.as_bytes(), content, found.as_deref()),
+            misplaced.as_deref().unwrap_or_default()
         );
     }
 }
@@ -528,14 +530,26 @@ fn assert_exec(
     for (path, content) in expectation.files {
         let path_text = std::str::from_utf8(&path).unwrap_or_else(|_| panic!("{}", report("test path")));
         let found = std::fs::read(scratch.path().join("repo").join(path_text)).ok();
+        let misplaced = if found.is_none() { found_beneath(scratch, &path) } else { None };
         assert!(
             found.as_deref() == Some(content.as_slice()),
-            "{}\n{}",
+            "{}\n{}{}",
             report("checkout file matches its prescribed content"),
-            file_report(&path, &content, found.as_deref())
+            file_report(&path, &content, found.as_deref()),
+            misplaced.as_deref().unwrap_or_default()
         );
     }
     report("completed")
+}
+
+fn found_beneath(scratch: &Scratch, path: &[u8]) -> Option<String> {
+    let path = std::str::from_utf8(path).ok()?;
+    scratch
+        .path()
+        .join("repo/repo")
+        .join(path)
+        .exists()
+        .then(|| format!("\nfile {path:?}: found at repo/{path} beneath the working directory instead"))
 }
 
 fn program_contract(records: &[&smith_events::Record], leg: &Leg<'_>, settled: &Settled<'_>, end: &smith_bench::End) {
