@@ -576,6 +576,9 @@ pub(super) fn encode_wake_rule(
             limits,
             wire::WakeRuleBatchParts { count: *count, age: age.as_nanos() },
         )?),
+        domain::WakeRule::Paced { span } => {
+            wire::WakeRule::Paced(wire::WakeRulePaced::new(limits, wire::WakeRulePacedParts { span: span.as_nanos() })?)
+        }
     })
 }
 pub(super) fn decode_wake_rule(value: wire::WakeRule) -> domain::WakeRule {
@@ -586,6 +589,7 @@ pub(super) fn decode_wake_rule(value: wire::WakeRule) -> domain::WakeRule {
             let wire::WakeRuleBatchParts { count, age } = value.into_parts();
             domain::WakeRule::Batch { count, age: Duration::from_nanos(age) }
         }
+        wire::WakeRule::Paced(value) => domain::WakeRule::Paced { span: Duration::from_nanos(value.span()) },
     }
 }
 

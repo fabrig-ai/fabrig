@@ -40,6 +40,9 @@ pub fn wake_rule(source: &domain::WakeRule, limits: &wire::Limits) -> Result<wir
         domain::WakeRule::Batch { count, age } => {
             wire::WakeRule::Batch(wire::WakeBatch::new(limits, wire::WakeBatchParts { count: *count, age: *age })?)
         }
+        domain::WakeRule::Paced { span } => {
+            wire::WakeRule::Paced(wire::WakePace::new(limits, wire::WakePaceParts { span: *span })?)
+        }
     })
 }
 /// Read `WakeRule` from its store value.
@@ -51,6 +54,7 @@ pub fn read_wake_rule(source: wire::WakeRule) -> Result<domain::WakeRule, wire::
             let wire::WakeBatchParts { count, age } = value.into_parts();
             domain::WakeRule::Batch { count, age }
         }
+        wire::WakeRule::Paced(value) => domain::WakeRule::Paced { span: value.span() },
     })
 }
 

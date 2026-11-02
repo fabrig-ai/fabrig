@@ -21,7 +21,7 @@ fn adopted_world() -> World {
     world
 }
 
-fn goal_request(world: &World, tracked: bool) -> people::Ask {
+pub(super) fn goal_request(world: &World, tracked: bool) -> people::Ask {
     let people::Ask::Create { project, mut batch } = world.chat(1, b"Make a small fix on my branch") else {
         unreachable!("chat template creates a batch")
     };
@@ -55,7 +55,7 @@ fn resource(branch: &[u8]) -> tasks::Name {
     }
 }
 
-fn branch_tip(world: &mut World, branch: &[u8]) -> u64 {
+pub(super) fn branch_tip(world: &mut World, branch: &[u8]) -> u64 {
     let answer = world.external(1, raw::Op::Read(raw::Read::Branch { branch: branch.into() }));
     let raw::Answer::Commit(tip) = answer else { panic!("branch {branch:?}: {answer:?}") };
     tip
@@ -113,7 +113,7 @@ fn change(world: &mut World, run: &engine::Assignment, landing: engine::ChangeLa
     panic!("change did not answer: {:?}", world.call_errors)
 }
 
-fn forge_hold<'a>(world: &'a World, branch: &[u8]) -> Option<&'a forge_top::Hold> {
+pub(super) fn forge_hold<'a>(world: &'a World, branch: &[u8]) -> Option<&'a forge_top::Hold> {
     let what = forge_top::What::Branch(branch.split(|byte| *byte == b'/').map(Box::from).collect());
     world.store.rows.values().find_map(|row| match row {
         Record::Forge { row } => match row.as_ref() {

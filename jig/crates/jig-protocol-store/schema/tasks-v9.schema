@@ -85,7 +85,8 @@ record WriteHolding { resource: Name kind: u16 }
 record SlotHolding { pool: Name kind: u16 }
 enum Holding { write: WriteHolding, slot: SlotHolding }
 record WakeBatch { count: u32 age: duration }
-enum WakeRule { never, immediate, batch: WakeBatch }
+record WakePace { span: duration }
+enum WakeRule { never, immediate, batch: WakeBatch, paced: WakePace }
 enum ResultsWake { never, each, last_or_failure }
 record WakePolicy { words: WakeRule notices: WakeRule news: WakeRule results: ResultsWake questions: bool answers: bool timers: bool }
 enum RecurringOverlap { skip, wait }

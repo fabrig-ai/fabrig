@@ -88,7 +88,8 @@ record ParameterResource { name: u32 connector: u16 resource: u64 }
 enum Parameter { number: ParameterNumber, bytes: ParameterBytes, resource: ParameterResource }
 record Spec { words: bytes 8192 parameters: bytes 65536 pieces Parameter inputs: bytes 65536 pieces Number64 asks: bool }
 record WakeRuleBatch { count: u32 age: u64 }
-enum WakeRule { never, immediate, batch: WakeRuleBatch }
+record WakeRulePaced { span: u64 }
+enum WakeRule { never, immediate, batch: WakeRuleBatch, paced: WakeRulePaced }
 enum ResultsWake { never, each, last_or_failure }
 record WakePolicy { words: WakeRule notices: WakeRule news: WakeRule results: ResultsWake questions: bool answers: bool timers: bool }
 record TrackingTracked { priority: u32 }

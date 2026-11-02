@@ -124,7 +124,7 @@ pub fn form(
         let mut policy = *wake;
         policy.words = match wake.words {
             WakeRule::Never => WakeRule::Immediate,
-            WakeRule::Immediate | WakeRule::Batch { .. } => WakeRule::Never,
+            WakeRule::Immediate | WakeRule::Batch { .. } | WakeRule::Paced { .. } => WakeRule::Never,
         };
         next.wake = Some(policy);
         crate::tree::frame::control(
