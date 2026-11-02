@@ -145,3 +145,18 @@ Widened: `notes/contracts.md`, 6 adds `Domain::wait_tier(env, task, until)` and
 `change_due` or the landing's `due`; counted in `next_wall_deadline` and fired in `fire` as
 `Request::WakeProcedure { task }`; dropped when the task ends and rebuilt or cleared on restore
 as the landing's are. Add one unit story: a tier task waited with a deadline is woken at it.
+
+## Rebase (2026-11-02, step merge, foreman reference-m8/tiers-runs/foreman-2)
+
+Resolve tiers.rs conflict while preserving tier runs and implementing the required tier deadline hooks.
+The merge failed in `temper/crates/temper-engine-domain-forge/src/tiers.rs`.
+Trunk commit `567a90d4ba5a92373db4ce832f5e3a180c07c5c4` adds `wait_tier` and `offered_tier` stubs; branch commit `ac01e4524c` replaces that file with the run implementation.
+Preserve the branch’s run implementation and retain both public methods, implementing them per `notes/contracts.md`, section 6 and the task’s deadline answer.
+Trunk’s tier route, added by `32c1362409`, calls both methods, so choosing the branch file wholesale would leave missing methods.
+Add a separate tier wall-deadline map, preferably in `tiers::State`, bounded by `limits.repositories * limits.tiers.tiers`.
+Implement `wait_tier` like `landing.rs::wait_landing`: use `until`, otherwise `env.wall` plus `limits.client.poll`; `offered_tier` removes the task’s deadline.
+Include the map in `domain.rs::next_wall_deadline`; expire deadlines in `fire`, removing them and emitting `Request::WakeProcedure { task }`.
+Remove deadlines when tier tasks end and clear or rebuild them on restore, preserving `tiers::restart`’s existing task wakes.
+Keep wall deadlines separate from the existing monotonic walk and flight timers and from change and landing deadline maps.
+Add the required story in `src/tests/tiers.rs`: a waiting tier task wakes at its deadline.
+Validate the focused story and the spec’s forge library and domain integration checks through `heavy`; keep changes within the forge crate.
