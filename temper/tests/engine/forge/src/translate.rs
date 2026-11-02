@@ -88,6 +88,9 @@ fn read_op(read: &client::Read, l: &Limits) -> forge::Read {
             limit: l.rows,
         },
         client::Read::Run { run } => forge::Read::Run { run: *run },
+        client::Read::Artifact { .. } | client::Read::Commits { .. } => {
+            panic!("skein-fake-reports supplies artifact and commit reads")
+        }
         client::Read::Tree { object, page } => forge::Read::GitTree {
             object: if commit(u64::from_be_bytes(object[8..16].try_into().expect("object count bytes"))) == *object {
                 forge::TreeOf::Commit(number(*object))
@@ -476,6 +479,8 @@ fn pull_answer(asked: &client::Op, pull: forge::Pull, l: &Limits) -> client::Ans
             | client::Read::Compare { .. }
             | client::Read::Runs { .. }
             | client::Read::Run { .. }
+            | client::Read::Artifact { .. }
+            | client::Read::Commits { .. }
             | client::Read::Tree { .. }
             | client::Read::Checks { .. }
             | client::Read::Job { .. }

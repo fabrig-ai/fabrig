@@ -65,7 +65,10 @@ fn number(answer: &Answer) -> Option<u64> {
 }
 pub fn follow(request: &Request, answer: &Answer) -> Result<Option<(a::Read, Select)>, a::Error> {
     let next = match request {
-        Request::Tokens { .. }
+        Request::Artifacts { .. }
+        | Request::ArtifactZip { .. }
+        | Request::Commits { .. }
+        | Request::Tokens { .. }
         | Request::CreateToken { .. }
         | Request::DeleteToken { .. }
         | Request::UserOf { .. }
@@ -153,7 +156,10 @@ pub fn follow(request: &Request, answer: &Answer) -> Result<Option<(a::Read, Sel
 }
 pub fn select(config: &Config, request: &Request, range: Option<Range>) -> Result<Select, a::Error> {
     match request {
-        Request::Tokens { .. }
+        Request::Artifacts { .. }
+        | Request::ArtifactZip { .. }
+        | Request::Commits { .. }
+        | Request::Tokens { .. }
         | Request::CreateToken { .. }
         | Request::DeleteToken { .. }
         | Request::UserOf { .. }
@@ -293,6 +299,9 @@ fn status(request: &Request) -> u16 {
         | crate::Route::Collaborators
         | crate::Route::Permission
         | crate::Route::PullFiles
+        | crate::Route::Artifacts
+        | crate::Route::ArtifactZip
+        | crate::Route::Commits
         | crate::Route::Compare
         | crate::Route::Contents
         | crate::Route::Raw

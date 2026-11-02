@@ -124,6 +124,9 @@ pub fn repository(config: &Config, request: &Request) -> Option<Box<[u8]>> {
         | Request::Run { at, .. }
         | Request::Job { at, .. }
         | Request::Jobs { at, .. }
+        | Request::Artifacts { at, .. }
+        | Request::ArtifactZip { at, .. }
+        | Request::Commits { at, .. }
         | Request::JobLog { at, .. }
         | Request::CreateIssue { at, .. }
         | Request::OpenPull { at, .. }
@@ -282,6 +285,9 @@ pub fn op(config: &Config, request: &Request) -> Result<Op, a::Error> {
         Request::Run { run, .. } => Read::Run { run: *run },
         Request::Job { job, .. } => Read::Job { job: *job },
         Request::Jobs { run, .. } => Read::Jobs { run: *run },
+        Request::Artifacts { .. } | Request::ArtifactZip { .. } | Request::Commits { .. } => {
+            return Err(a::Error::Refused);
+        }
         Request::JobLog { job, attempt, step, .. } => Read::Log { job: *job, attempt: *attempt, step: *step },
         Request::Dispatch { .. }
         | Request::Rerun { .. }
@@ -437,6 +443,9 @@ fn write(config: &Config, request: &Request) -> Result<Op, a::Error> {
         | Request::Run { .. }
         | Request::Job { .. }
         | Request::Jobs { .. }
+        | Request::Artifacts { .. }
+        | Request::ArtifactZip { .. }
+        | Request::Commits { .. }
         | Request::JobLog { .. } => Err(a::Error::Refused),
     }
 }
