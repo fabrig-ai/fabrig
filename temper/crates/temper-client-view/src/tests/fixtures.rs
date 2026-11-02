@@ -1438,7 +1438,7 @@ fn playground_accounts(model: bool) -> c::Accounts {
     }
 }
 
-/// Playground read fixtures (temper/docs/design/draft/playground-reset.md, 6.1 and 6.2).
+/// Playground read fixtures (temper/docs/design/client/README.md, 4.8).
 pub fn deliver_playground(
     root: &mut temper_client_domain::Domain,
     read: Token,

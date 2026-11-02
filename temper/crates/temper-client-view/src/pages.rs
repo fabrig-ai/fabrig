@@ -30,7 +30,7 @@ pub(crate) fn project_name(
     None
 }
 
-/// The playground's forge has no external pages (temper/docs/design/draft/playground-reset.md, 6.1).
+/// The playground's forge has no external pages (temper/docs/design/client/README.md, 4.8).
 pub(crate) fn serves_pages(root: &temper_client_domain::Domain, forge: u16) -> bool {
     match root.forge().playground() {
         Some(playground) => playground.forge != forge,

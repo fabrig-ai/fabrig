@@ -374,6 +374,8 @@ fn read_name(repository: &forge::Repository, read: &skein_forge::api::Read, limi
         | skein_forge::api::Read::Collaborators { .. }
         | skein_forge::api::Read::Runs { .. }
         | skein_forge::api::Read::Run { .. }
+        | skein_forge::api::Read::Artifact { .. }
+        | skein_forge::api::Read::Commits { .. }
         | skein_forge::api::Read::Tree { .. }
         | skein_forge::api::Read::Permission { .. } => None,
     };
@@ -2837,7 +2839,7 @@ fn change_has_live_delegates(domain: &Domain, task: u64) -> bool {
 }
 
 // The deployment cancels the procedure through its task control path
-// (temper/docs/design/draft/playground-reset.md, 4).
+// (temper/docs/design/domain/forge.md, 4.1).
 fn cancel_change(domain: &mut Domain, task: u64) {
     let Some(row) = domain.core.tasks.task(task) else { return };
     domain.work.push(Work::Tasks(tasks::Event::Control {

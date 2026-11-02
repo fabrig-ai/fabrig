@@ -107,3 +107,9 @@ records rerun attempts, fast-forward-only merges, rebase updates, status words
 and links, and root/directory tree paging in git order. A public bare clone of
 only the throwaway repository supplies an independent root-tree id. Without
 `--runner`, this group's facts are unchecked.
+
+The artifact captures record Forgejo 17.0.0 listing a run's artifacts by name,
+an absent name returning an empty array, and an unknown run returning 404.
+The download is a direct 200 ZIP containing one deflated `failed.txt`, with a
+signed data descriptor. The artifact listing carries no commit; the supporting
+run read supplies `commit_sha`. `facts.txt` names the seven recorded facts.

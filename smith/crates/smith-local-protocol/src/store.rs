@@ -16,7 +16,7 @@ pub const CHAT_STORE_VERSION: u64 = 1;
 
 use alloc::boxed::Box;
 use skein_lib::{List, Reader, Token, Writer};
-use smith_domain::Transcript;
+use smith_host_domain::Transcript;
 use smith_local_domain::ChatState;
 use smith_protocol_translate::Endpoints;
 use smith_transcript as transcript;
@@ -134,7 +134,7 @@ pub(super) fn turn_opens_window_bounded(bytes: &[u8], file_bytes: u32) -> Result
     Ok(record.opens_window())
 }
 
-/// Decode only the last window's ordered files before returning Loaded.
+/// Decode only the last window's ordered files, retaining their saved bodies for forwarding.
 pub fn decode_turns(
     files: &[Box<[u8]>],
     limits: &transcript::v6::Limits,
@@ -180,7 +180,11 @@ pub(super) fn decode_turns_bounded(
     // before typed transcript decoding; whole-envelope reads have their own copy.
     drop(bodies);
     match smith_protocol_translate::decode_transcript(&piece, count, u32::MAX, limits, endpoints) {
-        Ok(transcript) => Ok((transcript, last_read)),
+        Ok(Some(transcript)) => {
+            let history = Transcript::from_saved(transcript, piece, u64::MAX).ok_or(StoreError::TooLarge)?;
+            Ok((Some(history), last_read))
+        }
+        Ok(None) => Ok((None, last_read)),
         Err(_) => Err(StoreError::Malformed),
     }
 }
@@ -240,7 +244,24 @@ pub(crate) mod tests {
         let (loaded, read) = decode_turns(&[file.bytes], &transcript::CEILINGS, &endpoints).expect("valid transcript");
         let loaded = loaded.expect("one turn");
         assert_eq!(read, Some(Token::new(9)));
-        assert_eq!(loaded.turns.as_ref(), &[turn]);
+        assert_eq!(loaded.value().turns.as_ref(), &[turn]);
+    }
+
+    #[test]
+    fn saved_history_keeps_unconfigured_endpoint_bytes() {
+        let (endpoints, turn) = fixture();
+        let file = save_turn(1, None, true, &turn, &transcript::CEILINGS, &endpoints).expect("saved turn");
+        let envelope =
+            crate::local_store_v1::Turn::decode(&crate::local_store_v1::CEILINGS, &mut Reader::new(&file.bytes))
+                .expect("saved envelope")
+                .into_parts();
+        let expected = smith_protocol_translate::transcript_piece(&[envelope.body]).expect("saved piece");
+        let unknown = Endpoints::new(List::with_capacity(0));
+        let (history, _) = decode_turns(&[file.bytes], &transcript::CEILINGS, &unknown).expect("carried history");
+        let (decoded, saved) = history.expect("one saved turn").into_parts();
+        assert_eq!(decoded.endpoint, None);
+        assert_eq!(decoded.turns[0].endpoint, None);
+        assert_eq!(saved, Some(expected));
     }
 
     #[test]
@@ -279,7 +300,7 @@ pub(crate) mod tests {
         let (loaded, read) =
             decode_turns(&[unread_body.finish(), window_file.bytes, last.bytes], &transcript::CEILINGS, &endpoints)
                 .expect("only the current window is decoded");
-        assert_eq!(loaded.expect("history").turns.as_ref(), &[window, ordinary]);
+        assert_eq!(loaded.expect("history").value().turns.as_ref(), &[window, ordinary]);
         assert_eq!(read, Some(Token::new(9)));
     }
 

@@ -98,6 +98,13 @@ fn answer_rows(answer: &skein_forge::api::Answer) -> u64 {
             }
             largest
         }
+        Answer::Commits { commits, .. } => {
+            let mut largest = count(commits.len());
+            for commit in commits {
+                largest = largest.max(count(commit.parents.len()));
+            }
+            largest
+        }
         Answer::Tree { entries, .. } => count(entries.len()),
         Answer::Items { items, .. } => {
             let mut largest = count(items.len());

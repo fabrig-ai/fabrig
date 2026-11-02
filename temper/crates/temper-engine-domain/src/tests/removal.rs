@@ -1,5 +1,5 @@
 //! Removal cancels procedure tasks through their existing control path
-//! (temper/docs/design/draft/playground-reset.md, 4).
+//! (temper/docs/design/domain/forge.md, 4.1).
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, Queue, ReplyTo, Token};
 use temper_engine_domain_forge as forge;

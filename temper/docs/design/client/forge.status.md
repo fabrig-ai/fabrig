@@ -14,18 +14,29 @@
   · KIND" (`temper-client-view`'s `forge/forges.rs`); its load, the
   App's setup URL and the `Lacking` line on the row; Replace
   and Forget, with no request on the wire; the warning of no git on the
-  machine. 6.2: a drift hold's card, what changed, by whom and when.
+  machine. 5.4: Forgejo on this machine's Details for a forge to make,
+  their words and notes, where the view draws "Show how", a link to the
+  deployment's help, and the fields alone (`forge/connect.rs` `body`,
+  `Choice::Owned`). 5.4, Elsewhere: the dot leaving out the playground's
+  forge, which `temper-client-domain`'s `forge/listed.rs` `rows` counts.
+  6.2: a drift hold's card, what changed, by whom and when.
   7: a goal's issue, landings as news, findings on a project's page. 9:
   the reads of the forge's other parts.
-- **Departs:** 1, 5.4, 9: forges are records kept in the store, made by
-  the flow, not configured. A row is removed, confirmed, by
-  `RemoveForge` (`temper-client-view`'s `forge/forges.rs` `removal`),
-  which 10's "Disconnecting a forge" leaves for later. A set up found
-  unfinished offers Go on and Start over (`forge/connect.rs`
-  `Shown::Unfinished`). 5.4, 10: the welcome's Forgejo card opens its
-  Details, whose "Set up a Forgejo here" sends the set up, where "Run on
-  this machine" sent it at once. The playground's forge is listed while the
-  playground runs, not while a demo's half holds, and 9's read `Demo` is
-  the read `playground`. Each because forges are store records and the
-  playground is reset (`temper/docs/design/draft/playground-reset.md`,
-  3, 4, 6).
+- **Departs:** 5.4: `ConnectForge`'s `?forge=elsewhere` draws A Forgejo
+  elsewhere's Details, the configuration's entries for a forge and a
+  restart (`forge/connect.rs` `elsewhere`); Your Forgejo's card has the
+  muted line "Needs a change to temper’s configuration and a restart"
+  (`words.rs` `ForgeElsewhereTime`); and Setting up says "You may leave
+  this page: the steps go on, and the banner says where they are."
+  (`words.rs` `ForgeLeave`), where no banner says it: words for a forge
+  added to the configuration by hand, and for a banner's set up under
+  way, which the store's records and the playground's one line leave
+  without a place. 5.4: without the box, Forgejo on this machine's
+  Details say "Set it up from a terminal" and the four `temper forge`
+  commands with a restart (`temper-client-view`'s `forge/connect.rs`,
+  `words.rs` `ForgeTerminal` and `ForgeTerminalDetails`), and a not set
+  up row names the same commands (`temper-client-domain`'s
+  `forge/words.rs` `set_up_commands`), commands that find no group's
+  file for a forge the box did not run (`../protocol/setup.md`, 7.4):
+  words for an owned forge set up by hand, which the box's group files
+  leave without a way.

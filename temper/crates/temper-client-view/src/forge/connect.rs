@@ -1,4 +1,4 @@
-//! Forge choices and unfinished setup (temper/docs/design/draft/playground-reset.md, 3, 6.4).
+//! Forge choices and unfinished setup (temper/docs/design/client/forge.md, 5.4; temper/docs/design/client/README.md, 3.5).
 //! `ConnectForge` and the welcome's shared forge body (client/forge.md, 5.4).
 use super::bindings::{Bindings as ForgeBindings, Meaning};
 use crate::{
@@ -1673,7 +1673,7 @@ fn admin_ready(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Binding
     b.close();
 }
 
-/// The address field supplies the managed connection's public endpoint (temper/docs/design/draft/playground-reset.md, 3).
+/// The address field supplies the managed connection's public endpoint (temper/docs/design/client/forge.md, 5.4).
 fn managed_place(draft: &forge::admin::PlaceDraft) -> Option<forge::forges::Managed> {
     use forge::admin::PlaceField;
     let address = draft.fields.get(PlaceField::Host.index())?.as_ref();

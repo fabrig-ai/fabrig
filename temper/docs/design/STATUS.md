@@ -16,16 +16,19 @@ do the client's Board, Changes and How work runs pages and many of
 ctl's tools (`client/README.md`, `client/forge.md`, `client/tools.md`),
 `temper-playground` (`playground.md`, `domain/testing.md`), upgrades'
 commands and the baseline (`protocol/README.md`), and the release
-(`release.md`). The playground reset is built ahead of the design:
-forges are store records and the playground is reset, recorded as
-Departs in the client's documents, `domain/forge.md`, `playground.md`
-and the protocol's, until `draft/playground-reset.md` is closed out,
-which comes before the reference drafts execute. The case library's
+(`release.md`). Forges kept in the store, a forge's removal and the
+playground's reset are designed and built; the code departs where the
+box's group file holds a forge's kind alone (`protocol/setup.md`,
+`protocol/forge.md`, `protocol/README.md`) and where a box restart
+resumes a running playground (`protocol/setup.md`), and lags in a
+removal without the box (`domain/forge.md`) and a project's Delete
+(`client/README.md`); with `application.machine.github` null, GitHub's
+remotes come out malformed (`protocol/configuration.md`). The case library's
 purpose is retired (`domain/testing.md`). Of the drafts, the reference
 drafts are what the design lags most (`draft/notes.md`, N1 to N24, in
 their three statuses); the others record what the design carries of
-them and where it lags or departs. `README.md`, `domain/README.md` and
-`protocol/llm.md` have no gap.
+them and where it lags or departs. `README.md`, `domain/README.md`,
+`protocol/llm.md` and `client/journeys.md` have no gap.
 
 Design documents:
 - [`README.md`](README.status.md)
@@ -62,7 +65,6 @@ Drafts:
 - [`draft/reference-code-production.md`](draft/reference-code-production.status.md)
 - [`draft/reference-landing.md`](draft/reference-landing.status.md)
 - [`draft/reference-case.md`](draft/reference-case.status.md)
-- [`draft/playground-reset.md`](draft/playground-reset.status.md)
 - [`draft/agent-docs.md`](draft/agent-docs.status.md)
 - [`draft/ci-on-forgejo-17.md`](draft/ci-on-forgejo-17.status.md)
 - [`draft/configuring.md`](draft/configuring.status.md)

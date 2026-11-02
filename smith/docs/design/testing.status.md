@@ -12,12 +12,13 @@
   - 2.3: the live stories choose their account with
     `-c endpoints.<name>.account=`, since `--account` is not built
     (shell.status.md).
-  - 2.3: three `live-smith` stories fail live with no cause found in code
-    (the after-landing run at main `da9027dbf5ae`): the refresh story's
-    generation does not rise, though its lead resolves as 400 days; the
-    chat crossing fails a leg (by elimination its first, ChatGPT leg); and
-    the second run's resume fails within about 6 s while its offline twins
-    pass. Whether the live stories pass on the current main is unknown.
+  - 2.3: whether the three `live-smith` stories red at main
+    `46e6e70d9b17` (Claude Code 2.1.312) pass on the current main is
+    unknown: no after-landing run of it is read. The refresh story's
+    generation, equal before and after its run, has no cause found in
+    code: offline, an exec on a raised lead refreshes a held record at
+    once and keeps one whose earliest refresh time is ahead
+    (`credentials.rs` in `tests/end-to-end`; 8).
   - 6: job ends paired across the event stream (they are paired on the
     domain's facts only), state-digest replay (skein has none), and,
     with contained trees, containment (2.2).

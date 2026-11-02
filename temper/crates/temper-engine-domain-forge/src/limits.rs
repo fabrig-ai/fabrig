@@ -15,7 +15,7 @@ pub const FIRST_NAME_BYTES: u32 = 1024;
 /// Capacity of each durable top table and its child.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Limits {
-    /// Forges kept at most (temper/docs/design/draft/playground-reset.md, 3).
+    /// Forges kept at most (temper/docs/design/protocol/forge.md, 7).
     pub forges: u32,
     pub repositories: u32,
     pub tasks: u32,

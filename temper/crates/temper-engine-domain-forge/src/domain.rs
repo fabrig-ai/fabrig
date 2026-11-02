@@ -3681,7 +3681,7 @@ fn continue_release(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, ou
     unreachable!("every release pass removes a hold or completes");
 }
 
-// Removal leaves the remote forge untouched (temper/docs/design/draft/playground-reset.md, 4).
+// Removal leaves the remote forge untouched (temper/docs/design/domain/forge.md, 4.1).
 fn release_pull(d: &mut Domain, env: &Env<Limits>, row: &mut ReleaseRow, entry: u64, out: &mut Queue<Request>) -> bool {
     let Some(number) = row.close_pull else { return true };
     let Some(change) = d.changes.get(&row.task) else {
@@ -3814,7 +3814,7 @@ fn release_outcome(d: &mut Domain, entry: u64, outcome: skein_forge_client::Outc
         None => false,
     };
     if removed {
-        // Removal leaves the remote forge untouched (temper/docs/design/draft/playground-reset.md, 4).
+        // Removal leaves the remote forge untouched (temper/docs/design/domain/forge.md, 4.1).
         if let Some(name) = resource {
             d.holds.remove(&name);
             emit(out, Request::Erase { key: Key::Hold(name) });
@@ -4526,6 +4526,7 @@ fn changed(
             | skein_forge::api::Answer::Merged(_)
             | skein_forge::api::Answer::Runs { .. }
             | skein_forge::api::Answer::Run(_)
+            | skein_forge::api::Answer::Commits { .. }
             | skein_forge::api::Answer::Tree { .. }
             | skein_forge::api::Answer::Queued
             | skein_forge::api::Answer::Branch(_)
@@ -5233,7 +5234,7 @@ fn retire_ended(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     child(d, env, skein_forge_client::Event::Keep { owner: Token::new(u64::MAX), watches: list.into_boxed() }, out);
 }
 
-/// One pass over the forge's repositories (temper/docs/design/draft/playground-reset.md, 4).
+/// One pass over the forge's repositories (temper/docs/design/domain/forge.md, 4.1).
 pub(crate) fn erase_removed_repositories(d: &mut Domain, forge: u16, out: &mut Queue<Request>) -> bool {
     let mut erased = List::with_capacity(d.repositories.capacity());
     let mut kept = false;

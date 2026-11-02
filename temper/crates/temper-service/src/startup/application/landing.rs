@@ -379,6 +379,60 @@ fn check(
     read::form(!workflow.contains(&b'/'), path.member(b"workflow"), problems);
     Some(Check { name, workflow, ignored: ignored.into_boxed() })
 }
+fn tier(
+    document: &Document,
+    at: u32,
+    path: &Path,
+    limits: &temper_engine_domain_forge::Limits,
+    problems: &mut Problems,
+) -> Option<engine::TierCheck> {
+    let mut object = read::object(document, at, path, problems)?;
+    let check = check(&mut object, document, path, limits, problems);
+    let artifact = checked_text(
+        &mut object,
+        document,
+        b"artifact",
+        u32::try_from(CHECK_NAME_BYTES).expect("artifact bound"),
+        path,
+        problems,
+    );
+    let format = read::text(&mut object, document, b"format", path, problems);
+    let branch = match object.member(document, b"branch") {
+        Some(at) => match config::read::text(document, at, 1_048_576) {
+            Ok(value) => {
+                read::form(!value.is_empty(), path.member(b"branch"), problems);
+                Some(value)
+            }
+            Err(what) => {
+                problems.push(path.member(b"branch"), What::Jig(what));
+                None
+            }
+        },
+        None => None,
+    };
+    read::finish(object, document, path, problems);
+    if let Some(artifact) = &artifact {
+        read::form(!artifact.contains(&b'/'), path.member(b"artifact"), problems);
+    }
+    let format = match format.as_deref() {
+        Some(b"junit") => Some(Format::Junit),
+        Some(b"lines") => Some(Format::Lines),
+        Some(_) => {
+            read::form(false, path.member(b"format"), problems);
+            None
+        }
+        None => None,
+    };
+    let check = check?;
+    Some(engine::TierCheck {
+        name: check.name,
+        workflow: check.workflow,
+        ignored: check.ignored,
+        artifact: artifact?,
+        format: format?,
+        branch,
+    })
+}
 fn repository_checks(
     document: &Document,
     at: u32,
@@ -424,68 +478,19 @@ fn repository_checks(
     if let Some(ats) = tier_ats {
         for (index, at) in ats.iter().enumerate() {
             let path = read::index(&path.member(b"tiers"), index);
-            let Some(mut object) = read::object(document, *at, &path, problems) else { continue };
-            let check = check(&mut object, document, &path, limits, problems);
-            let artifact = checked_text(
-                &mut object,
-                document,
-                b"artifact",
-                u32::try_from(CHECK_NAME_BYTES).expect("artifact bound"),
-                &path,
-                problems,
-            );
-            let format = read::text(&mut object, document, b"format", &path, problems);
-            let branch = match object.member(document, b"branch") {
-                Some(at) => match config::read::text(document, at, 1_048_576) {
-                    Ok(value) => {
-                        read::form(!value.is_empty(), path.member(b"branch"), problems);
-                        Some(value)
-                    }
-                    Err(what) => {
-                        problems.push(path.member(b"branch"), What::Jig(what));
-                        None
-                    }
-                },
-                None => None,
-            };
-            read::finish(object, document, &path, problems);
-            if let Some(artifact) = &artifact {
-                read::form(!artifact.contains(&b'/'), path.member(b"artifact"), problems);
-            }
-            let format = match format.as_deref() {
-                Some(b"junit") => Some(Format::Junit),
-                Some(b"lines") => Some(Format::Lines),
-                Some(_) => {
-                    read::form(false, path.member(b"format"), problems);
-                    None
-                }
-                None => None,
-            };
-            if let Some(check) = check
-                && let Some(artifact) = artifact
-                && let Some(format) = format
-            {
+            if let Some(tier) = tier(document, *at, &path, limits, problems) {
                 for previous in &gates {
-                    if previous.name == check.name {
+                    if previous.name == tier.name {
                         problems.push(path.member(b"name"), What::Jig(config::What::Unique));
                     }
                 }
                 for previous in &tiers {
                     let previous: &engine::TierCheck = previous;
-                    if previous.name == check.name {
+                    if previous.name == tier.name {
                         problems.push(path.member(b"name"), What::Jig(config::What::Unique));
                     }
                 }
-                tiers
-                    .push(engine::TierCheck {
-                        name: check.name,
-                        workflow: check.workflow,
-                        ignored: check.ignored,
-                        artifact,
-                        format,
-                        branch,
-                    })
-                    .expect("bounded tiers");
+                tiers.push(tier).expect("bounded tiers");
             }
         }
     }
