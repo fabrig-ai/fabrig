@@ -23,15 +23,20 @@ is the first run with lent logins: none of the six has been green in the pair.
 - **claude-shapes** (slice 1, released): the fake `claude` sends 2.1.312's init `source` and
   coalesced `thinking_delta` with `estimated_tokens: null`; the two agent-process probes expect
   them. Task `claude-shapes`.
-- Further parts (the live harness's failure report; the causes of the four end-to-end reds)
-  follow the surveys.
+- **live-report** (slice 2, released): every failing `smith::live` assertion carries a bounded
+  report of typed facts (leg, exit, the run's typed end and failure, resume state, file relation,
+  generations), built by `support/live_report.rs` to `notes/contracts.md` and checked offline in
+  `live_configuration`. Task `live-report`. The request's "first make the failure say why".
+- The causes of the four end-to-end reds follow the surveys.
 
 ## Critical path
 
-`claude-shapes` alone so far; it needs nothing. The live check of every fix is the after-landing
+`claude-shapes` and `live-report` run side by side; neither needs the other. A cause task that
+edits `smith/tests/end-to-end/live.rs` needs `live-report`. The live check of every fix is the after-landing
 pair on a main holding it, not an implementer's run.
 
 ## Overlaps with drafts beside this one
 
 None so far: `claude-shapes` owns smith's fake `claude`, the agent-process live probes and two
-smith-protocol-program test files; `sign-in-wait` changes smith's login shell, the others temper.
+smith-protocol-program test files; `live-report` owns `smith/tests/end-to-end/live.rs` and its
+offline controls; `sign-in-wait` changes smith's login shell, the others temper.
