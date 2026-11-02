@@ -3,7 +3,7 @@ id = "help-pages"
 part = "help"
 kind = "docs"
 needs = ["panel-steps", "tiers-root"]
-files = ["temper/docs/help/tier.md", "temper/docs/help/change.md", "temper/docs/help/ctl.md", "temper/docs/help/index.md", "temper/crates/temper-docs/src/lib.rs"]
+files = ["temper/docs/help/tier.md", "temper/docs/help/change.md", "temper/docs/help/ctl.md", "temper/docs/help/index.md", "temper/crates/temper-docs/src/lib.rs", "temper/crates/temper-client-tools/src/tests/golden/help_groups.txt"]
 effort = "medium"
 minutes = 45
 +++
@@ -217,3 +217,30 @@ insert
 ## Report
 
 As the implementer's text says, and also: any line a test made you change, before and after.
+
+## Answers
+
+2026-11-02.
+
+- **The change page past its 8,192-byte bound, and `help_groups.txt` outside the files: may the
+  three new state bullets be shortened and the golden fixture updated?** Yes, both.
+  1. In `change.md`, edit 2's three new bullets (`verifying`, `red`, `cleared`) are replaced by
+     these four lines, the rest of edit 2 and edits 1 and 3 unchanged; the page is then 8,184
+     bytes on the pushed branch's text (the result paragraph of edit 1 keeps the link to
+     `temper help tier`):
+
+     ```
+     - `verifying`: awaiting a tier's verdict;
+     - `red`: blamed by a tier, naming the run and failing tests, until a
+       later run passes them;
+     - `cleared`: all its tiers cleared it, and its result comes; with no
+       verdict by the verification bound, it ends `landed, uncleared`.
+     ```
+
+     If a help test still refuses it, the line rule in Owns applies; no bound is raised.
+  2. `temper/crates/temper-client-tools/src/tests/golden/help_groups.txt` joins this task's files:
+     the task's own acceptance (`-p temper-client-tools --lib -E 'test(/help/)'`) cannot pass
+     without it. Regenerate it by its route, `SKEIN_CODEGEN_WRITE=1` with
+     `tests::words::help_lists_groups_then_a_group_then_a_tool`, and check that its diff is the
+     `cleared` of `ctl.md`'s edit alone.
+  Continue from the pushed branch `reference-m8/help-pages`.
