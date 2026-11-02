@@ -135,8 +135,9 @@ pub(crate) fn valid(
 }
 
 pub(crate) fn list_bound(limits: &crate::Limits) -> Option<u64> {
-    let fields = u64::from(limits.tasks.result_bytes)
-        .checked_mul(u64::try_from(size_of::<jig_domain_tasks::FieldRule>()).ok()?.checked_add(1)?)?;
+    let fields = u64::from(jig_domain_tasks::VERDICT_FIELDS.min(limits.tasks.result_bytes))
+        .checked_mul(u64::try_from(size_of::<jig_domain_tasks::FieldRule>()).ok()?)?
+        .checked_add(u64::from(limits.tasks.result_bytes))?;
     let choices = skein_lib::List::<jig_domain_tasks::Verdict>::price(limits.tasks.contract_choices)?
         .checked_add(u64::from(limits.tasks.contract_choices).checked_mul(fields)?)?;
     let models = u64::from(jig_domain_tasks::MODELS)

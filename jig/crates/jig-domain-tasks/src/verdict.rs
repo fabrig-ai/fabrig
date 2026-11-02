@@ -1,8 +1,11 @@
 //! Closed named fields accompany a verdict without interpreting their values
 //! (domain/tasks.md, section 3; programming-model.md, sections 4.4 and 6).
-use crate::{FieldRule, ResultField, Verdict};
+use crate::{FieldRule, ResultField, VERDICT_FIELDS, Verdict};
 
 pub(crate) fn fields_bytes(fields: &[ResultField]) -> Option<usize> {
+    if fields.len() > skein_lib::length::usize_of(VERDICT_FIELDS) {
+        return None;
+    }
     let mut bytes = 0_usize;
     for field in fields {
         if field.name.is_empty() {
@@ -15,7 +18,7 @@ pub(crate) fn fields_bytes(fields: &[ResultField]) -> Option<usize> {
 
 pub(crate) fn rules_valid(choice: &Verdict, limit: u32) -> bool {
     let bound = skein_lib::length::usize_of(limit);
-    if choice.fields.len() > bound {
+    if choice.fields.len() > skein_lib::length::usize_of(VERDICT_FIELDS.min(limit)) {
         return false;
     }
     let mut bytes = skein_lib::length::usize_of(choice.words);

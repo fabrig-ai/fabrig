@@ -151,7 +151,7 @@ pub use failures::{Class, Retries, Retry, Tries};
 pub use funders::FundingRecord;
 pub use grace::Grace;
 pub use holds::valid_name;
-pub use limits::{Limits, valid};
+pub use limits::{Limits, VERDICT_FIELDS, valid};
 pub use llm::{AccountWhy, CharterModels, LlmChoice, LlmFault, MODELS, ModelEffort};
 pub use owned::{phase_bytes, stored_bytes, task_bytes, terminal_bytes};
 pub use parts::{Part, PartKey, PartKind};
