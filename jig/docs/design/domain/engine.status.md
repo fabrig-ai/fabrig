@@ -14,7 +14,13 @@
   or run `settings`, which the projection keeps durable, others for a
   frame's `needs` with a person proposal left pending and
   `Deployment.messages` advancing on a retried deadline; the core
-  world's `world` and `direct` drivers run no oracle.
+  world's `world` and `direct` drivers run no oracle. 17.9: `Charter`
+  carries no documents (`jig-domain-core/src/settings/charters.rs`).
+  17.9: the core neither checks a charter's documents nor plans their
+  sections. 17.9: the settings store keeps no documents. 17.9: the
+  configuration reads no `documents` member and no
+  `tasks.charter_documents`, and Small's brief has 4 sections, not 8.
+  17.9: the client wire's charter carries no documents.
 - **Departs:** 6: `Core::new` without a start is ready, because the
   core's unit fixtures need no start; every root starts it. 8: the
   client wire drops the failing charter's number of a

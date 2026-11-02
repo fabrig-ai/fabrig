@@ -37,3 +37,23 @@ id = 2
 story = "after a change with running work staying, a parked task's next run reads its old revision's charter, a chat's next run reads the newest, and the owner's advance moves the rest"
 parts = ["running-revision"]
 walk = false
+
+[[part]]
+id = "documents-jig"
+title = "jig: a charter's documents, typed, checked, stored, configured, on the client wire, and planned with the brief at the run's revision"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/engine.md, 17.9"
+
+[[part]]
+id = "documents-temper"
+title = "temper: the forge gathers each document as a brief section, the root binds it, a settings file names it, and the domain world's stories run it"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/configuration.md, 13.7"
+
+[[slice]]
+id = 3
+story = "a charter naming a document gives each of its runs a Document section of the file at the branch's head, or its heading's part, and a section saying why when it is not there"
+parts = ["documents-jig", "documents-temper"]
+walk = false

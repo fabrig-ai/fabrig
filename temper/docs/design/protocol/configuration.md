@@ -1817,15 +1817,20 @@ section 2), by jig's charter documents (jig's `domain/engine.md`, 17.9).
   the line before the next heading of its level or above. Cut to the
   section's allotment at the last line end within it, saying how many
   bytes were left out, as the brief's other cuts do. Its budget is
-  `document`, a limit of the forge's beside `ci`, `reviews` and `pull`
+  `root.brief.budgets.document`, beside `ci`, `reviews` and `pull`
   (section 7), 4,096 bytes in `small`, bounding each document section
-  the forge prepares. A repository not
-  adopted, a file or heading not there, or a read that failed, is a
-  section saying so.
+  the forge prepares. The repository is the one adopted, in any
+  project, under the name's host, owner and repository: the charter's
+  owners chose its documents, and no authority is asked of the run
+  (jig's `domain/engine.md`, 17.9). A repository not
+  adopted, a branch, file or heading not there, or a read that failed,
+  is a section saying so.
 - **In a settings file** (`../client/tools.md`, 5.3), a charter's value
   carries `"documents": [{"forge": F, "repository": "owner/name",
-  "branch": B, "path": P, "heading": H}]`, `heading` optional, which
-  ctl turns into the branch's resource name and back.
+  "branch": B, "path": P, "heading": H}]`, `heading` optional, `F` the
+  forge's host as its resources name it, which ctl turns into the
+  branch's resource name, `forge F owner name branch` and B's
+  segments, and back.
 - **The configuring agent** (`../domain/agent.md`, 8.1) names a
   document in place of copying its rules into a charter's instructions,
   when the person points to one in an adopted repository, and says that
