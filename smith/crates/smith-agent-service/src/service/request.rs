@@ -53,6 +53,9 @@ pub(super) fn domain_request(service: &mut Stages, mut frame: Option<&mut Frame>
         domain::Request::Lower(smith_domain::Lower::Yield { owner }) => {
             program::complete(service, llm::FromDomain::Yield { owner });
         }
+        domain::Request::Lower(smith_domain::Lower::Close { owner }) => {
+            program::complete(service, llm::FromDomain::Close { owner });
+        }
         domain::Request::Lower(smith_domain::Lower::Cancel { owner }) => {
             program::complete(service, llm::FromDomain::Cancel { owner });
         }

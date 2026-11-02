@@ -714,7 +714,13 @@ pub(crate) fn close(domain: &mut Domain, env: &Env<Limits>, session: Token, out:
     session.state = match state {
         State::Completing { attempt: _ } => cancel_completion(id, End::Closed, out),
         State::Resting { tools } => finish_batch(End::Closed, tools),
-        State::Yielded { tools } => State::Closing { end: End::Closed, waiting: KIT_ONLY, tools },
+        State::Yielded { tools } => {
+            let end = match session.conversation.final_turn.spent() {
+                Some(spent) => End::Budget { spent },
+                None => End::Closed,
+            };
+            State::Closing { end, waiting: KIT_ONLY, tools }
+        }
         State::Backoff { .. } => finish(End::Closed),
         State::Tooling { tools } => cancel_tools(&domain.calls.runs, tools, End::Closed, out),
         // It is already ending, with the end it had first.

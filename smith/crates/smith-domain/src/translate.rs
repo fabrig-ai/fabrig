@@ -85,7 +85,6 @@ pub(crate) fn spec(
         activation: _,
         transcript: _,
     } = opening;
-    let families = Families { agents: families.agents && program.is_none(), ..families };
     let authority = authority(workspace, tools)?;
     let offered =
         Offered { main: ordinal == 0, host_tools: host_tools.clone(), finish, deliver, agents: families.agents, wait };

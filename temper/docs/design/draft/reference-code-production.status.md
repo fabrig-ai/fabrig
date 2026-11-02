@@ -40,9 +40,6 @@
   - **5: the plan's text (N12).** jig's `domain/core.md`, 7.1 keeps a plan's
     strategy in its transcript, its notes and a goal's projection, not in
     the repository's design.
-  - **5, 14: sub-agents on Claude Code (N10).** smith's
-    `protocol/programs.md`, section 2 offers no sub-agents on a program
-    backend; its section 9 leaves the question open.
   - **6, 14: the light rules (N4).** `../domain/forge.md`, 8.2 (steps 3 and
     6), 8.7 and 10: every change is checked by CI at its head and updated
     when first if it lacks its base's tip, whatever its landing branch's
