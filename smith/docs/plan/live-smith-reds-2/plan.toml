@@ -1,3 +1,20 @@
 draft = "live-smith-reds-2"
 repo = "fabrig"
 sources = ["smith/docs/plan/live-smith-reds-2/inputs/request.md", "AGENTS.md"]
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "claude-tools"
+title = "the Claude story checks what a result-contract program run is offered: no finish, the tool named on failure"
+mode = "direct"
+needs = []
+design = "smith/docs/design/protocol/programs.md, 5.3 and 5.5"
+
+[[slice]]
+id = 1
+story = "claude_delivers_a_commit_in_place checks the first prompt's offered tools as programs.md 5.5 has them, and an offline fake-backed twin runs the same check"
+parts = ["claude-tools"]
+walk = false
