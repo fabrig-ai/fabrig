@@ -12,11 +12,7 @@
   its act, remove a project (`Ask::RemoveProject`, `ActKind::RemoveProject`;
   `jig-domain-core/src/admission/deletion.rs`), which this design does not
   have, because the playground is reset
-  (`temper/docs/design/draft/playground-reset.md`, 5 and 6). 5.1: `Seen`
-  answers a store kept from before `Seen` saved none still restore,
-  replay and hold their places until their expiry
-  (`kept_seen_answers_restore_replay_and_occupy_room_until_their_original_expiry`,
-  `jig-domain-people/src/tests.rs`); a code task removes them. 6, 8: the
+  (`temper/docs/design/draft/playground-reset.md`, 5 and 6). 6, 8: the
   person's own answer is off by default, behind `Core::person_answers()`
   (`jig-domain-core/src/inbox.rs`), because each application opts in
   before the first step, as temper does. With it off, the asked task

@@ -937,12 +937,7 @@ keeps (`../protocol/configuration.md`, section 2).
   outside it, after the line. A refused next run says "Next run refused
   · WHY", WHY the refusal's cause in the words of jig's reference view
   (jig's `client/domain/client.md`, 19.1), each sentence ending with a
-  full stop: for the model, "This model runs through a program. A chat
-  can't stay open through a program yet. To chat now, choose a model
-  that doesn't run through a program."; for an account's source,
-  "Account A would use its program source S. A chat can't stay open
-  through a program yet. This chat does not switch to another source on
-  its own."; for a host's hello, "An engine host was refused at HH:MM"
+  full stop: for a host's hello, "An engine host was refused at HH:MM"
   or "A worker was refused at HH:MM" (5.12's clock), then its cause, in
   the words jig's reference view gives a hello's refusal. A refusal is not a reply: the chat
   starts nothing, and keeps its composer, so the person can choose
