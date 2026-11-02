@@ -1,0 +1,3 @@
+draft = "me-retention"
+repo = "fabrig"
+sources = ["temper/docs/plan/me-retention/inputs/request.md", "AGENTS.md"]
