@@ -23,7 +23,9 @@
   8.1: `GROUP VERB --help`; `temper ctl` parses a
   leading `help` alone. 11.2:
   the joined story of a model's amendment (`tests/client`'s
-  `amend_tools.rs` parses `--model` alone).
+  `amend_tools.rs` parses `--model` alone); the joined stories of
+  `playground end`, `forge remove`, and a set up or a connect without
+  FORGE, which `temper-client-tools`' own step tests hold alone.
 - **Departs:** 5.1: `project` is area 1's (`jig/rows.rs`
   `PROJECT_SHOW`, `PROJECT_FUND`), not area 3's; the placeholders add
   `HOST:PORT` and `URL`. 5.2: `settings show template|policy` takes
@@ -34,12 +36,4 @@
   does (jig's `domain/people.md`, 5.1), where its row holds the task;
   `hold lift` is keyed optionally (`Keyed::Optional`). 12: an authority's
   entries are 14 (`limits.rs`), and the client's `projects` bound, 2, is
-  not in the table. 5.5, area 6, and 10: `playground start` sends
-  `StartPlayground`, not `StartDemo`; `playground end` (`EndPlayground`)
-  and `forge remove FORGE` (`RemoveForge`) are tools; `forge connect`
-  takes FORGE optionally for `github` and `forgejo-admin`, the latter
-  then with `--api`, `--git`, `--tls`, `--web` and `--git-program`; and
-  `forge setup` takes FORGE optionally, a new forge when absent
-  (`forges.rs`). These because forges are store records and the
-  playground is reset (`temper/docs/design/draft/playground-reset.md`,
-  3, 4, 6).
+  not in the table.
