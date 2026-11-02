@@ -1,0 +1,25 @@
+landing = "queue"
+
+# The thin cut of sign-in-wait: smith login's browser sign-in waits 10 minutes, not 120 s, and
+# says how long it waits. One direct part of one task. The request is inputs/request.md; shared
+# rules are in notes/common.md.
+draft = "sign-in-wait"
+repo = "fabrig"
+sources = ["smith/docs/plan/sign-in-wait/inputs/request.md", "AGENTS.md"]
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "sign-in-wait"
+title = "smith login's sign-in waits 10 minutes and names its deadline"
+mode = "direct"
+needs = []
+design = "smith/docs/design/shell.md, 4.5 and 6.5"
+
+[[slice]]
+id = 1
+story = "`smith login chatgpt` prints how long it waits for the browser (10 minutes), and when that passes says so instead of a bare `not signed in`"
+parts = ["sign-in-wait"]
+walk = false
