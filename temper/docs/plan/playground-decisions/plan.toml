@@ -50,3 +50,16 @@ id = 3
 story = "an owner deletes a project with a live chat and its delegates, with the chat template's grace: the delegates are cancelled, the chat asked to finish and cancelled when the grace ends, then all erased; the playground's reset gives its chats the same"
 parts = ["deletion-grace"]
 walk = false
+
+[[part]]
+id = "kept-names"
+title = "jig and temper: a removed forge's repositories' names kept while a kept task names them, jig telling connectors at a task's erasure"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/forge.md, 4.1"
+
+[[slice]]
+id = 4
+story = "an ended chat that worked on a repository of a forge since removed reads its name across a start until its project's deletion erases the chat, then the repository's row goes"
+parts = ["kept-names"]
+walk = false

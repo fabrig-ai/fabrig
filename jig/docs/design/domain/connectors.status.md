@@ -5,6 +5,10 @@
 - **Not yet:** 2: a project's release dropping the connector's kinds'
   settings in the project's scope: the core's `Ask::ReleaseProject`
   asks for its adoptions alone (`jig-domain-core/src/vocabulary.rs`).
+  3.4: a task's erasure told to every connector: nothing sends
+  `Unname` (`jig-domain-core/src/effects/connector.rs`), neither a
+  deleted project's erasure of its tasks (`routing/task/erase.rs`) nor
+  the forget of a task forgotten once read (`reads/forget.rs`).
   4.2: a projection's or a release's failure for good, kept
   durably as news. 6.1: a procedure that starts kept: no connector
   declares one (a procedure's executor is its connector and code alone,

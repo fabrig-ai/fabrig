@@ -11,6 +11,20 @@
     (`temper-engine-domain-forge/src/removal.rs`, `begin`, sets
     `box_removed` by the forge's mode alone;
     `temper-service/src/route/box_link.rs`, `remove`).
+  - 4.1, 5.1, 16: a kept task's names: a task's release erases its
+    `Names` row (`temper-engine-domain-forge/src/domain.rs`,
+    `continue_release` calls `unnamed`), so a removed forge's
+    repository's row goes once no live task, hold or subscription names
+    it (`erase_removed_repositories`) and a chat that worked on one reads
+    its name until the chat ends, not until it is erased; nothing gives
+    the connector `Unnamed` when a task is erased, the root taking jig's
+    `Ask::Unname` for a handoff it never gets
+    (`temper-engine-domain/src/route/forge_route.rs`, `effect_ask`); a
+    project's release lets go of no ended forge
+    (`temper-engine-domain-forge/src/adoption.rs`, `release`); and a
+    start accepts the `Names` row of a task jig does not hold live only
+    when all its names lie on one ended forge
+    (`temper-engine-domain-forge/src/reconcile.rs`).
   - 4.4, 8.3: on GitHub, statuses and dispatches by temper's App for a
     project that lands by turn, and verdicts posted where an installation
     grants `statuses: write`; `status` is false there.
@@ -50,11 +64,3 @@
   - 13: participating objects beyond their news; a landing waiting for
     someone else's merge where temper may not merge (also 4.4 and 9).
   - 14: upstream contributions.
-- **Departs:** 4.1: a removed forge's repositories' rows are erased
-  once no live task, hold or subscription names them, a task's names
-  going at its release (`temper-engine-domain-forge/src/domain.rs`,
-  `erase_removed_repositories` and `unnamed`), not once no kept task
-  does, so a chat that worked on one reads its name until the chat
-  ends, not until it is erased, because the connector keeps names for
-  live tasks alone; which rule holds is the user's to decide (section
-  20).

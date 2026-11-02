@@ -14,12 +14,20 @@ task names `notes/common.md`.
      that pinned the departure is inverted, the engine world gains the story, and a service
      reader test is adjusted if it breaks. Closes `setup.status.md`'s Departs "8.4, 16" and
      `STATUS.md`'s clause. The design: setup.md 16's open question removed (this push).
-2. **kept names** (jig and temper, `temper/docs/design/domain/forge.md, 4.1`): decision 2. Its
-   designer is writing the design and specs to C1: jig asks every connector `Unname { task }` at
-   a task's erasure; temper's forge keeps a released task's `Names` row until then, so a removed
-   forge's repository rows stay while any kept task names them. Expected tasks:
-   `unname-at-erasure` (jig-domain-core) and `kept-names` (temper-engine-domain-forge and the
-   root's mapping, after `playground-restart-resets`).
+2. **kept-names** (jig and temper, `temper/docs/design/domain/forge.md, 4.1`), slice 4:
+   decision 2, to C1. Its designer wrote the design first: forge.md 4.1 (a task's names kept
+   until it is erased, their bound, a project's release), 5.1, 16, 18, and 20's open question
+   removed; temper's store.md 2 (the `Names` row, live or kept); jig's connectors.md 2 and 3.4
+   (`Unname` asked at a task's erasure). Kept rows hold the repositories alone, at most
+   `forge.repositories` of them beside the live ones, the oldest a later task covers going first.
+   - `tasks/kept-names.md`, high, ~150 minutes, needs `playground-restart-resets` (the same
+     forge crate): the release keeps the row, `Unnamed` is the erasure, a project's release
+     clears its repositories from kept rows, a start splits live and kept rows, temper's root
+     maps `Ask::Unname`; the engine world's joined story. temper-engine-domain's first writer.
+   - `unname-at-erasure` (jig-domain-core asks every connector `Unname` at a task's erasure;
+     jig's test domain and ops example take it), being written; it needs `kept-names` (temper's
+     root holds `Ask::Unname` in an `unreachable!` arm until then) and `deletion-grace` (the
+     crate's first writer).
 3. **deletion-grace** (jig and temper, `jig/docs/design/domain/people.md, 5.2`), slice 3:
    decision 3, to C2. Its designer wrote the design first: people.md 1, 2, 5.1 to 5.3, 7 and 11
    (the request's grace, refused past the tasks child's bound, kept with the deletion, each
@@ -52,9 +60,9 @@ task names `notes/common.md`.
 ## Critical path
 
 `box-words` and `playground-restart-resets` landed. Now: `remove-project-grace` (~120) →
-`deletion-grace` (~120) → `unname-at-erasure` (the names family, after `kept-names`); and
-`kept-names` (designing) → `reset-grace` (~45). About four hours of implementer time on the
-longest chain, up to eight with the buffer.
+`deletion-grace` (~120) → `unname-at-erasure`; beside it `kept-names` (~150) → `reset-grace`
+(~45) and `unname-at-erasure`. About four hours of implementer time on the longest chain, up to
+eight with the buffer.
 
 ## Overlaps
 
@@ -72,6 +80,9 @@ longest chain, up to eight with the buffer.
   `reference-m1` settings branches.
 - jig's `tasks.md` 7 and `tasks.status.md`: edited away from the `reference-m1` hunks
   (854-927, 1306-1346, the status's first lines).
+- `kept-names` and the `reference-m8` branches: both change `temper-engine-domain-forge`'s
+  `domain.rs` in `unnamed` and `names` (their tier watches) and near `retire_ended`; unavoidable,
+  since the release keeps its row there.
 
 ## Calls made
 
