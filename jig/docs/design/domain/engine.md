@@ -424,9 +424,8 @@ section 9). Accounts' source deadlines retain both clocks where the
 limit or retry is created (`accounts.md`, 3.5): timers use `Deadline.at`,
 and every projection and stored reset uses its source-owned
 `Deadline.wall`, never a conversion at read or save time. Restore keeps
-the exact wall and maps it to the new monotonic clock once. The existing
-optional wall reset and client fields keep their layouts. Fleet grace
-and adrift times remain the fleet's separate concern.
+the exact wall and maps it to the new monotonic clock once. Fleet grace
+and adrift times are the fleet's own (section 8).
 
 ### 5.5 What the core asks of the store
 
@@ -624,12 +623,12 @@ one rule for every child and the store:
   (`../protocol/store.md`, 10.2 and section 14).
 
 A restart refused before the switch leaves the
-generation patched from active and unchanged (store.md, 10.2, step 7);
+generation patched from active and unchanged (`../protocol/store.md`, 10.2, step 7);
 one refused after it, at a later step, leaves the patched generation
 active and the one before it as `active` − 1, for the operator to go
 back to before its first commit of its own (temper's
 `draft/upgrades.md`, 3.2). A patch marked fresh has closed every live
-task's window in the copy (store.md, 10.2, step 4) and marked every
+task's window in the copy (`../protocol/store.md`, 10.2, step 4) and marked every
 claim crossed, so the restart restores the windows closed, adopts no
 crossed claim (step 3), and each task's next attempt starts fresh
 (7.2).
@@ -788,7 +787,7 @@ Restoration refuses duplicate provider bindings and a surviving source whose
 account or provider disagrees. Removed rows remain legitimate history. Adoption
 offers grants only from the recorded surviving sources, never replacements;
 an unavailable recorded grant can renew on its original source, and an absent
-worker settles through fleet's existing grace. A new assignment rechecks the
+worker settles through the fleet's grace (section 8). A new assignment rechecks the
 recorded bindings and current coverage.
 
 The check joins each candidate host's kept program logins to the accounts' issued
@@ -797,10 +796,7 @@ rule, including retained providers. Deployment-held logins restrict no run;
 a deployment with at most one person is unaffected. A program source is chosen
 only where its login is usable; the engine never takes one. A program source's
 run is granted its source's name and runs on smith's program backend, for the
-program its endpoint names (`../protocol/configuration.md`, section 3). Until
-configuration's providers-only conversion, legacy
-model account fields seed deployment-held accounts only; neither admission nor
-the per-run charter routes by them.
+program its endpoint names (`../protocol/configuration.md`, section 3).
 
 ### 7.2 Transcripts
 
@@ -936,7 +932,6 @@ JSON names models and efforts by their configured indices; account numbers
 are durable names. Omitting the choice keeps the delegate's charter default
 or the amended task's existing choice. A choice grants no additional models:
 the core checks inherited authority and the prospective financial payer.
-These per-tool declarations change within the existing call envelope.
 
 | Tool | What it does | Answers |
 |---|---|---|
@@ -947,8 +942,8 @@ These per-tool declarations change within the existing call envelope.
 | `decide` | accepts, rejects or passes up a proposal or an escalation waiting for it, an escalation naming its hold's revision (tasks.md, section 9) | done; beyond its authority, and passed up; moved, with what it is now |
 | `propose` | an action beyond its authority, with a reason: a batch, an amendment, an effect, or a widening of its own authority (authority.md, section 9) | proposed, and to whom; refused, when nobody may accept it (tasks.md, section 9) |
 | `withdraw` | its own pending proposal (tasks.md, section 9) | withdrawn; already decided, and how |
-| `move`, `succeed`, designed, not built | moves a task below it, or that it was introduced to and may amend, under another live task it may amend; names a live task the successor of an ended task below it (tasks.md, section 7) | moved; named; refused, and why |
-| `hold`, `lift`, designed, not built | places a hold of its own, stop or drain, over the subtree of a task below it, with a reason, and optionally the event that lifts it: a connector's event its topic offers, a task's end, or a time (tasks.md, 5.9); lifts a hold it may lift, naming its revision | the hold's number and revision; lifted; refused, naming its owner, and whether a proposal could be accepted |
+| `move`, `succeed` | moves a task below it, or that it was introduced to and may amend, under another live task it may amend; names a live task the successor of an ended task below it (tasks.md, section 7) | moved; named; refused, and why |
+| `hold`, `lift` | places a hold of its own, stop or drain, over the subtree of a task below it, with a reason, and optionally the event that lifts it: a connector's event its topic offers, a task's end, or a time (tasks.md, 5.9); lifts a hold it may lift, naming its revision | the hold's number and revision; lifted; refused, naming its owner, and whether a proposal could be accepted |
 | `settings`, when its charter gives the family | reads the settings, or one setting whole, as a party's read does (`../client/domain/contract.md`, 5.1); proposes a change of settings against the revision it read, with a reason (17.6) | the settings; proposed, and to whom; stale, naming the newest; refused, when nobody may accept it |
 | `introduce` | two tasks it references, each given a reference to the other, within their limits (tasks.md, 8.5) | done; no reference; refused, and why |
 | `subscribe`, `unsubscribe` | a topic a connector offers to agents (connectors.md, 5.3), under a read grant on the resources the connector says it concerns (authority.md, 8.5); a referenced task's state; a timer (tasks.md, 8.4) | done; refused, and why |
@@ -997,7 +992,7 @@ make (people.md, 5.1), checked by the same rules (authority.md, 8.1 and
 `delegate` is `Create`;
 `message` is `Message`, and `Answer` for a question; `propose`,
 `withdraw`, `amend`, `cancel`, `release` and `decide` are theirs by
-name, and so, designed, not built, are `hold` and `lift`. What only parties do stays theirs (people.md, 5.1): carrying out
+name, and so are `hold` and `lift`. What only parties do stays theirs (people.md, 5.1): carrying out
 person tasks, stopping runs, moving tasks, marking what they have seen,
 and running the project. `introduce` is a task's alone: only a task
 holds references (tasks.md, 8.5).
@@ -1061,8 +1056,8 @@ call writes over a change its run was not shown.
 
 ### 7.5 Jobs
 
-Designed, not built (core.md, 3.2; hosts.md, 6.9; tasks.md, 5.3.1). A
-job task becomes a hosted run with no agent:
+A job task (core.md, 3.2; hosts.md, 6.9; tasks.md, 5.3.1) becomes a
+hosted run with no agent:
 
 - **Its check** needs no LLM account, no charter, no model and no
   program's login: its kind among those the application declares, its
@@ -1150,7 +1145,7 @@ The fleet child domain knows the hosts and the runs they host:
   placed where smith would refuse its start, and no run refuses a
   message as too large or its start's messages as full.
   The core exposes these owned requirements as
-  `jig_domain_core::fleet_needs::configured(&Config, &Limits)`, for a
+  `jig_domain_core::settings::fleet_needs::configured(&Config, &Limits)`, for a
   validated configuration with the same limits used to construct the core.
   Its charter count must fit `limits.tasks.charters`, and each charter's
   main model plus alternatives must fit a `u32`. This projection does not
@@ -1161,8 +1156,7 @@ The fleet child domain knows the hosts and the runs they host:
   bounds if any charter applies. Turns, time, waiting and checks name the
   failing charter's number; model window and output also name the model's
   position. Callers can then read required and offered amounts without
-  repeating admission policy. The current client wire still reports turns,
-  time, waiting and checks as dimensions without a charter number.
+  repeating admission policy.
 - **Standing hello refusals are volatile facts.** The fleet keeps the latest
   actual refusal for each host kind, even with no diagnostic history room.
   Admitting a hello clears only that kind's fact; duplicate hellos neither
@@ -1341,12 +1335,12 @@ computes for them is said below (11.1 to 11.5).
   core through the people's timer (people.md, section 3); stopping still
   completes watch endings and the drain notification (section 6.1).
 - **An ended task or tree opens as a finished read**
-  (`../client/domain/contract.md`, 7.2). Construction uses one of the
-  existing bounded task loads, held behind preceding commits. The core
+  (`../client/domain/contract.md`, 7.2). Construction uses a bounded
+  task load (5.3), held behind preceding commits. The core
   checks the sign-in and retained row's project on completion, makes the
   final document without restoring the row, and closes the watch after
   its delivery terminal. A close during the load drains construction
-  without delivering. Live watches keep their existing pacing.
+  without delivering. Live watches are paced as every watch is.
 - **Watches are never stored.** A restart (section 6) starts with none,
   and is told nothing of the deliveries made before it; each client
   opens its watches again (`../protocol/client.md`, section 4).
@@ -2055,8 +2049,7 @@ section 17; the records are `../protocol/store.md`, 4.4.
   the newest's, for what is about to be made. Every site of the core
   that reads a charter reads it through one of them. An application
   that reads a task's charter through `charter_of` reads the task's own
-  version with no change of its own: temper's forge routing, which
-  takes an effect call's timeout from `charter_of(task)`, needs none.
+  version with no change of its own.
   An amendment of a task's LLM choice is checked against its own
   version's models, a delegate's against the newest's.
 - **Held revisions.** The newest is held, and so is every revision a
@@ -2195,8 +2188,6 @@ judges and keeps it within the change's decision.
   and the keeping are the connector's, in its own terms.
 
 ### 17.6 A proposal of settings
-
-Its code comes after the rest (`../STATUS.md`).
 
 - **Proposed by a member or a run.** A party with a role in the
   deployment or in a project proposes a set with `Propose` (people.md,

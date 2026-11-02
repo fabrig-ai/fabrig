@@ -1,8 +1,7 @@
 # testing: status
 
-2026-10-29. Where jig's code lags or departs from [testing.md](testing.md).
+2026-11-02. Where jig's code lags or departs from [testing.md](testing.md).
 
-- **Built:** 5: ops runs the shared scenarios through `jig_conformance::core`; kinds it lacks are reported as not applicable. 5: `jig_conformance::core`, the core's translation and peers, shared by jig's, ops' and temper's adapters. 3 to 7, 9: operations/indexes, two-clock restore, seed capacities and Seen commit/restart cases. 7: referees check that a task's settings revision is newest when made or moved and an assignment carries its run's revision. 6: fixed-scenario heap ceilings; the empty closure uses `EMPTY_CLOSURE_HEAP_CEILING` (1,300 bytes), including queue growth.
-- **Not yet:** 4: preview completion. 7: ops worlds on real store.
-
-- **Built:** 9: store upgrade scenarios and three fake-backed shipped-binary paths run in focused; the bundle-page path uses the shared real loop and Deadline.
+- **Not yet:** 4: the stories of `me`'s `resolved_default` (engine.md,
+  11.1). 7: `ops`'s worlds on jig's store component; they run
+  `jig-fake-store`.

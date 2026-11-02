@@ -278,8 +278,7 @@ A source's state is one of:
   run starts on it until then, or, with no time given, until its holder
   resumes it, replaces its LLM key or signs in again. An absent reset remains
   absent across new grants and restarts; it is never converted to zero or
-  a guessed retry deadline. An explicit zero is a supplied reset. This
-  retires ruling 130's absent-reset-to-zero mapping. Text a person reads
+  a guessed retry deadline. An explicit zero is a supplied reset. Text a person reads
   says "limited";
 - **refused:** the LLM provider refuses the account for what is asked:
   not eligible, a scope not granted, plan usage declined at sign-in, a
@@ -354,8 +353,6 @@ says (`../protocol/llm.md`, section 5) and what runs' agents notice
   Timers use `at`; every task wait, account and deployment document,
   and stored reset uses the retained `wall`, exactly. Later clock
   samples and wall corrections do not change an existing deadline.
-  The existing event and step environment suffice; no new `Event` is
-  needed.
 - **Limit merging keeps the same precedence.** A later reset replaces
   both `at` and `wall`; an earlier reset keeps the old pair, and a tie
   keeps the old pair too. A limit with no reset overrides a timed
@@ -366,9 +363,8 @@ says (`../protocol/llm.md`, section 5) and what runs' agents notice
   time (engine.md, 5.4): a restart preserves that saved wall exactly,
   maps it once to a fresh monotonic
   `at`, lifts a limit whose reset passed while the engine was down,
-  and holds a later one until it. The existing optional wall reset
-  represents both timed and indefinite limits; no store or wire layout
-  changes. A source held moving is stored so, and a restart brings it
+  and holds a later one until it. The optional wall reset
+  represents both timed and indefinite limits. A source held moving is stored so, and a restart brings it
   back as a cancelled move does (section 6). A program's login on a
   worker is not stored: its
   half reports it as `logins`, which follow the worker's hello
@@ -447,7 +443,7 @@ and refuse unknown or cyclic task chains without writing anything.
   name a project with another party (above). Tested by
   `a_key_naming_a_project_pays_for_a_persons_work_in_it_and_nowhere_else`
   and `a_plan_naming_a_project_still_does_not_cover_another_persons_work_in_it`
-  (`jig/crates/jig-domain-core/src/tests/coverage.rs`).
+  (`jig/crates/jig-domain-core/src/tests/runs/coverage.rs`).
 - **A shared project's automatic work** is so paid by a key: the
   deployment's, or a person's whose uses name the project. No plan pays
   for it (above).
@@ -513,12 +509,10 @@ credential waits. With no reset, no polling deadline is invented.
 
 Recurring templates check explicit hints against the project's payer at start,
 regardless of their members' declared funders, and again before each occurrence.
-There is no per-occurrence refusal outcome yet. If an account has disappeared,
-changed provider or ceased to serve the project, the occurrence is created and
-its next run waits, naming the account and its typed admission reason in the
-Task document. This exceptional wait is rechecked from current facts; it does
-not silently choose a different account. A later occurrence-refusal outcome
-will replace this fallback.
+If an account has disappeared, changed provider or ceased to serve the project,
+the occurrence is created and its next run waits, naming the account and its
+typed admission reason in the Task document. This exceptional wait is rechecked
+from current facts; it does not silently choose a different account.
 
 The grant number passed as smith's account is the selected **source** number.
 Changing sources within one billing account therefore conservatively causes
@@ -667,8 +661,12 @@ construction, never by a person deleting a copy.
   the engine. A remotely hosted application asks OpenAI first
   (providers.md, 2.1). Default: the engine's machine (section 5).
 - **Who decides for the deployment's accounts** beyond its first owners:
-  a deployment-wide role, which jig's roles, all of them a project's,
-  do not give. Default: the first owners (3.2).
+  whether every owner in the deployment's roles (people.md, section 3)
+  does, not only those its configuration names. Default: the first
+  owners (3.2).
+- **An occurrence whose account no longer serves:** whether a recurring
+  template's occurrence is refused, rather than made to wait for its
+  account. Default: made, its run waiting (4.3).
 - **Program logins on a shared host,** once a run's process tree is
   contained from the programs directory: whether the rule of 3.4 then
   goes, or stays for a program's own tools. Default: the rule holds.

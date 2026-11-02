@@ -59,15 +59,14 @@ referee in the loop, the heap counted at every iteration
 - **people:** sign-ins and credentials minted, roles, requests,
   inboxes; operations alone and in compound requests, made whole or not
   at all; read positions over conversations, live and ended, across a
-  restart (people.md, section 11). Existing request step tests and the
-  people world fill completed-answer capacity: new `Seen` progresses
-  without saving an `Answer` on success or any routed refusal, while a
-  new ordinary key is busy. Ordinary reservations exclude `Seen` flights
-  exactly, but the existing pending, flight and waiter bounds still
-  apply. Duplicate waiters each get one terminal; pending conflicts,
-  retained replay and conflicts, legacy `Seen` answers restored through
-  original expiry, and reprocessing to a maximum watermark are checked
-  without a new harness, tier or budget (people.md, 5.1 and section 6).
+  restart (people.md, section 11). Its request step tests and its world
+  fill completed-answer capacity: a `Seen` progresses without saving an
+  `Answer` on success or any routed refusal, while a new ordinary key is
+  busy. Ordinary reservations exclude `Seen` flights exactly, and the
+  pending, flight and waiter bounds apply. Duplicate waiters each get one
+  terminal; pending conflicts, retained replay and conflicts, and
+  reprocessing to a maximum watermark are checked in the step and world
+  tiers (people.md, 5.1 and section 6).
 - **fleet:** hosts of both kinds, placement, fencing, graces, adoption;
   host needs per charter version, a run of an older version placed on a
   host its version allows and the newest's does not (engine.md, 17.3).
@@ -79,7 +78,7 @@ referee in the loop, the heap counted at every iteration
   in flight per watch, and the watches' limits refused at the entrance
   (engine.md, section 11).
 - **notes:** its own concern.
-- **accounts:** the existing world checks source deadline creation,
+- **accounts:** its world checks source deadline creation,
   merge and restore with injected monotonic/wall clock pairs: later,
   earlier and equal resets, the old pair kept on a tie, a no-reset
   limit overriding a timed one to `None`, and indefinite limits kept
@@ -120,13 +119,13 @@ scenario made, filtered and ordered as the query asks, its ended part
 within what its index serves; what each task waits on against the
 tree and the entries the scenario made.
 
-The existing `joint_clock` and documents fixtures compare a source's
+The `joint_clock` and documents fixtures compare a source's
 deadline in task waits, accounts and deployment documents and in its
 stored reset. Different injected clock pairs between reads leave those
 wall facts exactly equal, including after restore: literal equality,
 never a real-clock sample or tolerance (accounts.md, 3.5; engine.md, 5.4).
 
-The existing charters and templates stories check `me`'s
+The charters and templates stories check `me`'s
 `resolved_default` with catalogue and charter orders opposed, explicit
 and omitted intent, a chosen executor, no eligible model, and account,
 policy, membership and effective-executor changes that refresh the
@@ -138,7 +137,7 @@ the check, a charter's version for a revision, the held revisions'
 accounting and the bounds' arithmetic as step tests of the core's
 settings functions, pure and fast; the records' round trip and
 goldens in the store's tests (`../protocol/store.md`, section 14); the
-document's members read as defaults, and the new limits, in the
+document's members read as defaults, and the settings' limits, in the
 configuration's tests; the change's and the move's records in the
 client wire's. This world holds what needs the decision and the
 children together: the stories of engine.md, section 15. None needs a
@@ -150,7 +149,7 @@ and keep it across restart. Invalid programmatic configuration is
 `Core::new`'s precondition, never an invalid world constructor or a
 catch-panic scenario (engine.md, section 14).
 
-Existing inbox and ended-mark fixtures control the current subject,
+The inbox and ended-mark fixtures control the current subject,
 role and requester and the interleaving of ended-record and position
 loads with overlapping marks and forget. A completed `Seen` retried
 after mark and forget answers `Unknown`, writes nothing and never
@@ -158,7 +157,7 @@ recreates history; lost authority can answer `Role`. Holding the journal
 commit proves no external success leaves early. Crashing and restoring
 recovers only committed read positions or committed absence, with the
 mark and any consequent forget atomic (people.md, section 6). These
-proofs stay in the existing step and world tiers and budgets.
+proofs are in the step and world tiers, within their budgets.
 
 ## 5. The conformance world
 

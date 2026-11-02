@@ -1,6 +1,12 @@
 # hosts: status
 
-2026-10-29. Where jig's code lags or departs from [hosts.md](hosts.md).
+2026-11-02. Where jig's code lags or departs from [hosts.md](hosts.md).
 
-- **Built:** 6.1: `jig-domain-hub-link`, the engine's own hub link, composed by the jig test root, ops and temper. 6.1: one link vocabulary, `jig-domain-link`, shared by the hub, the fleet and accounts. 1, 2, 5.1, 6.1, 6.3, 6.5, 6.8, 8, 9, 11: host operations, program inventories/checks/sign-out, configured-bound holds and process-agent live text. 8.1: an Open task runs on a program source; a start refused for its grants spends a try. 4: the reference worker paced by a watermark on its admitted backlog; the queues between its parts uncapped.
-- **Not yet:** 3, 5.2, 6.5, 11: inline agents. 6.1: engine hello before placement. 10: containment. 4: an admitted run's answers passing a held assignment.
+- **Not yet:** 3, 5.2, 6.5, 11: `smith-inline-agent` as a hub's agent
+  capability. 4: an admitted run's answers passing a held assignment.
+  6.1: the engine hub's hello before placement. 6.9: jobs.
+  10: an agent process's tree contained.
+- **Departs:** 8.1: the client wire and the client keep
+  `TaskWaitRefused::Program` (`jig-client-protocol-link`,
+  `translate/task_wait.rs`), which nothing produces, until the next
+  client wire version removes it.
