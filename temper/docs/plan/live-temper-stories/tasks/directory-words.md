@@ -59,7 +59,7 @@ Acceptance:
 Owns, all in `temper/crates/temper-client-shell-cli/src/`:
 
 - `directory.rs`: `answer_file`'s catch-all arm (~270-280), `answer_key`'s two `could not be
-  read` arms (~312-337), `load_link`'s no-parent line (~555); new private helpers beside them.
+  read` arms (~292, ~337), `load_link`'s no-parent line (~574); new private helpers beside them.
 - `host/input.rs`: `key_file_fail` (~151-166) alone.
 - `tests.rs`: two new tests beside `a_zero_byte_token_is_not_signed_in` (~121).
 - `tests/fixtures.rs`: two new `Frame` fields, their initial values in `Frame::act`, and their
