@@ -348,6 +348,7 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
         core::Ask::StartProcedure { context, step } => {
             let task = context.task;
             let code = match context.executor {
+                tasks::Executor::Job { .. } => return,
                 tasks::Executor::Procedure { code, .. } => code,
                 tasks::Executor::Agent { .. } | tasks::Executor::Person(_) => {
                     unreachable!("procedure route owns a procedure context")

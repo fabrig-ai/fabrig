@@ -140,6 +140,7 @@ fn delegations_with_one_repository_id_take_their_own_forges_holding() {
     let connector = domain.config.forge_connector;
     for number in [1, 3] {
         let spec = tasks::Spec {
+            job: None,
             asks: false,
             words: Box::new([]),
             inputs: Box::new([]),

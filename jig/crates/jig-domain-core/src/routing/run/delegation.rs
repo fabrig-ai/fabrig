@@ -625,6 +625,7 @@ pub(crate) fn start_recurring(
             executor: tasks::Executor::Procedure { connector: crate::RECURRING, code: 1 },
             llm: None,
             spec: tasks::Spec {
+                job: None,
                 asks: false,
                 words: b"recurring".as_slice().into(),
                 parameters: Box::new([]),

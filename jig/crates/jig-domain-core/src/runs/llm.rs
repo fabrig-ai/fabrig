@@ -46,7 +46,9 @@ impl Core {
         }
         let charter = match new.executor {
             tasks::Executor::Agent { charter } => charter,
-            tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => return Ok(()),
+            tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) | tasks::Executor::Job { .. } => {
+                return Ok(());
+            }
         };
         if let Some(choice) = &new.llm {
             if choice.account.is_some() {

@@ -54,6 +54,7 @@ pub fn result_kind(source: &domain::ResultKind, limits: &wire::Limits) -> Result
                 wire::ApprovalMessageParts { state: state.clone(), words_present: *words_present },
             )?)
         }
+        domain::ResultKind::Job => wire::ResultKind::Job,
         domain::ResultKind::NoChange => wire::ResultKind::NoChange,
         domain::ResultKind::Report => wire::ResultKind::Report,
         domain::ResultKind::Verdict { code, fields } => wire::ResultKind::Verdict(wire::VerdictMessage::new(
@@ -83,6 +84,7 @@ pub fn read_result_kind(source: wire::ResultKind, limits: &wire::Limits) -> Resu
             let wire::ApprovalMessageParts { state, words_present } = source.into_parts();
             domain::ResultKind::Approved { state, words_present }
         }
+        wire::ResultKind::Job => domain::ResultKind::Job,
         wire::ResultKind::NoChange => domain::ResultKind::NoChange,
         wire::ResultKind::Report => domain::ResultKind::Report,
         wire::ResultKind::Verdict(source) => {

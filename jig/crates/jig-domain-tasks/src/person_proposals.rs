@@ -34,7 +34,10 @@ pub(crate) fn valid_action(proposal: &PersonProposal, limits: &Limits) -> bool {
             | crate::Executor::Procedure { connector: 0, .. }
             | crate::Executor::Procedure { code: 0, .. }
             | crate::Executor::Person(crate::PersonAddress::Person(0)) => return false,
-            crate::Executor::Agent { .. } | crate::Executor::Procedure { .. } | crate::Executor::Person(_) => {}
+            crate::Executor::Agent { .. }
+            | crate::Executor::Procedure { .. }
+            | crate::Executor::Job { .. }
+            | crate::Executor::Person(_) => {}
         }
         match member.funder {
             crate::Funder::Pool { project, person, .. }

@@ -125,6 +125,7 @@ pub fn lines(rows: &BTreeMap<root::Key, root::Record>, party: u64, query: &core:
                 tasks::Executor::Agent { .. } => ExecutorKind::Agent,
                 tasks::Executor::Procedure { .. } => ExecutorKind::Procedure,
                 tasks::Executor::Person(_) => ExecutorKind::Person,
+                tasks::Executor::Job { .. } => ExecutorKind::Job,
             };
             let parent = match row.requester {
                 tasks::Party::Task(number) => Some(number),

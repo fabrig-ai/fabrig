@@ -39,6 +39,7 @@ pub(super) fn poll(peers: &mut Peers, store: &Store) -> Vec<Input<root::Event, r
         .map(|kind| match kind {
             jig_domain_authority::Executor::Charter(number) => people::Executor::Charter(*number),
             jig_domain_authority::Executor::Procedure(number) => people::Executor::Procedure(*number),
+            jig_domain_authority::Executor::Job(number) => people::Executor::Job(*number),
             jig_domain_authority::Executor::Role(number) => people::Executor::Role(*number),
         })
         .collect();

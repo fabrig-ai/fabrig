@@ -220,6 +220,7 @@ fn route_ask(
         }
         core::Ask::StartProcedure { context, step } => {
             let code = match context.executor {
+                tasks::Executor::Job { .. } => return,
                 tasks::Executor::Procedure { code, .. } => u16::try_from(code).expect("test procedure code"),
                 tasks::Executor::Agent { .. } | tasks::Executor::Person(_) => {
                     unreachable!("procedure context has a procedure executor")

@@ -344,7 +344,7 @@ impl Core {
                 };
                 add(&mut entries, row, whom, people::EntryKind::PersonTask, since);
             }
-            tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } => {}
+            tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } | tasks::Executor::Job { .. } => {}
         }
         entries.into_boxed()
     }

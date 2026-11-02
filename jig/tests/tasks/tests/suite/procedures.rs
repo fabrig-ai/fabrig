@@ -100,6 +100,7 @@ fn amendment() -> tasks::ProcedureAmendment {
             instructions: None,
             release: None,
             spec: Some(tasks::Spec {
+                job: None,
                 asks: false,
                 words: b"amended".as_slice().into(),
                 parameters: Box::new([]),

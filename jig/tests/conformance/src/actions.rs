@@ -81,6 +81,7 @@ pub(crate) fn prepare_racing_decisions(world: &mut World) {
             budget: jig_domain_people::Budget::Named,
             executor: tasks::Executor::Agent { charter: 1 },
             spec: tasks::Spec {
+                job: None,
                 asks: false,
                 words: b"race target".as_slice().into(),
                 parameters: Box::new([]),
@@ -117,6 +118,7 @@ pub(crate) fn run_racing_amendment(world: &mut World) {
                 llm: None,
                 reason: b"run evidence".as_slice().into(),
                 spec: Some(tasks::Spec {
+                    job: None,
                     asks: false,
                     words: b"run choice".as_slice().into(),
                     parameters: Box::new([]),

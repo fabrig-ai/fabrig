@@ -188,6 +188,7 @@ fn spec(value: Node<'_>) -> Result<tasks::Spec, Problem> {
         None => Box::new([]),
     };
     Ok(tasks::Spec {
+        job: None,
         asks: match value.field(b"asks")? {
             Some(value) => value.boolean()?,
             None => false,

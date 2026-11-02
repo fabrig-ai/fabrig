@@ -534,7 +534,7 @@ fn result_actor(row: &tasks::TaskRecord) -> Option<tasks::Party> {
                 Some(answer) => Some(tasks::Party::Person(answer.by)),
                 None => None,
             },
-            tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } => None,
+            tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } | tasks::Executor::Job { .. } => None,
         },
         tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Closing(_) | tasks::Phase::Held { .. } => None,
     }

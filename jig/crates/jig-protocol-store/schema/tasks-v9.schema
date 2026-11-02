@@ -12,12 +12,16 @@ enum PersonAddress { person: Person, role: Role }
 record Agent { charter: u32 }
 record Procedure { connector: u16 code: u32 }
 record PersonExecutor { address: PersonAddress }
-enum Executor { agent: Agent, procedure: Procedure, person: PersonExecutor }
+record JobExecutor { kind: u32 }
+enum Executor { agent: Agent, procedure: Procedure, person: PersonExecutor, job: JobExecutor }
 record NumericParameter { name: u32 value: u64 }
 record BytesParameter { name: u32 value: bytes 65536 }
 record ResourceParameter { name: u32 connector: u16 resource: u64 }
 enum Parameter { number: NumericParameter, bytes: BytesParameter, resource: ResourceParameter }
-record Spec { words: bytes 65536 parameters: list 64 Parameter inputs: list 64 Number asks: bool }
+record JobSpec { bytes: bytes 65536 deadline: duration }
+record JobContract { bytes: u32 }
+record JobResult { bytes: bytes 65536 }
+record Spec { words: bytes 65536 parameters: list 64 Parameter inputs: list 64 Number asks: bool job: option JobSpec }
 enum PartKind { resource, pool, result, procedure, effect, outbox, hold }
 record PartSegment { bytes: bytes 4096 }
 record PartPath { segments: list 64 PartSegment }
@@ -29,7 +33,7 @@ record Approval { state: bytes 65536 part: Part }
 record Report { words: u32 }
 record Choices { choices: list 64 Verdict }
 record ChangeContract { connector: u16 kind: u16 words: u32 }
-enum Contract { approval: Approval, report: Report, verdict: Choices, change: ChangeContract }
+enum Contract { approval: Approval, report: Report, verdict: Choices, change: ChangeContract, job: JobContract }
 record Tools { bits: u64 }
 record Models { bits: u64 all: bool }
 record ModelEffort { model: u8 effort: option u8 }
@@ -42,7 +46,8 @@ record Grant { connector: u16 kind: u16 pattern: Pattern }
 record ResourceScope { connector: u16 pattern: Pattern }
 record Charter { charter: u32 }
 record Code { code: u32 }
-enum AuthorityExecutor { charter: Charter, procedure: Code, role: Role }
+record AuthorityJob { kind: u32 }
+enum AuthorityExecutor { charter: Charter, procedure: Code, role: Role, job: AuthorityJob }
 record Delegation { kinds: list 64 AuthorityExecutor tasks: u32 depth: u32 }
 record Budget { spend: u64 deadline: option u64 }
 record Authority {
@@ -103,7 +108,7 @@ record ReportResult { words: bytes 65536 }
 record VerdictResult { code: u32 fields: bytes 65536 pieces ResultField words: bytes 65536 }
 record ChangeResult { connector: u16 kind: u16 resource: u64 title: bytes 65536 words: bytes 65536 }
 record FailureResult { reason: bytes 65536 }
-enum TaskResult { approved: Approved, report: ReportResult, verdict: VerdictResult, change: ChangeResult, failure: FailureResult, no_change: ReportResult }
+enum TaskResult { approved: Approved, report: ReportResult, verdict: VerdictResult, change: ChangeResult, failure: FailureResult, no_change: ReportResult, job: JobResult }
 record Done { result: TaskResult }
 record Cancelled { by: Party at: u64 reason: bytes 65536 result: option TaskResult }
 enum Ending { done: Done, failed: FailureResult, cancelled: Cancelled }
@@ -179,7 +184,7 @@ enum NewsClass { wakes, kept, dropped }
 record ApprovalMessage { state: bytes 65536 words_present: bool }
 record VerdictMessage { code: u32 fields: bytes 65536 pieces ResultField }
 record ChangeMessage { connector: u16 kind: u16 resource: u64 }
-enum ResultKind { approved: ApprovalMessage, report, verdict: VerdictMessage, change: ChangeMessage, failed, cancelled, no_change }
+enum ResultKind { approved: ApprovalMessage, report, verdict: VerdictMessage, change: ChangeMessage, failed, cancelled, no_change, job }
 record EscalationMessage { task: u64 revision: u64 }
 record ProposalMessage { proposer: u64 proposal: u64 kind: ProposalKind }
 record StalledMessage { task: u64 }

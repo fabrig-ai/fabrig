@@ -32,7 +32,7 @@ pub(super) fn query(value: w::TaskQuery) -> Option<d::TaskQuery> {
         executor: match value.executor {
             None => None,
             Some(v) => Some(match v {
-                w::ExecutorKind::Job => return None,
+                w::ExecutorKind::Job => d::ExecutorKind::Job,
                 w::ExecutorKind::Agent => d::ExecutorKind::Agent,
                 w::ExecutorKind::Procedure => d::ExecutorKind::Procedure,
                 w::ExecutorKind::Person => d::ExecutorKind::Person,

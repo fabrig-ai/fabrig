@@ -104,7 +104,7 @@ fn check_with_result_proposal(
             for member in batch {
                 match member.executor {
                     Executor::Person(_) => news = news.checked_add(1).expect("bounded person batch"),
-                    Executor::Agent { .. } | Executor::Procedure { .. } => {}
+                    Executor::Agent { .. } | Executor::Procedure { .. } | Executor::Job { .. } => {}
                 }
             }
             let Some(messages) = size.checked_add(news) else { return Err(problem(Some(number), Refusal::Busy)) };
@@ -257,7 +257,11 @@ fn check_members(
         if let Err(why) = crate::goals::room(domain, new.project, adding, limits) {
             return Err(problem(number, why));
         }
+        if new.spec.job.is_some() {
+            return Err(problem(number, Refusal::Executor));
+        }
         match new.executor {
+            Executor::Job { .. } => return Err(problem(number, Refusal::Executor)),
             Executor::Agent { charter } => {
                 if domain.charter_models(charter, domain.newest()).is_none() {
                     return Err(problem(number, Refusal::Executor));
@@ -340,7 +344,7 @@ fn valid_recurring(limits: &Limits, creator: Party, new: &New) -> bool {
             };
             let procedure = match new.executor {
                 Executor::Procedure { code, .. } => code != 0,
-                Executor::Agent { .. } | Executor::Person(_) => false,
+                Executor::Agent { .. } | Executor::Person(_) | Executor::Job { .. } => false,
             };
             procedure
                 && creator == (Party::Deployment { project: new.project })
@@ -381,6 +385,11 @@ pub fn valid_spec(limits: &Limits, spec: &Spec) -> bool {
             }
         }
     }
+    if let Some(job) = &spec.job
+        && job.bytes.len() > skein_lib::length::usize_of(limits.spec_bytes)
+    {
+        return false;
+    }
     let mut bytes = spec.words.len();
     for parameter in &spec.parameters {
         match parameter {
@@ -403,6 +412,7 @@ pub fn valid_spec(limits: &Limits, spec: &Spec) -> bool {
 #[must_use]
 pub fn valid_contract(limits: &Limits, contract: &Contract) -> bool {
     match contract {
+        Contract::Job { bytes } => *bytes <= limits.result_bytes,
         Contract::Approval { state, part } => {
             if state.len() > skein_lib::length::usize_of(limits.result_bytes) {
                 return false;
@@ -534,7 +544,7 @@ fn check_placed(domain: &Domain, creator: Party) -> Result<(), Problem> {
     };
     match parent.executor {
         Executor::Agent { .. } => {}
-        Executor::Procedure { .. } | Executor::Person(_) => return Ok(()),
+        Executor::Procedure { .. } | Executor::Person(_) | Executor::Job { .. } => return Ok(()),
     }
     if let Some(hold) = crate::placed::delegation_hold(domain, number) {
         return Err(problem(Some(number), Refusal::Placed { hold }));
