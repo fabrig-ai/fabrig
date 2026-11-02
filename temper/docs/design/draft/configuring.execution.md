@@ -13,8 +13,8 @@ the reference's M1 to M10.
   user on 2026-11-02 so that no two plans' designers write one section
   at once: the reference's M1 and M3 write jig's `domain/engine.md`,
   17.5 to 17.7, temper's `../protocol/configuration.md`, 13.2 to 13.4
-  and 13.9, and `../domain/agent.md`, 4.3.1, and P2 and P3 follow M3
-  beside them.
+  and the section M1 adds after 13.8, and `../domain/agent.md`, 4.3.1,
+  and P2 and P3 follow M3 beside them.
 - **P1 now:** what is designed and touches nothing in flight: a
   charter's documents, charters read at their task's revision, and
   `chat start --template`. The reference's M3 takes a charter's
