@@ -2,12 +2,11 @@
 
 Draft, 2026-11-02. How the reference lands what code production made: a
 goal's branch into main as one change, the few small changes around it,
-and their verification after landing. It supersedes `landing-model.md`,
-deleted and readable in history at `8a4c5bcd9f` (section 8 says where
-each of its items goes). Code production is
+and their verification after landing. Code production is
 `reference-code-production.md`; `reference-case.md` walks both;
-`reference-notes.md` holds the evidence and the design changes, cited by
-number.
+`notes.md` holds the evidence and the reasons, cited by section and by
+number (N1 to N24), and where each item of the landing model it drops
+goes (`notes.md`, section 6).
 
 Unqualified, `forge.md`, `landing.md`, `after-landing.md` and
 `findings.md` are temper's `../domain/` documents; jig's are named as
@@ -43,7 +42,7 @@ jig's.
   with its hold.
 - **Dropped:** batches, trains, keys per package, provers, the
   serializer, leases, lent workspaces, the retire after landing. Landing
-  by turn stays, built, an option this reference does not take.
+  by turn stays, an option this reference does not take.
 
 ## 2. What lands
 
@@ -131,7 +130,7 @@ why, and the hold escalates to its coordinator (jig's
 - **One at a time is enough.** Few changes land into main, and most are
   large and checked whole. The evidence agrees: of 131 batches through
   the queue it records, 129 carried one branch, and none was ever
-  bisected (`reference-notes.md`, 2.2).
+  bisected (`notes.md`, 2.2).
 - **Main's own CI red** pauses the queue and makes one repair, a change
   into main, first in the queue (`forge.md`, section 9). Where tiers
   judge main, they do instead, and the queue never pauses for them.
@@ -147,13 +146,12 @@ coordinator makes as main's landings touch the goal's open work (N6,
 first and lacks main's tip, by the forge's update, a conflict going to
 the merge job and a resolution. The first keeps the second small: the
 evidence's one catch-up left to the end met 23 conflicts and took 56
-minutes by hand (`reference-notes.md`, 2.2).
+minutes by hand (`notes.md`, 2.2).
 
 ## 6. After landing
 
-As `after-landing.md` has it, designed and mostly not built, with one
-change: each tier names the branches it follows (N5), and main's follow
-main alone.
+As `after-landing.md` has it, with one change: each tier names the
+branches it follows (N5), and main's follow main alone.
 
 - **Main's tiers** are the suites too slow for the gate (a browser suite,
   exhaustive profiles). Each runs on main's tip as it moves, one run per
@@ -200,39 +198,12 @@ main's own CI is first in the queue (`forge.md`, section 9). A repair
 after landing that should change what g's close-out wrote (a status
 entry, a Later section) carries that edit itself.
 
-## 8. The landing model's items, here
-
-`landing-model.md` (2026-10-30) planned a landing model for many
-landings at once. Under the reference, each item is either already
-temper's or jig's, still needed, or not needed:
-
-| Items | Here |
-|---|---|
-| L1 batches, L2 trains, L3 candidates by a merge chain, L5 keys per package, L6 gate classes, L7 provers and runners, L9 the serializer's durability, L18 the reservation | not needed: one change at a time owns main's queue; landing by turn keeps what is built of them (`landing.md`) |
-| L4 the project's tooling as a job, no model | needed, as the merge job (N7) |
-| L8 a measured failure rerun once before red | Later, for the gate (N17); tiers have it (`after-landing.md`, 5.2) |
-| L10 a repair pinned ahead of every landing | temper's branch repair, first in its queue (`forge.md`, section 9) |
-| L11 a change's own checks before ready | the producer's checks at delivery (`.temper/pre-pr`) |
-| L12 leases on paths across goals | not needed: one branch per goal, held by it (N3); overlaps between goals Later |
-| L13 tiers following main, L14 cleared as a setting | needed, as designed (`after-landing.md`), each tier naming the branches it follows (N5) |
-| L15 findings, L16 QA walks | `findings.md`; the reference uses only a red of no goal's |
-| L17 trailers in landing news | as designed (`after-landing.md`, section 8); the reference does not need them |
-| L19 views and acts | the client's, for what remains: the queue, tiers, verdicts, holds |
-| L20 one change in one repository | kept: the reference is one repository |
-| J1 owned holds | built; the goal's hold on g is one (N3) |
-| J2 to J6, J9, J12: drains, inherited holds, parks until an event, moves, successors, holds over admission, lent workspaces | not needed by the reference; jig's designs keep them |
-| J7, J8 a conversation's questions | not needed: no chat stands between the goal and its person; jig's `domain/tasks.md`, 8.5 keeps them |
-| J10 an address by role | not needed: questions and escalations go up the tree |
-| J11 a fresh run at a context's bound | the coordinator starts fresh on each wake (jig's `domain/engine.md`, 7.4); a long run on Claude Code is the program's to compact |
-| F1 skein's artifact read | needed by tiers (`after-landing.md`, section 4) |
-| F2 to F5 GitHub's turn and permissions | not needed: the reference lands by queue |
-
 ## 9. What has not yet run unattended
 
-From the evidence (`reference-notes.md`, 2.2): a catch-up with main, a
+From the evidence (`notes.md`, 2.2): a catch-up with main, a
 plan stopped by its bounds, a goal's branch landed with a red after
-landing routed to a repair. Each was designed and tested in pieces, and
-done by hand when it happened. They are this reference's first stories:
+landing routed to a repair. Each was done by hand when it happened.
+They are this reference's first stories:
 
 - a goal's landing whose update into main conflicts, settled by the
   merge job and a resolution on g;
@@ -241,26 +212,25 @@ done by hand when it happened. They are this reference's first stories:
 - a red after landing, triaged and repaired by a change naming it, the
   goal cleared by the repair.
 
-## 10. What is missing
-
-| Gap | Where | Note | Status |
-|---|---|---|---|
-| a change whose branch is its requester's held branch; moves by its requester's delegates as its new head | temper | N3 | missing; contradicts `forge.md`, 8.1 and 8.5 |
-| the goal's own branch, kept after a goal that never landed it | jig, temper | N3 | missing |
-| the merge job before a resolution | jig, temper | N7 | jobs designed, not built |
-| tiers naming the branches they follow | temper | N5 | missing |
-| tiers following main, verdicts, a change living to cleared, reds to goals | temper | `after-landing.md` | designed; no status file; little code found |
-| the coordinator's `change` with `repairs` and its requester's branch | temper | N22 | missing |
-| a flake at the gate rerun before a repair | temper | N17 | Later |
-
-The queue itself, the update, the resolution, repairs, bounds and holds
-are built (`forge.status.md`).
-
 ## 11. Later
 
-- Two goals landing near each other, their branches overlapping: a
-  probe's report to both coordinators, and checkpoint landings into main
-  (`reference-notes.md`, section 5).
+- **Several goals at once,** their branches overlapping. A mechanical
+  probe merges each pair of live goal branches, and each with main,
+  without pushing (`git merge-tree`), and sends their conflicts to both
+  goals as news. A goal that meets one may land a checkpoint: a change
+  into main on a branch made at a commit of its own branch, checked
+  whole by the full gate, which the other goal then takes by its
+  ordinary catch-up, while its own branch goes on. Goals never merge
+  each other's unlanded branches: a branch carrying another goal's
+  unlanded work cannot land without it, which makes two goals one
+  landing, and a dropped goal a hole in the other (N2's rule for
+  dependencies, across goals). A semantic probe, the gate on a
+  speculative merge, costs a CI run per pair and waits for numbers.
+  Needs: the probe and its news kind, `change` from a commit of the
+  goal's branch (N22), and the coordinator's judgement of when a commit
+  is a coherent checkpoint.
+- A test that fails at the gate rerun alone before a repair, as tiers
+  rerun theirs (N17).
 - A red after landing bisected within a goal's landing, over its
   changes' merges, to find the change that brought it.
 - Several repositories, one goal: a branch per repository, each held by
