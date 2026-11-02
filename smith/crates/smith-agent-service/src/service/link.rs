@@ -87,6 +87,7 @@ pub(super) fn request(service: &mut Stages, frame: &mut Frame, request: domain::
         domain::Request::Lower(
             smith_domain::Lower::Complete { .. }
             | smith_domain::Lower::Yield { .. }
+            | smith_domain::Lower::Close { .. }
             | smith_domain::Lower::Cancel { .. }
             | smith_domain::Lower::Io { .. }
             | smith_domain::Lower::Job { .. }
@@ -231,6 +232,7 @@ pub(super) fn request(service: &mut Stages, frame: &mut Frame, request: domain::
         domain::Request::Lower(
             smith_domain::Lower::Complete { .. }
             | smith_domain::Lower::Yield { .. }
+            | smith_domain::Lower::Close { .. }
             | smith_domain::Lower::Cancel { .. }
             | smith_domain::Lower::Io { .. }
             | smith_domain::Lower::Job { .. }

@@ -333,6 +333,22 @@ fn composition_reports_an_account_without_a_source_outside_the_run() {
 }
 
 #[test]
+fn composition_reports_another_program_accounts_models_outside_the_run() {
+    let certificate = crate::fixture::trust().display().to_string();
+    let decoded = crate::fixture::ready(settings(&[source(
+        Layer::User,
+        &format!(
+            "model='codex/gpt-6-luna'\nsub_agents=true\n[accounts.codex]\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n[accounts.anthropic]\nsource='program'\n[endpoints.codex]\ntrust.system=false\ntrust.der=['{certificate}']\n[endpoints.anthropic]\nprogram='claude_code'\n"
+        ),
+    )]));
+    let resolved = crate::fixture::ready(super::resolve::resolve(&decoded));
+    assert_eq!(
+        resolved.outside_models["anthropic/claude-opus-5-5"], "a sub-agent runs on a program only on main's account",
+        "another program account's model stays outside the run"
+    );
+}
+
+#[test]
 fn an_outside_model_is_still_checked_for_a_positive_rate() {
     let refusal = composed("[models.'anthropic/claude-opus-5-5']\ninput_price=0\n").err().expect("zero rate");
     assert_eq!(refusal.key, "models.anthropic/claude-opus-5-5.input_price");

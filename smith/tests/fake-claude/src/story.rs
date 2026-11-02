@@ -218,7 +218,7 @@ pub enum Step {
     Hang,
     /// Waits through interrupts until termination.
     Deaf,
-    /// Emits one assistant message, then runs its Call, Builtin or Act steps in order.
+    /// Emits one assistant message, then runs its Call, CallChecked, Builtin or Act steps in order.
     Together(Vec<Step>),
     /// Calls the named server tool, returning its answer to the model.
     Call { tool: String, input: serde_json::Value },

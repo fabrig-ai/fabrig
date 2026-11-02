@@ -184,10 +184,7 @@ impl Producer {
         for tool in &charter.grants.host_tools {
             host.push(tool.name.clone()).expect("admitted host names");
         }
-        let mut withheld = List::with_capacity(1);
-        if charter.grants.agents && self.programs.contains(&charter.llm.endpoint.0) {
-            withheld.push(smith_events::Family::SubAgents).expect("one withheld family");
-        }
+        let withheld = List::with_capacity(0);
         let mut contract = List::with_capacity(4);
         if charter.outcome.change.is_some() {
             contract.push(smith_events::Form::Change).expect("four forms");

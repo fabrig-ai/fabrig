@@ -15,6 +15,7 @@ mod open_opening;
 mod orders;
 mod program;
 mod program_budget;
+mod program_children;
 mod program_configuration;
 mod program_events;
 mod program_open;
