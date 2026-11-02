@@ -28,6 +28,14 @@ pub(crate) fn invalid(limits: &crate::Limits, batch: &[Member]) -> crate::LimitK
     }
 }
 
+/// A connector's symbol: a resource it names after the task once the task has its
+/// number (domain/authority.md, section 4; protocol/configuration.md, 3.3).
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub struct Symbol {
+    pub connector: u16,
+    pub symbol: u16,
+}
+
 /// One root requested by a party, mirroring the tasks child's New.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Member {
@@ -42,6 +50,9 @@ pub struct Member {
     pub wake: WakePolicy,
     pub dependencies: Box<[Dependency]>,
     pub named: Box<[Grant]>,
+    /// Connectors' symbols this member holds, each resolved by its connector once the task has its number
+    /// (domain/tasks.md, 6.2).
+    pub symbols: Box<[Symbol]>,
     pub tracked: Option<u32>,
     pub label: u32,
     pub flags: Flags,

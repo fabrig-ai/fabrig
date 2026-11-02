@@ -73,8 +73,8 @@ pub use models::{
 };
 mod batch;
 pub use batch::{
-    Action, Budget, Contract, Deadline, Dependency, EndedBy, FieldRule, Flags, Given, Member, Retention, TaskExecutor,
-    Verdict, member_bytes, shaped,
+    Action, Budget, Contract, Deadline, Dependency, EndedBy, FieldRule, Flags, Given, Member, Retention, Symbol,
+    TaskExecutor, Verdict, member_bytes, shaped,
 };
 mod boundary;
 mod results;

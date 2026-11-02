@@ -12,7 +12,7 @@ use crate::{
 use alloc::boxed::Box;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
-use skein_lib::{Env, Queue, ReplyTo};
+use skein_lib::{Env, List, Queue, ReplyTo};
 
 pub(crate) fn lifted(core: &mut Core, env: &Env<Limits>, reply_to: ReplyTo, released: u32, out: &mut Queue<Request>) {
     let token = reply_to.into_token();
@@ -76,14 +76,38 @@ pub(crate) fn restore_refused(core: &mut Core) {
     assert!(core.start_failure().is_some(), "tasks refusal names its fit");
 }
 
-pub(crate) fn taken(task: u64, holdings: Box<[tasks::Holding]>, out: &mut Queue<Request>) {
+pub(crate) fn taken(
+    core: &mut Core,
+    env: &Env<Limits>,
+    task: u64,
+    holdings: Box<[tasks::Holding]>,
+    pending: &mut Queue<tasks::Request>,
+    out: &mut Queue<Request>,
+) {
+    let mut entries = List::with_capacity(u32::try_from(holdings.len()).expect("bounded task holdings"));
     for holding in holdings {
         match holding {
             tasks::Holding::Write { resource, .. } => {
-                out.push(Request::Ask { connector: resource.connector, ask: Ask::Hold { task, resource } });
+                let Some(entry) = crate::fresh(&mut core.counters, crate::Family::ConnectorRow) else {
+                    let mut follow = Queue::uncapped();
+                    crate::routing::step::step_tasks(
+                        core,
+                        env,
+                        tasks::Event::Hold { task, why: tasks::Hold::Budget },
+                        &mut follow,
+                    );
+                    for _ in 0..follow.len() {
+                        pending.push(follow.pop().expect("taking budget output count"));
+                    }
+                    return;
+                };
+                entries.push((resource, entry)).expect("one outbox entry per write holding");
             }
             tasks::Holding::Slot { .. } => {}
         }
+    }
+    for (resource, entry) in entries.into_boxed() {
+        out.push(Request::Ask { connector: resource.connector, ask: Ask::Hold { task, resource, entry } });
     }
 }
 

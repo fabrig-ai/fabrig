@@ -114,6 +114,7 @@ fn policy() -> core::ConfiguredPolicy {
 }
 fn template() -> core::Template {
     core::Template {
+        resources: Box::new([]),
         number: 1,
         name: Box::from(b"template".as_slice()),
         executor: people::TemplateExecutor::Charter(1),

@@ -900,15 +900,16 @@ fn original_stored_ancestry_fits_at_depth_and_one_under_refuses_the_whole_page()
 
 #[test]
 fn inbox_context_memory_prices_every_reserved_container_and_complete_document_envelope() {
-    // The template envelopes now carry each optional account preference:
-    // 16 document lines × 16 templates × 8 bytes adds 2,048 to 987,136.
-    const TEMPLATE_ENVELOPES: u64 = 989_184;
+    // Each template envelope carries the resource slice: 32 document lines,
+    // eight templates per line, and sixteen bytes per slice carrier.
+    const TEMPLATE_ENVELOPES: u64 = 989_184 + 32 * 8 * 16;
     // A settings inventory document is priced beside every document (engine.md 17.7).
     // Four pending inventory heads add 96 bytes; the two value sets and
     // bounded review/item-head carriers add 115,248 bytes at this fixture.
     // Four older held revision heads, each with its holder count, add 288 bytes.
     // Sixteen retained specification lines carry eight aligned bytes for asks.
-    const SETTINGS_DOCUMENT: u64 = 120_496 + 4 * 72 + 16 * 8;
+    // Both value sets carry eight templates with sixteen-byte resource slices.
+    const SETTINGS_DOCUMENT: u64 = 120_496 + 4 * 72 + 16 * 8 + 2 * 8 * 16;
 
     let (mut core, limits) = fixture();
     waiting(
