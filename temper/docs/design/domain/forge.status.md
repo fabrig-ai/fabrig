@@ -3,10 +3,7 @@
 2026-11-02. Where temper's code lags or departs from [forge.md](forge.md).
 
 - **Not yet:**
-  - 2, 11.1: the symbol *its own goal branch*: the forge offers none, and no
-    change is refused for a landing branch another goal holds
-    (`temper-engine-domain/src/route/forge_route.rs`, `task_holdings`).
-    11, 11.1: a goal's own branch deleted as its goal closes once a change
+  - 11, 11.1: a goal's own branch deleted as its goal closes once a change
     has landed it: the release keeps it whatever way the goal ended.
   - 4.1: a removal without the box, its group's act answered in its
     decision: an owned or fake forge's removal asks the box link for
