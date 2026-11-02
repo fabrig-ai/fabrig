@@ -63,7 +63,7 @@ an owner splits it. Nothing here is adopted.
   | Designers write the design under `docs/design`, a status file beside each document | rule | the designer's charter's instructions |
   | A producer pushes early and finishes with a Left list | rule | the coding agent's charter's instructions |
   | A producer never fixes what it does not own | rule | authority is per repository, not per path |
-  | `.temper/pre-pr` passes before delivery | rule, using structure | the project's checks; the engine runs none of it |
+  | `.temper/pre-pr` passes before delivery | rule | the project's checks, which the producer runs (`../domain/agent.md`, 4.5); the engine runs none of it |
 
 - **Rules say how agents use the structure.** "Designers first" is a
   rule; the dependency it asks the coordinator to make is the engine's.
