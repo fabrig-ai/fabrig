@@ -8,7 +8,7 @@
     own", and 11 has that change create it at its base's tip as an effect
     and delete it as the change closes; section 2 has every branch under
     temper's prefix held by a change; 11 offers a template no symbolic
-    *its own goal branch*. jig's `../protocol/configuration.md`, 3.1: a
+    *its own goal branch*. jig's `protocol/configuration.md`, 3.1: a
     template names no resources. jig's `domain/tasks.md`, 6.1 and
     `domain/connectors.md`, 3.3: a resource a landing queue orders is not
     held. jig names an effect of a hold's release, not of its taking
@@ -35,7 +35,7 @@
     choice for any of its agents. jig's `domain/tasks.md`, section 4
     checks a batch's LLM choice against the models configured and its
     authority, not its charter's models, which jig's
-    `../protocol/configuration.md`, 3.1 and `domain/engine.md`, 17.4 check
+    `protocol/configuration.md`, 3.1 and `domain/engine.md`, 17.4 check
     for templates and moves.
   - **5: the plan's text (N12).** jig's `domain/core.md`, 7.1 keeps a plan's
     strategy in its transcript, its notes and a goal's projection, not in
@@ -77,7 +77,7 @@
     last delegate's result rather than on each, and on waking news at
     once; its closed vocabulary batches by count or by age, a delay, and
     has no "at most once in 30 minutes". jig's
-    `../protocol/configuration.md`, 3.1 and section 3: a charter in
+    `protocol/configuration.md`, 3.1 and section 3: a charter in
     configuration carries no default wake policy.
   - **4, 14: the profile's limits (N21).** `../protocol/configuration.md`,
     13.4 and section 7, and `../domain/agent.md`, 4.3.1: the stock limits
