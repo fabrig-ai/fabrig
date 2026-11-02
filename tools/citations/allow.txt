@@ -1,2 +1,22 @@
 # Citations the checker does not hold against a branch, one per line: FILE TARGET # reason.
 # FILE and TARGET are as citations.py prints them; FILE may be a glob, and TARGET * is every target.
+# Data, examples and names quoted as such.
+smith/docs/design/benchmarks.md CODEX_HOME/AGENTS.md # codex-cli's file under CODEX_HOME, not a document here
+temper/crates/temper-engine-domain-forge-landing/src/tests/key.rs crates.md # a test's path, as data
+temper/docs/design/client/README.md process.md # a charter's document in an example, quoted
+temper/docs/design/domain/landing.md crates/x/README.md # an ignored path, as an example
+temper/docs/help/landing.md crates/x/README.md # an ignored path, as an example
+temper/docs/design/domain/testing.md changes/1.md # the walk repository's file, as data
+temper/docs/design/draft/configuring.md process.md # a charter's document in an example, quoted
+temper/docs/design/draft/dashboards.md status-page.md # an adopted repository's document, the test's data
+# Evidence outside the repository.
+jig/docs/development/quality-review.md agents/backlog.md # the agents repository's backlog
+skein/crates/skein-fake-forge-protocol/src/answers.rs ladder-b01/g2/report-2.md # a ladder walk's report, kept outside the repository
+temper/crates/temper/tests/support/csv_repair.rs ladder-b01/g1/report.md # a ladder walk's report, kept outside the repository
+temper/crates/temper/tests/support/csv_repair.rs qa-focused/rung-b1-brief.md # a QA brief, kept outside the repository
+temper/docs/design/draft/archive/first-run.md /src/rust/tmp/temper-first-time-ux-2026-10-20.md # a survey kept outside the repository
+temper/docs/design/draft/macos.md /src/rust/tmp/macos-survey-2026-10-22.md # a survey kept outside the repository
+temper/docs/design/draft/upgrades.md /src/rust/tmp/roadmap-3/store-upgrades.md # an investigation kept outside the repository
+# History kept on purpose.
+temper/docs/design/draft/notes.md status.md # the earlier pipeline's file names, as history
+temper/docs/design/draft/notes.md landing-model.md # the retired draft, readable at the commit it names

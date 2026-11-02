@@ -1441,37 +1441,57 @@ randomness (skein's `io.md`, 5), and an unseeded driver refuses every
 seeds none does not build. The witness proves that three drivers were
 seeded, not that they are the three the shell serves the store with.
 
-1. **The lock:** io's `Lock` on the deployment's root, held as long as
-   the process (skein's `io.md`, 5). `Busy` refuses,
-   `Generations::Busy`: another process has the deployment open, and
-   two starts never copy, remove or switch beside each other.
-2. **`active`,** a whole-file load of at most 21 bytes: a generation's
-   number in decimal, with no leading zero, and a newline; anything
-   else refuses, `Generations::Unreadable`. With none, the directory is
-   a first start's, or refused as the layout before generations
-   (`Older::Directory`)
-   or as generations no `active` names (`Generations::Unnamed`), as
-   section 2 says.
-3. **The active generation's maps:** its `store/` and `secrets/` must
-   stand, or the start refuses, `Generations::Missing { generation }`.
-4. **The stores open** (step 1), and the format row, the layouts and
-   the deployment's header are read and checked (step 2, 5.3). Every
-   refusal of the levels, versions, layouts and deployment comes here,
-   and nothing has been written but skein-kv's recovery of the active
-   generation's maps (its next segment, a leftover snapshot's removal;
-   skein's `kv.md`, section 3).
-5. **The strays removed:** every entry of `generations/` but the
-   active generation and its previous, and any temporary io's durable
-   replace left beside `active`. io has no recursive removal: each directory is
-   listed from its first page, each file in it removed, and listed
-   again until it is empty (a removal moves what a later page would
-   show), then removed itself, deepest first; then `generations/` is
-   synced. A start never removes the active generation or its
-   previous.
-6. **`transcripts/`** is made where it is missing.
-7. **At the binary's levels,** the open goes on with the rest of step 2
-   (the run proofs' cuts, the installation's identifier). Behind them,
-   it patches a copy (10.2).
+#### 10.1.1 The lock
+
+io's `Lock` on the deployment's root, held as long as the process
+(skein's `io.md`, 5). `Busy` refuses, `Generations::Busy`: another
+process has the deployment open, and two starts never copy, remove or
+switch beside each other.
+
+#### 10.1.2 `active`
+
+A whole-file load of at most 21 bytes: a generation's number in decimal,
+with no leading zero, and a newline; anything else refuses,
+`Generations::Unreadable`. With none, the directory is a first start's,
+or refused as the layout before generations (`Older::Directory`) or as
+generations no `active` names (`Generations::Unnamed`), as section 2
+says.
+
+#### 10.1.3 The active generation's maps
+
+Its `store/` and `secrets/` must stand, or the start refuses,
+`Generations::Missing { generation }`.
+
+#### 10.1.4 The stores open
+
+The stores open (step 1), and the format row, the layouts and the
+deployment's header are read and checked (step 2, 5.3). Every refusal of
+the levels, versions, layouts and deployment comes here, and nothing has
+been written but skein-kv's recovery of the active generation's maps
+(its next segment, a leftover snapshot's removal; skein's `kv.md`,
+section 3).
+
+#### 10.1.5 The strays removed
+
+Every entry of `generations/` but the active generation and its
+previous, and any temporary io's durable replace left beside `active`.
+io has no recursive removal: each directory is listed from its first
+page, each file in it removed, and listed again until it is empty (a
+removal moves what a later page would show), then removed itself,
+deepest first; then `generations/` is synced. A start never removes the
+active generation or its previous.
+
+#### 10.1.6 `transcripts/`
+
+`transcripts/` is made where it is missing.
+
+#### 10.1.7 At the binary's levels
+
+At the binary's levels, the open goes on with the rest of step 2 (the
+run proofs' cuts, the installation's identifier). Behind them, it
+patches a copy (10.2).
+
+#### 10.1.8 Its refusals
 
 Each refusal names the deployment's directory and what to do: another
 process holding the lock is stopped first; an unreadable or missing
@@ -2240,66 +2260,93 @@ Each within jig's suites' budgets.
 
 ## 15. What it owes and is owed
 
-- **The domain owes:**
-  1. **live before history** in each child's keys: the tasks child's
-     history and ended tasks after its live families (stubs among
-     these), decided proposals apart from pending ones, and past funding
-     periods apart from live ones (4.3);
-  2. **the restart reads live work only:** the inbox's census reads
-     unread results from the results' index and ended conversations from
-     the family of ended read positions, not every ended task, joining
-     each to its record by a point read; the census hands each ended read
-     position up with its record, and the people child keeps none (7.2;
-     `../domain/people.md`, section 6);
-  3. **indexes for parties' reads:** each party's inbox by time; ended
-     tasks by requester party, and by project for those flagged listed,
-     each keyed by label and ended at reversed, the flag read from the
-     task, never from a template; each task's ended delegates; a
-     subtree's delegates for its history (7.3, 7.4);
-  4. **turns as the store keeps them:** saved with whether each opens a
-     window, never erased one by one, a task's transcript dropped whole;
-     a resume reads the current window, from the turn the core keeps as
-     its start (8.3; `../domain/engine.md`, 5.4 and 7.2);
-  5. **fill:** with each commit's answer, and new work refused above the
-     high-water mark (11.2);
-  6. **retention:** by each task's retention class, summaries of ended
-     tasks kept, transcripts dropped, answered keys expired, and the
-     remains of tasks forgotten once read collected, each on the
-     domain's timer (11.1); a task forgotten once read erased in one
-     decision (11.1; `../domain/people.md`, section 6);
-  7. **keys for single reads:** a question's line and its answer's, an
-     escalation's hold, and a task's proposal's row in its proposer's
-     history, each named by its position in its task's record, as a
-     reply's is, an answer's with the task whose activity holds it, so a
-     read finds it by key, never by a scan (7.3); and each open question
-     its task asked, by its number, answering party, logical addressed
-     party and question activity position (`QuestionCredit`, 5.1), so a
-     person's answer is credited to its asker, a move
-     carries the question to the asker's new requester under the same
-     number, and an answering task's end lifts its asker's keep with a
-     notice (`../domain/tasks.md`, 5.7; `../domain/people.md`, section 6);
-  8. **read positions over conversations:** a live conversation's in the
-     people child's family, loaded at start; moved, by the decision that
-     ends its task, to the family of ended read positions, read on
-     demand; erased with the task (7.4, 11.1).
-  9. **the accounts' family:** the next number; each account with its
-     holder, LLM provider, subject, display name and uses; each source
-     with its place in its holder's order, kind, name for a program's,
-     and its hold, limited with its reset, refused or moving; restored at
-     start by fit and link, a set past its limit refusing the start and
-     a link the start cannot make a panic (`../domain/accounts.md`, 3.6);
-     a source's record or key named by the source's number, and
-     erased when the source goes (4.4, section 9;
-     `../domain/accounts.md`, 3.5). The installation's identifier is the
-     component's (4.4, 5.3).
-- **skein owes:** io's `OpenWrite` and `Cut` (skein's `io.md`, section
-  5), for 8.2 and 8.4. skein-kv serves as it is: its in-memory
-  mode, its key writer, its fill. Its accounts driver takes the owner's
-  store as keeper, made with the records it holds (skein's `oauth.md`,
-  6.4).
-- **The application owes:** its keys' encoders, its records' codecs, its
-  store version, its live intervals, and its indexes, by the rules of
-  section 12.
+The domain owes 15.1 to 15.9; skein owes 15.10, and the application
+15.11.
+
+### 15.1 Live before history
+
+In each child's keys: the tasks child's history and ended tasks after
+its live families (stubs among these), decided proposals apart from
+pending ones, and past funding periods apart from live ones (4.3);
+
+### 15.2 The restart reads live work only
+
+The inbox's census reads unread results from the results' index and
+ended conversations from the family of ended read positions, not every
+ended task, joining each to its record by a point read; the census hands
+each ended read position up with its record, and the people child keeps
+none (7.2; `../domain/people.md`, section 6);
+
+### 15.3 Indexes for parties' reads
+
+Each party's inbox by time; ended tasks by requester party, and by
+project for those flagged listed, each keyed by label and ended at
+reversed, the flag read from the task, never from a template; each
+task's ended delegates; a subtree's delegates for its history (7.3,
+7.4);
+
+### 15.4 Turns as the store keeps them
+
+Saved with whether each opens a window, never erased one by one, a
+task's transcript dropped whole; a resume reads the current window, from
+the turn the core keeps as its start (8.3; `../domain/engine.md`, 5.4
+and 7.2);
+
+### 15.5 Fill
+
+With each commit's answer, and new work refused above the high-water
+mark (11.2);
+
+### 15.6 Retention
+
+By each task's retention class, summaries of ended tasks kept,
+transcripts dropped, answered keys expired, and the remains of tasks
+forgotten once read collected, each on the domain's timer (11.1); a task
+forgotten once read erased in one decision (11.1; `../domain/people.md`,
+section 6);
+
+### 15.7 Keys for single reads
+
+A question's line and its answer's, an escalation's hold, and a task's
+proposal's row in its proposer's history, each named by its position in
+its task's record, as a reply's is, an answer's with the task whose
+activity holds it, so a read finds it by key, never by a scan (7.3); and
+each open question its task asked, by its number, answering party,
+logical addressed party and question activity position
+(`QuestionCredit`, 5.1), so a person's answer is credited to its asker,
+a move carries the question to the asker's new requester under the same
+number, and an answering task's end lifts its asker's keep with a notice
+(`../domain/tasks.md`, 5.7; `../domain/people.md`, section 6);
+
+### 15.8 Read positions over conversations
+
+A live conversation's in the people child's family, loaded at start;
+moved, by the decision that ends its task, to the family of ended read
+positions, read on demand; erased with the task (7.4, 11.1).
+
+### 15.9 The accounts' family
+
+The next number; each account with its holder, LLM provider, subject,
+display name and uses; each source with its place in its holder's order,
+kind, name for a program's, and its hold, limited with its reset,
+refused or moving; restored at start by fit and link, a set past its
+limit refusing the start and a link the start cannot make a panic
+(`../domain/accounts.md`, 3.6); a source's record or key named by the
+source's number, and erased when the source goes (4.4, section 9;
+`../domain/accounts.md`, 3.5). The installation's identifier is the
+component's (4.4, 5.3).
+
+### 15.10 What skein owes
+
+io's `OpenWrite` and `Cut` (skein's `io.md`, section 5), for 8.2 and
+8.4. skein-kv serves as it is: its in-memory mode, its key writer, its
+fill. Its accounts driver takes the owner's store as keeper, made with
+the records it holds (skein's `oauth.md`, 6.4).
+
+### 15.11 What the application owes
+
+Its keys' encoders, its records' codecs, its store version, its live
+intervals, and its indexes, by the rules of section 12.
 
 ## 16. Open questions
 
