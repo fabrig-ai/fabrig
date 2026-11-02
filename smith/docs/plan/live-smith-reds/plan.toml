@@ -1,3 +1,20 @@
 draft = "live-smith-reds"
 repo = "fabrig"
 sources = ["smith/docs/plan/live-smith-reds/inputs/request.md", "AGENTS.md"]
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "claude-shapes"
+title = "the fake claude and the live probes follow Claude Code 2.1.312's init and thinking shapes"
+mode = "direct"
+needs = []
+design = "smith/docs/design/protocol/programs.md, 5.5 and 8"
+
+[[slice]]
+id = 1
+story = "the two agent-process live probes expect what Claude Code 2.1.312 sends, and the fake sends it"
+parts = ["claude-shapes"]
+walk = false
