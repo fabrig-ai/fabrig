@@ -563,7 +563,8 @@ a person says they work into a proposal of settings
     (a path in an adopted repository, with `read_file`; a pasted text);
   - to ask until it can propose, one question at a time, and to offer a
     rule as structure where temper's model has it, saying what it
-    guarantees and what it does not, as the draft's 4-hour cap does;
+    guarantees and what it does not, as the draft's dependency on a
+    designer does (`../draft/configuring.md`, section 2);
   - to propose once, against the newest revision it read, with a reason
     whose first line is the proposal's title and whose next lines say,
     under "temper enforces", each change of structure in the person's

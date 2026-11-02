@@ -4,9 +4,8 @@ Provisional, 2026-10-26, revised 2026-10-27. temper's documentation,
 for agents: pages in the repository, compiled into the binary, read at
 the command line by the agents that run and drive temper and by
 temper's own runs through a host tool. It builds `../draft/agent-docs.md`
-(the readers, the map, the kinds and the voice), which takes over
-`../draft/configuring.md` 7 for agents; this document is its contract
-for the pages and their machinery, and `../client/tools.md` for ctl's
+(the readers, the map, the kinds and the voice); this document is its
+contract for the pages and their machinery, and `../client/tools.md` for ctl's
 help. People read the site, which is outside temper's design.
 
 ## 1. In one page
