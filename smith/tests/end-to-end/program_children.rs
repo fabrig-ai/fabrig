@@ -7,7 +7,7 @@ use serde_json::json;
 use smith_fake_claude::{OBSERVATIONS_FILE, STORY_FILE, Script, Step, Story, Turn, observations};
 use smith_real_world::Scratch;
 
-const CHILD_MODEL: &str = "anthropic/claude-haiku-5-5";
+const CHILD_MODEL: &str = "claude-haiku-5-5";
 const ALPHA: &str = "ALPHA-REPORT";
 const BETA: &str = "BETA-REPORT";
 
