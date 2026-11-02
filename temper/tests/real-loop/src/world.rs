@@ -989,7 +989,9 @@ fn github_cues(
             forge
                 .github_layer_mut()
                 .expect("GitHub layer")
-                .set_blob_origin(format!("http://logs.test:{}", blob.port()).into_bytes().into())
+                .set_blob_origin(
+                    format!("http://productionresultssa17.blob.core.windows.net:{}", blob.port()).into_bytes().into(),
+                )
                 .expect("fake log origin");
         }
     }

@@ -419,17 +419,15 @@ fn configure_job_logs(service: &mut temper_service::Service, api: SocketAddr, bl
     )
     .expect("machine roots");
     let roots = skein_tls::Config::from_der(&roots.certificates, &[]).expect("TLS roots").0;
-    let mut log_origins = skein_lib::List::with_capacity(1);
-    log_origins
-        .push(skein_forge_connection::settings::LogOrigin {
-            origin: skein_forge::github::redirect::Origin {
-                tls: false,
-                host: b"logs.test".as_slice().into(),
-                port: blob.port(),
-            },
-            address: skein_io::Addr::Ip(blob),
-        })
-        .expect("one fake log origin");
+    let mut log_origins = temper::github_logs::resolve(None, |_| Ok(([127, 0, 0, 1], 443).into()))
+        .expect("production default with fake DNS");
+    // The fake serves plaintext on loopback; keep the production host policy.
+    for at in 0..log_origins.len() {
+        let entry = log_origins.get_mut(at).expect("default origin");
+        entry.origin.tls = false;
+        entry.origin.port = blob.port();
+        entry.address = skein_io::Addr::Ip(blob);
+    }
     service.configure_forge_runtime(
         temper_service::ForgeRuntime {
             number: 0,
