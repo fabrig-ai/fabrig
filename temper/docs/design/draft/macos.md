@@ -185,7 +185,7 @@ and everything only Linux can give (containment, trees, io_uring).
   Homebrew's builds, if at all. There, the client offers no Set up a
   Forgejo here, and a set up of one, and `temper forge fetch`, refuse
   naming the platform (forges are records in the store:
-  `playground-reset.md`, section 3). The platform is decided by the
+  `archive/playground-reset.md`, section 3). The platform is decided by the
   binary's shell, never by step code.
 
 ### 4.4 Every platform

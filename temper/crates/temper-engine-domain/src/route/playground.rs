@@ -1,4 +1,4 @@
-//! The person's playground acts and the deployment's reset (temper/docs/design/draft/playground-reset.md, 6.1–6.2).
+//! The person's playground acts and the deployment's reset (temper/docs/design/protocol/setup.md, 8.4).
 use super::{Decision, Delivery, Domain, Env, Limits, Work, applications, core, emit, forge, people};
 use alloc::boxed::Box;
 use skein_lib::{ReplyTo, Token};

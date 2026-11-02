@@ -1,4 +1,4 @@
-//! Crash cuts through forge removal (temper/docs/design/draft/playground-reset.md, 4 and 8).
+//! Crash cuts through forge removal (temper/docs/design/domain/forge.md, 4.1 and 18).
 use jig_domain_core as core;
 use jig_domain_core::documents::{Watched, Window};
 use jig_domain_people as people;

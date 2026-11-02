@@ -43,7 +43,9 @@ bounds are section 12, and what they take of jig section 13; an MCP endpoint and
   `account list --until settled`; a key is read from a private file and
   sent in a request that is never kept (section 7).
 - **Forges are an area of their own** (5.5, area 6): `forge list` reads
-  each configured forge as the `Forges` page shows it; a connect prints
+  each forge the store keeps as the `Forges` page shows it; a set up or
+  a connect without FORGE makes one, and `forge remove` removes one; a
+  connect prints
   its link as text, never opened, or reads its pasted value from a
   private file, and returns, and the agent follows it with `forge list
   --until settled`; `forge repositories` reads the picker's page, whose
@@ -853,25 +855,29 @@ The table grows area by area, each with its stories (section 11).
      record: a refusal, exit 2; *unsent*, *lost* or the link down,
      exit 1, and the agent asks again with the same `--key` and FILE,
      answered with the first answer within the engine's retention.
-6. **Forges** (`forge.md`, 5.1, 5.4 and 5.5): each configured forge as
-   temper's `Forges` page shows it, its connects, and the adoption
-   form's picker. Each act is one of the FORGE requests (`README.md`,
+6. **Forges** (`forge.md`, 5.1, 5.4 and 5.5): each forge the store
+   keeps as temper's `Forges` page shows it, its set ups and connects,
+   which make a forge when no FORGE is named (`../protocol/forge.md`,
+   2.2), its removal, the playground's start and reset, and the
+   adoption form's picker. Each act is one of the FORGE requests (`README.md`,
    section 8), made through `jig-client` as the forge family's bytes,
    as `repository adopt` is.
 
    | Tool | What it does | temper's | K |
    |---|---|---|---|
-   | `forge list` | each configured forge by its number, kind and `web` address: its connection, "connected as LOGIN (ID)", connecting and what it waits for, stopped and why, not set up, setting up and at which step, set up failed and why, or not connected and why; how its last connect ended, a GitHub App's lacking permissions and events each named; its mode, and "admin's token kept" for managed and owned; on GitHub, the App's slug and its installations, each with its id, its account's login, all or selected repositories, suspended, or not accepted (a stray), "not accepted · kept", with its act, `forge accept FORGE INSTALLATION`; a job's log on a host it does not read, with how to add it; its load; its acts | the forge's deployment part, read and watched (`forge.md`, section 9) | |
-   | `forge connect FORGE github` | starts GitHub's manifest flow, the App made under the person's own account and installed on any account GitHub offers them: prints the link to open in a browser, the manifest's page on the clients' listener, and the call that follows it, `forge list --until settled`; exits 0 once the request is durable | `Connect { forge, how: GitHubManifest { back: none } }` | yes |
-   | `forge connect [FORGE] github-app APP FILE [--read-only]` | connects an App of the person's own: APP its id, FILE its private key, PEM as GitHub gives it; no webhook secret; temper points the App's hook at `https://SLUG.invalid/` and says so in its output, unless `--read-only` leaves it as read; then `forge list --until settled` | `Connect { forge, how: GitHubApp { id, read_only?, key } }` | yes |
+   | `forge list` | each forge the store keeps by its number, kind and `web` address: its connection, "connected as LOGIN (ID)", connecting and what it waits for, stopped and why, not set up, setting up and at which step, set up failed and why, or not connected and why; how its last connect ended, a GitHub App's lacking permissions and events each named; its mode, and "admin's token kept" for managed and owned; on GitHub, the App's slug and its installations, each with its id, its account's login, all or selected repositories, suspended, or not accepted (a stray), "not accepted · kept", with its act, `forge accept FORGE INSTALLATION`; a job's log on a host it does not read, with how to add it; its load; its acts | the forge's deployment part, read and watched (`forge.md`, section 9) | |
+   | `forge connect [FORGE] github` | starts GitHub's manifest flow, FORGE a kept GitHub forge, or, with none, a new one, the App made under the person's own account and installed on any account GitHub offers them: prints the link to open in a browser, the manifest's page on the clients' listener, and the call that follows it, `forge list --until settled`; exits 0 once the request is durable | `Connect { forge, how: GitHubManifest { back: none } }` | yes |
+   | `forge connect [FORGE] github-app APP FILE [--read-only]` | connects an App of the person's own, FORGE a kept GitHub forge, or, with none, a new one: APP its id, FILE its private key, PEM as GitHub gives it; no webhook secret; temper points the App's hook at `https://SLUG.invalid/` and says so in its output, unless `--read-only` leaves it as read; then `forge list --until settled` | `Connect { forge, how: GitHubApp { id, read_only?, key } }` | yes |
    | `forge connect FORGE forgejo FILE` (not offered) | connects a Forgejo through its bot's tokens, FILE a tokens file (below) naming `api`, `git` and, where the person made hooks to temper's listener, `webhook_secret`; then `forge list --until settled` | `Connect { forge, how: ForgejoTokens { api, git, webhook_secret? } }` | yes |
-   | `forge connect FORGE forgejo-admin FILE [--first ORG/REPOSITORY [--project PROJECT] [--label LABEL]]` | connects a Forgejo as its site admin, FILE the admin's token; the string-managed setup entry is required; Reconcile makes or finds its marked bot, never TakeOver; with `--first`, makes ORG/REPOSITORY with the starter workflow, PROJECT a number or name as for `forge setup`, default a new project named REPOSITORY, runner LABEL default `docker`; the token is kept only after Reconcile and Create are Done, and every end erases the carried value; without `--first`, prints `connecting` and `forge list --until connected:FORGE`; with `--first`, prints `connecting`, waits for Made and Connected, then shares `forge setup`'s MakeProject and adoption continuation, as PROJECT's home unless it has one, with key `first-repository-F`; prints the project number and adoption (JSON: `project` and `outcome`) and exits 0; a stop or failed Create exits 1 naming the reason or step; an ORG equal to the bot's login, case-folded, is refused before any write and exits 2, `first_is_bot`, "the organization is the bot's login: name another organization" | `Connect { forge, how: ForgejoAdmin { first? } }`, token carried as AdminToken | yes |
+   | `forge connect [FORGE] forgejo-admin FILE [--first ORG/REPOSITORY [--project PROJECT] [--label LABEL]] [--api HOST:PORT --git URL [--tls NAME] [--web URL] [--git-program FILE]]` | connects a Forgejo as its site admin, FILE the admin's token: FORGE a kept managed Forgejo, or, with none, a new one, managed, at `--api`, its API's host and port, and `--git`, its remotes' base, both required without FORGE and refused with it, as are the three that follow, with `--tls`, its TLS server name, plaintext without it, `--web`, its pages, and `--git-program`, the git its workers run, theirs without it (`README.md`, 4.6, `ManagedForge`); Reconcile makes or finds its marked bot, never TakeOver; with `--first`, makes ORG/REPOSITORY with the starter workflow, PROJECT a number or name as for `forge setup`, default a new project named REPOSITORY, runner LABEL default `docker`; the token is kept only after Reconcile and Create are Done, and every end erases the carried value; without `--first`, prints `connecting` and `forge list --until connected:FORGE`; with `--first`, prints `connecting`, waits for Made and Connected, then shares `forge setup`'s MakeProject and adoption continuation, as PROJECT's home unless it has one, with key `first-repository-F`; prints the project number and adoption (JSON: `project` and `outcome`) and exits 0; a stop or failed Create exits 1 naming the reason or step; an ORG equal to the bot's login, case-folded, is refused before any write and exits 2, `first_is_bot`, "the organization is the bot's login: name another organization" | `Connect { forge, how: ForgejoAdmin { first? } }`, `forge` the kept one or a `ManagedForge`, token carried as AdminToken | yes |
    | `forge install FORGE` | prints a fresh link to install temper's App on another account, GitHub alone; the installation shows on `forge list` once the person's browser comes back | `Install { forge, back: none }` | |
    | `forge accept FORGE INSTALLATION` | accepts INSTALLATION, an installation of temper's App that exists already on GitHub and that `forge list` shows not accepted, with no browser: read on GitHub as the App's, then kept as an installation accepted through the setup route is (`../protocol/setup.md`, 17.4); prints `accepted: installation I on forge F` and the call that follows, `forge repositories FORGE --installation INSTALLATION`, exit 0, and the same when it is accepted already; refused, exit 2, as `forge install` is, or, its run stopped, in the forge's words for its reason (`README.md`, 4.6): "GitHub has no installation I of this App", "GitHub refused the App's read of installation I", "GitHub did not answer: try again", "temper keeps at most N installations" | `Accept { forge, installation }` | |
    | `forge replace FORGE FILE` | replaces what a person pasted: on GitHub, FILE the App's new key; on a connected Forgejo, a tokens file naming `api`, `git` or both; it must answer as the forge's user, and the old is erased once the new is kept | `Replace { forge, value }` | |
    | `forge forget FORGE` | erases a managed forge's admin's token; the forge is connected, its bot and tokens kept | `Forget { forge }` | |
-   | `forge setup FORGE [--org ORG] [--repository REPOSITORY] [--project PROJECT] [--playground]` | sets up an owned Forgejo here, under the box, with its first repository: the box fetches its binaries, prepares it and starts Forgejo and its runner, then temper takes its handover, makes `ORG/REPOSITORY` (default `work/hello`) with the starter workflow, or with `--playground` makes `playground/widget` as the playground's copy, its files beside the starter workflow, taking no `--org` or `--repository` (a usage error, exit 1, with either), and connects (`../protocol/setup.md`, 6.5 and 6.7); prints `setting up`, waits as `forge list --until made:FORGE` does, then adopts `ORG/REPOSITORY` into PROJECT, a project's number or name, a name no project holds made a new project first by jig's `MakeProject`, and with no `--project` a new project named REPOSITORY (`../draft/archive/first-run.md`, 2.4), as `repository adopt --project PROJECT --forge FORGE --owner ORG --name REPOSITORY --landing main` would, as PROJECT's home unless PROJECT already has one, under the same sign-in and with the key `first-repository-F`, so that the call run again adopts nothing twice; prints the adoption and exits 0. Refused, exit 2: "not offered" (the forge is not an owned one whose setup says `"start": "asked"`, or it is set up, setting up or connecting), "busy" (the box is setting up another forge), "a new project" (a new one, by no `--project` or a PROJECT no project holds, waits on jig's projects at runtime), "invalid" (ORG or REPOSITORY not a name Forgejo takes, or ORG, REPOSITORY or PROJECT's name empty or too long), or, without the box, "not under the box", with the commands to run (`../client/forge.md`, 5.4). Set up failed, or its first repository failed, exit 1, naming the step. With `--playground`, ORG and REPOSITORY above are `playground` and `widget`, and the default project a new one named `widget` | `SetUp { forge, org, repository, project, playground }`; then `Adopt` | |
-   | `playground start` | starts the playground, the demo (`../protocol/setup.md`, 8.4): the box starts its fakes, and the engine adds the demo model's account and adopts its repository into its project, in the caller's name; waits for the answer, then prints `running` and exits 0, the same when it already runs. Refused, exit 2: "not offered" (no demo, or the demo ended). Start failed, exit 1, naming why: the fakes did not start (the box's why), the account refused, the adoption refused, or the forge not connected in time; run again, it makes what is not done | `StartDemo` | |
+   | `forge setup [FORGE] [--org ORG] [--repository REPOSITORY] [--project PROJECT] [--playground]` | sets up an owned Forgejo here, under the box, with its first repository, FORGE a kept owned Forgejo, or, with none, a new one, made as the request is admitted (`../protocol/forge.md`, 2.2): the box fetches its binaries, prepares it and starts Forgejo and its runner, then temper takes its handover, makes `ORG/REPOSITORY` (default `work/hello`) with the starter workflow, or with `--playground` makes `playground/widget` as the playground's copy, its files beside the starter workflow, taking no `--org` or `--repository` (a usage error, exit 1, with either), and connects (`../protocol/setup.md`, 6.5 and 6.7); prints `setting up`, waits as `forge list --until made:FORGE` does, then adopts `ORG/REPOSITORY` into PROJECT, a project's number or name, a name no project holds made a new project first by jig's `MakeProject`, and with no `--project` a new project named REPOSITORY (`../draft/archive/first-run.md`, 2.4), as `repository adopt --project PROJECT --forge FORGE --owner ORG --name REPOSITORY --landing main` would, as PROJECT's home unless PROJECT already has one, under the same sign-in and with the key `first-repository-F`, so that the call run again adopts nothing twice; prints the adoption and exits 0. Refused, exit 2: "not offered" (the forge is not an owned one whose setup says `"start": "asked"`, or it is set up, setting up or connecting), "busy" (the box is setting up another forge), "a new project" (a new one, by no `--project` or a PROJECT no project holds, waits on jig's projects at runtime), "invalid" (ORG or REPOSITORY not a name Forgejo takes, or ORG, REPOSITORY or PROJECT's name empty or too long), or, without the box, "not under the box", saying to start temper with `temper box` (`../client/forge.md`, 5.4; `../protocol/setup.md`, 7.4). Set up failed, or its first repository failed, exit 1, naming the step. With `--playground`, ORG and REPOSITORY above are `playground` and `widget`, and the default project a new one named `widget` | `SetUp { forge, org, repository, project, playground }`; then `Adopt` | |
+   | `playground start` | starts the playground (`../protocol/setup.md`, 8.4): the engine makes its fake forge, the box starts its fakes, and the engine adds the scripted model's account and adopts its repository into its project, in the caller's name; waits for the answer, then prints `running` and exits 0, the same when it already runs. Refused, exit 2: "not offered" (a real forge kept). Start failed, exit 1, naming why: the fakes did not start (the box's why), the account refused, the adoption refused, or the forge not connected in time; run again, it makes what is not done | `StartPlayground` | |
+   | `playground end` | resets the playground (`../protocol/setup.md`, 8.4), as the banner's "set up temper" does (`README.md`, 4.8): its project deleted, its fake forge removed and the scripted model's account removed, each a kept act the engine resumes at its next start if one is cut; waits for the answer, then prints `reset` and exits 0, once the playground is gone. Refused, exit 2: "not offered" (no playground) | `EndPlayground` | |
+   | `forge remove FORGE` | removes forge FORGE (`../domain/forge.md`, 4.1): ended at once, then, by kept acts, its live work cancelled, its box group stopped and its directory removed, its records erased; on the forge itself only what temper ran is undone, a managed Forgejo's bot and hooks and a GitHub App staying the person's. Prints `removed` and exits 0 once the forge is ended. Refused, exit 2, in `ForgeRefusal`'s words: not the deployment's owner, no such forge, or not taken by this forge (the playground's, which `playground end` removes) | `RemoveForge { forge }` | |
    | `change show TASK [--project PROJECT]` | the panel of change task TASK (`../client/forge.md`, 9.2; `README.md`, 4.6), read as the change's page watches it, in the scope of PROJECT, the task's project when none is named: its repository by forge, owner and name; its branch and landing branch; its head; its pull request's number and address on the forge; its step in `../client/forge.md`, 2.1's words, with its place in its queue, a repair's reason or, landed, its merge commit, whole; its hold; the task its step runs; CI at its head; its gates, each with its kind, whether it blocks and its verdict; its repairs, resolutions and updates, each used of its limit; then the call that follows it, `change show TASK --until landed` while it is live. A landed or ended change keeps its last panel. `task show TASK` of a change task, live or ended, prints `change show TASK` among the calls that follow it. A task that is no change into a repository of PROJECT, or a change the forge has not registered yet, prints `no change panel for task N`, exit 2 | the forge's `change` subject, read once (`forge.md`, 9.2) | |
    | `forge repositories FORGE [--installation INSTALLATION] [--page PAGE]` | the picker's PAGE, from 1 (`README.md`, 4.4): a line per row, `OWNER/NAME`, `private` where it is, and `R/U`, its repository id and owner id for `repository adopt --ids`; then the call that reads page PAGE plus one while more follow, or that none do. `--installation INSTALLATION` is an accepted installation's id, as `forge list` prints it, GitHub alone | `Reachable { forge, installation?, page }` | |
 
@@ -926,7 +932,7 @@ The table grows area by area, each with its stories (section 11).
      words: no such forge; the forge's kind or mode does not take the
      act (an install on Forgejo, a forget on a forge not managed, a
      replacement on a managed or owned forge, a connect of an owned
-     one); busy, since a forge runs one writing plan, a connect, an
+     one, a removal of the playground's forge); busy, since a forge runs one writing plan, a connect, an
      install or a reconcile, and one picker's read beside it, a second
      of either kind refused, as is one past `setup.runs`, which counts
      both; and, for `forge repositories`, the forge's reason (not
@@ -1561,7 +1567,7 @@ An agent runs a wait while it acts, or several agents share a party.
 ## 10. The box
 
 The deployment an agent drives is an owned setup run by `temper box`
-(`../protocol/setup.md`, section 7), with no demo, in a scratch
+(`../protocol/setup.md`, section 7), with no playground, in a scratch
 directory of its harness's:
 
 - **Started:** `temper box`, given the harness's three directories
@@ -1589,10 +1595,13 @@ directory of its harness's:
   two tokens there, one that reads and one that writes, are the files
   the preparation leaves, `person_read.header` and `person_write.header`
   (`../protocol/setup.md`, 6.3).
-- **The forge through temper:** the box's Forgejo is owned, connected by
-  the box's own preparation and the setup host's plans
-  (`../protocol/setup.md`, owned), so it takes no connect, and the agent
-  is never handed a value to paste. With area 6, the agent reads it with
+- **The forge through temper:** a fresh box keeps no forge; the
+  harness sets up the box's Forgejo with `forge setup` (5.5, area 6),
+  which makes it as a record, owned, its group run by the box
+  (`../protocol/forge.md`, 2.2; `../protocol/setup.md`, 7.1), and
+  connected by the box's own preparation and the setup host's plans
+  (`../protocol/setup.md`, owned), so it takes no connect, and the
+  agent is never handed a value to paste. With area 6, the agent reads it with
   `forge list` and the repositories to adopt with `forge repositories`,
   every one the site admin can see, and adopts one with `repository
   adopt --ids`.
@@ -1603,12 +1612,14 @@ directory of its harness's:
 - **Thrown away** by stopping the box with a termination signal and
   removing its directory: the harness's, never a tool's.
 
-A person's first run is the box's demo (`../protocol/setup.md`, 8.4),
-its fakes dormant until the person chooses the playground; the engine
-then adds the demo model's account and adopts its repository itself. A
-harness does as the person does: `sign-in -` with serve's first link,
-then `playground start` (5.5, area 6), which answers once the
-playground is ready.
+A person's first run starts with the store empty, no forge and no
+account; choosing the playground makes its records, its fake forge,
+the scripted model's account and its project, the engine adding the
+account and adopting its repository itself (`../protocol/setup.md`,
+8.4). A harness does as the person does: `sign-in -` with serve's
+first link, then `playground start` (5.5, area 6), which answers once
+the playground is ready, and `playground end`, which answers once it
+is reset, the store empty again.
 
 ## 11. Testing
 
@@ -1690,7 +1701,11 @@ connected, and to set up failed with its why; a `forge setup` of the
 same forge while it sets up, not offered, and of another asked forge
 while one sets up, busy; `playground start` answered `running`, run
 again answered the same, adding and adopting nothing twice, and
-refused "not offered" with no demo. After each, no pasted value in
+refused "not offered" with a real forge kept; `playground end`
+answered `reset`, and refused "not offered" with no playground; `forge setup` and `forge connect`
+without FORGE each making a forge, numbered next; `forge remove`
+answered `removed`, the forge gone from `forge list`, and refused for
+the playground's forge. After each, no pasted value in
 DIRECTORY's store or in any document the tools print.
 
 ### 11.3 The real loop

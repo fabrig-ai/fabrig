@@ -48,7 +48,7 @@ pub struct Limits {
 #[derive(PartialEq, Eq, Debug)]
 pub enum Delivery {
     /// Adoption release reaches the core after its erasures commit
-    /// (temper/docs/design/draft/playground-reset.md, 5).
+    /// (jig/docs/design/domain/people.md, 5.2; temper/docs/design/domain/forge.md, 4.1).
     ProjectReleased {
         connector: u16,
         project: u32,

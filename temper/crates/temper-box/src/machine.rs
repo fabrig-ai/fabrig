@@ -1,5 +1,5 @@
 //! Steps, exits and timers in; process orders out (protocol/setup.md, 7.2).
-//! Kind slots and removal follow temper/docs/design/draft/playground-reset.md, 3 and 4.
+//! Kind slots and removal follow temper/docs/design/protocol/setup.md, 7.1.
 use crate::layout::Placed;
 use crate::limits::{Limits, Unfit, check};
 use crate::terminal::Fact;
