@@ -247,10 +247,6 @@ pub enum Word {
     ChatClosed,
     CloseCannotReopen,
     RefusalSentences,
-    OpenProgramModel,
-    OpenProgramUnavailable,
-    OpenProgramChooseModel,
-    OpenProgramNoSwitch,
     HelloReservedChannel,
     HelloStopBound,
     AgentTurns,
@@ -271,7 +267,6 @@ pub enum Word {
     AgentWindow,
     AgentOutput,
     AgentModelPosition,
-    OpenProgramSource,
     TimeYesterdayWord,
     TimeJustNow,
     TimeUnderMinute,
@@ -677,9 +672,9 @@ pub enum Word {
 // The welcome's Forgejo card adds four literal phrases and segments.
 // Eighteen playground, removal and forge choice literals.
 pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
-const PHRASES: u32 = 1190;
-const SEGMENTS: u32 = 2089;
-const ALL: [Word; 608] = [
+const PHRASES: u32 = 1185;
+const SEGMENTS: u32 = 2080;
+const ALL: [Word; 603] = [
     Word::PlaygroundBanner,
     Word::PlaygroundSetUp,
     Word::PlaygroundLeaving,
@@ -908,10 +903,6 @@ const ALL: [Word; 608] = [
     Word::ChatClosed,
     Word::CloseCannotReopen,
     Word::RefusalSentences,
-    Word::OpenProgramModel,
-    Word::OpenProgramUnavailable,
-    Word::OpenProgramChooseModel,
-    Word::OpenProgramNoSwitch,
     Word::HelloReservedChannel,
     Word::HelloStopBound,
     Word::AgentTurns,
@@ -932,7 +923,6 @@ const ALL: [Word; 608] = [
     Word::AgentWindow,
     Word::AgentOutput,
     Word::AgentModelPosition,
-    Word::OpenProgramSource,
     Word::TimeYesterdayWord,
     Word::TimeJustNow,
     Word::TimeUnderMinute,
@@ -1528,10 +1518,6 @@ impl Word {
             Self::ChatClosed => 1261,
             Self::CloseCannotReopen => 1262,
             Self::RefusalSentences => 1263,
-            Self::OpenProgramModel => 1264,
-            Self::OpenProgramUnavailable => 1265,
-            Self::OpenProgramChooseModel => 1266,
-            Self::OpenProgramNoSwitch => 1267,
             Self::HelloReservedChannel => 1268,
             Self::HelloStopBound => 1269,
             Self::AgentTurns => 1270,
@@ -1552,7 +1538,6 @@ impl Word {
             Self::AgentWindow => 1284,
             Self::AgentOutput => 1285,
             Self::AgentModelPosition => 1286,
-            Self::OpenProgramSource => 1287,
             Self::TimeYesterdayWord => 1250,
             Self::TimeJustNow => 1200,
             Self::TimeUnderMinute => 1201,
@@ -2494,10 +2479,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ChatClosed | Word::ClosedChats => (&[b"Closed"], &[]),
         Word::CloseCannotReopen => (&[b"A closed chat can't be reopened."], &[]),
         Word::RefusalSentences | Word::TimePair => (&[b"", b" ", b""], &[Name, Name]),
-        Word::OpenProgramModel => (&[b"This model runs through a program."], &[]),
-        Word::OpenProgramUnavailable => (&[b"A chat can't stay open through a program yet."], &[]),
-        Word::OpenProgramChooseModel => (&[b"To chat now, choose a model that doesn't run through a program."], &[]),
-        Word::OpenProgramNoSwitch => (&[b"This chat does not switch to another source on its own."], &[]),
         Word::HelloReservedChannel => (&[b"Channel zero belongs to the engine's own host."], &[]),
         Word::HelloStopBound => (&[b"It would not stop before the engine's grace ends."], &[]),
         Word::AgentTurns => (&[b"Agent turns too few."], &[]),
@@ -2518,7 +2499,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::AgentWindow => (&[b"Agent window too small for charter ", b"."], &[Number]),
         Word::AgentOutput => (&[b"Agent output too small for charter ", b"."], &[Number]),
         Word::AgentModelPosition => (&[b"Model position ", b"."], &[Number]),
-        Word::OpenProgramSource => (&[b"Account ", b" would use its program source ", b"."], &[Number, Number]),
         Word::TimeYesterdayWord => (&[b"yesterday"], &[]),
         Word::TimeJustNow => (&[b"just now"], &[]),
         Word::TimeUnderMinute => (&[b"under 1 min"], &[]),

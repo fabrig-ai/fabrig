@@ -673,10 +673,7 @@ record HelloRefusalPosition { worker: u32 }
 record HelloRefusalStopBound { grace: duration }
 enum HelloRefusal { agent: HelloRefusalAgent, reserved_channel, workers: HelloRefusalWorkers, stop_bound: HelloRefusalStopBound, position: HelloRefusalPosition }
 record TaskWaitHello { kind: HostKind at: u64 why: HelloRefusal }
-record TaskWaitProgramSource { account: u32 source: u32 }
-enum TaskWaitProgram { model, source: TaskWaitProgramSource }
-record TaskWaitRefusedProgram { value: TaskWaitProgram }
-enum TaskWaitRefused { hello: TaskWaitHello, program: TaskWaitRefusedProgram }
+enum TaskWaitRefused { hello: TaskWaitHello }
 record TaskRunWaitRefused { value: TaskWaitRefused }
 enum TaskRunWait { account: TaskWaitAccount, credential, host, refused: TaskRunWaitRefused }
 record TaskSettings { task: u32 run: option u32 newest: u32 }

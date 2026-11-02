@@ -8,9 +8,8 @@ Task 8:
         Agent charter 4294967295
         Activation due
   Cannot start yet
-  This model runs through a program
-  A chat can't stay open through a program yet
-  To chat now, choose a model that doesn't run through a program
+  A worker was refused at 01:00
+  Unconfigured or occupied worker position 7
   In project 4
   Goal
   Priority 1

@@ -144,23 +144,6 @@ pub(in crate::codec) fn wire_task_wait_refused(
                 why: wire_hello_refusal(why, limits)?,
             },
         )?),
-        c::TaskWaitRefused::Program(value) => w::TaskWaitRefused::Program(w::TaskWaitRefusedProgram::new(
-            limits,
-            w::TaskWaitRefusedProgramParts { value: wire_task_wait_program(value, limits)? },
-        )?),
-    })
-}
-
-pub(in crate::codec) fn wire_task_wait_program(
-    value: &c::OpenProgram,
-    limits: &w::Limits,
-) -> Result<w::TaskWaitProgram, w::Problem> {
-    Ok::<_, w::Problem>(match value {
-        c::OpenProgram::Model => w::TaskWaitProgram::Model,
-        c::OpenProgram::Source { account, source } => w::TaskWaitProgram::Source(w::TaskWaitProgramSource::new(
-            limits,
-            w::TaskWaitProgramSourceParts { account: *(account), source: *(source) },
-        )?),
     })
 }
 

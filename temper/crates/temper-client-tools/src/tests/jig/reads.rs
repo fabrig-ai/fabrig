@@ -374,18 +374,6 @@ fn a_refused_next_run_names_its_cause_in_text_and_json() {
     const AT: skein_lib::Wall = skein_lib::Wall::from_nanos(60_000_000_000);
     let rows = [
         (
-            "model program",
-            c::TaskWaitRefused::Program(c::OpenProgram::Model),
-            "next run: refused, model runs through a program",
-            r#"{"refused":{"program":"model"}}"#,
-        ),
-        (
-            "source program",
-            c::TaskWaitRefused::Program(c::OpenProgram::Source { account: 43, source: 17 }),
-            "next run: refused, source 17 of account 43 runs through a program",
-            r#"{"refused":{"program":{"source":{"account":43,"source":17}}}}"#,
-        ),
-        (
             "reserved engine channel",
             c::TaskWaitRefused::Hello { kind: c::HostKind::Engine, at: AT, why: c::HelloRefusal::ReservedChannel },
             "next run: refused, engine refused at 00:01: channel zero belongs to the engine's own host",

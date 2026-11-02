@@ -611,18 +611,8 @@ fn a_task_waiting_on_a_moving_account_says_why() {
 
 #[test]
 fn a_refused_next_run_says_why() {
-    use c::{HelloRefusal as F, HostKind as H, OpenProgram as P, TaskWaitRefused as R};
+    use c::{HelloRefusal as F, HostKind as H, TaskWaitRefused as R};
     for (name, refusal, expected) in [
-        (
-            "model",
-            R::Program(P::Model),
-            "Next run refused · This model runs through a program. A chat can't stay open through a program yet. To chat now, choose a model that doesn't run through a program.",
-        ),
-        (
-            "source",
-            R::Program(P::Source { account: 3, source: 8 }),
-            "Next run refused · Account 3 would use its program source 8. A chat can't stay open through a program yet. This chat does not switch to another source on its own.",
-        ),
         (
             "engine",
             R::Hello { kind: H::Engine, at: fixtures::NOW, why: F::ReservedChannel },
@@ -648,7 +638,6 @@ fn a_refused_next_run_says_why() {
         assert_eq!(fixtures::text(&builder.finish()).as_ref(), expected.as_bytes(), "{name}");
         let midnight = match refusal {
             R::Hello { .. } => Some(skein_lib::Wall::from_nanos(86_400_000_000_000)),
-            R::Program(_) => None,
         };
         assert_eq!(times.next, midnight, "{name}");
         let source = fixtures::chat::messaging_root();
