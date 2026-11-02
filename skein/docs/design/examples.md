@@ -672,8 +672,6 @@ a service copies that.
 
 ## 10. Building a service on skein
 
-This section was the repository's `README.md` until 2026-10-19.
-
 | Part | Written by | Crate |
 |---|---|---|
 | lib, io, the machines for foreign protocols | skein | `skein-lib`, `skein-io`, `skein-http`, `skein-json`, `skein-tls` |

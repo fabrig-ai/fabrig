@@ -100,8 +100,8 @@ order Linux checks; the conformance suite holds it, through the
 simulator, to the real kernel in a scratch directory. It keeps a step
 machine's shape, a call in and an answer out, in a vocabulary of its own
 that a face translates to and from the simulator's. Its programs are
-built too, the fixture of the conformance suite's processes, and so is
-its crash model, which keeps what a crash keeps (simulator.md, 3.3). It
+the fixture of the conformance suite's processes, and its crash model
+keeps what a crash keeps (simulator.md, 3.3). It
 keeps each file's lock with the handle that took it (simulator.md, 3.1).
 For a tree's metadata (kernel.md, 6.4) it keeps each entry's inode,
 group, mode up to `0o7777`, times and attributes, and hard links, and
