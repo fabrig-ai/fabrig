@@ -109,14 +109,15 @@ them in the verdict's own record. What is still open is section 13.
 - **Faults** (`landing.md`, 7.4's): rerun, then dispatched again, up to
   the project's `tier_retries`; one past its bound holds the tier's run
   task, whose escalation reaches the project's escalation role (jig's
-  `domain/tasks.md`, section 9). A jig hold carries no words of its
-  own, so the run says why where it can: the held task's words name
-  the tier and the run (`Tier NAME run N`), and before it is held the
-  run posts the tier's verdict status on its tip as pending, `held
-  after N runner faults, last: KIND`, linked to the last run (section
-  9). The tier waits for a person's release, which dispatches the run
-  again with its faults counted from 0, its landings still verifying;
-  its verdict replaces that status.
+  `domain/tasks.md`, section 9). A held procedure says why in its
+  connector's words (jig's `client/domain/objects.md`, section 5): the
+  held task's words name the tier and the run (`Tier NAME run N`), and
+  its hold's words add `held after N runner faults, last: KIND`. Before
+  it is held, the run posts the tier's verdict status on its tip as
+  pending, `held after N runner faults, last: KIND`, linked to the last
+  run (section 9). The tier waits for a person's release, which
+  dispatches the run again with its faults counted from 0, its
+  landings still verifying; its verdict replaces that status.
 
 ## 4. What a run reports
 
@@ -316,8 +317,10 @@ Beside kind 5's gates, each repository's tiers, each with the branch
 it follows (section 2); with kind 4, the
 project's `tier_retries` (2), `verification_bound` (two hours), several
 suspects' rule (`bisect` or `tell all`), and whether a red pauses its
-repository (no). Until the kinds are settings, in the document's
-`landing` member, as the gates are (`landing.md`, 13.1).
+repository (no). Until the kinds are settings, the tiers,
+`tier_retries` and `verification_bound` are in the document's
+`landing` member, as the gates are, and the suspects' rule and a red's
+pause wait for kind 4 (`landing.md`, 13.1).
 
 ## 12. The world
 
@@ -353,6 +356,3 @@ with failing tests by id and uploading their artifacts:
   uncleared on its own judgement before the bound.
 - **Tiers on the forge's runners or on workers:** both are allowed by
   the draft; the forge's runners here, workers once a worker runs jobs.
-- **A hold's own words:** a bounded explanation on jig's hold, so that
-  a held task says why in temper's views and its escalation, not only
-  on the forge's status; a jig interface of its own.

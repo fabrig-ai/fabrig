@@ -6,9 +6,10 @@ records of a tree's metadata, the filesystem's status and btrfs's
 subvolumes, and cgroups with contained spawn, are not built, nor their
 simulation, faults and fake machine (`kernel.md`, `io.md`,
 `simulator.md`, `shell.md`, `testing.md`). The forge kit lacks the calls
-no dialect has yet (`Artifact`, `Commits`, the labels, `UpdateRef`),
-GitHub's Actions routes and the fake forge's run reports (`forge.md`,
-`forge-github.md`, `fake-forge.md`). `skein-playground` is not built
+no dialect has yet (the labels, `UpdateRef`) and GitHub's Actions
+routes, `Artifact` and `Commits` among them (`forge.md`,
+`forge-github.md`); the fake GitHub refuses no push as `GH013`
+(`fake-forge.md`). `skein-playground` is not built
 (`playground.md`, and `ui-web.md` for the worker's platform). json, tls
 and http's collector have no fuzz target (`json.md`, `tls.md`,
 `http.md`), and the withdrawn LLM routes still stand while smith uses
