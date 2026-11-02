@@ -546,15 +546,17 @@ in the lower world that owns it, never here.
   loopback beside its Forgejo face (skein's `fake-forge.md`, section
   10), over the same forge as the fake git program. No story calls
   github.com or holds a real credential.
-  - **The configuration** points the GitHub forge's `api`, `transport`,
-    `git` and `web` at the peer (../protocol/configuration.md, section
-    3): plaintext on loopback, `web` the `api` origin, which serves the
-    browser's pages too. The scenario and the configuration set the
+  - **The configuration** points `application.machine.github`'s `api`,
+    `transport`, `remote` and `web` at the peer
+    (../protocol/configuration.md, section 3), which the GitHub forge's
+    record takes as its place at its connect (../protocol/forge.md,
+    2.2): plaintext on loopback, `web` the `api` origin, which serves
+    the browser's pages too. The scenario and the configuration set the
     layer's waits (the delivery log's delay, mergeability's settling)
     and temper's `log_poll` short, as `poll` is above.
-  - **The clients' listener's address is fixed** while a GitHub forge
-    is configured (../protocol/configuration.md, section 3), since the
-    App's addresses name it. The harness reserves a loopback port the
+  - **The clients' listener's address is fixed** for a GitHub forge
+    (../protocol/configuration.md, section 3; ../protocol/forge.md,
+    2.1), since the App's addresses name it. The harness reserves a loopback port the
     kernel assigns before the service starts, and names it in the
     configuration.
   - **No browser in the real loop.** The story stands in for it with
@@ -1207,10 +1209,13 @@ section 8; testing-strategy.md, 2.9).
   real Actions run of about 45 s.
   - **What runs:** the engine alone and one worker, as in 2.6, the fake
     LLM (the model is not what it tests), the machine's git, and the
-    test's relay. The forge is `kind: "github"` with `app_read_only`
-    (../protocol/configuration.md, section 3), its `api` and `git` the relay's two
-    loopback listeners, `web` null, and the forge component's and the
-    resources' polling their defaults but `log_poll`, 15 s.
+    test's relay. The forge is a GitHub forge connected with the probe
+    App, its record's `read_only` set (../protocol/forge.md, 2.1;
+    ../protocol/setup.md, 17.7), its place `application.machine.github`'s
+    (../protocol/configuration.md, section 3): `api` and `remote` the
+    relay's two loopback listeners, `web` the latter's origin; and the
+    forge component's and the resources' polling their defaults but
+    `log_poll`, 15 s.
   - **Offline startup admission:** `startup.rs` renders these same
     GitHub templates with synthetic ready captures and uses the live
     story's pure engine shaper for both supported owners, distinct

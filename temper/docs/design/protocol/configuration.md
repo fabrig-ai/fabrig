@@ -1,14 +1,15 @@
 # Configuration
 
-Provisional, 2026-10-14, revised 2026-10-30. What temper's processes
+Provisional, 2026-10-14, revised 2026-11-02. What temper's processes
 are told when they start: the one JSON document `temper serve` reads,
 and the forge's setup's commands with it, with jig's parts as jig
 defines them and temper's own members beside them; the private files it
 names; the agent's configuration; what `temper open` and `temper
 program-login` are given; limits; what holds at a first start and at
-every start; and the formats an operator writes. A forge's credentials
-are not configuration: they are records in jig's secrets' store
-(credentials.md, section 2).
+every start; and the formats an operator writes. A forge is not
+configuration: it is a record in temper's store, made at runtime
+(forge.md, 2.1), and its credentials are records in jig's secrets'
+store (credentials.md, section 2).
 jig's shape and rules are jig's `protocol/configuration.md`; this
 document says what temper adds. What is open is listed in section 11.
 
@@ -31,37 +32,40 @@ document says what temper adds. What is open is listed in section 11.
 - **jig's parts are jig's:** `jig-protocol-config` parses them; temper
   writes no parser of its own for them, and adds only the checks its
   shapes need (section 2).
-- **temper's members,** under `application`: `forges`, `identities`,
-  `landing`, `charter`, `clients`, `webhooks`, `setup`, `demo` and
-  `limits` for the engine (section 3), and `workers`, one entry per worker (section 4).
+- **temper's members,** under `application`: `machine`, `landing`,
+  `charter`, `clients`, `sign_in`, `webhooks`, `demo` and `limits` for
+  the engine (section 3), and `workers`, one entry per worker (section 4).
   `webhooks` is the forge component's webhooks' listener, on loopback
   (forge.md, section 5).
-- **Forges of two kinds,** Forgejo and GitHub, each by its `number`: its
-  explicit, stable id, never a list position, never reused for another
-  forge. A forge's records are kept under it, so a changed number is a
-  new forge, not connected (section 3). A GitHub forge's addresses
-  default to github.com's, and are given only to point at a fake.
-- **`setup`, for the forge's setup** (setup.md): how each set-up forge is
-  run and set up, which the `temper forge` commands and `temper box` act
-  on, and the engine's setup host reconciles at each start, and at the
-  box's `started` for an owned forge set up from the client (setup.md,
-  7.1). `temper serve` reads one file of it, an owned or fake forge's
-  handover (sections 3 and 6).
-- **`demo`, a first run's demo** (setup.md, 8.4): the fake LLM the box
-  runs, its scripts and its key, and what the seed adopts; null for
-  none. `temper serve` reads none of its files.
-- **Not configuration:** repositories, which people adopt at runtime;
-  the branch namespace, which the root derives from the deployment's id;
-  the forge writer's identity, which comes from each forge's connect and
-  which skein's forge client keeps in the main store (credentials.md,
-  2.1); a forge's credentials, which come from the client or the engine's
+- **No forge is configured.** A forge is a record of the forge
+  connector in temper's store, made by the act that sets it up or
+  connects it, numbered next at runtime and never reused, its number
+  keying its records (forge.md, 2.1 and 2.2). A first run's document
+  names no forge.
+- **The document keeps the machine's** (section 3): the clients' and
+  webhooks' listeners; `machine`, the places a box's owned Forgejo and
+  its fake forge bind, which `temper init` chooses and the box holds
+  from its start (setup.md, 7.1), and GitHub's, github.com's unless it
+  names a fake; `demo`'s fake LLM's port; and the limits, the forges
+  kept among them as a count (section 7). A forge set up or connected
+  takes its place from `machine`, or from what the person gives.
+- **`demo`, the playground's scripted model** (setup.md, 8.4): the fake
+  LLM the box runs, its port, its LLM provider, its key and its
+  scripts; null for none. `temper serve` reads its key alone, at the
+  playground's start.
+- **Not configuration:** forges, which people set up or connect at
+  runtime; repositories, which people adopt at runtime; the branch
+  namespace, which the root derives from the deployment's id; the forge
+  writer's identity, which comes from each forge's connect and which
+  skein's forge client keeps in the main store (credentials.md, 2.1);
+  a forge's credentials, which come from the client or the engine's
   setup host (credentials.md, section 2).
 - **No secret in the document,** and no forge credential in a file the
   document names. Each forge's credentials are records in jig's secrets'
   store under temper's tag (credentials.md, 2.1). The private files the
-  document names are jig's, a worker's secret and its digest, an owned
-  or fake forge's handover, each read at start, and the demo model's
-  key, which `temper serve` never reads (section 6).
+  document names are jig's, a worker's secret and its digest, read at
+  start, and the scripted model's key, read at the playground's start;
+  an owned or fake forge's handover is in its directory (section 6).
 - **LLM providers, never accounts.** jig's `engine.llm` names the LLM
   providers, written out whole: their endpoints, models and prices, and
   the sources each offers. Accounts are made at runtime from the client,
@@ -71,12 +75,14 @@ document says what temper adds. What is open is listed in section 11.
 - **Limits by name,** their numbers in `temper-service`'s limits module,
   overridden by dotted name. The forge component's (`renew_before`,
   `log_poll`, `log_catch_up`, `log_pages` among them) are given once for
-  every forge, never a member of `forges` (section 7).
+  every forge, never per forge; the forges kept, `forge.forges`, and the
+  repositories, `forge.repositories`, are counts for the deployment
+  (section 7).
 - **Standalone shape:** exactly one worker, joined to the engine by the
   in-process name `workers`; the clients' listener, and the webhooks'
   listener when configured, on loopback, the clients' at a fixed port
-  when a GitHub forge is configured; the agent program is temper's own
-  binary. `temper init` writes it, and every deployment is it.
+  for a GitHub forge; the agent program is temper's own binary. `temper
+  init` writes it, and every deployment is it.
 - **The cluster's two shapes,** for tests on one machine
   (`README.md`, section 15): an engine alone, with no worker and a workers'
   listener on loopback in plaintext, and a worker alone, with no engine,
@@ -122,9 +128,9 @@ document says what temper adds. What is open is listed in section 11.
   port for each sign-in, unless the LLM provider's registration fixes a
   port (jig's `protocol/configuration.md`, section 3; skein's
   `oauth.md`, 6.5). A fixed port is checked at start against the
-  deployment's own listeners: the clients' and the webhooks', an owned
-  or fake forge's `listen` (setup.md, section 8) and the demo's fake
-  LLM's (setup.md, 8.4), whose ports it must not share on loopback.
+  deployment's own listeners: the clients' and the webhooks', the
+  machine's owned and fake `listen` (section 3) and `demo`'s fake LLM's
+  (setup.md, 8.4), whose ports it must not share on loopback.
 - **`workers`** is a list of jig's worker parts (jig's
   `protocol/configuration.md`, section 4).
 - **`application`** holds temper's members (sections 3 and 4).
@@ -198,13 +204,12 @@ document says what temper adds. What is open is listed in section 11.
      `application`, with the members its shape takes, by
      `temper-service`'s startup, with `jig-protocol-config`'s readers, so
      every problem names its path the same way
-     (`application.forges[0].api`); `setup`, `demo`, and the setup's and
-     the box's limits, by their own crates' checks (setup.md, sections 8,
-     8.4 and 11);
+     (`application.clients.listener`); `machine`, `demo`, and the
+     setup's and the box's limits, by their own crates' checks (setup.md,
+     sections 8, 8.4 and 11);
   3. the checks across the whole that its shape holds: the references
      of sections 2 to 5,
-     the clients' listener's fixed port with a GitHub forge and each
-     identity's largest value against the channel's bound on a
+     a git identity's largest value against the channel's bound on a
      credential's value (section 3), the limits against each other and
      the edge bounds (section 7), and the channel's start checks on
      temper's parts (channel.md, section 8);
@@ -213,11 +218,12 @@ document says what temper adds. What is open is listed in section 11.
   5. the agent's configuration (section 5).
 
   Every problem found is reported, one line each on stderr, and `temper
-  serve` exits 1 before io starts. A forge's records are not read here:
-  the engine's routing loads them from jig's secrets' store once io
-  starts, before the forge component starts, and a forge whose records
-  do not serve is not connected, never a refused start (section 8;
-  credentials.md, 2.1).
+  serve` exits 1 before io starts. No forge is read here: the forge
+  connector's records are restored from the store, and the engine's
+  routing loads their credentials from jig's secrets' store, once io
+  starts, before the forge component starts; a forge whose records do
+  not serve is not connected, never a refused start (section 8;
+  forge.md, 2.1; credentials.md, 2.1).
 - **Paths are typed:** each is a configuration, data or cache path,
   relative to its directory or absolute, as jig's parts' are (jig's
   `protocol/configuration.md`, section 10), or a path that must be
@@ -226,60 +232,47 @@ document says what temper adds. What is open is listed in section 11.
 
 ## 3. temper's members for the engine
 
-**`forges`:** a list of the forges temper works on, at least one, and at
-most the forge client's `repositories` limit (`forge.client.repositories`),
-which bounds its writers. Each:
+**`machine`:** the machine's places, never a forge: where a box's owned
+Forgejo and the playground's fake forge listen, which `temper init`
+chooses (setup.md, 8.2) and the box holds from its start (setup.md,
+7.1), and where GitHub is. A forge set up or connected takes its place
+from here (forge.md, 2.2). Each:
 
 | Member | Type | Bounds | Feeds |
 |---|---|---|---|
-| `number` | u16 | unique among `forges` | the domain's forge number: a repository's `forge`, a writer's, a git identity's; and the `forge` of the numbers its records are kept under in jig's secrets' store (credentials.md, 2.1) |
-| `kind` | string | `"forgejo"` or `"github"` | the documents the forge component speaks (forge.md, section 3); the records the forge takes (credentials.md, 2.1); the ways it is connected (setup.md) |
-| `api` | an address, jig's format, or `null` | a socket address, or a host's name and port; never an in-process name. `null` on GitHub alone, for github.com's: `api.github.com`, port 443 | where the forge component connects for the forge's REST API: Forgejo's under `/api/v1`, GitHub's at its root |
-| `transport` | `"plaintext"`, `{"tls": {"server_name": string, "trust": a configuration path or null}}`, or `null` | plaintext only when `api` is a socket address on loopback; `trust` null is the machine's roots. `null` on GitHub alone, for TLS to github.com's API with the machine's roots | the forge component's connections |
-| `git` | string, or `null` | an `http` or `https` URL: a host, an optional port and an optional path; no user, query, fragment or final `/`; `http` only to a loopback host. `null` on GitHub alone, for `https://github.com` | the base of each repository's remote, `<git>/<owner>/<name>.git`, which the engine's routing makes (channel.md, section 4); and the host segment of the forge's resource paths: `git`'s host, with `:port` when it names a port |
-| `git_program` | a data path or an absolute path, or absent | within 4096 bytes, resolved under data as setup's `fake.git`; refused together with that member, naming both | the git executable workers run for this forge's repositories, for a custom git build or wrapper; absent keeps `workers[].git` (section 4), or the demo's existing `fake.git` (setup.md, 8.4) |
-| `web` | string, or `null` | on GitHub, a URL by `git`'s rule, `null` for `https://github.com`; on Forgejo, `null` | GitHub's browser pages: the manifest's form, the install link and an installation's pages (setup.md, connecting GitHub; `../client/forge.md`) |
-| `log_origins` | list of strings, or `null` | each an origin: `"https://<host>[:<port>]"`, TLS with `transport`'s trust (the machine's roots when it names none), or `"http://<host>[:<port>]"` to a loopback host alone, as skein's fake serves its logs; no path, user, query, fragment or final `/`; the port 443 or 80 when absent. Each explicit host is resolved at start, and one that does not resolve refuses the start, naming the forge and the host; at most `forges.log_origins` (section 7). `null` is the kind's default: GitHub's twenty results hosts `https://productionresultssa0.blob.core.windows.net` through `https://productionresultssa19.blob.core.windows.net`, all TLS on port 443, Forgejo's none. Unresolved default hosts are skipped and named once in the log; defaults never refuse startup. If none resolves, no job log is fetched and that is named once | the origins to which a job log's redirect is followed (forge.md, GitHub's API as temper uses it); `[]` fetches no job log |
-| `app_read_only` | boolean in the kept GitHub forge record | set by `forge connect [FORGE] github-app APP FILE --read-only`; absent on the client wire means `false` | the paste check and reconcile leave the App's hook as they read it (setup.md, 17.7); without it they repair the hook. Every GitHub forge keeps unaccepted installations and shows them until accepted, regardless of this flag; installing, accepting and the forge component's reads and mints are unchanged |
+| `owned` | an object, or absent | setup.md, section 8's owned members: `listen`, a socket address on loopback, unique among the deployment's listeners; `remote`, its remotes' base, `http://` and its `listen` as `temper init` writes it; `forgejo` and `runner.binary`, cache paths or `"fetched"`; `runner`, `person`, and the optional `mirror` and `public` | an owned Forgejo's place, which `SetUp` gives its record (forge.md, 2.2), and its setup entry and group's steps (setup.md, section 8 and 7.1); absent, no owned forge is offered |
+| `fake` | an object, or absent | `listen`, as `owned.listen`; `remote`, `http://` and its `listen`; `git`, a data path, the fake git's link (setup.md, 8.2) | the playground's fake forge's place and setup entry, its owner `playground` and its repository `widget` (setup.md, 8.4), and its git program, which the engine's routing names in each of its repositories' records (channel.md, section 4); absent, no playground is offered |
+| `github` | an object, or `null` | `null` for github.com's: `api.github.com`, port 443, TLS with the machine's roots, remotes under `https://github.com`, pages at `https://github.com`. Otherwise `{"api", "transport", "remote", "web", "git"}`: `api` a socket address or a host's name and port, never an in-process name; `transport` plaintext to a socket address on loopback alone, or `{"tls": {"server_name", "trust"}}`; `remote` and `web` remotes' bases; `git` an optional data path, the git program of its repositories | a GitHub forge's place and git program, which `Connect` gives its record (forge.md, 2.2); a value is given only to point at a fake, as temper's tests and `temper box --fake-backends` do (12.1), or at the live tier's relay to github.com (`../domain/testing.md`, 2.7) |
 
-- **A forge's number is its stable id,** never its place in the list:
-  its records in jig's secrets' store and its repositories in the main
-  store are kept under it. Reordering, adding or removing forges moves
-  no forge's records to another. A number is never reused for another
-  forge, and a forge whose number changes is a new forge, not connected,
-  whose old number's rows are left (credentials.md, 2.1).
-- **A GitHub forge's addresses** (`api`, `transport`, `git`, `web`) are
-  `null` in a deployment: a value is given only to point at a fake, as
-  temper's tests do, or at the live tier's relay to github.com
-  (`../domain/testing.md`, 2.7). A Forgejo forge gives
-  `api`, `transport` and `git`.
+- **A remotes' base** (each part's `remote`, GitHub's `web`, and the
+  base a person gives a Forgejo connected as its admin) is an `http` or
+  `https` URL: a host, an optional port and an optional path; no user,
+  query, fragment or final `/`; `http` only to a loopback host. It is
+  the base of each repository's remote, `<base>/<owner>/<name>.git`,
+  which the engine's routing makes (channel.md, section 4), and the
+  host segment of the forge's resource paths: its host, with `:port`
+  when it names a port.
+- **No forge here.** A forge's kind, mode, place, git program, bot
+  and number are its record's in temper's store (forge.md, 2.1), made
+  at runtime: an owned Forgejo's from `owned` by `SetUp`, the
+  playground's fake forge's from `fake` at its start, a GitHub forge's
+  from `github` by `Connect`, and a Forgejo connected as its admin from
+  the address, base and git program the person gives (setup.md, 5.5).
+  A first run's document names no forge.
 - **No credential is configured:** a forge's API token, git token,
   webhooks' secret, App's key and user are records, kept from the
   client or by the engine's setup host (credentials.md, section 2). A
-  forge's `kind` and `api` are checked against its `Origin` record at
-  start: records made for another kind or address leave the forge not
-  connected, named, and erase nothing (credentials.md, 2.1).
-
-**`identities`:** a list of git identities, temper's application
-credentials (credentials.md, section 4), one per forge, and at most
-jig's limit on an engine's application credentials (the accounts child's
-`credentials`). Each:
-
-| Member | Type | Bounds | Feeds |
-|---|---|---|---|
-| `number` | u32 | unique among `identities`; from 1 to the accounts child's `credentials`, in `engine.limits` and in the worker's `limits`, since the worker's identities' table holds those numbers alone | the credential's number, as the root names it in `Event::Credential` and in grants |
-| `forge` | u16 | the `number` of one entry of `forges`; each forge named by exactly one identity | the forge whose value the identity takes, and whose repositories' runs use it (credentials.md, section 4) |
-| `login` | string, or `null` | not empty; no `:` and no control byte. `null` is the forge's: on Forgejo the bot's login, as the forge's connect names it; on GitHub `x-access-token` | the user of git's HTTP basic authentication |
-| `author` | `{"name": string, "email": string}`, or `null` | each not empty; no NUL byte, newline, `<` or `>`. `null` on GitHub alone, for the App's bot: `<slug>[bot]`, with `<id>+<slug>[bot]@users.noreply.github.com` (credentials.md, section 4) | the author and committer of the commits made with it (git.md, section 5) |
-
-An identity's value is its forge's, never configured: a Forgejo forge's
-`GitToken` record, or a GitHub forge's installations' tokens, minted at
-runtime (credentials.md, section 4). The largest value an identity can
-take, encoded (channel.md, section 6), must fit the channel's bound on a
-credential's value, or the start is refused, naming the identity: its
-login and author, with a Forgejo forge's token at `records.value_bytes`,
-or a GitHub forge's list at `forges.installations` entries, each at its
-largest (section 7).
+  forge's kind and `api` are its record's, checked against its `Origin`
+  row at start: rows made for another kind or address leave the forge
+  not connected, named, and erase nothing (credentials.md, 2.1).
+- **Git identities are not configured either:** each kept forge has one,
+  its number the forge's, its login and author its record's bot
+  (credentials.md, section 4). The largest value an identity can take,
+  encoded (channel.md, section 6), must fit the channel's bound on a
+  credential's value, or the start is refused, naming the limit: its
+  login and author at their bounds, with a Forgejo forge's token at
+  `records.value_bytes`, or a GitHub forge's list at
+  `forges.installations` entries, each at its largest (section 7).
 
 **`landing`:** the deployment's and the projects' landing rules, the
 root's `LandingPolicy`. Leaving the document: section 13 makes them
@@ -350,15 +343,15 @@ under; it must be the `number` of one of `engine.charters`. Feeds
 
 | Member | Type | Bounds | Feeds |
 |---|---|---|---|
-| `listener` | an address, jig's format | a socket address; on loopback (in `127.0.0.0/8`, or `::1`) in standalone, and wherever `engine.clients` enables the printed link (jig's `protocol/service.md`, section 3); a fixed port, never 0, when a forge of kind GitHub is configured | the listener on which jig's clients' component is mounted with jig's default HTTP mapping, under `/jig`; the mapping's Host allow-list; the address of the sign-in links `temper serve` prints (`../client/README.md`, section 7); and temper's forge routes beside it, whose addresses a GitHub App's redirect and setup URLs name (`../client/README.md`, the routes) |
+| `listener` | an address, jig's format | a socket address; on loopback (in `127.0.0.0/8`, or `::1`) in standalone, and wherever `engine.clients` enables the printed link (jig's `protocol/service.md`, section 3); a fixed port, never 0, for a GitHub forge to be connected | the listener on which jig's clients' component is mounted with jig's default HTTP mapping, under `/jig`; the mapping's Host allow-list; the address of the sign-in links `temper serve` prints (`../client/README.md`, section 7); and temper's forge routes beside it, whose addresses a GitHub App's redirect and setup URLs name (`../client/README.md`, the routes) |
 | `bundle` | an absolute directory, or `null` | a bundle of skein's bundler, built apart (`scripts/bundle.sh`): its page and its digest's directory; its files, and the binary's own, within `clients.bundle_files` and `clients.bundle_bytes` (section 7) | the browser's page and bundle, made at start and served on the clients' listener (`../client/browser.md`, 2.2): `null` serves the bundle the binary holds (2.6), or, from a binary built without one, the page for no bundle; a directory serves its bundle in place of the binary's. A document naming an old `share/temper/bundle` keeps serving that directory, older than the binary once it is rebuilt: set it to `null` |
 | `public` | an origin, or `null` | `https://HOST[:PORT]`: HOST a lower-case DNS name, the port not 443 when written, no user, path, query, fragment or final `/`; `http://` only to a loopback host, for a test; within 253 bytes | the address people's browsers use, behind a TLS proxy (`sign-in.md`, 2.2): the mapping's Host allow-list holds its host beside the listener's (jig's `Settings.public`, the host with its port where not 443), jig's cookie is `Secure` by it, and every address temper gives out is the origin's: Google's return, a GitHub App's redirect and setup URLs. `null`: the listener's address alone, `public: None` |
 
-- **A fixed port with a GitHub forge:** a GitHub App's `redirect_url`
+- **A fixed port for a GitHub forge:** a GitHub App's `redirect_url`
   and `setup_url` name the clients' listener's address, and GitHub's API
-  cannot change them once the App is made. A port of 0 with a GitHub
-  forge configured refuses the start, naming
-  `application.clients.listener`.
+  cannot change them once the App is made. A GitHub `Connect` on a
+  listener at port 0 is refused, naming `application.clients.listener`
+  (forge.md, 2.1); `temper init` writes a fixed port (setup.md, 8.3).
 
 **`sign_in`:** the people's sign-in with Google (`sign-in.md`), or
 `null` for none, never missing: with `null`, the browser's signed-out
@@ -382,7 +375,7 @@ answer not found.
 | `members` | a list | 1 to `sign_in.members` | who may sign in, each `{"address", "login"}` |
 | `members[].address` | a string | 3 to 254 bytes of visible ASCII, one `@` with bytes on both sides; unique among members with ASCII letters folded to lower case | the identity's subject, exactly as written; compared with Google's verified `email`, folded |
 | `members[].login` | a string | 1 to 40 bytes of ASCII letters, digits, `-`, `_` and `.`, its first and last a letter or a digit; unique, folded | the login in `Mint`, and the name where Google gives none |
-| `forges` | a list, or absent for none | each `{"forge", "client"}`: `forge` the number of a Forgejo of `forges`, `client` the id of one of jig's `engine.clients.provider.clients`, in visible ASCII (the page's metas carry it), whose `redirect_uri` is exactly the forge's `git` URL's `/user/oauth2/temper/callback`; each forge and each client at most once; with no provider, refused naming `engine.clients.provider` | the forges that sign their people in through temper (`sign-in.md`, section 9): the page's `temper-forge-sign-in` metas, "Open Forgejo ↗", an owned Forgejo's `app.ini` (setup.md, 6.2) and `temper forge sign-in` (setup.md, 6.8) |
+| `forges` | a list, or absent for none | each `{"forge", "client"}`: `forge` a forge's number, as the Forges page and the `temper forge` commands name it, `client` the id of one of jig's `engine.clients.provider.clients`, in visible ASCII (the page's metas carry it); each forge and each client at most once; with no provider, refused naming `engine.clients.provider`. The forge, a record, is checked once its records load: a Forgejo, whose browser origin's `/user/oauth2/temper/callback` is exactly the client's `redirect_uri` (`sign-in.md`, 9.7) | the forges that sign their people in through temper (`sign-in.md`, section 9): the page's `temper-forge-sign-in` metas, "Open Forgejo ↗", an owned Forgejo's `app.ini` (setup.md, 6.2) and `temper forge sign-in` (setup.md, 6.8) |
 
 - **jig's owners of Google's provider are members:** each of
   `engine.owners` whose provider is `google.provider` has a member's
@@ -400,7 +393,7 @@ answer not found.
 
 | Member | Type | Bounds | Feeds |
 |---|---|---|---|
-| `listener` | an address, jig's format | a socket address on loopback (in `127.0.0.0/8`, or `::1`), as the clients' listener's in standalone; unique among the deployment's listeners: neither the clients' listener's nor an owned forge's `listen` (setup.md, section 8) | the forge component's listener for Forgejo's deliveries, plaintext HTTP on skein's HTTP server, one path per Forgejo forge whose records hold a webhooks' secret (credentials.md, 2.1), `/hooks/<number>` by the forge's `number`; the URL of each hook the setup's plans make (setup.md, section 5); an owned Forgejo's `[webhook] ALLOWED_HOST_LIST` (setup.md, 6.2) |
+| `listener` | an address, jig's format | a socket address on loopback (in `127.0.0.0/8`, or `::1`), as the clients' listener's in standalone; unique among the deployment's listeners: neither the clients' listener's nor the machine's owned or fake `listen` (`machine`, above) | the forge component's listener for Forgejo's deliveries, plaintext HTTP on skein's HTTP server, one path per Forgejo forge whose records hold a webhooks' secret (credentials.md, 2.1), `/hooks/<number>` by the forge's `number`; the URL of each hook the setup's plans make (setup.md, section 5); an owned Forgejo's `[webhook] ALLOWED_HOST_LIST` (setup.md, 6.2) |
 
 - **A delivery is a hint,** never a fact: polling is the same with
   webhooks or without (forge.md, section 6), and finds what a delivery
@@ -411,30 +404,15 @@ answer not found.
   delivery log, which the forge component reads, with no address GitHub
   must reach (forge.md, section 5).
 
-**`setup`:** the forges' setup, a list of at most one entry per forge,
-`[]` for none, and never missing (section 10). Its members, their bounds
-and the checks of the forge's own members against each entry are
-setup.md, section 8's. An owned entry names no org: its org is its
-first repository's, which the set up makes (setup.md, 6.7), and
-reconcile makes none.
-`temper serve` checks it whole, and the engine's setup host reconciles
-each managed and owned forge at each start, and an owned forge whose setup says `"start": "asked"` once the box has
-started it (setup.md, 7.1; the setup host in the engine). A fake forge
-runs start-time adoption instead (setup.md, 8.4). Of the files `setup`
-names, `temper serve` reads one: the handover, `admin_token`, taken
-once for an owned forge (section 6), read and left for a fake's later
-starts. A fake forge's `git` it names and never reads: the program the
-engine's routing names in each of that forge's repositories' records,
-for the worker to spawn (channel.md, section 4).
-
-**`demo`:** a first run's demo, or `null` for none, never missing
-(section 10): the fake LLM the box runs, its address, its LLM provider,
-its key's file and its scripts, and the demo's forge and the project
-its start makes. Its members, their bounds and
-their checks against the document's LLM providers, `setup` and
-policies are setup.md, 8.4's,
-`temper-fake`'s. `temper serve` checks it whole and reads none of its
-files; the engine takes nothing of it.
+**`demo`:** the playground's scripted model, or `null` for none, never
+missing (section 10): its `llm`, the fake LLM the box runs, with its
+port (`listen`), its LLM provider of `engine.llm` (`provider`), its
+key's file (`key`) and its scripts (`asked`). Its members, their bounds
+and their checks against the document's LLM providers are setup.md,
+8.4's, `temper-fake`'s. `temper serve` takes the provider, the key's
+path and each script's cue, and reads the key at the playground's start,
+which makes the scripted account with it (setup.md, 8.4); with `null`,
+the playground is not offered.
 
 **What the engine root's `Config` takes,** field by field:
 
@@ -444,19 +422,24 @@ files; the engine takes nothing of it.
 | `landing` | `application.landing` |
 | `forge.writers` | not configured: each forge's writer comes from its connect, its user as the routing tells the root (credentials.md, section 5) |
 | `forge.namespace` | not configured: the root derives it from the deployment's id |
-| `identities` | one `GitIdentity { forge, credential: number }` per entry of `identities` |
+| `identities` | not configured: each kept forge's `GitIdentity { forge, credential }`, its credential the forge's number, comes with its record (forge.md, 2.1) |
+| `machine` | `application.machine`'s places, from which the forge connector makes a new forge's record (forge.md, 2.2) |
+| `playground` | `application.demo`'s provider, with `setup.deadline_ms`; none for `null` (setup.md, 8.4) |
+| `under_box` | whether `temper internal serve` was given `--box` (setup.md, 7.1) |
 | `forge_charter` | `application.charter` |
 
-Beside the root: the forge component takes each forge's `number`,
-`kind`, `api`, `transport` and `log_origins`, with the access the
-engine's routing builds from the forge's records (credentials.md,
-section 5), and the webhooks' listener, `webhooks.listener`; the
-engine's setup host takes each forge's `kind`, `api`, `transport` and
-`web`, and `setup`; the identities' table takes each identity's number,
-forge, login and author, its value from its forge (credentials.md,
-section 4); the engine's routing takes each forge's `git`, and each fake
-forge's setup's `git`; the clients' listener takes `clients.listener`,
-and its forge routes each GitHub forge's `web`.
+Beside the root: the forge component takes each kept forge's number,
+kind, address and transport from its record, and its kind's log
+origins (forge.md, 3.6), with the access the engine's routing builds
+from the forge's credentials (credentials.md, section 5), and the
+webhooks' listener, `webhooks.listener`; the engine's setup host takes
+each kept forge's record, with an owned or fake one's setup entry,
+and the machine's GitHub place for GitHub's plans (forge.md, 2.6); the
+identities' table takes each kept forge's identity, its number, login
+and author from its record, its value from its forge (credentials.md,
+section 4); the engine's routing takes each forge's `git` base and git
+program; the clients' listener takes `clients.listener`, and its forge
+routes each GitHub forge's `web`.
 
 ## 4. temper's members for a worker
 
@@ -467,7 +450,7 @@ have one, an engine alone none. Each:
 | Member | Type | Bounds | Feeds |
 |---|---|---|---|
 | `root` | a directory, a data path | made private (0o700) if absent; an existing one must be the process's user's, private, and not reached through a link | the worker's workspace directory: every checkout's workspace is made under it (git.md, section 2; `../domain/worker.md`, section 5) |
-| `git` | string, or `null` | an absolute path to an executable file, checked at start, whose `git version` is at least the one git.md, section 3 names; `null` for none, as `temper init` writes it on a machine with no git (setup.md, 8.2) | the program the git component runs for each invocation in a repository whose record names none (channel.md, section 4), in the environment git.md, section 5 gives it; with `null`, each such invocation fails, naming its forge's host, and the row of each connected forge but a fake one warns (git.md, section 3; `../client/forge.md`, 5.4). The demo's git is the fake forge's setup's `git`, never this (setup.md, 8.2) |
+| `git` | string, or `null` | an absolute path to an executable file, checked at start, whose `git version` is at least the one git.md, section 3 names; `null` for none, as `temper init` writes it on a machine with no git (setup.md, 8.2) | the program the git component runs for each invocation in a repository whose record names none (channel.md, section 4), in the environment git.md, section 5 gives it; with `null`, each such invocation fails, naming its forge's host, and the row of each connected forge but a fake one warns (git.md, section 3; `../client/forge.md`, 5.4). A forge whose record names a git program runs that instead: the playground's fake forge the machine's fake `git` (section 3; setup.md, 8.2) |
 
 - **The worker's root takes the rest from jig's and smith's:** the hub's
   limits from jig's worker part; smith's host limits and the bounds its
@@ -476,7 +459,7 @@ have one, an engine alone none. Each:
   checkout's limits from temper's profile (section 7).
 - **Workers are alike** (jig's `protocol/configuration.md`, section 4):
   no credential but the worker's secret, and no forge configuration.
-  Remotes, git identities and a fake forge's git program come with each
+  Remotes, git identities and a forge's git program come with each
   assignment, in its repositories' records (channel.md, section 4).
 - **A worker on another host** takes its own machine's git as its `git`:
   a fake forge is on loopback alone (setup.md, 8.4), and serves no
@@ -547,11 +530,11 @@ have one, an engine alone none. Each:
 
 | File | Named by | Holds | Read by |
 |---|---|---|---|
-| an owned or fake forge's handover: its admin's token | `admin_token` in the forge's setup directory, `application.setup[].directory` (setup.md, section 3) | the token's bytes | the engine's setup host, once, at start or the box's `started` (setup.md, 6.5); a fake forge, before binding (setup.md, 8.4) |
+| an owned or fake forge's handover: its admin's token | `admin_token` in the forge's directory under data, named by its number, `forge-N` for an owned forge (setup.md, section 3); named by no member | the token's bytes | the engine's setup host, once, at start or the box's `started` (setup.md, 6.5); a fake forge, before binding (setup.md, 8.4) |
 | a worker's secret, its digest | jig's parts, data paths: `worker.secret` and `worker.digest` in the data directory as `temper init` writes them (setup.md, 8.2) | jig's formats (jig's `protocol/configuration.md`, sections 7 and 10) | jig's components |
 | Google's client secret | `application.sign_in.google.secret`, a data path | the secret's bytes | `temper serve`, once, at start, within `sign_in.secret_bytes` |
 | the OpenID provider's signing key, and each of its clients' secrets | jig's `engine.clients.provider` (jig's `protocol/configuration.md`, section 3) | jig's formats: the key PKCS#8 PEM, made by `temper forge sign-in` (setup.md, 6.8) | `temper serve`, once, at start, for jig's helper that builds the issuer (`sign-in.md`, 9.2) |
-| the demo model's key | `application.demo.llm.key`, a data path: `demo/llm.key` as `temper init` writes it (setup.md, 8.2) | the key's bytes | the fake LLM, at its start, and the seed (setup.md, 8.4); never `temper serve` |
+| the scripted model's key | `application.demo.llm.key`, a data path: `demo/llm.key` as `temper init` writes it (setup.md, 8.2) | the key's bytes | the fake LLM, at its start; `temper serve`, at the playground's start, which makes the scripted account with it (setup.md, 8.4) |
 
 - **A secret file holds its bytes and nothing else** but a final
   newline, which is not part of the secret (jig's
@@ -570,9 +553,10 @@ have one, an engine alone none. Each:
   for the next start or ask to take over again. With no file, the host
   reconciles from the kept record; with neither, the forge is not set
   up.
-- **A set-up forge's directory** (`application.setup[].directory`) and
-  its other files are setup.md, section 3's, made by the setup's
-  commands; `temper serve` reads none of them but the handover.
+- **A set-up forge's directory,** under data and named by its number,
+  and its other files are setup.md, section 3's, made by the setup's
+  commands and removed with the forge (forge.md, 2.3); `temper serve`
+  reads none of them but the handover.
 - **Never written by `temper serve`,** but for the handover it removes
   once taken. An operator replaces a worker's secret and restarts; a
   forge's credentials are replaced from the client, with no restart
@@ -636,7 +620,7 @@ have one, an engine alone none. Each:
   | `root.` | the engine root's own limits, beyond those jig's `engine.limits` sets |
   | `forge.` | `temper-engine-domain-forge`'s `Limits`: `forge.client.`, `forge.change_policy.` and `forge.issue_policy.` for its children, `forge.queue_window_ms` |
   | `checkout.` | `temper-worker-domain-checkout`'s `Limits` |
-  | `forge_component.` | the forge component's, its webhooks' listener's and its GitHub App's among them (forge.md, section 7): the owner's, given once for every forge as the component is made (skein's `forge-connection.md`, 7.2), so none is a member of `forges` |
+  | `forge_component.` | the forge component's, its webhooks' listener's and its GitHub App's among them (forge.md, section 7): the owner's, given once for every forge as the component is made (skein's `forge-connection.md`, 7.2), so none is per forge |
   | `git_component.` | the git component's (git.md, section 8) |
   | `records.` | the engine's routing's: a forge's records and carried values in jig's secrets' store (credentials.md, 2.1) |
   | `forges.` | the engine's routing's, per forge: a GitHub forge's accepted installations and every forge's log origins (forge.md, section 7) |
@@ -649,6 +633,15 @@ have one, an engine alone none. Each:
 
   For example `forge.repositories`, `forge.client.calls`,
   `checkout.remote_timeout_ms`.
+- **The forges are counts, not a list.** No forge is configured
+  (section 3), so the limits that bound forges are the deployment's:
+  `forge.forges`, the forges the forge connector keeps at most, of
+  every kind and mode, an ended one counted until its removal is whole
+  (forge.md, section 7), at most the accounts child's `credentials` in
+  `engine.limits` and in each worker's `limits`, since each kept forge
+  has a git identity; and `forge.repositories` and its kin, the
+  connector's and the forge client's rows, shared by every kept forge,
+  never a sum over them. Memory is metered as any held bytes are.
 - **The webhooks', the keep's settling, the records', the forges', the
   GitHub App's, the setup's, the routes', the picker's, the box's and
   the bundle's limits,** whose numbers are `small`'s constants, as every
@@ -664,7 +657,7 @@ have one, an engine alone none. Each:
   | `forge_component.hook_secret_bytes` | a Forgejo forge's webhooks' secret; a GitHub forge has none (credentials.md, section 2) |
   | `records.value_bytes` | a forge's record or a carried value of temper's, the largest of any item; a pasted value past it is refused, named (credentials.md, 2.1 and 2.2). The client wire's value ceiling is the larger of it and a moved record's bound (jig's `protocol/client.md`, section 5; `../client/tools.md`, 12), so a moved record's file reaches the engine and temper's own values stay within this bound |
   | `forges.installations` | the installations a GitHub forge accepts, its `Accepted` record's ids (credentials.md, 2.1) |
-  | `forges.log_origins` | a forge's `log_origins`; default 20, at most 32 (section 3) |
+  | `forges.log_origins` | a forge's job-log origins, its kind's (forge.md, 3.6); default 20, at most 32 |
   | `forge_component.installations` | the installations the component holds tokens for, per forge |
   | `forge_component.log_origins` | the origins a job log's redirect may reach, per forge (default 20); as many origins said of other redirects are kept per forge (`Fact::Origin`, forge.md, 3.6) |
   | `forge_component.token_bytes` | a forge's token: an API token, a git token or a site admin's token (skein's `forge-connection.md`, 7.2) |
@@ -674,7 +667,6 @@ have one, an engine alone none. Each:
   | `forge_component.log_catch_up_ms` | `log_catch_up` (default 24 h): how far back the delivery log is read when a forge starts again within one process (skein's `forge-connection.md`, 6.5); at most a day, the log's own reach. temper keeps no `guid` across process starts: a process's first read of a forge's log keeps the newest and reads nothing back, and skein's forge client reads each adopted repository afresh at restart |
   | `forge_component.log_pages` | the pages one read of the delivery log takes (default 10) |
   | `forge_component.delivery_bytes` | a delivery read from the log (default 1 MiB) |
-  | `setup.orgs` | a managed entry's `orgs`; an owned entry names none |
   | `setup.deadline_ms` | a setup plan's run, its wait for the forge among it |
   | `setup.backoff_ms`, `setup.backoff_max_ms` | a setup plan's first request made again, doubling |
   | `setup.states` | the setup host's states, held in memory, for the manifest's and the installation's returns |
@@ -711,14 +703,14 @@ have one, an engine alone none. Each:
   - the records': `records.value_bytes` within the largest value jig's
     secrets' store keeps (jig's `protocol/store.md`, section 9), and
     large enough for the maximum encoded `AppKey`, `Accepted`, `AppSlug`
-    and every configured GitHub forge's `Origin`: the component's
-    `key_bytes`, 8 bytes per `forges.installations`, or `forge.name_bytes`,
-    each with its version byte; `Origin` counts both its kind and version
-    prefixes and the configured API address with its port (credentials.md, 2.1);
+    and `Origin`: the component's `key_bytes`, 8 bytes per
+    `forges.installations`, or `forge.name_bytes`, each with its version
+    byte; `Origin` counts both its kind and version prefixes and the
+    largest API address, a host of 253 bytes with its port
+    (credentials.md, 2.1);
   - the forges': `forges.installations` at most
     `forge_component.installations`; `forges.log_origins` at most
-    `forge_component.log_origins`, and each forge's `log_origins` within
-    it; `forge_component.renew_before_ms` below the hour an
+    `forge_component.log_origins`, and each kind's origins within it; `forge_component.renew_before_ms` below the hour an
     installation's token lives; `forge_component.log_catch_up_ms` at
     least `forge_component.log_poll_ms`; each of these limits, and
     `routes.query_bytes` and `picker.page`, above 0;
@@ -748,10 +740,11 @@ have one, an engine alone none. Each:
     part the engine can send within what the worker's limits take; the
     forge's `resources_per_task` equal to the checkout's `repositories`,
     since the engine's terms take the smaller and a worker's parts past
-    them never open the link; the longest remote the routing can make (the longest `git` base, an
-    owner and a name of the forge's `name_bytes`, two `/` and `.git`),
-    and the forge's names and branches, within the checkout's
-    `name_bytes`;
+    them never open the link; the longest remote the routing can make
+    on the machine's places (the longest of `machine`'s remotes' bases
+    and github.com's, an owner and a name of the forge's `name_bytes`,
+    two `/` and `.git`), and the forge's names and branches, within the
+    checkout's `name_bytes` (channel.md, section 8);
   - the worker's, against the agent's configuration
     (`temper-worker-domain::valid`, entrance constraints and count
     representability, with no heap sum), among its rules: the
@@ -898,14 +891,17 @@ have one, an engine alone none. Each:
   directories are resolved and checked (section 12). `temper serve`
   checks it whole, as section 2 says. `temper program-login`, every
   `temper forge` command and `temper box` check its structure, its
-  members, the limits and `setup`, and none of the checks that need a
-  private file read, since a set-up forge's files do not exist before
-  its commands make them (setup.md, section 8). Each reads the private
-  files its own part needs alone: a `temper forge` command its forge's,
-  by setup.md, section 6; `temper box` and `temper program-login`
-  none, the latter reading the agent's configuration besides (section
-  5); `temper serve` every one the document names, and of `setup`'s an
-  owned forge's handover alone (section 6).
+  members, the limits and `machine`, and none of the checks that need
+  a private file read, since a set-up forge's files do not exist before
+  its commands make them (setup.md, section 8). A `temper forge`
+  command finds its forge's kind in the box's group file, and its setup
+  entry in `machine` (README.md, section 4; setup.md, 7.1). Each reads
+  the private files its own part needs alone: a `temper forge` command
+  its forge's, by setup.md, section 6; `temper box` and `temper
+  program-login` none, the latter reading the agent's configuration
+  besides (section 5); `temper serve` every one the document names, and
+  of a forge's directory an owned or fake forge's handover alone
+  (section 6).
 - **A deployment's first start** is jig's (jig's
   `protocol/configuration.md`, section 8): the first with an empty store,
   whose owners and projects the core seeds from `engine`. temper adds:
@@ -926,9 +922,10 @@ have one, an engine alone none. Each:
 - **Every start:**
   - jig's parts apply as jig says (jig's `protocol/configuration.md`,
     section 8);
-  - temper's members apply as configured: the forges, the identities,
-    the deployment's landing rules, the forge's judges for every rule,
-    the charter, the limits and the workers;
+  - temper's members apply as configured: the machine's places, the
+    deployment's landing rules, the forge's judges for every rule, the
+    charter, the limits and the workers. The forges are their records,
+    restored with the forge connector's (forge.md, 2.1);
   - every limit is checked again, temper's and jig's together, with the
     channel's start checks on temper's parts (section 7; channel.md,
     section 8), so a `git` base or a limit changed since the last start
@@ -938,18 +935,18 @@ have one, an engine alone none. Each:
     root is made (`../domain/root.md`, section 6): a start that breaks
     one is refused, naming it;
   - each provider's fixed `sources.sign_in.redirect_port` differs from
-    the clients', webhooks' and each owned forge's listener port, even
-    between IPv4 and IPv6. An absent or ephemeral listener reserves no
-    fixed port. A connected forge's remote API is no local listener;
-  - a forge of kind GitHub with a clients' listener on port 0 refuses
-    the start, naming `application.clients.listener` (section 3);
-  - once io starts, the engine's routing loads every forge's records
-    from jig's secrets' store before the forge component opens a forge.
-    A forge whose records are missing, incomplete, unreadable, or made
-    for another kind or `api` (their `Origin`) is not connected, named,
-    and the other forges run on; nothing is erased. Rows of a forge not
-    configured are left, and named once in the log (credentials.md,
-    2.1);
+    the clients', webhooks', the machine's owned and fake and `demo`'s
+    fake LLM's listener port, even between IPv4 and IPv6. An absent or
+    ephemeral listener reserves no fixed port. A connected forge's
+    remote API is no local listener;
+  - once io starts, the forge connector restores every forge's record,
+    and an ended one's removal resumes (forge.md, 2.3); the engine's
+    routing loads every kept forge's credentials from jig's secrets'
+    store before the forge component opens a forge. A forge whose
+    records are missing, incomplete, unreadable, or made for another
+    kind or `api` (their `Origin`) is not connected, named, and the
+    other forges run on; nothing is erased. Rows of a forge with no
+    record are left, and named once in the log (credentials.md, 2.1);
   - each forge's writer is restored from the main store, where skein's
     forge client keeps it (`Key::Writer(forge)`; credentials.md, 2.1);
   - a GitHub forge's delivery log is read from its newest delivery on:
@@ -967,17 +964,16 @@ have one, an engine alone none. Each:
     each managed and owned forge is reconciled by the engine's setup
     host, and shows "connecting" until reconcile is done, while the
     engine serves (setup.md, the setup host in the engine); an owned
-    forge whose setup says `"start": "asked"`, with neither a handover
-    nor a record of one, is not set up until the client asks the box
-    for it (setup.md, 6.5);
+    forge with neither a handover nor a record of one is not set up
+    until the client asks the box for it (setup.md, 6.5);
   - under the box, `temper internal serve` takes the listeners the box
     gives it, from fd 3, `LISTEN_FDS` of them, its clients' and webhooks'
     listeners claiming them by their addresses, and `--box` adopts the
     box's pipe, the two fds after them, refusing its start, naming the
     fd, when either is not an open pipe (setup.md, 7.1); a start without
     the flag has no pipe, and leaves those fds alone;
-  - every identity whose forge has a value is announced at generation 1
-    before the root's restart; a GitHub forge's, once its first tokens
+  - every kept forge's identity that has a value is announced at
+    generation 1 before the root's restart; a GitHub forge's, once its first tokens
     are minted (credentials.md, section 4). Every connected forge's user
     is checked by the forge component's first exchange (credentials.md,
     section 5);
@@ -991,18 +987,12 @@ have one, an engine alone none. Each:
   through the client, by the forge's number, the owner and the name, and
   the store keeps it (jig's `protocol/configuration.md`, section 3;
   `../client/README.md`, section 4).
-- **What a change reaches,** after its restart: a forge's `git`, every
-  remote from the next assignment on; its `kind` or `api`, the forge not
-  connected until it is connected again, since its records' `Origin`
-  names the old ones (credentials.md, 2.1); its `log_origins`, from the
-  next job log on; the webhooks' listener, from the first delivery on;
-  an identity's `login` or `author`, granted again at generation 1; a
-  forge's `number`, a new forge, not connected (section 3); a forge's
-  setup, at the engine's next reconcile, or the next run of its
-  commands (setup.md, 6.3 and section 5); its `start`, at the box's next
-  start, but that a forge with the box's record runs at every start
-  (setup.md, 7.1); its `mirror`, at the next fetch; a fake forge's
-  `git`, every repository's from the next assignment on; a worker's
+- **What a change reaches,** after its restart: `machine`'s places,
+  the forges made after it; a kept forge keeps the place and git
+  program its record holds (forge.md, 2.1), while its setup entry is
+  `machine`'s part of its kind (setup.md, section 8), so a forge moved
+  to another place is one removed and set up or connected again
+  (forge.md, 2.3); the webhooks' listener, from the first delivery on; a worker's
   `git`, every invocation, checked at the start.
 - **A forge's credentials are no change of configuration:** they are
   connected, replaced and forgotten from the client, with no restart
@@ -1039,8 +1029,8 @@ feed:
   snake_case (`"clean"`);
 - **a variant with fields** is an object with one member named after the
   variant in snake_case, whose value is the field's for one unnamed field,
-  or an object of the fields by name (a forge's `transport`:
-  `{"tls": {"server_name": ..., "trust": ...}}`);
+  or an object of the fields by name (the machine's GitHub
+  `transport`: `{"tls": {"server_name": ..., "trust": ...}}`);
 - **byte strings** are JSON strings, UTF-8;
 - **durations** are integers of milliseconds, the member's name suffixed
   `_ms`;
@@ -1057,34 +1047,31 @@ feed:
 
 **jig's formats,** by citation (jig's `protocol/configuration.md`, section
 10): an address (`{"socket": ...}`, `{"host": ..., "port": ...}`,
-`{"in_process": ...}`); a secret file; a digest file. A forge's
-`transport` offers the choices jig's LLM endpoints offer (plaintext to
+`{"in_process": ...}`); a secret file; a digest file. A `transport`
+of temper's, the machine's GitHub's or Google's endpoints', offers the
+choices jig's LLM endpoints offer (plaintext to
 a loopback socket address
 only; TLS with a server name and a trust file, or the machine's roots),
 written by the format rule as one member of temper's own type, where
 jig's endpoints spell them as sibling members (`"transport": "tls"`,
 `"server_name"`, `"trust"`).
 
-**The `application` member for standalone,** one forge, one identity and
-one worker, complete:
+**The `application` member for standalone,** one owned Forgejo's place
+and one worker, complete:
 
 ```json
 "application": {
-  "forges": [{
-    "number": 1,
-    "kind": "forgejo",
-    "api": {"host": "forge.example", "port": 443},
-    "transport": {"tls": {"server_name": "forge.example", "trust": null}},
-    "git": "https://forge.example",
-    "web": null,
-    "log_origins": null
-  }],
-  "identities": [{
-    "number": 1,
-    "forge": 1,
-    "login": null,
-    "author": {"name": "temper", "email": "temper-bot@forge.example"}
-  }],
+  "machine": {
+    "owned": {
+      "forgejo": "fetched",
+      "runner": {"binary": "fetched", "labels": ["temper-host:host"],
+                 "capacity": 1, "path": "/usr/local/bin:/usr/bin:/bin"},
+      "listen": {"socket": "127.0.0.1:3000"},
+      "person": {"login": "ada", "email": "ada@example.invalid"},
+      "remote": "http://127.0.0.1:3000"
+    },
+    "github": null
+  },
   "landing": {
     "deployment": [],
     "projects": [{
@@ -1093,7 +1080,7 @@ one worker, complete:
         "connector": 1,
         "kind": 4,
         "pattern": {
-          "segments": ["forge", "forge.example", "acme", "widget", "branch"],
+          "segments": ["forge", "127.0.0.1:3000", "acme", "widget", "branch"],
           "last": "exact",
           "value": "main"
         },
@@ -1107,8 +1094,8 @@ one worker, complete:
   },
   "charter": 2,
   "clients": {"listener": {"socket": "127.0.0.1:7100"}, "bundle": null, "public": null},
-  "webhooks": null,
-  "setup": [],
+  "webhooks": {"listener": {"socket": "127.0.0.1:7101"}},
+  "sign_in": null,
   "demo": null,
   "limits": {"profile": "small", "overrides": {}},
   "workers": [{"root": "workspaces", "git": "/usr/bin/git"}]
@@ -1116,11 +1103,12 @@ one worker, complete:
 ```
 
 A landing rule may name a repository no project has adopted yet: it
-covers nothing until a person adopts `acme/widget`. The forge is reached
-over TLS from another host, so it polls, with no webhooks. It names no
-credential: the person connects it from the client, pasting the bot's
-two tokens (credentials.md, 2.2), and its git identity takes the bot's
-login and the `GitToken` record.
+covers nothing until a person adopts `acme/widget`. The document names
+no forge and no credential: the person sets the owned Forgejo up from
+the client, under the box, which makes its record on these places
+(forge.md, 2.2), or connects GitHub, or a Forgejo elsewhere as its
+admin, with nothing changed here; a forge's git identity takes its
+bot's login and, on Forgejo, the `GitToken` record.
 
 **The whole document,** jig's members elided as `...` (this skeleton is
 not itself valid JSON):
@@ -1163,7 +1151,7 @@ not itself valid JSON):
 Its `engine.limits` names the overrides section 7 asks, and its worker's
 `limits` those the worker's check against the agent asks (section 7).
 The owned example, `docs/examples/owned.json`, is a whole document for
-one owned forge, with its own values (setup.md, 8.1).
+one owned Forgejo's place, with its own values (setup.md, 8.1).
 
 ## 11. Open questions
 
@@ -1176,9 +1164,6 @@ one owned forge, with its own values (setup.md, 8.1).
   deployment's rules alone. Default: the deployment's. Section 13
   designs otherwise: a project's rules are a setting its owners
   change, kind 2, for any project, made or seeded.
-- **A forge removed while the store holds its repositories.** Default:
-  the start is refused at the forge's restart step, naming the forge
-  number (jig's `protocol/configuration.md`, section 9, removed parts).
 - **A project's landing rules changed after its first start.** They
   reach the forge's judges at the next start, but the project's policy
   keeps the requirements seeded at its first start. Default: a change
@@ -1237,7 +1222,7 @@ variable, else its default.
 | Directory | Flag, variable | Default | Holds | Kept |
 |---|---|---|---|---|
 | configuration | `--config DIR`, `TEMPER_CONFIG` | `$XDG_CONFIG_HOME/temper` | the document, `temper.json`; smith's agent configuration, `agent.json`; the charters' instructions, until section 13 moves them into the binary; trusted roots' files | as a person's own files are: copied, synced or published, so it holds no secret |
-| data | `--data DIR`, `TEMPER_DATA` | `$XDG_DATA_HOME/temper` | the deployment's directory, with the store, transcripts and jig's secrets' store; the worker's secret and its digest; the worker's root; each set-up forge's directory (setup.md, section 3); the demo's key and its git's link, in `demo/` (setup.md, 8.4); the box's records of the forges it has started, in `box/started/` (setup.md, 7.1); the box's logs of its last two runs, in `box/logs/` and `box/logs.previous/` (setup.md, 7.2); the programs directory | the deployment: backed up whole |
+| data | `--data DIR`, `TEMPER_DATA` | `$XDG_DATA_HOME/temper` | the deployment's directory, with the store, transcripts and jig's secrets' store; the worker's secret and its digest; the worker's root; each set-up forge's directory, named by its number (setup.md, section 3); the scripted model's key and the fake git's link, in `demo/` (setup.md, 8.4); the box's groups, in `box/groups/`, and its records of the groups it has started, in `box/started/` (setup.md, 7.1); the box's logs of its last two runs, in `box/logs/` and `box/logs.previous/` (setup.md, 7.2); the programs directory | the deployment: backed up whole |
 | cache | `--cache DIR`, `TEMPER_CACHE` | `$XDG_CACHE_HOME/temper` | binaries fetched again at will: an owned forge's Forgejo and runner, `temper forge fetch`'s in `forgejo/VERSION/` and `forgejo-runner/RUNNER_VERSION/` (setup.md, 6.6) | never backed up |
 
 - **The document is `temper.json` in the configuration directory,**
@@ -1259,16 +1244,18 @@ variable, else its default.
   `temper init` makes it.
 - **Each path member's kind:**
   - *configuration paths:* jig's charters' instructions and trusted
-    roots' files, and each forge's `transport.tls.trust` (section 3); the
+    roots' files, and the machine's GitHub `transport.tls.trust`
+    (section 3); the
     worker's agent's `configuration` is one in jig's parts, which
     standalone requires absolute (below);
   - *data paths:* jig's `engine.deployment.directory`, each of
     `engine.hosts.workers`' `digest` and the worker's `secret`; each of
-    `application.workers`' `root` (section 4) and of
-    `application.setup`'s `directory` and a fake forge's `git` (setup.md,
-    section 8); and `application.demo`'s `llm.key` (setup.md, 8.4);
-  - *cache paths:* an owned forge's `forgejo` and `runner.binary`, or
-    `"fetched"` for `temper forge fetch`'s (setup.md, section 8 and 6.6);
+    `application.workers`' `root` (section 4); `application.machine`'s
+    `fake.git` and `github.git` (section 3); and `application.demo`'s
+    `llm.key` (setup.md, 8.4);
+  - *cache paths:* `application.machine.owned`'s `forgejo` and
+    `runner.binary`, or `"fetched"` for `temper forge fetch`'s
+    (setup.md, section 8 and 6.6);
   - *absolute paths,* refused when relative: each of
     `application.workers`' `git` but a null one,
     `application.clients.bundle`, and the agent's `program`,
@@ -1277,7 +1264,8 @@ variable, else its default.
     configuration, which is smith's format.
 - **No secret in the configuration directory:** a worker's secret and
   its digest, an owned or fake forge's handover, every set-up forge's
-  file and the demo model's key are data paths, and jig's secrets' store is in the deployment's directory.
+  file and the scripted model's key are under data, and jig's secrets'
+  store is in the deployment's directory.
 - **The box passes its three on** to each step, as flags, each absolute
   (setup.md, 7.1).
 - **Each of the cluster's processes has its own three** (`README.md`, 15.1):
@@ -1333,8 +1321,9 @@ login is imported.
   startup never migrates or deletes E or silently omits a required peer.
   Removing E resets this scratch deployment; a
   normal start never reads it as the real one.
-- **Roots:** GitHub forge 2's API, web, git and transport name one
-  plaintext loopback fake. Provider 1 keeps its shipped client, scopes,
+- **Roots:** the machine's GitHub part names one plaintext loopback
+  fake, its API, its remotes' base and its pages, with the fake git
+  adapter as its `git` (section 3). Provider 1 keeps its shipped client, scopes,
   must-grant, resource and callback; its five sign-in origins name the
   local issuer. The openai endpoint in both effective documents names
   the same plaintext fake model, with stale TLS members removed. The
@@ -1370,20 +1359,24 @@ A FILE is a path, never its contents. COMMAND is `temper program-login`
 with the effective directories, ending in the placeholder `NAME (the name
 the Model step shows)` for the source name the Model step declares.
 
-The effective configuration keeps forge 1 as the playground, forge 2 as
-GitHub and forge 3 as the owned Forgejo. Forge 4 is the ordinary managed
-Forgejo elsewhere: its API and git roots name a separate loopback
-fake. Its web member is null, as for ordinary Forgejo (section 3);
-readiness prints the fake peer's origin separately. Forges 2 and 4 name
-the fake git adapter as their `git_program` (section 3), since skein's
-fake forges speak a fake git protocol; forge 3 keeps the machine's git.
-Its retained peer document is C'/forgejo.json, and its dummy admin
-token is D'/forgejo-admin.token, private with mode 0600. Readiness names
-only that file's path; its contents belong in no log, report or record.
-The sandbox's own configured counts admit all four forges and their four
-identities; these explicit local overrides are checked through ordinary
-admission and edge-bound checks. Repository defaults, policy bounds and
-time budgets remain the ordinary ones. The managed entry carries the
+The effective configuration names no forge, as every document does
+(section 3): the person makes each from the welcome. The playground's
+fake forge and the owned Forgejo take the machine's fake and owned
+places as init wrote them, and GitHub the fake above. Forgejo elsewhere
+is an ordinary managed Forgejo, connected as its admin (setup.md, 5.5)
+at a separate loopback fake, its API and remotes' base that fake's and
+its pages none, as for ordinary Forgejo; readiness prints the fake
+peer's origin separately. GitHub and Forgejo elsewhere run the fake
+git adapter as their git program (forge.md, 2.1), since skein's fake
+forges speak a fake git protocol; the owned Forgejo keeps the worker's
+git. Forgejo elsewhere's retained peer document is C'/forgejo.json, and
+its dummy admin token is D'/forgejo-admin.token, private with mode
+0600. Readiness names only that file's path; its contents belong in no
+log, report or record. The sandbox's own overrides admit four forges'
+git identities (`accounts.credentials`, 4); these explicit local
+overrides are checked through ordinary admission and edge-bound
+checks. Repository defaults, policy bounds and
+time budgets remain the ordinary ones. Forgejo elsewhere follows the
 ordinary admin-connect contract, not an automatic account login or a
 product fake branch. A retained sandbox
 missing this required document refuses by name with reset instructions;
@@ -1392,7 +1385,7 @@ its marker stays v1 and no file is silently generated on reuse.
 Forgejo here keeps the ordinary owned steps and cache (setup.md, 6.6);
 an empty cache may need its ordinary one-time pinned download, while a
 disconnected walk uses a populated cache. Forgejo elsewhere is an
-ordinary managed entry backed by its separate fake. Program login is the
+ordinary managed Forgejo backed by its separate fake. Program login is the
 ordinary command with its configured fake adapter, not an automatic login.
 The fake program way uses the pinned `fake-claude` executable provisioned
 beside `temper`, resolved to that exact absolute sibling path, and its
@@ -1448,9 +1441,9 @@ The pages a person meets it on are `../client/README.md`, 5.13.
 
 - **What stays** is section 3's other members and jig's other parts:
   the directories, the listeners, the workers and their secrets' files,
-  the limits, the first owners and the sign-in providers, the forges,
-  the identities, `clients`, `sign_in`, `webhooks`, `setup` and `demo`,
-  and, for now, the LLM providers (`engine.llm`), each its own design
+  the limits, the first owners and the sign-in providers, `machine`,
+  `clients`, `sign_in`, `webhooks` and `demo`, and, for now, the LLM
+  providers (`engine.llm`), each its own design
   later (`../draft/configuring.md`, section 10). jig's `engine.projects`,
   the projects a first start seeds, stays jig's member; `temper init`'s
   project 1 names its policy as `policy: 1` (jig's
@@ -1516,6 +1509,13 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
   (`../domain/forge.md`, 8.3). At a start the forge is given the stock
   defaults, tells jig which changed, and holds the current values
   before its other records (`../domain/forge.md`, section 16).
+- **Erased with their project.** A project deleted (jig's
+  `RemoveProject`, jig's `domain/people.md`, 5.2) has its settings
+  erased by the connector owning each kind: the forge erases its kinds
+  2, 4 and 5 of that project's scope, their current changes and the
+  items of pending proposals among them, in the deletion's steps, and
+  the deployment's kinds 1 and 3 stay. A project made later, its number
+  never the deleted one's, starts from the stock defaults.
 - **Read from the forge.** A client reads a landing rule's value, the
   forge's charter, and a pending proposal's items of temper's kinds
   through the forge's family (`../client/forge.md`, section 9); jig's
@@ -1681,8 +1681,8 @@ init`'s document carries none of them (`setup.md`, 8.3).
   a stock setting names it as ctl does, `charter 1.hosts`.
 - **The stock charters' models are the document's:** a charter names
   configured models, and the binary knows none, so it gives every model
-  `engine.llm` configures, the demo's among them where the demo is
-  configured. A document whose models change between starts gives new
+  `engine.llm` configures, the scripted model's among them where `demo`
+  is configured. A document whose models change between starts gives new
   defaults, which make a revision recorded as the release's (jig's
   `domain/engine.md`, 17.7).
 - **A release that changes a default** reaches every deployment that

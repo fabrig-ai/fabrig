@@ -11,7 +11,10 @@
   2.6, 5.3: the cluster's 4.6 process story is ignored: a retry placed on a
   stopping worker's still-linked channel is journaled as an extra refused
   attempt, until jig takes a draining worker out of placement. 2.7: a live
-  story ending at its task's first terminal failure. 2.7: the owned-forge
+  story ending at its task's first terminal failure. 2.7: the live GitHub
+  story connects the probe App without `--read-only`, so its record's
+  `read_only` is false (`crates/temper/tests/support/live_github.rs`).
+  2.7: the owned-forge
   landing pair has not run after a landing (the runner is fab's, in the
   agents repository), neither story has run live on its own store, nor the
   Claude Code one on `claude-haiku-5-5`; the pair's `#[ignore]` reasons
