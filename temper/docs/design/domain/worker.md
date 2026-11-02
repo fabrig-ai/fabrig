@@ -331,8 +331,8 @@ it a unit the tag does not identify.
 ### 4.4 Jobs
 
 Jobs are jig's (jig's `domain/hosts.md`, 6.9). The worker's root
-composes a job capability, `temper-worker-domain-tooling`, beside smith's
-agent processes, and declares in its hello the kinds it runs:
+composes a job capability, `temper-worker-domain-tooling`, beside
+smith's agent processes, and declares in its hello the kinds it runs:
 
 | Kind | What it runs | Its spec | Its result |
 |---|---|---|---|

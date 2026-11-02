@@ -93,13 +93,12 @@ engine's routing encodes it (`../protocol/llm.md`, section 5).
   (jig's `protocol/configuration.md`, section 3): a chat's, a
   coordinator's, a reviewer's with a lens, a change's producer's; until
   an amendment gives a task its own (jig's `domain/tasks.md`, section
-  7), whole, where an empty text leaves it none, not its charter's.
-  The task's next run carries them; a run already live hears them as
-  the amendment's words. A charter is a setting in
-  the store, read from the revision the task runs under (jig's
-  `domain/engine.md`, 17.3), temper's stock chat's and coding agent's
-  held in the binary as their defaults
-  (`../protocol/configuration.md`, 13.4).
+  7), whole, where an empty text leaves it none, not its charter's. The
+  task's next run carries them; a run already live hears them as the
+  amendment's words. A charter is a setting in the store, read from the
+  revision the task runs under (jig's `domain/engine.md`, 17.3),
+  temper's stock chat's and coding agent's held in the binary as their
+  defaults (`../protocol/configuration.md`, 13.4).
 - **The brief:** the sections jig's core gathers (jig's
   `domain/engine.md`, section 9) and the forge's (forge.md, section 2),
   each rendered as one of smith's titled sections, titled by its kind:
@@ -372,36 +371,37 @@ it as any `delegate`:
 - **an advisor,** with `advisor` set, its report bounded as a goal's,
   its brief opening with the caller's words, then a blank line and the
   root's own line that it is an advisor, which reads and reports and
-  changes nothing, so that its task's title is the work,
-  the line counted with the words within the spec's bytes (a request is
-  refused as too long with the line included, never cut to make room),
-  so that it knows what it is without a convention in those words:
-  unlabelled, with plain flags (not listed, no conversation, kept,
-  ended by its result), and untracked, so that no goal of its
-  is projected on the forge; reads alone, no grant of a forge effect, no
-  delegation (no kinds, tasks or depth) and no notes, so that it reads
-  and reports and can change nothing beyond its own workspace, which it
-  has no grant to push (a rail, not an instruction).
+  changes nothing, so that its task's title is the work, the line
+  counted with the words within the spec's bytes (a request is refused
+  as too long with the line included, never cut to make room), so that
+  it knows what it is without a convention in those words: unlabelled,
+  with plain flags (not listed, no conversation, kept, ended by its
+  result), and untracked, so that no goal of its is projected on the
+  forge; reads alone, no grant of a forge effect, no delegation (no
+  kinds, tasks or depth) and no notes, so that it reads and reports and
+  can change nothing beyond its own workspace, which it has no grant to
+  push (a rail, not an instruction).
 
 The root builds it where it builds `change`'s delegate, in the engine's
 route of host tools, and decides it as any `delegate`; the smith
 translation only decodes the call.
 
 The goal's own run takes `goal` too: an advisor it asks for, before it
-asks its requester, is its survey before a plan. An advisor is all it takes, and only it takes
-one: a goal is the work its person asked for, and a goal under it would
-ask the goal, not the person, and be answered by it (8.2); a goal is
-where the work is planned, so an advisor asked for elsewhere leaves the
-work to be planned in a chat's reply. So one fact of the calling run,
-whether the root built it as a goal, decides both: the root refuses a
-goal's `goal` without `advisor` (a goal starts an advisor alone: set
-`advisor`, or make the change with `change`), and any other run's
-`goal` with `advisor` set (to change a repository, call `change`; a
-goal is for work they want to agree first or a survey, and its goal asks
-for an advisor), and any `goal` with both `agree` and `advisor` set (an
-advisor agrees nothing: set agree or advisor, not both), and the run
-goes on, as any refused host call does. A person who wants a survey alone gets a
-goal that asks its advisor and reports, changing nothing.
+asks its requester, is its survey before a plan. An advisor is all it
+takes, and only it takes one: a goal is the work its person asked for,
+and a goal under it would ask the goal, not the person, and be answered
+by it (8.2); a goal is where the work is planned, so an advisor asked
+for elsewhere leaves the work to be planned in a chat's reply. So one
+fact of the calling run, whether the root built it as a goal, decides
+both: the root refuses a goal's `goal` without `advisor` (a goal starts
+an advisor alone: set `advisor`, or make the change with `change`), and
+any other run's `goal` with `advisor` set (to change a repository, call
+`change`; a goal is for work they want to agree first or a survey, and
+its goal asks for an advisor), and any `goal` with both `agree` and
+`advisor` set (an advisor agrees nothing: set agree or advisor, not
+both), and the run goes on, as any refused host call does. A person who
+wants a survey alone gets a goal that asks its advisor and reports,
+changing nothing.
 
 ### 4.4 Result contracts
 
@@ -431,10 +431,10 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
 ### 4.6 Budget, models, waiting
 
 - **Budget:** the run's turns, spend and time, with its reserve of turns
-  and time for finishing (smith's `domain/run.md`, 9.1), from its charter
-  in configuration, at the task's revision; its spend is what its task has left, capped per run,
-  reserved at its claim, in the deployment's unit (jig's
-  `domain/hosts.md`, section 8).
+  and time for finishing (smith's `domain/run.md`, 9.1), from its
+  charter in configuration, at the task's revision; its spend is what
+  its task has left, capped per run, reserved at its claim, in the
+  deployment's unit (jig's `domain/hosts.md`, section 8).
 - **Models:** the main session's and those its sub-agents may use, each
   with its endpoint, window, output and prices (`../protocol/llm.md`,
   section 3): the task's LLM choice among those its charter allows,

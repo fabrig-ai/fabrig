@@ -1,14 +1,14 @@
 # Findings and QA after landing
 
-Provisional, 2026-10-27. Something found that is
-not its finder's to fix now (a QA pass's finding, a flake, a red whose
-goal has ended, a review's follow-up) is a finding: a labelled issue in
-the project's home, whose labels temper reads back, so that it can be
-triaged on the forge or in temper. And QA after landing: landings mark
-what a user can now do, a chooser picks which marks to test, and one
-tester at a time tries them on the newest cleared main. It replaces
-`forge.md`, 12's findings, kept in the store and never read back. What
-is open is section 10.
+Provisional, 2026-10-27. Something found that is not its finder's to fix
+now (a QA pass's finding, a flake, a red whose goal has ended, a
+review's follow-up) is a finding: a labelled issue in the project's
+home, whose labels temper reads back, so that it can be triaged on the
+forge or in temper. And QA after landing: landings mark what a user can
+now do, a chooser picks which marks to test, and one tester at a time
+tries them on the newest cleared main. It replaces `forge.md`, 12's
+findings, kept in the store and never read back. What is open is section
+10.
 
 ## 1. In one page
 
@@ -141,15 +141,15 @@ is open is section 10.
   (after-landing.md, 5.3), not when it lands; a red landing closes
   nothing until it is repaired.
 - **The forge's own keywords** would close it at the merge: an owned
-  Forgejo's setup turns its closing keywords off (`../protocol/setup.md`,
-  `CLOSE_KEYWORDS` empty); GitHub's per-repository setting,
-  "Auto-close issues with merged linked pull requests", is named at
-  adoption, with whether it is off. On GitHub, whatever it says, and on
-  any other forge, a finding closed in the minute after a landing whose
-  commits name it is the keyword's, and temper reopens it with a
-  comment saying it closes once its landing is cleared, until a check
-  of whether the setting also stops a commit's keyword under a ref
-  update says the reopening can go.
+  Forgejo's setup turns its closing keywords off
+  (`../protocol/setup.md`, `CLOSE_KEYWORDS` empty); GitHub's
+  per-repository setting, "Auto-close issues with merged linked pull
+  requests", is named at adoption, with whether it is off. On GitHub,
+  whatever it says, and on any other forge, a finding closed in the
+  minute after a landing whose commits name it is the keyword's, and
+  temper reopens it with a comment saying it closes once its landing is
+  cleared, until a check of whether the setting also stops a commit's
+  keyword under a ref update says the reopening can go.
 - **From a repository other than the home,** `Fixes #n` would name that
   repository's own issue n. There a change names a finding by the
   trailer `Fixes-finding: n`, which no forge reads; temper reads it in
@@ -202,7 +202,8 @@ is open is section 10.
 - **In the store:** `Finding` (by the home's issue), `Mark` (by
   landing), `QaPass` (by its task), through the baseline's rules.
 - **Settings,** with kind 4: findings on or off; the triager; the
-  chooser; the tester charter; the project's areas. Until kind 4 is a setting, in the document's `landing` member, as `by` is (`landing.md`,
+  chooser; the tester charter; the project's areas. Until kind 4 is a
+  setting, in the document's `landing` member, as `by` is (`landing.md`,
   13.1): `findings`, true or false (false by default), and each
   repository's `area` beside its gates.
 
