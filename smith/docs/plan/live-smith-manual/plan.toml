@@ -1,0 +1,3 @@
+draft = "live-smith-manual"
+repo = "fabrig"
+sources = ["smith/docs/plan/live-smith-manual/inputs/request.md", "AGENTS.md"]
