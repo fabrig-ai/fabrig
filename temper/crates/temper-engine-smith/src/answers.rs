@@ -22,12 +22,7 @@ impl Text {
 
     fn add(&mut self, text: &[u8]) -> Result<(), Problem> {
         const DIGITS: &[u8; 16] = b"0123456789abcdef";
-        let mut len = 0_usize;
-        for byte in text {
-            len = len
-                .checked_add(if (*byte >= b' ' && *byte <= b'~') || *byte == b'\n' { 1 } else { 4 })
-                .ok_or(Problem::TooLarge)?;
-        }
+        let len = escaped_len(text);
         self.len = self.len.checked_add(len).ok_or(Problem::TooLarge)?;
         if self.len > HostAnswer::CAPACITY {
             return Err(Problem::TooLarge);
@@ -75,6 +70,85 @@ impl Text {
         }
         HostAnswer::new(writer.finish(), error).ok_or(Problem::TooLarge)
     }
+}
+
+/// Render job logs within the configured host body bound, including metadata
+/// and byte escaping. A cut keeps the log's end and says bytes were omitted.
+#[must_use]
+pub fn answer_bounded(answer: &CallAnswer, max_bytes: u32) -> HostAnswer {
+    if let CallAnswer::ForgeRead(read) = answer
+        && let Ok(api::Answer::Job { attempt, step, log, truncated }) = read.as_ref()
+    {
+        let mut text = Text::new();
+        let result = job_text(&mut text, attempt, step.as_ref(), log, *truncated, max_bytes);
+        let result = match result {
+            Ok(()) => text.finish(false),
+            Err(problem) => Err(problem),
+        };
+        return match result {
+            Ok(answer) => answer,
+            Err(_) => {
+                const WHY: &[u8] = b"Job metadata exceeds the host answer limit.";
+                let length = usize::try_from(max_bytes).expect("u32 fits").min(WHY.len());
+                HostAnswer::new(bytes::copy_of(WHY.get(..length).expect("bounded feedback")), true)
+                    .expect("fixed host feedback fits")
+            }
+        };
+    }
+    self::answer(answer)
+}
+
+fn job_text(
+    text: &mut Text,
+    attempt: &api::JobAttempt,
+    step: Option<&api::Step>,
+    log: &[u8],
+    truncated: bool,
+    max_bytes: u32,
+) -> Result<(), Problem> {
+    const CUT: &[u8] = b"[log bytes cut]\n";
+    text.add(b"Job ")?;
+    text.number(attempt.job)?;
+    text.add(b" run ")?;
+    text.number(attempt.run)?;
+    if let Some(step) = step {
+        text.add(b", failed step ")?;
+        text.number(u64::from(step.number))?;
+        if !step.name.is_empty() {
+            text.add(b" ")?;
+            text.add(&step.name)?;
+        }
+    } else {
+        text.add(b", no step failed")?;
+    }
+    text.add(b":\n")?;
+    let cap = usize::try_from(max_bytes).expect("u32 fits usize").min(HostAnswer::CAPACITY);
+    let room = cap.checked_sub(text.len).ok_or(Problem::TooLarge)?;
+    let whole = escaped_len(log);
+    if !truncated && whole <= room {
+        return text.add(log);
+    }
+    let room = room.checked_sub(CUT.len()).ok_or(Problem::TooLarge)?;
+    let mut used = 0_usize;
+    let mut start = log.len();
+    for byte in log.iter().rev() {
+        let size = escaped_len(core::slice::from_ref(byte));
+        if used.saturating_add(size) > room {
+            break;
+        }
+        used = used.saturating_add(size);
+        start = start.saturating_sub(1);
+    }
+    text.add(CUT)?;
+    text.add(log.get(start..).expect("bounded suffix"))
+}
+
+fn escaped_len(text: &[u8]) -> usize {
+    let mut len = 0_usize;
+    for byte in text {
+        len = len.saturating_add(if (*byte >= b' ' && *byte <= b'~') || *byte == b'\n' { 1 } else { 4 });
+    }
+    len
 }
 
 /// Render a durable root answer for Smith's LLM. Any unrenderable payload
@@ -770,25 +844,7 @@ fn forge_answer(text: &mut Text, answer: &api::Answer) -> Result<(), Problem> {
             }
         }
         api::Answer::Job { attempt, step, log, truncated } => {
-            text.add(b"Job ")?;
-            text.number(attempt.job)?;
-            text.add(b" run ")?;
-            text.number(attempt.run)?;
-            if let Some(step) = step {
-                text.add(b", failed step ")?;
-                text.number(u64::from(step.number))?;
-                if !step.name.is_empty() {
-                    text.add(b" ")?;
-                    text.add(&step.name)?;
-                }
-            } else {
-                text.add(b", no step failed")?;
-            }
-            text.add(b":\n")?;
-            if *truncated {
-                text.add(b"[earlier log bytes cut]\n")?;
-            }
-            text.add(log)?;
+            job_text(text, attempt, step.as_ref(), log, *truncated, u32::try_from(HostAnswer::CAPACITY).expect("cap"))?;
         }
         api::Answer::Directory { head, path, entries, truncated } => {
             directory_text(text, head, path, entries, *truncated)?;

@@ -156,7 +156,7 @@ fn render(_source: BriefSource, text: Box<[u8]>, left: u64, budget: u32) -> Opti
     render_edge(text, left, budget, false)
 }
 
-pub(crate) const LOG_CUT: &[u8] = b"[log truncated before this]\n";
+pub(crate) const LOG_CUT: &[u8] = b"[log bytes cut]\n";
 
 pub(crate) fn render_log(text: Box<[u8]>, truncated: bool, budget: u32) -> Option<Box<[u8]>> {
     let room = usize::try_from(budget).ok()?;
