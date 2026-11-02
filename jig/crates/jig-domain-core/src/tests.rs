@@ -9,6 +9,7 @@ mod fill;
 mod fixtures;
 mod funding;
 mod inbox;
+mod jobs;
 mod limits;
 mod reads;
 mod routing;
@@ -416,6 +417,7 @@ pub(crate) fn config(seed: u64) -> Config {
         requirements: Box::new([]),
     };
     Config {
+        jobs: Box::new([]),
         worker_names: Box::new([b"alpha".as_slice().into(), b"beta".as_slice().into()]),
         deployment: [31; 16],
         seed,

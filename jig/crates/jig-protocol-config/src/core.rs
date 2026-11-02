@@ -57,6 +57,7 @@ pub fn core(engine: &Engine, deployment: [u8; 16], seed: u64) -> domain::Config 
         }
     }
     domain::Config {
+        jobs: Box::new([]),
         worker_names: {
             let mut names = List::with_capacity(engine.limits.link.names);
             for worker in &engine.hosts.workers {
