@@ -61,10 +61,10 @@ fn a_program_overrun_is_spent() {
 }
 
 #[test]
-fn a_program_main_offers_no_sub_agent() {
+fn a_program_main_offers_its_sub_agents() {
     let mut h = program();
     let (_, _, prompt) = h.admit(7, charter());
-    assert!(!prompt.served.contains(&Served::SubAgent));
+    assert!(prompt.served.contains(&Served::SubAgent));
 }
 
 #[test]
