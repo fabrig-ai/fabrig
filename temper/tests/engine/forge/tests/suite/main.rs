@@ -8,6 +8,7 @@ mod protection;
 mod replay;
 mod settle;
 mod simulation;
+mod tiers;
 mod writer;
 
 mod fuzzy {

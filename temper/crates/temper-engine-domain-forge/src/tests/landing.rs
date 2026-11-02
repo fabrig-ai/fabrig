@@ -1,6 +1,117 @@
 use super::*;
 use temper_engine_domain_forge_landing as policy;
 
+#[test]
+fn project_landing_keeps_repository_tiers_and_settings_separate_by_project() {
+    use temper_engine_domain_forge_change::Way;
+    use temper_engine_domain_forge_tiers::{Format, Settings, Suspects};
+    let mut d = domain();
+    let tier = Tier {
+        name: Box::from(b"slow".as_slice()),
+        workflow: Box::from(b"slow.yml".as_slice()),
+        ignored: Box::new([Box::from(b"docs".as_slice())]),
+        artifact: Box::from(b"failures".as_slice()),
+        format: Format::Junit,
+        branch: Some(Box::from(b"release/next".as_slice())),
+    };
+    let repositories = Box::new([
+        RepositoryGates {
+            repository: REPO,
+            gates: Box::new([policy::Gate {
+                name: Box::from(b"gate".as_slice()),
+                workflow: Box::from(b"gate.yml".as_slice()),
+                ignored: Box::new([]),
+                blocking: true,
+            }]),
+            tiers: Box::new([tier.clone()]),
+        },
+        RepositoryGates {
+            repository: skein_forge::api::Repository { repository: 3, ..REPO },
+            gates: Box::new([]),
+            tiers: Box::new([Tier { branch: None, format: Format::Lines, ..tier }]),
+        },
+    ]);
+    let after = AfterLanding {
+        verdict: Settings { retries: 7, suspects: Suspects::Bisect },
+        bound: Duration::from_millis(123_456),
+    };
+    assert_eq!(d.after_landing(5), None);
+    assert!(d.project_landing(5, Way::Turn, repositories.clone(), after));
+    let other = AfterLanding {
+        verdict: Settings { retries: 0, suspects: Suspects::Bisect },
+        bound: Duration::from_millis(456_789),
+    };
+    assert!(d.project_landing(6, Way::Queue, Box::new([]), other));
+    let (way, kept, _) = d.landing.projects.get(&5).expect("configured project");
+    assert_eq!(*way, Way::Turn);
+    assert_eq!(kept.as_ref(), repositories.as_ref());
+    assert_eq!(d.landing.gates(5, REPO), repositories[0].gates.as_ref());
+    assert_eq!(d.after_landing(5), Some(after));
+    assert_eq!(d.after_landing(6), Some(other));
+    assert_eq!(d.after_landing(7), None);
+    assert!(d.project_landing(5, Way::Queue, Box::new([]), other));
+    assert_eq!(d.after_landing(5), Some(other));
+    assert_eq!(d.after_landing(6), Some(other));
+    assert!(d.landing.gates(5, REPO).is_empty());
+}
+
+#[test]
+fn project_landing_refuses_tiers_past_the_bound_and_duplicate_check_names() {
+    use temper_engine_domain_forge_change::Way;
+    use temper_engine_domain_forge_tiers::{Format, Settings, Suspects};
+    let tier = Tier {
+        name: Box::from(b"slow".as_slice()),
+        workflow: Box::from(b"slow.yml".as_slice()),
+        ignored: Box::new([]),
+        artifact: Box::from(b"failures".as_slice()),
+        format: Format::Lines,
+        branch: None,
+    };
+    let after = AfterLanding {
+        verdict: Settings { retries: 2, suspects: Suspects::Bisect },
+        bound: Duration::from_millis(7_200_000),
+    };
+    for (names, expected) in [(b"ab".as_slice(), true), (b"abc", false), (b"aa", false), (b"g", false)] {
+        let mut d = domain();
+        let mut tiers = skein_lib::List::with_capacity(u32::try_from(names.len()).expect("test count"));
+        for name in names {
+            tiers.push(Tier { name: Box::new([*name]), ..tier.clone() }).expect("test count");
+        }
+        assert_eq!(
+            d.project_landing(
+                5,
+                Way::Queue,
+                Box::new([RepositoryGates {
+                    repository: REPO,
+                    gates: Box::new([policy::Gate {
+                        name: Box::from(b"g".as_slice()),
+                        workflow: Box::from(b"gate.yml".as_slice()),
+                        ignored: Box::new([]),
+                        blocking: true,
+                    }]),
+                    tiers: tiers.into_boxed(),
+                }]),
+                after
+            ),
+            expected
+        );
+        assert_eq!(d.after_landing(5), if expected { Some(after) } else { None });
+    }
+}
+
+#[test]
+fn tier_limits_are_nonzero_and_failure_lists_fit_the_store_row() {
+    for (tiers, expected) in [
+        (TierLimits { tiers: 0, ..LIMITS.tiers }, false),
+        (TierLimits { failing_tests: 0, ..LIMITS.tiers }, false),
+        (TierLimits { test_id_bytes: 0, ..LIMITS.tiers }, false),
+        (TierLimits { tiers: 1, failing_tests: 1024, test_id_bytes: 1 }, true),
+        (TierLimits { failing_tests: 1025, ..LIMITS.tiers }, false),
+    ] {
+        assert_eq!(valid(&Limits { tiers, ..LIMITS }), expected, "{tiers:?}");
+    }
+}
+
 fn landing_fixture() -> Domain {
     let mut d = domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
@@ -9,7 +120,18 @@ fn landing_fixture() -> Domain {
     row.pull = Some(1);
     row.change.landing = None;
     outputs(&mut d, Event::Restore { record: Stored::Change(row) });
-    assert!(d.project_landing(5, temper_engine_domain_forge_change::Way::Turn, Box::new([])));
+    assert!(d.project_landing(
+        5,
+        temper_engine_domain_forge_change::Way::Turn,
+        Box::new([]),
+        AfterLanding {
+            verdict: temper_engine_domain_forge_tiers::Settings {
+                retries: 2,
+                suspects: temper_engine_domain_forge_tiers::Suspects::Bisect
+            },
+            bound: Duration::from_millis(7_200_000)
+        }
+    ));
     d
 }
 fn landing_row(task: u64, phase: policy::Phase) -> LandingRow {
@@ -171,7 +293,18 @@ fn merged_owner(turn: bool) -> (Domain, Box<[Request]>) {
     d.changes.insert(fixtures::CHANGE, change).expect("member change");
     let task = if turn { 61 } else { fixtures::CHANGE };
     if turn {
-        assert!(d.project_landing(5, temper_engine_domain_forge_change::Way::Turn, Box::new([])));
+        assert!(d.project_landing(
+            5,
+            temper_engine_domain_forge_change::Way::Turn,
+            Box::new([]),
+            AfterLanding {
+                verdict: temper_engine_domain_forge_tiers::Settings {
+                    retries: 2,
+                    suspects: temper_engine_domain_forge_tiers::Suspects::Bisect
+                },
+                bound: Duration::from_millis(7_200_000)
+            }
+        ));
         member_landing(&mut d);
         let row = d.landing.rows.get_mut(&task).expect("landing");
         row.landing.phase = policy::Phase::Turn { at: env().wall };

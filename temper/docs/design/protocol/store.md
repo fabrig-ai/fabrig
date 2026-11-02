@@ -112,7 +112,12 @@ section 7).
   commit, a landing's tier verdicts, the failures blamed on it and what
   repaired it; 30 `LandingLog`, keyed by repository, its last landings
   with their times, changes, trailers and verdicts; 31 `Finding`, 32
-  `Mark` and 33 `QaPass`.
+  `Mark` and 33 `QaPass`. A
+  receipt of a tier's keeps its failing tests (`../domain/after-landing.md`,
+  section 2), and the `Change` family's `Landed` state means verifying,
+  `Red`, `Cleared` and `Uncleared` joining it after its last state
+  (`../domain/after-landing.md`, section 6).
+
 - **Loaded:** every family at the forge's restart step, and never
   otherwise. No party reads them: the engine serves none of the forge's
   client parts but the adoption form (`../client/README.md`, section 4).

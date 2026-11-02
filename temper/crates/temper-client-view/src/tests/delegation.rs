@@ -919,3 +919,28 @@ fn an_ended_chat_has_no_composer_line_or_chooser() {
         assert!(!(node.role == Role::Disclosure && node.name.as_deref() == Some(b"Change model")));
     }
 }
+
+#[test]
+fn cleared_and_uncleared_cards_keep_their_verification_words() {
+    for (words, label) in [
+        (b"1a2b3c4\nCleared by fast run 2.".as_slice(), b"Cleared".as_slice()),
+        (
+            b"1a2b3c4\nNot cleared: no verdict within the verification bound.".as_slice(),
+            b"Landed, uncleared".as_slice(),
+        ),
+    ] {
+        let mut task = landed();
+        task.result = Some(c::TaskResult::Ending(Box::new(c::ChipEnding::Done(c::ResultValue::Change {
+            kind: 1,
+            part: c::Part { connector: fixtures::FORGE, kind: c::PartKind::Result, key: c::PartKey::Number(CHANGE) },
+            words: document(words),
+        }))));
+        let view = view(Some(task), &[CHANGE], false);
+        status(&view, label, look::STATUS_DONE);
+        let newline = skein_lib::bytes::find(words, b"\n").unwrap();
+        for line in [words.get(..newline).unwrap(), words.get(newline.checked_add(1).unwrap()..).unwrap()] {
+            assert!(find(&view, Find::text(line)).is_some());
+        }
+        steps(&view, true);
+    }
+}

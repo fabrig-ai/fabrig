@@ -134,7 +134,7 @@ pub enum Hold {
     Authority(AuthorityHold),
 }
 
-/// A change's committed place on its way to landing.
+/// A change's committed place through verification (temper/docs/design/domain/after-landing.md, 6).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum State {
     /// A producing delegate has yet to push the branch.
@@ -167,14 +167,20 @@ pub enum State {
     Repairing { requested: bool, why: Repair },
     /// A merge at the named head is outstanding.
     Landing { head: Commit },
-    /// The pull request merged at this commit.
-    Landed { merge: Commit },
+    /// Merged at this commit and verifying; `since` is when the top first saw the merge.
+    Landed { merge: Commit, since: Wall },
     /// The producer concluded that the request does not apply, with no landing.
     NoChange { words: Box<[u8]> },
     /// The task ended after its outstanding effects and holdings settled.
     Ended,
     /// No write is made until a release lifts this cause.
     Held { was: Box<State>, why: Hold },
+    /// A tier blames this landing; wait for its failures to be repaired.
+    Red { merge: Commit, since: Wall },
+    /// Every tier following its branch cleared this landing.
+    Cleared { merge: Commit },
+    /// The verification bound expired or the verifying change was cancelled.
+    Uncleared { merge: Commit },
 }
 
 /// How the change's project lands (domain/landing.md, 1; domain/forge.md, 8.2).
@@ -236,6 +242,20 @@ pub enum Ask {
     Repair { gate: u16, candidate: Commit },
 }
 
+/// What the top reads of the landing's verification each step
+/// (temper/docs/design/domain/after-landing.md, 6).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Verification {
+    /// No tier follows its landing branch, or it has not landed.
+    Unfollowed,
+    /// Some tier following its branch has not judged it yet.
+    Verifying,
+    /// A tier blames it and no later run has passed those failures.
+    Red,
+    /// Every tier following its branch cleared it.
+    Cleared,
+}
+
 /// Fresh forge and queue facts gathered by the top.
 #[expect(clippy::struct_excessive_bools, reason = "independent root-supplied facts")]
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -262,6 +282,9 @@ pub struct Facts {
     pub kept: bool,
     /// The end of the window Forgejo is still settling in, when open.
     pub settling: Option<Wall>,
+    pub verification: Verification,
+    /// The project's `verification_bound` (temper/docs/design/protocol/configuration.md, 3).
+    pub verification_bound: Duration,
 }
 
 /// Committed delegate and effect results supplied by the top.

@@ -47,6 +47,7 @@ pub struct Limits {
     pub key_entries: u32,
     pub key_path_bytes: u32,
     pub trees_in_flight: u32,
+    pub tiers: TierLimits,
     /// Project judge tables retained beside committed policy.
     pub judge_projects: u32,
     /// Criteria in each deployment or project judge table.
@@ -61,6 +62,14 @@ pub struct Limits {
     pub client: skein_forge_client::Limits,
 }
 
+/// Per-repository tiers and reported failures (temper/docs/design/domain/after-landing.md, 10).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct TierLimits {
+    pub tiers: u32,
+    pub failing_tests: u32,
+    pub test_id_bytes: u32,
+}
+
 /// Whether entrance limits are coherent and retained row counts fit their types.
 /// Names and gates fit the panel; client admissions cover the top's rows.
 /// Reconciliation and landing capacities must be representable
@@ -68,7 +77,12 @@ pub struct Limits {
 /// Internal output envelopes and retained heap sums do not constrain admission.
 #[must_use]
 pub fn valid(l: &Limits) -> bool {
-    if l.forges == 0
+    if l.tiers.tiers == 0
+        || l.tiers.failing_tests == 0
+        // The store's failure and flake lists hold at most 1024 test ids.
+        || l.tiers.failing_tests > 1024
+        || l.tiers.test_id_bytes == 0
+        || l.forges == 0
         || l.repositories == 0
         || l.tasks == 0
         || l.holds == 0
