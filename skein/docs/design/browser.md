@@ -576,9 +576,8 @@ named scenario ceiling with headroom.
   new Chromium version is a run of these, and a fact that changed is fixed
   in the fake first. They need Chromium and do not replay, so they form a
   suite of their own, beside the focused and fuzzy suites (`--profile
-  browser-skein`, within four minutes (two minutes before the user's doubling of
-  10-22, provisional), which the browser parts' tier shares: ui-web.md,
-  14.1). A missing Chromium fails that suite, naming what is missing; it is
+  browser-skein`, within four minutes, which the browser parts' tier
+  shares: ui-web.md, 14.1). A missing Chromium fails that suite, naming what is missing; it is
   never a skip.
 
 The kit's tests are a crate of their own, `tests/browser`
