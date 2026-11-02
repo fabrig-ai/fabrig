@@ -819,7 +819,7 @@ values are temper's: `../domain/forge.md`, 5.2 and 5.4.
 
 | Rule | Kept by |
 |---|---|
-| No listing without a filter on a periodic path; no history | the client's one keep-up listing per repository, always `since` (skein's `forge-client.md`, section 4; the listing, `forge.md`, 5.2); the slow pass reads live resources one at a time (`forge-client.md`, section 4) |
+| No listing without a filter on a periodic path; no history | the client's one keep-up listing per repository, always `since` (skein's `forge-client.md`, section 4; the listing, skein's `forge.md`, 5.2); the slow pass reads live resources one at a time (`forge-client.md`, section 4) |
 | Calls per pass do not grow with history | one listing per pass, nothing listed by label (skein's `forge-client.md`, section 4); checked by temper's cost checks (10) |
 | Cache by change token | comments and reviews by revision (skein's `forge.md`, 5.3); repositories' paths and users cached (`forge-connection.md`, section 4); a pull request read on a backoff (`forge-client.md`, section 4); a read given a validator is conditional, and its `304` is free (2.7), as each poll of a GitHub App's log (5.1) |
 | One path to CI; never a closed pull request's | statuses of the head only (skein's `forge.md`, 5.2); a closed item leaves the working set when its owner stops naming it (`forge-client.md`, section 3; temper's top, `../domain/forge.md`, 5.1) |
@@ -827,7 +827,7 @@ values are temper's: `../domain/forge.md`, 5.2 and 5.4.
 | Contents only when a decision reads them | a pull request's files and a comparison, read for a brief or an overlap, each file's reads charged (skein's `forge.md`, 5.2; `forge-client.md`, section 6) |
 | Webhooks: hints, answered first, merged, targeted, echoes dropped | skein's `forge.md`, section 7 and `forge-connection.md`, section 6; the client merges hints into one earlier pass (`forge-client.md`, section 4); temper's domain drops its own echoes, by key and by pusher (`../domain/forge.md`, 5.2); a GitHub App's log read every `log_poll`, conditionally (5.1) |
 | Closed items by deltas, not sweeps | the keep-up listing's `since`: a closed item is listed only when it changes, and its owner stops naming it (skein's `forge-client.md`, sections 3 and 4) |
-| Backoff and jitter; honour the rate; no blind retries of writes | the client's backoff and budget (skein's `forge-client.md`, sections 4 and 6); `RateLimited { after }`, Forgejo's `429` and GitHub's pauses alike, and no retry in the component (`forge.md`, 5.4; `forge-github.md`); each answer's `rate`, the least of which the budget keeps (2.7); keyed creations found again after a `Timeout` (`forge-client.md`, section 7) |
+| Backoff and jitter; honour the rate; no blind retries of writes | the client's backoff and budget (skein's `forge-client.md`, sections 4 and 6); `RateLimited { after }`, Forgejo's `429` and GitHub's pauses alike, and no retry in the component (skein's `forge.md`, 5.4, and `forge-github.md`); each answer's `rate`, the least of which the budget keeps (2.7); keyed creations found again after a `Timeout` (`forge-client.md`, section 7) |
 | Slow cadences; webhooks for latency, polling for liveness | the client's `poll`, `hinted` and `slow`, unchanged by webhooks (skein's `forge-client.md`, section 4); a forge with no hook, or on another host, polls alone (section 5); a GitHub forge polls as a Forgejo one does, its log's hints only cutting the latency (5.1) |
 
 Nothing the engine writes changes often: it writes the forge only to
@@ -1022,7 +1022,7 @@ The tiers, the fakes and the layout are `../domain/testing.md`'s (sections 2,
 - **The real Forgejo check,** its transcripts, its facts and the
   throwaway Forgejo it runs against (`../domain/testing.md`, 2.6): skein's
   `fake-forge.md`, sections 6 and 7.
-- **The pin** is skein's (`forge.md`, 4.3): one patch release of Forgejo
+- **The pin** is skein's (skein's `forge.md`, 4.3): one patch release of Forgejo
   v17.0 and one of forgejo-runner v13.2, constants the throwaway
   Forgejo, the conformance and owned mode share (setup.md, 6.1); a
   binary of another release is refused, naming it. A later patch changes

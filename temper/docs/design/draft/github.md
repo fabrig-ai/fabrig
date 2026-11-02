@@ -866,11 +866,11 @@ is cited by its probe's number across this document.
   writer at runtime; adoption's org paragraph replaced by access at
   adoption on managed and owned forges (12.2); GitHub's rules and its
   merge queue as a landing queue (section 10).
-- **`../client/`:** the deployment's page (`forge.md`, 5.4) with each
-  forge's connection and its Connect, Replace, "Install on another
-  account" and "Forget the admin's token"; the adoption form
-  (`README.md`, 4.4) as a picker, with "not listed" and its words;
-  `tools.md`'s tools for each.
+- **`../client/`:** the deployment's page (`../client/forge.md`, 5.4)
+  with each forge's connection and its Connect, Replace, "Install on
+  another account" and "Forget the admin's token"; the adoption form
+  (`../client/README.md`, 4.4) as a picker, with "not listed" and its
+  words; `../client/tools.md`'s tools for each.
 - **`../../help/`:** connecting GitHub; connecting Forgejo, each mode.
 
 ## 15. Where each piece goes
