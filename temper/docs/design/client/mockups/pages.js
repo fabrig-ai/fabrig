@@ -1530,9 +1530,9 @@
         <p class="muted tiny">Open Forgejo signs you in as ${conf('the person’s Forgejo login', esc(f.person))}, through temper.</p>
         <p class="gap-note">Until signing in through temper: sign in as ${conf('the person’s Forgejo login', esc(f.person))} with the password in ${conf('the owned forge’s person password file', esc(`~/.local/share/temper/forge-${f.n}/person_password`))}. Forgejo asks for a new one at once.</p>`;
     // A Forgejo whose people sign in through temper, as its OpenID
-    // provider (draft sign-in.md, section 5).
+    // provider (protocol/sign-in.md, section 9).
     if (f.through && f.state === 'connected') return `<div class="rule"></div><div class="button-row">
-      <a class="button primary" href="#" data-later="${esc(`Mockup: ${f.web}/user/oauth2/temper, in a new tab: Forgejo starts its sign-in with the temper source, temper answers at once, and Forgejo opens signed in as ${world.site.login}.`)}">Open Forgejo ↗</a>${ahead('provider', 'temper as Forgejo’s OpenID provider: draft sign-in.md, section 5')}
+      <a class="button primary" href="#" data-later="${esc(`Mockup: ${f.web}/user/oauth2/temper, in a new tab: Forgejo starts its sign-in with the temper source, temper answers at once, and Forgejo opens signed in as ${world.site.login}.`)}">Open Forgejo ↗</a>${ahead('provider', 'temper as Forgejo’s OpenID provider: protocol/sign-in.md, section 9')}
       <button class="button" data-later="Mockup: the set-up’s three fields again; temper makes the repository, grants its bot, and adopts it.">New repository</button>
       <button class="button" data-later="Mockup: the adoption form (client README, 4.4) has no mockup.">Adopt a repository</button>
       <button class="button" data-later="Mockup: the admin’s token erased; temper keeps its bot and tokens, and the forge becomes connected.">Forget the admin’s token</button></div>
@@ -1879,8 +1879,8 @@
   // ---- Signing in -----------------------------------------------------
 
   // The stock sign-in page, the same for every deployment whose people
-  // sign in with Google, in the world google-sign-in (draft sign-in.md,
-  // sections 4 to 6): the client's signed-out main in the browser, the
+  // sign in with Google, in the world google-sign-in (protocol/sign-in.md,
+  // sections 4 and 9): the client's signed-out main in the browser, the
   // client's Authorize place for Forgejo, and the pages Google's return
   // route answers at each ending. `?state=` names an ending,
   // `?from=forgejo` an authorization of Forgejo's. Each says, in slate,
@@ -1909,8 +1909,8 @@
     const state = params.get('state');
     const fromForgejo = params.get('from') === 'forgejo';
     const where = (address, how) => `<p class="mock-url"><b>${esc(address)}</b>${how ? `<br>${how}` : ''}</p>`;
-    const googleMarkNote = ahead('Google', 'signing in with Google, through jig’s Mint: draft sign-in.md, section 4');
-    const providerNote = ahead('provider', 'temper as Forgejo’s OpenID provider: draft sign-in.md, section 5');
+    const googleMarkNote = ahead('Google', 'signing in with Google, through jig’s Mint: protocol/sign-in.md, section 4');
+    const providerNote = ahead('provider', 'temper as Forgejo’s OpenID provider: protocol/sign-in.md, section 9');
     const brand = '<p class="sign-in-brand"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 1.5c1.5 5.6 2.9 7 8.5 8.5-5.6 1.5-7 2.9-8.5 8.5C10.5 12.9 9.1 11.5 3.5 10 9.1 8.5 10.5 7.1 12 1.5Z"/><circle cx="18.5" cy="18.5" r="2" fill="currentColor"/></svg><span>temper</span></p>';
     const page = (address, how, body, after = '') => `<main class="sign-in-page">${where(address, how)}<section class="card sign-in-card">${brand}${body}</section>${after}</main>`;
     const authorize = `${site.origin}/oauth/authorize?client_id=forgejo&redirect_uri=https%3A%2F%2F${forgeHost}%2Fuser%2Foauth2%2Ftemper%2Fcallback&response_type=code&scope=openid+email+profile&state=Zk9x…&nonce=…`;
@@ -1922,7 +1922,7 @@
     const member = fact('Google: the ID token’s verified address', esc(site.member));
     const stranger = fact('Google: the ID token’s address', esc(site.stranger));
     const front = (under, then) => `<h1>Sign in</h1>${under}${ways(then)}`;
-    const variants = bare ? '' : `<section class="mock-variants" id="other-states"><h2>Other states, for reference</h2><p>Not steps of this world: the front page after Sign out (draft sign-in.md, section 6), each page Google’s return route answers instead of signing in (4.3), and Forgejo’s authorization refused (5.3).</p><ul class="sign-in-variants">${SIGN_IN_STATES.map(([s, what]) => `<li><a href="${esc(u(`sign-in.html?state=${s}`))}">${esc(what)}</a></li>`).join('')}</ul></section>`;
+    const variants = bare ? '' : `<section class="mock-variants" id="other-states"><h2>Other states, for reference</h2><p>Not steps of this world: the front page after Sign out (protocol/sign-in.md, 9.6), each page Google’s return route answers instead of signing in (4.3), and Forgejo’s authorization refused (5.3).</p><ul class="sign-in-variants">${SIGN_IN_STATES.map(([s, what]) => `<li><a href="${esc(u(`sign-in.html?state=${s}`))}">${esc(what)}</a></li>`).join('')}</ul></section>`;
 
     if (fromForgejo && world.signedIn) {
       return page(authorize, `From Forgejo’s “Sign in with temper”, or its route /user/oauth2/temper, which Open Forgejo ↗ opens. temper’s page, read by the client as its Authorize place: signed in, it sends jig’s Authorize, and replaces its address with Forgejo’s callback and the code. ${providerNote}`,
@@ -1940,7 +1940,7 @@
     switch (state) {
       case 'signed-out':
         return page(`${site.origin}/`, 'After Sign out: jig ended the sign-in and cleared its cookie. The client’s signed-out main, with a line of the page’s own for having signed out, and, while a forge signs its people in through temper, for that forge.',
-          front(`<p class="sign-in-notice">You signed out. ${forgeName} keeps its own sign-in: sign out there too. ${ahead('sign-out', 'no single sign-out: draft sign-in.md, section 6')}</p>`, '/'));
+          front(`<p class="sign-in-notice">You signed out. ${forgeName} keeps its own sign-in: sign out there too. ${ahead('sign-out', 'no single sign-out: protocol/sign-in.md, 9.6')}</p>`, '/'));
       case 'not-member':
         return page(returned('code=…&state=Rk2p…'), 'Google’s return: the state matched this browser’s cookie and the ID token checked, but its address is no member’s. Nothing is minted.',
           `<h1>${stranger} can’t sign in here</h1><p class="muted">Google signed you in, but no one here signs in with this address. Ask an owner to add it, or use the Google account they added.</p>${another}`);
