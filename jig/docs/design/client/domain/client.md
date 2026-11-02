@@ -489,8 +489,8 @@ handles, as every presentation does (sections 7 and 8).
   an exchange use the old credential until successful installation.
 - **Pending ownership** is internal: `PendingRead { token: Token,
   family: Option<u16> }`. A response before the credential boundary
-  wins; the boundary before a response emits cancellation. Existing
-  token matching prevents a late reply or loss from completing a
+  wins; the boundary before a response emits cancellation. Token
+  matching prevents a late reply or loss from completing a
   replacement read under the same handle. A read under an old credential
   never answers under the new one. Supersession and `Unwatch` still
   abandon reads as above; credential boundaries do not.

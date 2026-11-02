@@ -154,7 +154,7 @@ its own, wherever a presentation builds on skein's UI kit.
   pages.md's, section 10, each written once in a person's terms, through
   jig's test application.
 - **Read cancellation at credential boundaries** uses client-domain
-  step tests and the existing composed `jig-client` sign-in fixture:
+  step tests and the composed `jig-client` sign-in fixture:
   `Held` and `Transport`, successful `Link` and `Service`, response
   before and after the boundary, sign-out learned from a read, and
   reads before the first `me`. Each pending jig or family read ends
@@ -172,8 +172,8 @@ its own, wherever a presentation builds on skein's UI kit.
   and link outputs; deferred reads alone may wait on exchange credit
   (client.md, sections 3 and 11; programming-model.md, 7.2).
 - **Shapes** preserve a template's omitted LLM intent even when its
-  `resolved_default` preview names a model; the existing shapes step
-  tests check that the preview never enters `Create`.
+  `resolved_default` preview names a model; the shapes step tests check
+  that the preview never enters `Create`.
 - **At the text shell.** A client of the reference UI's stories may be
   played as skein's text shell is (view.md, section 15): each tree it
   shows printed by its renderer, and each act the person makes typed as

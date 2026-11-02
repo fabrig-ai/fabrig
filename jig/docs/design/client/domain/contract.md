@@ -289,10 +289,11 @@ whole document can supply a replacement. Names are copied literally in
 both directions, and current availability is checked after retained-key
 lookup (`../../protocol/store.md`, 5.1).
 
-The program operations use the existing account-change request: declaration
+The program operations use the account-change request: declaration
 carries the provider, optional joined account, and portable source name; check
 carries the source number. Declaration returns that number and whole name. Check
-answers when dispatched, while inventory facts arrive on the existing watches.
+answers when dispatched, while inventory facts arrive on the `accounts` and
+`deployment` watches.
 Sign-out and account removal retain the configured names of workers that failed,
 were not in contact, or lost contact; replay preserves those original names.
 Neither request carries a secret or digest.
@@ -447,7 +448,7 @@ Every request has one answer, of one of these kinds:
 - **done,** with its outcome: what was made (the first and the last of
   the tasks' numbers, consecutive in the batch's order, and the
   `AsAllowed` task, if any, with what it was given; a word's message
-  number; a proposal's number and the role it was originally admitted to, in the
+  number; a proposal's number and the role it was first admitted to, in the
   request's project; its present recipient is in its document. A replay keeps
   the original outcome's role; an account moved out, with its record, once: 3.1), or what
   was decided; for a compound request, its
@@ -780,8 +781,8 @@ check. Settled is optional: false for this party's pending sign-in at that
 provider, unknown when program checks cannot yet be known, true otherwise.
 The readiness list has its own cut flag; it never makes a negative statement
 about an omitted provider/payer. Decisions use full domain state, independently
-of displayed account/source/host prefixes. The existing aggregate usable and
-settled fields remain available.
+of displayed account/source/host prefixes. The document keeps the aggregate
+usable and settled fields beside the rows.
 
 ### 5.2 Revisions
 
@@ -1203,7 +1204,7 @@ new `me` watch, including after restart.
   current sign-in and visibility, and delivers once. A tree still means
   the live subtree (5.1): its retained ended root has no live descendants,
   folded counts or continuation, whether it was a root or a delegate.
-  The watch ends with the existing subject-gone reason after that delivery
+  The watch ends with the subject-gone reason after that delivery
   is taken or dropped. Missing or hidden retained facts end it without a
   delivery; retained facts too linked to load within the read's join
   bound end it without a delivery as too linked, naming the bound, as
