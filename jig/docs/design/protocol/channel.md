@@ -893,8 +893,8 @@ ones in the fuzzy suite.
   whose agents are processes gives a run's text as a host of
   `smith-inline-agent` does (6.4). smith's host half and host domain hand
   the pieces up as they hand up facts, and this channel's fact record
-  carries them. What stays for later: the LLM component's abort and
-  closed terminal.
+  carries them. What stays for later: the LLM component's closed
+  refusal (`README.md`, section 11).
 - **skein owes** in-process addresses, for one process (skein's `io.md`,
   3.5), and, between hosts, TLS's server side with independent output,
   for the engine's listener (skein's `channel.md`, section 12; skein's

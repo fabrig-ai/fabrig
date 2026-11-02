@@ -574,8 +574,8 @@ Each within jig's suites' budgets.
   program source's name; limited, refused and unauthorized notices; the
   program backend and its host half's login checks and sign-out (smith's
   `protocol/channel.md`, section 6; smith's `protocol/programs.md`).
-  Later: an abort and a closed terminal for its LLM component
-  (`README.md`, section 11).
+  Later: a completion asked while its LLM component closes refused as
+  closed (`README.md`, section 11).
 - **skein owes** the driver's accounts added and removed while it runs,
   its sign-out with revocation, the issued client id kept with the
   record, the scopes granted and the subject on signing in, and the

@@ -483,10 +483,11 @@ Each is generic, and says nothing about jig.
     each turn commits (`channel.md`, 6.4; `../domain/hosts.md`, 6.5).
     A conversation's presentation wants it. A tool begun with its call
     stays `smith-inline-agent`'s;
-  - **closing smith's LLM component as an owner closes it, later:** an abort
-    that ends every completion in flight, for a process that stops
-    without draining (`service.md`, section 5), and a completion asked
-    while it closes refused as closed, never as a local limit.
+  - **closing smith's LLM component as an owner closes it, later:** a
+    completion asked while it closes refused as closed, never as a local
+    limit. Its abort, which ends every completion in flight for a
+    process that stops without draining (`service.md`, section 5), is
+    smith's as it stands.
 
 ## 12. What the domain owes
 
