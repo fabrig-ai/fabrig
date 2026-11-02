@@ -72,7 +72,7 @@ section 7).
 | 1 | `ProposedEffect` | `ProposedEffect(u64)`: the proposal's number | an effect awaiting an authority holder's decision | `tasks` |
 | 2 | `Repository` | `Repository(Repository)`: forge, repository | an adopted repository: its project, role, kinds, protection and settings | `repositories` |
 | 3 | `Hold` | `Hold(Name)` | a held resource, its task, its writer and its drift | `holds` |
-| 4 | `Names` | `Names(u64)`: the task | the live resources one task names | `tasks` |
+| 4 | `Names` | `Names(u64)`: the task | the resources one live task names; or a kept task's: the repositories its names lie in, kept from its release until jig erases the task (`../domain/forge.md`, 4.1) | `tasks` live rows, and `repositories` kept ones |
 | 5 | `Subscription` | `Subscription { task, topic }` | one task's subscription to a topic | `subscriptions` |
 | 6 | `BranchHead` | `BranchHead(Name)` | a branch's last observed tip | the client's `resources` |
 | 7 | `PullState` | `PullState(Name)` | a pull request's last published state | the client's `resources` |
