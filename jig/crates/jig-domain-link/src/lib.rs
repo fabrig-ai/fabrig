@@ -270,7 +270,7 @@ pub struct Hosting {
     pub phase: Phase,
 }
 
-/// Where a hosted run is in its lifecycle (domain/hosts.md, 4.2), as a hello
+/// Where a hosted run is in its lifecycle (domain/hosts.md, 6.2), as a hello
 /// says.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Phase {
