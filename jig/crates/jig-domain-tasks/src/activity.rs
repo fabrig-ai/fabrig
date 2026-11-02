@@ -125,8 +125,9 @@ pub(crate) fn message(task: &mut TaskRecord, word: &Word, bound: u32, out: &mut 
 /// Maximum complete bytes in an emitted line; referenced history/turn rows have their own bounds.
 #[must_use]
 pub fn line_bytes_limit(limits: &crate::Limits) -> Option<u64> {
-    let caller = u64::from(limits.message_bytes.max(limits.result_bytes))
-        .checked_mul(u64::try_from(size_of::<crate::ResultField>()).ok()?.checked_add(1)?)?;
+    let caller = u64::from(crate::VERDICT_FIELDS.min(limits.result_bytes))
+        .checked_mul(u64::try_from(size_of::<crate::ResultField>()).ok()?)?
+        .checked_add(u64::from(limits.message_bytes.max(limits.result_bytes)))?;
     let notice = u64::try_from(crate::run::NOTHING_AWAITED_WORDS.len()).ok()?;
     u64::try_from(size_of::<ActivityLine>()).ok()?.checked_add(caller.max(notice))
 }
