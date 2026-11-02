@@ -135,7 +135,7 @@ fn a_change_under_rules_asking_neither_merges_at_its_head() {
 }
 
 #[test]
-fn a_change_under_rules_asking_neither_is_held_when_its_merge_conflicts() {
+fn a_conflict_under_rules_asking_neither_says_why_it_holds() {
     let (mut world, task, head, base) = pushed_change(true);
     // A persistent conflict is decided after the shipped mergeability window,
     // with the world's twenty-second durable round trip left for the hold.
@@ -157,6 +157,15 @@ fn a_change_under_rules_asking_neither_is_held_when_its_merge_conflicts() {
         change_row(&world, task).change.state,
         change_step::State::Held { why: change_step::Hold::Resolutions, .. }
     ));
+    let tasks::Phase::Held { source: Some(source), .. } = &live_task(&world, task).phase else { panic!("worded hold") };
+    let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("hold account") };
+    let row = change_row(&world, task);
+    let expected = format!(
+        "The merge into {} conflicts, and its landing rule asks no update: settle the conflict on {} and release the change, or cancel it.",
+        core::str::from_utf8(&row.base).expect("base branch"),
+        core::str::from_utf8(&row.branch).expect("change branch")
+    );
+    assert_eq!(words.as_ref(), expected.as_bytes());
     assert_eq!(world.merges, 0);
     assert_no_update_or_delegate(&world, task);
     let pull = assert_pending_and_stale(&mut world, head, base);

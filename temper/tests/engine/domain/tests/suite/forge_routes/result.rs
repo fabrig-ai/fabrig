@@ -113,15 +113,93 @@ fn the_csv_changes_requester_reads_the_failed_context_repair_and_approved_review
         .expect("requester's result");
     let words = core::str::from_utf8(&result.words).expect("UTF-8 result");
     let lines: Vec<_> = words.lines().collect();
-    assert_eq!(lines.len(), 6, "{words}");
+    assert_eq!(lines.len(), 8, "{words}");
     assert_eq!(lines[0], merge);
     assert!(lines[1].starts_with("pull request #"), "{words}");
     assert_eq!(
         lines[2],
         format!("Landed: pull request #{} merged into main as {}.", row.pull.expect("landed pull"), &merge[..12])
     );
-    assert_eq!(lines[3], format!("checks at {head}: build passed"));
-    assert_eq!(lines[4], "repairs: 1: CI failed: / changes (pull_request)");
-    assert_eq!(lines[5], format!("reviews: approved at {head}"));
+    assert_eq!(lines[3], "Report:");
+    assert_eq!(lines[4], "pushed");
+    assert_eq!(lines[5], format!("checks at {head}: build passed"));
+    assert_eq!(lines[6], "repairs: 1: CI failed: / changes (pull_request)");
+    assert_eq!(lines[7], format!("reviews: approved at {head}"));
     assert!(!words.contains("bytes cut"), "the requester reads it whole");
+}
+
+#[test]
+fn a_landed_change_carries_its_producers_report() {
+    const REPORT: &[u8] = b"Done: edited README.\n## Left\n- none";
+    let mut world = World::configured_limits(
+        true,
+        true,
+        false,
+        1000,
+        Gate::default(),
+        None,
+        StoryLimits { result_bytes: Some(512), ..StoryLimits::default() },
+    );
+    world.adopt();
+    world.send(protocol::hello_slots(Token::new(7), 2, Box::new([])));
+    let ask = adoption_chat(&world);
+    let chat = assigned_chat(&mut world, 92, ask);
+    let engine::CallAnswer::Delegated(made) = change_tool::change(&mut world, &chat, 93, None, b"Edit README") else {
+        panic!("change delegated")
+    };
+    let change = made[0].task;
+    assert_eq!(live_task(&world, change).contract, tasks::Contract::Change { connector: 0, kind: 1, words: 512 });
+    let producer = next(&mut world, 1);
+    let branch = producer.workspace.repositories[0].push.clone().expect("change branch");
+    let tasks::Party::Task(parent) = live_task(&world, producer.task).requester else {
+        panic!("producer belongs to its change")
+    };
+    assert_eq!(parent, change);
+    assert_eq!(
+        world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 })),
+        raw::Answer::Branch(raw::Created::Created)
+    );
+    let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"README", b"edited", 1)
+        .expect("producer pushed README");
+    let event =
+        world.protocol.answer(Token::new(7), chat.task, chat.attempt, 5, tasks::End::Parked, engine::Parts::none());
+    world.send(event);
+    let tasks::TaskResult::Change { title, connector, kind, resource, .. } = change_result() else {
+        panic!("producer result")
+    };
+    finish(&mut world, &producer, tasks::TaskResult::Change { title, connector, kind, resource, words: REPORT.into() });
+    let requester = next(&mut world, 2);
+    assert_eq!(requester.task, chat.task);
+    let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::Change(change))) else {
+        panic!("durable change")
+    };
+    let forge_top::Stored::Change(row) = row.as_ref() else { panic!("change row") };
+    assert_eq!(row.report.as_ref(), REPORT);
+    let temper_engine_domain_forge_change::State::Landed { merge } = row.change.state else { panic!("landed") };
+    let merge = String::from_utf8(forge_top::commit_text(&merge).into_vec()).expect("hexadecimal merge");
+    let head =
+        String::from_utf8(forge_top::commit_text(&translate::commit(head)).into_vec()).expect("hexadecimal head");
+    let message = requester
+        .messages
+        .iter()
+        .find(|message| {
+            message.from == tasks::Party::Task(change)
+                && matches!(message.kind, tasks::MessageKind::Result(tasks::ResultKind::Change { .. }))
+        })
+        .expect("requester's change result");
+    let words = core::str::from_utf8(&message.words).expect("UTF-8 result");
+    let lines: Vec<_> = words.lines().collect();
+    assert_eq!(lines.len(), 10, "{words}");
+    assert_eq!(lines[0], merge);
+    assert!(lines[1].starts_with("pull request #"), "{words}");
+    assert_eq!(
+        lines[2],
+        format!("Landed: pull request #{} merged into main as {}.", row.pull.expect("landed pull"), &merge[..12])
+    );
+    assert_eq!(&lines[3..7], &["Report:", "Done: edited README.", "## Left", "- none"]);
+    assert!(lines[7].starts_with(&format!("checks at {head}: ")), "{words}");
+    assert_eq!(lines[8], "repairs: 0");
+    assert_eq!(lines[9], "reviews: none");
+    assert!(!words.contains("bytes cut"), "{words}");
+    world.close();
 }

@@ -778,6 +778,8 @@ pub struct ChangeRow {
     pub effect_account: Option<EffectAccount>,
     /// Producer failure words retained within the hold account bound (domain/forge.md, 8.4).
     pub producer_failure: Option<Box<[u8]>>,
+    /// Its producing task's last successful result words (domain/forge.md, 8.2 step 7)
+    pub report: Box<[u8]>,
 }
 impl ChangeRow {
     pub(crate) fn terminal(&self) -> bool {
@@ -1387,11 +1389,12 @@ pub enum Event {
         task: u64,
         child: u64,
     },
-    /// Keep the successful producer's explicit title before its result wakes the change.
+    /// Keep the successful producer's title and report before its result wakes the change.
     ProducedTitle {
         task: u64,
         child: u64,
         title: Box<[u8]>,
+        report: Box<[u8]>,
     },
     /// Resolve the named child's terminal result before stepping again.
     DelegateResult {
@@ -1492,6 +1495,10 @@ pub enum Event {
 }
 /// The connector's output to the root, including child API calls.
 #[derive(PartialEq, Eq, Debug)]
+#[expect(
+    clippy::large_enum_variant,
+    reason = "Save carries the change row and its producer report; changing the request boundary is separate"
+)]
 pub enum Request {
     /// The project's adoption erasures precede this post-commit reply.
     ProjectReleased {
