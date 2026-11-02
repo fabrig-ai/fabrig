@@ -13,5 +13,4 @@ The remaining gaps concern charters, settings, brief admission and result delive
   a chat's `deliver` before its end
   (`tests/real-loop/tests/suite/adoption_hold.rs`, ignored). 4.4: a verdict's
   follow-up tasks. 8: a change's agents under charters of its own
-  (`forge.md`, 8.1). 4.3.1: a change's contract bounds its words at
-  512 bytes.
+  (`forge.md`, 8.1).

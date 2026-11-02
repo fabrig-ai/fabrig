@@ -1934,6 +1934,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 review_charter: 4,
                 effect_account: None,
                 producer_failure: None,
+                report: Box::new([]),
             },
         }));
         let branch_name =
@@ -2364,7 +2365,7 @@ fn chat_change(
         contract: tasks::Contract::Change {
             connector: domain.config.forge_connector,
             kind: 1,
-            words: 512.min(env.limits.tasks.result_bytes),
+            words: env.limits.tasks.result_bytes,
         },
         authority,
         llm: None,
@@ -2919,7 +2920,7 @@ fn change_landing_words(
     }
     let Some(head) = row.change.last_head else { return out.into_boxed() };
     let room = bound.saturating_sub(out.len()).saturating_sub(1);
-    let Some(evidence) = row.result.words(&head, bound).fitted(room) else { return out.into_boxed() };
+    let Some(evidence) = row.result.reported(&row.report, &head, bound).fitted(room) else { return out.into_boxed() };
     append(&mut out, b"\n");
     append(&mut out, &evidence);
     out.into_boxed()
@@ -3084,8 +3085,23 @@ fn hold_change_decision(domain: &Domain, env: &Env<Limits>, task: u64, why: forg
     {
         return holds::decision_as(domain, env, task, tasks::Hold::EffectFailed, words.clone());
     }
-    let account =
-        if let forge_change::Hold::Authority(cause) = why { Some(forge_change::authority_words(cause)) } else { None };
+    let account = if let forge_change::Hold::Authority(cause) = why {
+        Some(forge_change::authority_words(cause))
+    } else if why == forge_change::Hold::Resolutions
+        && let Some(row) = domain.forge.change(task)
+        && let Some(repository) = domain.forge.repository(row.repository)
+        && !domain.forge.requires(repository, &row.base).up_to_date
+    {
+        let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
+        append(&mut words, b"The merge into ");
+        append(&mut words, &row.base);
+        append(&mut words, b" conflicts, and its landing rule asks no update: settle the conflict on ");
+        append(&mut words, &row.branch);
+        append(&mut words, b" and release the change, or cancel it.");
+        Some(words.into_boxed())
+    } else {
+        None
+    };
     let message = if let forge_change::Hold::Authority(cause) = why {
         authority_hold_message(domain, env, task, cause)
     } else if why == forge_change::Hold::Failed {
