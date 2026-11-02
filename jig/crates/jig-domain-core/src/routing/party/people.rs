@@ -130,6 +130,7 @@ pub(crate) fn tag_people(
 }
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive party vocabulary routes its bounded child decision")]
+#[expect(clippy::wildcard_enum_match_arm, reason = "only project removal bypasses the exhaustive act admission")]
 pub(crate) fn tag_people_part(
     core: &mut Core,
     env: &Env<Limits>,
@@ -258,10 +259,9 @@ pub(crate) fn tag_people_part(
                     })));
                     continue;
                 }
-                let admission = if *ask == (people::Ask::RemoveProject { project }) {
-                    Ok(())
-                } else {
-                    crate::acts::request(core, &env.limits, person, project, role, &ask, env.wall)
+                let admission = match &*ask {
+                    people::Ask::RemoveProject { project: named, .. } if *named == project => Ok(()),
+                    other => crate::acts::request(core, &env.limits, person, project, role, other, env.wall),
                 };
                 if let Err(why) = admission {
                     routed.work.push(Work::Event(Event::People(people::Event::Decided {
@@ -272,7 +272,7 @@ pub(crate) fn tag_people_part(
                 }
                 let party = super::dispatch::Party { request, person, project, role };
                 match *ask {
-                    people::Ask::RemoveProject { project } => {
+                    people::Ask::RemoveProject { project, .. } => {
                         let result = if !core.open_project(project) {
                             Err(people::Refusal::Unknown)
                         } else if role == Some(people::Role::Owner) {

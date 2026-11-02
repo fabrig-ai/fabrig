@@ -15,7 +15,7 @@ pub(super) fn project(ask: &Ask) -> u32 {
         | Ask::AccountSignOut { .. }
         | Ask::AccountChange { .. } => 0,
         Ask::MakeProject { .. } | Ask::ChangeSettings { .. } | Ask::MoveToNewest { .. } => crate::DEPLOYMENT,
-        Ask::RemoveProject { project }
+        Ask::RemoveProject { project, .. }
         | Ask::Rename { project, .. }
         | Ask::Compound { project, .. }
         | Ask::EditNote { project, .. }

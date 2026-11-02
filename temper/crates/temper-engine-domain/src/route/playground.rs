@@ -288,7 +288,7 @@ pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
 pub(crate) fn reset(domain: &mut Domain, key: [u8; 16], act: forge::ResetAct) {
     let reply_to = reply_to(domain, Reply::Reset { key, act });
     let act = match act {
-        forge::ResetAct::RemoveProject { project } => people::Act::RemoveProject { project },
+        forge::ResetAct::RemoveProject { project } => people::Act::RemoveProject { project, grace: None },
         forge::ResetAct::RemoveAccount { account } => people::Act::RemoveAccount { account },
     };
     domain.work.push(Work::Core(core::Event::Act {
