@@ -190,13 +190,16 @@ fn exec_on_raised_lead(scratch: &Scratch, accepted: Box<[u8]>, refreshed: Box<[u
 }
 
 fn accepted_exec(ran: &support::Ran) {
+    // The binary harness captures at most 64 KiB per stream.
+    const STREAM_BYTES: u32 = 65_536;
     assert_eq!(ran.code, 0, "fake-backed exec succeeds");
+    let limits = smith_events::Limits { string: STREAM_BYTES, content: STREAM_BYTES, items: STREAM_BYTES };
     let records: Vec<_> = ran
         .stdout
         .split(|byte| *byte == b'\n')
         .filter(|line| !line.is_empty())
         .map(|line| {
-            smith_events::read_with_ceiling(line, &smith_events::fixture::SMALL, 65_536)
+            smith_events::read_with_ceiling(line, &limits, STREAM_BYTES)
                 .expect("typed exec event")
                 .expect("known exec event")
         })
@@ -220,6 +223,21 @@ fn an_exec_on_a_raised_lead_refreshes_its_record_at_once() {
     accepted_exec(&ran);
     assert_eq!(refreshes, 1, "one refresh answered at the issuer");
     assert_eq!(record(&scratch, "test").generation, 2, "refreshed record kept");
+}
+
+#[test]
+fn an_exec_before_the_earliest_refresh_time_keeps_its_record() {
+    let scratch = Scratch::new();
+    let now = Clock::new().now().wall;
+    let earliest = Wall::from_nanos(
+        now.as_nanos().checked_add(Duration::from_secs(3600).as_nanos()).expect("fixture earliest refresh fits"),
+    );
+    let (held, issued) = refresh_fixture(&scratch, Some(earliest));
+    assert_eq!(record(&scratch, "test").generation, 1);
+    let (ran, refreshes) = exec_on_raised_lead(&scratch, held, issued);
+    accepted_exec(&ran);
+    assert_eq!(refreshes, 0, "no refresh before the earliest refresh time");
+    assert_eq!(record(&scratch, "test").generation, 1, "held record stays current");
 }
 
 fn no_values(ran: &support::Ran) {
