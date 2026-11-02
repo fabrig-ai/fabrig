@@ -1,6 +1,6 @@
 # smith's shell and product
 
-Provisional, 2026-10-09, revised 2026-10-20. smith's shell layer: the crates that turn its
+Provisional, 2026-10-09, revised 2026-11-02. smith's shell layer: the crates that turn its
 services into processes, the root package whose binaries are glue, and
 the product `smith`, one process a person or a script runs. It covers
 the commands, the settings and their presets, credentials, the
@@ -755,7 +755,7 @@ account = "claude-alice"      # the endpoint's account, when its provider has se
 | `[endpoints.<name>]` | a preset, or its dialect, program, address, TLS name, trust and headers; and its account | `openai` and `anthropic` (6.2) |
 | `[accounts.<name>]` | its provider, its source and the source's keys (section 7) | none: no preset names an account |
 | `[programs]` | each program's path, by the program's name: `claude_code` | `claude`, found on `PATH` at startup |
-| `[deployment]` | declared deployment values | the profile's, 6.3 |
+| `[deployment]` | declared deployment values and policy values, a duration in whole seconds (the effective limits give it in milliseconds: protocol/limits.md, section 9) | the profile's, 6.3 and 6.5 |
 | `[workspace]` | directories, conventions, the contract, delivery fields, the title field, pushes | the workspace directory; a report |
 | `[environment]` | `inherit`, the names taken from smith's own environment, and `set` | the core list (section 8) |
 | `[build]` | a build preset and writable caches | none |
