@@ -524,6 +524,7 @@ fn core_ask(
         ) => {
             let task = context.task;
             let code = match context.executor {
+                tasks::Executor::Job { .. } => return,
                 tasks::Executor::Procedure { code, .. } => code,
                 tasks::Executor::Agent { .. } | tasks::Executor::Person(_) => {
                     unreachable!("core-selected procedure executor")

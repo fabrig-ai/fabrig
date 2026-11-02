@@ -108,7 +108,7 @@ pub(super) fn task(
             tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } => {
                 kinds.push(Act::Stop).expect("task act bound");
             }
-            tasks::Executor::Person(_) => {}
+            tasks::Executor::Person(_) | tasks::Executor::Job { .. } => {}
         },
         tasks::Phase::Waiting | tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => {}
     }
@@ -209,6 +209,7 @@ pub(super) fn person(
         tasks::Phase::Active(tasks::Active::Due | tasks::Active::Idle) => {
             if !row.waiting_on.is_empty() {
                 let kinds = match row.executor {
+                    tasks::Executor::Job { .. } => &[][..],
                     tasks::Executor::Person(tasks::PersonAddress::Role(_)) => &[Act::Take, Act::HandBack][..],
                     tasks::Executor::Person(tasks::PersonAddress::Person(_))
                     | tasks::Executor::Agent { .. }
@@ -217,6 +218,7 @@ pub(super) fn person(
                 return list(core, limits, party, &Subject::PersonTask { task: row.number }, kinds, decision);
             }
             let kinds = match row.executor {
+                tasks::Executor::Job { .. } => &[][..],
                 tasks::Executor::Person(tasks::PersonAddress::Role(_)) => &[Act::Answer, Act::Take, Act::HandBack][..],
                 tasks::Executor::Person(tasks::PersonAddress::Person(_))
                 | tasks::Executor::Agent { .. }

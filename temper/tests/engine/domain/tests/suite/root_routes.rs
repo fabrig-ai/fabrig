@@ -1891,7 +1891,13 @@ fn a_proposal_routed_past_a_procedure_to_a_person_is_accepted() {
 }
 
 fn period_specification() -> tasks::Spec {
-    tasks::Spec { asks: false, words: b"period work".as_slice().into(), parameters: Box::new([]), inputs: Box::new([]) }
+    tasks::Spec {
+        job: None,
+        asks: false,
+        words: b"period work".as_slice().into(),
+        parameters: Box::new([]),
+        inputs: Box::new([]),
+    }
 }
 
 #[test]
@@ -2485,7 +2491,13 @@ fn finish_task(driver: &mut Driver, assignment: &engine::Assignment, result: tas
 fn plain_delegate(words: &[u8]) -> engine::Delegate {
     engine::Delegate {
         executor: tasks::Executor::Agent { charter: 1 },
-        spec: tasks::Spec { asks: false, words: words.into(), parameters: Box::new([]), inputs: Box::new([]) },
+        spec: tasks::Spec {
+            job: None,
+            asks: false,
+            words: words.into(),
+            parameters: Box::new([]),
+            inputs: Box::new([]),
+        },
         contract: tasks::Contract::Report { words: 128 },
         authority: tasks::Authority {
             tools: tasks::Tools(0),

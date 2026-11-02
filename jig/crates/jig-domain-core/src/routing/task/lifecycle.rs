@@ -25,6 +25,7 @@ pub(crate) fn recurring_due(
         let executor = match member.executor {
             tasks::Executor::Agent { charter } => authority::Executor::Charter(charter),
             tasks::Executor::Procedure { code, .. } => authority::Executor::Procedure(code),
+            tasks::Executor::Job { .. } => return,
             tasks::Executor::Person(_) => unreachable!("person template refused at admission"),
         };
         asked

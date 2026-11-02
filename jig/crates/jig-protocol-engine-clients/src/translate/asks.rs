@@ -433,7 +433,7 @@ pub(super) fn authority(
     for kind in delegation.kinds.into_boxed() {
         kinds
             .push(match kind {
-                w::AuthorityExecutor::Job(_) => return Err(Untranslatable { path: w::Path::DelegationKinds }),
+                w::AuthorityExecutor::Job(v) => p::Executor::Job(v.value()),
                 w::AuthorityExecutor::Charter(v) => p::Executor::Charter(v.value()),
                 w::AuthorityExecutor::Procedure(v) => p::Executor::Procedure(v.value()),
                 w::AuthorityExecutor::Role(v) => p::Executor::Role(v.value()),

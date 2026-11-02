@@ -100,7 +100,7 @@ impl Core {
                     );
                 }
             }
-            tasks::Executor::Person(_) | tasks::Executor::Procedure { .. } => {}
+            tasks::Executor::Person(_) | tasks::Executor::Procedure { .. } | tasks::Executor::Job { .. } => {}
         }
         if let Some(number) = row.placed {
             assert!(
@@ -439,6 +439,7 @@ impl Core {
 
     fn link_executor(&self, source: &Key, executor: tasks::Executor) {
         match executor {
+            tasks::Executor::Job { .. } => {}
             tasks::Executor::Person(tasks::PersonAddress::Person(person)) => self.link_person(source, person),
             tasks::Executor::Agent { .. }
             | tasks::Executor::Procedure { .. }

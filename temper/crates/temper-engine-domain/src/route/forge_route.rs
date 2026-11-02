@@ -723,7 +723,7 @@ pub(crate) fn task_holdings(
         None => false,
     };
     let eligible = match executor {
-        tasks::Executor::Person(_) => false,
+        tasks::Executor::Person(_) | tasks::Executor::Job { .. } => false,
         tasks::Executor::Procedure { connector, code } => {
             connector == domain.config.forge_connector && (code == 1 || code == CHANGE_CODE)
         }
@@ -983,7 +983,10 @@ fn goal_topics(domain: &mut Domain, env: &Env<Limits>, feed: &jig_domain_core::P
         let Some(task) = domain.core.tasks.task(child.number) else { continue };
         let relevant = match task.executor {
             tasks::Executor::Procedure { connector, code: CHANGE_CODE } => connector == domain.config.forge_connector,
-            tasks::Executor::Procedure { .. } | tasks::Executor::Agent { .. } | tasks::Executor::Person(_) => false,
+            tasks::Executor::Procedure { .. }
+            | tasks::Executor::Agent { .. }
+            | tasks::Executor::Person(_)
+            | tasks::Executor::Job { .. } => false,
         };
         if !relevant {
             continue;
@@ -1130,7 +1133,10 @@ fn goal_members(
         match task.executor {
             tasks::Executor::Procedure { connector, code: CHANGE_CODE }
                 if connector == domain.config.forge_connector => {}
-            tasks::Executor::Procedure { .. } | tasks::Executor::Agent { .. } | tasks::Executor::Person(_) => continue,
+            tasks::Executor::Procedure { .. }
+            | tasks::Executor::Agent { .. }
+            | tasks::Executor::Person(_)
+            | tasks::Executor::Job { .. } => continue,
         }
         let Some(change_topic) = change_topic(domain, task) else { continue };
         match topic {
@@ -1671,6 +1677,7 @@ fn initial_change_title(parameters: &[tasks::Parameter]) -> Box<[u8]> {
 /// 3 an optional already-pushed branch, 4 the pull body, 5 priority, and 10 the pull title.
 fn change_delegate_status(kind: &tasks::MessageKind) -> Option<(forge_change::Status, bool, bool)> {
     match kind {
+        tasks::MessageKind::Result(tasks::ResultKind::Job) => None,
         tasks::MessageKind::Result(
             tasks::ResultKind::NoChange
             | tasks::ResultKind::Report
@@ -2095,6 +2102,7 @@ pub(crate) fn chat_change(
         deadline: tasks::Deadline::Named,
         executor: tasks::Executor::Procedure { connector: domain.config.forge_connector, code: CHANGE_CODE },
         spec: tasks::Spec {
+            job: None,
             asks: false,
             words,
             parameters: Box::new(change_parameters(
@@ -2278,7 +2286,7 @@ fn change_delegate(
         flags: tasks::Flags::PLAIN,
         budget: jig_domain_people::Budget::Named,
         executor,
-        spec: tasks::Spec { asks: false, words, parameters: parameters.into_boxed(), inputs: Box::new([]) },
+        spec: tasks::Spec { job: None, asks: false, words, parameters: parameters.into_boxed(), inputs: Box::new([]) },
         contract,
         authority,
         symbolic_grants: Box::new([]),
@@ -2590,6 +2598,7 @@ fn start_queue_repair(domain: &mut Domain, env: &Env<Limits>, task: u64) -> bool
     let base = row.base.clone();
     let [repository_parameter, base_parameter] = change_parameters(domain.config.forge_connector, provider, base);
     let spec = tasks::Spec {
+        job: None,
         asks: false,
         words: Box::from(&b"Repair landing branch CI"[..]),
         parameters: Box::new([
@@ -2784,7 +2793,10 @@ fn change_result_bound(domain: &Domain, task: u64) -> u32 {
     match domain.core.tasks.task(task) {
         Some(row) => match row.contract {
             tasks::Contract::Change { words, .. } => words,
-            tasks::Contract::Approval { .. } | tasks::Contract::Report { .. } | tasks::Contract::Verdict { .. } => 0,
+            tasks::Contract::Job { .. }
+            | tasks::Contract::Approval { .. }
+            | tasks::Contract::Report { .. }
+            | tasks::Contract::Verdict { .. } => 0,
         },
         None => 0,
     }
@@ -3244,7 +3256,9 @@ pub(crate) fn outputs(
                     let procedure = match domain.core.tasks.task(task) {
                         Some(row) => match row.executor {
                             tasks::Executor::Procedure { .. } => true,
-                            tasks::Executor::Agent { .. } | tasks::Executor::Person(_) => false,
+                            tasks::Executor::Agent { .. }
+                            | tasks::Executor::Person(_)
+                            | tasks::Executor::Job { .. } => false,
                         },
                         None => false,
                     };
