@@ -627,7 +627,7 @@ The vocabulary is pre-release, like every format (README.md, section 8).
     with write deadlines (skein's `io.md`, 5.1);
   - the kernel's resource usage of the process and its children, read by
     the shell through io's usage request after the last child has closed
-    and before the stream closes (skein's `io.md`, section 6.1;
+    and before the stream closes (skein's `io.md`, section 6.1; skein's
     `shell.md`, section 13).
 
 ## 8. The world

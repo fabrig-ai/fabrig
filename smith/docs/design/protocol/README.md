@@ -438,8 +438,9 @@ it.
   - a lock on a directory, taken without waiting, for the credentials
     directory's records (`io.md`, section 5);
   - the loop's host interface and its drive, out of the testing crates
-    (`shell.md`, section 12);
-  - trust roots loaded from the machine or a file (`shell.md`, 6.2);
+    (skein's `shell.md`, section 12);
+  - trust roots loaded from the machine or a file (skein's `shell.md`,
+    6.2);
   - the kernel's resource usage of the process and its children.
 - **Sockets and TLS** for a connected agent.
 - **OAuth** for the local host's sign-in (skein's `oauth.md`, section
