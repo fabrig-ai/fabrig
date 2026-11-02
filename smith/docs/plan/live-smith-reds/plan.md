@@ -9,7 +9,7 @@ the whole run `live-smith.log` and the reruns `live-smith-<n>.log`). The CLI the
 |---|---|---|---|
 | `smith-agent-process-world::live program::a_live_server_with_a_non_object_schema_lists_no_tools` | `program.rs:388`: init's server entry gained `"source":"dynamic"` | CLI drift (2.1.312) | `claude-shapes` |
 | `smith-agent-process-world::live program::a_live_thinking_turn_has_the_fakes_shape` | `program.rs:478`: a `thinking_delta`'s `estimated_tokens` is not a number | CLI drift: 2.1.312 coalesces deltas, `estimated_tokens: null` | `claude-shapes` |
-| `smith::live a_run_refreshes_its_grant_at_the_issuer` | `live.rs:34`: generation did not rise; the run itself passed | the story's lead `34_560_000` means 400 days in seconds, but deployment durations are milliseconds: 9.6 hours | `refresh-lead` |
+| `smith::live a_run_refreshes_its_grant_at_the_issuer` | `live.rs:34`: generation did not rise; the run itself passed | unknown: the lead `34_560_000` is 400 days in the settings' seconds and resolves so offline (answered 2026-11-02); the live report's typed facts name the cause | `refresh-lead` |
 | `smith::live claude_delivers_a_commit_in_place` | `live.rs:344`, "run reports the expected resume state", after exit 0 | on a `program` account the run's detail records are the spawned agent's, in `<trace>.agent`; the live arguments name no trace and the harness reads only the product's stream | `claude-trace` |
 | `smith::live a_chat_crosses_from_chatgpt_to_claude_then_back` | whole run `live.rs:334` (exec failed, 22 s); rerun `live.rs:375` (a leg's file content, 16 s; by elimination leg 1, ChatGPT) | the Claude leg has `claude-trace`'s cause; the rest is unknown until the live report names it; `crossing-program` pins the leg's `resumed` and the summary session's init | `claude-trace`, `crossing-program`, `live-report` |
 | `smith::live a_second_run_resumes_the_chat_from_its_files` | `live.rs:334`, exec failed (~6 s for both runs) | unknown from code: run 1 parking, the contract changing on resume, or the provider refusing replayed reasoning; `resume-twin` runs the latter two offline | `resume-twin`, `live-report` |
@@ -28,8 +28,8 @@ is the first run with lent logins: none of the six has been green in the pair.
   generations), built by `support/live_report.rs` to `notes/contracts.md` and checked offline in
   `live_configuration`. This is the request's "first make the failure say why".
 - **refresh-lead** (slice 3, needs `live-report`): the refresh story's lead becomes
-  `REFRESH_LEAD_MS` (400 days in milliseconds) in `support/live.rs`; an offline test resolves the
-  story's settings and sees 400 days (red at 9.6 hours).
+  `REFRESH_LEAD_SECONDS` (400 days in the settings' seconds) in `support/live.rs`; an offline test
+  resolves the story's settings and pins 400 days.
 - **claude-trace** (slice 4, needs `refresh-lead`): each live invocation gets its own trace path;
   a `program` account's observer reads `<trace>.agent` as smith-bench does (`agent_trace`,
   `events()`); offline, `live_configuration` checks the arguments and the observer, and

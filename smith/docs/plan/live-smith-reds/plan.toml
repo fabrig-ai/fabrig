@@ -34,7 +34,7 @@ walk = false
 
 [[part]]
 id = "refresh-lead"
-title = "the refresh story raises deployment.refresh_lead to 400 days in the settings' milliseconds"
+title = "the refresh story names its 400-day deployment.refresh_lead in the settings' seconds and pins it offline"
 mode = "direct"
 needs = ["live-report"]
 design = "smith/docs/design/testing.md, 2.3; smith/docs/design/protocol/limits.md, refresh_lead"

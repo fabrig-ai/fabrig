@@ -7,7 +7,7 @@ files = ["smith/tests/end-to-end/support/live.rs", "smith/tests/end-to-end/live.
 effort = "medium"
 minutes = 40
 +++
-# The refresh story raises its lead in milliseconds
+# The refresh story names its 400-day lead and pins it offline
 
 ## Goal
 
@@ -82,3 +82,34 @@ Acceptance:
 
 The red of step 1 (the resolved lead it saw), the files changed, the tests run (selected,
 passed), and implementation and check minutes apart.
+
+## Answers
+
+2026-11-02. Question: the old `34_560_000` already resolves to 400 days and the millisecond value
+would overflow; keep seconds, or change deployment duration units? Answer: keep seconds; the units
+stay as they are. `deployment.*` durations in the local settings are whole seconds
+(`smith/crates/smith-local-shell/src/settings/resolve/input.rs` `millis` multiplies by 1000 into
+the native agent configuration, whose durations are the milliseconds limits.md names). This
+task's premise (a 9.6-hour lead) is refuted, so its Goal and Acceptance change as follows, and
+override the text above where they differ:
+
+- `support/live.rs`: `pub const REFRESH_LEAD_SECONDS: u64 = 400 * 86_400;` documented "The
+  refresh story's lead, in the settings' seconds: 400 days, past any access token's life", and
+  `pub fn with_refresh_lead(arguments: &mut Vec<std::ffi::OsString>, lead_seconds: u64)`;
+  `Environment::refresh_lead` is documented as seconds. Rename what run 1 pushed (`REFRESH_LEAD_MS`
+  and its parameter) accordingly; keep its `live_settings` helper and `resolve_startup` use.
+- `live.rs`: the story sets `Some(live::REFRESH_LEAD_SECONDS)` and `run` calls
+  `live::with_refresh_lead`; the value the story passes is unchanged.
+- `the_refresh_story_lead_outlives_an_access_token` is a pin, green from the start: drop step 1's
+  red-first run and the "red (9.6 hours)" acceptance line; report that it was green with the old
+  literal (run 1's `d60250a5-...`) as the evidence that the lead is not the cause.
+- The live red's cause is not this task's to fix blind: the lead reaches the product as 400 days,
+  and no product or skein code changes here. Under `## Left`, name what an offline reading of the
+  path from the lent record to the refresh shows could still hold the refresh back (for example a
+  record's `earliest_refresh_at`, which `skein/crates/skein-oauth-accounts/src/component.rs`
+  `recorded` honours whatever the lead), without reading any record's bytes. The after-landing
+  pair's next log, carrying `live-report`'s typed facts, names the cause, and the trunk's repair
+  takes it.
+- The limits.md units paragraph ("durations in whole milliseconds") reads as if it covered the
+  local `deployment.*` settings: not yours (any `docs/design/` is the designer's); say so under
+  `## Left`.
