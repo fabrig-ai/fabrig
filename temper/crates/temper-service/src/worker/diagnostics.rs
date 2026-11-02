@@ -49,7 +49,7 @@ fn event_tag(event: &root::Event) -> WorkerEvent {
             hub::LinkDown::Sources { .. } => WorkerEvent::Link(LinkEvent::Sources),
             hub::LinkDown::Check { .. } => WorkerEvent::Link(LinkEvent::Check),
             hub::LinkDown::SignOut { .. } => WorkerEvent::Link(LinkEvent::SignOut),
-            hub::LinkDown::Assign { .. } => WorkerEvent::Link(LinkEvent::Assign),
+            hub::LinkDown::AssignJob { .. } | hub::LinkDown::Assign { .. } => WorkerEvent::Link(LinkEvent::Assign),
             hub::LinkDown::Message { .. } => WorkerEvent::Link(LinkEvent::Message),
             hub::LinkDown::Relayed { .. } => WorkerEvent::Link(LinkEvent::Relayed),
             hub::LinkDown::TurnKept { .. } => WorkerEvent::Link(LinkEvent::TurnKept),
