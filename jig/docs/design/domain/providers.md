@@ -185,7 +185,7 @@ of paying. The tool keeps the status, body, error code and request id.
 - **An unknown limit reset stays unknown.** No new grant or restart lifts
   it: its holder resumes it, replaces the LLM key or signs in again
   (accounts.md, 3.5). An explicit zero is a supplied reset; an absent reset
-  is not zero. This supersedes ruling 130's mapping, with no guessed delay.
+  is not zero, and no delay is guessed.
 - **Never erase credentials** for a temporary network or service
   failure.
 

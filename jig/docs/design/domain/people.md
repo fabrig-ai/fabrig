@@ -618,10 +618,10 @@ act's own subject are its whole check.
 What waits for a party, across every project they hold a role in, each
 entry naming the task or proposal it is and its project:
 
-- **questions** from tasks they asked for, conversations included;
-  designed, not built: but a question a delegate asks a conversation,
-  which stays with the conversation, which answers it or asks its
-  person itself in its own words (J7, J8);
+- **questions** from tasks they asked for, conversations included,
+  but a question a delegate asks a conversation, which stays with the
+  conversation, which answers it or asks its person itself in its own
+  words (tasks.md, 8.5);
 - **proposals** routed to them, or to a role they hold;
 - **escalations** that reached them: a held task nobody below could
   decide;
@@ -652,10 +652,9 @@ entry naming the task or proposal it is and its project:
   so a conversation never answers for its person; the person's answer
   reaches the asking task as its requester's answer, and the asked task
   hears a notice naming the question answered, with the answer words cut
-  at 256 bytes on a UTF-8 boundary and marked when cut (tasks.md, 5.7). J7 and
-  J8, designed, not built, change which questions wait here: a
-  delegate's question to a conversation becomes the conversation's
-  (tasks.md, 8.5).
+  at 256 bytes on a UTF-8 boundary and marked when cut (tasks.md, 5.7). A
+  delegate's question to a conversation waits with the conversation, not
+  here (tasks.md, 8.5).
 - **A conversation** is a task its creator flagged so (tasks.md,
   section 3), whatever its charter, tracked or not (tasks.md, section
   7): its turns are entries for its requester, while that

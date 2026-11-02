@@ -278,8 +278,7 @@ A source's state is one of:
   run starts on it until then, or, with no time given, until its holder
   resumes it, replaces its LLM key or signs in again. An absent reset remains
   absent across new grants and restarts; it is never converted to zero or
-  a guessed retry deadline. An explicit zero is a supplied reset. This
-  retires ruling 130's absent-reset-to-zero mapping. Text a person reads
+  a guessed retry deadline. An explicit zero is a supplied reset. Text a person reads
   says "limited";
 - **refused:** the LLM provider refuses the account for what is asked:
   not eligible, a scope not granted, plan usage declined at sign-in, a
