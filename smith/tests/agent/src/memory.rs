@@ -150,7 +150,7 @@ impl Driver {
                 | Request::Unauthorized { .. }
                 | Request::Refused { .. }
                 | Request::Limited { .. }
-                | Request::Lower(smith_domain::Lower::Yield { .. }) => {}
+                | Request::Lower(smith_domain::Lower::Yield { .. } | smith_domain::Lower::Close { .. }) => {}
                 Request::Deliver { owner, host_run, .. } => {
                     self.seen[4] += 1;
                     self.ask(Asked::Delivery { owner, host_run, stopped: false });
