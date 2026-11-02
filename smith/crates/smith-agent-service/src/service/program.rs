@@ -363,6 +363,7 @@ pub(super) fn complete(service: &mut Stages, request: llm::FromDomain) {
                 Some(_) | None => false,
             }
         }
+        llm::FromDomain::Close { .. } => return,
         llm::FromDomain::Cancel { owner } | llm::FromDomain::Yield { owner } => match &service.program {
             Some(program) => program.backend.pending(*owner),
             None => false,
@@ -589,6 +590,7 @@ fn answer_head(service: &Stages) -> bool {
                 smith_domain::Lower::Complete { .. }
                 | smith_domain::Lower::Cancel { .. }
                 | smith_domain::Lower::Yield { .. }
+                | smith_domain::Lower::Close { .. }
                 | smith_domain::Lower::Io { .. }
                 | smith_domain::Lower::Job { .. }
                 | smith_domain::Lower::CancelIo { .. }
