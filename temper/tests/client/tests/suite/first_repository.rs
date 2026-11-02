@@ -177,17 +177,26 @@ fn empty_repository_is_required_without_starting_the_box() {
 }
 
 #[test]
-fn without_the_box_the_flow_names_the_commands_and_offers_no_setup() {
-    // protocol/setup.md, 6.5: without the box the page names four commands.
+fn without_the_box_the_flow_says_to_start_temper_with_the_box_and_offers_no_setup() {
+    // client/forge.md, 5.4: without the box the page says to start temper with the box.
     let mut world = configured(false);
     let person = world.client(fixtures::PARTY, flow());
-    script(&mut world, person, vec![see(b"Set it up from a terminal")]);
+    script(
+        &mut world,
+        person,
+        vec![
+            see(b"Set it up under temper box"),
+            Step::Gone { find: Find::named(Role::Button, b"Set up a Forgejo here"), within: fixtures::WITHIN },
+        ],
+    );
     let page = text(&world, person);
-    for command in
-        ["temper forge fetch 1", "temper forge prepare 1", "temper forge run 1 forgejo", "temper forge run 1 runner"]
-    {
-        assert!(page.contains(command), "without-box instructions must name {command}: {page}");
+    for expected in [
+        "temper was not started by temper box, so it does not start a Forgejo itself.",
+        "Start temper with temper box to set one up here.",
+    ] {
+        assert!(page.contains(expected), "missing {expected}: {page}");
     }
+    assert!(!page.contains("temper forge fetch"));
 }
 
 #[test]
