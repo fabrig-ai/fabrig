@@ -10,7 +10,7 @@ it two things:
 
 The channel gives it framing, an opening that agrees a version, bounds and
 flow control. Its first users are smith's channel between a host and an
-agent, and temper's between its engine and its workers.
+agent, and jig's between its engine and its workers.
 
 ## 1. In one page
 
@@ -383,9 +383,9 @@ credential, skip and output caps remain admission checks.
   user needs either.
 - **Named calls:** correlation, a bound on calls in flight, one answer per
   call, withdrawal. Whether they are a layer above the channel in skein,
-  once smith's and temper's channels both have them.
+  once smith's and jig's channels both have them.
 - **Reconnecting:** carrying an application's state across connections
-  stays its owner's. temper's link redials, and smith's connected agent is
+  stays its owner's. jig's worker link redials, and smith's connected agent is
   still open.
 - **TLS's server side** with independent output, for a service that
   accepts channels over TLS (tls.md, section 1).

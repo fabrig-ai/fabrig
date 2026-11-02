@@ -19,7 +19,7 @@ simulator.md; a world run in a browser is playground.md.
   clock (playground.md, 3).
 - **A product, not a test kit.** A playground ships it, so it lives in
   `crates/` and links no crate under `testing/`: no referee, no
-  counting allocator, no trace unless asked. The fake machine moves to
+  counting allocator, no trace unless asked. The fake machine is in
   `crates/` with it (testing.md, 4).
 - **A step is one iteration:** every live process's turn, in admission
   order (reap, iterate, the hook, submit), then the machine's answers
@@ -53,16 +53,15 @@ simulator.md; a world run in a browser is playground.md.
 |---|---|---|
 | `skein-sim-world` | `crates/` | the world and its steps; the program registry (`HostedProgram`, `Inherited`, startup roots and appends); the machine's seam (`Machine`, `NoMachine`); a process's cut (`Cut`: a kill, a power loss); a hosted pipe's capture (`PipeWriter`, `PipeCapture`, `PipeHost`); what processes print (`Printer`, `Printed`) |
 | `skein-world` | `testing/` | the harness, over `skein-sim-world`, whose items it re-exports under their names: the run with its referee, its expectations and controls, the heap meter, the settled and teardown checks, `Outcome`, digests, and the faults and inputs hooks; the domain worlds' and protocol worlds' helpers (`domain`, `stream`); and, under `cfg(unix)`, the real loop, the ring, the tree keeper and end to end |
-| `skein-fake-machine` | `crates/` | unchanged (testing.md, 4) |
+| `skein-fake-machine` | `crates/` | the minimal fake machine (testing.md, 4) |
 
 - **What runs a world is the product's; what checks one is the
   harness's.** The rule decides each item: an item a playground needs
   to run its world goes in `skein-sim-world`; a referee, a meter, an
   assertion and anything native stay in `skein-world`.
-- **No consumer changes.** `skein-world` keeps its name, its modules and
-  its exports, re-exporting what moved, so every world in smith, jig and
-  temper builds as it did. A product crate names `skein-sim-world`; a
-  test may name either.
+- **A test names either.** `skein-world` re-exports `skein-sim-world`'s
+  items under their names, so a world in smith, jig or temper names the
+  harness alone. A product crate names `skein-sim-world`.
 - **Depends on** lib, io, sim and shell, the shell for `Host` alone.
 - **The heap meter wraps each process's turn and every harness
   operation on its containers,** so a turn is an operation of the
@@ -120,13 +119,13 @@ simulator.md; a world run in a browser is playground.md.
 
 - **Monotonic from zero, the wall from a start the world is given:**
   the simulator's configuration names the wall at its start. The
-  harness gives the fixed date it gives today, so a seed replays; a
+  harness gives a fixed date, so a seed replays; a
   playground gives the browser's time at its start, which its session
   log records (playground.md, 6).
 - **Time moves only when the world is idle:** never past its next due
   instant, either to it, or, when the loop asks, to an earlier instant.
-  Moved to a due instant, the next step turns every process at it, as
-  today. Moved short of it, only the clock moves: nothing was due, so
+  Moved to a due instant, the next step turns every process at it.
+  Moved short of it, only the clock moves: nothing was due, so
   no process turns until input enters or the next due instant comes.
   A world moved to T in many pieces is then the same world as one moved
   to T at once, which is what lets a browser pace it (playground.md, 3)
@@ -139,7 +138,7 @@ simulator.md; a world run in a browser is playground.md.
 
 - **A loop gives input to a process between steps,** by the world
   lending it the process, as the harness's referee acts on its
-  processes today. The process takes it as a step function takes any
+  processes. The process takes it as a step function takes any
   input, and acts on it at its next turn.
 - **What a run is a function of:** the seed, the clock's start, and each
   input with the moment it entered, its step count and its instant. A
@@ -152,10 +151,10 @@ simulator.md; a world run in a browser is playground.md.
 ## 6. No verdicts
 
 - **A step fails only on a broken contract:** the simulator's, the
-  machine's, or a process's own panic, each fail-stop as now.
+  machine's, or a process's own panic, each fail-stop.
 - **The harness's verdicts are its run's:** a world that has not
-  settled within its steps (a million today), or that is idle,
-  unsettled, with nothing due, fails the test as now. A playground's
+  settled within its steps (a million), or that is idle,
+  unsettled, with nothing due, fails the test. A playground's
   loop takes neither as a failure: its world idles waiting for its
   visitor, and runs as long as the page does.
 

@@ -1,8 +1,6 @@
 # lab-browser: status
 
-2026-10-29. Where skein's code lags or departs from [lab-browser.md](lab-browser.md).
+2026-11-02. Where skein's code lags or departs from [lab-browser.md](lab-browser.md).
 
-- **Built:** 2, 3, 6, 8: the program and its calls, its closed network and stable shots, the hand and its look reads.
-- **Not yet:** 9: dark scheme.
-
-- **Built (2026-11-01):** 6, 8.9: capture folds, hand main paths, and fake-clock listener checks; shared JSON library target.
+- **Departs:** the whole: its purpose, the lab, is retired, and
+  `testing/skein-lab-browser` awaits removal with this design.

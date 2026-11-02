@@ -1040,5 +1040,4 @@ interface for its backend.
 
 ## 10. Not built yet
 
-What of this document is not built is `STATUS.md`'s (its row in section 2,
-and section 3).
+What of this document is not built is in [`kernel.status.md`](kernel.status.md).
