@@ -46,7 +46,9 @@ fn ask_plan_and_wait(world: &mut World, chat: &engine::Assignment, run: &engine:
         world,
         run,
         NESTED_GOAL_CALL + 3,
-        engine::Tool::Change { words: b"Add CSV export".as_slice().into(), repository: None },
+        engine::Tool::Change {
+            changes: Box::new([engine::ChangeCall::words(b"Add CSV export".as_slice().into(), None)]),
+        },
         format!("wait for the answer to question {message}").as_bytes(),
     );
     let read = Some(live(world, run.task).last_message);
@@ -338,7 +340,7 @@ fn a_goal_calls_change_and_its_change_is_made() {
         &mut world,
         &run,
         94,
-        engine::Tool::Change { words: b"Small fix".as_slice().into(), repository: None },
+        engine::Tool::Change { changes: Box::new([engine::ChangeCall::words(b"Small fix".as_slice().into(), None)]) },
     ));
     let row = live(&world, change);
     assert_eq!(row.requester, tasks::Party::Task(run.task));
@@ -634,7 +636,7 @@ fn an_agreed_goals_change_before_the_answer_is_refused_by_name() {
         &mut world,
         &run,
         CONTINUED_CALL,
-        engine::Tool::Change { words: b"Small fix".as_slice().into(), repository: None },
+        engine::Tool::Change { changes: Box::new([engine::ChangeCall::words(b"Small fix".as_slice().into(), None)]) },
         expected.as_bytes(),
     );
 }
@@ -646,7 +648,7 @@ fn an_agreed_goals_change_before_asking_is_refused_by_name() {
         &mut world,
         &run,
         NESTED_GOAL_CALL,
-        engine::Tool::Change { words: b"Small fix".as_slice().into(), repository: None },
+        engine::Tool::Change { changes: Box::new([engine::ChangeCall::words(b"Small fix".as_slice().into(), None)]) },
         ASK_PLAN,
     );
 }

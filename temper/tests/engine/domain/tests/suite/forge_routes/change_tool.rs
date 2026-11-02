@@ -35,7 +35,9 @@ pub(super) fn change(
         engine::Call {
             completion: u32::try_from(name).expect("bounded call name"),
             position: 1,
-            tool: engine::Tool::Change { words: words.into(), repository: repository.map(Box::from) },
+            tool: engine::Tool::Change {
+                changes: Box::new([engine::ChangeCall::words(words.into(), repository.map(Box::from))]),
+            },
         },
     );
     world.send(event);

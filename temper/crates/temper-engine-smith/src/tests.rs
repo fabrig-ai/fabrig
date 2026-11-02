@@ -131,7 +131,7 @@ fn root_charter_becomes_a_smith_start_with_ordered_brief_and_exact_budget() {
 }
 
 fn goal_tools(timeout: Duration) -> Box<[run::HostTool]> {
-    let mut expected = tools(timeout);
+    let mut expected = crate::calls::tools_for(timeout, tasks::Tools(!jig_domain_core::ToolFamilies::JIG.control.0));
     for tool in &mut expected {
         tool.reserve = tool.name.as_ref() == b"message";
     }
@@ -1379,10 +1379,141 @@ fn change_decodes_words_and_an_optional_repository() {
         let call = decided(b"change", input).expect("change is declared and decoded");
         assert_eq!(call.completion, 2);
         assert_eq!(call.position, 1);
-        let engine::Tool::Change { words, repository } = call.tool else { panic!("change") };
-        assert_eq!(words.as_ref(), b"edit README");
-        assert_eq!(repository.as_deref(), if input.contains(&b'/') { Some(b"work/hello".as_slice()) } else { None });
+        let engine::Tool::Change { changes } = call.tool else { panic!("change") };
+        let repository = if input.contains(&b'/') { Some(b"work/hello".as_slice().into()) } else { None };
+        assert_eq!(changes.as_ref(), &[engine::ChangeCall::words(b"edit README".as_slice().into(), repository)]);
     }
+}
+
+#[test]
+fn change_decodes_a_plan_member_each() {
+    for (landing, expected) in
+        [("goal", engine::ChangeLanding::Goal), ("main", engine::ChangeLanding::Branch(b"main".as_slice().into()))]
+    {
+        let input = format!(r#"{{"words":"a","name":"x","landing":"{landing}","after":[4,"w"]}}"#);
+        let engine::Tool::Change { changes } = decided(b"change", input.as_bytes()).expect("plan change").tool else {
+            panic!("change")
+        };
+        assert_eq!(
+            changes.as_ref(),
+            &[engine::ChangeCall {
+                words: b"a".as_slice().into(),
+                repository: None,
+                name: Some(b"x".as_slice().into()),
+                landing: Some(expected),
+                after: Box::new([engine::ChangeAfter::Task(4), engine::ChangeAfter::Name(b"w".as_slice().into())]),
+            }]
+        );
+    }
+    let name = "x".repeat(64);
+    let input = format!(r#"{{"words":"a","name":"{name}","after":[]}}"#);
+    let engine::Tool::Change { changes } = decided(b"change", input.as_bytes()).expect("64-byte name").tool else {
+        panic!("change")
+    };
+    assert_eq!(changes[0].name.as_deref(), Some(name.as_bytes()));
+    assert!(changes[0].after.is_empty());
+}
+
+#[test]
+fn change_decodes_several_changes_in_order() {
+    let engine::Tool::Change { changes } =
+        decided(b"change", br#"{"changes":[{"words":"a","name":"a"},{"words":"b","after":["a"]}]}"#)
+            .expect("batch change")
+            .tool
+    else {
+        panic!("change")
+    };
+    assert_eq!(
+        changes.as_ref(),
+        &[
+            engine::ChangeCall {
+                name: Some(b"a".as_slice().into()),
+                ..engine::ChangeCall::words(b"a".as_slice().into(), None)
+            },
+            engine::ChangeCall {
+                after: Box::new([engine::ChangeAfter::Name(b"a".as_slice().into())]),
+                ..engine::ChangeCall::words(b"b".as_slice().into(), None)
+            },
+        ]
+    );
+    let engine::Tool::Change { changes } =
+        decided(b"change", br#"{"changes":[{"words":"a","repository":"work/hello","landing":"main","after":[1]}]}"#)
+            .expect("one batch member")
+            .tool
+    else {
+        panic!("change")
+    };
+    assert_eq!(
+        changes.as_ref(),
+        &[engine::ChangeCall {
+            words: b"a".as_slice().into(),
+            repository: Some(b"work/hello".as_slice().into()),
+            name: None,
+            landing: Some(engine::ChangeLanding::Branch(b"main".as_slice().into())),
+            after: Box::new([engine::ChangeAfter::Task(1)]),
+        }]
+    );
+}
+
+#[test]
+fn change_refuses_words_with_changes_and_empty_members() {
+    let cases: &[(&[u8], Problem)] = &[
+        (br#"{"words":"a","changes":[{"words":"b"}]}"#, Problem::Range(b"changes")),
+        (br#"{"changes":[]}"#, Problem::Range(b"changes")),
+        (br#"{"changes":{}}"#, Problem::Type(b"changes")),
+        (br#"{"changes":[true]}"#, Problem::Type(b"changes")),
+        (br#"{"changes":[{"words":"a","changes":[{"words":"b"}]}]}"#, Problem::Range(b"changes")),
+        (br#"{"changes":[{}]}"#, Problem::Missing(b"words")),
+        (br#"{"changes":[{"words":""}]}"#, Problem::Range(b"words")),
+        (br#"{"changes":[{"words":"a","repository":"hello"}]}"#, Problem::Range(b"repository")),
+        (br#"{"words":"a","name":""}"#, Problem::Range(b"name")),
+        (br#"{"words":"a","name":1}"#, Problem::Type(b"name")),
+        (br#"{"words":"a","landing":""}"#, Problem::Range(b"landing")),
+        (br#"{"words":"a","landing":true}"#, Problem::Type(b"landing")),
+        (br#"{"words":"a","after":0}"#, Problem::Type(b"after")),
+        (br#"{"words":"a","after":[0]}"#, Problem::Range(b"after")),
+        (br#"{"words":"a","after":[-1]}"#, Problem::Range(b"after")),
+        (br#"{"words":"a","after":[1.5]}"#, Problem::Range(b"after")),
+        (br#"{"words":"a","after":[18446744073709551616]}"#, Problem::Range(b"after")),
+        (br#"{"words":"a","after":[""]}"#, Problem::Range(b"after")),
+        (br#"{"words":"a","after":[true]}"#, Problem::Type(b"after")),
+        (br#"{"words":"a","after":[{}]}"#, Problem::Type(b"after")),
+        (br#"{"words":"a","after":[[]]}"#, Problem::Type(b"after")),
+        (br#"{"words":"a","after":[null]}"#, Problem::Type(b"after")),
+    ];
+    for (input, expected) in cases {
+        assert_eq!(decided(b"change", input), Err(*expected), "{input:?}");
+    }
+    let name = "x".repeat(65);
+    let input = format!(r#"{{"words":"a","name":"{name}"}}"#);
+    assert_eq!(decided(b"change", input.as_bytes()), Err(Problem::Range(b"name")));
+}
+
+#[test]
+fn change_offers_its_plan_members_only_with_control() {
+    let legacy = br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."}},"required":["words"]}"#;
+    let plan = br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."},"name":{"type":"string","description":"Its name in this call, for a later change's after."},"landing":{"type":"string","description":"goal: your own goal branch; or a branch's name; left out, the default branch."},"after":{"type":"array","description":"What it lands after: your live delegates' task numbers, or names given earlier in this call.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"changes":{"type":"array","description":"Instead of words: several changes as one batch, each with the members above.","items":{"type":"object"}}}}"#;
+    let stock = 1_539;
+    for (authority, schema) in [(stock, legacy.as_slice()), (stock | 0b100, plan.as_slice())] {
+        let mut found = false;
+        for tool in crate::calls::tools_for(Duration::from_secs(10), tasks::Tools(authority)) {
+            if tool.name.as_ref() == b"change" {
+                found = true;
+                assert_eq!(tool.schema.as_ref(), schema);
+                assert_eq!(tool.description.as_ref(), b"Have one change written on a branch of a repository of this project, opened as a pull request and merged once its checks pass; you hear its result.");
+            }
+        }
+        assert!(found, "change offered");
+    }
+    let mut found = false;
+    for tool in tools(Duration::from_secs(10)) {
+        if tool.name.as_ref() == b"change" {
+            found = true;
+            assert_eq!(tool.schema.as_ref(), plan);
+            crate::json::parse(&tool.schema).expect("plan schema");
+        }
+    }
+    assert!(found, "complete registry includes plan schema");
 }
 
 #[test]
