@@ -412,7 +412,7 @@ pub fn store_view(store: &Store) -> conformance::Store<'_> {
 // client_settings::an_owner_moves_running_work_through_the_client_and_hears_both_counts.
 // The core crate's own most is 880,068 bytes.
 // A ceiling, a quarter above, rounded up to two significant digits
-// (skein's dynamic-memory draft, 7.1); it moves by hand only in the commit
+// (skein's testing-strategy.md, 6); it moves by hand only in the commit
 // of a real change that passes it, never on a type's size.
 const CORE_WORLD_HEAP_CEILING: u64 = 12_000_000;
 

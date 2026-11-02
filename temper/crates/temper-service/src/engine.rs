@@ -48,7 +48,7 @@ pub(crate) struct Engine {
     pub(crate) release_trace: Option<ReleaseTrace>,
 }
 
-/// Test observations of the release/dispatch order (skein/docs/design/draft/dynamic-memory.md, 4.6).
+/// Test observations of the release/dispatch order (skein/docs/foundation/programming-model.md, 7.2).
 #[cfg(test)]
 pub(crate) enum ReleaseObservation {
     Released { ordinal: u64, requests: List<Box<[u8]>>, waiting_answers: u32 },

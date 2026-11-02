@@ -1,7 +1,6 @@
 # configuration: status
 
-2026-11-01. Where jig's code lags or departs from [configuration.md](configuration.md).
+2026-11-02. Where jig's code lags or departs from [configuration.md](configuration.md).
 
-- **Built:** Small store page ceiling admits the shipped current full transcript frame; allocation capacities unchanged. Providers-only accounts, program binding/resources, templates and client settings; 3: acts, policies, names and deployment roster; 6: settings/proposal capacity and answer reservations; 6, 8: whole seed capacities. 1: an application's passed defaults (`Defaults::Passed`, `pass`), the four members refused, naming the store.
-- **Not yet:** 3, 4, 7: inline agents and TLS configuration. 3: retention horizons. 5: root-owned first periods and calendar child.
-- **Built:** 6: stream and carrier overrides, checked together with four ordinary exchanges beside the larger stream bound; refusals name the undersized carrier.
+- **Not yet:** 3: retention's horizons in the deployment member: none is parsed. 3, 4, 7: the engine's own slots for agents in the engine, and TLS for the workers' listener and the worker's `engine` address: `jig/crates/jig-protocol-config/src/hosts.rs` and `address.rs` read plaintext and in-process addresses alone. 5: `ops`'s calendar child (`../examples.md`, section 4). 6: the envelope diagnostics' words name `people-v13`, where the people family is v14 (`jig/crates/jig-protocol-config/src/problem.rs`, `domain.rs`).
+- **Departs:** 5: the reference service's first periods come from its engine's routing, which hands the core each `Period` (`jig/testing/jig-test-service/src/engine.rs`), not from a child of its root, because jig's test root composes no period child. 6: the people child still restores and replays an answer kept for a `Seen`, which holds its place until its expiry, though a `Seen` keeps no answer (`jig/crates/jig-domain-people/src/tests.rs`, `kept_seen_answers_restore_replay_and_occupy_room_until_their_original_expiry`), because the code keeps a pre-release compatibility the design dropped; a code task removes it.

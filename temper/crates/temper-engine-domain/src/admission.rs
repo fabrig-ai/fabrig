@@ -1,6 +1,6 @@
 //! Admission at the service boundary: new work waits at the watermark,
-//! while completions of admitted work are always taken (skein's draft
-//! `dynamic-memory.md`, 4).
+//! while completions of admitted work are always taken (skein's
+//! `programming-model.md`, 7.1).
 use crate::boundary::{Event, Link, PartyInput, StoreInput, WorkerInput};
 use crate::domain::{Domain, admits, step};
 use crate::limits::Limits;

@@ -1,18 +1,26 @@
 # people: status
 
-2026-11-01. Where jig's code lags or departs from [people.md](people.md).
+2026-11-02. Where jig's code lags or departs from [people.md](people.md).
 
-- **Built:** 1 to 11: operations, keyed deployment acts, runtime projects, rename, account actions and deployment roles. 3, 10: two-clock expiry, held sign-ins and full-pool/busy distinction. 1, 5.1, 6: Seen reprocessed without retained answers; ordinary reservations preserved. 5.1: `MoveToNewest`. 5.1: Stop places a stop hold of the party's over the task's subtree. 5.1, 5.2: `RoleSpend`, a role's spend per period edited alone. 5.1: a request refused for want of a retained answer's place is answered busy, answers full, with the table's size and its oldest answer's expiry. 5.1: Lift; Release's owner rule.
-- **Behind a switch:** 6, 8.1: the person's own answer is enabled by
-  `Core::person_answers()`, off by default and set before the first
-  step. Until the switch is removed, the default route lets the asked
-  task answer and relay. With it enabled, credits for questions to a
-  person-requested task name `Party::Person` as answerer. Credits stored
-  before enabling it, still naming a task answerer, route by the
-  question's current inbox owner without a stored-format migration.
-  Moving a recipient re-points its incoming person-answerer credits to
-  its new person.
-- **Not yet:** 3: service credential reissue/removal. 5.1: widening funded by the amender. 6: retention. 5.1: Hold; a party's Propose of a release.
-- **Built:** 2: `outputs_bound` is reserved by the settings route at the store commit edge.
-
-- **Built:** 6: the asked task hears the person's answer words in its notice, cut at 256 bytes and marked when cut.
+- **Not yet:** 3: a service's credential reissued or removed. 5.1:
+  `Hold`; `Move` under another task; `Succeed`; a party's `Propose` of a
+  release; a widening funded from the amender's pool. 6: retention; a
+  delegate's question to a conversation kept with the conversation. 7: a
+  chat answering its delegates' questions and asking its person by a
+  person task.
+- **Departs:** 5.1, 5.2, 5.3: a project's owners, and the deployment by
+  its act, remove a project (`Ask::RemoveProject`, `ActKind::RemoveProject`;
+  `jig-domain-core/src/admission/deletion.rs`), which this design does not
+  have, because the playground is reset
+  (`temper/docs/design/draft/playground-reset.md`, 5 and 6). 5.1: `Seen`
+  answers a store kept from before `Seen` saved none still restore,
+  replay and hold their places until their expiry
+  (`kept_seen_answers_restore_replay_and_occupy_room_until_their_original_expiry`,
+  `jig-domain-people/src/tests.rs`); a code task removes them. 6, 8: the
+  person's own answer is off by default, behind `Core::person_answers()`
+  (`jig-domain-core/src/inbox.rs`), because each application opts in
+  before the first step, as temper does. With it off, the asked task
+  answers and relays. With it on, credits stored before it was set,
+  naming a task answerer, route by the question's current inbox owner,
+  and moving a recipient re-points its incoming person-answerer credits
+  to its new person.

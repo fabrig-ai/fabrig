@@ -26,12 +26,11 @@ and pre-admission buffering to the run entrance (domain/run.md, section 6).
   - searches and commands run, each in its own process group;
   - commands left running as jobs, held, read and stopped;
   - checks run and guides read.
-- **Everything runs in a view, once contained trees exist.** Each
-  command, search and check is then a contained tree (skein's
-  `io.md`, 6.2–6.4) that sees the workspace's directories side by side,
-  writable as the start says, with every git directory read-only. Until
-  then they are plain children in process groups, and the agent says so
-  (section 3).
+- **Everything runs in a view.** Each command, search and check is a
+  contained tree (skein's `io.md`, 6.2–6.4) that sees the workspace's
+  directories side by side, writable as the start says, with every git
+  directory read-only. Without contained trees they are plain children in
+  process groups, and the agent says so (section 3).
 - **Configuration is declared quantities.** It gives:
   - the endpoints and their models' declared quantities;
   - the programs it may run, and their configuration directories'
@@ -63,7 +62,7 @@ and pre-admission buffering to the run entrance (domain/run.md, section 6).
 | Operation | How |
 |---|---|
 | load a file | whole, within its bound, beneath its directory's root, with a digest of its content as its version |
-| store a file | to a temporary file beside it, then renamed over it, once the file's content still has the version read; never through a symbolic link. A new file's directory is first loaded without following a link, and when nothing is there, the directories its path names that do not exist are made from the top, an existing one counting as made (revised 2026-10-20) |
+| store a file | to a temporary file beside it, then renamed over it, once the file's content still has the version read; never through a symbolic link. A new file's directory is first loaded without following a link, and when nothing is there, the directories its path names that do not exist are made from the top, an existing one counting as made |
 | scan a directory | its entries, within their bound |
 | list a tree | the entries beneath a directory, to a depth, leaving out what the ignore files and git exclude, within their bound |
 | search | `rg` in a process group of its own: no configuration, an empty environment, the pattern and glob after `--` |
@@ -130,7 +129,7 @@ and pre-admission buffering to the run entrance (domain/run.md, section 6).
 - **Process groups.** Each command, check and search leads a process
   group of its own, and a deadline or a stop signals the whole group, so
   what a command started ends with it, not only its shell.
-- **Until contained trees exist,** none of this view is the kernel's.
+- **Without contained trees,** none of this view is the kernel's.
   Commands, checks and searches run as plain children of the agent, in
   their process groups, with the agent's user's permissions and its file
   system as it is: nothing makes a git directory read-only, or the rest
@@ -295,7 +294,7 @@ spawns one (hosts.md, section 5.2).
   - read the configuration;
   - derive the limits and check every relationship (limits.md);
   - resolve the endpoints' names;
-  - once contained trees exist, check that the machine allows them;
+  - check whether the machine allows contained trees;
   - open the event stream's file, if any, and write `session.started`;
   - then start the loop, as the channel's responder.
 
@@ -349,7 +348,7 @@ spawns one (hosts.md, section 5.2).
 - **skein owes:**
   - io's files and roots;
   - process groups, signalled whole (skein's `io.md`, section 6), and
-    contained trees later (skein's `io.md`, 6.2–6.4);
+    contained trees (skein's `io.md`, 6.2–6.4);
   - append streams on files, with write and close deadlines (skein's
     `io.md`, 5.1);
   - owner close, with a closed terminal, for every component the agent
@@ -377,8 +376,8 @@ spawns one (hosts.md, section 5.2).
 
   The referee requires that every group is ended before its call is
   answered, a job's before its end is answered or told, and every group
-  before the machine reports closed; and, once contained trees
-  exist, that nothing is written outside the writable directories.
+  before the machine reports closed; and, with contained trees, that
+  nothing is written outside the writable directories.
 - **The process,** as a simulated world: the agent's `iterate` with a
   scripted host on its channel and a fake LLM peer. Each world inherits
   skein's teardown invariant: a world that ends by itself fires no
@@ -406,17 +405,6 @@ spawns one (hosts.md, section 5.2).
 - **Memory:** fixed process scenarios against skein's counting
   allocator, one measured total peak under a ceiling with headroom per
   scenario (limits.md, section 11).
-
-## 9. From temper
-
-- **Kept:** temper's agent's tools below the domain, unchanged in what they
-  do, and its log for operators on standard error.
-- **New:**
-  - views with read-only git directories, with contained trees;
-  - process groups for every command, check and search;
-  - the commands' environment in configuration;
-  - declared quantities, with their derivation and checks;
-  - the event stream.
 
 ## 10. Open questions
 

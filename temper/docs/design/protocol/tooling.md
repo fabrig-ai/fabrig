@@ -1,6 +1,6 @@
 # The project's tooling
 
-Provisional, 2026-10-27. Designed, not built. The contract between temper
+Provisional, 2026-10-27. The contract between temper
 and a project's own tooling: the `prepare` and `key` commands a project
 that lands by turn may name (`../domain/landing.md`, 5.3 and 6.1), what
 temper gives them, what they write, and how they end. temper runs them
@@ -92,7 +92,7 @@ section 7.
 `request.json` and `result.json` at most `tooling_file_bytes` each;
 `files` at most `conflict_files`, each a path within a branch name's
 bounds; members and upstreams within the landing's limits. Each is a
-limit of the worker's (`configuration.md`, section 7).
+limit of the worker's jobs (`../domain/worker.md`, 4.4).
 
 ## 7. Open questions
 

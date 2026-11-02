@@ -8,8 +8,7 @@ printed as journeys (`journeys.md`); the mockups (`mockups/`) are the
 design of what is not built yet, reconciled to temper where they
 differ (the user, 10-26). How a view runs in a browser is
 skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
-(jig's `protocol/browser.md`). It is built in two milestones (section
-6). What is still open is section 5.
+(jig's `protocol/browser.md`). What is still open is section 5.
 
 ## 1. In one page
 
@@ -122,7 +121,7 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
     replay (`journeys.md`, sections 3 and 4); the recorder's keys and
     save are in `lib`, under the `record` feature alone;
   - `records`: the small store's records, `jig-client`'s alone; from the
-    adoption form (section 6), a pending adoption is among them, a kept
+    adoption form, a pending adoption is among them, a kept
     request whose request `temper-client-protocol-wire` encodes
     (`README.md`, 4.6);
   - `limits`: the client's limits in a browser, derived as the
@@ -144,7 +143,7 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
 - **The small store** is the browser's session storage, under the
   prefix `temper.`, holding `jig-client`'s records alone, as the
   terminal's file does (`README.md`, section 7); from the adoption form
-  (section 6), a pending adoption is among them, a kept request
+  a pending adoption is among them, a kept request
   (`README.md`, 4.6). Each load of the page is a client of its own, with
   its own stream (jig's `protocol/browser.md`, section 10). The root can
   step the client several times in one turn (a sign-in's answer saves its
@@ -379,13 +378,12 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   cards; the conversation's turns; the composers. The view sets them
   (`README.md`, 5.1); the terminal prints none.
 - **The bundle's stylesheets:** skein's `skein-ui.css`, then
-  `temper.css`, temper's look. It no longer takes its rules from the
+  `temper.css`, temper's look. It takes no rules from the
   mockups' terminal sheets (`terminal-chat.css` and `terminal-pages.css`
   over `style.css`): it is tuned on the journeys' prints
   (`journeys.md`, section 7), and the mockups are reconciled to it
   (`mockups/README.md`, 1); they are not shipped. What follows here
-  says what it draws today, much of it first taken from the mockups,
-  and is the gallery's for the states no journey reaches (section 7).
+  says what it draws, and is the gallery's for the states no journey reaches (section 7).
   These are the bundle's three
   stylesheets; `jig.css` is not in it. `temper.css` holds the mockups'
   palette as variables under the prefix, their monospaced stack, compact
@@ -658,16 +656,15 @@ without it.
   with Shift.
 - **What it runs against:** `temper serve`, a child of the harness's
   loop, on a scratch directory, from a configuration the test writes
-  with the bundle named: no Forgejo, no runner. The first milestone's
+  with the bundle named: no Forgejo, no runner. 4.1's
   stories need no answer of the forge's or the LLM's, so its forge and
   its LLM endpoint are unreached, on closed loopback ports, as jig's
   tier serves (jig's `protocol/browser.md`, section 15). The fake
   forge, hosted on loopback in that loop by skein's forge peer
   (`../domain/testing.md`, 4.2), and skein's fake LLM peer, as the
   process tier has them (`../domain/testing.md`, 2.6), join with the
-  second milestone's first story that needs them (4.2). The one
-  exception is 4.4's test, for which the forge peer joins earlier
-  serving only the fake's GitHub `web`. skein's fake issuer joins for
+  first story that needs them (4.2). 4.4's test has the forge peer
+  serve only the fake's GitHub `web`. skein's fake issuer joins for
   `ConnectModel`'s round trip alone (4.2).
 - **Only what a browser alone shows.** temper's stories (what a page
   shows, what an act sends, a chat answered, a proposal accepted, a
@@ -812,8 +809,8 @@ tests 4.1's stories take and 4.2's story, the tier reaches its 12.
 - **What it runs against:** `temper serve` with a GitHub forge whose
   `api` and `web` are the fake's GitHub layer, hosted on loopback in the
   harness's loop by skein's forge peer (skein's `fake-forge.md`, section
-  10), which joins the tier for this test alone, ahead of the second
-  milestone (section 4): the test needs only its `web`. A GitHub forge needs a fixed
+  10), which serves the tier for this test alone: the test needs only
+  its `web`. A GitHub forge needs a fixed
   clients' listener (`forge.md`, 9.1), so the tier reserves a loopback
   port the kernel assigns before `temper serve` starts and names it in
   the configuration.
@@ -886,11 +883,9 @@ The tier's tests, each one test of the steps it names, each on its own
 12. **The playground's story A** on the built playground, its log
     downloaded and replayed natively (`../playground.md`, 9).
 
-Items 1 to 11 are built, each as one test in `browser_all`; item 12 is
-pending the built playground (`../playground.status.md`). The cap includes
-all browser tests, whatever their names.
+The cap includes all browser tests, whatever their names.
 
-Gone from the tier, each to the lowest world that shows it:
+Not in the tier, each in the lowest world that shows it:
 - **Address-codec edge rows:** `temper-client-domain`'s
   `tests::address::{a_path_that_is_no_page_is_missing,each_number_spans_its_types_range}`.
   Browser test 3 keeps the shell's replacement of a missing address with `/`.
@@ -903,7 +898,7 @@ Gone from the tier, each to the lowest world that shows it:
 - **A moving account's rendering:** the view's
   `tests::accounts::a_moving_account_shows_its_state_without_buttons`; the
   accounts world's `suite::moves::a_written_move_erases_the_source_and_its_account`
-  holds removal. The browser attempt had no authenticated split-move driver.
+  holds removal.
 - **A chat's day and turn clocks beside its speakers:** words and roles
   alone, which the view's tests (`temper-client-view`'s chat tests:
   order, day lines, midnight) and the client world's chat already hold.
@@ -948,39 +943,12 @@ Gone from the tier, each to the lowest world that shows it:
   `skein-ui.css` by running skein's bundler with no module (7.1).
   Default: so, until skein's bundler offers the stylesheet alone.
 
-## 6. In two milestones
-
-- **The first: one path end to end, sign-in, the chats, a chat.**
-  Everything every page shares: the shell (2.1), serving and the policy
-  (2.2), the address codec with every present page's path (2.3),
-  signing in (2.4), the frame's look and the chats' and a chat's (2.5),
-  the bundle and the gate's checks (4.3). A chat's own, drawn by
-  `temper.css`: the composer's keys and growth, a run's live text, a
-  proposal accepted or rejected in place. The tier's stories of 4.1.
-  Upstream, in skein, before them: a click inside a button or a menu
-  item finding it (skein's `ui-web.md`, section 6), since temper's pages
-  click buttons; `back_and_forward` awaiting a page that holds its
-  server's state before its first move (skein's `ui-web.md`, 14.2),
-  since the first page signs in by the printed link; and the fake
-  person reading the current address and pressing a key with Shift
-  (skein's `ui-web.md`, 14.2). Done when temper's gate passes 4.1's
-  stories.
-- **The second: the other pages.** The inbox, a task's page (a goal's
-  and an agent's task's) and the adoption form, each with its look
-  (2.5), and 4.2's story; the forge peer and the fake LLM peer join the
-  tier with its first story that needs them (4; the forge peer
-  forge-kit's). Done when temper's gate passes it.
-- **What it touches in temper:** `temper-service`'s clients' server and
-  its configuration and limits (2.2); `temper-client-domain`'s address
-  codec (2.3); the view's style tokens, its composers' `SubmitsOnEnter`
-  and its signed-out words (2.4, 2.5); the new shell and the tier.
-
 ## 7. The gallery
 
 `temper-client-gallery` (`tools/gallery`), a program of temper's
 workspace, prints the browser's pages in named states into a
 directory, as static documents, for screenshots beside the mockups
-(`../draft/qa-web.md`, 3.2) and a person's eye. It is a tool, not a test of the pages: what
+and a person's eye. It is a tool, not a test of the pages: what
 the pages do is the worlds' (section 4), and the gallery draws what the
 view draws, never changing a view to suit a sample. It stays for the
 states no journey reaches (`journeys.md`): a journey's print, replayed
@@ -1010,8 +978,7 @@ from the engine's own answers, is where the look is tuned.
   order, linking its page, with its mockup's address beside it where a
   mockup draws it.
 - **Static:** no script runs, so focus, caret, scroll and a run's live
-  text are not shown; what only the live page shows is a live scene's
-  (`../draft/qa-web.md`, 3.3).
+  text are not shown.
 
 ### 7.2 Its states
 
@@ -1038,16 +1005,14 @@ from the engine's own answers, is where the look is tuned.
   shell takes), never widened, and the view's bounds are derived from
   them as the shell derives its own: a page shows what a person's
   browser would, a window's rows and a chat's lines included (`README.md`,
-  5.4), so that its outline is the live page's (`../draft/qa-web.md`,
-  8.2). A world holds more than a window shows; the page shows the
+  5.4), so that its outline is the live page's. A world holds more than a window shows; the page shows the
   window, and the state's test row says what it shows.
-- **Names,** binding once landed: a state a mockup draws is named by
+- **Names,** binding: a state a mockup draws is named by
   its address, `<page>-<world>[-<step>][-<task>]` (`chat-solo-T10` for
   `chat.html?world=solo&task=T10`, `chats-first-run-1` for
   `chats.html?world=first-run&step=1`); one no mockup draws takes a
   plain name (`signed-out`, `chats-empty`, `adoption-refused`). A name
-  is never reused for another state, and one leaves only with the
-  scenes that capture it.
+  is never reused for another state.
 
 | Name | The state |
 |---|---|
@@ -1126,7 +1091,7 @@ gallery builds it.
 
 - **The names:** the states' names, in order, are `tools/gallery/names.txt`,
   kept by hand, so a name gone, changed or added fails until the file
-  says so; the scenes read the same file.
+  says so.
 - **Each state holds what its name says:** a table of rows, each a
   name, its page's heading and the one part the state is about, found
   by role and name (the proposal in `chat-solo-T10`, the three

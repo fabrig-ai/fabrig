@@ -316,8 +316,8 @@ h3 { font-size: 14px; line-height: 1.35; letter-spacing: -.015em; margin-bottom:
   .welcome-foot { gap: 12px; }
 }
 
-/* The stock front page, signed out, and its sign-in's endings (draft
-   sign-in.md, sections 4 to 6). */
+/* The stock front page, signed out, and its sign-in's endings (protocol/
+   sign-in.md, sections 4 and 9). */
 .sign-in-page { width: min(500px, calc(100% - 32px)); margin: 0 auto; padding: 56px 0 70px; }
 .sign-in-card { padding: 26px 28px 22px; }
 .sign-in-brand { display: flex; align-items: center; gap: 7px; margin: 0 0 22px; font-weight: 700; }

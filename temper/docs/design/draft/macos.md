@@ -8,7 +8,7 @@ with its file and line). It crosses skein, smith, jig and temper on
 purpose; an owner splits it.
 
 macOS is a person's own machine: development, and a first look at
-temper. Linux stays the platform of record: `land`'s gate, deployments,
+temper. Linux stays the platform of record: the gate, deployments,
 and everything only Linux can give (containment, trees, io_uring).
 
 ## 1. In one page
@@ -28,12 +28,12 @@ and everything only Linux can give (containment, trees, io_uring).
 - **Above skein, a handful of Linux habits:** fixed tool paths in
   smith, `/proc` and `/etc/passwd` in temper, and their tests' `/proc`
   observations (section 4).
-- **No owned Forgejo on macOS.** `temper init` writes none into the
-  default document there, and `temper forge fetch` refuses (4.3).
-- **CI is GitHub Actions,** a macOS workflow in each of the four public
-  repositories, run after each push to `main`. A red run blocks nothing:
-  `land`'s gate stays Linux's (section 5).
-- **What macOS cannot give stays Linux-only, by name:** each repository
+- **No owned Forgejo on macOS.** The client offers none there, and its
+  set up and `temper forge fetch` refuse (4.3).
+- **CI is GitHub Actions,** a macOS workflow in the repository, run
+  after each push to `main`. A red run blocks nothing: the gate stays
+  Linux's (section 5).
+- **What macOS cannot give stays Linux-only, by name:** each tree
   lists its Linux-only tests in one place, each with its reason. None is
   skipped silently (5.2).
 
@@ -45,7 +45,7 @@ and everything only Linux can give (containment, trees, io_uring).
   every crate, test targets among them (clippy's `--all-targets`).
 - **Their gates' suites pass on `macos-26`:** the default and fuzzy
   profiles, and the browser tier where the gate runs one, less each
-  repository's Linux-only list (5.2).
+  tree's Linux-only list (5.2).
 - **The conformance suite passes against the readiness backend** on
   both waits: epoll's on our Linux machines, in skein's gate, and
   kqueue's on the runner (3.6).
@@ -57,7 +57,7 @@ and everything only Linux can give (containment, trees, io_uring).
   Forgejo and seed (`tests/client-browser/src/lib.rs`), and the task
   pages' and chat's stories run through it. On the runner it runs as on
   Linux, against Chrome for Testing 147, the Chromium our machines run.
-- **One story walks the first run whole** (`first-run.md`, 2.1): the
+- **One story walks the first run whole** (`archive/first-run.md`, 2.1): the
   link signs in, the demo project's chat takes the suggested request,
   the demo model plays its script, and the change goes through temper's
   procedure on the demo forge. If no test walks it whole yet, temper
@@ -182,11 +182,11 @@ and everything only Linux can give (containment, trees, io_uring).
 - **Errors print Linux's errno numbers;** they print names.
 - **No owned Forgejo on macOS.** `temper forge fetch` fetches Forgejo's
   and its runner's pinned Linux releases; on macOS they would come from
-  Homebrew's builds, if at all. There, `temper init` writes no owned
-  forge into the default document, so the client offers no Set up a
-  Forgejo here (`first-run.md`, 3.8); a document that names one, and
-  `temper forge fetch`, refuse naming the platform. The platform is
-  decided by the binary's shell, at init, never by step code.
+  Homebrew's builds, if at all. There, the client offers no Set up a
+  Forgejo here, and a set up of one, and `temper forge fetch`, refuse
+  naming the platform (forges are records in the store:
+  `playground-reset.md`, section 3). The platform is decided by the
+  binary's shell, never by step code.
 
 ### 4.4 Every platform
 
@@ -202,32 +202,28 @@ and everything only Linux can give (containment, trees, io_uring).
 
 ### 5.1 The workflows
 
-- **One per repository,** `.github/workflows/macos.yml`: on `macos-26`,
+- **One workflow,** `.github/workflows/macos.yml`: on `macos-26`,
   on each push to `main` and by hand. It runs what the gate runs:
   formatting, clippy over every target, the default and fuzzy profiles,
   and the bundle and browser tier where the gate has them.
 - **What it installs:** Rust 1.95, the workspace's `rust-version`;
   `cargo-nextest`; the `wasm32-unknown-unknown` target; Chrome for
   Testing 147, given by `SKEIN_TEST_CHROMIUM`.
-- **Upstream by git:** the git dependencies are public, so a fetch needs
-  no token. The `fabrig-dev` addresses reach `fabrig-ai` through
-  GitHub's redirect, or an `insteadOf` in the workflow.
-- **A red run blocks nothing.** It goes to the director, as an
-  after-landing failure does (`owners.md`, 4.5), who gives it to an
-  owner.
-- **Before the runner,** an implementer checks that Darwin compiles
+- **A red run blocks nothing.** It is a finding, triaged as a red
+  after landing is (`../domain/after-landing.md`, section 7).
+- **Before the runner,** a change checks that Darwin compiles
   (`cargo check --target aarch64-apple-darwin`) where rustup can add the
   target.
 
 ### 5.2 Linux-only, by name
 
-- **One list per repository,** in its nextest configuration or as
+- **One list per tree,** in its nextest configuration or as
   `cfg(target_os = "linux")` on whole test binaries (the owner's call),
   each entry with its reason.
 - **What it holds, known now:** skein's ring and ring-conformance tests,
   the tree keeper's cgroup and subreaper tests; temper's `unshare`
-  adversary and its cgroup cluster; the Python lab (bwrap, systemd), and
-  the after-landing tiers, which the workflows don't run.
+  adversary and its cgroup cluster; and the after-landing tiers, which
+  the workflow doesn't run.
 
 ## 6. Order
 

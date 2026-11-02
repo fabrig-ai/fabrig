@@ -121,7 +121,7 @@ fn read_was_answered(ran: &world::Ran) {
 }
 
 #[test]
-#[ignore = "a chat's deliver before its end is not built: STATUS.md, domain/agent.md, 4.4"]
+#[ignore = "a chat's deliver before its end is not built: domain/agent.md, 4.3, and its status"]
 fn a_chat_created_after_home_adoption_gets_a_writable_run_branch() {
     let ran = world::run_forge(
         fixture(),

@@ -72,10 +72,7 @@ of domain/host.md, section 2.
   one version, its release's, and offers only that one: the channel is
   pre-release, and no half reads an older version (README.md, section
   8).
-  Version 5 adds `Message.finish_requested`, a required boolean after text,
-  including messages nested in Start. It replaces version 4; kind numbers,
-  charter v4 and transcript v6 stay unchanged. Each message body grows by
-  one byte; generated bounds and golden bytes follow the new schema.
+  The current version is 5 (`channel-v5.schema`).
 - **The credential** is empty over a spawned agent's pipes. A connected
   agent's is still open (README.md, section 11).
 - **The agent accepts at once** over pipes. A daemon decides by its
@@ -155,9 +152,9 @@ of domain/host.md, section 2.
 - **the ask,** if the host wants live content: one boolean for each
   kind of it, `text`, `reasoning` and `input` (section 4). An absent ask,
   or one with every kind false, asks for nothing, and nothing is sent.
-  The agent sends only the kinds it builds, now `text` and `input`: an ask for
-  another kind is not refused, and gets nothing. The ask holds for every
-  activation the start opens, and a resume's start makes its own;
+  The agent sends `text` and `input` only: an ask for another kind is not
+  refused, and gets nothing. The ask holds for every activation the start
+  opens, and a resume's start makes its own;
 - **the window:** how many turns, and how many bytes of them, may be
   unacknowledged (section 7). It must hold at least one turn of the largest
   size the agent may send, or the start is invalid. A host that keeps no
@@ -319,7 +316,7 @@ edge is independent of the channel's own flow control (section 7).
     back across turns, waits and the answer;
   - a long done ends a long operation still open;
   - a piece comes only while the run is admitted and has not answered,
-    only for a kind the start asked for and the agent builds, and its
+    only for a kind the start asked for and the agent sends, and its
     turn is the last one told plus one. Within a stream, a retry never
     goes back, a piece starts at or after the end of the one before it,
     and the bytes of a stream start at offset 0 in each retry;
@@ -351,34 +348,6 @@ edge is independent of the channel's own flow control (section 7).
     answers it as an invalid start.
 - **A broken rule ends the channel.** The side that sees it refuses with
   *rules*. On the host's side, its domain hears of an agent failure.
-- **Version 2.** One bump covers these records and rules:
-  - the start's messages and the run's identity (section 3);
-  - the last message read in the answer, optional on waiting,
-    `opens_window` on turns, and long operations for LLM completions and
-    commands (section 4);
-  - messages checked at ingress after rendering, and refused typed
-    (section 4 and above);
-  - facts projected only while the run is admitted and has not answered,
-    stamped when emitted (sections 7 and 8).
-
-  Both halves move to it together. A peer that speaks only version 1
-  shares no version with one that speaks only version 2, and the run ends
-  before its start is read (section 2).
-- **Version 3.** One bump covers the ask in the start and live content in
-  pieces, with their order and best effort (sections 3, 4 and 7). Both
-  halves move to it together, as they moved to version 2.
-- **Version 4** covers:
-  - a grant's value as a credential with its scheme, or a program
-    source's name, beside the withdrawn form (section 6);
-  - the notices unauthorized, limited and refused, in place of rejected
-    and exhausted (section 4);
-  - a failed run's limited or refused account, and a program that could
-    not run (section 4);
-  - the transcript refusals `endpoint` and `dialect` go: a window on
-    another endpoint or dialect is carried over, never refused
-    (transcript.md, section 4).
-
-  Both halves move to it together, as to version 3.
 
 ## 6. Grants
 
@@ -601,30 +570,6 @@ a trace is kept is the agent's configuration (agent.md).
   - pieces of a kind the start did not ask for: none;
   - no credential's value in a turn, a fact, a piece or a domain.
 
-## 11. From temper
-
-- **Kept from temper's channel's agent hop,** in its second version:
-  - the start, with a transcript and conflicted files;
-  - numbered turns with spend and the last message read;
-  - calls, withdrawals, long operations and waiting;
-  - notices of rejected and exhausted accounts;
-  - grants as values beside names;
-  - the answer's turn count and spend.
-- **New:**
-  - acknowledgements on this hop, within a window;
-  - admitted;
-  - named messages with a sender's label, carried in the start too, each
-    with one terminal;
-  - the run's identity, and the answer's fence;
-  - deliveries answered in smith's terms;
-  - typed failures;
-  - smith's refusal reasons.
-- **Gone:**
-  - snapshots;
-  - endpoints in the start, since the agent is configured with its own;
-  - temper's kinds and their numbers;
-  - the push, which becomes a delivery.
-
 ## 12. Open questions
 
 - **A transcript in pieces,** if a start's frame proves too large to hold
@@ -634,4 +579,4 @@ a trace is kept is the agent's configuration (agent.md).
   such as a call's model or a tool's name. Content is answered: it crosses
   as live content (section 4), never as a fact.
 - **Reasoning as it streams:** the schema carries its kind (section 4);
-  building it and asking each provider for readable reasoning is later work.
+  whether to produce it, asking each provider for readable reasoning.

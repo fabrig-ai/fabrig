@@ -559,8 +559,8 @@ pub enum Request {
     },
 }
 
-/// How a run's attempt was answered (domain/hosts.md, 4.3): what the fleet
-/// acts on. The rest is the payload's.
+/// How a run's attempt was answered (jig/docs/design/domain/hosts.md, section 2
+/// and 6.2): what the fleet acts on. The rest is the payload's.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Answer {
     /// It ended with its outcome.

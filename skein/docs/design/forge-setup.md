@@ -859,14 +859,6 @@ answered, and a connect sent, only on what a restart would find.
 - **An item's bytes are a stored format:** a change to them is a new
   item, never new bytes for an old one. The owner's own records, its
   forge's kind and address among them, are its own.
-- **`User` was the id's decimal text** before this design, and temper
-  keeps it so today, in a managed or an owned forge's `user` file, which
-  temper-service reads at its start. That is the one stored-format break
-  this pin makes. The crate reads and writes the 8 bytes alone; the
-  owner never answers a `Read` with the old value: it converts it once,
-  before its first answer, or never reads it and has a plan write the
-  item afresh. It tells the two forms apart by its own record, never by
-  length, since an id of eight digits is eight bytes too.
 
 ### 6.5 The host's limits
 
@@ -1116,8 +1108,7 @@ probe App and repositories alone, at the API's pin (forge-github.md,
 section 12), and named in its section 13. No suite makes these calls. A
 live run reads the App and changes nothing of it (section 7), so a fact
 that needs the App changed is shown on the fake and stays `unchecked` on
-github.com; temper's draft found those first (its section 11), its Setup
-probe making the probe App.
+github.com.
 
 - **The manifest flow,** `unchecked` live: a manifest posted with a
   state comes back with a code and the same state; the conversion

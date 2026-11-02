@@ -21,7 +21,7 @@ What is still open is listed in section 11.
   domain entities and back. Every decision is the domain's: deadlines,
   retries, what a failure means, whether to accept a peer. The protocol
   layer runs the timers and the attempts (programming-model.md, section 4).
-- **Three peers today, one component each.** The agent talks to:
+- **Three peers, one component each.** The agent talks to:
   - its host, over a channel;
   - LLM providers, through skein's LLM client;
   - the machine (files and processes), through skein's io.
@@ -52,7 +52,7 @@ What is still open is listed in section 11.
   - contained processes, connections, TLS and HTTP;
   - LLM providers and OAuth.
 
-  The same mechanisms carry any project's own protocol, such as temper's
+  The same mechanisms carry any project's own protocol, such as jig's
   between its engine and its workers. smith keeps what is about agents.
 - **Versions.** The channel's version is agreed as it opens. What outlives
   a channel, or crosses more than one hop, carries its own version: the
@@ -138,9 +138,9 @@ host would be another.
   cannot run, and offers it for every run later, with contained trees
   (hosts.md, section 5.6; programs.md, section 2). The process tree is
   the run's containment (domain/host.md, section 4).
-- **A connected agent** is not available yet: it waits on the domain. The
-  components allow it, but admission, cancellation, a lost connection and
-  the daemon's own life have no contract yet. The domain today:
+- **A connected agent** waits on the domain (section 11). The components
+  allow it, but admission, cancellation, a lost connection and the
+  daemon's own life have no contract. The domain:
   - runs one run per agent process;
   - supervises only a process its host spawned (domain/host.md, sections 1
     and 4).
@@ -172,9 +172,11 @@ host would be another.
 | `smith-protocol-llm` | component | `smith-domain`'s LLM calls to skein's LLM client and back, with tools' schemas, decoding and rendering (llm.md) |
 | `smith-protocol-machine` | component | the workspace's files, searches, commands, checks and guides, through skein's io (agent.md) |
 | `smith-protocol-program` | component | a run on a program backend: the program's status, command, settings and stream, and the agent's MCP server with its permission prompt, through skein's io, translated to and from `smith-domain` (programs.md) |
+| `smith-protocol-events` | component | the event sink: the domain's facts and the layers' measurements projected into the event stream's records, with each destination's delivery state (events.md, sections 3 to 5) |
+| `smith-protocol-translate` | component | the translations between the channel's, the charter's and the transcript's records and the domains' values, shared by both halves and the local host's store (channel.md, charter.md, transcript.md) |
 | `smith-host-protocol` | component | the host's half: skein's channel and smith's codecs on the streams it is given, translated to and from `smith-host-domain` (hosts.md) |
 | `smith-local-protocol` | protocol layer | the local host's: the terminal, transcripts in files, signing in and committing in place (hosts.md) |
-| `smith-inline-agent` | domain | an agent capability in its host's process: one composed `smith-domain` per run, speaking `smith-host-domain`'s vocabulary; smith's side of jig's one host (domain/host.md, section 9) |
+| `smith-inline-agent` | domain | an agent capability in its host's process: one composed `smith-domain` per run, speaking `smith-host-domain`'s vocabulary (domain/host.md, section 9) |
 | `smith-agent-service`, `smith-local-service` | service | the agent process's and the product's `iterate`; each holds its profiles as step code, the `standard` profile among them, derives its limits and checks them (limits.md), and owns its event sink (events.md) |
 | `smith-agent-shell` | shell | the agent process, as a library: its configuration, its startup, and the one adapter that its binary and the worlds both run (agent.md) |
 | `smith-local-shell` | shell | the product, as a library: its commands, settings, credentials, composition and front ends (`docs/design/shell.md`) |
@@ -218,7 +220,7 @@ smith-agent                        the binary: glue in the root package
             ├── smith-protocol-llm         to providers, through skein's LLM client
             ├── smith-protocol-machine     to files and processes, through skein's io
             ├── smith-protocol-program     to a program as a backend, its child
-            └── its event sink             records, with smith-events, through skein's io
+            └── smith-protocol-events      its event sink: records, with smith-events, through skein's io
 ```
 
 The product:
@@ -233,7 +235,7 @@ smith                              the binary: glue in the root package
             ├── smith-local-protocol       the terminal, chats in files, sign-in, commits
             ├── smith-protocol-llm         the inline agent's LLM calls
             ├── smith-protocol-machine     the inline agent's files and processes
-            └── its event sink             to standard output or a trace file
+            └── smith-protocol-events      its event sink: to standard output or a trace file
 ```
 
 A host:
@@ -276,8 +278,8 @@ a host (temper's worker, smith's local host, ...)
   - what a delivery does;
   - where turns are kept.
 
-  A party that writes charters elsewhere, such as temper's engine, depends
-  on `smith-charter` alone, and the host carries charters and results as
+  A party that writes charters elsewhere, such as jig's engine, needs
+  only `smith-charter` for them, and the host carries charters and results as
   bytes (domain/host.md, section 3).
 - **How the streams are made:**
   - for a spawned agent, `smith-agent` started with skein's contained
@@ -311,7 +313,6 @@ a host (temper's worker, smith's local host, ...)
   - its parts;
   - what it owes the domain, and what skein owes it;
   - its world;
-  - what it keeps from temper;
   - what is open.
 
 ## 8. Versions
@@ -329,7 +330,7 @@ to an older reader or writer. Each has one version at a time.
     in common, the channel ends before a run starts (channel.md, section
     2). Both halves move together.
   - **the charter** carries its own version, since the party that writes
-    it may not be the host: temper's engine writes charters that its
+    it may not be the host: jig's engine writes charters that its
     workers carry unread. A charter in another version makes the start
     invalid (domain/run.md, section 4). The run's result is written in its
     charter's version, so the charter's writer reads what it asked for.
@@ -343,39 +344,19 @@ to an older reader or writer. Each has one version at a time.
     section 12), so a reader is still handed one version.
   - **the event stream** carries its version on every record, and a
     reader refuses a stream in another (events.md, section 6).
-- **Where each is.** The channel, the charter and the transcripts move to
-  these together, in one release, with the event vocabulary's first:
-  - **the channel's second version:** a start's messages and the run's
-    identity, the answer's final fence, messages checked at ingress, and
-    facts projected only while the run is admitted (channel.md, section
-    5);
-  - **the charter's second:** each LLM's `window` and `output`, a
-    cache-write price, and the budget's reserve (charter.md, section 5);
-  - **transcripts' third:** a turn's kind and the window turn, the
-    affinity, optional usage with reasoning tokens, the cut call, and a
-    message's blocks from calls per response (transcript.md, section 6).
-    The conversation vocabulary's first version stays with temper's
-    legacy run (domain/README.md, section 7);
-  - **the events' first** (events.md).
-- **Then, with accounts and programs,** in one release:
-  - **the channel's fourth,** after live text's third: grants as a
-    credential with its scheme or a program source's name, beside the
-    withdrawn id-and-bearer form, and the notices unauthorized, limited
-    and refused (channel.md, section 5);
-  - **the charter's third:** each LLM's account (charter.md, section 5);
-  - **transcripts' sixth:** an opening turn's account and backend
-    (transcript.md, section 6);
-  - **the events' fourth** (events.md, section 6).
-- **The channel's fifth** adds the typed `finish_requested` bit to live and
-  Start-carried messages; its halves move together (channel.md, sections 2–3).
+- **Where each is.** The channel speaks version 5 (channel.md, section
+  2); the charter and its result, version 4 (charter.md, section 5); turns
+  and transcripts, version 6 (transcript.md, section 6); the event
+  stream, version 4 (events.md, section 6); and the local host's store,
+  version 1 (hosts.md, section 5.3).
 - **A build says which it speaks.** `smith check` prints each format's
   version (`docs/design/shell.md`), and the event stream's header carries
   them (events.md, section 3.2), so a mismatch shows before a run.
 
 ## 9. What smith needs from skein
 
-Each item is generic and says nothing about agents. Each is also what
-temper's channel between its engine and its workers is to be built on.
+Each item is generic and says nothing about agents. jig's channel
+between its engine and its workers is built on the same kit.
 Each lands in skein, with its design, before the smith change that uses
 it.
 
@@ -410,7 +391,7 @@ it.
     every world inherits it (testing-strategy.md, section 6);
   - a step's trace output with its room reserved, settling the trace
     queue (notes.md).
-- **Process groups now, contained trees later:**
+- **Process groups, and contained trees:**
   - each child io spawns leads a process group of its own, which a
     deadline or a stop signals whole (skein's `io.md`, section 6);
   - contained trees: spawned within a deadline, with an environment given
@@ -457,8 +438,9 @@ it.
   - a lock on a directory, taken without waiting, for the credentials
     directory's records (`io.md`, section 5);
   - the loop's host interface and its drive, out of the testing crates
-    (`shell.md`, section 12);
-  - trust roots loaded from the machine or a file (`shell.md`, 6.2);
+    (skein's `shell.md`, section 12);
+  - trust roots loaded from the machine or a file (skein's `shell.md`,
+    6.2);
   - the kernel's resource usage of the process and its children.
 - **Sockets and TLS** for a connected agent.
 - **OAuth** for the local host's sign-in (skein's `oauth.md`, section
@@ -479,29 +461,6 @@ it.
 - **Later, and only if measured:** Codex's routing state and reasoning
   context, and an incremental transport over WebSocket.
 
-## 10. From temper
-
-- **Kept:**
-  - from temper's channel: its framing, opening, bounds and golden frames
-    (channel.md);
-  - from its LLM translation: tools' schemas, decoding with typed problems,
-    failure classes, and providers' opaque blocks (llm.md).
-- **Gone:**
-  - temper's magic;
-  - a name and a secret on a pipe's opening;
-  - snapshots;
-  - endpoints' addresses, since skein's LLM client owns transport;
-  - temper's payloads;
-  - a push as a request of its own, since delivery is smith's.
-- **The channel between temper's engine and its workers** is jig's,
-  on skein's channel and codecs (jig's `protocol/channel.md`), with
-  temper's parts in it (temper's `protocol/channel.md`). Its hop to the
-  agent is this directory's.
-- **The agent's half of `temper-agent-protocol`** becomes this directory's
-  components. temper keeps its own half: rendering the brief, mapping the
-  charter, and its tools' schemas and answers (temper's `domain/agent.md`,
-  section 4; temper's `protocol/llm.md`, sections 4 and 5).
-
 ## 11. Open questions
 
 - **After pre-release:** which formats, if any, take on obligations to
@@ -519,7 +478,7 @@ it.
     says otherwise, a connected agent shares its host's file system, or has
     no workspace.
 - **Named calls in skein:** whether calls answered once by name, withdrawn
-  and asked again, are generic enough for skein's channel. temper's channel
-  will show whether it has the same shape.
+  and asked again, are generic enough for skein's channel, as jig's channel
+  (jig's `protocol/channel.md`) would show if it has the same shape.
 - **MCP:** a component for MCP servers, over a process's pipes or HTTP, and
   how much of JSON-RPC is skein's.

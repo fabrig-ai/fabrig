@@ -7,7 +7,7 @@ Provisional, 2026-10-07, revised 2026-10-21. Two records:
 
 They are a family of their own, `smith-charter`, versioned apart from the
 channel. The party that decides runs writes the charter and reads the
-result, and may not be the host: temper's engine writes charters that its
+result, and may not be the host: jig's engine writes charters that its
 workers carry unread, and its version must be the one its agents read
 (README.md, section 8).
 
@@ -185,15 +185,9 @@ version at a time, and any change a reader would notice is a new one.
 - **A writer writes the version of its release.** `smith check` prints the
   version an agent reads (`docs/design/shell.md`), so a writer and its
   agents that differ find out before a run.
-- **Version 4 is current.** It adds the charter's mode. Both versioned
-  records, Charter and RunResult, carry family version 4; the result's
-  shape is unchanged. Versions 1–3 are refused, with no legacy decoder.
-  Version 3 adds each LLM's `account` (section 2):
-  the charter's LLM names the account its grants are named by, and an
-  endpoint of the agent's configuration never does (agent.md, section
-  4). Version 2 adds each LLM's `window` and `output`, in place of the
-  most output tokens, the cache-write price, and the budget's reserve.
-  The result keeps its shape.
+- **Version 4 is current.** Both versioned records, Charter and
+  RunResult, carry family version 4. Versions 1–3 are refused, with no
+  decoder of their own.
 
 ## 6. Limits
 
@@ -253,20 +247,6 @@ and a refusal names what was too large.
 - **For a host:** a writer's own tests encode every charter it writes and
   check that smith's codec and entrance admit it, as temper's
   `domain/agent.md`, section 9, plans.
-
-## 9. From temper
-
-- **Kept:** the charter's content as temper's design changed it, and
-  temper's verdicts, carried as data.
-- **Gone:**
-  - roles and task kinds;
-  - verdict lists fixed in code;
-  - a change's title and body as fields of their own, now names the host
-    requires;
-  - a token split for the budget, now spend in the host's unit with prices,
-    and a reserve to finish with;
-  - endpoints described in the start, now names the agent's configuration
-    resolves.
 
 ## 10. Open questions
 

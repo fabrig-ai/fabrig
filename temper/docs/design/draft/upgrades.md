@@ -1,10 +1,9 @@
 # Upgrades
 
-Draft, 2026-10-23; 6.4 removed by the user, 2026-10-27. How a deployment moves to a newer temper and keeps
-its history: its people, projects and accounts, its tasks and goals, live
-and ended, its landings and what agents wrote. It takes
-`first-release.md`'s section 6 further, from the investigation of
-2026-10-23 (Codex, read-only;
+Draft, 2026-10-23. How a deployment moves to a newer temper and keeps
+its history: its people, projects and accounts, its tasks and goals,
+live and ended, its landings and what agents wrote. It comes from the
+investigation of 2026-10-23 (Codex, read-only;
 `~/src/rust/tmp/roadmap-3/store-upgrades.md`) and a session with the
 user that day, whose turns shaped it: the records before the formats on
 disk, and a patch landed with each change, as an application migrates
@@ -344,11 +343,11 @@ What every patch keeps:
 
 ### 6.4 Opened before the switch
 
-Removed by the user (10-27): no check runs before the switch. The copy
-is opened as any start opens a store, decoding each record under its
-codec and fitting the deployment's limits, and the start links what it
-loaded (jig's `domain/engine.md`, section 6): nothing is judged, and a
-link that cannot be made, a writer's bug, panics (10-28). The checks
+No check runs before the switch, as the user decided. The copy is
+opened as any start opens a store, decoding each record under its codec
+and fitting the deployment's limits, and the start links what it loaded
+(jig's `domain/engine.md`, section 6): nothing is judged, and a link
+that cannot be made, a writer's bug, panics. The checks
 are tests, written when a schema changes: each patch proved over sample
 stores (13), and the cross-record rules as oracles over every writer, a
 cold restart closing every world story (jig's `domain/engine.md`,
@@ -531,7 +530,7 @@ From the baseline:
 - **Meaning is reviewed.** A change of what a value means moves no
   layout: its review and a scenario hold it.
 - **Its cost:** most changes cost minutes (4.5). The investigation
-  guessed 1 to 2 milestones for an additive change and 2 to 4 for one of
+  guessed 2 to 6 hours for an additive change and 4 to 12 for one of
   meaning, for translators written against frozen code; generic values
   leave a change of meaning its written patch and its scenario. The
   churn it would meet: 26 moves of the engine's stored families in the
@@ -584,11 +583,11 @@ the domains:
 | temper | its families' patches; `temper upgrade --check` and `--back`, `temper versions`; the configuration's previous release; small files; every marker's version read; the settled stop's connector |
 | all | the golden stores; the story through an upgrade; power loss; the process drill; the gate's mutation checks |
 
-A guess, not measured: about the investigation's 16 milestones of 2 to 3
-hours, 32 to 48 hours. skein-codec's run-time schemas and the tooling,
-about 4, take the place of its two milestones of skein-kv, its frozen
-codecs' registries and its rewrite of the transcripts. Then about two
-for the engine alone. Built as the baseline approaches: the full
+A guess, not measured: the investigation's 32 to 48 hours. skein-codec's
+run-time schemas and the tooling, about 8 to 12 hours, take the place of
+its 4 to 6 hours of skein-kv, its frozen codecs' registries and its
+rewrite of the transcripts. Then about 4 to 6 hours for the engine
+alone. Built as the baseline approaches: the full
 upgrade, then the engine alone.
 
 ## 15. Open questions

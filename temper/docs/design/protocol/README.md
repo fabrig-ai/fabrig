@@ -128,7 +128,7 @@ binary (`jig-test`).
 | engine alone | `temper serve` on a document with an engine and no worker, its workers' listener on loopback (15.1) |
 | worker alone | `temper serve` on a document with one worker and no engine, dialling an engine alone on loopback (15.1) |
 | the cluster | one engine alone and its workers alone on one machine, with the fakes as processes, as temper's process tier runs it (section 15) |
-| the cluster's description | `crates/temper/tests/fixtures/cluster/`: the retained cluster's processes and their documents, read by the process tier (15.5) |
+| the cluster's description | `crates/temper/tests/fixtures/cluster/`: the cluster's processes and their documents, read by the process tier (15.5) |
 | the engine's service, the worker's service | each `iterate` with its root and protocol layer, in `temper-service` (sections 6 and 7) |
 | the routing | the protocol layer's code between io, components and the root (jig's `protocol/service.md`, section 2) |
 | the forge component | skein's `skein-forge-connection` (forge.md; skein's `forge-connection.md`) |
@@ -191,9 +191,7 @@ test doubles   temper fake llm|forge|oauth|git ...
   each) and the reference page `commands` derive from it.
 - **What temper spawns itself** is under `temper internal`, absent from
   `temper --help`'s first groups and from every page but `commands`; a
-  person or an agent never runs it. `temper forge reconcile`, the
-  managed and connected forms' transition, is a row marked so, until it
-  goes (setup.md, 6.5).
+  person or an agent never runs it.
 
 `DIRECTORIES` is `[--config DIR] [--data DIR] [--cache DIR]`, given
 anywhere among the command's arguments, each with its variable and its
@@ -285,7 +283,7 @@ default; the document is `temper.json` in the configuration directory
   the switch is not rehearsed; then whether the workers may stay: yes
   when the copy's wires equal this binary's and no pending patch is
   marked fresh, no saying which differs, unknown when the copy keeps
-  none (`draft/upgrades.md`, sections 3.1 and 9). Exit 0 when the
+  none (`../draft/upgrades.md`, sections 3.1 and 9). Exit 0 when the
   patches and restores pass, 1 when a start would be refused there.
 - **`temper upgrade --back`:** makes the previous generation active
   again (jig's `protocol/store.md`, 10.5), for a binary that patched and
@@ -294,7 +292,7 @@ default; the document is `temper.json` in the configuration directory
   the patched generation has committed, with no previous generation, or
   while a process holds the deployment, each in words that say so; past
   the first commit, going back is restoring a backup
-  (`draft/upgrades.md`, 3.2).
+  (`../draft/upgrades.md`, 3.2).
 - **A start that patches** prints a line per patch as it ends:
   `temper serve: patched {owner} {patch}: {records} records in {commits} commits`.
 - **`temper program-login NAME`:** a program's login for
@@ -305,8 +303,7 @@ default; the document is `temper.json` in the configuration directory
 - **The forge's setup** (setup.md), each command reading and checking
   the whole document as `temper serve` does (configuration.md, section
   8), FORGE a forge's `number`; reconcile is the engine setup host's
-  plan (forge.md, 2.6), except for managed and connected old forms'
-  transitional `temper forge reconcile` until temper-15 (setup.md, 6.5):
+  plan (forge.md, 2.6):
   - `temper forge prepare`: an owned forge's preparation, before its
     Forgejo runs; it ends when done (setup.md, 6.3);
   - `temper forge run`: checks the binary and the preparation, takes
@@ -419,9 +416,12 @@ box's host and the fake git program's core:
 | `crates/temper-forge-setup-shell` | hosts | ordinary Rust: the hosts of `temper forge prepare` and `run`: commands, files, the forge's locks and the exec (setup.md, 6.4); HTTP on skein-http over skein-io | setup.md, section 11 |
 | `crates/temper-box` | machine, host | the box's machine, step code, and its host, ordinary Rust, on skein-io's processes; nothing of the setup but its steps (setup.md, 7.3) | setup.md, section 11 |
 | `crates/temper-fake-git` | program | the fake git program's core, ordinary Rust, which the binary runs as `temper fake git`: its checks, answers, step core, replay and two remotes (`../domain/testing.md`, 4.3) | setup.md, section 11 |
+| `crates/temper-fake` | step code | the fake backends' documents and seeds, for `temper fake forge`, `temper fake llm` and the box's fake backends (setup.md, 7.5 and 8.4; configuration.md, 12.1); no io | skein's fake forge and fake LLM, `skein-forge-setup`, `temper-forge-setup`, `temper-protocol-store`, `temper-engine-domain-forge` |
+| `crates/temper-init` | step code | the files `temper init` writes, the default document among them (setup.md, 8.2 and 8.3) | `skein-lib`, `skein-json`, `skein-forge-setup` |
 | `crates/temper-worker-protocol-git` | component | the git component: each `git::Op` of `temper-worker-domain-checkout` as a fixed sequence of git invocations, their arguments, environment, output and failures; the operations in flight, their processes, pipes and deadlines; `Make` as file operations (git.md) | `skein-lib`, `skein-io`, the checkout's vocabulary |
 | `crates/temper-protocol-worker-wire` | codecs | temper's parts on jig's channel, and a git identity's value, from a schema; `PAYLOAD_VERSION` (channel.md) | `skein-lib`, `skein-codec` |
 | `crates/temper-protocol-store` | codecs, keys | temper's families: key encoders, codecs from a schema, `STORE_VERSION`, the restart's interval (store.md) | `skein-lib`, `skein-codec`, `skein-kv`, `jig-protocol-store`, the forge's records |
+| `crates/temper-protocol-records` | codecs | the forges' records in jig's secrets' store and a pasted bundle, from `schema/secrets-v1.schema`, the family `temper-secrets` (section 9; credentials.md, 2.1) | `skein-lib`, `skein-codec`, the forge kit's vocabularies, `jig-protocol-config` |
 | `crates/temper-client-protocol-wire` | codecs | the forge's client family's records: the adoption request and its outcome, the small store's record of a pending one; `FORGE`, the forge connector's number, 1; `Owner`, temper's owners; `CLIENT_VERSION` (`../client/README.md`, 4.6) | `skein-lib`, `skein-codec` |
 | `crates/temper-engine-smith` | translation | smith's start from an assignment, host calls decoded into the root's `Tool` vocabulary, answers rendered, results and turns read; called by the engine's routing, keeping no state (llm.md) | the root's and its forge children's vocabularies, jig's and smith's domain vocabularies, `skein-lib`, `skein-json` |
 | `crates/temper-client-domain` | client root | `jig-client` held, temper's pages, the forge's client side (`../client/README.md`, section 3) | `../client/README.md`, section 2 |
@@ -431,6 +431,8 @@ box's host and the fake git program's core:
 | `crates/temper-client-bundle` | data | the browser's bundle in the binary: its build script builds `temper-client-shell-web` for wasm32 and skein's bundler in a nested cargo, runs the bundler and lists the bundle's files; its library includes them, or nothing under `TEMPER_BUNDLE=none` (`../client/browser.md`, 2.6) | nothing; its script, `std` alone |
 | `crates/temper-client-tools` | client root, rendering | the agents' tools: the table, the runner, marks and conditions, the rendering, the tools' root (`../client/tools.md`, section 4) | `../client/tools.md`, section 4 |
 | `crates/temper-client-shell-cli` | shell | `temper ctl`: its host ordinary Rust, one call per process over jig's native transport (`../client/tools.md`, section 8) | `../client/tools.md`, section 4 |
+| `crates/temper-settings-form` | codecs | the settings file's form and words and `FIELDS`, shared by the client and the engine (`../client/tools.md`, 5.3; documentation.md, section 8) | `skein-lib`, `skein-json`, `skein-codec`, `jig-client-protocol-wire` |
+| `crates/temper-docs` | data | the help pages compiled in, with their paging and search, of no side (documentation.md, sections 2 and 3) | `skein-lib` |
 
 **temper's test crates, worlds and tiers** are `../domain/testing.md`'s
 (sections 2, 4 and 7): the fake git program, the worlds below the
@@ -679,10 +681,10 @@ section 8 give them. temper's sit beside them:
   `protocol/store.md`, 5.3, `Wires`): temper's shell hands jig's store
   `PAYLOAD_VERSION` as `temper-payload` beside jig's and smith's, so the
   next binary's rehearsal can say whether the workers may stay
-  (`draft/upgrades.md`, section 9).
+  (`../draft/upgrades.md`, section 9).
 - **What the first release freezes.** From it, every byte of temper's a
   deployment keeps must stay readable by every later build
-  (`draft/upgrades.md`, 4.1, 6.3, 10 and 11). Before it, in place, each
+  (`../draft/upgrades.md`, 4.1, 6.3, 10 and 11). Before it, in place, each
   in one change with its golden bytes:
   - **The forges' secrets from a schema:** temper's family
     `temper-secrets` (`temper-protocol-records`, `schema/secrets-v1.schema`),
@@ -712,7 +714,7 @@ section 8 give them. temper's sit beside them:
     and a purpose's tag keeps its meaning for good, a new meaning taking
     a new tag (forge.md, section 4). The marker's wrapper and the bot's
     marker are fixed forms.
-  - **Small files** (`draft/upgrades.md`, section 10): the forge's setup
+  - **Small files** (`../draft/upgrades.md`, section 10): the forge's setup
     `state`, versioned JSON, is read in every version from the first
     release on and written in the current at its next write; the
     preparation writes it before the engine starts, so it follows the
@@ -726,19 +728,18 @@ section 8 give them. temper's sit beside them:
     (jig's `protocol/store.md`, 5.3), so going back finds the engine's
     as they were; the preparation's `state` and an owned Forgejo's data
     are the forge's, and going back past a preparation that migrated it
-    needs its dump (`draft/upgrades.md`, 3.2 and 11).
+    needs its dump (`../draft/upgrades.md`, 3.2 and 11).
   - **Golden bytes** pin each fixed form, each schema's records and the
     key's frame and marker, so a change fails a test naming it.
 
   Outside it: what an external program reads (Forgejo's and the
   runner's files, which their own upgrade carries), the fake backends'
-  sandbox, the standalone reconcile's files until it goes (setup.md,
-  6.5), logs, caches and worker roots.
-- **The baseline is v0.1.0's store** (`draft/v0.1.0.md`, section 6): its
+  sandbox, logs, caches and worker roots.
+- **The baseline is v0.1.0's store:** its
   disk format (skein-kv's frames and snapshot, the transcripts'
   framing, the deployment's layout) every later build reads as it finds
   it, and its records every later build patches by itself as it starts
-  (`draft/upgrades.md`, section 3). So the tag's commit makes, in one
+  (`../draft/upgrades.md`, section 3). So the tag's commit makes, in one
   set across skein, smith, jig and temper:
   - **every stored family's text kept:** each owner's crate run once
     with `--baseline` (skein's `codec.md`, 12.1), its current texts its
@@ -767,7 +768,7 @@ section 8 give them. temper's sit beside them:
     beside the one-process world (`../domain/testing.md`, 2.5), never
     regenerated. Every later build starts on it and asserts what draft
     13 asks: identities and counters, policies, kept outcomes, old turns
-    read in the current version (`draft/upgrades.md`, section 13).
+    read in the current version (`../draft/upgrades.md`, section 13).
 - **Before the tag:** every stored record with its kept form, a
   delivery's evidence among them (jig's `protocol/store.md`, section
   16, still open); the golden store's story and its later builds'
@@ -939,12 +940,9 @@ Each document keeps its own; these cross them:
 
 The cluster is temper on several processes of one machine: one engine
 alone, its workers alone, and the fakes, each a process of its own,
-joined over loopback. It is a primitive of temper's tests; the lab was
-retired for `../qa.md`'s process. It is the retained reference-case tests'
-shape on fakes: an engine and its
-workers, one of them added later (../domain/testing.md, 5.3;
-`../draft/reference-case.md` is the third edition). It is no
-deployment's: `temper init` writes standalone, and a box keeps its one
+joined over loopback. It is a primitive of temper's tests, and the
+shape of the case of `../domain/testing.md`, 5.3 on fakes: an engine and
+its workers, one of them added later. It is no deployment's: `temper init` writes standalone, and a box keeps its one
 worker inside `temper serve` (setup.md, 7.1). TLS, containment and other
 hosts are later (15.7).
 
@@ -991,8 +989,7 @@ nothing else: no flag, no command of its own.
 - **`temper program-login`** takes a worker alone's directories as it
   takes standalone's, and reads only the worker's part: each worker
   signs its programs in on its own, and none is copied to another
-  (credentials.md, section 3; `../draft/reference-case.md` holds a
-  sign-in only in its QA walk's custody, 6.4).
+  (credentials.md, section 3).
 
 ### 15.2 Its processes
 
@@ -1006,7 +1003,8 @@ w1, w2       temper serve DIRS     after the engine: each a worker alone
 
 - **Started in order, stopped in reverse:** the fakes; the engine, once
   both fakes are ready; each worker, once the engine is (15.3). A worker
-  may start later than the others, as the reference case's s2 does.
+  may start later than the others, as s2 does in the case of
+  `../domain/testing.md`, 5.3.
 - **Every address from a ready line:** each listener binds port 0 on
   127.0.0.1, and its process prints what it got; the description's
   templates carry it to the processes after it.
@@ -1065,7 +1063,7 @@ w1, w2       temper serve DIRS     after the engine: each a worker alone
   server keeps its own, as the sign-in link reads it; the workers'
   routing keeps the one io's `Listening` event gives; and the webhooks'
   comes up from skein-forge-connection as its `listening` event (skein's
-  `forge-connection.md`, 6.4, as skein's change 14h brings it).
+  `forge-connection.md`, 6.4).
 - **Ready**: the engine at its `listening` lines
   and its sign-in link; a worker at its `linked` line. A task created
   before a worker's hello has reached the fleet waits for a free slot,
@@ -1103,11 +1101,9 @@ w1, w2       temper serve DIRS     after the engine: each a worker alone
 
 ### 15.5 Its description
 
-- **One retained fixture, `crates/temper/tests/fixtures/cluster/`.** The
-  lab was retired for `../qa.md`'s process; its shared cluster moved
-  here unchanged for the process tier. Its serialized format remains
-  `lab-experiment/1`, with the historical `temper-m1-calibration`
-  cost label. Each process keeps its `argv`, whole `env`, `ready`
+- **One fixture, `crates/temper/tests/fixtures/cluster/`,** whose
+  description, `experiment.json`, has the format `lab-experiment/1` and
+  the cost label `temper-m1-calibration`. Each process keeps its `argv`, whole `env`, `ready`
   lines (15.3), `after`, `memory_bytes` (15.1) and `files`: its
   document rendered from a template, and its synthetic secret or digests.
   Templates name addresses by `{proc.P.ready.C}` and directories by
@@ -1117,8 +1113,9 @@ w1, w2       temper serve DIRS     after the engine: each a worker alone
   templates rendered; processes started by skein-world's `Binary`, in
   cgroups, by `after`, ties in name order, with no seed; ready lines
   awaited on streams; processes stopped in reverse, a termination signal,
-  then the stop bound, then the tree killed. It does not read the retired
-  runner's actions, faults, collection or checks.
+  then the stop bound, then the tree killed. It reads none of the
+  description's `actions`, `faults`, `collect` or `checks`, which are
+  empty.
 - **The reader's bindings:** `{artifact.temper}` is the absolute
   binary Cargo names to the test (`CARGO_BIN_EXE_temper`);
   `{artifact.git}` is its fake-git link; `{experiment}` is this
@@ -1126,10 +1123,10 @@ w1, w2       temper serve DIRS     after the engine: each a worker alone
   directory, made `0700`; and `{proc.P.ready.C}` is a capture once
   P is ready. A seed, run directory, browser or other unknown binding
   fails the test.
-- **Retained bounds:** readiness is 120 seconds per process from its
+- **Bounds:** readiness is 120 seconds per process from its
   start, stopping 20 seconds per process. The stop bound stays above
   each worker's stop bound and the engine's drain. The reader's
-  constants and the fixture's memory declarations remain tested.
+  constants and the fixture's memory declarations are tested.
 - **The fake forge's setup** is `temper serve`'s handover and reconcile
   at start, from records (setup.md, 6.5). The fixture holds the fake
   forge, fake LLM, engine and workers; a story supplies its fake setup
@@ -1153,10 +1150,10 @@ Each where `../domain/testing.md` puts it (2.4 to 2.6):
 | step tests | each shape read and checked, a document of none refused, naming its path; each line of 15.3 as printed |
 | the engine's domain | two workers at positions 0 and 1, one slot each: two tasks, one placed on each; one lost, its run placed on the other past the grace |
 | the real loop | an engine alone and two workers alone, three services on one ring with their own directories, the workers dialling the engine's listener on loopback: a task on each runs to its end |
-| the process tier | `crates/temper/tests/fixtures/cluster/` on real processes, as below, and the reference case's steps on them (`../domain/testing.md`, 2.6 and 5.3) |
+| the process tier | `crates/temper/tests/fixtures/cluster/` on real processes, as below, and the steps of `../domain/testing.md`, 5.3's case on them (`../domain/testing.md`, 2.6) |
 
 The process tier's first stories, one slot on each worker. A temper
-worker takes one slot today: smith gives its agent one run, and the
+worker takes one slot: smith gives its agent one run, and the
 worker's limits keep its slots within its agents. Two tasks on two
 workers need no more; a worker of several slots is later (15.7).
 
@@ -1200,12 +1197,11 @@ workers need no more; a worker of several slots is later (15.7).
 - **A mixed document,** each shape's departures, refuses its start,
   exiting 1 and naming the path.
 
-These are the retired first edition's multi-worker steps at their smallest:
-4.1's placement by free slots, 4.3's worker added later, 4.6's hung
-worker (../domain/testing.md, 5.3; `../draft/reference-case.md` is the
-third edition).
+These are the case's multi-worker steps at their smallest
+(`../domain/testing.md`, 5.3): 4.1's placement by free slots, 4.3's
+worker added later, 4.6's hung worker.
 
-- **The retained first-edition steps,** each a story of its own on the same
+- **The case's steps,** each a story of its own on the same
   description, the case's workers named ws, s1 and s2, its fixture
   applied to the engine's and the workers' documents, its acts by real
   `temper ctl`, and its oracle over what the processes observed
@@ -1223,9 +1219,8 @@ third edition).
   `protocol/README.md`, section 10).
 - **An engine restarted under live workers,** with generations kept
   across starts (section 14).
-- **A worker of several slots,** as in the retained reference-case
-  tests (../domain/testing.md, 5.3; `../draft/reference-case.md` is the
-  third edition): a worker's change,
+- **A worker of several slots,** as the case of `../domain/testing.md`,
+  5.3 has: a worker's change,
   in smith's runs and the worker's limits, and not the cluster's. Until
   then each of the cluster's workers takes one slot.
 - **`temper init` for the cluster's shapes** (section 14).

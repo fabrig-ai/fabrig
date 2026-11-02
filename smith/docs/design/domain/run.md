@@ -188,9 +188,8 @@ outcomes stay typed (tools.md, section 4).
     was done and found, with exact values, names and paths as they were
     read; what remains; and the decisions taken;
   - not to restate the task or its required answer;
-  - to keep within 1,000 words (revised 2026-10-20: a summary is
-    generated at the model's output rate, and the median was 3,350
-    tokens, 76 seconds).
+  - to keep within 1,000 words, since a summary is generated at the
+    model's output rate.
 
   The preamble says that what follows is the model's own summary of an
   earlier window, and that the work goes on. Both are the same whatever
@@ -311,14 +310,14 @@ that is not empty, or a message.
 
 | Source | Tools | Who answers | Effect |
 |---|---|---|---|
-| the workspace | `read`, `list`, `search`; `write`, `edit`, `shell`; `job` | the session, through its tools (tools.md) | reads; writes; `job` reads, and writes with `stop` |
+| the workspace | `read`, `list`, `search`; `write`, `edit`, `remove`; `shell`, `job` | the session, through its tools (tools.md) | reads; writes; `job` reads, and writes with `stop` |
 | the run | `finish`, `deliver`, `wait`, sub-agents | the run | `finish` and `deliver` write; a sub-agent's follows its tools |
 | the host | declared in the charter | the host, relayed | as declared |
 | MCP servers, later | as each server lists them | the protocol layer, as opaque calls | as the charter declares |
 
 Names are unique across sources; a declared tool may not take one of
 smith's, nor `permission_prompt`, which a program backend keeps for its
-prompt tool (programs.md, 5.3). The charter's families say which of
+prompt tool (protocol/programs.md, 5.3). The charter's families say which of
 smith's tools the LLM sees; a host tool is offered exactly when it is
 declared.
 
@@ -547,15 +546,14 @@ host tool for it, as temper's `delegate` does.
   dialect, account or backend is not refused: it is carried over
   (session.md, 8.2). A run that does not resume starts fresh from its
   brief, which carries what the host thinks it needs.
-- **Messages mid-work,** designed here and built later. Between
+- **Messages mid-work.** Between
   completions, not only when main yields, the run offers its queued
   messages to the working session, which appends them after the results
   of the calls it just ran, in its next request; the turn that reads them
   is told with them, its fence naming the last. Nothing in flight is
   interrupted and nothing already sent changes, so the prefix holds and
   every rule above stands. The run's threshold notes on its budget take
-  the same path, as text the run wrote, with no name (9.2). Until then, a
-  message waits for main to yield, also while main waits on a sub-agent.
+  the same path, as text the run wrote, with no name (9.2).
 
 ## 7. Results
 
@@ -1041,29 +1039,9 @@ These are domain-speed stories under a deterministic clock and seed,
 within the focused suite's budget; the fuzzy suite draws message
 timings, budgets and shares within its own (`docs/design/testing.md`).
 
-## 14. From temper
-
-- **The run, as temper built it, stays:** charters judged at the
-  entrance, sessions with budgets and retries, typed tools, finishing
-  with checks, a delivery's feedback.
-- **Served tools grow** from `finish` and sub-agents to `deliver` and
-  `wait`; **host tools** replace the engine's tools as a closed list, and
-  the forge and outlet grants, which nothing served.
-- **The result contract** gains reports and declared failures, and
-  carries the verdict lists temper's agent fixed in code; a change's
-  title and body become fields.
-- **Push becomes delivery,** its reasons the host's, its bounded
-  diagnostic tail kept; a moved branch is a stale delivery.
-- **Conventions** replace `.temper/pre-pr` and `AGENTS.md` in code.
-- **Budgets** move from temper's token split to the host's unit with
-  prices.
-- **New, as temper's `domain/agent.md` planned them:** messages, `wait`,
-  parking, resuming from a transcript, calls asked again, delivering
-  mid-run, and merges in progress.
-
 ## 15. Open questions
 
-- **A sub-agent's result:** its final message today; whether a sub-agent
+- **A sub-agent's result:** its final message; whether a sub-agent
   may be given a contract of its own.
 - **A run's refusal on the channel:** a run that refuses its start for
   policy answers failed; whether refusal wants a kind of its own.

@@ -89,9 +89,9 @@ section 7).
 | 19 | `DemoAct` | `DemoAct([u8; 16])`: the act's key, in the forge connector's own key space (jig's `domain/people.md`, 5.3) | an act the demo's end asks in the deployment's name and has not heard answered: a chat's close, its project and task, or the demo model's account's removal, its account (setup.md, 8.4). Written in the end's decision, erased on the act's saved answer, sent again at each start | `tasks`, plus one |
 | 20 | `Setting` | `Setting { kind, scope, number, slot }`: a kind of temper's (1, 2 or 3), 0 or a project's number, the setting's number, and the slot, `Default`, `Change` or `Proposal { proposer, number }` | a value of temper's kinds (configuration.md, 13.2): a `LandingRule`, or the forge's charter's number; the stock default the binary last gave, the current change, a removal being a change with no value, or a pending proposal's item. Written in jig's decisions as jig's `domain/engine.md`, 17.5 says: a default in the release's revision when the stock differs, a change at its commit, a proposal's item at its making; erased with the change a reset undoes, and with the proposal's end | the forge's `landing_rules` per scope, times the scopes and the slots, plus the pending proposals of settings' items |
 | 21 | `Flight` | `Flight { task, entry }`: the entry's task, then its number | a write the forge sent and has not settled for good: saved in the commit that records an entry's attempt, beside the `Entry` row; kept through an uncertain outcome, a retry, a merge queued on the forge's queue and the restart's settlement; erased in the commit that settles the entry for good (made, failed for good, withdrawn, not made) or holds it for a person, and saved again before a held entry is made again. So after a stop that settled none is left (jig's `protocol/store.md`, 10.3, "Effects in flight"; `../domain/root.md`, 9.2). Its record is its key's fields, `{ task, entry }`, as every row holds its key's (section 3), so a start that refuses to patch over it names each write from its key alone | `entries` |
-| 22 | `Delivery` | `Delivery(CallKey)`: the call's task, attempt, completion and position | a delivery's reply, typed in temper's schema (from smith's `DeliveryReply`), which the worker's routing renders for a resumed run: saved in the decision that settles the delivery, first settlement kept, erased when the call retires (a later turn commits, or the task ends); the routing encodes smith's reply from it into the assignment's evidence (jig's `protocol/channel.md`, 6.2). In place before the first release; written by the delivery's path, which no production host takes yet | `named_calls` |
+| 22 | `Delivery` | `Delivery(CallKey)`: the call's task, attempt, completion and position | a delivery's reply, typed in temper's schema (from smith's `DeliveryReply`), which the worker's routing renders for a resumed run: saved in the decision that settles the delivery, first settlement kept, erased when the call retires (a later turn commits, or the task ends); the routing encodes smith's reply from it into the assignment's evidence (jig's `protocol/channel.md`, 6.2). | `named_calls` |
 
-- **Designed, not built** (`../domain/landing.md`, section 12): 23
+- **Beside them** (`../domain/landing.md`, section 12): 23
   `Landing`, keyed by the landing's task, a landing's state; 24
   `Receipt`, keyed by the project, the repository, the gate and the
   key, a gate's result under a key, bounded by `receipts_per_gate`;
@@ -166,51 +166,18 @@ section 7).
   The routing gives it to jig's component, whose format row records it;
   a store written with another refuses to open, saying so (jig's
   `protocol/store.md`, 5.2 and 5.3).
-- **`STORE_VERSION` is 10,** with the demo end's durable acts, family 19
-  (below). Version 9 came with people v12 refusal bytes embedded in
-  application outcomes.
-  Version 8 came with the `Binding` family, tag 18,
-  `Key::Binding(address)` (section 2), its row `{ address, subject }`: the
-  folded member address and its first Google subject (`sign-in.md`,
-  section 5). The move from 7 to 8 breaks the stored format as each move
-  does: a store written at 7 refuses to open, saying so.
-- **`STORE_VERSION` 7 came** with a repository's tag made its forge's
-  number and its id, packed (`../domain/forge.md`, section 4): the
-  tasks' resource parameters and saved resources jig keeps name the
-  pair, where 6's named the forge's id alone. The schema is 6's; the
-  move from 6 to 7 breaks the stored format as each move does: a store
-  written at 6 refuses to open, saying so, rather than resolving its
-  tags to no repository later.
+- **A repository's tag** is its forge's number and its id, packed
+  (`../domain/forge.md`, section 4): the tasks' resource parameters and
+  saved resources jig keeps name the pair.
 - **The demo's project,** its number in the `Demo` row, written by the
   demo's start once it has made the project (setup.md, 8.4;
-  `../draft/first-run.md`, 2.4): designed, and waiting on jig's
-  projects made at runtime. Its code takes the next `STORE_VERSION` at
-  landing; none is reserved.
+  `../draft/archive/first-run.md`, 2.4).
 - **The demo's end's acts,** the `DemoAct` family, tag 19 (section
   2), its row `{ key, act }`, the act `Close { project, task }` or
   `RemoveAccount { account }`: the grace and the reason are the end's
   constants and the document's, read again at each send, so they are
-  not stored. Version 10 adds family 19 after `Binding`, family 18;
-  a store written at 9 refuses to open, saying so.
-- **`STORE_VERSION` 6** came with the `Demo` family, tag 17,
-  `Key::Demo(forge)` (section 2), its row `{ forge, state }`, the
-  state running or ended: the demo's state, the engine's alone
-  (setup.md, 8.4), shaped so that its end adds nothing to it. 4 and 5
-  changed records in place, 5 jig's exceeded holds in the client's
-  refusals. The move from 5 to 6 breaks the stored format as each move
-  does: a store written at 5 refuses to open, saying so.
-- **`STORE_VERSION` 3** came with the `Writer` family, tag 16,
-  `Key::Writer(forge)` (section 2): each forge's writer, given at
-  runtime, kept by skein's forge client as its own record (skein's
-  `forge-client.md`, 7.1), and not secret (credentials.md, 2.1). The
-  move from 2 to 3 breaks the stored format: a store written at 2
-  refuses to open, saying so (jig's `protocol/store.md`, 5.3). Tag 15's
-  outcome, which also holds the FORGE family's keyed outcomes and
-  whose adoption carries the forge's kind, is that move's, in place.
-  Pre-release, nothing is translated; upgrades stay open (section 7).
-  Another owner's move in the same window is this one: the version
-  moves once (`README.md`, section 9).
-- **A deployment made again** after such a break: stop temper, move its
+  not stored.
+- **A deployment made again** when a build changes temper's families: stop temper, move its
   store aside, the `store/` and `transcripts/` directories in the
   deployment's directory that jig's `deployment` member names
   (configuration.md, section 2; jig's `protocol/store.md`, section 2),

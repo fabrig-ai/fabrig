@@ -1,7 +1,8 @@
 # authority: status
 
-2026-11-01. Where jig's code lags or departs from [authority.md](authority.md).
+2026-11-02. Where jig's code lags or departs from [authority.md](authority.md).
 
-- **Built:** 1, 3, 6 to 9: shared operation checks, role edits, model selectors, named replay identity, template overrides, stored project policy and deadline spans, a delegate's span and, naming none, its creator's deadline (7). 2: `stored_finding_limit` for retained denials in core checks and the store codec. 7: a parked task held at its wall. 7: a change of spend per period resizes what it opened, in its decision: `ProjectSpend` the open period, `RoleSpend` and a whole-role edit each holder's open pool, a hand-set one among them; a role's raise past the period's room refused whole.
-- **Built:** 6: policy edits name the first ceiling passed (rules, project policy or a role, dimension and scalar values), before checking the open period's room. Stored and client refusals preserve the ceiling facts.
-- **Not yet:** 7: widening charged to the amender's pool.
+- **Not yet:** 6: a procedure task the deployment starts that runs no
+  agent, made with a budget of zero, its priced effects funded from the
+  period's unreserved spend. 7: a widening funded by whoever gives it
+  (the task's existing funder is charged).

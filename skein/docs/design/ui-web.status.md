@@ -1,10 +1,6 @@
 # ui-web: status
 
-2026-10-29. Where skein's code lags or departs from [ui-web.md](ui-web.md).
+2026-11-02. Where skein's code lags or departs from [ui-web.md](ui-web.md).
 
-- **Built:** 6, 10, 14, 17: disclosure summaries, external navigation and optional plaintext loopback navigation. 14.2: the face's downloads and the harness's `Setup::downloads`.
-- **Not yet:** 11, 14.2, 15, 16: file picker, other effects, compressed bundles, shared streams/HTTP/2, previous bundle retention, typing into populated fields and richer peer/command harness.
-
-- **Built (2026-11-01):** 14.3: all seven live-tree Chromium checks recorded; successful keep reads share one browser run.
-
-- **Built:** 10: refused stream openings report their status before their bounded body pieces, allowing the application to decode refusal records before the stream ends.
+- **Not yet:** 18: the worker's platform, `platform::Worker` (`skein-ui-web/src/platform/` holds the browser's alone).
+- **Departs:** 14.2: the mapping back from a browser role (`skein_ui_web::mapping::person`) serves only the lab's browser (`testing/skein-lab-browser`); the lab is retired, and the code awaits removal with its design (lab-browser.md).

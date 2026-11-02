@@ -27,7 +27,7 @@ Section 9 lists what the engine's domain owes the client, and where
   the party's role, committed, and answered only once that commit is
   durable. Ordinary deciding acts sent twice under a retained key are
   made once and answered alike; `Seen` advances a read position only
-  forward and retains no new answer (3.1; `../../domain/people.md`, 5.1).
+  forward and retains no answer (3.1; `../../domain/people.md`, 5.1).
 - **Several operations, one decision.** A compound request holds a short
   list of operations, admitted in order and committed together or not
   at all, under one key with one answer (3.4).
@@ -148,17 +148,15 @@ Section 9 lists what the engine's domain owes the client, and where
   requests' reserved answer places, never per party. Retained replay or
   conflict and pending joins or conflicts precede new admission. No
   unexpired ordinary answer is evicted to admit another key.
-- **`Seen` keeps no new answer:** a new top-level `Seen` bypasses
+- **`Seen` keeps no answer:** a top-level `Seen` bypasses
   completed-answer capacity, using the bounded pending, flight,
   waiter and load places, with uncapped journal and output queues,
   without reserving an answer place. It saves no `Answer` on success or
   routed refusal. While pending, an identical request joins and a
   different ask conflicts as usual.
-  After completion its key is free: a retry is processed against current
-  subject and authority, and a different ask under that key is a new
-  request. Legacy retained `Seen` answers replay or conflict until their
-  original expiry, still occupying their old places without early
-  erasure or reclassification (`../../domain/people.md`, 5.1).
+  Keeping no answer, its key is free after completion: a retry is
+  processed against current subject and authority, and a different ask under that key is a new
+  request (`../../domain/people.md`, 5.1).
 - **One held key, one ask:** a key sent again with a different ask is
   refused as a conflict while pending or retained.
 - **A name** is a key the application gives in place of one the client
@@ -211,15 +209,15 @@ has left (`../../domain/authority.md`, 8.1 and 8.4).
 | `Amend` | a task; its spec's revision, or a person task's for its address; the change: spec and parameters, instructions, authority, wake policy, its dependencies as a whole list (those it names anew added, those it leaves out removed: `../../domain/tasks.md`, section 7), a person task's address, tracked and priority, its LLM choice, which its next run takes; a reason | amended; an active task given a pending dependency kept until it is done (`../../domain/tasks.md`, 5.7). A change of priority alone names no revision: the first commit decides |
 | `Cancel` | a task; a reason; a grace, or none | it and its tree closing; with a grace, the task first hears that it is asked to finish, as it hears an amendment, and is cancelled when the grace ends unless it ended first |
 | `Release` | a held task; its hold's revision; for an uncertain effect that cannot be recovered, whether to make it again | its hold lifted, judged afresh |
-| `Stop` | a task | its run cancelled, the task held for the party; designed, not built: a placed hold of the party's, stop, over the task's subtree (`../../domain/tasks.md`, 5.9) |
-| `Hold`, designed, not built | a mode, `Stop` or `Drain`; a scope, `Subtree(task)` or `Project`; a reason | a placed hold, its number and revision answered (`../../domain/tasks.md`, 5.9) |
-| `Lift`, designed, not built | a placed hold by its number; its revision; `with_tasks` | the hold ended; with `with_tasks`, each task it held that nothing else holds released |
-| `Move` | a task the party may amend; a reason; designed, not built: a live task the party may amend as its new requester | the party its requester, its reservation moved to their pool (`../../domain/tasks.md`, section 7); or that task its requester |
-| `Succeed`, designed, not built | an ended task in the party's tree, a live task in their tree | the live task the ended one's successor (`../../domain/tasks.md`, section 7) |
+| `Stop` | a task | its run cancelled, the task held for the party: a placed hold of the party's, stop, over the task's subtree (`../../domain/tasks.md`, 5.9) |
+| `Hold` | a mode, `Stop` or `Drain`; a scope, `Subtree(task)` or `Project`; a reason | a placed hold, its number and revision answered (`../../domain/tasks.md`, 5.9) |
+| `Lift` | a placed hold by its number; its revision; `with_tasks` | the hold ended; with `with_tasks`, each task it held that nothing else holds released |
+| `Move` | a task the party may amend; a reason; or a live task the party may amend as its new requester | the party its requester, its reservation moved to their pool (`../../domain/tasks.md`, section 7); or that task its requester |
+| `Succeed` | an ended task in the party's tree, a live task in their tree | the live task the ended one's successor (`../../domain/tasks.md`, section 7) |
 | `Decide` | a proposal, by its proposer and number: accept, for a proposal of settings with whether running work moves, reject with a reason, or pass up; or an escalation, by its held task and its hold's revision: release, leave held with a reason, or pass up | as `../../domain/tasks.md`, section 9 has it; or decided first, by whom and how |
 | `Answer` | a question, by its task and message, with the words; or a person task, by its revision, with the answer its contract asks (a choice, words, or the state an approval approves) or that it cannot be done | an answer to the question; the person task's result |
 | `Take`, `HandBack` | a person task addressed to a role the party holds | held by them, or back to the role |
-| `Seen` | how far the party has read: their results, or one conversation's turns | their durable read position advanced to `max(old, through)`; after completion a retry checks current subject and authority and may return `Unknown` after forget or `Role` after authority loss, never recreating history or replaying a new completed answer (3.1; `../../domain/people.md`, section 6) |
+| `Seen` | how far the party has read: their results, or one conversation's turns | their durable read position advanced to `max(old, through)`; after completion a retry checks current subject and authority and may return `Unknown` after forget or `Role` after authority loss, never recreating history or replaying a completed answer (3.1; `../../domain/people.md`, section 6) |
 | `ChangeSettings` | the deployment, its scope (7.5); the revision the party saw; the items, at most one per setting, each a setting (a charter, a template or a policy by number, the rules, or an application's kind, scope and number) and what becomes of it: set to a value whole, a charter's instructions as text, removed, or reset to its default; whether running work stays or moves (`../../domain/engine.md`, 17.2) | the settings changed in one decision, the new revision's number answered; the deployment's `settings` and every `me` whose templates changed marked. Not among a compound request's operations (3.4) |
 | `MoveToNewest` | the deployment, its scope (7.5); a revision held | every live task on it that may move set to the newest revision in one decision; answered with the count of those moved and of those that could not, which finish on it (`../../domain/engine.md`, 17.4); a revision not held refused as unknown; the newest answered with none moved, nothing written |
 | `Restore` | the deployment, its scope (7.5); a revision the history keeps; a reason | a proposal of the settings as that revision left them, against the newest, its number answered, with the settings of an application's kinds it leaves out (`../../domain/engine.md`, 17.10); forgotten, naming the oldest kept; empty, for the newest; stale; too large |
@@ -291,10 +289,11 @@ whole document can supply a replacement. Names are copied literally in
 both directions, and current availability is checked after retained-key
 lookup (`../../protocol/store.md`, 5.1).
 
-The program operations use the existing account-change request: declaration
+The program operations use the account-change request: declaration
 carries the provider, optional joined account, and portable source name; check
 carries the source number. Declaration returns that number and whole name. Check
-answers when dispatched, while inventory facts arrive on the existing watches.
+answers when dispatched, while inventory facts arrive on the `accounts` and
+`deployment` watches.
 Sign-out and account removal retain the configured names of workers that failed,
 were not in contact, or lost contact; replay preserves those original names.
 Neither request carries a secret or digest.
@@ -449,7 +448,7 @@ Every request has one answer, of one of these kinds:
 - **done,** with its outcome: what was made (the first and the last of
   the tasks' numbers, consecutive in the batch's order, and the
   `AsAllowed` task, if any, with what it was given; a word's message
-  number; a proposal's number and the role it was originally admitted to, in the
+  number; a proposal's number and the role it was first admitted to, in the
   request's project; its present recipient is in its document. A replay keeps
   the original outcome's role; an account moved out, with its record, once: 3.1), or what
   was decided; for a compound request, its
@@ -627,17 +626,14 @@ served is held, kept and unsent, for its owner's version (client.md,
     the separate account kept by the last successful claim, and its next-run
     account/source wait with the source's typed state and optional wall reset
     (unknown stays unknown), or a credential or host wait. `Task.run_wait`
-    also carries `Refused(TaskWaitRefused)`: `Hello { kind, at, why }` is
+    also carries `Refused(TaskWaitRefused)`, `Hello { kind, at, why }`:
     the fleet's latest observed allowed-kind refusal, suppressed by any
-    admitted connected non-draining allowed-kind host; `Program(OpenProgram)`
-    names `Model` or `Source { account, source }`, carried with no
-    producer since an Open task runs on a program source as any task does
-    (`../../domain/hosts.md`, 8.1). The client uses
-    its own `HostKind` and `HelloRefusal` vocabulary; the canonical
-    deployment translation retains the existing shortfall context limits.
-    These are derived document facts, never a new hold or stored state.
-    Client wire 11 carries both arms; status and person-facing words are a
-    separate follow-up. Task summary rows do not gain a wait field. Its hold
+    admitted connected non-draining allowed-kind host. An Open task runs
+    on a program source as any task does, so no run waits for its program
+    (`../../domain/hosts.md`, 8.1). The client uses its own `HostKind` and
+    `HelloRefusal` vocabulary; the canonical deployment translation keeps
+    the shortfall context limits. These are derived document facts, never
+    a new hold or stored state. A task line carries no run wait. Its hold
     and its escalation if held; its dependencies, each a task's number
     and phase, pending or done, with when and by whom each was added
     after the task was made, and whether they keep it
@@ -785,8 +781,8 @@ check. Settled is optional: false for this party's pending sign-in at that
 provider, unknown when program checks cannot yet be known, true otherwise.
 The readiness list has its own cut flag; it never makes a negative statement
 about an omitted provider/payer. Decisions use full domain state, independently
-of displayed account/source/host prefixes. The existing aggregate usable and
-settled fields remain available.
+of displayed account/source/host prefixes. The document keeps the aggregate
+usable and settled fields beside the rows.
 
 ### 5.2 Revisions
 
@@ -1006,7 +1002,7 @@ settled fields remain available.
 
 ### 5.6 Placed holds
 
-Designed, not built (`../../domain/tasks.md`, 5.9).
+Placed holds are `../../domain/tasks.md`, 5.9's.
 
 - **A task held by a placed hold** shows `HoldCategory::Placed { hold
   }`, and its document names the hold: its owner (a party or a task),
@@ -1022,7 +1018,7 @@ Designed, not built (`../../domain/tasks.md`, 5.9).
 
 ### 5.7 Job tasks
 
-Designed, not built (`../../domain/tasks.md`, 5.3.1). A job task's
+Job tasks are `../../domain/tasks.md`, 5.3.1's. A job task's
 document shows its executor's kind, `Job { kind }`, its spec and result
 as its application's part describes them (5.3), its host and its
 attempts. No party creates one: `Create` naming a job is refused as an
@@ -1220,7 +1216,7 @@ new `me` watch, including after restart.
   current sign-in and visibility, and delivers once. A tree still means
   the live subtree (5.1): its retained ended root has no live descendants,
   folded counts or continuation, whether it was a root or a delegate.
-  The watch ends with the existing subject-gone reason after that delivery
+  The watch ends with the subject-gone reason after that delivery
   is taken or dropped. Missing or hidden retained facts end it without a
   delivery; retained facts too linked to load within the read's join
   bound end it without a delivery as too linked, naming the bound, as

@@ -266,7 +266,7 @@ deployment's rules       the most any project may have; requirements on effects
 - **The deployment** is the requester of what configuration or a
   connector starts on a project's behalf (a recurring task, a standing
   watch), with the authority the project's policy gives such tasks,
-  funded from the project's spend. Designed, not built: a procedure task
+  funded from the project's spend. A procedure task
   it starts that runs no agent (a forge's landing or tier run, which
   only make effects) is made with a budget of zero, so that a period its
   people have reserved whole never stops it; an effect it asks for that
@@ -395,8 +395,7 @@ deployment's rules       the most any project may have; requirements on effects
   so a role's raise that the open period has no room for is refused
   whole, naming what the period has left: its owners raise the
   project's first. A project's spend below a role's is refused as well,
-  so a cut goes the other way, the role's first (o/configuring-periods'
-  raise, jig 5c8420d15). Its writes are a pool per party in the role, within
+  so a cut goes the other way, the role's first. Its writes are a pool per party in the role, within
   the project's parties (engine.md, section 13), all checked before
   any is made.
 - **Periods are the application's to say.** The engine keeps no

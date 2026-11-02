@@ -1,749 +1,165 @@
-# The reference case, third edition
+# Reference case
 
-Draft, 2026-10-30, from sessions with the user. Nothing here is
-adopted. One invented story that applies `landing-model.md` to a
-process like the one temper's own development runs. The story holds
-every mechanic of the model that such a process uses, and none that it
-doesn't. It is as small as that allows. temper must be able to run it.
-The names are invented; `landing-model.md` 13 maps the real process.
+Draft, 2026-11-02. One small goal through the reference, from a draft to
+cleared, showing each mechanism of `reference-code-production.md` and
+`reference-landing.md` once. It is condensed from a real run of the
+`playground-reset.md` draft in this directory. It keeps that run's names
+and kinds of event and drops its repetition: 64 changes become nine,
+five designers two, 54 questions five, and nine checks along the way
+one. `notes.md`, 2.3 maps each step to the run, and its N numbers are
+the choices each step rests on.
 
 ## 1. In one page
 
-- **What it is:** the model at work in one project. Each step is
-  something that happens, the model's sections that handle it, and what
-  temper and jig lack for it.
-- **The cast** (section 3):
-  - the person, with the director as their chat;
-  - C, a coordinator, and the area goals under it: K and A, then K2,
-    K's successor;
-  - F, a goal of a fix;
-  - P, an area goal started before coordinators were the rule, and L,
-    the coordinator it is moved under;
-  - Op, the project's operator;
-  - implementers, reviewers, an advisor and a tester, as delegates.
+- **The goal:** P, a person, starts a goal from the draft; its branch g
+  is made with it, and G, its coordinator, holds it. Everything the goal
+  writes lands into g: a shared design, two families' designs, nine
+  changes in four families, a design revision, a repair, a catch-up and
+  the close-out. Then g lands into main as one change.
+- **Act 1, the cut** (section 3): surveys as sub-agents, the shared
+  design and the designers as changes into g, a designer's question,
+  batches as each family's design lands.
+- **Act 2, changes into g** (section 4): the plain way; questions settled
+  by the foreman and by G; a new change made by an answer; the design
+  revised under live changes; early starts, a merge held for its
+  dependency, an early start refused; a Left list; a hold passed up to P;
+  conflicts settled by the merge job and by an agent.
+- **Act 3, along the way** (section 5): a red of g's tier, news to G,
+  triaged and repaired while merges go on; a catch-up with main.
+- **Act 4, landing** (section 6): the close-out into g; L, checked whole,
+  repaired once on g, updated and merged at its head.
+- **Act 5, after landing** (section 7): a red of main's tier, triaged and
+  repaired by a change naming it; L cleared; the goal done.
+
+## 2. The cast
+
+- **P,** the person who wrote the draft.
+- **G,** the goal: an agent task under the coordinator's charter, Opus
+  5.5 at xhigh, its sub-agents Opus 5.5 at high; tracked; it holds g,
+  `temper/<root>/g<root>` (N3).
+- **S, Dbx, Dfe,** the shared design and the designs of the box and the
+  forge's engine: changes into g whose producers run under the
+  designer's charter at G's LLM choice (N13). **S2,** a revision of S's
+  design, made later the same way.
+- **The changes,** each into g, its words its spec citing g's design,
+  its producer a coding agent at gpt-6.1-sol:
+
+| | Change | Family | After | Shows |
+|---|---|---|---|---|
+| C1 | sv-skein-setup | sv, skein and service | | a change G specifies itself; the plain way |
+| C2 | bx-doc | bx, the box | Dbx | a question G settles by widening the words |
+| C3 | bx-init | bx | C2 | an early start; a merge held for its dependency |
+| C4 | fe-remove | fe, the forge's engine | Dfe | a question G settles with a new change |
+| C5 | sv-skein-retire | sv | | a change an answer made; the merge job alone |
+| C6 | fe-world-remove | fe | C4 | an early start that fails; the foreman's `finish`; a Left list |
+| C7 | fe-demo-gone | fe | C6 | the design revised under it; a conflict the merge job cannot settle |
+| C8 | fe-world-reset | fe | C7 | an amendment naming a revision; an early start refused; a hold passed up to P |
+| C9 | pd-run-credential | pd, jig | | a change made from a Left list |
+
+- **G's others:** R1, a repair along the way, and K1, a catch-up with
+  main, both into g; X, the close-out, into g; L, the goal's landing,
+  into main with g as its branch; R2, a repair after landing, into main.
+
+```
+P
+└─ G   implement playground-reset.md            agent, coordinator's charter; tracked; holds g
+   ├─ S, S2  the shared design, its revision    changes into g, designer's charter
+   ├─ Dbx, Dfe  the families' designs           changes into g, designer's charter, after S
+   ├─ C1…C9                                     changes into g
+   │     producers, foremen, merge jobs, resolutions under them
+   ├─ R1  repair along the way                  change into g
+   ├─ K1  catch-up with main                    change into g, the merge job its producer
+   ├─ X   the close-out                         change into g, designer's charter
+   ├─ L   the goal's landing                    change into main, its branch g
+   └─ R2  repair of a red after landing         change into main
+```
+
+## 3. Act 1: the cut
+
+| # | Who | What happens | Shows |
+|---|---|---|---|
+| 1 | P | starts a goal from the project's template for drafts, its words: "Implement `temper/docs/design/draft/playground-reset.md`." The template names *its own goal branch*, resolved to g; G becomes active holding it, and the forge makes g at main's tip | a goal from a template, with its charter, its LLM choice and its own branch (N3) |
+| 2 | G | its first run reads the draft, the guides and the designs it touches, and asks four inspect-only sub-agents at high, side by side, what the code does today (forges as records, the playground, deleting a project, the box's groups) | surveys as sub-agents (N10) |
+| 3 | G | shapes the plan: two families need a designer (bx, fe); both refuse removals, so how a removal is refused is a shared shape; sv-skein-setup needs none, skein's design already saying it. First batch: S, its words the refusal's shape and where it goes; Dbx and Dfe, after S, each told its family; C1. G parks | batches; the shared design and designers as changes (N13); a change G specifies itself |
+| 4 | S | its producer, under the designer's charter, writes the refusal's section into the forge's design and a status entry for it, and pushes. Dbx and Dfe start kept on S, their producers from S's pushed head (N2). S lands into g; their merges may follow | the design written into g (N12); designers starting early |
+| 5 | Dfe | asks G, straight up: "does removing a world wait for its live runs (A) or refuse while one runs (B, recommended, as S's shape refuses)?" G answers B. Dfe surveys the engine's worlds with a sub-agent of its own and goes on | a designer's question with no foreman (N1) |
+| 6 | Dbx, Dfe | each writes its family's sections, their status entries and its Later into g, pushes and finishes, its report listing its changes: Dbx's C2 and C3, Dfe's C4, C6, C7 and C8, each with what it owns, its dependencies and its effort. Each lands into g; each result, carrying its report, wakes G, which makes that family's batch | a family's design; its report as the result; one batch per family (N15) |
+
+## 4. Act 2: changes into g
+
+| # | Who | What happens | Shows |
+|---|---|---|---|
+| 7 | C1 | its producer writes the code and its tests, runs `.temper/pre-pr`, pushes, finishes: the head and its report, Left empty. C1 opens its pull request into g, needs no check and no update, is first, merges at its head. Landed and done; its result wakes G, which has nothing to do | the plain way (N4) |
+| 8 | C3 | depends on C2, whose producer has pushed a first head: C3 starts kept, its producer from g's tip with C2's head merged in | an early start (N2, N14) |
+| 9 | C2 | its producer asks, options given: "may bx-doc add a read-only accessor in `temper-forge-setup/src/problem.rs`, outside its files (A, recommended), or should bx-steps supply it (B)?" C2's foreman: neither the words nor Dbx's design authorise it: escalate. C2 asks G; G amends C2's words with the file and answers A. C2 relays it; its producer goes on | a question through the foreman to G; words widened (N1) |
+| 10 | C3 | its producer finishes done while C2 is still producing: C3 is kept, its merge waits. C2 lands; C3 is ready and merges | a merge held for its dependency (jig's `domain/tasks.md`, 5.7) |
+| 11 | C4 | its producer asks for a skein API no change makes. Its foreman escalates; G makes C5, sv-skein-retire, adds it as C4's dependency, and answers that C4 waits for it. C4 holds the answer until C5 has landed; its producer then goes on, g's tip merged in first | a new change from an answer; a dependency added (N1, N2) |
+| 12 | C5 | the forge refuses its merge into g: a conflict in `scripts/old-forms.txt` alone, which C1 lowered too. The merge job merges g's tip into C5's branch, recounts the baseline and pushes; C5 merges | the merge job (N4, N7) |
+| 13 | C6 | starts kept on C4's pushed head; its producer fails: C4's head still holds stubs. By the once rule the next producer waits for C4 to land | an early start that fails (N2) |
+| 14 | C6 | its next producer, from g's tip, writes the four removal stories; two fail in jig's run code (a stale credential), outside its files. It asks; its foreman answers `finish`: the stories hold, the failures are Left. It marks the two as ignored, the fault their reason, pushes and finishes with a Left list naming it; C6 merges | the foreman settles; a Left list (N1, N15) |
+| 15 | C7 | its producer asks: S's refusal names the record that blocks a removal, and the demo journey's removal has none to name. Its foreman: the design does not settle it: escalate. G makes S2, a designer's change revising S's section (a refusal names a record or a reason), adds it as C7's dependency and answers that C7 waits for it; it amends C8, whose words cite the same section, naming S2. S2 lands; C7's answer goes down, and its producer merges g's tip and goes on | the design revised under live changes (N12) |
+| 16 | C7 | its merge into g conflicts in nine files C6 and C1 changed. The merge job leaves them; a resolution, an agent in that merge in progress, resolves them and runs the checks; the worker commits the merge and pushes it; C7 merges | a resolution (N4, N7) |
+| 17 | C8 | would start early on C7's pushed head, but that head conflicts with g's tip: the early start is refused, and C8 waits for C7 to land | an early start refused (N2) |
+| 18 | C8 | its producer fails for good: "project isolation for the playground account needs an upstream fix". C8 is held at producing, escalated past it to G. Relying on disjoint model policies instead changes what the draft promises, so G passes the escalation up to P with its reasons. P amends C8's acceptance ("disjoint policies, as the draft's 6.1 says") and releases it; a fresh producer finishes; C8 merges | a hold passed up to the person (jig's `domain/tasks.md`, section 9) |
+| 19 | G | C6's result woke it at step 14: its Left list names jig's run credential, owned by no change. G makes C9, pd-run-credential, its words the fault and the two ignored stories to restore; it lands | a change from a Left list (N15) |
+
+## 5. Act 3: along the way
+
+| # | Who | What happens | Shows |
+|---|---|---|---|
+| 20 | tier | g's tier, the gate without its slowest suites, runs at g's tip after step 12: three tests fail. Rerun alone, one passes: a flake. The two left reach G as news. G triages from the tree: one failure lies in C7's files, still live, so G amends C7's words to say it is C7's; the other, a stalled chat in the service's workers, no live change owns, so G makes R1, a repair into g, its words the failure, the log's end, and C6 to C8 with what they own. G notes the flaky test in the repository's scope. R1 lands while changes keep merging; the tier's next run is green | checked along the way; a red as news; triage; a repair; a note as jig means it (N5, N12) |
+| 21 | G | main has moved: another goal landed in `temper-service`, which g's open work touches. Woken by the landing (paced), G makes K1, a catch-up into g. The merge job merges main into a branch at g's tip and meets a conflict in `workers.rs` it cannot settle; a resolution settles it; K1 lands into g | catching up along the way (N6, N7) |
+
+## 6. Act 4: landing
+
+| # | Who | What happens | Shows |
+|---|---|---|---|
+| 22 | G | woken by C9's result, its last change: every change landed, every Left list made into a change, the tier's last run green. G makes X, the close-out: its producer, under the designer's charter, writes into g the status entries still open (project isolation upstream, from C8), the designs' Later sections, and folds the draft into the forge's design, removing it. X lands into g | the close-out (N16) |
+| 23 | L | X's result wakes G, which makes L, a change into main whose branch is g. L opens its pull request; CI, the full gate, fails one fuzzy test at its head. L's repair, an agent at g's tip, fixes it and pushes g under G's hold; CI passes at the new head | the goal checked whole; a repair on g (N3) |
+| 24 | L | queued, then first in main's queue. A chat's small fix landed meanwhile, so L lacks main's tip: the forge merges main into g cleanly, CI passes at the new head, and L merges at exactly that head, a merge commit. Landed, then verifying | the queue; a lazy update; a merge at its head (`forge.md`, sections 9 and 10) |
 
-  There is one repository of four packages, two builders of
-  workspaces, two provers, a tier runner, two model plans and one owned
-  Forgejo.
-- **Six acts, 24 steps, about 9 hours:**
-  1. a feature designed and landed (section 4);
-  2. under load (section 5);
-  3. after landing (section 6);
-  4. the person (section 7);
-  5. holds (section 8);
-  6. the tree changes, and the ends (section 9).
-- **What it asks** (section 11): every gap in `landing-model.md` 15.4,
-  except those the case leaves out (section 12).
+## 7. Act 5: after landing
 
-## 2. How to read it
+| # | Who | What happens | Shows |
+|---|---|---|---|
+| 25 | tier | main's browser tier runs at the new tip; two tests fail. Rerun alone, both fail; neither failed before; L's landing is the only one in the range, so they are its | a tier following main; a verdict (`after-landing.md`, section 5) |
+| 26 | G | wakes on the red as news: the tier, the tests, the log's end. It triages: the playground page still names the removed demo journey, in files C7 owned. It makes R2, a change into main naming L's red landing, its words the two tests and the cause | a red to its goal; triage (`after-landing.md`, section 7; N22) |
+| 27 | R2 | its producer fixes the page; R2 lands through main's queue; the tier's next run passes both tests. L's landing is cleared, repaired by R2; L gives its result | cleared by a repair (`after-landing.md`, 5.3 and 6) |
+| 28 | G | woken by L's result, reports: the goal is done. It closes, and its hold's release deletes g, landed | the goal's end; its branch released (N3) |
 
-- **Each step** says what happens, then gives two lists:
-  - **Model:** the sections of `landing-model.md` that handle it;
-  - **Needs:** what temper and jig must have, by the gap ids of that
-    model's 15.4, whose table grades them; *exact* where they have it
-    today.
-- **Time** is in hours from the start. On fakes, timers and bounds are
-  scaled down.
-- **Run two ways:**
-  - **On fakes,** with each judgement scripted as the oracle. The
-    stories take the step's number: `fuzzy_case3_X_Y`.
-  - **On real backends,** as v0.1.0's top rung. The person's words are
-    a script that a QA driver types through `temper ctl`, and each step
-    is checked by its effects.
-- **The person acts directly or through the director.** Where both
-  are possible, the step says which.
-- **The case is written to the model's recommendations** for its
-  choices of primitives (`landing-model.md` 17, H1 to H9); section 13
-  says which steps change if one flips.
+## 8. What each primitive did
 
-## 3. The cast and the start
-
-- **The person** directs the work, sets budgets and priorities, and
-  answers what is theirs to answer.
-- **The director** is the person's chat, on Claude:
-  - it coordinates under the coordinators' charter;
-  - it is the QA chooser, and takes findings that have no coordinator;
-  - a timer wakes it every 2 hours for its check.
-- **C** is a coordinator goal on Claude: the coordinator of "Export",
-  which spans the packages kit and app. It designs, has each part
-  reviewed once, and starts the area goals.
-- **K** (Export's kit side) and **A** (its app side) are area goals on
-  Claude under C. **K2** takes on what K leaves, in act 6.
-- **F** is a goal of a fix, on Claude, which C starts from a finding.
-- **P** owns "Themes" in the package ui, on Claude. The director
-  started it before the case, when features had no coordinator. **L**
-  is Themes' coordinator, born in act 6.
-- **Op** is the project's operator, a goal on GPT under the director:
-  it hears faults and key gaps, and it alone sets a priority.
-- **The delegates:**
-  - implementers, reviewers and the tester are agents on GPT;
-  - an advisor is a one-shot agent on Claude, called once two tries
-    have missed.
-- **The repository,** works, the project's only one:
-  - **packages:** kit; ui and cli, which read kit; app, which reads kit
-    and ui;
-  - `tools/`, the project's own tools with their suite;
-  - `debts.txt`, a counted baseline that may only go down;
-  - `docs/`, which no gate reads; its `STATUS.md` is generated from one
-    file per part.
-- **The gates:**
-  - deterministic, per package: `fmt`, `lint`, `build`;
-  - deterministic, of the repository: `count` (over `debts.txt`) and
-    `tools` (over `tools/`);
-  - measured, per package: `test`.
-- **The tier:** `browser`, on app, measured, reporting its failing
-  tests by id.
-- **The tooling:** `prepare` merges each member onto the parent in
-  order, recounts `debts.txt` and regenerates `STATUS.md` as the
-  candidate's own commits, and computes each gate's keys from the
-  build's graph.
-- **The machines:** two builders with eight workspaces, shared as C 4,
-  the director 2, the free pool 2; two provers, each warm with its own
-  cache; a tier runner. All are self-hosted runners with labels of
-  their own.
-- **The forge:** an owned Forgejo with Actions. Every workflow is
-  dispatch-only, and "autodetect manual merge" is on.
-- **The settings** (`landing-model.md`, 14):
-
-  | Setting | Value |
-  |---|---|
-  | before ready | `keys` |
-  | keys | per package, by the tooling |
-  | batch | by measure, at most 8 |
-  | provers; train depth | 2; 2 |
-  | full proofs | every 5 attempts, hourly, idle after 10 minutes |
-  | gate retries | 2 |
-  | priority | the operator, with a hold after it at its choice |
-  | `browser` | coalesce beyond 2 waiting; bisect within 45 minutes and 16 runs |
-  | a tier's red goes to | the suspects' coordinators |
-  | cleared | off |
-  | findings on the forge | off |
-  | QA | marks from a starting main, 5 a pass, a pass's cap 120 minutes, a walk's 180 |
-  | the operator | Op |
-  | leases | on |
-  | handover | at 75% of a charter's context |
-
-- **At hour 0:**
-  - P is running on Themes, with the lease on ui;
-  - nothing is held, and nothing is ready;
-  - no finding is open;
-  - `browser` is green at main.
-
-## 4. Act 1: a feature designed and landed (hours 0 to 2)
-
-### 4.1 The director starts C, and C's design lands
-
-The person: "Export's draft is in; it's next." The director starts C at
-priority 1, with the draft at its commit as its brief.
-
-C takes the lease on `docs/design/export.md` and claims a workspace
-from its share. It writes the design of the boundary between kit and
-app, and a GPT reviewer reads it once. C amends the design, and its
-change into `docs/design/` is ready.
-
-The change touches only paths no gate reads. So:
-- its keys equal main's, whose receipts pass, and no run is dispatched;
-- the serializer lands it in a candidate of one, fast-forwarding main;
-- `browser`'s key is unchanged too, so the tier judges the new main by
-  its receipt, with no run.
-
-C hears its landing within a minute.
-
-- **Model:** 3.1, 3.2, 3.3, 5, 6.1, 9, 10.
-- **Needs:**
-  - a coordinator goal with a one-shot reviewer (exact);
-  - a lease on a document (L12);
-  - a workspace claimed from a share (J12);
-  - receipts for paths no gate reads (L5);
-  - the serializer and its turn (L9);
-  - a tier judged by its receipt (L13).
-
-### 4.2 C starts its area goals
-
-C starts K and A, each with a brief: the design at its commit, and the
-boundary where they meet. Its charter's standing rule says the
-interface lands first, alone. K takes the lease on kit for the wave,
-and A the lease on app.
-
-K delegates three implementers on GPT, each in a workspace of C's
-share: k1, the interface; k2, which depends on k1; and k3. k2 finds
-that its sketch doesn't match main and asks K, its requester. K
-answers, and k2 goes on.
-
-- **Model:** 3.1, 3.2, 3.3, 3.4.
-- **Needs:**
-  - goals at depth three, dependencies between delegates, and a
-    question to the requester (exact);
-  - leases on packages (L12);
-  - workspaces claimed for a change's life (J12).
-
-### 4.3 k1, checked before ready
-
-k1 changes what a kit item means. K runs the check before ready: in
-k1's workspace, its head is merged onto main's tip, uncommitted, and
-the deterministic gates run over kit and every package that reads it.
-`tools` and `count` are not reached.
-
-`lint` fails in cli. k1's implementer fixes it in the same workspace,
-and the check passes. Each key's result is a receipt, from a
-certificate temper accepted.
-
-Since k1 changes a meaning, the readers' tests (`test` in ui, cli and
-app) run there too. They pass, and are reported as advisory, with no
-receipt. The checkout is restored and verified, K marks k1 ready, and
-the workspace's claim is released.
-
-- **Model:** 4.1, 5, 7.
-- **Needs:**
-  - the check before ready, in the workspace (L11);
-  - keys per package (L5), computed by the tooling (L4);
-  - gate classes: deterministic receipts from a certified runner (L6,
-    L7);
-  - the workspace restored before its claim moves on (J12).
-
-### 4.4 The first batch lands
-
-At hour 1, k1 is ready, and so are P's t1 and t2, in ui. Prover 1 is
-busy with the idle audit of main after 4.1's landing, so the three wait
-and join one candidate, k1 first:
-- the prepare job, on a worker, merges them in order onto main, on
-  `temper/works/c1`, and reports each gate's keys;
-- kit's and cli's deterministic keys are those k1 was checked at, so
-  their receipts hold;
-- ui's and app's changed with t1 and t2, so their deterministic gates
-  run, with every reached package's `test`, in one dispatch to prover
-  1, with one build.
-
-It is green. Main still equals the candidate's parent, so the turn
-fast-forwards it to the candidate. The forge marks the three pull
-requests merged, and each branch is released by a deletion that names
-the head it landed. K and P hear their landings, with the commit.
-
-k1's commit says `Taught: export ids must be stable across runs`. C's
-wake policy names `Taught:`, so the landing wakes C, which amends its
-design. That amendment lands as in 4.1.
-
-- **Model:** 4.2, 5, 6.1, 6.2, 7, 8, 9, 11.2, 12.
-- **Needs:**
-  - a batch (L1);
-  - a candidate on temper's branch by a merge chain (L3);
-  - the prepare and key job (L4), and keys per package (L5);
-  - a prover (L7), and the serializer's turn (L9);
-  - landing news with trailers (L17);
-  - Forgejo's dispatch, statuses, a ref updated fast-forward only, and
-    pull requests marked merged by containment (F1, F4).
-
-## 5. Act 2: under load (hours 2 to 4)
-
-### 5.1 A train
-
-By hour 2, a dozen implementers are producing, and ready landings wait
-longer than a proof. Candidate 2 (k2, k3, a1, t3) proves on prover 1.
-Candidate 3 (a2, t4, k4) is prepared on candidate 2's commit, and
-proves on prover 2 at once.
-
-Candidate 3's proof ends first. It waits, with no effect. Candidate 2
-is green and lands; main then equals candidate 3's parent, and it lands
-too.
-
-- **Model:** 6.3, 7, 9.
-- **Needs:**
-  - a train (L2);
-  - provers with affinity, idempotent dispatch, and certificates (L7).
-
-### 5.2 A red in a big batch
-
-Candidate 4 holds six landings, and candidate 5 is prepared on it.
-Candidate 4 is red: an app `test` fails, and fails again when rerun
-alone.
-
-- **Candidate 5 is invalidated.** Its result arrives later and decides
-  nothing, but its certified receipts stay good for their keys. Prover
-  2 is free once its commands have ended.
-- **Four of its six reach app's key,** so only they are suspects. The
-  other two are prepared again without them and land, with only the
-  keys the suspects' absence changed run.
-- **The four are bisected,** with nothing prepared on them meanwhile:
-  1. the left two prove against main, green, and land;
-  2. the right two are red, and split: a3 alone is red, and the other
-     is green and lands.
-- **a3's red is its own:** a repair under A, briefed with the failing
-  step and the log.
-- **Candidate 5's landings** are prepared again on the new main. kit's
-  and cli's keys are those candidate 5 proved, so only app's and ui's
-  run.
-
-- **Model:** 5, 6.2, 6.3, 8.
-- **Needs:**
-  - a measured failure rerun once before it is red (L8);
-  - suspects by key, and bisection by halves (L1);
-  - successors invalidated, and no speculation in a bisection (L2);
-  - receipts kept from a discarded candidate (L5);
-  - a red as the member's repair (exact).
-
-### 5.3 Fresh by key
-
-A's a4 was checked before ready at hour 2. Since then k2 landed, and
-app reads kit, so a4's app keys changed. At admission, temper claims a
-workspace from the pool and checks a4 again: only app's deterministic
-gates run, and they pass. a4 joins the next candidate.
-
-Op's o1, a change to `tools/`, was checked before k2 too. Its only key
-is `tools`, which k2 didn't change, so its receipt stands, and o1 joins
-as it is.
-
-- **Model:** 4.2, 5.
-- **Needs:**
-  - `before_ready` and the check at admission (L11);
-  - freshness as key equality (L5);
-  - a workspace claimed for a check (J12).
-
-### 5.4 Conflicts, by rule and by resolution
-
-a5 and t5 each lower `debts.txt`, and each adds a part to `STATUS.md`.
-When the batch holding both is prepared, the tooling recounts
-`debts.txt`, which refuses a raise, and regenerates `STATUS.md`, as the
-candidate's own commits. No conflict reaches anyone.
-
-A's a6 needs a hook in ui's menu. ui is P's for the wave, so P lends
-ui to a6, and a6 is ready. But P's t6, ahead of a6 in the same batch,
-changed the same function:
-- prepare leaves a6 out, and the rest of the batch goes on;
-- the conflict is staged with the attempt, and is a6's once the
-  attempt's parent is green;
-- a resolution under A's goal, on GPT, settles it on a6's branch;
-- a6 is checked again before ready, and joins a later candidate.
-
-- **Model:** 3.3, 4.1, 6.1, 6.2, 8.
-- **Needs:**
-  - a lease lent to a change (L12);
-  - a check again before ready (L11);
-  - the prepare's own commits, by the project's rules (L3, L4);
-  - a conflict staged with its attempt, and its member left out (L3);
-  - a resolution under the member's goal (exact).
-
-### 5.5 A fault, and a repair first
-
-At hour 3, prover 2's disk is below its floor. It refuses candidate 9
-before running a gate: a fault, retried on prover 1, with nobody
-rejected. Op is told once, and trims prover 2's cache.
-
-At hour 3.5, a test fixture's certificate in app expires. The idle
-audit proves main in full, and app's `test` is red at main itself. Op
-hears it, since no member is to blame:
-1. Op holds the landing pipeline's admission;
-2. candidate 10, in flight, fails in the same test. The red is main's,
-   so nobody is rejected, and its landings return to the ready set;
-3. Op's implementer renews the fixture, in o2, and Op gives o2 the
-   priority `repair`;
-4. o2 passes Op's own hold and proves alone, in full, whatever its
-   receipts say. It is green and lands;
-5. the next full proof is green, and Op lifts the hold.
-
-- **Model:** 3.5, 5, 6.4, 7, 8, 9.
-- **Needs:**
-  - a fault before a gate (L7), kept apart from reds (L8);
-  - an idle audit of main, and a red main already has (L5, L8);
-  - a priority that passes its setter's hold (L10);
-  - a hold over the landing pipeline's admission (J9), owned (J1).
-
-### 5.6 A full proof finds a key gap
-
-Candidate 12 is the fifth attempt since the last full proof, so it is
-proved in full. cli's `test` is red. A cli test reads app's fixtures by
-path, though cli doesn't depend on app, and candidate 12's a8 changed
-one. The selections before passed, since cli's key didn't hold app's
-fixtures.
-
-The red is bisected with every half proved in full, to a8: a repair
-under A. Op is also told of a suspected key gap, and adds app's
-fixtures to cli's `test` key, a change to the tooling.
-
-- **Model:** 5, 8.
-- **Needs:**
-  - full proofs that audit the keys, and what a key cannot see (L5);
-  - a key gap (L8).
-
-## 6. Act 3: after landing (hours 4 to 5.5)
-
-### 6.1 Tiers follow main
-
-`browser` is running on an older main when candidates 13 and 14 land.
-When that run ends, three tips are waiting, more than the bound, so the
-older two are coalesced into the newest, and the coverage lost is
-recorded. The run is lost when its runner restarts. That is a fault,
-not a red: it is retried, and the retry is green.
-
-- **Model:** 10.
-- **Needs:**
-  - tiers following main, one run at a time on the newest tip, and
-    coalescing (L13);
-  - a tier's fault kept apart from a red (L8).
-
-### 6.2 A red, bisected, to the coordinator
-
-One `browser` run covers four landings, in order: A's a7, P's t8, C's
-second design landing, and K's k7. Two tests fail, and they fail again
-when rerun alone. temper bisects, within its bound:
-- the design landing reaches no key of the tier's, so it is skipped;
-- the two tests fail at a7's commit, so they are a7's.
-
-The red goes to C, the nearest coordinator above a7's change, with the
-tests, the log's end and the bisection's answer. C has A repair it:
-1. an implementer tries twice and misses;
-2. A calls a Claude advisor once, and it finds the cause;
-3. the repair lands.
-
-Meanwhile P lands t9. The run after it shows the same two failures:
-they are standing, not new, so nobody hears of them. The run after the
-repair passes both, and C hears that the red is confirmed fixed.
-
-- **Model:** 3.7, 10.
-- **Needs:**
-  - the rerun, bisection within a bound, standing reds, and the
-    recovery sent where the red went (L13);
-  - the red routed to a role, the nearest coordinator (J10);
-  - test ids from the run's artifacts (F1);
-  - a one-shot advisor on another model (exact).
-
-### 6.3 A flake, and its finding
-
-A `browser` run fails one test, and the rerun passes: a flake. Finding
-#7 is recorded in temper's store: a flake, in app, with the test's id
-and the failure's first line as its signature. app is C's area, so #7
-is routed to C.
-
-C triages #7: it starts F, a goal naming #7.
-
-Before F lands, candidate 16's app `test` fails in the same test, and
-passes when rerun: the gate holds, and the flake is counted on #7. No
-repair is made.
-
-F's fix lands, naming #7, and #7 closes.
-
-- **Model:** 8, 11.1.
-- **Needs:**
-  - findings as temper's records, matched by signature, routed,
-    triaged and closed (L15);
-  - a gate's failed jobs rerun (exact);
-  - a goal made from a finding (exact).
-
-### 6.4 QA
-
-k1, a1 and t2 carry `QA:` trailers. Marks are chosen from a starting
-main, so all three are. At its 2-hour check, the director, the QA
-chooser, moves t2's mark to its backlog, since Themes comes after
-Export.
-
-Once the newest main whose tiers ran green holds both marks left, a
-pass starts on it. Its walk, under the tester's charter, on GPT:
-- claims a workspace and deploys the build at that commit;
-- holds a sign-in in custody for its length, and returns it at its end;
-- exercises the marked stories as a user would, with no forge effects;
-- writes down what it expects before each case.
-
-It records two findings, each for the coordinator of the landing that
-carried its mark, C:
-- #9: Export's CSV header is wrong, on the happy path;
-- #10: a page is slow, which is minor.
-
-At its next wake, C routes #9 to A, which repairs it, and moves #10 to
-its backlog.
-
-- **Model:** 3.2, 11.1, 11.2.
-- **Needs:**
-  - marks, a pass, and a walk with a sign-in in custody (L16);
-  - a workspace claimed for the walk (J12);
-  - trailers in landing news (L17);
-  - triage to a goal and to the backlog (L15).
-
-## 7. Act 4: the person (hours 5.5 to 6.5)
-
-### 7.1 A question to the person
-
-A's app suite takes 70 s against its budget of 60 s. Budgets are the
-person's, so A asks the person directly. Person answers are on, so the
-person's answer, "don't raise it; make it cheaper", goes straight to A,
-and the director hears a notice. A has an implementer make the suite
-cheaper.
-
-- **Model:** 3.4.
-- **Needs:** any task asking the person, and the answer reaching the
-  asker (exact).
-
-### 7.2 Questions to the chat stay with the chat
-
-C asks the director, its requester: "Export's CSV first, or JSON?" The
-question is the director's to answer, not the person's. The director
-answers from the priorities in its notes.
-
-Later C asks: "may kit's API break ui's old callers?" The director
-doesn't know, so it asks its own person, in the inbox. The person
-answers. The director answers C in its own words.
-
-- **Model:** 3.4.
-- **Needs:**
-  - a question to the chat staying with it (J7);
-  - the chat asking its person (J8).
-
-### 7.3 Parked until the person's draft
-
-K's next part needs the person's draft on Export's formats, which
-doesn't exist yet. C parks K until a landing touches
-`docs/drafts/formats.md`; K keeps its lease on kit. The person lands
-the draft, which reaches no key and is landed on receipts, and K wakes.
-
-- **Model:** 3.5, 5.
-- **Needs:** a park lifted by an event (J4).
-
-## 8. Act 5: holds (hours 6.5 to 7.5)
-
-### 8.1 The person pauses Themes
-
-The person: "pause Themes." The person drains P's subtree, as the
-hold's owner:
-- P's implementer finishes its turn;
-- t10, in a candidate already, lands;
-- nothing new starts, and P is held as it goes idle, keeping its lease
-  and its workspaces.
-
-Later the person says "use every free workspace". The director reads
-that as a resume and tries to lift P's hold, but it cannot, because the
-hold is the person's. So it proposes the lift. The person sees the
-proposal in their inbox and says yes, and P resumes.
-
-- **Model:** 3.5.
-- **Needs:**
-  - a drain over a subtree (J2);
-  - owned holds, and a proposal to lift one (J1).
-
-### 8.2 A drain, to change the rules
-
-The person wants to change the coordinators' rules while nothing is
-half done, so they drain the project:
-- running runs finish their turn;
-- the candidates in flight are decided, and A's a9, in one of them,
-  lands;
-- nothing new starts, and no candidate is admitted;
-- each goal is held as it goes idle;
-- the director stays live.
-
-The person lands the rule change: a new revision of the coordinators'
-charter, which live coordinators move to. Then the person lifts the
-drain and releases the goals one at a time: C first, then K and A when
-C proposes them.
-
-- **Model:** 3.1, 3.5.
-- **Needs:**
-  - drain (J2), over a project (J3);
-  - a charter's new revision reaching live tasks (exact).
-
-### 8.3 A stop over the project
-
-The director relays a plan that the person hasn't approved yet. It
-rewrites its priorities, starts a goal for the plan, and that goal
-lands one change.
-
-The person: "act on none." This stops the project: runs are cancelled
-at once, nothing lands, and new tasks start held. The person cancels
-the plan's goal, and asks the director for a revert of the landed
-change. The revert's change starts held, so the person releases that
-one task, and it lands.
-
-Ninety minutes later the person approves the plan, and lifts the stop
-with every hold it placed. The director starts the plan's goal again.
-
-- **Model:** 3.5.
-- **Needs:**
-  - a stop over the project (J3), owned by the person (J1);
-  - one task released under a project hold (J3).
-
-## 9. Act 6: the tree changes, and the ends (hours 7.5 to 9)
-
-### 9.1 A coordinator born, and a live goal moved
-
-The rule changed in 8.2 says every feature gets a coordinator. The
-director starts L, Themes' coordinator, and moves P, still running,
-under L:
-- P's next result goes to L, and L funds its budget's reservation;
-- its workspaces stay claimed by P, now within L's share;
-- news for the nearest coordinator above P's changes now reaches L;
-- the director keeps a reference to it.
-
-- **Model:** 3.1, 3.2, 3.6, 3.7.
-- **Needs:**
-  - moving a live task under another task (J5);
-  - its claims counted in its new parent's share (J12);
-  - a role's address resolved when news is made (J10).
-
-### 9.2 C hands over
-
-C's context nears its charter's bound. Its run ends with a handover
-note, and its next run starts from its brief, its notes and the
-handover, not from its transcript. Its lease on the design, its
-subscriptions and the answers it waits for stay with it, and no second
-session warms up beside it. A red that arrives meanwhile waits in C's
-inbox, and wakes the new run.
-
-- **Model:** 3.6.
-- **Needs:** a fresh run from a goal's notes and handover (J11).
-
-### 9.3 An area goal ends, and its successor
-
-K's last landing lands, and K ends. Its result says what it did and
-what is left: one part, and a question to the person about a format's
-default, open for 2 hours.
-
-C starts K2 with K's result as its brief, and names K2 as K's
-successor. K's lease on kit passes to K2 with no gap for another
-writer. An hour later the person answers K's question, and the answer
-goes to K2.
-
-- **Model:** 3.1, 3.3, 3.4, 3.6.
-- **Needs:** a successor that receives an ended task's answers and
-  leases (J6).
-
-### 9.4 The ends
-
-A and K2 each end once their last landing lands; a tier's red after
-that goes to C, as in 6.2. C ends once its goals have ended, its
-findings are closed or in its backlog, and its design carries what
-their `Taught:` lines said; its leases are released, and their first
-waiters told. The director compares their results, and proposes a
-change to the rules, which the person accepts.
-
-- **Model:** 3.1, 3.3, 10, 11.1, 11.2.
-- **Needs:**
-  - goals that end at landed, with later reds going to their
-    coordinator (L13);
-  - leases released, and their first waiters told (L12);
-  - `Taught:` lines in landing news (L17);
-  - results and proposals (exact).
-
-## 10. The index
-
-Every mechanic of `landing-model.md` that the case uses, with the steps
-that hold it.
-
-| Mechanic | Model | Steps |
-|---|---|---|
-| A chat as coordinator; coordinator goals; goals at depth three | 3.1 | 4.1, 4.2, 9.4 |
-| Delegates by charter and model: implementers, reviewers, an advisor, a tester | 3.1 | 4.1, 4.2, 6.2, 6.4 |
-| Periodic checks | 3.1 | 6.4 |
-| A standing rule; a charter's new revision | 3.1 | 4.2, 8.2, 9.1 |
-| Workspaces: shares, claims, the pool, restored after a check | 3.2 | 4.1, 4.2, 4.3, 5.3, 6.4 |
-| Leases: a wave's writer, a lend, waiters, passed to a successor | 3.3 | 4.1, 4.2, 5.4, 9.3, 9.4 |
-| Any task asking the person; answers reaching the asker | 3.4 | 7.1 |
-| A question to the chat stays with it; the chat asks its person | 3.4 | 7.2 |
-| An answer after its asker ended | 3.4, 3.6 | 9.3 |
-| Owned holds and proposals to lift them | 3.5 | 5.5, 8.1, 8.3 |
-| Stop and drain, over a subtree and over a project | 3.5 | 8.1, 8.2, 8.3 |
-| A hold over the landing pipeline's admission | 3.5 | 5.5 |
-| Park until an event | 3.5 | 7.3 |
-| A fresh run from notes | 3.6 | 9.2 |
-| A live task moved under another; a successor | 3.6 | 9.1, 9.3 |
-| News to roles: the member's goal, the nearest coordinator, the operator | 3.7 | 4.4, 5.5, 6.2, 9.1 |
-| Checks before ready, in the change's workspace; readers' tests | 4.1 | 4.3, 5.4 |
-| Fresh by key; a check at admission | 4.2 | 5.3 |
-| Keys per package; repository gates; paths no gate reads | 5 | 4.1, 4.4, 5.3, 7.3 |
-| Receipts outliving candidates | 5 | 5.2 |
-| Gate classes | 5 | 4.3 |
-| Full proofs, an idle audit, what a key cannot see | 5 | 5.5, 5.6 |
-| A candidate on temper's branch; the prepare's own commits; pinned heads | 6.1 | 4.4, 5.4 |
-| A conflict staged with its attempt; a member left out | 6.1, 6.2 | 5.4 |
-| Batches; suspects by key; bisection by halves | 6.2 | 4.4, 5.2 |
-| A train; invalidation; no speculation in a bisection | 6.3 | 5.1, 5.2 |
-| A repair first, alone and in full | 6.4 | 5.5 |
-| Provers: exclusive, warm, certified; faults before a gate | 7 | 4.4, 5.1, 5.5 |
-| Outcomes: green, red after a rerun, conflict, fault, key gap | 8 | 5.2, 5.4, 5.5, 5.6, 6.3 |
-| The serializer: the turn, the outbox, expected-head release | 9 | 4.1, 4.4, 5.1 |
-| Tiers on the newest main, coalescing, the rerun, bisection, standing reds | 10 | 6.1, 6.2 |
-| A tier's red to the suspects' coordinator; goals ending at landed | 10 | 6.2, 9.4 |
-| Findings: recorded, matched, routed, triaged, closed | 11.1 | 6.3, 6.4 |
-| QA: marks, a pass, a walk with a sign-in in custody | 11.2 | 6.4 |
-| Trailers in landing news | 11.2 | 4.4, 6.4, 9.4 |
-
-## 11. What the case asks of temper
-
-Every gap of `landing-model.md` 15.4 but those of section 12, with its
-steps:
-
-| Gap | Steps |
+| Primitive or mechanism | Steps |
 |---|---|
-| L1 batches | 4.4, 5.2 |
-| L2 trains | 5.1, 5.2 |
-| L3 candidates on temper's branches | 4.4, 5.4 |
-| L4 the prepare and key job | 4.3, 4.4, 5.4 |
-| L5 keys per package | 4.1, 4.3, 4.4, 5.2, 5.3, 5.5, 5.6 |
-| L6 gate classes | 4.3 |
-| L7 provers and runners | 4.3, 4.4, 5.1, 5.5 |
-| L8 outcomes | 5.2, 5.5, 5.6, 6.1, 6.3 |
-| L9 the serializer | 4.1, 4.4, 5.1 |
-| L10 a priority | 5.5 |
-| L11 checks before ready | 4.3, 5.3, 5.4 |
-| L12 leases | 4.1, 4.2, 5.4, 9.3, 9.4 |
-| L13 tiers following main | 4.1, 6.1, 6.2, 9.4 |
-| L15 findings | 6.3, 6.4 |
-| L16 QA | 6.4 |
-| L17 trailers in news | 4.4, 6.4, 9.4 |
-| L19 views and acts | every step, through `temper ctl` |
-| L20 one change in one repository | every landing |
-| J1 owned holds | 5.5, 8.1, 8.3 |
-| J2 drain | 8.1, 8.2 |
-| J3 project holds | 8.2, 8.3 |
-| J4 park until an event | 7.3 |
-| J5 move under a task | 9.1 |
-| J6 successor | 9.3 |
-| J7 questions to the chat stay | 7.2 |
-| J8 the chat asks its person | 7.2 |
-| J9 a hold over admission | 5.5 |
-| J10 an address by role | 6.2, 9.1 |
-| J11 a fresh run from notes | 9.2 |
-| J12 workspaces | 4.1, 4.2, 4.3, 5.3, 6.4, 9.1 |
-| F1, F4 the forge's calls and adoption | 4.4, 6.2 |
+| a goal, tracked, from a template with its LLM choice | 1 |
+| a goal's own branch, held by it, every change of the goal landing into it | 1, 4, 6, 7 to 22, 28 |
+| sub-agents within a run, at the LLM their call names | 2, 5 |
+| batches with dependencies, one per wake | 3, 6 |
+| a designer as a change's producer, its design landed into g, its report the family's changes | 3, 4, 6, 15, 22 |
+| a change's words citing the design in g | 6, 9, 15 |
+| a dependency added to a live task | 11, 15 |
+| the change procedure into a goal's branch, light rules | 4, 6, 7 to 22 |
+| a kept change, its merge refused until its dependency lands | 4, 8, 10 |
+| a producer's early start, refused, failed, once | 8, 13, 17 |
+| a question relayed by a change, its asker kept; a designer's straight up | 5, 9, 11, 14, 15 |
+| a foreman's verdict: escalate, finish | 9, 11, 14, 15 |
+| an answer, an amendment, a new change from a question | 9, 11, 15 |
+| the design revised, live changes amended naming the revision | 15 |
+| a hold escalated past a procedure, passed up to the person | 18 |
+| a result carrying its producer's report and Left list | 6, 14, 19 |
+| the merge job, a resolution in a merge in progress | 12, 16, 21 |
+| a tier following g, its red as news, triage, a repair, merges going on | 20 |
+| a note of what a run learned | 20 |
+| a catch-up change into g | 21 |
+| the close-out into g | 22 |
+| a change on its requester's held branch; CI at a head, a repair, the queue, a lazy update, a merge at a head | 23, 24 |
+| tiers following main, a rerun, a verdict, a red as news | 25, 26 |
+| a change naming the red it repairs; a change living to cleared | 26, 27 |
+| a hold released as its goal closes | 28 |
 
-F2, F3 and F5, GitHub's, come when the case runs on GitHub. The first
-pair of backends is an owned Forgejo.
+## 9. What it rests on
 
-## 12. Left out, and why
-
-- **Landings across repositories** (`landing-model.md`, 6.6): Later's,
-  not v0.1.0's, and the process has one repository. In v0.1.0 a change
-  across repositories lands in steps, each parked until the one before
-  lands, which is 7.3's mechanic.
-- **Cleared** (L14): the process ends goals at landed, and a tier's
-  red goes to the coordinator.
-- **The reservation** (L18): the process batches, and main moves only
-  by the serializer's turn, so no proof goes stale at the turn; it
-  serves landings proving side by side.
-- **Findings and questions on the forge:** settings the process keeps
-  off, and Later's.
-- **"Tell all", a tier's red to the landing's goal too, and a red
-  holding admission**: settings the process doesn't choose.
-- **Judgement gates on a landing:** reviews here are delegates inside
-  goals, not gates.
-- **A review's follow-up as a finding:** the process records findings
-  from QA and from tiers only.
-- **A walk on demand, before landing:** 6.4's walk is a pass's; one a
-  coordinator starts on a build at a named commit is the same walk.
-- **Deeper trains, elastic provers, partitioned full proofs:** Later's.
-- **The change of shape** that the first edition's act 2 tells: here a
-  rule changes (8.2, 9.1), but the shape of the tree does not.
-
-## 13. Open questions
-
-- **Names:** "coordinator", "area goal" and "operator" are the model's
-  roles; temper's charters may name them otherwise.
-- **The oracle on fakes:** which judgements are scripted word for word
-  (C's triage, the chooser's picks, Op's priority), and which are
-  checked by their effects.
-- **Load on real backends:** act 2 needs about a dozen producers at
-  once to make batches and a train. Whether they run on real models, or
-  as scripted producers on the real forge and real provers.
-- **Real time:** whether 9 hours fits one sitting on one held login,
-  or whether the acts run apart, each from the state the act before it
-  leaves.
-- **The choices of primitives** (`landing-model.md`, 17): a flip
-  changes these steps: H1, 4.3 and 5.3; H2, 4.4 and 5.6; H3, 4.4; H4,
-  6.2 and 9.1; H5, 5.5; H6, 4.2 and 5.4; H7, 4.1 to 4.3; H8, 9.2; H9,
-  section 12's first item.
+Every step runs in or around g, so each rests on the goal's own branch
+(N3), and every change G makes on its `change` with all their
+parameters (N22) and their agents' LLM choices (N19). Where the design
+still lags each step is `reference-case.status.md`.

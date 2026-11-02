@@ -1,20 +1,42 @@
 # Status
 
-Updated 2026-10-29. How far temper's code is from its design.
+2026-11-02. Where temper's code lags or departs from its design, and its
+design from its drafts, from the status files below. The first
+milestone stands in the code (`README.md`). After landing and findings
+are not built, whole (`domain/after-landing.md`, `domain/findings.md`,
+with their families in `protocol/store.md` and their groups in
+`client/tools.md`). Nor are jobs, and with them the project's tooling
+(`domain/worker.md`, `protocol/tooling.md`, `domain/landing.md`,
+`protocol/git.md`). Settings of temper's kinds lag: the landing rules
+and the forge's charter are still read from the document
+(`domain/root.md`, `domain/forge.md`, `protocol/configuration.md`,
+`domain/agent.md`). Much of a change's own bounds, gates and charters,
+the forge's merge queue and a goal's issue lag (`domain/forge.md`); so
+do the client's Board, Changes and How work runs pages and many of
+ctl's tools (`client/README.md`, `client/forge.md`, `client/tools.md`),
+`temper-playground` (`playground.md`, `domain/testing.md`), upgrades'
+commands and the baseline (`protocol/README.md`), and the release
+(`release.md`). The playground reset is built ahead of the design:
+forges are store records and the playground is reset, recorded as
+Departs in the client's documents, `domain/forge.md`, `playground.md`
+and the protocol's, until `draft/playground-reset.md` is closed out,
+which comes before the reference drafts execute. The case library's
+purpose is retired (`domain/testing.md`). Of the drafts, the reference
+drafts are what the design lags most (`draft/notes.md`, N1 to N24, in
+their three statuses); the others record what the design carries of
+them and where it lags or departs. `README.md`, `domain/README.md` and
+`protocol/llm.md` have no gap.
 
-Closing a live Open chat carries jig's durable finish request through live
-and Start delivery to smith's wind-down; its next text parks. Close stays
-compound, with cancellation after the grace. Jig's tasks store and worker
-wire are v9, smith's channel v5; v8 task stores refuse under the existing
-policy. Other store families and client versions keep their versions.
-Open fake scripts use final text; Finite finish calls and chat bounds hold.
-
-Each design document's status is in `<doc>.status.md` beside it:
+Design documents:
 - [`README.md`](README.status.md)
+- [`playground.md`](playground.status.md)
+- [`release.md`](release.status.md)
 - [`domain/README.md`](domain/README.status.md)
 - [`domain/root.md`](domain/root.status.md)
 - [`domain/forge.md`](domain/forge.status.md)
 - [`domain/landing.md`](domain/landing.status.md)
+- [`domain/after-landing.md`](domain/after-landing.status.md)
+- [`domain/findings.md`](domain/findings.status.md)
 - [`domain/worker.md`](domain/worker.status.md)
 - [`domain/agent.md`](domain/agent.status.md)
 - [`domain/testing.md`](domain/testing.status.md)
@@ -29,29 +51,24 @@ Each design document's status is in `<doc>.status.md` beside it:
 - [`protocol/setup.md`](protocol/setup.status.md)
 - [`protocol/sign-in.md`](protocol/sign-in.status.md)
 - [`protocol/documentation.md`](protocol/documentation.status.md)
+- [`protocol/tooling.md`](protocol/tooling.status.md)
 - [`client/README.md`](client/README.status.md)
 - [`client/forge.md`](client/forge.status.md)
 - [`client/browser.md`](client/browser.status.md)
-- [`playground.md`](playground.status.md)
 - [`client/journeys.md`](client/journeys.status.md)
 - [`client/tools.md`](client/tools.status.md)
-- [`qa.md`](qa.status.md)
 
-Not design documents:
-
-| Area | Built | Not yet |
-|---|---|---|
-| Retired QA lab | The lab was retired for `qa.md`'s process; its shared cluster fixture remains in `crates/temper/tests/fixtures/cluster/`. | — |
-| `../help/box.md` | A walk, ctl alone: 1 the configuration by `temper init`; 2 the box, on real or fake backends; 3 ctl's sign-in by the printed link; 4 Forgejo on this machine and a repository adopted; 5 the model's account, imported, connected (with the sign-in's tunnel) or keyed; 6, 7 a change asked in a chat, followed to its landing; 8 the account exported before the stop. Every command line parses (temper's step test); QA follows it on fake backends (`qa.md` 3). | On fake backends it ends at step 6's reply: the fake model starts no change. Other help-to-product coverage unknown. |
-| `../help/github.md` | A walk, ctl alone: 1 a shared App read-only, before the start; 2 the box and sign-in; 3 an App connected, by its key or from temper's manifest; 4 an installation accepted (`forge-accept`); 5 a repository adopted; 6 work on it. Every command line parses; QA accepts an existing installation through ctl (`qa.md` 7). | A new App's and an installation's pages on GitHub are a person's. Other help-to-product coverage unknown. |
-| `../help/forgejo.md` | A walk of the managed mode, temper as a Forgejo's site admin: 1 the forge configured, before the start; 2 the start and sign-in; 3 connected as its admin, a first repository made and adopted; 4 another repository adopted. Every command line parses. | The connected mode is refused on main and no walk; the owned mode is the box's (`../help/box.md`). Other help-to-product coverage unknown. |
-| `../help/server.md` | A walk: 1 the engine's configuration; 2 its secrets; 3 Forgejo, then the engine; 4 the TLS proxy; 5 the workers' host over WireGuard; 6 ctl's sign-in through a tunnel; 7 a redeploy from main, the model's account carried by ctl's export and import. Every command line parses. | Its proxy, WireGuard, units and tunnel are the operator's, walked by no test. Other help-to-product coverage unknown. |
-
-kept: focused real-loop assertions no lower test holds whole
-
-- `github::a_seeded_app_reopens_with_its_deployments_settings_and_owner`
-- `template_bounds::the_two_call_agent_past_smalls_page_is_refused_by_name`
-- `suite::adoption_hold::a_chat_created_after_home_adoption_gets_a_writable_run_branch`
-- `suite::github_repair::a_chats_failed_github_check_is_repaired_at_a_new_head_and_lands_once`
-- `suite::github_land::a_chats_change_lands_on_connected_github` (repeated results and the landed chat's terminal page share the connected landing story)
-- `suite::plan_chat::words_during_a_turn_are_answered_once`
+Drafts:
+- [`draft/reference-code-production.md`](draft/reference-code-production.status.md)
+- [`draft/reference-landing.md`](draft/reference-landing.status.md)
+- [`draft/reference-case.md`](draft/reference-case.status.md)
+- [`draft/playground-reset.md`](draft/playground-reset.status.md)
+- [`draft/agent-docs.md`](draft/agent-docs.status.md)
+- [`draft/ci-on-forgejo-17.md`](draft/ci-on-forgejo-17.status.md)
+- [`draft/configuring.md`](draft/configuring.status.md)
+- [`draft/dashboards.md`](draft/dashboards.status.md)
+- [`draft/first-release.md`](draft/first-release.status.md)
+- [`draft/github.md`](draft/github.status.md)
+- [`draft/macos.md`](draft/macos.status.md)
+- [`draft/upgrades.md`](draft/upgrades.status.md)
+- [`draft/v0.1.0.md`](draft/v0.1.0.status.md)

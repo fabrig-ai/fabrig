@@ -1,9 +1,7 @@
 # llm: status
 
-2026-11-01. Where smith's code lags or departs from [llm.md](llm.md).
+2026-11-02. Where smith's code lags or departs from [llm.md](llm.md).
 
-- **Built:** 3 to 7: jobs, bounded prompts, compaction, channel live-text deltas and named credential dialects.
-- **Built:** 3 and 4: report and failure rules with no fields omit `fields`
-  from their schemas and decode its absence as empty; rules with fields
-  require the object.
-- **Not yet:** 6: reasoning/input live producers. 12: edit formats per dialect.
+- **Not yet:** 2, 7: the withdrawn forms' removal: the component still
+  serves the `codex` dialect with its account-id grant, and an
+  endpoint's identity profile (skein's `llm.md`, 4.6 and 4.7).

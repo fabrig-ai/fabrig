@@ -1,5 +1,5 @@
-//! The root keeps these orders whatever admits work (skein's draft
-//! `dynamic-memory.md`, 4.3): pending callbacks before ordinary entrances,
+//! The root keeps these orders whatever admits work (skein's
+//! `programming-model.md`, 7.2): pending callbacks before ordinary entrances,
 //! store answers in arrival order, older releases before later ones, each
 //! worker channel's records in order, deferred calls fenced by their attempt,
 //! and completion outputs after their commits.

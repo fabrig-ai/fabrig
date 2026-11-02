@@ -61,7 +61,7 @@ pub const TOOLS: tools::Limits = tools::Limits {
 /// envelope suffices. All six owned result families and concrete delegated results
 /// are included; record arrays and caller/emitted copies remain independently
 /// measured by the shared heap meter under scenario ceilings.
-/// smith/docs/design/domain/tools.md, sections 4, 5 and 9; skein/docs/foundation/programming-model.md, section 6.3.
+/// smith/docs/design/domain/tools.md, sections 4, 5 and 6; skein/docs/foundation/programming-model.md, section 6.3.
 #[must_use]
 pub fn reservation_envelope(limits: &agent::Limits) -> Option<u64> {
     let tools = &limits.tools;

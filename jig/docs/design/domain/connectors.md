@@ -214,10 +214,6 @@ which it keeps. What the core gets is its **description:**
   the entry went out. An entry that went out is never withdrawn: what may
   have been made counts.
 
-Projection outbox outcomes settle resource writers without settling calls,
-holding a task or waking a procedure. Made, Failed, Withdrawn and NotMade
-release the writer; Uncertain and Held retain it for connector recovery.
-
 ### 4.3 Uncertainty and recovery classes
 
 - **Only what provably never reached the system did nothing.** Any other
@@ -573,7 +569,7 @@ deployment or a person on call.
 
 ### 6.7 Drained
 
-Designed, not built. A procedure in the scope of a draining hold
+A procedure in the scope of a draining hold
 (tasks.md, 5.9) is told so in its next step, and steps on as ever until
 its connector answers that it is idle: at the first point where its
 step would start something new, rather than finish what it began. The

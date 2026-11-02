@@ -11,7 +11,7 @@ use temper_real_loop_world::{
 #[test]
 fn a_stopped_owner_holds_its_delegates_and_its_release_resumes_them_and_its_news_waits_for_its_release_without_a_park_or_a_retired_charter()
  {
-    // Leaves out the director parking B, temper-on-temper.md 6.2's design gap:
+    // Leaves out the director parking B, an undesigned power:
     // an agent's task tools delegate, amend, message, cancel and release, but
     // none stops a task (crates/temper-engine-smith/src/calls.rs:42-52), so the
     // director proposes and the person stops. Leaves out retiring the helper's

@@ -625,15 +625,12 @@ never renames or reuses one on its own. An account has:
 - **The record's form is a schema's.** A kept record is the versioned
   record `SavedToken` of skein-oauth's family, `skein-oauth`, in
   `schema/oauth-v3.schema` beside the crate, its codec generated (codec.md,
-  section 4) in place of today's hand-written one, before the first
-  release and at the version it has, 3 (codec.md, section 5): the
-  version first, then the key, the generation, the expiry, the access
-  token, the refresh token and the metadata, each `option` where today
-  an empty field means none, and the fields version 3 added. The magic
-  goes, since the version leads; a record of the hand-written form, or
-  of version 2, is unreadable, and its account signs in again, as
-  after any change of a record's form (below), once, before the first
-  release. Its ceilings are generous and fixed, since from the baseline
+  section 4), at version 3 (codec.md, section 5): the version first,
+  then the key, the generation, the expiry, the access token, the
+  refresh token and the metadata, each `option` where it may be absent,
+  and the fields version 3 added. A record of another form is
+  unreadable, and its account signs in again, as after any change of a
+  record's form (below). Its ceilings are generous and fixed, since from the baseline
   raising one is a new version: each token and the metadata 65,536
   bytes, the issued client id, the scopes and the subject 4,096, the
   times nanoseconds of wall time. The owner's `Limits` stay its runtime

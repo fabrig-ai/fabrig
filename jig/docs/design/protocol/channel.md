@@ -140,13 +140,13 @@ worker, `Accept` or `Refuse` from the engine, then each side's `Terms`.
 - **The magic** names jig's channel; the schema gives its four bytes.
 - **One version at a time.** jig's worker channel speaks version 9.
   Its messages, live and carried in an assignment, include the boolean
-  `finish_requested` (version 9; `../domain/hosts.md`, section 9).
-  Its assignment carries the ask for live content and its fact record
-  a piece of it (version 8: 5.1, 5.2 and 6.4); a run's typed failure
-  may name the configured bound it exceeded (version 7:
-  `../domain/hosts.md`, 6.3); its `GrantValue` is a credential, an
-  application's credential or a program source's name (tags 0 to 2:
-  section 8), with no other form; and it keeps the kind numbers. A
+  `finish_requested` (`../domain/hosts.md`, section 9). Its assignment
+  carries the ask for live content and its fact record a piece of it
+  (5.1, 5.2 and 6.4); a run's typed failure may name the configured
+  bound it exceeded (`../domain/hosts.md`, 6.3); its `GrantValue` is a
+  credential, an application's credential or a program source's name
+  (tags 0 to 2: section 8), with no other form; and it keeps the kind
+  numbers. A
   worker of another version is refused with skein's *version*, and
   nothing is translated (skein's `codec.md`, section 5). An engine and
   its workers are one application, released together.
@@ -279,7 +279,7 @@ answer, and a **notice** is not answered.
   reset as absent; an explicit zero span is a supplied reset. The core
   converts a supplied span to engine time once on receipt, and the accounts
   child keeps its wall reset across restarts (`../domain/accounts.md`,
-  3.5). Ruling 130's absent-reset-to-zero mapping is retired.
+  3.5).
 
 ### 5.2 Down, engine to worker
 
@@ -491,7 +491,7 @@ holds, and neither of its components reads them.
   by the worker's hand-out into jig's typed fact (`../domain/hosts.md`,
   6.8; smith's `protocol/channel.md`, section 4). The wire carries all
   three kinds, so that reasoning and a tool's input need no new version;
-  smith now produces `text` and `input` from agent processes. A worker never sends a piece of a kind
+  smith produces `text` and `input` from agent processes. A worker never sends a piece of a kind
   its agents do not build. One that arrives crosses the engine's side as
   it is, every field translated and nothing decided, and the engine's
   root routes text and input to the core, dropping reasoning and offsets
@@ -787,12 +787,11 @@ ones in the fuzzy suite.
   dropped for room counted with the facts, and the grace passing and
   not. smith's
   payloads are opaque bytes there, as they are to the components.
-  The existing worker-link incompatible-terms and malformed-body
-  fixtures assert the independent literal wire reasons 2 and 3,
-  exactly one loss, and no forwarded body. The existing trace fixture
-  also admits a malformed `TurnBusy` to the real decoder; it must not
-  decode it as valid Busy before the component sees it. This extends
-  the fixture, with no new harness or worker-wire version.
+  The worker link's incompatible-terms and malformed-body fixtures
+  assert the literal wire reasons 2 and 3, exactly one loss, and no
+  forwarded body. Its trace fixture admits a malformed `TurnBusy` to
+  the real decoder, which never decodes it as a valid busy before the
+  component sees it.
 - **The channel's protocol world,** `tests/channel`: the engine's side
   with the core under jig's test root, and the worker's side with the hub
   under the test worker's root, both as the reference service composes
@@ -894,8 +893,8 @@ ones in the fuzzy suite.
   whose agents are processes gives a run's text as a host of
   `smith-inline-agent` does (6.4). smith's host half and host domain hand
   the pieces up as they hand up facts, and this channel's fact record
-  carries them. What stays for later: the LLM component's abort and
-  closed terminal.
+  carries them. What stays for later: the LLM component's closed
+  refusal (`README.md`, section 11).
 - **skein owes** in-process addresses, for one process (skein's `io.md`,
   3.5), and, between hosts, TLS's server side with independent output,
   for the engine's listener (skein's `channel.md`, section 12; skein's

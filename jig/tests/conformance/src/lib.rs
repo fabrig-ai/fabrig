@@ -170,7 +170,7 @@ impl Config {
 // 926,508 bytes at jig 4cd5d46966, in
 // fuzzy_snapshot::standing_task_every_snapshot_matches_complete_fresh_state.
 // A ceiling, a quarter above, rounded up to two significant digits
-// (skein's dynamic-memory draft, 7.1); it moves by hand only in the commit
+// (skein's testing-strategy.md, 6); it moves by hand only in the commit
 // of a real change that passes it, never on a type's size.
 const CONFORMANCE_HEAP_CEILING: u64 = 1_200_000;
 

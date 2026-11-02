@@ -7,7 +7,7 @@ Provisional, 2026-10-30. What every agent working here must know, whatever its r
 - **One repository, four trees, one Cargo workspace:** `skein/` (the io and protocol kit, and the code's rules), `smith/` (the agent kit), `jig/` (the kit for agentic applications), `temper/` (the application). One `Cargo.lock`, path dependencies.
 - **Dependencies point one way:** skein names none of smith, jig or temper; smith names neither jig nor temper; jig never names temper. A missing generic mechanism goes into skein before its smith or jig consumer. A gate step checks it.
 - **The code's rules are skein's:** `skein/docs/foundation/programming-model.md` and `testing-strategy.md`, section 1 first, a later section when the work touches it; `notes.md` beside them holds the reasons. Depart only with a reason written in the design or the commit.
-- **The design is the contract:** each tree's `docs/design/`, cited by path from the repository root and section (`skein/docs/design/lib.md, 5`). Every design document has a "Later" section for what is out of scope now, and a status file beside it (`lib.status.md`) saying where the code lags or departs; its designer keeps both.
+- **The design is the contract:** each tree's `docs/design/`, cited by path from the repository root and section (`skein/docs/design/lib.md, 5`). Every design document closes with a "Later" or "Open questions" section for what it defers or leaves undecided, and a status file beside it (`lib.status.md`) saying where the code lags or departs; its designer keeps both. Drafts, design and their status files follow section 9.
 - **main moves only through fab.** You push your own branch; fab merges it into the run's trunk, checks the trunk and lands what is checked. You never push main or a trunk, never force-push, and push only your own branch.
 - **Old-form counts only fall.** A task lowers `scripts/old-forms.txt` with `old_forms.py --write` for what it removes; fab recounts the file where merges meet. A raised count is red.
 - **Every build and test goes through `heavy`**, one command at a time; `default` (focused) and `fuzzy` are the gate's profiles; the slow tiers use the root configuration's `<tier>-<tree>` profiles (`tools/tiers/run`), never in the gate.
@@ -69,3 +69,30 @@ Provisional, 2026-10-30. What every agent working here must know, whatever its r
 ## 8. Roles
 
 fab runs the pipeline (the agents repository's `docs/design/fab.md`): a cut, a Claude call, turns a draft into a plan and task specs; implementers are Codex runs, one task in one slot; answer calls settle questions; fab merges, checks and lands. Each gets its instructions from fab. The pre-fab pipeline's role files (lead, implementer, coordinator, operator, operations, ledger, backlog) are kept for reference only in the agents repository, under `old/fabrig/`: they give no instructions.
+
+## 9. Design documents
+
+Each tree's `docs/design/` holds three layers, and each one's status says where the next one lags:
+
+- **Drafts** (`docs/design/draft/`) hold the vision: what the tree is to become. They are the input the design is written from and win over it, unless a draft's status says otherwise. Drafts agree with one another.
+- **Design documents** are the contract the code follows. They agree with one another, and with the drafts except where a draft's status records a gap.
+- **The code** is what is built.
+
+Beside every draft and every design document is its status file, `<name>.status.md`. It is dated and records only the gaps as they stand now, by section of its document, never history: what is built or landed leaves it, and git keeps the record. A document with no gap has a status that says so.
+
+- A design document's status: **Not yet** (designed, not built) and **Departs** (built otherwise, with the reason). What the document itself defers (its "Later" or "Open questions") is no gap, and the design text carries no build state.
+- A draft's status: **Design lags** (the design document and section that still say otherwise or say nothing, and what), **Design departs** (what the design does instead, why, and who decided) and **Open** (decisions awaiting the user).
+
+```
+# <name>: status
+
+<date>. Where <the tree's code | the design> lags or departs from [<name>.md](<name>.md).
+
+- **Not yet:** 3.2: ... 5: ...
+- **Departs:** 4.1: ..., because ...
+```
+
+- A retired or superseded draft is deleted, not marked. A draft whose vision the design now carries in full is deleted or moved to `draft/archive/`.
+- Surviving sections are never renumbered, since code and documents cite them: a removed section leaves its number unused. Whoever removes or moves a document or section fixes every citation to it in the repository.
+- The reasons behind drafts go in `draft/notes.md`. Reviews, reports and debt inventories go in the tree's `docs/development/`, never in `docs/design/`.
+- Each tree's `docs/design/STATUS.md` indexes its status files under a one-paragraph summary.

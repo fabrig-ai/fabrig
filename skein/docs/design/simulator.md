@@ -335,5 +335,4 @@ was metered as its own, which also finds a leak.
 
 ## 7. Not built yet
 
-What of this document is not built is `STATUS.md`'s (its row in section 2,
-and section 3).
+What of this document is not built is in [`simulator.status.md`](simulator.status.md).

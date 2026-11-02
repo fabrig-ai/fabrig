@@ -7,7 +7,7 @@ first run stands once the accounts and GitHub work land
 (`~/src/rust/tmp/temper-first-time-ux-2026-10-20.md`). It crosses skein
 (the arguments' rule, the fakes as product crates) and temper (its
 directories, `temper init`, the box, the client) on purpose; an owner
-splits it. It builds on `draft/github.md` as it lands: forges connected
+splits it. It builds on `../github.md` as it lands: forges connected
 from the client, credentials taken at runtime and the forges' records
 in jig's secrets' store. Amended with the user on 2026-10-23: the
 welcome, and the demo's end (2.3); the box's terminal (2.1, 2.5).
@@ -88,7 +88,7 @@ line. What the terminal shows, and why, is 2.5.
 1. `temper box` finds `$XDG_CONFIG_HOME/temper` empty, runs `temper
    init` on it (3.3), and starts the document's steps (3.9).
 2. The person opens the link in a browser on the same machine. It signs
-   them in as the deployment's owner (`../client/README.md`, section 7)
+   them in as the deployment's owner (`../../client/README.md`, section 7)
    and lands on the default project's chat.
 3. The project has the demo repository adopted, on the demo forge, and
    the demo model as its account (3.6). A banner says it is a demo and
@@ -98,7 +98,7 @@ line. What the terminal shows, and why, is 2.5.
    forge. A link to the forge's pull request opens a page the demo
    forge does not serve, for now (section 7).
 
-The mockup of what the person sees is `../client/mockups/first-run.html`.
+The mockup of what the person sees is `../../client/mockups/first-run.html`.
 
 ### 2.2 Going real
 
@@ -109,7 +109,7 @@ below that keep it are superseded.*
   Continue with ChatGPT, use a Claude subscription, or an API key. The
   new account becomes the deployment's default; the demo model stays an
   account and stays the demo project's.
-- **A forge.** The Forges page, as `draft/github.md` leaves it: Connect
+- **A forge.** The Forges page, as `../github.md` leaves it: Connect
   GitHub (managed, by the manifest flow, or connected, an App pasted),
   Set up a Forgejo here (owned, 3.8), or a Forgejo elsewhere (managed
   or connected, section 4). A forge connected, the person adopts a
@@ -125,7 +125,7 @@ below that keep it are superseded.*
 
 ### 2.3 The welcome, and the demo's end
 
-With the user, 2026-10-23. Mockups: `../client/mockups/welcome.html`,
+With the user, 2026-10-23. Mockups: `../../client/mockups/welcome.html`,
 in the first-run world (its step 0, the demo chosen at step 1, its end
 at step 7) and the first-run-real world (the wizard to a connected
 Forgejo and model).
@@ -141,17 +141,17 @@ Forgejo and model).
   Each step offers Later, and "Try the playground" stays offered until
   a forge of the person's connects.
 - **The demo starts only when chosen:** adopted (first-run-ux's M3),
-  its state in `../protocol/setup.md`, 8.4, and `../protocol/store.md`,
+  its state in `../../protocol/setup.md`, 8.4, and `../../protocol/store.md`,
   section 2, the box's asked demo group in setup.md 7.1, and the
-  client's start in `../client/README.md`, 3.5, 4.6, 4.8 and section 8.
+  client's start in `../../client/README.md`, 3.5, 4.6, 4.8 and section 8.
   The seed (3.6) and its link step go: serve's first link is the
   person's.
 - **The demo ends for good:** adopted (first-run-ux's M4). The end,
-  its record and a restart after it in `../protocol/setup.md`, 8.4,
+  its record and a restart after it in `../../protocol/setup.md`, 8.4,
   the box's `stop` and `stopped` in 7.1 and 7.2; the forge and its
-  repository ended in `../domain/forge.md`, 4.1, and
-  `../protocol/forge.md`, 2.8 and 8.1; the client's re-read and the
-  demo model's account in `../client/README.md`, 4.8. The demo's open
+  repository ended in `../../domain/forge.md`, 4.1, and
+  `../../protocol/forge.md`, 2.8 and 8.1; the client's re-read and the
+  demo model's account in `../../client/README.md`, 4.8. The demo's open
   chats' end and its model's account removed with no client: adopted
   (first-run-ux-2's M3), in setup.md, 8.4, on jig's deployment acts.
 - **The person meets the demo as the playground.** "Demo" undersells
@@ -161,7 +161,7 @@ Forgejo and model).
   model and forge. Ask one of three requests and follow its change from
   a branch to main."; the banner "This is the playground: a scripted
   model and a playground forge."; the names Scripted model and
-  Playground forge (the client's phrasebook, `../client/README.md`,
+  Playground forge (the client's phrasebook, `../../client/README.md`,
   5.6), and the repository `playground/widget`, the fake's owner
   `playground`. setup.md 8.4 holds the scripts' words; the client's
   README, its pages (3.5: `Welcome`, `ConnectForge`), the setup strip
@@ -171,7 +171,7 @@ Forgejo and model).
 ### 2.4 Projects, made as the person goes
 
 With the user, 2026-10-23. Amends 1, 2.2, 2.3 and 3.4. Mockups:
-`../client/mockups/welcome.html`, in the three first-run worlds.
+`../../client/mockups/welcome.html`, in the three first-run worlds.
 
 - **Why there was a default project.** jig made projects only at a
   deployment's first start, from its configuration, so the default
@@ -183,16 +183,16 @@ With the user, 2026-10-23. Amends 1, 2.2, 2.3 and 3.4. Mockups:
   with none. The default document configures one policy instead, jig's
   `engine.policies` 1, which each project made starts from, and its
   landing rule among the deployment's, so that every project takes it
-  (`../protocol/setup.md`, 8.3).
+  (`../../protocol/setup.md`, 8.3).
 - **The playground's project, "Playground",** is made by the demo's
   start, when the person chooses "Try the playground"
-  (`../protocol/setup.md`, 8.4). It keeps the playground's chats, and
+  (`../../protocol/setup.md`, 8.4). It keeps the playground's chats, and
   what they did, once the demo ends.
 - **The person's first project** is made with their first repository,
   named after it (`hello`, `widget`) until they change it: in the set
   up's form of a Forgejo here, in GitHub's Ready
-  (`../client/forge.md`, 5.4), and in the adoption form for a forge
-  connected with no repository (`../client/README.md`, 4.4). The first
+  (`../../client/forge.md`, 5.4), and in the adoption form for a forge
+  connected with no repository (`../../client/README.md`, 4.4). The first
   run offers no existing project; a later repository, from Forges, goes
   into one of the person's projects or a new one.
 - **The playground tried first, then set up:** two projects,
@@ -208,7 +208,7 @@ With the user, 2026-10-23. Amends 1, 2.2, 2.3 and 3.4. Mockups:
 ### 2.5 The box's terminal
 
 With the user, 2026-10-23. Amends 3.9; the mechanics are
-`../protocol/setup.md`, 7.2.
+`../../protocol/setup.md`, 7.2.
 
 - **Why it changed.** A run on a terminal printed serve's notes and the
   sign-in link mixed, and the link itself cut by them: serve writes it
@@ -224,7 +224,7 @@ With the user, 2026-10-23. Amends 3.9; the mechanics are
   detached box would be a supervisor beside the system's: its pid file
   stale after a crash or a reboot, a status command to ask whether it
   runs, a restart at boot expected of it. The background way is the
-  system's supervisor (`../protocol/setup.md`, 7.4; section 7), and a
+  system's supervisor (`../../protocol/setup.md`, 7.4; section 7), and a
   container runs the box in the foreground anyway.
 - **Quiet.** The terminal shows the box's own lines: what it wrote and
   started, each group's start, end and failure, a step's restart, the
@@ -248,8 +248,8 @@ With the user, 2026-10-23. Amends 3.9; the mechanics are
 | Configuration, data and cache directories (3.2) | temper: `protocol/configuration.md`; jig for its parts' paths | every deployment, with or without the box |
 | `temper init` (3.3) | temper: `protocol/setup.md`, section 8 | a person, a test or QA starting a deployment |
 | The fakes as product crates (3.5) | skein: `crates/`, from `testing/` | QA, the real loop, demos, a person trying a charter |
-| The fakes as the box's steps (3.5) | temper: `protocol/setup.md`, section 7 | QA's "temper in a box" (`qa.md`, 4.1) |
-| Adoption from a client tool (3.6) | temper: `../client/tools.md` | scripts and agents adopting repositories |
+| The fakes as the box's steps (3.5) | temper: `protocol/setup.md`, section 7 | QA's box on fake backends |
+| Adoption from a client tool (3.6) | temper: `../../client/tools.md` | scripts and agents adopting repositories |
 | `temper forge fetch` (3.7) | temper: `protocol/setup.md`, 6.1; skein: the pins | any owned Forgejo |
 | A dormant owned forge (3.8) | temper: `protocol/setup.md`, sections 5 to 7 | any deployment offering an owned forge later |
 
@@ -317,7 +317,7 @@ experience; good defaults for a person's real work are open (section 8).
   plaintext, as the real loop's fake LLM peer is reached.
 - **Forges,** each by its stable number: 1 the demo forge, 2 GitHub, 3
   an owned Forgejo, dormant (3.8). GitHub's addresses are its defaults;
-  it starts not connected (`draft/github.md`, section 4).
+  it starts not connected (`../github.md`, section 4).
 - **No project** (2.4): one policy, which each project made starts
   from, and the deployment's landing rule, which lands on green CI with
   no human approval in every project; and one chat charter.
@@ -338,7 +338,7 @@ experience; good defaults for a person's real work are open (section 8).
   whose preparation writes a handover before it starts. The engine's
   setup host takes the handover, reconciles into records, runs
   start-time adoption, then connects the fake from those records
-  (`../protocol/setup.md`, 6.5 and 8.4). Adoption grants the bot write
+  (`../../protocol/setup.md`, 6.5 and 8.4). Adoption grants the bot write
   access and hooks each repository to the configured webhooks'
   listener.
 - **The demo model's script** is the document's: suggested requests
@@ -381,7 +381,7 @@ experience; good defaults for a person's real work are open (section 8).
   and answers. Run without the box (setup.md, 7.4), the client names
   the commands to run instead.
 - **The engine takes the handover at runtime,** through the same
-  connect a pasted managed admin's token takes (`draft/github.md`,
+  connect a pasted managed admin's token takes (`../github.md`,
   12.2), where today it takes it only at its start.
 
 ### 3.9 The box, changed
@@ -399,7 +399,7 @@ experience; good defaults for a person's real work are open (section 8).
 | Change | Restart? |
 |---|---|
 | An LLM account added, any provider in the document | no: jig's accounts at runtime |
-| GitHub connected, managed or connected | no: in the document, connected at runtime (`draft/github.md`, section 4) |
+| GitHub connected, managed or connected | no: in the document, connected at runtime (`../github.md`, section 4) |
 | An owned Forgejo set up | no: dormant in the document (3.8) |
 | A Forgejo elsewhere, managed or connected | yes: its address is the document's. The client says what to add and that temper restarts |
 | Anything else in the document | yes, until a hot restart (section 7) |
@@ -431,8 +431,8 @@ experience; good defaults for a person's real work are open (section 8).
 5. **The welcome and the demo's end** (2.3): adopted, closed here.
    The demo's state, the fakes asked, the seed's acts and the end in
    the engine, `stop` on the pipe (setup.md, 7.1, 7.2 and 8.4;
-   `../domain/forge.md`, 4.1), the welcome, its wizard and the halves
-   in the client (`../client/README.md`, 3.5 and 4.8), and the
+   `../../domain/forge.md`, 4.1), the welcome, its wizard and the halves
+   in the client (`../../client/README.md`, 3.5 and 4.8), and the
    playground's words in the fake's scripts, `temper init`'s document
    and the client; what is built is `STATUS.md`'s.
 
@@ -453,12 +453,12 @@ experience; good defaults for a person's real work are open (section 8).
 - **The demo forge's pages:** its pull request's link now answers 404.
   Either the demo forge serves a few read-only pages, or temper shows a
   change's diff itself, which would also show more of a change's
-  progress on any forge (`../client/forge.md`).
+  progress on any forge (`../../client/forge.md`).
 - **A hot restart:** the process stays, its listeners and connections
   with it, and the domain is built again from a new document as a start
   builds it. It would make section 4's last rows no restart. An
   investigation of the code (2026-10-20,
-  `hot-restart-report.md`) finds it
+  `../../../development/hot-restart-report.md`) finds it
   feasible, medium for a first version, large for any change at any
   time:
   - **The seam exists:** `Service` keeps io, the store and the worker
@@ -480,7 +480,7 @@ experience; good defaults for a person's real work are open (section 8).
     configuration's diff and its wiring.
 - **The box in the background:** should people want their terminal
   back, a command that writes a systemd user unit for the box
-  (`../protocol/setup.md`, 7.4), never a pid file of temper's own
+  (`../../protocol/setup.md`, 7.4), never a pid file of temper's own
   (2.5).
 
 ## 8. Open questions
@@ -494,14 +494,13 @@ experience; good defaults for a person's real work are open (section 8).
   answered in its follow-up.
 - **git on the demo forge.** The fake forge's git is reached through a
   typed transport, never over HTTP (`fake-forge.md`, section 3), and
-  the real loop runs a fake git program (`../domain/testing.md`, 4.3).
+  the real loop runs a fake git program (`../../domain/testing.md`, 4.3).
   The demo needs a git that reaches the fake forge across processes,
   not real git: its agent is the fake LLM, and nothing else reads its
   working trees. Default: the fake git program as a program of its
-  own, with its transport over the network, as the QA loop needs it
-  (`qa-loop.md`, section 11, item 2); the demo then needs no git on
+  own, with its transport over the network; the demo then needs no git on
   the machine. Real git against the fake forge is real-loop's later
-  real-git bridge, for real agents on the fake forge (`../STATUS.md`).
+  real-git bridge, for real agents on the fake forge (`../../STATUS.md`).
 - **The default port.** Default: one unassigned port, chosen with the
   default document.
 - **Good defaults** for a person's real work: charters, landing rules,

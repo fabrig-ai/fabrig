@@ -119,7 +119,8 @@ pub fn task_digest(value: &Value) -> Result<&str, String> {
 }
 
 /// The guide's init and the existing owned-forge fixture, with QA's model/room
-/// recipe (qa.md, 3; configuration.md, 13.8), before the first start.
+/// recipe (temper/docs/development/qa.md, 3; protocol/configuration.md, 13.8),
+/// before the first start.
 pub fn deployment(paths: &[PathBuf; 3]) {
     let _ = super::live_deployment(paths, super::LiveModel::ChatGpt { account: None });
     let config = paths[0].join("temper.json");

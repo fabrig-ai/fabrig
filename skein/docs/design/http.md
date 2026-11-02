@@ -1140,8 +1140,8 @@ pub struct Limits {
   asserting that a writer and an upload were held back, an upload
   stopped, a writer heard its stream fail, a stream reset, a connection
   carried several calls, an event's id or reconnection time was checked,
-  and each outcome at each end fell. It stands in for the fuzz targets, which wait for a nightly
-  toolchain.
+  and each outcome at each end fell. Fuzz targets run beside it, on a
+  nightly toolchain.
 - **The reader's data face** (section 4), joins each tier
   above. Step tests: the data under fills and scans of every shape, data
   lines joined across a CRLF split and a CR alone, comments and other
@@ -1305,5 +1305,4 @@ pub struct Limits {
 
 ## 9. Not built yet
 
-What of this document is not built is `STATUS.md`'s (its row in section 2,
-and section 3).
+What of this document is not built is in [`http.status.md`](http.status.md).

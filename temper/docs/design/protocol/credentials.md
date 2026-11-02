@@ -137,29 +137,29 @@ setup.md's (section 9). What is open is listed in section 8.
   Code 0 is never written, and a code never changes its meaning. temper
   maps skein's setup items to these codes; on GitHub, `User` is the
   App's bot user. `Origin` is temper's own, written at each connect.
-- **The value:** a version byte, 1, then the item's bytes exactly as
-  skein's setup host writes them, which skein's `forge-setup.md` (6.4)
-  pins:
+- **The value:** a versioned `Stored` record of the family
+  `temper-secrets` (`temper-protocol-records`,
+  `schema/secrets-v1.schema`; README.md, section 9), its item one of the
+  table's:
   - the tokens (`AdminToken`, `ApiToken`, `GitToken`, `WebhookSecret`):
-    text, at most `token_bytes`;
-  - `User` and `AppId`: a `u64`, little-endian, 8 bytes, never 0;
+    a secret, at most `token_bytes`;
+  - `User` and `AppId`: a `u64`, never 0;
   - `AppSlug`: text, at most `name_bytes`;
-  - `AppKey`: PKCS#1 DER, at most `key_bytes`;
-  - `Accepted`: the installations' ids, each a `u64` little-endian,
-    concatenated, ascending, distinct, at most `installations` of them,
-    empty for none;
-  - `Origin`, temper's: `[kind u8][api as text]`, the kind 1 for Forgejo
-    and 2 for GitHub, and the `api` address as `<host>:<port>`: a socket
-    address as Rust writes it (`[<ipv6>]:<port>` for IPv6), a host's
-    name as configured, and `api.github.com:443` for GitHub's `null`.
-    Equal bytes are the same forge; the text is shown as is.
+  - `AppKey`: a secret holding PKCS#1 DER, at most `key_bytes`;
+  - `Accepted`: the installations' ids, a list of `u64`s, ascending,
+    distinct, at most `installations` of them, empty for none;
+  - `Origin`, temper's: the forge's kind, Forgejo or GitHub, and the
+    `api` address as text, `<host>:<port>`: a socket address as Rust
+    writes it (`[<ipv6>]:<port>` for IPv6), a host's name as configured,
+    and `api.github.com:443` for GitHub's `null`. Equal origins are the
+    same forge; the text is shown as is.
 
-  Each item has one total decoder, skein's (temper's for `Origin`); a
-  change of an item's bytes is a new item, under a new code. temper keeps
-  the values opaque, hands them back unchanged on the setup host's read,
-  and decodes only what builds an access. A value is at most
-  `records.value_bytes` (configuration.md, section 7), checked against
-  jig's secrets' store's bound at start.
+  A record of another version is an unreadable row (below); a change of
+  an item's meaning is a new item, under a new code.
+  temper keeps the values opaque, hands them back unchanged on the setup
+  host's read, and decodes only what builds an access. A value is at
+  most `records.value_bytes` (configuration.md, section 7), checked
+  against jig's secrets' store's bound at start.
 - **A PEM is never a record.** skein's setup plan decodes the
   conversion's key and a pasted key to DER before it writes; a pasted PEM
   sits only in its carried row, which jig numbered, until its run ends.
@@ -193,7 +193,7 @@ setup.md's (section 9). What is open is listed in section 8.
   which is not secret: the writer given at runtime (section 5), kept by
   skein's forge client as its own record (skein's `forge-client.md`,
   7.1), `Stored::Writer` under `Key::Writer(forge)`, temper's small
-  store's tag 16, `STORE_VERSION` 3. It is restored at start, so effects
+  store's tag 16. It is restored at start, so effects
   restored with it never meet `Forbidden`.
 
 ### 2.2 Pasted values

@@ -135,8 +135,8 @@ name `smith check` and the event stream's header print it under
 | `connection_keep` | duration, per endpoint | how long an idle connection stays open in a live service; never how the process ends, since the pool closes at the answer (skein's `llm-connection.md`, section 7) |
 | `tool_deadline` | duration | a tool call's longest deadline: the most a command's call may ask for, and the most any tool call's deadline may be, a host tool's included (domain/tools.md, section 5) |
 | `shell_timeout` | duration | a command's deadline when its call asks for none |
-| `job_poll` | duration | a `job` call's wait when it asks for none: the default of `wait_seconds` (domain/tools.md, section 5; added 2026-10-20) |
-| `job_wait` | duration | the longest a `shell` call's yield or a `job` call's wait may be: the ceiling of `yield_seconds` and of `wait_seconds` (domain/tools.md, section 5; revised 2026-10-20, when it was also the default) |
+| `job_poll` | duration | a `job` call's wait when it asks for none: the default of `wait_seconds` (domain/tools.md, section 5) |
+| `job_wait` | duration | the longest a `shell` call's yield or a `job` call's wait may be: the ceiling of `yield_seconds` and of `wait_seconds` (domain/tools.md, section 5) |
 | `check_timeout` | duration | the checks' deadline (domain/run.md, 8.1), cut at the run's end; a charter that allows a change keeps at least this much time in its reserve (domain/run.md, 9.1) |
 | `group_stop` | duration | each of the three steps that stop a command's group (agent.md, section 2) |
 | `close` | duration | io's close deadline (section 7) |
@@ -145,7 +145,7 @@ name `smith check` and the event stream's header print it under
 | `cancel_grace` | duration | the inline agent's grace for a cancel, before it drops a run (domain/host.md, 9.2) |
 | `live_interval` | duration | the longest the agent holds live bytes before sending them as a piece (channel.md, section 7); the default is 100 ms |
 | `exit_grace` | duration | a host's grace for a spawned agent to exit after its answer, above the agent's teardown bound (section 4) |
-| `refresh_lead` | duration | how long before a sign-in record's access token expires the local host refreshes it: skein's `oauth.md` refresh lead, shared by every process on the record (`docs/design/shell.md`, 6.5 and 7.3). A story raises it so that its run refreshes at once (`docs/design/testing.md`, 2.3; added 2026-10-20) |
+| `refresh_lead` | duration | how long before a sign-in record's access token expires the local host refreshes it: skein's `oauth.md` refresh lead, shared by every process on the record (`docs/design/shell.md`, 6.5 and 7.3). A story raises it so that its run refreshes at once (`docs/design/testing.md`, 2.3) |
 
 ### 2.4 Fixed by the vocabulary
 
@@ -448,7 +448,7 @@ terms (channel.md, sections 2 and 7):
 
 One entrance at the host-channel seam needs `EdgeRoom { to_domain: 1,
 below: 6 }`: one owner event and six lower operations. `EDGE_ROOM` holds
-that edge credit, exposed by `edge_room(&Limits)`. An entrance waits
+that edge credit, exposed by `edge_room()`. An entrance waits
 until both destinations have that room; `send_live` and `offer_fact`
 instead drop the piece or fact and count the loss.
 
@@ -471,7 +471,7 @@ process, compose the chain and check the edge bounds before the loop
 **Admission by a watermark** (skein's programming-model.md, 7.1). The queues between the service's own children (the
 domain's events and requests, the LLM's, the machine's, IO's and the
 file driver's) are uncapped: no child reserves room in another, and
-startup no longer asks `queue` to hold any child's largest output. Two
+startup does not ask `queue` to hold any child's largest output. Two
 kinds of queue keep their caps, as edges: the three the host's channel
 fills and drains, and the kernel's submissions and completions, which
 the shell fills from outside the service. New work, the host's `Start`
@@ -484,7 +484,7 @@ iteration. The agent service ships `DEFAULT_PACING = 2_302` as the
 backlog watermark, per-stage work quantum and pending-message room
 (programming-model.md, 7.1). It is a pacing choice, independent of a
 domain's largest output. At the host-channel seam, the service keeps
-`edge_room(&Limits)`, `EdgeRoom { to_domain: 1, below: 6 }` (3.6), before
+`edge_room()`, `EdgeRoom { to_domain: 1, below: 6 }` (3.6), before
 entering the channel; this credit belongs to that edge.
 
 - **Requests precede the next domain entrance.**
@@ -934,13 +934,6 @@ losslessly by count.
   adjacent reads than `parallel_tools`,
   the rest run as the next batch once the first has answered.
 
-## 12. From temper
-
-- **Kept:** limits per layer and refusal at the entrance
-  (programming-model.md, sections 6 and 7).
-- **New:** declared quantities and their derivation, relationships
-  checked by name, the LLM pool, and limits as per-call outcomes.
-
 ## 13. Open questions
 
 - **Calls past `calls_per_response`:** whether skein marks the calls
@@ -949,7 +942,7 @@ losslessly by count.
 - **A ceiling per attempt:** whether a model's declaration may add one,
   for a provider that streams without end.
 - **A host answer's own bound:** whether host tools' answers get a
-  quantity of their own rather than `tool_payload`. Messages now take
+  quantity of their own rather than `tool_payload`. Messages take
   theirs from one offer (3.9).
 - **A window's halves:** the room left after smith's own part goes half
   to the host's text and half to messages. Proposed as a first split;

@@ -1,8 +1,6 @@
 # client: status
 
-2026-10-29. Where jig's code lags or departs from [client.md](client.md).
+2026-11-02. Where jig's code lags or departs from [client.md](client.md).
 
-- **Built:** 1 to 17, 19, 20: public surface, keyed requests, watches, small store, helpers, named send, turn/job reads and deadline spans; 7: clamped windows; 12: held/full sign-ins. 1, 6, 11: memory-only Seen and legacy erase. 14: internal hand-offs uncapped, credential-boundary read fan-out bounded by admitted reads, receiving document envelopes retained.
-- **Not yet:** 12, 17, 20: service mode, relayed decisions and one-shot story. 8.3: reasoning/input producers. 10: objects made by turn calls.
-
-- **Built:** 8.2: stream admission full facts are told through `Link` and held beside its state through retries, cleared by a live `me` or sign-out.
+- **Not yet:** 10: a committed turn's calls carry no objects or parts: `jig-protocol-transcript` decodes them empty. 12: no story relays a person's decision with their own credential. 17, 20: the one-shot mode and its story, and a service in a host or world (the client takes `With::Service`).
+- **Departs:** 19: `words` keys its phrases under skein-ui owner 65537 (`jig/crates/jig-client/src/words.rs`, `OWNER`), beside jig's 65536 (root.md, 15); no reason is written.

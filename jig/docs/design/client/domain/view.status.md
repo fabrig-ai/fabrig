@@ -1,6 +1,5 @@
 # view: status
 
-2026-10-29. Where jig's code lags or departs from [view.md](view.md).
+2026-11-02. Where jig's code lags or departs from [view.md](view.md).
 
-- **Built:** 1 to 5, 7, 9 to 11, 15, 18: optional UI primitives over public client and skein-ui; bounded paths/authority, notices, page-owned reads and sign-out state. 10, 18.9: the `limits` constructors and the `sizes` companions size the tree; heap checked by scenario ceilings.
-- **Not yet:** 2: drawing code (`draw`) is not built; 17's scenes draw through the application's own drawing code. 7: executor/outcome words. 9: cards for turn calls. 16, 17: drawing kinds, routing and acts.
+- **Not yet:** 4.1: `pages::owed` as a primitive of its own (`pages.md`, 12.1, and its status). 7: the helper `words` holds no executor or outcome phrases. 9: cards for the objects a turn's calls made. 17.1, 17.5: no view root routes `draw`, jig has no `draw` of its own, and no golden scenes test one.

@@ -7,7 +7,7 @@ fn a_red_tip_pauses_kits_queue_for_one_repair_that_lands_before_a4_while_the_dir
     // A1 is delegated directly, tracked as a goal; A is omitted. One
     // repository stands for kit/app until 6.6. The person's red push stands
     // for app's slow tier, and a1/a2's landings are omitted. Adopting a4 is
-    // design (temper-on-temper.md, 6.8): the deployment repairs separately.
+    // undesigned: the deployment repairs separately.
     // Ninety minutes is represented by a far-future timer, read armed and
     // removed, never waited out. One repair restores CI; exhaustion of the
     // repairs bound belongs to the lower world. All waits follow events.

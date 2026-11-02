@@ -1,6 +1,5 @@
 # fake-forge: status
 
-2026-10-29. Where skein's code lags or departs from [fake-forge.md](fake-forge.md).
+2026-11-02. Where skein's code lags or departs from [fake-forge.md](fake-forge.md).
 
-- **Built:** 4, 5, 8, 10: edge validity and scenario ceilings without component sums. 1, 2.5, 5, 10: product fakes, promise judge and selective records; GitHub App/installation credentials, protection, CI/job reads, signed blob redirects and mergeability deadlines. 2.3: dispatch-only workflows, runs, reruns and the runner's faults; fast-forward merges and rebase updates; content-addressed trees.
-- **Not yet:** 1, 3 to 5, 8: remaining setup-store/grant, hook-delivery and shared git-route work; 3: real-git bridge. 9: organization hooks, speculative merges and live transcripts. 10, 11: remaining GitHub layer/conformance, GH013 boundary and recorded enqueue refusal.
+- **Not yet:** 2.3: a run's report: a workflow's failing and flaky test ids, `Cue::Tests`, the artifact each completed run uploads, the selection input, and `Read::Artifact` and `Read::Commits` (`skein-fake-forge-domain/src/api.rs`: `Workflow`, `Cue` and `Read` hold none of them). 10.2: the GitHub layer refuses no push as `GH013`: a push reaches the domain, whose `Rejected` is its only refusal. So 11's required-signatures fact stays unchecked on the fake.

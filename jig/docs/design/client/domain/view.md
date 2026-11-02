@@ -362,11 +362,11 @@ the counts it reads:
 
 The machinery is skein-ui's (skein's `ui.md`, section 9). What is jig's:
 
-- **Facts in, words out.** The client's owner documents and the helpers carry
+- **Facts in, words out.** The client's documents and the helpers carry
   typed facts; the reference UI says them, from tables that match jig's
   enums whole, so a new phase or hold is a build error until it is said.
-  Chips carry their owner phase and details together; activity carries its
-  owner source and optional decoded archive. Pages and cards render these
+  Chips carry their phase and details together; activity carries its
+  source and optional decoded archive. Pages and cards render these
   supplied facts through one path.
   Names are copied in, as skein-ui's are: a task's title, a party's
   name, a resource's words.

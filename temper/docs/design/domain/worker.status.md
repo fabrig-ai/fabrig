@@ -1,7 +1,11 @@
 # worker: status
 
-2026-10-29. Where temper's code lags or departs from [worker.md](worker.md).
+2026-11-02. Where temper's code lags or departs from [worker.md](worker.md).
 
-- **Built:** 3.1: admission by watermark: the queues between the worker's components uncapped, no output reservation; the engine's records wait in a capped entrance in order, new work at the watermark (10,198 entries, `temper_worker_domain::WATERMARK`), the engine's answers about admitted turns and calls passing a held assignment; each stage drains what it held when it began; the orders W1 to W5 tested under load. 4.1, 5: a retried producer's fresh hold fetches and freezes its landing tip, and delivers an existing unlanded head only through a verified guarded push. 4.3: configured model bounds classified as Exceeded or Model with their value. Open run behavior and on-demand host reads are integrated. 3.1: the held entrance is the link's capped edge.
-- **Built:** 4.1, 4.2, 5: typed resume policy requests saves from the first attempt, each writable repository to its own destination; unfinished ends, parks and cancels save, with landed ends, never-started agents and merge starts excluded. Saved starts rebuild the cached workspace at the saved tree, with the delivery branch as the pushed baseline and an explicit or fetched expected head guarding delivery; a missing delivery branch is allowed without an expected head. Fresh starts reset and clean the checkout.
-- **Not yet:** 5: the engine supplies no explicit expected head; the checkout enforces one when supplied, and saved starts use the fetched delivery head when none is supplied. Checkout that never creates a missing base branch. 9: containment.
+- **Not yet:** 4.4: jobs, whole: the job capability
+  `temper-worker-domain-tooling`, the prepare and key kinds, and the
+  `Rewrite` delivery. 5: a missing base branch fails the preparation; the
+  checkout creates it from the default branch for a repository that may be
+  written (`temper-worker-domain-checkout/src/hold.rs`,
+  `PrepareStep::Create`). 5, 9: git's invocations in contained process
+  trees; `temper-worker-protocol-git` runs them as plain child processes.

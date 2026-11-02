@@ -192,7 +192,7 @@ pub(crate) fn payload_slots(limits: &Limits) -> Option<u32> {
 
 /// The watermark's default: the journal's unanswered commits plus the
 /// outputs at its door, so that outputs waiting for release don't keep a
-/// person's reads out (skein's draft dynamic-memory.md, 4.4).
+/// person's reads out (skein's programming-model.md, 7.1).
 #[must_use]
 pub const fn default_watermark(journal: &JournalLimits) -> u32 {
     journal.commits.saturating_add(journal.deliveries)

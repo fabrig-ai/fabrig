@@ -1,7 +1,7 @@
-//! What the fleet's scenarios expect, held by a referee (testing.md,
-//! 5.2) that sees what the scripted workers see and do, what goes down their
-//! channels, and what the scripted parent asks and hears; never the fleet's
-//! state.
+//! What the fleet's scenarios expect, held by a referee
+//! (jig/docs/design/domain/testing.md, sections 3 and 6) that sees what the
+//! scripted workers see and do, what goes down their channels, and what the
+//! scripted parent asks and hears; never the fleet's state.
 //!
 //! Safety, checked on every observation:
 //!

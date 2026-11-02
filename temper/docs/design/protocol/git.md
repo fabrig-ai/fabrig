@@ -459,7 +459,7 @@ tip frozen by its prepare; the comparison alone is never a push receipt.
 
 ### 4.10 Rewrite
 
-Designed, not built (`../domain/worker.md`, 4.4). `Rewrite { at,
+A prepare job's (`../domain/worker.md`, 4.4). `Rewrite { at,
 remote, commit, branch, expected, identity }`: the branch moved to
 `commit` only if it is still at `expected`, whether or not `commit`
 descends from it:
@@ -694,7 +694,7 @@ checks this document's contract:
   next invocation. Default: accepted on one person's machine
   (credentials.md, section 8); the command-line settings of section 3
   and the URL on the command line cover what they name. Contained trees
-  (skein's `draft/process.md`), with the git directory unwritable by an
+  (skein's `io.md`, 6.3), with the git directory unwritable by an
   agent's tree, close both.
 - **HEAD after a commit.** Default: not moved (section 4.7), keeping each
   commit to four invocations; an agent that reads git sees the work

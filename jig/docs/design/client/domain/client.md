@@ -36,7 +36,7 @@ still open is listed in section 18.
   names, retries and one answer while the client lives (section 6).
 - **Work kept across a restart.** The small store holds kept requests
   not yet answered. At start, each is restored and told to the
-  application as kept. New unanswered `Seen` is silently lost on closing,
+  application as kept. An unanswered `Seen` is silently lost on closing,
   reload or crash; the next opening checks and sends the forward-only
   watermark again (section 11).
 - **The link is the client's to judge,** from the stream and its own
@@ -312,7 +312,7 @@ handles, as every presentation does (sections 7 and 8).
     and nothing is sent. The key stays held until its holder's record is
     erased; the application asks again then. Within the engine's
     retention an ordinary deciding request gets its original answer
-    again. A new `Seen` retains no engine answer after completion and
+    again. A `Seen` retains no engine answer after completion and
     is processed against current state on retry (contract.md, 3.1).
   - *Never loud.* A name comes from outside the application (an agent's
     key), so a name held is never the application's mistake. The same
@@ -348,7 +348,7 @@ handles, as every presentation does (sections 7 and 8).
   progress, retry after busy, not ready or lost, parking, confirmed-party
   checks, retention's unknown outcome, and one answer while the client
   lives. It counts against the same request and byte limits. The engine
-  retains no new completed `Seen` answer on success or routed refusal;
+  retains no completed `Seen` answer on success or routed refusal;
   after completion a retry checks current subject and authority and may
   answer `Unknown` after forget or `Role` after authority loss
   (contract.md, 3.1 and 3.2).
@@ -489,8 +489,8 @@ handles, as every presentation does (sections 7 and 8).
   an exchange use the old credential until successful installation.
 - **Pending ownership** is internal: `PendingRead { token: Token,
   family: Option<u16> }`. A response before the credential boundary
-  wins; the boundary before a response emits cancellation. Existing
-  token matching prevents a late reply or loss from completing a
+  wins; the boundary before a response emits cancellation. Token
+  matching prevents a late reply or loss from completing a
   replacement read under the same handle. A read under an old credential
   never answers under the new one. Supersession and `Unwatch` still
   abandon reads as above; credential boundaries do not.
@@ -757,7 +757,7 @@ for any presentation of a chat or of any agent task's activity.
 ## 11. The small store
 
 - **What the client keeps across its own restart:** the requests not yet
-  answered, except new top-level `Seen` and requests carrying a value
+  answered, except top-level `Seen` and requests carrying a value
   (section 6), as the request table's records, each with the key the
   engine knows it by, its party, the application's key, the request (jig's record, or a family's
   bytes under its owner's number and version), and the wall time of its first
@@ -793,7 +793,7 @@ for any presentation of a chat or of any agent task's activity.
   the write is durable, live attempts leave in FIFO order; stale
   attempts are skipped. Not kept reports a store failure, not internal
   queue room (programming-model.md, 7.2).
-- **New `Seen` has no save of its own.** Closing, reload or crash silently
+- **`Seen` has no save of its own.** Closing, reload or crash silently
   loses an unanswered in-memory mark, with no `Kept`, `Dropped` or not
   kept notice from its own store. The next opening checks and sends the
   watermark again; repeating a forward-only read position is safe. Its
@@ -802,15 +802,11 @@ for any presentation of a chat or of any agent task's activity.
   not kept; a `Seen` exchange held behind it is lost and follows its
   normal retry. Consuming the table's save creates no tracked store
   write and changes no store acknowledgement protocol.
-- **Every terminal still erases.** The table's terminal `Erase` remains
-  for new `Seen` too: erasing an absent key is harmless, and its store
-  acknowledgement still completes normally. Legacy stored pending
-  `Seen` records decode and restore under the usual rules, reported
-  `Kept`, never saved again, and erased at their normal terminal. They
-  may still cause a closing warning until erased; no migration or eager
-  drop is needed. These client records are distinct from the engine's
-  legacy completed `Seen` answers, retained until their original expiry
-  (contract.md, 3.1).
+- **Every terminal erases.** The table's terminal `Erase` holds for
+  `Seen` too: erasing an absent key is harmless, and its store
+  acknowledgement completes normally. A `Seen` record the small store
+  holds is restored as any kept request, told `Kept`, never saved
+  again, and erased at its terminal.
 - **Restored at `Start { kept }`,** before any other event: each
   request's record admitted to the table under its key, parked until
   the link is live, its party confirmed and the retention known; and
@@ -843,8 +839,7 @@ for any presentation of a chat or of any agent task's activity.
   stream gone, once, which the original takes as a drop (8.2).
 - **It is never the truth.** An ordinary deciding request kept is
   answered by the engine by its key, made once whatever the client did
-  before. A restored legacy `Seen` follows the engine's replay exception
-  (contract.md, 3.1).
+  before.
 
 ## 12. Signing in
 
@@ -1238,9 +1233,8 @@ on, and then a dependency it waits on, which is parked; then a refused
 start; and only then its stage, so a chat backing off is retrying and
 one claimed or running reads its host's report. A summary row, which
 holds no run wait, passes none and is never refused. A refusal is not a
-reply. The reference view shows Hello's observed
-kind, time and cause, or the task-specific program compatibility cause;
-it promises no automatic source switch.
+reply. The reference view shows the refusal's observed host kind, time
+and cause; it promises no automatic source switch.
 
 ## 20. Modes
 

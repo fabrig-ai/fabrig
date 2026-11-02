@@ -1,26 +1,15 @@
 # agent: status
 
-2026-11-01. Where temper's code lags or departs from [agent.md](agent.md).
+2026-11-02. Where temper's code lags or departs from [agent.md](agent.md).
 
-- **Built:** 4.4: the smith terminal preserves the producer's title, body and settled resource in jig's bounded durable change result.
-
-- **Built:** 8.2: a held change or goal under a chat waits in its person's escalation inbox at once; the stock chat tells them what it waits on and where to decide.
-
-- **Built:** 4.3.2, 4.6: a chat's report bound reaches neither its brief nor its Open replies; goals and delegates keep their result contracts.
-
-- **Built:** 4.3.2: the goal tool takes its goal's label and flags from template 2, so ended goals are listed by project and goal label; advisors stay unlabelled, untracked and plain.
-
-- **Built:** 4.1, 4.3: tracked delegation and whole amendments of priority, deadline, instructions and dependencies; a delegate's deadline in seconds after it is made, or its creator's; answers name changes. 3, 4.6: task-selected models and credential/program grants. 4.3: A host call over its input bound is answered `call too large` under its name and the run goes on; an answer past the agent's `host_reply_bytes` reaches it as smith's `TooLarge`, and the run goes on; one beyond the fleet's call capacity is answered busy and asked again. 4.3: `read_docs`, answered at decode. 4.3: the forge's reads by `owner/name`, flat members; `read_file` of a directory, the root as `.`, lists its entries. 4.3: commit ids at the forge's length, a pull's state and merge commit. 4.3.2: `goal`, one tracked goal or an untracked advisor in the run's words (the caller's words first, then a blank line and the root's fixed lines, within the spec's bytes, so a goal's and an advisor's task title is the work), its authority the run's narrowed and its report the deployment's largest result. 8.2: a change's agents hold no Message family; the stock chat's words send work agreed first to a goal, which asks before it calls `change`; an advisor first where the person asks for one, and dependent changes one at a time, each after the last has landed. 4.3: an empty repository name is left out. 5, 8.2: a run hears a question with its number and an answer with the question it answers. 4.3: `settings` reads and `propose_settings`, shared whole-value decoding and bounded settings text, with decisions in the task inbox. 4.3: propose's release from a placed hold, naming the hold's revision; release refused naming the owner. 4.3: `message` is declared only to a run whose authority holds the message family; a change's coder, repairer and reviewer are not offered it. 4.3: `modify` only with `deliver`: a chat's, a goal's, an advisor's and a reviewer's runs inspect alone.
-- **Built:** 4.3: brief fitting at worker start uses the receiving run's limits, schema costs and prepared workspace; the typed start takes explicit limits and uses the same fitter. Cuts keep UTF-8 boundaries and exact lost-byte lines; trailing sections may be omitted with a summary when it fits, down to an empty brief, within the charter's admitted ownership allowance.
-- **Not yet:** 4.3: the 2,048-byte minimum brief-room check at start and settings entrances is designed here and in `../protocol/configuration.md`, 13.4, but not built. 4.3: the stock has no charter 3 (the configuring agent) yet; the `settings` family is declared to none. 4.3 to 5: full delegation budgets/revisions, decision detail, verdict follow-ups, delivery before chat end and sender names. 4.1, 4.6, 8: revision-bound charter/budget and per-change charter. Change-shaped delegation remains incomplete.
-- **Built:** 4.1, 4.3, 4.6: the small profile's 177,523-token demo window, 51,717-byte host part, 25,858-byte offer and 125,634-byte shared room; the largest stock charter and 14,592-byte brief with framing leave 1,129 bytes; the reviews budget is 4,608 bytes. 4.3: the stock coder's words permit remove after reading. 4.3.1: the stock chat reads each repository change's code before delegating and briefs only what it read, reports absent faults without changing anything, and describes landings only from the result or pull request; the coder finishes successfully with `no_change` for an absent fault instead of adding a feature, and builds requested additions in the code there is when their words describe it wrongly, returning `no_change` only when they cannot be built there. Brief fitting remains the fallback.
-
-- **Built:** 5, 8.2: a person's inbox answer notice names the asker and says it has the answer and does the work when another task asked; the chat acknowledges the work goes ahead without calling `change` or `goal`. The notice carries the answer words, cut at 256 bytes, to a live run and the inbox at start; empty stored notices keep their words-free line.
-
-- **Built:** 4.3.2, 8.2: every Finite charter 1 run retains `message` in its reserve, so an owed plan question can reach the person on its last turn.
-
-- **Built:** 8: forge read authority refusals retain `ToolDenied` findings; volatile read and call-admission facts name task, attempt, tool, refusing layer and reason and reach operator notes and stderr.
-
-- **Built:** 4.6, 8.2: an agreed goal parks at the stock ordinary-turn boundary and on an earlier wait. Its inbox question survives until the person answers; the answer wakes fresh bounded turns with an instruction superseding prior exhaustion. The composed system world covers reads, the seventh-completion question, delayed answer, admitted change and landing through real smith and worker domains; monetary spending stays cumulative.
-
-- **Built:** 4.3.1, 4.4: explicit `no_change` verdicts become successful durable no-change results with their explanation and no landing; production errors remain failures.
+- **Not yet:** 4.1, 4.6: charters and their budgets as settings, read at
+  the task's revision. 4.3: the check that each charter leaves its brief
+  2,048 bytes, at start and at the three entrances of a change of settings;
+  only fitting exists (`temper-engine-smith/src/start.rs`). 4.3: the
+  `settings` family offered only where the charter's `tools` names it too;
+  the task's authority alone decides (`temper-engine-smith/src/calls.rs`).
+  4.3, 8.1: the configuring agent: the stock's template and charter 3. 4.3:
+  a chat's `deliver` before its end
+  (`tests/real-loop/tests/suite/adoption_hold.rs`, ignored). 4.4: a verdict's
+  follow-up tasks. 8: a change's agents under charters of its own
+  (`forge.md`, 8.1).

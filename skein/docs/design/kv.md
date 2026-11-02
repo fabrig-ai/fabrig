@@ -1,10 +1,10 @@
 # A key-value store on Skein's loop
 
-Implemented core, 2026-10-05. A built-in store for a service whose durable
+Provisional, 2026-10-05. A built-in store for a service whose durable
 dataset fits in memory: ordered keys and values held in memory, an
 append-only commit log, and snapshots, all as a Skein machine on Skein's
 file I/O. Large append-only payloads go beside it, in logs of their own
-whose committed lengths the store records (section 6, not built yet).
+whose committed lengths the store records (section 6).
 Read it with [the programming model](../foundation/programming-model.md),
 [the testing strategy](../foundation/testing-strategy.md), and
 [the file design](io.md).
@@ -20,12 +20,12 @@ Read it with [the programming model](../foundation/programming-model.md),
   versions its own record shapes.
 - **Why not redb here.** Keeping redb on the loop means an in-memory
   virtual file and a persistence machine that replays redb's storage
-  calls (redb.md, sections 1 to 4): all the data in memory and a
+  calls (`draft/redb.md`, sections 1 to 4): all the data in memory and a
   persistence protocol of our own anyway, with crash-safety resting on
   redb's internal call patterns. With the data in memory, a log and
   snapshots are the whole of what is needed, and their recovery rule is
   simple enough to test by crashing at every operation.
-- **A Skein machine.** Unlike redb (redb.md, section 6), the store is an
+- **A Skein machine.** Unlike redb (`draft/redb.md`, section 6), the store is an
   ordinary `no_std` step machine: its state is the map and its
   persistence state, and its disk work is io's file requests, with one
   terminal event each.
@@ -233,7 +233,7 @@ failed syncs.
   `0o600`.
 - **Transcripts** as payload logs: a turn's bytes appended and synced,
   then committed with its spend and the messages it took; the worker's
-  acknowledgement after that commit, as today.
+  acknowledgement after that commit.
 - **Retention is temper's:** ended tasks moved out of the map, or into
   payload logs, past a horizon, so the budget holds for years.
 
@@ -273,7 +273,7 @@ So a budget of **1–2 GB for the map** covers a busy deployment with
 several connectors and a retention horizon, for years; a store that is
 designed to reach about 10 GB in memory before its limits bite leaves
 room for the cases this estimate is wrong about. Past that, retention
-tightens first, then redb.md's approach or an on-disk index.
+tightens first, then `draft/redb.md`'s approach or an on-disk index.
 
 - **The map fits in memory comfortably** with a retention horizon, and
   even without one for the first year or two on a server; the live
@@ -321,4 +321,4 @@ around it:
   offset, compaction in place of snapshots, and the index rebuilt at
   start from hint files. `Get` and `Load` then answer after their reads,
   not in the step that asks; the rest of the vocabulary stays. The
-  approach in redb.md is the other way past memory.
+  approach in `draft/redb.md` is the other way past memory.

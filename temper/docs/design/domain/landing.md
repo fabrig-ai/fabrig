@@ -427,13 +427,13 @@ For a project with no prepare command, one member per repository:
     FastForwardOnly }`);
   - **on GitHub,** which merges no pull request fast-forward, by
     updating main's ref to the candidate, fast-forward only (skein's
-    `Write::UpdateRef`), designed, not built. The update is a push, so
-    it passes a rule requiring a pull request only where temper's App
-    may always bypass it (`Always`; `PullsOnly` is not enough:
-    `forge.md`, 4.4). A ruleset's bypass covers every rule in it, so it
-    may waive required checks too, but the candidate carries temper's
-    statuses (10) and meets them either way. GitHub marks the pull
-    request merged once main holds its head.
+    `Write::UpdateRef`). The update is a push, so it passes a rule
+    requiring a pull request only where temper's App may always bypass
+    it (`Always`; `PullsOnly` is not enough: `forge.md`, 4.4). A
+    ruleset's bypass covers every rule in it, so it may waive required
+    checks too, but the candidate carries temper's statuses (10) and
+    meets them either way. GitHub marks the pull request merged once
+    main holds its head.
 
   Each landing's outcome is read back: main's tip is the candidate, and
   its member is landed. The merge is the landing task's effect, but the
@@ -476,11 +476,11 @@ For a project with no prepare command, one member per repository:
 - **First proved, first landed:** the turn goes to the landing whose
   proof completed first. Priorities order the dispatch of gates when
   runners are scarce, never the turn.
-- **The reservation** (designed; built with conflicts): a landing whose
-  proof went stale `stale_proofs` times (2 by default) reserves the
-  project's next turn for its repositories. While it proves again,
-  another landing touching them may prove but not take the turn. The
-  reservation lapses after one more proof, or when the landing fails.
+- **The reservation:** a landing whose proof went stale `stale_proofs`
+  times (2 by default) reserves the project's next turn for its
+  repositories. While it proves again, another landing touching them may
+  prove but not take the turn. The reservation lapses after one more
+  proof, or when the landing fails.
 
 ## 10. What the forge shows
 
@@ -501,7 +501,7 @@ Three kinds join `forge.md`'s section 6, each a row of its own:
 
 | Kind | Effect | What it is | Recovery class | Found again after an uncertain failure |
 |---|---|---|---|---|
-| 19 | update a branch's ref, fast-forward only (GitHub's turn, designed, not built) | a transition: main moved to the candidate | conditional: the forge refuses a move that is not a fast-forward | main at the candidate, or at a commit containing it |
+| 19 | update a branch's ref, fast-forward only (GitHub's turn) | a transition: main moved to the candidate | conditional: the forge refuses a move that is not a fast-forward | main at the candidate, or at a commit containing it |
 | 16 | dispatch a workflow | a creation: a run of a workflow at a branch, with inputs | unrecoverable: the forge keeps no key for it | among the runs of its workflow at its commit made after the entry's start |
 | 17 | rerun a job | a transition: the job's next attempt | unrecoverable: the forge checks no attempt | the job's attempt moved past the one named |
 
@@ -554,14 +554,14 @@ Three kinds join `forge.md`'s section 6, each a row of its own:
   (`../protocol/store.md`, section 2), through the baseline's goldens
   (`../draft/upgrades.md`).
 - **Bounded** by the forge's limits (`../protocol/configuration.md`,
-  section 7), designed, not built: `landings`, live landings per
-  deployment; `landing_members`, members per landing; `gates`, test
-  gates per repository; `receipts_per_gate`; `ignored_paths`, per gate,
-  each within a branch name's bounds; and `inputs`, within skein's
-  `INPUTS`. A landing that would pass one is refused at its making, or
-  a member at its joining, naming the limit; its change stays ready and
-  waits for room, as a change waits for a hold. Entrance constraints
-  and representable counts are checked by the forge's `valid`.
+  section 7): `landings`, live landings per deployment;
+  `landing_members`, members per landing; `gates`, test gates per
+  repository; `receipts_per_gate`; `ignored_paths`, per gate, each
+  within a branch name's bounds; and `inputs`, within skein's `INPUTS`.
+  A landing that would pass one is refused at its making, or a member at
+  its joining, naming the limit; its change stays ready and waits for
+  room, as a change waits for a hold. Entrance constraints and
+  representable counts are checked by the forge's `valid`.
 
 ## 13. Settings
 
@@ -575,8 +575,7 @@ the forge's, judged in the change's decision:
 | 4, a project's landing | each project | 1 | the members below |
 | 5, a repository's gates | each project | the repository's adoption, unique in the deployment (its forge's number shifted 16 bits left, with the forge's repository number below) | the repository (its forge and id); `gates`, its test gates, each a name, the workflow's file, its ignored paths, and whether it blocks; `tiers`, each a name, the workflow's file, its ignored paths, the artifact and its format (`after-landing.md`, section 2) |
 
-Kind 4's members, each with its default and the document it serves
-(`../draft/landing-model.md`, section 14):
+Kind 4's members, each with its default and the section it serves:
 
 | Member | Default | Serves |
 |---|---|---|
@@ -589,11 +588,11 @@ Kind 4's members, each with its default and the document it serves
 | `findings`: on or off; `triager` and `chooser`, a task or a role; `tester_charter`; `areas`, each a repository and an area | off; the person's chat; the chat; none | `findings.md`, 2, 6, 8 |
 | `questions_on_forge` | off | `forge.md`, 12.1 |
 
-- **Until both kinds are built** on jig's application settings (jig's
+- **Until both kinds are settings** on jig's application settings (jig's
   `domain/engine.md`, 17.5), a project's `by` and its repositories'
   gates are configured in the document's `landing` member
-  (`../protocol/configuration.md`, section 3), as the landing rules
-  are, and read at the start.
+  (`../protocol/configuration.md`, section 3), as the landing rules are,
+  and read at the start.
 - **`turn` is refused** for a project with a repository where temper
   cannot fast-forward main to a candidate (section 8: on GitHub, no
   `Always` bypass of a rule requiring a pull request, or a required
@@ -675,15 +674,11 @@ across a restart of the binary. The forge's world holds:
   lands as it is;
 - **a restart** mid-proof finds its run, and mid-turn settles its merge;
 - **under `queue`,** every story of `forge.md`'s world passes unchanged.
-- **on the fake GitHub,** designed, not built: a landing of one under
-  the App's `Always` bypass, its gate dispatched and its receipt posted,
-  main fast-forwarded by a ref update; a lost ref update found made; a
+- **on the fake GitHub:** a landing of one under the App's `Always`
+  bypass, its gate dispatched and its receipt posted, main
+  fast-forwarded by a ref update; a lost ref update found made; a
   repository without `Always` refused, naming the bypass and how a
   person grants it; a required merge queue refused.
-- **The reference case** (`../draft/reference-case.md`): these
-  mechanics open its act 1's steps 4.1, 4.3 and 4.4 and its act 2's
-  steps 5.1 to 5.6, whose stories on fakes (`fuzzy_case3_4_1`, ...) run in
-  this world, and which rung C walks on real backends.
 
 ## 17. Open questions
 

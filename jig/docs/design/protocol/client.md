@@ -68,7 +68,7 @@ is still open is listed in section 15.
   envelope every version reads (section 9).
 - **The small store is the client's records,** the request table's and
   its own, per owner, versioned, each kept request's stored before it
-  leaves. New top-level `Seen` stays in memory, and a request carrying a
+  leaves. A top-level `Seen` stays in memory, and a request carrying a
   value is sent once and never stored (section 5). The application keeps
   its own (section 10).
 - **Shells are the application's.** jig ships a native shell,
@@ -208,80 +208,71 @@ the shell: fetch, skein's HTTP client, a socket            skein's HTTP server, 
   from its clock and its wall when it makes the document, so a client
   shows it as it shows every other moment.
 
-Authority selectors in client v11 preserve omission, ALL and named sets
-(including empty), at most 64 names of 4,096 UTF-8 bytes each. Both public
-authority forms carry them. Authority documents carry `cut` independently
-from the whole authority payload used for edits (`../client/domain/contract.md`,
-3.2); decoding retains the flag, and `whole()` refuses a cut projection.
+Authority selectors preserve omission, ALL and named sets (including
+empty), at most 64 names of 4,096 UTF-8 bytes each. Both public
+authority forms carry them. Authority documents carry `cut`
+independently from the whole authority payload used for edits
+(`../client/domain/contract.md`, 3.2); decoding retains the flag, and
+`whole()` refuses a cut projection.
 
-Client v11 appends the public provider catalogue and startup key bound to `me`,
-and provider/payer readiness to `accounts`. `Deployment` includes the same
-catalogue and viewer readiness for the reference fragment. Each deployment host's
-`HostRule` is `open`, `person` with a `HostPerson` party number,
-`several`, or `unknown`, recording its current kept-login placement rule.
-The `position`
-hello refusal names a worker position that is unconfigured or held by a live
-channel. Existing tags stay fixed. These are bounded secret-free
-configuration/derived facts
-(`../client/domain/contract.md`, 5.1 and 7.1); people v5 and accounts v1 do not
-change.
+`me` carries the public provider catalogue and the startup key bound,
+and `accounts` the provider and payer readiness. `Deployment` includes
+the same catalogue and viewer readiness for the reference fragment.
+Each deployment host's `HostRule` is `open`, `person` with a
+`HostPerson` party number, `several`, or `unknown`, recording its
+current kept-login placement rule. The `position` hello refusal names a
+worker position that is unconfigured or held by a live channel. These
+are bounded secret-free configuration and derived facts
+(`../client/domain/contract.md`, 5.1 and 7.1).
 
-Client v11 carries added dependencies (`../domain/tasks.md`, 5.7, 6.7 and
-section 7): an `Amend` names a task's dependencies as one whole list; the
-refusals *circle*, naming its tasks in order, cut at its limit, which a
-batch's cycle becomes, *dependency* and *kept*; a task document's
-dependencies, each with its phase, its wall and maker when it was added,
-and whether they keep the task; a kept task's pending dependencies in what
-it waits on; and a hold for a circle of waits, naming it
-(`../client/domain/contract.md`, sections 3 to 5). The owner's activity
-also carries the parked run's kept line, its attempt and pending
-dependencies, and the owner's message kinds the met notice, the dependency
-and whether it was removed (`../domain/tasks.md`, 5.7 and 8.1;
-`../domain/engine.md`, section 7). Existing tags stay fixed.
+The wire carries added dependencies (`../domain/tasks.md`, 5.7, 6.7 and
+section 7): an `Amend` names a task's dependencies as one whole list;
+the refusals *circle*, naming its tasks in order, cut at its limit,
+which a batch's cycle becomes, *dependency* and *kept*; a task
+document's dependencies, each with its phase, its wall and maker when
+it was added, and whether they keep the task; a kept task's pending
+dependencies in what it waits on; and a hold for a circle of waits,
+naming it (`../client/domain/contract.md`, sections 3 to 5). The
+owner's activity also carries the parked run's kept line, its attempt
+and pending dependencies, and the owner's message kinds the met
+notice, the dependency and whether it was removed
+(`../domain/tasks.md`, 5.7 and 8.1; `../domain/engine.md`, section 7).
 
-Client v11 also carries `TaskRunWait.refused`, as either
-`TaskWaitRefused.hello` (`TaskWaitHello`: the existing `HostKind`, wall
-receipt time and `HelloRefusal`) or `TaskWaitRefused.program`
-(`TaskWaitProgram.model` or `.source`, with account and source numbers).
-The Program arm has no producer: an Open task runs on a program source as any task does (`../domain/hosts.md`, 8.1).
-The server and client reuse the deployment's hello-refusal translations;
-shortfall dimensions that already omit charter numbers keep that wire shape.
-The existing `TaskWaitSource { state }` stays unchanged.
-`TaskWaitProgramSource { account, source }` names the Program source pair.
-`TaskWaitRefusedProgram { value: TaskWaitProgram }` and
-`TaskRunWaitRefused { value: TaskWaitRefused }` wrap enum payloads for the
-generator; these unversioned records add no tag or header bytes. Shared admission
-types precede their task-wait consumers in the schema, as the generator
-requires. Existing variant tags, client version 11, worker version 4 and
-all store families stay fixed. Nothing in this data slice changes status
-or person-facing words (`../client/domain/contract.md`, 5.1).
+A task's run wait carries `TaskRunWait.refused`, a hello refusal:
+`TaskWaitHello`, the `HostKind`, the wall receipt time and the
+`HelloRefusal`. The server and client share the deployment's
+hello-refusal translations; shortfall dimensions that omit charter
+numbers keep that wire shape. `TaskWaitSource { state }` names a
+source's state. `TaskRunWaitRefused { value }` wraps the enum payload
+for the generator, an unversioned record that adds no tag or header
+bytes. Shared admission types precede their task-wait consumers in the
+schema, as the generator requires. Status and person-facing words are
+`../client/domain/contract.md`, 5.1's.
 
-Open uses client v12 with worker wire v6, tasks store v7 and people store
-v7; core store remains v4. Its ending authority and refusal status travel
-in these families; the worker's GrantValue retains tags 0 to 2.
+A task's ending authority (`TaskFlags.ended_by`, *result* or
+*requester*) and its refusal status travel in jig's wire and in the
+tasks and people families; the worker's `GrantValue` keeps tags 0 to 2.
 
-Client v12 carries `resolved_default: Option<LlmChoice>` beside each
-effective template's configured LLM intent in `me`
+`me` carries `resolved_default: Option<LlmChoice>` beside each
+effective template's configured LLM intent
 (`../client/domain/contract.md`, 5.1). The schema, generated codecs,
-translations, golden records and served-version declarations move
-with that field (sections 9 and 14). It is a preview of Create's
-once-at-creation resolver, never task intent or a reservation. This
-changes no core or task store version or layout, requires no migration,
-and leaves application-family versions separate. Implementation status
-is in `../STATUS.md`.
+translations, golden records and served-version declarations carry
+that field (sections 9 and 14). It is a preview of Create's
+once-at-creation resolver, never task intent or a reservation; no
+store family carries it, and application families' versions are their
+own.
 
-The account's move (`../domain/accounts.md`, section 6) adds to jig's
-wire, in its current schema: the account changes `move_out { account
-}`, `written { number }` and `move_in { digest }`, the last carrying the
-moved file as the keyed request's value (section 5), whose bound grows
-to 128 KiB; the answer `Made::moving_out { account, number, record }`,
-the record a secret of at most 128 KiB filled for the asking exchange
-alone (section 5), and the outcome `account_moved_in { account,
-renewed }` (*written* is answered `account_changed`); the refusal
-`account_move { why }`, `why` one of `not_signed_in`, `not_ours`,
-`held`, `cancelled` and `moving`; and `moving` in each source state an
-account document or a task's wait shows. Existing tags stay fixed; new
-variants go last.
+The account's move (`../domain/accounts.md`, section 6) is in jig's
+wire: the account changes `move_out { account }`, `written { number }`
+and `move_in { digest }`, the last carrying the moved file as the
+keyed request's value (section 5), whose bound is 128 KiB; the answer
+`Made::moving_out { account, number, record }`, the record a secret of
+at most 128 KiB filled for the asking exchange alone (section 5), and
+the outcome `account_moved_in { account, renewed }` (*written* is
+answered `account_changed`); the refusal `account_move { why }`, `why`
+one of `not_signed_in`, `not_ours`, `held`, `cancelled` and `moving`;
+and `moving` in each source state an account document or a task's wait
+shows.
 
 ## 4. The connection
 
@@ -433,8 +424,10 @@ heard:    Reply { exchange, message } | Lost { exchange } | Streamed { message }
 
 ## 5. Keyed requests
 
-An owner proposal outcome carries its proposal number and the original admitted role (`OutcomeProposed.to`), in the project of the request. Replays retain that original role; the proposal document gives its current recipient. Active client-v19 records change together before first release, without a family/version bump.
-
+An owner proposal outcome carries its proposal number and the role
+first admitted (`OutcomeProposed.to`), in the project of the request.
+Replays retain that role; the proposal document gives its current
+recipient.
 
 - **One exchange per attempt.** The request table's send (its attempt,
   its key, its request) becomes one keyed request: the key, the
@@ -516,14 +509,14 @@ An owner proposal outcome carries its proposal number and the original admitted 
   served) (`../client/domain/contract.md`, section 6). A page's cursor
   is the engine's, opaque bytes the client gives back.
 - **Credential boundaries, on the client,** visibly end pending reads
-  in the domain's existing `Page` forms: jig's `ReadNone::SignedOut` or
+  in the domain's `Page` forms: jig's `ReadNone::SignedOut` or
   a family's `None`, once each, on sign-out and unconditionally on
   successful sign-in, before the first `me` too
   (`../client/domain/client.md`, sections 7 and 12). The link erases
   old exchange names; the domain retains pending token and optional
-  family and fences late completions with its existing token match.
-  This adds no link output, public `Readout` variant or wire record,
-  and never replays a read. Supersession and `Unwatch` remain abandonment.
+  family and fences late completions with its token match. The
+  boundary needs no link output, public `Readout` variant or wire
+  record of its own, and never replays a read. Supersession and `Unwatch` remain abandonment.
 - **A task query's page** carries its two groups, live then ended, each
   with its cursor, and says whether the ended group was cut by a filter
   beyond its index's prefix, or has none for the query's keys
@@ -812,7 +805,7 @@ An owner proposal outcome carries its proposal number and the original admitted 
   name of the client's stream (section 4), under a key of its own, which
   no request's key can be (a request's is 16 bytes); nothing else of the
   client's, and never a credential, an answer, a request carrying a
-  value, or one whose answer carries one (section 5). New top-level `Seen` has no stored record. Each
+  value, or one whose answer carries one (section 5). A top-level `Seen` has no stored record. Each
   kept record is encoded with jig's wire, with its store version.
 - **The stream's name** is saved at each hello, in a write of its own,
   and replaces the last; nothing waits for it, and a write of it not
@@ -850,8 +843,8 @@ An owner proposal outcome carries its proposal number and the original admitted 
   party on the current link. A failed mixed write reports not kept only
   for the ordinary requests whose records it carried; a held `Seen`
   exchange is lost and retried normally. Consuming the save creates no
-  tracked write; store acknowledgements are unchanged. Every terminal
-  still emits `Erase`, including an absent new `Seen` key, with the usual
+  tracked write, and its store acknowledgements are any write's. Every terminal
+  still emits `Erase`, including an absent `Seen` key, with the usual
   acknowledgement.
 - **Read at start,** the records the application's shell loaded handed
   to `jig-client` as it starts, each request's to the request table, and
@@ -862,14 +855,10 @@ An owner proposal outcome carries its proposal number and the original admitted 
   are not among those the application declares is one
   (`../client/domain/client.md`, 11). Pre-release, nothing is
   translated.
-- **Legacy pending `Seen` records** remain readable and restore as
-  `Kept`, are never saved again, and erase at their normal terminal.
-  They are not eagerly dropped or migrated. These client records are
-  separate from the engine's retained completed answers
-  (`../client/domain/contract.md`, 3.1). A new unanswered in-memory
-  `Seen` is silently lost on closing, reload or crash; the next opening
-  checks and sends the watermark again, with no notice from a record of
-  its own (`../client/domain/client.md`, section 11).
+- **An unanswered `Seen` is lost** on closing, reload or crash, since
+  it is in memory alone; the next opening checks and sends the
+  watermark again, with no notice from a record of its own
+  (`../client/domain/client.md`, section 11).
 - **Where** is the shell's: a browser tab's session storage, as text
   skein's small store part encodes (skein's `ui-web.md`, section 10); a
   file a native client writes whole and syncs; a service's file, synced
@@ -968,10 +957,10 @@ Each within jig's suites' budgets.
   `ops`'s wire and jig's test family's) checked for drift against their
   schemas, and jig's wire's decoders run over arbitrary and mutated
   bytes in the fuzzy suite (skein's `codec.md`, section 6).
-- **The template preview** uses the existing client-protocol carriage
-  tests and wire goldens: v12 preserves both configured intent and
-  `resolved_default`, including `None`. The existing shapes tests keep
-  omission, and the reference view tests consume the supplied preview;
+- **The template preview** in the client-protocol carriage tests and
+  wire goldens: both configured intent and `resolved_default`, including
+  `None`, cross whole. The shapes tests keep omission, and the
+  reference view tests consume the supplied preview;
   core charters/templates stories own resolution order and invalidation
   (`../domain/testing.md`, section 4).
 - **The component's world,** `jig-engine-clients-world`: the component

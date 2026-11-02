@@ -93,13 +93,12 @@ engine's routing encodes it (`../protocol/llm.md`, section 5).
   (jig's `protocol/configuration.md`, section 3): a chat's, a
   coordinator's, a reviewer's with a lens, a change's producer's; until
   an amendment gives a task its own (jig's `domain/tasks.md`, section
-  7), whole, where an empty text leaves it none, not its charter's.
-  The task's next run carries them; a run already live hears them as
-  the amendment's words. Designed, not built: a charter is a setting in
-  the store, read from the revision the task runs under (jig's
-  `domain/engine.md`, 17.3), temper's stock chat's and coding agent's
-  held in the binary as their defaults
-  (`../protocol/configuration.md`, 13.4).
+  7), whole, where an empty text leaves it none, not its charter's. The
+  task's next run carries them; a run already live hears them as the
+  amendment's words. A charter is a setting in the store, read from the
+  revision the task runs under (jig's `domain/engine.md`, 17.3),
+  temper's stock chat's and coding agent's held in the binary as their
+  defaults (`../protocol/configuration.md`, 13.4).
 - **The brief:** the sections jig's core gathers (jig's
   `domain/engine.md`, section 9) and the forge's (forge.md, section 2),
   each rendered as one of smith's titled sections, titled by its kind:
@@ -373,38 +372,37 @@ it as any `delegate`:
 - **an advisor,** with `advisor` set, its report bounded as a goal's,
   its brief opening with the caller's words, then a blank line and the
   root's own line that it is an advisor, which reads and reports and
-  changes nothing, so that its task's title is the work,
-  the line counted with the words within the spec's bytes (a request is
-  refused as too long with the line included, never cut to make room),
-  so that it knows what it is without a convention in those words:
-  unlabelled, with plain flags (not listed, no conversation, kept,
-  ended by its result), and untracked, so that no goal of its
-  is projected on the forge; reads alone, no grant of a forge effect, no
-  delegation (no kinds, tasks or depth) and no notes, so that it reads
-  and reports and can change nothing beyond its own workspace, which it
-  has no grant to push (the retired first edition's tester,
-  testing.md, 5.3: a rail, not an instruction).
+  changes nothing, so that its task's title is the work, the line
+  counted with the words within the spec's bytes (a request is refused
+  as too long with the line included, never cut to make room), so that
+  it knows what it is without a convention in those words: unlabelled,
+  with plain flags (not listed, no conversation, kept, ended by its
+  result), and untracked, so that no goal of its is projected on the
+  forge; reads alone, no grant of a forge effect, no delegation (no
+  kinds, tasks or depth) and no notes, so that it reads and reports and
+  can change nothing beyond its own workspace, which it has no grant to
+  push (a rail, not an instruction).
 
 The root builds it where it builds `change`'s delegate, in the engine's
 route of host tools, and decides it as any `delegate`; the smith
 translation only decodes the call.
 
 The goal's own run takes `goal` too: an advisor it asks for, before it
-asks its requester, is how the retired first edition's survey before a plan
-goes (testing.md, 5.3). An advisor is all it takes, and only it takes
-one: a goal is the work its person asked for, and a goal under it would
-ask the goal, not the person, and be answered by it (8.2); a goal is
-where the work is planned, so an advisor asked for elsewhere leaves the
-work to be planned in a chat's reply. So one fact of the calling run,
-whether the root built it as a goal, decides both: the root refuses a
-goal's `goal` without `advisor` (a goal starts an advisor alone: set
-`advisor`, or make the change with `change`), and any other run's
-`goal` with `advisor` set (to change a repository, call `change`; a
-goal is for work they want to agree first or a survey, and its goal asks
-for an advisor), and any `goal` with both `agree` and `advisor` set (an
-advisor agrees nothing: set agree or advisor, not both), and the run
-goes on, as any refused host call does. A person who wants a survey alone gets a
-goal that asks its advisor and reports, changing nothing.
+asks its requester, is its survey before a plan. An advisor is all it
+takes, and only it takes one: a goal is the work its person asked for,
+and a goal under it would ask the goal, not the person, and be answered
+by it (8.2); a goal is where the work is planned, so an advisor asked
+for elsewhere leaves the work to be planned in a chat's reply. So one
+fact of the calling run, whether the root built it as a goal, decides
+both: the root refuses a goal's `goal` without `advisor` (a goal starts
+an advisor alone: set `advisor`, or make the change with `change`), and
+any other run's `goal` with `advisor` set (to change a repository, call
+`change`; a goal is for work they want to agree first or a survey, and
+its goal asks for an advisor), and any `goal` with both `agree` and
+`advisor` set (an advisor agrees nothing: set agree or advisor, not
+both), and the run goes on, as any refused host call does. A person who
+wants a survey alone gets a goal that asks its advisor and reports,
+changing nothing.
 
 ### 4.4 Result contracts
 
@@ -438,10 +436,10 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
 ### 4.6 Budget, models, waiting
 
 - **Budget:** the run's turns, spend and time, with its reserve of turns
-  and time for finishing (smith's `domain/run.md`, 9.1), from its charter
-  in configuration (designed, not built: at the task's revision); its spend is what its task has left, capped per run,
-  reserved at its claim, in the deployment's unit (jig's
-  `domain/hosts.md`, section 8).
+  and time for finishing (smith's `domain/run.md`, 9.1), from its
+  charter in configuration, at the task's revision; its spend is what
+  its task has left, capped per run, reserved at its claim, in the
+  deployment's unit (jig's `domain/hosts.md`, section 8).
 - **Models:** the main session's and those its sub-agents may use, each
   with its endpoint, window, output and prices (`../protocol/llm.md`,
   section 3): the task's LLM choice among those its charter allows,
@@ -569,7 +567,7 @@ changes no admission or grant. These bounded diagnostics are not store rows
 or client wire fields, and overflow drops a fact and increments the root's
 lost-fact count. Claude built-in Read refusals instead retain the permission
 message in the recorded tool result (smith's `protocol/programs.md`, 5.4).
-A reviewer still fails when it cannot judge the change.
+A reviewer fails when it cannot judge the change.
 
 
 ### 8.1 The configuring agent
@@ -590,7 +588,8 @@ a person says they work into a proposal of settings
     (a path in an adopted repository, with `read_file`; a pasted text);
   - to ask until it can propose, one question at a time, and to offer a
     rule as structure where temper's model has it, saying what it
-    guarantees and what it does not, as the draft's 4-hour cap does;
+    guarantees and what it does not, as the draft's dependency on a
+    designer does (`../draft/configuring.md`, section 2);
   - to propose once, against the newest revision it read, with a reason
     whose first line is the proposal's title and whose next lines say,
     under "temper enforces", each change of structure in the person's
@@ -626,13 +625,8 @@ a person says they work into a proposal of settings
 
 ### 8.2 Asking before the work
 
-A person who wants to agree a plan before anything is changed: the
-reference case's question to a requester and to the chat
-(`../draft/reference-case.md`, 4.2 and 7.2),
-and rung B0 of `../draft/v0.1.0.md`. Where the case keeps a
-question to the chat with the chat, which answers it or asks its person
-itself (`../draft/landing-model.md`, 3.4, J7 and J8), the route below is
-today's, until those land.
+A person who wants to agree a plan before anything is changed: rung B0
+of `../draft/v0.1.0.md`, 2.1.
 
 - **The work that waits asks; a change never does.** A change is
   decided work, asked for once what to change is agreed. Its agents,
@@ -666,13 +660,6 @@ today's, until those land.
   `domain/tasks.md`, section 9). The chat tells the person in words
   what its delegate waits on and that it waits in their inbox, then
   waits for their decision.
-- **Designed, not built (J7, J8):** the goal's question stays with the
-  chat (jig's `domain/tasks.md`, 8.5): the chat, woken by it, answers
-  from what it knows (its person's priorities, its notes), or asks its
-  person a question of its own in its own words, which is an entry of
-  the person's inbox, and answers the goal once it has the person's
-  answer. The rest of this section is today's route, which this
-  replaces once jig's rule is built.
 - Every Finite charter 1 run keeps `message` in smith's reserve; the owing fact is enforced at the root and is not known when the worker builds the charter.
 - **The goal asks its requester,** the chat, with `message` in the
   question form, before it calls `change`, and waits. jig puts the
@@ -714,91 +701,6 @@ today's, until those land.
 - **Its stories:** `suite::fuzzy::green_light` on fakes (testing.md, 2.4), and
   rung B0 walked on real backends (`../draft/v0.1.0.md`, 2.1).
 
-### 8.3 The golden: rung D
-
-v0.1.0's rung D (`../draft/v0.1.0.md`, section 3): the reference case's
-process told to the configuring agent in words, on real backends, its
-proposal scored against a golden and accepted, and rung C then run
-under the revision it made. Its walk is QA's (`../qa.md`); this section
-is what it walks with.
-
-- **The words,** `crates/temper/tests/fixtures/golden/words.md`: the
-  case's section 3 (`../draft/reference-case.md`) as its person would
-  say it, frozen with the case, in five paragraphs a QA driver types
-  into a configuring chat (`temper ctl chat start --template 3`), one
-  per turn: the cast and their models; the repositories, their gates
-  and app's tier; the tooling; the forge; how landings and their
-  aftermath go (section 3's settings table). No setting's name or
-  number appears in them. The agent's questions are answered from the
-  golden's notes, each answer a sentence the case already says.
-- **Each fact of section 3, sorted** as `../draft/configuring.md` 2
-  sorts a description:
-  - *settings,* scored: the charters' models and delegation by role;
-    the forge's change charter (kind 3, number 1); the landing rule
-    (kind 1) without the stock's agent-review gate, since the case's
-    reviews are delegates inside goals, not gates (its section 12);
-    a project's landing (kind 4: by turn; the project's `prepare`, run
-    in app, its home, preparing both repositories, the key the
-    default; dependencies joining a landing; app pinned to kit,
-    following kit's main; two stale proofs before a reservation;
-    suspects bisected; a red pausing nothing; a verification bound of
-    2 hours; findings on, the director triager and chooser, the tester's
-    charter; the person's questions on the forge); a repository's gates
-    (kind 5: kit's `check` and app's, `docs/` ignored, blocking, and
-    app's `browser` tier). Values the case does not give (retries,
-    areas, the review charter, hosts, resume, tool families) are not
-    scored;
-  - *rules,* which the reason lists under "your agents follow": D has
-    each part reviewed once; F starts from a finding with no designer;
-    an advisor is called once two tries have missed; `STATUS.md` is
-    generated from one file per part, by `prepare`; the director checks
-    every 2 hours, subscribing itself to a timer with its `subscribe`
-    tool (jig's `domain/tasks.md`, 8.3 and 8.4; `../draft/landing-model.md`,
-    3.1), which D's walk checks is built, citing it as a built
-    gap if not;
-  - *named, never proposed:* budgets, the person's (`temper ctl project
-    fund`);
-  - *setup, not the agent's:* app as the project's home (its
-    adoption), the owned Forgejo with dispatch-only workflows, and
-    hour 0 (P running, nothing held, no finding open, `browser` green),
-    which C's start establishes after D's acceptance.
-- **The golden,** `crates/temper/tests/fixtures/golden/reference-case.json`,
-  a file of its own, not the settings form: one entry per scored
-  setting, its kind, its scope (a repository by name, `kit` or `app`,
-  bound to its adoption's number at the walk), its number or role, the
-  fields the case gives with their values, and the case's sentence it
-  encodes. The models are scored by provider (Claude or GPT), the
-  workflows and the prepare command by the names C's fixture gives
-  them.
-- **Charters matched by role,** mechanically, from the proposal's
-  would-be settings (`temper ctl proposal show PROPOSAL --json`, each
-  value whole): the implementer is kind 3's number 1; the tester,
-  kind 4's tester charter; the coordinator, the charter of the
-  template the director's chat starts from; the advisor, the Claude
-  charter the coordinator may delegate to that none of these names;
-  each then compared on its main model's provider and on whether it
-  may delegate, and the advisor on its one-shot contract. A role with
-  no charter is a miss.
-- **Scored** by `tools/golden` in this repository, on the effective
-  settings the proposal would make (an unchanged default need not
-  appear in it), each entry's fields one line each: *match*; *miss*,
-  absent or otherwise; *extra*, a changed setting the golden lacks;
-  *gap*, a field of a kind not yet built when the walk runs (kinds 4
-  and 5 arrive field by field with `../draft/landing-model.md`'s gaps,
-  `../domain/landing.md` 13.1). Whether the reason names each gap and
-  lists each rule is read by the walk's QA session, a judgement it
-  records, not the tool's. D passes when every built field matches,
-  no extra changes structure the case never said, and every gap and
-  rule is named. A miss or an unnamed gap is a finding against the
-  agent's instructions or the pages it read.
-- **Then** the owner accepts with `--running stays`, and rung C starts
-  under the revision it made, its hour 0 set up as C's start says. D's
-  spend ceiling is the user's (temper#6).
-- **When:** once the agent lands (8.1) and C's acts can run. Until a
-  kind lands, its fields are gaps, so an early D measures the agent on
-  what exists. D is walked again when the agent's instructions or the
-  help's pages change (`../draft/configuring.md`, section 8).
-
 ## 9. The world
 
 smith's worlds test the agent itself (smith's documents, each section
@@ -835,6 +737,11 @@ host:
   it allows for the other families too, which the host part's budget
   (4.3) may force, and how a brief teaches an LLM when to delegate a task
   rather than a sub-agent.
+- **A goal's question kept with its chat** (jig's `domain/tasks.md`,
+  8.5): the chat, woken by it, would answer from what it knows (its
+  person's priorities, its notes), or ask its person a question of its
+  own and answer the goal once it has the answer, in place of 8.2's
+  route through the person's inbox. Default: 8.2's route.
 - **A cancel's grace:** jig's `cancel` takes one, if the run gives it
   (jig's `domain/engine.md`, 7.3); temper's takes none.
 - **A code graph** for a workspace (worker.md, section 12), as an MCP
