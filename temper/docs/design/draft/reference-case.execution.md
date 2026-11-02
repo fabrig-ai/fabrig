@@ -92,13 +92,13 @@ so weigh that before starting from it.
 | | Milestone | Executes | Needs | Walks (case steps) | State |
 |---|---|---|---|---|---|
 | M0 | Ground: the playground's reset closed out; fab's designers write the design | | | done 2026-11-02: the close-out landed; fab's designers write design with specs |
-| M1 | The goal's own branch | N3, N4, N15, N23; N22 in part | M0 | 1, 3, 7, 19 | cutting since 2026-11-02 20:42Z (plan `reference-m1`) |
+| M1 | The goal's own branch | N3, N4, N15, N23; N22 in part | M0 | 1, 3, 7, 19 | building (plan `reference-m1`, 24 tasks) |
 | M2 | The goal lands | N3 for L; N22's `mine` | M1 | 23, 24, 28 | not started |
 | M3 | Designers and the cut | N12, N13, N16, N19, N20 | M1 | 3, 4, 6, 22 | not started |
 | M4 | Surveys as sub-agents | N10 | M0 | 2, 5 | done: landed 2026-11-02 20:47Z (plan `reference-m4`); its walk folds into M3's |
 | M5 | Questions, and holds passed up | N1, N8 | M1 | 5, 9, 11, 14, 15, 18 | not started |
 | M6 | Early starts | N2, N14 | M1 | 4, 8, 10, 13, 17 | not started |
-| M7 | Jobs, the merge job, catching up | N6, N7 | M0; M1 for g, M2 for L | 12, 16, 21 | M7a building (plan `reference-m7a`); M7b not started |
+| M7 | Jobs, the merge job, catching up | N6, N7 | M0; M1 for g, M2 for L | 12, 16, 21 | M7a done: landed 2026-11-02 21:34Z (plan `reference-m7a`); M7b not started |
 | M8 | Tiers and verdicts on main | `after-landing.md`, 2 to 6; N5 for main | M0 | 25, 28 | building (plan `reference-m8`) |
 | M9 | Reds to the goal; g's tier | `after-landing.md`, 7; N5 for g; N22's `repairs` | M2, M8 | 20, 26, 27 | not started |
 | M10 | The case | N21; the reference's configuration whole | every one; rung B2 passed | 1 to 28 | not started |
@@ -147,11 +147,10 @@ section 14 it adds; Old code, the old branches it may start from.
   (`forge.md`, 8.2 steps 3 and 6, 8.7, section 10); a result's words
   carrying the producer's report (`forge.md`, 8.2 step 7).
 - **Builds:** jig (templates, holds, writer slots, wake policies,
-  limits); temper's forge connector and `change`; the landing rules as
-  settings of temper's kinds, out of `Config`'s `landing` member, so a
-  goal branches' rule stands beside main's (`../domain/root.md`, 5.5,
-  5.6 and 6; `forge.md`, 8.9; temper's `../protocol/configuration.md`,
-  13.2 and 13.3), as designed and not built.
+  limits); temper's forge connector and `change`; the landing rule for
+  goal branches beside main's, kept in the document's
+  `application.landing` (the rules as settings are M3's: the user,
+  2026-11-02).
 - **Configures:** the coordinator's charter, its first edition (a plan
   of changes G specifies itself, results and Left lists, the goal's
   end); the goal template for drafts; the coding agent's charter (Left
@@ -203,11 +202,16 @@ section 14 it adds; Old code, the old branches it may start from.
   against its charter's models); jig's `domain/core.md`, 7.1 (a plan's
   text in the repository's design).
 - **Builds:** temper's `change` and change procedure (a producer's
-  charter, an LLM choice per role); jig's check of them; the forge's
-  charters as settings of temper's kinds, out of `Config`'s
+  charter, an LLM choice per role); jig's check of them; temper's
+  kinds as settings, on jig's application settings (jig's
+  `domain/engine.md`, 17.5 to 17.7), built once for both: the landing
+  rules, out of `Config`'s `landing` member (`../domain/root.md`, 5.5,
+  5.6 and 6; `forge.md`, 8.9; temper's `../protocol/configuration.md`,
+  13.2 and 13.3), and the forge's charters, out of `Config`'s
   `forge_charter`, so a change's producer and foreman each take a
   charter of their own (`../domain/root.md`, 6; `forge.md`, 8.1 and 8.9;
-  temper's `../protocol/configuration.md`, 13.2); M4's sub-agents
+  temper's `../protocol/configuration.md`, 13.2), moved here from M1's
+  cut (the user, 2026-11-02); M4's sub-agents
   reachable from temper (fabrig/qa, 11-02): the box's smith profile
   declares one conversation, so every `sub_agent` is refused as too
   many, and `ctl`'s LLM choice for a task names no sub-agents.
