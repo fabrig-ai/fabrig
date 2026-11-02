@@ -20,7 +20,9 @@
   `RemoveForge` (`temper-client-view`'s `forge/forges.rs` `removal`),
   which 10's "Disconnecting a forge" leaves for later. A set up found
   unfinished offers Go on and Start over (`forge/connect.rs`
-  `Shown::Unfinished`). The playground's forge is listed while the
+  `Shown::Unfinished`). 5.4, 10: the welcome's Forgejo card opens its
+  Details, whose "Set up a Forgejo here" sends the set up, where "Run on
+  this machine" sent it at once. The playground's forge is listed while the
   playground runs, not while a demo's half holds, and 9's read `Demo` is
   the read `playground`. Each because forges are store records and the
   playground is reset (`temper/docs/design/draft/playground-reset.md`,

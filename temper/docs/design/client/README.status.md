@@ -29,7 +29,10 @@
   `playground_banner`). 3.5, 4.6, 8: a forge is removed, confirmed on
   Forges, by `RemoveForge`, answered `removed` or `remove_refused`; a set
   up found unfinished offers Go on and Start over (`forge/connect.rs`
-  `Shown::Unfinished`). 3.3: of the addresses, the forge's side is told
-  only of `Adopt`. Each because forges are store records and the
+  `Shown::Unfinished`). 3.5, 5.6: the welcome's Forgejo card opens its
+  Details, `work`, `hello` and `Default` in fields, and "Set up a
+  Forgejo here" sends the set up, where "Run on this machine" sent it at
+  once. 3.3: of the addresses, the forge's side is told only of
+  `Adopt`. Each because forges are store records and the
   playground is reset (`temper/docs/design/draft/playground-reset.md`, 3,
   4, 6).
