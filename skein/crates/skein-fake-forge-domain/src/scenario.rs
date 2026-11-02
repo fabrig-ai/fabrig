@@ -20,7 +20,7 @@ use crate::store::{Repository, fit_names, fit_numbers, fits};
 /// commit of its tree, and returns that commit.
 pub fn repository(domain: &mut Domain, config: &Config, setup: Setup) -> u64 {
     let limits = &config.limits;
-    let Setup { id, name, default, tree, labels, checks, workflows, protection, hooked } = setup;
+    let Setup { id, name, default, tree, labels, checks, mut workflows, protection, hooked } = setup;
     assert_ne!(id, 0, "a repository's forge id is nonzero");
     for (_, existing) in &domain.names {
         let repository = domain.repositories.get(*existing).expect("a named repository");
@@ -53,7 +53,7 @@ pub fn repository(domain: &mut Domain, config: &Config, setup: Setup) -> u64 {
         "workflows within the limits"
     );
     let mut workflow_files = skein_lib::Set::with_capacity(limits.workflows);
-    for workflow in &workflows {
+    for workflow in &mut workflows {
         fits(&workflow.file, limits.name_bytes).expect("workflow file within the limits");
         assert!(workflow_files.insert(copy_of(&workflow.file)).expect("bounded workflows"), "unique workflow files");
         fit_names(&workflow.jobs, limits.contexts, limits).expect("workflow jobs within the limits");
@@ -72,6 +72,14 @@ pub fn repository(domain: &mut Domain, config: &Config, setup: Setup) -> u64 {
                 "workflow status context fits"
             );
             assert!(jobs.insert(copy_of(job)).expect("bounded jobs"), "unique job names");
+        }
+        workflow.fails = crate::reports::normalize(&workflow.fails, limits).expect("failed ids fit");
+        workflow.flaky = crate::reports::normalize(&workflow.flaky, limits).expect("flaky ids fit");
+        if let Some(select) = &workflow.select {
+            fits(select, limits.name_bytes).expect("selection input fits");
+        }
+        if let Some(report) = &workflow.report {
+            fits(&report.artifact, limits.name_bytes).expect("artifact name fits");
         }
         if let Some(cue) = &workflow.cue {
             validate_cue(cue, limits);
@@ -297,6 +305,9 @@ fn validate_cue(cue: &Cue, limits: &crate::Limits) {
             assert!(crate::ci::template_bound(path) <= limits.name_bytes, "expanded path within the limits");
             fits(step, limits.name_bytes).expect("a step name within the limits");
             assert!(crate::ci::template_bound(log) <= limits.content_bytes, "expanded log within the limits");
+        }
+        Cue::Tests { path } => {
+            fits(path, limits.name_bytes).expect("cue path fits");
         }
         Cue::File { path, green } => {
             fits(path, limits.name_bytes).expect("a path within the limits");

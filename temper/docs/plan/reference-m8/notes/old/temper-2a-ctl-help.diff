@@ -1,0 +1,936 @@
+diff --git a/temper/crates/temper-client-tools/src/jig/argv.rs b/temper/crates/temper-client-tools/src/jig/argv.rs
+index ab1e0599f..a90b9f119 100644
+--- a/temper/crates/temper-client-tools/src/jig/argv.rs
++++ b/temper/crates/temper-client-tools/src/jig/argv.rs
+@@ -631,9 +631,6 @@ fn check_amend(call: &Call, limits: &Limits) -> Result<(), Usage> {
+             return Err(Usage::Twice { argument: u8::try_from(second).expect("amend argument") });
+         }
+     }
+-    if let Some(Value::Text(text)) = crate::jig::call::value(call, 4) {
+-        deadline(text).ok_or(Usage::Kind { argument: 4 })?;
+-    }
+     if let Some(priority) = crate::jig::call::number(call, 2) {
+         u32::try_from(priority).or(Err(Usage::Kind { argument: 2 }))?;
+     }
+diff --git a/temper/crates/temper-client-tools/src/jig/argv/value.rs b/temper/crates/temper-client-tools/src/jig/argv/value.rs
+index ca73749b0..3ade342ff 100644
+--- a/temper/crates/temper-client-tools/src/jig/argv/value.rs
++++ b/temper/crates/temper-client-tools/src/jig/argv/value.rs
+@@ -64,6 +64,10 @@ pub(super) fn valid(
+             };
+             !bytes.is_empty()
+         }
++        Kind::Time => {
++            let Value::Text(bytes) = value else { return Err(Usage::Kind { argument }) };
++            super::deadline(bytes).is_some()
++        }
+         Kind::Duration => return valid_duration(spec, value, argument, limits),
+         Kind::Proposal => {
+             let Value::Proposal(_) = value else {
+@@ -147,6 +151,10 @@ pub(crate) fn decode(table: &[&Tool], kind: Kind, bounds: Bound, word: &[u8]) ->
+             b"priority" => QueryOrder::Priority,
+             _ => return None,
+         }),
++        Kind::Time => {
++            super::deadline(word)?;
++            Value::Text(Box::from(word))
++        }
+         Kind::Duration => Value::Duration(duration(word)?),
+         Kind::Proposal => {
+             let (tag, rest) = word.split_first()?;
+@@ -308,7 +316,7 @@ fn written(result: Result<(), Overflow>) -> Result<(), Unwritten> {
+     }
+ }
+ 
+-fn hexadecimal(bytes: &[u8]) -> Result<Box<[u8]>, Unwritten> {
++pub(crate) fn hexadecimal(bytes: &[u8]) -> Result<Box<[u8]>, Unwritten> {
+     let size = bytes.len().checked_mul(2).ok_or(Unwritten::Overflow(Overflow))?;
+     let mut hex = Writer::new(size);
+     for byte in bytes {
+diff --git a/temper/crates/temper-client-tools/src/jig/help.rs b/temper/crates/temper-client-tools/src/jig/help.rs
+index a6cfb70c9..876e67dd7 100644
+--- a/temper/crates/temper-client-tools/src/jig/help.rs
++++ b/temper/crates/temper-client-tools/src/jig/help.rs
+@@ -140,6 +140,7 @@ fn argument_type(kind: Kind, out: &mut Writer) -> Result<(), Overflow> {
+         Kind::Word { set } => return choices(set, &[], out),
+         Kind::Text | Kind::Literal => b"text",
+         Kind::File => b"a file",
++        Kind::Time => b"a UTC time to the minute, as 2026-10-27T21:00Z",
+         Kind::Duration => b"a duration: seconds, or a number with s, m or h",
+         Kind::Proposal => b"a proposal, tN/K or pN/K",
+         Kind::Digest => b"a digest, as a read prints it",
+diff --git a/temper/crates/temper-client-tools/src/jig/json.rs b/temper/crates/temper-client-tools/src/jig/json.rs
+index 119bbce76..8e6ac5adc 100644
+--- a/temper/crates/temper-client-tools/src/jig/json.rs
++++ b/temper/crates/temper-client-tools/src/jig/json.rs
+@@ -239,6 +239,7 @@ fn decode_value(table: &[&Tool], doc: &Document, at: u32, spec: &Argument, limit
+         | Kind::Text
+         | Kind::NamedNumber { .. }
+         | Kind::Literal
++        | Kind::Time
+         | Kind::File
+         | Kind::Proposal
+         | Kind::Digest
+@@ -390,6 +391,7 @@ fn kind_word(kind: Kind) -> &'static [u8] {
+         Kind::Text => b"text",
+         Kind::Literal => b"literal",
+         Kind::File => b"file",
++        Kind::Time => b"time",
+         Kind::Duration => b"duration",
+         Kind::Proposal => b"proposal",
+         Kind::Digest => b"digest",
+@@ -497,6 +499,7 @@ fn encode_argument(spec: &Argument, limits: &Limits, out: &mut Encoder) {
+         | Kind::Count
+         | Kind::Text
+         | Kind::Literal
++        | Kind::Time
+         | Kind::File
+         | Kind::Duration
+         | Kind::Proposal
+diff --git a/temper/crates/temper-client-tools/src/jig/render/document/clock.rs b/temper/crates/temper-client-tools/src/jig/render/document/clock.rs
+index 5e6739459..e04a81a22 100644
+--- a/temper/crates/temper-client-tools/src/jig/render/document/clock.rs
++++ b/temper/crates/temper-client-tools/src/jig/render/document/clock.rs
+@@ -27,7 +27,7 @@ pub(crate) fn deadline(wall: Wall, out: &mut Text) {
+     super::utc(wall, out);
+     out.put(b" UTC");
+ }
+-pub(super) fn minute(wall: Wall, out: &mut Text) {
++pub(crate) fn minute(wall: Wall, out: &mut Text) {
+     let (year, month, day) = civil(wall);
+     out.number(year);
+     out.put(b"-");
+diff --git a/temper/crates/temper-client-tools/src/jig/rows.rs b/temper/crates/temper-client-tools/src/jig/rows.rs
+index c648cbcaa..769918ac8 100644
+--- a/temper/crates/temper-client-tools/src/jig/rows.rs
++++ b/temper/crates/temper-client-tools/src/jig/rows.rs
+@@ -486,7 +486,7 @@ pub const AMEND: Tool = Tool {
+         flag(b"rev", b"REV", Kind::Number, Optional, b"The spec revision the task prints; not needed for its priority alone"),
+         flag(b"priority", b"PRIORITY", Kind::Number, Optional, b"Track it at this priority"),
+         switch(b"untracked", b"Stop tracking it"),
+-        flag(b"deadline", b"TIME", Kind::Literal, Optional, b"Its new deadline, as 2026-10-24T17:00Z"),
++        flag(b"deadline", b"TIME", Kind::Time, Optional, b"Its new deadline, as 2026-10-24T17:00Z"),
+         switch(b"no-deadline", b"Remove its deadline"),
+         flag(b"instructions", b"FILE", Kind::File, Optional, b"A file of its whole instructions, or -; an empty file removes them"),
+         flag(b"spec", b"FILE", Kind::File, Optional, b"A file of its spec's words, or -"),
+diff --git a/temper/crates/temper-client-tools/src/jig/table.rs b/temper/crates/temper-client-tools/src/jig/table.rs
+index 90d88d66e..3ce53421c 100644
+--- a/temper/crates/temper-client-tools/src/jig/table.rs
++++ b/temper/crates/temper-client-tools/src/jig/table.rs
+@@ -81,6 +81,8 @@ pub enum Kind {
+     Literal,
+     File,
+     Duration,
++    /// UTC Gregorian time to the minute.
++    Time,
+     Proposal,
+     Digest,
+     Condition,
+@@ -118,6 +120,7 @@ pub fn bound(argument: &Argument, limits: &Limits) -> Bound {
+         Kind::Number
+         | Kind::File
+         | Kind::Duration
++        | Kind::Time
+         | Kind::Word { .. }
+         | Kind::Proposal
+         | Kind::Digest
+diff --git a/temper/crates/temper-client-tools/src/landing.rs b/temper/crates/temper-client-tools/src/landing.rs
+index e8bcc333b..6b8851bef 100644
+--- a/temper/crates/temper-client-tools/src/landing.rs
++++ b/temper/crates/temper-client-tools/src/landing.rs
+@@ -42,6 +42,8 @@ pub const LIST: Tool = Tool {
+     forms: &[&[
+         flag(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project"),
+         switch(b"ended", b"Also the landings that ended"),
++        flag(b"newer-than", b"TIME", Kind::Time, Optional, b"Landing branch moves seen after this time"),
++        flag(b"after", b"CURSOR", Kind::Cursor, Optional, b"Read on from the preceding page"),
+     ]],
+     keyed: Keyed::Never,
+     area: 6,
+@@ -145,29 +147,56 @@ fn open(watch: &mut Watching, limits: &Limits, out: &mut Queue<Out>) {
+     out.push(Out::Client {
+         event: Event::Watch {
+             handle,
+-            subject: subject(
++            subject: subject_page(
+                 watch.task,
+                 watch.project.expect("resolved project"),
+                 value(&watch.called.call, 1).is_some() && watch.task.is_none(),
++                if watch.task.is_none() { newer_than(&watch.called.call) } else { None },
++                if watch.task.is_none() { jig::call::cursor(&watch.called.call, 3) } else { None },
+                 limits,
+             ),
+         },
+     });
+ }
++#[cfg(test)]
+ pub(crate) fn subject(task: Option<u64>, project: u32, ended: bool, limits: &Limits) -> Watchable {
++    subject_page(task, project, ended, None, None, limits)
++}
++fn newer_than(call: &jig::call::Call) -> Option<skein_lib::Wall> {
++    match value(call, 2) {
++        Some(Value::Text(bytes)) => jig::argv::deadline(bytes),
++        _ => None,
++    }
++}
++#[expect(clippy::manual_map, reason = "the foundation uses explicit matches without closures")]
++fn wall_nanos(wall: Option<skein_lib::Wall>) -> Option<u64> {
++    match wall {
++        Some(wall) => Some(wall.as_nanos()),
++        None => None,
++    }
++}
++fn subject_page(
++    task: Option<u64>,
++    project: u32,
++    ended: bool,
++    newer_than: Option<skein_lib::Wall>,
++    after: Option<c::Cursor>,
++    limits: &Limits,
++) -> Watchable {
++    let newer_than = wall_nanos(newer_than);
+     let limits = forge::wire_limits(&limits.domain.forge).expect("checked limits");
+     let watch = match task {
+         Some(task) => {
+             w::Watch::Landing(w::LandingSubject::new(&limits, w::LandingSubjectParts { task }).expect("subject"))
+         }
+         None => w::Watch::Landings(
+-            w::LandingsSubject::new(&limits, w::LandingsSubjectParts { project, ended }).expect("subject"),
++            w::LandingsSubject::new(&limits, w::LandingsSubjectParts { project, ended, newer_than }).expect("subject"),
+         ),
+     };
+     let watching = w::Watching::new(&limits, w::WatchingParts { watch }).expect("watch");
+     Watchable::Family {
+         scope: c::Scope::Project(project),
+-        window: c::Window { rows: 0, after: None },
++        window: c::Window { rows: 32, after },
+         record: jig_client::Family {
+             family: wire::FORGE,
+             version: wire::CLIENT_VERSION,
+@@ -198,6 +227,9 @@ fn gone(watch: &Watching, limits: &Limits) -> jig::Printed {
+             &w::LandingsPanel::new(
+                 &w::CEILINGS,
+                 w::LandingsPanelParts {
++                    newer_than: wall_nanos(newer_than(&watch.called.call)),
++                    logged: skein_lib::List::with_capacity(0),
++                    after: None,
+                     project: watch.project.expect("resolved project"),
+                     turn: None,
+                     landings: skein_lib::List::with_capacity(0),
+@@ -206,6 +238,7 @@ fn gone(watch: &Watching, limits: &Limits) -> jig::Printed {
+             .expect("empty list"),
+             watch.called.json,
+             limits,
++            &watch.called.call,
+         ),
+     }
+ }
+@@ -271,7 +304,7 @@ pub(crate) fn told(state: &mut Landings, client: &Client, env: &Env<Limits>, tol
+                         },
+                         None => match wire::decode_landings_panel(&record.bytes, &limits) {
+                             Some(panel) if Some(panel.project()) == watch.project => {
+-                                print_list(&panel, watch.called.json, &env.limits)
++                                print_list(&panel, watch.called.json, &env.limits, &watch.called.call)
+                             }
+                             _ => render::failure(b"unexpected landings document", watch.called.json, 1),
+                         },
+@@ -436,7 +469,12 @@ fn text(panel: &w::LandingPanel, out: &mut Text) {
+     out.number(u64::from(panel.stale_proofs()));
+     out.put(b"\n");
+ }
+-fn list_text(panel: &w::LandingsPanel, out: &mut Text) {
++fn list_text(panel: &w::LandingsPanel, call: Option<&jig::call::Call>, out: &mut Text) {
++    if panel.newer_than().is_some() {
++        logged_text(panel, call, out);
++        continuation(panel, call, out);
++        return;
++    }
+     out.put(b"landings of project ");
+     out.number(u64::from(panel.project()));
+     out.put(b" \xc2\xb7 turn: ");
+@@ -495,6 +533,87 @@ fn list_text(panel: &w::LandingsPanel, out: &mut Text) {
+         }
+         out.put(b"\n");
+     }
++    continuation(panel, call, out);
++}
++fn continuation(panel: &w::LandingsPanel, call: Option<&jig::call::Call>, out: &mut Text) {
++    let Some(after) = panel.after() else {
++        out.put(b"no more\n");
++        return;
++    };
++    let Some(call) = call else { return };
++    let mut call = call.clone();
++    *call.values.get_mut(3).expect("list continuation argument") =
++        Some(jig::call::Values::One(Value::Cursor(after.clone())));
++    let mut argv = skein_lib::List::with_capacity(64);
++    jig::argv::back(crate::table::TOOLS, &call, &mut argv).expect("parsed continuation call");
++    out.put(b"read on with: ");
++    for (index, word) in argv.iter().enumerate() {
++        if index != 0 {
++            out.put(b" ");
++        }
++        render::lists::argument(word, out);
++    }
++    out.put(b"\n");
++}
++fn minute(nanos: u64, out: &mut Text) {
++    render::document::clock::minute(skein_lib::Wall::from_nanos(nanos), out);
++}
++fn logged_text(panel: &w::LandingsPanel, call: Option<&jig::call::Call>, out: &mut Text) {
++    out.put(b"landings of project ");
++    let project = match call {
++        Some(call) => value(call, 0),
++        None => None,
++    };
++    match project {
++        Some(Value::Project(jig::call::Project::Name(name))) => out.put(name),
++        _ => out.number(u64::from(panel.project())),
++    }
++    out.put(b" since ");
++    minute(panel.newer_than().expect("history cutoff"), out);
++    out.put(b"\n");
++    for entry in panel.logged() {
++        out.put(b"landed ");
++        out.put(hex(entry.commit()).get(..12).expect("commit prefix"));
++        out.put(b" on ");
++        out.put(entry.repository());
++        out.put(b" at ");
++        minute(entry.seen(), out);
++        out.put(b" \xc2\xb7 ");
++        if entry.changes().is_empty() {
++            out.put(b"from outside temper");
++        } else {
++            out.put(b"change ");
++            for (index, change) in entry.changes().iter().enumerate() {
++                if index != 0 {
++                    out.put(b", ");
++                }
++                out.number(*change);
++            }
++        }
++        out.put(b" \xc2\xb7 ");
++        if entry.verdicts().is_empty() {
++            out.put(b"no tier");
++        }
++        for (index, mark) in entry.verdicts().iter().enumerate() {
++            if index != 0 {
++                out.put(b", ");
++            }
++            out.put(mark.tier());
++            out.put(b" ");
++            match mark.verdict() {
++                w::LoggedVerdict::Verifying => out.put(b"verifying"),
++                w::LoggedVerdict::Cleared => out.put(b"cleared"),
++                w::LoggedVerdict::Red(red) => {
++                    out.put(b"red ");
++                    match red.tests() {
++                        Some(tests) => out.number(u64::from(*tests)),
++                        None => out.put(b"many"),
++                    }
++                }
++            }
++        }
++        out.put(b"\n");
++    }
+ }
+ fn optional_number(value: Option<&u64>, out: &mut Encoder) {
+     match value {
+@@ -665,13 +784,62 @@ fn encode_list(panel: &w::LandingsPanel, out: &mut Encoder) {
+         out.object_end();
+     }
+     out.array_end();
++    out.key(b"newer_than");
++    optional_number(panel.newer_than().as_ref(), out);
++    out.key(b"logged");
++    out.array_start();
++    for entry in panel.logged() {
++        out.object_start();
++        out.key(b"commit");
++        out.string(&hex(entry.commit()));
++        out.key(b"repository");
++        out.string(entry.repository());
++        out.key(b"seen");
++        out.unsigned(entry.seen());
++        out.key(b"changes");
++        out.array_start();
++        for change in entry.changes() {
++            out.unsigned(*change);
++        }
++        out.array_end();
++        out.key(b"verdicts");
++        out.object_start();
++        for mark in entry.verdicts() {
++            out.key(mark.tier());
++            match mark.verdict() {
++                w::LoggedVerdict::Verifying => out.string(b"verifying"),
++                w::LoggedVerdict::Cleared => out.string(b"cleared"),
++                w::LoggedVerdict::Red(red) => {
++                    out.object_start();
++                    out.key(b"red");
++                    optional_number_u32(red.tests().as_ref(), out);
++                    out.object_end();
++                }
++            }
++        }
++        out.object_end();
++        out.object_end();
++    }
++    out.array_end();
++    out.key(b"after");
++    match panel.after() {
++        Some(bytes) => out.string(&jig::argv::value::hexadecimal(bytes).expect("bounded cursor")),
++        None => out.null(),
++    }
+     out.object_end();
+ }
++fn optional_number_u32(value: Option<&u32>, out: &mut Encoder) {
++    match value {
++        Some(value) => out.unsigned(u64::from(*value)),
++        None => out.null(),
++    }
++}
+ fn render_panel(
+     one: Option<&w::LandingPanel>,
+     list: Option<&w::LandingsPanel>,
+     json: bool,
+     limits: &Limits,
++    call: Option<&jig::call::Call>,
+ ) -> jig::Printed {
+     let bytes = if json {
+         let bounds = skein_json::writer::Limits { depth: 10, length: limits.tools.text };
+@@ -693,13 +861,13 @@ fn render_panel(
+         let mut measure = Text::measure();
+         match (one, list) {
+             (Some(panel), None) => text(panel, &mut measure),
+-            (None, Some(panel)) => list_text(panel, &mut measure),
++            (None, Some(panel)) => list_text(panel, call, &mut measure),
+             _ => unreachable!("one panel"),
+         }
+         let mut out = Text::writing_exact(measure);
+         match (one, list) {
+             (Some(panel), None) => text(panel, &mut out),
+-            (None, Some(panel)) => list_text(panel, &mut out),
++            (None, Some(panel)) => list_text(panel, call, &mut out),
+             _ => unreachable!("one panel"),
+         }
+         out.finish()
+@@ -710,8 +878,13 @@ fn render_panel(
+     jig::Printed { file: jig::FileEnd::Keep, status: 0, stdout: bytes, stderr: Box::default() }
+ }
+ pub(crate) fn print(panel: &w::LandingPanel, json: bool, limits: &Limits) -> jig::Printed {
+-    render_panel(Some(panel), None, json, limits)
++    render_panel(Some(panel), None, json, limits, None)
+ }
+-pub(crate) fn print_list(panel: &w::LandingsPanel, json: bool, limits: &Limits) -> jig::Printed {
+-    render_panel(None, Some(panel), json, limits)
++pub(crate) fn print_list(
++    panel: &w::LandingsPanel,
++    json: bool,
++    limits: &Limits,
++    call: &jig::call::Call,
++) -> jig::Printed {
++    render_panel(None, Some(panel), json, limits, Some(call))
+ }
+diff --git a/temper/crates/temper-client-tools/src/limits.rs b/temper/crates/temper-client-tools/src/limits.rs
+index bd6e0de7d..844f7d025 100644
+--- a/temper/crates/temper-client-tools/src/limits.rs
++++ b/temper/crates/temper-client-tools/src/limits.rs
+@@ -43,7 +43,7 @@ pub fn client() -> client::Limits {
+             watches: 16, // Includes the shared me watch.
+             turn_bytes: 1_048_576,
+             backoff: jig_client::Backoff { first: Duration::from_secs(1), most: Duration::from_secs(30) },
+-            authority: 14,
++            authority: 14, // Must hold the engine's complete stock authority list.
+             heartbeat: Duration::from_secs(30),
+             reads: 16,
+             parts: 16,
+diff --git a/temper/crates/temper-client-tools/src/tests/golden/help_landing_list.txt b/temper/crates/temper-client-tools/src/tests/golden/help_landing_list.txt
+index 1dafc92b1..dca29e094 100644
+--- a/temper/crates/temper-client-tools/src/tests/golden/help_landing_list.txt
++++ b/temper/crates/temper-client-tools/src/tests/golden/help_landing_list.txt
+@@ -1,6 +1,8 @@
+-landing list --project PROJECT [--ended]
++landing list --project PROJECT [--ended] [--newer-than TIME] [--after CURSOR]
+   --project PROJECT: a project's name or number; required. The project
+   --ended: a switch. Also the landings that ended
++  --newer-than TIME: a UTC time to the minute, as 2026-10-27T21:00Z; optional. Landing branch moves seen after this time
++  --after CURSOR: a cursor, as a read prints it; optional. Read on from the preceding page
+ List a project's landings, the turn's holder first, then newest first
+ Prints: `landings of project PROJECT`, the turn, and a line per landing: its task, phase, changes and repositories
+ --json: the record landings.
+diff --git a/temper/crates/temper-client-tools/src/tests/golden/help_task_amend.txt b/temper/crates/temper-client-tools/src/tests/golden/help_task_amend.txt
+index e4ce54316..ad9790090 100644
+--- a/temper/crates/temper-client-tools/src/tests/golden/help_task_amend.txt
++++ b/temper/crates/temper-client-tools/src/tests/golden/help_task_amend.txt
+@@ -3,7 +3,7 @@ task amend TASK [--rev REV] [--priority PRIORITY | --untracked] [--deadline TIME
+   --rev REV: a number; optional. The spec revision the task prints; not needed for its priority alone
+   --priority PRIORITY: a number; optional. Track it at this priority
+   --untracked: a switch. Stop tracking it
+-  --deadline TIME: text, at most 1048576 bytes; optional. Its new deadline, as 2026-10-24T17:00Z
++  --deadline TIME: a UTC time to the minute, as 2026-10-27T21:00Z; optional. Its new deadline, as 2026-10-24T17:00Z
+   --no-deadline: a switch. Remove its deadline
+   --instructions FILE: a file, at most 1048576 bytes; optional. A file of its whole instructions, or -; an empty file removes them
+   --spec FILE: a file, at most 1048576 bytes; optional. A file of its spec's words, or -
+diff --git a/temper/crates/temper-client-tools/src/tests/golden/landings_json.txt b/temper/crates/temper-client-tools/src/tests/golden/landings_json.txt
+index 11b24498c..d8f356db5 100644
+--- a/temper/crates/temper-client-tools/src/tests/golden/landings_json.txt
++++ b/temper/crates/temper-client-tools/src/tests/golden/landings_json.txt
+@@ -1 +1 @@
+-{"project":1,"turn":61,"landings":[{"task":60,"phase":"landed","changes":[50],"repositories":["work/hello"],"landed":["1111111111111111111111111111111111111111111111111111111111111111"]},{"task":61,"phase":"turn","changes":[51],"repositories":["work/hello"],"landed":[]}]}
+\ No newline at end of file
++{"project":1,"turn":61,"landings":[{"task":60,"phase":"landed","changes":[50],"repositories":["work/hello"],"landed":["1111111111111111111111111111111111111111111111111111111111111111"]},{"task":61,"phase":"turn","changes":[51],"repositories":["work/hello"],"landed":[]}],"newer_than":null,"logged":[],"after":null}
+\ No newline at end of file
+diff --git a/temper/crates/temper-client-tools/src/tests/golden/landings_live.txt b/temper/crates/temper-client-tools/src/tests/golden/landings_live.txt
+index 611e834e5..bf7b7b398 100644
+--- a/temper/crates/temper-client-tools/src/tests/golden/landings_live.txt
++++ b/temper/crates/temper-client-tools/src/tests/golden/landings_live.txt
+@@ -1,3 +1,4 @@
+ landings of project 1 · turn: landing 61
+ landing 61 · in its turn · change 51 · work/hello
+ landing 60 · landed · change 50 · work/hello · main at 111111111111
++no more
+diff --git a/temper/crates/temper-client-tools/src/tests/golden/logged_landings.txt b/temper/crates/temper-client-tools/src/tests/golden/logged_landings.txt
+new file mode 100644
+index 000000000..c64d9eb54
+--- /dev/null
++++ b/temper/crates/temper-client-tools/src/tests/golden/logged_landings.txt
+@@ -0,0 +1,4 @@
++landings of project 1 since 2026-10-27T21:00Z
++landed 020202020202 on o/app at 2026-10-27T21:02Z · from outside temper · no tier
++landed 010101010101 on o/app at 2026-10-27T21:01Z · change 12 · fuzzy cleared, browser red 2
++no more
+diff --git a/temper/crates/temper-client-tools/src/tests/golden/logged_landings_json.txt b/temper/crates/temper-client-tools/src/tests/golden/logged_landings_json.txt
+new file mode 100644
+index 000000000..fd27b9b97
+--- /dev/null
++++ b/temper/crates/temper-client-tools/src/tests/golden/logged_landings_json.txt
+@@ -0,0 +1 @@
++{"project":1,"turn":null,"landings":[],"newer_than":1793134800000000000,"logged":[{"commit":"0202020202020202020202020202020202020202020202020202020202020202","repository":"o/app","seen":1793134920000000000,"changes":[],"verdicts":{}},{"commit":"0101010101010101010101010101010101010101010101010101010101010101","repository":"o/app","seen":1793134860000000000,"changes":[12],"verdicts":{"fuzzy":"cleared","browser":{"red":2}}}],"after":null}
+\ No newline at end of file
+diff --git a/temper/crates/temper-client-tools/src/tests/help.rs b/temper/crates/temper-client-tools/src/tests/help.rs
+index b26126daa..3b78e7c1d 100644
+--- a/temper/crates/temper-client-tools/src/tests/help.rs
++++ b/temper/crates/temper-client-tools/src/tests/help.rs
+@@ -109,7 +109,7 @@ const USAGES: &[&[u8]] = &[
+     b"project fund PROJECT AMOUNT [--role ROLE] --key KEY\n",
+     b"hold lift HOLD --rev REV [--with-tasks] [--key KEY]\n",
+     b"landing show TASK [--project PROJECT]\n",
+-    b"landing list --project PROJECT [--ended]\n",
++    b"landing list --project PROJECT [--ended] [--newer-than TIME] [--after CURSOR]\n",
+ ];
+ #[test]
+ fn a_tools_usage_reads_as_the_design_writes_it() {
+diff --git a/temper/crates/temper-client-tools/src/tests/landing.rs b/temper/crates/temper-client-tools/src/tests/landing.rs
+index 83b93300c..67b3778e8 100644
+--- a/temper/crates/temper-client-tools/src/tests/landing.rs
++++ b/temper/crates/temper-client-tools/src/tests/landing.rs
+@@ -210,7 +210,18 @@ fn list(turn: Option<u64>, tasks: &[u64]) -> w::LandingsPanel {
+             )
+             .unwrap();
+     }
+-    w::LandingsPanel::new(&w::CEILINGS, w::LandingsPanelParts { project: 1, turn, landings }).unwrap()
++    w::LandingsPanel::new(
++        &w::CEILINGS,
++        w::LandingsPanelParts {
++            newer_than: None,
++            logged: List::with_capacity(0),
++            after: None,
++            project: 1,
++            turn,
++            landings,
++        },
++    )
++    .unwrap()
+ }
+ fn read_list(panel: &w::LandingsPanel, json: bool) -> jig::Printed {
+     let mut root = f::signed_in(f::PARTY);
+@@ -241,7 +252,7 @@ fn landings_print_the_turns_holder_first_then_newest() {
+ fn landings_with_none_print_no_landings() {
+     assert_eq!(
+         read_list(&list(None, &[]), false).stdout.as_ref(),
+-        "landings of project 1 · turn: free\nno landings\n".as_bytes()
++        "landings of project 1 · turn: free\nno landings\nno more\n".as_bytes()
+     );
+     for json in [false, true] {
+         let mut root = f::signed_in(f::PARTY);
+@@ -363,7 +374,7 @@ fn a_line_can_name_several_changes_repositories_and_landed_commits() {
+     parts.landings = List::with_capacity(1);
+     parts.landings.push(w::LandingLine::new(&w::CEILINGS, line).unwrap()).unwrap();
+     let answer = read_list(&w::LandingsPanel::new(&w::CEILINGS, parts).unwrap(), false);
+-    assert_eq!(answer.stdout.as_ref(), "landings of project 1 · turn: free\nlanding 61 · in its turn · change 51, 52 · work/hello, work/lib · main at 111111111111 · main at 222222222222\n".as_bytes());
++    assert_eq!(answer.stdout.as_ref(), "landings of project 1 · turn: free\nlanding 61 · in its turn · change 51, 52 · work/hello, work/lib · main at 111111111111 · main at 222222222222\nno more\n".as_bytes());
+ }
+ 
+ #[test]
+@@ -463,3 +474,128 @@ fn a_refused_landing_or_landings_watch_prints_not_allowed() {
+         }
+     }
+ }
++
++const CUTOFF: &str = "2026-10-27T21:00Z";
++fn logged_page(count: u32, after: Option<Box<[u8]>>) -> w::LandingsPanel {
++    let mut logged = List::with_capacity(count);
++    for number in (1..=count).rev() {
++        let mut changes = List::with_capacity(1);
++        let mut verdicts = List::with_capacity(2);
++        if number % 2 != 0 {
++            changes.push(12).unwrap();
++            for (tier, verdict) in [
++                (b"fuzzy".as_slice(), w::LoggedVerdict::Cleared),
++                (
++                    b"browser".as_slice(),
++                    w::LoggedVerdict::Red(
++                        w::LoggedRed::new(&w::CEILINGS, w::LoggedRedParts { tests: Some(2) }).unwrap(),
++                    ),
++                ),
++            ] {
++                verdicts
++                    .push(w::LoggedMark::new(&w::CEILINGS, w::LoggedMarkParts { tier: tier.into(), verdict }).unwrap())
++                    .unwrap();
++            }
++        }
++        logged
++            .push(
++                w::LoggedLine::new(
++                    &w::CEILINGS,
++                    w::LoggedLineParts {
++                        commit: [u8::try_from(number).unwrap(); 32],
++                        repository: b"o/app".as_slice().into(),
++                        seen: jig::argv::deadline(CUTOFF.as_bytes())
++                            .unwrap()
++                            .as_nanos()
++                            .checked_add(u64::from(number).checked_mul(60_000_000_000).unwrap())
++                            .unwrap(),
++                        changes,
++                        verdicts,
++                    },
++                )
++                .unwrap(),
++            )
++            .unwrap();
++    }
++    w::LandingsPanel::new(
++        &w::CEILINGS,
++        w::LandingsPanelParts {
++            project: 1,
++            turn: None,
++            landings: List::with_capacity(0),
++            newer_than: Some(jig::argv::deadline(CUTOFF.as_bytes()).unwrap().as_nanos()),
++            logged,
++            after,
++        },
++    )
++    .unwrap()
++}
++fn read_logged(panel: &w::LandingsPanel, json: bool, after: Option<&str>) -> jig::Printed {
++    let mut root = f::signed_in(f::PARTY);
++    let mut argv = List::with_capacity(9);
++    for word in ["landing", "list", "--project", "1", "--newer-than", CUTOFF] {
++        argv.push(word).unwrap();
++    }
++    if json {
++        argv.push("--json").unwrap();
++    }
++    if let Some(after) = after {
++        argv.push("--after").unwrap();
++        argv.push(after).unwrap();
++    }
++    let call = root.submit(argv.as_slice());
++    let mut subject = None;
++    for named in root.watches.values() {
++        if let client::Watchable::Family { .. } = named {
++            subject = Some(named.clone());
++            break;
++        }
++    }
++    deliver(&mut root, subject.unwrap(), wire::landings_panel(panel));
++    root.answer(call).unwrap()
++}
++#[test]
++fn newer_than_takes_a_utc_minute() {
++    let call = f::call(&["landing", "list", "--project", "1", "--newer-than", CUTOFF]);
++    assert_eq!(f::from_json(&jig::json::write_call(crate::table::TOOLS, &call).unwrap()), call);
++    for time in ["2026-10-27T21:00:01Z", "2026-10-27T21:00+00:00", "2026-10-27"] {
++        assert_eq!(
++            f::parse(&["landing", "list", "--project", "1", "--newer-than", time]),
++            Err(jig::argv::Usage::Kind { argument: 2 })
++        );
++    }
++}
++#[test]
++fn deadline_takes_the_same_kind() {
++    for (tool, name) in [(jig::rows::AMEND, b"deadline".as_slice()), (landing::LIST, b"newer-than")] {
++        let mut kind = None;
++        for argument in tool.forms[0] {
++            if argument.name == name {
++                kind = Some(argument.kind);
++            }
++        }
++        assert_eq!(kind, Some(jig::table::Kind::Time));
++    }
++    f::call(&["task", "amend", "41", "--rev", "7", "--deadline", CUTOFF, "because"]);
++}
++#[test]
++fn logged_pages_print_their_changes_times_and_verdicts() {
++    f::check_golden("logged_landings", &read_logged(&logged_page(2, None), false, None).stdout);
++}
++#[test]
++fn logged_pages_json_names_each_tiers_mark() {
++    f::check_golden("logged_landings_json", &read_logged(&logged_page(2, None), true, None).stdout);
++}
++#[test]
++fn a_page_past_32_lines_ends_with_its_cursor_and_the_next_reads_on() {
++    // Jig's Number document cursor: tag 0 and offset 32, little endian.
++    const CURSOR: &str = "002000000000000000";
++    let cursor = [0, 32, 0, 0, 0, 0, 0, 0, 0];
++    let first = read_logged(&logged_page(32, Some(Box::new(cursor))), false, None);
++    assert!(first.stdout.ends_with(
++        b"read on with: landing list --project 1 --newer-than 2026-10-27T21:00Z --after 002000000000000000\n"
++    ));
++    let second = read_logged(&logged_page(1, None), false, Some(CURSOR));
++    assert!(second.stdout.ends_with(b"no more\n"));
++    assert_eq!(second.status, 0);
++}
+diff --git a/temper/crates/temper-docs/src/lib.rs b/temper/crates/temper-docs/src/lib.rs
+index 6cb10e64b..42c195eae 100644
+--- a/temper/crates/temper-docs/src/lib.rs
++++ b/temper/crates/temper-docs/src/lib.rs
+@@ -79,7 +79,7 @@ pub struct Page {
+ 
+ /// `index`, then the concepts, walks, recipes, reference pages and guides, each by name.
+ #[expect(clippy::disallowed_macros, reason = "pages compile their single Markdown source as static data")]
+-pub static PAGES: [Page; 53] = [
++pub static PAGES: [Page; 54] = [
+     Page {
+         name: "index",
+         kind: Kind::Index,
+@@ -248,6 +248,13 @@ pub static PAGES: [Page; 53] = [
+         summary: "How a new task of one shape is filled: who runs it, the result it gives, what it may spend, by when it ends, and how it is kept.",
+         text: include_str!("../../../docs/help/template.md"),
+     },
++    Page {
++        name: "tier",
++        kind: Kind::Concept,
++        title: "tier",
++        summary: "A tier is a slow check a repository runs on its main after landing, one run at a time at the newest tip; a change lives until every tier of its repository has cleared its landing.",
++        text: include_str!("../../../docs/help/tier.md"),
++    },
+     Page {
+         name: "box",
+         kind: Kind::Walk,
+diff --git a/temper/docs/help/change.md b/temper/docs/help/change.md
+index 59ce4fc95..2e181833d 100644
+--- a/temper/docs/help/change.md
++++ b/temper/docs/help/change.md
+@@ -15,13 +15,15 @@ A change is a task that writes one repository's branch and lands it: its pull re
+   its address, `step:` and the step, `way: turn · landing task N`
+   where its project lands by turn, the CI at its head, its gates, and
+   how many repairs, resolutions and updates it has used of its limits.
+-- **Its result** is the change landed: its merge commit, its pull
+-  request with its address, then what the landing passed as the change
+-  saw it: `checks at HEAD:` each check at the landed head with its
+-  conclusion, `repairs: N:` why each repair was asked, and `reviews:`
+-  each verdict at the head it judged, cut from the end and marked when
+-  long. It names no check or test the change didn't see. Or it fails,
+-  or is cancelled, as any task.
++- **Its result** is the change landed and cleared: its merge commit,
++  its pull request with its address, then what the landing passed as
++  the change saw it: `checks at HEAD:` each check at the landed head
++  with its conclusion, `repairs: N:` why each repair was asked, and
++  `reviews:` each verdict at the head it judged, cut from the end and
++  marked when long. It names no check or test the change didn't see.
++  It comes as the change lands in a repository with no tier, and once
++  every tier of its repository has cleared its landing otherwise
++  (temper help tier). Or it fails, or is cancelled, as any task.
+ 
+ ## How it changes
+ 
+@@ -61,6 +63,10 @@ its head and it waits in no queue: `gating` follows `opening`, then:
+   output, and its new head makes it ready again;
+ - `landed`: main was fast-forwarded to its candidate.
+ 
++In a repository with tiers, a landed change then verifies, its step
++still `landed`: its task lives on, its branch kept, until its tiers
++clear its landing.
++
+ After a release, `reopening` reopens its closed pull request and
+ `recreating` pushes its missing branch again.
+ 
+@@ -90,7 +96,7 @@ refused, and why (what it lacks, or the forge's answer).
+   is held.
+ - **Bounded work:** past its limit of repairs, resolutions or updates,
+   the change holds rather than trying again.
+-- **The parent hears its result,** landed or not.
++- **The parent hears its result,** cleared or not.
+ 
+ ## Acting on it
+ 
+diff --git a/temper/docs/help/index.md b/temper/docs/help/index.md
+index 1604551d0..17fa858d9 100644
+--- a/temper/docs/help/index.md
++++ b/temper/docs/help/index.md
+@@ -72,6 +72,8 @@ temper runs software work for people: agents take tasks on the repositories of a
+   started with one call.
+ - temper help landing: how a project that lands by turn lands a
+   change: its candidate, its gates proved by receipts, the turn.
++- temper help tier: the slow checks a repository runs after landing,
++  and a change that lives until its landing is cleared.
+ 
+ ## The walks
+ 
+diff --git a/temper/docs/help/landing.md b/temper/docs/help/landing.md
+index feb5a143d..28c23f863 100644
+--- a/temper/docs/help/landing.md
++++ b/temper/docs/help/landing.md
+@@ -80,7 +80,12 @@ makes the change ready again, and the landing prepares again.
+ 
+ - `landing show` reads a landing: its change, the candidate on its base,
+   each gate's key with its receipt or run, and the turn. `landing list`
+-  lists a project's landings, the turn's holder first.
++  lists a project's landings, the turn's holder first, a page at a
++  time. With `--newer-than TIME`, UTC to the minute, it lists instead
++  every landing temper saw on its repositories' landing branches after
++  TIME, by queue, by turn or from outside temper, newest first, each with
++  the time temper saw it, its changes and each tier's verdict
++  (temper help tier).
+ - `change show` reads the change's own way: its pull request and gates.
+ - A held landing is released or cancelled by the project's
+   maintainers, as any held task is.
+@@ -103,6 +108,10 @@ makes the change ready again, and the landing prepares again.
+   repository, the ignored paths of a gate and the receipts a gate
+   keeps. A change whose landing would pass one waits, ready, until there is
+   room.
++- temper keeps each repository's last 16 landings in the small
++  profile: `--newer-than` lists no older one.
++- A push from outside temper is seen on a landing branch temper
++  watches: one a tier runs on, or one a goal or a change follows.
+ - A runner's faults are retried twice per key, then the landing is
+   held.
+ - A gate keeps its newest receipts, and always the receipt of its
+diff --git a/temper/docs/help/reference/ctl-landing.md b/temper/docs/help/reference/ctl-landing.md
+index 94a02d011..915afe8ba 100644
+--- a/temper/docs/help/reference/ctl-landing.md
++++ b/temper/docs/help/reference/ctl-landing.md
+@@ -22,9 +22,11 @@ no landing fails, `no landing for task TASK` (exit 2).
+ ## landing list
+ 
+ ```
+-landing list --project PROJECT [--ended]
++landing list --project PROJECT [--ended] [--newer-than TIME] [--after CURSOR]
+   --project PROJECT: a project's name or number; required. The project
+   --ended: a switch. Also the landings that ended
++  --newer-than TIME: a UTC time to the minute, as 2026-10-27T21:00Z; optional. Landing branch moves seen after this time
++  --after CURSOR: a cursor, as a read prints it; optional. Read on from the preceding page
+ List a project's landings, the turn's holder first, then newest first
+ Prints: `landings of project PROJECT`, the turn, and a line per landing: its task, phase, changes and repositories
+ --json: the record landings.
+diff --git a/temper/docs/help/reference/ctl-task.md b/temper/docs/help/reference/ctl-task.md
+index 2b2defdf5..f0d8f7b16 100644
+--- a/temper/docs/help/reference/ctl-task.md
++++ b/temper/docs/help/reference/ctl-task.md
+@@ -193,7 +193,7 @@ task amend TASK [--rev REV] [--priority PRIORITY | --untracked] [--deadline TIME
+   --rev REV: a number; optional. The spec revision the task prints; not needed for its priority alone
+   --priority PRIORITY: a number; optional. Track it at this priority
+   --untracked: a switch. Stop tracking it
+-  --deadline TIME: text, at most 1048576 bytes; optional. Its new deadline, as 2026-10-24T17:00Z
++  --deadline TIME: a UTC time to the minute, as 2026-10-27T21:00Z; optional. Its new deadline, as 2026-10-24T17:00Z
+   --no-deadline: a switch. Remove its deadline
+   --instructions FILE: a file, at most 1048576 bytes; optional. A file of its whole instructions, or -; an empty file removes them
+   --spec FILE: a file, at most 1048576 bytes; optional. A file of its spec's words, or -
+diff --git a/temper/docs/help/tier.md b/temper/docs/help/tier.md
+new file mode 100644
+index 000000000..6b38fb671
+--- /dev/null
++++ b/temper/docs/help/tier.md
+@@ -0,0 +1,90 @@
++# tier
++
++Kind: concept
++
++A tier is a slow check a repository runs on its main after landing, one run at a time at the newest tip; a change lives until every tier of its repository has cleared its landing.
++
++## What it is
++
++- **A tier** is one of a repository's workflows, too slow or too broad
++  for a gate: a browser suite, an exhaustive profile. It is named in
++  the configuration's `landing` member beside the repository's gates,
++  with its workflow's file, the paths it ignores, and its report: the
++  artifact its run uploads and that file's format, `junit` or `lines`.
++  Its workflow runs only when temper dispatches it: it names
++  `workflow_dispatch` alone among its triggers.
++- **A run** is the workflow dispatched by temper on a branch of its
++  own, `temper/tier/NAME.N`, made at the commit it checks, with the
++  inputs `temper_commit` and `temper_key`. N counts the tier's runs.
++- **A landing** is each move of the repository's main: a change temper
++  merged, by queue or by turn, or a push temper did not make.
++- **Its range** is the landings a run covers: those since the tier's
++  last judged tip, up to the run's.
++- **A key** is what a run's result depends on, as a gate's is (temper
++  help landing): the files at its commit without the paths the tier
++  ignores, and the tier's definition. A run's tip whose key has a
++  receipt is judged by it, with no run.
++- **A run is a task** of the project's, made when the run starts and
++  asked for by the deployment on the project's behalf, from the
++  project's spend: it owns the run's branch, its dispatch and its
++  status, and ends with the verdict.
++
++## How it changes
++
++- **The baseline:** once a tier is configured and its repository
++  adopted, it runs at its main's tip first.
++- **One run at a time:** a tier with no run in flight starts one at
++  the newest tip when main moves, once each landing's key is read from
++  the forge's trees; one in flight is followed to its
++  end, and the next starts at the newest tip then, covering every
++  landing since.
++- **Green:** every landing of the run's range is cleared for that
++  tier. A landing that changes only paths every tier ignores keeps the
++  judged tip's key, so it is cleared on that tip's receipt at once. A landing is cleared once every tier of its repository has
++  cleared it.
++- **A fault:** a run lost with its runner, one whose set-up failed, a
++  run never found, is retried, its failed jobs first, then dispatched
++  again, up to the project's `tier_retries` (2); past them the run's
++  task is held for a person, its landings still verifying.
++
++## What temper guarantees
++
++- **A change lives to cleared:** in a repository with tiers, a landed
++  change verifies: its task lives on, its branch kept, until every tier
++  has cleared its landing; then it gives its result. In a repository
++  with no tier, it is cleared as it lands.
++- **A run never runs on main,** which may move under it: on its own
++  branch, at the commit it checks.
++- **Only temper's runs count:** a run anyone else triggered, or one at
++  another commit, is never a verdict.
++- **The forge shows it:** each verdict as the commit status
++  `temper/verdict/NAME` on the run's tip, success for green, its link
++  the run.
++
++## Acting on it
++
++- **The configuration:** each repository's `tiers` in the `landing`
++  member's `gates` list, and the project's `tier_retries` beside its
++  `by`, read at the start (temper help configure).
++- **ctl:** `change show` prints a verifying change's step as `landed`,
++  as a cleared one's; `task show` tells them apart, the verifying
++  change's task live, and shows a tier run's task, live, held or done,
++  its result naming the run's verdict.
++- **`landing list --project PROJECT --newer-than TIME`** lists every
++  landing temper saw on the project's repositories after TIME, newest
++  first, by
++  queue, by turn or from outside temper, with each tier's verdict
++  (temper help landing).
++- **A held run** is released by the project's maintainers, as any held
++  task is.
++- **The forge** holds each run, its jobs and their logs.
++
++## Limits
++
++- A failed run is a fault for now: it is retried, then held. Reading
++  its failing tests, rerunning them alone, and blaming one landing come
++  later.
++- A run's branch stays on the forge once the run is judged.
++- The deployment's limits bound the tiers of a repository (2 in the
++  small profile) and a tier's name, at most 32 bytes of letters,
++  digits, `-` and `_`.

@@ -6,7 +6,7 @@ use common::forgejo;
 use skein_forge::forgejo::{
     client,
     decode::Malformed,
-    document::{Row, StatusState},
+    document::{Document, Row, StatusState},
     server,
 };
 #[test]
@@ -143,6 +143,46 @@ fn a_failing_actions_status_links_its_run_and_job() {
 }
 
 #[test]
+fn the_recorded_forgejo_zip_inflates_its_single_file() {
+    // Forgejo 17's four-byte report in a 144-byte ZIP with a signed descriptor.
+    const ZIP_BYTES: u32 = 144;
+    const FILE_BYTES: u32 = 4;
+    let transcript = forgejo::transcript("actions-artifact-zip");
+    assert_eq!(transcript.status, 200);
+    assert_eq!(transcript.body.len(), usize::try_from(ZIP_BYTES).expect("fixture length"));
+    assert_eq!(
+        skein_forge::forgejo::zip::read(&transcript.body, FILE_BYTES, ZIP_BYTES),
+        Ok(skein_forge::forgejo::zip::File {
+            path: Box::from(*b"failed.txt"),
+            bytes: Box::from(*b"a\nb\n"),
+            truncated: false
+        })
+    );
+}
+
+#[test]
+fn an_unknown_runs_artifact_listing_is_404() {
+    let transcript = forgejo::transcript("actions-artifacts-unknown-run");
+    assert_eq!(transcript.status, 404);
+    let request = skein_forge::forgejo::request::Request::Artifacts {
+        at: skein_forge::forgejo::request::Repo { owner: Box::from(*b"fixture"), name: Box::from(*b"turn") },
+        run: 9999,
+        name: Some(Box::from(*b"tests")),
+    };
+    assert_eq!(forgejo::route(&transcript), request);
+    let encoded = client::encode(&request, &forgejo::limits()).expect("request");
+    assert_eq!(&*encoded.target, &*transcript.target);
+    assert_eq!(
+        forgejo::decode_error(&transcript.body).document,
+        Ok(Document::Error(skein_forge::forgejo::document::ErrorBody {
+            message: skein_forge::forgejo::document::Body::Kept(Box::from(
+                *b"run with id 9999: resource does not exist"
+            ))
+        }))
+    );
+}
+
+#[test]
 fn a_null_page_past_the_captured_pull_files_is_empty() {
     let mut request = forgejo::route(&forgejo::transcript("pull-files-page-2"));
     let skein_forge::forgejo::request::Request::PullFiles { page, .. } = &mut request else {
@@ -152,6 +192,32 @@ fn a_null_page_past_the_captured_pull_files_is_empty() {
     let encoded = client::encode(&request, &forgejo::limits()).expect("request");
     assert_eq!(&*encoded.target, b"/api/v1/repos/fixture/specimen/pulls/1/files?page=3&limit=2");
     let decoded = forgejo::decode(&request, b"null");
-    assert_eq!(decoded.document, Ok(skein_forge::forgejo::document::Document::Listed { skipped: 0 }));
+    assert_eq!(decoded.document, Ok(Document::Listed { skipped: 0 }));
     assert!(decoded.rows.is_empty());
+}
+
+#[test]
+fn the_recorded_range_keeps_commit_messages_and_parents() {
+    use skein_forge::forgejo::{document::CommitMessage, request::Request};
+    // The captured comparison has three commits.
+    const COMMITS: u32 = 3;
+    let transcript = forgejo::transcript("compare-files-false");
+    let Request::Compare { at, before, after, .. } = forgejo::route(&transcript) else {
+        panic!("recorded comparison");
+    };
+    let request = Request::Commits { at, before, after };
+    let decoded = forgejo::decode(&request, &transcript.body);
+    assert_eq!(decoded.document, Ok(Document::Compare(skein_forge::forgejo::document::Compare { total_commits: 3 })));
+    // The recorded wire order is newest first: each row's parent is the next row.
+    let mut expected = skein_lib::List::with_capacity(COMMITS);
+    for (id, parent, message) in [(4, 11, b"file-2.txt\n"), (11, 8, b"file-1.txt\n"), (8, 6, b"file-0.txt\n")] {
+        expected
+            .push(Row::CommitMessage(CommitMessage {
+                id: forgejo::sha(id),
+                parents: Box::new([forgejo::sha(parent)]),
+                message: Box::from(message.as_slice()),
+            }))
+            .expect("one row per captured commit");
+    }
+    assert_eq!(decoded.rows.as_slice(), expected.as_slice());
 }

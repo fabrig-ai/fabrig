@@ -323,6 +323,8 @@ impl Chat {
             let running = match delegation::facts(document).state {
                 delegation::State::Running | delegation::State::Held => true,
                 delegation::State::Landed
+                | delegation::State::Cleared
+                | delegation::State::Uncleared
                 | delegation::State::Done
                 | delegation::State::Failed
                 | delegation::State::Cancelled

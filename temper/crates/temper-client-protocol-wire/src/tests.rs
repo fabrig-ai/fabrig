@@ -59,6 +59,12 @@ fn limits_take_each_bound_from_its_source_field() {
     assert_eq!(
         fixtures::limits(),
         v1::Limits {
+            verifying_tiers: 32,
+            verifying_tiers_item: 128,
+            red_tiers: 32,
+            red_tiers_item: 128,
+            cleared_tiers: 32,
+            cleared_tiers_item: 128,
             authority_hold_reason: 512,
             owned_forge_forgejo: 64,
             owned_forge_runner_some: 64,
@@ -1101,5 +1107,23 @@ fn managed_git_program_is_optional_bounded_and_nonempty() {
             let record = v1::Requesting::new(&limits, v1::RequestingParts { request }).unwrap();
             assert_eq!(crate::decode_requesting(&crate::requesting(&record), &limits).is_some(), length != 0);
         }
+    }
+}
+
+#[test]
+fn post_landing_tiers_accept_their_bounds_and_refuse_one_more() {
+    let limits = fixtures::limits();
+    for (count, bytes) in [(32, 128), (33, 128), (32, 129)] {
+        let mut tiers = List::with_capacity(count);
+        for _ in 0..count {
+            tiers.push(fixtures::field_bytes(bytes)).unwrap();
+        }
+        let verifying = v1::Verifying::new(&limits, v1::VerifyingParts { merge: [8; 32], tiers: tiers.clone() });
+        let red = v1::Red::new(&limits, v1::RedParts { merge: [8; 32], tiers: tiers.clone() });
+        let cleared = v1::Cleared::new(&limits, v1::ClearedParts { merge: [8; 32], tiers, uncleared: false });
+        let within = count == 32 && bytes == 128;
+        assert_eq!(verifying.is_ok(), within);
+        assert_eq!(red.is_ok(), within);
+        assert_eq!(cleared.is_ok(), within);
     }
 }

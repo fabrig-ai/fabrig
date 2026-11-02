@@ -995,6 +995,8 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                 | top::Request::ApplicationAgain { .. }
                 | top::Request::Settled { .. }
                 | top::Request::RestartDone { .. }
+                | top::Request::TierRun { .. }
+                | top::Request::TierDecision { .. }
                 | top::Request::Call { .. } => {}
             }
         }

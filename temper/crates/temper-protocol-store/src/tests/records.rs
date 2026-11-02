@@ -266,13 +266,28 @@ fn a_change_in_each_state_round_trips_unchanged() {
     }
 }
 #[test]
+fn verifying_changes_keep_the_first_observation_at_wall_time_extremes() {
+    use temper_engine_domain_forge_change::{Hold, State};
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    for nanos in [0, 123_456_789, u64::MAX] {
+        let since = skein_lib::Wall::from_nanos(nanos);
+        for state in [State::Landed { merge: [1; 32], since }, State::Red { merge: [2; 32], since }] {
+            for saved in [state.clone(), State::Held { was: Box::new(state), why: Hold::Failed }] {
+                let row = forge::Stored::Change(fixtures::change_row(saved));
+                assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+            }
+        }
+    }
+}
+
+#[test]
 fn terminal_change_ci_round_trips_with_or_without_an_observation() {
     use temper_engine_domain_forge_change::{Ci, State, Status};
     const HEAD: skein_forge::api::Commit = [15; 32]; // change_row's last_head.
     const MERGE: skein_forge::api::Commit = [1; 32];
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
     for state in [
-        State::Landed { merge: MERGE },
+        State::Landed { merge: MERGE, since: skein_lib::Wall::from_nanos(17) },
         State::Ended,
         State::NoChange { words: b"No widget UI exists".as_slice().into() },
     ] {
@@ -295,7 +310,10 @@ fn terminal_change_ci_round_trips_with_or_without_an_observation() {
 fn a_negative_priority_round_trips_unchanged() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
     for priority in [-1_i32, i32::MIN, 0_i32, i32::MAX] {
-        let mut row = fixtures::change_row(temper_engine_domain_forge_change::State::Landed { merge: [1; 32] });
+        let mut row = fixtures::change_row(temper_engine_domain_forge_change::State::Landed {
+            merge: [1; 32],
+            since: skein_lib::Wall::from_nanos(17),
+        });
         row.priority = priority;
         let row = forge::Stored::Change(row);
         let bytes = records::encode(&row);
@@ -391,6 +409,7 @@ fn every_family_encodes_and_decodes_to_itself() {
             "change",
             forge::Stored::Change(fixtures::change_row(temper_engine_domain_forge_change::State::Landed {
                 merge: [7; 32],
+                since: skein_lib::Wall::from_nanos(17),
             })),
         ),
         ("issue", forge::Stored::Issue(fixtures::issue_row())),
@@ -966,7 +985,10 @@ fn an_authority_hold_keeps_its_cause_and_release_across_restart() {
 
 #[test]
 fn a_changes_result_evidence_survives_restart_with_its_cut_counts() {
-    let mut row = fixtures::change_row(temper_engine_domain_forge_change::State::Landed { merge: [1; 32] });
+    let mut row = fixtures::change_row(temper_engine_domain_forge_change::State::Landed {
+        merge: [1; 32],
+        since: skein_lib::Wall::from_nanos(17),
+    });
     row.result = forge::ChangeResult {
         head: Some([3; 32]),
         checks: forge::ResultText { bytes: b"check passed".as_slice().into(), cut: 0 },
@@ -1136,6 +1158,7 @@ fn receipts_preserve_the_check_key_run_and_verdict() {
                     key: [3; 32],
                 },
                 receipt: forge::Receipt {
+                    failures: None,
                     passed,
                     run: forge::ReceiptRun { id: 7, number: 8, url: Box::from(b"https://forge/run/7".as_slice()) },
                     candidate: [4; 32],
