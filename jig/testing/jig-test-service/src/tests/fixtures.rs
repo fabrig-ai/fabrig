@@ -645,6 +645,7 @@ pub fn combined_files(document: &[u8]) -> Files {
 pub fn people_member(words: &[u8], spend: u64) -> jig_domain_people::Member {
     use jig_domain_people as people;
     people::Member {
+        symbols: Box::new([]),
         deadline: jig_domain_people::Deadline::Named,
         executor: people::TaskExecutor::Agent { charter: 1 },
         words: words.into(),

@@ -95,8 +95,8 @@ pub use crate::{
     },
     translate::{authority_to_people, pattern_to_people, people_authority, requirement_to_authority, task_authority},
     vocabulary::{
-        Ask, Carried, CoreBriefBudgets, EscalationChoice, Event, Held, Limits, NamedAction, Now, PayloadRefusal,
-        ProposalChoice, Request, StepRefusal, Timer, ToolKind, TranscriptLoad, WatchRefusal, Write,
+        Ask, Carried, CoreBriefBudgets, EscalationChoice, Event, Held, HoldingsRefusal, Limits, NamedAction, Now,
+        PayloadRefusal, ProposalChoice, Request, StepRefusal, Timer, ToolKind, TranscriptLoad, WatchRefusal, Write,
     },
 };
 

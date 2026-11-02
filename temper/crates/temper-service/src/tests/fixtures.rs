@@ -1032,6 +1032,7 @@ pub fn withdrawn_history(task: u64, proposal: u64) -> jig_domain_core::Record {
 pub fn people_member(words: &[u8], spend: u64) -> jig_domain_people::Member {
     use jig_domain_people as people;
     people::Member {
+        symbols: Box::new([]),
         executor: people::TaskExecutor::Agent { charter: 1 },
         words: words.into(),
         parameters: Box::new([]),

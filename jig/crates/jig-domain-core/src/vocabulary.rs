@@ -85,7 +85,13 @@ pub enum Ask {
     /// A core-selected effect handoff completed inside this decision.
     Effect(crate::effects::connector::Ask),
     /// Tell the owning connector that this task took a write hold.
-    Hold { task: u64, resource: tasks::Name },
+    Hold {
+        task: u64,
+        resource: tasks::Name,
+        /// The taking's own outbox entry, for the effects its connector's kind has at a taking
+        /// (domain/connectors.md, 4.7).
+        entry: u64,
+    },
     /// Tell the owning connector to end a task's topic interest.
     EndTopic { task: u64, subscription: u64 },
     /// Gather a section within the brief's budget.
@@ -103,7 +109,17 @@ pub enum Ask {
     /// Tell a connector that a fenced host attempt was lost.
     Lost { task: u64, attempt: u64 },
     /// Ask this connector which bounded task holdings its resources require.
-    TaskHoldings { request: Token, project: u32, root: u64, number: u64, executor: tasks::Executor, spec: tasks::Spec },
+    TaskHoldings {
+        request: Token,
+        project: u32,
+        root: u64,
+        number: u64,
+        executor: tasks::Executor,
+        spec: tasks::Spec,
+        tracked: bool,
+        /// This connector's symbols of the member, in the member's order.
+        symbols: Box<[u16]>,
+    },
     /// Ask one connector for the holdings of every member of a named delegate batch.
     DelegateHoldings { request: Token, from: u64, members: Box<[HoldingsNeed]> },
     /// Ask one connector for a procedure's delegated batch holdings.
@@ -625,15 +641,34 @@ pub enum Event {
     /// One retained input load failed validation before named delegation.
     DelegateInputFailed { to: ReplyTo, key: CallKey },
     /// One connector's batch holdings, in the same order as the core's request.
-    DelegateHoldings { request: Token, connector: u16, holdings: Option<Box<[Box<[tasks::Holding]>]>> },
+    DelegateHoldings {
+        request: Token,
+        connector: u16,
+        holdings: Option<Box<[Box<[tasks::Holding]>]>>,
+        /// A reason for refusal, set only when `holdings` is `None`.
+        refused: Option<HoldingsRefusal>,
+    },
     /// One connector's procedure batch holdings in requested order.
-    ProcedureHoldings { task: u64, step: u64, connector: u16, holdings: Option<Box<[Box<[tasks::Holding]>]>> },
+    ProcedureHoldings {
+        task: u64,
+        step: u64,
+        connector: u16,
+        holdings: Option<Box<[Box<[tasks::Holding]>]>>,
+        /// A reason for refusal, set only when `holdings` is `None`.
+        refused: Option<HoldingsRefusal>,
+    },
     /// A numbered connector's procedure choice in the core's vocabulary.
     ProcedureStep { task: u64, step: u64, connector: u16, code: u32, decision: ProcedureStep },
     /// A gathered section.
     Brief(brief::GatherEvent),
     /// One numbered connector's answer to a task-holdings handoff.
-    Holdings { request: Token, connector: u16, holdings: Option<Box<[tasks::Holding]>> },
+    Holdings {
+        request: Token,
+        connector: u16,
+        holdings: Option<Box<[tasks::Holding]>>,
+        /// A reason for refusal, set only when `holdings` is `None`.
+        refused: Option<HoldingsRefusal>,
+    },
     /// An account refresh or grant.
     Account(accounts::Event),
     /// A live view.
@@ -641,6 +676,15 @@ pub enum Event {
     /// A scoped note.
     Notes(notes::Event),
 }
+/// Why a connector refuses a member's holdings (domain/tasks.md, 6.1 and 6.2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum HoldingsRefusal {
+    /// The member names a symbol this connector does not offer it.
+    Symbol { symbol: u16 },
+    /// The member would write a resource this task holds, outside its subtree.
+    Held { holder: u64 },
+}
+
 /// One member's concrete identity passed to a connector for its own holdings.
 #[derive(Clone, Debug)]
 pub struct HoldingsNeed {
@@ -649,6 +693,9 @@ pub struct HoldingsNeed {
     pub number: u64,
     pub executor: tasks::Executor,
     pub spec: tasks::Spec,
+    pub tracked: bool,
+    /// This connector's symbols of the member, in the member's order.
+    pub symbols: Box<[u16]>,
 }
 /// Connector-free shape of a root-owned host payload after refusal.
 #[derive(Debug)]

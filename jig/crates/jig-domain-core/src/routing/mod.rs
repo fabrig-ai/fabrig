@@ -546,7 +546,7 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
         Event::Period { project, period, budget, next } => route_period(core, work, project, period, budget, next),
         Event::TranscriptLoaded { task, load } => run::preparation::transcript_loaded(core, env, work, task, load),
         Event::People(event) => route_people(core, env, work, event),
-        Event::Holdings { request, connector, holdings } => {
+        Event::Holdings { request, connector, holdings, .. } => {
             route_holdings(core, env, work, request, connector, holdings)
         }
         Event::Fleet(event) => {
@@ -627,13 +627,13 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
         Event::NamedAction { to, key, action } => named_action(core, env, work, to, key, action),
         Event::DelegateValidated { to, key, batch, stubs } => delegate_validated(core, env, to, key, batch, stubs),
         Event::DelegateInputFailed { to, key } => delegate_input_failed(work, to, key),
-        Event::DelegateHoldings { request, connector, holdings } => {
+        Event::DelegateHoldings { request, connector, holdings, .. } => {
             delegate_holdings(core, env, work, request, connector, holdings)
         }
         Event::ProcedureStep { task, step, connector, code, decision: action } => {
             procedure_step(core, env, work, task, step, connector, code, action)
         }
-        Event::ProcedureHoldings { task, step, connector, holdings } => {
+        Event::ProcedureHoldings { task, step, connector, holdings, .. } => {
             procedure_holdings(core, env, work, task, step, connector, holdings)
         }
         Event::Brief(event) => route_brief(core, env, event),

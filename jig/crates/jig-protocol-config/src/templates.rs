@@ -172,6 +172,7 @@ fn template(
         }
     };
     let template = Template {
+        resources: Box::new([]),
         number: number?,
         name: name?,
         executor: executor?,

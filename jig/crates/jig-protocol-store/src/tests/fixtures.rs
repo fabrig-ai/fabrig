@@ -499,6 +499,7 @@ pub fn people_amendment() -> people::Amendment {
 
 pub fn people_member() -> people::Member {
     people::Member {
+        symbols: Box::new([]),
         llm: None,
         deadline: jig_domain_people::Deadline::Named,
         executor: people::TaskExecutor::Agent { charter: 3 },
