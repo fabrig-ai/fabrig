@@ -289,7 +289,6 @@ pub(super) fn decode(row: w::LandingRow) -> top::LandingRow {
         entries: decoded_entries.into_boxed(),
     }
 }
-#[expect(clippy::manual_map, reason = "step translations use explicit options")]
 pub(super) fn encode_receipt(key: &top::ReceiptKey, receipt: &top::Receipt) -> w::ReceiptRow {
     let (name, tier) = match &key.check {
         top::Check::Gate(name) => (name.clone(), false),
@@ -306,12 +305,17 @@ pub(super) fn encode_receipt(key: &top::ReceiptKey, receipt: &top::Receipt) -> w
         },
     )
     .expect(FITS);
+    let receipt = encode_receipt_value(receipt);
+    w::ReceiptRow::new(&w::CEILINGS, w::ReceiptRowParts { key, receipt }).expect(FITS)
+}
+#[expect(clippy::manual_map, reason = "step translations use explicit options")]
+pub(super) fn encode_receipt_value(receipt: &top::Receipt) -> w::Receipt {
     let run = w::ReceiptRun::new(
         &w::CEILINGS,
         w::ReceiptRunParts { id: receipt.run.id, number: receipt.run.number, url: receipt.run.url.clone() },
     )
     .expect(FITS);
-    let receipt = w::Receipt::new(
+    w::Receipt::new(
         &w::CEILINGS,
         w::ReceiptParts {
             failures: match &receipt.failures {
@@ -324,9 +328,9 @@ pub(super) fn encode_receipt(key: &top::ReceiptKey, receipt: &top::Receipt) -> w
             ended: receipt.ended.as_nanos(),
         },
     )
-    .expect(FITS);
-    w::ReceiptRow::new(&w::CEILINGS, w::ReceiptRowParts { key, receipt }).expect(FITS)
+    .expect(FITS)
 }
+
 pub(super) fn decode_receipt(row: w::ReceiptRow) -> Result<top::Stored, crate::Undecodable> {
     let w::ReceiptRowParts { key, receipt } = row.into_parts();
     let w::ReceiptKeyParts { project, repository, check_name, key } = key.into_parts();
@@ -334,19 +338,22 @@ pub(super) fn decode_receipt(row: w::ReceiptRow) -> Result<top::Stored, crate::U
         w::ReceiptCheck::Gate(name) => top::Check::Gate(name.into_parts().name),
         w::ReceiptCheck::Tier(name) => top::Check::Tier(name.into_parts().name),
     };
-    let w::ReceiptParts { failures, passed, run, candidate, ended } = receipt.into_parts();
-    let w::ReceiptRunParts { id, number, url } = run.into_parts();
     Ok(top::Stored::Receipt {
         key: top::ReceiptKey { project, repository: names::decode_repository(repository), check, key },
-        receipt: top::Receipt {
-            failures: match failures {
-                Some(f) => Some(super::verification::decode_failures(f)?),
-                None => None,
-            },
-            passed,
-            run: top::ReceiptRun { id, number, url },
-            candidate,
-            ended: Wall::from_nanos(ended),
+        receipt: decode_receipt_value(receipt)?,
+    })
+}
+pub(super) fn decode_receipt_value(receipt: w::Receipt) -> Result<top::Receipt, crate::Undecodable> {
+    let w::ReceiptParts { failures, passed, run, candidate, ended } = receipt.into_parts();
+    let w::ReceiptRunParts { id, number, url } = run.into_parts();
+    Ok(top::Receipt {
+        failures: match failures {
+            Some(f) => Some(super::verification::decode_failures(f)?),
+            None => None,
         },
+        passed,
+        run: top::ReceiptRun { id, number, url },
+        candidate,
+        ended: Wall::from_nanos(ended),
     })
 }

@@ -934,7 +934,41 @@ pub fn tier_row() -> top::TierRow {
         blamed.push(p::Blame::Owns(failures.clone())).unwrap();
     }
     let landings = landings.into_boxed();
+    let mut pending = List::with_capacity(u32::try_from(landings.len()).unwrap());
+    for landing in &landings {
+        pending.push(top::TierLanding { commit: landing.commit, key: Some(landing.key) }).unwrap();
+    }
+    let pending = pending.into_boxed();
+    let mut jobs = List::with_capacity(LIMITS.client.rows);
+    for id in 0..LIMITS.client.rows {
+        jobs.push(skein_forge::api::JobAttempt { head: [4; 32], run: 71, job: u64::from(id), attempt: 1 }).unwrap();
+    }
     top::TierRow {
+        requested: true,
+        cancelled: true,
+        purpose: Some(top::purpose::EffectPurpose::Tier { repository: REPO, tier: 0, run: 3, operation: 1, part: 2 }),
+        pending,
+        baseline: Some(top::TierLanding { commit: [1; 32], key: Some([2; 32]) }),
+        branch: top::TierBranch::Pending { entry: 17 },
+        flight: Some(top::TierFlight {
+            entry: 18,
+            start: Some(skein_lib::Time::ZERO),
+            since: Some(skein_lib::Time::ZERO),
+            waiting: true,
+            next: Some(skein_lib::Time::ZERO),
+            run: Some(71),
+            pending: jobs.into_boxed(),
+            fault: Some(temper_engine_domain_forge_landing::Fault::Lost),
+        }),
+        held: Some(temper_engine_domain_forge_landing::Fault::Cancelled),
+        result: Some(top::Receipt {
+            passed: false,
+            failures: Some(failures.clone()),
+            candidate: [4; 32],
+            ended: skein_lib::Wall::EPOCH,
+            run: top::ReceiptRun { id: 71, number: 1, url: Box::new([b'u'; 2048]) },
+        }),
+        received: true,
         repository: REPO,
         tier: Box::new([b'a'; 32]),
         task: Some(51),

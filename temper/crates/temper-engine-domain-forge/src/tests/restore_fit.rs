@@ -15,6 +15,16 @@ fn row(kind: RecordKind, number: u32) -> Stored {
     let n = u64::from(number);
     match kind {
         RecordKind::Tier => Stored::Tier(TierRow {
+            requested: false,
+            cancelled: false,
+            purpose: None,
+            pending: Box::new([]),
+            baseline: None,
+            branch: TierBranch::Absent,
+            flight: None,
+            held: None,
+            result: None,
+            received: false,
             repository: skein_forge::api::Repository { forge: 1, repository: number },
             tier: Box::from(b"tier".as_slice()),
             record: temper_engine_domain_forge_tiers::Record {
@@ -691,17 +701,23 @@ fn restoring_a_row_requires_the_start_observation() {
 }
 
 #[test]
-fn tier_surface_events_are_inert() {
+fn unknown_tier_events_keep_state_and_hold_the_step() {
     let mut d = domain();
     let before = alloc::format!("{d:?}");
     for event in [
         Event::TierTask { repository: REPO, tier: Box::from(b"tier".as_slice()), number: 1, task: 23 },
         Event::TierRefused { repository: REPO, tier: Box::from(b"tier".as_slice()), number: 1 },
-        Event::StepTier { task: 23, entry: 5, heard: TierHeard { released: true, cancelled: true } },
         Event::VetoTier { task: 23, entry: 5 },
     ] {
         assert!(outputs(&mut d, event).is_empty());
     }
+    let out =
+        outputs(&mut d, Event::StepTier { task: 23, entry: 5, heard: TierHeard { released: true, cancelled: true } });
+    let [Request::TierDecision { task, decision, entry }] = out.as_ref() else { panic!("one tier decision") };
+    assert_eq!(
+        (*task, decision, *entry),
+        (23, &TierDecision::Held { words: b"Tier run is unavailable".as_slice().into() }, None)
+    );
     assert_eq!(alloc::format!("{d:?}"), before);
     assert_eq!(d.tier_task(23), None);
     assert!(d.describe_tier_effect(23, 5).is_none());

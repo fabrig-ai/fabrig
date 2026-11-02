@@ -241,6 +241,16 @@ fn tier_rows(rng: &mut Rng, bounds: &Bounds) {
         })
     };
     let row = forge::Stored::Tier(forge::TierRow {
+        requested: false,
+        cancelled: false,
+        purpose: None,
+        pending: Box::new([]),
+        baseline: None,
+        branch: forge::TierBranch::Absent,
+        flight: None,
+        held: None,
+        result: None,
+        received: false,
         repository,
         tier: Box::from(b"tier".as_slice()),
         task: if rng.below(2) == 0 { None } else { Some(rng.next_u64()) },

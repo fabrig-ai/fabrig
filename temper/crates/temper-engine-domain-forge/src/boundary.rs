@@ -940,10 +940,6 @@ pub enum CallPayload {
 
 /// The connector's durable records, wrapped by the root store.
 #[derive(Clone, PartialEq, Eq, Debug)]
-#[expect(
-    clippy::large_enum_variant,
-    reason = "durable rows move whole through the bounded store queue priced at startup"
-)]
 pub enum Stored {
     /// The connector part of a live named call.
     Call {
@@ -1862,6 +1858,40 @@ pub struct TierRow {
     pub tier: Box<[u8]>,
     pub record: temper_engine_domain_forge_tiers::Record,
     pub task: Option<u64>,
+    pub requested: bool,
+    pub cancelled: bool,
+    pub purpose: Option<crate::purpose::EffectPurpose>,
+    pub pending: Box<[TierLanding]>,
+    pub baseline: Option<TierLanding>,
+    pub branch: TierBranch,
+    pub flight: Option<TierFlight>,
+    pub held: Option<landing::Fault>,
+    /// A whole run or cached receipt awaiting branch release and judgement.
+    pub result: Option<Receipt>,
+    pub received: bool,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct TierLanding {
+    pub commit: skein_forge::api::Commit,
+    pub key: Option<[u8; 32]>,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum TierBranch {
+    Absent,
+    Pending { entry: u64 },
+    Made,
+}
+/// Durable follower progress; trees and workflow details are read again after restart.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct TierFlight {
+    pub entry: u64,
+    pub start: Option<skein_lib::Time>,
+    pub since: Option<skein_lib::Time>,
+    pub waiting: bool,
+    pub next: Option<skein_lib::Time>,
+    pub run: Option<u64>,
+    pub pending: Box<[skein_forge::api::JobAttempt]>,
+    pub fault: Option<landing::Fault>,
 }
 /// Family 29's landing verdicts (temper/docs/design/domain/after-landing.md, 10).
 #[derive(Clone, PartialEq, Eq, Debug)]
