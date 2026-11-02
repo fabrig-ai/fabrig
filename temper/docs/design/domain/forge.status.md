@@ -1,6 +1,12 @@
 # forge: status
 
-2026-11-01. Where temper's code lags or departs from [forge.md](forge.md).
+2026-11-02. Where temper's code lags or departs from [forge.md](forge.md).
+
+- **Built:** 8.4: releasing a permanently failed repair requests a fresh
+  repair with its reason retained, current forge facts and authority,
+  counted against the reset allowance. Step tests distinguish permanent
+  failure from exhausted repairs and check authority and pending work;
+  the forge world replaces a persisted failed result across restart.
 
 - **Built:** 5.3, 8.3: an agent's forge-read admission Busy uses the host's
   bounded backoff instead of a model-visible error. Root-domain review
