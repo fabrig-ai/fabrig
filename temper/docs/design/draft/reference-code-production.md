@@ -55,7 +55,7 @@ the same way every time is a mechanism whoever does it today.
 | Step | Code | An LLM |
 |---|---|---|
 | Intake | makes the goal from a draft | judges the plan's shape: its mode, its parts, whether it needs a branch of its own |
-| Design | starts a part when what it needs has landed | designs the part as tasks; writes specs and shared notes |
+| Design | starts a part when what it needs has landed; delivers and lands what a designer writes | designs the part as tasks; writes specs, and the shapes that cross tasks as code |
 | Starting tasks | dependencies, kept, early starts, capacity | none |
 | Implementing | saves work, pushes, runs the repository's checks | writes the code and its tests |
 | Questions | holds the change, escalates, makes the next producer | answers, in a spec amendment |
@@ -72,7 +72,7 @@ the same way every time is a mechanism whoever does it today.
 ```
 a person
 └─ G  the goal                       coordinator, a designer's charter; tracked
-   ├─ c0  shared contracts           change into B
+   ├─ c0  shared contracts           change into B, handed G's run branch
    ├─ P1  a part                     coordinator, a designer's charter
    │  ├─ c1…cn  a task               change into B, dependencies between them
    │  │    ├─ a producer             agent, a coding charter
@@ -131,10 +131,16 @@ goal: nothing reaches main before B does.
   draft, chooses the plan's shape and names the parts, their
   dependencies and the shared contracts: the shapes that cross parts,
   fixed before anyone builds to them. It writes no task specs.
-- **The contracts land first.** A designer inspects and never writes
-  (`agent.md`, 4.3): G puts the shapes in c0's spec, and c0's implementer
-  writes them as code where they can be, as files where not. Only their
+- **The contracts land first.** G's run writes them, as code where they
+  can be and as files where not, delivers them to its own run branch and
+  hands that branch to c0 (`forge.md`, 8.1 and 11; jig's
+  `domain/tasks.md`, 6.4). Structural decisions are a designer's, and
+  code carries them to implementers better than prose. Only their
   readers wait for them: parts that touch no contract start beside c0.
+- **A designer writes only what it delivers.** `agent.md`, 4.3's rail
+  holds: `modify` comes with mid-run delivery, so no run leaves edits
+  that nothing delivers. What it delivers lands through a change it
+  hands its branch to, under the rule of the branch it lands into.
 - **G's first batch** is L, c0 and every part, whole or nothing (jig's
   `domain/tasks.md`, section 4). A person's question that no work waits
   for goes in G's report, and nothing parks.
@@ -184,9 +190,10 @@ Nothing lives only in a session.
 - **Specs are task words,** kept in the store, not files. An answer is
   an amendment, not a commit: more than two fifths of the measured run's
   merges into its branch only carried specs and answers.
-- **Shared notes are files on B:** c0's contracts, and what a later
-  change adds. Implementers read them in their checkout, as specs cite
-  them, and a designer reads them at B's tip. They land with the code.
+- **Shared notes are files on B:** c0's contracts, and what a part's
+  designer adds the same way. Implementers read them in their checkout,
+  as specs cite them, and a designer reads them at B's tip. They land
+  with the code.
 - **Notes for the next designer** are jig's notes in the goal's scope
   (jig's `domain/engine.md`, section 10), read by a designer's fresh run.
 
@@ -351,7 +358,7 @@ conflicts, 4 repairs and 56 minutes; taken as they come they are small.
 
 | Role | Task | Charter | LLM choice | Tools |
 |---|---|---|---|---|
-| Designer | G and each part | a coordinator's: starts fresh, parks at once | Opus 5.5 at xhigh; sub-agents, for surveys, Opus 5.5 at high | reads, a read-only checkout at B, `delegate`, `amend`, `cancel`, `release`, `decide_escalation`, `note`, `message` |
+| Designer | G and each part | a coordinator's: starts fresh, parks at once | Opus 5.5 at xhigh; sub-agents, for surveys, Opus 5.5 at high | reads; a checkout at B with the shell, written only with mid-run delivery to its run branch; `delegate`, `amend`, `cancel`, `release`, `decide_escalation`, `note`, `message` |
 | Implementer | a change's producer, resolution, repair | the coding charter (charter 2) | the coding model at high | the workspace's; no messages |
 | Reviewer | a gate, when on | the review charter (charter 4) | by lens | reads |
 
@@ -396,7 +403,7 @@ the first version, and none needs a new primitive beyond section 13's.
 
 | Stage | What it is here |
 |---|---|
-| Skeleton | a part's first change: modules, types, signatures and test vocabulary as compiling code, landed alone; its tasks need it |
+| Skeleton | a part's first change, written by its designer as c0 is: modules, types, signatures and test vocabulary as compiling code, built in its own run, handed to a change and landed alone; its tasks need it |
 | A contract's review | a review gate on c0 |
 | Self-critique | a review gate with a lens, blocking, on each task: what it says is a repair |
 | Test-writer | a task of its own, beside the task that implements |
@@ -455,6 +462,7 @@ is code to build, *setting* is configuration to add.
 | CP-11 | temper | setting | A designer's charter in the stock: its tools hold no control, decide, subscribe or note today; `goal` takes its caller's charter, gives no notes and, from a tracked run, starts advisors alone; a designer's checkout at B, since a run outside a change starts at the default branch | `agent.md`, 4.3.2, section 8; `worker.md`, 4.1; `../protocol/configuration.md` |
 | CP-12 | temper | setting | A profile for this workflow's limits (10.3) | `../protocol/configuration.md` |
 | CP-13 | temper | mechanism | The standing report (section 11): no view gathers it | `client/tools.md` |
+| CP-14 | temper | mechanism | A designer that writes: mid-run delivery to its own run branch, with `modify`, as a chat's small fix has. A change already takes a handed branch; what is missing is a goal's or a part's run that may write, since the rail lets a goal's runs inspect alone | `agent.md`, 4.3; `forge.md`, 8.1 |
 
 ## 14. Later
 

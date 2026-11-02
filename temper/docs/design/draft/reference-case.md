@@ -20,7 +20,7 @@ one way between them.
 ```
 a person
 └─ G  the goal                                 designer; tracked
-   ├─ c0  the shared shapes                    change into B
+   ├─ c0  the shared shapes                    change into B, handed G's run branch
    ├─ A   the forge's records and removal      designer
    │  ├─ a1  store a forge as a record         change into B
    │  ├─ a2  remove a forge                    needs a1, later k2
@@ -49,9 +49,9 @@ also needs CP-2 to CP-4, not repeated.
 | # | When | What happens | Who | By | Needs |
 |---|---|---|---|---|---|
 | 1 | T+0:00 | The person starts G from the draft's path | a person | `goal`, a designer's charter | CP-11 |
-| 2 | T+0:02 | G's first run reads the draft and judges: a branch of its own, two parts, the shapes that cross them. One question for the person, which no work waits for, goes in its report | designer | a coordinator's fresh run | CP-11 |
-| 3 | T+0:18 | G's one batch: L, c0 with the shapes in its spec, A, K. L starts kept, and its first step creates B at main's tip | designer, then code | a batch; kept; a goal's branch | CP-2, CP-5, CP-10, CP-11 |
-| 4 | T+0:26 | c0's implementer writes the shapes; c0 opens and lands into B: nothing to prove | implementer, then code | a landing of one, no gates | |
+| 2 | T+0:02 | G's first run reads the draft and judges: a branch of its own, two parts, the shapes that cross them. It writes those as code, builds them, and delivers them to its run branch. One question for the person, which no work waits for, goes in its report | designer | a coordinator's fresh run; mid-run delivery | CP-11, CP-14 |
+| 3 | T+0:18 | G's one batch: L, c0 handed the run branch, A, K. L starts kept, and its first step creates B at main's tip | designer, then code | a batch; a handed branch; kept; a goal's branch | CP-2, CP-5, CP-10, CP-14 |
+| 4 | T+0:20 | c0 opens and lands into B: nothing to prove | code | a landing of one, no gates | |
 
 ### 2.2 Growing
 
@@ -111,7 +111,7 @@ also needs CP-2 to CP-4, not repeated.
 | 31 | +0:40 | Green; the turn fast-forwards main to the candidate. B is deleted and G hears | code | the turn | |
 | 32 | +0:50 | The slow tier runs on main's newest tip, covering both landings. Its failures rerun once: one is a flake, one is new, and with two landings in range both goals are told | code | a tier; `tell_all` | CP-7, LD-5 |
 | 33 | +0:52 | G, live and subscribed to the verdict, wakes and judges: a fix. It delegates one change into main, with no branch; an implementer, the full gate, a turn | designer, implementer | a landing with no goal's branch | LD-4 |
-| 34 | +1:40 | The tier goes green over the fix: the verdict. G delegates its last change: the status files and the draft's retirement, documentation, which every gate ignores, so it is proved with no run | designer, implementer | keys; ignored paths | LD-4 |
+| 34 | +1:40 | The tier goes green over the fix: the verdict. G's last run writes the status files and the draft's retirement and hands them to one change into main: documentation, which every gate ignores, so it is proved with no run | designer | a handed branch; keys; ignored paths | LD-4, CP-14 |
 | 35 | +1:50 | G reports to the person, with the question of step 2 answered or still open, and ends | designer | a goal's result | |
 
 A red found later, when G has ended, goes to a finding and its triager,
@@ -138,6 +138,7 @@ Two paths the run met elsewhere, each a sentence.
 | CP-8, keeping up | 20, 22 |
 | CP-9, jobs and `prepare` | 21, which then costs a resolution; the case still runs |
 | CP-10 to CP-12, delegation, charters, limits | 1 to 3, 5, 11 |
+| CP-14, a designer that writes | 2, 3, 34; without it an implementer writes from a spec, a run more each |
 | LD-1 to LD-5, prepare's style, reruns, holds, verdicts | 26, 27, 32 to 34; with the forge's rebase, 26 runs |
 | LD-6, findings | section 3's last line |
 

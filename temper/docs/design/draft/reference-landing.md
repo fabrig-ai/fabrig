@@ -162,7 +162,9 @@ The same way, into main directly:
 - **A fix:** a goal of one change, from a red or a finding, with no
   designer and no branch; an implementer, the full gate, the turn.
 - **A goal's last change:** the status files and the draft's retirement,
-  which G delegates once its branch has landed and its verdict is in.
+  which G's last run writes, once its branch has landed and its verdict
+  is in, and hands to a change on its run branch
+  (`reference-code-production.md`, 4.1).
 - **A person's chat** asking for a small change, as `forge.md`, 15.1
   says.
 
@@ -269,7 +271,7 @@ not another rule.
 
 Rows `reference-code-production.md`, section 13 holds are not repeated:
 CP-3 and CP-4, a landing on any branch and rules per pattern; CP-7,
-tiers; CP-9, jobs; CP-13, the report.
+tiers; CP-9, jobs; CP-13, the report; CP-14, a designer that writes.
 
 | # | Owner | Kind | What | Where |
 |---|---|---|---|---|
