@@ -19,9 +19,10 @@ is open section 19.
 
 ## 1. In one page
 
-- **Connect, then add repositories, any time.** Configuration names a
-  forge and its addresses, never a credential and never a repository. A
-  person connects the forge from temper's client, then adds
+- **Connect, then add repositories, any time.** A forge is a record in
+  the store, made as it is set up or connected (`playground-reset.md`,
+  section 3), never a credential in a file and never a repository list.
+  A person connects the forge from temper's client, then adds
   repositories to a project from a list of those temper can reach, now
   or later. Nothing is imported in bulk at configuration (section 2).
 - **Secrets in the store.** A forge's credentials are made from the
@@ -80,12 +81,12 @@ is open section 19.
 
 ### 2.1 Connecting a forge
 
-- **Configuration names the forge, not its access.** Each forge's kind
-  and addresses: for Forgejo its `api`, `transport` and `git`; for
-  GitHub, `kind: "github"`, whose addresses default to github.com's and
-  are given only to point at a fake. No token, user id, webhook secret
-  or repository.
-- **A forge not yet connected** is configured, shown and idle: the
+- **A forge's record names the forge, not its access**
+  (`playground-reset.md`, section 3). Each forge's kind and addresses:
+  for Forgejo its `api`, `transport` and `git`; for GitHub, whose
+  addresses default to github.com's and are given only to point at a
+  fake. No token, user id, webhook secret or repository.
+- **A forge not yet connected** is kept, shown and idle: the
   engine starts and serves; the client's deployment page says "Not
   connected" with its Connect action, and the adoption form offers none
   of its repositories. Nothing on it runs. This is how an LLM provider

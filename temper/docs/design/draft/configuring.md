@@ -59,7 +59,7 @@ an owner splits it. Nothing here is adopted.
   | A goal per draft, holding a branch of its own | structure | the goal template; its own branch is a gap (`notes.md`, N3) |
   | Every change of the goal lands into its branch, with no CI | structure | a landing rule for goal branches (`notes.md`, N4) |
   | The coordinator woken at once by questions and results, by a tier's red at most every 30 minutes | structure | its charter's wake policy (`notes.md`, N23) |
-  | At most four questions per change, through a foreman | structure | the change's question bound (`notes.md`, N1) |
+  | At most four questions per change, through a foreman | structure | the change's question bound, which no design has yet (`notes.md`, N1) |
   | Designers write the design under `docs/design`, a status file beside each document | rule | the designer's charter's instructions |
   | A producer pushes early and finishes with a Left list | rule | the coding agent's charter's instructions |
   | A producer never fixes what it does not own | rule | authority is per repository, not per path |
@@ -71,9 +71,9 @@ an owner splits it. Nothing here is adopted.
   person wrote them, so most changes to a process need no configuring at
   all.
 - **A rule may become structure** where temper's model has it, and the
-  agent offers it: "I can hold each change to four questions; 'push
-  early' stays a rule your producers follow". The person chooses what is
-  guaranteed. The producer's last row is the honest answer the other
+  agent offers it: "I can make each family's changes wait for its
+  designer, as dependencies temper holds; 'push early' stays a rule your
+  producers follow". The person chooses what is guaranteed. The producer's last row is the honest answer the other
   way: it looks enforceable, and is not.
 - **Rules must reach the runs.** A run reads `AGENTS.md` in its
   workspace's repositories (`../domain/agent.md`, 4.5), and a run with no

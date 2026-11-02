@@ -1922,7 +1922,7 @@
     const member = fact('Google: the ID token’s verified address', esc(site.member));
     const stranger = fact('Google: the ID token’s address', esc(site.stranger));
     const front = (under, then) => `<h1>Sign in</h1>${under}${ways(then)}`;
-    const variants = bare ? '' : `<section class="mock-variants" id="other-states"><h2>Other states, for reference</h2><p>Not steps of this world: the front page after Sign out (protocol/sign-in.md, 9.6), each page Google’s return route answers instead of signing in (4.3), and Forgejo’s authorization refused (5.3).</p><ul class="sign-in-variants">${SIGN_IN_STATES.map(([s, what]) => `<li><a href="${esc(u(`sign-in.html?state=${s}`))}">${esc(what)}</a></li>`).join('')}</ul></section>`;
+    const variants = bare ? '' : `<section class="mock-variants" id="other-states"><h2>Other states, for reference</h2><p>Not steps of this world: the front page after Sign out (protocol/sign-in.md, 9.6), each page Google’s return route answers instead of signing in (4.3), and Forgejo’s authorization refused (9.3).</p><ul class="sign-in-variants">${SIGN_IN_STATES.map(([s, what]) => `<li><a href="${esc(u(`sign-in.html?state=${s}`))}">${esc(what)}</a></li>`).join('')}</ul></section>`;
 
     if (fromForgejo && world.signedIn) {
       return page(authorize, `From Forgejo’s “Sign in with temper”, or its route /user/oauth2/temper, which Open Forgejo ↗ opens. temper’s page, read by the client as its Authorize place: signed in, it sends jig’s Authorize, and replaces its address with Forgejo’s callback and the code. ${providerNote}`,
