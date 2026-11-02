@@ -50,3 +50,56 @@ fn a_channel_cascade_settles_before_the_next_entrance() {
         [Request::Hello { .. }, Request::Hello { .. }, Request::Lost { .. }, Request::Lost { .. }, Request::Closed]
     ));
 }
+
+/// Buffered jobs and runs preserve order through seeded channel cascades (jig/docs/design/protocol/channel.md, 5.4).
+#[test]
+fn jobs_mixed_with_runs_keep_their_order() {
+    use jig_domain_host as host;
+    for seed in 0..8 {
+        let mut world = World::new(&fixtures::limits(), &fixtures::workers(), seed);
+        let (connection, channel) = world.reporting(fixtures::WORKER_A, fixtures::SECRET_A);
+        let mut expected = Vec::new();
+        for _ in 0..BUFFERED_RECORDS {
+            world.inject(connection, fixtures::turn_frame().bytes());
+            world.inject(connection, super::jobs::answer_frame().bytes());
+            world.inject(connection, fixtures::answer_frame().bytes());
+            expected.extend([0, 1, 2]);
+        }
+        world.run();
+        let observed: Vec<_> = world
+            .root()
+            .iter()
+            .filter_map(|r| {
+                if let Request::Up { up, .. } = r {
+                    Some(match up {
+                        host::LinkUp::Turn { .. } => 0,
+                        host::LinkUp::JobAnswer { .. } => 1,
+                        host::LinkUp::Answer { .. } => 2,
+                        host::LinkUp::Logins { .. }
+                        | host::LinkUp::SignedOut { .. }
+                        | host::LinkUp::Piece { .. }
+                        | host::LinkUp::Activity { .. }
+                        | host::LinkUp::Call { .. }
+                        | host::LinkUp::Unauthorized { .. }
+                        | host::LinkUp::Limited { .. }
+                        | host::LinkUp::AccountRefused { .. } => panic!("load record"),
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert_eq!(observed, expected, "seed {seed}");
+        for _ in 0..12 {
+            world.down(fixtures::assignment_down(channel));
+            world.run();
+            world.down(super::jobs::assignment(channel));
+            world.run();
+        }
+        assert_eq!(
+            world.observed(connection).iter().map(|r| r.kind).collect::<Vec<_>>(),
+            [0x0180, 0x018b].repeat(12),
+            "seed {seed}"
+        );
+    }
+}
