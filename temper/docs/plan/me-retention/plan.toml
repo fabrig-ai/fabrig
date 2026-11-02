@@ -1,0 +1,23 @@
+draft = "me-retention"
+repo = "fabrig"
+sources = ["temper/docs/plan/me-retention/inputs/request.md", "AGENTS.md"]
+
+# `me` prints its retention as a readable duration (inputs/request.md): QA finding 13,
+# fab's second probe of a fabrig plan from intake to main, kept to one direct part of one task.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "me-retention"
+title = "me prints its retention in whole seconds, the form ctl prints a duration in elsewhere"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/tools.md, 6.1"
+
+[[slice]]
+id = 1
+story = "temper ctl DIR me on a new box prints retention: 86400 seconds, not 86400000000000 ns"
+parts = ["me-retention"]
+walk = false
