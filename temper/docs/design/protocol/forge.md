@@ -651,15 +651,24 @@ temper sets one thing, where a job log may be read from:
   start: at most `forges.log_origins` entries, each an origin, `https`,
   or `http` to a loopback host alone, matched as skein's component
   matches a redirect's (scheme, host in ASCII case, port; skein's
-  `forge-connection.md`, 4.5). GitHub's default names the one blob
-  store GitHub's logs are served from; empty, no job log is fetched,
-  and a check's failure is shown without its log.
+  `forge-connection.md`, 4.5). GitHub's default names the twenty results
+  hosts `productionresultssa0.blob.core.windows.net` through
+  `productionresultssa19.blob.core.windows.net`, over TLS on port 443.
+  The shell resolves them before serving, with no network probe. An unresolved
+  default host is skipped and named once in the log; defaults never refuse
+  startup. If none resolves, that is named once and no job log is fetched.
+  An explicit unresolved host refuses startup. An explicit empty list fetches
+  no job log; a check's failure is then shown without its log.
 - **A redirect to any other origin** is answered `Refused`, and the
   component's `Fact::Origin` names that origin once for each connect
   (2.4). The routing keeps it per forge in memory, at most
   `forge_component.log_origins` of them, and forgets them at the forge's
-  next connect; it shows it on that forge's row (client/forge.md, the
-  deployment's page), and logs it once until a start names it; the
+  next connect. The latest distinct origin appears in that forge's existing row
+  diagnostic (client/forge.md, the deployment's page), when no connect
+  failure occupies it. The routing logs each of the first
+  `forge_component.log_origins` distinct refused origins once per start,
+  retaining that bounded log memory across reconnects. The log contains
+  only scheme, host and port, never a signed path, query or credentials; the
   operator adds the origin to `forges[].log_origins` and restarts
   (section 14).
 - **No document, example or test of temper's calls github.com:** GitHub's
@@ -843,7 +852,7 @@ its `limits` member (configuration.md, section 7), set in
   value, checked against jig's secrets' store at start (2.1);
   `forges.installations`, the installations a GitHub forge accepts, at
   most the component's `installations` (2.4); `forges.log_origins`, at
-  most 4 hosts per forge (3.6).
+  most 32 hosts per forge, default 20 (3.6).
 - **The component's, for GitHub** (skein's `forge-connection.md`, 7.2):
   `installations`, `log_origins`, `key_bytes`, `renew_before` (10 min;
   2.5), `log_poll` (5 s), `log_catch_up` (24 h), `log_pages` (10) and
@@ -1123,9 +1132,8 @@ temper's part:
     6).
 - **GitHub's dialect and setup's open questions** are skein's
   (`forge-github.md`; `forge-setup.md`, GitHub's plans). temper's:
-  - **A job log's origin learned at runtime.** Default: `log_origins` is
-    resolved at start; another origin is named (`Fact::Origin`, 3.6),
-    and the operator adds it and restarts.
+  - **A job log's origin learned at runtime.** Default: the default list, else `Fact::Origin` and a restart (3.6).
+    DNS resolution while serving remains later: skein's loop has no resolver.
   - **A Forgejo secret with no listener.** Default: handed none, the
     forge polls alone, named once in the log (section 5).
   - **Rows of a forge the configuration does not name.** Default: left

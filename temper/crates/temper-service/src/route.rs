@@ -135,7 +135,7 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
                     None
                 }
                 root::PartyRequest::Deliver(root::Delivery::Forges { watcher, forges }) => {
-                    match crate::family::forges(forges, &temper_client_protocol_wire::v1::CEILINGS) {
+                    match forge_rows(engine, forges) {
                         Some(record) => Some(jig_protocol_engine_clients::Event::Application(
                             jig_protocol_engine_clients::FromApplication::Delivery {
                                 watcher,
@@ -328,6 +328,10 @@ fn worker(engine: &mut Engine, request: root::WorkerRequest) {
             | root::Delivery::Drained => stop::unavailable(engine, b"workers"),
         },
     }
+}
+
+fn forge_rows(engine: &Engine, forges: temper_engine_domain_forge::Forges) -> Option<Box<[u8]>> {
+    crate::family::forges(engine.forge.origins.rows(forges), &temper_client_protocol_wire::v1::CEILINGS)
 }
 
 #[cfg(test)]

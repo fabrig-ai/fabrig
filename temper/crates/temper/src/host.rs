@@ -324,10 +324,19 @@ fn note_line(note: temper_service::Note) -> String {
             format!("temper serve: forge {number}: not connected: {why}\n")
         }
 
+        temper_service::Note::ForgeOrigin { number, origin } => origin_line(number, &origin),
         temper_service::Note::ForgeUnkept { number, installation } => {
             format!("temper serve: forge {number}: installation {installation}: not kept\n")
         }
     }
+}
+fn origin_line(number: u16, origin: &skein_forge::github::redirect::Origin) -> String {
+    let scheme = if origin.tls { "https" } else { "http" };
+    format!(
+        "temper serve: forge {number}: refused job-log origin {scheme}://{}:{}\n",
+        String::from_utf8_lossy(&origin.host),
+        origin.port
+    )
 }
 fn set_up_refused_line(number: u16, why: temper_engine_domain_forge::SetUpRefusal) -> String {
     use temper_engine_domain_forge::SetUpRefusal;
@@ -864,4 +873,17 @@ fn refusal_lines_name_the_task_attempt_tool_layer_and_reason() {
     });
     assert!(line.contains("task=7 attempt=2 tool=read_file layer=authority reason=connector read denied"));
     assert!(line.contains("findings=[]"));
+}
+
+#[test]
+fn refused_job_log_origin_note_names_only_the_origin() {
+    let line = note_line(temper_service::Note::ForgeOrigin {
+        number: 7,
+        origin: skein_forge::github::redirect::Origin {
+            tls: true,
+            host: b"unrelated.example.test".as_slice().into(),
+            port: 443,
+        },
+    });
+    assert_eq!(line, "temper serve: forge 7: refused job-log origin https://unrelated.example.test:443\n");
 }

@@ -914,3 +914,68 @@ fn a_records_key_that_cannot_sign_stops_only_its_forge() {
     assert!(face.sent().starts_with(b"GET /api/v1/"));
     assert_eq!(service.engine.as_ref().expect("engine").store.erases, 2);
 }
+
+#[test]
+fn a_refused_job_log_origin_is_visible_and_logged_once_until_restart() {
+    let mut service = fixtures::started_with_two_forges();
+    fixtures::restart(&mut service);
+    service.notes().clear();
+    let origin = skein_forge::github::redirect::Origin {
+        tls: true,
+        host: b"unrelated.example.test".as_slice().into(),
+        port: 443,
+    };
+    let engine = service.engine.as_mut().unwrap();
+    for _ in 0_u32..2 {
+        engine.forge.above.push(skein_forge_connection::Event::Fact {
+            forge: 1,
+            fact: skein_forge_connection::Fact::Origin { origin: origin.clone() },
+        });
+    }
+    crate::engine::forge_pass(engine);
+    assert_eq!(engine.notes.pop(), Some(crate::Note::ForgeOrigin { number: 1, origin: origin.clone() }));
+    assert!(engine.notes.is_empty());
+    let rows = engine.forge.origins.rows(engine.domain.forges());
+    assert_eq!(
+        rows.rows[0].ended.as_deref(),
+        Some(b"Job-log origin refused: https://unrelated.example.test:443".as_slice())
+    );
+    assert!(rows.rows[1].ended.is_none(), "diagnostics belong to one forge");
+    let bytes = crate::family::forges(rows, &temper_client_protocol_wire::v1::CEILINGS).unwrap();
+    assert!(temper_client_protocol_wire::decode_forges(&bytes, &temper_client_protocol_wire::v1::CEILINGS).is_some());
+    engine.forge.origins.clear(1);
+    assert!(engine.forge.origins.rows(engine.domain.forges()).rows[0].ended.is_none());
+    engine
+        .forge
+        .above
+        .push(skein_forge_connection::Event::Fact { forge: 1, fact: skein_forge_connection::Fact::Origin { origin } });
+    crate::engine::forge_pass(engine);
+    assert!(engine.notes.is_empty(), "reconnect does not repeat the shell note");
+}
+
+#[test]
+fn a_refused_origin_waits_for_note_room() {
+    let mut service = fixtures::started_with_two_forges();
+    fixtures::restart(&mut service);
+    service.notes().clear();
+    let engine = service.engine.as_mut().unwrap();
+    while engine.notes.room() > 0 {
+        engine.notes.push(crate::Note::ForgeUnkept { number: 2, installation: 1 });
+    }
+    engine.forge.above.push(skein_forge_connection::Event::Fact {
+        forge: 1,
+        fact: skein_forge_connection::Fact::Origin {
+            origin: skein_forge::github::redirect::Origin {
+                tls: true,
+                host: b"other.test".as_slice().into(),
+                port: 443,
+            },
+        },
+    });
+    crate::engine::forge_pass(engine);
+    assert_eq!(engine.forge.above.len(), 1);
+    engine.notes.clear();
+    crate::engine::forge_pass(engine);
+    assert_eq!(engine.notes.len(), 1);
+    assert!(engine.forge.above.is_empty());
+}

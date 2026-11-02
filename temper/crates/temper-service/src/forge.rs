@@ -1,5 +1,6 @@
 //! The forge component's boundary to the engine (protocol/README.md, 6).
 pub(crate) mod gone;
+pub(crate) mod origins;
 pub(crate) mod records;
 pub mod tokens;
 use crate::{limits, settings};
@@ -202,6 +203,7 @@ pub(crate) struct Layer {
     pub(crate) closed: bool,
     begun: bool,
     pub(crate) held: Map<u16, Box<[u8]>>,
+    pub(crate) origins: origins::Origins,
     pub(crate) endpoints: Map<u16, skein_forge_connection::settings::Forge>,
     pub(crate) github: Option<ForgeRuntime>,
     pub(crate) log_origin_limit: u32,
@@ -221,6 +223,27 @@ pub(crate) struct Layer {
     pub(crate) accepted: List<(u16, Box<[u64]>)>,
     #[cfg(test)]
     pub(crate) returned: u32,
+}
+struct Endpoints {
+    roots: Option<skein_tls::Config>,
+    file_access: Map<u16, ()>,
+    forges: Map<u16, skein_forge_connection::settings::Forge>,
+}
+fn endpoints(settings: &mut skein_forge_connection::settings::Settings, capacity: u32) -> Endpoints {
+    let mut roots = None;
+    let mut file_access = Map::with_capacity(capacity);
+    let mut forges = Map::with_capacity(capacity);
+    let initial = core::mem::replace(&mut settings.forges, List::with_capacity(capacity));
+    for forge in initial.into_boxed() {
+        if forge.access.is_some() {
+            file_access.insert(forge.number, ()).expect("configured forge capacity");
+        }
+        if let skein_forge_connection::settings::Transport::Tls { trust, .. } = &forge.transport {
+            roots = Some(trust.clone());
+        }
+        forges.insert(forge.number, forge).expect("validated endpoints");
+    }
+    Endpoints { roots, file_access, forges }
 }
 impl Layer {
     pub(crate) fn new(
@@ -248,20 +271,9 @@ impl Layer {
                 }
             }
         }
-        let mut roots = None;
-        let mut file_access = Map::with_capacity(limits.forges);
-        let mut endpoints = Map::with_capacity(limits.forges);
-        let initial = core::mem::replace(&mut settings.forges, List::with_capacity(limits.forges));
-        for forge in initial.into_boxed() {
-            if forge.access.is_some() {
-                file_access.insert(forge.number, ()).expect("configured forge capacity");
-            }
-            if let skein_forge_connection::settings::Transport::Tls { trust, .. } = &forge.transport {
-                roots = Some(trust.clone());
-            }
-            endpoints.insert(forge.number, forge).expect("validated endpoints");
-        }
+        let Endpoints { roots, file_access, forges: endpoints } = endpoints(&mut settings, limits.forges);
         Ok(Self {
+            origins: origins::Origins::new(limits.forges, limits.log_origins),
             endpoints,
             github: None,
             log_origin_limit: limits.log_origins,
@@ -298,6 +310,10 @@ impl Layer {
         }
         if let skein_forge_connection::Request::Connect { forge, .. } = &request {
             assert!(!self.held.contains_key(forge), "temper gates unresolved connects");
+            self.origins.clear(*forge);
+        }
+        if let skein_forge_connection::Request::Remove { forge } = &request {
+            self.origins.forget(*forge);
         }
         #[cfg(test)]
         if let skein_forge_connection::Request::Returned(_)
