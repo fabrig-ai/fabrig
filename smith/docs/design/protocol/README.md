@@ -342,29 +342,11 @@ to an older reader or writer. Each has one version at a time.
     section 12), so a reader is still handed one version.
   - **the event stream** carries its version on every record, and a
     reader refuses a stream in another (events.md, section 6).
-- **Where each is.** The channel, the charter and the transcripts move to
-  these together, in one release, with the event vocabulary's first:
-  - **the channel's second version:** a start's messages and the run's
-    identity, the answer's final fence, messages checked at ingress, and
-    facts projected only while the run is admitted (channel.md, section
-    5);
-  - **the charter's second:** each LLM's `window` and `output`, a
-    cache-write price, and the budget's reserve (charter.md, section 5);
-  - **transcripts' third:** a turn's kind and the window turn, the
-    affinity, optional usage with reasoning tokens, the cut call, and a
-    message's blocks from calls per response (transcript.md, section 6);
-  - **the events' first** (events.md).
-- **Then, with accounts and programs,** in one release:
-  - **the channel's fourth,** after live text's third: grants as a
-    credential with its scheme or a program source's name, beside the
-    withdrawn id-and-bearer form, and the notices unauthorized, limited
-    and refused (channel.md, section 5);
-  - **the charter's third:** each LLM's account (charter.md, section 5);
-  - **transcripts' sixth:** an opening turn's account and backend
-    (transcript.md, section 6);
-  - **the events' fourth** (events.md, section 6).
-- **The channel's fifth** adds the typed `finish_requested` bit to live and
-  Start-carried messages; its halves move together (channel.md, sections 2–3).
+- **Where each is.** The channel speaks version 5 (channel.md, section
+  2); the charter and its result, version 4 (charter.md, section 5); turns
+  and transcripts, version 6 (transcript.md, section 6); the event
+  stream, version 4 (events.md, section 6); and the local host's store,
+  version 1 (hosts.md, section 5.3).
 - **A build says which it speaks.** `smith check` prints each format's
   version (`docs/design/shell.md`), and the event stream's header carries
   them (events.md, section 3.2), so a mismatch shows before a run.

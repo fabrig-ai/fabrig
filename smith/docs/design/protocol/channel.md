@@ -72,10 +72,7 @@ of domain/host.md, section 2.
   one version, its release's, and offers only that one: the channel is
   pre-release, and no half reads an older version (README.md, section
   8).
-  Version 5 adds `Message.finish_requested`, a required boolean after text,
-  including messages nested in Start. It replaces version 4; kind numbers,
-  charter v4 and transcript v6 stay unchanged. Each message body grows by
-  one byte; generated bounds and golden bytes follow the new schema.
+  The current version is 5 (`channel-v5.schema`).
 - **The credential** is empty over a spawned agent's pipes. A connected
   agent's is still open (README.md, section 11).
 - **The agent accepts at once** over pipes. A daemon decides by its
@@ -351,34 +348,6 @@ edge is independent of the channel's own flow control (section 7).
     answers it as an invalid start.
 - **A broken rule ends the channel.** The side that sees it refuses with
   *rules*. On the host's side, its domain hears of an agent failure.
-- **Version 2.** One bump covers these records and rules:
-  - the start's messages and the run's identity (section 3);
-  - the last message read in the answer, optional on waiting,
-    `opens_window` on turns, and long operations for LLM completions and
-    commands (section 4);
-  - messages checked at ingress after rendering, and refused typed
-    (section 4 and above);
-  - facts projected only while the run is admitted and has not answered,
-    stamped when emitted (sections 7 and 8).
-
-  Both halves move to it together. A peer that speaks only version 1
-  shares no version with one that speaks only version 2, and the run ends
-  before its start is read (section 2).
-- **Version 3.** One bump covers the ask in the start and live content in
-  pieces, with their order and best effort (sections 3, 4 and 7). Both
-  halves move to it together, as they moved to version 2.
-- **Version 4** covers:
-  - a grant's value as a credential with its scheme, or a program
-    source's name, beside the withdrawn form (section 6);
-  - the notices unauthorized, limited and refused, in place of rejected
-    and exhausted (section 4);
-  - a failed run's limited or refused account, and a program that could
-    not run (section 4);
-  - the transcript refusals `endpoint` and `dialect` go: a window on
-    another endpoint or dialect is carried over, never refused
-    (transcript.md, section 4).
-
-  Both halves move to it together, as to version 3.
 
 ## 6. Grants
 

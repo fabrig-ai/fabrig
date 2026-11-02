@@ -185,15 +185,9 @@ version at a time, and any change a reader would notice is a new one.
 - **A writer writes the version of its release.** `smith check` prints the
   version an agent reads (`docs/design/shell.md`), so a writer and its
   agents that differ find out before a run.
-- **Version 4 is current.** It adds the charter's mode. Both versioned
-  records, Charter and RunResult, carry family version 4; the result's
-  shape is unchanged. Versions 1–3 are refused, with no legacy decoder.
-  Version 3 adds each LLM's `account` (section 2):
-  the charter's LLM names the account its grants are named by, and an
-  endpoint of the agent's configuration never does (agent.md, section
-  4). Version 2 adds each LLM's `window` and `output`, in place of the
-  most output tokens, the cache-write price, and the budget's reserve.
-  The result keeps its shape.
+- **Version 4 is current.** Both versioned records, Charter and
+  RunResult, carry family version 4. Versions 1–3 are refused, with no
+  decoder of their own.
 
 ## 6. Limits
 

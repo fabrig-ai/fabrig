@@ -222,31 +222,15 @@ jobs of every earlier window and activation.
 
 ## 6. Versions
 
-- **Version 2 is the first.**
-- **Version 3** adds:
-  - a turn's kind, and the window turn;
-  - the affinity, in a transcript's opening turn;
-  - usage counts as optional values, with reasoning tokens;
-  - the cut and oversized calls, and the problem *cut off*;
-  - blocks per message derived from calls per response (section 7).
-- **Version 4** adds jobs: a command answered `running`, a job's read,
-  and the highest job number a turn records (sections 2 and 4).
-- **Version 5** adds a not-run call's why after a failed write of its
-  completion, naming that call by its position (section 2).
-- **Version 6 is current.** It adds the opening turn's account and
-  backend, and a window turn's endpoint as the window's it opens
-  (sections 2 and 3). Its outcomes include `removed` and `not_empty`
-  (section 2), in place in `transcript-v6.schema`, version 6 unmoved:
-  the local host records the layout in each chat's `format`
-  (protocol/hosts.md, 5.3), so a local chat made before them is refused
-  as an older store.
+- **Version 6 is current** (`transcript-v6.schema`). The local host
+  records its layout in each chat's `format` (protocol/hosts.md, 5.3), so
+  a local chat whose layout differs is refused as an older store.
 - **A reader reads one version,** the current, like every format
   (README.md, section 8). Any other is the transcript refusal *another
-  version*, and nothing is translated: a version-2 transcript is
-  refused, and its host starts the run afresh from its brief
-  (domain/run.md, section 6). A transcript of version 5 or earlier,
-  such as a conversation on the withdrawn `codex` dialect keeps, is
-  refused the same way, and is never carried over to another
+  version*, and nothing is translated: its host starts the run afresh
+  from its brief (domain/run.md, section 6). A transcript of an older
+  version, such as a conversation on the withdrawn `codex` dialect keeps,
+  is refused the same way, and is never carried over to another
   endpoint.
 - **A host may keep turns of several versions** for people to read. A
   reader is handed a transcript in one version, and only one in the
