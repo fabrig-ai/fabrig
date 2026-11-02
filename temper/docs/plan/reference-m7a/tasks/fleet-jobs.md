@@ -2,7 +2,7 @@
 id = "fleet-jobs"
 part = "worker-channel"
 kind = "feature"
-needs = ["hub-jobs"]
+needs = ["hub-jobs", "tasks-jobs-surface"]
 files = [
   "jig/crates/jig-domain-fleet/**",
   "jig/crates/jig-domain-hub-link/**",
@@ -152,3 +152,11 @@ Pre-approved options:
 As the implementer's text says, and also: the fleet's event and entry shapes chosen; the names
 `core-jobs-run` calls (`Event::StartJob`, and any field you added to `JobStart`); each root arm
 you wrote.
+
+## Answers
+
+2026-11-02. **Q:** `TaskResult::Job` is missing from `jig-domain-tasks` at the base; wait for
+`tasks-jobs-surface` or bring the tasks vocabulary in here? **A:** Wait. `tasks-jobs-surface`
+owns `TaskResult::Job { bytes }` and the rest of the job vocabulary in `jig-domain-tasks`; this
+task now needs it, and its next run starts from a trunk that has them. Do not define substitute
+types, leave an inert answer arm, or touch `jig-domain-tasks`. The acceptance is unchanged.
