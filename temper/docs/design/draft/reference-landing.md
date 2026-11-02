@@ -42,7 +42,7 @@ jig's.
   with its hold.
 - **Dropped:** batches, trains, keys per package, provers, the
   serializer, leases, lent workspaces, the retire after landing. Landing
-  by turn stays, built, an option this reference does not take.
+  by turn stays, an option this reference does not take.
 
 ## 2. What lands
 
@@ -150,9 +150,8 @@ minutes by hand (`notes.md`, 2.2).
 
 ## 6. After landing
 
-As `after-landing.md` has it, designed and mostly not built, with one
-change: each tier names the branches it follows (N5), and main's follow
-main alone.
+As `after-landing.md` has it, with one change: each tier names the
+branches it follows (N5), and main's follow main alone.
 
 - **Main's tiers** are the suites too slow for the gate (a browser suite,
   exhaustive profiles). Each runs on main's tip as it moves, one run per
@@ -203,8 +202,8 @@ entry, a Later section) carries that edit itself.
 
 From the evidence (`notes.md`, 2.2): a catch-up with main, a
 plan stopped by its bounds, a goal's branch landed with a red after
-landing routed to a repair. Each was designed and tested in pieces, and
-done by hand when it happened. They are this reference's first stories:
+landing routed to a repair. Each was done by hand when it happened.
+They are this reference's first stories:
 
 - a goal's landing whose update into main conflicts, settled by the
   merge job and a resolution on g;

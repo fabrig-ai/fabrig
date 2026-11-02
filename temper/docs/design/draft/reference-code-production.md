@@ -2,8 +2,8 @@
 
 Draft, 2026-11-02. The reference way a project produces code on temper,
 from a person's draft to a goal ready to land: the execution model, each
-of its roles in jig's primitives and temper's mechanisms, the
-configuration that sets it up, and what is missing. It is the way a
+of its roles in jig's primitives and temper's mechanisms, and the
+configuration that sets it up. It is the way a
 project develops itself through temper: one repository, a person who
 writes design drafts, designers who turn them into design, coding agents
 who make the code meet it. How the goal lands is `reference-landing.md`;
@@ -297,8 +297,7 @@ early on S as producers do on code.
 
 ## 8. Questions
 
-The route the reference needs and temper today refuses (N1): a change
-relays its agents' questions.
+A change relays its agents' questions (N1).
 
 1. **The producer asks** its requester, the change, in the question
    form, with its options and its recommendation, after pushing what it
