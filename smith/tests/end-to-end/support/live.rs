@@ -43,6 +43,15 @@ impl Environment {
             .expect("ChatGPT record exists")
     }
 
+    /// The `ChatGPT` record's refresh facts, through smith's own reader.
+    #[must_use]
+    pub fn refresh_facts(&self) -> smith_local_shell::credentials::RefreshFacts {
+        let _configuration = self.configuration();
+        smith_local_shell::credentials::refresh_facts(&self.root.join("tokens/chatgpt"))
+            .expect("a readable ChatGPT record")
+            .expect("ChatGPT record exists")
+    }
+
     /// Recheck every live-layer destination before a child can use it.
     #[must_use]
     pub fn configuration(&self) -> PathBuf {
@@ -64,6 +73,32 @@ impl Environment {
         }
         configuration
     }
+}
+
+/// One line of the refresh facts before and after a run, in whole seconds from `now`.
+#[must_use]
+pub fn refresh_report(
+    before: &smith_local_shell::credentials::RefreshFacts,
+    after: &smith_local_shell::credentials::RefreshFacts,
+    now: skein_lib::Wall,
+) -> String {
+    let seconds = |at: skein_lib::Wall| {
+        i128::from(at.as_nanos())
+            .checked_sub(i128::from(now.as_nanos()))
+            .expect("the difference of two u64 values fits i128")
+            .checked_div(1_000_000_000)
+            .expect("nanoseconds per second is nonzero")
+    };
+    let facts = |record: &smith_local_shell::credentials::RefreshFacts| {
+        let earliest = record.earliest_refresh_at.map_or_else(|| "none".into(), |at| format!("{}s", seconds(at)));
+        format!(
+            "generation={} refreshable={} expires_in={}s earliest_in={earliest}",
+            record.generation,
+            record.refreshable,
+            seconds(record.expires_at),
+        )
+    };
+    format!("record before: {}; after: {}", facts(before), facts(after))
 }
 
 pub(crate) fn root(value: Option<&std::ffi::OsStr>) -> Result<PathBuf, &'static str> {

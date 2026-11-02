@@ -3,7 +3,7 @@ id = "refresh-twin"
 part = "refresh"
 kind = "feature"
 needs = []
-files = ["smith/tests/end-to-end/credentials.rs"]
+files = ["smith/tests/end-to-end/credentials.rs", "skein/crates/skein-oauth-accounts/src/component.rs", "skein/crates/skein-oauth-accounts/src/tests.rs", "skein/docs/design/oauth.status.md"]
 effort = "high"
 minutes = 90
 +++
@@ -92,3 +92,36 @@ Acceptance, in `smith/tests/end-to-end/credentials.rs` (the `end_to_end` binary)
 
 Each test's first result, any fix (crate, test, red and green), the files changed, the test runs
 (selected, passed), and implementation and check minutes apart.
+
+## Answers
+
+2026-11-02. **Question** (run refresh-twin-1): the raised-lead twin refreshes once (generation 1
+to 2), then refreshes again at once because the new two-hour token is still within the 400-day
+lead, and the exec aborts at `smith-local-domain` `chat/machine.rs:285` ("one terminal per
+account request"); fix skein, or give the fake issuer a token outliving the lead?
+
+**Answer:** fix skein; keep the fixture as it is. The live story's tokens are shorter than 400
+days too, so a lengthened fake token would hide the loop the live story meets once it refreshes.
+The design now says what the component does (`skein/docs/design/oauth.md`, 6.3, "Never back to
+back", written by this answer; `oauth.status.md` names the gap): a record the component has just
+kept from its own sign-in or refresh gets its lead at the later of `expiry - refresh_lead` and
+half its remaining lifetime from now; a record loaded or read under a lock keeps today's lead, so
+the raised lead still refreshes the seeded record at once.
+
+- Fix in `skein/crates/skein-oauth-accounts/src/component.rs`: the keep path (`Keeping::Kept`,
+  about line 813) installs the candidate with the floored lead (a flag or a sibling of
+  `recorded`; `recorded`'s other callers, at load, `hand in`, `private.rs` and `lock.rs`, keep
+  theirs). No stored format changes.
+- Its test first, in `skein/crates/skein-oauth-accounts/src/tests.rs`, red before and green
+  after: a held sign-in account whose refresh lead exceeds the issued token's lifetime refreshes
+  once on the grant, is granted the new generation, and asks no second refresh until half the new
+  token's lifetime has passed; then one more. Run
+  `heavy cargo nextest run -p skein-oauth-accounts --lib`, and clippy for the crate.
+- Then the twin, as committed (`6b1e34df1d`), goes green with exactly one refresh: rerun it, write
+  the earliest-refresh variant (step 3) and go on with the steps; run `end_to_end`'s credentials
+  filter whole. Remove the `oauth.status.md` entry when the code meets 6.3.
+- The abort in `chat/machine.rs` (a second `granted` or `failed` for an account already answered
+  while the chat is still starting) is not this task's: once the loop is gone the twin no longer
+  reaches it. Name it under `## Left` with what the run showed; do not change
+  `smith-local-domain`.
+
