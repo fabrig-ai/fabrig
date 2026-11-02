@@ -540,7 +540,10 @@ backend.
   `system/init` checked, each assistant message a completion of the
   child's priced at its LLM's prices, its built-in calls judged at the
   prompt as main's (5.4). The child shares main's configuration
-  directory, each program with a session of its own.
+  directory, each program with a session of its own. The agent sets
+  aside a program's io for each of a run's `conversations`
+  (limits.md, 2.2), so every child the run may open can run on a
+  program of its own.
 - **A child on a credential,** an LLM whose endpoint names no program,
   runs on the direct backend with that credential, as on a direct main;
   a program source is never granted for a child's account alone
