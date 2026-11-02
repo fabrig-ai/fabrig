@@ -8,6 +8,7 @@ sources = ["temper/docs/plan/reference-m8/inputs/request.md", "temper/docs/desig
 # procedure funding, the pure verdict policy), then skein's reads, temper's store and
 # configuration, the forge connector's tiers, the change's life to cleared, ctl and help.
 
+retired = true
 [buffer]
 low = 1.0
 high = 2.0
