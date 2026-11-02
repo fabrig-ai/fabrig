@@ -248,3 +248,18 @@ fn a_push_result_keeps_its_words_and_never_becomes_a_landed_card() {
     assert_eq!(facts.state, State::Done);
     assert_eq!(facts.said, Some(Said::Words(MERGE)));
 }
+
+#[test]
+fn a_cleared_or_uncleared_change_keeps_its_verification_words() {
+    for (words, state) in [
+        (b"abcdef0\nCleared by fast run 2.".as_slice(), State::Cleared),
+        (b"abcdef0\nNot cleared: no verdict within the verification bound.".as_slice(), State::Uncleared),
+    ] {
+        let mut task = f::change();
+        task.result = Some(c::TaskResult::Ending(Box::new(c::ChipEnding::Done(f::change_value(words)))));
+        let facts = delegation::facts(&task);
+        assert_eq!(facts.state, state);
+        assert_eq!(facts.said, Some(Said::Words(words)));
+        assert_eq!(facts.steps, Some(4));
+    }
+}
