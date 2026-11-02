@@ -118,6 +118,16 @@ pub enum Ask {
     UnsubscriptionDone { request: Token, key: CallKey },
     /// Complete a prepared claim through the connector that owns its writes.
     ClaimDone { task: u64, attempt: u64, kinds: fleet::Kinds, version: fleet::Version },
+    /// Start a claimed job after its decision is durable (jig/docs/design/domain/engine.md, 7.5).
+    JobClaimed {
+        task: u64,
+        attempt: u64,
+        kind: jig_domain_link::JobKind,
+        spec: Box<[u8]>,
+        deadline: skein_lib::Duration,
+        result: u32,
+        grants: Box<[jig_domain_accounts::Grant]>,
+    },
     /// Discard one rejected connector subscription flight.
     DropSubscription { request: Token },
     /// Ask a connector whether a refused repair belongs to a held task.

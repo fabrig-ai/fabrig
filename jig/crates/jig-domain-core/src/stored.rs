@@ -429,13 +429,11 @@ impl Core {
         use jig_domain_tasks as tasks;
         match row {
             jig_domain_tasks::Stored::Live(task) => {
-                let agent_attempt = match task.executor {
-                    tasks::Executor::Agent { .. } => task.attempt != 0,
-                    tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) | tasks::Executor::Job { .. } => {
-                        false
-                    }
+                let hosted_attempt = match task.executor {
+                    tasks::Executor::Agent { .. } | tasks::Executor::Job { .. } => task.attempt != 0,
+                    tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => false,
                 };
-                if agent_attempt
+                if hosted_attempt
                     && self
                         .restoring_proofs
                         .insert(

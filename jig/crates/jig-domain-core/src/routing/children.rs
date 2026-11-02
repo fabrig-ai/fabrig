@@ -223,7 +223,13 @@ pub(crate) fn tag_fleet(
                     }
                 }
                 // The fleet has already classified a crossed claim's end.
-                let end = if !proof.crossed && never_reported && proof.turn.is_none() && !committed_call {
+                let job = match core.tasks.task(run.raw()).expect("lost task").executor {
+                    tasks::Executor::Job { .. } => true,
+                    tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => {
+                        false
+                    }
+                };
+                let end = if !job && !proof.crossed && never_reported && proof.turn.is_none() && !committed_call {
                     tasks::End::Refused
                 } else {
                     tasks::End::Failed(tasks::Class::Lost)

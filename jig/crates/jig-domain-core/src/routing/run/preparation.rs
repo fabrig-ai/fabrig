@@ -65,7 +65,6 @@ pub(crate) fn workspace_prepared(
         return out;
     };
     drop(core.dependency_results.remove(&task));
-    let transcript = core.transcripts.remove(&task).expect("rendered task owns loaded transcript");
     let Some(writes) = writes else {
         work.push(Work::Event(Event::Tasks(tasks::Event::Hold { task, why: tasks::Hold::Effects })));
         out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
@@ -82,6 +81,12 @@ pub(crate) fn workspace_prepared(
         drop(core.workspace_credentials.remove(&task));
         return wait_for_account(core, work, current);
     }
+    match context.executor {
+        tasks::Executor::Job { .. } => return super::jobs::prepared(core, env, work, context, attempt, writes),
+        tasks::Executor::Agent { .. } => {}
+        tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => unreachable!("workspace executor"),
+    }
+    let transcript = core.transcripts.remove(&task).expect("rendered task owns loaded transcript");
     let allowance = match core.run_admission(&current, env.wall, writes) {
         crate::RunAdmission::Allow(allowance) => allowance,
         crate::RunAdmission::Wait(_) => return wait_for_account(core, work, current),
@@ -239,7 +244,13 @@ fn start_messages(inbox: Box<[tasks::Word]>, most: u32) -> Box<[tasks::Word]> {
     messages.into_boxed()
 }
 
-fn start_proof(_core: &Core, task: u64, attempt: u64, conversation: u64, messages: &[tasks::Word]) -> RunProof {
+pub(crate) fn start_proof(
+    _core: &Core,
+    task: u64,
+    attempt: u64,
+    conversation: u64,
+    messages: &[tasks::Word],
+) -> RunProof {
     let mut offered = None;
     let mut outstanding = List::with_capacity(u32::try_from(messages.len()).expect("bounded start inbox"));
     for word in messages {
@@ -251,7 +262,11 @@ fn start_proof(_core: &Core, task: u64, attempt: u64, conversation: u64, message
     proof
 }
 
-fn wait_for_account(core: &mut Core, work: &mut Queue<Work>, context: Box<tasks::RunContext>) -> Queue<Request> {
+pub(crate) fn wait_for_account(
+    core: &mut Core,
+    work: &mut Queue<Work>,
+    context: Box<tasks::RunContext>,
+) -> Queue<Request> {
     let task = context.task;
     super::results::clear(core, task);
     drop(core.contexts.remove(&task));
@@ -504,7 +519,15 @@ pub(crate) fn route_activate(
         remember_due(core, context);
     } else if core.tasks.recurring_template(number).is_none() {
         match context.executor {
-            tasks::Executor::Job { .. } | tasks::Executor::Person(_) => {}
+            tasks::Executor::Person(_) => {}
+            tasks::Executor::Job { .. } => match super::jobs::admission(core, &context, env.wall, Box::new([])) {
+                Ok(()) => return super::jobs::activate(core, work, context),
+                Err(crate::RunAdmission::Wait(_)) => remember_due(core, context),
+                Err(crate::RunAdmission::Hold(why)) => {
+                    work.push(Work::Event(Event::Tasks(tasks::Event::Hold { task: number, why })));
+                }
+                Err(crate::RunAdmission::Allow(_)) => unreachable!("job admission has no run allowance"),
+            },
             tasks::Executor::Procedure { connector, .. } => {
                 if let Some(step) = context.previous_attempt.checked_add(1) {
                     out.push(Request::Ask { connector, ask: Ask::StartProcedure { context, step } });
