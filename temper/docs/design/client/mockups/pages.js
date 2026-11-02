@@ -186,7 +186,7 @@
     display: ['the account’s email', 'the account’s display, its email, which jig’s sign-in leaves empty (jig’s client/domain/contract.md, 7.1, OwnerAccountLine.display)'],
     preview: ['the resolved default', 'the model a new chat’s first run takes, before it runs: jig’s Template.resolved_default (jig’s client/domain/contract.md, 5.3)'],
     ci: ['a CI read at main', 'the verdict of CI at a repository’s main: a later mission (design STATUS.md, first-repo)'],
-    projectless: ['no project at first', 'temper init seeding no project, which the playground’s start or the first repository makes (draft first-run.md, 2.4; design STATUS.md, first-run-ux-2)'],
+    projectless: ['no project at first', 'temper init seeding no project, which the playground’s start or the first repository makes (draft archive/first-run.md, 2.4; design STATUS.md, first-run-ux-2)'],
     eligible: ['jig’s not-eligible end', 'a sign-in’s ending for an account not eligible for plan usage (client README, section 11)'],
     port: ['jig’s port-taken end', 'a sign-in’s ending for the listener’s port held by another program (client README, section 11)'],
     login: ['the person’s login', 'the person’s Forgejo login on the owned forge’s row (client forge.md, 5.4)'],
@@ -380,7 +380,7 @@
   const projectTasks = () => Object.keys(world.tasks).filter(k => inProject(T(k)));
   // A first run's deployment has the project `temper init` seeds; with
   // no project until the playground's start or the first repository
-  // makes one (draft first-run.md, 2.4), its place reads "No project yet".
+  // makes one (draft archive/first-run.md, 2.4), its place reads "No project yet".
   const seeded = () => world.seeded && shownProject() === world.seeded;
   const project = () => seeded()
     ? variant('projectless', conf('engine.projects, its first, unnamed, so “Project 1” (protocol/setup.md, 8.3)', esc(world.seeded)), 'No project yet')

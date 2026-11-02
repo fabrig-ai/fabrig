@@ -305,8 +305,7 @@ groups' files), 8.3 (the default document names no forge) and 8.4 (the
 demo's start and end, replaced by 6.1 and 6.2); `../domain/forge.md`,
 4.1 (any forge ended, then removed); `../client/README.md`, 3.5 (the
 welcome's states) and 4.8 (the demo's halves); `../client/forge.md`
-(Remove); `first-run.md`, 2.3 (the demo's end) and 2.4 (the
-playground's project, deleted at its reset); `configuring.md`,
-section 10 (forges' addresses no longer later); jig's
+(Remove); `configuring.md`, section 10 (forges' addresses no longer
+later); jig's
 `domain/people.md` (`RemoveProject`) and `domain/tasks.md` (erasure
 at once).

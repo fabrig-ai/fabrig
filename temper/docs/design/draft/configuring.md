@@ -97,8 +97,8 @@ The user's rule: `temper.json` keeps only what the process needs before
 it can read its store, and what belongs to the machine; everything else
 is a setting in the store. Projects already left it: jig makes them at
 runtime, and the first run makes them as the person goes
-(`first-run.md`, 2.4). This draft moves the rest of what configures
-work:
+(`archive/first-run.md`, 2.4). This draft moves the rest of what
+configures work:
 
 | Setting | In the document today | Read | So |
 |---|---|---|---|
@@ -248,8 +248,8 @@ made follows the new one, and what is in flight keeps the old.
 ### 5.1 Where they meet it
 
 - **The stock defaults are enough to start.** The first run's wizard
-  (`first-run.md`, 2.3) grows no step. After its Ready, and on an empty
-  "How work runs" page, one offer: "Tell temper how you work".
+  (`archive/first-run.md`, 2.3) grows no step. After its Ready, and on
+  an empty "How work runs" page, one offer: "Tell temper how you work".
 - **The conversation is a chat** from a stock template whose charter is
   the configuring agent's: nothing particular in jig, and a setting
   itself, so it can be reconfigured.

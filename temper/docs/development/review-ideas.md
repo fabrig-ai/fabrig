@@ -1,6 +1,6 @@
 # Review ideas from DeepPattern
 
-Draft, 2026-10-23. Ideas worth keeping from DeepPattern's agent-quality
+Report, 2026-10-23. Ideas worth keeping from DeepPattern's agent-quality
 toolkit, read on 2026-10-23 when its makers invited the user to a trial,
 which the user declined. The source is its public repositories,
 `github.com/deeppatternai/agent-quality-gates` (AQG: skills, hooks and
@@ -16,7 +16,7 @@ temper's design and what is open.
   person or an agent inspects before an explicit accept, reject or
   person's decision. temper's gates are that, held as facts rather than
   claims: a verdict at the change's exact head, its freshness, blocking
-  or advisory, a person's approval as a gate (`domain/forge.md`, 8.3).
+  or advisory, a person's approval as a gate (`../design/domain/forge.md`, 8.3).
   AQG asks an agent it does not control to write its own evidence;
   temper's procedures judge it from the forge.
 - **Reviewers from different model families** (section 2): a review's
@@ -44,8 +44,8 @@ from convergence on a shared phrase; how it does so is on its server,
 not public.
 
 In temper, a gate's review is a task for an agent with a lens
-(`domain/forge.md`, 8.3), and a task makes its LLM choice among those
-its charter allows (`domain/agent.md`, 4.6). Two shapes would fit:
+(`../design/domain/forge.md`, 8.3), and a task makes its LLM choice among those
+its charter allows (`../design/domain/agent.md`, 4.6). Two shapes would fit:
 
 - **Another family than the producer's.** A review gate asks for a
   model whose provider differs from the one that produced the head it
@@ -67,7 +67,7 @@ accepted, rejected with a reason, or needing a person's decision, in a
 table the next step reads.
 
 In temper, a blocking review that asks for changes becomes a repair
-given the gate's remarks (`domain/forge.md`, 8.4), and the gate is asked
+given the gate's remarks (`../design/domain/forge.md`, 8.4), and the gate is asked
 again at the repair's head. Nothing records what the repair did with
 each remark:
 
@@ -94,7 +94,7 @@ and tests that depend on sleeps, the wall clock, unseeded randomness or
 a live network.
 
 In temper, it is a review's lens like memory safety or performance
-(`domain/forge.md`, 8.3), in a project's landing rules or added to one
+(`../design/domain/forge.md`, 8.3), in a project's landing rules or added to one
 change by a coordinator. For temper's own repositories it would review
 against skein's `testing-strategy.md` (worlds, seeds, the simulated
 clock), so the lens's text is the project's, not a fixed list.
@@ -115,7 +115,7 @@ clock), so the lens's text is the project's, not a fixed list.
   board lays a topic out as cards; a person drags, ranks, strikes and
   annotates them, and the agent reads their intent from the edits
   rather than from text. People direct temper at the level of goals and
-  plans (`README.md`, section 1), and a goal's plan shows in the client
-  as a tree of its delegates (`client/README.md`, 5.8): editing that
-  tree by hand, sent back as the person's answer, is a candidate for
-  the client.
+  plans (`../design/README.md`, section 1), and a goal's plan shows in
+  the client as a tree of its delegates (`../design/client/README.md`,
+  5.8): editing that tree by hand, sent back as the person's answer, is
+  a candidate for the client.
