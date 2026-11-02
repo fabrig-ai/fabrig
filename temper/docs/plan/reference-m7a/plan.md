@@ -48,15 +48,25 @@ The shapes every task builds to are `notes/contracts.md`; the standing rules
   - `tasks/tasks-jobs-surface.md`, medium, ~180 min, needs `client-jobs`: the variants in tasks,
     authority, the store's three families, the core's and temper's forced arms, inert (the
     batch refuses a job); the engine-clients mappings.
-  - Next batch (a designer's): `tasks-jobs-lifecycle` and `core-jobs-admit` side by side after
-    the surface, then `core-jobs-run` (needs both and `fleet-jobs`).
+  - `tasks/tasks-jobs-lifecycle.md`, high, ~150 min, needs `tasks-jobs-surface`: the tasks
+    child's job lifecycle; only a procedure makes a job; its claim reserves nothing; words,
+    questions and amendments refused; cancel at once.
+  - `tasks/core-jobs-admit.md`, high, ~130 min, needs `tasks-jobs-surface`, beside the
+    lifecycle: `Config::jobs`, a procedure's step making a job, declared kinds and bounds,
+    delegation job kinds; the test kits' job delegate; refusal stories only (the tasks child
+    still refuses every job until the lifecycle lands).
+  - `tasks/core-jobs-run.md`, high, ~180 min, needs `tasks-jobs-lifecycle`, `core-jobs-admit`,
+    `fleet-jobs`: a due job's check (`check_job`), claim, `Ask::JobClaimed` to hub-link's
+    `StartJob`, its answer to its procedure, restart; the first world stories of a made job.
 
-## Critical path, as it stands
+## Critical path
 
-`client-jobs` (~120) → `tasks-jobs-surface` (~180) → `core-jobs-admit` / `tasks-jobs-lifecycle`
-→ `core-jobs-run`, then fab's end check: about nine hours of implementer time, eighteen with
-the buffer. The worker side (`hub-jobs` → `link-jobs`, `fleet-jobs`, `worker-jobs` →
-`service-jobs`) runs beside it and joins at `core-jobs-run` through `fleet-jobs`.
+`client-jobs` (~120) → `tasks-jobs-surface` (~180) → `tasks-jobs-lifecycle` (~150; beside it
+`core-jobs-admit`, ~130) → `core-jobs-run` (~180), then fab's end check: about 630
+implementer-minutes, up to about 1260 with the buffer. `fleet-jobs` (after `hub-jobs`, ~160 +
+~170) joins it at `core-jobs-run` with time to spare. The worker side (`hub-jobs` →
+`link-jobs`; `tooling-capability` and `hub-jobs` → `worker-jobs` → `service-jobs`, ~160 + ~120
++ ~170 + ~160) runs beside it, about as long.
 
 ## Overlaps
 
@@ -86,3 +96,15 @@ the buffer. The worker side (`hub-jobs` → `link-jobs`, `fleet-jobs`, `worker-j
   merge job as one more entry; production declares none until then. Its spec is decoded by the
   service (the domain links no protocol crate); its result is the result file's bytes.
 - **`Rewrite`** stays with `prepare` (M7b or later): only a prepare job's candidate uses it.
+- **The worker's job limits are profile constants,** no configuration key: the keys
+  (`tooling_file_bytes`, `tooling_log_bytes`) come with the first kind, as does a policy's job
+  kind in the operator's configuration.
+- **The job's directory** is the prepared workspace's root, the home the repository named
+  `home`, the others beside it, not under `repos/` (`tooling.md, 3`): the design's layout waits
+  for the first kind, and `worker-jobs` reports what it built.
+- **Designer's defaults** (`tasks-jobs-lifecycle`, `core-jobs-admit`, `core-jobs-run`): only a
+  procedure makes a job, which delegates nothing; a job's claim carries no budget and no
+  account; the core sets a job's contract from its kind's bound whatever the step gave; an
+  undeclared kind is `Refusal::Executor`, a spec or deadline past its bound `Refusal::Spec`;
+  `jig-domain-core` links `jig-domain-link`; the authority gains `JobAsk`/`check_job` beside
+  `check_run`.
