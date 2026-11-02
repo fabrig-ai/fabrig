@@ -72,6 +72,16 @@ repository's `fab/roles/cut-run.md`):
 
 Its designers, its implementers and its walker are separate sessions.
 
+**Old branches, for reference only.** Unmerged branches of the old
+repositories (fabrig-ai's jig, temper and skein, kept in hel8's
+`~/src/fabrig/attic/` until the user decides on them) hold earlier
+code for some milestones, assessed against this file in hel8's
+`~/src/fabrig/coord/old-repos-value/`. Each entry names its own under
+Old code. They are a reference, never a plan: whether to use one, what
+of it and how is its designers' and implementers' choice, case by case.
+Adapting old code to today's tree may cost more than writing it afresh,
+so weigh that before starting from it.
+
 ## 3. The milestones
 
 | | Milestone | Executes | Needs | Walks (case steps) | State |
@@ -92,7 +102,7 @@ N9 and N17 are the drafts' Later; N11 is accepted and asks no work.
 Each entry's Design names the documents and sections its designers
 write, from the drafts' statuses; Builds, the trees its implementers
 change; Configures, the settings of `reference-code-production.md`,
-section 14 it adds.
+section 14 it adds; Old code, the old branches it may start from.
 
 ### M0. Ground
 
@@ -132,12 +142,22 @@ section 14 it adds.
   (`forge.md`, 8.2 steps 3 and 6, 8.7, section 10); a result's words
   carrying the producer's report (`forge.md`, 8.2 step 7).
 - **Builds:** jig (templates, holds, writer slots, wake policies,
-  limits); temper's forge connector and `change`.
+  limits); temper's forge connector and `change`; the landing rules as
+  settings of temper's kinds, out of `Config`'s `landing` member, so a
+  goal branches' rule stands beside main's (`../domain/root.md`, 5.5,
+  5.6 and 6; `forge.md`, 8.9; temper's `../protocol/configuration.md`,
+  13.2 and 13.3), as designed and not built.
 - **Configures:** the coordinator's charter, its first edition (a plan
   of changes G specifies itself, results and Left lists, the goal's
   end); the goal template for drafts; the coding agent's charter (Left
   lists, tests marked ignored for code it does not own: N15); the
   landing rule for goal branches; the merge commit; `.temper/pre-pr`.
+- **Old code:** jig `upgrades-6/j12-verdict-fields-2` (a result's bound
+  past the settings schema's cap); jig's and temper's
+  `configuring-revisions/documents-r1` (a charter's documents); temper
+  `configuring-stock/forge-kinds` (temper's kinds as settings); temper
+  `holds/forge-step-admitted-12`, a bug its walk may meet (a change held
+  for effects, then released, left with no producer).
 - **Walk:** steps 1, 3 (G specifies its changes itself, one after
   another), 7 and 19, then the goal's end with g kept, unlanded. A
   dependent starts once its dependency has landed; no merge into g
@@ -159,6 +179,8 @@ section 14 it adds.
 - **Configures:** the coordinator's charter: L, its escalations, changes
   into g while L is held; the landing rule for main; L's CI, the full
   gate; three repairs.
+- **Old code:** temper `o/forgejo-land-drift-world`, a test idea for
+  `forge.md`, 8.5.
 - **Walk:** steps 23, 24 and 28, L ending at landed until M8; and
   `reference-landing.md`, section 9's second story (L held past its
   repairs, released after a change into g).
@@ -176,10 +198,17 @@ section 14 it adds.
   against its charter's models); jig's `domain/core.md`, 7.1 (a plan's
   text in the repository's design).
 - **Builds:** temper's `change` and change procedure (a producer's
-  charter, an LLM choice per role); jig's check of them.
+  charter, an LLM choice per role); jig's check of them; the forge's
+  charters as settings of temper's kinds, out of `Config`'s
+  `forge_charter`, so a change's producer and foreman each take a
+  charter of their own (`../domain/root.md`, 6; `forge.md`, 8.1 and 8.9;
+  temper's `../protocol/configuration.md`, 13.2).
 - **Configures:** the designer's charter; the coordinator's charter:
   the cut, the families' batches, revisions, the close-out; each
   change's LLM choices, gpt-6.1-sol on smith's direct backend (N20).
+- **Old code:** jig's and temper's `configuring-revisions/charter-tools-r6`
+  (the tool families a charter offers); `documents-r1` and
+  `forge-kinds` (M1).
 - **Walk:** steps 1 to 6 without surveys, questions or early starts
   (each designer starts once S has landed), and 22; with M2, the goal
   then lands.
@@ -212,6 +241,8 @@ section 14 it adds.
 - **Configures:** the foreman's charter; the coordinator's charter:
   answer, amend, a new change, ask the person, holds; waking on each
   question at once (N8).
+- **Old code:** `charter-tools-r6` (M3), for the read-only foreman;
+  `holds/forge-step-admitted-12` (M1).
 - **Walk:** steps 9, 11, 14, 15 and 18; 5's question once M3's walk
   stands.
 
@@ -251,6 +282,8 @@ section 14 it adds.
 - **Configures:** `merge_job`, the project's kind that merges and
   recounts its counted baselines; the coordinator's charter:
   catch-ups, landing news paced at most once in 30 minutes (N23).
+- **Old code:** temper `ladder-b01/f19-r4`, the resolving agent's words
+  (the worker pushes the merge commit).
 - **Walk:** steps 12, 16 and 21; `reference-landing.md`, section 9's
   first story (L's update conflicts, settled by the merge job and a
   resolution on g).
@@ -268,6 +301,11 @@ section 14 it adds.
   cleared; skein's reads.
 - **Configures:** main's tiers, the slow suites; the verification bound,
   two hours.
+- **Old code:** most of the build, in the verdicts line: jig
+  `verdicts/jig-zero-seed-13`, skein `verdicts/skein-reads-3`, temper
+  `verdicts/2a-set-8`, then temper `verdicts/t9-bound` (reruns, flakes,
+  bisection, the bound). It follows the landing branch alone, where N5
+  has a tier name its branches.
 - **Walk:** a chat's small fix into main (`reference-landing.md`, section
   7), verified: green clears it; a red reruns, blames, bisects. Then,
   with M2, step 25 and 28's L given its result at cleared.
@@ -286,6 +324,8 @@ section 14 it adds.
   following goal branches, at most once per 20 minutes); the
   coordinator's charter: triage along the way and after landing, notes
   on what it learns.
+- **Old code:** temper `verdicts/t9-bound`'s red news to goals and
+  `repairs`; g's tier and triage were never built.
 - **Walk:** steps 20 and 25 to 27; `reference-landing.md`, section 9's
   third story.
 
@@ -295,6 +335,9 @@ section 14 it adds.
   whole, as one reference profile, its limits sized for a goal of a
   hundred changes (N21: temper's `../protocol/configuration.md`, 13.4
   and section 7, `agent.md`, 4.3.1, jig's `domain/engine.md`, 17.9).
+- **Old code:** jig `github-pilot/t28-land-r4` (a batch refused for room
+  waits for it); temper `configuring-revisions/settings-file` and
+  `docs-reference/*`, background for the profile's sizing.
 - **Walk:** rung C (`v0.1.0.md`, 2.1 and section 7): `reference-case.md`,
   acts 1 to 5, act by act, then whole; both plans; opened once rung B2
   passes.
