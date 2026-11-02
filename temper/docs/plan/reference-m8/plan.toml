@@ -1,0 +1,33 @@
+draft = "reference-m8"
+repo = "fabrig"
+sources = ["temper/docs/plan/reference-m8/inputs/request.md", "temper/docs/design/draft/reference-case.execution.md", "temper/docs/design/draft/reference-landing.md", "AGENTS.md", "DESIGN.md"]
+
+# M8 of temper/docs/design/draft/reference-case.execution.md: main's tiers, the verdict, a
+# change living to cleared (temper/docs/design/domain/after-landing.md, 2 to 6, with N5's
+# tier branch written by this cut). Released in batches: first what needs nothing (jig's
+# procedure funding, the pure verdict policy), then skein's reads, temper's store and
+# configuration, the forge connector's tiers, the change's life to cleared, ctl and help.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "procedure-funding"
+title = "jig: a deployment procedure that runs no agent starts at budget zero, its effects funded from the period"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/authority.md, 6"
+
+[[part]]
+id = "tiers-core"
+title = "temper: the pure report and verdict policy of a tier"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/after-landing.md, 5"
+
+[[slice]]
+id = 1
+story = "a tier's runs are judged by the pure policy (green clears, a red reruns, blames and bisects), and a deployment procedure starts under a period reserved whole"
+parts = ["procedure-funding", "tiers-core"]
+walk = false
