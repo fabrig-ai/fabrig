@@ -1069,6 +1069,10 @@ agent for ever.
 - **Containing a run from the programs directory,** so that a worker
   keeping several people's program logins may take each one's runs:
   accounts.md, section 7.
+- **A failed login check's restriction:** whether a check that failed
+  after an exit or timeout (5.1) withholds new placement only from the
+  runs its source's holder pays for, by a check joined with the holder's,
+  rather than from every run on the worker.
 - **Agents other than smith:** the contract of section 2 is jig's; an
   agent that spoke it through a capability of its own could run beside
   smith. Not wanted yet.
