@@ -86,6 +86,10 @@ failed for good`, or `a person rejected a gate`. A release resets its
 counts and goes on from where it was held; held at `producing` because
 its coder failed for good before pushing, it makes a fresh coder, one
 more of its tasks, or holds again if its authority can't cover one.
+Held at `repairing` because its repair failed for good, release makes
+a fresh repair for the same reason, counted against its reset repair
+limit, or holds again if its authority can't cover one. A failed repair
+counts as one attempt; it does not mean all its repairs are spent.
 Held at `producing`, its hold carries the coder's own words, why it
 made no change, whole within 512 bytes, and its chat hears them:
 cancel it if they hold, or release it if the coder was wrong. Its
