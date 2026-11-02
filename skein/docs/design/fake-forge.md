@@ -769,6 +769,11 @@ Each route is decoded by the server side of `skein_forge::github` and
 answered as GitHub answers. GitHub's quirks live here. The domain gains
 only what GitHub has and Forgejo lacks (10.2).
 
+The layer serves the checks and job reads, signed job-log redirects, the
+peer's blob listener and its redirect scenarios, drawn mergeability settle
+deadlines, person credentials, installation scopes and revocation, and byte
+faults; the service and the hosted peer each have an allocator binary.
+
 ### 10.1 What it serves
 
 - **REST at the pin.** Every route of forge-github.md, sections 4, 8, 9
@@ -1038,7 +1043,7 @@ only what GitHub has and Forgejo lacks (10.2).
   - as a ruleset, with its id and the App's `current_user_can_bypass`;
   - as classic protection, otherwise `404` "Branch not protected";
   - or both.
-- **Rates (built).** Every answer on a token carries `x-ratelimit-*` from the
+- **Rates.** Every answer on a token carries `x-ratelimit-*` from the
   domain's window: `rate_limit`, what remains of it, and its end. The
   App JWT calls carry none. A call refused for the rate (`limited`)
   is `403` with `x-ratelimit-remaining: 0`. A crowded one is `403` "You
@@ -1198,9 +1203,7 @@ masking and refusal of leaked secrets are section 7's.
 
 - **The fake** (`--fake`, the default) is the GitHub layer in-process,
   hosted by the forge peer. It also runs as one test in the focused
-  suite, which refuses failed facts and unexpected unchecked facts. Required
-  signatures stay unchecked on the fake until it refuses a push as `GH013`
-  (10.2).
+  suite, which refuses failed facts and unexpected unchecked facts.
 - **github.com** (`--live <directory>`) is opt-in. It runs from the
   user's session alone, and only on the user's word. It is never
   run by a suite or a gate, and never from CI.
