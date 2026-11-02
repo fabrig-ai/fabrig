@@ -62,8 +62,8 @@ task names `notes/common.md`.
 
 `box-words` and `playground-restart-resets` landed. Now: `remove-project-grace` (~120) →
 `deletion-grace` (~120) → `unname-at-erasure`; beside it `kept-names` (~150) → `reset-grace`
-(~45) and `unname-at-erasure`. About four hours of implementer time on the longest chain, up to
-eight with the buffer.
+(~45) and `unname-at-erasure`. About five hours of implementer time on the longest chain (~285
+minutes), up to ten with the buffer.
 
 ## Overlaps
 
