@@ -1,8 +1,8 @@
-//! Configured defaults for client shapes of work (configuration.md, 3.1).
+//! Configured defaults for client shapes of work (jig/docs/design/protocol/configuration.md, 3.1 and 3.3).
 use crate::{Limits, Path, Problems, What, check, read};
 use alloc::boxed::Box;
 use jig_domain_core::{Charter, Model, Template};
-use jig_domain_people::{TemplateBudget, TemplateDeadline, TemplateExecutor};
+use jig_domain_people::{Symbol, TemplateBudget, TemplateDeadline, TemplateExecutor};
 use jig_domain_tasks as tasks;
 use skein_json::{Document, document::Kind};
 use skein_lib::{Duration, List};
@@ -162,6 +162,10 @@ fn template(
         Some(at) => choice(document, at, &path.member(b"llm"), models, problems),
         None => Err(What::Missing),
     };
+    let resources: Option<Box<[Symbol]>> = match object.member(document, b"resources") {
+        Some(at) => resources(document, at, &path.member(b"resources"), limits.core.tasks.holdings, problems),
+        None => Some(Box::new([])),
+    };
     object.finish(document, path, problems);
     let retention = match retention?.as_ref() {
         b"kept" => tasks::Retention::Kept,
@@ -172,7 +176,7 @@ fn template(
         }
     };
     let template = Template {
-        resources: Box::new([]),
+        resources: resources?,
         number: number?,
         name: name?,
         executor: executor?,
@@ -200,6 +204,41 @@ fn template(
         problems.push(path.member(b"grace_ms"), What::Grace { template: template.number });
     }
     Some(template)
+}
+fn resources(document: &Document, at: u32, path: &Path, limit: u32, problems: &mut Problems) -> Option<Box<[Symbol]>> {
+    let items = report_list(read::list(document, at, limit), path, problems)?;
+    let mut resources = List::<Symbol>::with_capacity(items.len());
+    for (index, at) in items.iter().enumerate() {
+        let path = check::index(path, index);
+        let resource = match resource(document, *at, &path) {
+            Ok(resource) => resource,
+            Err(what) => {
+                problems.push(path, what);
+                return None;
+            }
+        };
+        for previous in &resources {
+            if previous == &resource {
+                problems.push(path.clone(), What::Unique);
+                break;
+            }
+        }
+        resources.push(resource).expect("bounded resources");
+    }
+    Some(resources.into_boxed())
+}
+fn resource(document: &Document, at: u32, path: &Path) -> Result<Symbol, What> {
+    let mut object = read::Object::new(document, at).or(Err(What::Form))?;
+    let mut form = Problems::empty();
+    let connector = check::integer(&mut object, document, b"connector", path, &mut form);
+    let symbol = check::integer(&mut object, document, b"symbol", path, &mut form);
+    object.finish(document, path, &mut form);
+    if !form.is_empty() {
+        return Err(What::Form);
+    }
+    let connector = u16::try_from(connector.ok_or(What::Form)?).or(Err(What::Form))?;
+    let symbol = u16::try_from(symbol.ok_or(What::Form)?).or(Err(What::Form))?;
+    Ok(Symbol { connector, symbol })
 }
 fn null(document: &Document, at: u32) -> bool {
     match document.token(at) {
