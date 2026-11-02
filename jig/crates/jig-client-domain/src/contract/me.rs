@@ -78,6 +78,7 @@ pub struct Creating {
 /// A configured template merged with its project's overrides (protocol/configuration.md, 3.1).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Template {
+    pub resources: List<super::Symbol>,
     pub number: u32,
     pub name: DocumentText,
     pub executor: TemplateExecutor,
