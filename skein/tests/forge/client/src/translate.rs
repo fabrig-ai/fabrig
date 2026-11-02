@@ -88,6 +88,9 @@ fn read_op(read: &client::Read, l: &Limits) -> forge::Read {
             page: *page,
             limit: l.rows,
         },
+        client::Read::Artifact { .. } | client::Read::Commits { .. } => {
+            panic!("skein-fake-reports supplies artifact and commit reads")
+        }
         client::Read::Run { run } => forge::Read::Run { run: *run },
         client::Read::Tree { object, page } => forge::Read::GitTree {
             object: if commit(number(*object)) == *object {
@@ -468,6 +471,8 @@ fn pull_answer(asked: &client::Op, pull: forge::Pull, l: &Limits) -> client::Ans
             | client::Read::Runs { .. }
             | client::Read::Run { .. }
             | client::Read::Tree { .. }
+            | client::Read::Artifact { .. }
+            | client::Read::Commits { .. }
             | client::Read::Job { .. }
             | client::Read::Protection { .. }
             | client::Read::Settings
