@@ -24,3 +24,16 @@ id = 1
 story = "temper ctl starts a chat from any of the project's chat templates, and refuses a template that is no chat's naming those it offers"
 parts = ["chat-template"]
 walk = false
+
+[[part]]
+id = "running-revision"
+title = "temper: the system world proves a run keeps its task's revision, a chat moves at its next run, an advance moves the rest"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/engine.md, 17.3"
+
+[[slice]]
+id = 2
+story = "after a change with running work staying, a parked task's next run reads its old revision's charter, a chat's next run reads the newest, and the owner's advance moves the rest"
+parts = ["running-revision"]
+walk = false
