@@ -1,8 +1,35 @@
 # Status
 
-Updated 2026-10-29. How far jig's code is from its design.
+2026-11-02. Where jig's code lags or departs from its design, from the
+status files below. Agents in a host's own process are the widest gap:
+no root composes `smith-inline-agent`, so the engine's own slots, a
+hub's agent capability and the tools a worker begins with their calls
+are not in jig (`README.md`, `domain/README.md`, `domain/engine.md`,
+`domain/hosts.md`, `domain/root.md`, `protocol/README.md`,
+`protocol/channel.md`, `protocol/llm.md`, `protocol/service.md`). Jobs
+are not built (`domain/core.md`, `domain/tasks.md`, `domain/hosts.md`,
+`domain/engine.md`, `client/domain/contract.md`), nor TLS between hosts
+and contained process trees for workers' agents (the protocol
+documents), nor the store's retention, rehearsal and going back
+(`protocol/store.md`, `protocol/client.md`). Of the acts, `Hold`, `Move`
+under another task, `Succeed`, a settings revision's `Restore`,
+successors, markers, a drain and a conversation's questions lag
+(`domain/people.md`, `domain/tasks.md`, `domain/engine.md`,
+`client/domain/contract.md`); of the client, a committed turn's objects,
+`me`'s `resolved_default`, a service's root, the one-shot mode and the
+drawing family (`client/domain/`); and `ops` standalone, with its
+service and its connectors' protocols (`examples.md`). The code departs where a project is removed,
+because the playground is reset (`domain/people.md`, `domain/tasks.md`,
+`client/domain/contract.md`); where the client wire keeps
+`TaskWaitRefused::Program` and stored `Seen` records and answers, which
+the design dropped and a code task removes (`domain/hosts.md`,
+`domain/people.md`, the protocol's `client.md`, `browser.md` and
+`configuration.md`); and in a few single items (`README.md`,
+`client/domain/client.md`, `domain/engine.md`, `domain/root.md`,
+`examples.md`). `domain/providers.md` and `client/domain/README.md` have
+no gap of their own. jig has no drafts.
 
-Each design document's status is in `<doc>.status.md` beside it:
+Design documents:
 - [`README.md`](README.status.md)
 - [`domain/README.md`](domain/README.status.md)
 - [`domain/core.md`](domain/core.status.md)
@@ -33,9 +60,3 @@ Each design document's status is in `<doc>.status.md` beside it:
 - [`protocol/client.md`](protocol/client.status.md)
 - [`protocol/store.md`](protocol/store.status.md)
 - [`protocol/browser.md`](protocol/browser.status.md)
-- [`debt/quality-review.md`](debt/quality-review.status.md)
-
-Not single documents:
-
-A cancel grace emits durable `FinishRequested { revision }`, translated to
-smith's finish flag live and in Start; clients see Amendment.
