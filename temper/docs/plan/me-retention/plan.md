@@ -1,7 +1,7 @@
 # me-retention: the plan
 
 From `inputs/request.md` (QA finding 13, `v0.1.0-ladder/finding-13` in
-`temper/docs/design/debt/v0.1.0-ladder.md`): `temper ctl DIR me` prints
+`temper/docs/development/v0.1.0-ladder.md`): `temper ctl DIR me` prints
 `retention: 86400000000000 ns`. One direct part, one task, as the request asks.
 
 ## Parts and tasks
