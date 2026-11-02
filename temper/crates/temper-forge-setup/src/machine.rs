@@ -1,4 +1,4 @@
-//! The document's machine parts and the box's kinds (temper/docs/design/draft/playground-reset.md, 3).
+//! The document's machine parts and the box's kinds (temper/docs/design/protocol/configuration.md, 3; temper/docs/design/protocol/setup.md, 7.1).
 use crate::{
     check::joined,
     problem::Problems,
@@ -190,7 +190,7 @@ pub fn directory(forge: u16, kind: BoxKind) -> Box<[u8]> {
     };
     joined(&[prefix, Decimal::of(u64::from(forge)).as_bytes()])
 }
-/// The group's kind word and a line feed (temper/docs/design/draft/playground-reset.md, 3).
+/// The group's kind word and a line feed (temper/docs/design/protocol/setup.md, 7.1).
 #[must_use]
 pub fn group_file(kind: BoxKind) -> Box<[u8]> {
     joined(&[kind.word(), b"\n"])

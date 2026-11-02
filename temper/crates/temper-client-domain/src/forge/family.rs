@@ -438,7 +438,7 @@ fn admin_stop(stop: w::AdminStop) -> forge::forges::AdminStop {
     }
 }
 
-/// Decode the playground's complete record (temper/docs/design/draft/playground-reset.md, 6.1).
+/// Decode the playground's complete record (temper/docs/design/client/README.md, 4.8).
 #[must_use]
 pub fn playground(record: &[u8], limits: &w::Limits) -> Option<forge::Playground> {
     let answer = wire::decode_playground_answer(record, limits)?.into_parts();

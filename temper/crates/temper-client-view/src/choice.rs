@@ -82,7 +82,7 @@ pub(crate) fn banner(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut B
     }
     b.close();
 }
-/// Composers use the playground or the supplied real-account readiness (temper/docs/design/draft/playground-reset.md, 6.1).
+/// Composers use the playground or the supplied real-account readiness (temper/docs/design/client/README.md, 4.8).
 pub(crate) fn can_send(root: &Domain) -> bool {
     root.forge().playground().is_some() || temper_client_domain::pages::welcome::model_usable(root) != Some(false)
 }

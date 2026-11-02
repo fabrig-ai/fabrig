@@ -1,4 +1,4 @@
-//! Playground reset across the shipped processes (temper/docs/design/draft/playground-reset.md, 6.2 and 8).
+//! Playground reset across the shipped processes (temper/docs/design/protocol/setup.md, 8.4 and 13.4).
 use super::{Process, ctl};
 use skein_lib::Time;
 use skein_shell::{Clock, Host};

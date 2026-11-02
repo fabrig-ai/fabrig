@@ -1,4 +1,4 @@
-//! Forge commands and slot removal (temper/docs/design/draft/playground-reset.md, 3 and 4).
+//! Forge commands and slot removal (temper/docs/design/protocol/setup.md, 7.1).
 use std::{
     ffi::OsString,
     fs,
@@ -317,7 +317,7 @@ fn webhook_listener(named: &temper_service::startup::Named) -> Result<Option<cor
 #[cfg(test)]
 mod tests;
 
-/// Composes a group's kind with the machine (temper/docs/design/draft/playground-reset.md, 3).
+/// Composes a group's kind with the machine (temper/docs/design/protocol/setup.md, 7.1).
 pub(crate) fn entry(
     directories: &super::Directories,
     bytes: &[u8],

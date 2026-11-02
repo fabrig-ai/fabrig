@@ -1,4 +1,4 @@
-//! Playground records and reset (temper/docs/design/draft/playground-reset.md, 6.1–6.3).
+//! Playground records and reset (temper/docs/design/protocol/setup.md, 8.4).
 use crate::{
     Answered, Bot, BoxKind, Connection, Domain, EndAnswer, ForgeState, Key, Kind, Mode, Playground, PlaygroundConfig,
     PlaygroundState, Request, ResetAct, ResetStep, StartAnswer, StartFailure, Stored,

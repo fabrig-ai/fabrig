@@ -1,4 +1,4 @@
-//! The box's steps and kind slots (temper/docs/design/draft/playground-reset.md, 3 and 4).
+//! The box's steps and kind slots (temper/docs/design/protocol/setup.md, 7.1).
 use skein_io::kernel::{Exit, Fd};
 use skein_shell::{Clock, Config, Host, Kernel};
 use std::os::unix::ffi::OsStrExt;

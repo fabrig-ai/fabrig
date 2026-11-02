@@ -1,4 +1,4 @@
-//! First-run facts (temper/docs/design/draft/playground-reset.md, 6.1, 6.3–6.4).
+//! First-run facts (temper/docs/design/client/README.md, 3.5).
 use super::accounts;
 use crate::{
     Domain,
@@ -17,7 +17,7 @@ impl Welcome {
         Self { decided: false }
     }
 }
-/// The store's first-run state (temper/docs/design/draft/playground-reset.md, 6.3–6.4).
+/// The store's first-run state (temper/docs/design/client/README.md, 3.5).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FirstRun {
     Empty,

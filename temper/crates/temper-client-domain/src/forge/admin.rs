@@ -1,4 +1,4 @@
-//! A managed forge, its one-shot admin token and first repository (temper/docs/design/draft/playground-reset.md, 3, 6.4).
+//! A managed forge, its one-shot admin token and first repository (temper/docs/design/client/forge.md, 5.4; temper/docs/design/client/README.md, 3.5).
 use super::{Limits, Request, Served, Side, forges, github};
 use alloc::boxed::Box;
 use jig_client::{Ask, Event, Family, Key, Told, contract as c};

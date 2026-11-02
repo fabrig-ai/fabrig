@@ -428,7 +428,7 @@ fn closed_status(b: &mut Builder, words: &Words) {
     b.close();
 }
 
-/// The playground whose invitation the Chats page shows (temper/docs/design/draft/playground-reset.md, 6.1).
+/// The playground whose invitation the Chats page shows (temper/docs/design/client/README.md, 4.8).
 pub(crate) fn playground_start(root: &Domain) -> Option<&temper_client_domain::forge::Playground> {
     let Address::Chats { .. } = root.pages().address() else { return None };
     let playground = root.forge().playground()?;

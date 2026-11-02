@@ -1,4 +1,4 @@
-//! Forge records and the machine's places (temper/docs/design/draft/playground-reset.md, 3–4).
+//! Forge records and the machine's places (temper/docs/design/protocol/forge.md, 2.1; temper/docs/design/domain/forge.md, 4.1).
 use crate::{
     Bot, Configured, Domain, FirstIntent, ForgeRecord, ForgeState, Key, Kind, Machine, Mode, Owned, Place, Request,
     Stored,
@@ -18,7 +18,7 @@ impl Domain {
         self.records.get(&forge)
     }
 
-    /// Ended at removal's decision, or absent (temper/docs/design/draft/playground-reset.md, 4).
+    /// Ended at removal's decision, or absent (temper/docs/design/domain/forge.md, 4.1).
     #[must_use]
     pub fn forge_ended(&self, forge: u16) -> bool {
         match self.record(forge) {

@@ -225,7 +225,7 @@ fn run_owned(directory: &Path) -> io::Result<()> {
 }
 
 fn owned_command(directory: &Path, printed_command: &str) -> String {
-    // temper/docs/design/draft/playground-reset.md, 3: sign-in instructions name no kept forge.
+    // temper/docs/design/protocol/setup.md, 6.8: sign-in instructions name no kept forge.
     // Supply this disposable server's binary and work path around that generic command.
     let quote = |path: &Path| {
         use std::os::unix::ffi::OsStrExt;

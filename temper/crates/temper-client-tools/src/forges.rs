@@ -1,4 +1,4 @@
-//! The deployment's forge tools (temper/docs/design/draft/playground-reset.md, 3, 4 and 6).
+//! The deployment's forge tools (temper/docs/design/client/tools.md, 5.5).
 use crate::jig::table::{
     Keyed, Kind,
     Occurs::{Optional, Required},
