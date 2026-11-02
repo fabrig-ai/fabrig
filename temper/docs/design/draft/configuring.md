@@ -1,12 +1,15 @@
 # Configuring temper by talking to it
 
-Draft, 2026-10-23. A person describes how they want work to go, and an
-agent configures temper to run it, from a session with the user that
-day, whose turns shaped it: settings that live in the store and never in the
+Draft, 2026-10-23, from a session with the user that day, whose turns
+shaped it; revised 2026-11-02 with the user, who set its acceptance
+(section 8) and its first surface, `temper ctl` (5.4). A person
+describes how they want work to go, and an agent configures temper to
+run it: settings that live in the store and never in the
 configuration document, a change that new work follows while running
 work keeps what it started with, and a split between what temper
-enforces and what agents follow. It crosses jig and temper on purpose;
-an owner splits it. Nothing here is adopted.
+enforces and what agents follow. Its mechanisms are designed in jig and
+in temper, as its status says; this draft keeps what that design still
+cites it for, its acceptance and its order (section 9).
 
 ## 1. In one page
 
@@ -34,15 +37,22 @@ an owner splits it. Nothing here is adopted.
   a change may move running work. What a task may do is never pinned:
   rules and policies apply to every decision.
 - **The agent proposes; an owner accepts** (5.2), on a review page in
-  plain words, with what temper enforces apart from what agents follow,
+  plain words, or with `proposal show` and `proposal decide` (5.4), with what temper enforces apart from what agents follow,
   and what the change does to running work.
 - **It explains, both ways** (section 6): it answers from the settings
   and the documentation built into the binary
   (`../protocol/documentation.md`), and it describes the settings back
   as a workflow.
-- **Its test** (section 8): given `reference-code-production.md`, it
-  should propose the settings of its section 14, as far as the gaps
-  that draft records let temper say them.
+- **`temper ctl` first** (5.4): every act of the person's way is a
+  command, so a pass of QA drives all of it. The web client's pages
+  (5.1, 5.2) say the same, and are built separately.
+- **Its acceptance** (section 8): on a box that holds no recipe of the
+  reference, QA, through `temper ctl` alone, asks the configuring agent
+  to set a project up as `reference-code-production.md` describes,
+  accepts its proposal and checks it against that draft's section 14.
+  First the settings, as far as temper can say them, the rest named as
+  gaps (8.1); then, once the reference case walks, a draft carried from
+  intake to landing under them (8.2).
 
 ## 2. Structure and rules
 
@@ -146,7 +156,8 @@ configures work:
   section 1); from the baseline on, a removed member is first accepted
   for one release with a warning (`upgrades.md`, section 10). Until the
   baseline a store whose format changes is made again, so nothing needs
-  importing; an import of a file as a proposal is later (section 10).
+  importing; an operator who keeps settings in a file proposes it
+  whole with `settings propose` (`../client/tools.md`, 5.3).
 - **Bounds stay the start's.** A change is checked as the start checks
   a document today: charters within jig's `tasks.charters`, a charter's
   instructions within the journal's run bytes, templates within jig's
@@ -213,10 +224,12 @@ made follows the new one, and what is in flight keeps the old.
 - **A conversation moves at its next run.** A task its requester ends
   (a chat; `../domain/agent.md`, 4.6) never ends on its own, so it would
   never see a fix to its own charter. It moves to the newest revision
-  at its next run, when its charter is still there; otherwise it stays.
+  at its next run, when the newest still offers its charter and allows
+  its LLM choice (jig's `domain/engine.md`, 17.4); otherwise it stays.
 - **A change may move running work:** each task at its next run,
-  checked the same way. A task whose charter the change removed cannot
-  move, and finishes where it is.
+  checked the same way. A task whose charter the change removed, or
+  whose LLM choice it no longer allows, cannot move, and finishes where
+  it is.
 - **What a task may do is never pinned.** Its authority, from the
   rules, its project's policy and the landing rules, is always current;
   what its runs are given is its charter's, pinned. A change that must
@@ -244,6 +257,11 @@ made follows the new one, and what is in flight keeps the old.
   How far that reaches is the survey's question (section 9).
 
 ## 5. The person's way
+
+`temper ctl` is the first surface (5.4), the user's choice of
+2026-11-02: the mechanisms first, exposed so that QA can run them. The
+pages of 5.1 and 5.2 are the web client's (`../client/README.md`),
+designed and built separately, and act through the same requests.
 
 ### 5.1 Where they meet it
 
@@ -312,6 +330,24 @@ made follows the new one, and what is in flight keeps the old.
 - **What needs a restart,** it says too: a provider the document does
   not name, a listener, a worker, a limit (3.1).
 
+### 5.4 Through `temper ctl`
+
+The same way, a command for each act (`../client/tools.md`, section 5):
+
+| The person's way | The command |
+|---|---|
+| Tell temper how you work | `chat start --project PROJECT --template 3 TEXT` |
+| the conversation | `task message TASK TEXT`; `chat show TASK` |
+| the card, and an owner's inbox | the chat's answer naming the proposal; `inbox --kind proposals` |
+| the review page | `proposal show PROPOSAL`: the values now and proposed, the revision it was made against, and its reason, under *temper enforces* and *your agents follow*, with its effect on running work (`../domain/agent.md`, 8.1) |
+| Accept, Reject | `proposal decide PROPOSAL accept\|reject [REASON] [--running stays\|moves]`; a rejection's reason reaches the chat as the person's words |
+| How work runs | `settings show`, `settings show charter NUMBER [--revision REVISION]`, `revision show REVISION`, `revision list` |
+| Move them, Restore this version | `revision advance REVISION`, `revision restore REVISION` |
+
+- **No act is a page's alone.** Whatever a page does, a command does,
+  so that a person at a terminal, and a pass of QA, which drives temper
+  as one (`../../development/qa.md`, section 4), can do all of it.
+
 ## 6. The configuring agent
 
 - **Its tools are the requests a person may make,** through the same
@@ -329,38 +365,147 @@ made follows the new one, and what is in flight keeps the old.
   when the landing touches structure: "process.md changed; here is
   what it means for your setup".
 
-## 8. Its test
+## 8. Its acceptance
 
-- **In the gate,** real-loop stories on the scripted fake LLM: a person
-  alone; two people, one approving landings (a landing rule's
-  approvals, `../protocol/configuration.md`, section 3); a proposal gone
-  stale; running work moved; a document a charter names, changed. The
+The user's story, 2026-11-02: on a box that holds no recipe of the
+reference, QA, driving temper through `temper ctl` alone, asks it to
+configure itself the reference's way, and it works: a draft is carried
+from intake to landing as the reference says. It passes in two stages,
+the second once the reference case walks.
+
+- **In the gate,** scripted stories on the fake LLM hold the
+  mechanisms (`../domain/testing.md`, 6.4): a person alone; two
+  people, one approving landings (a landing rule's approvals,
+  `../protocol/configuration.md`, section 3); a proposal gone stale;
+  running work moved; a document a charter names, changed. The
   revisions' own: a change during a run, a restart with old revisions in
-  use, the bound reached.
-- **The reference as a golden:** `reference-code-production.md`,
-  section 14, as a set of settings. The draft goes through a real model
-  as the person's description, and its proposal is scored against the
-  golden, within the gaps `reference-code-production.status.md`
-  records. A walk, run when the agent's instructions or the
-  documentation change, not in the gate; v0.1.0's rung D walks it on
-  real backends (`v0.1.0.md`, 2.1).
+  use, the bound reached. They accept nothing: a fake model says only
+  what it is scripted to.
+
+### 8.1 Stage 1: the proposal
+
+- **The box:** `temper box` with its owned forge
+  (`../protocol/setup.md`, section 7). Its settings are the stock
+  defaults, and nothing in it is the reference's: neither the stock
+  settings nor the documentation in the binary carry a recipe of it
+  (section 10), so the agent works from the description alone.
+- **What the box brings, not the agent:** what needs a restart (5.3)
+  and what lives in repositories. The pass's brief lists it, and the
+  pass confirms it before the chat starts: temper's part through
+  `temper ctl`, the repository's through the forge's API as an observer
+  (`../../development/qa.md`, section 5), the limits against the box's
+  document:
+  - the providers and models the reference names (Opus 5.5 for the
+    coordinator and designers, gpt-6.1-sol on smith's direct backend
+    for producers, `notes.md`, N20), with the accounts they run on, and
+    a real model for the configuring chat;
+  - the limits: for this stage, room for the settings the reference
+    adds beside the stock's, its coordinator's, designer's and foreman's
+    charters among them, which Small's charters cannot hold; for 8.2,
+    the reference's, sized for a goal of a hundred changes (`notes.md`,
+    N21), once `reference-case.execution.md`'s M10 gives them;
+  - the project, with rung C's repository adopted, holding what the
+    golden's table asks of a repository: its `AGENTS.md`, its code and
+    design rules, `.temper/pre-pr`, its merge style; and, at a path the
+    brief names, `reference-code-production.md` and
+    `reference-landing.md` as the person's process documents.
+- **The pass plays the person** (`../../development/qa.md`, section 2),
+  through 5.4's commands. Its first words name the two documents, as a
+  person would: "set this project up to work the way these describe".
+  It answers the agent's questions from them, and from its brief for
+  what they leave out (which account the producers use, for one); it
+  reads the proposal with `proposal show` and accepts it, running work
+  staying as it is.
+- **The golden:** `reference-code-production.md`, section 14, cut into
+  obligations, a row's each field its own, held by the acceptance and
+  never by the binary. Each is of one kind:
+  - *a setting*: what the proposal sets, field by field: each charter's
+    instructions, models, tool families, waiting and documents; each
+    template; the landing rules for main and for goal branches; the
+    forge's charters; the project's policy, its delegations and its
+    tasks and depth; the question bound;
+  - *the box's*: a prerequisite above, which the agent proposes nothing
+    for, and names where the box lacks it;
+  - *a gap*: one `reference-code-production.status.md` records, which
+    the agent says temper cannot model (5.3), offering the nearest
+    thing.
+- **The check, by code,** of the accepted revision and the project's
+  policy against the golden, obligation by obligation: each setting
+  holds its value, and each gap is named in the proposal or the chat. A
+  setting wrong fails it, though its row also holds a gap; so does a
+  setting no obligation asks for, a rule made structure without the
+  person's choice (section 2), or anything that needs a restart
+  proposed rather than said.
+- **The check, by judgement:** an LLM reads the accepted charters'
+  instructions, and the documents they name, against the reference's
+  rules (section 2's table): each rule reaches the runs of the role it
+  concerns, from where the person wrote it. It reads too the agent's
+  description of the accepted settings back as a workflow (section 6),
+  asked once the proposal is accepted, against the reference's section 1.
+- **It moves with the reference.** Each milestone of
+  `reference-case.execution.md` names the settings of
+  `reference-code-production.md`, section 14 it makes sayable; as one
+  lands, its obligations move from *a gap* to *a setting*.
+- **A walk,** a pass of QA after landing, run again when the agent's
+  instructions, the documentation in the binary or a milestone of the
+  reference change; never in the gate.
+
+### 8.2 Stage 2: the reference case under it
+
+- **v0.1.0's rung D** (`v0.1.0.md`, 2.1): 8.1 with no gap left, on
+  the box with the reference's limits, then a person's draft started as
+  a goal under the accepted settings, and carried from intake to landing
+  as rung C carries `reference-case.md`, acts 1 to 5.
+- **It differs from C by the agent alone.** C runs under
+  `reference-code-production.md`, section 14's settings as the
+  reference's milestones make them (`reference-case.execution.md`,
+  M10); D runs under what the agent proposed, on a box that never held
+  them.
+- **It waits for C,** the user's choice of 2026-11-02: stage 1 runs as
+  this draft's code lands, stage 2 once rung C passes.
 
 ## 9. Order
 
-1. **A survey,** read-only, on Codex: what moving jig's `charters`,
-   `templates`, `policies` and `rules`, and temper's `landing` and
-   `charter`, into the store takes, against jig's runtime projects, which
-   moved projects' policies into it whole; what each child copies from
-   the core's settings; where lookups would take a revision; the change
-   to the tasks family; the stock defaults in the binary.
-2. **The design in jig:** settings in the store, their defaults, a
-   change and its proposal, revisions. Then temper's: its settings, its
-   defaults, the document's members gone.
-3. **Mockups:** "How work runs", the card and the review page.
-4. **The code,** jig's, then temper's.
-5. **The documentation in the binary.**
-6. **The configuring agent,** its stories, then the golden and its
-   walk.
+The first order's survey and designs are done: jig's
+`domain/engine.md`, section 17; temper's `../protocol/configuration.md`,
+section 13, `../domain/agent.md`, 8.1 and `../client/tools.md`, section
+5. What is left, revised 2026-11-02:
+
+1. **The design's own words** for what it still cites this draft for,
+   and for what it says otherwise (this draft's status): among them, a
+   change touching a project's own policy (3.3), which the acceptance
+   needs, so that the draft can go once 8.2 passes.
+2. **The code, against that design,** as the designs' statuses record
+   it:
+   - jig's: charters read at their task's revision, and a charter's
+     documents (17.9), jig's and temper's both
+     (`../domain/agent.status.md`, `../protocol/configuration.status.md`),
+     which the reference's charters name too; no milestone of
+     `reference-case.execution.md` builds them;
+   - temper's: charter 3 and template 3, the configuring agent, with
+     the `settings` family in the stock's policy and rules; the
+     `settings` family offered only where a charter's `tools` names it;
+     each charter leaving its brief room, checked at a start and at a
+     change's entrances (`../domain/agent.status.md`,
+     `../protocol/configuration.status.md`); `chat start --template`,
+     the items of temper's kinds in a settings file and in a proposal's
+     review, `settings show landing-rule` and `forge-charter`, and
+     `revision restore` (`../client/tools.status.md`); the reference
+     pages `configuration`, `configuration-engine` and `limits` the
+     agent reads (`../protocol/documentation.status.md`);
+   - not here: temper's kinds as settings, `application.landing` and
+     `charter` gone from the document, which
+     `reference-case.execution.md`'s M3 builds; this draft's execution
+     takes them from there, its ctl and its agent following.
+3. **The configuring agent's stories in the gate**
+   (`../domain/testing.md`, 6.4).
+4. **Stage 1** (8.1): the golden as settings items, its check in code
+   and its judge, and QA's walk; designed beside the gate's stories in
+   `../domain/testing.md` unless the execution finds a better home.
+5. **Stage 2** (8.2), once rung C passes.
+6. **The web client's pages** (5.1, 5.2): "How work runs", the card and
+   the review page, their mockups first, designed and built separately
+   (`../client/README.md`).
 
 ## 10. Open questions
 
@@ -383,8 +528,14 @@ made follows the new one, and what is in flight keeps the old.
 
   Charters naming documents (section 2) take part of it. Default: the
   store alone.
-- **An import:** a file of settings made into a proposal, for operators
-  who keep configuration in files. Default: later.
+- **The reference as a stock recipe** in the documentation in the
+  binary, which the agent tailors to a project (its repository, models,
+  accounts, a tier's cadence) rather than deriving it each time; its
+  settings are 8.1's golden. The user wants it (11-02). Default: once
+  stage 1 passes without it. The documentation is compiled into the
+  binary, so a box cannot leave it out; how the acceptance keeps
+  running without it, a build without the recipe or a configuring
+  agent told not to read it, is the recipe's design.
 - **LLM providers** in the store too, by 3.1's rule. Default: later,
   a design of their own.
 - **Delegates on their parent's revision,** as a change's option.
