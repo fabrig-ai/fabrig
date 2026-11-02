@@ -204,6 +204,11 @@ pub struct JobSpec {
   result bound. `TaskResult::Job { bytes: Box<[u8]> }`; `ResultKind` gains `Job`.
 - `jig_domain_authority::Executor` gains `Job(u32)`, and the tasks child's mirror
   `AuthorityExecutor` gains `Job(u32)`; a delegation names a job kind as it names a charter.
+  The operator's configuration (`jig-protocol-config`) spells no job kind in this plan: the
+  `kind` texts it parses (`charter`, `procedure`, `role`) are unchanged, and its check of a
+  policy's kinds (`src/domain.rs`) accepts `Job(_)` unchecked, as it does a procedure's. A
+  policy's job kinds are set in code by jig's test kits here, and in configuration by the plan
+  that adds the first application kind.
 - A job task takes no messages: words, questions and amendments to it are refused with the
   existing refusals' executor arm (`Refusal::Executor` where one exists); a cancel ends it at
   once. Its claim reserves nothing (its budget may be zero). It is never a conversation.
