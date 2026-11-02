@@ -1,6 +1,8 @@
 //! Offline controls for live configuration and the credential-directory guard.
 #[path = "support/live.rs"]
 pub mod live;
+#[path = "support/live_report.rs"]
+pub mod live_report;
 
 #[test]
 fn the_live_arguments_resolve_only_the_requested_account() {
