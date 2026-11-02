@@ -76,7 +76,7 @@ pub use task_tree::{
     NoteScope, Parameter, Part, PartKey, PartKind, PatternEnd, PhaseCounts, PlacedLine, PriorPhase, ProposalRef,
     ResourceLine, ResultValue, Task, TaskLink, TaskSettings, Tree, TreeRow, task_from_row,
 };
-pub use task_wait::{OpenProgram, TaskRunWait, TaskSourceState, TaskWaitRefused, TaskWaitWhy};
+pub use task_wait::{TaskRunWait, TaskSourceState, TaskWaitRefused, TaskWaitWhy};
 
 pub use crate::runs::waits::WaitsOn;
 use crate::{Core, Limits};

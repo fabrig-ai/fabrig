@@ -150,9 +150,9 @@ fn a_long_log_is_cut_from_its_front_keeping_its_check() {
     assert!(*size <= 480);
     let bytes = take(&mut d);
     let words = text(&bytes);
-    assert!(words.contains("Failed check: / changes (pull_request)\nDescription: Failing after 1s\nLink: /playground/widget/actions/runs/4/jobs/1\nFailed step: 2 Each pull request adds changes/<its number>.md\nEnd of its log:\n[log truncated before this]\n"), "{words}");
+    assert!(words.contains("Failed check: / changes (pull_request)\nDescription: Failing after 1s\nLink: /playground/widget/actions/runs/4/jobs/1\nFailed step: 2 Each pull request adds changes/<its number>.md\nEnd of its log:\n[log bytes cut]\n"), "{words}");
     assert!(words.contains("THE LAST LOG BYTES\nRepair the failed check.\n"), "{words}");
-    assert_eq!(words.matches("[log truncated before this]\n").count(), 1);
+    assert_eq!(words.matches("[log bytes cut]\n").count(), 1);
     assert!(!words.contains("omitted"));
 }
 
@@ -207,7 +207,7 @@ fn a_log_cut_keeps_utf8_and_marks_the_missing_prefix() {
             let words = text(&bytes);
             if let Some((_, log)) = words.split_once("End of its log:\n") {
                 let log = log.strip_suffix("\nRepair the failed check.\n").expect("log ending");
-                if let Some(tail) = log.strip_prefix("[log truncated before this]\n") {
+                if let Some(tail) = log.strip_prefix("[log bytes cut]\n") {
                     assert!("αβγδεζηθικλμνξοπρστυφχψω".ends_with(tail));
                 } else {
                     assert_eq!(log, "αβγδεζηθικλμνξοπρστυφχψω");
@@ -237,7 +237,7 @@ fn large_check_heads_take_room_from_logs_before_a_check_is_omitted() {
     assert_eq!(words.matches("Failed check:").count(), 3);
     assert_eq!(words.matches("Failed step: 2 Each pull request adds changes/<its number>.md\n").count(), 3);
     assert!(!words.contains("omitted"), "all whole heads fit: {words}");
-    assert!(words.contains("[log truncated before this]\n"), "only the log tails are reduced: {words}");
+    assert!(words.contains("[log bytes cut]\n"), "only the log tails are reduced: {words}");
 }
 
 #[expect(clippy::disallowed_methods, reason = "the test reader validates the rendered section's UTF-8")]
@@ -562,7 +562,7 @@ fn github_gate_timestamp_survives_a_truncated_log_at_shipped_limits() {
         let words = text(&bytes);
         if head == HEAD {
             assert!(words.contains(text(LINE)), "{words}");
-            assert!(words.contains("[log truncated before this]"));
+            assert!(words.contains("[log bytes cut]"));
         } else {
             assert!(words.contains("[no pinned job log for this head]"));
             assert!(!words.contains(text(LINE)));

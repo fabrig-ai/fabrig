@@ -13,48 +13,63 @@ use temper_real_loop_world::{
 const ONE_MERGE: usize = 1;
 const TWO_PUSHES: usize = 2;
 
-const DIAGNOSTIC: &[u8] = b"Missing changes/38.md with the line: opened 2026-11-02T12:52:15Z";
-const REQUIRED: &str = "opened 2026-11-02T12:52:15Z\n";
+const DIAGNOSTIC: &[u8] = b"Missing changes/40.md with the line: opened 2026-11-02T14:01:43Z";
+const REQUIRED: &str = "opened 2026-11-02T14:01:43Z\n";
 const REPAIR_CUE: &[u8] = b"Repair the failed CI on the change branch";
 // Producer, five repair turns and the review fit within sixteen units.
 // The review keeps B2's four-unit floor.
 const REPAIR_CHANGE_SPEND: u64 = 16;
+// Jig's delegate and forge-read families (domain/agent.md, 4.3).
+const REPAIR_TOOLS: u64 = 513;
+
+fn repair_log() -> Box<[u8]> {
+    const LOG_BYTES: usize = 4_096;
+    let mut log = vec![b'\n'; LOG_BYTES - 2_200];
+    log.extend_from_slice(DIAGNOSTIC);
+    log.extend_from_slice(b"\n2026-11-02T14:01:45Z ##[error]Process completed with exit code 1.\n");
+    log.extend_from_slice(b"2026-11-02T14:01:46Z Post job cleanup.\n");
+    while log.len() < LOG_BYTES {
+        log.extend_from_slice(b"git config --local --get-regexp http.extraheader\n");
+    }
+    log.truncate(LOG_BYTES);
+    log.into_boxed_slice()
+}
+
+fn repair_setup() -> api::Setup {
+    let mut setup = (temper_real_loop_world::forge::fixture().setup)();
+    setup.tree =
+        [("README.md", "# app\n"), ("src/main.rs", "fn main() {}\n"), (".github/workflows/ci.yml", "name: changes\n")]
+            .map(|(path, content)| api::File { path: path.as_bytes().into(), content: content.as_bytes().into() })
+            .into();
+    setup.checks.cue = Some(api::Cue::PullFile {
+        path: b"changes/40.md".as_slice().into(),
+        no_pull: api::Check::Passed,
+        step: b"changes".as_slice().into(),
+        log: repair_log(),
+    });
+    assert!(
+        setup
+            .tree
+            .iter()
+            .all(|file| !file.content.windows(REQUIRED.trim().len()).any(|part| part == REQUIRED.trim().as_bytes())),
+        "the timestamp is absent from the checkout"
+    );
+    setup
+}
 
 fn repair_fixture() -> github::Fixture {
     let mut fixture = github::fixture();
-    fixture.setup = || {
-        let mut setup = (temper_real_loop_world::forge::fixture().setup)();
-        setup.tree = [
-            ("README.md", "# app\n"),
-            ("src/main.rs", "fn main() {}\n"),
-            (".github/workflows/ci.yml", "name: changes\n"),
-        ]
-        .map(|(path, content)| api::File { path: path.as_bytes().into(), content: content.as_bytes().into() })
-        .into();
-        setup.checks.cue = Some(api::Cue::PullFile {
-            path: b"changes/38.md".as_slice().into(),
-            no_pull: api::Check::Passed,
-            step: b"changes".as_slice().into(),
-            log: DIAGNOSTIC.into(),
-        });
-        assert!(
-            setup.tree.iter().all(|file| !file
-                .content
-                .windows(REQUIRED.trim().len())
-                .any(|part| part == REQUIRED.trim().as_bytes())),
-            "the timestamp is absent from the checkout"
-        );
-        setup
-    };
+    fixture.setup = repair_setup;
     fixture.configure_domain = |config| {
         // Keep CI for both main and the change, with no mergeability delay.
+        config.limits.content_bytes = 4_096;
         config.limits.statuses = 2;
         config.limits.observations = 32;
         config.settle_min = skein_lib::Duration::ZERO;
         config.settle_max = skein_lib::Duration::ZERO;
     };
     fixture.prepare = |forge, env| {
-        // Setup starts no CI. Seed a green main through the same content cue.
+        // Seed a green main through the same content cue.
         skein_fake_forge_domain::advance(
             forge,
             env,
@@ -68,6 +83,10 @@ fn repair_fixture() -> github::Fixture {
     };
     fixture.configure = |value, agent, at| {
         (landing::fixture().configure)(value, agent, at);
+        for project in value["world_settings"]["policies"].as_array_mut().expect("projects") {
+            project["policy"]["ceiling"]["tools"] = REPAIR_TOOLS.into();
+            project["policy"]["roles"][0]["authority"]["tools"] = REPAIR_TOOLS.into();
+        }
         // Keep the shipped brief and model limits; only polling is accelerated.
         let limits = &mut value["application"]["limits"]["overrides"];
         limits["forge.client.poll_ms"] = 10.into();
@@ -104,13 +123,29 @@ fn a_chats_failed_github_check_is_repaired_at_a_new_head_and_lands_once() {
         )),
         "the repair model request contains the complete gate diagnostic"
     );
+    check_job_read(&ran);
     for (index, call) in ran.calls().iter().enumerate() {
         assert_eq!(call.exit, Some(Exit::Code(0)), "call {index}: {call:?}");
     }
     let main = ran.github().branches.get(b"main".as_slice()).expect("landed main");
-    assert_eq!(main.tree.get(b"changes/38.md".as_slice()).expect("repair file"), REQUIRED.as_bytes());
+    assert_eq!(main.tree.get(b"changes/40.md".as_slice()).expect("repair file"), REQUIRED.as_bytes());
     let commit = check_landing_at(&ran, CHANGE_READ);
     check_chat_heard_the_landing_at(&ran, &commit, CHANGE_READ, CHAT_READ);
+}
+
+fn check_job_read(ran: &temper_real_loop_world::Ran) {
+    assert!(
+        ran.llm().iter().any(|seen| {
+            let skein_fake_peers::llm::Observation::Query { query, .. } = seen else { return false };
+            query.messages.iter().flat_map(|message| message.parts.iter()).any(|part| {
+                let skein_fake_llm_domain::api::Part::ToolOutput { output: content, is_error: false, .. } = part else {
+                    return false;
+                };
+                content.windows(DIAGNOSTIC.len()).any(|line| line == DIAGNOSTIC)
+            })
+        }),
+        "the repair reads the diagnostic through read_job before writing"
+    );
 }
 
 fn check_repaired_head(records: &[Observation]) {
@@ -216,6 +251,16 @@ fn repair_acts() -> Vec<Step> {
     ]
 }
 
+fn failed_head() -> String {
+    // The two repositories start at 1 and 2; seeded main is 3; the producer makes 4.
+    use std::fmt::Write;
+    let mut head = String::new();
+    for byte in skein_fake_forge_domain::object_bytes(4) {
+        write!(head, "{byte:02x}").expect("commit hex");
+    }
+    head
+}
+
 fn repair_scripts(at: std::net::SocketAddr) -> Scripts {
     use serde_json::json;
     use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
@@ -223,6 +268,11 @@ fn repair_scripts(at: std::net::SocketAddr) -> Scripts {
     let Line::Call { arguments, .. } = &mut scripts[0].turns[0].lines[0] else { panic!("change delegation") };
     let mut delegate: Value = serde_json::from_slice(arguments).expect("delegate JSON");
     delegate["batch"][0]["authority"]["budget"]["spend"] = REPAIR_CHANGE_SPEND.into();
+    delegate["batch"][0]["authority"]["tools"] = REPAIR_TOOLS.into();
+    let grants = delegate["batch"][0]["authority"]["grants"].as_array_mut().expect("grants");
+    let mut read_grant = grants[0].clone();
+    read_grant["kind"] = 1.into();
+    grants.push(read_grant);
     *arguments = serde_json::to_vec(&delegate).expect("delegate JSON").into();
     let call = |name: &[u8], arguments: Value| Turn {
         lines: Box::new([Line::Call {
@@ -236,10 +286,14 @@ fn repair_scripts(at: std::net::SocketAddr) -> Scripts {
         // The repair can run only after the model receives the gate's timestamp.
         cue: DIAGNOSTIC.into(),
         turns: Box::new([
-            call(b"list", json!({"path":"."})),
+            call(
+                b"read_job",
+                json!({"repository":"acme/app", "head": failed_head(),
+                "run":3, "job":3, "attempt":1, "max_bytes":1024}),
+            ),
             call(b"read", json!({"path":"src/main.rs"})),
             call(b"read", json!({"path":".github/workflows/ci.yml"})),
-            call(b"write", json!({"path":"changes/38.md","content":REQUIRED})),
+            call(b"write", json!({"path":"changes/40.md","content":REQUIRED})),
             call(
                 b"finish",
                 json!({"form":"change","fields":{"title":"Supply the gate timestamp","body":"Repair CI."}}),

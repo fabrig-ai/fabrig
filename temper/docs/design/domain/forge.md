@@ -419,7 +419,7 @@ temper-engine-domain-forge              the connector's top: resources and holds
   echoes already on the forge are the old user's.
 - **The forge client keeps the writer as its own record** (skein's
   `forge-client.md`, 7.1): `Stored::Writer` under `Key::Writer(forge)`,
-  in temper's small store under its tag 16 (`STORE_VERSION` 3), and
+  in temper's small store under its tag 16, and
   restored at start among the forge's rows, in any order: the client
   takes them all before `Restored`, and runs no restored effect before
   it, so a restored effect never meets `Forbidden` (skein's
@@ -1168,7 +1168,12 @@ delegate's terminal wakes it to offer the landed result.
   whose id may differ from the check-run id (skein's `forge-github.md`,
   4.4). A log cut keeps its end, including a gate's complete timestamp
   line when it fits, and marks the missing prefix. A pin for another
-  head is never read.
+  head is never read. On GitHub, streaming retention ends at the runner's
+  failed-process line before post-job cleanup (skein's `forge-github.md`,
+  10); without that marker it falls back to the job tail. The `read_job`
+  host answer reserves its rendered metadata and truncation marker within
+  the configured answer allowance, prices escaped bytes, and keeps the
+  log suffix that fits. It does not require a larger raw read allowance.
   Planning reserves the repair reason's allotment (CI's or reviews')
   before sizing the pull section's contents, retaining the core's
   context. When the brief cannot hold both section caps, their gathered

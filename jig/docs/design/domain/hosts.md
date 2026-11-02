@@ -919,7 +919,7 @@ smith runs an Open run on a program backend, keeping the program across
 its turns (smith's `protocol/programs.md`, 5.9): selection and the
 claim's recheck judge its models and grants by the same view as any
 task's, each source, account and host still checked and the binding
-revalidated exactly, and no run waits as `OpenProgram`.
+revalidated exactly.
 
 Each admitted hello declares the program endpoint numbers its channel
 serves, the engine host's among them, fixed for that channel. At most 64 distinct

@@ -219,7 +219,11 @@ fn rows() -> Box<[Row]> {
                 },
                 count: 1,
             },
-            run_wait: Some(TaskRunWait::Refused(TaskWaitRefused::Program(OpenProgram::Model))),
+            run_wait: Some(TaskRunWait::Refused(TaskWaitRefused::Hello {
+                kind: HostKind::Worker,
+                at: skein_lib::Wall::EPOCH,
+                why: HelloRefusal::Position { worker: 7 },
+            })),
             expected: || ChatStatus::Parked,
         },
         Row {
@@ -227,7 +231,11 @@ fn rows() -> Box<[Row]> {
             phase: RUNNING,
             work: Some(tool_work()),
             wait: NOTHING,
-            run_wait: Some(TaskRunWait::Refused(TaskWaitRefused::Program(OpenProgram::Model))),
+            run_wait: Some(TaskRunWait::Refused(TaskWaitRefused::Hello {
+                kind: HostKind::Worker,
+                at: skein_lib::Wall::EPOCH,
+                why: HelloRefusal::Position { worker: 7 },
+            })),
             expected: || ChatStatus::Tool { tool: Box::from(b"search".as_slice()), since: OBSERVED_SINCE },
         },
     ])
@@ -320,7 +328,11 @@ fn dangerous_marks_cancel_reject_and_delete_note_alone() {
 #[test]
 fn refusal_status_only_replaces_an_unplaced_starting_chat() {
     let me = me();
-    let cause = TaskWaitRefused::Program(OpenProgram::Model);
+    let cause = TaskWaitRefused::Hello {
+        kind: HostKind::Worker,
+        at: skein_lib::Wall::EPOCH,
+        why: HelloRefusal::Position { worker: 7 },
+    };
     let wait = TaskRunWait::Refused(cause);
     for row in &rows() {
         let chip = facts_chip(row.phase.clone(), row.work.clone());

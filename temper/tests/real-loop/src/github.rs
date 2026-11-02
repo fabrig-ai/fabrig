@@ -280,7 +280,6 @@ pub(crate) struct State {
 impl State {
     pub(crate) fn new(fixture: Fixture) -> (Self, Peer) {
         let mut config = temper_fake_git_hosted::fixtures::CONFIG;
-        (fixture.configure_domain)(&mut config);
         // These smoke repositories have two small files each. The GitHub
         // layer pads every API response to its admitted wire capacity, so
         // do not inherit the checkout sweep's 256 files of 64 KiB each.
@@ -289,6 +288,7 @@ impl State {
         config.limits.calls = protocol_limits().calls;
         config.limits.title_bytes = 512;
         config.limits.body_bytes = 2048;
+        (fixture.configure_domain)(&mut config);
         assert!(skein_fake_forge_protocol::git::fits(&protocol_limits(), &config.limits), "bounded git trees fit");
         let clock = skein_shell::Clock::new().now();
         config.skew = domain::Skew::Ahead(Duration::from_nanos(

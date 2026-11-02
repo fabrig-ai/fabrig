@@ -1,0 +1,2 @@
+# Citations the checker does not hold against a branch, one per line: FILE TARGET # reason.
+# FILE and TARGET are as citations.py prints them; FILE may be a glob, and TARGET * is every target.

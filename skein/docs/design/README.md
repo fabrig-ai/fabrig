@@ -66,7 +66,6 @@ this design.
 | the browser parts | `skein-ui-web`, `skein-ui-bundle` | parts an application's browser shell wires into its own loop, compiled to WebAssembly; the bundler | [ui-web.md](ui-web.md) |
 | a world in a browser | `skein-playground` | an application's simulated world in a Web Worker, stepped in slices paced by the browser; the visitor speaking HTTP to its listener; the bridge; the session log and its replay | [playground.md](playground.md) |
 | the fake person | `skein-fake-person`, `skein-fake-person-browser` | for tests: a person who finds nodes by role, name and text and acts on them, on the tree or in Chromium | [ui.md](ui.md), [ui-web.md](ui-web.md) |
-| the lab's browser | `skein-lab-browser` | for the lab: a headless Chromium on the browser kit answering calls on a closed network, in the capture's form and the hand's | [lab-browser.md](lab-browser.md) |
 
 ## 3. The crate graph
 

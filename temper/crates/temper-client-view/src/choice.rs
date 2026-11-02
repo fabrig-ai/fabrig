@@ -725,16 +725,6 @@ fn sentences(w: &Words, first: Box<[u8]>, next: Box<[u8]>) -> Box<[u8]> {
 }
 fn refused(w: &Words, times: &mut Times, why: c::TaskWaitRefused) -> Box<[u8]> {
     match why {
-        c::TaskWaitRefused::Program(program) => {
-            let (first, last) = match program {
-                c::OpenProgram::Model => (w.say(W::OpenProgramModel, &[]), W::OpenProgramChooseModel),
-                c::OpenProgram::Source { account, source } => (
-                    w.say(W::OpenProgramSource, &[Hole::Number(u64::from(account)), Hole::Number(u64::from(source))]),
-                    W::OpenProgramNoSwitch,
-                ),
-            };
-            sentences(w, sentences(w, first, w.say(W::OpenProgramUnavailable, &[])), w.say(last, &[]))
-        }
         c::TaskWaitRefused::Hello { kind, at, why } => {
             let word = match kind {
                 c::HostKind::Engine => W::RefusedEngineAt,

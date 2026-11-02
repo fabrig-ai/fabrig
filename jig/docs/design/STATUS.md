@@ -20,11 +20,7 @@ successors, markers, a drain and a conversation's questions lag
 drawing family (`client/domain/`); and `ops` standalone, with its
 service and its connectors' protocols (`examples.md`). The code departs where a project is removed,
 because the playground is reset (`domain/people.md`, `domain/tasks.md`,
-`client/domain/contract.md`); where the client wire keeps
-`TaskWaitRefused::Program` and stored `Seen` records and answers, which
-the design dropped and a code task removes (`domain/hosts.md`,
-`domain/people.md`, the protocol's `client.md`, `browser.md` and
-`configuration.md`); and in a few single items (`README.md`,
+`client/domain/contract.md`); and in a few single items (`README.md`,
 `client/domain/client.md`, `domain/engine.md`, `domain/root.md`,
 `examples.md`). `domain/providers.md` and `client/domain/README.md` have
 no gap of their own. jig has no drafts.

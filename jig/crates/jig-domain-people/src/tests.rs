@@ -270,7 +270,7 @@ fn a_completed_seen_key_accepts_a_different_ordinary_ask() {
 }
 
 #[test]
-fn kept_seen_answers_restore_replay_and_occupy_room_until_their_original_expiry() {
+fn kept_seen_answers_are_skipped_and_erased_at_start() {
     let limits = Limits { requests: 1, ..LIMITS };
     let seen = Seen::Conversation { task: 99, through: 3 };
     for outcome in [Outcome::MarkedSeen { seen }, Outcome::Refused(Refusal::Role { held: None })] {
@@ -278,19 +278,14 @@ fn kept_seen_answers_restore_replay_and_occupy_room_until_their_original_expiry(
         test.d = Domain::new(&limits, Box::new([]), 2, Box::new([]));
         test.d.start_restore(test.env.wall);
         let key = RequestKey { person: 1, key: [1; 16] };
-        assert!(
-            test.send(Event::Restore {
-                record: Stored::Answer {
-                    key,
-                    ask: Box::new(Ask::MarkSeen { seen }),
-                    models: Box::new([]),
-                    outcome: outcome.clone(),
-                    at: Wall::EPOCH,
-                }
-            })
-            .is_empty(),
-            "no early erase of a kept Seen answer"
-        );
+        let record = Stored::Answer {
+            key,
+            ask: Box::new(Ask::MarkSeen { seen }),
+            models: Box::new([]),
+            outcome: outcome.clone(),
+            at: Wall::EPOCH,
+        };
+        assert!(test.send(Event::Restore { record: record.clone() }).is_empty(), "load does not erase");
         test.send(Event::Restore { record: Stored::Person { number: 1, identity: identity(0, 1) } });
         test.send(Event::Restore { record: Stored::Roles { project: 1, holdings: Box::new([]) } });
         test.send(Event::Restore {
@@ -300,32 +295,22 @@ fn kept_seen_answers_restore_replay_and_occupy_room_until_their_original_expiry(
                 expires: Wall::from_nanos(Duration::from_secs(180).as_nanos()),
             },
         });
-        test.complete();
+        assert!(test.d.start_link(&test.env));
+        test.d.start_sweep();
+        let mut swept = Queue::uncapped();
+        test.d.start_sweep_row(&test.env, &record, &mut swept);
+        assert_eq!(swept.pop(), Some(Request::Erase { key: Key::Answer(key) }));
+        assert!(swept.is_empty());
+        assert!(test.d.start_complete(&test.env));
         assert!(test.d.ready());
-        // No task or current role is needed for replay of the kept answer.
-        for seconds in [0, 119] {
-            test.env.now = Time::from_nanos(Duration::from_secs(seconds).as_nanos());
-            test.env.wall = Wall::from_nanos(Duration::from_secs(seconds).as_nanos());
-            let replay = test.request(10, 1, Ask::MarkSeen { seen });
-            assert_eq!(replay.len(), 1);
-            assert_eq!(reply(&replay), Reply::Outcome(outcome.clone()));
-            assert_eq!(reply(&test.request(10, 1, ask(1))), Reply::Refused(Refusal::KeyConflict));
-            assert_eq!(
-                reply(&test.request(10, 2, ask(1))),
-                Reply::Again(Again::Full { held: 1, room_at: Wall::from_nanos(120_000_000_000) })
-            );
-            let request = route(&test.request(10, 3, Ask::MarkSeen { seen }));
-            let completed = test.send(Event::Decided { request, outcome: Outcome::Refused(Refusal::Unknown) });
-            assert!(!completed.iter().any(is_answer));
-        }
-        test.env.now = Time::from_nanos(Duration::from_secs(120).as_nanos());
-        test.env.wall = Wall::from_nanos(Duration::from_secs(120).as_nanos());
-        let fresh = test.request(10, 1, Ask::MarkSeen { seen });
-        assert!(fresh.contains(&Request::Erase { key: Key::Answer(key) }));
-        let request = route(&fresh);
+        // The freed key checks current authority, and a retained request can use the only place.
+        let request = route(&test.request(10, 1, Ask::MarkSeen { seen }));
         let completed = test.send(Event::Decided { request, outcome: Outcome::Refused(Refusal::Unknown) });
+        assert_eq!(reply(&completed), Reply::Outcome(Outcome::Refused(Refusal::Unknown)));
         assert!(!completed.iter().any(is_answer));
-        let _request = route(&test.request(10, 1, ask(1)));
+        let request = route(&test.request(10, 1, ask(1)));
+        let completed = test.send(Event::Decided { request, outcome: Outcome::Refused(Refusal::Role { held: None }) });
+        assert!(completed.iter().any(is_answer), "ordinary answers use the freed place");
     }
 }
 
