@@ -391,6 +391,85 @@ pub fn plan_ended_tasks(calls: &[super::Ended]) -> (usize, [Vec<u64>; 2]) {
     (tasks_at, tasks)
 }
 
+/// The chat's ended delegates and its change's, read whole, a page at a time, by `--after`
+/// and the cursor each page prints (temper/docs/design/domain/testing.md, 2.7).
+pub struct EndedDelegates {
+    project: u64,
+    parents: [u64; 2],
+    parent: usize,
+    pages: usize,
+    tasks: [Vec<u64>; 2],
+}
+
+impl EndedDelegates {
+    /// The pages read in all before the story fails.
+    pub const PAGES: usize = 32;
+
+    /// `parents` is `[chat, change]`.
+    #[must_use]
+    pub fn new(project: u64, parents: [u64; 2]) -> Self {
+        Self { project, parents, parent: 0, pages: 0, tasks: [Vec::new(), Vec::new()] }
+    }
+
+    /// The first read: `task list --project P --parent CHAT --ended --json`.
+    #[must_use]
+    pub fn first(&self) -> Vec<String> {
+        self.page(self.parents[0], None)
+    }
+
+    /// Take the read of the page last asked for: the next read (the same parent's with
+    /// `--after CURSOR` appended, or the change's first), or `None` once both are whole.
+    /// # Errors
+    /// A live delegate (`live` not empty or `live_after` set: "no live delegates"), rows
+    /// missing, a row with no `chip.task`, a page `cut` with no cursor, or a read past
+    /// `PAGES`.
+    pub fn read(&mut self, read: &serde_json::Value) -> Result<Option<Vec<String>>, String> {
+        require(self.pages < Self::PAGES, &format!("ended delegates exceed {}-page bound", Self::PAGES))?;
+        require(self.parent < self.parents.len(), "both ended delegate sets already read whole")?;
+        self.pages += 1;
+        require(read["live"] == serde_json::json!([]) && read["live_after"].is_null(), "no live delegates")?;
+        let ended = &read["ended"]["rows"];
+        let rows = ended["rows"].as_array().ok_or("ended delegate rows missing")?;
+        let after = ended["after"]["value"].as_str();
+        require(ended["cut"] != true || after.is_some(), "ended delegate page cut without a cursor")?;
+        for row in rows {
+            self.tasks[self.parent].push(row["chip"]["task"].as_u64().ok_or("delegate task missing (chip.task)")?);
+        }
+        if let Some(after) = after {
+            return Ok(Some(self.page(self.parents[self.parent], Some(after))));
+        }
+        self.parent += 1;
+        Ok(self.parents.get(self.parent).map(|parent| self.page(*parent, None)))
+    }
+
+    /// Both parents' ended delegates, each sorted; once `read` has answered `None`.
+    #[must_use]
+    pub fn whole(mut self) -> [Vec<u64>; 2] {
+        assert_eq!(self.parent, self.parents.len(), "both ended delegate sets read whole");
+        for tasks in &mut self.tasks {
+            tasks.sort_unstable();
+        }
+        self.tasks
+    }
+
+    fn page(&self, parent: u64, after: Option<&str>) -> Vec<String> {
+        let mut words = vec![
+            "task".to_owned(),
+            "list".to_owned(),
+            "--project".to_owned(),
+            self.project.to_string(),
+            "--parent".to_owned(),
+            parent.to_string(),
+            "--ended".to_owned(),
+            "--json".to_owned(),
+        ];
+        if let Some(after) = after {
+            words.extend(["--after".to_owned(), after.to_owned()]);
+        }
+        words
+    }
+}
+
 #[must_use]
 pub fn ended_tasks(calls: &[super::Ended], parent: u64, expected: &[u64]) -> Vec<u64> {
     let mut tasks = Vec::new();
