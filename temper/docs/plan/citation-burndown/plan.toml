@@ -7,6 +7,7 @@ sources = ["temper/docs/plan/citation-burndown/inputs/request.md", "AGENTS.md", 
 # the checker task fixes nine misreadings, each with its test; the last task writes allow.txt
 # for what must stay and checks `citations.py --all` exits 0 on the trunk. plan.md says why.
 
+retired = true
 [buffer]
 low = 1.0
 high = 2.0
