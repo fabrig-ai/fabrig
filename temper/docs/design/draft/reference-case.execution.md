@@ -99,7 +99,7 @@ so weigh that before starting from it.
 | M5 | Questions, and holds passed up | N1, N8 | M1 | 5, 9, 11, 14, 15, 18 | not started |
 | M6 | Early starts | N2, N14 | M1 | 4, 8, 10, 13, 17 | not started |
 | M7 | Jobs, the merge job, catching up | N6, N7 | M0; M1 for g, M2 for L | 12, 16, 21 | M7a done: landed 2026-11-02 21:34Z (plan `reference-m7a`); M7b not started |
-| M8 | Tiers and verdicts on main | `after-landing.md`, 2 to 6; N5 for main | M0 | 25, 28 | trunk readied for main 2026-11-02 22:26Z (plan `reference-m8`) |
+| M8 | Tiers and verdicts on main | `after-landing.md`, 2 to 6; N5 for main | M0 | 25, 28 | done: landed 2026-11-02 22:27Z (plan `reference-m8`); walked as rung `rm8` of plan `reference-walks` |
 | M9 | Reds to the goal; g's tier | `after-landing.md`, 7; N5 for g; N22's `repairs` | M2, M8 | 20, 26, 27 | not started |
 | M10 | The case | N21; the reference's configuration whole | every one; rung B2 passed | 1 to 28 | not started |
 
