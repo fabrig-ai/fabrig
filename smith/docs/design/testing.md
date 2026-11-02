@@ -235,6 +235,18 @@ patch and drift tests check the generated `encoded_bound` and
     XDG_CONFIG_HOME=$SMITH_LIVE/config smith login claude    # Claude Code's own sign-in
     cargo nextest run --profile live-smith
     ```
+  - **After landing, and the owner's.** After every landing, the
+    pipeline runs `live-smith` on the logins it lends from its shelf:
+    smith's ChatGPT record and Claude Code's login. No shelf holds an
+    API key, so the story on a key is the owner's: it is ignored
+    (`#[ignore]`, whose reason says so), the profile's run leaves it
+    out, and the owner runs it alone, with `ANTHROPIC_API_KEY` set in
+    the environment:
+
+    ```sh
+    cargo nextest run --profile live-smith --run-ignored only \
+      -E 'test(=an_anthropic_key_delivers_a_commit_in_place)'
+    ```
   - **A missing setup fails by name,** saying what to run: "no record in
     `$SMITH_LIVE/tokens/chatgpt`: run `XDG_CONFIG_HOME=$SMITH_LIVE/config
     smith login chatgpt`", or "`ANTHROPIC_API_KEY` is not set".
@@ -260,8 +272,8 @@ patch and drift tests check the generated `encoded_bound` and
       which runs `claude -p` with the configuration directory
       `$SMITH_LIVE/programs/claude`; the story also checks what the fake
       program assumes (protocol/programs.md, section 8);
-    - the same outcome on a key: `--account anthropic-key`, smith's own
-      loop on Anthropic's model;
+    - the same outcome on a key, the owner's story (above):
+      `--account anthropic-key`, smith's own loop on Anthropic's model;
     - a second run resumes it (`--chat`);
     - a chat started on ChatGPT, resumed on Claude, then on ChatGPT
       again, each run completing (domain/session.md, 8.2);
