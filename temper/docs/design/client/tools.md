@@ -1837,9 +1837,11 @@ Settings inventory, individual values, history, proposals, owner decisions
 and placed holds use the CLI's scripted machine world, client tools' step
 tests and jig's core worlds. Their rendering is 11.1's. Running work
 keeps its revision in `tests/system/tests/suite/running_revision.rs`
-(`../domain/testing.md`, 2.1): two parked chats retain R after an owner's
-instruction change makes R+1; the owner's advance moves both, and smith's
-next requests read R+1's instructions. Jig's worlds cover a restart with
+(`../domain/testing.md`, 2.1): after an owner's instruction change makes
+R+1, running work staying, a parked task that is no conversation runs
+again on R, its run and smith's requests reading R's instructions, while
+a parked chat moves at its next run and reads R+1's; the owner's advance
+then moves the first, whose next run reads R+1's. Jig's worlds cover a restart with
 R held, a removed charter and revision bounds.
 
 The focused suite has one short path through the shipped binary on fakes

@@ -11,7 +11,8 @@ status is incomplete.
 | Part | What | Tasks | State |
 |---|---|---|---|
 | `chat-template` | jig's `shapes::chat_from`; temper's `chat start --template` | `jig-chat-from`, `ctl-chat-template` | released |
-| documents, revisions | a charter's documents (jig, temper); runs at their task's revision | to come, after the surveys | surveying |
+| `running-revision` | the system world's story: a run keeps its task's revision, a chat moves, an advance moves the rest | `system-running-revision` | released |
+| documents | a charter's documents (jig, temper) | to come, after the surveys | surveying |
 
 ## Tasks so far
 
@@ -21,10 +22,17 @@ status is incomplete.
 - `ctl-chat-template` (temper-client-tools, ~60 min, needs `jig-chat-from`): the flag, the
   refusal naming the project's chat templates, the step tests, and the help text given whole.
 
+- `system-running-revision` (temper/tests/system, ~45 min): the revisions survey found jig's
+  17.3/17.4 built (a run's `RunCharter` prepared at its task's revision; held revisions; the
+  fleet given versions; moves) and temper reading a run's charter only from the assignment, so
+  nothing is left to build; agent.status.md's "4.1, 4.6" entry was stale and this cut removed
+  it. What was missing is a run keeping the old revision: the story shows it, a conversation
+  moving at its next run, and the advance. `tools.md`, 11.4's sentence revised to match.
+
 ## Critical path, as it stands
 
-`jig-chat-from` → `ctl-chat-template` (slice 1). The documents and revisions parts follow in
-later batches and will hold the critical path.
+`jig-chat-from` → `ctl-chat-template` (slice 1); `system-running-revision` alone (slice 2).
+The documents part follows and will hold the critical path.
 
 ## Overlaps with plans beside this one
 
