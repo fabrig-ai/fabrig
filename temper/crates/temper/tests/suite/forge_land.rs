@@ -789,6 +789,82 @@ fn each_landing_story_takes_its_own_store_under_one_live_store() {
     scratch.remove();
 }
 
+/// domain/testing.md, 2.7: the held record's import and give-back name the sitting's
+/// client directory, never the run's root.
+#[test]
+fn the_held_records_import_and_give_back_name_the_sittings_client_directory() {
+    use std::{fs, os::unix::fs::PermissionsExt};
+    use support::forge_land::{LiveModel, LivePlan};
+    let scratch = support::Scratch::new("held-login-client");
+    let store = scratch.path().join("stores/forge-land");
+    let paths = ["config", "data", "cache"].map(|name| store.join(name));
+    let run = store.join("first");
+    let client = run.join("client");
+    let held = scratch.path().join("held");
+    for directory in [store.parent().expect("stores"), &store, &paths[0], &paths[1], &paths[2], &run, &client, &held] {
+        fs::create_dir(directory).expect("fixture directory");
+        fs::set_permissions(directory, fs::Permissions::from_mode(0o700)).expect("private fixture directory");
+    }
+    let record = held.join("record");
+    support::write_private(&record, b"synthetic fixture");
+    let stub = scratch.path().join("ctl-stub's path");
+    let seen = scratch.path().join("seen");
+    support::write_private(
+        &stub,
+        br#"#!/bin/sh
+set -eu
+printf '%s\n' "$@" >> "$(dirname "$0")/seen"
+case "$4" in
+import) ;;
+list) printf '%s\n' '{"accounts":{"party":[{"provider":1,"plan":true,"number":7}]}}' ;;
+export) test "$5" = 7; umask 077; printf '%s' synthetic > "$6" ;;
+*) exit 1 ;;
+esac
+"#,
+    );
+    fs::set_permissions(&stub, fs::Permissions::from_mode(0o700)).expect("executable synthetic ctl");
+    let plan = LivePlan {
+        paths: &paths,
+        client: &run,
+        first: true,
+        kept: false,
+        model: LiveModel::ChatGpt { account: Some(&record) },
+        address: None,
+        tasks: None,
+        baseline: None,
+        roots: None,
+        words: "",
+        line: "",
+    };
+    assert_eq!(plan.client_directory(), client);
+    let arguments = ["account", "import", record.to_str().expect("record path"), "--key", "connect-plan"];
+    let imported = support::ctl::alone(&run, plan.held_import(&stub, &arguments));
+    assert_eq!(imported.exit, Some(skein_io::kernel::Exit::Code(0)));
+    let imported = fs::read_to_string(&seen).expect("import arguments");
+    assert_eq!(imported.lines().nth(1), plan.client_directory().to_str(), "import's DIRECTORY");
+    assert_eq!(imported, format!("ctl\n{}\n{}\n", client.display(), arguments.join("\n")));
+    fs::remove_file(&seen).expect("clear import arguments");
+    plan.install_return_hook(&stub);
+    fs::remove_file(&record).expect("synthetic import removes the record");
+    let returned = std::process::Command::new(store.join("give-back"))
+        .stdin(std::process::Stdio::null())
+        .output()
+        .expect("return hook");
+    assert!(returned.status.success(), "{}", String::from_utf8_lossy(&returned.stderr));
+    assert_eq!(
+        fs::read_to_string(&seen).expect("give-back arguments"),
+        format!(
+            "ctl\n{client}\naccount\nlist\n--json\nctl\n{client}\naccount\nexport\n7\n{record}\n",
+            client = client.display(),
+            record = record.display(),
+        )
+    );
+    let returned = fs::symlink_metadata(&record).expect("returned synthetic record");
+    assert!(returned.is_file() && returned.len() > 0);
+    assert_eq!(returned.permissions().mode() & 0o777, 0o600);
+    scratch.remove();
+}
+
 #[test]
 fn an_imported_records_path_is_printed_as_file() {
     use support::forge_land::printed_command;
