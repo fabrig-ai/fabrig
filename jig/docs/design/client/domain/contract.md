@@ -211,11 +211,11 @@ has left (`../../domain/authority.md`, 8.1 and 8.4).
 | `Amend` | a task; its spec's revision, or a person task's for its address; the change: spec and parameters, instructions, authority, wake policy, its dependencies as a whole list (those it names anew added, those it leaves out removed: `../../domain/tasks.md`, section 7), a person task's address, tracked and priority, its LLM choice, which its next run takes; a reason | amended; an active task given a pending dependency kept until it is done (`../../domain/tasks.md`, 5.7). A change of priority alone names no revision: the first commit decides |
 | `Cancel` | a task; a reason; a grace, or none | it and its tree closing; with a grace, the task first hears that it is asked to finish, as it hears an amendment, and is cancelled when the grace ends unless it ended first |
 | `Release` | a held task; its hold's revision; for an uncertain effect that cannot be recovered, whether to make it again | its hold lifted, judged afresh |
-| `Stop` | a task | its run cancelled, the task held for the party; designed, not built: a placed hold of the party's, stop, over the task's subtree (`../../domain/tasks.md`, 5.9) |
-| `Hold`, designed, not built | a mode, `Stop` or `Drain`; a scope, `Subtree(task)` or `Project`; a reason | a placed hold, its number and revision answered (`../../domain/tasks.md`, 5.9) |
-| `Lift`, designed, not built | a placed hold by its number; its revision; `with_tasks` | the hold ended; with `with_tasks`, each task it held that nothing else holds released |
-| `Move` | a task the party may amend; a reason; designed, not built: a live task the party may amend as its new requester | the party its requester, its reservation moved to their pool (`../../domain/tasks.md`, section 7); or that task its requester |
-| `Succeed`, designed, not built | an ended task in the party's tree, a live task in their tree | the live task the ended one's successor (`../../domain/tasks.md`, section 7) |
+| `Stop` | a task | its run cancelled, the task held for the party: a placed hold of the party's, stop, over the task's subtree (`../../domain/tasks.md`, 5.9) |
+| `Hold` | a mode, `Stop` or `Drain`; a scope, `Subtree(task)` or `Project`; a reason | a placed hold, its number and revision answered (`../../domain/tasks.md`, 5.9) |
+| `Lift` | a placed hold by its number; its revision; `with_tasks` | the hold ended; with `with_tasks`, each task it held that nothing else holds released |
+| `Move` | a task the party may amend; a reason; or a live task the party may amend as its new requester | the party its requester, its reservation moved to their pool (`../../domain/tasks.md`, section 7); or that task its requester |
+| `Succeed` | an ended task in the party's tree, a live task in their tree | the live task the ended one's successor (`../../domain/tasks.md`, section 7) |
 | `Decide` | a proposal, by its proposer and number: accept, for a proposal of settings with whether running work moves, reject with a reason, or pass up; or an escalation, by its held task and its hold's revision: release, leave held with a reason, or pass up | as `../../domain/tasks.md`, section 9 has it; or decided first, by whom and how |
 | `Answer` | a question, by its task and message, with the words; or a person task, by its revision, with the answer its contract asks (a choice, words, or the state an approval approves) or that it cannot be done | an answer to the question; the person task's result |
 | `Take`, `HandBack` | a person task addressed to a role the party holds | held by them, or back to the role |
@@ -1006,7 +1006,7 @@ settled fields remain available.
 
 ### 5.6 Placed holds
 
-Designed, not built (`../../domain/tasks.md`, 5.9).
+Placed holds are `../../domain/tasks.md`, 5.9's.
 
 - **A task held by a placed hold** shows `HoldCategory::Placed { hold
   }`, and its document names the hold: its owner (a party or a task),
@@ -1022,7 +1022,7 @@ Designed, not built (`../../domain/tasks.md`, 5.9).
 
 ### 5.7 Job tasks
 
-Designed, not built (`../../domain/tasks.md`, 5.3.1). A job task's
+Job tasks are `../../domain/tasks.md`, 5.3.1's. A job task's
 document shows its executor's kind, `Job { kind }`, its spec and result
 as its application's part describes them (5.3), its host and its
 attempts. No party creates one: `Create` naming a job is refused as an
