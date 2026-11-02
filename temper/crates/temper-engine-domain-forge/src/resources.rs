@@ -11,6 +11,9 @@ pub enum HoldKind {
 /// Admission rule for the forge's private branch kind.
 pub const BRANCH_HOLD: HoldKind = HoldKind::Exclusive { wait: true };
 
+/// Admission rule for a goal's own branch (domain/forge.md, 11.1).
+pub const GOAL_BRANCH_HOLD: HoldKind = HoldKind::Exclusive { wait: false };
+
 impl Domain {
     /// Report each named resource from adopted repository facts.
     #[must_use]
@@ -26,7 +29,13 @@ impl Domain {
         match &name.what {
             What::Branch(_) => {
                 let own = crate::items::branch_starts_with(name, &repository.prefix);
-                Some(if own { (Access::Owned, BRANCH_HOLD) } else { (Access::Participant, HoldKind::Shared) })
+                Some(if crate::items::goal_branch(name, &repository.prefix).is_some() {
+                    (Access::Owned, GOAL_BRANCH_HOLD)
+                } else if own {
+                    (Access::Owned, BRANCH_HOLD)
+                } else {
+                    (Access::Participant, HoldKind::Shared)
+                })
             }
             What::Repository => Some((
                 match repository.role {

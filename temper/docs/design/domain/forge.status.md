@@ -3,10 +3,6 @@
 2026-11-02. Where temper's code lags or departs from [forge.md](forge.md).
 
 - **Not yet:**
-  - 2, 11, 11.1: a goal's own branch held by its goal: the forge holds no
-    `g` branch, makes none at a taking and keeps none at a release, and
-    every branch hold waits (`temper-engine-domain-forge/src/resources.rs`,
-    `BRANCH_HOLD`).
   - 2, 11.1: the symbol *its own goal branch*: the forge offers none, and no
     change is refused for a landing branch another goal holds
     (`temper-engine-domain/src/route/forge_route.rs`, `task_holdings`).
