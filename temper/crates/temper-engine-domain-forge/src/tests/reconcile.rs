@@ -397,6 +397,7 @@ pub(super) fn empty_tasks() -> jig_domain_tasks::Domain {
         saved_resources: 2,
         contract_choices: 1,
         charters: 1,
+        charter_documents: 2,
         revisions: 4,
         versions: 8,
         authority_grants: 1,
