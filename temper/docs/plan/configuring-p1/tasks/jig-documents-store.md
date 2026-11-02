@@ -77,3 +77,19 @@ Acceptance:
 
 As the implementer's text says, and also: the ceilings chosen, the goldens and figures that
 moved, and the tests' count.
+
+## Rebase (2026-11-02, step merge, foreman configuring-p1/jig-documents-store/foreman-1)
+
+resolve engine.status.md by preserving both independent gap deletions
+The merge conflicts only in `jig/docs/design/domain/engine.status.md`.
+Integration commit `e2144bb2c9250d4c1710127f6d5702e2d8306c21` removed “17.9: the core neither checks a charter's documents nor plans their sections.”
+Task commit `ea8c48d5e5ec7181bb68e9e9174814409d8c1a70` removed the adjacent “17.9: the settings store keeps no documents.”
+Resolve the overlapping hunk with both sentences absent; do not restore either gap.
+The remaining text after “world's `world` and `direct` drivers run no oracle.” must continue:
+```text
+  17.9: the
+  configuration reads no `documents` member and no
+  `tasks.charter_documents`, and Small's brief has 4 sections, not 8.
+  17.9: the client wire's charter carries no documents.
+```
+Preserve all other status text and the task's schema, codec, generated files, goldens and tests.
