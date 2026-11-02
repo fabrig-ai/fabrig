@@ -37,22 +37,44 @@ side. smith alone; jig and temper change no code.
 
 ## Parts and tasks
 
-| Task | Part | Needs | Crates | Effort |
-|---|---|---|---|---|
-| `close-lower` | close-lower | | smith-domain, smith-protocol-llm (arms in smith-agent-service) | high |
-| `mcp-sub-agent` | mcp-sub-agent | | smith-protocol-program | high |
-| `events-offer` | events-offer | | smith-protocol-events, one agent-process test | medium |
-| `shell-reason` | shell-reason | | smith-local-shell | medium |
+| Task | Part | Needs | Crates | Effort | Minutes |
+|---|---|---|---|---|---|
+| `close-lower` | close-lower | | smith-domain, smith-protocol-llm (arms in smith-agent-service) | high | 60 |
+| `mcp-sub-agent` | mcp-sub-agent | | smith-protocol-program | high | 60 |
+| `events-offer` | events-offer | | smith-protocol-events, one agent-process test | medium | 30 |
+| `shell-reason` | shell-reason | | smith-local-shell | medium | 20 |
+| `program-children` | program-children | close-lower, mcp-sub-agent, events-offer | smith-agent-service, smith-domain's `translate.rs`, the agent-process world | high | 180 |
+| `side-by-side` | side-by-side | program-children | the agent-process world and its live probe; smith-protocol-program and the service for what its stories find | high | 120 |
+| `exec-children` | exec-children | program-children | smith's `end_to_end` binary (test code only) | high | 75 |
 
-Released so far: the four above, all from the trunk's base.
+Slices: 1 (the three program-side halves, each alone), 2 (`smith check`'s reason), 3 (one
+program child, the meeting point), 4 (side by side, the final turn, a cancel), 5 (`smith exec`
+on Claude Code with two inspect-only sub-agents side by side: the walk, `walk = true`).
+
+All seven are released.
 
 ## Critical path
 
-`close-lower` and `mcp-sub-agent`, then the service's child backends with the switch that offers
-`sub_agent` on a program, then the worlds' stories (being written).
+`close-lower` or `mcp-sub-agent` (about an hour each, side by side with `events-offer`), then
+`program-children` (about three hours: the service's child backends, the switch that offers
+`sub_agent` on a program, the first world story), then `side-by-side` and `exec-children` side by
+side (about two hours). About six hours of implementers end to end.
 
 ## Overlaps with drafts beside this one
 
 - live-smith-reds-2 (integration) touches `smith/tests/end-to-end/live.rs`, `support/live.rs`,
-  `support/program_contract.rs`, `program_runs.rs` and `end_to_end.rs`: no task released so far
-  touches them.
+  `support/program_contract.rs`, `program_runs.rs` and `end_to_end.rs`. `exec-children` keeps to
+  a new file, `program_children.rs`, and adds one `mod` line to `end_to_end.rs`: the one overlap
+  left, a line beside the module list. The live check of two programs on one configuration
+  directory goes into `smith/tests/agent-process/tests/live/program.rs` (`side-by-side`), which
+  no draft beside this one is changing.
+- reference-m8 (cut in flight) and the queue's drafts touch none of these files as far as the
+  brief shows.
+
+## Risks
+
+- **The child's final turn on a program** reuses main's wind-down path (interrupt, note, refusals
+  at the prompt); if that path is main's alone, `side-by-side` generalizes it (pre-approved).
+- **The other trees' program runs** (`jig-channel-world`, `temper-real-loop-world`) now see
+  `sub_agent` offered to a program main whose charter grants the family; none asserts it, but a
+  byte measure could move. `program-children` runs them and asks if one goes red.
