@@ -7,8 +7,7 @@
   two-claim placement balance. 4.2, 5.3: the remaining point-load fences.
   7.1, 9: the brief's lineage, calls and waiting sections. 7.2: what a
   turn's calls made, written beside the turn. 7.3: `move`, `succeed`,
-  `hold` and `lift`. 7.5: jobs. 8: the client wire naming a shortfall's
-  charter for turns, time, waiting and checks. 11.1: `me`'s
+  `hold` and `lift`. 7.5: jobs. 11.1: `me`'s
   `resolved_default`. 15: core-world stories that opt out of the restart
   oracle with a named finding (`broken()` in `jig/tests/core`), most for
   a claim the start settles (6, step 3) changing a task's `chip`, `acts`
@@ -17,4 +16,8 @@
   `Deployment.messages` advancing on a retried deadline; the core
   world's `world` and `direct` drivers run no oracle.
 - **Departs:** 6: `Core::new` without a start is ready, because the
-  core's unit fixtures need no start; every root starts it.
+  core's unit fixtures need no start; every root starts it. 8: the
+  client wire drops the failing charter's number of a
+  shortfall's turns, time, waiting and checks
+  (`jig-protocol-engine-clients/src/translate/deployment.rs`), because its
+  shortfall arms carry no charter; a client wire version adds it.
