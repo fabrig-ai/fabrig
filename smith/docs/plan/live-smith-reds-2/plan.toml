@@ -2,6 +2,7 @@ draft = "live-smith-reds-2"
 repo = "fabrig"
 sources = ["smith/docs/plan/live-smith-reds-2/inputs/request.md", "AGENTS.md"]
 
+retired = true
 [buffer]
 low = 1.0
 high = 2.0
