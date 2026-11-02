@@ -17,14 +17,14 @@ are named as theirs.
 - **Eleven milestones,** M0 to M10 (section 3). M0 is the ground the
   reference stands on; M1 to M9 each execute a part of the drafts; M10
   is the case whole.
-- **Each makes its own design.** A milestone begins by writing what it
-  executes into the design documents it touches, closing its entries in
-  the drafts' statuses. Shared design is kept to the least: no
-  milestone designs ahead for another, and where several touch one
-  section, each adds its own part (section 4).
-- **Each goes through fab's loop and is walked as a rung:** a QA brief
-  of the case's steps it makes possible, driven through `temper ctl`
-  alone (section 2).
+- **Each runs through fab's loop whole, its design included** (section
+  2): its input is its entry here and the draft sections it cites; its
+  designers write the design into its trunk family by family, feeding
+  its implementers as each part is ready. Shared design is kept to the
+  least: no milestone designs ahead for another, and where several
+  touch one section, each adds its own part (section 4).
+- **Each is walked as a rung:** a QA brief of the case's steps it makes
+  possible, driven through `temper ctl` alone.
 - **A spine and three side tracks** (section 4). The spine is the goal's
   own branch (M1), then four milestones side by side on it (designers,
   questions, early starts, the merge job into it) and its landing (M2).
@@ -38,30 +38,40 @@ are named as theirs.
 
 ## 2. How a milestone runs
 
-1. **Its design.** A designer writes the milestone's part of the drafts
-   into the design documents its entry names, which then say what the
-   code is to do. The entries it closes leave the drafts' statuses; the
-   design documents' statuses gain a Not yet for each part still to
-   build. A session other than the designer's reviews it.
-2. **Its build.** The user starts the milestone in fab; fab cuts its
-   plan from its design, and its tasks land through the loop. Each Not
-   yet leaves its status as its code lands.
-3. **Its walk.** fabrig/qa writes a brief in a rung's form (`v0.1.0.md`,
-   section 3): the case's steps the milestone makes possible, with the
-   case's names, on the case's backends, through `temper ctl`. A step
-   that needs a later milestone is walked in its plainest form or left
-   out, and the brief says which. The walk's findings are fixed through
-   the loop; the same brief, rerun unchanged, is the pass.
-4. **Done** when its walk passes. Walks grow: each brief extends the
+A milestone runs through fab's loop whole, its design included, under
+fab's rules for a run's lead and its designers (the agents
+repository's `fab/roles/cut-run.md`):
+
+1. **Its input:** its entry in section 3 and the draft sections it
+   cites. The user starts it as a plan of its own,
+   `temper/docs/plan/<milestone>`: its trunk made, the entry its
+   request, this file and the drafts the cut's sources.
+2. **Design and build, one pipeline.** The cut releases first what
+   needs nothing. Its designers, one per family, write the family's
+   design into the trunk: the sections the entry's Design names, each
+   document's status with a Not yet for what is still to build, its
+   Later, and the entries they close in the drafts' statuses. Then the
+   specs that cite it, released in batches while the implementers work
+   on the earlier ones. Implementers never write the design.
+3. **Landed whole:** the trunk is checked and lands through the queue,
+   and the plan's retire brings its statuses current.
+4. **Its walk:** a rung of the ladder's plan. fabrig/qa writes a brief in
+   a rung's form (`v0.1.0.md`, section 3): the case's steps the
+   milestone makes possible, with the case's names, on the case's
+   backends, through `temper ctl`. A step that needs a later milestone
+   is walked in its plainest form or left out, and the brief says
+   which. The walk's findings are repaired through the loop; the same
+   brief, rerun unchanged, is the pass.
+5. **Done** when its walk passes. Walks grow: each brief extends the
    briefs of the milestones it needs, so M10's is the case.
 
-Its designer, its implementers and its walker are separate sessions.
+Its designers, its implementers and its walker are separate sessions.
 
 ## 3. The milestones
 
 | | Milestone | Executes | Needs | Walks (case steps) | State |
 |---|---|---|---|---|---|
-| M0 | Ground: `playground-reset.md` closed out | | | | not started; owner to be decided |
+| M0 | Ground: `playground-reset.md` closed out; fab's designers write the design | | | | not started; the close-out's owner to be decided; fab's change asked of agents/loop |
 | M1 | The goal's own branch | N3, N4, N15, N23; N22 in part | M0 | 1, 3, 7, 19 | not started |
 | M2 | The goal lands | N3 for L; N22's `mine` | M1 | 23, 24, 28 | not started |
 | M3 | Designers and the cut | N12, N13, N16, N19, N20 | M1 | 3, 4, 6, 22 | not started |
@@ -74,16 +84,25 @@ Its designer, its implementers and its walker are separate sessions.
 | M10 | The case | N21; the reference's configuration whole | every one; rung B2 passed | 1 to 28 | not started |
 
 N9 and N17 are the drafts' Later; N11 is accepted and asks no work.
+Each entry's Design names the documents and sections its designers
+write, from the drafts' statuses; Builds, the trees its implementers
+change; Configures, the settings of `reference-code-production.md`,
+section 14 it adds.
 
 ### M0. Ground
 
-- **Executes:** the close-out of `playground-reset.md`, adopted (the
-  user's X5): the draft ported into the design as its status lists,
-  then removed. It comes first because the reference's design steps
-  edit the same documents (`forge.md`, temper's
+- **The playground's reset closed out** (the user's X5): the adopted
+  `playground-reset.md` ported into the design as its status lists,
+  then removed. It comes first because the milestones' designers edit
+  the same documents (`forge.md`, temper's
   `../protocol/configuration.md`, jig's `domain/tasks.md`).
-- **Done** when `playground-reset.status.md` is gone and the design
-  statuses' Departs entries for the playground's reset with it.
+- **fab's designers write the design** (the user, 2026-11-02): the cut's
+  designers write their family's design into the trunk with their
+  specs, as section 2 has it, where today they write specs and notes
+  alone. agents/loop's change to fab.
+- **Done** when `playground-reset.status.md` is gone, with the design
+  statuses' Departs entries for the playground's reset, and fab's change
+  has landed.
 
 ### M1. The goal's own branch
 
@@ -293,8 +312,8 @@ N9 and N17 are the drafts' Later; N11 is accepted and asks no work.
 - **The longest chain** is M0, M1, M2, M9, M10; M8 joins it if it runs
   late, so it starts in wave 1.
 - **No shared design milestone** (the user, 2026-11-02). Where
-  milestones extend one section, each adds its own part, and a design
-  step that meets another's there merges onto it as it lands:
+  milestones extend one section, each adds its own part, and a designer
+  that meets another milestone's design there builds on it as it lands:
   `agent.md`, 4.3.1, `change`'s parameters (M1, M2, M3, M5, M7, M9);
   `forge.md`, 8.1 (M1, M2, M3, M5); temper's
   `../protocol/configuration.md`, section 13 (M3, M5, M7, M9); the
@@ -340,10 +359,8 @@ N9 and N17 are the drafts' Later; N11 is accepted and asks no work.
 
 ## 7. Open questions
 
-- **How fab takes a milestone:** its cut reads a draft whole. Its input
-  could be this file's entry, with the draft sections it executes as
-  the scope; fab's owner says.
-- **Who carries out M0** (the director's open work).
+- **Who carries out the playground's close-out** (M0; the director's
+  open work).
 - **Real backends from M1's walk,** or fakes until M10? `v0.1.0.md`,
   2.1 has real backends lead, and the held logins make every walk wait
   its turn.
