@@ -427,16 +427,12 @@ and `connect-forge.html`.
   `web` address's host, and "Playground forge" for the demo's
   (`README.md`, 5.6). PROJECT is a project as the banner names it
   (`README.md`, 5.1).
-- **What the row carries today** (`README.md`, 4.6): its number, kind,
-  mode, connection, offer, its first repository, on GitHub its
-  installations, and its last connect's end. Until it carries
-  its `web` address and the repositories adopted on it, each with its
-  project (a growth of the `forges` subject's row, and `CLIENT_VERSION`
-  with it), the summary is "forge N · KIND", another Forgejo is named
-  "Forgejo", and a connected row's line is its first repository once
-  made, "ORG/NAME · project PROJECT", or none. Opened, a row holds its
-  Account line, connected ("LOGIN · user ID"), and its actions as
-  offered today: "Set up again" on set up failed, "Open its set-up ›",
+- **What the row carries** (`README.md`, 4.6): its number, kind,
+  mode, connection, offer, its first repository, its `web` address, the
+  repositories adopted on it, each with its project, on GitHub its
+  installations, and its last connect's end. Opened, a row holds its
+  Account line, connected ("LOGIN · user ID"), and its actions: "Set up
+  again" on set up failed, "Open its set-up ›",
   a link to `ConnectForge` at it, while it sets up or connects, an
   owned forge's restart words when stopped, and, connected, "Adopt a
   repository", a link to `Adopt { project }` for the project the person
@@ -444,16 +440,14 @@ and `connect-forge.html`.
   GitHub, temper's App"), each installation by its account's login, or
   "installation ID" while the forge has not heard its account, with
   "suspended" and a stray's words (below) where they hold,
-  never yet "all repositories" or "selected repositories" nor a link to
+  never "all repositories" or "selected repositories" nor a link to
   the installation's page, which wait on the forge hearing an
   installation's selection (skein's installation events carry none);
   and "Install on another account", which sends `Install` with `back`,
   the Forges page's address, once an installation is accepted, or
   "Install on GitHub" before (the actions' table, below). Every row
   holds its last connect's line where it has one (the row's table,
-  below). Its Access and Runs lines, its load, the App's setup URL, the
-  `Lacking` line, and the actions that carry a pasted value but
-  Connect wait on their own work (`../STATUS.md`).
+  below).
 - **The playground's forge,** the fake the demo names, follows under
   the level-2 heading "The playground", folded, while the demo's forge
   half holds (`README.md`, 4.8): "Playground forge · the playground’s,
@@ -742,15 +736,10 @@ and `connect-forge.html`.
   waits for its outcome; refused, the adoption's outcome shows in its
   words (`README.md`, 4.7). A client that did not send it (another
   tab, or after a reload) shows Ready on the row's made alone. With
-  no first repository on the row (a set up before first-repo's wire,
-  or one a restart has dropped): "FORGE is
+  no first repository on the row (one a restart has dropped): "FORGE is
   connected", "Connected as LOGIN.", "Adopt a repository", a link to
   `Adopt { project }`, and the Forges line.
-- **Ready, on GitHub,** until the picker's `Reachable` is built, is
-  Ready's with no first repository (above): "GitHub is connected",
-  "Connected as LOGIN.", the App's line of the row (below), "Adopt a
-  repository", a link to `Adopt { project }`, and the Forges line.
-  With the picker, it starts with the repository to start in, while
+- **Ready, on GitHub,** starts with the repository to start in, while
   none of the forge's is adopted: "Choose a repository to start in",
   "SLUG is installed on ACCOUNT, with all its repositories, N." or
   "…, with N repositories you chose.", then the repositories of its
@@ -1007,9 +996,8 @@ are the forge's part of a project's page (jig's
 
 - **Each** shows its title, its repository and issue, the task that
   filed it as a chip, when, and its state, which the store keeps: open,
-  taken up by a goal, dropped. Designed, not built: `findings.md`'s
-  kinds and states, `new`, `routed`, `backlog` and `dropped`, as its
-  labels say.
+  taken up by a goal, dropped; `findings.md`'s kinds and states, `new`,
+  `routed`, `backlog` and `dropped`, as its labels say.
 - **Taking one up** sets a goal that names it, the board's form with its
   words filled in (jig's `client/domain/pages.md`, 6.2), or starts a
   chat about it, with the finding named in the chat's first words, so
@@ -1276,8 +1264,6 @@ made by the forge connector from what it keeps of the change
 - **Conflicts seen early** (`../domain/forge.md`, section 20):
   warning two goals whose open changes conflict before either lands, as
   a panel on both.
-- **A queue's throughput:** if landings are ever batched, how a batch and
-  its bisection show.
 - **A person's approval as a rule,** posted on the forge as the person
   (`../README.md`, section 8), which the approval's card would then
   say.
