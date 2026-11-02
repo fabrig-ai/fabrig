@@ -24,6 +24,7 @@ mod removal;
 mod restore_fit;
 mod runs;
 mod stopping;
+mod tiers;
 mod views;
 use alloc::boxed::Box;
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
