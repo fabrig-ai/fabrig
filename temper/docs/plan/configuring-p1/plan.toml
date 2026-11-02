@@ -1,0 +1,26 @@
+draft = "configuring-p1"
+repo = "fabrig"
+sources = ["temper/docs/plan/configuring-p1/inputs/request.md", "temper/docs/design/draft/configuring.execution.md", "temper/docs/design/draft/configuring.md", "AGENTS.md", "DESIGN.md"]
+
+# P1 of temper/docs/design/draft/configuring.execution.md: a charter's documents (jig's
+# engine.md 17.9, temper's configuration.md 13.7), each run reading its charter at its task's
+# revision (engine.md 17.3, agent.md 4.1 and 4.6), and `chat start --template` (tools.md 5.3).
+# Released in batches: first `chat start --template`, which needs no survey; then the
+# documents and the revisions as their surveys settle them.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "chat-template"
+title = "jig's shapes::chat_from and temper's chat start --template: a chat from any chat template"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/tools.md, 5.3"
+
+[[slice]]
+id = 1
+story = "temper ctl starts a chat from any of the project's chat templates, and refuses a template that is no chat's naming those it offers"
+parts = ["chat-template"]
+walk = false
