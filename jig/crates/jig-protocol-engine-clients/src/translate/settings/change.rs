@@ -111,6 +111,8 @@ fn charter(value: w::Charter) -> c::Charter {
             w::SettingHosts::Both => jig_domain_fleet::Kinds::Both,
         },
         spend: v.spend,
+        // A client's charter names no wake policy yet.
+        wake: jig_domain_tasks::WakePolicy::DEFAULT,
         policy: c::RunPolicy {
             instructions: v.instructions,
             waiting: v.waiting,

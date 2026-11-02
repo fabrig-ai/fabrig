@@ -329,16 +329,8 @@ fn member(
             w::NewBudget::AsAllowed(v) => p::Budget::AsAllowed { cap: *v.cap() },
         },
         wake: match v.wake {
-            Some(wake) => asks::wake(wake),
-            None => p::WakePolicy {
-                words: p::WakeRule::Immediate,
-                notices: p::WakeRule::Immediate,
-                news: p::WakeRule::Immediate,
-                results: p::ResultsWake::LastOrFailure,
-                questions: true,
-                answers: true,
-                timers: true,
-            },
+            Some(wake) => Some(asks::wake(wake)),
+            None => None,
         },
         dependencies: dependencies.into_boxed(),
         named: asks::grants(&v.named, limits.new_task_named, w::Path::NewTaskNamed, limits)?,

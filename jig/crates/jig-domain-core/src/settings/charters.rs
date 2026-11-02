@@ -14,6 +14,8 @@ pub struct Charter {
     pub policy: RunPolicy,
     pub hosts: fleet::Kinds,
     pub spend: u64,
+    /// Its default wake policy, which a task made under it takes when its batch entry names none (domain/tasks.md, 8.3).
+    pub wake: tasks::WakePolicy,
 }
 
 const _: () = assert!(fleet::CATALOGUE_MODELS == tasks::MODELS, "fleet evidence prices the model catalogue");
