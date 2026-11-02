@@ -40,6 +40,7 @@ fn claude_delivers_a_commit_in_place() {
 }
 
 #[test]
+#[ignore = "live: needs an Anthropic API key; run by the owner (smith/docs/design/testing.md, 2.3)"]
 fn an_anthropic_key_delivers_a_commit_in_place() {
     commit("anthropic-key");
 }
