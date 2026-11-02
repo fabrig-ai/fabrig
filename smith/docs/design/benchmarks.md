@@ -46,10 +46,10 @@ Codex, the comparison's verdict, is section 16.
   answered by a change that names its cause, never by another run of the
   same smith (16.5).
 - **On the way to a verdict, a change shows the criteria.** After a
-  plan's baseline, a change to what the model is sent runs against its
-  parent on the verdict's tasks when that run can tell its expected
-  effect from none, reports each criterion's ratio, and stops on a
-  question to the designer when one moves the wrong way past the
+  parity series' baseline, a change to what the model is sent runs
+  against its parent on the verdict's tasks when that run can tell its
+  expected effect from none, reports each criterion's ratio, and stops
+  for its series owner's decision when one moves the wrong way past the
   baseline's interval, whatever its own comparison concludes. Any other
   lands on the counts it targets, and the closing run measures it with
   the others (16.6).
@@ -235,8 +235,8 @@ adapter's among that adapter's tests.
 - **An improvement shown on fixtures,** such as a change to smith's role
   (shell.md, 6.6), names the `compare` suite in place of a probe: one run
   with two arms, its parent and the change, interleaved (section 9),
-  whose comparison goes in its commit body. It adds no probe. In a plan
-  whose aim is a parity verdict, after its baseline, a change to what
+  whose comparison goes in its commit body. It adds no probe. In a
+  parity series (16.6), after its baseline, a change to what
   the model is sent names the `parity-change` suite in its place when
   that run can tell the change's expected effect from none, with 16.6's
   report; any other names the counts it targets (16.6).
@@ -247,7 +247,7 @@ adapter's among that adapter's tests.
   reason unrelated to the change (for example, its limits refuse what the
   provider sends today), the before is the closest evidence that exists:
   - the change's deterministic tests, which fail on the parent;
-  - recorded measurements, such as the spike's;
+  - recorded measurements;
   - a same-code run with a setting that turns the feature off, where one
     exists.
 
@@ -742,7 +742,7 @@ Code.
 | `first-request` | a start's messages, the opening, awaiting (domain/run.md, sections 3 and 6) | an empty brief and a one-line task that writes a file; headless with the task in the start, and interactive typed after startup; with and without a workspace | under `everything`, the first request's new messages hold the task; no response or `wait` before the task's `message.received`; at most two completions; time to the first `response.started` | seconds |
 | `smoke-tools` | the commands' environment; one path namespace, the directory as `.`; a complete stream; teardown; exit evidence (domain/tools.md, sections 2 and 5; protocol/events.md, section 5) | list `.`, read the README, `printenv` a nonce variable and `command -v cargo` into a file through the shell, answer with a README token. `child`: one child first, so two pooled connections are open at the answer | `.` listed; one shell call, exit 0; tool records paired by `call`; the responses' `spent` and `usage` sum to `run.completed`'s; nothing lost; `teardown_ms` within bound, not forced | ten seconds, ten thousand tokens |
 | `follow-up` | message terminals, the fence, the unread report, a finish crossing a message, deferred `wait` (domain/run.md, section 6); the local host's unread lines (domain/host.md, section 8) | interactive: a greeting, then, once `finish` shows, a file asked for through the shell. `eof`: two lines, then end of input. `chat`: three exchanges with wait authority | exit 0; each `message.received` has one terminal; the request handled once, in the run it crossed or the next one's opening; in `chat`, one completion per exchange. When the local host shows "waiting" has no record in the stream, so the local worlds check it (domain/host.md, section 8), not the probe | thirty seconds |
-| `large-write` | the declared tool payload, per-call outcomes, each model's `output`, the truncated Anthropic `tool_use` (domain/tools.md, section 3; protocol/limits.md, section 6) | one `write` of tens of kilobytes within the payload: a seed file of non-repetitive plain prose, a little larger than the size asked, copied, so that the content has an obvious end. A model asked to count out a repeated character neither counts nor stops reliably. What is judged is smith: the saved file equals what the call sent. How faithfully the model copied is recorded, not judged. Where the small tier will not copy reliably, the content may instead be numbered lines the prompt specifies (`Line 0001: <a fixed sentence>`, and so on, to a stated last number): no read, and an end the model can see. `oversized`: a call past the bound on one call's input, which arrives as an oversize block (protocol/llm.md, section 4). With the production payload that bound, six payloads and more, is past what one response can write, so the variant declares a small payload, such as 2 KiB, and the bound follows from it. Its prompt says the first call is meant to be refused: one `write` of numbered lines past the call's bound; then a smaller file, past the payload, in pieces: a `write`, then an `edit` that extends it | one `write` of at least the size asked, `written`; no `max_tokens` stop. `oversized`: one call past the call's bound, as an `oversized` block, then the file in pieces, accepted. A refusal by the tool's payload instead (a `write` past the payload, within the call's bound) is not this variant's: domain/tools.md section 4's size refusal is proven by its deterministic test. An attempt that makes no call past the bound, and otherwise makes the file in pieces, accepted, is "not exercised (bound honoured)": neither a pass nor a fail, since a model honouring a bound smith states is what smith asks of it. The variant is proven by three exercised passes within forty-eight attempts (the plan's proving rules) | under a minute, ten thousand output tokens |
+| `large-write` | the declared tool payload, per-call outcomes, each model's `output`, the truncated Anthropic `tool_use` (domain/tools.md, section 3; protocol/limits.md, section 6) | one `write` of tens of kilobytes within the payload: a seed file of non-repetitive plain prose, a little larger than the size asked, copied, so that the content has an obvious end. A model asked to count out a repeated character neither counts nor stops reliably. What is judged is smith: the saved file equals what the call sent. How faithfully the model copied is recorded, not judged. Where the small tier will not copy reliably, the content may instead be numbered lines the prompt specifies (`Line 0001: <a fixed sentence>`, and so on, to a stated last number): no read, and an end the model can see. `oversized`: a call past the bound on one call's input, which arrives as an oversize block (protocol/llm.md, section 4). With the production payload that bound, six payloads and more, is past what one response can write, so the variant declares a small payload, such as 2 KiB, and the bound follows from it. Its prompt says the first call is meant to be refused: one `write` of numbered lines past the call's bound; then a smaller file, past the payload, in pieces: a `write`, then an `edit` that extends it | one `write` of at least the size asked, `written`; no `max_tokens` stop. `oversized`: one call past the call's bound, as an `oversized` block, then the file in pieces, accepted. A refusal by the tool's payload instead (a `write` past the payload, within the call's bound) is not this variant's: domain/tools.md section 4's size refusal is proven by its deterministic test. An attempt that makes no call past the bound, and otherwise makes the file in pieces, accepted, is "not exercised (bound honoured)": neither a pass nor a fail, since a model honouring a bound smith states is what smith asks of it. The variant is proven by three exercised passes within forty-eight attempts | under a minute, ten thousand output tokens |
 | `history` | the window, compaction, derived limits, selective decoding (domain/session.md, section 8; protocol/limits.md, section 3) | sum values held in many small files, read one call at a time, the values out of order so that a summary must carry them, and the answer's form stated whole in the prompt. The running sum and the next file are written as text beside each read, so that what a summary must carry is in the window's history, not only in the model's reasoning. `small-window`: a window several times smaller than the reading, with a compaction due just before the last read | `request_bytes` and prompt tokens per request recorded. Each read's verdict is smith's; the number of reads is the model's (`call-count`, 3.2). Each compaction's request holds the results owed to it, and the next window opens with its summary (`compaction-carried`). `small-window`: a `conversation.opened` of kind `compaction`; every compaction request at tool choice `none` (`compaction-choice`); no prompt above the window; cache reuse around it recorded. With those passing, a summary that drops or misstates a read it was given, so that the read is made again or skipped, is a model deviation. The compaction's condition is a window past its line: the window less one output, the summary instruction and the markers, which the stream gives as the conversation's model's `window_tokens` less its `output_tokens`, from `conversation.opened`, less `run.compaction_material`, from the effective limits `session.started` carries (protocol/limits.md, sections 3.9 and 9). A request has passed it when its prompt, as its usage counts it, is above the line. A stream without `run.compaction_material` gives no line, and leaves `conversation-opened` and `compaction-choice` "not exercised", naming why. The guard (domain/session.md, section 8.1) sends no ordinary request whose prompt may pass the line, so smith makes no ordinary completion past that point: it compacts first. A prompt between the threshold and the line is smith's estimate missing, and is no failure. An attempt that opened no compaction, and none of whose requests reached that point, leaves `conversation-opened` and `compaction-choice` "not exercised" (3.2): no compaction was owed, since the model stopped before its reading filled the window. An attempt with a request past that point and no compaction fails `conversation-opened`, which is smith's | two minutes, up to a million input tokens; weekly |
 | `cache-reuse` | affinity, the stable prefix, Anthropic breakpoints, usage (protocol/llm.md, section 2) | pointer chasing over a dozen files, one read each, a fixed number of requests. `children`: two children in turn. `crossing`: a message part way, at medium effort, so reasoning crosses a user turn. `idle-gap`: a gap past the cache's lifetime before a message | reuse R, the cache read over the previous request's prompt, summed where the predecessor can be cached: median of three at least 0.85, and full misses (under half) at most one per ten requests over the three, until calibration sets them; the three repetitions are one attempt (11.5's `probes` suite). On `anthropic`, cache writes about each turn's addition. A control arm without affinity falls clearly below: one attempt of it fails these criteria, which makes it the probe's before (section 4.2) | a minute each; `idle-gap` weekly |
 | `budget` | the reserve, wind-down, the final turn, budget text, the clamped share, real spend (domain/run.md, sections 5.3 and 9) | `starvation`: a tight budget and a delegated survey. `wrap-up`: a child given `max_turns` 3. `child-quota`: a child given `max_turns` 2. `visibility`: a report of what is left. `spend`: notional prices, a ceiling about twice a calibrated spend | `starvation`: accepted, main's last completion after the child's return, turns within budget. `wrap-up`: under `everything`, `stop: budget` and text, the last request at `tool_choice` `none`. `child-quota`: the child answers within two turns, its `share` in `conversation.opened`. `visibility`: main reports what is left as it was last told before the report (with a child, the last child's usage line, domain/run.md 9.2). The told turns and time equal the `budget` record of the step that wrote them, time in whole seconds rounded down; a mismatch there is smith's. The report repeats the told values; a mismatch there is the model's. No child opens into the reserve. `spend`: never past the ceiling | under a minute each |
@@ -753,7 +753,7 @@ Code.
 | `tool-output` | output budgets, read windows and timeouts as the model chooses them; UTF-8 passed through; jobs (domain/tools.md, sections 3 and 5) | `test-output`: which assertion fails, in over ten kilobytes of output. `quote`: a sentence deep in a long document. `timeout`: a command past its timeout, and one asking past the ceiling. `utf-8`: replace an en dash. `background`: a command of about a minute started as a job, beside reads the answer also needs | one shell call; at most two reads; `timed_out` naming its bound, `clamped` set, no hang; one edit, matching first time. `background`: the command answered `running`, a completion started between the job's start and its end, one terminal for the job | seconds each; `background` a minute |
 | `process-tree` | a command in its own process group, signalled whole (domain/tools.md, section 5) | `sh -c 'sleep 600 & wait'` with a short timeout | no `sleep` left, by tree accounting; answered within timeout and grace; accepted | seconds |
 | `credentials` | a sign-in record shared across processes (shell.md, 7.3) | two smith attempts at once on one `sign_in` account of the harness's, the refresh lead raised so that both refresh | both accepted; the record's generation rose, and no refresh was refused as reused | seconds |
-| `slow-completion` | deadlines that measure progress; an oversized reasoning item as a typed failure (protocol/limits.md, section 7) | long reasoning at high effort, from a real provider (a fake slow source is the deterministic worlds', not this probe's) | the answer accepted; no timeout of any phase while events arrive; no reasoning-size failure; the call lasting over 60 s, the whole-response cap the spike's attempts were cut at (findings S5). An attempt under 60 s is "not exercised": neither a pass nor a fail, counted like a model deviation (more than two in twelve strengthen the prompt, or raise the effort). Recorded per provider and model, for shell.md's `head`, `idle` and `reasoning_item`: `first_byte_ms`, `largest_gap_ms`, the call's length and the largest reasoning item | minutes; occasional |
+| `slow-completion` | deadlines that measure progress; an oversized reasoning item as a typed failure (protocol/limits.md, section 7) | long reasoning at high effort, from a real provider (a fake slow source is the deterministic worlds', not this probe's) | the answer accepted; no timeout of any phase while events arrive; no reasoning-size failure; the call lasting over 60 s, a whole-response cap met in practice (`docs/development/benchmarks/wall-clock-plan.md`). An attempt under 60 s is "not exercised": neither a pass nor a fail, counted like a model deviation (more than two in twelve strengthen the prompt, or raise the effort). Recorded per provider and model, for shell.md's `head`, `idle` and `reasoning_item`: `first_byte_ms`, `largest_gap_ms`, the call's length and the largest reasoning item | minutes; occasional |
 
 Two probes more: **`mid-work`**, a message offered
 between completions of long work, and threshold notes the same way;
@@ -952,8 +952,7 @@ holds for one pinned Codex at one working tier.
   the test's power: a smith as fast as Codex, or a little faster,
   should pass most runs, and one worse than the margin almost none. More
   attempts narrow the interval without moving the margin, so the second
-  holds at any number; the plan's decisions record the power at five,
-  ten and fifteen.
+  holds at any number.
 - **The arms.** smith's built arm of the commit, and Codex at its pinned
   version, each as it ships (5.4, 6.1, 6.2), at the working tier
   (section 7). Delegation is each agent's default; what delegation is
@@ -1024,8 +1023,8 @@ holds for one pinned Codex at one working tier.
   the verdict is incomplete (16.3), whatever the criteria; otherwise 1
   when a criterion fails or 16.3 finds smith not on par, and 0 at
   parity. A run of `suite parity` exits with the same code.
-- **A plan that targets parity** names this command in its "Done when",
-  over a committed summary of a run on the plan's final `main`.
+- **A parity series is done** when this command exits 0 over a committed
+  summary of a run on its final `main`.
 - **What moves it.** A new Codex pin, a new working tier, a new task
   version or a new result version starts a new comparison: parity is
   shown again, never carried across.
@@ -1056,23 +1055,23 @@ holds for one pinned Codex at one working tier.
 - **The newest run is the verdict.** Runs are never pooled, and none is
   chosen among them: 16.4's command reads the newest committed summary,
   and the earlier ones stay committed beside it.
-- **A plan bounds its runs.** A plan that targets parity says in its live
-  budget how many closing runs it holds. When the last it holds is short
-  of parity, the plan ends with its target unmet: its "Done when" names
-  the criteria that failed, its last summary is the evidence, and their
-  answer is a later plan's, a change as above.
-- **Baselines are cut from a plan's last `parity` run,** whatever its
+- **A parity series bounds its runs.** It says beforehand how many
+  closing runs it holds. When the last it holds is short of parity, the
+  series ends with its target unmet: it names the criteria that failed,
+  its last summary is the evidence, and their answer is a later series',
+  a change as above.
+- **Baselines are cut from a series' last `parity` run,** whatever its
   verdict (section 9): they alarm on the drift of the smith that ships,
   on par or not.
 
 ### 16.6 A change on the way to a verdict
 
-A plan whose aim is a parity verdict runs a baseline first, the `parity`
-run that measures where it starts (skein's development.md, 5.1). After
+A *parity series*, changes whose aim is a parity verdict, runs a
+baseline first: the `parity` run that measures where it starts. After
 it, each step that changes what the model is sent shows its effect
 before it lands: on every criterion, whatever criterion it claims to
 move, by a run of its own when that run can tell its expected effect
-from none; otherwise on the counts it targets, and the plan's closing
+from none; otherwise on the counts it targets, and the series' closing
 run measures it with the others.
 
 - **What counts.** A change to a prompt smith sends, or to when it sends
@@ -1088,23 +1087,16 @@ run measures it with the others.
   A change that alters no prompt and no request's timing, such as the
   harness, the event stream or a refactor, is not one.
 - **Measured alone, or with the others.** A run of two arms of smith
-  resolves only an effect wider than its interval. The plan states each
-  change run's resolution from its planning commands (a simulation at
-  the run's attempts on the spread of the last committed baseline,
-  `benchmarks/baselines/`), and each change's expected effect from its
-  cause (16.5):
+  resolves only an effect wider than its interval. The series states
+  beforehand each change run's resolution, from the harness's planning
+  commands (a simulation at the run's attempts on the spread of the last
+  committed baseline, `benchmarks/baselines/`), and each change's
+  expected effect, from its cause (16.5):
   - **a change its run can tell from none** runs `parity-change`, as
     below;
   - **any other** proves itself on the counts it targets, such as its
     task's responses (16.1), and lands. The closing run measures such
     changes together, and a criterion it misses has 16.5's answer.
-
-  In the wall-clock plan, four change runs took 9.3 hours of the gate
-  lane, a third of the run: their RT intervals were 0.34 to 0.78 wide,
-  against effects of 4% to 22% of smith's time, and two stopped on
-  noise. Their ratios multiplied to 1.083, while the closing run moved
-  RT from 1.397 to 1.033, and the counts the steps targeted moved:
-  responses on `shell-cwd`, 70.1 to 54.2.
 - **Its proof is one run of `parity-change`** (11.5): the `parity`
   suite's tasks, five attempts per arm each, with two smith arms, the
   change and its parent, interleaved, with no rerun. It takes the place
@@ -1119,16 +1111,14 @@ run measures it with the others.
     ratio, beside the baseline's interval. `summarise` takes the
     baseline's committed summary as a named input. A product over the
     changes landed before it would count each of their codes twice, as a
-    change and as the next one's parent: in the wall-clock plan, of
-    step 10.1's RC projection of 1.821, a factor 1.485 was three codes
-    measured twice, each costing more in its own run than as the next
-    step's parent;
+    change and as the next one's parent
+    (`docs/development/benchmarks/wall-clock-plan.md`);
   - **beside them,** deciding nothing: each arm's responses an attempt,
     the time record's parts (requests, compaction, tools) and fresh
     tokens, per task.
-- **A move the wrong way stops it.** The step stops on a question to
-  the designer (skein's development.md, 10.4) when a criterion moves the wrong
-  way past the baseline's interval:
+- **A move the wrong way stops it.** The step stops for its series
+  owner's decision when a criterion moves the wrong way past the
+  baseline's interval:
   - **FT, FC, RT or RC:** its projection lies above the baseline's
     upper bound;
   - **O:** the change's passes fall below the lower bound of the exact
@@ -1137,7 +1127,7 @@ run measures it with the others.
   This holds whatever the step's own comparison concludes, "none
   detected" included. A report that is incomplete, a criterion
   unavailable or an arm with no pass on a task, stops the step the same
-  way. The step lands only on the designer's answer: kept, with the
+  way. The step lands only on the owner's answer: kept, with the
   cause the answer names for the move; reworked; or dropped.
 
   The cause may be noise rather than the change. The answer then shows,
@@ -1151,14 +1141,14 @@ run measures it with the others.
 - **Why the baseline's interval.** A comparison that detects nothing
   at five attempts per arm can hide a move larger than the baseline's
   own uncertainty; the projection sets the change's move on the
-  baseline, where the plan can see it. A plan's position within the
+  baseline, where the series can see it. A series' position within the
   baseline's interval is within what it already measures as noise, and
   goes on. What the landed changes add up to, the moves no change run
   resolves included, is the closing run's to measure.
-- **The baseline** here is the plan's first `parity` run, its
+- **The baseline** here is the series' first `parity` run, its
   committed summary, never `baselines/`'s files, which are cut from a
-  plan's last run (16.5).
+  series' last run (16.5).
 - **One run per commit.** A step reworked after a stop runs
   `parity-change` again, on its new commit. A `parity-change` run is a
-  step's evidence for landing, never a verdict: the plan's `parity` runs
+  step's evidence for landing, never a verdict: the series' `parity` runs
   judge it (16.5), and its runs are never pooled with them.
