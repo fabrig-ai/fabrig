@@ -155,11 +155,307 @@ fn delegations_with_one_repository_id_take_their_own_forges_holding() {
             tasks::Executor::Procedure { connector, code: 2 },
             &spec,
             None,
+            false,
+            &[],
         )
         .expect("delegation admitted");
         let [tasks::Holding::Write { resource, .. }] = holdings.as_ref() else { panic!("one write holding") };
         let name = super::forge_name(connector, resource, env.limits.forge.name_bytes).expect("forge holding");
         assert_eq!((name.forge, name.repository), (number, 1));
+    }
+}
+
+const GOAL_PROJECT: u32 = 5;
+const GOAL_ROOT: u64 = 7;
+const GOAL_TASK: u64 = 8;
+const GOAL_DELEGATE: u64 = 9;
+const GOAL_CHANGE: u64 = 10;
+
+fn goal_spec() -> super::tasks::Spec {
+    super::tasks::Spec { job: None, asks: false, words: Box::new([]), inputs: Box::new([]), parameters: Box::new([]) }
+}
+
+#[test]
+fn a_tracked_task_naming_its_own_goal_branch_holds_g_in_the_home() {
+    use super::{Work, tasks};
+    use jig_domain_core::{Event, effects::connector};
+    let (mut domain, env) = two_forges();
+    let forge_connector = domain.config.forge_connector;
+    let holdings = super::task_holdings(
+        &mut domain,
+        &env,
+        GOAL_PROJECT,
+        GOAL_ROOT,
+        GOAL_TASK,
+        tasks::Executor::Agent { charter: 1 },
+        &goal_spec(),
+        None,
+        true,
+        &[super::GOAL_BRANCH_SYMBOL],
+    )
+    .expect("tracked goal admitted");
+    let expected_goal = tasks::Holding::Write {
+        resource: tasks::Name {
+            connector: forge_connector,
+            path: Box::new([
+                Box::from(1_u16.to_be_bytes()),
+                Box::from(1_u32.to_be_bytes()),
+                Box::from(b"temper/7/g8".as_slice()),
+            ]),
+        },
+        kind: 1,
+    };
+    assert_eq!(
+        holdings.as_ref(),
+        &[
+            expected_goal.clone(),
+            tasks::Holding::Write {
+                resource: tasks::Name {
+                    connector: forge_connector,
+                    path: Box::new([
+                        Box::from(1_u16.to_be_bytes()),
+                        Box::from(1_u32.to_be_bytes()),
+                        Box::from(b"temper/7/r8".as_slice()),
+                    ])
+                },
+                kind: 1,
+            }
+        ]
+    );
+    let tasks::Holding::Write { resource: goal_resource, .. } = expected_goal else { unreachable!() };
+    let mut reported = false;
+    while let Some(work) = domain.work.pop() {
+        if let Work::Core(Event::EffectConnector(connector::Event::Resource { project, name, role, hold })) = work
+            && name == goal_resource
+        {
+            assert_eq!(project, GOAL_PROJECT);
+            assert_eq!(role, connector::ResourceRole::Owned);
+            assert_eq!(hold, connector::HoldKind::Exclusive { wait: false });
+            reported = true;
+        }
+    }
+    assert!(reported, "the goal's resource report makes its kind-1 hold refuse");
+}
+
+#[test]
+fn an_untracked_task_naming_its_own_goal_branch_is_refused_naming_the_symbol() {
+    let (mut domain, env) = two_forges();
+    assert_eq!(
+        super::task_holdings(
+            &mut domain,
+            &env,
+            GOAL_PROJECT,
+            GOAL_ROOT,
+            GOAL_TASK,
+            super::tasks::Executor::Agent { charter: 1 },
+            &goal_spec(),
+            None,
+            false,
+            &[super::GOAL_BRANCH_SYMBOL],
+        ),
+        Err(Some(jig_domain_core::HoldingsRefusal::Symbol { symbol: super::GOAL_BRANCH_SYMBOL }))
+    );
+}
+
+#[test]
+fn an_unknown_forge_symbol_is_refused_naming_it() {
+    const UNKNOWN_SYMBOL: u16 = 99;
+    let (mut domain, env) = two_forges();
+    assert_eq!(
+        super::task_holdings(
+            &mut domain,
+            &env,
+            GOAL_PROJECT,
+            GOAL_ROOT,
+            GOAL_TASK,
+            super::tasks::Executor::Person(super::tasks::PersonAddress::Person(1)),
+            &goal_spec(),
+            None,
+            true,
+            &[UNKNOWN_SYMBOL],
+        ),
+        Err(Some(jig_domain_core::HoldingsRefusal::Symbol { symbol: UNKNOWN_SYMBOL }))
+    );
+}
+
+#[test]
+fn a_symbol_on_a_project_without_a_home_is_refused() {
+    const PROJECT_WITHOUT_HOME: u32 = 6;
+    let (mut domain, env) = two_forges();
+    assert_eq!(
+        super::task_holdings(
+            &mut domain,
+            &env,
+            PROJECT_WITHOUT_HOME,
+            GOAL_ROOT,
+            GOAL_TASK,
+            super::tasks::Executor::Agent { charter: 1 },
+            &goal_spec(),
+            None,
+            true,
+            &[super::GOAL_BRANCH_SYMBOL],
+        ),
+        Err(Some(jig_domain_core::HoldingsRefusal::Symbol { symbol: super::GOAL_BRANCH_SYMBOL }))
+    );
+}
+
+#[test]
+fn holdings_asks_keep_the_refused_symbol() {
+    use super::tasks;
+    use jig_domain_core as core;
+    const UNKNOWN_SYMBOL: u16 = 99;
+    let (mut domain, env) = two_forges();
+    let connector = domain.config.forge_connector;
+    let request = skein_lib::Token::new(GOAL_TASK);
+    let ask = core::Ask::TaskHoldings {
+        request,
+        project: GOAL_PROJECT,
+        root: GOAL_ROOT,
+        number: GOAL_TASK,
+        executor: tasks::Executor::Person(tasks::PersonAddress::Person(1)),
+        spec: goal_spec(),
+        tracked: true,
+        symbols: Box::new([UNKNOWN_SYMBOL]),
+    };
+    let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
+    super::super::asks::ask(&mut domain, &env, &mut decision, connector, ask);
+    let Some(super::Work::Core(core::Event::Holdings { refused, holdings, request: answered, .. })) = domain.work.pop()
+    else {
+        panic!("holdings answer")
+    };
+    assert_eq!(answered, request);
+    assert_eq!(refused, Some(core::HoldingsRefusal::Symbol { symbol: UNKNOWN_SYMBOL }));
+    assert!(holdings.is_none());
+    assert!(domain.work.is_empty());
+}
+
+fn goal_holds_branch() -> (super::Domain, skein_lib::Env<super::Limits>) {
+    use super::tasks;
+    let (mut domain, mut env) = two_forges();
+    // These tasks report one byte; their delegate result reserves that byte in the inbox.
+    env.limits.tasks.result_bytes = 1;
+    let holdings = super::task_holdings(
+        &mut domain,
+        &env,
+        GOAL_PROJECT,
+        GOAL_TASK,
+        GOAL_TASK,
+        tasks::Executor::Person(tasks::PersonAddress::Person(1)),
+        &goal_spec(),
+        None,
+        true,
+        &[super::GOAL_BRANCH_SYMBOL],
+    )
+    .expect("goal holding");
+    let task_env = skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.tasks };
+    let mut out = skein_lib::Queue::uncapped();
+    tasks::step(
+        &mut domain.core.tasks,
+        &task_env,
+        tasks::Event::OpenPeriod {
+            reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(1)),
+            project: GOAL_PROJECT,
+            period: 1,
+            budget: 100,
+        },
+        &mut out,
+    );
+    make_goal_task(&mut domain, &env, GOAL_TASK, tasks::Party::Deployment { project: GOAL_PROJECT }, holdings);
+    (domain, env)
+}
+
+fn make_goal_task(
+    domain: &mut super::Domain,
+    env: &skein_lib::Env<super::Limits>,
+    number: u64,
+    creator: super::tasks::Party,
+    holdings: Box<[super::tasks::Holding]>,
+) {
+    use super::tasks;
+    let executor = tasks::Executor::Procedure { connector: 0, code: 1 };
+    let (source, _, source_task) = crate::tests::live_task(None, executor);
+    let authority = source.core.tasks.task(source_task).unwrap().authority.clone();
+    let mut out = skein_lib::Queue::uncapped();
+    tasks::step(
+        &mut domain.core.tasks,
+        &skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
+        tasks::Event::Make {
+            reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(number)),
+            creator,
+            batch: Box::new([tasks::New {
+                number,
+                project: GOAL_PROJECT,
+                label: 0,
+                flags: tasks::Flags::PLAIN,
+                executor,
+                llm: None,
+                spec: goal_spec(),
+                contract: tasks::Contract::Report { words: 1 },
+                deadline: tasks::Deadline::Named,
+                authority,
+                numbers: tasks::Numbers { budget: 1, spent: 0, spent_below: 0, reserved: 0 },
+                funder: tasks::Funder::Period { project: GOAL_PROJECT, period: 1 },
+                dependencies: Box::new([]),
+                holdings,
+                wake: tasks::WakePolicy::DEFAULT,
+                recurring: None,
+                tracked: Some(1),
+            }]),
+        },
+        &mut out,
+    );
+    assert!(domain.core.tasks.task(number).is_some(), "fixture task made");
+}
+
+fn change_goal_holdings(
+    domain: &mut super::Domain,
+    env: &skein_lib::Env<super::Limits>,
+    parent: Option<u64>,
+    forge: u16,
+) -> Result<Box<[super::tasks::Holding]>, Option<jig_domain_core::HoldingsRefusal>> {
+    use super::tasks;
+    let connector = domain.config.forge_connector;
+    let spec = tasks::Spec {
+        parameters: Box::new([
+            tasks::Parameter::Resource { name: 1, connector, resource: super::forge::tag(forge, 1) },
+            tasks::Parameter::Bytes { name: 2, value: Box::from(b"temper/8/g8".as_slice()) },
+        ]),
+        ..goal_spec()
+    };
+    super::task_holdings(
+        domain,
+        env,
+        GOAL_PROJECT,
+        GOAL_TASK,
+        GOAL_CHANGE,
+        tasks::Executor::Procedure { connector, code: super::CHANGE_CODE },
+        &spec,
+        parent,
+        false,
+        &[],
+    )
+}
+
+#[test]
+fn a_change_into_a_goal_branch_from_outside_its_goal_is_refused_naming_the_goal() {
+    let (mut domain, env) = goal_holds_branch();
+    for parent in [None, Some(GOAL_ROOT)] {
+        assert_eq!(
+            change_goal_holdings(&mut domain, &env, parent, 1),
+            Err(Some(jig_domain_core::HoldingsRefusal::Held { holder: GOAL_TASK }))
+        );
+    }
+    assert!(change_goal_holdings(&mut domain, &env, None, 3).is_ok(), "same branch in another forge is unheld");
+}
+
+#[test]
+fn a_change_from_inside_the_goals_subtree_into_its_branch_is_admitted() {
+    let (mut domain, env) = goal_holds_branch();
+    make_goal_task(&mut domain, &env, GOAL_DELEGATE, super::tasks::Party::Task(GOAL_TASK), Box::new([]));
+    for parent in [GOAL_TASK, GOAL_DELEGATE] {
+        let holdings = change_goal_holdings(&mut domain, &env, Some(parent), 1).expect("goal's change admitted");
+        let [super::tasks::Holding::Write { resource, kind: 1 }] = holdings.as_ref() else { panic!("change branch") };
+        assert_eq!(resource.path[2].as_ref(), b"temper/8/c10");
     }
 }
 
