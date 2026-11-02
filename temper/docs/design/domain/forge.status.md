@@ -31,9 +31,6 @@
     page's line that a change takes no words.
   - 8.2: the pull request's body naming its goal's issue; a landed change
     living until its landing is cleared (`after-landing.md`, section 6).
-  - 8.2 step 7: a landed change's result words without its producer's
-    report, and bounded at 512 bytes whatever `tasks.result_bytes` is
-    (`forge_route.rs`, `chat_change` and `change_landing_words`).
   - 8.3: a person's approval as a gate; a review's lens; gates run at once
     when the change asks; a verdict posted as a commit status; the review
     charter, kind 3's number 2, is fixed at charter 4.

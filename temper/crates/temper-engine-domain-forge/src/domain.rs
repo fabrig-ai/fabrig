@@ -1345,7 +1345,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 save_change(d, out, saved);
             }
         }
-        Event::ProducedTitle { task, child, title } => produced_title(d, task, child, &title, out),
+        Event::ProducedTitle { task, child, title, report } => produced_title(d, task, child, &title, report, out),
         Event::Delegated { task, child, kind } => delegated(d, env, task, child, kind, out),
         Event::DelegateRefused { task, child } => delegate_refused(d, env, task, child, out),
         Event::DelegateAdmissionRefused { task, kind } => delegate_admission_refused(d, env, task, kind, out),
@@ -2409,21 +2409,19 @@ fn register_change(d: &mut Domain, env: &Env<Limits>, mut row: ChangeRow, out: &
     save_queue_change(d, env, None, row, out);
 }
 
-fn produced_title(d: &mut Domain, task: u64, child: u64, title: &[u8], out: &mut Queue<Request>) {
+fn produced_title(d: &mut Domain, task: u64, child: u64, title: &[u8], report: Box<[u8]>, out: &mut Queue<Request>) {
     let Some(row) = d.changes.get_mut(&task) else { return };
-    if row.pull.is_some() || !row.title.is_empty() {
+    if row.delegate != Some((child, change::Delegate::Produce)) {
         return;
     }
-    if let Some(delegate) = row.delegate
-        && delegate != (child, change::Delegate::Produce)
-    {
-        return;
+    if row.pull.is_none() && row.title.is_empty() {
+        row.title = if title.is_empty() {
+            Box::from(b"Update repository".as_slice())
+        } else {
+            crate::text::fit(title, 256, "…".as_bytes())
+        };
     }
-    row.title = if title.is_empty() {
-        Box::from(b"Update repository".as_slice())
-    } else {
-        crate::text::fit(title, 256, "…".as_bytes())
-    };
+    row.report = report;
     let saved = row.clone();
     d.procedure_wakes.insert(task, true).expect("one pending wake per change");
     save_change(d, out, saved);

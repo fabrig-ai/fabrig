@@ -1384,3 +1384,12 @@ fn store_ten_rows_are_refused_by_store_eleven() {
     old[1] = 10;
     assert_eq!(records::decode(&old, &bounds), Err(crate::Undecodable));
 }
+
+#[test]
+fn a_changes_producer_report_survives_the_store() {
+    let mut row = fixtures::change_row(temper_engine_domain_forge_change::State::Producing { requested: true });
+    row.report = b"Done: edited README.\n## Left\n- none".as_slice().into();
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    let row = forge::Stored::Change(row);
+    assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+}

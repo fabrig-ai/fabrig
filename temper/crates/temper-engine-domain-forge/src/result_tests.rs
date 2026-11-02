@@ -81,3 +81,48 @@ fn an_unread_failed_head_never_borrows_a_context_from_an_older_head() {
     result.repaired(change::Repair::Ci, Some(HEAD), BOUND);
     assert_eq!(result.repairs.bytes.as_ref(), b"CI failed");
 }
+
+#[test]
+fn a_report_precedes_what_the_landing_passed() {
+    let mut result = ChangeResult::empty();
+    result.checked(HEAD, &[check(b"build", Check::Passed)], BOUND);
+    let evidence = result.words(&HEAD, BOUND).fitted(BOUND).unwrap();
+    let words = result.reported(b"Done: edited README.\n## Left\n- none", &HEAD, BOUND).fitted(BOUND).unwrap();
+    let prefix = b"Report:\nDone: edited README.\n## Left\n- none\n";
+    let mut expected = Writer::new(prefix.len() + evidence.len());
+    expected.put(prefix).unwrap();
+    expected.put(&evidence).unwrap();
+    assert_eq!(words, expected.finish());
+}
+
+#[test]
+fn a_long_report_is_cut_from_the_end_and_marked() {
+    const REPORT: &[u8] =
+        b"Done: edited README.\n## Left\n- the remaining work is described here in the producer's own words.";
+    const ROOM: u32 = 64;
+    let result = ChangeResult::empty();
+    let whole = result.reported(REPORT, &HEAD, BOUND).fitted(BOUND).unwrap();
+    let words = result.reported(REPORT, &HEAD, ROOM).fitted(ROOM).unwrap();
+    let mut kept = None;
+    for (at, pair) in words.windows(2).enumerate() {
+        if pair == b"\n[" {
+            kept = Some(at);
+        }
+    }
+    let kept = kept.expect("cut marker");
+    assert!(words.starts_with(b"Report:\nDone: edited README."));
+    assert!(whole.starts_with(&words[..kept]));
+    for part in words.windows(b"checks at".len()) {
+        assert_ne!(part, b"checks at");
+    }
+    let lost = Decimal::of(u64::try_from(whole.len() - kept).unwrap());
+    assert_eq!(&words[kept + 2..words.len() - b" bytes cut]\n".len()], lost.as_bytes());
+    assert!(words.ends_with(b" bytes cut]\n"));
+    assert!(words.len() <= usize::try_from(ROOM).unwrap());
+}
+
+#[test]
+fn an_empty_report_adds_no_line() {
+    let result = ChangeResult::empty();
+    assert_eq!(result.reported(b"", &HEAD, BOUND), result.words(&HEAD, BOUND));
+}
