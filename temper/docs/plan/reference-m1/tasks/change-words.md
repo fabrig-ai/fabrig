@@ -127,3 +127,15 @@ added to the header.
   dependents that failed (`temper::suite`'s `configuration::`, `admission_edges::`,
   `box_listeners::`, `fake::check_run`) before the broad run. Change nothing else in
   either file.
+
+## Rebase (2026-11-02, step merge, foreman reference-m1/change-words/foreman-2)
+
+regenerate the v11 store codec from the combined schema when rebasing onto the landing trunk.
+The merge conflicts in `temper/crates/temper-protocol-store/src/generated/v11.rs`.
+Main’s `663441217f` adds landing verification states; subsequent tier work through `02aa376f36` adds durable tier records and receipt fields.
+Preserve those schema changes and this task’s appended `report: bytes 1048576` on `ChangeRow`; keep store version 11 (`temper/docs/design/protocol/store.md`, section 4).
+Resolve the generated conflict by regenerating from the merged schema, preserving both sides’ records:
+`heavy cargo run -p skein-codegen -- temper/crates/temper-protocol-store/schema/store-v11.schema temper/crates/temper-protocol-store/src/generated`
+Keep the regenerated `src/generated/v11.rs` and `golden/v11/**`; choosing either complete version would discard required schema changes.
+Retain `change_row_report: forge.client.op_bytes`, report translations, and `bytes(&row.report)?` accounting from this branch.
+Run `heavy cargo nextest run -p temper-protocol-store`, then the task’s prescribed dependent checks.
