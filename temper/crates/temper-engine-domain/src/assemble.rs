@@ -310,6 +310,7 @@ pub(crate) fn finish_brief_plan(
 
 pub(crate) fn forge_brief_kind(source: forge::BriefSource) -> ForgeBriefKind {
     match source {
+        forge::BriefSource::Document => unreachable!("documents are planned by PlanDocument"),
         forge::BriefSource::Home { .. } => ForgeBriefKind::Home,
         forge::BriefSource::Ci { .. } => ForgeBriefKind::Ci,
         forge::BriefSource::Reviews { .. } => ForgeBriefKind::Reviews,
