@@ -13,7 +13,7 @@ python3 -I -B tools/citations/test_citations.py
 - **The gate** (`--base`) fails when HEAD has a broken citation that the base lacks, counted per
   file and target with renames mapped. Removing or renumbering a section that another file cites
   fails too, at the citing file: whoever removes or moves a section fixes its citations.
-- **The full run** (`--all`) lists every broken citation; the count is to reach zero.
+- **The full run** (`--all`) lists every broken citation; the count is to stay at zero.
 - Both read committed trees through `git archive`: commit before checking.
 - **What is read:** every tree's `docs/`, every `AGENTS.md` and `CLAUDE.md`, and the comments of
   `.rs .py .sh .toml .js` files. Paths may lead up any number of directories (`../../a.md`);
