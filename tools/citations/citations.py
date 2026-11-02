@@ -28,10 +28,11 @@ ALLOW = "tools/citations/allow.txt"
 NUM = r"\d+(?:\.\d+)*"
 SEP = r"(?:\s*,\s*(?:and\s+|or\s+)?|\s+and\s+|\s+or\s+|\s+to\s+|\s*[–-]\s*)"
 SECTION_AFTER = re.compile(
-    r"^[`\]]?(?:\([^)\s]*\))?\s*(?:,\s*|\s+)(?:(?:sections?|§)\s+)?(" + NUM + r"(?:" + SEP
+    r"^[`\]]?(?:\([^)\s]*\))?(?:['’]s(?=\s*,|\s+sections?\s))?"
+    r"\s*(?:,\s*|\s+|\(\s*(?=sections?\s))(?:(?:sections?|§)\s+)?(" + NUM + r"(?:" + SEP
     + r"(?:section\s+)?" + NUM + r")*)(?![\w.:/%-]*\d)(?!\.\d)(?![\w%])")
 NUM_RE = re.compile(NUM)
-MD_TOKEN = re.compile(r"(?<![\w/.<>-])((?:\.\.?/|/)?[\w][\w.+-]*(?:/[\w.+-]+)*\.md)(?![\w/-])")
+MD_TOKEN = re.compile(r"(?<![\w/.<>-])((?:(?:\.\./)+|\./|/)?[\w][\w.+-]*(?:/[\w.+-]+)*\.md)(?![\w/-])")
 LINK = re.compile(r"\[([^\]]*)\]\(([^)\s]+)\)")
 OWNER = re.compile(r"(?i)\b(temper|smith|skein|jig)['’]s(?:\s+[\w-]+){0,2}\s*[`\[]*$")
 # Another repository's documents (hearth's, the agents repository's) are not checked.
@@ -45,10 +46,11 @@ DATE = re.compile(r"^(?:\d{4}-)?\d{2}-\d{2}$")  # "kv.md, 2026-10-05", "referenc
 
 
 class Tree:
-    """One checked-out tree: its Markdown index and heading numbers, cached."""
+    """One commit's tracked paths, with its extracted Markdown index and headings cached."""
 
-    def __init__(self, root):
+    def __init__(self, root, tracked):
         self.root = root
+        self.tracked = tracked
         self.headings = {}
         self.docs = None
 
@@ -74,7 +76,7 @@ class Tree:
         rel = os.path.normpath(rel)
         if rel.startswith(".."):
             return None
-        return rel if os.path.isfile(os.path.join(self.root, rel)) else None
+        return rel if rel in self.tracked else None
 
     def markdown(self):
         if self.docs is None:
@@ -110,7 +112,7 @@ def walk(root, every_md=False):
 
 def resolve(tree, src, token, owner, is_code):
     """(resolved relative path or None, how it resolved)."""
-    tok = token.split("#", 1)[0]
+    tok = re.split(r"[?#]", token, maxsplit=1)[0]
     src_dir = os.path.dirname(src)
     home = tree_of(src)
     if tok.startswith("/"):
@@ -267,9 +269,9 @@ def line_at(marks, offset):
     return ln
 
 
-def check(root):
+def check(root, tracked):
     """Every broken citation under root: (kind, file, line, target, detail, context)."""
-    tree = Tree(root)
+    tree = Tree(root, tracked)
     out = []
     for rel, is_code in walk(root):
         try:
@@ -287,14 +289,20 @@ def check_file(tree, rel, lines, is_code):
     out = []
     is_status = rel.endswith(".status.md")
     self_doc = doc_of_status(rel)
+    by_step, seen_label = False, False
     for text, marks in logical_lines(lines, rel, is_code):
+        if is_status and not seen_label:
+            first_label = min(status_label_matches(rel, text), key=lambda m: m.start(), default=None)
+            prefix = text[:first_label.start()] if first_label else text
+            by_step = by_step or "By step" in prefix
+            seen_label = first_label is not None
         spans, masked = [], text
         if not is_code:
             for m in LINK.finditer(text):
                 target = m.group(2)
                 if re.match(r"^[a-z]+:", target) or target.startswith("#"):
                     continue
-                tok = target.split("#", 1)[0]
+                tok = re.split(r"[?#]", target, maxsplit=1)[0]
                 if tok:
                     spans.append((m.start(), m.end(), tok, text[m.end():]))
                 masked = masked[: m.start()] + " " * (m.end() - m.start()) + masked[m.end():]
@@ -302,7 +310,8 @@ def check_file(tree, rel, lines, is_code):
             if "://" not in text[max(0, m.start() - 10): m.start() + 1]:
                 spans.append((m.start(), m.end(), m.group(1), text[m.end():]))
         spans.sort()
-        covered, resolved = [], []
+        covered, resolved, explicit_owners = [], [], []
+        item_target = None
         for start, end, tok, after in spans:
             if "<" in tok or "*" in tok or tok.startswith("http") or (is_code and not tok.endswith(".md")):
                 continue
@@ -313,15 +322,26 @@ def check_file(tree, rel, lines, is_code):
                 continue
             om = OWNER.search(before[-40:])
             owner = om.group(1).lower() if om else None
+            if owner:
+                explicit_owners.append((start, owner))
+            elif re.search(r"\bits\s*[`\[]*$", before, re.IGNORECASE):
+                sentence = before.rfind(". ") + 2
+                owners = [o for st, o in explicit_owners if st >= sentence]
+                owner = owners[-1] if owners else None
             res, how = resolve(tree, rel, tok, owner, is_code)
             if res is None:
                 out.append(("path", rel, ln, tok, how, ctx))
                 continue
             resolved.append((start, res))
+            if re.match(r"^(?:[-*+]|\d+\.)\s+\*\*`?$", before) and re.match(r"^`?:\*\*", after):
+                item_target = res
             if re.match(r":\d", after):
                 continue  # a line number
             sm = SECTION_AFTER.match(after)
             if not (sm and res.endswith(".md")) or DATE.match(sm.group(1)):
+                continue
+            if NUM_RE.fullmatch(sm.group(1)) and re.match(r"\s+places\b", after[sm.end():]) \
+                    and not re.search(r"(?:sections?|§)\s", sm.group(0)):
                 continue
             covered.append((end, end + sm.end()))
             have = set(tree.heading_numbers(doc_of_status(res)))
@@ -344,40 +364,50 @@ def check_file(tree, rel, lines, is_code):
             if any(a <= m.start() < b for a, b in covered):
                 continue
             pre = text[: m.start()].rstrip()
-            if re.search(r"(\bits|\btheir|['’]s|\bthat|\bthis|\bRFC \d+,?)$", pre) \
+            if re.search(r"(\bits|\btheir|['’]s|\bthat|\bthis|\bRFC \d+,?)$", pre, re.IGNORECASE) \
+                    or re.search(r"\bRFC \d+['’]s\s+(?:`[^`]+`\s*|(?:[\w-]+\s+){0,2})\($",
+                                 pre, re.IGNORECASE) \
                     or re.search(r"\.md`?\)?,?\s*$", pre):
                 continue
             sentence = max(pre.rfind(". "), pre.rfind("; "), 0)
             antecedent = [r for (st, r) in resolved if sentence <= st < m.start()]
             targets = [self_doc] + antecedent[-1:]
+            if item_target and item_target not in targets:
+                targets.append(item_target)
             for n in parse_nums(m.group(2)):
                 if not any(n in tree.heading_numbers(t) for t in targets):
                     detail = "missing" if tree.heading_numbers(self_doc) else "no-numbered-headings"
                     out.append(("section-self", rel, line_at(marks, m.start()), f"{'|'.join(targets)} {n}",
                                 detail, text[max(0, m.start() - 80): m.end() + 40].strip()))
-        if is_status:
+        if is_status and not by_step:
             out.extend(status_labels(tree, rel, self_doc, text, marks))
     return out
 
 
-def status_labels(tree, rel, self_doc, text, marks):
-    """A status file's "N.N:" labels after Not yet, Departs and the like, against its document."""
-    have = tree.heading_numbers(self_doc)
+def status_label_matches(rel, text):
+    """Numbered labels in a status file, including labels whose sections exist."""
     tail = r"(?:,\s*area\s+\d+)?\s*:"
     patterns = [r"\*\*(?:Not yet|Departs|Design lags|Design departs|Open):\*\*\s*(" + NUM + r"(?:" + SEP + NUM
                 + r")*)" + tail + r"(?!\d)",
                 r"^(?:-\s+)?(?:\*\*)?(" + NUM + r"(?:" + SEP + NUM + r")*)" + tail + r"?(?:\*\*)?\s*:?(?=\s)"]
     if "/draft/" not in rel:
         patterns.append(r"(?<=[.]\s)(" + NUM + r"(?:" + SEP + NUM + r")*)" + tail + r"(?!\d)")
-    out = []
     for pattern in patterns:
         for m in re.finditer(pattern, text):
             if pattern.startswith("^") and not re.match(r"^(?:-\s+)?(?:\*\*)?" + NUM + r"[^:]*:", text):
                 continue
-            for n in parse_nums(m.group(1)):
-                if n not in have:
-                    out.append(("status-label", rel, line_at(marks, m.start()), f"{self_doc} {n}", "missing",
-                                text[max(0, m.start() - 20): m.end() + 80].strip()))
+            yield m
+
+
+def status_labels(tree, rel, self_doc, text, marks):
+    """A status file's "N.N:" labels after Not yet, Departs and the like, against its document."""
+    have = tree.heading_numbers(self_doc)
+    out = []
+    for m in status_label_matches(rel, text):
+        for n in parse_nums(m.group(1)):
+            if n not in have:
+                out.append(("status-label", rel, line_at(marks, m.start()), f"{self_doc} {n}", "missing",
+                            text[max(0, m.start() - 20): m.end() + 80].strip()))
     return out
 
 
@@ -404,7 +434,7 @@ def git(*args):
 
 
 def extract(rev, into):
-    """The checked files of a commit, from git archive, into a directory."""
+    """Extract the checked contents of a commit and return all its tracked paths."""
     names = git("ls-tree", "-r", "--name-only", rev).splitlines()
     # git archive refuses a pathspec that matches nothing
     present = [f":(glob)**/*{ext}" for ext in (".md",) + CODE_EXT if any(n.endswith(ext) for n in names)]
@@ -412,6 +442,7 @@ def extract(rev, into):
     archive = subprocess.run(("git", "archive", "--format=tar", rev, "--", *present),
                              check=True, capture_output=True).stdout
     subprocess.run(("tar", "-x", "-C", into), input=archive, check=True)
+    return set(names)
 
 
 def renames(base, head):
@@ -464,9 +495,9 @@ def main(argv):
         with tempfile.TemporaryDirectory(prefix="citations-") as tmp:
             head_root = os.path.join(tmp, "head")
             os.mkdir(head_root)
-            extract(args["--head"], head_root)
+            head_tracked = extract(args["--head"], head_root)
             allow = allowed(head_root)
-            head = check(head_root)
+            head = check(head_root, head_tracked)
             head_keys = keys(head, allow)
             if "--all" in args:
                 show(head, head_keys)
@@ -475,8 +506,8 @@ def main(argv):
                 return 1 if total else 0
             base_root = os.path.join(tmp, "base")
             os.mkdir(base_root)
-            extract(args["--base"], base_root)
-            base_keys = keys(check(base_root), allow, renames(args["--base"], args["--head"]))
+            base_tracked = extract(args["--base"], base_root)
+            base_keys = keys(check(base_root, base_tracked), allow, renames(args["--base"], args["--head"]))
     except (subprocess.CalledProcessError, ValueError) as error:
         detail = getattr(error, "stderr", None) or error
         print(f"citations: {detail}", file=sys.stderr)
