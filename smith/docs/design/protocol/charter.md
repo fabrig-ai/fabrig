@@ -7,7 +7,7 @@ Provisional, 2026-10-07, revised 2026-10-21. Two records:
 
 They are a family of their own, `smith-charter`, versioned apart from the
 channel. The party that decides runs writes the charter and reads the
-result, and may not be the host: temper's engine writes charters that its
+result, and may not be the host: jig's engine writes charters that its
 workers carry unread, and its version must be the one its agents read
 (README.md, section 8).
 
