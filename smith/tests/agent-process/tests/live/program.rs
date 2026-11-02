@@ -19,16 +19,18 @@ struct Live {
 }
 
 #[derive(Clone, Copy, Default)]
+#[expect(clippy::struct_excessive_bools, reason = "each flag selects an independent live protocol probe")]
 struct Options<'a> {
     permission: bool,
     thinking: bool,
     schema: Option<&'a str>,
     non_object: bool,
+    summary: bool,
 }
 
 impl Live {
     fn start(text: &str, options: Options<'_>) -> Self {
-        let Options { permission, thinking, schema, non_object } = options;
+        let Options { permission, thinking, schema, non_object, summary } = options;
         let root = std::env::var_os("SMITH_LIVE").filter(|value| !value.is_empty()).expect("$SMITH_LIVE unset");
         let root = smith_bench::guard::write_path(std::path::Path::new(&root)).expect("guarded $SMITH_LIVE");
         let configuration = std::env::var_os("SMITH_LIVE_CLAUDE")
@@ -45,16 +47,16 @@ impl Live {
         } else {
             r#"{"mcpServers":{}}"#.into()
         };
-        let mut arguments = vec![
-            "--session-id",
-            &probe.session,
-            "--mcp-config",
-            &mcp,
+        let mut arguments = vec!["--session-id", &probe.session];
+        if !summary {
+            arguments.extend(["--mcp-config", &mcp]);
+        }
+        arguments.extend([
             "--tools",
             if permission || schema.is_some() { "Read" } else { "" },
             "--max-turns",
             if permission || thinking || schema.is_some() { "4" } else { "1" },
-        ];
+        ]);
         if permission {
             arguments.extend([
                 "--permission-prompt-tool",
@@ -232,6 +234,28 @@ impl Drop for Live {
         let _ = self.child.kill();
         let _ = self.child.wait();
     }
+}
+
+#[test]
+fn a_live_summary_session_offers_no_tools() {
+    const INIT_RECORDS: usize = 1000;
+    let mut live = Live::start(
+        "Summarize this conversation: the user said hello.",
+        Options { summary: true, ..Options::default() },
+    );
+    for _ in 0..INIT_RECORDS {
+        let message = live.message();
+        if message["type"] == "system" && message["subtype"] == "init" {
+            assert!(
+                message["tools"] == serde_json::json!([]) && message["mcp_servers"] == serde_json::json!([]),
+                "summary init offered tools={} and mcp_servers={}",
+                message["tools"],
+                message["mcp_servers"]
+            );
+            return;
+        }
+    }
+    panic!("summary init did not arrive");
 }
 
 #[test]
