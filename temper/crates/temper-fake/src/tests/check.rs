@@ -160,7 +160,7 @@ fn changed(task: u64, repository: Repository, pull: Option<u64>, head: Option<[u
             way: change::Way::Queue,
             landing: None,
             task,
-            state: change::State::Landed { merge: routes::object(99).bytes },
+            state: change::State::Landed { merge: routes::object(99).bytes, since: Wall::from_nanos(17) },
             gates: Box::new([]),
             clean: Box::new([]),
             gate_failures: Box::new([]),

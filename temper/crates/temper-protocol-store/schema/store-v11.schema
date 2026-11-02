@@ -167,10 +167,11 @@ record ReadyHead { head: fixed 32 ready_since: u64 }
 record Updating { from: fixed 32 base: fixed 32 ready_since: u64 }
 record Resolving { requested: bool base: fixed 32 }
 record Repairing { requested: bool why: Repair }
-record LandedChange { merge: fixed 32 }
+record MergeChange { merge: fixed 32 }
+record LandedChange { merge: fixed 32 since: u64 }
 record NoChange { words: bytes 65536 }
 record Preparing { from: fixed 32 main: fixed 32 ready_since: u64 }
-enum ChangeLive { producing: Producing, opening: Producing, recreating: ChangeHead, reopening: Reopening, checking: ChangeHead, gating: Gating, queued: ReadyHead, first: ReadyHead, updating: Updating, resolving: Resolving, repairing: Repairing, landing: ChangeHead, landed: LandedChange, ended, cancelling_gates: ChangeHead, ready: ReadyHead, preparing: Preparing, no_change: NoChange }
+enum ChangeLive { producing: Producing, opening: Producing, recreating: ChangeHead, reopening: Reopening, checking: ChangeHead, gating: Gating, queued: ReadyHead, first: ReadyHead, updating: Updating, resolving: Resolving, repairing: Repairing, landing: ChangeHead, landed: LandedChange, ended, cancelling_gates: ChangeHead, ready: ReadyHead, preparing: Preparing, no_change: NoChange, red: LandedChange, cleared: MergeChange, uncleared: MergeChange }
 record ChangeState { live: ChangeLive holds: list 8 ChangeHold }
 record Gate { number: u64 kind: GateKind blocking: bool freshness: Freshness eager: bool }
 record GateReport { number: u64 head: fixed 32 status: ChangeStatus }

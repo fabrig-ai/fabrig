@@ -601,6 +601,9 @@ fn change_state_bytes(value: &temper_engine_domain_forge_change::State, depth: u
         | change::State::Repairing { .. }
         | change::State::Landing { .. }
         | change::State::Ended
-        | change::State::Landed { .. } => Some(0),
+        | change::State::Landed { .. }
+        | change::State::Red { .. }
+        | change::State::Cleared { .. }
+        | change::State::Uncleared { .. } => Some(0),
     }
 }

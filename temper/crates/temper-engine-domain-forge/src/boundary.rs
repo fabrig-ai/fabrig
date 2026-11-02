@@ -782,7 +782,12 @@ pub struct ChangeRow {
 impl ChangeRow {
     pub(crate) fn terminal(&self) -> bool {
         match self.change.state {
-            change::State::Landed { .. } | change::State::NoChange { .. } | change::State::Ended => true,
+            change::State::Landed { .. }
+            | change::State::Red { .. }
+            | change::State::Cleared { .. }
+            | change::State::Uncleared { .. }
+            | change::State::NoChange { .. }
+            | change::State::Ended => true,
             change::State::Producing { .. }
             | change::State::Opening { .. }
             | change::State::Recreating { .. }
