@@ -748,7 +748,7 @@ deadline, circles, a procedure's need) keep their rules.
   - **A project:** every task of the project, those made later
     included, except each conversation a party requested directly, so
     that a person can still talk to their chat.
-- **A drain, in four rules** (o/holds' T8):
+- **A drain, in four rules:**
   - a run parked by a drain ends due, not idle, as a narrowed run does,
     no try spent: held while the drain stands, run again on its release
     with no wake;
@@ -1137,8 +1137,7 @@ circle, each for another of the set, so that none of them could end.
   it as for a delegate. It becomes the root of a tree of the party's, so
   a move needs their escalations to have a holder, as their batch does
   (section 4).
-- **Moving a task under another task,** designed, not built (temper's
-  draft landing-model.md, J5): whoever may amend both a live task and another
+- **Moving a task under another task:** whoever may amend both a live task and another
   live task may make the second the first's requester. The second must
   not be the first or below it, must be in the same project, and must
   have the depth and delegates' room the move needs; the tree it makes
@@ -1153,7 +1152,7 @@ circle, each for another of the set, so that none of them could end.
   keeps a reference to it, and does not wait for it as for a delegate.
   A party's `Move` and a run's `move` make it (people.md, 5.1;
   engine.md, 7.3).
-- **A successor,** designed, not built (J6): a live task in the same
+- **A successor:** a live task in the same
   project that takes on what an ended task leaves.
   - *Named in the result,* by the ending task: one it references (a
     delegate of its requester it was introduced to, or its own
@@ -1337,8 +1336,7 @@ connectors offer for goals are the core's to keep, not its executor's
 - **Parties** message the tasks their role lets them see (people.md,
   section 5).
 - **No broadcast.** Who may talk to whom stays visible and bounded.
-- **A conversation's questions,** designed, not built (temper's
-  draft landing-model.md, J7 and J8): a question a delegate asks its
+- **A conversation's questions:** a question a delegate asks its
   requester that is a conversation is the conversation's alone: it
   wakes it, and is no entry of its person's. The conversation answers
   it itself, in the answer form, or asks its own person in its own
@@ -1565,10 +1563,7 @@ that one task released and ending while the stop stands, and the stop
 lifted with its tasks; a coordinator parking a delegate until a news
 event, the hold lifting itself as the event's commit delivers it, and
 another parked until a time; a restart in the middle of a drain,
-draining on. With moving under a task, successors and a
-conversation's questions (section 7, 8.5), they open the stories of
-temper's reference case acts 4 to 6 (steps 7.2, 7.3, 8.1 to 8.3, 9.1
-and 9.3), which temper's worlds and rung C hold.
+draining on.
 
 Its stories of added dependencies (5.7; 6.7; section 7): the
 reordering, two tasks waiting for one write hold, the first given a
