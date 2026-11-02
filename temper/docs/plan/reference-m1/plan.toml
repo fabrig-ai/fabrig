@@ -1,0 +1,27 @@
+draft = "reference-m1"
+repo = "fabrig"
+sources = ["temper/docs/plan/reference-m1/inputs/request.md", "temper/docs/design/draft/reference-case.execution.md", "temper/docs/design/draft/reference-code-production.md", "AGENTS.md", "DESIGN.md"]
+
+# M1 of temper/docs/design/draft/reference-case.execution.md: the goal's own branch g.
+# Four families: bound (a result's bound past the settings schema's cap, released first),
+# goal (g and jig's holds and templates), change (`change` and the change procedure under the
+# landing branch's rule) and settings (the landing rules as settings, a charter's default
+# wake policy, the reference's first editions). The shapes that cross them are
+# notes/contracts.md; the designers write each family's design with its specs.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "bound"
+title = "a verdict's fields are counted apart from a result's bytes, so a result's bound may pass 512"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/tasks.md, 11"
+
+[[slice]]
+id = 1
+story = "a deployment whose result bound is 2048 bytes opens its store and admits verdicts of up to 512 fields"
+parts = ["bound"]
+walk = false
