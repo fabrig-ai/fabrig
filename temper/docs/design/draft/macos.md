@@ -182,11 +182,11 @@ and everything only Linux can give (containment, trees, io_uring).
 - **Errors print Linux's errno numbers;** they print names.
 - **No owned Forgejo on macOS.** `temper forge fetch` fetches Forgejo's
   and its runner's pinned Linux releases; on macOS they would come from
-  Homebrew's builds, if at all. There, `temper init` writes no owned
-  forge into the default document, so the client offers no Set up a
-  Forgejo here (`archive/first-run.md`, 3.8); a document that names one, and
-  `temper forge fetch`, refuse naming the platform. The platform is
-  decided by the binary's shell, at init, never by step code.
+  Homebrew's builds, if at all. There, the client offers no Set up a
+  Forgejo here, and a set up of one, and `temper forge fetch`, refuse
+  naming the platform (forges are records in the store:
+  `playground-reset.md`, section 3). The platform is decided by the
+  binary's shell, never by step code.
 
 ### 4.4 Every platform
 
