@@ -164,8 +164,9 @@ forge, temper adds:
 ## 6. Documents
 
 - **`domain/`:** temper's domain layer on jig's: its root, the forge
-  connector, the worker, and what temper fills in of smith's agent; and
-  `testing.md`, temper's tiers, its fakes, its scenarios and its layout,
+  connector, landings by turn (`landing.md`), what follows a landing
+  (`after-landing.md`) and findings (`findings.md`), the worker, and
+  what temper fills in of smith's agent; and `testing.md`, temper's tiers, its fakes, its scenarios and its layout,
   on skein's testing strategy and jig's worlds. Its `README.md` gives the
   reading order, the structure, the names and the decisions.
 - **`protocol/`:** temper's protocol layer on jig's: the processes and
@@ -191,7 +192,8 @@ forge, temper adds:
   is made, and its walk on a fresh machine.
 - **`draft/`:** the drafts, the vision this design is written from
   (the repository's `AGENTS.md`, section 9).
-- **`STATUS.md`:** how far the code is from this design.
+- **Status files:** beside each document, `<name>.status.md`, where
+  the code lags or departs from it; `STATUS.md` indexes them.
 
 ## 7. Conventions
 
@@ -214,18 +216,14 @@ forge, temper adds:
   skein's name: skein's `lib.md`.
 - **Each document** says in one page what it is, then its structure, its
   parts, what it owes and is owed below the domain, its world, and what
-  is open. It states the contract: what is built and what is not is
-  `STATUS.md`'s.
+  is open. It states the contract; where the code lags or departs is its
+  status file's.
 
 ## 8. Open questions
 
 - **A second connector:** test environments, which an agent provisions,
   explores and tears down. It would check that jig's connector contract
-  is not the forge's in disguise; it waits for continuous QA
-  (`draft/qa.md`) or the factory (`draft/factory.md`).
-- **Where continuous QA lives:** in a temper deployment of its own
-  (`draft/qa.md`, 6.1), or in the factory's lab, as an application of
-  its own (`draft/factory.md`, section 13).
+  is not the forge's in disguise. It waits for a need.
 - **A person's approval as a rule:** whether temper alone enforces it,
   or posts the approval as the person, with a forge credential they
   signed in with, so that the forge's protection requires it too
@@ -239,27 +237,31 @@ forge, temper adds:
 temper's crates follow jig's rule (jig's `README.md`, section 15), with
 temper's side before the layer:
 
-- `temper-engine-domain` (the root) and its forge children
-  `temper-engine-domain-forge`, `-forge-change` and `-forge-issues`,
-  which own skein's forge client, `skein-forge-client`;
+- `temper-engine-domain` (the root), its forge children
+  `temper-engine-domain-forge`, `-forge-change`, `-forge-landing` and
+  `-forge-issues`, which own skein's forge client, `skein-forge-client`,
+  and its calendar, `temper-engine-domain-calendar`;
   `temper-worker-domain` (the worker's root) and
   `temper-worker-domain-checkout`;
 - the protocol layer's: `temper-worker-protocol-git`,
-  `temper-protocol-store`, `temper-protocol-worker-wire`, and
-  `temper-engine-smith`, the translation to smith; the forge component
-  is skein's, `skein-forge-connection`;
+  `temper-protocol-store`, `temper-protocol-records` (the forges'
+  records), `temper-protocol-worker-wire`, and `temper-engine-smith`,
+  the translation to smith; the forge component is skein's,
+  `skein-forge-connection`;
 - the forge's, of no side: skein's, `skein-forge` (its documents and
   call plans, which the forge component and the setup share) and
   `skein-forge-setup` (reconcile); its setup's rest, outside the
   services, `temper-forge-setup`, `temper-forge-setup-shell` and
   `temper-box`;
 - the user documentation's, of no side, `temper-docs`
-  (`protocol/documentation.md`);
+  (`protocol/documentation.md`); the settings' form, `temper-settings-form`;
+  `temper init`'s files, `temper-init`; the fakes the binary ships,
+  `temper-fake` and `temper-fake-git` (`domain/testing.md`, 4.3);
 - the client's, under `temper-client` (`client/README.md`, section 2);
 - the services, `temper-service`, and the binary, `temper`.
 
 `protocol/README.md`, section 5 says what each holds and depends on. Test
-kits are named by their kind (`testing/temper-fake-git-hosted`); the forge's are
-skein's (`testing/skein-fake-forge-domain`,
+kits are named by their kind (`testing/temper-fake-git-hosted`); the
+forge's are skein's (`skein-fake-forge-domain` in skein's `crates/`,
 `testing/skein-throwaway-forgejo`), and the worlds live in `tests/`
 (`domain/testing.md`, section 7).

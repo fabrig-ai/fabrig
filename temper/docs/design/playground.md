@@ -1,6 +1,6 @@
 # The playground in the browser
 
-Provisional, 2026-10-26, from the user's `draft/browser-playground.md`.
+Provisional, 2026-10-26, with the user.
 The box's playground served as static files and run whole in a
 visitor's browser: temper's engine and worker, jig's store, smith's
 agents and the fake LLM, forge and git on skein's simulator in a Web
@@ -14,7 +14,7 @@ desktop browsers are well supported (the user, 10-26).
 
 - **The box's playground, with no box.** The playground a person meets
   in `temper box` ("Try the playground": the Scripted model, the
-  Playground forge, `playground/widget`; `../protocol/setup.md`, 8.4)
+  Playground forge, `playground/widget`; `protocol/setup.md`, 8.4)
   runs in the visitor's browser: nothing to install, no account, no
   server, no real model.
 - **Product code on fakes, with no fake branch.** The engine, the
@@ -49,7 +49,7 @@ desktop browsers are well supported (the user, 10-26).
   following the printed link: signed in as the deployment's owner, on
   the welcome. The visitor chooses "Try the playground", and the demo's
   start makes the project Playground, adds the Scripted model and
-  adopts `playground/widget` (`../protocol/setup.md`, 8.4). From there,
+  adopts `playground/widget` (`protocol/setup.md`, 8.4). From there,
   the box's playground: the banner, the three suggested requests, a
   change followed from a branch to `main`.
 - **Only what the deployment can do is offered.** The playground's
@@ -112,7 +112,7 @@ desktop browsers are well supported (the user, 10-26).
   (`domain/testing.md`, 2.5) without its harness: no referee, no fake
   person, no terminal client, no captures and no fault schedule.
 - **No box.** The fakes are the world's processes, as for a deployment
-  without the box (`../protocol/setup.md`, 7.4): the forge a `fake`
+  without the box (`protocol/setup.md`, 7.4): the forge a `fake`
   setup entry whose handover the composition lays on the disk, the
   model the demo's provider. The demo's start asks nothing of a pipe.
 - **Calm at every layer:** no fault in the simulator, the fake LLM or the
@@ -136,7 +136,7 @@ desktop browsers are well supported (the user, 10-26).
 - **Data, no code:** the deployment's document, which is the demo's
   part with the forge, the provider and the project; the fake LLM's and
   the fake forge's documents, in `temper-fake`'s form of a document of
-  its own (`../protocol/setup.md`, 8.4), which hold the scripts and the
+  its own (`protocol/setup.md`, 8.4), which hold the scripts and the
   seeded repositories with their files, CI and cues; its pace; and a
   description of what the visitor is expected to do, which the frame
   shows.
@@ -155,7 +155,7 @@ desktop browsers are well supported (the user, 10-26).
 
 ### 5.2 The first: A
 
-- **The box's playground** (`../protocol/setup.md`, 8.4): three
+- **The box's playground** (`protocol/setup.md`, 8.4): three
   suggested requests. "Add CSV export to widget" is delegated, edited,
   pushed, passed by CI and landed; the dark theme and the empty search
   are answered in text.
@@ -246,7 +246,7 @@ desktop browsers are well supported (the user, 10-26).
   and through each story, and which of it the documents control.
 - **Its figures,** the world's memory at its high water and the download
   compressed, are measured by the browser tier and reported. The
-  download's bar is 6 MB gzipped (agents' `release-testing.md`, 6); the
+  download's bar is 6 MB gzipped; the
   memory's, set for a phone at 256 MiB in the draft, is the user's for a
   desktop browser, once measured (section 11).
 - **The first paint does not wait for the world:** the frame and the
