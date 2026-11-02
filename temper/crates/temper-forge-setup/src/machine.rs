@@ -14,7 +14,7 @@ use skein_forge_setup::{
 use skein_json::{Document, document::Kind};
 use skein_lib::{Decimal, List, bytes};
 
-/// What a box runs a forge's group as (3).
+/// What a box runs a forge's group as (temper/docs/design/protocol/setup.md, 7.1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum BoxKind {
     Owned,

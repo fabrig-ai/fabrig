@@ -213,7 +213,7 @@ pub fn configuration(directories: &super::Directories) -> Result<Configuration, 
     }
 }
 
-/// Reads the machine separately from the deployment's forge records (3).
+/// Reads the machine separately from the deployment's forge records (temper/docs/design/protocol/configuration.md, 3).
 pub(crate) fn machine(
     bytes: &[u8],
     directories: &super::Directories,
@@ -244,7 +244,7 @@ pub(crate) fn machine(
     machine.ok_or("application.machine: invalid form".into())
 }
 
-/// Builds the box's always steps and kind slots from its checked document (3).
+/// Builds the box's always steps and kind slots from its checked document (7.1).
 pub fn configuration_steps(
     directories: &super::Directories,
     bytes: &[u8],

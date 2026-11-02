@@ -336,7 +336,7 @@ fn group_kind(directories: &super::Directories, number: u16) -> Result<temper_fo
         skein_shell::read_file(&path, 16).map_err(|why| format!("{}: {}", path.display(), super::unread(why)))?;
     machine::parse_group_file(&bytes).ok_or_else(|| format!("{}: invalid group kind", path.display()))
 }
-/// Removes a slot's directory beneath data, keeping the cache (3, 4).
+/// Removes a slot's directory beneath data, keeping the cache (7.1).
 fn remove(directories: &super::Directories, number: u16) -> Result<(), String> {
     let kind = group_kind(directories, number)?;
     let data = super::path(&directories.data);

@@ -30,7 +30,7 @@ impl Domain {
         }
     }
 
-    /// Whether a real forge of any state is kept (section 6.3).
+    /// Whether a real forge of any state is kept (temper/docs/design/protocol/setup.md, 8.4).
     #[must_use]
     pub fn real_forge_kept(&self) -> bool {
         for (_, record) in &self.records {
@@ -77,7 +77,7 @@ pub(crate) fn save(d: &mut Domain, record: ForgeRecord, out: &mut Queue<Request>
     out.push(Request::Save { record: Stored::Forge(record), release: None, read_afresh: None });
 }
 
-/// Erase a record whole; its number stays spent (section 4).
+/// Erase a record whole; its number stays spent (temper/docs/design/domain/forge.md, 4.1).
 pub(crate) fn erase(d: &mut Domain, forge: u16, out: &mut Queue<Request>) {
     d.identities.remove(&forge);
     d.records.remove(&forge);

@@ -11,7 +11,7 @@ impl Domain {
         self.playground_config = config;
     }
 
-    /// Keep completed start acts in the row that a restart resets (6.1–6.2).
+    /// Keep completed start acts in the row that a restart resets (8.4).
     pub fn playground_progress(&mut self, project: Option<u32>, account: Option<u32>) -> Option<Stored> {
         let mut row = self.playground?;
         if row.state != PlaygroundState::Starting {
@@ -243,7 +243,7 @@ fn reset(d: &mut Domain, out: &mut Queue<Request>) {
                 if crate::removal::begin(d, row.forge, out) {
                     return;
                 }
-                // An ended forge can still be waiting for its secrets or box (6.2).
+                // An ended forge can still be waiting for its secrets or box (temper/docs/design/domain/forge.md, 4.1).
                 removed(d, out);
                 return;
             }
