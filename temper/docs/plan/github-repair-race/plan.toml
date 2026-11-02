@@ -1,0 +1,20 @@
+draft = "github-repair-race"
+repo = "fabrig"
+sources = ["temper/docs/plan/github-repair-race/inputs/request.md", "temper/docs/plan/github-repair-race/inputs/fix.patch", "AGENTS.md"]
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "replacement-wait"
+title = "the replacement github_repair story waits for hold 2 before it ends, as on M7a's trunk"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/testing.md, 2.4"
+
+[[slice]]
+id = 1
+story = "github_repair::a_replacement_github_repair_after_release_receives_the_job_log_again passes alone and in temper-real-loop-world's suite, run after run under heavy"
+parts = ["replacement-wait"]
+walk = false
