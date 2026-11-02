@@ -448,3 +448,17 @@ pub fn server(jig: &jig_protocol_config::Limits) -> crate::server::Limits {
         stall: Duration::from_secs(30),
     }
 }
+
+/// Job files and error output (temper/docs/design/protocol/tooling.md, 6).
+pub(crate) const TOOLING_FILE_BYTES: u32 = 1_048_576;
+pub(crate) const TOOLING_LOG_BYTES: u32 = 65_536;
+pub(crate) const TOOLING_PATH_BYTES: u32 = 4096;
+pub(crate) fn tooling(slots: u32) -> temper_worker_domain::tooling::Limits {
+    temper_worker_domain::tooling::Limits {
+        file_bytes: TOOLING_FILE_BYTES,
+        tail_bytes: TOOLING_LOG_BYTES,
+        path_bytes: TOOLING_PATH_BYTES,
+        jobs: slots,
+        path: b"/usr/bin:/bin".as_slice().into(),
+    }
+}
