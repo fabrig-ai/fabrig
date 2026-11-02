@@ -212,10 +212,9 @@ and everything only Linux can give (containment, trees, io_uring).
 - **Upstream by git:** the git dependencies are public, so a fetch needs
   no token. The `fabrig-dev` addresses reach `fabrig-ai` through
   GitHub's redirect, or an `insteadOf` in the workflow.
-- **A red run blocks nothing.** It goes to the director, as an
-  after-landing failure does (`owners.md`, 4.5), who gives it to an
-  owner.
-- **Before the runner,** an implementer checks that Darwin compiles
+- **A red run blocks nothing.** It is a finding, triaged as a red
+  after landing is (`../domain/after-landing.md`, section 7).
+- **Before the runner,** a change checks that Darwin compiles
   (`cargo check --target aarch64-apple-darwin`) where rustup can add the
   target.
 

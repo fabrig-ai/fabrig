@@ -1,13 +1,13 @@
 # Removable forges and projects, and the playground's reset
 
-Draft, 2026-10-31, from a session with the user (10-28 to 10-31).
-Replaces the earlier `playground-apart.md`, which kept the playground on
-a store of its own in memory and held a set up in memory until it stood
-whole: both worked around two missing things, forges kept in the store
-and projects that can be deleted, which temper wants anyway (the user,
-10-31). This draft builds those two, then puts the playground and the
-set up on them, with no workaround left. Section 2 is today, sections 3
-to 6 the change, section 7 its order. Nothing here is adopted.
+Draft, 2026-10-31, from a session with the user (10-28 to 10-31);
+adopted (the user, 2026-11-02). Two things temper wants anyway, forges
+kept in the store and projects that can be deleted (the user, 10-31),
+and the playground and the set up put on them, with no workaround left.
+Sections 3 to 6 are the change, section 7 its order. The code is built
+ahead of the design: the draft's close-out, which carries it into the
+documents section 10 names, comes first after this pass, before the
+reference drafts execute (`playground-reset.status.md`).
 
 ## 1. In one page
 
@@ -41,36 +41,6 @@ to 6 the change, section 7 its order. Nothing here is adopted.
 - **Projects as they are** (the user, 10-28): the seeded project, the
   welcome's Default, the playground's: made as today. This draft only
   adds their deletion.
-
-## 2. Today
-
-From the code at `main` 3714194a9, with 41b98d50d's welcome:
-
-- **Forges and providers are in the document.** `temper init` writes
-  forge 1 (the playground's fake), 2 (GitHub) and 3 (the owned
-  Forgejo, asked), their `setup` entries, `application.demo`, and
-  `engine.llm` with the demo provider, 3, at the fake LLM's port
-  (`crates/temper-init/template/temper.json`). The store holds the
-  forges' secrets, the accounts and the `Demo` record.
-- **Nothing is ever removed.** jig has no act that deletes a project or
-  a task; an ended task is erased only by its retention (jig's
-  `domain/tasks.md`, its retention class). temper's forge ends only for
-  the playground's, which then leaves every list while its rows stay
-  readable (`../domain/forge.md`, 4.1). Accounts are removed by jig's
-  `RemoveAccount`.
-- **So the playground can only end, never leave:** when another forge
-  connects, `Demo` ended, its chats closed "Ended with the playground"
-  and left readable, its account removed (`../protocol/setup.md`, 8.4),
-  and the client's model's and forge's halves judged apart
-  (`../client/README.md`, 4.8).
-- **A set up writes as it goes:** the forge's secrets at reconcile, the
-  project and adoption once it connects, each account when added. A
-  restart before the first repository loses its intent, held in memory
-  (`../protocol/setup.md`, 6.7), and no test walks a set up cut short.
-- **The document sized memory from its forges** until 272c945cc made
-  `memory_bytes` a budget metered at runtime (programming-model.md,
-  6.3): what was the first reason forges stayed in the document is
-  gone.
 
 ## 3. Forges in the store
 
@@ -111,8 +81,8 @@ From the code at `main` 3714194a9, with 41b98d50d's welcome:
 ## 4. Removing a forge
 
 - **`RemoveForge { forge }`,** of the deployment's scope, its owners'
-  act, and the deployment's own when granted by `engine.acts`, as the
-  demo's end's acts are today (jig's `domain/people.md`, 5.3). In one
+  act, and the deployment's own when granted by `engine.acts` (jig's
+  `domain/people.md`, 5.3). In one
   decision the forge is ended (below); the rest follows as kept acts.
 - **Ended at once,** as `../domain/forge.md` 4.1 ends the playground's
   forge today, for any forge: no list shows it, no call is served, its
@@ -137,9 +107,8 @@ From the code at `main` 3714194a9, with 41b98d50d's welcome:
   hooks stay, and the page says so; a GitHub App stays the person's,
   and the page links to its settings to delete it.
 - **Kept until whole:** each act after the decision is a row kept under
-  its key and sent again at each start until answered, as the demo's
-  end's `DemoAct` rows are today (`../protocol/setup.md`, 8.4), so a
-  removal a restart cut ends whole.
+  its key and sent again at each start until answered, so a removal a
+  restart cut ends whole.
 - **Its client:** Remove on the forge's row in Forges, confirmed, its
   words naming what goes and what stays on the forge.
 
@@ -180,8 +149,8 @@ From the code at `main` 3714194a9, with 41b98d50d's welcome:
 
 ### 6.1 The playground, made when chosen
 
-- **"Try the playground"** sends `StartPlayground` (today `StartDemo`),
-  the deployment's acts, as the demo's start makes them today
+- **"Try the playground"** sends `StartPlayground`, the deployment's
+  acts, as the demo's start makes them today
   (`../protocol/setup.md`, 8.4): a `Playground` row, running, naming
   what it makes; the fake forge's record, its setup entry the
   playground's; the box asked for its group (section 3); the scripted

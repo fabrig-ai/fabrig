@@ -6,8 +6,8 @@ an agent that you want a dashboard like the one I pointed [at] and it
 configures temper to show that dashboard in the client. Sort of "UI as
 data" approach with some flexible palette of options/widgets can be
 used to expose engine data (possibly with custom calculations. LUA?)".
-The page pointed at is https://status.fabrig.ai, which agents'
-`scripts/devel/status-page` writes (agents' `docs/design/status-page.md`).
+The page pointed at is https://status.fabrig.ai, a status page of
+agents' (`docs/design/status-page.md` there).
 It takes `configuring.md` from the settings to the client's pages, on
 the settings jig has since designed (jig's `domain/engine.md`, section
 17). It crosses jig and temper on purpose; an owner splits it. Nothing
@@ -29,10 +29,9 @@ here is adopted, and nothing here is a part of v0.1.0 (`v0.1.0.md`).
   keep (section 3); *metrics*, named calculations over one owner's
   facts, settings too (section 4); *panels*, a dashboard's parts from a
   closed palette, each showing metrics (section 5).
-- **The hard part is the numbers, not the panels.** agents'
-  `status-page` spends more than half of its two thousand lines on
-  twelve sources and their medians, p90s, rates and paces; its layout
-  is the easy part.
+- **The hard part is the numbers, not the panels.** A status page
+  spends most of its code on its sources and their medians, p90s,
+  rates and paces; its layout is the easy part.
   jig's client reads windows of tasks by a fixed set of keys, and
   nothing aggregates (jig's `client/domain/contract.md`, 6.1): a client
   cannot compute "p90 of gate time per repository, the last week" from
