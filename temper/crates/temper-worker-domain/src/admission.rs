@@ -12,7 +12,8 @@ pub fn is_new_work(event: &Event) -> bool {
     match event {
         Event::Assign { .. }
         | Event::Link(
-            host::LinkDown::Assign { .. }
+            host::LinkDown::AssignJob { .. }
+            | host::LinkDown::Assign { .. }
             | host::LinkDown::Message { .. }
             | host::LinkDown::Check { .. }
             | host::LinkDown::SignOut { .. },
@@ -55,7 +56,8 @@ pub fn passes(event: &Event) -> bool {
         | Event::Resend { .. } => true,
         Event::Assign { .. }
         | Event::Link(
-            host::LinkDown::Assign { .. }
+            host::LinkDown::AssignJob { .. }
+            | host::LinkDown::Assign { .. }
             | host::LinkDown::Message { .. }
             | host::LinkDown::Check { .. }
             | host::LinkDown::SignOut { .. }

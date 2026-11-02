@@ -18,6 +18,7 @@ fn hello(world: &mut World, hosting: Box<[fleet::Hosting]>) {
         worker: 0,
         channel: Token::new(7),
         hello: fleet::Hello {
+            jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(100),
             slots: 1,

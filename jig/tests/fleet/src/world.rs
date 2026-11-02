@@ -884,6 +884,7 @@ impl World {
                     worker: u32::try_from(self.channels[&channel].worker).expect("configured worker position"),
                     channel: token,
                     hello: Hello {
+                        jobs: Box::default(),
                         bounds: crate::fixtures::bounds(),
                         slots,
                         workstreams,

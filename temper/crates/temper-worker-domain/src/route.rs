@@ -55,6 +55,7 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &
         Event::Ready => {
             domain.past = false;
             let opened = host::Event::Opened {
+                jobs: Box::default(),
                 stop_bound: env.limits.stop_bound,
                 workstreams: workstreams(&domain.checkout),
                 bounds: env.limits.bounds.clone(),
@@ -255,6 +256,22 @@ fn from_host(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out
         }
         host::Request::Save { owner, workspace } => workspace::save(domain, env, owner, workspace),
         host::Request::Release { workspace } => workspace::release(domain, env, workspace),
+        host::Request::Job(host::ToJob::Run { owner, .. }) => host_step(
+            domain,
+            env,
+            host::Event::Job(host::FromJob::StartRefused { owner, why: Box::from(&b"no job capability"[..]) }),
+        ),
+        host::Request::Job(host::ToJob::Stop { owner }) => {
+            host_step(domain, env, host::Event::Job(host::FromJob::Gone { owner, detail: Box::new([]) }));
+        }
+        host::Request::DeliverJob { owner, .. } => host_step(
+            domain,
+            env,
+            host::Event::Delivered {
+                owner,
+                delivery: host::Delivery { outcome: host::DeliveryOutcome::Refused, changed: false, left: owner },
+            },
+        ),
         host::Request::Agent(request) => agents::to_agent(domain, env, request, out),
     }
 }

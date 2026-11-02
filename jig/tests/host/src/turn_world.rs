@@ -602,9 +602,13 @@ impl World {
         assert!(!self.host.is_ready());
     }
 
+    #[expect(clippy::too_many_lines, reason = "the turn world checks the complete host output vocabulary")]
     fn route(&mut self, request: Request) {
         self.refusals.request(&request);
         match request {
+            Request::Job(_) | Request::DeliverJob { .. } | Request::Up(LinkUp::JobAnswer { .. }) => {
+                unreachable!("jobs are exercised in the host world")
+            }
             Request::Source { .. } | Request::SourceFault => unreachable!("source scheduling has its own world"),
             Request::Up(
                 record @ (LinkUp::Unauthorized { .. }

@@ -80,7 +80,14 @@ impl Fleet {
 }
 
 fn hello(bounds: fleet::Bounds) -> Hello {
-    Hello { bounds, stop_bound: Duration::ZERO, slots: 1, workstreams: Box::new([]), hosting: Box::new([]) }
+    Hello {
+        jobs: Box::default(),
+        bounds,
+        stop_bound: Duration::ZERO,
+        slots: 1,
+        workstreams: Box::new([]),
+        hosting: Box::new([]),
+    }
 }
 
 #[test]

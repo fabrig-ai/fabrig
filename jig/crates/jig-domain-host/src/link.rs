@@ -9,6 +9,7 @@ pub enum LinkDown {
     Check { name: SourceName },
     SignOut { name: SourceName },
     Assign { assignment: Assignment },
+    AssignJob { job: crate::JobAssignment },
     Message { run: Token, attempt: Token, name: Token, sender: Box<[u8]>, words: Box<[u8]>, finish_requested: bool },
     Relayed { run: Token, attempt: Token, call: Box<[u8]>, answer: Relayed },
     TurnKept { run: Token, attempt: Token, turn: u32 },
@@ -19,6 +20,11 @@ pub enum LinkDown {
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum LinkUp {
+    JobAnswer {
+        run: Token,
+        attempt: Token,
+        answer: crate::JobEnding,
+    },
     /// A piece of live content (hosts.md, 6.5).
     Piece {
         run: Token,
