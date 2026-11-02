@@ -241,7 +241,8 @@ impl Process {
                     .clone();
                 let reply = match reply {
                     agent::Reply::Host { error, body } => {
-                        if submission.effect == run::HostEffect::Write {
+                        // A refusal before admission commits no call record.
+                        if submission.effect == run::HostEffect::Write && !error {
                             assert!(durable(around.store, &submission.name, &body), "durable host-call decision");
                         }
                         run::HostReply::Answered(run::HostAnswer::new(body, error).expect("bounded host answer"))

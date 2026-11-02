@@ -36,7 +36,7 @@ impl World {
         let chat = Script {
             cue: b"Help the person with their work.".as_slice().into(),
             turns: Box::new([
-                call(b"goal", br#"{"words":"Add CSV export; ask the plan first","agree":true}"#),
+                call(b"goal", br#"{"words":"Add CSV export to widget. Before anything is changed, have the work tell me its plan and wait for my go-ahead.","agree":true}"#),
                 call(b"wait", b"{}"),
             ]),
         };

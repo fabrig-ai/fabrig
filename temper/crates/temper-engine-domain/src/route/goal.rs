@@ -21,7 +21,9 @@ const ASK_PLAN: &[u8] =
 /// The caller owns its plan regardless of who requested it (domain/agent.md, 4.3.2).
 pub(crate) fn refusal(domain: &Domain, task: u64, advisor: bool, agree: bool) -> Option<&'static [u8]> {
     let row = domain.core.tasks.task(task)?;
-    if advisor && agree {
+    if row.tracked.is_some() && row.spec.asks && (agree || !advisor) {
+        Some(ASK_PLAN)
+    } else if advisor && agree {
         Some(b"an advisor agrees nothing: set agree or advisor, not both")
     } else if !advisor && row.tracked.is_some() {
         Some(b"a goal starts an advisor alone: set advisor, or make the change with change")
