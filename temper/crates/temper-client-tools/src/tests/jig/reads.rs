@@ -128,6 +128,21 @@ fn me_prints_the_live_frame() {
         assert_eq!((answer.status, answer.stdout), (0, fixtures::golden(golden)), "{golden}");
     }
 }
+/// `me` prints its retention in whole seconds, as ctl's help prints a duration (QA finding 13).
+#[test]
+fn me_prints_its_retention_in_whole_seconds() {
+    for retention in [skein_lib::Duration::from_secs(86_400), skein_lib::Duration::from_nanos(86_400_999_999_999)] {
+        let mut root = fixtures::started(skein_lib::List::with_capacity(fixtures::EMPTY));
+        let mut me = fixtures::me(fixtures::PARTY);
+        me.retention = retention;
+        root.deliver(jig_client::contract::Delivery::Me(Box::new(me)));
+        let call = root.submit(fixtures::ME_CALL);
+        let answer = root.answer(call).expect("me answered from the live frame");
+        assert_eq!(answer.status, 0);
+        assert!(skein_lib::bytes::find(&answer.stdout, b"\nretention: 86400 seconds\n").is_some());
+        assert!(skein_lib::bytes::find(&answer.stdout, b" ns").is_none());
+    }
+}
 #[test]
 fn no_call_runs_before_me_is_live() {
     let mut root = fixtures::started(skein_lib::List::with_capacity(fixtures::EMPTY));
