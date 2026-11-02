@@ -49,6 +49,7 @@ fn chat_project() -> List<MeProject> {
     let mut templates = List::with_capacity(1);
     templates
         .push(Template {
+            resources: List::with_capacity(0),
             llm: None,
             number: jig_client::shapes::CHAT,
             name: DocumentText::complete(Text::new(b"Chat".as_slice().into(), TEXT).unwrap()),

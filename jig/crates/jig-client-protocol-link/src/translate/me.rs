@@ -62,6 +62,7 @@ pub(crate) fn templates(bytes: &[u8], limits: &Limits) -> Result<List<c::Templat
 
 pub(crate) fn template(value: &w::Template, limits: &Limits) -> Result<c::Template, w::Problem> {
     Ok(c::Template {
+        resources: symbols(value.resources()),
         number: value.number(),
         name: crate::translate::facts::document_text(value.name(), limits)?,
         executor: crate::translate::operations::restore_executor(value.executor()),
@@ -95,4 +96,21 @@ pub(crate) fn overrides(
         return Err(too_large());
     }
     Ok(crate::translate::operations::restore_template_overrides(values))
+}
+
+pub(crate) fn symbols(values: &List<w::Symbol>) -> List<c::Symbol> {
+    let mut rows = List::with_capacity(values.len());
+    for value in values {
+        rows.push(c::Symbol { connector: value.connector(), symbol: value.symbol() }).expect("same capacity");
+    }
+    rows
+}
+
+pub(crate) fn wire_symbols(values: &List<c::Symbol>, limits: &w::Limits) -> Result<List<w::Symbol>, w::Problem> {
+    let mut rows = List::with_capacity(values.len());
+    for value in values {
+        rows.push(w::Symbol::new(limits, w::SymbolParts { connector: value.connector, symbol: value.symbol })?)
+            .expect("same capacity");
+    }
+    Ok(rows)
 }

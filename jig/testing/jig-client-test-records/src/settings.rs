@@ -89,6 +89,7 @@ pub fn settings_values() -> List<SettingValue> {
         .expect("charter");
     values
         .push(SettingValue::Template(Box::new(Template {
+            resources: List::with_capacity(0),
             number: 1,
             name: DocumentText::complete(text(b"chat")),
             executor: TemplateExecutor::Charter(2),

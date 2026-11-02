@@ -1261,6 +1261,7 @@ pub(crate) fn settings_wire_template(value: &c::Template, limits: &w::Limits) ->
     w::Template::new(
         limits,
         w::TemplateParts {
+            resources: List::with_capacity(0),
             number: value.number,
             name: settings_wire_document_text(&value.name, limits)?,
             executor: operations_executor(value.executor, limits)?,

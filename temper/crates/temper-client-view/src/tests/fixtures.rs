@@ -881,6 +881,7 @@ pub mod chat {
         member
             .templates
             .push(c::Template {
+                resources: List::with_capacity(0),
                 number: CHAT_TEMPLATE,
                 name: c::DocumentText::complete(c::Text::new(Box::from(*b"Chat"), TEXT).expect("name")),
                 executor: c::TemplateExecutor::Charter(CHAT_CHARTER),

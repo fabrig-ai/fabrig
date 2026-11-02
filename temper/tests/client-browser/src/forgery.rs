@@ -13,6 +13,7 @@ const REQUEST_KEY: [u8; 16] = [0x46; 16];
 
 fn task() -> c::NewTask {
     c::NewTask {
+        symbols: List::with_capacity(0),
         deadline: c::NewDeadline::Named,
         executor: c::Executor::Agent { charter: CHAT_CHARTER },
         spec: c::Specification {

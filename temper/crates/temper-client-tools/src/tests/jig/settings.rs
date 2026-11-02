@@ -95,6 +95,7 @@ fn values() -> Vec<(c::Setting, c::SettingValue)> {
         (
             c::Setting::Template(c::SettingNumber { number: 4 }),
             c::SettingValue::Template(Box::new(c::Template {
+                resources: List::with_capacity(0),
                 number: 4,
                 name: c::DocumentText::complete(words("work")),
                 executor: c::TemplateExecutor::Charter(3),
