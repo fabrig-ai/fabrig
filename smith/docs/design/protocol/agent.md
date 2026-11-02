@@ -63,7 +63,7 @@ and pre-admission buffering to the run entrance (domain/run.md, section 6).
 | Operation | How |
 |---|---|
 | load a file | whole, within its bound, beneath its directory's root, with a digest of its content as its version |
-| store a file | to a temporary file beside it, then renamed over it, once the file's content still has the version read; never through a symbolic link. A new file's directory is first loaded without following a link, and when nothing is there, the directories its path names that do not exist are made from the top, an existing one counting as made (revised 2026-10-20) |
+| store a file | to a temporary file beside it, then renamed over it, once the file's content still has the version read; never through a symbolic link. A new file's directory is first loaded without following a link, and when nothing is there, the directories its path names that do not exist are made from the top, an existing one counting as made |
 | scan a directory | its entries, within their bound |
 | list a tree | the entries beneath a directory, to a depth, leaving out what the ignore files and git exclude, within their bound |
 | search | `rg` in a process group of its own: no configuration, an empty environment, the pattern and glob after `--` |

@@ -271,7 +271,7 @@ child domain `smith-domain-session`, whose own child is the tools domain
       a version not read or stale, an `old` that matched nothing or more
       than once, edits that together leave the file as it was
       (`unchanged`: like every failed edit, it applies none of the
-      call's edits, tools.md, section 3; revised 2026-10-20), a size
+      call's edits, tools.md, section 3), a size
       refused, `failed`, which may have stored part of its
       change, and every other.
   - **Nothing else stops them:** a `shell` or a `job` call's answer,
@@ -487,7 +487,7 @@ window, history only grows (section 3).
   filled has no room for another completion, so the next is the
   compaction, whose request cuts the owed results to its own room (8.2).
 
-- **Nor do they cross the line** (revised 2026-10-20). Every batch, the first
+- **Nor do they cross the line.** Every batch, the first
   included, also runs within an estimate of what is left below the line in
   the guard's units: the line, less the last prompt's reported size, less
   the retained byte count beyond that prompt's payload-byte baseline and

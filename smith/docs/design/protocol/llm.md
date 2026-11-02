@@ -169,10 +169,9 @@ A completion's prompt is built from what the domain gives:
     from its start;
   - `job`: that it reads a job's output since its last answer, and its
     end once it has ended; `wait_seconds` in seconds, its default
-    `job_poll` and its ceiling `job_wait` (revised 2026-10-20); that a
+    `job_poll` and its ceiling `job_wait`; that a
     poll is best asked to wait about as long as the job has left, so
-    that one poll sees its end, and needs no deliberation of its own
-    (added 2026-10-20); that beside any other call of its response
+    that one poll sees its end, and needs no deliberation of its own; that beside any other call of its response
     it waits no longer than they run, so such a poll costs nothing, and
     that it waits as it asks only in a response of `job` calls alone;
     `stop`, which

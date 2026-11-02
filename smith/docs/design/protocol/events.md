@@ -544,10 +544,8 @@ projection.
   or whose write fails (a full disk, a closed pipe), is given up: the
   sink writes no more counted records to it, counts every later one as
   lost, and says so on standard error, naming the destination and why
-  (agent.md, section 6). The run goes on (revised 2026-10-20: a failed
-  write ended the destination's records, its authoritative ones too).
-- **An abandoned destination gets nothing more** (revised 2026-10-20:
-  it was to get its end). io ends a stream at its first failed write,
+  (agent.md, section 6). The run goes on.
+- **An abandoned destination gets nothing more.** io ends a stream at its first failed write,
   and nothing follows but `Closed` (skein's `io.md`, 3.3), so the end
   cannot be tried there. The line on standard error names the
   destination and why, in io's terms: it stayed behind past the write
@@ -684,7 +682,7 @@ The vocabulary is pre-release, like every format (README.md, section 8).
 - **A host's stream** beyond the product's: whether a host other than the
   local host (temper's worker, say) writes one.
 - **Traces kept:** rotation, and how long trace files are kept.
-- **A destination's end after a failed write** (added 2026-10-20): a
+- **A destination's end after a failed write:** a
   trace given up for a full disk lacks `run.completed` and
   `session.ended` even when room comes back. Either the shell keeps a
   spare descriptor of each destination, adopted for the end records

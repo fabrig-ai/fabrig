@@ -135,8 +135,8 @@ name `smith check` and the event stream's header print it under
 | `connection_keep` | duration, per endpoint | how long an idle connection stays open in a live service; never how the process ends, since the pool closes at the answer (skein's `llm-connection.md`, section 7) |
 | `tool_deadline` | duration | a tool call's longest deadline: the most a command's call may ask for, and the most any tool call's deadline may be, a host tool's included (domain/tools.md, section 5) |
 | `shell_timeout` | duration | a command's deadline when its call asks for none |
-| `job_poll` | duration | a `job` call's wait when it asks for none: the default of `wait_seconds` (domain/tools.md, section 5; added 2026-10-20) |
-| `job_wait` | duration | the longest a `shell` call's yield or a `job` call's wait may be: the ceiling of `yield_seconds` and of `wait_seconds` (domain/tools.md, section 5; revised 2026-10-20, when it was also the default) |
+| `job_poll` | duration | a `job` call's wait when it asks for none: the default of `wait_seconds` (domain/tools.md, section 5) |
+| `job_wait` | duration | the longest a `shell` call's yield or a `job` call's wait may be: the ceiling of `yield_seconds` and of `wait_seconds` (domain/tools.md, section 5) |
 | `check_timeout` | duration | the checks' deadline (domain/run.md, 8.1), cut at the run's end; a charter that allows a change keeps at least this much time in its reserve (domain/run.md, 9.1) |
 | `group_stop` | duration | each of the three steps that stop a command's group (agent.md, section 2) |
 | `close` | duration | io's close deadline (section 7) |
@@ -145,7 +145,7 @@ name `smith check` and the event stream's header print it under
 | `cancel_grace` | duration | the inline agent's grace for a cancel, before it drops a run (domain/host.md, 9.2) |
 | `live_interval` | duration | the longest the agent holds live bytes before sending them as a piece (channel.md, section 7); the default is 100 ms |
 | `exit_grace` | duration | a host's grace for a spawned agent to exit after its answer, above the agent's teardown bound (section 4) |
-| `refresh_lead` | duration | how long before a sign-in record's access token expires the local host refreshes it: skein's `oauth.md` refresh lead, shared by every process on the record (`docs/design/shell.md`, 6.5 and 7.3). A story raises it so that its run refreshes at once (`docs/design/testing.md`, 2.3; added 2026-10-20) |
+| `refresh_lead` | duration | how long before a sign-in record's access token expires the local host refreshes it: skein's `oauth.md` refresh lead, shared by every process on the record (`docs/design/shell.md`, 6.5 and 7.3). A story raises it so that its run refreshes at once (`docs/design/testing.md`, 2.3) |
 
 ### 2.4 Fixed by the vocabulary
 
