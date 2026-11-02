@@ -125,3 +125,13 @@ Use the spec’s drift generation command, then run it without SKEIN_CODEGEN_WRI
 Check the automatically merged translations retain both job handling and symbols/resources handling.
 Keep NewTaskSymbols bounded by the wire limit, as the answer requires; leave jig-protocol-config and profiles unchanged.
 Run the three named acceptance tests and the wider focused suites required by the answer, including changed reader packages and direct dependents.
+
+## Rebase (2026-11-02, step merge, foreman reference-m1/goal-jig-client/foreman-3)
+
+rebase f0dcd6bb5d onto the landing trunk, preserving its job-kind status gap while removing the three 3.3 gaps.
+The merge failed only in `jig/docs/design/protocol/configuration.status.md`; no test failure is reported.
+Upstream commit 84c280b9af added the job-kind authority gap, integrated into the trunk through 3998e83540.
+Resolve this file by taking the landing trunk’s text and deleting only the three lines beginning `3.3:`, as the task requires.
+Preserve the entire upstream `Not yet` paragraph, including the job-kind authority clause, and the `Departs` paragraph.
+Retain the symbols/resources implementation from f0dcd6bb5d and all other automatically merged changes.
+This refusal requires no schema, generated-code or implementation changes.
