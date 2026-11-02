@@ -168,7 +168,7 @@ impl World {
         World {
             settings,
             out,
-            domain: Domain::new(&limits),
+            domain: Domain::new(&limits, Box::new([])),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             owed,
             trace,
@@ -296,7 +296,7 @@ impl World {
                 let done = self.git(op);
                 self.owed.push_back(Event::Done { owner, done });
             }
-            Request::CancelRelay { .. } | Request::CancelIo { .. } => panic!("unscripted output"),
+            Request::Job { .. } | Request::CancelRelay { .. } | Request::CancelIo { .. } => panic!("unscripted output"),
         }
     }
 

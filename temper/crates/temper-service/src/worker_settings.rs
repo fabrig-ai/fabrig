@@ -69,6 +69,13 @@ pub fn root_limits(worker: &settings::Worker, agent: &settings::Agent, own: &lim
     let mut host = worker.jig.limits.hub;
     host.slots = worker.jig.slots;
     root::Limits {
+        tooling: temper_worker_domain::tooling::Limits {
+            file_bytes: 1_048_576,
+            tail_bytes: 65_536,
+            path_bytes: 4096,
+            jobs: worker.jig.slots,
+            path: b"/usr/bin:/bin".as_slice().into(),
+        },
         host,
         checkout: own.checkout,
         agent: agent.host_limits,

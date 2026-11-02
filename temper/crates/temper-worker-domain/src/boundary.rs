@@ -1,7 +1,7 @@
 //! The records that cross the boundary with the protocol layer (4.4). The
 //! domain defines them; the protocol crate depends on it.
 //!
-//! Four peers are behind it, and each record names which by its variant:
+//! Five peers are behind it, and each record names which by its variant:
 //!
 //! - The engine, over jig's worker link (jig's `domain/hosts.md`, 6.1;
 //!   jig's `protocol/channel.md`, section 10), which dials, redials, keeps the
@@ -31,6 +31,11 @@
 //!   (`temper_worker_domain_checkout::git`): a [`Request::Io`] is ended by one
 //!   [`Event::Done`], with `Cancelled` if a [`Request::CancelIo`] won its
 //!   race.
+//! - The job capability's file and process operations
+//!   (temper/docs/design/domain/worker.md, 4.4): [`Request::Job`] carries
+//!   only operations, and [`Event::Job`] carries their terminals. Paths are
+//!   relative to the worker root, as the checkout's `workspaces/<token>`
+//!   paths are; the protocol layer resolves them beneath that root.
 //!
 //! The shell tells the domain to shut down ([`Event::Shutdown`]); the domain
 //! says [`Request::Stop`] once, when it has no agent, hand-out or workspace
@@ -51,6 +56,7 @@ use jig_domain_host as host;
 use skein_lib::{Time, Token};
 use smith_host_domain as agent;
 use temper_worker_domain_checkout::git;
+use temper_worker_domain_tooling as tooling;
 
 /// protocol -> domain
 #[derive(PartialEq, Eq, Debug)]
@@ -63,6 +69,15 @@ pub enum Event {
     /// 6.2). The record's workspace, if it has one, names the workstream the
     /// checkout is keyed by; the root names the items to the hub itself.
     Assign { assignment: host::Assignment, items: Result<wire::Workspace, wire::Undecodable> },
+    /// A job with the service's decoded workspace items and command spec
+    /// (temper/docs/design/domain/worker.md, 4.4).
+    AssignJob {
+        job: host::JobAssignment,
+        items: Result<wire::Workspace, wire::Undecodable>,
+        spec: Result<wire::JobSpec, wire::Undecodable>,
+    },
+    /// A terminal of the job capability's file or process operations.
+    Job { owner: Token, event: tooling::Event },
     /// From the engine: any other record of jig's link. An assignment here
     /// has no workspace items.
     Link(host::LinkDown),
@@ -135,6 +150,8 @@ pub enum Request {
     /// Abandon the `Io` in flight for `owner`. Its terminal event still comes:
     /// `Done` with `Cancelled`, or whichever outcome won the race.
     CancelIo { owner: Token },
+    /// A job capability operation: `Write`, `Spawn`, `Kill` or `Read` only.
+    Job { owner: Token, op: tooling::Request },
 }
 
 /// One of smith's payloads, handed out to be encoded.

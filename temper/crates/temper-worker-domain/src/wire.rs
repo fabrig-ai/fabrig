@@ -10,6 +10,14 @@ use alloc::boxed::Box;
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Undecodable;
 
+/// A job's command and request bytes, decoded by the service
+/// (temper/docs/design/domain/worker.md, 4.4).
+#[derive(PartialEq, Eq, Debug)]
+pub struct JobSpec {
+    pub command: Box<[u8]>,
+    pub request: Box<[u8]>,
+}
+
 /// The repositories a run works in (`domain/worker.md`, 4.1). The checkout
 /// that holds them is keyed by jig's workstream, the holding task's number;
 /// an empty list means the run has no workspace items, so no checkout is
