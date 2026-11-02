@@ -239,13 +239,13 @@ In every world, whatever stands in front of the client:
   request is reported before the commit that answers it is durable.
 - **Ordinary deciding requests made once:** each is made once by the
   engine, whatever the faults: drops, restarts, a request sent twice
-  under one key, reloads. New `Seen` retains no completed engine answer:
+  under one key, reloads. `Seen` retains no completed engine answer:
   a retry after completion checks current subject and authority and
   advances the durable watermark only forward (contract.md, 3.1).
 - **Kept work survives restart:** every kept request is answered,
   reported unknown past the engine's retention, or restored and reported
   kept; every word sent and reported answered is in its task's activity,
-  or its task ended. New unanswered `Seen` is silently lost on closing,
+  or its task ended. An unanswered `Seen` is silently lost on closing,
   reload or crash, and the next opening checks and sends the watermark
   again. While the client lives it keeps the same pending lifecycle and
   one answer. A request carrying a value follows client.md, section 6.
@@ -269,20 +269,18 @@ In every world, whatever stands in front of the client:
 - **Bounded:** the client within its limits, the heap within its worst
   case.
 
-Existing client-domain request step tests cover `Seen`'s consumed table
+The client-domain request step tests cover `Seen`'s consumed table
 save with no `Down::Save`, parked-to-live sending, retries under the same
 engine key, application-key joins and conflicts, and named `Send` held
-while its name is held. Existing composed-client store tests contrast
+while its name is held. The composed-client store tests contrast
 `Seen` alone, which needs no own `Stored` before its exchange, with
 ordinary and mixed requests: kept requests wait for `Stored`, failed
 writes answer only the ordinary records they carried as not kept, and
 held `Seen` exchanges are lost and retry. Final answers and retention's
-unknown outcome still erase; acknowledging an absent-key `Seen` erase
-then a later ordinary save must allow that request to send, with no
-tracked write left waiting. Legacy stored pending `Seen` records decode,
-restore as kept, never save again, and erase normally at terminal; the
-existing link codec's legacy `Seen` record fixture remains readable.
-These proofs use the existing tiers, harnesses and budgets.
+unknown outcome erase; acknowledging an absent-key `Seen` erase then a
+later ordinary save must allow that request to send, with no tracked
+write left waiting. These proofs use the client's tiers, harnesses and
+budgets (sections 2 and 9).
 
 ### 6.2 jig's check
 

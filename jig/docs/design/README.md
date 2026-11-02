@@ -657,7 +657,7 @@ the engine     the application's root around jig's core, and jig's clients' comp
     decision names the revision it saw, and a moved revision is refused;
     an ordinary deciding request is made once, and every request is
     answered once durable; `Seen` advances a read position only forward
-    without retaining a new engine answer (`client/domain/contract.md`,
+    without retaining an engine answer (`client/domain/contract.md`,
     3.1); a document reflects only committed state, and leaves after the
     commit it
     reflects; admission and authority are the engine's; a credential is

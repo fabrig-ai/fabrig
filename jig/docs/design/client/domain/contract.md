@@ -27,7 +27,7 @@ Section 9 lists what the engine's domain owes the client, and where
   the party's role, committed, and answered only once that commit is
   durable. Ordinary deciding acts sent twice under a retained key are
   made once and answered alike; `Seen` advances a read position only
-  forward and retains no new answer (3.1; `../../domain/people.md`, 5.1).
+  forward and retains no answer (3.1; `../../domain/people.md`, 5.1).
 - **Several operations, one decision.** A compound request holds a short
   list of operations, admitted in order and committed together or not
   at all, under one key with one answer (3.4).
@@ -148,7 +148,7 @@ Section 9 lists what the engine's domain owes the client, and where
   requests' reserved answer places, never per party. Retained replay or
   conflict and pending joins or conflicts precede new admission. No
   unexpired ordinary answer is evicted to admit another key.
-- **`Seen` keeps no new answer:** a new top-level `Seen` bypasses
+- **`Seen` keeps no answer:** a top-level `Seen` bypasses
   completed-answer capacity, using the bounded pending, flight,
   waiter and load places, with uncapped journal and output queues,
   without reserving an answer place. It saves no `Answer` on success or
@@ -156,9 +156,7 @@ Section 9 lists what the engine's domain owes the client, and where
   different ask conflicts as usual.
   After completion its key is free: a retry is processed against current
   subject and authority, and a different ask under that key is a new
-  request. Legacy retained `Seen` answers replay or conflict until their
-  original expiry, still occupying their old places without early
-  erasure or reclassification (`../../domain/people.md`, 5.1).
+  request (`../../domain/people.md`, 5.1).
 - **One held key, one ask:** a key sent again with a different ask is
   refused as a conflict while pending or retained.
 - **A name** is a key the application gives in place of one the client
@@ -219,7 +217,7 @@ has left (`../../domain/authority.md`, 8.1 and 8.4).
 | `Decide` | a proposal, by its proposer and number: accept, for a proposal of settings with whether running work moves, reject with a reason, or pass up; or an escalation, by its held task and its hold's revision: release, leave held with a reason, or pass up | as `../../domain/tasks.md`, section 9 has it; or decided first, by whom and how |
 | `Answer` | a question, by its task and message, with the words; or a person task, by its revision, with the answer its contract asks (a choice, words, or the state an approval approves) or that it cannot be done | an answer to the question; the person task's result |
 | `Take`, `HandBack` | a person task addressed to a role the party holds | held by them, or back to the role |
-| `Seen` | how far the party has read: their results, or one conversation's turns | their durable read position advanced to `max(old, through)`; after completion a retry checks current subject and authority and may return `Unknown` after forget or `Role` after authority loss, never recreating history or replaying a new completed answer (3.1; `../../domain/people.md`, section 6) |
+| `Seen` | how far the party has read: their results, or one conversation's turns | their durable read position advanced to `max(old, through)`; after completion a retry checks current subject and authority and may return `Unknown` after forget or `Role` after authority loss, never recreating history or replaying a completed answer (3.1; `../../domain/people.md`, section 6) |
 | `ChangeSettings` | the deployment, its scope (7.5); the revision the party saw; the items, at most one per setting, each a setting (a charter, a template or a policy by number, the rules, or an application's kind, scope and number) and what becomes of it: set to a value whole, a charter's instructions as text, removed, or reset to its default; whether running work stays or moves (`../../domain/engine.md`, 17.2) | the settings changed in one decision, the new revision's number answered; the deployment's `settings` and every `me` whose templates changed marked. Not among a compound request's operations (3.4) |
 | `MoveToNewest` | the deployment, its scope (7.5); a revision held | every live task on it that may move set to the newest revision in one decision; answered with the count of those moved and of those that could not, which finish on it (`../../domain/engine.md`, 17.4); a revision not held refused as unknown; the newest answered with none moved, nothing written |
 | `Restore` | the deployment, its scope (7.5); a revision the history keeps; a reason | a proposal of the settings as that revision left them, against the newest, its number answered, with the settings of an application's kinds it leaves out (`../../domain/engine.md`, 17.10); forgotten, naming the oldest kept; empty, for the newest; stale; too large |
