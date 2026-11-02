@@ -64,7 +64,7 @@ fn owned_forge_landing(model: support::forge_land::LiveModel<'_>) {
     let clock = skein_shell::Clock::new();
     let started = clock.now().now;
     let deadline = started.saturating_add(Duration::from_secs(2_400));
-    let (store, kept) = forge_land::live_store(matches!(model, LiveModel::ChatGpt { account: Some(_) }));
+    let (store, kept) = forge_land::landing_store(model);
     let scratch = support::Scratch::live();
     let paths = ["config", "data", "cache"].map(|name| store.join(name));
     let address = if kept {

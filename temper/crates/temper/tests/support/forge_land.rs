@@ -768,14 +768,45 @@ pub fn live_store(account: bool) -> (PathBuf, bool) {
     let store = std::path::PathBuf::from(
         std::env::var_os("TEMPER_LIVE_STORE").expect("run live through scripts/proof-live.sh forge-land"),
     );
-    let kept = reserve_live_store(&store).and_then(|kept| {
-        if kept && account { Err("a held account moves into a fresh store only".to_owned()) } else { Ok(kept) }
-    });
-    let kept = kept.unwrap_or_else(|message| {
+    let kept = reserve_account_store(&store, account).unwrap_or_else(|message| {
         super::live::notice(&message);
         panic!("{message}")
     });
     (store, kept)
+}
+
+/// The owned-forge landing story's own store under `TEMPER_LIVE_STORE`, so the pair runs
+/// in one invocation, each on its own deployment (domain/testing.md, 2.7).
+#[must_use]
+pub fn landing_store(model: LiveModel<'_>) -> (PathBuf, bool) {
+    let stores = PathBuf::from(
+        std::env::var_os("TEMPER_LIVE_STORE").expect("run live through scripts/proof-live.sh forge-land"),
+    );
+    story_store(&stores, model).unwrap_or_else(|message| {
+        super::live::notice(&message);
+        panic!("{message}")
+    })
+}
+
+/// Make the stores' directory (0700, with its parents) when absent, then reserve
+/// `stores/<story>` as `reserve_live_store` does; a held ChatGPT record moves into a fresh
+/// store only.
+pub fn story_store(stores: &std::path::Path, model: LiveModel<'_>) -> Result<(PathBuf, bool), String> {
+    use std::os::unix::fs::DirBuilderExt;
+    fs::DirBuilder::new()
+        .recursive(true)
+        .mode(0o700)
+        .create(stores)
+        .map_err(|error| format!("create stores directory {}: {error}", stores.display()))?;
+    let store = stores.join(model.story());
+    let kept = reserve_account_store(&store, matches!(model, LiveModel::ChatGpt { account: Some(_) }))?;
+    Ok((store, kept))
+}
+
+fn reserve_account_store(store: &std::path::Path, account: bool) -> Result<bool, String> {
+    reserve_live_store(store).and_then(|kept| {
+        if kept && account { Err("a held account moves into a fresh store only".to_owned()) } else { Ok(kept) }
+    })
 }
 
 /// The held record `TEMPER_LIVE_ACCOUNT` names, admitted before any store is.
@@ -1127,6 +1158,15 @@ fn source_name(login: &std::path::Path) -> &str {
 }
 
 impl LiveModel<'_> {
+    /// The story's launcher argument, and its store's name under `TEMPER_LIVE_STORE`.
+    #[must_use]
+    pub const fn story(self) -> &'static str {
+        match self {
+            Self::ChatGpt { .. } => "forge-land",
+            Self::ClaudeCode { .. } => "forge-land-claude",
+        }
+    }
+
     #[must_use]
     pub const fn name(self) -> &'static str {
         match self {

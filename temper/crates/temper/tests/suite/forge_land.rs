@@ -694,6 +694,34 @@ fn a_held_chatgpt_record_is_admitted_only_as_a_private_regular_file_never_named(
     scratch.remove();
 }
 
+/// domain/testing.md, 2.7: one TEMPER_LIVE_STORE holds a store per landing story.
+#[test]
+fn each_landing_story_takes_its_own_store_under_one_live_store() {
+    use std::{fs, os::unix::fs::PermissionsExt, path::Path};
+    use support::forge_land::{LiveModel, story_store};
+    let scratch = support::Scratch::new("live-story-stores");
+    let stores = scratch.path().join("parent/stores");
+    let chatgpt = LiveModel::ChatGpt { account: None };
+    let claude = LiveModel::ClaudeCode { login: Path::new("/held/claude-login") };
+    let chatgpt_store = stores.join("forge-land");
+    assert_eq!(story_store(&stores, chatgpt), Ok((chatgpt_store.clone(), false)));
+    for directory in [stores.parent().expect("stores parent"), &stores, &chatgpt_store] {
+        let metadata = fs::metadata(directory).expect("private directory");
+        assert!(metadata.is_dir());
+        assert_eq!(metadata.permissions().mode() & 0o777, 0o700);
+    }
+    fs::write(chatgpt_store.join("begun"), b"deployment begun").expect("begun deployment");
+    assert_eq!(story_store(&stores, claude), Ok((stores.join("forge-land-claude"), false)));
+    let missing = format!("kept store {} lacks config", chatgpt_store.display());
+    assert_eq!(story_store(&stores, chatgpt), Err(missing.clone()));
+    assert!(!chatgpt_store.join("config").exists(), "a kept store is never repaired");
+    assert_eq!(
+        story_store(&stores, LiveModel::ChatGpt { account: Some(Path::new("/held/record")) }),
+        Err(missing)
+    );
+    scratch.remove();
+}
+
 #[test]
 fn an_imported_records_path_is_printed_as_file() {
     use support::forge_land::printed_command;
