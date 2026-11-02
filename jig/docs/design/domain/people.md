@@ -47,9 +47,10 @@ is still open is listed in section 12.
   owner, keyed as a party's request and answered to it once durable
   (5.3).
 - **A project can be deleted,** by its owners or by the deployment's
-  act: closed at once, its tasks ended and then erased whole, then its
-  own rows, its adoptions released, each step kept until the deletion
-  is whole (5.2).
+  act: closed at once, its tasks ended (its conversations first asked
+  to finish within the grace the request gives, as a close asks one)
+  and then erased whole, then its own rows, its adoptions released,
+  each step kept until the deletion is whole (5.2).
 - **A party's inbox** holds what waits for them: questions, proposals,
   escalations, the tasks they carry out, results and the turns of their
   conversations. What is addressed to a role waits for every party in it
@@ -72,8 +73,9 @@ capability. It keeps:
   their sign-ins, each named by its number;
 - **roles:** each live project's roles and who holds them, loaded at
   start and changed by commits;
-- **deletions:** each project being deleted and the step its deletion
-  has reached (5.2), until its last;
+- **deletions:** each project being deleted, the step its deletion
+  has reached and the grace it gives its conversations (5.2), until its
+  last;
 - **requests in flight:** each party's pending requests, and each
   connector's pending acts in the deployment's name (5.3), by their
   keys, until answered, a compound request as one;
@@ -362,7 +364,7 @@ The operations as the client sends them are
 | `ChangeSettings`, in the deployment's scope | owner in the deployment for the deployment's items, and owner of each project whose items it names (section 3 and 4); the revision they saw, the newest; the set within the checks and bounds of engine.md, 17.1 and 17.8; every connector judging an item of its kinds accepting it | the settings changed in one decision, the new revision answered; running work staying or moved, as it asks (engine.md, 17.2 and 17.4) |
 | `MoveToNewest`, in the deployment's scope | owner in the deployment; a revision held | every live agent task on it that may move set to the newest, in one decision, those moved and those that could not counted in the answer (engine.md, 17.4) |
 | `MakeProject`, in the deployment's scope | owner in the deployment (section 3); a name in shape that no other project holds (core.md, 6.1); a policy among the settings (engine.md, 17.1); room in the deployment's projects | a project, numbered next, its policy a copy of the configured one, its maker its owner and only party (5.2) |
-| `RemoveProject` | owner of the project; a project that is live, not being deleted; never in a compound request | the project closed in the decision that admits it, answered removed then, and deleted whole in the steps that follow (5.2) |
+| `RemoveProject` | owner of the project; a project that is live, not being deleted; a grace within the tasks child's bound (tasks.md, section 11), or none; never in a compound request | the project closed in the decision that admits it, answered removed then, and deleted whole in the steps that follow (5.2), each of its live conversations asked to finish within the grace |
 | edit or delete a note | the note's scope within their role | the note revised (engine.md, section 10) |
 | set a party's pool | owner | the pool opened or resized in the current period, what was spent and reserved kept |
 | an account request: sign in, sign out, add, replace or remove a key, declare or check a program's login, order, uses, resume, remove an account | the account's holder, not a role: a person for their own, a first owner for the deployment's (authority.md, 8.4) | accounts.md, section 5: the account's sources, states and uses changed; a value never committed |
@@ -551,7 +553,19 @@ takes it, and the second is refused as *name taken*.
 A project is deleted (`RemoveProject`) by its owners (5.1), or by the
 deployment's act (5.3), whole: its decision closes it and keeps the
 deletion, and the rest follows in kept steps, each in decisions of its
-own, in this order:
+own, in this order.
+
+Its conversations are closed as a person closes one, with a grace
+(section 7), and the grace is the request's: a span within the tasks
+child's bound (tasks.md, section 11), or none. The engine reads no
+template, so whoever asks gives it: a client the chat template's grace
+as `me` offers it now, as it gives a close's
+(`../client/domain/client.md`, section 19, `shapes::remove_project`),
+and an application deleting by the deployment's act its own chat
+template's (5.3; section 7). A grace past the bound refuses the
+request, a limit, as a cancel's is (5.1), before anything of the
+deletion is made, so that none of the deletion's cancels is ever
+refused for its grace.
 
 - **Closed at once.** In the decision that admits the deletion, which
   answers it removed, the project takes nothing more: a task, words, an
@@ -561,15 +575,28 @@ own, in this order:
   `me`, its roles are erased, and its name is free again from that
   decision; its number is never given again (core.md, 6.1).
 - **Its tasks ended, then erased.** Each live task of the project is
-  cancelled by the deployment, as a conversation's close cancels it
-  (section 7): in the deployment's compound (tasks.md, section 7), each
-  live root with its tree, a conversation with its grace, as many
-  compounds as the operations per request take. Once none is live, each
-  of its tasks is erased whole, one at a time and with no horizon
-  waited for, as retention would erase it at the horizon: its record,
-  its rows in every index, its history, activity and terminals, its
-  read positions and its transcript's file (tasks.md, section 3;
-  `../protocol/store.md`, 8.5 and 11.1).
+  cancelled by the deployment, with no reason, in the deployment's
+  compound (tasks.md, section 7), as many compounds as the operations
+  per request take, each in a decision of its own:
+  - *a live conversation,* a root flagged conversation, as the
+    deployment's `Close` closes one (5.3): each of its live delegates
+    cancelled, then the conversation cancelled with the deletion's
+    grace, which asks it to finish and cancels it if it has not ended
+    when the grace ends (tasks.md, section 7), its message number a
+    fresh one, as a close's is; with no grace, it is cancelled at once.
+    A conversation and its delegates go in one compound, never split
+    across two, as a close fits in one request (5.1, operations per
+    request);
+  - *every other live root,* with its tree, with no grace;
+  - *a root already closing, or finishing under a grace,* a close's or
+    the deletion's own, is not asked again: it ends when its grace does,
+    unless it ended first.
+
+  Once none is live, each of its tasks is erased whole, one at a time
+  and with no horizon waited for, as retention would erase it at the
+  horizon: its record, its rows in every index, its history, activity
+  and terminals, its read positions and its transcript's file
+  (tasks.md, section 3; `../protocol/store.md`, 8.5 and 11.1).
 - **Then its own rows:** its policy's copy and its overrides of
   templates; its placed holds (tasks.md, 5.9); its pools in the current
   period, and its period, closed into the history with their spend
@@ -590,15 +617,16 @@ own, in this order:
   retention is. Each party's inbox and read positions drop what named
   its tasks.
 - **Kept until whole:** the deletion is a row of the people child's,
-  the project and the step it has reached (its tasks, its own rows, its
-  adoptions released), saved with each step's decision and erased with
-  the last, at most one per project the deployment has room for. At
-  each start, once the core is ready, each kept deletion goes on from
-  its step, its project closed from the start as from its decision, so
-  a deletion a restart cut ends whole and no start serves a
-  half-deleted project. Its own answer is kept while it lasts: sent
-  again under its key, the deletion is answered removed until it ends,
-  and unknown after.
+  the project, the step it has reached (its tasks, its own rows, its
+  adoptions released) and its grace, saved with each step's decision
+  and erased with the last, at most one per project the deployment has
+  room for. At each start, once the core is ready, each kept deletion
+  goes on from its step with its grace, its project closed from the
+  start as from its decision, so a deletion a restart cut ends whole
+  and no start serves a half-deleted project; a grace past a bound
+  lowered since is given as that bound. Its own answer is kept while it
+  lasts: sent again under its key, the deletion is answered removed
+  until it ends, and unknown after.
 
 ### 5.3 The deployment's acts
 
@@ -628,12 +656,13 @@ configuration's grant and the act's own subject are its whole check.
   | `RemoveAccount` | an account the deployment holds | the account removed (accounts.md, section 5) |
   | `Adopt` | one of the acting connector's own resources, as an owner's adoption names one, into a live project | adopted as an owner's adoption is, the connector asked and answering as it does a party's (connectors.md, section 12), the project's roles seeded from the parties the connector knows there, and no party made its owner |
   | `MakeProject` | as `MakeProject`'s (5.1), and an owner of the deployment, to be its maker | the project made (5.2), that owner its maker and only party |
-  | `RemoveProject` | a live project, not being deleted | the project deleted as its owners' `RemoveProject` deletes it (5.2), answered removed once closed |
+  | `RemoveProject` | a live project, not being deleted; a grace within the tasks child's bound, or none | the project deleted as its owners' `RemoveProject` deletes it (5.2), each of its live conversations asked to finish within the grace; answered removed once closed |
 
   A subject outside its act's is refused, naming it: a task that is not
   a live conversation of a person, an account the deployment does not
   hold, another connector's resource, a maker who is no owner of the
-  deployment.
+  deployment; a grace past the tasks child's bound is refused as a
+  cancel's is, a limit.
 - **Keyed as a party's request** (5.1): the connector names a key, in
   its own key space, apart from every party's and every other
   connector's, and its answer is kept beside parties' answers
@@ -843,6 +872,14 @@ entry naming the task or proposal it is and its project:
   keep. The core composes it from the conversation's live delegates in
   the decision that admits it, and the application gives the grace,
   its template's: the engine still reads no template.
+- **Closed with its project:** a project's deletion (5.2) closes each
+  of its live conversations as the deployment's close does, every
+  delegate cancelled, with the grace its `RemoveProject` carries. A
+  client gives the chat template's, as its helper gives a close's
+  (`shapes::remove_project`, `../client/domain/client.md`, section 19),
+  and an application deleting by the deployment's act gives its own
+  chat template's (temper's playground: temper's `protocol/setup.md`,
+  8.4): here too the engine reads no template.
 
 ## 8. Person tasks
 
@@ -958,15 +995,17 @@ refused, nothing made, while the configuration names no first owner,
 of a kind their connector is not granted, and on a subject outside
 their act's: a person's account, a task that is no conversation,
 another connector's resource; an owner deletes a project with a live
-chat and its delegates, and a member is refused; the chat and its
-delegates are cancelled, then erased whole with their transcripts, its
-own rows erased and each connector asked to release it until it
-answers, and only its spend left in the period's totals; the deleted
-project refuses every request, act and watch as one never made, leaves
-every `me`, and its name is taken again by a new project of a new
-number; a deletion cut by a restart after any of its commits ends the
-same; a connector granted it deletes a project, and its act sent again
-is answered removed while the deletion lasts and unknown after.
+chat and its delegates, with a grace, and a member is refused, as is a
+grace past the bound, nothing deleted; the delegates are cancelled and
+the chat asked to finish, cancelled when the grace ends, then all
+erased whole with their transcripts, its own rows erased and each
+connector asked to release it until it answers, and only its spend
+left in the period's totals; the deleted project refuses every
+request, act and watch as one never made, leaves every `me`, and its
+name is taken again by a new project of a new number; a deletion cut
+by a restart after any of its commits ends the same, with its grace; a
+connector granted it deletes a project, and its act sent again is
+answered removed while the deletion lasts and unknown after.
 
 In jig's conformance world (testing.md, section 5), a project is deleted
 in a case for each family of jig's store, the core's, the tasks', the

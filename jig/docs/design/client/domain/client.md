@@ -1134,6 +1134,13 @@ with a person in front of a tree, are view.md's, 18.10.
     with none once a change of settings removed it: closing is an act,
     and reads the newest settings as every act does
     (`../../domain/core.md`, section 13), so a chat can always be closed;
+  - `shapes::remove_project(me, project)` gives a project's
+    `RemoveProject` with the same grace, the chat template's as `me`
+    offers it now, or none once a change of settings removed it: the
+    grace each of the project's live conversations is asked to finish
+    within as its deletion closes it (`../../domain/people.md`, 5.2);
+    a project not in `me` gives `NotOffered::Project`, and nothing is
+    sent;
   - `shapes::set_goal(..)` fills the goal template, compares the draft
     with the project's creating bounds in `me` (contract.md, 5.3), a
     deadline given as a span within both, for the engine to judge, and

@@ -2215,10 +2215,21 @@ them as it does any Forgejo.
   granted by the document's `acts` (8.3), and the forge's is the
   connector's own removal, which needs no grant:
   1. `project`: the playground's project deleted, by `RemoveProject`
-     (jig's `domain/people.md`, 5.2), answered removed once the project
-     is closed, so the step passes then; its chats are cancelled and
-     erased with it in the deletion's own kept steps, which go on
-     beside the reset's next steps until whole;
+     (jig's `domain/people.md`, 5.2), with the grace of temper's chat
+     template (template 1, `configuration.md`, section 2) as the
+     settings hold it when the act is sent, or none once it is removed:
+     jig's core reads no template, so temper's root reads it and fills
+     the act, as it reads the goal template for a goal
+     (`../domain/agent.md`, 4.3.2). It is answered removed once the
+     project is closed, so the step passes then; its chats are asked to
+     finish within that grace, as their person's close asks one, then
+     cancelled and erased with it in the deletion's own kept steps,
+     which go on beside the reset's next steps until whole. The act
+     sent again at a start carries the grace the settings hold then: if
+     the act was made before the restart with another, it is another
+     act under the key, refused as a key conflict, which moves the row
+     on as a refusal does (below), and the deletion made then goes on
+     with the grace it keeps;
   2. `forge`: the fake forge removed (`../domain/forge.md`, 4.1), its
      group stopped and its directory, file and record removed (7.1);
   3. `account`: the scripted account removed, by `RemoveAccount`;

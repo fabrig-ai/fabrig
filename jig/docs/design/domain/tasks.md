@@ -1116,11 +1116,11 @@ circle, each for another of the set, so that none of them could end.
   counts; a task waiting for holds leaves their queues. Each task ends
   once its own closing is done, deepest first, and its requester hears
   that it ended cancelled, with what it had done.
-- **A project deleted** (people.md, 5.2) cancels each of its live
-  tasks, by the deployment's compound (below), each live root with its
-  tree, a conversation with its grace, and takes no new task from that
-  decision; once none is live, each of its tasks is erased whole
-  (section 3).
+- **A project deleted** cancels each of its live tasks by the
+  deployment's compound (below), its conversations, their delegates and
+  its other roots composed into compounds as people.md, 5.2 has it, and
+  takes no new task from that decision; once none is live, each of its
+  tasks is erased whole (section 3).
 - **Cancelling with a grace.** A cancel may give a grace, within the
   longest the tasks child allows (section 11), so that a task finishes
   what it can before it is cut off: a conversation closed by its person,
