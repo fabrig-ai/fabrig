@@ -1112,7 +1112,7 @@ fn landing_phase(phase: &forge::LandingPhase) -> w::LandingPhase {
     }
 }
 
-// temper/docs/design/draft/playground-reset.md, 3: a new forge carries its whole place.
+// temper/docs/design/protocol/forge.md, 2.2: a new forge carries its whole place.
 fn making(value: w::Making, directories: &jig_protocol_config::Directories) -> Option<forge::Making> {
     Some(match value {
         w::Making::Kept(value) => forge::Making::Kept(value.forge()),
@@ -1150,7 +1150,7 @@ fn forge_refusal(value: forge::ForgeRefusal) -> w::ForgeRefusal {
 }
 
 /// The kept row supplies progress and ids; settings supply the scripted model's public view.
-/// temper/docs/design/draft/playground-reset.md, 6.1–6.2.
+/// temper/docs/design/protocol/setup.md, 8.4.
 fn playground_answer(row: &forge::Playground, demo: &crate::settings::Demo, limits: &w::Limits) -> Box<[u8]> {
     let mut cues = List::with_capacity(u32::try_from(demo.cues.len()).expect("bounded playground cues"));
     for cue in &demo.cues {

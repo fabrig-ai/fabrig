@@ -1,4 +1,4 @@
-//! First-run pages (temper/docs/design/draft/playground-reset.md, 6.1–6.3).
+//! First-run pages (temper/docs/design/client/README.md, 3.5).
 use crate::{
     frame::Bindings,
     look,

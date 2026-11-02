@@ -1090,7 +1090,7 @@ pub(crate) fn playground_config(
     }
 }
 
-/// Machine places passed to the root (temper/docs/design/draft/playground-reset.md, 3).
+/// Machine places passed to the root (temper/docs/design/protocol/configuration.md, 3).
 #[expect(clippy::manual_map, reason = "the configuration boundary uses explicit matches")]
 pub(crate) fn machine_config(machine: &temper_forge_setup::machine::Machine) -> temper_engine_domain_forge::Machine {
     use temper_engine_domain_forge::{Address, Machine, Place};

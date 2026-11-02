@@ -1,4 +1,4 @@
-//! A kept forge is reconciled by the service (temper/docs/design/draft/playground-reset.md, 3).
+//! A kept forge is reconciled by the service (temper/docs/design/protocol/forge.md, 2.6).
 #[test]
 fn reconcile_directs_to_the_service_without_creating_forge_files() {
     let scratch = skein_scratch::Scratch::new("forge-reconcile-service");

@@ -170,7 +170,7 @@ pub enum Note {
         patch: u32,
         counts: jig_protocol_store::Counts,
     },
-    /// A bounded reset diagnostic (temper/docs/design/draft/playground-reset.md, 6.2).
+    /// A bounded reset diagnostic (temper/docs/design/protocol/setup.md, 8.4).
     Playground {
         line: Box<[u8]>,
     },
@@ -248,7 +248,7 @@ pub use jig_protocol_worker_wire::Reason as WorkerRefusalReason;
 pub use temper_engine_domain::Unsettled;
 
 impl Service {
-    /// Machine inputs loaded once by the shell (temper/docs/design/draft/playground-reset.md, 3).
+    /// Machine inputs loaded once by the shell (temper/docs/design/protocol/configuration.md, 3).
     pub fn configure_forge_runtime(&mut self, github: ForgeRuntime, roots: skein_tls::Config) {
         if let Some(engine) = &mut self.engine {
             assert!(engine.forge.serving.is_none(), "machine inputs precede serving");
@@ -257,7 +257,7 @@ impl Service {
         }
     }
 
-    /// Kept names awaiting the shell's startup resolution (playground-reset.md, 3).
+    /// Kept names awaiting the shell's startup resolution (temper/docs/design/protocol/forge.md, 2.2).
     #[must_use]
     #[expect(clippy::type_complexity, reason = "the startup resolution contract returns numbered host and port tuples")]
     pub fn unresolved(&self) -> Box<[(u16, Box<[u8]>, u16)]> {
@@ -276,7 +276,7 @@ impl Service {
         names.into_boxed()
     }
 
-    /// Re-add a kept forge with the shell's answer before serving (playground-reset.md, 3).
+    /// Re-add a kept forge with the shell's answer before serving (temper/docs/design/protocol/forge.md, 2.2).
     pub fn resolved(&mut self, forge: u16, address: Option<core::net::SocketAddr>) {
         let Some(engine) = &mut self.engine else { return };
         if engine.forge.serving.is_some() || engine.forge.unreachable(forge).is_none() {

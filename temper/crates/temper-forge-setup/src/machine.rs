@@ -1,4 +1,4 @@
-//! The document's machine parts and the box's kinds (temper/docs/design/draft/playground-reset.md, 3).
+//! The document's machine parts and the box's kinds (temper/docs/design/protocol/configuration.md, 3; temper/docs/design/protocol/setup.md, 7.1).
 use crate::{
     check::joined,
     problem::Problems,
@@ -14,7 +14,7 @@ use skein_forge_setup::{
 use skein_json::{Document, document::Kind};
 use skein_lib::{Decimal, List, bytes};
 
-/// What a box runs a forge's group as (3).
+/// What a box runs a forge's group as (temper/docs/design/protocol/setup.md, 7.1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum BoxKind {
     Owned,
@@ -190,7 +190,7 @@ pub fn directory(forge: u16, kind: BoxKind) -> Box<[u8]> {
     };
     joined(&[prefix, Decimal::of(u64::from(forge)).as_bytes()])
 }
-/// The group's kind word and a line feed (temper/docs/design/draft/playground-reset.md, 3).
+/// The group's kind word and a line feed (temper/docs/design/protocol/setup.md, 7.1).
 #[must_use]
 pub fn group_file(kind: BoxKind) -> Box<[u8]> {
     joined(&[kind.word(), b"\n"])

@@ -336,7 +336,7 @@ pub fn seed(directory: &Path, instance: &mut Instance) {
 }
 
 /// Let the first service start commit stock settings and owners before adding fixture records.
-/// temper/docs/design/draft/playground-reset.md, 3; jig's start owns the initial store mark.
+/// temper/docs/design/protocol/forge.md, 2.1; jig's start owns the initial store mark.
 pub fn bootstrap(config: &Path, data: &Path, cache: &Path) {
     use skein_world::end_to_end::{Binary, Command, Mode};
     let path = config.join("temper.json");

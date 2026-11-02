@@ -1,4 +1,4 @@
-//! Welcome states (temper/docs/design/draft/playground-reset.md, 6.3 and 8).
+//! Welcome states (temper/docs/design/client/README.md, 3.5 and 10).
 use jig_client_world::harness::App;
 use skein_lib::Queue;
 use skein_ui::Role;

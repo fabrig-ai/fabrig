@@ -1,6 +1,6 @@
 # Signing people in
 
-Provisional, 2026-10-23. How people sign in to a deployment that people
+Provisional, 2026-10-23, revised 2026-11-02. How people sign in to a deployment that people
 reach at a name of its own, over HTTPS behind a TLS proxy: its public
 address, its members, and Google's sign-in on the clients' listener,
 which ends in jig's `Mint` (jig's `protocol/client.md`, section 8). The
@@ -86,8 +86,8 @@ browsers use (`configuration.md`, section 3). With one:
   name, never on one by the listener's address; temper's sign-in cookie
   (4.2) takes the same decision, by jig's `via`.
 - **Every address temper gives out** is the public origin's: Google's
-  return (4.2), and a GitHub App's redirect and setup URLs, were a GitHub
-  forge configured (`../client/forge.md`, 9.1). With none, they are the
+  return (4.2), and a GitHub App's redirect and setup URLs, when a
+  GitHub forge is connected (`../client/forge.md`, 9.1). With none, they are the
   listener's, `http://<listener>/`, as before.
 - **The bundle is the same,** served at every other `GET`
   (`../client/browser.md`, 2.2).
@@ -412,7 +412,7 @@ the issuer at start, and draws the authorization's page.
   Forgejo's own route that starts a sign-in with the temper source,
   `ROOT/user/oauth2/temper`, in a new tab. ROOT is the forge's browser
   origin: its owned setup's `public` when present, else its `git` URL
-  (`configuration.md`, section 3; `setup.md`, 6.2). Forgejo sends the
+  (`forge.md`, 2.1; `setup.md`, 6.2). Forgejo sends the
   browser to temper's `/oauth/authorize`, temper answers at once, and
   Forgejo opens signed in. No click.
 - **At Forgejo first:** Forgejo's sign-in page offers "Sign in with
@@ -501,7 +501,8 @@ by the client, not by a route:
 - **The page's facts:** temper-service inserts, beside the
   `temper-sign-in` meta (section 7), one `<meta
   name="temper-forge-sign-in" content="NUMBER CLIENT ROOT MODE">` for
-  each forge of `sign_in.forges` (9.7): its number, its client's id, its
+  each entry of `sign_in.forges` that serves (9.7): its forge's number,
+  its client's id, its
   browser origin (9.1) and `owned` or `other`, space-separated,
   attribute-escaped.
   The web shell gives them to the view with the ways; the signed-out
@@ -596,13 +597,20 @@ section 3), and temper's `application.sign_in.forges`:
   logged; jig's start refuses any other. A key replaced is a file
   replaced; its key set's `kid` names it anew.
 - **`sign_in.forges`:** a list, absent for none (`configuration.md`,
-  section 3): each `{"forge", "client"}`, `forge` a Forgejo of `forges`,
-  `client` one of the provider's clients, whose `redirect_uri` is exactly
-  the forge's browser origin's `/user/oauth2/temper/callback`: its owned
-  setup's `public` when present, else its `git` URL (9.1). Server-to-server
-  API calls keep the configured `api` and transport; git uses `git`. Each
-  forge and each client at most once. Otherwise the start is refused at
-  its path.
+  section 3): each `{"forge", "client"}`, `forge` a forge's number, as
+  the Forges page and `temper forge` name it, `client` one of the
+  provider's clients. Each forge and each client at most once, and each
+  client one of the provider's, or the start is refused at its path.
+- **Checked once the forge is known.** A forge is a record in temper's
+  store, made at runtime (`forge.md`, 2.1), so the start cannot check
+  it. Once the forge's records load, and when a forge is made, an entry
+  serves only when its forge is a kept Forgejo whose browser origin's
+  `/user/oauth2/temper/callback` is exactly its client's
+  `redirect_uri`: its owned setup's `public` when present, else its
+  `git` URL (9.1). An entry that does not serve is named once in the
+  log, and its forge has no meta, no "Open Forgejo ↗" and no line on
+  the signed-out page; every other entry serves. Server-to-server API
+  calls keep the record's `api` and transport; git uses `git`.
   With a provider and no `sign_in.forges`, nothing of temper's names
   the provider's clients.
 
@@ -618,7 +626,9 @@ section 3), and temper's `application.sign_in.forges`:
   "to continue to", the signed-out note, and "Open Forgejo ↗" with its
   line. **The client's domain:** the address read as `Authorize`, each
   of jig's answers.
-- **Step tests:** `sign_in.forges`' checks; the metas' bytes;
+- **Step tests:** `sign_in.forges`' checks, at start and once the
+  forge's records load, an entry for a forge not kept, not a Forgejo,
+  or of another origin named and left out; the metas' bytes;
   `temper forge sign-in`'s printed bytes and the files it makes.
 - **One process-tier story** (`../domain/testing.md`, 2.6): an owned
   Forgejo, the temper source added by the printed command, a scripted

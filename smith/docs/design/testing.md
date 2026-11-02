@@ -292,6 +292,17 @@ patch and drift tests check the generated `encoded_bound` and
     checks that outcome and the typed events, read through `smith-events`
     and never as text: the answer, its exit code, and where the task
     appears in the prompts.
+  - **Paths as the run tells them.** A story's workspace is one
+    directory, whose name the run's prompt never shows (domain/tools.md,
+    section 2): a story names a file in the working directory, never
+    under the directory's name, which would resolve beneath it.
+  - **What the program run is offered.** The Claude stories check the
+    first prompt's offered tools (events.md, 3.11) as protocol/programs.md,
+    5.3 and 5.5 has them for a run granted inspect, modify and shell: the
+    six built-ins and the permission prompt; never `finish`, since every
+    exec has a result contract and ends through the program's
+    `StructuredOutput`; never a sub-agent. A fake-backed exec on the
+    same arguments runs the same check offline.
   - **Each run's own records.** Every invocation names a trace of its
     own. On a `program` account the run's records are the spawned
     agent's, in that trace with `.agent` appended (protocol/events.md,
@@ -302,10 +313,19 @@ patch and drift tests check the generated `encoded_bound` and
     at most 4 KiB, names its leg (the story, the account, which
     invocation, check or exec), the assertion, and what the referee
     read: exit, the run's typed end and failure, each session's resume
-    state, a file's relation to the expected bytes, a refreshed
-    record's generations, and standard error's counts and only its
-    lines of a fixed form. It never holds standard output, a prompt, a completion,
-    a tool's input or result, a file's bytes or credential bytes.
+    state, a file's relation to the expected bytes, and where a missing
+    file was found instead, a refreshed record's generations, and
+    standard error's counts and only its lines of a fixed form. A notice
+    of a kind `smith-events` does not know is named by its kind, when
+    that is a short identifier. The refresh story also reports the
+    record's refresh facts before and after its run, read through
+    smith's own record reader: whether it holds a refresh token, and its
+    access token's expiry and its earliest refresh time, each in whole
+    seconds from the story's clock, or none. The host's line for an
+    agent that failed is kept without its detail: its fixed words, the
+    agent's exit and whether it was forced. It never holds standard
+    output, a prompt, a completion, a tool's input or result, a file's
+    bytes or credential bytes.
   - **What they show:** each provider's wire as it is today, refresh and
     rotation at the issuer, Claude Code's stream, prompt tool and login
     as its release has them, and a push to a real forge. A failure is
@@ -662,6 +682,12 @@ benchmarks/                      smith-bench, the benchmark harness (benchmarks.
 - **Both placements within the budgets:** which scenarios run twice once
   the inline agent is the product, and whether the spawned placement's
   share moves to the fuzzy sweeps.
+- **The refresh story and an earliest refresh time:** a record whose
+  issuer set an earliest refresh time is not refreshed before it,
+  whatever the lead (skein's `oauth.md`, section 2), so the story's run
+  cannot refresh at once then. Whether OpenAI's issuer sets one, and
+  what the story checks if it does, waits for the refresh facts the
+  story reports (2.3).
 
 ## 9. Later
 

@@ -1,5 +1,5 @@
 //! temper's frame and forge words as checked English data.
-//! Playground and forge setup words (temper/docs/design/draft/playground-reset.md, 4, 6.1, 6.2 and 6.4).
+//! Playground and forge setup words (temper/docs/design/client/forge.md, 5.4; temper/docs/design/client/README.md, 3.5 and 5.6).
 use alloc::boxed::Box;
 use skein_lib::{List, bytes::copy_of};
 use skein_ui::{

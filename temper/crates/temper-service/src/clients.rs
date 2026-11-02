@@ -68,7 +68,7 @@ pub struct Clients {
     next_secret: u64,
     #[cfg(test)]
     pub(crate) secret_terminals: Option<Queue<kit::SecretOwner>>,
-    // The read view for this clients pass (temper/docs/design/draft/playground-reset.md, 6.1–6.2).
+    // The read view for this clients pass (temper/docs/design/protocol/setup.md, 8.4).
     pub(crate) playground: Option<temper_engine_domain_forge::Playground>,
     playground_starts: Map<Token, root::Event>,
     playground_reads: Queue<crate::HandoverRead>,

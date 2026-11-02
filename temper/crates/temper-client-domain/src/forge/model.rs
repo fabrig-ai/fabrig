@@ -1,4 +1,4 @@
-//! Account facts for the playground (temper/docs/design/draft/playground-reset.md, 6.3).
+//! Account facts for the playground (temper/docs/design/client/README.md, 3.5).
 use super::{Request, Side};
 use jig_client::{Client, Handle, Latest, contract as c};
 use skein_lib::Queue;
