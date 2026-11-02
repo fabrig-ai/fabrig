@@ -1,6 +1,6 @@
 # Events
 
-Provisional, 2026-10-09, revised 2026-10-20. The event vocabulary: one
+Provisional, 2026-10-09, revised 2026-11-02. The event vocabulary: one
 versioned stream of JSON lines that says what a process running smith
 did, from its start to its end. `smith exec --json` writes it to
 standard output, and a trace file is the same stream. Its records,
@@ -55,9 +55,12 @@ their writer and their reader are `smith-events` (README.md, section
   stream of the run its inline agent composes (hosts.md, section 5.6). A
   host that spawns an agent hears its facts on the channel (channel.md,
   section 8), which carries them in its own codec, not as this stream.
-  The product's stream is the local service's. It holds the run's
-  records whichever kind of agent the local host runs, and the host's
-  own notices, such as a spawned agent's forced exit.
+  The product's stream is the local service's. With the inline agent it
+  holds the run's records; with a spawned agent it holds the host's:
+  `session.started`, the run's `run.completed` as the local domain
+  receives it, the host's own notices, such as a spawned agent's forced
+  exit, and `session.ended`, while the run's other records are the agent
+  process's, in its own trace when the configuration names one (below).
 - **Where it goes.** To standard output under `smith exec --json`, and to
   a trace file when the configuration names one (agent.md, section 4;
   `docs/design/shell.md`). A process writing both writes the same records

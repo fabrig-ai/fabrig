@@ -281,9 +281,10 @@ patch and drift tests check the generated `encoded_bound` and
     - a chat started on ChatGPT, resumed on Claude, then on ChatGPT
       again, each run completing (domain/session.md, 8.2);
     - a run refreshes its grant at the issuer: the story raises the
-      refresh lead, a policy value a test may set, so its run refreshes
-      at once, and checks that the record's generation rose and the run
-      completed;
+      refresh lead, a policy value a test may set, to 400 days in the
+      settings' seconds (shell.md, 6.5), past any access token's life,
+      so its run refreshes at once, and checks that the record's
+      generation rose and the run completed;
     - with a remote named, the push lands, and the test removes the
       branch afterwards.
   - **Outcomes, not words.** An LLM's words vary, so a story asks for a
@@ -291,6 +292,20 @@ patch and drift tests check the generated `encoded_bound` and
     checks that outcome and the typed events, read through `smith-events`
     and never as text: the answer, its exit code, and where the task
     appears in the prompts.
+  - **Each run's own records.** Every invocation names a trace of its
+    own. On a `program` account the run's records are the spawned
+    agent's, in that trace with `.agent` appended (protocol/events.md,
+    section 2): the referee takes the run's records from it, and the
+    host's end and exit from the product's stream, as smith-bench reads
+    a program run.
+  - **A failure says why, in typed facts.** A failing story's message,
+    at most 4 KiB, names its leg (the story, the account, which
+    invocation, check or exec), the assertion, and what the referee
+    read: exit, the run's typed end and failure, each session's resume
+    state, a file's relation to the expected bytes, a refreshed
+    record's generations, and standard error's counts and only its
+    lines of a fixed form. It never holds standard output, a prompt, a completion,
+    a tool's input or result, a file's bytes or credential bytes.
   - **What they show:** each provider's wire as it is today, refresh and
     rotation at the issuer, Claude Code's stream, prompt tool and login
     as its release has them, and a push to a real forge. A failure is
@@ -647,6 +662,12 @@ benchmarks/                      smith-bench, the benchmark harness (benchmarks.
 
 ## 9. Later
 
+- **The live reds the report names.** Three live stories were red at
+  main da9027dbf5ae for causes no offline world shows: the refresh
+  story's generation, the chat crossing beyond its Claude leg, and the
+  second run's resume (testing.status.md). Their repair starts from the first
+  after-landing log whose failure says why (2.3), in the lowest tier
+  that shows it.
 - **The key's story after landing.** The story on an Anthropic API key
   is the owner's for now (2.3): no shelf holds a key. It returns to the
   after-landing run when the pipeline has a key to lend, which is the
