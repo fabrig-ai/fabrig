@@ -183,7 +183,7 @@ fn route_ask(
         core::Ask::Effect(ask) => route_effect_ask(domain, number, ask, work),
         core::Ask::TaskHoldings { request, project, spec, .. } => {
             let holdings = specification_holdings(domain, env, number, project, &spec, work);
-            work.push(Work::Core(core::Event::Holdings { request, connector: number, holdings }));
+            work.push(Work::Core(core::Event::Holdings { refused: None, request, connector: number, holdings }));
         }
         core::Ask::DelegateHoldings { request, members, .. } => {
             let mut holdings: List<Box<[tasks::Holding]>> =
@@ -196,6 +196,7 @@ fn route_ask(
                 }
             }
             work.push(Work::Core(core::Event::DelegateHoldings {
+                refused: None,
                 request,
                 connector: number,
                 holdings: if valid { Some(holdings.into_boxed()) } else { None },
@@ -212,6 +213,7 @@ fn route_ask(
                 }
             }
             work.push(Work::Core(core::Event::ProcedureHoldings {
+                refused: None,
                 task,
                 step,
                 connector: number,

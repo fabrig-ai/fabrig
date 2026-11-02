@@ -102,6 +102,7 @@ mod tests {
     fn current() -> Current {
         let mut config = crate::tests::config(1);
         config.defaults.templates = Box::new([crate::Template {
+            resources: Box::new([]),
             number: 1,
             name: Box::from(b"chat".as_slice()),
             executor: people::TemplateExecutor::Charter(1),

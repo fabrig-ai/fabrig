@@ -1335,6 +1335,7 @@ fn decode_template(value: wire::Template) -> core::Template {
         None => None,
     };
     core::Template {
+        resources: Box::new([]),
         number: field_number,
         name: field_name,
         executor: field_executor,

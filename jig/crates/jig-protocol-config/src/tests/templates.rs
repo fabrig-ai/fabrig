@@ -12,6 +12,7 @@ fn the_chat_and_goal_templates_parse_with_their_defaults() {
         engine.templates.as_ref(),
         &[
             jig_domain_core::Template {
+                resources: Box::new([]),
                 number: CHAT,
                 name: Box::from(b"chat".as_slice()),
                 executor: TemplateExecutor::Charter(CHAT),
@@ -31,6 +32,7 @@ fn the_chat_and_goal_templates_parse_with_their_defaults() {
                 llm: None,
             },
             jig_domain_core::Template {
+                resources: Box::new([]),
                 number: GOAL,
                 name: Box::from(b"goal".as_slice()),
                 executor: TemplateExecutor::Chosen,

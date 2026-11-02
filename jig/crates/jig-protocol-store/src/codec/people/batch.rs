@@ -94,6 +94,7 @@ pub(super) fn decode(batch: List<wire::Member>, limits: &wire::Limits) -> Result
         let wire::FlagsParts { conversation, listed, retention, ended_by } = flags.into_parts();
         members
             .push(domain::Member {
+                symbols: Box::new([]),
                 llm: super::llm::decode_llm(llm),
                 deadline: match deadline {
                     wire::Deadline::Named => domain::Deadline::Named,

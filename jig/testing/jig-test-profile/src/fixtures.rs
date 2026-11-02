@@ -49,6 +49,7 @@ pub fn templates() -> Box<[jig_domain_core::Template]> {
     use jig_domain_tasks::{Contract, Flags, Retention};
     Box::new([
         jig_domain_core::Template {
+            resources: Box::new([]),
             number: 1,
             name: Box::from(&b"chat"[..]),
             executor: TemplateExecutor::Charter(1),
@@ -68,6 +69,7 @@ pub fn templates() -> Box<[jig_domain_core::Template]> {
             llm: None,
         },
         jig_domain_core::Template {
+            resources: Box::new([]),
             number: 2,
             name: Box::from(&b"goal"[..]),
             executor: TemplateExecutor::Chosen,
@@ -139,6 +141,7 @@ pub fn propose_goal(ask: jig_domain_people::Ask) -> jig_domain_people::Ask {
 pub fn people_member(words: &[u8], spend: u64) -> jig_domain_people::Member {
     use jig_domain_people as people;
     people::Member {
+        symbols: Box::new([]),
         deadline: jig_domain_people::Deadline::Named,
         executor: people::TaskExecutor::Agent { charter: 1 },
         words: words.into(),
@@ -377,6 +380,7 @@ pub fn forgettable_conversation() -> people::Ask {
 #[must_use]
 pub fn conversation_member(forgettable: bool) -> people::Member {
     people::Member {
+        symbols: Box::new([]),
         deadline: jig_domain_people::Deadline::Named,
         executor: people::TaskExecutor::Agent { charter: 1 },
         words: b"make an effect".as_slice().into(),
