@@ -233,6 +233,10 @@ fn assert_chat_keeps_name(d: &mut Driver, chat: u64, change: u64) {
         row,
         forge::Stored::Writer(_) | forge::Stored::Flight { .. } | forge::Stored::Entry { .. }
     )));
+    assert_name_reads(d, change);
+}
+
+fn assert_name_reads(d: &mut Driver, change: u64) {
     d.delivered.clear();
     let watcher = Token::new(301);
     d.send(engine::Event::Party(engine::PartyInput::Watch {
@@ -402,4 +406,46 @@ fn a_removed_forges_number_is_never_given_again() {
     d.pump();
     make_forge(&mut d, 203);
     assert!(forge_rows(&d).iter().any(|row| matches!(row, forge::Stored::Forge(row) if row.number > number)));
+}
+
+#[test]
+fn an_ended_chat_reads_its_removed_forges_repository_until_its_project_is_deleted() {
+    let (mut d, chat, change) = fixture();
+    application(&mut d, 201, forge::Ask::RemoveForge { forge: FORGE }, false);
+    d.pump();
+    removed(&mut d, forge::Event::SecretsErased { forge: FORGE });
+    removed(&mut d, forge::Event::BoxRemoved { forge: FORGE });
+    end_change(&mut d, change);
+    d.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(204)),
+        sign_in: session(&d),
+        key: [204; 16],
+        ask: people::Ask::Cancel { project: 1, task: chat, reason: b"close the chat".as_slice().into(), grace: None },
+    }));
+    d.pump();
+    stop_cancelled_runs(&mut d);
+    assert!(d.store.rows.contains_key(&Key::Core(core::Key::Tasks(tasks::Key::Ended(chat)))));
+    assert!(!d.store.rows.contains_key(&Key::Core(core::Key::Tasks(tasks::Key::Live(chat)))));
+    let names = forge_rows(&d)
+        .into_iter()
+        .find_map(|row| {
+            if let forge::Stored::Names { task, resources } = row
+                && *task == change
+            {
+                Some(resources.as_ref())
+            } else {
+                None
+            }
+        })
+        .expect("the change keeps its repository name");
+    assert_eq!(names, &[forge::Name { forge: FORGE, repository: 2, what: forge::What::Repository }]);
+    assert_name_reads(&mut d, change);
+    crash(&mut d, 71);
+    assert_name_reads(&mut d, change);
+    erase_chat(&mut d, chat);
+    assert_whole(&d);
+    assert!(!forge_rows(&d).iter().any(|row| matches!(row,
+        forge::Stored::Names { task, .. } if *task == chat || *task == change)));
+    crash(&mut d, 7);
 }

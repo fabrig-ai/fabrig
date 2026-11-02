@@ -131,7 +131,7 @@ fn owned_tables_fit_at_limit_replace_and_refuse_one_more() {
         (K::Call, LIMITS.named_calls),
         (K::Repository, LIMITS.repositories),
         (K::Hold, LIMITS.holds),
-        (K::Names, LIMITS.tasks),
+        (K::Names, LIMITS.tasks + LIMITS.repositories),
         (K::Subscription, LIMITS.subscriptions),
         (K::BranchHead, CLIENT.resources),
         (K::PullState, CLIENT.resources),
@@ -604,6 +604,9 @@ fn unlinked_row(kind: RecordKind, number: u32) -> Stored {
     if let Stored::Repository(row) = &mut record {
         row.provider.forge = 99;
     }
+    if let Stored::Names { resources, .. } = &mut record {
+        *resources = Box::new([Name { forge: 1, repository: 99, what: What::Repository }]);
+    }
     if let Stored::Application { outcome, .. } = &mut record {
         *outcome = adopted_outcome();
     }
@@ -633,7 +636,7 @@ fn missing_links_scan_retained_keys_after_lower_insertions_and_replacements() {
         (K::ProposedEffect, LOWER),
         (K::Repository, LOWER),
         (K::Hold, LOWER),
-        (K::Names, FIRST),
+        (K::Names, LOWER),
         (K::Subscription, LOWER),
         (K::BranchHead, LOWER),
         (K::PullState, LOWER),

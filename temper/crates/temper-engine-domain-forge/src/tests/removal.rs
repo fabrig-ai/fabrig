@@ -375,6 +375,142 @@ fn a_repository_named_by_a_kept_task_stays_until_that_task_is_erased() {
     assert_eq!(d.record(1), None);
 }
 
+fn release_names(d: &mut Domain, task: u64) -> Box<[Request]> {
+    outputs(d, Event::SettleEffects { task, root: task, ending: ReleaseEnding::Cancelled });
+    outputs(d, Event::Release { task, root: task, ending: ReleaseEnding::Cancelled, reason: None, entry: 100 })
+}
+
+fn repository_name() -> Name {
+    Name { forge: REPO.forge, repository: REPO.repository, what: What::Repository }
+}
+
+#[test]
+fn a_released_task_keeps_its_repositories_until_it_is_erased() {
+    let mut d = kept(Mode::Fake);
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    outputs(&mut d, Event::Names { task: 7, resources: Box::new([branch(), repository_name()]) });
+    let sent = release_names(&mut d, 7);
+    assert!(sent.contains(&Request::Save {
+        record: Stored::Names { task: 7, resources: Box::new([repository_name()]) },
+        release: None,
+        read_afresh: None,
+    }));
+    assert!(!sent.contains(&Request::Erase { key: Key::Names(7) }));
+    assert_eq!(d.names(7), None);
+    assert_eq!(d.kept_names(7), Some([repository_name()].as_slice()));
+    remove(&mut d, 1, Some(PartyRole::Owner));
+    outputs(&mut d, Event::SecretsErased { forge: 1 });
+    outputs(&mut d, Event::BoxRemoved { forge: 1 });
+    assert_eq!(d.repository(REPO), Some(&adopted()));
+    assert!(d.record(1).is_some());
+    assert!(outputs(&mut d, Event::Rename { task: 7, resources: Box::new([branch()]) }).is_empty());
+    assert!(outputs(&mut d, Event::Names { task: 7, resources: Box::new([branch()]) }).is_empty());
+    assert_eq!(d.kept_names(7), Some([repository_name()].as_slice()));
+    let sent = outputs(&mut d, Event::Unnamed { task: 7 });
+    assert!(sent.contains(&Request::Erase { key: Key::Names(7) }));
+    assert!(sent.contains(&Request::Erase { key: Key::Repository(REPO) }));
+    assert_eq!(d.kept_names(7), None);
+    assert_eq!(d.repository(REPO), None);
+    assert_eq!(d.record(1), None);
+}
+
+#[test]
+fn past_the_bound_the_oldest_covered_kept_row_goes_first() {
+    for (tasks, uncovered, erased) in [([7, 8, 9], false, 7), ([7, 8, 9], true, 8), ([9, 8, 7], false, 7)] {
+        let mut d = kept(Mode::Fake);
+        outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+        let mut other = adopted();
+        other.provider.repository = 3;
+        outputs(&mut d, Event::Restore { record: Stored::Repository(other) });
+        for (index, task) in tasks.into_iter().enumerate() {
+            let mut name = branch();
+            if uncovered && task == 7 {
+                name.repository = 3;
+            }
+            outputs(&mut d, Event::Names { task, resources: Box::new([name]) });
+            let sent = release_names(&mut d, task);
+            if index == 2 {
+                assert!(sent.contains(&Request::Erase { key: Key::Names(erased) }));
+                assert_eq!(d.kept_names(erased), None);
+                assert!(d.kept_names(if uncovered { 7 } else { 8 }).is_some());
+                assert!(d.kept_names(9).is_some());
+                if erased == task {
+                    assert!(!sent.iter().any(|request| {
+                        if let Request::Save { record: Stored::Names { task: owner, .. }, .. } = request {
+                            *owner == task
+                        } else {
+                            false
+                        }
+                    }));
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn a_later_live_task_covers_a_kept_rows_repositories() {
+    let mut d = kept(Mode::Fake);
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    let mut other = adopted();
+    other.provider.repository = 3;
+    outputs(&mut d, Event::Restore { record: Stored::Repository(other) });
+    for task in [7, 8, 9, 10] {
+        let name = Name { repository: if task == 8 || task == 10 { 3 } else { REPO.repository }, ..repository_name() };
+        outputs(&mut d, Event::Names { task, resources: Box::new([name]) });
+        if task != 9 {
+            let sent = release_names(&mut d, task);
+            if task == 10 {
+                assert!(sent.contains(&Request::Erase { key: Key::Names(7) }));
+                assert!(d.kept_names(8).is_some());
+                assert!(d.kept_names(10).is_some());
+                assert!(d.names(9).is_some());
+            }
+        }
+    }
+}
+
+#[test]
+fn a_projects_release_takes_its_repositories_out_of_kept_rows() {
+    let mut d = kept(Mode::Fake);
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    outputs(&mut d, Event::Names { task: 7, resources: Box::new([branch()]) });
+    release_names(&mut d, 7);
+    remove(&mut d, 1, Some(PartyRole::Owner));
+    outputs(&mut d, Event::SecretsErased { forge: 1 });
+    outputs(&mut d, Event::BoxRemoved { forge: 1 });
+    let sent = outputs(&mut d, Event::ReleaseProject { project: 5, request: Token::new(5) });
+    assert!(sent.contains(&Request::Erase { key: Key::Names(7) }));
+    assert!(sent.contains(&Request::Erase { key: Key::Repository(REPO) }));
+    assert!(sent.contains(&Request::Erase { key: Key::Forge(1) }));
+    assert_eq!(sent.last(), Some(&Request::ProjectReleased { request: Token::new(5) }));
+    assert_eq!(d.kept_names(7), None);
+    assert_eq!(d.repository(REPO), None);
+    assert_eq!(d.record(1), None);
+}
+
+#[test]
+fn a_projects_release_saves_the_other_projects_kept_repository_names() {
+    let mut d = kept(Mode::Fake);
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    let mut other = adopted();
+    other.project = 6;
+    other.provider.repository = 3;
+    outputs(&mut d, Event::Restore { record: Stored::Repository(other) });
+    let other = Name { repository: 3, ..repository_name() };
+    outputs(&mut d, Event::Names { task: 7, resources: Box::new([other.clone(), branch(), repository_name()]) });
+    release_names(&mut d, 7);
+    assert_eq!(d.kept_names(7), Some([repository_name(), other.clone()].as_slice()));
+    let sent = outputs(&mut d, Event::ReleaseProject { project: 5, request: Token::new(5) });
+    assert_eq!(d.kept_names(7), Some([other.clone()].as_slice()));
+    assert!(sent.contains(&Request::Save {
+        record: Stored::Names { task: 7, resources: Box::new([other]) },
+        release: None,
+        read_afresh: None,
+    }));
+    assert!(!sent.contains(&Request::Erase { key: Key::Names(7) }));
+}
+
 #[test]
 fn the_record_is_erased_once_whole_and_its_number_stays_spent() {
     let mut d = kept(Mode::Fake);
