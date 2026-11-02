@@ -156,8 +156,11 @@ default-filter = "binary(=process) & (package(/^temper(-|$)/) | package(=git-tra
 global-timeout = "25m"
 test-threads = 1
 
+# After every landing, under --run-ignored only: the owned-forge landing pair on held
+# logins (temper/docs/design/domain/testing.md, 2.7). The owner's scripts ignore this
+# filter and name their own story.
 [profile.live-temper]
-default-filter = "(binary(=live) | binary(=live_github)) & (package(/^temper(-|$)/) | package(=git-transcripts))"
+default-filter = "(binary(=live) & (test(=a_person_asks_chatgpt_to_land_a_change_on_the_owned_forge) | test(=a_person_asks_claude_code_to_land_a_change_on_the_owned_forge))) & (package(/^temper(-|$)/) | package(=git-transcripts))"
 global-timeout = "50m"
 test-threads = 1
 retries = 0
