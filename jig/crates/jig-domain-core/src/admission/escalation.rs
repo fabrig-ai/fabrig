@@ -72,6 +72,28 @@ fn recipient(
     recipient_after(core, limits, context, requester_role, None)
 }
 
+/// A job's requesting procedure hears its hold through its next step
+/// (jig/docs/design/domain/engine.md, 7.5).
+fn job_requester(core: &Core, context: &tasks::EscalationContext, parent: u64) -> bool {
+    let Some(job) = core.tasks.task(context.task) else { return false };
+    match job.executor {
+        tasks::Executor::Job { .. } if job.requester == tasks::Party::Task(parent) => {}
+        tasks::Executor::Job { .. }
+        | tasks::Executor::Agent { .. }
+        | tasks::Executor::Procedure { .. }
+        | tasks::Executor::Person(_) => return false,
+    }
+    let Some(requester) = core.tasks.task(parent) else { return false };
+    match requester.executor {
+        tasks::Executor::Procedure { .. } => {}
+        tasks::Executor::Agent { .. } | tasks::Executor::Job { .. } | tasks::Executor::Person(_) => return false,
+    }
+    match requester.phase {
+        tasks::Phase::Waiting | tasks::Phase::Active(_) => true,
+        tasks::Phase::Held { .. } | tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => false,
+    }
+}
+
 fn recipient_after(
     core: &Core,
     limits: &Limits,
@@ -100,7 +122,7 @@ fn recipient_after(
                     return fallback(core, context.project);
                 };
                 if passed
-                    && holder.deciding
+                    && (holder.deciding || job_requester(core, context, parent))
                     && holder.project == context.project
                     && authority::covers(
                         &core.authority,

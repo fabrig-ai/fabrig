@@ -75,6 +75,7 @@ pub(crate) fn prepared(
     context: Box<tasks::RunContext>,
     attempt: u64,
     writes: Box<[authority::Write]>,
+    workspace: Option<Box<[u8]>>,
 ) -> Queue<Request> {
     let task = context.task;
     let mut names = List::with_capacity(env.limits.tasks.holdings);
@@ -108,6 +109,9 @@ pub(crate) fn prepared(
         out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
         return out;
     }
+    if let Some(items) = workspace {
+        assert!(core.job_workspaces.insert(task, items).is_ok(), "one job workspace per live task");
+    }
     let mut proof = super::preparation::start_proof(core, task, attempt, attempt, &[]);
     proof.credentials = core.workspace_credentials.remove(&task).expect("prepared job credentials");
     if let Some(previous) = core.proofs.insert(task, proof).expect("claim proof room checked") {
@@ -135,7 +139,8 @@ fn hold(work: &mut Queue<Work>, task: u64, why: tasks::Hold) -> Queue<Request> {
 }
 
 /// The connector handoff carries the start of a claimed job.
-pub(crate) fn claimed(core: &Core, task: u64, attempt: u64, out: &mut Queue<Request>) {
+pub(crate) fn claimed(core: &mut Core, task: u64, attempt: u64, out: &mut Queue<Request>) {
+    let workspace = core.job_workspaces.remove(&task);
     let row = core.tasks.task(task).expect("claimed job task");
     let kind = match row.executor {
         tasks::Executor::Job { kind } => jig_domain_link::JobKind(kind),
@@ -170,6 +175,7 @@ pub(crate) fn claimed(core: &Core, task: u64, attempt: u64, out: &mut Queue<Requ
                 deadline: spec.deadline,
                 result,
                 grants: grants.clone(),
+                workspace: workspace.clone(),
             },
         });
     }

@@ -190,7 +190,13 @@ fn a_due_job_claims_without_an_agent_or_transcript_and_hands_its_start_to_connec
     let out = watch_outputs(
         &mut core,
         &limits,
-        Event::WorkspacePrepared { task: 1, attempt, writes: Some(Box::new([])), credentials: Box::new([]) },
+        Event::WorkspacePrepared {
+            task: 1,
+            attempt,
+            writes: Some(Box::new([])),
+            credentials: Box::new([]),
+            workspace: Some(Box::new([1, 2, 3])),
+        },
     );
     let row = core.tasks.task(1).expect("claimed job");
     assert_eq!(row.phase, tasks::Phase::Active(tasks::Active::Claimed { attempt }));
@@ -209,7 +215,8 @@ fn a_due_job_claims_without_an_agent_or_transcript_and_hands_its_start_to_connec
     for request in out {
         match request {
             Request::Ask { ask, .. } => {
-                let Ask::JobClaimed { task: 1, attempt: named, kind, spec, deadline, result, grants } = ask else {
+                let Ask::JobClaimed { task: 1, attempt: named, kind, spec, deadline, result, grants, workspace } = ask
+                else {
                     panic!("unexpected job handoff: {ask:?}");
                 };
                 assert!(saved, "proof saved before connector handoff");
@@ -219,6 +226,7 @@ fn a_due_job_claims_without_an_agent_or_transcript_and_hands_its_start_to_connec
                 assert_eq!(deadline, Duration::from_secs(60));
                 assert_eq!(result, 32);
                 assert!(grants.is_empty());
+                assert_eq!(workspace.as_deref(), Some([1, 2, 3].as_slice()));
                 starts += 1;
             }
             Request::Write(Write::Save(Record::Core(CoreRecord::RunProof(_)))) => saved = true,
@@ -229,6 +237,7 @@ fn a_due_job_claims_without_an_agent_or_transcript_and_hands_its_start_to_connec
         }
     }
     assert_eq!(starts, core.connectors.len());
+    assert!(core.job_workspaces.is_empty());
 }
 
 /// A blocked start remains due, without preparing agent state
@@ -259,7 +268,13 @@ fn a_jobs_credential_wait_keeps_it_due_and_its_claim_grants_only_the_application
     drop(watch_outputs(
         &mut core,
         &limits,
-        Event::WorkspacePrepared { task: 1, attempt, writes: Some(Box::new([])), credentials: Box::new([7]) },
+        Event::WorkspacePrepared {
+            task: 1,
+            attempt,
+            writes: Some(Box::new([])),
+            credentials: Box::new([7]),
+            workspace: None,
+        },
     ));
     assert_eq!(core.tasks.task(1).expect("waiting job").phase, tasks::Phase::Active(tasks::Active::Due));
     assert!(!core.proofs.contains_key(&1));
@@ -280,7 +295,13 @@ fn a_jobs_credential_wait_keeps_it_due_and_its_claim_grants_only_the_application
     let out = watch_outputs(
         &mut core,
         &limits,
-        Event::WorkspacePrepared { task: 1, attempt: next, writes: Some(Box::new([])), credentials: Box::new([7]) },
+        Event::WorkspacePrepared {
+            task: 1,
+            attempt: next,
+            writes: Some(Box::new([])),
+            credentials: Box::new([7]),
+            workspace: None,
+        },
     );
     let mut selected = None;
     for request in &out {

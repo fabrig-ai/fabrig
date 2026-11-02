@@ -38,6 +38,7 @@ pub(crate) fn brief_assembled(core: &mut Core, work: &mut Queue<Work>, task: u64
     clippy::too_many_lines,
     reason = "one fenced preparation builds the exact allowance, grants and claim together"
 )]
+#[expect(clippy::too_many_arguments, reason = "workspace preparation retains its fenced event fields")]
 pub(crate) fn workspace_prepared(
     core: &mut Core,
     env: &Env<Limits>,
@@ -46,6 +47,7 @@ pub(crate) fn workspace_prepared(
     attempt: u64,
     writes: Option<Box<[authority::Write]>>,
     credentials: Box<[u32]>,
+    workspace: Option<Box<[u8]>>,
 ) -> Queue<Request> {
     let mut out = Queue::uncapped();
     let pending = core.workspace_flight(task);
@@ -82,7 +84,16 @@ pub(crate) fn workspace_prepared(
         return wait_for_account(core, work, current);
     }
     match context.executor {
-        tasks::Executor::Job { .. } => return super::jobs::prepared(core, env, work, context, attempt, writes),
+        tasks::Executor::Job { .. } => {
+            if let Some(items) = &workspace
+                && items.len() > skein_lib::length::usize_of(env.limits.run_bytes)
+            {
+                work.push(Work::Event(Event::Tasks(tasks::Event::Hold { task, why: tasks::Hold::Effects })));
+                out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
+                return out;
+            }
+            return super::jobs::prepared(core, env, work, context, attempt, writes, workspace);
+        }
         tasks::Executor::Agent { .. } => {}
         tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => unreachable!("workspace executor"),
     }
@@ -268,6 +279,7 @@ pub(crate) fn wait_for_account(
     context: Box<tasks::RunContext>,
 ) -> Queue<Request> {
     let task = context.task;
+    drop(core.job_workspaces.remove(&task));
     super::results::clear(core, task);
     drop(core.contexts.remove(&task));
     work.push(Work::Event(Event::Tasks(tasks::Event::PreparationWaiting { task })));
@@ -565,6 +577,7 @@ pub(crate) fn route_activate(
 }
 
 pub(crate) fn route_preparation_failed(core: &mut Core, work: &mut Queue<Work>, task: u64) -> Queue<Request> {
+    drop(core.job_workspaces.remove(&task));
     super::results::clear(core, task);
     drop(core.contexts.remove(&task));
     drop(core.dependency_results.remove(&task));
@@ -576,6 +589,7 @@ pub(crate) fn route_preparation_failed(core: &mut Core, work: &mut Queue<Work>, 
 pub(crate) fn route_claim_refused(core: &mut Core, work: &mut Queue<Work>, task: u64) -> Queue<Request> {
     let mut out = Queue::uncapped();
     if core.claiming.remove(&task).is_some() {
+        drop(core.job_workspaces.remove(&task));
         core.restore_replaced_proof(task);
         out.push(Request::Now(Box::new(Now::DropAssignment { task })));
         work.push(Work::Event(Event::Tasks(tasks::Event::PreparationFailed { task })));
