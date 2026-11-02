@@ -259,6 +259,10 @@ impl World {
             raw::Setup {
                 workflows: if turn {
                     Box::new([raw::Workflow {
+            fails: Box::new([]),
+            flaky: Box::new([]),
+            report: None,
+            select: None,
                         file: Box::from(b"gate.yml".as_slice()),
                         jobs: Box::new([Box::from(b"test".as_slice())]),
                         latency_min: Duration::from_secs(2),

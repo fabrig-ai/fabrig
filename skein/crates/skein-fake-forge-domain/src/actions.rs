@@ -53,6 +53,7 @@ pub(crate) struct Kept {
     pub(crate) run: Run,
     pub(crate) pull: Option<u64>,
     pub(crate) jobs: List<Job>,
+    pub(crate) artifact: Option<crate::api::Artifact>,
 }
 
 pub(crate) fn start(
@@ -94,7 +95,7 @@ pub(crate) fn start(
         })
         .expect("one job per context");
     }
-    repository.runs.insert(commit, Kept { run, pull, jobs }).expect("room for each retained CI commit");
+    repository.runs.insert(commit, Kept { run, pull, jobs, artifact: None }).expect("room for each retained CI commit");
 }
 
 pub(crate) fn rerun(domain: &mut Domain, id: Id<Repository>, commit: u64, context: u32) {
@@ -340,7 +341,7 @@ pub(crate) fn steps(context: &[u8], failing: Failing, cue: Option<&Cue>, pull: O
             number: WORKFLOW_STEP,
             name: match cue {
                 Some(Cue::PullFile { step, .. }) => copy_of(step),
-                Some(Cue::File { .. } | Cue::Message { .. }) | None => joined(context, &[b"Run ", context]),
+                Some(Cue::File { .. } | Cue::Message { .. } | Cue::Tests { .. }) | None => joined(context, &[b"Run ", context]),
             },
             status,
             log: log(context, failing, cue, pull, Some(1)).expect("workflow log"),
@@ -374,7 +375,7 @@ pub(crate) fn log(
         .expect("bounded log");
     let custom = match cue {
         Some(Cue::PullFile { log, .. }) => Some(crate::ci::template(log, pull)),
-        Some(Cue::File { .. } | Cue::Message { .. }) | None => None,
+        Some(Cue::File { .. } | Cue::Message { .. } | Cue::Tests { .. }) | None => None,
     };
     let extra = match &custom {
         Some(line) => u32::try_from(line.len()).expect("bounded log").checked_add(1).expect("bounded log"),

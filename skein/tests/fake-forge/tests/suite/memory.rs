@@ -7,7 +7,7 @@
 #![cfg(test)]
 
 use skein_fake_forge_domain::api::{
-    Answer, Check, Checks, ContextCue, Cue, Error, File, Git, Op, Order, Permission, Protection, Read, Setup, Verdict,
+    Answer, Check, Checks, ContextCue, Cue, Error, File, Git, Op, Order, Permission, Protection, Read, Report, ReportFormat, Setup, Verdict, Workflow,
     Write,
 };
 use skein_fake_forge_domain::{Config, Domain, Event, Limits, Request, Skew, fire, step};
@@ -353,6 +353,9 @@ fn outcome(result: Result<Answer, Error>) -> Result<Option<u64>, Error> {
         | Answer::Labels(_)
         | Answer::Commit(_)
         | Answer::GitTree { .. }
+        | Answer::Artifacts(_)
+        | Answer::Artifact { .. }
+        | Answer::Commits { .. }
         | Answer::Tree(_)
         | Answer::Directory(_)
         | Answer::File(_)
@@ -475,11 +478,26 @@ const FILLED_FORGE_PEAK_CEILING: u64 = 87_000;
 
 #[test]
 fn a_forge_filled_to_its_limits_stays_within_its_peak_ceiling() {
-    let mut forge = Measured::new(FILLED_FORGE_PEAK_CEILING);
-    let config = forge.env.limits;
+    let config = Config { limits: Limits { workflows: 1, workflow_runs: 2, ..LIMITS }, ..CONFIG };
+    let mut forge = Measured::with(config, FILLED_FORGE_PEAK_CEILING);
     let mut firsts = List::with_capacity(LIMITS.repositories);
     for index in 0..u64::from(LIMITS.repositories) {
-        let first = skein_fake_forge_domain::repository(&mut forge.domain, &config, setup(index));
+        let mut configured = setup(index);
+        configured.workflows = Box::new([Workflow {
+            file: Box::from(*b"r.yml"),
+            jobs: Box::new([Box::from(*b"tests")]),
+            latency_min: Duration::ZERO,
+            latency_max: Duration::ZERO,
+            silent: 0,
+            passes: 1000,
+            cue: None,
+            // Two 31-byte ids and their newlines fill the 64-byte report.
+            fails: Box::new([text(31, b'f')]),
+            flaky: Box::new([text(31, b'l')]),
+            report: Some(Report { artifact: name(b'a', index), format: ReportFormat::Lines, deflate: true }),
+            select: None,
+        }]);
+        let first = skein_fake_forge_domain::repository(&mut forge.domain, &config, configured);
         firsts.push(first).expect("repository capacity");
         for user in 1..=u64::from(LIMITS.users) {
             let permission = if user == ADMIN { Permission::Admin } else { Permission::Write };
@@ -491,12 +509,32 @@ fn a_forge_filled_to_its_limits_stays_within_its_peak_ceiling() {
     }
     let room = forge.domain.room();
     assert_eq!(room.statuses, 0, "every repository holds as many statuses as it may");
-    // The store holds as many commits as it may.
+    // Each repository retains its full complement of completed reports.
+    for index in 0..u64::from(LIMITS.repositories) {
+        let repository = name(b'r', index);
+        for _ in 0..config.limits.workflow_runs {
+            forge.ok(AUTHOR, &repository, Op::Write(Write::Dispatch {
+                workflow: Box::from(*b"r.yml"), branch: name(b'b', 0), inputs: Box::new([]),
+            }));
+        }
+        let Answer::Runs(runs) = forge.domain.inspect(&config, &repository, &Read::Runs {
+            workflow: Some(Box::from(*b"r.yml")), commit: None, number: None, page: 1, limit: 0,
+        }).expect("completed workflow runs") else { panic!("runs answer") };
+        assert_eq!(runs.len(), usize::try_from(config.limits.workflow_runs).expect("run count fits"));
+        for run in runs {
+            forge.ok(ADMIN, &repository, Op::Read(Read::Artifacts { run: run.id }));
+            forge.ok(ADMIN, &repository, Op::Read(Read::Artifact { run: run.id, name: name(b'a', index) }));
+            forge.ok(ADMIN, &repository, Op::Read(Read::ArtifactById { id: run.id }));
+        }
+    }
+    // A full history exercises complete messages in every retained range answer.
+    let first = *firsts.as_slice().first().expect("first repository");
+    let mut last = first;
     for content in 0..u8::MAX {
         let made = skein_fake_forge_domain::commit(
             &mut forge.domain,
             &config,
-            *firsts.as_slice().first().expect("first repository"),
+            last,
             tree(content),
             &text(
                 LIMITS
@@ -508,10 +546,15 @@ fn a_forge_filled_to_its_limits_stays_within_its_peak_ceiling() {
                 b'm',
             ),
         );
-        if made == Err(Error::Full) {
-            break;
+        match made {
+            Ok(Some(commit)) => last = commit,
+            Ok(None) => {}
+            Err(Error::Full) => break,
+            Err(error) => panic!("history fill: {error:?}"),
         }
     }
+    let repository = name(b'r', 0);
+    forge.ok(AUTHOR, &repository, Op::Git(Git::Push { branch: name(b'b', 0), commit: last, expected: Some(first) }));
     assert_eq!(forge.domain.room().commits, 0);
     let tally = forge.domain.tally();
     assert_eq!((tally.full, tally.unreported), (0, 0), "nothing was refused for room while filling");
@@ -545,6 +588,14 @@ fn a_forge_filled_to_its_limits_stays_within_its_peak_ceiling() {
         forge.send(ADMIN, &repository, op);
     }
     assert_eq!(forge.domain.calls(), LIMITS.calls);
+    for _ in 0..LIMITS.calls {
+        let (_, result) = forge.fire().expect("one retained answer goes out");
+        result.expect("the retained read succeeds");
+    }
+    for _ in 0..LIMITS.calls {
+        forge.send(ADMIN, &repository, Op::Read(Read::Commits { before: first, after: last }));
+    }
+    assert_eq!(forge.domain.calls(), LIMITS.calls);
     let held = forge.meter.held();
     assert!(held <= forge.ceiling, "the filled forge holds {held} bytes within {}", forge.ceiling);
     assert_eq!(forge.domain.deliveries(), LIMITS.hooks, "all webhook slots are held");
@@ -570,6 +621,7 @@ fn a_forge_filled_to_its_limits_stays_within_its_peak_ceiling() {
             assert_eq!(page.content.len(), usize::try_from(LIMITS.content_bytes).expect("page content limit"));
         }
     }
+    eprintln!("filled forge: held {held}, peak {}, ceiling {}", forge.peak, forge.ceiling);
     assert!(forge.peak <= FILLED_FORGE_PEAK_CEILING);
 }
 

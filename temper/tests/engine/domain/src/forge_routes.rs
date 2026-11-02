@@ -684,6 +684,10 @@ impl World {
         let setup = raw::Setup {
             workflows: if turn {
                 Box::new([raw::Workflow {
+            fails: Box::new([]),
+            flaky: Box::new([]),
+            report: None,
+            select: None,
                     file: b"gate.yml".as_slice().into(),
                     jobs: Box::new([b"test".as_slice().into()]),
                     latency_min: Duration::from_secs(1),

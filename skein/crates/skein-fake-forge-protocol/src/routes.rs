@@ -266,7 +266,10 @@ pub fn op(config: &Config, request: &Request) -> Result<Op, a::Error> {
             let (page, limit) = page(config, *p);
             Read::PullFiles { number: *number, page, limit }
         }
-        Request::Compare { before, after, .. } => Read::Compare {
+        Request::Commits { before, after, .. } | Request::Compare { before, after, files: false, .. } => {
+            Read::Commits { before: commit(before).ok_or(missing)?, after: commit(after).ok_or(missing)? }
+        }
+        Request::Compare { before, after, files: true, .. } => Read::Compare {
             base: commit(before).ok_or(missing)?,
             head: commit(after).ok_or(missing)?,
             page: 1,
@@ -282,12 +285,11 @@ pub fn op(config: &Config, request: &Request) -> Result<Op, a::Error> {
             page: 1,
             limit: 1,
         },
+        Request::Artifacts { run, .. } => Read::Artifacts { run: *run },
+        Request::ArtifactZip { id, .. } => Read::ArtifactById { id: *id },
         Request::Run { run, .. } => Read::Run { run: *run },
         Request::Job { job, .. } => Read::Job { job: *job },
         Request::Jobs { run, .. } => Read::Jobs { run: *run },
-        Request::Artifacts { .. } | Request::ArtifactZip { .. } | Request::Commits { .. } => {
-            return Err(a::Error::Refused);
-        }
         Request::JobLog { job, attempt, step, .. } => Read::Log { job: *job, attempt: *attempt, step: *step },
         Request::Dispatch { .. }
         | Request::Rerun { .. }
