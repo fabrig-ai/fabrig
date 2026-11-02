@@ -55,7 +55,14 @@ pub(crate) fn hello(hello: host::Hello, limits: &wire::v9::Limits) -> Option<Fra
     }
     let record = wire::Hello::new(
         limits,
-        wire::HelloParts { slots: hello.slots, stop_bound: hello.stop_bound, bounds, workstreams, hosting },
+        wire::HelloParts {
+            slots: hello.slots,
+            stop_bound: hello.stop_bound,
+            bounds,
+            workstreams,
+            hosting,
+            jobs: List::with_capacity(0),
+        },
     )
     .ok()?;
     let mut body = Writer::new(usize::try_from(record.measure()).ok()?);
@@ -475,7 +482,9 @@ pub(crate) fn down(
             }
         }
         // TurnBusy is decoded below the hub by the component; up kinds are invalid here.
-        wire::Kind::Logins
+        wire::Kind::Job
+        | wire::Kind::JobAnswer
+        | wire::Kind::Logins
         | wire::Kind::SignedOut
         | wire::Kind::TurnBusy
         | wire::Kind::Hello

@@ -18,17 +18,17 @@ fn the_engine_cap_for_one_slot_is_the_hand_summed_bytes() {
 
 #[test]
 fn the_worker_cap_for_one_slot_is_the_hand_summed_bytes() {
-    // Hello385 (125 + endpoint count 4 + 64 * 4) + turn71 + answer136 + call85 + unauthorized28 + limited29
+    // Hello409 (125 + endpoint count4 + 64 * 4 + jobs count4 + bound20) + turn71 + answer136 + call85 + unauthorized28 + limited29
     // + account refused60; seven headers56. Sources add Logins158 + two SignedOut66.
-    // Mandatory1140 + reserve390 =1530; reserve fits fifteen shortest facts25.
-    assert_eq!(worker_cap(&SIZES_ONE_SLOT), Some(WorkerCap { cap: Cap { bytes: 1530, frames: 25 }, facts: 390 }));
+    // Mandatory1164 + reserve390 =1554; reserve fits fifteen shortest facts25.
+    assert_eq!(worker_cap(&SIZES_ONE_SLOT), Some(WorkerCap { cap: Cap { bytes: 1554, frames: 25 }, facts: 390 }));
 }
 
 #[test]
 fn the_worker_cap_reserves_the_facts_share_last() {
     let sizes = Sizes { facts: 75, ..SIZES_ONE_SLOT };
-    // Mandatory frames1140 bytes + reserve75 =1215; three shortest facts25 each.
-    assert_eq!(worker_cap(&sizes), Some(WorkerCap { cap: Cap { bytes: 1215, frames: 13 }, facts: 75 }));
+    // Mandatory frames1164 bytes + reserve75 =1239; three shortest facts25 each.
+    assert_eq!(worker_cap(&sizes), Some(WorkerCap { cap: Cap { bytes: 1239, frames: 13 }, facts: 75 }));
 }
 
 #[test]
@@ -122,4 +122,14 @@ fn a_grant_count_sum_that_overflows_has_no_codec_limits() {
 fn the_facts_reserve_that_overflows_the_cap_is_refused() {
     let sizes = Sizes { facts: u32::MAX, ..SIZES_ONE_SLOT };
     assert_eq!(worker_cap(&sizes), None);
+}
+
+/// Job body bounds use the deployment's limits (jig/docs/design/protocol/channel.md, 5.4).
+#[test]
+fn job_body_bounds_follow_the_supplied_limits() {
+    // Job: task16 + kind4 + spec20 + deadline8 + workspace29 + grants118.
+    // Answer: task16 + failed tag1 + unprepared permanent23 + detail20 + work42.
+    for (kind, expected) in [(Kind::Job, 195), (Kind::JobAnswer, 102)] {
+        assert_eq!(largest_body(&SIZES_ONE_SLOT, kind), Some(expected));
+    }
 }
