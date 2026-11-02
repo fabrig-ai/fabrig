@@ -99,8 +99,8 @@ answer ownership is checked before effects or payload copies.
   owner to release a hold unless its host gives it one, a control of
   the host's beside the provider's listener that takes the release as
   the domain's event (`Peer::release`), so without one it refuses a
-  script with a hold at its start. A world without a hold sees the peer
-  as before.
+  script with a hold at its start. A world without a hold sees every
+  piece sent at its latency.
 
 ### 2.3 Scripted failures
 
@@ -180,8 +180,7 @@ answer ownership is checked before effects or payload copies.
   Its turns count the query's assistant messages; past its last turn it
   answers "done". With no script cued, the domain answers at random:
   tool calls from the menu, or "done".
-- **A request may cue one too** (first-run, temper's `draft/first-run.md`,
-  3.5). `Scripts { cued, asked, otherwise }` holds the scripts cued by
+- **A request may cue one too.** `Scripts { cued, asked, otherwise }` holds the scripts cued by
   the system text, as above; those cued by the request, `asked`; and the
   turns that answer when neither cues one, `otherwise`. An asked cue is
   looked for in the text of the last user message that holds text, the
@@ -192,7 +191,7 @@ answer ownership is checked before effects or payload copies.
 - **In that order:** a system cue, then a request's, then `otherwise`
   when it holds a turn, then the random answer, each after the seeded
   chances (section 2.3). A world that gives neither `asked` nor
-  `otherwise` is answered as before.
+  `otherwise` is answered by a system cue or at random alone.
 - **`Domain::played(&Config, seed, Scripts, Menu)`** checks and consumes
   them as `configured` does its scripts, all under one `script_bytes`,
   and `configured` is `played` with the other two empty. Their turns
@@ -292,7 +291,8 @@ section 5).
 trust a TLS peer: `skein_fake_peers::transport::ROOT`, the DER bytes of
 the root that signs the fixed chain the peers present, whose leaf names
 `skein.test` and `127.0.0.1`. The owner writes it to a file the client
-is given (temper's lab form, `tls.root`); the client trusts that root
+is given (temper's fake LLM document's `tls.root`, temper's
+`protocol/setup.md`, 8.4); the client trusts that root
 alone, and reaches the peer as `https://127.0.0.1:<port>`. A test root
 vouches for nothing outside a test: its key is in the tree.
 
