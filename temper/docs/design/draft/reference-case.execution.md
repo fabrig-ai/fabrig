@@ -34,7 +34,7 @@ are named as theirs.
   14's settings it configures.
 - **Each milestone's state** is in section 3's table, kept current. When
   M10 passes, the drafts' statuses hold none of these entries, and this
-  file goes with the drafts (`AGENTS.md`, section 9).
+  file goes with the drafts (`DESIGN.md`, section 3).
 
 ## 2. How a milestone runs
 
@@ -76,7 +76,7 @@ Its designers, its implementers and its walker are separate sessions.
 
 | | Milestone | Executes | Needs | Walks (case steps) | State |
 |---|---|---|---|---|---|
-| M0 | Ground: `playground-reset.md` closed out; fab's designers write the design | | | | not started; the close-out's owner to be decided; fab's change asked of agents/loop |
+| M0 | Ground: the playground's reset closed out; fab's designers write the design | | | | the close-out done; fab's change being built (agents/loop's `design-with-specs`) |
 | M1 | The goal's own branch | N3, N4, N15, N23; N22 in part | M0 | 1, 3, 7, 19 | not started |
 | M2 | The goal lands | N3 for L; N22's `mine` | M1 | 23, 24, 28 | not started |
 | M3 | Designers and the cut | N12, N13, N16, N19, N20 | M1 | 3, 4, 6, 22 | not started |
@@ -96,18 +96,16 @@ section 14 it adds.
 
 ### M0. Ground
 
-- **The playground's reset closed out** (the user's X5): the adopted
-  `playground-reset.md` ported into the design as its status lists,
-  then removed. It comes first because the milestones' designers edit
-  the same documents (`forge.md`, temper's
-  `../protocol/configuration.md`, jig's `domain/tasks.md`).
+- **The playground's reset closed out** (the user's X5): its draft
+  ported into the design and archived. Done: the milestones' designers
+  find the documents they edit (`forge.md`, temper's
+  `../protocol/configuration.md`, jig's `domain/tasks.md`) free of its
+  Departs entries.
 - **fab's designers write the design** (the user, 2026-11-02): the cut's
   designers write their family's design into the trunk with their
-  specs, as section 2 has it, where today they write specs and notes
-  alone. agents/loop's change to fab.
-- **Done** when `playground-reset.status.md` is gone, with the design
-  statuses' Departs entries for the playground's reset, and fab's change
-  has landed.
+  specs, as section 2 has it, the project's design rules (`DESIGN.md`)
+  among their documents. agents/loop's change to fab.
+- **Done** when fab's change has landed.
 
 ### M1. The goal's own branch
 
@@ -301,7 +299,7 @@ section 14 it adds.
   acts 1 to 5, act by act, then whole; both plans; opened once rung B2
   passes.
 - **Done** when C passes and the three drafts' statuses are empty; the
-  drafts' own close-out follows (`AGENTS.md`, section 9).
+  drafts' own close-out follows (`DESIGN.md`, section 4).
 
 ## 4. Order, and what runs side by side
 
@@ -364,8 +362,6 @@ section 14 it adds.
 
 ## 7. Open questions
 
-- **Who carries out the playground's close-out** (M0; the director's
-  open work).
 - **Real backends from M1's walk,** or fakes until M10? `v0.1.0.md`,
   2.1 has real backends lead, and the held logins make every walk wait
   its turn.
