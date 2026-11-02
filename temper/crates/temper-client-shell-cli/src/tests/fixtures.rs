@@ -101,6 +101,8 @@ pub struct Frame {
     pub refused: bool,
     pub address: &'static [u8],
     pub token: &'static [u8],
+    pub address_error: Option<Error>,
+    pub token_error: Option<Error>,
     pub locks: u32,
     locked: Option<()>,
     pub released_after: Option<u32>,
@@ -113,6 +115,7 @@ pub struct Frame {
     probe_replies: Vec<(u64, Time, Box<[u8]>)>,
 }
 impl Frame {
+    #[expect(clippy::too_many_lines, reason = "initializes the scripted file and network facts together")]
     pub fn act(words: &[&[u8]]) -> Self {
         let parsed = arguments::parse(words).expect("fixture call");
         let move_mode = matches!(&parsed, temper_client_tools::jig::call::Parsed::Call { call, .. } if call.tool == temper_client_tools::jig::rows::EXPORT_AT || call.tool == temper_client_tools::jig::rows::IMPORT_AT);
@@ -202,6 +205,8 @@ impl Frame {
             refused: false,
             address: b"http://127.0.0.1:4000\n",
             token: TOKEN_BYTES,
+            address_error: None,
+            token_error: None,
             locks: 0,
             locked: None,
             released_after: None,
@@ -418,10 +423,10 @@ impl Frame {
             }
             Ok(Done::Fd(DIRECTORY))
         } else if path == b"address" {
-            Ok(Done::Fd(ADDRESS))
+            self.address_error.map_or(Ok(Done::Fd(ADDRESS)), Err)
         } else if path == b"token" {
             self.token_reads += 1;
-            Ok(Done::Fd(TOKEN))
+            self.token_error.map_or(Ok(Done::Fd(TOKEN)), Err)
         } else {
             assert_eq!(path, b".");
             Ok(Done::Fd(Fd::new(19)))
