@@ -279,7 +279,8 @@ writes answer only the ordinary records they carried as not kept, and
 held `Seen` exchanges are lost and retry. Final answers and retention's
 unknown outcome erase; acknowledging an absent-key `Seen` erase then a
 later ordinary save must allow that request to send, with no tracked
-write left waiting. These proofs use the client's tiers, harnesses and
+write left waiting. A kept `Seen` record restores as kept, is never
+saved again and erases at its terminal. These proofs use the client's tiers, harnesses and
 budgets (sections 2 and 9).
 
 ### 6.2 jig's check

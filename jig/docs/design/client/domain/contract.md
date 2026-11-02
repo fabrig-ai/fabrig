@@ -154,8 +154,8 @@ Section 9 lists what the engine's domain owes the client, and where
   without reserving an answer place. It saves no `Answer` on success or
   routed refusal. While pending, an identical request joins and a
   different ask conflicts as usual.
-  After completion its key is free: a retry is processed against current
-  subject and authority, and a different ask under that key is a new
+  Keeping no answer, its key is free after completion: a retry is
+  processed against current subject and authority, and a different ask under that key is a new
   request (`../../domain/people.md`, 5.1).
 - **One held key, one ask:** a key sent again with a different ask is
   refused as a conflict while pending or retained.

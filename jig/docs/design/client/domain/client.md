@@ -804,7 +804,9 @@ for any presentation of a chat or of any agent task's activity.
   write and changes no store acknowledgement protocol.
 - **Every terminal erases.** The table's terminal `Erase` holds for
   `Seen` too: erasing an absent key is harmless, and its store
-  acknowledgement completes normally.
+  acknowledgement completes normally. A `Seen` record the small store
+  holds is restored as any kept request, told `Kept`, never saved
+  again, and erased at its terminal.
 - **Restored at `Start { kept }`,** before any other event: each
   request's record admitted to the table under its key, parked until
   the link is live, its party confirmed and the retention known; and
