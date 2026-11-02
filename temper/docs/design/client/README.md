@@ -301,7 +301,7 @@ credential.
   form's values, are not kept across a restart (section 11). A browser
   opens at its address (`browser.md`, 2.3), and after the printed
   link's sign-in at `Welcome` (`browser.md`, 2.4;
-  `../draft/first-run.md`, 2.3), which shows its first step while the
+  `../draft/archive/first-run.md`, 2.3), which shows its first step while the
   first run is not over, and otherwise moves on to the chats page
   (3.5, The welcome).
 
@@ -336,7 +336,7 @@ keeps (`../protocol/configuration.md`, section 2).
 | `Adopt { project }` | none: 4.4 | the adoption form, into `project`, or, with none, into a new project (4.4), with the picker of the repositories temper can reach on the chosen forge | `me`; the chosen forge's deployment part, for its kind, mode, user and installations (`forge.md`, 5.4); the picker's page, a `Reachable` request (section 8) | adopt a repository (4.4) |
 | `Forges` | `forges.html` | the person's forges, each row folded until opened: its connection, its mode and access, on GitHub temper's App and its installations, a connect under way and how the last ended, its load; then the playground's forge, folded, while the demo's forge half holds; "+ Add a forge", to `ConnectForge` (`forge.md`, 5.4) | the forge's, through the forge's side (4.2) | connect a stopped forge; replace a key or tokens; install on another account; new repository; forget the admin's token; set up again (section 8) |
 | `ConnectForge { forge }` | `connect-forge.html` | connecting one more forge, `forge` the choice it is at: Choose, Details, Setting up and Ready, which ends on the work it adopted (`forge.md`, 5.4) | the forge's, through the forge's side (4.2) | connect; connect as its admin; set up a Forgejo here (section 8) |
-| `Welcome { step }` | `welcome.html`; the first run's step 0 | the first run's welcome, until the person has chosen: "Try the playground" or "Set up temper", the latter a wizard of Welcome, Forge, Model and Ready, its `step` (5.6; `../draft/first-run.md`, 2.3) | the demo's state (4.8); `accounts`; the `forges` watch, for a person whose role holds the deployment's forges; the forge's, as `ConnectForge` reads it | start the playground; `ConnectForge`'s and `ConnectModel`'s acts |
+| `Welcome { step }` | `welcome.html`; the first run's step 0 | the first run's welcome, until the person has chosen: "Try the playground" or "Set up temper", the latter a wizard of Welcome, Forge, Model and Ready, its `step` (5.6; `../draft/archive/first-run.md`, 2.3) | the demo's state (4.8); `accounts`; the `forges` watch, for a person whose role holds the deployment's forges; the forge's, as `ConnectForge` reads it | start the playground; `ConnectForge`'s and `ConnectModel`'s acts |
 | `Accounts` | `accounts.html` | the person's LLM accounts, then, for an owner, the deployment's, each row folded until opened: its LLM provider and display name, its holder, its deciding source's state and its line (5.5, An account's line); opened, that state's words and acts, its sources in order, each with its state in words and, for a program's, on which hosts (5.5), what it pays for, the runs using it and the tasks waiting for it (facts jig gives the deployment's accounts alone for now, so a person's own leave them out: 5.5) and its acts; the checks under way, and how the last ended; then the playground's account, folded, while the demo's model half holds; "+ Connect a model", to `ConnectModel` | `accounts` (jig's `client/domain/contract.md`, 7.1); `me`'s LLM providers | sign in again or add a key from a state's acts, as `ConnectModel`'s ways; sign a source out; add a key to an account; replace a key; remove a source or an account; check a program's login again; move an account, or a source, up or down; resume a limited source |
 | `ConnectModel { way }` | `connect-model.html` | connecting one more LLM account, `way` the way it is at, or none at Choose: Choose, a card for each way its providers offer (5.5, The ways); Signing in, at the provider, for a sign-in, or Details, a way's field, for a key or a program's login; and Ready, the account made, or how the sign-in ended (5.5, A sign-in) | `accounts`; `me`'s LLM providers | sign in with an LLM provider; add a key as an account of its own; declare a program's login |
 | `HowWorkRuns` (designed, not built) | none yet: the user's, from the branch `configuring-mockups` (5.13) | the settings in the person's words: the newest revision and who decided it; "Tell temper how you work"; pending proposals of settings; roles, ways to start work, rules, running work and history, each row tagged Default, Changed or Added (5.13) | `settings`; each setting shown, `setting` (jig's `client/domain/contract.md`, 5.1 and 6) | start the configuring chat; move a revision's tasks to the newest; propose a reset, a removal or a restore |
@@ -781,7 +781,7 @@ keeps (`../protocol/configuration.md`, section 2).
   - *"Try the playground"* sends `StartDemo` while the demo has not
     started (4.8) and opens the chats page, in the demo's project once
     the demo's read names it, which the start's first act makes
-    (`../draft/first-run.md`, 2.4); until then the chats page shows the
+    (`../draft/archive/first-run.md`, 2.4); until then the chats page shows the
     demo's start under way, as in that project.
     *"Set up temper"* opens its Forge step. Its card names the forge
     and the model in short, in fixed words, as its mockup does: "Your
@@ -900,7 +900,7 @@ keeps (`../protocol/configuration.md`, section 2).
     (4.4). Ready is
     done, not current, along the top once its forge and model both
     are.
-- **With no project yet** (`../draft/first-run.md`, 2.4): until the
+- **With no project yet** (`../draft/archive/first-run.md`, 2.4): until the
   playground's start or the person's first repository makes one, the
   chats page's composer and "Your chats" give way to the level-1
   heading "No project yet" and "A project starts with its first
@@ -1182,7 +1182,7 @@ picker, below). In order:
 
 Then a button "Adopt", and below it the request's state or outcome.
 
-**Into a new project** (`../draft/first-run.md`, 2.4): `Adopt` with
+**Into a new project** (`../draft/archive/first-run.md`, 2.4): `Adopt` with
 no project, from the welcome's Ready and the chats page with no
 project yet (3.5), is titled "Adopt a repository into a new project",
 and adds a last field, "Into a new project, named", the name's field
@@ -1562,7 +1562,7 @@ shown as external links and never opened by the client (6.5).
 
 A first run's deployment is a demo, on a demo model and a demo forge
 (`../protocol/setup.md`, 8.4), until the person connects a real one
-of each (`../draft/first-run.md`, 3.6).
+of each (`../draft/archive/first-run.md`, 3.6).
 
 - **Read once a link is live.** The forge's side reads `Demo` (4.6)
   when the link first becomes live, again each time it becomes live
@@ -1603,7 +1603,7 @@ of each (`../draft/first-run.md`, 3.6).
   deployment's forges (3.5); for any other person, and while the part
   is not served, the half does not hold. The part is the `forges`
   watch's rows (4.6).
-- **Ending for good,** with the welcome (`../draft/first-run.md`, 2.3,
+- **Ending for good,** with the welcome (`../draft/archive/first-run.md`, 2.3,
   its step 5): the model's half ends when an account of another LLM
   provider that counts for it (above) is first usable, the person's own
   or, for an owner, the deployment's, and does not hold again; the demo ends
@@ -1676,11 +1676,7 @@ of each (`../draft/first-run.md`, 3.6).
   - *a banner:* temper's name; the project the person is in, and the
     others to choose from, each by the name `me` gives it, which no
     other project of the deployment shares (jig's `domain/core.md`,
-    6.1), its visible and accessible name the same words. Until jig
-    gives projects names (jig's `STATUS.md`, section 3, "A project's
-    name"), `me` gives none, and the banner says "Project N", N the
-    project's number: the name jig gives a project configuration
-    leaves unnamed, so nothing a person sees changes when names come;
+    6.1), its visible and accessible name the same words;
     the navigation (5.3) after the projects, as in
     the mockups; the link's state, one word for each of
     `jig-client`'s `Link` states ("Signed out", "Connecting" while
@@ -1705,7 +1701,7 @@ of each (`../draft/first-run.md`, 3.6).
     start among them, above their chatbars;
   - *the setup strip,* in the demo's banner's place, while the demo has
     not started and no model is usable (3.5, The welcome) or
-    no forge of the person's is connected (`../draft/first-run.md`,
+    no forge of the person's is connected (`../draft/archive/first-run.md`,
     2.3), the welcome's facts in and
     its first run not over (3.5, The welcome): a region named "Setup",
     its words and links (5.6), on the same pages. "Not started" is the
@@ -2113,8 +2109,7 @@ The words for each offered source are:
   moves the key up, so that the account's waiting tasks go on on it,
   and moves no task. A plan's row shows its limit's state and "Manage
   usage" alone: its usage is ChatGPT's settings' to show (jig's
-  `domain/providers.md`, 2.6), and temper reads no plan's windows
-  (`../draft/temper-on-temper.md`, 6.3).
+  `domain/providers.md`, 2.6), and temper reads no plan's windows.
 - **A sign-in:** no words while it waits in a browser, which is at the
   provider (3.5, `ConnectModel`); in the terminal, "Open this address in
   a browser:" and the address, then the paste (below), as an external
@@ -2182,7 +2177,7 @@ The words for each offered source are:
 
 temper's phrasebook words the demo (4.8; the mockups' first run) as
 the playground, the person's name for it (with the user, 2026-10-23;
-`../draft/first-run.md`, 2.3); OWNER/NAME is the demo's repository, and
+`../draft/archive/first-run.md`, 2.3); OWNER/NAME is the demo's repository, and
 the cues the demo's, copied in. A personal forge's connection retires
 both a not-started and a running playground live; an ended demo read
 retains its provider and project after a reload: the Model step excludes that provider, even
@@ -2239,8 +2234,8 @@ no retirement fact; a running playground keeps its project and words:
   "Playground" as `temper init` writes it (`../protocol/setup.md`,
   8.4), as the demo's scripted words
   do once `../protocol/setup.md` 8.4 takes the playground's words
-  (`../draft/first-run.md`, 2.3).
-- **The welcome** (`welcome.html`; `../draft/first-run.md`, 2.3): its
+  (`../draft/archive/first-run.md`, 2.3).
+- **The welcome** (`welcome.html`; `../draft/archive/first-run.md`, 2.3): its
   steps' words, their order and their acts are its mockup's
   (`mockups/welcome.html`, at the states its worlds list), the set up
   card's model sentence among them (5.5). Beyond them: a move is a link
@@ -2349,7 +2344,7 @@ the change's chip in a chat (`forge.md`, 2.4 and 2.5).
   and steps ticked. The view lays them out with the phrasebook's words.
 - **The first run:** the chat is task 1 and the change it delegates
   task 2, so the person reads "T2 · CHANGE", Running, then Landed
-  (`../draft/first-run.md`, 2.1), and after the card the chat's next
+  (`../draft/archive/first-run.md`, 2.1), and after the card the chat's next
   call, folded, "1 tool call", described "wait" (3.5).
 
 ### 5.8 A goal's page
@@ -2477,7 +2472,8 @@ or difference of their amounts (jig's `client/domain/contract.md`,
   not shown." The browser shows the list's name before its items. In a
   row's tree item come the row, its dependency line, its held task's
   card (3.6), then its children. The mockup's worlds declare no
-  dependency, so it draws none: this line is temper's, for B2.
+  dependency, so it draws none: this line is temper's, for rung B2
+  (`../domain/testing.md`, 2.7).
 - **An added dependency's mark:** in its item of the dependency line,
   after its link and its state, read only, for a dependency an
   amendment added (the row's chip's `dependencies`, jig's
@@ -2591,7 +2587,7 @@ acts on it as its document offers (5.11).
   document's `dependency_facts`. The document's `cut` does not say
   which of its lists was cut, so the line has no last item (section
   11). The mockup's worlds declare no dependency: the line is
-  temper's, for B2.
+  temper's, for rung B2 (`../domain/testing.md`, 2.7).
 - **The run's heading,** one, for its current or its last run, from its
   chip's owner phase and its `attempt` (jig's `client/domain/objects.md`,
   section 3):
@@ -2778,7 +2774,7 @@ supplies it: the page computes none (jig's `client/domain/contract.md`,
   First "CI at its head": "Not yet" while CI is unknown, "Running"
   while pending, "Passed", "Failed". On a landed change, unknown CI is
   "Not read since the restart": the panel forgets CI at a restart, and
-  a landed change's is not read again (`forge.md`, 8.8). Then each gate, in the supplied
+  a landed change's is not read again (`../domain/forge.md`, 8.8). Then each gate, in the supplied
   order: "Gate N · review", "· approval" or "· check", then "·
   blocking" or "· advisory", and its verdict: "Not yet" with none,
   "Waiting" pending, "Approved", "Changes asked". With no gate, a last
@@ -3413,7 +3409,7 @@ answer. A task address shows its reading status before the document, and
 the page asks again after a transient end, as in 3.5. The client's joint
 world, `tests/client`, starts its clients so, with no shell
 (`fixtures::task_page`), and proves the root's part:
-in roadmap B2's story a fresh client started at a delegate's address
+in rung B2's story (section 10) a fresh client started at a delegate's address
 draws its heading and its "Task brief", as the browser tier's task
 pages story does at `/tasks/3` (section 10).
 
@@ -3925,8 +3921,8 @@ own tests:
   delegates ended; a waiting delegate's Message refused, its page
   saying why and sending nothing; an amendment of a goal's
   specification from its page, and one refused as moved asking to look
-  again; roadmap B2 whole, on fixtures shaped on the reference case
-  (`../draft/reference-case.md`, 4.2 and 6.2): a goal's advisor
+  again; a goal with an advisor and two dependent delegates (rung B2,
+  `../domain/testing.md`, 2.7): a goal's advisor
   reports, the goal's latest activity names it by its link, and its
   page, opened from there, shows its result and reaches the goal by
   its lineage bar; the goal declares two delegates, the second
@@ -4023,7 +4019,7 @@ own tests:
   still signed in on the accounts page after a restart. And `temper open` itself, stdin and stdout
   piped: it signs in by the printed link, prints the inbox, adopts a
   repository by commands, and exits 0 on `q` after a drained close.
-  The first run (`../draft/first-run.md`, 2.1): the chat's card for the
+  The first run (`../draft/archive/first-run.md`, 2.1): the chat's card for the
   change it delegated read landed, with its words (5.7). And
   jig's attack story that needs no browser, a rebound Host, against
   `temper serve`'s clients' listener: a request naming a host off the
@@ -4077,8 +4073,7 @@ own tests:
   opens at the inbox.
 - **Clients that are not a person's:** a command run once and a
   service acting as a party are the agents' tools, `temper ctl`
-  (`tools.md`). A bot (`../draft/factory.md`): none, until the
-  factory's lab or run side needs one.
+  (`tools.md`). A bot: none.
 - **Several terminals:** each `temper open` with its own DIRECTORY is a
   client of its own. Two on one DIRECTORY share its token and write its
   small store whole over each other. Default: not supported and not
@@ -4140,7 +4135,7 @@ own tests:
 - **A connect's end told:** the forges' page reads how a connect ended
   on the deployment's part. Default: that read, watched while the page
   is open; no notice in the inbox.
-- **Hiding the demo** (`../draft/first-run.md`, 2.2): the banner and
+- **Hiding the demo** (`../draft/archive/first-run.md`, 2.2): the banner and
   the suggestions show while their halves hold (4.8). Default: nothing
   hides them, and nothing is kept to dismiss them.
 - **"Reset demo"** (the first-run mockup's earlier draft): the demo's

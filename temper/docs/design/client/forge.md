@@ -458,7 +458,7 @@ and `connect-forge.html`.
   the level-2 heading "The playground", folded, while the demo's forge
   half holds (`README.md`, 4.8): "Playground forge · the playground’s,
   until a forge of yours connects · OWNER/NAME"; opened, its Account
-  line. Once the demo has ended (`../draft/first-run.md`, 2.3), it
+  line. Once the demo has ended (`../draft/archive/first-run.md`, 2.3), it
   shows nowhere.
 - **Owned setup versions** come from the forge row's `owned` pins.
   Details names the Forgejo version in what temper box downloads;
@@ -593,7 +593,7 @@ and `connect-forge.html`.
     Setting up. The fields: "Organization", `work` until changed;
     "Repository", `hello`; and "Into a new project, named", the
     repository's name until changed: the first run offers no existing
-    project (`../draft/first-run.md`, 2.4). An organization, repository
+    project (`../draft/archive/first-run.md`, 2.4). An organization, repository
     or project's name left empty is the page's refusal,
     "Required.". The set up's refusals show under the button in its
     words (`README.md`, 4.6): `invalid`, which also marks the organization and
@@ -617,7 +617,7 @@ and `connect-forge.html`.
     entry in `application.setup` (`mode` `managed`, its bot); "Without
     it, temper takes its bot’s tokens only."; then "Restart temper box,
     then connect it from this page." These words stay: a Forgejo
-    elsewhere is added by hand and a restart (`../draft/first-run.md`,
+    elsewhere is added by hand and a restart (`../draft/archive/first-run.md`,
     section 4).
   - *A configured admin Forgejo:* "Connect as its admin", then "Paste a
     site admin’s token with the scopes write:admin, read:user,
@@ -893,7 +893,7 @@ admin", with its forge number and bot (`../protocol/setup.md`, section
 | Install the App; Install on another account | GitHub, connected: "Install on GitHub" before any accepted installation (Connecting), "Install on another account" after one, and Ready's "Choose its repositories on GitHub" | a fresh link to temper's App's install page, with `back`, where the browser goes in the page's own tab; the person picks the account and its repositories on GitHub, keeping GitHub's default, all of them, or choosing some, and the setup route sends the tab back to `back` |
 | New repository | Forgejo owned or managed, connected | the set up's same fields: organization (default `work`), repository (default `hello`) and a project, one of the person's or a new one; the general form of the first repository (`../protocol/setup.md`, section 15) |
 | Forget the admin's token | managed | the admin's token erased; the forge is connected, its bot and tokens kept, and adopting a repository grants nothing more: the person makes the bot a collaborator |
-| Set up a Forgejo here | the row's offer offered, not set up (`README.md`, 4.6) | its organization (default `work`), its repository (default `hello`) and its project, a new one named as the repository (`../draft/first-run.md`, 2.4), or, from the welcome's card under the box, `work`, `hello` and a new project `Default`, none of them asked (`README.md`, 3.5); then the box asked to run the forge's steps (`../protocol/setup.md`, 7.1): its binaries fetched, its preparation, Forgejo and its runner started, then its handover taken and reconciled, the repository made with the starter workflow (`../protocol/setup.md`, 6.7), and, once the row says it made, the client's `MakeProject` and `Adopt` into it; the card names the path of `person_password`, never its password (`../protocol/setup.md`, 6.5) |
+| Set up a Forgejo here | the row's offer offered, not set up (`README.md`, 4.6) | its organization (default `work`), its repository (default `hello`) and its project, a new one named as the repository (`../draft/archive/first-run.md`, 2.4), or, from the welcome's card under the box, `work`, `hello` and a new project `Default`, none of them asked (`README.md`, 3.5); then the box asked to run the forge's steps (`../protocol/setup.md`, 7.1): its binaries fetched, its preparation, Forgejo and its runner started, then its handover taken and reconciled, the repository made with the starter workflow (`../protocol/setup.md`, 6.7), and, once the row says it made, the client's `MakeProject` and `Adopt` into it; the card names the path of `person_password`, never its password (`../protocol/setup.md`, 6.5) |
 | Set up again | the row's offer offered, set up failed | the same ask again: what the last one left is kept, a fetched binary hashed and not fetched again |
 
 Connect, but on a stopped forge or one whose records say why it is not
