@@ -12,7 +12,7 @@ the whole run `live-smith.log` and the reruns `live-smith-<n>.log`). The CLI the
 | `smith::live claude_delivers_a_commit_in_place` | `live.rs:344`, "run reports the expected resume state", after exit 0 | under survey |
 | `smith::live a_chat_crosses_from_chatgpt_to_claude_then_back` | whole run `live.rs:334` (exec failed, 22 s); rerun `live.rs:375` (a leg's file content, 16 s) | under survey |
 | `smith::live a_second_run_resumes_the_chat_from_its_files` | `live.rs:334`, exec failed (~6 s) | under survey |
-| `smith::live a_run_refreshes_its_grant_at_the_issuer` | `live.rs:34`, generation did not rise; the run itself passed | under survey |
+| `smith::live a_run_refreshes_its_grant_at_the_issuer` | `live.rs:34`, generation did not rise; the run itself passed | the story's lead `34_560_000` means 400 days in seconds, but deployment durations are milliseconds: 9.6 hours |
 
 The request's table attributes some of these lines differently; the logs above are the record.
 Earlier after-landing runs (11-01) failed every live story at setup (`$SMITH_LIVE` unset), so this
@@ -27,12 +27,15 @@ is the first run with lent logins: none of the six has been green in the pair.
   report of typed facts (leg, exit, the run's typed end and failure, resume state, file relation,
   generations), built by `support/live_report.rs` to `notes/contracts.md` and checked offline in
   `live_configuration`. Task `live-report`. The request's "first make the failure say why".
-- The causes of the four end-to-end reds follow the surveys.
+- **refresh-lead** (slice 3, released, needs `live-report`): the refresh story's lead becomes
+  `REFRESH_LEAD_MS` (400 days in milliseconds) in `support/live.rs`; an offline test in
+  `live_configuration` resolves the story's settings and sees 400 days (red at 9.6 hours).
+- The causes of the three remaining end-to-end reds follow the surveys.
 
 ## Critical path
 
 `claude-shapes` and `live-report` run side by side; neither needs the other. A cause task that
-edits `smith/tests/end-to-end/live.rs` needs `live-report`. The live check of every fix is the after-landing
+edits `smith/tests/end-to-end/live.rs` needs `live-report`: `refresh-lead` does. The live check of every fix is the after-landing
 pair on a main holding it, not an implementer's run.
 
 ## Overlaps with drafts beside this one
