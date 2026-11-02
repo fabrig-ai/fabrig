@@ -177,6 +177,8 @@ pub struct Domain {
     pub(crate) capabilities: Map<Token, crate::capabilities::Pending>,
     pub(crate) stopping: bool,
     pub(crate) landing: crate::landing::State,
+    pub(crate) tiers: Map<(skein_forge::api::Repository, Box<[u8]>), crate::TierRow>,
+    pub(crate) verifications: Map<(skein_forge::api::Repository, skein_forge::api::Commit), crate::Verification>,
     /// Restored timers stay passive until the scripted fresh-read stage (domain/root.md, 9.1).
     restore_phase: RestorePhase,
     pub(crate) reconciliation: crate::reconcile::Reconciliation,
@@ -582,6 +584,8 @@ impl Domain {
             identities: credentials,
             stopping: false,
             landing: crate::landing::State::new(l),
+            tiers: Map::with_capacity(l.repositories.checked_mul(l.tiers.tiers).expect("checked tier capacity")),
+            verifications: Map::with_capacity(l.changes),
             restore_phase: RestorePhase::Cold,
             reconciliation: crate::reconcile::Reconciliation::new(l),
             restore_started: None,
@@ -1033,6 +1037,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         return;
     }
     match event {
+        Event::TierTask { .. } | Event::TierRefused { .. } | Event::StepTier { .. } | Event::VetoTier { .. } => {}
         Event::OrderLanding { task, changes } => crate::landing::order(d, task, &changes, out),
         Event::JoinLanding { task, member, after } => crate::landing::join(d, task, member, &after, out),
         Event::Landing { row } => crate::landing::register(d, env, row, out),
@@ -4940,6 +4945,12 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
             d.forge_number = d.forge_number.max(last);
         }
         Stored::Playground(row) => d.playground = Some(row),
+        Stored::Tier(row) => {
+            d.tiers.insert((row.repository, row.tier.clone()), row).expect("restored tier within limits");
+        }
+        Stored::Verification(row) => {
+            d.verifications.insert((row.repository, row.commit), row).expect("restored verification within limits");
+        }
         Stored::Landing(row) => {
             d.landing.rows.insert(row.landing.task, row).expect("restored landing within limits");
         }
@@ -5606,6 +5617,25 @@ impl Domain {
                         }) {
                             return Key::Landing(*key);
                         }
+                    }
+                }
+            }
+            RecordKind::Tier => {
+                for ((repository, tier), row) in &self.tiers {
+                    if need.repository(*repository)
+                        || match row.task {
+                            Some(task) => need.task(task, Some(repository.forge)),
+                            None => false,
+                        }
+                    {
+                        return Key::Tier { repository: *repository, tier: tier.clone() };
+                    }
+                }
+            }
+            RecordKind::Verification => {
+                for ((repository, commit), _) in &self.verifications {
+                    if need.repository(*repository) {
+                        return Key::Verification { repository: *repository, commit: *commit };
                     }
                 }
             }

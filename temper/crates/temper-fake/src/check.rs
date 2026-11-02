@@ -77,6 +77,7 @@ const WORD: &[u8] = b"temper";
 /// Read every row in temper's interval, with keys relative to jig's application
 /// tag, as `temper_protocol_store::interval()` and `records::row` require.
 #[expect(clippy::type_complexity, reason = "the reader supplies raw KV key/value pairs")]
+#[expect(clippy::too_many_lines, reason = "one exhaustive evidence reducer for durable forge families")]
 pub fn evidence(forge: u16, rows: &[(Box<[u8]>, Box<[u8]>)], limits: &d::Limits) -> Result<Evidence, Reason> {
     // Evidence can outlive the task limits of the engine which wrote it.
     let bounds = temper_protocol_store::bounds(limits, temper_protocol_store::v11::CEILINGS.change_row_title)
@@ -157,7 +158,9 @@ pub fn evidence(forge: u16, rows: &[(Box<[u8]>, Box<[u8]>)], limits: &d::Limits)
             | d::Stored::Receipt { .. }
             | d::Stored::Forge(_)
             | d::Stored::ForgeNumber { .. }
-            | d::Stored::Playground(_) => {}
+            | d::Stored::Playground(_)
+            | d::Stored::Tier(_)
+            | d::Stored::Verification(_) => {}
         }
     }
     let client = client.ok_or(Reason::ClientUnknown)?;

@@ -176,6 +176,20 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
                 d.landing.rows.contains_key(&row.landing.task),
             )
         }
+        Stored::Tier(row) => room(
+            K::Tier,
+            Rows(K::Tier),
+            d.tiers.len(),
+            d.tiers.capacity(),
+            d.tiers.contains_key(&(row.repository, row.tier.clone())),
+        ),
+        Stored::Verification(row) => room(
+            K::Verification,
+            Rows(K::Verification),
+            d.verifications.len(),
+            d.verifications.capacity(),
+            d.verifications.contains_key(&(row.repository, row.commit)),
+        ),
         Stored::Receipt { key, .. } => room(
             K::Receipt,
             Rows(K::Receipt),

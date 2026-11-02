@@ -59,7 +59,7 @@ fn result_slots(l: &Limits) -> Option<u32> {
     slots(l)?.checked_mul(4)?.checked_add(l.landings.checked_mul(l.landing_members)?)
 }
 fn receipt_slots(l: &Limits) -> Option<u32> {
-    l.repositories.checked_mul(l.gates)?.checked_mul(l.receipts_per_gate)
+    l.repositories.checked_mul(l.gates.checked_add(l.tiers.tiers)?)?.checked_mul(l.receipts_per_gate)
 }
 // Landing row indices and retained table counts must fit before construction.
 pub(crate) fn valid(l: &Limits) -> bool {
@@ -998,6 +998,7 @@ pub(crate) fn answered(
                     policy::Verdict::Passed | policy::Verdict::Failed => {
                         let run = ended.run.expect("a verdict has a run");
                         let receipt = Receipt {
+                            failures: None,
                             passed: ended.outcome == policy::Verdict::Passed,
                             candidate,
                             ended: env.wall,
@@ -1923,7 +1924,11 @@ pub(crate) fn receipt_bytes(key: &ReceiptKey, receipt: &Receipt) -> Option<u64> 
     let name = match &key.check {
         Check::Gate(name) | Check::Tier(name) => name,
     };
-    u64::try_from(name.len()).ok()?.checked_add(u64::try_from(receipt.run.url.len()).ok()?)
+    let mut held = u64::try_from(name.len()).ok()?.checked_add(u64::try_from(receipt.run.url.len()).ok()?)?;
+    if let Some(failures) = &receipt.failures {
+        held = held.checked_add(crate::tiers::failures_bytes(failures)?)?;
+    }
+    Some(held)
 }
 fn wake_proved(d: &mut Domain, project: u32, out: &mut Queue<Request>) {
     // Permission is refreshed by the root at the next authorized step.
