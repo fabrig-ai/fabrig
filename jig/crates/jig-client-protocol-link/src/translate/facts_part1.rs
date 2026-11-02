@@ -243,6 +243,7 @@ pub(crate) fn wake_rule(value: &w::WakeRule) -> c::WakeRule {
         w::WakeRule::Never => c::WakeRule::Never,
         w::WakeRule::Immediate => c::WakeRule::Immediate,
         w::WakeRule::Batch(row) => c::WakeRule::Batch { count: row.count(), age: row.age() },
+        w::WakeRule::Paced(row) => c::WakeRule::Paced { span: row.span() },
     }
 }
 

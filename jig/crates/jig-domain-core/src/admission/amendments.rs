@@ -186,6 +186,7 @@ fn wake_rule(value: people::WakeRule) -> tasks::WakeRule {
         people::WakeRule::Never => tasks::WakeRule::Never,
         people::WakeRule::Immediate => tasks::WakeRule::Immediate,
         people::WakeRule::Batch { count, age } => tasks::WakeRule::Batch { count, age },
+        people::WakeRule::Paced { span } => tasks::WakeRule::Paced { span },
     }
 }
 

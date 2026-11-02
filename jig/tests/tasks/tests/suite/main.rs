@@ -16,6 +16,7 @@ mod llm;
 mod memory;
 mod met;
 mod open;
+mod pace;
 mod person;
 mod placed;
 mod procedures;

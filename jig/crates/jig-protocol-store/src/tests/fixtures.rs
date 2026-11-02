@@ -338,7 +338,7 @@ pub fn task_wake() -> jig_domain_tasks::WakePolicy {
     WakePolicy {
         words: WakeRule::Batch { count: 3, age: skein_lib::Duration::from_nanos(7) },
         notices: WakeRule::Immediate,
-        news: WakeRule::Never,
+        news: WakeRule::Paced { span: skein_lib::Duration::from_nanos(11) },
         results: ResultsWake::Each,
         questions: true,
         answers: false,
@@ -484,7 +484,7 @@ pub fn people_amendment() -> people::Amendment {
             inputs: Box::new([8]),
         }),
         wake: Some(people::WakePolicy {
-            words: people::WakeRule::Never,
+            words: people::WakeRule::Paced { span: skein_lib::Duration::from_nanos(101) },
             notices: people::WakeRule::Immediate,
             news: people::WakeRule::Batch { count: 2, age: skein_lib::Duration::from_nanos(99) },
             results: people::ResultsWake::LastOrFailure,
