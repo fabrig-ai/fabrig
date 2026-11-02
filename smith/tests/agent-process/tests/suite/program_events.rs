@@ -40,9 +40,14 @@ fn finish() -> Step {
 fn a_program_run_s_events_name_its_backend() {
     let run = run(vec![finish()], false);
     let mut models = 0;
+    let mut starts = 0;
     for record in &run.events {
         let model = match &record.event {
-            Event::RunStarted(start) => Some(&start.main),
+            Event::RunStarted(start) => {
+                starts += 1;
+                assert!(!start.resumed, "a fresh program run opens without a transcript");
+                Some(&start.main)
+            }
             Event::ConversationOpened(opening) => Some(&opening.model),
             Event::ResponseStarted(start) => Some(&start.model),
             Event::ToolStarted(call) => {
@@ -56,6 +61,7 @@ fn a_program_run_s_events_name_its_backend() {
             models += 1;
         }
     }
+    assert_eq!(starts, 1, "one RunStarted per admitted run");
     assert!(models >= 3);
     let prompt = run
         .events

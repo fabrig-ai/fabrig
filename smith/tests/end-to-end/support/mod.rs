@@ -610,6 +610,10 @@ fn refusal_program_code(
     binary.stderr().to_vec()
 }
 
+pub mod live;
+
+pub mod live_report;
+
 pub mod live_run;
 
 /// The agent's expected destination from the story's selected placement.

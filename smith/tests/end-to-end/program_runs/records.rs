@@ -1,4 +1,19 @@
 //! Independent decoding of each process stream (smith/docs/design/protocol/events.md, sections 2 and 6).
+#[expect(clippy::disallowed_types, reason = "bounded outside observation of the settled agent trace")]
+pub(super) fn agent(trace: &std::path::Path) -> Vec<smith_events::Record> {
+    use std::io::Read;
+    let mut path = trace.as_os_str().to_os_string();
+    path.push(".agent");
+    let mut bytes = Vec::new();
+    std::fs::File::open(path)
+        .expect("agent trace exists")
+        .take(1_048_577)
+        .read_to_end(&mut bytes)
+        .expect("read agent trace");
+    assert!(bytes.len() <= 1_048_576, "agent trace stays within the process stream bound");
+    read(&bytes)
+}
+
 pub(super) fn read(bytes: &[u8]) -> Vec<smith_events::Record> {
     // The binary harness captures at most one MiB per stream.
     const STREAM_BYTES: u32 = 1_048_576;

@@ -468,6 +468,19 @@ impl World {
             Behaviour::default(),
         )
     }
+
+    /// Keep provider reasoning before the opening report's finish call for replay.
+    #[must_use]
+    pub fn reasoning(seed: u64, files: &Files, placement: Placement, answer: &[u8], reasoning: &[u8]) -> Self {
+        let mut world = Self::new(seed, files, placement, answer);
+        let mut scripts = scripts();
+        let mut lines = vec![api::Line::Opaque { bytes: reasoning.into() }];
+        lines.extend_from_slice(&scripts[0].turns[0].lines);
+        scripts[0].turns[0].lines = lines.into();
+        world.scenario.scripts = Some(scripts);
+        world
+    }
+
     /// Three workspace reads followed by an accepted report in the same process.
     #[must_use]
     pub fn reading(seed: u64, files: &Files, placement: Placement) -> Self {
@@ -621,7 +634,7 @@ impl World {
     }
     #[must_use]
     pub fn changed(seed: u64, files: &Files, placement: Placement) -> Self {
-        Self::configured(
+        let mut world = Self::configured(
             seed,
             files,
             placement,
@@ -632,7 +645,29 @@ impl World {
             ],
             Ending::Change { before: format!("{:040x}", 1).into_bytes() },
             Behaviour { change: true, ..Behaviour::default() },
-        )
+        );
+        let local::Event::Loaded { transcript, .. } =
+            load_chat(&world.scenario.launch.state_directory, &process::lower_configuration().channel_endpoints)
+        else {
+            unreachable!("chat codec terminal")
+        };
+        if let Some(history) = transcript {
+            let assistant_messages = history
+                .turns
+                .iter()
+                .flat_map(|turn| turn.messages.iter())
+                .filter(|message| message.role == smith_domain::session::llm::Role::Assistant)
+                .count();
+            let mut scripts = change_scripts();
+            // System-cued scripts count saved assistant messages too
+            // (skein/docs/design/fake-llm.md, 2.4). The skipped prefix keeps
+            // the write as the first answer to this invocation.
+            let mut turns = vec![scripts[0].turns[0].clone(); assistant_messages];
+            turns.extend_from_slice(&scripts[0].turns);
+            scripts[0].turns = turns.into();
+            world.scenario.scripts = Some(scripts);
+        }
+        world
     }
     fn configured(
         seed: u64,
