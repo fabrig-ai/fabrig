@@ -67,6 +67,7 @@ pub const TASKS_LIMITS: jig_domain_tasks::Limits = jig_domain_tasks::Limits {
     references: 2,
     subscriptions: 2,
     batch: 2,
+    batch_bytes: 131_072,
     dependencies: 2,
     holdings: 2,
     hold_kinds: 2,
