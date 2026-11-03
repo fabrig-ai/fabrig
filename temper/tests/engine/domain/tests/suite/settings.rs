@@ -436,7 +436,7 @@ fn an_owner_change_commits_and_the_next_read_serves_it() {
         Delivery::WebReply { reply: people::Reply::Outcome(people::Outcome::SettingsChanged { revision: 2 }), .. }
     )));
     assert_eq!(head(&driver).by, s::Decider::Party(OWNER_PERSON)); // First issued person, independent of their identity subject.
-    assert_eq!(read_rules(&mut driver, 2).value, rule_value(2));
+    assert_eq!(read_rules(&mut driver, 2).value, Some(rule_value(2)));
 }
 #[test]
 fn a_nonowner_cannot_change_the_deployments_settings() {
@@ -495,7 +495,7 @@ fn changed_settings_restore_before_accounts_and_survive_a_restart() {
             engine::Range::Core(engine::CoreRange::Accounts)
         ]
     );
-    assert_eq!(read_rules(&mut restarted, 2).value, rule_value(2));
+    assert_eq!(read_rules(&mut restarted, 2).value, Some(rule_value(2)));
 }
 #[test]
 fn changed_release_defaults_record_a_revision_once() {

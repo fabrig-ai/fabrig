@@ -165,6 +165,36 @@ fn delegations_with_one_repository_id_take_their_own_forges_holding() {
     }
 }
 
+#[test]
+fn a_change_on_its_requesters_branch_asks_no_write_holding() {
+    use super::{forge, tasks};
+    let (mut domain, env) = two_forges();
+    let connector = domain.config.forge_connector;
+    let spec = tasks::Spec {
+        parameters: Box::new([
+            tasks::Parameter::Resource { name: 1, connector, resource: forge::tag(1, 1) },
+            tasks::Parameter::Bytes { name: 2, value: Box::from(b"main".as_slice()) },
+            tasks::Parameter::Bytes { name: 3, value: Box::from(b"temper/7/g8".as_slice()) },
+            tasks::Parameter::Number { name: 11, value: 1 },
+        ]),
+        ..goal_spec()
+    };
+    let holdings = super::task_holdings(
+        &mut domain,
+        &env,
+        GOAL_PROJECT,
+        GOAL_ROOT,
+        GOAL_CHANGE,
+        tasks::Executor::Procedure { connector, code: super::CHANGE_CODE },
+        &spec,
+        Some(GOAL_TASK),
+        false,
+        &[],
+    )
+    .expect("a change on its requester's branch admitted");
+    assert!(holdings.is_empty(), "the goal keeps its holding instead of handing it down");
+}
+
 const GOAL_PROJECT: u32 = 5;
 const GOAL_ROOT: u64 = 7;
 const GOAL_TASK: u64 = 8;
@@ -2287,6 +2317,61 @@ fn a_changes_start_keeps_parameter_elevens_charter_and_role_choices() {
         assert_eq!(row.review_charter, 4);
         assert_eq!(row.producing_llm, llm.producer);
         assert_eq!(row.review_llm, llm.review);
+    }
+}
+
+#[test]
+fn a_requesters_branch_and_role_choices_reach_start_together() {
+    use super::{Work, forge, tasks};
+    let (domain, env, delegation) = change_choice_world();
+    let llm = crate::ChangeLlm { producer: Some(choice(1, None)), review: Some(choice(2, None)) };
+    let change = crate::ChangeCall {
+        branch: Some(crate::ChangeBranch::Mine),
+        producer: Some(6),
+        llm: llm.clone(),
+        ..crate::ChangeCall::words(b"Land the goal\r\nWhole branch".as_slice().into(), None)
+    };
+    let branch = b"temper/7/g8".as_slice();
+    let delegate = super::chat_change(
+        &domain,
+        &env,
+        &delegation,
+        &change,
+        &adopted(1),
+        b"main".as_slice().into(),
+        Some(branch.into()),
+        50,
+    )
+    .unwrap();
+    assert_eq!(
+        delegate.spec.parameters.as_ref(),
+        &[
+            tasks::Parameter::Resource {
+                name: 1,
+                connector: domain.config.forge_connector,
+                resource: forge::tag(1, 1)
+            },
+            tasks::Parameter::Bytes { name: 2, value: b"main".as_slice().into() },
+            tasks::Parameter::Bytes { name: 3, value: branch.into() },
+            tasks::Parameter::Number { name: 11, value: 1 },
+            tasks::Parameter::Bytes { name: 10, value: b"Land the goal".as_slice().into() },
+            tasks::Parameter::Bytes { name: 11, value: b"6;1;2".as_slice().into() },
+        ]
+    );
+    let (mut domain, env, mut context) = change_start_fixture();
+    context.spec = delegate.spec;
+    assert!(super::start_change(&mut domain, &env, &context));
+    let Some(Work::Forge(forge::Event::Change { row })) = domain.work.pop() else { panic!("new change row") };
+    assert_eq!(row.branch.as_ref(), branch);
+    assert_eq!(row.title.as_ref(), b"Land the goal");
+    assert_eq!(row.producing_charter, 6);
+    assert_eq!(row.review_charter, 4);
+    assert_eq!(row.producing_llm, llm.producer);
+    assert_eq!(row.review_llm, llm.review);
+    while let Some(work) = domain.work.pop() {
+        if let Work::Forge(forge::Event::Hold { .. }) = work {
+            unreachable!("the requester keeps its branch hold");
+        }
     }
 }
 

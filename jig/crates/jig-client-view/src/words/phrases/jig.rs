@@ -19,6 +19,8 @@ pub enum JigPhrase {
     SettingTemplate,
     SettingPolicy,
     SettingRules,
+    SettingApplication,
+    SettingFaultJudged,
     SettingFaultShape,
     SettingFaultCount,
     SettingFaultReference,
@@ -1081,6 +1083,8 @@ impl JigPhrase {
             Self::SettingTemplate => 7907,
             Self::SettingPolicy => 7908,
             Self::SettingRules => 7909,
+            Self::SettingApplication => 7925,
+            Self::SettingFaultJudged => 7926,
             Self::SettingFaultShape => 7910,
             Self::SettingFaultCount => 7911,
             Self::SettingFaultReference => 7912,
@@ -1729,13 +1733,15 @@ impl JigPhrase {
                 HoleShape { kind: HoleKind::Number, bytes: 0 },
                 HoleShape { kind: HoleKind::Number, bytes: 0 },
             ]),
-            Self::PolicyJudge | Self::PolicyPermission | Self::SpecificationResource | Self::MovedToNewest => {
-                Box::new([
-                    HoleShape { kind: HoleKind::Number, bytes: 0 },
-                    HoleShape { kind: HoleKind::Number, bytes: 0 },
-                    HoleShape { kind: HoleKind::Number, bytes: 0 },
-                ])
-            }
+            Self::PolicyJudge
+            | Self::PolicyPermission
+            | Self::SpecificationResource
+            | Self::MovedToNewest
+            | Self::SettingApplication => Box::new([
+                HoleShape { kind: HoleKind::Number, bytes: 0 },
+                HoleShape { kind: HoleKind::Number, bytes: 0 },
+                HoleShape { kind: HoleKind::Number, bytes: 0 },
+            ]),
             Self::MalformedRunning
             | Self::SettingsUnchanged
             | Self::SettingRules
@@ -1746,6 +1752,7 @@ impl JigPhrase {
             | Self::SettingFaultBudget
             | Self::SettingFaultGrace
             | Self::SettingFaultOwner
+            | Self::SettingFaultJudged
             | Self::DependencyParked
             | Self::CircleHold
             | Self::CircleLifts
@@ -2399,7 +2406,7 @@ impl JigPhrase {
     }
 }
 /// Every jig phrase; loading checks this whole contract.
-pub const ALL: [JigPhrase; 642] = [
+pub const ALL: [JigPhrase; 644] = [
     JigPhrase::TooLinked,
     JigPhrase::SettingsChanged,
     JigPhrase::MovedToNewest,
@@ -2413,6 +2420,8 @@ pub const ALL: [JigPhrase; 642] = [
     JigPhrase::SettingTemplate,
     JigPhrase::SettingPolicy,
     JigPhrase::SettingRules,
+    JigPhrase::SettingApplication,
+    JigPhrase::SettingFaultJudged,
     JigPhrase::SettingFaultShape,
     JigPhrase::SettingFaultCount,
     JigPhrase::SettingFaultReference,

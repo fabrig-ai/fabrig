@@ -137,11 +137,13 @@ fn a_settings_file_charter_names_documents() {
                 .expect("number"),
             ),
             revision: 5,
-            value: wire_value,
+            value: Some(wire_value),
+            application: None,
+            proposed: None,
         },
     )
     .expect("wire document");
-    assert_eq!(settings_form::wire::restore_setting_document(&wire, &bounds).expect("restore").value, form);
+    assert_eq!(settings_form::wire::restore_setting_document(&wire, &bounds).expect("restore").value, Some(form));
     let neutral = settings_form::view::ChangeSettings {
         against: 5,
         items: settings_form::file::decode(&file, &bounds).expect("neutral items"),
@@ -165,7 +167,13 @@ fn settings_show_charter_renders_its_documents() {
         }
         let answer = read(
             &argv,
-            c::ReadValue::Setting(Box::new(c::SettingDocument { setting, revision: 5, value: value.clone() })),
+            c::ReadValue::Setting(Box::new(c::SettingDocument {
+                setting,
+                revision: 5,
+                value: Some(value.clone()),
+                application: None,
+                proposed: None,
+            })),
         );
         assert_eq!(answer.status, 0);
         golden(if json { "settings_value_0_json" } else { "settings_value_0" }, &answer.stdout);
@@ -426,7 +434,9 @@ fn read(argv: &[&str], value: c::ReadValue) -> jig::Printed {
             c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
                 setting: request.setting,
                 revision: 6,
-                value,
+                value: Some(value),
+                application: None,
+                proposed: None,
             }))),
         );
     }
@@ -453,7 +463,13 @@ fn setting_json(setting: c::Setting, value: c::SettingValue) -> Vec<u8> {
     newest_for_setting(&mut root, number);
     root.serve(
         number,
-        c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument { setting, revision: 5, value }))),
+        c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+            setting,
+            revision: 5,
+            value: Some(value),
+            application: None,
+            proposed: None,
+        }))),
     );
     root.answer(number).expect("setting answered").stdout.to_vec()
 }
@@ -581,9 +597,16 @@ fn whole_settings_document_renderings_are_stable() {
                 setting: c::Setting::Charter(c::SettingNumber { number: 3 }),
                 name: Some(c::DocumentText::complete(words("worker"))),
                 follows: c::SettingFollows::Change,
-                last: 5,
+                last: Some(5),
+                application: None,
             },
-            c::SettingLine { setting: c::Setting::Rules, name: None, follows: c::SettingFollows::Default, last: 0 },
+            c::SettingLine {
+                setting: c::Setting::Rules,
+                name: None,
+                follows: c::SettingFollows::Default,
+                last: Some(0),
+                application: None,
+            },
         ]),
         held: list([c::HeldRevision {
             head: head(c::RevisionDecider::Party(c::RevisionParty { number: 2 })),
@@ -811,11 +834,18 @@ fn setting_text_and_revisions_include_whole_set_values_and_last_page_facts() {
             c::Setting::Charter(_) => vec!["settings", "show", "charter", "3"],
             c::Setting::Template(_) => vec!["settings", "show", "template", "4"],
             c::Setting::Policy(_) => vec!["settings", "show", "policy", "5"],
+            c::Setting::Application { .. } => continue,
             c::Setting::Rules => vec!["settings", "show", "rules"],
         };
         let answer = read(
             &argv,
-            c::ReadValue::Setting(Box::new(c::SettingDocument { setting, revision: 5, value: value.clone() })),
+            c::ReadValue::Setting(Box::new(c::SettingDocument {
+                setting,
+                revision: 5,
+                value: Some(value.clone()),
+                application: None,
+                proposed: None,
+            })),
         );
         assert_eq!(answer.status, 0);
         golden(&format!("settings_value_{index}"), &answer.stdout);
@@ -1111,6 +1141,7 @@ fn settings_review_goldens_keep_every_edit_value_origin_and_head_fact() {
                     now: set.clone(),
                     origin: c::SettingOrigin::Change(c::OriginRevision { revision: 4 }),
                     would_be: set.clone(),
+                    application: None,
                 },
                 c::ReviewItem {
                     setting,
@@ -1118,6 +1149,7 @@ fn settings_review_goldens_keep_every_edit_value_origin_and_head_fact() {
                     now: set.clone(),
                     origin: c::SettingOrigin::Default(c::OriginRevision { revision: 2 }),
                     would_be: c::ReviewValue::None,
+                    application: None,
                 },
                 c::ReviewItem {
                     setting,
@@ -1125,6 +1157,7 @@ fn settings_review_goldens_keep_every_edit_value_origin_and_head_fact() {
                     now: c::ReviewValue::None,
                     origin: c::SettingOrigin::NotOffered,
                     would_be: set.clone(),
+                    application: None,
                 },
                 c::ReviewItem {
                     setting,
@@ -1132,6 +1165,7 @@ fn settings_review_goldens_keep_every_edit_value_origin_and_head_fact() {
                     now: set.clone(),
                     origin: c::SettingOrigin::Default(c::OriginRevision { revision: 2 }),
                     would_be: set.clone(),
+                    application: None,
                 },
                 c::ReviewItem {
                     setting,
@@ -1139,6 +1173,7 @@ fn settings_review_goldens_keep_every_edit_value_origin_and_head_fact() {
                     now: c::ReviewValue::TooLarge(c::Size { bytes: 4096 }),
                     origin: c::SettingOrigin::Change(c::OriginRevision { revision: 3 }),
                     would_be: set.clone(),
+                    application: None,
                 },
                 c::ReviewItem {
                     setting,
@@ -1146,6 +1181,7 @@ fn settings_review_goldens_keep_every_edit_value_origin_and_head_fact() {
                     now: set,
                     origin: c::SettingOrigin::Default(c::OriginRevision { revision: 0 }),
                     would_be: c::ReviewValue::TooLarge(c::Size { bytes: 8192 }),
+                    application: None,
                 },
             ]),
         };
@@ -1488,6 +1524,7 @@ fn proposal_review_reads_both_large_values_whole_and_keeps_refusals_in_place() {
                         now: large.clone(),
                         would_be: large,
                         origin: c::SettingOrigin::Default(c::OriginRevision { revision: 1 }),
+                        application: None,
                     }]),
                 }))),
             );
@@ -1501,7 +1538,9 @@ fn proposal_review_reads_both_large_values_whole_and_keeps_refusals_in_place() {
                 c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
                     setting,
                     revision: 6,
-                    value: value.clone(),
+                    value: Some(value.clone()),
+                    application: None,
+                    proposed: None,
                 }))),
             );
             assert_eq!(
@@ -1520,7 +1559,9 @@ fn proposal_review_reads_both_large_values_whole_and_keeps_refusals_in_place() {
                     c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
                         setting,
                         revision: 6,
-                        value,
+                        value: Some(value),
+                        application: None,
+                        proposed: None,
                     }))),
                 );
             }

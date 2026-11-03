@@ -118,11 +118,36 @@ pub(crate) fn proposal(name: run::CallName, bytes: &[u8], configured: &[engine::
             return Err(Problem::Range(b"items"));
         }
     };
+    let kinds = kind_values(&items)?;
     Ok(Decoded::Call(engine::Call {
         completion: name.completion,
         position: name.position,
-        tool: engine::Tool::ProposeSettings { against, items, reason, kinds: Box::default() },
+        tool: engine::Tool::ProposeSettings { against, items, reason, kinds },
     }))
+}
+
+/// Type application values at the schema ceilings; the forge judges deployment bounds
+/// (temper/docs/design/domain/root.md, 5.6).
+pub(super) fn kind_values(items: &[s::Item]) -> Result<Box<[engine::KindValue]>, Problem> {
+    let ceilings = temper_client_protocol_wire::v1::CEILINGS;
+    let bounds = crate::kinds::Bounds {
+        segments: ceilings.landing_pattern_segments,
+        segment_bytes: ceilings.landing_pattern_segments_item,
+        gates: ceilings.landing_rule_gates,
+        approvals: ceilings.landing_rule_approvals,
+    };
+    let mut values = List::with_capacity(u32::try_from(items.len()).expect("bounded settings items"));
+    for item in items {
+        let s::Setting::Application { kind: kind @ 1..=3, scope, number } = item.setting else { continue };
+        let bytes = match &item.edit {
+            s::Edit::Set(s::Value::Application(bytes)) => bytes,
+            s::Edit::Set(_) => return Err(Problem::Range(b"items")),
+            s::Edit::Removed | s::Edit::Reset => continue,
+        };
+        let value = crate::kinds::decode(kind, bytes, &bounds).ok_or(Problem::Range(b"items"))?;
+        values.push(engine::KindValue { kind, scope, number, value }).expect("one value per set item");
+    }
+    Ok(values.into_boxed())
 }
 
 /// Render the same settings document through the same text layer as ctl.
@@ -199,6 +224,41 @@ pub fn settings_answer(
 
 pub(crate) fn refusal(why: &jig_domain_people::Refusal) -> Box<[u8]> {
     use jig_domain_people::{Malformed, Refusal};
+    match why {
+        Refusal::Judged { why, .. } => {
+            let mut out = settings_form::Text::measure();
+            out.put(b"refused by its owner: ");
+            out.put(why);
+            let mut rendered = settings_form::Text::writing_exact(out);
+            rendered.put(b"refused by its owner: ");
+            rendered.put(why);
+            return rendered.finish();
+        }
+        Refusal::SignInRedirect { .. }
+        | Refusal::Stale { .. }
+        | Refusal::Full { .. }
+        | Refusal::NameTaken
+        | Refusal::AccountMove { .. }
+        | Refusal::Circle { .. }
+        | Refusal::Dependency { .. }
+        | Refusal::Kept { .. }
+        | Refusal::Account { .. }
+        | Refusal::NotWellFormed { .. }
+        | Refusal::Role { .. }
+        | Refusal::Authority { .. }
+        | Refusal::Limit { .. }
+        | Refusal::Moved { .. }
+        | Refusal::Ended { .. }
+        | Refusal::Taken { .. }
+        | Refusal::NotWaiting
+        | Refusal::NoFurther
+        | Refusal::Unknown
+        | Refusal::NotOffered
+        | Refusal::Provider
+        | Refusal::KeyConflict
+        | Refusal::NoEscalationHolder
+        | Refusal::Llm { .. } => {}
+    }
     let view = if let Refusal::Stale { newest } = why {
         settings_form::Refusal::Stale(*newest)
     } else if let Refusal::NotWellFormed { at, why: Malformed::Settings { setting, fault } } = why {
@@ -207,7 +267,9 @@ pub(crate) fn refusal(why: &jig_domain_people::Refusal) -> Box<[u8]> {
             s::Setting::Template(number) => c::Setting::Template(c::SettingNumber { number: *number }),
             s::Setting::Policy(number) => c::Setting::Policy(c::SettingNumber { number: *number }),
             s::Setting::Rules => c::Setting::Rules,
-            s::Setting::Application { .. } => unreachable!("an application's setting: apps-wire"),
+            s::Setting::Application { kind, scope, number } => {
+                c::Setting::Application { kind: *kind, scope: *scope, number: *number }
+            }
         };
         let fault = match fault {
             jig_domain_people::SettingFault::Shape => c::SettingFault::Shape,
@@ -217,7 +279,7 @@ pub(crate) fn refusal(why: &jig_domain_people::Refusal) -> Box<[u8]> {
             jig_domain_people::SettingFault::Budget => c::SettingFault::Budget,
             jig_domain_people::SettingFault::Grace => c::SettingFault::Grace,
             jig_domain_people::SettingFault::Owner => c::SettingFault::Owner,
-            jig_domain_people::SettingFault::Judged => unreachable!("an application's setting: apps-wire"),
+            jig_domain_people::SettingFault::Judged => c::SettingFault::Judged,
         };
         settings_form::Refusal::Malformed { at: *at, setting, fault }
     } else if let Refusal::NotWellFormed { why: Malformed::SettingsUnchanged, .. } = why {
