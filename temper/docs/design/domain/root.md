@@ -77,7 +77,7 @@ temper-engine-domain                       the root: the journal, routing, trans
   (jig's `domain/engine.md`, section 6). temper's domain worlds run their
   workers apart.
 - **Its state:** its children's; the journal; what it keeps of its
-  configuration (the forge's number and the forge's charter); its facts
+  configuration (the forge's number); its facts
   waiting to be drained; and the values in flight between a hand-off and
   its answer, each bounded (section 10): a worker's record until the
   fleet takes it, a run's brief sections and workspace while its claim is
@@ -640,23 +640,24 @@ exhaustively with no `_` arm (jig's `domain/root.md`, section 6).
   id as text: in lowercase hexadecimal, as a delegate's commits are
   (below), shortened to its first digits, as a short id is, when the
   task's contract bounds its words under the id's 40 or 64. Where the
-  bound leaves room, a line follows the id: the pull request in the
+  bound leaves room, verification words follow the id, whole or not at
+  all: `Cleared by TIER run N.`, the repairing run and landing where
+  applicable, or `Not cleared: ...` (`after-landing.md`, 6). These words
+  precede the optional pull request line so they take room first within
+  a task document's text window. Next comes the pull request in the
   forge's words (`../client/README.md`, 4.1) and its address on the
   forge (`../client/forge.md`, 9.2), `pull request #7 of acme/app on
   github.com: https://github.com/acme/app/pull/7`, or the words alone
   where the forge gives no address or it is past its bound; the line
-  cut whole, never in part, where the bound leaves no room for it; so
-  that the run that
-  asked for it hears which pull request landed, since jig gives a
-  parent a result's words and never its resource. After the pull
-  request line, where the bound leaves room for it whole, a third line
-  says the landing in words, `Landed: pull request #7 merged into main
-  as 0123456789ab.`: the pull request's number, the branch it landed
-  into and the merge commit's first twelve digits, whole or not at
-  all, so that the run reads that the change landed and not only what
-  the landing passed (`forge.md`, 8.2), which follows, fitted to what
-  the bound leaves. A client reads the id
-  from the first line. A result's
+  cut whole, never in part, where the bound leaves no room for it.
+  After the pull request line, where the bound leaves room for it whole,
+  a line says `Landed: pull request #7 merged into main as 0123456789ab.`:
+  the pull request's number, the branch it landed into and the merge
+  commit's first twelve digits. The run that asked hears which pull
+  request landed, since jig gives a parent the result's words and never
+  its resource. The reported evidence of what the landing passed
+  (`forge.md`, 8.2) follows, fitted to what the bound leaves. A client
+  reads the id from the first line. A result's
   words are text that summarises it (jig's `domain/tasks.md`, section 3,
   and `client/domain/contract.md`, 5.3), never the commit's bytes; the
   whole id stays the change's and its pull request's (`forge.md`, 8.2).

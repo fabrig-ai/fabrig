@@ -286,11 +286,19 @@ pub enum Running {
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Setting {
-    Application { kind: u32, scope: u32, number: u32 },
+    Application {
+        kind: u32,
+        scope: u32,
+        number: u32,
+    },
     Charter(SettingNumber),
     Template(SettingNumber),
     Policy(SettingNumber),
     Rules,
+    /// A project's own policy (jig/docs/design/domain/engine.md, 17.2).
+    ProjectPolicy {
+        project: u32,
+    },
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SettingDocument {

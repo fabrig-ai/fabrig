@@ -149,3 +149,19 @@ before `begin` mutates anything; where that bound does not already cover the wit
 add them to it (a fixed price in a test that moves only for that is corrected and listed in
 the report); if covering them would need a `Limits` field or a configuration envelope to move,
 stop and ask. Add a `deletion.rs` line to the report's changed files.
+
+2026-11-03. **Q: which write allowance bounds the deletion's settings withdrawals: new
+root-to-core plumbing, or an existing bound?** An existing one; no `Limits` field, no
+configuration envelope, no root change. The withdrawals `withdraw_project` makes are a subset
+of `core.settings_proposals`, at most `settings.proposals` sets, so they cost at most
+`settings::withdrawal_writes(&env.limits)`: the same allowance every settings revision decision
+reserves, already inside `settings::writes_bound`, which `jig-protocol-config` checks against
+`journal.writes`. That is the deletion's bound for them. Keep the helper as pushed (its
+message-number preflight is the only refusable part, and it runs before `begin` mutates
+anything); give `withdraw_project` a doc line naming `withdrawal_writes` as its bound, and add
+`a_deletion_withdraws_its_policy_proposals_within_the_withdrawal_allowance` to
+`tests/settings/project_policy.rs`: `settings.proposals` pending sets naming the project's
+policy, the deletion withdrawing all of them, the writes it emits for them at most
+`withdrawal_writes`. The rest of a deletion's commit (`keep`, `CloseProject`, `cancel`'s
+operations) has never been priced against `journal.writes`: not this task's; name it under
+`## Left`. Then remove the engine.status.md **Not yet** text as the spec says and finish.

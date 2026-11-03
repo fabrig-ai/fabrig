@@ -1076,10 +1076,10 @@ pub(crate) fn connector_out(
             let mut grace = None;
             for setting in &domain.core.current.offered() {
                 let number = match setting {
-                    jig_domain_people::Setting::ProjectPolicy { .. } => unreachable!("a project's policy: policy-wire"),
                     core::settings::Setting::Template(number) => *number,
                     core::settings::Setting::Charter(_)
                     | core::settings::Setting::Policy(_)
+                    | core::settings::Setting::ProjectPolicy { .. }
                     | core::settings::Setting::Rules
                     | core::settings::Setting::Application { .. } => continue,
                 };

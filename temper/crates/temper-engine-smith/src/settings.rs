@@ -264,7 +264,7 @@ pub(crate) fn refusal(why: &jig_domain_people::Refusal) -> Box<[u8]> {
         settings_form::Refusal::Stale(*newest)
     } else if let Refusal::NotWellFormed { at, why: Malformed::Settings { setting, fault } } = why {
         let setting = match setting {
-            jig_domain_people::Setting::ProjectPolicy { .. } => unreachable!("a project's policy: policy-ctl"),
+            s::Setting::ProjectPolicy { project } => c::Setting::ProjectPolicy { project: *project },
             s::Setting::Charter(number) => c::Setting::Charter(c::SettingNumber { number: *number }),
             s::Setting::Template(number) => c::Setting::Template(c::SettingNumber { number: *number }),
             s::Setting::Policy(number) => c::Setting::Policy(c::SettingNumber { number: *number }),

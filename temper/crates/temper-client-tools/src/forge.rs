@@ -640,14 +640,20 @@ pub(crate) fn change(kind: u16, resource: &c::Part, words: &c::DocumentText, out
         out.put(b" \xc2\xb7 merge commit ");
         out.words(commit);
         let (address, evidence) = landing_lines(words.bytes(), words.cut);
+        let leading = landing_leading(words.bytes());
+        let leading_room = if leading.is_empty() { 0 } else { leading.len().saturating_add(1) };
         if let Some(address) = address {
             // Keep verification evidence readable before spending room on an optional address.
-            if address.len().saturating_add(verification_room(evidence)) <= out.room() {
+            if address.len().saturating_add(verification_room(evidence)).saturating_add(leading_room) <= out.room() {
                 out.put(b"\npull request: ");
                 out.words(address);
             } else {
                 out.omit(address.len());
             }
+        }
+        if !leading.is_empty() {
+            out.words(b"\n");
+            out.words(leading);
         }
         if !evidence.is_empty() {
             out.words(b"\n");
@@ -663,23 +669,23 @@ fn verification_room(evidence: &[u8]) -> usize {
         || skein_lib::bytes::find(evidence, b"\nCleared by ").is_some()
         || skein_lib::bytes::find(evidence, b"\nNot cleared:").is_some()
     {
-        evidence.len()
+        evidence.len().saturating_add(1)
     } else {
         0
     }
 }
-/// Only the second line supplies the pull's address (domain/forge.md, 8.2).
+/// The pull line supplies its address and trailing evidence (domain/forge.md, 8.2).
 /// A following newline proves that line whole even when later evidence was cut.
 pub(crate) fn landing_lines(words: &[u8], cut: bool) -> (Option<&[u8]>, &[u8]) {
     let Some(start) = skein_lib::bytes::find(words, b"\n") else { return (None, b"") };
     let tail = words.get(start.checked_add(1).expect("newline separator")..).expect("newline within words");
-    // A small result bound can omit the pull line altogether. Its checks are still evidence.
-    if !tail.starts_with(b"pull request #") {
+    let Some(at) = landing_pull_at(tail) else {
         return (None, tail);
-    }
+    };
+    let tail = tail.get(at..).expect("pull within landing words");
     let (line, evidence) = match skein_lib::bytes::find(tail, b"\n") {
         Some(end) => (
-            tail.get(..end).expect("second line"),
+            tail.get(..end).expect("pull line"),
             tail.get(end.checked_add(1).expect("newline separator")..).expect("evidence within words"),
         ),
         None if cut => return (None, b""),
@@ -696,6 +702,24 @@ pub(crate) fn landing_lines(words: &[u8], cut: bool) -> (Option<&[u8]>, &[u8]) {
         },
         evidence,
     )
+}
+
+fn landing_pull_at(tail: &[u8]) -> Option<usize> {
+    if tail.starts_with(b"pull request #") {
+        Some(0)
+    } else {
+        Some(skein_lib::bytes::find(tail, b"\npull request #")?.checked_add(1).expect("newline separator"))
+    }
+}
+
+/// Evidence ahead of the optional pull line shares the trailing evidence's text budget.
+fn landing_leading(words: &[u8]) -> &[u8] {
+    let Some(start) = skein_lib::bytes::find(words, b"\n") else { return b"" };
+    let tail = words.get(start.checked_add(1).expect("newline separator")..).expect("landing body");
+    match landing_pull_at(tail) {
+        Some(0) | None => b"",
+        Some(at) => tail.get(..at.checked_sub(1).expect("preceding newline")).expect("leading evidence"),
+    }
 }
 pub(crate) fn result_part(value: &c::ApplicationPart, out: &mut Text) {
     match value {

@@ -27,19 +27,20 @@ A change is a task that writes one repository's branch and lands it: its pull re
   Next is `questions: ROUTE · TAKEN of LIMIT taken`, then each open
   question with its asker, number, first line and where it stands;
   with route `none` and nothing taken, `questions: none`.
-- **Its result** is the change landed: its merge commit, its pull
-  request with its address, a line `Landed: pull request #N merged into
-  BASE as SHORT.`, then `Report:` and its coder's last report, then
-  what the landing passed as the change saw it:
-  `checks at HEAD:` each check at the landed head with its conclusion,
-  `repairs: N:` why each repair was asked, and `reviews:`
-  each verdict at the head it judged, cut from the end and marked when
-  long. It names only checks and tests it saw. Where tiers follow its
-  landing branch (temper help tier), it waits for verdicts and adds `Cleared by TIER run N.`, for a
-  landing once red, `Cleared by TIER run N, which passed the failures
-  blamed on it; repaired by COMMIT.` where a change naming it repaired
-  it, or `Not cleared: no verdict within the verification bound.` It may
-  fail or be cancelled. A coder finding no change applies ends
+- **Its result** names its merge commit, any tier verdict, then its pull
+  request and address and `Landed: pull request #N merged into BASE as
+  SHORT.`. `Report:` gives the coder's report, followed by what
+  the landing passed: `checks at HEAD:` with conclusions,
+  `repairs: N:` with repair reasons, and `reviews:` with each
+  verdict at its judged head, cut from the end and marked when long.
+  It names no check or test the change didn't see. Where tiers follow
+  its landing branch (temper help tier), the result waits for them:
+  `Cleared by TIER run N.`, or, for a landing once red, `Cleared by TIER
+  run N, which passed the failures blamed on it; repaired by COMMIT.`
+  where a change naming it repaired it, or `Not cleared: no verdict
+  within the verification bound.` Verdicts precede the address
+  to fit `task show TASK`'s text window. Or it fails or is
+  cancelled. A coder finding no change applies ends
   successfully, saying why, with no pull request or claimed landing;
   failure for good holds it at `producing` (below).
 

@@ -71,13 +71,28 @@ other fields as the read gave them:
 ]}
 ```
 
+For a project's own policy, start from policy 1, the stock's starting
+point, and set the whole policy for `PROJECT`:
+
+```
+temper ctl DIR settings show policy 1 --json | jq --argjson project PROJECT '{items: [{setting: {kind: "project-policy", project: $project}, set: .value}]}' > FILE
+```
+
+The item is set alone, at most once a file: it takes no `number`, and
+neither `"edit": "removed"` nor `"edit": "reset"`. Change the policy's
+fields in `set` before sending it; setting policy 1 itself changes only
+what projects made after it start with.
+
 For a project's landing rule, add `"project": PROJECT` to its `setting`.
 A proposal's temper items, with their whole values or their removed or
 reset edits, are included in `proposal show PROPOSAL`.
 
 ## 3. Apply it, or propose it
 
-An owner applies it, naming the newest revision read:
+The deployment's owners decide its items, a project's owners its
+policy and landing rules. A file touching both needs one person who
+owns both; its proposal waits for them. An owner applies it, naming the
+newest revision read:
 
 ```
 temper ctl DIR settings apply FILE --against NEWEST --key KEY
@@ -91,7 +106,7 @@ temper ctl DIR settings propose FILE TEXT --against NEWEST --key KEY
 temper ctl DIR proposal show PROPOSAL
 ```
 
-An owner then decides it, from the inbox:
+An owner of every scope the file touches then decides it, from the inbox:
 
 ```
 temper ctl DIR inbox
@@ -103,7 +118,9 @@ from now on; or `proposed: PROPOSAL, to ` and who decides, then
 `proposal PROPOSAL · settings · against revision NEWEST, newest
 NEWEST` and a line per item, `charter 1 · set · now {...} (default) ·
 would be {...}`, each value whole; the owner's decision prints `done:
-decide`, and prints it again when asked again under its key.
+decide`, and prints it again when asked again under its key. A project's
+policy line is `project-policy PROJECT · set · now {...} · would be
+{...}`, each policy whole.
 
 If not:
 
