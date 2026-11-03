@@ -24,8 +24,7 @@
   the joined story of a model's amendment (`tests/client`'s
   `amend_tools.rs` parses `--model` alone); the joined stories of
   `playground end`, `forge remove`, and a set up or a connect without
-  FORGE, which `temper-client-tools`' own step tests hold alone; a
-  connected Forgejo's connect by its tokens file and its replace. 11.3:
+  FORGE, which `temper-client-tools`' own step tests hold alone. 11.3:
   the real loop's connected Forgejo, its tokens connect, a replace of
   its git token and another user's tokens stopped.
 - **Departs:** 5.1: `project` is area 1's (`jig/rows.rs`
