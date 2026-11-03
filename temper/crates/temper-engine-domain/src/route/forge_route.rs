@@ -2804,8 +2804,11 @@ fn chat_change(
         kinds.push(tasks::AuthorityExecutor::Job(forge::MERGE_KIND)).expect("merge kind");
     }
     authority.delegation.kinds = kinds.into_boxed();
-    // A producer, a review, and two repairs each followed by its review.
-    let tasks = if foreman { 6_u32.saturating_add(env.limits.forge.change_policy.questions) } else { 6 };
+    let tasks = if foreman {
+        env.limits.forge.change_policy.tasks.saturating_add(env.limits.forge.change_policy.questions)
+    } else {
+        env.limits.forge.change_policy.tasks
+    };
     authority.delegation.tasks = tasks.min(context.tasks_left.saturating_sub(1));
     authority.delegation.depth = 2.min(authority.delegation.depth.saturating_sub(1));
     authority.budget.spend = spend;

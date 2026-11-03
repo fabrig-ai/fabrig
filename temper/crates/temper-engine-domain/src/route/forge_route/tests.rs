@@ -2758,6 +2758,30 @@ fn a_control_changes_procedure_keeps_its_producer_review_and_llm_parameter() {
 }
 
 #[test]
+fn a_changes_delegation_uses_its_task_limit_and_leaves_room_for_foremen() {
+    use crate::ChangeQuestions;
+    for (tasks, questions, tasks_left, expected) in [
+        (8, Some(ChangeQuestions::Foreman), 20, 12),
+        (6, Some(ChangeQuestions::None), 20, 6),
+        (6, None, 20, 6),
+        (8, Some(ChangeQuestions::Up), 20, 8),
+        (8, Some(ChangeQuestions::Foreman), 10, 9),
+        (u32::MAX, Some(ChangeQuestions::Foreman), 20, 19),
+    ] {
+        let (domain, mut env, mut context) = change_choice_world();
+        env.limits.forge.change_policy.tasks = tasks;
+        env.limits.forge.change_policy.questions = 4;
+        context.tasks_left = tasks_left;
+        let change = crate::ChangeCall {
+            questions: questions.clone(),
+            ..crate::ChangeCall::words(b"Make the fix".as_slice().into(), None)
+        };
+        let batch = change_choice_batch(&domain, &env, &context, change).unwrap();
+        assert_eq!(batch[0].authority.delegation.tasks, expected, "tasks: {tasks}, questions: {questions:?}");
+    }
+}
+
+#[test]
 fn a_changes_unoffered_producer_is_refused_as_an_executor() {
     let (domain, env, context) = change_choice_world();
     let change =
