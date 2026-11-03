@@ -1408,8 +1408,9 @@ the exact sibling and private directory even when the source has no adapter.
 Init ships no Claude provider, so the rewrite adds an ordinary Anthropic
 provider, number 2, whose one source is that adapter and whose one model,
 `fake-claude`, the fake model serves through an Anthropic-dialect endpoint
-in both effective documents. It raises `documents.lines` to 3, so that
-the Model step offers OpenAI, demo and Anthropic. No startup path
+in both effective documents. It keeps the configured `documents.lines`
+capacity, raising it to at least 3 so that the Model step offers OpenAI,
+demo and Anthropic without shrinking creating's executor lists. No startup path
 discovers or falls back to a real `claude` from PATH.
 
 Reuse requires agent.json/programs/claude_code/path to equal that sibling.
