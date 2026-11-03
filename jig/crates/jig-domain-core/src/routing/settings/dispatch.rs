@@ -450,6 +450,7 @@ pub(crate) fn withdraw_stale(
 }
 
 /// Deletion admits all its settings withdrawals before changing any project state.
+/// Their writes fit `settings::withdrawal_writes`: at most `settings.proposals` sets.
 pub(crate) fn withdraw_project(
     core: &mut Core,
     env: &Env<Limits>,
