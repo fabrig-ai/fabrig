@@ -19,6 +19,8 @@ use temper_playground::{machine::Machine, programs, programs::Process, stories::
 
 // A whole story's HTTP inputs and stream read credits, with room for the end digest.
 const LOG_BYTES: u32 = 1_048_576;
+// Bound zero-time turns as well as world time when the host keeps asking at once.
+const TURNS_AT_ONE_INSTANT: u32 = 128;
 
 /// What enters the page's inbox: the bridge's raises and the page's own.
 pub enum Report {
@@ -114,7 +116,18 @@ impl Page {
     /// Walk the script, moving browser time only to the world's, host's or person's next instant.
     pub fn walk(&mut self, person: &mut Person<Address>, bound: Duration) -> Walked {
         let end = self.world().now().saturating_add(bound);
+        let mut instant = self.browser;
+        let mut turns = 0;
         loop {
+            if self.browser != instant {
+                instant = self.browser;
+                turns = 0;
+            }
+            turns += 1;
+            if turns > TURNS_AT_ONE_INSTANT {
+                self.failed(person.at(), "turn bound at one browser instant passed");
+                panic!("story exceeded {TURNS_AT_ONE_INSTANT} turns at browser {instant:?}");
+            }
             let parameters = story::parameters(self.world());
             let wake = programs::with(parameters, || self.memory.slice(self.browser));
             self.pending_input = false;
