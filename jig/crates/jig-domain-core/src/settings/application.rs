@@ -449,7 +449,20 @@ pub(crate) fn keep(
 ) -> Box<[Recorded]> {
     let bound = u32::try_from(kept.len()).expect("bounded accepted items");
     let mut records = List::with_capacity(bound);
-    let mut connectors = Map::with_capacity(bound);
+    let proposed: &[Recorded] = match core.current.head.proposal {
+        Some(key) if proposal.is_some() => {
+            &core.settings_proposals.get(&key).expect("accepted proposal set").applications
+        }
+        Some(_) | None => &[],
+    };
+    let groups =
+        bound.checked_add(u32::try_from(proposed.len()).expect("bounded proposal items")).expect("connector groups");
+    let mut connectors = Map::with_capacity(groups);
+    // Even a connector whose items are all unchanged must erase its kept proposal.
+    for item in proposed {
+        let connector = kind_of(&core.kinds, item.kind).expect("kept proposal kind").connector;
+        connectors.insert(connector, ()).expect("one connector per proposal item");
+    }
     for accepted in &kept {
         let connector = kind_of(&core.kinds, accepted.item.kind).expect("checked kind").connector;
         connectors.insert(connector, ()).expect("one connector per accepted item");

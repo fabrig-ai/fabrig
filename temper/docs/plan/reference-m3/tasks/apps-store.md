@@ -3,7 +3,7 @@ id = "apps-store"
 part = "appsettings"
 kind = "feature"
 needs = ["apps-proposals"]
-files = ["jig/crates/jig-protocol-store/schema/settings-v1.schema", "jig/crates/jig-protocol-store/src/generated/settings_v1.rs", "jig/crates/jig-protocol-store/src/codec/settings.rs", "jig/crates/jig-protocol-store/src/keys/settings.rs", "jig/crates/jig-protocol-store/src/reads/settings.rs", "jig/crates/jig-protocol-store/golden/settings/**", "jig/crates/jig-protocol-store/schema/people-v14.schema", "jig/crates/jig-protocol-store/src/generated/people_v14.rs", "jig/crates/jig-protocol-store/src/codec/people/**", "jig/crates/jig-protocol-store/golden/people/**", "jig/crates/jig-protocol-store/schema/tasks-v9.schema", "jig/crates/jig-protocol-store/src/generated/tasks_v9.rs", "jig/crates/jig-protocol-store/src/codec/tasks/proposals.rs", "jig/crates/jig-protocol-store/golden/tasks/**", "jig/crates/jig-protocol-store/src/tests/**", "jig/docs/design/protocol/store.status.md"]
+files = ["jig/crates/jig-protocol-store/schema/settings-v1.schema", "jig/crates/jig-protocol-store/src/generated/settings_v1.rs", "jig/crates/jig-protocol-store/src/codec/settings.rs", "jig/crates/jig-protocol-store/src/keys/settings.rs", "jig/crates/jig-protocol-store/src/reads/settings.rs", "jig/crates/jig-protocol-store/golden/settings/**", "jig/crates/jig-protocol-store/schema/people-v14.schema", "jig/crates/jig-protocol-store/src/generated/people_v14.rs", "jig/crates/jig-protocol-store/src/codec/people/**", "jig/crates/jig-protocol-store/golden/people/**", "jig/crates/jig-protocol-store/schema/tasks-v9.schema", "jig/crates/jig-protocol-store/src/generated/tasks_v9.rs", "jig/crates/jig-protocol-store/src/codec/tasks/proposals.rs", "jig/crates/jig-protocol-store/golden/tasks/**", "jig/crates/jig-protocol-store/src/tests/**", "jig/docs/design/protocol/store.status.md", "jig/crates/jig-protocol-store/src/generated/layouts.rs"]
 effort = "high"
 minutes = 120
 +++
@@ -89,3 +89,22 @@ Acceptance:
 ## Report
 
 Which schemas changed and whether any version moved; the goldens remade, by name.
+
+## Answers
+
+2026-11-03. **Q:** may this task add `Setting::Application` to `jig_domain_tasks::Setting`
+(`proposals.rs`) and regenerate `src/generated/layouts.rs`?
+
+**A:** `layouts.rs` yes (now in `files`): it is the generator's output for the schemas
+changed in place, no version moves. `jig_domain_tasks::Setting` no: the tasks child keeps
+no application head. `apps-proposals`' answer (2026-11-03, from `engine.md`, 17.6, **The
+owner keeps the value**) settled that the tasks child's heads are jig's kinds only and the
+core keeps the set, its application items included; a set of application items alone has
+no heads.
+
+- Step 3 is dropped: `tasks-v9.schema` and `codec/tasks/proposals.rs` stay unchanged.
+- In the acceptance, `Setting::Application` means the settings and people families' setting
+  (steps 1 and 2), not a tasks head; the Goal's "the tasks child's settings heads naming an
+  application's setting" no longer applies.
+- `jig/tests/core`'s `apps-store` arms (`start_settings.rs`, `fuzzy/settings.rs`) are outside
+  `jig-protocol-store` and outside this acceptance: leave them, and list them under `## Left`.
