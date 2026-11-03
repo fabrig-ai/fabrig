@@ -141,3 +141,14 @@ fn platform_reports_keep_their_contents() {
     );
     assert_eq!(adapter::carried(transport::Carried::Failed { exchange: ID }), Heard::Failed { exchange: ID });
 }
+
+#[test]
+fn debug_of_a_taken_link_shows_the_secrets_length_never_its_bytes() {
+    const CANARY: &[u8; 32] = b"canary-jig-web-taken-6d94b7e2xyz";
+    let taken = sign_in::Taken { secret: CANARY.as_slice().into(), address: b"/".as_slice().into() };
+    let debug = std::format!("{taken:?}");
+    let canary_bytes = std::format!("{CANARY:?}");
+    assert!(!debug.contains(std::str::from_utf8(CANARY).expect("canary is ASCII")));
+    assert!(!debug.contains(canary_bytes.as_str()));
+    assert_eq!(debug, "Taken { secret_len: 32, address: [47] }");
+}
