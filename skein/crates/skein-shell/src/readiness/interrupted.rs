@@ -2,6 +2,7 @@
 //! answered as the kernel would, without interrupting a real call.
 
 use super::{Config, Done, Error, Family, Fd, Op, OpenHow, Queue, Readiness, Submit, Token};
+use skein_io::kernel::{Entry, Signal, Spawn, Target};
 
 const FD: Fd = Fd::new(123);
 
@@ -77,5 +78,54 @@ fn an_interrupted_transfer_is_made_again_until_it_completes() {
             attempted(kind, false, |call| if call < 3 { Err(Error::Other(libc::EINTR)) } else { Ok(Done::Count(1)) });
         assert_eq!(calls, 3, "{operation}");
         assert_eq!(result, Ok(Done::Count(1)), "{operation}");
+    }
+}
+
+#[test]
+fn every_other_interrupted_operation_completes_eintr_after_one_call() {
+    for (kind, resumed) in [
+        (Op::Bind { fd: FD, addr: "127.0.0.1:1234".parse().expect("loopback address") }, false),
+        (Op::Listen { fd: FD, backlog: 1 }, false),
+        (Op::Shutdown { fd: FD }, false),
+        (Op::Truncate { fd: FD, length: 1 }, false),
+        (Op::Sync { fd: FD }, false),
+        (Op::Stat { fd: FD }, false),
+        (
+            Op::Rename {
+                from_dir: FD,
+                from: Box::from(*b"from"),
+                to_dir: FD,
+                to: Box::from(*b"to"),
+                no_replace: false,
+            },
+            false,
+        ),
+        (Op::Remove { dir: FD, name: Box::from(*b"file"), directory: false }, false),
+        (Op::MakeDirectory { dir: FD, name: Box::from(*b"dir"), mode: 0o700 }, false),
+        (Op::List { fd: FD, entries: Box::from([Entry::BLANK]), names: Box::from(*b"name") }, false),
+        (Op::Lock { fd: FD }, false),
+        (Op::Wait { pidfd: FD, reap: false }, false),
+        (Op::Wait { pidfd: FD, reap: false }, true),
+        (
+            Op::Spawn {
+                spawn: Box::new(Spawn {
+                    program: Box::from(*b"prog"),
+                    args: Box::from([]),
+                    env: Box::from([]),
+                    root: FD,
+                    dir: Box::from([]),
+                    pipes: Box::from([]),
+                }),
+            },
+            false,
+        ),
+        (Op::Signal { pidfd: FD, signal: Signal::Terminate, to: Target::Child }, false),
+        (Op::Usage, false),
+        (Op::Window { fd: FD }, false),
+    ] {
+        let operation = format!("{kind:?}, resumed={resumed}");
+        let (calls, result) = attempted(kind, resumed, |_| Err(Error::Other(libc::EINTR)));
+        assert_eq!(calls, 1, "{operation}");
+        assert_eq!(result, Err(Error::Other(libc::EINTR)), "{operation}");
     }
 }
