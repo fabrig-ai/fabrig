@@ -115,7 +115,10 @@ baseline recounted, a generated file made again), with no model.
   a merge in progress of the same base, its words carrying this result
   (`../domain/forge.md`, 8.4); nothing of the job's directory is kept.
 - **Any other exit,** or a result missing or past its bound: the
-  command's failure, as `prepare`'s.
+  command's failure, as `prepare`'s. The bound is the merge kind's
+  result bound, 512 bytes in the small profile (`../domain/worker.md`,
+  4.4): a command lists the paths that fit, in index order, and adds
+  `"more": N`, the count of those it left out.
 - **Deterministic by contract,** as `prepare`: the same head and base
   give the same tree.
 

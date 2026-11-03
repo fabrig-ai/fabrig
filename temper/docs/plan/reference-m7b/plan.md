@@ -67,6 +67,15 @@ needs the box's rules and policy 1 to delegate to the merge kind (job 3) beside 
 hand as `configuration.md, 13.9` says, and the walk's document to carry `landing.json` with its
 `merge_job`.
 
+**Revision 2** (`notes/contracts.md`, R2; `notes/common.md`, "Corrections found after
+release"): a review of the released specs against the trunk found the merge kind's bounds past
+jig's small task limits (now 4,096 and 512 bytes, the command cutting its result), a job task's
+spec taking no words or parameters, the engine world's worker declaring no kind, `chat_change`'s
+list capacity, kind 3's bound reaching the root, a catch-up's resolution state, wrong names in
+`merge-kind`, `merge-settings` and `change-merge-surface`, and `merge-help`'s text past the help
+page's bound (replaced by a shorter text). Each correction is in the notes the affected spec
+cites, which its implementer reads as it starts; no pushed spec changed.
+
 ## Critical path
 
 `change-merge-surface` (~110) → `change-merge-steps` (~120) → `change-merge-route` (~170) →
@@ -124,6 +133,10 @@ done well before.
   `change-merge-surface` (the store's change records and the forge-change boundary, appended
   arms and fields only); `change`'s new member takes parameter 16, clear of the numbers the
   siblings are likeliest to take next (11 to 15).
+- Within the plan, tasks that may run at once in one file: `merge-settings`,
+  `change-merge-surface` and `change-merge-steps` in the forge's `domain.rs` (a setter, forced
+  arms, a `Facts` literal: separate hunks); `catch-up-call` and `merge-r1-paths` in the forge's
+  `items.rs` and the root's merge encoder (R1's hunk the command's bytes alone).
 - `withdrawn-forms` touches `temper-service/src/tests/fixtures.rs` and `tests/one-process`;
   `merge-kind` keeps to `temper-service`'s `limits.rs`, `worker.rs`, `system.rs` and
   `startup/checks.rs`.

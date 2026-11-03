@@ -392,12 +392,12 @@ smith's agent processes, and declares in its hello the kinds it runs:
   undelivered. On exit 3 nothing is delivered. The engine learns which
   from the branch, not the result: its head moved, or not (`forge.md`,
   8.4). Its bounds, the engine's declaration and the worker's alike:
-  a spec of 4 KiB, a result of 512 bytes and a deadline of 10 minutes,
-  the small profile's constants, within its tasks child (`tasks.spec_bytes`
-  and `tasks.result_bytes`, which jig's core holds every job's bounds
-  under). The engine declares the kind only where its tasks limits hold
-  those bounds; a deployment that configures them smaller declares no
-  kind 3 and makes no merge job.
+  a spec of 4,096 bytes and a result of 512, within jig's
+  `tasks.spec_bytes` and `tasks.result_bytes` in the small profile,
+  which the core holds every declared kind to, and a deadline of 10
+  minutes, the small profile's constants. The engine declares the kind
+  only where its tasks limits hold those bounds; a deployment that
+  configures them smaller declares no kind 3 and makes no merge job.
 - **The spec is written by the engine's root** as it makes the job, in
   the worker wire's `JobSpec` record, since jig takes a job's spec as
   the application's bytes when the job is made (jig's
