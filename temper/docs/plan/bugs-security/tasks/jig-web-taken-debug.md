@@ -75,3 +75,15 @@ Pre-approved options:
 
 As the implementer's text says, and: the failing run on the old code, the passing runs and their
 counts.
+
+## Answers
+
+2026-11-03. Q: the slot was reset to `bugs-security/jig-accounts-check` mid-run; transplant pushed
+commit 24ba9186aa onto the intended base, or rerun in an exclusively claimed slot? A: neither.
+The commit's parent, e8b554cecd (jig-accounts-check's commit), is already in
+`bugs-security/integration`, so the merge base of the pushed branch and the trunk is that commit
+and the branch brings only this task's two files (`sign_in.rs`, `tests.rs`, +18 −1), merging
+cleanly. fab merges `bugs-security/jig-web-taken-debug` at 24ba9186aa as it stands; the trunk's
+check is its validation on the intended base. The run's acceptance holds: the old-code failure,
+2 and 12 passed, clippy clean. No rerun, no code change. The slot's reset is fab's to look into,
+not this task's.
