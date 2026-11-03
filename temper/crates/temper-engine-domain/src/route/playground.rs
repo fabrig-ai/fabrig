@@ -321,6 +321,7 @@ pub(crate) fn acted(
         Reply::Account | Reply::Project | Reply::Uses | Reply::Adoption => unreachable!("reset act reply"),
     };
     let (keep, why) = match outcome {
+        people::Outcome::Restored { .. } => unreachable!("a restore: restore-request"),
         people::Outcome::Again(_) => (true, None),
         people::Outcome::Refused(people::Refusal::NotOffered) => (
             true,

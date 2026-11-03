@@ -196,6 +196,7 @@ fn record_names(record: &core::Record, name: &mut r::Naming) {
 
 fn ask_project(ask: &people::Ask) -> Option<u32> {
     match ask {
+        people::Ask::Restore { .. } => unreachable!("a restore: restore-request"),
         people::Ask::Compound { project, .. }
         | people::Ask::EditNote { project, .. }
         | people::Ask::MakeService { project, .. }

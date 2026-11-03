@@ -677,6 +677,7 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
                 .checked_mul(u64::try_from(size_of::<jig_domain_people::Holding>()).ok()?),
             jig_domain_people::Stored::Answer { ask, models, outcome, .. } => {
                 let payload = match ask.as_ref() {
+                    jig_domain_people::Ask::Restore { .. } => unreachable!("a restore: restore-request"),
                     jig_domain_people::Ask::AccountChange { change, .. } => {
                         use jig_domain_people::AccountChange;
                         match change {
@@ -975,6 +976,7 @@ fn model_context_bytes(models: &[Box<[u8]>]) -> Option<u64> {
 pub(crate) fn program_answer_bytes(outcome: &jig_domain_people::Outcome) -> Option<u64> {
     use jig_domain_people::Outcome;
     match outcome {
+        Outcome::Restored { .. } => unreachable!("a restore: restore-request"),
         Outcome::Refused(jig_domain_people::Refusal::Full { tasks, .. }) => {
             u64::try_from(tasks.len()).ok()?.checked_mul(u64::try_from(size_of::<u64>()).ok()?)
         }

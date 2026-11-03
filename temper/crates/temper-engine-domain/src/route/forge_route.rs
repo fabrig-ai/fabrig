@@ -4697,6 +4697,8 @@ pub(crate) fn effect_ask(
     ask: jig_domain_core::effects::connector::Ask,
 ) {
     match ask {
+        jig_domain_core::effects::connector::Ask::ForgetReplaced { .. }
+        | jig_domain_core::effects::connector::Ask::RestoreSettings { .. } => unreachable!("a restore: restore-forge"),
         // A person settles a held uncertain effect (brief D14; jig's
         // `domain/connectors.md`, 4.3): again remakes it, a creation looked
         // for first; otherwise it is recorded not made.

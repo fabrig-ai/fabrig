@@ -57,6 +57,21 @@ pub enum Edit {
     Removed,
     Reset,
 }
+/// What an item replaced (jig/docs/design/domain/engine.md, 17.10).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Replaced {
+    Value(Value),
+    Default,
+    Removed,
+    NotOffered,
+}
+/// A revision's item and what it replaced (jig/docs/design/domain/engine.md, 17.10).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct RevisionItem {
+    pub setting: Setting,
+    pub edit: Edit,
+    pub replaced: Replaced,
+}
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Item {
     pub setting: Setting,
@@ -103,11 +118,12 @@ pub fn model_names(models: &[crate::Model]) -> Box<[ModelName]> {
     }
     names.into_boxed()
 }
+/// A revision and the state each item replaced (jig/docs/design/domain/engine.md, 17.10).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Revision {
     pub head: Head,
-    pub items: Box<[Item]>,
-    pub applications: Box<[application::Recorded]>,
+    pub items: Box<[RevisionItem]>,
+    pub applications: Box<[application::RevisionRecorded]>,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Failure {
@@ -224,6 +240,16 @@ impl Current {
                 Some(default) => (Some(&default.value), Some((false, default.revision))),
                 None => (None, None),
             },
+        }
+    }
+    /// The state before an edit (jig/docs/design/domain/engine.md, 17.10).
+    #[must_use]
+    pub fn replaced(&self, setting: Setting) -> Replaced {
+        match self.lookup(setting) {
+            (Some(value), Some((true, _))) => Replaced::Value(value.clone()),
+            (None, Some((true, _))) => Replaced::Removed,
+            (_, Some((false, _))) => Replaced::Default,
+            (_, None) => Replaced::NotOffered,
         }
     }
     #[must_use]
@@ -374,11 +400,13 @@ pub fn set_bound(limits: &crate::Limits) -> Option<u64> {
         .checked_add(authority::rules_bound(&limits.authority)?)?
         .checked_add(u64::try_from(size_of::<authority::Rules>()).ok()?)
 }
-/// One record's whole items, priced independently of the held heads.
+/// One record's items and a whole set of replaced values, priced independently of the held heads
+/// (jig/docs/design/domain/engine.md, 17.10).
 #[must_use]
 pub fn revision_bound(limits: &crate::Limits) -> Option<u64> {
     set_bound(limits)?
-        .checked_add(List::<Item>::price(capacity(limits)?.checked_mul(2)?)?)?
+        .checked_mul(2)?
+        .checked_add(List::<RevisionItem>::price(capacity(limits)?.checked_mul(2)?)?)?
         .checked_add(u64::try_from(size_of::<Head>()).ok()?)
 }
 
