@@ -81,6 +81,12 @@ fn a_wind_down_offering_only_some_tools_answers_a_call_outside_them_as_not_run()
     );
     assert_eq!(world.delegated.len(), 1, "descriptor membership does not compare the dynamic call ticket");
     let owner = world.delegated[0];
-    world.step(session::Event::Answered { owner, text: bytes(b"accepted"), error: false, spent: 0 });
+    world.step(session::Event::Answered {
+        owner,
+        text: bytes(b"accepted"),
+        error: false,
+        spent: 0,
+        after: session::After::Complete,
+    });
     world.close();
 }

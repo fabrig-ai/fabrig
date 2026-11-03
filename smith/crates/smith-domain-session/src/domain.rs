@@ -129,23 +129,13 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
     domain.facts.begin(env.now);
     match event {
         Event::Open { opener, opening } => session::open(domain, env, opener, *opening, out),
-        Event::Answered { owner, text, error, spent } => {
+        Event::Answered { owner, text, error, spent, after } => {
             session::delegate_ended(
                 domain,
                 env,
                 owner,
                 crate::llm::Returned::Text { text, error, replay: None },
-                session::Bill { spent, after: session::After::Complete },
-                out,
-            );
-        }
-        Event::AnsweredAndYield { owner, text, error, spent } => {
-            session::delegate_ended(
-                domain,
-                env,
-                owner,
-                crate::llm::Returned::Text { text, error, replay: None },
-                session::Bill { spent, after: session::After::Yield },
+                session::Bill { after, spent },
                 out,
             );
         }
@@ -156,7 +146,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                 env,
                 owner,
                 crate::llm::Returned::Withdrawn,
-                session::Bill { spent, after: session::After::Complete },
+                session::Bill { spent, after: crate::After::Complete },
                 out,
             );
         }

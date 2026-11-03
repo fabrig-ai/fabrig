@@ -1478,7 +1478,13 @@ impl World {
                     if self.run_cancel_lost.remove(&owner) {
                         self.stats.answered_after_withdraw += 1;
                     }
-                    self.agent_stage.push(agent::Event::Answered { owner, text, error, spent: 0 });
+                    self.agent_stage.push(agent::Event::Answered {
+                        owner,
+                        text,
+                        error,
+                        spent: 0,
+                        after: agent::After::Complete,
+                    });
                     // The opener has its finish, and closes the session.
                     if run.accepts {
                         let opener = *self.openers.get(&run.session).expect("a session lives while its calls run");
@@ -1548,6 +1554,7 @@ impl World {
                 budget: 1,
                 transcript: None,
                 answered: Box::default(),
+                withheld: Some(b"wait".as_slice().into()),
             }),
         });
     }
@@ -1718,7 +1725,6 @@ impl World {
 fn ended_run(event: &agent::Event) -> Option<Token> {
     match event {
         agent::Event::Answered { owner, .. }
-        | agent::Event::AnsweredAndYield { owner, .. }
         | agent::Event::AnswerWithheld { owner }
         | agent::Event::AnswerCancelled { owner, .. } => Some(*owner),
         agent::Event::BuiltinResult { .. }
@@ -1752,12 +1758,10 @@ fn describe_agent_event(event: &agent::Event) -> String {
         agent::Event::AnswerWithheld { owner } => format!("answer withheld {}", owner.raw()),
         agent::Event::AnswerCancelled { owner, spent, .. } => format!("answer cancelled {} {spent}", owner.raw()),
         agent::Event::Open { opener, opening } => format!("open {} {opening:?}", opener.raw()),
-        agent::Event::Answered { owner, text, error, spent, .. } => {
-            format!("answered {} {text:?} {error} {spent}", owner.raw())
-        }
-        agent::Event::AnsweredAndYield { owner, text, error, spent } => {
-            format!("answered and yield {} {text:?} {error} {spent}", owner.raw())
-        }
+        agent::Event::Answered { owner, text, error, spent, after } => match after {
+            agent::After::Complete => format!("answered {} {text:?} {error} {spent}", owner.raw()),
+            agent::After::Yield => format!("answered and yield {} {text:?} {error} {spent}", owner.raw()),
+        },
         agent::Event::Continue { session, content } => {
             format!("continue {} {:?}", session.raw(), String::from_utf8_lossy(content))
         }
