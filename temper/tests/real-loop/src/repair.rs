@@ -369,16 +369,19 @@ fn check_landing(ran: &Ran, repaired: u64, merge: u64) {
     assert_eq!(result["cut"], false);
     let words = result["bytes"].as_str().expect("landed evidence");
     let lines: Vec<_> = words.lines().collect();
-    assert_eq!(lines.len(), 6);
+    assert_eq!(lines.len(), 7, "landed evidence: {words}");
     assert_eq!(lines[0], hex(merge));
     assert!(lines[1].ends_with("/playground/widget/pulls/2"));
     assert_eq!(lines[2], format!("Landed: pull request #{PULL} merged into main as {}.", &hex(merge)[..12]));
-    assert_eq!(
-        lines[3],
-        format!("checks at {}: / changes (pull_request) passed; / check (pull_request) passed", hex(repaired))
-    );
-    assert_eq!(lines[4], "repairs: 1: CI failed: / changes (pull_request)");
-    assert_eq!(lines[5], format!("reviews: approved at {}", hex(repaired)));
+    let scripts: Value = serde_json::from_slice(include_bytes!("../tests/fixtures/b1/llm.json")).expect("walk scripts");
+    let producer = &scripts["cued"][2]["turns"];
+    assert_eq!(lines[3], "Report:");
+    assert_eq!(lines[4], producer[3]["lines"][0]["arguments"]["fields"]["body"].as_str().expect("producer's report"));
+    let checks = format!("checks at {}: / changes (pull_request) passed; / check (pull_request) passed", hex(repaired));
+    // The report precedes the evidence; the bounded result cuts the evidence from the end.
+    assert!(lines[5].starts_with(&format!("checks at {}: / changes (pull_request) passed; ", hex(repaired))));
+    assert!(checks.starts_with(lines[5]), "checks at the repaired head: {words}");
+    assert!(lines[6].starts_with('[') && lines[6].ends_with(" bytes cut]"), "marked evidence truncation: {words}");
     assert!(told(query_at(ran, 1, 7)).contains(words), "change's requester heard the whole result");
     let last = String::from_utf8_lossy(&ran.calls()[LAST_WORD].stdout);
     assert!(last.contains("CSV export landed"));
@@ -392,8 +395,6 @@ fn check_landing(ran: &Ran, repaired: u64, merge: u64) {
     assert!(!last.contains("tests passed"), "no unseen test claimed");
     let source = String::from_utf8_lossy(ran.forge().main_file(b"src/main.rs"));
     assert!(source.contains("println!(\"fruit,count\")"));
-    let scripts: Value = serde_json::from_slice(include_bytes!("../tests/fixtures/b1/llm.json")).expect("walk scripts");
-    let producer = &scripts["cued"][2]["turns"];
     let seed = temper_fake::forge::Document::decode(include_bytes!("../tests/fixtures/b1/forge.json"))
         .expect("B1 forge document");
     let mut expected = String::from_utf8(
