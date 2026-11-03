@@ -3355,6 +3355,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &m
                 return;
             }
             decision @ (change::Decision::None
+            | change::Decision::CancelProducer
             | change::Decision::Wait { .. }
             | change::Decision::Delegate(_)
             | change::Decision::CancelGates { .. }
@@ -3476,6 +3477,7 @@ fn change_facts(
     };
     let window = crate::settle::window(d, row.task);
     change::Facts {
+        pending: Box::new([]),
         verification: d.change_verification(row.task),
         verification_bound,
         ask: crate::landing::ask_for(d, row),

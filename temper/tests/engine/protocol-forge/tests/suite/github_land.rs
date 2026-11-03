@@ -15,6 +15,7 @@ fn step(world: &mut Protocol, entry: u64, delegate: change::Status) -> change::D
         task: 51,
         entry,
         heard: change::Heard {
+            start_conflict: None,
             lacking: None,
             spend: None,
             delegate,
@@ -162,6 +163,7 @@ fn scheduled_landing(world: &mut Protocol, first_entry: u64, seconds: u64) -> Ve
                     change::Decision::Delegate(delegate) => panic!("unexpected delegate: {delegate:?}"),
                     change::Decision::CancelGates { .. } => panic!("unexpected gate cancellation"),
                     change::Decision::None
+                    | change::Decision::CancelProducer
                     | change::Decision::Effect(_)
                     | change::Decision::Ready
                     | change::Decision::QueueRepair
@@ -181,6 +183,7 @@ fn scheduled_landing(world: &mut Protocol, first_entry: u64, seconds: u64) -> Ve
                 task: 51,
                 entry,
                 heard: change::Heard {
+                    start_conflict: None,
                     lacking: None,
                     spend: None,
                     delegate: change::Status::Unknown,
@@ -307,6 +310,7 @@ fn pushed_change_requests_its_pull_once() {
         task: 51,
         entry: 1,
         heard: change::Heard {
+            start_conflict: None,
             lacking: None,
             spend: None,
             delegate: change::Status::Passed,
@@ -359,6 +363,7 @@ fn ruleset_refuses_merge_without_landing() {
             }
             change::Decision::Finish { .. } => panic!("QA: protected merge cannot Finish"),
             change::Decision::None
+            | change::Decision::CancelProducer
             | change::Decision::Wait { .. }
             | change::Decision::Delegate(_)
             | change::Decision::CancelGates { .. }

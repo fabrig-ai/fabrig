@@ -1906,6 +1906,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 priority,
                 ci: None,
                 change: forge_change::Change {
+                    early: forge_change::Early::None,
                     way: forge_change::Way::Queue,
                     landing: None,
                     task,
@@ -1982,6 +1983,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
         entry,
         kept: landing_route::kept(domain, env, task),
         heard: forge_change::Heard {
+            start_conflict: None,
             lacking: change_authority_lack(domain, task),
             spend: change_spend(domain, task),
             delegate: forge_change::Status::Unknown,
@@ -3354,7 +3356,10 @@ fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: fo
         }
         forge_change::Decision::Wait { until } => wait_change_decision(domain, env, task, until),
         forge_change::Decision::Cancel => unreachable!("cancel is routed before procedure admission"),
-        forge_change::Decision::None | forge_change::Decision::Effect(_) => ProcedureStep::new(StepEnd::Wait),
+        // The top sets no start_conflict yet.
+        forge_change::Decision::None | forge_change::Decision::CancelProducer | forge_change::Decision::Effect(_) => {
+            ProcedureStep::new(StepEnd::Wait)
+        }
         forge_change::Decision::Delegate(kind) => {
             delegate_change_step(domain, env, task, step, connector, code, kind);
             return;
@@ -3940,6 +3945,7 @@ pub(crate) fn outputs(
                     }
                 }
                 forge_change::Decision::None
+                | forge_change::Decision::CancelProducer
                 | forge_change::Decision::Wait { .. }
                 | forge_change::Decision::Delegate(_)
                 | forge_change::Decision::CancelGates { .. }
