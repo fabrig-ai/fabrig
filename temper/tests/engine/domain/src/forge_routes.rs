@@ -906,6 +906,30 @@ impl World {
         self
     }
 
+    /// Configure a second model, allowed by charter 2 alone, before the world's first input.
+    #[must_use]
+    pub fn with_producer_model(mut self, name: &[u8]) -> Self {
+        assert_eq!(self.env.now, Time::ZERO, "models precede world startup");
+        assert!(!self.root.ready(), "models precede bootstrap");
+        let settings = &mut self.restart_config.core.settings;
+        let mut second = settings.models[0].clone();
+        second.name = name.into();
+        settings.models = Box::new([settings.models[0].clone(), second.clone()]);
+        settings.llm_providers.providers[0].models = Box::new([settings.models[0].name.clone(), second.name.clone()]);
+        let producer = self
+            .restart_config
+            .core
+            .defaults
+            .charters
+            .iter_mut()
+            .find(|charter| charter.number == 2)
+            .expect("producer charter 2");
+        producer.policy.alternatives = Box::new([second]);
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("valid producer model configuration");
+        self
+    }
+
     /// Replace the deployment's landing rules before the world's first input.
     #[must_use]
     pub fn with_landing_deployment(mut self, rules: Box<[engine::LandingRule]>) -> Self {
