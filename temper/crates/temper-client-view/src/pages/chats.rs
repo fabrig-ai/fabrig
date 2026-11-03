@@ -52,6 +52,25 @@ pub(crate) fn main(
         b.style(crate::look::PAGEBAR);
         text(b, Role::Heading { level: 1 }, &words.say(Word::Chats, &[]));
         b.close();
+        if let Some(project) = root.pages().project()
+            && temper_client_domain::forge::listed::without_repository(
+                root.forges(),
+                root.forge().playground(),
+                project,
+            ) == Some(true)
+        {
+            b.open(Role::Slot);
+            b.style(crate::look::CONTEXT);
+            text(b, Role::Paragraph, &words.say(Word::NoRepositoryYet, &[]));
+            control(
+                b,
+                bindings,
+                Role::Link,
+                &words.say(Word::ForgeAdopt, &[]),
+                Act::Go { address: Address::Adopt { project } },
+            );
+            b.close();
+        }
         if root.forge().playground_starting() {
             text(b, Role::Status, &words.say(Word::PlaygroundStarting, &[]));
         }

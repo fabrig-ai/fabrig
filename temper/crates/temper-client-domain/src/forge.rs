@@ -210,6 +210,16 @@ impl Side {
         None
     }
     fn changed(&mut self) {
+        // Opening the form and delivering forge rows both publish through here.
+        if let Some(draft) = &mut self.form {
+            let mut unwritten = true;
+            for field in &draft.texts {
+                unwritten &= field.written == 0;
+            }
+            if unwritten && let Some((forge, org, name)) = listed::unadopted_first(&self.forges) {
+                form::fill_first(draft, forge, org, name);
+            }
+        }
         self.shown = self.shown.checked_add(1).expect("forge shown count fits");
     }
 }

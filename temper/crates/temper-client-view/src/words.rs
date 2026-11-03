@@ -136,6 +136,7 @@ pub enum Word {
     WelcomeDefaultRefused,
     WelcomeDefaultUnknown,
     ForgeMadeRepository,
+    NoRepositoryYet,
     SetupOpen,
     SetupMade,
     ForgeConnectedTitle,
@@ -686,9 +687,9 @@ pub enum Word {
 pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The post-landing panel has ten phrases and eighteen segments.
 // The row's Replace adds seven phrases and nine segments (client/forge.md, 5.4).
-const PHRASES: u32 = 1207;
-const SEGMENTS: u32 = 2088;
-const ALL: [Word; 615] = [
+const PHRASES: u32 = 1208;
+const SEGMENTS: u32 = 2089;
+const ALL: [Word; 616] = [
     Word::PlaygroundBanner,
     Word::PlaygroundSetUp,
     Word::PlaygroundLeaving,
@@ -809,6 +810,7 @@ const ALL: [Word; 615] = [
     Word::WelcomeDefaultRefused,
     Word::WelcomeDefaultUnknown,
     Word::ForgeMadeRepository,
+    Word::NoRepositoryYet,
     Word::SetupOpen,
     Word::SetupMade,
     Word::ForgeConnectedTitle,
@@ -1433,6 +1435,7 @@ impl Word {
             Self::WelcomeDefaultRefused => 2179,
             Self::WelcomeDefaultUnknown => 2180,
             Self::ForgeMadeRepository => 2181,
+            Self::NoRepositoryYet => 2182,
             Self::SetupOpen => 1830,
             Self::SetupMade => 1831,
             Self::ForgeConnectedTitle => 1703,
@@ -2315,6 +2318,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeMakingDefault => (&[b"Making Default\xe2\x80\xa6"], &[]),
         Word::WelcomeDefaultRefused => (&[b"Default was not made: "], &[]),
         Word::WelcomeDefaultUnknown => (&[b"It is not known whether Default was made."], &[]),
+        Word::NoRepositoryYet => (&[b"No repository yet"], &[]),
         Word::ForgeMadeRepository => (&[b"Made ", b"."], &[Name]),
         Word::SetupOpen => (&[b"Open ", b""], &[Name]),
         Word::SetupMade => (&[b"", b""], &[Name]),
