@@ -9,9 +9,9 @@ use std::{fs, os::unix::fs::PermissionsExt, path::PathBuf};
 
 pub mod rung;
 
-/// forge-setup's first repository goes into a project of its own, made after
-/// project 1 (tools.md 5.5): work/hello is project 2's.
-const FIRST_PROJECT: &str = "2";
+/// forge-setup's first repository goes into project 1, the first made
+/// (temper/docs/design/client/tools.md, 5.5): work/hello is project 1's.
+const FIRST_PROJECT: &str = "1";
 
 /// The model side: processes a story adds beside the box and ctl.
 #[expect(

@@ -809,15 +809,12 @@ pub(crate) fn configure_llm(path: &Path) {
 }
 fn configure_engine(value: &mut Value, forge: SocketAddr) {
     configure_landing(value, forge, "acme", "app");
-    // Use the stock defaults and init's seed policy reference, with no story-specific
-    // tool grants. Init's placeholders do not occur in the seed projects.
-    let init: Value = serde_json::from_slice(include_bytes!("../../../temper-init/template/temper.json"))
-        .expect("init template JSON");
+    // This fixture seeds its own project on stock policy 1, with no story-specific tool grants.
     let engine = value["engine"].as_object_mut().expect("engine object");
     for member in ["charters", "templates", "policies", "rules"] {
         engine.remove(member);
     }
-    engine.insert("projects".into(), init["engine"]["projects"].clone());
+    engine.insert("projects".into(), serde_json::json!([{"number": 1, "policy": 1}]));
     // Four slots hold the stock chat, coding and reviewer charters.
     value["engine"]["limits"]["overrides"]["tasks.charters"] = 4.into();
     // Keep log polling aligned with the live GitHub story.
