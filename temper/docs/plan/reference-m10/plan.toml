@@ -1,0 +1,3 @@
+draft = "reference-m10"
+repo = "fabrig"
+sources = ["temper/docs/plan/reference-m10/inputs/request.md", "temper/docs/design/draft/reference-case.execution.md", "temper/docs/design/draft/reference-code-production.md", "temper/docs/design/draft/reference-landing.md", "temper/docs/design/draft/notes.md", "AGENTS.md", "DESIGN.md"]
