@@ -120,3 +120,23 @@ the run made (`admission.rs`, `domain.rs`, `route/forge_route.rs`, `clients/tran
 the engine and system worlds' lists) are now in the header; change nothing else in them. The
 four downstream failures under the report's `## Left` (`change_panel`, `task`'s forge panel,
 the two ChangedJudge simulations) are not this task's: report them again under `## Left`.
+
+## Rebase (2026-11-03, step merge, foreman reference-m3/kinds-ctl-reads/foreman-3)
+
+Resolve the three merge conflicts by preserving landed wire changes and task-specification reads alongside the forge settings hooks.
+The merge failed in these paths; no test failure is reported:
+- `temper/crates/temper-client-protocol-wire/src/generated/v1.rs`
+- `temper/crates/temper-client-protocol-wire/src/tests.rs`
+- `temper/crates/temper-client-tools/src/jig/runner/reads.rs`
+
+Rebase onto the landing target, preserving these changes:
+- Wire: retain the target’s removal of setup-project records and fields, and its 8192-byte tier-string bounds (`ec68925a16`, carried by integration catch-up `69bd8b4b3c`). Keep this branch’s `SettingRead`, `ProposalItemsRead`, answers and edits.
+- Regenerate `src/generated/v1.rs` from the combined schema; avoid choosing either generated file wholesale. Use the spec’s `SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'`.
+- Wire tests: retain the target’s setup-field removals, updated tier bounds and `tier_strings_round_trip_at_the_bound_and_refuse_one_more_byte`; also retain this branch’s three settings limits and `settings_reads_and_answers_require_one_complete_bounded_record`.
+- Runner: preserve `f197849a66`’s `Reading.specification`, initialization, task-show slot-7 dispatch, `specification::next`, and extracted `question_page`/`join_thread` helpers.
+- Also preserve this branch’s `Reading.parts`, `application`, host selectors and application read sequencing.
+- Both supplemental paths use slot 7. Keep application dispatch guarded by `application.query.is_some()` and specification dispatch by tool 3 and local 7; their calls are distinct, so no slot renumbering is needed.
+- Keep application proposal reads after jig proposal-value reads, before final rendering, with specification continuation retained after pending reads clear.
+- Preserve the host boundary: forge wire encoding and decoding stay outside `src/jig/`.
+
+Validate codec drift, protocol-wire tests, client-tools settings/proposal tests, task-specification tests and the existing jig boundary test through `heavy`, checking selected counts. Keep edits within the task’s allowed files.
