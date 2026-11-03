@@ -379,3 +379,12 @@ repair alone.
   `tests/fixtures/story-a.log` recorded under `SKEIN_CODEGEN_WRITE`, its replay; the one-process
   `story_a.rs` once alone with `--run-ignored all` (its `#[ignore]` lifted only if it passes). Add
   `heavy cargo nextest run -p temper-one-process-world` to the checks.
+
+2026-11-03. **Four runs without landing again (runs 5 to 8): go on, or rethink the task?** Go on,
+with the previous answer (story A's git over the live peer's `Route`) as the next run's work; no new
+decision. As before, the runs are no loop: each reached a new stall its stop rule named, the run
+committed and pushed its repairs with their tests, its answer repaired the next cause, and the next
+run got further (the project, the adoption, the cues, the chat; now the first checkout). The branch's
+pushed commits (to `6b9885849d`) stay and the next run starts from them. The earlier rules hold: a
+failure of `Route` itself, or any new failure outside the allowances' classes, is a question with its
+evidence, asked after committing and pushing what is repaired.
