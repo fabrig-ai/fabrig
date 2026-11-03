@@ -75,6 +75,7 @@ fn a_goals_landing_lands_its_branch_into_main_whole_leaving_it_held_by_the_goal(
             tasks::Parameter::Bytes { name: 2, value: b"main".as_slice().into() },
             tasks::Parameter::Bytes { name: 3, value: branch.clone() },
             tasks::Parameter::Number { name: 11, value: 1 },
+            tasks::Parameter::Bytes { name: 10, value: b"Land the goal".as_slice().into() },
         ]
     );
     assert!(live_task(&world, landing).holdings.is_empty());
