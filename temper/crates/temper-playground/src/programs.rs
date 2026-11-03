@@ -114,6 +114,11 @@ pub struct Parameters {
     pub disk: Rc<RefCell<skein_fake_machine::Machine>>,
 }
 thread_local! { static PARAMETERS: RefCell<Option<Parameters>> = const { RefCell::new(None) }; }
+/// Install factory parameters for the worker's one world, with no end.
+pub fn install(parameters: Parameters) {
+    PARAMETERS.with(|at| *at.borrow_mut() = Some(parameters));
+}
+
 /// Scope factory parameters around construction or steps; restore them even on unwind.
 pub fn with<R>(parameters: Parameters, run: impl FnOnce() -> R) -> R {
     struct Reset(Option<Parameters>);
@@ -366,3 +371,7 @@ pub fn programs<H: Harness>() -> Vec<(HostedProgram<Process<H>>, StartupRoots)> 
         ),
     ]
 }
+
+#[cfg(test)]
+#[path = "tests/programs.rs"]
+mod tests;

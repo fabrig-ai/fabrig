@@ -5,6 +5,10 @@ kind = "feature"
 needs = ["playground-visitor"]
 files = [
   "temper/tests/playground/**",
+  "temper/crates/temper-playground/src/story.rs",
+  "temper/crates/temper-playground/src/tests/**",
+  "temper/crates/temper-playground/Cargo.toml",
+  "temper/tests/one-process/tests/suite/story_a.rs",
   "Cargo.lock",
 ]
 effort = "high"
@@ -143,3 +147,43 @@ Then:
   the component; `temper-playground` is `playground-visitor`'s and `playground-worker`'s now.
 
 The report gives the diagnosis whichever way it goes, with the counts and lines that show it.
+
+2026-11-03. **Who repairs the stall at `Starting` (forge 1 `NotSetUp`, nothing adopted): a
+re-opened `playground-worker`, or this task widened?** This task, widened by exactly that repair:
+its acceptance cannot hold without it, and `playground-visitor` and `playground-worker` have both
+merged into the trunk, so either would be a rerun anyway. This answer overrides the previous one
+for this repair only.
+
+The cause, confirmed in the code: with no box the service reads a fresh fake forge's handover from
+its setup entry's file. A forge `StartPlayground` makes is `Prepared` with no handover, so
+`start_pending` (`temper/crates/temper-service/src/setup/lifecycle.rs`, ~956) sets
+`FileStep::Reading` on `<data>/playground-N/admin_token`. The file is missing, so `file_answer`
+calls `start_local` with no handover, and `StartFake` with no handover is `NotSetUp` (~981). The
+design says the composition lays it: "its setup entry the playground's, whose handover the
+composition lays on the disk" (`temper/docs/design/playground.md`, 4). `world_metered`
+(`temper/crates/temper-playground/src/story.rs`, ~59) lays handovers only for a `setup` array,
+which story A has none of. The one-process world's `story_a` is ignored for the same reason
+(`temper/tests/one-process/tests/suite/story_a.rs`, its `#[ignore]` text).
+
+The repair, the service unchanged:
+
+- `world_metered` also lays `fakes::ADMIN_TOKEN` with `machine::lay_handover` at the playground
+  forge's setup-entry file. That is the fake entry's directory for the number `StartPlayground`
+  gives (in a fresh world, 1, after any forges the document's `setup` array makes), joined with
+  `admin_token`, in the deployment's data directory as the service resolves it. Derive the path as
+  the service does (`temper_forge_setup::machine::entry(.., BoxKind::Fake, ..)` and
+  `place::Place::path(File::AdminToken)`, if they are public; otherwise the same join), not a
+  hand-written string. Lay it only when the deployment has `application.demo` (the playground is
+  offered).
+- A test in `temper-playground`'s `src/tests/` (beside `world.rs`'s handover test, ~123-142): a
+  fresh world of story A holds the handover at that path with the fake's admin token.
+- `temper/tests/one-process/tests/suite/story_a.rs`: run its ignored test once alone with
+  `--run-ignored all`. If it passes, remove the `#[ignore]`. If it fails, keep the ignore, change
+  its reason to the new stall in one line, and report the failure under `## Left`; do not chase it.
+- `Cargo.toml` of `temper-playground` only if the path's derivation needs `temper-forge-setup` as
+  a dependency.
+
+Then the walk goes on as the acceptance says. If it stalls again past the fake forge's connection
+(the takeover, the account, the project or the adoption), the previous answer's diagnosis and
+stop rules apply: a fault in the service or the engine is a question, not this task's. Add
+`heavy cargo nextest run -p temper-playground` to the checks.

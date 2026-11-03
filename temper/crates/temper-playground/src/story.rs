@@ -139,6 +139,13 @@ pub fn slices(start: Start, budget: u32, browser: Time) -> Slices<Process<()>, M
     Slices::new(world(start), reach(), budget, browser)
 }
 
+/// Make slices from a worker start message; an unknown story has no world.
+#[must_use]
+pub fn start_slices(start: &skein_ui_web::bridge::Start, browser: Time) -> Option<Slices<Process<()>, Machine>> {
+    let story = crate::stories::named(&start.story)?;
+    Some(slices(story.start(start.seed, start.start), SLICE_STEPS, browser))
+}
+
 #[cfg(test)]
 #[path = "tests/world.rs"]
 mod tests;
