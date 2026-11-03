@@ -310,3 +310,23 @@ fn probe_effects_name_their_commit_resource_and_purpose() {
     }));
     assert!(d.describe_tier_effect(TIER_TASK, PROBE_DISPATCH + 1).is_none());
 }
+
+#[test]
+fn a_completed_verdict_pairs_each_failed_id_with_its_own_landing() {
+    let mut d = one();
+    confirmed(&mut d);
+    let out = finish(&mut d);
+    let Some(TierDecision::Done { words }) = choice(&out) else { panic!("completed red") };
+    let commit = commit_text(&NEXT_TIP);
+    let mut expected = Vec::new();
+    for part in [
+        b"Tier browser run 1: red, 2 tests failing, blamed on 1 landing\n".as_slice(),
+        &commit,
+        b" owns: \"suite.first\"\n",
+        &commit,
+        b" owns: \"suite.second\"",
+    ] {
+        expected.extend_from_slice(part);
+    }
+    assert_eq!(words.as_ref(), expected.as_slice());
+}

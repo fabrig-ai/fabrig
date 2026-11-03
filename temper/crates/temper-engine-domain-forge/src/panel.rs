@@ -130,24 +130,15 @@ impl Panel {
 
 impl Domain {
     fn panel_tiers(&self, verification: &crate::Verification) -> Box<[Box<[u8]>]> {
-        use temper_engine_domain_forge_tiers::{Blame, Failures};
         let mut lines = List::with_capacity(u32::try_from(verification.tiers.len()).expect("admitted tiers"));
         for tier in &verification.tiers {
             let mut run = None;
-            let mut suffix: &[u8] = b"";
-            let mut count = None;
+            let mut suffix = Box::from(b"".as_slice());
             if let Some(repair) = tier.repaired {
                 run = Some(repair.run);
             } else if let Some(verdict) = &tier.verdict {
                 run = Some(verdict.run);
-                match &verdict.blame {
-                    Blame::Cleared => {}
-                    Blame::Owns(Failures::Many) | Blame::Suspect(Failures::Many) => suffix = b" \xc2\xb7 many tests",
-                    Blame::Owns(Failures::Tests(tests)) | Blame::Suspect(Failures::Tests(tests)) => {
-                        count = Some(u64::try_from(tests.len()).expect("admitted tests"));
-                        suffix = if tests.len() == 1 { b" test" } else { b" tests" };
-                    }
-                }
+                suffix = tier_blame(&verdict.blame);
             } else {
                 for ((repository, name), row) in &self.tiers {
                     if *repository == verification.repository
@@ -157,27 +148,21 @@ impl Domain {
                         run = Some(flight.number);
                     }
                 }
-                suffix = if run.is_some() { b" running" } else { b" waiting" };
+                suffix = Box::from(if run.is_some() { b" running".as_slice() } else { b" waiting".as_slice() });
             }
             let number = skein_lib::Decimal::of(run.unwrap_or(0));
-            let counted = skein_lib::Decimal::of(count.unwrap_or(0));
-            let parts: [&[u8]; 6] = [
-                &tier.tier,
+            let mut line = List::uncapped();
+            for part in [
+                tier.tier.as_ref(),
                 if run.is_some() { b" run " } else { b"" },
                 if run.is_some() { number.as_bytes() } else { b"" },
-                if count.is_some() { b" \xc2\xb7 " } else { b"" },
-                if count.is_some() { counted.as_bytes() } else { b"" },
-                suffix,
-            ];
-            let mut length = 0_usize;
-            for part in parts {
-                length = length.checked_add(part.len()).expect("bounded tier line");
+                &suffix,
+            ] {
+                for byte in part {
+                    line.push(*byte).expect("tier words");
+                }
             }
-            let mut line = skein_lib::Writer::new(length);
-            for part in parts {
-                line.put(part).expect("measured tier line");
-            }
-            lines.push(line.finish()).expect("admitted tiers");
+            lines.push(line.into_boxed()).expect("admitted tiers");
         }
         lines.into_boxed()
     }
@@ -396,7 +381,7 @@ pub(crate) fn queue_before(
 
 fn tier_lines_within(lines: &[Box<[u8]>]) -> bool {
     for line in lines {
-        if line.len() > 128 {
+        if line.len() > 8192 {
             return false;
         }
     }
@@ -410,4 +395,45 @@ fn question_lines_within(questions: &[PanelQuestion]) -> bool {
         }
     }
     true
+}
+
+fn tier_blame(blame: &temper_engine_domain_forge_tiers::Blame) -> Box<[u8]> {
+    use temper_engine_domain_forge_tiers::{Blame, Failures};
+    let (kind, failures) = match blame {
+        Blame::Cleared => return Box::new([]),
+        Blame::Owns(failures) => (b" owns ".as_slice(), failures),
+        Blame::Suspect(failures) => (b" suspected of ".as_slice(), failures),
+    };
+    let mut line = List::uncapped();
+    for part in [b" \xc2\xb7".as_slice(), kind] {
+        for byte in part {
+            line.push(*byte).expect("tier words");
+        }
+    }
+    match failures {
+        Failures::Many => {
+            for byte in b"many tests" {
+                line.push(*byte).expect("tier words");
+            }
+        }
+        Failures::Tests(tests) => {
+            let count = skein_lib::Decimal::of(u64::try_from(tests.len()).expect("admitted tests"));
+            for part in [count.as_bytes(), if tests.len() == 1 { b" test: " } else { b" tests: " }] {
+                for byte in part {
+                    line.push(*byte).expect("tier words");
+                }
+            }
+            for (at, test) in tests.iter().enumerate() {
+                if at > 0 {
+                    for byte in b", " {
+                        line.push(*byte).expect("tier words");
+                    }
+                }
+                for byte in test {
+                    line.push(*byte).expect("tier words");
+                }
+            }
+        }
+    }
+    line.into_boxed()
 }

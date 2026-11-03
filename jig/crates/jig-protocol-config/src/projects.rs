@@ -510,6 +510,7 @@ fn delegation(
                     b"charter" => authority::Executor::Charter(number),
                     b"procedure" => authority::Executor::Procedure(number),
                     b"role" => authority::Executor::Role(number),
+                    b"job" => authority::Executor::Job(number),
                     _ => {
                         problems.push(path.member(b"kind"), What::Form);
                         continue;

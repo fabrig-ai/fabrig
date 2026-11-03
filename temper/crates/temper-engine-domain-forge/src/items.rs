@@ -105,7 +105,15 @@ impl Domain {
                     (Start::Branch(row.branch.clone()), Some(row.branch.clone()), Some(self.change_branch_holder(row)))
                 }
                 change::Delegate::Resolve { base } => (
-                    Start::Merge { branch: row.branch.clone(), base },
+                    Start::Merge {
+                        branch: if row.change.last_head.is_some() { row.branch.clone() } else { row.base.clone() },
+                        base,
+                    },
+                    Some(row.branch.clone()),
+                    Some(self.change_branch_holder(row)),
+                ),
+                change::Delegate::Merge { base, from } => (
+                    Start::Merge { branch: if from.is_some() { row.branch.clone() } else { row.base.clone() }, base },
                     Some(row.branch.clone()),
                     Some(self.change_branch_holder(row)),
                 ),
@@ -142,13 +150,17 @@ impl Domain {
             },
             Some((
                 _,
-                change::Delegate::Repair(_) | change::Delegate::Resolve { .. } | change::Delegate::Gate { .. },
+                change::Delegate::Repair(_)
+                | change::Delegate::Resolve { .. }
+                | change::Delegate::Merge { .. }
+                | change::Delegate::Gate { .. },
             ))
             | None => None,
         };
+        let name = repository.name.clone();
         let mut bytes = u64::try_from(size_of::<Item>())
             .ok()?
-            .checked_add(u64::try_from(repository.name.len()).ok()?)?
+            .checked_add(u64::try_from(name.len()).ok()?)?
             .checked_add(u64::try_from(repository.host.len()).ok()?)?
             .checked_add(u64::try_from(repository.owner.len()).ok()?)?;
         let branch = match &start {
@@ -172,7 +184,7 @@ impl Domain {
         }
         Some(Item {
             provider: repository.provider,
-            name: repository.name.clone(),
+            name,
             host: repository.host.clone(),
             owner: repository.owner.clone(),
             start,

@@ -33,6 +33,8 @@ mod relay;
 pub(crate) use holds::{hold as hold_reason, refused_step, start_refused};
 pub(crate) use relay::{ChangeStep, refused as relay_refused};
 
+mod merge;
+
 #[cfg(test)]
 mod tests;
 
@@ -1594,11 +1596,11 @@ pub(crate) fn claimed_writes(
     domain: &Domain,
     env: &Env<Limits>,
     task: u64,
+    workspace: &ForgeWorkspace,
 ) -> Option<(Box<[forge::Name]>, Box<[u64]>)> {
-    let assignment = domain.assignment_parts.get(&task)?;
     let mut writes = List::with_capacity(env.limits.forge.resources_per_task);
     let mut holders = List::with_capacity(env.limits.forge.resources_per_task);
-    for repository in &assignment.workspace.repositories {
+    for repository in &workspace.repositories {
         let Some(push) = &repository.push else { continue };
         let name = forge::Name {
             forge: repository.provider.forge,
@@ -1816,15 +1818,15 @@ fn change_delegate_status(kind: &tasks::MessageKind) -> Option<(forge_change::St
             tasks::ResultKind::NoChange
             | tasks::ResultKind::Report
             | tasks::ResultKind::Change { .. }
-            | tasks::ResultKind::Verdict { code: 1, .. },
+            | tasks::ResultKind::Verdict { code: 1, .. }
+            | tasks::ResultKind::Job,
         ) => Some((forge_change::Status::Passed, false, false)),
         tasks::MessageKind::Result(tasks::ResultKind::Failed) => Some((forge_change::Status::Failed, true, false)),
         tasks::MessageKind::Result(tasks::ResultKind::Cancelled) => Some((forge_change::Status::Failed, false, true)),
         tasks::MessageKind::Result(tasks::ResultKind::Verdict { .. } | tasks::ResultKind::Approved { .. }) => {
             Some((forge_change::Status::Failed, false, false))
         }
-        tasks::MessageKind::Result(tasks::ResultKind::Job)
-        | tasks::MessageKind::Escalation { .. }
+        tasks::MessageKind::Escalation { .. }
         | tasks::MessageKind::Proposal { .. }
         | tasks::MessageKind::SettingsDecision { .. }
         | tasks::MessageKind::ProposalDecision { .. }
@@ -1857,6 +1859,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
     let mut base_repair = false;
     let mut route = forge_change::Route::None;
     let mut requester_branch = false;
+    let mut catch_up = None;
     for parameter in &context.spec.parameters {
         match parameter {
             tasks::Parameter::Resource { name: 1, connector, resource } => {
@@ -1877,6 +1880,10 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
             tasks::Parameter::Number { name: 14, value: 1 } => route = forge_change::Route::Foreman,
             tasks::Parameter::Number { name: 14, value: 2 } => route = forge_change::Route::Up,
             tasks::Parameter::Number { name: 11, value: 1 } => requester_branch = true,
+            tasks::Parameter::Bytes { name: 16, value } => {
+                let Some(commit) = catch_up_commit(value) else { return false };
+                catch_up = Some(commit);
+            }
             tasks::Parameter::Bytes { name: 6 | 10, .. } => {}
             tasks::Parameter::Number { .. } | tasks::Parameter::Bytes { .. } | tasks::Parameter::Resource { .. } => {
                 return false;
@@ -1925,7 +1932,12 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 repository: provider,
                 branch: branch.clone(),
                 base: base.clone(),
-                title: initial_change_title(&context.spec.parameters),
+                // A catch-up has no producing agent to supply its pull request's title.
+                title: if catch_up.is_some() {
+                    Box::from(b"Catch up landing branch".as_slice())
+                } else {
+                    initial_change_title(&context.spec.parameters)
+                },
                 body: match body {
                     Some(body) => body,
                     None => context.spec.words.clone(),
@@ -1969,6 +1981,8 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 effect_account: None,
                 producer_failure: None,
                 report: Box::new([]),
+                catch_up,
+                merge_result: None,
             },
         }));
         let branch_name =
@@ -2024,6 +2038,12 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
             .expect("one released relay per change step");
     }
     domain.work.push(Work::Forge(forge::Event::StepChange {
+        merge_job: match domain.core.tasks.delegation(task) {
+            Some(context) => {
+                context.authority.delegation.kinds.contains(&tasks::AuthorityExecutor::Job(forge::MERGE_KIND))
+            }
+            None => false,
+        },
         task,
         entry,
         kept: landing_route::kept(domain, env, task),
@@ -2208,6 +2228,7 @@ pub(crate) enum ChangeRefused {
 
 /// Build a plan's changes together; jig admits all of them in one delegation.
 /// Plan members require the control family (domain/agent.md, 4.3.1).
+#[expect(clippy::too_many_lines, reason = "one batch validates plan members before constructing atomic delegates")]
 pub(crate) fn change_batch(
     domain: &Domain,
     env: &Env<Limits>,
@@ -2222,14 +2243,22 @@ pub(crate) fn change_batch(
                 || change.branch.is_some()
                 || !change.after.is_empty()
                 || change.questions.is_some()
+                || change.merge.is_some()
         }
         _ => true,
     };
     let control = jig_domain_core::ToolFamilies::JIG.control.0;
     if plan && context.authority.tools.0 & control != control {
-        return Err(ChangeRefused::Words(Box::from(
-            b"change's landing, branch, name, after, questions and changes are a plan's: this task's authority lacks the control family (amend, cancel, release).".as_slice(),
-        )));
+        let mut merge = false;
+        for change in changes {
+            merge |= change.merge.is_some();
+        }
+        let words: &[u8] = if merge {
+            b"change's merge is a plan's: this task's authority lacks the control family (amend, cancel, release)."
+        } else {
+            b"change's landing, branch, name, after, questions and changes are a plan's: this task's authority lacks the control family (amend, cancel, release)."
+        };
+        return Err(ChangeRefused::Words(Box::from(words)));
     }
     if let Some(words) = super::goal::change_refusal(domain, task) {
         return Err(ChangeRefused::Words(words));
@@ -2289,6 +2318,18 @@ pub(crate) fn change_batch(
             Err(why) => return Err(ChangeRefused::Refusal(why)),
         };
         let branch = change_branch(domain, env, task, &repository, change, batch.as_slice())?;
+        if change.merge.is_some() {
+            if domain.forge.merge_job(context.project).is_none() {
+                return Err(ChangeRefused::Words(Box::from(
+                    b"change's merge: the project names no merge_job.".as_slice(),
+                )));
+            }
+            if !context.authority.delegation.kinds.contains(&tasks::AuthorityExecutor::Job(forge::MERGE_KIND)) {
+                return Err(ChangeRefused::Words(Box::from(
+                    b"change's merge: its authority does not delegate to the merge job.".as_slice(),
+                )));
+            }
+        }
         let base = change_landing(domain, env, task, &repository, change.landing.as_ref())?;
         let mut member = match chat_change(domain, env, &remaining, change, &repository, base, branch, spend) {
             Ok(member) => member,
@@ -2440,6 +2481,7 @@ fn change_branch(
 /// Expand one change with its share of the call's remaining authority.
 /// Ordinary delegation admission decides the resulting batch by its call name.
 #[expect(clippy::too_many_arguments, reason = "the resolved branch and landing accompany the admitted change context")]
+#[expect(clippy::too_many_lines, reason = "the change delegate keeps its authority and plan parameters together")]
 fn chat_change(
     domain: &Domain,
     env: &Env<Limits>,
@@ -2478,6 +2520,9 @@ fn chat_change(
         {
             kinds.push(tasks::AuthorityExecutor::Role(1)).expect("one person gate role");
         }
+    }
+    if context.authority.delegation.kinds.contains(&tasks::AuthorityExecutor::Job(forge::MERGE_KIND)) {
+        kinds.push(tasks::AuthorityExecutor::Job(forge::MERGE_KIND)).expect("merge kind");
     }
     authority.delegation.kinds = kinds.into_boxed();
     // A producer, a review, and two repairs each followed by its review.
@@ -2518,6 +2563,11 @@ fn chat_change(
     };
     if let Some(value) = route
         && parameters.push(tasks::Parameter::Number { name: 14, value }).is_err()
+    {
+        return Err(tasks::Refusal::Spec);
+    }
+    if let Some(commit) = change.merge
+        && parameters.push(tasks::Parameter::Bytes { name: 16, value: commit_text(&commit) }).is_err()
     {
         return Err(tasks::Refusal::Spec);
     }
@@ -2619,6 +2669,7 @@ fn child_authority(context: &tasks::DelegationContext) -> Option<tasks::Authorit
     Some(authority)
 }
 
+#[expect(clippy::too_many_lines, reason = "each change delegate keeps its executor, spec and contract together")]
 fn change_delegate(
     domain: &Domain,
     env: &Env<Limits>,
@@ -2634,13 +2685,50 @@ fn change_delegate(
         forge_change::Delegate::Produce
         | forge_change::Delegate::Repair(_)
         | forge_change::Delegate::Resolve { .. } => row.questions.route != forge_change::Route::None,
-        forge_change::Delegate::Gate { .. } => false,
+        forge_change::Delegate::Gate { .. } | forge_change::Delegate::Merge { .. } => false,
     };
     if !asking {
         authority.tools.0 &= !domain.core.settings.tools.message.0;
     } else if row.questions.route == forge_change::Route::Foreman {
         // Keep spend for a foreman while this coding delegate waits on its question.
         authority.budget.spend /= 2;
+    }
+    if let forge_change::Delegate::Merge { base, from } = kind {
+        let bound = domain.config.merge_kind?;
+        let repository = domain.forge.repository(row.repository)?;
+        let command = domain.forge.merge_job(repository.project)?;
+        let head = match from {
+            Some(head) => head,
+            None => domain.forge.branch_head(&forge::Name {
+                forge: row.repository.forge,
+                repository: row.repository.repository,
+                what: forge::What::Branch(branch_parts(&row.base, env.limits.forge.name_bytes)?),
+            })?,
+        };
+        return Some(super::Delegate {
+            executor: tasks::Executor::Job { kind: forge::MERGE_KIND },
+            spec: tasks::Spec {
+                job: Some(Box::new(tasks::JobSpec {
+                    bytes: merge::spec(&repository.name, command, &head, &base, bound.spec)?,
+                    deadline: bound.deadline,
+                })),
+                asks: false,
+                words: Box::new([]),
+                parameters: Box::new([]),
+                inputs: Box::new([]),
+            },
+            contract: tasks::Contract::Job { bytes: bound.result },
+            authority,
+            deadline: tasks::Deadline::Named,
+            tracked: None,
+            label: 0,
+            flags: tasks::Flags::PLAIN,
+            budget: people::Budget::Named,
+            symbolic_grants: Box::new([]),
+            dependencies: Box::new([]),
+            wake: Some(tasks::WakePolicy::DEFAULT),
+            llm: None,
+        });
     }
     let mut parameters = List::with_capacity(env.limits.tasks.parameters);
     parameters
@@ -2658,6 +2746,7 @@ fn change_delegate(
         words: env.limits.tasks.result_bytes,
     };
     let (executor, words, contract) = match kind {
+        forge_change::Delegate::Merge { .. } => return None,
         forge_change::Delegate::Produce => (
             tasks::Executor::Agent { charter: row.producing_charter },
             production_words(domain, env, task, row)?,
@@ -2672,7 +2761,11 @@ fn change_delegate(
             parameters.push(tasks::Parameter::Bytes { name: 6, value: commit_text(&base) }).ok()?;
             (
                 tasks::Executor::Agent { charter: row.producing_charter },
-                Box::from(&b"Resolve the merge conflict and push the merge commit"[..]),
+                merge::resolution_words(
+                    row.merge_result.as_deref(),
+                    parameters.as_slice(),
+                    env.limits.tasks.spec_bytes,
+                ),
                 change_contract,
             )
         }
@@ -3172,18 +3265,6 @@ fn hold_change_decision(domain: &Domain, env: &Env<Limits>, task: u64, why: forg
         Some(words.into_boxed())
     } else if let forge_change::Hold::Authority(cause) = why {
         Some(forge_change::authority_words(cause))
-    } else if why == forge_change::Hold::Resolutions
-        && let Some(row) = domain.forge.change(task)
-        && let Some(repository) = domain.forge.repository(row.repository)
-        && !domain.forge.requires(repository, &row.base).up_to_date
-    {
-        let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
-        append(&mut words, b"The merge into ");
-        append(&mut words, &row.base);
-        append(&mut words, b" conflicts, and its landing rule asks no update: settle the conflict on ");
-        append(&mut words, &row.branch);
-        append(&mut words, b" and release the change, or cancel it.");
-        Some(words.into_boxed())
     } else {
         None
     };
@@ -4645,4 +4726,39 @@ fn route_resource(
     domain.work.push(Work::Core(jig_domain_core::Event::EffectConnector(
         jig_domain_core::effects::connector::Event::Resource { project, name, role, hold },
     )));
+}
+
+/// Parameter 16 uses the forge's padded commit and lowercase spelling
+/// (temper/docs/design/domain/forge.md, 8.1).
+fn catch_up_commit(text: &[u8]) -> Option<[u8; 32]> {
+    if text.len() != 40 && text.len() != 64 {
+        return None;
+    }
+    let mut commit = [0_u8; 32];
+    for (pair, cell) in text.chunks_exact(2).zip(&mut commit) {
+        let mut byte = 0_u8;
+        for digit in pair {
+            let digit = match digit {
+                b'0'..=b'9' => digit.saturating_sub(b'0'),
+                b'a'..=b'f' => digit.saturating_sub(b'a').saturating_add(10),
+                _ => return None,
+            };
+            byte = byte.saturating_mul(16).saturating_add(digit);
+        }
+        *cell = byte;
+    }
+    Some(commit)
+}
+
+/// temper/docs/design/domain/forge.md, 8.1: parameter 16 carries canonical commit text.
+#[cfg(test)]
+#[test]
+fn catch_up_parameter_requires_a_lowercase_commit_and_pads_sha_one() {
+    let mut sha_one = [0_u8; 32];
+    sha_one.get_mut(..20).expect("SHA-1 prefix").fill(0xaa);
+    assert_eq!(catch_up_commit(&[b'a'; 40]), Some(sha_one));
+    assert_eq!(catch_up_commit(&[b'a'; 64]), Some([0xaa; 32]));
+    for text in [b"".as_slice(), &[b'a'; 39], &[b'a'; 41], &[b'a'; 63], &[b'a'; 65], &[b'A'; 40], &[b'g'; 64]] {
+        assert_eq!(catch_up_commit(text), None);
+    }
 }

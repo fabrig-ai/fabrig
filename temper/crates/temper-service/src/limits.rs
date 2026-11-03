@@ -1,5 +1,6 @@
 //! The small profile and checked field overrides (protocol/configuration.md, section 7).
 mod names;
+use alloc::boxed::Box;
 use skein_lib::Duration;
 use temper_engine_domain as engine;
 use temper_engine_domain_forge as forge;
@@ -465,5 +466,31 @@ pub(crate) fn tooling(slots: u32) -> temper_worker_domain::tooling::Limits {
         path_bytes: TOOLING_PATH_BYTES,
         jobs: slots,
         path: b"/usr/bin:/bin".as_slice().into(),
+    }
+}
+
+/// The merge job's kind and bounds (temper/docs/design/domain/worker.md, 4.4).
+pub(crate) const MERGE_KIND: u32 = 3;
+pub(crate) const MERGE_SPEC_BYTES: u32 = 4_096;
+pub(crate) const MERGE_RESULT_BYTES: u32 = 512;
+pub(crate) const MERGE_DEADLINE: Duration = Duration::from_secs(600);
+
+pub(crate) fn merge_bound() -> jig_domain_host::JobBound {
+    jig_domain_host::JobBound {
+        kind: jig_domain_host::JobKind(MERGE_KIND),
+        spec: MERGE_SPEC_BYTES,
+        result: MERGE_RESULT_BYTES,
+        deadline: MERGE_DEADLINE,
+    }
+}
+
+/// Declare merge only where the tasks child holds its bounds
+/// (temper/docs/design/domain/worker.md, 4.4).
+pub(crate) fn merge_jobs(jig: &jig_protocol_config::Limits) -> Box<[jig_domain_host::JobBound]> {
+    let bound = merge_bound();
+    if bound.spec <= jig.core.tasks.spec_bytes && bound.result <= jig.core.tasks.result_bytes {
+        Box::new([bound])
+    } else {
+        Box::new([])
     }
 }

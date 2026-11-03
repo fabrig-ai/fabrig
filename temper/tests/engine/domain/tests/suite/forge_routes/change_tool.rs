@@ -26,6 +26,19 @@ pub(super) fn change(
     repository: Option<&[u8]>,
     words: &[u8],
 ) -> engine::CallAnswer {
+    change_landing(world, chat, name, repository, words, None)
+}
+
+pub(super) fn change_landing(
+    world: &mut World,
+    chat: &engine::Assignment,
+    name: u64,
+    repository: Option<&[u8]>,
+    words: &[u8],
+    landing: Option<engine::ChangeLanding>,
+) -> engine::CallAnswer {
+    let mut change = engine::ChangeCall::words(words.into(), repository.map(Box::from));
+    change.landing = landing;
     let before = world.answers.len();
     let event = world.protocol.call(
         Token::new(7),
@@ -35,9 +48,7 @@ pub(super) fn change(
         engine::Call {
             completion: u32::try_from(name).expect("bounded call name"),
             position: 1,
-            tool: engine::Tool::Change {
-                changes: Box::new([engine::ChangeCall::words(words.into(), repository.map(Box::from))]),
-            },
+            tool: engine::Tool::Change { changes: Box::new([change]) },
         },
     );
     world.send(event);

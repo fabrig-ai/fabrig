@@ -59,6 +59,7 @@ enum StepStage {
     Ci,
     BaseCi,
     Compare,
+    CatchUp,
     Reviews(u32),
 }
 
@@ -73,6 +74,7 @@ pub(crate) struct PendingStep {
     gates: Box<[change::GateReport]>,
     queue_repair_active: bool,
     kept: bool,
+    merge_job: bool,
     pending: Box<[change::Pending]>,
     branch: Option<skein_forge::api::Commit>,
     base_tip: Option<skein_forge::api::Commit>,
@@ -80,6 +82,7 @@ pub(crate) struct PendingStep {
     ci: change::Status,
     base_ci: change::Status,
     contains_base: change::Status,
+    contains_catch_up: change::Status,
     reviews: Box<[skein_forge::api::Review]>,
     reviews_complete: bool,
     woken: bool,
@@ -91,6 +94,7 @@ struct StepInput {
     gates: Box<[change::GateReport]>,
     queue_repair_active: bool,
     kept: bool,
+    merge_job: bool,
     pending: Box<[change::Pending]>,
 }
 
@@ -207,6 +211,7 @@ pub struct Domain {
     pub(crate) brief_held: Map<Token, held::Held>,
     judges: crate::Judges,
     gate_policy: crate::GatePolicy,
+    merge_kind: Option<(u32, u32)>,
     judge_criteria: u32,
     projection_due: Map<u64, skein_lib::Wall>,
     change_due: Map<u64, skein_lib::Wall>,
@@ -216,6 +221,11 @@ pub struct Domain {
 }
 
 impl Domain {
+    /// The core's declared merge bounds (temper/docs/design/domain/worker.md, 4.4).
+    pub fn merge_kind(&mut self, spec: u32, result: u32) {
+        self.merge_kind = Some((spec, result));
+    }
+
     /// Before the first input, size the volatile routing tables by the connection component's bounds.
     /// The product of the connection bounds must fit the installation row count.
     pub fn connection_limits(&mut self, _forges: u32, installations: u32) {
@@ -649,6 +659,7 @@ impl Domain {
             brief_held: Map::with_capacity(l.brief_sections),
             judges: crate::Judges::empty(l.judge_projects),
             gate_policy: crate::GatePolicy::empty(l.judge_projects),
+            merge_kind: None,
             judge_criteria: l.judge_criteria,
             projection_due: Map::with_capacity(l.issues),
             change_due: Map::with_capacity(l.changes),
@@ -1480,8 +1491,13 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 }
             }
         }
-        Event::StepChange { task, entry, heard, gates, queue_repair_active, kept, pending } => {
-            step_change(d, env, StepInput { task, entry, heard, gates, queue_repair_active, kept, pending }, out);
+        Event::StepChange { task, entry, heard, gates, queue_repair_active, kept, merge_job, pending } => {
+            step_change(
+                d,
+                env,
+                StepInput { task, entry, heard, gates, queue_repair_active, kept, merge_job, pending },
+                out,
+            );
         }
         Event::ReleaseChange { task } => release_change(d, env, task, out),
         Event::SettleEffects { task, root, ending } => settle_effects(d, env, task, root, ending, out),
@@ -2682,6 +2698,10 @@ fn delegated(
         row.result.repaired(why, row.change.last_head, env.limits.client.answer_bytes);
     }
     row.delegate = Some((child, kind));
+    match kind {
+        change::Delegate::Resolve { .. } | change::Delegate::Merge { .. } => row.merge_result = None,
+        change::Delegate::Produce | change::Delegate::Repair(_) | change::Delegate::Gate { .. } => {}
+    }
     row.producer_failure = None;
     row.effect_account = None;
     row.delegate_status = change::Status::Unknown;
@@ -2720,9 +2740,10 @@ fn delegate_admission_refused(
         (change::Delegate::Repair(why), change::State::Repairing { requested, why: current }) => {
             *requested && why == *current
         }
-        (change::Delegate::Resolve { base }, change::State::Resolving { requested, base: current }) => {
-            *requested && base == *current
-        }
+        (
+            change::Delegate::Resolve { base } | change::Delegate::Merge { base, .. },
+            change::State::Resolving { requested, base: current },
+        ) => *requested && base == *current,
         (change::Delegate::Gate { number, head }, change::State::Gating { head: current, asked }) => {
             head == *current && asked.contains(&number)
         }
@@ -2745,7 +2766,10 @@ fn unasked(row: &mut ChangeRow, kind: change::Delegate) -> change::State {
             row.change.repairs = row.change.repairs.saturating_sub(1);
             change::State::Repairing { requested: false, why }
         }
-        (change::Delegate::Resolve { base }, change::State::Resolving { .. }) => {
+        (
+            change::Delegate::Resolve { base } | change::Delegate::Merge { base, .. },
+            change::State::Resolving { .. },
+        ) => {
             row.change.resolutions = row.change.resolutions.saturating_sub(1);
             change::State::Resolving { requested: false, base }
         }
@@ -2780,7 +2804,11 @@ fn delegate_result(
     if expected != child {
         return;
     }
-    row.delegate = None;
+    // Keep the merge's identity through the fresh branch read, including after restart.
+    match kind {
+        change::Delegate::Merge { .. } | change::Delegate::Resolve { .. } => {}
+        change::Delegate::Produce | change::Delegate::Repair(_) | change::Delegate::Gate { .. } => row.delegate = None,
+    }
     d.start_conflicts.remove(&task);
     row.delegate_status = if no_change { change::Status::Failed } else { status };
     match kind {
@@ -2804,6 +2832,16 @@ fn delegate_result(
             } else {
                 None
             };
+        }
+        change::Delegate::Merge { .. } => {
+            if status == change::Status::Passed {
+                let bound = match d.merge_kind {
+                    Some((_, result)) => usize::try_from(result).expect("u32 fits usize"),
+                    None => 0,
+                };
+                row.merge_result =
+                    Some(Box::from(words.get(..words.len().min(bound)).expect("merge result within its bytes")));
+            }
         }
         change::Delegate::Repair(_) | change::Delegate::Resolve { .. } => {}
     }
@@ -2886,7 +2924,8 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
     if d.stopping {
         return;
     }
-    let StepInput { task, entry, mut heard, gates, queue_repair_active, kept, pending: dependencies } = input;
+    let StepInput { task, entry, mut heard, gates, queue_repair_active, kept, merge_job, pending: dependencies } =
+        input;
     heard.start_conflict = d.start_conflict(task);
     if heard.released {
         release_change(d, env, task, out);
@@ -2922,6 +2961,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         pending.heard.lacking = heard.lacking;
         pending.heard.spend = heard.spend;
         pending.kept = kept;
+        pending.merge_job = merge_job;
         pending.pending = dependencies;
         pending.heard.start_conflict = heard.start_conflict;
         pending.queue_repair_active = queue_repair_active;
@@ -2952,6 +2992,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         gates: if gates.is_empty() { row.verdicts.clone() } else { gates },
         queue_repair_active,
         kept,
+        merge_job,
         pending: dependencies,
         branch: None,
         base_tip: None,
@@ -2959,6 +3000,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         ci: change::Status::Unknown,
         base_ci: change::Status::Unknown,
         contains_base: change::Status::Unknown,
+        contains_catch_up: change::Status::Pending,
         reviews: Box::new([]),
         reviews_complete: true,
         woken: false,
@@ -3016,6 +3058,7 @@ fn step_verified(
         gates: Box::new([]),
         queue_repair_active: false,
         kept: false,
+        merge_job: false,
         pending: Box::new([]),
         branch: row.change.last_head,
         base_tip: Some(merge),
@@ -3023,6 +3066,7 @@ fn step_verified(
         ci: change::Status::Unknown,
         base_ci: change::Status::Unknown,
         contains_base: change::Status::Unknown,
+        contains_catch_up: change::Status::Pending,
         reviews: Box::new([]),
         reviews_complete: true,
         woken: false,
@@ -3075,6 +3119,7 @@ fn step_read(
     let branch = row.branch.clone();
     let base = row.base.clone();
     let pull_number = row.pull;
+    let catch_up = row.catch_up;
     let preparing = row.change.state.clone();
     let required = match d.repositories.get(&repository) {
         Some(repository) => crate::ci::required(&repository.protection),
@@ -3150,6 +3195,30 @@ fn step_read(
                     return;
                 }
             }
+            if let Some(commit) = catch_up {
+                pending.stage = StepStage::CatchUp;
+                skein_forge::api::Read::Compare { before: commit, after: pending.base_tip.expect("base read") }
+            } else {
+                pending.stage = StepStage::Pull;
+                match pull_number {
+                    Some(number) => skein_forge::api::Read::Pull { number },
+                    None => skein_forge::api::Read::PullFor { head: branch, base },
+                }
+            }
+        }
+        StepStage::CatchUp => {
+            pending.contains_catch_up = match result {
+                Ok(skein_forge::api::Answer::Compare { before, after, contains_before, .. })
+                    if Some(before) == catch_up && Some(after) == pending.base_tip =>
+                {
+                    if contains_before {
+                        change::Status::Passed
+                    } else {
+                        change::Status::Failed
+                    }
+                }
+                Ok(_) | Err(_) => change::Status::Pending,
+            };
             pending.stage = StepStage::Pull;
             match pull_number {
                 Some(number) => skein_forge::api::Read::Pull { number },
@@ -3365,6 +3434,7 @@ fn finish_step(d: &mut Domain, env: &Env<Limits>, pending: PendingStep, out: &mu
                 gates: pending.gates,
                 queue_repair_active: pending.queue_repair_active,
                 kept: pending.kept,
+                merge_job: pending.merge_job,
                 pending: pending.pending,
             },
             out,
@@ -3472,6 +3542,9 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &m
     }
     let facts = change_facts(d, env, &row, pending, base_tip);
     let heard = change_standing(d, &row, pending);
+    if row.delegate_status != change::Status::Unknown {
+        row.delegate = None;
+    }
     for _ in 0_u32..16 {
         let stepped = change::step(&row.change, &facts, &heard, env.wall, &env.limits.change_policy);
         let advanced = stepped.change != row.change;
@@ -3652,6 +3725,13 @@ fn change_facts(
         base_tip,
         contains_base: if requires.up_to_date { pending.contains_base } else { change::Status::Passed },
         updates: requires.up_to_date,
+        merge_job: merge_available(d, row, pending, base_tip),
+        delegate: match row.delegate {
+            Some((_, kind)) => Some(kind),
+            None => None,
+        },
+        catch_up: row.catch_up,
+        contains_catch_up: pending.contains_catch_up,
         mergeable: match &pending.pull {
             Some(pull) if pull.mergeable => change::Status::Passed,
             Some(_) if window.is_some() => change::Status::Pending,
@@ -6349,4 +6429,31 @@ fn bind(d: &mut Domain, request: Token, mut address: Box<[u8]>, subject: Box<[u8
         crate::BindAnswer::Full
     };
     out.push(Request::Bound { request, answer });
+}
+
+// The worker wire uses two four-byte lengths; the request is C2's compact JSON.
+// temper/docs/design/domain/worker.md, 4.4; temper/docs/design/domain/forge.md, 8.4.
+fn merge_available(d: &Domain, row: &ChangeRow, pending: &PendingStep, base_tip: [u8; 32]) -> bool {
+    if !pending.merge_job {
+        return false;
+    }
+    let Some((bound, _)) = d.merge_kind else { return false };
+    let Some(repository) = d.repositories.get(&row.repository) else { return false };
+    let Some(command) = d.merge_job(repository.project) else { return false };
+    let head = pending.branch.unwrap_or(base_tip);
+    let base = row.catch_up.unwrap_or(base_tip);
+    let mut length = 0_usize;
+    for part in [
+        repository.name.len(),
+        1,
+        command.len(),
+        8,
+        b"{\"version\":1,\"head\":\"\",\"base\":\"\"}".len(),
+        crate::commit_text(&head).len(),
+        crate::commit_text(&base).len(),
+    ] {
+        let Some(sum) = length.checked_add(part) else { return false };
+        length = sum;
+    }
+    length <= usize::try_from(bound).expect("u32 fits usize")
 }
