@@ -87,9 +87,10 @@ Acceptance:
 2. **The core's check** (`check.rs`, `change.rs`), for each item of `Setting::Application`:
    *shape* when its kind is not declared, its scope is not its kind's (`Deployment`: 0;
    `Project`: an open project's number), its number is 0, or a `Set`'s bytes pass
-   `value_bytes`; *count* when the settings its kind would hold in that scope (states not
-   `Removed`, plus the items' sets) pass `per_scope`. These run with jig's checks, before any
-   ask, naming the item.
+   `value_bytes`; *count* when the settings its kind would hold in that scope (every state
+   `Current` keeps for it, `Removed` and `Default` ones included, plus the items naming a
+   number it holds no state for) pass `per_scope` (see **Answers**). These run with jig's
+   checks, before any ask, naming the item.
 3. **Judging** (`dispatch.rs`): after the core's checks pass and before
    `plan_held`, group the application items by their kind's connector (in item order) and
    send each connector one `Ask::Effect(connector::Ask::JudgeSettings { owner, revision:
@@ -141,3 +142,21 @@ Acceptance:
 
 The refusal's final shape; where the parked decision lives; the option taken for *not
 theirs*; any change to the write bounds, with the numbers.
+
+## Answers
+
+2026-11-03. **Does `per_scope` count `Removed` states, or do removal markers get a bound of
+their own?** It counts every state the core keeps for the kind in the scope: `Changed`,
+`Removed` and `Default` (after a reset) alike. A removal keeps its number's slot: the
+connector stores it as a change with no value (engine.md, 17.5, **Kept in the same
+decision**), and a start refuses a stored setting past its kind's values per scope (17.5,
+**At each start**), so the bound is on what is kept, not on what is active. No separate
+bound, no new limit, no change to the core's pricing. Step 2 is amended: *count* when the
+states the kind holds in that scope, plus the items naming a number with no state there,
+pass `per_scope`; an item on a number already held (a set after a removal, a removal, a
+reset) adds nothing. Turn the regression
+`application_removed_states_do_not_exhaust_the_declared_active_value_bound` into the opposite
+case: with `per_scope = 2`, settings 1 and 2 set then removed, a set of setting 3 is refused
+as *count* naming it, before any judge is asked, while a new set of setting 1 is accepted;
+name it for what it checks (`application_removed_states_hold_their_slots`, or the like).
+Freeing a removed number's slot is not this task's.
