@@ -14,11 +14,12 @@ routes, `Artifact` and `Commits` among them (`forge.md`,
 `lib.md`, `shell.md`, `world.md`). json, tls and http's collector have
 no fuzz target (`json.md`, `tls.md`, `http.md`). A few items lag in
 `lib.md`, `examples.md` and `ui.md`. The code departs in three crates'
-`tests/` directories (`testing.md`), and five of the LLM live suite's
-provider stories are manual, run by the owner (`llm.md`). `README.md`,
+`tests/` directories (`testing.md`) and in `skein-playground`'s manifest
+(`playground.md`), and five of the LLM live suite's provider stories are
+manual, run by the owner (`llm.md`). `README.md`,
 `channel.md`, `codec.md`, `kv.md`, `fake-checkout.md`, `fake-llm.md`,
 `forge-client.md`, `forge-connection.md`, `forge-setup.md`,
-`llm-connection.md`, `oauth.md`, `oauth-issuer.md`, `playground.md`,
+`llm-connection.md`, `oauth.md`, `oauth-issuer.md`,
 `ui-text.md`, `ui-web.md` and `browser.md` have no gap. The foundation's
 rules (`../foundation/`) have no status file: of `testing-strategy.md`,
 6, no tree runs transition coverage (`cargo llvm-cov`) or fuzzes a
