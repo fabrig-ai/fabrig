@@ -29,6 +29,7 @@ pub use hosts::{Hosts, WorkerName};
 pub use llm::{Endpoint, Header, Llm, Transport};
 pub mod address;
 mod document;
+pub mod names;
 pub mod overrides;
 pub mod profile;
 pub use profile::{JournalSizes, Limits, Link, Profile, profile};
