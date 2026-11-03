@@ -17,8 +17,6 @@ pub enum GrantValue {
     Key(Box<[u8]>),
     /// A host's program source directory name.
     Program(Box<[u8]>),
-    /// A withdrawn credential carrying its account id and bearer.
-    Withdrawn { account_id: Box<[u8]>, bearer: Box<[u8]> },
 }
 
 impl fmt::Debug for GrantValue {
@@ -52,9 +50,6 @@ impl GrantValue {
                 let name = program_name(value.name())?;
                 GrantValue::Program(Box::from(name))
             }
-            smith_channel::GrantValue::Withdrawn(value) => {
-                GrantValue::Withdrawn { account_id: Box::from(value.id()), bearer: Box::from(value.bearer().expose()) }
-            }
         })
     }
 }
@@ -66,7 +61,7 @@ pub(crate) fn renewable(value: &channel::GrantValue) -> bool {
             channel::Scheme::Key => false,
             channel::Scheme::Bearer => true,
         },
-        channel::GrantValue::Program(_) | channel::GrantValue::Withdrawn(_) => true,
+        channel::GrantValue::Program(_) => true,
     }
 }
 

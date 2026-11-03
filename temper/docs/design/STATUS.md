@@ -77,6 +77,7 @@ Drafts:
 - [`draft/configuring.md`](draft/configuring.status.md)
 - [`draft/dashboards.md`](draft/dashboards.status.md)
 - [`draft/first-release.md`](draft/first-release.status.md)
+- [`draft/first-run-projects.md`](draft/first-run-projects.status.md)
 - [`draft/github.md`](draft/github.status.md)
 - [`draft/macos.md`](draft/macos.status.md)
 - [`draft/upgrades.md`](draft/upgrades.status.md)

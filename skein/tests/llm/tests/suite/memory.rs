@@ -6,8 +6,8 @@ use skein_llm::client;
 use skein_llm_world::{World, call, limits, text_response};
 
 #[test]
-fn codex_dense_request_encoding_stays_under_the_preparation_peak_ceiling() {
-    dense_request_encoding(skein_llm::Provider::OpenAiCodex);
+fn responses_dense_request_encoding_stays_under_the_preparation_peak_ceiling() {
+    dense_request_encoding(skein_llm::Provider::OpenAi);
 }
 
 #[test]
@@ -34,7 +34,7 @@ fn dense_request_encoding(provider: skein_llm::Provider) {
         let mut input = call(1);
         if provider == Provider::Anthropic {
             input.endpoint = skein_llm::Endpoint::anthropic();
-            input.credential.as_mut().expect("fixture credential").account_id = Box::new([]);
+            input.credential = Some(skein_llm::Credential::key(b"fixture-key".as_slice().into()));
         }
         input.prompt.tools = Box::new([Tool {
             name: b"read".to_vec().into(),
@@ -47,7 +47,7 @@ fn dense_request_encoding(provider: skein_llm::Provider) {
             arguments: value.as_bytes().to_vec().into(),
             replay: None,
         }];
-        if provider == Provider::OpenAiCodex {
+        if provider == Provider::OpenAi {
             let opaque = format!("{{\"type\":\"extension\",\"values\":[{}]}}", vec!["null"; count].join(","));
             blocks.push(Block::Reasoning {
                 replay: Replay {
@@ -253,7 +253,7 @@ fn large_schema_request_reasoning_and_answer_stay_under_the_peak_ceiling() {
         "{:?}",
         world.seen
     );
-    // The cap is on the body as rendered, which the Codex route sends gzip.
+    // The cap is on the body as rendered by the public route.
     let sent = skein_llm_world::identity(&world.sent);
     let head = sent.windows(4).position(|w| w == b"\r\n\r\n").unwrap() + 4;
     assert!(sent.len() - head > 6000, "the request is close to its 8192-byte cap");
@@ -537,7 +537,7 @@ fn drive_anthropic_memory(world: &mut World, meter: &Meter, bound: u64) {
 fn memory_anthropic_call(owner: u64) -> skein_llm::Call {
     let mut input = call(owner);
     input.endpoint = skein_llm::Endpoint::anthropic();
-    input.credential = Some(skein_llm::Credential::anthropic(b"synthetic-oauth-token".to_vec().into()));
+    input.credential = Some(skein_llm::Credential::key(b"synthetic-oauth-token".to_vec().into()));
     input.prompt.affinity = None;
     input.prompt.max_output_tokens = Some(1024);
     input
@@ -736,7 +736,7 @@ fn replay_at_its_cap_owns_only_shared_text_and_fixed_records() {
     bounded.reasoning = bounded.retained;
     bounded.tokens = 1024;
     let admitted = skein_llm::Replay {
-        provider: skein_llm::Provider::OpenAiCodex,
+        provider: skein_llm::Provider::OpenAi,
         value: skein_llm::Json::from_bytes(raw.as_bytes(), &bounded.document()).unwrap(),
     };
     let wire = admitted.to_bytes(&bounded.document()).unwrap();
@@ -922,7 +922,7 @@ fn measurement_refuses_large_starts_without_copying_their_owned_bytes() {
         let mut input = call(1);
         if anthropic {
             input.endpoint = skein_llm::Endpoint::anthropic();
-            input.credential = Some(skein_llm::Credential::anthropic(b"synthetic-token".as_slice().into()));
+            input.credential = Some(skein_llm::Credential::key(b"synthetic-token".as_slice().into()));
         }
         input.prompt.instructions = vec![b'x'; 1024 * 1024].into();
         let bounds = limits();
@@ -942,7 +942,7 @@ fn measurement_refuses_large_starts_without_copying_their_owned_bytes() {
 fn twenty_five_thousand_history_items_allocate_only_the_declared_translation_tables() {
     use skein_llm::{Block, Declared, Limits, Message, Provider, Role, openai};
     let declared = Declared { window: 272_000, tools: 8, history_items: 25_000, ..skein_llm_world::TINY_DECL };
-    let mut bounds = Limits::derive(&declared).expect("large model with owner counts").dialect(Provider::OpenAiCodex);
+    let mut bounds = Limits::derive(&declared).expect("large model with owner counts").dialect(Provider::OpenAi);
     bounds.http.request = 4096;
     bounds.http.read = 256;
     bounds.http.send = 256;
@@ -988,7 +988,7 @@ fn a_full_report_stays_under_the_peak_ceiling() {
         "c".repeat(REPORT_BOUND),
         "f".repeat(REPORT_BOUND)
     );
-    let headers = format!("x-oai-request-id: {}\r\n", "r".repeat(REPORT_BOUND));
+    let headers = format!("x-request-id: {}\r\n", "r".repeat(REPORT_BOUND));
     let meter = Meter::new();
     let source = skein_llm_world::response(429, &headers, body.as_bytes(), false);
     let mut world = World::new(call(1), bounds, source, 1);

@@ -436,9 +436,9 @@ impl Agent {
 
 /// A relayed call's name in smith's channel record.
 fn name(activation: u64, completion: u32) -> Box<[u8]> {
-    let name = smith_channel::v5::CallName::new(
-        &smith_channel::v5::CEILINGS,
-        smith_channel::v5::CallNameParts { activation, completion, position: 0 },
+    let name = smith_channel::CallName::new(
+        &smith_channel::CEILINGS,
+        smith_channel::CallNameParts { activation, completion, position: 0 },
     )
     .expect("script call name");
     let mut encoded = skein_lib::Writer::new(skein_lib::length::usize_of(name.measure()));

@@ -22,8 +22,7 @@ pub fn login_at(wall: skein_lib::Wall, expired: bool) -> Box<[u8]> {
     let nanos =
         if expired { wall - Duration::from_secs(1).as_nanos() } else { wall + Duration::from_secs(7200).as_nanos() };
     let claims = serde_json::to_vec(&serde_json::json!({
-        "exp": nanos / 1_000_000_000,
-        "https://api.openai.com/auth": {"chatgpt_account_id": "acc"}
+        "exp": nanos / 1_000_000_000
     }))
     .expect("synthetic claims");
     let length =

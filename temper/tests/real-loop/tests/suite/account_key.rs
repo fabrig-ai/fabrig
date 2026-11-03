@@ -25,8 +25,7 @@ fn a_private_file_key_reaches_the_chats_llm() {
         || {
             let mut recipe = llm::scripted(scripts::chat_scripts(1));
             recipe.config.path = b"/v1/responses".as_slice().into();
-            recipe.credential =
-                skein_llm::Credential { value: KEY.into(), scheme: skein_llm::Scheme::Key, account_id: Box::default() };
+            recipe.credential = skein_llm::Credential::key(KEY.into());
             recipe
         },
         || {

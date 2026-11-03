@@ -5,7 +5,7 @@ use skein_world::domain::{Expectations, Judge};
 /// Exact JSON values from one observed native request, retained by the protocol oracle.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct NativeRequest {
-    pub affinity: Option<[String; 3]>,
+    pub affinity: Option<String>,
     pub system: String,
     pub tools: Option<String>,
     pub history: Vec<String>,
@@ -13,7 +13,7 @@ pub struct NativeRequest {
 
 impl NativeRequest {
     /// Read the captured HTTP body's raw values without re-encoding their
-    /// bytes, once inflated where the route sends it gzip (the Codex route).
+    /// bytes, inflated when the endpoint sends gzip.
     #[must_use]
     pub fn from_http(bytes: &[u8]) -> Self {
         let bytes = &skein_llm_world::identity(bytes)[..];
@@ -90,16 +90,15 @@ impl NativeRequest {
         }
         let affinity = fields.get("prompt_cache_key").map(|cache| {
             let head = core::str::from_utf8(&bytes[..head]).expect("native HTTP head");
-            let header = |name: &str| {
-                head.lines()
-                    .filter_map(|line| line.split_once(':'))
-                    .find(|(field, _)| field.eq_ignore_ascii_case(name))
-                    .expect("Codex affinity header")
-                    .1
-                    .trim()
-                    .to_string()
-            };
-            [cache.get().to_string(), header("session-id"), header("thread-id")]
+            assert!(
+                !head.lines().any(|line| {
+                    line.split_once(':').is_some_and(|(name, _)| {
+                        name.eq_ignore_ascii_case("session-id") || name.eq_ignore_ascii_case("thread-id")
+                    })
+                }),
+                "public affinity has no headers"
+            );
+            cache.get().to_string()
         });
         Self {
             affinity,

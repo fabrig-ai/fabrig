@@ -367,11 +367,7 @@ fn start_and_renewal_require_the_declared_form_and_live_generation() {
     use jig_protocol_accounts::table::{Scheme, Table, Value};
     use smith_host_domain as smith;
     let agent = fixtures::worker_agent();
-    let forms = [
-        smith::Form::Credential(smith::Scheme::Bearer),
-        smith::Form::Credential(smith::Scheme::Key),
-        smith::Form::Withdrawn,
-    ];
+    let forms = [smith::Form::Credential(smith::Scheme::Bearer), smith::Form::Credential(smith::Scheme::Key)];
     for (scheme, expected) in [(Scheme::Bearer, forms[0]), (Scheme::Key, forms[1])] {
         let mut table = Table::new(1, 64);
         for generation in [2, 3] {
