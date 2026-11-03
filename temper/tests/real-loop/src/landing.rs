@@ -49,7 +49,7 @@ pub fn fixture() -> crate::forge::Fixture {
             value["engine"]["limits"]["overrides"]["documents.rows"] = temper_client_tools::limits::ROWS.into();
             // The sample profile allows 100 requests per 10 s; short polls need a shorter window.
             value["application"]["limits"]["overrides"]["forge.client.window_ms"] = 100.into();
-            value["application"]["landing"]["projects"] = json!([{"project":1,"rules":[{
+            value["world_settings"]["landing"]["projects"] = json!([{"project":1,"rules":[{
                 "connector":1,"kind":4,"pattern":{"segments":["forge",forge.to_string(),"acme","app","branch"],"last":"exact","value":"main"},
                 "enforce":true,"ci":true,"up_to_date":true,
                 "gates":[{"number":1,"blocking":true,"freshness":"exact"}],"approvals":[]

@@ -99,3 +99,75 @@ pub fn stage_policies(value: &mut serde_json::Value) {
     }
     value["world_settings"]["policies"] = policies;
 }
+
+/// The world's forge defaults are independent of the startup document.
+#[must_use]
+pub fn forge(deployment: &Value) -> Box<[temper_engine_domain_forge::settings::Stock]> {
+    let flags = &deployment["world_settings"];
+    let landing = &flags["landing"];
+    let deployment = landing_rules(&landing["deployment"]);
+    let mut projects = skein_lib::Map::with_capacity(
+        u32::try_from(landing["projects"].as_array().map_or(0, Vec::len)).expect("world projects"),
+    );
+    if let Some(entries) = landing["projects"].as_array() {
+        for entry in entries {
+            let project = u32::try_from(entry["project"].as_u64().expect("world project")).expect("project number");
+            projects.insert(project, landing_rules(&entry["rules"])).expect("world project rules");
+        }
+    }
+    temper_engine_domain::landing_stock(
+        &deployment,
+        &projects,
+        u32::try_from(flags["forge_charter"].as_u64().unwrap_or(1)).expect("world change charter"),
+        4,
+    )
+}
+fn landing_rules(values: &Value) -> Box<[temper_engine_domain::LandingRule]> {
+    use temper_engine_domain::{Approval, Freshness, Gate, LandingRule};
+    let mut rules = Vec::new();
+    if let Some(values) = values.as_array() {
+        for rule in values {
+            let pattern = &rule["pattern"];
+            let word = pattern["value"].as_str().expect("world pattern end").as_bytes().into();
+            let mut gates = Vec::new();
+            for gate in rule["gates"].as_array().expect("world gates") {
+                gates.push(Gate {
+                    number: u32::try_from(gate["number"].as_u64().expect("gate number")).expect("gate number"),
+                    blocking: gate["blocking"].as_bool().expect("gate blocking"),
+                    freshness: if gate["freshness"] == "clean" { Freshness::Clean } else { Freshness::Exact },
+                });
+            }
+            let mut approvals = Vec::new();
+            for approval in rule["approvals"].as_array().expect("world approvals") {
+                approvals.push(Approval {
+                    role: u32::try_from(approval["role"].as_u64().expect("approval role")).expect("role number"),
+                    people: u32::try_from(approval["people"].as_u64().expect("approval people")).expect("people count"),
+                    freshness: if approval["freshness"] == "clean" { Freshness::Clean } else { Freshness::Exact },
+                });
+            }
+            rules.push(LandingRule {
+                connector: 1,
+                kind: 4,
+                pattern: jig_domain_authority::Pattern {
+                    segments: pattern["segments"]
+                        .as_array()
+                        .expect("world segments")
+                        .iter()
+                        .map(|segment| segment.as_str().expect("world segment").as_bytes().into())
+                        .collect(),
+                    last: if pattern["last"] == "exact" {
+                        jig_domain_authority::Last::Exact(word)
+                    } else {
+                        jig_domain_authority::Last::Open(word)
+                    },
+                },
+                enforce: rule["enforce"].as_bool().expect("world rule enforce"),
+                ci: rule["ci"].as_bool().expect("world rule CI"),
+                up_to_date: rule["up_to_date"].as_bool().expect("world rule up to date"),
+                gates: gates.into_boxed_slice(),
+                approvals: approvals.into_boxed_slice(),
+            });
+        }
+    }
+    rules.into_boxed_slice()
+}

@@ -21,24 +21,25 @@ A gate's or an approval's freshness says at which heads a verdict still
 counts: `exact`, the head it was given at; `clean`, every head reached
 from it by updates temper made that merged cleanly.
 
-The rules are the configuration's: `application.landing` in
-`temper.json`, the deployment's rules and each seeded project's. They
-are not settings.
+The rules are settings: kind 1 holds the deployment's rules, kind 2 each
+project's. Rules are numbered from 1 within their scope and add together.
+The forge judges each change to them before it is kept.
 
-`temper init` writes one deployment rule, covering every branch of
-every repository, that enforces CI passed, up to date, and gate 1, an
-agent's review, blocking and fresh at a clean head; no approvals. Every
-change is reviewed by an agent before it lands.
+The binary supplies one deployment rule, covering every branch of every
+repository, that enforces CI passed, up to date, and gate 1, an agent's
+review, blocking and fresh at a clean head; no approvals. Every change
+is reviewed by an agent before it lands.
 
 ## How it changes
 
-temper reads the landing rules at each start. A rule that enforces
-becomes requirements on the forge's merge, one per criterion: the
-deployment's rules join the default rules (`temper help policy`), and a
-project's join its seeded policy at the deployment's first start.
+Use `temper ctl settings apply` to change the rules. A kept change
+reaches the next merge decision with no restart. To require more, such
+as a person's approval or a second gate, add it to a rule.
 
-To change them, edit `application.landing` and restart: to require
-more, such as a person's approval or a second gate, add it to a rule.
+The deployment's rules contain two standing requirements on the forge's
+merge: requirement 5 checks the landing rules, guarded; requirement 6
+checks being up to date by the landing rules, observed. The forge reads
+its held landing rules when it judges them.
 
 ## What temper guarantees
 
@@ -57,20 +58,15 @@ more, such as a person's approval or a second gate, add it to a rule.
 
 ## Acting on it
 
-- The configuration's `application.landing`, then a restart.
-- `temper ctl`: `change show` reads a change's way to landing;
-  `settings show rules` shows the requirements the deployment's landing
-  rules became.
+- `temper ctl settings show landing-rule` reads a deployment rule;
+  `--project PROJECT` reads a project's rule.
+- `temper ctl settings apply` changes them; `settings propose` offers
+  a change for an owner to decide.
+- `temper ctl change show` reads a change's way to landing.
 
 ## Limits
 
-- temper does not hold landing rules as settings: no ctl tool or host
-  tool changes them, and a change needs a restart.
-- A project made after the first start has the deployment's landing
-  rules alone.
-- A project's rules changed after its first start do not reach its
-  policy, which keeps the requirements seeded then.
-- The deployment's rules join the rules' default: a stored change of the
-  rules wins over them. One that drops their requirements drops their
-  blocking gates too, and a landing rule changed in the configuration
-  then reaches no decision until that change is reset.
+- Rules add: a project's rule cannot relax a deployment rule that
+  covers the same branch.
+- The rules' requirements 5 and 6 enforce the held landing rules.
+  Removing these requirements leaves landing to the procedure alone.

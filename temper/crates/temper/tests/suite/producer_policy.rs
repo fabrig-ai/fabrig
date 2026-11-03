@@ -46,12 +46,12 @@ fn assignment(charter: &engine::Charter, ended_by: tasks::EndedBy) -> engine::As
 
 #[test]
 fn process_producers_can_write_and_deliver_while_open_chats_cannot() {
+    const NUMBER: u64 = 2; // configuration.md, 13.4: stock producer charter.
     let (_, bytes) = crate::support::configuration::documents(std::path::Path::new("/fixture"), "/fixture/temper");
     let deployment: serde_json::Value = serde_json::from_slice(&bytes).expect("process configuration");
     let configured = temper_real_loop_world::settings::configuration(&deployment);
     let defaults = temper_service::stock::defaults(&configured.llm);
-    let number = deployment["application"]["charter"].as_u64().expect("producer charter");
-    let producer = defaults.charters.iter().find(|charter| u64::from(charter.number) == number).expect("producer");
+    let producer = defaults.charters.iter().find(|charter| u64::from(charter.number) == NUMBER).expect("producer");
     let finite = temper_engine_smith::charter(&assignment(producer, tasks::EndedBy::Result));
     assert_eq!(finite.mode, smith_domain_run::Mode::Finite);
     assert!(finite.grants.deliver.is_some());

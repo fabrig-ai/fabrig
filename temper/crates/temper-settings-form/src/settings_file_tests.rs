@@ -12,9 +12,11 @@ const SUFFIX: &[u8] = b"}}]}";
 #[test]
 #[expect(clippy::disallowed_macros, reason = "decode the retained process fixture without filesystem access")]
 fn the_retained_cluster_settings_file_decodes_with_no_charter_documents() {
+    // Two charters, the chat template and the deployment landing rule.
+    const ITEMS: u32 = 4;
     let bytes = include_bytes!("../../temper/tests/fixtures/cluster/settings.json");
     let items = file::decode(bytes, &Limits::standard()).expect("retained cluster settings file");
-    assert_eq!(items.len(), 3);
+    assert_eq!(items.len(), ITEMS);
     for (index, number) in [(0, 1), (1, 2)] {
         let item = items.get(index).expect("cluster charter item");
         assert_eq!(item.setting, c::Setting::Charter(c::SettingNumber { number }));

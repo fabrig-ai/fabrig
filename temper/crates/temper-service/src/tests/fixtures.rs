@@ -76,12 +76,8 @@ pub fn engine() -> settings::Engine {
         },
         files: settings::Files { entries: skein_lib::List::with_capacity(0) },
         demo: None,
-        landing_rules: temper_engine_domain::LandingRules {
-            deployment: Box::new([]),
-            projects: skein_lib::Map::with_capacity(0),
-        },
+        kinds_stock: temper_engine_domain::landing_stock(&[], &skein_lib::Map::with_capacity(0), 1, 4),
         landings: skein_lib::Map::with_capacity(0),
-        charter: 1,
         limits: limits::profile(limits::Profile::Small),
     }
 }
@@ -676,11 +672,11 @@ pub fn assignment_with_settings(
 ) -> temper_engine_domain::Assignment {
     let task = task_record(7);
     temper_engine_domain::Assignment {
+        charter: 1,
         task: 7,
         attempt: 2,
         conversation: 2,
         live: jig_domain_host::LiveAsk::NONE,
-        charter: 1,
         run: Box::new(temper_engine_domain::RunCharter {
             revision: 1,
             ended_by: jig_domain_tasks::EndedBy::Result,

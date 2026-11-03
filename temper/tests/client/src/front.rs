@@ -614,8 +614,9 @@ impl Joint {
                 gates: Box::new([engine::Gate { number: 1, blocking: true, freshness: engine::Freshness::Exact }]),
                 approvals: Box::new([]),
             }]);
-            config.landing_rules.deployment.clone_from(&landing);
-            assert!(config.landing_rules.projects.insert(1, landing).is_ok());
+            let mut projects = skein_lib::Map::with_capacity(1);
+            projects.insert(1, landing.clone()).expect("one project landing rule");
+            config.kinds_stock = engine::landing_stock(&landing, &projects, 1, 4);
             let mut rules = config.core.defaults.rules.clone();
             let mut policy = config.core.seed_projects[0].policy.policy.clone();
             rules.ceiling.delegation.kinds =
