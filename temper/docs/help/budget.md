@@ -93,6 +93,40 @@ A budget is what a task may spend, in units its models' prices make of their usa
 - **temper's runs** give a delegate its budget with `delegate`, raise
   it with `amend` within their own, and ask for more with `propose`.
 
+For a goal of up to a hundred changes, count the whole task tree. For
+example, assume 100 change procedures, 100 producers, 200 reviews and
+100 repairs, plus 12 coordinator/foreman tasks including the goal:
+512 tasks in the tree, 511 delegated tasks. If each agent task needs
+one run at cap K and procedures spend no model units, allow 412K units
+(400 production/review/repair runs plus 12 coordinator runs), then add
+headroom for retries, extra reviews and revisions. This is an estimate,
+not guaranteed capacity; reservations and each change's half-budget
+allocation can require more headroom even before that total is spent.
+
+Trace the deepest path in the plan; reserving five delegation levels
+below the goal requires role depth at least 6. For this estimate, give
+the goal at least 511 delegation tasks and permit the executor kinds
+for its change procedures, producers, reviewers, repairs and
+coordinators. The deployment's rules, the project's policy ceiling and
+your role authority must all permit the spend and delegation, with
+enough period funding and pool left. Use `settings show` and `me` to
+check them; policy 1 changes affect projects created afterward, so
+apply them before creating the project.
+
+Before forge setup, check deployment capacity too: live tasks in the
+deployment and project, tasks per tree, tree depth, delegates per task,
+goals, charter documents and result sizes. Size concurrency separately
+from the total work. Raising policy authority alone does not raise
+deployment limits: inspect the configuration (temper help configure).
+The stock hundred-change profile remains a documented gap (N21);
+stock capacity is not a promise that this estimate will fit.
+
+`me` shows what a new root task can receive, with delegation tasks
+calculated as min(role tasks, deployment tree tasks) - 1 and depth as
+role depth - 1: the root consumes one task and one depth level. Thus
+1024/6 and a tree limit of 32 yield 31/5, even when policy 1 permits
+more. These are creating bounds, not a copy of the policy.
+
 ## Limits
 
 - temper gives no task an amount on demand: more comes from an

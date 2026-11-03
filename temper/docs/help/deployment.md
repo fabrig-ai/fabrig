@@ -106,6 +106,55 @@ temper ctl settings apply`.
 - **ctl:** `me` reads your party in the deployment; `settings show`
   reads how its work runs.
 
+**Offering another model** (for example, `gpt-6.1-sol`):
+
+1. In `CONFIG/temper.json`, append a declaration to `engine.llm.models`:
+
+   ```json
+   {
+     "name": "gpt-6.1-sol", "endpoint": "openai",
+     "window": 1048576, "output": 8192,
+     "efforts": ["high", "medium", "low"],
+     "prices": {"input": 1, "cached": 1, "output": 1, "unit": 1000}
+   }
+   ```
+
+   Add `"gpt-6.1-sol"` to `engine.llm.providers[].models` for the
+   provider serving it (`openai` in this example). Its `models` array
+   holds names, not declarations. The declaration's `endpoint` names
+   an existing entry in `engine.llm.endpoints`.
+2. In `CONFIG/agent.json`, append a matching declaration to
+   `endpoints[].models` under the endpoint named `openai`:
+
+   ```json
+   {
+     "name": "gpt-6.1-sol",
+     "window": 1048576, "output": 8192,
+     "efforts": ["high", "medium", "low"],
+     "prices": {"input": 1, "cached": 1, "output": 1, "unit": 1000},
+     "reasoning_item": 65536, "head": 60000, "idle": 30000
+   }
+   ```
+
+   Use the same model and endpoint names in both files. Declare the
+   supported `efforts` in both model declarations; the engine's first
+   effort is the default when no effort is chosen.
+3. These are illustrative values, not provider specifications. Set
+   `window` (context tokens), `output` (maximum output tokens), and
+   `prices` (input, cached input and output costs per `unit` tokens)
+   to the model's supported values and your deployment's accounting
+   units in both files. Set the agent model's `reasoning_item`, the
+   byte allowance per reasoning item, and its `head` and `idle`
+   deadlines in milliseconds. Larger declarations may require larger
+   agent and channel bounds; a refused start names the shortfall.
+4. Preserve existing models, providers and endpoint settings, including
+   addresses, transports and sign-in settings. Finish both edits
+   before the first start. For a running deployment, stop it with
+   Ctrl-C or SIGTERM and wait for it to exit before editing, then
+   restart with the same `CONFIG`, `DATA` and `CACHE`. `model list`
+   reads the models offered to a project; a charter or policy may
+   restrict which it can use (temper help charter; temper help settings).
+
 ## Limits
 
 - temper reads its configuration at a start alone: a change to the

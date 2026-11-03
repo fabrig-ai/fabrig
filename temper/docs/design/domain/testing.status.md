@@ -25,9 +25,17 @@
   reasons still say "a person's sitting" and "owner-run only"
   (`crates/temper/tests/live.rs`). 4.3: the shell subset;
   skein's fake machine runs no `sh` and no `rg`. 4.3, 7:
-  `temper-fake-git-hosted` in `crates/`; it is in `testing/`. 6.4: the
-  settings stories that need temper's kinds of settings (`root.md`'s
-  status). 6.4: the configuring agent's stories, since charter 3 is not
+  `temper-fake-git-hosted` in `crates/`; it is in `testing/`. 6.4: of
+  temper's kinds' stories, the forge's world's (`forge.md`'s status,
+  18); the domain world's project's rule refused to another project's
+  owner, a project made after the first start covered by the
+  deployment's rule, the two requirements removed from the rules and the
+  resume fixture restarting with changed values
+  (`tests/engine/domain/tests/suite/settings/kinds.rs` tells the rest);
+  the fuzzy sweep's changes of landing rules
+  (`tests/engine/forge`'s `suite::fuzzy::simulation` makes none); and
+  the real loop's smoke of a gate added to a project's rule from the
+  client. 6.4: the configuring agent's stories, since charter 3 is not
   built (`agent.status.md`); the client's How work runs, a proposal's
   card and its review, in their step and view tests and joined with
   the engine, since the pages are not built
