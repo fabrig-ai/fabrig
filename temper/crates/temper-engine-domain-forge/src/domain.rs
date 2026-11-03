@@ -4011,11 +4011,12 @@ fn continue_release(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, ou
                 return;
             }
             if goal_branch::is_goal(d, &name) {
-                d.holds.remove(&name);
-                emit(out, Request::Erase { key: Key::Hold(name) });
-                continue;
-            }
-            if row.ending == ReleaseEnding::Failed && row.root != task {
+                if !goal_branch::landed(d, &name) {
+                    d.holds.remove(&name);
+                    emit(out, Request::Erase { key: Key::Hold(name) });
+                    continue;
+                }
+            } else if row.ending == ReleaseEnding::Failed && row.root != task {
                 let hold = d.holds.get_mut(&name).expect("selected hold");
                 hold.task = row.root;
                 save_hold(out, hold.clone());

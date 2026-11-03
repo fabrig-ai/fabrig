@@ -3,8 +3,6 @@
 2026-11-03. Where temper's code lags or departs from [forge.md](forge.md).
 
 - **Not yet:**
-  - 11, 11.1: a goal's own branch deleted as its goal closes once a change
-    has landed it: the release keeps it whatever way the goal ended.
   - 4.1: a removal without the box, its group's act answered in its
     decision: an owned or fake forge's removal asks the box link for
     `remove N` whether or not a pipe is there, and without one waits for
