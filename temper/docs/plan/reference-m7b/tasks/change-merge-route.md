@@ -3,7 +3,7 @@ id = "change-merge-route"
 part = "change-merge"
 kind = "feature"
 needs = ["change-merge-surface", "change-merge-steps", "merge-settings"]
-files = ["temper/crates/temper-engine-domain/src/route/forge_route.rs", "temper/crates/temper-engine-domain/src/route/forge_route/**", "temper/crates/temper-engine-domain/Cargo.toml", "temper/crates/temper-engine-domain-forge/src/domain.rs", "temper/crates/temper-engine-domain-forge/src/lib.rs", "temper/tests/engine/domain/src/**", "temper/tests/engine/domain/tests/suite/forge_routes/**", "temper/tests/engine/domain/tests/suite/forge_routes.rs"]
+files = ["temper/crates/temper-engine-domain/src/route/forge_route.rs", "temper/crates/temper-engine-domain/src/route/forge_route/**", "temper/crates/temper-engine-domain/Cargo.toml", "temper/crates/temper-engine-domain-forge/src/domain.rs", "temper/crates/temper-engine-domain-forge/src/lib.rs", "temper/tests/engine/domain/src/**", "temper/tests/engine/domain/tests/suite/forge_routes/**", "temper/tests/engine/domain/tests/suite/forge_routes.rs", "temper/crates/temper-engine-domain/src/route/now.rs", "temper/crates/temper-engine-domain/src/route/asks.rs", "temper/crates/temper-engine-domain/src/link.rs", "temper/crates/temper-engine-domain/src/decision.rs", "temper/crates/temper-engine-domain/src/boundary.rs", "temper/crates/temper-engine-domain/src/domain.rs", "temper/crates/temper-engine-domain/src/tests.rs", "temper/crates/temper-service/src/route.rs", "temper/crates/temper-service/src/translate.rs", "temper/crates/temper-service/src/clients/translation.rs", "temper/crates/temper-service/src/tests/**"]
 effort = "high"
 minutes = 170
 +++
@@ -115,3 +115,38 @@ Acceptance:
 ## Report
 
 As the implementer's text says; say how the change's authority reached the facts.
+
+## Answers
+
+2026-11-03. **May this task also build the job's workspace handoff across the engine's root and
+the service, or should a prerequisite task supply it?** This task builds it: its stories cannot
+pass without it, no task of the plan owns it, and the run already holds the code. `files` above
+now hold the root's `route/now.rs`, `route/asks.rs`, `link.rs`, `decision.rs`, `boundary.rs`,
+`domain.rs` and `tests.rs`, and the service's `route.rs`, `translate.rs`,
+`clients/translation.rs` and `src/tests/`. The shape, as a run's workspace is handed over today:
+
+- **Prepared as a run's** (`now.rs`, `workspace`): a job task's workspace is made and its names
+  claimed as a run's, the prepared workspace kept by task, and `WorkspacePrepared` carries
+  `workspace: Some(_)` for a job whose workspace has repositories (the bytes the core keeps are
+  the root's own token for it; the core reads none of them). An agent run's answer stays
+  `workspace: None`, unchanged.
+- **Claimed as a run's** (`asks.rs`, `JobClaimed`): the root takes the kept workspace, makes the
+  forge's `Names` and own holds as `run_prepared` does, keeps the typed `ForgeWorkspace` for the
+  delivery, and starts the job on the prepared workspace's workstream (the change's, so its
+  checkout cache is shared), not the task's number.
+- **Delivered typed** (`link.rs`, `decision.rs`): `Delivery::AssignedJob` carries the job's
+  `ForgeWorkspace` (or `None`) in place of opaque item bytes; the service's `AssignedJob` arm
+  translates it with `translate.rs`'s `repository_item`, as `items` does for a run (one helper
+  both call), and sends the encoded items as the job's part. Remotes, git programs and accounts
+  stay the service's; the root encodes no worker item.
+- **No flight outlives its attempt:** the kept workspace is removed at the job's claim, at
+  `RunPreparationFailed` and wherever a run's is, so a failed job's retry prepares afresh and
+  `"one workspace flight per task"` holds; the failed-job story pins it.
+- **Tests:** the world stories above pin the root (a job's assignment has one repository item,
+  the change's, writable, `Start::Merge`); one service test in `src/tests/` beside the agent
+  path's translation test checks an `AssignedJob` with a forge workspace becomes the worker's
+  items, and one with none sends no part. Add `heavy cargo nextest run -p temper-service -E
+  'test(/job/)'` and clippy on `temper-service` to Step 4.
+
+Nothing else changes: the exhaustion fixture is this task's to repair as the run says, and a
+catch-up's `Merge { from: None }` head stays `catch-up-call`'s.

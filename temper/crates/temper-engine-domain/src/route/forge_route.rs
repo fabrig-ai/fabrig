@@ -1574,11 +1574,11 @@ pub(crate) fn claimed_writes(
     domain: &Domain,
     env: &Env<Limits>,
     task: u64,
+    workspace: &ForgeWorkspace,
 ) -> Option<(Box<[forge::Name]>, Box<[u64]>)> {
-    let assignment = domain.assignment_parts.get(&task)?;
     let mut writes = List::with_capacity(env.limits.forge.resources_per_task);
     let mut holders = List::with_capacity(env.limits.forge.resources_per_task);
-    for repository in &assignment.workspace.repositories {
+    for repository in &workspace.repositories {
         let Some(push) = &repository.push else { continue };
         let name = forge::Name {
             forge: repository.provider.forge,
@@ -2462,6 +2462,7 @@ fn child_authority(context: &tasks::DelegationContext) -> Option<tasks::Authorit
     Some(authority)
 }
 
+#[expect(clippy::too_many_lines, reason = "each change delegate keeps its executor, spec and contract together")]
 fn change_delegate(
     domain: &Domain,
     env: &Env<Limits>,

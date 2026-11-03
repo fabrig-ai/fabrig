@@ -1879,6 +1879,11 @@ fn a_tier_effect_without_a_description_is_vetoed_before_it_can_run() {
 
 /// temper/docs/design/domain/worker.md, 4.4: the root writes R1's repository-relative command.
 #[test]
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    reason = "unit fixtures format expected protocol bytes and resolution text"
+)]
 fn a_merge_jobs_spec_is_its_command_and_its_two_commits() {
     use temper_protocol_worker_wire::v1;
     for (head, head_text) in COMMITS {
@@ -1901,6 +1906,11 @@ fn a_merge_jobs_spec_is_its_command_and_its_two_commits() {
 
 /// temper/docs/design/domain/forge.md, 8.4: a resolution carries the job's result within its words' room.
 #[test]
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    reason = "unit fixtures format expected protocol bytes and resolution text"
+)]
 fn a_resolution_after_a_merge_job_carries_its_result() {
     const OPENING: &[u8] = b"Resolve the merge conflict and push the merge commit";
     const PREFIX: &str = "Resolve the merge conflict and push the merge commit\n\nThe merge job settled what the project's merge command knows and left the rest:\n";
@@ -1917,5 +1927,9 @@ fn a_resolution_after_a_merge_job_carries_its_result() {
     assert_eq!(
         super::change_delegate_status(&super::tasks::MessageKind::Result(super::tasks::ResultKind::Job)),
         Some((super::forge_change::Status::Passed, false, false))
+    );
+    assert_eq!(
+        super::change_delegate_status(&super::tasks::MessageKind::Result(super::tasks::ResultKind::Failed)),
+        Some((super::forge_change::Status::Failed, true, false))
     );
 }

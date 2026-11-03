@@ -27,7 +27,7 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             None
         }
         core::Ask::StepMade { task, step, first, .. } => {
-            step_made(domain, task, step, first);
+            step_made(domain, env, decision, task, step, first);
             None
         }
         core::Ask::StepRefused { task, step, why } => {
@@ -311,7 +311,8 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
         }
         core::Ask::ClaimDone { task, attempt, kinds, version } => {
             if connector == domain.config.forge_connector {
-                let (writes, holders) = forge_route::claimed_writes(domain, env, task)
+                let workspace = &domain.assignment_parts.get(&task).expect("admitted assignment").workspace;
+                let (writes, holders) = forge_route::claimed_writes(domain, env, task, workspace)
                     .expect("the admitted assignment retains its bounded held forge writes");
                 if !writes.is_empty() {
                     domain.work.push(Work::Forge(forge::Event::Claim { task, attempt, writes, holders }));
@@ -339,6 +340,20 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
         }
         core::Ask::JobClaimed { task, attempt, kind, spec, deadline, result, grants, workspace } => {
             if connector == domain.config.forge_connector {
+                let crate::boundary::PreparedWorkspace { workspace: prepared, claim_names } =
+                    domain.run_workspaces.remove(&task).expect("prepared job workspace");
+                drop(super::now::claim_workspace(domain, env, task, &prepared, claim_names));
+                let (writes, holders) = forge_route::claimed_writes(domain, env, task, &prepared.workspace)
+                    .expect("the admitted job retains its bounded held forge writes");
+                if !writes.is_empty() {
+                    domain.work.push(Work::Forge(forge::Event::Claim { task, attempt, writes, holders }));
+                }
+                if workspace.is_some() {
+                    assert!(
+                        domain.job_workspaces.insert(task, prepared.workspace).is_ok(),
+                        "one job assignment per task"
+                    );
+                }
                 let mut out = Queue::uncapped();
                 jig_domain_hub_link::step(
                     &mut domain.hub_link,
@@ -347,7 +362,7 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                         job: jig_domain_hub_link::JobStart {
                             task,
                             attempt,
-                            workstream: task,
+                            workstream: prepared.workstream,
                             kind,
                             spec,
                             deadline,
@@ -426,11 +441,20 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
     }
 }
 
-fn step_made(domain: &mut Domain, task: u64, step: u64, child: Option<u64>) {
+fn step_made(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    decision: &mut Decision,
+    task: u64,
+    step: u64,
+    child: Option<u64>,
+) {
     if let Some(kind) = domain.forge_delegating.remove(&(task, step))
         && let Some(child) = child
     {
-        domain.work.push(Work::Forge(forge::Event::Delegated { task, child, kind }));
+        // Jobs prepare at activation, so their parent row must name them before
+        // the queued activation builds the workspace (temper/docs/design/domain/worker.md, 4.4).
+        super::forge_event(domain, env, decision, forge::Event::Delegated { task, child, kind });
     }
 }
 
