@@ -417,3 +417,107 @@ A line naming the template's own goal branch (the brief's step 3)
 ### Triage reason
 
 finding-150's repair (21611e57bd, in the walk's commit) holds: settings show template 4 now prints `resources [{connector:0,symbol:1}]`, which `temper help` settings-fields names as "its own goal branch", so the step can be read with the help; what is left is that settings show prints every setting as a raw record (by design, the goldens show the same for every template), which is friction in the words, not a step that cannot be done or a What passes that cannot be read (What passes asks for the goal on its own branch g, not for these words); whether connector 0 is the right connector is finding-168's cause, not this one's
+
+## finding-179: A box restart re-pushed its starter CI onto main as temper ('Add .forgejo/workflows/ci.yml'), over the person's push; off the happy path (restart), backlog
+
+- Rung: rm3
+- Walk: walk-65
+- Backend: chatgpt-forgejo
+- Commit: 6f7dd085ee86bcbc67f0a9839a18617750b67ab7
+- Area: box / owned forge setup
+- Severity: medium
+- Sightings: (none)
+
+### Reproduction
+
+forge setup --org fabrig --repository fabrig; force-push main to another commit as the person; stop the box with SIGTERM; start it again; read branches/main.
+
+### Expected
+
+A restart leaves main as the person set it; temper changes main only through its changes.
+
+### Seen
+
+main moved from 6f7dd085e to 8792be80b 'Add .forgejo/workflows/ci.yml' by user temper at 16:56:45Z, the restart's start. Later restarts did not move it again. Off the happy path, backlog.
+
+### Triage reason
+
+a box restart re-pushing the starter CI onto main is a failure mode the rung's story (no restarts) does not call for
+
+## finding-181: task message of 2241 bytes is refused 'task message: Limit reached', naming no bound, though ctl help says at most 1048576 bytes
+
+- Rung: rm3
+- Walk: walk-65
+- Backend: chatgpt-forgejo
+- Commit: 6f7dd085ee86bcbc67f0a9839a18617750b67ab7
+- Area: ctl task message words
+- Severity: low
+- Sightings: (none)
+
+### Reproduction
+
+temper ctl DIR task message 4 - --key K < a 2241-byte file
+
+### Expected
+
+The refusal names the bound (bytes) the words pass.
+
+### Seen
+
+'task message: Limit reached'; --json: refused limit admission which words. 1000 and 1241 bytes were accepted.
+
+### Triage reason
+
+the story sends no task message; the person relayed words only to work around finding-177, so the unnamed bound is a words fix off the path
+
+## finding-183: task show's text never names the task's charter (goal under charter 5, producer under charter 7); only --json chip.executor carries it
+
+- Rung: rm3
+- Walk: walk-65
+- Backend: chatgpt-forgejo
+- Commit: 6f7dd085ee86bcbc67f0a9839a18617750b67ab7
+- Area: ctl task show words
+- Severity: low
+- Sightings: (none)
+
+### Reproduction
+
+goal start --template 4 as above; temper ctl DIR task show 4; temper ctl DIR task show 6
+
+### Expected
+
+task show names template 4's charter, as the brief's step 5 expects.
+
+### Seen
+
+The panel prints the models, settings revision and instructions' first words, but no charter number; --json chip.executor.agent.charter is 5 or 7.
+
+### Triage reason
+
+the charter is readable in task show --json (chip.executor.agent.charter), so What passes can be read; the text panel naming it is a words improvement, like finding-170
+
+## finding-184: change show says 'step: producing' for changes kept by their dependencies that never started (7-10)
+
+- Rung: rm3
+- Walk: walk-65
+- Backend: chatgpt-forgejo
+- Commit: 6f7dd085ee86bcbc67f0a9839a18617750b67ab7
+- Area: ctl change show words
+- Severity: low
+- Sightings: (none)
+
+### Reproduction
+
+Goal 4 makes designers with after S; temper ctl DIR change show 7 while task show 7 says 'waiting on: Kept by its dependencies'.
+
+### Expected
+
+A step that says it waits for its dependencies.
+
+### Seen
+
+step: producing; head unknown; no producer.
+
+### Triage reason
+
+change show's 'step: producing' for a change kept by its dependencies is wrong words, but task show says 'Kept by its dependencies', so the walk can read the state
