@@ -1,0 +1,24 @@
+draft = "outward-rule"
+repo = "fabrig"
+sources = ["temper/docs/plan/outward-rule/inputs/request.md"]
+
+# fabrig names no outside lab, step 1 (inputs/request.md): a new test in fabrig-boundary fails a
+# file that names the lab beyond tests/boundary/outward.txt, the inventory at the task's base.
+# One direct part, one task, as the request says; plan.md says why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "outward-check"
+title = "fabrig-boundary's outward test: no tracked text file names the lab beyond tests/boundary/outward.txt, whose counts only fall"
+mode = "direct"
+needs = []
+design = "AGENTS.md, 2"
+
+[[slice]]
+id = 1
+story = "the gate's fabrig-boundary run reads every tracked text file, passes the tree at its base against the generated inventory, and fails a change that adds a name of the lab, listing file, line and name and the inventory the tree would need"
+parts = ["outward-check"]
+walk = false
