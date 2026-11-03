@@ -246,6 +246,7 @@ fn charter(number: u32, turns: u32, instructions: &[u8], llm: &jig_protocol_conf
             shell: false,
             agents: true,
             call_timeout: Duration::from_millis(10_000),
+            tools: RunPolicy::EVERY_FAMILY,
         },
     }
 }

@@ -357,6 +357,7 @@ fn assignment_fixture(instructions: &[u8], words: u32, spend: u64, turns: u32) -
             shell: false,
             agents: false,
             call_timeout: Duration::from_secs(10),
+            tools: core::RunPolicy::EVERY_FAMILY,
         },
         contract: tasks::Contract::Report { words },
         authority: tasks::Authority {

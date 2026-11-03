@@ -395,6 +395,7 @@ pub fn config(seed: u64) -> root::Config {
                         shell: true,
                         agents: true,
                         call_timeout: Duration::from_secs(10),
+                        tools: core::RunPolicy::EVERY_FAMILY,
                     },
                 }]),
                 templates: crate::fixtures::templates(),
