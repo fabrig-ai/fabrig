@@ -1894,34 +1894,32 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
   turn (`smith-agent-service`'s `profile.rs`). That measurement uses the
   smallest shared room over every configured model, so one set of bounds
   holds whichever model a charter names (smith's `limits.md`, 3.9).
-  With `temper init`'s demo endpoint, window 177,523, output 8,192 and
-  `reasoning_item` 65,536, the measured turn is 1,066,989 bytes. Init's
-  configured T of 1,067,219 leaves 230 bytes of room; its carrier ceilings
-  below remain sufficient. A box without the demo is measured from its
-  own models and must declare every carrier at least as large as that
-  measurement. `docs/examples/owned.json` supplies such declarations.
+  With `temper init`'s demo endpoint, window 177,523, output 8,192,
+  `reasoning_item` 65,536 and two calls per response, T is 1,662,042 bytes.
+  A box without the demo is measured from its own models and must declare
+  every carrier at least as large as that measurement.
+  `docs/examples/owned.json` supplies T of 2,184,673 bytes.
   Init keeps the demo, whose window gives the 51,717-byte host part
   (13.4), enough for the stock tools and authorised brief.
 - **The store's ceiling:** small's page holds a loaded transcript of at
-  most 1,590,046 bytes (its 1,590,110 less the frame's 64), so T is at
-  most that. At output 32,000, `reasoning_item` is at most 53,394; a box
-  sets 32,768, its reasoning's bound per item, with room.
-- **Output 16,000** does not start on init's limits either; the example
-  below declares T as 1,254,611 at `reasoning_item` 65,536.
+  most 2,184,673 bytes (its 2,184,737 less the frame's 64), so T is at
+  most that. The page ceiling admits the largest shipped ordinary
+  transcript (jig's `protocol/configuration.md`, 6). A deployment with
+  larger output or reasoning items derives T from its own agent and
+  checks that its full frame fits the selected profile's page.
 - **The limits T sets,** "both hubs" being the engine's and each
-  worker's; init's values are output 8,192's:
+  worker's; init's values are output 8,192's with two calls per response:
 
-| Limit | Relation | Init: output 8,192, item 65,536 | Output 16,000, item 65,536 | Output 32,000, item 32,768 |
-|---|---|---|---|---|
-| both `hub.turn_bytes` | T | 1,067,219 | 1,254,611 | 1,507,539 |
-| the engine's `core.resume_bytes` | T + 4 | 1,067,223 | 1,254,615 | 1,507,543 |
-| both `hub.transcript_bytes` | resume + 12 × ⌊resume / 4⌋ | 4,268,883 | 5,018,451 | 6,030,163 |
-| a worker's `hub.turn_queue_bytes` | 8 × T | 8,537,752 | 10,036,888 | 12,060,312 |
-| the engine's `hub.turn_queue_bytes` | at least T | 8,537,752 | init's holds | init's holds |
-| `root.journal.transcript_bytes` | resume | 1,067,223 | 1,254,615 | 1,507,543 |
-| `root.loads.transcript_bytes` | T, at most 1,590,046 | 1,067,219 | 1,254,611 | 1,507,539 |
-| `root.loads.bytes`, `root.loads.reply_bytes` | T + 248 (a temper record) | 1,067,467 | 1,254,859 | 1,507,787 |
-| `root.loads.read_bytes` | init: 2 × T; holds T and a row and a record | 2,134,438 | init's holds | init's holds |
+| Limit | Relation | Init |
+|---|---|---|
+| both `hub.turn_bytes` | T | 1,662,042 |
+| the engine's `core.resume_bytes` | T + 4 | 1,662,046 |
+| both `hub.transcript_bytes` | resume + 12 × ⌊resume / 4⌋ | 6,648,178 |
+| both `hub.turn_queue_bytes` | 8 × T | 13,296,336 |
+| `root.journal.transcript_bytes` | resume | 1,662,046 |
+| `root.loads.transcript_bytes` | T, at most 2,184,673 | 1,662,042 |
+| `root.loads.bytes`, `root.loads.reply_bytes` | T + a temper record's size | 1,662,290 |
+| `root.loads.read_bytes` | init: 2 × T; holds T and a row and a record | 3,324,084 |
 
 - **Memory:** `engine.memory_bytes` is the engine's byte budget
   (`../domain/root.md`, 4.1), independent of a model's edge bounds.

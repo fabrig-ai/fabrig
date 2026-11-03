@@ -1808,7 +1808,9 @@ runs it (section 7).
   256, `conversations` 3 (a run and two sub-agents side by side, smith's
   `protocol/limits.md`, 2.2: a run's main conversation and its
   sub-agents', each a program session of its own on Claude Code, smith's
-  `protocol/programs.md`, 5.10) and `calls_per_response` 1, and `policy`
+  `protocol/programs.md`, 5.10) and `calls_per_response` 2 (two adjacent
+  inspect-only sub-agent calls, smith's `domain/session.md`, 5, and
+  `protocol/limits.md`, 2.3), and `policy`
   `max_turns` 8, `check_timeout` 60,000 ms, `group_stop` 10, `inbox` 8
   and `unacknowledged` 8. Both charters require eight turns; each permits
   modifying work with a 60,000 ms reserve, so the agent's check timeout
@@ -1879,9 +1881,11 @@ runs it (section 7).
   SKEIN_CODEGEN_WRITE=1 cargo nextest run --locked -p temper --test suite -E 'test(startup::turn_bounds)'
   ```
 
-  jig's store and its KV bounds and the worker wire's ceilings stay as
-  they are: a turn's body is a transcript file's, never a KV value, and
-  each figure is within its wire field's ceiling.
+  jig's small store page ceiling admits the largest shipped ordinary
+  transcript's full frame (jig's `protocol/configuration.md`, 6).
+  The other KV bounds and the worker wire's ceilings stay as they are:
+  a turn's body is a transcript file's, never a KV value. Startup refuses
+  a figure past its wire field's ceiling.
 - **Its `memory_bytes`** are deployment budgets, never declarations of
   a service's worst case. `engine.memory_bytes` meters the engine's
   held bytes (`../domain/root.md`, 4.1); no start compares memory with
