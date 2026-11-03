@@ -317,6 +317,7 @@ impl Application for OpsApplication {
                 core::Held::ApplicationDelivery { .. }
                 | core::Held::ReadLoad { .. }
                 | core::Held::PublicRead { .. }
+                | core::Held::PublicWait { .. }
                 | core::Held::Applied { .. }
                 | core::Held::MakeEffect { .. }
                 | core::Held::SettledCall { .. }

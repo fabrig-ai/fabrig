@@ -1032,6 +1032,9 @@ fn released_into(
     out: &mut Queue<Request>,
 ) {
     match released.0 {
+        Delivery::PublicWait { read } => {
+            domain.work.push(Work::Core(jig_domain_core::Event::PublicDurable { read }));
+        }
         Delivery::ProjectReleased { connector, project } => {
             domain.work.push(Work::Core(jig_domain_core::Event::ProjectReleased { connector, project }));
         }

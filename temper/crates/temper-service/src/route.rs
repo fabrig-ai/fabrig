@@ -367,6 +367,7 @@ fn worker(engine: &mut Engine, request: root::WorkerRequest) {
             | root::Delivery::ReadEscalationDecision { .. }
             | root::Delivery::Fleet(_)
             | root::Delivery::ReadLoad { .. }
+            | root::Delivery::PublicWait { .. }
             | root::Delivery::NotesLoad { .. }
             | root::Delivery::Start(_)
             | root::Delivery::Load { .. }
