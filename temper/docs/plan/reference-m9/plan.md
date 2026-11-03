@@ -30,11 +30,19 @@ The binding shapes are `notes/contracts.md`; the standing rules `notes/common.md
 | repairs | `repairs-call`: `PLAN_CHANGE`'s `repairs`, the root's check, parameter 12 kept | store-surface | released |
 | repairs | `repairs-verdict`: `TierRepair.by`, "repaired by" in the result | store-surface | released |
 | red-news | `red-news-tell`: the logs' ends read, each goal of a red landing told | store-surface, red-news-surface | released |
+| goal-tier | `goal-tier-forge`: goal branches followed, the span, one run at a time, reds told new or still failing | store-surface, goal-tier-config, red-news-tell | released |
+| goal-tier | `reference-tiers`: `landing.json`'s `slow` and `goal` tiers | goal-tier-config | released |
+| stories | `repair-stories`: a red to its goal, a repair naming it clears it | repairs-call, repairs-verdict, red-news-tell | released |
+| stories | `goal-tier-stories`: g's tier in the root's world | goal-tier-forge, repair-stories | released |
+| stories | `help-pages`: `tier.md` and `change.md` | goal-tier-config, repairs-call, repairs-verdict | released |
 
 ## Critical path, as it stands
 
-`store-surface` → `repairs-call` / `repairs-verdict`; `red-news-surface` → `red-news-tell` →
-`goal-tier-forge` → the stories. `goal-tier-forge` is the longest single task.
+`red-news-surface` (90) → `red-news-tell` (210) → `goal-tier-forge` (300) →
+`goal-tier-stories` (120): about 12 implementer-hours, `store-surface` (150) beside the first
+step. The repairs chain (`store-surface` → `repairs-call`/`repairs-verdict` → `repair-stories`)
+is shorter and lands first. Slice 3 is the walk's: steps 20 and 25 to 27, and
+`reference-landing.md`, section 9's third story.
 
 ## Overlaps with the plans beside this one
 
