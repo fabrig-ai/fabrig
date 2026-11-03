@@ -338,3 +338,23 @@ pub fn large_turn() -> Box<[u8]> {
         .expect("one block");
     turn_with_blocks(blocks)
 }
+
+/// Public reading's figures, used only by the public HTTP story
+/// (jig/docs/design/protocol/client.md, 19).
+#[must_use]
+pub fn public_service_limits() -> jig_test_service::limits::Limits {
+    let mut limits = jig_test_service::limits::profile_limits(jig_protocol_config::Profile::Small);
+    limits.root.core.public = jig_domain_core::PublicIndexLimits { goals: 1, ended: 1, lines: 1, depth: 1 };
+    limits.clients.public = jig_protocol_engine_clients::PublicLimits {
+        reads: 2,
+        rate: 8,
+        rate_burst: 8,
+        bytes: 65536,
+        bytes_burst: 65536,
+        answer_bytes: 16384,
+        max_age: 5,
+    };
+    limits.clients_http.public_calls = 2;
+    limits.root.public_reads = 2;
+    limits
+}

@@ -19,6 +19,7 @@ pub mod host;
 #[cfg(any(not(target_arch = "wasm32"), feature = "record"))]
 pub mod journey;
 pub mod limits;
+pub mod public;
 pub mod records;
 #[cfg(target_arch = "wasm32")]
 enum Report {
@@ -49,6 +50,12 @@ struct Shell {
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen(start)]
 pub fn start() {
+    let window = web_sys::window().expect("window");
+    let path = window.location().pathname().expect("path") + &window.location().search().expect("query");
+    if matches!(temper_client_domain::address::parse(path.as_bytes()), temper_client_domain::Place::Public(_)) {
+        public::web::start(path.as_bytes());
+        return;
+    }
     if !skein_ui_web::restart::Restart::new(
         3,
         skein_lib::Duration::from_secs(60),

@@ -16,3 +16,5 @@ mod fuzzy {
     mod protocol;
     mod public_path;
 }
+
+mod public;

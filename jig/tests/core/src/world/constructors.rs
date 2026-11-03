@@ -168,6 +168,7 @@ impl World {
         let move_provider = configuration.core.settings.llm_providers.providers.first().map(|provider| provider.number);
         World {
             manual: false,
+            public_referee: crate::referee::public::Referee::default(),
             returned: 0,
             released: Vec::new(),
             serial: 1000,
