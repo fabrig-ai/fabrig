@@ -1,0 +1,64 @@
+draft = "status-lines"
+repo = "fabrig"
+sources = ["temper/docs/plan/status-lines/inputs/request.md", "DESIGN.md", "AGENTS.md"]
+
+# The design gaps the debt backfill found that no status file holds (inputs/request.md), one
+# entry each, and one stale design sentence. Docs only: one task per tree (skein's two split by
+# file, the second owning STATUS.md), none needing another, all released at once. plan.md says
+# what was checked and dropped, and the overlaps with other drafts.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "jig"
+title = "jig: the backfill's six design gaps in engine, contract, client and testing's status"
+mode = "direct"
+needs = []
+design = "DESIGN.md, 2"
+
+[[part]]
+id = "skein"
+title = "skein: programming-model 5.4's departures and the backfill's other gaps in skein's status files"
+mode = "direct"
+needs = []
+design = "DESIGN.md, 2"
+
+[[part]]
+id = "smith"
+title = "smith: the backfill's four design gaps in session, testing, benchmarks and host's status"
+mode = "direct"
+needs = []
+design = "DESIGN.md, 2"
+
+[[part]]
+id = "temper"
+title = "temper: reconcile.rs, the reference service's copy and not_installed in temper's status; hello_bounds corrected"
+mode = "direct"
+needs = []
+design = "DESIGN.md, 2"
+
+[[slice]]
+id = 1
+story = "jig's status files record the wire fields the engine never fills, the silently capped limits, the undesigned core methods, the root's one due child a pass, the worlds' seeds and heap, and the charter-slot answer"
+parts = ["jig"]
+walk = false
+
+[[slice]]
+id = 2
+story = "each skein crate whose machines depart from programming-model.md 5.4 says so in its status, as do the fakes' shared types, the setup world, io's tokens, GitHub's dialect, the test layout, the keeper's syscalls and forge-connection's states; STATUS.md lists no gap-free document that has one"
+parts = ["skein"]
+walk = false
+
+[[slice]]
+id = 3
+story = "smith's status files record the session's wait, the domain worlds' protocol crates, the runner's agent branches and the local domain's text, and STATUS.md calls session.md gap-free no more"
+parts = ["smith"]
+walk = false
+
+[[slice]]
+id = 4
+story = "temper's status files record reconcile.rs with no caller, temper-service as a copy of jig's reference service and not_installed's missing wire reason, and configuration.md names no hello_bounds"
+parts = ["temper"]
+walk = false

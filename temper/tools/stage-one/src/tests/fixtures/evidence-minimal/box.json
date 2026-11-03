@@ -1,0 +1,8 @@
+{
+  "forge": "127.0.0.1:3000",
+  "repository": "acme/widget",
+  "project": 1,
+  "revision": 1,
+  "proposal": "t1/1",
+  "chat": 1
+}

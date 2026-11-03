@@ -14,3 +14,14 @@
   reads, by the director's decision of 2026-11-03, which the user takes.
   `openai_unauthorized` stays in the automatic suite: it sends the lent token
   replaced by an invalid one.
+  3: `skein/docs/foundation/programming-model.md`, 5.4 asks for one
+  explicit state enum per lifecycle, each state holding exactly its
+  data, no lifecycle in flags or `Option`s beside it, exhaustive matches
+  and one handler per cell; `skein-llm/src/client.rs` keeps a data-less
+  `State` beside `Client`'s state-specific fields and decides
+  transitions by state comparisons; no reason is recorded (the code's
+  side is `skein/docs/development/debt/D023-llm-client-states.md`). 4.8:
+  the request fields have no text on verbosity, but
+  `skein-llm/src/translate.rs`'s `write_request` sends
+  `"text":{"verbosity":"low"}` on every Responses request, using
+  `openai/request.rs`'s `VERBOSITY`; no reason is recorded.

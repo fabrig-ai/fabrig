@@ -51,7 +51,7 @@ pub fn task_text_from_row(
     chunk(row.number, field, source, from, limits.documents.text_bytes)
 }
 
-fn chunk(task: u64, field: TaskTextField, source: &[u8], from: u64, maximum: u32) -> Result<TaskText, Why> {
+pub(crate) fn chunk(task: u64, field: TaskTextField, source: &[u8], from: u64, maximum: u32) -> Result<TaskText, Why> {
     let Ok(start) = usize::try_from(from) else { return Err(Why::Unknown) };
     let rest = source.get(start..).ok_or(Why::Unknown)?;
     if let Some(first) = rest.first()
