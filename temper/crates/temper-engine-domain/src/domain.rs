@@ -265,11 +265,6 @@ impl Domain {
                 limits.journal.run_bytes
             );
         }
-        let mut forge_charter = false;
-        for charter in &config.core.defaults.charters {
-            forge_charter |= charter.number == config.forge_charter;
-        }
-        assert!(forge_charter, "the forge's agent work runs under a configured charter");
         assert!(
             config.core.settings.resume_bytes > 0
                 && config.core.settings.resume_bytes <= limits.journal.transcript_bytes,
@@ -359,20 +354,20 @@ impl Domain {
         for kind in &config.core.kinds {
             declares_forge_kinds |= kind.connector == forge_connector;
         }
-        let stock = if config.kinds_stock.is_empty() {
-            policy_translate::forge_stock(&config.landing_rules, config.forge_charter, forge_connector, limits)
+        let stock =
+            match policy_translate::bridge_stock(&config.landing_rules, &config.kinds_stock, forge_connector, limits)
                 .expect("document landing rules fit the forge defaults")
-        } else {
-            config.kinds_stock
-        };
+            {
+                Some(stock) => stock,
+                None => config.kinds_stock,
+            };
         let kinds_stock = if declares_forge_kinds {
             Some(stock)
         } else {
             forge.give_settings_defaults(stock);
             None
         };
-        let root_config =
-            RootConfig { forge_connector, forge_charter: config.forge_charter, landings: config.landings };
+        let root_config = RootConfig { forge_connector, landings: config.landings };
         let link_rng = skein_lib::Rng::new(config.core.seed);
         let mut core = Core::new(config.core, &core_limits(limits))?;
         // temper/docs/design/domain/agent.md, 8.2: the person answers in their inbox.
@@ -1249,9 +1244,7 @@ pub fn refused(mut config: Config, limits: &Limits) -> Box<[Refused]> {
     ) {
         refused.push(Refused::Landing { project: None }).expect("counted refusals");
     }
-    if config.kinds_stock.is_empty()
-        && let Err(project) =
-            policy_translate::forge_stock(&config.landing_rules, config.forge_charter, connector, limits)
+    if let Err(project) = policy_translate::bridge_stock(&config.landing_rules, &config.kinds_stock, connector, limits)
     {
         refused.push(Refused::Landing { project }).expect("counted refusals");
     }

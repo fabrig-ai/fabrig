@@ -2175,6 +2175,20 @@ fn a_changes_unoffered_producer_is_refused_as_an_executor() {
 }
 
 #[test]
+fn a_changes_unset_or_unoffered_forge_charter_is_refused_as_an_executor() {
+    use super::forge::settings::{SizedValue, Stock, Value};
+    for (change, review) in [(0, 4), (5, 4), (1, 0), (1, 5)] {
+        let (mut domain, env, context) = change_choice_world();
+        domain.forge.give_settings_defaults(Box::new([
+            Stock { kind: 3, scope: 0, number: 1, value: SizedValue { size: 4, value: Value::Charter(change) } },
+            Stock { kind: 3, scope: 0, number: 2, value: SizedValue { size: 4, value: Value::Charter(review) } },
+        ]));
+        let change = crate::ChangeCall::words(b"Make the fix".as_slice().into(), None);
+        assert_eq!(change_choice_batch(&domain, &env, &context, change).unwrap_err(), super::tasks::Refusal::Executor);
+    }
+}
+
+#[test]
 fn a_changes_llm_choices_are_checked_against_their_own_charters_and_run_models() {
     use super::tasks;
     let (domain, env, mut context) = change_choice_world();
@@ -2412,7 +2426,12 @@ fn a_changes_spending_floors_use_its_saved_charters() {
         row.repository = skein_forge::api::Repository { forge: 1, repository: 1 };
         row.producing_charter = producer;
         row.review_charter = review;
-        domain.config.forge_charter = 2;
+        domain.forge.give_settings_defaults(Box::new([forge::settings::Stock {
+            kind: 3,
+            scope: 0,
+            number: 1,
+            value: forge::settings::SizedValue { size: 4, value: forge::settings::Value::Charter(2) },
+        }]));
         let expected = jig_domain_core::reserve_floor(&domain.core.charter(1).unwrap().policy).unwrap();
         forge::step(
             &mut domain.forge,
@@ -2426,6 +2445,82 @@ fn a_changes_spending_floors_use_its_saved_charters() {
         if let Some(spend) = spend {
             assert_eq!(spend.coding, expected);
             assert_eq!(spend.review, expected);
+        }
+    }
+}
+
+#[test]
+fn a_changes_refused_model_holds_the_role_that_needed_its_delegate() {
+    use super::{Work, forge, forge_change, tasks};
+    use forge_change::{Delegate, Freshness, Gate, GateKind, Repair};
+    for (kind, fault, role) in [
+        (Delegate::Produce, tasks::LlmFault::Charter, Some(b"producer".as_slice())),
+        (Delegate::Repair(Repair::Ci), tasks::LlmFault::Charter, Some(b"producer")),
+        (Delegate::Resolve { base: SHA1 }, tasks::LlmFault::Charter, Some(b"producer")),
+        (Delegate::Gate { number: 1, head: SHA1 }, tasks::LlmFault::Charter, Some(b"review")),
+        (Delegate::Gate { number: 2, head: SHA1 }, tasks::LlmFault::Charter, Some(b"producer")),
+        (Delegate::Gate { number: 3, head: SHA1 }, tasks::LlmFault::Charter, None),
+        (Delegate::Produce, tasks::LlmFault::Authority, None),
+        (Delegate::Produce, tasks::LlmFault::Unconfigured, None),
+    ] {
+        let (mut domain, env, task) =
+            crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: super::CHANGE_CODE });
+        let mut row = change_row(Some(7));
+        row.task = task;
+        row.change.task = task;
+        row.producing_charter = 2;
+        row.review_charter = 4;
+        let mut gates = skein_lib::List::with_capacity(3);
+        for (number, kind) in [(1, GateKind::Agent), (2, GateKind::Check), (3, GateKind::Person)] {
+            gates.push(Gate { number, kind, blocking: true, freshness: Freshness::Exact, eager: false }).unwrap();
+        }
+        row.change.gates = gates.into_boxed();
+        domain.forge.restore_begin(env.wall);
+        forge::step(
+            &mut domain.forge,
+            &super::super::environment_forge(&env),
+            forge::Event::Restore { record: forge::Stored::Change(row) },
+            &mut skein_lib::Queue::uncapped(),
+        );
+        let (connector, _, step) = domain.core.tasks.procedure_due(task).expect("due change");
+        domain.forge_delegating.insert((task, step), kind).unwrap();
+        let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
+        super::super::asks::ask(
+            &mut domain,
+            &env,
+            &mut decision,
+            connector,
+            jig_domain_core::Ask::StepRefused {
+                task,
+                step,
+                why: jig_domain_core::StepRefusal::Refused(tasks::Problem {
+                    task: None,
+                    why: tasks::Refusal::Llm { model: 0, why: fault },
+                    blocked_by: None,
+                    capacity: None,
+                }),
+            },
+        );
+        match role {
+            Some(role) => {
+                let Some(Work::Tasks(tasks::Event::HoldFrom { task: held, source, .. })) = domain.work.pop() else {
+                    panic!("charter model refusal holds the change")
+                };
+                assert_eq!(held, task);
+                let tasks::HoldSource::Account { words, .. } = *source else { panic!("forge's account") };
+                let mut expected = skein_lib::List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
+                super::append(&mut expected, b"the change's ");
+                super::append(&mut expected, role);
+                super::append(&mut expected, b" choice names model ");
+                super::append(&mut expected, &domain.core.settings.models[0].name);
+                super::append(
+                    &mut expected,
+                    if role == b"review" { b", which charter 4" } else { b", which charter 2" },
+                );
+                super::append(&mut expected, b" no longer allows; cancel the change or make it again");
+                assert_eq!(words.as_ref(), expected.as_slice());
+            }
+            None => assert!(domain.work.is_empty(), "other refusals and person gates keep the ordinary retry"),
         }
     }
 }

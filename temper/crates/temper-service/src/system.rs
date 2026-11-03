@@ -229,7 +229,6 @@ impl Service {
             landings: settings.landings,
             forge: forge_config,
             identities,
-            forge_charter: settings.charter,
             machine: Some(machine_config(&settings.machine)),
             forges: configured,
             under_box: box_line_bytes.is_some(),

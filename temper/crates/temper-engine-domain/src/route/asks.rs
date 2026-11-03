@@ -32,18 +32,23 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
         }
         core::Ask::StepRefused { task, step, why } => {
             let delegation = domain.forge_delegating.remove(&(task, step));
+            let held = connector == domain.config.forge_connector
+                && hold_changed_charter(domain, task, step, delegation, &why);
             if let core::StepRefusal::Denied { findings, .. } = &why {
                 if connector == domain.config.forge_connector
                     && let Some(kind) = delegation
                 {
                     domain.work.push(Work::Forge(forge::Event::DelegateAdmissionRefused { task, kind }));
                 }
-                forge_route::refused_step(domain, env, task, step, findings);
+                if !held {
+                    forge_route::refused_step(domain, env, task, step, findings);
+                }
             }
             if let core::StepRefusal::Refused(problem) = why {
                 // Jig's domain/connectors.md, 6.2: step again on refusal. A kept change waits
                 // without a deadline; its dependency's Met wakes it (jig's domain/tasks.md, 5.7).
-                if connector == domain.config.forge_connector
+                if !held
+                    && connector == domain.config.forge_connector
                     && domain.core.tasks.waiting_effect_problem(task).as_ref() == Some(&problem)
                     && let Some((owner, code @ 2, current)) = domain.core.tasks.procedure_due(task)
                     && owner == connector
@@ -423,6 +428,111 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
         let mut child = Queue::with_capacity(1);
         child.push(request);
         brief_outputs(domain, env, decision, &mut child);
+    }
+}
+
+/// A change keeps its roles' charters and choices (temper/docs/design/domain/forge.md, 8.9).
+fn hold_changed_charter(
+    domain: &mut Domain,
+    task: u64,
+    step: u64,
+    delegation: Option<temper_engine_domain_forge_change::Delegate>,
+    refusal: &core::StepRefusal,
+) -> bool {
+    use temper_engine_domain_forge_change::{Delegate, GateKind};
+    let Some((owner, 2, current)) = domain.core.tasks.procedure_due(task) else { return false };
+    if owner != domain.config.forge_connector || current != step {
+        return false;
+    }
+    let Some(row) = domain.forge.change(task) else { return false };
+    let (role, charter): (&[u8], u32) = match delegation {
+        Some(Delegate::Gate { number, .. }) => {
+            let mut kind = None;
+            for gate in &row.change.gates {
+                if gate.number == number {
+                    kind = Some(gate.kind);
+                    break;
+                }
+            }
+            match kind {
+                Some(GateKind::Agent) => (b"review", row.review_charter),
+                Some(GateKind::Check) => (b"producer", row.producing_charter),
+                Some(GateKind::Person) | None => return false,
+            }
+        }
+        Some(Delegate::Produce | Delegate::Repair(_) | Delegate::Resolve { .. }) => {
+            (b"producer", row.producing_charter)
+        }
+        None => return false,
+    };
+    let model = match refusal {
+        core::StepRefusal::Denied { findings, .. }
+            if executor_refused(findings)
+                && (!domain
+                    .core
+                    .authority
+                    .rules()
+                    .ceiling
+                    .delegation
+                    .kinds
+                    .contains(&jig_domain_authority::Executor::Charter(charter))
+                    || domain.core.charter(charter).is_none()) =>
+        {
+            None
+        }
+        core::StepRefusal::Refused(tasks::Problem {
+            why: tasks::Refusal::Llm { model, why: tasks::LlmFault::Charter },
+            ..
+        }) => Some(*model),
+        core::StepRefusal::Moved { .. } | core::StepRefusal::Refused(_) | core::StepRefusal::Denied { .. } => {
+            return false;
+        }
+    };
+    let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
+    append_hold(&mut words, b"the change's ");
+    append_hold(&mut words, role);
+    match model {
+        Some(model) => {
+            append_hold(&mut words, b" choice names model ");
+            let Some(model) = domain.core.settings.models.get(usize::from(model)) else { return false };
+            append_hold(&mut words, &model.name);
+            append_hold(&mut words, b", which charter ");
+            append_hold(&mut words, &forge_route::decimal(u64::from(charter)));
+            append_hold(&mut words, b" no longer allows");
+        }
+        None => {
+            append_hold(&mut words, b" charter ");
+            append_hold(&mut words, &forge_route::decimal(u64::from(charter)));
+            append_hold(&mut words, b" is no longer offered");
+        }
+    }
+    append_hold(&mut words, b"; cancel the change or make it again");
+    domain.work.push(Work::Tasks(tasks::Event::HoldFrom {
+        task,
+        why: tasks::Hold::Procedure,
+        source: Box::new(tasks::HoldSource::Account {
+            connector: domain.config.forge_connector,
+            entry: None,
+            words: words.into_boxed(),
+        }),
+    }));
+    true
+}
+
+fn executor_refused(findings: &[jig_domain_authority::Finding]) -> bool {
+    for finding in findings {
+        if let jig_domain_authority::Finding::Executor { .. } = finding {
+            return true;
+        }
+    }
+    false
+}
+
+fn append_hold(words: &mut List<u8>, bytes: &[u8]) {
+    for byte in bytes {
+        if words.room() > 0 {
+            words.push(*byte).expect("checked hold account room");
+        }
     }
 }
 

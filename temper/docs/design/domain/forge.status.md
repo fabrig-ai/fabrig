@@ -27,16 +27,9 @@
     `change_policy` and its charters the deployment's
     (`temper-engine-domain/src/route/forge_route.rs`, `start_change`); its
     page's line that a change takes no words.
-  - 8.9: a change held, saying so, when the newest settings no longer
-    offer the producer's charter it names, or its charter's models no
-    longer allow its LLM choice for a role, as it next needs a delegate
-    of that role: a procedure step refused for its delegate's executor
-    or LLM choice holds nothing
-    (`temper-engine-domain/src/route/asks.rs`, `StepRefused`).
   - 8.2: the pull request's body naming its goal's issue.
   - 8.3: a person's approval as a gate; a review's lens; gates run at once
-    when the change asks; a verdict posted as a commit status; the review
-    charter, kind 3's number 2, is fixed at charter 4.
+    when the change asks; a verdict posted as a commit status.
   - 8.4: widening exhausted authority with ctl before release: `task
     amend`'s `--tasks` and `--budget` are not implemented
     (`../client/tools.md`, 5.5). The hold offers cancellation or asking

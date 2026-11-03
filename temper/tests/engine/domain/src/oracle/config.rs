@@ -20,7 +20,7 @@ pub fn copy(config: &engine::Config) -> engine::Config {
         landings.insert(*key, value.clone()).expect("copied landing");
     }
     engine::Config {
-        kinds_stock: Box::default(),
+        kinds_stock: config.kinds_stock.clone(),
         period_span: config.period_span,
         core: core::Config {
             jobs: c.jobs.clone(),
@@ -31,7 +31,7 @@ pub fn copy(config: &engine::Config) -> engine::Config {
             hub_turns: c.hub_turns,
             owners: c.owners.clone(),
             grants: c.grants.clone(),
-            kinds: Box::default(),
+            kinds: c.kinds.clone(),
             defaults: core::settings::Defaults {
                 charters: c.defaults.charters.clone(),
                 templates: c.defaults.templates.clone(),
@@ -59,7 +59,6 @@ pub fn copy(config: &engine::Config) -> engine::Config {
         landings,
         forge: config.forge.clone(),
         identities: config.identities.clone(),
-        forge_charter: config.forge_charter,
         forges: config.forges.clone(),
         under_box: config.under_box,
         machine: config.machine.clone(),
