@@ -452,11 +452,16 @@ impl<P: Host, M: Machine, R> Memory<P, M, R> {
     pub fn clocks(&mut self, browser: Time) -> (Time, Wall);
     #[must_use] pub fn timer(&self, deadline: Time, browser: Time) -> Option<Time>;
     #[must_use] pub fn log(&self) -> Box<[u8]>;
+    /// The last navigation `worker::shown` accepted; natively none is followed.
+    #[must_use] pub fn shown(&self) -> Option<&[u8]>;
     #[must_use] pub fn slices(&self) -> &Slices<P, M>;
     pub fn slices_mut(&mut self) -> &mut Slices<P, M>;
 }
 impl<P: Host, M: Machine, R> Platform for Memory<P, M, R> { .. }
 ```
+
+`new` makes its `Page` at browser instant 0 and calls `Page::ready` at once: a native test's
+browser time counts from 0, as the `Slices` it is given were made with.
 
 `platform::worker::Heard` is section 6's enum; `playground-memory` needs it portable, so
 `ui-web-worker-page` defines `Heard` in `platform/worker.rs` (portable) and

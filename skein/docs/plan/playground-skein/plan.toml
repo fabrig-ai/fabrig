@@ -64,3 +64,42 @@ id = 4
 story = "the visitor answers a page's exchanges and stream from skein's HTTP server in the world, sending the Host, the Origin and the jar's cookies a browser would"
 parts = ["visitor"]
 walk = false
+
+[[part]]
+id = "memory"
+title = "skein-playground: the bridge in memory, a page's platform over the slices in one thread"
+mode = "direct"
+needs = []
+design = "skein/docs/design/playground.md, 5"
+
+[[part]]
+id = "replay"
+title = "skein-playground: a session log replayed natively, failing at its first difference"
+mode = "direct"
+needs = []
+design = "skein/docs/design/playground.md, 6"
+
+[[part]]
+id = "status"
+title = "skein: the playground kit's status files, once it is built"
+mode = "direct"
+needs = []
+design = "skein/docs/design/playground.md, 8"
+
+[[slice]]
+id = 5
+story = "an exchange a client's transport sends through the bridge in memory is answered by skein's HTTP server through the visitor, natively, and the log kept reads back"
+parts = ["memory"]
+walk = false
+
+[[slice]]
+id = 6
+story = "a session log kept over a world run in slices replays natively to its end, and a log that differs fails at its first input, naming its build"
+parts = ["replay"]
+walk = false
+
+[[slice]]
+id = 7
+story = "the status files say what of the playground kit still lags"
+parts = ["status"]
+walk = false
