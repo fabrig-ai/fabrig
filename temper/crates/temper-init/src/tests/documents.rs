@@ -336,6 +336,14 @@ fn demo_agent(port: u16) -> Value {
 }
 
 #[test]
+fn the_agent_profile_holds_a_run_and_two_sub_agents() {
+    for source in [template::AGENT, fixtures::AGENT] {
+        let agent = parse(source);
+        assert_eq!(agent["profile"]["declared"]["conversations"], 3_u32);
+    }
+}
+
+#[test]
 fn the_agent_configuration_is_the_owned_examples_but_its_programs() {
     let owned = parse(fixtures::AGENT);
     for (row, facts) in cases() {
