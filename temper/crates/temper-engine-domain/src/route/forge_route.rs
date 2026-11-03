@@ -2185,6 +2185,7 @@ pub(crate) enum ChangeRefused {
 
 /// Build a plan's changes together; jig admits all of them in one delegation.
 /// Plan members require the control family (domain/agent.md, 4.3.1).
+#[expect(clippy::too_many_lines, reason = "one batch validates plan members before constructing atomic delegates")]
 pub(crate) fn change_batch(
     domain: &Domain,
     env: &Env<Limits>,

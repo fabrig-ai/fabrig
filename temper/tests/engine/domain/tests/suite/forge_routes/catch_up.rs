@@ -8,6 +8,8 @@ const CHANNEL: Token = Token::new(7);
 const STEPS: u32 = 1000;
 const COMMAND: &[u8] = b".temper/merge";
 const LEFT: &[u8] = b"{\"left\":[\"file\"]}";
+const MAIN_PATH: &[u8] = b"main";
+const MAIN_WORK: &[u8] = b"main work";
 
 fn goal_world(command: bool, kind: bool, control: bool) -> (World, engine::Assignment, Box<[u8]>, u64) {
     let mut world = World::configured_limits(
@@ -136,8 +138,15 @@ fn check_job(world: &World, task: u64, job: &host::JobAssignment, branch: &[u8],
 }
 
 fn push_merge(world: &mut World, task: u64, head: u64, base: u64) -> u64 {
-    let merged = fake::merge_commit(&mut world.fake, &world.fake_env.limits, head, base, Box::new([]), b"Catch up")
-        .expect("merge with both parents");
+    let merged = fake::merge_commit(
+        &mut world.fake,
+        &world.fake_env.limits,
+        head,
+        base,
+        Box::new([raw::File { path: MAIN_PATH.into(), content: MAIN_WORK.into() }]),
+        b"Catch up",
+    )
+    .expect("merge with both parents");
     assert_eq!(
         world.external(
             2,
@@ -178,14 +187,20 @@ fn landed(world: &mut World, task: u64, branch: &[u8], base: u64) {
     let number = change_row(world, task).pull.expect("catch-up pull request");
     let raw::Answer::Pull(pull) = world.external(1, raw::Op::Read(raw::Read::Pull { number })) else { panic!("pull") };
     assert_eq!(pull.base.as_ref(), branch);
-    assert!(pull.merged.is_some());
-    let head = branch_tip(world, branch);
+    let tip = branch_tip(world, branch);
+    assert_eq!(Some(tip), pull.merged);
     let raw::Answer::Comparison { contains_base, .. } =
-        world.external(1, raw::Op::Read(raw::Read::Compare { base, head, page: 1, limit: 10 }))
+        world.external(1, raw::Op::Read(raw::Read::Compare { base, head: pull.commit, page: 1, limit: 10 }))
     else {
         panic!("comparison")
     };
-    assert!(contains_base, "goal contains main's commit");
+    assert!(contains_base, "the catch-up's pushed head contains main's commit");
+    world.until(Until::Ready);
+    assert_eq!(
+        world.external(1, raw::Op::Read(raw::Read::File { commit: tip, path: MAIN_PATH.into() })),
+        raw::Answer::File(MAIN_WORK.into()),
+        "the goal branch holds main's work"
+    );
     assert_eq!(branch_tip(world, b"main"), base);
 }
 
@@ -193,7 +208,7 @@ fn landed(world: &mut World, task: u64, branch: &[u8], base: u64) {
 #[test]
 fn a_catch_up_merges_mains_commit_into_a_branch_at_the_goal_branchs_tip() {
     let (mut world, goal, branch, head) = goal_world(true, true, true);
-    let base = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", b"main", b"main work", 1)
+    let base = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", MAIN_PATH, MAIN_WORK, 1)
         .expect("main advanced");
     let task = catch_up(&mut world, &goal, base);
     let job = next_job(&mut world, task);
@@ -209,7 +224,7 @@ fn a_catch_up_merges_mains_commit_into_a_branch_at_the_goal_branchs_tip() {
 #[test]
 fn a_catch_up_the_merge_job_cannot_settle_goes_to_a_resolution() {
     let (mut world, goal, branch, head) = goal_world(true, true, true);
-    let base = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", b"main", b"main work", 1)
+    let base = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", MAIN_PATH, MAIN_WORK, 1)
         .expect("main advanced");
     let task = catch_up(&mut world, &goal, base);
     let job = next_job(&mut world, task);
@@ -290,7 +305,7 @@ fn refused(command: bool, kind: bool, control: bool, words: &[u8]) {
     world.close();
 }
 
-/// temper/docs/design/domain/forge.md, 10: a catch-up requires the project's merge_job.
+/// temper/docs/design/domain/forge.md, 10: a catch-up requires the project's `merge_job`.
 #[test]
 fn a_catch_up_is_refused_without_a_merge_job() {
     refused(false, true, true, b"change's merge: the project names no merge_job.");
