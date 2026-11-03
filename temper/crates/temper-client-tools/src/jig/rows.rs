@@ -198,12 +198,12 @@ pub const CHAT_CREATE: Tool = Tool {
             b"MODEL[:EFFORT]",
             Kind::Text,
             64,
-            b"A sub-agent model and its effort; repeated, the whole list",
+            b"Sub-agent choices: each model named once, with one effort; effort is required when the model declares efforts",
         ),
     ]],
     keyed: Keyed::Required,
     area: 1,
-    notes: b"The chat's template chooses its model unless `--model` names one;\n`--effort` needs `--model`, and a model that declares efforts needs\n`--effort`. A chat past what your party may start, but within what\nit may propose, is proposed (exit 0). `chat not offered` and `chat\nexceeds offered bounds` (exit 1): your party may not start it.\n`--template` names one of the project's chat templates; one that is\nno chat's, or not offered, fails naming those `me` offers (exit 1).\n`--sub-agent` needs `--model` and replaces the template's sub-agents.\nThen task show TASK --until replied.\n",
+    notes: b"The chat's template chooses its model unless `--model` names one;\n`--effort` needs `--model`, and a model that declares efforts needs\n`--effort`. A chat past what your party may start, but within what\nit may propose, is proposed (exit 0). `chat not offered` and `chat\nexceeds offered bounds` (exit 1): your party may not start it.\n`--template` names one of the project's chat templates; one that is\nno chat's, or not offered, fails naming those `me` offers (exit 1).\n`--sub-agent` needs `--model` and replaces the template's sub-agents.\nTwo choices: --sub-agent MODEL_A:EFFORT_A --sub-agent MODEL_B:EFFORT_B\nwith distinct model names offered by `models`.\nAvailable choices only: this list neither starts children nor assigns\nchoices by child order. The parent's `sub_agent` call selects a model with\noptional `llm`; omitted, it uses main's model and effort.\nOne model cannot be offered at two child efforts;\nmultiple children may use the same choice.\nThen task show TASK --until replied.\n",
 };
 pub const MESSAGE: Tool = Tool {
     name: b"task message",

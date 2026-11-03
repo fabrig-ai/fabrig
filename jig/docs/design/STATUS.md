@@ -9,20 +9,19 @@ are not in jig (`README.md`, `domain/README.md`, `domain/engine.md`,
 `protocol/channel.md`, `protocol/llm.md`, `protocol/service.md`). TLS
 between hosts and contained process trees for workers' agents are not
 built (the protocol documents), nor the store's retention, rehearsal and
-going back (`protocol/store.md`, `protocol/client.md`), nor an
-application's own kinds of setting, which temper's landing rules and
-charters as settings wait on (`domain/engine.md`).
+going back (`protocol/store.md`, `protocol/client.md`). An
+application's own kinds of setting are built, but a proposal naming a
+project's items waits for the deployment's owners alone
+(`domain/engine.md`).
 Of the acts, `Hold`, `Move` under another task, `Succeed`, a settings
 revision's `Restore`, successors, markers, a drain and a conversation's
 questions lag (`domain/people.md`, `domain/tasks.md`, `domain/engine.md`,
 `client/domain/contract.md`); of the client, a committed turn's objects,
 `me`'s `resolved_default`, a service's root, the one-shot mode and the
 drawing family (`client/domain/`); and `ops` standalone, with its
-service and its connectors' protocols (`examples.md`). A deleted
-project's settings are not erased, nor is `RemoveProject` offered in
-the project's document (`domain/people.md`, `domain/connectors.md`,
-`client/domain/contract.md`). The code departs in a few single items
-(`README.md`, `client/domain/client.md`, `domain/engine.md`,
+service and its connectors' protocols (`examples.md`). `RemoveProject`
+is offered in no project's document (`client/domain/contract.md`). The
+code departs in a few single items (`README.md`, `client/domain/client.md`, `domain/engine.md`,
 `domain/people.md`, `domain/root.md`, `examples.md`,
 `protocol/client.md`, `protocol/configuration.md`). `domain/core.md`,
 `domain/providers.md`, `client/domain/README.md` and

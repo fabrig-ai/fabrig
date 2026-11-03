@@ -183,3 +183,107 @@ chat close 8: done; task 9 Cancelled; change show 9: 'step: landed, uncleared'.
 ### Triage reason
 
 the panel losing the red and its blame after the chat's close cancels the change happens at clean-up, after the verdicts What passes reads; finding-128's repair (close no longer holds) held
+
+## finding-147: Spend scales disagree: task panel 'spent 0.71 of 2075.52' while activity says spent 71 and the owner's pool says spent 143 for two such chats
+
+- Rung: rm4
+- Walk: walk-57
+- Backend: claude-forgejo
+- Commit: 4ab8fac8a347249c755d2db69b91c75033ec575f
+- Area: ctl task show spend words
+- Severity: low
+- Sightings: (none)
+
+### Reproduction
+
+As finding 1, two chats; task show 1; task activity 1 --json (run_ended spent); chat close both; project show 1.
+
+### Expected
+
+Backlog (off the happy path): one scale for a task's spend across task show, activity and the pool.
+
+### Seen
+
+task show: 'spent 0.71 of 2075.52'; activity run_ended spent 71 (chat 2: 72); project show pool: 'spent 143, left 414961'.
+
+### Triage reason
+
+one scale for a task's spend across task show, activity and the pool is a words mismatch the rung's steps read past; not the same cause as finding-117 (the pool's balances missing from project show)
+
+## finding-148: A second chat's first run is numbered run 2 (turn 2.1) with no attempt 1
+
+- Rung: rm4
+- Walk: walk-57
+- Backend: claude-forgejo
+- Commit: 4ab8fac8a347249c755d2db69b91c75033ec575f
+- Area: task activity / chat show words
+- Severity: low
+- Sightings: (none)
+
+### Reproduction
+
+Fresh box, one chat (task 1), then a second chat start (task 2); chat show 2; task activity 2 --json.
+
+### Expected
+
+Backlog (off the happy path): a new task's first run is attempt 1, turn 1.1.
+
+### Seen
+
+chat show 2: '2 · run 2 began', 'turn 2.1'; activity run_ended attempt 2; task turn 2 1.1 prints 'unknown'. Workspace path .../workspaces/4294967296.
+
+### Triage reason
+
+a second task's first run numbered run 2 / turn 2.1 is a numbering oddity off the rung's What passes; nothing the story needs is blocked by it
+
+## finding-152: settings apply refusals name the wrong item: 'item 0; rules: shape' when item 0 was charter 5 and the rules were item 7
+
+- Rung: rm3
+- Walk: walk-56
+- Backend: chatgpt-forgejo
+- Commit: 4ab8fac8a347249c755d2db69b91c75033ec575f
+- Area: settings refusal words
+- Severity: low
+- Sightings: (none)
+
+### Reproduction
+
+Fresh box; settings apply a file whose items are charter 5, charter 7, charter 2, template 4, landing-rule 1, landing-rule 2, charter 6, rules (9 delegation kinds), policy 1 --against NEWEST.
+
+### Expected
+
+The refusal names the faulty item's index (7) and its setting.
+
+### Seen
+
+'settings apply: out of shape; item 0; rules: shape'; a file whose item 0 was charter 7 gave the same 'item 0; rules'.
+
+### Triage reason
+
+a wrong item index in a refusal's words; the walk found the faulty setting by bisection, and finding-151's repair makes the refusal name its bound
+
+## finding-155: No help says how the person pushes with the box's header files; forge setup's starter commit on main makes the person's push a forced one
+
+- Rung: rm3
+- Walk: walk-56
+- Backend: chatgpt-forgejo
+- Commit: 4ab8fac8a347249c755d2db69b91c75033ec575f
+- Area: help box / forge hands
+- Severity: low
+- Sightings: (none)
+
+### Reproduction
+
+Fresh box; forge setup --org fabrig --repository fabrig; push an existing history to main as the person with DATA/forge-1/person_write.header.
+
+### Expected
+
+The help names a way to push as the person by the header file's path, and says main holds a starter commit.
+
+### Seen
+
+git takes no header file (pushed with GIT_CONFIG_* env from a script); 'git push' refused 'fetch first' because main held bd45bc81 'Add .forgejo/workflows/ci.yml'; forced. help box steps 3 and 4 disagree on whether me lists project 1.
+
+### Triage reason
+
+pushing an existing history as the person is the person's own git and login, not temper's tool, and the walk got through; forge setup's starter commit making that push forced and help box steps 3 and 4 disagreeing on me's project list are words to settle in the backlog
