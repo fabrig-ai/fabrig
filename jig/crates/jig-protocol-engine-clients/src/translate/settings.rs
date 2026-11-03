@@ -43,6 +43,7 @@ pub fn setting(value: &w::Setting) -> s::Setting {
 }
 pub fn name(value: s::Setting, limits: &w::Limits) -> Result<w::Setting, w::Problem> {
     Ok(match value {
+        jig_domain_people::Setting::ProjectPolicy { .. } => unreachable!("a project's policy: policy-wire"),
         s::Setting::Charter(number) => {
             w::Setting::Charter(w::SettingNumber::new(limits, w::SettingNumberParts { number })?)
         }

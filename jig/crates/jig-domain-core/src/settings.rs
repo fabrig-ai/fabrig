@@ -398,6 +398,7 @@ impl Current {
                 Setting::Template(_) => old.push(setting).expect("fixture defaults"),
                 Setting::Charter(_) | Setting::Policy(_) | Setting::Rules => {}
                 Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
+                Setting::ProjectPolicy { .. } => unreachable!("a project's policy: policy-change"),
             }
         }
         for setting in old.into_boxed() {
@@ -451,6 +452,7 @@ pub fn proposal_heads(items: &[Item]) -> Box<[jig_domain_tasks::SettingHead]> {
                     Setting::Policy(n) => jig_domain_tasks::Setting::Policy(n),
                     Setting::Rules => jig_domain_tasks::Setting::Rules,
                     Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
+                    Setting::ProjectPolicy { .. } => unreachable!("a project's policy: policy-change"),
                 },
                 edit: match item.edit {
                     Edit::Set(_) => jig_domain_tasks::SettingEdit::Set,

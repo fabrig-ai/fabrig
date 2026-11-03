@@ -218,6 +218,7 @@ fn decide_with(
                 s::Setting::Template(_) | s::Setting::Policy(_) => templates = true,
                 s::Setting::Rules => rules = true,
                 jig_domain_people::Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
+                jig_domain_people::Setting::ProjectPolicy { .. } => unreachable!("a project's policy: policy-change"),
             }
         }
     }

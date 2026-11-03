@@ -833,6 +833,7 @@ const fn decode_account_move_why(value: wire::AccountMoveWhy) -> domain::Account
 
 fn encode_setting(value: domain::Setting, limits: &wire::Limits) -> Result<wire::Setting, wire::Problem> {
     Ok(match value {
+        jig_domain_people::Setting::ProjectPolicy { .. } => unreachable!("a project's policy: policy-store"),
         domain::Setting::Charter(number) => {
             wire::Setting::Charter(wire::SettingNumber::new(limits, wire::SettingNumberParts { number })?)
         }

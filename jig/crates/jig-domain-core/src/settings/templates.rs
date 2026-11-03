@@ -119,6 +119,7 @@ pub(crate) fn valid(
             super::Setting::Template(number) => *number,
             super::Setting::Charter(_) | super::Setting::Policy(_) | super::Setting::Rules => continue,
             jig_domain_people::Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
+            jig_domain_people::Setting::ProjectPolicy { .. } => unreachable!("a project's policy: policy-change"),
         };
         let template = current.template(number).expect("offered template");
         let mut executor = template.executor;
@@ -196,6 +197,7 @@ pub fn current_merged(current: &super::Current, overrides: &[jig_domain_people::
             super::Setting::Template(number) => *number,
             super::Setting::Charter(_) | super::Setting::Policy(_) | super::Setting::Rules => continue,
             jig_domain_people::Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
+            jig_domain_people::Setting::ProjectPolicy { .. } => unreachable!("a project's policy: policy-change"),
         };
         let template = current.template(number).expect("offered template");
         let mut value = template.clone();
