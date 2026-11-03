@@ -1931,8 +1931,8 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 base_repair,
                 queue_repair: None,
                 queue_repairs: 0,
-                producing_charter: producer.unwrap_or(domain.config.forge_charter),
-                review_charter: 4,
+                producing_charter: producer.unwrap_or(domain.forge.charters().change),
+                review_charter: domain.forge.charters().review,
                 producing_llm: llm.producer,
                 review_llm: llm.review,
                 effect_account: None,
@@ -2404,9 +2404,9 @@ fn chat_change(
     branch: Option<Box<[u8]>>,
     spend: u64,
 ) -> Result<super::Delegate, tasks::Refusal> {
-    let producer_charter = change.producer.unwrap_or(domain.config.forge_charter);
-    let review_charter = 4;
-    if change.producer.is_some() && domain.core.charter(producer_charter).is_none() {
+    let producer_charter = change.producer.unwrap_or(domain.forge.charters().change);
+    let review_charter = domain.forge.charters().review;
+    if domain.core.charter(producer_charter).is_none() || domain.core.charter(review_charter).is_none() {
         return Err(tasks::Refusal::Executor);
     }
     if let Some(choice) = &change.llm.producer {
