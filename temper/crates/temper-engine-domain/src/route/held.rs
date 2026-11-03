@@ -16,6 +16,7 @@ pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
         Err(held) => held,
     };
     match held {
+        core::Held::PublicRead { .. } => {}
         core::Held::Sources { channel, sources } => {
             emit(decision, &env.limits, Delivery::Link { channel, down: host::LinkDown::Sources { sources } });
         }

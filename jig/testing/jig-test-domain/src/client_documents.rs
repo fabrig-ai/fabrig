@@ -69,6 +69,7 @@ pub(crate) fn document(
                 held @ (core::Held::ApplicationWatchEnded { .. }
                 | core::Held::ReadLoad { .. }
                 | core::Held::Read { .. }
+                | core::Held::PublicRead { .. }
                 | core::Held::Applied { .. }
                 | core::Held::Delivery { .. }
                 | core::Held::WatchEnded { .. }
@@ -206,4 +207,9 @@ pub(crate) fn read(
 pub(crate) fn role_number(role: Option<jig_domain_people::Role>) -> Option<u32> {
     let role = role?;
     Some(role.number())
+}
+
+/// Refuse public admission until the root serves public reads (jig/docs/design/domain/people.md, 13.5).
+pub(crate) fn public_busy(decision: &mut Decision<Write, Delivery>, reply: ReplyTo) {
+    crate::hold(decision, Delivery::Core(core::Held::PublicRead { reply, answer: core::PublicAnswer::Busy }));
 }

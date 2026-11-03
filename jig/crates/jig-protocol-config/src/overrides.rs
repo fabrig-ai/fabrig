@@ -41,6 +41,9 @@ pub fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), What> {
         b"core" => set_core(core, field, value),
         b"link" => set_link(link, field, value),
         b"clients" => {
+            if let Some(field) = field.strip_prefix(b"public.") {
+                return set_public(&mut limits.clients.public, field, value);
+            }
             let count = count(value)?;
             if count == 0 {
                 return Err(What::Override);
@@ -55,6 +58,10 @@ pub fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), What> {
             Ok(())
         }
         b"clients_http" => {
+            if field == b"public_calls" {
+                limits.clients_http.public_calls = count(value)?;
+                return Ok(());
+            }
             let count = count(value)?;
             if count == 0 {
                 return Err(What::Override);
@@ -69,6 +76,20 @@ pub fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), What> {
         _ => Err(What::Override),
     }
 }
+fn set_public(limits: &mut jig_protocol_engine_clients::PublicLimits, name: &[u8], value: u64) -> Result<(), What> {
+    match name {
+        b"reads" => limits.reads = count(value)?,
+        b"rate" => limits.rate = count(value)?,
+        b"rate_burst" => limits.rate_burst = count(value)?,
+        b"bytes" => limits.bytes = value,
+        b"bytes_burst" => limits.bytes_burst = value,
+        b"answer_bytes" => limits.answer_bytes = count(value)?,
+        b"max_age" => limits.max_age = count(value)?,
+        _ => return Err(What::Override),
+    }
+    Ok(())
+}
+
 fn count(value: u64) -> Result<u32, What> {
     u32::try_from(value).or(Err(What::Override))
 }
@@ -505,8 +526,20 @@ fn set_documents(limits: &mut jig_domain_core::documents::DocumentLimits, name: 
 }
 
 fn set_core(limits: &mut jig_domain_core::Limits, name: &[u8], value: u64) -> Result<(), What> {
+    if let Some(field) = name.strip_prefix(b"public.") {
+        let value = u16::try_from(value).or(Err(What::Override))?;
+        match field {
+            b"goals" => limits.public.goals = value,
+            b"ended" => limits.public.ended = value,
+            b"lines" => limits.public.lines = value,
+            b"depth" => limits.public.depth = value,
+            _ => return Err(What::Override),
+        }
+        return Ok(());
+    }
     let jig_domain_core::Limits {
         routes: _,
+        public: _,
         settings,
         templates,
         fill_mark,
@@ -665,6 +698,12 @@ pub fn parse(document: &Document, at: u32, path: &Path) -> Parsed {
     limits.core.documents.executors = profile::authority_executors(&limits.core.tasks, &limits.core.authority);
     limits.core.documents.implications = limits.core.authority.implications;
     object.finish(document, path, &mut problems);
+    let mut public = Problems::empty();
+    crate::clients::check_public(&limits, &mut public);
+    for problem in &public.problems {
+        let problem = codec_problem(document, overrides_at, path, problem.clone());
+        problems.push(problem.path, problem.what);
+    }
     crate::clients::check_settings(&limits, &mut problems);
     if let Err(what) = crate::domain::check_message(&limits.core) {
         problems.push(path.clone(), what);

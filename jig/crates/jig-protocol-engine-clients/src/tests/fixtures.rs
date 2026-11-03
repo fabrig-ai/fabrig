@@ -79,6 +79,7 @@ pub fn env() -> Env<Limits> {
         now: Time::ZERO,
         wall: Wall::EPOCH,
         limits: Limits {
+            public: crate::PublicLimits::OFF,
             streams: 2,
             watches_per_stream: 4,
             queued_bytes: 65536,

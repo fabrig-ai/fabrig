@@ -279,6 +279,9 @@ pub struct Limits {
     /// entries (skein's `programming-model.md`, 7.1); a pacing limit,
     /// not a memory one.
     pub watermark: u32,
+    /// Public admission bounds (jig/docs/design/domain/root.md, 10).
+    pub public_watermark: u32,
+    pub public_reads: u32,
     /// At most this many synchronous child continuations per decision.
     pub routes: u32,
 }
@@ -747,6 +750,9 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
             Work::CallAnswered { to, call } => {
                 let answer = payload(domain, Payload::SettledCall(call));
                 work.push(Work::Core(core::Event::Fleet(fleet::Event::Relayed { to, answer })));
+            }
+            Work::Core(core::Event::PublicRead { reply, .. }) => {
+                client_documents::public_busy(&mut decision, reply);
             }
             Work::Core(event) => {
                 let requests = core::step(&mut domain.core, &env.with(env.limits.core), event);

@@ -195,6 +195,7 @@ pub fn held_event(held: core::Held) -> Option<Event> {
         | core::Held::ApplicationDelivery { .. }
         | core::Held::ApplicationWatchEnded { .. }
         | core::Held::ReadLoad { .. }
+        | core::Held::PublicRead { .. }
         | core::Held::Applied { .. }
         | core::Held::MakeEffect { .. }
         | core::Held::SettledCall { .. }

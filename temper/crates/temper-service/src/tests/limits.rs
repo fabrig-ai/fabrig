@@ -117,6 +117,10 @@ fn the_small_profile_passes_each_domains_validity() {
     let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
     let root = limits::engine(&jig, &settings.limits).expect("coherent root profile");
     assert!(temper_engine_domain::valid(&root));
+    assert_eq!(root.public_watermark, root.watermark / 2);
+    let mut jig = jig;
+    jig.clients.public.reads = 8;
+    assert_eq!(limits::engine_candidate(&jig, &settings.limits).public_reads, 8);
 }
 
 #[test]

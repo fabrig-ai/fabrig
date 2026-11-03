@@ -4150,6 +4150,7 @@ name = "temper-client-protocol-wire"
 version = "0.0.0"
 dependencies = [
  "skein-codec",
+ "skein-codegen",
  "skein-lib",
 ]
 

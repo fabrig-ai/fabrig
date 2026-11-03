@@ -36,6 +36,7 @@ pub(super) fn route_core(
             }
             core::Request::Write(core::Write::Erase(key)) => write(domain, decision, Write::Erase(Key::Core(key))),
             core::Request::Held(held) => match *held {
+                core::Held::PublicRead { .. } => {}
                 core::Held::ApplicationDelivery { .. } => {
                     unreachable!("document assembly owns this synchronous output")
                 }
@@ -147,6 +148,9 @@ fn route_ask(
                 window: crate::client_documents::window(window),
             },
         }),
+        core::Ask::Public { reply, .. } => {
+            work.push(Work::Core(core::Event::PublicAnswered { reply, answer: None }));
+        }
         core::Ask::Read { reply, scope, read, party, window } => crate::client_documents::read(
             domain,
             env,

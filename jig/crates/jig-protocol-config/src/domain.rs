@@ -190,6 +190,7 @@ fn operations(limits: &jig_domain_core::Limits, problems: &mut Problems) {
     }
 }
 pub(crate) fn whole(engine: &crate::Engine, problems: &mut Problems) {
+    crate::clients::check_public(&engine.limits, problems);
     if engine.limits.driver.client.url_bytes > jig_domain_accounts::ADDRESS {
         problems.push(Path::root().member(b"limits").member(b"driver.url_bytes"), What::Bound);
     }

@@ -84,3 +84,9 @@ Acceptance:
 
 As the implementer's text says, and also: each sweep's size and time, and any finding with
 its seed.
+
+## Answers
+
+2026-11-03. **The user's decision on public titles.** User, 2026-11-03 15:40Z: public reading shows titles. A goal's and a task's title (the first line of its spec, as jig's client contract names a task's title) crosses into its public line, and a public project's name crosses into its public record. There is no author flag and no human publication capability for these. Everything else in people.md 13.3's "No text at all" list still never crosses: spec beyond its first line, instructions, inputs, results, words, questions and answers, transcripts, notes, reasons, labels' meanings, proposals, escalations, people's and parties' names, charters', procedures' and roles' names. Review finding 1 is settled by the user's decision.
+
+For this task: Titles and the project's name are expected in public bytes now; every other text source keeps its marker and must never appear.

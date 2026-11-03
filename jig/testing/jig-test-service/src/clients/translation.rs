@@ -18,6 +18,7 @@ pub(crate) fn to_component(held: core::Held) -> Option<kit::Event> {
         | core::Held::ApplicationDelivery { .. }
         | core::Held::ApplicationWatchEnded { .. }
         | core::Held::ReadLoad { .. }
+        | core::Held::PublicRead { .. }
         | core::Held::Applied { .. }
         | core::Held::MakeEffect { .. }
         | core::Held::SettledCall { .. }
@@ -136,6 +137,8 @@ pub(crate) fn watcher(value: &core::Event) -> Option<Token> {
         | core::Event::Stopping
         | core::Event::Marked { .. }
         | core::Event::ReadLoaded { .. }
+        | core::Event::PublicRead { .. }
+        | core::Event::PublicAnswered { .. }
         | core::Event::Read { .. }
         | core::Event::Act { .. }
         | core::Event::ProposeSettings { .. }
@@ -206,7 +209,7 @@ pub(crate) fn starting(value: core::Event) -> Option<kit::Event> {
         | core::Event::People(people::Event::Ask { reply_to, .. } | people::Event::SignOut { reply_to, .. }) => {
             Some(kit::Event::Reply { to: reply_to, reply: people::Reply::Again(people::Again::NotReady) })
         }
-        core::Event::Read { reply, .. } => {
+        core::Event::Read { reply, .. } | core::Event::PublicRead { reply, .. } => {
             Some(kit::Event::Read { reply, answer: core::reads::Answer::None(core::reads::Why::Busy) })
         }
         core::Event::Watch { watcher, .. } | core::Event::WatchRun { watcher, .. } => {
@@ -217,6 +220,7 @@ pub(crate) fn starting(value: core::Event) -> Option<kit::Event> {
         | core::Event::Stopping
         | core::Event::Marked { .. }
         | core::Event::ReadLoaded { .. }
+        | core::Event::PublicAnswered { .. }
         | core::Event::Act { .. }
         | core::Event::Key { .. }
         | core::Event::Application { .. }

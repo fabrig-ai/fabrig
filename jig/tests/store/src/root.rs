@@ -112,6 +112,7 @@ pub const PEOPLE_LIMITS: people::Limits = people::Limits {
 };
 
 pub const CORE_LIMITS: core::Limits = core::Limits {
+    public: jig_domain_core::PublicIndexLimits::OFF,
     routes: 20_783,
     settings: core::settings::Limits {
         revisions: 4,

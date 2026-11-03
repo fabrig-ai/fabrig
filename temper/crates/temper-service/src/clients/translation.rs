@@ -7,6 +7,7 @@ use temper_engine_domain as root;
 
 /// Translate the core events the clients' component issues. An internal core
 /// event on this boundary aborts the component instead of deciding root work.
+#[expect(clippy::too_many_lines, reason = "one exhaustive match translates the clients' core boundary")]
 pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> {
     let value = match event {
         core::Event::ProposeSettings { reply_to, sign_in, key, digest, change } => {
@@ -40,6 +41,12 @@ pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> 
         core::Event::Key { reply_to, sign_in, key, ask, carried } => {
             root::PartyInput::Key { reply_to, sign_in, key, ask, carried }
         }
+        core::Event::PublicRead { reply, .. } => {
+            return Err(Box::new(kit::Event::Read {
+                reply,
+                answer: core::reads::Answer::None(core::reads::Why::Busy),
+            }));
+        }
         core::Event::Read { reply, sign_in, read } => root::PartyInput::Read { reply_to: reply, sign_in, read },
         core::Event::Watch { watcher, sign_in, subject, window } => {
             root::PartyInput::Watch { watcher, sign_in, subject, window }
@@ -56,6 +63,7 @@ pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> 
         | core::Event::Stopping
         | core::Event::Marked { .. }
         | core::Event::ReadLoaded { .. }
+        | core::Event::PublicAnswered { .. }
         | core::Event::Application { .. }
         | core::Event::ApplicationPart { .. }
         | core::Event::ApplicationFinished { .. }

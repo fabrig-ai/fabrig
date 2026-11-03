@@ -1,8 +1,13 @@
-//! Bounded exchanges, identified independently of the application's ids.
+//! Bounded exchanges and kept answer headers (skein/docs/design/ui-web.md, 10).
 use std::collections::BTreeMap;
 #[cfg(target_arch = "wasm32")]
 pub mod web;
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Cache {
+    Browser,
+    NoStore,
+}
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Exchange {
     pub id: u32,
@@ -11,10 +16,12 @@ pub struct Exchange {
     pub headers: Vec<(String, String)>,
     pub body: Box<[u8]>,
     pub bound: u32,
+    pub cache: Cache,
+    pub keep: &'static [&'static str],
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Report {
-    Answered { exchange: u32, status: u16, body: Box<[u8]> },
+    Answered { exchange: u32, status: u16, body: Box<[u8]>, headers: Vec<(String, String)> },
     Failed { exchange: u32 },
     StreamOpened,
     StreamRefused { status: u16 },
@@ -31,6 +38,7 @@ struct Flight {
     id: u32,
     bound: u32,
     body: Vec<u8>,
+    keep: Vec<String>,
 }
 pub struct Fetch {
     flights: BTreeMap<u64, Flight>,
@@ -49,12 +57,15 @@ impl Fetch {
         }
     }
     /// A ticket remains unique after the application abandons and reuses an id.
-    pub fn begin(&mut self, id: u32, bound: u32) -> Option<u64> {
+    pub fn begin(&mut self, id: u32, bound: u32, keep: &[&str]) -> Option<u64> {
         if self.flights.len() == self.capacity || self.flights.values().any(|flight| flight.id == id) {
             return None;
         }
         self.serial = self.serial.checked_add(1).expect("exchange tickets fit");
-        self.flights.insert(self.serial, Flight { id, bound, body: Vec::new() });
+        self.flights.insert(
+            self.serial,
+            Flight { id, bound, body: Vec::new(), keep: keep.iter().map(|name| name.to_ascii_lowercase()).collect() },
+        );
         Some(self.serial)
     }
     pub fn piece(&mut self, ticket: u64, piece: &[u8]) -> Option<Report> {
@@ -70,12 +81,18 @@ impl Fetch {
         let flight = self.flights.get(&ticket)?;
         flight.bound.checked_sub(u32::try_from(flight.body.len()).expect("body within bound"))
     }
-    pub fn finish(&mut self, ticket: u64, status: u16) -> Option<Report> {
-        self.flights.remove(&ticket).map(|flight| Report::Answered {
-            exchange: flight.id,
-            status,
-            body: flight.body.into_boxed_slice(),
-        })
+    pub fn finish(&mut self, ticket: u64, status: u16, headers: &[(String, String)]) -> Option<Report> {
+        let flight = self.flights.remove(&ticket)?;
+        let mut kept = Vec::new();
+        for name in flight.keep {
+            if let Some((_, value)) = headers.iter().find(|(key, _)| key.eq_ignore_ascii_case(&name)) {
+                if value.len() > usize::try_from(flight.bound).expect("bound fits") {
+                    return Some(Report::Failed { exchange: flight.id });
+                }
+                kept.push((name, value.clone()));
+            }
+        }
+        Some(Report::Answered { exchange: flight.id, status, body: flight.body.into_boxed_slice(), headers: kept })
     }
     pub fn fail(&mut self, ticket: u64) -> Option<Report> {
         self.flights.remove(&ticket).map(|flight| Report::Failed { exchange: flight.id })

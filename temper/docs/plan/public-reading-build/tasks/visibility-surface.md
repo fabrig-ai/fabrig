@@ -106,3 +106,23 @@ Acceptance:
 
 As the implementer's text says, and also: the refusal `SetVisibility` gets until it is
 decided, the row's key and tag, the secret's tag, and every forced arm by file.
+
+## Answers
+
+2026-11-03. **Q:** may the task change `jig-protocol-store`'s `src/intervals.rs`,
+`src/patching/sets.rs`, `src/secrets.rs` and `src/secrets/**` for the public row's restore and
+the public names' secret, which are not compiler-forced? **A:** Yes: the task owns those four
+files, since its acceptance (a public row that restores, a secret kept, read and erased as
+the other owners' are) cannot hold without them. The header's `src/codec/secrets*` names the
+secrets' codec at `src/secrets.rs` and `src/secrets/**`. Edit them for this alone:
+- `intervals.rs`: `RestoreRange::People`'s second range ends at `[JIG, 2, 11]`, so tag 10's
+  `Public` rows restore; add a step test (or extend
+  `a_store_without_public_rows_reads_every_project_private`'s neighbour) showing a written
+  public row is restored.
+- `patching/sets.rs`: the `jig` secrets' kept keys gain `[4, 0]` to `[4, 1]`, its root the
+  record the row is encoded with (`Source`'s envelope as reported, holding the key value; no
+  secrets schema change, as the spec allows).
+- `secrets.rs`, `secrets/codec.rs`: `PublicNames` kept, read and erased at prefix `[4, 0]`,
+  number 0 only, the value exactly 32 bytes, any other length or number refused as the other
+  owners' invalid values are; replace the checkpoint's refusing arms.
+Nothing else widens; the rest of the acceptance and steps stand.
