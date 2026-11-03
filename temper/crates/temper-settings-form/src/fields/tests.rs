@@ -4,12 +4,13 @@ use alloc::boxed::Box;
 use skein_json::writer::{Encoder, Limits as JsonLimits};
 use skein_lib::List;
 
-// T1 names all 41 decoder shapes, including the alternative-only objects.
-const SHAPES: [Shape; 41] = [
+// T1 names all 42 decoder shapes, including the alternative-only objects.
+const SHAPES: [Shape; 42] = [
     Shape::File,
     Shape::Item,
     Shape::Setting,
     Shape::Charter,
+    Shape::Document,
     Shape::Model,
     Shape::Template,
     Shape::Text,
@@ -180,6 +181,7 @@ fn omitted(field: &Field, edit: Edit, changed: &mut bool) -> bool {
     }
     false
 }
+#[expect(clippy::too_many_lines, reason = "one schema walk includes the document repository's OWNER/NAME fixture")]
 fn emit(kind: &[u8], edit: Edit, route: &[bool; SHAPES.len()], changed: &mut bool, out: &mut Encoder) {
     // Each pending object contributes at most its members and two closing
     // markers. The decoder's JSON depth bound is 32.
@@ -267,7 +269,11 @@ fn emit(kind: &[u8], edit: Edit, route: &[bool; SHAPES.len()], changed: &mut boo
                     out.array_start();
                     stack.push(Action::EndArray).expect("schema stack bound");
                 }
-                stack.push(Action::Value(&field.value)).expect("schema stack bound");
+                if field.shape == Shape::Document && field.name == b"repository" {
+                    out.string(b"owner/name");
+                } else {
+                    stack.push(Action::Value(&field.value)).expect("schema stack bound");
+                }
             }
             Action::Value(value) => match value {
                 Value::Integer(_) | Value::Nanoseconds | Value::Time => out.unsigned(1),
@@ -352,7 +358,7 @@ fn every_generated_file_decodes() {
 #[test]
 fn a_member_left_out_is_refused_naming_it() {
     for field in &FIELDS {
-        if field.shape == Shape::Item {
+        if field.shape == Shape::Item || (field.shape == Shape::Document && field.name == b"heading") {
             continue;
         }
         if let Choice::One { .. } = form(field.shape).choice {

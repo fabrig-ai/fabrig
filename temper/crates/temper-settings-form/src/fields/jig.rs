@@ -1,9 +1,10 @@
 use super::{Bound, Choice, Field, Form, Limit, Shape, Value, Width, Word};
-pub static FORMS: [Form; 41] = [
+pub static FORMS: [Form; 42] = [
     Form { shape: Shape::File, name: b"file", choice: Choice::Every, line: b"A settings file, as `settings apply` and `settings propose` read it." },
     Form { shape: Shape::Item, name: b"item", choice: Choice::Every, line: b"One setting, and what becomes of it: `setting`, then exactly one of `set` and `edit`." },
     Form { shape: Shape::Setting, name: b"setting", choice: Choice::Every, line: b"Which setting: its kind and, but for the rules, its number." },
     Form { shape: Shape::Charter, name: b"charter", choice: Choice::Every, line: b"How an agent's run works: its instructions, models, tools, hosts and budget. A task's runs read the charter of the settings revision the task was made in." },
+    Form { shape: Shape::Document, name: b"document", choice: Choice::Every, line: b"A document every run of the charter reads in its brief, as the file is at the branch's head when the run is prepared: a rule that lands there reaches the next run." },
     Form { shape: Shape::Model, name: b"model", choice: Choice::Every, line: b"One of the deployment's models, as a charter offers it. Every member but `effort` must equal the configured model's, else refused as `reference`: copy them from a charter's value." },
     Form { shape: Shape::Template, name: b"template", choice: Choice::Every, line: b"How a new task of one shape is filled: its executor, result, budget, deadline and flags. A task keeps the values it was made with; a change reaches the tasks made after it." },
     Form { shape: Shape::Text, name: b"text", choice: Choice::Every, line: b"A text, whole." },
@@ -67,7 +68,7 @@ pub static FORMS: [Form; 41] = [
     },
     Form { shape: Shape::Observed, name: b"observed", choice: Choice::Every, line: b"A requirement judged from facts read before the effect." },
 ];
-pub static FIELDS: [Field; 152] = [
+pub static FIELDS: [Field; 158] = [
     Field {
         shape: Shape::File,
         name: b"items",
@@ -205,6 +206,12 @@ pub static FIELDS: [Field; 152] = [
         null: false,
         line: b"A spend the charter must hold: at least `reserve_turns` plus one of the default model's completions at their costliest, else refused as `budget`. A run is given its task's funds left, at most `rules.maximum_run_spend`.",
     },
+    Field { shape: Shape::Charter, name: b"documents", value: Value::Shape(Shape::Document), list: Some(Bound::Limit(Limit::CharterDocuments)), null: false, line: b"The documents the charter's runs read, each as a brief section of its own; at most `tasks.charter_documents`, else refused as `shape`." },
+    Field { shape: Shape::Document, name: b"forge", value: Value::Text(Bound::Limit(Limit::DocumentSegment)), list: None, null: false, line: b"The forge's host, as its repositories' names carry it." },
+    Field { shape: Shape::Document, name: b"repository", value: Value::Text(Bound::Limit(Limit::DocumentRepository)), list: None, null: false, line: b"The repository as OWNER/NAME; one adopted in no project gives a section saying so." },
+    Field { shape: Shape::Document, name: b"branch", value: Value::Text(Bound::Limit(Limit::DocumentBranch)), list: None, null: false, line: b"The branch whose head is read, its segments joined by `/`." },
+    Field { shape: Shape::Document, name: b"path", value: Value::Text(Bound::Limit(Limit::DocumentPath)), list: None, null: false, line: b"The file's path in the repository, at most 256 bytes." },
+    Field { shape: Shape::Document, name: b"heading", value: Value::Text(Bound::Limit(Limit::DocumentHeading)), list: None, null: true, line: b"A Markdown heading's text: the run reads from that heading to the next of its level or above; null reads the whole file." },
     Field {
         shape: Shape::Model,
         name: b"dialect",
