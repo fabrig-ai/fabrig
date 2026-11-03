@@ -260,7 +260,7 @@ pub const CEILINGS: Limits = Limits {
     change_row_gate_remarks: 1_024,
     change_row_producer_failure_some: 512,
     change_row_report: 1_048_576,
-    change_row_merge_result_some: 65_536,
+    change_row_merge_result_some: 512,
     plan_item_text: 65_536,
     milestone_text: 65_536,
     goal_view_title: 65_536,
