@@ -244,7 +244,7 @@ pub fn shape_of_kind(kind: &[u8]) -> Option<Shape> {
     match kind {
         b"charter" => Some(Shape::Charter),
         b"template" => Some(Shape::Template),
-        b"policy" => Some(Shape::Policy),
+        b"policy" | b"project-policy" => Some(Shape::Policy),
         b"rules" => Some(Shape::Rules),
         b"landing-rule" => Some(Shape::LandingRule),
         b"forge-charter" => Some(Shape::ForgeCharter),

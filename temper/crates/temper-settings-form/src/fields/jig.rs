@@ -110,6 +110,7 @@ pub static FIELDS: [Field; 187] = [
             Word { word: b"charter", line: b"" },
             Word { word: b"template", line: b"" },
             Word { word: b"policy", line: b"" },
+            Word { word: b"project-policy", line: b"A project's own policy, set alone and at most once; its value is a policy." },
             Word { word: b"rules", line: b"" },
             Word { word: b"landing-rule", line: b"" },
             Word { word: b"forge-charter", line: b"" },
@@ -126,7 +127,7 @@ pub static FIELDS: [Field; 187] = [
         null: false,
         line: b"The setting's number, from 1; left out for the rules.",
     },
-    Field { shape: Shape::Setting, name: b"project", value: Value::Integer(Width::U32), list: None, null: false, line: b"For a landing rule alone, a project's number, from 1. Left out, the rule is the deployment's." },
+    Field { shape: Shape::Setting, name: b"project", value: Value::Integer(Width::U32), list: None, null: false, line: b"For a landing rule, a project's number, from 1, the deployment's when left out; for a project's policy, its project, required." },
     Field {
         shape: Shape::Charter,
         name: b"number",

@@ -75,7 +75,7 @@ pub(crate) fn settings_restore_setting(value: &w::Setting, limits: &Limits) -> c
     match value {
         w::Setting::Charter(item) => c::Setting::Charter(settings_restore_setting_number(item, limits)),
         w::Setting::Template(item) => c::Setting::Template(settings_restore_setting_number(item, limits)),
-        w::Setting::ProjectPolicy(_) => unreachable!("a project's policy: policy-ctl"),
+        w::Setting::ProjectPolicy(item) => c::Setting::ProjectPolicy { project: item.project() },
         w::Setting::Policy(item) => c::Setting::Policy(settings_restore_setting_number(item, limits)),
         w::Setting::Application(v) => c::Setting::Application { kind: v.kind(), scope: v.scope(), number: v.number() },
         w::Setting::Rules => c::Setting::Rules,
@@ -1545,6 +1545,9 @@ pub(crate) fn settings_wire_setting(value: c::Setting, limits: &w::Limits) -> Re
             w::ApplicationSettingParts { kind, scope, number },
         )?),
         c::Setting::Rules => w::Setting::Rules,
+        c::Setting::ProjectPolicy { project } => {
+            w::Setting::ProjectPolicy(w::ProjectPolicySetting::new(limits, w::ProjectPolicySettingParts { project })?)
+        }
     })
 }
 

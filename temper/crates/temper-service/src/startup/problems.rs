@@ -337,7 +337,7 @@ fn stock(floor: crate::stock::Floor, writer: &mut Writer, length: &mut usize, me
     } else {
         put(writer, length, measuring, b"; the stock's ");
         let (kind, number): (&[u8], Option<u32>) = match floor.setting {
-            Setting::ProjectPolicy { .. } => unreachable!("a project's policy: policy-ctl"),
+            Setting::ProjectPolicy { project } => (b"project-policy ", Some(project)),
             Setting::Charter(number) => (b"charter ", Some(number)),
             Setting::Template(number) => (b"template ", Some(number)),
             Setting::Policy(number) => (b"policy ", Some(number)),
