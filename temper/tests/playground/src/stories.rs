@@ -25,8 +25,6 @@ pub fn a() -> Vec<Step<Address>> {
             steps.push(see(Find::named(Role::Button, script["cue"].as_str().expect("suggestion").as_bytes())));
         }
         steps.push(press(Role::Button, script["cue"].as_str().expect("suggestion").as_bytes()));
-        steps.push(see(Find::named(Role::TextArea, b"Start a chat")));
-        steps.push(press(Role::Button, b"Start chat"));
         for turn in script["turns"].as_array().expect("scripted turns") {
             for line in turn["lines"].as_array().expect("reply lines") {
                 if let Some(text) = line["text"].as_str() {
