@@ -2,7 +2,6 @@
 use super::fixtures as f;
 use skein_lib::List;
 use skein_ui::{Act, Role, State};
-use temper_client_domain::ChatsFilter;
 use temper_client_domain::{self as d, Address, Choice, Step, pages};
 use temper_client_protocol_wire::v1 as w;
 const HERE: u16 = 3;
@@ -234,7 +233,7 @@ fn setting_up_marks_the_rows_step() {
                 "Preparing: its database, temper’s admin, your account",
                 "Starting Forgejo and its runner",
                 "Connecting as temper",
-                "Making the first repository, and adopting it into its project",
+                "Making the first repository",
                 "You may leave this page: the steps go on, and the banner says where they are.",
             ],
         );
@@ -312,12 +311,12 @@ fn the_model_step_follows_the_persons_forge() {
     *forges.get_mut(0).unwrap() = github_rows(true).get(0).unwrap().clone();
     let root = f::forge_root(Address::Welcome { step: Step::Model { way: None } }, forges);
     let view = f::page_view(&root);
-    node(view.tree(), Role::Paragraph, "GitHub · no repository chosen yet".as_bytes());
-    node(view.tree(), Role::Disclosure, b"Each step");
+    node(view.tree(), Role::Paragraph, "GitHub · Connected as my-app[bot] (9)".as_bytes());
+    assert!(f::find(view.tree(), Role::Disclosure, b"Each step").is_none());
     node(view.tree(), Role::Heading { level: 1 }, b"Connect a model");
     assert_eq!(
         view.tree().nodes().iter().filter(|n| n.role == Role::Status && n.name.as_deref() == Some(b"done")).count(),
-        1
+        0
     );
 }
 
@@ -547,11 +546,7 @@ fn has_state(tree: &skein_ui::Tree, role: Role, name: &[u8], state: State) -> bo
 fn details_show_the_set_ups_fields_with_their_defaults() {
     let mut root = here(w::Connection::NotSetUp);
     let view = f::page_view(&root);
-    for (name, value) in [
-        (b"Organization".as_slice(), b"work".as_slice()),
-        (b"Repository", b"hello"),
-        (b"Into a new project, named", b"hello"),
-    ] {
+    for (name, value) in [(b"Organization".as_slice(), b"work".as_slice()), (b"Repository", b"hello")] {
         let id = node(view.tree(), Role::TextField, name);
         assert_eq!(
             view.tree().nodes().iter().find(|n| n.id == id).unwrap().value.as_ref().unwrap().text.as_ref(),
@@ -562,10 +557,6 @@ fn details_show_the_set_ups_fields_with_their_defaults() {
     let org = nodes.iter().find(|n| n.role == Role::TextField && n.name.as_deref() == Some(b"Organization")).unwrap();
     let repository =
         nodes.iter().find(|n| n.role == Role::TextField && n.name.as_deref() == Some(b"Repository")).unwrap();
-    let project = nodes
-        .iter()
-        .find(|n| n.role == Role::TextField && n.name.as_deref() == Some(b"Into a new project, named"))
-        .unwrap();
     let grandparent = |id| parent(view.tree(), parent(view.tree(), id).unwrap());
     assert_eq!(grandparent(org.id), grandparent(repository.id));
     let pair = grandparent(org.id).unwrap();
@@ -576,10 +567,7 @@ fn details_show_the_set_ups_fields_with_their_defaults() {
         .map(|n| n.name.as_deref().unwrap())
         .collect();
     assert_eq!(primary, [b"Set up a Forgejo here".as_slice()]);
-    assert_ne!(grandparent(org.id), grandparent(project.id));
-    let pair = grandparent(project.id).unwrap();
-    assert!(nodes.iter().find(|n| n.id == pair).unwrap().styles.as_slice().contains(&crate::look::FLOW_PAIR));
-    for field in [org, repository, project] {
+    for field in [org, repository] {
         let wrapper = parent(view.tree(), field.id).unwrap();
         let wrapper = nodes.iter().find(|n| n.id == wrapper).unwrap();
         assert!(wrapper.styles.as_slice().contains(&crate::look::FLOW_FIELD));
@@ -591,12 +579,12 @@ fn details_show_the_set_ups_fields_with_their_defaults() {
     assert!(items.iter().all(|n| n.role == Role::Item));
     assert!(!view.tree().nodes().iter().any(|node| node.role == Role::ChoiceGroup));
     let mut view = f::page_view(&root);
-    let id = node(view.tree(), Role::TextField, b"Into a new project, named");
+    let id = node(view.tree(), Role::TextField, b"Repository");
     let action = crate::act(&mut view, id, Act::Input { value: Box::default() }).unwrap();
     f::root_event(&mut root, d::Event::Act { action });
     act(&mut root, d::forge::Act::SetUp { forge: HERE });
     let view = f::page_view(&root);
-    assert!(has_state(view.tree(), Role::TextField, b"Into a new project, named", State::Invalid));
+    assert!(has_state(view.tree(), Role::TextField, b"Repository", State::Invalid));
     node(view.tree(), Role::Alert, b"Required.");
 }
 #[test]
@@ -618,20 +606,13 @@ fn an_invalid_refusal_marks_the_organization_and_repository() {
     assert_eq!(root.forge().setup_form().text(d::forge::forges::SetupField::Repository), b"hello");
 }
 #[test]
-fn setting_up_names_its_first_repository_and_project() {
+fn setting_up_names_its_first_repository() {
     let root = f::forge_root(
         Address::ConnectForge { forge: Some(Choice::Forge(HERE)) },
         first_rows(w::Connection::Connecting, w::FirstState::Making),
     );
     let view = f::page_view(&root);
-    words_in_order(
-        view.tree(),
-        &[
-            "Setting up Forgejo on this machine",
-            "work/hello, into Shop",
-            "Making work/hello, and adopting it into Shop",
-        ],
-    );
+    words_in_order(view.tree(), &["Setting up Forgejo on this machine", "work/hello", "Making work/hello"]);
     assert_eq!(
         view.tree().nodes().iter().filter(|n| n.role == Role::Status && n.name.as_deref() == Some(b"done")).count(),
         3_usize
@@ -639,7 +620,7 @@ fn setting_up_names_its_first_repository_and_project() {
     node(view.tree(), Role::Status, b"under way");
 }
 #[test]
-fn setting_up_names_the_playground_project_playground() {
+fn setting_up_names_the_repository_without_the_playground_project() {
     let root = f::root_at_with_forges(
         Address::ConnectForge { forge: Some(Choice::Forge(HERE)) },
         &f::domain_limits(),
@@ -652,10 +633,7 @@ fn setting_up_names_the_playground_project_playground() {
     for words in [f::words(), f::browser_words()] {
         let mut view = f::view_of(words);
         f::build(&mut view, &root);
-        words_in_order(
-            view.tree(),
-            &["work/hello, into Project 1", "Making work/hello, and adopting it into Project 1"],
-        );
+        words_in_order(view.tree(), &["work/hello", "Making work/hello"]);
     }
 }
 #[test]
@@ -671,80 +649,23 @@ fn setting_up_uses_the_sent_fields_until_the_row_carries_them() {
     act(&mut root, d::forge::Act::SetUp { forge: HERE });
     deliver(&mut root, watch, rows(w::Connection::Connecting, w::Offer::Offered));
     let view = f::page_view(&root);
-    node(view.tree(), Role::Paragraph, b"work/hello, into hello");
+    node(view.tree(), Role::Paragraph, b"work/hello");
     words_in_order(view.tree(), &["Starting Forgejo and its runner", "Connecting"]);
     assert!(!f::text(view.tree()).windows(b"Connecting, and making".len()).any(|w| w == b"Connecting, and making"));
 }
 #[test]
-fn ready_says_the_repository_is_ready_and_opens_its_project() {
-    let address = Address::ConnectForge { forge: Some(Choice::Forge(HERE)) };
-    let mut root = f::forge_root(address, first_rows(connected(), made()));
-    f::root_event(
-        &mut root,
-        d::Event::Act { action: d::Action::Pages(pages::Act::Project { project: f::SECOND_PROJECT }) },
-    );
-    assert_eq!(root.pages().project(), Some(f::SECOND_PROJECT));
+fn ready_names_the_connection_and_made_repository_and_offers_adoption() {
+    let root =
+        f::forge_root(Address::ConnectForge { forge: Some(Choice::Forge(HERE)) }, first_rows(connected(), made()));
     let view = f::page_view(&root);
-    node(view.tree(), Role::Heading { level: 2 }, b"work/hello is ready");
-    node(view.tree(), Role::Paragraph, b"In Shop, on Forgejo on this machine.");
+    words_in_order(
+        view.tree(),
+        &["Forgejo on this machine is connected", "Connected as temper.", "Made work/hello.", "Adopt a repository"],
+    );
     assert_eq!(
-        view.tree().nodes().iter().filter(|n| n.role == Role::Status && n.name.as_deref() == Some(b"done")).count(),
-        4_usize
+        press(&root, Role::Link, b"Adopt a repository"),
+        d::Action::Pages(pages::Act::Go { address: Address::Adopt { project: f::PROJECT } })
     );
-    let action = press(&root, Role::Link, b"Open Shop");
-    assert_eq!(action, d::Action::Pages(pages::Act::OpenProject { project: f::PROJECT }));
-    let mut out = drive(&mut root, d::Event::Act { action });
-    assert_eq!(root.pages().project(), Some(f::PROJECT));
-    assert_eq!(
-        out.pop(),
-        Some(d::Request::Show { address: Address::Chats { filter: ChatsFilter::All, start: false }, replace: false })
-    );
-}
-fn pending_adoption() -> (d::Domain, skein_lib::Token) {
-    let (root, token, _) = pending_adoption_with_watch();
-    (root, token)
-}
-fn pending_adoption_with_watch() -> (d::Domain, skein_lib::Token, skein_lib::Token) {
-    let (mut root, watch) = f::forge_root_watch(
-        Address::ConnectForge { forge: Some(Choice::Forge(HERE)) },
-        rows(w::Connection::NotSetUp, w::Offer::Offered),
-    );
-    let token = attempt(act(&mut root, d::forge::Act::SetUp { forge: HERE }));
-    answer(&mut root, token, w::Outcome::SettingUp);
-    let token = attempt(deliver(&mut root, watch, new_first_rows()));
-    let token = attempt(jig_answer(
-        &mut root,
-        token,
-        jig_client::contract::Answer::Done(jig_client::contract::Outcome::Document(
-            jig_client::contract::DocumentOutcome::ProjectMade { project: f::PROJECT },
-        )),
-    ));
-    (root, token, watch)
-}
-#[test]
-fn open_project_waits_on_the_adoption() {
-    let (root, _) = pending_adoption();
-    let view = f::page_view(&root);
-    assert!(has_state(view.tree(), Role::Button, b"Open Shop", State::Disabled));
-    assert!(f::find(view.tree(), Role::Link, b"Open Shop").is_none());
-    assert_eq!(
-        view.tree().nodes().iter().filter(|n| n.role == Role::Status && n.name.as_deref() == Some(b"done")).count(),
-        4
-    );
-    node(view.tree(), Role::Status, b"under way");
-}
-#[test]
-fn a_refused_adoption_says_its_outcome() {
-    let (mut root, token) = pending_adoption();
-    answer(
-        &mut root,
-        token,
-        w::Outcome::ForgeRefused(
-            w::ForgeRefused::new(&w::CEILINGS, w::ForgeRefusedParts { reason: w::ForgeReason::Unreachable }).unwrap(),
-        ),
-    );
-    let view = f::page_view(&root);
-    words_in_order(view.tree(), &["Forge 3 did not answer; nothing was adopted. Try again."]);
     assert!(f::find(view.tree(), Role::Link, b"Open Shop").is_none());
 }
 #[test]
@@ -761,7 +682,7 @@ fn a_failed_first_repository_says_its_step_with_set_up_again() {
             let root = f::forge_root(
                 address,
                 first_rows(
-                    connected(),
+                    w::Connection::Connecting,
                     w::FirstState::Failed(
                         w::CreateFailed::new(&w::CEILINGS, w::CreateFailedParts { step: step.clone() }).unwrap(),
                     ),
@@ -779,10 +700,10 @@ fn a_failed_first_repository_says_its_step_with_set_up_again() {
     }
 }
 #[test]
-fn the_forges_row_names_the_first_repository_and_project() {
+fn the_forges_row_names_the_first_repository() {
     for (state, expected, first) in [
-        (w::FirstState::Making, b"work/hello, into Shop".as_slice(), b"Making work/hello".as_slice()),
-        (made(), "work/hello · project Shop".as_bytes(), "work/hello · project Shop".as_bytes()),
+        (w::FirstState::Making, b"work/hello".as_slice(), b"Making work/hello".as_slice()),
+        (made(), "work/hello".as_bytes(), "work/hello".as_bytes()),
     ] {
         let root = f::forge_root(Address::Forges, first_rows(connected(), state.clone()));
         let view = f::page_view(&root);
@@ -864,13 +785,10 @@ fn connecting_on_github_offers_install_with_its_way_back() {
     }
 }
 #[test]
-fn an_accepted_installation_makes_github_ready_and_reads_its_picker() {
+fn an_accepted_installation_makes_github_ready_without_a_picker() {
     let root = f::forge_root(Address::ConnectForge { forge: Some(Choice::Forge(GITHUB)) }, github_rows(true));
     let view = f::browser_page_view(&root);
-    words_in_order(
-        view.tree(),
-        &["Choose a repository to start in", "my-app is installed on acme.", "Reading GitHub's repositories…"],
-    );
+    words_in_order(view.tree(), &["GitHub is connected", "Connected as my-app[bot].", "Adopt a repository"]);
     assert!(f::find(view.tree(), Role::ChoiceGroup, b"Account").is_none());
 }
 #[test]
@@ -1095,102 +1013,6 @@ fn connecting_uses_the_apps_way_for_its_words() {
     }
 }
 
-fn jig_answer(
-    root: &mut d::Domain,
-    token: skein_lib::Token,
-    answer: jig_client::contract::Answer,
-) -> skein_lib::Queue<d::Request> {
-    drive(
-        root,
-        d::Event::Client {
-            event: jig_client::Event::Up {
-                up: jig_client::Up::Answer {
-                    attempt: token,
-                    envelope: skein_lib::RequestEnvelope::Final,
-                    answer: Some(jig_client::Answered::Jig(answer)),
-                    why: None,
-                },
-            },
-        },
-    )
-}
-#[test]
-fn ready_keeps_make_project_refusal_and_the_name_with_a_bound_retry_button() {
-    for address in [Address::ConnectForge { forge: Some(Choice::Forge(HERE)) }, Address::Welcome { step: Step::Ready }]
-    {
-        let (mut root, watch) = f::forge_root_watch(address, rows(w::Connection::NotSetUp, w::Offer::Offered));
-        let token = attempt(act(&mut root, d::forge::Act::SetUp { forge: HERE }));
-        answer(&mut root, token, w::Outcome::SettingUp);
-        let token = attempt(deliver(&mut root, watch, new_first_rows()));
-        jig_answer(
-            &mut root,
-            token,
-            jig_client::contract::Answer::Refused { refusal: jig_client::contract::Refusal::NameTaken, at: None },
-        );
-        let mut view = f::page_view(&root);
-        let id = node(view.tree(), Role::TextField, b"Into a new project, named");
-        assert_eq!(
-            view.tree().nodes().iter().find(|n| n.id == id).unwrap().value.as_ref().map(|value| value.text.as_ref()),
-            Some(b"hello".as_slice())
-        );
-        words_in_order(view.tree(), &["Another project has that name"]);
-        let id = node(view.tree(), Role::Button, b"Adopt work/hello");
-        assert_eq!(
-            crate::act(&mut view, id, Act::Press),
-            Some(d::Action::Forge(d::forge::Act::StartIn { forge: HERE }))
-        );
-        assert!(root.forge().set_up().unwrap().adoption.is_none());
-    }
-}
-#[test]
-fn ready_opens_the_made_project_and_uses_its_banner_name() {
-    let (mut root, token, watch) = pending_adoption_with_watch();
-    answer(
-        &mut root,
-        token,
-        w::Outcome::Adopted(
-            w::Adopted::new(
-                &w::CEILINGS,
-                w::AdoptedParts {
-                    forge: HERE,
-                    repository: 7,
-                    owner: b"work".as_slice().into(),
-                    name: b"hello".as_slice().into(),
-                    role: w::Role::Owned,
-                    home: true,
-                    kinds: w::Kinds::new(&w::CEILINGS, w::KindsParts { skein_bools: [true; 9] }).unwrap(),
-                    protection: w::Protection::Unknown,
-                },
-            )
-            .unwrap(),
-        ),
-    );
-    publish_first_adoption(&mut root, watch);
-    let view = f::page_view(&root);
-    node(view.tree(), Role::Paragraph, b"In Shop, on Forgejo on this machine.");
-    assert_eq!(
-        view.tree().nodes().iter().filter(|n| n.role == Role::Status && n.name.as_deref() == Some(b"done")).count(),
-        5
-    );
-    assert_eq!(
-        press(&root, Role::Link, b"Open Shop"),
-        d::Action::Pages(pages::Act::OpenProject { project: f::PROJECT })
-    );
-}
-
-fn new_first_rows() -> List<w::ForgeRow> {
-    let mut rows = first_rows(connected(), made());
-    let row = rows.get_mut(0).unwrap();
-    let mut parts = row.clone().into_parts();
-    let mut first = parts.first.take().unwrap().into_parts();
-    first.project = w::SetUpProject::New(
-        w::NewProject::new(&w::CEILINGS, w::NewProjectParts { name: b"hello".as_slice().into() }).unwrap(),
-    );
-    parts.first = Some(w::FirstRepository::new(&w::CEILINGS, first).unwrap());
-    *row = w::ForgeRow::new(&w::CEILINGS, parts).unwrap();
-    rows
-}
-
 pub(super) fn parent(tree: &skein_ui::Tree, id: skein_ui::NodeId) -> Option<skein_ui::NodeId> {
     let index = tree.nodes().iter().position(|n| n.id == id).unwrap();
     tree.nodes()[..index]
@@ -1202,7 +1024,7 @@ pub(super) fn parent(tree: &skein_ui::Tree, id: skein_ui::NodeId) -> Option<skei
 }
 
 #[test]
-fn delivered_steps_keep_making_current_until_adopt_succeeds() {
+fn delivered_steps_finish_when_the_first_repository_is_made() {
     let (mut root, watch) = f::forge_root_watch(
         Address::ConnectForge { forge: Some(Choice::Forge(HERE)) },
         rows(w::Connection::NotSetUp, w::Offer::Offered),
@@ -1248,38 +1070,7 @@ fn delivered_steps_keep_making_current_until_adopt_succeeds() {
             1
         );
     }
-    let (mut root, token, watch) = pending_adoption_with_watch();
-    let view = f::page_view(&root);
-    words_in_order(
-        view.tree(),
-        &[
-            "Fetched Forgejo and its runner",
-            "Connecting as temper",
-            "Making work/hello, and adopting it into Shop",
-            "under way",
-        ],
-    );
-    answer(
-        &mut root,
-        token,
-        w::Outcome::Adopted(
-            w::Adopted::new(
-                &w::CEILINGS,
-                w::AdoptedParts {
-                    forge: HERE,
-                    repository: 7,
-                    owner: b"work".as_slice().into(),
-                    name: b"hello".as_slice().into(),
-                    role: w::Role::Owned,
-                    home: true,
-                    kinds: w::Kinds::new(&w::CEILINGS, w::KindsParts { skein_bools: [true; 9] }).unwrap(),
-                    protection: w::Protection::Unknown,
-                },
-            )
-            .unwrap(),
-        ),
-    );
-    publish_first_adoption(&mut root, watch);
+    deliver(&mut root, watch, first_rows(connected(), made()));
     let view = f::page_view(&root);
     assert_eq!(
         view.tree().nodes().iter().filter(|n| n.role == Role::Status && n.name.as_deref() == Some(b"done")).count(),
@@ -1305,48 +1096,6 @@ fn an_unknown_setup_stage_claims_no_specific_current_step() {
 }
 
 #[test]
-fn welcome_ready_waits_through_made_and_adopt_then_opens_the_adopted_project() {
-    let (mut root, token) = pending_adoption();
-    f::root_event(&mut root, d::Event::Went { place: d::Place::Address(Address::Welcome { step: Step::Ready }) });
-    let view = f::page_view(&root);
-    node(view.tree(), Role::Heading { level: 1 }, b"Almost ready");
-    assert!(has_state(view.tree(), Role::Button, b"Open Shop", State::Disabled));
-    node(view.tree(), Role::Disclosure, b"Each step");
-    answer(
-        &mut root,
-        token,
-        w::Outcome::Adopted(
-            w::Adopted::new(
-                &w::CEILINGS,
-                w::AdoptedParts {
-                    forge: HERE,
-                    repository: 7,
-                    owner: b"work".as_slice().into(),
-                    name: b"hello".as_slice().into(),
-                    role: w::Role::Owned,
-                    home: true,
-                    kinds: w::Kinds::new(&w::CEILINGS, w::KindsParts { skein_bools: [true; 9] }).unwrap(),
-                    protection: w::Protection::Unknown,
-                },
-            )
-            .unwrap(),
-        ),
-    );
-    let view = f::page_view(&root);
-    node(view.tree(), Role::Heading { level: 1 }, b"work/hello is ready");
-    assert!(f::find(view.tree(), Role::Heading { level: 2 }, b"work/hello is ready").is_none());
-    assert!(f::find(view.tree(), Role::Disclosure, b"Each step").is_none());
-    words_in_order(
-        view.tree(),
-        &["Forge: Forgejo on this machine, connected as temper", "Project Shop, with work/hello", "Open Shop"],
-    );
-    assert_eq!(
-        press(&root, Role::Link, b"Open Shop"),
-        d::Action::Pages(pages::Act::OpenProject { project: f::PROJECT })
-    );
-}
-
-#[test]
 fn standalone_setup_names_the_requested_target_before_the_row_has_it() {
     let (mut root, watch) = f::forge_root_watch(
         Address::ConnectForge { forge: Some(Choice::Forge(HERE)) },
@@ -1358,72 +1107,10 @@ fn standalone_setup_names_the_requested_target_before_the_row_has_it() {
     let view = f::page_view(&root);
     let text = f::text(view.tree());
     let text = core::str::from_utf8(&text).unwrap();
-    assert!(text.contains("Making work/hello, and adopting it into hello"));
+    assert!(text.contains("Making work/hello"));
     assert!(!text.contains("Making the first repository"));
 }
 
-fn picker_rows(two: bool) -> List<w::ForgeRow> {
-    let mut parts = github_rows(true).as_slice()[0].clone().into_parts();
-    let mut rows = List::with_capacity(1);
-    if two {
-        parts.installations = List::with_capacity(2);
-        parts.installations.push(github_rows(true).as_slice()[0].installations().as_slice()[0].clone()).unwrap();
-        parts
-            .installations
-            .push(
-                w::Installation::new(
-                    &w::CEILINGS,
-                    w::InstallationParts {
-                        id: 4,
-                        account: Some(
-                            w::Account::new(
-                                &w::CEILINGS,
-                                w::AccountParts { id: 40, login: b"other".as_slice().into() },
-                            )
-                            .unwrap(),
-                        ),
-                        suspended: false,
-                        stray: false,
-                    },
-                )
-                .unwrap(),
-            )
-            .unwrap();
-    }
-    rows.push(w::ForgeRow::new(&w::CEILINGS, parts).unwrap()).unwrap();
-    rows
-}
-fn picker_page(empty: bool, more: bool) -> w::Outcome {
-    let mut rows = List::with_capacity(2);
-    if !empty {
-        for (id, name, private) in [(1, b"first".as_slice(), false), (2, b"second".as_slice(), true)] {
-            rows.push(
-                w::Reached::new(
-                    &w::CEILINGS,
-                    w::ReachedParts {
-                        id,
-                        owner: w::Account::new(
-                            &w::CEILINGS,
-                            w::AccountParts { id: 10, login: b"acme".as_slice().into() },
-                        )
-                        .unwrap(),
-                        name: name.into(),
-                        private,
-                    },
-                )
-                .unwrap(),
-            )
-            .unwrap();
-        }
-    }
-    w::Outcome::Page(w::Page::new(&w::CEILINGS, w::PageParts { rows, more }).unwrap())
-}
-fn picker_started(two: bool) -> (d::Domain, skein_lib::Token, skein_lib::Token) {
-    let (mut root, watch) =
-        f::forge_root_watch(Address::ConnectForge { forge: Some(Choice::Forge(GITHUB)) }, List::with_capacity(0));
-    let token = attempt(deliver(&mut root, watch, picker_rows(two)));
-    (root, watch, token)
-}
 #[test]
 fn github_bar_has_choose_connecting_and_ready_with_own_app_under_choose() {
     for rows in [rows(w::Connection::NotSetUp, w::Offer::Offered), github_rows(false), github_rows(true)] {
@@ -1444,346 +1131,6 @@ fn github_bar_has_choose_connecting_and_ready_with_own_app_under_choose() {
             [b"Choose".as_slice(), b"Connecting", b"Ready"]
         );
     }
-}
-#[test]
-fn github_picker_accounts_rows_pages_and_name_are_bound() {
-    let (mut root, _, token) = picker_started(true);
-    answer(&mut root, token, picker_page(false, true));
-    let mut view = f::browser_page_view(&root);
-    node(view.tree(), Role::ChoiceGroup, b"Account");
-    assert!(has_state(view.tree(), Role::Choice, b"acme", State::Selected));
-    node(view.tree(), Role::Choice, b"other");
-    assert!(has_state(view.tree(), Role::Choice, b"acme/first", State::Selected));
-    let first = node(view.tree(), Role::Choice, b"acme/first");
-    let first_row = view.tree().nodes().iter().find(|n| Some(n.id) == parent(view.tree(), first)).unwrap();
-    assert!(first_row.styles.as_slice().contains(&crate::look::REPOSITORY_CHOICE));
-    assert!(first_row.styles.as_slice().contains(&crate::look::REPOSITORY_SELECTED));
-    let second = node(view.tree(), Role::Choice, b"acme/second");
-    let at = view.tree().nodes().iter().position(|n| n.id == second).unwrap() - 1;
-    assert!(view.tree().nodes()[at].styles.as_slice().contains(&crate::look::REPOSITORY_CHOICE));
-    assert!(!view.tree().nodes()[at].styles.as_slice().contains(&crate::look::REPOSITORY_SELECTED));
-    let subtree = &view.tree().nodes()[at..at + usize::try_from(view.tree().nodes()[at].size).unwrap()];
-    assert!(
-        subtree.iter().any(|n| n.role == Role::Text && n.styles.as_slice().contains(&crate::look::REPOSITORY_PRIVATE))
-    );
-    assert_eq!(f::node_text(view.tree(), at).as_ref(), b"private");
-    words_in_order(
-        view.tree(),
-        &["Not listed? ", "Choose its repositories on GitHub", ", and GitHub sends you back here."],
-    );
-
-    node(view.tree(), Role::Button, b"Next");
-    let action = crate::act(&mut view, second, Act::Toggle).unwrap();
-    drive(&mut root, d::Event::Act { action });
-    let view = f::browser_page_view(&root);
-    let selected = node(view.tree(), Role::Choice, b"acme/second");
-    let selected_row = view.tree().nodes().iter().find(|n| Some(n.id) == parent(view.tree(), selected)).unwrap();
-    assert!(selected_row.styles.as_slice().contains(&crate::look::REPOSITORY_SELECTED));
-    let name = node(view.tree(), Role::TextField, b"Into a new project, named");
-    assert_eq!(
-        view.tree().nodes().iter().find(|n| n.id == name).unwrap().value.as_ref().unwrap().text.as_ref(),
-        b"second"
-    );
-    let id = node(view.tree(), Role::Button, b"Adopt acme/second");
-    assert!(
-        view.tree().nodes().iter().find(|n| n.id == id).unwrap().styles.as_slice().contains(&crate::look::FLOW_PRIMARY)
-    );
-    let action = press(&root, Role::Button, b"Next");
-    let token = attempt(drive(&mut root, d::Event::Act { action }));
-    answer(&mut root, token, picker_page(false, false));
-    node(f::browser_page_view(&root).tree(), Role::Button, b"First page");
-    let back = d::address::print(root.pages().address());
-    let mut view = f::browser_page_view(&root);
-    let id = node(view.tree(), Role::Link, b"Choose its repositories on GitHub");
-    assert_eq!(
-        crate::act(&mut view, id, Act::Press),
-        Some(d::Action::Forge(d::forge::Act::Install { forge: GITHUB, back }))
-    );
-}
-#[test]
-fn github_picker_keeps_empty_pending_and_refused_states() {
-    let (mut root, _, token) = picker_started(false);
-    node(f::browser_page_view(&root).tree(), Role::Status, "Reading GitHub's repositories…".as_bytes());
-    answer(&mut root, token, picker_page(true, false));
-    node(f::browser_page_view(&root).tree(), Role::Status, b"None reachable.");
-    let action = d::forge::Act::Picker { forge: GITHUB, act: d::forge::picker::Act::Account(1) };
-    let token = attempt(act(&mut root, action));
-    answer(
-        &mut root,
-        token,
-        w::Outcome::ConnectRefused(
-            w::ConnectRefused::new(&w::CEILINGS, w::ConnectRefusedParts { why: w::ForgeRefusal::Busy }).unwrap(),
-        ),
-    );
-    words_in_order(
-        f::browser_page_view(&root).tree(),
-        &["Choose a repository to start in", "temper is busy with forge 2: try again when it ends."],
-    );
-    let token =
-        attempt(act(&mut root, d::forge::Act::Picker { forge: GITHUB, act: d::forge::picker::Act::Account(1) }));
-    answer(&mut root, token, picker_page(false, false));
-    act(&mut root, d::forge::Act::Picker { forge: GITHUB, act: d::forge::picker::Act::Write(Box::default()) });
-    act(&mut root, d::forge::Act::Picker { forge: GITHUB, act: d::forge::picker::Act::Adopt });
-    node(f::browser_page_view(&root).tree(), Role::Alert, b"Required.");
-    act(
-        &mut root,
-        d::forge::Act::Picker { forge: GITHUB, act: d::forge::picker::Act::Write(b"my project".as_slice().into()) },
-    );
-    let token = attempt(act(&mut root, d::forge::Act::Picker { forge: GITHUB, act: d::forge::picker::Act::Adopt }));
-    assert!(has_state(f::browser_page_view(&root).tree(), Role::Button, b"Adopt acme/first", State::Disabled));
-    jig_answer(
-        &mut root,
-        token,
-        jig_client::contract::Answer::Refused { refusal: jig_client::contract::Refusal::NameTaken, at: None },
-    );
-    words_in_order(
-        f::browser_page_view(&root).tree(),
-        &["Choose a repository to start in", "Another project has that name"],
-    );
-}
-
-#[test]
-fn github_picker_read_refusals_show_their_words_and_keep_install_available() {
-    for (reason, expected) in [
-        (
-            w::ForgeReason::NoAccess,
-            b"GitHub refused temper's read of the App's repositories: the App may be suspended. See Forges.".as_slice(),
-        ),
-        (w::ForgeReason::NotFound, b"GitHub no longer has this installation: install the App again.".as_slice()),
-    ] {
-        let (mut root, _, token) = picker_started(false);
-        answer(
-            &mut root,
-            token,
-            w::Outcome::ForgeRefused(w::ForgeRefused::new(&w::CEILINGS, w::ForgeRefusedParts { reason }).unwrap()),
-        );
-        for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
-            node(view.tree(), Role::Alert, expected);
-            assert!(f::find(view.tree(), Role::ChoiceGroup, b"Repositories").is_none());
-            let install = node(view.tree(), Role::Link, b"Choose its repositories on GitHub");
-            assert_eq!(
-                crate::act(&mut view, install, Act::Press),
-                Some(d::Action::Forge(d::forge::Act::Install {
-                    forge: GITHUB,
-                    back: d::address::print(root.pages().address()),
-                }))
-            );
-        }
-    }
-}
-
-#[test]
-fn github_picker_exhausted_busy_rereads_offer_reload_with_the_busy_words() {
-    let (mut root, _, mut token) = picker_started(false);
-    let mut env = skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits: f::domain_limits() };
-    for reread in 0_u8..=3 {
-        let mut out = skein_lib::Queue::uncapped();
-        d::step(
-            &mut root,
-            &env,
-            answer_event(
-                token,
-                w::Outcome::ConnectRefused(
-                    w::ConnectRefused::new(&w::CEILINGS, w::ConnectRefusedParts { why: w::ForgeRefusal::Busy })
-                        .unwrap(),
-                ),
-            ),
-            &mut out,
-        );
-        let view = f::browser_page_view(&root);
-        node(view.tree(), Role::Alert, b"temper is busy with forge 2: try again when it ends.");
-        assert_eq!(f::find(view.tree(), Role::Paragraph, b"Reload this page to try again.").is_some(), reread == 3);
-        if reread != 3 {
-            env.now = env.now.checked_add(skein_lib::Duration::from_secs(2)).unwrap();
-            d::fire(&mut root, &env, &mut out);
-            token = attempt(out);
-        }
-    }
-}
-fn adopted_github_rows(web: bool) -> List<w::ForgeRow> {
-    let mut parts = github_rows(true).as_slice()[0].clone().into_parts();
-    let mut rows = List::with_capacity(1);
-    parts.web = if web { Some(b"https://github.test/base/".as_slice().into()) } else { None };
-    parts.repositories = List::with_capacity(1);
-    parts
-        .repositories
-        .push(
-            w::Adoption::new(
-                &w::CEILINGS,
-                w::AdoptionParts {
-                    owner: b"owner /?".as_slice().into(),
-                    name: b"repo/#%".as_slice().into(),
-                    project: f::PROJECT,
-                },
-            )
-            .unwrap(),
-        )
-        .unwrap();
-    rows.push(w::ForgeRow::new(&w::CEILINGS, parts).unwrap()).unwrap();
-    rows
-}
-#[test]
-fn github_adopted_card_and_completion_follow_the_row_after_reload_and_encode_the_external_address() {
-    for web in [false, true] {
-        let root =
-            f::forge_root(Address::ConnectForge { forge: Some(Choice::Forge(GITHUB)) }, adopted_github_rows(web));
-        let view = f::browser_page_view(&root);
-        node(view.tree(), Role::Heading { level: 2 }, b"owner /?/repo/#% is ready");
-        node(view.tree(), Role::Paragraph, b"In the new project Shop, on GitHub.");
-        let open = node(view.tree(), Role::Link, b"Open Shop");
-        assert!(
-            view.tree()
-                .nodes()
-                .iter()
-                .find(|n| n.id == open)
-                .unwrap()
-                .styles
-                .as_slice()
-                .contains(&crate::look::FLOW_PRIMARY)
-        );
-        assert_eq!(
-            press(&root, Role::Link, b"Open Shop"),
-            d::Action::Pages(pages::Act::OpenProject { project: f::PROJECT })
-        );
-        let external = f::find(view.tree(), Role::Link, "Open on GitHub ↗".as_bytes());
-        assert_eq!(external.is_some(), web);
-        if let Some(id) = external {
-            assert_eq!(
-                view.tree().nodes().iter().find(|n| n.id == id).unwrap().external.as_deref(),
-                Some(b"https://github.test/base/owner%20%2F%3F/repo%2F%23%25".as_slice())
-            );
-        }
-        let d::forge::forges::State::Rows(rows) = root.forges() else { panic!("rows") };
-        assert_eq!(crate::forge::connect::adopted_project(&root, &rows[0]), Some(f::PROJECT));
-        assert!(f::find(view.tree(), Role::Heading { level: 2 }, b"Choose a repository to start in").is_none());
-    }
-}
-
-#[test]
-fn forgejo_completion_matches_the_made_repository_in_the_durable_row() {
-    let mut rows = first_rows(connected(), made());
-    let mut parts = rows.as_slice()[0].clone().into_parts();
-    parts.repositories = List::with_capacity(2);
-    for (owner, name, project) in
-        [(b"other".as_slice(), b"hello".as_slice(), 99), (b"work".as_slice(), b"hello".as_slice(), f::PROJECT)]
-    {
-        parts
-            .repositories
-            .push(
-                w::Adoption::new(&w::CEILINGS, w::AdoptionParts { owner: owner.into(), name: name.into(), project })
-                    .unwrap(),
-            )
-            .unwrap();
-    }
-    rows.clear();
-    rows.push(w::ForgeRow::new(&w::CEILINGS, parts).unwrap()).unwrap();
-    let root = f::forge_root(Address::ConnectForge { forge: Some(Choice::Forge(HERE)) }, rows);
-    let d::forge::forges::State::Rows(rows) = root.forges() else { panic!("rows") };
-    assert!(root.forge().set_up().is_none());
-    assert_eq!(crate::forge::connect::adopted_project(&root, &rows[0]), Some(f::PROJECT));
-}
-#[test]
-fn github_adopt_refusals_keep_the_picker_and_success_keeps_the_findings_until_reload() {
-    for success in [false, true] {
-        let (mut root, watch, token) = picker_started(false);
-        answer(&mut root, token, picker_page(false, false));
-        act(
-            &mut root,
-            d::forge::Act::Picker { forge: GITHUB, act: d::forge::picker::Act::Write(b"Shop".as_slice().into()) },
-        );
-        let token = attempt(act(&mut root, d::forge::Act::Picker { forge: GITHUB, act: d::forge::picker::Act::Adopt }));
-        let token = attempt(jig_answer(
-            &mut root,
-            token,
-            jig_client::contract::Answer::Done(jig_client::contract::Outcome::Document(
-                jig_client::contract::DocumentOutcome::ProjectMade { project: f::PROJECT },
-            )),
-        ));
-        if success {
-            answer(
-                &mut root,
-                token,
-                w::Outcome::Adopted(
-                    w::Adopted::new(
-                        &w::CEILINGS,
-                        w::AdoptedParts {
-                            forge: GITHUB,
-                            repository: 1,
-                            owner: b"acme".as_slice().into(),
-                            name: b"first".as_slice().into(),
-                            role: w::Role::Owned,
-                            home: true,
-                            kinds: w::Kinds::new(&w::CEILINGS, w::KindsParts { skein_bools: [true; 9] }).unwrap(),
-                            protection: w::Protection::Absent,
-                        },
-                    )
-                    .unwrap(),
-                ),
-            );
-            let mut parts = picker_rows(false).as_slice()[0].clone().into_parts();
-            parts.repositories = List::with_capacity(1);
-            parts
-                .repositories
-                .push(
-                    w::Adoption::new(
-                        &w::CEILINGS,
-                        w::AdoptionParts {
-                            owner: b"acme".as_slice().into(),
-                            name: b"first".as_slice().into(),
-                            project: f::PROJECT,
-                        },
-                    )
-                    .unwrap(),
-                )
-                .unwrap();
-            let mut rows = List::with_capacity(1);
-            rows.push(w::ForgeRow::new(&w::CEILINGS, parts).unwrap()).unwrap();
-            deliver(&mut root, watch, rows);
-            words_in_order(
-                f::browser_page_view(&root).tree(),
-                &[
-                    "acme/first is ready",
-                    "In the new project Shop, on GitHub.",
-                    "temper may: read; push; open pull requests; land; review; comment; create issues; create and delete branches.",
-                    "Commit statuses stay temper's own: GitHub's rules cannot require them.",
-                    "The branch has no rules.",
-                ],
-            );
-        } else {
-            answer(
-                &mut root,
-                token,
-                w::Outcome::ForgeRefused(
-                    w::ForgeRefused::new(&w::CEILINGS, w::ForgeRefusedParts { reason: w::ForgeReason::NoAccess })
-                        .unwrap(),
-                ),
-            );
-            words_in_order(
-                f::browser_page_view(&root).tree(),
-                &["Choose a repository to start in", "temper's forge user may not read acme/first on forge 2."],
-            );
-        }
-    }
-}
-
-fn publish_first_adoption(root: &mut d::Domain, watch: skein_lib::Token) {
-    // The engine publishes the adoption on the forge row as well as answering it.
-    let adoption = root.forge().set_up().unwrap().adoption.as_ref().unwrap().value.clone();
-    let mut parts = first_rows(connected(), made()).as_slice()[0].clone().into_parts();
-    parts.repositories = List::with_capacity(1);
-    parts
-        .repositories
-        .push(
-            w::Adoption::new(
-                &w::CEILINGS,
-                w::AdoptionParts { owner: adoption.owner, name: adoption.name, project: adoption.project },
-            )
-            .unwrap(),
-        )
-        .unwrap();
-    let mut rows = List::with_capacity(1);
-    rows.push(w::ForgeRow::new(&w::CEILINGS, parts).unwrap()).unwrap();
-    deliver(root, watch, rows);
 }
 
 // The mockup's failed frame, and each other step of the same five-step flow.
@@ -1828,7 +1175,7 @@ pub(super) fn failure_cases() -> [(List<w::ForgeRow>, Option<usize>, &'static st
         ),
         (
             first_rows(
-                connected(),
+                w::Connection::Connecting,
                 w::FirstState::Failed(
                     w::CreateFailed::new(&w::CEILINGS, w::CreateFailedParts { step: w::CreateStep::File }).unwrap(),
                 ),
@@ -1854,7 +1201,7 @@ pub(super) fn failed_progress(tree: &skein_ui::Tree, failed: Option<usize>, why:
         "Preparing: its database, temper’s admin, your account",
         "Starting Forgejo and its runner",
         "Connecting as temper",
-        "Making work/hello, and adopting it into Shop",
+        "Making work/hello",
     ];
     for (index, (item, label)) in items.iter().zip(labels).enumerate() {
         let item_index = tree.nodes().iter().position(|n| n.id == item.id).unwrap();
@@ -1975,7 +1322,7 @@ fn admin_details_keep_the_token_out_of_actions_and_rendered_pages() {
     let start = nodes.iter().position(|n| n.id == group).unwrap();
     let end = start + usize::try_from(nodes[start].size).unwrap();
     assert_eq!(nodes[start + 1].id, legend);
-    for name in [b"Organization".as_slice(), b"Repository", b"Into a new project, named", b"Runner label"] {
+    for name in [b"Organization".as_slice(), b"Repository", b"Runner label"] {
         let field = node(before.tree(), Role::TextField, name);
         assert!(nodes[start + 1..end].iter().any(|n| n.id == field));
     }
@@ -1991,7 +1338,7 @@ fn admin_details_keep_the_token_out_of_actions_and_rendered_pages() {
         .unwrap();
     assert_eq!(field.entry, Some(skein_ui::EntryKind::Secret));
     no_admin_token(view.tree());
-    for name in [b"Organization".as_slice(), b"Repository", b"Into a new project, named", b"Runner label"] {
+    for name in [b"Organization".as_slice(), b"Repository", b"Runner label"] {
         node(view.tree(), Role::TextField, name);
     }
     admin_send(&mut root);
@@ -2005,7 +1352,6 @@ fn admin_local_refusals_mark_the_field_and_say_why() {
         ("The site admin’s token", &[b'x'; 4091], "The pasted values are past 4 KiB, the most a request carries."),
         ("Organization", b"", "Required."),
         ("Repository", b"", "Required."),
-        ("Into a new project, named", b"", "Required."),
         ("Runner label", b"a b", "Letters, digits, dots, dashes and underscores, at most 64."),
     ] {
         let mut root = admin_root(Some(Choice::Forge(HERE)), admin_row(w::Connection::NotConnected, None, None, true));
@@ -2048,7 +1394,7 @@ fn a_first_organization_named_as_the_bot_marks_the_organization_invalid() {
         ],
     );
     assert!(has_state(view.tree(), Role::TextField, b"Organization", State::Invalid));
-    for name in [b"Repository".as_slice(), b"Into a new project, named", b"Runner label"] {
+    for name in [b"Repository".as_slice(), b"Repository", b"Runner label"] {
         assert!(!has_state(view.tree(), Role::TextField, name, State::Invalid));
     }
     assert!(!root.forge().admin_form().has_token());
@@ -2147,8 +1493,8 @@ fn admin_ready_uses_the_durable_label_and_repository_link() {
         view.tree(),
         &[
             "Connected as temper (id 42), managed.",
-            "Made work/hello, and its project hello. Its CI runs on your forge’s runners labelled linux-arm; with none, a change’s checks wait.",
-            "Open hello",
+            "Made work/hello. Its CI runs on your forge’s runners labelled linux-arm; with none, a change’s checks wait.",
+            "Adopt a repository",
             "Open work/hello on Forgejo",
         ],
     );
@@ -2159,7 +1505,10 @@ fn admin_ready_uses_the_durable_label_and_repository_link() {
         .find(|n| n.id == node(view.tree(), Role::Link, "Open work/hello on Forgejo ↗".as_bytes()))
         .unwrap();
     assert_eq!(link.external.as_deref(), Some(b"https://git.example.org/work/hello".as_slice()));
-    assert_eq!(press(&root, Role::Link, b"Open hello"), d::Action::Pages(pages::Act::OpenProject { project: 7 }));
+    assert_eq!(
+        press(&root, Role::Link, b"Adopt a repository"),
+        d::Action::Pages(pages::Act::Go { address: Address::Adopt { project: f::PROJECT } })
+    );
 }
 
 pub(super) fn pinned_rows(connection: w::Connection, pins: bool, runner: bool) -> List<w::ForgeRow> {
@@ -2226,7 +1575,7 @@ fn owned_fetch_steps_draw_both_pins_or_keep_the_unpinned_words() {
 }
 
 #[test]
-fn owned_ready_offers_the_forgejo_link_after_the_project() {
+fn owned_ready_offers_the_forgejo_link_after_adopt() {
     for facts_present in [true, false] {
         let root = f::forge_root(
             Address::ConnectForge { forge: Some(Choice::Forge(HERE)) },
@@ -2246,13 +1595,13 @@ fn owned_ready_offers_the_forgejo_link_after_the_project() {
                 crate::href(&mut view, link).as_deref(),
                 Some(b"http://127.0.0.1:3000/user/oauth2/temper".as_slice())
             );
-            words_in_order(view.tree(), &["Open Shop", "Open Forgejo ↗"]);
+            words_in_order(view.tree(), &["Adopt a repository", "Open Forgejo ↗"]);
         }
     }
 }
 
 #[test]
-fn the_connected_forge_and_repository_picker_offer_their_links_as_terminal_commands() {
+fn the_connected_forge_offers_its_links_as_terminal_commands() {
     let mut view = f::page_view(&here(connected()));
     let control = view
         .tree()
@@ -2270,34 +1619,6 @@ fn the_connected_forge_and_repository_picker_offer_their_links_as_terminal_comma
         b"Forgejo on this machine is on the ",
     );
     assert_eq!(crate::act(&mut view, id, first), Some(d::Action::Pages(pages::Act::Go { address: Address::Forges })));
-
-    let (mut root, _, token) = picker_started(false);
-    answer(&mut root, token, picker_page(false, false));
-    act(&mut root, d::forge::Act::Picker { forge: GITHUB, act: d::forge::picker::Act::Adopt });
-    let view = f::page_view(&root);
-    let label = b"Choose its repositories on GitHub";
-    let disabled = node(view.tree(), Role::Button, label);
-    assert!(view.tree().disabled(disabled));
-    let mut print = skein_ui_text::Print::new(&view.limits().tree).unwrap();
-    skein_ui_text::render(view.tree(), b"temper", None, &mut print);
-    assert!(skein_lib::bytes::find(print.text.as_slice(), b"Choose its repositories on GitHub (disabled)\n").is_some());
-    assert!(!print.numbers.as_slice().contains(&disabled));
-
-    for empty in [false, true] {
-        let (mut root, _, token) = picker_started(false);
-        answer(&mut root, token, picker_page(empty, false));
-        let mut view = f::page_view(&root);
-        let label = b"Choose its repositories on GitHub";
-        let control = node(view.tree(), Role::Link, label);
-        let (id, first) = f::terminal_command(view.tree(), &view.limits().tree, control, label, b"Not listed? ");
-        assert_eq!(
-            crate::act(&mut view, id, first),
-            Some(d::Action::Forge(d::forge::Act::Install {
-                forge: GITHUB,
-                back: d::address::print(root.pages().address()),
-            }))
-        );
-    }
 }
 
 #[test]
