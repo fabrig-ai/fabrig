@@ -45,6 +45,7 @@ pub struct Domain {
     pub(crate) host_part: Option<crate::room::HostPart>,
     revision: u64,
     held_bytes: u64,
+    pub(crate) public_reads: u32,
     /// Retired M1 reset marker; readiness never reads it. Keeping the marker
     /// needs no clock pair beside the retained restore failure.
     pub(crate) settled: Option<()>,
@@ -404,6 +405,7 @@ impl Domain {
             host_part: config.host_part,
             revision: 0,
             held_bytes: 0,
+            public_reads: 0,
             calendar: calendar::Calendar::new(
                 &calendar::Limits { projects: limits.authority.projects },
                 config.period_span,
@@ -852,6 +854,9 @@ fn release_one(domain: &mut Domain, out: &mut Queue<Request>) -> skein_lib::Rele
     let status = domain.journal.release(out);
     let mut bytes = 0_u64;
     for request in out.iter().skip(before) {
+        if let Request::Party(crate::PartyRequest::Deliver(Delivery::Public { admitted: true, .. })) = request {
+            domain.public_reads = domain.public_reads.checked_sub(1).expect("one answer per admitted public read");
+        }
         if let Request::Worker(crate::WorkerRequest::Deliver(Delivery::Assigned { assignment, .. })) = request {
             bytes = bytes
                 .checked_add(crate::budget::assignment_bytes(assignment))
@@ -1050,6 +1055,9 @@ fn released_into(
     out: &mut Queue<Request>,
 ) {
     match released.0 {
+        Delivery::PublicWait { read } => {
+            domain.work.push(Work::Core(jig_domain_core::Event::PublicDurable { read }));
+        }
         Delivery::ProjectReleased { connector, project } => {
             domain.work.push(Work::Core(jig_domain_core::Event::ProjectReleased { connector, project }));
         }
@@ -1126,6 +1134,7 @@ fn released_into(
         | Delivery::ForgeDocument { .. }
         | Delivery::Panel { .. }
         | Delivery::Application { .. }
+        | Delivery::Public { .. }
         | Delivery::WebReply { .. }
         | Delivery::CarriedUnused { .. }
         | Delivery::ForgeRead { .. }

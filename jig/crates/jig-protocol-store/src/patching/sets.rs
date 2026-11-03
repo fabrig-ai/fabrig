@@ -72,6 +72,7 @@ pub const JIG: PatchSet = PatchSet {
         keys: &[
             Keys { from: &[1, 0], to: &[1, 2], root: "Digest" },
             Keys { from: &[3, 0], to: &[3, 1], root: "Source" },
+            Keys { from: &[4, 0], to: &[4, 1], root: "Source" },
             Keys { from: &[2, 0, 0x80], to: &[2, 0, 0xc0], root: "Carried" },
             Keys { from: &[2, 1], to: &[2, 2], root: "NextCarried" },
         ],

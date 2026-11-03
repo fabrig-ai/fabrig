@@ -305,6 +305,7 @@ pub fn project_role(limits: &Limits) -> MeProject {
     MeProject::new(
         limits,
         MeProjectParts {
+            public: None,
             models: List::with_capacity(0),
             templates: Box::from([]),
             creating: None,

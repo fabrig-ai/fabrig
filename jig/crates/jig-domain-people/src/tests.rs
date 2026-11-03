@@ -610,6 +610,7 @@ fn saved_answer(rows: &[Request]) -> Stored {
                 | Stored::Roles { .. }
                 | Stored::Acted { .. }
                 | Stored::Deletion { .. }
+                | Stored::Public { .. }
                 | Stored::Policy { .. } => None,
             },
             Request::Reply { .. }
@@ -1194,6 +1195,7 @@ fn is_answer(request: &Request) -> bool {
             | Stored::Roles { .. }
             | Stored::Acted { .. }
             | Stored::Deletion { .. }
+            | Stored::Public { .. }
             | Stored::Policy { .. } => false,
         },
         Request::Reply { .. }
@@ -1220,6 +1222,7 @@ fn is_roles(request: &Request) -> bool {
             | Stored::Answer { .. }
             | Stored::Acted { .. }
             | Stored::Deletion { .. }
+            | Stored::Public { .. }
             | Stored::Policy { .. } => false,
         },
         Request::Reply { .. }

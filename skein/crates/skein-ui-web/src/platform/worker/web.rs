@@ -304,7 +304,7 @@ impl<R: 'static> Platform for Worker<R> {
     }
 
     fn send(&mut self, exchange: &fetch::Exchange) {
-        self.shared.send(bridge::Input::Exchange(exchange.clone()));
+        self.shared.send(bridge::Input::Exchange(exchange.into()));
     }
 
     fn navigate(&mut self, to: &[u8]) {

@@ -341,7 +341,10 @@ pub(crate) fn touch_people_row(core: &mut Core, row: &people::Stored) {
             }
         }
         people::Stored::Answer { .. } | people::Stored::Acted { .. } => core.touch_deployment(),
-        people::Stored::SignIn { .. } | people::Stored::Deletion { .. } | people::Stored::Policy { .. } => {}
+        people::Stored::SignIn { .. }
+        | people::Stored::Deletion { .. }
+        | people::Stored::Public { .. }
+        | people::Stored::Policy { .. } => {}
     }
 }
 

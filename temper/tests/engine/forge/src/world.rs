@@ -91,6 +91,7 @@ pub const LIMITS: top::Limits = top::Limits {
 
 #[derive(Debug)]
 struct Pending {
+    repository: Box<[u8]>,
     client: Token,
     op: skein_forge::api::Op,
     generation: u64,
@@ -278,6 +279,24 @@ impl World {
         turn: bool,
         tier: Option<raw::Workflow>,
     ) -> World {
+        Self::configured_repositories(seed, facts, hooked, writer, protection, signatures, branches, turn, tier, 1)
+    }
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "the public world adds repository room to the shared scenario switches"
+    )]
+    fn configured_repositories(
+        seed: u64,
+        facts: u32,
+        hooked: bool,
+        writer: Option<skein_forge_client::Writer>,
+        protection: Option<raw::Protection>,
+        signatures: bool,
+        branches: u32,
+        turn: bool,
+        tier: Option<raw::Workflow>,
+        repositories: u32,
+    ) -> World {
         let tiered = tier.is_some();
         let limits = top::Limits {
             landings: if turn { 2 } else { LIMITS.landings },
@@ -287,6 +306,7 @@ impl World {
         };
         let mut config = fake_config();
         config.limits.branches = branches;
+        config.limits.repositories = repositories;
         if tiered {
             config.limits.statuses = 16;
             config.limits.content_bytes = 512;
@@ -448,12 +468,139 @@ impl World {
         number
     }
 
+    /// Read exactly the public tasks the scripted core hands to the forge.
+    #[must_use]
+    pub fn public(
+        &self,
+        project: u32,
+        kind: u16,
+        task: Option<u64>,
+        public: &[top::PublicTask],
+    ) -> Option<top::PublicMade> {
+        self.top.public(
+            &top::PublicAsk {
+                project,
+                kind,
+                version: temper_client_protocol_wire::PUBLIC_VERSION,
+                task,
+                public,
+                now: self.env.wall,
+            },
+            &self.env.limits,
+        )
+    }
+    /// A turn world whose independent runner follows the supplied workflow.
+    #[must_use]
+    pub fn public_turn(seed: u64, workflow: raw::Workflow) -> World {
+        let mut world = Self::configured_repositories(
+            seed,
+            LIMITS.facts,
+            false,
+            Some(skein_forge_client::Writer { forge: REPO.forge, author: 1 }),
+            None,
+            false,
+            4,
+            true,
+            Some(workflow.clone()),
+            2,
+        );
+        forge::repository(
+            &mut world.forge,
+            &world.forge_env.limits,
+            raw::Setup {
+                id: 3,
+                name: Box::from(b"org/second".as_slice()),
+                default: Box::from(b"main".as_slice()),
+                tree: Box::new([]),
+                labels: Box::new([]),
+                workflows: Box::new([workflow]),
+                protection: None,
+                hooked: false,
+                checks: raw::Checks {
+                    cues: Box::new([]),
+                    contexts: Box::new([]),
+                    latency_min: Duration::ZERO,
+                    latency_max: Duration::ZERO,
+                    silent: 0,
+                    passes: 1000,
+                    reruns: 0,
+                    cue: None,
+                },
+            },
+        );
+        forge::grant(&mut world.forge, b"org/second", 1, raw::Permission::Admin);
+        forge::grant(&mut world.forge, b"org/second", 2, raw::Permission::Write);
+        world
+    }
+    /// Prepare a second member through the independent repository's git and pull API.
+    pub fn public_second(&mut self, task: u64, branch: &[u8]) {
+        self.event(top::Event::Application {
+            role: None,
+            carried: None,
+            request: Token::new(101),
+            token: Token::new(101),
+            retention: Duration::from_secs(60),
+            ask: top::Ask::Adopt(top::Adoption {
+                project: 5,
+                home: false,
+                forge: REPO.forge,
+                host: Box::from(b"forge.example".as_slice()),
+                owner: Box::from(b"org".as_slice()),
+                name: Box::from(b"second".as_slice()),
+                prefix: Box::from(b"temper/".as_slice()),
+                role: top::Role::Owned,
+                landing: Box::from(b"main".as_slice()),
+                ci: true,
+                checks: Box::new([]),
+            }),
+        });
+        self.run_for(1);
+        let main = self.forge.branch(b"org/second", b"main").expect("second main");
+        self.external_repository(
+            b"org/second",
+            raw::Op::Git(raw::Git::Create { branch: Box::from(branch), commit: main }),
+            2,
+        );
+        forge::advance(&mut self.forge, &self.forge_env, b"org/second", branch, b"file", b"change", 1)
+            .expect("second change");
+        let raw::Answer::Created(pull) = self.external_repository(
+            b"org/second",
+            raw::Op::Write(raw::Write::OpenPull {
+                opens_empty: false,
+                title: Box::from(b"secret-public-title".as_slice()),
+                body: Box::from(b"secret-public-body".as_slice()),
+                head: Box::from(branch),
+                base: Box::from(b"main".as_slice()),
+            }),
+            1,
+        ) else {
+            panic!("second pull")
+        };
+        let head = translate::commit(self.forge.branch(b"org/second", branch).expect("second head"));
+        let mut row = crate::changes::change_row();
+        row.task = task;
+        row.change.task = task;
+        row.repository.repository = 3;
+        row.branch = Box::from(branch);
+        row.pull = Some(pull);
+        row.change.last_head = Some(head);
+        row.change.state = temper_engine_domain_forge_change::State::Ready { head, ready_since: self.env.wall };
+        row.change.way = temper_engine_domain_forge_change::Way::Turn;
+        crate::public::mark(&mut row);
+        self.event(top::Event::Change { row });
+    }
     pub fn check_pull(&mut self, number: u64, span: Duration) {
         forge::check(&mut self.forge, &self.forge_env, b"org/repo", number, span);
     }
 
     fn hear(&mut self, hook: &forge::Request) {
-        if let Some(hint) = translate::hint(REPO, hook) {
+        let repository = match hook {
+            forge::Request::Hook { repository, .. } if repository.as_ref() == b"org/second" => {
+                skein_forge::api::Repository { forge: REPO.forge, repository: 3 }
+            }
+            forge::Request::Hook { .. } | forge::Request::Reply { .. } => REPO,
+        };
+        if let Some(hint) = translate::hint(repository, hook) {
             self.to_top.push((self.generation, top::Event::Hint { hint: hint.clone() }));
             self.hints.push(hint);
         }
@@ -730,6 +877,9 @@ impl World {
     }
 
     fn external(&mut self, op: raw::Op, user: u64) -> raw::Answer {
+        self.external_repository(b"org/repo", op, user)
+    }
+    fn external_repository(&mut self, repository: &[u8], op: raw::Op, user: u64) -> raw::Answer {
         let mut config = self.forge_env.limits;
         config.latency_min = Duration::ZERO;
         config.latency_max = Duration::ZERO;
@@ -739,7 +889,7 @@ impl World {
         forge::step(
             &mut self.forge,
             &env,
-            forge::Event::Call { reply_to: ReplyTo::new(token), user, repository: Box::from(&b"org/repo"[..]), op },
+            forge::Event::Call { reply_to: ReplyTo::new(token), user, repository: Box::from(repository), op },
             &mut self.forge_out,
         );
         let mut answer = None;
@@ -928,7 +1078,7 @@ impl World {
 
     fn submit(&mut self, call: Token, repository: skein_forge::api::Repository, op: skein_forge::api::Op) {
         assert_eq!(repository.forge, REPO.forge);
-        assert!(repository.repository == REPO.repository || repository.repository == 0);
+        assert!(repository.repository == REPO.repository || repository.repository == 0 || repository.repository == 3);
         self.calls += 1;
         self.call_ops.push(op.clone());
         if let skein_forge::api::Op::Write(_) = op {
@@ -937,9 +1087,11 @@ impl World {
         self.serial += 1;
         let token = Token::new(self.serial);
         let raw = translate::op(&op, &self.env.limits.client);
-        let name = translate::locate_name(&op).unwrap_or_else(|| Box::from(&b"org/repo"[..]));
+        let name = translate::locate_name(&op).unwrap_or_else(|| {
+            Box::from(if repository.repository == 3 { b"org/second".as_slice() } else { b"org/repo".as_slice() })
+        });
         self.pending
-            .insert(token, Pending { client: call, op, generation: self.generation })
+            .insert(token, Pending { client: call, op, generation: self.generation, repository: name.clone() })
             .expect("world call slots");
         self.to_forge.push(forge::Event::Call { reply_to: ReplyTo::new(token), user: 1, repository: name, op: raw });
     }
@@ -956,7 +1108,11 @@ impl World {
                             if let skein_forge::api::Answer::Run(run) = &mut answer {
                                 let raw::Answer::Jobs(jobs) = self
                                     .forge
-                                    .inspect(&self.forge_env.limits, b"org/repo", &raw::Read::Jobs { run: run.id })
+                                    .inspect(
+                                        &self.forge_env.limits,
+                                        &pending.repository,
+                                        &raw::Read::Jobs { run: run.id },
+                                    )
                                     .expect("run jobs")
                                 else {
                                     panic!("jobs answer")

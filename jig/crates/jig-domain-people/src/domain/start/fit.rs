@@ -212,6 +212,7 @@ pub(super) fn ask(key: &Key, limits: &Limits, value: &Ask) -> Result<(), Restore
         },
         Ask::AccountChange { change, .. } => account_change(key, limits, change),
         Ask::RemoveProject { .. }
+        | Ask::SetVisibility { .. }
         | Ask::MarkSeen { .. }
         | Ask::Application { .. }
         | Ask::ChangeSettings { .. }
@@ -280,6 +281,7 @@ pub(super) fn outcome(key: &Key, limits: &Limits, outcome: &Outcome) -> Result<(
         | Outcome::Renamed { .. }
         | Outcome::ProjectMade { .. }
         | Outcome::ProjectRemoved { .. }
+        | Outcome::VisibilitySet { .. }
         | Outcome::SettingsChanged { .. }
         | Outcome::MovedToNewest { .. }
         | Outcome::PoolSet { .. }

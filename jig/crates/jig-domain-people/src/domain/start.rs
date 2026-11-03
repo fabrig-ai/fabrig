@@ -93,6 +93,7 @@ impl Domain {
                 | Outcome::Renamed { .. }
                 | Outcome::ProjectMade { .. }
                 | Outcome::ProjectRemoved { .. }
+                | Outcome::VisibilitySet { .. }
                 | Outcome::SettingsChanged { .. }
                 | Outcome::MovedToNewest { .. }
                 | Outcome::PoolSet { .. }
@@ -199,6 +200,7 @@ fn discarded(domain: &Domain, limits: &Limits, record: &Stored) -> bool {
         }
         Stored::Acted { at: saved, .. } => answer_expiry(*saved, limits) <= at,
         Stored::Deletion { .. }
+        | Stored::Public { .. }
         | Stored::Person { .. }
         | Stored::Roles { .. }
         | Stored::ReadResults { .. }
@@ -229,6 +231,7 @@ pub(super) fn load(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: 
         return restore_failed(domain, key, Refusal::Limit { which: LimitKind::Restore }, out);
     }
     match record {
+        Stored::Public { .. } => {}
         Stored::Deletion { project, step, grace } => {
             domain.deletions.insert(project, crate::KeptDeletion { step, grace }).expect("deletion fit checked");
         }
@@ -276,6 +279,7 @@ fn link_roster(domain: &Domain, source: Key, ask: &crate::Ask) {
         | crate::Ask::Adopt { .. }
         | crate::Ask::ChangePolicy { .. }
         | crate::Ask::RemoveProject { .. }
+        | crate::Ask::SetVisibility { .. }
         | crate::Ask::Rename { .. }
         | crate::Ask::MakeProject { .. }
         | crate::Ask::ChangeSettings { .. }
@@ -306,6 +310,7 @@ fn link_roster(domain: &Domain, source: Key, ask: &crate::Ask) {
 fn fits(domain: &Domain, env: &Env<Limits>, record: &Stored) -> Result<(), crate::RestoreCause> {
     let key = record.key();
     match record {
+        Stored::Public { .. } => Ok(()),
         Stored::Deletion { project, .. } => {
             assert!(!domain.deletions.contains_key(project), "duplicate {key:?}");
             fit::occupancy(&key, RestoreBound::Roles, domain.deletions.len(), 0, env.limits.projects)
