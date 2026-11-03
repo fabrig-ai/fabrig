@@ -176,6 +176,7 @@ fn the_default_is_the_owned_example_so_edited() {
                 },
             ),
             ("/application/landing/projects/0/rules/0/pattern", every_forge()),
+            ("/engine/projects", parse(b"[]")),
             ("/engine/hosts/workers/0/digest", json!("worker.digest")),
             ("/engine/deployment/directory", json!("deployment")),
             ("/workers/0/secret", json!("worker.secret")),
@@ -467,12 +468,9 @@ fn the_person_keeps_a_forgejo_login_or_falls_back() {
 }
 
 #[test]
-fn the_template_keeps_project_one_without_settings_members() {
+fn the_template_seeds_no_project_and_no_settings_members() {
     let document = parse(template::TEMPER);
-    assert_eq!(document["engine"]["projects"].as_array().unwrap().len(), 1);
-    assert_eq!(document["engine"]["projects"][0]["number"], 1_u32);
-    assert_eq!(document["engine"]["projects"][0]["policy"], 1_u32);
-    assert!(document["engine"]["projects"][0].get("roles").is_none());
+    assert_eq!(document["engine"]["projects"], parse(b"[]"));
     for member in ["charters", "templates", "policies", "rules"] {
         assert!(document["engine"].get(member).is_none());
     }
