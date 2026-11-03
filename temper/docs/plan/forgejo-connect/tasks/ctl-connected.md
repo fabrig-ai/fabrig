@@ -195,3 +195,14 @@ index is no stored value (requests are keyed by name), so a new row sits beside 
 other edit to these files. Should the run find a tool's index written to any store, record or
 wire, it stops and asks. The `forgejo_tokens` story's `same forge writer` failure stays under
 `## Left`: not this task's.
+
+2026-11-03. Run 4 asked again whether `src/tests/jig/replays.rs`, `src/tests/jig/settings.rs` and
+`src/tests/words.rs` may change: yes, as the answer above gives it, which matches the branch as
+pushed (the tuples at `:251` and `:789`, `KEPT_INDICES` at `:213`). One point made exact: the value
+`direct()` hands `forge replace` is not `ADD_KEY_AT`'s `fake-record-for-step-tests`, which would be
+read as a tokens file and refused; it is a fake key of its own, its first line `-----BEGIN RSA
+PRIVATE KEY-----`, then one line and `-----END RSA PRIVATE KEY-----`, so the replace takes the key
+way and sends `pasted_app_key` of it. `rows.rs` has no constant for `forge replace` and gains none:
+the test finds the row by its name in `crate::table::TOOLS`. Then the full `heavy cargo nextest run
+-p temper-client-tools --lib`, unfiltered, is the acceptance; the four tests the run excluded must
+pass in it.
