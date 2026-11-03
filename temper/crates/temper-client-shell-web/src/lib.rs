@@ -34,17 +34,38 @@ enum Report {
     Place(Box<[u8]>),
 }
 #[cfg(target_arch = "wasm32")]
-struct Shell {
+/// The shared host loop (temper/docs/design/playground.md, 6).
+struct Shell<P: ShellPlatform> {
     host: host::Host,
     #[cfg(feature = "record")]
     recorder: Option<journey::Recorder>,
     page: Rc<RefCell<Page<'static>>>,
     dom: Dom,
-    platform: platform::Browser<Report>,
+    platform: P,
     store: Store,
     history: history::web::History,
-    timer: timer::web::Timer,
+    timer: P::Timer,
     title: title::web::Title,
+}
+#[cfg(target_arch = "wasm32")]
+trait ShellPlatform: platform::Platform {
+    type Timer;
+    fn clocks(&self) -> (skein_lib::Time, skein_lib::Wall);
+    fn fired(timer: &mut Self::Timer);
+    fn timer(&self, timer: &mut Self::Timer, deadline: Option<skein_lib::Time>, now: skein_lib::Time);
+}
+#[cfg(target_arch = "wasm32")]
+impl ShellPlatform for platform::Browser<Report> {
+    type Timer = timer::web::Timer;
+    fn clocks(&self) -> (skein_lib::Time, skein_lib::Wall) {
+        platform::clocks()
+    }
+    fn fired(timer: &mut Self::Timer) {
+        timer.fired();
+    }
+    fn timer(&self, timer: &mut Self::Timer, deadline: Option<skein_lib::Time>, now: skein_lib::Time) {
+        timer.set(deadline, now);
+    }
 }
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen(start)]
@@ -127,10 +148,10 @@ pub fn start() {
     inbox.raise(Report::Start);
 }
 #[cfg(target_arch = "wasm32")]
-impl Shell {
+impl<P: ShellPlatform> Shell<P> {
     /// One inbox turn: each report given to the host, its duties carried, then the page drawn.
     fn turn(&mut self, inbox: &Inbox<Report>) {
-        let (now, wall) = platform::clocks();
+        let (now, wall) = self.platform.clocks();
         #[cfg(feature = "record")]
         if let Some(recorder) = &mut self.recorder {
             recorder.turn(now, wall);
@@ -187,7 +208,7 @@ impl Shell {
                 return None;
             }
             Report::Due => {
-                self.timer.fired();
+                P::fired(&mut self.timer);
                 host::Report::Due
             }
             Report::Act(node, act) => host::Report::Act { node, act },
@@ -224,7 +245,7 @@ impl Shell {
             inbox.raise(Report::Carried(carried, duties.writes));
         }
         if read_on {
-            self.platform.fetch.read_on();
+            platform::Platform::read_on(&mut self.platform);
         }
         if let Some((path, replace)) = duties.show {
             self.history.show(&path, replace);
@@ -256,7 +277,7 @@ impl Shell {
         if let Some(recorder) = &mut self.recorder {
             recorder.deadline(deadline);
         }
-        self.timer.set(deadline, now);
+        self.platform.timer(&mut self.timer, deadline, now);
     }
     #[cfg(feature = "record")]
     fn save_recording(&mut self, departing: bool) {
