@@ -288,21 +288,25 @@ fn a_released_failed_producers_replacement_needs_authority_and_a_bare_release_ho
         for released in [false, true] {
             let words = crate::authority_words(AuthorityHold { released, ..cause });
             assert!(words.ends_with(b"; or ask afresh; bare release holds again"));
-            assert!(
-                words
-                    .windows(b"; cancel: task cancel 7 REASON".len())
-                    .any(|part| part == b"; cancel: task cancel 7 REASON")
-            );
-            let text = core::str::from_utf8(&words).expect("hold words");
+            assert!(has_hold_words(&words, b"; cancel: task cancel 7 REASON"));
+            assert_eq!(has_hold_words(&words, b"task release"), lack == AuthorityLack::Tasks);
             if lack == AuthorityLack::Tasks {
-                assert!(
-                    text.contains("task amend 7 --rev 0 --tasks 4 REASON; then release it: task release 7 --hold 2")
-                );
-            } else {
-                assert!(!text.contains("task release"));
+                assert!(has_hold_words(
+                    &words,
+                    b"task amend 7 --rev 0 --tasks 4 REASON; then release it: task release 7 --hold 2",
+                ));
             }
         }
     }
+}
+
+fn has_hold_words(words: &[u8], expected: &[u8]) -> bool {
+    for part in words.windows(expected.len()) {
+        if part == expected {
+            return true;
+        }
+    }
+    false
 }
 
 #[test]
