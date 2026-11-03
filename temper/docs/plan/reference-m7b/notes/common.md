@@ -35,3 +35,48 @@ shape that crosses tasks: names, fields and types there are binding.
   the count it selected. No live service, no real repository.
 - **Docs read by tests** (`.config/gate/read-by-tests.txt`): `temper/docs/help/**` is compiled
   into temper's help tests; a task that changes a help page runs them.
+
+## Corrections found after release (revision R2 of `notes/contracts.md`)
+
+- **The store's drift test** is in `temper-codecs-world`, not `temper-protocol-store`:
+  `SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p temper-codecs-world --test suite -E
+  'test(=drift::store_schema_matches_generated_code_and_goldens)'`, then the same without the
+  variable (`change-merge-surface`).
+- **`merge-kind`'s names:** the second place the service builds the core's configuration is
+  `temper/crates/temper-service/src/startup.rs` (`let core = config::core(..)`, which
+  `checks::admission` then reads), not `startup/checks.rs`; `tooling::Kind::verb` is a `Box<[u8]>` (`Box::from(&b"merge"[..])`);
+  `whole/jobs.rs` fixes its kind at `JobKind(9)`, only `delivers` a parameter, so the merge
+  stories take the kind as a parameter of their own or a world of their own. Its bounds are
+  R2's.
+- **`merge-settings`:** a project's way is kept in the forge's `landing.rs`
+  (`landing::State::projects`), so `merge_job` is kept there beside it; `ProjectLanding`
+  literals are three (the forge's `landing.rs`, `temper/tests/engine/domain/src/forge_routes.rs`
+  and `temper-engine-domain/src/route/forge_route/tests.rs`), each `merge_job: None`.
+- **`merge-help`'s text does not fit:** `temper/docs/help/change.md` is 8,177 bytes against
+  temper-docs' 8,192-byte bound for a concept page. In place of its three replacements, apply
+  these two, verbatim (8,182 bytes):
+  1. replace
+     ```
+       it waits for, by task number or a `name` from the same call) and
+       `changes` (several at once, all or none).
+     ```
+     with
+     ```
+       it waits for, by task number or a `name` from the same call),
+       `changes` (several at once, all or none) and `merge` (a catch-up's
+       commit).
+     ```
+  2. replace
+     ```
+       forge, which merges the base in, where its rules ask up to date;
+       else a conflicting change is held, saying so;
+     - `resolving`: an agent resolves a conflict with the base and pushes
+       the merge commit;
+     ```
+     with
+     ```
+       forge, which merges the base in, where its rules ask up to date;
+     - `resolving`: the merge job, then an agent, settles a conflict with
+       the base and pushes the merge commit;
+     ```
+
