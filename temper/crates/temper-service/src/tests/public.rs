@@ -40,3 +40,35 @@ fn a_public_read_and_its_answer_cross_the_root_boundary() {
     let Some(kit::Event::Public { answer, .. }) = output else { panic!("public refusal") };
     assert_eq!(answer, core::PublicAnswer::Busy);
 }
+
+/// A declared kind must fit the answer ceiling (jig/docs/design/protocol/configuration.md, 6).
+#[test]
+fn a_public_kind_above_the_ceiling_names_answer_bytes() {
+    let mut config = crate::tests::fixtures::engine();
+    config.jig.limits.clients.public = kit::PublicLimits {
+        reads: 4,
+        rate: 8,
+        rate_burst: 8,
+        bytes: 524_288,
+        bytes_burst: 524_288,
+        answer_bytes: 198_732,
+        max_age: 2,
+    };
+    let Err(problems) = Clients::new(
+        &config::Directories::working(),
+        &config.jig,
+        &config.clients,
+        &crate::tests::fixtures::seeds(),
+        &config.limits.root.journal,
+        None,
+        &[],
+    ) else {
+        panic!("landings exceeds the ceiling by one byte")
+    };
+    assert_eq!(problems.problems.as_slice().len(), 1);
+    assert_eq!(problems.problems.as_slice().first().expect("one refusal").what, What::Bound);
+    assert_eq!(
+        problems.problems.as_slice().first().expect("one refusal").path,
+        Path::root().member(b"clients").member(b"public").member(b"answer_bytes")
+    );
+}
