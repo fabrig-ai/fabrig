@@ -28,16 +28,16 @@ yet** is task `goal-release`'s.
 
 | Part | Tasks (needs) |
 |---|---|
-| mine | `mine-call` [] (the call's shape, C1); `mine-procedure` [] (the procedure's new head, C3); `mine-start` [mine-call] (the root's `mine`, C4); `mine-forge` [mine-procedure, goal-release] (the forge's side, C5) |
+| mine | `mine-call` [] (the call's shape, C1); `mine-procedure` [] (the procedure's new head, C3); `mine-start` [mine-call] (the root's `mine`, C4, and L's first story: g landed into main whole); `mine-forge` [mine-procedure, goal-release] (the forge's side, C5); `mine-help` [mine-call] (the change page's `branch`, within its 8,192-byte bound); `mine-story-moves` [mine-start, mine-forge, goal-release] (a change into g is L's new head; drift by another identity; a stale read; G's close deleting or keeping g); `mine-story-held` [mine-story-moves] (`reference-landing.md`, section 9's second story) |
 | release | `goal-release` [] (C2) |
 | reference | `reference-landing-config` [] (`notes/settings.md`) |
 
 The cross-task shapes are `notes/contracts.md` (C1 to C5); the standing rules,
 `notes/common.md`.
 
-Still to come in the next batch: the end-to-end stories (L landing g into main, a change into
-g taken as L's new head, L held past its three repairs and released after a change into g,
-drift by another identity, G's close deleting g) and the help page's `branch` line.
+Every task of the milestone is released (two batches). The old branch
+`o/forgejo-land-drift-world`'s idea (a branch read sent before a move and answered after it
+holds nothing) is carried into `mine-story-moves` for g.
 
 ## Slices
 
@@ -64,14 +64,16 @@ drift by another identity, G's close deleting g) and the help page's `branch` li
 
 One writer per crate at a time: `goal-release` then `mine-forge` in
 `temper-engine-domain-forge`; `mine-call` then `mine-start` in the root's `forge_route.rs`;
+the two stories one after the other, since both may fix what they find in the plan's code;
 `mine-procedure` alone in `temper-engine-domain-forge-change` (its literal-only lines in the
 forge and landing crates run beside `goal-release`: field-only hunks).
 
 ## Critical path, as it stands
 
-`mine-procedure` (75) and `goal-release` (60) -> `mine-forge` (90) -> the stories; beside it
-`mine-call` (45) -> `mine-start` (120) -> the stories. About 300 implementer-minutes to the
-stories.
+`mine-procedure` (75) -> `mine-forge` (90) -> `mine-story-moves` (110) -> `mine-story-held`
+(90), about 365 implementer-minutes; beside it, as long, `mine-call` (45) -> `mine-start`
+(120) -> the same two stories. `goal-release`, `reference-landing-config` and `mine-help` are
+off the path.
 
 ## Overlaps with other plans
 
