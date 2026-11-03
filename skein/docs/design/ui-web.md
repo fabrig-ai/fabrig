@@ -1246,7 +1246,8 @@ unchanged.
   them alike.
 - **It starts the worker,** from the worker's module in the bundle's
   digest directory, and ends it at a reset, a new story or a failure
-  (playground.md, 7).
+  (playground.md, 7). The page's panic hook stops it, and takes its
+  log, through a handle that borrows nothing the loop holds.
 - **The small store is the page's memory,** not session storage: a
   reload starts a new world, so nothing the client kept may outlive the
   page. Writes succeed within the store's bound, refused past it.

@@ -13,6 +13,8 @@ files = [
   "temper/docs/design/client/browser.status.md",
   "temper/docs/design/playground.status.md",
   "Cargo.lock",
+  "skein/crates/skein-ui-web/src/platform/worker.rs",
+  "skein/crates/skein-ui-web/src/platform/worker/web.rs",
 ]
 effort = "high"
 minutes = 150
@@ -67,6 +69,8 @@ Acceptance:
   count plus yours, `heavy cargo clippy -p temper-client-shell-web --all-targets -- -D warnings`
   passes, and `heavy cargo check -p temper-client-journeys` (temper/tools/journeys)
   builds.
+- `heavy cargo clippy --target wasm32-unknown-unknown -p skein-ui-web -- -D warnings` passes
+  with the answer's `FailStop` (## Answers).
 - The shipped shell's behaviour is unchanged (`Restart`, meta tags, browser platform and timer).
 - Status edits below.
 
@@ -96,7 +100,7 @@ Acceptance:
   if the log's download needs it, `record`'s `dep:js-sys` then dropped.
 - `src/lib.rs`: `Shell` made generic, `Report`'s variants, the entry's `cfg_attr`; `start`'s
   body may move into helpers the playground's starter shares, its behaviour kept.
-- Not yours: `src/host.rs` and the journeys (a host change is a question), skein's crates, the
+- Not yours: `src/host.rs` and the journeys (a host change is a question), skein's crates (but the two worker files, ## Answers), the
   bundle scripts (`bundle-playground`), the `headers` template (`page-policy`).
 - Status, edited in place, never reflowed:
   - `temper/docs/design/client/browser.status.md`, **Not yet**: delete the words from "2.1:"
@@ -134,3 +138,32 @@ Acceptance:
 As the implementer's text says, and also: each clippy command's outcome; the shipped `.wasm`'s
 size before and after and the playground's; the log bound chosen; what the frame shows, listed;
 anything of 6 or 7 you could not meet.
+
+## Answers
+
+2026-11-03. **May skein expose an independent worker failure handle, or is the page-panic
+requirement relaxed?** The handle; the requirement stands (`skein/docs/design/playground.md`, 7:
+"the page's hook stops both"). The answer added it, as a skeleton you finish and verify:
+`skein_ui_web::platform::worker::FailStop<R>`, from `Worker::fail_stop(&self)`
+(`skein/crates/skein-ui-web/src/platform/worker/web.rs`), and a sentence in
+`skein/docs/design/ui-web.md`, 18. It holds a `Weak` of the worker's shared state: dropping it ends
+nothing and keeps nothing alive. `stop()` marks the worker ended, clears its timer and terminates
+the browser worker, only trying the cells a panic may hold; `log()` gives the session log's text,
+or `None` when the worker is gone or the panic holds the log. The answerer could not build it
+(heavy was unavailable on the answer's machine): `heavy cargo clippy --target
+wasm32-unknown-unknown -p skein-ui-web -- -D warnings` is added to your acceptance, and these two
+skein files are yours to fix if it fails, the API's shape kept. Any other skein change is still a
+question.
+
+How to use it:
+
+- Each life puts its worker's `FailStop<Report>` where the hook finds it (a `thread_local`
+  replaced at each start, reset and story), never inside the shell's `RefCell`.
+- The hook stops the worker, takes the log then (`log()`), hides the client and shows the failure
+  page, all from the DOM and that cell alone, borrowing nothing the loop holds. Its "Download the
+  session log" offers the bytes taken in the hook; with none, it says the log could not be taken.
+- After a panic the module has trapped: no later callback can rely on its state. The failure
+  page's controls after a panic are therefore plain DOM: the log's download a `Blob` link the hook
+  made, and "Start over" a reload the visitor presses. That keeps "never reloads by itself"
+  (`playground.md`, 6). After `Heard::Failed`, with the module sound, "Start over" starts a fresh
+  world and client in the same page, as reset does.
