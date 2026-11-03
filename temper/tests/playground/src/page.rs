@@ -36,6 +36,7 @@ pub struct Page {
     store: Store,
     surface: skein_ui_web::page::Page<'static>,
     browser: Time,
+    pending_input: bool,
 }
 
 /// The person's terminal result.
@@ -104,7 +105,7 @@ impl Page {
         let surface = host::page(&host.bounds.tree, Primary::Control);
         let store = Store::new(b"temper.", None);
         host.start(&taken.address, store.read_all(&memory), Some(taken.secret));
-        let mut page = Page { host, memory, inbox, store, surface, browser };
+        let mut page = Page { host, memory, inbox, store, surface, browser, pending_input: false };
         page.give(host::Report::Start, false);
         page.turn();
         page
@@ -116,6 +117,7 @@ impl Page {
         loop {
             let parameters = story::parameters(self.world());
             let wake = programs::with(parameters, || self.memory.slice(self.browser));
+            self.pending_input = false;
             self.turn();
             let (now, _) = self.memory.clocks(self.browser);
             if now > end {
@@ -143,7 +145,7 @@ impl Page {
                 }
                 Next::Wait { until } => until,
             };
-            if person.at() != before || wake == Wake::Now {
+            if person.at() != before || self.pending_input || wake == Wake::Now {
                 continue;
             }
             let due = self.host.deadline().and_then(|at| self.memory.timer(at, self.browser));
@@ -213,6 +215,7 @@ impl Page {
         if let Some(to) = duties.replace {
             self.memory.navigate(&to);
         }
+        self.pending_input |= !requests.exchanges.is_empty() || requests.stream.is_some() || read_on;
         let mut reports = Vec::new();
         transport::carry(requests, &mut self.store, &mut self.memory, &mut reports);
         if duties.writes != 0 || !reports.is_empty() {
