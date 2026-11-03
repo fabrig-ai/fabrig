@@ -822,13 +822,13 @@ fn capacity_dependencies_survive_override_parsing() {
 #[test]
 fn batch_past_the_schema_keeps_its_binding_count() {
     problem(
-        br#"{"profile":"small","overrides":{"documents.lines":3,"tasks.batch":8}}"#,
+        br#"{"profile":"small","overrides":{"documents.lines":3,"tasks.batch":1025}}"#,
         &[b"limits", b"overrides", b"tasks.batch"],
         What::CodecCeiling {
             bound: crate::CodecBound {
-                field: b"tasks-v9.ResultFollowupsDelegates.value",
-                needed: 8,
-                ceiling: jig_protocol_store::tasks_v9::CEILINGS.result_followups_delegates_value,
+                field: b"tasks-v9.TaskInterests.result_followups",
+                needed: 1025,
+                ceiling: jig_protocol_store::tasks_v9::CEILINGS.task_interests_result_followups,
             },
         },
     );
