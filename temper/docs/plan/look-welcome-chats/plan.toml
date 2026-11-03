@@ -1,0 +1,24 @@
+draft = "look-welcome-chats"
+repo = "fabrig"
+sources = ["temper/docs/plan/look-welcome-chats/inputs/request.md", "AGENTS.md", "DESIGN.md"]
+
+# The look requests on origin/look-requests (inputs/request.md), moved into temper's stylesheet
+# and view: temper.css first, beside it the chats page's pane, then the banner's switcher. The
+# design is this cut's, released with its specs.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "sheet"
+title = "temper.css: the requests' overlay rules merged in, the banner, the switcher and the chats pane"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/browser.md, 2.5"
+
+[[slice]]
+id = 1
+story = "the bundle's temper.css draws the requests' banner, switcher and chats pane as their overlay did, with overlay.css empty"
+parts = ["sheet"]
+walk = false
