@@ -99,9 +99,18 @@ pub(crate) fn build(core: &Core) -> Settings {
     Settings { newest: current.newest(), settings, held, pending: List::with_capacity(0) }
 }
 
-pub(super) fn document_bound(limits: &Limits) -> Option<u64> {
-    let count = crate::settings::capacity(limits)?.checked_mul(2)?;
+pub(super) fn document_bound(limits: &Limits, kinds: &[crate::settings::Kind]) -> Option<u64> {
+    let count = crate::settings::capacity(limits)?
+        .checked_mul(2)?
+        .checked_add(crate::settings::application::capacity(kinds, limits)?)?;
+    let mut charters = 0_u64;
+    for kind in kinds {
+        let lines = crate::settings::application::capacity(core::slice::from_ref(kind), limits)?;
+        charters =
+            charters.checked_add(u64::from(lines).checked_mul(List::<u32>::price(u32::from(kind.charters))?)?)?;
+    }
     List::<SettingLine>::price(count)?
+        .checked_add(charters)?
         .checked_add(u64::from(limits.templates).checked_mul(2)?.checked_mul(u64::from(limits.documents.text_bytes))?)?
         .checked_add(List::<HeldRevision>::price(limits.settings.revisions.checked_add(1)?)?)?
         .checked_add(List::<SettingsProposal>::price(limits.settings.proposals)?)?
@@ -158,6 +167,33 @@ mod tests {
             }
         }
         panic!("the inventory names template 1")
+    }
+    #[test]
+    fn application_inventory_bound_prices_declared_lines_and_their_charters() {
+        use crate::settings::{Kind, KindScope};
+        let limits = crate::tests::limits();
+        let base = document_bound(&limits, &[]).unwrap();
+        for (scope, scopes) in [(KindScope::Deployment, 1), (KindScope::Project, limits.authority.projects)] {
+            let kind = Kind { number: 7, scope, connector: 1, value_bytes: 64, per_scope: 3, charters: 2 };
+            let lines = kind.per_scope * scopes;
+            let bound = document_bound(&limits, &[kind]).unwrap();
+            let expected = List::<SettingLine>::price(lines).unwrap()
+                + u64::from(lines) * List::<u32>::price(u32::from(kind.charters)).unwrap();
+            assert_eq!(bound - base, expected);
+            let no_charters = Kind { charters: 0, ..kind };
+            assert_eq!(
+                bound - document_bound(&limits, &[no_charters]).unwrap(),
+                u64::from(lines) * u64::from(kind.charters) * u64::try_from(size_of::<u32>()).unwrap(),
+            );
+            assert!(
+                super::super::document_with_context_bound(&limits, &[kind]).unwrap()
+                    > super::super::document_with_context_bound(&limits, &[]).unwrap()
+            );
+            assert!(
+                crate::reads::answer_bound(&limits, &[kind]).unwrap()
+                    > crate::reads::answer_bound(&limits, &[]).unwrap()
+            );
+        }
     }
     #[test]
     fn defaults_changes_removals_and_resets_keep_the_value_revision() {

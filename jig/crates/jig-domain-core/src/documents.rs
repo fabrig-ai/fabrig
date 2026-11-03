@@ -506,9 +506,9 @@ pub fn document_bound(limits: &DocumentLimits) -> Option<u64> {
 
 /// Bound of a document including the inbox's requester selection context.
 #[must_use]
-pub fn document_with_context_bound(limits: &Limits) -> Option<u64> {
+pub fn document_with_context_bound(limits: &Limits, kinds: &[crate::settings::Kind]) -> Option<u64> {
     document_bound(&limits.documents)?
-        .checked_add(settings::document_bound(limits)?)?
+        .checked_add(settings::document_bound(limits, kinds)?)?
         .checked_add(settings_review::document_bound(limits)?)?
         .checked_add(inbox_selection_bound(limits.documents.rows, limits.tasks.depth)?)?
         .checked_add(u64::from(limits.documents.lines).checked_mul(crate::settings::templates::list_bound(limits)?)?)
