@@ -138,7 +138,7 @@ fn operations_below_delegates_plus_one_refuse_the_start() {
     refuses(
         br#""profile": "small""#,
         br#""profile": "small", "overrides": {"people.operations": 4, "tasks.project_goals": 4}"#,
-        What::Operations { operations: 4, delegates: 4, goals: 4 },
+        What::Capacity { member: b"tasks.delegates", configured: 4, requires: b"people.operations", required: 5 },
     );
 }
 
@@ -147,7 +147,7 @@ fn operations_below_goals_per_project_refuse_the_start() {
     refuses(
         br#""profile": "small""#,
         br#""profile": "small", "overrides": {"people.operations": 7}"#,
-        What::Operations { operations: 7, delegates: 4, goals: 8 },
+        What::Capacity { member: b"tasks.project_goals", configured: 8, requires: b"people.operations", required: 8 },
     );
 }
 
