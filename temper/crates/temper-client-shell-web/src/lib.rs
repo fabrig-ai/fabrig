@@ -181,9 +181,7 @@ impl<P: ShellPlatform> Shell<P> {
         let read_on = matches!(
             &report,
             Report::Fetch(
-                fetch::Report::StreamOpened
-                    | fetch::Report::StreamRefused { .. }
-                    | fetch::Report::StreamPiece { .. }
+                fetch::Report::StreamOpened | fetch::Report::StreamRefused { .. } | fetch::Report::StreamPiece { .. }
             )
         );
         let report = self.host_report(report)?;

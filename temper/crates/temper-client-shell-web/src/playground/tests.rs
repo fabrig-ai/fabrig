@@ -39,11 +39,15 @@ fn only_the_services_output_link_supplies_a_path_and_query() {
     assert_eq!(printed_link(&printed), None);
     printed.process = b"temper serve".as_slice().into();
     for line in [
-        "Starting temper serve", "/jig/v1/sign-in/link?secret=example",
-        "http://host/other?secret=example", "http://host/jig/v1/sign-in/link?other=example",
-        "http://host/jig/v1/sign-in/link?secret=", "http:///jig/v1/sign-in/link?secret=example",
+        "Starting temper serve",
+        "/jig/v1/sign-in/link?secret=example",
+        "http://host/other?secret=example",
+        "http://host/jig/v1/sign-in/link?other=example",
+        "http://host/jig/v1/sign-in/link?secret=",
+        "http:///jig/v1/sign-in/link?secret=example",
         "http://host/jig/v1/sign-in/link?secret=example#fragment",
-        "http://host/jig/v1/sign-in/link?secret=example\n", "http://host/jig/v1/sign-in/link?secret=two words",
+        "http://host/jig/v1/sign-in/link?secret=example\n",
+        "http://host/jig/v1/sign-in/link?secret=two words",
         "http://host/?next=/jig/v1/sign-in/link?secret=example",
         "ftp://host/jig/v1/sign-in/link?secret=example",
     ] {
@@ -59,9 +63,14 @@ fn only_the_services_output_link_supplies_a_path_and_query() {
 #[test]
 fn each_frame_control_has_its_report() {
     for (id, expected) in [
-        (PAUSE, Control::Pause), (HALF, Control::Speed(Speed(500))), (ONE, Control::Speed(Speed::ONE)),
-        (TEN, Control::Speed(Speed(10_000))), (RESET, Control::Reset), (START_OVER, Control::Reset),
-        (STORY, Control::Story("a")), (LOG, Control::Log),
+        (PAUSE, Control::Pause),
+        (HALF, Control::Speed(Speed(500))),
+        (ONE, Control::Speed(Speed::ONE)),
+        (TEN, Control::Speed(Speed(10_000))),
+        (RESET, Control::Reset),
+        (START_OVER, Control::Reset),
+        (STORY, Control::Story("a")),
+        (LOG, Control::Log),
     ] {
         assert_eq!(control(id, "a"), Some(expected), "{id}");
     }
@@ -80,8 +89,26 @@ fn story_a_has_its_own_description() {
 fn the_page_supplies_every_element_the_frame_and_failure_hook_need() {
     let page = include_str!("../../playground/index.html");
     for id in [
-        APP, FRAME, LOADING, DESCRIPTION, STORY, PAUSE, HALF, ONE, TEN, RESET, LOG,
-        TIME, MEMORY, SLICE, PACE, VERSION, FAILURE, FAILURE_WORDS, FAILURE_LOG, START_OVER,
+        APP,
+        FRAME,
+        LOADING,
+        DESCRIPTION,
+        STORY,
+        PAUSE,
+        HALF,
+        ONE,
+        TEN,
+        RESET,
+        LOG,
+        TIME,
+        MEMORY,
+        SLICE,
+        PACE,
+        VERSION,
+        FAILURE,
+        FAILURE_WORDS,
+        FAILURE_LOG,
+        START_OVER,
     ] {
         assert_eq!(page.matches(&format!("id=\"{id}\"")).count(), 1, "{id}");
     }

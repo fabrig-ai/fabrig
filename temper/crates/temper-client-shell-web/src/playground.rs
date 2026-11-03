@@ -2,10 +2,10 @@
 use skein_lib::{Duration, Time};
 use skein_ui_web::bridge::{self, Speed};
 
-#[cfg(target_arch = "wasm32")]
-pub mod web;
 #[cfg(test)]
 mod tests;
+#[cfg(target_arch = "wasm32")]
+pub mod web;
 
 pub const APP: &str = "app";
 pub const FRAME: &str = "playground-frame";

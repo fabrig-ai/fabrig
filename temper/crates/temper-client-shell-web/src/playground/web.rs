@@ -9,7 +9,10 @@ use skein_ui_web::{
     history,
     inbox::Inbox,
     page::{Page, web::Dom},
-    platform::{self, worker::{FailStop, Heard, Worker, worker_address}},
+    platform::{
+        self,
+        worker::{FailStop, Heard, Worker, worker_address},
+    },
     store::Store,
     title,
 };
@@ -152,8 +155,11 @@ impl Life {
 
     fn client(&mut self, path: &str, inbox: &Rc<Inbox<Report>>) {
         let window = web_sys::window().expect("window");
-        window.history().expect("history")
-            .replace_state_with_url(&JsValue::NULL, "", Some(path)).expect("printed link on this page");
+        window
+            .history()
+            .expect("history")
+            .replace_state_with_url(&JsValue::NULL, "", Some(path))
+            .expect("printed link on this page");
         // As in the shipped starter, erase the secret before the host can send.
         let secret = sign_in::web::take_from_page(&sign_in::Route { path: b"/jig/v1/sign-in/link", home: b"/welcome" });
         let path = window.location().pathname().expect("path") + &window.location().search().expect("query");
@@ -195,7 +201,8 @@ impl Life {
                     new_page = false;
                 }
                 Report::World(Heard::Printed(printed)) => {
-                    if !self.failed && self.shell.is_none()
+                    if !self.failed
+                        && self.shell.is_none()
                         && let Some(path) = printed_link(&printed)
                     {
                         self.client(path, &self.inbox());
@@ -215,9 +222,14 @@ impl Life {
                     failure("The playground world stopped.", log.as_deref(), false);
                 }
                 Report::World(Heard::Clock) => {}
-                report @ (Report::Start | Report::Due | Report::Act(..) | Report::Fetch(_)
-                    | Report::Carried(..) | Report::Place(_)) => {
-                    if !self.failed && let Some(shell) = &mut self.shell
+                report @ (Report::Start
+                | Report::Due
+                | Report::Act(..)
+                | Report::Fetch(_)
+                | Report::Carried(..)
+                | Report::Place(_)) => {
+                    if !self.failed
+                        && let Some(shell) = &mut self.shell
                         && let Some(shown) = shell.report(inbox, report)
                     {
                         new_page = shown;
@@ -225,13 +237,17 @@ impl Life {
                 }
                 #[cfg(feature = "record")]
                 report @ (Report::Mark | Report::Save) => {
-                    if !self.failed && let Some(shell) = &mut self.shell {
+                    if !self.failed
+                        && let Some(shell) = &mut self.shell
+                    {
                         shell.report(inbox, report);
                     }
                 }
             }
         }
-        if !self.failed && let Some(shell) = &mut self.shell {
+        if !self.failed
+            && let Some(shell) = &mut self.shell
+        {
             let now = now.unwrap_or_else(|| shell.begin());
             shell.draw(new_page, now);
         }
@@ -256,7 +272,9 @@ impl Life {
     }
 
     fn pace(&mut self, speed: Speed) {
-        if !self.failed && let Some(worker) = self.worker() {
+        if !self.failed
+            && let Some(worker) = self.worker()
+        {
             worker.pace(speed);
             self.speed = speed;
         }
@@ -270,9 +288,20 @@ impl Life {
             element(super::MEMORY).set_text_content(Some(&memory_words(memory)));
             element(super::SLICE).set_text_content(Some(&slice_words(slice)));
         }
-        element(super::PACE).set_text_content(Some(if document().hidden() { "Paused (tab hidden)" } else { speed_words(self.speed) }));
-        for (id, speed) in [(super::PAUSE, Speed::PAUSED), (super::HALF, Speed(500)), (super::ONE, Speed::ONE), (super::TEN, Speed(10_000))] {
-            element(id).set_attribute("aria-pressed", if self.speed == speed { "true" } else { "false" }).expect("selected pace");
+        element(super::PACE).set_text_content(Some(if document().hidden() {
+            "Paused (tab hidden)"
+        } else {
+            speed_words(self.speed)
+        }));
+        for (id, speed) in [
+            (super::PAUSE, Speed::PAUSED),
+            (super::HALF, Speed(500)),
+            (super::ONE, Speed::ONE),
+            (super::TEN, Speed(10_000)),
+        ] {
+            element(id)
+                .set_attribute("aria-pressed", if self.speed == speed { "true" } else { "false" })
+                .expect("selected pace");
         }
     }
 }
@@ -304,7 +333,9 @@ fn disabled(disable: bool) {
 }
 
 fn controls(inbox: &Rc<Inbox<Report>>) {
-    for id in [super::PAUSE, super::HALF, super::ONE, super::TEN, super::RESET, super::LOG, super::START_OVER, super::STORY] {
+    for id in
+        [super::PAUSE, super::HALF, super::ONE, super::TEN, super::RESET, super::LOG, super::START_OVER, super::STORY]
+    {
         let reports = Rc::clone(inbox);
         let listener = Closure::<dyn FnMut(web_sys::Event)>::new(move |event: web_sys::Event| {
             event.prevent_default();
@@ -313,12 +344,19 @@ fn controls(inbox: &Rc<Inbox<Report>>) {
                 reports.raise(Report::Frame(control));
             }
         });
-        element(id).add_event_listener_with_callback(if id == super::STORY { "change" } else { "click" }, listener.as_ref().unchecked_ref()).expect("frame listener");
+        element(id)
+            .add_event_listener_with_callback(
+                if id == super::STORY { "change" } else { "click" },
+                listener.as_ref().unchecked_ref(),
+            )
+            .expect("frame listener");
         listener.forget();
     }
     let reports = Rc::clone(inbox);
     let listener = Closure::<dyn FnMut()>::new(move || reports.raise(Report::World(Heard::Clock)));
-    document().add_event_listener_with_callback("visibilitychange", listener.as_ref().unchecked_ref()).expect("visibility listener");
+    document()
+        .add_event_listener_with_callback("visibilitychange", listener.as_ref().unchecked_ref())
+        .expect("visibility listener");
     listener.forget();
 }
 
@@ -333,13 +371,17 @@ fn log_url(bytes: &[u8]) -> String {
 
 fn download(bytes: &[u8]) {
     let url = log_url(bytes);
-    let anchor = document().create_element("a").expect("session log anchor").unchecked_into::<web_sys::HtmlAnchorElement>();
+    let anchor =
+        document().create_element("a").expect("session log anchor").unchecked_into::<web_sys::HtmlAnchorElement>();
     anchor.set_href(&url);
     anchor.set_download("temper-playground.log");
     anchor.click();
     // Let the browser start the download before releasing the snapshot's URL.
     let revoke = Closure::once_into_js(move || web_sys::Url::revoke_object_url(&url).expect("revoke log URL"));
-    web_sys::window().expect("window").set_timeout_with_callback_and_timeout_and_arguments_0(revoke.unchecked_ref(), 1000).expect("log URL cleanup timer");
+    web_sys::window()
+        .expect("window")
+        .set_timeout_with_callback_and_timeout_and_arguments_0(revoke.unchecked_ref(), 1000)
+        .expect("log URL cleanup timer");
 }
 
 fn clear_log_link() {
@@ -374,9 +416,15 @@ fn failure(words: &str, log: Option<&[u8]>, trapped: bool) {
         // No callback into a trapped module: a visitor's ordinary link reloads the page.
         let restart = element(super::START_OVER);
         let anchor = document().create_element("a").expect("start over link");
-        anchor.set_attribute("href", &web_sys::window().expect("window").location().href().expect("page address")).expect("start over address");
+        // A fragment would make a same-document link; the bare path starts a new page.
+        let path = web_sys::window().expect("window").location().pathname().expect("page path");
+        anchor.set_attribute("href", &path).expect("start over address");
         anchor.set_text_content(Some("Start over"));
-        restart.parent_node().expect("start over parent").replace_child(&anchor, &restart).expect("plain start over link");
+        restart
+            .parent_node()
+            .expect("start over parent")
+            .replace_child(&anchor, &restart)
+            .expect("plain start over link");
         hidden(super::FRAME, true);
     }
     element(super::FAILURE).unchecked_into::<web_sys::HtmlElement>().focus().expect("failure focus");
