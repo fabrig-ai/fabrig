@@ -402,7 +402,8 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>, value: &mut Value) {
         seed["policy"] = 1.into();
     }
     super::configuration::use_stock(value);
-    value["engine"]["limits"]["overrides"]["tasks.charters"] = 4.into();
+    value["engine"]["limits"]["overrides"]["tasks.charters"] = 5.into();
+    value["engine"]["limits"]["overrides"]["core.templates"] = 3.into();
     // The process uses stock's fourteen grants, beyond the world's ten-grant policy.
     value["engine"]["limits"]["overrides"]["tasks.authority_grants"] = 16.into();
     value["engine"]["limits"]["overrides"]["documents.lines"] = 4.into();

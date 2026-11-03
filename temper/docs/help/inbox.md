@@ -57,6 +57,8 @@ A party's inbox is what waits on it, questions, proposals, escalations and perso
 
 ## Limits
 
+For the configuration members that need a restart, read `temper help configuration`.
+
 - temper does not let ctl mark an update seen: `inbox seen` is no
   tool, and a seen act prints `(no tool)`.
 - A narrowed or continued read prints no digest: wait on the inbox

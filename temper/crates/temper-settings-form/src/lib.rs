@@ -15,6 +15,9 @@ pub mod wire;
 use alloc::boxed::Box;
 use skein_json::writer::Encoder;
 pub use text::{Text, text_end};
+
+/// Every jig family but settings: a charter's `tools` when its file leaves it out.
+pub const CHARTER_TOOLS_DEFAULT: u64 = 1023;
 #[derive(Clone, Copy, Debug)]
 pub struct Limits {
     pub settings: jig_client_protocol_wire::Limits,
@@ -130,7 +133,7 @@ impl Limits {
             result_bytes: 6_292_480,
             text: 32_768,
             rows: 32,
-            authority: 12,
+            authority: 14, // Holds the stock's fourteen forge grants.
             fields: 16,
         }
     }

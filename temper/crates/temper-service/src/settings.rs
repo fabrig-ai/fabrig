@@ -104,6 +104,8 @@ pub struct Setup {
 /// temper's members (protocol/configuration.md, sections 2 and 3).
 #[derive(Debug)]
 pub struct Engine {
+    /// Charter brief-room costs of the configured agent (temper/docs/design/domain/agent.md, 4.3).
+    pub host_part: Option<temper_engine_domain::room::HostPart>,
     pub machine: temper_forge_setup::machine::Machine,
     pub directories: jig_protocol_config::Directories,
     pub jig: jig_protocol_config::Engine,

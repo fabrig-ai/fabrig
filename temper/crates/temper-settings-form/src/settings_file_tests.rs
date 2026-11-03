@@ -452,3 +452,30 @@ fn a_settings_file_template_refuses_malformed_resources_naming_the_path() {
         assert!(skein_lib::bytes::find(&why, member).is_some(), "{why:?}");
     }
 }
+
+#[test]
+fn a_charters_tools_round_trip() {
+    let source = charter(&charter_file(br#", "tools":1536"#));
+    assert_eq!(source.tools, 1536);
+    let limits = Limits::standard();
+    let wire = crate::wire::settings_wire_charter(&source, &limits.settings).unwrap();
+    assert_eq!(wire.tools(), 1536);
+    let restored = crate::wire::settings_restore_charter(&wire, &limits).unwrap();
+    assert_eq!(restored, source);
+    let bounds = JsonLimits { depth: 32, length: 8192 };
+    let mut measure = Encoder::measure(&bounds);
+    encode_file(&restored, &mut measure);
+    let mut out = Encoder::write(measure.measured().unwrap(), &bounds);
+    encode_file(&restored, &mut out);
+    let encoded = out.finish();
+    assert!(skein_lib::bytes::find(&encoded, br#""tools":1536"#).is_some());
+    assert_eq!(charter(&encoded), source);
+}
+
+#[test]
+fn a_charter_left_without_tools_names_no_settings() {
+    let value = charter(&charter_file(b""));
+    assert_eq!(crate::CHARTER_TOOLS_DEFAULT, 1023);
+    assert_eq!(value.tools, crate::CHARTER_TOOLS_DEFAULT);
+    assert_eq!(value.tools & 1024, 0);
+}

@@ -1,6 +1,7 @@
 mod box_kinds;
 mod commands;
 mod help;
+mod limits;
 mod reference_settings;
 mod settings_fields;
 
@@ -89,7 +90,6 @@ fn open_without_two_arguments_prints_its_usage() {
     }
 }
 
-#[path = "../tests/support/configuration.rs"]
 pub(crate) mod configuration;
 
 #[test]

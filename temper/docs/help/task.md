@@ -121,6 +121,8 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
 
 ## Limits
 
+For the configuration members that need a restart, read `temper help configuration`.
+
 - temper does not let ctl take a task, hand it back, move it to
   another party, reorder it or mark it seen: those acts print `(no
   tool)`.

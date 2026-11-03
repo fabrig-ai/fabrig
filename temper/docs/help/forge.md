@@ -119,6 +119,8 @@ and an empty origin list disables job logs.
 
 ## Limits
 
+For the configuration members that need a restart, read `temper help configuration`.
+
 - A forge's key or tokens are replaced by `forge replace FORGE FILE`:
   a GitHub App's new key, or a tokens file of the same Forgejo user. A
   second connect is refused with `connected already` (exit 2).

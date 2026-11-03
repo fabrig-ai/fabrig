@@ -28,6 +28,7 @@ pub struct Charter {
     pub model: SettingModel,
     pub alternatives: List<SettingModel>,
     pub call_timeout: Duration,
+    pub tools: u64,
     pub hosts: SettingHosts,
     pub spend: u64,
     pub wake: WakePolicy,

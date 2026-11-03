@@ -183,6 +183,7 @@ pub(in crate::codec) fn wire_charter(value: &c::Charter, limits: &w::Limits) -> 
             model: wire_setting_model(&value.model, limits)?,
             alternatives: list(value.alternatives.iter().map(|item| wire_setting_model(item, limits)))?,
             call_timeout: value.call_timeout,
+            tools: value.tools,
             hosts: wire_setting_hosts(&value.hosts, limits)?,
             spend: value.spend,
             wake: super::wire_wake_policy(&value.wake, limits)?,

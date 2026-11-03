@@ -29,7 +29,7 @@ pub(crate) fn deployment(
     directories: &Directories,
     problems: &mut Problems,
 ) -> Option<Deployment> {
-    let mut object = check::object(document, at, path, problems)?;
+    let mut object = check::object(document, at, path, problems, "deployment")?;
     let directory = check::path(&mut object, document, b"directory", path, Directory::Data, directories, problems);
     let mut seed = None;
     if let Some(at) = object.member(document, b"seed") {
@@ -47,7 +47,7 @@ pub(crate) fn providers(document: &Document, at: u32, path: &Path, problems: &mu
     let mut deployments = 0_u32;
     for (index, at) in items.iter().enumerate() {
         let path = check::index(path, index);
-        let Some(mut object) = check::object(document, *at, &path, problems) else { continue };
+        let Some(mut object) = check::object(document, *at, &path, problems, "identity-provider") else { continue };
         let number = check::short(&mut object, document, b"number", &path, problems);
         let kind = check::text(&mut object, document, b"kind", &path, problems);
         object.finish(document, &path, problems);
@@ -96,7 +96,7 @@ pub(crate) fn owners(
     };
     for (index, at) in items.iter().enumerate() {
         let path = check::index(path, index);
-        let Some(mut object) = check::object(document, *at, &path, problems) else { continue };
+        let Some(mut object) = check::object(document, *at, &path, problems, "owner") else { continue };
         let provider = check::short(&mut object, document, b"provider", &path, problems);
         let subject = check::text(&mut object, document, b"subject", &path, problems);
         object.finish(document, &path, problems);

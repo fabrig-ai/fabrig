@@ -146,7 +146,7 @@ fn loopback(host: &[u8]) -> bool {
 }
 fn endpoint(
     document: &Document,
-    object: &mut config::read::Object,
+    object: &mut crate::startup::members::Object,
     name: &[u8],
     path: &Path,
     limits: Limits,
@@ -180,7 +180,7 @@ fn endpoints(
             transport: None,
         });
     }
-    let mut object = read::object(document, at, path, problems)?;
+    let mut object = read::object(document, at, "sign-in-endpoints", path, problems)?;
     let issuer = endpoint(document, &mut object, b"issuer", path, limits, problems);
     let authorization = endpoint(document, &mut object, b"authorization", path, limits, problems);
     let token = endpoint(document, &mut object, b"token", path, limits, problems);
@@ -243,7 +243,7 @@ fn members(
         read::form(!ats.is_empty(), path.member(b"members"), problems);
         for (index, at) in ats.iter().enumerate() {
             let path = read::index(&path.member(b"members"), index);
-            let Some(mut object) = read::object(document, *at, &path, problems) else { continue };
+            let Some(mut object) = read::object(document, *at, "sign-in-member", &path, problems) else { continue };
             let address = read::text(&mut object, document, b"address", &path, problems);
             let login = read::text(&mut object, document, b"login", &path, problems);
             read::finish(object, document, &path, problems);
@@ -292,14 +292,14 @@ pub(super) fn parse(
         return None;
     }
     let path = path();
-    let mut object = read::object(document, at, &path, problems)?;
+    let mut object = read::object(document, at, "sign-in", &path, problems)?;
     let google = read::required(&mut object, document, b"google", &path, problems);
     let members = read::list(&mut object, document, b"members", limits.members, &path, problems);
     let forges = forges::parse(document, &mut object, &path, problems);
     read::finish(object, document, &path, problems);
     let members_out = self::members(document, members, jig, limits, &path, problems);
     let path = path.member(b"google");
-    let mut object = read::object(document, google?, &path, problems)?;
+    let mut object = read::object(document, google?, "google", &path, problems)?;
     let provider = read::number(&mut object, document, b"provider", &path, problems);
     let client = read::text(&mut object, document, b"client", &path, problems);
     let secret = read::text(&mut object, document, b"secret", &path, problems);

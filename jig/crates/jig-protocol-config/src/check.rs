@@ -4,8 +4,14 @@ use alloc::boxed::Box;
 use skein_io::Addr;
 use skein_json::Document;
 use skein_lib::{Duration, List};
-pub(crate) fn object(document: &Document, at: u32, path: &Path, problems: &mut Problems) -> Option<read::Object> {
-    match read::Object::new(document, at) {
+pub(crate) fn object(
+    document: &Document,
+    at: u32,
+    path: &Path,
+    problems: &mut Problems,
+    shape: &'static str,
+) -> Option<read::Object> {
+    match read::Object::shaped(document, at, shape) {
         Ok(object) => Some(object),
         Err(what) => {
             problems.push(path.clone(), what);

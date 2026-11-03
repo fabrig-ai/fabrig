@@ -321,10 +321,15 @@ fn worker(engine: &mut Engine, request: root::WorkerRequest) {
                 &mut engine.events,
             ),
             root::Delivery::Host(delivery) => match *delivery {
-                root::HostDelivery::Settings { to, answer, from, requested } => {
-                    let (body, error) =
-                        temper_engine_smith::settings_answer(&answer, from, requested, engine.domain.models())
-                            .into_parts();
+                root::HostDelivery::Settings { to, answer, application, from, requested } => {
+                    let (body, error) = temper_engine_smith::settings_answer(
+                        &answer,
+                        from,
+                        requested,
+                        engine.domain.models(),
+                        application.as_ref(),
+                    )
+                    .into_parts();
                     engine.events.push(root::Event::Worker(root::WorkerInput::RenderedHostCall {
                         to,
                         answer: jig_domain_core::SettledAnswer::Host { error, body },

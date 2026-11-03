@@ -70,6 +70,8 @@ pub enum Stop {
         phase: Option<jig_domain_core::start::Phase>,
         failure: jig_domain_core::start::Failure,
     },
+    /// A restored charter leaves too little brief room (temper/docs/design/domain/agent.md, 4.3).
+    Room(temper_engine_domain::room::Short),
     /// A startup page could not be read: the root's range kind, and the store's
     /// typed cause where the store gave one (jig-protocol-store `restore::Failure`).
     RestorePage {

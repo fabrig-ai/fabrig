@@ -76,6 +76,7 @@ fn charter() -> jig_domain_core::Charter {
             shell: true,
             agents: false,
             call_timeout: Duration::from_secs(1),
+            tools: core::RunPolicy::EVERY_FAMILY,
         },
     }
 }

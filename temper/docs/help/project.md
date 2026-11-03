@@ -83,6 +83,8 @@ A project is where work happens: the repositories adopted into it, one of them i
 
 ## Limits
 
+For the configuration members that need a restart, read `temper help configuration`.
+
 - Only an owner changes visibility; a member and project 0 are
   refused. A public project's pages show its name and task titles,
   never the rest of a specification, instructions, inputs, results,
