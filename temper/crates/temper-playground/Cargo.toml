@@ -8,6 +8,13 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+temper-fake-git-hosted.workspace = true
+temper-fake-git.workspace = true
+smith-channel.workspace = true
+skein-shell.workspace = true
+skein-sim-world.workspace = true
+skein-sim.workspace = true
+skein-fake-machine.workspace = true
 serde_json.workspace = true
 jig-domain-authority.workspace = true
 jig-domain-core.workspace = true
@@ -49,7 +56,6 @@ temper-worker-protocol-git.workspace = true
 jig-channel-world.workspace = true
 smith-agent-process-world.workspace = true
 skein-llm-world.workspace = true
-temper-fake-git-hosted.workspace = true
 
 [lints.rust]
 unsafe_code = "forbid"
