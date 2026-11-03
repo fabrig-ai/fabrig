@@ -12,3 +12,8 @@ temper/docs/design/draft/dashboards.md status-page.md # an adopted repository's 
 # History kept on purpose.
 temper/docs/design/draft/notes.md status.md # the earlier pipeline's file names, as history
 temper/docs/design/draft/notes.md landing-model.md # the retired draft, readable at the commit it names
+# The citation README's examples of the forms it describes.
+tools/citations/README.md x.md # an example of a citation form, not a document
+tools/citations/README.md ../../a.md # an example of a relative citation path, not a document
+tools/citations/README.md tools/citations/README.md 10 # a section number in a parenthesised citation example
+tools/citations/README.md docs/a.md # an example of a refused citation

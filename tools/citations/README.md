@@ -1,7 +1,7 @@
 # Citations
 
 `citations.py` checks the citations the design relies on (AGENTS.md, 9): Markdown links and
-`x.md` paths, sections ("`x.md`, 5.3", "section 5.3") against the cited document's numbered
+`x.md` paths, sections ("`x.md`, 5.3", "section N.N") against the cited document's numbered
 headings, and a status file's labels ("**Not yet:** 3.2:") against its document.
 
 ```sh
@@ -24,8 +24,8 @@ python3 -I -B tools/citations/test_citations.py
   An "its" before a path inherits the nearest explicit tree owner in the same sentence.
   A list item's bold heading path ("- **`x.md`:**", "6. **x.md:**") is also a target for bare
   sections throughout the item. Strings in code are test data, not citations. Left out:
-  everything under a tree's `docs/plan/`, whatever its extension, fab's records of a change
-  (a task spec cites what its task deletes), and
+  everything under a tree's `docs/plan/`, whatever its extension (fab's records of a change:
+  a task spec cites what its task deletes), and
   `docs/development/` files dated in their name, which describe the tree at their date.
 - **Another repository's documents:** hearth's ("hearth's `domain/store.md`") are left
   unchecked. A citation of any other repository's document ("the probe repository's

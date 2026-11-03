@@ -37,8 +37,8 @@ LINK = re.compile(r"\[([^\]]*)\]\(([^)\s]+)\)")
 OWNER = re.compile(r"(?i)\b(temper|smith|skein|jig)['’]s(?:\s+[\w-]+){0,2}\s*[`\[]*$")
 # hearth's documents are the one other repository's left unchecked ("hearth's `domain/store.md`").
 EXTERNAL = re.compile(r"(?i)\bhearth['’]s(?:,?\s+[\w-]+){0,2}\s*[`\[(]*$")
-# A citation of any other repository's document ("the probe repository's `docs/a.md`") is
-# refused: never resolved, since resolve() would find a same-named file here by suffix.
+# A citation of any other repository's document is refused: never resolved, since resolve()
+# would find a same-named file here by suffix.
 OUTSIDE = re.compile(
     r"(?i)\b(?!(?:the|a|an|this|that|its|their|each|every|no|one|our|whose|which|any|same|hearth)\b)"
     r"[\w-]+\s+repository['’]s\s*[`\[(]*$")
