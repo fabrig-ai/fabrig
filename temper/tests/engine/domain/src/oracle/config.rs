@@ -16,6 +16,7 @@ pub fn copy(config: &engine::Config) -> engine::Config {
         landings.insert(*key, value.clone()).expect("copied landing");
     }
     engine::Config {
+        host_part: config.host_part,
         kinds_stock: config.kinds_stock.clone(),
         period_span: config.period_span,
         core: core::Config {

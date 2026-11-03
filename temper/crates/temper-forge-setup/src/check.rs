@@ -33,7 +33,11 @@ pub fn limits(overrides: &[(Box<[u8]>, u64)]) -> Result<(Limits, u64), Problems>
     let mut fetch_bytes = limits::FETCH_BYTES;
     let lp = Path::root().member(b"application").member(b"limits").member(b"overrides");
     for (name, value) in overrides {
-        let result = if name.as_ref() == b"setup.fetch_bytes" {
+        let mut fetch_name = false;
+        for row in &limits::FETCH_NAMES {
+            fetch_name |= row.name.as_bytes() == name.as_ref();
+        }
+        let result = if fetch_name {
             match limits::fetch_bytes(*value) {
                 Ok(value) => {
                     fetch_bytes = value;

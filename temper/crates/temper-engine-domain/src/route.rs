@@ -147,11 +147,43 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
         }
         Event::Party(crate::PartyInput::ProposeSettings { reply_to, sign_in, key, digest, change, kinds }) => {
             domain.kinds = kinds;
-            domain.work.push(Work::Core(core::Event::ProposeSettings { reply_to, sign_in, key, digest, change }));
+            match room_refusal(domain.host_part, &change.items) {
+                Some(why) => {
+                    let request = Request::Party(crate::PartyRequest::Deliver(Delivery::WebReply {
+                        to: reply_to,
+                        reply: people::Reply::Refused(why),
+                    }));
+                    assert!(now(domain, request), "settings refusal door reserved");
+                }
+                None => domain.work.push(Work::Core(core::Event::ProposeSettings {
+                    reply_to,
+                    sign_in,
+                    key,
+                    digest,
+                    change,
+                })),
+            }
         }
         Event::Party(crate::PartyInput::ChangeSettings { reply_to, sign_in, key, digest, change, kinds }) => {
             domain.kinds = kinds;
-            domain.work.push(Work::Core(core::Event::ChangeSettings { reply_to, sign_in, key, digest, change }));
+            match room_refusal(domain.host_part, &change.items) {
+                Some(why) => {
+                    let request = Request::Party(crate::PartyRequest::Deliver(Delivery::WebReply {
+                        to: reply_to,
+                        reply: people::Reply::Refused(why),
+                    }));
+                    assert!(now(domain, request), "settings refusal door reserved");
+                }
+                None => {
+                    domain.work.push(Work::Core(core::Event::ChangeSettings {
+                        reply_to,
+                        sign_in,
+                        key,
+                        digest,
+                        change,
+                    }));
+                }
+            }
         }
         Event::Party(crate::PartyInput::SignOut { reply_to, sign_in }) => {
             domain.work.push(Work::People(people::Event::SignOut { reply_to, sign_in }));
@@ -357,6 +389,12 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
         let Some(work) = domain.work.pop() else { break };
         match work {
             Work::StartDone(phase) => {
+                if phase == core::start::Phase::LoadCore
+                    && let Err(short) = domain.check_room()
+                {
+                    domain.stop_start(crate::StartStop::Room(short));
+                    return;
+                }
                 let mut output = Queue::uncapped();
                 let action = domain.core.start_done(&environment_core(env), phase, &mut output);
                 route_core_requests(domain, env, decision, output);
@@ -624,4 +662,26 @@ pub(crate) fn refuse_forge_fit(domain: &mut Domain) -> bool {
     let failure = *domain.forge_fit_failure().expect("forge fit failure");
     domain.stop_start(crate::StartStop::ForgeFit { phase: domain.start_phase(), failure });
     true
+}
+
+/// Only charter values set at an entrance are checked; resets and stored
+/// proposal acceptances retain their admitted values (temper/docs/design/domain/agent.md, 4.3).
+pub(crate) fn room_refusal(
+    host: Option<crate::room::HostPart>,
+    items: &[core::settings::Item],
+) -> Option<people::Refusal> {
+    let host = host?;
+    for (index, item) in items.iter().enumerate() {
+        if let core::settings::Setting::Charter(number) = item.setting
+            && let core::settings::Edit::Set(core::settings::Value::Charter(charter)) = &item.edit
+            && let Err(short) = host.check(number, &charter.policy)
+        {
+            return Some(people::Refusal::Judged {
+                at: u32::try_from(index).expect("bounded settings items"),
+                setting: item.setting,
+                why: short.words(),
+            });
+        }
+    }
+    None
 }

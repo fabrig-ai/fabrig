@@ -61,6 +61,8 @@ The playground is temper's demo: a repository on a fake forge and a scripted mod
 
 ## Limits
 
+For the configuration members that need a restart, read `temper help configuration`.
+
 - `refused: not offered` (exit 2): the deployment has no place for the
   fake forge, or keeps a forge of its own: the playground is offered
   only before one is set up or connected.

@@ -92,6 +92,8 @@ A goal is a tracked task: work given a numeric priority, which orders the goals'
 
 ## Limits
 
+For the configuration members that need a restart, read `temper help configuration`.
+
 - ctl goal creation offers charter executors; procedures have no control here.
 - temper has no board to reorder goals: each changes by its own
   amendment.

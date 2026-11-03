@@ -5,8 +5,14 @@ use jig_protocol_config::{self as config, Path, read};
 use skein_json::Document;
 use skein_lib::List;
 
-pub(super) fn object(document: &Document, at: u32, path: &Path, problems: &mut Problems) -> Option<read::Object> {
-    match read::Object::new(document, at) {
+pub(super) fn object(
+    document: &Document,
+    at: u32,
+    shape: &'static str,
+    path: &Path,
+    problems: &mut Problems,
+) -> Option<super::super::members::Object> {
+    match super::super::members::object(document, at, shape) {
         Ok(object) => Some(object),
         Err(what) => {
             problems.push(path.clone(), What::Jig(what));
@@ -15,7 +21,7 @@ pub(super) fn object(document: &Document, at: u32, path: &Path, problems: &mut P
     }
 }
 pub(super) fn required(
-    object: &mut read::Object,
+    object: &mut super::super::members::Object,
     document: &Document,
     name: &[u8],
     path: &Path,
@@ -27,13 +33,13 @@ pub(super) fn required(
     }
     at
 }
-pub(super) fn finish(object: read::Object, document: &Document, path: &Path, problems: &mut Problems) {
+pub(super) fn finish(object: super::super::members::Object, document: &Document, path: &Path, problems: &mut Problems) {
     let mut found = config::Problems::empty();
     object.finish(document, path, &mut found);
     problems.append(found, &Path::root());
 }
 pub(super) fn text(
-    object: &mut read::Object,
+    object: &mut super::super::members::Object,
     document: &Document,
     name: &[u8],
     path: &Path,
@@ -49,7 +55,7 @@ pub(super) fn text(
     }
 }
 pub(super) fn integer(
-    object: &mut read::Object,
+    object: &mut super::super::members::Object,
     document: &Document,
     name: &[u8],
     path: &Path,
@@ -65,7 +71,7 @@ pub(super) fn integer(
     }
 }
 pub(super) fn number(
-    object: &mut read::Object,
+    object: &mut super::super::members::Object,
     document: &Document,
     name: &[u8],
     path: &Path,
@@ -81,7 +87,7 @@ pub(super) fn number(
     }
 }
 pub(super) fn short(
-    object: &mut read::Object,
+    object: &mut super::super::members::Object,
     document: &Document,
     name: &[u8],
     path: &Path,
@@ -97,7 +103,7 @@ pub(super) fn short(
     }
 }
 pub(super) fn boolean(
-    object: &mut read::Object,
+    object: &mut super::super::members::Object,
     document: &Document,
     name: &[u8],
     path: &Path,
@@ -113,7 +119,7 @@ pub(super) fn boolean(
     }
 }
 pub(super) fn list(
-    object: &mut read::Object,
+    object: &mut super::super::members::Object,
     document: &Document,
     name: &[u8],
     max: u32,
@@ -140,7 +146,7 @@ pub(super) fn form(valid: bool, path: Path, problems: &mut Problems) {
 
 /// These optional values are explicit in init's document; old files need their fix.
 pub(super) fn nullable(
-    object: &mut read::Object,
+    object: &mut super::super::members::Object,
     document: &Document,
     name: &[u8],
     path: &Path,
@@ -151,4 +157,15 @@ pub(super) fn nullable(
         problems.push(path.member(name), What::MissingNull);
     }
     at
+}
+
+// Override keys are names in the limits table, not fixed configuration members.
+pub(super) fn overrides(document: &Document, at: u32, path: &Path, problems: &mut Problems) -> Option<read::Object> {
+    match read::Object::new(document, at) {
+        Ok(object) => Some(object),
+        Err(what) => {
+            problems.push(path.clone(), What::Jig(what));
+            None
+        }
+    }
 }
