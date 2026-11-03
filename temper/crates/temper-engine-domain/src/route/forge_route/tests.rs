@@ -46,6 +46,200 @@ fn forge_news_prints_commit_ids_at_the_identifier_width_within_its_bound() {
     }
 }
 
+const RED_HEADER: &[u8] =
+    b"Red after landing: tier fuzzy run 7 blames landing abcdef0123456789abcdef0123456789abcdef01 on main: 2 failing.";
+const RED_TEST_LINES: &[u8] = b"test::a\ntest::b";
+const RED_RUN_LINE: &[u8] = b"Run: https://forge.example/runs/7";
+
+fn news_lines(lines: &[&[u8]]) -> Box<[u8]> {
+    let mut bytes = lines.len().saturating_sub(1);
+    for line in lines {
+        bytes = bytes.checked_add(line.len()).unwrap();
+    }
+    let mut out = skein_lib::Writer::new(bytes);
+    for (index, line) in lines.iter().enumerate() {
+        if index > 0 {
+            out.put(b"\n").unwrap();
+        }
+        out.put(line).unwrap();
+    }
+    out.finish()
+}
+
+fn news_failures(ids: &[&[u8]]) -> temper_engine_domain_forge_tiers::Failures {
+    let mut tests = skein_lib::List::with_capacity(u32::try_from(ids.len()).unwrap());
+    for id in ids {
+        tests.push(Box::from(*id)).unwrap();
+    }
+    temper_engine_domain_forge_tiers::Failures::Tests(tests.into_boxed())
+}
+
+fn red_news(on: super::forge::RedOn, logs: Box<[super::forge::JobLog]>) -> super::forge::News {
+    super::forge::News::Red(super::forge::RedNews {
+        tier: Box::from(b"fuzzy".as_slice()),
+        run: 7,
+        url: Some(Box::from(b"https://forge.example/runs/7".as_slice())),
+        on,
+        logs,
+    })
+}
+
+fn landing_red_news(
+    failing: temper_engine_domain_forge_tiers::Failures,
+    logs: Box<[super::forge::JobLog]>,
+) -> super::forge::News {
+    red_news(super::forge::RedOn::Landing { commit: SHA1, branch: Box::from(b"main".as_slice()), failing }, logs)
+}
+
+#[expect(clippy::manual_map, reason = "the strict subset uses explicit matches")]
+fn news_log(name: &[u8], end: Option<&[u8]>) -> super::forge::JobLog {
+    let end = match end {
+        Some(end) => Some(Box::from(end)),
+        None => None,
+    };
+    super::forge::JobLog { name: Box::from(name), end }
+}
+
+#[test]
+fn red_news_after_landing_names_tests_run_and_job_log() {
+    let news = landing_red_news(
+        news_failures(&[b"test::a", b"test::b"]),
+        Box::new([news_log(b"checks", Some(b"test::a failed\ntest::b failed"))]),
+    );
+    let expected = news_lines(&[
+        RED_HEADER,
+        RED_TEST_LINES,
+        RED_RUN_LINE,
+        b"End of job checks's log:\ntest::a failed\ntest::b failed",
+    ]);
+    let limit = u32::try_from(expected.len()).unwrap();
+    assert_eq!(news_words(&news, limit), expected);
+}
+
+#[test]
+fn red_news_after_landing_names_many_failures() {
+    let news = landing_red_news(temper_engine_domain_forge_tiers::Failures::Many, Box::new([]));
+    let expected = news_lines(&[
+        b"Red after landing: tier fuzzy run 7 blames landing abcdef0123456789abcdef0123456789abcdef01 on main: many failing.",
+        b"many", RED_RUN_LINE,
+    ]);
+    assert_eq!(news_words(&news, u32::try_from(expected.len()).unwrap()), expected);
+}
+
+#[test]
+fn red_news_on_a_goal_branch_marks_new_and_still_failing_tests() {
+    let news = red_news(
+        super::forge::RedOn::Goal {
+            branch: Box::from(b"temper/root/g42".as_slice()),
+            tip: SHA256,
+            new: news_failures(&[b"test::a"]),
+            still: news_failures(&[b"test::b"]),
+        },
+        Box::new([]),
+    );
+    let expected = news_lines(&[
+        b"Red on temper/root/g42: tier fuzzy run 7 at abababababab: 1 new, 1 still failing.",
+        b"new: test::a",
+        b"still failing: test::b",
+        RED_RUN_LINE,
+    ]);
+    assert_eq!(news_words(&news, u32::try_from(expected.len()).unwrap()), expected);
+}
+
+#[test]
+fn red_news_on_a_goal_branch_names_many_and_zero_failures() {
+    let news = red_news(
+        super::forge::RedOn::Goal {
+            branch: Box::from(b"temper/root/g42".as_slice()),
+            tip: SHA1,
+            new: temper_engine_domain_forge_tiers::Failures::Many,
+            still: news_failures(&[]),
+        },
+        Box::new([]),
+    );
+    let expected = news_lines(&[
+        b"Red on temper/root/g42: tier fuzzy run 7 at abcdef012345: many new, 0 still failing.",
+        b"new: many",
+        RED_RUN_LINE,
+    ]);
+    assert_eq!(news_words(&news, u32::try_from(expected.len()).unwrap()), expected);
+}
+
+#[test]
+fn red_news_names_a_job_whose_log_cannot_be_read() {
+    let news = landing_red_news(news_failures(&[b"test::a", b"test::b"]), Box::new([news_log(b"checks", None)]));
+    let expected = news_lines(&[RED_HEADER, RED_TEST_LINES, RED_RUN_LINE, b"End of job checks's log: [no log]"]);
+    assert_eq!(news_words(&news, u32::try_from(expected.len()).unwrap()), expected);
+}
+
+#[test]
+fn red_news_without_a_run_link_still_includes_logs() {
+    let super::forge::News::Red(mut red) =
+        landing_red_news(news_failures(&[b"test::a", b"test::b"]), Box::new([news_log(b"checks", Some(b"failure"))]))
+    else {
+        panic!("red news fixture")
+    };
+    red.url = None;
+    let expected = news_lines(&[RED_HEADER, RED_TEST_LINES, b"End of job checks's log:\nfailure"]);
+    assert_eq!(news_words(&super::forge::News::Red(red), u32::try_from(expected.len()).unwrap()), expected);
+}
+
+#[test]
+fn red_news_keeps_header_and_ids_before_run_and_logs() {
+    let news =
+        landing_red_news(news_failures(&[b"test::a", b"test::b"]), Box::new([news_log(b"checks", Some(b"failure"))]));
+    let ids = news_lines(&[RED_HEADER, RED_TEST_LINES]);
+    let ids_limit = u32::try_from(ids.len()).unwrap();
+    assert_eq!(news_words(&news, ids_limit), ids);
+    let first_id = news_lines(&[RED_HEADER, b"test::a"]);
+    assert_eq!(news_words(&news, ids_limit - 1), first_id);
+    let with_run = news_lines(&[RED_HEADER, RED_TEST_LINES, RED_RUN_LINE]);
+    let run_limit = u32::try_from(with_run.len()).unwrap();
+    assert_eq!(news_words(&news, run_limit), with_run);
+    assert_eq!(news_words(&news, run_limit - 1), ids);
+}
+
+#[test]
+fn red_news_leaves_out_a_header_that_cannot_fit_whole() {
+    let news = landing_red_news(news_failures(&[b"test::a", b"test::b"]), Box::new([]));
+    let header_limit = u32::try_from(RED_HEADER.len()).unwrap();
+    assert_eq!(news_words(&news, header_limit).as_ref(), RED_HEADER);
+    assert!(news_words(&news, header_limit - 1).is_empty());
+    assert!(news_words(&news, 0).is_empty());
+}
+
+#[test]
+fn red_news_cuts_a_long_log_from_its_start() {
+    let news = landing_red_news(
+        news_failures(&[b"test::a", b"test::b"]),
+        Box::new([news_log(b"checks", Some(b"discard this first line\nlast bytes"))]),
+    );
+    let expected = news_lines(&[RED_HEADER, RED_TEST_LINES, RED_RUN_LINE, b"End of job checks's log:\nlast bytes"]);
+    let limit = u32::try_from(expected.len()).unwrap();
+    assert_eq!(news_words(&news, limit), expected);
+    let shorter = news_lines(&[RED_HEADER, RED_TEST_LINES, RED_RUN_LINE, b"End of job checks's log:\nast bytes"]);
+    assert_eq!(news_words(&news, limit - 1), shorter);
+}
+
+#[test]
+fn red_news_shares_remaining_room_equally_between_job_logs() {
+    let news = landing_red_news(
+        news_failures(&[b"test::a", b"test::b"]),
+        Box::new([
+            news_log(b"first", Some(b"discard first start\nfirst end")),
+            news_log(b"other", Some(b"discard other start\nother end")),
+        ]),
+    );
+    let expected = news_lines(&[
+        RED_HEADER,
+        RED_TEST_LINES,
+        RED_RUN_LINE,
+        b"End of job first's log:\nfirst end",
+        b"End of job other's log:\nother end",
+    ]);
+    assert_eq!(news_words(&news, u32::try_from(expected.len()).unwrap()), expected);
+}
+
 #[test]
 fn landing_words_are_the_merge_id_cut_to_the_contract_bound() {
     for (merge, bound, expected) in [

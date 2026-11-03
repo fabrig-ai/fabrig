@@ -36,6 +36,8 @@ mod limits;
 mod panel;
 mod playground;
 pub mod purpose;
+mod red;
+pub use red::{JobLog, RedNews, RedOn};
 mod result;
 pub use result::{ChangeResult, ResultText};
 mod reconcile;
