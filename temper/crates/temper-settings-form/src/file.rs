@@ -6,12 +6,34 @@ use crate::view as c;
 use alloc::boxed::Box;
 use skein_json::{Document, Kind};
 use skein_lib::{List, Writer};
-type Fields = List<(Box<[u8]>, u32)>;
+pub(super) type Fields = List<(Box<[u8]>, u32)>;
 
 pub(super) struct Error {
     member: Box<[u8]>,
     rule: &'static [u8],
     bound: Option<u64>,
+}
+impl Error {
+    pub(super) fn named(mut self, member: &[u8]) -> Self {
+        self.member = member.into();
+        self
+    }
+    pub(super) fn at(mut self, path: &[u8]) -> Self {
+        let nested = !self.member.is_empty() && self.member.as_ref() != b"JSON";
+        let length = if nested {
+            path.len().checked_add(self.member.len()).expect("bounded path").checked_add(1).expect("separator")
+        } else {
+            path.len()
+        };
+        let mut member = Writer::new(length);
+        member.put(path).expect("path room");
+        if nested {
+            member.put(b".").expect("separator room");
+            member.put(&self.member).expect("member room");
+        }
+        self.member = member.finish();
+        self
+    }
 }
 pub(super) fn error(member: &[u8], rule: &'static [u8]) -> Error {
     Error { member: member.into(), rule, bound: None }
@@ -44,6 +66,7 @@ fn describe(item: Option<u32>, why: &Error, out: &mut crate::Text) {
 pub(super) struct Decoder {
     pub doc: Document,
     pub limits: jig_client_protocol_wire::Limits,
+    pub kinds: temper_client_protocol_wire::v1::Limits,
 }
 impl Decoder {
     pub fn kind(&self, at: u32) -> Result<Kind, Error> {
@@ -225,8 +248,14 @@ pub(super) fn field(fields: &Fields, name: &[u8]) -> Result<u32, Error> {
 }
 
 fn setting(d: &Decoder, at: u32) -> Result<c::Setting, Error> {
-    let fields = d.object(at, &[b"kind", b"number"])?;
+    let fields = d.object(at, &[b"kind", b"number", b"project"])?;
     let kind = d.string(field(&fields, b"kind")?)?;
+    if kind == b"landing-rule" || kind == b"forge-charter" {
+        return crate::kinds::setting(d, &fields, kind);
+    }
+    if optional(&fields, b"project").is_some() {
+        return Err(error(b"project", b"unknown member"));
+    }
     if kind == b"rules" {
         if fields.len() != 1 {
             return Err(error(b"number", b"rules has no number"));
@@ -252,7 +281,7 @@ fn item(d: &Decoder, at: u32) -> Result<c::SettingItem, Error> {
                 c::Setting::Charter(_) => c::SettingValue::Charter(Box::new(values::charter(d, at)?)),
                 c::Setting::Template(_) => c::SettingValue::Template(Box::new(values::template(d, at)?)),
                 c::Setting::Policy(_) => c::SettingValue::Policy(Box::new(values::setting_policy(d, at)?)),
-                c::Setting::Application { .. } => return Err(error(b"value", b"application values are bytes")),
+                c::Setting::Application { kind, .. } => c::SettingValue::Application(crate::kinds::value(d, at, kind)?),
                 c::Setting::Rules => c::SettingValue::Rules(Box::new(values::rules(d, at)?)),
             };
             c::SettingEdit::Set(c::SettingSet { value })
@@ -280,7 +309,7 @@ fn decode_root(bytes: &[u8], limits: &Limits, proposal: bool) -> Result<List<c::
     }
     let doc = crate::json::document_depth(bytes, 32)
         .or(Err(message(None, error(b"JSON", b"invalid JSON or depth bound 32"))))?;
-    let d = Decoder { doc, limits: limits.settings };
+    let d = Decoder { doc, limits: limits.settings, kinds: limits.kinds };
     let fields = match d.object(0, if proposal { &[b"items", b"against", b"reason"] } else { &[b"items"] }) {
         Ok(fields) => fields,
         Err(why) => return Err(message(None, why)),

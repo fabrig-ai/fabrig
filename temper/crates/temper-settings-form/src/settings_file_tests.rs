@@ -139,3 +139,137 @@ fn encode_file(value: &c::Charter, out: &mut Encoder) {
     out.array_end();
     out.object_end();
 }
+
+const LANDING: &[u8] = br#"{"pattern":{"segments":["666f726765"],"last":{"exact":"6d61696e"}},"enforce":true,"ci":false,"up_to_date":true,"gates":[{"number":2,"blocking":true,"freshness":"clean"}],"approvals":[{"role":3,"people":1,"freshness":"exact"}]}"#;
+const DEPLOYMENT_RULE: &[u8] = br#"{"kind":"landing-rule","number":1}"#;
+const PROJECT_RULE: &[u8] = br#"{"kind":"landing-rule","project":7,"number":2}"#;
+const FORGE_CHARTER: &[u8] = br#"{"kind":"forge-charter","number":1}"#;
+fn joined(parts: &[&[u8]]) -> Box<[u8]> {
+    let mut length = 0_usize;
+    for part in parts {
+        length = length.checked_add(part.len()).expect("fixture length fits");
+    }
+    let mut out = Writer::new(length);
+    for part in parts {
+        out.put(part).expect("counted fixture bytes");
+    }
+    out.finish()
+}
+fn kind_file(setting: &[u8], value: &[u8]) -> Box<[u8]> {
+    joined(&[br#"{"items":[{"setting":"#, setting, br#", "set":"#, value, b"}]}"])
+}
+fn shown(value: &c::ReadValue) -> Box<[u8]> {
+    let bounds = JsonLimits { depth: 32, length: 8192 };
+    let mut measure = Encoder::measure(&bounds);
+    crate::render::encode(value, &mut measure);
+    let mut out = Encoder::write(measure.measured().expect("fixture JSON bound"), &bounds);
+    crate::render::encode(value, &mut out);
+    out.finish()
+}
+#[test]
+fn temper_kinds_round_trip_from_file_to_shown_json() {
+    for (setting, json, expected) in [
+        (DEPLOYMENT_RULE, LANDING, c::Setting::Application { kind: 1, scope: 0, number: 1 }),
+        (PROJECT_RULE, LANDING, c::Setting::Application { kind: 2, scope: 7, number: 2 }),
+        (FORGE_CHARTER, b"23".as_slice(), c::Setting::Application { kind: 3, scope: 0, number: 1 }),
+    ] {
+        let items = file::decode(&kind_file(setting, json), &Limits::standard()).expect("temper kind file");
+        let item = items.get(0).expect("one item");
+        assert_eq!(item.setting, expected);
+        let c::SettingEdit::Set(set) = &item.edit else { panic!("set value") };
+        let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
+            setting: item.setting,
+            revision: 1,
+            value: Some(set.value.clone()),
+            application: None,
+            proposed: None,
+        }));
+        assert_eq!(shown(&document), joined(&[br#"{"setting":"#, setting, br#","revision":1,"value":"#, json, b"}"]));
+    }
+}
+#[test]
+fn temper_kind_edits_keep_removed_and_reset() {
+    for setting in [DEPLOYMENT_RULE, PROJECT_RULE, FORGE_CHARTER] {
+        for (word, expected) in [(b"removed".as_slice(), c::SettingEdit::Removed), (b"reset", c::SettingEdit::Reset)] {
+            let bytes = joined(&[br#"{"items":[{"setting":"#, setting, br#", "edit":""#, word, br#""}]}"#]);
+            let items = file::decode(&bytes, &Limits::standard()).expect("kind edit");
+            assert_eq!(items.get(0).expect("one edit").edit, expected);
+        }
+    }
+}
+#[test]
+fn temper_kind_member_refusals_name_the_file_path() {
+    for (setting, value, expected) in [
+        (
+            br#"{"kind":"landing-rule","project":0,"number":1}"#.as_slice(),
+            LANDING,
+            b"settings file item 1: landing-rule.project: from 1".as_slice(),
+        ),
+        (br#"{"kind":"landing-rule","number":0}"#, LANDING, b"settings file item 1: landing-rule.number: from 1"),
+        (DEPLOYMENT_RULE, br#"{"other":true}"#, b"settings file item 1: landing-rule.other: unknown member"),
+        (DEPLOYMENT_RULE, br#"{"connector":1}"#, b"settings file item 1: landing-rule.connector: unknown member"),
+        (DEPLOYMENT_RULE, br#"{"kind":4}"#, b"settings file item 1: landing-rule.kind: unknown member"),
+        (FORGE_CHARTER, b"null", b"settings file item 1: forge-charter: expected unsigned integer"),
+        (
+            DEPLOYMENT_RULE,
+            br#"{"pattern":{"segments":[null]}}"#,
+            b"settings file item 1: landing-rule.pattern.segments: expected string",
+        ),
+        (
+            DEPLOYMENT_RULE,
+            br#"{"pattern":{"segments":[],"last":{"open":"XX"}}}"#,
+            b"settings file item 1: landing-rule.pattern.last.open: lower-case hexadecimal required",
+        ),
+    ] {
+        assert_eq!(
+            file::decode(&kind_file(setting, value), &Limits::standard()).expect_err("bad member").as_ref(),
+            expected
+        );
+    }
+}
+#[test]
+fn landing_rule_lists_hold_at_their_limits() {
+    let mut limits = Limits::standard();
+    // LANDING contains one gate, one approval, one base segment and a four-byte last segment.
+    limits.kinds.landing_rule_gates = 1;
+    limits.kinds.landing_rule_approvals = 1;
+    limits.settings.pattern_segments = 1;
+    limits.settings.pattern_segments_item = 5;
+    limits.settings.pattern_end_exact_value = 4;
+    file::decode(&kind_file(DEPLOYMENT_RULE, LANDING), &limits).expect("one member at each limit");
+}
+#[test]
+fn landing_rule_members_past_the_given_limits_name_their_paths() {
+    let base = Limits::standard();
+    let mut gates = base;
+    gates.kinds.landing_rule_gates = 0;
+    let mut approvals = base;
+    approvals.kinds.landing_rule_approvals = 0;
+    let mut segments = base;
+    segments.settings.pattern_segments = 0;
+    let mut segment_bytes = base;
+    segment_bytes.settings.pattern_segments_item = 4;
+    let mut last = base;
+    last.settings.pattern_end_exact_value = 3;
+    let mut kind_segments = base;
+    kind_segments.kinds.landing_pattern_segments = 0;
+    let mut kind_segment_bytes = base;
+    kind_segment_bytes.kinds.landing_pattern_segments_item = 4;
+    let mut kind_last = base;
+    kind_last.kinds.landing_exact_value = 3;
+    for (limits, expected) in [
+        (gates, b"settings file item 1: landing-rule.gates: bound 0".as_slice()),
+        (approvals, b"settings file item 1: landing-rule.approvals: bound 0"),
+        (segments, b"settings file item 1: landing-rule.pattern.segments: bound 0"),
+        (segment_bytes, b"settings file item 1: landing-rule.pattern.segments: bound 4"),
+        (last, b"settings file item 1: landing-rule.pattern.last.exact: bound 3"),
+        (kind_segments, b"settings file item 1: landing-rule.pattern.segments: bound 0"),
+        (kind_segment_bytes, b"settings file item 1: landing-rule.pattern.segments: bound 4"),
+        (kind_last, b"settings file item 1: landing-rule.pattern.last.exact: bound 3"),
+    ] {
+        assert_eq!(
+            file::decode(&kind_file(DEPLOYMENT_RULE, LANDING), &limits).expect_err("bound refusal").as_ref(),
+            expected
+        );
+    }
+}

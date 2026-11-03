@@ -1165,6 +1165,7 @@ fn client_optional_template_deadline(v: Option<&n::TemplateDeadline>) -> Option<
 pub fn limits(v: &crate::jig::Limits) -> settings_form::Limits {
     settings_form::Limits {
         settings: v.settings,
+        kinds: settings_form::Limits::standard().kinds,
         ask_bytes: v.ask_bytes,
         result_bytes: v.result_bytes,
         text: v.text,

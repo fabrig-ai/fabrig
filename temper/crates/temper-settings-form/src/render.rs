@@ -34,9 +34,18 @@ pub fn encode_setting(setting: c::Setting, out: &mut Encoder) {
         c::Setting::Application { kind, scope, number } => {
             out.object_start();
             out.key(b"kind");
-            out.unsigned(u64::from(kind));
-            out.key(b"scope");
-            out.unsigned(u64::from(scope));
+            match kind {
+                1 | 2 => out.string(b"landing-rule"),
+                3 => out.string(b"forge-charter"),
+                _ => out.unsigned(u64::from(kind)),
+            }
+            if kind == 2 {
+                out.key(b"project");
+                out.unsigned(u64::from(scope));
+            } else if kind != 1 && kind != 3 {
+                out.key(b"scope");
+                out.unsigned(u64::from(scope));
+            }
             out.key(b"number");
             out.unsigned(u64::from(number));
             out.object_end();
@@ -52,6 +61,30 @@ pub fn encode_setting(setting: c::Setting, out: &mut Encoder) {
         out.unsigned(u64::from(n));
     }
     out.object_end();
+}
+fn encode_named_value(setting: c::Setting, value: &c::SettingValue, out: &mut Encoder) {
+    let c::Setting::Application { kind, .. } = setting else {
+        encode_value(value, out);
+        return;
+    };
+    let c::SettingValue::Application(bytes) = value else {
+        encode_value(value, out);
+        return;
+    };
+    if crate::kinds::render(kind, bytes, out) {
+        return;
+    }
+    encode_value(value, out);
+}
+fn named_value_text(setting: c::Setting, value: &c::SettingValue, limits: &Limits, out: &mut Text) {
+    let bounds =
+        skein_json::writer::Limits { depth: 32, length: u32::try_from(limits.result_bytes).expect("result bound") };
+    let mut measured = Encoder::measure(&bounds);
+    encode_named_value(setting, value, &mut measured);
+    let mut write = Encoder::write(measured.measured().expect("received value fits"), &bounds);
+    encode_named_value(setting, value, &mut write);
+    out.put(&write.finish());
+    out.put(b"\n");
 }
 pub fn encode_value(value: &c::SettingValue, out: &mut Encoder) {
     match value {
@@ -159,7 +192,7 @@ pub fn text(value: &c::ReadValue, requested: Option<u64>, limits: &Limits, out: 
             out.number(u64::from(document.revision));
             out.put(b"\n");
             if let Some(value) = &document.value {
-                value_text(value, limits, out);
+                named_value_text(document.setting, value, limits, out);
             }
             if let Some(state) = &document.application {
                 application_text(state, out);
@@ -217,7 +250,7 @@ pub fn encode(value: &c::ReadValue, out: &mut Encoder) {
             out.unsigned(u64::from(document.revision));
             out.key(b"value");
             match &document.value {
-                Some(value) => encode_value(value, out),
+                Some(value) => encode_named_value(document.setting, value, out),
                 None => out.null(),
             }
             if let Some(state) = &document.application {
