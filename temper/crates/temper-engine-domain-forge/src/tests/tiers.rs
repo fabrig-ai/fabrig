@@ -8,6 +8,7 @@
 use super::*;
 use fixtures::{BASE, CHANGE, HEAD, OPEN};
 use skein_forge::api;
+use temper_engine_domain_forge_landing as keys;
 use temper_engine_domain_forge_tiers as p;
 
 const TIER: &[u8] = b"browser";
@@ -23,6 +24,12 @@ const READ: Token = Token::new(1_u64 << 59);
 const RETRIES: u32 = 2; // The fixture's configured tier_retries.
 const SMALL_RANGE: usize = 3; // 2 * one live change + 1.
 fn restoring(branch: Option<&[u8]>) -> Domain {
+    restoring_following(match branch {
+        Some(branch) => Follows::Branch(branch.into()),
+        None => Follows::Landing,
+    })
+}
+fn restoring_following(follows: Follows) -> Domain {
     let mut d = domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     assert!(d.project_landing(
@@ -37,7 +44,8 @@ fn restoring(branch: Option<&[u8]>) -> Domain {
                 ignored: Box::new([b"docs".as_slice().into()]),
                 artifact: b"report".as_slice().into(),
                 format: p::Format::Lines,
-                branch: branch.map(Box::from),
+                follows,
+                span: None,
             }])
         }]),
         AfterLanding {
@@ -637,4 +645,84 @@ fn pending_execution_words_survive_restart_until_the_task_keeps_them() {
         Request::Save { record: Stored::Tier(row), .. } => row.observations.is_empty(),
         _ => false,
     }));
+}
+
+#[test]
+fn tier_definitions_pin_landing_and_explicit_branch_bytes() {
+    let d = configured(None);
+    let tier = crate::tiers::configured_all(&d, REPO)[0].clone();
+    assert_eq!(crate::tiers::definition(&tier).as_ref(), b"\x00\x08tier.yml\x00\x01\x00\x04docs\x00\x06report\x01\x00");
+    let tier = Tier { follows: Follows::Branch(b"release/next".as_slice().into()), ..tier };
+    assert_eq!(
+        crate::tiers::definition(&tier).as_ref(),
+        b"\x00\x08tier.yml\x00\x01\x00\x04docs\x00\x06report\x01\x01\x00\x0crelease/next"
+    );
+}
+
+#[test]
+fn goal_tiers_start_no_run_on_main_or_goal_moves() {
+    let mut d = restoring_following(Follows::Goals);
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    let out = outputs(&mut d, Event::ReadAfresh);
+    assert!(requests(&out).is_empty());
+    assert!(crate::tiers::watched(&d).is_empty());
+    for branch in [b"main".as_slice(), b"temper/1/g1"] {
+        let mut out = Queue::uncapped();
+        crate::tiers::observed(&mut d, &env(), REPO, branch, None, BASE, &mut out);
+        crate::tiers::observed(&mut d, &env(), REPO, branch, Some(BASE), HEAD, &mut out);
+        crate::tiers::start_due(&mut d, &env(), REPO, &mut out);
+        assert!(requests(&collect(out)).is_empty());
+        assert!(d.tiers.is_empty());
+        assert!(d.tier_ops.reads.is_empty());
+    }
+}
+
+fn definition_key(tier: &Tier) -> keys::Keyed {
+    keys::key(
+        keys::Repository { forge: REPO.forge, repository: REPO.repository },
+        &tier.name,
+        &crate::tiers::definition(tier),
+        &tier.ignored,
+        BASE,
+        &[keys::Tree { object: BASE, entries: Box::new([]) }],
+        &keys::KeyLimits { entries: LIMITS.key_entries, path_bytes: LIMITS.key_path_bytes },
+    )
+}
+#[test]
+fn tier_keys_distinguish_follows_and_ignore_the_span() {
+    let d = configured(None);
+    let tier = crate::tiers::configured_all(&d, REPO)[0].clone();
+    let landing = definition_key(&tier);
+    assert_eq!(
+        landing,
+        keys::Keyed::Key([
+            65, 183, 146, 65, 162, 229, 1, 83, 240, 199, 229, 238, 167, 53, 146, 217, 234, 128, 179, 203, 64, 103, 79,
+            205, 187, 211, 89, 224, 4, 58, 81, 50
+        ])
+    );
+    let branch = Tier { follows: Follows::Branch(b"release/next".as_slice().into()), ..tier.clone() };
+    let branch_key = definition_key(&branch);
+    assert_eq!(
+        branch_key,
+        keys::Keyed::Key([
+            148, 25, 25, 98, 233, 154, 23, 238, 201, 141, 4, 166, 70, 20, 6, 128, 94, 166, 198, 205, 251, 183, 59, 228,
+            6, 186, 224, 54, 40, 160, 176, 103
+        ])
+    );
+    let goals = Tier { follows: Follows::Goals, ..tier.clone() };
+    assert_eq!(
+        crate::tiers::definition(&goals).as_ref(),
+        b"\x00\x08tier.yml\x00\x01\x00\x04docs\x00\x06report\x01\x02"
+    );
+    let goals_key = definition_key(&goals);
+    let keys::Keyed::Key(_) = goals_key else { panic!("complete goal definition key") };
+    assert_ne!(goals_key, landing);
+    assert_ne!(goals_key, branch_key);
+    for tier in [tier, branch, goals] {
+        let definition = crate::tiers::definition(&tier);
+        let key = definition_key(&tier);
+        let spaced = Tier { span: Some(Duration::from_millis(1_200_000)), ..tier };
+        assert_eq!(crate::tiers::definition(&spaced), definition);
+        assert_eq!(definition_key(&spaced), key);
+    }
 }

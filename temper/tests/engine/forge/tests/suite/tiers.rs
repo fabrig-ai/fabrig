@@ -56,7 +56,8 @@ fn configured_world(seed: u64, workflow: raw::Workflow) -> World {
                 ignored: Box::new([b"docs".as_slice().into()]),
                 artifact: b"report".as_slice().into(),
                 format: p::Format::Lines,
-                branch: None,
+                follows: top::Follows::Landing,
+                span: None,
             }]),
         }])
     ));

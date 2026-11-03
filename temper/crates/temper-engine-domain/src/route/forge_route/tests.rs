@@ -1687,7 +1687,6 @@ fn a_landing_by_turn_starts_while_the_period_is_reserved_whole() {
     assert_eq!(row.spec.words.as_ref(), b"Land Change");
 }
 
-#[expect(clippy::manual_map, reason = "the strict subset uses explicit matches")]
 fn result_tier(name: &[u8], branch: Option<&[u8]>) -> crate::translate::TierCheck {
     crate::translate::TierCheck {
         name: name.into(),
@@ -1695,10 +1694,11 @@ fn result_tier(name: &[u8], branch: Option<&[u8]>) -> crate::translate::TierChec
         ignored: Box::new([]),
         artifact: Box::from(b"report".as_slice()),
         format: temper_engine_domain_forge_tiers::Format::Lines,
-        branch: match branch {
-            Some(branch) => Some(Box::from(branch)),
-            None => None,
+        follows: match branch {
+            Some(branch) => temper_engine_domain_forge::Follows::Branch(Box::from(branch)),
+            None => temper_engine_domain_forge::Follows::Landing,
         },
+        span_ms: 0,
     }
 }
 
