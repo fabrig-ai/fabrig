@@ -1239,6 +1239,7 @@ pub fn initial_settings(defaults: &core::settings::Defaults) -> Box<[core::Recor
     rows.push(core::Record::Core(core::CoreRecord::Settings(s::Record::Revision {
         history: false,
         revision: s::Revision {
+            applications: Box::default(),
             head: s::Head {
                 number: 1,
                 against: 0,
@@ -1275,6 +1276,7 @@ pub fn initial_settings_current(current: &core::settings::Current) -> Box<[core:
     rows.push(core::Record::Core(core::CoreRecord::Settings(s::Record::Revision {
         history: false,
         revision: s::Revision {
+            applications: Box::default(),
             head: s::Head {
                 number: 1,
                 against: 0,

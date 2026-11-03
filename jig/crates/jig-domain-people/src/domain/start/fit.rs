@@ -298,7 +298,8 @@ fn refusal(key: &Key, why: &Refusal) -> Result<(), RestoreCause> {
             within(key, RestoreBound::NamedTasks, tasks.len(), crate::NAMED_TASKS)
         }
         Refusal::Kept { pending } => within(key, RestoreBound::KeptPending, pending.len(), 64),
-        Refusal::SignInRedirect { .. }
+        Refusal::Judged { .. }
+        | Refusal::SignInRedirect { .. }
         | Refusal::Stale { .. }
         | Refusal::NameTaken
         | Refusal::AccountMove { .. }

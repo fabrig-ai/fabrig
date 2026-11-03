@@ -40,7 +40,7 @@ fn an_unknown_project_is_refused_without_saving_or_routing() {
 fn settings_admission_is_the_deployment_owners_and_replays_by_digest() {
     let mut test = Test::new(LIMITS);
     test.signin(PARTY, SIGN_IN, identity(0, PARTY));
-    let ask = Ask::ChangeSettings { against: 1, digest: [17; 32] };
+    let ask = Ask::ChangeSettings { against: 1, digest: [17; 32], projects: Box::default() };
     for held in [None, Some(Role::Member)] {
         if let Some(role) = held {
             test.send(Event::Roles { project: DEPLOYMENT, holdings: Box::new([Holding { person: PARTY, role }]) });
@@ -68,7 +68,11 @@ fn settings_admission_is_the_deployment_owners_and_replays_by_digest() {
     );
     assert_eq!(reply(&test.request(SIGN_IN, KEY, ask)), Reply::Outcome(outcome));
     assert_eq!(
-        reply(&test.request(SIGN_IN, KEY, Ask::ChangeSettings { against: 1, digest: [18; 32] })),
+        reply(&test.request(
+            SIGN_IN,
+            KEY,
+            Ask::ChangeSettings { against: 1, digest: [18; 32], projects: Box::default() }
+        )),
         Reply::Refused(Refusal::KeyConflict)
     );
     assert_eq!(

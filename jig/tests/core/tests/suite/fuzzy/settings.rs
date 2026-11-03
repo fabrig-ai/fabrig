@@ -16,6 +16,7 @@ fn agree(world: &jig_core_world::world::World) {
     for row in world.store.rows.values() {
         if let root::Record::Core(core::Record::Core(core::CoreRecord::Settings(row))) = row {
             match row {
+                settings::Record::Application { .. } => unreachable!("an application's record: apps-store"),
                 settings::Record::Default { setting, default } => {
                     expected.insert(*setting, default.value.clone());
                 }

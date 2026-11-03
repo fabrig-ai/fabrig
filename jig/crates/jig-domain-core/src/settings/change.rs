@@ -16,11 +16,17 @@ pub(crate) fn change_shape(items: &[Item], limits: &Limits) -> Result<(), Failur
     let mut counts = [0_u32; 3];
     for (at, item) in items.iter().enumerate() {
         match item.setting {
-            Setting::Charter(0) | Setting::Template(0) | Setting::Policy(0) => {
+            Setting::Charter(0)
+            | Setting::Template(0)
+            | Setting::Policy(0)
+            | Setting::Application { number: 0, .. } => {
                 return Err(Failure { setting: item.setting, fault: Fault::Shape });
             }
-            Setting::Charter(_) | Setting::Template(_) | Setting::Policy(_) | Setting::Rules => {}
-            Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
+            Setting::Charter(_)
+            | Setting::Template(_)
+            | Setting::Policy(_)
+            | Setting::Rules
+            | Setting::Application { .. } => {}
         }
         for earlier in items.iter().take(at) {
             if item.setting == earlier.setting {
@@ -43,6 +49,9 @@ pub(crate) fn change_shape(items: &[Item], limits: &Limits) -> Result<(), Failur
 #[must_use]
 pub(crate) fn changes_current(current: &Current, items: &[Item]) -> bool {
     for item in items {
+        if super::application::is_application(item.setting) {
+            continue;
+        }
         let after = match &item.edit {
             Edit::Set(value) => Some(value),
             Edit::Removed => None,

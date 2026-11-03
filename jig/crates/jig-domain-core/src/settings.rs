@@ -107,6 +107,7 @@ pub fn model_names(models: &[crate::Model]) -> Box<[ModelName]> {
 pub struct Revision {
     pub head: Head,
     pub items: Box<[Item]>,
+    pub applications: Box<[application::Recorded]>,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Failure {
@@ -149,12 +150,13 @@ pub struct Proposal {
 pub struct Current {
     pub(crate) defaults: Map<Setting, Default>,
     pub(crate) changes: Map<Setting, Changed>,
+    pub(crate) applications: Map<Setting, application::State>,
     pub(crate) head: Head,
     pub(crate) oldest: u32,
 }
 impl Current {
     #[must_use]
-    pub fn new(mut defaults: Defaults, limits: &crate::Limits) -> Self {
+    pub fn new(mut defaults: Defaults, limits: &crate::Limits, kinds: &[Kind]) -> Self {
         let mut values = Map::with_capacity(capacity(limits).expect("settings count"));
         for charter in defaults.charters {
             let previous = values
@@ -186,6 +188,7 @@ impl Current {
             .expect("rules slot");
         Self {
             defaults: values,
+            applications: Map::with_capacity(application::capacity(kinds, limits).expect("application settings count")),
             changes: Map::with_capacity(capacity(limits).expect("settings count")),
             head: Head {
                 number: 1,
@@ -312,6 +315,7 @@ fn offered(defaults: &Map<Setting, Default>, changes: &Map<Setting, Changed>) ->
 pub enum Record {
     Default { setting: Setting, default: Default },
     Changed { setting: Setting, changed: Changed },
+    Application { setting: Setting, state: application::State },
     Revision { history: bool, revision: Revision },
     Extent { oldest: u32 },
     Charter { charter: u32, revision: u32, value: CharterVersion },
@@ -322,7 +326,7 @@ impl Record {
     pub fn key(&self) -> Key {
         match self {
             Self::Default { setting, .. } => Key::Default(*setting),
-            Self::Changed { setting, .. } => Key::Changed(*setting),
+            Self::Changed { setting, .. } | Self::Application { setting, .. } => Key::Changed(*setting),
             Self::Revision { history, revision } => {
                 if *history {
                     Key::History(revision.head.number)

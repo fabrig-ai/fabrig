@@ -117,7 +117,7 @@ mod tests {
             grace: None,
             llm: None,
         }]);
-        Current::new(config.defaults, &crate::tests::limits())
+        Current::new(config.defaults, &crate::tests::limits(), &[])
     }
     fn document(current: Current) -> Settings {
         let (mut core, _) = crate::tests::core();
@@ -126,6 +126,7 @@ mod tests {
     }
     fn line(current: &Current) -> SettingLine {
         let mut copied = Current {
+            applications: Map::with_capacity(0),
             defaults: Map::with_capacity(current.defaults.capacity()),
             changes: Map::with_capacity(current.changes.capacity()),
             head: current.head.clone(),

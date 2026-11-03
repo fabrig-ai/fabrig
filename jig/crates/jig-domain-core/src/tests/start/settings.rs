@@ -38,6 +38,7 @@ fn head(number: u32) -> Record {
                 moved: false,
             },
             items: Box::new([]),
+            applications: Box::default(),
         },
     }
 }

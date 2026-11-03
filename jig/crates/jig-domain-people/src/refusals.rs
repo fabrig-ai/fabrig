@@ -1,5 +1,5 @@
 //! Durable refusal facts and unsaved retry kinds (client/domain/contract.md,
-//! section 4). Facts contain only numbers and enums; their owner keeps any words.
+//! section 4). A judged settings refusal also carries the connector's bounded words.
 use crate::Role;
 use alloc::boxed::Box;
 use skein_lib::Wall;
@@ -19,6 +19,11 @@ pub enum Accepter {
 /// A final reason a keyed request was refused.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Refusal {
+    Judged {
+        at: u32,
+        setting: crate::Setting,
+        why: Box<[u8]>,
+    },
     /// A finish refused while the sign-in may still wait (accounts.md, section 5).
     SignInRedirect {
         why: crate::SignInRedirectWhy,

@@ -542,6 +542,7 @@ pub fn fixture(seed: u64, engine_slots: u32) -> (root::Config, root::Limits) {
 
 fn party_refusal(why: people::Refusal) -> parties::Refusal {
     match why {
+        people::Refusal::Judged { .. } => unreachable!("a judged refusal: apps-wire"),
         people::Refusal::Circle { tasks, cut } => parties::Refusal::Circle { tasks, cut },
         people::Refusal::Kept { pending } => parties::Refusal::Kept { pending },
         people::Refusal::Dependency { dependency, how } => parties::Refusal::Dependency {
