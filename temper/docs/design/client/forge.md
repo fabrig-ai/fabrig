@@ -1234,7 +1234,11 @@ made by the forge connector from what it keeps of the change
   - its gates (2.2), each with its number, its kind, whether it is
     blocking or advisory, and its verdict at the current head, a clean
     update's carry counted (`../domain/forge.md`, 8.3);
-  - its repairs, resolutions and updates, each used of its limit (8.4).
+  - its repairs, resolutions and updates, each used of its limit (8.4);
+  - its questions (`../domain/forge.md`, 8.11): its route, the questions
+    taken used of its bound, and its open questions, each with its
+    asker, the first line of its words and where it stands, so that a
+    person sees what a change waits on before its requester answers.
 - **The address on the forge is the engine's.** The routing builds it as
   it encodes the document, from the addresses the forge's record keeps and its
   kind: `WEB/OWNER/NAME/pull/N` on GitHub, WEB its `web`, github.com's

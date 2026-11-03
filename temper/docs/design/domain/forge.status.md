@@ -44,6 +44,11 @@
   - 8.8: the rule and criterion a change waits on, and its charter, on its
     panel.
   - 8.10: a change drained.
+  - 8.1, 8.11: a change's questions: no questions parameter, so every
+    change asks no one and answers each question that it takes none
+    (`temper-engine-domain/src/route/forge_route.rs`, `change_replies`);
+    no relay, foreman, bound, held answer or open questions on its
+    record and panel.
   - 9: a branch a tier follows still pauses its queue on its own CI's
     red and makes a repair, where its tiers judge it instead
     (`temper-engine-domain-forge-change/src/domain.rs`, `base_ci`).

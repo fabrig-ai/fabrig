@@ -2,7 +2,7 @@
 
 2026-11-03. Where temper's code lags or departs from [tools.md](tools.md).
 
-- **Not yet:** 5.1: the groups `goal`, `finding`, `qa`, `party` and
+- **Not yet:** 5.5, area 6: `change show`'s questions. 5.1: the groups `goal`, `finding`, `qa`, `party` and
   `deployment`, absent from `temper-client-tools`' `table.rs` `GROUPS`.
   5.2: `repository receipts`, `finding list`, `finding show`, `qa marks`,
   `qa passes`, `hold list`, and `settings show landing-rule` and
