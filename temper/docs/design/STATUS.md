@@ -39,7 +39,10 @@ playground's reset are designed and built; the code departs where the
 box's group file holds a forge's kind alone (`protocol/setup.md`,
 `protocol/forge.md`, `protocol/README.md`), and lags in a
 removal without the box (`domain/forge.md`) and a project's Delete
-(`client/README.md`); a connected Forgejo, its connect with its bot's
+(`client/README.md`); public reading's pages, the forge's public
+documents, a deployment's proxy and ctl's visibility are designed and
+not built (`client/browser.md`, `client/forge.md`,
+`protocol/sign-in.md`, `client/tools.md`); a connected Forgejo, its connect with its bot's
 tokens and a forge's Replace are built, but for the real loop's story
 (`client/tools.md`) and a connected Forgejo made managed
 (`protocol/setup.md`); with `application.machine.github` null, GitHub's

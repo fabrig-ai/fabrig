@@ -20,7 +20,11 @@ questions lag (`domain/people.md`, `domain/tasks.md`, `domain/engine.md`,
 `me`'s `resolved_default`, a service's root, the one-shot mode and the
 drawing family (`client/domain/`); and `ops` standalone, with its
 service and its connectors' protocols (`examples.md`). `RemoveProject`
-is offered in no project's document (`client/domain/contract.md`). The
+is offered in no project's document (`client/domain/contract.md`).
+Public reading is designed and not built: the public party, a
+project's visibility, the public documents, reads and their `GET`
+(`domain/people.md`, `protocol/client.md`, `client/domain/contract.md`,
+and their neighbours). The
 code departs in a few single items (`README.md`, `client/domain/client.md`, `domain/engine.md`,
 `domain/people.md`, `domain/root.md`, `examples.md`,
 `protocol/client.md`, `protocol/configuration.md`). `domain/core.md`,
