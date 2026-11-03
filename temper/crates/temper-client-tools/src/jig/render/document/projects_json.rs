@@ -7,7 +7,7 @@ use crate::jig::{
 use jig_client::contract as c;
 use skein_json::writer::Encoder;
 
-pub(super) fn encode(project: &c::Project, call: &Call, out: &mut Encoder, budget: &mut Cut) {
+pub(super) fn encode(project: &c::Project, call: &Call, public: Option<u64>, out: &mut Encoder, budget: &mut Cut) {
     if call.tool == rows::PROJECT_FUND_AT {
         out.object_start();
         out.key(b"answer");
@@ -23,16 +23,23 @@ pub(super) fn encode(project: &c::Project, call: &Call, out: &mut Encoder, budge
         out.object_end();
         out.key(b"now");
     }
-    snapshot(project, call, out, budget);
+    snapshot(project, call, public, out, budget);
     if call.tool == rows::PROJECT_FUND_AT {
         out.object_end();
     }
 }
-fn snapshot(project: &c::Project, call: &Call, out: &mut Encoder, budget: &mut Cut) {
+fn snapshot(project: &c::Project, call: &Call, public: Option<u64>, out: &mut Encoder, budget: &mut Cut) {
     out.object_start();
     out.key(b"number");
     out.unsigned(u64::from(project.number));
     if call.tool == rows::PROJECT_SHOW_AT {
+        if !budget.subject {
+            out.key(b"public");
+            match public {
+                Some(identifier) => out.string(&super::super::visibility::page(identifier)),
+                None => out.null(),
+            }
+        }
         facts(project, out, budget);
     }
     out.key(b"current_period");
@@ -143,11 +150,11 @@ pub(super) fn digest(
         digest: None,
     };
     let mut measure = Encoder::measure(&bounds);
-    encode(project, call, &mut measure, &mut budget);
+    encode(project, call, None, &mut measure, &mut budget);
     let size = measure.measured().ok()?;
     let mut write = Encoder::write(size, &bounds);
     budget.room = usize::try_from(limits.text).expect("text fits");
     budget.left = 0;
-    encode(project, call, &mut write, &mut budget);
+    encode(project, call, None, &mut write, &mut budget);
     Some(crate::jig::digest::Digest::of(&write.finish()))
 }

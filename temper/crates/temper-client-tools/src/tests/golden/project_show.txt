@@ -1,4 +1,5 @@
 project 1, shop
+public: no
 homes: src/lib.rs
 spend per period: 100
 role 0, owner: spend per period 100; parties: party 1 alice
