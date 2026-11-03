@@ -632,7 +632,8 @@ impl Chat {
             Act::Older => ask_activity(&mut self.asking, self.activity, self.thread.older(), out),
             Act::Send => self.send(env, client, Sending::Message, serial, out),
             Act::Stop => self.send(env, client, Sending::Stop, serial, out),
-            Act::Choice(_)
+            Act::Switcher(_)
+            | Act::Choice(_)
             | Act::Accounts(_)
             | Act::ConnectModel(_)
             | Act::MakeDefault

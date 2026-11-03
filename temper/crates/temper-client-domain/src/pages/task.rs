@@ -413,6 +413,7 @@ impl Task {
             | Act::MakeDefault
             | Act::OpenProject { .. }
             | Act::Project { .. }
+            | Act::Switcher(_)
             | Act::Choice(_)
             | Act::SignOut
             | Act::Accounts(_)
@@ -511,6 +512,7 @@ impl Task {
             Act::MakeDefault
             | Act::OpenProject { .. }
             | Act::Project { .. }
+            | Act::Switcher(_)
             | Act::Choice(_)
             | Act::SignOut
             | Act::Accounts(_)
