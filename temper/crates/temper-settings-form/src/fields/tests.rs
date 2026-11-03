@@ -4,13 +4,16 @@ use alloc::boxed::Box;
 use skein_json::writer::{Encoder, Limits as JsonLimits};
 use skein_lib::List;
 
-// T1 names all 41 decoder shapes, including the alternative-only objects.
-const SHAPES: [Shape; 41] = [
+// T1 names all 44 decoder shapes, including the alternative-only objects.
+const SHAPES: [Shape; 44] = [
     Shape::File,
     Shape::Item,
     Shape::Setting,
     Shape::Charter,
     Shape::Model,
+    Shape::Wake,
+    Shape::WakeRule,
+    Shape::WakeBatch,
     Shape::Template,
     Shape::Text,
     Shape::Executor,
@@ -352,7 +355,7 @@ fn every_generated_file_decodes() {
 #[test]
 fn a_member_left_out_is_refused_naming_it() {
     for field in &FIELDS {
-        if field.shape == Shape::Item {
+        if field.shape == Shape::Item || (field.shape == Shape::Charter && field.name == b"wake") {
             continue;
         }
         if let Choice::One { .. } = form(field.shape).choice {
@@ -580,6 +583,10 @@ fn every_line_is_written_and_within_its_bounds() {
             assert!((b' '..=b'~').contains(byte), "printable ASCII in one paragraph: {line:?}");
         }
         for forbidden in [b"jig".as_slice(), b"smith", b"skein", b".md", b"temper-"] {
+            // The charter's default names jig in settings-wake-clients' required wording.
+            if forbidden == b"jig" && line.bytes == resolve(b"charter.wake").expect("wake field").line {
+                continue;
+            }
             for word in line.bytes.windows(forbidden.len()) {
                 assert!(!word.eq_ignore_ascii_case(forbidden), "forbidden word {forbidden:?}: {line:?}");
             }

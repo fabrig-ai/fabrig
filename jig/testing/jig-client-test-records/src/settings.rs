@@ -85,6 +85,15 @@ pub fn settings_values() -> List<SettingValue> {
             call_timeout: Duration::from_secs(14),
             hosts: SettingHosts::Both,
             spend: 99,
+            wake: jig_client_domain::contract::WakePolicy {
+                words: jig_client_domain::contract::WakeRule::Immediate,
+                notices: jig_client_domain::contract::WakeRule::Immediate,
+                news: jig_client_domain::contract::WakeRule::Immediate,
+                results: jig_client_domain::contract::ResultsWake::LastOrFailure,
+                questions: true,
+                answers: true,
+                timers: true,
+            },
         })))
         .expect("charter");
     values
