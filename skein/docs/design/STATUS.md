@@ -13,7 +13,8 @@ routes, `Artifact` and `Commits` among them (`forge.md`,
 (fab's gate list; `playground.md`, 8); `ui-web.md` has no gap. json, tls and http's collector
 have no fuzz target (`json.md`, `tls.md`, `http.md`). A few items lag
 in `lib.md`, `examples.md` and `ui.md`. The code departs in three
-crates' `tests/` directories (`testing.md`), and five of the LLM live
+crates' `tests/` directories (`testing.md`) and in `skein-playground`'s
+manifest (`playground.md`), and five of the LLM live
 suite's provider stories are manual, run by the owner (`llm.md`).
 `README.md`, `channel.md`, `codec.md`, `kv.md`, `world.md`,
 `fake-checkout.md`, `fake-llm.md`, `forge-client.md`,
