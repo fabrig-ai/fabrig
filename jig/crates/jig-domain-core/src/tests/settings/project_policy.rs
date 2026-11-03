@@ -17,7 +17,11 @@ const NEW_POOL_BUDGET: u64 = 400;
 const OUTPUTS: u32 = 128;
 
 fn project_core(project_owner: u64, deployment_owners: &[u64]) -> (Core, Limits) {
-    let (owner, limits) = core();
+    project_core_with_limits(project_owner, deployment_owners, &limits())
+}
+fn project_core_with_limits(project_owner: u64, deployment_owners: &[u64], limits: &Limits) -> (Core, Limits) {
+    let limits = *limits;
+    let (owner, _) = core();
     let mut configured = config(41);
     configured.seed_projects[0].policy.permissions = Box::default();
     configured.defaults.policies = Map::with_capacity(1);
@@ -116,13 +120,16 @@ fn change(core: &mut Core, limits: &Limits, items: Box<[s::Item]>) -> Box<[Reque
     )
 }
 fn propose(core: &mut Core, limits: &Limits, items: Box<[s::Item]>) -> Box<[Request]> {
+    propose_as(core, limits, SIGN_IN, items)
+}
+fn propose_as(core: &mut Core, limits: &Limits, sign_in: u64, items: Box<[s::Item]>) -> Box<[Request]> {
     let against = core.current.newest();
     send(
         core,
         limits,
         Event::ProposeSettings {
             reply_to: ReplyTo::new(Token::new(92)),
-            sign_in: SIGN_IN,
+            sign_in,
             key: [2; 16],
             digest: [2; 32],
             change: Box::new(s::Proposed { against, reason: b"review".as_slice().into(), items }),
@@ -170,6 +177,15 @@ fn malformed(setting: s::Setting, fault: s::Fault) -> people::Outcome {
         at: 0,
         why: people::Malformed::Settings { setting, fault },
     })
+}
+fn writes(requests: &[Request]) -> u32 {
+    let mut count = 0_u32;
+    for request in requests {
+        if let Request::Write(_) = request {
+            count = count.checked_add(1).unwrap();
+        }
+    }
+    count
 }
 
 #[test]
@@ -345,6 +361,43 @@ fn deleting_a_project_withdraws_a_proposal_naming_its_policy() {
         }
     }
     assert!(withdrawn && erased && notified);
+}
+
+#[test]
+fn a_deletion_withdraws_its_policy_proposals_within_the_withdrawal_allowance() {
+    // Both fixture parties propose, filling the pending-set allowance.
+    const PROPOSALS: u32 = 2;
+    let mut limits = limits();
+    limits.settings.proposals = PROPOSALS;
+    let (mut core, limits) = project_core_with_limits(OWNER, &[OWNER, OTHER], &limits);
+    let value = replacement(&core);
+    let mut numbers = List::with_capacity(PROPOSALS);
+    for sign_in in [SIGN_IN, OTHER_SIGN_IN] {
+        let output = propose_as(&mut core, &limits, sign_in, Box::new([item(value.clone())]));
+        numbers.push(proposal(&output)).unwrap();
+    }
+    assert_eq!(core.settings_proposals.len(), limits.settings.proposals);
+
+    // Subtract the same deletion without pending sets, counting every added write.
+    let (mut baseline, _) = project_core_with_limits(OWNER, &[OWNER, OTHER], &limits);
+    let deletion = people::Ask::RemoveProject { project: PROJECT, grace: None };
+    let ordinary = ask(&mut baseline, &limits, SIGN_IN, 3, deletion.clone());
+    let output = ask(&mut core, &limits, SIGN_IN, 3, deletion);
+    let withdrawal_writes = writes(&output) - writes(&ordinary);
+    assert_eq!(outcome(&output), people::Outcome::ProjectRemoved { project: PROJECT });
+    assert!(core.settings_proposals.is_empty());
+    for (person, number) in [OWNER, OTHER].into_iter().zip(numbers.into_boxed()) {
+        assert!(core.tasks.person_proposal(person, number).is_none());
+    }
+    let mut withdrawn = 0;
+    for request in &output {
+        if let Request::Write(Write::Save(Record::Tasks(tasks::Stored::DecidedProposal(row)))) = request {
+            assert_eq!(row.state, tasks::PersonProposalState::Withdrawn { at: Wall::EPOCH });
+            withdrawn += 1;
+        }
+    }
+    assert_eq!(withdrawn, PROPOSALS);
+    assert!(withdrawal_writes <= s::withdrawal_writes(&limits).unwrap());
 }
 
 #[test]
