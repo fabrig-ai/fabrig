@@ -103,7 +103,7 @@ headroom for retries, extra reviews and revisions. This is an estimate,
 not guaranteed capacity; reservations and each change's half-budget
 allocation can require more headroom even before that total is spent.
 
-Trace the deepest path in the plan; reserving five delegation levels
+Reserving five delegation levels
 below the goal requires role depth at least 6. For this estimate, give
 the goal at least 511 delegation tasks and permit the executor kinds
 for its change procedures, producers, reviewers, repairs and
@@ -113,19 +113,33 @@ enough period funding and pool left. Use `settings show` and `me` to
 check them; policy 1 changes affect projects created afterward, so
 apply them before creating the project.
 
-Before forge setup, check deployment capacity too: live tasks in the
-deployment and project, tasks per tree, tree depth, delegates per task,
-goals, charter documents and result sizes. Size concurrency separately
-from the total work. Raising policy authority alone does not raise
-deployment limits: inspect the configuration (temper help configure).
+Before forge setup, size live concurrency and lifetime tree capacity
+under `engine.limits.overrides` in `temper.json`:
+
+| Member | Bounds |
+|---|---|
+| `tasks.tasks` | Deployment live tasks |
+| `tasks.project_tasks` | Project live tasks |
+| `tasks.tree_tasks` | Lifetime tasks including root |
+| `tasks.depth` | Depth below root at zero |
+| `tasks.delegates` | Live direct delegates |
+| `tasks.batch` | Atomic creation |
+| `tasks.project_goals` | Project live goals |
+| `documents.lines` | Document read lines |
+
+`people.inbox_tasks` >= 2 * `tasks.tasks`: 64 needs 128.
+`people.operations` >= max(`tasks.delegates` + 1, `tasks.project_goals`),
+and <= `tasks.tasks`. At a schema ceiling or profile store ceiling,
+reduce `tasks.batch` or spec/result/authority sizes.
+Raising policy authority alone does not raise deployment limits
+(temper help configure).
 The stock hundred-change profile remains a documented gap (N21);
 stock capacity is not a promise that this estimate will fit.
 
 `me` shows what a new root task can receive, with delegation tasks
 calculated as min(role tasks, deployment tree tasks) - 1 and depth as
 role depth - 1: the root consumes one task and one depth level. Thus
-1024/6 and a tree limit of 32 yield 31/5, even when policy 1 permits
-more. These are creating bounds, not a copy of the policy.
+1024/6 and a tree limit of 32 yield 31/5.
 
 ## Limits
 
