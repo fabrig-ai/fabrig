@@ -616,6 +616,7 @@ fn held_assignment() -> crate::Assignment {
                 shell: false,
                 agents: false,
                 call_timeout: skein_lib::Duration::from_secs(1),
+                tools: crate::RunPolicy::EVERY_FAMILY,
             },
             contract: jig_domain_tasks::Contract::Report { words: 1 },
             authority: jig_domain_tasks::Authority {
