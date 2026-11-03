@@ -2592,7 +2592,11 @@ fn change_delegate(
         ),
         forge_change::Delegate::Resolve { base } => {
             parameters.push(tasks::Parameter::Bytes { name: 6, value: commit_text(&base) }).ok()?;
-            (tasks::Executor::Agent { charter: row.producing_charter }, resolution_words(), change_contract)
+            (
+                tasks::Executor::Agent { charter: row.producing_charter },
+                resolution_words(parameters.as_slice(), env.limits.tasks.spec_bytes)?,
+                change_contract,
+            )
         }
         forge_change::Delegate::Gate { number, head } => {
             parameters.push(tasks::Parameter::Number { name: 7, value: number }).ok()?;
@@ -2766,15 +2770,33 @@ fn repair_opening(row: &forge::ChangeRow, why: forge_change::Repair) -> Option<B
 }
 
 /// domain/forge.md, 8.4: both sides keep their intended content.
-fn resolution_words() -> Box<[u8]> {
-    Box::from(
-        concat!(
-            "Resolve the merge conflict. Preserve the requested change and unrelated content ",
-            "already landed on the base, including both independent appended lines and existing blank lines. ",
-            "Do not remove content to make a check pass. The worker commits and pushes the resolved merge."
-        )
-        .as_bytes(),
+fn resolution_words(parameters: &[tasks::Parameter], bound: u32) -> Option<Box<[u8]>> {
+    let words = concat!(
+        "Resolve the merge conflict. Preserve the requested change and unrelated content ",
+        "already landed on the base, including both independent appended lines and existing blank lines. ",
+        "Do not remove content to make a check pass. The worker commits and pushes the resolved merge."
     )
+    .as_bytes();
+    let room = usize::try_from(parameter_word_room(parameters, bound)).ok()?;
+    // The coding charter carries the full preservation rule when the spec is small.
+    let compact = b"Resolve the merge conflict. Keep both sides and blank lines.";
+    if words.len() <= room {
+        Some(Box::from(words))
+    } else if compact.len() <= room {
+        Some(Box::from(compact.as_slice()))
+    } else {
+        None
+    }
+}
+
+fn parameter_word_room(parameters: &[tasks::Parameter], bound: u32) -> u32 {
+    let mut room = bound;
+    for parameter in parameters {
+        if let tasks::Parameter::Bytes { value, .. } = parameter {
+            room = room.saturating_sub(u32::try_from(value.len()).unwrap_or(u32::MAX));
+        }
+    }
+    room
 }
 
 const REPAIR_PRESERVATION: &[u8] = concat!(
@@ -2798,12 +2820,7 @@ fn repair_words(
     };
     let head = row.change.last_head?;
     let digits = commit_text(&head);
-    let mut room = bound;
-    for parameter in parameters {
-        if let tasks::Parameter::Bytes { value, .. } = parameter {
-            room = room.saturating_sub(u32::try_from(value.len()).unwrap_or(u32::MAX));
-        }
-    }
+    let room = parameter_word_room(parameters, bound);
     let tail = u32::try_from(previous.len().checked_add(REPAIR_PRESERVATION.len())?.checked_add(1)?).ok()?;
     let mut identity = List::with_capacity(room.checked_sub(tail)?);
     let opening = repair_opening(row, why)?;

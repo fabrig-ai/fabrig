@@ -1343,6 +1343,10 @@ delegate's terminal wakes it to offer the landed result.
   parents, and pushes it (`worker.md`, section 5). Its instructions keep
   both sides' intended content by the same preservation rule as repairs;
   the shared coding charter applies it to repairs and resolutions too.
+  The specification reserves its pinned parameters' bytes before its words.
+  Where the full instructions do not fit, a compact instruction keeps both
+  sides and blank lines, with the full rule in the coding charter; where
+  neither fits, the change holds instead of issuing an oversized delegate.
 - **A verdict whose post is refused** (8.3) is no repair and no stall:
   the gate counts as temper's verdict says, nothing is held for the
   post, and its `Forbidden` narrows what temper may do in that

@@ -1919,3 +1919,29 @@ fn release_held_tier(domain: &mut super::Domain, env: &skein_lib::Env<super::Lim
     assert_eq!(got, task);
     assert!(heard.released && !heard.cancelled);
 }
+
+#[test]
+fn a_resolution_preserves_both_sides_within_a_small_spec() {
+    use super::tasks::Parameter;
+    let parameters = [
+        Parameter::Bytes { name: 2, value: Box::from(b"main".as_slice()) },
+        Parameter::Bytes { name: 3, value: Box::from(b"temper/1/c2".as_slice()) },
+        Parameter::Bytes { name: 6, value: commit_text(&SHA1) },
+    ];
+    let words = super::resolution_words(&parameters, 128).unwrap();
+    let mut bytes = words.len();
+    for parameter in &parameters {
+        if let Parameter::Bytes { value, .. } = parameter {
+            bytes += value.len();
+        }
+    }
+    assert!(bytes <= 128, "resolution and pinned parameters need {bytes} spec bytes");
+    assert!(super::resolution_words(&parameters, u32::try_from(bytes - 1).unwrap()).is_none());
+    for expected in [b"both sides".as_slice(), b"blank lines".as_slice()] {
+        let mut found = false;
+        for part in words.windows(expected.len()) {
+            found |= part == expected;
+        }
+        assert!(found, "bounded instructions preserve content");
+    }
+}
