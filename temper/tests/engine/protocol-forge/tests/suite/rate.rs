@@ -81,6 +81,7 @@ impl Scheduler {
                             self.due[index] = true;
                         }
                         other @ (change::Decision::None
+                        | change::Decision::CancelProducer
                         | change::Decision::Delegate(_)
                         | change::Decision::CancelGates { .. }
                         | change::Decision::Effect(_)
@@ -109,6 +110,7 @@ impl Scheduler {
                         task: 51 + u64::try_from(index).expect("task index"),
                         entry: self.entry,
                         heard: change::Heard {
+                            start_conflict: None,
                             lacking: None,
                             spend: None,
                             delegate: change::Status::Unknown,

@@ -782,6 +782,7 @@ fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
         priority: 0,
         ci: None,
         change: change::Change {
+            early: change::Early::None,
             way: temper_engine_domain_forge_change::Way::Queue,
             landing: None,
             task: 7,

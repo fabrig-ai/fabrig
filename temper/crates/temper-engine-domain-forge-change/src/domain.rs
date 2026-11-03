@@ -7,8 +7,9 @@ use alloc::boxed::Box;
 use skein_lib::{List, Wall};
 
 use crate::{
-    Ask, AuthorityHold, AuthorityLack, Change, Decision, Delegate, Effect, EffectResult, Facts, Freshness, Gate,
-    GateFailure, GateKind, Heard, Hold, Limits, Pull, Repair, State, Status, Stepped, Verification, Way,
+    Ask, AuthorityHold, AuthorityLack, Change, Decision, Delegate, Early, Effect, EffectResult, Facts, Freshness, Gate,
+    GateFailure, GateKind, Heard, Hold, Limits, PendingKind, Pull, Repair, StartedFrom, State, Status, Stepped,
+    Verification, Way,
 };
 
 /// Decide one change from current forge and task facts, independent of its wake.
@@ -391,6 +392,18 @@ fn producing(
     now: Wall,
     limits: &Limits,
 ) -> Stepped {
+    if let Early::Started(heads) = &change.early {
+        if standing.start_conflict.is_some() {
+            change.early = Early::Spent(heads.clone());
+            change.state = State::Producing { requested: false };
+            return Stepped { change, decision: Decision::CancelProducer };
+        }
+        if requested && standing.delegate == Status::Failed {
+            change.early = Early::Spent(heads.clone());
+            change.state = State::Producing { requested: false };
+            return Stepped { change, decision: Decision::Wait { until: None } };
+        }
+    }
     match facts.branch {
         Some(head) => {
             change.state = State::Opening { requested: false };
@@ -399,7 +412,11 @@ fn producing(
             Stepped { change, decision: Decision::None }
         }
         None if !requested => {
+            if !producer_start(&mut change, facts, standing) {
+                return Stepped { change, decision: Decision::Wait { until: None } };
+            }
             change.state = State::Producing { requested: true };
+            change.since = now;
             Stepped { change, decision: Decision::Delegate(Delegate::Produce) }
         }
         None => match standing.delegate {
@@ -407,6 +424,34 @@ fn producing(
             Status::Unknown | Status::Pending | Status::Passed => waiting(change, now, limits),
         },
     }
+}
+
+// Dependency waits arm no stall; producing starts its clock when the wait ends
+// (temper/docs/design/domain/forge.md, 8.11).
+fn producer_start(change: &mut Change, facts: &Facts, standing: &Heard) -> bool {
+    match change.early {
+        Early::Started(_) | Early::Spent(_) => {
+            // A refused preparation still owns its delegate until the top sees its end.
+            return facts.pending.is_empty() && standing.start_conflict.is_none();
+        }
+        Early::None => {}
+    }
+    if facts.pending.is_empty() {
+        return true;
+    }
+    let capacity = u32::try_from(facts.pending.len()).expect("pending dependencies fit u32");
+    let mut heads = List::with_capacity(capacity);
+    for pending in &facts.pending {
+        match pending.kind {
+            PendingKind::Change { head: Some(head), kept: false } => {
+                heads.push(StartedFrom { task: pending.task, head }).expect("one head per pending dependency");
+            }
+            PendingKind::Elsewhere => {}
+            PendingKind::Change { .. } | PendingKind::Other => return false,
+        }
+    }
+    change.early = Early::Started(heads.into_boxed());
+    true
 }
 
 fn opening(
