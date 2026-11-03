@@ -452,7 +452,17 @@ pub fn given_with(document: &serde_json::Value, stock: bool, read_wait: bool) ->
         charter.policy.turns = CHARTER_TURNS;
         charter.spend = PRODUCER_SPEND;
     }
-    temper_service::stock::Given::Own { jig: defaults, forge: settings::forge(&document) }
+    let forge = if document["application"]["demo"].is_null() {
+        settings::forge(&document)
+    } else {
+        let limits = temper_service::limits::engine(
+            &engine.limits,
+            &temper_service::limits::profile(temper_service::limits::Profile::Small),
+        )
+        .expect("playground engine limits");
+        temper_service::stock::forge(&limits)
+    };
+    temper_service::stock::Given::Own { jig: defaults, forge }
 }
 /// Independent streams derived from a world's single seed.
 #[derive(Debug, PartialEq, Eq)]

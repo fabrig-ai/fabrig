@@ -76,6 +76,35 @@ fn harness_chats_keep_the_result_ending() {
 }
 
 #[test]
+fn story_as_forge_keeps_the_product_stock() {
+    use temper_engine_domain_forge::settings::Value;
+    let document: serde_json::Value = serde_json::from_slice(A.deployment).expect("story deployment");
+    let temper_service::stock::Given::Own { forge, .. } = documents::given(&document) else {
+        panic!("the composition supplies its settings")
+    };
+    let engine = documents::settings::configuration(&document);
+    let limits = temper_service::limits::engine(
+        &engine.limits,
+        &temper_service::limits::profile(temper_service::limits::Profile::Small),
+    )
+    .expect("playground engine limits");
+    assert_eq!(forge, temper_service::stock::forge(&limits));
+    let charters: Vec<_> = forge.iter().filter(|item| item.kind == 3).map(|item| &item.value.value).collect();
+    assert_eq!(charters, [&Value::Charter(2), &Value::Charter(4)]);
+}
+
+#[test]
+fn harness_forge_keeps_its_settings() {
+    let document = documents::world_document();
+    let temper_service::stock::Given::Own { forge, .. } = documents::given(&document) else {
+        panic!("the composition supplies its settings")
+    };
+    assert_eq!(forge, documents::settings::forge(&document));
+    let change = forge.iter().find(|item| item.kind == 3 && item.number == 1).expect("change charter");
+    assert_eq!(change.value.value, temper_engine_domain_forge::settings::Value::Charter(1));
+}
+
+#[test]
 fn story_as_stock_authority_funds_its_scripted_delegate() {
     // The tree includes the chat and its immediate delegate as well as the delegate's descendants.
     const CREATORS: u64 = 2;
