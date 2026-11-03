@@ -1,0 +1,3 @@
+draft = "first-run-projects"
+repo = "fabrig"
+sources = ["temper/docs/plan/first-run-projects/inputs/request.md", "temper/docs/design/draft/first-run-projects.md", "temper/docs/design/draft/first-run-projects.status.md", "temper/docs/design/draft/reference-case.execution.md", "AGENTS.md", "DESIGN.md"]
