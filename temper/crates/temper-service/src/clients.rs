@@ -863,9 +863,13 @@ fn secret_request(request: kit::SecretsRequest) -> (Asked, jig_protocol_store::S
     match request {
         kit::SecretsRequest::Keep { owner, value } => {
             let (kind, number) = place(owner);
-            let value = jig_protocol_store::SecretValue::Digest {
-                expiry: value.expires.as_nanos(),
-                digest: value.digest.expose().try_into().expect("credential digest is 32 bytes"),
+            let value = if owner == kit::SecretOwner::PublicNames {
+                jig_protocol_store::SecretValue::Key(value.digest)
+            } else {
+                jig_protocol_store::SecretValue::Digest {
+                    expiry: value.expires.as_nanos(),
+                    digest: value.digest.expose().try_into().expect("credential digest is 32 bytes"),
+                }
             };
             (Asked::Owner(owner), Secrets::Keep { owner: kind, number, value })
         }
@@ -896,12 +900,16 @@ fn place(owner: kit::SecretOwner) -> (jig_protocol_store::SecretOwner, u64) {
         kit::SecretOwner::SignIn(number) => (SecretOwner::SignIn, number),
         kit::SecretOwner::Service(number) => (SecretOwner::Service, number),
         kit::SecretOwner::Carried(number) => (SecretOwner::Application, number),
+        kit::SecretOwner::PublicNames => (SecretOwner::PublicNames, 0),
     }
 }
 fn kept(value: jig_protocol_store::SecretValue) -> Option<kit::Kept> {
     match value {
         jig_protocol_store::SecretValue::Digest { expiry, digest } => {
             Some(kit::Kept { digest: skein_lib::Secret::new(Box::new(digest)), expires: Wall::from_nanos(expiry) })
+        }
+        jig_protocol_store::SecretValue::Key(key) if key.len() == 32 => {
+            Some(kit::Kept { digest: key, expires: Wall::from_nanos(u64::MAX) })
         }
         jig_protocol_store::SecretValue::Record(_)
         | jig_protocol_store::SecretValue::Key(_)
@@ -947,6 +955,26 @@ fn client_settings(
     deployment_provider: u16,
 ) -> kit::Settings {
     kit::Settings {
+        public: {
+            let mut kinds = List::with_capacity(3);
+            for kind in kit::public::jig_kinds(&jig_client_protocol_wire::PublicIndexBounds {
+                goals: config.limits.core.public.goals,
+                ended: config.limits.core.public.ended,
+                lines: config.limits.core.public.lines,
+                depth: config.limits.core.public.depth,
+                projects: config.limits.core.people.projects,
+            }) {
+                kinds.push(kind).expect("three public kinds");
+            }
+            kinds
+        },
+        public_bounds: jig_client_protocol_wire::PublicIndexBounds {
+            goals: config.limits.core.public.goals,
+            ended: config.limits.core.public.ended,
+            lines: config.limits.core.public.lines,
+            depth: config.limits.core.public.depth,
+            projects: config.limits.core.people.projects,
+        },
         provider: None,
         addresses: Box::new([]),
         link,

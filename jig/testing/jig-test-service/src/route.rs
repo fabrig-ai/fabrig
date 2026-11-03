@@ -278,7 +278,6 @@ fn immediate(engine: &mut Engine, now: core::Now) {
 
 fn core_held(engine: &mut Engine, held: core::Held) {
     match held {
-        core::Held::PublicRead { .. } => {}
         core::Held::Sources { .. } | core::Held::CheckSource { .. } | core::Held::SignOutSource { .. } => {
             unreachable!("link translates host-wide source commands")
         }
@@ -290,7 +289,8 @@ fn core_held(engine: &mut Engine, held: core::Held) {
         core::Held::NotesLoad { owner, range } => {
             crate::store::request(engine, jig_test_store::StoreOut::NotesLoad { owner, range });
         }
-        held @ (core::Held::Read { .. }
+        held @ (core::Held::PublicRead { .. }
+        | core::Held::Read { .. }
         | core::Held::Delivery { .. }
         | core::Held::WatchEnded { .. }
         | core::Held::PeopleReply { .. }

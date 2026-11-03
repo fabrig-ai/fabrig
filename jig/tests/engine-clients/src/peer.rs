@@ -1,6 +1,7 @@
 //! io's stream records joined to an actual HTTP client, with scripted durability.
 use jig_protocol_engine_clients_http as mapping;
 mod closing;
+mod public;
 use crate::fixtures;
 use jig_client_protocol_wire::v19 as w;
 use jig_domain_core as core;
@@ -200,6 +201,7 @@ pub struct Peer {
     carries: VecDeque<(Token, skein_lib::Secret)>,
     carried: BTreeMap<u64, skein_lib::Secret>,
     next_carried: u64,
+    public_answers: BTreeMap<Token, jig_protocol_engine_clients::PublicReply>,
 }
 impl Peer {
     #[must_use]
@@ -266,6 +268,7 @@ impl Peer {
             carries: VecDeque::new(),
             carried: BTreeMap::new(),
             next_carried: 1 << 63,
+            public_answers: BTreeMap::new(),
         };
         peer.pump();
         peer
@@ -374,6 +377,9 @@ impl Peer {
                     Request::TakeMoved { exchange, .. } => {
                         self.component.down(&self.env, Event::MovedTaken { exchange, record: None }, &mut self.out);
                     }
+                    Request::Transport(jig_protocol_engine_clients::ToTransport::Public { exchange, reply }) => {
+                        self.public_answers.insert(exchange, reply);
+                    }
                     Request::Transport(message) => self.mount_event(mapping::Event::Component(message)),
                     Request::Core(event) => {
                         if let core::Event::Delivered { watcher } = event.as_ref() {
@@ -406,6 +412,14 @@ impl Peer {
                         }
                         self.last_core = Some(format!("{event:?}"));
                         self.core.push_back(*event);
+                    }
+                    Request::Secrets(SecretsRequest::Keep { owner: SecretOwner::PublicNames, value }) => {
+                        self.digests.insert(SecretOwner::PublicNames, value);
+                        self.component.down(
+                            &self.env,
+                            Event::Secrets(SecretsAnswer::Kept { owner: SecretOwner::PublicNames }),
+                            &mut self.out,
+                        );
                     }
                     Request::Secrets(SecretsRequest::Keep { owner, value }) => self.keep = Some((owner, value)),
                     Request::Secrets(SecretsRequest::Get { owner }) => {
@@ -804,6 +818,7 @@ impl Peer {
         self.keep.as_ref().map(|(owner, _)| match owner {
             SecretOwner::SignIn(number) | SecretOwner::Service(number) => *number,
             SecretOwner::Carried(_) => panic!("a carried value is kept by its own request"),
+            SecretOwner::PublicNames => panic!("public names are kept at start"),
         })
     }
     #[must_use]

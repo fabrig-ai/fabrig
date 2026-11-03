@@ -48,6 +48,14 @@ pub fn settings() -> Settings {
         key_bytes: 7934,
         redirect_bytes: 4096,
         moved_bytes: 70000,
+        public: List::with_capacity(0),
+        public_bounds: jig_client_protocol_wire::PublicIndexBounds {
+            goals: 0,
+            ended: 0,
+            lines: 0,
+            depth: 0,
+            projects: 0,
+        },
     }
 }
 /// Two configured models: one with efforts, provider, cache-write price and description,

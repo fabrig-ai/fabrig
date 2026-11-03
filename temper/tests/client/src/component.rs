@@ -104,6 +104,14 @@ impl Composition {
             key_bytes: configuration.core.settings.key_bytes,
             redirect_bytes: configuration.core.settings.redirect_bytes,
             moved_bytes: u64::from(configuration.core.settings.key_bytes).max(70000),
+            public: skein_lib::List::with_capacity(0),
+            public_bounds: jig_client_protocol_wire::PublicIndexBounds {
+                goals: 0,
+                ended: 0,
+                lines: 0,
+                depth: 0,
+                projects: 0,
+            },
         };
         let mut out = Queue::with_capacity(256);
         let component = clients::Component::new(settings, &env, &mut out).expect("joint component configuration");
@@ -442,6 +450,7 @@ impl Composition {
             Request::Core(event) => self.core(transport, *event),
             Request::Application(request) => self.application(request, transport),
             Request::Transport(message) => match message {
+                clients::ToTransport::Public { .. } => unreachable!("signed-in client sends no public reads"),
                 clients::ToTransport::Reply { exchange, reply } => self.transport_reply(exchange, reply),
                 clients::ToTransport::Streamed { stream, message } => {
                     let client = self
