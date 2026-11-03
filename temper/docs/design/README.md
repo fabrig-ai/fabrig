@@ -82,9 +82,9 @@ One story:
    (`client/README.md`, 3.5 and 5.5).
 3. The person adopts a repository into the configured project, through
    the adoption form (`client/README.md`, 4.4).
-4. The person starts a chat and asks for a change; the chat makes a
-   small one itself and hands its branch to a change task, or delegates
-   the change whole (`domain/forge.md`, 8.1).
+4. The person starts a chat and asks for a change; the stock chat reads
+   the code through the forge and delegates the change whole to a change
+   task (`domain/agent.md`, 4.3.1; `domain/forge.md`, 8.1).
 5. Agents do the rest: the change is produced, its pull request opened,
    checked by CI and by an agent's review (a gate the usual landing rule
    asks for, `domain/forge.md`, 8.3 and 8.7), repaired when either

@@ -6,7 +6,8 @@ use super::{
 };
 use std::fmt::Write;
 
-fn config(seed: u64) -> engine::Config {
+/// Stock charters and policies on the composed world's fake model and forge.
+pub(super) fn config(seed: u64) -> engine::Config {
     let mut config = super::config(seed);
     let llm = jig_protocol_config::Llm {
         endpoints: Box::default(),
