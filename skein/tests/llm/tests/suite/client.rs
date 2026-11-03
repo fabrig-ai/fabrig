@@ -701,7 +701,7 @@ fn undecoded_error_bodies_keep_their_clipped_provider_text_for_both_dialects() {
                     let mut input = call(12);
                     if provider == skein_llm::Provider::Anthropic {
                         input.endpoint = skein_llm::Endpoint::anthropic();
-                        input.credential = Some(skein_llm::Credential::anthropic(b"fixture".as_slice().into()));
+                        input.credential = Some(skein_llm::Credential::key(b"fixture".as_slice().into()));
                         input.prompt.affinity = None;
                     }
                     let mut world = World::new(input, bounds, response(400, "", body, chunked), 12);
@@ -739,7 +739,7 @@ fn decoded_error_messages_and_undecoded_utf8_bodies_keep_the_detail_boundary() {
             let mut input = call(13);
             if provider == skein_llm::Provider::Anthropic {
                 input.endpoint = skein_llm::Endpoint::anthropic();
-                input.credential = Some(skein_llm::Credential::anthropic(b"fixture".as_slice().into()));
+                input.credential = Some(skein_llm::Credential::key(b"fixture".as_slice().into()));
                 input.prompt.affinity = None;
             }
             let mut world = World::new(input, bounds, response(401, "", body, true), 13);
@@ -781,7 +781,7 @@ fn an_oversized_error_body_keeps_unparsed_detail_and_closes_without_draining() {
                 let mut input = call(11);
                 if provider == skein_llm::Provider::Anthropic {
                     input.endpoint = skein_llm::Endpoint::anthropic();
-                    input.credential = Some(skein_llm::Credential::anthropic(b"fixture".as_slice().into()));
+                    input.credential = Some(skein_llm::Credential::key(b"fixture".as_slice().into()));
                     input.prompt.affinity = None;
                 }
                 let mut world = World::new(input, bounds, wire, 11);
@@ -1197,7 +1197,7 @@ fn invalid_tool_identity_fails_before_a_start_in_both_dialects() {
             let mut input = call(1);
             let docs = if provider == skein_llm::Provider::Anthropic {
                 input.endpoint = skein_llm::Endpoint::anthropic();
-                input.credential = Some(skein_llm::Credential::anthropic(b"fake-token".as_slice().into()));
+                input.credential = Some(skein_llm::Credential::key(b"fake-token".as_slice().into()));
                 input.prompt.affinity = None;
                 input.prompt.max_output_tokens = Some(4096);
                 vec![r#"{"type":"message_start","message":{"type":"message","role":"assistant","content":[],"usage":{}}}"#.to_owned(), format!(r#"{{"type":"content_block_start","index":0,"content_block":{{"type":"tool_use","id":"{id}","name":"{name}","input":{{}}}}}}"#)]

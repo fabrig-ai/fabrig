@@ -34,7 +34,7 @@ fn dense_request_encoding(provider: skein_llm::Provider) {
         let mut input = call(1);
         if provider == Provider::Anthropic {
             input.endpoint = skein_llm::Endpoint::anthropic();
-            input.credential.as_mut().expect("fixture credential").account_id = Box::new([]);
+            input.credential = Some(skein_llm::Credential::key(b"fixture-key".as_slice().into()));
         }
         input.prompt.tools = Box::new([Tool {
             name: b"read".to_vec().into(),
@@ -537,7 +537,7 @@ fn drive_anthropic_memory(world: &mut World, meter: &Meter, bound: u64) {
 fn memory_anthropic_call(owner: u64) -> skein_llm::Call {
     let mut input = call(owner);
     input.endpoint = skein_llm::Endpoint::anthropic();
-    input.credential = Some(skein_llm::Credential::anthropic(b"synthetic-oauth-token".to_vec().into()));
+    input.credential = Some(skein_llm::Credential::key(b"synthetic-oauth-token".to_vec().into()));
     input.prompt.affinity = None;
     input.prompt.max_output_tokens = Some(1024);
     input
@@ -922,7 +922,7 @@ fn measurement_refuses_large_starts_without_copying_their_owned_bytes() {
         let mut input = call(1);
         if anthropic {
             input.endpoint = skein_llm::Endpoint::anthropic();
-            input.credential = Some(skein_llm::Credential::anthropic(b"synthetic-token".as_slice().into()));
+            input.credential = Some(skein_llm::Credential::key(b"synthetic-token".as_slice().into()));
         }
         input.prompt.instructions = vec![b'x'; 1024 * 1024].into();
         let bounds = limits();

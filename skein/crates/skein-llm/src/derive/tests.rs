@@ -181,7 +181,7 @@ fn owner_declared_counts_accept_the_boundary_and_refuse_one_more_by_name() {
                 value: b"fake".as_slice().into(),
                 account_id: b"fake".as_slice().into(),
             },
-            Provider::Anthropic => crate::Credential::anthropic(b"fake".as_slice().into()),
+            Provider::Anthropic => crate::Credential::key(b"fake".as_slice().into()),
         };
         let schema = Json::from_bytes(b"{}", &DocumentLimits { bytes: 2, strings: 2, depth: 2, tokens: 2 }).unwrap();
         let tool = crate::Tool { name: b"t".as_slice().into(), description: Box::new([]), schema };

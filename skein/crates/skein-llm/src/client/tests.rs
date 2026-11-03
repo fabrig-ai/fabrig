@@ -667,3 +667,39 @@ fn valid_ignores_heap_opened_items() {
     let bounds = Limits { output_items: u32::MAX, input: u32::MAX, retained: 1, ..limits() };
     assert!(valid(&bounds));
 }
+
+#[test]
+fn anthropic_refuses_a_bearer_at_admission() {
+    let mut input = call();
+    input.endpoint = Endpoint::anthropic();
+    input.credential = Some(Credential::bearer(bytes::copy_of(b"secret")));
+    assert_eq!(Client::prepare(input, &limits()).err(), Some(Error::Invalid));
+}
+
+#[test]
+fn anthropic_sends_a_key_or_no_credential_with_its_version() {
+    for credential in [Some(Credential::key(bytes::copy_of(b"secret"))), None] {
+        let present = credential.is_some();
+        let mut input = call();
+        input.endpoint = Endpoint::anthropic();
+        input.credential = credential;
+        let world = World::started_with(input);
+        let (head, _) = split(&world.sent);
+        let lower = head.to_ascii_lowercase();
+        assert_eq!(lower.contains("\r\nx-api-key: secret\r\n"), present);
+        assert!(lower.contains("\r\nanthropic-version: 2023-06-01\r\n"));
+        assert!(!lower.contains("authorization:"));
+        assert!(!lower.contains("anthropic-beta:"));
+        assert_eq!(usize::try_from(world.client.measured().head).unwrap(), head.len());
+        if present {
+            let maximum =
+                request_head(&Endpoint::anthropic(), &CredentialLimits { value: 6, account_id: 0 }, &limits())
+                    .expect("key head bound");
+            let digits = |length: usize| length.to_string().len();
+            assert_eq!(
+                usize::try_from(maximum).unwrap(),
+                head.len() - digits(content_length(head)) + digits(usize::try_from(limits().request).unwrap())
+            );
+        }
+    }
+}

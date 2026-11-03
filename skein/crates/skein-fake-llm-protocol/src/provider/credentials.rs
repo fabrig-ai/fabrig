@@ -27,7 +27,8 @@ pub fn route(config: &Config, credentials: &[Credential]) -> Result<Provider, Er
     };
     for credential in credentials {
         if (!credential.account_id.is_empty() && credential.scheme == Scheme::Key)
-            || (config.provider == documents::Provider::Anthropic && !credential.account_id.is_empty())
+            || (config.provider == documents::Provider::Anthropic
+                && (!credential.account_id.is_empty() || credential.scheme == Scheme::Bearer))
             || (config.provider == documents::Provider::OpenAi && codex == credential.account_id.is_empty())
         {
             return Err(Error::Limits);
@@ -124,7 +125,7 @@ pub(super) fn authorize(route: Provider, list: &[Credential], fields: &Fields<'_
                 fields.account.is_none()
                     && match credential.scheme {
                         Scheme::Key => fields.api_key == Some(credential.value.as_ref()),
-                        Scheme::Bearer => bearer == Some(credential.value.as_ref()),
+                        Scheme::Bearer => false,
                     }
             }
         };
@@ -185,7 +186,7 @@ mod tests {
             (Provider::OpenAiCodex, &codex, Some(b"Bearer b1"), None, Some(b"a0"), false, Auth::Unauthorized),
             (Provider::OpenAiCodex, &codex, Some(b"Bearer b1"), None, None, false, Auth::Unauthorized),
             (Provider::Anthropic, &public, None, Some(b"k0"), None, false, Auth::Matched(0)),
-            (Provider::Anthropic, &public, Some(b"Bearer b1"), None, None, false, Auth::Matched(1)),
+            (Provider::Anthropic, &public, Some(b"Bearer b1"), None, None, false, Auth::Unauthorized),
             (Provider::Anthropic, &public, Some(b"Bearer k0"), None, None, false, Auth::Unauthorized),
             (Provider::Anthropic, &public, None, Some(b"b1"), None, false, Auth::Unauthorized),
             (Provider::Anthropic, &public, Some(b"Bearer b1"), Some(b"k0"), None, false, Auth::Unauthorized),
@@ -205,7 +206,7 @@ mod tests {
             (
                 documents::Provider::Anthropic,
                 b"/v1/messages".as_slice(),
-                Box::<[Credential]>::from(list()),
+                Box::<[Credential]>::from([Credential::key(b"k0".as_slice().into())]),
                 Provider::Anthropic,
             ),
             (
@@ -240,6 +241,12 @@ mod tests {
                 b"/backend-api/codex/responses".as_slice(),
                 false,
                 Box::<[Credential]>::from([key_with_id()]),
+            ),
+            (
+                documents::Provider::Anthropic,
+                b"/v1/messages".as_slice(),
+                false,
+                Box::<[Credential]>::from([Credential::bearer(b"b1".as_slice().into())]),
             ),
             (documents::Provider::Anthropic, b"/v1/messages".as_slice(), false, Box::<[Credential]>::from([codex()])),
             (

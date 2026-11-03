@@ -5,7 +5,7 @@ use skein_fake_llm_domain::api;
 use skein_http::{Header, server as http};
 use skein_lib::stream::{Down, Read};
 use skein_lib::{Decimal, Env, List, bytes};
-use skein_llm::{Credential, Provider, Scheme, anthropic, openai};
+use skein_llm::{Credential, Provider, anthropic, openai};
 
 pub(super) struct Row {
     pub status: u16,
@@ -27,16 +27,14 @@ pub(super) fn row(route: Provider, error: api::Error) -> Option<Row> {
             api::Error::Unauthorized => (401, b"invalid_api_key"),
         },
         Provider::Anthropic => match error {
-            api::Error::Exhausted { retry_after: Some(_) } | api::Error::RateLimited { .. } => {
-                (429, b"rate_limit_error")
-            }
+            api::Error::RateLimited { .. } => (429, b"rate_limit_error"),
             api::Error::Exhausted { retry_after: None } => (402, b"billing_error"),
             api::Error::Refused => (403, b"permission_error"),
             api::Error::Overloaded => (529, b"overloaded_error"),
             api::Error::Unavailable => (500, b"api_error"),
             api::Error::ContextTooLong | api::Error::InvalidRequest => (400, b"invalid_request_error"),
             api::Error::Unauthorized => (401, b"authentication_error"),
-            api::Error::Unsupported => return None,
+            api::Error::Exhausted { retry_after: Some(_) } | api::Error::Unsupported => return None,
         },
     };
     Some(Row { status, code })
@@ -49,32 +47,17 @@ pub fn scripts(config: &Config, accepted: &[Credential], scripts: &[api::Script]
     let route = super::route(config, accepted)?;
     for script in scripts {
         for turn in &script.turns {
-            let mut preceding = false;
             for line in &turn.lines {
                 match line {
-                    api::Line::Fail { error, credentials, .. } => {
+                    api::Line::Fail { error, .. } => {
                         if row(route, *error).is_none() {
                             return Err(Error::Limits);
-                        }
-                        if route == Provider::Anthropic
-                            && let api::Error::Exhausted { retry_after: Some(_) } = error
-                        {
-                            if preceding || credentials.is_empty() {
-                                return Err(Error::Limits);
-                            }
-                            for (index, credential) in accepted.iter().enumerate() {
-                                if credentials.contains(&u32::try_from(index).expect("bounded credential list"))
-                                    && credential.scheme != Scheme::Bearer
-                                {
-                                    return Err(Error::Limits);
-                                }
-                            }
                         }
                     }
                     api::Line::Text { .. }
                     | api::Line::Opaque { .. }
                     | api::Line::Call { .. }
-                    | api::Line::Pieces { .. } => preceding = true,
+                    | api::Line::Pieces { .. } => {}
                 }
             }
         }
@@ -113,23 +96,6 @@ pub(super) fn response_error(server: &mut Server, _service: &Service, env: &Env<
             headers
                 .push(Header { name: bytes::copy_of(b"retry-after"), value: bytes::copy_of(seconds.as_bytes()) })
                 .expect("retry delay");
-        }
-        api::Error::Exhausted { retry_after } if server.route == Provider::Anthropic => {
-            headers
-                .push(Header {
-                    name: bytes::copy_of(b"anthropic-ratelimit-unified-status"),
-                    value: bytes::copy_of(b"rejected"),
-                })
-                .expect("unified status");
-            if let Some(delay) = retry_after {
-                let reset = Decimal::of(env.wall.as_secs().saturating_add(rounded(delay)));
-                headers
-                    .push(Header {
-                        name: bytes::copy_of(b"anthropic-ratelimit-unified-reset"),
-                        value: bytes::copy_of(reset.as_bytes()),
-                    })
-                    .expect("unified reset");
-            }
         }
         api::Error::Exhausted { .. }
         | api::Error::Overloaded
@@ -216,14 +182,13 @@ mod tests {
     use skein_lib::Duration;
     use skein_llm::Provider::{Anthropic, OpenAi, OpenAiCodex};
 
-    fn rows() -> [(Provider, api::Error, u16, &'static [u8]); 29] {
+    fn rows() -> [(Provider, api::Error, u16, &'static [u8]); 28] {
         let none = api::Error::Exhausted { retry_after: None };
         let rate = api::Error::RateLimited { retry_after: Duration::ZERO };
         [
             (OpenAi, none, 429, b"subscription_sharing_usage_limit_exceeded"),
             (OpenAiCodex, none, 429, b"usage_limit_reached"),
             (Anthropic, none, 402, b"billing_error"),
-            (Anthropic, api::Error::Exhausted { retry_after: Some(Duration::ZERO) }, 429, b"rate_limit_error"),
             (OpenAi, rate, 429, b"rate_limit_exceeded"),
             (OpenAiCodex, rate, 429, b"rate_limit_exceeded"),
             (Anthropic, rate, 429, b"rate_limit_error"),
@@ -292,27 +257,21 @@ mod tests {
     #[test]
     fn a_class_without_its_row_is_refused() {
         let script = script(api::Error::Unsupported, Box::new([]), false);
-        assert_eq!(
-            scripts(&config(), &[Credential::bearer(b"token".as_slice().into())], &[script]),
-            Err(Error::Limits)
-        );
+        assert_eq!(scripts(&config(), &[Credential::key(b"token".as_slice().into())], &[script]), Err(Error::Limits));
     }
 
     #[test]
-    fn an_anthropic_reset_is_refused_off_a_first_bearer_line() {
-        for (after, named, scheme, expected) in [
-            (true, true, Scheme::Bearer, Err(Error::Limits)),
-            (false, false, Scheme::Bearer, Err(Error::Limits)),
-            (false, true, Scheme::Key, Err(Error::Limits)),
-            (false, true, Scheme::Bearer, Ok(())),
-        ] {
-            let credential = Credential { scheme, value: b"token".as_slice().into(), account_id: Box::new([]) };
-            let script = script(
-                api::Error::Exhausted { retry_after: Some(Duration::from_secs(1)) },
-                if named { Box::new([0]) } else { Box::new([]) },
-                after,
-            );
-            assert_eq!(scripts(&config(), &[credential], &[script]), expected, "{after} {named} {scheme:?}");
+    fn an_anthropic_exhausted_reset_has_no_row_and_is_refused() {
+        let error = api::Error::Exhausted { retry_after: Some(Duration::from_secs(1)) };
+        assert!(row(Anthropic, error).is_none());
+        for after in [false, true] {
+            for credentials in [Box::<[u32]>::from([]), Box::<[u32]>::from([0])] {
+                let script = script(error, credentials, after);
+                assert_eq!(
+                    scripts(&config(), &[Credential::key(b"key".as_slice().into())], &[script]),
+                    Err(Error::Limits)
+                );
+            }
         }
     }
 }
