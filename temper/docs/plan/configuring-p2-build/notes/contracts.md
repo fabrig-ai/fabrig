@@ -74,6 +74,10 @@ design wins on detail, these notes on the names. Each batch adds entries; none c
   the bound; a revision 0 or past the newest, `Refusal::Stale { newest }`.
 - The reason: `restores revision R: ` then the party's reason, cut to the reason's bound at a
   character's boundary.
+- **Too large is counted before anything is left out:** every item the records after R give,
+  a deleted project's included, counts toward a whole set and one project's policy, so
+  `left_out` holds at most a whole set's items and one policy (the store's `list` bound,
+  `SETTINGS_ITEMS + 1`).
 
 ## B5. On the client wire and in temper ctl (policy-item, restore)
 

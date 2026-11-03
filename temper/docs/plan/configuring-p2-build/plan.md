@@ -8,8 +8,8 @@ the cut as it releases; each batch brings it up to date.
 
 | Part | Slice | Design | Tasks |
 |---|---|---|---|
-| `policy-item` | 1 | jig's `domain/engine.md` 17.2 and 17.6; `domain/people.md` 5.2; temper's `protocol/configuration.md` 13.1; `client/tools.md` 5.3 | `policy-surface` (released); `policy-change`, `settings-store`, `settings-wire`, `policy-ctl`, `policy-story` to come |
-| `restore` | 2, **the walk** (`walk = true`) | jig's `domain/engine.md` 17.5 and 17.10; `domain/connectors.md` 17; `client/domain/contract.md` 3.2, 5.1, 6; temper's `client/tools.md` 5.2 and 5.3 | `restore-surface`, `forge-replaced`, `connector-replaced` (released); `restore-request`, `restore-connector`, `restore-forge`, `restore-ctl`, `restore-story` to come |
+| `policy-item` | 1 | jig's `domain/engine.md` 17.2 and 17.6; `domain/people.md` 5.2; temper's `protocol/configuration.md` 13.1; `client/tools.md` 5.3 | `policy-surface`, `policy-change`, `policy-ctl` (released); `policy-story` to come |
+| `restore` | 2, **the walk** (`walk = true`) | jig's `domain/engine.md` 17.5 and 17.10; `domain/connectors.md` 17; `client/domain/contract.md` 3.2, 5.1, 6; temper's `client/tools.md` 5.2 and 5.3 | `restore-surface`, `forge-replaced`, `connector-replaced`, `restore-connector`, `restore-forge`, `settings-store`, `settings-wire`, `restore-request`, `restore-ctl` (released); `restore-story` to come |
 
 The cross-task shapes are `notes/contracts.md` (B1 on), which takes configuring-p2's
 `notes/contracts.md` (P1, P2) as binding; the standing rules, `notes/common.md`.
@@ -55,6 +55,14 @@ The addenda the request names, after M3, in their sections and no other:
    review of a project's policy; `restore-connector` (120; needs `restore-surface`,
    `connector-replaced`) and `restore-forge` (120; needs `restore-surface`, `forge-replaced`):
    the restore's asks answered and routed, in jig's test domain and temper's root.
+
+4. `settings-store` (120; needs both surfaces): settings-v1 and people-v14 in place, a
+   project's policy, each item's `replaced`, a restore's stored answer; `settings-wire` (170;
+   the same needs): client-v19 in place and jig's client crates; `policy-ctl` (90; needs
+   `settings-wire`): the settings file's `project-policy` item and `proposal show`;
+   `restore-ctl` (90; needs `settings-wire`, `policy-ctl`): `revision restore` and `revision
+   show`'s `was:`; `restore-request` (150; needs `policy-change`, `settings-store`,
+   `restore-connector`, `restore-forge`): the core's restore decision and `ForgetReplaced`.
 
 ## Critical path, as it stands
 
