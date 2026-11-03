@@ -1,5 +1,9 @@
 //! The worker module's entry (temper/docs/design/playground.md, 3; skein/docs/design/playground.md, 7).
-use crate::{machine::Machine, programs::{self, Process}, story};
+use crate::{
+    machine::Machine,
+    programs::{self, Process},
+    story,
+};
 use skein_lib::Time;
 use skein_playground::slices::Slices;
 use skein_ui_web::bridge;

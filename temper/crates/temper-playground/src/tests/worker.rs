@@ -3,6 +3,9 @@ use crate::{documents, programs, story};
 use skein_lib::{Time, Wall};
 use skein_ui_web::bridge::{self, ToPage};
 
+// Startup has at most 32 slices of the composition's step budget.
+const STARTUP_SLICES: usize = 32;
+
 fn start(name: &[u8]) -> bridge::Start {
     bridge::Start { story: name.into(), seed: 23, start: Wall::from_nanos(1_700_000_000_000_000_000) }
 }
@@ -15,8 +18,6 @@ fn start_message_makes_slices_that_post_the_printed_link() {
     assert_eq!(slices.world().seed(), start.seed);
     assert_eq!(slices.world().wall(), start.start);
     let mut posts = Vec::new();
-    // Startup has at most 32 slices of the composition's step budget.
-    const STARTUP_SLICES: usize = 32;
     programs::with(story::parameters(slices.world()), || {
         for _ in 0..STARTUP_SLICES {
             slices.slice(browser, &mut posts);
@@ -25,9 +26,8 @@ fn start_message_makes_slices_that_post_the_printed_link() {
             }
         }
     });
-    let lines: Vec<_> = posts.iter().filter_map(|post| {
-        if let ToPage::Printed(line) = post { Some(line) } else { None }
-    }).collect();
+    let lines: Vec<_> =
+        posts.iter().filter_map(|post| if let ToPage::Printed(line) = post { Some(line) } else { None }).collect();
     let [line] = lines.as_slice() else { panic!("one printed sign-in link: {posts:?}") };
     assert_eq!(line.process.as_ref(), b"temper serve");
     assert_eq!(line.stream, bridge::Stream::Output);
