@@ -165,6 +165,7 @@ pub(crate) fn limits() -> Limits {
         history: 2,
     };
     Limits {
+        public: PublicIndexLimits::OFF,
         routes: 20_783,
         settings: crate::settings::Limits {
             revisions: 4,

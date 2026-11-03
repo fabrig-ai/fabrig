@@ -13,6 +13,6 @@ mod sign_in;
 mod stream;
 pub use boundary::*;
 pub use component::{Component, Unusable};
-pub use limits::{Limits, provider_limits, valid};
+pub use limits::{Limits, PublicLimits, provider_limits, valid};
 
 pub mod translate;

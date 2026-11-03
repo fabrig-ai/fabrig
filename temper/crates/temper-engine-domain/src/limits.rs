@@ -30,6 +30,9 @@ pub struct Limits {
     pub routes: u32,
     /// Admission watermark, in backlog entries (skein/docs/foundation/programming-model.md, 7.1).
     pub watermark: u32,
+    /// Public admission bounds (jig/docs/design/domain/root.md, 10).
+    pub public_watermark: u32,
+    pub public_reads: u32,
     /// The byte budget for transcripts and turns (domain/root.md, 4.1).
     /// Past it, a due task’s activation waits: pacing, as the watermark is in entries.
     pub memory_bytes: u64,
@@ -120,6 +123,7 @@ pub const VIEWS: views::Limits = views::Limits {
 #[must_use]
 pub fn core_limits(limits: &Limits) -> jig_domain_core::Limits {
     jig_domain_core::Limits {
+        public: jig_domain_core::PublicIndexLimits::OFF,
         routes: limits.routes,
         fill_mark: FILL_MARK,
         load_bytes: limits.loads.read_bytes,
