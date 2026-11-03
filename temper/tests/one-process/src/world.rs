@@ -1013,9 +1013,8 @@ fn run_phase(
     let machine = Machine::new(disk);
     let mut parameters = parameters(&machine, transport.clone());
     let peers = start.map(|start| {
-        parameters.route = temper_playground::story::route(
-            &serde_json::from_slice(&start.deployment).expect("story A's deployment"),
-        );
+        parameters.route =
+            temper_playground::story::route(&serde_json::from_slice(&start.deployment).expect("story A's deployment"));
         parameters.deployment = start.deployment;
         parameters.seed = start.seed;
         parameters.links = start.links;
