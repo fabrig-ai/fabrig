@@ -75,6 +75,7 @@ fn only_a_relevant_hint_restarts_an_unfinished_fresh_read_chain() {
         let expected: Vec<_> = (0..passes).flat_map(|_| reads_for(&world, 52)).collect();
         world.slow_calls(Duration::from_millis(200));
         let step = |entry| forge::Event::StepChange {
+            merge_job: false,
             task: 52,
             entry,
             heard: change::Heard {
@@ -107,6 +108,7 @@ fn both_fresh_base_facts_remain_dependencies_when_the_pull_and_branch_disagree()
     let before = translate::commit(world.branch(b"release"));
     world.slow_calls(Duration::from_secs(1));
     world.event(forge::Event::StepChange {
+        merge_job: false,
         task: 52,
         entry: 152,
         heard: change::Heard {

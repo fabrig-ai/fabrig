@@ -106,6 +106,7 @@ impl Scheduler {
                         self.steps.push((world.wall(), 51 + u64::try_from(index).expect("task")));
                     }
                     world.event(forge::Event::StepChange {
+                        merge_job: false,
                         task: 51 + u64::try_from(index).expect("task index"),
                         entry: self.entry,
                         heard: change::Heard {

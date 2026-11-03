@@ -1524,6 +1524,8 @@ pub enum Event {
     },
     /// Gather fresh forge facts and step one registered change.
     StepChange {
+        /// The change's current authority delegates to the merge kind (domain/forge.md, 8.4).
+        merge_job: bool,
         task: u64,
         entry: u64,
         heard: change::Heard,

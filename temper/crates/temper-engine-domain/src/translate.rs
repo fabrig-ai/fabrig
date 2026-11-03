@@ -41,6 +41,7 @@ pub struct Config {
 /// What the root keeps of its configuration once its children hold theirs.
 #[derive(Debug)]
 pub(crate) struct RootConfig {
+    pub(crate) merge_kind: Option<jig_domain_host::JobBound>,
     pub(crate) forge_connector: u16,
     pub(crate) forge_charter: u32,
     pub(crate) landings: Map<u32, ProjectLanding>,
