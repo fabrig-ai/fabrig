@@ -41,12 +41,7 @@ pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> 
         core::Event::Key { reply_to, sign_in, key, ask, carried } => {
             root::PartyInput::Key { reply_to, sign_in, key, ask, carried }
         }
-        core::Event::PublicRead { reply, .. } => {
-            return Err(Box::new(kit::Event::Read {
-                reply,
-                answer: core::reads::Answer::None(core::reads::Why::Busy),
-            }));
-        }
+        core::Event::PublicRead { reply, read } => root::PartyInput::PublicRead { reply, read },
         core::Event::Read { reply, sign_in, read } => root::PartyInput::Read { reply_to: reply, sign_in, read },
         core::Event::Watch { watcher, sign_in, subject, window } => {
             root::PartyInput::Watch { watcher, sign_in, subject, window }
@@ -163,6 +158,7 @@ pub fn to_component(request: root::PartyRequest) -> Option<kit::Event> {
 }
 fn delivered(delivery: root::Delivery) -> Option<kit::Event> {
     match delivery {
+        root::Delivery::Public { reply, answer, .. } => Some(kit::Event::Public { reply, answer }),
         root::Delivery::WebReply { to, reply } => Some(kit::Event::Reply { to, reply }),
         root::Delivery::CarriedUnused { number } => {
             Some(kit::Event::Application(kit::FromApplication::Unused { number }))
@@ -209,6 +205,9 @@ fn delivered(delivery: root::Delivery) -> Option<kit::Event> {
 #[expect(clippy::match_same_arms, reason = "Whose keeps its explicit not-ready answer beside the party refusals")]
 pub fn not_ready(input: root::PartyInput) -> Option<kit::Event> {
     match input {
+        root::PartyInput::PublicRead { reply, .. } => {
+            Some(kit::Event::Public { reply, answer: core::PublicAnswer::Busy })
+        }
         root::PartyInput::Whose { reply_to, .. } => {
             Some(kit::Event::Reply { to: reply_to, reply: people::Reply::Again(people::Again::NotReady) })
         }

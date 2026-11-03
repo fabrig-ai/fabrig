@@ -538,6 +538,11 @@ pub enum ForgeReadAnswer {
 }
 #[derive(Debug)]
 pub enum PartyInput {
+    /// A visitor read (jig/docs/design/domain/people.md, 13.5).
+    PublicRead {
+        reply: ReplyTo,
+        read: core::PublicRead,
+    },
     /// Resolve a sign-in through the people child for provider authorization.
     Whose {
         reply_to: ReplyTo,
@@ -973,6 +978,7 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
         | Delivery::ForgeDocument { .. }
         | Delivery::Panel { .. }
         | Delivery::Application { .. }
+        | Delivery::Public { .. }
         | Delivery::WebReply { .. }
         | Delivery::CarriedUnused { .. }
         | Delivery::ForgeRead { .. }
