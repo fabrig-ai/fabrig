@@ -131,7 +131,12 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
 - **ctl:** `change show TASK --until cleared` waits for a landed
   change's verdict, its step `verifying`, `red` or `cleared` naming the
   tiers and their runs; `task show` reads a tier's run task, and `task
-  release` releases a held one.
+  release` releases a held one. In ordinary `task show TASK`, the
+  `asked:` words name the repository, full tested commit and owned
+  branch. Once temper observes the dispatched run, they also give its
+  forge run number and URL. The judged run, failed-test reruns and
+  bisection probes each name their own commit, branch and forge run.
+  These words remain after completion, branch deletion and restart.
 
 ## Limits
 

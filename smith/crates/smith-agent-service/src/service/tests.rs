@@ -41,10 +41,7 @@ fn a_colocated_host_gets_typed_machine_terminals_without_an_agent_channel() {
         name: domain::GrantName { account: 0, generation: 1 },
         valid: Duration::from_secs(60),
     };
-    let value = smith_protocol_translate::GrantValue::Withdrawn {
-        account_id: Box::from(&b"acc"[..]),
-        bearer: Box::from(&b"token"[..]),
-    };
+    let value = smith_protocol_translate::GrantValue::Bearer(Box::from(&b"token"[..]));
     effects.grant(grant, &value, Time::ZERO).expect("first grant");
     effects.grant(grant, &value, Time::from_nanos(1)).expect("same saved generation on another activation");
     effects.close();
@@ -59,22 +56,12 @@ fn each_grant_value_installs_its_scheme() {
     use skein_llm::Scheme;
     use smith_protocol_translate::GrantValue;
     let rows = [
-        (GrantValue::Bearer(Box::from(&b"value"[..])), Scheme::Bearer, &b""[..]),
-        (GrantValue::Key(Box::from(&b"value"[..])), Scheme::Key, &b""[..]),
-        (
-            GrantValue::Withdrawn { account_id: Box::from(&b"account"[..]), bearer: Box::from(&b"value"[..]) },
-            Scheme::Bearer,
-            &b"account"[..],
-        ),
-        (
-            GrantValue::Withdrawn { account_id: Box::default(), bearer: Box::from(&b"value"[..]) },
-            Scheme::Bearer,
-            &b""[..],
-        ),
+        (GrantValue::Bearer(Box::from(&b"value"[..])), Scheme::Bearer),
+        (GrantValue::Key(Box::from(&b"value"[..])), Scheme::Key),
     ];
-    for (index, (input, scheme, account_id)) in rows.into_iter().enumerate() {
+    for (index, (input, scheme)) in rows.into_iter().enumerate() {
         let installed = credential(&input).expect("installable form");
-        assert_eq!((installed.scheme, installed.account_id.as_ref()), (scheme, account_id), "row {index}");
+        assert_eq!(installed.scheme, scheme, "row {index}");
     }
 }
 

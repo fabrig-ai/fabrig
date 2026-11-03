@@ -9,22 +9,20 @@ simulation, faults and fake machine (`kernel.md`, `io.md`,
 no dialect has yet (the labels, `UpdateRef`) and GitHub's Actions
 routes, `Artifact` and `Commits` among them (`forge.md`,
 `forge-github.md`); the fake GitHub refuses no push as `GH013`
-(`fake-forge.md`). `skein-playground` is not built
-(`playground.md`, and `ui-web.md` for the worker's platform). json, tls
-and http's collector have no fuzz target (`json.md`, `tls.md`,
-`http.md`), and the withdrawn LLM routes still stand while smith uses
-them (`llm.md`). Single items lag in `lib.md`, `examples.md` and
-`ui.md`. The code departs in three crates' `tests/` directories
-(`testing.md`). `README.md`, `channel.md`,
+(`fake-forge.md`). `skein-playground` is not built (`playground.md`, and
+`ui-web.md` for the worker's platform). json, tls and http's collector
+have no fuzz target (`json.md`, `tls.md`, `http.md`). Single items lag
+in `lib.md`, `examples.md` and `ui.md`. The code departs in three
+crates' `tests/` directories (`testing.md`). `README.md`, `channel.md`,
 `codec.md`, `kv.md`, `world.md`, `fake-checkout.md`, `fake-llm.md`,
-`forge-client.md`, `forge-connection.md`, `forge-setup.md`,
+`forge-client.md`, `forge-connection.md`, `forge-setup.md`, `llm.md`,
 `llm-connection.md`, `oauth.md`, `oauth-issuer.md`, `ui-text.md` and
-`browser.md` have no gap. The foundation's rules
-(`../foundation/`) have no status file: of `testing-strategy.md`, 6, no
-tree runs transition coverage (`cargo llvm-cov`) or fuzzes a machine or a
-decoder (`cargo fuzz`). Of the drafts, `component-kit.md` waits on
-`lib.md` and `io.md` to name its items, and the design departs from
-`redb.md`: the store is `kv.md`'s own machine.
+`browser.md` have no gap. The foundation's rules (`../foundation/`) have
+no status file: of `testing-strategy.md`, 6, no tree runs transition
+coverage (`cargo llvm-cov`) or fuzzes a machine or a decoder
+(`cargo fuzz`). Of the drafts, `component-kit.md` waits on `lib.md` and
+`io.md` to name its items, and the design departs from `redb.md`: the
+store is `kv.md`'s own machine.
 
 Design documents:
 - [`README.md`](README.status.md)

@@ -144,7 +144,7 @@ fn malformed_unsigned_and_duplicate_reasoning_cannot_replay() {
         assert_eq!(measure_request(&prompt(Role::Assistant, reasoning(value)), 4096, &LIMITS), Err(Error::Invalid));
     }
     let replay = Replay {
-        provider: Provider::OpenAiCodex,
+        provider: Provider::OpenAi,
         value: Json::from_bytes(br#"{"type":"thinking","thinking":"a","signature":"s"}"#, &LIMITS.document())
             .expect("JSON"),
     };
@@ -266,64 +266,12 @@ fn assistant_refusal_is_a_native_text_block_and_empty_history_is_invalid() {
 }
 
 #[test]
-fn historical_identity_is_explicit_and_is_the_first_separate_system_block() {
-    let extra = b"actual\n\"instructions\"";
-    let instructions = super::identity::instructions(extra).expect("bounded identity instructions");
-    assert_eq!(
-        instructions.as_ref(),
-        b"You are Claude Code, Anthropic's official CLI for Claude.\n\nactual\n\"instructions\""
-    );
+fn instructions_with_a_claude_code_prefix_are_one_ordinary_system_block() {
     let mut request = prompt(Role::User, text(b"hello"));
-    request.instructions = instructions;
-    let wire = encode_request(&request, 4096, &LIMITS).expect("explicit identity request");
-    assert!(bytes::find(&wire, br#""system":[{"type":"text","text":"You are Claude Code, Anthropic's official CLI for Claude."},{"type":"text","text":"actual\n\"instructions\"","cache_control":{"type":"ephemeral"}}]"#).is_some(), "identity precedes unchanged caller instructions in a separate block");
-    request.instructions = super::identity::instructions(b"").expect("identity alone");
-    assert_eq!(request.instructions.as_ref(), super::identity::CLAUDE_CODE_SYSTEM_IDENTITY);
-    let wire = encode_request(&request, 4096, &LIMITS).expect("identity-only request");
-    assert!(
-        bytes::find(
-            &wire,
-            br#""system":[{"type":"text","text":"You are Claude Code, Anthropic's official CLI for Claude.","cache_control":{"type":"ephemeral"}}]"#
-        )
-        .is_some(),
-        "an empty extra prompt has only the identity block"
-    );
-    request.instructions = bytes::copy_of(b"You are Claude Code, Anthropic's official CLI for Claude.\nsimilar prefix");
-    let wire = encode_request(&request, 4096, &LIMITS).expect("generic instructions");
-    assert!(
-        bytes::find(&wire, br#""system":[{"type":"text","text":"You are Claude Code, Anthropic's official CLI for Claude.\nsimilar prefix","cache_control":{"type":"ephemeral"}}]"#)
-            .is_some(),
-        "only the exact opt-in separator selects identity blocks"
-    );
-    request.instructions = bytes::copy_of(extra);
-    let wire = encode_request(&request, 4096, &LIMITS).expect("actual client instructions");
-    assert!(
-        bytes::find(
-            &wire,
-            br#""system":[{"type":"text","text":"actual\n\"instructions\"","cache_control":{"type":"ephemeral"}}]"#
-        )
-        .is_some(),
-        "generic instructions retain their exact text in one marked block"
-    );
-    assert_eq!(bytes::find(&wire, super::identity::CLAUDE_CODE_SYSTEM_IDENTITY), None);
-}
-
-#[test]
-fn explicit_identity_blocks_remain_subject_to_instruction_and_wire_limits() {
-    let mut request = prompt(Role::User, text(b"hello"));
-    request.instructions = super::identity::instructions(b"extra").expect("identity instructions");
-    let length = measure_request(&request, 4096, &LIMITS).expect("identity request measurement");
-    let mut limits = LIMITS;
-    limits.request = length;
-    assert_eq!(measure_request(&request, 4096, &limits), Ok(length));
-    limits.request = length.checked_sub(1).expect("nonempty identity request");
-    assert_eq!(measure_request(&request, 4096, &limits), Err(Error::limit(crate::Cap::Request, limits.request)));
-    limits = LIMITS;
-    limits.strings = u32::try_from(request.instructions.len().checked_sub(1).expect("nonempty instructions"))
-        .expect("small instructions");
-    measure_request(&request, 4096, &limits).unwrap();
-    request.instructions = super::identity::instructions(&[0xff]).expect("owned instructions");
-    assert_eq!(measure_request(&request, 4096, &LIMITS), Err(Error::Invalid));
+    request.instructions =
+        bytes::copy_of(b"You are Claude Code, Anthropic's official CLI for Claude.\n\ncaller instructions");
+    let wire = encode_request(&request, 4096, &LIMITS).expect("ordinary instructions");
+    assert!(bytes::find(&wire, br#""system":[{"type":"text","text":"You are Claude Code, Anthropic's official CLI for Claude.\n\ncaller instructions","cache_control":{"type":"ephemeral"}}]"#).is_some());
 }
 
 #[test]
@@ -440,7 +388,7 @@ fn cache_markers_follow_shape_and_never_modify_native_reasoning() {
     let redacted = br#"{"type":"redacted_thinking","data":"secret"}"#;
     let unknown = br#"{"type":"future","proof":{"whole":true}}"#;
     let mut request = prompt(Role::Assistant, text(b"eligible"));
-    request.instructions = super::identity::instructions(b"stable instructions").unwrap();
+    request.instructions = bytes::copy_of(b"stable instructions");
     for eligible in [
         text(b"eligible"),
         Block::Refusal { text: b"no".as_slice().into(), replay: None },
@@ -460,7 +408,7 @@ fn cache_markers_follow_shape_and_never_modify_native_reasoning() {
         ]);
         let wire = encode_request(&request, 4096, &LIMITS).unwrap();
         let actual = super::decode_request(&Json::from_bytes(&wire, &LIMITS.document()).unwrap(), &LIMITS).unwrap();
-        assert_eq!(&*actual.marks, &[Mark::System { block: 1 }, Mark::Message { message: 0, block: 0 }]);
+        assert_eq!(&*actual.marks, &[Mark::System { block: 0 }, Mark::Message { message: 0, block: 0 }]);
         assert_eq!(bytes::count(&wire, b"cache_control", 5), 2);
         assert_eq!(bytes::find(&wire, b"ttl"), None);
         for native in [signed.as_slice(), redacted, unknown] {
@@ -470,7 +418,7 @@ fn cache_markers_follow_shape_and_never_modify_native_reasoning() {
     request.messages[0].content = Box::new([reasoning(signed)]);
     let wire = encode_request(&request, 4096, &LIMITS).unwrap();
     let actual = super::decode_request(&Json::from_bytes(&wire, &LIMITS.document()).unwrap(), &LIMITS).unwrap();
-    assert_eq!(&*actual.marks, &[Mark::System { block: 1 }]);
+    assert_eq!(&*actual.marks, &[Mark::System { block: 0 }]);
     request.instructions = Box::new([]);
     let wire = encode_request(&request, 4096, &LIMITS).unwrap();
     assert_eq!(bytes::find(&wire, b"system"), None);

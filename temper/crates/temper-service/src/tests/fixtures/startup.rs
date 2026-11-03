@@ -371,12 +371,12 @@ pub fn owned_worker_agent() -> settings::Agent {
             channel: skein_channel::Limits {
                 chunk: 4096,
                 credential: 0,
-                skip: 72_113_866,
-                output_bytes: 72_113_874,
+                skip: 72_105_650,
+                output_bytes: 72_105_658,
                 output_frames: 26,
                 kinds: 20,
             },
-            start_bytes: 72_113_866,
+            start_bytes: 72_105_650,
             calls: 1,
         },
         bounds: jig_domain_host::Bounds {

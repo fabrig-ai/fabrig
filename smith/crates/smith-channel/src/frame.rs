@@ -1,5 +1,5 @@
 //! Encode and frame typed channel bodies (smith/docs/design/protocol/channel.md, sections 3–4).
-use crate::{kind, v5};
+use crate::{kind, v6};
 use skein_channel::{Frame, FrameError, frame_writer};
 use skein_lib::Writer;
 
@@ -7,45 +7,45 @@ use skein_lib::Writer;
 #[derive(Debug)]
 pub enum Body {
     /// The `Start` wire body.
-    Start(v5::Start),
+    Start(v6::Start),
     /// The `Message` wire body.
-    Message(v5::Message),
+    Message(v6::Message),
     /// The `HostAnswer` wire body.
-    HostAnswer(v5::HostAnswer),
+    HostAnswer(v6::HostAnswer),
     /// The `Acknowledge` wire body.
-    Acknowledge(v5::Acknowledge),
+    Acknowledge(v6::Acknowledge),
     /// The `GrantRefresh` wire body.
-    GrantRefresh(v5::GrantRefresh),
+    GrantRefresh(v6::GrantRefresh),
     /// The `Cancel` wire body.
-    Cancel(v5::Cancel),
+    Cancel(v6::Cancel),
     /// The `Admitted` wire body.
-    Admitted(v5::Admitted),
+    Admitted(v6::Admitted),
     /// The `Call` wire body.
-    Call(v5::Call),
+    Call(v6::Call),
     /// The `Withdraw` wire body.
-    Withdraw(v5::Withdraw),
+    Withdraw(v6::Withdraw),
     /// The `Turn` wire body.
-    Turn(v5::Turn),
+    Turn(v6::Turn),
     /// The `Waiting` wire body.
-    Waiting(v5::Waiting),
+    Waiting(v6::Waiting),
     /// The `Long` wire body.
-    Long(v5::Long),
+    Long(v6::Long),
     /// The `LongDone` wire body.
-    LongDone(v5::LongDone),
+    LongDone(v6::LongDone),
     /// The `Unauthorized` wire body.
-    Unauthorized(v5::Unauthorized),
+    Unauthorized(v6::Unauthorized),
     /// The `Limited` wire body.
-    Limited(v5::Limited),
+    Limited(v6::Limited),
     /// The `Fact` wire body.
-    Fact(v5::Fact),
+    Fact(v6::Fact),
     /// The `Answer` wire body.
-    Answer(v5::Answer),
+    Answer(v6::Answer),
     /// The `MessageRefused` wire body.
-    MessageRefused(v5::MessageRefused),
+    MessageRefused(v6::MessageRefused),
     /// The `Live` wire body.
-    Live(v5::Live),
+    Live(v6::Live),
     /// The `AccountRefused` wire body.
-    AccountRefused(v5::AccountRefused),
+    AccountRefused(v6::AccountRefused),
 }
 
 /// Encode a body with its matching kind and exactly measured frame length.

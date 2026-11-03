@@ -111,7 +111,7 @@ impl Protocol {
                 echo: skein_llm::openai::Echo::NONE,
                 usage_fields: configuration.usage_fields,
                 provider: match configuration.endpoint.provider {
-                    skein_llm::Provider::OpenAi | skein_llm::Provider::OpenAiCodex => documents::Provider::OpenAi,
+                    skein_llm::Provider::OpenAi => documents::Provider::OpenAi,
                     skein_llm::Provider::Anthropic => documents::Provider::Anthropic,
                 },
                 path: configuration.endpoint.target.clone(),
@@ -128,22 +128,20 @@ impl Protocol {
                 handshake: Duration::from_secs(2),
                 destination: skein_llm_connection::Endpoint {
                     limits: translation.client,
-                    credential: skein_llm::client::CredentialLimits { value: 128, account_id: 128 },
+                    credential: skein_llm::client::CredentialLimits { value: 128 },
                     address: "127.0.0.1:443".parse().expect("fixture address"),
                     transport: skein_llm_connection::Transport::Plaintext,
                     llm: configuration.endpoint,
                 },
-                identity: smith_protocol_llm::IdentityProfile::Plain,
                 models: Box::new([]),
             }]),
             1,
         )
         .expect("fixture endpoint");
         let mut component = Component::new(&limits, endpoints).expect("production component");
-        let credential = skein_llm::Credential {
-            value: configuration.credential.value.clone(),
-            account_id: configuration.credential.account_id.clone(),
-            scheme: configuration.credential.scheme,
+        let credential = match configuration.credential.scheme {
+            skein_llm::Scheme::Bearer => skein_llm::Credential::bearer(configuration.credential.value.clone()),
+            skein_llm::Scheme::Key => skein_llm::Credential::key(configuration.credential.value.clone()),
         };
         component
             .grant(GrantName { account: 0, generation: 1 }, credential, Time::from_nanos(u64::MAX))

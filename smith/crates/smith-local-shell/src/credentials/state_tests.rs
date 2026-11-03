@@ -49,7 +49,7 @@ fn each_unusable_state_says_its_exit_3_words() {
 }
 
 fn record(files: &Files, scopes: Option<&[u8]>) -> PathBuf {
-    let mut record = env_record(b"key-for-work", false, Wall::from_nanos(0)).expect("synthetic record").record;
+    let mut record = env_record(b"key-for-work", Wall::from_nanos(0)).expect("synthetic record").record;
     record.expires_at = Wall::from_nanos(60_000_000_000);
     record.granted_scopes = scopes.map(Box::from);
     let bytes = skein_oauth::encode_record(&record, &sign_in::document_limits()).expect("bounded record");
@@ -82,7 +82,7 @@ fn a_record_without_the_plan_scope_is_signed_in_without_it() {
     )]);
     let account = Account::from_fields("work".into(), 0, fields);
     let descriptor =
-        source(&account, false, Some(&Directory::from_base(files.path().to_path_buf()).expect("absolute scratch")))
+        source(&account, Some(&Directory::from_base(files.path().to_path_buf()).expect("absolute scratch")))
             .expect("a credentials directory");
     let descriptor = match descriptor {
         Source::SignIn { required_scopes, .. } => Source::SignIn { file: path.clone(), required_scopes },

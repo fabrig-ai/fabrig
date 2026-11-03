@@ -176,7 +176,7 @@ impl StreamDecoder {
     pub fn new(provider: Provider, limits: &Limits) -> StreamDecoder {
         Self::with_reasoning_drop(provider, limits, false)
     }
-    /// Select whether Codex reasoning past the opaque cap may be discarded.
+    /// Select whether Responses reasoning past the opaque cap may be discarded.
     #[must_use]
     pub fn with_reasoning_drop(provider: Provider, limits: &Limits, enabled: bool) -> StreamDecoder {
         StreamDecoder {
@@ -231,12 +231,12 @@ impl StreamDecoder {
             Err(DecodeError::TooLarge { which, bound }) => {
                 self.fail(
                     Failure::Limit { which, bound },
-                    bytes::copy_of(b"ChatGPT stream exceeds configured limits"),
+                    bytes::copy_of(b"Responses stream exceeds configured limits"),
                     out,
                 );
             }
             Err(DecodeError::Malformed | DecodeError::Missing | DecodeError::WrongType) => {
-                self.fail(Failure::Protocol, bytes::copy_of(b"malformed ChatGPT stream"), out);
+                self.fail(Failure::Protocol, bytes::copy_of(b"malformed Responses stream"), out);
             }
         }
     }
@@ -313,7 +313,7 @@ impl StreamDecoder {
             if self.terminal.is_some() {
                 self.ready(out);
             } else {
-                self.fail(Failure::Protocol, bytes::copy_of(b"incomplete ChatGPT stream"), out);
+                self.fail(Failure::Protocol, bytes::copy_of(b"incomplete Responses stream"), out);
             }
         }
     }
@@ -770,7 +770,7 @@ pub fn decode_event(value: &Json, limits: &Limits) -> Result<Event, DecodeError>
             index: index(tokens)?,
             item: read_item(json::value_at(tokens, json::required(tokens, b"item")?)?, limits)?,
         }),
-        b"response.completed" | b"response.incomplete" | b"response.done" => {
+        b"response.completed" | b"response.incomplete" => {
             let response = json::value_at(tokens, json::required(tokens, b"response")?)?;
             let status = json::text_ref(json::value_at(response, json::required(response, b"status")?)?)?;
             if status == b"failed" {
@@ -1253,8 +1253,8 @@ pub(crate) fn decoder_bound(limits: &Limits) -> Option<u64> {
     decoder_fixed_bound(limits)?.checked_add(u64::from(limits.answer))
 }
 
-/// Fake-server completion with the instructions/tools echo that the real Codex
-/// route sends for the third time. The client decoder deliberately ignores it.
+/// Synthetic fake-server completion with repeated instructions and tools.
+/// The client decoder deliberately ignores the request echo.
 pub fn encode_completion(
     stop: Stop,
     usage: Usage,
@@ -1297,7 +1297,7 @@ fn write_attribution(out: &mut Encoder, items: usize, entry_bytes: u32) {
             out.unsigned(0);
         }
         out.key(b"model");
-        out.string(b"fake-codex");
+        out.string(b"fake-responses");
         out.key(b"kind");
         out.string(b"input");
         out.key(b"reasoning");

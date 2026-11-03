@@ -129,7 +129,7 @@ pub fn charter_bytes() -> Box<[u8]> {
 pub fn charter_value() -> smith::Charter {
     let mut endpoints = List::with_capacity(1);
     endpoints
-        .push(smith_protocol_channel::Endpoint { name: Box::new([]), number: 0, dialect: 1 })
+        .push(smith_protocol_channel::Endpoint { name: Box::new([]), number: 0, dialect: 3 })
         .expect("one endpoint");
     let endpoints = smith_protocol_channel::Endpoints::new(endpoints);
     let charter = smith_protocol_channel::decode_charter(&charter_bytes(), &smith_charter::CEILINGS, &endpoints)
@@ -186,7 +186,7 @@ pub fn turn() -> smith::Turn {
         version: record::VERSION,
         kind: record::Kind::Ordinary,
         endpoint: Some(llm::Endpoint(0)),
-        dialect: 0,
+        dialect: 3,
         sequence: 1,
         usage: llm::Usage {
             input_tokens: Some(1),

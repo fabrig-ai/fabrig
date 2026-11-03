@@ -25,7 +25,6 @@
       "address": "api.openai.com:443",
       "transport": "tls",
       "server_name": "api.openai.com",
-      "identity": "plain",
       "connect": 10000,
       "handshake": 10000,
       "headers": [],

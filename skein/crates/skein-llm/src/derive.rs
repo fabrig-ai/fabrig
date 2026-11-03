@@ -33,7 +33,6 @@ pub const TOKEN_BYTES: u32 = 8;
 /// Client limits for both dialects; an endpoint selects its own value.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
-    pub codex: client::Limits,
     pub openai: client::Limits,
     pub anthropic: client::Limits,
 }
@@ -42,7 +41,6 @@ impl Limits {
     /// Every rule of llm.md 4.2, checked before either endpoint can run.
     pub fn derive(declared: &Declared) -> Result<Limits, Violation> {
         Ok(Limits {
-            codex: arithmetic::dialect(declared, &CODEX)?,
             openai: arithmetic::dialect(declared, &OPENAI)?,
             anthropic: arithmetic::dialect(declared, &ANTHROPIC)?,
         })
@@ -52,7 +50,6 @@ impl Limits {
     #[must_use]
     pub const fn dialect(&self, provider: Provider) -> client::Limits {
         match provider {
-            Provider::OpenAiCodex => self.codex,
             Provider::OpenAi => self.openai,
             Provider::Anthropic => self.anthropic,
         }
@@ -108,28 +105,6 @@ mod arithmetic;
 #[cfg(test)]
 mod tests;
 
-// Archived response.headers rendered as HTTP/1.1 200 OK plus each field and
-// the blank line: tool-result-final reaches 1935 bytes and all three have 42
-// fields. Its message id/phase replay is 86 compact bytes; tool-call's item id
-// is 67. Selective projections reach 30 records at response.completed and 196
-// fixed decoded bytes at tool-call's output_item.added, excluding arguments,
-// answer text and encrypted_content. These measurements travel with fixtures.
-const CODEX: arithmetic::Constants = arithmetic::Constants {
-    // Provider/proxy growth: at least four times the largest archived head,
-    // and never below 16 KiB / 128 fields (llm.md, sections 4.2 and 7).
-    response_head: 16 * 1024,
-    response_fields: 4 * 42,
-    error_bytes: 16 * 1024,
-    detail_bytes: 1024,
-    metadata: 86,
-    fixed_tokens: 30,
-    fixed_text: 196,
-    // function_call_arguments.delta is the longest archived SSE event name.
-    event_field: 38,
-    // Preserve the merged nesting budget; archives reach 7, the golden 10.
-    depth: 32,
-};
-
 // All four archived response heads reach 1435 bytes and 31 fields.
 // message_start's kept fields reach 29 records and 202 decoded fixed bytes;
 // other block metadata is not replayed by this dialect. Thinking/unknown
@@ -149,5 +124,17 @@ const ANTHROPIC: arithmetic::Constants = arithmetic::Constants {
     depth: 32,
 };
 
-// The public route takes Responses decoder constants and the head floor (llm.md, 7).
-const OPENAI: arithmetic::Constants = arithmetic::Constants { response_fields: 128, ..CODEX };
+// Decoder constants measured from captures of a Responses route. The public
+// response head uses the floor in llm.md, section 7; synthetic cases pin these
+// values independently of provider recordings.
+const OPENAI: arithmetic::Constants = arithmetic::Constants {
+    response_head: 16 * 1024,
+    response_fields: 128,
+    error_bytes: 16 * 1024,
+    detail_bytes: 1024,
+    metadata: 86,
+    fixed_tokens: 30,
+    fixed_text: 196,
+    event_field: 38,
+    depth: 32,
+};
