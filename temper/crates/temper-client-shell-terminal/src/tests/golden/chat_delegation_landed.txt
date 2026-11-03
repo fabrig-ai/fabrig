@@ -2,14 +2,17 @@
 [1] temper
 Menu:
   [2] demo (pressed)
+  New project:
+    [3] New project: (empty) (enter sends)
+    [4] Create
   Main navigation:
-    [3] Inbox
-    [4] Chats (current)
-    [5] Adopt a repository
-    [6] Forges
-    [7] Accounts
+    [5] Inbox
+    [6] Chats (current)
+    [7] Adopt a repository
+    [8] Forges
+    [9] Accounts
   * Pat
-  [8] Sign out
+  [10] Sign out
 Playground:
   This is the playground: a scripted model and in-memory forge. Use the wizard to set up temper
 T1 · Add CSV export to widget:
@@ -35,7 +38,7 @@ Conversation:
       - Pull request opened (completed)
       - CI passed (completed)
       - Landed (completed)
-    [9] Task 2 ↗
+    [11] Task 2 ↗
   1 tool call: wait
     wait
   Temper
@@ -44,6 +47,6 @@ Conversation:
   1 tool call: wait
     wait
 Using Scripted model · Default
-[10] Message: (empty) (enter sends)
+[12] Message: (empty) (enter sends)
 Enter to send · Shift+Enter for newline
-[11] Send
+[13] Send
