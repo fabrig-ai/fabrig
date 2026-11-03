@@ -1805,11 +1805,11 @@ runs it (section 7).
   directory the person names; and takes the process tier's profile, the
   sizes its live tier runs a real model with: smith's `standard`, with
   `declared` `memory` 2,147,483,648, `tool_payload` 4,098, `read_window`
-  256, `conversations` 3 (a run and two sub-agents side by side, smith's
+  256, `conversations` 3 (room for a run and two sub-agents, smith's
   `protocol/limits.md`, 2.2: a run's main conversation and its
   sub-agents', each a program session of its own on Claude Code, smith's
-  `protocol/programs.md`, 5.10) and `calls_per_response` 2 (two adjacent
-  inspect-only sub-agent calls, smith's `domain/session.md`, 5, and
+  `protocol/programs.md`, 5.10) and `calls_per_response` 1 (sub-agent
+  calls run one after another, smith's `domain/session.md`, 5, and
   `protocol/limits.md`, 2.3), and `policy`
   `max_turns` 8, `check_timeout` 60,000 ms, `group_stop` 10, `inbox` 8
   and `unacknowledged` 8. Both charters require eight turns; each permits
@@ -1821,6 +1821,10 @@ runs it (section 7).
   (configuration.md, section 7, `small` against the agent). smith's
   standard sizes with nothing declared refuse the example's model
   declaration at start.
+  `temper init`'s stock profile instead takes `calls_per_response` 2:
+  two adjacent inspect-only sub-agent calls can run side by side. Its
+  demo endpoint gives a smaller turn and resume carrier than the owned
+  example (configuration.md, 13.8).
 - **Its `engine.limits`** are jig's small profile with the overrides
   configuration.md, section 7 asks so that the engine's documents, its
   watch room and the forge's paths fit temper's client, and those its

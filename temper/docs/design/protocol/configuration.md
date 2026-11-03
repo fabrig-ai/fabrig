@@ -1898,11 +1898,13 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
   `reasoning_item` 65,536 and two calls per response, T is 1,662,042 bytes.
   A box without the demo is measured from its own models and must declare
   every carrier at least as large as that measurement.
-  `docs/examples/owned.json` supplies T of 2,184,673 bytes.
+  Init's stock profile takes `calls_per_response` 2;
+  `docs/examples/owned/agent.json` keeps 1, with T of 1,589,621 bytes
+  in `docs/examples/owned.json`. Its sub-agent calls run one after another.
   Init keeps the demo, whose window gives the 51,717-byte host part
   (13.4), enough for the stock tools and authorised brief.
 - **The store's ceiling:** small's page holds a loaded transcript of at
-  most 2,184,673 bytes (its 2,184,737 less the frame's 64), so T is at
+  most 1,662,042 bytes (its 1,662,106 less the frame's 64), so T is at
   most that. The page ceiling admits the largest shipped ordinary
   transcript (jig's `protocol/configuration.md`, 6). A deployment with
   larger output or reasoning items derives T from its own agent and
@@ -1917,7 +1919,7 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
 | both `hub.transcript_bytes` | resume + 12 × ⌊resume / 4⌋ | 6,648,178 |
 | both `hub.turn_queue_bytes` | 8 × T | 13,296,336 |
 | `root.journal.transcript_bytes` | resume | 1,662,046 |
-| `root.loads.transcript_bytes` | T, at most 2,184,673 | 1,662,042 |
+| `root.loads.transcript_bytes` | T, at most 1,662,042 | 1,662,042 |
 | `root.loads.bytes`, `root.loads.reply_bytes` | T + a temper record's size | 1,662,290 |
 | `root.loads.read_bytes` | init: 2 × T; holds T and a row and a record | 3,324,084 |
 

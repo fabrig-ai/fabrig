@@ -346,6 +346,7 @@ fn the_agent_configuration_is_the_owned_examples_but_its_programs() {
             None => json!({}),
         };
         set(&mut expected, "/programs", programs);
+        set(&mut expected, "/profile/declared/calls_per_response", json!(2_u32));
         set(&mut expected, "/endpoints", json!([owned["endpoints"][0], demo_agent(facts.ports.llm.get())]));
         expected["endpoints"][0]["models"][0]["prices"]["unit"] = json!(1000_u64);
         assert_eq!(parse(content(&answered, b"agent.json")), expected, "{row}");
