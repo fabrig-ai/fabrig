@@ -78,7 +78,7 @@ fn assert_owned_limits(limits: &serde_json::Value) {
         "documents.rows":2,"documents.lines":3,"documents.text_bytes":128,
         "views.watchers":16,"views.watchers_per_party":16,
         "authority.grants":14,"tasks.authority_grants":14,"notes.scopes":17,
-        "authority.executors":8,"tasks.executor_kinds":8,
+        "authority.executors":12,"tasks.executor_kinds":12,
         "clients.streams":8,"clients.exchanges":12,
         "clients_http.streams":8,"clients_http.calls":12,
         "tasks.authority_bytes":512,"tasks.batch":1,"tasks.charters":8,"tasks.contract_choices":4

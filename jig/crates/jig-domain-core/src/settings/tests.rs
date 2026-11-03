@@ -772,3 +772,54 @@ fn default_wake_reads_current_settings_and_falls_back_without_a_charter() {
     core.current.changes.insert(Setting::Charter(1), Changed { value: None, revision: 3 }).unwrap();
     assert_eq!(crate::admission::amendments::default_wake(&core, &agent), tasks::WakePolicy::DEFAULT);
 }
+
+fn delegation_rules(count: u32) -> Value {
+    let mut rules = config(1).defaults.rules;
+    let mut kinds = List::with_capacity(count);
+    for number in 1..=count {
+        kinds.push(authority::Executor::Procedure(number)).expect("delegation count");
+    }
+    rules.ceiling.delegation.kinds = kinds.into_boxed();
+    Value::Rules(Box::new(rules))
+}
+
+#[test]
+fn delegation_count_accepts_the_limit_and_names_overflow() {
+    let config = config(1);
+    let limits = limits();
+    let mut current = Current::new(config.defaults, &limits, &[]);
+    for count in [limits.authority.executors, limits.authority.executors + 1] {
+        let value = delegation_rules(count);
+        let expected = if count <= limits.authority.executors {
+            Ok(())
+        } else {
+            Err(Failure { setting: Setting::Rules, fault: Fault::Count })
+        };
+        let items = [Item { setting: Setting::Rules, edit: Edit::Set(value.clone()) }];
+        assert_eq!(check_change(&current, &items, &config.settings, &config.connectors, &limits), expected);
+        assert_eq!(check::restore_fit(Setting::Rules, &value, &limits), expected);
+        current.changes.insert(Setting::Rules, Changed { value: Some(value), revision: 2 }).unwrap();
+        assert_eq!(check(&current, &config.settings, &config.connectors, &limits), expected);
+    }
+}
+
+#[test]
+fn malformed_rules_within_the_delegation_limit_remain_shape() {
+    let limits = limits();
+    let Value::Rules(mut rules) = delegation_rules(limits.authority.executors) else { unreachable!() };
+    rules.minimum_run_spend = rules.maximum_run_spend;
+    assert_eq!(
+        check::shape(Setting::Rules, &Value::Rules(rules), &limits),
+        Err(Failure { setting: Setting::Rules, fault: Fault::Shape })
+    );
+}
+
+#[test]
+fn delegation_count_restore_names_overflow() {
+    let limits = limits();
+    let value = delegation_rules(limits.authority.executors + 1);
+    assert_eq!(
+        check::restore_fit(Setting::Rules, &value, &limits),
+        Err(Failure { setting: Setting::Rules, fault: Fault::Count })
+    );
+}

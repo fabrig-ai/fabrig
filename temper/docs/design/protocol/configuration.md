@@ -1705,8 +1705,9 @@ init`'s document carries none of them (`setup.md`, 8.3).
   every budget above, scales with it.
 - **The box's limits for that work.** `temper init`'s document, and
   `docs/examples/owned.json`, raise `authority.executors` and
-  `tasks.executor_kinds` to 8 (small's 4), since the stock delegates to
-  six executors, charters 1 to 4 and 6 and the change procedure;
+  `tasks.executor_kinds` to 12 (small's 4), holding the stock and the
+  reference's whole delegation (13.9) within ctl's twelve-kind list
+  capacity;
   `tasks.charters` to 8 (small's 4), since the stock holds five
   charters and a deployment's settings add their own (13.9);
   `tasks.contract_choices` to 4, since a foreman's verdict has three
@@ -2030,8 +2031,10 @@ that changes the stock changes nothing of them.
   (`../domain/agent.md`, 4.3.1), and role 0 to their delegation, so the
   coordinator may ask its person through a person task (jig's
   `domain/people.md`, section 8), and jig's notes family beside it, so
-  that it notes what it learns, then applied whole. The profile's
-  limits (below) hold the charters and executors this adds.
+  that it notes what it learns, then applied whole. The box's twelve
+  executor places (13.4) hold this delegation without a delegation-limit
+  change or restart; the profile's limits (below) reserve room for
+  further work.
 - **Designers and the cut** (`../draft/reference-code-production.md`,
   sections 3, 5 and 12): the same file's later edition adds
   - *charter 7, the designer's:* instructions to write one family's
@@ -2186,7 +2189,7 @@ that changes the stock changes nothing of them.
   | `tasks.batch`, `authority.batch`, `people.batch` | 1, 2, 2 | 4 | a family's changes four to a `change` call, jig's batch list holding four |
   | `forge.change_policy.tasks` | 6 | 8 | a producer, two merge jobs, two resolutions and three repairs: twelve tasks with four foremen (`../domain/agent.md`, 4.3.1) |
   | `forge.changes`, `forge.holds`, `forge.tasks` | 8 | 32, 32, 64 | the live changes, their branches' holds and the goal's, the tasks the forge follows |
-  | `authority.executors`, `tasks.executor_kinds` | 8 | 16 | the stock's seven executors (charters 1, 2, 4 and 6; procedures 2, 3 and 4) and the reference's five (charters 5, 7 and 8, the merge kind, role 0) |
+  | `authority.executors`, `tasks.executor_kinds` | 12 | 16 | the stock's seven executors (charters 1, 2, 4 and 6; procedures 2, 3 and 4) and the reference's five (charters 5, 7 and 8, the merge kind, role 0) |
   | `tasks.charters` | 8 | 12 | the stock's four charters (five with charter 3) and the reference's three |
   | the agent's `tool_payload`, `checkout.message_bytes`, `core.call_answer_bytes` | 4,098; 4,098; 32,768 | 16,386 for the first two, the third as it is | a `change` call carrying four changes' words |
   | the agent's `max_turns` | 16 | 64 | a run of the cut, of a family's design, or of a change with its checks |
