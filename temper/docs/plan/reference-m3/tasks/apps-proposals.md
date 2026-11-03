@@ -3,7 +3,7 @@ id = "apps-proposals"
 part = "appsettings"
 kind = "feature"
 needs = ["apps-change"]
-files = ["jig/crates/jig-domain-core/src/routing/settings/dispatch.rs", "jig/crates/jig-domain-core/src/settings.rs", "jig/crates/jig-domain-core/src/settings/application.rs", "jig/crates/jig-domain-core/src/documents/settings_review.rs", "jig/crates/jig-domain-core/src/tests/settings/application_proposals.rs", "jig/crates/jig-domain-core/src/tests/settings.rs", "jig/docs/design/domain/engine.status.md"]
+files = ["jig/crates/jig-domain-core/src/routing/settings/dispatch.rs", "jig/crates/jig-domain-core/src/settings.rs", "jig/crates/jig-domain-core/src/settings/application.rs", "jig/crates/jig-domain-core/src/documents/settings_review.rs", "jig/crates/jig-domain-core/src/tests/settings/application_proposals.rs", "jig/crates/jig-domain-core/src/tests/settings.rs", "jig/docs/design/domain/engine.status.md", "jig/crates/jig-domain-tasks/src/person_proposals.rs", "jig/crates/jig-domain-tasks/src/tests/settings_proposals.rs"]
 effort = "high"
 minutes = 100
 +++
@@ -92,3 +92,34 @@ Acceptance:
 ## Report
 
 The options taken; how the accepted proposal's judge distinguishes kept values.
+
+## Answers
+
+2026-11-03. **Q:** may this task relax `jig-domain-tasks`' `person_proposals.rs::valid_settings`
+to admit a settings proposal with no jig heads, or must a separate task first add
+application heads to the tasks vocabulary?
+
+**A:** Relax it, in this task (now in `files`). `engine.md`, 17.6 (**The owner keeps the
+value**): the tasks child keeps the proposal's proposer, reason, holder and state; the core
+keeps its set. The tasks child's heads are jig's kinds only, and a set naming only an
+application's items has none of them, so no application head is added to the tasks
+vocabulary, and no jig head is invented.
+
+- `valid_settings` admits an empty head list (the upper bound `SETTINGS_ITEMS`, the zero
+  numbers and the duplicates stay refused); its doc says the core checks that the whole set,
+  application items included, is non-empty. Both callers (`valid_action`,
+  `proposals.rs::proposal_scope`) keep using it unchanged.
+- The core refuses a set with neither jig items nor application items, as it does today for
+  an empty or unchanged set; keep (or add) that refusal in this task's tests.
+- `src/tests/settings_proposals.rs` (jig-domain-tasks): one test that a deployment-scope
+  settings proposal with no heads is kept pending at the deployment's owners. Run
+  `heavy cargo nextest run -p jig-domain-tasks --lib -E 'test(/settings_proposals/)'` (check
+  the count) and add `jig-domain-tasks` to the clippy run. The store's codec encodes empty
+  heads already (it bounds the list above only): change nothing there.
+- `tests::settings::application::application_removed_states_do_not_exhaust_the_declared_active_value_bound`:
+  run it once on `apps-change`'s commit alone. Failing there, it is not this task's: leave it
+  under `## Left` with both logs, and this task's acceptance holds without it. Passing there,
+  this task's change broke it: fix it here.
+- The options already taken stand (deployment owners as accepters with the 17.6 limitation
+  kept in the status; application review items left to `apps-wire`; the tasks child's number
+  as the connector's proposal, which `apps-proposal-key` later replaces with a key).
