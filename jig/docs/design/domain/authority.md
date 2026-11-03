@@ -593,6 +593,10 @@ pool has left.
   root's requester, by a batch, a move or an acceptance, only while its
   escalations have a holder (people.md, 5.1); otherwise the request is
   refused, whatever authority it fits.
+- **A task amendment's offered task allowance** is a replacement lifetime
+  limit under the giver's role, not the target's remaining allowance.
+  Exhaustion does not prevent granting more tasks. The request still
+  passes the same funding and authority-ceiling admission checks.
 - **A compound request** is checked as people.md, 5.1 says: each
   operation as it would be alone, in order.
 - **Account requests** (accounts.md, section 5) are checked against the

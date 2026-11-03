@@ -37,10 +37,9 @@
   - 8.3: a person's approval as a gate; a review's lens; gates run at once
     when the change asks; a verdict posted as a commit status; the review
     charter, kind 3's number 2, is fixed at charter 4.
-  - 8.4: widening exhausted authority with ctl before release: `task
-    amend`'s `--tasks` and `--budget` are not implemented
-    (`../client/tools.md`, 5.5). The hold offers cancellation or asking
-    afresh instead.
+  - 8.4: widening exhausted spend with ctl before release: `task amend`'s
+    `--budget` is not implemented (`../client/tools.md`, 5.5). A spend
+    hold offers cancellation or asking afresh instead.
   - 8.4, 8.5: a goal's landing held past its repairs, then released after
     a change into its goal branch (`../draft/reference-landing.md`,
     section 9's second story), is built, but its story is ignored: after
