@@ -3405,3 +3405,52 @@ fn result_pull_address(domain: &mut super::Domain, env: &skein_lib::Env<super::L
         &mut skein_lib::Queue::uncapped(),
     );
 }
+
+#[test]
+fn a_live_room_refusal_rearms_the_change_delegate() {
+    use super::{Work, forge, forge_change, tasks};
+    let (mut domain, env, context) = change_start_fixture();
+    let task = context.task;
+    let (connector, _, step) = domain.core.tasks.procedure_due(task).expect("due change");
+    domain
+        .forge_delegating
+        .insert(
+            (task, step),
+            super::ChangeStep {
+                delegate: Some(forge_change::Delegate::Produce),
+                foreman: false,
+                relayed: None,
+                refusal: None,
+                released: false,
+            },
+        )
+        .unwrap();
+    let problem = tasks::Problem::capacity(
+        Some(task),
+        tasks::Refusal::Live,
+        tasks::Capacity {
+            project: Some(context.project),
+            by: tasks::Party::Task(task),
+            action: tasks::CapacityAction::Batch { first: None, members: 1 },
+            cause: tasks::CapacityCause::Tasks { limit: env.limits.tasks.tasks },
+        },
+    );
+    let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
+    super::super::asks::ask(
+        &mut domain,
+        &env,
+        &mut decision,
+        connector,
+        jig_domain_core::Ask::StepRefused { task, step, why: jig_domain_core::StepRefusal::Refused(problem) },
+    );
+    let Some(Work::Forge(forge::Event::DelegateAdmissionRefused {
+        task: refused,
+        kind: forge_change::Delegate::Produce,
+    })) = domain.work.pop()
+    else {
+        panic!("the refused producer can be asked again")
+    };
+    assert_eq!(refused, task);
+    assert!(domain.work.is_empty());
+    assert!(domain.forge_delegating.is_empty());
+}
