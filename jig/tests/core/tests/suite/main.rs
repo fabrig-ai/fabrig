@@ -61,6 +61,7 @@ mod run_positions;
 mod runs;
 mod settings;
 mod settings_memory;
+mod settings_project_policy;
 mod settings_proposal_edges;
 mod settings_proposals;
 mod settings_reads;
