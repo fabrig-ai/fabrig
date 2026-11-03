@@ -241,9 +241,9 @@ const HOLDS: [Holds; samples::N] = [
         heading: "Connect a forge",
         parts: &[
             Part::Named { role: Role::Region, name: "GitHub" },
-            Part::Named { role: Role::Region, name: "Forgejo on this machine" },
-            Part::Named { role: Role::Link, name: "Forgejo on this machine" },
-            Part::Named { role: Role::Region, name: "Your Forgejo" },
+            Part::Named { role: Role::Region, name: "Forgejo" },
+            Part::Named { role: Role::Button, name: "Run on this machine" },
+            Part::Named { role: Role::Link, name: "Or connect your deployment" },
         ],
     },
     Holds {
@@ -260,7 +260,7 @@ const HOLDS: [Holds; samples::N] = [
         heading: "Connect a model",
         parts: &[
             Part::Named { role: Role::Button, name: "Continue with ChatGPT" },
-            Part::Named { role: Role::Link, name: "Use an API key" },
+            Part::Named { role: Role::Link, name: "Use an OpenAI API key" },
         ],
     },
     Holds {
