@@ -22,20 +22,55 @@ The standing rules are `notes/common.md`; the names and figures that cross tasks
 - **80 questions on a change:** the forge keeps at most 16 open (`forge-questions`).
 - **A tool call's payload** is bounded by the model's output (skein-llm: input within answer):
   at init's models' 8,192 output tokens, 10,662 bytes. The agent's `tool_payload` and
-  `checkout.message_bytes` take that, not 128 kB; jig's message bound (262,144, at least a
-  result) holds what procedures, persons and results carry.
+  `checkout.message_bytes` take that, not 128 kB, and, since smith offers a message within the
+  payload and the fleet holds the agent to the engine's message bound, so do the box's message
+  and result bounds (Decisions).
 - **The override refusal:** `validate_members` names three relations and marks every other
   override "invalid" when any other fails (`override-relations`).
+
+## The design this cut wrote
+
+- `temper/docs/design/protocol/configuration.md`: 7 (two profiles, `standard`'s figures);
+  13.4 (the stock's runs, control, delegation 384 deep 32, ceilings and periods 80 × 24K,
+  templates' report the deployment's result bound; the box's limits as a table of the draft's
+  figures; the box's message and result bounds its agent's); 13.8 (T at 48 calls per response,
+  the store's page, one call's payload); 13.9 (the reference trimmed to `tasks.tree_tasks`, its
+  charters at the stock's run); section 11's open question on the reference's small sizes
+  settled and removed. Status: one **Not yet** for 7, 13.4, 13.8 and 13.9; the reference's
+  Departs removed.
+- `temper/docs/design/protocol/setup.md`: 8.1 (the owned example on `standard`, its agent's
+  figures), 8.3 (sized for real work; the demo at luna's window), 16 (good defaults settled
+  for charters and limits). Status: **Not yet** for 8.1 and 8.3, and the resource gate's
+  figures, not measured.
+- `temper/docs/design/domain/agent.md`: 4.1, 4.3, 4.3.1 (the stock gives control), 4.6 (the
+  demo's room). Status: **Not yet** 4.3, 4.6.
+- `temper/docs/design/domain/forge.md`: the resource capacity and 8.11's bound in `standard`.
+  Status: **Not yet** 8.11.
+- jig's `protocol/configuration.md`, 6 (the relations); `protocol/store.md`, 8.1 and smith's
+  `protocol/transcript.md`, 12 (the frame's ceiling). jig's further sections are the jig
+  family's (a designer, in flight).
 
 ## Decisions
 
 - jig's `standard` is raised in place to the table (no production code names it); temper's
   application gains `standard` beside `small`; init writes `"standard"` on its three lines
   (contracts K1).
-- `tasks.message_bytes` is 262,144, not the table's 128 kB: a result is a message in its
-  parent's inbox, and jig holds a result within the message bound (`check_message`).
+- jig's `standard` `tasks.message_bytes` is 262,144, not the table's 128 kB: a result is a
+  message in its parent's inbox, and jig holds a result within the message bound
+  (`check_message`).
 - Store formats change in place, as the user decided; existing stores are refused at open as
   jig's `store.md`, 5.3 says.
+- **The box's message and result bounds are its agent's.** smith offers a run a message within
+  the agent's tool payload, and the fleet holds the agent to the engine's message bound; the
+  payload is bounded by the model's output (8,192 tokens at init: about 10,662 bytes). So
+  init overrides `tasks.message_bytes` and `tasks.result_bytes` to the payload less two, below
+  the profile's 262,144, and the templates' report reads the deployment's result bound. The
+  draft's 128 kB message and 256 kB report are reached only with a model whose output admits
+  them and smith's messages bounded by the window's offer: question `message-room`.
+- **The room:** init's scripted model takes `gpt-6-luna`'s window so the host part is luna's
+  (about 400,000 bytes), holding the stock's tools with control and a brief whose task section
+  is a whole spec. The draft's 1 MB brief is past any room init's models give: question
+  `brief-room`.
 
 ## Overlaps not avoided
 
@@ -55,8 +90,9 @@ The standing rules are `notes/common.md`; the names and figures that cross tasks
 | ceilings | `transcript-ceilings` (jig): a turn of 16 MiB in the store's frame and the worker wire | | released |
 | ceilings | `smith-calls` (smith): 48 calls per response, 26 conversations derive | transcript-ceilings | released |
 | ceilings | `forge-questions` (temper): 128 open questions on a change | | released |
+| forge-scale | `forge-profile` (temper): the application's `standard` profile; the refusal named through temper | forge-questions, override-relations | released |
 
-Slices: 1 (refusal, ceilings).
+Slices: 1 (refusal, ceilings), 2 (forge-scale).
 
 ## Critical path, as it stands
 

@@ -75,7 +75,7 @@ fn child_validity_keeps_semantic_and_count_refusals() {
 fn configured_read_room_is_smaller_than_the_maximum_frame() {
     // The frame bound is TurnRecord::encoded_bound + 12, including
     // version, optional read, transcript length, checksum and both lengths.
-    const MAX_FRAME: u64 = 8_388_672;
+    const MAX_FRAME: u64 = 16_777_280;
     // The map pages include job specs, task/run revisions and placed references;
     // transcript framing and direct read room are unchanged.
     for (kind, request, page) in [(Profile::Small, 65_536, 2_168_787), (Profile::Standard, 262_144, 10_769_629)] {

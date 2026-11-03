@@ -1746,7 +1746,7 @@ document.
 
 The box document written by `temper init` and the owned example give
 `documents.lines` eight entries for each creating executor list, alongside
-`tasks.charters` eight.
+`tasks.charters` twelve, jig's `standard`'s.
 This holds the reference's eligible charters 1, 2, 4, 5, 6 and 7 and its
 configured procedures without shortening either offer. The deployment's
 effective limits must still fit its codecs.
@@ -1809,59 +1809,54 @@ runs it (section 7).
 - **Its agent's configuration** (configuration.md, section 5),
   `owned/agent.json`, declares OpenAI's endpoint and model, and
   Claude Code's program, its path and its programs directory, a
-  directory the person names; and takes the process tier's profile, the
-  sizes its live tier runs a real model with: smith's `standard`, with
-  `declared` `memory` 2,147,483,648, `tool_payload` 4,098, `read_window`
-  256, `conversations` 3 (room for a run and two sub-agents, smith's
+  directory the person names; and takes `temper init`'s figures, sized
+  for a project of fabrig's scale (configuration.md, 13.4): smith's
+  `standard`, with `declared` `memory` 2,147,483,648, `tool_payload`
+  the largest smith admits at its model's output of 8,192 tokens (about
+  10,662 bytes; configuration.md, 13.8), `read_window` 256,
+  `conversations` 26 (room for a run and 25 sub-agents, smith's
   `protocol/limits.md`, 2.2: a run's main conversation and its
   sub-agents', each a program session of its own on Claude Code, smith's
-  `protocol/programs.md`, 5.10) and `calls_per_response` 1 (sub-agent
-  calls run one after another, smith's `domain/session.md`, 5, and
-  `protocol/limits.md`, 2.3), and `policy`
-  `max_turns` 8, `check_timeout` 60,000 ms, `group_stop` 10, `inbox` 8
-  and `unacknowledged` 8. Both charters require eight turns; each permits
-  modifying work with a 60,000 ms reserve, so the agent's check timeout
-  must fit that reserve. The engine requires 4,096-byte messages;
-  smith's two-byte rendered separator makes the minimum payload 4,098
-  bytes, advertising 4,096 message bytes. Its largest call is then
-  4,098 bytes, the larger of that payload and its 4,096-byte outcome
-  (configuration.md, section 7, `small` against the agent). smith's
-  standard sizes with nothing declared refuse the example's model
-  declaration at start.
-  `temper init`'s stock profile instead takes `calls_per_response` 2:
-  two adjacent inspect-only sub-agent calls can run side by side. Its
-  demo endpoint gives a smaller turn and resume carrier than the owned
-  example (configuration.md, 13.8).
-- **Its `engine.limits`** are jig's small profile with the overrides
-  configuration.md, section 7 asks so that the engine's documents, its
-  watch room and the forge's paths fit temper's client, and those its
-  owner's grants need, and no other:
-  - `authority.segments`, `tasks.hold_segments` and
-    `tasks.authority_segments`, 8: a name's segments, the forge's
-    deepest path;
+  `protocol/programs.md`, 5.10) and `calls_per_response` 48 (smith's
+  `domain/session.md`, 5, and `protocol/limits.md`, 2.3), and `policy`
+  `max_turns` 800, `check_timeout` 60,000 ms, `group_stop` 10, `inbox` 8
+  and `unacknowledged` 8. The stock's charters run up to 800 turns;
+  each permits modifying work with a 60,000 ms reserve, so the agent's
+  check timeout must fit that reserve. smith's two-byte rendered
+  separator makes the agent's advertised message bytes its payload less
+  two, and the engine's message and result bounds are those
+  (configuration.md, 13.4). Its largest call is then its payload, the
+  larger of that and its outcome (configuration.md, section 7,
+  `standard` against the agent). smith's standard sizes with nothing
+  declared refuse the example's model declaration at start.
+  `temper init`'s agent takes the same figures but its endpoints and
+  programs (8.2); its scripted model's window is `gpt-6-luna`'s, so its
+  room is the same (8.3).
+- **Its `engine.limits`** are jig's `standard` profile (configuration.md,
+  13.4) with the overrides configuration.md, section 7 asks so that the
+  engine's documents fit temper's client, those its agent sets, and the
+  machine's concurrency the box keeps, and no other:
   - `documents.rows` 2, `documents.lines` 8 and `documents.text_bytes`
     128: temper's client's rows and text;
-  - `views.watchers` and `views.watchers_per_party`, 16: the watch room,
-    as the root holds it whatever `engine.limits` says
-    (configuration.md, section 7);
-  - `authority.grants` and `tasks.authority_grants`, 12: its owner
-    holds a grant for each of the forge's kinds its work uses, 10
-    (above), and small's 4 hold none of that work; with `notes.scopes`
-    15, since jig's core admits an authority's grants only with 3 notes'
-    scopes more, and refuses every override of the core's otherwise
-    (`jig-domain-core::valid`);
-  - `tasks.authority_bytes` 512 and `tasks.batch` 1, the process
-    tier's: the bounds above widen a task's stored row past the small
-    profile's store, whose bounds no override changes, so the start
-    would be refused (jig's `protocol/store.md`, 5.4); these two bring
-    the row back within.
-- **Its worker's `limits`** are jig's small profile with the two of the
-  hub's that jig's small, sized for any agent, sets past smith's agent
+  - `tasks.message_bytes` and `tasks.result_bytes`, the agent's
+    advertised message bytes (above): the fleet holds the agent to the
+    engine's message bound at its hello (jig's
+    `protocol/configuration.md`, 6), and a result is a message in its
+    parent's inbox;
+  - the machine's concurrency where `standard` sets another than the box
+    had, the hub's and the fleet's slots and workers and the clients'
+    streams and their carriers (configuration.md, 13.4), each at what
+    the box had.
+  `standard` holds the owner's grants (16), their names' segments (8),
+  the notes' scopes past them, the watch room and the reference's
+  charters and executors, so none of small's overrides for them stays.
+- **Its worker's `limits`** are jig's `standard` profile with those of
+  the hub's that it, sized for any agent, sets past smith's agent
   (configuration.md, section 7, the worker's check against the agent),
-  and no other: `hub.accounts` 4, the agent's accounts, where jig's small
-  has 8; and `hub.event_bytes` 4,096, the agent's advertised message
-  bytes, where jig's small has 65,536. Its `application.limits` is
-  `small` with `checkout.message_bytes` 4,098 so the checkout accepts
+  and the machine's concurrency, and no other: `hub.accounts` 4, the
+  agent's accounts; and `hub.event_bytes`, the agent's advertised
+  message bytes. Its `application.limits` is temper's `standard` with
+  `checkout.message_bytes` the agent's payload, so the checkout accepts
   the agent's largest call.
 - **Its turn's bounds derive from smith's largest turn,** T, the
   agent's `turn_body`, which its configuration derives (configuration.md,
@@ -1870,7 +1865,7 @@ runs it (section 7).
   stay within it in ordinary use, so a chat on a plan is not held for
   its reasoning, and a person may lower it, with these bounds
   (configuration.md, section 5). Each bound is the least the turn's
-  check takes, past jig's small profile's:
+  check takes, past jig's `standard` profile's:
   - both hubs, `engine.limits` and the worker's `limits`:
     `hub.turn_bytes` T; `hub.transcript_bytes`
     W + (B − 4) × ⌊W / 4⌋, where W is `core.resume_bytes` and B is
@@ -1892,16 +1887,17 @@ runs it (section 7).
   SKEIN_CODEGEN_WRITE=1 cargo nextest run --locked -p temper --test suite -E 'test(startup::turn_bounds)'
   ```
 
-  jig's small store page ceiling admits the largest shipped ordinary
-  transcript's full frame (jig's `protocol/configuration.md`, 6).
-  The other KV bounds and the worker wire's ceilings stay as they are:
-  a turn's body is a transcript file's, never a KV value. Startup refuses
-  a figure past its wire field's ceiling.
+  jig's `standard` store page admits the frame of any turn smith admits,
+  up to 16,777,216 bytes, and the store's frame and the worker wire
+  carry it (configuration.md, 13.8; jig's `protocol/store.md`, 8.1).
+  The other KV bounds stay as they are: a turn's body is a transcript
+  file's, never a KV value. Startup refuses a figure past its wire
+  field's ceiling.
 - **Its `memory_bytes`** are deployment budgets, never declarations of
   a service's worst case. `engine.memory_bytes` meters the engine's
   held bytes (`../domain/root.md`, 4.1); no start compares memory with
   a sum or names a deficit (programming-model.md, 6.3).
-  - The forge's API token is within `small`'s
+  - The forge's API token is within `standard`'s, as `small`'s,
     `forge_component.token_bytes`, 512, past which the start is
     refused; an owned forge's longest `git` base is `http://` with a
     loopback address and a port, `http://127.255.255.254:65535`,
@@ -2055,8 +2051,10 @@ directory is empty (7.1).
 
 ### 8.3 The default document
 
-A working minimum, for the mechanics and a person's first run; good
-defaults for a person's real work are open (section 16).
+Sized for a person's real work: a project of fabrig's scale, its own
+development as fab runs it, with five times the largest figure seen
+(configuration.md, 13.4), so a fresh box runs such a project with no
+override.
 
 - **No forge** (section 8): a first run's store holds none, and the
   person makes each from the client, none needing a restart: the
@@ -2096,13 +2094,14 @@ defaults for a person's real work are open (section 16).
   `demo`, at `127.0.0.1:<the fake LLM's port>`, plaintext, OpenAI's
   dialect on its public route; one model, `demo`, priced as the owned
   example's model is, 1 per 1,000,000 for input, cached and output (jig
-  and smith refuse a price of 0); its window 177,523 and its output
-  8,192, giving smith's 51,717-byte host part at the owned threshold,
-  4/5, for the largest stock charter's tools and authorised brief
-  (`../domain/agent.md`, 4.3 and 4.6). The owned message bound stays
-  4,098 bytes, and a request at the threshold
-  stays within the fake's request bound; its source a key. The agent's
-  configuration declares it too (8.2).
+  and smith refuse a price of 0); its window `gpt-6-luna`'s, 1,048,576,
+  and its output 8,192, so the scripted model leaves every charter the
+  room luna leaves it: smith's host part, at the owned threshold, 4/5,
+  holds the largest stock charter's tools and the authorised brief with
+  a whole spec (`../domain/agent.md`, 4.3 and 4.6). The message bound is
+  the agent's (8.1), and a request at the threshold stays within the
+  fake's request bound; its source a key. The agent's configuration
+  declares it too (8.2).
 - **Its projects:** none. Its `engine.projects` is `[]`: jig makes
   each first owner a deployment owner with no project configured
   (jig's `domain/people.md`, 3), and the engine, the playground and the
@@ -2162,7 +2161,8 @@ defaults for a person's real work are open (section 16).
   directory, its `git` the machine's, or null (8.2); the deployment's directory
   `deployment` in the data directory; the clients' listener
   `127.0.0.1:<port>` (8.2).
-- **Its limits:** the owned example's (8.1), with `forge.repositories`
+- **Its limits:** the owned example's (8.1), the `standard` profiles,
+  with `forge.repositories`
   and `forge.client.repositories` 3, counts of the deployment's
   (forge.md, section 7), and `forge.output` 82. Its `memory_bytes` are
   deployment budgets, as the owned example's are (8.1). Startup checks
@@ -3385,9 +3385,10 @@ Each is intended; what it needs is named with it.
 
 ## 16. Open questions
 
-- **Good defaults for a person's real work:** charters, landing rules,
-  limits, the memory bound. Default: 8.3's working minimum, refined once
-  a first run works.
+- **Good defaults for a person's real work:** landing rules and the
+  memory bound. Default: 8.3's, refined once a first run works; the
+  charters and limits are sized for a project of fabrig's scale
+  (configuration.md, 13.4).
 - **Overrides of `app.ini`.** Default: none; the settings are temper's.
 - **A token for the person's scripts and agents.** Settled: the
   preparation makes two, the person's read and write header files
@@ -3418,8 +3419,6 @@ Each is intended; what it needs is named with it.
 - **A managed or owned forge stopped at runtime,** its bot's token
   revoked. Default: stopped, named, until the next start's reconcile or
   a managed connect; Replace is a connected forge's alone.
-- **The owned example's agent, sized for a person's work.** Default: the
-  process tier's profile (8.1), sized for the live tier's stories.
 - **The check's decisions** (8.4) are read from rows kept for other
   ends, and two decisions leave none: a change whose pull is replaced
   while `Landing` joins its `Landed` row to the later pull, and an

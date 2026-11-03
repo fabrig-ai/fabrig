@@ -47,6 +47,7 @@ fn bounds_take_each_limit_from_its_source() {
         ("host", limits.adopted_host, 128),
         ("resources", limits.names_resources, 4),
         ("goal tasks", limits.subscriber_goal_tasks_some, 8),
+        ("open questions", limits.questions_open, 5),
     ] {
         assert_eq!(value, expected, "{name}");
     }
@@ -1448,6 +1449,43 @@ fn a_producer_report_is_bounded_by_the_forge_operation_bytes() {
             assert_eq!(decoded, Ok(row));
         } else {
             assert_eq!(decoded, Err(crate::Undecodable));
+        }
+    }
+}
+
+#[test]
+fn questions_open_follows_the_change_bound() {
+    use temper_engine_domain_forge_change::{Open, Stands, State};
+    const ASKER: u64 = 7;
+    // domain/forge.md, 8.11: the policy's questions and the one that holds the change.
+    // The stock takes four, standard takes eighty; 126 leaves one past encodable at the ceiling.
+    for (questions, open_bound) in [(0, 1), (4, 5), (80, 81), (126, 127)] {
+        let mut limits = fixtures::LIMITS;
+        limits.change_policy.questions = questions;
+        let bounds = crate::bounds(&limits, limits.client.op_bytes).expect("policy fits the schema");
+        assert_eq!(bounds.limits().questions_open, open_bound);
+        assert_eq!(records::limits(&limits).expect("record limits").questions_open, open_bound);
+        for (count, accepted) in [(open_bound, true), (open_bound + 1, false)] {
+            let mut row = fixtures::change_row(State::Producing { requested: true });
+            let mut open = skein_lib::List::with_capacity(count);
+            for number in 0..count {
+                open.push(Open {
+                    asker: ASKER,
+                    number: u64::from(number),
+                    line: Box::new([]),
+                    words: Box::new([]),
+                    stands: Stands::Taken,
+                })
+                .unwrap();
+            }
+            row.questions.open = open.into_boxed();
+            let row = forge::Stored::Change(row);
+            let expected = if accepted { Ok(row.clone()) } else { Err(crate::Undecodable) };
+            assert_eq!(
+                records::decode(&records::encode(&row), &bounds),
+                expected,
+                "policy: {questions}, open: {count}"
+            );
         }
     }
 }
