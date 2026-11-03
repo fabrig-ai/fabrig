@@ -4,7 +4,7 @@ use jig_client_protocol_http::{PublicPath, public_target};
 use jig_protocol_engine_clients::PublicRead;
 use jig_protocol_engine_clients_http::public_path;
 use skein_lib::{List, Rng};
-use std::panic::catch_unwind;
+use std::{fmt::Write as _, panic::catch_unwind};
 
 const FIRST_SEED: u64 = 0x7075_7a74;
 const SEEDS: u64 = 4;
@@ -67,7 +67,7 @@ fn drawn(rng: &mut Rng, sample: u32) -> PublicPath {
 fn target(path: &PublicPath) -> Vec<u8> {
     let mut text = format!("/v1/public/{}/{}/{}", path.owner, path.version, path.kind);
     for id in &path.ids {
-        text.push_str(&format!("/{id:016x}"));
+        write!(text, "/{id:016x}").expect("writing to a string");
     }
     text.into_bytes()
 }
