@@ -52,6 +52,13 @@ The standing rules are `notes/common.md`; the names and figures that cross tasks
 
 ## Decisions
 
+- **What clients receive** (survey D): the settings form held twelve grants and kinds, below
+  the stock's fourteen, so the configuring agent's read of policy 1 already fails; a chat's
+  document was refused past `documents.lines` live delegates, at most 32; a creating offer is
+  refused past `documents.lines` entries, so `standard` takes 16 (12 charters, 16 executors);
+  the wire's inbox selection held 32 goals against a depth of 32. Each is a task of part
+  `clients`.
+
 - jig's `standard` is raised in place to the table (no production code names it); temper's
   application gains `standard` beside `small`; init writes `"standard"` on its three lines
   (contracts K1).
@@ -91,8 +98,11 @@ The standing rules are `notes/common.md`; the names and figures that cross tasks
 | ceilings | `smith-calls` (smith): 48 calls per response, 26 conversations derive | transcript-ceilings | released |
 | ceilings | `forge-questions` (temper): 128 open questions on a change | | released |
 | forge-scale | `forge-profile` (temper): the application's `standard` profile; the refusal named through temper | forge-questions, override-relations | released |
+| clients | `client-capacities` (temper): the shells and the settings form receive 16 grants, kinds and entries, 80 delegates | | released |
+| clients | `delegates-document` (jig): a chat's document lists its live delegates up to `tasks.delegates` | | released |
+| clients | `inbox-depth` (jig): the wire's inbox selection holds 64 goals, every client receives them | | released |
 
-Slices: 1 (refusal, ceilings), 2 (forge-scale).
+Slices: 1 (refusal, ceilings), 2 (forge-scale), 3 (clients).
 
 ## Critical path, as it stands
 

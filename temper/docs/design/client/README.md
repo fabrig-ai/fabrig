@@ -199,10 +199,15 @@ temper-client-journeys          tools/journeys: recorded walks replayed through 
   sum. The client reads no configuration: its only inputs are its two
   arguments (`../protocol/configuration.md`, section 9).
 
-The native terminal receives eight entries in a document's short lists,
-including creating's complete charter and procedure lists. This covers
-`temper init` and the owned example's `documents.lines` eight; it is a
-receiving capacity, independent of how many rows a screen shows.
+The native terminal, the browser and `temper ctl` receive sixteen entries
+in a document's short lists, including creating's complete charter and
+procedure lists, sixteen in an authority's grants and delegation kinds,
+and eighty live delegates in a chat's close. This covers `temper init`'s
+and the owned example's `standard` profile: its `documents.lines`
+sixteen, its grants and executors sixteen, its `tasks.delegates` eighty
+(`../protocol/configuration.md`, 13.4); a settings file and the
+configuring agent's settings form take as many grants and kinds. Each is
+a receiving capacity, independent of how many rows a screen shows.
 
 ## 3. The client root
 
