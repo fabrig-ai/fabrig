@@ -573,7 +573,8 @@ record RetainedActionAmend { task: u64 change: RetainedAmendment }
 record RetainedActionWiden { task: u64 authority: AuthorityDocument }
 record RetainedActionRelease { task: u64 }
 record SettingNumber { number: u32 }
-enum Setting { charter: SettingNumber, template: SettingNumber, policy: SettingNumber, rules }
+record ApplicationSetting { kind: u32 scope: u32 number: u32 }
+enum Setting { charter: SettingNumber, template: SettingNumber, policy: SettingNumber, rules, application: ApplicationSetting }
 enum RevisionItemEdit { set, removed, reset }
 record RevisionItemHead { setting: Setting edit: RevisionItemEdit }
 record RetainedActionSettings { against: u32 items: list 128 RevisionItemHead made: option u32 }

@@ -104,3 +104,20 @@ This covers `temper/crates/temper-engine-domain/src/restart.rs:544` and `temper/
 The recorded answer already settles this exact question: “Fab should arrange both owning tasks’ repairs.”
 Once those repairs are available, resume the narrow three-story run, confirm 3 tests pass, then run the forge-route stories, formatting and required clippy check.
 Acceptance remains unobserved: the run reports “No tests executed” and “The task is not accepted yet.”
+
+### 2026-11-03: Should fab resume validation once the owning task repairs temper/crates/temper-engine-domain/src/restart.rs:544 (recommended, following the recorded answers), or defer change-story? The current branch head is pushed. (reference-m3/change-story-4, foreman reference-m3/change-story/foreman-4)
+
+Leave compilation repairs to their owning tasks, then resume change-story to complete validation.
+The spec states: “Not yours: anything under `temper/crates/`. A failure that shows the root, jig or the forge wrong is reported, not fixed here.”
+The recorded answer settles this question: “Leave both compilation repairs to their owning tasks, then resume change-story to complete validation.”
+This covers `temper/crates/temper-engine-domain/src/restart.rs:544` and `temper/crates/temper-protocol-store/src/records/application/refusal.rs:500`; neither repair is authorized here.
+Fab should arrange the owning repairs before resuming validation.
+Once available, confirm the narrow run passes all 3 stories, then run the forge-route stories, formatting and required checks, and record the three story runtimes.
+Acceptance remains unobserved: the report states “Executed test count: 0” and “The task is not accepted yet.”
+
+### 2026-11-03: Four runs without landing, each stopped on a compile error under `temper/crates/` (restart.rs:544, refusal.rs:500): resume or defer? (reference-m3/change-story-4)
+
+Resume now: both blockers are repaired on the trunk. Merge b63cd7cfcc ("Merge goal-branch landing with producer and LLM choices", reached the trunk in b63d5429e0) gives `restart.rs` its `connector: domain.config.forge_connector` field and `refusal.rs` its `w::Refusal::Judged(_)` arm. Run 4 merged trunk 4f22de62be, which came before that merge.
+Next run: merge the current `origin/reference-m3/integration` (b63d5429e0 or later) into the branch first, then follow Steps 2 and 3 as written: the narrow run with its count of 3, the `forge_routes::` run, fmt and clippy. Report the three stories' run times.
+Do not ask this question again. If, after that merge, the build still fails in a file outside the header's `files`, stop with `Failed:`, quoting the diagnostic and the trunk commit you merged; do not stop with a `Question:`. The trunk's check and its repair own that failure.
+A story that compiles and then fails, showing the root, jig or the forge wrong, is still reported under `## Left`, not fixed here.

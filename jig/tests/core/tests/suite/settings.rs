@@ -700,7 +700,7 @@ fn settings_inventory_tracks_each_defaults_revision_across_a_release() {
     let signed = sign_in(&mut world);
     let first = inventory(&mut world, signed);
     assert_eq!(first.newest, 1);
-    assert!(first.settings.iter().all(|line| line.follows == documents::Follows::Default && line.last == 1));
+    assert!(first.settings.iter().all(|line| line.follows == documents::Follows::Default && line.last == Some(1)));
     assert_eq!(first.held.get(0).expect("settings story fixture").holders, 0);
     let mut config = configuration().0;
     config.core.defaults.templates[0].grace = Some(Duration::from_secs(6));
@@ -709,7 +709,7 @@ fn settings_inventory_tracks_each_defaults_revision_across_a_release() {
     let second = inventory(&mut world, signed);
     assert_eq!(second.newest, 2);
     for line in &second.settings {
-        assert_eq!(line.last, if line.setting == settings::Setting::Template(1) { 2 } else { 1 });
+        assert_eq!(line.last, Some(if line.setting == settings::Setting::Template(1) { 2 } else { 1 }));
     }
 }
 #[test]
@@ -735,7 +735,7 @@ fn a_setting_reads_whole_only_from_the_newest() {
     ) else {
         panic!("whole template")
     };
-    let settings::Value::Template(template) = value.value else { panic!("template value") };
+    let Some(settings::Value::Template(template)) = value.value else { panic!("template value") };
     assert_eq!(template.grace, Some(Duration::from_secs(10)));
     assert_eq!(
         client_read(
@@ -876,7 +876,7 @@ fn a_removed_setting_keeps_its_inventory_line_and_reads_unknown() {
         .find(|line| line.setting == settings::Setting::Template(2))
         .expect("settings story fixture");
     assert_eq!(line.follows, documents::Follows::Change);
-    assert_eq!(line.last, 1);
+    assert_eq!(line.last, Some(1));
     assert_eq!(
         client_read(
             &mut world,
@@ -1075,7 +1075,7 @@ fn a_held_revisions_charter_reads_whole_and_the_inventory_counts_its_holders() {
     ) else {
         panic!("held charter")
     };
-    let settings::Value::Charter(charter) = value.value else { panic!("charter value") };
+    let Some(settings::Value::Charter(charter)) = value.value else { panic!("charter value") };
     assert_eq!(charter.policy.instructions.as_ref(), b"Answer within the granted authority.");
     let document = inventory(&mut world, signed);
     assert_eq!(document.held.iter().map(|row| (row.head.number, row.holders)).collect::<Vec<_>>(), [(1, 1), (2, 0)]);

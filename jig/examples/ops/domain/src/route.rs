@@ -1077,8 +1077,8 @@ pub(crate) fn connector_out(
                     core::settings::Setting::Template(number) => *number,
                     core::settings::Setting::Charter(_)
                     | core::settings::Setting::Policy(_)
-                    | core::settings::Setting::Rules => continue,
-                    core::settings::Setting::Application { .. } => unreachable!("an application's setting: apps-wire"),
+                    | core::settings::Setting::Rules
+                    | core::settings::Setting::Application { .. } => continue,
                 };
                 let template = domain.core.current.template(number).expect("offered template");
                 if template.flags.conversation {

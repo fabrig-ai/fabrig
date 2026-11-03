@@ -27,7 +27,8 @@ fn a_stock_charter_two_repair_starts_with_its_oversized_ci_cut_and_marked() {
     repair.run.policy = coder.policy.clone();
     repair.run.ended_by = tasks::EndedBy::Result;
     repair.run.contract = tasks::Contract::Change { connector: 0, kind: 1, words: 1024 };
-    repair.run.authority.tools.0 &= !jig_domain_core::ToolFamilies::JIG.message.0;
+    let families = jig_domain_core::ToolFamilies::JIG;
+    repair.run.authority.tools.0 &= !(families.message.0 | families.control.0);
     repair.run.budget = coder.spend;
     repair.sections = Box::new([
         engine::BriefSection {

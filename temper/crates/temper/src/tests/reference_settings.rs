@@ -73,6 +73,16 @@ fn the_reference_settings_file_decodes() {
     );
     assert!(bytes::find(coordinator.instructions.bytes(), b"\"producer\": 6").is_some());
     assert!(bytes::find(coordinator.instructions.bytes(), b"close-out").is_some());
+    assert!(
+        std::str::from_utf8(coordinator.instructions.bytes())
+            .expect("coordinator instructions are UTF-8")
+            .contains(r#""branch": "mine""#)
+    );
+    assert!(coordinator.instructions.bytes().ends_with(
+        b"If you finish without a landing, say why in your report; your goal branch is kept for a person to read."
+    ));
+    assert!(!coordinator.resume());
+    assert_eq!(coordinator.waiting, Duration::ZERO);
     assert_eq!(
         coordinator.wake,
         WakePolicy {

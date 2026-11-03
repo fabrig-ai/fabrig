@@ -4,9 +4,9 @@
 
 - **Design lags:**
   - **3, 5, 14: `change` and its fields (N22, N13).** `../domain/agent.md`,
-    4.3.1: `change` names no requester's branch, `questions` or merge
-    job, nor `repairs`. `../protocol/configuration.md`, 13.2 numbers the
-    forge's charters for the change and its reviews alone.
+    4.3.1: `change` names no `questions` or merge job, nor `repairs`.
+    `../protocol/configuration.md`, 13.2 numbers the forge's charters for
+    the change and its reviews alone.
   - **8, 14: questions (N1).** `../domain/agent.md`, 8.2 and
     `../domain/forge.md`, 8.1: a change takes no questions, and its agents
     have no Message family; there is no `questions` setting, foreman or

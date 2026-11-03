@@ -30,7 +30,8 @@ record CharterDocument { connector: u16 name: list 32 bytes 65536 path: bytes 25
 record Charter { number: u32 instructions: text 1114240 waiting: duration resume: bool turns: u32 time: duration reserve_turns: u32 reserve_time: duration model: SettingModel alternatives: list 16 SettingModel inspect: bool modify: bool shell: bool agents: bool call_timeout: duration hosts: SettingHosts spend: u64 wake: WakePolicy documents: list 8 CharterDocument }
 record SettingPolicy { escalation_role: option u32 ceiling: Authority projections: list 32 Grant period_spend: u64 roles: list 32 PolicyEditRole requirements: list 32 PolicyRequirement permissions: list 32 PolicyPermission templates: list 16 TemplateOverride }
 record Rules { ceiling: Authority period_spend: u64 minimum_run_spend: u64 maximum_run_spend: u64 implies: list 32 KindImplication requirements: list 32 PolicyRequirement }
-enum SettingValue { charter: boxed Charter, template: boxed Template, policy: boxed SettingPolicy, rules: boxed Rules }
+record ApplicationValue { bytes: bytes 1114240 }
+enum SettingValue { charter: boxed Charter, template: boxed Template, policy: boxed SettingPolicy, rules: boxed Rules, application: ApplicationValue }
 record SettingSet { value: SettingValue }
 enum SettingEdit { set: SettingSet, removed, reset }
 record SettingItem { setting: Setting edit: SettingEdit }
@@ -38,22 +39,28 @@ record ChangeSettings { against: u32 items: bytes 1114240 running: Running }
 record OutcomeSettingsChanged { revision: u32 }
 record RefusalStale { newest: u32 }
 record RefusalFull { revision: u32 tasks: list 32 u64 more: u32 }
-enum SettingFault { shape, count, reference, rules, budget, grace, owner }
+enum SettingFault { shape, count, reference, rules, budget, grace, owner, judged }
 record MalformedSettings { setting: Setting fault: SettingFault }
 record ReadSetting { setting: Setting revision: u32 proposal: option ProposalKey }
 record ReadRevision { number: u32 }
 record ReadRevisions { before: option u32 }
 enum SettingFollows { default, change }
-record SettingLine { setting: Setting name: option DocumentText follows: SettingFollows last: u32 }
+record ApplicationRevision { revision: u32 }
+enum ApplicationFollows { default, changed: ApplicationRevision, removed: ApplicationRevision }
+record ApplicationState { follows: ApplicationFollows size: u32 charters: list 255 u32 }
+record SettingLine { setting: Setting name: option DocumentText follows: SettingFollows last: option u32 application: option ApplicationState }
 record RevisionParty { number: u64 }
 enum RevisionDecider { first_start, release, party: RevisionParty }
 record RevisionHead { number: u32 against: u32 at: u64 by: RevisionDecider proposal: option ProposalKey moved: bool }
 record HeldRevision { head: RevisionHead holders: u32 }
 record SettingsProposal { proposer: Proposer number: u32 }
 record SettingsDocument { newest: u32 settings: list 256 SettingLine held: list 32 HeldRevision pending: list 32 SettingsProposal }
-record SettingDocument { setting: Setting revision: u32 value: SettingValue }
+record ApplicationSize { size: u32 }
+enum SizedEdit { set: ApplicationSize, remove, reset }
+record SettingDocument { setting: Setting revision: u32 value: option SettingValue application: option ApplicationState proposed: option SizedEdit }
 record Size { bytes: u64 }
-enum RevisionEdit { set: SettingSet, too_large: Size, removed, reset }
+record ApplicationEdit { edit: SizedEdit }
+enum RevisionEdit { set: SettingSet, too_large: Size, removed, reset, application: ApplicationEdit }
 record RevisionItem { setting: Setting edit: RevisionEdit }
 record RevisionDocument { head: RevisionHead items: bytes 16777216 }
 record RevisionForgotten { oldest: u32 }
@@ -64,8 +71,9 @@ record RevisionsPage { rows: list 32 RevisionRow next: option u32 forgotten: boo
 record OutcomeMovedToNewest { newest: u32 moved: u32 stayed: u32 }
 enum Outcome { document: OutcomeDocument, made: OutcomeMade, settings_changed: OutcomeSettingsChanged, moved_to_newest: OutcomeMovedToNewest }
 enum Malformed { project_mismatch, two_as_allowed, conversation_not_agent, cycle, proposed_as_allowed, ended_by, name: MalformedName, settings: MalformedSettings, settings_unchanged, running }
+record RefusalJudged { at: u32 setting: Setting why: text 65536 }
 record RefusalMalformed { at: u32 why: Malformed }
-enum Refusal { malformed: RefusalMalformed, role: RefusalRole, taken: RefusalTaken, not_waiting, no_further, authority: RefusalAuthority, limit: RefusalLimit, moved: RefusalMoved, ended: RefusalEnded, unknown, not_offered, key_conflict, no_escalation_holder, llm: RefusalLlm, provider, account: RefusalAccount, circle: RefusalCircle, dependency: RefusalDependency, kept: RefusalKept, name_taken, account_move: RefusalAccountMove, stale: RefusalStale, full: RefusalFull, sign_in_redirect: RefusalSignInRedirect }
+enum Refusal { malformed: RefusalMalformed, role: RefusalRole, taken: RefusalTaken, not_waiting, no_further, authority: RefusalAuthority, limit: RefusalLimit, moved: RefusalMoved, ended: RefusalEnded, unknown, not_offered, key_conflict, no_escalation_holder, llm: RefusalLlm, provider, account: RefusalAccount, circle: RefusalCircle, dependency: RefusalDependency, kept: RefusalKept, name_taken, account_move: RefusalAccountMove, stale: RefusalStale, full: RefusalFull, sign_in_redirect: RefusalSignInRedirect, judged: RefusalJudged }
 record Done { outcome: Outcome }
 record Refused { refusal: Refusal at: option u32 }
 enum Final { done: Done, refused: Refused }
@@ -90,4 +98,5 @@ enum DeliveryValue { project: Project, me: Me, task: boxed Task, proposal: Propo
 record OriginRevision { revision: u32 }
 enum SettingOrigin { default: OriginRevision, change: OriginRevision, not_offered }
 enum ReviewValue { value: SettingSet, too_large: Size, none }
-record ReviewItem { setting: Setting edit: RevisionItemEdit now: ReviewValue origin: SettingOrigin would_be: ReviewValue }
+record ApplicationReview { edit: SizedEdit now: option ApplicationState }
+record ReviewItem { setting: Setting edit: RevisionItemEdit now: ReviewValue origin: SettingOrigin would_be: ReviewValue application: option ApplicationReview }

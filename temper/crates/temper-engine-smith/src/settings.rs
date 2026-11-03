@@ -199,6 +199,41 @@ pub fn settings_answer(
 
 pub(crate) fn refusal(why: &jig_domain_people::Refusal) -> Box<[u8]> {
     use jig_domain_people::{Malformed, Refusal};
+    match why {
+        Refusal::Judged { why, .. } => {
+            let mut out = settings_form::Text::measure();
+            out.put(b"refused by its owner: ");
+            out.put(why);
+            let mut rendered = settings_form::Text::writing_exact(out);
+            rendered.put(b"refused by its owner: ");
+            rendered.put(why);
+            return rendered.finish();
+        }
+        Refusal::SignInRedirect { .. }
+        | Refusal::Stale { .. }
+        | Refusal::Full { .. }
+        | Refusal::NameTaken
+        | Refusal::AccountMove { .. }
+        | Refusal::Circle { .. }
+        | Refusal::Dependency { .. }
+        | Refusal::Kept { .. }
+        | Refusal::Account { .. }
+        | Refusal::NotWellFormed { .. }
+        | Refusal::Role { .. }
+        | Refusal::Authority { .. }
+        | Refusal::Limit { .. }
+        | Refusal::Moved { .. }
+        | Refusal::Ended { .. }
+        | Refusal::Taken { .. }
+        | Refusal::NotWaiting
+        | Refusal::NoFurther
+        | Refusal::Unknown
+        | Refusal::NotOffered
+        | Refusal::Provider
+        | Refusal::KeyConflict
+        | Refusal::NoEscalationHolder
+        | Refusal::Llm { .. } => {}
+    }
     let view = if let Refusal::Stale { newest } = why {
         settings_form::Refusal::Stale(*newest)
     } else if let Refusal::NotWellFormed { at, why: Malformed::Settings { setting, fault } } = why {
@@ -207,7 +242,9 @@ pub(crate) fn refusal(why: &jig_domain_people::Refusal) -> Box<[u8]> {
             s::Setting::Template(number) => c::Setting::Template(c::SettingNumber { number: *number }),
             s::Setting::Policy(number) => c::Setting::Policy(c::SettingNumber { number: *number }),
             s::Setting::Rules => c::Setting::Rules,
-            s::Setting::Application { .. } => unreachable!("an application's setting: apps-wire"),
+            s::Setting::Application { kind, scope, number } => {
+                c::Setting::Application { kind: *kind, scope: *scope, number: *number }
+            }
         };
         let fault = match fault {
             jig_domain_people::SettingFault::Shape => c::SettingFault::Shape,
@@ -217,7 +254,7 @@ pub(crate) fn refusal(why: &jig_domain_people::Refusal) -> Box<[u8]> {
             jig_domain_people::SettingFault::Budget => c::SettingFault::Budget,
             jig_domain_people::SettingFault::Grace => c::SettingFault::Grace,
             jig_domain_people::SettingFault::Owner => c::SettingFault::Owner,
-            jig_domain_people::SettingFault::Judged => unreachable!("an application's setting: apps-wire"),
+            jig_domain_people::SettingFault::Judged => c::SettingFault::Judged,
         };
         settings_form::Refusal::Malformed { at: *at, setting, fault }
     } else if let Refusal::NotWellFormed { why: Malformed::SettingsUnchanged, .. } = why {

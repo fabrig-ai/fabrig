@@ -323,7 +323,8 @@ fn a_start_gives_the_forge_its_defaults() {
     assert_eq!(domain.forge.setting(3, 0, 1), Some(&charter(2)), "the stored default reached the forge");
     crate::restart::restore_connector_done(&mut domain);
     assert_eq!(domain.core.start_phase(), Some(Phase::RestoreConnector { connector: 0 }));
-    let Some(Work::Core(Event::EffectConnector(connector::Event::SettingsDefaults { defaults }))) = domain.work.pop()
+    let Some(Work::Core(Event::EffectConnector(connector::Event::SettingsDefaults { connector: 0, defaults }))) =
+        domain.work.pop()
     else {
         panic!("the core receives the defaults before the restore completes");
     };

@@ -79,7 +79,8 @@ fn fixed(refusal: &Refusal) -> bool {
         | Refusal::NotOffered
         | Refusal::KeyConflict
         | Refusal::NoEscalationHolder => true,
-        Refusal::Full(_)
+        Refusal::Judged { .. }
+        | Refusal::Full(_)
         | Refusal::Llm { .. }
         | Refusal::Account { .. }
         | Refusal::Circle { .. }

@@ -95,7 +95,8 @@ fn inventory(count: u32) -> SettingsAnswer {
                 setting: s::Setting::Charter(number),
                 name: None,
                 follows: d::Follows::Change,
-                last: 5,
+                last: Some(5),
+                application: None,
             })
             .expect("inventory count");
     }
@@ -154,7 +155,8 @@ fn engine_and_ctl_render_the_same_settings_inventory() {
             setting: c::Setting::Charter(c::SettingNumber { number }),
             name: None,
             follows: c::SettingFollows::Change,
-            last: 5,
+            last: Some(5),
+            application: None,
         })
         .expect("two rows");
     }

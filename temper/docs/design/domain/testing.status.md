@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-02. Where temper's code lags or departs from [testing.md](testing.md).
+2026-11-03. Where temper's code lags or departs from [testing.md](testing.md).
 
 - **Not yet:** 2.4: GitHub's real-loop stories 3, 4, 5, 7 and 8; 1, 2 and 6
   run (`tests/real-loop/tests/suite/github_land.rs`, `github.rs`). 2.4, 2.5,
@@ -27,7 +27,11 @@
   skein's fake machine runs no `sh` and no `rg`. 4.3, 7:
   `temper-fake-git-hosted` in `crates/`; it is in `testing/`. 6.4: the
   settings stories that need temper's kinds of settings (`root.md`'s
-  status). 6: a state
+  status). 6.4: the configuring agent's stories, since charter 3 is not
+  built (`agent.status.md`); the client's How work runs, a proposal's
+  card and its review, in their step and view tests and joined with
+  the engine, since the pages are not built
+  (`../client/README.status.md`). 6: a state
   digest for replay (`testing-strategy.md`, section 6); the walking
   world compares its formatted state
   (`tests/engine/domain/src/walking.rs`, `run_replayed`).
