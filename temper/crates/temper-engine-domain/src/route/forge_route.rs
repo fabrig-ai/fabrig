@@ -1933,6 +1933,8 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 queue_repairs: 0,
                 producing_charter: domain.config.forge_charter,
                 review_charter: 4,
+                producing_llm: None,
+                review_llm: None,
                 effect_account: None,
                 producer_failure: None,
                 report: Box::new([]),
@@ -2488,16 +2490,18 @@ fn change_delegate(
         kind: 2,
         words: env.limits.tasks.result_bytes,
     };
-    let (executor, words, contract) = match kind {
+    let (executor, words, contract, llm) = match kind {
         forge_change::Delegate::Produce => (
             tasks::Executor::Agent { charter: row.producing_charter },
             production_words(domain, env, task, row)?,
             change_contract,
+            row.producing_llm.clone(),
         ),
         forge_change::Delegate::Repair(why) => (
             tasks::Executor::Agent { charter: row.producing_charter },
             repair_words(row, why, parameters.as_slice(), env.limits.tasks.spec_bytes)?,
             change_contract,
+            row.producing_llm.clone(),
         ),
         forge_change::Delegate::Resolve { base } => {
             parameters.push(tasks::Parameter::Bytes { name: 6, value: commit_text(&base) }).ok()?;
@@ -2505,6 +2509,7 @@ fn change_delegate(
                 tasks::Executor::Agent { charter: row.producing_charter },
                 Box::from(&b"Resolve the merge conflict and push the merge commit"[..]),
                 change_contract,
+                row.producing_llm.clone(),
             )
         }
         forge_change::Delegate::Gate { number, head } => {
@@ -2537,6 +2542,11 @@ fn change_delegate(
                         },
                     ]),
                 },
+                match gate.kind {
+                    forge_change::GateKind::Agent => row.review_llm.clone(),
+                    forge_change::GateKind::Check => row.producing_llm.clone(),
+                    forge_change::GateKind::Person => None,
+                },
             )
         }
     };
@@ -2553,7 +2563,7 @@ fn change_delegate(
         symbolic_grants: Box::new([]),
         dependencies: Box::new([]),
         wake: Some(tasks::WakePolicy::DEFAULT),
-        llm: None,
+        llm,
     })
 }
 
