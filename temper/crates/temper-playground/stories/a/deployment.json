@@ -149,7 +149,7 @@
         "tasks.result_bytes": 128,
         "tasks.spec_bytes": 128,
         "tasks.tasks": 2,
-        "tasks.tree_tasks": 4,
+        "tasks.tree_tasks": 6,
         "views.runs": 1,
         "views.text_bytes": 1024,
         "views.watchers": 16,

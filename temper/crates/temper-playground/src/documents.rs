@@ -40,7 +40,7 @@ pub const CHARTER_TURNS: u32 = 8;
 pub const ENGINE_OVERRIDES: [(&str, u32); 20] = [
     ("tasks.tasks", 4),
     ("tasks.project_tasks", 4),
-    ("tasks.tree_tasks", 4),
+    ("tasks.tree_tasks", 6),
     ("people.people", 4),
     ("people.inbox_tasks", 8),
     ("fleet.attempts", 4),

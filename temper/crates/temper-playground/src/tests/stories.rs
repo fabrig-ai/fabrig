@@ -87,9 +87,11 @@ fn story_as_stock_authority_funds_its_scripted_delegate() {
     assert!(playground_owner(&defaults).budget.spend >= spend, "the chat funds its delegate");
     assert!(policy.ceiling.budget.spend >= spend, "the policy funds the delegate");
     assert!(defaults.rules.ceiling.budget.spend >= spend, "the rules fund the delegate");
+    // The tree includes the chat and its immediate delegate as well as the delegate's descendants.
+    const CREATORS: u64 = 2;
     assert!(
         u64::from(engine.limits.core.tasks.tree_tasks)
-            >= authority["delegation"]["tasks"].as_u64().expect("delegate task count"),
+            >= authority["delegation"]["tasks"].as_u64().expect("delegate task count") + CREATORS,
         "the task tree holds the delegate's authority"
     );
 }
