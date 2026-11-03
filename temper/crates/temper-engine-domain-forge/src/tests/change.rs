@@ -696,7 +696,7 @@ fn projected_words(explicit_title: &[u8], words: &[u8]) -> skein_forge::api::Wri
     row.body = words.into();
     let registered = outputs(&mut d, Event::Change { row });
     for request in &registered {
-        if let Request::Refused { .. } = request {
+        if let Request::Refused { .. } | Request::ResourceRefused { .. } = request {
             panic!("change registration refused: {request:?}");
         }
     }

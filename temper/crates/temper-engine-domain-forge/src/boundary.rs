@@ -1807,6 +1807,13 @@ pub enum Request {
     Refused {
         task: u64,
     },
+    /// A named operation failed with its resource and admission or backend cause.
+    ResourceRefused {
+        task: u64,
+        operation: &'static [u8],
+        resource: Option<Name>,
+        cause: crate::RefusalCause,
+    },
     /// A goal's own branch could not be made (domain/forge.md, 11.1).
     MakeFailed {
         task: u64,
