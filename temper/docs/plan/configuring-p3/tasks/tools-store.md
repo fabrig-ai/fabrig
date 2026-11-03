@@ -82,3 +82,13 @@ store `value`, with `chunk` and `page.bytes` moved by the same delta and their p
 assertions, may be raised to the figure the refusal names, as `tools-surface`'s answer says,
 when the trunk without this branch passes and this branch fails; list each, old and new. Any
 other production bound, limit or budget: stop and ask.
+
+### 2026-11-03: Authorize expanding this task to increase jig's small store value/page/chunk limits by 192 bytes and update affected diagnostics (recommended), or assign that profile repair separately before this task resumes? (configuring-p3/tools-store-1, foreman configuring-p3/tools-store/foreman-1)
+
+The existing Answers section authorizes the profile repair, conditional on the trunk without this branch passing the failing test.
+“Small's (and Standard's) store `value`, with `chunk` and `page.bytes` moved by the same delta and their pinned test assertions, may be raised to the figure the refusal names … when the trunk without this branch passes and this branch fails; list each, old and new.”
+The next run first checks that startup test alone on the trunk without this branch.
+If it passes, raise Small’s value 2,166,708 → 2,166,900, chunk 2,168,807 → 2,168,999, and page.bytes 2,168,787 → 2,168,979; update the specified comments and affected pinned expectations.
+Standard changes only if its test fails the same way. Leave other production bounds, limits and budgets unchanged.
+If the trunk test also fails, change nothing for that shortfall and report it under `## Left`, as tools-surface’s answer requires.
+Complete the remaining acceptance checks and commit and push the authorized repair.
