@@ -21,7 +21,7 @@ pub(crate) fn start(client: Token, source: host::Start, limits: &Limits) -> Resu
     for item in source.grants {
         match item.form {
             host::Form::Program(_) => return Err(host::Invalid::Grants),
-            host::Form::Credential(_) | host::Form::Withdrawn => {}
+            host::Form::Credential(_) => {}
         }
         grants.push(grant(item)).expect("checked count");
     }
@@ -72,7 +72,7 @@ pub(crate) const fn grant(value: host::Grant) -> smith::Grant {
             host::Scheme::Key => false,
             host::Scheme::Bearer => true,
         },
-        host::Form::Withdrawn | host::Form::Program(_) => true,
+        host::Form::Program(_) => true,
     };
     smith::Grant {
         name: smith::GrantName { account: value.account, generation: value.generation },

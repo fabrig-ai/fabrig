@@ -24,18 +24,6 @@ fn credential(value: &[u8], scheme: Scheme) -> GrantValue {
     )
 }
 
-/// A host's withdrawn wire value, removed by accounts-sources.
-#[must_use]
-pub fn withdrawn(id: &[u8], value: &[u8]) -> GrantValue {
-    GrantValue::Withdrawn(
-        smith_channel::WithdrawnValue::new(
-            &CEILINGS,
-            smith_channel::WithdrawnValueParts { id: Box::from(id), bearer: Secret::new(Box::from(value)) },
-        )
-        .expect("bounded withdrawn fixture"),
-    )
-}
-
 /// A host's program source wire value.
 #[must_use]
 pub fn program(name: &[u8]) -> GrantValue {

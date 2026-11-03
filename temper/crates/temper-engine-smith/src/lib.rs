@@ -62,7 +62,7 @@ pub enum Decoded {
 /// (protocol/documentation.md, section 5).
 pub const DOC_ANSWER: u32 = 2_048;
 
-/// Smith channel v5's `CallName`: fixed-width activation (u64), completion
+/// Smith channel v6's `CallName`: fixed-width activation (u64), completion
 /// (u32), position (u32), with no record prefix or tail.
 pub const CALL_NAME_BYTES: u32 = 16;
 

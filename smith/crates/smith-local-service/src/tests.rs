@@ -902,7 +902,13 @@ pub(crate) fn session_started() -> smith_events::SessionStarted {
         profile: b"test".as_slice().into(),
         capture: smith_events::Capture::Calls,
         delivery: smith_events::Delivery::Complete,
-        versions: smith_events::Versions { events: 4, channel: 5, charter: 4, transcript: 6, chat_store: None },
+        versions: smith_events::Versions {
+            events: 4,
+            channel: smith_channel::KindRule::FORMAT_VERSION,
+            charter: 4,
+            transcript: 6,
+            chat_store: None,
+        },
         limits: List::with_capacity(0),
     }
 }

@@ -4,14 +4,14 @@ use crate::support::goldens::assert_measured;
 
 use skein_channel::Direction;
 use skein_lib::Reader;
-use smith_channel::{Answer, CEILINGS, Start, V5, schema};
+use smith_channel::{Answer, CEILINGS, Start, V6, schema};
 
 #[test]
 fn channel_goldens_decode_at_their_measured_length() {
-    assert_measured("channel", 5, "start", |bytes| {
+    assert_measured("channel", 6, "start", |bytes| {
         Start::decode(&CEILINGS, &mut Reader::new(bytes)).expect("start decodes").measure()
     });
-    assert_measured("channel", 5, "answer", |bytes| {
+    assert_measured("channel", 6, "answer", |bytes| {
         Answer::decode(&CEILINGS, &mut Reader::new(bytes)).expect("answer decodes").measure()
     });
 }
@@ -21,9 +21,9 @@ fn every_required_kind_has_its_direction_and_bound_in_the_schema() {
     let table = schema(&CEILINGS).expect("schema bounds fit");
     assert_eq!(table.magic, *b"smth");
     assert_eq!(table.versions.len(), 1);
-    let version = table.version(5).expect("version five");
+    let version = table.version(6).expect("version six");
     assert_eq!(version.kinds.len(), 20);
-    for (index, rule) in V5.iter().enumerate() {
+    for (index, rule) in V6.iter().enumerate() {
         assert!(rule.required, "all initial kinds are required");
         let kind = version.kind(rule.kind).expect("required kind is listed");
         assert_eq!(kind.direction, rule.direction);
@@ -43,7 +43,7 @@ fn every_required_kind_has_its_direction_and_bound_in_the_schema() {
 
 #[test]
 fn message_refusal_goldens_keep_each_typed_reason() {
-    assert_measured("channel", 5, "message_refused", |bytes| {
+    assert_measured("channel", 6, "message_refused", |bytes| {
         smith_channel::MessageRefused::decode(&CEILINGS, &mut Reader::new(bytes)).expect("refusal decodes").measure()
     });
 }
@@ -52,13 +52,13 @@ fn message_refusal_goldens_keep_each_typed_reason() {
 fn channel_start_goldens_seal_the_optional_fixed_sixteen_byte_identity() {
     let absent = Start::decode(
         &CEILINGS,
-        &mut Reader::new(include_bytes!("../../../../crates/smith-channel/golden/v5/record_start_smallest.bin")),
+        &mut Reader::new(include_bytes!("../../../../crates/smith-channel/golden/v6/record_start_smallest.bin")),
     )
     .expect("absent identity golden");
     assert_eq!(absent.identity(), &None);
     let present = Start::decode(
         &CEILINGS,
-        &mut Reader::new(include_bytes!("../../../../crates/smith-channel/golden/v5/record_start_full.bin")),
+        &mut Reader::new(include_bytes!("../../../../crates/smith-channel/golden/v6/record_start_full.bin")),
     )
     .expect("present identity golden");
     assert_eq!(present.identity(), &Some([165; 16]));
@@ -68,13 +68,13 @@ fn channel_start_goldens_seal_the_optional_fixed_sixteen_byte_identity() {
 fn channel_turn_goldens_keep_the_declared_window_flag() {
     let first = smith_channel::Turn::decode(
         &CEILINGS,
-        &mut Reader::new(include_bytes!("../../../../crates/smith-channel/golden/v5/record_turn_full.bin")),
+        &mut Reader::new(include_bytes!("../../../../crates/smith-channel/golden/v6/record_turn_full.bin")),
     )
     .expect("window flag golden");
     assert!(first.opens_window());
     let ordinary = smith_channel::Turn::decode(
         &CEILINGS,
-        &mut Reader::new(include_bytes!("../../../../crates/smith-channel/golden/v5/record_turn_smallest.bin")),
+        &mut Reader::new(include_bytes!("../../../../crates/smith-channel/golden/v6/record_turn_smallest.bin")),
     )
     .expect("ordinary flag golden");
     assert!(!ordinary.opens_window());
@@ -82,7 +82,7 @@ fn channel_turn_goldens_keep_the_declared_window_flag() {
 
 #[test]
 fn live_goldens_decode_at_their_measured_length() {
-    assert_measured("channel", 5, "live", |bytes| {
+    assert_measured("channel", 6, "live", |bytes| {
         smith_channel::Live::decode(&CEILINGS, &mut Reader::new(bytes)).expect("live decodes").measure()
     });
 }
@@ -94,7 +94,6 @@ fn each_grant_value_form_reads_back_by_its_tag() {
         (credential_value(Scheme::Bearer), (0, Some(Scheme::Bearer))),
         (credential_value(Scheme::Key), (0, Some(Scheme::Key))),
         (program_value(b"program").expect("bounded program"), (1, None)),
-        (withdrawn_value(b"account", 1).expect("bounded withdrawn"), (2, None)),
     ];
     for (value, expected) in rows {
         let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("fixture size"));
@@ -103,7 +102,7 @@ fn each_grant_value_form_reads_back_by_its_tag() {
         let read = GrantValue::decode(&CEILINGS, &mut Reader::new(&bytes)).expect("grant decodes");
         let scheme = match read {
             GrantValue::Credential(value) => Some(value.scheme().clone()),
-            GrantValue::Program(_) | GrantValue::Withdrawn(_) => None,
+            GrantValue::Program(_) => None,
         };
         assert_eq!((bytes[0], scheme), expected);
     }
@@ -119,33 +118,18 @@ fn credential_value(scheme: smith_channel::Scheme) -> smith_channel::GrantValue 
     )
 }
 
-fn program_value(name: &[u8]) -> Result<smith_channel::GrantValue, smith_channel::v5::Problem> {
+fn program_value(name: &[u8]) -> Result<smith_channel::GrantValue, smith_channel::v6::Problem> {
     smith_channel::ProgramValue::new(&CEILINGS, smith_channel::ProgramValueParts { name: Box::from(name) })
         .map(smith_channel::GrantValue::Program)
-}
-
-fn withdrawn_value(id: &[u8], bearer_length: usize) -> Result<smith_channel::GrantValue, smith_channel::v5::Problem> {
-    smith_channel::WithdrawnValue::new(
-        &CEILINGS,
-        smith_channel::WithdrawnValueParts {
-            id: Box::from(id),
-            bearer: skein_lib::Secret::new(vec![b'x'; bearer_length].into_boxed_slice()),
-        },
-    )
-    .map(smith_channel::GrantValue::Withdrawn)
 }
 
 #[test]
 fn a_grant_value_past_its_bounds_is_refused() {
     use skein_codec::Reason;
     let program_bound = usize::try_from(CEILINGS.program_value_name).expect("program ceiling");
-    let id_bound = usize::try_from(CEILINGS.withdrawn_value_id).expect("id ceiling");
-    let bearer_bound = usize::try_from(CEILINGS.withdrawn_value_bearer).expect("bearer ceiling");
     let rows = [
         ("long program", program_value(&vec![b'a'; program_bound + 1]), Reason::Bound),
         ("invalid program text", program_value(&[255]), Reason::Utf8),
-        ("long id", withdrawn_value(&vec![b'a'; id_bound + 1], 1), Reason::Bound),
-        ("long bearer", withdrawn_value(b"account", bearer_bound + 1), Reason::Bound),
     ];
     for (name, result, reason) in rows {
         assert_eq!(result.err().map(|problem| problem.reason), Some(reason), "{name}");
@@ -155,12 +139,7 @@ fn a_grant_value_past_its_bounds_is_refused() {
 #[test]
 fn grant_values_at_their_bounds_are_admitted() {
     let program_bound = usize::try_from(CEILINGS.program_value_name).expect("program ceiling");
-    let id_bound = usize::try_from(CEILINGS.withdrawn_value_id).expect("id ceiling");
-    let bearer_bound = usize::try_from(CEILINGS.withdrawn_value_bearer).expect("bearer ceiling");
-    for (name, result) in [
-        ("program", program_value(&vec![b'a'; program_bound])),
-        ("withdrawn", withdrawn_value(&vec![b'a'; id_bound], bearer_bound)),
-    ] {
+    for (name, result) in [("program", program_value(&vec![b'a'; program_bound]))] {
         assert!(result.is_ok(), "{name}");
     }
 }

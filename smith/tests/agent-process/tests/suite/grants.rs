@@ -1,4 +1,4 @@
-use smith_agent_process_world::{World, bearer, charter, program, withdrawn};
+use smith_agent_process_world::{World, bearer, charter, key, program};
 use smith_channel::{InvalidStart, RunResult, StartRefusal};
 
 fn refusal(world: &World) -> Option<InvalidStart> {
@@ -18,7 +18,7 @@ fn an_uninstallable_grant_refuses_the_start_as_grants() {
     let rows = [
         (bearer(b""), false, expected.clone()),
         (bearer(b"not-for-anthropic"), true, expected.clone()),
-        (withdrawn(b"account", b"value"), false, expected.clone()),
+        (key(b""), false, expected.clone()),
         (program(b"source"), false, expected),
     ];
     for (index, (value, anthropic, expected)) in rows.into_iter().enumerate() {
@@ -36,7 +36,7 @@ fn an_uninstallable_grant_refuses_the_start_as_grants() {
 
 #[test]
 fn a_later_uninstallable_grant_fails_the_run_as_credential() {
-    for (value, anthropic) in [(bearer(b"not-for-anthropic"), true), (withdrawn(b"account", b"value"), false)] {
+    for (value, anthropic) in [(bearer(b"not-for-anthropic"), true), (key(b""), false)] {
         let mut world = World::new(32, &charter());
         if anthropic {
             world.anthropic();
