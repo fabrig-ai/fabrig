@@ -93,6 +93,9 @@ pub struct Opening {
     pub transcript: Option<Transcript>,
     /// Results the host supplied for calls in the last saved turn.
     pub answered: Box<[Answered]>,
+    /// The name of the one call this opener may have withheld when the conversation
+    /// last closed (session.md, 3), restored as withheld; `None` withholds none.
+    pub withheld: Option<Box<[u8]>>,
 }
 
 /// A window's declared model and rates, supplied by the root for its compaction.

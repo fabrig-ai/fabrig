@@ -22,7 +22,7 @@ fn deployment_receiving_keeps_unkept_facts_scope_full_width_capacities_and_reser
     value.subject.scope = Scope::Deployment;
     value.subject.kind = Kind::Outbox(u64::MAX);
     assert!(!value.matches_subject());
-    let price = document_bytes(&value).unwrap();
+    let price = document_bytes(&value).expect("fixture deployment document price fits");
     let mut bound = bounds();
     for (bytes, admitted) in [(price - 1, false), (price, true), (price + 1, true)] {
         bound.bytes = bytes;
@@ -37,7 +37,9 @@ fn deployment_receiving_keeps_unkept_facts_scope_full_width_capacities_and_reser
     });
     assert_eq!(
         document_heap(&empty),
-        Some(size_of::<ClientDocument>() as u64 + List::<OutboxEntry>::price(3).unwrap())
+        Some(
+            size_of::<ClientDocument>() as u64 + List::<OutboxEntry>::price(3).expect("fixture outbox list price fits")
+        )
     );
     bound = bounds();
     bound.rows = 2;

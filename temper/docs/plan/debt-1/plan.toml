@@ -1,0 +1,69 @@
+draft = "debt-1"
+repo = "fabrig"
+sources = ["temper/docs/plan/debt-1/inputs/request.md", "jig/docs/development/debt/D019-lint-config-copied.md", "skein/docs/development/debt/D024-echo-template-flags.md", "smith/docs/development/debt/D004-session-knows-wait.md", "temper/docs/development/debt/D006-forge-reconcile-dead.md"]
+
+# Four small debt items, one per tree, each paid on its own branch (inputs/request.md): four
+# parts that read none of each other's code, so all four start at once. jig's D019 is paid
+# in its clauses 2 and 3 only; its first clause is the question below. plan.md says what was
+# decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "skein-echo"
+title = "skein D024: the echo's layer stop, its peer's end and its closing are states"
+mode = "direct"
+needs = []
+design = "skein/docs/design/examples.md, 3.4"
+
+[[slice]]
+id = 1
+story = "the echo's protocol layer, the template services copy, keeps its stop, its peer's end and its closing in states, as programming-model.md 5.4 asks, and every echo test passes unchanged"
+parts = ["skein-echo"]
+walk = false
+
+[[part]]
+id = "smith-withheld"
+title = "smith D004: the opening names the withheld call, and one answered event"
+mode = "direct"
+needs = []
+design = "smith/docs/design/domain/session.md, 3"
+
+[[slice]]
+id = 2
+story = "a run's session restores its parked wait because the run's opening names it, the session matching no tool name of its opener's, and a delegated answer is one event saying what follows"
+parts = ["smith-withheld"]
+walk = false
+
+[[part]]
+id = "temper-reconcile"
+title = "temper D006: temper forge reconcile, its shell host and setup.orgs removed"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/setup.md, 5.3"
+
+[[slice]]
+id = 3
+story = "temper's help lists no forge reconcile, its setup shell holds no reconcile host, and no limit or setup place is named setup.orgs or orgs"
+parts = ["temper-reconcile"]
+walk = false
+
+[[part]]
+id = "jig-lints"
+title = "jig D019, clauses 2 and 3: no world allows the replay bans, one lint block, every extra clippy.toml says why"
+mode = "direct"
+needs = []
+design = "AGENTS.md, 2"
+
+[[slice]]
+id = 4
+story = "every jig world, test kit and shell keeps the replay bans on under one written lint block, and each extra clippy.toml says why it differs"
+parts = ["jig-lints"]
+walk = false
+
+[[question]]
+id = "d019-shared-table"
+text = """jig's D019 asks that jig's 40 test and shell manifests take their lints from a shared table (`[lints] workspace = true` or one table per kind of crate), changing only manifests, clippy.toml files and scoped #[expect]s. Cargo cannot give that: a member shares only the root's `[workspace.lints]`, all or nothing (cargo 1.95 refuses a member's overrides beside `workspace = true`, and has no named tables), and the root's table is the step code's, under which these crates would trip on the order of ten thousand sites (grep estimates: about 7,400 assertions without a message, 2,600 indexings, 1,950 arithmetic operators, 1,440 panic!s, 2,850 integration tests outside a test module). Options: (a) recommended, what this plan builds: pay D019's other two clauses now (no manifest allows a disallowed_* lint; every extra clippy.toml says why it differs, or goes), write the 40 blocks in one form, and keep D019 open for its first clause, which waits for the cross-tree lint profiles skein's D036 and temper's D011 already name; (b) add now a gate check that holds each jig test and shell manifest to one named profile, a new tool across the trees and the start of D036's plan; (c) move all 40 to `workspace = true` with crate-root #![expect] lists (about 77 crate roots, not scoped). Nothing waits on the answer: (b) or (c) is a later plan."""
+parts = ["jig-lints"]

@@ -109,7 +109,6 @@ impl Runtime {
                 forge: record.number,
                 directory: Box::new([]),
                 bot: setup::Account { login: record.bot.login.clone(), email: record.bot.email.clone() },
-                orgs: Box::new([]),
                 mode: setup::Mode::Managed { admin_token: None },
                 asked: false,
             },

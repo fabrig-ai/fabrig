@@ -19,7 +19,6 @@ fn directory_commands_take_flags_after_their_command_words() {
         (vec!["forge", "fetch", "1"], true),
         (vec!["forge", "remove", "1"], true),
         (vec!["forge", "run", "1", "runner"], true),
-        (vec!["forge", "reconcile", "1"], true),
         (vec!["forge", "sign-in", "1"], true),
         (vec!["unknown"], false),
     ] {

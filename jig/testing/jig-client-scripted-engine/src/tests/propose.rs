@@ -9,7 +9,7 @@ const CASES: [(&str, bool, bool); 4] = [
 fn an_explicit_amendment_proposal_is_answered_with_its_proposal_number() {
     for (name, bounded, changed) in CASES {
         let (setup, ask, answer) = super::fixtures::proposed_amendment(bounded, changed);
-        let mut engine = Engine::new(setup, 1).unwrap();
+        let mut engine = Engine::new(setup, 1).expect("valid script");
         let result = engine.decide(1, &ask, Wall::EPOCH);
         assert_eq!(result, if changed { Err(Invalid::Script) } else { Ok((answer, vec![])) }, "{name}");
     }

@@ -195,7 +195,6 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 
 ## setup
 
-- `setup.orgs`: count, 8. Bounds managed organizations in a setup plan.
 - `setup.deadline_ms`: milliseconds, 120,000. Bounds a setup plan's run, including its wait for the forge.
 - `setup.backoff_ms`: milliseconds, 100. Sets the first delay before a setup request is tried again.
 - `setup.backoff_max_ms`: milliseconds, 5,000. Bounds the doubling delay before a setup request is tried again.

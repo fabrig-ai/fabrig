@@ -86,7 +86,7 @@ pub(super) fn create(project: u32, words: Text) -> Ask {
     Ask::Create { project, tasks: list(vec![new_task(words)]) }
 }
 pub(super) fn creating(frame: &mut Me) {
-    frame.projects.get_mut(0).unwrap().creating = Some(Creating {
+    frame.projects.get_mut(0).expect("fixture project").creating = Some(Creating {
         within: CreateBounds {
             authority: Box::new(authority()),
             pool_left: 100,
@@ -134,8 +134,19 @@ pub(super) fn span_proposal() -> (Script, Ask) {
         on: DecideOn::Proposal { proposal: value.key, decision: Decision::Accepted, running: None },
     };
     setup.truth.objects.insert(ObjectKey::Proposal(value.key), ReadValue::Proposal(Box::new(value)));
-    setup.truth.frames.get_mut(&1).unwrap().projects.get_mut(0).unwrap().creating.as_mut().unwrap().within.latest =
-        Some(Wall::from_nanos(20_000_000_000));
+    setup
+        .truth
+        .frames
+        .get_mut(&1)
+        .expect("fixture party frame")
+        .projects
+        .get_mut(0)
+        .expect("fixture project")
+        .creating
+        .as_mut()
+        .expect("fixture creating offer")
+        .within
+        .latest = Some(Wall::from_nanos(20_000_000_000));
     setup.rules.push(Rule {
         party: Some(1),
         ask: ask.clone(),
