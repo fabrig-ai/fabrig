@@ -20,9 +20,10 @@ mod relay;
 mod tests;
 
 pub use boundary::{
-    Ask, AuthorityHold, AuthorityLack, AuthorityRecovery, Change, Ci, Decision, Delegate, DelegateSpend, Effect,
-    EffectResult, Facts, Freshness, Gate, GateFailure, GateKind, GateReport, Heard, Hold, Limits, Open, Pull,
-    QUESTION_LINE, QUESTIONS_OPEN, Questions, Ready, Repair, Route, Stands, State, Status, Stepped, Verification, Way,
+    Ask, AuthorityHold, AuthorityLack, AuthorityRecovery, Change, Ci, Decision, Delegate, DelegateSpend, Early, Effect,
+    EffectResult, Facts, Freshness, Gate, GateFailure, GateKind, GateReport, Heard, Hold, Limits, Open, Pending,
+    PendingKind, Pull, QUESTION_LINE, QUESTIONS_OPEN, Questions, Ready, Repair, Route, Stands, StartedFrom, State,
+    Status, Stepped, Verification, Way,
 };
 pub use domain::{authority_words, released, review_failed, step};
 pub use queue::first;

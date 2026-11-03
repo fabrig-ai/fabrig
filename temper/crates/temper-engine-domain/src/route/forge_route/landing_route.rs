@@ -39,6 +39,53 @@ pub(super) fn kept(domain: &Domain, env: &Env<Limits>, task: u64) -> bool {
     false
 }
 
+/// Pending dependencies in the task's dependency order (domain/forge.md, 8.11).
+pub(super) fn pending(
+    domain: &Domain,
+    env: &Env<Limits>,
+    task: u64,
+    repository: skein_forge::api::Repository,
+    base: &[u8],
+) -> Box<[forge_change::Pending]> {
+    let Some(row) = domain.core.tasks.task(task) else { return Box::new([]) };
+    let mut pending = List::with_capacity(env.limits.tasks.dependencies);
+    for dependency in &row.dependencies {
+        if !row.waiting_on.contains(dependency) {
+            continue;
+        }
+        let Some(upstream_task) = domain.core.tasks.task(*dependency) else { continue };
+        let kind = match domain.forge.change(*dependency) {
+            Some(upstream) if upstream.repository != repository => forge_change::PendingKind::Elsewhere,
+            Some(upstream) if upstream.base.as_ref() == base => {
+                let head = match super::branch_parts(&upstream.branch, env.limits.forge.authority_segments) {
+                    Some(parts) => domain.forge.branch_head(&forge::Name {
+                        forge: upstream.repository.forge,
+                        repository: upstream.repository.repository,
+                        what: forge::What::Branch(parts),
+                    }),
+                    None => None,
+                };
+                forge_change::PendingKind::Change { head, kept: !upstream_task.waiting_on.is_empty() }
+            }
+            Some(_) => forge_change::PendingKind::Other,
+            None => match upstream_task.executor {
+                tasks::Executor::Procedure { connector, code: super::CHANGE_CODE }
+                    if connector == domain.config.forge_connector =>
+                {
+                    // A sibling made in the same batch may not have registered its forge row yet.
+                    forge_change::PendingKind::Change { head: None, kept: !upstream_task.waiting_on.is_empty() }
+                }
+                tasks::Executor::Agent { .. }
+                | tasks::Executor::Procedure { .. }
+                | tasks::Executor::Person(_)
+                | tasks::Executor::Job { .. } => forge_change::PendingKind::Other,
+            },
+        };
+        pending.push(forge_change::Pending { task: *dependency, kind }).expect("bounded task dependencies");
+    }
+    pending.into_boxed()
+}
+
 fn landing_dependency(domain: &Domain, task: u64, dependency: u64) -> bool {
     let Some(change) = domain.forge.change(task) else { return false };
     let Some(upstream) = domain.forge.change(dependency) else { return false };

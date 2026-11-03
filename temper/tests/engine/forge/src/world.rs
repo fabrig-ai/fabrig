@@ -891,6 +891,7 @@ impl World {
                 | top::Request::ProjectReleased { .. }
                 | top::Request::Retained { .. }
                 | top::Request::ReleaseFailed { .. }
+                | top::Request::StepDependents { .. }
                 | top::Request::WakeProcedure { .. }
                 | top::Request::ProjectAfter { .. }
                 | top::Request::ProjectionSettled { .. }

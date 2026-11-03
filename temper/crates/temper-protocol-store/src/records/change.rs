@@ -443,9 +443,46 @@ pub(super) fn decode_gate_remark(value: w::GateRemark) -> top::GateRemark {
     let w::GateRemarkParts { number, head, words } = value.into_parts();
     top::GateRemark { number, head, words }
 }
+fn encode_early(value: &d::Early) -> w::Early {
+    let heads = match value {
+        d::Early::None => return w::Early::None,
+        d::Early::Started(heads) | d::Early::Spent(heads) => heads,
+    };
+    let mut encoded = List::with_capacity(u32::try_from(heads.len()).expect(FITS));
+    for head in heads {
+        encoded
+            .push(
+                w::StartedFrom::new(&w::CEILINGS, w::StartedFromParts { task: head.task, head: head.head })
+                    .expect(FITS),
+            )
+            .expect(FITS);
+    }
+    let heads = w::EarlyHeads::new(&w::CEILINGS, w::EarlyHeadsParts { heads: encoded }).expect(FITS);
+    match value {
+        d::Early::None => unreachable!("no early heads returned above"),
+        d::Early::Started(_) => w::Early::Started(heads),
+        d::Early::Spent(_) => w::Early::Spent(heads),
+    }
+}
+
+fn decode_early(value: w::Early) -> d::Early {
+    let (heads, spent) = match value {
+        w::Early::None => return d::Early::None,
+        w::Early::Started(heads) => (heads, false),
+        w::Early::Spent(heads) => (heads, true),
+    };
+    let heads = heads.into_parts().heads;
+    let mut decoded = List::with_capacity(heads.len());
+    for head in &heads {
+        decoded.push(d::StartedFrom { task: head.task(), head: *head.head() }).expect(FITS);
+    }
+    if spent { d::Early::Spent(decoded.into_boxed()) } else { d::Early::Started(decoded.into_boxed()) }
+}
+
 #[expect(clippy::manual_map, reason = "step translations use explicit matches without closures")]
 pub(super) fn encode_change(value: &d::Change) -> w::Change {
     let d::Change {
+        early,
         task,
         state,
         gates,
@@ -465,6 +502,7 @@ pub(super) fn encode_change(value: &d::Change) -> w::Change {
     w::Change::new(
         &w::CEILINGS,
         w::ChangeParts {
+            early: encode_early(early),
             task: *task,
             state: encode_change_state(state),
             gates: encode_gates(gates),
@@ -496,6 +534,7 @@ pub(super) fn encode_change(value: &d::Change) -> w::Change {
 #[expect(clippy::manual_map, reason = "step translations use explicit matches without closures")]
 pub(super) fn decode_change(value: w::Change) -> d::Change {
     let w::ChangeParts {
+        early,
         task,
         state,
         gates,
@@ -513,6 +552,7 @@ pub(super) fn decode_change(value: w::Change) -> d::Change {
         landing,
     } = value.into_parts();
     d::Change {
+        early: decode_early(early),
         task,
         state: decode_change_state(state),
         gates: decode_gates(gates),

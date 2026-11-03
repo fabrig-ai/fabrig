@@ -616,7 +616,7 @@ run starts fresh, its brief carrying the tail.
 
 | Agent | Messages in | Tools its authority gives | Ends when |
 |---|---|---|---|
-| producing a change (forge.md, 8.2) | none; where its change relays questions, the answers to its own (forge.md, 8.11) | the workspace's, from the landing branch or saved work; `finish` with a change; `message`, to ask its change, where it relays questions | its change passes its checks and is pushed |
+| producing a change (forge.md, 8.2) | none; where its change relays questions, the answers to its own (forge.md, 8.11) | the workspace's, from the landing branch or saved work, or started early with its dependencies' pushed heads merged in (forge.md, 8.11); `deliver` mid-run, as it goes; `finish` with a change; `message`, to ask its change, where it relays questions | its change passes its checks and is pushed |
 | a repair (forge.md, 8.4) | as producing | the workspace's, from the change's branch, its brief carrying why; `finish` with a change; `message`, as producing | its new head passes its checks and is pushed |
 | resolving a conflict (forge.md, 8.4) | as producing | the workspace's, from a merge in progress; `finish` with a change; `message`, as producing | the merge is resolved, checked and pushed |
 | a review (forge.md, 8.3), a triage | none | reads; `finish` with a verdict | its verdict meets its contract |
