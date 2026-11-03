@@ -191,6 +191,28 @@ fn an_agent_configuration_metadata_refusal_reaches_stderr() {
 }
 
 #[test]
+fn withdrawn_endpoint_settings_exit_two_at_their_key() {
+    let scratch = Scratch::new();
+    for (text, key, line) in [
+        ("[endpoints.work]\nidentity='claude-code'\n", "endpoints.work.identity", 2_u32),
+        ("[endpoints.work]\ndialect='codex'\n", "endpoints.work.dialect", 2),
+        ("[endpoints.work]\npreset='codex'\n", "endpoints.work.preset", 2),
+        ("[endpoints.codex]\n", "endpoints.codex", 1),
+        ("model='codex/gpt-6-luna'\n", "model", 1),
+        ("[models.'codex/gpt-6-luna']\nwindow=272000\n", "models.codex/gpt-6-luna", 1),
+    ] {
+        let path = support::user_layer(&scratch, text.as_bytes());
+        let ran = support::smith(&scratch, &["check"], b"");
+        let diagnostic = String::from_utf8_lossy(&ran.stderr);
+        assert_eq!(ran.code, 2, "{key}: {diagnostic}");
+        assert!(
+            diagnostic.contains(&format!("{}:{line}: {key}: use `openai/<model>`", path.display())),
+            "{key}: {diagnostic}"
+        );
+    }
+}
+
+#[test]
 fn a_product_settings_metadata_refusal_reaches_stderr() {
     let scratch = Scratch::new();
     let config = scratch.path().join("config/smith/config.toml");

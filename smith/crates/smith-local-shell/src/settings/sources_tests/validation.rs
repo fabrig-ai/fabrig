@@ -140,7 +140,6 @@ fn withdrawn_endpoint_settings_name_the_replacement_at_their_key() {
             refusal.origin,
             super::super::Origin::File { layer: Layer::User, path: "fixture.toml".into(), line }
         );
-        assert_eq!(crate::startup::Failure::Configuration { detail: refusal.line() }.exit_code(), 2);
         assert_eq!(refusal.line(), format!("smith: fixture.toml:{line}: {key}: use `openai/<model>`"));
     }
 }
