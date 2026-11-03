@@ -1,0 +1,5 @@
+draft = "configuring-p2"
+repo = "fabrig"
+sources = ["temper/docs/plan/configuring-p2/inputs/request.md", "temper/docs/design/draft/configuring.execution.md", "temper/docs/design/draft/configuring.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+after = ["reference-m3"]
