@@ -1,6 +1,8 @@
 //! Top-level forge routing and commit fence (jig's domain/connectors.md,
 //! sections 2–5). Durable rows are held here and mirrored by root store
 //! writes.
+//! A requester's confirmed branch moves become its change's new head
+//! (temper/docs/design/domain/forge.md, 8.5).
 use alloc::boxed::Box;
 use skein_lib::{Duration, Env, List, Map, Queue, Token};
 use temper_engine_domain_forge_change as change;
@@ -3468,6 +3470,27 @@ fn change_facts(
         Some((holder, taken)) => (taken, holder != row.task),
         None => (false, false),
     };
+    // A fresh procedure read can precede the keep's drift read. Only a head
+    // confirmed by the branch's writer is a requester's new head.
+    // A read of the change's previous head can still precede that confirmation.
+    let mut branch_moved = false;
+    if requester_branch
+        && !writer_taken
+        && pending.branch.is_some()
+        && pending.branch != row.change.last_head
+        && !updating_entry(d, row.task)
+    {
+        for (name, head) in &d.heads {
+            if name.forge == row.repository.forge
+                && name.repository == row.repository.repository
+                && crate::items::branch_matches(name, &row.branch)
+                && pending.branch != Some(head.commit)
+            {
+                branch_moved = true;
+                break;
+            }
+        }
+    }
     let may_merge = match d.repositories.get(&row.repository) {
         Some(repository) => repository.kinds.land,
         None => false,
@@ -3512,7 +3535,13 @@ fn change_facts(
         },
         writer_taken,
         requester_branch,
-        drift: if retargeted { Some(change::Hold::Retargeted) } else { row.drift },
+        drift: if retargeted {
+            Some(change::Hold::Retargeted)
+        } else if branch_moved {
+            Some(change::Hold::BranchMoved)
+        } else {
+            row.drift
+        },
         first: queue_first(d, row, env.wall, &env.limits),
         may_merge,
         queue_repair_active: pending.queue_repair_active,

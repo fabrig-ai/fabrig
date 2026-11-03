@@ -27,11 +27,6 @@
     `change_policy` and its charters the deployment's
     (`temper-engine-domain/src/route/forge_route.rs`, `start_change`); its
     page's line that a change takes no words.
-  - 8.1, 8.5, 11: a change on its requester's held branch: every change
-    holds its branch and deletes it as it closes, none lands its
-    requester's goal branch without holding it, and a move of the branch
-    by its requester's other delegates is drift
-    (`temper-engine-domain/src/route/forge_route.rs`, `start_change`).
   - 8.2: the pull request's body naming its goal's issue.
   - 8.3: a person's approval as a gate; a review's lens; gates run at once
     when the change asks; a verdict posted as a commit status; the review
