@@ -34,7 +34,7 @@ pub struct Page {
     memory: Memory<Process<()>, Machine, Report>,
     inbox: Rc<Inbox<Report>>,
     store: Store,
-    page: skein_ui_web::page::Page<'static>,
+    surface: skein_ui_web::page::Page<'static>,
     browser: Time,
 }
 
@@ -48,11 +48,11 @@ pub enum Walked {
 impl Page {
     /// Start the world, await its printed link, and spend it through the web host.
     #[must_use]
-    pub fn start(story: &Story, seed: u64, wall: Wall) -> Page {
+    pub fn start(scenario: &Story, seed: u64, wall: Wall) -> Page {
         let inbox = Inbox::new();
         let mut memory = Memory::new(
-            story::slices(story.start(seed, wall), story::SLICE_STEPS, Time::ZERO),
-            bridge::Start { story: story.name.as_bytes().into(), seed, start: wall },
+            story::slices(scenario.start(seed, wall), story::SLICE_STEPS, Time::ZERO),
+            bridge::Start { story: scenario.name.as_bytes().into(), seed, start: wall },
             LOG_BYTES,
             Rc::clone(&inbox),
             Report::Fetch,
@@ -74,7 +74,9 @@ impl Page {
                         }
                     }
                     Report::World(Heard::Clock) => {}
-                    Report::World(Heard::Failed { words }) => panic!("world failed: {}", String::from_utf8_lossy(&words)),
+                    Report::World(Heard::Failed { words }) => {
+                        panic!("world failed: {}", String::from_utf8_lossy(&words))
+                    }
                     Report::World(Heard::Stopped) => panic!("world stopped before printing its link"),
                     Report::Fetch(_) | Report::Carried { .. } | Report::Due => {
                         panic!("no client reports before the printed link")
@@ -94,14 +96,15 @@ impl Page {
         let link = std::str::from_utf8(&link).expect("printed link is UTF-8");
         let (_, path) = link.strip_prefix("http://").expect("plaintext world").split_once('/').expect("link path");
         let path = format!("/{path}");
-        let taken = sign_in::take(&sign_in::Route { path: b"/jig/v1/sign-in/link", home: b"/welcome" }, path.as_bytes())
-            .expect("the service printed a sign-in link");
+        let taken =
+            sign_in::take(&sign_in::Route { path: b"/jig/v1/sign-in/link", home: b"/welcome" }, path.as_bytes())
+                .expect("the service printed a sign-in link");
         let (now, wall) = memory.clocks(browser);
         let mut host = host::Host::new(seed, now, wall, temper_client_view::sign_in::Ways::NONE);
-        let page = host::page(&host.bounds.tree, Primary::Control);
+        let surface = host::page(&host.bounds.tree, Primary::Control);
         let store = Store::new(b"temper.", None);
         host.start(&taken.address, store.read_all(&memory), Some(taken.secret));
-        let mut page = Page { host, memory, inbox, store, page, browser };
+        let mut page = Page { host, memory, inbox, store, surface, browser };
         page.give(host::Report::Start, false);
         page.turn();
         page
@@ -184,7 +187,11 @@ impl Page {
         while let Some(report) = self.inbox.next() {
             let read_on = matches!(
                 &report,
-                Report::Fetch(fetch::Report::StreamOpened | fetch::Report::StreamRefused { .. } | fetch::Report::StreamPiece { .. })
+                Report::Fetch(
+                    fetch::Report::StreamOpened
+                        | fetch::Report::StreamRefused { .. }
+                        | fetch::Report::StreamPiece { .. }
+                )
             );
             let report = match report {
                 Report::Fetch(report) => host::Report::Heard(adapter::fetched(report)),
@@ -196,7 +203,7 @@ impl Page {
             };
             self.give(report, read_on);
         }
-        self.host.draw(&mut self.page, &mut Vec::new());
+        self.host.draw(&mut self.surface, &mut Vec::new());
     }
 
     fn give(&mut self, report: host::Report, read_on: bool) {
