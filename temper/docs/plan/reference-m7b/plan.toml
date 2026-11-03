@@ -50,3 +50,23 @@ id = 3
 story = "a change into a goal's branch whose merge the forge refuses for a conflict is settled by the merge job and merges; one the job cannot settle goes to a resolution in a merge in progress, then merges"
 parts = ["change-merge"]
 walk = false
+
+[[part]]
+id = "catch-up"
+title = "change's merge: a catch-up into a goal's branch, the merge job its producer"
+mode = "direct"
+needs = ["change-merge"]
+design = "temper/docs/design/domain/forge.md, 10"
+
+[[part]]
+id = "merge-reference"
+title = "the reference's merge job: fabrig's .temper/merge, landing.json's merge_job, charter 5's catch-ups"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/configuration.md, 13.9"
+
+[[slice]]
+id = 4
+story = "reference-case.md steps 12, 16 and 21: a change's merge into g refused for old-forms.txt alone is settled by the merge job; one with code conflicts goes to a resolution; G catches g up with main by a catch-up whose producer is the merge job"
+parts = ["catch-up", "merge-reference"]
+walk = true
