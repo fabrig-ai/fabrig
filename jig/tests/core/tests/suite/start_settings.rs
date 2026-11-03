@@ -187,6 +187,7 @@ fn stored_proposals_require_their_links_at_link() {
                 proposer: jig_domain_people::Proposer::Party(1),
                 proposal: 1,
                 value: settings::Proposal {
+                    applications: Box::default(),
                     against: 1,
                     items: Box::new([settings::Item {
                         setting: settings::Setting::Template(1),
