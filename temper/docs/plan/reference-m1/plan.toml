@@ -9,6 +9,7 @@ sources = ["temper/docs/plan/reference-m1/inputs/request.md", "temper/docs/desig
 # wake policy, the reference's first editions). The shapes that cross them are
 # notes/contracts.md; the designers write each family's design with its specs.
 
+retired = true
 [buffer]
 low = 1.0
 high = 2.0
