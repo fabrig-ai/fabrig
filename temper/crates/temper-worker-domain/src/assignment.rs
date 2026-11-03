@@ -56,6 +56,17 @@ fn repository(repository: &Repository, limits: &Limits) -> Result<(), &'static [
             }
         }
         Start::Commit { .. } => {}
+        Start::Merged { branch, heads } => {
+            if limits.checkout.conflicts == 0 || limits.checkout.path_bytes == 0 {
+                return Err(b"merged heads");
+            }
+            if !name(branch, limits) {
+                return Err(b"branch");
+            }
+            if heads.is_empty() || heads.len() > 64 {
+                return Err(b"merged heads");
+            }
+        }
         Start::Merge { branch, .. } => {
             if limits.checkout.conflicts == 0 {
                 return Err(b"merge in progress");
