@@ -477,3 +477,34 @@ choice. A `forge_charter = 2` alone would keep a landing configuration the box n
 - Then the acceptance as written: the full walk, its kept `tests/fixtures/story-a.log` recorded under
   `SKEIN_CODEGEN_WRITE`, its replay, and the one-process `story_a.rs` once alone with
   `--run-ignored all` (its `#[ignore]` lifted only if it passes).
+
+2026-11-03. **The CSV reply comes at 32.4 s of world time, past the person's 30 s wait, and the third
+request then shows "Authority missing": authorize a longer reply wait and closing each answered chat,
+or leave the walk blocked?** The wait yes, here; closing chats no, diagnosis first.
+
+- **The wait is the script's, not the user's.** `WAIT` in `temper/tests/playground/src/stories.rs` is
+  the person's observation window in the world's time, which the story's own pace sets (the fake LLM's
+  and CI's latencies, `temper/docs/design/playground.md`, 5.1); `AGENTS.md` 7's timeouts are the
+  test's budget and its wall limit (`skein/docs/foundation/testing-strategy.md`, 8.1), which stay as
+  they are. `WAIT` becomes 60 s, room for the measured 31.2 s without fitting it to the instant; the
+  driver's whole-walk bound, also world time and the driver's own stall guard, may rise to what the
+  completed walk measures with the same margin, its turns-at-one-instant bound unchanged. The
+  one-process script keeps its 30 s (its story A is ignored for its own stall); list it under
+  `## Left`. The walk's wall time stays within the world's budget (`temper/docs/design/domain/testing.md`,
+  6.1), measured and reported.
+- **No chat-closing steps.** Story A is the box's three suggested requests answered
+  (`temper/docs/design/playground.md`, 5.2 and 10); the box's person presses them in turn and the
+  one-process script closes nothing. A script that closes chats to make room would hide a refusal the
+  box's person meets. The script keeps the one-process steps.
+- **Diagnose the third request's refusal,** with throwaway diagnostics only: capture the typed refusal
+  behind "Authority missing" whole (the jig reply and what it compared: a period's spend, an
+  authority's spend, a request count, a model's account), file and line of the comparison. Then:
+  - a limit of story A's documents compared against (the earlier allowances' classes): raise it in
+    both places as they say, with its regression, and go on;
+  - the stock's own construction (policy 1's period spend of 48K holding two open chats' 24K each,
+    `temper/crates/temper-service/src/stock.rs`, ~174-195, `temper/docs/design/protocol/configuration.md`,
+    13.4), or anything else outside those classes: stop and ask with the refusal and its evidence; the
+    stock is the product's, and the box would refuse the same.
+- Commit and push the wait with the walk's progress before asking; then the acceptance as written:
+  the full walk, its kept `tests/fixtures/story-a.log` recorded under `SKEIN_CODEGEN_WRITE`, its
+  replay, and the one-process `story_a.rs` once alone with `--run-ignored all`.
