@@ -132,3 +132,15 @@ Owns the files in the header.
 As the implementer's text says, saying which of jig's checks refused a producer's charter
 beyond the run's authority (admission, or this task's own), and whether a malformed parameter
 leaves the change task unrefused.
+
+## Rebase (2026-11-03, step merge, foreman reference-m3/change-root/foreman-1)
+
+Rebase onto the landing trunk, preserving parameter-11 handling alongside landed row and tier changes.
+The merge failed in three paths; resolve these overlaps without broadening the feature.
+- `temper/crates/temper-engine-domain/src/route/forge_route.rs`: in `start_change`, keep `producing_llm: llm.producer` and `review_llm: llm.review`, replacing the `None` initializers from landed dependency `e42b8b1d77`. Preserve the parsed producer charter and the dependency’s `change_delegate` LLM forwarding.
+- `temper/crates/temper-engine-domain/src/route/forge_route/tests.rs`: retain both main’s `release_held_tier` helper from `f012f783bf` and this branch’s `choice` helper, codec tests, choice checks, authority test, start fixture and spend tests. Close each function independently; the insertion conflict shares a closing brace.
+- Retain `change_delegates_take_their_roles_saved_llm_choice` from `e42b8b1d77` once, plus main’s tier projection changes.
+- `temper/crates/temper-protocol-store/src/generated/v11.rs`: preserve the landing trunk’s version, which already includes the dependency’s LLM records and main’s `TierRow.observations` extension, integrated by `2598652ab2`. Its `BOUNDS_2` length is 24, not this branch’s 23.
+Treat the generated-file resolution solely as preserving landed dependency code; introduce no schema or stored-format change.
+Keep the automatically merged tier observations and row LLM fields in the surrounding files.
+Run the spec’s focused forge-route unit and world checks, confirming both tier and change tests are selected, then complete its required checks.
