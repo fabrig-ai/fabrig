@@ -92,3 +92,14 @@ If it passes, raise Small’s value 2,166,708 → 2,166,900, chunk 2,168,807 →
 Standard changes only if its test fails the same way. Leave other production bounds, limits and budgets unchanged.
 If the trunk test also fails, change nothing for that shortfall and report it under `## Left`, as tools-surface’s answer requires.
 Complete the remaining acceptance checks and commit and push the authorized repair.
+
+## Rebase (2026-11-03, step merge, foreman configuring-p3/tools-store/foreman-2)
+
+resolve format.rs against trunk’s identical size corrections, retaining its explanatory comment.
+The merge conflicts in `jig/crates/jig-protocol-store/src/tests/format.rs`.
+Trunk commit `56aadce2d5837794459601446846d2f4e3bc2706` and branch commit `b2738a09d243c1ebfea5cceadfd8bac08ff425db` independently update the same assertions.
+Keep value `398_708`, page requirement `398_820`, and commit size `17_741`; both sides agree.
+Retain trunk’s comment in `fixture_limits_fit_their_store`: four retained `RunPolicy.tools` masks cost 32 decoded bytes.
+Keep the branch’s charter-tools clarification in `a_map_budget_past_the_commit_envelope_is_refused`.
+Apply these corrections once; no additional size or profile increase is needed for this conflict.
+Run the focused `jig-protocol-store` format tests after resolving, then complete the spec’s acceptance checks.
