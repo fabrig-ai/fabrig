@@ -28,9 +28,12 @@ Acceptance:
   and sets the change's `since` to `now`, so the stall counts from the last step that saw a
   question open; every other wait is as today.
 - The step's facts set `asking` from the row: `row.questions.open` holds a question whose
-  asker is the task of `row.delegate`. The relay is applied before the pure step reads
-  `asking` in the same step, so the step that relays the last answer down sees it false
-  with `since` at that step.
+  asker is the task of `row.delegate`. The relay stays where it is, recorded by
+  `Event::Relayed` after jig admits the step: the step that relays the last answer down
+  still sees `asking` true and sets `since` to its `now`; the connector, applying
+  `Event::Relayed` whose questions leave the current delegate none open where the row had
+  one, emits `Request::WakeProcedure { task }`, so the next step sees `asking` false with
+  `since` at the relaying step and waits until `since + stall`.
 - Status: remove `forge.status.md`'s entry "8.4, 8.11: a change waiting on an agent whose
   question is open stalls ...".
 
@@ -45,9 +48,8 @@ Owns the files in the header, each hunk to `asking`.
 
 - `Facts` literals across the tree (the connector's and root's fixtures, the forge world),
   each gaining `asking: false` only; `rg 'Facts \{' temper` lists them; name each.
-- If the relay is applied after the pure step today, move only the order of those two calls
-  and say so; if that order cannot move, compute `asking` from the relayed `questions`
-  instead and say so.
+- The relay's order and `Event::StepChange` stay as they are; no new event field, no
+  change to `temper-engine-domain-forge/src/boundary.rs` (see Answers).
 
 ## Steps
 
@@ -74,3 +76,20 @@ Owns the files in the header, each hunk to `asking`.
 ## Report
 
 As the implementer's text says.
+
+## Answers
+
+2026-11-03. Q (run `relay-stall-1`): add a transient `asking: bool` to
+`Event::StepChange` from a relay preview, or relay in a separate procedure step before the
+pure step? A: neither. Keep `Facts.asking` read from the row (as pushed, `agent_asking`)
+and the relay's order and admission as they are. The step that relays the last answer down
+sees `asking` true, so it waits with no deadline and sets `since` to its own `now`: the
+stall already counts from that step. What is missing is a next step to put the deadline
+back: in `temper-engine-domain-forge/src/domain.rs`, `Event::Relayed`, when the current
+delegate had an open question under the row's old `questions` and has none under the new
+ones, push `Request::WakeProcedure { task }` (the connector already emits it, `tiers.rs`,
+`landing.rs`). The woken step sees `asking` false, `since` at the relaying step, and waits
+until `since + stall`, or holds `Stalled` past it. The acceptance bullet above is amended to
+say so; the world test `a_question_open_past_the_stall_holds_nothing` checks it (after the
+answer goes down, the change's wait has a deadline counted from the relaying step's time).
+`temper/scripts/old_forms.py` runs from `temper/`, as its module documentation says.
