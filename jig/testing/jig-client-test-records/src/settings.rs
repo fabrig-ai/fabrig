@@ -74,7 +74,7 @@ pub fn settings_values() -> List<SettingValue> {
                 for heading in [None, Some(Box::from(b"Rules".as_slice()))] {
                     let mut name = List::with_capacity(2);
                     name.push(Box::from(b"resource".as_slice())).expect("segment");
-                    name.push(Box::from(b"branch".as_slice())).expect("segment");
+                    name.push(Box::from(b"part".as_slice())).expect("segment");
                     documents
                         .push(CharterDocument { connector: 2, name, path: Box::from(b"guide.md".as_slice()), heading })
                         .expect("document");

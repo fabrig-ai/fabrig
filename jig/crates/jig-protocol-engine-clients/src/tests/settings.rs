@@ -158,7 +158,7 @@ fn charter() -> jig_domain_core::Charter {
             core::Document {
                 connector: 2,
                 name: jig_domain_authority::Name {
-                    segments: Box::new([Box::from(b"resource".as_slice()), Box::from(b"branch".as_slice())]),
+                    segments: Box::new([Box::from(b"resource".as_slice()), Box::from(b"part".as_slice())]),
                 },
                 path: Box::from(b"guide.md".as_slice()),
                 heading: None,
@@ -166,7 +166,7 @@ fn charter() -> jig_domain_core::Charter {
             core::Document {
                 connector: 3,
                 name: jig_domain_authority::Name {
-                    segments: Box::new([Box::from(b"another".as_slice()), Box::from(b"branch".as_slice())]),
+                    segments: Box::new([Box::from(b"another".as_slice()), Box::from(b"part".as_slice())]),
                 },
                 path: Box::from(b"rules.md".as_slice()),
                 heading: Some(Box::from("Rules λ".as_bytes())),
