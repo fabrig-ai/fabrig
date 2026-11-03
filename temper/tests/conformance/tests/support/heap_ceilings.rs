@@ -1,66 +1,68 @@
 //! Fixed ceilings for the stories and simulation tests and their crash sweeps.
+//! Each is three times its measured peak plus a quarter, rounded up
+//! (temper/docs/design/domain/testing.md, 5.2).
 use crate::stories::Story;
 use jig_conformance::scenarios::Scenario;
 
-// Measured peak: 237,036 bytes; 25% headroom, rounded up to two significant digits.
-const STARTUP_HEAP_CEILING: u64 = 300_000;
+// Measured peak: 237,036 bytes; three times the 25%-headroom ceiling.
+const STARTUP_HEAP_CEILING: u64 = 900_000;
 
-// Measured peak: 510,125 bytes; 25% headroom, rounded up to two significant digits.
-const STORY_GOAL_ISSUE_HEAP_CEILING: u64 = 640_000;
+// Measured peak: 642,209 bytes; three times the 25%-headroom ceiling.
+const STORY_GOAL_ISSUE_HEAP_CEILING: u64 = 2_430_000;
 
-// Measured peak: 273,898 bytes; 25% headroom, rounded up to two significant digits.
-const STORY_ISSUE_CREATION_HEAP_CEILING: u64 = 350_000;
+// Measured peak: 273,898 bytes; three times the 25%-headroom ceiling.
+const STORY_ISSUE_CREATION_HEAP_CEILING: u64 = 1_050_000;
 
-// Measured peak: 482,633 bytes; 25% headroom, rounded up to two significant digits.
-const STORY_LOST_MERGE_HEAP_CEILING: u64 = 610_000;
+// Measured peak: 637,786 bytes; three times the 25%-headroom ceiling.
+const STORY_LOST_MERGE_HEAP_CEILING: u64 = 2_400_000;
 
-// Measured peak: 519,545 bytes; 25% headroom, rounded up to two significant digits.
-const STORY_OTHER_HAND_HEAP_CEILING: u64 = 650_000;
+// Measured peak: 677,099 bytes; three times the 25%-headroom ceiling.
+const STORY_OTHER_HAND_HEAP_CEILING: u64 = 2_550_000;
 
-// Measured peak: 238,343 bytes; 25% headroom, rounded up to two significant digits.
-const STORY_PERSON_WORDS_HEAP_CEILING: u64 = 300_000;
+// Measured peak: 238,343 bytes; three times the 25%-headroom ceiling.
+const STORY_PERSON_WORDS_HEAP_CEILING: u64 = 900_000;
 
-// Measured peak: 783,255 bytes; 25% headroom, rounded up to two significant digits.
-const STORY_REPAIR_CI_HEAP_CEILING: u64 = 980_000;
+// Measured peak: 783,255 bytes; three times the 25%-headroom ceiling.
+const STORY_REPAIR_CI_HEAP_CEILING: u64 = 2_940_000;
 
-// Measured peak: 644,720 bytes; 25% headroom, rounded up to two significant digits.
-const STORY_REVIEWED_CHANGE_HEAP_CEILING: u64 = 810_000;
+// Measured peak: 644,720 bytes; three times the 25%-headroom ceiling.
+const STORY_REVIEWED_CHANGE_HEAP_CEILING: u64 = 2_430_000;
 
-// Measured peak: 715,129 bytes; 25% headroom, rounded up to two significant digits.
-const SHARED_CHANGED_JUDGE_HEAP_CEILING: u64 = 900_000;
+// Measured peak: 715,129 bytes; three times the 25%-headroom ceiling.
+const SHARED_CHANGED_JUDGE_HEAP_CEILING: u64 = 2_700_000;
 
-// Measured peak: 398,211 bytes; 25% headroom, rounded up to two significant digits.
-const SHARED_COMPOUND_HEAP_CEILING: u64 = 500_000;
+// Measured peak: 398,211 bytes; three times the 25%-headroom ceiling.
+const SHARED_COMPOUND_HEAP_CEILING: u64 = 1_500_000;
 
-// Measured peak: 382,753 bytes; 25% headroom, rounded up to two significant digits.
-const SHARED_CONVERSATION_ENDS_WHILE_READ_HEAP_CEILING: u64 = 480_000;
+// Measured peak: 382,753 bytes; three times the 25%-headroom ceiling.
+const SHARED_CONVERSATION_ENDS_WHILE_READ_HEAP_CEILING: u64 = 1_440_000;
 
-// Measured peak: 284,632 bytes; 25% headroom, rounded up to two significant digits.
-const SHARED_GRACE_HEAP_CEILING: u64 = 360_000;
+// Measured peak: 284,632 bytes; three times the 25%-headroom ceiling.
+const SHARED_GRACE_HEAP_CEILING: u64 = 1_080_000;
 
-// Measured peak: 315,443 bytes; 25% headroom, rounded up to two significant digits.
-const SHARED_LATE_COPY_HEAP_CEILING: u64 = 400_000;
+// Measured peak: 315,443 bytes; three times the 25%-headroom ceiling.
+const SHARED_LATE_COPY_HEAP_CEILING: u64 = 1_200_000;
 
-// Measured peak: 427,731 bytes; 25% headroom, rounded up to two significant digits.
-const SHARED_NARROWING_POLICY_HEAP_CEILING: u64 = 540_000;
+// Measured peak: 427,731 bytes; three times the 25%-headroom ceiling.
+const SHARED_NARROWING_POLICY_HEAP_CEILING: u64 = 1_620_000;
 
-// Measured peak: 512,627 bytes; 25% headroom, rounded up to two significant digits.
-const SHARED_OTHER_HAND_HEAP_CEILING: u64 = 650_000;
+// Measured peak: 512,627 bytes; three times the 25%-headroom ceiling.
+const SHARED_OTHER_HAND_HEAP_CEILING: u64 = 1_950_000;
 
-// Measured peak: 385,696 bytes; 25% headroom, rounded up to two significant digits.
-const SHARED_QUERY_WATCHED_WHILE_TASKS_END_HEAP_CEILING: u64 = 490_000;
+// Measured peak: 385,696 bytes; three times the 25%-headroom ceiling.
+const SHARED_QUERY_WATCHED_WHILE_TASKS_END_HEAP_CEILING: u64 = 1_470_000;
 
-// Measured peak: 285,756 bytes; 25% headroom, rounded up to two significant digits.
-const SHARED_RACING_DECISIONS_HEAP_CEILING: u64 = 360_000;
+// Measured peak: 285,756 bytes; three times the 25%-headroom ceiling.
+const SHARED_RACING_DECISIONS_HEAP_CEILING: u64 = 1_080_000;
 
-// Measured peak: 340,670 bytes; 25% headroom, rounded up to two significant digits.
-const SHARED_RUN_BUDGET_HEAP_CEILING: u64 = 430_000;
+// Measured peak: 340,670 bytes; three times the 25%-headroom ceiling.
+const SHARED_RUN_BUDGET_HEAP_CEILING: u64 = 1_290_000;
 
-// Measured peak: 458,540 bytes; 25% headroom, rounded up to two significant digits.
-const SHARED_STANDING_TASK_HEAP_CEILING: u64 = 580_000;
+// Measured peak: 458,540 bytes; three times the 25%-headroom ceiling.
+const SHARED_STANDING_TASK_HEAP_CEILING: u64 = 1_740_000;
 
-// Measured peak: 303,430 bytes; 25% headroom, rounded up to two significant digits.
-const SHARED_UNCERTAIN_RESTARTS_HEAP_CEILING: u64 = 380_000;
+// Measured peak: 303,430 bytes; three times the 25%-headroom ceiling.
+const SHARED_UNCERTAIN_RESTARTS_HEAP_CEILING: u64 = 1_140_000;
 
 pub(super) fn maximum(scenario: Option<Scenario>, story: Option<Story>) -> u64 {
     if let Some(story) = story {

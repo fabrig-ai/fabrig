@@ -28,6 +28,7 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
             | forge::Ask::StartPlayground
             | forge::Ask::EndPlayground
             | forge::Ask::Connect { .. }
+            | forge::Ask::Replace { .. }
             | forge::Ask::Install { .. }
             | forge::Ask::Accept { .. }
             | forge::Ask::Reachable { .. },

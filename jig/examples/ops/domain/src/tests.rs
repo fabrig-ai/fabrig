@@ -62,7 +62,7 @@ fn fixture_with_commits(commits: u32) -> (Domain, Env<Limits>) {
         backend: infrastructure::Backend::OperationIds,
         charter_endpoints: Box::new([jig_protocol_charter::EndpointName {
             number: 1,
-            dialect: 1,
+            dialect: 3,
             name: Box::from(&b"fake"[..]),
         }]),
     };

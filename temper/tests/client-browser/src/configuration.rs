@@ -29,7 +29,7 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
             "policy":{"max_turns":16,"group_stop":10,"inbox":8,"unacknowledged":8,"check_timeout":60000}},
         "endpoints":[{"name":"fake","number":0,"dialect":3,"provider":"openai",
             "address":UNREACHED,"transport":"tls","server_name":"skein.test","trust_der":directory.join("root.der"),
-            "identity":"plain","connect":1000,"handshake":1000,
+            "connect":1000,"handshake":1000,
             "models":[{"name":"fake","prices":{"input":1,"cached":1,"output":1,"unit":1_000_000},"window":1_048_576,"output":2048,"reasoning_item":64,"head":60000,"idle":30000}]}],
         "environment":[]});
     let mut value: serde_json::Value =
@@ -42,13 +42,13 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
         project["policy"] = 1.into();
         project.as_object_mut().expect("seed").remove("roles");
     }
-    // Admit stock policy 1's fourteen grants and six executor kinds.
+    // Admit stock policy 1's fourteen grants and seven executor kinds.
     for (name, count) in [
         ("core.policy_bytes", 4096),
         ("authority.grants", 16),
-        ("authority.executors", 6),
+        ("authority.executors", 8),
         ("tasks.authority_grants", 16),
-        ("tasks.executor_kinds", 6),
+        ("tasks.executor_kinds", 8),
         ("tasks.authority_bytes", 128),
         ("notes.scopes", 32),
         ("tasks.charters", 4),
@@ -81,7 +81,7 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
     value["application"] = serde_json::json!({
         "webhooks":null,
         "clients":{"listener":{"socket":"127.0.0.1:0"},"public":null,"bundle":bundle},
-        "machine":{"github":null},"demo":null,"sign_in":null,"landing":{"deployment":[],"projects":[]},"charter":1,
+        "machine":{"github":null},"demo":null,"sign_in":null,
         "limits":{"profile":"small","overrides":{"checkout.name_bytes":256,"checkout.repositories":2,
             "checkout.message_bytes":4096,"forge.name_bytes":64,"forge.resources_per_task":2,"git_component.stdout_bytes":2048}},
         "workers":[{"root":"worker-root","git":"/usr/bin/git"}]});

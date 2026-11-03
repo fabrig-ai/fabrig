@@ -426,7 +426,7 @@ pub fn valid(limits: &Limits) -> bool {
         && loads::valid(&limits.loads)
         && crate::journal_valid(&limits.journal)
         && jig_domain_core::settings::revision_bound(&core_limits(limits)).is_some()
-        && jig_domain_core::reads::answer_bound(&core_limits(limits)).is_some()
+        && jig_domain_core::reads::answer_bound(&core_limits(limits), &[]).is_some()
         && payload_slots(limits).is_some()
         && limits.call_records.checked_add(limits.tasks.tasks).is_some()
         && inbox_slots(limits).is_some()

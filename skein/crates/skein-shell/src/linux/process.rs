@@ -626,22 +626,20 @@ pub(crate) fn open_cgroup(path: &std::path::Path) -> Result<Fd, Error> {
 }
 
 /// Polls a known pidfd without blocking or taking another owner's child.
+/// An `EINTR` is returned, not retried (shell.md, 7.4).
 pub(crate) fn poll_child(pidfd: Fd, reap: bool) -> Result<Option<skein_io::kernel::Exit>, Error> {
     // SAFETY: siginfo_t is initialized for waitid to fill.
     let mut info: libc::siginfo_t = unsafe { std::mem::zeroed() };
-    crate::linux::retry(|| {
-        // SAFETY: the caller owns pidfd and info is writable for the whole call.
-        let result = unsafe {
-            libc::waitid(
-                libc::P_PIDFD,
-                u32::try_from(pidfd.raw()).expect("a descriptor is positive"),
-                ptr::from_mut(&mut info),
-                libc::WEXITED | libc::WNOHANG | if reap { 0 } else { libc::WNOWAIT },
-            )
-        };
-        if result < 0 { Err(super::last_errno()) } else { Ok(()) }
-    })
-    .map_err(Error::Other)?;
+    // SAFETY: the caller owns pidfd and info is writable for the whole call.
+    let result = unsafe {
+        libc::waitid(
+            libc::P_PIDFD,
+            u32::try_from(pidfd.raw()).expect("a descriptor is positive"),
+            ptr::from_mut(&mut info),
+            libc::WEXITED | libc::WNOHANG | if reap { 0 } else { libc::WNOWAIT },
+        )
+    };
+    if result < 0 { Err(super::last_errno()) } else { Ok(()) }.map_err(Error::Other)?;
     // SAFETY: waitid filled the child-status union, or cleared the PID when no exit is ready.
     let pid = unsafe { info.si_pid() };
     if pid == 0 {

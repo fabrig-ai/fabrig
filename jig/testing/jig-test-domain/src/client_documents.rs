@@ -149,6 +149,10 @@ pub(crate) fn read(
     for _ in 0..out.len() {
         let request = out.pop().expect("read completion count");
         match request {
+            connector::Request::SettingsJudged { .. }
+            | connector::Request::SettingsDefaults { .. }
+            | connector::Request::SettingValue { .. }
+            | connector::Request::RestoreRefused { .. } => unreachable!("settings routing: apps-world"),
             connector::Request::ReadAnswered { read: named, answer } => {
                 assert!(read == named, "the connector echoes its read name");
                 crate::hold(

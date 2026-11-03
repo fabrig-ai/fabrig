@@ -121,6 +121,8 @@ fn init_targets_change_together_and_preserve_registration_terms() {
     temper["engine"]["deployment"]["seed"] = 99.into();
     let docs = write(&temper, &agent, &paths, &peers).expect("rewrite init");
     let effective = json(&docs.temper);
+    assert!(effective["application"].get("charter").is_none());
+    assert!(effective["application"].get("landing").is_none());
     let effective_agent = json(&docs.agent);
     let forge = &effective["application"]["machine"]["github"];
     assert_eq!(forge["api"], json!({"socket":"127.0.0.1:9101"}));

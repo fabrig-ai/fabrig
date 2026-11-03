@@ -61,22 +61,24 @@ fn verification_keeps_every_verdict_and_repair_and_receipts_keep_failures() {
         p::Failures::Tests(Box::new([Box::from(b"failed".as_slice())])),
     ] {
         for blame in [p::Blame::Cleared, p::Blame::Owns(failures.clone()), p::Blame::Suspect(failures.clone())] {
-            round_trip(
-                d::Stored::Verification(d::Verification {
-                    repository: fixtures::REPO,
-                    commit: [9; 32],
-                    changes: Box::new([51, 52]),
-                    tiers: Box::new([
-                        d::TierVerification { tier: Box::from(b"one".as_slice()), verdict: None, repaired: None },
-                        d::TierVerification {
-                            tier: Box::from(b"two".as_slice()),
-                            verdict: Some(d::TierVerdict { run: 7, blame }),
-                            repaired: Some(d::TierRepair { run: 2, tip: [8; 32] }),
-                        },
-                    ]),
-                }),
-                29,
-            );
+            for by in [None, Some([9; 32])] {
+                round_trip(
+                    d::Stored::Verification(d::Verification {
+                        repository: fixtures::REPO,
+                        commit: [9; 32],
+                        changes: Box::new([51, 52]),
+                        tiers: Box::new([
+                            d::TierVerification { tier: Box::from(b"one".as_slice()), verdict: None, repaired: None },
+                            d::TierVerification {
+                                tier: Box::from(b"two".as_slice()),
+                                verdict: Some(d::TierVerdict { run: 7, blame: blame.clone() }),
+                                repaired: Some(d::TierRepair { run: 2, tip: [8; 32], by }),
+                            },
+                        ]),
+                    }),
+                    29,
+                );
+            }
         }
         for value in [None, Some(failures)] {
             round_trip(
@@ -160,16 +162,23 @@ fn tier_decoding_checks_names_policy_invariants_and_configured_bounds() {
 fn tier_family_bounds_follow_the_forge_and_full_row_measure() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     let l = bounds.limits();
+    assert_eq!(l.tier_row_goals, fixtures::LIMITS.holds);
     assert_eq!(l.tier_run_landings, 2 * fixtures::LIMITS.changes + 1);
     assert_eq!(l.tier_finding_blamed, l.tier_run_landings);
     assert_eq!(l.verification_changes, fixtures::LIMITS.changes);
     assert_eq!(l.verification_tiers, fixtures::LIMITS.tiers.tiers);
     assert_eq!(l.failed_tests_tests, fixtures::LIMITS.tiers.failing_tests);
     assert_eq!(l.failing_test_test_id, fixtures::LIMITS.tiers.test_id_bytes);
-    let row = records::encode(&d::Stored::Tier(fixtures::tier_row()));
+    let empty_goals = records::encode(&d::Stored::Tier(fixtures::tier_row()));
+    assert_eq!(empty_goals.len(), 111_263);
+    assert!(empty_goals.len() < 118_676);
+    let mut full = fixtures::tier_row();
+    full.goals = fixtures::tier_goals();
+    full.goal = Some(7);
+    full.started = Some(skein_lib::Time::from_nanos(u64::MAX));
+    let row = records::encode(&d::Stored::Tier(full));
     assert_eq!(u64::try_from(row.len()).unwrap(), crate::v11::TierRow::encoded_bound(l).unwrap() + 3);
-    assert_eq!(row.len(), 103_061);
-    assert!(row.len() < 118_676);
+    assert_eq!(row.len(), 178_063);
 }
 
 #[test]
@@ -214,4 +223,71 @@ fn tier_operation_lists_refuse_one_past_their_configured_bounds() {
         }
         assert_eq!(records::decode(&records::encode(&d::Stored::Tier(row)), &bounds), Err(Undecodable));
     }
+}
+
+#[test]
+fn tier_goal_branches_keep_tips_failures_and_start_times() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    // Heap accounting for populated goals belongs to goal-tier-forge; round_trip checks empty goals.
+    for nanos in [0, 123_456_789, u64::MAX] {
+        for present in [false, true] {
+            let mut row = fixtures::tier_row();
+            row.goals = fixtures::tier_goals();
+            if present {
+                row.goal = Some(7);
+                row.started = Some(skein_lib::Time::from_nanos(nanos));
+                for goal in &mut row.goals {
+                    goal.started = row.started;
+                }
+            } else {
+                for goal in &mut row.goals {
+                    goal.tip = None;
+                    goal.ran = None;
+                    goal.started = None;
+                    goal.failing = p::Failures::Many;
+                }
+            }
+            let row = d::Stored::Tier(row);
+            let key = keys::encode(&d::stored_key(&row), u32::MAX).unwrap();
+            assert_eq!(records::row(&key, &records::encode(&row), &bounds), Ok(row));
+        }
+    }
+}
+
+#[test]
+fn tier_goals_refuse_empty_branches_unordered_duplicates_and_excess_holds() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    for case in 0_u8..5 {
+        let mut row = fixtures::tier_row();
+        row.goals = fixtures::tier_goals();
+        match case {
+            0 => row.goals[0].branch = Box::new([]),
+            1 => {
+                row.goals[0].goal = 1;
+                row.goals[1].goal = 0;
+            }
+            2 => row.goals[1].goal = row.goals[0].goal,
+            3 => {
+                row.goals[0].failing =
+                    p::Failures::Tests(Box::new([Box::from(b"b".as_slice()), Box::from(b"a".as_slice())]));
+            }
+            4 => {
+                let mut goals = skein_lib::List::with_capacity(fixtures::LIMITS.holds + 1);
+                for goal in row.goals {
+                    goals.push(goal).unwrap();
+                }
+                let mut goal = goals.as_slice().last().unwrap().clone();
+                goal.goal += 1;
+                goals.push(goal).unwrap();
+                row.goals = goals.into_boxed();
+            }
+            _ => unreachable!(),
+        }
+        assert_eq!(records::decode(&records::encode(&d::Stored::Tier(row)), &bounds), Err(Undecodable), "case {case}");
+    }
+    let mut limits = fixtures::LIMITS;
+    limits.holds = crate::v11::CEILINGS.tier_row_goals;
+    assert!(crate::bounds(&limits, limits.client.op_bytes).is_some());
+    limits.holds += 1;
+    assert!(crate::bounds(&limits, limits.client.op_bytes).is_none());
 }

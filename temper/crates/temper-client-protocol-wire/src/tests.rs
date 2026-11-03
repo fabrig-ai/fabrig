@@ -59,12 +59,21 @@ fn limits_take_each_bound_from_its_source_field() {
     assert_eq!(
         fixtures::limits(),
         v1::Limits {
+            setting_answer_value_some: 1_048_576,
+            setting_value_value: 1_048_576,
+            proposal_items_answer_items: 1024,
+            landing_exact_value: 8,
+            landing_open_value: 8,
+            landing_pattern_segments: 3,
+            landing_pattern_segments_item: 8,
+            landing_rule_gates: 2,
+            landing_rule_approvals: 1,
             verifying_tiers: 32,
-            verifying_tiers_item: 128,
+            verifying_tiers_item: 8192,
             red_tiers: 32,
-            red_tiers_item: 128,
+            red_tiers_item: 8192,
             cleared_tiers: 32,
-            cleared_tiers_item: 128,
+            cleared_tiers_item: 8192,
             authority_hold_reason: 512,
             owned_forge_forgejo: 64,
             owned_forge_runner_some: 64,
@@ -107,6 +116,8 @@ fn limits_take_each_bound_from_its_source_field() {
             change_panel_branch: 16,
             change_panel_landing: 16,
             change_panel_gates: crate::GATES,
+            question_line: 256,
+            questions_open: 8,
             managed_forge_host: 255,
             managed_forge_tls_some: 255,
             managed_forge_git: crate::ADDRESS_BYTES,
@@ -121,7 +132,6 @@ fn limits_take_each_bound_from_its_source_field() {
             first_ask_label: 64,
             set_up_org: 16,
             set_up_repository: 16,
-            new_project_name: 16,
             first_repository_org: 16,
             first_repository_repository: 16,
             first_repository_label: 64,
@@ -243,10 +253,6 @@ fn requesting_round_trips_and_refuses_trailing_and_version_three_adopt_bytes() {
                     forge: kept(u16::MAX),
                     org: b"work".as_slice().into(),
                     repository: b"hello".as_slice().into(),
-                    project: v1::SetUpProject::Existing(
-                        v1::ExistingProject::new(&v1::CEILINGS, v1::ExistingProjectParts { project: 1 })
-                            .expect("project"),
-                    ),
                 },
             )
             .expect("forge number"),
@@ -780,6 +786,7 @@ fn manifest_connects_and_app_ways_round_trip() {
 }
 
 mod forgejo_admin;
+mod forgejo_tokens;
 
 #[test]
 fn setup_failure_round_trips_each_step_and_none() {
@@ -846,9 +853,6 @@ fn first_with_label(label: Box<[u8]>) -> Result<v1::FirstRepository, v1::Problem
             playground: true,
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
-            project: v1::SetUpProject::Existing(
-                v1::ExistingProject::new(&v1::CEILINGS, v1::ExistingProjectParts { project: 1 }).unwrap(),
-            ),
             state: v1::FirstState::Making,
             label,
         },
@@ -935,10 +939,6 @@ fn making_requests(forge: v1::Making) -> [v1::Request; 2] {
                     forge: forge.clone(),
                     org: b"work".as_slice().into(),
                     repository: b"hello".as_slice().into(),
-                    project: v1::SetUpProject::New(
-                        v1::NewProject::new(&limits, v1::NewProjectParts { name: b"project".as_slice().into() })
-                            .unwrap(),
-                    ),
                     playground: false,
                 },
             )
@@ -1113,7 +1113,7 @@ fn managed_git_program_is_optional_bounded_and_nonempty() {
 #[test]
 fn post_landing_tiers_accept_their_bounds_and_refuse_one_more() {
     let limits = fixtures::limits();
-    for (count, bytes) in [(32, 128), (33, 128), (32, 129)] {
+    for (count, bytes) in [(32, 8192), (33, 8192), (32, 8193)] {
         let mut tiers = List::with_capacity(count);
         for _ in 0..count {
             tiers.push(fixtures::field_bytes(bytes)).unwrap();
@@ -1121,9 +1121,79 @@ fn post_landing_tiers_accept_their_bounds_and_refuse_one_more() {
         let verifying = v1::Verifying::new(&limits, v1::VerifyingParts { merge: [8; 32], tiers: tiers.clone() });
         let red = v1::Red::new(&limits, v1::RedParts { merge: [8; 32], tiers: tiers.clone() });
         let cleared = v1::Cleared::new(&limits, v1::ClearedParts { merge: [8; 32], tiers, uncleared: false });
-        let within = count == 32 && bytes == 128;
+        let within = count == 32 && bytes == 8192;
         assert_eq!(verifying.is_ok(), within);
         assert_eq!(red.is_ok(), within);
         assert_eq!(cleared.is_ok(), within);
     }
+}
+
+#[test]
+fn tier_strings_round_trip_at_the_bound_and_refuse_one_more_byte() {
+    for size in [8192_usize, 8193] {
+        let mut tiers = List::with_capacity(1);
+        let line: Box<[u8]> = if size == 8192 { Box::new([b'x'; 8192]) } else { Box::new([b'x'; 8193]) };
+        tiers.push(line).unwrap();
+        let value = v1::Red::new(&v1::CEILINGS, v1::RedParts { merge: [3; 32], tiers });
+        if size == 8192 {
+            let value = value.unwrap();
+            let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).unwrap());
+            value.encode(&mut writer).unwrap();
+            let bytes = writer.finish();
+            assert_eq!(v1::Red::decode(&v1::CEILINGS, &mut Reader::new(&bytes)).unwrap(), value);
+        } else {
+            assert_eq!(value.unwrap_err().reason, skein_codec::Reason::Bound);
+        }
+    }
+}
+
+#[test]
+fn settings_reads_and_answers_require_one_complete_bounded_record() {
+    use crate::{self as wire, v1 as w};
+    for read in [
+        w::Read::Setting(
+            w::SettingRead::new(&w::CEILINGS, w::SettingReadParts { kind: 2, scope: 7, number: 1 }).unwrap(),
+        ),
+        w::Read::ProposalItems(
+            w::ProposalItemsRead::new(&w::CEILINGS, w::ProposalItemsReadParts { key: u64::MAX }).unwrap(),
+        ),
+    ] {
+        let record = w::Reading::new(&w::CEILINGS, w::ReadingParts { read }).unwrap();
+        let bytes = wire::reading(&record);
+        assert_eq!(wire::decode_reading(&bytes, &w::CEILINGS), Some(record));
+        assert!(wire::decode_reading(&bytes[..bytes.len() - 1], &w::CEILINGS).is_none());
+    }
+    let record =
+        w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(Box::new([6, 0, 0, 0])) }).unwrap();
+    let bytes = wire::setting_answer(&record);
+    assert_eq!(wire::decode_setting_answer(&bytes, &w::CEILINGS), Some(record));
+    let mut limits = w::CEILINGS;
+    limits.setting_answer_value_some = 3;
+    assert!(wire::decode_setting_answer(&bytes, &limits).is_none());
+    let mut trailing = skein_lib::Writer::new(bytes.len().checked_add(1).unwrap());
+    trailing.put(&bytes).unwrap();
+    trailing.put(&[0]).unwrap();
+    let trailing = trailing.finish();
+    assert!(wire::decode_setting_answer(&trailing, &w::CEILINGS).is_none());
+    let mut items = List::with_capacity(1);
+    items
+        .push(
+            w::ProposalItem::new(
+                &w::CEILINGS,
+                w::ProposalItemParts { kind: 1, scope: 0, number: 1, edit: w::SettingEdit::Reset },
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    let record = w::ProposalItemsAnswer::new(&w::CEILINGS, w::ProposalItemsAnswerParts { items }).unwrap();
+    let bytes = wire::proposal_items_answer(&record);
+    assert_eq!(wire::decode_proposal_items_answer(&bytes, &w::CEILINGS), Some(record));
+    limits.proposal_items_answer_items = 0;
+    assert!(wire::decode_proposal_items_answer(&bytes, &limits).is_none());
+    assert!(wire::decode_proposal_items_answer(&bytes[..bytes.len() - 1], &w::CEILINGS).is_none());
+    let mut trailing = skein_lib::Writer::new(bytes.len().checked_add(1).unwrap());
+    trailing.put(&bytes).unwrap();
+    trailing.put(&[0]).unwrap();
+    let trailing = trailing.finish();
+    assert!(wire::decode_proposal_items_answer(&trailing, &w::CEILINGS).is_none());
 }

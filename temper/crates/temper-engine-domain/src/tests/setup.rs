@@ -90,6 +90,7 @@ fn settle(domain: &mut Domain, env: &Env<Limits>) -> Box<[Request]> {
                 | Request::Bound { .. }
                 | Request::Return { .. }
                 | Request::Connect { .. }
+                | Request::Replace { .. }
                 | Request::Manifest { .. }
                 | Request::Reachable { .. }
                 | Request::Install { .. }
@@ -124,7 +125,6 @@ fn setup(key: u8) -> Event {
             forge: forge::Making::Kept(1),
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
-            project: forge::SetUpProject::Existing(1),
         }),
     })
 }
@@ -642,7 +642,6 @@ fn admin_first() -> forge::FirstAsk {
     forge::FirstAsk {
         org: b"work".as_slice().into(),
         repository: b"hello".as_slice().into(),
-        project: forge::SetUpProject::Existing(1),
         label: b"docker".as_slice().into(),
     }
 }
@@ -673,7 +672,6 @@ fn admin_connect_routes_the_whole_how_and_erases_at_both_ends() {
                     playground: false,
                     org: first.org,
                     repository: first.repository,
-                    project: first.project,
                     state: forge::FirstState::Making,
                     label: first.label,
                 })
@@ -736,6 +734,92 @@ fn admin_connect_routes_the_whole_how_and_erases_at_both_ends() {
     }
 }
 #[test]
+fn tokens_connect_and_replace_route_the_carried_value_and_erase_at_both_ends() {
+    for (kind, ask) in [
+        (forge::Kind::Forgejo, forge::Ask::Connect { forge: forge::Making::Kept(1), how: forge::How::ForgejoTokens }),
+        (forge::Kind::Forgejo, forge::Ask::Replace { forge: 1 }),
+        (forge::Kind::GitHub, forge::Ask::Replace { forge: 1 }),
+    ] {
+        for connected in [false, true] {
+            let mut config = config(1);
+            config.forges = Box::new([forge::Configured {
+                admin_connect: false,
+                bot: Box::new([]),
+                owned: None,
+                git: Box::new([]),
+                web: None,
+                read_only: false,
+                number: 1,
+                kind,
+                mode: forge::Mode::Connected,
+                asked: false,
+            }]);
+            let (mut domain, env) = signed_in_root(root_with_config(config), Some(people::Role::Owner));
+            let previous = forge::Connection::Stopped { reason: b"previous end".as_slice().into() };
+            connection(&mut domain, &env, previous.clone());
+            let carried = jig_domain_core::Carried { number: 1_u64 << 63_u32, digest: [73; 32] };
+            crate::try_step(&mut domain, &env, public_request(ask.clone(), Some(carried))).unwrap();
+            let requests = settle(&mut domain, &env);
+            let request = match (&ask, requests.as_ref()) {
+                (
+                    forge::Ask::Connect { .. },
+                    [Request::Connect { forge: 1, request, how: forge::How::ForgejoTokens, carried: value }],
+                )
+                | (forge::Ask::Replace { .. }, [Request::Replace { forge: 1, request, carried: value }]) => {
+                    assert_eq!(*value, carried);
+                    *request
+                }
+                _ => panic!("tokens connect or Replace: {requests:?}"),
+            };
+            assert_eq!(domain.forge_connection(1), forge::Connection::Connecting);
+            crate::try_step(
+                &mut domain,
+                &env,
+                Event::Forge(Box::new(forge::Event::ConnectAnswered {
+                    forge: 1,
+                    request,
+                    answer: forge::ConnectAnswer::Connecting,
+                })),
+            )
+            .unwrap();
+            settle(&mut domain, &env);
+            let state = forge::Connection::Connected { id: 1, login: b"bot".as_slice().into() };
+            if connected {
+                connection(&mut domain, &env, state.clone());
+            }
+            let why = if connected { None } else { Some(Box::from(b"check stopped".as_slice())) };
+            crate::try_step(
+                &mut domain,
+                &env,
+                Event::Forge(Box::new(forge::Event::ConnectEnded {
+                    forge: 1,
+                    request,
+                    connected,
+                    why: why.clone(),
+                    stop: None,
+                })),
+            )
+            .unwrap();
+            assert_eq!(settle(&mut domain, &env).as_ref(), [Request::EraseCarried { number: carried.number }]);
+            assert_eq!(domain.forge_connection(1), if connected { state } else { previous });
+            assert_eq!(domain.forges().rows[0].ended, why);
+            crate::try_step(
+                &mut domain,
+                &env,
+                Event::Forge(Box::new(forge::Event::ConnectEnded {
+                    forge: 1,
+                    request,
+                    connected,
+                    why: None,
+                    stop: None,
+                })),
+            )
+            .unwrap();
+            assert!(settle(&mut domain, &env).is_empty());
+        }
+    }
+}
+#[test]
 fn admin_connect_role_refusals_deliver_the_carried_value_unused() {
     for role in [Some(people::Role::Member), Some(people::Role::Maintainer), Some(people::Role::Observer)] {
         let (mut domain, env) = admin_root(role);
@@ -763,7 +847,7 @@ fn admin_connect_role_refusals_deliver_the_carried_value_unused() {
 }
 
 // Include permission mappings and a real template override in the admission
-// fixture: pricing only authority or only appended requirements undercounts it.
+// fixture: permissions and template overrides count beside authority.
 fn seed_with_landing() -> crate::Config {
     use jig_domain_authority as authority;
     use jig_domain_tasks as tasks;
@@ -795,9 +879,8 @@ fn seed_with_landing() -> crate::Config {
         deadline: None,
         priority: Some(2),
     }]);
-    configured
-        .landing
-        .projects
+    let mut projects: skein_lib::Map<u32, Box<[crate::LandingRule]>> = skein_lib::Map::with_capacity(1);
+    projects
         .insert(
             1,
             Box::new([crate::LandingRule {
@@ -815,6 +898,7 @@ fn seed_with_landing() -> crate::Config {
             }]),
         )
         .unwrap();
+    configured.kinds_stock = crate::landing_stock(&[], &projects, 1, 4);
     configured
 }
 
@@ -825,45 +909,26 @@ fn seed_bytes(policy: &jig_domain_core::ConfiguredPolicy) -> u64 {
     .unwrap()
 }
 
-fn joined_seed_bytes(configured: &crate::Config, limits: &Limits) -> u64 {
-    let mut policy = configured.core.seed_projects[0].policy.clone();
-    let built = crate::route::policy_translate::build_landing(
-        configured.landing.projects.get(&1).unwrap(),
-        true,
-        limits.authority.requirements,
-        0,
-    )
-    .unwrap();
-    policy.policy.requirements = crate::route::policy_translate::combine_requirements(
-        &policy.policy.requirements,
-        &built.requirements,
-        limits.authority.requirements,
-    )
-    .unwrap();
-    seed_bytes(&policy)
-}
-
 #[test]
-fn a_parsed_fit_seed_policy_refuses_its_joined_bytes_before_core_construction() {
+fn a_seed_policy_past_its_bytes_refuses_before_core_construction() {
     let configured = seed_with_landing();
     let mut limits = super::resume_fixture::limits();
-    let joined = joined_seed_bytes(&configured, &limits);
-    limits.policy_bytes = joined.checked_sub(1).unwrap();
-    assert!(seed_bytes(&configured.core.seed_projects[0].policy) <= limits.policy_bytes);
+    let bytes = seed_bytes(&configured.core.seed_projects[0].policy);
+    limits.policy_bytes = bytes.checked_sub(1).unwrap();
     assert!(!configured.core.seed_projects[0].policy.permissions.is_empty());
     assert!(!configured.core.seed_projects[0].policy.templates.is_empty());
     assert_eq!(
         crate::refused(configured, &limits).as_ref(),
-        [crate::Refused::Policy { project: 1, bytes: Some(joined) }]
+        [crate::Refused::Policy { project: 1, bytes: Some(bytes) }]
     );
 }
 
 #[test]
-fn a_seed_policy_at_its_actual_joined_byte_bound_is_admitted() {
+fn landing_rules_add_no_bytes_to_a_seed_policy() {
     let mut limits = super::resume_fixture::limits();
-    limits.policy_bytes = joined_seed_bytes(&seed_with_landing(), &limits);
+    limits.policy_bytes = seed_bytes(&seed_with_landing().core.seed_projects[0].policy);
     assert!(crate::refused(seed_with_landing(), &limits).is_empty());
-    Domain::new(seed_with_landing(), &limits).expect("joined seed policy at its exact bound constructs the root");
+    Domain::new(seed_with_landing(), &limits).expect("seed policy at its exact bound constructs the root");
 }
 
 #[test]

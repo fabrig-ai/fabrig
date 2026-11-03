@@ -3,7 +3,7 @@ id = "apps-proposal-key"
 part = "appsettings"
 kind = "feature"
 needs = ["apps-proposals", "apps-store", "apps-wire"]
-files = ["jig/crates/jig-domain-core/src/settings.rs", "jig/crates/jig-domain-core/src/settings/restart.rs", "jig/crates/jig-domain-core/src/routing/settings/dispatch.rs", "jig/crates/jig-domain-core/src/documents/settings_review.rs", "jig/crates/jig-domain-core/src/tests/settings/application_proposals.rs", "jig/crates/jig-protocol-store/schema/settings-v1.schema", "jig/crates/jig-protocol-store/src/generated/settings_v1.rs", "jig/crates/jig-protocol-store/src/codec/settings.rs", "jig/crates/jig-protocol-store/golden/settings/**", "jig/crates/jig-protocol-store/src/tests/settings.rs", "jig/crates/jig-client-protocol-wire/schema/client-v19.schema", "jig/crates/jig-client-protocol-wire/src/generated/v19.rs", "jig/crates/jig-client-protocol-wire/golden/**", "jig/crates/jig-protocol-engine-clients/src/translate/settings.rs", "jig/crates/jig-protocol-engine-clients/src/tests/settings.rs", "jig/crates/jig-client-protocol-link/src/translate/settings_proposals.rs", "jig/crates/jig-client-protocol-link/src/tests/settings_proposals.rs", "jig/crates/jig-client-domain/src/contract/settings.rs"]
+files = ["jig/crates/jig-domain-core/src/settings.rs", "jig/crates/jig-domain-core/src/settings/restart.rs", "jig/crates/jig-domain-core/src/settings/application.rs", "jig/crates/jig-domain-core/src/routing/settings/dispatch.rs", "jig/crates/jig-domain-core/src/documents/settings_review.rs", "jig/crates/jig-domain-core/src/tests/settings/application_proposals.rs", "jig/crates/jig-protocol-store/schema/settings-v1.schema", "jig/crates/jig-protocol-store/src/generated/settings_v1.rs", "jig/crates/jig-protocol-store/src/codec/settings.rs", "jig/crates/jig-protocol-store/golden/settings/**", "jig/crates/jig-protocol-store/src/tests/settings.rs", "jig/crates/jig-client-protocol-wire/schema/client-v19.schema", "jig/crates/jig-client-protocol-wire/src/generated/v19.rs", "jig/crates/jig-client-protocol-wire/golden/**", "jig/crates/jig-protocol-engine-clients/src/translate/settings.rs", "jig/crates/jig-protocol-engine-clients/src/tests/settings.rs", "jig/crates/jig-client-protocol-link/src/translate/settings_proposals.rs", "jig/crates/jig-client-protocol-link/src/tests/settings_proposals.rs", "jig/crates/jig-client-domain/src/contract/settings.rs", "jig/crates/jig-domain-core/src/tests/inbox/inbox_selection.rs", "jig/crates/jig-protocol-store/src/generated/layouts.rs", "temper/crates/temper-client-tools/src/tests/jig/settings.rs"]
 effort = "high"
 minutes = 90
 +++
@@ -113,3 +113,39 @@ Acceptance:
 
 Where the counter lives (the option taken); the records and goldens changed; whether
 `apps-world`'s story ran.
+
+## Answers
+
+2026-11-03. **Q:** may this task change `jig-domain-core`'s `settings/application.rs`, which
+builds the `JudgeSettings`, `KeepProposalSettings`, `DropProposalSettings` and `KeepSettings`
+asks?
+
+**A:** Yes; it is now in `files`, for the key's propagation alone: `proposal_number`,
+`keep_proposal`, `drop_proposal` and the `start`/`keep` callers' proposal argument take and
+send the set's `u64` key (`keep_proposal` given the drawn key by `dispatch.rs`; an
+acceptance passes the set's key, a set without one sends no ask). No other behaviour
+changes there.
+
+2026-11-03. **Q:** may this task update `inbox_selection.rs`'s fixed memory expectation and
+the `settings` row of the store's generated `layouts.rs`, both outside `files`?
+
+**A:** Yes; both are in `files` now, for these repairs alone. Both follow from this task's
+own fields, and its acceptance (`jig-domain-core`'s and `jig-protocol-store`'s focused
+tests) cannot hold without them.
+
+- `jig/crates/jig-domain-core/src/tests/inbox/inbox_selection.rs`:
+  `inbox_context_memory_prices_every_reserved_container_and_complete_document_envelope`
+  adds `SettingsReview`'s 16 bytes for `key: Option<u64>` to its expected sum, with one
+  comment line saying so. The pricing code stays as it is.
+- `jig/crates/jig-protocol-store/src/generated/layouts.rs`: the `settings` row takes the
+  changed settings-v1 schema's fingerprint, written by the generator the file's header
+  names (`SKEIN_CODEGEN_WRITE=1`) if it runs, otherwise by hand from the fingerprint the
+  format test computes; `tests::format::current_layouts_are_the_eight_distinct_runtime_schema_fingerprints`
+  checks it. No other row and no version moves.
+- Also `temper/crates/temper-client-tools/src/tests/jig/settings.rs`: the three
+  `SettingsReview` literals the run left (`:1134`, `:1198`, `:1518`) take `key: None`, the
+  field alone, a cross-tree allowance like `settings_bytes.rs`'s; the workspace Clippy in
+  step 7 must build.
+
+Then run the two failing tests once each, the four packages' `--lib` runs whole, and
+step 7's workspace Clippy.

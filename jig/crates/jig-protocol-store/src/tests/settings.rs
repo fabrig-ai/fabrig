@@ -163,10 +163,14 @@ fn each_settings_record_round_trips_its_whole_domain_value() {
     };
     let mut rows = skein_lib::List::with_capacity(28);
     for row in [
-        s::Record::Extent { oldest: 1 },
+        s::Record::Extent { oldest: 1, keys: 1 },
         s::Record::Revision {
             history: false,
-            revision: s::Revision { head: s::Head { number: 1, against: 0, ..head.clone() }, items: Box::new([]) },
+            revision: s::Revision {
+                applications: Box::default(),
+                head: s::Head { number: 1, against: 0, ..head.clone() },
+                items: Box::new([]),
+            },
         },
         s::Record::Charter { charter: 1, revision: 2, value: s::CharterVersion { charter: Some(Box::new(charter())) } },
         s::Record::Charter { charter: 1, revision: 3, value: s::CharterVersion { charter: None } },
@@ -192,18 +196,18 @@ fn each_settings_record_round_trips_its_whole_domain_value() {
         ]);
         rows.push(s::Record::Revision {
             history: false,
-            revision: s::Revision { head: head.clone(), items: items.clone() },
+            revision: s::Revision { applications: Box::default(), head: head.clone(), items: items.clone() },
         })
         .expect("settings fixture count");
         rows.push(s::Record::Revision {
             history: true,
-            revision: s::Revision { head: head.clone(), items: items.clone() },
+            revision: s::Revision { applications: Box::default(), head: head.clone(), items: items.clone() },
         })
         .expect("settings fixture count");
         rows.push(s::Record::Proposal {
             proposer: people::Proposer::Party(6),
             proposal: 7,
-            value: s::Proposal { against: 2, items },
+            value: s::Proposal { key: None, applications: Box::default(), against: 2, items },
         })
         .expect("settings fixture count");
     }
@@ -250,7 +254,7 @@ fn frozen_model_masks_and_template_choices_follow_names_after_a_catalogue_reorde
                 assert_eq!(choice.main.model, 1);
                 assert_eq!(choice.subagents[0].model, 0);
             }
-            s::Value::Policy(_) | s::Value::Charter(_) => panic!("fixture setting"),
+            s::Value::Policy(_) | s::Value::Charter(_) | s::Value::Application(_) => panic!("fixture setting"),
         }
     }
 }
@@ -281,6 +285,8 @@ fn live_settings_remap_efforts_by_name_and_refuse_missing_efforts() {
             proposer: people::Proposer::Party(1),
             proposal: 1,
             value: s::Proposal {
+                key: None,
+                applications: Box::default(),
                 against: 1,
                 items: Box::new([s::Item { setting: s::Setting::Template(1), edit: s::Edit::Set(value.clone()) }]),
             },
@@ -300,7 +306,10 @@ fn live_settings_remap_efforts_by_name_and_refuse_missing_efforts() {
                     s::Edit::Set(value) => value,
                     s::Edit::Removed | s::Edit::Reset => panic!("set"),
                 },
-                s::Record::Revision { .. } | s::Record::Extent { .. } | s::Record::Charter { .. } => {
+                s::Record::Application { .. }
+                | s::Record::Revision { .. }
+                | s::Record::Extent { .. }
+                | s::Record::Charter { .. } => {
                     panic!("live fixture")
                 }
             };
@@ -435,6 +444,7 @@ fn document_records(charter: core::Charter) -> [s::Record; 6] {
     let value = s::Value::Charter(Box::new(charter.clone()));
     let items = Box::new([s::Item { setting, edit: s::Edit::Set(value.clone()) }]);
     let revision = s::Revision {
+        applications: Box::default(),
         head: s::Head {
             number: 2,
             against: 1,
@@ -458,7 +468,7 @@ fn document_records(charter: core::Charter) -> [s::Record; 6] {
         s::Record::Proposal {
             proposer: people::Proposer::Party(3),
             proposal: 4,
-            value: s::Proposal { against: 1, items },
+            value: s::Proposal { key: None, applications: Box::default(), against: 1, items },
         },
     ]
 }
@@ -582,5 +592,26 @@ fn charter_documents_obey_lowered_limits_in_every_settings_record() {
                 skein_codec::Reason::Bound
             );
         }
+    }
+}
+
+mod applications;
+
+#[test]
+fn proposal_keys_and_the_extent_counter_round_trip_without_narrowing() {
+    let limits = codec::settings::limits(&fixtures::CORE_LIMITS).unwrap();
+    for key in [None, Some(1), Some(u64::MAX)] {
+        let row = s::Record::Proposal {
+            proposer: people::Proposer::Task(8),
+            proposal: 7,
+            value: s::Proposal { key, against: 1, items: Box::default(), applications: Box::default() },
+        };
+        let bytes = codec::settings::encode(&row, &limits, &[]).unwrap();
+        assert_eq!(codec::settings::decode(&row.key(), &bytes, &limits, &[]), Ok(row));
+    }
+    for keys in [1, u64::MAX] {
+        let row = s::Record::Extent { oldest: 2, keys };
+        let bytes = codec::settings::encode(&row, &limits, &[]).unwrap();
+        assert_eq!(codec::settings::decode(&row.key(), &bytes, &limits, &[]), Ok(row));
     }
 }

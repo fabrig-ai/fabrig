@@ -17,14 +17,22 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
   rules for waking say. A change task is a delegate run by the forge,
   whose result is a change landed (temper help box) or an explanation
   that no change applies; it starts with
-  half of what its parent has left to spend. A change asks no one,
-  and neither do the agents it delegates: a question or words sent to
-  it by a task are answered that a change takes none, naming its
+  half of what its parent has left to spend. A change asks no one unless
+  its maker names its questions: then its producer, repairs and resolutions
+  ask it, and it has each question settled by a foreman of its own, which
+  reads the change's words and the design and answers, tells the producer
+  to finish, or passes the question up, or passes it straight to its
+  requester; it answers the asker, holding an answer until its dependencies
+  have landed, and past its bound of questions it holds. A question or words
+  a change does not take are answered that it takes none, naming its
   requester; a party's words to it are taken unanswered.
   A change whose authority no longer covers its next step (its tasks all
   made, its depth used, too little left to spend) holds, saying what it
   lacks; released with nothing more, it holds again, and its way out is
-  to cancel it, or ask for the change afresh.
+  for exhausted tasks to grant more with `task amend TASK --rev REV --tasks N REASON`,
+  then `task release TASK --hold REV`, or cancel it. `N` replaces the
+  lifetime allowance; a release keeps the tasks already made. Widening
+  stays within the giver's authority and funding.
   A change runs nothing of its own, so `task release --again` on it is
   refused: release its hold, and it decides afresh.
 - **Its parts,** each read on its own: its tree (its live
@@ -104,7 +112,8 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
   `delegate`, `change`, `goal`, `amend`, `message`, `cancel`, `release`,
   `subscribe`, `introduce`, `decide_escalation` and `propose`.
   `message` is offered only to a run whose authority holds the message
-  family: a change's coder, repairer and reviewer are not offered it.
+  family: a change's coder, repairer and resolver are offered it where
+  the change relays their questions; its reviewer is not offered it.
 
 ## Limits
 

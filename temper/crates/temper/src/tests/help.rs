@@ -257,6 +257,29 @@ fn box_and_tier_help_name_the_host_runners_node_prerequisite() {
 }
 
 #[test]
+fn box_and_tier_help_explain_shared_capacity_and_existing_boxes() {
+    for page in ["box", "tier"] {
+        let text = help::answer(&configured(&["help", page])).expect("help page");
+        let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
+        for required in [
+            "CI and tiers",
+            "`temper-host`",
+            "`application.machine.owned.runner.capacity`",
+            "defaults to 1",
+            "2 for one single-job tier plus CI, or 3 for two such tiers plus CI",
+            "multi-job workflows",
+            "other repositories",
+            "Ctrl-C or SIGTERM",
+            "`Stopped`",
+            "`CONFIG/temper.json`",
+            "same",
+            "registration and secrets",
+        ] {
+            assert!(text.contains(required), "{page}: missing {required}: {text}");
+        }
+    }
+}
+#[test]
 fn box_and_change_help_locate_temper_review_gates_in_change_show() {
     let box_page = help::answer(&configured(&["help", "box"])).expect("box page");
     let step = box_page
@@ -316,12 +339,12 @@ fn tier_help_contains_a_complete_landing_configuration_example() {
     let example = fenced_lines(&text).into_iter().map(|(_, line)| line).collect::<Vec<_>>().join("\n");
     let example: serde_json::Value = serde_json::from_str(&example).expect("tier configuration JSON");
     let landing = &example["application"]["landing"];
-    assert!(landing["deployment"].is_array(), "deployment rules");
+    assert!(landing.get("deployment").is_none());
     let projects = landing["projects"].as_array().expect("landing projects");
     assert_eq!(projects.len(), 1);
     let project = &projects[0];
     assert_eq!(project["project"], 1);
-    assert!(project["rules"].is_array(), "project rules");
+    assert!(project.get("rules").is_none());
     assert_eq!(project["by"], "queue");
     assert_eq!(project["tier_retries"], 2);
     assert_eq!(project["verification_bound_ms"], 7_200_000);

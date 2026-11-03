@@ -145,7 +145,9 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   (`../protocol/configuration.md`, 13.4). The task's authority decides
   each call by its family (jig's `domain/authority.md`, sections 3 and
   8.5): a call beyond it is answered beyond authority, naming what it
-  lacked, and the run may `propose` it instead.
+  lacked, and the run may `propose` it instead. A refused tool family
+  is named from the call's tool, and repeated findings for that family
+  print once; the refusal grants no additional authority.
 - **The host part's budget.** smith refuses a run whose host part (its
   host tools, instructions, brief, and finish and deliver schemas) passes
   its bound, 51,717 bytes in the small profile, before any turn. The largest stock
@@ -315,7 +317,8 @@ any `delegate` (jig's authority, named and decided once):
   agent of the change holds, so that its reviewer and its repairs read
   the pull request, its files and CI's logs; the change's charters, its
   producer's and its reviews' (forge.md, 8.9), as the only kinds it may
-  delegate, and a person's role where a landing rule
+  delegate, the merge kind, job 3, where the run's authority delegates
+  to it (forge.md, 8.4), and a person's role where a landing rule
   covering the branch names a person gate; at most 6 tasks (a
   producer, a review, and two repairs each followed by its review), one
   fewer than the run has left, and a depth of at most 2; no notes; half of
@@ -336,6 +339,7 @@ delegate from what it knows:
  "name": "parser", "landing": "goal", "after": [41, "lexer"]}
 {"changes": [{"name": "lexer", "words": "...", "landing": "goal"},
              {"name": "parser", "words": "...", "landing": "goal", "after": ["lexer"]}]}
+{"words": "...", "branch": "mine"}
 ```
 
 - **`landing`:** `"goal"`, the requester's own goal branch,
@@ -346,6 +350,15 @@ delegate from what it knows:
   name that is not a branch's (an empty segment) is refused, naming it;
   a branch the repository lacks holds the change at its opening, the
   forge refusing its pull request (forge.md, 8.2).
+- **`branch`:** `"mine"`, its requester's held branch: the goal branch
+  the run's task holds in the change's repository (forge.md, 11.1),
+  which the change lands whole as it stands, with no producer (forge.md,
+  8.1); left out, the change's own branch, which its producer pushes.
+  `"mine"` from a run whose task holds no goal branch in that repository
+  is refused, saying so; with `"landing": "goal"`, a branch into
+  itself, refused, saying so; while another live change of the task is
+  on that branch, refused, naming its task; any other value refused,
+  naming it.
 - **`name`:** a name for the change within the call, at most 64 bytes,
   unique in it, which another change of the same call names in its
   `after`; it names nothing once the call is decided.
@@ -355,6 +368,16 @@ delegate from what it knows:
   them as any task does, so it starts once each has ended done; a name
   the call does not give before it, or a task jig refuses, refuses the
   call, naming it.
+- **`merge`:** a catch-up (forge.md, section 10): the commit to take, as
+  40 or 64 hexadecimal digits, which the merge job merges into a branch
+  made at the landing branch's tip, as the change's producer in place of
+  an agent; the words say what the commit brings and why. Refused,
+  naming the setting, where the change's project names no `merge_job`
+  (`../protocol/configuration.md`, section 3), and naming the kind,
+  where the run's authority does not delegate to the merge kind; a
+  commit in another form is refused, naming it. Whether the repository
+  has the commit is the job's to find: one the forge cannot fetch
+  fails the job, and holds the change.
 - **`changes`:** several changes in one call, each an object of the
   members above but `changes`, made as one batch (jig's
   `domain/tasks.md`, section 4): all of them or none, the call's answer
@@ -387,6 +410,16 @@ delegate from what it knows:
   charter's models or the authority's refuses the call, naming the
   model and why. A role left out takes its charter's default as each of
   its agents is made (jig's `domain/tasks.md`, section 3).
+- **`repairs`:** the red landing the change repairs
+  (`after-landing.md`, section 7), by its merge commit's full
+  hexadecimal digits, as the red's news names it: a landing of temper's
+  in the change's repository, on the branch the change lands into, red
+  in some tier as the root decides the delegate. A value that is not a
+  commit's digits is refused, naming it; a commit no live landing of
+  temper's there has, or one red in no tier, refused, naming the commit
+  and why. The change keeps it, and its own landing clears the red one
+  when a later tier run passes the failures blamed on it
+  (`after-landing.md`, 5.3); left out, the change repairs nothing.
 - **Who may set them:** the members past `words` and `repository` are a
   plan's, and only a run whose task's authority holds jig's control
   family (amend and cancel, with `release`: jig's `domain/authority.md`,
@@ -398,11 +431,18 @@ delegate from what it knows:
   naming the family, as it decides the delegate. What each member sets is
   checked as the rest of the batch is: its landing branch by the change's
   grants on the repository, its dependencies by jig's batch.
+- **`questions`:** how the change takes its agents' questions (forge.md,
+  8.11): `"none"`, a change that asks no one (8.2); `"foreman"`, each
+  question settled first by a foreman of its own; `"up"`, each passed
+  straight to the requester, a designer's change's way; left out, the
+  project's setting (`../protocol/configuration.md`, 13.2, kind 6), whose
+  default is `"none"`. Any other value is refused, naming it. A change
+  taking `"foreman"` is given one more task per question of its bound
+  (`forge.change_policy.questions`, `../protocol/configuration.md`,
+  section 7), beside the six above, for its foremen.
 - **Members to come** join each change's object, each optional and
   checked by the root as it decides that change's delegate, leaving
-  these as they are: the change's branch, `mine` for its requester's
-  held branch; its questions; a producer that is a job; the landing it
-  repairs.
+  these as they are: its general producer that is a job.
 
 #### 4.3.2 A goal, in the run's words
 
@@ -624,10 +664,11 @@ run starts fresh, its brief carrying the tail.
 
 | Agent | Messages in | Tools its authority gives | Ends when |
 |---|---|---|---|
-| producing a change (forge.md, 8.2) | none | the workspace's, from the landing branch or saved work; `finish` with a change | its change passes its checks and is pushed |
-| a repair (forge.md, 8.4) | none | the workspace's, from the change's branch, its brief carrying why; `finish` with a change | its new head passes its checks and is pushed |
-| resolving a conflict (forge.md, 8.4) | none | the workspace's, from a merge in progress; `finish` with a change | the merge is resolved, checked and pushed |
+| producing a change (forge.md, 8.2) | none; where its change relays questions, the answers to its own (forge.md, 8.11) | the workspace's, from the landing branch or saved work, or started early with its dependencies' pushed heads merged in (forge.md, 8.11); `deliver` mid-run, as it goes; `finish` with a change; `message`, to ask its change, where it relays questions | its change passes its checks and is pushed |
+| a repair (forge.md, 8.4) | as producing | the workspace's, from the change's branch, its brief carrying why; `finish` with a change; `message`, as producing | its new head passes its checks and is pushed |
+| resolving a conflict (forge.md, 8.4) | as producing | the workspace's, from a merge in progress; `finish` with a change; `message`, as producing | the merge is resolved, checked and pushed |
 | a review (forge.md, 8.3), a triage | none | reads; `finish` with a verdict | its verdict meets its contract |
+| a foreman (forge.md, 8.11) | none | reads: the workspace's inspection, from the landing branch's tip, and the forge's; `finish` with a verdict | its verdict meets its contract |
 | a chat | its person's words; its delegates' results and questions, and its person's answers to those questions (8.2) | most; `deliver` mid-run; `message`; `wait` | its person closes it |
 | a coordinator | questions, results, overlapping landings, the answers to its own questions (8.2); proposals and escalations to decide | `delegate`, `amend`, `cancel`, `release`, `decide`, `decide_escalation`, `propose`, `subscribe_forge`, `note`, `message`; `wait` | its goal's report is written |
 | the configuring agent (8.1) | its person's words; its proposals' outcomes: accepted, rejected with a reason, withdrawn as stale | `settings`, `propose_settings`, `withdraw`, the forge's reads, `read_docs`; `wait` | its person closes it |
@@ -640,10 +681,16 @@ under the forge's review charter, a reviewer's, whose instructions are
 to judge the change through its brief and the forge's reads and give a
 verdict, or fail saying why it cannot (forge.md, 8.3), and whose tools
 are the workspace's inspection and the forge's reads, never
-modification or the shell: a reviewer changes nothing.
+modification or the shell: a reviewer changes nothing. Its foremen run
+under the forge's foreman charter, whose instructions are to settle a
+question from the change's words, the design in its checkout and the
+change's pushed head, and give a verdict of answer, finish or escalate
+(forge.md, 8.11), with a reviewer's tools: a foreman changes nothing.
 
 The change's agents ask no one, and take no questions, answers or words
-(8.2).
+(8.2), unless the change relays their questions (forge.md, 8.11): then
+its producing, its repairs and its resolutions ask the change, and hear
+its answers. Its reviews and its foremen never ask.
 
 A refused forge read keeps its refusing layer and reason. Connector authority
 findings reach the agent as `ToolDenied`, with the findings intact. The root
@@ -717,14 +764,18 @@ a person says they work into a proposal of settings
 A person who wants to agree a plan before anything is changed: rung B0
 of `../draft/v0.1.0.md`, 2.1.
 
-- **The work that waits asks; a change never does.** A change is
-  decided work, asked for once what to change is agreed. Its agents,
-  the table's first four rows, ask no one: the change procedure
-  delegates each with the Message family taken out of the tool families
-  it passes on, which a child's authority otherwise keeps (jig's
+- **The work that waits asks; a change asks only as it is made to.** A
+  change is decided work, asked for once what to change is agreed. Made
+  with `questions` `"none"` (4.3.1), the default, its agents, the
+  table's first four rows, ask no one: the change procedure delegates
+  each with the Message family taken out of the tool families it passes
+  on, which a child's authority otherwise keeps (jig's
   `domain/authority.md`, section 3). The change itself takes no
   questions, answers or words (forge.md, 8.1); its amendments and its
-  cancel reach it as forge.md says.
+  cancel reach it as forge.md says. A plan's maker that wants its
+  changes' producers to ask makes them with `"foreman"` or `"up"`, and
+  the change relays their questions (forge.md, 8.11); what follows is a
+  chat's, whose changes take none.
 - **The chat delegates the work as a goal** when its person asks to
   agree it first, with `goal` (4.3.2) and the person's words: a
   delegate under charter 1 holding the authority to call `change` and

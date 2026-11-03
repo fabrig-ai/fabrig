@@ -47,11 +47,11 @@ pub struct Limits {
 /// resumed by the root and never passed to the protocol as child events.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Delivery {
-    /// A job and its opaque workspace items, held behind the assignment's commit.
+    /// A job and its typed forge workspace, held behind the assignment's commit.
     AssignedJob {
         channel: Token,
         job: jig_domain_host::JobAssignment,
-        items: Option<Box<[u8]>>,
+        workspace: Option<crate::ForgeWorkspace>,
     },
 
     /// Adoption release reaches the core after its erasures commit
@@ -173,6 +173,11 @@ pub enum Delivery {
     Read {
         reply: ReplyTo,
         answer: jig_domain_core::reads::Answer,
+    },
+    /// A forge settings answer, held behind every preceding commit (client/forge.md, 9).
+    ForgeRead {
+        reply: ReplyTo,
+        answer: crate::ForgeReadAnswer,
     },
     /// A core read's store load, after every preceding commit.
     ReadLoad {
@@ -493,6 +498,7 @@ impl Decision {
             | Delivery::Application { .. }
             | Delivery::WebReply { .. }
             | Delivery::CarriedUnused { .. }
+            | Delivery::ForgeRead { .. }
             | Delivery::Read { .. }
             | Delivery::ReadLoad { .. }
             | Delivery::Document { .. }
@@ -630,6 +636,7 @@ pub fn resume(journal: &mut Journal, out: &mut Queue<Output>) {
             | crate::Output::Drained
             | crate::Output::Return { .. }
             | crate::Output::Connect { .. }
+            | crate::Output::Replace { .. }
             | crate::Output::Manifest { .. }
             | crate::Output::Reachable { .. }
             | crate::Output::Install { .. }

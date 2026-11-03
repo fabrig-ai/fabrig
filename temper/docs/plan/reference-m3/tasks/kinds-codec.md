@@ -80,3 +80,15 @@ Acceptance:
 
 The implementer's text's report, plus: the record names written; the goldens regenerated
 (count).
+
+## Rebase (2026-11-03, step merge, foreman reference-m3/kinds-codec/foreman-1)
+
+regenerate the client wire codec from the combined schema during rebase.
+The merge conflicts in `temper/crates/temper-client-protocol-wire/src/generated/v1.rs`.
+Trunk commit `df5ef18805` (“Carry connected Forgejo token connects and replacements through the client wire”) adds connected Forgejo support, `ForgejoTokens`, and `Replace`.
+Preserve those schema changes alongside this task’s landing-rule and charter records; keep `CLIENT_VERSION` at 11.
+Regenerate the conflicted file rather than choosing either side: both changes alter generated bounds helpers and `golden_tests::GOLDEN_0` (534 → 544 on trunk, 534 → 556 on this branch).
+Run `SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p temper-codecs-world --test suite -E 'test(drift::)'`.
+The combined generated golden table should contain 566 cases; retain both sets of golden files.
+Then run the codecs suite without write mode and the three `temper-engine-smith` kinds tests specified by the task.
+Keep the resolution within the task’s allowed files.

@@ -6,11 +6,12 @@ use settings_form::view::{
 use skein_lib::{Duration, List, bytes};
 
 const COORDINATOR: u32 = 5;
-const DESIGNER: u32 = 6;
+const DESIGNER: u32 = 7;
 const CODER: u32 = 2;
+const FOREMAN: u32 = 6;
 const GOAL: u32 = 4;
-// The reference supplies three charters and one template.
-const ITEMS: u32 = 4;
+// The reference supplies four charters, one template and two landing rules.
+const ITEMS: u32 = 7;
 // temper-init/template/agent.json's profile.policy.max_turns.
 const TURNS: u32 = 16;
 
@@ -35,6 +36,10 @@ fn documents(documents: &List<CharterDocument>, first_path: &[u8], first_heading
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one reference fixture checks designer choices and catch-up instructions together"
+)]
 fn the_reference_settings_file_decodes() {
     let items = settings_form::file::decode(
         include_bytes!("../../../../docs/examples/reference/settings.json"),
@@ -46,6 +51,7 @@ fn the_reference_settings_file_decodes() {
         (COORDINATOR, b"claude-opus-5-5".as_slice()),
         (DESIGNER, b"claude-opus-5-5".as_slice()),
         (CODER, b"gpt-6.1-sol".as_slice()),
+        (FOREMAN, b"gpt-6.1-sol".as_slice()),
     ] {
         let SettingValue::Charter(charter) = value(&items, Setting::Charter(SettingNumber { number })) else {
             panic!("reference charter")
@@ -56,7 +62,7 @@ fn the_reference_settings_file_decodes() {
         assert_eq!(charter.hosts, settings_form::view::SettingHosts::Workers);
         assert_eq!(charter.turns, TURNS);
         assert_eq!(charter.time, Duration::from_secs(1800));
-        if number != CODER {
+        if number != CODER && number != FOREMAN {
             assert!(!charter.resume());
             assert_eq!(charter.waiting, Duration::ZERO);
         }
@@ -71,8 +77,35 @@ fn the_reference_settings_file_decodes() {
         Some(b"1. In one page"),
         b"skein/docs/foundation/programming-model.md",
     );
-    assert!(bytes::find(coordinator.instructions.bytes(), b"\"producer\": 6").is_some());
+    assert!(bytes::find(coordinator.instructions.bytes(), b"\"producer\": 7").is_some());
     assert!(bytes::find(coordinator.instructions.bytes(), b"close-out").is_some());
+    assert!(
+        std::str::from_utf8(coordinator.instructions.bytes())
+            .expect("coordinator instructions are UTF-8")
+            .contains(r#""branch": "mine""#)
+    );
+    let instructions =
+        std::str::from_utf8(coordinator.instructions.bytes()).expect("coordinator instructions are UTF-8");
+    assert!(instructions.contains(r#""branch": "mine""#));
+    assert!(instructions.contains(r#""questions": "foreman""#));
+    assert!(instructions.contains("decide"));
+    assert!(instructions.contains(r#""repairs""#));
+    assert!(instructions.contains("a red of your goal branch's tier"));
+    assert!(instructions.contains("with `note`"));
+    assert!(coordinator.instructions.bytes().ends_with(
+        b"If you finish without a landing, say why in your report; your goal branch is kept for a person to read."
+    ));
+    assert!(!coordinator.resume());
+    assert_eq!(coordinator.waiting, Duration::ZERO);
+    assert!(core::str::from_utf8(coordinator.instructions.bytes()).expect("coordinator instructions").contains(
+        "When main moves under your goal, you hear a landing into main that touches your goal's \
+         open work as news, at most once in 30 minutes. Catch up with one `change`: `\"landing\": \
+         \"goal\"`, `\"merge\"` the landing's merge commit, its words naming the landing and why your \
+         goal needs it now. Keep one catch-up live at a time: a later landing's commit carries the \
+         earlier ones, so on news while one is live, wait for its result. On your first run, once \
+         your first batch is made, subscribe with `subscribe_forge` to the landings on main in your \
+         repository."
+    ));
     assert_eq!(
         coordinator.wake,
         WakePolicy {
@@ -106,6 +139,24 @@ fn the_reference_settings_file_decodes() {
     assert_eq!(coder.wake, WakePolicy::DEFAULT);
     assert!(coder.documents.is_empty());
     assert!(coder.instructions.bytes().starts_with(include_bytes!("../../../temper-service/src/stock/coding.txt")));
+    assert!(
+        std::str::from_utf8(coder.instructions.bytes())
+            .expect("coding instructions are UTF-8")
+            .contains("in the question form")
+    );
+    let SettingValue::Charter(foreman) = value(&items, Setting::Charter(SettingNumber { number: FOREMAN })) else {
+        panic!("foreman charter")
+    };
+    assert!(foreman.inspect());
+    assert!(!foreman.modify());
+    assert!(!foreman.shell());
+    assert!(!foreman.agents());
+    assert!(foreman.instructions.bytes().starts_with(include_bytes!("../../../temper-service/src/stock/foreman.txt")));
+    assert!(
+        core::str::from_utf8(coder.instructions.bytes())
+            .expect("coding instructions")
+            .contains("Push as you go: deliver a first head as soon as the change builds, then again as it grows.")
+    );
     let SettingValue::Template(goal) = value(&items, Setting::Template(SettingNumber { number: GOAL })) else {
         panic!("goal template")
     };
@@ -117,4 +168,37 @@ fn the_reference_settings_file_decodes() {
     let llm = goal.llm.as_ref().expect("goal model choice");
     assert_eq!(llm.main.model.bytes(), b"claude-opus-5-5");
     assert_eq!(llm.main.effort.as_ref().expect("coordinator effort").bytes(), b"xhigh");
+}
+
+#[test]
+fn the_reference_sets_main_and_goal_branch_landing_rules() {
+    use temper_engine_domain_forge::{GateLast, settings};
+    let items = settings_form::file::decode(
+        include_bytes!("../../../../docs/examples/reference/settings.json"),
+        &temper_client_tools::limits::form(),
+    )
+    .expect("reference settings");
+    for (number, last, checks) in
+        [(1, GateLast::Exact(b"main".as_slice().into()), true), (2, GateLast::Open(b"temper".as_slice().into()), false)]
+    {
+        let SettingValue::Application(bytes) = value(&items, Setting::Application { kind: 1, scope: 0, number }) else {
+            panic!("reference landing rule")
+        };
+        let value = temper_engine_smith::kinds::decode(
+            1,
+            bytes,
+            &temper_engine_smith::kinds::Bounds { segments: 8, segment_bytes: 64, gates: 4, approvals: 4 },
+        )
+        .expect("reference rule codec");
+        let settings::Value::Rule(rule) = value.value else { panic!("rule value") };
+        assert_eq!(
+            rule.pattern.segments.as_ref(),
+            [b"forge".as_slice(), b"127.0.0.1:3000", b"acme", b"widget", b"branch"].map(Box::from)
+        );
+        assert_eq!(rule.pattern.last, last);
+        assert!(rule.enforce);
+        assert_eq!((rule.ci, rule.up_to_date), (checks, checks));
+        assert!(rule.gates.is_empty());
+        assert!(rule.approvals.is_empty());
+    }
 }

@@ -162,7 +162,7 @@ fn start(live: Option<host::channel::LiveAsk>) -> host::Start {
             account: 0,
             generation: 1,
             valid: Duration::from_secs(7200),
-            form: smith_host_domain::Form::Withdrawn,
+            form: smith_host_domain::Form::Credential(smith_host_domain::Scheme::Bearer),
         }]),
     }
 }
@@ -468,10 +468,7 @@ impl HostService {
                 window,
                 protocol::Values {
                     paths: Box::new([]),
-                    credentials: Box::new([smith_protocol_translate::GrantValue::Withdrawn {
-                        account_id: Box::from(&b"acc"[..]),
-                        bearer: Box::from(&b"token"[..]),
-                    }]),
+                    credentials: Box::new([smith_protocol_translate::GrantValue::Bearer(Box::from(&b"token"[..]))]),
                 },
                 token,
                 &mut self.process_events,
@@ -491,10 +488,7 @@ impl HostService {
             }
             host::Down::Grant { grant } => process.send_grant(
                 grant,
-                smith_protocol_translate::GrantValue::Withdrawn {
-                    account_id: Box::from(&b"acc"[..]),
-                    bearer: Box::from(&b"token"[..]),
-                },
+                smith_protocol_translate::GrantValue::Bearer(Box::from(&b"token"[..])),
                 token,
                 &mut self.process_events,
                 &mut self.io_requests,

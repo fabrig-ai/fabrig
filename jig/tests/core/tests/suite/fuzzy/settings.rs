@@ -16,6 +16,7 @@ fn agree(world: &jig_core_world::world::World) {
     for row in world.store.rows.values() {
         if let root::Record::Core(core::Record::Core(core::CoreRecord::Settings(row))) = row {
             match row {
+                settings::Record::Application { .. } => unreachable!("an application's record: apps-store"),
                 settings::Record::Default { setting, default } => {
                     expected.insert(*setting, default.value.clone());
                 }
@@ -197,7 +198,13 @@ fn random_small_settings_changes_and_stale_requests_survive_restarts() {
                 ask(&mut world, signed, 1, people::Ask::MakeProject { name: "Random project".into(), policy: 1 }),
                 people::Reply::Outcome(people::Outcome::ProjectMade { .. })
             ));
-            assert!(world.store.rows.values().any(|value| *value == record(settings::Record::Extent { oldest: 0 })));
+            assert!(
+                world
+                    .store
+                    .rows
+                    .values()
+                    .any(|value| *value == record(settings::Record::Extent { oldest: 0, keys: 1 }))
+            );
             live_work(&mut world, signed);
             agree(&world);
             for step in 0..16_u8 {

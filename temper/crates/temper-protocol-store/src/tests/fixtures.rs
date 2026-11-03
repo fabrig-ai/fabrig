@@ -77,6 +77,7 @@ pub const LIMITS: top::Limits = top::Limits {
         repairs: 3,
         resolutions: 3,
         updates: 3,
+        questions: 4,
         stall: Duration::from_secs(30),
         gates: 8,
         clean_heads: 8,
@@ -153,7 +154,7 @@ fn client_key(random: &mut Rng) -> skein_forge_client::Key {
 #[expect(clippy::disallowed_macros, reason = "property inputs number canonical member addresses")]
 pub fn key(random: &mut Rng) -> top::Key {
     let number = random.next_u64();
-    match random.below(26) {
+    match random.below(27) {
         0 => top::Key::Call(top::NamedCall {
             task: number,
             attempt: random.next_u64(),
@@ -193,6 +194,16 @@ pub fn key(random: &mut Rng) -> top::Key {
         22 => top::Key::ForgeNumber,
         23 => top::Key::Playground,
         24 => top::Key::Tier { repository: repository(random), tier: Box::from(b"tier".as_slice()) },
+        26 => top::Key::Setting(top::settings::SettingKey {
+            kind: u32::try_from(random.below(3).checked_add(1).expect("kind")).expect("kind"),
+            scope: u32::try_from(random.below(4_294_967_296)).expect("u32"),
+            number: u32::try_from(random.below(4_294_967_296)).expect("u32"),
+            slot: match random.below(3) {
+                0 => top::settings::SettingSlot::Default,
+                1 => top::settings::SettingSlot::Change,
+                _ => top::settings::SettingSlot::Proposal(random.next_u64()),
+            },
+        }),
         _ => top::Key::Verification { repository: repository(random), commit: commit(random) },
     }
 }
@@ -758,6 +769,7 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
         priority: -6,
         ci: None,
         change: Change {
+            early: temper_engine_domain_forge_change::Early::None,
             way: temper_engine_domain_forge_change::Way::Queue,
             landing: None,
             task: 1,
@@ -794,11 +806,28 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
         queue_repairs: 27,
         producing_charter: 2,
         review_charter: 4,
+        producing_llm: None,
+        review_llm: None,
+        foreman_charter: 6,
+        questions: temper_engine_domain_forge_change::Questions::default(),
         effect_account: None,
         producer_failure: None,
         report: Box::new([]),
+        repairs: Some([28; 32]),
+        catch_up: None,
+        merge_result: None,
     }
 }
+/// A merge job with its catch-up commit and retained result (temper/docs/design/domain/forge.md, 8.4).
+pub fn merge_change_row(from: Option<[u8; 32]>) -> top::ChangeRow {
+    use temper_engine_domain_forge_change::{Delegate, State};
+    let mut row = change_row(State::Resolving { requested: true, base: [28; 32] });
+    row.delegate = Some((18, Delegate::Merge { base: [28; 32], from }));
+    row.catch_up = Some([29; 32]);
+    row.merge_result = Some(Box::from(b"settled known conflicts".as_slice()));
+    row
+}
+
 pub fn change_states() -> List<temper_engine_domain_forge_change::State> {
     use temper_engine_domain_forge_change::{Hold, Repair, State};
     let mut states = List::with_capacity(22);
@@ -910,7 +939,6 @@ pub fn forge_record() -> top::ForgeRecord {
             playground: true,
             org: b"playground".as_slice().into(),
             repository: b"widget".as_slice().into(),
-            project: top::SetUpProject::New(b"project".as_slice().into()),
             label: b"playground".as_slice().into(),
         }),
     }
@@ -938,16 +966,9 @@ pub fn tier_row() -> top::TierRow {
         blamed.push(p::Blame::Owns(failures.clone())).unwrap();
     }
     let landings = landings.into_boxed();
-    let mut pending = List::with_capacity(u32::try_from(landings.len()).unwrap());
-    for landing in &landings {
-        pending.push(top::TierLanding { commit: landing.commit, key: Some(landing.key) }).unwrap();
-    }
-    let pending = pending.into_boxed();
-    let mut jobs = List::with_capacity(LIMITS.client.rows);
-    for id in 0..LIMITS.client.rows {
-        jobs.push(skein_forge::api::JobAttempt { head: [4; 32], run: 71, job: u64::from(id), attempt: 1 }).unwrap();
-    }
+    let pending = tier_pending(&landings);
     top::TierRow {
+        observations: Box::new([b'o'; 8192]),
         requested: true,
         cancelled: true,
         purpose: Some(top::purpose::EffectPurpose::Tier { repository: REPO, tier: 0, run: 3, operation: 1, part: 2 }),
@@ -955,17 +976,7 @@ pub fn tier_row() -> top::TierRow {
         baseline: Some(top::TierLanding { commit: [1; 32], key: Some([2; 32]) }),
         branch: top::TierBranch::Pending { entry: 17 },
         probe: Some(top::TierProbeBranch { landing: 1, branch: top::TierBranch::Pending { entry: 19 } }),
-        flight: Some(top::TierFlight {
-            entry: 18,
-            start: Some(skein_lib::Time::ZERO),
-            since: Some(skein_lib::Time::ZERO),
-            waiting: true,
-            next: Some(skein_lib::Time::ZERO),
-            run: Some(71),
-            pending: jobs.into_boxed(),
-            fault: Some(temper_engine_domain_forge_landing::Fault::Lost),
-            report: Some(top::ReceiptRun { id: 71, number: 1, url: Box::new([b'u'; 2048]) }),
-        }),
+        flight: Some(tier_flight()),
         held: Some(temper_engine_domain_forge_landing::Fault::Cancelled),
         result: Some(top::Receipt {
             passed: false,
@@ -975,6 +986,9 @@ pub fn tier_row() -> top::TierRow {
             run: top::ReceiptRun { id: 71, number: 1, url: Box::new([b'u'; 2048]) },
         }),
         received: true,
+        goals: Box::new([]),
+        goal: None,
+        started: None,
         repository: REPO,
         tier: Box::new([b'a'; 32]),
         task: Some(51),
@@ -997,4 +1011,48 @@ pub fn tier_row() -> top::TierRow {
             }),
         },
     }
+}
+
+fn tier_pending(landings: &[temper_engine_domain_forge_tiers::Landing]) -> Box<[top::TierLanding]> {
+    let mut pending = List::with_capacity(u32::try_from(landings.len()).unwrap());
+    for landing in landings {
+        pending.push(top::TierLanding { commit: landing.commit, key: Some(landing.key) }).unwrap();
+    }
+    pending.into_boxed()
+}
+
+fn tier_flight() -> top::TierFlight {
+    let mut jobs = List::with_capacity(LIMITS.client.rows);
+    for id in 0..LIMITS.client.rows {
+        jobs.push(skein_forge::api::JobAttempt { head: [4; 32], run: 71, job: u64::from(id), attempt: 1 }).unwrap();
+    }
+    top::TierFlight {
+        entry: 18,
+        start: Some(skein_lib::Time::ZERO),
+        since: Some(skein_lib::Time::ZERO),
+        waiting: true,
+        next: Some(skein_lib::Time::ZERO),
+        run: Some(71),
+        pending: jobs.into_boxed(),
+        fault: Some(temper_engine_domain_forge_landing::Fault::Lost),
+        report: Some(top::ReceiptRun { id: 71, number: 1, url: Box::new([b'u'; 2048]) }),
+    }
+}
+
+pub fn tier_goals() -> Box<[top::TierGoal]> {
+    let mut goals = List::with_capacity(LIMITS.holds);
+    let failures = tier_row().record.failing;
+    for goal in 0..LIMITS.holds {
+        goals
+            .push(top::TierGoal {
+                goal: u64::from(goal),
+                branch: Box::new([b'g'; 4096]),
+                tip: Some([6; 32]),
+                ran: Some([7; 32]),
+                failing: failures.clone(),
+                started: Some(skein_lib::Time::from_nanos(u64::MAX)),
+            })
+            .unwrap();
+    }
+    goals.into_boxed()
 }

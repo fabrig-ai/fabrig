@@ -244,6 +244,7 @@ impl Driver {
                 | engine::Request::ResetAct { .. }
                 | engine::Request::BoxRemove { .. }
                 | engine::Request::Connect { .. }
+                | engine::Request::Replace { .. }
                 | engine::Request::Manifest { .. }
                 | engine::Request::Reachable { .. }
                 | engine::Request::Install { .. }

@@ -438,6 +438,7 @@ fn route_now(
                     work.push(Work::Core(core::Event::WorkspacePrepared {
                         task,
                         attempt,
+                        holds: Box::new([]),
                         workspace: None,
                         credentials: Box::new([]),
                         writes: None,
@@ -474,9 +475,16 @@ fn route_now(
                 Some(credentials) => (credentials, Some(checks.into_boxed())),
                 None => (Box::<[u32]>::from([]), None),
             };
+            let holds = match context.executor {
+                tasks::Executor::Job { .. } => domain.workspace_writes.get(&task).expect("prepared writes").clone(),
+                tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => {
+                    Box::new([])
+                }
+            };
             work.push(Work::Core(core::Event::WorkspacePrepared {
                 task,
                 attempt,
+                holds,
                 credentials,
                 writes,
                 workspace: None,
@@ -579,6 +587,52 @@ pub(super) fn route_connector(
 ) {
     for _ in 0..requests.len() {
         match requests.pop().expect("connector request count") {
+            connector::Request::SettingsJudged { token, judged } => {
+                let owner = domain.settings_judges.remove(&token).expect("settings judge has a core owner");
+                let mut answers = List::with_capacity(u32::try_from(judged.len()).expect("bounded judgments"));
+                for answer in judged {
+                    answers
+                        .push(match answer {
+                            connector::SettingJudged::Accept { size, charters } => {
+                                core::effects::connector::Judged::Accept { size, charters }
+                            }
+                            connector::SettingJudged::Same => core::effects::connector::Judged::Same,
+                            connector::SettingJudged::Refuse { why } => {
+                                core::effects::connector::Judged::Refuse { why }
+                            }
+                        })
+                        .expect("one answer per judgment");
+                }
+                work.push(Work::Core(core::Event::EffectConnector(core::effects::connector::Event::SettingsJudged {
+                    owner,
+                    judged: answers.into_boxed(),
+                })));
+            }
+            connector::Request::SettingsDefaults { defaults } => {
+                let mut states = List::with_capacity(u32::try_from(defaults.len()).expect("bounded defaults"));
+                for default in defaults {
+                    states
+                        .push(core::effects::connector::DefaultState {
+                            kind: default.kind,
+                            scope: default.scope,
+                            number: default.number,
+                            size: default.size,
+                            charters: default.charters,
+                            differs: default.differs,
+                        })
+                        .expect("one state per default");
+                }
+                work.push(Work::Core(core::Event::EffectConnector(
+                    core::effects::connector::Event::SettingsDefaults {
+                        connector: number,
+                        defaults: states.into_boxed(),
+                    },
+                )));
+            }
+            connector::Request::SettingValue { .. } => unreachable!("a setting read returns to its synchronous caller"),
+            connector::Request::RestoreRefused { kind, scope, number } => {
+                crate::refuse_settings_restore(kind, scope, number);
+            }
             connector::Request::ProjectReleased { project } => {
                 work.push(Work::Core(core::Event::ProjectReleased { connector: number, project }));
             }
@@ -639,7 +693,10 @@ pub(super) fn route_connector(
                     connector::Record::Outbox(row) => {
                         assert!(crate::remember_outbox(domain, number, row), "bounded outbox owner routes");
                     }
-                    connector::Record::ApplicationObject { .. }
+                    connector::Record::SettingDefault { .. }
+                    | connector::Record::SettingChange { .. }
+                    | connector::Record::SettingProposal { .. }
+                    | connector::Record::ApplicationObject { .. }
                     | connector::Record::ApplicationAnswer { .. }
                     | connector::Record::Proposal { .. }
                     | connector::Record::Task { .. }
@@ -857,8 +914,41 @@ fn route_effect_ask(domain: &mut Domain, number: u16, ask: core::effects::connec
         | core::effects::connector::Ask::Restore { .. }
         | core::effects::connector::Ask::ReadAfresh
         | core::effects::connector::Ask::SettleOutbox => unreachable!("effect handoff vocabulary"),
+        core::effects::connector::Ask::JudgeSettings { owner, revision, proposal, items } => {
+            let token = domain.hub_link.fresh();
+            domain.settings_judges.insert(token, owner).expect("settings judgment route fits");
+            connector::Event::JudgeSettings { token, revision, proposal, items: settings_items(items) }
+        }
+        core::effects::connector::Ask::KeepSettings { revision, proposal, items } => {
+            connector::Event::KeepSettings { revision, proposal, items: settings_items(items) }
+        }
+        core::effects::connector::Ask::KeepProposalSettings { proposal, items } => {
+            connector::Event::KeepProposalSettings { proposal, items: settings_items(items) }
+        }
+        core::effects::connector::Ask::DropProposalSettings { proposal } => {
+            connector::Event::DropProposalSettings { proposal }
+        }
+        core::effects::connector::Ask::SaveSettingsDefaults { revision } => {
+            connector::Event::SaveSettingsDefaults { revision }
+        }
     };
     work.push(Work::Connector { number, event });
+}
+
+/// Translate edits without inspecting the connector's bytes (connectors.md, 17).
+fn settings_items(items: Box<[core::settings::application::Item]>) -> Box<[connector::SettingItem]> {
+    let mut translated = List::with_capacity(u32::try_from(items.len()).expect("bounded settings items"));
+    for item in items {
+        let edit = match item.edit {
+            core::settings::application::Edit::Set(bytes) => connector::SettingEdit::Set(bytes),
+            core::settings::application::Edit::Remove => connector::SettingEdit::Remove,
+            core::settings::application::Edit::Reset => connector::SettingEdit::Reset,
+        };
+        translated
+            .push(connector::SettingItem { kind: item.kind, scope: item.scope, number: item.number, edit })
+            .expect("one translated item per item");
+    }
+    translated.into_boxed()
 }
 
 fn name(path: connector::Path) -> authority::Name {

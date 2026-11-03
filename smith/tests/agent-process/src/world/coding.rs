@@ -15,7 +15,7 @@ pub(super) fn configuration() -> smith_agent_service::Config {
     let mut declarations = crate::declarations(0);
     declarations.endpoints[0].models[0].output = OUTPUT;
     let limits = smith_agent_service::profile::derive(&profile, &declarations).expect("standard coding limits");
-    let mut config = crate::configuration_with_limits(skein_llm::Provider::OpenAiCodex, &limits);
+    let mut config = crate::configuration_with_limits(skein_llm::Provider::OpenAi, &limits);
     config.domain.models[0].output = OUTPUT;
     config.domain.models[0].protocol_allowance = smith_agent_service::profile::endpoint_allowance(
         &profile,

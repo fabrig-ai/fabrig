@@ -562,6 +562,9 @@ pub enum Event {
         task: u64,
         attempt: u64,
         writes: Option<Box<[authority::Write]>>,
+        /// A job's held names, translated by its connectors from workspace writes
+        /// (jig/docs/design/domain/engine.md, 7.1, step 3); empty for an agent.
+        holds: Box<[tasks::Name]>,
         credentials: Box<[u32]>,
         /// A job's application-encoded workspace items, within `Limits::run_bytes`.
         workspace: Option<Box<[u8]>>,
@@ -1151,6 +1154,7 @@ fn notes_new_work(event: &notes::Event) -> bool {
     }
 }
 
+#[expect(clippy::match_same_arms, reason = "application settings placeholders have their own arm")]
 fn effectconnector_new_work(event: &crate::effects::connector::Event) -> bool {
     match event {
         crate::effects::connector::Event::Resource { .. }
@@ -1169,6 +1173,8 @@ fn effectconnector_new_work(event: &crate::effects::connector::Event) -> bool {
         | crate::effects::connector::Event::Adopted { .. }
         | crate::effects::connector::Event::Closed { .. }
         | crate::effects::connector::Event::RestartDone { .. } => false,
+        &crate::effects::connector::Event::SettingsJudged { .. }
+        | &crate::effects::connector::Event::SettingsDefaults { .. } => false,
     }
 }
 

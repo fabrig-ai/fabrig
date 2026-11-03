@@ -46,7 +46,14 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
                 crate::setup::public::admin_connect(engine, forge, request, first, carried);
             }
             temper_engine_domain_forge::How::GitHubManifest { .. } => unreachable!("manifest has its own door"),
+            temper_engine_domain_forge::How::ForgejoTokens => {
+                crate::setup::public::tokens_connect(engine, forge, request, carried);
+            }
         },
+
+        root::Request::Replace { forge, request, carried } => {
+            crate::setup::public::replace(engine, forge, request, carried);
+        }
         root::Request::Manifest { forge, request, back } => {
             crate::setup::public::manifest(engine, forge, request, back);
         }
@@ -178,6 +185,18 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
                         None => Some(jig_protocol_engine_clients::Event::Abort),
                     }
                 }
+                root::PartyRequest::Deliver(root::Delivery::ForgeRead { reply, answer }) => {
+                    match crate::family::forge_read(answer, &temper_client_protocol_wire::v1::CEILINGS) {
+                        Some(record) => Some(jig_protocol_engine_clients::Event::Application(
+                            jig_protocol_engine_clients::FromApplication::Read {
+                                reply,
+                                family: temper_client_protocol_wire::FORGE,
+                                record: Some(record),
+                            },
+                        )),
+                        None => Some(jig_protocol_engine_clients::Event::Abort),
+                    }
+                }
                 root::PartyRequest::Deliver(root::Delivery::Application { to, outcome }) => {
                     match crate::family::answer(
                         outcome,
@@ -258,25 +277,26 @@ fn worker(engine: &mut Engine, request: root::WorkerRequest) {
             engine.events.push(crate::tools::result(payload, &outcome, change));
         }
         root::WorkerRequest::Deliver(delivery) => match delivery {
-            root::Delivery::AssignedJob { channel, job, items } => {
-                let parts: Box<[jig_protocol_worker_wire::Part]> = match items {
-                    Some(bytes) => Box::new([jig_protocol_worker_wire::Part {
-                        token: job.workspace.as_ref().expect("job workspace items have a workspace").items,
-                        bytes,
-                    }]),
-                    None => Box::new([]),
-                };
-                let values = engine.values.grants(&job.grants, engine.env.now);
-                engine.workers.down(
-                    engine.env.now,
-                    jig_protocol_engine_workers::Event::Down {
+            root::Delivery::AssignedJob { channel, job, workspace } => {
+                let (run, attempt) = (job.run, job.attempt);
+                match job_assignment(engine, channel, job, workspace.as_ref()) {
+                    Some(event) => engine.workers.down(engine.env.now, event, &mut engine.events),
+                    None => engine.events.push(root::Event::Worker(root::WorkerInput::Link {
                         channel,
-                        down: jig_domain_host::LinkDown::AssignJob { job },
-                        parts,
-                        values,
-                    },
-                    &mut engine.events,
-                );
+                        link: root::Link::Up {
+                            up: jig_domain_host::LinkUp::JobAnswer {
+                                run,
+                                attempt,
+                                answer: jig_domain_host::JobEnding::Refused(jig_domain_host::JobRefusal::Invalid(
+                                    jig_domain_host::JobInvalid::Start {
+                                        why: b"assignment cannot encode".as_slice().into(),
+                                    },
+                                )),
+                            },
+                            parts: root::Parts::none(),
+                        },
+                    })),
+                }
             }
             root::Delivery::Assigned { channel, assignment } => {
                 engine.workers.assignment(engine.env.now, channel, assignment, &engine.values, &mut engine.events);
@@ -332,6 +352,7 @@ fn worker(engine: &mut Engine, request: root::WorkerRequest) {
             | root::Delivery::Panel { .. }
             | root::Delivery::WebReply { .. }
             | root::Delivery::CarriedUnused { .. }
+            | root::Delivery::ForgeRead { .. }
             | root::Delivery::Read { .. }
             | root::Delivery::Document { .. }
             | root::Delivery::WatchEnded { .. }
@@ -361,7 +382,41 @@ fn forge_rows(engine: &Engine, forges: temper_engine_domain_forge::Forges) -> Op
 fn render_host(engine: &mut Engine, to: skein_lib::ReplyTo, answer: &root::CallAnswer, tool: &[u8]) {
     let bytes =
         engine.env.limits.call_answer_bytes.saturating_sub(u32::try_from(tool.len()).expect("bounded tool name"));
-    engine.events.push(crate::tools::render(to, answer, bytes));
+    engine.events.push(crate::tools::render(to, answer, tool, bytes));
+}
+
+/// A job uses the same repository translation as an agent (temper/docs/design/domain/worker.md, 4.4).
+pub(crate) fn job_assignment(
+    engine: &Engine,
+    channel: skein_lib::Token,
+    job: jig_domain_host::JobAssignment,
+    workspace: Option<&root::ForgeWorkspace>,
+) -> Option<jig_protocol_engine_workers::Event> {
+    let items = match workspace {
+        Some(workspace) => crate::translate::workspace_items(
+            workspace,
+            false,
+            &engine.workers.forges,
+            &engine.values.tokens,
+            &engine.workers.encoding.limits,
+        )
+        .ok()?,
+        None => None,
+    };
+    let parts: Box<[jig_protocol_worker_wire::Part]> = match items {
+        Some(items) => Box::new([jig_protocol_worker_wire::Part {
+            token: job.workspace.as_ref()?.items,
+            bytes: temper_protocol_worker_wire::items(&items),
+        }]),
+        None => Box::new([]),
+    };
+    let values = engine.values.grants(&job.grants, engine.env.now);
+    Some(jig_protocol_engine_workers::Event::Down {
+        channel,
+        down: jig_domain_host::LinkDown::AssignJob { job },
+        parts,
+        values,
+    })
 }
 
 #[cfg(test)]

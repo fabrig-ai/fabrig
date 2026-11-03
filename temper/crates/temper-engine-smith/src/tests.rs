@@ -1401,9 +1401,13 @@ fn change_decodes_a_plan_member_each() {
                 repository: None,
                 name: Some(b"x".as_slice().into()),
                 landing: Some(expected),
+                branch: None,
+                merge: None,
                 after: Box::new([engine::ChangeAfter::Task(4), engine::ChangeAfter::Name(b"w".as_slice().into())]),
                 producer: None,
                 llm: engine::ChangeLlm::default(),
+                questions: None,
+                repairs: None,
             }]
         );
     }
@@ -1414,6 +1418,143 @@ fn change_decodes_a_plan_member_each() {
     };
     assert_eq!(changes[0].name.as_deref(), Some(name.as_bytes()));
     assert!(changes[0].after.is_empty());
+}
+
+#[test]
+fn change_decodes_repairs_alone_and_in_changes_at_each_commit_width() {
+    for digits in [40, 64] {
+        let text = "ab".repeat(digits / 2);
+        let mut commit = [0_u8; 32];
+        commit[..digits / 2].fill(0xab);
+        for (input, questions) in [
+            (format!(r#"{{"words":"a","repairs":"{text}"}}"#), None),
+            (format!(r#"{{"changes":[{{"words":"a","repairs":"{text}"}}]}}"#), None),
+            (format!(r#"{{"words":"a","repairs":"{text}","questions":"up"}}"#), Some(engine::ChangeQuestions::Up)),
+            (
+                format!(r#"{{"changes":[{{"words":"a","repairs":"{text}","questions":"foreman"}}]}}"#),
+                Some(engine::ChangeQuestions::Foreman),
+            ),
+        ] {
+            let engine::Tool::Change { changes } = decided(b"change", input.as_bytes()).expect("repair change").tool
+            else {
+                panic!("change")
+            };
+            assert_eq!(
+                changes.as_ref(),
+                &[engine::ChangeCall {
+                    repairs: Some(commit),
+                    questions,
+                    ..engine::ChangeCall::words(b"a".as_slice().into(), None)
+                }]
+            );
+        }
+    }
+}
+
+#[test]
+fn change_refuses_repairs_that_are_not_lowercase_commit_digits() {
+    for text in ["AB".repeat(20), "AB".repeat(32), "a".repeat(39), "a".repeat(41), "a".repeat(63), "g".repeat(64)] {
+        for input in [
+            format!(r#"{{"words":"a","repairs":"{text}"}}"#),
+            format!(r#"{{"changes":[{{"words":"a","repairs":"{text}"}}]}}"#),
+        ] {
+            assert_eq!(decided(b"change", input.as_bytes()), Err(Problem::Range(b"repairs")));
+        }
+    }
+    for input in [br#"{"words":"a","repairs":1}"#.as_slice(), br#"{"changes":[{"words":"a","repairs":null}]}"#] {
+        assert_eq!(decided(b"change", input), Err(Problem::Type(b"repairs")));
+    }
+}
+
+#[test]
+fn change_decodes_branch_mine() {
+    for input in [br#"{"words":"a","branch":"mine"}"#.as_slice(), br#"{"changes":[{"words":"a","branch":"mine"}]}"#] {
+        let engine::Tool::Change { changes } = decided(b"change", input).expect("branch mine").tool else {
+            panic!("change")
+        };
+        assert_eq!(
+            changes.as_ref(),
+            &[engine::ChangeCall {
+                branch: Some(engine::ChangeBranch::Mine),
+                ..engine::ChangeCall::words(b"a".as_slice().into(), None)
+            }]
+        );
+    }
+}
+
+#[test]
+fn change_keeps_branch_repairs_producer_and_llm_together() {
+    let input =
+        br#"{"words":"a","branch":"mine","repairs":"abababababababababababababababababababababababababababababababab","producer":6,"llm":{"producer":{"main":{"model":"sol","effort":"high"}}}}"#;
+    let engine::Tool::Change { changes } = configured_change(input).expect("branch and role choices").tool else {
+        panic!("change")
+    };
+    assert_eq!(changes.len(), 1);
+    assert_eq!(changes[0].branch, Some(engine::ChangeBranch::Mine));
+    assert_eq!(changes[0].producer, Some(6));
+    assert_eq!(changes[0].repairs, Some([0xab; 32]));
+    assert_eq!(
+        changes[0].llm.producer.as_ref().expect("producer choice").main,
+        tasks::ModelEffort { model: 0, effort: Some(1) }
+    );
+}
+
+#[test]
+fn change_refuses_a_branch_other_than_mine() {
+    let cases: &[(&[u8], Problem)] = &[
+        (br#"{"words":"a","branch":"theirs"}"#, Problem::Range(b"branch")),
+        (br#"{"words":"a","branch":""}"#, Problem::Range(b"branch")),
+        (br#"{"words":"a","branch":1}"#, Problem::Type(b"branch")),
+        (br#"{"changes":[{"words":"a","branch":"theirs"}]}"#, Problem::Range(b"branch")),
+        (br#"{"changes":[{"words":"a","branch":""}]}"#, Problem::Range(b"branch")),
+        (br#"{"changes":[{"words":"a","branch":1}]}"#, Problem::Type(b"branch")),
+    ];
+    for (input, expected) in cases {
+        assert_eq!(decided(b"change", input), Err(*expected), "{input:?}");
+    }
+}
+
+#[test]
+fn change_decodes_its_questions() {
+    for (questions, expected) in [
+        ("foreman", engine::ChangeQuestions::Foreman),
+        ("up", engine::ChangeQuestions::Up),
+        ("none", engine::ChangeQuestions::None),
+    ] {
+        let member = format!(r#"{{"words":"a","questions":"{questions}"}}"#);
+        for input in [member.clone(), format!(r#"{{"changes":[{{"words":"first"}},{member}]}}"#)] {
+            let engine::Tool::Change { changes } = decided(b"change", input.as_bytes()).expect("questions").tool else {
+                panic!("change")
+            };
+            assert_eq!(
+                changes.last().expect("change member"),
+                &engine::ChangeCall {
+                    questions: Some(expected.clone()),
+                    ..engine::ChangeCall::words(b"a".as_slice().into(), None)
+                }
+            );
+            if changes.len() == 2 {
+                assert_eq!(changes[0].questions, None);
+            }
+        }
+    }
+}
+
+#[test]
+fn change_refuses_unknown_questions() {
+    for (questions, expected) in [
+        (r#""ask""#, Problem::Range(b"questions")),
+        ("true", Problem::Type(b"questions")),
+        ("0", Problem::Type(b"questions")),
+        ("null", Problem::Type(b"questions")),
+        ("[]", Problem::Type(b"questions")),
+        ("{}", Problem::Type(b"questions")),
+    ] {
+        let member = format!(r#"{{"words":"a","questions":{questions}}}"#);
+        for input in [member.clone(), format!(r#"{{"changes":[{member}]}}"#)] {
+            assert_eq!(decided(b"change", input.as_bytes()), Err(expected), "{input}");
+        }
+    }
 }
 
 #[test]
@@ -1452,9 +1593,13 @@ fn change_decodes_several_changes_in_order() {
             repository: Some(b"work/hello".as_slice().into()),
             name: None,
             landing: Some(engine::ChangeLanding::Branch(b"main".as_slice().into())),
+            branch: None,
+            merge: None,
             after: Box::new([engine::ChangeAfter::Task(1)]),
             producer: None,
             llm: engine::ChangeLlm::default(),
+            questions: None,
+            repairs: None,
         }]
     );
 }
@@ -1624,7 +1769,7 @@ fn change_refuses_words_with_changes_and_empty_members() {
 #[test]
 fn change_offers_its_plan_members_only_with_control() {
     let legacy = br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."}},"required":["words"]}"#;
-    let plan = br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."},"name":{"type":"string","description":"Its name in this call, for a later change's after."},"landing":{"type":"string","description":"goal: your own goal branch; or a branch's name; left out, the default branch."},"after":{"type":"array","description":"What it lands after: your live delegates' task numbers, or names given earlier in this call.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"producer":{"type":"integer","minimum":1,"description":"The charter its producer, repairs and resolutions run under; left out, the forge's change charter."},"llm":{"type":"object","description":"LLM choices by role, producer and review: each {main: {model, effort}, sub_agents: [{model, effort}]}, by configured names; a role left out takes its charter's default."},"changes":{"type":"array","description":"Instead of words: several changes as one batch, each with the members above.","items":{"type":"object"}}}}"#;
+    let plan = br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."},"name":{"type":"string","description":"Its name in this call, for a later change's after."},"landing":{"type":"string","description":"goal: your own goal branch; or a branch's name; left out, the default branch."},"branch":{"type":"string","enum":["mine"],"description":"mine: your own goal branch, landed whole as it stands, with no coder; left out, a branch of the change's own."},"merge":{"type":"string","description":"A catch-up: the commit to merge into a branch made at the landing branch's tip, as 40 or 64 hexadecimal digits; the merge job, not an agent, produces it."},"after":{"type":"array","description":"What it lands after: your live delegates' task numbers, or names given earlier in this call.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"producer":{"type":"integer","minimum":1,"description":"The charter its producer, repairs and resolutions run under; left out, the forge's change charter."},"llm":{"type":"object","description":"LLM choices by role, producer and review: each {main: {model, effort}, sub_agents: [{model, effort}]}, by configured names; a role left out takes its charter's default."},"changes":{"type":"array","description":"Instead of words: several changes as one batch, each with the members above.","items":{"type":"object","properties":{"repairs":{"type":"string","description":"The red landing this change repairs: its merge commit's 40 or 64 hexadecimal digits, as the red's news names it.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"}}}},"repairs":{"type":"string","description":"The red landing this change repairs: its merge commit's 40 or 64 hexadecimal digits, as the red's news names it.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"},"questions":{"type":"string","enum":["none","foreman","up"],"description":"How its producer's questions go: foreman, settled first by a foreman from the words and the design; up, straight to you; none, it asks no one. Left out, the project's setting."}}}"#;
     let stock = 1_539;
     for (authority, schema) in [(stock, legacy.as_slice()), (stock | 0b100, plan.as_slice())] {
         let mut found = false;
@@ -1895,6 +2040,7 @@ fn goal_decodes_words_and_optional_advisor_and_agree() {
     assert_eq!(decided(b"goal", br#"{"words":"plan","agree":1}"#), Err(Problem::Type(b"agree")));
 }
 
+mod kinds;
 #[path = "tests/settings.rs"]
 mod settings;
 #[test]
@@ -2071,5 +2217,70 @@ fn document_sections_have_repository_path_and_heading_titles() {
         });
         assert_eq!(section.title.as_ref(), title);
         assert_eq!(section.text.as_ref(), b"[read failed]");
+    }
+}
+
+/// temper/docs/design/domain/agent.md, 4.3.1: merge accepts both commit widths and pads SHA-1.
+#[test]
+fn a_plan_change_reads_merge_as_a_commit() {
+    for (digits, length) in [("aB".repeat(20), 20), ("aB".repeat(32), 32)] {
+        let input = format!(r#"{{"words":"Catch up","merge":"{digits}"}}"#);
+        let engine::Tool::Change { changes } = decided(b"change", input.as_bytes()).expect("catch-up").tool else {
+            panic!("change")
+        };
+        let mut commit = [0_u8; 32];
+        commit[..length].fill(0xab);
+        assert_eq!(changes[0].merge, Some(commit));
+        assert_eq!(changes[0].landing, None);
+        let input = format!(r#"{{"changes":[{{"words":"Catch up","landing":"goal","merge":"{digits}"}}]}}"#);
+        let engine::Tool::Change { changes } = decided(b"change", input.as_bytes()).expect("catch-up batch").tool
+        else {
+            panic!("change")
+        };
+        assert_eq!(changes[0].merge, Some(commit));
+        assert_eq!(changes[0].landing, Some(engine::ChangeLanding::Goal));
+    }
+}
+
+/// temper/docs/design/domain/agent.md, 4.3.1: a malformed commit names the refused member.
+#[test]
+fn a_malformed_merge_is_refused_naming_it() {
+    for (digit, length) in [("a", 0), ("a", 39), ("a", 41), ("a", 63), ("a", 65), ("g", 40), ("g", 64)] {
+        let digits = digit.repeat(length);
+        let input = format!(r#"{{"words":"Catch up","merge":"{digits}"}}"#);
+        assert_eq!(decided(b"change", input.as_bytes()), Err(Problem::Range(b"merge")));
+    }
+    assert_eq!(decided(b"change", br#"{"words":"Catch up","merge":42}"#), Err(Problem::Type(b"merge")));
+}
+
+#[test]
+fn a_denied_release_names_the_control_family_once() {
+    use jig_domain_authority::{Answer, Finding};
+    let denied = engine::CallAnswer::ToolDenied {
+        answer: Answer::Refuse,
+        findings: Box::new([Finding::Tool, Finding::Tool, Finding::Tool]),
+    };
+    let rendered = crate::answer_for_tool(&denied, b"release", 1024);
+    assert!(rendered.error());
+    assert_eq!(rendered.text(), b"Authority refused: tool family control; ");
+}
+
+#[test]
+fn change_decodes_branch_mine_with_questions() {
+    for input in [
+        br#"{"words":"a","branch":"mine","questions":"none"}"#.as_slice(),
+        br#"{"changes":[{"words":"a","branch":"mine","questions":"none"}]}"#,
+    ] {
+        let engine::Tool::Change { changes } = decided(b"change", input).expect("branch and questions").tool else {
+            panic!("change")
+        };
+        assert_eq!(
+            changes.as_ref(),
+            &[engine::ChangeCall {
+                branch: Some(engine::ChangeBranch::Mine),
+                questions: Some(engine::ChangeQuestions::None),
+                ..engine::ChangeCall::words(b"a".as_slice().into(), None)
+            }]
+        );
     }
 }

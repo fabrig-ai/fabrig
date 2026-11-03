@@ -81,6 +81,7 @@ impl Scheduler {
                             self.due[index] = true;
                         }
                         other @ (change::Decision::None
+                        | change::Decision::CancelProducer
                         | change::Decision::Delegate(_)
                         | change::Decision::CancelGates { .. }
                         | change::Decision::Effect(_)
@@ -91,7 +92,8 @@ impl Scheduler {
                         | change::Decision::Cancel
                         | change::Decision::Hold(_)) => panic!("kept change must wait: {other:?}"),
                     }
-                } else if let forge::Request::Refused { task } = request {
+                } else if let forge::Request::Refused { task } | forge::Request::ResourceRefused { task, .. } = request
+                {
                     panic!("fixture capacity must admit task {task}");
                 }
             }
@@ -106,9 +108,11 @@ impl Scheduler {
                         self.steps.push((world.wall(), 51 + u64::try_from(index).expect("task")));
                     }
                     world.event(forge::Event::StepChange {
+                        merge_job: false,
                         task: 51 + u64::try_from(index).expect("task index"),
                         entry: self.entry,
                         heard: change::Heard {
+                            start_conflict: None,
                             lacking: None,
                             spend: None,
                             delegate: change::Status::Unknown,
@@ -118,6 +122,7 @@ impl Scheduler {
                         },
                         gates: Box::new([]),
                         queue_repair_active: false,
+                        pending: Box::new([]),
                         kept: self.iterating,
                     });
                     self.entry += 1;

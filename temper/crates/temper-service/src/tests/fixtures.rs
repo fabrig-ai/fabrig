@@ -2,17 +2,17 @@ use crate::{limits, settings};
 use jig_domain_host as host;
 use skein_lib::{Secret, Token};
 
-// smith's protocol/channel.md section 6 assigns Codex replay dialect one.
-pub const DIALECT: u32 = 1;
+// smith's protocol/agent.md, section 4: OpenAI's public Responses dialect.
+pub const DIALECT: u32 = 3;
 
 pub const ENGINE: &[u8] = br#"{
-"limits": {"profile": "small", "overrides": {"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":4096,"authority.grants":16,"authority.executors":6,"tasks.executor_kinds":6,"notes.scopes":32,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
+"limits": {"profile": "small", "overrides": {"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":4096,"authority.grants":16,"authority.executors":8,"tasks.executor_kinds":8,"notes.scopes":32,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
 "llm": {
 "providers":[{"name":"fake-provider","number":1,"models":["small"],"sources":{"keys":true}}],
 "endpoints": [{
 "name": "fake",
 "number": 1,
-"dialect": 1,
+"dialect": 3,
 "provider": "fake-provider",
 "address": {"socket": "127.0.0.1:7101"},
 "transport": "plaintext",
@@ -61,7 +61,7 @@ pub const INLINE_PROJECTS: &[u8] = br#"[{"number": 1, "roles": [{"connector": 1,
 
 pub fn engine() -> settings::Engine {
     let jig = parse_engine(ENGINE);
-    // This typed fixture reaches the core's start; policy 1 needs 3250 bytes.
+    // This typed fixture reaches the core's start; policy 1 needs 3266 bytes.
 
     settings::Engine {
         machine: machine(),
@@ -76,12 +76,8 @@ pub fn engine() -> settings::Engine {
         },
         files: settings::Files { entries: skein_lib::List::with_capacity(0) },
         demo: None,
-        landing: temper_engine_domain::LandingPolicy {
-            deployment: Box::new([]),
-            projects: skein_lib::Map::with_capacity(0),
-            landings: skein_lib::Map::with_capacity(0),
-        },
-        charter: 1,
+        kinds_stock: temper_engine_domain::landing_stock(&[], &skein_lib::Map::with_capacity(0), 1, 4),
+        landings: skein_lib::Map::with_capacity(0),
         limits: limits::profile(limits::Profile::Small),
     }
 }
@@ -242,6 +238,7 @@ pub fn task_record(number: u64) -> jig_domain_tasks::TaskRecord {
         holds_taken: false,
         hold_wait_since: None,
         dependencies: Box::new([]),
+        started_from: Box::new([]),
         delegates: Box::new([]),
         references: Box::new([]),
         questions: Box::new([]),
@@ -395,23 +392,40 @@ pub fn load(
     store: &mut crate::store::Store,
     range: temper_engine_domain::Range,
 ) -> Box<[temper_engine_domain::Record]> {
-    assert!(store.down(temper_engine_domain::StoreRequest::Load {
-        owner: OWNER,
-        range,
-        after: None,
-        most: 4,
-        bytes: 65_536,
-    }));
-    for _ in 0_u32..store.above.len() {
-        crate::store::route::up(&mut store.routes, store.above.pop().expect("store event"), &mut store.routed);
+    let mut collected = skein_lib::Queue::uncapped();
+    let mut after = None;
+    // Every page advances through the fixture's finite, unchanged records.
+    loop {
+        assert!(store.down(temper_engine_domain::StoreRequest::Load {
+            owner: OWNER,
+            range: range.clone(),
+            after: after.clone(),
+            most: 4,
+            bytes: 65_536,
+        }));
+        for _ in 0_u32..store.above.len() {
+            crate::store::route::up(&mut store.routes, store.above.pop().expect("store event"), &mut store.routed);
+        }
+        let Some(crate::store::route::Up::Root(event)) = store.routed.pop() else { panic!("loaded root event") };
+        let temper_engine_domain::Event::Store(temper_engine_domain::StoreInput::Loaded { rows, next, .. }) = *event
+        else {
+            panic!("loaded page")
+        };
+        assert!(store.routed.is_empty());
+        for row in rows {
+            collected.push(row);
+        }
+        if next.is_none() {
+            break;
+        }
+        assert_ne!(next, after, "the page cursor advances");
+        after = next;
     }
-    let Some(crate::store::route::Up::Root(event)) = store.routed.pop() else { panic!("loaded root event") };
-    let temper_engine_domain::Event::Store(temper_engine_domain::StoreInput::Loaded { rows, next: None, .. }) = *event
-    else {
-        panic!("one whole loaded page")
-    };
-    assert!(store.routed.is_empty());
-    rows
+    let mut rows = skein_lib::List::with_capacity(collected.len());
+    while let Some(row) = collected.pop() {
+        rows.push(row).unwrap();
+    }
+    rows.into_boxed()
 }
 
 pub fn seeds() -> settings::Seeds {
@@ -658,11 +672,11 @@ pub fn assignment_with_settings(
 ) -> temper_engine_domain::Assignment {
     let task = task_record(7);
     temper_engine_domain::Assignment {
+        charter: 1,
         task: 7,
         attempt: 2,
         conversation: 2,
         live: jig_domain_host::LiveAsk::NONE,
-        charter: 1,
         run: Box::new(temper_engine_domain::RunCharter {
             revision: 1,
             ended_by: jig_domain_tasks::EndedBy::Result,
@@ -800,6 +814,7 @@ pub fn settle_root(
                 | root::Request::ResetAct { .. }
                 | root::Request::BoxRemove { .. }
                 | root::Request::Connect { .. }
+                | root::Request::Replace { .. }
                 | root::Request::Manifest { .. }
                 | root::Request::Reachable { .. }
                 | root::Request::Install { .. }
@@ -905,6 +920,7 @@ pub fn signed_worker() -> crate::Service {
     let mut rules = settings.jig.rules;
     rules.maximum_run_spend = 100;
     service.engine.as_mut().expect("engine").step(root::Event::Party(root::PartyInput::ChangeSettings {
+        kinds: Box::default(),
         reply_to: skein_lib::ReplyTo::new(Token::new(31_052)),
         sign_in: 1,
         key: [52; 16],
@@ -1504,4 +1520,46 @@ pub fn checked_endpoints(
         return Err(problems);
     }
     Ok(settings)
+}
+
+/// Send a carried forge request through the authenticated client bytes.
+pub fn forge_connecting(
+    service: &mut crate::Service,
+    bearer: &[u8],
+    key: u8,
+    request: temper_client_protocol_wire::v1::Request,
+    bundle: Secret,
+) {
+    use jig_client_protocol_wire::v19 as j;
+    use skein_lib::Reader;
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let record = wire::requesting(&w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap());
+    let engine = service.engine.as_mut().unwrap();
+    let limits = &engine.clients.env.limits.wire;
+    let family = j::FamilyRequest::new(limits, j::FamilyRequestParts { scope: j::Scope::Deployment, record }).unwrap();
+    let mut bytes = skein_lib::Writer::new(usize::try_from(family.measure()).unwrap());
+    family.encode(&mut bytes).unwrap();
+    let keyed = j::Keyed::new(
+        limits,
+        j::KeyedParts {
+            key: [key; 16],
+            owner: j::Owner::Family(j::Family::new(limits, j::FamilyParts { number: wire::FORGE }).unwrap()),
+            version: wire::CLIENT_VERSION,
+            request: bytes.finish(),
+            value: Some(bundle),
+        },
+    )
+    .unwrap();
+    let mut bytes = skein_lib::Writer::new(usize::try_from(keyed.measure()).unwrap());
+    keyed.encode(&mut bytes).unwrap();
+    let mut peer = http::Peer::new(engine, b"POST", b"/jig/v1/request", &bytes.finish(), Some(bearer));
+    peer.pump(engine, true);
+    let at = skein_lib::bytes::find(peer.received(), b"\r\n\r\n").unwrap().checked_add(4).unwrap();
+    let j::KeyedAnswer::FinalAnswer(answer) =
+        j::KeyedAnswer::decode(&engine.clients.env.limits.wire, &mut Reader::new(&peer.received()[at..])).unwrap()
+    else {
+        panic!("family terminal")
+    };
+    let answer = w::Answer::decode(&w::CEILINGS, &mut Reader::new(answer.record())).unwrap().into_parts().outcome;
+    assert_eq!(answer, w::Outcome::Connecting);
 }

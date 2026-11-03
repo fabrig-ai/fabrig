@@ -1,4 +1,4 @@
-//! A goal's taking makes its branch; its release keeps it
+//! A goal's taking makes its branch; its release deletes it once a change landed it, and keeps it otherwise
 //! (temper/docs/design/domain/forge.md, 2, 11.1 and 16).
 use super::{
     BranchHead, Domain, Env, Limits, LostReadState, Name, Request, Role, Stored, Writer, child, emit, keep_entry,
@@ -24,6 +24,21 @@ pub(super) fn is_goal(d: &Domain, name: &Name) -> bool {
         Some(repository) => crate::items::goal_branch(name, &repository.prefix).is_some(),
         None => false,
     }
+}
+
+pub(super) fn landed(d: &Domain, name: &Name) -> bool {
+    let Some(tip) = d.branch_head(name) else { return false };
+    for (_, row) in &d.changes {
+        if row.repository.forge == name.forge
+            && row.repository.repository == name.repository
+            && crate::items::branch_matches(name, &row.branch)
+            && super::landed_commit(&row.change.state).is_some()
+            && row.result.head == Some(tip)
+        {
+            return true;
+        }
+    }
+    false
 }
 
 pub(super) fn waiting(d: &Domain, name: &Name) -> bool {

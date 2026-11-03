@@ -2,7 +2,16 @@ use crate::{Bounds, v1};
 use alloc::boxed::Box;
 use skein_lib::List;
 
-pub const BOUNDS: Bounds = Bounds { field_bytes: 16, checks: 2, contexts: 2, refusal_bytes: 64 };
+pub const BOUNDS: Bounds = Bounds {
+    segments: 3,
+    segment_bytes: 8,
+    gates: 2,
+    approvals: 1,
+    field_bytes: 16,
+    checks: 2,
+    contexts: 2,
+    refusal_bytes: 64,
+};
 
 pub fn limits() -> v1::Limits {
     crate::limits(&BOUNDS).expect("test bounds within ceilings")
@@ -147,6 +156,7 @@ pub fn panel_parts() -> v1::ChangePanelParts {
         repairs: v1::Used::new(&limits, v1::UsedParts { used: 1, limit: 2 }).expect("repairs"),
         resolutions: v1::Used::new(&limits, v1::UsedParts { used: 3, limit: 4 }).expect("resolutions"),
         updates: v1::Used::new(&limits, v1::UsedParts { used: 5, limit: 6 }).expect("updates"),
+        questions: questions(),
     }
 }
 
@@ -155,7 +165,7 @@ pub fn panel_rows() -> List<v1::ChangePanel> {
     use v1::{Ci, Hold, Reason, Step};
     let limits = limits();
     let gate = Reason::Gate(v1::GateReason::new(&limits, v1::GateReasonParts { gate: 9 }).expect("gate reason"));
-    let mut panels = List::with_capacity(22);
+    let mut panels = List::uncapped();
     for (step, hold, ci, [head, pull, runs]) in [
         (
             Step::Ready(v1::InLanding::new(&limits, v1::InLandingParts { landing: None }).unwrap()),
@@ -178,6 +188,7 @@ pub fn panel_rows() -> List<v1::ChangePanel> {
         (Step::Producing, None, Ci::Unknown, [false, false, false]),
         (Step::Opening, Some(Hold::Stalled), Ci::Pending, [true, false, false]),
         (Step::Recreating, Some(Hold::Repairs), Ci::Passed, [false, true, false]),
+        (Step::Recreating, Some(Hold::Questions), Ci::Passed, [false, true, false]),
         (Step::Reopening, Some(Hold::Resolutions), Ci::Failed, [false, false, true]),
         (Step::Checking, Some(Hold::Updates), Ci::Unknown, [true, true, false]),
         (Step::Gating, Some(Hold::Moved), Ci::Pending, [true, false, true]),
@@ -371,4 +382,69 @@ fn tier_lines() -> List<Box<[u8]>> {
     let mut lines = List::with_capacity(1);
     lines.push(Box::from(b"fast run 2".as_slice())).expect("one line");
     lines
+}
+
+pub fn questions() -> v1::Questions {
+    let limits = limits();
+    let mut open = List::with_capacity(5);
+    for (index, stands) in [
+        v1::Stands::Taken,
+        v1::Stands::Foreman(v1::Foreman::new(&limits, v1::ForemanParts { task: None }).expect("pending foreman")),
+        v1::Stands::Foreman(v1::Foreman::new(&limits, v1::ForemanParts { task: Some(15) }).expect("foreman")),
+        v1::Stands::Asked,
+        v1::Stands::Held,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        open.push(
+            v1::Question::new(
+                &limits,
+                v1::QuestionParts {
+                    asker: 71,
+                    number: u64::try_from(index.checked_add(1).expect("question index fits")).expect("question number"),
+                    line: Box::from(b"Which branch?".as_slice()),
+                    stands,
+                },
+            )
+            .expect("question"),
+        )
+        .expect("five stands fit");
+    }
+    v1::Questions::new(
+        &limits,
+        v1::QuestionsParts {
+            route: v1::Route::Foreman,
+            taken: v1::Used::new(&limits, v1::UsedParts { used: 2, limit: 4 }).expect("questions taken"),
+            open,
+        },
+    )
+    .expect("questions")
+}
+
+#[test]
+fn question_bounds_accept_at_and_refuse_one_past() {
+    let limits = limits();
+    let base = v1::QuestionParts { asker: 7, number: 1, line: Box::new([b'q'; 256]), stands: v1::Stands::Taken };
+    let at = v1::Question::new(&limits, base.clone()).expect("line at bound");
+    let past = v1::Question::new(&limits, v1::QuestionParts { line: Box::new([b'q'; 257]), ..base });
+    assert_eq!(
+        past.expect_err("line past bound"),
+        v1::Problem { path: v1::Path::QuestionLine, reason: skein_codec::Reason::Bound }
+    );
+    for count in [8, 9] {
+        let mut open = List::with_capacity(count);
+        for _ in 0..count {
+            open.push(at.clone()).expect("counted questions");
+        }
+        let made = v1::Questions::new(&limits, v1::QuestionsParts { open, ..questions().into_parts() });
+        if count == 8 {
+            made.expect("open questions at bound");
+        } else {
+            assert_eq!(
+                made.expect_err("one question past bound"),
+                v1::Problem { path: v1::Path::QuestionsOpen, reason: skein_codec::Reason::Bound }
+            );
+        }
+    }
 }

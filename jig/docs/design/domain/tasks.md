@@ -437,6 +437,15 @@ arrives, and whenever what it reads changes, which its owner knows
 dependencies are pending; a step that asks an effect waiting for them,
 or ends the task done, is refused whole (5.7).
 
+A connector's due step may also replace its own task's specification
+words through the optional `words` field on `ProcedureStep` and
+`ProcedureDecision`. The root admits it only for the due task's connector
+and procedure code. Words and byte-valued parameters together must fit
+`Limits::spec_bytes`, as at creation. Parameters, inputs and `asks` stay
+unchanged. This saves with the step's decision; it creates no revision,
+amendment, inbox message, wake or amendment history, and cannot target
+another task or a person, agent or job task.
+
 ### 5.3.1 Job tasks
 
 A job task (core.md, 3.2; hosts.md, 6.9) is made by a procedure's step,
@@ -1105,6 +1114,11 @@ circle, each for another of the set, so that none of them could end.
     the plainest.
   - *Removing* one lifts it: a task that waits on nothing else goes on,
     a waiting one to its queues at its place, a kept one woken.
+  - *Started from:* a dependency its procedure marked started from
+    (connectors.md, 6.1) is never removed: an amendment leaving it out
+    is refused as `Dependencies` naming exactly it in the problem's
+    `blocked_by`, as one out of reach is, whether it is pending or
+    done.
   - *Kept:* each added dependency with when it was added and by whom
     (section 3), and its history as every amendment's.
 - **Tracking and untracking.** A task an amendment tracks is a goal from

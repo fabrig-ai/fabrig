@@ -62,6 +62,21 @@ fn each_page_keeps_its_head_template_links_and_voice() {
 }
 
 #[test]
+fn tier_help_explains_that_clearance_waits_through_verifying_and_red() {
+    let text = find(b"tier").expect("tier page").text;
+    let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    for instruction in [
+        "`change show TASK --until cleared` waits for `cleared` or ended landed and uncleared",
+        "`verifying` and `red` remain pending",
+        "Inspect the verdict with `change show TASK`",
+        "use `--until changed` for panel updates",
+    ] {
+        assert!(text.contains(instruction), "tier help must explain: {instruction}\n{text}");
+    }
+    assert!(!text.contains("waits for a landed verdict: `verifying`, `red` or `cleared`"));
+}
+
+#[test]
 fn each_guide_is_one_of_the_six_names() {
     let guides = PAGES.iter().filter(|page| page.kind == Kind::Guide).map(|page| page.name).collect::<Vec<_>>();
     assert!(guides.iter().all(|name| GUIDES.contains(name)), "guides among the six transitional names");

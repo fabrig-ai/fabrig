@@ -28,12 +28,22 @@ pub fn items(
     tokens: &crate::forge::tokens::Tokens,
     limits: &v1::Limits,
 ) -> Result<Option<v1::Items>, v1::Problem> {
-    if assignment.workspace.repositories.is_empty() {
+    workspace_items(&assignment.workspace, assignment.run.policy.resume, forges, tokens, limits)
+}
+
+pub(crate) fn workspace_items(
+    workspace: &engine::ForgeWorkspace,
+    save: bool,
+    forges: &crate::forges::Forges,
+    tokens: &crate::forge::tokens::Tokens,
+    limits: &v1::Limits,
+) -> Result<Option<v1::Items>, v1::Problem> {
+    if workspace.repositories.is_empty() {
         return Ok(None);
     }
     let mut repositories = List::with_capacity(limits.items_repositories);
-    for repository in &assignment.workspace.repositories {
-        let value = repository_item(repository, assignment.run.policy.resume, forges, tokens, limits)?;
+    for repository in &workspace.repositories {
+        let value = repository_item(repository, save, forges, tokens, limits)?;
         repositories.push(value).or(Err(problem(v1::Path::ItemsRepositories)))?;
     }
     Ok(Some(v1::Items::new(limits, v1::ItemsParts { repositories })?))
@@ -96,6 +106,13 @@ fn start(start: &engine::ForgeStart, limits: &v1::Limits) -> Result<v1::Start, v
         engine::ForgeStart::Merge { branch, base } => {
             v1::Start::Merge(v1::Merge::new(limits, v1::MergeParts { branch: branch.clone(), base: *base })?)
         }
+        engine::ForgeStart::Merged { branch, heads } => {
+            let mut ordered = List::with_capacity(limits.merged_heads);
+            for head in heads {
+                ordered.push(*head).or(Err(problem(v1::Path::MergedHeads)))?;
+            }
+            v1::Start::Merged(v1::Merged::new(limits, v1::MergedParts { branch: branch.clone(), heads: ordered })?)
+        }
     })
 }
 fn problem(path: v1::Path) -> v1::Problem {
@@ -151,6 +168,9 @@ pub fn parts(left: Option<v1::Left>, saved: Option<v1::Saved>, preparation: Opti
             Some(engine::Preparation::Missing { tag: missed.tag, missing })
         }
         Some(v1::Preparation::Refused(tag)) => Some(engine::Preparation::Refused { tag: tag.tag() }),
+        Some(v1::Preparation::Conflicted(value)) => {
+            Some(engine::Preparation::Conflicted { tag: value.tag(), head: *value.head() })
+        }
         Some(v1::Preparation::Transient) | None => None,
     };
     engine::Parts { pushed: pushed.into_boxed(), saved, preparation }
@@ -230,6 +250,9 @@ pub fn workspace(items: Option<&v1::Items>) -> Assigned {
     let mut repositories = List::with_capacity(items.repositories().len());
     for repository in items.repositories() {
         let start = match repository.start() {
+            v1::Start::Merged(value) => {
+                worker::Start::Merged { branch: value.branch().into(), heads: value.heads().clone().into_boxed() }
+            }
             v1::Start::Merge(value) => worker::Start::Merge { branch: value.branch().into(), base: *value.base() },
             v1::Start::Base(value) => worker::Start::Base { branch: value.branch().into() },
             v1::Start::Branch(value) => worker::Start::Branch { branch: value.branch().into() },
@@ -361,6 +384,9 @@ pub fn preparation(preparation: &temper_worker_domain::wire::Preparation) -> Opt
     use temper_worker_domain::wire as worker;
     let limits = &v1::CEILINGS;
     match preparation {
+        worker::Preparation::Conflicted { tag, head } => Some(v1::Preparation::Conflicted(
+            v1::Conflicted::new(limits, v1::ConflictedParts { tag: *tag, head: *head }).expect("fixed fields"),
+        )),
         worker::Preparation::Transient => None,
         worker::Preparation::Refused { tag } => {
             Some(v1::Preparation::Refused(v1::Tag::new(limits, v1::TagParts { tag: *tag }).expect("fixed tag")))

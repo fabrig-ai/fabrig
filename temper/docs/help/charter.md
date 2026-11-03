@@ -22,12 +22,14 @@ the task reads its charter, whole:
   how long it waits idle, and the timeout of its calls to temper's
   tools.
 
-The forge's procedures run a change's agent work under two charters,
+The forge's procedures run a change's agent work under three charters,
 which the change keeps from its making to its end: its producing and
-repairs under the forge's charter, the one the configuration's
-`application.charter` names, `charter 2` as `temper init` writes it;
-its reviews under the reviewer's charter, `charter 4`, which reads the
-change and gives its verdict, and edits, pushes and runs nothing.
+repairs under the forge's change charter, kind 3 number 1, whose stock
+value is charter 2; its reviews under kind 3 number 2, whose stock value
+is charter 4, which reads the
+change and gives its verdict, and edits, pushes and runs nothing;
+its foremen run under `charter 6`, reading the change and design to settle
+its producer's question, and edit, push and run nothing.
 
 Each member, with its type and bound, is in
 `temper help settings-fields`.
@@ -71,10 +73,10 @@ Tasks made before keep it, on their revision.
 - temper does not give a charter's `spend` to its runs: a run is given
   what its task has left, at most the rules' `maximum_run_spend`. A
   charter's spend must still hold its reserve.
-- temper does not hold which charter the forge uses as a setting: naming
-  another in `application.charter` needs a restart. The charter it names
-  is a setting like any other. The reviewer's charter is `charter 4`,
-  fixed by temper; its contents are a setting like any other.
+- The forge's charter numbers are settings, kind 3: number 1 for changes,
+  number 2 for reviews. Read them with `temper ctl settings show
+  forge-charter 1` or `forge-charter 2`, and change them with `temper ctl
+  settings apply`. A change keeps the charter numbers it was made with.
 - temper does not check, when a charter changes, that a connected host
   can run it.
 - A charter's instructions and models are within the deployment's bytes

@@ -214,6 +214,15 @@ fn task_text(
     vocabulary: &dyn crate::jig::render::Parts,
     out: &mut Text,
 ) {
+    task_with_specification(task, me, book, vocabulary, None, out);
+}
+fn task_heading(
+    task: &Task,
+    me: Option<&Me>,
+    book: &Phrasebook,
+    vocabulary: &dyn crate::jig::render::Parts,
+    out: &mut Text,
+) {
     out.put(b"task ");
     out.number(task.chip.task);
     out.put(b" \xc2\xb7 ");
@@ -252,8 +261,18 @@ fn task_text(
     } else {
         out.put(b" \xc2\xb7 untracked");
     }
+}
+fn task_with_specification(
+    task: &Task,
+    me: Option<&Me>,
+    book: &Phrasebook,
+    vocabulary: &dyn crate::jig::render::Parts,
+    source: Option<&crate::jig::runner::specification::Specification>,
+    out: &mut Text,
+) {
+    task_heading(task, me, book, vocabulary, out);
     out.put(b"\nasked: ");
-    out.words(task.spec.specification.words.bytes());
+    super::task_source::asked(task, source, out);
     out.put(b"\nrequester: ");
     requester(task.requester, me, out);
     out.put(b" \xc2\xb7 spent ");
@@ -278,6 +297,15 @@ fn task_text(
     out.put(b"\nwaiting on: ");
     waiting(&task.waits_on, me, book, out);
     out.put(b"\n");
+    task_details(task, me, book, vocabulary, out);
+}
+fn task_details(
+    task: &Task,
+    me: Option<&Me>,
+    book: &Phrasebook,
+    vocabulary: &dyn crate::jig::render::Parts,
+    out: &mut Text,
+) {
     if let Some(context) = &task.context {
         out.put(b"plan: ");
         out.number(
@@ -401,7 +429,7 @@ impl Cut {
         out.string(bytes.get(..end).expect("UTF-8 cut"));
     }
 }
-fn hex(bytes: &[u8], out: &mut Encoder) {
+pub(crate) fn hex(bytes: &[u8], out: &mut Encoder) {
     let mut hex = skein_lib::Writer::new(bytes.len().checked_mul(2).expect("document bound fits"));
     for byte in bytes {
         for digit in [byte >> 4u32, byte & 15] {

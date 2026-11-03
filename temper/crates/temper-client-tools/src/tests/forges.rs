@@ -433,9 +433,6 @@ fn first_record(state: w::FirstState) -> w::FirstRepository {
             playground: false,
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
-            project: w::SetUpProject::Existing(
-                w::ExistingProject::new(&w::CEILINGS, w::ExistingProjectParts { project: 1 }).unwrap(),
-            ),
             state,
             label: b"docker".as_slice().into(),
         },
@@ -446,15 +443,15 @@ fn made() -> w::FirstState {
     w::FirstState::Made(w::Made::new(&w::CEILINGS, w::MadeParts { id: 42 }).unwrap())
 }
 #[test]
-fn setup_defaults_flags_and_project_names_are_carried_in_the_request() {
+fn setup_carries_repository_fields_with_each_project_argument() {
     // Group, verb, forge, flag and value.
     const WORDS_WITH_ONE_FLAG: u32 = 5;
-    for (flags, org, repository, project) in [
-        (&[][..], b"work".as_slice(), b"hello".as_slice(), 0),
-        (&["--org", "team"][..], b"team", b"hello", 0),
-        (&["--repository", "widget"][..], b"work", b"widget", 0),
-        (&["--project", "7"][..], b"work", b"hello", 7),
-        (&["--project", "shop"][..], b"work", b"hello", f::PROJECT),
+    for (flags, org, repository) in [
+        (&[][..], b"work".as_slice(), b"hello".as_slice()),
+        (&["--org", "team"][..], b"team", b"hello"),
+        (&["--repository", "widget"][..], b"work", b"widget"),
+        (&["--project", "7"][..], b"work", b"hello"),
+        (&["--project", "shop"][..], b"work", b"hello"),
     ] {
         let mut root = f::signed_in(f::PARTY);
         let mut words = List::with_capacity(WORDS_WITH_ONE_FLAG);
@@ -472,42 +469,40 @@ fn setup_defaults_flags_and_project_names_are_carried_in_the_request() {
             panic!("setup")
         };
         assert_eq!((value.org(), value.repository()), (org, repository));
-        match value.project() {
-            w::SetUpProject::Existing(value) => {
-                assert_ne!(project, 0);
-                assert_eq!(value.project(), project);
-            }
-            w::SetUpProject::New(value) => {
-                assert_eq!(project, 0);
-                assert_eq!(value.name(), repository);
-            }
-        }
     }
 }
+
 #[test]
-fn an_unknown_project_is_sent_as_new_and_both_new_refusals_exit_two() {
-    for (why, words) in [
-        (w::SetUpRefusal::NewProject, b"a new project".as_slice()),
-        (w::SetUpRefusal::Invalid, b"invalid: the organization, repository or project name is empty or too long"),
-    ] {
-        let mut root = f::signed_in(f::PARTY);
-        let call = root.submit(&["forge", "setup", "3", "--project", "Next"]);
-        let client::Ask::Family { record, .. } = root.adoption_bytes(call) else { panic!("family") };
-        let w::Request::SetUp(value) =
-            wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request
-        else {
-            panic!("setup")
-        };
-        let w::SetUpProject::New(value) = value.project() else { panic!("new project") };
-        assert_eq!(value.name(), b"Next");
-        root.adoption_answer(
-            call,
-            w::Outcome::SetUpRefused(w::SetUpRefused::new(&w::CEILINGS, w::SetUpRefusedParts { why }).unwrap()),
-        );
-        let printed = root.answer(call).unwrap();
-        assert_eq!(printed.status, 2);
-        assert!(skein_lib::bytes::find(&printed.stderr, words).is_some());
-    }
+fn setup_refuses_an_empty_local_project_before_sending() {
+    let mut root = f::signed_in(f::PARTY);
+    let call = root.submit(&["forge", "setup", "3", "--project", ""]);
+    let printed = root.answer(call).expect("local refusal");
+    assert_eq!(printed.status, 2);
+    assert_eq!(
+        printed.stderr.as_ref(),
+        b"refused: invalid: the organization, repository or project name is empty or too long\n"
+    );
+    assert!(root.nothing_sent());
+}
+#[test]
+fn invalid_setup_refusals_exit_two_with_a_local_project() {
+    let mut root = f::signed_in(f::PARTY);
+    let call = root.submit(&["forge", "setup", "3", "--project", "Next"]);
+    root.adoption_answer(
+        call,
+        w::Outcome::SetUpRefused(
+            w::SetUpRefused::new(&w::CEILINGS, w::SetUpRefusedParts { why: w::SetUpRefusal::Invalid }).unwrap(),
+        ),
+    );
+    let printed = root.answer(call).unwrap();
+    assert_eq!(printed.status, 2);
+    assert!(
+        skein_lib::bytes::find(
+            &printed.stderr,
+            b"invalid: the organization, repository or project name is empty or too long"
+        )
+        .is_some()
+    );
 }
 #[test]
 fn made_sends_the_home_adoption_with_its_stable_key_and_prints_its_answer() {
@@ -630,7 +625,6 @@ fn made_wait_requires_the_named_forges_first_repository_to_be_made() {
         playground: false,
         org: b"work".as_slice().into(),
         repository: b"hello".as_slice().into(),
-        project: forge::forges::SetUpProject::Existing(1),
         state: forge::forges::FirstState::Made { id: 42 },
         label: b"docker".as_slice().into(),
     });
@@ -638,10 +632,10 @@ fn made_wait_requires_the_named_forges_first_repository_to_be_made() {
 }
 #[test]
 fn first_repository_text_and_json_name_every_state_and_creation_step() {
-    use forge::forges::{CreateStep, First, FirstState, SetUpProject};
+    use forge::forges::{CreateStep, First, FirstState};
     for (state, words, field) in [
         (FirstState::Making, b"Making work/hello".as_slice(), br#""state":"making""#.as_slice()),
-        (FirstState::Made { id: 42 }, b"work/hello made, in 1", br#""state":"made","id":42"#),
+        (FirstState::Made { id: 42 }, b"work/hello made", br#""state":"made","id":42"#),
         (
             FirstState::Failed { step: CreateStep::Admin },
             b"Making work/hello failed: checking the admin's token",
@@ -668,15 +662,15 @@ fn first_repository_text_and_json_name_every_state_and_creation_step() {
             playground: false,
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
-            project: SetUpProject::Existing(1),
             state,
             label: b"docker".as_slice().into(),
         });
         let plain = forges::print_rows(Some(&[row.clone()]), false, None, &f::limits_root());
         assert!(skein_lib::bytes::find(&plain.stdout, words).is_some());
         let json = forges::print_rows(Some(&[row]), true, None, &f::limits_root());
-        assert!(f::json_has(&json, br#""first":{"org":"work","repository":"hello","project":{"existing":1}"#));
+        assert!(f::json_has(&json, br#""first":{"org":"work","repository":"hello""#));
         assert!(f::json_has(&json, field));
+        assert!(skein_lib::bytes::find(&json.stdout, br#""project""#).is_none());
     }
 }
 
@@ -1036,7 +1030,7 @@ fn setup_makes_the_default_or_named_project_then_adopts_the_answered_number() {
     for flags in [&[][..], &["--project", "Next"][..], &["--project", "1"][..]] {
         for json in [false, true] {
             let mut root = f::signed_in(f::PARTY);
-            for _ in 0u8..2 {
+            for restored in [false, true] {
                 let mut argv = List::with_capacity(7);
                 argv.push("forge").unwrap();
                 argv.push("setup").unwrap();
@@ -1046,8 +1040,18 @@ fn setup_makes_the_default_or_named_project_then_adopts_the_answered_number() {
                 }
                 argv.push("--key").unwrap();
                 argv.push("setup-project").unwrap();
+                if restored {
+                    let mut previous = f::signed_in(f::PARTY);
+                    let old = previous.submit(&["forge", "setup", "3", "--project", "999", "--key", "setup-project"]);
+                    let mut records = f::restored_adoption(f::PARTY);
+                    let record = records.get_mut(0).unwrap();
+                    record.key = previous.sent_name(old).unwrap();
+                    record.request.request = previous.adoption_bytes(old).clone();
+                    root = f::started_with(records, f::SEED, json);
+                    root.deliver(c::Delivery::Me(Box::new(f::me(f::PARTY))));
+                }
                 let call = root.submit_prepared(f::call(argv.as_slice()), json, None);
-                root.adoption_answer(call, w::Outcome::SettingUp);
+                root.adoption_answer(if restored { 0 } else { call }, w::Outcome::SettingUp);
                 deliver(
                     &mut root,
                     record_first(
@@ -1180,10 +1184,7 @@ fn a_refusal_names_the_tool_called() {
 fn playground_setup_sends_its_copy_and_default_or_explicit_project() {
     // Group, verb, forge, playground switch, project flag and value.
     const PLAYGROUND_WORDS: u32 = 6;
-    for (flags, project) in [
-        (&["--playground"][..], b"widget".as_slice()),
-        (&["--playground", "--project", "copy"][..], b"copy".as_slice()),
-    ] {
+    for flags in [&["--playground"][..], &["--playground", "--project", "copy"][..]] {
         let mut root = f::signed_in(f::PARTY);
         let mut words = List::with_capacity(PLAYGROUND_WORDS);
         words.push("forge").unwrap();
@@ -1201,8 +1202,6 @@ fn playground_setup_sends_its_copy_and_default_or_explicit_project() {
         };
         assert!(value.playground());
         assert_eq!((value.org(), value.repository()), (b"playground".as_slice(), b"widget".as_slice()));
-        let w::SetUpProject::New(value) = value.project() else { panic!("new project") };
-        assert_eq!(value.name(), project);
     }
 }
 #[test]
@@ -1321,6 +1320,7 @@ fn lifecycle_answers(words: &[&str], answers: &[(w::Outcome, &[u8], &[u8], u8)])
                 other @ (w::Request::Adopt(_)
                 | w::Request::SetUp(_)
                 | w::Request::Return(_)
+                | w::Request::Replace(_)
                 | w::Request::Connect(_)
                 | w::Request::Install(_)
                 | w::Request::Reachable(_)

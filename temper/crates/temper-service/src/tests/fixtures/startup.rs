@@ -10,8 +10,8 @@ pub const APPLICATION: &[u8] = br#"{
 "webhooks":null,
 "clients":{"listener":{"socket":"127.0.0.1:7100"},"public":null,"bundle":null},
 "machine":{},
-"landing":{"deployment":[],"projects":[{"project":1,"rules":[{"connector":1,"kind":4,"pattern":{"segments":["forge","127.0.0.1:9","acme","app"],"last":"open","value":"main"},"enforce":true,"ci":false,"up_to_date":true,"gates":[],"approvals":[]}]}]},
-"demo":null,"sign_in":null,"charter":1,"limits":{"profile":"small","overrides":{}},"workers":[{"root":"worker-root","git":"/usr/bin/git"}]
+"landing":{"projects":[{"project":1}]},
+"demo":null,"sign_in":null,"limits":{"profile":"small","overrides":{}},"workers":[{"root":"worker-root","git":"/usr/bin/git"}]
 }"#;
 pub const DEMO: &str = r#""demo":{"llm":{"listen":{"socket":"$llm"},"provider":3,"key":"demo/llm.key",
 "asked":[{"cue":"Add CSV export to widget","turns":["CSV"]},
@@ -371,12 +371,12 @@ pub fn owned_worker_agent() -> settings::Agent {
             channel: skein_channel::Limits {
                 chunk: 4096,
                 credential: 0,
-                skip: 72_113_866,
-                output_bytes: 72_113_874,
+                skip: 72_105_650,
+                output_bytes: 72_105_658,
                 output_frames: 26,
                 kinds: 20,
             },
-            start_bytes: 72_113_866,
+            start_bytes: 72_105_650,
             calls: 1,
         },
         bounds: jig_domain_host::Bounds {

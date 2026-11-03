@@ -200,7 +200,7 @@ impl Cluster {
     /// The study's settings FILE; the native client applies it after owner sign-in.
     #[must_use]
     pub fn settings_file(&self) -> PathBuf {
-        self.experiment.join("settings.json")
+        self.dir("engine").join("settings.json")
     }
     /// The process's directory, `{proc.P.dir}`.
     #[must_use]
@@ -253,6 +253,23 @@ impl Cluster {
             private_directory(target.parent().expect("file parent"));
             let bytes = self.render(&fs::read_to_string(&source).expect("cluster template"));
             super::write_private(&target, bytes.as_bytes());
+        }
+        let settings = self.experiment.join("settings.json");
+        if process == "engine" && settings.exists() {
+            let mut value: Value =
+                serde_json::from_slice(&fs::read(settings).expect("cluster settings")).expect("settings JSON");
+            let address = self.bindings.get("proc.forge.ready.address").expect("forge ready address");
+            let mut hex = String::new();
+            for byte in address.bytes() {
+                use std::fmt::Write as _;
+                write!(&mut hex, "{byte:02x}").expect("forge address hex");
+            }
+            for item in value["items"].as_array_mut().expect("cluster settings items") {
+                if item["setting"]["kind"] == "landing-rule" {
+                    item["set"]["pattern"]["segments"][1] = hex.clone().into();
+                }
+            }
+            super::write_private(&self.settings_file(), &serde_json::to_vec(&value).expect("bound settings JSON"));
         }
     }
     fn command(&self, process: &str) -> Command {

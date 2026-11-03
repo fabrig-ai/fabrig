@@ -53,11 +53,7 @@ fn engine(document: &[u8]) -> config::Engine {
 }
 fn without_projects() -> Box<[u8]> {
     let mut document = generated();
-    for (path, value) in [
-        (b"engine.projects".as_slice(), b"[]".as_slice()),
-        (b"application.demo", b"null"),
-        (b"application.landing", br#"{"deployment":[],"projects":[]}"#),
-    ] {
+    for (path, value) in [(b"engine.projects".as_slice(), b"[]".as_slice()), (b"application.demo", b"null")] {
         document = fixtures::with(&document, path, value);
     }
     document
@@ -105,7 +101,7 @@ fn stock_chats_inspect_and_delegate_while_coders_modify() {
         assert!(charter.policy.inspect);
         assert!(!charter.policy.shell);
         assert_eq!(charter.policy.modify, charter.number == 2);
-        assert_eq!(charter.policy.agents, charter.number != 4);
+        assert_eq!(charter.policy.agents, charter.number == 1 || charter.number == 2);
     }
 }
 
@@ -123,7 +119,7 @@ fn the_stock_passes_jigs_one_check() {
         for charter in &defaults.charters {
             assert_eq!(charter.hosts, jig_domain_fleet::Kinds::Workers, "{row}");
         }
-        let current = jig_domain_core::settings::Current::new(defaults, &engine.limits.core);
+        let current = jig_domain_core::settings::Current::new(defaults, &engine.limits.core, &[]);
         assert_eq!(
             jig_domain_core::settings::check(&current, &core.settings, &core.connectors, &engine.limits.core),
             Ok(()),
@@ -146,17 +142,17 @@ fn each_floor_refuses_one_below_the_stocks_need() {
             run = (bytes, Setting::Charter(charter.number));
         }
     }
-    let current = settings::Current::new(defaults, &engine.limits.core);
+    let current = settings::Current::new(defaults, &engine.limits.core, &[]);
     let rows: &[(&[u8], u64, Setting, &str)] = &[
-        (b"core.policy_bytes", 3250, Setting::Policy(1), "the stock's policy 1 needs 3250 bytes"),
+        (b"core.policy_bytes", 3266, Setting::Policy(1), "the stock's policy 1 needs 3266 bytes"),
         (b"core.run_bytes", run.0, run.1, ""),
         (b"authority.grants", 14, Setting::Rules, "the stock's rules need 14 grants"),
-        (b"authority.executors", 6, Setting::Rules, "the stock's rules need 6 executors"),
+        (b"authority.executors", 7, Setting::Rules, "the stock's rules need 7 executors"),
         (b"authority.segments", 1, Setting::Rules, "the stock's rules need 1 segment"),
         (b"authority.segment_bytes", 5, Setting::Rules, "the stock's rules need 5 bytes"),
         (b"authority.roles", 1, Setting::Policy(1), "the stock's policy 1 needs 1 role"),
         (b"authority.projects", 1, Setting::Policy(1), "the stock offers 1 policy"),
-        (b"tasks.charters", 3, Setting::Charter(1), "the stock offers 3 charters"),
+        (b"tasks.charters", 4, Setting::Charter(1), "the stock offers 4 charters"),
         (b"core.templates", 2, Setting::Template(1), "the stock offers 2 templates"),
         (b"documents.text_bytes", 4, Setting::Template(1), "the stock's template 1 needs 4 bytes"),
         (b"tasks.result_bytes", 32, Setting::Template(1), "the stock's template 1 needs 32 bytes"),
@@ -215,7 +211,7 @@ fn each_charters_run_bytes_floor_names_that_charter() {
     let engine = engine(&without_projects());
     for charter in &crate::stock::defaults(&engine.llm).charters {
         let mut defaults = crate::stock::defaults(&engine.llm);
-        // Isolate each run policy, including charter 4, from larger stock runs.
+        // Isolate each run policy from larger stock runs.
         defaults.charters = Box::new([charter.clone()]);
         let needed = jig_domain_core::policy_owned_bytes(&charter.policy).unwrap();
         let mut limits = engine.limits;
@@ -247,8 +243,12 @@ fn a_worlds_own_short_runs_do_not_need_the_stocks_run_bytes() {
     let document = limited(&document, b"core.run_bytes", needed);
     let refused = crate::startup::named(&document, &config::Directories::working()).unwrap_err();
     assert!(core::str::from_utf8(&crate::startup::lines(&refused)).unwrap().contains("the stock's charter"));
-    crate::startup::named_with(&document, &config::Directories::working(), &crate::stock::Given::Own(Box::new(own)))
-        .expect("a world sizes its own runs");
+    crate::startup::named_with(
+        &document,
+        &config::Directories::working(),
+        &crate::stock::Given::Own { jig: own, forge: Box::default() },
+    )
+    .expect("a world sizes its own runs");
 }
 
 #[test]
@@ -259,7 +259,7 @@ fn a_stock_policy_past_its_limit_is_refused_while_naming_files() {
     let found = crate::startup::named(&document, &config::Directories::working()).unwrap_err();
     assert_eq!(
         crate::startup::lines(&found).as_ref(),
-        b"engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 3250 bytes; raise it in engine.limits.overrides\n"
+        b"engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 3266 bytes; raise it in engine.limits.overrides\n"
     );
 }
 #[test]
@@ -429,7 +429,7 @@ fn a_worlds_own_defaults_cannot_restore_document_members() {
     let stock = engine(&init);
     let mut own = crate::stock::defaults(&stock.llm);
     own.charters[0].policy.turns = 9;
-    let given = crate::stock::Given::Own(Box::new(own));
+    let given = crate::stock::Given::Own { jig: own, forge: Box::default() };
     for member in ["charters", "templates", "policies", "rules"] {
         let original = fixtures::value(&init, b"engine");
         let mut engine = format!("{{\"{member}\":null,").into_bytes();
@@ -469,8 +469,44 @@ fn the_reviewers_words_say_to_fail_when_it_cannot_review() {
 }
 
 #[test]
+fn the_foremans_charter_reads_and_gives_a_verdict() {
+    let engine = engine(&single_model());
+    let defaults = crate::stock::defaults(&engine.llm);
+    assert_eq!(defaults.charters.iter().map(|charter| charter.number).collect::<Box<[_]>>().as_ref(), [1, 2, 4, 6]);
+    let foreman = defaults.charters.iter().find(|charter| charter.number == 6).expect("foreman charter");
+    let mut expected = defaults.charters[2].clone();
+    expected.number = 6;
+    expected.policy.instructions = include_bytes!("../stock/foreman.txt").as_slice().into();
+    assert_eq!(*foreman, expected);
+    assert_eq!(foreman.wake, jig_domain_tasks::WakePolicy::DEFAULT);
+    assert_eq!(foreman.policy.instructions.as_ref(), include_bytes!("../stock/foreman.txt"));
+    assert!(foreman.policy.inspect);
+    assert!(!foreman.policy.modify);
+    assert!(!foreman.policy.shell);
+    assert!(!foreman.policy.agents);
+    for authority in [
+        &defaults.rules.ceiling,
+        &defaults.policies.get(&1).expect("policy 1").policy.ceiling,
+        &defaults.policies.get(&1).expect("policy 1").policy.roles[0].authority,
+    ] {
+        assert!(authority.delegation.kinds.contains(&jig_domain_authority::Executor::Charter(6)));
+    }
+}
+
+#[test]
+fn the_foremans_words_name_the_three_verdicts() {
+    let engine = engine(&single_model());
+    let defaults = crate::stock::defaults(&engine.llm);
+    let foreman = defaults.charters.iter().find(|charter| charter.number == 6).expect("foreman charter");
+    let words = core::str::from_utf8(&foreman.policy.instructions).expect("foreman instructions");
+    for phrase in ["answer:", "finish:", "escalate:", "never edit, push or run anything"] {
+        assert!(words.contains(phrase), "missing foreman instruction: {phrase}");
+    }
+}
+
+#[test]
 fn a_worlds_own_defaults_replace_the_stock_without_document_members() {
-    let bytes = generated();
+    let bytes = fixtures::with(&generated(), b"engine.projects", br#"[{"number":1,"policy":1}]"#);
     let document =
         config::document(&bytes, &config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 }).unwrap();
     let at = config::read::Object::new(&document, 0).unwrap().member(&document, b"engine").unwrap();
@@ -480,10 +516,10 @@ fn a_worlds_own_defaults_replace_the_stock_without_document_members() {
     own.templates[0].flags.listed = true;
     let policy = &mut own.policies.get_mut(&1).unwrap().policy;
     policy.period_spend = 41;
-    // Init's seed copies this policy, whose role allowance must fit its period.
+    // The test's project copies this policy, whose role allowance must fit its period.
     policy.roles[0].period_spend = 41;
     own.rules.maximum_run_spend = 2;
-    let given = crate::stock::Given::Own(Box::new(own));
+    let given = crate::stock::Given::Own { jig: own, forge: Box::default() };
     let engine = crate::startup::engine_with(&document, at, &config::Directories::working(), &given).unwrap();
     assert_eq!(stock.charters[0].policy.waiting, skein_lib::Duration::from_secs(10));
     assert_eq!(engine.charters[0].policy.waiting, skein_lib::Duration::from_millis(1));
@@ -525,7 +561,7 @@ fn stock_budgets_follow_the_default_models_completion_and_run_turn_floor() {
         let stock = crate::stock::defaults(&engine.llm);
         assert_eq!(stock.rules.minimum_run_spend, 2 * c, "{row}");
         assert_eq!(stock.rules.maximum_run_spend, k, "{row}");
-        for (charter, turns) in stock.charters.iter().zip([8, 16, 16]) {
+        for (charter, turns) in stock.charters.iter().zip([8, 16, 16, 16]) {
             assert_eq!(charter.policy.turns, turns, "{row}: charter {}", charter.number);
             assert_eq!(charter.policy.time, skein_lib::Duration::from_secs(120), "{row}");
             assert_eq!(charter.policy.reserve_turns, 1, "{row}");
@@ -577,7 +613,7 @@ fn the_reviewer_keeps_the_coding_run_with_read_only_workspace_families() {
 
 #[test]
 fn stock_and_init_admit_the_landing_procedure_and_its_effects() {
-    let document = generated();
+    let document = fixtures::with(&generated(), b"engine.projects", br#"[{"number":1,"policy":1}]"#);
     let engine_bytes = fixtures::value(&document, b"engine");
     let engine = fixtures::parse_engine(&engine_bytes);
     let defaults = crate::stock::defaults(&engine.llm);
@@ -594,6 +630,7 @@ fn stock_and_init_admit_the_landing_procedure_and_its_effects() {
                 Executor::Charter(1),
                 Executor::Charter(2),
                 Executor::Charter(4),
+                Executor::Charter(6),
                 Executor::Procedure(2),
                 Executor::Procedure(3),
                 Executor::Procedure(4)
@@ -637,11 +674,126 @@ fn the_chats_words_route_repository_edits_through_change_and_wait_for_landing() 
 #[test]
 fn the_coders_words_refuse_an_absent_fix_instead_of_adding_a_feature() {
     let words = include_str!("../stock/coding.txt");
-    assert!(words.contains("Change only what your words ask: if what they name as broken or to fix is not in the code, write nothing and finish with the no_change verdict saying what the code has instead; never add a feature in a fix's place."));
+    assert!(words.contains("Change only what was asked. If a requested fix is absent from the code, write nothing and finish with no_change, explaining what the code has; never add a feature in its place."));
 }
 
 #[test]
 fn the_coders_words_build_additions_in_the_code_there_is() {
     let words = include_str!("../stock/coding.txt");
-    assert!(words.contains("Where your words describe the code otherwise than it is, build what they ask to add in the code there is, under its names; finish with the no_change verdict only when it cannot be built there."));
+    assert!(words.contains("If the description differs from the code, build the requested addition using the code's names; use no_change only if it cannot be built there."));
+}
+
+#[test]
+fn the_coders_words_preserve_both_sides_in_repairs_and_resolutions() {
+    let words = include_str!("../stock/coding.txt");
+    assert!(words.contains("In repairs and resolutions, preserve the requested change and unrelated base content, including independent appended lines and existing blank lines."));
+    assert!(words.contains("Restore losses named in review; never remove content to pass checks."));
+    assert!(words.contains("Initial production has no pull request yet:"));
+}
+
+#[test]
+fn kinds_are_declared_with_their_bounds() {
+    const CONNECTOR: u16 = 5;
+    use jig_domain_core::settings::{Kind, KindScope};
+    use temper_engine_domain_forge::{self as forge, settings};
+    let engine = fixtures::engine();
+    let mut limits = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
+    // Distinct counts exercise every bound, including the smaller name bound.
+    limits.authority.segments = 3;
+    limits.authority.segment_bytes = 13;
+    limits.forge.name_bytes = 9;
+    limits.forge.change_policy.gates = 2;
+    limits.forge.roles = 3;
+    limits.forge.landing_rules = 7;
+    let rule = settings::Value::Rule(settings::LandingRule {
+        pattern: forge::GatePattern {
+            segments: Box::new([
+                b"forge".as_slice().into(),
+                b"123456789".as_slice().into(),
+                b"abcdefghi".as_slice().into(),
+            ]),
+            last: forge::GateLast::Open(b"123456789".as_slice().into()),
+        },
+        enforce: true,
+        ci: true,
+        up_to_date: true,
+        gates: Box::new([
+            settings::RuleGate { number: 1, blocking: true, freshness: forge::JudgeFreshness::Exact },
+            settings::RuleGate { number: 2, blocking: false, freshness: forge::JudgeFreshness::Clean },
+        ]),
+        approvals: Box::new([
+            settings::RuleApproval { role: 0, people: 1, freshness: forge::JudgeFreshness::Exact },
+            settings::RuleApproval { role: 1, people: 2, freshness: forge::JudgeFreshness::Clean },
+            settings::RuleApproval { role: 2, people: 3, freshness: forge::JudgeFreshness::Exact },
+        ]),
+    });
+    let rule_bytes = temper_engine_smith::kinds::size(&rule);
+    assert_eq!(
+        crate::stock::kinds(&limits, CONNECTOR).as_ref(),
+        &[
+            Kind {
+                number: 1,
+                scope: KindScope::Deployment,
+                connector: CONNECTOR,
+                value_bytes: rule_bytes,
+                per_scope: 7,
+                charters: 0
+            },
+            Kind {
+                number: 2,
+                scope: KindScope::Project,
+                connector: CONNECTOR,
+                value_bytes: rule_bytes,
+                per_scope: 7,
+                charters: 0
+            },
+            Kind {
+                number: 3,
+                scope: KindScope::Deployment,
+                connector: CONNECTOR,
+                value_bytes: temper_engine_smith::kinds::size(&settings::Value::Charter(2)),
+                per_scope: 2,
+                charters: 1
+            },
+        ]
+    );
+    limits.authority.segment_bytes = 6;
+    assert_eq!(crate::stock::kinds(&limits, CONNECTOR)[0].value_bytes, rule_bytes - 3 * (9 - 6));
+}
+
+#[test]
+fn the_binary_gives_the_forges_stock_at_every_start() {
+    // configuration.md, 13.4: one deployment rule and both forge charters.
+    const ITEMS: usize = 3;
+    use temper_engine_domain_forge::{self as forge, settings};
+    let engine = fixtures::engine();
+    let limits = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
+    let stock = crate::stock::forge(&limits);
+    assert_eq!(stock.len(), ITEMS);
+    assert_eq!((stock[0].kind, stock[0].scope, stock[0].number), (1, 0, 1));
+    assert_eq!(
+        stock[0].value.value,
+        settings::Value::Rule(settings::LandingRule {
+            pattern: forge::GatePattern {
+                segments: Box::new([b"forge".as_slice().into()]),
+                last: forge::GateLast::Open(Box::default()),
+            },
+            enforce: true,
+            ci: true,
+            up_to_date: true,
+            gates: Box::new([settings::RuleGate {
+                number: 1,
+                blocking: true,
+                freshness: forge::JudgeFreshness::Clean
+            }]),
+            approvals: Box::default(),
+        })
+    );
+    for (item, number, charter) in [(&stock[1], 1, 2), (&stock[2], 2, 4)] {
+        assert_eq!((item.kind, item.scope, item.number), (3, 0, number));
+        assert_eq!(item.value.value, settings::Value::Charter(charter));
+    }
+    for item in &stock {
+        assert_eq!(item.value.size, temper_engine_smith::kinds::size(&item.value.value));
+    }
 }

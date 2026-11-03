@@ -137,6 +137,7 @@ fn store_decoders_never_panic_and_reencode_the_same() {
 }
 
 fn forge_rows(rng: &mut Rng, bounds: &Bounds) {
+    setting_row(rng, bounds);
     let number = u16::try_from(rng.below(65_536)).expect("u16");
     let kind = if rng.below(2) == 0 { forge::Kind::Forgejo } else { forge::Kind::GitHub };
     let mode = match rng.below(4) {
@@ -167,11 +168,6 @@ fn forge_rows(rng: &mut Rng, bounds: &Bounds) {
             playground: rng.below(2) == 0,
             org: drawn_field(rng),
             repository: drawn_field(rng),
-            project: if rng.below(2) == 0 {
-                forge::SetUpProject::Existing(u32::try_from(rng.below(4_294_967_296)).expect("u32"))
-            } else {
-                forge::SetUpProject::New(drawn_field(rng))
-            },
             label: drawn_field(rng),
         })
     };
@@ -241,6 +237,7 @@ fn tier_rows(rng: &mut Rng, bounds: &Bounds) {
         })
     };
     let row = forge::Stored::Tier(forge::TierRow {
+        observations: temper_codecs_world::drawn(rng, 512).into_boxed_slice(),
         requested: false,
         cancelled: false,
         purpose: None,
@@ -252,6 +249,16 @@ fn tier_rows(rng: &mut Rng, bounds: &Bounds) {
         held: None,
         result: None,
         received: false,
+        goals: Box::new([forge::TierGoal {
+            goal: 7,
+            branch: Box::from(b"temper/1/g7".as_slice()),
+            tip: Some([11; 32]),
+            ran: Some([12; 32]),
+            failing: failures.clone(),
+            started: Some(skein_lib::Time::from_nanos(rng.next_u64())),
+        }]),
+        goal: Some(7),
+        started: Some(skein_lib::Time::from_nanos(rng.next_u64())),
         repository,
         tier: Box::from(b"tier".as_slice()),
         task: if rng.below(2) == 0 { None } else { Some(rng.next_u64()) },
@@ -264,21 +271,7 @@ fn tier_rows(rng: &mut Rng, bounds: &Bounds) {
         },
     });
     row_and_key(&row, rng, bounds);
-    let row = forge::Stored::Verification(forge::Verification {
-        repository,
-        commit: [7; 32],
-        changes: Box::new([rng.next_u64(), rng.next_u64()]),
-        tiers: Box::new([forge::TierVerification {
-            tier: Box::from(b"tier".as_slice()),
-            verdict: if rng.below(2) == 0 { None } else { Some(forge::TierVerdict { run: rng.next_u64(), blame }) },
-            repaired: if rng.below(2) == 0 {
-                None
-            } else {
-                Some(temper_engine_domain_forge::TierRepair { run: 2, tip: [8; 32] })
-            },
-        }]),
-    });
-    row_and_key(&row, rng, bounds);
+    verification_row(rng, bounds, repository, blame);
     let row = forge::Stored::Receipt {
         key: forge::ReceiptKey {
             project: 5,
@@ -315,4 +308,63 @@ fn optional_field(rng: &mut Rng) -> Option<Box<[u8]>> {
 
 fn optional_number(rng: &mut Rng) -> Option<u32> {
     if rng.below(2) == 0 { None } else { Some(u32::try_from(rng.below(4_294_967_296)).expect("u32")) }
+}
+
+fn setting_row(rng: &mut Rng, bounds: &Bounds) {
+    use forge::settings as s;
+    let slot = match rng.below(3) {
+        0 => s::SettingSlot::Default,
+        1 => s::SettingSlot::Change,
+        _ => s::SettingSlot::Proposal(rng.next_u64()),
+    };
+    let last = if rng.below(2) == 0 {
+        forge::GateLast::Exact(drawn_field(rng))
+    } else {
+        forge::GateLast::Open(drawn_field(rng))
+    };
+    let value = if rng.below(2) == 0 {
+        s::Value::Charter(u32::try_from(rng.below(4_294_967_296)).expect("u32"))
+    } else {
+        s::Value::Rule(s::LandingRule {
+            pattern: forge::GatePattern { segments: Box::new([drawn_field(rng)]), last },
+            enforce: rng.below(2) == 0,
+            ci: rng.below(2) == 0,
+            up_to_date: rng.below(2) == 0,
+            gates: Box::new([s::RuleGate { number: 1, blocking: true, freshness: forge::JudgeFreshness::Exact }]),
+            approvals: Box::new([s::RuleApproval { role: 1, people: 2, freshness: forge::JudgeFreshness::Clean }]),
+        })
+    };
+    let edit = match rng.below(3) {
+        0 => s::Edit::Set(s::SizedValue { value, size: u32::try_from(rng.below(4_294_967_296)).expect("u32") }),
+        1 => s::Edit::Remove,
+        _ => s::Edit::Reset,
+    };
+    let row = forge::Stored::Setting(s::SettingRow {
+        key: s::SettingKey { kind: u32::try_from(rng.below(3) + 1).expect("kind"), scope: 0, number: 1, slot },
+        edit,
+    });
+    row_and_key(&row, rng, bounds);
+}
+
+fn verification_row(
+    rng: &mut Rng,
+    bounds: &Bounds,
+    repository: skein_forge::api::Repository,
+    blame: temper_engine_domain_forge_tiers::Blame,
+) {
+    let row = forge::Stored::Verification(forge::Verification {
+        repository,
+        commit: [7; 32],
+        changes: Box::new([rng.next_u64(), rng.next_u64()]),
+        tiers: Box::new([forge::TierVerification {
+            tier: Box::from(b"tier".as_slice()),
+            verdict: if rng.below(2) == 0 { None } else { Some(forge::TierVerdict { run: rng.next_u64(), blame }) },
+            repaired: if rng.below(2) == 0 {
+                None
+            } else {
+                Some(temper_engine_domain_forge::TierRepair { run: 2, tip: [8; 32], by: Some([9; 32]) })
+            },
+        }]),
+    });
+    row_and_key(&row, rng, bounds);
 }

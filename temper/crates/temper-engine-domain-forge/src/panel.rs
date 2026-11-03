@@ -48,6 +48,27 @@ pub struct PanelUsed {
     pub used: u32,
     pub limit: u32,
 }
+/// A change's questions (domain/forge.md, 8.11; client/README.md, 4.6).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct PanelQuestions {
+    pub route: change::Route,
+    pub taken: PanelUsed,
+    pub open: Box<[PanelQuestion]>,
+}
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct PanelQuestion {
+    pub asker: u64,
+    pub number: u64,
+    pub line: Box<[u8]>,
+    pub stands: PanelStands,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum PanelStands {
+    Taken,
+    Foreman(Option<u64>),
+    Asked,
+    Held,
+}
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Panel {
     pub way: change::Way,
@@ -68,6 +89,7 @@ pub struct Panel {
     pub repairs: PanelUsed,
     pub resolutions: PanelUsed,
     pub updates: PanelUsed,
+    pub questions: PanelQuestions,
 }
 impl Panel {
     #[must_use]
@@ -78,6 +100,8 @@ impl Panel {
             && self.branch.len() <= names
             && self.landing.len() <= names
             && self.gates.len() <= usize::try_from(PANEL_GATES).expect("u32 fits usize")
+            && self.questions.open.len() <= 8
+            && question_lines_within(&self.questions.open)
             && match &self.step {
                 PanelStep::Queued { place, ahead } => {
                     *place > 0 && ahead.len() <= usize::try_from(PANEL_AHEAD).expect("u32 fits usize")
@@ -106,54 +130,43 @@ impl Panel {
 
 impl Domain {
     fn panel_tiers(&self, verification: &crate::Verification) -> Box<[Box<[u8]>]> {
-        use temper_engine_domain_forge_tiers::{Blame, Failures};
         let mut lines = List::with_capacity(u32::try_from(verification.tiers.len()).expect("admitted tiers"));
         for tier in &verification.tiers {
             let mut run = None;
-            let mut suffix: &[u8] = b"";
-            let mut count = None;
+            let mut suffix = Box::from(b"".as_slice());
             if let Some(repair) = tier.repaired {
                 run = Some(repair.run);
             } else if let Some(verdict) = &tier.verdict {
                 run = Some(verdict.run);
-                match &verdict.blame {
-                    Blame::Cleared => {}
-                    Blame::Owns(Failures::Many) | Blame::Suspect(Failures::Many) => suffix = b" \xc2\xb7 many tests",
-                    Blame::Owns(Failures::Tests(tests)) | Blame::Suspect(Failures::Tests(tests)) => {
-                        count = Some(u64::try_from(tests.len()).expect("admitted tests"));
-                        suffix = if tests.len() == 1 { b" test" } else { b" tests" };
-                    }
-                }
+                suffix = tier_blame(&verdict.blame);
             } else {
                 for ((repository, name), row) in &self.tiers {
                     if *repository == verification.repository
                         && *name == tier.tier
                         && let Some(flight) = &row.record.run
                     {
-                        run = Some(flight.number);
+                        for landing in &flight.landings {
+                            if landing.commit == verification.commit {
+                                run = Some(flight.number);
+                            }
+                        }
                     }
                 }
-                suffix = if run.is_some() { b" running" } else { b" waiting" };
+                suffix = Box::from(if run.is_some() { b" running".as_slice() } else { b" waiting".as_slice() });
             }
             let number = skein_lib::Decimal::of(run.unwrap_or(0));
-            let counted = skein_lib::Decimal::of(count.unwrap_or(0));
-            let parts: [&[u8]; 6] = [
-                &tier.tier,
+            let mut line = List::uncapped();
+            for part in [
+                tier.tier.as_ref(),
                 if run.is_some() { b" run " } else { b"" },
                 if run.is_some() { number.as_bytes() } else { b"" },
-                if count.is_some() { b" \xc2\xb7 " } else { b"" },
-                if count.is_some() { counted.as_bytes() } else { b"" },
-                suffix,
-            ];
-            let mut length = 0_usize;
-            for part in parts {
-                length = length.checked_add(part.len()).expect("bounded tier line");
+                &suffix,
+            ] {
+                for byte in part {
+                    line.push(*byte).expect("tier words");
+                }
             }
-            let mut line = skein_lib::Writer::new(length);
-            for part in parts {
-                line.put(part).expect("measured tier line");
-            }
-            lines.push(line.finish()).expect("admitted tiers");
+            lines.push(line.into_boxed()).expect("admitted tiers");
         }
         lines.into_boxed()
     }
@@ -243,6 +256,24 @@ impl Domain {
             Some(read) if Some(read.head) == head => read.status,
             Some(_) | None => change::Status::Unknown,
         };
+        let mut open = List::with_capacity(8);
+        for question in &row.questions.open {
+            if open.room() == 0 {
+                break;
+            }
+            open.push(PanelQuestion {
+                asker: question.asker,
+                number: question.number,
+                line: question.line.clone(),
+                stands: match &question.stands {
+                    change::Stands::Taken => PanelStands::Taken,
+                    change::Stands::Foreman { task } => PanelStands::Foreman(*task),
+                    change::Stands::Asked => PanelStands::Asked,
+                    change::Stands::Held { .. } => PanelStands::Held,
+                },
+            })
+            .expect("first eight questions fit");
+        }
         let panel = Panel {
             way: row.change.way,
             in_landing: row.change.landing,
@@ -265,6 +296,11 @@ impl Domain {
             repairs: PanelUsed { used: row.change.repairs, limit: limits.change_policy.repairs },
             resolutions: PanelUsed { used: row.change.resolutions, limit: limits.change_policy.resolutions },
             updates: PanelUsed { used: row.change.updates, limit: limits.change_policy.updates },
+            questions: PanelQuestions {
+                route: row.questions.route,
+                taken: PanelUsed { used: row.questions.taken, limit: limits.change_policy.questions },
+                open: open.into_boxed(),
+            },
         };
         assert!(panel.within(), "admitted change fits the panel");
         Some(panel)
@@ -349,9 +385,59 @@ pub(crate) fn queue_before(
 
 fn tier_lines_within(lines: &[Box<[u8]>]) -> bool {
     for line in lines {
-        if line.len() > 128 {
+        if line.len() > 8192 {
             return false;
         }
     }
     true
+}
+
+fn question_lines_within(questions: &[PanelQuestion]) -> bool {
+    for question in questions {
+        if question.line.len() > change::QUESTION_LINE {
+            return false;
+        }
+    }
+    true
+}
+
+fn tier_blame(blame: &temper_engine_domain_forge_tiers::Blame) -> Box<[u8]> {
+    use temper_engine_domain_forge_tiers::{Blame, Failures};
+    let (kind, failures) = match blame {
+        Blame::Cleared => return Box::new([]),
+        Blame::Owns(failures) => (b" owns ".as_slice(), failures),
+        Blame::Suspect(failures) => (b" suspected of ".as_slice(), failures),
+    };
+    let mut line = List::uncapped();
+    for part in [b" \xc2\xb7".as_slice(), kind] {
+        for byte in part {
+            line.push(*byte).expect("tier words");
+        }
+    }
+    match failures {
+        Failures::Many => {
+            for byte in b"many tests" {
+                line.push(*byte).expect("tier words");
+            }
+        }
+        Failures::Tests(tests) => {
+            let count = skein_lib::Decimal::of(u64::try_from(tests.len()).expect("admitted tests"));
+            for part in [count.as_bytes(), if tests.len() == 1 { b" test: " } else { b" tests: " }] {
+                for byte in part {
+                    line.push(*byte).expect("tier words");
+                }
+            }
+            for (at, test) in tests.iter().enumerate() {
+                if at > 0 {
+                    for byte in b", " {
+                        line.push(*byte).expect("tier words");
+                    }
+                }
+                for byte in test {
+                    line.push(*byte).expect("tier words");
+                }
+            }
+        }
+    }
+    line.into_boxed()
 }

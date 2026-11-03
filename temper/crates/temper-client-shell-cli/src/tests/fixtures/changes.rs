@@ -38,6 +38,15 @@ impl Frame {
                 repairs: used.clone(),
                 resolutions: used.clone(),
                 updates: used,
+                questions: f::Questions::new(
+                    &f::CEILINGS,
+                    f::QuestionsParts {
+                        route: f::Route::None,
+                        taken: f::Used::new(&f::CEILINGS, f::UsedParts { used: 0, limit: 4 }).expect("question limit"),
+                        open: skein_lib::List::with_capacity(0),
+                    },
+                )
+                .expect("no questions"),
             },
         )
         .expect("held panel");

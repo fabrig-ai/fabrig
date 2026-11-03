@@ -76,6 +76,7 @@ pub(crate) fn settings_restore_setting(value: &w::Setting, limits: &Limits) -> c
         w::Setting::Charter(item) => c::Setting::Charter(settings_restore_setting_number(item, limits)),
         w::Setting::Template(item) => c::Setting::Template(settings_restore_setting_number(item, limits)),
         w::Setting::Policy(item) => c::Setting::Policy(settings_restore_setting_number(item, limits)),
+        w::Setting::Application(v) => c::Setting::Application { kind: v.kind(), scope: v.scope(), number: v.number() },
         w::Setting::Rules => c::Setting::Rules,
     }
 }
@@ -161,6 +162,7 @@ pub(crate) fn settings_restore_revision_edit(
         w::RevisionEdit::Set(item) => c::RevisionEdit::Set(settings_restore_setting_set(item, limits)?),
         w::RevisionEdit::TooLarge(item) => c::RevisionEdit::TooLarge(settings_restore_size(item, limits)),
         w::RevisionEdit::Removed => c::RevisionEdit::Removed,
+        w::RevisionEdit::Application(v) => c::RevisionEdit::Application(restore_sized_edit(v.edit())),
         w::RevisionEdit::Reset => c::RevisionEdit::Reset,
     })
 }
@@ -186,6 +188,7 @@ pub(crate) fn settings_restore_setting_value(
         w::SettingValue::Policy(item) => {
             c::SettingValue::Policy(Box::new(settings_restore_setting_policy(item, limits)?))
         }
+        w::SettingValue::Application(v) => c::SettingValue::Application(bytes::copy_of(v.bytes())),
         w::SettingValue::Rules(item) => c::SettingValue::Rules(Box::new(settings_restore_rules(item, limits)?)),
     })
 }
@@ -774,11 +777,23 @@ pub(crate) fn settings_item_count(values: &[u8], limits: &Limits) -> Result<u32,
     Err(root_too_large())
 }
 
+#[expect(clippy::manual_map, reason = "step translations match optional fields without closures")]
 pub fn restore_setting_document(value: &w::SettingDocument, limits: &Limits) -> Result<c::SettingDocument, w::Problem> {
     Ok(c::SettingDocument {
         setting: settings_restore_setting(value.setting(), limits),
         revision: value.revision(),
-        value: settings_restore_setting_value(value.value(), limits)?,
+        value: match value.value() {
+            Some(v) => Some(settings_restore_setting_value(v, limits)?),
+            None => None,
+        },
+        application: match value.application() {
+            Some(v) => Some(restore_application_state(v)),
+            None => None,
+        },
+        proposed: match value.proposed() {
+            Some(v) => Some(restore_sized_edit(v)),
+            None => None,
+        },
     })
 }
 
@@ -809,6 +824,7 @@ pub(crate) fn settings_restore_held_revision(value: &w::HeldRevision, limits: &L
     c::HeldRevision { head: settings_restore_revision_head(value.head(), limits), holders: value.holders() }
 }
 
+#[expect(clippy::manual_map, reason = "step translations match optional fields without closures")]
 pub(crate) fn settings_restore_setting_line(
     value: &w::SettingLine,
     limits: &Limits,
@@ -820,7 +836,11 @@ pub(crate) fn settings_restore_setting_line(
             None => None,
         },
         follows: settings_restore_setting_follows(value.follows(), limits),
-        last: value.last(),
+        last: *value.last(),
+        application: match value.application() {
+            Some(v) => Some(restore_application_state(v)),
+            None => None,
+        },
     })
 }
 
@@ -913,6 +933,10 @@ pub(crate) fn settings_wire_setting_value(
         c::SettingValue::Charter(item) => w::SettingValue::Charter(Box::new(settings_wire_charter(item, limits)?)),
         c::SettingValue::Template(item) => w::SettingValue::Template(Box::new(settings_wire_template(item, limits)?)),
         c::SettingValue::Policy(item) => w::SettingValue::Policy(Box::new(settings_wire_setting_policy(item, limits)?)),
+        c::SettingValue::Application(v) => w::SettingValue::Application(w::ApplicationValue::new(
+            limits,
+            w::ApplicationValueParts { bytes: v.clone() },
+        )?),
         c::SettingValue::Rules(item) => w::SettingValue::Rules(Box::new(settings_wire_rules(item, limits)?)),
     })
 }
@@ -1515,6 +1539,10 @@ pub(crate) fn settings_wire_setting(value: c::Setting, limits: &w::Limits) -> Re
         c::Setting::Charter(item) => w::Setting::Charter(settings_wire_setting_number(item, limits)?),
         c::Setting::Template(item) => w::Setting::Template(settings_wire_setting_number(item, limits)?),
         c::Setting::Policy(item) => w::Setting::Policy(settings_wire_setting_number(item, limits)?),
+        c::Setting::Application { kind, scope, number } => w::Setting::Application(w::ApplicationSetting::new(
+            limits,
+            w::ApplicationSettingParts { kind, scope, number },
+        )?),
         c::Setting::Rules => w::Setting::Rules,
     })
 }
@@ -1607,5 +1635,24 @@ fn settings_restore_wake_rule(value: &w::WakeRule) -> c::WakeRule {
         w::WakeRule::Immediate => c::WakeRule::Immediate,
         w::WakeRule::Batch(value) => c::WakeRule::Batch { count: value.count(), age: value.age() },
         w::WakeRule::Paced(value) => c::WakeRule::Paced { span: value.span() },
+    }
+}
+
+fn restore_sized_edit(v: &w::SizedEdit) -> c::SizedEdit {
+    match v {
+        w::SizedEdit::Set(v) => c::SizedEdit::Set { size: v.size() },
+        w::SizedEdit::Remove => c::SizedEdit::Remove,
+        w::SizedEdit::Reset => c::SizedEdit::Reset,
+    }
+}
+fn restore_application_state(v: &w::ApplicationState) -> c::ApplicationState {
+    c::ApplicationState {
+        follows: match v.follows() {
+            w::ApplicationFollows::Default => c::ApplicationFollows::Default,
+            w::ApplicationFollows::Changed(v) => c::ApplicationFollows::Changed { revision: v.revision() },
+            w::ApplicationFollows::Removed(v) => c::ApplicationFollows::Removed { revision: v.revision() },
+        },
+        size: v.size(),
+        charters: v.charters().clone(),
     }
 }

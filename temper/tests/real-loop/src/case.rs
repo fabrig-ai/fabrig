@@ -450,7 +450,7 @@ pub fn fixture_4_6() -> forge::Fixture {
     forge::Fixture {
         configure: |value, agent, forge| {
             (fixture_placed().configure)(value, agent, forge);
-            value["application"]["landing"]["projects"] = json!([]);
+            value["world_settings"]["landing"]["projects"] = json!([]);
             // The retry path is the same, only its wait is short; the backoff is not what this story tests.
             value["engine"]["limits"]["overrides"]["tasks.retries.agent.base_ms"] = 1.into();
             landing::admit(value);
@@ -492,7 +492,7 @@ pub fn fixture_5_1() -> forge::Fixture {
         configure: |value, agent, forge| {
             (fixture_placed().configure)(value, agent, forge);
             value["world_settings"]["second_resume"] = false.into();
-            value["application"]["landing"]["projects"] = json!([]);
+            value["world_settings"]["landing"]["projects"] = json!([]);
             landing::admit(value);
         },
         ..forge::fixture()
@@ -530,7 +530,7 @@ pub fn fixture_5_3() -> forge::Fixture {
                 project["policy"]["roles"][0]["authority"]["delegation"]["kinds"] = kinds.clone();
             }
             // Neither task mounts a repository or delegates a change.
-            value["application"]["landing"]["projects"] = json!([]);
+            value["world_settings"]["landing"]["projects"] = json!([]);
             landing::admit(value);
         },
         ..fixture()
@@ -589,9 +589,9 @@ pub fn fixture_5_2() -> forge::Fixture {
                 value["application"]["limits"]["overrides"][format!("forge.client.{name}")] = (story_ms + 1).into();
             }
             value["world_settings"]["helper"] = true.into();
-            // Four charters (the placed director, chat, helper and reviewer)
-            // plus the change procedure must fit the delegation's kinds.
-            for (name, size) in [("tasks.charters", 4), ("tasks.executor_kinds", 5), ("authority.executors", 5)] {
+            // The four stock charters and the helper need five catalogue slots.
+            // The director, chat, helper, reviewer and change procedure need five delegation kinds.
+            for (name, size) in [("tasks.charters", 5), ("tasks.executor_kinds", 5), ("authority.executors", 5)] {
                 value["engine"]["limits"]["overrides"][name] = size.into();
             }
             let mut kinds = value["world_settings"]["policies"][0]["policy"]["ceiling"]["delegation"]["kinds"].clone();
@@ -651,7 +651,7 @@ pub fn fixture_5_5() -> forge::Fixture {
                 project["policy"]["ceiling"]["delegation"]["kinds"] = kinds.clone();
                 project["policy"]["roles"][0]["authority"]["delegation"]["kinds"] = kinds.clone();
             }
-            value["application"]["landing"]["projects"] = json!([]);
+            value["world_settings"]["landing"]["projects"] = json!([]);
             landing::admit(value);
         },
         ..fixture()
@@ -691,7 +691,7 @@ pub fn fixture_5_6() -> forge::Fixture {
                 project["policy"]["ceiling"]["tools"] = tools.into();
                 project["policy"]["roles"][0]["authority"]["tools"] = tools.into();
             }
-            value["application"]["landing"]["projects"] = json!([]);
+            value["world_settings"]["landing"]["projects"] = json!([]);
             landing::admit(value);
         },
         ..fixture()
@@ -859,7 +859,7 @@ pub fn fixture_6_1() -> forge::Fixture {
             for project in value["world_settings"]["policies"].as_array_mut().expect("projects") {
                 project["policy"]["roles"][0]["authority"]["budget"]["spend"] = 71.into();
             }
-            value["application"]["landing"]["projects"] = json!([]);
+            value["world_settings"]["landing"]["projects"] = json!([]);
             value["application"]["limits"]["overrides"]["root.journal.writes"] = BATCH_JOURNAL_WRITES.into();
             landing::admit(value);
         },
@@ -1041,7 +1041,7 @@ pub fn fixture_6_5() -> forge::Fixture {
                 project["policy"]["ceiling"]["tools"] = (0x0187 | 0x20).into();
                 project["policy"]["roles"][0]["authority"]["tools"] = (0x0187 | 0x20).into();
             }
-            value["application"]["landing"]["projects"] = json!([]);
+            value["world_settings"]["landing"]["projects"] = json!([]);
             landing::admit(value);
         },
         ..fixture()
@@ -1198,7 +1198,7 @@ pub fn fixture_6_7() -> forge::Fixture {
                 project["policy"]["ceiling"]["tools"] = 431.into();
                 project["policy"]["roles"][0]["authority"]["tools"] = 431.into();
             }
-            value["application"]["landing"]["projects"] = json!([]);
+            value["world_settings"]["landing"]["projects"] = json!([]);
             landing::admit(value);
         },
         ..fixture()
@@ -1212,9 +1212,9 @@ pub mod waiting {
     pub const A1: u64 = 2;
     pub const E1: u64 = 3;
     pub const REPIN: u64 = 4;
-    pub const E1_CODER: u64 = 5;
-    pub const E1_REVIEWER: u64 = 6;
-    pub const REPIN_CODER: u64 = 7;
+    pub const E1_CODER: u64 = 6;
+    pub const E1_REVIEWER: u64 = 7;
+    pub const REPIN_CODER: u64 = 5;
     pub const REPIN_REVIEWER: u64 = 8;
     pub const KIT_ID: u32 = 3;
     pub const APP_ID: u32 = 2;
@@ -1232,8 +1232,9 @@ pub mod waiting {
     pub const OWNER_REPORT: &str = "A1 reports e1 and app's waiting repin landed without relay.";
     pub const DIRECTOR_REPORT: &str = "The director reports kit e1 and app's dependent repin landed.";
     pub const REVIEW_HOLD: &[u8] = b"case-6-6-e1-review";
+    pub const REPIN_HOLD: &[u8] = b"case-6-6-repin-producer";
     // Script inputs only: app root 1, kit root 2, e1 coder 3, kit merge 4,
-    // repin coder 5, app merge 6. Initial Waiting serializes the coders.
+    // repin coder 5, app merge 6. The repin turn waits for kit to land.
     // The oracle instead renders the unique actual kit Merged.commit.
     pub const KIT_REVIEW_HEAD: u64 = 3;
     pub const PIN_INPUT: u64 = 4;
@@ -1270,9 +1271,9 @@ pub fn fixture_6_6() -> forge::Fixture {
         extra_setups: || Box::new([waiting_setup(waiting::KIT_ID, waiting::KIT)]),
         configure: |value, agent, forge| {
             (fixture().configure)(value, agent, forge);
-            let mut kit_rule = value["application"]["landing"]["projects"][0]["rules"][0].clone();
+            let mut kit_rule = value["world_settings"]["landing"]["projects"][0]["rules"][0].clone();
             kit_rule["pattern"]["segments"][3] = "kit".into();
-            value["application"]["landing"]["projects"][0]["rules"].as_array_mut().expect("rules").push(kit_rule);
+            value["world_settings"]["landing"]["projects"][0]["rules"].as_array_mut().expect("rules").push(kit_rule);
             // Two enforced rules each contribute CI, up-to-date and exact-head
             // blocking review: 2 * 3 = 6 requirements. Both repos are hooked.
             value["engine"]["limits"]["overrides"]["authority.requirements"] = 6.into();

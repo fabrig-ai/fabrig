@@ -1028,10 +1028,10 @@ terminal client, the captures and the faults.
     directories, the sign-in's and the LLM endpoint's addresses swapped
     for the fakes', then `temper box` on them, which reads that
     document; the owned forge set up from the client and `work/hello` made and
-    adopted into project 2, by that story's steps;
+    adopted into project 1, by that story's steps;
   - *the change:* the owner connects ChatGPT (`account connect 1`,
     `account list --until settled`) and opens a chat on gpt-6-luna in
-    project 2 asking for one README line, unique to the run. The
+    project 1 asking for one README line, unique to the run. The
     chat's agent calls `change`, naming `work/hello`, and the root
     delegates the change procedure on it (agent.md, 4.3.1; forge.md,
     section 8); the coder edits on the plan's grant, its
@@ -1917,8 +1917,13 @@ meets a story only when its item closes. The system world checks its
 stories independently of the roots, against durable task and call
 records and smith's own observations (`tests/system`). The conformance
 world (`tests/conformance`) runs the engine root on jig's conformance
-harness, under its outside referee. The worker's child domain worlds
-keep their checks inline.
+harness, under its outside referee. Its stories' and scenarios' heap
+ceilings are three times the figure skein's testing-strategy.md,
+section 6 gives (the measured peak plus a quarter, rounded up), the
+user's, 2026-11-03: an engine running a workload of many goals holds
+tens of MB, so a quarter's headroom over one story cost a repair at
+each milestone's added state, while three times still catches a leak.
+The worker's child domain worlds keep their checks inline.
 
 ### 5.3 The reference case
 

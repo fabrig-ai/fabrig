@@ -1,0 +1,73 @@
+draft = "reference-m7b"
+repo = "fabrig"
+sources = ["temper/docs/plan/reference-m7b/inputs/request.md", "temper/docs/design/draft/reference-case.execution.md", "temper/docs/design/draft/reference-code-production.md", "temper/docs/design/draft/reference-landing.md", "AGENTS.md", "DESIGN.md"]
+
+# M7b of reference-case.execution.md: the merge job (N7) as a kind of temper's jobs, its three
+# uses (a merge into a goal's branch refused for a conflict, a catch-up change into it, an
+# update the forge refused before a resolution, the goal's landing's among them), and a
+# delegation naming a job kind in jig's configuration (inputs/request.md). Built to
+# notes/contracts.md.
+
+retired = true
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "config-jobs"
+title = "jig's configuration lets a delegation's kinds name a job kind"
+mode = "direct"
+needs = []
+design = "jig/docs/design/protocol/configuration.md, 3"
+
+[[slice]]
+id = 1
+story = "a policy whose role's delegation names {\"kind\": \"job\", \"number\": 3} starts, its role holding Executor::Job(3)"
+parts = ["config-jobs"]
+walk = false
+
+[[part]]
+id = "merge-kind"
+title = "temper's merge kind: the worker runs it in a merge in progress and pushes the merge; the engine declares it; a project names its merge_job"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/worker.md, 4.4"
+
+[[slice]]
+id = 2
+story = "a worker whose hello declares kind 3 runs a merge job in a merge in progress, its command settling a conflict, and pushes a merge with both parents; a project's merge_job reaches the forge"
+parts = ["merge-kind"]
+walk = false
+
+[[part]]
+id = "change-merge"
+title = "a change's conflict goes to the merge job, then a resolution for what it leaves, under rules asking an update and under rules asking none"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/forge.md, 8.4"
+
+[[slice]]
+id = 3
+story = "a change into a goal's branch whose merge the forge refuses for a conflict is settled by the merge job and merges; one the job cannot settle goes to a resolution in a merge in progress, then merges"
+parts = ["change-merge"]
+walk = false
+
+[[part]]
+id = "catch-up"
+title = "change's merge: a catch-up into a goal's branch, the merge job its producer"
+mode = "direct"
+needs = ["change-merge"]
+design = "temper/docs/design/domain/forge.md, 10"
+
+[[part]]
+id = "merge-reference"
+title = "the reference's merge job: fabrig's .temper/merge, landing.json's merge_job, charter 5's catch-ups"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/configuration.md, 13.9"
+
+[[slice]]
+id = 4
+story = "reference-case.md steps 12, 16 and 21: a change's merge into g refused for old-forms.txt alone is settled by the merge job; one with code conflicts goes to a resolution; G catches g up with main by a catch-up whose producer is the merge job"
+parts = ["catch-up", "merge-reference"]
+walk = true

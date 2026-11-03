@@ -11,6 +11,12 @@ use jig_domain_fleet as fleet;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Map, Queue};
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum DefaultsPosition {
+    Given,
+    Stored,
+}
+
 #[derive(Debug)]
 pub(crate) struct Restore {
     pending: Map<Setting, bool>,
@@ -21,6 +27,8 @@ pub(crate) struct Restore {
     extent: bool,
     ready: bool,
     release: Option<u32>,
+    position: DefaultsPosition,
+    pub(crate) applications: super::application::Starting,
 }
 impl Restore {
     pub(crate) fn new(limits: &Limits) -> Self {
@@ -32,16 +40,23 @@ impl Restore {
             extent: false,
             ready: false,
             release: None,
+            position: DefaultsPosition::Given,
+            applications: super::application::Starting::new(limits.connectors),
         }
     }
 }
 impl Core {
+    pub(crate) fn application_first_start(&self) -> bool {
+        !self.kinds.is_empty() && !self.settings_restore.held
+    }
+
     pub(crate) fn restore_setting(&mut self, record: Record, limits: &Limits) -> bool {
         if self.settings_restore.ready {
             return false;
         }
         match record {
             Record::Default { setting, default } => self.restore_default(setting, default, limits),
+            Record::Application { setting, state } => super::application::restore(self, setting, state),
             Record::Changed { setting, changed } => {
                 {
                     assert!(
@@ -63,7 +78,7 @@ impl Core {
                 self.current.changes.insert(setting, changed).is_ok()
             }
             Record::Revision { history, revision } => self.restore_head(history, revision, limits),
-            Record::Extent { oldest } => {
+            Record::Extent { oldest, keys } => {
                 {
                     assert!(
                         !self.settings_restore.extent,
@@ -72,6 +87,7 @@ impl Core {
                     );
                 }
                 self.current.oldest = oldest;
+                self.current.keys = keys;
                 self.settings_restore.extent = true;
                 true
             }
@@ -217,6 +233,15 @@ impl Core {
         if self.counters.deployment().commits == 0 && !self.settings_restore.held {
             return true;
         }
+        for (&(proposer, proposal), value) in &self.settings_proposals {
+            if let Some(key) = value.key {
+                assert!(
+                    key < self.current.keys,
+                    "proposal {:?} has a key at or past the restored counter",
+                    crate::Key::Core(CoreKey::Settings(Key::Proposal { proposer, proposal }))
+                );
+            }
+        }
         for (&setting, _) in &self.current.defaults {
             if !self.settings_restore.defaults.contains_key(&setting) {
                 assert!(self.settings_restore.pending.insert(setting, true).is_ok(), "bounded added default");
@@ -242,6 +267,7 @@ impl Core {
         }
         if !self.settings_restore.defaults.is_empty() {
             core::mem::swap(&mut self.current.defaults, &mut self.settings_restore.defaults);
+            self.settings_restore.position = DefaultsPosition::Stored;
         }
         self.settings_restore.ready = true;
         self.tell_settings(env);
@@ -250,7 +276,7 @@ impl Core {
     /// The typed refusal is retained even when a later completion repeats it.
     pub fn refuse_settings(&mut self, failure: Failure) -> crate::start::Failure {
         self.start_input();
-        let changed = self.current.changed(failure.setting);
+        let changed = super::application::changed(&self.current, failure.setting);
         let request = crate::start::Failure::Settings { failure, changed };
         self.refuse_restore(request.clone());
         request
@@ -355,21 +381,49 @@ impl Core {
         self.write_restored_settings(env, room)
     }
 
+    fn prepare_application_release(&mut self, out: &mut Queue<Request>) -> bool {
+        if self.restore_failure.is_some() {
+            return false;
+        }
+        // Reference checking sees this release's supplied defaults, while tasks
+        // and the held-version plan continue to see the stored overlay.
+        if self.settings_restore.position == DefaultsPosition::Stored {
+            core::mem::swap(&mut self.current.defaults, &mut self.settings_restore.defaults);
+        }
+        let prepared = super::application::prepare_start(self);
+        if self.settings_restore.position == DefaultsPosition::Stored {
+            core::mem::swap(&mut self.current.defaults, &mut self.settings_restore.defaults);
+        }
+        if !prepared {
+            return false;
+        }
+        if !self.settings_restore.held
+            || (self.settings_restore.defaults.is_empty() && !super::application::defaults_changed(self))
+        {
+            drop(super::application::save_start(self, None, out));
+            return false;
+        }
+        true
+    }
+
     pub(crate) fn write_restored_settings(&mut self, env: &Env<Limits>, room: u32) -> Queue<Request> {
         let mut out = Queue::uncapped();
-        if !self.settings_restore.held || self.settings_restore.defaults.is_empty() || self.restore_failure.is_some() {
+        if !self.prepare_application_release(&mut out) {
             return out;
         }
         let oldest_before = self.current.oldest;
         let previous = self.current.newest();
-        let release = self.settings_restore.release.is_some();
+        let release = self.settings_restore.release.is_some() || super::application::defaults_changed(self);
+        if release && previous.checked_add(1).is_none() {
+            let _refused = self.refuse_settings(Failure { setting: Setting::Rules, fault: Fault::Count });
+            return out;
+        }
         if release && !crate::routing::settings::dispatch::withdrawal_room(self, None) {
             let _refused = self.refuse_settings(Failure { setting: Setting::Rules, fault: Fault::Count });
             return out;
         }
         let newest = if release { previous.checked_add(1).expect("release number preflighted") } else { previous };
         let reserve = if release { super::withdrawal_writes(&env.limits).expect("withdrawal room") } else { 0 };
-        let count = self.settings_restore.pending.len();
         let items = self.restored_items();
         let mut after = Map::with_capacity(env.limits.settings.revisions.checked_add(1).expect("held names"));
         for (&revision, _) in &self.held.heads {
@@ -398,7 +452,9 @@ impl Core {
         if keep_previous {
             self.held.heads.insert(previous, self.current.head.clone()).expect("release heads preflighted");
         }
-        core::mem::swap(&mut self.current.defaults, &mut self.settings_restore.defaults);
+        if self.settings_restore.position == DefaultsPosition::Stored {
+            core::mem::swap(&mut self.current.defaults, &mut self.settings_restore.defaults);
+        }
         if release {
             self.current.head = Head {
                 number: newest,
@@ -409,7 +465,7 @@ impl Core {
                 moved: false,
             };
         }
-        let mut defaults = List::with_capacity(count);
+        let mut defaults = List::with_capacity(self.settings_restore.pending.len());
         for (&setting, &present) in &self.settings_restore.pending {
             let write = if present {
                 let default = self.current.defaults.get_mut(&setting).expect("given default");
@@ -420,12 +476,18 @@ impl Core {
             };
             defaults.push(write).expect("default differences");
         }
-        let revision =
-            if release { Some(Revision { head: self.current.head.clone(), items: items.into_boxed() }) } else { None };
+        let saved_revision = if release { Some(newest) } else { None };
+        let applications = super::application::save_start(self, saved_revision, &mut out);
+        let revision = if release {
+            Some(Revision { head: self.current.head.clone(), items: items.into_boxed(), applications })
+        } else {
+            None
+        };
         let (writes, oldest) = revision_writes_with_hold(
             revision,
             defaults,
             self.current.oldest,
+            self.current.keys,
             newest,
             env.limits.settings.history,
             room.saturating_sub(reserve).saturating_sub(out.len()),
@@ -443,6 +505,7 @@ impl Core {
         }
         self.settings_restore = Restore::new(&env.limits);
         self.settings_restore.ready = true;
+        self.settings_restore.applications = super::application::Starting::Saved;
         out
     }
 }
@@ -457,17 +520,20 @@ pub fn revision_writes(
     revision: Option<Revision>,
     defaults: List<Write>,
     oldest: u32,
+    keys: u64,
     newest: u32,
     history: u32,
     room: u32,
 ) -> (List<Write>, u32) {
-    revision_writes_with_hold(revision, defaults, oldest, newest, history, room, false)
+    revision_writes_with_hold(revision, defaults, oldest, keys, newest, history, room, false)
 }
 
+#[expect(clippy::too_many_arguments, reason = "history extent and proposal counter are saved in the same settings row")]
 pub(crate) fn revision_writes_with_hold(
     revision: Option<Revision>,
     defaults: List<Write>,
     mut oldest: u32,
+    keys: u64,
     newest: u32,
     history: u32,
     room: u32,
@@ -506,7 +572,7 @@ pub(crate) fn revision_writes_with_hold(
                 .expect("prune room reserved");
             oldest = oldest.checked_add(1).expect("bounded old revision");
         }
-        writes.push(save(Record::Extent { oldest })).expect("extent room reserved");
+        writes.push(save(Record::Extent { oldest, keys })).expect("extent room reserved");
     }
     (writes, oldest)
 }
@@ -516,17 +582,24 @@ pub(crate) fn first_start(core: &mut Core, env: &Env<Limits>, out: &mut Queue<Re
         let _request = core.refuse_settings(failure);
         return false;
     }
+    assert!(super::application::defaults_received(core), "first-start defaults received before seeding");
+    if !super::application::prepare_start(core) {
+        return false;
+    }
     core.settings_restore.ready = true;
     core.settings_restore.held = true;
     core.settings_restore.extent = true;
+    core.settings_restore.pending = Map::with_capacity(core.settings_restore.pending.capacity());
+    core.settings_restore.release = None;
     core.current.head.at = env.wall;
     for (&setting, default) in &core.current.defaults {
         out.push(Request::Write(save(Record::Default { setting, default: default.clone() })));
     }
+    let applications = super::application::save_start(core, Some(1), out);
     out.push(Request::Write(save(Record::Revision {
         history: false,
-        revision: Revision { head: core.current.head.clone(), items: Box::new([]) },
+        revision: Revision { head: core.current.head.clone(), items: Box::new([]), applications },
     })));
-    out.push(Request::Write(save(Record::Extent { oldest: 0 })));
+    out.push(Request::Write(save(Record::Extent { oldest: 0, keys: core.current.keys })));
     true
 }

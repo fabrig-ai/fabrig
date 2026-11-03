@@ -163,13 +163,8 @@ fn submit(prompt: llm::Prompt, provider: skein_llm::Provider) -> (Vec<adapter::T
         .grant(
             grant,
             match provider {
-                skein_llm::Provider::OpenAiCodex => skein_llm::Credential {
-                    value: b"fake".as_slice().into(),
-                    account_id: b"fake".as_slice().into(),
-                    scheme: skein_llm::Scheme::Bearer,
-                },
-                skein_llm::Provider::Anthropic => skein_llm::Credential::anthropic(b"fake".as_slice().into()),
-                skein_llm::Provider::OpenAi => panic!("withdrawn route"),
+                skein_llm::Provider::Anthropic => skein_llm::Credential::key(b"fake".as_slice().into()),
+                skein_llm::Provider::OpenAi => skein_llm::Credential::bearer(b"fake".as_slice().into()),
             },
             Time::ZERO.saturating_add(Duration::from_secs(60)),
         )
@@ -247,8 +242,8 @@ fn reported() -> llm::Usage {
 #[test]
 fn first_and_later_read_batches_pass_the_real_guard() {
     for (calls, provider) in [
-        (2, skein_llm::Provider::OpenAiCodex),
-        (4, skein_llm::Provider::OpenAiCodex),
+        (2, skein_llm::Provider::OpenAi),
+        (4, skein_llm::Provider::OpenAi),
         (2, skein_llm::Provider::Anthropic),
         (4, skein_llm::Provider::Anthropic),
     ] {
@@ -265,7 +260,7 @@ fn first_and_later_read_batches_pass_the_real_guard() {
 fn absent_usage_keeps_full_reads_and_sends_without_a_guard() {
     let (prompt, caps) = read_prompt(2, LINE, llm::Usage::NONE);
     assert_eq!(caps, [FILE_BYTES; 2]);
-    let (terminals, sent) = submit(prompt, skein_llm::Provider::OpenAiCodex);
+    let (terminals, sent) = submit(prompt, skein_llm::Provider::OpenAi);
     assert!(sent, "{terminals:?}");
     assert!(terminals.is_empty());
 }
@@ -274,7 +269,7 @@ fn absent_usage_keeps_full_reads_and_sends_without_a_guard() {
 fn insufficient_minima_keep_full_reads_and_the_guard_refuses() {
     let (prompt, caps) = read_prompt(2, PROMPT + 1, reported());
     assert_eq!(caps, [FILE_BYTES; 2]);
-    let (terminals, sent) = submit(prompt, skein_llm::Provider::OpenAiCodex);
+    let (terminals, sent) = submit(prompt, skein_llm::Provider::OpenAi);
     assert!(!sent);
     let [adapter::ToDomain::Failed { failure, evidence, .. }] = terminals.as_slice() else {
         panic!("one refused request")
@@ -331,18 +326,16 @@ fn endpoints(limits: &adapter::ComponentLimits, provider: skein_llm::Provider) -
             name: llm::Endpoint(0),
             destination: skein_llm_connection::Endpoint {
                 limits: limits.adapter.client,
-                credential: skein_llm::client::CredentialLimits { value: 128, account_id: 128 },
+                credential: skein_llm::client::CredentialLimits { value: 128 },
                 address: "127.0.0.1:443".parse().unwrap(),
                 transport: skein_llm_connection::Transport::Plaintext,
                 llm: match provider {
-                    skein_llm::Provider::OpenAiCodex => skein_llm::Endpoint::codex(),
                     skein_llm::Provider::Anthropic => skein_llm::Endpoint::anthropic(),
-                    skein_llm::Provider::OpenAi => panic!("withdrawn route"),
+                    skein_llm::Provider::OpenAi => skein_llm::Endpoint::openai(),
                 },
             },
             connect: Duration::from_secs(1),
             handshake: Duration::from_secs(1),
-            identity: adapter::IdentityProfile::Plain,
             models: Box::new([]),
         }]),
         limits.connection.endpoints,

@@ -3,7 +3,7 @@
 //! temper/docs/design/domain/forge.md, 8.9).
 use alloc::boxed::Box;
 
-use crate::{GateLast, GatePattern, JudgeFreshness, Requires, gates::covers};
+use crate::{GateLast, GatePattern, JudgeFreshness, Limits, Requires, gates::covers};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Kind {
@@ -270,6 +270,13 @@ pub struct Held {
     pub rule: LandingRule,
 }
 
+/// Current rules by scope (temper/docs/design/domain/forge.md, 8.9).
+#[derive(Debug)]
+pub struct HeldRules {
+    pub deployment: Box<[Held]>,
+    pub projects: skein_lib::Map<u32, Box<[Held]>>,
+}
+
 /// The procedure's waits over the supplied scopes' rules, enforcing or not
 /// (temper/docs/design/domain/forge.md, 8.7).
 #[must_use]
@@ -284,4 +291,11 @@ pub fn requires(held: &[Held], name: &[Box<[u8]>]) -> Requires {
         }
     }
     if covered { result } else { Requires { ci: true, up_to_date: true } }
+}
+
+/// The retained defaults, changes and proposal items (temper/docs/design/protocol/store.md, 2).
+#[must_use]
+pub fn rows(l: &Limits) -> Option<u32> {
+    let rules = l.judge_projects.checked_add(1)?.checked_mul(l.landing_rules)?;
+    rules.checked_mul(2)?.checked_add(4)?.checked_add(l.setting_proposals.checked_mul(rules.checked_add(2)?)?)
 }

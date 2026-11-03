@@ -238,6 +238,9 @@ impl Core {
                         crate::settings::Setting::Charter(_)
                         | crate::settings::Setting::Policy(_)
                         | crate::settings::Setting::Rules => continue,
+                        jig_domain_people::Setting::Application { .. } => {
+                            unreachable!("an application's setting: apps-core")
+                        }
                     };
                     let template = self.current.template(number).expect("offered template");
                     known |= template.number == entry.template;

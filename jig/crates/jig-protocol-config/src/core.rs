@@ -59,6 +59,7 @@ pub fn core(engine: &Engine, deployment: [u8; 16], seed: u64) -> domain::Config 
     }
     domain::Config {
         jobs: Box::new([]),
+        kept_starts: Box::new([]),
         worker_names: {
             let mut names = List::with_capacity(engine.limits.link.names);
             for worker in &engine.hosts.workers {
@@ -72,6 +73,7 @@ pub fn core(engine: &Engine, deployment: [u8; 16], seed: u64) -> domain::Config 
         hub_turns: engine.limits.hub.turns,
         owners: engine.owners.clone(),
         grants: engine.acts.clone(),
+        kinds: Box::default(),
         defaults: domain::settings::Defaults {
             charters: engine.charters.clone(),
             templates: engine.templates.clone(),

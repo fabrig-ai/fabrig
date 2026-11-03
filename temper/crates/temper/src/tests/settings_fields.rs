@@ -72,6 +72,13 @@ fn encode(value: &settings_form::view::SettingValue, out: &mut Encoder) {
         SettingValue::Charter(value) => values::encode_charter(value, out),
         SettingValue::Template(value) => values::encode_template(value, out),
         SettingValue::Policy(value) => values::encode_setting_policy(value, out),
+        SettingValue::Application(value) => {
+            out.array_start();
+            for &byte in value {
+                out.unsigned(u64::from(byte));
+            }
+            out.array_end();
+        }
         SettingValue::Rules(value) => values::encode_rules(value, out),
     }
 }
@@ -180,8 +187,8 @@ fn walk(shape: Shape, value: Json) {
 
 #[test]
 fn every_member_ctl_prints_for_the_stock_is_a_field() {
-    // Stock has three charters, two templates, one policy and the rules.
-    const STOCK_VALUES: usize = 7;
+    // Stock has four charters, two templates, one policy and the rules.
+    const STOCK_VALUES: usize = 8;
     let llm = llm();
     let models = models(&llm);
     let stock = temper_service::stock::defaults(&llm);

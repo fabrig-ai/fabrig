@@ -609,12 +609,14 @@ pub(crate) fn row_bytes(row: &Row) -> Option<u64> {
     Some(total)
 }
 
-/// Whole newest value, read separately from the inventory.
+/// One setting's value, or an application setting's state and size (jig/docs/design/client/domain/contract.md, 6).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct SettingDocument {
     pub setting: crate::settings::Setting,
     pub revision: u32,
-    pub value: crate::settings::Value,
+    pub value: Option<crate::settings::Value>,
+    pub application: Option<crate::settings::application::State>,
+    pub proposed: Option<crate::settings::application::SizedEdit>,
 }
 /// Revision values leave through the protocol's single-value byte admission.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

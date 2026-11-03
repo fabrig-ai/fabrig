@@ -25,6 +25,8 @@ fn the_rows_repeats_are_within_the_client_limits() {
             limits.forge.checks
         } else if row.name == crate::jig::rows::AMEND.name {
             limits.client.domain.rows
+        } else if row.name == crate::jig::rows::CHAT_CREATE.name {
+            jig_domain_tasks::MODELS
         } else {
             limits.client.domain.delegates
         };

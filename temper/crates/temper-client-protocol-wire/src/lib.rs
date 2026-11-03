@@ -69,6 +69,10 @@ pub const TASKS_AHEAD: u32 = 64;
 /// A side's bounds on the forge family's fields (client/README.md, 4.4 and 4.6).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Bounds {
+    pub segments: u32,
+    pub segment_bytes: u32,
+    pub gates: u32,
+    pub approvals: u32,
     pub field_bytes: u32,
     pub checks: u32,
     pub contexts: u32,
@@ -79,12 +83,21 @@ pub struct Bounds {
 #[must_use]
 pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
     let limits = v1::Limits {
+        setting_answer_value_some: v1::CEILINGS.setting_answer_value_some,
+        setting_value_value: v1::CEILINGS.setting_value_value,
+        proposal_items_answer_items: v1::CEILINGS.proposal_items_answer_items,
+        landing_exact_value: bounds.segment_bytes,
+        landing_open_value: bounds.segment_bytes,
+        landing_pattern_segments: bounds.segments,
+        landing_pattern_segments_item: bounds.segment_bytes,
+        landing_rule_gates: bounds.gates,
+        landing_rule_approvals: bounds.approvals,
         verifying_tiers: 32,
-        verifying_tiers_item: 128,
+        verifying_tiers_item: 8192,
         red_tiers: 32,
-        red_tiers_item: 128,
+        red_tiers_item: 8192,
         cleared_tiers: 32,
-        cleared_tiers_item: 128,
+        cleared_tiers_item: 8192,
         authority_hold_reason: 512,
         owned_forge_forgejo: 64,
         owned_forge_runner_some: 64,
@@ -127,6 +140,8 @@ pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
         change_panel_branch: bounds.field_bytes,
         change_panel_landing: bounds.field_bytes,
         change_panel_gates: GATES,
+        question_line: 256,
+        questions_open: 8,
         managed_forge_host: 255,
         managed_forge_tls_some: 255,
         managed_forge_git: ADDRESS_BYTES,
@@ -141,7 +156,6 @@ pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
         first_ask_label: 64,
         set_up_org: bounds.field_bytes,
         set_up_repository: bounds.field_bytes,
-        new_project_name: bounds.field_bytes,
         first_repository_org: bounds.field_bytes,
         first_repository_repository: bounds.field_bytes,
         first_repository_label: 64,
@@ -271,7 +285,7 @@ pub fn decode_requesting(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Reques
             }
             match connect.how() {
                 v1::How::GithubApp(app) if app.id() == 0 => return None,
-                v1::How::GithubApp(_) | v1::How::GithubManifest(_) => {}
+                v1::How::GithubApp(_) | v1::How::GithubManifest(_) | v1::How::ForgejoTokens(_) => {}
                 v1::How::ForgejoAdmin(admin) => {
                     if let Some(first) = admin.first()
                         && !runner_label(first.label())
@@ -293,6 +307,7 @@ pub fn decode_requesting(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Reques
         | v1::Request::Install(_)
         | v1::Request::Return(_)
         | v1::Request::Adopt(_)
+        | v1::Request::Replace(_)
         | v1::Request::RemoveForge(_)
         | v1::Request::StartPlayground
         | v1::Request::EndPlayground => {}
@@ -306,7 +321,7 @@ fn valid_making(making: &v1::Making) -> bool {
         v1::Making::Kept(_) => true,
         v1::Making::New(value) => match value.forge() {
             v1::ForgeAsk::Github | v1::ForgeAsk::Owned => true,
-            v1::ForgeAsk::Managed(value) => {
+            v1::ForgeAsk::Managed(value) | v1::ForgeAsk::Connected(value) => {
                 !value.host().is_empty()
                     && !value.host().contains(&0)
                     && !value.host().contains(&b'/')
@@ -389,5 +404,34 @@ pub fn landings_panel(record: &v1::LandingsPanel) -> Box<[u8]> {
 pub fn decode_landings_panel(bytes: &[u8], limits: &v1::Limits) -> Option<v1::LandingsPanel> {
     let mut reader = Reader::new(bytes);
     let record = v1::LandingsPanel::decode(limits, &mut reader).ok()?;
+    if reader.is_empty() { Some(record) } else { None }
+}
+
+/// Encode the current value of a forge setting (client/forge.md, 9).
+#[must_use]
+pub fn setting_answer(record: &v1::SettingAnswer) -> Box<[u8]> {
+    let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+    record.encode(&mut writer).expect("measured room");
+    writer.finish()
+}
+/// Decode one complete forge setting answer.
+#[must_use]
+pub fn decode_setting_answer(bytes: &[u8], limits: &v1::Limits) -> Option<v1::SettingAnswer> {
+    let mut reader = Reader::new(bytes);
+    let record = v1::SettingAnswer::decode(limits, &mut reader).ok()?;
+    if reader.is_empty() { Some(record) } else { None }
+}
+/// Encode the items of one pending proposal (client/forge.md, 9).
+#[must_use]
+pub fn proposal_items_answer(record: &v1::ProposalItemsAnswer) -> Box<[u8]> {
+    let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+    record.encode(&mut writer).expect("measured room");
+    writer.finish()
+}
+/// Decode one complete proposal items answer.
+#[must_use]
+pub fn decode_proposal_items_answer(bytes: &[u8], limits: &v1::Limits) -> Option<v1::ProposalItemsAnswer> {
+    let mut reader = Reader::new(bytes);
+    let record = v1::ProposalItemsAnswer::decode(limits, &mut reader).ok()?;
     if reader.is_empty() { Some(record) } else { None }
 }

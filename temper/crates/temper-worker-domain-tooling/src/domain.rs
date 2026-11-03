@@ -162,7 +162,7 @@ fn start(domain: &mut Domain, env: &Env<Limits>, run: Run, out: &mut Queue<Reque
         refuse(run.owner, why, out);
         return;
     }
-    let Some(program) = path(&run.directory, b"/home/", &run.spec.command, limits.path_bytes) else {
+    let Some(program) = path(&run.directory, b"/", &run.spec.command, limits.path_bytes) else {
         refuse(run.owner, b"command path bound", out);
         return;
     };

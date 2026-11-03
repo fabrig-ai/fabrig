@@ -3,6 +3,14 @@ use crate::{Core, Limits, Request, settings, start::Failure};
 use skein_lib::{Env, Queue};
 
 impl Core {
+    pub(super) fn start_application_seed(&mut self, env: &Env<Limits>, out: &mut Queue<Request>) -> Option<Failure> {
+        if self.application_first_start() {
+            super::first::start_seed(self, env, out);
+            self.start_collect_failure();
+        }
+        self.start_failure()
+    }
+
     pub(crate) fn start_settings_finish(&mut self, env: &Env<Limits>) -> Option<Failure> {
         let _finished = self.finish_restored_settings(env);
         self.start_collect_failure();

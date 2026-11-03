@@ -97,22 +97,14 @@ pub fn configure_repository(root: &Path) -> Setup {
     let repo = person.get("");
     let me = ctl::alone(root, ctl::Call::new(&["me", "--json"]));
     let me = ctl::json(&me);
-    // Project 1 is init's seed; setup adopted the first repository into its own project.
-    let project = me["projects"]
-        .as_array()
-        .expect("projects")
-        .iter()
-        .find(|project| project["project"] != 1)
-        .expect("first repository project")["project"]
-        .as_u64()
-        .expect("project number");
+    let project = first_repository::project_number(&me, "hello").expect("first repository project");
     Setup { forge, project, repository: repo["id"].as_u64().expect("repository id") }
 }
 pub fn configure_turn(root: &Path, setup: &Setup) {
     let path = root.join("temper.json");
     let mut config: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
     config["application"]["landing"]["projects"].as_array_mut().expect("project landings").push(json!({
-        "project":setup.project, "by":"turn", "rules":[],
+        "project":setup.project, "by":"turn",
         "gates":[{"forge":setup.forge, "repository":setup.repository,
             "gates":[{"name":"gate", "workflow":"gate.yaml", "ignored":["docs"], "blocking":true}]}]
     }));

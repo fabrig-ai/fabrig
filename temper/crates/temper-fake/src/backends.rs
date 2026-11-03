@@ -310,11 +310,7 @@ fn program_model(agent: bool) -> Result<Box<[u8]>, Refusal> {
 
 fn program_endpoint(socket: &[u8], agent: bool) -> Result<Box<[u8]>, Refusal> {
     let tail = if agent {
-        read::joined(&[
-            br#""identity":"plain","connect":10000,"handshake":10000,"models":["#,
-            &program_model(true)?,
-            b"]",
-        ])
+        read::joined(&[br#""connect":10000,"handshake":10000,"models":["#, &program_model(true)?, b"]"])
     } else {
         bytes::copy_of(br#""connect_ms":10000,"handshake_ms":10000"#)
     };

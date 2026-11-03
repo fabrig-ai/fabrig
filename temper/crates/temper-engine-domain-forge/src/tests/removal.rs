@@ -65,7 +65,6 @@ fn remove_ends_the_forge_in_one_decision_and_answers_removed() {
                 playground: false,
                 org: b"org".as_slice().into(),
                 repository: b"repo".as_slice().into(),
-                project: SetUpProject::Existing(5),
                 state: FirstState::Made { id: 2 },
                 label: Box::new([]),
             },

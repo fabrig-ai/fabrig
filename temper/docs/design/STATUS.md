@@ -1,19 +1,28 @@
 # Status
 
-2026-11-02. Where temper's code lags or departs from its design, and its
+2026-11-03. Where temper's code lags or departs from its design, and its
 design from its drafts, from the status files below. The first
 milestone stands in the code (`README.md`). After landing is built for
-a repository's tiers, their verdicts and a change living to cleared;
-its reds to goals, trailers, what the forge shows and the landing log
-are not (`domain/after-landing.md`, `protocol/store.md`), nor are
+a repository's tiers, a goal branch's own tier, their verdicts, a red's
+news to its goal, a repair naming its red and a change living to
+cleared; a red of no goal's, trailers, what the forge shows and the
+landing log are not (`domain/after-landing.md`, `protocol/store.md`), nor are
 findings, whole (`domain/findings.md`, with their families in
 `protocol/store.md` and their groups in `client/tools.md`). The worker
-runs jobs, but none of temper's kinds is built, so the project's
-tooling and the `Rewrite` delivery lag (`domain/worker.md`,
+runs temper's merge kind, and the merge job settles a change's conflict
+before a resolution and produces a catch-up into a goal's branch; a
+goal's landing whose update conflicts takes it, but no story runs that
+(`domain/forge.md`). The prepare and key kinds are not built, so the
+turn's tooling and the `Rewrite` delivery lag (`domain/worker.md`,
 `protocol/tooling.md`, `domain/landing.md`, `protocol/git.md`). Settings of temper's kinds lag: the landing rules
 and the forge's charter are still read from the document
 (`domain/root.md`, `domain/forge.md`, `protocol/configuration.md`,
-`domain/agent.md`). Much of a change's own bounds, gates and charters,
+`domain/agent.md`). A goal's own branch and its landing are built, but
+for the held landing's story, ignored for a restart fault
+(`domain/forge.md`); the reference's configuration
+lags in its template's own goal branch, which a settings file cannot
+name, its charters' turns and the project's checks
+(`protocol/configuration.md`). Much of a change's own bounds, gates and charters,
 the forge's merge queue and a goal's issue lag (`domain/forge.md`); so
 do the client's Board, Changes and How work runs pages and many of
 ctl's tools (`client/README.md`, `client/forge.md`, `client/tools.md`),
@@ -24,13 +33,17 @@ playground's reset are designed and built; the code departs where the
 box's group file holds a forge's kind alone (`protocol/setup.md`,
 `protocol/forge.md`, `protocol/README.md`), and lags in a
 removal without the box (`domain/forge.md`) and a project's Delete
-(`client/README.md`); with `application.machine.github` null, GitHub's
+(`client/README.md`); a connected Forgejo, its connect with its bot's
+tokens and a forge's Replace are built, but for the real loop's story
+(`client/tools.md`) and a connected Forgejo made managed
+(`protocol/setup.md`); with `application.machine.github` null, GitHub's
 remotes come out malformed (`protocol/configuration.md`). The case library's
-purpose is retired (`domain/testing.md`). Of the drafts, the reference
+purpose is retired (`domain/testing.md`), and the `welcome-set-up`
+journey waits on a new walk (`client/journeys.md`). Of the drafts, the reference
 drafts are what the design lags most (`draft/notes.md`, N1 to N24, in
 their three statuses); the others record what the design carries of
-them and where it lags or departs. `README.md`, `domain/README.md`,
-`protocol/llm.md` and `client/journeys.md` have no gap.
+them and where it lags or departs. `README.md`, `domain/README.md` and
+`protocol/llm.md` have no gap.
 
 Design documents:
 - [`README.md`](README.status.md)
@@ -72,6 +85,7 @@ Drafts:
 - [`draft/configuring.md`](draft/configuring.status.md)
 - [`draft/dashboards.md`](draft/dashboards.status.md)
 - [`draft/first-release.md`](draft/first-release.status.md)
+- [`draft/first-run-projects.md`](draft/first-run-projects.status.md)
 - [`draft/github.md`](draft/github.status.md)
 - [`draft/macos.md`](draft/macos.status.md)
 - [`draft/upgrades.md`](draft/upgrades.status.md)

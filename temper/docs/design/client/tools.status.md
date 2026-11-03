@@ -2,25 +2,23 @@
 
 2026-11-03. Where temper's code lags or departs from [tools.md](tools.md).
 
-- **Not yet:** 5.5: `chat start` takes no `--sub-agent`, so a chat's choice names only its template's sub-agents (`temper-client-tools/src/jig/runner/acts/choice.rs`). 5.1: the groups `goal`, `finding`, `qa`, `party` and
+- **Not yet:** 5.1: the groups `goal`, `finding`, `qa`, `party` and
   `deployment`, absent from `temper-client-tools`' `table.rs` `GROUPS`.
   5.2: `repository receipts`, `finding list`, `finding show`, `qa marks`,
-  `qa passes`, `hold list`, and `settings show landing-rule` and
-  `forge-charter` (`jig/rows.rs` `SETTING` reads charters, templates,
-  policies and rules alone). 5.3: `task move
+  `qa passes` and `hold list`. 5.3: `task move
   --under`, `task succeed --by`, `finding route`, `finding backlog`,
   `finding drop`, `qa choose`, `task hold`, `project hold` and `revision
-  restore`; a settings file's items of temper's kinds and a proposal's
-  (`ProposalItems`). 5.5: area 2's `goal start` with its model flags,
-  `proposal withdraw`, `seen`, and `task amend`'s `--budget` and
-  `--tasks`; area 3's `party make`, `sign-in --service`, `deployment
+  restore`; a template's resources in a settings file and in
+  `settings show`: the file's template has no `resources` member
+  (`temper-settings-form/src/view.rs`), and one applied from a file
+  names none (`jig/settings_adapter.rs`, `client_template`). 5.5: area 2's `goal start` with its model flags,
+  `proposal withdraw`, `seen`, and `task amend`'s `--budget`; area 3's `party make`, `sign-in --service`, `deployment
   show`, `task move`, `task take`, `task hand-back`, and the project's
   `policy`, `role` and `pool`; area 4's `create`, `propose` and
-  `compound`; area 6's `forge replace` and `forge forget`, with no
-  request on the wire. 5.3, beside its acts above: a settings file's
-  item of a project's own policy (`temper-settings-form` decodes none),
-  and `revision restore`'s items of temper's kinds and of a project's
-  policy. 6.1: a task wait's refusal by a worker's hello
+  `compound`; area 6's `forge forget`, with no request on the wire.
+  5.3, beside its acts above: a settings file's item of a project's own
+  policy (`temper-settings-form` decodes none), and `revision restore`'s
+  items of temper's kinds and of a project's policy. 6.1: a task wait's refusal by a worker's hello
   prints its stop bound as jig's nanoseconds, `allowed grace N ns`, not
   whole seconds (`render/document/llm.rs`, `HelloRefusal::StopBound`).
   8.1: `GROUP VERB --help`; `temper ctl` parses a
@@ -28,7 +26,9 @@
   the joined story of a model's amendment (`tests/client`'s
   `amend_tools.rs` parses `--model` alone); the joined stories of
   `playground end`, `forge remove`, and a set up or a connect without
-  FORGE, which `temper-client-tools`' own step tests hold alone.
+  FORGE, which `temper-client-tools`' own step tests hold alone. 11.3:
+  the real loop's connected Forgejo, its tokens connect, a replace of
+  its git token and another user's tokens stopped.
 - **Departs:** 5.1: `project` is area 1's (`jig/rows.rs`
   `PROJECT_SHOW`, `PROJECT_FUND`), not area 3's; the placeholders add
   `HOST:PORT` and `URL`. 5.2: `settings show template|policy` takes

@@ -4056,6 +4056,7 @@ dependencies = [
  "skein-world",
  "smith-agent-shell",
  "temper-engine-domain",
+ "temper-service",
 ]
 
 [[package]]
@@ -4358,6 +4359,7 @@ dependencies = [
  "temper-engine-domain-forge-issues",
  "temper-engine-domain-forge-landing",
  "temper-engine-domain-forge-tiers",
+ "temper-protocol-worker-wire",
 ]
 
 [[package]]
@@ -4455,6 +4457,7 @@ dependencies = [
  "smith-domain-run",
  "smith-domain-session",
  "smith-domain-tools",
+ "temper-client-tools",
  "temper-engine-domain",
  "temper-engine-domain-forge",
  "temper-engine-domain-forge-change",
@@ -4533,6 +4536,7 @@ dependencies = [
  "smith-domain",
  "smith-domain-run",
  "smith-domain-session",
+ "temper-client-protocol-wire",
  "temper-client-tools",
  "temper-docs",
  "temper-engine-domain",
@@ -4933,6 +4937,7 @@ dependencies = [
  "temper-protocol-records",
  "temper-protocol-store",
  "temper-protocol-worker-wire",
+ "temper-settings-form",
  "temper-worker-domain",
  "temper-worker-domain-checkout",
  "temper-worker-protocol-git",
@@ -4947,6 +4952,7 @@ dependencies = [
  "skein-codec",
  "skein-json",
  "skein-lib",
+ "temper-client-protocol-wire",
 ]
 
 [[package]]

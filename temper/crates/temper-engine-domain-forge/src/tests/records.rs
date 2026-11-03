@@ -1,5 +1,6 @@
 //! Kept forge records (temper/docs/design/protocol/forge.md, 2.1; temper/docs/design/domain/forge.md, 4.1).
 use super::*;
+use crate::settings as setting;
 
 pub(super) fn record(number: u16) -> ForgeRecord {
     ForgeRecord {
@@ -143,7 +144,6 @@ fn an_ended_record_is_out_of_every_list_and_refuses_calls() {
                 forge: Making::Kept(1),
                 org: b"org".as_slice().into(),
                 repository: b"repo".as_slice().into(),
-                project: SetUpProject::Existing(5),
             },
         },
     );
@@ -209,5 +209,66 @@ fn made_and_restored_forges_supply_their_checkout_credential() {
         assert_eq!(item.credential, Some(1), "restored={restored}");
         forges::erase(&mut d, 1, &mut out);
         assert_eq!(d.identities.get(&1), None, "erasure frees the credential slot");
+    }
+}
+
+pub(super) fn setting_rule() -> setting::LandingRule {
+    setting::LandingRule {
+        pattern: GatePattern {
+            segments: Box::new([Box::from(b"forge".as_slice())]),
+            last: GateLast::Open(Box::new([])),
+        },
+        enforce: true,
+        ci: true,
+        up_to_date: false,
+        gates: Box::new([setting::RuleGate { number: 2, blocking: true, freshness: JudgeFreshness::Exact }]),
+        approvals: Box::new([setting::RuleApproval { role: 1, people: 2, freshness: JudgeFreshness::Clean }]),
+    }
+}
+
+#[test]
+fn setting_rows_count_scopes_slots_and_proposals_with_checked_arithmetic() {
+    let limits = Limits { judge_projects: 2, landing_rules: 3, setting_proposals: 4, ..LIMITS };
+    assert_eq!(setting::rows(&limits), Some(66)); // 9 * 2 + 4 + 4 * 11.
+    assert_eq!(setting::rows(&Limits { judge_projects: 0, landing_rules: 0, setting_proposals: 0, ..LIMITS }), Some(4));
+    for limits in [
+        Limits { judge_projects: u32::MAX, ..LIMITS },
+        Limits { landing_rules: u32::MAX, ..LIMITS },
+        Limits { setting_proposals: u32::MAX, ..LIMITS },
+        Limits { judge_projects: 0, landing_rules: (u32::MAX - 4) / 2, setting_proposals: 1, ..LIMITS },
+    ] {
+        assert_eq!(setting::rows(&limits), None);
+        let Err(error) = Domain::new(
+            &limits,
+            4,
+            skein_forge_client::Config { namespace: b"test".as_slice().into(), writers: Box::new([]) },
+            &[],
+            &[],
+            false,
+        ) else {
+            panic!("overflowing setting rows must refuse construction");
+        };
+        assert_eq!(error, skein_forge::api::Error::TooLarge);
+    }
+}
+
+#[test]
+fn setting_bytes_count_rule_allocations_and_inline_values_hold_none() {
+    use core::mem::size_of;
+    let rule = setting_rule();
+    let bytes = 5 + size_of::<Box<[u8]>>() + size_of::<setting::RuleGate>() + size_of::<setting::RuleApproval>();
+    let key = setting::SettingKey { kind: 1, scope: 0, number: 1, slot: setting::SettingSlot::Default };
+    for (edit, expected) in [
+        (
+            setting::Edit::Set(setting::SizedValue { value: setting::Value::Rule(rule), size: 42 }),
+            u64::try_from(bytes).unwrap(),
+        ),
+        (setting::Edit::Set(setting::SizedValue { value: setting::Value::Charter(7), size: 4 }), 0),
+        (setting::Edit::Remove, 0),
+        (setting::Edit::Reset, 0),
+    ] {
+        let row = Stored::Setting(setting::SettingRow { key, edit });
+        assert_eq!(stored_key(&row), Key::Setting(key));
+        assert_eq!(stored_bytes(&row), Some(expected));
     }
 }

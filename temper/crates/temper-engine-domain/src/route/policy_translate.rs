@@ -1,16 +1,9 @@
-//! Total bounded translations of the configured landing policy (domain/root.md,
-//! 6): the authority child's requirements, the forge's criteria and its gate
-//! templates, under one index. Siblings share no types (programming-model.md).
-
-use alloc::boxed::Box;
-
+//! Landing defaults at the root boundary (temper/docs/design/domain/root.md, 6;
+//! temper/docs/design/protocol/configuration.md, 13.3).
 use super::{Freshness, LandingRule, authority, forge};
+use alloc::boxed::Box;
+use forge::settings;
 use skein_lib::List;
-
-pub(crate) struct LandingBuilt {
-    pub requirements: Box<[authority::Requirement]>,
-    pub criteria: Box<[forge::Criterion]>,
-}
 
 pub(crate) fn combine_requirements(
     base: &[authority::Requirement],
@@ -22,182 +15,109 @@ pub(crate) fn combine_requirements(
         result.push(requirement.clone()).ok()?;
     }
     for requirement in added {
-        result.push(requirement.clone()).ok()?;
+        if !base.contains(requirement) {
+            result.push(requirement.clone()).ok()?;
+        }
     }
     Some(result.into_boxed())
 }
 
-/// Translate a connector's landing policy into authority's opaque judges and
-/// the forge's own parameters. Both arrays use the same stable index.
-pub(crate) fn build_landing(rules: &[LandingRule], project: bool, limit: u32, connector: u16) -> Option<LandingBuilt> {
-    if u32::try_from(rules.len()).ok()? > limit {
-        return None;
+/// The merge checks the forge's held rules, independently of their criteria.
+pub(crate) fn standing_requirements(connector: u16) -> [authority::Requirement; 2] {
+    [standing(connector, 5, true), standing(connector, 6, false)]
+}
+
+fn standing(connector: u16, requirement: u16, guarded: bool) -> authority::Requirement {
+    authority::Requirement {
+        connector,
+        kind: 4,
+        pattern: authority::Pattern {
+            segments: Box::new([Box::from(b"forge".as_slice())]),
+            last: authority::Last::Open(Box::new([])),
+        },
+        judge: authority::Judge { connector, requirement, parameters: 0 },
+        guard: if guarded {
+            authority::Guard::Guarded
+        } else {
+            authority::Guard::Observed { freshness: skein_lib::Duration::ZERO }
+        },
+        must_be_guarded: guarded,
     }
-    let mut requirements = List::with_capacity(limit);
-    let mut criteria = List::with_capacity(limit);
-    for rule in rules {
-        if rule.connector != connector || rule.kind != 4 {
-            return None;
-        }
-        if rule.ci {
-            landing_item(rule, project, 1, forge::Criterion::Ci, &mut requirements, &mut criteria)?;
-        }
-        if rule.up_to_date {
-            landing_item(rule, project, 2, forge::Criterion::UpToDate, &mut requirements, &mut criteria)?;
-        }
+}
+
+/// Stock supplied explicitly by a test world's builder.
+pub(crate) fn landing_stock(
+    deployment: &[LandingRule],
+    projects: &skein_lib::Map<u32, Box<[LandingRule]>>,
+    change: u32,
+    review: u32,
+) -> Box<[settings::Stock]> {
+    let mut stock = List::uncapped();
+    rules(&mut stock, 1, 0, deployment);
+    for (&project, landing) in projects {
+        rules(&mut stock, 2, project, landing);
+    }
+    for (number, charter) in [(1, change), (2, review)] {
+        stock
+            .push(settings::Stock {
+                kind: 3,
+                scope: 0,
+                number,
+                value: settings::SizedValue { size: 0, value: settings::Value::Charter(charter) },
+            })
+            .expect("uncapped stock");
+    }
+    stock.into_boxed()
+}
+
+fn rules(stock: &mut List<settings::Stock>, kind: u32, scope: u32, rules: &[LandingRule]) {
+    for (index, rule) in rules.iter().enumerate() {
+        let last = match &rule.pattern.last {
+            jig_domain_authority::Last::Exact(value) => forge::GateLast::Exact(value.clone()),
+            jig_domain_authority::Last::Open(value) => forge::GateLast::Open(value.clone()),
+        };
+        let mut gates = List::uncapped();
         for gate in &rule.gates {
-            if gate.blocking {
-                landing_item(
-                    rule,
-                    project,
-                    3,
-                    forge::Criterion::Gate {
-                        number: gate.number,
-                        freshness: match gate.freshness {
-                            Freshness::Exact => forge::JudgeFreshness::Exact,
-                            Freshness::Clean => forge::JudgeFreshness::Clean,
-                        },
-                    },
-                    &mut requirements,
-                    &mut criteria,
-                )?;
-            }
+            gates
+                .push(settings::RuleGate {
+                    number: gate.number,
+                    blocking: gate.blocking,
+                    freshness: freshness(gate.freshness),
+                })
+                .expect("uncapped gates");
         }
+        let mut approvals = List::uncapped();
         for approval in &rule.approvals {
-            landing_item(
-                rule,
-                project,
-                4,
-                forge::Criterion::Approval {
+            approvals
+                .push(settings::RuleApproval {
                     role: approval.role,
                     people: approval.people,
-                    freshness: match approval.freshness {
-                        Freshness::Exact => forge::JudgeFreshness::Exact,
-                        Freshness::Clean => forge::JudgeFreshness::Clean,
-                    },
-                },
-                &mut requirements,
-                &mut criteria,
-            )?;
-        }
-    }
-    Some(LandingBuilt { requirements: requirements.into_boxed(), criteria: criteria.into_boxed() })
-}
-
-pub(crate) fn landing_roles(policy: &authority::Policy, rules: &[LandingRule]) -> bool {
-    for rule in rules {
-        for approval in &rule.approvals {
-            let mut found = false;
-            for role in &policy.roles {
-                if role.number == approval.role {
-                    found = true;
-                }
-            }
-            if !found {
-                return false;
-            }
-        }
-    }
-    true
-}
-
-fn landing_item(
-    rule: &LandingRule,
-    project: bool,
-    kind: u16,
-    criterion: forge::Criterion,
-    requirements: &mut List<authority::Requirement>,
-    criteria: &mut List<forge::Criterion>,
-) -> Option<()> {
-    let index = criteria.len();
-    if index >= 0x8000_0000 {
-        return None;
-    }
-    let parameters = if project { index | 0x8000_0000 } else { index };
-    let guarded = match criterion {
-        forge::Criterion::UpToDate => false,
-        forge::Criterion::Ci | forge::Criterion::Gate { .. } | forge::Criterion::Approval { .. } => true,
-    };
-    criteria.push(criterion).ok()?;
-    if rule.enforce {
-        requirements
-            .push(authority::Requirement {
-                connector: rule.connector,
-                kind: rule.kind,
-                pattern: rule.pattern.clone(),
-                judge: authority::Judge { connector: rule.connector, requirement: kind, parameters },
-                guard: if guarded {
-                    authority::Guard::Guarded
-                } else {
-                    authority::Guard::Observed { freshness: skein_lib::Duration::ZERO }
-                },
-                must_be_guarded: guarded,
-            })
-            .ok()?;
-    }
-    Some(())
-}
-
-pub(crate) fn gate_policy(
-    policy: &crate::LandingPolicy,
-    rules_limit: u32,
-    gates_limit: u32,
-) -> Option<forge::GatePolicy> {
-    let deployment = gate_templates(&policy.deployment, false, rules_limit, gates_limit)?;
-    let mut projects = skein_lib::Map::with_capacity(policy.projects.capacity());
-    for (project, rules) in &policy.projects {
-        projects.insert(*project, gate_templates(rules, true, rules_limit, gates_limit)?).ok()?;
-    }
-    Some(forge::GatePolicy { deployment, projects })
-}
-pub(crate) fn gate_templates(
-    rules: &[LandingRule],
-    project: bool,
-    rules_limit: u32,
-    gates_limit: u32,
-) -> Option<Box<[forge::GateTemplate]>> {
-    let mut templates = List::with_capacity(rules_limit);
-    let mut criterion = 0_u32;
-    for rule in rules {
-        if rule.ci {
-            criterion = criterion.checked_add(1)?;
-        }
-        if rule.up_to_date {
-            criterion = criterion.checked_add(1)?;
-        }
-        let mut gates = List::with_capacity(gates_limit);
-        for gate in &rule.gates {
-            let parameters = criterion | if project { 0x8000_0000 } else { 0 };
-            if gate.blocking {
-                criterion = criterion.checked_add(1)?;
-            }
-            gates
-                .push(forge::GateCandidate {
-                    number: gate.number,
-                    parameters,
-                    blocking: gate.blocking,
-                    project_scope: project,
-                    freshness: match gate.freshness {
-                        Freshness::Exact => temper_engine_domain_forge_change::Freshness::Exact,
-                        Freshness::Clean => temper_engine_domain_forge_change::Freshness::Clean,
-                    },
+                    freshness: freshness(approval.freshness),
                 })
-                .ok()?;
+                .expect("uncapped approvals");
         }
-        criterion = criterion.checked_add(u32::try_from(rule.approvals.len()).ok()?)?;
-        templates
-            .push(forge::GateTemplate {
-                pattern: forge::GatePattern {
-                    segments: rule.pattern.segments.clone(),
-                    last: match &rule.pattern.last {
-                        authority::Last::Exact(last) => forge::GateLast::Exact(last.clone()),
-                        authority::Last::Open(last) => forge::GateLast::Open(last.clone()),
-                    },
-                },
-                gates: gates.into_boxed(),
-                requires: forge::Requires { ci: rule.ci, up_to_date: rule.up_to_date },
+        let value = settings::Value::Rule(settings::LandingRule {
+            pattern: forge::GatePattern { segments: rule.pattern.segments.clone(), last },
+            enforce: rule.enforce,
+            ci: rule.ci,
+            up_to_date: rule.up_to_date,
+            gates: gates.into_boxed(),
+            approvals: approvals.into_boxed(),
+        });
+        stock
+            .push(settings::Stock {
+                kind,
+                scope,
+                number: u32::try_from(index).expect("bounded rules").checked_add(1).expect("bounded rule number"),
+                value: settings::SizedValue { size: 0, value },
             })
-            .ok()?;
+            .expect("uncapped stock");
     }
-    Some(templates.into_boxed())
+}
+
+fn freshness(value: Freshness) -> forge::JudgeFreshness {
+    match value {
+        Freshness::Exact => forge::JudgeFreshness::Exact,
+        Freshness::Clean => forge::JudgeFreshness::Clean,
+    }
 }

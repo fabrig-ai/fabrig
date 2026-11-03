@@ -112,6 +112,7 @@ pub fn domain() -> Domain {
             second: jig_test_connector_world::config(2),
             core: core::Config {
                 jobs: Box::new([]),
+                kept_starts: Box::new([]),
                 worker_names: Box::new([b"alpha".as_slice().into(), b"beta".as_slice().into()]),
                 deployment: [1; 16],
                 seed: 1,
@@ -140,6 +141,7 @@ pub fn domain() -> Domain {
                         }]),
                     },
                 },
+                kinds: Box::default(),
                 defaults: core::settings::Defaults {
                     charters: Box::new([core::Charter {
                         wake: jig_domain_tasks::WakePolicy::DEFAULT,
@@ -188,7 +190,7 @@ pub fn run() -> Box<core::RunCharter> {
             reserve_turns: 1,
             reserve_time: Duration::from_secs(10),
             model: core::Model {
-                dialect: 1,
+                dialect: 3,
                 endpoint: 1,
                 program: None,
                 name: b"small".as_slice().into(),

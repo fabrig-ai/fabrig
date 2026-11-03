@@ -1,7 +1,11 @@
-//! Model names come from me; account and sub-agent preferences stay as supplied
-//! by the template or task (client/tools.md, 5.5).
+//! Model names come from me; explicit sub-agents replace the template choices
+//! (client/tools.md, 5.5).
 use super::{Call, Failed, value};
-use crate::jig::{call::Value, render, runner::Printed};
+use crate::jig::{
+    call::{Value, Values},
+    render,
+    runner::Printed,
+};
 use alloc::boxed::Box;
 use jig_client::contract as c;
 use skein_lib::{List, Writer};
@@ -38,6 +42,51 @@ pub(crate) fn llm(
     };
     choice.main = main;
     Ok(Some(choice))
+}
+pub(crate) fn sub_agents(
+    call: &Call,
+    argument: u8,
+    me: &c::Me,
+    project: u32,
+) -> Result<Option<List<c::ModelEffort>>, Failed> {
+    let Some(Some(Values::Many(values))) = call.values.get(usize::from(argument)) else { return Ok(None) };
+    let mut subagents: List<c::ModelEffort> =
+        List::with_capacity(u32::try_from(values.len()).expect("bounded sub-agents"));
+    for value in values {
+        let Value::Text(text) = value else { return Err(Failed::Fixed(b"sub-agent not loaded")) };
+        let mut colon = None;
+        for (index, byte) in text.iter().enumerate() {
+            if *byte == b':' {
+                colon = Some(index);
+            }
+        }
+        let (name, effort) = match colon {
+            Some(index) => {
+                let (name, rest) = text.split_at_checked(index).expect("colon in model choice");
+                (name, Some(rest.get(1..).expect("colon before effort")))
+            }
+            None => (text.as_ref(), None),
+        };
+        let model = offered(me, project, name).ok_or(Failed::Unknown { what: b"model", name: reported(name) })?;
+        for previous in &subagents {
+            if previous.model == model.name {
+                return Err(Failed::SubAgentNamedTwice { name: reported(name) });
+            }
+        }
+        let effort = match effort {
+            Some(name) => {
+                Some(offered_effort(model, name).ok_or(Failed::Unknown { what: b"effort", name: reported(name) })?)
+            }
+            None => {
+                if !model.efforts.is_empty() {
+                    return Err(Failed::EffortRequired { name: reported(name) });
+                }
+                None
+            }
+        };
+        subagents.push(c::ModelEffort { model: model.name.clone(), effort }).expect("parsed sub-agents fit");
+    }
+    Ok(Some(subagents))
 }
 fn offered<'a>(me: &'a c::Me, project: u32, name: &[u8]) -> Option<&'a c::MeModel> {
     for membership in &me.projects {

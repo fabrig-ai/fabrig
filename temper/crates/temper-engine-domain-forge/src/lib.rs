@@ -12,6 +12,9 @@
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
+
+/// The merge job (temper/docs/design/domain/worker.md, 4.4).
+pub const MERGE_KIND: u32 = 3;
 use alloc::boxed::Box;
 mod address;
 pub use address::{PULL_ADDRESS_BYTES, pull_address};
@@ -31,15 +34,20 @@ mod gates;
 mod held;
 pub mod items;
 mod judge;
+mod kinds;
 mod landing;
 mod limits;
 mod panel;
 mod playground;
 pub mod purpose;
+mod red;
+pub use red::{JobLog, RedNews, RedOn};
 mod result;
 pub use result::{ChangeResult, ResultText};
 mod reconcile;
+mod refusal;
 mod removal;
+pub use refusal::RefusalCause;
 pub mod runs;
 mod views;
 pub use reconcile::{MissingLink, Need, RecordKind};
@@ -47,6 +55,7 @@ pub mod resources;
 pub mod settings;
 pub use settings::ForgeCharters;
 mod settle;
+mod standing;
 #[cfg(test)]
 mod tests;
 pub mod text;
@@ -57,14 +66,18 @@ pub use boundary::*;
 pub use brief::{HOME_SECTION_BYTES, hex, home_access_reason};
 pub use commit::commit_text;
 pub use domain::{Domain, RestoreFit, RestoreSet, fire, resume, step, tag, untag, writer};
-pub use gates::{GateCandidate, GateLast, GatePattern, GatePolicy, GateTemplate, Requires};
-pub use judge::{Criterion, Freshness as JudgeFreshness, Judges, Reviewer, Verdict as JudgeVerdict};
+pub use gates::{GateCandidate, GateLast, GatePattern, Requires};
+pub use judge::{Criterion, Freshness as JudgeFreshness, Reviewer, Verdict as JudgeVerdict};
 pub use limits::{
     BOT_LOGIN_SUFFIX, CONNECT_WHY_BYTES, FIRST_NAME_BYTES, Limits, STOPPED_TEXT_BYTES, TierLimits, valid,
 };
-pub use panel::{MARKED, PANEL_AHEAD, PANEL_GATES, PANEL_NAME_BYTES, Panel, PanelGate, PanelStep, PanelUsed};
+pub use panel::{
+    MARKED, PANEL_AHEAD, PANEL_GATES, PANEL_NAME_BYTES, Panel, PanelGate, PanelQuestion, PanelQuestions, PanelStands,
+    PanelStep, PanelUsed,
+};
 pub use temper_engine_domain_forge_landing::{CHECK_NAME_BYTES, WORKFLOW_BYTES};
 pub use temper_engine_domain_forge_landing::{Hold as LandingHold, Phase as LandingPhase};
+pub use verification::LandingRed;
 pub use views::{
     Document, GateProof, LandingGate, LandingLine, LandingMember, LandingView, LandingsView, landings_subject,
 };
@@ -258,6 +271,7 @@ pub fn stored_key(row: &Stored) -> Key {
         Stored::Release(row) => Key::Release(row.task),
         Stored::Application { token, .. } => Key::Application(*token),
         Stored::Writer(row) => Key::Writer(row.forge),
+        Stored::Setting(row) => Key::Setting(row.key),
         Stored::Binding { address, .. } => Key::Binding(address.clone()),
         Stored::Flight { task, entry } => Key::Flight { task: *task, entry: *entry },
     }
@@ -319,13 +333,36 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                     .checked_add(bytes(&first.org)?)?
                     .checked_add(bytes(&first.repository)?)?
                     .checked_add(bytes(&first.label)?)?;
-                match &first.project {
-                    SetUpProject::Existing(_) => {}
-                    SetUpProject::New(name) => held = held.checked_add(bytes(name)?)?,
-                }
             }
             Some(held)
         }
+        Stored::Setting(row) => match &row.edit {
+            settings::Edit::Set(settings::SizedValue { value: settings::Value::Rule(rule), .. }) => {
+                let mut held = u64::try_from(rule.pattern.segments.len())
+                    .ok()?
+                    .checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?;
+                for segment in &rule.pattern.segments {
+                    held = held.checked_add(bytes(segment)?)?;
+                }
+                let last = match &rule.pattern.last {
+                    GateLast::Exact(last) | GateLast::Open(last) => last,
+                };
+                held.checked_add(bytes(last)?)?
+                    .checked_add(
+                        u64::try_from(rule.gates.len())
+                            .ok()?
+                            .checked_mul(u64::try_from(size_of::<settings::RuleGate>()).ok()?)?,
+                    )?
+                    .checked_add(
+                        u64::try_from(rule.approvals.len())
+                            .ok()?
+                            .checked_mul(u64::try_from(size_of::<settings::RuleApproval>()).ok()?)?,
+                    )
+            }
+            settings::Edit::Set(settings::SizedValue { value: settings::Value::Charter(_), .. })
+            | settings::Edit::Remove
+            | settings::Edit::Reset => Some(0),
+        },
         Stored::Tier(row) => tiers::row_bytes(row),
         Stored::Verification(row) => verification::row_bytes(row),
         Stored::Landing(row) => landing::row_bytes(row),

@@ -377,7 +377,7 @@ fn a_claude_configuration_replaces_openai_and_keeps_the_demo() {
         json!([
             {"name":"claude", "number":2, "dialect":2, "provider":"anthropic", "program":"claude_code",
                 "address":"api.anthropic.com:443", "transport":"tls", "server_name":"api.anthropic.com",
-                "identity":"plain", "connect":10000, "handshake":10000, "headers":[],
+                "connect":10000, "handshake":10000, "headers":[],
                 "models":[{"name":"claude-haiku-5-5", "prices":{"input":1, "cached":1, "output":1, "unit":1000},
                     "window":1_048_576, "output":8192, "reasoning_item":65536, "head":60000, "idle":30000}]},
             agent_before["endpoints"][1]
@@ -950,5 +950,62 @@ fn an_ended_delegate_read_refuses_live_rows_a_cut_without_a_cursor_and_a_33rd_pa
             ended.read(&delegate_read(&[], false, None)),
             Err("ended delegates exceed 32-page bound".to_owned())
         );
+    }
+}
+
+#[test]
+fn setup_accepts_a_project_free_first_repository_row() {
+    use skein_io::kernel::Exit;
+    let scratch = support::Scratch::new("setup-project-free-row");
+    let row = json!({"forges":[{
+        "number":1,"mode":"owned","state":"connected",
+        "first":{"state":"made","org":"work","repository":"hello","id":1}
+    }]});
+    let calls = [
+        String::new(),
+        json!({"forges":[]}).to_string(),
+        "setting up\nproject: 1 · hello\nAdopted work/hello on forge 1 as owned.\nIt is the project's home.\n"
+            .to_owned(),
+        String::new(),
+        row.to_string(),
+        "forge 1 · Forgejo · owned · Connected as temper (2)".to_owned(),
+    ]
+    .map(|stdout| support::Ended { exit: Some(Exit::Code(0)), stdout: stdout.into_bytes(), stderr: vec![] });
+    assert_eq!(
+        support::forge_land::assert_forgejo_setup_after_sign_in(
+            "first",
+            &calls,
+            "forgejo-1: started\nrunner-1: started",
+            None,
+            scratch.path()
+        ),
+        2
+    );
+    scratch.remove();
+}
+
+#[test]
+fn setup_resolves_the_adopted_project_on_fresh_and_seeded_deployments() {
+    use support::first_repository::project_number;
+    for (projects, name, expected) in [
+        (json!([{"project":1,"name":{"bytes":"hello"}}]), "hello", 1),
+        (json!([{"project":1,"name":{"bytes":"widget"}}]), "widget", 1),
+        (json!([{"project":1,"name":{"bytes":"seed"}},{"project":8,"name":{"bytes":"hello"}}]), "hello", 8),
+    ] {
+        assert_eq!(project_number(&json!({"projects":projects}), name), Ok(expected));
+    }
+}
+
+#[test]
+fn setup_refuses_missing_or_ambiguous_adopted_projects() {
+    use support::first_repository::project_number;
+    for me in [
+        json!({}),
+        json!({"projects":[]}),
+        json!({"projects":[{"project":1,"name":{"bytes":"seed"}}]}),
+        json!({"projects":[{"project":0,"name":{"bytes":"hello"}}]}),
+        json!({"projects":[{"project":1,"name":{"bytes":"hello"}},{"project":2,"name":{"bytes":"hello"}}]}),
+    ] {
+        assert!(project_number(&me, "hello").is_err(), "{me}");
     }
 }

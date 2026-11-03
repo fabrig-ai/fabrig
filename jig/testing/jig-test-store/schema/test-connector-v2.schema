@@ -67,5 +67,10 @@ enum Refusal { role: RefusalRole, authority: RefusalAuthority, limit: RefusalLim
 record ApplicationOutcomeCoreRefused { why: Refusal }
 enum ApplicationOutcome { changed: ApplicationOutcomeChanged, moved: ApplicationOutcomeMoved, role: ApplicationOutcomeRole, unknown, exhausted, core_refused: ApplicationOutcomeCoreRefused }
 record RecordApplicationAnswer { token: u64 until: u64 outcome: ApplicationOutcome }
-enum Value { application_object: RecordApplicationObject, application_answer: RecordApplicationAnswer, proposal: RecordProposal, procedure: RecordProcedure, procedure_delegate_outcome: RecordProcedureDelegateOutcome, result: RecordResult, task: RecordTask, adoption: RecordAdoption, subscription: RecordSubscription, pool: RecordPool, outbox: RecordOutbox, made: RecordMade }
+record SettingSet { value: bytes 65536 }
+enum SettingEdit { set: SettingSet, remove, reset }
+record RecordSettingDefault { kind: u32 scope: u32 number: u32 value: bytes 65536 }
+record RecordSettingChange { kind: u32 scope: u32 number: u32 value: option bytes 65536 }
+record RecordSettingProposal { proposal: u64 kind: u32 scope: u32 number: u32 edit: SettingEdit }
+enum Value { application_object: RecordApplicationObject, application_answer: RecordApplicationAnswer, proposal: RecordProposal, procedure: RecordProcedure, procedure_delegate_outcome: RecordProcedureDelegateOutcome, result: RecordResult, task: RecordTask, adoption: RecordAdoption, subscription: RecordSubscription, pool: RecordPool, outbox: RecordOutbox, made: RecordMade, setting_default: RecordSettingDefault, setting_change: RecordSettingChange, setting_proposal: RecordSettingProposal }
 versioned record Row { value: Value }

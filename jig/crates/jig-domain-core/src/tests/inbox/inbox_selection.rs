@@ -870,7 +870,7 @@ fn whole_inbox_context_distinguishes_unsupplied_from_empty_and_refuses_depth_ove
     assert!(page.inbox_selection.as_ref().unwrap().is_empty());
     limits.tasks.depth = u32::MAX;
     assert_eq!(inbox_selection_bound(16, limits.tasks.depth), None);
-    assert_eq!(document_with_context_bound(&limits), None);
+    assert_eq!(document_with_context_bound(&limits, &core.kinds), None);
     assert_eq!(
         make(&core, &limits, 1, &Subject::Inbox { party: 1 }, &Window { rows: 16, after: None }, Wall::EPOCH),
         Err(Missing::TooLarge)
@@ -910,7 +910,26 @@ fn inbox_context_memory_prices_every_reserved_container_and_complete_document_en
     // Sixteen retained specification lines carry eight aligned bytes for asks.
     // Two value sets each price charter wake policies and two documents.
     // Templates retain resource slices and specification lines retain job specs.
-    const SETTINGS_DOCUMENT: u64 = 120_528 + 4 * 72 + 16 * 8 + 2 * 8 * 16 + 16 * 8 + 2 * 56 + 2 * 2 * 440;
+    // Application settings enlarge SettingLine by 8 bytes for each of the 11
+    // defaults and 11 changes, ReviewItem by 24 bytes for 128 items (Setting
+    // and its two optional Values), and RevisionItemHead by 8 bytes for 128 heads.
+    // Optional application states add 40 bytes per inventory and review row;
+    // each of the 128 review rows also prices 255 charter numbers at four bytes.
+    // The settings review carries a 16-byte optional proposal key.
+    const SETTINGS_DOCUMENT: u64 = 120_528
+        + 4 * 72
+        + 16 * 8
+        + 2 * 8 * 16
+        + 16 * 8
+        + 2 * 56
+        + 2 * 2 * 440
+        + 2 * 11 * 8
+        + 128 * 24
+        + 128 * 8
+        + 2 * 11 * 40
+        + 128 * 40
+        + 128 * 255 * 4
+        + 16;
 
     let (mut core, limits) = fixture();
     waiting(
@@ -933,9 +952,12 @@ fn inbox_context_memory_prices_every_reserved_container_and_complete_document_en
     assert!(held <= bound);
     assert!(roots > u64::try_from(size_of_val(contexts.get(0).unwrap().goals.as_slice())).unwrap());
     assert_eq!(
-        document_with_context_bound(&limits),
+        document_with_context_bound(&limits, &core.kinds),
         Some(document_bound(&limits.documents).unwrap() + bound + TEMPLATE_ENVELOPES + SETTINGS_DOCUMENT)
     );
-    assert!(crate::reads::answer_bound(&limits).unwrap() >= document_with_context_bound(&limits).unwrap());
+    assert!(
+        crate::reads::answer_bound(&limits, &core.kinds).unwrap()
+            >= document_with_context_bound(&limits, &core.kinds).unwrap()
+    );
     assert!(valid(&limits));
 }

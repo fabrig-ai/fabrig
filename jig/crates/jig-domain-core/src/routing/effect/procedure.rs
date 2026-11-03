@@ -25,31 +25,8 @@ pub(crate) fn parts(
     task: u64,
     step: &ProcedureStep,
 ) -> Result<tasks::ProcedureDecision, StepRefusal> {
-    let mut amendments = List::with_capacity(env.limits.tasks.batch);
+    let amendments = amendments(core, env, task, &step.amendments)?;
     let mut messages = List::with_capacity(env.limits.tasks.batch);
-    for part in &step.amendments {
-        let mut amendment = part.amendment.clone();
-        core.keep_models(part.task, &mut amendment);
-        let stop_run =
-            match core.task_amend_admit(task, part.task, &amendment, env.limits.tasks.depth, &env.limits.tasks) {
-                Ok(stop_run) => stop_run,
-                Err(crate::TaskAmendDenied::Refused { task, why }) => return Err(problem(task, why)),
-                Err(crate::TaskAmendDenied::Denied(answer)) => {
-                    return Err(StepRefusal::Denied { answer, findings: Box::new([]) });
-                }
-            };
-        if let Err(jig_domain_people::Refusal::Moved { now }) =
-            core.party_amend_revision(part.task, part.revision, &amendment)
-        {
-            return Err(StepRefusal::Moved { task: part.task, now });
-        }
-        let Some(message) = crate::fresh(&mut core.counters, crate::Family::Message) else {
-            return Err(problem(task, tasks::Refusal::Busy));
-        };
-        if amendments.push(tasks::ProcedureAmendment { task: part.task, message, stop_run, amendment }).is_err() {
-            return Err(problem(task, tasks::Refusal::Batch));
-        }
-    }
     let Some(row) = core.tasks.task(task) else { return Err(problem(task, tasks::Refusal::Unknown)) };
     for part in &step.messages {
         if row.requester != tasks::Party::Task(part.target)
@@ -86,11 +63,13 @@ pub(crate) fn parts(
         StepEnd::Result(result) => tasks::ProcedureEnd::Result(result.clone()),
     };
     Ok(tasks::ProcedureDecision {
+        words: step.words.clone(),
         batch: Box::new([]),
-        amendments: amendments.into_boxed(),
+        amendments,
         cancels: cancels(core, env, &step.cancels)?,
         messages: messages.into_boxed(),
         proposals: proposals(core, env, task, &step.proposals)?,
+        started_from: step.started_from.clone(),
         end,
     })
 }
@@ -255,4 +234,38 @@ fn cancels(
         }
     }
     Ok(cancels.into_boxed())
+}
+
+#[expect(clippy::result_large_err, reason = "step refusals retain exact owner diagnostics")]
+fn amendments(
+    core: &mut Core,
+    env: &Env<Limits>,
+    task: u64,
+    parts: &[crate::StepAmendment],
+) -> Result<Box<[tasks::ProcedureAmendment]>, StepRefusal> {
+    let mut amendments = List::with_capacity(env.limits.tasks.batch);
+    for part in parts {
+        let mut amendment = part.amendment.clone();
+        core.keep_models(part.task, &mut amendment);
+        let stop_run =
+            match core.task_amend_admit(task, part.task, &amendment, env.limits.tasks.depth, &env.limits.tasks) {
+                Ok(stop_run) => stop_run,
+                Err(crate::TaskAmendDenied::Refused { task, why }) => return Err(problem(task, why)),
+                Err(crate::TaskAmendDenied::Denied(answer)) => {
+                    return Err(StepRefusal::Denied { answer, findings: Box::new([]) });
+                }
+            };
+        if let Err(jig_domain_people::Refusal::Moved { now }) =
+            core.party_amend_revision(part.task, part.revision, &amendment)
+        {
+            return Err(StepRefusal::Moved { task: part.task, now });
+        }
+        let Some(message) = crate::fresh(&mut core.counters, crate::Family::Message) else {
+            return Err(problem(task, tasks::Refusal::Busy));
+        };
+        if amendments.push(tasks::ProcedureAmendment { task: part.task, message, stop_run, amendment }).is_err() {
+            return Err(problem(task, tasks::Refusal::Batch));
+        }
+    }
+    Ok(amendments.into_boxed())
 }

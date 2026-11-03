@@ -20,7 +20,7 @@ pub fn effect() -> d::Effect {
 pub fn record_key(random: &mut Rng) -> (u16, d::RecordKey) {
     let connector = if random.below(2) == 0 { FIRST } else { SECOND };
     let number = random.next_u64();
-    let record = match random.below(12) {
+    let record = match random.below(15) {
         0 => d::RecordKey::ApplicationObject(number),
         1 => d::RecordKey::ApplicationAnswer(Token::new(number)),
         2 => d::RecordKey::Procedure(number),
@@ -32,7 +32,10 @@ pub fn record_key(random: &mut Rng) -> (u16, d::RecordKey) {
         8 => d::RecordKey::Pool(random_path(random)),
         9 => d::RecordKey::Proposal(number),
         10 => d::RecordKey::Outbox(random_key(random)),
-        _ => d::RecordKey::Made(random_key(random)),
+        11 => d::RecordKey::Made(random_key(random)),
+        12 => d::RecordKey::SettingDefault { kind: u32::try_from(number & 255).expect("byte"), scope: 0, number: 1 },
+        13 => d::RecordKey::SettingChange { kind: 1, scope: u32::try_from(number & 255).expect("byte"), number: 1 },
+        _ => d::RecordKey::SettingProposal { proposal: number, kind: 1, scope: 0, number: 1 },
     };
     (connector, record)
 }
@@ -77,6 +80,18 @@ pub fn records() -> Box<[d::Record]> {
         pool(),
         outbox(),
         made(),
+        d::Record::SettingDefault { kind: 1, scope: 0, number: 1, value: Box::from(&b"default"[..]) },
+        d::Record::SettingChange { kind: 1, scope: 0, number: 1, value: Some(Box::from(&b"change"[..])) },
+        d::Record::SettingChange { kind: 1, scope: 0, number: 2, value: None },
+        d::Record::SettingProposal {
+            proposal: 9,
+            kind: 1,
+            scope: 0,
+            number: 1,
+            edit: d::SettingEdit::Set(Box::from(&b"proposal"[..])),
+        },
+        d::Record::SettingProposal { proposal: 9, kind: 1, scope: 0, number: 2, edit: d::SettingEdit::Remove },
+        d::Record::SettingProposal { proposal: 9, kind: 1, scope: 0, number: 3, edit: d::SettingEdit::Reset },
     ])
 }
 fn application_object() -> d::Record {

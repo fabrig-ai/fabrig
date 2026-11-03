@@ -292,9 +292,8 @@ impl Readiness {
         let mut again = 0;
         let result = loop {
             let result = call(kind, resumed, nonblocking, &mut self.listing);
-            // Socket, Accept, Connect, Open and Close complete with their error;
-            // interrupted transfers are reissued (shell.md, 7.4). The other
-            // operations keep retrying while their rule is open (shell.md, 10).
+            // Interrupted transfers are reissued; every other operation
+            // completes with its error (shell.md, 7.4).
             if result == Err(Error::Other(libc::EINTR)) && retry_interrupted(kind) {
                 continue;
             }
@@ -358,10 +357,9 @@ impl Readiness {
     }
 }
 
-/// Whether to reissue an interrupted call (shell.md, 7.4 and 10).
+/// Whether to reissue an interrupted call (shell.md, 7.4).
 fn retry_interrupted(kind: &Op) -> bool {
     match kind {
-        Op::Socket { .. } | Op::Accept { .. } | Op::Connect { .. } | Op::Open { .. } | Op::Close { .. } => false,
         Op::PipeWrite { .. }
         | Op::Write { .. }
         | Op::Append { .. }
@@ -369,7 +367,12 @@ fn retry_interrupted(kind: &Op) -> bool {
         | Op::PipeRead { .. }
         | Op::Read { .. }
         | Op::Recv { .. }
-        | Op::ReadSignal { .. }
+        | Op::ReadSignal { .. } => true,
+        Op::Socket { .. }
+        | Op::Accept { .. }
+        | Op::Connect { .. }
+        | Op::Open { .. }
+        | Op::Close { .. }
         | Op::Bind { .. }
         | Op::Listen { .. }
         | Op::Shutdown { .. }
@@ -385,7 +388,7 @@ fn retry_interrupted(kind: &Op) -> bool {
         | Op::Spawn { .. }
         | Op::Signal { .. }
         | Op::Usage
-        | Op::Window { .. } => true,
+        | Op::Window { .. } => false,
         Op::Cancel { .. } => unreachable!("cancel is settled against the table at submit"),
     }
 }
@@ -520,7 +523,7 @@ fn perform_call(kind: &mut Op, resumed: bool, nonblocking: bool, listing: &mut s
         }
         Op::Remove { dir, name, directory } => system::files::remove(*dir, name, *directory).map(|()| Done::Nothing),
         Op::MakeDirectory { dir, name, mode } => system::files::mkdir(*dir, name, *mode).map(|()| Done::Nothing),
-        Op::List { fd, entries, names } => system::retry(|| listing.list(*fd, entries, names)).map(Done::Count),
+        Op::List { fd, entries, names } => listing.list(*fd, entries, names).map(Done::Count),
         Op::Lock { fd } => system::lock(*fd).map(|()| Done::Nothing),
         Op::PipeRead { fd, buf } => system::read(*fd, buf).map(Done::Count),
         Op::PipeWrite { fd, bytes, from } => {

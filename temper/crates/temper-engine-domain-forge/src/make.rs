@@ -2,7 +2,7 @@
 use super::{Domain, setup_login, setup_repository};
 use crate::{
     Ask, Bot, Connection, First, FirstIntent, FirstState, ForgeAsk, ForgeRecord, ForgeState, Kind, Limits, Making,
-    Mode, Offer, Request, SetUpAnswer, SetUpProject, SetUpRefusal,
+    Mode, Offer, Request, SetUpAnswer, SetUpRefusal,
 };
 use alloc::boxed::Box;
 use jig_domain_core::Carried;
@@ -26,7 +26,6 @@ pub(crate) fn restore_first(d: &mut Domain, record: &ForgeRecord) {
                     playground: intent.playground,
                     org: intent.org.clone(),
                     repository: intent.repository.clone(),
-                    project: intent.project.clone(),
                     label: intent.label.clone(),
                     state: FirstState::Making,
                 },
@@ -46,9 +45,10 @@ pub(crate) fn setup(
     carried: Option<Carried>,
     out: &mut Queue<Request>,
 ) {
-    let (forge, org, repository, project, playground) = match ask {
-        Ask::SetUp { forge, org, repository, project, playground } => (forge, org, repository, project, playground),
+    let (forge, org, repository, playground) = match ask {
+        Ask::SetUp { forge, org, repository, playground } => (forge, org, repository, playground),
         Ask::Connect { .. }
+        | Ask::Replace { .. }
         | Ask::RemoveForge { .. }
         | Ask::StartPlayground
         | Ask::EndPlayground
@@ -75,17 +75,10 @@ pub(crate) fn setup(
         return;
     }
     d.setup_pending.insert(request, (token, retention)).expect("setup answer room checked");
-    let invalid_project = match &project {
-        SetUpProject::New(name) => {
-            name.is_empty() || name.len() > usize::try_from(env.limits.name_bytes).expect("name bound fits")
-        }
-        SetUpProject::Existing(_) => false,
-    };
     if !setup_login(&org)
         || !setup_repository(&repository)
         || org.len() > usize::try_from(env.limits.name_bytes).expect("name bound fits")
         || repository.len() > usize::try_from(env.limits.name_bytes).expect("name bound fits")
-        || invalid_project
         || (playground && (org.as_ref() != b"playground" || repository.as_ref() != b"widget"))
     {
         d.setup_answer(env, request, SetUpAnswer::Refused(SetUpRefusal::Invalid), out);
@@ -95,12 +88,13 @@ pub(crate) fn setup(
         playground,
         org: org.clone(),
         repository: repository.clone(),
-        project,
         label: Box::from(b"temper-host".as_slice()),
     };
     let admitted = match forge {
         Making::New(ForgeAsk::Owned) => owned(d, intent.clone(), out),
-        Making::New(ForgeAsk::GitHub | ForgeAsk::Managed { .. }) => Err(SetUpRefusal::NotOffered),
+        Making::New(ForgeAsk::GitHub | ForgeAsk::Managed { .. } | ForgeAsk::Connected { .. }) => {
+            Err(SetUpRefusal::NotOffered)
+        }
         Making::Kept(forge) => match d.offer(forge) {
             Offer::NotOffered => Err(SetUpRefusal::NotOffered),
             Offer::NotUnderTheBox => Err(SetUpRefusal::NotUnderTheBox),
@@ -134,7 +128,6 @@ pub(crate) fn setup(
                 playground,
                 org: org.clone(),
                 repository: repository.clone(),
-                project: intent.project,
                 label: intent.label,
                 state: FirstState::Making,
             },

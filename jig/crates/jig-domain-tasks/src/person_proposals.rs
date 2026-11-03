@@ -176,8 +176,9 @@ pub(crate) fn check(domain: &Domain, env: &Env<Limits>, proposal: &PersonProposa
     Ok(())
 }
 
+/// Heads name jig's kinds alone; the core checks that the whole set, including application items, is non-empty.
 pub(crate) fn valid_settings(items: &[crate::SettingHead]) -> bool {
-    if items.is_empty() || items.len() > skein_lib::length::usize_of(crate::SETTINGS_ITEMS) {
+    if items.len() > skein_lib::length::usize_of(crate::SETTINGS_ITEMS) {
         return false;
     }
     for (at, item) in items.iter().enumerate() {

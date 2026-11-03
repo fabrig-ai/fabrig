@@ -554,6 +554,11 @@ fn panel() -> forge::Panel {
         repairs: forge::PanelUsed { used: 1, limit: 3 },
         resolutions: forge::PanelUsed { used: 2, limit: 4 },
         updates: forge::PanelUsed { used: 3, limit: 5 },
+        questions: forge::PanelQuestions {
+            route: temper_engine_domain_forge_change::Route::None,
+            taken: forge::PanelUsed { used: 0, limit: 4 },
+            open: Box::new([]),
+        },
     }
 }
 fn decoded_panel(value: forge::Panel, forges: &crate::forges::Forges) -> w::ChangePanel {
@@ -599,6 +604,15 @@ fn a_panel_encodes_and_decodes_back_whole() {
             repairs: w::Used::new(&w::CEILINGS, w::UsedParts { used: 1, limit: 3 }).unwrap(),
             resolutions: w::Used::new(&w::CEILINGS, w::UsedParts { used: 2, limit: 4 }).unwrap(),
             updates: w::Used::new(&w::CEILINGS, w::UsedParts { used: 3, limit: 5 }).unwrap(),
+            questions: w::Questions::new(
+                &w::CEILINGS,
+                w::QuestionsParts {
+                    route: w::Route::None,
+                    taken: w::Used::new(&w::CEILINGS, w::UsedParts { used: 0, limit: 4 }).expect("question limit"),
+                    open: List::with_capacity(0),
+                },
+            )
+            .expect("no questions"),
         },
     )
     .unwrap();
@@ -665,6 +679,7 @@ fn every_hold_and_ci_verdict_keeps_its_meaning_on_the_wire() {
         (None, None),
         (Some(change::Hold::Stalled), Some(w::Hold::Stalled)),
         (Some(change::Hold::Repairs), Some(w::Hold::Repairs)),
+        (Some(change::Hold::Questions), Some(w::Hold::Questions)),
         (Some(change::Hold::Resolutions), Some(w::Hold::Resolutions)),
         (Some(change::Hold::Updates), Some(w::Hold::Updates)),
         (Some(change::Hold::BranchMoved), Some(w::Hold::Moved)),
@@ -814,10 +829,6 @@ fn setup_requests_preserve_the_keyed_envelope_and_forge() {
                         forge: w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: 3 }).unwrap()),
                         org: b"work".as_slice().into(),
                         repository: b"hello".as_slice().into(),
-                        project: w::SetUpProject::Existing(
-                            w::ExistingProject::new(&w::CEILINGS, w::ExistingProjectParts { project: 1 })
-                                .expect("project"),
-                        ),
                     },
                 )
                 .unwrap(),
@@ -850,7 +861,6 @@ fn setup_requests_preserve_the_keyed_envelope_and_forge() {
                 forge: forge::Making::Kept(3),
                 org: b"work".as_slice().into(),
                 repository: b"hello".as_slice().into(),
-                project: forge::SetUpProject::Existing(1)
             })
         )
     );
@@ -1112,124 +1122,103 @@ fn an_exceeded_hold_refusal_keeps_each_bound_and_its_configured_value() {
 }
 
 #[test]
-fn setup_projects_and_first_repository_states_translate_without_losing_fields() {
-    for project in [forge::SetUpProject::Existing(7), forge::SetUpProject::New(b"Next".as_slice().into())] {
-        let wire_project = match &project {
-            forge::SetUpProject::Existing(project) => w::SetUpProject::Existing(
-                w::ExistingProject::new(&w::CEILINGS, w::ExistingProjectParts { project: *project }).unwrap(),
+fn setup_and_first_repository_states_translate_without_losing_fields() {
+    let record = w::Requesting::new(
+        &w::CEILINGS,
+        w::RequestingParts {
+            request: w::Request::SetUp(
+                w::SetUp::new(
+                    &w::CEILINGS,
+                    w::SetUpParts {
+                        playground: false,
+                        forge: w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: 3 }).unwrap()),
+                        org: b"team".as_slice().into(),
+                        repository: b"widget".as_slice().into(),
+                    },
+                )
+                .unwrap(),
             ),
-            forge::SetUpProject::New(name) => w::SetUpProject::New(
-                w::NewProject::new(&w::CEILINGS, w::NewProjectParts { name: name.clone() }).unwrap(),
-            ),
+        },
+    )
+    .unwrap();
+    let event = family::to_root(
+        &jig_protocol_config::Directories::working(),
+        exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)),
+        &fixtures::forge_table(&[]),
+        None,
+        None,
+        &w::CEILINGS,
+    )
+    .unwrap();
+    let root::Event::Party(root::PartyInput::Application { request, .. }) = event else { panic!("application") };
+    assert_eq!(
+        request,
+        root::Application::Forge(forge::Ask::SetUp {
+            playground: false,
+            forge: forge::Making::Kept(3),
+            org: b"team".as_slice().into(),
+            repository: b"widget".as_slice().into(),
+        })
+    );
+    for state in [
+        forge::FirstState::Making,
+        forge::FirstState::Made { id: 42 },
+        forge::FirstState::Failed { step: forge::CreateStep::Admin },
+        forge::FirstState::Failed { step: forge::CreateStep::Org },
+        forge::FirstState::Failed { step: forge::CreateStep::Repository },
+        forge::FirstState::Failed { step: forge::CreateStep::File },
+    ] {
+        let first = forge::First {
+            playground: false,
+            org: b"team".as_slice().into(),
+            repository: b"widget".as_slice().into(),
+            state,
+            label: Box::from(b"temper-host".as_slice()),
         };
-        let record = w::Requesting::new(
-            &w::CEILINGS,
-            w::RequestingParts {
-                request: w::Request::SetUp(
-                    w::SetUp::new(
-                        &w::CEILINGS,
-                        w::SetUpParts {
-                            playground: false,
-                            forge: w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: 3 }).unwrap()),
-                            org: b"team".as_slice().into(),
-                            repository: b"widget".as_slice().into(),
-                            project: wire_project.clone(),
-                        },
-                    )
-                    .unwrap(),
-                ),
-            },
-        )
-        .unwrap();
-        let event = family::to_root(
-            &jig_protocol_config::Directories::working(),
-            exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)),
-            &fixtures::forge_table(&[]),
-            None,
-            None,
-            &w::CEILINGS,
-        )
-        .unwrap();
-        let root::Event::Party(root::PartyInput::Application { request, .. }) = event else { panic!("application") };
-        assert_eq!(
-            request,
-            root::Application::Forge(forge::Ask::SetUp {
-                playground: false,
-                forge: forge::Making::Kept(3),
-                org: b"team".as_slice().into(),
-                repository: b"widget".as_slice().into(),
-                project: project.clone()
-            })
+        let mut row = forge_row(
+            3,
+            forge::Kind::Forgejo,
+            forge::Mode::Owned,
+            forge::Connection::Connecting,
+            forge::Offer::NotOffered,
         );
-        for state in [
-            forge::FirstState::Making,
-            forge::FirstState::Made { id: 42 },
-            forge::FirstState::Failed { step: forge::CreateStep::Admin },
-            forge::FirstState::Failed { step: forge::CreateStep::Org },
-            forge::FirstState::Failed { step: forge::CreateStep::Repository },
-            forge::FirstState::Failed { step: forge::CreateStep::File },
-        ] {
-            let first = forge::First {
-                playground: false,
-                org: b"team".as_slice().into(),
-                repository: b"widget".as_slice().into(),
-                project: project.clone(),
-                state,
-                label: Box::from(b"temper-host".as_slice()),
-            };
-            let mut row = forge_row(
-                3,
-                forge::Kind::Forgejo,
-                forge::Mode::Owned,
-                forge::Connection::Connecting,
-                forge::Offer::NotOffered,
-            );
-            row.first = Some(first);
-            let value = forge::Forges { rows: Box::new([row]) };
-            let bytes = family::forges(value, &w::CEILINGS).unwrap();
-            let rows = wire::decode_forges(&bytes, &w::CEILINGS).unwrap().into_parts().forges;
-            let first = rows.get(0).unwrap().first().as_ref().unwrap();
-            assert_eq!(
-                (first.org(), first.repository(), first.project()),
-                (b"team".as_slice(), b"widget".as_slice(), &wire_project)
-            );
-            match (state, first.state()) {
-                (forge::FirstState::Making, w::FirstState::Making) => {}
-                (forge::FirstState::Made { id }, w::FirstState::Made(value)) => assert_eq!(id, value.id()),
-                (forge::FirstState::Failed { step }, w::FirstState::Failed(value)) => assert_eq!(
-                    value.step(),
-                    &match step {
-                        forge::CreateStep::Admin => w::CreateStep::Admin,
-                        forge::CreateStep::Org => w::CreateStep::Org,
-                        forge::CreateStep::Repository => w::CreateStep::Repository,
-                        forge::CreateStep::File => w::CreateStep::File,
-                    }
-                ),
-                _ => panic!("first state changed"),
-            }
+        row.first = Some(first);
+        let value = forge::Forges { rows: Box::new([row]) };
+        let bytes = family::forges(value, &w::CEILINGS).unwrap();
+        let rows = wire::decode_forges(&bytes, &w::CEILINGS).unwrap().into_parts().forges;
+        let first = rows.get(0).unwrap().first().as_ref().unwrap();
+        assert_eq!((first.org(), first.repository()), (b"team".as_slice(), b"widget".as_slice()));
+        match (state, first.state()) {
+            (forge::FirstState::Making, w::FirstState::Making) => {}
+            (forge::FirstState::Made { id }, w::FirstState::Made(value)) => assert_eq!(id, value.id()),
+            (forge::FirstState::Failed { step }, w::FirstState::Failed(value)) => assert_eq!(
+                value.step(),
+                &match step {
+                    forge::CreateStep::Admin => w::CreateStep::Admin,
+                    forge::CreateStep::Org => w::CreateStep::Org,
+                    forge::CreateStep::Repository => w::CreateStep::Repository,
+                    forge::CreateStep::File => w::CreateStep::File,
+                }
+            ),
+            _ => panic!("first state changed"),
         }
     }
 }
 #[test]
-fn new_project_and_invalid_setup_refusals_translate_to_the_wire() {
+fn invalid_setup_refusals_translate_to_the_wire() {
     let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
-    for (domain, wire) in [
-        (forge::SetUpRefusal::NewProject, w::SetUpRefusal::NewProject),
-        (forge::SetUpRefusal::Invalid, w::SetUpRefusal::Invalid),
-    ] {
-        let bytes = family::answer(
-            Some(temper_engine_domain::ApplicationAnswer::SetUp(forge::SetUpAnswer::Refused(domain))),
-            &w::CEILINGS,
-            &jig,
-        )
-        .unwrap();
-        let w::Outcome::SetUpRefused(value) =
-            w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().into_parts().outcome
-        else {
-            panic!("refusal")
-        };
-        assert_eq!(value.why(), &wire);
-    }
+    let bytes = family::answer(
+        Some(temper_engine_domain::ApplicationAnswer::SetUp(forge::SetUpAnswer::Refused(forge::SetUpRefusal::Invalid))),
+        &w::CEILINGS,
+        &jig,
+    )
+    .unwrap();
+    let w::Outcome::SetUpRefused(value) =
+        w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().into_parts().outcome
+    else {
+        panic!("refusal")
+    };
+    assert_eq!(value.why(), &w::SetUpRefusal::Invalid);
 }
 
 #[test]
@@ -1853,12 +1842,16 @@ fn new_forge_places_reach_both_setup_and_connect_whole() {
     for (asked, expected) in [
         (w::ForgeAsk::Github, forge::ForgeAsk::GitHub),
         (w::ForgeAsk::Owned, forge::ForgeAsk::Owned),
+        (
+            {
+                let w::ForgeAsk::Managed(value) = managed.clone() else { unreachable!() };
+                w::ForgeAsk::Connected(value)
+            },
+            forge::ForgeAsk::Connected { place: place.clone(), git_program: Some(b"/data/bin/git".as_slice().into()) },
+        ),
         (managed, forge::ForgeAsk::Managed { place, git_program: Some(b"/data/bin/git".as_slice().into()) }),
     ] {
         let making = w::Making::New(w::NewForge::new(&w::CEILINGS, w::NewForgeParts { forge: asked }).unwrap());
-        let project = w::SetUpProject::Existing(
-            w::ExistingProject::new(&w::CEILINGS, w::ExistingProjectParts { project: 7 }).unwrap(),
-        );
         for (request, expected) in [
             (
                 w::Request::SetUp(
@@ -1868,7 +1861,6 @@ fn new_forge_places_reach_both_setup_and_connect_whole() {
                             forge: making.clone(),
                             org: b"work".as_slice().into(),
                             repository: b"hello".as_slice().into(),
-                            project,
                             playground: false,
                         },
                     )
@@ -1878,7 +1870,6 @@ fn new_forge_places_reach_both_setup_and_connect_whole() {
                     forge: forge::Making::New(expected.clone()),
                     org: b"work".as_slice().into(),
                     repository: b"hello".as_slice().into(),
-                    project: forge::SetUpProject::Existing(7),
                     playground: false,
                 },
             ),
@@ -2006,8 +1997,7 @@ fn end_playground_answers_reset() {
 
 #[test]
 fn after_landing_steps_translate_all_tier_lines_and_uncleared() {
-    let lines: Box<[Box<[u8]>]> =
-        Box::new([Box::from(b"fast run 2".as_slice()), Box::from(b"slow run 3 running".as_slice())]);
+    let lines: Box<[Box<[u8]>]> = Box::new([Box::from(b"fast run 2".as_slice()), Box::new([b'x'; 256])]);
     for input in [
         forge::PanelStep::Verifying { merge: [8; 32], tiers: lines.clone() },
         forge::PanelStep::Red { merge: [8; 32], tiers: lines.clone() },
@@ -2033,5 +2023,214 @@ fn after_landing_steps_translate_all_tier_lines_and_uncleared() {
             }
             _ => panic!("step preserved"),
         }
+    }
+}
+
+#[test]
+fn tokens_connect_and_replace_keep_their_carried_values_and_envelopes() {
+    for (request, expected) in [
+        (
+            w::Request::Connect(
+                w::Connect::new(
+                    &w::CEILINGS,
+                    w::ConnectParts {
+                        forge: w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: 9 }).unwrap()),
+                        how: w::How::ForgejoTokens(
+                            w::ForgejoTokens::new(&w::CEILINGS, w::ForgejoTokensParts {}).unwrap(),
+                        ),
+                    },
+                )
+                .unwrap(),
+            ),
+            forge::Ask::Connect { forge: forge::Making::Kept(9), how: forge::How::ForgejoTokens },
+        ),
+        (
+            w::Request::Replace(w::Replace::new(&w::CEILINGS, w::ReplaceParts { forge: 9 }).unwrap()),
+            forge::Ask::Replace { forge: 9 },
+        ),
+    ] {
+        let record = w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap();
+        let carried = Some(jig_domain_core::Carried { number: 27, digest: [8; 32] });
+        let event = family::to_root(
+            &jig_protocol_config::Directories::working(),
+            kit::ToApplication::Request {
+                reply_to: REPLY,
+                sign_in: 3,
+                key: REQUEST_KEY,
+                family: wire::FORGE,
+                version: wire::CLIENT_VERSION,
+                record: wire::requesting(&record),
+                digest: [7; 32],
+                carried,
+                scope: people::ApplicationScope::Deployment,
+            },
+            &fixtures::forge_table(&[]),
+            None,
+            None,
+            &w::CEILINGS,
+        )
+        .unwrap();
+        let root::Event::Party(root::PartyInput::Application {
+            reply_to,
+            sign_in,
+            key,
+            digest,
+            scope,
+            carried: got,
+            request,
+        }) = event
+        else {
+            panic!("application request")
+        };
+        assert_eq!(
+            (reply_to, sign_in, key, digest, scope, got),
+            (REPLY, 3, REQUEST_KEY, [7; 32], people::ApplicationScope::Deployment, carried)
+        );
+        assert_eq!(request, root::Application::Forge(expected));
+    }
+}
+
+#[test]
+fn connect_and_replace_answers_share_the_connect_outcomes() {
+    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
+    for (answer, expected) in [
+        (Some(root::ApplicationAnswer::Connect(forge::ConnectAnswer::Connecting)), w::Outcome::Connecting),
+        (
+            Some(root::ApplicationAnswer::Connect(forge::ConnectAnswer::Refused(forge::ForgeRefusal::NotTaken))),
+            w::Outcome::ConnectRefused(
+                w::ConnectRefused::new(&w::CEILINGS, w::ConnectRefusedParts { why: w::ForgeRefusal::NotTaken })
+                    .unwrap(),
+            ),
+        ),
+        (None, w::Outcome::Unknown),
+    ] {
+        let bytes = family::answer(answer, &w::CEILINGS, &jig).unwrap();
+        assert_eq!(w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().into_parts().outcome, expected);
+    }
+}
+
+#[test]
+fn forge_settings_reads_reach_the_root_with_their_authorization_envelope() {
+    for (read, query) in [
+        (
+            w::Read::Setting(
+                w::SettingRead::new(&w::CEILINGS, w::SettingReadParts { kind: 2, scope: 7, number: 3 }).unwrap(),
+            ),
+            root::ForgeRead::Setting { kind: 2, scope: 7, number: 3 },
+        ),
+        (
+            w::Read::ProposalItems(
+                w::ProposalItemsRead::new(&w::CEILINGS, w::ProposalItemsReadParts { key: u64::MAX }).unwrap(),
+            ),
+            root::ForgeRead::ProposalItems { key: u64::MAX },
+        ),
+    ] {
+        let record = wire::reading(&w::Reading::new(&w::CEILINGS, w::ReadingParts { read }).unwrap());
+        let exchange = kit::ToApplication::Read {
+            reply: REPLY,
+            sign_in: 3,
+            family: wire::FORGE,
+            version: wire::CLIENT_VERSION,
+            record,
+            scope: people::ApplicationScope::Deployment,
+            window: jig_domain_core::documents::Window { rows: 1, after: None },
+        };
+        let root::Event::Party(root::PartyInput::ForgeRead { reply, sign_in, scope, query: actual }) = family::to_root(
+            &jig_protocol_config::Directories::working(),
+            exchange,
+            &fixtures::forge_table(&[]),
+            None,
+            None,
+            &w::CEILINGS,
+        )
+        .unwrap() else {
+            panic!("typed forge read")
+        };
+        assert_eq!((reply, sign_in, scope, actual), (REPLY, 3, people::ApplicationScope::Deployment, query));
+    }
+}
+#[test]
+fn forge_settings_answers_use_the_kinds_codec_and_preserve_proposal_edits() {
+    use forge::settings::{Edit, SettingKey, SettingSlot, SizedValue, Value};
+    let value = SizedValue { size: 4, value: Value::Charter(6) };
+    let record = family::forge_read(root::ForgeReadAnswer::Setting(Some(value.clone())), &w::CEILINGS).unwrap();
+    assert_eq!(
+        wire::decode_setting_answer(&record, &w::CEILINGS).unwrap().value().as_deref(),
+        Some(temper_engine_smith::kinds::encode(&value.value).as_ref())
+    );
+    let empty = family::forge_read(root::ForgeReadAnswer::Setting(None), &w::CEILINGS).unwrap();
+    assert!(wire::decode_setting_answer(&empty, &w::CEILINGS).unwrap().value().is_none());
+    let items = Box::new([
+        (SettingKey { kind: 3, scope: 0, number: 1, slot: SettingSlot::Proposal(7) }, Edit::Set(value.clone())),
+        (SettingKey { kind: 2, scope: 9, number: 2, slot: SettingSlot::Proposal(7) }, Edit::Remove),
+        (SettingKey { kind: 1, scope: 0, number: 3, slot: SettingSlot::Proposal(7) }, Edit::Reset),
+    ]);
+    let record = family::forge_read(root::ForgeReadAnswer::ProposalItems(items), &w::CEILINGS).unwrap();
+    let decoded = wire::decode_proposal_items_answer(&record, &w::CEILINGS).unwrap();
+    assert_eq!(decoded.items().len(), 3);
+    for (item, (kind, scope, number)) in decoded.items().iter().zip([(3, 0, 1), (2, 9, 2), (1, 0, 3)]) {
+        assert_eq!((item.kind(), item.scope(), item.number()), (kind, scope, number));
+    }
+    let w::SettingEdit::Set(set) = decoded.items().as_slice()[0].edit() else { panic!("set value") };
+    assert_eq!(set.value(), temper_engine_smith::kinds::encode(&value.value).as_ref());
+    assert_eq!(*decoded.items().as_slice()[1].edit(), w::SettingEdit::Removed);
+    assert_eq!(*decoded.items().as_slice()[2].edit(), w::SettingEdit::Reset);
+}
+
+#[test]
+fn a_panels_questions_map_field_for_field() {
+    for (route, expected_route) in [
+        (change::Route::None, w::Route::None),
+        (change::Route::Foreman, w::Route::Foreman),
+        (change::Route::Up, w::Route::Up),
+    ] {
+        let mut value = panel();
+        let mut open = List::with_capacity(5);
+        let mut expected = List::with_capacity(5);
+        for (index, (stands, wire)) in [
+            (forge::PanelStands::Taken, w::Stands::Taken),
+            (
+                forge::PanelStands::Foreman(None),
+                w::Stands::Foreman(w::Foreman::new(&w::CEILINGS, w::ForemanParts { task: None }).unwrap()),
+            ),
+            (
+                forge::PanelStands::Foreman(Some(15)),
+                w::Stands::Foreman(w::Foreman::new(&w::CEILINGS, w::ForemanParts { task: Some(15) }).unwrap()),
+            ),
+            (forge::PanelStands::Asked, w::Stands::Asked),
+            (forge::PanelStands::Held, w::Stands::Held),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let asker = 71_u64.checked_add(u64::try_from(index).unwrap()).unwrap();
+            let number = 1_u64.checked_add(u64::try_from(index).unwrap()).unwrap();
+            let line = b"Which branch?".as_slice();
+            open.push(forge::PanelQuestion { asker, number, line: Box::from(line), stands }).unwrap();
+            expected
+                .push(
+                    w::Question::new(
+                        &w::CEILINGS,
+                        w::QuestionParts { asker, number, line: Box::from(line), stands: wire },
+                    )
+                    .unwrap(),
+                )
+                .unwrap();
+        }
+        value.questions =
+            forge::PanelQuestions { route, taken: forge::PanelUsed { used: 2, limit: 4 }, open: open.into_boxed() };
+        let got = decoded_panel(value, &fixtures::forge_table(&[]));
+        assert_eq!(
+            got.questions(),
+            &w::Questions::new(
+                &w::CEILINGS,
+                w::QuestionsParts {
+                    route: expected_route,
+                    taken: w::Used::new(&w::CEILINGS, w::UsedParts { used: 2, limit: 4 }).unwrap(),
+                    open: expected
+                }
+            )
+            .unwrap()
+        );
     }
 }

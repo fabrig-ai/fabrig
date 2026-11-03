@@ -163,13 +163,8 @@ pub(crate) fn refused_step(
     findings(&mut words, findings_);
     recovery(domain, task, &mut words);
     let decision = decision(domain, env, task, words.into_boxed());
-    domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep {
-        task,
-        step,
-        connector,
-        code,
-        decision: append_change_replies(domain, env, task, decision),
-    }));
+    let decision = append_change_replies(domain, env, task, decision);
+    domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep { task, step, connector, code, decision }));
 }
 
 pub(crate) fn hold(domain: &mut Domain, task: u64, reason: &[u8]) {
@@ -202,6 +197,23 @@ pub(super) fn lost_words(domain: &Domain, task: u64, attempt: u64, resource: &fo
     append(&mut words, &decimal(attempt));
     append(&mut words, b" ended: ");
     append(&mut words, reason);
+    words.into_boxed()
+}
+
+pub(super) fn refused_words(
+    domain: &Domain,
+    operation: &[u8],
+    resource: Option<&forge::Name>,
+    cause: forge::RefusalCause,
+) -> Box<[u8]> {
+    let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
+    append(&mut words, operation);
+    if let Some(resource) = resource {
+        append(&mut words, b" on ");
+        resource_words(domain, resource, &mut words);
+    }
+    append(&mut words, b": ");
+    append(&mut words, &cause.words());
     words.into_boxed()
 }
 

@@ -49,6 +49,7 @@ fn encode_hold(value: d::Hold) -> w::ChangeHold {
     match value {
         d::Hold::Stalled => w::ChangeHold::Stalled,
         d::Hold::Repairs => w::ChangeHold::Repairs,
+        d::Hold::Questions => w::ChangeHold::Questions,
         d::Hold::Resolutions => w::ChangeHold::Resolutions,
         d::Hold::Updates => w::ChangeHold::Updates,
         d::Hold::BranchMoved => w::ChangeHold::BranchMoved,
@@ -82,6 +83,7 @@ fn decode_hold(value: w::ChangeHold) -> d::Hold {
     match value {
         w::ChangeHold::Stalled => d::Hold::Stalled,
         w::ChangeHold::Repairs => d::Hold::Repairs,
+        w::ChangeHold::Questions => d::Hold::Questions,
         w::ChangeHold::Resolutions => d::Hold::Resolutions,
         w::ChangeHold::Updates => d::Hold::Updates,
         w::ChangeHold::BranchMoved => d::Hold::BranchMoved,
@@ -154,6 +156,16 @@ fn encode_delegate(value: d::Delegate) -> w::Delegate {
         d::Delegate::Resolve { base } => {
             w::Delegate::Resolve(w::Commit::new(&w::CEILINGS, w::CommitParts { commit: base }).expect(FITS))
         }
+        d::Delegate::Merge { base, from } => w::Delegate::Merge(
+            w::MergeDelegate::new(
+                &w::CEILINGS,
+                w::MergeDelegateParts {
+                    base: w::Commit::new(&w::CEILINGS, w::CommitParts { commit: base }).expect(FITS),
+                    from,
+                },
+            )
+            .expect(FITS),
+        ),
         d::Delegate::Gate { number, head } => {
             w::Delegate::Gate(w::DelegateGate::new(&w::CEILINGS, w::DelegateGateParts { number, head }).expect(FITS))
         }
@@ -164,6 +176,10 @@ fn decode_delegate(value: w::Delegate) -> d::Delegate {
         w::Delegate::Produce => d::Delegate::Produce,
         w::Delegate::Repair(value) => d::Delegate::Repair(decode_repair(value.into_parts().why)),
         w::Delegate::Resolve(value) => d::Delegate::Resolve { base: value.into_parts().commit },
+        w::Delegate::Merge(value) => {
+            let w::MergeDelegateParts { base, from } = value.into_parts();
+            d::Delegate::Merge { base: base.into_parts().commit, from }
+        }
         w::Delegate::Gate(value) => {
             let w::DelegateGateParts { number, head } = value.into_parts();
             d::Delegate::Gate { number, head }
@@ -441,9 +457,46 @@ pub(super) fn decode_gate_remark(value: w::GateRemark) -> top::GateRemark {
     let w::GateRemarkParts { number, head, words } = value.into_parts();
     top::GateRemark { number, head, words }
 }
+fn encode_early(value: &d::Early) -> w::Early {
+    let heads = match value {
+        d::Early::None => return w::Early::None,
+        d::Early::Started(heads) | d::Early::Spent(heads) => heads,
+    };
+    let mut encoded = List::with_capacity(u32::try_from(heads.len()).expect(FITS));
+    for head in heads {
+        encoded
+            .push(
+                w::StartedFrom::new(&w::CEILINGS, w::StartedFromParts { task: head.task, head: head.head })
+                    .expect(FITS),
+            )
+            .expect(FITS);
+    }
+    let heads = w::EarlyHeads::new(&w::CEILINGS, w::EarlyHeadsParts { heads: encoded }).expect(FITS);
+    match value {
+        d::Early::None => unreachable!("no early heads returned above"),
+        d::Early::Started(_) => w::Early::Started(heads),
+        d::Early::Spent(_) => w::Early::Spent(heads),
+    }
+}
+
+fn decode_early(value: w::Early) -> d::Early {
+    let (heads, spent) = match value {
+        w::Early::None => return d::Early::None,
+        w::Early::Started(heads) => (heads, false),
+        w::Early::Spent(heads) => (heads, true),
+    };
+    let heads = heads.into_parts().heads;
+    let mut decoded = List::with_capacity(heads.len());
+    for head in &heads {
+        decoded.push(d::StartedFrom { task: head.task(), head: *head.head() }).expect(FITS);
+    }
+    if spent { d::Early::Spent(decoded.into_boxed()) } else { d::Early::Started(decoded.into_boxed()) }
+}
+
 #[expect(clippy::manual_map, reason = "step translations use explicit matches without closures")]
 pub(super) fn encode_change(value: &d::Change) -> w::Change {
     let d::Change {
+        early,
         task,
         state,
         gates,
@@ -463,6 +516,7 @@ pub(super) fn encode_change(value: &d::Change) -> w::Change {
     w::Change::new(
         &w::CEILINGS,
         w::ChangeParts {
+            early: encode_early(early),
             task: *task,
             state: encode_change_state(state),
             gates: encode_gates(gates),
@@ -494,6 +548,7 @@ pub(super) fn encode_change(value: &d::Change) -> w::Change {
 #[expect(clippy::manual_map, reason = "step translations use explicit matches without closures")]
 pub(super) fn decode_change(value: w::Change) -> d::Change {
     let w::ChangeParts {
+        early,
         task,
         state,
         gates,
@@ -511,6 +566,7 @@ pub(super) fn decode_change(value: w::Change) -> d::Change {
         landing,
     } = value.into_parts();
     d::Change {
+        early: decode_early(early),
         task,
         state: decode_change_state(state),
         gates: decode_gates(gates),
@@ -538,6 +594,10 @@ pub(super) fn decode_change(value: w::Change) -> d::Change {
     }
 }
 #[expect(clippy::manual_map, reason = "step translations use explicit matches without closures")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one stored change maps its captured role choices and question relay together"
+)]
 pub(super) fn encode_change_row(value: &top::ChangeRow) -> w::ChangeRow {
     let top::ChangeRow {
         task,
@@ -562,10 +622,17 @@ pub(super) fn encode_change_row(value: &top::ChangeRow) -> w::ChangeRow {
         queue_repairs,
         producing_charter,
         review_charter,
+        producing_llm,
+        review_llm,
+        foreman_charter,
+        questions,
         result,
         effect_account,
         producer_failure,
         report,
+        repairs,
+        catch_up,
+        merge_result,
     } = value;
     w::ChangeRow::new(
         &w::CEILINGS,
@@ -614,8 +681,15 @@ pub(super) fn encode_change_row(value: &top::ChangeRow) -> w::ChangeRow {
             queue_repairs: *queue_repairs,
             producing_charter: *producing_charter,
             review_charter: *review_charter,
+            producing_llm: encode_llm(producing_llm.as_ref()),
+            review_llm: encode_llm(review_llm.as_ref()),
+            foreman_charter: *foreman_charter,
+            questions: encode_questions(questions),
             producer_failure: producer_failure.clone(),
             report: report.clone(),
+            repairs: *repairs,
+            catch_up: *catch_up,
+            merge_result: merge_result.clone(),
             effect_account: match effect_account {
                 Some(account) => Some(
                     w::EffectAccount::new(
@@ -655,10 +729,17 @@ pub(super) fn decode_change_row(value: w::ChangeRow) -> top::ChangeRow {
         queue_repairs,
         producing_charter,
         review_charter,
+        producing_llm,
+        review_llm,
+        foreman_charter,
+        questions,
         result,
         effect_account,
         producer_failure,
         report,
+        repairs,
+        catch_up,
+        merge_result,
     } = value.into_parts();
     top::ChangeRow {
         result: decode_result(result),
@@ -699,8 +780,15 @@ pub(super) fn decode_change_row(value: w::ChangeRow) -> top::ChangeRow {
         queue_repairs,
         producing_charter,
         review_charter,
+        producing_llm: decode_llm(producing_llm),
+        review_llm: decode_llm(review_llm),
+        foreman_charter,
+        questions: decode_questions(questions),
         producer_failure,
         report,
+        repairs,
+        catch_up,
+        merge_result,
         effect_account: match effect_account {
             Some(account) => {
                 let w::EffectAccountParts { entry, words } = account.into_parts();
@@ -834,5 +922,103 @@ fn decode_result(value: w::ChangeResult) -> top::ChangeResult {
         repairs: decode_result_text(repairs),
         repair_count,
         reviews: decode_result_text(reviews),
+    }
+}
+
+fn encode_model_effort(value: jig_domain_tasks::ModelEffort) -> w::ModelEffort {
+    let jig_domain_tasks::ModelEffort { model, effort } = value;
+    w::ModelEffort::new(&w::CEILINGS, w::ModelEffortParts { model, effort }).expect(FITS)
+}
+fn decode_model_effort(value: w::ModelEffort) -> jig_domain_tasks::ModelEffort {
+    let w::ModelEffortParts { model, effort } = value.into_parts();
+    jig_domain_tasks::ModelEffort { model, effort }
+}
+fn encode_llm(value: Option<&jig_domain_tasks::LlmChoice>) -> Option<w::LlmChoice> {
+    let jig_domain_tasks::LlmChoice { main, subagents, account } = value?;
+    let mut models = List::with_capacity(u32::try_from(subagents.len()).expect("admitted count"));
+    for model in subagents {
+        models.push(encode_model_effort(*model)).expect("same count");
+    }
+    Some(
+        w::LlmChoice::new(
+            &w::CEILINGS,
+            w::LlmChoiceParts { main: encode_model_effort(*main), subagents: models, account: *account },
+        )
+        .expect(FITS),
+    )
+}
+fn decode_llm(value: Option<w::LlmChoice>) -> Option<jig_domain_tasks::LlmChoice> {
+    let w::LlmChoiceParts { main, subagents, account } = value?.into_parts();
+    let mut models = List::with_capacity(subagents.len());
+    for model in subagents.into_boxed() {
+        models.push(decode_model_effort(model)).expect("same count");
+    }
+    Some(jig_domain_tasks::LlmChoice { main: decode_model_effort(main), subagents: models.into_boxed(), account })
+}
+
+fn encode_questions(value: &d::Questions) -> w::Questions {
+    let mut open = List::with_capacity(u32::try_from(value.open.len()).expect("admitted count"));
+    for question in &value.open {
+        let stands = match &question.stands {
+            d::Stands::Taken => w::Stands::Taken,
+            d::Stands::Foreman { task } => {
+                w::Stands::Foreman(w::Foreman::new(&w::CEILINGS, w::ForemanParts { task: *task }).expect(FITS))
+            }
+            d::Stands::Asked => w::Stands::Asked,
+            d::Stands::Held { answer } => {
+                w::Stands::Held(w::Held::new(&w::CEILINGS, w::HeldParts { answer: answer.clone() }).expect(FITS))
+            }
+        };
+        open.push(
+            w::Open::new(
+                &w::CEILINGS,
+                w::OpenParts {
+                    asker: question.asker,
+                    number: question.number,
+                    line: question.line.clone(),
+                    words: question.words.clone(),
+                    stands,
+                },
+            )
+            .expect(FITS),
+        )
+        .expect("same count");
+    }
+    w::Questions::new(
+        &w::CEILINGS,
+        w::QuestionsParts {
+            route: match value.route {
+                d::Route::None => w::Route::None,
+                d::Route::Foreman => w::Route::Foreman,
+                d::Route::Up => w::Route::Up,
+            },
+            taken: value.taken,
+            open,
+        },
+    )
+    .expect(FITS)
+}
+
+fn decode_questions(value: w::Questions) -> d::Questions {
+    let w::QuestionsParts { route, taken, open } = value.into_parts();
+    let mut questions = List::with_capacity(open.len());
+    for question in open.into_boxed() {
+        let w::OpenParts { asker, number, line, words, stands } = question.into_parts();
+        let stands = match stands {
+            w::Stands::Taken => d::Stands::Taken,
+            w::Stands::Foreman(value) => d::Stands::Foreman { task: value.into_parts().task },
+            w::Stands::Asked => d::Stands::Asked,
+            w::Stands::Held(value) => d::Stands::Held { answer: value.into_parts().answer },
+        };
+        questions.push(d::Open { asker, number, line, words, stands }).expect("same count");
+    }
+    d::Questions {
+        route: match route {
+            w::Route::None => d::Route::None,
+            w::Route::Foreman => d::Route::Foreman,
+            w::Route::Up => d::Route::Up,
+        },
+        taken,
+        open: questions.into_boxed(),
     }
 }

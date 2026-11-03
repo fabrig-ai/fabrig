@@ -135,12 +135,35 @@ fn setting_value(core: &Core, setting: settings::Setting, revision: u32) -> Answ
     if !may_read(core, revision) {
         return Answer::None(Why::Unknown);
     }
+    match setting {
+        settings::Setting::Application { .. } => {
+            if revision != core.current.newest() {
+                return Answer::None(Why::Unknown);
+            }
+            return match core.current.applications.get(&setting) {
+                Some(state) => Answer::Setting(Box::new(SettingDocument {
+                    setting,
+                    revision,
+                    value: None,
+                    application: Some(state.clone()),
+                    proposed: None,
+                })),
+                None => Answer::None(Why::Unknown),
+            };
+        }
+        settings::Setting::Charter(_)
+        | settings::Setting::Template(_)
+        | settings::Setting::Policy(_)
+        | settings::Setting::Rules => {}
+    }
     if let settings::Setting::Charter(number) = setting {
         return match core.charter_at(number, revision) {
             Some(charter) => Answer::Setting(Box::new(SettingDocument {
                 setting,
                 revision,
-                value: settings::Value::Charter(Box::new(charter.clone())),
+                value: Some(settings::Value::Charter(Box::new(charter.clone()))),
+                application: None,
+                proposed: None,
             })),
             None => Answer::None(Why::Unknown),
         };
@@ -149,7 +172,13 @@ fn setting_value(core: &Core, setting: settings::Setting, revision: u32) -> Answ
         return Answer::None(Why::Unknown);
     }
     match core.current.value(setting) {
-        Some(value) => Answer::Setting(Box::new(SettingDocument { setting, revision, value: value.clone() })),
+        Some(value) => Answer::Setting(Box::new(SettingDocument {
+            setting,
+            revision,
+            value: Some(value.clone()),
+            application: None,
+            proposed: None,
+        })),
         None => Answer::None(Why::Unknown),
     }
 }
@@ -184,6 +213,13 @@ pub(super) fn proposed_setting(
     let Some(proposal) = core.settings_proposals.get(&(people::Proposer::Party(proposer), number)) else {
         return terminal(reply, Answer::None(Why::Unknown));
     };
+    for item in &proposal.applications {
+        let named = settings::Setting::Application { kind: item.kind, scope: item.scope, number: item.number };
+        if named != setting {
+            continue;
+        }
+        return terminal(reply, application_proposal(core, setting, &item.edit));
+    }
     for item in &proposal.items {
         if item.setting == setting {
             let value = match &item.edit {
@@ -197,7 +233,9 @@ pub(super) fn proposed_setting(
                     Some(value) => Answer::Setting(Box::new(SettingDocument {
                         setting,
                         revision: core.current.newest(),
-                        value: value.clone(),
+                        value: Some(value.clone()),
+                        application: None,
+                        proposed: None,
                     })),
                     None => Answer::None(Why::Unknown),
                 },
@@ -205,6 +243,16 @@ pub(super) fn proposed_setting(
         }
     }
     terminal(reply, Answer::None(Why::Unknown))
+}
+
+fn application_proposal(core: &Core, setting: settings::Setting, edit: &settings::application::SizedEdit) -> Answer {
+    Answer::Setting(Box::new(SettingDocument {
+        setting,
+        revision: core.current.newest(),
+        value: None,
+        application: core.current.applications.get(&setting).cloned(),
+        proposed: Some(edit.clone()),
+    }))
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -392,6 +440,7 @@ pub fn valid_revision(revision: &settings::Revision, limits: &Limits) -> bool {
                         }
                     }
                     settings::Value::Rules(_) => {}
+                    settings::Value::Application(_) => unreachable!("an application's setting: apps-core"),
                 }
             }
             settings::Edit::Removed | settings::Edit::Reset => {}
@@ -405,7 +454,8 @@ pub fn record_revision(value: &Record) -> Option<&settings::Revision> {
         Record::Core(CoreRecord::Settings(settings::Record::Revision { revision, .. })) => Some(revision),
         Record::Core(
             CoreRecord::Settings(
-                settings::Record::Default { .. }
+                settings::Record::Application { .. }
+                | settings::Record::Default { .. }
                 | settings::Record::Changed { .. }
                 | settings::Record::Charter { .. }
                 | settings::Record::Proposal { .. }
@@ -493,7 +543,8 @@ pub(super) fn from_store(
             Record::Core(CoreRecord::Settings(settings::Record::Revision { revision, .. })) => revision,
             Record::Core(
                 CoreRecord::Settings(
-                    settings::Record::Default { .. }
+                    settings::Record::Application { .. }
+                    | settings::Record::Default { .. }
                     | settings::Record::Changed { .. }
                     | settings::Record::Charter { .. }
                     | settings::Record::Proposal { .. }
@@ -538,21 +589,43 @@ pub(super) fn from_store(
             continue;
         }
         let Some(revision) = found.remove(&number) else { continue };
-        let total = u32::try_from(revision.items.len()).expect("checked item count");
-        let mut items = List::with_capacity(total.min(limits.documents.lines));
-        for item in revision.items.iter().take(skein_lib::length::usize_of(limits.documents.lines)) {
-            let edit = match item.edit {
-                settings::Edit::Set(_) => RevisionEdit::Set,
-                settings::Edit::Removed => RevisionEdit::Removed,
-                settings::Edit::Reset => RevisionEdit::Reset,
-            };
-            items.push(RevisionItemHead { setting: item.setting, edit }).expect("bounded item preview");
-        }
+        let total = u32::try_from(
+            revision.items.len().checked_add(revision.applications.len()).expect("bounded revision items"),
+        )
+        .expect("checked item count");
+        let items = item_preview(&revision, limits.documents.lines);
         rows.push(RevisionRow { head: revision.head, more: total.saturating_sub(items.len()), items })
             .expect("bounded revision page");
     }
     let next = if first > page_oldest(core, oldest) { Some(first) } else { None };
     Answer::Revisions(Box::new(RevisionsPage { rows, next, forgotten: next.is_none() && oldest > 1 }))
+}
+
+fn item_preview(revision: &settings::Revision, lines: u32) -> List<RevisionItemHead> {
+    let count = u32::try_from(revision.items.len().checked_add(revision.applications.len()).expect("bounded items"))
+        .expect("bounded item count");
+    let mut items = List::with_capacity(count.min(lines));
+    for item in revision.items.iter().take(skein_lib::length::usize_of(lines)) {
+        let edit = match item.edit {
+            settings::Edit::Set(_) => RevisionEdit::Set,
+            settings::Edit::Removed => RevisionEdit::Removed,
+            settings::Edit::Reset => RevisionEdit::Reset,
+        };
+        items.push(RevisionItemHead { setting: item.setting, edit }).expect("bounded item preview");
+    }
+    for item in &revision.applications {
+        if items.len() == lines {
+            break;
+        }
+        let setting = settings::Setting::Application { kind: item.kind, scope: item.scope, number: item.number };
+        let edit = match item.edit {
+            settings::application::SizedEdit::Set { .. } => RevisionEdit::Set,
+            settings::application::SizedEdit::Remove => RevisionEdit::Removed,
+            settings::application::SizedEdit::Reset => RevisionEdit::Reset,
+        };
+        items.push(RevisionItemHead { setting, edit }).expect("bounded application preview");
+    }
+    items
 }
 
 #[cfg(test)]
@@ -618,6 +691,30 @@ mod tests {
             (settings::Key::Extent, false),
         ] {
             assert_eq!(crate::reads::admits(1, &scope, &Key::Core(CoreKey::Settings(key))), expected);
+        }
+    }
+    #[test]
+    fn application_reads_keep_current_state_and_proposed_sizes_without_values() {
+        use settings::application::{Follows, SizedEdit, State};
+        let (mut core, _) = crate::tests::core();
+        core.current.applications = Map::with_capacity(1);
+        let setting = settings::Setting::Application { kind: 7, scope: 0, number: 2 };
+        let state = State { follows: Follows::Default, size: 9, charters: Box::new([1]) };
+        core.current.applications.insert(setting, state.clone()).unwrap();
+        let Answer::Setting(document) = setting_value(&core, setting, core.current.newest()) else {
+            panic!("application setting")
+        };
+        assert!(document.value.is_none());
+        assert_eq!(document.application, Some(state.clone()));
+        assert!(document.proposed.is_none());
+        assert_eq!(setting_value(&core, setting, core.current.newest() + 1), Answer::None(Why::Unknown));
+        for edit in [SizedEdit::Set { size: 13 }, SizedEdit::Remove, SizedEdit::Reset] {
+            let Answer::Setting(document) = application_proposal(&core, setting, &edit) else {
+                panic!("proposed application setting")
+            };
+            assert!(document.value.is_none());
+            assert_eq!(document.application, Some(state.clone()));
+            assert_eq!(document.proposed, Some(edit));
         }
     }
 }
