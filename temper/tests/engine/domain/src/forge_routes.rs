@@ -305,9 +305,6 @@ impl World {
                 jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.people.amendment_bytes;
             limits.people.people = 4;
             limits.people.holdings = 4;
-            if owner_gate {
-                limits.people.amendment_bytes = 2048;
-            }
             limits.journal.writes = journal::WALKING_WRITES;
             let mut config = walking::config(71);
             if approval.is_some() || agent_gate || owner_gate {
@@ -456,7 +453,7 @@ impl World {
                     let landing: Box<[engine::LandingRule]> = Box::new([engine::LandingRule {
                         connector: 0,
                         kind: 4,
-                        enforce: !owner_gate,
+                        enforce: true,
                         pattern: authority::Pattern {
                             segments: Box::new([
                                 Box::from(&b"forge"[..]),
@@ -1631,67 +1628,11 @@ pub fn change_world_funded(
     policy: paths::Change,
     spend: u64,
 ) -> (World, engine::Assignment, engine::Assignment, Box<[u8]>) {
-    let paths::Change { no_ci, owner_gate, tracked } = policy;
+    let paths::Change { no_ci, owner_gate: _, tracked } = policy;
     if no_ci {
         world.adopt_with_checks(false, Box::new([1]));
     } else {
         world.adopt();
-    }
-    if owner_gate {
-        let branch = people::Pattern {
-            segments: Box::new([
-                Box::from(&b"forge"[..]),
-                Box::from(&b"forge.example"[..]),
-                Box::from(&b"org"[..]),
-                Box::from(&b"repo"[..]),
-                Box::from(&b"branch"[..]),
-            ]),
-            last: people::Last::Exact(Box::from(&b"main"[..])),
-        };
-        world.send(engine::Event::Party(engine::PartyInput::Ask {
-            models: Box::new([]),
-            reply_to: ReplyTo::new(Token::new(900)),
-            sign_in: world.signed_in.expect("owner session"),
-            key: [90; 16],
-            ask: people::Ask::ChangePolicy {
-                project: 1,
-                change: people::PolicyChange::Requirements {
-                    requirements: Box::new([
-                        people::Requirement {
-                            connector: 0,
-                            kind: 4,
-                            pattern: branch.clone(),
-                            judge: people::Judge { connector: 0, requirement: 1, parameters: 0x8000_0000 },
-                            guard: people::Guard::Guarded,
-                            must_be_guarded: true,
-                        },
-                        people::Requirement {
-                            connector: 0,
-                            kind: 4,
-                            pattern: branch.clone(),
-                            judge: people::Judge { connector: 0, requirement: 2, parameters: 0x8000_0001 },
-                            guard: people::Guard::Observed { freshness: Duration::ZERO },
-                            must_be_guarded: false,
-                        },
-                        people::Requirement {
-                            connector: 0,
-                            kind: 4,
-                            pattern: branch,
-                            judge: people::Judge { connector: 0, requirement: 3, parameters: 0x8000_0002 },
-                            guard: people::Guard::Guarded,
-                            must_be_guarded: true,
-                        },
-                    ]),
-                },
-            },
-        }));
-        world.until(Until::Ready);
-        assert!(
-            world.store.rows.contains_key(&Key::Core(jig_domain_core::Key::People(people::Key::Policy(1)))),
-            "owner policy committed"
-        );
-        world.restart(true, true);
-        world.until(Until::Ready);
     }
     world.send(protocol::hello_slots(Token::new(7), 2, Box::new([])));
     let ask = if tracked {

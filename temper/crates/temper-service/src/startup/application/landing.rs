@@ -173,6 +173,7 @@ fn rules(
     }
     rules.into_boxed()
 }
+#[expect(clippy::type_complexity, reason = "the document yields landing rules, project ways and their order together")]
 pub(super) fn parse(
     document: &Document,
     at: u32,
