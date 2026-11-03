@@ -97,3 +97,12 @@ Pre-approved options:
 
 As the implementer's text says, and: the failing run on the old code, the passing runs and their
 counts; `Authorization` under `## Left`.
+
+## Answers
+
+2026-11-03, run issuer-debug-1: the slot's checkout changed to another branch mid-run; restore
+it or take a new slot? The slot is fab's, not the task's: the next run works in the slot fab
+assigns, set up on this task's branch from `bugs-security/integration`. Start by checking
+`git status` shows that branch and that `temper/docs/plan/bugs-security/` is present; if the
+checkout changes underneath again, stop as run 1 did, changing nothing. The spec stands as
+written; nothing of run 1 is to be kept.
