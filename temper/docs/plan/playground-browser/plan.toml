@@ -1,0 +1,37 @@
+draft = "playground-browser"
+repo = "fabrig"
+sources = ["temper/docs/plan/playground-browser/inputs/request.md", "temper/docs/design/playground.md", "temper/docs/design/playground.status.md", "AGENTS.md", "DESIGN.md"]
+
+# The playground in the browser, part three (inputs/request.md): the native walk through the web
+# client's host first, then the page and the served files, then the browser walk. skein's kit is
+# used as it is; temper's composition gains the visitor; temper's shell gains `playground`.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "shell-clippy"
+title = "temper: temper-client-shell-web passes wasm32 clippy, its turn split, and joins the gate's wasm32 list"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/browser.md, 4.3"
+
+[[slice]]
+id = 1
+story = "the browser shell's wasm32 clippy passes with no lint exception, and the gate's wasm32 list holds it"
+parts = ["shell-clippy"]
+walk = false
+
+[[part]]
+id = "visitor"
+title = "temper: skein's visitor joins the playground's composition, which runs in skein's slices with its link printed to the world"
+mode = "direct"
+needs = []
+design = "temper/docs/design/playground.md, 3"
+
+[[slice]]
+id = 2
+story = "story A's world, stepped by skein's slices, posts its printed link, and its visitor spends the link at the clients' listener as a browser does"
+parts = ["visitor"]
+walk = false
