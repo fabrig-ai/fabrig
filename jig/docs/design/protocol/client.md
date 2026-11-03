@@ -1311,7 +1311,11 @@ prefix; jig's test application mounts it at `/jig`.
 - **A room of its own in the engine end:** public calls in flight,
   apart from its other calls (17.4) and within the component's public
   room; a public call that finds none is `503` as busy, the call's
-  head read and nothing more. A call to another route with no
+  head read and nothing more. The application still answers it, as
+  17.4 says, but with the response the engine end gives for its head,
+  a pure answer that sets nothing aside: the `Host` allow-list first,
+  then the busy answer above, so a refused `Host` is refused alike
+  whether the room is full or not. A call to another route with no
   credential is answered signed out by the component with no engine
   work (section 19). The application's server bounds its connections,
   as 17.4 says; a proxy in front holds few of them.
