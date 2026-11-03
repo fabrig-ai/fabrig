@@ -51,3 +51,16 @@ id = 2
 story = "temper ctl change show prints a change's question route, the questions taken of its bound, and each open question with where it stands"
 parts = ["panel"]
 walk = false
+
+[[part]]
+id = "reference"
+title = "the reference's coordinator, coding agent and foreman for questions and holds; the help pages"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/configuration.md, 13.9"
+
+[[slice]]
+id = 3
+story = "the reference's goal makes its changes with questions foreman; a producer asks, a foreman settles it or escalates, the coordinator answers, amends, adds a change the work waits on or asks its person, and decides holds; temper ctl change show shows each open question"
+parts = ["reference"]
+walk = true
