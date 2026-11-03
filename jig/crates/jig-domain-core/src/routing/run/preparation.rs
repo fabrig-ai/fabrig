@@ -46,6 +46,7 @@ pub(crate) fn workspace_prepared(
     task: u64,
     attempt: u64,
     writes: Option<Box<[authority::Write]>>,
+    holds: Box<[tasks::Name]>,
     credentials: Box<[u32]>,
     workspace: Option<Box<[u8]>>,
 ) -> Queue<Request> {
@@ -92,7 +93,7 @@ pub(crate) fn workspace_prepared(
                 out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
                 return out;
             }
-            return super::jobs::prepared(core, env, work, context, attempt, writes, workspace);
+            return super::jobs::prepared(core, env, work, context, attempt, writes, holds, workspace);
         }
         tasks::Executor::Agent { .. } => {}
         tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => unreachable!("workspace executor"),

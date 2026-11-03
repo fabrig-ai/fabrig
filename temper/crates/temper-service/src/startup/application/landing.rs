@@ -307,6 +307,39 @@ fn checked_text(
         }
     }
 }
+// The merge command is relative, with no parent segment or NUL
+// (temper/docs/design/protocol/configuration.md, 3).
+fn optional_merge_job(
+    object: &mut config::read::Object,
+    document: &Document,
+    path: &Path,
+    problems: &mut Problems,
+) -> Option<Box<[u8]>> {
+    let at = object.member(document, b"merge_job")?;
+    let value = match config::read::text(document, at, 4_096) {
+        Ok(value) => value,
+        Err(what) => {
+            problems.push(path.member(b"merge_job"), What::Jig(what));
+            return None;
+        }
+    };
+    let mut valid = !value.is_empty() && value.first() != Some(&b'/') && !value.contains(&0);
+    let mut length = 0_usize;
+    let mut dots = true;
+    for byte in &value {
+        if *byte == b'/' {
+            valid &= length != 2 || !dots;
+            length = 0;
+            dots = true;
+        } else {
+            length = length.saturating_add(1);
+            dots &= *byte == b'.';
+        }
+    }
+    valid &= length != 2 || !dots;
+    read::form(valid, path.member(b"merge_job"), problems);
+    Some(value)
+}
 // Ignored paths are whole segments; no empty segment, dot or parent segment.
 fn valid_ignored_path(value: &[u8]) -> bool {
     let mut length = 0_usize;
@@ -510,6 +543,7 @@ fn project_landing(
     let retries = optional_integer(object, document, b"tier_retries", 2, u64::from(u8::MAX), path, problems);
     let bound = optional_integer(object, document, b"verification_bound_ms", 7_200_000, u64::MAX, path, problems);
     let by = optional_word(object, document, b"by", b"queue", path, problems)?;
+    let merge_job = optional_merge_job(object, document, path, problems);
     let by = match by.as_ref() {
         b"queue" => engine::Way::Queue,
         b"turn" => engine::Way::Turn,
@@ -534,6 +568,7 @@ fn project_landing(
     }
     Some(engine::ProjectLanding {
         by,
+        merge_job,
         repositories: repositories.into_boxed(),
         after: engine::AfterLandingCheck {
             tier_retries: u8::try_from(retries?).expect("bounded retries"),

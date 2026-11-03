@@ -196,6 +196,7 @@ pub struct ChangeCall {
     pub name: Option<Box<[u8]>>,
     pub landing: Option<ChangeLanding>,
     pub branch: Option<ChangeBranch>,
+    pub merge: Option<[u8; 32]>,
     pub after: Box<[ChangeAfter]>,
     pub questions: Option<ChangeQuestions>,
 }
@@ -203,7 +204,16 @@ pub struct ChangeCall {
 impl ChangeCall {
     #[must_use]
     pub fn words(words: Box<[u8]>, repository: Option<Box<[u8]>>) -> Self {
-        Self { words, repository, name: None, landing: None, branch: None, after: Box::new([]), questions: None }
+        Self {
+            words,
+            repository,
+            name: None,
+            landing: None,
+            branch: None,
+            merge: None,
+            after: Box::new([]),
+            questions: None,
+        }
     }
 }
 

@@ -18,7 +18,7 @@ pub struct Kind {
 /// A job's spec, decoded by the service from temper's payload record.
 #[derive(PartialEq, Eq, Debug)]
 pub struct Spec {
-    /// A relative path in the project's home.
+    /// A relative path in the job's directory.
     pub command: Box<[u8]>,
     /// The request file's bytes.
     pub request: Box<[u8]>,

@@ -559,6 +559,7 @@ fn a_broken_landing_branch_pauses_the_queue_for_one_repair() {
     assert_eq!(world.writes(), 0);
     world.take_seen();
     world.event(top::Event::StepChange {
+        merge_job: false,
         task: 51,
         entry: 2,
         heard: change::Heard {
@@ -678,6 +679,7 @@ fn a_kept_change_leaves_the_queue_and_comes_back_at_its_place() {
     }
     world.take_seen();
     world.event(top::Event::StepChange {
+        merge_job: false,
         task: 51,
         entry: 1,
         heard: change::Heard {
@@ -864,6 +866,7 @@ fn a_change_produced_opened_checked_queued_and_landed() {
     world.take_seen();
     world.event(top::Event::Change { row: change_row() });
     world.event(top::Event::StepChange {
+        merge_job: false,
         task: 51,
         entry: 2,
         heard: change::Heard {
@@ -888,6 +891,7 @@ fn a_change_produced_opened_checked_queued_and_landed() {
     world.produce(b"temper/51");
     world.take_seen();
     world.event(top::Event::StepChange {
+        merge_job: false,
         task: 51,
         entry: 3,
         heard: change::Heard {
@@ -922,6 +926,7 @@ fn a_change_produced_opened_checked_queued_and_landed() {
     for entry in 4..24 {
         world.take_seen();
         world.event(top::Event::StepChange {
+            merge_job: false,
             task: 51,
             entry,
             heard: change::Heard {
@@ -1823,6 +1828,7 @@ fn an_external_move_of_a_held_branch_is_reported_as_drift() {
     );
     world.take_seen();
     world.event(top::Event::StepChange {
+        merge_job: false,
         task: 51,
         entry: 10,
         heard: change::Heard {
@@ -1847,6 +1853,7 @@ fn an_external_move_of_a_held_branch_is_reported_as_drift() {
     world.event(top::Event::ReleaseChange { task: 51 });
     world.take_seen();
     world.event(top::Event::StepChange {
+        merge_job: false,
         task: 51,
         entry: 11,
         heard: change::Heard {

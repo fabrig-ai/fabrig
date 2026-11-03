@@ -6,7 +6,7 @@ use temper_engine_domain_forge as forge;
 // route (1), taken (4), count (4), and sixteen entries of asker (8), number (8),
 // line (4 + 256), whole words (4 + 512), stands (1) and held answer (4 + 512).
 // Early start adds its tag (1), head count (4) and 64 task/head pairs (40 each).
-const APPLICATION_ROW_BYTES: u32 = 142_714;
+const APPLICATION_ROW_BYTES: u32 = 143_289;
 
 #[test]
 fn the_application_sizes_are_the_largest_key_and_row() {
@@ -19,6 +19,7 @@ fn the_application_sizes_are_the_largest_key_and_row() {
     // A producer failure adds 1 presence + 4 length + 512 words = 517 bytes.
     // The producer report adds a four-byte length and the client's 512-byte operation bound.
     // Result evidence adds four 4096-byte prefixes, cut counts, a head and repair count.
+    // Catch-up adds 33 bytes, merge result adds 517 bytes, and the merge delegate adds 25 bytes.
     // NoChange has a 65,540-byte bounded payload; Gating has a 100-byte payload.
     assert_eq!(
         application(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes),

@@ -798,8 +798,20 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
         effect_account: None,
         producer_failure: None,
         report: Box::new([]),
+        catch_up: None,
+        merge_result: None,
     }
 }
+/// A merge job with its catch-up commit and retained result (temper/docs/design/domain/forge.md, 8.4).
+pub fn merge_change_row(from: Option<[u8; 32]>) -> top::ChangeRow {
+    use temper_engine_domain_forge_change::{Delegate, State};
+    let mut row = change_row(State::Resolving { requested: true, base: [28; 32] });
+    row.delegate = Some((18, Delegate::Merge { base: [28; 32], from }));
+    row.catch_up = Some([29; 32]);
+    row.merge_result = Some(Box::from(b"settled known conflicts".as_slice()));
+    row
+}
+
 pub fn change_states() -> List<temper_engine_domain_forge_change::State> {
     use temper_engine_domain_forge_change::{Hold, Repair, State};
     let mut states = List::with_capacity(22);

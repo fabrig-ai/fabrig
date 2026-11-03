@@ -12,7 +12,7 @@ A change is a task that writes one repository's branch and lands it: its pull re
   With the control family, a run names, too, `landing` (`goal`, a
   branch, or the default), `branch` (`mine`: its goal branch, landed
   whole), `after` (what it waits for: task numbers, or names from the
-  same call), `changes` (several at once, all or none) and `questions`
+  same call), `changes` (several at once, all or none) `merge` (a catch-up) and `questions`
   (`foreman`, `up`, or `none`, the default: how its producer's questions go).
 - **Its pull request title** is its coder's, punctuation kept, cut with
   “…” at a UTF-8 boundary where the forge needs it.
@@ -56,9 +56,8 @@ Its steps, as `step:` prints them:
 - `first`: at the front, temper checks CI and the blocking gates again;
 - `updating`: a branch behind its landing branch is updated by the
   forge, which merges the base in, where its rules ask up to date;
-  else a conflicting change is held, saying so;
-- `resolving`: an agent resolves a conflict with the base and pushes
-  the merge commit;
+- `resolving`: the merge job, then an agent, settles a conflict with
+  the base and pushes the merge commit;
 - `repairing`: an agent repairs it, after CI failed at its head (a
   review still running there is cancelled first), a gate asked for
   changes, or the base broke it, its brief naming its pull request
@@ -70,11 +69,11 @@ Its steps, as `step:` prints them:
   `Repair gate N (KIND) at HEAD: changes requested`,
   `Repair the base's break at HEAD: BASE`),
   so `task show` names it; the change is checked again;
-- `landing`, then `landed`: temper merges it, and `change show` names
-  the merge commit; a change no tier follows ends there;
-- `verifying`: awaiting a tier's verdict;
-- `red`: blamed by a tier, naming the run and failing tests, until a
-  later run passes them;
+- `landing`, then `landed`: merged; `change show` names the commit;
+  a change no tier follows ends there;
+- `verifying`: awaiting tier verdicts;
+- `red`: merge, tier run and full owned or suspected failing IDs
+  (or `many tests`), until a later run passes them;
 - `cleared`: all its tiers cleared it, and its result comes; with no
   verdict by the verification bound, it ends `landed, uncleared`.
 

@@ -1997,8 +1997,7 @@ fn end_playground_answers_reset() {
 
 #[test]
 fn after_landing_steps_translate_all_tier_lines_and_uncleared() {
-    let lines: Box<[Box<[u8]>]> =
-        Box::new([Box::from(b"fast run 2".as_slice()), Box::from(b"slow run 3 running".as_slice())]);
+    let lines: Box<[Box<[u8]>]> = Box::new([Box::from(b"fast run 2".as_slice()), Box::new([b'x'; 256])]);
     for input in [
         forge::PanelStep::Verifying { merge: [8; 32], tiers: lines.clone() },
         forge::PanelStep::Red { merge: [8; 32], tiers: lines.clone() },
