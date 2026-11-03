@@ -494,6 +494,21 @@ incomplete record.
 The after-landing runner calls this entry point. The trees' old
 `scripts/browser.sh` scripts retire in their own trees' branches.
 
+fab's readers of the summary map its `unobserved` entries (7.3) to their
+own unobserved result. The agents repository's `fab/cpu.py` builds its
+cases from the raw JUnit, where such an attempt is a `test abort`
+failure, so without that mapping a gate step whose run held one reads
+red. That change is the agents repository's; the summary's `unobserved`
+keys are new and no existing key changed, so its readers need no other
+change.
+
+In a starved run, an attempt that has a record and whose JUnit outcome
+is a cancellation abort (7.3's signals) is a failure in this summary,
+since 7.3 counts only known timeout terminations as starvation; fab's
+reader reconciles such attempts with its own evidence of the
+cancellation. Counting them starved in the summary itself is left for
+later.
+
 ## 9. Fixture readers
 
 `.config/fixture-readers.toml` declares the readers and generators of tracked
