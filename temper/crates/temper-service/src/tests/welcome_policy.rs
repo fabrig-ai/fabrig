@@ -64,6 +64,7 @@ fn generated() -> (engine::Config, engine::Limits) {
         webhooks: resolved.webhooks,
         files,
         demo: parsed.application.demo,
+        host_part: None,
         kinds_stock: Box::default(),
         landings: parsed.application.landings,
         limits: parsed.application.limits,
@@ -76,6 +77,7 @@ fn generated() -> (engine::Config, engine::Limits) {
     let forges = Box::new([]);
     (
         engine::Config {
+            host_part: None,
             kinds_stock: crate::stock::forge(&limits),
             machine: Some(crate::system::machine_config(&settings.machine)),
             period_span: crate::stock::PERIOD_SPAN,
