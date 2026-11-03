@@ -892,6 +892,9 @@ fn print_writes_every_page_and_the_bundle() {
     let mut actual = Vec::new();
     for line in include_str!("../../../scripts/bundle.sh").lines() {
         let line = line.trim();
+        if line == "else" {
+            break;
+        }
         if line.starts_with("--stylesheet ") {
             let (_, path) = line.split_once("$shell/").expect("shell stylesheet");
             actual.push(path.split('"').next().expect("basename"));

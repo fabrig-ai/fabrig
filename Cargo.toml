@@ -618,3 +618,7 @@ panic = "abort"
 overflow-checks = true
 strip = true
 
+[profile.playground]
+inherits = "web"
+opt-level = "z"
+
