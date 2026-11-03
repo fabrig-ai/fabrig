@@ -1,0 +1,3 @@
+draft = "collector-starved"
+repo = "fabrig"
+sources = ["temper/docs/plan/collector-starved/inputs/request.md", "tools/tiers/design.md", "AGENTS.md"]
