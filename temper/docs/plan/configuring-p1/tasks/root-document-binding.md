@@ -131,3 +131,12 @@ where the titles are kept and freed, and the tests' count.
   `brief_connectors.is_empty()`. The binding inserts the entry; `Complete` reads it for a
   `Missing` document kind and removes it; an abandonment removes it where the brief's rows are
   dropped. Nothing else in `domain.rs` changes; report the field and where it is freed.
+
+## Rebase (2026-11-03, step merge, foreman configuring-p1/root-document-binding/foreman-2)
+
+resolve the configuration status conflict by preserving both independent gap removals.
+The merge conflicts only in `temper/docs/design/protocol/configuration.status.md`, on the single `Not yet` paragraph.
+Main’s `ee7ad4bc92`, incorporated into integration by `14830edd12`, removes the obsolete gates/tiers gap; preserve that removal.
+Apply this task’s deletion of: “13.7: the root plans no document section, `root.brief.budgets` has no `document`, and `root.brief.sections` is 3.”
+The resolved paragraph must begin `3: the turn's project settings` and retain `13.7: a settings file's charter carries no `documents`.` at its end.
+Preserve all other status text. No code change is needed for this refusal.
