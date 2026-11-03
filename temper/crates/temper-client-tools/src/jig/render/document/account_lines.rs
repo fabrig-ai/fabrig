@@ -1,129 +1,102 @@
-//! Line-oriented presentation of the bounded account projection. Reading the
-//! same projection preserves identities, omissions and digest facts in both formats.
+//! Model panels from the bounded account projection (client/tools.md, 5.5 area 5).
+//! Text and JSON retain the same model selection, omissions and digest.
 use super::Text;
-use skein_json::{Token, tokenizer};
-use skein_lib::{
-    Env, Intake, Queue, Time, Wall,
-    stream::{Down, Up},
-};
-
-const DEPTH: usize = 32;
+use skein_json::{Document, document::Kind};
+use skein_lib::List;
 
 pub(super) fn text(bytes: &[u8], out: &mut Text) {
-    let length = u32::try_from(bytes.len()).expect("bounded account projection");
-    let limits = tokenizer::Limits {
-        depth: u32::try_from(DEPTH).expect("projection depth fits"),
-        string: length,
-        number: 20,
-        chunk: length.max(1),
-        length,
-    };
-    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-    let mut machine = tokenizer::Tokenizer::new(&limits);
-    let mut intake = Intake::with_capacity(length.max(tokenizer::largest_demand(&limits)));
-    intake.append(bytes).expect("projection fits intake");
-    let mut above = Queue::with_capacity(1);
-    let mut below = Queue::with_capacity(1);
-    let mut demanded = None;
-    let mut lines = Lines { arrays: [false; DEPTH], depth: 0, keyed: false };
-    let steps = bytes.len().checked_mul(4).expect("projection steps fit").checked_add(8).expect("projection steps fit");
-    for _ in 0..steps {
-        match demanded.take() {
-            Some(read) => match intake.meet(read) {
-                Some(bytes) => tokenizer::up(&mut machine, &env, Up::Bytes(bytes), &mut above, &mut below),
-                None => tokenizer::up(&mut machine, &env, Up::End, &mut above, &mut below),
-            },
-            None => tokenizer::down(&mut machine, &env, tokenizer::Request::Next, &mut above, &mut below),
-        }
-        match below.pop() {
-            Some(Down::Demand { read, .. }) => demanded = Some(read),
-            Some(Down::Send(_) | Down::Finish) => unreachable!("projection tokenizer only demands"),
-            None => {}
-        }
-        match above.pop() {
-            Some(tokenizer::Event::Token(token)) => lines.token(&token, out),
-            Some(tokenizer::Event::Done) => return,
-            Some(
-                tokenizer::Event::Failed(_)
-                | tokenizer::Event::Closed
-                | tokenizer::Event::Long(_)
-                | tokenizer::Event::Skipped(_),
-            ) => unreachable!("valid bounded projection"),
-            None => {}
+    let length = u32::try_from(bytes.len()).expect("bounded model projection");
+    let tokens = skein_json::tokenizer::Limits { depth: 32, string: length, number: 20, chunk: length, length };
+    let retained = skein_json::document::Limits { tokens: length, text: length };
+    let panel = Panel { document: skein_json::parse(bytes, &tokens, &retained).expect("encoded model projection") };
+    for project in &panel.rows(0, b"models") {
+        out.put(b"models for project ");
+        panel.print(*project, b"project", out);
+        out.put(b"\n");
+        for provider in &panel.rows(*project, b"providers") {
+            out.put(b"provider ");
+            panel.print(*provider, b"provider", out);
+            out.put(b" \xc2\xb7 ");
+            panel.print(*provider, b"provider_name", out);
+            out.put(b"\n");
+            for model in &panel.rows(*provider, b"models") {
+                panel.model(*model, out);
+            }
         }
     }
-    unreachable!("projection tokenizer finishes within its byte-derived steps")
+    super::account_text::text(bytes, None, out);
 }
-struct Lines {
-    arrays: [bool; DEPTH],
-    depth: usize,
-    keyed: bool,
+
+struct Panel {
+    document: Document,
 }
-impl Lines {
-    fn indent(&self, out: &mut Text) {
-        for _ in 1..self.depth {
-            out.put(b"  ");
+impl Panel {
+    fn rows(&self, object: u32, name: &[u8]) -> List<u32> {
+        let array = self.document.member(object, name).expect("projected array");
+        let end = self.document.value_end(array).expect("complete array").checked_sub(1).expect("array close");
+        let first = array.checked_add(1).expect("first element");
+        let mut at = first;
+        let mut rows = List::with_capacity(end.checked_sub(first).expect("array span"));
+        for cursor in first..end {
+            if cursor == at {
+                rows.push(cursor).expect("array span bounds rows");
+                at = self.document.value_end(cursor).expect("projected element");
+            }
+        }
+        rows
+    }
+    fn word(&self, at: u32, out: &mut Text) {
+        let at = if self.document.token(at).expect("projected value").kind == Kind::ObjectStart {
+            self.document.member(at, b"bytes").expect("projected document text")
+        } else {
+            at
+        };
+        let token = self.document.token(at).expect("projected scalar");
+        if token.kind == Kind::Null {
+            out.put(b"unknown");
+        } else {
+            out.words(self.document.text(token).expect("projected text or number"));
         }
     }
-    fn prefix(&mut self, out: &mut Text) {
-        if self.keyed {
-            self.keyed = false;
-        } else if self.depth > 0 && *self.arrays.get(self.depth.checked_sub(1).expect("parent")).expect("depth") {
-            self.indent(out);
-            out.put(b"- ");
-        }
+    fn print(&self, object: u32, name: &[u8], out: &mut Text) {
+        self.word(self.document.member(object, name).expect("projected field"), out);
     }
-    fn token(&mut self, token: &Token, out: &mut Text) {
-        match token {
-            Token::Key(key) => {
-                self.indent(out);
-                out.put(key);
-                out.put(b": ");
-                self.keyed = true;
-            }
-            Token::ArrayStart | Token::ObjectStart => {
-                self.prefix(out);
-                if self.depth > 0 {
-                    out.put(b"\n");
-                }
-                *self.arrays.get_mut(self.depth).expect("bounded depth") = *token == Token::ArrayStart;
-                self.depth = self.depth.checked_add(1).expect("bounded depth");
-            }
-            Token::ArrayEnd | Token::ObjectEnd => self.depth = self.depth.checked_sub(1).expect("open container"),
-            Token::String(value) | Token::Number(value) => {
-                self.prefix(out);
-                for byte in value {
-                    match *byte {
-                        b'\n' => out.put(b"\\n"),
-                        b'\r' => out.put(b"\\r"),
-                        b'\t' => out.put(b"\\t"),
-                        b'\\' => out.put(b"\\\\"),
-                        byte if byte < 32 || byte == 127 => {
-                            out.put(b"\\x");
-                            for digit in [byte >> 4u32, byte & 15] {
-                                out.put(&[if digit < 10 {
-                                    b'0'.checked_add(digit).expect("digit")
-                                } else {
-                                    b'a'.checked_add(digit.checked_sub(10).expect("hex digit")).expect("hex")
-                                }]);
-                            }
-                        }
-                        byte => out.put(&[byte]),
-                    }
-                }
-                out.put(b"\n");
-            }
-            Token::True | Token::False | Token::Null => {
-                self.prefix(out);
-                out.put(if *token == Token::True {
-                    b"true"
-                } else if *token == Token::False {
-                    b"false"
-                } else {
-                    b"null"
-                });
-                out.put(b"\n");
-            }
+    fn model(&self, model: u32, out: &mut Text) {
+        out.put(b"  model ");
+        self.print(model, b"name", out);
+        out.put(b"\n    description: ");
+        self.print(model, b"description", out);
+        out.put(b"\n    window: ");
+        self.print(model, b"window", out);
+        out.put(b" tokens \xc2\xb7 output: ");
+        self.print(model, b"output", out);
+        out.put(b" tokens\n    efforts:");
+        let efforts = self.rows(model, b"efforts");
+        if efforts.is_empty() {
+            out.put(b" none declared");
+        }
+        for effort in &efforts {
+            out.put(b" ");
+            self.word(*effort, out);
+        }
+        out.put(b"\n");
+        self.prices(self.document.member(model, b"prices").expect("projected prices"), out);
+    }
+    fn prices(&self, prices: u32, out: &mut Text) {
+        out.put(b"    prices (per ");
+        self.print(prices, b"unit", out);
+        out.put(b" tokens), deployment spend units:\n");
+        for (key, label) in [
+            (b"input".as_slice(), b"input".as_slice()),
+            (b"cached", b"cached input"),
+            (b"cache_write", b"cache write"),
+            (b"output", b"output"),
+        ] {
+            out.put(b"      ");
+            out.put(label);
+            out.put(b": ");
+            self.print(prices, key, out);
+            out.put(b"\n");
         }
     }
 }
