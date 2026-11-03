@@ -1966,7 +1966,8 @@ that changes the stock changes nothing of them.
 - **The rules and policy 1** are changed on the box from their current
   values, which hold the deployment's own budgets (13.4): read with
   `temper ctl settings show --json`, charter 5 added to the rules' and
-  policy 1's delegation and jig's control family to their tools and
+  policy 1's delegation (and charter 6, where their stored values
+  predate it) and jig's control family to their tools and
   role 0's, so the coordinator may name `change`'s plan members
   (`../domain/agent.md`, 4.3.1), and role 0 to their delegation, so the
   coordinator may ask its person through a person task (jig's

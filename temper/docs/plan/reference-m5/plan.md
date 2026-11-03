@@ -52,7 +52,9 @@ Released (needs in brackets):
 - panel: `questions-panel` [relay-surface] (C8).
 - relay, the story: `relay-story` [relay-foreman, questions-panel], the meeting point: a
   goal's changes into g ask, a foreman settles or escalates, the goal answers, an answer
-  waits for a dependency, a change past its bound holds and is released.
+  waits for a dependency, a change past its bound holds and is released; `relay-stall`
+  [relay-foreman], a follow-up the cut found after releasing `relay-up`: a change waiting
+  on an agent's open question does not stall (`domain/forge.md`, 8.4).
 - reference: `reference-relay` [relay-foreman, foreman-charter] (`notes/settings.md`'s
   texts: the coordinator, the coding agent, the foreman's charter 6); `questions-help`
   [relay-foreman, questions-panel] (`docs/help/task.md`, `change.md`).
@@ -67,7 +69,12 @@ Every task is released; the plan is whole.
    `temper ctl`, with the reference's settings applied and the box's rules and policy 1
    given charters 5 and 6, role 0 and the control family (13.9); step 5's question once
    M3's walk stands. `temper init`'s document sets `tasks.batch` 1, which bounds a goal's
-   batch of changes and a change step's messages: the walk's document sizes it.
+   batch of changes and a change step's messages: the walk's document sizes it. The box's
+   stored rules and policy 1 predate charter 6, so the walk adds it beside charter 5; and
+   while the stock's delegation also names procedures 3 and 4 (`configuration.status.md`'s
+   **Departs** for 13.4), charters 5 and 6 with role 0 make nine executors, one past the 8
+   `authority.executors` and `tasks.executor_kinds` the document gives: the walk's document
+   sets 9 until that departure is closed.
 
 ## Decisions
 
