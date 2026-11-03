@@ -2122,7 +2122,8 @@ defaults for a person's real work are open (section 16).
   grants it.
 - **Its charters and templates,** the owned example's, but both
   charters' models end with the scripted model, `demo`: chat, 1, and coding, 2, the one the
-  forge's procedures start agents' work under (`application.charter`);
+  forge's procedures start agents' work under (kind 3's number 1,
+  configuration.md, 13.2);
   the templates `chat` and `goal`. A task with no model chosen takes the
   first of its charter's models whose provider has an account serving
   its payer (jig's `jig-domain-core` `llm.rs`), so in the playground,
