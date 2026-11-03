@@ -1817,3 +1817,44 @@ fn a_failed_remover_keeps_the_files() {
     rig.input(Input::Remove { forge: 17 });
     assert_eq!(rig.effects().as_ref(), &[Order::RunRemover { slot: 0, forge: 17 }]);
 }
+
+#[test]
+fn restored_owned_group_survives_serve_abort() {
+    use super::fixtures::step;
+    use crate::{layout, machine::Machine};
+    use skein_lib::{Queue, Time};
+    use temper_forge_setup::{Group, Stage, Steps};
+    let placed = layout::flatten(Steps {
+        always: Box::new([step(b"serve", Kind::Long)]),
+        asked: Box::new([Group {
+            kind: None,
+            remover: Some(step(b"remove", Kind::Once)),
+            forge: 1,
+            label: Box::from(b"owned".as_slice()),
+            recorded: true,
+            before: 0,
+            steps: Box::new([(Stage::Run, step(b"forgejo", Kind::Long))]),
+        }]),
+    });
+    let machine = Machine::new(&limits::small(), &placed).unwrap();
+    let mut rig = Rig { machine, out: Queue::uncapped(), now: Time::ZERO };
+    rig.machine.start(rig.now, &[1], &mut rig.out);
+    assert_eq!(&*rig.effects(), &[Order::Spawn { step: 0 }]);
+    rig.started(0);
+    assert_eq!(&*rig.effects(), &[Order::Spawn { step: 2 }]);
+    rig.started(2);
+    assert!(rig.effects().is_empty());
+    rig.exited(2, Exit::Signal(6));
+    assert_eq!(&*rig.effects(), &[Order::Close { step: 2 }]);
+    rig.closed(2);
+    assert!(rig.effects().is_empty());
+    rig.advance(Duration::from_millis(500));
+    assert_eq!(&*rig.effects(), &[Order::Spawn { step: 2 }], "restart neither removes nor unlinks the group");
+    rig.started(2);
+    assert!(rig.effects().is_empty());
+    rig.terminate();
+    assert_eq!(&*rig.effects(), &[Order::Signal { step: 2 }]);
+    rig.exited(2, Exit::Code(0));
+    rig.closed(2);
+    assert_eq!(&*rig.effects(), &[Order::Close { step: 2 }, Order::Signal { step: 0 }], "Forgejo stays live");
+}

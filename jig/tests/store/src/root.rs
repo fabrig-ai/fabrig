@@ -378,6 +378,7 @@ pub fn live_task(number: u64) -> core::Record {
         tries: tasks::Tries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
         invalid_result: None,
         refusals: 0,
+        room_wait: None,
         phase: tasks::Phase::Active(tasks::Active::Running { attempt: 1 }),
     })))
 }

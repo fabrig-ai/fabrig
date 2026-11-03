@@ -385,11 +385,11 @@ fn model_text_prints_supplied_descriptions_prices_efforts_and_provider_name() {
         b"Scripted".as_slice(),
         b"description: Reasoning and code",
         b"input: 13",
-        b"cached: 7",
-        b"cache_write: 13",
+        b"cached input: 7",
+        b"cache write: 13",
         b"output: 31",
-        b"unit: 1000",
-        b"- high",
+        b"prices (per 1000 tokens)",
+        b"efforts: high",
     ] {
         assert!(f::has(&printed, fact), "{fact:?}: {printed:?}");
     }

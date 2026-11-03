@@ -1220,10 +1220,35 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
   changed packages' focused tests are builds in the box's worker at
   every delivery. Default: the reference's first edition of
   `.temper/pre-pr` runs the format check and the counted baselines
-  alone, and the coding agent's charter asks for the rest; whether the
-  script runs them too is decided from the reds that reach a goal's
-  branch, their repairs' cost and the check's time at each push (the
-  user, 2026-11-02).
+  alone, and the coding agent's charter, with the shell, runs the rest
+  (13.9); whether the script runs them too is decided from the reds that
+  reach a goal's branch, their repairs' cost and the check's time at
+  each push (the user, 2026-11-02). The record so far
+  (`../../development/pre-pr-numbers.md`) does not decide it: of 39 reds
+  that reached a plan's shared branch before the reference, where every
+  implementer ran its own lints and focused tests, 4 would have been
+  stopped by the changed packages' lints and focused tests at push, and
+  2 in part, each repaired in 5 to 18 minutes; the rest came from a
+  dependent package, a merge of main, the docs' vocabulary, or timing.
+  A producer that runs its checks itself leaves the same residue; one
+  that does not, a different one. The case's walk measures what
+  decides it: the reds of g's tier per change, by cause; each repair's
+  tasks and minutes; and the time of the changed packages' lints and
+  focused tests at a push in the box's worker, warm and cold, beside
+  the checks' deadline (the agent's `policy.check_timeout`, 60 s on the
+  box, a timeout the user sets).
+- **The reference's sizes on the small profile** (13.9). Small's store
+  bounds, which no override moves, hold the largest task record, which
+  grows with a result's bytes, a batch, the live delegates and the
+  people's operations, so the profile cannot take the table's values
+  for those on a small box; init's agent and worker carriers hold a
+  run's inbox and the agent's tool payload at init's. Default: on a
+  small box the profile takes, of each, the largest the start admits,
+  so a designer's report is cut at that bound and a family's changes
+  may be made one to a call. Either the reference's box runs the
+  standard profile, whose store holds a larger record, or jig's store
+  bounds follow the limits they hold; the case's walk shows whether a
+  family's list, cut at that bound, still reaches the coordinator.
 
 ## 12. The three directories
 
@@ -1718,8 +1743,8 @@ init`'s document carries none of them (`setup.md`, 8.3).
   holds its news slot and an answer slot (two messages), four live
   delegates' 512 bytes each and one unread result (10,752 in all),
   priced before it lands. `tasks.result_bytes` stays small's 512, about 80 words,
-  which holds a goal's and an advisor's report: jig's settings schema
-  caps the record field it sizes, a tie for the format freeze. The
+  which holds a goal's and an advisor's report; a deployment may raise
+  it to `tasks.message_bytes`, as the reference's profile does (13.9). The
   box's live tasks stay small's unless a story shows them binding.
 - **The stock sets floors under the limits.** Its own values must fit
   the limits they are checked against: a configuration whose
@@ -1982,8 +2007,16 @@ that changes the stock changes nothing of them.
     `domain/tasks.md`, 8.3): questions, failures, each delegate's
     result, its delegates' and its person's words at once, waking news
     at most once in 30 minutes;
-  - *charter 2, the coding agent's:* the stock's, its instructions
-    adding: push early; run the project's checks before delivering;
+  - *charter 2, the coding agent's:* the stock's with smith's shell
+    family (`shell` and `job`: smith's `domain/tools.md`), its
+    instructions the stock's but for its line that it can run nothing,
+    which says instead that before each delivery it runs the lints and
+    the focused tests of each package it changed, in this project
+    `cargo clippy -p PKG --all-targets -- -D warnings` and `cargo nextest
+    run -p PKG`, and fixes what they find in its own files, a failure
+    outside them going on its Left list (`.temper/pre-pr` runs neither:
+    section 11); and adding: push early; run the project's checks before
+    delivering;
     finish with a Left list of what it found and does not own; mark a
     story that fails for code it does not own as ignored, the fault its
     reason, and never fix that code, the change that fixes the fault
@@ -2001,7 +2034,7 @@ that changes the stock changes nothing of them.
     `../draft/reference-code-production.md`, section 4's LLM choice;
     tracked at priority 1; a report; the creator's budget; *its own
     goal branch* among its resources (jig's `protocol/configuration.md`,
-    3.1).
+    3.3; `../client/tools.md`, 5.3).
 - **The rules and policy 1** are changed on the box from their current
   values, which hold the deployment's own budgets (13.4): read with
   `temper ctl settings show --json`, charter 5 added to the rules' and
@@ -2011,13 +2044,10 @@ that changes the stock changes nothing of them.
   (`../domain/agent.md`, 4.3.1), and role 0 to their delegation, so the
   coordinator may ask its person through a person task (jig's
   `domain/people.md`, section 8), and jig's notes family beside it, so
-  that it notes what it learns, then applied whole. Charter 5 is the
-  deployment's sixth charter, within the 8 `tasks.charters` 13.4 gives the box;
-  it, the merge kind and role 0 are three more executors in the
-  delegation, nine with the stock's six, within the 12 `authority.executors`
-  and `tasks.executor_kinds` 13.4 gives the box, including room for
-  charter 7 (below). Applying the reference needs no delegation-limit
-  change or restart.
+  that it notes what it learns, then applied whole. The box's twelve
+  executor places (13.4) hold this delegation without a delegation-limit
+  change or restart; the profile's limits (below) reserve room for
+  further work.
 - **Designers and the cut** (`../draft/reference-code-production.md`,
   sections 3, 5 and 12): the same file's later edition adds
   - *charter 7, the designer's:* instructions to write one family's
@@ -2055,11 +2085,10 @@ that changes the stock changes nothing of them.
     `AGENTS.md`'s "1. In one page" and the code's rules, skein's
     `docs/foundation/programming-model.md`'s "1. In one page", on the
     home repository's `main`.
-  Charter 7 joins the rules' and policy 1's delegation as charter 5 did;
-  it is the deployment's seventh charter, within the 8 `tasks.charters`
-  13.4 gives the box, and the delegation's tenth executor, within the
-  12 `authority.executors` and `tasks.executor_kinds` init gives the box
-  (13.4).
+  Charter 7 joins the rules' and policy 1's delegation as charter 5 did.
+  The reference's profile (below) holds the added charters and the
+  delegation's executors within `tasks.charters`, `authority.executors`
+  and `tasks.executor_kinds`.
   Each document names the forge's host, owner and repository the walk's
   document fills in, as the landing rules do.
 - **The landing rules** are kind 1's rules 1 and 2, items of the
@@ -2103,6 +2132,95 @@ that changes the stock changes nothing of them.
   repository's scope, and reads the notes before it triages. Its
   goal's end waits for the landing's result at cleared, repaired or
   not.
+- **Charter 5's plan done, and its landing's words**
+  (`../draft/reference-code-production.md`, section 12;
+  `../draft/reference-landing.md`, section 3, step 2), in its
+  instructions beside the rest. The plan is done when every change has
+  landed or been cancelled, every Left list is made into a change or
+  accepted as left, and its goal branch's tier is settled: no red of
+  that tier it has heard is left without a repair that landed after it
+  or a live repair owning its failing tests. A green run says nothing
+  (`../domain/after-landing.md`, section 7), and a red still failing
+  reaches the goal's next run (the same, 5.4), so the reds it has heard
+  are what it knows; a red left unowned gets its repair first, and the
+  close-out waits for that repair to land. A run of the tier in flight
+  as the plan ends is not waited for: the landing's CI, the project's
+  full gate, checks the whole. The landing's words are the goal's title
+  in one line; then the draft it was built from, by path; then what the
+  goal built, by design section; the forge makes them the pull
+  request's title and body (`../domain/forge.md`, 8.1).
+- **A triage delegate** (`../draft/reference-landing.md`, section 6):
+  *charter 8, the triage's*, in the settings file, read-only as charter
+  6 is (inspect and the forge's reads; no modify, no shell, no
+  sub-agents), at gpt-6.1-sol; its instructions: its words carry a
+  red's news (the tier, the failing tests, the run, the log's end); it
+  reads the tree, the design, the goal's history and the notes, and
+  reports, for each failing test, the change or landing whose files it
+  fails in, whether it is new, failing before (inherited) or a flake,
+  and the repair it would make, with the files that repair would own;
+  it never edits, pushes or runs anything. Charter 5's triage may
+  `delegate` a red's triage to charter 8, its words the news, where the
+  failures span files no one change owns, and acts on its report as on
+  its own triage. Charter 8 joins the rules' and policy 1's delegation
+  as charters 5 and 7 do. Charter 5 also gives each designer's change
+  `"questions": "up"`, so that a designer's question reaches it with no
+  foreman (`../domain/forge.md`, 8.11), the project's questions, kind 6,
+  being none on the stock.
+- **The profile, whole** (`../draft/reference-code-production.md`,
+  section 14; `../draft/notes.md`, N21): a box is set up for the
+  reference from `docs/examples/reference/` and the repository's own
+  files:
+  - `limits.json`, the members of the document the reference sets over
+    `temper init`'s (`setup.md`, 8.3): its engine's and its
+    application's limits' overrides (section 7), merged into the box's
+    document before its first start, member by member, an object's
+    members over the document's and any other value replacing it, as
+    `jq -s '.[0] * .[1]'` merges two files;
+  - `agent.json`, the same for the agent's configuration (section 5,
+    smith's `protocol/agent.md`, section 4): its policy's `max_turns`
+    and its declared `tool_payload`;
+  - `landing.json`, the document's `application.landing`, carried whole;
+  - `settings.json`, applied once after the first start; then the rules
+    and policy 1 changed as above, before the case's project is made,
+    since a project takes policy 1 as it is made (13.6, step 1);
+  - the repository's `.temper/pre-pr` and `.temper/merge`, and its
+    tiers' workflows (below).
+
+  Its limits are sizes for one goal of a hundred changes; no budget or
+  time moves: the spends, the periods, a run's time and the agent's
+  timeouts stay the box's (13.4), and a run held at its spend is its
+  person's to fund (`../domain/forge.md`, 8.4).
+
+  | Limit | The box (`temper init`) | The reference | For |
+  |---|---|---|---|
+  | `tasks.tree_tasks` | 32 | 1,024 | a goal's tree over its life: about a hundred changes of about eight tasks each, G and its person tasks (N21) |
+  | `tasks.tasks`, `tasks.project_tasks` | 8 | 64 | live at once: G, about sixteen live changes, each its procedure and one agent or job at a time, and the person's chats |
+  | `tasks.delegates`, `people.operations` | 4, 8 | 32, 33 | G's live delegates: a family's changes beside S's, the designers', a catch-up and repairs; operations one more |
+  | `tasks.inbox_messages`, `tasks.run_inbox` | 8 | 40 | a result's room for each live delegate (jig's `domain/tasks.md`, 8.2), a question's and an answer's |
+  | `tasks.inbox_bytes` | 12,288 | 163,840 | those 40 messages at 4,096 bytes |
+  | `tasks.result_bytes` | 512 | 4,096 | a designer's report listing up to eleven changes (N15), at most `tasks.message_bytes`, 4,096 |
+  | `tasks.batch`, `authority.batch`, `people.batch` | 1, 2, 2 | 4 | a family's changes four to a `change` call, jig's batch list holding four |
+  | `forge.change_policy.tasks` | 6 | 8 | a producer, two merge jobs, two resolutions and three repairs: twelve tasks with four foremen (`../domain/agent.md`, 4.3.1) |
+  | `forge.changes`, `forge.holds`, `forge.tasks` | 8 | 32, 32, 64 | the live changes, their branches' holds and the goal's, the tasks the forge follows |
+  | `authority.executors`, `tasks.executor_kinds` | 12 | 16 | the stock's seven executors (charters 1, 2, 4 and 6; procedures 2, 3 and 4) and the reference's five (charters 5, 7 and 8, the merge kind, role 0) |
+  | `tasks.charters` | 8 | 12 | the stock's four charters (five with charter 3) and the reference's three |
+  | the agent's `tool_payload`, `checkout.message_bytes`, `core.call_answer_bytes` | 4,098; 4,098; 32,768 | 16,386 for the first two, the third as it is | a `change` call carrying four changes' words |
+  | the agent's `max_turns` | 16 | 64 | a run of the cut, of a family's design, or of a change with its checks |
+
+  The settings file sizes its charters and template to them: charters
+  5, 7 and 2 take 64 turns, charter 6 and 8 the box's 16; template 4's
+  report takes 4,096 bytes; each charter names at most two documents,
+  `tasks.charter_documents`, small's 2, which jig's settings schema
+  holds; template 4 names the forge's *its own goal branch*
+  (`../client/tools.md`, 5.3). Charter 5 makes a family's changes in
+  `change` calls of at most four, a later call naming an earlier one's
+  changes in `after` by the task numbers its answer gave, and one change
+  to a call where a call is refused for its size. The rules and policy
+  1 take the delegation the plan needs: 1,024 tasks, as `tasks.tree_tasks`,
+  4 deep as the stock's (G at the root, a change 1 below, its agents 2).
+  A limit the start's checks ask to move with these (a store page, a
+  carrier of the agent's largest call) moves with them, sized, and
+  `limits.json` holds it.
 - **What the repository carries:** the merge commit is its merge style
   on its forge, the repository's default on Forgejo
   (`../domain/forge.md`, section 4), set where the repository is made;
@@ -2118,4 +2236,9 @@ that changes the stock changes nothing of them.
 - **Checked as it is read:** a test decodes the settings file as
   `temper ctl settings apply` decodes one, and the landing member as the
   document's is parsed, so an edition that no longer reads is red before
-  a walk meets it.
+  a walk meets it; and a test merges `limits.json` and `agent.json` over
+  `temper init`'s document and agent configuration, runs the start's
+  checks on them, and holds the settings file to them: its charters
+  within `tasks.charters`, their documents within
+  `tasks.charter_documents`, their turns within `max_turns`, template
+  4's report within `tasks.result_bytes`.

@@ -358,7 +358,12 @@ agent must name.
   naming them. A member `FIELDS` marks optional may be left out and
   takes the default its row names: a template's model choice is
   `{"main": {"model": M, "effort": E}}` alone, its `account` none and
-  its `subagents` empty; a required
+  its `subagents` empty; a template's `resources`, the symbols a task
+  filled from it holds, is a list of `{"connector": C, "symbol": S}` as
+  jig's format has it (jig's `protocol/configuration.md`, 3.3), left
+  out `[]`, so the reference's goal template names the forge's *its own
+  goal branch* as `{"connector": F, "symbol": 1}`, F the forge's
+  connector (`../domain/forge.md`, section 2); a required
   member left out is refused naming its path, `llm.main`. Every refusal a person reads numbers items from 1, the
   decoder's and the engine's alike (jig's index plus one), and names a
   member by its path in the file, `charter.alternatives`, never by the
@@ -775,6 +780,15 @@ The table grows area by area, each with its stories (section 11).
      result text ceiling; nested sources, hosts, programs and offers do not
      consume an account list's row count. Text presents the bounded JSON
      projection, sharing its omissions and digest for reads and waits.
+   - **Model text** names `models for project N`, then `provider P · NAME`
+     and each `model NAME`. Each model names its description, window and
+     output in tokens, efforts, and input, cached input, cache write and
+     output prices per the supplied token unit, in deployment spend units.
+     Missing provider numbers, names and descriptions print `unknown`;
+     an empty effort list prints `none listed`. The accompanying accounts
+     use the account text above, preserving supplied source and readiness
+     states without inferring provider readiness. Loss prints `cut: true`
+     and the result keeps its `models` digest; JSON retains its records.
    - **One result per call.** `account connect` prints the address and
      returns; the sign-in goes on at the engine, and `account list
      --until settled` follows it (5.4). It never opens a browser, and

@@ -261,7 +261,7 @@ temper's side before the layer:
 - the services, `temper-service`, and the binary, `temper`.
 
 `protocol/README.md`, section 5 says what each holds and depends on. Test
-kits are named by their kind (`testing/temper-fake-git-hosted`); the
+kits are named by their kind (`testing/temper-github-app`); the
 forge's are skein's (`skein-fake-forge-domain` in skein's `crates/`,
 `testing/skein-throwaway-forgejo`), and the worlds live in `tests/`
 (`domain/testing.md`, section 7).

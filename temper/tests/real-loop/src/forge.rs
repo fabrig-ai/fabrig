@@ -196,8 +196,10 @@ impl State {
         let setups = std::iter::once(setup).chain((fixture.extra_setups)()).collect::<Vec<_>>();
         let setup = &setups[0];
         let repository = setup.name.clone();
-        let mut table =
-            temper_fake_git_hosted::fixtures::table(&setup.name, setup.protection.as_ref().map(|p| p.branch.as_ref()));
+        let mut table = temper_worker_checkout_world::hosted::table(
+            &setup.name,
+            setup.protection.as_ref().map(|p| p.branch.as_ref()),
+        );
         // fixtures::table reserves one repository; rebuild before sharing with
         // typed git and HTTP so every setup has the same wire identity.
         table.repositories = skein_lib::List::with_capacity(u32::try_from(setups.len()).expect("repository count"));
@@ -211,7 +213,7 @@ impl State {
                 })
                 .expect("one table entry per setup");
         }
-        let mut config = temper_fake_git_hosted::fixtures::CONFIG;
+        let mut config = temper_worker_checkout_world::hosted::CONFIG;
         // The HTTP peer admits four simultaneous calls, unlike the git-only fixture.
         config.limits.calls = protocol_limits().calls;
         // A change opens its pull under its words' first sentence, fitted to

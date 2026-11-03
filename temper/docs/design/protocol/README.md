@@ -147,7 +147,7 @@ binary (`jig-test`).
 | the bundle | the browser shell's module, glue and stylesheets, skein's bundler's output, which the binary holds and the clients' listener serves (`../client/browser.md`, 2.2 and 2.6) |
 | the tools | the agents' interface to temper, `temper ctl`: `temper-client-tools` and `temper-client-shell-cli` (`../client/tools.md`, section 4) |
 | the clients' listener | `temper-service`'s listener for clients, on which jig's clients' component is mounted with jig's default HTTP mapping, under `/jig` (`../client/README.md`, section 8) |
-| the fake git program | git as the worker runs it, faked: its core `crates/temper-fake-git`, `temper fake git`, and its hosted half `testing/temper-fake-git-hosted` (`../domain/testing.md`, 4.3) |
+| the fake git program | git as the worker runs it, faked: its core `crates/temper-fake-git`, `temper fake git`, and its hosted half `crates/temper-fake-git-hosted` (`../domain/testing.md`, 4.3) |
 | the throwaway Forgejo | a Forgejo started by a test script on loopback, with SQLite in a scratch directory, removed after (`../domain/testing.md`, 2.6) |
 | locate | the forge connector's read of a repository's id by owner and name (skein's `forge.md`, 5.2) |
 | the webhooks' listener | the forge component's own listener for Forgejo's signed deliveries, plaintext on loopback, one path per forge (skein's `forge-connection.md`, section 6; forge.md, section 5) |

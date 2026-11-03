@@ -2759,6 +2759,30 @@ fn a_control_changes_procedure_keeps_its_producer_review_and_llm_parameter() {
 }
 
 #[test]
+fn a_changes_delegation_uses_its_task_limit_and_leaves_room_for_foremen() {
+    use crate::ChangeQuestions;
+    for (tasks, questions, tasks_left, expected) in [
+        (8, Some(ChangeQuestions::Foreman), 20, 12),
+        (6, Some(ChangeQuestions::None), 20, 6),
+        (6, None, 20, 6),
+        (8, Some(ChangeQuestions::Up), 20, 8),
+        (8, Some(ChangeQuestions::Foreman), 10, 9),
+        (u32::MAX, Some(ChangeQuestions::Foreman), 20, 19),
+    ] {
+        let (domain, mut env, mut context) = change_choice_world();
+        env.limits.forge.change_policy.tasks = tasks;
+        env.limits.forge.change_policy.questions = 4;
+        context.tasks_left = tasks_left;
+        let change = crate::ChangeCall {
+            questions: questions.clone(),
+            ..crate::ChangeCall::words(b"Make the fix".as_slice().into(), None)
+        };
+        let batch = change_choice_batch(&domain, &env, &context, change).unwrap();
+        assert_eq!(batch[0].authority.delegation.tasks, expected, "tasks: {tasks}, questions: {questions:?}");
+    }
+}
+
+#[test]
 fn a_changes_unoffered_producer_is_refused_as_an_executor() {
     let (domain, env, context) = change_choice_world();
     let change =
@@ -3380,4 +3404,53 @@ fn result_pull_address(domain: &mut super::Domain, env: &skein_lib::Env<super::L
         forge::Event::Restore { record: forge::Stored::Forge(row) },
         &mut skein_lib::Queue::uncapped(),
     );
+}
+
+#[test]
+fn a_live_room_refusal_rearms_the_change_delegate() {
+    use super::{Work, forge, forge_change, tasks};
+    let (mut domain, env, context) = change_start_fixture();
+    let task = context.task;
+    let (connector, _, step) = domain.core.tasks.procedure_due(task).expect("due change");
+    domain
+        .forge_delegating
+        .insert(
+            (task, step),
+            super::ChangeStep {
+                delegate: Some(forge_change::Delegate::Produce),
+                foreman: false,
+                relayed: None,
+                refusal: None,
+                released: false,
+            },
+        )
+        .unwrap();
+    let problem = tasks::Problem::capacity(
+        Some(task),
+        tasks::Refusal::Live,
+        tasks::Capacity {
+            project: Some(context.project),
+            by: tasks::Party::Task(task),
+            action: tasks::CapacityAction::Batch { first: None, members: 1 },
+            cause: tasks::CapacityCause::Tasks { limit: env.limits.tasks.tasks },
+        },
+    );
+    let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
+    super::super::asks::ask(
+        &mut domain,
+        &env,
+        &mut decision,
+        connector,
+        jig_domain_core::Ask::StepRefused { task, step, why: jig_domain_core::StepRefusal::Refused(problem) },
+    );
+    let Some(Work::Forge(forge::Event::DelegateAdmissionRefused {
+        task: refused,
+        kind: forge_change::Delegate::Produce,
+    })) = domain.work.pop()
+    else {
+        panic!("the refused producer can be asked again")
+    };
+    assert_eq!(refused, task);
+    assert!(domain.work.is_empty());
+    assert!(domain.forge_delegating.is_empty());
 }
