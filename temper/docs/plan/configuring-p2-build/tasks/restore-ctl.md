@@ -3,7 +3,7 @@ id = "restore-ctl"
 part = "restore"
 kind = "feature"
 needs = ["settings-wire", "policy-ctl"]
-files = ["temper/crates/temper-client-tools/src/jig/rows.rs", "temper/crates/temper-client-tools/src/table.rs", "temper/crates/temper-client-tools/src/jig/runner.rs", "temper/crates/temper-client-tools/src/jig/runner/acts.rs", "temper/crates/temper-client-tools/src/jig/render/outcome.rs", "temper/crates/temper-client-tools/src/jig/render/acts.rs", "temper/crates/temper-client-tools/src/jig/render/document/act_answers.rs", "temper/crates/temper-client-tools/src/jig/render/document/outcomes.rs", "temper/crates/temper-client-tools/src/jig/render/document/me.rs", "temper/crates/temper-client-tools/src/jig/settings_adapter.rs", "temper/crates/temper-client-tools/src/tests/help.rs", "temper/crates/temper-client-tools/src/tests/fixtures.rs", "temper/crates/temper-client-tools/src/tests/jig/settings.rs", "temper/crates/temper-client-tools/src/tests/jig/restore.rs", "temper/crates/temper-client-tools/src/tests/jig.rs", "temper/crates/temper-client-tools/src/tests/golden/**", "temper/crates/temper-settings-form/src/view.rs", "temper/crates/temper-settings-form/src/wire.rs", "temper/crates/temper-settings-form/src/render.rs", "temper/crates/temper-settings-form/src/settings_file_tests.rs", "temper/crates/temper-engine-smith/src/tests/settings.rs", "temper/docs/help/revision.md", "temper/docs/help/configure.md", "temper/docs/help/reference/ctl-revision.md", "temper/docs/design/client/tools.status.md"]
+files = ["temper/crates/temper-client-tools/src/jig/rows.rs", "temper/crates/temper-client-tools/src/table.rs", "temper/crates/temper-client-tools/src/jig/runner.rs", "temper/crates/temper-client-tools/src/jig/runner/acts.rs", "temper/crates/temper-client-tools/src/jig/render/outcome.rs", "temper/crates/temper-client-tools/src/jig/render/acts.rs", "temper/crates/temper-client-tools/src/jig/render/document/act_answers.rs", "temper/crates/temper-client-tools/src/jig/render/document/outcomes.rs", "temper/crates/temper-client-tools/src/jig/render/document/me.rs", "temper/crates/temper-client-tools/src/jig/settings_adapter.rs", "temper/crates/temper-client-tools/src/tests/help.rs", "temper/crates/temper-client-tools/src/tests/fixtures.rs", "temper/crates/temper-client-tools/src/tests/jig/settings.rs", "temper/crates/temper-client-tools/src/tests/jig/restore.rs", "temper/crates/temper-client-tools/src/tests/jig.rs", "temper/crates/temper-client-tools/src/tests/jig/replays.rs", "temper/crates/temper-client-tools/src/tests/golden/**", "temper/crates/temper-settings-form/src/view.rs", "temper/crates/temper-settings-form/src/wire.rs", "temper/crates/temper-settings-form/src/render.rs", "temper/crates/temper-settings-form/src/settings_file_tests.rs", "temper/crates/temper-engine-smith/src/tests/settings.rs", "temper/docs/help/revision.md", "temper/docs/help/configure.md", "temper/docs/help/reference/ctl-revision.md", "temper/docs/design/client/tools.status.md"]
 effort = "high"
 minutes = 90
 +++
@@ -192,3 +192,15 @@ Acceptance:
 
 The implementer's text's report, plus: the arms settings-wire left that this task filled; the
 exact words of each refusal; the options taken (the reference test, the group line, the JSON).
+
+## Answers
+
+2026-11-03. **May this task add `revision restore` to `DIRECT_CALLS` in
+`temper-client-tools/src/tests/jig/replays.rs`?** Yes: the file joins `files`, for that one
+row alone, `&["revision", "restore", "4", "--key", "restore-4"],` beside `revision advance`.
+`replay_cases_cover_every_keyed_verb_in_the_tools_table` holds every keyed row of the table,
+and the row this task appends is its to cover; no other task owns the registry. No other edit
+to the file: if `direct`'s generic refusal scenario needs a restore-specific branch, that is a
+question. Then finish the checks the report lists: the failing test alone, the replay and
+restore filters, the four packages' focused tests, clippy and the citations against the
+fetched main.
