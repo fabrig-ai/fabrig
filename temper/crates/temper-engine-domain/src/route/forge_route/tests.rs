@@ -1375,6 +1375,11 @@ fn a_small_landed_result_cuts_only_evidence_and_keeps_both_identity_lines() {
     assert!(cut.len() <= usize::try_from(bound).unwrap());
 }
 
+fn assert_repair_instruction(words: &[u8], opening: &[u8]) {
+    assert!(words.starts_with(opening));
+    assert!(words.ends_with(super::REPAIR_PRESERVATION));
+}
+
 #[test]
 fn a_ci_repairs_words_open_with_its_head_and_two_failed_contexts() {
     let mut row = change_row(Some(42));
@@ -1382,12 +1387,12 @@ fn a_ci_repairs_words_open_with_its_head_and_two_failed_contexts() {
     row.result.head = Some(SHA1);
     row.result.failed.bytes = Box::from(b"/ check (pull_request), / changes (pull_request)".as_slice());
     let words = super::repair_words(&row, super::forge_change::Repair::Ci, &[], 512).unwrap();
-    assert_eq!(words.as_ref(), b"Repair CI at abcdef012345: / check (pull_request), / changes (pull_request)\nRepair the failed CI on the change branch");
+    assert_repair_instruction(&words, b"Repair CI at abcdef012345: / check (pull_request), / changes (pull_request)\nRepair the failed CI on the change branch");
     // A client cuts contexts, keeping the complete opening and pinned head.
     row.result.failed.bytes = Box::from([b'x'; 200]);
     let words = super::repair_words(&row, super::forge_change::Repair::Ci, &[], 512).unwrap();
     assert!(words[..128].starts_with(b"Repair CI at abcdef012345: "));
-    assert!(words.ends_with(b"\nRepair the failed CI on the change branch"));
+    assert!(words.ends_with(super::REPAIR_PRESERVATION));
     assert!(super::repair_words(&row, super::forge_change::Repair::Ci, &[], 64).is_none());
 }
 
@@ -1396,9 +1401,9 @@ fn a_base_break_repairs_words_open_with_its_head_and_base() {
     let mut row = change_row(Some(42));
     row.change.last_head = Some(SHA1);
     let words = super::repair_words(&row, super::forge_change::Repair::Semantic, &[], 512).unwrap();
-    assert_eq!(
-        words.as_ref(),
-        b"Repair the base's break at abcdef012345: main\nRepair the base update's semantic conflict"
+    assert_repair_instruction(
+        &words,
+        b"Repair the base's break at abcdef012345: main\nRepair the base update's semantic conflict",
     );
 }
 
@@ -1424,8 +1429,8 @@ fn a_gate_repairs_words_open_with_its_number_kind_and_head() {
         row.change.gates =
             Box::new([Gate { number: 7, kind, blocking: true, freshness: Freshness::Exact, eager: false }]);
         let parameters = [super::tasks::Parameter::Bytes { name: 2, value: row.base.clone() }];
-        let bound = u32::try_from(expected.len() + row.base.len()).unwrap();
-        assert_eq!(super::repair_words(&row, Repair::Gate(7), &parameters, bound).unwrap().as_ref(), expected);
+        let bound = u32::try_from(expected.len() + row.base.len() + super::REPAIR_PRESERVATION.len() + 1).unwrap();
+        assert_repair_instruction(&super::repair_words(&row, Repair::Gate(7), &parameters, bound).unwrap(), expected);
         assert!(super::repair_words(&row, Repair::Gate(7), &parameters, 64).is_none());
     }
     assert!(super::repair_words(&row, Repair::Gate(8), &[], 512).is_none(), "an unknown gate cannot be named");

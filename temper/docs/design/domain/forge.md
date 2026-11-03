@@ -1332,11 +1332,17 @@ delegate's terminal wakes it to offer the landed result.
   before sizing the pull section's contents, retaining the core's
   context. When the brief cannot hold both section caps, their gathered
   sizes decide the fit, with the repair reason before the pull section.
+  Repair instructions preserve the requested change and unrelated content
+  already landed on the base, including both independent appended lines
+  and existing blank lines. Lost content is restored from the review's
+  remarks; content is never removed just to make a check pass.
 - **A resolution** is a task for an agent whose workspace starts from a
   merge in progress: the base merged into the branch, the conflicting
   files marked. The agent edits them and runs the checks, with no git
   writes of its own; the worker commits the tree as the merge, with both
-  parents, and pushes it (`worker.md`, section 5).
+  parents, and pushes it (`worker.md`, section 5). Its instructions keep
+  both sides' intended content by the same preservation rule as repairs;
+  the shared coding charter applies it to repairs and resolutions too.
 - **A verdict whose post is refused** (8.3) is no repair and no stall:
   the gate counts as temper's verdict says, nothing is held for the
   post, and its `Forbidden` narrows what temper may do in that

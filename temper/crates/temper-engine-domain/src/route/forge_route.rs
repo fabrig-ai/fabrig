@@ -2592,11 +2592,7 @@ fn change_delegate(
         ),
         forge_change::Delegate::Resolve { base } => {
             parameters.push(tasks::Parameter::Bytes { name: 6, value: commit_text(&base) }).ok()?;
-            (
-                tasks::Executor::Agent { charter: row.producing_charter },
-                Box::from(&b"Resolve the merge conflict and push the merge commit"[..]),
-                change_contract,
-            )
+            (tasks::Executor::Agent { charter: row.producing_charter }, resolution_words(), change_contract)
         }
         forge_change::Delegate::Gate { number, head } => {
             parameters.push(tasks::Parameter::Number { name: 7, value: number }).ok()?;
@@ -2769,6 +2765,24 @@ fn repair_opening(row: &forge::ChangeRow, why: forge_change::Repair) -> Option<B
     Some(writer.finish())
 }
 
+/// domain/forge.md, 8.4: both sides keep their intended content.
+fn resolution_words() -> Box<[u8]> {
+    Box::from(
+        concat!(
+            "Resolve the merge conflict. Preserve the requested change and unrelated content ",
+            "already landed on the base, including both independent appended lines and existing blank lines. ",
+            "Do not remove content to make a check pass. The worker commits and pushes the resolved merge."
+        )
+        .as_bytes(),
+    )
+}
+
+const REPAIR_PRESERVATION: &[u8] = concat!(
+    " Preserve the requested change and unrelated base content, including both ",
+    "independent appended lines and existing blank lines; do not remove content to make a check pass."
+)
+.as_bytes();
+
 /// domain/forge.md, 8.4: a cut task read still names what the repair repairs.
 fn repair_words(
     row: &forge::ChangeRow,
@@ -2777,9 +2791,9 @@ fn repair_words(
     bound: u32,
 ) -> Option<Box<[u8]>> {
     let previous: &[u8] = match why {
-        forge_change::Repair::Ci => b"Repair the failed CI on the change branch",
-        forge_change::Repair::Semantic => b"Repair the base update's semantic conflict",
-        forge_change::Repair::Gate(_) => b"Repair the requested gate changes",
+        forge_change::Repair::Ci => b"Repair the failed CI on the change branch.",
+        forge_change::Repair::Semantic => b"Repair the base update's semantic conflict.",
+        forge_change::Repair::Gate(_) => b"Repair the requested gate changes.",
         forge_change::Repair::Landing { .. } => return None,
     };
     let head = row.change.last_head?;
@@ -2790,7 +2804,7 @@ fn repair_words(
             room = room.saturating_sub(u32::try_from(value.len()).unwrap_or(u32::MAX));
         }
     }
-    let tail = u32::try_from(previous.len().checked_add(1)?).ok()?;
+    let tail = u32::try_from(previous.len().checked_add(REPAIR_PRESERVATION.len())?.checked_add(1)?).ok()?;
     let mut identity = List::with_capacity(room.checked_sub(tail)?);
     let opening = repair_opening(row, why)?;
     // Keep the opening and head whole even under a small task spec bound.
@@ -2814,6 +2828,7 @@ fn repair_words(
     append(&mut words, identity.as_slice());
     append(&mut words, b"\n");
     append(&mut words, previous);
+    append(&mut words, REPAIR_PRESERVATION);
     Some(words.into_boxed())
 }
 
