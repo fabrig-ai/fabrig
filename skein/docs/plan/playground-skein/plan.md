@@ -15,6 +15,10 @@ Compatible detail only, in `skein/docs/design/playground.md`:
   the `end` or `cut` line, and the digest of what the world said.
 - 4: fetch's reports by construction, the headers a same-origin fetch sends, and what the
   jar reads of a `Set-Cookie` (`Max-Age`, not `Expires`).
+- 6 and 6.2 (new): the replay's loop is skein-playground's, the harness's run's steps without
+  its verdicts (a product crate names no harness, and a visit's world never settles), stepping
+  as the slices step so its step counts are the browser's; the referee observes through
+  `Turns`.
 - 7: the worker's files in the bundle (`boot-worker.js`, `<worker>.js`,
   `<worker>_bg.wasm`, shared snippets) and the refusals.
 
@@ -29,9 +33,15 @@ Compatible detail only, in `skein/docs/design/playground.md`:
 | ui-web | `ui-web-worker-page`: the worker's platform, its pure half | ui-web-surface | 2 |
 | playground | `playground-slices`: the slices' loop | playground-crate, ui-web-surface | 2 |
 | visitor | `playground-visitor`: the visitor and its world | playground-crate, ui-web-surface | 2 |
+| ui-web | `ui-web-worker-web`: the worker's platform, its page half (wasm32) | ui-web-worker-page, ui-web-log | 3 |
+| memory | `playground-memory`: the bridge in memory, the meeting point natively | playground-slices, playground-visitor, ui-web-worker-page, ui-web-log | 3 |
+| replay | `playground-replay`: a session log replayed natively | playground-slices, playground-visitor, ui-web-log | 3 |
+| playground | `playground-worker`: the worker's parts (wasm32) | playground-slices | 3 |
+| status | `status`: the status files, once built | every task | 3 |
 
-Later batches (as they are released): `ui-web-worker-web`; `playground-memory`,
-`playground-replay`, `playground-worker`; the status task last.
+The plan is whole: playground.md's sections 2 to 8 are each built by a task above. Section 8's
+browser tier is the application's (temper's `playground-temper`), and its wasm32 gate line is
+fab's.
 
 ## One writer per file
 
@@ -48,10 +58,22 @@ writer per crate, for the parallelism the kit's two families need; each spec lis
   methods of the fake platform): no other draft lists it.
 - Nothing else of this plan's files is in another draft's list.
 
-## Critical path, as it stands
+## Critical path
 
-`playground-crate` → `playground-visitor` → `playground-replay`; beside it
-`ui-web-surface` → `ui-web-log` → `playground-memory`. The visitor is the longest task.
+`playground-crate` (40) → `playground-visitor` (180) → `playground-replay` (120) → `status`
+(25): about six hours of implementer time. Beside it, `ui-web-surface` (75) →
+`ui-web-log` (120) → `ui-web-worker-web` (90), and `playground-slices` (120) →
+`playground-memory` (90) and `playground-worker` (75). The visitor is the longest task; the
+memory task, the meeting point of both real sides natively, waits for it.
+
+## Waves
+
+1. `ui-web-surface`, `bundle-worker`, `playground-crate`.
+2. `ui-web-log` and `ui-web-worker-page` (skein-ui-web, disjoint files); `playground-slices`
+   and `playground-visitor` (skein-playground, disjoint files).
+3. `ui-web-worker-web`; `playground-worker` once the slices land; `playground-memory` and
+   `playground-replay` once the visitor lands.
+4. `status`.
 
 ## Outside this repository
 

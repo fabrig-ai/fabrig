@@ -452,6 +452,8 @@ impl<P: Host, M: Machine, R> Memory<P, M, R> {
     pub fn clocks(&mut self, browser: Time) -> (Time, Wall);
     #[must_use] pub fn timer(&self, deadline: Time, browser: Time) -> Option<Time>;
     #[must_use] pub fn log(&self) -> Box<[u8]>;
+    /// The last navigation `worker::shown` accepted; natively none is followed.
+    #[must_use] pub fn shown(&self) -> Option<&[u8]>;
     #[must_use] pub fn slices(&self) -> &Slices<P, M>;
     pub fn slices_mut(&mut self) -> &mut Slices<P, M>;
 }

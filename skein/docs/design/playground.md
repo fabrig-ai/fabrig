@@ -232,8 +232,9 @@ on the timer, or after a message:
   version is refused, naming it. The build it names is the bundle's,
   which a native replay has not: a replay of another build goes on, the
   digests deciding, and a failure names the build the log came from.
-- **Replayed natively,** a test: the harness's run (world.md, 3) over
-  the application's composition built from the same documents, the
+- **Replayed natively,** a test: the harness's run's steps (world.md,
+  3), in skein-playground's loop (6.2), over the application's
+  composition built from the same documents, the
   log's seed and start, each input entering at its stamp, and each
   digest checked against what the replayed world posted. The first
   that differs fails the replay at that input. The application's
@@ -286,6 +287,27 @@ end step=<u64> instant=<ns> said=<digest>       or: cut
   line's: `output` or `error`, then `process=<bytes> line=<bytes>`.
   The texts are the log's own, under its version, never the bridge's
   encoding, so a kept log's digests stand while the bridge changes.
+
+### 6.2 The replay's loop
+
+- **skein-playground's, the harness's run's steps without its
+  verdicts:** a product crate names no harness (world.md, 2), and the
+  harness's run ends only on a settled world, which a visit's never
+  is. The replay steps the world as the slices do, stepping while it
+  is busy and once at each due instant the clock is moved to, so its
+  step count at each moment is the browser's; idle, it moves the
+  clock to the next due instant, or short of it to the next stamp's
+  instant or the end's. Each input enters when the world's step count
+  reaches its stamp's, at its instant; what the world said since the
+  input before, its visitor's reports, its lines and its stop, is
+  folded as the page folds it and checked against the entry's digest.
+- **The application's referee** observes each turn through the world's
+  `Turns`, as in the harness's run, and the harness's heap meter may
+  measure it; at the log's end the world is handed back unsettled, as
+  it was, with no teardown to check.
+- **A difference** fails the replay at its line: a stamp's step reached
+  at another instant, or its instant passed before its step, or a
+  digest that differs; the failure names the build the log came from.
 
 ## 7. The page, the worker and the bundle
 
