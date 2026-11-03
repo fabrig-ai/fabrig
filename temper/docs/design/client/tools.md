@@ -1117,14 +1117,16 @@ digest: task 7c1e09a2b44f0d13
   (forty characters), the pull request by its number, as the result's
   settled resource gives it (its repository and host too where the
   resource is a path, `README.md`, 4.1), then the call that reads its
-  panel, `change show TASK`; the id is the words' first line, and their
-  second, the same pull request with its address (`../domain/root.md`,
-  section 6), prints as `pull request: ADDRESS` when the task's document
+  panel, `change show TASK`; the id is the words' first line. The
+  pull request line, after any verification words, with its address
+  (`../domain/root.md`, section 6), prints as `pull request: ADDRESS` when the task's document
   carries it whole: a line the document's text window cut prints
   nothing, and `change show TASK` has the address. Verification words
-  after the landing line remain readable: `Cleared by TIER run N.`,
+  immediately after the id remain readable: `Cleared by TIER run N.`,
   or why it is uncleared. Within ctl's text budget, their evidence takes
-  room before the optional pull address. A change's words that
+  room before the optional pull address. Retained results with the pull
+  line immediately after the id and verification after the landing line
+  render alike when the document carries those lines. A change's words that
   are not an id print as they are. A report's words, a verdict's, an approval's and a choice's print
   as they are; a connector's its summary and its part in the forge's
   words; a failed or cancelled task's its reason, if it gave one. Words
