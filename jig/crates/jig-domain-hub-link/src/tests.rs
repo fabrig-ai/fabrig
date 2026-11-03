@@ -83,6 +83,7 @@ fn run() -> Box<core::RunCharter> {
             shell: false,
             agents: false,
             call_timeout: Duration::from_secs(10),
+            tools: core::RunPolicy::EVERY_FAMILY,
         },
     })
 }

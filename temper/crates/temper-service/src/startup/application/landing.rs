@@ -17,7 +17,7 @@ pub(super) fn parse(
     problems: &mut Problems,
 ) -> Option<(Map<u32, engine::ProjectLanding>, Box<[u32]>)> {
     let path = Path::root().member(b"application").member(b"landing");
-    let mut object = read::object(document, at, &path, problems)?;
+    let mut object = read::object(document, at, "landing", &path, problems)?;
     if object.member(document, b"deployment").is_some() {
         problems.push(path.member(b"deployment"), What::LandingStored);
     }
@@ -29,7 +29,7 @@ pub(super) fn parse(
     if let Some(ats) = project_ats {
         for (index, at) in ats.iter().enumerate() {
             let path = read::index(&path.member(b"projects"), index);
-            let Some(mut object) = read::object(document, *at, &path, problems) else { continue };
+            let Some(mut object) = read::object(document, *at, "landing-project", &path, problems) else { continue };
             let project = read::number(&mut object, document, b"project", &path, problems);
             if object.member(document, b"rules").is_some() {
                 problems.push(path.member(b"rules"), What::ProjectLandingStored);
@@ -63,7 +63,7 @@ pub(super) fn parse(
 }
 
 fn optional_list(
-    object: &mut config::read::Object,
+    object: &mut crate::startup::members::Object,
     document: &Document,
     name: &[u8],
     max: u32,
@@ -80,7 +80,7 @@ fn optional_list(
     }
 }
 fn optional_integer(
-    object: &mut config::read::Object,
+    object: &mut crate::startup::members::Object,
     document: &Document,
     name: &[u8],
     default: u64,
@@ -98,7 +98,7 @@ fn optional_integer(
     }
 }
 fn optional_word(
-    object: &mut config::read::Object,
+    object: &mut crate::startup::members::Object,
     document: &Document,
     name: &[u8],
     default: &[u8],
@@ -115,7 +115,7 @@ fn optional_word(
     }
 }
 fn checked_text(
-    object: &mut config::read::Object,
+    object: &mut crate::startup::members::Object,
     document: &Document,
     name: &[u8],
     max: u32,
@@ -137,7 +137,7 @@ fn checked_text(
 // The merge command is relative, with no parent segment or NUL
 // (temper/docs/design/protocol/configuration.md, 3).
 fn optional_merge_job(
-    object: &mut config::read::Object,
+    object: &mut crate::startup::members::Object,
     document: &Document,
     path: &Path,
     problems: &mut Problems,
@@ -192,7 +192,7 @@ struct Check {
     ignored: Box<[Box<[u8]>]>,
 }
 fn check(
-    object: &mut config::read::Object,
+    object: &mut crate::startup::members::Object,
     document: &Document,
     path: &Path,
     limits: &temper_engine_domain_forge::Limits,
@@ -246,7 +246,7 @@ fn tier(
     limits: &temper_engine_domain_forge::Limits,
     problems: &mut Problems,
 ) -> Option<engine::TierCheck> {
-    let mut object = read::object(document, at, path, problems)?;
+    let mut object = read::object(document, at, "tier-check", path, problems)?;
     let check = check(&mut object, document, path, limits, problems);
     let artifact = checked_text(
         &mut object,
@@ -306,7 +306,7 @@ fn repository_checks(
     limits: &temper_engine_domain_forge::Limits,
     problems: &mut Problems,
 ) -> Option<engine::RepositoryChecks> {
-    let mut object = read::object(document, at, path, problems)?;
+    let mut object = read::object(document, at, "repository-checks", path, problems)?;
     let forge = read::short(&mut object, document, b"forge", path, problems);
     let repository = read::number(&mut object, document, b"repository", path, problems);
     let gate_ats = optional_list(&mut object, document, b"gates", limits.gates, path, problems);
@@ -316,7 +316,7 @@ fn repository_checks(
     if let Some(ats) = gate_ats {
         for (index, at) in ats.iter().enumerate() {
             let path = read::index(&path.member(b"gates"), index);
-            let Some(mut object) = read::object(document, *at, &path, problems) else { continue };
+            let Some(mut object) = read::object(document, *at, "gate-check", &path, problems) else { continue };
             let check = check(&mut object, document, &path, limits, problems);
             let blocking = read::boolean(&mut object, document, b"blocking", &path, problems);
             read::finish(object, document, &path, problems);
@@ -367,7 +367,7 @@ fn repository_checks(
     })
 }
 fn project_landing(
-    object: &mut config::read::Object,
+    object: &mut crate::startup::members::Object,
     document: &Document,
     path: &Path,
     limits: &temper_engine_domain_forge::Limits,

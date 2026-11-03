@@ -91,6 +91,8 @@ as directed, then release to read afresh.
 
 ## Limits
 
+For the configuration members that need a restart, read `temper help configuration`.
+
 - Placed holds in the deployment, in a project and per owning party,
   and the tasks one hold exempts, each bounded; one more is refused,
   naming the bound.

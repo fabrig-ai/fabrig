@@ -2645,21 +2645,7 @@ fn delegate_result(
                 return;
             }
         }
-        change::Delegate::Produce => {
-            if no_change && let change::State::Producing { .. } = row.change.state {
-                row.change.state = change::State::NoChange { words: words.into() };
-                row.change.owns_turn = false;
-            }
-            row.producer_failure = if failed && !words.is_empty() {
-                Some(crate::text::fit(
-                    words,
-                    usize::try_from(jig_domain_tasks::HOLD_ACCOUNT_BYTES).expect("bounded hold account"),
-                    b"...",
-                ))
-            } else {
-                None
-            };
-        }
+        change::Delegate::Produce => producer_result(row, no_change, failed, words),
         change::Delegate::Merge { .. } => {
             if status == change::Status::Passed {
                 let bound = match d.merge_kind {
@@ -2673,7 +2659,26 @@ fn delegate_result(
         change::Delegate::Repair(_) | change::Delegate::Resolve { .. } => {}
     }
     let saved = row.clone();
+    if kind == change::Delegate::Produce && status == change::Status::Failed {
+        d.procedure_wakes.insert(task, true).expect("one pending wake per change");
+    }
     save_change(d, out, saved);
+}
+
+fn producer_result(row: &mut ChangeRow, no_change: bool, failed: bool, words: &[u8]) {
+    if no_change && let change::State::Producing { .. } = row.change.state {
+        row.change.state = change::State::NoChange { words: words.into() };
+        row.change.owns_turn = false;
+    }
+    row.producer_failure = if failed && !words.is_empty() {
+        Some(crate::text::fit(
+            words,
+            usize::try_from(jig_domain_tasks::HOLD_ACCOUNT_BYTES).expect("bounded hold account"),
+            b"...",
+        ))
+    } else {
+        None
+    };
 }
 
 fn review_terminal_words(status: change::Status, failed: bool, cancelled: bool) -> &'static [u8] {
@@ -2785,6 +2790,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         // Entries hand off in number order (skein's forge-client.md, 7.2);
         // the newest wake reserves the restart's entry and reads jig's current kept answer.
         pending.entry = entry;
+        pending.heard.delegate = heard.delegate;
         pending.heard.lacking = heard.lacking;
         pending.heard.spend = heard.spend;
         pending.kept = kept;
@@ -2812,10 +2818,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         task,
         entry,
         stage: StepStage::Branch,
-        heard: change::Heard {
-            delegate: if row.delegate_status == change::Status::Unknown { heard.delegate } else { row.delegate_status },
-            ..heard
-        },
+        heard,
         gates: if gates.is_empty() { row.verdicts.clone() } else { gates },
         queue_repair_active,
         kept,
@@ -3318,6 +3321,12 @@ fn titled_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<R
 
 fn change_standing(d: &Domain, row: &ChangeRow, pending: &PendingStep) -> change::Heard {
     change::Heard {
+        // Terminal evidence belongs to the current delegate, not to the read's start.
+        delegate: if row.delegate_status == change::Status::Unknown {
+            pending.heard.delegate
+        } else {
+            row.delegate_status
+        },
         start_conflict: d.start_conflict(row.task),
         effect: if row.pending.is_some() { change::EffectResult::Pending } else { row.effect },
         ..pending.heard
