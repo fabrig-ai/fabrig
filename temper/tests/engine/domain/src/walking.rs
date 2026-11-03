@@ -192,6 +192,7 @@ pub fn limits() -> engine::Limits {
             parts: 2,
             read_bytes: 256,
             budgets: engine::BriefBudgets {
+                document: 4096,
                 task: 128,
                 dependencies: 128,
                 ci: 128,
