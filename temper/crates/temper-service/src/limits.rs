@@ -248,6 +248,8 @@ const FORGE: forge::Limits = forge::Limits {
 };
 // A project of fabrig's scale (temper/docs/design/protocol/configuration.md, 13.4).
 const STANDARD_FORGE: forge::Limits = forge::Limits {
+    // One gathered section shares the root task section's read bound.
+    brief_bytes: STANDARD_BRIEF.budgets.task,
     // Tasks following live changes in a project, 18 changes seen.
     tasks: 128,
     // Holds for live changes in a project, 18 seen.
@@ -373,6 +375,27 @@ const ROOT: Root = Root {
         gather: Duration::from_secs(30),
     },
 };
+// Standard carries a whole jig standard spec (131,072) plus 512 bytes for its
+// contract and requester, as small carries 4,096 plus 512.
+const STANDARD_BRIEF: engine::BriefLimits = engine::BriefLimits {
+    read_bytes: 131_584,
+    budgets: engine::BriefBudgets {
+        task: 131_584,
+        // Pull and reviews share the task section's read bound, as in small.
+        pull: 131_584,
+        reviews: 131_584,
+        ..ROOT.brief.budgets
+    },
+    // tests/stock_brief.rs derives charter 1's room (362,900) less 1,472
+    // bytes for 64 titles and framing and 1,129 margin; below 395,520.
+    brief_bytes: 360_299,
+    ..ROOT.brief
+};
+const STANDARD_ROOT: Root = Root {
+    brief: STANDARD_BRIEF,
+    journal: engine::JournalLimits { result_bytes: STANDARD_BRIEF.brief_bytes, ..ROOT.journal },
+    ..ROOT
+};
 const CLIENTS: Clients = Clients {
     // Files of a bundle, the page among them: far above the shell's dev bundle (decision 6 of browser-1).
     bundle_files: 128,
@@ -386,7 +409,7 @@ pub const SOCKETS: u32 = 64;
 #[must_use]
 pub fn profile(profile: Profile) -> Limits {
     match profile {
-        Profile::Standard => Limits { forge: STANDARD_FORGE, ..self::profile(Profile::Small) },
+        Profile::Standard => Limits { root: STANDARD_ROOT, forge: STANDARD_FORGE, ..self::profile(Profile::Small) },
         Profile::Small => Limits {
             picker: Picker { page: 30 },
             routes: Routes { query_bytes: 2048 },
