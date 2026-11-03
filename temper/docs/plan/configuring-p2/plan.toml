@@ -13,28 +13,7 @@ after = ["reference-m3"]
 low = 1.0
 high = 2.0
 
-[[part]]
-id = "policy-item"
-title = "a project's own policy as an item of a change of settings and of a proposal, decided by one person owning both the deployment and the project, through temper ctl's settings file"
-mode = "direct"
-needs = []
-design = "jig/docs/design/domain/engine.md, 17.2"
 
-[[slice]]
-id = 1
-story = "an owner of the deployment and of project 1 proposes a settings file naming charters, a landing rule and project 1's policy; proposal show prints the policy now and proposed; accepting it sets all of them in one revision, and a member-only owner is refused"
-parts = ["policy-item"]
-walk = false
-
-[[part]]
-id = "restore"
-title = "restoring a version: each item records what it replaced, jig's kinds, temper's kinds and a project's policy proposed back as a revision left them, through temper ctl revision restore"
-mode = "direct"
-needs = ["policy-item"]
-design = "jig/docs/design/domain/engine.md, 17.10"
-
-[[slice]]
-id = 2
-story = "a settings file of each kind proposed, shown, accepted and restored through temper ctl, and P1's document reaching a run's brief"
-parts = ["restore"]
-walk = true
+# Its two parts (policy-item, restore) left this plan on 11-03 (agents/loop, at fabrig/dogfood's
+# word): their tasks are cut by configuring-p2-build on M3's landed settings, from this trunk.
+# This plan only readies the design it released and retires.
