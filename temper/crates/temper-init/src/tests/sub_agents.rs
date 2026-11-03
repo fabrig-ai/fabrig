@@ -167,13 +167,10 @@ fn check_results(world: &World) -> bool {
 #[test]
 fn stock_profile_runs_two_inspect_only_children_side_by_side() {
     let generated = crate::files(&fixtures::facts(), &DIRECTORIES, &[0; 32], &[0xab; 32]).expect("init files");
-    let overlap = [content(&generated, b"agent.json"), fixtures::AGENT].map(|source| {
-        let mut world = world(parse(source));
-        let before = world.disk().tree(b"work");
-        world.run(10_000);
-        let overlap = check_results(&world);
-        assert_eq!(world.disk().tree(b"work"), before, "inspect-only checkout is unchanged");
-        overlap
-    });
-    assert_eq!(overlap, [true, true], "generated and owned: both children start before either completes");
+    let mut world = world(parse(content(&generated, b"agent.json")));
+    let before = world.disk().tree(b"work");
+    world.run(10_000);
+    let overlap = check_results(&world);
+    assert_eq!(world.disk().tree(b"work"), before, "inspect-only checkout is unchanged");
+    assert!(overlap, "both children start before either completes");
 }

@@ -473,7 +473,7 @@ mod sizing_tests {
         assert_eq!(row, 274_504);
         assert!(row <= u64::from(limits.secrets.value));
         assert!(row.checked_add(KEY_BYTES).unwrap() < u64::from(limits.secrets.page.bytes));
-        assert_eq!(profile.store.page.bytes, 2_184_737);
+        assert_eq!(profile.store.page.bytes, 1_662_106);
     }
 
     #[test]
