@@ -84,6 +84,7 @@ pub struct Domain {
     pub(crate) forge: forge::Domain,
     pub(crate) application: Option<(Token, crate::Application)>,
     pub(crate) kinds: Box<[crate::KindValue]>,
+    pub(crate) kinds_stock: Option<Box<[forge::settings::Stock]>>,
     pub(crate) application_carried: Option<jig_domain_core::Carried>,
     pub(crate) application_playground: Option<crate::route::playground::Context>,
     pub(crate) playground_contexts: Map<Token, crate::route::playground::Context>,
@@ -401,6 +402,11 @@ impl Domain {
                 "project landing configuration bounded and supported"
             );
         }
+        let mut declares_forge_kinds = false;
+        for kind in &config.core.kinds {
+            declares_forge_kinds |= kind.connector == forge_connector;
+        }
+        let kinds_stock = if declares_forge_kinds { Some(config.kinds_stock) } else { None };
         let root_config =
             RootConfig { forge_connector, forge_charter: config.forge_charter, landings: config.landing.landings };
         let link_rng = skein_lib::Rng::new(config.core.seed);
@@ -474,6 +480,7 @@ impl Domain {
             forge,
             application: None,
             kinds: Box::default(),
+            kinds_stock,
             application_carried: None,
             application_playground: None,
             playground_contexts: Map::with_capacity(limits.forge.applications),
