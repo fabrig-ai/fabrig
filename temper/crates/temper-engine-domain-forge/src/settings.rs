@@ -168,6 +168,7 @@ pub enum Refusal {
     Approvals,
     Charter,
     Value,
+    Replaced,
 }
 
 impl Refusal {
@@ -182,6 +183,7 @@ impl Refusal {
             Self::Approvals => b"an approval of no people, a role twice, or one past authority.roles",
             Self::Charter => b"a charter outside 1 to tasks.charters, or the forge's charter removed",
             Self::Value => b"a value of another kind",
+            Self::Replaced => b"the replaced value is no longer kept",
         }
     }
 }
