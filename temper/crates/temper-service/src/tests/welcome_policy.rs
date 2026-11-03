@@ -154,7 +154,7 @@ fn real_init_offers_its_owner_a_chat_with_all_three_procedures() {
     let offered = project.creating.as_ref().expect("owner may start a chat");
     let core::acts::Bounds::Create { procedures, charters, .. } = &offered.within else { panic!("create bounds") };
     assert_eq!(procedures.iter().map(|procedure| procedure.code).collect::<Vec<_>>(), [2, 3, 4]);
-    assert_eq!(charters.as_slice(), &[1, 2, 4, 6]);
+    assert_eq!(charters.as_slice(), &[1, 2, 3, 4, 6]);
 }
 
 fn policies(driver: &Driver) -> Vec<(u32, people::PolicyValue)> {
@@ -323,7 +323,7 @@ fn real_init_policy_fits_with_two_long_github_repositories() {
         "third welcome selection exceeds the unchanged two-project capacity"
     );
     let bytes = people::policy_bytes(&snapshot).expect("exact joined snapshot bytes");
-    assert_eq!(bytes, 3266);
+    assert_eq!(bytes, 3282);
     std::eprintln!(
         "real init joined policy: {bytes}/4096 requested bytes, configured bound {}; projects 1 and 2; adopted=2; owner=39, repositories=64 bytes each; third welcome MakeProject refuses Projects",
         limits.policy_bytes

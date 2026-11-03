@@ -1,4 +1,5 @@
-//! Managed orgs and reconcile's deadline and wait (protocol/configuration.md, 7).
+//! Managed orgs and reconcile's deadline and wait (temper/docs/design/protocol/configuration.md, 7;
+//! temper/docs/design/protocol/documentation.md, 8).
 use skein_forge_setup::limits::Limits;
 
 /// A fetched binary's cap; largest pin: Forgejo 17.0.0 amd64, 122,053,192 bytes.
@@ -61,6 +62,13 @@ impl Host {
 }
 /// Applies host overrides, including the pure plan's dotted names.
 pub fn apply_host(limits: &mut Host, name: &[u8], value: u64) -> Result<(), Refused> {
+    let mut known = false;
+    for row in &HOST_NAMES {
+        known |= row.name.as_bytes() == name;
+    }
+    if !known {
+        return Err(Refused::Unknown);
+    }
     match name {
         b"setup.runs" | b"setup.states" => {
             let count = u32::try_from(value).or(Err(Refused::Range))?;
@@ -82,6 +90,7 @@ pub fn apply_host(limits: &mut Host, name: &[u8], value: u64) -> Result<(), Refu
         _ => {
             let mut plan = limits.plan();
             apply(&mut plan, name, value)?;
+            limits.repositories = plan.repositories;
             limits.orgs = plan.orgs;
             limits.deadline = plan.deadline;
             limits.backoff = plan.backoff;
@@ -116,15 +125,11 @@ pub fn small() -> Limits {
 }
 /// Applies a dotted setup override, refusing zero and overflow.
 pub fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), Refused> {
-    if ![
-        b"setup.orgs".as_slice(),
-        b"setup.deadline_ms",
-        b"setup.backoff_ms",
-        b"setup.backoff_max_ms",
-        b"forge.client.repositories",
-    ]
-    .contains(&name)
-    {
+    let mut known = false;
+    for row in &NAMES {
+        known |= row.name.as_bytes() == name;
+    }
+    if !known {
         return Err(Refused::Unknown);
     }
     if value == 0 {
@@ -146,3 +151,115 @@ fn duration(value: u64) -> Result<Duration, Refused> {
         None => Err(Refused::Range),
     }
 }
+
+/// What a named limit counts.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Unit {
+    Count,
+    Bytes,
+    Milliseconds,
+}
+
+/// One override name and its value in its owner's limits.
+#[derive(Clone, Copy, Debug)]
+pub struct Name<L> {
+    pub name: &'static str,
+    pub unit: Unit,
+    /// What it bounds, one sentence of at most 120 bytes.
+    pub line: &'static str,
+    pub value: fn(&L) -> u64,
+}
+
+/// Every name the pure-plan override parser takes, in parser order.
+pub static NAMES: [Name<Limits>; 5] = [
+    Name {
+        name: "forge.client.repositories",
+        unit: Unit::Count,
+        line: "Bounds repositories retained by the forge client and read by a setup plan.",
+        value: |limits| u64::from(limits.repositories),
+    },
+    Name {
+        name: "setup.orgs",
+        unit: Unit::Count,
+        line: "Bounds managed organizations in a setup plan.",
+        value: |limits| u64::from(limits.orgs),
+    },
+    Name {
+        name: "setup.deadline_ms",
+        unit: Unit::Milliseconds,
+        line: "Bounds a setup plan's run, including its wait for the forge.",
+        value: |limits| limits.deadline.as_millis(),
+    },
+    Name {
+        name: "setup.backoff_ms",
+        unit: Unit::Milliseconds,
+        line: "Sets the first delay before a setup request is tried again.",
+        value: |limits| limits.backoff.as_millis(),
+    },
+    Name {
+        name: "setup.backoff_max_ms",
+        unit: Unit::Milliseconds,
+        line: "Bounds the doubling delay before a setup request is tried again.",
+        value: |limits| limits.backoff_max.as_millis(),
+    },
+];
+
+/// Every name the setup host override parser takes, in parser order.
+pub static HOST_NAMES: [Name<Host>; 8] = [
+    Name {
+        name: "setup.runs",
+        unit: Unit::Count,
+        line: "Bounds simultaneous setup host runs, counting a writing run and a reachable read separately.",
+        value: |limits| u64::from(limits.runs),
+    },
+    Name {
+        name: "setup.states",
+        unit: Unit::Count,
+        line: "Bounds states held for manifest and installation returns.",
+        value: |limits| u64::from(limits.states),
+    },
+    Name {
+        name: "setup.state_life_ms",
+        unit: Unit::Milliseconds,
+        line: "Bounds a return state's life, at most the manifest conversion code's hour.",
+        value: |limits| limits.state_life.as_millis(),
+    },
+    Name {
+        name: "forge.client.repositories",
+        unit: Unit::Count,
+        line: "Bounds repositories retained by the forge client and read by a setup plan.",
+        value: |limits| u64::from(limits.repositories),
+    },
+    Name {
+        name: "setup.orgs",
+        unit: Unit::Count,
+        line: "Bounds managed organizations in a setup plan.",
+        value: |limits| u64::from(limits.orgs),
+    },
+    Name {
+        name: "setup.deadline_ms",
+        unit: Unit::Milliseconds,
+        line: "Bounds a setup plan's run, including its wait for the forge.",
+        value: |limits| limits.deadline.as_millis(),
+    },
+    Name {
+        name: "setup.backoff_ms",
+        unit: Unit::Milliseconds,
+        line: "Sets the first delay before a setup request is tried again.",
+        value: |limits| limits.backoff.as_millis(),
+    },
+    Name {
+        name: "setup.backoff_max_ms",
+        unit: Unit::Milliseconds,
+        line: "Bounds the doubling delay before a setup request is tried again.",
+        value: |limits| limits.backoff_max.as_millis(),
+    },
+];
+
+/// The fetched binary's scalar bound, outside the plan and host limits.
+pub static FETCH_NAMES: [Name<u64>; 1] = [Name {
+    name: "setup.fetch_bytes",
+    unit: Unit::Bytes,
+    line: "Bounds a fetched binary's streamed body, written to its part file without holding it in memory.",
+    value: |limit| *limit,
+}];

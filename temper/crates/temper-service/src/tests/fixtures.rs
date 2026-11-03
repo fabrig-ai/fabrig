@@ -61,7 +61,7 @@ pub const INLINE_PROJECTS: &[u8] = br#"[{"number": 1, "roles": [{"connector": 1,
 
 pub fn engine() -> settings::Engine {
     let jig = parse_engine(ENGINE);
-    // This typed fixture reaches the core's start; policy 1 needs 3266 bytes.
+    // This typed fixture reaches the core's start; policy 1 needs 3282 bytes.
 
     settings::Engine {
         machine: machine(),

@@ -2,7 +2,7 @@
 id = "stock-configuring"
 part = "configuring-agent"
 kind = "feature"
-needs = ["tools-offered"]
+needs = ["tools-offered", "tools-store"]
 files = ["temper/crates/temper-service/src/stock.rs", "temper/crates/temper-service/src/stock/configuring.txt", "temper/crates/temper-service/src/tests/stock.rs", "temper/crates/temper-service/src/tests/stock_brief.rs", "temper/docs/design/domain/agent.status.md", "temper/docs/design/protocol/configuration.status.md"]
 effort = "high"
 minutes = 180
@@ -147,3 +147,92 @@ The instructions, `temper/crates/temper-service/src/stock/configuring.txt`, verb
 
 As the implementer's text says, and: every reader file changed, by group; the help pages'
 wrong lines; `stock_brief.rs`' printed figures for each charter.
+
+## Answers
+
+2026-11-03. **Q** (`stock-configuring-1`): widen the readers to `welcome_policy.rs` and
+`startup.rs`, and take `tools-store` as a prerequisite? **A:** yes to both (option A); the
+acceptance cannot hold without either.
+
+- `needs` now names `tools-store`. Until it lands, `jig-protocol-store`'s `decode_run_policy`
+  fills `RunPolicy.tools` with `EVERY_FAMILY`, so a restart turns every stock charter's new mask
+  into a release revision: that is the cause of the restart-oracle failures in the engine's
+  domain world and of `fixtures.rs`' `Refused(Stale { newest: 2 })`, and of the `engine.rs`,
+  `tools.rs` and `workers.rs` failures that reach it. Start from the pushed branch, merge the
+  trunk holding `tools-store` (and `tools-offered`), and rerun those first; weaken no revision
+  assertion. If any still fails with `tools-store` merged, stop and report it with its log.
+- Readers added to the survey, for the new count or member alone, as the others:
+  `temper-service/src/tests/welcome_policy.rs` (the stock charter list `[1, 2, 3, 4, 6]`; the
+  pinned policy bytes re-measured, 3,282 as `stock.rs`' test pins it) and
+  `temper-service/src/tests/startup.rs` (the template labels and numbers with template 3, as
+  the stock now orders them). List them in the report.
+- `configuration.status.md`'s other 13.4 host-family sentence stays, as this spec says; report
+  it under `## Left` for `help-stock` or the trunk's end check.
+- The rest of the acceptance is unchanged: every package it names runs its focused tests, one
+  command per group, and the report gives each run's counts.
+
+2026-11-03. **Q** (`stock-configuring-2`): widen the readers to
+`temper/crates/temper/tests/suite/creating.rs`? **A:** yes (option A); temper's focused tests,
+in the acceptance, cannot pass without it.
+
+- `creating.rs`, for the new count alone, as the other readers: in
+  `the_cluster_offers_every_stock_charter`, the count 5 and its message naming the
+  configuring agent ("stock chat, producer, configuring and reviewers"); its overflow line
+  `documents.lines = 4`, one below the stock's five charters, so the refusal stays at the
+  boundary; in `the_browser_receives_a_complete_stock_me_offer`, the isolating
+  `documents.lines = 5`. Every other assertion stays. List it in the report.
+- Run each of the two tests alone first, then the rest of the acceptance's focused suites, one
+  command per package group, each excluding the live and proof binaries
+  (`-E 'not binary(/^live/) & not binary(=proof_live)'`), and give each run's counts.
+- Another reader the merged trunk brings that fails only on the count of four charters or two
+  templates is fixed the same way and listed; any other failure, stop and report it with its
+  log.
+
+2026-11-03. **Q** (`stock-configuring-3`): widen the readers to
+`temper/crates/temper/tests/suite/startup.rs`, its expected policy bytes 3,266 to 3,282? **A:**
+yes (option A); temper's focused tests, in the acceptance, cannot pass without it, and the
+figure is the one this task re-measured and pinned.
+
+- `startup.rs`, in `a_stock_policy_past_its_limit_refuses_before_listening`, the message's
+  "needs 3266 bytes" becomes "needs 3282 bytes"; every other assertion stays. List it in the
+  report. `temper-service/src/tests/fixtures.rs`' comment naming 3266 says 3282 too.
+- Readers widened once more, so that the rest of the acceptance runs through: a test or
+  fixture that fails only on the stock's re-measured policy bytes (3,266 now 3,282), or only
+  on the count of four charters or two templates, is fixed for that figure alone and listed.
+  Any other failure, stop and report it with its log.
+- Start from the pushed branch (`d385dea91e`); run `startup.rs`' test alone first, then the
+  rest of `temper`'s focused tests and every package the acceptance names that has not yet
+  run in this branch's last state, one command per package group, excluding the live and
+  proof binaries, and give each run's counts.
+
+2026-11-03. **Q** (`stock-configuring-4`): in `temper/crates/temper/src/tests/reference_settings.rs`,
+let `reference_delegations()` keep the stock's `Executor::Charter(3)`? **A:** yes (option A);
+temper's focused tests, in the acceptance, cannot pass without it, and the reader is already in
+this spec's survey.
+
+- `reference_delegations()`: `Executor::Charter(3)` after `Executor::Charter(2)` in the base
+  list, which the derived cases keep; rename the bindings for their new lengths (ten, nine,
+  twelve) and nothing else. The assertion stays `Ok(())`; its `count <= executor_kinds` check
+  stays. List it in the report.
+- Readers widened once more, by the kind of change rather than one figure at a time: a test or
+  fixture that fails only because the stock now holds charter 3 and template 3 (the counts
+  of five charters and three templates, the policy bytes 3,282, the rules' and policy 1's
+  delegation to charter 3, the settings tools offered under charter 3 and no longer under
+  a chat's charter 1) is fixed in that reader for that alone and listed. Weaken no
+  assertion, and change no stock, design or engine code for it. Any other failure, stop and
+  report it with its log.
+- The flake `fake_backends::tests::source_adapter_is_a_bounded_fact_without_path_discovery`
+  stays under `## Left` with both logs, as reported.
+- Start from the pushed branch (`588d49e697`); run
+  `tests::reference_settings::init_limits_hold_reference_delegation` alone first (`--lib`),
+  then `temper`'s focused tests and every package the acceptance names, one command per
+  package group, excluding the live and proof binaries, and give each run's counts.
+
+2026-11-03. **Q** (fab, after `stock-configuring-4`): four runs without landing; run it again?
+**A:** yes, once more, under the answer above; nothing else changes. Each stop was a reader of
+the same change, the survey's or the merged trunk's, and the answer above widens the readers
+by the kind of change, so the next run should not stop on another one. That answer's lists fit
+the shipped limits: ten, nine and twelve delegation kinds against `tasks.executor_kinds` 12 in
+`temper-init/template/temper.json` and `docs/examples/owned.json`, and the stock's five
+charters plus the reference's two against `tasks.charters` 8. A failure of another kind still
+stops the run with its log.

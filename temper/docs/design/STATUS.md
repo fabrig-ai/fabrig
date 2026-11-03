@@ -24,7 +24,11 @@ for the held landing's story, ignored for a restart fault
 (`domain/forge.md`). A change relays its agents' questions through a
 foreman of its own or straight up, within its bound, but no story asks
 from a repair or a resolution (`domain/forge.md`), and neither a
-project's question route nor the foremen's charter is a setting. The
+project's question route nor the foremen's charter is a setting. A
+project's policy in a change of settings and a revision restored are
+built through ctl, but the restore's stories in the domain world and
+the joined client world are ignored (`protocol/configuration.md`,
+`client/tools.md`). The
 reference is one profile a box is set up with, but on a small box a
 result's bytes, a batch and the live delegates stay below the sizes it
 is designed for, and the case's repository carries no CI or tiers'
@@ -33,7 +37,7 @@ Much of a change's own bounds and gates, the forge's merge queue and a
 goal's issue lag (`domain/forge.md`); so do the client's Board, Changes
 and How work runs pages and many of ctl's tools (`client/README.md`,
 `client/forge.md`, `client/tools.md`),
-the client's crates in the gate's wasm32 clippy (`client/browser.md`),
+the client's web shell in the gate's wasm32 clippy (`client/browser.md`),
 the playground in the browser, whose world is composed natively but
 whose story A stalls at the playground's setup (`playground.md`,
 `domain/testing.md`), upgrades'
