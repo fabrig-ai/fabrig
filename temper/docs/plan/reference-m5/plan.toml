@@ -8,6 +8,7 @@ sources = ["temper/docs/plan/reference-m5/inputs/request.md", "temper/docs/desig
 # reference's coordinator answers, amends, makes a change, asks its person, and decides
 # holds. The shapes that cross tasks are notes/contracts.md; the lead wrote the design.
 
+retired = true
 [buffer]
 low = 1.0
 high = 2.0

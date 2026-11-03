@@ -874,3 +874,31 @@ fn task_result_document_cut_and_ctl_json_budget_are_independent() {
         }
     }
 }
+
+#[test]
+fn landing_lines_find_the_pull_after_verification_and_keep_both_evidence_parts() {
+    let length = landing_words(PULL).len().checked_add(CLEARING.len() + 1).unwrap();
+    let mut words = skein_lib::Writer::new(length);
+    for part in [MERGE, b"\n", CLEARING.as_bytes(), b"\n", PULL, b"\n", EVIDENCE] {
+        words.put(part).unwrap();
+    }
+    let words = words.finish();
+    for cut in [false, true] {
+        assert_eq!(crate::forge::landing_lines(&words, cut), (Some(ADDRESS), EVIDENCE));
+    }
+    for argv in [["task", "show", "2"].as_slice(), &["task", "show", "2", "--json"]] {
+        let printed = f::read_answer(argv, cleared_read(f::document_text(&words)));
+        for part in [CLEARING.as_bytes(), ADDRESS, &EVIDENCE[..skein_lib::bytes::find(EVIDENCE, b"\n").unwrap()]] {
+            assert!(f::has(&printed, part), "{printed:?}");
+        }
+    }
+    let (mut root, call) = f::read_call(&["task", "show", "2"]);
+    root.limits.tools.text = 550;
+    root.serve(call, cleared_read(f::document_text(&words)));
+    assert!(f::has(&root.answer(call).unwrap(), CLEARING.as_bytes()));
+    let cut = c::DocumentText { bytes: c::Text::new(words[..128].into(), 128).unwrap(), cut: true };
+    assert_eq!(crate::forge::landing_lines(&words[..128], true), (None, b"".as_slice()));
+    let printed = f::read_answer(&["task", "show", "2"], cleared_read(cut));
+    assert!(f::has(&printed, CLEARING.as_bytes()), "{printed:?}");
+    assert!(!f::has(&printed, b"pull request: "), "{printed:?}");
+}

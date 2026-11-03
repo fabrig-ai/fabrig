@@ -11,6 +11,7 @@ mod b2;
 mod change_panel;
 mod chat;
 mod choice;
+mod clearing;
 mod connect_forge;
 mod connect_model;
 mod forges;

@@ -102,9 +102,9 @@ fn the_owned_values_equal_the_test_kits_values() {
     protocol.documents.openai.output_items = 256;
     protocol.documents.anthropic.output_items = 256;
     assert_eq!(fakes::llm_limits(), protocol);
-    assert_eq!(documents::hosted_git::CONFIG, temper_fake_git_hosted::fixtures::CONFIG);
+    assert_eq!(documents::hosted_git::CONFIG, temper_worker_checkout_world::hosted::CONFIG);
     let identity = documents::hosted_git::identity();
-    let original = temper_fake_git_hosted::fixtures::identity();
+    let original = temper_worker_checkout_world::hosted::identity();
     assert_eq!(identity.token, original.token);
     assert_eq!(identity.login, original.login);
     assert_eq!(identity.name, original.name);
