@@ -1897,6 +1897,25 @@ fn result_tier(name: &[u8], branch: Option<&[u8]>) -> crate::translate::TierChec
     }
 }
 
+fn result_tiers(
+    domain: &mut super::Domain,
+    repository: skein_forge::api::Repository,
+    tiers: Box<[crate::translate::TierCheck]>,
+) {
+    domain
+        .config
+        .landings
+        .insert(
+            5,
+            crate::translate::ProjectLanding {
+                by: crate::translate::Way::Queue,
+                repositories: Box::new([crate::translate::RepositoryChecks { repository, gates: Box::new([]), tiers }]),
+                after: crate::translate::AfterLandingCheck { tier_retries: 2, verification_bound_ms: 7_200_000 },
+            },
+        )
+        .unwrap();
+}
+
 #[test]
 fn cleared_and_uncleared_results_qualify_the_landing_before_its_evidence() {
     use super::{forge, forge_change};
@@ -1911,26 +1930,15 @@ fn cleared_and_uncleared_results_qualify_the_landing_before_its_evidence() {
         let mut row = change_row(Some(7));
         row.change.state = state;
         row.change.last_head = Some(SHA1);
-        domain
-            .config
-            .landings
-            .insert(
-                5,
-                crate::translate::ProjectLanding {
-                    by: crate::translate::Way::Queue,
-                    repositories: Box::new([crate::translate::RepositoryChecks {
-                        repository: row.repository,
-                        gates: Box::new([]),
-                        tiers: Box::new([
-                            result_tier(b"fuzzy", None),
-                            result_tier(b"release", Some(b"release/v1")),
-                            result_tier(b"browser", Some(b"main")),
-                        ]),
-                    }]),
-                    after: crate::translate::AfterLandingCheck { tier_retries: 2, verification_bound_ms: 7_200_000 },
-                },
-            )
-            .unwrap();
+        result_tiers(
+            &mut domain,
+            row.repository,
+            Box::new([
+                result_tier(b"fuzzy", None),
+                result_tier(b"release", Some(b"release/v1")),
+                result_tier(b"browser", Some(b"main")),
+            ]),
+        );
         let mut out = skein_lib::Queue::uncapped();
         forge::step(
             &mut domain.forge,
@@ -1950,6 +1958,80 @@ fn cleared_and_uncleared_results_qualify_the_landing_before_its_evidence() {
         for part in short.windows(line.len() - 1) {
             assert_ne!(part, &line[..line.len() - 1], "qualification is kept whole");
         }
+    }
+}
+
+fn cleared_repair_result(by: Option<skein_forge::api::Commit>) -> super::Domain {
+    use super::{forge, forge_change};
+    let (mut domain, env) = two_forges();
+    let mut row = change_row(Some(7));
+    row.change.state = forge_change::State::Cleared { merge: SHA1 };
+    result_tiers(&mut domain, row.repository, Box::new([result_tier(b"browser", None)]));
+    let verification = forge::Verification {
+        repository: row.repository,
+        commit: SHA1,
+        changes: Box::new([row.task]),
+        tiers: Box::new([forge::TierVerification {
+            tier: Box::from(b"browser".as_slice()),
+            verdict: Some(forge::TierVerdict {
+                run: 1,
+                blame: temper_engine_domain_forge_tiers::Blame::Owns(temper_engine_domain_forge_tiers::Failures::Many),
+            }),
+            repaired: Some(forge::TierRepair { run: 2, tip: SHA256, by }),
+        }]),
+    };
+    let mut out = skein_lib::Queue::uncapped();
+    for record in [forge::Stored::Change(row), forge::Stored::Verification(verification)] {
+        forge::step(
+            &mut domain.forge,
+            &super::super::environment_forge(&env),
+            forge::Event::Restore { record },
+            &mut out,
+        );
+    }
+    domain
+}
+
+#[test]
+fn a_cleared_changes_result_names_its_repairing_landing() {
+    let domain = cleared_repair_result(Some(SHA256));
+    assert!(
+        super::change_landing_words(&domain, 7, &SHA1, 7, 512).ends_with(
+            b"\nCleared by browser run 2, which passed the failures blamed on it; repaired by abababababab."
+        )
+    );
+}
+
+#[test]
+fn a_change_cleared_by_the_run_alone_keeps_its_words() {
+    let domain = cleared_repair_result(None);
+    assert_eq!(super::change_verification_words(&domain, 7, &SHA1, 512).as_ref(), b"Cleared by browser.");
+}
+
+#[test]
+fn repairing_tiers_keep_their_own_lines_among_other_tiers() {
+    let mut domain = cleared_repair_result(Some(SHA256));
+    let repository = change_row(Some(7)).repository;
+    for (names, expected) in [
+        (
+            [b"browser".as_slice(), b"fuzzy", b"slow"],
+            b"Cleared by browser run 2, which passed the failures blamed on it; repaired by abababababab.\nCleared by fuzzy, slow.".as_slice(),
+        ),
+        (
+            [b"fuzzy".as_slice(), b"browser", b"slow"],
+            b"Cleared by fuzzy.\nCleared by browser run 2, which passed the failures blamed on it; repaired by abababababab.\nCleared by slow.".as_slice(),
+        ),
+        (
+            [b"fuzzy".as_slice(), b"slow", b"browser"],
+            b"Cleared by fuzzy, slow.\nCleared by browser run 2, which passed the failures blamed on it; repaired by abababababab.".as_slice(),
+        ),
+    ] {
+        result_tiers(
+            &mut domain,
+            repository,
+            Box::new([result_tier(names[0], None), result_tier(names[1], None), result_tier(names[2], None)]),
+        );
+        assert_eq!(super::change_verification_words(&domain, 7, &SHA1, 512).as_ref(), expected);
     }
 }
 
