@@ -1,5 +1,10 @@
 //! Public reading's documents and messages (jig/docs/design/domain/people.md, 13).
 
+pub(crate) mod index;
+mod line;
+
+pub(crate) use index::{Index, follow, publish, restored};
+
 use alloc::boxed::Box;
 use skein_lib::Time;
 
@@ -33,13 +38,21 @@ pub enum PublicDocument {
 /// The deployment's public projects, by internal number.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct PublicProjects {
-    pub projects: Box<[u32]>,
+    pub projects: Box<[PublicProject]>,
+}
+
+/// A public project and its name (jig/docs/design/client/domain/contract.md, 12).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct PublicProject {
+    pub project: u32,
+    pub name: Box<str>,
 }
 
 /// A public project's bounded live and ended goals.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct PublicBoard {
     pub project: u32,
+    pub name: Box<str>,
     pub live: Box<[PublicGoal]>,
     pub live_folded: u32,
     pub ended: Box<[PublicGoal]>,
@@ -62,10 +75,11 @@ pub struct PublicCard {
     pub folded: u32,
 }
 
-/// Structure and mechanics alone, with times in whole seconds.
+/// The task title, structure and mechanics, with times in whole seconds.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct PublicLine {
     pub task: u64,
+    pub title: crate::documents::Text,
     pub parent: Option<u64>,
     pub goal: bool,
     pub priority: Option<u32>,

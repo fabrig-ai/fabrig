@@ -56,6 +56,7 @@ impl Core {
                         self.restore_failure = Some(crate::start::Failure::ProjectPolicy { project });
                         false
                     } else {
+                        crate::public::restored(self, project);
                         true
                     }
                 }

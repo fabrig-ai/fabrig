@@ -18,6 +18,7 @@ impl Core {
         None
     }
 
+    #[expect(clippy::too_many_lines, reason = "the start script keeps its ordered phase transitions together")]
     pub fn start_done(&mut self, env: &Env<Limits>, done: Phase, out: &mut Queue<Request>) -> Action {
         self.start_input();
         self.start_collect_failure();
@@ -112,6 +113,9 @@ impl Core {
                 None => Phase::Open,
             },
             Phase::Open => {
+                for project in self.projects.to_boxed() {
+                    crate::public::publish(self, env.limits.public, project);
+                }
                 self.opened = true;
                 self.start.phase = None;
                 return Action::Idle;
