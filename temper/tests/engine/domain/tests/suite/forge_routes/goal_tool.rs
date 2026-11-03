@@ -103,7 +103,7 @@ fn start_chat(
     }
     batch[0].budget = people::Budget::AsAllowed { cap: Some(cap) };
     batch[0].contract = people::Contract::Report { words: 32 };
-    batch[0].authority.tools = 1 | 2 | 512;
+    batch[0].authority.tools = 1 | 2 | 4 | 512;
     batch[0].authority.delegation.tasks = tasks;
     batch[0].authority.delegation.depth = depth;
     let chat = assigned_chat(&mut world, 92, people::Ask::Create { project, batch });
@@ -216,7 +216,7 @@ fn an_untracked_chats_goal_comes_last_among_the_projects_goals() {
         let (mut world, chat) = chat_world(400, 11, 3);
         let mut first = temper_engine_domain_world::fixtures::report_delegate(b"existing goal", Box::new([]));
         first.tracked = Some(existing);
-        first.authority.tools = tasks::Tools(1 | 2 | 512);
+        first.authority.tools = tasks::Tools(1 | 2 | 4 | 512);
         let earlier = delegated(call(&mut world, &chat, 93, engine::Tool::Delegate { batch: Box::new([first]) }));
         let task = delegated(goal(&mut world, &chat, 94, false));
         assert_eq!(live(&world, task).tracked, Some(expected));
@@ -336,6 +336,13 @@ fn running_goal_with_agreement(agree: bool) -> (World, engine::Assignment, engin
 #[test]
 fn a_goal_calls_change_and_its_change_is_made() {
     let (mut world, _, run) = running_goal();
+    let charter = temper_engine_smith::charter(&run);
+    let change_tool =
+        charter.grants.host_tools.iter().find(|tool| tool.name.as_ref() == b"change").expect("change offered");
+    let schema: serde_json::Value = serde_json::from_slice(&change_tool.schema).expect("change schema");
+    for member in ["changes", "name", "landing", "after", "branch"] {
+        assert!(schema["properties"].get(member).is_some(), "plan member {member} offered");
+    }
     let change = delegated(call(
         &mut world,
         &run,
@@ -690,7 +697,7 @@ fn a_held_goal_under_a_chat_waits_in_its_persons_inbox_at_once() {
     let people::Ask::Create { project, mut batch } = adoption_chat(&world) else { panic!("create") };
     batch[0].flags.ended_by = people::EndedBy::Requester;
     batch[0].budget = people::Budget::AsAllowed { cap: Some(400) };
-    batch[0].authority.tools = 1 | 2 | 512;
+    batch[0].authority.tools = 1 | 2 | 4 | 512;
     batch[0].authority.delegation.tasks = 11;
     batch[0].authority.delegation.depth = 3;
     let chat = assigned_chat(&mut world, 92, people::Ask::Create { project, batch });

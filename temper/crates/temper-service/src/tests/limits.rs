@@ -152,6 +152,7 @@ fn the_standard_profile_holds_fabrig_scale_work() {
     let standard = limits::profile(limits::Profile::Standard);
     let expected = limits::Limits {
         forge: temper_engine_domain_forge::Limits {
+            brief_bytes: 131_584,
             tasks: 128,
             holds: 128,
             changes: 128,
@@ -169,9 +170,41 @@ fn the_standard_profile_holds_fabrig_scale_work() {
             issue_policy: temper_engine_domain_forge_issues::Limits { plan_items: 384, ..small.forge.issue_policy },
             ..small.forge
         },
+        root: limits::Root {
+            brief: temper_engine_domain::BriefLimits {
+                read_bytes: 131_584,
+                brief_bytes: 360_299,
+                budgets: temper_engine_domain::BriefBudgets {
+                    task: 131_584,
+                    pull: 131_584,
+                    reviews: 131_584,
+                    ..small.root.brief.budgets
+                },
+                ..small.root.brief
+            },
+            journal: temper_engine_domain::JournalLimits { result_bytes: 360_299, ..small.root.journal },
+            loads: small.root.loads,
+        },
         ..small
     };
     assert_eq!(standard, expected);
+}
+
+#[test]
+fn the_standard_brief_and_its_carriers_share_their_bounds() {
+    let own = limits::profile(limits::Profile::Standard);
+    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+    let root = limits::engine(&jig, &own).expect("coherent brief carriers");
+    assert!(temper_engine_domain::valid(&root));
+    assert_eq!(own.root.brief.read_bytes, own.root.brief.budgets.task);
+    assert_eq!(own.forge.brief_bytes, own.root.brief.read_bytes);
+    assert_eq!(own.root.journal.result_bytes, own.root.brief.brief_bytes);
+    let mut short = own;
+    short.forge.brief_bytes -= 1;
+    assert!(limits::engine(&jig, &short).is_none());
+    short = own;
+    short.root.journal.result_bytes -= 1;
+    assert!(limits::engine(&jig, &short).is_none());
 }
 
 #[test]
