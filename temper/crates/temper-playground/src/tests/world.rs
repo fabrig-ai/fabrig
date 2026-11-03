@@ -118,6 +118,14 @@ fn keeping_links_leaves_them_for_the_harness() {
 }
 
 #[test]
+fn story_a_routes_git_to_its_live_peer_and_setup_entries_keep_the_typed_transport() {
+    let story = story::world(crate::stories::A.start(7, Wall::EPOCH));
+    assert_eq!(story::parameters(&story).route, Some(temper_fake::forge::git_limits()));
+    let setup = story::world(start(Links::Print));
+    assert_eq!(story::parameters(&setup).route, None);
+}
+
+#[test]
 fn story_a_lays_the_playground_forges_handover_before_starting() {
     use crate::{service::read_handover, stories::A};
     use skein_lib::Token;
