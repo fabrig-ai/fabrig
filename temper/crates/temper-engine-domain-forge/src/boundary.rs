@@ -1475,6 +1475,17 @@ pub enum Event {
         cancelled: bool,
         words: Box<[u8]>,
     },
+    /// Save the relay admitted with a change's procedure step.
+    Relayed {
+        task: u64,
+        questions: change::Questions,
+    },
+    /// A relay question refused by jig holds with its words and stays unasked.
+    RelayRefused {
+        task: u64,
+        questions: change::Questions,
+        words: Box<[u8]>,
+    },
     /// Gather fresh forge facts and step one registered change.
     StepChange {
         task: u64,

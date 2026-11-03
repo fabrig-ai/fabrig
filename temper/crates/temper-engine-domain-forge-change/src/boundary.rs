@@ -438,6 +438,8 @@ pub struct Open {
     pub number: u64,
     /// Its words' first line, at most `QUESTION_LINE` bytes, cut on a UTF-8 boundary, marked "…".
     pub line: Box<[u8]>,
+    /// The question's whole words, within the deployment's message bound.
+    pub words: Box<[u8]>,
     pub stands: Stands,
 }
 

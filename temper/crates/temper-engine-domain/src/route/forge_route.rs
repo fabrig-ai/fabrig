@@ -28,7 +28,9 @@ mod reads;
 use reads::read_answer;
 pub(crate) use reads::read_call;
 mod holds;
+mod relay;
 pub(crate) use holds::{hold as hold_reason, refused_step, start_refused};
+pub(crate) use relay::{ChangeStep, refused as relay_refused};
 
 #[cfg(test)]
 mod tests;
@@ -1860,6 +1862,10 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
             }
         }
     }
+    match context.requester {
+        tasks::Party::Task(_) => {}
+        tasks::Party::Person(_) | tasks::Party::Deployment { .. } => route = forge_change::Route::None,
+    }
     let Some(provider) = provider else { return false };
     if base_repair {
         match context.requester {
@@ -1979,6 +1985,16 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
     }
     landing_route::join_landing(domain, env, task);
     let Some(entry) = crate::fresh(&mut domain.core.counters, Family::ConnectorRow) else { return false };
+    let released_questions = match (domain.forge.change(task), domain.core.tasks.task(task)) {
+        (Some(row), Some(task)) => relay::questions_held(&row.change.state) && task.due_reason == tasks::Why::Released,
+        _ => false,
+    };
+    if released_questions && let Some((_, _, step)) = domain.core.tasks.procedure_due(task) {
+        domain
+            .forge_delegating
+            .insert((task, step), ChangeStep { delegate: None, relayed: None, refusal: None, released: true })
+            .expect("one released relay per change step");
+    }
     domain.work.push(Work::Forge(forge::Event::StepChange {
         task,
         entry,
@@ -2183,12 +2199,12 @@ pub(crate) fn change_batch(
     }
     for change in changes {
         match change.questions {
-            Some(crate::ChangeQuestions::Foreman | crate::ChangeQuestions::Up) => {
+            Some(crate::ChangeQuestions::Foreman) => {
                 return Err(ChangeRefused::Words(Box::from(
-                    b"change's questions foreman and up are not offered yet.".as_slice(),
+                    b"change's questions foreman is not offered yet.".as_slice(),
                 )));
             }
-            None | Some(crate::ChangeQuestions::None) => {}
+            None | Some(crate::ChangeQuestions::None | crate::ChangeQuestions::Up) => {}
         }
     }
     if let Some(words) = super::goal::change_refusal(domain, task) {
@@ -2369,6 +2385,17 @@ fn chat_change(
     authority.budget.spend = spend;
     authority.notes = tasks::Scopes(0);
     authority.note_resources = Box::new([]);
+    let mut parameters = List::with_capacity(env.limits.tasks.parameters);
+    for parameter in change_parameters(domain.config.forge_connector, repository.provider, base) {
+        if parameters.push(parameter).is_err() {
+            return Err(tasks::Refusal::Spec);
+        }
+    }
+    if change.questions == Some(crate::ChangeQuestions::Up)
+        && parameters.push(tasks::Parameter::Number { name: 14, value: 2 }).is_err()
+    {
+        return Err(tasks::Refusal::Spec);
+    }
     Ok(super::Delegate {
         deadline: tasks::Deadline::Named,
         executor: tasks::Executor::Procedure { connector: domain.config.forge_connector, code: CHANGE_CODE },
@@ -2376,7 +2403,7 @@ fn chat_change(
             job: None,
             asks: false,
             words: change.words.clone(),
-            parameters: Box::new(change_parameters(domain.config.forge_connector, repository.provider, base)),
+            parameters: parameters.into_boxed(),
             inputs: Box::new([]),
         },
         // Leave room for the pull's words and address as well as the merge id.
@@ -2476,9 +2503,17 @@ fn change_delegate(
     let row = domain.forge.change(task)?;
     let context = domain.core.tasks.delegation(task)?;
     let mut authority = child_authority(&context)?;
-    // Every agent below a change asks no one (domain/agent.md, 8.2) and
-    // leaves deployment settings to its requester.
-    authority.tools.0 &= !(domain.core.settings.tools.message.0 | domain.core.settings.tools.settings);
+    // domain/agent.md, 8: only producing, repairs and resolutions may ask.
+    authority.tools.0 &= !domain.core.settings.tools.settings;
+    let asking = match kind {
+        forge_change::Delegate::Produce
+        | forge_change::Delegate::Repair(_)
+        | forge_change::Delegate::Resolve { .. } => row.questions.route != forge_change::Route::None,
+        forge_change::Delegate::Gate { .. } => false,
+    };
+    if !asking {
+        authority.tools.0 &= !domain.core.settings.tools.message.0;
+    }
     let mut parameters = List::with_capacity(env.limits.tasks.parameters);
     parameters
         .push(tasks::Parameter::Resource {
@@ -2753,73 +2788,12 @@ fn produce_words(title: &[u8], base: &[u8], branch: &[u8], bound: u32) -> Box<[u
 
 /// Keep the decision's messages first, then fill its remaining room with inbox replies.
 pub(super) fn append_change_replies(
-    domain: &Domain,
+    domain: &mut Domain,
     env: &Env<Limits>,
     task: u64,
     decision: ProcedureStep,
 ) -> ProcedureStep {
-    let mut messages = List::with_capacity(env.limits.tasks.batch);
-    for message in decision.messages {
-        messages.push(message).expect("the decision's messages fit the step batch");
-    }
-    ProcedureStep { messages: change_replies(domain, env, task, messages), ..decision }
-}
-
-/// domain/forge.md, 8.1: replies take the same inbox prefix as their step.
-fn change_replies(
-    domain: &Domain,
-    env: &Env<Limits>,
-    task: u64,
-    mut messages: List<jig_domain_core::StepMessage>,
-) -> Box<[jig_domain_core::StepMessage]> {
-    let Some(row) = domain.core.tasks.task(task) else { return messages.into_boxed() };
-    let Some(offered) = domain.core.tasks.procedure_offered(task) else { return messages.into_boxed() };
-    for word in &row.inbox {
-        // domain/forge.md, 8.1: answer the oldest within the batch; the rest are taken unanswered.
-        if messages.len() == env.limits.tasks.batch {
-            break;
-        }
-        if word.number > offered {
-            continue;
-        }
-        let kind = match word.kind {
-            tasks::MessageKind::Question => tasks::MessageKind::Answer { question: word.number },
-            tasks::MessageKind::Words | tasks::MessageKind::Answer { .. } => tasks::MessageKind::Words,
-            tasks::MessageKind::Result(_)
-            | tasks::MessageKind::Escalation { .. }
-            | tasks::MessageKind::Proposal { .. }
-            | tasks::MessageKind::ProposalDecision { .. }
-            | tasks::MessageKind::SettingsDecision { .. }
-            | tasks::MessageKind::FinishRequested { .. }
-            | tasks::MessageKind::Amendment { .. }
-            | tasks::MessageKind::Met { .. }
-            | tasks::MessageKind::Notice { .. }
-            | tasks::MessageKind::QuestionAnswered { .. }
-            | tasks::MessageKind::QuestionOwed
-            | tasks::MessageKind::NothingAwaited
-            | tasks::MessageKind::QuestionEnded { .. }
-            | tasks::MessageKind::Timer { .. }
-            | tasks::MessageKind::PersonStalled { .. }
-            | tasks::MessageKind::EffectNotMade { .. }
-            | tasks::MessageKind::News { .. } => continue,
-        };
-        let tasks::Party::Task(target) = word.from else { continue };
-        // Jig's domain/tasks.md, 8.5: a step can address only these tasks.
-        if row.requester != tasks::Party::Task(target)
-            && !row.delegates.contains(&target)
-            && !row.references.contains(&target)
-        {
-            continue;
-        }
-        messages
-            .push(jig_domain_core::StepMessage {
-                target,
-                kind,
-                words: takes_no_messages(row.requester, env.limits.tasks.message_bytes),
-            })
-            .expect("replies capped at the step batch");
-    }
-    messages.into_boxed()
+    relay::apply(domain, env, task, decision)
 }
 
 /// The change names who requested its already agreed work (domain/forge.md, 8.1).
@@ -3315,6 +3289,11 @@ fn delegate_change_step(
     code: u32,
     kind: forge_change::Delegate,
 ) {
+    if relay::continuing_asker(domain, task, kind) {
+        let decision = append_change_replies(domain, env, task, ProcedureStep::new(StepEnd::Wait));
+        domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep { task, step, connector, code, decision }));
+        return;
+    }
     let Some(delegate) = change_delegate(domain, env, task, kind) else {
         let held = holds::decision(
             domain,
@@ -3322,28 +3301,25 @@ fn delegate_change_step(
             task,
             Box::from(&b"change delegate cannot be described within its authority"[..]),
         );
-        domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep {
-            task,
-            step,
-            connector,
-            code,
-            decision: append_change_replies(domain, env, task, held),
-        }));
+        let decision = append_change_replies(domain, env, task, held);
+        domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep { task, step, connector, code, decision }));
         return;
     };
-    assert!(domain.forge_delegating.insert((task, step), kind).is_ok(), "one forge procedure delegate");
-    domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep {
+    if let Some(pending) = domain.forge_delegating.get_mut(&(task, step)) {
+        pending.delegate = Some(kind);
+    } else {
+        domain
+            .forge_delegating
+            .insert((task, step), ChangeStep { delegate: Some(kind), relayed: None, refusal: None, released: false })
+            .expect("one forge procedure delegate");
+    }
+    let decision = append_change_replies(
+        domain,
+        env,
         task,
-        step,
-        connector,
-        code,
-        decision: append_change_replies(
-            domain,
-            env,
-            task,
-            ProcedureStep { batch: Box::new([delegate]), ..ProcedureStep::new(StepEnd::Wait) },
-        ),
-    }));
+        ProcedureStep { batch: Box::new([delegate]), ..ProcedureStep::new(StepEnd::Wait) },
+    );
+    domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep { task, step, connector, code, decision }));
 }
 
 fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: forge_change::Decision) {

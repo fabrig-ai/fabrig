@@ -23,6 +23,9 @@ use temper_engine_forge_world::{self as forge_world, translate};
 #[path = "forge_routes/asks_no_one.rs"]
 mod asks_no_one;
 
+#[path = "forge_routes/questions.rs"]
+mod questions;
+
 #[path = "forge_routes/flights.rs"]
 mod flights;
 

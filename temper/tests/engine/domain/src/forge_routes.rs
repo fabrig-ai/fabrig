@@ -128,6 +128,7 @@ pub struct StoryLimits {
     pub spec_bytes: Option<u32>,
     pub result_bytes: Option<u32>,
     pub forge_charter: Option<u32>,
+    pub questions: Option<u32>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -287,6 +288,7 @@ impl World {
             spec_bytes,
             result_bytes,
             forge_charter,
+            questions,
             turn,
             landing_members,
             slots,
@@ -298,6 +300,9 @@ impl World {
         let paths::Gate { approval, agent: agent_gate, owner: owner_gate } = gate;
         let [(bootstrap, mut limits), (config, _)] = std::array::from_fn(|_| {
             let mut limits = walking::limits();
+            if let Some(questions) = questions {
+                limits.forge.change_policy.questions = questions;
+            }
             if let Some(bytes) = result_bytes {
                 limits.tasks.result_bytes = bytes;
             }
@@ -974,7 +979,13 @@ impl World {
             if self.gate.owner { 0 } else { 1000 },
             self.gate,
             None,
-            StoryLimits { brief: Some(self.env.limits.brief), forge_charter, ..StoryLimits::default() },
+            StoryLimits {
+                brief: Some(self.env.limits.brief),
+                forge_charter,
+                questions: Some(self.env.limits.forge.change_policy.questions),
+                stall: Some(self.env.limits.forge.change_policy.stall),
+                ..StoryLimits::default()
+            },
         );
         self.restart_config = fresh.restart_config;
         std::mem::swap(&mut self.root, &mut fresh.root);
@@ -995,6 +1006,7 @@ impl World {
                 if with_change { 2 } else { 1 },
                 self.assigned
                     .iter()
+                    .filter(|assignment| matches!(self.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(assignment.task)))), Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))) if matches!(row.phase, tasks::Phase::Active(tasks::Active::Running { attempt }) if attempt == assignment.attempt)))
                     .map(|assignment| {
                         protocol::hosting(assignment.task, assignment.attempt, jig_domain_host::Phase::Active)
                     })
@@ -1278,8 +1290,7 @@ impl World {
         self.events.extend(self.held_write_answers.drain(..));
     }
 
-    /// Restore a question admitted by an older delegate, including its reserved
-    /// answer room. Current change delegates cannot call Message themselves.
+    /// Restore a delegate question with its reserved answer room at a committed cut.
     pub fn restore_delegate_question(&mut self, delegate: u64, words: &[u8]) -> u64 {
         assert!(self.store.pending.is_empty());
         let mut header = self.store.header();
@@ -1301,12 +1312,14 @@ impl World {
         };
         assert!(target.delegates.contains(&delegate));
         sender.activity += 1;
-        sender.questions = Box::new([tasks::QuestionCredit {
+        let mut credits = sender.questions.into_vec();
+        credits.push(tasks::QuestionCredit {
             number: question,
             answerer: tasks::Party::Task(change),
             asked: tasks::Party::Task(change),
             line: sender.activity,
-        }]);
+        });
+        sender.questions = credits.into_boxed_slice();
         let mut inbox = target.inbox.into_vec();
         inbox.push(tasks::Word {
             number: question,

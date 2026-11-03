@@ -31,7 +31,16 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             None
         }
         core::Ask::StepRefused { task, step, why } => {
-            let delegation = domain.forge_delegating.remove(&(task, step));
+            let pending = domain.forge_delegating.remove(&(task, step));
+            let delegation = match &pending {
+                Some(pending) => pending.delegate,
+                None => None,
+            };
+            if let Some(pending) = pending
+                && forge_route::relay_refused(domain, env, task, step, pending, &why)
+            {
+                return;
+            }
             if let core::StepRefusal::Denied { findings, .. } = &why {
                 if connector == domain.config.forge_connector
                     && let Some(kind) = delegation
@@ -49,18 +58,13 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                     && owner == connector
                     && current == step
                 {
-                    domain.work.push(Work::Core(core::Event::ProcedureStep {
+                    let decision = forge_route::append_change_replies(
+                        domain,
+                        env,
                         task,
-                        step,
-                        connector,
-                        code,
-                        decision: forge_route::append_change_replies(
-                            domain,
-                            env,
-                            task,
-                            core::ProcedureStep::new(core::StepEnd::Wait),
-                        ),
-                    }));
+                        core::ProcedureStep::new(core::StepEnd::Wait),
+                    );
+                    domain.work.push(Work::Core(core::Event::ProcedureStep { task, step, connector, code, decision }));
                 }
                 if domain.facts.try_push(crate::Fact::StepRefused { task, step, problem }).is_err() {
                     domain.facts_lost = domain.facts_lost.saturating_add(1);
@@ -427,10 +431,22 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
 }
 
 fn step_made(domain: &mut Domain, task: u64, step: u64, child: Option<u64>) {
-    if let Some(kind) = domain.forge_delegating.remove(&(task, step))
-        && let Some(child) = child
-    {
-        domain.work.push(Work::Forge(forge::Event::Delegated { task, child, kind }));
+    if let Some(pending) = domain.forge_delegating.remove(&(task, step)) {
+        if let Some(kind) = pending.delegate
+            && let Some(child) = child
+        {
+            domain.work.push(Work::Forge(forge::Event::Delegated { task, child, kind }));
+        }
+        if let Some(relayed) = pending.relayed {
+            let event = match pending.refusal {
+                Some(words) => forge::Event::RelayRefused { task, questions: relayed.questions, words },
+                None => forge::Event::Relayed { task, questions: relayed.questions },
+            };
+            domain.work.push(Work::Forge(event));
+            if relayed.more {
+                domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task }));
+            }
+        }
     }
 }
 

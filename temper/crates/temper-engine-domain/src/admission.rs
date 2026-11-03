@@ -135,6 +135,8 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::DelegateAdmissionRefused { .. }
             | forge::Event::DelegateRefused { .. }
             | forge::Event::DelegateResult { .. }
+            | forge::Event::RelayRefused { .. }
+            | forge::Event::Relayed { .. }
             | forge::Event::StepChange { .. }
             | forge::Event::ReleaseChange { .. }
             | forge::Event::SettleEffects { .. }

@@ -1426,7 +1426,14 @@ fn a_changes_questions_and_foreman_charter_round_trip_unchanged() {
         (4, Stands::Asked),
         (5, Stands::Held { answer: b"Keep the documented behavior".as_slice().into() }),
     ] {
-        open.push(Open { asker: ASKER, number, line: b"Which behavior?".as_slice().into(), stands }).unwrap();
+        open.push(Open {
+            asker: ASKER,
+            number,
+            line: b"Which behavior?".as_slice().into(),
+            words: b"Which behavior?\nKeep both options.".as_slice().into(),
+            stands,
+        })
+        .unwrap();
     }
     row.questions = Questions { route: Route::Foreman, taken: 3, open: open.into_boxed() };
     row.foreman_charter = 6;
@@ -1447,6 +1454,7 @@ fn a_held_answer_is_bounded_by_the_forge_operation_bytes() {
             asker: 7,
             number: 1,
             line: Box::new([]),
+            words: Box::new([]),
             stands: Stands::Held { answer: skein_lib::bytes::zeroed(usize::try_from(length).unwrap()) },
         }]);
         let row = forge::Stored::Change(row);
