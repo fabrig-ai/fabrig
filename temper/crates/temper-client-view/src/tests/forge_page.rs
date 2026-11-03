@@ -418,3 +418,50 @@ fn the_adoption_region_holds_the_form_with_no_card_around_it() {
     assert_eq!(nodes[*roles].role, Role::ChoiceGroup);
     assert_eq!(nodes[*roles].name.as_deref(), Some(b"Role".as_slice()));
 }
+
+#[test]
+fn the_adoption_page_draws_the_unadopted_first_repository_defaults() {
+    use temper_client_protocol_wire::v1 as w;
+    let mut parts = super::connect_forge::row(
+        2,
+        w::Kind::Forgejo,
+        w::Mode::Owned,
+        super::connect_forge::connected(),
+        w::Offer::NotOffered,
+    )
+    .into_parts();
+    parts.first = Some(
+        w::FirstRepository::new(
+            &w::CEILINGS,
+            w::FirstRepositoryParts {
+                playground: false,
+                org: b"work".as_slice().into(),
+                repository: b"hello".as_slice().into(),
+                project: w::SetUpProject::Existing(
+                    w::ExistingProject::new(&w::CEILINGS, w::ExistingProjectParts { project: 1 }).unwrap(),
+                ),
+                state: w::FirstState::Made(w::Made::new(&w::CEILINGS, w::MadeParts { id: 7 }).unwrap()),
+                label: b"docker".as_slice().into(),
+            },
+        )
+        .unwrap(),
+    );
+    let mut rows = skein_lib::List::with_capacity(1);
+    rows.push(w::ForgeRow::new(&w::CEILINGS, parts).unwrap()).unwrap();
+    let root = fixtures::forge_root(temper_client_domain::Address::Adopt { project: fixtures::PROJECT }, rows);
+    let view = fixtures::page_view(&root);
+    for (name, expected) in [
+        (b"Forge number".as_slice(), b"2".as_slice()),
+        (b"Owner", b"work"),
+        (b"Name", b"hello"),
+        (b"Landing branch", b"main"),
+    ] {
+        let id = fixtures::find(view.tree(), Role::TextField, name).unwrap();
+        for node in view.tree().nodes() {
+            if node.id == id {
+                let value = node.value.as_ref().unwrap();
+                assert_eq!((value.text.as_ref(), value.written), (expected, 1));
+            }
+        }
+    }
+}

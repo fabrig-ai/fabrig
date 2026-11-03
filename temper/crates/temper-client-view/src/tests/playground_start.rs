@@ -95,8 +95,16 @@ fn other_chats_keep_their_heading_and_no_start() {
         assert!(f::find(view.tree(), Role::Heading { level: 1 }, b"Chats").is_some(), "{row}");
         assert!(f::find(view.tree(), Role::Paragraph, b"New chat").is_none(), "{row}");
         assert!(f::find(view.tree(), Role::Heading { level: 1 }, b"What shall we change?").is_none(), "{row}");
-        for node in view.tree().nodes() {
-            assert!(!node.styles.as_slice().contains(&crate::look::CONTEXT), "{row}");
+        for (at, node) in view.tree().nodes().iter().enumerate() {
+            if node.styles.as_slice().contains(&crate::look::CONTEXT) {
+                let end = at + usize::try_from(node.size).unwrap();
+                assert!(
+                    view.tree().nodes()[at..end].iter().any(|child| {
+                        child.role == Role::Paragraph && child.name.as_deref() == Some(b"No repository yet")
+                    }),
+                    "{row}: only the repository context is drawn"
+                );
+            }
         }
     }
 }

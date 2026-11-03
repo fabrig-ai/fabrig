@@ -842,8 +842,11 @@ fn the_chats_page_opens_with_its_bar_and_draws_its_list_as_the_mockup() {
     assert_eq!(nodes[bar + 1].role, Role::Heading { level: 1 });
     assert_eq!(nodes[bar + 1].name.as_deref(), Some(b"Chats".as_slice()));
     let after = bar + usize::try_from(nodes[bar].size).unwrap();
-    assert_eq!(nodes[after].role, Role::Heading { level: 2 });
-    assert_eq!(nodes[after].name.as_deref(), Some(b"Start a chat".as_slice()));
+    assert_eq!(nodes[after].role, Role::Slot);
+    assert_eq!(nodes[after + 1].name.as_deref(), Some(b"No repository yet".as_slice()));
+    let composer_heading = after + usize::try_from(nodes[after].size).unwrap();
+    assert_eq!(nodes[composer_heading].role, Role::Heading { level: 2 });
+    assert_eq!(nodes[composer_heading].name.as_deref(), Some(b"Start a chat".as_slice()));
     let playground = fixtures::page_view(&fixtures::playground_root(
         temper_client_domain::Address::Chats { filter: ChatsFilter::All, start: false },
         fixtures::PROJECT,
@@ -980,4 +983,88 @@ fn a_kept_ended_row_without_a_clock_is_closed_even_with_stale_wait_metadata() {
     assert!(fixtures::find(&tree, Role::Status, b"Closed").is_some());
     assert!(fixtures::find(&tree, Role::Paragraph, b"Closed. Its transcript is kept.").is_some());
     assert!(skein_lib::bytes::find(&fixtures::text(&tree), b"3 delegates").is_none());
+}
+
+#[test]
+fn the_repository_context_precedes_the_composer_and_links_into_its_project() {
+    use temper_client_domain::{self as d, forge::forges};
+    use temper_client_protocol_wire::v1 as w;
+    for adopted in [false, true] {
+        let mut parts = super::connect_forge::row(
+            2,
+            w::Kind::Forgejo,
+            w::Mode::Owned,
+            super::connect_forge::connected(),
+            w::Offer::NotOffered,
+        )
+        .into_parts();
+        parts.repositories = List::with_capacity(1);
+        if adopted {
+            parts
+                .repositories
+                .push(
+                    w::Adoption::new(
+                        &w::CEILINGS,
+                        w::AdoptionParts {
+                            owner: b"work".as_slice().into(),
+                            name: b"hello".as_slice().into(),
+                            project: fixtures::PROJECT,
+                        },
+                    )
+                    .unwrap(),
+                )
+                .unwrap();
+        }
+        let mut rows = List::with_capacity(1);
+        rows.push(w::ForgeRow::new(&w::CEILINGS, parts).unwrap()).unwrap();
+        let address = d::Address::Chats { filter: ChatsFilter::All, start: false };
+        let root = fixtures::forge_root(address, rows);
+        let mut view = fixtures::page_view(&root);
+        let context = fixtures::find(view.tree(), Role::Paragraph, b"No repository yet");
+        assert_eq!(context.is_some(), !adopted);
+        if let Some(context) = context {
+            let nodes = view.tree().nodes();
+            let at = index_of(nodes, context);
+            assert_eq!(nodes[at - 1].role, Role::Slot);
+            let end = at - 1 + usize::try_from(nodes[at - 1].size).unwrap();
+            let link = fixtures::find(view.tree(), Role::Link, b"Adopt a repository").unwrap();
+            assert!(index_of(nodes, link) < end);
+            let composer = fixtures::find(view.tree(), Role::TextArea, b"Start a chat").unwrap();
+            assert!(end <= index_of(nodes, composer));
+            assert_eq!(
+                crate::act(&mut view, link, skein_ui::Act::Press),
+                Some(d::Action::Pages(d::pages::Act::Go { address: d::Address::Adopt { project: fixtures::PROJECT } }))
+            );
+        }
+        assert_eq!(d::forge::listed::without_repository(root.forges(), None, fixtures::PROJECT), Some(!adopted));
+        assert_eq!(d::forge::listed::without_repository(&forges::State::Unknown, None, fixtures::PROJECT), None);
+    }
+}
+#[test]
+fn an_ended_or_refused_forges_watch_says_nothing_about_a_repository() {
+    use temper_client_domain as d;
+    for end in [WatchEnd::NotAllowed, WatchEnd::SubjectEnded] {
+        let (mut root, watch) = fixtures::forge_root_watch(
+            d::Address::Chats { filter: ChatsFilter::All, start: false },
+            List::with_capacity(0),
+        );
+        fixtures::root_event(
+            &mut root,
+            d::Event::Client { event: jig_client::Event::Up { up: jig_client::Up::WatchEnded { watch, end } } },
+        );
+        assert!(fixtures::find(fixtures::page_view(&root).tree(), Role::Paragraph, b"No repository yet").is_none());
+    }
+}
+#[test]
+fn the_playgrounds_project_keeps_its_context_instead_of_no_repository() {
+    use temper_client_domain as d;
+    for start in [false, true] {
+        let root =
+            fixtures::playground_root(d::Address::Chats { filter: ChatsFilter::All, start }, fixtures::PROJECT, true);
+        assert!(fixtures::find(fixtures::page_view(&root).tree(), Role::Paragraph, b"No repository yet").is_none());
+        assert_eq!(
+            d::forge::listed::without_repository(root.forges(), root.forge().playground(), fixtures::PROJECT),
+            None
+        );
+    }
 }
