@@ -1,4 +1,5 @@
-//! Dotted paths mirror every scalar in its owner's limits.
+//! Dotted overrides and their reference rows (temper/docs/design/protocol/configuration.md, 7;
+//! temper/docs/design/protocol/documentation.md, 8).
 use super::{Limits, Refused};
 use skein_lib::Duration;
 fn duration(value: u64) -> Result<Duration, Refused> {
@@ -9,6 +10,9 @@ fn duration(value: u64) -> Result<Duration, Refused> {
 }
 #[expect(clippy::too_many_lines, reason = "one exhaustive table of scalar dotted field paths")]
 pub(super) fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), Refused> {
+    if find(name).is_none() {
+        return Err(Refused::Unknown);
+    }
     if name.starts_with(b"setup.") {
         return match temper_forge_setup::limits::apply_host(&mut limits.setup, name, value) {
             Ok(()) => Ok(()),
@@ -285,4 +289,1016 @@ pub(super) fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), 
         _ => return Err(Refused::Unknown),
     }
     Ok(())
+}
+
+/// What a named limit counts (temper/docs/design/protocol/configuration.md, 7).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Unit {
+    Count,
+    Bytes,
+    Milliseconds,
+}
+
+/// One override name (temper/docs/design/protocol/documentation.md, 8).
+#[derive(Clone, Copy, Debug)]
+pub struct Name {
+    pub name: &'static str,
+    pub unit: Unit,
+    /// What it bounds, one sentence of at most 120 bytes.
+    pub line: &'static str,
+    pub value: fn(&Limits) -> u64,
+}
+
+/// Every name the service override parser takes, including delegated setup host names.
+pub static NAMES: [Name; 163] = [
+    Name {
+        name: "sign_in.members",
+        unit: Unit::Count,
+        line: "Bounds configured members and the forge connector's retained member bindings.",
+        value: |limits| u64::from(limits.sign_in.members),
+    },
+    Name {
+        name: "sign_in.pending",
+        unit: Unit::Count,
+        line: "Bounds simultaneous sign-ins; a start past this count gets the busy page.",
+        value: |limits| u64::from(limits.sign_in.pending),
+    },
+    Name {
+        name: "sign_in.deadline_ms",
+        unit: Unit::Milliseconds,
+        line: "Bounds a sign-in's life from start through its return's answer and sets its cookie's lifetime.",
+        value: |limits| limits.sign_in.deadline.as_millis(),
+    },
+    Name {
+        name: "sign_in.fetches",
+        unit: Unit::Count,
+        line: "Bounds simultaneous exchanges with Google for sign-ins.",
+        value: |limits| u64::from(limits.sign_in.fetches),
+    },
+    Name {
+        name: "sign_in.body_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds an answer body from Google, for a key set or a token.",
+        value: |limits| u64::from(limits.sign_in.body_bytes),
+    },
+    Name {
+        name: "sign_in.url_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds a configured endpoint and the authorization URL given to the browser.",
+        value: |limits| u64::from(limits.sign_in.url_bytes),
+    },
+    Name {
+        name: "sign_in.secret_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds the Google client secret.",
+        value: |limits| u64::from(limits.sign_in.secret_bytes),
+    },
+    Name {
+        name: "picker.page",
+        unit: Unit::Count,
+        line: "Bounds repositories taken by one picker read, within the forge's page cap of at most 100.",
+        value: |limits| u64::from(limits.picker.page),
+    },
+    Name {
+        name: "routes.query_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds a forge route's query.",
+        value: |limits| u64::from(limits.routes.query_bytes),
+    },
+    Name {
+        name: "root.journal.commits",
+        unit: Unit::Count,
+        line: "Bounds commits awaiting the store's answer.",
+        value: |limits| u64::from(limits.root.journal.commits),
+    },
+    Name {
+        name: "root.journal.held",
+        unit: Unit::Count,
+        line: "Sets the retained held-delivery count; the uncapped journal does not use it for admission.",
+        value: |limits| u64::from(limits.root.journal.held),
+    },
+    Name {
+        name: "root.journal.writes",
+        unit: Unit::Count,
+        line: "Bounds unique writes per commit, including the saved deployment header; a decision has one fewer slot.",
+        value: |limits| u64::from(limits.root.journal.writes),
+    },
+    Name {
+        name: "root.journal.deliveries",
+        unit: Unit::Count,
+        line: "Sets the door output count used in the default admission watermark, without capping a decision.",
+        value: |limits| u64::from(limits.root.journal.deliveries),
+    },
+    Name {
+        name: "root.journal.transcript_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds transcript bytes or a wrapped child row's owned bytes admitted to the journal.",
+        value: |limits| u64::from(limits.root.journal.transcript_bytes),
+    },
+    Name {
+        name: "root.journal.result_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds owned result text or assignment section text admitted to a held delivery.",
+        value: |limits| u64::from(limits.root.journal.result_bytes),
+    },
+    Name {
+        name: "root.journal.run_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds a run charter's owned bytes in a held assignment.",
+        value: |limits| u64::from(limits.root.journal.run_bytes),
+    },
+    Name {
+        name: "root.loads.loads",
+        unit: Unit::Count,
+        line: "Bounds issued store loads, including abandoned reads awaiting their terminal answer.",
+        value: |limits| u64::from(limits.root.loads.loads),
+    },
+    Name {
+        name: "root.loads.rows",
+        unit: Unit::Count,
+        line: "Bounds rows requested and accepted in one incoming store page.",
+        value: |limits| u64::from(limits.root.loads.rows),
+    },
+    Name {
+        name: "root.loads.bytes",
+        unit: Unit::Bytes,
+        line: "Bounds a kept page prefix, counting record slots and their owned bytes.",
+        value: |limits| u64::from(limits.root.loads.bytes),
+    },
+    Name {
+        name: "root.loads.read_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds owned bytes one authenticated store read brings for a person.",
+        value: |limits| limits.root.loads.read_bytes,
+    },
+    Name {
+        name: "root.loads.reply_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds a decoded store answer before its kept prefix is cut.",
+        value: |limits| u64::from(limits.root.loads.reply_bytes),
+    },
+    Name {
+        name: "root.loads.transcript_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds a row's owned bytes, including transcripts and wrapped child rows, before the prefix is cut.",
+        value: |limits| u64::from(limits.root.loads.transcript_bytes),
+    },
+    Name {
+        name: "root.brief.briefs",
+        unit: Unit::Count,
+        line: "Bounds briefs the root gathers at once.",
+        value: |limits| u64::from(limits.root.brief.briefs),
+    },
+    Name {
+        name: "root.brief.sections",
+        unit: Unit::Count,
+        line: "Bounds brief sections the root gathers at once.",
+        value: |limits| u64::from(limits.root.brief.sections),
+    },
+    Name {
+        name: "root.brief.parts",
+        unit: Unit::Count,
+        line: "Bounds parts in one gathered brief section.",
+        value: |limits| u64::from(limits.root.brief.parts),
+    },
+    Name {
+        name: "root.brief.read_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds bytes read for one gathered brief section.",
+        value: |limits| u64::from(limits.root.brief.read_bytes),
+    },
+    Name {
+        name: "root.brief.brief_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds the body of a gathered brief.",
+        value: |limits| u64::from(limits.root.brief.brief_bytes),
+    },
+    Name {
+        name: "root.brief.gather_ms",
+        unit: Unit::Milliseconds,
+        line: "Bounds the time spent gathering a brief.",
+        value: |limits| limits.root.brief.gather.as_millis(),
+    },
+    Name {
+        name: "root.brief.budgets.task",
+        unit: Unit::Bytes,
+        line: "Bounds task section bytes in a gathered brief.",
+        value: |limits| u64::from(limits.root.brief.budgets.task),
+    },
+    Name {
+        name: "root.brief.budgets.dependencies",
+        unit: Unit::Bytes,
+        line: "Bounds dependency section bytes in a gathered brief.",
+        value: |limits| u64::from(limits.root.brief.budgets.dependencies),
+    },
+    Name {
+        name: "root.brief.budgets.document",
+        unit: Unit::Bytes,
+        line: "Bounds document section bytes in a gathered brief.",
+        value: |limits| u64::from(limits.root.brief.budgets.document),
+    },
+    Name {
+        name: "root.brief.budgets.ci",
+        unit: Unit::Bytes,
+        line: "Bounds CI section bytes in a gathered brief.",
+        value: |limits| u64::from(limits.root.brief.budgets.ci),
+    },
+    Name {
+        name: "root.brief.budgets.reviews",
+        unit: Unit::Bytes,
+        line: "Bounds review section bytes in a gathered brief.",
+        value: |limits| u64::from(limits.root.brief.budgets.reviews),
+    },
+    Name {
+        name: "root.brief.budgets.pull",
+        unit: Unit::Bytes,
+        line: "Bounds pull request section bytes in a gathered brief.",
+        value: |limits| u64::from(limits.root.brief.budgets.pull),
+    },
+    Name {
+        name: "root.brief.budgets.attempts",
+        unit: Unit::Bytes,
+        line: "Bounds attempt section bytes in a gathered brief.",
+        value: |limits| u64::from(limits.root.brief.budgets.attempts),
+    },
+    Name {
+        name: "root.brief.budgets.plan",
+        unit: Unit::Bytes,
+        line: "Bounds plan section bytes in a gathered brief.",
+        value: |limits| u64::from(limits.root.brief.budgets.plan),
+    },
+    Name {
+        name: "root.brief.budgets.notes",
+        unit: Unit::Bytes,
+        line: "Bounds note section bytes in a gathered brief.",
+        value: |limits| u64::from(limits.root.brief.budgets.notes),
+    },
+    Name {
+        name: "forge.forges",
+        unit: Unit::Count,
+        line: "Bounds retained forges of every kind and mode, counting an ended forge until its removal is whole.",
+        value: |limits| u64::from(limits.forge.forges),
+    },
+    Name {
+        name: "forge.repositories",
+        unit: Unit::Count,
+        line: "Bounds repositories retained by the forge connector, shared by every retained forge.",
+        value: |limits| u64::from(limits.forge.repositories),
+    },
+    Name {
+        name: "forge.tasks",
+        unit: Unit::Count,
+        line: "Bounds tasks participating in the forge connector.",
+        value: |limits| u64::from(limits.forge.tasks),
+    },
+    Name {
+        name: "forge.holds",
+        unit: Unit::Count,
+        line: "Bounds held task resources in the forge connector.",
+        value: |limits| u64::from(limits.forge.holds),
+    },
+    Name {
+        name: "forge.subscriptions",
+        unit: Unit::Count,
+        line: "Bounds subscriptions to forge topics.",
+        value: |limits| u64::from(limits.forge.subscriptions),
+    },
+    Name {
+        name: "forge.entries",
+        unit: Unit::Count,
+        line: "Bounds durable outbox entries in the forge connector.",
+        value: |limits| u64::from(limits.forge.entries),
+    },
+    Name {
+        name: "forge.named_calls",
+        unit: Unit::Count,
+        line: "Bounds retained named calls and their connector payloads, independently of outbox entries.",
+        value: |limits| u64::from(limits.forge.named_calls),
+    },
+    Name {
+        name: "forge.changes",
+        unit: Unit::Count,
+        line: "Bounds live changes retained by the forge connector.",
+        value: |limits| u64::from(limits.forge.changes),
+    },
+    Name {
+        name: "forge.issues",
+        unit: Unit::Count,
+        line: "Bounds live issue projections retained by the forge connector.",
+        value: |limits| u64::from(limits.forge.issues),
+    },
+    Name {
+        name: "forge.resources_per_task",
+        unit: Unit::Count,
+        line: "Bounds repositories in one task's resources, equal to the checkout's repository count.",
+        value: |limits| u64::from(limits.forge.resources_per_task),
+    },
+    Name {
+        name: "forge.paths_per_subscription",
+        unit: Unit::Count,
+        line: "Bounds paths retained by one forge subscription.",
+        value: |limits| u64::from(limits.forge.paths_per_subscription),
+    },
+    Name {
+        name: "forge.name_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds names retained by the forge connector.",
+        value: |limits| u64::from(limits.forge.name_bytes),
+    },
+    Name {
+        name: "forge.output",
+        unit: Unit::Count,
+        line: "Bounds output records reserved for one forge step.",
+        value: |limits| u64::from(limits.forge.output),
+    },
+    Name {
+        name: "forge.facts",
+        unit: Unit::Count,
+        line: "Bounds facts awaiting the forge connector's drain.",
+        value: |limits| u64::from(limits.forge.facts),
+    },
+    Name {
+        name: "forge.adoptions",
+        unit: Unit::Count,
+        line: "Bounds repository adoptions in flight.",
+        value: |limits| u64::from(limits.forge.adoptions),
+    },
+    Name {
+        name: "forge.applications",
+        unit: Unit::Count,
+        line: "Bounds keyed adoption answers retained for request retention.",
+        value: |limits| u64::from(limits.forge.applications),
+    },
+    Name {
+        name: "forge.collaborators",
+        unit: Unit::Count,
+        line: "Bounds collaborators retained by the forge connector.",
+        value: |limits| u64::from(limits.forge.collaborators),
+    },
+    Name {
+        name: "forge.landings",
+        unit: Unit::Count,
+        line: "Bounds live landing procedure rows.",
+        value: |limits| u64::from(limits.forge.landings),
+    },
+    Name {
+        name: "forge.judge_projects",
+        unit: Unit::Count,
+        line: "Bounds project judge tables retained beside committed policy.",
+        value: |limits| u64::from(limits.forge.judge_projects),
+    },
+    Name {
+        name: "forge.judge_criteria",
+        unit: Unit::Count,
+        line: "Bounds criteria in each deployment or project judge table.",
+        value: |limits| u64::from(limits.forge.judge_criteria),
+    },
+    Name {
+        name: "forge.landing_rules",
+        unit: Unit::Count,
+        line: "Bounds landing rules per scope.",
+        value: |limits| u64::from(limits.forge.landing_rules),
+    },
+    Name {
+        name: "forge.brief_sections",
+        unit: Unit::Count,
+        line: "Bounds forge brief sections gathered at once.",
+        value: |limits| u64::from(limits.forge.brief_sections),
+    },
+    Name {
+        name: "forge.brief_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds bytes retained for one gathered forge brief section.",
+        value: |limits| u64::from(limits.forge.brief_bytes),
+    },
+    Name {
+        name: "forge.tiers.tiers",
+        unit: Unit::Count,
+        line: "Bounds tiers retained per repository.",
+        value: |limits| u64::from(limits.forge.tiers.tiers),
+    },
+    Name {
+        name: "forge.tiers.failing_tests",
+        unit: Unit::Count,
+        line: "Bounds failing tests reported per tier run.",
+        value: |limits| u64::from(limits.forge.tiers.failing_tests),
+    },
+    Name {
+        name: "forge.tiers.test_id_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds a failing test's identifier in a tier's report.",
+        value: |limits| u64::from(limits.forge.tiers.test_id_bytes),
+    },
+    Name {
+        name: "forge.queue_window_ms",
+        unit: Unit::Milliseconds,
+        line: "Sets the time allowed to gather a landing queue.",
+        value: |limits| limits.forge.queue_window.as_millis(),
+    },
+    Name {
+        name: "forge.client.pending",
+        unit: Unit::Count,
+        line: "Bounds logical forge calls retained, queued and in flight.",
+        value: |limits| u64::from(limits.forge.client.pending),
+    },
+    Name {
+        name: "forge.client.calls",
+        unit: Unit::Count,
+        line: "Bounds forge calls in flight.",
+        value: |limits| u64::from(limits.forge.client.calls),
+    },
+    Name {
+        name: "forge.client.rate",
+        unit: Unit::Count,
+        line: "Bounds requests allowed in one forge rate window.",
+        value: |limits| u64::from(limits.forge.client.rate),
+    },
+    Name {
+        name: "forge.client.reserve",
+        unit: Unit::Count,
+        line: "Reserves requests in the forge rate window for writes.",
+        value: |limits| u64::from(limits.forge.client.reserve),
+    },
+    Name {
+        name: "forge.client.window_ms",
+        unit: Unit::Milliseconds,
+        line: "Sets the forge request rate window.",
+        value: |limits| limits.forge.client.window.as_millis(),
+    },
+    Name {
+        name: "forge.client.op_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds owned bytes of one forge operation.",
+        value: |limits| u64::from(limits.forge.client.op_bytes),
+    },
+    Name {
+        name: "forge.client.answer_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds decoded bytes of one forge answer.",
+        value: |limits| u64::from(limits.forge.client.answer_bytes),
+    },
+    Name {
+        name: "forge.client.rows",
+        unit: Unit::Count,
+        line: "Bounds rows in one forge answer page.",
+        value: |limits| u64::from(limits.forge.client.rows),
+    },
+    Name {
+        name: "forge.client.inbox",
+        unit: Unit::Count,
+        line: "Bounds comment and review delivery stamps retained per resource.",
+        value: |limits| u64::from(limits.forge.client.inbox),
+    },
+    Name {
+        name: "forge.client.read_attempts",
+        unit: Unit::Count,
+        line: "Bounds attempts of one forge read.",
+        value: |limits| u64::from(limits.forge.client.read_attempts),
+    },
+    Name {
+        name: "forge.client.backoff_ms",
+        unit: Unit::Milliseconds,
+        line: "Sets the first delay before a forge read is tried again.",
+        value: |limits| limits.forge.client.backoff.as_millis(),
+    },
+    Name {
+        name: "forge.client.backoff_max_ms",
+        unit: Unit::Milliseconds,
+        line: "Bounds the delay before a forge read is tried again.",
+        value: |limits| limits.forge.client.backoff_max.as_millis(),
+    },
+    Name {
+        name: "forge.client.entries",
+        unit: Unit::Count,
+        line: "Bounds durable outbox entries in the forge client.",
+        value: |limits| u64::from(limits.forge.client.entries),
+    },
+    Name {
+        name: "forge.client.write_attempts",
+        unit: Unit::Count,
+        line: "Bounds attempts of one forge write.",
+        value: |limits| u64::from(limits.forge.client.write_attempts),
+    },
+    Name {
+        name: "forge.client.lifetime_ms",
+        unit: Unit::Milliseconds,
+        line: "Bounds how long a sent forge write may arrive.",
+        value: |limits| limits.forge.client.lifetime.as_millis(),
+    },
+    Name {
+        name: "forge.client.clock_margin_ms",
+        unit: Unit::Milliseconds,
+        line: "Sets the allowance for clock movement when a forge write's lifetime is checked.",
+        value: |limits| limits.forge.client.clock_margin.as_millis(),
+    },
+    Name {
+        name: "forge.client.resources",
+        unit: Unit::Count,
+        line: "Bounds resources retained for forge polling.",
+        value: |limits| u64::from(limits.forge.client.resources),
+    },
+    Name {
+        name: "forge.client.repositories",
+        unit: Unit::Count,
+        line: "Bounds repositories retained by the forge client and read by a setup plan.",
+        value: |limits| u64::from(limits.forge.client.repositories),
+    },
+    Name {
+        name: "forge.client.poll_ms",
+        unit: Unit::Milliseconds,
+        line: "Sets the normal interval between forge resource polls.",
+        value: |limits| limits.forge.client.poll.as_millis(),
+    },
+    Name {
+        name: "forge.client.poll_max_ms",
+        unit: Unit::Milliseconds,
+        line: "Bounds the interval between forge resource polls.",
+        value: |limits| limits.forge.client.poll_max.as_millis(),
+    },
+    Name {
+        name: "forge.client.hinted_ms",
+        unit: Unit::Milliseconds,
+        line: "Sets the delay before a hinted forge read.",
+        value: |limits| limits.forge.client.hinted.as_millis(),
+    },
+    Name {
+        name: "forge.client.slow_ms",
+        unit: Unit::Milliseconds,
+        line: "Sets the delay before a slow forge read.",
+        value: |limits| limits.forge.client.slow.as_millis(),
+    },
+    Name {
+        name: "forge.client.settle_ms",
+        unit: Unit::Milliseconds,
+        line: "Bounds settling after a pull request's head or base moves, while hinted CI and mergeability are read again.",
+        value: |limits| limits.forge.client.settle.as_millis(),
+    },
+    Name {
+        name: "forge.client.facts",
+        unit: Unit::Count,
+        line: "Bounds forge client facts awaiting drain.",
+        value: |limits| u64::from(limits.forge.client.facts),
+    },
+    Name {
+        name: "forge.change_policy.repairs",
+        unit: Unit::Count,
+        line: "Bounds repair attempts in a change.",
+        value: |limits| u64::from(limits.forge.change_policy.repairs),
+    },
+    Name {
+        name: "forge.change_policy.resolutions",
+        unit: Unit::Count,
+        line: "Bounds conflict resolution attempts in a change.",
+        value: |limits| u64::from(limits.forge.change_policy.resolutions),
+    },
+    Name {
+        name: "forge.change_policy.updates",
+        unit: Unit::Count,
+        line: "Bounds update attempts in a change.",
+        value: |limits| u64::from(limits.forge.change_policy.updates),
+    },
+    Name {
+        name: "forge.change_policy.questions",
+        unit: Unit::Count,
+        line: "Bounds questions raised in a change.",
+        value: |limits| u64::from(limits.forge.change_policy.questions),
+    },
+    Name {
+        name: "forge.change_policy.tasks",
+        unit: Unit::Count,
+        line: "Bounds the producer, reviews and repairs a change may create.",
+        value: |limits| u64::from(limits.forge.change_policy.tasks),
+    },
+    Name {
+        name: "forge.change_policy.stall_ms",
+        unit: Unit::Milliseconds,
+        line: "Bounds the wait for a silent forge during a change.",
+        value: |limits| limits.forge.change_policy.stall.as_millis(),
+    },
+    Name {
+        name: "forge.change_policy.gates",
+        unit: Unit::Count,
+        line: "Bounds gates retained by a change.",
+        value: |limits| u64::from(limits.forge.change_policy.gates),
+    },
+    Name {
+        name: "forge.change_policy.clean_heads",
+        unit: Unit::Count,
+        line: "Bounds clean branch heads retained by a change.",
+        value: |limits| u64::from(limits.forge.change_policy.clean_heads),
+    },
+    Name {
+        name: "forge.issue_policy.plan_items",
+        unit: Unit::Count,
+        line: "Bounds items in an issue plan.",
+        value: |limits| u64::from(limits.forge.issue_policy.plan_items),
+    },
+    Name {
+        name: "forge.issue_policy.milestones",
+        unit: Unit::Count,
+        line: "Bounds milestones in an issue projection.",
+        value: |limits| u64::from(limits.forge.issue_policy.milestones),
+    },
+    Name {
+        name: "forge.issue_policy.title_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds an issue title.",
+        value: |limits| u64::from(limits.forge.issue_policy.title_bytes),
+    },
+    Name {
+        name: "forge.issue_policy.body_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds an issue body.",
+        value: |limits| u64::from(limits.forge.issue_policy.body_bytes),
+    },
+    Name {
+        name: "forge.issue_policy.comment_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds an issue comment.",
+        value: |limits| u64::from(limits.forge.issue_policy.comment_bytes),
+    },
+    Name {
+        name: "forge.issue_policy.interval_ms",
+        unit: Unit::Milliseconds,
+        line: "Sets the interval between issue projection checks.",
+        value: |limits| limits.forge.issue_policy.interval.as_millis(),
+    },
+    Name {
+        name: "checkout.workspaces",
+        unit: Unit::Count,
+        line: "Bounds workspaces cached on the worker's disk and held at once; preparation is refused when all are held.",
+        value: |limits| u64::from(limits.checkout.workspaces),
+    },
+    Name {
+        name: "checkout.repositories",
+        unit: Unit::Count,
+        line: "Bounds repositories named by one checkout specification.",
+        value: |limits| u64::from(limits.checkout.repositories),
+    },
+    Name {
+        name: "checkout.name_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds a workstream key, repository name, remote or branch.",
+        value: |limits| u64::from(limits.checkout.name_bytes),
+    },
+    Name {
+        name: "checkout.message_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds a commit message's title and body together.",
+        value: |limits| u64::from(limits.checkout.message_bytes),
+    },
+    Name {
+        name: "checkout.conflicts",
+        unit: Unit::Count,
+        line: "Bounds conflicted paths per repository; zero disables merge starts.",
+        value: |limits| u64::from(limits.checkout.conflicts),
+    },
+    Name {
+        name: "checkout.path_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds one full relative conflicted path.",
+        value: |limits| u64::from(limits.checkout.path_bytes),
+    },
+    Name {
+        name: "checkout.remote_timeout_ms",
+        unit: Unit::Milliseconds,
+        line: "Bounds a checkout operation that reaches the forge, including cloning, fetching and pushing.",
+        value: |limits| limits.checkout.remote_timeout.as_millis(),
+    },
+    Name {
+        name: "checkout.local_timeout_ms",
+        unit: Unit::Milliseconds,
+        line: "Bounds an operation on the worker's disk, including checking out, merging and committing.",
+        value: |limits| limits.checkout.local_timeout.as_millis(),
+    },
+    Name {
+        name: "checkout.facts",
+        unit: Unit::Count,
+        line: "Bounds facts kept until the parent drains them; later facts are dropped and counted.",
+        value: |limits| u64::from(limits.checkout.facts),
+    },
+    Name {
+        name: "git_component.operations",
+        unit: Unit::Count,
+        line: "Bounds simultaneous git component operations.",
+        value: |limits| u64::from(limits.git_component.operations),
+    },
+    Name {
+        name: "git_component.stdout_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds standard output retained from a git operation.",
+        value: |limits| u64::from(limits.git_component.stdout_bytes),
+    },
+    Name {
+        name: "git_component.stderr_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds standard error retained from a git operation.",
+        value: |limits| u64::from(limits.git_component.stderr_bytes),
+    },
+    Name {
+        name: "git_component.read_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds one read from a git operation's output.",
+        value: |limits| u64::from(limits.git_component.read_bytes),
+    },
+    Name {
+        name: "git_component.sweep_entries",
+        unit: Unit::Count,
+        line: "Bounds entries in one page of the checkout trash sweep's listing.",
+        value: |limits| u64::from(limits.git_component.sweep_entries),
+    },
+    Name {
+        name: "git_component.sweep_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds bytes of names in one page of the checkout trash sweep's listing.",
+        value: |limits| u64::from(limits.git_component.sweep_bytes),
+    },
+    Name {
+        name: "clients.bundle_files",
+        unit: Unit::Count,
+        line: "Bounds bundle files, including the browser's page.",
+        value: |limits| u64::from(limits.clients.bundle_files),
+    },
+    Name {
+        name: "clients.bundle_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds all bundle file bytes held in memory while the service runs.",
+        value: |limits| u64::from(limits.clients.bundle_bytes),
+    },
+    Name {
+        name: "records.value_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds one forge record or carried value of temper's in the secrets store.",
+        value: |limits| u64::from(limits.records.value_bytes),
+    },
+    Name {
+        name: "forges.installations",
+        unit: Unit::Count,
+        line: "Bounds installations accepted by one GitHub forge.",
+        value: |limits| u64::from(limits.forges.installations),
+    },
+    Name {
+        name: "forges.log_origins",
+        unit: Unit::Count,
+        line: "Bounds one forge's job log origins, at most 32.",
+        value: |limits| u64::from(limits.forges.log_origins),
+    },
+    Name {
+        name: "forge_component.log_origins",
+        unit: Unit::Count,
+        line: "Bounds job log redirect origins and remembered origins per forge.",
+        value: |limits| u64::from(limits.forge_component.log_origins),
+    },
+    Name {
+        name: "forge_component.log_poll_ms",
+        unit: Unit::Milliseconds,
+        line: "Sets the interval between reads of a GitHub App's delivery log.",
+        value: |limits| limits.forge_component.log_poll.as_millis(),
+    },
+    Name {
+        name: "forge_component.log_catch_up_ms",
+        unit: Unit::Milliseconds,
+        line: "Bounds how far back delivery logs are read when a forge restarts within one process, at most a day.",
+        value: |limits| limits.forge_component.log_catch_up.as_millis(),
+    },
+    Name {
+        name: "forge_component.log_pages",
+        unit: Unit::Count,
+        line: "Bounds pages taken by one delivery log read.",
+        value: |limits| u64::from(limits.forge_component.log_pages),
+    },
+    Name {
+        name: "forge_component.delivery_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds a delivery read from the log.",
+        value: |limits| u64::from(limits.forge_component.delivery_bytes),
+    },
+    Name {
+        name: "forge_component.installations",
+        unit: Unit::Count,
+        line: "Bounds installations for which the component holds tokens, per GitHub forge.",
+        value: |limits| u64::from(limits.forge_component.installations),
+    },
+    Name {
+        name: "forge_component.key_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds a GitHub App's key.",
+        value: |limits| u64::from(limits.forge_component.key_bytes),
+    },
+    Name {
+        name: "forge_component.renew_before_ms",
+        unit: Unit::Milliseconds,
+        line: "Sets how long before expiry an installation token is minted again.",
+        value: |limits| limits.forge_component.renew_before.as_millis(),
+    },
+    Name {
+        name: "forge_component.forges",
+        unit: Unit::Count,
+        line: "Bounds forges served by the forge component.",
+        value: |limits| u64::from(limits.forge_component.forges),
+    },
+    Name {
+        name: "forge_component.token_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds a forge's API token, git token or site admin token.",
+        value: |limits| u64::from(limits.forge_component.token_bytes),
+    },
+    Name {
+        name: "forge_component.connections",
+        unit: Unit::Count,
+        line: "Bounds forge connections, equal to the forge client's calls in flight.",
+        value: |limits| u64::from(limits.forge_component.connections),
+    },
+    Name {
+        name: "forge_component.head_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds a response head read from a forge.",
+        value: |limits| u64::from(limits.forge_component.head_bytes),
+    },
+    Name {
+        name: "forge_component.headers",
+        unit: Unit::Count,
+        line: "Bounds fields in a forge response head.",
+        value: |limits| u64::from(limits.forge_component.headers),
+    },
+    Name {
+        name: "forge_component.body_bytes_in",
+        unit: Unit::Bytes,
+        line: "Bounds a streamed response body read from a forge, counting time and bytes rather than held memory.",
+        value: |limits| u64::from(limits.forge_component.body_bytes_in),
+    },
+    Name {
+        name: "forge_component.depth",
+        unit: Unit::Count,
+        line: "Bounds JSON nesting followed in a forge response.",
+        value: |limits| u64::from(limits.forge_component.depth),
+    },
+    Name {
+        name: "forge_component.chunk",
+        unit: Unit::Bytes,
+        line: "Bounds bytes of a JSON string demanded at once.",
+        value: |limits| u64::from(limits.forge_component.chunk),
+    },
+    Name {
+        name: "forge_component.string_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds a retained forge name, title, context, description, link or path.",
+        value: |limits| u64::from(limits.forge_component.string_bytes),
+    },
+    Name {
+        name: "forge_component.body_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds a forge response body retained whole.",
+        value: |limits| u64::from(limits.forge_component.body_bytes),
+    },
+    Name {
+        name: "forge_component.inner",
+        unit: Unit::Count,
+        line: "Bounds elements retained from a list within one forge document.",
+        value: |limits| u64::from(limits.forge_component.inner),
+    },
+    Name {
+        name: "forge_component.target_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds a forge request target.",
+        value: |limits| u64::from(limits.forge_component.target_bytes),
+    },
+    Name {
+        name: "forge_component.repositories",
+        unit: Unit::Count,
+        line: "Bounds repositories in the forge component's table.",
+        value: |limits| u64::from(limits.forge_component.repositories),
+    },
+    Name {
+        name: "forge_component.users",
+        unit: Unit::Count,
+        line: "Bounds users in the forge component's table.",
+        value: |limits| u64::from(limits.forge_component.users),
+    },
+    Name {
+        name: "forge_component.tls.read",
+        unit: Unit::Bytes,
+        line: "Bounds plaintext demanded at once from a forge TLS connection.",
+        value: |limits| u64::from(limits.forge_component.tls.read),
+    },
+    Name {
+        name: "forge_component.tls.send",
+        unit: Unit::Bytes,
+        line: "Bounds plaintext send room demanded from a forge TLS connection.",
+        value: |limits| u64::from(limits.forge_component.tls.send),
+    },
+    Name {
+        name: "forge_component.tls.records",
+        unit: Unit::Bytes,
+        line: "Bounds ciphertext retained by a forge TLS connection, including handshake messages spanning records.",
+        value: |limits| u64::from(limits.forge_component.tls.records),
+    },
+    Name {
+        name: "forge_component.hooks",
+        unit: Unit::Count,
+        line: "Bounds connections to the webhooks listener.",
+        value: |limits| u64::from(limits.forge_component.hooks),
+    },
+    Name {
+        name: "forge_component.hook_head_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds a webhook delivery's request head.",
+        value: |limits| u64::from(limits.forge_component.hook_head_bytes),
+    },
+    Name {
+        name: "forge_component.hook_body_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds a streamed webhook body; a delivery past it gets 413 and hints nothing.",
+        value: |limits| u64::from(limits.forge_component.hook_body_bytes),
+    },
+    Name {
+        name: "forge_component.hook_secret_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds a Forgejo forge's webhook secret, at least 32 bytes.",
+        value: |limits| u64::from(limits.forge_component.hook_secret_bytes),
+    },
+    Name {
+        name: "forge_component.hook_deadline_ms",
+        unit: Unit::Milliseconds,
+        line: "Bounds a webhook delivery's read and answer from accept or the previous answer.",
+        value: |limits| limits.forge_component.hook_deadline.as_millis(),
+    },
+    Name {
+        name: "forge_component.deadline_ms",
+        unit: Unit::Milliseconds,
+        line: "Bounds a forge call and each startup read, at most the forge client's lifetime.",
+        value: |limits| limits.forge_component.deadline.as_millis(),
+    },
+    Name {
+        name: "forge_component.idle_ms",
+        unit: Unit::Milliseconds,
+        line: "Bounds how long an idle forge connection is kept.",
+        value: |limits| limits.forge_component.idle.as_millis(),
+    },
+    Name {
+        name: "forge_component.start_backoff_ms",
+        unit: Unit::Milliseconds,
+        line: "Sets the first delay before a forge's start is tried again.",
+        value: |limits| limits.forge_component.start_backoff.as_millis(),
+    },
+    Name {
+        name: "forge_component.start_backoff_max_ms",
+        unit: Unit::Milliseconds,
+        line: "Bounds the doubling delay before a forge's start is tried again.",
+        value: |limits| limits.forge_component.start_backoff_max.as_millis(),
+    },
+    Name {
+        name: temper_forge_setup::limits::HOST_NAMES[0].name,
+        unit: Unit::Count,
+        line: temper_forge_setup::limits::HOST_NAMES[0].line,
+        value: |limits| u64::from(limits.setup.runs),
+    },
+    Name {
+        name: temper_forge_setup::limits::HOST_NAMES[1].name,
+        unit: Unit::Count,
+        line: temper_forge_setup::limits::HOST_NAMES[1].line,
+        value: |limits| u64::from(limits.setup.states),
+    },
+    Name {
+        name: temper_forge_setup::limits::HOST_NAMES[2].name,
+        unit: Unit::Milliseconds,
+        line: temper_forge_setup::limits::HOST_NAMES[2].line,
+        value: |limits| limits.setup.state_life.as_millis(),
+    },
+    Name {
+        name: temper_forge_setup::limits::HOST_NAMES[4].name,
+        unit: Unit::Count,
+        line: temper_forge_setup::limits::HOST_NAMES[4].line,
+        value: |limits| u64::from(limits.setup.orgs),
+    },
+    Name {
+        name: temper_forge_setup::limits::HOST_NAMES[5].name,
+        unit: Unit::Milliseconds,
+        line: temper_forge_setup::limits::HOST_NAMES[5].line,
+        value: |limits| limits.setup.deadline.as_millis(),
+    },
+    Name {
+        name: temper_forge_setup::limits::HOST_NAMES[6].name,
+        unit: Unit::Milliseconds,
+        line: temper_forge_setup::limits::HOST_NAMES[6].line,
+        value: |limits| limits.setup.backoff.as_millis(),
+    },
+    Name {
+        name: temper_forge_setup::limits::HOST_NAMES[7].name,
+        unit: Unit::Milliseconds,
+        line: temper_forge_setup::limits::HOST_NAMES[7].line,
+        value: |limits| limits.setup.backoff_max.as_millis(),
+    },
+];
+
+/// Looks up a whole dotted override name.
+#[must_use]
+#[expect(clippy::manual_find, reason = "the step subset searches slices with a bounded for loop")]
+pub fn find(name: &[u8]) -> Option<&'static Name> {
+    for row in &NAMES {
+        if row.name.as_bytes() == name {
+            return Some(row);
+        }
+    }
+    None
 }
