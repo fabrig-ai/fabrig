@@ -159,8 +159,13 @@ fn take_questions(questions: &Questions, heard: &RelayHeard<'_>, acts: &mut List
         if open.room() == 0 {
             break;
         }
-        let question =
-            Open { asker: asked.asker, number: asked.number, line: first_line(asked.words), stands: Stands::Taken };
+        let question = Open {
+            asker: asked.asker,
+            number: asked.number,
+            line: first_line(asked.words),
+            words: bytes::copy_of(asked.words),
+            stands: Stands::Taken,
+        };
         open.push(question).expect("open question room was checked");
     }
     open.into_boxed()

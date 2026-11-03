@@ -1415,6 +1415,42 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::DelegateResult { task, child, status, no_change, failed, cancelled, words } => {
             delegate_result(d, env, task, child, status, no_change, failed, cancelled, &words, out);
         }
+        Event::RelayRefused { task, questions, words } => {
+            if let Some(row) = d.changes.get_mut(&task) {
+                let before = crate::panel::ready(row);
+                row.questions = questions;
+                row.change.state = change::State::Held {
+                    was: Box::new(before_relay_hold(&row.change.state)),
+                    why: change::Hold::Failed,
+                };
+                row.change.owns_turn = false;
+                row.producer_failure = Some(words);
+                let saved = row.clone();
+                save_queue_change(d, env, before, saved, out);
+            }
+        }
+        Event::Relayed { task, questions } => {
+            if let Some(row) = d.changes.get_mut(&task) {
+                let before = crate::panel::ready(row);
+                let hold = match questions.open.first() {
+                    Some(question) => {
+                        question.stands == change::Stands::Taken
+                            && questions.taken >= env.limits.change_policy.questions
+                    }
+                    None => false,
+                };
+                row.questions = questions;
+                if hold {
+                    row.change.state = change::State::Held {
+                        was: Box::new(before_relay_hold(&row.change.state)),
+                        why: change::Hold::Questions,
+                    };
+                    row.change.owns_turn = false;
+                }
+                let saved = row.clone();
+                save_queue_change(d, env, before, saved, out);
+            }
+        }
         Event::StepChange { task, entry, heard, gates, queue_repair_active, kept } => {
             step_change(d, env, StepInput { task, entry, heard, gates, queue_repair_active, kept }, out);
         }
@@ -2530,6 +2566,33 @@ fn effect_permitted(kinds: Kinds, write: &skein_forge::api::Write) -> bool {
         | skein_forge::api::Write::Rerun { .. }
         | skein_forge::api::Write::DeleteBranch { .. } => kinds.branch,
         skein_forge::api::Write::Status { .. } => kinds.status,
+    }
+}
+
+fn before_relay_hold(state: &change::State) -> change::State {
+    match state {
+        change::State::Held { was, .. } => was.as_ref().clone(),
+        change::State::Producing { .. }
+        | change::State::Opening { .. }
+        | change::State::Recreating { .. }
+        | change::State::Reopening { .. }
+        | change::State::Checking { .. }
+        | change::State::Gating { .. }
+        | change::State::CancellingGates { .. }
+        | change::State::Ready { .. }
+        | change::State::Preparing { .. }
+        | change::State::Queued { .. }
+        | change::State::First { .. }
+        | change::State::Updating { .. }
+        | change::State::Resolving { .. }
+        | change::State::Repairing { .. }
+        | change::State::Landing { .. }
+        | change::State::Landed { .. }
+        | change::State::Red { .. }
+        | change::State::Cleared { .. }
+        | change::State::Uncleared { .. }
+        | change::State::NoChange { .. }
+        | change::State::Ended => state.clone(),
     }
 }
 

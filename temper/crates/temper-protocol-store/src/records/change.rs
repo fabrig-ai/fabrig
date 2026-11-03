@@ -863,7 +863,13 @@ fn encode_questions(value: &d::Questions) -> w::Questions {
         open.push(
             w::Open::new(
                 &w::CEILINGS,
-                w::OpenParts { asker: question.asker, number: question.number, line: question.line.clone(), stands },
+                w::OpenParts {
+                    asker: question.asker,
+                    number: question.number,
+                    line: question.line.clone(),
+                    words: question.words.clone(),
+                    stands,
+                },
             )
             .expect(FITS),
         )
@@ -888,14 +894,14 @@ fn decode_questions(value: w::Questions) -> d::Questions {
     let w::QuestionsParts { route, taken, open } = value.into_parts();
     let mut questions = List::with_capacity(open.len());
     for question in open.into_boxed() {
-        let w::OpenParts { asker, number, line, stands } = question.into_parts();
+        let w::OpenParts { asker, number, line, words, stands } = question.into_parts();
         let stands = match stands {
             w::Stands::Taken => d::Stands::Taken,
             w::Stands::Foreman(value) => d::Stands::Foreman { task: value.into_parts().task },
             w::Stands::Asked => d::Stands::Asked,
             w::Stands::Held(value) => d::Stands::Held { answer: value.into_parts().answer },
         };
-        questions.push(d::Open { asker, number, line, stands }).expect("same count");
+        questions.push(d::Open { asker, number, line, words, stands }).expect("same count");
     }
     d::Questions {
         route: match route {

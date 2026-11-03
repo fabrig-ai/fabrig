@@ -633,18 +633,21 @@ fn a_panel_shows_its_questions() {
                 asker: 71,
                 number: 1,
                 line: Box::from(b"Which branch?".as_slice()),
+                words: Box::from(b"Which branch?".as_slice()),
                 stands: change::Stands::Foreman { task: Some(15) },
             },
             change::Open {
                 asker: 72,
                 number: 2,
                 line: Box::from(b"Which check?".as_slice()),
+                words: Box::from(b"Which check?".as_slice()),
                 stands: change::Stands::Taken,
             },
             change::Open {
                 asker: 73,
                 number: 3,
                 line: Box::from(b"Which dependency?".as_slice()),
+                words: Box::from(b"Which dependency?".as_slice()),
                 stands: change::Stands::Held { answer: Box::from(b"answer words stay private".as_slice()) },
             },
         ]),
@@ -689,6 +692,7 @@ fn a_panel_shows_at_most_eight_questions() {
             asker: 71,
             number,
             line: Box::from(b"Question".as_slice()),
+            words: Box::from(b"Question".as_slice()),
             stands: change::Stands::Taken,
         })
         .expect("nine questions fit the record");

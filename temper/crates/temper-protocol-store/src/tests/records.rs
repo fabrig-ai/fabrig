@@ -1426,7 +1426,14 @@ fn a_changes_questions_and_foreman_charter_round_trip_unchanged() {
         (4, Stands::Asked),
         (5, Stands::Held { answer: b"Keep the documented behavior".as_slice().into() }),
     ] {
-        open.push(Open { asker: ASKER, number, line: b"Which behavior?".as_slice().into(), stands }).unwrap();
+        open.push(Open {
+            asker: ASKER,
+            number,
+            line: b"Which behavior?".as_slice().into(),
+            words: b"Which behavior?\nKeep both options.".as_slice().into(),
+            stands,
+        })
+        .unwrap();
     }
     row.questions = Questions { route: Route::Foreman, taken: 3, open: open.into_boxed() };
     row.foreman_charter = 6;
@@ -1447,10 +1454,32 @@ fn a_held_answer_is_bounded_by_the_forge_operation_bytes() {
             asker: 7,
             number: 1,
             line: Box::new([]),
+            words: Box::new([]),
             stands: Stands::Held { answer: skein_lib::bytes::zeroed(usize::try_from(length).unwrap()) },
         }]);
         let row = forge::Stored::Change(row);
         let expected = if accepted { Ok(row.clone()) } else { Err(crate::Undecodable) };
         assert_eq!(records::decode(&records::encode(&row), &bounds), expected, "answer bytes: {length}");
+    }
+}
+
+#[test]
+fn an_open_questions_words_are_bounded_by_the_forge_operation_bytes() {
+    use temper_engine_domain_forge_change::{Open, Stands, State};
+    let bound = fixtures::LIMITS.client.op_bytes;
+    let bounds = crate::bounds(&fixtures::LIMITS, bound).expect("fixture bounds");
+    assert_eq!(bounds.limits().open_words, bound);
+    for (length, accepted) in [(bound, true), (bound + 1, false)] {
+        let mut row = fixtures::change_row(State::Producing { requested: true });
+        row.questions.open = Box::new([Open {
+            asker: 7,
+            number: 1,
+            line: Box::new([]),
+            words: skein_lib::bytes::zeroed(usize::try_from(length).unwrap()),
+            stands: Stands::Asked,
+        }]);
+        let row = forge::Stored::Change(row);
+        let expected = if accepted { Ok(row.clone()) } else { Err(crate::Undecodable) };
+        assert_eq!(records::decode(&records::encode(&row), &bounds), expected, "question bytes: {length}");
     }
 }
