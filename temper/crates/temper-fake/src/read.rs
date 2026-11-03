@@ -85,6 +85,7 @@ pub(crate) fn kind(p: &Path, what: What) -> Refusal {
         | What::Budget { .. }
         | What::Grace { .. }
         | What::Operations { .. }
+        | What::Capacity { .. }
         | What::Message
         | What::Silence
         | What::StopBound

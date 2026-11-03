@@ -17,6 +17,40 @@ Change a deployment's settings while it runs: read them, write a settings file, 
   it. Every change names it, and each accepted change makes the next.
 - `FILE`: the settings file you write, in a directory of yours.
 
+### Deployment capacity
+
+Deployment limits are startup configuration in `temper.json`, under
+`engine.limits.overrides`. Stop and restart the deployment after editing
+them (temper help deployment). Stored settings and task authority do
+not raise these limits.
+
+| Member under `engine.limits.overrides` | Bounds |
+|---|---|
+| `tasks.tasks` | Deployment-wide live tasks |
+| `tasks.project_tasks` | Live tasks per project |
+| `tasks.tree_tasks` | Lifetime tasks per tree, including its root |
+| `tasks.depth` | Depth below a root at depth zero |
+| `tasks.delegates` | Live direct delegates per task |
+| `tasks.batch` | Tasks created atomically |
+| `tasks.project_goals` | Live tracked goals per project |
+| `documents.lines` | Lines per charter document read |
+
+Size live concurrency separately from lifetime tree capacity; ended
+tasks do not return tree room. `people.inbox_tasks` must be at least
+2 * `tasks.tasks`; `people.operations` must be at least
+max(`tasks.delegates` + 1, `tasks.project_goals`) and at most
+`tasks.tasks`. For example, `tasks.tasks: 64` needs
+`people.inbox_tasks: 128`, while `tasks.delegates: 8` needs
+`people.operations: 9` and enough live task capacity to hold it.
+
+A refused start names the failed dependency and required minimum.
+A fixed schema ceiling or profile store ceiling cannot be raised with
+a scalar override. `tasks.batch` grows the stored task record; reduce
+the named capacity or its spec/result/authority sizes when it exceeds
+that ceiling. Check each edit from a fresh configuration: a refusal of
+an earlier edit can still be present. For a goal's sizing example,
+read temper help budget; it does not promise a hundred-change profile.
+
 ## 1. Read the settings
 
 ```

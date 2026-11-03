@@ -521,6 +521,15 @@ host's half reports it (`llm.md`, 5.5).
 - **The application's limits** are its own members, checked in the same
   sum.
 
+Capacity dependencies are checked after all overrides, before family admission.
+`What::Capacity` retains the source member, configured count, dependent
+member and required minimum. Live task capacity needs at least twice as
+many `people.inbox_tasks`; `people.operations` holds the larger of
+`tasks.delegates` plus one and `tasks.project_goals`. A failed relation
+names its source and the dependency to raise, without labeling unrelated
+overrides invalid. Raising a dependency still requires the resulting
+profile to pass every admission check.
+
 The **effective store codec envelope** bounds the framed byte collections
 people-v14 derives from `core.policy_bytes` and `people.amendment_bytes`,
 as well as its independent fields. Configuration checks it after overrides
@@ -549,7 +558,7 @@ binding record field's required bytes and ceiling. The binding field is
 the generated first failure at maximum plus one; its required bytes are
 read at the configured value. An arithmetic refusal has no representable
 required bound. `What::CodecCeiling` retains the generated first independent
-failure, without labeling item counts as bytes; `What::CodecArithmetic` and
+people failure or a task batch field's configured count and schema ceiling, without labeling item counts as bytes; `What::CodecArithmetic` and
 `What::StoreCodec` distinguish arithmetic and a combined-codec failure
 outside the people envelope.
 `Problem::codec_message()` gives these problems' words as owned bytes.
