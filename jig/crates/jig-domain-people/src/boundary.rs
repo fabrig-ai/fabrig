@@ -221,9 +221,12 @@ pub enum NoteChange {
 /// Authenticated keyed requests admitted by the people child and routed by
 /// the root after role checks (domain/people.md, section 5.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-#[expect(
-    clippy::large_enum_variant,
-    reason = "an amendment stays inline, as `Event` carries a keyed request whole, and is priced by size_of"
+#[cfg_attr(
+    not(target_arch = "wasm32"),
+    expect(
+        clippy::large_enum_variant,
+        reason = "an amendment stays inline, as `Event` carries a keyed request whole, and is priced by size_of"
+    )
 )]
 pub enum Ask {
     /// Propose the settings as a revision left them (jig/docs/design/domain/engine.md, 17.10; jig/docs/design/domain/people.md, 5.1).
