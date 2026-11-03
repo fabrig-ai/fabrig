@@ -97,3 +97,17 @@ The spec declares `needs = ["change-merge-route"]` and says “the job's making 
 That answer also states: “a catch-up's `Merge { from: None }` head stays `catch-up-call`'s.”
 Acceptance remains incomplete; the pushed work is not accepted as done.
 After the prerequisite lands, resume catch-up-call to finish the item-start and push assertions, complete both landing stories, and run its required final checks.
+
+### 2026-11-03: Should fab assign an ancestry-preserving catch-up landing, or should the stories require main's contents rather than its commit ancestry? (reference-m7b/catch-up-call-2)
+
+Revise the stories, not the forge: the goal branch must hold main's work, and need not have main's commit as an ancestor.
+`temper/docs/design/domain/forge.md`, 8.2 step 7 lands every change "in the repository's merge style (4.4)", a catch-up included
+(section 10: "It lands as any change into the branch does"). That style is the repository's choice, and 11.1 already allows
+for a squash that replaces commits. The skein fake's `MergeHow::Style` squashes. A catch-up that always keeps ancestry would
+change the design and skein's fake, and neither belongs to this task.
+In `landed` (`forge_routes/catch_up.rs`), the ancestry assertion moves to where the design promises it: the change's merged
+head (the job's or the resolution's push, the pull's `head`) contains main's commit (`Read::Compare` with that head,
+`contains_base`). On the goal branch, assert that its tip is the pull's `merged` commit and that its tree holds main's work
+(`raw::Read::File` at the tip for the path `fake::advance` wrote, with its content). Keep `world.merges == 1` and main's tip
+unchanged. The first story's acceptance line "the goal branch then contains main's commit" now means this. No skein,
+`domain.rs` or `items.rs` change.
