@@ -52,8 +52,9 @@ machine: that is live and untouched. Behaviour is otherwise unchanged. This pays
 
 Acceptance:
 
-- `temper forge reconcile 1` is refused with the forge verbs' usage line, as any unknown
-  verb is; `temper --help` and `docs/help/reference/commands.md` show no `reconcile` row.
+- `temper forge reconcile 1` is refused as any unknown verb is (`forge bogus 1`), by
+  `commands::unknown`: `temper: no command forge reconcile; temper --help lists them`, exit 1;
+  `temper --help` and `docs/help/reference/commands.md` show no `reconcile` row.
 - `temper-forge-setup-shell/src/` has no `reconcile.rs` and no `exchange.rs`.
 - `rg -n 'setup\.orgs|Place::Orgs\b|Place::Org\(|OrgsLimit' temper -g '!**/docs/plan/**' -g '!**/docs/design/draft/**'`
   finds only the arms that map skein's `Place` variants (below), and `rg -n -w orgs
@@ -208,3 +209,13 @@ literals outside the list drop `orgs` with the field, and the files list now nam
 `temper-service/src/setup/runtime.rs` (~112, the managed arm) and
 `temper-fake/src/backends/tests.rs` (~439); the `temper-fake` check in Steps covers the
 second.
+
+2026-11-03. Is `temper forge reconcile 1` refused with the forge verbs' usage line, or with
+the "no command" refusal every unknown verb gets? The "no command" refusal: the acceptance's
+words "the forge verbs' usage line" were wrong, and "as any unknown verb is" holds. With its
+row gone the verb is unknown, and `commands::unknown` answers it before `forge::start` runs:
+`temper: no command forge reconcile; temper --help lists them`, exit 1, as for `forge bogus`.
+The acceptance now says so. `refusals_name_the_command_and_its_forms` and the unknown-verb
+refusal stay as they are. The run goes on from `bad11e9de8`: the outstanding checks in Steps
+(temper-docs, temper-box and temper-fake checks, clippy with `-p temper-fake` added since its
+test literal changed), then the status and debt text, the citations and the acceptance's `rg`.
