@@ -3,7 +3,7 @@
 2026-11-03. Where temper's code lags or departs from [agent.md](agent.md).
 The remaining gaps concern charters, settings, brief admission and result delivery.
 
-- **Not yet:** 8.1: a run's `settings` read and `propose_settings` schema name jig's four kinds alone, not temper's kinds or a project's policy (`temper-engine-smith/src/settings.rs`, `calls.rs`). 8.1: a run's `settings` read of a project's own policy: jig's core answers it unknown (`jig-domain-core/src/reads/settings.rs`).
+- **Not yet:** 8.1: a run's `settings` read of a project's own policy: jig's core answers it unknown (`jig-domain-core/src/reads/settings.rs`).
 - **Not yet:** 4.3: the
   check that each charter leaves its brief 2,048 bytes, at start and at
   the three entrances of a change of settings;
