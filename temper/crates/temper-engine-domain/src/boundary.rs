@@ -187,12 +187,13 @@ pub struct ChangeCall {
     pub name: Option<Box<[u8]>>,
     pub landing: Option<ChangeLanding>,
     pub after: Box<[ChangeAfter]>,
+    pub questions: Option<ChangeQuestions>,
 }
 
 impl ChangeCall {
     #[must_use]
     pub fn words(words: Box<[u8]>, repository: Option<Box<[u8]>>) -> Self {
-        Self { words, repository, name: None, landing: None, after: Box::new([]) }
+        Self { words, repository, name: None, landing: None, after: Box::new([]), questions: None }
     }
 }
 
@@ -201,6 +202,14 @@ impl ChangeCall {
 pub enum ChangeLanding {
     Goal,
     Branch(Box<[u8]>),
+}
+
+/// How a change takes its agents' questions (domain/agent.md, 4.3.1).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum ChangeQuestions {
+    None,
+    Foreman,
+    Up,
 }
 
 /// A change's dependency within a call (domain/agent.md, 4.3.1).
