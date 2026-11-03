@@ -31,12 +31,15 @@ Acceptance:
   segment as `--name`'s check says, refuses: `SameName` naming `<name>.js` for the first; the
   CLI's usage for the second.
 - The digest covers the worker's files as every other file of the directory; the page
-  (`index.html`) is unchanged by a worker (the page starts the worker itself).
+  (`index.html`) is unchanged by a worker but for its digest directory's name, which it names
+  as it does today (ui-web.md, 4.3): the page starts the worker itself.
 - The binary gains `--worker NAME=PATH`, at most once: it generates the worker's glue with
   `glue(PATH, NAME)` and calls `bundle_with`. Its usage line names it.
 - Step tests in `src/tests.rs` (or a `src/tests/worker.rs` it declares) pass:
   - `a_worker_is_bundled_beside_the_page`: the files above, the starter's exact bytes, the
-    page's `index.html` equal to the same inputs' bundle without a worker;
+    page's `index.html` equal to the same inputs' bundle without a worker once each page's own
+    digest directory (`<prefix><digest>/`) is replaced by one placeholder, and each page naming
+    its own bundle's directory;
   - `a_worker_changes_the_digest`: with and without a worker, two digests; the same inputs with
     the same worker, one digest and the same bytes;
   - `a_bundle_without_a_worker_is_unchanged`: `bundle` and `bundle_with(.., None, ..)` give the
@@ -78,3 +81,12 @@ Acceptance:
 
 As the implementer's text says, and also: the files a bundle with a worker holds, as listed by
 your first test.
+
+## Answers
+
+2026-11-03. Must `index.html` stay byte-identical with a worker, though the worker changes the
+digest the page's addresses embed? No: the page's rendering and addressing stay as they are
+(`page::render`, ui-web.md, 4.3), so with a worker it names the new digest directory and differs
+from the page without one only there. The test compares the two pages with each page's own
+`<prefix><digest>/` replaced by one placeholder, and asserts each names its own bundle's
+directory. The acceptance above says so; the skeleton is unchanged.
