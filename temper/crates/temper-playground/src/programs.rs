@@ -40,6 +40,16 @@ pub trait Harness: 'static {
     fn agent_seed(one: u64) -> u64 {
         documents::seeds(one).agent
     }
+    /// The scripted provider a restartable LLM peer is made, and made again, from.
+    #[must_use]
+    fn provider(one: u64) -> skein_fake_peers::llm::Peer {
+        crate::fakes::scripted_provider(Box::new([]), documents::seeds(one).llm)
+    }
+    /// The seed a restartable forge peer is made, and made again, with.
+    #[must_use]
+    fn forge_seed(one: u64) -> u64 {
+        documents::seeds(one).forge
+    }
     #[must_use]
     fn files() -> temper_service::settings::Files {
         documents::files()
@@ -316,6 +326,17 @@ pub fn llm_peer<H: Harness>(peer: skein_fake_peers::llm::Peer, inherited: &Inher
 #[must_use]
 pub fn fake_forge<H: Harness>(peer: skein_fake_peers::forge::Peer, inherited: &Inherited) -> Process<H> {
     Process::Forge(Box::new(SignalHost::new(peer, Some(inherited.signal))))
+}
+/// A restartable LLM peer: a power loss makes it again from the harness's provider.
+#[must_use]
+pub fn llm<H: Harness>(inherited: &Inherited) -> Process<H> {
+    llm_peer(H::provider(parameters().seed), inherited)
+}
+/// A restartable forge peer on the world's forge, which git shares.
+#[must_use]
+pub fn forge<H: Harness>(inherited: &Inherited) -> Process<H> {
+    let parameters = parameters();
+    fake_forge(crate::fakes::forge_peer(&parameters.forge, H::forge_seed(parameters.seed)), inherited)
 }
 /// Register the agent, git (typed or routed) and scripted shell.
 #[must_use]

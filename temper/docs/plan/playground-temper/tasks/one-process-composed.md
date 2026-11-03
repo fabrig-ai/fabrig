@@ -98,3 +98,19 @@ do not use distinct harness types and keep no local factories. The other hooks a
 `playground-processes`' report. No root exports are added: the acceptance's paths mean
 `temper_playground::programs::{Process, Harness}` and `temper_playground::programs::programs::<OneProcess>()`.
 If another hook proves missing, stop and ask again, naming its call site.
+
+2026-11-03. **The restart factories at `world.rs` ~1097–1098 are the playground's.** This answer
+added to `temper_playground` `programs::llm::<H>` and `programs::forge::<H>` (both
+`fn(&Inherited) -> Process<H>`, for `spawn_restartable`), two hooks `Harness::provider(one) ->
+llm::Peer` and `Harness::forge_seed(one) -> u64`, and `fakes::forge_peer(&Typed, seed)`, the peer
+`Fakes::new` builds. `programs::forge` reads the forge from the scoped `Parameters` (whose `forge`
+the harness sets to its run's transport), so a restarted peer shares it with git. `OneProcess`
+overrides `provider` to return `fixtures::provider()` and `forge_seed` to return `fixtures::SEED`,
+and the `Phase::Fault` arm spawns `programs::llm::<OneProcess>` and `programs::forge::<OneProcess>`.
+The non-restartable spawns (`Phase::Restart`, `Story`, ...) build `Process::Peer` and
+`Process::Forge` in their closures from `stories::provider(scenario)` and
+`fakes::forge_peer(&transport, fixtures::SEED)`, with the transport they already hold. So
+`share`/`transport`/`peer` and the local `llm_peer`/`fake_forge` go, as the acceptance says; no
+`parameters()` accessor is exported. The answerer could not build this change (heavy had no slots
+directory): build `temper-playground` first and, if it fails, fix it there; this task may edit
+those three items in `temper/crates/temper-playground/src/{programs,fakes,story}.rs` for that alone.

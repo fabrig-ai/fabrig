@@ -40,6 +40,21 @@ pub fn setup_peer(peer: &mut skein_fake_peers::forge::Peer) {
         skein_lib::Secret::new(ADMIN_TOKEN.into()),
     );
 }
+/// The composition's default Forgejo peer, sharing `forge` with the git transport.
+#[must_use]
+pub fn forge_peer(forge: &temper_fake_git::Typed, seed: u64) -> skein_fake_peers::forge::Peer {
+    let mut peer = skein_fake_peers::forge::Peer::new(
+        documents::FORGE,
+        peer_limits(),
+        forge_table(),
+        forge_limits(),
+        forge.forge.clone(),
+        seed,
+    )
+    .expect("forge peer");
+    setup_peer(&mut peer);
+    peer
+}
 /// The composition's forge API table.
 #[must_use]
 pub fn forge_table() -> skein_fake_forge_protocol::Config {

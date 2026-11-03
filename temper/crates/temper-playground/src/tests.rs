@@ -110,3 +110,10 @@ fn the_owned_values_equal_the_test_kits_values() {
     assert_eq!(identity.name, original.name);
     assert_eq!(identity.email, original.email);
 }
+
+#[test]
+fn the_default_restart_provider_is_admitted() {
+    use crate::programs::Harness;
+    let _provider = <() as Harness>::provider(7);
+    assert_eq!(<() as Harness>::forge_seed(7), documents::seeds(7).forge);
+}
