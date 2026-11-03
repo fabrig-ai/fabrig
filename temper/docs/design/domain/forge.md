@@ -685,7 +685,24 @@ Held by skein's `forge-client.md`, section 3. temper's part:
   already due cannot leave it waiting on an older CI verdict.
 - **Its capacity:** `forge.client.resources` live resources and
   `forge.client.repositories` repositories. A batch naming resources past
-  it is refused.
+  either bound is refused with the configuration member, its configured
+  value and required usage. Task names, their count and their bytes are
+  checked against `forge.tasks`, `forge.resources_per_task`,
+  `forge.name_bytes` and the client's `forge.client.op_bytes` as well.
+  A refusal carries the failed operation, its resource and its typed cause
+  to the root. A persistent hold explains the act that resolves it:
+  reduce the named work, or change the named configuration member and
+  restart, then release; an access or backend failure names its own cause.
+  A released change whose initial names were refused asks for them again;
+  while the bound still refuses them it holds again.
+- **Temporary admission pressure waits:** when recovery is incomplete,
+  or a departing resource's read still occupies capacity, the desired
+  names are saved and the complete watch set is retried after one second.
+  Removing a task removes its desired names; retry never revives it.
+  A restart rebuilds the watch set from those durable names. No person
+  releases this wait. A fresh change read refused as busy keeps its timed
+  procedure wait; other branch, base and pull read failures retain their
+  operation, resource and backend cause in the hold.
 
 ### 5.2 Keeping up
 
