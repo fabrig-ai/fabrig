@@ -101,16 +101,17 @@ fn task_rows(world: &World) -> Vec<tasks::TaskRecord> {
         .values()
         .filter_map(|row| match row {
             Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row) | tasks::Stored::Ended(row))) => {
-                Some(row.clone())
+                Some(row.as_ref().clone())
             }
             _ => None,
         })
         .collect()
 }
 
-fn error_text(world: &World) -> &str {
-    assert_eq!(world.call_errors.len(), ONE_CHANGE, "one refused change call");
-    core::str::from_utf8(&world.call_errors[0].text).expect("UTF-8 call error")
+fn error_text(answer: &engine::CallAnswer) -> String {
+    let rendered = temper_engine_smith::answer(answer);
+    assert!(rendered.error(), "a refused change is an error");
+    String::from_utf8(rendered.text().to_vec()).expect("UTF-8 call error")
 }
 
 fn produce(world: &mut World, producer: &engine::Assignment, branch: &[u8]) {
@@ -189,14 +190,15 @@ fn a_change_names_its_producer_and_llm_and_its_tasks_run_under_them() {
 fn a_change_naming_a_charter_the_run_may_not_delegate_to_is_refused() {
     let (mut world, goal) = goal(false);
     let before = task_rows(&world);
-    assert!(matches!(change(&mut world, &goal, PRODUCER), engine::CallAnswer::DelegationDenied {
+    let answer = change(&mut world, &goal, PRODUCER);
+    assert!(matches!(&answer, engine::CallAnswer::DelegationDenied {
         answer: authority::Answer::Propose, findings,
     } if findings.iter().any(|finding| matches!(finding,
         authority::Finding::Authority { source: authority::Source::Task, lacks } if lacks.executors))));
-    let text = error_text(&world);
-    assert!(text.contains("Beyond authority") && text.contains("missing executors"), "{text}");
     assert_eq!(task_rows(&world), before, "refusal makes no task");
     assert_eq!(world.assigned.len(), PRODUCER_RUN, "only the goal runs");
+    let text = error_text(&answer);
+    assert!(text.contains("Beyond authority") && text.contains("missing executors"), "{text}");
     world.close();
 }
 
@@ -204,11 +206,12 @@ fn a_change_naming_a_charter_the_run_may_not_delegate_to_is_refused() {
 fn a_change_naming_a_model_its_producer_s_charter_does_not_allow_is_refused() {
     let (mut world, goal) = goal(true);
     let before = task_rows(&world);
-    assert!(matches!(change(&mut world, &goal, 1), engine::CallAnswer::DelegationRefused(problem)
+    let answer = change(&mut world, &goal, 1);
+    assert!(matches!(&answer, engine::CallAnswer::DelegationRefused(problem)
         if problem.why == tasks::Refusal::Llm { model: SECOND_MODEL, why: tasks::LlmFault::Charter }));
-    let text = error_text(&world);
-    assert!(text.contains("scripted-second") && text.contains("model outside the charter"), "{text}");
     assert_eq!(task_rows(&world), before, "refusal makes no task");
     assert_eq!(world.assigned.len(), PRODUCER_RUN, "only the goal runs");
+    let text = error_text(&answer);
+    assert!(text.contains("scripted-second") && text.contains("model outside the charter"), "{text}");
     world.close();
 }
