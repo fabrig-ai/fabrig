@@ -1343,7 +1343,9 @@ delegate's terminal wakes it to offer the landed result.
   is never held just for waiting, yet tells the person of a check that
   never reports within the same sitting. A wait for access is not one:
   while its forge is not connected, or its repository not reachable
-  (4.1, 4.3), the stall does not count.
+  (4.1, 4.3), the stall does not count. Nor is a wait for its agent
+  while a question of that agent's is open (8.11): the stall counts
+  again from the step that relays its last answer down.
 - **A release** lifts what it releases: repairs, resolutions and updates
   count again from it, its stall is counted from it, and the change
   decides afresh. A producer that fails for good holds the change at
@@ -1612,8 +1614,9 @@ section 9): the foreman and the requester decide, and the change relays
   its options and its recommendation, after pushing what it has. An
   agent that asked is kept by its own question (jig's
   `domain/tasks.md`, 5.7): its run parks, no try spent, until the
-  change answers. Its reviews and its
-  foremen are delegated without the Message family, as under `none`.
+  change answers, and the change's wait for it is no stall (8.4). Its
+  reviews and its foremen are delegated without the Message family, as
+  under `none`.
 - **Taken at its step.** Each step takes the questions its own agents
   asked (its producing task, and the repair or the resolution it has
   live), oldest first, as its open questions, kept on its record, and
@@ -1621,20 +1624,22 @@ section 9): the foreman and the requester decide, and the change relays
   is passed up, once the one before is answered. A question from any
   other task, and every task's words, are answered as 8.1 says for a
   change that takes none.
-- **Bounded.** It counts the questions it takes, from its making or its
-  last release, against its bound, `forge.change_policy.questions` (4
-  on the stock: `../protocol/configuration.md`, section 7). The one past
-  the bound is given no foreman and passed nowhere: the change holds
-  itself, its words naming the bound and the question's asker and
-  number, and the hold escalates to its requester (jig's
+- **Bounded.** It counts the questions it takes, each as its turn comes,
+  from its making or its last release, against its bound,
+  `forge.change_policy.questions` (4 on the stock:
+  `../protocol/configuration.md`, section 7). The one past the bound,
+  when its turn comes, is given no foreman and passed nowhere: the
+  change holds itself, its words naming the bound and the question's
+  asker and number, and the hold escalates to its requester (jig's
   `domain/tasks.md`, section 9). Released, it passes that question up
-  (below) with no foreman, and counts again from the release, as its
-  repairs do (8.4).
+  (below) with no foreman, the first it counts since the release, as
+  its repairs count again from one (8.4).
 - **A foreman per question,** under `foreman`: a delegate under the
   forge's foreman charter (kind 3's number 3:
   `../protocol/configuration.md`, 13.2), made under the change's own
   authority as its other delegates are (8.4), each one of the change's
-  tasks. Its brief
+  tasks; a foreman that authority no longer covers is not made, and the
+  question is passed up, its reasons saying what the authority lacks. Its brief
   carries the change's words whole, the question's words whole with its
   asker and number, and the change's branch and pushed head, where it
   has one; its workspace is a checkout of the landing branch's tip,
@@ -1657,8 +1662,8 @@ section 9): the foreman and the requester decide, and the change relays
   words among the reasons.
 - **Passed up,** under `up`, on `escalate`, or released past the bound,
   one at a time in the order taken: the change asks its requester in
-  the question form, its words the asker's question whole, read from
-  the change's question positions (jig's `domain/tasks.md`, 8.2), then,
+  the question form, its words the asker's question whole, as its
+  record kept them when it was taken, then,
   under a line `Foreman:`, the foreman's reasons where one ran, the
   whole cut from its end to the message bound and marked. The change is
   kept by its own question while it waits (jig's `domain/tasks.md`,
@@ -1685,8 +1690,8 @@ section 9): the foreman and the requester decide, and the change relays
   change's own question stays until its requester answers it or it
   ends with the change.
 - **On its record and its panel.** Its open questions, in the order
-  taken, each with its asker and number, the first line of its words,
-  and where it stands (taken; with foreman task F; asked of the
+  taken, each with its asker and number, its words whole and their
+  first line, and where it stands (taken; with foreman task F; asked of the
   requester; its answer held for dependencies), and the questions
   taken against its bound, are kept on its record, so that a restart
   resumes each where it stood (section 16), and shown on its panel

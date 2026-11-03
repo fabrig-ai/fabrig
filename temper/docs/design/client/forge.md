@@ -1269,6 +1269,11 @@ made by the forge connector from what it keeps of the change
   the version move that first needs it.
 - **A change's files in the client:** whether the panel lists the files a
   change touches, from the connector's read, short of showing the diff.
+- **A change's questions on its page** (9.2; `../domain/forge.md`,
+  8.11). Default: the panel carries them and `ctl`'s `change show`
+  prints them; the change's task page shows none until the web client's
+  pages for a plan's work are designed (`../draft/reference-case.execution.md`,
+  section 6, leaves them to rung W).
 - **Conflicts seen early** (`../domain/forge.md`, section 20):
   warning two goals whose open changes conflict before either lands, as
   a panel on both.

@@ -1402,6 +1402,7 @@ fn change_decodes_a_plan_member_each() {
                 name: Some(b"x".as_slice().into()),
                 landing: Some(expected),
                 after: Box::new([engine::ChangeAfter::Task(4), engine::ChangeAfter::Name(b"w".as_slice().into())]),
+                questions: None,
             }]
         );
     }
@@ -1412,6 +1413,49 @@ fn change_decodes_a_plan_member_each() {
     };
     assert_eq!(changes[0].name.as_deref(), Some(name.as_bytes()));
     assert!(changes[0].after.is_empty());
+}
+
+#[test]
+fn change_decodes_its_questions() {
+    for (questions, expected) in [
+        ("foreman", engine::ChangeQuestions::Foreman),
+        ("up", engine::ChangeQuestions::Up),
+        ("none", engine::ChangeQuestions::None),
+    ] {
+        let member = format!(r#"{{"words":"a","questions":"{questions}"}}"#);
+        for input in [member.clone(), format!(r#"{{"changes":[{{"words":"first"}},{member}]}}"#)] {
+            let engine::Tool::Change { changes } = decided(b"change", input.as_bytes()).expect("questions").tool else {
+                panic!("change")
+            };
+            assert_eq!(
+                changes.last().expect("change member"),
+                &engine::ChangeCall {
+                    questions: Some(expected.clone()),
+                    ..engine::ChangeCall::words(b"a".as_slice().into(), None)
+                }
+            );
+            if changes.len() == 2 {
+                assert_eq!(changes[0].questions, None);
+            }
+        }
+    }
+}
+
+#[test]
+fn change_refuses_unknown_questions() {
+    for (questions, expected) in [
+        (r#""ask""#, Problem::Range(b"questions")),
+        ("true", Problem::Type(b"questions")),
+        ("0", Problem::Type(b"questions")),
+        ("null", Problem::Type(b"questions")),
+        ("[]", Problem::Type(b"questions")),
+        ("{}", Problem::Type(b"questions")),
+    ] {
+        let member = format!(r#"{{"words":"a","questions":{questions}}}"#);
+        for input in [member.clone(), format!(r#"{{"changes":[{member}]}}"#)] {
+            assert_eq!(decided(b"change", input.as_bytes()), Err(expected), "{input}");
+        }
+    }
 }
 
 #[test]
@@ -1451,6 +1495,7 @@ fn change_decodes_several_changes_in_order() {
             name: None,
             landing: Some(engine::ChangeLanding::Branch(b"main".as_slice().into())),
             after: Box::new([engine::ChangeAfter::Task(1)]),
+            questions: None,
         }]
     );
 }
@@ -1492,7 +1537,7 @@ fn change_refuses_words_with_changes_and_empty_members() {
 #[test]
 fn change_offers_its_plan_members_only_with_control() {
     let legacy = br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."}},"required":["words"]}"#;
-    let plan = br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."},"name":{"type":"string","description":"Its name in this call, for a later change's after."},"landing":{"type":"string","description":"goal: your own goal branch; or a branch's name; left out, the default branch."},"after":{"type":"array","description":"What it lands after: your live delegates' task numbers, or names given earlier in this call.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"changes":{"type":"array","description":"Instead of words: several changes as one batch, each with the members above.","items":{"type":"object"}}}}"#;
+    let plan = br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."},"name":{"type":"string","description":"Its name in this call, for a later change's after."},"landing":{"type":"string","description":"goal: your own goal branch; or a branch's name; left out, the default branch."},"after":{"type":"array","description":"What it lands after: your live delegates' task numbers, or names given earlier in this call.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"questions":{"type":"string","enum":["none","foreman","up"],"description":"How its producer's questions go: foreman, settled first by a foreman from the words and the design; up, straight to you; none, it asks no one. Left out, the project's setting."},"changes":{"type":"array","description":"Instead of words: several changes as one batch, each with the members above.","items":{"type":"object"}}}}"#;
     let stock = 1_539;
     for (authority, schema) in [(stock, legacy.as_slice()), (stock | 0b100, plan.as_slice())] {
         let mut found = false;

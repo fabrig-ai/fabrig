@@ -3,7 +3,7 @@ id = "foreman-charter"
 part = "foreman"
 kind = "feature"
 needs = []
-files = ["temper/crates/temper-service/src/stock.rs", "temper/crates/temper-service/src/stock/foreman.txt", "temper/crates/temper-service/src/tests/stock.rs", "temper/crates/temper-service/src/tests/stock_brief.rs", "temper/crates/temper-init/template/temper.json", "temper/crates/temper-init/src/tests/documents.rs", "temper/docs/examples/owned.json", "temper/docs/help/charter.md", "temper/docs/design/protocol/configuration.status.md"]
+files = ["temper/crates/temper-service/src/stock.rs", "temper/crates/temper-service/src/stock/foreman.txt", "temper/crates/temper-service/src/tests/stock.rs", "temper/crates/temper-service/src/tests/stock_brief.rs", "temper/crates/temper-init/template/temper.json", "temper/crates/temper-init/src/tests/documents.rs", "temper/docs/examples/owned.json", "temper/docs/help/charter.md", "temper/docs/design/protocol/configuration.status.md", "temper/crates/temper-service/src/tests/fixtures.rs", "temper/crates/temper-service/src/tests/root_checks.rs", "temper/crates/temper/tests/support/configuration.rs", "temper/crates/temper/tests/support/github/engine.json", "temper/crates/temper/tests/fixtures/cluster/engine.json"]
 effort = "medium"
 minutes = 50
 +++
@@ -102,3 +102,18 @@ Owns the files in the header.
 ## Report
 
 As the implementer's text says, with the measured floors the test's rows now hold.
+
+## Answers
+
+2026-11-03. Q: may this task raise the executor-count literals in temper's shared test
+fixtures, outside its file list, or does a prerequisite task take them? A: this task
+does: its acceptance (the stock and startup suites) cannot hold without them, since charter
+6 makes the stock need 7 executors. The header now lists
+`temper-service/src/tests/fixtures.rs` (`ENGINE`), `temper-service/src/tests/root_checks.rs`
+(`ENGINE_OVERRIDES`), `temper/tests/support/configuration.rs`,
+`temper/tests/support/github/engine.json` and `temper/tests/fixtures/cluster/engine.json`.
+In them change only `authority.executors` and `tasks.executor_kinds`, 6 to 8 as in the two
+deployment documents, and the comments that count the stock's charters, executors or
+policy 1's bytes (3250 to the measured 3266); nothing else, and no production limit beyond
+the task's overrides. Change a literal in one of them only where the old value is wrong for
+the new stock, and name each file in the report. Then run step 3's checks in full.

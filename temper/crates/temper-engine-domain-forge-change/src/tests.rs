@@ -1,7 +1,7 @@
 //! Procedure cells, queue order and landing-rule agreement.
 use crate::{
     Change, Ci, Decision, Delegate, Effect, EffectResult, Facts, Freshness, Gate, GateFailure, GateKind, GateReport,
-    Heard, Hold, Limits, Pull, Ready, Repair, State, Status, first, released, step,
+    Heard, Hold, Limits, Pull, QUESTIONS_OPEN, Questions, Ready, Repair, Route, State, Status, first, released, step,
 };
 use alloc::boxed::Box;
 use skein_lib::{Duration, Wall};
@@ -10,8 +10,15 @@ const HEAD: [u8; 32] = [1; 32];
 const BASE: [u8; 32] = [2; 32];
 const NEW: [u8; 32] = [3; 32];
 const MERGE: [u8; 32] = [4; 32];
-const LIMITS: Limits =
-    Limits { repairs: 2, resolutions: 2, updates: 3, stall: Duration::from_secs(30), gates: 4, clean_heads: 4 };
+const LIMITS: Limits = Limits {
+    repairs: 2,
+    resolutions: 2,
+    updates: 3,
+    questions: 4,
+    stall: Duration::from_secs(30),
+    gates: 4,
+    clean_heads: 4,
+};
 fn at(seconds: u64) -> Wall {
     Wall::from_nanos(seconds.saturating_mul(1_000_000_000))
 }
@@ -177,7 +184,7 @@ fn failed_producer() -> (Change, Facts, Heard) {
 }
 
 fn failed_ci_repair() -> (Change, Facts, Heard, Limits) {
-    let limits = Limits { repairs: 3, ..LIMITS };
+    let limits = Limits { repairs: 3, questions: 4, ..LIMITS };
     let mut f = facts();
     f.ci.status = Status::Failed;
     let c = change(State::Checking { head: HEAD });
@@ -842,3 +849,18 @@ fn a_live_advisory_gate_does_not_hold_a_green_head() {
 }
 
 mod verifying;
+
+#[test]
+fn a_changes_questions_default_to_none() {
+    let questions = Questions::default();
+    assert_eq!(questions.route, Route::None);
+    assert_eq!(questions.taken, 0);
+    assert!(questions.open.is_empty());
+}
+
+#[test]
+fn the_open_bound_leaves_room_for_the_one_past_the_bound() {
+    // The reference's bound (draft/reference-code-production.md, section 8).
+    const QUESTIONS: usize = 4;
+    const { assert!(QUESTIONS_OPEN > QUESTIONS) };
+}
