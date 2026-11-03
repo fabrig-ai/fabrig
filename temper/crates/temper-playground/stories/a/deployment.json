@@ -9,7 +9,17 @@
     },
     "demo": {
       "llm": {
-        "asked": [],
+        "asked": [
+          {
+            "cue": "Add CSV export to widget"
+          },
+          {
+            "cue": "Add a dark theme to widget"
+          },
+          {
+            "cue": "Fix widget's empty search state"
+          }
+        ],
         "cued": [],
         "key": "/setup/llm.key",
         "listen": {

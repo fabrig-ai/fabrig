@@ -57,6 +57,19 @@ fn story_a_decodes_within_the_fakes_bounds() {
 }
 
 #[test]
+fn story_as_deployment_offers_its_llm_cues_in_order() {
+    let deployment: Value = serde_json::from_slice(A.deployment).expect("story deployment");
+    let llm: Value = serde_json::from_slice(A.llm).expect("story LLM");
+    let cues: Vec<_> = llm["asked"]
+        .as_array()
+        .expect("asked scripts")
+        .iter()
+        .map(|script| json!({"cue": script["cue"]}))
+        .collect();
+    assert_eq!(deployment["application"]["demo"]["llm"]["asked"], json!(cues));
+}
+
+#[test]
 fn story_as_scripts_are_the_templates() {
     let story: Value = serde_json::from_slice(A.llm).expect("story LLM");
     let template: Value =
