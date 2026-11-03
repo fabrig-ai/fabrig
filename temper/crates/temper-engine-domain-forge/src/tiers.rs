@@ -7,6 +7,7 @@ use skein_lib::{Env, List, Map, Queue, Time, Token, Wall};
 use temper_engine_domain_forge_landing as landing;
 use temper_engine_domain_forge_tiers as p;
 mod parts;
+pub(crate) mod words;
 use parts::{
     candidate, dispatch_operation, part_branch, part_inputs, part_number, probe_branch, report_read, reported,
 };
@@ -187,6 +188,7 @@ fn word(out: &mut skein_lib::Writer, value: usize) {
 
 fn empty(repository: Repository, tier: Box<[u8]>) -> TierRow {
     TierRow {
+        observations: Box::new([]),
         repository,
         tier,
         record: p::Record {
@@ -700,25 +702,9 @@ fn advance(
     outcome: p::Outcome,
     out: &mut Queue<Request>,
 ) {
+    words::observe(row, follow);
     let run = row.record.run.as_ref().expect("followed run");
-    let observation = match &outcome {
-        p::Outcome::Fault => None,
-        p::Outcome::Passed | p::Outcome::Failed(_) => {
-            let workflow = follow.run.as_ref().expect("completed workflow");
-            let failures = match &outcome {
-                p::Outcome::Passed => p::Failures::Tests(Box::new([])),
-                p::Outcome::Failed(failures) => failures.clone(),
-                p::Outcome::Fault => unreachable!("completed observation"),
-            };
-            Some(crate::Receipt {
-                passed: outcome == p::Outcome::Passed,
-                failures: Some(failures),
-                candidate: candidate(run).0,
-                ended: env.wall,
-                run: crate::ReceiptRun { id: workflow.id, number: workflow.number, url: workflow.url.clone() },
-            })
-        }
-    };
+    let observation = observation(env, row, follow, &outcome);
     if run.part == p::Part::Whole
         && let Some(receipt) = &observation
     {
@@ -763,7 +749,7 @@ fn advance(
     save(row, out);
 }
 fn decision(task: u64, decision: crate::TierDecision, entry: Option<u64>, out: &mut Queue<Request>) {
-    out.push(Request::TierDecision { task, decision, entry });
+    out.push(Request::TierDecision { task, decision, projection: None, entry });
 }
 fn wait(task: u64, out: &mut Queue<Request>) {
     decision(task, crate::TierDecision::Wait { until: None }, None, out);
@@ -870,43 +856,7 @@ fn finish(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, out: &mut Queue<
         )
     };
     let p::Next::Judged(verdict) = next else { unreachable!("saved final observation judges the committed part") };
-    let count = u64::try_from(verdict.landings.len()).expect("bounded range");
-    let words = match &verdict.failing {
-        p::Failures::Tests(tests) if tests.is_empty() => joined(&[
-            b"Tier ",
-            &row.tier,
-            b" run ",
-            skein_lib::Decimal::of(verdict.number).as_bytes(),
-            b": green, cleared ",
-            skein_lib::Decimal::of(count).as_bytes(),
-            b" landings",
-        ]),
-        failing @ (p::Failures::Tests(_) | p::Failures::Many) => {
-            let failures = match failing {
-                p::Failures::Tests(tests) => {
-                    skein_lib::Decimal::of(u64::try_from(tests.len()).expect("bounded tests")).as_bytes().into()
-                }
-                p::Failures::Many => Box::from(b"many".as_slice()),
-            };
-            let mut blamed = 0_u64;
-            for blame in &verdict.landings {
-                if *blame != p::Blame::Cleared {
-                    blamed = blamed.checked_add(1).expect("bounded range");
-                }
-            }
-            joined(&[
-                b"Tier ",
-                &row.tier,
-                b" run ",
-                skein_lib::Decimal::of(verdict.number).as_bytes(),
-                b": red, ",
-                &failures,
-                b" tests failing, blamed on ",
-                skein_lib::Decimal::of(blamed).as_bytes(),
-                b" landings",
-            ])
-        }
-    };
+    let words = verdict_words(&row.tier, &verdict);
     crate::verification::judged(d, row.repository, &row.tier, &verdict, &run.landings, out);
     row.record = p::judged(
         &row.record,
@@ -922,8 +872,9 @@ fn finish(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, out: &mut Queue<
     row.received = false;
     row.purpose = None;
     row.cancelled = false;
+    let projection = Some(core::mem::replace(&mut row.observations, Box::new([])));
     save(row, out);
-    decision(task, crate::TierDecision::Done { words }, None, out);
+    out.push(Request::TierDecision { task, decision: crate::TierDecision::Done { words }, entry: None, projection });
 }
 fn reading(d: &Domain, key: &(Repository, Box<[u8]>)) -> bool {
     for (owner, candidate) in &d.tier_ops.reads {
@@ -1073,21 +1024,7 @@ pub(crate) fn step(
             TierBranch::Absent => {
                 d.tier_ops.follows.remove(&key);
                 if row.cancelled {
-                    row.record.run = None;
-                    row.task = None;
-                    d.offered_tier(task);
-                    row.requested = false;
-                    row.flight = None;
-                    row.result = None;
-                    row.purpose = None;
-                    row.received = false;
-                    save(&row, out);
-                    decision(
-                        task,
-                        crate::TierDecision::Done { words: joined(&[b"Tier ", &row.tier, b" cancelled"]) },
-                        None,
-                        out,
-                    );
+                    cancelled(d, &mut row, task, out);
                 } else {
                     finish(d, env, &mut row, out);
                 }
@@ -1191,6 +1128,7 @@ pub(crate) fn answered(
         true
     } else {
         let ended = follow.answered(answer, writer, env.now, env.limits.client.lifetime).is_some();
+        words::observe(&mut row, &follow);
         if row.held.is_none() && row.result.is_none() {
             observed_part(d, env, &mut row, &mut follow, out);
         }
@@ -1595,9 +1533,13 @@ pub(crate) fn blame_bytes(blame: &p::Blame) -> Option<u64> {
     }
 }
 pub(crate) fn row_bytes(row: &TierRow) -> Option<u64> {
-    let mut held = u64::try_from(row.tier.len()).ok()?.checked_add(failures_bytes(&row.record.failing)?)?.checked_add(
-        u64::try_from(row.record.flakes.len()).ok()?.checked_mul(u64::try_from(size_of::<p::Flake>()).ok()?)?,
-    )?;
+    let mut held = u64::try_from(row.tier.len())
+        .ok()?
+        .checked_add(u64::try_from(row.observations.len()).ok()?)?
+        .checked_add(failures_bytes(&row.record.failing)?)?
+        .checked_add(
+            u64::try_from(row.record.flakes.len()).ok()?.checked_mul(u64::try_from(size_of::<p::Flake>()).ok()?)?,
+        )?;
     for flake in &row.record.flakes {
         held = held.checked_add(u64::try_from(flake.test.len()).ok()?)?;
     }
@@ -1668,4 +1610,89 @@ fn remember_tip(d: &mut Domain, key: &(Repository, Box<[u8]>)) {
             d.tier_ops.tip_keys.remove(key);
         }
     }
+}
+
+fn observation(
+    env: &Env<Limits>,
+    row: &TierRow,
+    follow: &crate::runs::Follow,
+    outcome: &p::Outcome,
+) -> Option<crate::Receipt> {
+    match outcome {
+        p::Outcome::Fault => None,
+        p::Outcome::Passed | p::Outcome::Failed(_) => {
+            let workflow = follow.run.as_ref().expect("completed workflow");
+            let failures = match outcome {
+                p::Outcome::Passed => p::Failures::Tests(Box::new([])),
+                p::Outcome::Failed(failures) => failures.clone(),
+                p::Outcome::Fault => unreachable!("completed observation"),
+            };
+            Some(crate::Receipt {
+                passed: *outcome == p::Outcome::Passed,
+                failures: Some(failures),
+                candidate: candidate(row.record.run.as_ref().expect("followed run")).0,
+                ended: env.wall,
+                run: crate::ReceiptRun { id: workflow.id, number: workflow.number, url: workflow.url.clone() },
+            })
+        }
+    }
+}
+
+fn verdict_words(tier: &[u8], verdict: &p::Verdict) -> Box<[u8]> {
+    let count = u64::try_from(verdict.landings.len()).expect("bounded range");
+    match &verdict.failing {
+        p::Failures::Tests(tests) if tests.is_empty() => joined(&[
+            b"Tier ",
+            tier,
+            b" run ",
+            skein_lib::Decimal::of(verdict.number).as_bytes(),
+            b": green, cleared ",
+            skein_lib::Decimal::of(count).as_bytes(),
+            b" landings",
+        ]),
+        failing @ (p::Failures::Tests(_) | p::Failures::Many) => {
+            let failures = match failing {
+                p::Failures::Tests(tests) => {
+                    skein_lib::Decimal::of(u64::try_from(tests.len()).expect("bounded tests")).as_bytes().into()
+                }
+                p::Failures::Many => Box::from(b"many".as_slice()),
+            };
+            let mut blamed = 0_u64;
+            for blame in &verdict.landings {
+                if *blame != p::Blame::Cleared {
+                    blamed = blamed.checked_add(1).expect("bounded range");
+                }
+            }
+            joined(&[
+                b"Tier ",
+                tier,
+                b" run ",
+                skein_lib::Decimal::of(verdict.number).as_bytes(),
+                b": red, ",
+                &failures,
+                b" tests failing, blamed on ",
+                skein_lib::Decimal::of(blamed).as_bytes(),
+                b" landings",
+            ])
+        }
+    }
+}
+
+fn cancelled(d: &mut Domain, row: &mut TierRow, task: u64, out: &mut Queue<Request>) {
+    row.record.run = None;
+    row.task = None;
+    d.offered_tier(task);
+    row.requested = false;
+    row.flight = None;
+    row.result = None;
+    row.purpose = None;
+    row.received = false;
+    let projection = Some(core::mem::replace(&mut row.observations, Box::new([])));
+    save(row, out);
+    out.push(Request::TierDecision {
+        task,
+        decision: crate::TierDecision::Done { words: joined(&[b"Tier ", &row.tier, b" cancelled"]) },
+        entry: None,
+        projection,
+    });
 }
