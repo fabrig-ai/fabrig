@@ -74,7 +74,7 @@ pub const TASK: Tool = Tool {
     ]],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"`acts:` lists the calls the engine offers your party, ready to copy.\nAn act marked `(no tool)` has no tool here yet; one followed by a\ncolon and a reason is refused as it stands; one marked `proposed\nto` asks another party first. A change task adds `next:` and the\ncall that reads its change. An ended task prints its result.\n",
+    notes: b"`acts:` lists the calls the engine offers your party, ready to copy.\nAn act marked `(no tool)` has no tool here yet; one followed by a\ncolon and a reason is refused as it stands; one marked `proposed\nto` asks another party first. A change task adds `next:` and the\ncall that reads its change. An ended task prints its result.\nText reads and waits fill `asked:` from the specification within their output\nbounds. If words remain, `task text TASK --field specification --from OFFSET`\nreads on from the first undisplayed byte. JSON keeps the bounded overview\nand its digest.\n",
 };
 pub const CHAT: Tool = Tool {
     name: b"chat show",
