@@ -99,3 +99,14 @@ Acceptance:
 
 As the implementer's text says, and: `Story::start`'s path from documents to `Fakes`, and any
 member of the template's scripts the fake's document of its own could not hold as it is.
+
+## Rebase (2026-11-03, step merge, foreman playground-temper/story-a/foreman-1)
+
+resolve the playground manifest conflict by retaining both tasks’ dependencies.
+The merge conflicts in `temper/crates/temper-playground/Cargo.toml`.
+Integration commit `7b9513785fa6d60c3d5e003c6577cc1758cdf03b` adds `temper-worker-checkout-world.workspace = true` under `[dev-dependencies]`; its fixture checks require it.
+Keep that entry alongside story A’s `smith-domain-run.workspace = true` and `smith-agent-world.workspace = true`.
+Keep story A’s `temper-fake.workspace = true` under `[dependencies]`.
+Preserve the automatically merged `Cargo.lock`, checking that the `temper-playground` dependency list contains all four additions.
+No source or story-data changes are needed for this conflict.
+Validate with `heavy cargo nextest run -p temper-playground --lib` and `heavy cargo clippy -p temper-playground --all-targets -- -D warnings`.
