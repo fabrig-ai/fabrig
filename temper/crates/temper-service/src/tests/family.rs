@@ -1868,6 +1868,13 @@ fn new_forge_places_reach_both_setup_and_connect_whole() {
     for (asked, expected) in [
         (w::ForgeAsk::Github, forge::ForgeAsk::GitHub),
         (w::ForgeAsk::Owned, forge::ForgeAsk::Owned),
+        (
+            {
+                let w::ForgeAsk::Managed(value) = managed.clone() else { unreachable!() };
+                w::ForgeAsk::Connected(value)
+            },
+            forge::ForgeAsk::Connected { place: place.clone(), git_program: Some(b"/data/bin/git".as_slice().into()) },
+        ),
         (managed, forge::ForgeAsk::Managed { place, git_program: Some(b"/data/bin/git".as_slice().into()) }),
     ] {
         let making = w::Making::New(w::NewForge::new(&w::CEILINGS, w::NewForgeParts { forge: asked }).unwrap());
@@ -2048,6 +2055,89 @@ fn after_landing_steps_translate_all_tier_lines_and_uncleared() {
             }
             _ => panic!("step preserved"),
         }
+    }
+}
+
+#[test]
+fn tokens_connect_and_replace_keep_their_carried_values_and_envelopes() {
+    for (request, expected) in [
+        (
+            w::Request::Connect(
+                w::Connect::new(
+                    &w::CEILINGS,
+                    w::ConnectParts {
+                        forge: w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: 9 }).unwrap()),
+                        how: w::How::ForgejoTokens(
+                            w::ForgejoTokens::new(&w::CEILINGS, w::ForgejoTokensParts {}).unwrap(),
+                        ),
+                    },
+                )
+                .unwrap(),
+            ),
+            forge::Ask::Connect { forge: forge::Making::Kept(9), how: forge::How::ForgejoTokens },
+        ),
+        (
+            w::Request::Replace(w::Replace::new(&w::CEILINGS, w::ReplaceParts { forge: 9 }).unwrap()),
+            forge::Ask::Replace { forge: 9 },
+        ),
+    ] {
+        let record = w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap();
+        let carried = Some(jig_domain_core::Carried { number: 27, digest: [8; 32] });
+        let event = family::to_root(
+            &jig_protocol_config::Directories::working(),
+            kit::ToApplication::Request {
+                reply_to: REPLY,
+                sign_in: 3,
+                key: REQUEST_KEY,
+                family: wire::FORGE,
+                version: wire::CLIENT_VERSION,
+                record: wire::requesting(&record),
+                digest: [7; 32],
+                carried,
+                scope: people::ApplicationScope::Deployment,
+            },
+            &fixtures::forge_table(&[]),
+            None,
+            None,
+            &w::CEILINGS,
+        )
+        .unwrap();
+        let root::Event::Party(root::PartyInput::Application {
+            reply_to,
+            sign_in,
+            key,
+            digest,
+            scope,
+            carried: got,
+            request,
+        }) = event
+        else {
+            panic!("application request")
+        };
+        assert_eq!(
+            (reply_to, sign_in, key, digest, scope, got),
+            (REPLY, 3, REQUEST_KEY, [7; 32], people::ApplicationScope::Deployment, carried)
+        );
+        assert_eq!(request, root::Application::Forge(expected));
+    }
+}
+
+#[test]
+fn connect_and_replace_answers_share_the_connect_outcomes() {
+    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
+    for (answer, expected) in [
+        (Some(root::ApplicationAnswer::Connect(forge::ConnectAnswer::Connecting)), w::Outcome::Connecting),
+        (
+            Some(root::ApplicationAnswer::Connect(forge::ConnectAnswer::Refused(forge::ForgeRefusal::NotTaken))),
+            w::Outcome::ConnectRefused(
+                w::ConnectRefused::new(&w::CEILINGS, w::ConnectRefusedParts { why: w::ForgeRefusal::NotTaken })
+                    .unwrap(),
+            ),
+        ),
+        (None, w::Outcome::Unknown),
+    ] {
+        let bytes = family::answer(answer, &w::CEILINGS, &jig).unwrap();
+        assert_eq!(w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().into_parts().outcome, expected);
     }
 }
 

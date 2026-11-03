@@ -69,7 +69,7 @@ pub fn declarations(environment_bytes: u32) -> agent::profile::Configuration {
         environment_bytes,
         endpoints: Box::new([Endpoint {
             number: 0,
-            provider: skein_llm::Provider::OpenAiCodex,
+            provider: skein_llm::Provider::OpenAi,
             option_bytes: 0,
             connect: skein_lib::Duration::from_secs(1),
             handshake: skein_lib::Duration::from_secs(1),
@@ -192,7 +192,7 @@ pub fn service(seed: u64) -> agent::Service {
 /// The shared lower configuration for direct, spawned and colocated process worlds.
 #[must_use]
 pub fn configuration() -> agent::Config {
-    configuration_for(skein_llm::Provider::OpenAiCodex)
+    configuration_for(skein_llm::Provider::OpenAi)
 }
 
 fn configuration_for(provider: skein_llm::Provider) -> agent::Config {
@@ -202,7 +202,7 @@ fn configuration_for(provider: skein_llm::Provider) -> agent::Config {
 fn configuration_with_limits(provider: skein_llm::Provider, limits: &agent::Limits) -> agent::Config {
     let mut endpoints = List::with_capacity(1);
     endpoints
-        .push(smith_protocol_translate::Endpoint { name: Box::default(), number: 0, dialect: 1 })
+        .push(smith_protocol_translate::Endpoint { name: Box::default(), number: 0, dialect: 3 })
         .expect("one endpoint");
     let llm_endpoints = llm::Endpoints::new(
         Box::new([llm::ConfiguredEndpoint {
@@ -211,19 +211,14 @@ fn configuration_with_limits(provider: skein_llm::Provider, limits: &agent::Limi
             name: smith_domain::llm::Endpoint(0),
             destination: skein_llm_connection::Endpoint {
                 limits: limits.llm.adapter.client,
-                credential: skein_llm::client::CredentialLimits {
-                    value: limits.llm.grant_value_bytes,
-                    account_id: limits.llm.grant_value_bytes,
-                },
+                credential: skein_llm::client::CredentialLimits { value: limits.llm.grant_value_bytes },
                 address: kernel::Addr::from((std::net::Ipv4Addr::LOCALHOST, 443)),
                 transport: skein_llm_connection::Transport::Plaintext,
                 llm: match provider {
                     skein_llm::Provider::Anthropic => skein_llm::Endpoint::anthropic(),
                     skein_llm::Provider::OpenAi => skein_llm::Endpoint::openai(),
-                    skein_llm::Provider::OpenAiCodex => skein_llm_world::call(7).endpoint,
                 },
             },
-            identity: llm::IdentityProfile::Plain,
             models: Box::new([]),
         }]),
         1,
@@ -271,7 +266,7 @@ fn configuration_output(anthropic: bool, output: u32) -> agent::Config {
     declaration.endpoints[0].models[0].output = output;
     let limits = agent::profile::derive(&profile(), &declaration).expect("scripted output profile derives");
     let mut configuration = configuration_with_limits(
-        if anthropic { skein_llm::Provider::Anthropic } else { skein_llm::Provider::OpenAiCodex },
+        if anthropic { skein_llm::Provider::Anthropic } else { skein_llm::Provider::OpenAi },
         &limits,
     );
     configuration.domain.models[0].output = output;
@@ -285,7 +280,7 @@ fn reasoning_configuration() -> agent::Config {
     declaration.endpoints[0].models[0].output = 16_384;
     declaration.endpoints[0].models[0].reasoning_item = 65_536;
     let limits = agent::profile::derive(&profile(), &declaration).expect("reasoning profile derives");
-    let mut configuration = configuration_with_limits(skein_llm::Provider::OpenAiCodex, &limits);
+    let mut configuration = configuration_with_limits(skein_llm::Provider::OpenAi, &limits);
     configuration.domain.models[0].window = 272_000;
     configuration.domain.models[0].output = 16_384;
     configuration
@@ -311,7 +306,8 @@ fn host_with_limits(mut limits: channel::Limits) -> ScriptedPeer {
         }
     }
     limits.channel.output_bytes = largest.checked_add(8).expect("host frame");
-    ScriptedPeer::new(schema, Role::Initiator, limits.channel, 5, Box::new([])).expect("scripted host")
+    ScriptedPeer::new(schema, Role::Initiator, limits.channel, smith_channel::kind::VERSION, Box::new([]))
+        .expect("scripted host")
 }
 
 /// One activation Start sent by the scripted host, ending with an Answer.
@@ -325,7 +321,7 @@ pub(crate) fn start_window(charter: &[u8], turns: u32) -> skein_channel::Frame {
 }
 
 pub(crate) fn start_workspace(charter: &[u8], turns: u32, workspace: bool) -> skein_channel::Frame {
-    start_workspace_message(charter, turns, workspace, None, &withdrawn(b"acc", b"token"), None)
+    start_workspace_message(charter, turns, workspace, None, &bearer(b"token"), None)
 }
 
 pub(crate) fn start_workspace_message(
@@ -405,7 +401,7 @@ pub(crate) fn start_workspace_message(
 }
 
 pub(crate) fn start_root(charter: &[u8], path: &[u8]) -> skein_channel::Frame {
-    let frame = start_workspace_message(charter, 8, true, None, &withdrawn(b"acc", b"token"), None);
+    let frame = start_workspace_message(charter, 8, true, None, &bearer(b"token"), None);
     crate::wire::edit_start(&frame, |start| {
         let mut workspace = start.workspace.take().expect("workspace").into_parts();
         let mut directory = workspace.directories.get(0).expect("first directory").clone().into_parts();
@@ -420,15 +416,8 @@ pub(crate) fn start_root(charter: &[u8], path: &[u8]) -> skein_channel::Frame {
 pub const PRIVATE_GRANT: &[u8] = b"native-private-bearer-02.6";
 
 fn scenario_credential(anthropic: bool, private_grant: bool) -> skein_llm::Credential {
-    skein_llm::Credential {
-        scheme: skein_llm::Scheme::Bearer,
-        value: Box::from(if private_grant { PRIVATE_GRANT } else { b"token".as_slice() }),
-        account_id: if anthropic {
-            Box::new([])
-        } else {
-            Box::from(if private_grant { b"native-private-account-02.6".as_slice() } else { b"acc".as_slice() })
-        },
-    }
+    let value = Box::from(if private_grant { PRIVATE_GRANT } else { b"token".as_slice() });
+    if anthropic { skein_llm::Credential::key(value) } else { skein_llm::Credential::bearer(value) }
 }
 
 /// A concrete charter within the process limits, with one report contract.
@@ -493,4 +482,4 @@ fn acknowledge(number: u32) -> skein_channel::Frame {
 }
 
 mod grants;
-pub use grants::{bearer, key, program, withdrawn};
+pub use grants::{bearer, key, program};

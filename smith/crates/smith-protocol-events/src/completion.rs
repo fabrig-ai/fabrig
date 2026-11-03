@@ -128,7 +128,6 @@ fn limit_name(which: run::Limit) -> &'static [u8] {
             run::Cap::Answer => b"answer",
             run::Cap::ErrorBody => b"error_body",
             run::Cap::AccessToken => b"access_token",
-            run::Cap::AccountId => b"account_id",
         },
     }
 }
@@ -196,7 +195,6 @@ const fn completion_cap(cap: llm::Cap) -> run::Cap {
         llm::Cap::Answer => run::Cap::Answer,
         llm::Cap::ErrorBody => run::Cap::ErrorBody,
         llm::Cap::AccessToken => run::Cap::AccessToken,
-        llm::Cap::AccountId => run::Cap::AccountId,
     }
 }
 

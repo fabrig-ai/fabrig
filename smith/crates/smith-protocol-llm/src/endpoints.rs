@@ -12,15 +12,6 @@ use skein_llm::Provider;
 use skein_llm_connection as connection;
 use smith_domain::llm;
 
-/// Optional provider identity prepended to the endpoint's instructions.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum IdentityProfile {
-    /// Send only the domain's system instructions.
-    Plain,
-    /// Opt in to skein's archived Claude Code identity blocks.
-    ClaudeCode,
-}
-
 /// A model's policy for a reasoning item past its bound (protocol/limits.md, section 2.1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum OversizedReasoning {
@@ -30,23 +21,10 @@ pub enum OversizedReasoning {
     Drop,
 }
 
-/// Measure observed endpoint options and provider identity for startup's own part.
+/// Measure observed endpoint options for startup's own part.
 /// Field punctuation belongs to the separately measured provider framing.
-pub fn endpoint_own(identity: IdentityProfile) -> Result<u64, crate::Error> {
-    let mut bytes = 0_u64;
-    match identity {
-        IdentityProfile::Plain => {}
-        IdentityProfile::ClaudeCode => {
-            let instructions = match skein_llm::anthropic::identity::instructions(&[]) {
-                Ok(instructions) => instructions,
-                Err(error) => return Err(crate::Error::from_client(error)),
-            };
-            bytes = bytes
-                .checked_add(u64::try_from(instructions.len()).or(Err(crate::Error::Limit))?)
-                .ok_or(crate::Error::Limit)?;
-        }
-    }
-    Ok(bytes)
+pub fn endpoint_own() -> Result<u64, crate::Error> {
+    Ok(0)
 }
 
 /// One declared model's per-call policy, supplied by startup and retained by its endpoint.
@@ -66,8 +44,6 @@ pub struct ConfiguredEndpoint {
     pub destination: connection::Endpoint,
     pub connect: Duration,
     pub handshake: Duration,
-    /// Optional provider system identity selected at startup.
-    pub identity: IdentityProfile,
     /// The models whose per-call reasoning policy this endpoint serves.
     pub models: Box<[ConfiguredModel]>,
 }
@@ -85,8 +61,6 @@ pub struct EndpointOptions {
     pub endpoint: skein_llm::Endpoint,
     /// Native per-endpoint bounds, including its transport pieces and measured head.
     pub client: skein_llm::client::Limits,
-    /// Optional provider system identity selected at startup.
-    pub identity: IdentityProfile,
     /// The models whose per-call reasoning policy this endpoint serves.
     pub models: Box<[ConfiguredModel]>,
 }
@@ -116,8 +90,6 @@ pub enum EndpointError {
     Duplicate,
     /// A prompt named no configured destination.
     Unknown,
-    /// The selected identity is incompatible with the dialect or bound.
-    Identity,
 }
 
 /// Checked numeric names and resolved skein destinations.
@@ -141,9 +113,6 @@ impl Endpoints {
                 return Err(EndpointError::Duplicate);
             }
             let provider = configured.destination.llm.provider;
-            if configured.identity == IdentityProfile::ClaudeCode && provider != Provider::Anthropic {
-                return Err(EndpointError::Identity);
-            }
             let client = configured.destination.limits;
             let endpoint = configured.destination.llm.clone();
             destinations.push(configured.destination).or(Err(EndpointError::TooMany))?;
@@ -154,7 +123,6 @@ impl Endpoints {
                 provider,
                 endpoint,
                 client,
-                identity: configured.identity,
                 models: configured.models,
             };
             options.insert(configured.name.0, option).or(Err(EndpointError::TooMany))?;

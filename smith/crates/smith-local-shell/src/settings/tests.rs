@@ -133,25 +133,25 @@ fn rates_a_person_sets_stay_as_set_when_the_window_changes() {
 #[test]
 fn a_preset_rate_uses_the_declared_price_unit() {
     let decoded =
-        settings(&[source(Layer::User, "[models.'codex/gpt-6-astra']\nprice_unit=1000\n")]).expect("price unit");
-    assert_eq!(decoded.values["models.codex/gpt-6-astra.input_price"].value.as_float(), Some(0.01));
+        settings(&[source(Layer::User, "[models.'openai/gpt-6-astra']\nprice_unit=1000\n")]).expect("price unit");
+    assert_eq!(decoded.values["models.openai/gpt-6-astra.input_price"].value.as_float(), Some(0.01));
 }
 
 #[test]
-fn codex_takes_long_prompt_rates_only_past_272000_tokens() {
+fn openai_takes_long_prompt_rates_only_past_272000_tokens() {
     let decoded =
-        settings(&[source(Layer::User, "[models.'codex/gpt-6-astra']\nwindow=272001\n")]).expect("long prompt window");
-    assert_eq!(decoded.values["models.codex/gpt-6-astra.input_price"].value.as_float(), Some(20.0));
-    assert_eq!(decoded.values["models.codex/gpt-6-astra.output_price"].value.as_float(), Some(75.0));
+        settings(&[source(Layer::User, "[models.'openai/gpt-6-astra']\nwindow=272001\n")]).expect("long prompt window");
+    assert_eq!(decoded.values["models.openai/gpt-6-astra.input_price"].value.as_float(), Some(20.0));
+    assert_eq!(decoded.values["models.openai/gpt-6-astra.output_price"].value.as_float(), Some(75.0));
 }
 
 #[test]
 fn gpt_six_one_sol_is_declared_with_its_list_prices() {
     for (window, input, cached, cache_write, output) in [(272_000, 2.0, 0.1, 2.5, 10.0), (272_001, 4.0, 0.2, 5.0, 15.0)]
     {
-        let decoded = settings(&[source(Layer::User, &format!("[models.'codex/gpt-6.1-sol']\nwindow={window}\n"))])
+        let decoded = settings(&[source(Layer::User, &format!("[models.'openai/gpt-6.1-sol']\nwindow={window}\n"))])
             .expect("sol preset");
-        let prefix = "models.\"codex/gpt-6.1-sol\"";
+        let prefix = "models.\"openai/gpt-6.1-sol\"";
         for (field, expected) in [
             ("input_price", input),
             ("cached_price", cached),
@@ -188,63 +188,64 @@ pub(super) fn selection(text: &str) -> Result<super::resolve::Selection, super::
 }
 
 #[test]
-fn a_codex_only_first_run_needs_no_anthropic_credential() {
+fn an_openai_only_first_run_needs_no_anthropic_credential() {
     let selected =
-        selection("model='codex/gpt-6-astra'\n[accounts.codex]\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n")
+        selection("model='openai/gpt-6-astra'\n[accounts.openai]\nprovider='openai'\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n")
             .expect("one account's run");
-    assert_eq!(selected.models, ["codex/gpt-6-astra", "codex/gpt-6-luna", "codex/gpt-6.1-sol"]);
+    assert_eq!(selected.models, ["openai/gpt-6-astra", "openai/gpt-6-luna", "openai/gpt-6.1-sol"]);
     assert_eq!(selected.accounts.len(), 1);
-    assert_eq!(selected.accounts[0].name, "codex");
+    assert_eq!(selected.accounts[0].name, "openai");
     assert_eq!(selected.accounts[0].fields["source"].value.as_str(), Some("env"));
     assert!(!selected.settings.values.contains_key("accounts.anthropic.source"));
 }
 
 #[test]
 fn sub_agents_on_adds_the_models_of_every_account_with_a_source() {
-    let selected = selection("model='codex/gpt-6-astra'\nsub_agents=true\n[accounts.codex]\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n[accounts.anthropic]\nsource='env'\n")
+    let selected = selection("model='openai/gpt-6-astra'\nsub_agents=true\n[accounts.openai]\nprovider='openai'\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n[accounts.anthropic]\nsource='env'\n")
         .expect("accounts with sources");
     assert_eq!(
         selected.models,
         [
-            "codex/gpt-6-astra",
+            "openai/gpt-6-astra",
             "anthropic/claude-haiku-5-5",
             "anthropic/claude-opus-5-5",
             "anthropic/claude-sonnet-5-5",
-            "codex/gpt-6-luna",
-            "codex/gpt-6.1-sol"
+            "openai/gpt-6-luna",
+            "openai/gpt-6.1-sol"
         ]
     );
     assert_eq!(
         selected.accounts.iter().map(|account| (account.name.as_str(), account.number)).collect::<Vec<_>>(),
-        [("codex", 1_474_186_484), ("anthropic", 3_339_635_307)]
+        [("openai", 2_100_401_399), ("anthropic", 3_339_635_307)]
     );
 }
 
 #[test]
 fn mains_account_without_a_source_is_refused_naming_the_key() {
-    let refusal = selection("model='codex/gpt-6-astra'\n").expect_err("main account has no source");
-    assert_eq!(refusal.key, "accounts.codex.source");
-    assert_eq!(refusal.line(), "smith: built-in settings: accounts.codex.source: required value is absent");
+    let refusal = selection("model='openai/gpt-6-astra'\n[endpoints.openai]\naccount='openai'\n")
+        .expect_err("main account has no source");
+    assert_eq!(refusal.key, "accounts.openai.source");
+    assert_eq!(refusal.line(), "smith: built-in settings: accounts.openai.source: required value is absent");
 }
 
 #[test]
 fn sub_agents_on_keeps_an_unset_accounts_models_out() {
     let selected = selection(
-        "model='codex/gpt-6-astra'\nsub_agents=true\n[accounts.codex]\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n",
+        "model='openai/gpt-6-astra'\nsub_agents=true\n[accounts.openai]\nprovider='openai'\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n",
     )
-    .expect("codex delegation");
-    assert_eq!(selected.models, ["codex/gpt-6-astra", "codex/gpt-6-luna", "codex/gpt-6.1-sol"]);
+    .expect("openai delegation");
+    assert_eq!(selected.models, ["openai/gpt-6-astra", "openai/gpt-6-luna", "openai/gpt-6.1-sol"]);
     assert_eq!(selected.accounts.len(), 1);
 }
 
 #[test]
 fn a_custom_endpoint_inherits_its_preset_and_keeps_supplied_values() {
-    let selected = selection("model='custom/gpt-6-astra'\n[endpoints.custom]\npreset='codex'\naddress='example.test:443'\n[models.'custom/gpt-6-astra']\nwindow=100000\ninput_price=1.0\n[accounts.codex]\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n")
+    let selected = selection("model='custom/gpt-6-astra'\n[endpoints.custom]\npreset='openai'\naccount='openai'\naddress='example.test:443'\n[models.'custom/gpt-6-astra']\nwindow=100000\ninput_price=1.0\n[accounts.openai]\nprovider='openai'\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n")
         .expect("custom preset");
     let values = selected.settings.values;
     assert_eq!(values["endpoints.custom.address"].value.as_str(), Some("example.test:443"));
     assert!(matches!(values["endpoints.custom.address"].origin, Origin::File { layer: Layer::User, .. }));
-    assert_eq!(values["endpoints.custom.server_name"].value.as_str(), Some("chatgpt.com"));
+    assert_eq!(values["endpoints.custom.server_name"].value.as_str(), Some("api.openai.com"));
     assert_eq!(values["endpoints.custom.server_name"].origin, Origin::BuiltIn);
     assert_eq!(values["models.custom/gpt-6-astra.window"].value.as_integer(), Some(100_000));
     assert_eq!(values["models.custom/gpt-6-astra.output"].value.as_integer(), Some(32_000));
@@ -254,7 +255,7 @@ fn a_custom_endpoint_inherits_its_preset_and_keeps_supplied_values() {
 
 #[test]
 fn dotted_custom_names_keep_their_account_and_model_bindings() {
-    let selected = selection("model='custom.endpoint/gpt-6-luna'\n[endpoints.'custom.endpoint']\npreset='codex'\naccount='named-account'\n[accounts.'named-account']\nsource='env'\nvariable='TEST_CREDENTIAL'\n")
+    let selected = selection("model='custom.endpoint/gpt-6-luna'\n[endpoints.'custom.endpoint']\npreset='openai'\naccount='named-account'\n[accounts.'named-account']\nsource='env'\nvariable='TEST_CREDENTIAL'\n")
         .expect("dotted names");
     assert_eq!(selected.models, ["custom.endpoint/gpt-6-luna"]);
     assert_eq!(selected.accounts[0].name, "named-account");
@@ -274,26 +275,26 @@ fn an_unknown_endpoint_preset_is_refused_at_its_source() {
 
 #[test]
 fn a_declared_model_with_a_source_is_available_to_sub_agents() {
-    let selected = selection("model='codex/gpt-6-astra'\nsub_agents=true\n[accounts.codex]\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n[models.'codex/declared']\nwindow=100000\noutput=1000\ninput_price=1.0\ncached_price=0.1\noutput_price=2.0\n")
+    let selected = selection("model='openai/gpt-6-astra'\nsub_agents=true\n[accounts.openai]\nprovider='openai'\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n[models.'openai/declared']\nwindow=100000\noutput=1000\ninput_price=1.0\ncached_price=0.1\noutput_price=2.0\n")
         .expect("declared child model");
-    assert_eq!(selected.models, ["codex/gpt-6-astra", "codex/declared", "codex/gpt-6-luna", "codex/gpt-6.1-sol"]);
+    assert_eq!(selected.models, ["openai/gpt-6-astra", "openai/declared", "openai/gpt-6-luna", "openai/gpt-6.1-sol"]);
     assert_eq!(selected.accounts.len(), 1);
 }
 
 #[test]
 fn choosing_another_preset_replaces_only_the_endpoints_default_values() {
-    let selected = selection("model='codex/claude-haiku-5-5'\n[endpoints.codex]\npreset='anthropic'\naddress='proxy.test:443'\n[accounts.anthropic]\nsource='env'\n")
+    let selected = selection("model='openai/claude-haiku-5-5'\n[endpoints.openai]\npreset='anthropic'\naddress='proxy.test:443'\n[accounts.anthropic]\nsource='env'\n")
         .expect("preset over defaults");
     assert_eq!(selected.accounts[0].name, "anthropic");
-    assert_eq!(selected.settings.values["endpoints.codex.server_name"].value.as_str(), Some("api.anthropic.com"));
-    assert_eq!(selected.settings.values["endpoints.codex.address"].value.as_str(), Some("proxy.test:443"));
-    assert_eq!(selected.settings.values["models.codex/claude-haiku-5-5.window"].value.as_integer(), Some(200_000));
+    assert_eq!(selected.settings.values["endpoints.openai.server_name"].value.as_str(), Some("api.anthropic.com"));
+    assert_eq!(selected.settings.values["endpoints.openai.address"].value.as_str(), Some("proxy.test:443"));
+    assert_eq!(selected.settings.values["models.openai/claude-haiku-5-5.window"].value.as_integer(), Some(200_000));
 }
 
 fn composed(extra: &str) -> Result<super::resolve::Resolved, super::Refusal> {
     let certificate = crate::fixture::trust().display().to_string();
     let text = format!(
-        "model='codex/gpt-6-luna'\n{extra}\n[accounts.codex]\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n[endpoints.codex]\naddress='127.0.0.1:443'\ntrust.system=false\ntrust.der=['{certificate}']\n[endpoints.anthropic]\naddress='127.0.0.1:443'\ntrust.system=false\ntrust.der=['{certificate}']\n"
+        "model='openai/gpt-6-luna'\n{extra}\n[accounts.openai]\nprovider='openai'\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n[endpoints.openai]\naddress='127.0.0.1:443'\ntrust.system=false\ntrust.der=['{certificate}']\n[endpoints.anthropic]\naddress='127.0.0.1:443'\ntrust.system=false\ntrust.der=['{certificate}']\n"
     );
     let decoded = settings(&[source(Layer::User, &text)])?;
     super::resolve::resolve(&decoded)
@@ -317,11 +318,11 @@ fn composition_adds_every_model_of_accounts_with_a_source() {
     assert_eq!(resolved.local.models[0].model.as_ref(), b"gpt-6-luna");
     assert_eq!(
         resolved.accounts.iter().map(|account| account.name.as_str()).collect::<Vec<_>>(),
-        ["codex", "anthropic"]
+        ["openai", "anthropic"]
     );
     assert!(resolved.outside_models.is_empty());
     assert_eq!(resolved.agent.declarations.endpoints.len(), 2);
-    assert_eq!(resolved.local.accounts.as_ref(), [1_474_186_484, 3_339_635_307]);
+    assert_eq!(resolved.local.accounts.as_ref(), [2_100_401_399, 3_339_635_307]);
 }
 
 #[test]
@@ -338,7 +339,7 @@ fn composition_reports_another_program_accounts_models_outside_the_run() {
     let decoded = crate::fixture::ready(settings(&[source(
         Layer::User,
         &format!(
-            "model='codex/gpt-6-luna'\nsub_agents=true\n[accounts.codex]\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n[accounts.anthropic]\nsource='program'\n[endpoints.codex]\ntrust.system=false\ntrust.der=['{certificate}']\n[endpoints.anthropic]\nprogram='claude_code'\n"
+            "model='openai/gpt-6-luna'\nsub_agents=true\n[accounts.openai]\nprovider='openai'\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n[accounts.anthropic]\nsource='program'\n[endpoints.openai]\ntrust.system=false\ntrust.der=['{certificate}']\n[endpoints.anthropic]\nprogram='claude_code'\n"
         ),
     )]));
     let resolved = crate::fixture::ready(super::resolve::resolve(&decoded));
@@ -446,7 +447,7 @@ fn cancellation_grace_refusal_names_the_profile_durations() {
 #[test]
 fn trust_paths_are_resolved_from_the_settings_workspace() {
     let decoded = merge(&Shared::default(), skein_scratch::paths::package(), &[
-        source(Layer::User,"model='codex/gpt-6-luna'\n[accounts.codex]\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n[endpoints.codex]\naddress='127.0.0.1:443'\ntrust.system=false\ntrust.der=['../../tests/protocol-llm/fixtures/root.der']\n")
+        source(Layer::User,"model='openai/gpt-6-luna'\n[accounts.openai]\nprovider='openai'\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n[endpoints.openai]\naddress='127.0.0.1:443'\ntrust.system=false\ntrust.der=['../../tests/protocol-llm/fixtures/root.der']\n")
     ]).expect("relative root");
     let resolved = crate::fixture::ready(super::resolve::resolve(&decoded));
     assert_eq!(resolved.local.models.len(), 3);
@@ -520,15 +521,15 @@ fn effort_settings_shared(extra: &str, shared: &Shared) -> Result<super::resolve
 fn effort_settings_input(extra: &str, shared: &Shared) -> Result<super::Settings, super::Refusal> {
     let certificate = crate::fixture::trust().display().to_string();
     let base = format!(
-        "model='test/model'\n[accounts.test]\nsource='env'\nvariable='SYNTHETIC'\n[endpoints.test]\ndialect='codex'\nconnect=10\nhandshake=10\naccount='test'\naddress='127.0.0.1:443'\nserver_name='example.test'\ntrust.system=false\ntrust.der=['{certificate}']\n[models.\"test/model\"]\nwindow=262144\noutput=32768\ninput_price=1.0\ncached_price=1.0\noutput_price=1.0\n"
+        "model='test/model'\n[accounts.test]\nsource='env'\nvariable='SYNTHETIC'\n[endpoints.test]\ndialect='openai'\nconnect=10\nhandshake=10\naccount='test'\naddress='127.0.0.1:443'\nserver_name='example.test'\ntrust.system=false\ntrust.der=['{certificate}']\n[models.\"test/model\"]\nwindow=262144\noutput=32768\ninput_price=1.0\ncached_price=1.0\noutput_price=1.0\n"
     );
-    let extra = extra.replace("codex/gpt-6-luna", "test/model");
+    let extra = extra.replace("openai/gpt-6-luna", "test/model");
     merge(shared, PathBuf::from("/workspace"), &[source(Layer::User, &base), source(Layer::User, &extra)])
 }
 
 #[test]
 fn the_settings_effort_is_refused_with_its_models_declared_names() {
-    let why = effort_settings("effort='mystery'\n[models.\"codex/gpt-6-luna\"]\nefforts=['low','high']\n")
+    let why = effort_settings("effort='mystery'\n[models.\"openai/gpt-6-luna\"]\nefforts=['low','high']\n")
         .err()
         .expect("undeclared effort");
     assert_eq!(why.key, "effort");
@@ -544,7 +545,7 @@ fn a_model_with_no_effort_list_passes_any_bounded_name_to_the_provider() {
 
 #[test]
 fn declared_efforts_reach_the_local_and_agent_startup_owners() {
-    let resolved = effort_settings("effort='high'\n[models.\"codex/gpt-6-luna\"]\nefforts=['low','high']\n").unwrap();
+    let resolved = effort_settings("effort='high'\n[models.\"openai/gpt-6-luna\"]\nefforts=['low','high']\n").unwrap();
     assert_eq!(
         resolved.local.efforts[0].as_ref(),
         &[Box::<[u8]>::from(b"low".as_slice()), Box::<[u8]>::from(b"high".as_slice())]
@@ -562,7 +563,7 @@ fn declared_efforts_reach_the_local_and_agent_startup_owners() {
 
 #[test]
 fn model_effort_names_are_bounded_at_the_settings_entrance() {
-    let why = effort_settings("[models.\"codex/gpt-6-luna\"]\nefforts=['abcdefghijklmnopqrstuvwxyz0123456']\n")
+    let why = effort_settings("[models.\"openai/gpt-6-luna\"]\nefforts=['abcdefghijklmnopqrstuvwxyz0123456']\n")
         .err()
         .unwrap();
     assert!(why.key.ends_with("efforts"));
@@ -612,7 +613,7 @@ fn refresh_profile(text: &str) -> Result<(smith_agent_service::profile::Profile,
         environment_bytes: 0,
         endpoints: Box::new([Endpoint {
             number: 0,
-            provider: skein_llm::Provider::OpenAiCodex,
+            provider: skein_llm::Provider::OpenAi,
             option_bytes: 0,
             connect: Duration::from_secs(2),
             handshake: Duration::from_secs(3),
@@ -715,7 +716,7 @@ fn with_dirs(
 ) -> Result<super::resolve::Resolved, super::Refusal> {
     let certificate = crate::fixture::trust().display().to_string();
     let text = format!(
-        "model='codex/gpt-6-luna'\n{extra}\n[accounts.codex]\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n[endpoints.codex]\naddress='127.0.0.1:443'\ntrust.system=false\ntrust.der=['{certificate}']\n"
+        "model='openai/gpt-6-luna'\n{extra}\n[accounts.openai]\nprovider='openai'\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n[endpoints.openai]\naddress='127.0.0.1:443'\ntrust.system=false\ntrust.der=['{certificate}']\n"
     );
     let shared = Shared { dirs, ..Shared::default() };
     let decoded = merge(&shared, root.join("work"), &[source(Layer::User, &text)])?;

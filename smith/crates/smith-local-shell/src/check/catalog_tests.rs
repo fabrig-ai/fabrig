@@ -7,7 +7,7 @@ fn check_settings(files: &Files, model: &str, source: &str, extra: &str) -> Sett
     let certificate = crate::fixture::trust();
     let base = format!(
         "model='{model}'\ncredentials='{}'\n[accounts.{endpoint}]\nsource='{source}'\n\
-         [endpoints.{endpoint}]\naddress='127.0.0.1:443'\ntrust.system=false\ntrust.der=['{}']\n\
+         [endpoints.{endpoint}]\naccount='{endpoint}'\naddress='127.0.0.1:443'\ntrust.system=false\ntrust.der=['{}']\n\
          [environment]\ninherit=[]\n[environment.set]\nPATH='/usr/bin:/bin'\n",
         files.path().join("unopened").display(),
         certificate.display()
@@ -39,11 +39,11 @@ fn checked(settings: &Settings) -> Box<Report> {
 #[test]
 fn zero_output_names_its_key_and_positive_requirement() {
     let files = Files::new("smith-credentials");
-    let settings = check_settings(&files, "codex/gpt-6-luna", "none", "[models.'codex/gpt-6-luna']\noutput=0\n");
+    let settings = check_settings(&files, "openai/gpt-6-luna", "none", "[models.'openai/gpt-6-luna']\noutput=0\n");
     let Verdict::Refused(why) = report(&settings, skein_lib::Wall::EPOCH, &skein_shell::Clock::new()) else {
         panic!("zero model output must refuse check");
     };
-    assert_eq!(why.key, "models.codex/gpt-6-luna.output", "output declaration");
+    assert_eq!(why.key, "models.openai/gpt-6-luna.output", "output declaration");
     assert_eq!(why.problem, Problem::Input("output must be positive".into()), "positive output requirement");
     assert!(
         !files.path().join("state").exists() && !files.path().join("unopened").exists(),
@@ -54,7 +54,7 @@ fn zero_output_names_its_key_and_positive_requirement() {
 #[test]
 fn missing_fixed_registration_keys_keep_their_source() {
     let files = Files::new("smith-credentials");
-    let base = check_settings(&files, "codex/gpt-6-luna", "sign_in", "");
+    let base = check_settings(&files, "openai/gpt-6-luna", "sign_in", "");
     let fields = [
         ("client_id", "client"),
         ("authorization_url", "http://127.0.0.1:444/authorize"),
@@ -67,18 +67,18 @@ fn missing_fixed_registration_keys_keep_their_source() {
         let mut settings = base.clone();
         for (field, value) in fields {
             settings.values.insert(
-                format!("accounts.codex.{field}"),
+                format!("accounts.openai.{field}"),
                 settings::Sourced {
                     value: toml::Value::String(value.into()),
                     origin: Origin::File { layer: settings::Layer::User, path: "registration.toml".into(), line: 8 },
                 },
             );
         }
-        settings.values.remove(&format!("accounts.codex.{missing}"));
+        settings.values.remove(&format!("accounts.openai.{missing}"));
         let refusal = settings::resolve::resolve_startup(&settings).err().expect("required registration field");
-        assert_eq!(refusal.key, format!("accounts.codex.{missing}"), "missing field");
+        assert_eq!(refusal.key, format!("accounts.openai.{missing}"), "missing field");
         assert_eq!(
-            refusal.origin, base.values["accounts.codex.source"].origin,
+            refusal.origin, base.values["accounts.openai.source"].origin,
             "missing field uses the source declaration's origin"
         );
         assert!(refusal.line().contains("base.toml"), "{}", refusal.line());
@@ -91,7 +91,7 @@ fn default_checks_declare_memory_without_opening_resources() {
     // The standard profile's shipped memory declaration.
     let memory_bytes = smith_agent_service::profile::standard().declared.memory;
     let files = Files::new("smith-credentials");
-    for model in ["codex/gpt-6-astra", "anthropic/claude-opus-5-5"] {
+    for model in ["openai/gpt-6-astra", "anthropic/claude-opus-5-5"] {
         let settings = check_settings(&files, model, "none", "");
         let report = checked(&settings);
         let memory = report.named_limits.iter().find(|limit| limit["name"] == "declared.memory").expect("memory");
@@ -108,13 +108,13 @@ fn default_checks_declare_memory_without_opening_resources() {
 #[test]
 fn effective_limits_keep_their_names_values_and_units() {
     let files = Files::new("smith-credentials");
-    let report = checked(&check_settings(&files, "codex/gpt-6-luna", "none", ""));
+    let report = checked(&check_settings(&files, "openai/gpt-6-luna", "none", ""));
     let json: serde_json::Value = serde_json::from_str(&render_json(&report)).expect("check JSON");
     let limits = json["limits"].as_array().expect("limits inventory");
     // Shipped standard tool payload, model head deadline and product teardown.
     for (name, value, unit) in [
         ("declared.tool_payload", 40_960, "bytes"),
-        ("declared.head[endpoint=codex,model=gpt-6-luna]", 60_000, "ms"),
+        ("declared.head[endpoint=openai,model=gpt-6-luna]", 60_000, "ms"),
         ("service.teardown", 40_000, "ms"),
     ] {
         let expected = serde_json::json!({"name":name,"value":value,"unit":unit});
@@ -140,7 +140,7 @@ fn an_unlisted_wrapper_cache_warns_without_creating_it() {
         cargo.display(),
         cache.display()
     );
-    let report = checked(&check_settings(&files, "codex/gpt-6-luna", "none", &extra));
+    let report = checked(&check_settings(&files, "openai/gpt-6-luna", "none", &extra));
     let warning = report
         .warnings
         .iter()
@@ -158,7 +158,7 @@ fn an_absent_cache_warns_without_being_created() {
     let files = Files::new("smith-credentials");
     let cache = files.path().join("absent-cache");
     let extra = format!("[build]\ncaches=['{}']\n", cache.display());
-    let report = checked(&check_settings(&files, "codex/gpt-6-luna", "none", &extra));
+    let report = checked(&check_settings(&files, "openai/gpt-6-luna", "none", &extra));
     assert!(report.warnings.iter().any(|warning| matches!(warning, Warning::CacheAccess { cache: path, reason } if path == &cache && reason == "absent")), "absent cache report");
     assert!(!cache.exists(), "check creates nothing");
 }
@@ -169,7 +169,7 @@ fn a_file_cache_warns_and_keeps_its_bytes() {
     let cache = files.path().join("file-cache");
     std::fs::write(&cache, b"kept").expect("file instead of a cache");
     let extra = format!("[build]\ncaches=['{}']\n", cache.display());
-    let report = checked(&check_settings(&files, "codex/gpt-6-luna", "none", &extra));
+    let report = checked(&check_settings(&files, "openai/gpt-6-luna", "none", &extra));
     assert!(report.warnings.iter().any(|warning| matches!(warning, Warning::CacheAccess { cache: path, reason } if path == &cache && reason == "not a directory")), "file cache report");
     assert_eq!(std::fs::read(cache).expect("retained cache file"), b"kept", "check preserves file bytes");
 }
@@ -181,7 +181,7 @@ fn an_unused_program_account_warns_without_refusing_check() {
     let files = Files::new("smith-credentials");
     let report = checked(&check_settings(
         &files,
-        "codex/gpt-6-luna",
+        "openai/gpt-6-luna",
         "none",
         "[accounts.spare]\nprovider='anthropic'\nsource='program'\n",
     ));
@@ -223,8 +223,8 @@ fn unsafe_program_directories_map_to_failed_account_reports() {
     // Path components and faults are row data; every row follows the same inspection.
     type Fault = fn(&std::path::Path, &std::path::Path);
     let rows: &[(&str, Fault, &str)] = &[
-        ("programs/codex", linked_directory, "symbolic link"),
-        ("programs/codex", public_directory, "nonprivate mode bits 0o55"),
+        ("programs/openai", linked_directory, "symbolic link"),
+        ("programs/openai", public_directory, "nonprivate mode bits 0o55"),
         ("programs", linked_directory, "symbolic link"),
         ("programs", public_directory, "nonprivate mode bits 0o55"),
     ];
@@ -234,21 +234,21 @@ fn unsafe_program_directories_map_to_failed_account_reports() {
         std::fs::write(&executable, b"").expect("scratch executable");
         std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o700)).expect("executable mode");
         let extra =
-            format!("[programs]\nclaude_code='{}'\n[endpoints.codex]\nprogram='claude_code'\n", executable.display());
-        let settings = check_settings(&files, "codex/gpt-6-luna", "program", &extra);
+            format!("[programs]\nclaude_code='{}'\n[endpoints.openai]\nprogram='claude_code'\n", executable.display());
+        let settings = check_settings(&files, "openai/gpt-6-luna", "program", &extra);
         let base = files.path().join("unopened");
         let path = base.join(relative);
         std::fs::DirBuilder::new()
             .recursive(true)
             .mode(0o700)
-            .create(base.join("programs/codex"))
+            .create(base.join("programs/openai"))
             .expect("private source tree");
         fault(&path, &files.path().join("linked-target"));
         let report = checked(&settings);
         let json: serde_json::Value = serde_json::from_str(&render_json(&report)).expect("check JSON");
-        assert_eq!(json["credentials"]["codex"]["state"], "program_failed", "{relative}: {reason}");
+        assert_eq!(json["credentials"]["openai"]["state"], "program_failed", "{relative}: {reason}");
         assert_eq!(
-            json["credentials"]["codex"]["detail"],
+            json["credentials"]["openai"]["detail"],
             format!("{}: {reason}", path.display()),
             "exact unsafe-directory detail"
         );
@@ -264,7 +264,7 @@ fn the_report_lists_each_program_a_run_may_use() {
     std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o700)).expect("executable mode");
     let certificate = crate::fixture::trust().display().to_string();
     let text = format!(
-        "model='codex/gpt-6-luna'\ncredentials='{}'\n[environment]\ninherit=['PATH']\n[programs]\nclaude_code='{}'\n[accounts.codex]\nsource='key'\n[endpoints.codex]\naddress='127.0.0.1:443'\nprogram='claude_code'\ntrust.system=false\ntrust.der=['{certificate}']\n",
+        "model='openai/gpt-6-luna'\ncredentials='{}'\n[environment]\ninherit=['PATH']\n[programs]\nclaude_code='{}'\n[accounts.openai]\nprovider='openai'\nsource='key'\n[endpoints.openai]\naddress='127.0.0.1:443'\nprogram='claude_code'\ntrust.system=false\ntrust.der=['{certificate}']\n",
         files.path().display(),
         executable.display()
     );

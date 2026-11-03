@@ -23,6 +23,7 @@ pub struct Joint {
     pub refuse_return: bool,
     set_ups: Vec<(u16, Token)>,
     pub admin_connects: Vec<(u16, Token)>,
+    pub replacements: Vec<(u16, Token)>,
     pub playground: Option<temper_client_protocol_wire::v1::PlaygroundAnswer>,
     pub hold_playground_end: bool,
     held_playground_end: Vec<(ClientId, Event)>,
@@ -775,6 +776,7 @@ impl Joint {
             refuse_return: false,
             set_ups: Vec::new(),
             admin_connects: Vec::new(),
+            replacements: Vec::new(),
             playground: None,
             hold_playground_end: false,
             held_playground_end: Vec::new(),
@@ -1462,16 +1464,47 @@ impl Joint {
             if let engine::Request::Install { forge, request, .. } = &request {
                 self.installs.push((*forge, *request));
             }
-            if let engine::Request::Connect {
-                forge,
-                request: attempt,
-                carried,
-                how: temper_engine_domain_forge::How::ForgejoAdmin { .. },
-            } = &request
-            {
-                let value = self.component.carried.get(&carried.number).expect("admin carrier");
-                assert!(value.expose().starts_with(&[0, 1, 0]), "temper-secrets admin bundle");
-                self.admin_connects.push((*forge, *attempt));
+            if let engine::Request::Connect { forge, request: attempt, carried, how } = &request {
+                let codes: &[u16] = match how {
+                    temper_engine_domain_forge::How::ForgejoAdmin { .. } => &[1],
+                    temper_engine_domain_forge::How::ForgejoTokens => &[2, 3],
+                    temper_engine_domain_forge::How::GitHubApp { .. }
+                    | temper_engine_domain_forge::How::GitHubManifest { .. } => &[],
+                };
+                if !codes.is_empty() {
+                    let value = self.component.carried.get(&carried.number).expect("connect carrier");
+                    let items = temper_client_domain::forge::forges::decode_pasted(value.expose())
+                        .expect("pasted connect bundle");
+                    for code in codes {
+                        assert!(items.iter().any(|(kind, _)| kind == code));
+                    }
+                    for (code, _) in &items {
+                        assert!(codes.contains(code) || (*code == 5 && codes == [2, 3]));
+                    }
+                    self.admin_connects.push((*forge, *attempt));
+                    self.engine.send(engine::Event::Forge(Box::new(
+                        temper_engine_domain_forge::Event::ConnectAnswered {
+                            forge: *forge,
+                            request: *attempt,
+                            answer: temper_engine_domain_forge::ConnectAnswer::Connecting,
+                        },
+                    )));
+                }
+            }
+            if let engine::Request::Replace { forge, request: attempt, carried } = &request {
+                let value = self.component.carried.get(&carried.number).expect("replace carrier");
+                let items =
+                    temper_client_domain::forge::forges::decode_pasted(value.expose()).expect("replacement bundle");
+                assert!(!items.is_empty());
+                if items.iter().any(|(code, _)| *code == 11) {
+                    assert_eq!(items.len(), 1);
+                } else {
+                    assert!(items.iter().any(|(code, _)| *code == 2 || *code == 3));
+                    for (code, _) in &items {
+                        assert!([2, 3, 5].contains(code));
+                    }
+                }
+                self.replacements.push((*forge, *attempt));
                 self.engine.send(engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::ConnectAnswered {
                     forge: *forge,
                     request: *attempt,

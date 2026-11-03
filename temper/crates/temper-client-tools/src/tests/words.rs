@@ -171,7 +171,8 @@ fn help_lists_groups_then_a_group_then_a_tool() {
     }
 }
 
-// Every record in 04c4bf7bb, in its durable order. New rows append.
+// The table's order through revision advance; a row's index is no stored value
+// (requests are keyed by name), so a new row sits beside its group's.
 const KEPT_INDICES: &[&[u8]] = &[
     b"me",
     b"inbox",
@@ -211,6 +212,7 @@ const KEPT_INDICES: &[&[u8]] = &[
     b"forge setup",
     b"playground start",
     b"forge connect",
+    b"forge replace",
     b"forge install",
     b"forge repositories",
     b"account export",

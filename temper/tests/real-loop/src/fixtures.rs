@@ -24,7 +24,7 @@ pub fn documents(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> (serde
             "policy":{"max_turns":16,"check_timeout":60000,"group_stop":10,"inbox":8,"unacknowledged":8}},
         "endpoints":[{"name":"fake","number":0,"dialect":3,"provider":"openai",
             "address":llm.to_string(),"transport":"plaintext",
-            "identity":"plain","connect":1000,"handshake":1000,
+            "connect":1000,"handshake":1000,
             "models":[{"name":"fake","prices":{"input":1,"cached":1,"output":1,"unit":1_000_000},"window":1_048_576,"output":2048,"reasoning_item":64,"head":60000,"idle":30000}]}],
         "environment":[]});
     let mut value: serde_json::Value =
@@ -355,8 +355,8 @@ fn stock_document(value: &mut serde_json::Value) {
     for (name, count) in [
         ("core.policy_bytes", 4096),
         ("authority.grants", 16),
-        ("authority.executors", 6),
-        ("tasks.executor_kinds", 6),
+        ("authority.executors", 8),
+        ("tasks.executor_kinds", 8),
         ("notes.scopes", 32),
         ("tasks.charters", 4),
     ] {

@@ -273,7 +273,7 @@ pub fn decode_requesting(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Reques
             }
             match connect.how() {
                 v1::How::GithubApp(app) if app.id() == 0 => return None,
-                v1::How::GithubApp(_) | v1::How::GithubManifest(_) => {}
+                v1::How::GithubApp(_) | v1::How::GithubManifest(_) | v1::How::ForgejoTokens(_) => {}
                 v1::How::ForgejoAdmin(admin) => {
                     if let Some(first) = admin.first()
                         && !runner_label(first.label())
@@ -295,6 +295,7 @@ pub fn decode_requesting(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Reques
         | v1::Request::Install(_)
         | v1::Request::Return(_)
         | v1::Request::Adopt(_)
+        | v1::Request::Replace(_)
         | v1::Request::RemoveForge(_)
         | v1::Request::StartPlayground
         | v1::Request::EndPlayground => {}
@@ -308,7 +309,7 @@ fn valid_making(making: &v1::Making) -> bool {
         v1::Making::Kept(_) => true,
         v1::Making::New(value) => match value.forge() {
             v1::ForgeAsk::Github | v1::ForgeAsk::Owned => true,
-            v1::ForgeAsk::Managed(value) => {
+            v1::ForgeAsk::Managed(value) | v1::ForgeAsk::Connected(value) => {
                 !value.host().is_empty()
                     && !value.host().contains(&0)
                     && !value.host().contains(&b'/')

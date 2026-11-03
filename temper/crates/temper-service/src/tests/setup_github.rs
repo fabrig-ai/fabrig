@@ -104,6 +104,7 @@ fn pump(service: &mut crate::Service) -> Option<w::Outcome> {
                 | root::Request::Return { .. }
                 | root::Request::SetUp { .. }
                 | root::Request::Connect { .. }
+                | root::Request::Replace { .. }
                 | root::Request::Manifest { .. }
                 | root::Request::Reachable { .. }
                 | root::Request::Accept { .. }

@@ -127,7 +127,7 @@ pub(crate) fn send(side: &mut Side, limits: Limits, forge: u16, back: Option<Box
             w::Connect::new(
                 &bounds,
                 w::ConnectParts {
-                    forge: forges::making(side, forge, &bounds).expect("valid target"),
+                    forge: forges::making(side, forge, &bounds, None).expect("valid target"),
                     how: w::How::GithubApp(
                         w::GitHubApp::new(&bounds, w::GitHubAppParts { id, read_only: None }).expect("valid App id"),
                     ),
@@ -158,7 +158,7 @@ pub(crate) fn manifest(side: &mut Side, limits: Limits, forge: u16, back: Box<[u
     let request = w::Request::Connect(
         w::Connect::new(
             &bounds,
-            w::ConnectParts { forge: forges::making(side, forge, &bounds).expect("valid target"), how },
+            w::ConnectParts { forge: forges::making(side, forge, &bounds, None).expect("valid target"), how },
         )
         .expect("connect fits"),
     );

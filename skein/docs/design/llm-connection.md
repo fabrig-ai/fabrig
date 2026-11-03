@@ -89,7 +89,7 @@ An endpoint is configuration, given when the component is made. It has:
 - **its limits,** derived for its dialect from the owner's declaration
   for the models the endpoint serves (llm.md, section 4.2). The request
   head's limit is measured from the endpoint's headers and the owner's
-  bounds on a credential's value and account id when the component is
+  bounds on a credential's value when the component is
   made.
 
 The owner names an endpoint by its index in that configuration.
@@ -174,8 +174,8 @@ Once it runs, a call that waited is a call like any other.
 ### 4.2 Credentials
 
 - **A credential goes with its call.** A start carries at most one
-  credential: its value, its scheme, a bearer or a key, and, on the
-  withdrawn Codex route alone, an account id (llm.md, section 2.6).
+  credential: its value and its scheme, a bearer or a key (llm.md,
+  section 2.6).
   skein's client writes it where the endpoint's route takes it. The
   component holds it in the call's request only, and drops it at the
   call's terminal: it is never kept on a connection, nor used for
@@ -188,8 +188,7 @@ Once it runs, a call that waited is a call like any other.
   share an endpoint's pool. A connection reused for the next call carries
   that call's credential, whichever it is, or none.
 - **Admission checks it.** A credential past the owner's bounds, or one
-  its endpoint's route refuses (a key on the Codex route, an account id
-  on another), or none on the Codex route, is refused at the entrance by
+  its endpoint's route refuses (a bearer on Anthropic), is refused at the entrance by
   skein's client, naming why; no terminal follows.
 - **Which account a failure concerns** is the owner's to know: it chose
   the credential. The failure carries the class and the provider's

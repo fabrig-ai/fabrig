@@ -67,7 +67,12 @@ pub fn start_binary(command: &mut skein_io::kernel::Spawn, terminal: bool) -> Re
 
 /// Polls a child handle during observer cleanup, observing or reaping only that child.
 pub fn poll_child(pidfd: Fd, reap: bool) -> Result<Option<Exit>, Error> {
-    system::process::poll_child(pidfd, reap)
+    loop {
+        match system::process::poll_child(pidfd, reap) {
+            Err(Error::Other(libc::EINTR)) => {}
+            result => return result,
+        }
+    }
 }
 
 /// Sends a keeper's signal through its owned child handle, including its group.

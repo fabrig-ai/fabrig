@@ -967,7 +967,7 @@ impl World {
     pub fn restart_with_charter(&mut self, with_read: bool, with_change: bool, forge_charter: Option<u32>) {
         assert!(self.store.pending.is_empty(), "the chosen cut resolves store uncertainty first");
         assert!(self.pending.is_empty(), "old API terminals are drained at this cut");
-        let mut fresh = Self::configured_limits(
+        let fresh = Self::configured_limits(
             with_read,
             with_change,
             false,
@@ -976,9 +976,21 @@ impl World {
             None,
             StoryLimits { brief: Some(self.env.limits.brief), forge_charter, ..StoryLimits::default() },
         );
-        self.restart_config = fresh.restart_config;
-        std::mem::swap(&mut self.root, &mut fresh.root);
-        std::mem::swap(&mut self.out, &mut fresh.out);
+        self.restart_domain(fresh.restart_config, with_change);
+    }
+
+    /// Restart with the same tier and project configuration, retaining only durable rows.
+    pub fn restart_same(&mut self) {
+        self.restart_domain(crate::oracle::config::copy(&self.restart_config), true);
+    }
+
+    fn restart_domain(&mut self, config: engine::Config, with_change: bool) {
+        assert!(self.store.pending.is_empty(), "store answers precede a restart");
+        assert!(self.pending.is_empty(), "API answers precede a restart");
+        self.root =
+            engine::Domain::new(crate::oracle::config::copy(&config), &self.env.limits).expect("restart config");
+        self.restart_config = config;
+        self.out = Queue::uncapped();
         self.events.clear();
         self.held_write_answers.clear();
         self.hold_write_answers = None;
@@ -1246,6 +1258,7 @@ impl World {
                 | engine::Request::ResetAct { .. }
                 | engine::Request::BoxRemove { .. }
                 | engine::Request::Connect { .. }
+                | engine::Request::Replace { .. }
                 | engine::Request::Manifest { .. }
                 | engine::Request::Reachable { .. }
                 | engine::Request::Install { .. }

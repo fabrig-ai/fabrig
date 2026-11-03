@@ -16,6 +16,7 @@ pub(super) enum Kind {
     Manifest,
     Convert,
     Paste,
+    Check,
     Install,
     Accept,
     Reconcile,
@@ -264,7 +265,7 @@ pub(super) fn kind(plan: &host::Plan) -> Kind {
         host::Plan::Create { .. } => Kind::LocalCreate,
         host::Plan::Paste { .. } => Kind::Paste,
         host::Plan::TakeOver { .. } => Kind::LocalTakeOver,
-        host::Plan::Check { .. } => unreachable!("Check is not staged"),
+        host::Plan::Check { .. } => Kind::Check,
         host::Plan::Reachable { .. } => Kind::Reachable,
     }
 }
@@ -321,6 +322,7 @@ pub(super) enum Purpose {
     Host(Token),
     Origin(Token),
     PasteOrigin(Token),
+    Tokens { run: Token, item: Item, login: Box<[u8]> },
     LocalOrigin(Token),
     AdminOrigin(Token),
     Admin(Token),
@@ -381,6 +383,11 @@ pub(super) fn done(engine: &mut crate::engine::Engine, token: Token, outcome: re
                 None => connect_local(engine, forge),
             }
         }
+    }
+    if kind == Kind::Check {
+        let reconcile::Outcome::Identity { login, .. } = outcome else { unreachable!("Check returns its identity") };
+        keep_tokens(engine, token, None, login);
+        return;
     }
     if kind == Kind::Paste {
         if let reconcile::Outcome::Lacking { lacking } = &outcome
@@ -479,7 +486,10 @@ pub(super) fn stopped(engine: &mut crate::engine::Engine, token: Token, failure:
         );
         return;
     }
-    let mut reason = failure_text(&failure);
+    let mut reason = match super::public::tokens_failure(engine, token, &failure) {
+        Some(reason) => reason,
+        None => failure_text(&failure),
+    };
     if run.kind == Kind::Convert && failure.why == reconcile::Why::Refused(404) {
         reason = Box::from(
             b"setup conversion refused (404): the App may exist on GitHub without temper holding its key".as_slice(),
@@ -536,7 +546,8 @@ fn finish(engine: &mut crate::engine::Engine, token: Token, end: root::SetupEnd)
 }
 pub(super) fn kept(engine: &mut crate::engine::Engine, purpose: Purpose) {
     match &purpose {
-        Purpose::Host(run)
+        Purpose::Tokens { run, .. }
+        | Purpose::Host(run)
         | Purpose::Origin(run)
         | Purpose::PasteOrigin(run)
         | Purpose::LocalOrigin(run)
@@ -553,6 +564,12 @@ pub(super) fn kept(engine: &mut crate::engine::Engine, purpose: Purpose) {
         }
     }
     match purpose {
+        Purpose::Tokens { run, item: Item::Origin, login } => {
+            let forge = engine.setup.runs.get(&run).expect("Check waits on Origin").forge;
+            engine.events.push(root::Event::Forge(Box::new(domain::Event::BotLogin { forge, login })));
+            finish(engine, run, root::SetupEnd::Done { forge, outcome: root::SetupOutcome::Done });
+        }
+        Purpose::Tokens { run, item, login } => keep_tokens(engine, run, Some(item), login),
         Purpose::AdminOrigin(run) => admin_create(engine, run),
         Purpose::Admin(run) => {
             let forge = engine.setup.runs.get(&run).expect("admin waits on Kept").forge;
@@ -599,17 +616,57 @@ fn configured(engine: &crate::engine::Engine, number: u16) -> Option<&crate::set
     }
     engine.workers.forges.get(number)
 }
+/// Check keeps each pasted row only after the preceding row's Kept (protocol/forge.md, 2.6).
+fn keep_tokens(engine: &mut crate::engine::Engine, run: Token, after: Option<Item>, login: Box<[u8]>) {
+    let forge = engine.setup.runs.get(&run).expect("live Check").forge;
+    if engine.domain.forge_ended(forge) {
+        refused(engine, run, forge, Box::from(b"forge ended".as_slice()));
+        return;
+    }
+    let Some(super::public::Caller::Connect { pasted: Some(super::public::Pasted::Tokens(items)), .. }) =
+        engine.setup.public.get(&run)
+    else {
+        unreachable!("Check holds its tokens")
+    };
+    for item in [Item::ApiToken, Item::GitToken, Item::WebhookSecret] {
+        if let Some(after) = after
+            && item.code() <= after.code()
+        {
+            continue;
+        }
+        for (code, value) in items {
+            if *code == item.code() {
+                let value = value.clone();
+                keep(engine, forge, item, value.expose(), Purpose::Tokens { run, item, login });
+                return;
+            }
+        }
+    }
+    let Some(config) = configured(engine, forge) else { return };
+    let origin = records::origin(connection::settings::Kind::Forgejo, &config.api).encode();
+    keep(engine, forge, Item::Origin, &origin, Purpose::Tokens { run, item: Item::Origin, login });
+}
 pub(super) fn connect(engine: &mut crate::engine::Engine, forge: u16) {
     let Some(config) = configured(engine, forge) else { return };
-    let expected = records::origin(connection::settings::Kind::GitHub, &config.api);
+    let kind = match config.kind {
+        crate::settings::Kind::Forgejo => connection::settings::Kind::Forgejo,
+        crate::settings::Kind::GitHub => connection::settings::Kind::GitHub,
+    };
+    let expected = records::origin(kind, &config.api);
     let access = match engine.forge_records.rows.forge(forge) {
-        Some(rows) => {
-            records::access(connection::settings::Kind::GitHub, &expected, rows, &engine.forge_records.bounds, false)
-        }
+        Some(rows) => records::access(kind, &expected, rows, &engine.forge_records.bounds, engine.forge.webhooks),
         None => Err(records::NotConnected::NoRecords),
     };
     let start = match access {
-        Ok(start) => Ok(crate::forge::Start::Restored(start)),
+        Ok(start) => {
+            if kind == connection::settings::Kind::Forgejo
+                && let Some(rows) = engine.forge_records.rows.forge(forge)
+                && let Ok(token) = rows.get(Item::GitToken)
+            {
+                crate::forge::tokens::identity(engine, forge, Secret::new(Box::from(token)));
+            }
+            Ok(crate::forge::Start::Restored(start))
+        }
         Err(why) => Err(why),
     };
     crate::forge::connect(engine, forge, start);
@@ -659,7 +716,7 @@ pub(crate) fn connected(engine: &mut crate::engine::Engine, forge: u16) {
             skein_forge_setup::item::user(rows.get(Item::User).expect("connected User")).expect("valid User").get();
         (id, local.bot_login.clone())
     } else {
-        // Forgejo still starts from private files (temper-15); its login is the git identity's.
+        // A connected Forgejo uses its record-backed identity.
         let mut login = Box::from([]);
         if let Some((_, value)) = engine.values.identities.newest(config.identity) {
             let mut reader = skein_lib::Reader::new(value.expose());
@@ -1505,7 +1562,7 @@ fn admin_create(engine: &mut crate::engine::Engine, token: Token) {
 pub(super) fn writes_failed(engine: &mut crate::engine::Engine) {
     let mut runs = List::with_capacity(engine.setup.runs.len());
     for (token, run) in &engine.setup.runs {
-        if run.kind == Kind::AdminReconcile || run.kind == Kind::AdminCreate {
+        if run.kind == Kind::AdminReconcile || run.kind == Kind::AdminCreate || run.kind == Kind::Check {
             runs.push(*token).expect("active admin runs");
         }
     }

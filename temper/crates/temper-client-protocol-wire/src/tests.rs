@@ -782,6 +782,7 @@ fn manifest_connects_and_app_ways_round_trip() {
 }
 
 mod forgejo_admin;
+mod forgejo_tokens;
 
 #[test]
 fn setup_failure_round_trips_each_step_and_none() {

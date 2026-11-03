@@ -520,6 +520,7 @@ impl Protocol {
                 | top::Request::BoxGroup { .. }
                 | top::Request::BoxRemove { .. }
                 | top::Request::Connect { .. }
+                | top::Request::Replace { .. }
                 | top::Request::Manifest { .. }
                 | top::Request::Reachable { .. }
                 | top::Request::Install { .. }

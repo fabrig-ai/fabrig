@@ -397,7 +397,7 @@ fn forges(world: World) -> Box<[u8]> {
                 w::ForgeRowParts {
                     number: 3,
                     kind: w::Kind::Forgejo,
-                    mode: if step == 23 { w::Mode::Connected } else { w::Mode::Owned },
+                    mode: if step == 23 { w::Mode::Managed } else { w::Mode::Owned },
                     connection,
                     offer: if step == 23 { w::Offer::NotOffered } else { w::Offer::Offered },
                     first: if step == 6 || step == 7 || step == 9 {

@@ -613,3 +613,28 @@ fn restart_spends_tier_waits_and_wakes_their_tasks() {
 }
 
 mod reports;
+
+#[test]
+fn pending_execution_words_survive_restart_until_the_task_keeps_them() {
+    let mut d = dispatched();
+    let mut run = workflow(&d, api::Conclusion::Success, None);
+    run.state = api::RunState::Running;
+    run.conclusion = None;
+    answer(&mut d, api::Answer::Runs { runs: Box::new([run]), more: false });
+    let saved = row(&d).clone();
+    assert!(!saved.observations.is_empty());
+    let mut cold = restoring(None);
+    outputs(&mut cold, Event::Restore { record: Stored::Tier(saved.clone()) });
+    outputs(&mut cold, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    assert_eq!(row(&cold).observations, saved.observations);
+    outputs(&mut cold, Event::TierWords { task: TIER_TASK, words: b"Tier browser run 1".as_slice().into() });
+    assert_eq!(row(&cold).observations, saved.observations);
+    let words = cold.tier_execution_words(TIER_TASK).expect("restored execution words");
+    assert!(skein_lib::bytes::find(&words, b"forge run 1 https://forge.example/run/71").is_some());
+    let out = outputs(&mut cold, Event::TierWords { task: TIER_TASK, words });
+    assert!(row(&cold).observations.is_empty());
+    assert!(out.iter().any(|request| match request {
+        Request::Save { record: Stored::Tier(row), .. } => row.observations.is_empty(),
+        _ => false,
+    }));
+}

@@ -153,9 +153,9 @@ impl crate::world::World {
     /// Ask again under a chosen name, as a host retry does.
     pub fn tool_call_at(&mut self, completion: u32, tool: &[u8], input: &[u8], writes: bool) -> Token {
         let assignment = self.assigned.as_ref().expect("assigned run");
-        let name = smith_channel::v5::CallName::new(
-            &smith_channel::v5::CEILINGS,
-            smith_channel::v5::CallNameParts { activation: assignment.attempt, completion, position: 0 },
+        let name = smith_channel::CallName::new(
+            &smith_channel::CEILINGS,
+            smith_channel::CallNameParts { activation: assignment.attempt, completion, position: 0 },
         )
         .expect("bounded call name");
         let mut encoded = skein_lib::Writer::new(name.measure() as usize);

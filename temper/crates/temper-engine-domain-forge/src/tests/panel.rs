@@ -538,42 +538,7 @@ fn tier_lines_show_runs_in_flight_counted_blame_and_outright_clearance() {
     let mut row = fixtures::opening_row();
     row.change.state = change::State::Landed { merge, since: env().wall };
     let mut d = with_row(row);
-    let tier: Box<[u8]> = Box::from(b"running".as_slice());
-    d.tiers
-        .insert(
-            (REPO, tier.clone()),
-            TierRow {
-                repository: REPO,
-                tier,
-                task: Some(61),
-                requested: false,
-                cancelled: false,
-                purpose: None,
-                pending: Box::new([]),
-                baseline: None,
-                branch: TierBranch::Absent,
-                probe: None,
-                flight: None,
-                held: None,
-                result: None,
-                received: false,
-                record: p::Record {
-                    sequence: 7,
-                    judged: None,
-                    failing: p::Failures::Tests(Box::new([])),
-                    flakes: Box::new([]),
-                    run: Some(p::Run {
-                        number: 7,
-                        tip: merge,
-                        key: merge,
-                        landings: Box::new([]),
-                        part: p::Part::Whole,
-                        faults: 0,
-                    }),
-                },
-            },
-        )
-        .expect("tier room");
+    running_tier(&mut d, merge);
     d.verifications
         .insert(
             (REPO, merge),
@@ -614,6 +579,47 @@ fn tier_lines_show_runs_in_flight_counted_blame_and_outright_clearance() {
             ])
         }
     );
+}
+
+fn running_tier(d: &mut Domain, merge: skein_forge::api::Commit) {
+    use temper_engine_domain_forge_tiers as p;
+    let tier: Box<[u8]> = Box::from(b"running".as_slice());
+    d.tiers
+        .insert(
+            (REPO, tier.clone()),
+            TierRow {
+                observations: Box::new([]),
+                repository: REPO,
+                tier,
+                task: Some(61),
+                requested: false,
+                cancelled: false,
+                purpose: None,
+                pending: Box::new([]),
+                baseline: None,
+                branch: TierBranch::Absent,
+                probe: None,
+                flight: None,
+                held: None,
+                result: None,
+                received: false,
+                record: p::Record {
+                    sequence: 7,
+                    judged: None,
+                    failing: p::Failures::Tests(Box::new([])),
+                    flakes: Box::new([]),
+                    run: Some(p::Run {
+                        number: 7,
+                        tip: merge,
+                        key: merge,
+                        landings: Box::new([]),
+                        part: p::Part::Whole,
+                        faults: 0,
+                    }),
+                },
+            },
+        )
+        .expect("tier room");
 }
 
 #[test]

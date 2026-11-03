@@ -339,11 +339,11 @@ fn random_and_scripted_full_and_truncated_tool_scratch_stays_under_the_peak_ceil
     }
 }
 
-// Bounds the configured Codex echo peer, client and retained observations.
+// Bounds the configured Responses echo peer, client and retained observations.
 const CODEX_ECHO_PEAK_CEILING: u64 = 2_300_000;
 
 #[test]
-fn configured_codex_echo_request_and_entry_scratch_stay_under_the_peak_ceiling() {
+fn configured_responses_echo_request_and_entry_scratch_stay_under_the_peak_ceiling() {
     let mut bounds = skein_llm_world::limits();
     bounds.output_items = 32;
     bounds.retained = 32768;
@@ -379,7 +379,7 @@ fn configured_codex_echo_request_and_entry_scratch_stay_under_the_peak_ceiling()
             tokens: 1,
         }]),
     }]);
-    let mut world = skein_llm_world::fake::Exchange::new_with_codex_echo(input, bounds, scripts, echo);
+    let mut world = skein_llm_world::fake::Exchange::new_with_echo(input, bounds, scripts, echo);
     world.observe(observations);
     let constructed = meter.end();
     meter.check(constructed, bound, &"bounded echo peer construction");

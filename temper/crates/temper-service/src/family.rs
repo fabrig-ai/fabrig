@@ -88,7 +88,10 @@ pub fn to_root(
                         request: root::Application::Return { source: value.source, path: value.path },
                     }));
                 }
-                value @ (w::Request::Connect(_) | w::Request::Install(_) | w::Request::Accept(_)) => {
+                value @ (w::Request::Connect(_)
+                | w::Request::Replace(_)
+                | w::Request::Install(_)
+                | w::Request::Accept(_)) => {
                     let request = match value {
                         w::Request::Connect(value) => {
                             let value = value.into_parts();
@@ -115,6 +118,7 @@ pub fn to_root(
                                     };
                                     forge::How::ForgejoAdmin { first }
                                 }
+                                w::How::ForgejoTokens(_) => forge::How::ForgejoTokens,
                                 w::How::GithubApp(app) => forge::How::GitHubApp {
                                     app: core::num::NonZeroU64::new(app.id()).expect("decoded nonzero App"),
                                     read_only: app.read_only().unwrap_or(false),
@@ -143,6 +147,7 @@ pub fn to_root(
                                 how,
                             }
                         }
+                        w::Request::Replace(value) => forge::Ask::Replace { forge: value.forge() },
                         w::Request::Accept(value) => {
                             let value = value.into_parts();
                             let Some(installation) = core::num::NonZeroU64::new(value.installation) else {
@@ -1169,18 +1174,26 @@ fn making(value: w::Making, directories: &jig_protocol_config::Directories) -> O
         w::Making::New(value) => forge::Making::New(match value.into_parts().forge {
             w::ForgeAsk::Github => forge::ForgeAsk::GitHub,
             w::ForgeAsk::Owned => forge::ForgeAsk::Owned,
-            w::ForgeAsk::Managed(value) => {
+            value @ (w::ForgeAsk::Managed(_) | w::ForgeAsk::Connected(_)) => {
+                let (value, connected) = match value {
+                    w::ForgeAsk::Managed(value) => (value, false),
+                    w::ForgeAsk::Connected(value) => (value, true),
+                    w::ForgeAsk::Github | w::ForgeAsk::Owned => unreachable!("Forgejo place"),
+                };
                 let value = value.into_parts();
-                forge::ForgeAsk::Managed {
-                    git_program: match value.git_program {
-                        Some(program) => Some(directories.join(jig_protocol_config::Directory::Data, &program).ok()?),
-                        None => None,
-                    },
-                    place: forge::Place {
-                        api: forge::Address { host: value.host, port: value.port, tls: value.tls },
-                        git: value.git,
-                        web: value.web,
-                    },
+                let git_program = match value.git_program {
+                    Some(program) => Some(directories.join(jig_protocol_config::Directory::Data, &program).ok()?),
+                    None => None,
+                };
+                let place = forge::Place {
+                    api: forge::Address { host: value.host, port: value.port, tls: value.tls },
+                    git: value.git,
+                    web: value.web,
+                };
+                if connected {
+                    forge::ForgeAsk::Connected { place, git_program }
+                } else {
+                    forge::ForgeAsk::Managed { place, git_program }
                 }
             }
         }),

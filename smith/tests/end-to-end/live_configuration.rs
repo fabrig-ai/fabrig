@@ -139,7 +139,7 @@ fn the_refresh_report_names_facts_without_token_bytes() {
     const REFRESH: &str = "synthetic-refresh-report-refresh";
     let scratch = skein_scratch::Scratch::new("smith-refresh-report");
     let now = Wall::from_nanos(10_000_500_000_000);
-    let mut record = env_record(ACCESS.as_bytes(), false, now).expect("synthetic record").record;
+    let mut record = env_record(ACCESS.as_bytes(), now).expect("synthetic record").record;
     record.generation = 7;
     record.refresh_token = Some(REFRESH.as_bytes().into());
     record.expires_at = Wall::from_nanos(13_127_900_000_000);
