@@ -100,6 +100,8 @@ impl Limits {
             32_768_u32.min(jig_client_protocol_wire::CEILINGS.setting_model_effort_some);
         settings.setting_model_efforts_item =
             32_768_u32.min(jig_client_protocol_wire::CEILINGS.setting_model_efforts_item);
+        settings.charter_document_name = settings.pattern_segments;
+        settings.charter_document_name_item = settings.pattern_segments_item;
         settings.charter_alternatives = 32_u32.min(jig_client_protocol_wire::CEILINGS.charter_alternatives);
         settings.setting_model_efforts = 32_u32.min(jig_client_protocol_wire::CEILINGS.setting_model_efforts);
         settings.setting_policy_projections = 32_u32.min(jig_client_protocol_wire::CEILINGS.setting_policy_projections);

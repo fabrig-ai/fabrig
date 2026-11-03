@@ -83,7 +83,10 @@ pub(crate) fn pattern_within(pattern: &Pattern, limits: &Limits) -> bool {
     }
 }
 
-pub(crate) fn name_within(name: &Name, limits: &Limits) -> bool {
+/// Whether a charter document's resource name fits the authority's pattern bounds
+/// (domain/engine.md, 17.9).
+#[must_use]
+pub fn name_within(name: &Name, limits: &Limits) -> bool {
     name_within_segments(&name.segments, limits)
 }
 

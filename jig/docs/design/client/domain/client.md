@@ -1127,7 +1127,12 @@ with a person in front of a tree, are view.md's, 18.10.
   the application's data that `me` serves (contract.md, 3.6;
   `../../protocol/configuration.md`, 3.1):
   - `shapes::chat(me, project, words)` fills the chat template into a
-    `Create`;
+    `Create`, and `shapes::chat_from(me, project, template, words)`
+    fills a chat's template named by its number the same way, for an
+    application offering more than one (temper's configuring chat,
+    template 3): a template `me` does not offer the project, or one
+    whose flags make no conversation (contract.md, 3.2), gives
+    `NotOffered::Template`;
   - `shapes::close_chat(task, disposals)` gives one compound request:
     each live delegate cancelled or moved to the party, then the chat
     cancelled with the grace of the chat template `me` offers now, or

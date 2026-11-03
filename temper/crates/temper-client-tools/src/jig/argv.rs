@@ -303,7 +303,7 @@ fn check_form(table: &[&Tool], call: &Call, limits: &Limits) -> Result<(), Usage
     }
     // The creation row owns this rule; reading a chat has no keyed choice form.
     if tool.name == super::rows::CHAT_CREATE.name && tool.keyed == Keyed::Required {
-        check_choice(call, 2, 3, limits)?;
+        check_choice(call, 3, 4, limits)?;
     }
     if tool.name == b"task amend" {
         check_amend(call, limits)?;

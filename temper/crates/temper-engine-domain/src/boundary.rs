@@ -61,15 +61,16 @@ pub struct BriefSection {
 }
 
 /// The core's typed section or a section owned by temper's forge connector.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum BriefKind {
     Core(brief::Core),
     Forge(ForgeBriefKind),
 }
 
 /// The forge connector's brief section kinds.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum ForgeBriefKind {
+    Document(Box<[u8]>),
     Ci,
     Reviews,
     Pull,
@@ -743,6 +744,8 @@ pub(crate) struct BriefConnector {
     pub(crate) deadline: skein_lib::Time,
     pub(crate) task: u64,
     pub(crate) kind: ForgeBriefKind,
+    pub(crate) gatherable: bool,
+    pub(crate) active: bool,
     pub(crate) cutting: bool,
 }
 

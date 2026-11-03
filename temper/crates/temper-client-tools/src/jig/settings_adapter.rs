@@ -30,6 +30,19 @@ pub fn client_authority_models(v: &n::AuthorityModels) -> c::AuthorityModels {
 
 pub fn form_charter(v: &c::Charter) -> n::Charter {
     n::Charter {
+        documents: {
+            let mut out = List::with_capacity(v.documents.len());
+            for item in &v.documents {
+                out.push(n::CharterDocument {
+                    connector: item.connector,
+                    name: item.name.clone(),
+                    path: item.path.clone(),
+                    heading: item.heading.clone(),
+                })
+                .expect("one value per input");
+            }
+            out
+        },
         number: v.number,
         instructions: form_text(&v.instructions),
         waiting: v.waiting,
@@ -53,6 +66,19 @@ pub fn form_charter(v: &c::Charter) -> n::Charter {
 }
 pub fn client_charter(v: &n::Charter) -> c::Charter {
     c::Charter {
+        documents: {
+            let mut out = List::with_capacity(v.documents.len());
+            for item in &v.documents {
+                out.push(c::CharterDocument {
+                    connector: item.connector,
+                    name: item.name.clone(),
+                    path: item.path.clone(),
+                    heading: item.heading.clone(),
+                })
+                .expect("one value per input");
+            }
+            out
+        },
         number: v.number,
         instructions: client_text(&v.instructions),
         waiting: v.waiting,
