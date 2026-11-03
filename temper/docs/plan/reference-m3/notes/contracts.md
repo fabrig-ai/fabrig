@@ -30,11 +30,14 @@ role; jig's check of a batch's LLM choices against its charter's models), **suba
   `jig_domain_core::effects::connector::Ask`, answers come back on
   `jig_domain_core::effects::connector::Event`, routed by the root to the connector the kind
   names, as a requirement's `Judge` and `Verdict` are.
-- `jig_domain_core::settings::Item { kind: u32, scope: u32, number: u32, edit: Edit }`,
-  `Edit { Set(Box<[u8]>), Remove, Reset }`. A reset is judged by the connector as the default
+- `jig_domain_core::settings::application::Item { kind: u32, scope: u32, number: u32, edit:
+  Edit }`, `jig_domain_core::settings::application::Edit { Set(Box<[u8]>), Remove, Reset }`
+  (in `settings::application`, since `settings::{Item, Edit}` name the core's own change
+  items; `Kind` and `KindScope` are re-exported at `settings::`). A reset is judged by the connector as the default
   it keeps (a setting with no default: as a removal).
-- `Ask::JudgeSettings { owner: Token, revision: u64, items: Box<[Item]> }`, `revision` the one
-  the change would make; answered within the same decision's step by
+- `Ask::JudgeSettings { owner: Token, revision: u64, proposal: Option<u64>, items: Box<[Item]> }`,
+  `revision` the one the change would make, `proposal` the accepted proposal whose kept values
+  are judged; answered within the same decision's step by
   `Event::SettingsJudged { owner: Token, judged: Box<[Judged]> }`, one per item in the ask's
   order: `Judged::Accept { size: u32, charters: Box<[u32]> }` (the size of the value it would
   leave, and the charters it names), `Judged::Same` (it leaves the setting as it is) or
@@ -55,6 +58,11 @@ role; jig's check of a batch's LLM choices against its charter's models), **suba
 - A project's settings of a project-scoped kind are erased by their connector as part of the
   existing `ReleaseProject` ask (jig's `domain/people.md`, 5.2); the core erases its states
   of them in the same deletion.
+- **A proposal's identity:** `proposal` in these asks is the proposal's key, a
+  deployment-unique `u64` the core gives each settings proposal naming an application's items
+  as it is made (`apps-proposal-key`), shown with the proposal's set in the settings review
+  document, so a client names it to the application's read. Until that task lands, the core
+  sends the tasks child's per-proposer number.
 - The appsettings family may add fields it finds the core needs (a key, a request token);
   it may not rename these or change their meaning. Anything more is a question.
 

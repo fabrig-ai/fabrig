@@ -1,29 +1,17 @@
 # reference-code-production: status
 
-2026-11-02. Where the design lags or departs from [reference-code-production.md](reference-code-production.md).
+2026-11-03. Where the design lags or departs from [reference-code-production.md](reference-code-production.md).
 
 - **Design lags:**
   - **3, 5, 14: `change` and its fields (N22, N13).** `../domain/agent.md`,
-    4.3.1: `change` names no requester's branch, `questions`, LLM choice,
-    producer's charter or merge job, nor `repairs`. `../domain/forge.md`, 8.1 and 8.9: a
-    change's producer runs under the forge's change charter, and
-    `../protocol/configuration.md`, 13.2 numbers the forge's charters for
-    the change and its reviews alone.
+    4.3.1: `change` names no requester's branch, `questions` or merge
+    job, nor `repairs`. `../protocol/configuration.md`, 13.2 numbers the
+    forge's charters for the change and its reviews alone.
   - **8, 14: questions (N1).** `../domain/agent.md`, 8.2 and
     `../domain/forge.md`, 8.1: a change takes no questions, and its agents
     have no Message family; there is no `questions` setting, foreman or
     question bound. `../protocol/configuration.md`, 13.2: no foreman's
     charter among the forge's.
-  - **5, 14: LLM choices per role (N19).** `../domain/forge.md`, 8.1: a
-    change's parameters name its producer's spec and charter, and no LLM
-    choice for any of its agents. jig's `domain/tasks.md`, section 4
-    checks a batch's LLM choice against the models configured and its
-    authority, not its charter's models, which jig's
-    `protocol/configuration.md`, 3.1 and `domain/engine.md`, 17.4 check
-    for templates and moves.
-  - **5: the plan's text (N12).** jig's `domain/core.md`, 7.1 keeps a plan's
-    strategy in its transcript, its notes and a goal's projection, not in
-    the repository's design.
   - **6, 14: the light rules (N4).** `../domain/forge.md`, 8.2 (steps 3 and
     6), 8.7 and 10: every change is checked by CI at its head and updated
     when first if it lacks its base's tip, whatever its landing branch's

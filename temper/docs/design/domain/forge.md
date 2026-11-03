@@ -1007,8 +1007,15 @@ branch. Its parameters:
   chat's small fix, handed over by the chat that made it: jig's
   `domain/tasks.md`, 6.4), or its own, named after its tree
   (section 11), which a producing task pushes;
-- **what to produce,** when nothing is pushed yet: the spec and charter
-  of its producing task;
+- **what to produce,** when nothing is pushed yet: the spec of its
+  producing task, and its producer's charter, which its repairs,
+  resolutions and checks' gates run under too: the one `change` names,
+  or the forge's change charter (8.9);
+- **its agents' LLM choices,** by role (jig's `domain/tasks.md`, section
+  3): the producer's, for its producing task, its repairs, its
+  resolutions and its checks' gates; the reviews', for its agents'
+  gates. Each is given as the LLM choice of every delegate of its role;
+  a role without one leaves its delegates to their charter's default;
 - **its gates** (8.3);
 - **`with`,** under its project's turn: the changes it must land with,
   in any repository and of any goal its requester may name
@@ -1038,10 +1045,23 @@ A run asks for one with `change`, giving the words, and the root fills
 in the rest from the project (`agent.md`, 4.3.1). A run whose authority
 holds jig's control family names, too, what a plan decides: the landing
 branch, its own goal branch or a branch of the repository; its
-dependencies, task numbers or changes of the same call; and several
-changes in one call, made as one batch. The landing branch is parameter
-2, the dependencies are the task's own (jig's `domain/tasks.md`, section
-4), and a change made with neither is as a chat's.
+dependencies, task numbers or changes of the same call; several
+changes in one call, made as one batch; its producer's charter; and its
+agents' LLM choices. The landing branch is parameter 2, the
+dependencies are the task's own (jig's `domain/tasks.md`, section 4),
+and a change made with neither is as a chat's. The producer's charter
+and the LLM choices are one text parameter, 11, so that a change stays
+within the deployment's parameters per spec (jig's `tasks.parameters`,
+4 in small): `C;P;R`, `C` the producer's charter's number in decimal,
+`P` and `R` the producer's and the reviews' LLM choices, each part
+empty where the change names none. A choice is spelled as jig keeps
+it, by configured index (jig's `domain/tasks.md`, section 3): its main,
+then each sub-agent, separated by one space, each `M` or `M.E`, the
+model's index and its effort's, in decimal (`6;3.1 0.0 2;3.0`). A
+change without parameter 11, or with an empty part, runs its producer
+under the forge's change charter, or leaves that role to its charter's
+default; a parameter 11 that does not spell them refuses the change's
+start.
 
 Its agents hold the forge's reads (kind 1, section 2) on its
 repository, beside the kinds it makes (`agent.md`, 4.3.1): a reviewer
@@ -1572,12 +1592,18 @@ sizes and never reads them (jig's `domain/connectors.md`, section 17).
   gate it now needs leaves its queue until it has its verdict (8.3).
 - **It reads the newest:** every merge is judged by the rules held at
   its decision, whatever revision its change was made in.
-- **A change keeps its charter.** The forge's charter is read when the
-  change is made, and the change's producing, repairs, resolutions and
-  agents' and checks' gates run under it: its procedure's authority
-  grants that charter's delegation alone, and is never rewritten. A
-  change whose charter the newest settings no longer offer is held when
-  it next needs a delegate, saying so; it is cancelled, or made again.
+- **A change keeps its charters and its LLM choices.** Its charters are
+  read when the change is made: its producer's, the one `change` named
+  (8.1) or else the forge's change charter, under which its producing,
+  repairs, resolutions and checks' gates run, and the forge's review
+  charter, under which its agents' gates run. Its procedure's authority
+  grants those charters' delegation alone, and is never rewritten. Its
+  LLM choices, by role, are kept beside them and given to each delegate
+  of the role. A change whose charter of a role the newest settings no
+  longer offer, or whose choice for a role that charter's models at the
+  newest no longer allow (jig's `domain/tasks.md`, section 4), is held
+  when it next needs a delegate of that role, saying so; it is
+  cancelled, or made again.
 
 ### 8.10 Drained
 

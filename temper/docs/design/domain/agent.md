@@ -313,8 +313,9 @@ any `delegate` (jig's authority, named and decided once):
   makes (forge.md, section 6: a push, open, merge, edit, update, close
   or reopen a pull request), on the change's repository, which every
   agent of the change holds, so that its reviewer and its repairs read
-  the pull request, its files and CI's logs; the forge's charter as the
-  only kind it may delegate, and a person's role where a landing rule
+  the pull request, its files and CI's logs; the change's charters, its
+  producer's and its reviews' (forge.md, 8.9), as the only kinds it may
+  delegate, and a person's role where a landing rule
   covering the branch names a person gate; at most 6 tasks (a
   producer, a review, and two repairs each followed by its review), one
   fewer than the run has left, and a depth of at most 2; no notes; half of
@@ -359,6 +360,33 @@ delegate from what it knows:
   `domain/tasks.md`, section 4): all of them or none, the call's answer
   naming each change's task in the call's order. A call names either
   `words` or `changes`, never both; `changes` holds at least one.
+- **`producer`:** the number of the charter the change's producing
+  task, its repairs, its resolutions and its checks' gates run under
+  (forge.md, 8.1); left out, the forge's change charter, kind 3's number
+  1 (`../protocol/configuration.md`, 13.2). A charter the newest
+  settings do not offer (jig's `domain/engine.md`, 17.3), or one the
+  run's authority may not delegate to (jig's `domain/authority.md`,
+  section 3), refuses the call, naming it, as a `delegate` naming it
+  would be refused.
+- **`llm`:** an LLM choice for each of the change's agents' roles, each
+  in jig's form, its models and efforts by their configured names and no
+  account (jig's `protocol/configuration.md`, 3.1):
+
+  ```
+  {"words": "...", "landing": "goal", "producer": 6,
+   "llm": {"producer": {"main": {"model": "gpt-6.1-sol", "effort": "high"}},
+           "review": {"main": {"model": "gpt-6.1-sol", "effort": "medium"}}}}
+  ```
+
+  `producer` for its producing task, its repairs, its resolutions and
+  its checks' gates; `review` for its agents' gates. The root checks
+  each as jig checks a batch's (jig's `domain/tasks.md`, section 4),
+  against the charter its role runs under at the newest revision and
+  the run's authority: a model not configured or named twice, an effort
+  its model does not declare, a model, main or sub-agent, outside that
+  charter's models or the authority's refuses the call, naming the
+  model and why. A role left out takes its charter's default as each of
+  its agents is made (jig's `domain/tasks.md`, section 3).
 - **Who may set them:** the members past `words` and `repository` are a
   plan's, and only a run whose task's authority holds jig's control
   family (amend and cancel, with `release`: jig's `domain/authority.md`,
@@ -373,8 +401,8 @@ delegate from what it knows:
 - **Members to come** join each change's object, each optional and
   checked by the root as it decides that change's delegate, leaving
   these as they are: the change's branch, `mine` for its requester's
-  held branch; its questions; its agents' LLM choices; its producer, a
-  charter or a job; the landing it repairs.
+  held branch; its questions; a producer that is a job; the landing it
+  repairs.
 
 #### 4.3.2 A goal, in the run's words
 
