@@ -20,7 +20,7 @@ fn the_box_has_room_for_reference_creating_executors() {
     }
     charters.sort_unstable();
     charters.dedup();
-    assert_eq!(charters, [1, 2, 4, 5, 6, 7]);
+    assert_eq!(charters, [1, 2, 4, 5, 6, 7, 8]);
     let bytes = serde_json::to_vec(&written["engine"]["limits"]).unwrap();
     let document = jig_protocol_config::document(
         &bytes,

@@ -154,7 +154,7 @@ fn real_init_offers_its_owner_a_chat_with_all_three_procedures() {
     let offered = project.creating.as_ref().expect("owner may start a chat");
     let core::acts::Bounds::Create { procedures, charters, .. } = &offered.within else { panic!("create bounds") };
     assert_eq!(procedures.iter().map(|procedure| procedure.code).collect::<Vec<_>>(), [2, 3, 4]);
-    assert_eq!(charters.as_slice(), &[1, 2, 4]);
+    assert_eq!(charters.as_slice(), &[1, 2, 4, 6]);
 }
 
 fn policies(driver: &Driver) -> Vec<(u32, people::PolicyValue)> {
