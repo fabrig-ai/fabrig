@@ -89,6 +89,7 @@
         "authority.executors": 8,
         "authority.grants": 16,
         "authority.projects": 2,
+        "authority.segments": 8,
         "brief.briefs": 1,
         "brief.sections": 6,
         "core.call_answer_bytes": 2048,

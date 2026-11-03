@@ -161,7 +161,7 @@ fn handover_reads_its_path_and_bounds_the_file_before_reading() {
 }
 
 #[test]
-fn story_a_start_makes_its_project() {
+fn story_a_start_makes_its_project_and_adopts_widget() {
     // The native page's inputs through Try the playground, before its reply.
     let log = skein_ui_web::log::read(include_bytes!("fixtures/story-a-start.log")).expect("start's session log");
     let world = story::world(crate::stories::A.start(log.seed, log.start));
@@ -178,7 +178,9 @@ fn story_a_start_makes_its_project() {
         {
             assert_eq!(project, 1, "the fresh story's project");
             assert_eq!(playground.account, Some(1), "the scripted account precedes its project");
-            return;
+            if playground.state == temper_engine_domain_forge::PlaygroundState::Running {
+                return;
+            }
         }
         if !world.busy()
             && let Some(due) = world.next_due()
@@ -186,5 +188,5 @@ fn story_a_start_makes_its_project() {
             world.advance(due);
         }
     }
-    panic!("StartPlayground did not make its project");
+    panic!("StartPlayground did not make its project and adopt widget");
 }
