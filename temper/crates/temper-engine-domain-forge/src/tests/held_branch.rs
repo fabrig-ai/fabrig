@@ -220,27 +220,10 @@ fn facts_say_whether_a_changes_branch_is_its_requesters() {
     for holder in [Some(GOAL), Some(fixtures::CHANGE), None] {
         let mut d = held_by(holder);
         outputs(&mut d, Event::Change { row: landing_row() });
-        fixtures::step_change(&mut d);
-        fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
-        fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
-        let mut pull = fixtures::open_pull();
-        pull.head = GOAL_BRANCH.into();
-        pull.commit = fixtures::BASE;
-        pull.ci = skein_forge::api::Ci::Pending;
-        fixtures::answer_next(&mut d, Ok(Answer::Pull(pull)));
-        fixtures::answer_next(&mut d, Ok(fixtures::checks(skein_forge::api::Check::Passed)));
-        fixtures::answer_next(&mut d, Ok(fixtures::checks(skein_forge::api::Check::Passed)));
-        fixtures::answer_next(
-            &mut d,
-            Ok(Answer::Compare {
-                before: fixtures::BASE,
-                after: fixtures::BASE,
-                contains_before: true,
-                files: Box::new([]),
-                commits: Box::new([]),
-            }),
-        );
-        let requests = fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false }));
+        if holder == Some(GOAL) {
+            confirm_head(&mut d, fixtures::BASE);
+        }
+        let requests = step_at_head(&mut d, fixtures::BASE);
         let state = &d.change(fixtures::CHANGE).unwrap().change.state;
         let expected = if holder == Some(GOAL) {
             change::State::Checking { head: fixtures::BASE }
@@ -251,5 +234,62 @@ fn facts_say_whether_a_changes_branch_is_its_requesters() {
             }
         };
         assert_eq!(state, &expected, "holder={holder:?}: {requests:?}");
+    }
+}
+
+fn step_at_head(d: &mut Domain, head: skein_forge::api::Commit) -> Box<[Request]> {
+    fixtures::step_change(d);
+    fixtures::answer_next(d, Ok(Answer::Commit(head)));
+    fixtures::answer_next(d, Ok(Answer::Commit(fixtures::BASE)));
+    let mut pull = fixtures::open_pull();
+    pull.head = GOAL_BRANCH.into();
+    pull.commit = head;
+    pull.ci = skein_forge::api::Ci::Pending;
+    fixtures::answer_next(d, Ok(Answer::Pull(pull)));
+    fixtures::answer_next(d, Ok(fixtures::checks(skein_forge::api::Check::Passed)));
+    fixtures::answer_next(d, Ok(fixtures::checks(skein_forge::api::Check::Passed)));
+    fixtures::answer_next(
+        d,
+        Ok(Answer::Compare {
+            before: fixtures::BASE,
+            after: head,
+            contains_before: true,
+            files: Box::new([]),
+            commits: Box::new([]),
+        }),
+    );
+    fixtures::answer_next(d, Ok(Answer::Reviews { reviews: Box::new([]), more: false }))
+}
+
+#[test]
+fn an_unconfirmed_move_of_a_goal_branch_is_drift_before_the_keep_reads_it() {
+    let mut d = held_goal();
+    outputs(&mut d, Event::Change { row: landing_row() });
+    let requests = step_at_head(&mut d, fixtures::BASE);
+    assert_eq!(
+        d.change(fixtures::CHANGE).unwrap().change.state,
+        change::State::Held {
+            was: Box::new(change::State::Checking { head: fixtures::HEAD }),
+            why: change::Hold::BranchMoved,
+        },
+        "{requests:?}"
+    );
+}
+
+fn confirm_head(d: &mut Domain, head: skein_forge::api::Commit) {
+    outputs(d, Event::Claim { task: DELEGATE, attempt: 1, writes: Box::new([name()]), holders: Box::new([GOAL]) });
+    outputs(d, Event::Answered { task: DELEGATE, attempt: 1, pushed: Box::new([(name(), head)]) });
+}
+
+#[test]
+fn a_branch_read_before_a_confirmed_move_still_checks_the_new_head_without_drift() {
+    let mut d = held_goal();
+    outputs(&mut d, Event::Change { row: landing_row() });
+    confirm_head(&mut d, fixtures::BASE);
+    for head in [fixtures::HEAD, fixtures::BASE] {
+        let requests = step_at_head(&mut d, head);
+        let row = d.change(fixtures::CHANGE).unwrap();
+        assert_eq!(row.change.state, change::State::Checking { head }, "{requests:?}");
+        assert_eq!(row.change.repairs, 0);
     }
 }
