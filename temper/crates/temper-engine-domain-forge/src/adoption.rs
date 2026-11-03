@@ -575,5 +575,6 @@ pub(crate) fn release(d: &mut Domain, project: u32, request: Token, out: &mut Qu
         }
     }
     crate::removal::unnamed(d, out);
+    d.erase_project_settings(project, out);
     emit(out, Request::ProjectReleased { request });
 }
