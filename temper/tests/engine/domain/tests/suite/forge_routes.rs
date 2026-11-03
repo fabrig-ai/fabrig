@@ -72,6 +72,9 @@ mod goal_branch;
 #[path = "forge_routes/goal_changes.rs"]
 mod goal_changes;
 
+#[path = "forge_routes/change_producer.rs"]
+mod change_producer;
+
 #[path = "forge_routes/hints.rs"]
 mod hints;
 
