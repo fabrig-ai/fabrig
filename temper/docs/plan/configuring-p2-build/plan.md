@@ -1,15 +1,16 @@
 # configuring-p2-build: plan
 
 Phase P2 of `temper/docs/design/draft/configuring.execution.md`: settings through ctl, built
-from the design `configuring-p2` released, on the reference's M3 as landed on main. Written by
-the cut as it releases; each batch brings it up to date.
+from the design `configuring-p2` released, on the reference's M3 as landed on main. 16 tasks,
+all released in five batches; P1 (a charter's documents reaching a run's brief), which the
+walk also exercises, landed with `configuring-p1`.
 
 ## Parts
 
 | Part | Slice | Design | Tasks |
 |---|---|---|---|
-| `policy-item` | 1 | jig's `domain/engine.md` 17.2 and 17.6; `domain/people.md` 5.2; temper's `protocol/configuration.md` 13.1; `client/tools.md` 5.3 | `policy-surface` (released); `policy-change`, `settings-store`, `settings-wire`, `policy-ctl`, `policy-story` to come |
-| `restore` | 2, **the walk** (`walk = true`) | jig's `domain/engine.md` 17.5 and 17.10; `domain/connectors.md` 17; `client/domain/contract.md` 3.2, 5.1, 6; temper's `client/tools.md` 5.2 and 5.3 | `restore-surface`, `forge-replaced`, `connector-replaced` (released); `restore-request`, `restore-connector`, `restore-forge`, `restore-ctl`, `restore-story` to come |
+| `policy-item` | 1 | jig's `domain/engine.md` 17.2 and 17.6; `domain/people.md` 5.2; temper's `protocol/configuration.md` 13.1; `client/tools.md` 5.3 | `policy-surface`, `policy-change`, `policy-ctl`, `policy-story` |
+| `restore` | 2, **the walk** (`walk = true`) | jig's `domain/engine.md` 17.5 and 17.10; `domain/connectors.md` 17; `client/domain/contract.md` 3.2, 5.1, 6; temper's `client/tools.md` 5.2 and 5.3 | `restore-surface`, `forge-replaced`, `connector-replaced`, `restore-connector`, `restore-forge`, `settings-store`, `settings-wire`, `restore-request`, `restore-ctl`, `restore-story` |
 
 The cross-task shapes are `notes/contracts.md` (B1 on), which takes configuring-p2's
 `notes/contracts.md` (P1, P2) as binding; the standing rules, `notes/common.md`.
@@ -56,12 +57,39 @@ The addenda the request names, after M3, in their sections and no other:
    `connector-replaced`) and `restore-forge` (120; needs `restore-surface`, `forge-replaced`):
    the restore's asks answered and routed, in jig's test domain and temper's root.
 
+4. `settings-store` (120; needs both surfaces): settings-v1 and people-v14 in place, a
+   project's policy, each item's `replaced`, a restore's stored answer; `settings-wire` (170;
+   the same needs): client-v19 in place and jig's client crates; `policy-ctl` (90; needs
+   `settings-wire`): the settings file's `project-policy` item and `proposal show`;
+   `restore-ctl` (90; needs `settings-wire`, `policy-ctl`): `revision restore` and `revision
+   show`'s `was:`; `restore-request` (150; needs `policy-change`, `settings-store`,
+   `restore-connector`, `restore-forge`): the core's restore decision and `ForgetReplaced`.
+
+5. `policy-story` (90; needs `policy-change`, `settings-store`, `settings-wire`,
+   `policy-ctl`): jig's core world and temper's joined client world, a project's policy
+   through a change and a proposal; `restore-story` (120; needs `restore-request`,
+   `restore-forge`, `restore-connector`, `restore-ctl`, `policy-story`): the walk's story in
+   the gate, jig's core world, temper's domain world and a settings file of each kind through
+   ctl in the joined client world; it closes the status entries left.
+
 ## Critical path, as it stands
 
 `policy-surface` (60) -> `restore-surface` (90) -> `policy-change` (150) -> `restore-request`
 (150) -> `restore-story` (120): about 570 implementer-minutes. One writer per crate keeps
 jig-domain-core's three tasks in a line; the store, wire, connector, forge and ctl tasks run
 beside `policy-change`.
+
+## Decided along the way
+
+- **The ctl stories run in temper's joined client world** (`temper/tests/client`), ctl against
+  the engine root, not in the one-process world: temper's `domain/testing.md`, 6.4 gives the
+  one-process world no new story.
+- **Too large is counted before anything is left out** (contracts B4), bounding `left_out`.
+- **Status lines one task at a time:** jig's `engine.status.md` 17.10 line is
+  `restore-request`'s, not `settings-store`'s, which runs beside `policy-change` (whose 17.2
+  line it borders); temper's `tools.status.md` 5.3 restore-items line is `restore-story`'s.
+- **Not this plan's:** `settings show landing-rule|forge-charter` and a settings file's items
+  of temper's kinds are M3's, landed; the walk exercises them.
 
 ## Overlaps with other plans
 
