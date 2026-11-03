@@ -314,6 +314,7 @@ pub struct Core {
     pub(crate) restore_failure: Option<start::Failure>,
     /// Names seeded or restored with the project policies (core.md, 6.1).
     pub(crate) names: Map<u32, Box<str>>,
+    visibility: admission::visibility::Visibility,
     /// Mutable connector permission mappings approved by policy edits.
     pub permission_roles: Map<u32, Box<[people::PermissionRole]>>,
     /// Template overrides retained with each project policy.
@@ -517,6 +518,7 @@ impl Core {
             projects: List::with_capacity(limits.authority.projects),
 
             names: Map::with_capacity(limits.authority.projects),
+            visibility: admission::visibility::Visibility::new(limits.authority.projects),
             permission_roles: Map::with_capacity(limits.authority.projects),
             template_overrides: Map::with_capacity(limits.authority.projects),
             connectors: config.connectors,

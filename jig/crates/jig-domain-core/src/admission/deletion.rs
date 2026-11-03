@@ -280,6 +280,8 @@ fn rows(core: &mut Core, env: &Env<Limits>, out: &mut Queue<Request>, project: u
         return;
     }
     out.push(Request::Write(Write::Erase(Key::People(people::Key::Policy(project)))));
+    out.push(Request::Write(Write::Erase(Key::People(people::Key::Public(project)))));
+    let _previous = core.visibility.public.remove(&project);
     let mut facts = Queue::uncapped();
     crate::routing::step::step_authority(core, authority::Event::Dropped { project }, &mut facts);
     drop(core.permission_roles.remove(&project));

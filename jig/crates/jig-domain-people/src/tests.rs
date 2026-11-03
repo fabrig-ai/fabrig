@@ -2512,19 +2512,3 @@ fn deployment_act_status_preserves_retry_and_actionable_refusals() {
         assert_eq!(outcome.act_status(), status);
     }
 }
-
-#[test]
-fn set_visibility_is_refused_until_it_is_decided() {
-    let mut test = Test::new(LIMITS);
-    test.signin(1, 10, identity(0, 1));
-    for project in [0, 1] {
-        test.send(Event::Roles { project, holdings: Box::new([Holding { person: 1, role: Role::Owner }]) });
-        for public in [false, true] {
-            let outputs = test.request(10, 1, Ask::SetVisibility { project, public });
-            assert_eq!(outputs.len(), 1);
-            assert_eq!(reply(&outputs), Reply::Refused(Refusal::NotOffered));
-        }
-    }
-    let outputs = test.request(0, 1, Ask::SetVisibility { project: u32::MAX, public: true });
-    assert_eq!(reply(&outputs), Reply::Refused(Refusal::NotOffered));
-}

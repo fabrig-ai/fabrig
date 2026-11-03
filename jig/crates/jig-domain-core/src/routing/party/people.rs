@@ -262,7 +262,12 @@ pub(crate) fn tag_people_part(
                     continue;
                 }
                 let admission = match &*ask {
-                    people::Ask::RemoveProject { project: named, .. } if *named == project => Ok(()),
+                    people::Ask::RemoveProject { project: named, .. }
+                    | people::Ask::SetVisibility { project: named, .. }
+                        if *named == project =>
+                    {
+                        Ok(())
+                    }
                     other => crate::acts::request(core, &env.limits, person, project, role, other, env.wall),
                 };
                 if let Err(why) = admission {
@@ -274,11 +279,8 @@ pub(crate) fn tag_people_part(
                 }
                 let party = super::dispatch::Party { request, person, project, role };
                 match *ask {
-                    people::Ask::SetVisibility { .. } => {
-                        routed.work.push(Work::Event(Event::People(people::Event::Decided {
-                            request,
-                            outcome: people::Outcome::Refused(people::Refusal::NotOffered),
-                        })));
+                    people::Ask::SetVisibility { public, .. } => {
+                        super::projects::visibility_request(core, &mut routed, party, public);
                     }
                     people::Ask::RemoveProject { project, grace } => {
                         let result = if !core.open_project(project) {
