@@ -44,12 +44,9 @@
   - 8.8: the rule and criterion a change waits on, and its charter, on its
     panel.
   - 8.10: a change drained.
-  - 8.11: early starts: the change procedure does not start kept, so a
-    change made with a pending dependency waits, and its producer starts
-    from its landing branch's tip once its dependencies are done; no
-    early start, once rule, refusal on a conflict, mark of the
-    dependencies started from, or next producer merging the landing tip
-    first.
+  - 8.11: a dependent's landing holding its dependency's pushed head in
+    g's ancestry is unobserved in stories, the fake forge squashing
+    merges (skein's `fake-forge.md`, 2.2).
   - 9: a branch a tier follows still pauses its queue on its own CI's
     red and makes a repair, where its tiers judge it instead
     (`temper-engine-domain-forge-change/src/domain.rs`, `base_ci`).

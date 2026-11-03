@@ -10,6 +10,8 @@ const QUIET_TICKS: u32 = 40; // Four simulated seconds settle hint reads inside 
 const TWO_CHANGES: usize = 2;
 const TWO_MERGES: u32 = 2; // One merge per change in the pair.
 const RESULT_BYTES: u32 = 224; // Three results, a landing subscription and 128 bytes of core news fit 1024 bytes.
+const LANDINGS: usize = 2; // C2 and C3 each land once into g.
+
 
 fn world() -> World {
     world_with(false)
@@ -102,11 +104,28 @@ fn push(world: &mut World, producer: &engine::Assignment, base: u64, file: &[u8]
     fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, file, b"added", 2).expect("producer push")
 }
 
+fn assert_landed_tree(world: &World, main: u64, tip: u64, c2_head: u64, c3_head: u64) {
+    let tree = &world.fake.object(tip).expect("goal tip").tree;
+    let pushed_tree = &world.fake.object(c3_head).expect("C3 pushed head").tree;
+    assert_eq!(tree.len(), pushed_tree.len());
+    for (path, content) in pushed_tree {
+        assert_eq!(tree.get(path), Some(content), "the goal tip holds C3's pushed tree");
+    }
+    let dependency_tree = &world.fake.object(c2_head).expect("C2 pushed head").tree;
+    let base_tree = &world.fake.object(main).expect("main tip").tree;
+    for (path, content) in dependency_tree {
+        if !base_tree.contains_key(path) {
+            assert_eq!(tree.get(path), Some(content), "C2's added path is kept");
+        }
+    }
+}
+
 fn goal_world() -> (World, engine::Assignment, Box<[u8]>, u64) {
     goal_world_in(world())
 }
 
 fn goal_world_in(mut world: World) -> (World, engine::Assignment, Box<[u8]>, u64) {
+
     let people::Ask::Create { project, mut batch } = goal_request(&world, true) else { panic!("goal template") };
     batch[0].authority.tools |= jig_domain_core::ToolFamilies::JIG.control.0;
     let goal = assigned_chat(&mut world, 92, people::Ask::Create { project, batch });
@@ -655,8 +674,15 @@ fn a_dependent_change_starts_early_on_its_dependencys_pushed_head() {
     else {
         panic!("goal history")
     };
-    assert!(commits.iter().any(|commit| commit.id == c2_head), "goal history contains C2's pushed head: {commits:?}");
-    assert!(commits.iter().any(|commit| commit.id == merged_tip), "goal history contains C3's merge");
+    let change::State::Landed { merge: c2_merge, .. } = change_row(&world, c2).change.state else {
+        panic!("C2 landed")
+    };
+    assert_eq!(commits.len(), LANDINGS, "each change contributes one squash landing");
+    let c2_landing = commits.iter().find(|commit| translate::commit(commit.id) == c2_merge).expect("C2 landing");
+    let c3_landing = commits.iter().find(|commit| commit.id == merged_tip).expect("C3 landing");
+    assert_eq!(c2_landing.parents.as_ref(), &[main]);
+    assert_eq!(c3_landing.parents.as_ref(), &[c2_landing.id]);
+    assert_landed_tree(&world, main, merged_tip, c2_head, c3_head);
     assert_eq!(change_row(&world, c3).change.last_head, Some(translate::commit(c3_head)));
     world.close();
 }

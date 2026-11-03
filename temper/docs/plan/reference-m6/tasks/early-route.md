@@ -105,3 +105,28 @@ Owns the files in the header; tasks `checkout-heads`, `checkout-heads-engine` an
 
 As the implementer's text says; name each story whose expectations changed and why, and
 where the dependents' steps hook in.
+
+## Answers
+
+2026-11-03. **The fake forge squashes, so g's history cannot hold C2's pushed head: add a
+fake-forge prerequisite, or change the story's history assertion?** Change the assertion; no
+prerequisite, no change to skein. skein's fake forge is designed to squash every merge
+(`skein/docs/design/fake-forge.md`, 2.2), and a goal's landing as a merge commit is the gap
+`goal_changes.rs`'s ignored story already carries; neither is this task's. Keep the story
+running, not ignored, and replace its last two history assertions with what the fake can show:
+
+- g's history from main's tip to its tip is two commits, each the parent of the next: C2's
+  landing (`change::State::Landed { merge, .. }` of C2) on main's tip, then C3's landing,
+  which is g's tip;
+- g's tip holds C2's work and C3's: its tree equals the tree of C3's pushed head (built on
+  the merge of C2's pushed head), and holds the paths C2's pushed head added.
+
+Everything before (the `Merged` start with C2's head, the started-from mark, C3 opening kept
+and not ready, the landings in order) stays as it is. In `temper/docs/design/domain/forge.status.md`,
+where the 8.11 entry is removed, add one line under 8.11: a dependent's landing holding its
+dependency's pushed head in g's ancestry is unobserved in stories, the fake forge squashing
+merges (`skein/docs/design/fake-forge.md`, 2.2). Then remove the status texts the task names
+and finish the Steps.
+
+The service fixture missing `started_from` (`temper-service/src/tests/fixtures.rs`) stays
+under `## Left`, as reported.
