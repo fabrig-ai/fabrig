@@ -294,9 +294,17 @@ fn revision_values_past_the_single_read_budget_name_their_encoded_size() {
         applications: Box::default(),
         head: head(),
         items: Box::new([
-            s::Item { setting: s::Setting::Charter(1), edit: s::Edit::Set(source) },
-            s::Item { setting: s::Setting::Template(2), edit: s::Edit::Removed },
-            s::Item { setting: s::Setting::Policy(3), edit: s::Edit::Reset },
+            s::RevisionItem {
+                setting: s::Setting::Charter(1),
+                edit: s::Edit::Set(source),
+                replaced: s::Replaced::NotOffered,
+            },
+            s::RevisionItem {
+                setting: s::Setting::Template(2),
+                edit: s::Edit::Removed,
+                replaced: s::Replaced::NotOffered,
+            },
+            s::RevisionItem { setting: s::Setting::Policy(3), edit: s::Edit::Reset, replaced: s::Replaced::NotOffered },
         ]),
     };
     for (budget, large) in [(bytes, false), (bytes - 1, true)] {
@@ -490,7 +498,7 @@ fn change_settings_keeps_the_charter_documents() {
 fn application_documents_reads_revisions_and_reviews_carry_metadata_only() {
     use jig_client_domain::contract as c;
     use jig_client_protocol_link::translate::{settings as link, settings_proposals as proposals};
-    use s::application::{Follows, Recorded, SizedEdit, State};
+    use s::application::{Follows, RevisionRecorded, SizedEdit, State};
     let limits = w::CEILINGS;
     let client_limits = f::client_limits();
     let mut settings = List::with_capacity(2);
@@ -538,7 +546,13 @@ fn application_documents_reads_revisions_and_reviews_carry_metadata_only() {
             revision: s::Revision {
                 head: head(),
                 items: Box::new([]),
-                applications: Box::new([Recorded { kind: 7, scope: 0, number: 2, edit: edit.clone() }]),
+                applications: Box::new([RevisionRecorded {
+                    kind: 7,
+                    scope: 0,
+                    number: 2,
+                    edit: edit.clone(),
+                    replaced: s::application::Replaced::NotOffered,
+                }]),
             },
             value_bytes: 0,
         };
