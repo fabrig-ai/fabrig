@@ -77,3 +77,18 @@ reads the cleared change's merge row through it (the `merge` it is given and the
 `repository`). Test it through the result words in `forge_route/tests.rs`; no story of its own
 is needed. `ChangeRow.repairs` and `TierRepair.by` are `store-surface`'s: this task needs it,
 so start from a trunk that holds its merge, and define neither field here.
+
+## Rebase (2026-11-03, step merge, foreman reference-m9/repairs-verdict/foreman-2)
+
+rebase repair wording onto main’s retained clearing-run rendering.
+The merge conflicts in `temper/crates/temper-engine-domain/src/route/forge_route.rs` and its `forge_route/tests.rs`.
+Main commit `09010971a5000722f34d994bf1c11ac346dbbf98` (“temper: retain clearing runs in change results”), integrated through `ba2caaa8aa`, changes the same functions and fixtures.
+Preserve main’s retained verdicts, per-tier lines, clearing run numbers, cancellation wording and removal of `tier_landing_run`.
+In `change_verification_words`, add `; repaired by HEX12.` when `TierRepair.by` is `Some`; retain main’s existing sentence when it is `None`.
+Keep the authorized `landing_verification` lookup using the change’s repository and merge commit; reconcile the function signature and callers accordingly.
+In tests, preserve main’s `result_verdicts` fixture and run-number assertions. Adapt the branch’s repair fixtures to retained verdicts instead of restoring configured-tier fallback rendering.
+Expect the run-only repair line to be `Cleared by browser run 2, which passed the failures blamed on it.`
+Preserve coverage for the repairing commit and multiple tiers, with each retained tier on its own line.
+Keep the auto-merged `judged` repairer selection, its tests and the authorized accessor.
+Stay within the four task files; leave `change_batch`, `chat_change` and `start_change` untouched.
+Run the spec’s focused tests and formatting/clippy checks after resolving the conflicts.
