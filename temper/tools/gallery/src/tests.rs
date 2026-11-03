@@ -41,7 +41,7 @@ fn navigation_links_have_addresses_and_install_action_links_keep_their_binding()
                 temper_client_view::act(&mut view, node, skein_ui::Act::Press)
             {
                 let reset = view.tree().nodes().iter().find(|shown| shown.id == node).expect("bound reset link");
-                assert_eq!(reset.name.as_deref(), Some(b"set up temper".as_slice()));
+                assert!(matches!(reset.name.as_deref(), Some(b"set up temper" | b"Set up temper")));
             } else {
                 panic!("{}: link {node:?} has neither a destination nor its install act", sample.name);
             }

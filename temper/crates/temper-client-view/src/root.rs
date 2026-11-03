@@ -139,7 +139,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
     view.accounts.begin(root.pages().accounts().is_none());
     let mut builder = view.render.builder();
     builder.open(Role::Page);
-    crate::frame::banner(&mut builder, root, &view.forge_words, &mut view.pages);
+    crate::frame::banner(&mut builder, root, &view.forge_words, &mut view.pages, &mut view.forge);
     match root.pages().address() {
         temper_client_domain::Address::Welcome { .. } => {}
         temper_client_domain::Address::ConnectModel { .. }

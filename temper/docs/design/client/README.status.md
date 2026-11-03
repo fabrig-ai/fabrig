@@ -29,5 +29,3 @@
   as ready, where it shows `ConnectModel`'s Choose. 3.5, With no project
   yet: its heading, words and acts; `pages/chats.rs` draws the list
   alone.
-  5.1: the switcher and "Set up temper" in the banner's corner;
-  `frame.rs` draws every project as a button of "Menu".
