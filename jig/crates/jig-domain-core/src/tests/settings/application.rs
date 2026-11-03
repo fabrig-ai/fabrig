@@ -87,12 +87,22 @@ fn change(
     items: Box<[s::Item]>,
     answers: Box<[Box<[connector::Judged]>]>,
 ) -> Box<[Request]> {
+    let key = [u8::try_from(core.current.newest()).unwrap(); 16];
+    change_key(core, limits, items, answers, key)
+}
+fn change_key(
+    core: &mut Core,
+    limits: &Limits,
+    items: Box<[s::Item]>,
+    answers: Box<[Box<[connector::Judged]>]>,
+    key: [u8; 16],
+) -> Box<[Request]> {
     let previous = core.current.newest();
     let mut events = Queue::uncapped();
     events.push(Event::ChangeSettings {
         reply_to: ReplyTo::new(Token::new(91)),
         sign_in: 10,
-        key: [u8::try_from(previous).unwrap(); 16],
+        key,
         digest: [u8::try_from(previous).unwrap(); 32],
         change: Box::new(s::Change { against: previous, items, running: s::Running::Stays }),
     });
@@ -311,10 +321,10 @@ fn application_count_cannot_pass_per_scope() {
 }
 
 #[test]
-fn application_removed_states_do_not_exhaust_the_declared_active_value_bound() {
+fn application_removed_states_hold_their_slots() {
     let (mut core, limits) = application_core_with(Box::new([kind(1, 2)]));
     assert_eq!(core.current.applications.capacity(), 2);
-    for number in 1..=3 {
+    for number in 1..=2 {
         let out = change(&mut core, &limits, Box::new([set(number)]), Box::new([Box::new([accept(5, &[])])]));
         assert_eq!(outcome(&out), people::Outcome::SettingsChanged { revision: number * 2 });
         let out = change(
@@ -325,10 +335,51 @@ fn application_removed_states_do_not_exhaust_the_declared_active_value_bound() {
         );
         assert_eq!(outcome(&out), people::Outcome::SettingsChanged { revision: number * 2 + 1 });
     }
-    for number in 1..=3 {
+    let refused = change(&mut core, &limits, Box::new([set(3)]), Box::default());
+    assert_eq!(
+        outcome(&refused),
+        people::Outcome::Refused(people::Refusal::NotWellFormed {
+            at: 0,
+            why: people::Malformed::Settings { setting: setting(3), fault: s::Fault::Count },
+        })
+    );
+    assert_eq!(core.current.newest(), 5);
+    assert_eq!(core.current.applications.len(), 2);
+    assert!(kept(&refused).is_empty());
+    assert_eq!(application_writes(&refused), 0);
+    for number in 1..=2 {
         assert_eq!(
             core.current.applications.get(&setting(number)).unwrap().follows,
             app::Follows::Removed { revision: number * 2 + 1 }
         );
+    }
+    let updated = change_key(&mut core, &limits, Box::new([set(1)]), Box::new([Box::new([accept(5, &[])])]), [99; 16]);
+    assert_eq!(outcome(&updated), people::Outcome::SettingsChanged { revision: 6 });
+    assert_eq!(core.current.applications.len(), 2);
+    assert_eq!(core.current.applications.get(&setting(1)).unwrap().follows, app::Follows::Changed { revision: 6 });
+}
+
+#[test]
+fn application_removal_and_reset_of_new_numbers_take_slots() {
+    for edit in [s::Edit::Removed, s::Edit::Reset] {
+        let (mut core, limits) = application_core_with(Box::new([kind(1, 2)]));
+        let kept = change(
+            &mut core,
+            &limits,
+            Box::new([item(1, edit.clone()), item(2, edit.clone())]),
+            Box::new([Box::new([accept(0, &[]), accept(0, &[])])]),
+        );
+        assert_eq!(outcome(&kept), people::Outcome::SettingsChanged { revision: 2 });
+        let refused = change(&mut core, &limits, Box::new([item(3, edit)]), Box::default());
+        assert_eq!(
+            outcome(&refused),
+            people::Outcome::Refused(people::Refusal::NotWellFormed {
+                at: 0,
+                why: people::Malformed::Settings { setting: setting(3), fault: s::Fault::Count },
+            })
+        );
+        assert_eq!(core.current.newest(), 2);
+        assert_eq!(core.current.applications.len(), 2);
+        assert_eq!(application_writes(&refused), 0);
     }
 }

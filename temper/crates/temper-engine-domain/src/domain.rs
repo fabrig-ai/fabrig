@@ -83,6 +83,7 @@ pub struct Domain {
     pub(crate) run_workspaces: Map<u64, PreparedWorkspace>,
     pub(crate) forge: forge::Domain,
     pub(crate) application: Option<(Token, crate::Application)>,
+    pub(crate) kinds: Box<[crate::KindValue]>,
     pub(crate) application_carried: Option<jig_domain_core::Carried>,
     pub(crate) application_playground: Option<crate::route::playground::Context>,
     pub(crate) playground_contexts: Map<Token, crate::route::playground::Context>,
@@ -472,6 +473,7 @@ impl Domain {
             run_workspaces: Map::with_capacity(limits.tasks.tasks),
             forge,
             application: None,
+            kinds: Box::default(),
             application_carried: None,
             application_playground: None,
             playground_contexts: Map::with_capacity(limits.forge.applications),
@@ -694,6 +696,7 @@ fn finish_close(
     finishing_only: bool,
 ) -> bool {
     if domain.start_stop().is_some() {
+        domain.kinds = Box::default();
         out.push(Request::Stop);
         return false;
     }
@@ -705,6 +708,7 @@ fn finish_close(
     let finished = requests.is_empty();
     route_core_requests(domain, env, &mut decision, requests);
     route_into(domain, env, &mut decision);
+    domain.kinds = Box::default();
     let persist_header = domain.core_header_loaded
         && (domain.start_phase() != Some(jig_domain_core::start::Phase::LoadCore) || domain.startup_range.is_none());
     let empty = finished

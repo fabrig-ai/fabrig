@@ -121,7 +121,7 @@ pub(crate) fn proposal(name: run::CallName, bytes: &[u8], configured: &[engine::
     Ok(Decoded::Call(engine::Call {
         completion: name.completion,
         position: name.position,
-        tool: engine::Tool::ProposeSettings { against, items, reason },
+        tool: engine::Tool::ProposeSettings { against, items, reason, kinds: Box::default() },
     }))
 }
 

@@ -2,7 +2,16 @@ use crate::{Bounds, v1};
 use alloc::boxed::Box;
 use skein_lib::List;
 
-pub const BOUNDS: Bounds = Bounds { field_bytes: 16, checks: 2, contexts: 2, refusal_bytes: 64 };
+pub const BOUNDS: Bounds = Bounds {
+    segments: 3,
+    segment_bytes: 8,
+    gates: 2,
+    approvals: 1,
+    field_bytes: 16,
+    checks: 2,
+    contexts: 2,
+    refusal_bytes: 64,
+};
 
 pub fn limits() -> v1::Limits {
     crate::limits(&BOUNDS).expect("test bounds within ceilings")

@@ -18,6 +18,7 @@ mod docs;
 mod finish;
 mod forge;
 mod json;
+pub mod kinds;
 mod nested;
 mod notes;
 mod reference;

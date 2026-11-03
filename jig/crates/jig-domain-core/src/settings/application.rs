@@ -107,7 +107,7 @@ pub(crate) fn projects(items: &[super::Item]) -> Box<[u32]> {
     result.into_boxed()
 }
 
-/// The core checks names, scopes, bytes and the count the overlay would leave before asking a connector.
+/// The core checks names, scopes, bytes and retained slots before asking a connector.
 pub(crate) fn check(core: &Core, items: &[super::Item]) -> Result<(), Failure> {
     for item in items {
         let (kind, scope, number) = match item.setting {
@@ -136,19 +136,14 @@ pub(crate) fn check(core: &Core, items: &[super::Item]) -> Result<(), Failure> {
             super::Edit::Removed | super::Edit::Reset => {}
         }
         let mut count = 0_u32;
-        for (&setting, state) in &core.current.applications {
-            if same_scope(setting, kind, scope) && leaves_present(items, setting, state) {
+        for (&setting, _) in &core.current.applications {
+            if same_scope(setting, kind, scope) {
                 count = count.checked_add(1).expect("bounded settings count");
             }
         }
         for addition in items {
             if same_scope(addition.setting, kind, scope) && !core.current.applications.contains_key(&addition.setting) {
-                match addition.edit {
-                    super::Edit::Set(_) | super::Edit::Reset => {
-                        count = count.checked_add(1).expect("bounded settings count");
-                    }
-                    super::Edit::Removed => {}
-                }
+                count = count.checked_add(1).expect("bounded settings count");
             }
         }
         if count > declared.per_scope {
@@ -161,20 +156,6 @@ fn same_scope(setting: Setting, kind: u32, scope: u32) -> bool {
     match setting {
         Setting::Application { kind: held, scope: held_scope, .. } => kind == held && scope == held_scope,
         Setting::Charter(_) | Setting::Template(_) | Setting::Policy(_) | Setting::Rules => false,
-    }
-}
-fn leaves_present(items: &[super::Item], setting: Setting, state: &State) -> bool {
-    for item in items {
-        if item.setting == setting {
-            return match item.edit {
-                super::Edit::Removed => false,
-                super::Edit::Set(_) | super::Edit::Reset => true,
-            };
-        }
-    }
-    match state.follows {
-        Follows::Removed { .. } => false,
-        Follows::Changed { .. } | Follows::Default => true,
     }
 }
 #[expect(clippy::manual_find, reason = "the strict subset iterates without a closure")]

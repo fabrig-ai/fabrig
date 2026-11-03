@@ -402,27 +402,6 @@ impl Domain {
     /// Read the landing branch's procedure waits (temper/docs/design/domain/forge.md, 8.7).
     #[must_use]
     pub fn requires(&self, repository: &Repository, branch: &[u8]) -> crate::Requires {
-        fn branch_resource_name(repository: &Repository, branch: &[u8]) -> Option<Box<[Box<[u8]>]>> {
-            let mut segments = List::uncapped();
-            for segment in [b"forge".as_slice(), &repository.host, &repository.owner, &repository.name, b"branch"] {
-                if segment.is_empty() {
-                    return None;
-                }
-                segments.push(Box::from(segment)).ok()?;
-            }
-            let mut start = 0;
-            for at in 0..=branch.len() {
-                if at == branch.len() || branch.get(at) == Some(&b'/') {
-                    let part = branch.get(start..at)?;
-                    if part.is_empty() {
-                        return None;
-                    }
-                    segments.push(Box::from(part)).ok()?;
-                    start = at.checked_add(1)?;
-                }
-            }
-            Some(segments.into_boxed())
-        }
         match branch_resource_name(repository, branch) {
             Some(name) => crate::gates::requires(&self.gate_policy, repository.project, &name),
             None => crate::Requires { ci: true, up_to_date: true },
@@ -687,7 +666,8 @@ impl Domain {
     #[expect(clippy::match_like_matches_macro, reason = "the foundation forbids matches in domain steps")]
     pub fn guards_landing(&self, project: u32, requirement: u16, parameters: u32) -> bool {
         match (requirement, crate::judge::criterion(&self.judges, project, parameters)) {
-            (1, Some(crate::Criterion::Ci))
+            (5, _)
+            | (1, Some(crate::Criterion::Ci))
             | (3, Some(crate::Criterion::Gate { .. }))
             | (4, Some(crate::Criterion::Approval { .. })) => true,
             _ => false,
@@ -710,6 +690,11 @@ impl Domain {
         evidence: &crate::ChangeEvidence,
         reviewers: &[crate::Reviewer],
     ) -> Option<crate::JudgeVerdict> {
+        match requirement {
+            5 => return self.judge_held_landing(false, task, head, evidence, reviewers),
+            6 => return self.judge_held_landing(true, task, head, evidence, reviewers),
+            _ => {}
+        }
         let criterion = crate::judge::criterion(&self.judges, project, parameters)?;
         let matching = match criterion {
             crate::Criterion::Ci => requirement == 1,
@@ -6080,6 +6065,28 @@ impl Domain {
         }
         unreachable!("unmade link has a referencing retained row")
     }
+}
+
+pub(crate) fn branch_resource_name(repository: &Repository, branch: &[u8]) -> Option<Box<[Box<[u8]>]>> {
+    let mut segments = List::uncapped();
+    for segment in [b"forge".as_slice(), &repository.host, &repository.owner, &repository.name, b"branch"] {
+        if segment.is_empty() {
+            return None;
+        }
+        segments.push(Box::from(segment)).ok()?;
+    }
+    let mut start = 0;
+    for at in 0..=branch.len() {
+        if at == branch.len() || branch.get(at) == Some(&b'/') {
+            let part = branch.get(start..at)?;
+            if part.is_empty() {
+                return None;
+            }
+            segments.push(Box::from(part)).ok()?;
+            start = at.checked_add(1)?;
+        }
+    }
+    Some(segments.into_boxed())
 }
 
 #[cfg(test)]

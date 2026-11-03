@@ -1136,7 +1136,8 @@ pub(crate) fn subscribe_goal(domain: &mut Domain, env: &Env<Limits>, goal: u64, 
             | Work::ProposalFailed { .. }
             | Work::EndedLoaded { .. }
             | Work::TaskProposalLoaded { .. }
-            | Work::EndedFailed { .. } => {}
+            | Work::EndedFailed { .. }
+            | Work::ForgeSettings(_) => {}
         }
     }
     let Some(members) = goal_members(domain, env, goal, &topic, previous.as_ref()) else { return };
@@ -4396,12 +4397,12 @@ pub(crate) fn effect_ask(
         | jig_domain_core::effects::connector::Ask::Restore { .. }
         | jig_domain_core::effects::connector::Ask::ReadAfresh
         | jig_domain_core::effects::connector::Ask::SettleOutbox => unreachable!("core effect handoff"),
-        jig_domain_core::effects::connector::Ask::JudgeSettings { .. }
+        ask @ (jig_domain_core::effects::connector::Ask::JudgeSettings { .. }
         | jig_domain_core::effects::connector::Ask::KeepSettings { .. }
         | jig_domain_core::effects::connector::Ask::KeepProposalSettings { .. }
         | jig_domain_core::effects::connector::Ask::DropProposalSettings { .. }
-        | jig_domain_core::effects::connector::Ask::SaveSettingsDefaults { .. } => {
-            unreachable!("no application kind is declared")
+        | jig_domain_core::effects::connector::Ask::SaveSettingsDefaults { .. }) => {
+            super::kinds::ask(domain, env, number, ask);
         }
     }
 }

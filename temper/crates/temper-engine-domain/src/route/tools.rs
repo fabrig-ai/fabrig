@@ -99,7 +99,8 @@ pub(crate) fn relay_payload(
             };
             match tool {
                 Tool::Settings { .. } => unreachable!("settings reads enter before replay"),
-                Tool::ProposeSettings { against, items, reason } => {
+                Tool::ProposeSettings { against, items, reason, kinds } => {
+                    domain.kinds = kinds;
                     domain.work.push(Work::Core(core::Event::NamedAction {
                         to: reply_to,
                         key,
