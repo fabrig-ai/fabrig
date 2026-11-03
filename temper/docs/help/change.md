@@ -12,8 +12,12 @@ A change is a task that writes one repository's branch and lands it: its pull re
   from those words alone (temper help task).
   With the control family (amend, cancel, release), a run names, too,
   `landing` (`goal`, a branch, or the default), `after` (the changes
-  it waits for, by task number or a `name` from the same call) and
-  `changes` (several at once, all or none).
+  it waits for, by task number or a `name` from the same call),
+  `changes` (several at once, all or none), `producer` (the charter
+  number its coder, repairs and resolutions run under; left out, the
+  forge's change charter) and `llm` (an LLM choice for its `producer`
+  and its `review`, by configured model and effort names; a role left
+  out takes its charter's default).
 - **Its pull request title** is its coder's, punctuation kept, cut at a
   UTF-8 boundary with “…” where the forge needs it.
 - **Its panel,** as `change show` prints it: `change TASK ·
@@ -32,10 +36,9 @@ A change is a task that writes one repository's branch and lands it: its pull re
   follow its landing branch (temper help tier), the result waits for
   their verdicts and adds a line, `Cleared by TIER run N.`, or `Not
   cleared: no verdict within the verification bound.` Or it fails,
-  or is cancelled, as any task. A coder that concludes the request does
-  not apply ends it successfully, saying why, with no pull request and
-  nothing claimed landed; one that fails for good holds it at
-  `producing` (below).
+  or is cancelled, as any task. A coder that finds the request does not apply
+  ends successfully, saying why, without a pull request; failure for
+  good holds it at `producing` (below).
 
 ## How it changes
 
@@ -96,16 +99,14 @@ stalled`, `its repairs are spent`, `its resolutions are spent`, `its
 updates are spent`, `its branch was moved on the forge`, `its branch
 is missing on the forge`, `its pull request was closed on the forge`,
 `its pull request was retargeted on the forge`, `a delegate or a write
-failed for good`, or `a person rejected a gate`. A release resets its
-counts and goes on from where it was held; held at `producing` because
-its coder failed for good before pushing, it makes a fresh coder, one
-more of its tasks, or holds again if its authority can't cover one.
-Held at `repairing` because its repair failed for good, release makes
-a fresh repair for the same reason, counted against its reset repair
-limit, or holds again if its authority can't cover one.
-Held at `producing`, its hold carries the coder's own words, why it
-made no change, whole within 512 bytes, and its chat hears them:
-cancel it if they hold, or release it if the coder was wrong. Its
+failed for good`, or `a person rejected a gate`. Release resets its
+counts and resumes the held step. A producer that failed for good before
+pushing, or a repair that failed for good, gets a fresh delegate,
+spending another task; repairs count against the reset repair limit.
+It holds again if authority cannot cover a delegate.
+Held at `producing`, its chat hears why the coder made no change,
+whole within 512 bytes: cancel it if that holds, or release it if
+the coder was wrong. Its
 panel also names a held task, the change's own or its writer's or
 reviewer's, `held: task N (REASON)`, with that task's way out: an
 effect vetoed or a step refused, and why (what it lacks, or the
@@ -122,13 +123,13 @@ forge's answer).
   repair; a person's rejection holds it; an advisory gate never blocks.
   A reviewer that gives no verdict is asked once more, then the change
   is held.
-  A reviewer that cannot read what it needs fails saying why;
-  `temper serve`'s stderr, unkept, names each refusal by task, tool
-  and reason; Claude's Read denials are in the task's tool results.
+  A reviewer unable to read fails saying why. `temper serve`'s
+  unkept stderr names each refusal's task, tool and reason; Claude's
+  Read denials are in the task's tool results.
 - **Gates are temper's:** a change's gates run in temper, and `change
   show` prints each, `gate 1 · review · blocking · approved`; temper
   posts none to the forge as a review or a status, so the pull
-  request's reviews there may be empty.
+  request's reviews may be empty.
 - **Bounded work:** past a limit of repairs, resolutions or updates,
   it holds.
 - **The parent hears its result,** landed, and cleared where tiers follow its branch, or not.

@@ -1945,3 +1945,185 @@ fn change_delegates_take_their_roles_saved_llm_choice() {
         assert_eq!(delegate.llm, expected, "{kind:?}");
     }
 }
+fn choice(model: u8, effort: Option<u8>) -> super::tasks::LlmChoice {
+    super::tasks::LlmChoice {
+        account: None,
+        main: super::tasks::ModelEffort { model, effort },
+        subagents: Box::new([]),
+    }
+}
+
+#[test]
+fn change_llm_text_round_trips_each_role_and_optional_effort() {
+    use super::{change_llm, tasks};
+    for (text, producer, llm) in [
+        (b";;".as_slice(), None, crate::ChangeLlm::default()),
+        (b"6;;", Some(6), crate::ChangeLlm::default()),
+        (b";3;", None, crate::ChangeLlm { producer: Some(choice(3, None)), review: None }),
+        (b";;3.0", None, crate::ChangeLlm { producer: None, review: Some(choice(3, Some(0))) }),
+        (b"6;3.1 0.0 2;3.0", Some(6), crate::ChangeLlm {
+            producer: Some(tasks::LlmChoice {
+                subagents: Box::new([
+                    tasks::ModelEffort { model: 0, effort: Some(0) },
+                    tasks::ModelEffort { model: 2, effort: None },
+                ]),
+                ..choice(3, Some(1))
+            }),
+            review: Some(choice(3, Some(0))),
+        }),
+        (b"4294967295;255.255;0", Some(u32::MAX), crate::ChangeLlm {
+            producer: Some(choice(u8::MAX, Some(u8::MAX))), review: Some(choice(0, None)),
+        }),
+    ] {
+        assert_eq!(change_llm::spell(producer, &llm).as_ref(), text);
+        assert_eq!(change_llm::read(text), Some((producer, llm)));
+    }
+}
+
+#[test]
+fn change_llm_text_refuses_malformed_parts_and_too_many_entries() {
+    for text in [
+        b"".as_slice(), b";", b";;;", b"6;3", b"0;;", b"4294967296;;", b"-1;;", b"+1;;",
+        b"x;;", b";256;", b";1.256;", b";1.;", b";.1;", b";1.2.3;", b"; 1;", b";1 ;",
+        b";1  2;", b";1\t2;", b";x;", b";;1  ", b";;\xff", b" 6;;",
+    ] {
+        assert_eq!(super::change_llm::read(text), None, "{text:?}");
+    }
+    let mut text = skein_lib::List::with_capacity(140);
+    super::append(&mut text, b";0");
+    for _ in 0..super::tasks::MODELS {
+        super::append(&mut text, b" 1");
+    }
+    text.push(b';').unwrap();
+    let accepted = super::change_llm::read(text.as_slice()).expect("main plus MODELS sub-agents");
+    assert_eq!(super::change_llm::spell(accepted.0, &accepted.1).as_ref(), text.as_slice());
+    text.truncate(text.len() - 1);
+    super::append(&mut text, b" 2;");
+    assert_eq!(super::change_llm::read(text.as_slice()), None);
+}
+
+fn change_choice_world() -> (super::Domain, skein_lib::Env<super::Limits>, super::tasks::DelegationContext) {
+    use super::{authority, forge, tasks};
+    let mut config = crate::tests::resume_fixture::config(7);
+    let chat = crate::tests::resume_fixture::charter();
+    let mut producer = chat.clone();
+    producer.number = 6;
+    producer.policy.model.name = b"producer".as_slice().into();
+    let mut review = chat.clone();
+    review.number = 4;
+    review.policy.model.name = b"review".as_slice().into();
+    config.core.settings.models = Box::new([chat.policy.model.clone(), producer.policy.model.clone(), review.policy.model.clone()]);
+    config.core.defaults.charters = Box::new([chat, producer, review]);
+    config.core.defaults.rules.ceiling.delegation = authority::Delegation {
+        kinds: Box::new([authority::Executor::Charter(1), authority::Executor::Charter(6), authority::Executor::Charter(4), authority::Executor::Procedure(super::CHANGE_CODE)]),
+        tasks: 20,
+        depth: 4,
+    };
+    config.core.seed_projects[0].policy.policy.ceiling = config.core.defaults.rules.ceiling.clone();
+    let mut limits = crate::tests::resume_fixture::limits();
+    limits.tasks.charters = 6;
+    limits.tasks.executor_kinds = 4;
+    limits.authority.executors = 4;
+    limits.authority.segments = 8;
+    let (mut domain, env) = crate::tests::resume_fixture::root_with_config_and_limits(config, &limits);
+    domain.forge.restore_begin(env.wall);
+    let mut out = skein_lib::Queue::uncapped();
+    let mut repository = adopted(1);
+    repository.project = 1;
+    forge::step(&mut domain.forge, &skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.forge }, forge::Event::Restore { record: forge::Stored::Repository(repository) }, &mut out);
+    let mut authority = jig_domain_core::task_authority(&domain.core.authority.rules().ceiling);
+    authority.tools.0 |= jig_domain_core::ToolFamilies::JIG.control.0;
+    let context = tasks::DelegationContext {
+        project: 1,
+        requester: tasks::Party::Deployment { project: 1 },
+        deciding: true,
+        authority,
+        numbers: tasks::Numbers { budget: 100, spent: 0, spent_below: 0, reserved: 0 },
+        tasks_left: 20,
+    };
+    (domain, env, context)
+}
+
+fn change_choice_batch(
+    domain: &super::Domain,
+    env: &skein_lib::Env<super::Limits>,
+    context: &super::tasks::DelegationContext,
+    change: crate::ChangeCall,
+) -> Result<Box<[super::super::Delegate]>, super::tasks::Refusal> {
+    match super::change_batch(domain, env, 1, context, &[change]) {
+        Ok(batch) => Ok(batch),
+        Err(super::ChangeRefused::Refusal(why)) => Err(why),
+        Err(super::ChangeRefused::Words(words)) => panic!("unexpected refusal {words:?}"),
+    }
+}
+
+#[test]
+fn a_control_changes_procedure_keeps_its_producer_review_and_llm_parameter() {
+    use super::tasks;
+    let (domain, env, context) = change_choice_world();
+    let llm = crate::ChangeLlm { producer: Some(choice(1, None)), review: Some(choice(2, None)) };
+    let change = crate::ChangeCall { producer: Some(6), llm: llm.clone(), ..crate::ChangeCall::words(b"Make the fix".as_slice().into(), None) };
+    let batch = change_choice_batch(&domain, &env, &context, change).unwrap();
+    assert_eq!(batch[0].authority.delegation.kinds.as_ref(), &[tasks::AuthorityExecutor::Charter(6), tasks::AuthorityExecutor::Charter(4)]);
+    assert_eq!(batch[0].spec.parameters[2], tasks::Parameter::Bytes { name: 11, value: b"6;1;2".as_slice().into() });
+    let plain = change_choice_batch(&domain, &env, &context, crate::ChangeCall::words(b"Make the fix".as_slice().into(), None)).unwrap();
+    assert_eq!(plain[0].spec.parameters.len(), 2);
+    let same = change_choice_batch(&domain, &env, &context, crate::ChangeCall { producer: Some(4), ..crate::ChangeCall::words(b"Make the fix".as_slice().into(), None) }).unwrap();
+    assert_eq!(same[0].authority.delegation.kinds.as_ref(), &[tasks::AuthorityExecutor::Charter(4)]);
+}
+
+#[test]
+fn a_changes_unoffered_producer_is_refused_as_an_executor() {
+    let (domain, env, context) = change_choice_world();
+    let change = crate::ChangeCall { producer: Some(5), ..crate::ChangeCall::words(b"Make the fix".as_slice().into(), None) };
+    assert_eq!(change_choice_batch(&domain, &env, &context, change).unwrap_err(), super::tasks::Refusal::Executor);
+}
+
+#[test]
+fn a_changes_llm_choices_are_checked_against_their_own_charters_and_run_models() {
+    use super::tasks;
+    let (domain, env, mut context) = change_choice_world();
+    for (llm, model) in [
+        (crate::ChangeLlm { producer: Some(choice(2, None)), review: None }, 2),
+        (crate::ChangeLlm { producer: None, review: Some(choice(1, None)) }, 1),
+    ] {
+        let change = crate::ChangeCall { producer: Some(6), llm, ..crate::ChangeCall::words(b"Make the fix".as_slice().into(), None) };
+        assert_eq!(change_choice_batch(&domain, &env, &context, change).unwrap_err(), tasks::Refusal::Llm { model, why: tasks::LlmFault::Charter });
+    }
+    let llm = crate::ChangeLlm { producer: Some(choice(1, None)), review: Some(choice(2, None)) };
+    context.authority.models = tasks::Models::from_parts(1, false);
+    let change = crate::ChangeCall { producer: Some(6), llm, ..crate::ChangeCall::words(b"Make the fix".as_slice().into(), None) };
+    assert_eq!(change_choice_batch(&domain, &env, &context, change).unwrap_err(), tasks::Refusal::Llm { model: 1, why: tasks::LlmFault::Authority });
+}
+
+#[test]
+fn jig_admission_refuses_a_procedures_producer_beyond_its_creators_kinds() {
+    use super::authority;
+    let (domain, env, context) = change_choice_world();
+    let change = crate::ChangeCall { producer: Some(6), ..crate::ChangeCall::words(b"Make the fix".as_slice().into(), None) };
+    let batch = change_choice_batch(&domain, &env, &context, change).unwrap();
+    let member = &batch[0];
+    let creator = domain.core.authority.rules().ceiling.clone();
+    let mut child = creator.clone();
+    child.delegation.kinds = Box::new([authority::Executor::Charter(6), authority::Executor::Charter(4)]);
+    assert_eq!(jig_domain_core::task_authority(&child).delegation.kinds, member.authority.delegation.kinds);
+    child.delegation.tasks = member.authority.delegation.tasks;
+    child.delegation.depth = member.authority.delegation.depth;
+    child.budget.spend = member.authority.budget.spend;
+    let mut ask = authority::BatchAsk {
+        project: 1,
+        creator,
+        numbers: authority::Numbers { budget: 100, spent: 0, spent_below: 0, reserved: 0 },
+        tasks_left: context.tasks_left,
+        tasks: Box::new([authority::Delegate { executor: authority::Executor::Procedure(super::CHANGE_CODE), authority: child, symbolic: Box::new([]) }]),
+    };
+    let mut why = skein_lib::Queue::uncapped();
+    assert_eq!(authority::check_batch(&domain.core.authority, &ask, &mut why).answer, authority::Answer::Allow);
+    assert!(why.is_empty());
+    ask.creator.delegation.kinds = Box::new([authority::Executor::Charter(1), authority::Executor::Charter(4), authority::Executor::Procedure(super::CHANGE_CODE)]);
+    assert_eq!(authority::check_batch(&domain.core.authority, &ask, &mut why).answer, authority::Answer::Propose);
+    let Some(authority::Finding::Authority { source: authority::Source::Task, lacks }) = why.pop() else {
+        panic!("the procedure's producer exceeds its creator's delegation kinds");
+    };
+    assert!(lacks.executors);
+}
