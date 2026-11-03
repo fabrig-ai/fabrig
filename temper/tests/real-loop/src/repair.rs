@@ -327,7 +327,12 @@ fn check_ci(ran: &Ran) -> (u64, u64, u64) {
 fn check_repair(ran: &Ran, first: u64) {
     let repair = document(ran, REPAIRED);
     assert_eq!(repair["requester"]["task"], CHANGE);
-    let opening = format!("Repair CI at {}: / changes (pull_request)\n{}", &hex(first)[..12], CUES[3]);
+    let opening = format!(
+        "Repair CI at {}: / changes (pull_request)\n{}. Preserve the requested change and unrelated base content, \
+         including both independent appended lines and existing blank lines; do not remove content to make a check pass.",
+        &hex(first)[..12],
+        CUES[3]
+    );
     assert_eq!(repair["spec"]["specification"]["words"]["bytes"], opening);
     let system = String::from_utf8_lossy(&query_at(ran, 3, 0).system);
     let ci = system.split_once("## CI\n\n").expect("CI brief").1.split_once("\n## ").expect("next section").0;

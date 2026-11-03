@@ -8,11 +8,12 @@ its reds to goals, trailers, what the forge shows and the landing log
 are not (`domain/after-landing.md`, `protocol/store.md`), nor are
 findings, whole (`domain/findings.md`, with their families in
 `protocol/store.md` and their groups in `client/tools.md`). The worker
-runs jobs, but none of temper's kinds is built, so the project's
-tooling, the merge job and its uses (a conflict before a resolution, a
-catch-up into a goal's branch), and the `Rewrite` delivery lag
-(`domain/worker.md`, `protocol/tooling.md`, `domain/forge.md`,
-`domain/agent.md`, `domain/landing.md`, `protocol/git.md`). Settings of temper's kinds lag: the landing rules
+runs temper's merge kind, and the merge job settles a change's conflict
+before a resolution and produces a catch-up into a goal's branch; a
+goal's landing whose update conflicts takes it, but no story runs that
+(`domain/forge.md`). The prepare and key kinds are not built, so the
+turn's tooling and the `Rewrite` delivery lag (`domain/worker.md`,
+`protocol/tooling.md`, `domain/landing.md`, `protocol/git.md`). Settings of temper's kinds lag: the landing rules
 and the forge's charter are still read from the document
 (`domain/root.md`, `domain/forge.md`, `protocol/configuration.md`,
 `domain/agent.md`). A goal's own branch and its landing are built, but

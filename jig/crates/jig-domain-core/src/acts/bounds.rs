@@ -1,4 +1,4 @@
-//! Factual direct bounds and the policy holder for supported widening drafts.
+//! Factual direct bounds and the policy holder for supported widening drafts (domain/authority.md, 8).
 use crate::{
     Core, Limits,
     acts::{Admission, Beyond, Bounds, Recipient, standing},
@@ -162,7 +162,6 @@ pub(super) fn amend(core: &Core, limits: &Limits, party: u64, task: u64, held: O
     let budget_left = role.authority.budget.spend.min(pool_left).saturating_sub(row.authority.budget.spend);
     let mut given = crate::task_authority(&role.authority);
     given.budget.spend = given.budget.spend.min(pool_left);
-    given.delegation.tasks = given.delegation.tasks.min(core.tasks.delegation(task).expect("task context").tasks_left);
     let policy = core.authority.policy(row.project).expect("role belongs to policy");
     let mut hard = crate::task_authority(&policy.ceiling);
     hard.budget.spend = hard.budget.spend.min(pool_left);
@@ -421,7 +420,7 @@ pub(crate) fn amendment_admit_places_in(
         project,
         role: role.number(),
         pool: translate::authority_numbers(numbers),
-        tasks_left: context.tasks_left().ok_or(people::Refusal::Limit { which: people::LimitKind::Arithmetic })?,
+        tasks_left: role_policy.authority.delegation.tasks,
         request: authority::PersonRequest::Amend(after),
     };
     let checked = authority::check_request_with_standing(&core.authority, &ask, standing, &mut findings);
