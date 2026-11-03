@@ -21,3 +21,16 @@ id = 1
 story = "An owner of both the deployment and a project changes charters and the project's policy in one change of settings, through temper ctl's settings file"
 parts = ["policy-item"]
 walk = false
+
+[[part]]
+id = "restore"
+title = "Restoring a version: each item's replaced value kept, a restore proposed, through temper ctl"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/engine.md, 17.10"
+
+[[slice]]
+id = 2
+story = "A settings file of each kind proposed, shown, accepted and restored through temper ctl, and P1's document reaching a run's brief"
+parts = ["restore"]
+walk = true

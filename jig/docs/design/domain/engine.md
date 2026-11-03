@@ -2217,8 +2217,13 @@ judges and keeps it within the change's decision.
   connector that owns its kind, by kind, scope and number: the newest,
   whatever revision a task was made in. Never pinned.
 - **History** keeps, for an application's kind, each revision's edits
-  and sizes; the values past revisions set are not kept, only the
-  current ones and the defaults.
+  and sizes, and the state and size of what each item replaced; the
+  connector keeps the current values, the defaults, and, beside each
+  change it saves, the value the setting held before, by the revision
+  that made the change, for as long as the history keeps that
+  revision's record (17.10), so that a restore proposes them again:
+  every past value a restore reaches is one a later change replaced,
+  and no other is kept.
 - **The root routes, never judges** (root.md, section 11): the judging
   and the keeping are the connector's, in its own terms.
 
