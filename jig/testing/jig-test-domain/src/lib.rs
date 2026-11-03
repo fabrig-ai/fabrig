@@ -336,6 +336,7 @@ pub struct Domain {
     effects: Map<Token, connector::Effect>,
     settings_judges: Map<Token, Token>,
     settings_connectors: Box<[u16]>,
+    public_reads: u32,
     decision_wrote: bool,
     stopped_reported: bool,
     start_opened: bool,
@@ -502,6 +503,7 @@ impl Domain {
                 limits.core.call_records.checked_add(limits.core.tasks.tasks).expect("effect room"),
             ),
             settings_judges: Map::with_capacity(2),
+            public_reads: 0,
             decision_wrote: false,
             stopped_reported: false,
             start_opened: false,
@@ -763,8 +765,8 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
                 let answer = payload(domain, Payload::SettledCall(call));
                 work.push(Work::Core(core::Event::Fleet(fleet::Event::Relayed { to, answer })));
             }
-            Work::Core(core::Event::PublicRead { reply, .. }) => {
-                client_documents::public_busy(&mut decision, reply);
+            Work::Core(core::Event::PublicRead { reply, read }) => {
+                client_documents::public_start(domain, env, &mut decision, reply, read, &mut work);
             }
             Work::Core(event) => {
                 let requests = core::step(&mut domain.core, &env.with(env.limits.core), event);
@@ -938,6 +940,13 @@ pub fn release(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>)
         let delivery = ready.pop().expect("release count");
         match delivery {
             Delivery::Start(continuation) => decide(domain, env, Work::Start(StartInput::Resume(continuation))),
+            Delivery::Core(core::Held::PublicWait { read }) => {
+                step(domain, env, Event::Core(core::Event::PublicDurable { read }));
+            }
+            Delivery::Core(held @ core::Held::PublicRead { .. }) => {
+                domain.public_reads = domain.public_reads.checked_sub(1).expect("one answer per admitted read");
+                out.push(Request::Deliver(Delivery::Core(held)));
+            }
             Delivery::Core(core::Held::MakeEffect { connector, entry }) => {
                 step(domain, env, Event::Connector { number: connector, event: connector::Event::Make { entry } });
             }
