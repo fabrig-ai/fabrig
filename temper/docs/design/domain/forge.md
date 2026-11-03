@@ -1075,7 +1075,9 @@ goal's landing, a change into the base whose branch is the goal's own
 
 - **No producing step,** as for a branch handed over: it starts at
   opening, its head the branch's tip as read then. Its pull request is
-  the branch's into its landing branch.
+  the branch's into its landing branch, its title its words' first line
+  (bytes parameter 10, fitted as a handed branch's title is; an empty
+  first line takes that path's default), its body its words.
 - **Held by its requester, not by the change.** The change takes no
   hold of the branch and hands none: its requester holds it for its own
   life (11.1). The change writes it only through its own delegates (its
