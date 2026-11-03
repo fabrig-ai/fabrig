@@ -6,6 +6,14 @@ use crate::{Authority, Class, Funder, Numbers, Tries};
 use alloc::boxed::Box;
 use skein_lib::{Duration, List, ReplyTo, Wall};
 
+/// A connector's procedure whose tasks, made with a pending dependency, are active and
+/// kept rather than waiting (jig/docs/design/domain/connectors.md, 6.1).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct KeptStart {
+    pub connector: u16,
+    pub code: u32,
+}
+
 /// A closed wake rule for task words and subscription hints (domain/tasks.md, section 8.3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum WakeRule {

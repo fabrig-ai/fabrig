@@ -151,6 +151,8 @@ pub struct Config {
     pub connectors: Box<[u16]>,
     /// Application job kinds and their bounds (jig/docs/design/domain/engine.md, 7.5).
     pub jobs: Box<[jig_domain_link::JobBound]>,
+    /// Connectors' procedures that start kept (jig/docs/design/domain/connectors.md, 6.1).
+    pub kept_starts: Box<[jig_domain_tasks::KeptStart]>,
 }
 
 /// Immutable deployment and run settings used by core decisions.
@@ -530,13 +532,17 @@ impl Core {
             claiming: Map::with_capacity(limits.tasks.tasks),
             due: Queue::uncapped(),
             adopted: Queue::uncapped(),
-            tasks: tasks::Domain::new(
-                &limits.tasks,
-                config.seed,
-                current.newest(),
-                charters::models(&current, &config.settings, limits),
-                charters::efforts(&config.settings),
-            ),
+            tasks: {
+                let mut tasks = tasks::Domain::new(
+                    &limits.tasks,
+                    config.seed,
+                    current.newest(),
+                    charters::models(&current, &config.settings, limits),
+                    charters::efforts(&config.settings),
+                );
+                tasks.set_kept_starts(config.kept_starts);
+                tasks
+            },
             current,
             held: settings::Held::new(limits),
             hub_turns: config.hub_turns,
