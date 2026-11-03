@@ -75,7 +75,7 @@ jig-domain-fleet.workspace = true
 jig-domain-tasks.workspace = true
 skein-fake-llm-domain.workspace = true
 skein-llm.workspace = true
-rustls.workspace = true
+rustls = { workspace = true, features = ["std"] }
 temper-real-loop-world = { path = "../../tests/real-loop" }
 smith-fake-claude.workspace = true
 smith-local-process-world.workspace = true
