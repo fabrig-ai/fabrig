@@ -40,7 +40,21 @@ its tree; every task updates its tree's design text and status files (`notes/com
      a bearer and an `env` value as a key (6.2: Anthropic takes a key in `x-api-key`), never the
      withdrawn grant. The product's worlds, end-to-end tests and benchmark pins move to
      `openai`. One branch: the product's worlds go red without the product change.
-4. **smith-channel-v6** (smith, with jig's and temper's lines naming what leaves): to come.
+4. **smith-agent-channel** (smith, with jig's and temper's lines naming what leaves;
+   `smith/docs/design/protocol/channel.md, 6`), slice 4: two tasks, in order, since smith's own
+   worlds can grant Codex only through the withdrawn grant.
+   - `tasks/smith-agent-llm.md`, high, ~180 minutes, needs the three parts above: the agent's
+     configuration refuses an endpoint's `account` and `identity` and the `codex` provider; the
+     LLM component drops the identity profile, serves `openai` and `anthropic` alone, and installs
+     a key alone on `anthropic` (llm.md 7: a scheme the dialect does not take); smith's worlds
+     move to the public route and to keys (`limits.openai`, `public_call`); jig's and temper's
+     `identity:` lines go. smith's arms on skein's `OpenAiCodex`, `Cap::AccountId` and
+     `CredentialLimits.account_id` stay, inert, for skein's task.
+   - `tasks/smith-channel-v6.md`, high, ~150 minutes, needs `smith-agent-llm`: `channel-v5` is
+     renamed `channel-v6` (as v4 became v5), without `GrantValue`'s withdrawn arm (tag 2) and
+     `Cap`'s `account_id` (tag 20), both last, so nothing renumbers; every half and reader drops
+     them, jig's `jig-test-service` arm and temper's `temper-service` and `temper-worker-domain`
+     arms included.
 5. **skein-routes** (skein): to come.
 
 ## Critical path

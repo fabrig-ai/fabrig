@@ -49,3 +49,16 @@ id = 3
 story = "smith's product runs on the openai and anthropic presets alone: settings naming the codex preset or an identity are refused with use openai/<model>, and the local service lends a bearer or a key, never an account id"
 parts = ["smith-product"]
 walk = false
+
+[[part]]
+id = "smith-agent-channel"
+title = "smith: the agent refuses codex, account and identity; the channel at v6 without the withdrawn grant and Cap::AccountId"
+mode = "direct"
+needs = ["temper-configs", "jig-dialects", "smith-product"]
+design = "smith/docs/design/protocol/channel.md, 6"
+
+[[slice]]
+id = 4
+story = "smith's agent refuses an endpoint's account, identity and the codex dialect, its LLM component serves openai and anthropic alone, and its channel speaks v6, with no account id in any grant or failure"
+parts = ["smith-agent-channel"]
+walk = false
