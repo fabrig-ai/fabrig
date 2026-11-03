@@ -1,5 +1,6 @@
 use super::fixtures;
 use skein_io::kernel::{Error, Exit, Kind, Stat};
+use temper_client_domain::forge::forges::PASTED_PAYLOAD;
 const ADD: &[&[u8]] = &[b"account", b"add-key", b"1", b"/linked-parent/link-file", b"--deployment", b"--key", b"key"];
 const AT_BOUND: &[u8] = &[b'k'; 4096];
 const OVER_BOUND: &[u8] = &[b'k'; 4097];
@@ -113,11 +114,11 @@ fn a_key_calls_directory_failure_prints_the_directorys_line_alone() {
         assert_eq!(str::from_utf8(f.stderr()).expect("diagnostic"), line);
     }
 }
-const APP_BOUND: &[u8] = &[b'p'; 4089];
-const APP_OVER: &[u8] = &[b'p'; 4090];
+const APP_BOUND: &[u8] = &[b'p'; PASTED_PAYLOAD];
+const APP_OVER: &[u8] = &[b'p'; PASTED_PAYLOAD + 1];
 const APP_NEWLINE: &[u8] = &{
-    let mut bytes = [b'p'; 4090];
-    bytes[4089] = b'\n';
+    let mut bytes = [b'p'; PASTED_PAYLOAD + 1];
+    bytes[PASTED_PAYLOAD] = b'\n';
     bytes
 };
 
@@ -163,7 +164,7 @@ fn an_app_key_refuses_empty_and_oversized_files_before_opening_directory() {
     }
 }
 #[test]
-fn an_app_key_strips_one_final_lf_and_reserves_seven_bytes_for_the_bundle() {
+fn an_app_key_strips_one_final_lf_and_reserves_the_bundle_framing() {
     for (file, pem) in [
         (b"fake-pem\n".as_slice(), b"fake-pem".as_slice()),
         (b"fake-pem\n\n", b"fake-pem\n"),
@@ -174,7 +175,7 @@ fn an_app_key_strips_one_final_lf_and_reserves_seven_bytes_for_the_bundle() {
         f.link = file;
         f.sign_in_then_deliver_me();
         assert_eq!(f.carried_keys.len(), 1);
-        let mut expected = vec![0, 1, 10];
+        let mut expected = vec![0, 1, 0, 0, 0, 1, 10];
         expected.extend_from_slice(&u32::try_from(pem.len()).expect("bounded PEM").to_be_bytes());
         expected.extend_from_slice(pem);
         assert_eq!(f.carried_keys[0].expose(), expected);
@@ -218,7 +219,7 @@ fn an_admin_token_strips_one_final_lf_and_carries_item_one_without_printing_it()
         f.link = file;
         f.sign_in_then_deliver_me();
         let token = file.strip_suffix(b"\n").unwrap_or(file);
-        let mut expected = vec![0, 1, 0];
+        let mut expected = vec![0, 1, 0, 0, 0, 1, 0];
         expected.extend_from_slice(&u32::try_from(token.len()).expect("bounded token").to_be_bytes());
         expected.extend_from_slice(token);
         assert_eq!(f.carried_keys.len(), 1);
@@ -262,7 +263,7 @@ fn new_forge_connections_load_and_carry_their_credential_file() {
         f.link = ADMIN_TOKEN;
         f.sign_in_then_deliver_me();
         assert_eq!(f.carried_keys.len(), 1);
-        let mut expected = vec![0, 1, item];
+        let mut expected = vec![0, 1, 0, 0, 0, 1, item];
         expected.extend_from_slice(&u32::try_from(ADMIN_TOKEN.len()).expect("fixture token").to_be_bytes());
         expected.extend_from_slice(ADMIN_TOKEN);
         assert_eq!(f.carried_keys[0].expose(), expected);

@@ -1143,7 +1143,7 @@ pub(crate) fn adopted(
 /// Bundle a pasted App's PEM for jig's carried value (protocol/credentials.md, 2.2).
 #[must_use]
 pub fn pasted_app_key(pem: &[u8]) -> Option<skein_lib::Secret> {
-    temper_protocol_records::encode_pasted(11, pem).ok()
+    temper_protocol_records::encode_pasted(&[(11, pem)]).ok()
 }
 
 /// Restore only RSA armour separators stripped by a password input, then bundle it.
@@ -1241,5 +1241,5 @@ pub use temper_protocol_records::PASTED_PAYLOAD;
 /// Bundle a site admin's token with the same family as a pasted App key.
 #[must_use]
 pub fn pasted_admin_token(token: &[u8]) -> Option<skein_lib::Secret> {
-    temper_protocol_records::encode_pasted(1, token).ok()
+    temper_protocol_records::encode_pasted(&[(1, token)]).ok()
 }

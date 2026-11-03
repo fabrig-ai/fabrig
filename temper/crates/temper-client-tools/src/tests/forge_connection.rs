@@ -1,6 +1,7 @@
 use super::fixtures as f;
 use jig_client::{self as client, contract as c};
 use skein_lib::{Reader, RequestEnvelope, Secret};
+use temper_client_domain::forge::forges::PASTED_PAYLOAD;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 const CONNECT: &[&str] = &["forge", "connect", "3", "github-app", "4242", "app.pem", "--key", "app"];
@@ -11,8 +12,8 @@ const INSTALL: &[&str] = &["forge", "install", "3"];
 const ACCEPT: &[&str] = &["forge", "accept", "3", "22"];
 // An opaque fake key; neither these step tests nor the shell tests contact a forge.
 const PEM: &[u8] = b"fake-app-pem";
-const AT_BOUND: &[u8] = &[b'p'; 4089];
-const OVER_BOUND: &[u8] = &[b'p'; 4090];
+const AT_BOUND: &[u8] = &[b'p'; PASTED_PAYLOAD];
+const OVER_BOUND: &[u8] = &[b'p'; PASTED_PAYLOAD + 1];
 const ADDRESS: &[u8] = b"https://forge.invalid/install/app";
 
 fn request(root: &f::Harness, call: u32) -> w::Request {
@@ -69,8 +70,8 @@ fn connect_carries_the_bundle_once_without_saving_it() {
         assert_eq!(app.id(), 4242);
         assert_eq!(*app.read_only(), Some(false));
         assert_eq!(root.sent_name(call), Some(f::named("app")));
-        let mut expected = skein_lib::Writer::new(pem.len().checked_add(7).expect("bundle length"));
-        expected.put(&[0, 1, 10]).expect("header");
+        let mut expected = skein_lib::Writer::new(pem.len().checked_add(4096 - PASTED_PAYLOAD).expect("bundle length"));
+        expected.put(&[0, 1, 0, 0, 0, 1, 10]).expect("header");
         expected.put(&u32::try_from(pem.len()).expect("bounded").to_be_bytes()).expect("length");
         expected.put(pem).expect("PEM");
         assert_eq!(root.carried[&call].expose(), expected.finish().as_ref());
@@ -316,8 +317,8 @@ fn admin_connect_carries_item_one_with_the_file_bytes_unchanged() {
         let w::Request::Connect(connect) = request(&root, call) else { panic!("connect") };
         let w::How::ForgejoAdmin(admin) = connect.how() else { panic!("admin") };
         assert!(admin.first().is_none());
-        let mut expected = skein_lib::Writer::new(token.len() + 7);
-        expected.put(&[0, 1, 0]).unwrap();
+        let mut expected = skein_lib::Writer::new(token.len() + (4096 - PASTED_PAYLOAD));
+        expected.put(&[0, 1, 0, 0, 0, 1, 0]).unwrap();
         expected.put(&u32::try_from(token.len()).expect("bounded token").to_be_bytes()).unwrap();
         expected.put(token).unwrap();
         let expected = expected.finish();

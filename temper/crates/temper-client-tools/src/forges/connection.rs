@@ -277,7 +277,7 @@ pub(super) fn send(
         Some(pem) => {
             let bundled = if admin { admin_token(pem.expose()) } else { domain::pasted_app_key(pem.expose()) };
             let Some(value) = bundled else {
-                let printed = render::failure(b"credential file must contain 1 to 4089 bytes", called.json, 1);
+                let printed = render::failure(b"credential file must contain 1 to 4085 bytes", called.json, 1);
                 finish(called, printed, out);
                 return;
             };
