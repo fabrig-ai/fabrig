@@ -96,6 +96,13 @@ fn start(start: &engine::ForgeStart, limits: &v1::Limits) -> Result<v1::Start, v
         engine::ForgeStart::Merge { branch, base } => {
             v1::Start::Merge(v1::Merge::new(limits, v1::MergeParts { branch: branch.clone(), base: *base })?)
         }
+        engine::ForgeStart::Merged { branch, heads } => {
+            let mut ordered = List::with_capacity(limits.merged_heads);
+            for head in heads {
+                ordered.push(*head).or(Err(problem(v1::Path::MergedHeads)))?;
+            }
+            v1::Start::Merged(v1::Merged::new(limits, v1::MergedParts { branch: branch.clone(), heads: ordered })?)
+        }
     })
 }
 fn problem(path: v1::Path) -> v1::Problem {

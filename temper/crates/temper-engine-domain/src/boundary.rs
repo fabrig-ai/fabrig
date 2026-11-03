@@ -90,7 +90,16 @@ pub enum ForgeStart {
     Base(Box<[u8]>),
     Branch(Box<[u8]>),
     Saved(Box<[u8]>),
-    Merge { branch: Box<[u8]>, base: skein_forge::api::Commit },
+    Merge {
+        branch: Box<[u8]>,
+        base: skein_forge::api::Commit,
+    },
+    /// The landing branch with each head merged into it in order
+    /// (temper/docs/design/domain/worker.md, 4.1).
+    Merged {
+        branch: Box<[u8]>,
+        heads: Box<[skein_forge::api::Commit]>,
+    },
 }
 
 /// One adopted repository translated for the worker's workspace.

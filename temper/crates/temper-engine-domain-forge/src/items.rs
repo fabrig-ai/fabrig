@@ -18,6 +18,9 @@ pub enum Start {
     Saved(Box<[u8]>),
     /// Resolve this branch against the named base commit.
     Merge { branch: Box<[u8]>, base: api::Commit },
+    /// The landing branch with each head merged into it in order
+    /// (temper/docs/design/domain/worker.md, 4.1).
+    Merged { branch: Box<[u8]>, heads: Box<[api::Commit]> },
 }
 /// Root-translated identities and branch names for one repository.
 #[derive(Debug)]
@@ -112,7 +115,7 @@ impl Domain {
                     Some(push) if branch == push => Some(row.base.clone()),
                     Some(_) | None => None,
                 },
-                Start::Base(_) | Start::Saved(_) | Start::Merge { .. } => None,
+                Start::Base(_) | Start::Saved(_) | Start::Merge { .. } | Start::Merged { .. } => None,
             },
             Some((
                 _,
@@ -126,7 +129,11 @@ impl Domain {
             .checked_add(u64::try_from(repository.host.len()).ok()?)?
             .checked_add(u64::try_from(repository.owner.len()).ok()?)?;
         let branch = match &start {
-            Start::Base(branch) | Start::Branch(branch) | Start::Saved(branch) | Start::Merge { branch, .. } => branch,
+            Start::Base(branch)
+            | Start::Branch(branch)
+            | Start::Saved(branch)
+            | Start::Merge { branch, .. }
+            | Start::Merged { branch, .. } => branch,
         };
         bytes = bytes.checked_add(u64::try_from(branch.len()).ok()?)?;
         if let Some(push) = &push {

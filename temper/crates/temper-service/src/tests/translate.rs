@@ -396,11 +396,12 @@ fn a_conflicted_preparation_reaches_the_engine_with_its_tag_and_head() {
 }
 
 #[test]
-fn merged_items_decode_to_the_workers_ordered_heads() {
+fn a_merged_start_carries_its_branch_and_heads_in_order() {
     let limits = fixtures::wire_limits();
     let mut assignment = fixtures::assignment_with(fixtures::repository(7, b"acme", b"shop"));
-    assignment.workspace.repositories[0].start = root::ForgeStart::Base(b"main".as_slice().into());
-    let original = translate::items(
+    assignment.workspace.repositories[0].start =
+        root::ForgeStart::Merged { branch: b"main".as_slice().into(), heads: Box::new([[4; 32], [3; 32], [4; 32]]) };
+    let items = translate::items(
         &assignment,
         &fixtures::forge_table(&fixtures::forges()),
         &crate::forge::tokens::Tokens::empty(),
@@ -408,23 +409,13 @@ fn merged_items_decode_to_the_workers_ordered_heads() {
     )
     .unwrap()
     .unwrap();
-    let mut parts = original.repositories().get(0).unwrap().clone().into_parts();
-    let mut heads = List::with_capacity(2);
-    heads.push([3; 32]).unwrap();
-    heads.push([4; 32]).unwrap();
-    parts.start = wire::Start::Merged(
-        wire::Merged::new(&limits, wire::MergedParts { branch: b"main".as_slice().into(), heads }).unwrap(),
-    );
-    let mut repositories = List::with_capacity(1);
-    repositories.push(wire::Repository::new(&limits, parts).unwrap()).unwrap();
-    let items = wire::Items::new(&limits, wire::ItemsParts { repositories }).unwrap();
     let bytes = temper_protocol_worker_wire::items(&items);
     let decoded = wire::Items::decode(&limits, &mut skein_lib::Reader::new(&bytes)).unwrap();
     assert_eq!(
         translate::workspace(Some(&decoded)).repositories[0].start,
         temper_worker_domain::wire::Start::Merged {
             branch: b"main".as_slice().into(),
-            heads: Box::new([[3; 32], [4; 32]])
+            heads: Box::new([[4; 32], [3; 32], [4; 32]])
         }
     );
 }

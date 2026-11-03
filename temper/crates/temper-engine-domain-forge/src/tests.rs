@@ -2179,6 +2179,7 @@ fn workspace_landing_is_only_for_an_existing_inherited_writable_producer() {
                         items::Start::Base(b)
                         | items::Start::Branch(b)
                         | items::Start::Saved(b)
+                        | items::Start::Merged { branch: b, .. }
                         | items::Start::Merge { branch: b, .. } => b,
                     };
                     let pushed = match &item.push {
