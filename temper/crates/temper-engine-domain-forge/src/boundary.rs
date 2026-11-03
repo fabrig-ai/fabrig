@@ -838,7 +838,7 @@ pub struct ChangeRow {
     pub report: Box<[u8]>,
     /// The commit this catch-up merges (temper/docs/design/domain/forge.md, 8.2).
     pub catch_up: Option<skein_forge::api::Commit>,
-    /// The last merge job's result, at most 64 KiB (temper/docs/design/domain/forge.md, 8.4).
+    /// The last merge job's result, at most 512 bytes (temper/docs/design/domain/forge.md, 8.4).
     pub merge_result: Option<Box<[u8]>>,
 }
 impl ChangeRow {
