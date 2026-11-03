@@ -1,0 +1,3 @@
+draft = "withdrawn-forms"
+repo = "fabrig"
+sources = ["temper/docs/plan/withdrawn-forms/inputs/request.md", "skein/docs/design/llm.md", "AGENTS.md"]
