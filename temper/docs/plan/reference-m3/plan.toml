@@ -10,6 +10,7 @@ sources = ["temper/docs/plan/reference-m3/inputs/request.md", "temper/docs/desig
 # reference (the designer's and coordinator's charters, released last, after configuring-p1).
 # The shapes that cross them are notes/contracts.md (C1 to C6).
 
+retired = true
 [buffer]
 low = 1.0
 high = 2.0

@@ -1,4 +1,5 @@
 //! Step-local document rendering; no borrowed document survives a step.
+//! Creating bounds follow jig/docs/design/client/domain/contract.md, 5.3.
 mod account_lines;
 mod account_programs;
 mod account_text;
@@ -163,16 +164,7 @@ fn me_text(me: &Me, book: &Phrasebook, limits: &Limits, out: &mut Text) {
         }
         out.put(b"\n");
         if let Some(creating) = &project.creating {
-            out.put(b"    creating within ");
-            acts::create_bounds(&creating.within, out);
-            match &creating.beyond {
-                jig_client::contract::Beyond::Proposed { to } => acts::proposed(to, Some(me), out),
-                jig_client::contract::Beyond::Refused(why) => {
-                    out.put(b"; refused beyond them: ");
-                    acts::refusal(why, book, out);
-                }
-            }
-            out.put(b"\n");
+            creating_text(creating, me, book, out);
         }
     }
     out.put(b"needs: ");
@@ -194,6 +186,19 @@ fn me_text(me: &Me, book: &Phrasebook, limits: &Limits, out: &mut Text) {
     out.number(me.retention.as_nanos().checked_div(1_000_000_000).expect("nonzero divisor"));
     out.put(b" seconds\n");
     offers::text(me, limits, out);
+}
+fn creating_text(creating: &jig_client::contract::Creating, me: &Me, book: &Phrasebook, out: &mut Text) {
+    out.put(b"    creating within ");
+    acts::create_bounds(&creating.within, out);
+    match &creating.beyond {
+        jig_client::contract::Beyond::Proposed { to } => acts::proposed(to, Some(me), out),
+        jig_client::contract::Beyond::Refused(why) => {
+            out.put(b"; refused beyond them: ");
+            acts::refusal(why, book, out);
+        }
+    }
+    out.put(b"\n    creating delegation: tasks = min(role tasks, deployment tree tasks) - 1; depth = role depth - 1");
+    out.put(b"; the root task consumes one task and one depth level\n");
 }
 fn role(role: HeldRole, out: &mut Text) {
     match role {
@@ -293,6 +298,7 @@ fn task_with_specification(
     super::task_source::summary(task, out);
     task_settings::text(task.settings.as_ref(), out);
     dependencies::text(task, me, book, out);
+    llm::text_choice(task.llm.as_ref(), out);
     llm::text_wait(task.run_wait, out);
     out.put(b"\nwaiting on: ");
     waiting(&task.waits_on, me, book, out);

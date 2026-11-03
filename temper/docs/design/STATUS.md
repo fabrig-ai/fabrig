@@ -14,10 +14,12 @@ before a resolution and produces a catch-up into a goal's branch; a
 goal's landing whose update conflicts takes it, but no story runs that
 (`domain/forge.md`). The prepare and key kinds are not built, so the
 turn's tooling and the `Rewrite` delivery lag (`domain/worker.md`,
-`protocol/tooling.md`, `domain/landing.md`, `protocol/git.md`). Settings of temper's kinds lag: the landing rules
-and the forge's charter are still read from the document
-(`domain/root.md`, `domain/forge.md`, `protocol/configuration.md`,
-`domain/agent.md`). A goal's own branch and its landing are built, but
+`protocol/tooling.md`, `domain/landing.md`, `protocol/git.md`). The
+landing rules and the forge's charters are settings of temper's kinds,
+but a project's landing and a repository's gates are still the
+document's (`protocol/configuration.md`, `domain/landing.md`), and the
+forge's world tells none of their stories (`domain/forge.md`,
+`domain/testing.md`). A goal's own branch and its landing are built, but
 for the held landing's story, ignored for a restart fault
 (`domain/forge.md`). A change relays its agents' questions through a
 foreman of its own or straight up, within its bound, but no story asks

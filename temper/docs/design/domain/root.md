@@ -77,7 +77,7 @@ temper-engine-domain                       the root: the journal, routing, trans
   (jig's `domain/engine.md`, section 6). temper's domain worlds run their
   workers apart.
 - **Its state:** its children's; the journal; what it keeps of its
-  configuration (the forge's number and the forge's charter); its facts
+  configuration (the forge's number); its facts
   waiting to be drained; and the values in flight between a hand-off and
   its answer, each bounded (section 10): a worker's record until the
   fleet takes it, a run's brief sections and workspace while its claim is

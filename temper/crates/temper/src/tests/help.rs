@@ -225,6 +225,64 @@ fn help_prints_a_whole_page_and_names_an_unknown_one() {
 }
 
 #[test]
+fn account_and_deployment_help_explain_offering_another_model() {
+    let account = help::answer(&configured(&["help", "account"])).expect("account help");
+    let account = account.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(account.contains("temper help deployment"), "{account}");
+    assert!(account.contains("Offering another model"), "{account}");
+    let deployment = help::answer(&configured(&["help", "deployment"])).expect("deployment help");
+    let examples = deployment.split("```json\n").skip(1).collect::<Vec<_>>();
+    assert_eq!(examples.len(), 2, "engine and agent model declarations");
+    for example in examples {
+        let json = example.split("```").next().expect("JSON fence");
+        let model: serde_json::Value = serde_json::from_str(json).expect("model declaration JSON");
+        assert_eq!(model["name"], "gpt-6.1-sol");
+        assert_eq!(model["efforts"], serde_json::json!(["high", "medium", "low"]));
+    }
+    let guidance = deployment
+        .split("## Acting on it\n")
+        .nth(1)
+        .expect("deployment procedure")
+        .split("\n## ")
+        .next()
+        .expect("procedure text")
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    for required in [
+        "Offering another model",
+        "`CONFIG/temper.json`",
+        "`engine.llm.models`",
+        "`engine.llm.providers[].models`",
+        "`CONFIG/agent.json`",
+        "`endpoints[].models`",
+        "gpt-6.1-sol",
+        "efforts",
+        "high",
+        "medium",
+        "low",
+        "window",
+        "output",
+        "reasoning_item",
+        "prices",
+        "same model and endpoint names",
+        "illustrative",
+        "provider specifications",
+        "Preserve",
+        "before the first start",
+        "stop",
+        "restart",
+        "same `CONFIG`, `DATA` and `CACHE`",
+    ] {
+        assert!(guidance.contains(required), "deployment help missing {required}: {guidance}");
+    }
+    for words in [vec!["help", "--search", "gpt-6.1-sol"], vec!["help", "--search", "model", "restart"]] {
+        let hits = help::answer(&configured(&words)).expect("model configuration search");
+        assert!(hits.lines().any(|line| line.starts_with("deployment: Acting on it: ")), "{hits}");
+    }
+}
+
+#[test]
 fn box_and_tier_help_name_the_host_runners_node_prerequisite() {
     for (page, heading) in [("box", "Before you start"), ("tier", "Acting on it")] {
         let text = help::answer(&configured(&["help", page])).expect("help page");

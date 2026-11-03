@@ -6,9 +6,4 @@ The case walks the mechanisms of `reference-code-production.md` and
 `reference-landing.md`, and lags where they do; their statuses say
 where, document by document. By step (sections 3 to 7):
 
-- **Design lags:**
-  - **every step:** the goal's changes made by `change` with all their
-    fields (N22) and their agents' LLM choices (N19).
-  - **2, 5:** surveys as sub-agents reaching temper's runs (N10).
-  - **3, 4, 6, 15, 22:** a designer as a change's producer (N13), and the
-    plan's text as design in g (N12, step 4).
+No gaps.
