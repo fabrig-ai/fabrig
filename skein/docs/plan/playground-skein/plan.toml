@@ -51,3 +51,16 @@ id = 3
 story = "skein-playground and its world build natively and for wasm32, laid down for the kit's tasks"
 parts = ["playground"]
 walk = false
+
+[[part]]
+id = "visitor"
+title = "skein-playground: the visitor, a program of the world speaking HTTP as a browser's same-origin fetch"
+mode = "direct"
+needs = []
+design = "skein/docs/design/playground.md, 4"
+
+[[slice]]
+id = 4
+story = "the visitor answers a page's exchanges and stream from skein's HTTP server in the world, sending the Host, the Origin and the jar's cookies a browser would"
+parts = ["visitor"]
+walk = false
