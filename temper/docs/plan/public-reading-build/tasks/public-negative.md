@@ -186,3 +186,12 @@ The ownership rule says: “A fault the walk finds in another task's code is rep
 `temper/crates/temper-service/src/clients.rs` maps the component refusal to `engine.clients`; that diagnostic does not satisfy the required path.
 Fab routes the reported failure, seed 7 and log evidence to the service owner. The next public-negative run preserves the assertion and continues the remaining walk within its files.
 This settles the diagnostic question; the task remains incomplete under its own report.
+
+### 2026-11-03: Should fab route the discarded core.public.* bounds to the temper service/root owner (recommended), or explicitly expand public-negative's ownership to repair that wiring? The tracked change lands, but its public board contains no goal; the required assertion is preserved and the work is committed and pushed. (public-reading-build/public-negative-4, foreman public-reading-build/public-negative/foreman-4)
+
+Route the discarded core.public.* bounds to the temper service/root owner; preserve the goal assertion and public-negative’s ownership.
+The spec says: “Nothing outside the world. A fault the walk finds in another task's code is reported with the failing test, its seed and log, never repaired here.”
+`temper/crates/temper-engine-domain/src/limits.rs`, `core_limits`, sets `public` to `PublicIndexLimits::OFF`; this file is outside the task’s ownership.
+Fab routes `public::every_owner_version_and_kind_answers_as_declared`, seed 7, with the reported `target/public-owners-final.log` evidence to that owner.
+The next public-negative run preserves the assertion, reruns the affected walk after repair, and completes the remaining acceptance within its owned files.
+This settles the routing question; the task remains incomplete under its own report.
