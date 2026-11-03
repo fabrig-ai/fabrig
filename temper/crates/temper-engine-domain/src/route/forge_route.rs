@@ -3108,7 +3108,7 @@ fn change_landing_words(
         for part in parts {
             append(&mut out, part);
         }
-        let verification = change_verification_words(domain, task, merge, bound);
+        let verification = change_verification_words(domain, task, bound);
         if !verification.is_empty() && verification.len() < usize::try_from(out.room()).expect("u32 fits usize") {
             append(&mut out, b"\n");
             append(&mut out, &verification);
@@ -3122,72 +3122,40 @@ fn change_landing_words(
     out.into_boxed()
 }
 
-/// The forge supplies run identities when retained; otherwise name the configured tiers
-/// following this landing's branch (temper/docs/design/domain/after-landing.md, 6).
-fn change_verification_words(domain: &Domain, task: u64, merge: &skein_forge::api::Commit, bound: u32) -> Box<[u8]> {
+/// Name each landing's retained clearing run before its verification row is released
+/// (temper/docs/design/domain/after-landing.md, 6).
+fn change_verification_words(domain: &Domain, task: u64, bound: u32) -> Box<[u8]> {
     let row = domain.forge.change(task).expect("landed change");
     let mut words = List::with_capacity(bound);
-    match row.change.state {
-        forge_change::State::Uncleared { .. } => {
-            let cancelled = change_cancelled(domain, task);
+    if let forge_change::State::Uncleared { .. } = row.change.state {
+        append(
+            &mut words,
+            if change_cancelled(domain, task) {
+                b"Not cleared: cancelled while verifying.".as_slice()
+            } else {
+                b"Not cleared: no verdict within the verification bound.".as_slice()
+            },
+        );
+    }
+    if let forge_change::State::Cleared { .. } = row.change.state {
+        for tier in domain.forge.change_verdicts(task) {
+            let run = match (&tier.repaired, &tier.verdict) {
+                (Some(repaired), _) => repaired.run,
+                (None, Some(verdict)) => verdict.run,
+                (None, None) => continue,
+            };
+            if !words.is_empty() {
+                append(&mut words, b"\n");
+            }
+            append(&mut words, b"Cleared by ");
+            append(&mut words, &tier.tier);
+            append(&mut words, b" run ");
+            append(&mut words, skein_lib::Decimal::of(run).as_bytes());
             append(
                 &mut words,
-                if cancelled {
-                    b"Not cleared: cancelled while verifying."
-                } else {
-                    b"Not cleared: no verdict within the verification bound."
-                },
+                if tier.repaired.is_some() { b", which passed the failures blamed on it." } else { b"." },
             );
         }
-        forge_change::State::Cleared { .. } => {
-            let Some(repository) = domain.forge.repository(row.repository) else { return Box::new([]) };
-            let Some(config) = domain.config.landings.get(&repository.project) else { return Box::new([]) };
-            let mut first = true;
-            for checks in &config.repositories {
-                if checks.repository != row.repository {
-                    continue;
-                }
-                for tier in &checks.tiers {
-                    let branch = match &tier.branch {
-                        Some(branch) => branch,
-                        None => &repository.settings.default_branch,
-                    };
-                    if *branch != row.base {
-                        continue;
-                    }
-                    append(&mut words, if first { b"Cleared by " } else { b", " });
-                    first = false;
-                    append(&mut words, &tier.name);
-                    if let Some(number) = tier_landing_run(domain, row.repository, &tier.name, merge) {
-                        append(&mut words, b" run ");
-                        append(&mut words, skein_lib::Decimal::of(number).as_bytes());
-                    }
-                }
-            }
-            if !first {
-                append(&mut words, b".");
-            }
-        }
-        forge_change::State::Producing { .. }
-        | forge_change::State::Opening { .. }
-        | forge_change::State::Recreating { .. }
-        | forge_change::State::Reopening { .. }
-        | forge_change::State::Checking { .. }
-        | forge_change::State::Gating { .. }
-        | forge_change::State::CancellingGates { .. }
-        | forge_change::State::Ready { .. }
-        | forge_change::State::Preparing { .. }
-        | forge_change::State::Queued { .. }
-        | forge_change::State::First { .. }
-        | forge_change::State::Updating { .. }
-        | forge_change::State::Resolving { .. }
-        | forge_change::State::Repairing { .. }
-        | forge_change::State::Landing { .. }
-        | forge_change::State::Landed { .. }
-        | forge_change::State::Red { .. }
-        | forge_change::State::Held { .. }
-        | forge_change::State::NoChange { .. }
-        | forge_change::State::Ended => {}
     }
     words.into_boxed()
 }
@@ -3207,27 +3175,6 @@ fn change_cancelled(domain: &Domain, task: u64) -> bool {
         tasks::Ending::Cancelled { .. } => true,
         tasks::Ending::Done(_) | tasks::Ending::Failed { .. } => false,
     }
-}
-
-fn tier_landing_run(
-    domain: &Domain,
-    repository: skein_forge::api::Repository,
-    tier: &[u8],
-    merge: &skein_forge::api::Commit,
-) -> Option<u64> {
-    for task in domain.core.tasks.view_tasks() {
-        let Some(row) = domain.forge.tier_task(task.number) else { continue };
-        if row.repository != repository || row.tier.as_ref() != tier {
-            continue;
-        }
-        if let Some(judged) = &row.record.judged
-            && judged.tip == *merge
-            && row.record.sequence != 0
-        {
-            return Some(row.record.sequence);
-        }
-    }
-    None
 }
 
 /// Explain a failed review in the same decision that holds its change.

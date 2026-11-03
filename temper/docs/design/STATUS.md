@@ -15,8 +15,9 @@ catch-up into a goal's branch), and the `Rewrite` delivery lag
 `domain/agent.md`, `domain/landing.md`, `protocol/git.md`). Settings of temper's kinds lag: the landing rules
 and the forge's charter are still read from the document
 (`domain/root.md`, `domain/forge.md`, `protocol/configuration.md`,
-`domain/agent.md`). A goal's own branch is built but for its deletion
-as its goal closes (`domain/forge.md`); the reference's configuration
+`domain/agent.md`). A goal's own branch and its landing are built, but
+for the held landing's story, ignored for a restart fault
+(`domain/forge.md`); the reference's configuration
 lags in its template's own goal branch, which a settings file cannot
 name, its charters' turns and the project's checks
 (`protocol/configuration.md`). Much of a change's own bounds, gates and charters,
