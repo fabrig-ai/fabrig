@@ -788,11 +788,14 @@ and no diagnostic variant enters the store or client wire.
 - **Saved work:** the repositories saved, as the task's saved resources,
   which its next run starts from.
 - **A failed preparation** names its repository and why: what the forge
-  lacks (the repository, the branch, the commit), or that it refused the
-  identity (`../protocol/channel.md`, section 5). The root reports it as
-  a fact of the attempt: its task, its attempt, the repository's tag, the
-  reason. Whether the task tries again follows the answer's class, as for
-  any failure (worker.md, 4.3).
+  lacks (the repository, the branch, the commit), that it refused the
+  identity, or the head that did not merge into a base with heads merged
+  in (`../protocol/channel.md`, section 5; worker.md, section 5). The
+  root reports it as a fact of the attempt: its task, its attempt, the
+  repository's tag, the reason; a conflict it gives the forge too, for
+  the change whose producer the run is (forge.md, 8.11). Whether the
+  task tries again follows the answer's class, as for any failure
+  (worker.md, 4.3).
 - **Past their bounds,** an answer's parts fail its run as invalid,
   whatever the answer says.
 

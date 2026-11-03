@@ -7,8 +7,9 @@ use alloc::boxed::Box;
 use skein_lib::{List, Wall};
 
 use crate::{
-    Ask, AuthorityHold, AuthorityLack, Change, Decision, Delegate, Effect, EffectResult, Facts, Freshness, Gate,
-    GateFailure, GateKind, Heard, Hold, Limits, Pull, Repair, State, Status, Stepped, Verification, Way,
+    Ask, AuthorityHold, AuthorityLack, Change, Decision, Delegate, Early, Effect, EffectResult, Facts, Freshness, Gate,
+    GateFailure, GateKind, Heard, Hold, Limits, PendingKind, Pull, Repair, StartedFrom, State, Status, Stepped,
+    Verification, Way,
 };
 
 /// Decide one change from current forge and task facts, independent of its wake.
@@ -63,7 +64,13 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
     if let State::Held { .. } = change.state {
         return Stepped { change: next, decision: Decision::None };
     }
-    if facts.writer_taken {
+    // A conflicting preparation cancels its producer before waiting for that
+    // producer's writer slot (domain/forge.md, 8.11).
+    let start_conflicted = match next.early {
+        Early::None => false,
+        Early::Started(_) | Early::Spent(_) => standing.start_conflict.is_some(),
+    };
+    if facts.writer_taken && !start_conflicted {
         return if let State::Ready { .. } = change.state {
             Stepped { change: next, decision: Decision::Wait { until: None } }
         } else {
@@ -200,7 +207,7 @@ fn advance_phase(
         State::Updating { from, base, ready_since: _ } => updating(next, *from, *base, facts, standing, now, limits),
         State::Resolving { requested, base } => resolving(next, *requested, *base, facts, standing, now, limits),
         State::Repairing { requested, why } => repairing(next, *requested, *why, facts, standing, now, limits),
-        State::Landing { head } => landing(next, *head, standing, now, limits),
+        State::Landing { head } => landing(next, *head, facts, standing, now, limits),
         State::Landed { .. }
         | State::Red { .. }
         | State::Cleared { .. }
@@ -412,6 +419,31 @@ fn producing(
     now: Wall,
     limits: &Limits,
 ) -> Stepped {
+    match &change.early {
+        Early::Started(heads) => {
+            if standing.start_conflict.is_some() {
+                change.early = Early::Spent(heads.clone());
+                change.state = State::Producing { requested: false };
+                return Stepped { change, decision: Decision::CancelProducer };
+            }
+            if requested && standing.delegate == Status::Failed {
+                change.early = Early::Spent(heads.clone());
+                change.state = State::Producing { requested: false };
+                return Stepped { change, decision: Decision::Wait { until: None } };
+            }
+        }
+        Early::Spent(_) => {
+            if !requested {
+                return request_producer(change, facts, standing, now);
+            }
+            match standing.delegate {
+                Status::Failed => return hold(change, Hold::Failed),
+                Status::Unknown | Status::Pending => return waiting(change, now, limits),
+                Status::Passed => {}
+            }
+        }
+        Early::None => {}
+    }
     match facts.branch {
         Some(head) => {
             change.state = State::Opening { requested: false };
@@ -420,14 +452,93 @@ fn producing(
             Stepped { change, decision: Decision::None }
         }
         None if !requested => {
-            change.state = State::Producing { requested: true };
-            Stepped { change, decision: Decision::Delegate(Delegate::Produce) }
+            if let Some(commit) = facts.catch_up {
+                return catch_up_due(change, commit, facts, now, limits);
+            }
+            request_producer(change, facts, standing, now)
         }
         None => match standing.delegate {
+            Status::Passed => match facts.delegate {
+                Some(Delegate::Merge { base, .. }) => {
+                    let mut stepped = resolving_due(change, base, now, limits);
+                    if stepped.decision == Decision::Delegate(Delegate::Resolve { base }) {
+                        stepped.change.state = State::Producing { requested: true };
+                    }
+                    stepped
+                }
+                Some(Delegate::Produce | Delegate::Repair(_) | Delegate::Resolve { .. } | Delegate::Gate { .. })
+                | None => waiting(change, now, limits),
+            },
             Status::Failed => hold(change, Hold::Failed),
-            Status::Unknown | Status::Pending | Status::Passed => waiting(change, now, limits),
+            Status::Unknown | Status::Pending => waiting(change, now, limits),
         },
     }
+}
+
+// A catch-up's producer is the merge job (temper/docs/design/domain/forge.md, 8.2, 8.4).
+fn catch_up_due(mut change: Change, commit: [u8; 32], facts: &Facts, now: Wall, limits: &Limits) -> Stepped {
+    match facts.contains_catch_up {
+        Status::Passed => {
+            let mut words = List::with_capacity(128);
+            put(&mut words, b"The landing branch already contains commit ");
+            let mut length = 20;
+            for byte in commit.get(20..).expect("a commit has 32 bytes") {
+                if *byte != 0 {
+                    length = 32;
+                    break;
+                }
+            }
+            for byte in commit.get(..length).expect("a commit has 20 or 32 bytes") {
+                words.push(skein_lib::bytes::hex_digit(*byte >> 4)).expect("catch-up words fit");
+                words.push(skein_lib::bytes::hex_digit(*byte)).expect("catch-up words fit");
+            }
+            put(&mut words, b".");
+            change.state = State::NoChange { words: words.into_boxed() };
+            Stepped { change, decision: Decision::NoChange }
+        }
+        Status::Failed => {
+            change.state = State::Producing { requested: true };
+            Stepped { change, decision: Decision::Delegate(Delegate::Merge { base: commit, from: None }) }
+        }
+        Status::Unknown | Status::Pending => waiting(change, now, limits),
+    }
+}
+
+fn request_producer(mut change: Change, facts: &Facts, standing: &Heard, now: Wall) -> Stepped {
+    if !producer_start(&mut change, facts, standing) {
+        return Stepped { change, decision: Decision::Wait { until: None } };
+    }
+    change.state = State::Producing { requested: true };
+    change.since = now;
+    Stepped { change, decision: Decision::Delegate(Delegate::Produce) }
+}
+
+// Dependency waits arm no stall; producing starts its clock when the wait ends
+// (temper/docs/design/domain/forge.md, 8.11).
+fn producer_start(change: &mut Change, facts: &Facts, standing: &Heard) -> bool {
+    match change.early {
+        Early::Started(_) | Early::Spent(_) => {
+            // A refused preparation still owns its delegate until the top sees its end.
+            return facts.pending.is_empty() && standing.start_conflict.is_none();
+        }
+        Early::None => {}
+    }
+    if facts.pending.is_empty() {
+        return true;
+    }
+    let capacity = u32::try_from(facts.pending.len()).expect("pending dependencies fit u32");
+    let mut heads = List::with_capacity(capacity);
+    for pending in &facts.pending {
+        match pending.kind {
+            PendingKind::Change { head: Some(head), kept: false } => {
+                heads.push(StartedFrom { task: pending.task, head }).expect("one head per pending dependency");
+            }
+            PendingKind::Elsewhere => {}
+            PendingKind::Change { .. } | PendingKind::Other => return false,
+        }
+    }
+    change.early = Early::Started(heads.into_boxed());
+    true
 }
 
 fn opening(
@@ -744,13 +855,7 @@ fn first(mut change: Change, head: [u8; 32], ready_since: Wall, facts: &Facts, n
             change.state = State::Landing { head };
             Stepped { change, decision: Decision::Effect(Effect::Merge { head, base: facts.expected_base }) }
         }
-        Status::Failed => {
-            if facts.updates {
-                resolving_due(change, facts.base_tip, now, limits)
-            } else {
-                hold(change, Hold::Resolutions)
-            }
-        }
+        Status::Failed => conflict_due(change, facts.base_tip, Some(head), facts, now, limits),
         Status::Unknown | Status::Pending => settling(change, facts, now, limits),
     }
 }
@@ -765,7 +870,7 @@ fn updating(
     limits: &Limits,
 ) -> Stepped {
     match standing.effect {
-        EffectResult::Conflict => resolving_due(change, base, now, limits),
+        EffectResult::Conflict => conflict_due(change, base, Some(from), facts, now, limits),
         EffectResult::Failed => hold(change, Hold::Failed),
         EffectResult::Made => {
             let Some(head) = facts.branch else { return waiting(change, now, limits) };
@@ -832,6 +937,22 @@ fn update_due(
     Stepped { change, decision: Decision::Effect(Effect::Update { head, base }) }
 }
 
+// Each conflict counts once, including a job followed by a resolution (temper/docs/design/domain/forge.md, 8.4).
+fn conflict_due(
+    change: Change,
+    base: [u8; 32],
+    from: Option<[u8; 32]>,
+    facts: &Facts,
+    now: Wall,
+    limits: &Limits,
+) -> Stepped {
+    let mut stepped = resolving_due(change, base, now, limits);
+    if facts.merge_job && stepped.decision == Decision::Delegate(Delegate::Resolve { base }) {
+        stepped.decision = Decision::Delegate(Delegate::Merge { base, from });
+    }
+    stepped
+}
+
 fn resolving_due(mut change: Change, base: [u8; 32], now: Wall, limits: &Limits) -> Stepped {
     if change.resolutions >= limits.resolutions {
         return hold(change, Hold::Resolutions);
@@ -860,7 +981,7 @@ fn repairing(
 }
 
 fn resolving(
-    change: Change,
+    mut change: Change,
     requested: bool,
     base: [u8; 32],
     facts: &Facts,
@@ -868,6 +989,22 @@ fn resolving(
     now: Wall,
     limits: &Limits,
 ) -> Stepped {
+    if requested && standing.delegate == Status::Passed {
+        match facts.delegate {
+            Some(Delegate::Merge { from, .. }) if facts.branch == from => {
+                change.since = now;
+                return Stepped { change, decision: Decision::Delegate(Delegate::Resolve { base }) };
+            }
+            Some(
+                Delegate::Produce
+                | Delegate::Repair(_)
+                | Delegate::Resolve { .. }
+                | Delegate::Gate { .. }
+                | Delegate::Merge { .. },
+            )
+            | None => {}
+        }
+    }
     delegated(change, requested, Delegate::Resolve { base }, facts, standing, now, limits)
 }
 
@@ -883,7 +1020,7 @@ fn delegated(
     if !requested {
         change.state = match delegate {
             Delegate::Repair(why) => State::Repairing { requested: true, why },
-            Delegate::Resolve { base } => State::Resolving { requested: true, base },
+            Delegate::Resolve { base } | Delegate::Merge { base, .. } => State::Resolving { requested: true, base },
             Delegate::Produce | Delegate::Gate { .. } => unreachable!("delegated phase has one kind"),
         };
         return Stepped { change, decision: Decision::Delegate(delegate) };
@@ -907,9 +1044,10 @@ fn take_pushed_head(mut change: Change, head: [u8; 32], now: Wall) -> Stepped {
     Stepped { change, decision: Decision::None }
 }
 
-fn landing(mut change: Change, head: [u8; 32], standing: &Heard, now: Wall, limits: &Limits) -> Stepped {
+fn landing(mut change: Change, head: [u8; 32], facts: &Facts, standing: &Heard, now: Wall, limits: &Limits) -> Stepped {
     match standing.effect {
-        EffectResult::Failed | EffectResult::Conflict => {
+        EffectResult::Conflict => conflict_due(change, facts.base_tip, Some(head), facts, now, limits),
+        EffectResult::Failed => {
             change.state = State::First { head, ready_since: change.ready_since.unwrap_or(now) };
             Stepped { change, decision: Decision::None }
         }
@@ -984,7 +1122,7 @@ pub fn authority_words(why: AuthorityHold) -> Box<[u8]> {
 
 fn put(words: &mut List<u8>, bytes: &[u8]) {
     for byte in bytes {
-        words.push(*byte).expect("authority hold fits its fixed bound");
+        words.push(*byte).expect("words fit their fixed bound");
     }
 }
 
@@ -995,7 +1133,7 @@ fn missing(standing: &Heard, delegate: Delegate) -> Option<AuthorityHold> {
     let spend = standing.spend?;
     let reserve = match delegate {
         Delegate::Gate { .. } => spend.review,
-        Delegate::Produce | Delegate::Repair(_) | Delegate::Resolve { .. } => spend.coding,
+        Delegate::Produce | Delegate::Repair(_) | Delegate::Resolve { .. } | Delegate::Merge { .. } => spend.coding,
     };
     (spend.left < reserve).then_some(AuthorityHold {
         recovery: spend.recovery,

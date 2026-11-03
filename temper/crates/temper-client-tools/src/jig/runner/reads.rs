@@ -19,6 +19,7 @@ pub(crate) struct Reading {
     pub pages: BTreeMap<u32, Readout>,
     pub documents: BTreeMap<u32, c::Delivery>,
     pub text: Option<c::RunText>,
+    pub specification: Option<super::specification::Specification>,
     pub thread: Option<Thread>,
     pub questions: BTreeMap<(u64, u64), Option<Box<c::Question>>>,
     pub question: Option<(u64, u64)>,
@@ -78,6 +79,7 @@ fn start_reading(
         pages: BTreeMap::new(),
         documents: BTreeMap::new(),
         text: None,
+        specification: None,
         thread: None,
         questions: BTreeMap::new(),
         question: None,
@@ -242,28 +244,13 @@ pub(super) fn page(
     let Some(mut reading) = runner.active.remove(&prefix) else { return };
     // Joined setting reads share the last bit; inbox question details use slot 6.
     reading.pending &= !1u8.checked_shl(local.min(7)).expect("fixed read slot");
+    if reading.called.call.tool == 3 && local == 7 {
+        super::specification::accept(&mut reading, &page);
+        complete(runner, client, env, reading, out);
+        return;
+    }
     if reading.called.call.tool == 1 && local == 6 {
-        let key = reading.question.take().expect("one question read in flight");
-        let question = match page {
-            Readout::Jig(c::ReadResult::Value(c::ReadValue::Question(question)))
-                if (question.task.task, question.message) == key =>
-            {
-                Some(question)
-            }
-            Readout::Jig(c::ReadResult::Value(c::ReadValue::Ended(value))) => match value.value {
-                c::EndedValue::Question { question, .. } if (question.task.task, question.message) == key => {
-                    Some(Box::new(question))
-                }
-                c::EndedValue::Task { .. }
-                | c::EndedValue::Proposal(_)
-                | c::EndedValue::PersonProposal { .. }
-                | c::EndedValue::Escalation { .. }
-                | c::EndedValue::Question { .. }
-                | c::EndedValue::PersonTask { .. } => None,
-            },
-            Readout::Limit | Readout::NotServed { .. } | Readout::Jig(_) | Readout::Family { .. } => None,
-        };
-        reading.questions.insert(key, question);
+        question_page(&mut reading, page);
         complete(runner, client, env, reading, out);
         return;
     }
@@ -406,6 +393,11 @@ fn complete(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut reading
         runner.active.insert(reading.called.call_number, reading);
         return;
     }
+    if let Some(what) = super::specification::next(&mut reading, &env.limits) {
+        read(runner, &mut reading, 7, what, out);
+        runner.active.insert(reading.called.call_number, reading);
+        return;
+    }
     if reading.called.call.tool == rows::PROPOSAL_AT
         && let Some((local, what)) = super::proposal::next(&reading)
     {
@@ -413,30 +405,7 @@ fn complete(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut reading
         runner.active.insert(reading.called.call_number, reading);
         return;
     }
-    if let Some(thread) = &mut reading.thread
-        && let Some(c::Delivery::RunState(run)) = reading.documents.get(&4)
-    {
-        thread.run(run, reading.text.as_ref());
-    }
-    if let Some(thread) = &reading.thread
-        && let Some(Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(_)))) = reading.pages.get(&1)
-    {
-        // JSON and text expose the same kept window, not just the final
-        // transport page used to fill it. Thread rows are newest first.
-        let mut rows = skein_lib::List::with_capacity(thread.lines.rows.len());
-        for row in thread.lines.rows.as_slice().iter().rev() {
-            rows.push(row.clone()).expect("bounded conversation rows");
-        }
-        reading.pages.insert(
-            1,
-            Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(Box::new(c::ActivityPage {
-                rows,
-                cut: thread.page_cut,
-                before: edge_cursor(&thread.lines.edges.after),
-                after: edge_cursor(&thread.lines.edges.before),
-            })))),
-        );
-    }
+    join_thread(&mut reading);
     if reading.called.call.tool == 25
         || (27..=30).contains(&reading.called.call.tool)
         || reading.called.call.tool == 33
@@ -655,4 +624,55 @@ fn finish(reading: Reading, mut printed: Printed, out: &mut Queue<Out>) {
         printed.status = fallback.status;
     }
     super::finish(reading.called, printed, out);
+}
+
+fn question_page(reading: &mut Reading, page: Readout) {
+    let key = reading.question.take().expect("one question read in flight");
+    let question = match page {
+        Readout::Jig(c::ReadResult::Value(c::ReadValue::Question(question)))
+            if (question.task.task, question.message) == key =>
+        {
+            Some(question)
+        }
+        Readout::Jig(c::ReadResult::Value(c::ReadValue::Ended(value))) => match value.value {
+            c::EndedValue::Question { question, .. } if (question.task.task, question.message) == key => {
+                Some(Box::new(question))
+            }
+            c::EndedValue::Task { .. }
+            | c::EndedValue::Proposal(_)
+            | c::EndedValue::PersonProposal { .. }
+            | c::EndedValue::Escalation { .. }
+            | c::EndedValue::Question { .. }
+            | c::EndedValue::PersonTask { .. } => None,
+        },
+        Readout::Limit | Readout::NotServed { .. } | Readout::Jig(_) | Readout::Family { .. } => None,
+    };
+    reading.questions.insert(key, question);
+}
+
+fn join_thread(reading: &mut Reading) {
+    if let Some(thread) = &mut reading.thread
+        && let Some(c::Delivery::RunState(run)) = reading.documents.get(&4)
+    {
+        thread.run(run, reading.text.as_ref());
+    }
+    if let Some(thread) = &reading.thread
+        && let Some(Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(_)))) = reading.pages.get(&1)
+    {
+        // JSON and text expose the same kept window, not just the final
+        // transport page used to fill it. Thread rows are newest first.
+        let mut rows = skein_lib::List::with_capacity(thread.lines.rows.len());
+        for row in thread.lines.rows.as_slice().iter().rev() {
+            rows.push(row.clone()).expect("bounded conversation rows");
+        }
+        reading.pages.insert(
+            1,
+            Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(Box::new(c::ActivityPage {
+                rows,
+                cut: thread.page_cut,
+                before: edge_cursor(&thread.lines.edges.after),
+                after: edge_cursor(&thread.lines.edges.before),
+            })))),
+        );
+    }
 }

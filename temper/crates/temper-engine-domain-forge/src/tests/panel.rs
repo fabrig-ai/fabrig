@@ -404,8 +404,8 @@ fn landed_panel_keeps_passed_ci_across_a_restart() {
     use skein_forge::api::{Answer, State};
     use skein_forge_client::RecoveryClock;
 
-    // Repository, initial change, observed contexts, landed change, and settlement.
-    const RESTART_RECORDS: u32 = 5;
+    // Repository, initial change, branch and base heads, contexts, landed change, and settlement.
+    const RESTART_RECORDS: u32 = 7;
     let repository = Stored::Repository(adopted());
     let mut records = skein_lib::List::with_capacity(RESTART_RECORDS);
     records.push(repository.clone()).expect("repository fits");
@@ -496,7 +496,7 @@ fn after_landing_steps_keep_each_tiers_verdict_and_repairing_run() {
     let merge = fixtures::BASE;
     let lines: Box<[Box<[u8]>]> = Box::new([
         Box::from(b"fast run 2".as_slice()),
-        Box::from(b"slow run 1 \xc2\xb7 many tests".as_slice()),
+        Box::from(b"slow run 1 \xc2\xb7 suspected of many tests".as_slice()),
         Box::from(b"later waiting".as_slice()),
     ]);
     for (state, expected) in [
@@ -532,7 +532,7 @@ fn after_landing_steps_keep_each_tiers_verdict_and_repairing_run() {
 }
 
 #[test]
-fn tier_lines_show_runs_in_flight_counted_blame_and_outright_clearance() {
+fn tier_lines_show_runs_in_flight_failed_ids_and_outright_clearance() {
     use temper_engine_domain_forge_tiers as p;
     let merge = fixtures::BASE;
     let mut row = fixtures::opening_row();
@@ -574,7 +574,7 @@ fn tier_lines_show_runs_in_flight_counted_blame_and_outright_clearance() {
             merge,
             tiers: Box::new([
                 Box::from(b"running run 7 running".as_slice()),
-                Box::from(b"red run 4 \xc2\xb7 2 tests".as_slice()),
+                Box::from(b"red run 4 \xc2\xb7 owns 2 tests: one, two".as_slice()),
                 Box::from(b"green run 5".as_slice()),
             ])
         }
@@ -620,4 +620,42 @@ fn running_tier(d: &mut Domain, merge: skein_forge::api::Commit) {
             },
         )
         .expect("tier room");
+}
+
+#[test]
+fn red_panels_keep_all_sixteen_full_length_test_ids() {
+    use temper_engine_domain_forge_tiers::{Blame, Failures};
+    let merge = fixtures::BASE;
+    let mut row = fixtures::opening_row();
+    row.change.state = change::State::Red { merge, since: env().wall };
+    let mut d = with_row(row);
+    let mut ids = skein_lib::List::with_capacity(16);
+    for byte in b'a'..=b'p' {
+        ids.push(Box::<[u8]>::from([byte; 256])).unwrap();
+    }
+    d.verifications
+        .insert(
+            (REPO, merge),
+            Verification {
+                repository: REPO,
+                commit: merge,
+                changes: Box::new([fixtures::CHANGE]),
+                tiers: Box::new([TierVerification {
+                    tier: Box::from(b"slow".as_slice()),
+                    verdict: Some(TierVerdict {
+                        run: 3,
+                        blame: Blame::Owns(Failures::Tests(ids.clone().into_boxed())),
+                    }),
+                    repaired: None,
+                }]),
+            },
+        )
+        .unwrap();
+    let shown = panel(&d);
+    assert!(shown.within());
+    let PanelStep::Red { tiers, .. } = shown.step else { panic!("red panel") };
+    assert!(tiers[0].starts_with(b"slow run 3 \xc2\xb7 owns 16 tests: "));
+    for id in ids.as_slice() {
+        assert!(skein_lib::bytes::find(&tiers[0], id).is_some());
+    }
 }

@@ -307,7 +307,7 @@ pub fn csv_task_steps(root: &Path) -> Vec<Step> {
         "chat",
         "start",
         "--project",
-        "2",
+        "1",
         "--key",
         "first-hello",
         "Add CSV export to widget",
@@ -358,7 +358,7 @@ pub fn csv_task_steps(root: &Path) -> Vec<Step> {
     steps
 }
 
-/// The first repository has its own project; earlier demo tasks may precede its task tree.
+/// The first repository has project 1, the first made; earlier demo tasks may precede its task tree.
 #[derive(Clone, Copy)]
 pub struct Task {
     pub project: u64,
@@ -366,7 +366,7 @@ pub struct Task {
     pub change: u64,
     pub producer: u64,
 }
-pub const FIRST: Task = Task { project: 2, chat: 1, change: 2, producer: 3 };
+pub const FIRST: Task = Task { project: 1, chat: 1, change: 2, producer: 3 };
 
 #[must_use]
 pub fn task_steps(root: &Path) -> Vec<Step> {
@@ -511,6 +511,25 @@ pub fn playground_read_evidence(config: &Path, client: &Path) -> PlaygroundReads
         producer: turns(client, "3"),
         panel: super::ctl::alone(client, Call::new(&["change", "show", "2", "--json"])),
     }
+}
+
+/// Resolve ctl setup's default project by its repository name in the person's read.
+/// Both fresh and seeded deployments may number it one; ambiguous names fail.
+pub fn project_number(me: &Value, repository: &str) -> Result<u64, String> {
+    let mut projects = me["projects"]
+        .as_array()
+        .ok_or("person's projects missing")?
+        .iter()
+        .filter(|row| row["name"]["bytes"] == repository);
+    let number = projects
+        .next()
+        .and_then(|row| row["project"].as_u64())
+        .filter(|number| *number != 0)
+        .ok_or("adopted project missing")?;
+    if projects.next().is_some() {
+        return Err("adopted project name is ambiguous".into());
+    }
+    Ok(number)
 }
 
 /// The owned forge made by this story, read through the public client.

@@ -224,6 +224,7 @@ fn repair() -> forge::ChangeRow {
         priority: 0,
         ci: None,
         change: change::Change {
+            early: change::Early::None,
             way: change::Way::Queue,
             landing: None,
             task: 7,
@@ -257,6 +258,8 @@ fn repair() -> forge::ChangeRow {
         effect_account: None,
         producer_failure: None,
         report: Box::new([]),
+        catch_up: None,
+        merge_result: None,
     }
 }
 

@@ -219,9 +219,11 @@ impl Service {
         let notes = Queue::with_capacity(settings.limits.forge.forges);
         let configured = Box::new([]);
         let workers = workers::Workers::configured(&mut settings, seeds.deployment)?;
+        let mut core = jig_protocol_config::core(&settings.jig, seeds.deployment, seeds.seed);
+        core.jobs = limits::merge_jobs(&settings.jig.limits);
         let config = temper_engine_domain::Config {
             period_span: crate::stock::PERIOD_SPAN,
-            core: jig_protocol_config::core(&settings.jig, seeds.deployment, seeds.seed),
+            core,
             landing: settings.landing,
             forge: forge_config,
             identities,

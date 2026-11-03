@@ -190,9 +190,47 @@ pub enum Way {
     Turn,
 }
 
+/// A pending dependency of the change as the top reads it each step
+/// (temper/docs/design/domain/forge.md, 8.11).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Pending {
+    pub task: u64,
+    pub kind: PendingKind,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum PendingKind {
+    /// A change into the same repository and landing branch: its pushed head, if any, and
+    /// whether it is itself kept by a pending dependency.
+    Change { head: Option<Commit>, kept: bool },
+    /// A change into another repository: it orders the landings alone.
+    Elsewhere,
+    /// Anything else: no head to start from, so the producer waits for it to be done.
+    Other,
+}
+
+/// One dependency's pushed head a producer started from.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct StartedFrom {
+    pub task: u64,
+    pub head: Commit,
+}
+
+/// The change's early start (temper/docs/design/domain/forge.md, 8.11).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Early {
+    /// No producer has started early.
+    None,
+    /// Its producer started from the landing branch's tip with these heads merged in, in order.
+    Started(Box<[StartedFrom]>),
+    /// Its early start is spent: refused for a conflict, or its early producer ended failed.
+    Spent(Box<[StartedFrom]>),
+}
+
 /// The top-owned procedure record for one change task.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Change {
+    pub early: Early,
     pub task: u64,
     pub way: Way,
     /// Its landing's task, once it is a member (domain/landing.md, 4.2).
@@ -260,6 +298,8 @@ pub enum Verification {
 #[expect(clippy::struct_excessive_bools, reason = "independent root-supplied facts")]
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Facts {
+    /// Pending dependencies in the order of the change's dependencies.
+    pub pending: Box<[Pending]>,
     /// Its landing's current request; absent under queue.
     pub ask: Option<Ask>,
     pub branch: Option<Commit>,
@@ -269,6 +309,15 @@ pub struct Facts {
     pub base_ci: Ci,
     pub base_tip: Commit,
     pub contains_base: Status,
+    /// Whether a merge job is configured, declared and authorized (temper/docs/design/domain/forge.md, 8.4).
+    pub merge_job: bool,
+    /// The change's current delegate, as the forge's row keeps it (`ChangeRow::delegate`);
+    /// `None` when it has none.
+    pub delegate: Option<Delegate>,
+    /// A catch-up's commit (`ChangeRow::catch_up`), `None` for every other change.
+    pub catch_up: Option<Commit>,
+    /// Whether the landing tip contains the catch-up commit (temper/docs/design/domain/forge.md, 8.2).
+    pub contains_catch_up: Status,
     /// Whether its landing branch's rules ask up to date (domain/forge.md, 8.7).
     pub updates: bool,
     pub mergeable: Status,
@@ -319,6 +368,8 @@ pub struct DelegateSpend {
 /// Current task and effect standing, independent of the wake trigger.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Heard {
+    /// The head its live producing delegate conflicted on, until that delegate ends.
+    pub start_conflict: Option<Commit>,
     /// Current authority, translated from jig's live accounting.
     pub lacking: Option<AuthorityHold>,
     pub spend: Option<DelegateSpend>,
@@ -339,6 +390,8 @@ pub enum Delegate {
     Resolve { base: Commit },
     /// Obtain a gate's verdict at the current head.
     Gate { number: u64, head: Commit },
+    /// Merge `base` into the head `from`, absent for a catch-up (temper/docs/design/domain/forge.md, 8.4).
+    Merge { base: Commit, from: Option<Commit> },
 }
 
 /// The effect the top should commit after checking authority.
@@ -373,6 +426,8 @@ pub enum Decision {
     Effect(Effect),
     /// Cancel live gate delegates at the head whose CI failed.
     CancelGates { head: Commit },
+    /// Cancel the live producing delegate: its early start conflicted (domain/forge.md, 8.11).
+    CancelProducer,
     /// Tell the top this change is ready for its queue or landing.
     Ready,
     /// Ask the top for the branch's one queue repair.

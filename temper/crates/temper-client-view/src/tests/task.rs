@@ -15,7 +15,7 @@ const ONE: u32 = 1;
 const NO_ROWS: u32 = 0;
 const HEADINGS: u32 = 5;
 #[test]
-fn the_task_header_names_the_playground_project_playground() {
+fn the_task_header_names_the_playground_project_by_its_record() {
     let (mut root, _, watch, _, _) = fixtures::root_at_with_playground(
         temper_client_domain::Address::Task { task: TASK, filter: PlanFilter::All },
         &fixtures::domain_limits(),
@@ -48,8 +48,8 @@ fn the_task_header_names_the_playground_project_playground() {
             }
         }
         let heading = heading.expect("task header");
-        assert!(skein_lib::bytes::find(&fixtures::node_text(tree, heading), b"Playground").is_some());
-        assert!(skein_lib::bytes::find(&fixtures::node_text(tree, heading), b"Project 1").is_none());
+        assert!(skein_lib::bytes::find(&fixtures::node_text(tree, heading), b"Project 1").is_some());
+        assert!(skein_lib::bytes::find(&fixtures::node_text(tree, heading), b"Playground").is_none());
     }
 }
 fn page(executor: c::ChipExecutor, priority: Option<u32>) -> crate::View {
@@ -463,7 +463,6 @@ fn header(task: &c::Task, me: Option<&c::Me>) -> Tree {
         &mut builder,
         task,
         me,
-        None,
         &fixtures::words(),
         &mut crate::frame::Bindings::new(fixtures::tree_limits().bindings),
         None,
@@ -1549,7 +1548,6 @@ fn the_header_says_its_exact_wait_and_goal_priority_in_both_shells() {
                 &mut builder,
                 &task,
                 Some(&me),
-                None,
                 &words,
                 &mut crate::frame::Bindings::new(fixtures::tree_limits().bindings),
                 None,
@@ -1569,7 +1567,6 @@ fn the_header_says_its_exact_wait_and_goal_priority_in_both_shells() {
                 &mut builder,
                 &task,
                 Some(&me),
-                None,
                 &words,
                 &mut crate::frame::Bindings::new(fixtures::tree_limits().bindings),
                 None,

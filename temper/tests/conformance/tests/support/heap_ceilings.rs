@@ -5,17 +5,17 @@ use jig_conformance::scenarios::Scenario;
 // Measured peak: 237,036 bytes; 25% headroom, rounded up to two significant digits.
 const STARTUP_HEAP_CEILING: u64 = 300_000;
 
-// Measured peak: 510,125 bytes; 25% headroom, rounded up to two significant digits.
-const STORY_GOAL_ISSUE_HEAP_CEILING: u64 = 640_000;
+// Measured peak: 642,209 bytes; 25% headroom, rounded up to two significant digits.
+const STORY_GOAL_ISSUE_HEAP_CEILING: u64 = 810_000;
 
 // Measured peak: 273,898 bytes; 25% headroom, rounded up to two significant digits.
 const STORY_ISSUE_CREATION_HEAP_CEILING: u64 = 350_000;
 
-// Measured peak: 482,633 bytes; 25% headroom, rounded up to two significant digits.
-const STORY_LOST_MERGE_HEAP_CEILING: u64 = 610_000;
+// Measured peak: 637,786 bytes; 25% headroom, rounded up to two significant digits.
+const STORY_LOST_MERGE_HEAP_CEILING: u64 = 800_000;
 
-// Measured peak: 519,545 bytes; 25% headroom, rounded up to two significant digits.
-const STORY_OTHER_HAND_HEAP_CEILING: u64 = 650_000;
+// Measured peak: 677,099 bytes; 25% headroom, rounded up to two significant digits.
+const STORY_OTHER_HAND_HEAP_CEILING: u64 = 850_000;
 
 // Measured peak: 238,343 bytes; 25% headroom, rounded up to two significant digits.
 const STORY_PERSON_WORDS_HEAP_CEILING: u64 = 300_000;

@@ -316,8 +316,9 @@ any `delegate` (jig's authority, named and decided once):
   or reopen a pull request), on the change's repository, which every
   agent of the change holds, so that its reviewer and its repairs read
   the pull request, its files and CI's logs; the forge's charter as the
-  only kind it may delegate, and a person's role where a landing rule
-  covering the branch names a person gate; at most 6 tasks (a
+  only charter it may delegate, the merge kind, job 3, where the run's
+  authority delegates to it (forge.md, 8.4), and a person's role where
+  a landing rule covering the branch names a person gate; at most 6 tasks (a
   producer, a review, and two repairs each followed by its review), one
   fewer than the run has left, and a depth of at most 2; no notes; half of
   what the run's budget has left, so that it can still read the result
@@ -366,6 +367,16 @@ delegate from what it knows:
   them as any task does, so it starts once each has ended done; a name
   the call does not give before it, or a task jig refuses, refuses the
   call, naming it.
+- **`merge`:** a catch-up (forge.md, section 10): the commit to take, as
+  40 or 64 hexadecimal digits, which the merge job merges into a branch
+  made at the landing branch's tip, as the change's producer in place of
+  an agent; the words say what the commit brings and why. Refused,
+  naming the setting, where the change's project names no `merge_job`
+  (`../protocol/configuration.md`, section 3), and naming the kind,
+  where the run's authority does not delegate to the merge kind; a
+  commit in another form is refused, naming it. Whether the repository
+  has the commit is the job's to find: one the forge cannot fetch
+  fails the job, and holds the change.
 - **`changes`:** several changes in one call, each an object of the
   members above but `changes`, made as one batch (jig's
   `domain/tasks.md`, section 4): all of them or none, the call's answer
@@ -384,8 +395,8 @@ delegate from what it knows:
   grants on the repository, its dependencies by jig's batch.
 - **Members to come** join each change's object, each optional and
   checked by the root as it decides that change's delegate, leaving
-  these as they are: its questions; its agents' LLM choices; its producer, a
-  charter or a job; the landing it repairs.
+  these as they are: its questions; its agents' LLM choices; its producer's
+  charter; the landing it repairs.
 
 #### 4.3.2 A goal, in the run's words
 
@@ -607,7 +618,7 @@ run starts fresh, its brief carrying the tail.
 
 | Agent | Messages in | Tools its authority gives | Ends when |
 |---|---|---|---|
-| producing a change (forge.md, 8.2) | none | the workspace's, from the landing branch or saved work; `finish` with a change | its change passes its checks and is pushed |
+| producing a change (forge.md, 8.2) | none | the workspace's, from the landing branch or saved work, or started early with its dependencies' pushed heads merged in (forge.md, 8.11); `deliver` mid-run, as it goes; `finish` with a change | its change passes its checks and is pushed |
 | a repair (forge.md, 8.4) | none | the workspace's, from the change's branch, its brief carrying why; `finish` with a change | its new head passes its checks and is pushed |
 | resolving a conflict (forge.md, 8.4) | none | the workspace's, from a merge in progress; `finish` with a change | the merge is resolved, checked and pushed |
 | a review (forge.md, 8.3), a triage | none | reads; `finish` with a verdict | its verdict meets its contract |

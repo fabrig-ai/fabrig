@@ -119,13 +119,6 @@ fn forge_rows(root: &mut Domain, watch: Token, number: Option<u16>, adopted: boo
                                 w::FirstRepositoryParts {
                                     org: b"work".as_slice().into(),
                                     repository: b"hello".as_slice().into(),
-                                    project: w::SetUpProject::Existing(
-                                        w::ExistingProject::new(
-                                            &limits,
-                                            w::ExistingProjectParts { project: f::PROJECT },
-                                        )
-                                        .unwrap(),
-                                    ),
                                     state: w::FirstState::Made(w::Made::new(&limits, w::MadeParts { id: 1 }).unwrap()),
                                     label: Box::new([]),
                                     playground: false,
@@ -204,12 +197,15 @@ fn an_empty_store_offers_the_playground_and_set_up() {
     assert!(decided(&root));
 }
 #[test]
-fn a_kept_forge_without_its_first_repository_is_unfinished_at_forge() {
-    let (mut root, _, accounts, forges) = opened(true, Step::Welcome);
+fn a_connected_forge_without_a_project_opens_ready() {
+    let (mut root, me, accounts, forges) = opened(true, Step::Welcome);
     answer(&mut root, false);
     account(&mut root, accounts, 18, true);
+    let mut frame = pages::accounts::current_me(root.client()).unwrap().clone();
+    frame.projects = List::with_capacity(0);
+    deliver(&mut root, me, c::Delivery::Me(Box::new(frame)));
     let mut out = forge_rows(&mut root, forges.unwrap(), Some(3), false);
-    let step = Step::Forge { forge: None };
+    let step = Step::Ready;
     assert_eq!(pages::welcome::decision(&root), Some(FirstRun::Unfinished { step }));
     assert_eq!(out.pop(), Some(Request::Show { address: Address::Welcome { step }, replace: true }));
 }
@@ -242,7 +238,7 @@ fn a_kept_real_forge_never_offers_the_playground() {
     }
 }
 #[test]
-fn an_adopted_first_repository_without_a_model_opens_model() {
+fn a_connected_forge_without_a_model_opens_model() {
     let (mut root, _, accounts, forges) = opened(true, Step::Welcome);
     answer(&mut root, false);
     account(&mut root, accounts, 18, false);
@@ -552,7 +548,7 @@ fn continue_setting_up_goes_to_the_first_step_not_done() {
             w::Connected::new(&w::CEILINGS, w::ConnectedParts { id: 42, login: b"temper".as_slice().into() }).unwrap(),
         )),
     );
-    assert_eq!(pages::welcome::decision(&root), Some(FirstRun::Unfinished { step: Step::Forge { forge: None } }));
+    assert_eq!(pages::welcome::decision(&root), Some(FirstRun::Whole));
     rows(&mut root, watch, 3);
     assert!(listed::setup(&root).is_none());
     account(&mut root, accounts, 18, false);
@@ -634,4 +630,132 @@ fn ready_and_the_strip_count_an_owners_deployment_model() {
     answer(&mut member, true);
     account(&mut member, accounts, 18, false);
     assert_eq!(pages::welcome::model_usable(&member), Some(false));
+}
+
+fn ready_default() -> (Domain, Token) {
+    let (mut root, me, accounts, forges) = opened(true, Step::Ready);
+    answer(&mut root, false);
+    account(&mut root, accounts, 18, true);
+    forge_rows(&mut root, forges.unwrap(), Some(3), false);
+    (root, me)
+}
+fn press_default(root: &mut Domain) -> Queue<Request> {
+    event(root, Event::Act { action: Action::Pages(Act::MakeDefault) })
+}
+fn default_answer(root: &mut Domain, outcome: jig_client::Outcome) -> Queue<Request> {
+    let key = root.pages().default_project().making.expect("pending Default");
+    let mut out = Queue::uncapped();
+    crate::route::told(root, &f::env(&f::limits()), Told::Answered { key, outcome }, &mut out);
+    out
+}
+#[test]
+fn ready_makes_default_once_per_press_with_its_own_key() {
+    let (mut root, _) = ready_default();
+    let mut out = press_default(&mut root);
+    let key = root.pages().default_project().making.unwrap();
+    assert_eq!(key.asker, crate::owner::Owner::Pages.asker());
+    let mut sends = 0_u32;
+    while let Some(request) = out.pop() {
+        if let Request::Client { request: jig_client::Request::Down { down: Down::Send { request, key: name, .. } } } =
+            request
+        {
+            assert_eq!(
+                request,
+                jig_client::Ask::Jig(Box::new(c::Ask::MakeProject {
+                    name: c::Text::new(b"Default".as_slice().into(), 64).unwrap(),
+                    policy: 1,
+                }))
+            );
+            assert_eq!(
+                name,
+                crate::key::named(crate::key::TOOLS, &crate::key::Name::new(b"welcome-default-1").unwrap())
+            );
+            sends += 1;
+        }
+    }
+    assert_eq!(sends, 1);
+    assert!(press_default(&mut root).is_empty());
+    go(&mut root, Step::Model { way: None });
+    go(&mut root, Step::Ready);
+    assert!(press_default(&mut root).is_empty());
+    assert_eq!(root.pages().default_project().making, Some(key));
+}
+#[test]
+fn default_made_opens_chats_and_waits_for_its_membership() {
+    let (mut root, me) = ready_default();
+    press_default(&mut root);
+    assert!(moved(
+        default_answer(
+            &mut root,
+            jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                c::DocumentOutcome::ProjectMade { project: 77 }
+            )),))
+        ),
+        false
+    ));
+    assert_eq!(root.pages().default_project().project, Some(77));
+    let mut frame = pages::accounts::current_me(root.client()).unwrap().clone();
+    frame.projects.get_mut(0).unwrap().project = 77;
+    event(&mut root, Event::Went { place: Place::Address(Address::Chats { filter: ChatsFilter::All, start: false }) });
+    deliver(&mut root, me, c::Delivery::Me(Box::new(frame)));
+    assert_eq!(root.pages().project(), Some(77));
+    assert_eq!(root.pages().default_project().project, None);
+}
+#[test]
+fn default_name_taken_opens_only_the_persons_default() {
+    for own_default in [false, true] {
+        let (mut root, me) = ready_default();
+        if own_default {
+            let mut frame = pages::accounts::current_me(root.client()).unwrap().clone();
+            frame.projects.get_mut(0).unwrap().name =
+                c::DocumentText::complete(c::Text::new(b"Default".as_slice().into(), 64).unwrap());
+            deliver(&mut root, me, c::Delivery::Me(Box::new(frame)));
+        }
+        press_default(&mut root);
+        let out = default_answer(
+            &mut root,
+            jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
+                refusal: c::Refusal::NameTaken,
+                at: None,
+            })),
+        );
+        assert_eq!(moved(out, false), own_default);
+        assert_eq!(
+            root.pages().default_project().ended,
+            if own_default { None } else { Some(pages::welcome::Ended::Refused(c::Refusal::NameTaken)) }
+        );
+    }
+}
+#[test]
+fn default_refused_or_unknown_offers_a_new_attempt_without_sending_anything() {
+    for outcome in [
+        jig_client::Outcome::Unknown,
+        jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
+            refusal: c::Refusal::Provider,
+            at: None,
+        })),
+    ] {
+        let (mut root, _) = ready_default();
+        press_default(&mut root);
+        let key = root.pages().default_project().making.unwrap();
+        assert!(default_answer(&mut root, outcome).is_empty());
+        assert!(root.pages().default_project().ended.is_some());
+        assert!(root.pages().default_project().making.is_none());
+        press_default(&mut root);
+        assert_eq!(root.pages().default_project().attempt, 2);
+        assert_ne!(root.pages().default_project().making, Some(key));
+        assert!(root.pages().default_project().ended.is_none());
+    }
+}
+#[test]
+fn default_is_refused_until_both_forge_and_model_are_done() {
+    let (mut root, _, accounts, forges) = opened(true, Step::Ready);
+    answer(&mut root, false);
+    account(&mut root, accounts, 18, true);
+    forge_rows(&mut root, forges.unwrap(), None, false);
+    assert!(press_default(&mut root).is_empty());
+    account(&mut root, accounts, 18, false);
+    rows(&mut root, forges.unwrap(), 3);
+    assert!(press_default(&mut root).is_empty());
+    assert_eq!(root.pages().default_project().attempt, 0);
 }

@@ -60,11 +60,11 @@ fn limits_take_each_bound_from_its_source_field() {
         fixtures::limits(),
         v1::Limits {
             verifying_tiers: 32,
-            verifying_tiers_item: 128,
+            verifying_tiers_item: 8192,
             red_tiers: 32,
-            red_tiers_item: 128,
+            red_tiers_item: 8192,
             cleared_tiers: 32,
-            cleared_tiers_item: 128,
+            cleared_tiers_item: 8192,
             authority_hold_reason: 512,
             owned_forge_forgejo: 64,
             owned_forge_runner_some: 64,
@@ -121,7 +121,6 @@ fn limits_take_each_bound_from_its_source_field() {
             first_ask_label: 64,
             set_up_org: 16,
             set_up_repository: 16,
-            new_project_name: 16,
             first_repository_org: 16,
             first_repository_repository: 16,
             first_repository_label: 64,
@@ -243,10 +242,6 @@ fn requesting_round_trips_and_refuses_trailing_and_version_three_adopt_bytes() {
                     forge: kept(u16::MAX),
                     org: b"work".as_slice().into(),
                     repository: b"hello".as_slice().into(),
-                    project: v1::SetUpProject::Existing(
-                        v1::ExistingProject::new(&v1::CEILINGS, v1::ExistingProjectParts { project: 1 })
-                            .expect("project"),
-                    ),
                 },
             )
             .expect("forge number"),
@@ -847,9 +842,6 @@ fn first_with_label(label: Box<[u8]>) -> Result<v1::FirstRepository, v1::Problem
             playground: true,
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
-            project: v1::SetUpProject::Existing(
-                v1::ExistingProject::new(&v1::CEILINGS, v1::ExistingProjectParts { project: 1 }).unwrap(),
-            ),
             state: v1::FirstState::Making,
             label,
         },
@@ -936,10 +928,6 @@ fn making_requests(forge: v1::Making) -> [v1::Request; 2] {
                     forge: forge.clone(),
                     org: b"work".as_slice().into(),
                     repository: b"hello".as_slice().into(),
-                    project: v1::SetUpProject::New(
-                        v1::NewProject::new(&limits, v1::NewProjectParts { name: b"project".as_slice().into() })
-                            .unwrap(),
-                    ),
                     playground: false,
                 },
             )
@@ -1114,7 +1102,7 @@ fn managed_git_program_is_optional_bounded_and_nonempty() {
 #[test]
 fn post_landing_tiers_accept_their_bounds_and_refuse_one_more() {
     let limits = fixtures::limits();
-    for (count, bytes) in [(32, 128), (33, 128), (32, 129)] {
+    for (count, bytes) in [(32, 8192), (33, 8192), (32, 8193)] {
         let mut tiers = List::with_capacity(count);
         for _ in 0..count {
             tiers.push(fixtures::field_bytes(bytes)).unwrap();
@@ -1122,9 +1110,28 @@ fn post_landing_tiers_accept_their_bounds_and_refuse_one_more() {
         let verifying = v1::Verifying::new(&limits, v1::VerifyingParts { merge: [8; 32], tiers: tiers.clone() });
         let red = v1::Red::new(&limits, v1::RedParts { merge: [8; 32], tiers: tiers.clone() });
         let cleared = v1::Cleared::new(&limits, v1::ClearedParts { merge: [8; 32], tiers, uncleared: false });
-        let within = count == 32 && bytes == 128;
+        let within = count == 32 && bytes == 8192;
         assert_eq!(verifying.is_ok(), within);
         assert_eq!(red.is_ok(), within);
         assert_eq!(cleared.is_ok(), within);
+    }
+}
+
+#[test]
+fn tier_strings_round_trip_at_the_bound_and_refuse_one_more_byte() {
+    for size in [8192_usize, 8193] {
+        let mut tiers = List::with_capacity(1);
+        let line: Box<[u8]> = if size == 8192 { Box::new([b'x'; 8192]) } else { Box::new([b'x'; 8193]) };
+        tiers.push(line).unwrap();
+        let value = v1::Red::new(&v1::CEILINGS, v1::RedParts { merge: [3; 32], tiers });
+        if size == 8192 {
+            let value = value.unwrap();
+            let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).unwrap());
+            value.encode(&mut writer).unwrap();
+            let bytes = writer.finish();
+            assert_eq!(v1::Red::decode(&v1::CEILINGS, &mut Reader::new(&bytes)).unwrap(), value);
+        } else {
+            assert_eq!(value.unwrap_err().reason, skein_codec::Reason::Bound);
+        }
     }
 }

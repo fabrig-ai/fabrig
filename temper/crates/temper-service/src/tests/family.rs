@@ -814,10 +814,6 @@ fn setup_requests_preserve_the_keyed_envelope_and_forge() {
                         forge: w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: 3 }).unwrap()),
                         org: b"work".as_slice().into(),
                         repository: b"hello".as_slice().into(),
-                        project: w::SetUpProject::Existing(
-                            w::ExistingProject::new(&w::CEILINGS, w::ExistingProjectParts { project: 1 })
-                                .expect("project"),
-                        ),
                     },
                 )
                 .unwrap(),
@@ -850,7 +846,6 @@ fn setup_requests_preserve_the_keyed_envelope_and_forge() {
                 forge: forge::Making::Kept(3),
                 org: b"work".as_slice().into(),
                 repository: b"hello".as_slice().into(),
-                project: forge::SetUpProject::Existing(1)
             })
         )
     );
@@ -1112,124 +1107,103 @@ fn an_exceeded_hold_refusal_keeps_each_bound_and_its_configured_value() {
 }
 
 #[test]
-fn setup_projects_and_first_repository_states_translate_without_losing_fields() {
-    for project in [forge::SetUpProject::Existing(7), forge::SetUpProject::New(b"Next".as_slice().into())] {
-        let wire_project = match &project {
-            forge::SetUpProject::Existing(project) => w::SetUpProject::Existing(
-                w::ExistingProject::new(&w::CEILINGS, w::ExistingProjectParts { project: *project }).unwrap(),
+fn setup_and_first_repository_states_translate_without_losing_fields() {
+    let record = w::Requesting::new(
+        &w::CEILINGS,
+        w::RequestingParts {
+            request: w::Request::SetUp(
+                w::SetUp::new(
+                    &w::CEILINGS,
+                    w::SetUpParts {
+                        playground: false,
+                        forge: w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: 3 }).unwrap()),
+                        org: b"team".as_slice().into(),
+                        repository: b"widget".as_slice().into(),
+                    },
+                )
+                .unwrap(),
             ),
-            forge::SetUpProject::New(name) => w::SetUpProject::New(
-                w::NewProject::new(&w::CEILINGS, w::NewProjectParts { name: name.clone() }).unwrap(),
-            ),
+        },
+    )
+    .unwrap();
+    let event = family::to_root(
+        &jig_protocol_config::Directories::working(),
+        exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)),
+        &fixtures::forge_table(&[]),
+        None,
+        None,
+        &w::CEILINGS,
+    )
+    .unwrap();
+    let root::Event::Party(root::PartyInput::Application { request, .. }) = event else { panic!("application") };
+    assert_eq!(
+        request,
+        root::Application::Forge(forge::Ask::SetUp {
+            playground: false,
+            forge: forge::Making::Kept(3),
+            org: b"team".as_slice().into(),
+            repository: b"widget".as_slice().into(),
+        })
+    );
+    for state in [
+        forge::FirstState::Making,
+        forge::FirstState::Made { id: 42 },
+        forge::FirstState::Failed { step: forge::CreateStep::Admin },
+        forge::FirstState::Failed { step: forge::CreateStep::Org },
+        forge::FirstState::Failed { step: forge::CreateStep::Repository },
+        forge::FirstState::Failed { step: forge::CreateStep::File },
+    ] {
+        let first = forge::First {
+            playground: false,
+            org: b"team".as_slice().into(),
+            repository: b"widget".as_slice().into(),
+            state,
+            label: Box::from(b"temper-host".as_slice()),
         };
-        let record = w::Requesting::new(
-            &w::CEILINGS,
-            w::RequestingParts {
-                request: w::Request::SetUp(
-                    w::SetUp::new(
-                        &w::CEILINGS,
-                        w::SetUpParts {
-                            playground: false,
-                            forge: w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: 3 }).unwrap()),
-                            org: b"team".as_slice().into(),
-                            repository: b"widget".as_slice().into(),
-                            project: wire_project.clone(),
-                        },
-                    )
-                    .unwrap(),
-                ),
-            },
-        )
-        .unwrap();
-        let event = family::to_root(
-            &jig_protocol_config::Directories::working(),
-            exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)),
-            &fixtures::forge_table(&[]),
-            None,
-            None,
-            &w::CEILINGS,
-        )
-        .unwrap();
-        let root::Event::Party(root::PartyInput::Application { request, .. }) = event else { panic!("application") };
-        assert_eq!(
-            request,
-            root::Application::Forge(forge::Ask::SetUp {
-                playground: false,
-                forge: forge::Making::Kept(3),
-                org: b"team".as_slice().into(),
-                repository: b"widget".as_slice().into(),
-                project: project.clone()
-            })
+        let mut row = forge_row(
+            3,
+            forge::Kind::Forgejo,
+            forge::Mode::Owned,
+            forge::Connection::Connecting,
+            forge::Offer::NotOffered,
         );
-        for state in [
-            forge::FirstState::Making,
-            forge::FirstState::Made { id: 42 },
-            forge::FirstState::Failed { step: forge::CreateStep::Admin },
-            forge::FirstState::Failed { step: forge::CreateStep::Org },
-            forge::FirstState::Failed { step: forge::CreateStep::Repository },
-            forge::FirstState::Failed { step: forge::CreateStep::File },
-        ] {
-            let first = forge::First {
-                playground: false,
-                org: b"team".as_slice().into(),
-                repository: b"widget".as_slice().into(),
-                project: project.clone(),
-                state,
-                label: Box::from(b"temper-host".as_slice()),
-            };
-            let mut row = forge_row(
-                3,
-                forge::Kind::Forgejo,
-                forge::Mode::Owned,
-                forge::Connection::Connecting,
-                forge::Offer::NotOffered,
-            );
-            row.first = Some(first);
-            let value = forge::Forges { rows: Box::new([row]) };
-            let bytes = family::forges(value, &w::CEILINGS).unwrap();
-            let rows = wire::decode_forges(&bytes, &w::CEILINGS).unwrap().into_parts().forges;
-            let first = rows.get(0).unwrap().first().as_ref().unwrap();
-            assert_eq!(
-                (first.org(), first.repository(), first.project()),
-                (b"team".as_slice(), b"widget".as_slice(), &wire_project)
-            );
-            match (state, first.state()) {
-                (forge::FirstState::Making, w::FirstState::Making) => {}
-                (forge::FirstState::Made { id }, w::FirstState::Made(value)) => assert_eq!(id, value.id()),
-                (forge::FirstState::Failed { step }, w::FirstState::Failed(value)) => assert_eq!(
-                    value.step(),
-                    &match step {
-                        forge::CreateStep::Admin => w::CreateStep::Admin,
-                        forge::CreateStep::Org => w::CreateStep::Org,
-                        forge::CreateStep::Repository => w::CreateStep::Repository,
-                        forge::CreateStep::File => w::CreateStep::File,
-                    }
-                ),
-                _ => panic!("first state changed"),
-            }
+        row.first = Some(first);
+        let value = forge::Forges { rows: Box::new([row]) };
+        let bytes = family::forges(value, &w::CEILINGS).unwrap();
+        let rows = wire::decode_forges(&bytes, &w::CEILINGS).unwrap().into_parts().forges;
+        let first = rows.get(0).unwrap().first().as_ref().unwrap();
+        assert_eq!((first.org(), first.repository()), (b"team".as_slice(), b"widget".as_slice()));
+        match (state, first.state()) {
+            (forge::FirstState::Making, w::FirstState::Making) => {}
+            (forge::FirstState::Made { id }, w::FirstState::Made(value)) => assert_eq!(id, value.id()),
+            (forge::FirstState::Failed { step }, w::FirstState::Failed(value)) => assert_eq!(
+                value.step(),
+                &match step {
+                    forge::CreateStep::Admin => w::CreateStep::Admin,
+                    forge::CreateStep::Org => w::CreateStep::Org,
+                    forge::CreateStep::Repository => w::CreateStep::Repository,
+                    forge::CreateStep::File => w::CreateStep::File,
+                }
+            ),
+            _ => panic!("first state changed"),
         }
     }
 }
 #[test]
-fn new_project_and_invalid_setup_refusals_translate_to_the_wire() {
+fn invalid_setup_refusals_translate_to_the_wire() {
     let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
-    for (domain, wire) in [
-        (forge::SetUpRefusal::NewProject, w::SetUpRefusal::NewProject),
-        (forge::SetUpRefusal::Invalid, w::SetUpRefusal::Invalid),
-    ] {
-        let bytes = family::answer(
-            Some(temper_engine_domain::ApplicationAnswer::SetUp(forge::SetUpAnswer::Refused(domain))),
-            &w::CEILINGS,
-            &jig,
-        )
-        .unwrap();
-        let w::Outcome::SetUpRefused(value) =
-            w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().into_parts().outcome
-        else {
-            panic!("refusal")
-        };
-        assert_eq!(value.why(), &wire);
-    }
+    let bytes = family::answer(
+        Some(temper_engine_domain::ApplicationAnswer::SetUp(forge::SetUpAnswer::Refused(forge::SetUpRefusal::Invalid))),
+        &w::CEILINGS,
+        &jig,
+    )
+    .unwrap();
+    let w::Outcome::SetUpRefused(value) =
+        w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().into_parts().outcome
+    else {
+        panic!("refusal")
+    };
+    assert_eq!(value.why(), &w::SetUpRefusal::Invalid);
 }
 
 #[test]
@@ -1863,9 +1837,6 @@ fn new_forge_places_reach_both_setup_and_connect_whole() {
         (managed, forge::ForgeAsk::Managed { place, git_program: Some(b"/data/bin/git".as_slice().into()) }),
     ] {
         let making = w::Making::New(w::NewForge::new(&w::CEILINGS, w::NewForgeParts { forge: asked }).unwrap());
-        let project = w::SetUpProject::Existing(
-            w::ExistingProject::new(&w::CEILINGS, w::ExistingProjectParts { project: 7 }).unwrap(),
-        );
         for (request, expected) in [
             (
                 w::Request::SetUp(
@@ -1875,7 +1846,6 @@ fn new_forge_places_reach_both_setup_and_connect_whole() {
                             forge: making.clone(),
                             org: b"work".as_slice().into(),
                             repository: b"hello".as_slice().into(),
-                            project,
                             playground: false,
                         },
                     )
@@ -1885,7 +1855,6 @@ fn new_forge_places_reach_both_setup_and_connect_whole() {
                     forge: forge::Making::New(expected.clone()),
                     org: b"work".as_slice().into(),
                     repository: b"hello".as_slice().into(),
-                    project: forge::SetUpProject::Existing(7),
                     playground: false,
                 },
             ),
@@ -2013,8 +1982,7 @@ fn end_playground_answers_reset() {
 
 #[test]
 fn after_landing_steps_translate_all_tier_lines_and_uncleared() {
-    let lines: Box<[Box<[u8]>]> =
-        Box::new([Box::from(b"fast run 2".as_slice()), Box::from(b"slow run 3 running".as_slice())]);
+    let lines: Box<[Box<[u8]>]> = Box::new([Box::from(b"fast run 2".as_slice()), Box::new([b'x'; 256])]);
     for input in [
         forge::PanelStep::Verifying { merge: [8; 32], tiers: lines.clone() },
         forge::PanelStep::Red { merge: [8; 32], tiers: lines.clone() },

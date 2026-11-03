@@ -12,6 +12,9 @@
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
+
+/// The merge job (temper/docs/design/domain/worker.md, 4.4).
+pub const MERGE_KIND: u32 = 3;
 use alloc::boxed::Box;
 mod address;
 pub use address::{PULL_ADDRESS_BYTES, pull_address};
@@ -320,10 +323,6 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                     .checked_add(bytes(&first.org)?)?
                     .checked_add(bytes(&first.repository)?)?
                     .checked_add(bytes(&first.label)?)?;
-                match &first.project {
-                    SetUpProject::Existing(_) => {}
-                    SetUpProject::New(name) => held = held.checked_add(bytes(name)?)?,
-                }
             }
             Some(held)
         }

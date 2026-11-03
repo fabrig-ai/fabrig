@@ -184,6 +184,7 @@ fn opening_row() -> ChangeRow {
         priority: 1,
         ci: None,
         change: change::Change {
+            early: change::Early::None,
             way: temper_engine_domain_forge_change::Way::Queue,
             landing: None,
             task: CHANGE,
@@ -217,6 +218,8 @@ fn opening_row() -> ChangeRow {
         effect_account: None,
         producer_failure: None,
         report: Box::new([]),
+        catch_up: None,
+        merge_result: None,
     }
 }
 
@@ -283,6 +286,7 @@ fn verifying() -> Domain {
 
 fn heard(cancelled: bool) -> change::Heard {
     change::Heard {
+        start_conflict: None,
         lacking: None,
         spend: None,
         delegate: change::Status::Unknown,
@@ -300,11 +304,13 @@ fn advance(d: &mut Domain, task: u64, wall: Wall, cancelled: bool) -> Queue<Requ
         d,
         &environment,
         StepInput {
+            merge_job: false,
             task,
             entry: OPEN,
             heard: heard(cancelled),
             gates: Box::new([]),
             queue_repair_active: false,
+            pending: Box::new([]),
             kept: false,
         },
         &mut out,

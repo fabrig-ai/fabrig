@@ -141,15 +141,19 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
   --cache CACHE` with the same directories. This also updates an already
   prepared runner's configuration while preserving its registration and
   secrets. Capacity changes require the runner to be stopped.
-- **ctl:** `change show TASK --until cleared` waits for a landed
-  change's verdict, its step `verifying`, `red` or `cleared` naming the
-  tiers and their runs; `task show` reads a tier's run task, and `task
-  release` releases a held one. In ordinary `task show TASK`, the
-  `asked:` words name the repository, full tested commit and owned
-  branch. Once temper observes the dispatched run, they also give its
-  forge run number and URL. The judged run, failed-test reruns and
-  bisection probes each name their own commit, branch and forge run.
-  These words remain after completion, branch deletion and restart.
+- **ctl:** `change show TASK --until cleared` waits for a verdict:
+  `verifying`, `red` or `cleared`, naming tiers and runs. `task show`
+  reads the run; `task release` releases a held one.
+  `asked:` names the repository, full tested commit and owned branch.
+  Each judged run, failed-test rerun and bisection probe names its own
+  commit, branch, forge run number and URL, kept after completion,
+  branch deletion and restart.
+  Red results pair blamed merge commits with their owned or suspected
+  full IDs; inherited failures blame no new landing. IDs are never cut:
+  omitted IDs end with `and N more failing tests; change show TASK`.
+  The panel retains all IDs. Overflow stays `many tests`.
+  ctl reads beyond the overview within its output bound; beyond it,
+  `task show` prints `task text TASK --field specification --from OFFSET`.
 
 ## Limits
 

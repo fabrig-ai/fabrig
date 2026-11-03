@@ -27,9 +27,6 @@ pub enum Meaning {
     SetUp(u16),
     SetUpAtOnce(u16),
     SetupField(forge::forges::SetupField),
-    StartIn(u16),
-    Picker { forge: u16, act: forge::picker::Act },
-    PickerName(u16),
 }
 #[derive(Debug)]
 struct Entry {
@@ -69,9 +66,6 @@ pub fn decode(bindings: &Bindings, token: Token, act: Act) -> Option<Action> {
             (Meaning::PlaceField(field), Act::Input { value }) => {
                 Some(Action::Forge(forge::Act::Forges(forge::forges::Act::PlaceWrite { field, text: value })))
             }
-            (Meaning::PickerName(forge), Act::Input { value }) => {
-                Some(Action::Forge(forge::Act::Picker { forge, act: forge::picker::Act::Write(value) }))
-            }
             (Meaning::AdminField(field), Act::Input { value }) => {
                 Some(Action::Forge(forge::Act::AdminWrite { field, text: value }))
             }
@@ -108,10 +102,7 @@ pub fn decode(bindings: &Bindings, token: Token, act: Act) -> Option<Action> {
                     Action::Forge(forge::Act::Install { forge, back: temper_client_domain::address::print(&back) })
                 }
                 Meaning::Adopt => Action::Forge(forge::Act::Adopt),
-                Meaning::Picker { forge, act } => Action::Forge(forge::Act::Picker { forge, act }),
-                Meaning::StartIn(forge) => Action::Forge(forge::Act::StartIn { forge }),
                 Meaning::PlaceField(_)
-                | Meaning::PickerName(_)
                 | Meaning::AdminField(_)
                 | Meaning::AdminToken
                 | Meaning::ReplaceValue { .. }
@@ -204,10 +195,7 @@ pub fn event(bindings: &Bindings, token: Token, act: Act) -> Option<temper_clien
             | Meaning::Install { .. }
             | Meaning::SetUp(_)
             | Meaning::SetUpAtOnce(_)
-            | Meaning::SetupField(_)
-            | Meaning::StartIn(_)
-            | Meaning::Picker { .. }
-            | Meaning::PickerName(_) => break,
+            | Meaning::SetupField(_) => {}
         }
     }
     Some(temper_client_domain::Event::Act { action: decode(bindings, token, act)? })

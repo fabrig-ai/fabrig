@@ -55,6 +55,15 @@ fn the_reference_settings_file_decodes() {
     ));
     assert!(!coordinator.resume());
     assert_eq!(coordinator.waiting, Duration::ZERO);
+    assert!(core::str::from_utf8(coordinator.instructions.bytes()).expect("coordinator instructions").contains(
+        "When main moves under your goal, you hear a landing into main that touches your goal's \
+         open work as news, at most once in 30 minutes. Catch up with one `change`: `\"landing\": \
+         \"goal\"`, `\"merge\"` the landing's merge commit, its words naming the landing and why your \
+         goal needs it now. Keep one catch-up live at a time: a later landing's commit carries the \
+         earlier ones, so on news while one is live, wait for its result. On your first run, once \
+         your first batch is made, subscribe with `subscribe_forge` to the landings on main in your \
+         repository."
+    ));
     assert_eq!(
         coordinator.wake,
         WakePolicy {
@@ -72,6 +81,11 @@ fn the_reference_settings_file_decodes() {
     };
     assert_eq!(coder.wake, WakePolicy::DEFAULT);
     assert!(coder.instructions.bytes().starts_with(include_bytes!("../../../temper-service/src/stock/coding.txt")));
+    assert!(
+        core::str::from_utf8(coder.instructions.bytes())
+            .expect("coding instructions")
+            .contains("Push as you go: deliver a first head as soon as the change builds, then again as it grows.")
+    );
     let SettingValue::Template(goal) = value(&items, Setting::Template(SettingNumber { number: GOAL })) else {
         panic!("goal template")
     };

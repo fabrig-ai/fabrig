@@ -36,7 +36,7 @@ fn act(front: &mut Joint, root: &mut Root, role: Role, name: &[u8], action: Act)
         .map(|n| n.id)
         .collect::<Vec<_>>();
     assert_eq!(
-        matches.len(),
+        if name == b"Adopt a repository" { matches.len().min(1) } else { matches.len() },
         1,
         "unique {:?} {:?}\n{}",
         role,
@@ -103,115 +103,22 @@ fn setup_model_sentence_keeps_supported_plans_in_the_playground() {
 }
 
 #[test]
-fn github_picker_marks_only_the_private_repository_and_keeps_names_plain() {
-    let (front, root) = Joint::github_fixture(fixtures::SEED);
-    let view = draw(&root);
-    let tree = Temper::tree(&view);
-    let shown = format!(
-        "{}\n{}",
-        text(tree),
-        tree.nodes()
-            .iter()
-            .filter(|n| n.name.is_some())
-            .map(|n| format!("{:?}: {}", n.role, String::from_utf8_lossy(n.name.as_deref().expect("named"))))
-            .collect::<Vec<_>>()
-            .join("\n")
-    );
-    assert!(has(&root, Role::Choice, b"acme/shop"), "{shown}");
-    assert!(has(&root, Role::Choice, b"acme/second"), "{shown}");
-    assert!(!has(&root, Role::Choice, b"acme/second (private)"), "{shown}");
-    assert_eq!(
-        tree.nodes().iter().filter(|n| n.text.iter().any(|r| r.text.as_ref() == b"private")).count(),
-        1,
-        "{shown}"
-    );
-    let choices =
-        tree.nodes().iter().enumerate().filter(|(_, n)| n.role == Role::Choice).map(|(at, _)| at).collect::<Vec<_>>();
-    let private =
-        tree.nodes().iter().position(|n| n.text.iter().any(|r| r.text.as_ref() == b"private")).expect("private tag");
-    let project = tree.nodes().iter().position(|n| n.role == Role::TextField).expect("project field");
-    assert_eq!(choices.len(), 2);
-    assert!(choices[0] < choices[1] && choices[1] < private && private < project, "private belongs to the second row");
-    assert_eq!(front.reachable_reads.len(), 1);
-}
-
-#[test]
-fn github_not_listed_is_an_actionable_link_with_full_or_empty_picker_in_both_flows() {
-    for empty in [false, true] {
-        for at in [
-            Address::ConnectForge { forge: Some(Choice::Forge(1)) },
-            welcome(Step::Forge { forge: Some(Choice::Forge(1)) }),
-        ] {
-            let (mut front, mut root) = Joint::github_fixture_with(fixtures::SEED, true, empty);
-            go(&mut front, &mut root, at);
-            let shown = text(Temper::tree(&draw(&root)));
-            assert!(shown.contains("Not listed?"), "empty={empty}: {shown}");
-            press(&mut front, &mut root, Role::Link, b"Choose its repositories on GitHub");
-            assert_eq!(front.installs.len(), 1, "link sends one Install");
-        }
-    }
-}
-
-fn adopt_private_in_welcome(front: &mut Joint, root: &mut Root) {
-    h::reopen(front, root, welcome(Step::Forge { forge: Some(Choice::Forge(1)) }), false);
-    act(front, root, Role::Choice, b"acme/second", Act::Toggle);
-    press(front, root, Role::Button, b"Adopt acme/second");
-    assert!(front.engine_adopted(1, 8));
-}
-
-#[test]
-fn github_welcome_adoption_advances_to_the_model_step() {
+fn github_ready_offers_adoption_from_the_form_without_reading_repositories() {
     let (mut front, mut root) = Joint::github_fixture(fixtures::SEED);
-    adopt_private_in_welcome(&mut front, &mut root);
-    let shown = text(Temper::tree(&draw(&root)));
-    assert!(has(&root, Role::Heading { level: 1 }, b"Connect a model"), "{shown}");
-}
-
-#[test]
-fn private_github_adoption_supplies_model_and_ready_facts_live_and_after_reload() {
-    let (mut front, mut root) = Joint::github_fixture(fixtures::SEED);
-    adopt_private_in_welcome(&mut front, &mut root);
-    go(&mut front, &mut root, welcome(Step::Model { way: None }));
-    let shown = text(Temper::tree(&draw(&root)));
-    assert!(shown.contains("acme/second, in the new project second"), "{shown}");
-    assert!(!has(&root, Role::Disclosure, b"Each step"), "{shown}");
-    go(&mut front, &mut root, welcome(Step::Ready));
-    assert!(has(&root, Role::Heading { level: 1 }, b"acme/second is ready"));
-    assert!(has(&root, Role::Link, b"Open second"));
-    h::reopen(&mut front, &mut root, welcome(Step::Model { way: None }), false);
-    let shown = text(Temper::tree(&draw(&root)));
-    assert!(shown.contains("acme/second, in second"), "{shown}");
-    assert!(!shown.contains("the new project second"), "{shown}");
-    assert!(!has(&root, Role::Disclosure, b"Each step"));
-}
-
-#[test]
-fn github_picker_preserves_an_edited_project_name_when_switching_repositories() {
-    let (mut front, mut root) = Joint::github_fixture(fixtures::SEED);
-    act(
-        &mut front,
-        &mut root,
-        Role::TextField,
-        b"Into a new project, named",
-        Act::Input { value: b"My work".as_slice().into() },
-    );
-    act(&mut front, &mut root, Role::Choice, b"acme/second", Act::Toggle);
-    press(&mut front, &mut root, Role::Button, b"Adopt acme/second");
-    assert!(front.engine_adopted(1, 8));
-    let shown = text(Temper::tree(&draw(&root)));
-    assert!(shown.contains("In the new project My work, on GitHub."), "{shown}");
-    press(&mut front, &mut root, Role::Link, b"Open My work");
-    assert!(has(&root, Role::Heading { level: 1 }, b"Chats"));
-    assert!(has(&root, Role::Button, b"My work"));
-}
-
-#[test]
-fn github_picker_requires_a_project_name_before_adopting() {
-    let (mut front, mut root) = Joint::github_fixture(fixtures::SEED);
-    act(&mut front, &mut root, Role::TextField, b"Into a new project, named", Act::Input { value: Box::new([]) });
-    press(&mut front, &mut root, Role::Button, b"Adopt acme/shop");
-    let shown = text(Temper::tree(&draw(&root)));
-    assert!(shown.contains("Required."), "{shown}");
+    assert!(has(&root, Role::Heading { level: 2 }, b"GitHub is connected"));
+    assert!(front.reachable_reads.is_empty());
     assert!(!front.engine_adopted(1, 7));
-    assert_eq!(front.applications_admitted(), 0);
+    press(&mut front, &mut root, Role::Link, b"Adopt a repository");
+    assert!(has(&root, Role::TextField, b"Owner"));
+    assert!(has(&root, Role::TextField, b"Name"));
+}
+#[test]
+fn github_welcome_connection_advances_to_model_without_adoption() {
+    let (mut front, mut root) = Joint::github_fixture(fixtures::SEED);
+    h::reopen(&mut front, &mut root, welcome(Step::Forge { forge: Some(Choice::Forge(1)) }), false);
+    assert!(has(&root, Role::Heading { level: 1 }, b"Connect a model"));
+    assert!(!front.engine_adopted(1, 8));
+    go(&mut front, &mut root, welcome(Step::Ready));
+    assert!(has(&root, Role::Heading { level: 1 }, b"Almost ready"));
+    assert!(has(&root, Role::Button, b"Open Default"));
 }

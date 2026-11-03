@@ -166,12 +166,7 @@
       1
     ],
     "memory_bytes": 1073741824,
-    "projects": [
-      {
-        "number": 1,
-        "policy": 1
-      }
-    ]
+    "projects": []
   },
   "workers": [
     {

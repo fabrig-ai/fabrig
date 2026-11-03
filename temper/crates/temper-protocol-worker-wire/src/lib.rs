@@ -34,6 +34,8 @@ pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
     let limits = v1::Limits {
         repository_name: bounds.name_bytes,
         merge_branch: bounds.name_bytes,
+        merged_branch: bounds.name_bytes,
+        merged_heads: v1::CEILINGS.merged_heads,
         branch_branch: bounds.name_bytes,
         writable_push: bounds.name_bytes,
         writable_landing_some: bounds.name_bytes,

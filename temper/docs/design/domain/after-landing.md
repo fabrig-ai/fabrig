@@ -187,6 +187,10 @@ red by earlier failures it does not run (5.3).
   change on its requester's held branch (`forge.md`, 8.1), holds none:
   the goal's own branch stays the goal's, deleted as the goal closes
   once this change has landed it.
+- **The red change read** names its merge commit, each tier and judged run,
+  and every full test ID blamed on that landing. Owned failures and suspected
+  failures are labelled separately; an overflow verdict stays explicit as
+  `many tests`. Inherited failures do not redden a cleared landing.
 - **Its result is given at cleared,** naming the landing and, for a red
   one, the landing that repaired it. Its goal waits for it as for any
   delegate's result; a coordinator that goes on sooner does not wait,
@@ -285,9 +289,27 @@ red by earlier failures it does not run (5.3).
   due step (jig's `domain/tasks.md`, 5.3). New part words are saved
   before its effects are issued; the procedure continues at a deadline
   due immediately. The task keeps them after
-  completion, branch release and restart. Observations not yet projected
+  completion, branch release and restart. Ordinary ctl `task show TASK`
+  follows missing specification chunks within its output bounds, so `asked:`
+  retains these identities beyond the overview prefix; when exhausted it
+  gives a `task text` continuation at the first undisplayed byte.
+  Observations not yet projected
   are kept on the tier row until a step acknowledges their task words,
   including across follower replacement and restart.
+- **The completed run task's report** names its tier and judged run, and pairs
+  each blamed merge commit with that landing's own failed IDs, distinguishing
+  owned and suspected failures. Its summary counts inherited failures without
+  attributing them to cleared landings. Singular counts say `1 test` and
+  `1 landing`; overflow verdicts say `many tests`.
+  The existing report contract's `words` bounds this result. Each attribution
+  occupies a line, with a whole quoted ID (backslash, quote, CR and LF escaped)
+  and, for a retained landing, `change show TASK`. Lines that do not fit are
+  omitted whole; later shorter lines may still fit. An explicit remainder ends
+  the report: `and N more failing tests; change show TASK`, naming the first
+  omitted retained landing (`1 more failing test` for a single ID).
+  If any omitted attribution is `many`, the
+  remainder says `many` too. Full IDs remain in the change read's retained
+  `Verification`; no separate record or larger task result is needed.
 - **Effects:** the tiers' dispatches and reruns are `landing.md`, 11's
   kinds 16 and 17, their branches' creation kind 9, released at the
   task's close; statuses and comments are kinds 6 and 7; each its run's

@@ -15,6 +15,7 @@ pub mod choice;
 pub mod connect_model;
 pub mod delegation;
 pub mod inbox;
+pub mod switcher;
 pub mod task;
 pub mod welcome;
 /// The chosen playground waits for its project membership (temper/docs/design/client/README.md, 4.8).
@@ -34,6 +35,7 @@ pub struct Pages {
     chat: Option<chat::Chat>,
     task: Option<task::Task>,
     accounts: accounts::Accounts,
+    switcher: switcher::Switcher,
     connect_model: Option<Box<connect_model::ConnectModel>>,
     pub(crate) playground_provider: Option<u32>,
     pub(crate) playground_choice: PlaygroundChoice,
@@ -41,6 +43,8 @@ pub struct Pages {
     pub(crate) choice: choice::Draft,
     accounts_open: bool,
     welcome: Option<welcome::Welcome>,
+    default_project: welcome::DefaultProject,
+    pub(crate) welcome_decision: Option<welcome::FirstRun>,
     party: Option<u64>,
     next: u64,
     pub(crate) serial: u64,
@@ -50,6 +54,7 @@ pub struct Pages {
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Act {
+    MakeDefault,
     OpenProject {
         project: u32,
     },
@@ -57,6 +62,7 @@ pub enum Act {
         project: u32,
     },
     Choice(choice::Act),
+    Switcher(switcher::Act),
     SignOut,
     Playground,
     RetryPlayground,
@@ -66,6 +72,7 @@ pub enum Act {
         words: Box<[u8]>,
     },
     StartChat,
+    FirstChat,
     Suggest {
         cue: u8,
     },
@@ -166,6 +173,7 @@ impl Pages {
             chat: None,
             task: None,
             accounts: accounts::Accounts::default(),
+            switcher: switcher::Switcher::default(),
             connect_model: None,
             playground_provider: None,
             playground_choice: PlaygroundChoice::Idle,
@@ -173,6 +181,8 @@ impl Pages {
             choice: choice::Draft::default(),
             accounts_open: false,
             welcome: None,
+            default_project: welcome::DefaultProject::new(),
+            welcome_decision: None,
             party: None,
             next: 1,
             serial: 0,
@@ -180,6 +190,10 @@ impl Pages {
             seeing: None,
             confirm: None,
         }
+    }
+    #[must_use]
+    pub const fn switcher(&self) -> &switcher::Switcher {
+        &self.switcher
     }
     #[must_use]
     pub fn choice(&self) -> &choice::Draft {
@@ -196,6 +210,10 @@ impl Pages {
     #[must_use]
     pub const fn welcome(&self) -> Option<&welcome::Welcome> {
         self.welcome.as_ref()
+    }
+    #[must_use]
+    pub const fn default_project(&self) -> &welcome::DefaultProject {
+        &self.default_project
     }
     pub(crate) fn decide_welcome(&mut self) {
         if let Some(welcome) = &mut self.welcome {
@@ -353,6 +371,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             }
         }
         Event::Left => {
+            pages.switcher.close();
             leave_conversations(pages, out);
             pages.accounts.leave(out);
             if let Some(mut page) = pages.connect_model.take() {
@@ -361,6 +380,10 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             pages.welcome = None;
             pages.accounts_open = false;
         }
+        Event::Act { act: Act::Switcher(act) } => {
+            let me = pages.me(client);
+            pages.switcher.act(me, pages.project, act, &mut pages.serial, out);
+        }
         Event::Act { act: Act::Choice(act) } => choice::act(pages, client, act, out),
         Event::Act { act: Act::ChatWords { words } } => {
             if let Some(chats) = &mut pages.chats {
@@ -368,6 +391,12 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             }
         }
         Event::Act { act: Act::StartChat } => start_chat(pages, env, client, out),
+        Event::Act { act: Act::FirstChat } => {
+            let me = pages.me(client);
+            if let Some(chats) = &mut pages.chats {
+                chats.first_chat(env, me, pages.project, &pages.choice, &mut pages.serial, out);
+            }
+        }
         Event::Act { act: Act::Suggest { .. } | Act::Playground | Act::RetryPlayground } => {
             unreachable!("suggestions are resolved by the root")
         }
@@ -412,6 +441,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 | Act::Confirm
                 | Act::Cancel),
         } => confirmation(pages, env, client, act, out),
+        Event::Act { act: Act::MakeDefault } => make_default(pages, out),
         Event::Act { act: Act::OpenProject { project } } => {
             choose_project(pages, client, project);
             out.push(Request::Show { address: Address::Chats { filter: ChatsFilter::All, start: false } });
@@ -435,6 +465,8 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             }
         }
     }
+    default_chosen(pages, client);
+    switcher_chosen(pages, client, out);
     returned(pages, client, out);
     let owner = pages.accounts_open
         && match accounts::current_me(client) {
@@ -451,6 +483,10 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     pages.shown = pages.shown.checked_add(1).expect("pages shown count fits");
 }
 fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
+    if default_told(pages, client, &told, out) {
+        pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
+        return false;
+    }
     if let Told::Answered { key, outcome } = &told
         && let Some((through, pending)) = pages.seeing
         && *key == pending
@@ -459,6 +495,11 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
             pages.seen = through;
         }
         pages.seeing = None;
+        return false;
+    }
+    if pages.switcher.told(&told) {
+        switcher_chosen(pages, client, out);
+        pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
         return false;
     }
     if pages.choice.told(&told) || crate::acts::told(pages, &told) {
@@ -477,6 +518,7 @@ fn started(pages: &mut Pages, out: &mut Queue<Request>) {
     pages.welcome = None;
     pages.address = Address::Inbox { filter: crate::address::Filter::ALL };
     pages.project = None;
+    pages.switcher = switcher::Switcher::default();
     if !pages.watching {
         pages.watching = true;
         out.push(Request::Client(jig_client::Event::Watch {
@@ -541,6 +583,7 @@ fn contains(me: &Me, project: Option<u32>) -> bool {
 }
 
 fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<Request>) {
+    pages.switcher.went(&address);
     if let (Address::Chats { .. }, Address::Chats { filter, .. }, Some(page)) =
         (&pages.address, &address, &mut pages.chats)
     {
@@ -812,7 +855,9 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::DiscardAmendment
         | Act::SendAmendment
         | Act::AmendAgain
+        | Act::Switcher(_)
         | Act::Choice(_)
+        | Act::MakeDefault
         | Act::OpenProject { .. }
         | Act::Project { .. }
         | Act::Accounts(_)
@@ -820,6 +865,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::SignOut
         | Act::ChatWords { .. }
         | Act::StartChat
+        | Act::FirstChat
         | Act::Playground
         | Act::RetryPlayground
         | Act::Suggest { .. }
@@ -853,6 +899,9 @@ fn choose_project(pages: &mut Pages, client: &Client, project: u32) {
     if let Some(me) = pages.me(client) {
         for row in &me.projects {
             if row.project == project {
+                if pages.project != Some(project) {
+                    pages.switcher.close();
+                }
                 pages.project = Some(project);
                 break;
             }
@@ -868,6 +917,16 @@ pub(crate) fn playground_project(pages: &mut Pages, client: &Client, project: Op
         choose_project(pages, client, project);
         if pages.project == Some(project) {
             pages.playground_choice = PlaygroundChoice::Idle;
+        }
+    }
+}
+
+fn switcher_chosen(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
+    if let Some(project) = pages.switcher.opening {
+        choose_project(pages, client, project);
+        if pages.project == Some(project) {
+            pages.switcher.opening = None;
+            out.push(Request::Show { address: Address::Chats { filter: ChatsFilter::All, start: false } });
         }
     }
 }
@@ -905,6 +964,7 @@ fn me_changed(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
             pages.seen = 0;
             pages.seeing = None;
             pages.choice = choice::Draft::default();
+            pages.switcher = switcher::Switcher::default();
         }
         pages.party = Some(me.party.number);
         if connect_model::open(&pages.address) {
@@ -921,6 +981,7 @@ fn me_changed(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
         }
     }
     project_changed(pages, client);
+    default_chosen(pages, client);
 }
 
 #[expect(clippy::manual_map, reason = "step code reads the first project without closures")]
@@ -928,6 +989,7 @@ pub(crate) fn project_changed(pages: &mut Pages, client: &Client) {
     if let Some(me) = pages.me(client)
         && !contains(me, pages.project)
     {
+        pages.switcher.close();
         pages.project = match me.projects.get(0) {
             Some(row) => Some(row.project),
             None => None,
@@ -960,6 +1022,7 @@ fn link_changed(pages: &mut Pages, link: Link, out: &mut Queue<Request>) {
             }
             pages.accounts = accounts::Accounts::default();
             pages.choice = choice::Draft::default();
+            pages.switcher = switcher::Switcher::default();
             pages.party = None;
             pages.project = None;
             pages.seen = 0;
@@ -1022,5 +1085,105 @@ fn leave_conversations(pages: &mut Pages, out: &mut Queue<Request>) {
     }
     if let Some(task) = pages.task.take() {
         pages.next = task.leave(out);
+    }
+}
+
+fn make_default(pages: &mut Pages, out: &mut Queue<Request>) {
+    if pages.address != (Address::Welcome { step: crate::Step::Ready }) || pages.default_project.making.is_some() {
+        return;
+    }
+    match pages.welcome_decision {
+        Some(welcome::FirstRun::Whole | welcome::FirstRun::Unfinished { step: crate::Step::Ready }) => {}
+        Some(welcome::FirstRun::Empty | welcome::FirstRun::Unfinished { .. }) | None => return,
+    }
+    pages.serial = pages.serial.checked_add(1).expect("pages keys fit");
+    let key = jig_client::Key { asker: Owner::Pages.asker(), number: pages.serial };
+    let state = &mut pages.default_project;
+    state.attempt = state.attempt.checked_add(1).expect("welcome attempts fit");
+    state.making = Some(key);
+    state.ended = None;
+    state.project = None;
+    let number = skein_lib::Decimal::of(state.attempt);
+    let mut name = skein_lib::Writer::new(16_usize.checked_add(number.as_bytes().len()).expect("welcome name fits"));
+    name.put(b"welcome-default-").expect("measured welcome name");
+    name.put(number.as_bytes()).expect("measured welcome number");
+    let name = name.finish();
+    out.push(Request::Client(jig_client::Event::Send {
+        key,
+        name: Some(crate::key::named(crate::key::TOOLS, &crate::key::Name::new(&name).expect("welcome name fits"))),
+        request: jig_client::Ask::Jig(Box::new(jig_client::contract::Ask::MakeProject {
+            name: jig_client::contract::Text::new(b"Default".as_slice().into(), 64).expect("default name fits"),
+            policy: 1,
+        })),
+    }));
+}
+fn default_told(pages: &mut Pages, client: &Client, told: &Told, out: &mut Queue<Request>) -> bool {
+    let Some(key) = pages.default_project.making else { return false };
+    let outcome = match told {
+        Told::Answered { key: answered, outcome } if *answered == key => outcome,
+        Told::Pending { key: pending } if *pending == key => {
+            match client.pending(key) {
+                Some(pending) if pending.progress == jig_client::Progress::Unknown => {}
+                Some(_) | None => return true,
+            }
+            &jig_client::Outcome::Unknown
+        }
+        Told::Link { .. }
+        | Told::Pending { .. }
+        | Told::Answered { .. }
+        | Told::Kept { .. }
+        | Told::Dropped { .. }
+        | Told::Changed { .. }
+        | Told::Text { .. }
+        | Told::Ended { .. }
+        | Told::Page { .. } => return false,
+    };
+    pages.default_project.making = None;
+    match outcome {
+        jig_client::Outcome::Answered(jig_client::Answered::Jig(jig_client::contract::Answer::Done(
+            jig_client::contract::Outcome::Document(jig_client::contract::DocumentOutcome::ProjectMade { project }),
+        ))) => pages.default_project.project = Some(*project),
+        jig_client::Outcome::Answered(jig_client::Answered::Jig(jig_client::contract::Answer::Refused {
+            refusal,
+            ..
+        })) => {
+            if *refusal == jig_client::contract::Refusal::NameTaken
+                && let Some(me) = pages.me(client)
+            {
+                for row in &me.projects {
+                    if row.name.bytes() == b"Default" {
+                        pages.default_project.project = Some(row.project);
+                        break;
+                    }
+                }
+            }
+            if pages.default_project.project.is_none() {
+                pages.default_project.ended = Some(welcome::Ended::Refused(refusal.clone()));
+            }
+        }
+        jig_client::Outcome::Answered(
+            jig_client::Answered::Family(_) | jig_client::Answered::Jig(jig_client::contract::Answer::Done(_)),
+        )
+        | jig_client::Outcome::NotKept
+        | jig_client::Outcome::Unknown
+        | jig_client::Outcome::Limit
+        | jig_client::Outcome::Unconfirmed
+        | jig_client::Outcome::Held
+        | jig_client::Outcome::Unsent
+        | jig_client::Outcome::Full { .. }
+        | jig_client::Outcome::Lost => pages.default_project.ended = Some(welcome::Ended::Unknown),
+    }
+    if pages.default_project.project.is_some() {
+        default_chosen(pages, client);
+        out.push(Request::Show { address: Address::Chats { filter: ChatsFilter::All, start: false } });
+    }
+    true
+}
+fn default_chosen(pages: &mut Pages, client: &Client) {
+    if let Some(project) = pages.default_project.project {
+        choose_project(pages, client, project);
+        if pages.project == Some(project) {
+            pages.default_project.project = None;
+        }
     }
 }

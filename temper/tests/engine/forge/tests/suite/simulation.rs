@@ -559,9 +559,11 @@ fn a_broken_landing_branch_pauses_the_queue_for_one_repair() {
     assert_eq!(world.writes(), 0);
     world.take_seen();
     world.event(top::Event::StepChange {
+        merge_job: false,
         task: 51,
         entry: 2,
         heard: change::Heard {
+            start_conflict: None,
             lacking: None,
             spend: None,
             delegate: change::Status::Passed,
@@ -571,6 +573,7 @@ fn a_broken_landing_branch_pauses_the_queue_for_one_repair() {
         },
         gates: report,
         queue_repair_active: true,
+        pending: Box::new([]),
         kept: false,
     });
     world.run_for(1);
@@ -676,9 +679,11 @@ fn a_kept_change_leaves_the_queue_and_comes_back_at_its_place() {
     }
     world.take_seen();
     world.event(top::Event::StepChange {
+        merge_job: false,
         task: 51,
         entry: 1,
         heard: change::Heard {
+            start_conflict: None,
             lacking: None,
             spend: None,
             delegate: change::Status::Passed,
@@ -688,6 +693,7 @@ fn a_kept_change_leaves_the_queue_and_comes_back_at_its_place() {
         },
         gates: Box::new([]),
         queue_repair_active: false,
+        pending: Box::new([]),
         kept: true,
     });
     world.run_for(1);
@@ -860,9 +866,11 @@ fn a_change_produced_opened_checked_queued_and_landed() {
     world.take_seen();
     world.event(top::Event::Change { row: change_row() });
     world.event(top::Event::StepChange {
+        merge_job: false,
         task: 51,
         entry: 2,
         heard: change::Heard {
+            start_conflict: None,
             lacking: None,
             spend: None,
             delegate: change::Status::Unknown,
@@ -872,6 +880,7 @@ fn a_change_produced_opened_checked_queued_and_landed() {
         },
         gates: Box::new([]),
         queue_repair_active: false,
+        pending: Box::new([]),
         kept: false,
     });
     world.run_for(1);
@@ -882,9 +891,11 @@ fn a_change_produced_opened_checked_queued_and_landed() {
     world.produce(b"temper/51");
     world.take_seen();
     world.event(top::Event::StepChange {
+        merge_job: false,
         task: 51,
         entry: 3,
         heard: change::Heard {
+            start_conflict: None,
             lacking: None,
             spend: None,
             delegate: change::Status::Passed,
@@ -894,6 +905,7 @@ fn a_change_produced_opened_checked_queued_and_landed() {
         },
         gates: Box::new([]),
         queue_repair_active: false,
+        pending: Box::new([]),
         kept: false,
     });
     world.run_for(1);
@@ -914,9 +926,11 @@ fn a_change_produced_opened_checked_queued_and_landed() {
     for entry in 4..24 {
         world.take_seen();
         world.event(top::Event::StepChange {
+            merge_job: false,
             task: 51,
             entry,
             heard: change::Heard {
+                start_conflict: None,
                 lacking: None,
                 spend: None,
                 delegate: change::Status::Passed,
@@ -926,6 +940,7 @@ fn a_change_produced_opened_checked_queued_and_landed() {
             },
             gates: Box::new([]),
             queue_repair_active: false,
+            pending: Box::new([]),
             kept: false,
         });
         world.run_for(1);
@@ -979,6 +994,7 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                 | top::Request::Retained { .. }
                 | top::Request::ReleaseFailed { .. }
                 | top::Request::ProjectionEffect { .. }
+                | top::Request::StepDependents { .. }
                 | top::Request::WakeProcedure { .. }
                 | top::Request::ProjectAfter { .. }
                 | top::Request::ProjectionSettled { .. }
@@ -1813,9 +1829,11 @@ fn an_external_move_of_a_held_branch_is_reported_as_drift() {
     );
     world.take_seen();
     world.event(top::Event::StepChange {
+        merge_job: false,
         task: 51,
         entry: 10,
         heard: change::Heard {
+            start_conflict: None,
             lacking: None,
             spend: None,
             delegate: change::Status::Passed,
@@ -1825,6 +1843,7 @@ fn an_external_move_of_a_held_branch_is_reported_as_drift() {
         },
         gates: Box::new([]),
         queue_repair_active: false,
+        pending: Box::new([]),
         kept: false,
     });
     world.run_for(1);
@@ -1835,9 +1854,11 @@ fn an_external_move_of_a_held_branch_is_reported_as_drift() {
     world.event(top::Event::ReleaseChange { task: 51 });
     world.take_seen();
     world.event(top::Event::StepChange {
+        merge_job: false,
         task: 51,
         entry: 11,
         heard: change::Heard {
+            start_conflict: None,
             lacking: None,
             spend: None,
             delegate: change::Status::Passed,
@@ -1847,6 +1868,7 @@ fn an_external_move_of_a_held_branch_is_reported_as_drift() {
         },
         gates: Box::new([]),
         queue_repair_active: false,
+        pending: Box::new([]),
         kept: false,
     });
     world.run_for(1);

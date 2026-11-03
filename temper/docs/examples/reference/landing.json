@@ -3,6 +3,7 @@
   "projects": [
     {
       "project": 1,
+      "merge_job": ".temper/merge",
       "rules": [
         {
           "connector": 1,

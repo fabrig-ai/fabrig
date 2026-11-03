@@ -812,6 +812,7 @@ fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
         priority: 0,
         ci: None,
         change: change::Change {
+            early: change::Early::None,
             way: temper_engine_domain_forge_change::Way::Queue,
             landing: None,
             task: 7,
@@ -845,6 +846,8 @@ fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
         effect_account: None,
         producer_failure: None,
         report: Box::new([]),
+        catch_up: None,
+        merge_result: None,
     }
 }
 
@@ -1687,6 +1690,21 @@ fn a_landing_by_turn_starts_while_the_period_is_reserved_whole() {
     assert_eq!(row.spec.words.as_ref(), b"Land Change");
 }
 
+#[expect(clippy::manual_map, reason = "the strict subset uses explicit matches")]
+fn result_tier(name: &[u8], branch: Option<&[u8]>) -> crate::translate::TierCheck {
+    crate::translate::TierCheck {
+        name: name.into(),
+        workflow: Box::from(b"checks.yml".as_slice()),
+        ignored: Box::new([]),
+        artifact: Box::from(b"report".as_slice()),
+        format: temper_engine_domain_forge_tiers::Format::Lines,
+        branch: match branch {
+            Some(branch) => Some(Box::from(branch)),
+            None => None,
+        },
+    }
+}
+
 fn result_verdicts(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits>) {
     use super::forge;
     let tiers = Box::new([
@@ -1733,6 +1751,27 @@ fn cleared_and_uncleared_results_qualify_the_landing_before_its_evidence() {
         let mut row = change_row(Some(7));
         row.change.state = state;
         row.change.last_head = Some(SHA1);
+        domain
+            .config
+            .landings
+            .insert(
+                5,
+                crate::translate::ProjectLanding {
+                    merge_job: None,
+                    by: crate::translate::Way::Queue,
+                    repositories: Box::new([crate::translate::RepositoryChecks {
+                        repository: row.repository,
+                        gates: Box::new([]),
+                        tiers: Box::new([
+                            result_tier(b"fuzzy", None),
+                            result_tier(b"release", Some(b"release/v1")),
+                            result_tier(b"browser", Some(b"main")),
+                        ]),
+                    }]),
+                    after: crate::translate::AfterLandingCheck { tier_retries: 2, verification_bound_ms: 7_200_000 },
+                },
+            )
+            .unwrap();
         result_verdicts(&mut domain, &env);
         let mut out = skein_lib::Queue::uncapped();
         forge::step(
@@ -1913,4 +1952,186 @@ fn release_held_tier(domain: &mut super::Domain, env: &skein_lib::Env<super::Lim
     };
     assert_eq!(got, task);
     assert!(heard.released && !heard.cancelled);
+}
+
+/// temper/docs/design/domain/worker.md, 4.4: the root writes R1's repository-relative command.
+#[test]
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    reason = "unit fixtures format expected protocol bytes and resolution text"
+)]
+fn a_merge_jobs_spec_is_its_command_and_its_two_commits() {
+    use temper_protocol_worker_wire::v1;
+    for (head, head_text) in COMMITS {
+        for (base, base_text) in COMMITS {
+            let bytes = super::merge::spec(b"fabrig", b".temper/merge", head, base, 4096).expect("merge spec");
+            let decoded = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)).unwrap();
+            assert_eq!(decoded.command(), b"fabrig/.temper/merge");
+            let expected = alloc::format!(
+                "{{\"version\":1,\"head\":\"{}\",\"base\":\"{}\"}}",
+                core::str::from_utf8(head_text).unwrap(),
+                core::str::from_utf8(base_text).unwrap(),
+            );
+            assert_eq!(decoded.request(), expected.as_bytes());
+            let bound = u32::try_from(bytes.len()).unwrap();
+            assert_eq!(super::merge::spec(b"fabrig", b".temper/merge", head, base, bound), Some(bytes));
+            assert_eq!(super::merge::spec(b"fabrig", b".temper/merge", head, base, bound - 1), None);
+        }
+    }
+}
+
+/// temper/docs/design/domain/forge.md, 8.4: a resolution carries the job's result within its words' room.
+#[test]
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    reason = "unit fixtures format expected protocol bytes and resolution text"
+)]
+fn a_resolution_after_a_merge_job_carries_its_result() {
+    const OPENING: &[u8] = b"Resolve the merge conflict and push the merge commit";
+    const PREFIX: &str = "Resolve the merge conflict and push the merge commit\n\nThe merge job settled what the project's merge command knows and left the rest:\n";
+    const RESULT: &[u8] = b"{\"settled\":[\"a\"],\"left\":[\"b\"]}";
+    let parameters = [super::tasks::Parameter::Bytes { name: 6, value: commit_text(&SHA1) }];
+    let full = alloc::format!("{PREFIX}{}", core::str::from_utf8(RESULT).unwrap());
+    let bound = u32::try_from(full.len() + 40).unwrap();
+    assert_eq!(super::merge::resolution_words(None, &parameters, bound).as_ref(), OPENING);
+    assert_eq!(super::merge::resolution_words(Some(RESULT), &parameters, bound).as_ref(), full.as_bytes());
+    let cut_bound = u32::try_from(PREFIX.len() + 40 + 12).unwrap();
+    let cut = super::merge::resolution_words(Some(RESULT), &parameters, cut_bound);
+    assert_eq!(cut.as_ref(), alloc::format!("{PREFIX}{}...", core::str::from_utf8(&RESULT[..9]).unwrap()).as_bytes());
+    assert_eq!(cut.len() + 40, usize::try_from(cut_bound).unwrap());
+    assert_eq!(
+        super::change_delegate_status(&super::tasks::MessageKind::Result(super::tasks::ResultKind::Job)),
+        Some((super::forge_change::Status::Passed, false, false))
+    );
+    assert_eq!(
+        super::change_delegate_status(&super::tasks::MessageKind::Result(super::tasks::ResultKind::Failed)),
+        Some((super::forge_change::Status::Failed, true, false))
+    );
+}
+
+#[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one table compares each pending dependency kind against the same restored task graph"
+)]
+fn pending_dependencies_distinguish_changes_elsewhere_and_other_tasks() {
+    use super::{forge, forge_change as change, tasks};
+    use skein_lib::{Env, Queue};
+    let (fixture, _, task) = crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: 2 });
+    let template = fixture.core.tasks.task(task).unwrap().clone();
+    for (registered, repository, base, executor, head, kept, expected) in [
+        (
+            true,
+            3,
+            b"main".as_slice(),
+            tasks::Executor::Procedure { connector: 0, code: 2 },
+            Some(SHA1),
+            false,
+            change::PendingKind::Change { head: Some(SHA1), kept: false },
+        ),
+        (
+            true,
+            3,
+            b"main".as_slice(),
+            tasks::Executor::Procedure { connector: 0, code: 2 },
+            None,
+            true,
+            change::PendingKind::Change { head: None, kept: true },
+        ),
+        (
+            true,
+            1,
+            b"main".as_slice(),
+            tasks::Executor::Procedure { connector: 0, code: 2 },
+            None,
+            false,
+            change::PendingKind::Elsewhere,
+        ),
+        (
+            true,
+            3,
+            b"other".as_slice(),
+            tasks::Executor::Procedure { connector: 0, code: 2 },
+            None,
+            false,
+            change::PendingKind::Other,
+        ),
+        (
+            false,
+            3,
+            b"main".as_slice(),
+            tasks::Executor::Procedure { connector: 0, code: 1 },
+            None,
+            false,
+            change::PendingKind::Other,
+        ),
+        (
+            false,
+            3,
+            b"main".as_slice(),
+            tasks::Executor::Procedure { connector: 0, code: 2 },
+            None,
+            false,
+            change::PendingKind::Change { head: None, kept: false },
+        ),
+    ] {
+        let (mut domain, env) = two_forges();
+        domain.core.tasks = tasks::Domain::new(&env.limits.tasks, 7, 0, Box::new([]), Box::new([]));
+        let mut row = template.clone();
+        row.number = 7;
+        row.dependencies = Box::new([8]);
+        row.waiting_on = Box::new([8]);
+        let mut upstream = template.clone();
+        upstream.number = 8;
+        upstream.executor = executor;
+        upstream.waiting_on = if kept { Box::new([9]) } else { Box::new([]) };
+        let task_env = Env { now: env.now, wall: env.wall, limits: env.limits.tasks };
+        for row in [row, upstream] {
+            tasks::step(
+                &mut domain.core.tasks,
+                &task_env,
+                tasks::Event::Restore { record: tasks::Stored::Live(Box::new(row)) },
+                &mut Queue::uncapped(),
+            );
+        }
+        assert!(domain.core.tasks.task(7).is_some());
+        assert!(domain.core.tasks.task(8).is_some());
+        let forge_env = super::super::environment_forge(&env);
+        let mut upstream = change_row(None);
+        upstream.task = 8;
+        upstream.change.task = 8;
+        upstream.repository.forge = repository;
+        upstream.base = base.into();
+        upstream.branch = b"temper/8".as_slice().into();
+        if registered {
+            forge::step(
+                &mut domain.forge,
+                &forge_env,
+                forge::Event::Restore { record: forge::Stored::Change(upstream.clone()) },
+                &mut Queue::uncapped(),
+            );
+        }
+        if let Some(commit) = head {
+            forge::step(
+                &mut domain.forge,
+                &forge_env,
+                forge::Event::Restore {
+                    record: forge::Stored::BranchHead(forge::BranchHead {
+                        name: forge::Name {
+                            forge: repository,
+                            repository: 1,
+                            what: forge::What::Branch(Box::new([b"temper".as_slice().into(), b"8".as_slice().into()])),
+                        },
+                        commit,
+                        owned: true,
+                    }),
+                },
+                &mut Queue::uncapped(),
+            );
+        }
+        let pending = super::landing_route::pending(&domain, &env, 7, change_row(None).repository, b"main");
+        assert_eq!(pending.as_ref(), &[change::Pending { task: 8, kind: expected }]);
+    }
 }

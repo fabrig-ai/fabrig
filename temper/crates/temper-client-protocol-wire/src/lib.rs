@@ -80,11 +80,11 @@ pub struct Bounds {
 pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
     let limits = v1::Limits {
         verifying_tiers: 32,
-        verifying_tiers_item: 128,
+        verifying_tiers_item: 8192,
         red_tiers: 32,
-        red_tiers_item: 128,
+        red_tiers_item: 8192,
         cleared_tiers: 32,
-        cleared_tiers_item: 128,
+        cleared_tiers_item: 8192,
         authority_hold_reason: 512,
         owned_forge_forgejo: 64,
         owned_forge_runner_some: 64,
@@ -141,7 +141,6 @@ pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
         first_ask_label: 64,
         set_up_org: bounds.field_bytes,
         set_up_repository: bounds.field_bytes,
-        new_project_name: bounds.field_bytes,
         first_repository_org: bounds.field_bytes,
         first_repository_repository: bounds.field_bytes,
         first_repository_label: 64,

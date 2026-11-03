@@ -9,9 +9,9 @@ use std::{fs, os::unix::fs::PermissionsExt, path::PathBuf};
 
 pub mod rung;
 
-/// forge-setup's first repository goes into a project of its own, made after
-/// project 1 (tools.md 5.5): work/hello is project 2's.
-const FIRST_PROJECT: &str = "2";
+/// forge-setup's first repository goes into project 1, the first made
+/// (temper/docs/design/client/tools.md, 5.5): work/hello is project 1's.
+const FIRST_PROJECT: &str = "1";
 
 /// The model side: processes a story adds beside the box and ctl.
 #[expect(
@@ -740,29 +740,7 @@ pub fn assert_forgejo_setup_after_sign_in(
     let row = super::first_repository::owned_row(&made);
     let number = row["number"].as_u64().expect("forge number");
     if run == "first" {
-        let offered = super::ctl::json(&calls[1]);
-        assert_eq!(offered["forges"], serde_json::json!([]), "a fresh store has no forge records");
-        assert!(!String::from_utf8_lossy(&calls[0].stdout).lines().any(|line| line.starts_with("forge ")));
-        assert_eq!(number, 1, "the first forge record is numbered one");
-        assert!(calls[2].stdout.starts_with(b"setting up\n"));
-        let adoption = String::from_utf8_lossy(&calls[2].stdout);
-        assert!(
-            adoption.contains(&format!("Adopted work/hello on forge {number} as owned.")),
-            "ctl printed the first adoption: {adoption}"
-        );
-        eprintln!("{run} first repository adoption: {adoption}");
-        eprintln!("{run} first repository read: {}", row["first"]);
-        assert_eq!(row["first"]["state"], "made");
-        assert_eq!(row["first"]["project"]["new"], "hello");
-        assert_eq!(row["first"]["org"], "work");
-        assert_eq!(row["first"]["repository"], "hello");
-        assert_eq!(row["first"]["id"], 1, "the script tags the first forge and repository");
-        assert_eq!(row["state"], "connected");
-        // Preparation is silent on success; Forgejo's startup
-        // and the runner's lines reach the box with their step prefixes.
-        for step in [format!("forgejo-{number}: "), format!("runner-{number}: ")] {
-            assert!(stderr.lines().any(|line| line.starts_with(&step)), "group step {step}: {stderr}");
-        }
+        assert_first_setup(run, calls, stderr, row, number);
     } else {
         assert!(
             !stderr.lines().any(|line| line.starts_with("fetch ") || line.contains("download")),
@@ -786,6 +764,33 @@ pub fn assert_forgejo_setup_after_sign_in(
         assert!(!data.join(format!("forge-{number}")).join(name).exists(), "{run}: no forge-{number}/{name}");
     }
     user
+}
+
+fn assert_first_setup(run: &str, calls: &[super::Ended], stderr: &str, row: &serde_json::Value, number: u64) {
+    let offered = super::ctl::json(&calls[1]);
+    assert_eq!(offered["forges"], serde_json::json!([]), "a fresh store has no forge records");
+    assert!(!String::from_utf8_lossy(&calls[0].stdout).lines().any(|line| line.starts_with("forge ")));
+    assert_eq!(number, 1, "the first forge record is numbered one");
+    assert!(calls[2].stdout.starts_with(b"setting up\n"));
+    let adoption = String::from_utf8_lossy(&calls[2].stdout);
+    assert!(
+        adoption.contains(&format!("Adopted work/hello on forge {number} as owned.")),
+        "ctl printed the first adoption: {adoption}"
+    );
+    eprintln!("{run} first repository adoption: {adoption}");
+    eprintln!("{run} first repository read: {}", row["first"]);
+    assert_eq!(row["first"]["state"], "made");
+    assert!(adoption.lines().any(|line| line == "project: 1 · hello"), "{adoption}");
+    assert!(adoption.contains("It is the project's home."), "{adoption}");
+    assert_eq!(row["first"]["org"], "work");
+    assert_eq!(row["first"]["repository"], "hello");
+    assert_eq!(row["first"]["id"], 1, "the script tags the first forge and repository");
+    assert_eq!(row["state"], "connected");
+    // Preparation is silent on success; Forgejo's startup
+    // and the runner's lines reach the box with their step prefixes.
+    for step in [format!("forgejo-{number}: "), format!("runner-{number}: ")] {
+        assert!(stderr.lines().any(|line| line.starts_with(&step)), "group step {step}: {stderr}");
+    }
 }
 
 /// The SUT's cached copy still contains every byte of its pinned source.
@@ -1708,32 +1713,7 @@ impl LiveJudge<'_> {
         let owned = super::first_repository::owned_forge(self.plan.client);
         let number = owned["number"].as_u64().ok_or("forge number missing")?;
         let token = oracle_token(self.plan.paths, self.plan.first, number);
-        if self.plan.first {
-            let pulls = merged_pulls(address, &token);
-            self.baseline = pulls.iter().map(pull_number).collect();
-            if self.plan.kept {
-                // The first-repository offer is transient and closed chats
-                // are unlisted. The owned pull names its root task; ctl's
-                // durable task document supplies the project it belongs to.
-                let me = live_json(&calls.ends()[4])?;
-                self.tasks.project = kept_project(self.plan.client, &me, &pulls)?;
-            } else {
-                let forges = live_json(&calls.ends()[5])?;
-                let forge = super::first_repository::owned_row(&forges);
-                require(
-                    forge["first"]["org"] == "work" && forge["first"]["repository"] == "hello",
-                    "first repository is work/hello",
-                )?;
-                let made = forge["first"]["project"]["new"].as_str().ok_or("first project missing")?;
-                self.tasks.project = live_json(&calls.ends()[7])?["projects"]
-                    .as_array()
-                    .ok_or("person's projects missing")?
-                    .iter()
-                    .find(|row| row["name"]["bytes"] == made)
-                    .and_then(|row| row["project"].as_u64())
-                    .ok_or("made first project missing")?;
-            }
-        }
+        self.setup_project(calls, address, &token)?;
         self.token = Some(token);
         if self.plan.first {
             // All fixed setup indices were consumed before these extra reads.
@@ -1753,6 +1733,35 @@ impl LiveJudge<'_> {
             self.wait_round(now)?;
         }
 
+        Ok(())
+    }
+    fn setup_project(
+        &mut self,
+        calls: &super::ctl::Calls,
+        address: std::net::SocketAddr,
+        token: &str,
+    ) -> Result<(), String> {
+        if self.plan.first {
+            let pulls = merged_pulls(address, token);
+            self.baseline = pulls.iter().map(pull_number).collect();
+            if self.plan.kept {
+                // The first-repository offer is transient and closed chats
+                // are unlisted. The owned pull names its root task; ctl's
+                // durable task document supplies the project it belongs to.
+                let me = live_json(&calls.ends()[4])?;
+                self.tasks.project = kept_project(self.plan.client, &me, &pulls)?;
+            } else {
+                let forges = live_json(&calls.ends()[5])?;
+                let forge = super::first_repository::owned_row(&forges);
+                require(
+                    forge["first"]["org"] == "work" && forge["first"]["repository"] == "hello",
+                    "first repository is work/hello",
+                )?;
+                let repository = forge["first"]["repository"].as_str().ok_or("first repository missing")?;
+                self.tasks.project =
+                    super::first_repository::project_number(&live_json(&calls.ends()[7])?, repository)?;
+            }
+        }
         Ok(())
     }
     fn settings(&mut self, calls: &super::ctl::Calls) -> Result<(), String> {

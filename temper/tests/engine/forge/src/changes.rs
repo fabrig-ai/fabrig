@@ -16,6 +16,7 @@ pub fn change_row() -> top::ChangeRow {
         priority: 1,
         ci: None,
         change: change::Change {
+            early: change::Early::None,
             way: temper_engine_domain_forge_change::Way::Queue,
             landing: None,
             task: 51,
@@ -49,6 +50,8 @@ pub fn change_row() -> top::ChangeRow {
         effect_account: None,
         producer_failure: None,
         report: Box::new([]),
+        catch_up: None,
+        merge_result: None,
     }
 }
 
@@ -82,9 +85,11 @@ pub fn change_step_task(
 ) -> change::Decision {
     world.take_seen();
     world.event(top::Event::StepChange {
+        merge_job: false,
         task,
         entry,
         heard: change::Heard {
+            start_conflict: None,
             lacking: None,
             spend: None,
             delegate: heard,
@@ -94,6 +99,7 @@ pub fn change_step_task(
         },
         gates,
         queue_repair_active: false,
+        pending: Box::new([]),
         kept,
     });
     world.run_for(1);

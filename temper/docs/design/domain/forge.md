@@ -1029,7 +1029,9 @@ branch. Its parameters:
   requester's own goal branch (11.1), which the change lands whole
   (below);
 - **what to produce,** when nothing is pushed yet: the spec and charter
-  of its producing task;
+  of its producing task; or, for a catch-up, the commit the merge job
+  merges into a branch made at its landing branch's tip (section 10),
+  parameter 16, its producer that job and no agent;
 - **its gates** (8.3);
 - **`with`,** under its project's turn: the changes it must land with,
   in any repository and of any goal its requester may name
@@ -1136,7 +1138,9 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
 
 1. **Producing:** a task for an agent, with the charter the change
    names, whose workspace starts from its landing branch (or its saved
-   work) and pushes the change's branch (`agent.md`, section 6). Its
+   work; or, started early, from its landing branch with its
+   dependencies' pushed heads merged in: 8.11) and pushes the change's
+   branch (`agent.md`, section 6). Its
    result is the head it pushed. An attempt whose answer was lost may
    have pushed all the same: its writer slot is freed for another task only once the
    branch has been read afresh (jig's `domain/tasks.md`, 6.3), and a
@@ -1152,6 +1156,12 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    worker fetches the landing tip per hold and verifies an existing
    unlanded head through a guarded push (worker.md, section 5). This does
    not substitute a historical receipt for current ownership or drift checks.
+   A catch-up's producer is the merge job (8.4): its landing branch's
+   tip with the catch-up's commit merged in, pushed as the change's
+   branch; what the job leaves goes to a resolution in a merge in
+   progress of that commit at that tip, which pushes the branch. A
+   catch-up whose commit the landing branch's tip already contains ends
+   at once with no change, its words saying so.
 2. **Opening:** its pull request into its landing branch, keyed by its
    branches, its body naming its goal's issue ("Part of
    `ai/temper#12`").
@@ -1174,13 +1184,14 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    **updated** (section 10): cleanly, and its new head is checked again,
    its gates carried over where they count clean updates (8.3); or in
    conflict, and it leaves the queue to be
-   **resolved**, its new head checked again and its gates asked again.
+   **resolved** (8.4: the merge job, then a resolution for what it
+   leaves), its new head checked again and its gates asked again.
    Where they ask no update, it is merged as its head is, once the forge
    finds it mergeable; one the forge finds in conflict, or whose merge it
-   refuses for a conflict, is held as one past its resolutions (it makes
-   none), its hold's words saying that its merge into its landing branch
-   conflicts and that its landing rule asks no update. What settles such
-   a conflict is not the change's.
+   refuses for a conflict, leaves the queue to be resolved the same way,
+   the base merged in being its landing branch's tip as last read; its
+   new head goes on as any head does under those rules, to its gates and
+   its turn, with no check and no update.
    A pull request whose mergeability has not settled (5.2) is neither:
    the change waits for it, until the window's end at most, and the
    stall does not count that wait.
@@ -1349,6 +1360,24 @@ delegate's terminal wakes it to offer the landed result.
   before sizing the pull section's contents, retaining the core's
   context. When the brief cannot hold both section caps, their gathered
   sizes decide the fit, with the repair reason before the pull section.
+- **The merge job** comes before a resolution where the change's
+  project names a `merge_job` and the change's authority delegates to
+  the merge kind (`../protocol/configuration.md`, section 3): a job of
+  kind 3 (`worker.md`, 4.4), delegated by the change, which holds the
+  branch it writes. Its workspace is a resolution's, the base merged
+  into the branch's head;
+  the project's merge command settles the conflicts it knows
+  (`../protocol/tooling.md`, 4.1); if none is left, the worker commits
+  the merge and pushes it. On the job's result the change reads its
+  branch afresh: a head that moved is the merge's, and the change goes
+  on from it as from a resolution's push; a head that did not move
+  means the command left conflicts, and the change makes a resolution
+  of the same base, its words carrying the job's result, cut to the
+  resolution's words' room and marked. A job that fails for good holds
+  the change as a resolution that fails does. Without a `merge_job`, or
+  without the kind in its authority, a conflict goes to a resolution at
+  once. A merge job counts as one of the change's resolutions, and the
+  resolution after it as none, so the bound counts each conflict once.
 - **A resolution** is a task for an agent whose workspace starts from a
   merge in progress: the base merged into the branch, the conflicting
   files marked. The agent edits them and runs the checks, with no git
@@ -1545,7 +1574,8 @@ merge, kind 4, on a pattern of landing branches (jig's
   kept on it, so a rule changed reaches a live change at its next step.
   A rule asking neither lets a change merge at its head once the forge
   finds it mergeable, unchecked by CI and never updated (8.2 steps 3
-  and 6; section 10): the rule a goal's own branch lands under (11.1).
+  and 6; section 10), a conflict going to the merge job and a
+  resolution (8.4): the rule a goal's own branch lands under (11.1).
 - **Force-pushing does not exist.** No kind forces a push or moves a
   branch backwards: a run's push is a fast-forward
   (`../protocol/git.md`, 4.8), an update merges the base in
@@ -1649,6 +1679,60 @@ landing: under the queue, while its merge is sent and not yet settled;
 under the turn, while its landing has begun its proof and not yet landed
 (`landing.md`, 4.2). Its producing, repair or resolution run finishes
 its turn and parks, as every run under a drain does.
+
+### 8.11 Early starts
+
+The change procedure starts kept (jig's `domain/connectors.md`, 6.1): a
+change made with a pending dependency is active and kept rather than
+waiting, so its producer may work beside its dependencies while its
+merge waits for them (8.2, step 7; section 9). Its producer starts
+early, by these rules:
+
+- **When.** At producing, with no head of its own pushed, once each
+  pending dependency that is a change into the same repository and
+  landing branch has a pushed head (its branch's head as the forge last
+  read it, 5.2), and none of them is itself kept by a pending dependency.
+  One level only: a dependency kept by its own question alone does not
+  block. A pending dependency that is a change into another repository
+  orders the landings alone (`landing.md`, 4.1): the producer neither
+  waits for its push nor merges it. Any other pending dependency (a task
+  that is no change, a change into another landing branch) has no head
+  to start from, and the producer waits for it to be done. While the
+  change waits so, at producing with no producer, its stall does not
+  count.
+- **From what.** Its producer's workspace starts from the landing
+  branch's tip with those heads merged into it, one by one in the order
+  of the change's dependencies (`worker.md`, section 5). The change
+  keeps each head it started from, with its dependency, and marks those
+  dependencies started from (jig's `domain/connectors.md`, 6.1).
+- **A conflict refuses it.** A head that does not merge cleanly fails
+  the producer's preparation as a conflict naming it (`worker.md`,
+  section 5). The change cancels that producer, its early start spent,
+  and waits for its dependencies to be done; nothing is held or
+  escalated, and its marks stay.
+- **Once.** A change starts its producer early at most once. An early
+  producer that ends failed, for whatever reason, holds nothing: the
+  change waits for its dependencies to be done, then makes its next
+  producer, whose failure for good holds it as 8.4 says.
+- **The next producer merges the landing tip first.** A producer of a
+  change that started early, whose workspace would start from the
+  change's pushed branch or from saved work, starts instead from a
+  merge in progress: that start, with the landing branch's tip as the
+  base merged into it (`worker.md`, 4.1 and section 5). A conflict is
+  left in its checkout for it to settle; its first push commits the
+  merge. One with nothing pushed or saved starts from the landing
+  branch's tip, which now holds its dependencies' work.
+- **Done while kept.** The early producer's result is the change's head,
+  as any producer's: the change opens its pull request, and is checked
+  and gated as its rules ask, but is not ready until its last dependency
+  is done (section 9). Its head carries its dependencies' work as they
+  had pushed it, which their landings contain.
+- **A dependency started from stays.** Removing it would leave its
+  unlanded work in the change's head, so an amendment leaving it out is
+  refused, naming it (jig's `domain/tasks.md`, section 7): its requester
+  cancels the change and makes it again instead. One that fails or is
+  cancelled holds the change, as any failed dependency does (jig's
+  `domain/tasks.md`, 5.5).
 
 ## 9. Landing queues
 
@@ -1776,7 +1860,15 @@ instead (`landing.md`, section 5).
   its recovery finds it (section 6), and the new head is heard as any
   push.
 - **A conflict** makes the forge refuse the update, and the change is
-  resolved (8.4).
+  resolved (8.4): by the merge job, where its project names one, then
+  a resolution for what the job leaves.
+- **A catch-up** takes a base's commit into a branch that no update
+  reaches, a goal's own (11.1): a change into that branch, made by the
+  goal's coordinator naming the commit (`agent.md`, 4.3.1), its producer
+  the merge job, which merges the commit into a branch made at the
+  landing branch's tip (8.2, step 1); its project must name a
+  `merge_job`. It lands as any change into the branch does, and nothing
+  makes one but its requester's call.
 - **A semantic conflict,** a clean update whose CI fails while CI passes
   on the base's tip, is a repair, whose brief names the base merged in
   and what landed in it. While CI fails on the base's tip, the failure is
@@ -1879,8 +1971,9 @@ own, never a change's:
 - **Landed whole** by a change into the base whose branch is the goal's
   own, made by the goal on its held branch (8.1), and deleted as the goal closes once that change has landed it
   (section 11); otherwise kept as the goal closes. It takes the base's
-  landings that touch its area as they come, by an update. A project's
-  rule may require or forbid it.
+  landings that touch its area as they come, by catch-ups (section 10),
+  which its goal makes as it hears them (7.3). A project's rule may
+  require or forbid it.
 
 ## 12. Issues
 
@@ -2154,6 +2247,10 @@ review carried over; an approval carried over a clean update and asked
 again after a repair; a change that leaves the queue for a conflict and
 comes back at its place; a low-priority change aging past the window
 ahead of later ones; a conflict resolved from a merge in progress; a
+conflict settled by the merge job alone, and one it leaves to a
+resolution, under rules asking an update and under rules asking none; a
+catch-up into a goal's branch, merged by the merge job, and one already
+contained, ended with no change; a
 semantic conflict repaired; the branch's own CI broken by a landing
 temper did not make, the queue paused and repaired; its pull request
 closed by someone else, held, released and reopened; a landing that
@@ -2220,10 +2317,6 @@ whole.
 
 ## 20. Open questions
 
-- **A conflict under rules asking no update** holds its change (8.2,
-  step 6): what merges the base into such a change's branch and settles
-  what it can, so that the change lands without a person, is later
-  work; until then a person settles it on the branch and releases.
 - **A queue's throughput:** landings into one branch wait on CI one after
   another. If that binds, landings are batched: tested together, and
   bisected when they fail.

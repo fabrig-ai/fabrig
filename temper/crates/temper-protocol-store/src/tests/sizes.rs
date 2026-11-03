@@ -3,18 +3,20 @@ use crate::{Undecodable, application, keys, records};
 use temper_engine_domain_forge as forge;
 
 // ChangeRow dominates Row with the producer report bounded by the fixture's 512 operation bytes.
-const APPLICATION_ROW_BYTES: u32 = 119_192;
+const APPLICATION_ROW_BYTES: u32 = 122_332;
 
 #[test]
 fn the_application_sizes_are_the_largest_key_and_row() {
     // Change's eight remarks hold 4096 bytes each; eight failure counts add 100 bytes.
     // Authority causes add 42 bytes to each of eight holds, drift and released.
     // Way and landing add ten bytes.
+    // Early adds one tag, a four-byte count and 64 task/head pairs of 40 bytes.
     // Terminal CI adds a presence byte, a 32-byte head and a one-byte status.
     // The effect account adds 1 presence + 8 entry + 4 length + 512 words = 525 bytes.
     // A producer failure adds 1 presence + 4 length + 512 words = 517 bytes.
     // The producer report adds a four-byte length and the client's 512-byte operation bound.
     // Result evidence adds four 4096-byte prefixes, cut counts, a head and repair count.
+    // Catch-up adds 33 bytes, merge result adds 517 bytes, and the merge delegate adds 25 bytes.
     // NoChange has a 65,540-byte bounded payload; Gating has a 100-byte payload.
     assert_eq!(
         application(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes),
@@ -217,7 +219,6 @@ fn largest_forge_record_fits_the_application_ceiling() {
             playground: true,
             org: bytes(limits.first_intent_org),
             repository: bytes(limits.first_intent_repository),
-            project: forge::SetUpProject::New(bytes(limits.new_first_name)),
             label: bytes(limits.first_intent_label),
         }),
     });
@@ -238,7 +239,6 @@ fn largest_forge_record_fits_the_application_ceiling() {
         limits.bot_email,
         limits.first_intent_org,
         limits.first_intent_repository,
-        limits.new_first_name,
         limits.first_intent_label,
     ] {
         payload += u64::from(length);

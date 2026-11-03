@@ -302,6 +302,13 @@ settings in the store, temper's kinds 1 and 2; until its second step
   `tier_retries`, a u8, 2 when absent; `verification_bound_ms`, the
   project's verification bound, a u64, 7,200,000 (two hours) when absent
   (`../domain/after-landing.md`, sections 3 and 6).
+- **The merge job's command,** beside `by`, by either way: `merge_job`,
+  a relative path of at most 4,096 bytes, without `..`, in each
+  repository the merge job merges, none when absent: the project's merge
+  command (`tooling.md`, 4.1), and with it the merge job before each
+  resolution of its changes and catch-ups into its goals' branches
+  (`../domain/forge.md`, 8.4 and section 10). A path past its bounds
+  refuses the start at its member.
 - **The turn's project settings,** beside `by`:
   `prepare` and `key`, paths in the project's home, or absent for
   temper's own; `home_revision`, the home's commit they run at;
@@ -923,9 +930,11 @@ have one, an engine alone none. Each:
     every start applies (`../domain/root.md`, section 6), and none of
     `landing.projects`, which names seeded projects alone; its first
     period is made with it (jig's `domain/people.md`, 5.2). The default
-    document still seeds project 1 and offers policy 1, equal to its seeded
-    policy; the green-CI landing rule is in `landing.deployment` for every
-    project (setup.md, 8.3).
+    document seeds no project, its first owners the deployment's alone,
+    and offers policy 1, which every project made starts from; the
+    green-CI landing rule is in `landing.deployment` for every project
+    (setup.md, 8.3). A deployment whose first start seeded a project
+    keeps it: no later start removes or renames it.
 - **Every start:**
   - jig's parts apply as jig says (jig's `protocol/configuration.md`,
     section 8);
@@ -1461,10 +1470,10 @@ The pages a person meets it on are `../client/README.md`, 5.13.
   providers (`engine.llm`), each its own design
   later (`../draft/configuring.md`, section 10). jig's `engine.projects`,
   the projects a first start seeds, stays jig's member; `temper init`'s
-  project 1 names its policy as `policy: 1` (jig's
-  `protocol/configuration.md`, section 3), so the seed copies the
-  stock's policy 1 and no document carries a copy of it (13.6, step
-  1).
+  is `[]` (setup.md, 8.3), and a document's seeded project names its
+  policy as `policy: 1` (jig's `protocol/configuration.md`, section 3),
+  so the seed copies the stock's policy 1 and no document carries a
+  copy of it (13.6, step 1).
 - **A project's own policy** is not a setting: it is in the store
   already, and its owners change it (jig's `domain/people.md`, 5.2).
   What a project adds to how its changes land is its landing rules, a
@@ -1790,13 +1799,14 @@ side never waits on the part of jig it does not use:
    as any charter's, and step 2 makes it kind 3's number 2. `temper
    init`'s document
    loses the four members and its `charters/`, and every other writer
-   of them (13.5) moves with it. Its seeded project 1 names `policy: 1`
-   in place of an inline policy, so the stock reaches a fresh
-   deployment's first chat; the interim inline copy with tools 513, and
-   the test that holds it equal to the stock, go with it. A document may
-   seed no project at all, its first owners the deployment's alone, as
-   jig's seed allows, holding no escalation role until a project's
-   policy gives them one; a world or a person that needs a wider project
+   of them (13.5) moves with it. A seeded project names `policy: 1`
+   in place of an inline policy, so the stock reaches its first chat;
+   the interim inline copy with tools 513, and the test that holds it
+   equal to the stock, go with it. A document may seed no project at
+   all, its first owners the deployment's alone, as jig's seed allows,
+   holding no escalation role until a project's policy gives them one;
+   `temper init`'s seeds none, its projects made at runtime on policy 1
+   (setup.md, 8.3); a world or a person that needs a wider project
    raises the rules and policy 1 with one change of settings, then makes
    it, or widens an existing project's ceiling within the new rules
    (jig's `domain/authority.md`, section 6). A deployment whose document carried
@@ -1919,7 +1929,10 @@ that changes the stock changes nothing of them.
     goal branch with its dependencies, one batch per family:
     `../domain/agent.md`, 4.3.1), for each result and its Left list (a
     new change for what is left, an amendment of a live change, or
-    nothing), for the goal's landing once the plan's changes have
+    nothing), for catch-ups (on a landing into main that touches the
+    goal's open work, heard as news, a catch-up into its goal branch
+    naming the landing's merge commit with `change`'s `merge`, one live
+    at a time), for the goal's landing once the plan's changes have
     landed (one change on its own goal branch, `"branch": "mine"`, its
     words the goal's title in one line, then what the goal built, by
     design section: `../domain/forge.md`, 8.1), for that landing's life
@@ -1951,13 +1964,15 @@ that changes the stock changes nothing of them.
     3.1).
 - **The rules and policy 1** are changed on the box from their current
   values, which hold the deployment's own budgets (13.4): read with
-  `temper ctl settings show --json`, charter 5 added to the rules' and
-  policy 1's delegation and jig's control family to their tools and
-  role 0's, so the coordinator may name `change`'s plan members
+  `temper ctl settings show --json`, charter 5 and the merge kind (job
+  3) added to the rules' and policy 1's delegation and jig's control
+  family to their tools and role 0's, so the coordinator may name
+  `change`'s plan members and its changes may make the merge job
   (`../domain/agent.md`, 4.3.1), then applied whole. Charter 5 is the
-  deployment's fourth charter, within small's `tasks.charters` of 4, and
-  one more executor in the delegation, within the 8 `authority.executors`
-  and `tasks.executor_kinds` 13.4 gives the box.
+  deployment's fourth charter, within small's `tasks.charters` of 4;
+  it and the merge kind are two more executors in the delegation, eight
+  with the stock's six, within the 8 `authority.executors` and
+  `tasks.executor_kinds` 13.4 gives the box.
 - **The landing rules,** until 13.6's second step, are the document's
   `application.landing` (section 3): `docs/examples/reference/landing.json`
   is that member's value, which the walk's document carries, with its
@@ -1968,14 +1983,18 @@ that changes the stock changes nothing of them.
   path to `branch`, open on `temper`: enforced, asking no CI, no update
   and no gate), and no rule on every branch, since rules add
   (`../domain/forge.md`, 8.7) and such a rule's CI would hold every merge
-  into a goal's branch. From the second step they are kind 1's rules 1
+  into a goal's branch; and the project's `merge_job`, `.temper/merge`.
+  From the second step they are kind 1's rules 1
   and 2, items of the settings file.
 - **What the repository carries:** the merge commit is its merge style
   on its forge, the repository's default on Forgejo
   (`../domain/forge.md`, section 4), set where the repository is made;
   the project's checks are its `.temper/pre-pr` (smith's
   `domain/run.md`, 8.1): format, lints, the changed packages' focused
-  tests and the counted baselines.
+  tests and the counted baselines; its merge command is its
+  `.temper/merge` (`tooling.md`, 4.1), which recounts a counted
+  baseline left in conflict (each tree's `scripts/old-forms.txt`, by
+  its `scripts/old_forms.py --write`) and leaves every other conflict.
 - **Checked as it is read:** a test decodes the settings file as
   `temper ctl settings apply` decodes one, and the landing member as the
   document's is parsed, so an edition that no longer reads is red before

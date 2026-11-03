@@ -320,7 +320,6 @@ fn the_task_tokens_stay_on_their_roles() {
         &mut builder,
         &task,
         None,
-        None,
         &fixtures::words(),
         &mut crate::frame::Bindings::new(fixtures::tree_limits().bindings),
         None,

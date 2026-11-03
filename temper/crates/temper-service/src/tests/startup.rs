@@ -41,7 +41,7 @@ fn transcript_document(bytes: u32) -> Box<[u8]> {
 
 #[test]
 fn startup_admits_a_frame_exactly_at_the_profile_page_ceiling() {
-    let document = transcript_document(1_606_731);
+    let document = transcript_document(1_606_799);
     crate::startup(
         &document,
         &config::Directories::working(),
@@ -55,13 +55,13 @@ fn startup_admits_a_frame_exactly_at_the_profile_page_ceiling() {
     .expect("a whole frame exactly at Small's page ceiling starts");
     let opened =
         crate::store_limits(&document, &config::Directories::working(), Some(&fixtures::startup_agent())).unwrap();
-    assert_eq!(opened.store.store.page.bytes, 1_606_795);
+    assert_eq!(opened.store.store.page.bytes, 1_606_863);
 }
 
 #[test]
 fn startup_names_a_frame_one_byte_past_the_profile_page_ceiling() {
-    let document = transcript_document(1_606_732);
-    let expected = b"application.limits.overrides.root.loads.transcript_bytes: its turn's transcript frame, 1606796 bytes, needs a store page past the profile's ceiling of 1606795 bytes\n";
+    let document = transcript_document(1_606_800);
+    let expected = b"application.limits.overrides.root.loads.transcript_bytes: its turn's transcript frame, 1606864 bytes, needs a store page past the profile's ceiling of 1606863 bytes\n";
     let named = crate::named(&document, &config::Directories::working()).unwrap_err();
     assert_eq!(lines(&named).as_ref(), expected);
     let opened =
@@ -1265,6 +1265,63 @@ fn landing_configuration_reads_tiers_and_project_settings_by_queue_and_turn() {
         ) {
             panic!("configured tiers start: {}", core::str::from_utf8(&lines(&problems)).unwrap());
         }
+    }
+}
+
+/// A project's merge command is optional (temper/docs/design/protocol/configuration.md, 3).
+#[test]
+fn landing_configuration_reads_a_projects_merge_job() {
+    let longest = "a".repeat(4_096);
+    for by in ["queue", "turn"] {
+        for (command, expected) in [
+            ("", None),
+            (r#""merge_job":".temper/merge","#, Some(b".temper/merge".as_slice())),
+            (r#""merge_job":"x","#, Some(b"x".as_slice())),
+            (&format!(r#""merge_job":"{longest}","#), Some(longest.as_bytes())),
+        ] {
+            let projects = tier_projects("[]", &format!(r#""by":"{by}",{command}"#));
+            let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", &projects);
+            let (members, problems) = application(&input, &fixtures::engine().jig);
+            assert!(problems.is_empty(), "{:?}", lines(&problems));
+            assert_eq!(members.unwrap().landing.landings.get(&1).unwrap().merge_job.as_deref(), expected);
+        }
+    }
+}
+
+/// Invalid merge commands refuse their member (temper/docs/design/protocol/configuration.md, 3).
+#[test]
+fn a_merge_job_path_out_of_bounds_refuses_the_start_at_its_member() {
+    let longest = "a".repeat(4_097);
+    for (command, words) in [
+        (r#""""#, "invalid form"),
+        (r#""/x""#, "invalid form"),
+        (r#""a/../merge""#, "invalid form"),
+        (r#""../merge""#, "invalid form"),
+        (r#""a/..""#, "invalid form"),
+        (r#""..""#, "invalid form"),
+        (r#"".temper/\u0000merge""#, "invalid form"),
+        (&format!(r#""{longest}""#), "past its bound"),
+        ("null", "wrong value kind"),
+    ] {
+        let projects = tier_projects("[]", &format!(r#""merge_job":{command},"#));
+        let input = fixtures::with(&fixtures::document(), b"application.landing.projects", &projects);
+        let Err(problems) = crate::startup(
+            &input,
+            &config::Directories::working(),
+            &fixtures::files(),
+            &fixtures::startup_agent(),
+            &fixtures::seeds(),
+            None,
+            fixtures::worker_runtime(),
+            fixtures::forge_runtime(),
+        ) else {
+            panic!("an invalid merge command refuses startup");
+        };
+        assert_eq!(
+            lines(&problems).as_ref(),
+            format!("application.landing.projects[0].merge_job: {words}\n").as_bytes(),
+            "{command}"
+        );
     }
 }
 

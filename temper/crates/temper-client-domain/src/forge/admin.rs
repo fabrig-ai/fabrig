@@ -9,7 +9,6 @@ use temper_client_protocol_wire::{self as wire, v1 as w};
 pub enum Field {
     Organization,
     Repository,
-    Project,
     Label,
 }
 impl Field {
@@ -18,8 +17,7 @@ impl Field {
         match self {
             Self::Organization => 0,
             Self::Repository => 1,
-            Self::Project => 2,
-            Self::Label => 3,
+            Self::Label => 2,
         }
     }
 }
@@ -27,29 +25,22 @@ impl Field {
 #[expect(clippy::partial_pub_fields, reason = "the view reads presentation; the token stays private")]
 pub struct Draft {
     pub place: PlaceDraft,
-    pub fields: [Box<[u8]>; 4],
-    pub written: [u64; 4],
+    pub fields: [Box<[u8]>; 3],
+    pub written: [u64; 3],
     pub token_written: u64,
     pub checked: bool,
     pub too_long: bool,
-    named: bool,
     token: Option<Secret>,
 }
 impl Draft {
     pub(crate) fn new() -> Self {
         Self {
             place: PlaceDraft::new(),
-            fields: [
-                b"work".as_slice().into(),
-                b"hello".as_slice().into(),
-                b"hello".as_slice().into(),
-                b"docker".as_slice().into(),
-            ],
-            written: [0; 4],
+            fields: [b"work".as_slice().into(), b"hello".as_slice().into(), b"docker".as_slice().into()],
+            written: [0; 3],
             token_written: 0,
             checked: false,
             too_long: false,
-            named: false,
             token: None,
         }
     }
@@ -59,7 +50,7 @@ impl Draft {
     }
     #[must_use]
     pub fn valid_label(&self) -> bool {
-        let label = &self.fields[3];
+        let label = &self.fields[2];
         if label.is_empty() || label.len() > 64 {
             return false;
         }
@@ -200,16 +191,9 @@ pub(crate) fn write(side: &mut Side, limits: Limits, field: Field, text: Box<[u8
         return;
     }
     let draft = &mut side.admin_form;
-    if field == Field::Project {
-        draft.named = true;
-    }
-    if field == Field::Repository && !draft.named {
-        draft.fields[2].clone_from(&text);
-        draft.written[2] = draft.written[2].checked_add(1).expect("writes fit");
-    }
     let index = field.index();
-    *draft.fields.get_mut(index).expect("four fields") = text;
-    let written = draft.written.get_mut(index).expect("four fields");
+    *draft.fields.get_mut(index).expect("three fields") = text;
+    let written = draft.written.get_mut(index).expect("three fields");
     *written = written.checked_add(1).expect("writes fit");
     draft.checked = false;
     side.changed();
@@ -230,7 +214,7 @@ pub(crate) fn send_new(side: &mut Side, limits: Limits, place: forges::Managed, 
     send_target(side, limits, 0, Some(place), out);
 }
 fn send_target(side: &mut Side, limits: Limits, forge: u16, place: Option<forges::Managed>, out: &mut Queue<Request>) {
-    let Some(party) = side.party else { return };
+    let Some(_party) = side.party else { return };
     if busy(side) || side.served == Served::OutOfDate {
         return;
     }
@@ -276,17 +260,12 @@ fn send_target(side: &mut Side, limits: Limits, forge: u16, place: Option<forges
         target
     };
     let draft = &mut side.admin_form;
-    let project = forges::SetUpProject::New(draft.fields[2].clone());
     let first = w::FirstAsk::new(
         &bounds,
         w::FirstAskParts {
             org: draft.fields[0].clone(),
             repository: draft.fields[1].clone(),
-            project: w::SetUpProject::New(
-                w::NewProject::new(&bounds, w::NewProjectParts { name: draft.fields[2].clone() })
-                    .expect("project fits"),
-            ),
-            label: draft.fields[3].clone(),
+            label: draft.fields[2].clone(),
         },
     );
     let Ok(first) = first else {
@@ -315,12 +294,8 @@ fn send_target(side: &mut Side, limits: Limits, forge: u16, place: Option<forges
     side.set_up = Some(Box::new(forges::SetUp {
         playground: false,
         forge: if side.setup_form.making.is_some() { None } else { Some(forge) },
-        party,
         org: draft.fields[0].clone(),
         repository: draft.fields[1].clone(),
-        project,
-        adoption: None,
-        starting: None,
         request: skein_lib::Token::new(side.serial),
         progress: None,
         answer: None,
@@ -368,7 +343,7 @@ pub(crate) fn told(
         {
             new.accepted = true;
         }
-        forges::maybe_adopt(side, limits, out);
+        forges::bind_new(side, out);
         side.changed();
     }
     true
@@ -393,17 +368,13 @@ pub(crate) fn stopped(side: &mut Side) {
             }
         }
         if side.admin.is_none()
-            && side.admin_form.written == [0; 4]
+            && side.admin_form.written == [0; 3]
             && let Some(first) = &row.first
         {
             side.admin_form.fields[0].clone_from(&first.org);
             side.admin_form.fields[1].clone_from(&first.repository);
-            if let forges::SetUpProject::New(name) = &first.project {
-                side.admin_form.fields[2].clone_from(name);
-                side.admin_form.named = *name != first.repository;
-            }
-            side.admin_form.fields[3].clone_from(&first.label);
-            side.admin_form.written = [1; 4];
+            side.admin_form.fields[2].clone_from(&first.label);
+            side.admin_form.written = [1; 3];
         }
     }
 }

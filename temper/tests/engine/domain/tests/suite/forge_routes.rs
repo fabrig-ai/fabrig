@@ -41,6 +41,12 @@ mod change_tool;
 #[path = "forge_routes/light_rules.rs"]
 mod light_rules;
 
+#[path = "forge_routes/catch_up.rs"]
+mod catch_up;
+
+#[path = "forge_routes/merge_job.rs"]
+mod merge_job;
+
 #[path = "forge_routes/plain_change.rs"]
 mod plain_change;
 
@@ -74,6 +80,9 @@ mod goal_branch;
 
 #[path = "forge_routes/goal_changes.rs"]
 mod goal_changes;
+
+#[path = "forge_routes/early_start.rs"]
+mod early_start;
 
 #[path = "forge_routes/goal_landing.rs"]
 mod goal_landing;

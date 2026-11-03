@@ -9,6 +9,7 @@ mod change;
 #[path = "tests/brief.rs"]
 mod ci_brief;
 mod connect;
+mod early;
 mod fixtures;
 mod flight;
 mod goal_branch;
@@ -353,6 +354,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::News { .. }
         | Request::Drift { .. }
         | Request::ProjectionEffect { .. }
+        | Request::StepDependents { .. }
         | Request::WakeProcedure { .. }
         | Request::ProjectAfter { .. }
         | Request::ProjectionFailed { .. }
@@ -433,6 +435,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::News { .. }
         | Request::Drift { .. }
         | Request::ProjectionEffect { .. }
+        | Request::StepDependents { .. }
         | Request::WakeProcedure { .. }
         | Request::ProjectAfter { .. }
         | Request::ProjectionFailed { .. }
@@ -510,6 +513,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::News { .. }
         | Request::Drift { .. }
         | Request::ProjectionEffect { .. }
+        | Request::StepDependents { .. }
         | Request::WakeProcedure { .. }
         | Request::ProjectAfter { .. }
         | Request::ProjectionFailed { .. }
@@ -1626,7 +1630,6 @@ fn setup_application(forge: u16, request: Token, token: Token) -> Event {
             forge: Making::Kept(forge),
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
-            project: SetUpProject::Existing(1),
         },
     }
 }
@@ -1784,12 +1787,11 @@ fn a_configured_forge_without_routing_input_reads_not_connected() {
 }
 
 #[test]
-fn a_new_project_is_admitted_and_retained_until_the_repository_is_made() {
+fn a_first_repository_is_admitted_and_retained_until_it_is_made() {
     let mut d = setup_domain(&configured(), true);
     outputs(&mut d, Event::Connection { forge: 1, state: Connection::NotSetUp });
     let request = Token::new(91);
     let token = Token::new(92);
-    let project = SetUpProject::New(b"Next".as_slice().into());
     let emitted = outputs(
         &mut d,
         Event::Application {
@@ -1803,7 +1805,6 @@ fn a_new_project_is_admitted_and_retained_until_the_repository_is_made() {
                 forge: Making::Kept(1),
                 org: b"work".as_slice().into(),
                 repository: b"hello".as_slice().into(),
-                project: project.clone(),
             },
         },
     );
@@ -1820,7 +1821,6 @@ fn a_new_project_is_admitted_and_retained_until_the_repository_is_made() {
             }
         ]
     );
-    assert_eq!(d.forges().rows[0].first.as_ref().unwrap().project, project);
     assert!(d.application_answer(token).is_none());
 }
 #[test]
@@ -1872,7 +1872,6 @@ fn setup_names_are_validated_at_admission_on_both_sides_of_the_name_bound() {
                     forge: Making::Kept(1),
                     org: org_name.clone(),
                     repository: repository.clone(),
-                    project: SetUpProject::Existing(1),
                 };
                 let mut emitted = Queue::uncapped();
                 step(
@@ -1911,9 +1910,7 @@ fn setup_names_are_validated_at_admission_on_both_sides_of_the_name_bound() {
 #[test]
 fn admitted_setup_projects_its_fields_as_making_and_the_next_admission_replaces_them() {
     let mut d = setup_domain(&configured(), true);
-    for (number, org, repository, project) in
-        [(91, b"work".as_slice(), b"hello".as_slice(), 1), (93, b"team", b"widget", 2)]
-    {
+    for (number, org, repository) in [(91, b"work".as_slice(), b"hello".as_slice()), (93, b"team", b"widget")] {
         outputs(
             &mut d,
             Event::Connection { forge: 1, state: Connection::SetUpFailed { why: b"retry".as_slice().into() } },
@@ -1924,7 +1921,6 @@ fn admitted_setup_projects_its_fields_as_making_and_the_next_admission_replaces_
             playground: false,
             org: org.into(),
             repository: repository.into(),
-            project: SetUpProject::Existing(project),
             state: FirstState::Making,
             label: Box::from(b"temper-host".as_slice()),
         };
@@ -1933,7 +1929,6 @@ fn admitted_setup_projects_its_fields_as_making_and_the_next_admission_replaces_
             forge: Making::Kept(1),
             org: first.org.clone(),
             repository: first.repository.clone(),
-            project: first.project.clone(),
         };
         assert_eq!(
             outputs(
@@ -2143,6 +2138,41 @@ fn setup_failures_name_the_held_step_until_state_changes() {
     }
 }
 
+/// A merge job keeps its repository's name (temper/docs/design/domain/worker.md, 4.4).
+#[test]
+fn a_merge_delegate_asks_for_a_merge_in_progress_named_as_its_repository() {
+    use temper_engine_domain_forge_change as change;
+    const CHILD: u64 = 90;
+    // project (7), forge.example (13), org (3), and the push branch temper/51 (9).
+    const FIXED_ITEM_BYTES: usize = 32;
+    for (from, branch) in [(Some(fixtures::HEAD), b"temper/51".as_slice()), (None, b"main".as_slice())] {
+        let mut d = domain();
+        let mut repository = adopted();
+        repository.name = Box::from(b"project".as_slice());
+        outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
+        let mut row = fixtures::opening_row();
+        row.delegate = Some((CHILD, change::Delegate::Merge { base: fixtures::BASE, from }));
+        outputs(&mut d, Event::Restore { record: Stored::Change(row) });
+        let item = d
+            .workspace_item(items::Seed {
+                task: CHILD,
+                parent: Some(fixtures::CHANGE),
+                repository: REPO,
+                run_branch: Box::from(b"run".as_slice()),
+                saved_branch: None,
+            })
+            .expect("merge item");
+        assert_eq!(item.provider, REPO);
+        assert_eq!(item.name.as_ref(), b"project");
+        assert_eq!(item.start, items::Start::Merge { branch: Box::from(branch), base: fixtures::BASE });
+        assert_eq!(item.push.as_deref(), Some(b"temper/51".as_slice()));
+        assert_eq!(item.holder, Some(fixtures::CHANGE));
+        assert_eq!(item.landing, None);
+        let payload = FIXED_ITEM_BYTES + branch.len();
+        assert_eq!(item.bytes, u64::try_from(size_of::<items::Item>() + payload).expect("sized merge item"));
+    }
+}
+
 #[test]
 fn workspace_landing_is_only_for_an_existing_inherited_writable_producer() {
     use temper_engine_domain_forge_change as change;
@@ -2190,6 +2220,7 @@ fn workspace_landing_is_only_for_an_existing_inherited_writable_producer() {
                         items::Start::Base(b)
                         | items::Start::Branch(b)
                         | items::Start::Saved(b)
+                        | items::Start::Merged { branch: b, .. }
                         | items::Start::Merge { branch: b, .. } => b,
                     };
                     let pushed = match &item.push {
