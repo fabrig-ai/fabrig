@@ -84,6 +84,30 @@ fn story_as_documents_can_list_every_offered_charter() {
 }
 
 #[test]
+fn story_as_chat_requests_fit_the_peoples_payload_bound() {
+    let llm: Value = serde_json::from_slice(A.llm).expect("story LLM");
+    for deployment in [serde_json::from_slice(A.deployment).expect("story deployment"), documents::world_document()] {
+        let engine = documents::settings::configuration(&deployment);
+        let temper_service::stock::Given::Own { jig, .. } = documents::given(&deployment) else {
+            panic!("the composition supplies its settings")
+        };
+        let policy = &jig.policies.get(&1).expect("playground policy").policy;
+        let role = policy.roles.iter().find(|role| role.number == 0).expect("owner role");
+        let authority = jig_domain_core::authority_to_people(&role.authority).expect("owner authority");
+        let authority_bytes = jig_domain_people::authority_bytes(&authority).expect("bounded authority");
+        for script in llm["asked"].as_array().expect("asked scripts") {
+            let cue = script["cue"].as_str().expect("suggestion");
+            let bytes = authority_bytes + u64::try_from(cue.len()).expect("cue length");
+            assert!(
+                bytes <= u64::from(engine.limits.core.people.amendment_bytes),
+                "{cue:?}: chat payload needs {bytes} bytes, bound {}",
+                engine.limits.core.people.amendment_bytes
+            );
+        }
+    }
+}
+
+#[test]
 fn story_as_scripts_are_the_templates() {
     let story: Value = serde_json::from_slice(A.llm).expect("story LLM");
     let template: Value =
