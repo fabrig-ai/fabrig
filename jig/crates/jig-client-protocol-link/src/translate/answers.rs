@@ -208,6 +208,7 @@ pub(crate) fn party_kind(value: &w::PartyKind) -> c::PartyKind {
 
 pub(crate) fn outcome(value: &w::Outcome, limits: &Limits) -> Result<c::Outcome, w::Problem> {
     Ok(match value {
+        w::Outcome::Restored(value) => restore_outcome_restored(value)?,
         w::Outcome::Document(row) => c::Outcome::Document(document_outcome(row.value(), limits)?),
         w::Outcome::Made(row) => c::Outcome::Made { what: made(row.what()) },
         w::Outcome::MovedToNewest(value) => c::Outcome::MovedToNewest(c::OutcomeMovedToNewest {
@@ -498,6 +499,7 @@ pub(crate) fn refusal(value: &w::Refusal, limits: &Limits) -> Result<c::Refusal,
                 w::TaskStatus::Cancelled => c::TaskStatus::Cancelled,
             },
         },
+        w::Refusal::Forgotten(value) => restore_refusal_forgotten(value),
         w::Refusal::Stale(value) => c::Refusal::Stale(super::settings::restore_refusal_stale(value)?),
         w::Refusal::Full(value) => c::Refusal::Full(super::settings::restore_refusal_full(value)?),
         w::Refusal::NotWaiting => c::Refusal::NotWaiting,
@@ -703,4 +705,31 @@ fn ceiling_dimension(value: &w::CeilingDimension) -> c::CeilingDimension {
         w::CeilingDimension::Deadline => c::CeilingDimension::Deadline,
         w::CeilingDimension::Notes => c::CeilingDimension::Notes,
     }
+}
+
+pub fn restore_outcome_restored(value: &w::OutcomeRestored) -> Result<c::Outcome, w::Problem> {
+    let mut left_out = List::with_capacity(value.left_out().len());
+    for setting in value.left_out() {
+        left_out.push(super::settings::restore_setting(setting)?).expect("same capacity");
+    }
+    Ok(c::Outcome::Restored { proposal: value.proposal(), to: value.to(), left_out })
+}
+pub fn wire_outcome_restored(
+    proposal: u64,
+    to: u32,
+    left_out: &List<c::Setting>,
+    limits: &w::Limits,
+) -> Result<w::OutcomeRestored, w::Problem> {
+    let mut settings = List::with_capacity(left_out.len());
+    for setting in left_out {
+        settings.push(super::settings::wire_setting(setting, limits)?).expect("same capacity");
+    }
+    w::OutcomeRestored::new(limits, w::OutcomeRestoredParts { proposal, to, left_out: settings })
+}
+#[must_use]
+pub fn restore_refusal_forgotten(value: &w::RefusalForgotten) -> c::Refusal {
+    c::Refusal::Forgotten { oldest: value.oldest() }
+}
+pub fn wire_refusal_forgotten(oldest: u32, limits: &w::Limits) -> Result<w::RefusalForgotten, w::Problem> {
+    w::RefusalForgotten::new(limits, w::RefusalForgottenParts { oldest })
 }

@@ -598,6 +598,7 @@ pub fn form_setting(v: c::Setting) -> n::Setting {
     match v {
         c::Setting::Charter(x) => n::Setting::Charter(form_setting_number(x)),
         c::Setting::Template(x) => n::Setting::Template(form_setting_number(x)),
+        c::Setting::ProjectPolicy { .. } => unreachable!("a project's policy: policy-ctl"),
         c::Setting::Policy(x) => n::Setting::Policy(form_setting_number(x)),
         c::Setting::Application { kind, scope, number } => n::Setting::Application { kind, scope, number },
         c::Setting::Rules => n::Setting::Rules,

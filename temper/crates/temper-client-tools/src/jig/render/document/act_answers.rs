@@ -137,6 +137,7 @@ pub(super) fn encode_note_scope(value: &jig_client::contract::NoteScope, out: &m
 
 pub(super) fn encode_outcome(value: &jig_client::contract::Outcome, out: &mut Encoder, budget: &mut super::Cut) {
     match value {
+        jig_client::contract::Outcome::Restored { .. } => unreachable!("a restore: restore-ctl"),
         jig_client::contract::Outcome::MovedToNewest(value) => {
             out.object_start();
             out.key(b"moved_to_newest");

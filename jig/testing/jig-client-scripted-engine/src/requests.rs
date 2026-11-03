@@ -100,9 +100,9 @@ impl<A: crate::Application> Engine<A> {
         ask: &Ask,
         wall: Wall,
     ) -> core::result::Result<(Answer, Vec<crate::Change>), Invalid> {
-        if let Ask::ChangeSettings(_) | Ask::MoveToNewest(_) = ask {
+        if let Ask::ChangeSettings(_) | Ask::MoveToNewest(_) | Ask::Restore { .. } = ask {
             let held = self.truth.frames.get(&party).and_then(|me| me.deployment_role);
-            if held != Some(jig_client_domain::contract::HeldRole::Owner) {
+            if !matches!(ask, Ask::Restore { .. }) && held != Some(jig_client_domain::contract::HeldRole::Owner) {
                 return Ok((Answer::Refused { refusal: Refusal::Role { held }, at: None }, Vec::new()));
             }
             if let Some(rule) = self
@@ -351,6 +351,7 @@ impl<A: crate::Application> Engine<A> {
             | Ask::Rename { .. }
             | Ask::ChangeSettings(_)
             | Ask::MoveToNewest(_)
+            | Ask::Restore { .. }
             | Ask::MakeProject { .. }
             | Ask::SetPool { .. } => None,
         };
@@ -411,6 +412,7 @@ impl<A: crate::Application> Engine<A> {
                 | Ask::Rename { .. }
                 | Ask::ChangeSettings(_)
                 | Ask::MoveToNewest(_)
+                | Ask::Restore { .. }
                 | Ask::MakeProject { .. }
                 | Ask::SetPool { .. } => Admission::Refused(Refusal::NotOffered),
             },
@@ -501,6 +503,7 @@ impl<A: crate::Application> Engine<A> {
             | Ask::Rename { .. }
             | Ask::ChangeSettings(_)
             | Ask::MoveToNewest(_)
+            | Ask::Restore { .. }
             | Ask::MakeProject { .. }
             | Ask::SetPool { .. } => None,
         };
@@ -640,6 +643,7 @@ fn target(ask: &Ask) -> Option<Target> {
         Ask::Lift { .. }
         | Ask::ChangeSettings(_)
         | Ask::MoveToNewest(_)
+        | Ask::Restore { .. }
         | Ask::MakeProject { .. }
         | Ask::SignIn { .. }
         | Ask::SignOut { .. }

@@ -46,6 +46,7 @@ impl Operation {
         let (word, task): (&[u8], Option<u64>) = match ask {
             Ask::Family { .. } => (b"adopt", None),
             Ask::Jig(ask) => match ask.as_ref() {
+                c::Ask::Restore { .. } => unreachable!("a restore: restore-ctl"),
                 c::Ask::Propose { action: c::ProposeAction::Settings(_), .. } => (b"propose_settings", None),
                 c::Ask::MoveToNewest(_) => (b"move-to-newest", None),
                 c::Ask::ChangeSettings(_) => (b"change-settings", None),
@@ -322,6 +323,7 @@ fn text(operation: &Operation, outcome: &Outcome, me: Option<&c::Me>, limits: &L
         c::Answer::Done(done) => {
             out.put(b"done: ");
             let task = match done {
+                c::Outcome::Restored { .. } => unreachable!("a restore: restore-ctl"),
                 c::Outcome::SettingsChanged(_) | c::Outcome::MovedToNewest(_) => {
                     unreachable!("settings answer handled above")
                 }
@@ -808,6 +810,7 @@ fn spent_pool(operation: &Operation, project: u32, needed: u64, left: u64, me: O
 fn proposal_project(ask: &Ask) -> Option<u32> {
     match ask {
         Ask::Jig(ask) => match ask.as_ref() {
+            c::Ask::Restore { .. } => unreachable!("a restore: restore-ctl"),
             c::Ask::Propose { project, .. } => Some(*project),
             c::Ask::MoveToNewest(_)
             | c::Ask::ChangeSettings(_)
@@ -891,6 +894,7 @@ fn ended_word(phase: c::Phase) -> &'static [u8] {
 
 fn ended_refusal(refusal: &c::Refusal, archived: bool) -> bool {
     match refusal {
+        c::Refusal::Forgotten { .. } => unreachable!("a restore: restore-ctl"),
         c::Refusal::Ended { .. } => true,
         c::Refusal::Unknown => archived,
         c::Refusal::Judged { .. }
