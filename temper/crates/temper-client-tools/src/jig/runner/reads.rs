@@ -23,7 +23,8 @@ pub(crate) struct Reading {
     pub questions: BTreeMap<(u64, u64), Option<Box<c::Question>>>,
     pub question: Option<(u64, u64)>,
     pub met_inbox: Option<Printed>,
-    pub kinds: super::kinds::Reading,
+    pub parts: &'static dyn render::Parts,
+    pub application: super::application::Reading,
 }
 pub(super) fn handle(runner: &Runner, prefix: u32, local: u32) -> Handle {
     Handle { asker: runner.asker, number: (u64::from(prefix) << 32u32) | u64::from(local) }
@@ -83,7 +84,8 @@ fn start_reading(
         questions: BTreeMap::new(),
         question: None,
         met_inbox,
-        kinds: super::kinds::Reading::new(),
+        application: super::application::Reading::new(),
+        parts: runner.parts.expect("host vocabulary"),
     };
     if reading.called.call.tool <= 3 {
         start_overview(runner, client, env, reading, out);
@@ -184,7 +186,7 @@ fn start_detail(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut rea
             read(runner, &mut reading, 1, what, out);
         }
         rows::SETTINGS_AT..=rows::REVISIONS_AT => {
-            if !super::kinds::resolve_project(&mut reading.called.call, super::acts::me(runner, client)) {
+            if !reading.parts.prepare_setting(&mut reading.called.call, super::acts::me(runner, client)) {
                 let printed = render::failure(b"unknown project", reading.called.json, 1);
                 finish(reading, printed, out);
                 return;
@@ -249,9 +251,9 @@ pub(super) fn page(
     let prefix = u32::try_from(handle.number >> 32u32).expect("high half");
     let local = u32::try_from(handle.number & u64::from(u32::MAX)).expect("low half");
     let Some(mut reading) = runner.active.remove(&prefix) else { return };
-    if local == super::kinds::SLOT && reading.kinds.query.is_some() {
-        reading.pending &= !(1 << super::kinds::SLOT);
-        if let Err(page) = super::kinds::received(&mut reading, page) {
+    if local == super::application::SLOT && reading.application.query.is_some() {
+        reading.pending &= !(1 << super::application::SLOT);
+        if let Err(page) = super::application::received(&mut reading, page) {
             let printed = render::read(
                 &page,
                 client,
@@ -305,10 +307,13 @@ pub(super) fn page(
         && local == 6
         && let Readout::Jig(c::ReadResult::Value(c::ReadValue::Settings(settings))) = &page
     {
-        let setting = super::super::settings_file::selector(&reading.called.call);
-        if let c::Setting::Application { kind, scope, number } = setting {
-            super::kinds::inventory(&mut reading, settings, setting);
-            super::kinds::read(runner, &mut reading, super::kinds::setting_query(kind, scope, number), out);
+        let setting = match reading.parts.setting_selector(&reading.called.call) {
+            Some(setting) => setting,
+            None => super::super::settings_file::selector(&reading.called.call),
+        };
+        if let c::Setting::Application { .. } = setting {
+            super::application::inventory(&mut reading, settings, setting);
+            super::application::read(runner, &mut reading, super::application::Query::Setting(setting), out);
             complete(runner, client, env, reading, out);
             return;
         }
@@ -446,9 +451,9 @@ fn complete(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut reading
         return;
     }
     if reading.called.call.tool == rows::PROPOSAL_AT
-        && let Some(query) = super::kinds::next(&reading)
+        && let Some(query) = super::application::next(&reading)
     {
-        super::kinds::read(runner, &mut reading, query, out);
+        super::application::read(runner, &mut reading, query, out);
         runner.active.insert(reading.called.call_number, reading);
         return;
     }
@@ -578,7 +583,10 @@ fn settings_start(runner: &Runner, reading: &mut Reading, out: &mut Queue<Out>) 
         rows::SETTINGS_AT => read(runner, reading, 1, c::Read::Settings, out),
         rows::SETTING_AT => {
             let call = &reading.called.call;
-            let setting = super::super::settings_file::selector(call);
+            let setting = match reading.parts.setting_selector(call) {
+                Some(setting) => setting,
+                None => super::super::settings_file::selector(call),
+            };
             match number(call, 2) {
                 Some(n) => {
                     let revision = u32::try_from(n).expect("parsed revision");

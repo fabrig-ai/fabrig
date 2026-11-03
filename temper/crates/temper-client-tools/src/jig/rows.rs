@@ -600,8 +600,7 @@ pub const SETTINGS: Tool = Tool {
 pub const SETTING: Tool = Tool {
     name: b"settings show",
     line: b"Read one setting's value whole",
-    prints:
-        b"`KIND N, revision R`, or `rules, revision R`, then the value as JSON; temper's settings also show their state",
+    prints: b"`KIND N, revision R`, or `rules, revision R`, then the value as JSON",
     result: b"setting",
     forms: &[
         &[
@@ -628,39 +627,6 @@ pub const SETTING: Tool = Tool {
             ),
         ],
         &[positional(b"kind", b"rules", Kind::Word { set: &[b"rules"] }, Required, b"The deployment's rules")],
-        &[
-            positional(b"kind", b"landing-rule", Kind::Word { set: &[b"landing-rule"] }, Required, b"A landing rule"),
-            positional(
-                b"number",
-                b"NUMBER",
-                Kind::NumberRange { min: 1, max: 4_294_967_295 },
-                Required,
-                b"The rule's number",
-            ),
-            flag(
-                b"project",
-                b"PROJECT",
-                Kind::Project { empty: false },
-                Optional,
-                b"The project's rule; the deployment's when absent",
-            ),
-        ],
-        &[
-            positional(
-                b"kind",
-                b"forge-charter",
-                Kind::Word { set: &[b"forge-charter"] },
-                Required,
-                b"One of the forge's charters",
-            ),
-            positional(
-                b"number",
-                b"NUMBER",
-                Kind::NumberRange { min: 1, max: 2 },
-                Required,
-                b"1 the change's charter, 2 its reviews'",
-            ),
-        ],
     ],
     keyed: Keyed::Never,
     area: 1,

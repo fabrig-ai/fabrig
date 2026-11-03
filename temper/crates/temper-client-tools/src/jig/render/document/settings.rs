@@ -1,24 +1,15 @@
 //! Client settings views adapt to the neutral settings renderer.
 use super::Text;
+use crate::jig::render::Parts;
 use crate::jig::{Limits, settings_adapter as a};
 use jig_client::contract as c;
 use skein_json::writer::Encoder;
-pub(crate) fn setting_text(setting: c::Setting, out: &mut Text) {
-    if let c::Setting::Application { kind: 1..=3, scope, number } = setting {
-        out.put(if let c::Setting::Application { kind: 3, .. } = setting {
-            b"forge-charter "
-        } else {
-            b"landing-rule "
-        });
-        out.number(u64::from(number));
-        if let c::Setting::Application { kind: 2, .. } = setting {
-            out.put(b" --project ");
-            out.number(u64::from(scope));
-        }
-    } else {
+pub(crate) fn setting_text(setting: c::Setting, vocabulary: &dyn Parts, out: &mut Text) {
+    if !vocabulary.setting_name(setting, out) {
         settings_form::render::setting_text(a::form_setting(setting), out);
     }
 }
+
 pub(super) fn encode_setting(setting: c::Setting, out: &mut Encoder) {
     settings_form::render::encode_setting(a::form_setting(setting), out);
 }
@@ -28,20 +19,26 @@ pub(super) fn encode_value(value: &c::SettingValue, out: &mut Encoder) {
 pub(crate) fn proposal_text(proposal: c::ProposalKey, out: &mut Text) {
     settings_form::render::proposal_text(a::form_proposal_key(&proposal), out);
 }
-pub(crate) fn text(value: &c::ReadValue, requested: Option<u64>, limits: &Limits, out: &mut Text) {
+pub(crate) fn text(
+    value: &c::ReadValue,
+    requested: Option<u64>,
+    limits: &Limits,
+    vocabulary: &dyn Parts,
+    out: &mut Text,
+) {
     if let c::ReadValue::Settings(document) = value {
-        inventory_text(document, out);
+        inventory_text(document, vocabulary, out);
         return;
     }
     if let c::ReadValue::Setting(document) = value
         && let c::Setting::Application { .. } = document.setting
     {
-        setting_text(document.setting, out);
+        setting_text(document.setting, vocabulary, out);
         out.put(b", revision ");
         out.number(u64::from(document.revision));
         out.put(b"\n");
         match &document.value {
-            Some(value) => named_value_inline(document.setting, value, limits, out),
+            Some(value) => named_value_inline(document.setting, value, limits, vocabulary, out),
             None => out.put(b"none"),
         }
         out.put(b"\n");
@@ -64,13 +61,13 @@ pub(crate) fn fault_word(fault: c::SettingFault) -> &'static [u8] {
     settings_form::render::fault_word(a::form_setting_fault(fault))
 }
 
-fn inventory_text(document: &c::SettingsDocument, out: &mut Text) {
+fn inventory_text(document: &c::SettingsDocument, vocabulary: &dyn Parts, out: &mut Text) {
     out.put(b"newest revision ");
     out.number(u64::from(document.newest));
     out.put(b"\nsettings:\n");
     for line in &document.settings {
         out.put(b"  ");
-        setting_text(line.setting, out);
+        setting_text(line.setting, vocabulary, out);
         if let Some(name) = &line.name {
             out.put(b" \"");
             out.words(name.bytes.bytes());
@@ -140,22 +137,33 @@ fn head_text(head: &c::RevisionHead, out: &mut Text) {
     }
     out.put(if head.moved { b", running work moves\n" } else { b", running work stays\n" });
 }
-pub(super) fn encode_named_value(setting: c::Setting, value: &c::SettingValue, out: &mut Encoder) {
+pub(super) fn encode_named_value(
+    setting: c::Setting,
+    value: &c::SettingValue,
+    vocabulary: &dyn Parts,
+    out: &mut Encoder,
+) {
     if let c::Setting::Application { kind, .. } = setting
         && let c::SettingValue::Application(bytes) = value
-        && kinds::render(kind, bytes, out)
+        && vocabulary.setting_value(kind, bytes, out)
     {
         return;
     }
     encode_value(value, out);
 }
-pub(super) fn named_value_inline(setting: c::Setting, value: &c::SettingValue, limits: &Limits, out: &mut Text) {
+pub(super) fn named_value_inline(
+    setting: c::Setting,
+    value: &c::SettingValue,
+    limits: &Limits,
+    vocabulary: &dyn Parts,
+    out: &mut Text,
+) {
     let bounds =
         skein_json::writer::Limits { depth: 32, length: u32::try_from(limits.result_bytes).expect("result bound") };
     let mut measure = Encoder::measure(&bounds);
-    encode_named_value(setting, value, &mut measure);
+    encode_named_value(setting, value, vocabulary, &mut measure);
     let mut write = Encoder::write(measure.measured().expect("received value fits"), &bounds);
-    encode_named_value(setting, value, &mut write);
+    encode_named_value(setting, value, vocabulary, &mut write);
     out.put(&write.finish());
 }
 fn application_text(state: &c::ApplicationState, out: &mut Text) {
@@ -174,4 +182,3 @@ fn application_text(state: &c::ApplicationState, out: &mut Text) {
     out.number(u64::from(state.size));
     out.put(b" bytes\n");
 }
-mod kinds;

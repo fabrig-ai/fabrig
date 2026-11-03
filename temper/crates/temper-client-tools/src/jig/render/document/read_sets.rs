@@ -34,7 +34,7 @@ pub(super) fn text(
                 | c::ReadValue::Setting(_)
                 | c::ReadValue::Revision(_)
                 | c::ReadValue::Revisions(_)),
-            )) => super::settings::text(value, crate::jig::call::number(call, 0), limits, out),
+            )) => super::settings::text(value, crate::jig::call::number(call, 0), limits, vocabulary, out),
 
             Readout::Jig(c::ReadResult::Value(value @ c::ReadValue::Proposal(_))) => {
                 super::proposal::text(value, reading, limits, out);
