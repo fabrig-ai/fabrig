@@ -2639,9 +2639,10 @@ fn delegate_admission_refused(
         (change::Delegate::Repair(why), change::State::Repairing { requested, why: current }) => {
             *requested && why == *current
         }
-        (change::Delegate::Resolve { base }, change::State::Resolving { requested, base: current }) => {
-            *requested && base == *current
-        }
+        (
+            change::Delegate::Resolve { base } | change::Delegate::Merge { base, .. },
+            change::State::Resolving { requested, base: current },
+        ) => *requested && base == *current,
         (change::Delegate::Gate { number, head }, change::State::Gating { head: current, asked }) => {
             head == *current && asked.contains(&number)
         }
@@ -2664,7 +2665,10 @@ fn unasked(row: &mut ChangeRow, kind: change::Delegate) -> change::State {
             row.change.repairs = row.change.repairs.saturating_sub(1);
             change::State::Repairing { requested: false, why }
         }
-        (change::Delegate::Resolve { base }, change::State::Resolving { .. }) => {
+        (
+            change::Delegate::Resolve { base } | change::Delegate::Merge { base, .. },
+            change::State::Resolving { .. },
+        ) => {
             row.change.resolutions = row.change.resolutions.saturating_sub(1);
             change::State::Resolving { requested: false, base }
         }
@@ -2723,7 +2727,7 @@ fn delegate_result(
                 None
             };
         }
-        change::Delegate::Repair(_) | change::Delegate::Resolve { .. } => {}
+        change::Delegate::Repair(_) | change::Delegate::Resolve { .. } | change::Delegate::Merge { .. } => {}
     }
     let saved = row.clone();
     save_change(d, out, saved);
@@ -3493,6 +3497,8 @@ fn change_facts(
         base_tip,
         contains_base: if requires.up_to_date { pending.contains_base } else { change::Status::Passed },
         updates: requires.up_to_date,
+        merge_job: false,
+        contains_catch_up: change::Status::Pending,
         mergeable: match &pending.pull {
             Some(pull) if pull.mergeable => change::Status::Passed,
             Some(_) if window.is_some() => change::Status::Pending,

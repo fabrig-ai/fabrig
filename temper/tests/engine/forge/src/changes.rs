@@ -49,6 +49,8 @@ pub fn change_row() -> top::ChangeRow {
         effect_account: None,
         producer_failure: None,
         report: Box::new([]),
+        catch_up: None,
+        merge_result: None,
     }
 }
 
