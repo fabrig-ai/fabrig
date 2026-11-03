@@ -307,6 +307,20 @@ impl World {
             .max_by_key(|head| head.number)
             .expect("newest revision")
     }
+    pub fn settings_rows(&self) -> Vec<s::Record> {
+        self.driver
+            .store
+            .rows
+            .values()
+            .filter_map(|row| {
+                if let engine::Record::Core(core::Record::Core(core::CoreRecord::Settings(record))) = row {
+                    Some(record.clone())
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
     pub fn change(&mut self, against: u32, key: u8, items: Box<[s::Item]>) {
         self.driver.send(Event::Party(PartyInput::ChangeSettings {
             kinds: Box::new([]),

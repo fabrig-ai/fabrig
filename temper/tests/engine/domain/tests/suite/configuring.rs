@@ -35,6 +35,11 @@ fn an_owners_configuring_chat_proposes_and_hears_it_accepted() {
     assert_eq!(world.head().number, 2);
     assert!(!world.head().moved);
     assert_eq!(
+        world.driver.task(run.task).expect("configuring task").settings,
+        tasks::SettingsRevision { task: 1, run: Some(1) },
+        "accepting with running work staying keeps the current task and run on revision 1"
+    );
+    assert_eq!(
         world.head().proposal,
         Some((people::Proposer::Task(run.task), u32::try_from(proposal).expect("proposal number")))
     );
@@ -208,4 +213,104 @@ fn an_accepted_proposal_moves_running_work() {
     let stayed = world.wake(&removed, 25);
     assert_eq!(stayed.run.revision, 1);
     assert_eq!(stayed.run.policy.instructions, removed.run.policy.instructions);
+}
+
+#[test]
+fn the_configuring_agent_reads_each_kind() {
+    use serde_json::json;
+    let mut world = World::stock();
+    let run = world.chat(CONFIGURING, world.owner, 20);
+    let held = read_charter(&mut world.driver, &run, 1, CHAT);
+    world.change(1, 21, Box::new([owner_charter(b"The newest chat instructions.")]));
+    let before = world.driver.store.rows.clone();
+    let mut completion = 10;
+    for (input, heading, content) in [
+        (json!({}), "newest revision 2\n", "held revisions:\n  revision 1,"),
+        (
+            json!({"setting":{"kind":"charter","number":CHAT}}),
+            "charter 1, revision 2\n",
+            "The newest chat instructions.",
+        ),
+        (json!({"setting":{"kind":"template","number":1}}), "template 1, revision 2\n", "\"bytes\":\"chat\""),
+        (json!({"setting":{"kind":"policy","number":1}}), "policy 1, revision 2\n", "\"roles\":"),
+        (json!({"setting":{"kind":"rules"}}), "rules, revision 2\n", "\"ceiling\":"),
+        (json!({"setting":{"kind":"landing-rule","number":1}}), "landing-rule 1, revision 2\n", "\"enforce\":true"),
+        (json!({"setting":{"kind":"forge-charter","number":1}}), "forge-charter 1, revision 2\n", "default, "),
+        (json!({"revision":2}), "revision 2, against revision 1,", "The newest chat instructions."),
+        (json!({"history":{}}), "revision 2, against revision 1,", "revision 1, against revision 0,"),
+    ] {
+        let (text, pages) = read_whole(&mut world.driver, &run, completion, input);
+        assert!(text.starts_with(heading), "{text}");
+        assert!(text.contains(content), "{text}");
+        completion += pages;
+    }
+    let older = read_value(
+        &mut world.driver,
+        &run,
+        completion,
+        json!({"setting":{"kind":"charter","number":CHAT},"revision":1}),
+    );
+    assert_eq!(older, held, "a live run holds its older charter revision");
+    let (text, pages) = read_whole(
+        &mut world.driver,
+        &run,
+        completion + 10,
+        json!({"setting":{"kind":"charter","number":CONFIGURING}}),
+    );
+    assert!(pages > 1, "the stock configuring instructions require continuation from an offset");
+    let (_, value) = text.split_once('\n').expect("charter heading");
+    let value: serde_json::Value = serde_json::from_str(value).expect("reassembled charter JSON");
+    assert_eq!(value["instructions"], std::str::from_utf8(&run.run.policy.instructions).expect("stock instructions"));
+    assert_eq!(world.driver.store.rows, before, "settings reads commit nothing");
+}
+
+#[test]
+fn propose_settings_refuses_a_stale_revision_and_an_item_out_of_shape() {
+    use serde_json::json;
+    let mut world = World::stock();
+    let run = world.chat(CONFIGURING, world.owner, 20);
+    let charter = read_charter(&mut world.driver, &run, 1, CHAT);
+    world.change(1, 21, Box::new([owner_charter(b"The owner's instructions.")]));
+    let before = world.settings_rows();
+    let valid = charter_item(charter.clone(), b"A proposed change.");
+    let input = json!({"against":1,"reason":REASON,"items":valid});
+    let (body, error) = host_tool(&mut world.driver, &run, 10, b"propose_settings", input.to_string().as_bytes());
+    assert!(error);
+    assert_eq!(body.as_ref(), b"stale; newest revision 2; read settings show again");
+    assert_eq!(world.settings_rows(), before, "a stale call records no proposal or settings change");
+    let mut unknown = charter.clone();
+    unknown["unknown"] = json!(true);
+    let mut missing = charter;
+    missing.as_object_mut().expect("charter object").remove("instructions");
+    for (completion, value, member) in [(11, unknown, "unknown"), (12, missing, "instructions")] {
+        let input = json!({
+            "against":2,"reason":REASON,
+            "items":[{"setting":{"kind":"charter","number":CHAT},"set":value}]
+        });
+        let (body, error) =
+            host_tool(&mut world.driver, &run, completion, b"propose_settings", input.to_string().as_bytes());
+        assert!(error);
+        let text = std::str::from_utf8(&body).expect("refusal text");
+        assert!(text.contains("item 1"), "{text}");
+        assert!(text.contains(member), "{text}");
+        assert_eq!(world.settings_rows(), before, "an item out of shape records no proposal or settings change");
+    }
+    assert_eq!(world.head().number, 2);
+}
+
+#[test]
+fn a_chat_is_offered_no_settings_tools() {
+    let config = config();
+    let policy = &config.core.defaults.policies.get(&1).expect("stock policy 1").policy;
+    assert_ne!(policy.roles[0].authority.tools.0 & core::ToolFamilies::JIG.settings, 0);
+    let mut world = World::new(config);
+    let run = world.chat(CHAT, world.owner, 20);
+    assert_eq!(run.charter, CHAT);
+    let task = world.driver.task(run.task).expect("stock chat task");
+    assert_ne!(task.authority.tools.0 & core::ToolFamilies::JIG.settings, 0);
+    let offered = temper_engine_smith::charter(&run);
+    assert!(!offered.grants.host_tools.is_empty(), "the chat is offered its other host tools");
+    for name in [b"settings".as_slice(), b"propose_settings"] {
+        assert!(!offered.grants.host_tools.iter().any(|tool| tool.name.as_ref() == name));
+    }
 }
