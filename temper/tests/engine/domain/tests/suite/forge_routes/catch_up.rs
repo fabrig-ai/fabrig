@@ -125,7 +125,14 @@ fn check_job(world: &World, task: u64, job: &host::JobAssignment, branch: &[u8],
     );
     assert_eq!(request, expected.as_bytes());
     assert!(reader.is_empty());
-    assert!(job.workspace.is_some(), "the merge job needs its writable repository item");
+    let workspace = job.workspace.as_ref().expect("the merge job needs its writable repository item");
+    assert_eq!(workspace.workstream, task, "the change owns the checkout cache");
+    let items = &world.job_workspaces.get(&job.run.raw()).expect("typed job items").repositories;
+    assert_eq!(items.len(), 1);
+    let item = &items[0];
+    assert_eq!(item.provider, change_row(world, task).repository);
+    assert_eq!(item.start, engine::ForgeStart::Merge { branch: branch.into(), base: translate::commit(base) });
+    assert_eq!(item.push.as_deref(), Some(change_row(world, task).branch.as_ref()));
 }
 
 fn push_merge(world: &mut World, task: u64, head: u64, base: u64) -> u64 {
@@ -168,9 +175,8 @@ fn landed(world: &mut World, task: u64, branch: &[u8], base: u64) {
         change_row(world, task)
     );
     assert_eq!(world.merges, 1);
-    let raw::Answer::Pull(pull) = world.external(1, raw::Op::Read(raw::Read::Pull { number: 1 })) else {
-        panic!("pull")
-    };
+    let number = change_row(world, task).pull.expect("catch-up pull request");
+    let raw::Answer::Pull(pull) = world.external(1, raw::Op::Read(raw::Read::Pull { number })) else { panic!("pull") };
     assert_eq!(pull.base.as_ref(), branch);
     assert!(pull.merged.is_some());
     let head = branch_tip(world, branch);
