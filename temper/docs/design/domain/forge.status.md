@@ -22,11 +22,11 @@
     (`temper-service/src/family.rs`).
   - 7.1, 12: the findings topic and findings (`findings.md`).
   - 7.3: a hold parked until a landing.
-  - 8.1: a change's own bounds, gates and charters: `change` takes
-    parameters 1 to 6, 9 to 11 and 16, its bounds are the deployment's
-    `change_policy` and its charters the deployment's
-    (`temper-engine-domain/src/route/forge_route.rs`, `start_change`); its
-    page's line that a change takes no words.
+  - 8.1: a change's own bounds and gates: `change` takes parameters 1
+    to 6, 9 to 12, 14 and 16, its bounds, the questions it takes among
+    them, are the deployment's `change_policy`, and its gates its landing
+    branch's rules' (`temper-engine-domain/src/route/forge_route.rs`,
+    `start_change`); its page's line that a change takes no words.
   - 8.2: the pull request's body naming its goal's issue.
   - 8.3: a person's approval as a gate; a review's lens; gates run at once
     when the change asks; a verdict posted as a commit status.
@@ -61,6 +61,12 @@
     started from its pushed branch or saved work, merges the landing
     branch's tip first only where the change started early
     (`temper-engine-domain-forge/src/items.rs`, `workspace_item`).
+  - 8.11: a repair's or a resolution's question, relayed as a producer's
+    is (`temper-engine-domain/src/route/forge_route/relay.rs`,
+    `asking_delegate`), is unobserved in stories: every relay story's
+    asker is the change's producing task
+    (`tests/engine/domain/tests/suite/forge_routes/questions.rs`,
+    `foremen.rs` and `goal_questions.rs`).
   - 9: a branch a tier follows still pauses its queue on its own CI's
     red and makes a repair, where its tiers judge it instead
     (`temper-engine-domain-forge-change/src/domain.rs`, `base_ci`).
@@ -70,3 +76,10 @@
   - 13: participating objects beyond their news; a landing waiting for
     someone else's merge where temper may not merge (also 4.4 and 9).
   - 14: upstream contributions.
+- **Departs:** 8.11: a change taking `foreman` gives its producing, each
+  repair and each resolution half the spend the change may give it,
+  keeping the rest for the foremen of that agent's questions, since a
+  foreman runs while the agent that asked waits
+  (`temper-engine-domain/src/route/forge_route.rs`, `change_delegate`);
+  8.4 and 8.11 make a change's delegates under its own authority and
+  name no such split.

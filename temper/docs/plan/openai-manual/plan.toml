@@ -1,0 +1,26 @@
+draft = "openai-manual"
+repo = "fabrig"
+sources = ["temper/docs/plan/openai-manual/inputs/request.md", "skein/docs/design/llm.md", "AGENTS.md"]
+
+# The director's request of 11-03 (inputs/request.md), on after-landing's red-10: the Codex
+# login lent to live-skein is refused on the public Responses route (`401 Missing scopes:
+# api.responses.write`), so the two positive OpenAI live stories become manual, ignored like
+# the three Anthropic ones (skein/docs/design/llm.status.md, 5). One skein task, which also
+# places the lead's status texts and the README's live section. plan.md says what was decided.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "openai-live-manual"
+title = "skein: the OpenAI text and tool live stories are ignored, owner-run like the Anthropic ones"
+mode = "direct"
+needs = []
+design = "skein/docs/design/llm.md, 5"
+
+[[slice]]
+id = 1
+story = "the live-skein profile lists openai_unauthorized and the three offline login tests alone; the two OpenAI and three Anthropic provider stories are ignored, run by the owner one at a time, as llm.status.md 5 and the README say"
+parts = ["openai-live-manual"]
+walk = false

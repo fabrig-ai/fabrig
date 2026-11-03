@@ -13,11 +13,13 @@ routes, `Artifact` and `Commits` among them (`forge.md`,
 `ui-web.md` for the worker's platform). json, tls and http's collector
 have no fuzz target (`json.md`, `tls.md`, `http.md`). A few items lag
 in `lib.md`, `examples.md` and `ui.md`. The code departs in three
-crates' `tests/` directories (`testing.md`). `README.md`, `channel.md`,
-`codec.md`, `kv.md`, `world.md`, `fake-checkout.md`, `fake-llm.md`,
-`forge-client.md`, `forge-connection.md`, `forge-setup.md`, `llm.md`,
-`llm-connection.md`, `oauth.md`, `oauth-issuer.md`, `ui-text.md` and
-`browser.md` have no gap. The foundation's rules (`../foundation/`) have
+crates' `tests/` directories (`testing.md`), and five of the LLM live
+suite's provider stories are manual, run by the owner (`llm.md`).
+`README.md`, `channel.md`, `codec.md`, `kv.md`, `world.md`,
+`fake-checkout.md`, `fake-llm.md`, `forge-client.md`,
+`forge-connection.md`, `forge-setup.md`, `llm-connection.md`,
+`oauth.md`, `oauth-issuer.md`, `ui-text.md` and `browser.md` have no
+gap. The foundation's rules (`../foundation/`) have
 no status file: of `testing-strategy.md`, 6, no tree runs transition
 coverage (`cargo llvm-cov`) or fuzzes a machine or a decoder
 (`cargo fuzz`). Of the drafts, `component-kit.md` waits on `lib.md` and

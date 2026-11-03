@@ -183,3 +183,55 @@ chat close 8: done; task 9 Cancelled; change show 9: 'step: landed, uncleared'.
 ### Triage reason
 
 the panel losing the red and its blame after the chat's close cancels the change happens at clean-up, after the verdicts What passes reads; finding-128's repair (close no longer holds) held
+
+## finding-147: Spend scales disagree: task panel 'spent 0.71 of 2075.52' while activity says spent 71 and the owner's pool says spent 143 for two such chats
+
+- Rung: rm4
+- Walk: walk-57
+- Backend: claude-forgejo
+- Commit: 4ab8fac8a347249c755d2db69b91c75033ec575f
+- Area: ctl task show spend words
+- Severity: low
+- Sightings: (none)
+
+### Reproduction
+
+As finding 1, two chats; task show 1; task activity 1 --json (run_ended spent); chat close both; project show 1.
+
+### Expected
+
+Backlog (off the happy path): one scale for a task's spend across task show, activity and the pool.
+
+### Seen
+
+task show: 'spent 0.71 of 2075.52'; activity run_ended spent 71 (chat 2: 72); project show pool: 'spent 143, left 414961'.
+
+### Triage reason
+
+one scale for a task's spend across task show, activity and the pool is a words mismatch the rung's steps read past; not the same cause as finding-117 (the pool's balances missing from project show)
+
+## finding-148: A second chat's first run is numbered run 2 (turn 2.1) with no attempt 1
+
+- Rung: rm4
+- Walk: walk-57
+- Backend: claude-forgejo
+- Commit: 4ab8fac8a347249c755d2db69b91c75033ec575f
+- Area: task activity / chat show words
+- Severity: low
+- Sightings: (none)
+
+### Reproduction
+
+Fresh box, one chat (task 1), then a second chat start (task 2); chat show 2; task activity 2 --json.
+
+### Expected
+
+Backlog (off the happy path): a new task's first run is attempt 1, turn 1.1.
+
+### Seen
+
+chat show 2: '2 · run 2 began', 'turn 2.1'; activity run_ended attempt 2; task turn 2 1.1 prints 'unknown'. Workspace path .../workspaces/4294967296.
+
+### Triage reason
+
+a second task's first run numbered run 2 / turn 2.1 is a numbering oddity off the rung's What passes; nothing the story needs is blocked by it
