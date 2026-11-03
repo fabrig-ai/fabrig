@@ -562,6 +562,8 @@ pub(super) fn encode_change_row(value: &top::ChangeRow) -> w::ChangeRow {
         queue_repairs,
         producing_charter,
         review_charter,
+        producing_llm,
+        review_llm,
         result,
         effect_account,
         producer_failure,
@@ -614,6 +616,8 @@ pub(super) fn encode_change_row(value: &top::ChangeRow) -> w::ChangeRow {
             queue_repairs: *queue_repairs,
             producing_charter: *producing_charter,
             review_charter: *review_charter,
+            producing_llm: encode_llm(producing_llm.as_ref()),
+            review_llm: encode_llm(review_llm.as_ref()),
             producer_failure: producer_failure.clone(),
             report: report.clone(),
             effect_account: match effect_account {
@@ -655,6 +659,8 @@ pub(super) fn decode_change_row(value: w::ChangeRow) -> top::ChangeRow {
         queue_repairs,
         producing_charter,
         review_charter,
+        producing_llm,
+        review_llm,
         result,
         effect_account,
         producer_failure,
@@ -699,6 +705,8 @@ pub(super) fn decode_change_row(value: w::ChangeRow) -> top::ChangeRow {
         queue_repairs,
         producing_charter,
         review_charter,
+        producing_llm: decode_llm(producing_llm),
+        review_llm: decode_llm(review_llm),
         producer_failure,
         report,
         effect_account: match effect_account {
@@ -835,4 +843,35 @@ fn decode_result(value: w::ChangeResult) -> top::ChangeResult {
         repair_count,
         reviews: decode_result_text(reviews),
     }
+}
+
+fn encode_model_effort(value: jig_domain_tasks::ModelEffort) -> w::ModelEffort {
+    let jig_domain_tasks::ModelEffort { model, effort } = value;
+    w::ModelEffort::new(&w::CEILINGS, w::ModelEffortParts { model, effort }).expect(FITS)
+}
+fn decode_model_effort(value: w::ModelEffort) -> jig_domain_tasks::ModelEffort {
+    let w::ModelEffortParts { model, effort } = value.into_parts();
+    jig_domain_tasks::ModelEffort { model, effort }
+}
+fn encode_llm(value: Option<&jig_domain_tasks::LlmChoice>) -> Option<w::LlmChoice> {
+    let jig_domain_tasks::LlmChoice { main, subagents, account } = value?;
+    let mut models = List::with_capacity(u32::try_from(subagents.len()).expect("admitted count"));
+    for model in subagents {
+        models.push(encode_model_effort(*model)).expect("same count");
+    }
+    Some(
+        w::LlmChoice::new(
+            &w::CEILINGS,
+            w::LlmChoiceParts { main: encode_model_effort(*main), subagents: models, account: *account },
+        )
+        .expect(FITS),
+    )
+}
+fn decode_llm(value: Option<w::LlmChoice>) -> Option<jig_domain_tasks::LlmChoice> {
+    let w::LlmChoiceParts { main, subagents, account } = value?.into_parts();
+    let mut models = List::with_capacity(subagents.len());
+    for model in subagents.into_boxed() {
+        models.push(decode_model_effort(model)).expect("same count");
+    }
+    Some(jig_domain_tasks::LlmChoice { main: decode_model_effort(main), subagents: models.into_boxed(), account })
 }
