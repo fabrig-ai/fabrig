@@ -123,7 +123,7 @@ fn the_stock_passes_jigs_one_check() {
         for charter in &defaults.charters {
             assert_eq!(charter.hosts, jig_domain_fleet::Kinds::Workers, "{row}");
         }
-        let current = jig_domain_core::settings::Current::new(defaults, &engine.limits.core);
+        let current = jig_domain_core::settings::Current::new(defaults, &engine.limits.core, &[]);
         assert_eq!(
             jig_domain_core::settings::check(&current, &core.settings, &core.connectors, &engine.limits.core),
             Ok(()),
@@ -146,7 +146,7 @@ fn each_floor_refuses_one_below_the_stocks_need() {
             run = (bytes, Setting::Charter(charter.number));
         }
     }
-    let current = settings::Current::new(defaults, &engine.limits.core);
+    let current = settings::Current::new(defaults, &engine.limits.core, &[]);
     let rows: &[(&[u8], u64, Setting, &str)] = &[
         (b"core.policy_bytes", 3250, Setting::Policy(1), "the stock's policy 1 needs 3250 bytes"),
         (b"core.run_bytes", run.0, run.1, ""),
@@ -644,4 +644,140 @@ fn the_coders_words_refuse_an_absent_fix_instead_of_adding_a_feature() {
 fn the_coders_words_build_additions_in_the_code_there_is() {
     let words = include_str!("../stock/coding.txt");
     assert!(words.contains("Where your words describe the code otherwise than it is, build what they ask to add in the code there is, under its names; finish with the no_change verdict only when it cannot be built there."));
+}
+
+#[test]
+fn kinds_are_declared_with_their_bounds() {
+    const CONNECTOR: u16 = 5;
+    use jig_domain_core::settings::{Kind, KindScope};
+    use temper_engine_domain_forge::{self as forge, settings};
+    let engine = fixtures::engine();
+    let mut limits = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
+    // Distinct counts exercise every bound, including the smaller name bound.
+    limits.authority.segments = 3;
+    limits.authority.segment_bytes = 13;
+    limits.forge.name_bytes = 9;
+    limits.forge.change_policy.gates = 2;
+    limits.forge.roles = 3;
+    limits.forge.landing_rules = 7;
+    let rule = settings::Value::Rule(settings::LandingRule {
+        pattern: forge::GatePattern {
+            segments: Box::new([
+                b"forge".as_slice().into(),
+                b"123456789".as_slice().into(),
+                b"abcdefghi".as_slice().into(),
+            ]),
+            last: forge::GateLast::Open(b"123456789".as_slice().into()),
+        },
+        enforce: true,
+        ci: true,
+        up_to_date: true,
+        gates: Box::new([
+            settings::RuleGate { number: 1, blocking: true, freshness: forge::JudgeFreshness::Exact },
+            settings::RuleGate { number: 2, blocking: false, freshness: forge::JudgeFreshness::Clean },
+        ]),
+        approvals: Box::new([
+            settings::RuleApproval { role: 0, people: 1, freshness: forge::JudgeFreshness::Exact },
+            settings::RuleApproval { role: 1, people: 2, freshness: forge::JudgeFreshness::Clean },
+            settings::RuleApproval { role: 2, people: 3, freshness: forge::JudgeFreshness::Exact },
+        ]),
+    });
+    let rule_bytes = temper_engine_smith::kinds::size(&rule);
+    assert_eq!(
+        crate::stock::kinds(&limits, CONNECTOR).as_ref(),
+        &[
+            Kind {
+                number: 1,
+                scope: KindScope::Deployment,
+                connector: CONNECTOR,
+                value_bytes: rule_bytes,
+                per_scope: 7,
+                charters: 0
+            },
+            Kind {
+                number: 2,
+                scope: KindScope::Project,
+                connector: CONNECTOR,
+                value_bytes: rule_bytes,
+                per_scope: 7,
+                charters: 0
+            },
+            Kind {
+                number: 3,
+                scope: KindScope::Deployment,
+                connector: CONNECTOR,
+                value_bytes: temper_engine_smith::kinds::size(&settings::Value::Charter(2)),
+                per_scope: 2,
+                charters: 1
+            },
+        ]
+    );
+    limits.authority.segment_bytes = 6;
+    assert_eq!(crate::stock::kinds(&limits, CONNECTOR)[0].value_bytes, rule_bytes - 3 * (9 - 6));
+}
+
+#[test]
+fn the_documents_rules_and_charter_are_the_forges_defaults() {
+    use temper_engine_domain::{Approval, Freshness, Gate};
+    use temper_engine_domain_forge::{self as forge, settings};
+    let mut engine = fixtures::engine();
+    let mut first = temper_engine_domain::LandingRule {
+        connector: 1,
+        kind: 4,
+        pattern: jig_domain_authority::Pattern {
+            segments: Box::new([b"forge".as_slice().into()]),
+            last: jig_domain_authority::Last::Open(Box::default()),
+        },
+        enforce: true,
+        ci: false,
+        up_to_date: true,
+        gates: Box::default(),
+        approvals: Box::default(),
+    };
+    first.connector = 7;
+    first.kind = 9;
+    first.enforce = false;
+    first.ci = true;
+    first.up_to_date = false;
+    first.gates = Box::new([Gate { number: 2, blocking: false, freshness: Freshness::Clean }]);
+    first.approvals = Box::new([Approval { role: 1, people: 2, freshness: Freshness::Exact }]);
+    let mut second = first.clone();
+    second.enforce = true;
+    second.ci = false;
+    second.pattern.last = jig_domain_authority::Last::Exact(b"main".as_slice().into());
+    engine.landing.deployment = Box::new([first.clone(), second.clone()]);
+    engine.landing.projects = skein_lib::Map::with_capacity(1);
+    engine.landing.projects.insert(3, Box::new([second.clone(), first.clone()])).unwrap();
+    let stock = crate::stock::forge_defaults(&engine.landing, 6);
+    assert_eq!(stock.len(), 6);
+    for (item, kind, scope, number, source) in [
+        (&stock[0], 1, 0, 1, &first),
+        (&stock[1], 1, 0, 2, &second),
+        (&stock[2], 2, 3, 1, &second),
+        (&stock[3], 2, 3, 2, &first),
+    ] {
+        assert_eq!((item.kind, item.scope, item.number), (kind, scope, number));
+        let settings::Value::Rule(rule) = &item.value.value else { panic!("rule default") };
+        assert_eq!(rule.pattern.segments, source.pattern.segments);
+        let expected_last = match &source.pattern.last {
+            jig_domain_authority::Last::Exact(last) => forge::GateLast::Exact(last.clone()),
+            jig_domain_authority::Last::Open(last) => forge::GateLast::Open(last.clone()),
+        };
+        assert_eq!(rule.pattern.last, expected_last);
+        assert_eq!((rule.enforce, rule.ci, rule.up_to_date), (source.enforce, source.ci, source.up_to_date));
+        assert_eq!(
+            rule.gates.as_ref(),
+            &[settings::RuleGate { number: 2, blocking: false, freshness: forge::JudgeFreshness::Clean }]
+        );
+        assert_eq!(
+            rule.approvals.as_ref(),
+            &[settings::RuleApproval { role: 1, people: 2, freshness: forge::JudgeFreshness::Exact }]
+        );
+        assert_eq!(item.value.size, temper_engine_smith::kinds::size(&item.value.value));
+    }
+    for (item, number, charter) in [(&stock[4], 1, 6), (&stock[5], 2, 4)] {
+        assert_eq!((item.kind, item.scope, item.number), (3, 0, number));
+        assert_eq!(item.value.value, settings::Value::Charter(charter));
+        assert_eq!(item.value.size, temper_engine_smith::kinds::size(&item.value.value));
+    }
 }

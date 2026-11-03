@@ -48,6 +48,8 @@ pub fn derived_limits(domain: &core::Limits) -> Option<wire::Limits> {
     let mut limits = wire::Limits {
         member_symbols: wire::CEILINGS.member_symbols,
         act_close_reason: people.words,
+        refusal_judged_why: people.words,
+        ask_change_settings_projects: jig_domain_tasks::SETTINGS_ITEMS,
         refusal_circle_tasks: domain.tasks.circle,
         refusal_full_tasks: domain.tasks.circle,
         refusal_kept_pending: domain.tasks.dependencies,

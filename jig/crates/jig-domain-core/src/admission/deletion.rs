@@ -299,6 +299,7 @@ pub(crate) fn notes_dropped(core: &mut Core, env: &Env<Limits>, owner: Token, ou
         state.notes = None;
         state.step = people::DeletionStep::Release;
         keep(core, env, out, project, Some(people::DeletionStep::Release));
+        crate::settings::application::drop_project(core, project, out);
         release(core, env, out, project);
     }
 }

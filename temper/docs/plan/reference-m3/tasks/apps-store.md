@@ -108,3 +108,22 @@ no heads.
   application's setting" no longer applies.
 - `jig/tests/core`'s `apps-store` arms (`start_settings.rs`, `fuzzy/settings.rs`) are outside
   `jig-protocol-store` and outside this acceptance: leave them, and list them under `## Left`.
+
+2026-11-03. **Q:** `jig-store-world`'s `test(/settings/)` selects nothing: may this task add
+settings stories under `jig/tests/store`?
+
+**A:** No new stories. The store world has no settings-named stories: it tests the
+component (pages, generations, crashes, patching), and the settings family is among the
+records it writes (`model.rs`'s `CopySettingsRevision`, `root.rs`'s settings limits) and
+its layout and transcript goldens hold. The settings records' round trips, key order and
+revision read-back are the crate's own tests (step 4), which passed.
+
+- The acceptance's "the `jig/tests/store` world's settings stories pass" reads "the
+  `jig/tests/store` world passes": run it whole, `heavy cargo nextest run -p
+  jig-store-world` (check the count, about 176), in place of step 5's filter.
+- If a golden of that world (`jig/tests/store/golden/**`) fails only because a changed
+  record's bytes moved (an empty `applications`), remake it with the world's own golden
+  tooling, name each remade file in the report; a fixture's new field stays allowed as
+  before. Any other failure there: stop and ask.
+- Then the checks still pending (the direct dependents' focused suites, workspace clippy);
+  compile errors outside this task's files and neighbours go under `## Left`.

@@ -25,7 +25,7 @@ impl Core {
             return Action::Refused(failure);
         }
         assert!(self.start.phase == Some(done) && self.start.waiting.is_none(), "start phase completed in order");
-        if self.stopping {
+        if self.stopping || (done == Phase::Link && !crate::settings::application::defaults_received(self)) {
             return Action::Idle;
         }
         let next = match done {
@@ -38,7 +38,7 @@ impl Core {
                     return Action::Refused(self.start_failure().expect("named project policy failure"));
                 }
                 self.counters.finish_restore();
-                if self.counters.dirty() {
+                if self.counters.dirty() && self.kinds.is_empty() {
                     super::first::start_seed(self, env, out);
                     self.start_collect_failure();
                     if let Some(failure) = self.start_failure() {
@@ -60,8 +60,11 @@ impl Core {
                 None => Phase::Link,
             },
             Phase::Link => {
-                self.start_projections_link();
                 let before = out.len();
+                if let Some(failure) = self.start_application_seed(env, out) {
+                    return Action::Refused(failure);
+                }
+                self.start_projections_link();
                 self.start_link(env, out);
                 if let Some(failure) = self.start_failure() {
                     return Action::Refused(failure);

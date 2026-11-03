@@ -98,3 +98,12 @@ Acceptance:
 
 The implementer's text's report, plus: every story moved from requirements 1 to 4; what went
 of `policy_translate.rs`.
+
+## Answers
+
+2026-11-03. **May the owner-policy story (`an_owner_adds_a_branch_requirement_and_later_changes_wait_for_it`) and its `owner_gate` builder move to the held landing rules, or should the story go?** Move it, keeping its outcome: the owner's addition becomes the project's own landing rule, enforcing (`forge.md`, 8.7: landing rules are settings, and a project adds a review to its rule; `configuration.md`, 13.3, kind 2), so requirements 5 and 6 hold the change until the review approves, then it lands. The world cannot yet change a setting at run time (that helper is `kinds-story`'s, after `kinds-document`, and its `a_landing_rule_changed_reaches_the_next_merge` tells the owner's change at run time), so the rule is the project's from the start, through the document as the forge's default (`kinds-start`'s bridge). You may change, beyond the header and the field's rename:
+
+- `temper/tests/engine/domain/src/forge_routes.rs`: for `owner_gate`, the project's rule (`landing_rules.projects`, project 1) is enforcing (`enforce: true`, no more `!owner_gate`), still with gate 1 and no deployment rule; `change_world_funded`'s `people::Ask::ChangePolicy { change: PolicyChange::Requirements { .. } }` for `owner_gate` goes, and so does the builder's `limits.people.amendment_bytes = 2048` where only that ask needed it. The `paths::Change`/`paths::Gate` fields keep their names.
+- `temper/tests/engine/domain/tests/suite/forge_routes.rs`: the story renamed `a_projects_own_enforced_rule_holds_landing_for_its_gate`, its assertions unchanged ("the owner-added review holds landing until its verdict" may say "the project's rule"). Nothing else in the file.
+
+List both under the report's moved stories. The inherited `Refusal::Judged` match in `temper-protocol-store` stays its owner's (as `change-story`'s answer says): what it keeps from compiling is reported unobserved under `## Left`, and does not hold this task.

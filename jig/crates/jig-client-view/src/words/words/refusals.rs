@@ -9,6 +9,11 @@ impl Words {
     /// Say the supplied refusal, never deriving permission or numerical limits.
     pub fn refusal(&self, b: &mut Builder, refusal: &Refusal, text_limit: u32) {
         match refusal {
+            Refusal::Judged { why, .. } => self.text(
+                b,
+                JigPhrase::Word(Word::Refusal(RefusalWord::Judged)),
+                &[Hole::Name(skein_lib::bytes::copy_of(why.bytes()))],
+            ),
             Refusal::Stale(value) => self.text(b, JigPhrase::SettingsStale, &[Hole::Number(u64::from(value.newest))]),
             Refusal::Full(value) => {
                 self.text(b, JigPhrase::SettingsFull, &[Hole::Number(u64::from(value.revision))]);
@@ -115,6 +120,15 @@ impl Words {
                         self.text(b, JigPhrase::SettingTemplate, &[Hole::Number(u64::from(n.number))]);
                     }
                     Setting::Policy(n) => self.text(b, JigPhrase::SettingPolicy, &[Hole::Number(u64::from(n.number))]),
+                    Setting::Application { kind, scope, number } => self.text(
+                        b,
+                        JigPhrase::SettingApplication,
+                        &[
+                            Hole::Number(u64::from(kind)),
+                            Hole::Number(u64::from(scope)),
+                            Hole::Number(u64::from(number)),
+                        ],
+                    ),
                     Setting::Rules => self.text(b, JigPhrase::SettingRules, &[]),
                 }
                 let phrase = match value.fault {
@@ -124,6 +138,7 @@ impl Words {
                     SettingFault::Rules => JigPhrase::SettingFaultRules,
                     SettingFault::Budget => JigPhrase::SettingFaultBudget,
                     SettingFault::Grace => JigPhrase::SettingFaultGrace,
+                    SettingFault::Judged => JigPhrase::SettingFaultJudged,
                     SettingFault::Owner => JigPhrase::SettingFaultOwner,
                 };
                 self.text(b, phrase, &[]);

@@ -12,6 +12,12 @@ pub struct ReviewItem {
     /// true is a change, false a default; absent is not offered.
     pub origin: Option<(bool, u32)>,
     pub would_be: Option<s::Value>,
+    pub application: Option<ApplicationReview>,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ApplicationReview {
+    pub edit: s::application::SizedEdit,
+    pub now: Option<s::application::State>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct SettingsReview {
@@ -59,8 +65,34 @@ pub(super) fn review(
             s::Edit::Reset => (crate::reads::RevisionEdit::Reset, core.current.default_value(item.setting)),
         };
         items
-            .push(ReviewItem { setting: item.setting, edit, now: now.cloned(), origin, would_be: would_be.cloned() })
+            .push(ReviewItem {
+                setting: item.setting,
+                edit,
+                now: now.cloned(),
+                origin,
+                would_be: would_be.cloned(),
+                application: None,
+            })
             .expect("bounded review");
+    }
+    for item in &set.applications {
+        let setting = s::Setting::Application { kind: item.kind, scope: item.scope, number: item.number };
+        let now = core.current.applications.get(&setting).cloned();
+        let edit = match item.edit {
+            s::application::SizedEdit::Set { .. } => crate::reads::RevisionEdit::Set,
+            s::application::SizedEdit::Remove => crate::reads::RevisionEdit::Removed,
+            s::application::SizedEdit::Reset => crate::reads::RevisionEdit::Reset,
+        };
+        items
+            .push(ReviewItem {
+                setting,
+                edit,
+                now: None,
+                origin: None,
+                would_be: None,
+                application: Some(ApplicationReview { edit: item.edit.clone(), now }),
+            })
+            .expect("bounded application review");
     }
     Some(Box::new(SettingsReview {
         newest: core.current.newest(),
@@ -72,6 +104,7 @@ pub(super) fn document_bound(limits: &Limits) -> Option<u64> {
     s::set_bound(limits)?
         .checked_mul(2)?
         .checked_add(List::<ReviewItem>::price(t::SETTINGS_ITEMS)?)?
+        .checked_add(u64::from(t::SETTINGS_ITEMS).checked_mul(List::<u32>::price(u32::from(u8::MAX))?)?)?
         .checked_add(List::<crate::reads::RevisionItemHead>::price(t::SETTINGS_ITEMS)?)?
         .checked_add(u64::try_from(size_of::<SettingsReview>()).ok()?)
 }
@@ -128,5 +161,32 @@ mod tests {
         assert_eq!(item.now, None);
         assert_eq!(item.origin, None);
         assert_eq!(item.would_be, Some(default));
+    }
+    #[test]
+    fn application_reviews_keep_the_sized_edit_and_current_state_without_values() {
+        use s::application::{Follows, Recorded, SizedEdit, State};
+        let (mut core, limits) = crate::tests::core();
+        core.current.applications = skein_lib::Map::with_capacity(1);
+        let setting = s::Setting::Application { kind: 7, scope: 0, number: 3 };
+        let state = State { follows: Follows::Changed { revision: 2 }, size: 11, charters: Box::new([1]) };
+        core.current.applications.insert(setting, state.clone()).unwrap();
+        for edit in [SizedEdit::Set { size: 23 }, SizedEdit::Remove, SizedEdit::Reset] {
+            core.settings_proposals
+                .insert(
+                    (jig_domain_people::Proposer::Party(1), 1),
+                    s::Proposal {
+                        against: 1,
+                        items: Box::default(),
+                        applications: Box::new([Recorded { kind: 7, scope: 0, number: 3, edit: edit.clone() }]),
+                    },
+                )
+                .unwrap();
+            let review = review(&core, &limits, jig_domain_people::Proposer::Party(1), 1).unwrap();
+            assert_eq!(review.items.len(), 1);
+            let item = review.items.get(0).unwrap();
+            assert_eq!(item.setting, setting);
+            assert_eq!((item.now.as_ref(), item.would_be.as_ref(), item.origin), (None, None, None));
+            assert_eq!(item.application, Some(ApplicationReview { edit, now: Some(state.clone()) }));
+        }
     }
 }

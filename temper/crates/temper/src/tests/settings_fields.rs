@@ -72,6 +72,13 @@ fn encode(value: &settings_form::view::SettingValue, out: &mut Encoder) {
         SettingValue::Charter(value) => values::encode_charter(value, out),
         SettingValue::Template(value) => values::encode_template(value, out),
         SettingValue::Policy(value) => values::encode_setting_policy(value, out),
+        SettingValue::Application(value) => {
+            out.array_start();
+            for &byte in value {
+                out.unsigned(u64::from(byte));
+            }
+            out.array_end();
+        }
         SettingValue::Rules(value) => values::encode_rules(value, out),
     }
 }

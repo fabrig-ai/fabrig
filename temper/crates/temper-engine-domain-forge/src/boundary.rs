@@ -831,6 +831,9 @@ pub struct ChangeRow {
     /// Charter numbers captured when the change is made (protocol/configuration.md, 13.6).
     pub producing_charter: u32,
     pub review_charter: u32,
+    /// The LLM choices by role it was made with (domain/forge.md, 8.1 and 8.9).
+    pub producing_llm: Option<jig_domain_tasks::LlmChoice>,
+    pub review_llm: Option<jig_domain_tasks::LlmChoice>,
     pub effect_account: Option<EffectAccount>,
     /// Producer failure words retained within the hold account bound (domain/forge.md, 8.4).
     pub producer_failure: Option<Box<[u8]>>,

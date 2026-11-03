@@ -201,6 +201,7 @@ pub struct ChangeCall {
     pub repository: Option<Box<[u8]>>,
     pub name: Option<Box<[u8]>>,
     pub landing: Option<ChangeLanding>,
+    pub branch: Option<ChangeBranch>,
     pub after: Box<[ChangeAfter]>,
     pub producer: Option<u32>,
     pub llm: ChangeLlm,
@@ -228,6 +229,7 @@ impl ChangeCall {
             repository,
             name: None,
             landing: None,
+            branch: None,
             after: Box::new([]),
             producer: None,
             llm: ChangeLlm::default(),
@@ -240,6 +242,13 @@ impl ChangeCall {
 pub enum ChangeLanding {
     Goal,
     Branch(Box<[u8]>),
+}
+
+/// A change's branch choice (domain/agent.md, 4.3.1).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum ChangeBranch {
+    /// Its requester's held branch: the goal branch it holds in the change's repository.
+    Mine,
 }
 
 /// A change's dependency within a call (domain/agent.md, 4.3.1).

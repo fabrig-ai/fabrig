@@ -3,9 +3,6 @@
 2026-11-03. Where temper's code lags or departs from [forge.md](forge.md).
 
 - **Not yet:**
-  - 11, 11.1: a goal's own branch deleted as its goal closes once a change
-    has landed it: the release keeps it whatever way the goal ended
-    (`temper-engine-domain-forge/src/goal_branch.rs`).
   - 4.1: a removal without the box, its group's act answered in its
     decision: an owned or fake forge's removal asks the box link for
     `remove N` whether or not a pipe is there, and without one waits for
@@ -30,12 +27,6 @@
     `change_policy` and its charters the deployment's
     (`temper-engine-domain/src/route/forge_route.rs`, `start_change`); its
     page's line that a change takes no words.
-  - 8.1, 8.9: a change's producer's charter and its agents' LLM
-    choices: parameter 11 is not taken, the change's row keeps
-    no LLM choice, its producer runs under the forge's change charter
-    and its delegates take their charter's default
-    (`temper-engine-domain/src/route/forge_route.rs`, `start_change`
-    and `change_delegate`).
   - 8.9: a change held, saying so, when the newest settings no longer
     offer the producer's charter it names, or its charter's models no
     longer allow its LLM choice for a role, as it next needs a delegate

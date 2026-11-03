@@ -41,6 +41,7 @@ pub fn review() -> c::SettingsReview {
     ] {
         items
             .push(c::ReviewItem {
+                application: None,
                 setting: c::Setting::Charter(c::SettingNumber { number: 2 }),
                 edit,
                 now,

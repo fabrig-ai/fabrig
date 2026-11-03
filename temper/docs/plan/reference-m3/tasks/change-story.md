@@ -76,3 +76,31 @@ Owns the files in the header.
 ## Report
 
 As the implementer's text says, with the three stories' names and their run times.
+
+## Answers
+
+### 2026-11-03: Should fab arrange the owning task's repair of `temper/crates/temper-protocol-store/src/records/application/refusal.rs:500` and resume this task (recommended), or explicitly authorize that repair here? The missing `people_v14::Refusal::Judged(_)` match arm prevents compiling the acceptance tests. Work is committed and pushed. (reference-m3/change-story-1, foreman reference-m3/change-story/foreman-1)
+
+Leave the decoder repair to its owning task, then resume change-story to complete validation.
+The spec settles the ownership boundary: “Not yours: anything under `temper/crates/`. A failure that shows the root, jig or the forge wrong is reported, not fixed here.”
+`temper/crates/temper-protocol-store/src/records/application/refusal.rs:500` is outside this task’s permitted files; no repair there is authorized here.
+After the owning task’s repair is available, resume the narrow three-story run, confirm the count is 3, then run the forge-route stories and required checks.
+Acceptance remains unobserved: the report says no tests executed and “The task is not accepted yet.”
+
+### 2026-11-03: Should fab arrange the owning tasks' repairs of the two compilation blockers below and resume validation (recommended), or defer change-story? The existing implementation and current branch head are pushed. (reference-m3/change-story-2, foreman reference-m3/change-story/foreman-2)
+
+Leave both compilation repairs to their owning tasks, then resume change-story to complete validation.
+The spec states: “Not yours: anything under `temper/crates/`. A failure that shows the root, jig or the forge wrong is reported, not fixed here.”
+This covers both `temper/crates/temper-protocol-store/src/records/application/refusal.rs:500` and `temper/crates/temper-engine-domain/src/restart.rs:544`; neither repair is authorized here.
+The recorded answer already directs: “Leave the decoder repair to its owning task, then resume change-story to complete validation.”
+Fab should arrange both owning tasks’ repairs. Once available, resume the narrow three-story run, confirm the count is 3, then run the forge-route stories and required checks.
+Acceptance remains unobserved: the report says “No tests executed” and “The task is not accepted yet.”
+
+### 2026-11-03: Should fab arrange the owning tasks’ repairs of temper/crates/temper-engine-domain/src/restart.rs:544 and temper/crates/temper-protocol-store/src/records/application/refusal.rs:500, then resume validation (recommended), or defer change-story? The current branch head is pushed. (reference-m3/change-story-3, foreman reference-m3/change-story/foreman-3)
+
+Leave both compilation repairs to their owning tasks, then resume change-story to complete validation.
+The spec states: “Not yours: anything under `temper/crates/`. A failure that shows the root, jig or the forge wrong is reported, not fixed here.”
+This covers `temper/crates/temper-engine-domain/src/restart.rs:544` and `temper/crates/temper-protocol-store/src/records/application/refusal.rs:500`.
+The recorded answer already settles this exact question: “Fab should arrange both owning tasks’ repairs.”
+Once those repairs are available, resume the narrow three-story run, confirm 3 tests pass, then run the forge-route stories, formatting and required clippy check.
+Acceptance remains unobserved: the run reports “No tests executed” and “The task is not accepted yet.”

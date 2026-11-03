@@ -3,7 +3,7 @@ id = "apps-proposal-key"
 part = "appsettings"
 kind = "feature"
 needs = ["apps-proposals", "apps-store", "apps-wire"]
-files = ["jig/crates/jig-domain-core/src/settings.rs", "jig/crates/jig-domain-core/src/settings/restart.rs", "jig/crates/jig-domain-core/src/routing/settings/dispatch.rs", "jig/crates/jig-domain-core/src/documents/settings_review.rs", "jig/crates/jig-domain-core/src/tests/settings/application_proposals.rs", "jig/crates/jig-protocol-store/schema/settings-v1.schema", "jig/crates/jig-protocol-store/src/generated/settings_v1.rs", "jig/crates/jig-protocol-store/src/codec/settings.rs", "jig/crates/jig-protocol-store/golden/settings/**", "jig/crates/jig-protocol-store/src/tests/settings.rs", "jig/crates/jig-client-protocol-wire/schema/client-v19.schema", "jig/crates/jig-client-protocol-wire/src/generated/v19.rs", "jig/crates/jig-client-protocol-wire/golden/**", "jig/crates/jig-protocol-engine-clients/src/translate/settings.rs", "jig/crates/jig-protocol-engine-clients/src/tests/settings.rs", "jig/crates/jig-client-protocol-link/src/translate/settings_proposals.rs", "jig/crates/jig-client-protocol-link/src/tests/settings_proposals.rs", "jig/crates/jig-client-domain/src/contract/settings.rs"]
+files = ["jig/crates/jig-domain-core/src/settings.rs", "jig/crates/jig-domain-core/src/settings/restart.rs", "jig/crates/jig-domain-core/src/settings/application.rs", "jig/crates/jig-domain-core/src/routing/settings/dispatch.rs", "jig/crates/jig-domain-core/src/documents/settings_review.rs", "jig/crates/jig-domain-core/src/tests/settings/application_proposals.rs", "jig/crates/jig-protocol-store/schema/settings-v1.schema", "jig/crates/jig-protocol-store/src/generated/settings_v1.rs", "jig/crates/jig-protocol-store/src/codec/settings.rs", "jig/crates/jig-protocol-store/golden/settings/**", "jig/crates/jig-protocol-store/src/tests/settings.rs", "jig/crates/jig-client-protocol-wire/schema/client-v19.schema", "jig/crates/jig-client-protocol-wire/src/generated/v19.rs", "jig/crates/jig-client-protocol-wire/golden/**", "jig/crates/jig-protocol-engine-clients/src/translate/settings.rs", "jig/crates/jig-protocol-engine-clients/src/tests/settings.rs", "jig/crates/jig-client-protocol-link/src/translate/settings_proposals.rs", "jig/crates/jig-client-protocol-link/src/tests/settings_proposals.rs", "jig/crates/jig-client-domain/src/contract/settings.rs"]
 effort = "high"
 minutes = 90
 +++
@@ -113,3 +113,15 @@ Acceptance:
 
 Where the counter lives (the option taken); the records and goldens changed; whether
 `apps-world`'s story ran.
+
+## Answers
+
+2026-11-03. **Q:** may this task change `jig-domain-core`'s `settings/application.rs`, which
+builds the `JudgeSettings`, `KeepProposalSettings`, `DropProposalSettings` and `KeepSettings`
+asks?
+
+**A:** Yes; it is now in `files`, for the key's propagation alone: `proposal_number`,
+`keep_proposal`, `drop_proposal` and the `start`/`keep` callers' proposal argument take and
+send the set's `u64` key (`keep_proposal` given the drawn key by `dispatch.rs`; an
+acceptance passes the set's key, a set without one sends no ask). No other behaviour
+changes there.

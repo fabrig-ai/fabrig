@@ -8,6 +8,7 @@ sources = ["temper/docs/plan/configuring-p1/inputs/request.md", "temper/docs/des
 # Released in batches: first `chat start --template`, which needs no survey; then the
 # documents and the revisions as their surveys settle them.
 
+retired = true
 [buffer]
 low = 1.0
 high = 2.0

@@ -675,3 +675,308 @@ fn finish_proposal(
     };
     routed.work.push(Work::Event(Event::Tasks(event)));
 }
+
+/// Replies may precede settings restore; preparation waits for every owner (engine.md, 17.5–17.7).
+#[derive(Debug)]
+pub(crate) enum Starting {
+    Waiting { replies: Map<u16, Box<[connector::DefaultState]>> },
+    Prepared { connectors: Box<[u16]>, edits: Box<[Recorded]>, writes: Box<[crate::Write]> },
+    Saved,
+}
+impl Starting {
+    pub(crate) fn new(connectors: u32) -> Self {
+        Self::Waiting { replies: Map::with_capacity(connectors) }
+    }
+
+    pub(crate) fn received(&self, connector: u16) -> bool {
+        match self {
+            Self::Waiting { replies } => replies.contains_key(&connector),
+            Self::Prepared { .. } | Self::Saved => true,
+        }
+    }
+}
+
+fn application_failure(setting: Setting, why: crate::start::ApplicationWhy) -> crate::start::Failure {
+    match setting {
+        Setting::Application { kind, scope, number } => crate::start::Failure::Application { kind, scope, number, why },
+        Setting::Charter(_) | Setting::Template(_) | Setting::Policy(_) | Setting::Rules => {
+            unreachable!("application setting")
+        }
+    }
+}
+
+pub(crate) fn restore(core: &mut Core, setting: Setting, state: State) -> bool {
+    use crate::start::ApplicationWhy;
+    let kind = match setting {
+        Setting::Application { kind, .. } => kind_of(&core.kinds, kind),
+        Setting::Charter(_) | Setting::Template(_) | Setting::Policy(_) | Setting::Rules => None,
+    };
+    let Some(kind) = kind else {
+        core.refuse_restore(application_failure(setting, ApplicationWhy::Undeclared));
+        return false;
+    };
+    assert!(!core.current.applications.contains_key(&setting), "duplicate application state {setting:?}");
+    let (number, scope) = match setting {
+        Setting::Application { kind, scope, .. } => (kind, scope),
+        Setting::Charter(_) | Setting::Template(_) | Setting::Policy(_) | Setting::Rules => {
+            unreachable!("application setting")
+        }
+    };
+    let mut count = 0_u32;
+    for (&held, _) in &core.current.applications {
+        if same_scope(held, number, scope) {
+            count = count.checked_add(1).expect("application settings count");
+        }
+    }
+    if count >= kind.per_scope || core.current.applications.len() == core.current.applications.capacity() {
+        core.refuse_restore(application_failure(setting, ApplicationWhy::Count));
+        return false;
+    }
+    core.current.applications.insert(setting, state).expect("stored application slot preflighted");
+    true
+}
+
+pub(crate) fn defaults(core: &mut Core, connector: u16, defaults: Box<[connector::DefaultState]>) {
+    use crate::start::ApplicationWhy;
+    let mut owns = false;
+    for kind in &core.kinds {
+        owns |= kind.connector == connector;
+    }
+    for default in &defaults {
+        let setting = Setting::Application { kind: default.kind, scope: default.scope, number: default.number };
+        let Some(kind) = kind_of(&core.kinds, default.kind) else {
+            core.refuse_restore(application_failure(setting, ApplicationWhy::Undeclared));
+            return;
+        };
+        assert!(kind.connector == connector, "default returned by its owning connector");
+        let scope = match kind.scope {
+            KindScope::Deployment => default.scope == 0,
+            KindScope::Project => default.scope != 0,
+        };
+        let why = if !scope {
+            Some(ApplicationWhy::Scope)
+        } else if default.number == 0
+            || default.size > kind.value_bytes
+            || default.charters.len() > usize::from(kind.charters)
+        {
+            Some(ApplicationWhy::Shape)
+        } else {
+            let mut count = 0_u32;
+            for other in &defaults {
+                if other.kind == default.kind && other.scope == default.scope {
+                    count = count.checked_add(1).expect("default count");
+                }
+            }
+            if count > kind.per_scope { Some(ApplicationWhy::Count) } else { None }
+        };
+        if let Some(why) = why {
+            core.refuse_restore(application_failure(setting, why));
+            return;
+        }
+    }
+    assert!(owns, "defaults answer from a connector with no declared kind");
+    match &mut core.settings_restore.applications {
+        Starting::Waiting { replies } => {
+            assert!(!replies.contains_key(&connector), "one defaults answer per kind-owning connector");
+            replies.insert(connector, defaults).expect("one defaults answer per kind-owning connector");
+        }
+        Starting::Prepared { .. } | Starting::Saved => unreachable!("defaults precede their start's decision"),
+    }
+}
+
+pub(crate) fn defaults_received(core: &Core) -> bool {
+    for kind in &core.kinds {
+        if !core.settings_restore.applications.received(kind.connector) {
+            return false;
+        }
+    }
+    true
+}
+
+/// Apply default metadata only after stored states are loaded, retaining every change.
+pub(crate) fn prepare_start(core: &mut Core) -> bool {
+    assert!(defaults_received(core), "all default owners answered before the release decision");
+    let replies = match core::mem::replace(&mut core.settings_restore.applications, Starting::Saved) {
+        Starting::Waiting { replies } => replies,
+        prepared @ Starting::Prepared { .. } => {
+            core.settings_restore.applications = prepared;
+            return true;
+        }
+        Starting::Saved => return true,
+    };
+    let bound = core.current.applications.capacity().checked_mul(2).expect("application default union");
+    let mut edits = List::with_capacity(bound);
+    let mut writes = List::with_capacity(bound);
+    let mut missing = List::with_capacity(core.current.applications.len());
+    for (&setting, state) in &core.current.applications {
+        match state.follows {
+            Follows::Default => {}
+            Follows::Changed { .. } | Follows::Removed { .. } => continue,
+        }
+        let mut present = false;
+        for (_, defaults) in &replies {
+            for default in defaults {
+                present |= setting == default_setting(default);
+            }
+        }
+        if !present {
+            missing.push(setting).expect("stored defaults");
+        }
+    }
+    for setting in missing.into_boxed() {
+        drop(core.current.applications.remove(&setting));
+        edits.push(recorded(setting, SizedEdit::Remove)).expect("default union");
+        writes
+            .push(crate::Write::Erase(crate::Key::Core(crate::CoreKey::Settings(super::Key::Changed(setting)))))
+            .expect("default union");
+    }
+    if !apply_start_defaults(core, &replies, &mut edits, &mut writes) {
+        return false;
+    }
+    if !start_references(core, &replies) {
+        return false;
+    }
+    let mut connectors = List::with_capacity(replies.len());
+    for (&connector, _) in &replies {
+        connectors.push(connector).expect("default owners");
+    }
+    core.settings_restore.applications = Starting::Prepared {
+        connectors: connectors.into_boxed(),
+        edits: edits.into_boxed(),
+        writes: writes.into_boxed(),
+    };
+    true
+}
+
+fn apply_start_defaults(
+    core: &mut Core,
+    replies: &Map<u16, Box<[connector::DefaultState]>>,
+    edits: &mut List<Recorded>,
+    writes: &mut List<crate::Write>,
+) -> bool {
+    for (_, defaults) in replies {
+        for default in defaults {
+            let setting = default_setting(default);
+            let state = State { follows: Follows::Default, size: default.size, charters: default.charters.clone() };
+            let previous = core.current.applications.get(&setting);
+            if let Some(previous) = previous {
+                match previous.follows {
+                    Follows::Default => {}
+                    Follows::Changed { .. } | Follows::Removed { .. } => continue,
+                }
+            }
+            let differs = default.differs || previous.is_none();
+            let write = previous != Some(&state);
+            if core.current.applications.contains_key(&setting) {
+                core.current.applications.insert(setting, state.clone()).expect("existing application slot");
+            } else {
+                // A new default shares the kind's retained slots with changed and removed states.
+                if !restore(core, setting, state.clone()) {
+                    return false;
+                }
+            }
+            if differs {
+                edits.push(recorded(setting, SizedEdit::Set { size: default.size })).expect("default union");
+            }
+            if write {
+                writes
+                    .push(crate::Write::Save(crate::Record::Core(crate::CoreRecord::Settings(
+                        super::Record::Application { setting, state },
+                    ))))
+                    .expect("default union");
+            }
+        }
+    }
+    true
+}
+
+fn start_references(core: &mut Core, replies: &Map<u16, Box<[connector::DefaultState]>>) -> bool {
+    // Defaults' references are held even when a change is over their value.
+    for (_, defaults) in replies {
+        for default in defaults {
+            let state = State { follows: Follows::Default, size: default.size, charters: default.charters.clone() };
+            if let Err(failure) = state_references(&core.current, &[], default_setting(default), &state) {
+                let _refused = core.refuse_settings(failure);
+                return false;
+            }
+        }
+    }
+    if let Err(failure) = references(&core.current, &[], &[]) {
+        let _refused = core.refuse_settings(failure);
+        return false;
+    }
+    true
+}
+
+fn default_setting(default: &connector::DefaultState) -> Setting {
+    Setting::Application { kind: default.kind, scope: default.scope, number: default.number }
+}
+fn recorded(setting: Setting, edit: SizedEdit) -> Recorded {
+    match setting {
+        Setting::Application { kind, scope, number } => Recorded { kind, scope, number, edit },
+        Setting::Charter(_) | Setting::Template(_) | Setting::Policy(_) | Setting::Rules => {
+            unreachable!("application setting")
+        }
+    }
+}
+pub(crate) fn defaults_changed(core: &Core) -> bool {
+    match &core.settings_restore.applications {
+        Starting::Prepared { edits, .. } => !edits.is_empty(),
+        Starting::Waiting { .. } => unreachable!("defaults prepared before their release"),
+        Starting::Saved => false,
+    }
+}
+pub(crate) fn save_start(core: &mut Core, revision: Option<u32>, out: &mut Queue<Request>) -> Box<[Recorded]> {
+    match core::mem::replace(&mut core.settings_restore.applications, Starting::Saved) {
+        Starting::Prepared { connectors, edits, writes } => {
+            for write in writes {
+                out.push(Request::Write(write));
+            }
+            for connector in connectors {
+                out.push(Request::Ask {
+                    connector,
+                    ask: crate::Ask::Effect(connector::Ask::SaveSettingsDefaults {
+                        revision: match revision {
+                            Some(number) => Some(u64::from(number)),
+                            None => None,
+                        },
+                    }),
+                });
+            }
+            edits
+        }
+        Starting::Saved => Box::default(),
+        Starting::Waiting { .. } => unreachable!("defaults prepared before saving"),
+    }
+}
+
+pub(crate) fn changed(current: &Current, setting: Setting) -> bool {
+    match current.applications.get(&setting) {
+        Some(state) => match state.follows {
+            Follows::Default => false,
+            Follows::Changed { .. } | Follows::Removed { .. } => true,
+        },
+        None => current.changed(setting),
+    }
+}
+
+pub(crate) fn drop_project(core: &mut Core, project: u32, out: &mut Queue<Request>) {
+    let mut erased = List::with_capacity(core.current.applications.len());
+    for (&setting, _) in &core.current.applications {
+        let scope = match setting {
+            Setting::Application { scope, .. } => scope,
+            Setting::Charter(_) | Setting::Template(_) | Setting::Policy(_) | Setting::Rules => {
+                unreachable!("application state")
+            }
+        };
+        if scope == project {
+            erased.push(setting).expect("project settings bounded by all states");
+        }
+    }
+    for setting in erased.into_boxed() {
+        drop(core.current.applications.remove(&setting));
+        out.push(Request::Write(crate::Write::Erase(crate::Key::Core(crate::CoreKey::Settings(super::Key::Changed(
+            setting,
+        ))))));
+    }
+}

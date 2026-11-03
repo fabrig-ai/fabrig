@@ -1,4 +1,4 @@
-//! Declaring application kinds has no startup behavior (jig/docs/design/domain/engine.md, 17.5).
+//! Application settings are judged and kept by their connectors (jig/docs/design/domain/engine.md, 17.5).
 use crate::settings::{Kind, KindScope};
 use crate::tests::*;
 
@@ -7,7 +7,7 @@ use crate::tests::*;
     clippy::disallowed_macros,
     reason = "ordinary unit proof compares complete Debug outputs because Request does not derive equality"
 )]
-fn declaring_an_application_kind_preserves_start_outputs() {
+fn declared_kinds_with_defaults_preserve_start_outputs_and_save_each_connector() {
     for seed in [0, 1, u64::MAX] {
         let limits = limits();
         let configured = Config {
@@ -24,10 +24,32 @@ fn declaring_an_application_kind_preserves_start_outputs() {
         let mut declared = Core::new(configured, &limits).unwrap();
         let mut empty = Core::new(config(seed), &limits).unwrap();
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-        let declared_outputs = finish_start(&mut declared, &env);
+        let action = declared.start_begin(false, env.wall);
+        assert!(
+            step(
+                &mut declared,
+                &env,
+                Event::EffectConnector(connector::Event::SettingsDefaults { connector: 2, defaults: Box::default() })
+            )
+            .is_empty()
+        );
+        let mut declared_outputs = finish_started(&mut declared, &env, action);
+        let mut without_save = Queue::uncapped();
+        let mut saves = 0_u32;
+        while let Some(request) = declared_outputs.pop() {
+            if let Request::Ask { connector: 2, ask: Ask::Effect(connector::Ask::SaveSettingsDefaults { revision }) } =
+                request
+            {
+                assert_eq!(revision, Some(1));
+                saves += 1;
+            } else {
+                without_save.push(request);
+            }
+        }
+        assert_eq!(saves, 1);
         let empty_outputs = finish_start(&mut empty, &env);
         assert!(!empty_outputs.is_empty(), "the start emits its writes and asks");
-        assert_eq!(format!("{declared_outputs:?}"), format!("{empty_outputs:?}"), "seed {seed}");
+        assert_eq!(format!("{without_save:?}"), format!("{empty_outputs:?}"), "seed {seed}");
     }
 }
 
