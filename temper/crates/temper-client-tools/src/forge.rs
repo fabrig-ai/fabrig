@@ -641,8 +641,8 @@ pub(crate) fn change(kind: u16, resource: &c::Part, words: &c::DocumentText, out
         out.words(commit);
         let (address, evidence) = landing_lines(words.bytes(), words.cut);
         if let Some(address) = address {
-            // An address shortened by ctl is no more usable than one cut by the read.
-            if address.len() <= out.room() {
+            // Keep verification evidence readable before spending room on an optional address.
+            if address.len().saturating_add(verification_room(evidence)) <= out.room() {
                 out.put(b"\npull request: ");
                 out.words(address);
             } else {
@@ -655,6 +655,17 @@ pub(crate) fn change(kind: u16, resource: &c::Part, words: &c::DocumentText, out
         }
     } else {
         out.result_words(words.bytes());
+    }
+}
+fn verification_room(evidence: &[u8]) -> usize {
+    if evidence.starts_with(b"Cleared by ")
+        || evidence.starts_with(b"Not cleared:")
+        || skein_lib::bytes::find(evidence, b"\nCleared by ").is_some()
+        || skein_lib::bytes::find(evidence, b"\nNot cleared:").is_some()
+    {
+        evidence.len()
+    } else {
+        0
     }
 }
 /// Only the second line supplies the pull's address (domain/forge.md, 8.2).

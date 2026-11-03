@@ -18,6 +18,7 @@ case "$*" in
   --version) echo 'forgejo version 17.0.0';;
   *'admin user create'*) echo "generated random password is 'private-password'";;
   *'generate-access-token'*) echo 'private-token';;
+  *'actions register'*) echo 'kept-runner';;
 esac
 "#,
     );
@@ -29,6 +30,19 @@ esac
         listen: "127.0.0.1:3000".parse().expect("fixture"),
         person: Account { login: b"ada".as_slice().into(), email: b"ada@example.invalid".as_slice().into() },
     }
+}
+fn with_runner(scratch: &support::Scratch) -> Owned {
+    let mut owned = owned(scratch);
+    let directory = scratch.path().join("runner-binary");
+    fs::create_dir(&directory).expect("runner binary directory");
+    let program = support::script(&directory, "echo 'forgejo-runner version v13.2.0'");
+    owned.runner = Some(temper_forge_setup::setup::Runner {
+        binary: program.program,
+        labels: Box::new([b"temper-host:host".as_slice().into()]),
+        capacity: 1,
+        path: b"/usr/bin:/bin".as_slice().into(),
+    });
+    owned
 }
 fn run(scratch: &support::Scratch, owned: &Owned) {
     prepare::run(&support::io(), &scratch.place(), Prepare::new(owned.clone(), scratch.place(), None))
@@ -78,5 +92,36 @@ fn an_interrupted_first_preparation_discards_both_headers_before_starting_again(
         assert_eq!(fs::read(scratch.path().join(name)).expect("fixture"), b"Authorization: token private-token\n");
     }
     assert!(state::decode(&fs::read(path).expect("fixture")).expect("fixture").prepared);
+    scratch.remove();
+}
+
+#[test]
+fn changed_runner_capacity_needs_the_lock_and_keeps_the_registration() {
+    use temper_forge_setup::place::File;
+    use temper_forge_setup_shell::process;
+    let scratch = support::Scratch::new("runner_capacity");
+    let mut owned = with_runner(&scratch);
+    run(&scratch, &owned);
+    let path = scratch.path().join("runner/config.yaml");
+    let secret = scratch.path().join("runner/secret");
+    let secret_inode = fs::metadata(&secret).expect("secret").ino();
+    let before = fs::read(&path).expect("runner configuration");
+    let inode = fs::metadata(&path).expect("configuration inode").ino();
+    let lock = process::lock(&scratch.path().join("runner.lock")).expect("runner lock");
+    run(&scratch, &owned);
+    assert_eq!(fs::metadata(&path).expect("unchanged configuration").ino(), inode);
+    owned.runner.as_mut().expect("runner").capacity = 2;
+    let result = prepare::run(&support::io(), &scratch.place(), Prepare::new(owned.clone(), scratch.place(), None));
+    assert!(matches!(result, Err(prepare::Failed::Held(File::RunnerLock))));
+    assert_eq!(fs::read(&path).expect("configuration intact"), before);
+    drop(lock);
+    run(&scratch, &owned);
+    let after = fs::read(&path).expect("updated configuration");
+    assert!(after.starts_with(b"runner:\n  capacity: 2\n"));
+    assert_eq!(
+        after.split(|byte| *byte == b'\n').skip(2).collect::<Vec<_>>(),
+        before.split(|byte| *byte == b'\n').skip(2).collect::<Vec<_>>()
+    );
+    assert_eq!(fs::metadata(secret).expect("kept secret").ino(), secret_inode);
     scratch.remove();
 }

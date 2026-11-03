@@ -1,6 +1,6 @@
 # The forge in temper's client
 
-Provisional, 2026-10-05, revised 2026-10-23. What the forge connector
+Provisional, 2026-10-05, revised 2026-11-03. What the forge connector
 adds to temper's client: a change's way to landing and its result, a
 project's landing queues, approvals at a head, the forge's holds in
 words, repositories with their health and landing rules, the picker of
@@ -1335,6 +1335,17 @@ made by the forge connector from what it keeps of the change
   offers Connect GitHub alone, and the own App's Details are reached by
   their address; a link returns to the card once v0.1.0's successor
   supports the own App officially.
+- **A connect's stop told from the one before it** (5.4). Default: the
+  stop that empties a connected Forgejo's tokens again is their sent
+  connect's own, its forge's row stopped where the connect last saw it
+  not stopped, or stopped with other `ended` words (`README.md`, 4.6);
+  that stop, the row connected or an answer that starts no connect
+  ends what the connect watches, and another forge's row empties
+  nothing. A second connect whose stop has the first's connection and
+  words, with no row delivered between, is not told from it and
+  empties nothing more, its fields emptied at its send and its answer;
+  a request's id on the row would tell them apart, a change to the
+  forges records.
 - **A browser on another machine** for GitHub's connect. Default: the
   link names the clients' listener's fixed address, and the person
   opens it where that address reaches (in standalone, the engine's

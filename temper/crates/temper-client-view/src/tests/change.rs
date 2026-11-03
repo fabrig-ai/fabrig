@@ -555,7 +555,7 @@ fn a_playground_address_at_its_receiving_bound_is_still_readable() {
 
 #[test]
 fn an_authority_hold_draws_its_count_release_and_way_out() {
-    let reason = b"its 6 tasks are made; released without more tasks; release it: task release 2 --hold 3 (it holds again unless it has more); or cancel it: task cancel 2 REASON";
+    let reason = b"its 6 tasks are made; released without more tasks; cancel: task cancel 2 REASON; or ask afresh; bare release holds again";
     let mut value = parts(w::Step::Gating);
     value.hold = Some(w::Hold::Authority(
         w::AuthorityHold::new(&w::CEILINGS, w::AuthorityHoldParts { reason: reason.as_slice().into() }).unwrap(),
