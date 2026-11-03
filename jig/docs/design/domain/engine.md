@@ -2442,7 +2442,8 @@ decided by the owners of what it touches.
 - **Each item records what it replaced:** in a revision's record, beside
   what the item set, the setting as it was before: its value whole, that
   it followed its default, that it was removed, or that it was not
-  offered. A release's revision records the defaults it replaced so.
+  offered. A release's revision records each of its items as having
+  followed its default, which is all a restore needs of it (below).
   An application's items record, in the core's record, the state and
   size of what they replaced, and their connector keeps the value
   (below); a project's policy item records the project's policy it
@@ -2452,8 +2453,8 @@ decided by the owners of what it touches.
   the value the setting held before, by the revision that made the
   change, in its own family, for as long as the history keeps that
   revision's record (17.7), and erases them in the decision that erases
-  the record. A release's revision keeps the defaults it replaced so.
-  Its worst case prices them: for each record the history may keep, a
+  the record; a release's revision asks it to keep none, its items
+  having followed their defaults. Its worst case prices them: for each record the history may keep, a
   whole set of its kinds' values.
 - **The settings as revision R left them** differ from the newest only
   in the settings a later revision changed, each as the earliest of

@@ -70,6 +70,44 @@ Critical path as sketched: `policy-surface` (60) -> `policy-store` (90) -> `rest
 
 ## Old code
 
-The entry's Old code (`configuring-revisions/restore`, `set4-r2`, `replaced`,
-`settings-file`, in hel8's attic mirror) was not read by this cut; implementers cannot reach
-it, so whatever the next cut takes from it goes into the specs.
+Read by a survey for this cut in hel8's attic mirrors (`~/src/fabrig/attic/temper/mirror.git`
+and jig's), which implementers cannot reach: whatever a spec takes goes into it, quoted.
+
+- **jig's `configuring-revisions/replaced`** (0e6d7ef0e, 67e79fb40; merge base f0cd33b7):
+  `jig-domain-core/src/settings.rs`' `RevisionItem { setting, edit, replaced }` and `enum
+  Replaced { Value(Box<Value>), Default, Removed, NotOffered }`, `Revision.items` of
+  `RevisionItem`; `Current::replaced(setting)` and `Current::revision_items(items)` take the
+  state before an edit applies; `revision_worst_case` prices two sets and a boxed `Value` per
+  item; `settings/restart.rs`' `restored_revision_items` records a release's items as
+  `Default` or `NotOffered`. In `settings-v1`:
+  `enum Replaced { value: boxed Set, default, removed, not_offered }`,
+  `record RevisionItem { setting: Setting edit: Edit replaced: Replaced }`. Fits 17.10's four
+  states as it stands: `restore-records` may take it.
+- **jig's `configuring-revisions/restore`** (adds 0107dae98; `set4-r2` is the same rebased):
+  `jig-domain-core/src/routing/restore.rs` (`start`, `load`, `loaded`, `page`, `propose`,
+  `reason`), `settings.rs`' `Restoring` and `restore_count`; `Restore { revision, reason }`
+  on the client wire and the people boundary, `OutcomeRestored { proposal, to, left_out }`,
+  `RefusalForgotten { oldest }`. It pages the history newest to R+1, folds the records
+  newest first into a map so the earliest after R wins (`Value` to `Set`, `Default` and
+  `NotOffered` to `Reset`, `Removed` to `Removed`), and proposes through the usual
+  admission, the reason "restores revision R: ...". Refusals: busy (one restore in flight),
+  unknown (0 or past the newest), forgotten, empty, stale (a revision made while it loads),
+  too large as `Malformed::Settings { fault: Count }`. Stories in `jig/tests/core/tests/
+  settings_proposals.rs`: `restoring_a_revision_proposes_what_later_revisions_replaced`,
+  `a_restore_reads_every_page_of_the_history_after_r`,
+  `a_restore_of_a_forgotten_revision_names_the_oldest_kept`,
+  `a_restore_of_the_newest_is_empty`, `a_revision_made_while_a_restore_loads_refuses_it_stale`,
+  `a_restore_past_the_whole_set_is_refused_too_large`. Departs from 17.10: no application's
+  items (its `left_out` always empty), no project's policy, no deleted project's items, too
+  large counted on `Set` items alone.
+- **temper's `configuring-revisions/replaced`** (26ac75e3b): `temper-settings-form`'s
+  `view.rs` `enum RevisionReplaced { Value, TooLarge(Size), Default, Removed, NotOffered }`,
+  `wire.rs` `settings_restore_revision_replaced`, `render.rs` `replaced_text` ("was: ...").
+- **temper's `configuring-revisions/restore`** (6c8cedbac): ctl's `RESTORE` row in
+  `jig/rows.rs` (`revision restore`, REVISION, optional REASON, keyed), `runner/acts.rs`
+  building `Ask::Restore`, `render/outcome.rs` printing "proposed restoring revision R as
+  proposal P/K" and what it left out; an end-to-end test in `crates/temper/tests/process.rs`.
+- **temper's `configuring-revisions/settings-file`** (76bb035d1, d1eea4401): a settings
+  file's optional members defaulted from `FIELDS`, refusals by path; not restore's.
+  `client/tools.md`, 5.3 already says it; whether the trunk has it is the next cut's check.
+- Nothing touched a project's own policy as an item: `policy-item` is new work.
