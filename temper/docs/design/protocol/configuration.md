@@ -1790,6 +1790,8 @@ init`'s document carries none of them (`setup.md`, 8.3).
   | chats or goals funded at once from one owner's pool | 14 | 80 (the budgets, above) |
   | live changes in a project | 18 | `forge.changes` 128, `forge.holds` and `forge.tasks` 128 |
 
+  The stock and the reference's whole delegation (13.9) fit the
+  fourteen entries ctl's settings form takes in an authority's list.
   A limit the table does not name moves with the ones it is coupled to
   (a store row, a carrier, an inbox), sized the same way or the least
   the start's checks take. jig's and temper's stored formats changed in
