@@ -632,7 +632,7 @@ fn invalid_host_limits_stop_after_load_and_setup_overrides_are_checked() {
     advance(service.engine.as_mut().expect("engine"));
     assert!(service.end().is_some());
     let mut own = crate::limits::profile(crate::limits::Profile::Small);
-    for name in [b"setup.states".as_slice(), b"setup.runs", b"setup.state_life_ms", b"setup.orgs"] {
+    for name in [b"setup.states".as_slice(), b"setup.runs", b"setup.state_life_ms"] {
         assert_eq!(crate::limits::apply(&mut own, name, 0), Err(crate::limits::Refused::Range));
     }
     assert_eq!(crate::limits::apply(&mut own, b"setup.runs", 3), Ok(()));

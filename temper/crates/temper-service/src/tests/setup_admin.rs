@@ -18,7 +18,6 @@ fn config() -> fixtures::ConfiguredEngine {
     let entry = &mut config.setup[0];
     entry.entry.mode = temper_forge_setup::setup::Mode::Managed { admin_token: None };
     entry.entry.directory = Box::new([]);
-    entry.entry.orgs = Box::new([]);
     entry.handover = None;
     config.identities[0].login = Box::new([]);
     config

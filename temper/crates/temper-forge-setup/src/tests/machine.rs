@@ -92,7 +92,6 @@ fn owned_entry_uses_its_number_and_machine() {
         assert_eq!(entry.forge, 3);
         assert_eq!(entry.directory, dirs.join(jig_protocol_config::Directory::Data, b"forge-3").unwrap());
         assert!(entry.asked);
-        assert!(entry.orgs.is_empty());
     }
 }
 

@@ -317,29 +317,6 @@ fn an_interrupted_upgrade_leaves_the_state_for_the_next_preparation() {
     assert_eq!(fs::read_dir(scratch.path().join("forge-1/backups")).expect("upgrade fixture").count(), 0);
     scratch.remove();
 }
-#[test]
-fn reconcile_refuses_a_forge_the_setup_has_no_entry_for() {
-    let scratch = support::Scratch::new("reconcile_no_entry");
-    support::owned::configuration(
-        scratch.path(),
-        &support::owned::Names {
-            forgejo: std::path::Path::new("/usr/bin/false"),
-            runner: None,
-            port: 9,
-            bot: "temper",
-            person: "ada",
-        },
-    );
-    fs::remove_file(scratch.path().join("box/groups/1")).expect("no recorded group");
-    let output = support::owned::reconcile(scratch.path(), 1);
-    assert_eq!(output.status.code(), Some(1));
-    assert_eq!(
-        String::from_utf8_lossy(&output.stderr),
-        "temper forge reconcile: forge 1: forge 1 is kept by the service: connect it from the client\n"
-    );
-    assert!(!scratch.path().join("forge-1").exists());
-    scratch.remove();
-}
 
 #[test]
 fn fake_preparation_writes_only_a_private_token_and_keeps_existing_bytes() {
