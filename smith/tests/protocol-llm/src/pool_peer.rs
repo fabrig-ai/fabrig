@@ -43,23 +43,12 @@ impl Peer {
     /// Build a peer with declared calls and a lowered endpoint share.
     #[must_use]
     pub fn configured(calls: u32, per_endpoint: u32) -> Self {
-        Self::for_provider(calls, per_endpoint, skein_llm::Provider::OpenAiCodex)
+        Self::for_provider(calls, per_endpoint, skein_llm::Provider::OpenAi)
     }
 
     /// Build the same observed component peer for either wire dialect.
     #[must_use]
     pub fn for_provider(calls: u32, per_endpoint: u32, provider: skein_llm::Provider) -> Self {
-        Self::for_identity(calls, per_endpoint, provider, smith_protocol_llm::IdentityProfile::Plain)
-    }
-
-    /// Observe the production component's configured provider identity.
-    #[must_use]
-    pub fn for_identity(
-        calls: u32,
-        per_endpoint: u32,
-        provider: skein_llm::Provider,
-        identity: smith_protocol_llm::IdentityProfile,
-    ) -> Self {
         let mut limits = limits();
         limits.connection.calls = calls;
         limits.connection.connections = calls;
@@ -77,11 +66,10 @@ impl Peer {
                     transport: skein_llm_connection::Transport::Plaintext,
                     llm: match provider {
                         skein_llm::Provider::OpenAi => skein_llm::Endpoint::openai(),
-                        skein_llm::Provider::OpenAiCodex => skein_llm::Endpoint::codex(),
+                        skein_llm::Provider::OpenAiCodex => unreachable!("unsupported fixture dialect"),
                         skein_llm::Provider::Anthropic => skein_llm::Endpoint::anthropic(),
                     },
                 },
-                identity,
                 models: Box::new([]),
             }]),
             limits.connection.endpoints,
@@ -92,13 +80,9 @@ impl Peer {
             .grant(
                 GrantName { account: 0, generation: 1 },
                 match provider {
-                    skein_llm::Provider::OpenAiCodex => skein_llm::Credential {
-                        value: b"fake".as_slice().into(),
-                        account_id: b"fake".as_slice().into(),
-                        scheme: skein_llm::Scheme::Bearer,
-                    },
+                    skein_llm::Provider::OpenAiCodex => unreachable!("unsupported fixture dialect"),
                     skein_llm::Provider::OpenAi => skein_llm::Credential::bearer(b"fake".as_slice().into()),
-                    skein_llm::Provider::Anthropic => skein_llm::Credential::anthropic(b"fake".as_slice().into()),
+                    skein_llm::Provider::Anthropic => skein_llm::Credential::key(b"fake".as_slice().into()),
                 },
                 Time::ZERO.saturating_add(Duration::from_secs(1000)),
             )

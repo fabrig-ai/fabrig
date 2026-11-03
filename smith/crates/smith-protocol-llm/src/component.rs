@@ -16,7 +16,6 @@ use skein_llm::Credential;
 use skein_llm_connection as connection;
 use smith_domain::{Event as DomainEvent, GrantName, llm, run};
 
-use crate::IdentityProfile;
 use crate::boundary::{FromDomain, ToDomain};
 use crate::{Context, EndpointOptions, Endpoints, Error, GrantError, Grants, Receiving};
 
@@ -260,12 +259,18 @@ impl Component {
         for ((account, endpoint), ()) in &self.bindings {
             if *account == name.account {
                 let options = self.options.get(endpoint).ok_or(GrantError::Scheme)?;
+                let bounds =
+                    skein_llm::client::CredentialLimits { value: self.limits.grant_value_bytes, account_id: 0 };
+                if skein_llm::client::check_credential(&credential, &bounds).is_err() {
+                    return Err(GrantError::Bounds);
+                }
                 let accepted = match options.provider {
-                    skein_llm::Provider::OpenAiCodex => match credential.scheme {
-                        skein_llm::Scheme::Bearer => !credential.account_id.is_empty(),
-                        skein_llm::Scheme::Key => false,
+                    skein_llm::Provider::OpenAiCodex => false,
+                    skein_llm::Provider::OpenAi => true,
+                    skein_llm::Provider::Anthropic => match credential.scheme {
+                        skein_llm::Scheme::Key => true,
+                        skein_llm::Scheme::Bearer => false,
                     },
-                    skein_llm::Provider::OpenAi | skein_llm::Provider::Anthropic => credential.account_id.is_empty(),
                 };
                 if !accepted {
                     return Err(GrantError::Scheme);
@@ -433,17 +438,6 @@ impl Component {
                     return;
                 }
             };
-        match options.identity {
-            IdentityProfile::Plain => {}
-            IdentityProfile::ClaudeCode => match skein_llm::anthropic::identity::instructions(&translated.instructions)
-            {
-                Ok(instructions) => translated.instructions = instructions,
-                Err(error) => {
-                    Self::refusal(owner, Error::from_client(error), bounds.max_failure_bytes, to_domain);
-                    return;
-                }
-            },
-        }
         if let Err(error) = translated.output_ceiling(options.provider, translated.max_output_tokens.unwrap_or(0)) {
             Self::refusal(owner, Error::from_client(error), bounds.max_failure_bytes, to_domain);
             return;
@@ -724,6 +718,66 @@ fn observed_prompt(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn grants_install_only_the_schemes_the_bound_dialect_takes() {
+        use skein_lib::Duration;
+        use skein_llm::{Endpoint, Provider, Scheme};
+        for (provider, scheme, expected) in [
+            (Provider::OpenAi, Scheme::Bearer, Ok(())),
+            (Provider::OpenAi, Scheme::Key, Ok(())),
+            (Provider::Anthropic, Scheme::Key, Ok(())),
+            (Provider::Anthropic, Scheme::Bearer, Err(GrantError::Scheme)),
+        ] {
+            let client = skein_llm_world::limits();
+            let stated = crate::Stated::from_tools(&crate::tests::tools(), client.input).expect("tool bounds");
+            let translation = crate::fixture::small(client, stated);
+            let limits = crate::fixture::component(translation, Duration::from_secs(1)).expect("component limits");
+            let endpoint = match provider {
+                Provider::OpenAi => Endpoint::openai(),
+                Provider::Anthropic => Endpoint::anthropic(),
+                Provider::OpenAiCodex => unreachable!("public fixture dialects"),
+            };
+            let endpoints = Endpoints::new(
+                Box::new([crate::ConfiguredEndpoint {
+                    name: llm::Endpoint(0),
+                    connect: Duration::from_secs(1),
+                    handshake: Duration::from_secs(1),
+                    destination: connection::Endpoint {
+                        limits: client,
+                        credential: skein_llm::client::CredentialLimits { value: 128, account_id: 128 },
+                        address: core::net::SocketAddr::from(([127, 0, 0, 1], 443)),
+                        transport: connection::Transport::Plaintext,
+                        llm: endpoint,
+                    },
+                    models: Box::new([]),
+                }]),
+                1,
+            )
+            .expect("one endpoint");
+            let mut component = Component::new(&limits, endpoints).expect("component");
+            component.bindings.insert((7, 0), ()).expect("bound account");
+            let name = GrantName { account: 7, generation: 1 };
+            let credential = match scheme {
+                Scheme::Bearer => Credential::bearer(b"fixture".as_slice().into()),
+                Scheme::Key => Credential::key(b"fixture".as_slice().into()),
+            };
+            assert_eq!(component.grant(name, credential, Time::from_nanos(100)), expected, "{provider:?} {scheme:?}");
+            match expected {
+                Ok(()) => {
+                    let installed = component.grants.read(name, Time::ZERO).expect("installed grant");
+                    assert_eq!(installed.scheme, scheme);
+                    assert_eq!(installed.value.as_ref(), b"fixture");
+                    skein_llm::client::check_credential(
+                        &installed,
+                        &skein_llm::client::CredentialLimits { value: 128, account_id: 0 },
+                    )
+                    .expect("installed credential has no account id");
+                }
+                Err(_) => assert_eq!(component.grants.read(name, Time::ZERO).err(), Some(GrantError::Missing)),
+            }
+        }
+    }
 
     #[test]
     fn local_failure_diagnostics_name_the_failure_class_and_keep_the_bound() {

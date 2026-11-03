@@ -540,7 +540,7 @@ window, history only grows (section 3).
   output, beside its prompt as every completion's is, and takes no room
   in the window (protocol/limits.md, 2.1). The history before them is
   the ordinary prompt's, unchanged:
-  - **on the Codex dialect,** which keeps the tool choice outside the
+  - **on the OpenAI dialect,** which keeps the tool choice outside the
     cached prefix, the request reads the cached prefix;
   - **on the Anthropic dialect,** a changed choice keeps the cache of the
     tools and the system text and loses that of the messages, so a
