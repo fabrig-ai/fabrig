@@ -186,6 +186,7 @@ fn opening_row() -> ChangeRow {
         priority: 1,
         ci: None,
         change: change::Change {
+            early: change::Early::None,
             way: temper_engine_domain_forge_change::Way::Queue,
             landing: None,
             task: CHANGE,
@@ -286,6 +287,7 @@ fn verifying() -> Domain {
 
 fn heard(cancelled: bool) -> change::Heard {
     change::Heard {
+        start_conflict: None,
         lacking: None,
         spend: None,
         delegate: change::Status::Unknown,
@@ -308,6 +310,7 @@ fn advance(d: &mut Domain, task: u64, wall: Wall, cancelled: bool) -> Queue<Requ
             heard: heard(cancelled),
             gates: Box::new([]),
             queue_repair_active: false,
+            pending: Box::new([]),
             kept: false,
         },
         &mut out,
@@ -718,6 +721,214 @@ fn contains(out: &Queue<Request>, expected: &Request) -> bool {
         }
     }
     false
+}
+
+const PULL: u64 = 2;
+const CLEANUP: u64 = 91;
+
+fn cancellation_hold(d: &mut Domain, task: u64) -> Name {
+    let row = d.changes.get_mut(&task).expect("change");
+    row.pull = Some(PULL);
+    let name = from_client(
+        &skein_forge_client::Resource { repository: REPO, what: skein_forge_client::What::Branch(row.branch.clone()) },
+        &LIMITS,
+    )
+    .expect("branch name");
+    d.holds.insert(name.clone(), Hold { name: name.clone(), task, writer: None, drift: None }).expect("hold");
+    name
+}
+
+fn cancel_effects(d: &mut Domain, task: u64) -> Queue<Request> {
+    let mut out = Queue::uncapped();
+    step(d, &env(), Event::SettleEffects { task, root: CHANGE, ending: ReleaseEnding::Cancelled }, &mut out);
+    no_pull_cancellation(&out);
+    out
+}
+
+fn cancel_release(d: &mut Domain, task: u64) -> Queue<Request> {
+    let mut out = Queue::uncapped();
+    step(
+        d,
+        &env(),
+        Event::Release {
+            task,
+            root: CHANGE,
+            ending: ReleaseEnding::Cancelled,
+            reason: Some(b"walk done".as_slice().into()),
+            entry: CLEANUP,
+        },
+        &mut out,
+    );
+    out
+}
+
+fn deleted_branch(d: &mut Domain, task: u64, name: &Name) {
+    let entry = d.entries.get(&CLEANUP).expect("branch cleanup");
+    assert_eq!(
+        entry.entry.effect.write,
+        skein_forge::api::Write::DeleteBranch { branch: d.changes.get(&task).expect("change").branch.clone() }
+    );
+    let mut out = Queue::uncapped();
+    release_outcome(
+        d,
+        CLEANUP,
+        skein_forge_client::Outcome::Made { made: skein_forge_client::Made::Set, found: false },
+        &mut out,
+    );
+    d.entries.remove(&CLEANUP);
+    continue_release(d, &env(), task, CLEANUP + 1, &mut out);
+    assert!(contains(&out, &Request::Released { task }));
+    no_pull_cancellation(&out);
+    assert!(!d.holds.contains_key(name));
+    assert_eq!(d.landed.get(&LAST), Some(&task));
+}
+
+#[test]
+fn cancelling_a_red_landing_releases_its_branch_without_touching_its_pull() {
+    let mut d = verifying();
+    red(&mut d);
+    advance(&mut d, SECOND, env().wall, false);
+    let name = cancellation_hold(&mut d, SECOND);
+    assert!(contains(&cancel_effects(&mut d, SECOND), &Request::EffectsSettled { task: SECOND }));
+    no_pull_cancellation(&cancel_release(&mut d, SECOND));
+    deleted_branch(&mut d, SECOND, &name);
+    assert_eq!(d.change(SECOND).expect("change").change.state, change::State::Uncleared { merge: LAST });
+}
+
+fn no_pull_cancellation(out: &Queue<Request>) {
+    for request in out {
+        if let Request::ReleaseFailed { .. } = request {
+            unreachable!("cleanup must release its change: {request:?}");
+        }
+        if let Request::Save { record: Stored::Entry { entry, .. }, .. } = request
+            && let skein_forge::api::Write::Post { number, .. } | skein_forge::api::Write::Close { number } =
+                &entry.effect.write
+        {
+            assert_ne!(*number, PULL, "{request:?}");
+        }
+    }
+}
+
+#[test]
+fn cancelling_a_verifying_landing_leaves_its_pull_untouched() {
+    for settle in [false, true] {
+        let mut d = verifying();
+        let name = cancellation_hold(&mut d, SECOND);
+        if settle {
+            cancel_effects(&mut d, SECOND);
+        }
+        no_pull_cancellation(&cancel_release(&mut d, SECOND));
+        deleted_branch(&mut d, SECOND, &name);
+        assert_eq!(d.change(SECOND).expect("change").change.state, change::State::Uncleared { merge: LAST });
+    }
+}
+
+#[test]
+fn a_merge_settling_during_cancellation_leaves_its_pull_untouched() {
+    let mut d = configured_domain(&[(TIER, None)]);
+    add_change(&mut d, SECOND, b"main");
+    let name = cancellation_hold(&mut d, SECOND);
+    keep_entry(&mut d, merging_entry(), None, &mut Queue::uncapped());
+    let settling = cancel_effects(&mut d, SECOND);
+    assert!(!contains(&settling, &Request::EffectsSettled { task: SECOND }));
+    assert_eq!(d.releases.get(&SECOND).expect("release").close_pull, Some(PULL));
+    merged(&mut d, SECOND, LAST);
+    d.entries.remove(&OPEN);
+    assert!(contains(&cancel_effects(&mut d, SECOND), &Request::EffectsSettled { task: SECOND }));
+    no_pull_cancellation(&cancel_release(&mut d, SECOND));
+    deleted_branch(&mut d, SECOND, &name);
+    assert_eq!(d.change(SECOND).expect("change").change.state, change::State::Uncleared { merge: LAST });
+}
+
+#[test]
+fn resumed_cancellation_discards_a_landed_pulls_cleanup() {
+    let mut d = verifying();
+    let name = cancellation_hold(&mut d, SECOND);
+    let mut row = release_row(SECOND, CHANGE, ReleaseEnding::Cancelled, Some(PULL), true, true);
+    row.comment = Some(b"walk done".as_slice().into());
+    d.restore_begin(Wall::EPOCH);
+    restore(&mut d, &env(), Stored::Release(row));
+    let mut out = Queue::uncapped();
+    step(&mut d, &env(), Event::ContinueRelease { task: SECOND, entry: CLEANUP }, &mut out);
+    no_pull_cancellation(&out);
+    deleted_branch(&mut d, SECOND, &name);
+}
+
+#[test]
+fn changing_an_ending_to_cancelled_leaves_a_landed_pull_untouched() {
+    for settle in [false, true] {
+        let mut d = verifying();
+        let name = cancellation_hold(&mut d, SECOND);
+        let row = release_row(SECOND, CHANGE, ReleaseEnding::Done, None, true, false);
+        d.releases.insert(SECOND, row).expect("release row");
+        if settle {
+            cancel_effects(&mut d, SECOND);
+        }
+        no_pull_cancellation(&cancel_release(&mut d, SECOND));
+        deleted_branch(&mut d, SECOND, &name);
+    }
+}
+
+fn finish_cleanup(d: &mut Domain) -> Queue<Request> {
+    let mut out = Queue::uncapped();
+    release_outcome(
+        d,
+        CLEANUP,
+        skein_forge_client::Outcome::Made { made: skein_forge_client::Made::Set, found: false },
+        &mut Queue::uncapped(),
+    );
+    d.entries.remove(&CLEANUP);
+    continue_release(d, &env(), SECOND, CLEANUP, &mut out);
+    out
+}
+
+#[test]
+fn cancelling_an_unlanded_pull_posts_the_reason_then_closes_it() {
+    let mut d = configured_domain(&[(TIER, None)]);
+    add_change(&mut d, SECOND, b"main");
+    let name = cancellation_hold(&mut d, SECOND);
+    cancel_effects(&mut d, SECOND);
+    cancel_release(&mut d, SECOND);
+    let write = &d.entries.get(&CLEANUP).expect("reason entry").entry.effect.write;
+    let skein_forge::api::Write::Post { number, body, .. } = write else {
+        unreachable!("cancellation posts its reason before closing");
+    };
+    assert_eq!(*number, PULL);
+    assert_eq!(body.as_ref(), b"walk done");
+    finish_cleanup(&mut d);
+    assert_eq!(
+        d.entries.get(&CLEANUP).expect("close entry").entry.effect.write,
+        skein_forge::api::Write::Close { number: PULL }
+    );
+    finish_cleanup(&mut d);
+    assert_eq!(
+        d.entries.get(&CLEANUP).expect("branch entry").entry.effect.write,
+        skein_forge::api::Write::DeleteBranch { branch: d.change(SECOND).expect("change").branch.clone() }
+    );
+    let out = finish_cleanup(&mut d);
+    assert!(contains(&out, &Request::Released { task: SECOND }));
+    assert!(!d.holds.contains_key(&name));
+}
+
+fn merging_entry() -> skein_forge_client::Entry {
+    skein_forge_client::Entry {
+        number: OPEN,
+        task: SECOND,
+        repository: REPO,
+        effect: skein_forge_client::Effect {
+            write: skein_forge::api::Write::Merge { number: PULL, head: HEAD, how: skein_forge::api::MergeHow::Style },
+            condition: skein_forge_client::Condition::None,
+        },
+        start: None,
+        attempt: Some(skein_forge_client::Attempt {
+            sent: env().now,
+            deadline: env().now,
+            wall: env().wall,
+            expires: env().wall,
+        }),
+        failures: 0,
+        queued: false,
+    }
 }
 
 #[test]

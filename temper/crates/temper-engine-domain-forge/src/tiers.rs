@@ -1649,12 +1649,9 @@ pub(crate) fn row_bytes(row: &TierRow) -> Option<u64> {
     held = held.checked_add(
         u64::try_from(row.pending.len()).ok()?.checked_mul(u64::try_from(size_of::<TierLanding>()).ok()?)?,
     )?;
-    held = held
-        .checked_add(
-            u64::try_from(row.goals.len()).ok()?.checked_mul(u64::try_from(size_of::<crate::TierGoal>()).ok()?)?,
-        )?
-        .checked_add(u64::try_from(size_of::<Option<u64>>()).ok()?)?
-        .checked_add(u64::try_from(size_of::<Option<Time>>()).ok()?)?;
+    held = held.checked_add(
+        u64::try_from(row.goals.len()).ok()?.checked_mul(u64::try_from(size_of::<crate::TierGoal>()).ok()?)?,
+    )?;
     for goal in &row.goals {
         held = held.checked_add(u64::try_from(goal.branch.len()).ok()?)?.checked_add(failures_bytes(&goal.failing)?)?;
     }

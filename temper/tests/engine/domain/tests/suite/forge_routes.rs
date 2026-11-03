@@ -75,6 +75,9 @@ mod goal_branch;
 #[path = "forge_routes/goal_changes.rs"]
 mod goal_changes;
 
+#[path = "forge_routes/early_start.rs"]
+mod early_start;
+
 #[path = "forge_routes/goal_landing.rs"]
 mod goal_landing;
 

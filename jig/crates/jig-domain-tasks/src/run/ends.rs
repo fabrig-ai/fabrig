@@ -5,7 +5,7 @@ use crate::{Active, End, Executor, Phase, TaskResult, Was};
 /// Whether an active task may go on, and why not (domain/tasks.md, 5.7).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) struct Kept {
-    /// A dependency an amendment added is pending.
+    /// A dependency is pending.
     pub(crate) dependencies: bool,
     /// Its own unanswered question to its requester, oldest first.
     pub(crate) question: Option<u64>,

@@ -63,6 +63,7 @@ fn configuration(limits: &core::Limits) -> core::Config {
     };
     core::Config {
         jobs: Box::new([]),
+        kept_starts: Box::new([]),
         worker_names: Box::new([]),
         deployment: [31; 16],
         seed: 31,

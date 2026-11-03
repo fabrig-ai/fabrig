@@ -174,3 +174,29 @@ fn landing_branch_is_bounded_and_translated_to_checkout() {
         }
     }
 }
+
+#[test]
+fn merged_heads_are_bounded_at_the_workers_entrance_and_keep_their_order() {
+    use crate::wire;
+    const HEADS: usize = 64; // channel.md, 4.
+    let mut h = Harness::new();
+    h.env.limits.checkout.conflicts = 1;
+    h.env.limits.checkout.path_bytes = 32;
+    for heads in [&[][..], &[[3; 32]; HEADS + 1][..]] {
+        let mut workspace = items(&[b"app"]);
+        workspace.repositories[0].start =
+            wire::Start::Merged { branch: b"main".as_slice().into(), heads: heads.into() };
+        assert_eq!(crate::assignment::check(&workspace, &h.env.limits), Err(b"merged heads".as_slice()));
+    }
+    let mut workspace = items(&[b"app"]);
+    let mut heads = Box::new([[3; 32]; HEADS]);
+    heads[HEADS - 1] = [4; 32];
+    workspace.repositories[0].start = wire::Start::Merged { branch: b"main".as_slice().into(), heads };
+    assert_eq!(crate::assignment::check(&workspace, &h.env.limits), Ok(()));
+    let spec = translate::spec(7, workspace);
+    let crate::checkout::Start::Merged { branch, heads } = &spec.repositories[0].start else { panic!("merged start") };
+    assert_eq!(branch.as_ref(), b"main");
+    assert_eq!(heads.len(), HEADS);
+    assert_eq!(heads[0].raw(), [3; 32]);
+    assert_eq!(heads[HEADS - 1].raw(), [4; 32]);
+}

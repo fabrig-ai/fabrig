@@ -10267,11 +10267,12 @@ mod cap_tests {
 
 // Act 3, step 6.6 (domain/testing.md, 5.3).
 const WAITING_IDENTITIES: Promise = Promise::Must("one atomic batch names kit e1 and app repin with its dependency");
-const WAITING_CHECKPOINT: Promise = Promise::Must("repin waits unstarted while e1's exact-head review writes");
+const WAITING_CHECKPOINT: Promise = Promise::Must("repin produces early while e1's exact-head review writes");
 const WAITING_LANDING: Promise = Promise::Must("each repository lands its pushed, green, exactly reviewed head");
 const WAITING_ORDER: Promise = Promise::Must("kit merge precedes repin's first push and app merge");
 const WAITING_PIN: Promise = Promise::Must("app pins the actual kit merge and both results name actual merges");
-const WAITING_RELEASE: Promise = Promise::Must("dependency completion starts unchanged repin without targeted relay");
+const WAITING_RELEASE: Promise =
+    Promise::Must("repin starts early and completes after its dependency without targeted relay");
 const WAITING_DELIVERY: Promise = Promise::Must("requesters hear each actual ending exactly once");
 const WAITING_ATTEMPTS: Promise = Promise::Add("complete journals end all attempts without failure or live leftovers");
 
@@ -10379,7 +10380,7 @@ fn waiting_parameters(doc: &Value, repository: u32, path: &str, parameter: u64) 
 fn waiting_dependency(doc: &Value, pending: bool) -> bool {
     doc["dependency_facts"]
         == serde_json::json!([
-            {"number":super::waiting::E1,"pending":pending,"keeps":false,"added":null,"status":null}
+            {"number":super::waiting::E1,"pending":pending,"keeps":pending,"added":null,"status":null}
         ])
         && doc["dependencies"].as_array().is_some_and(|rows| {
             rows.len() == 1
@@ -10416,6 +10417,20 @@ fn waiting_delivery(observed: &Observed, read: Read, from: u64, words: &str, age
 
 #[must_use]
 pub fn step_6_6(observed: &Observed) -> Vec<Miss> {
+    // The two producers are created concurrently; ctl reads both candidate
+    // numbers and requester identity assigns their documents to the story.
+    let mut resolved = observed.clone();
+    if number(task_document(observed, Read::WaitingE1CoderEnded), "/requester/task") == Some(super::waiting::REPIN) {
+        for (to, from) in [
+            (Read::WaitingE1CoderEnded, Read::WaitingRepinCoderEnded),
+            (Read::WaitingRepinCoderEnded, Read::WaitingE1CoderEnded),
+        ] {
+            if let Some(doc) = observed.documents.get(&from) {
+                resolved.documents.insert(to, doc.clone());
+            }
+        }
+    }
+    let observed = &resolved;
     let mut misses = Vec::new();
     waiting_identities(observed, &mut misses);
     waiting_batches(observed, &mut misses);
@@ -10436,6 +10451,13 @@ fn ending_charter(read: Read) -> u64 {
 fn waiting_identities(observed: &Observed, misses: &mut Vec<Miss>) {
     for (read, task, parent, agent) in waiting_tasks() {
         let doc = task_document(observed, read);
+        let task = if matches!(read, Read::WaitingE1CoderEnded | Read::WaitingRepinCoderEnded) {
+            number(doc, "/chip/task")
+                .filter(|n| [super::waiting::E1_CODER, super::waiting::REPIN_CODER].contains(n))
+                .unwrap_or(0)
+        } else {
+            task
+        };
         step_check(
             misses,
             "6.6",
@@ -10558,11 +10580,7 @@ fn waiting_release(observed: &Observed, misses: &mut Vec<Miss>) {
     let no_relay = waiting_tasks().iter().all(|(read, _, _, _)| {
         waiting_raw_tools(observed, *read).iter().all(|call| {
             matches!(text(call, "/tool"), "delegate" | "wait" | "finish" | "write") && call["failed"] == false
-        }) && check_activity(observed, *read).iter().all(|r| {
-            r.pointer("/line/amended").is_none()
-                && r.pointer("/line/kept").is_none()
-                && r.pointer("/line/heard/kind/met").is_none()
-        })
+        }) && check_activity(observed, *read).iter().all(|r| r.pointer("/line/amended").is_none())
     });
     let roots = document(observed, Read::WaitingRootsEnded);
     step_check(
@@ -10573,7 +10591,7 @@ fn waiting_release(observed: &Observed, misses: &mut Vec<Miss>) {
             && number(pending, "/spec_revision/value") == Some(0)
             && number(repin, "/spec_revision/value") == Some(0)
             && repin.pointer("/dependencies/0/retained/at").and_then(Value::as_u64) == finish
-            && finish.zip(start).is_some_and(|(end, start)| end <= start)
+            && finish.zip(start).is_some_and(|(end, start)| start < end)
             && no_relay
             && owner_tools.iter().filter(|(_, _, tool, _)| tool == "delegate").count() == 1
             && observed.commands
@@ -10596,10 +10614,12 @@ fn waiting_release(observed: &Observed, misses: &mut Vec<Miss>) {
                     "task show",
                     "task show",
                     "task show",
+                    "task show",
+                    "task show",
                     "task list",
                 ],
         WAITING_RELEASE,
-        "repin's first coder starts after dependency completion with revision zero and no targeted relay",
+        "repin's first coder starts before dependency completion with revision zero and no targeted relay",
     );
     step_check(
         misses,
@@ -10623,15 +10643,19 @@ fn waiting_checkpoint(observed: &Observed, misses: &mut Vec<Miss>) {
         number(pending, "/chip/task") == Some(REPIN)
             && number(pending, "/project") == Some(PROJECT)
             && number(pending, "/requester/task") == Some(A1)
-            && text(pending, "/chip/phase") == "waiting"
+            && text(pending, "/chip/phase") == "idle"
             && pending["result"].is_null()
-            && pending["delegates"] == serde_json::json!([])
+            && pending["delegates"].as_array().is_some_and(|ds| {
+                ds.len() == 1
+                    && number(&ds[0], "/chip/task")
+                        == number(task_document(observed, Read::WaitingRepinCoderEnded), "/chip/task")
+            })
             && pending["resources"].as_array().is_some_and(|resources| {
-                resources.len() == 1 && resources[0].pointer("/taken") == Some(&Value::Bool(false))
+                resources.len() == 1 && resources[0].pointer("/taken") == Some(&Value::Bool(true))
             })
             && waiting_page(observed, Read::WaitingRepinPending, REPIN)
-            && pending.pointer("/chip/details/owner/details/attempt") == Some(&Value::Null)
-            && pending.pointer("/chip/details/owner/phase/waiting/dependencies") == Some(&serde_json::json!([E1]))
+            && number(pending, "/chip/details/owner/details/attempt").is_some_and(|attempt| attempt > 0)
+            && pending.pointer("/waits_on/dependencies/pending") == Some(&serde_json::json!([E1]))
             && waiting_dependency(pending, true)
             && waiting_parameters(pending, APP_ID, PIN, 6)
             && check_activity(observed, Read::WaitingRepinPending)
@@ -10645,7 +10669,7 @@ fn waiting_checkpoint(observed: &Observed, misses: &mut Vec<Miss>) {
                 .is_some_and(|ds| ds.len() == 1 && number(&ds[0], "/chip/task") == Some(E1_REVIEWER))
             && batch_writing(observed, Read::WaitingReviewWriting, E1_REVIEWER, Read::WaitingE1ReviewerEnded),
         WAITING_CHECKPOINT,
-        "before the single review release, repin has no attempt, delegates or pull while e1 awaits its reviewer",
+        "before the review release, repin owns its branch and has a producer while e1 awaits its reviewer",
     );
 }
 fn waiting_head(head: u64) -> String {
@@ -10822,7 +10846,7 @@ mod waiting_tests {
     const APP_HEAD: u64 = 21;
     const APP_MERGE: u64 = 22;
     const KIT_ENDED: u64 = 200;
-    const APP_STARTED: u64 = 201;
+    const APP_STARTED: u64 = 100;
 
     fn params(repository: u32, path: &str, parameter: u64) -> Value {
         json!([
@@ -10974,9 +10998,12 @@ mod waiting_tests {
         docs.get_mut(&Read::WaitingRepinEnded).expect("repin")["task"]["dependencies"] =
             json!([{"retained":{"chip":{"task":E1},"at":KIT_ENDED}}]);
         let mut pending = docs[&Read::WaitingRepinEnded].clone();
-        pending["task"]["chip"] = json!({"task":REPIN,"phase":"waiting","details":{"owner":{"phase":{"waiting":{"dependencies":[E1]}},"details":{"attempt":null}}}});
+        pending["task"]["chip"] = json!({"task":REPIN,"phase":"idle","details":{"owner":{"details":{"attempt":2}}}});
         pending["task"]["result"] = Value::Null;
-        pending["task"]["resources"] = json!([{"taken":false}]);
+        pending["task"]["resources"] = json!([{"taken":true}]);
+        pending["task"]["delegates"] = json!([{"chip":{"task":REPIN_CODER},"requester":{"task":REPIN}}]);
+        pending["task"]["waits_on"] = json!({"dependencies":{"pending":[E1]}});
+        pending["task"]["dependency_facts"][0]["keeps"] = true.into();
         pending["task"]["dependency_facts"][0]["pending"] = true.into();
         pending["task"]["dependencies"] = json!([{"live":{"task":E1}}]);
         pending["activity"] = json!({"cut":false,"before":null,"after":null,"rows":[{"event":{"owner":{"source":{"task":REPIN,"position":1,"line":{"milestone":{"position":1}}}}}}]});
@@ -11082,6 +11109,8 @@ mod waiting_tests {
                 "task show",
                 "task show",
                 "task show",
+                "task show",
+                "task show",
                 "task list",
             ]
             .map(str::to_owned)
@@ -11110,6 +11139,16 @@ mod waiting_tests {
     #[test]
     fn two_repository_waiting_fixture_meets_its_promises() {
         assert_met(&step_6_6(&met()));
+    }
+
+    #[test]
+    fn concurrent_coder_documents_are_resolved_by_requester() {
+        let mut observed = met();
+        let kit = observed.documents.remove(&Read::WaitingE1CoderEnded).expect("kit coder");
+        let app = observed.documents.remove(&Read::WaitingRepinCoderEnded).expect("app coder");
+        observed.documents.insert(Read::WaitingE1CoderEnded, app);
+        observed.documents.insert(Read::WaitingRepinCoderEnded, kit);
+        assert_met(&step_6_6(&observed));
     }
 
     #[test]
@@ -11333,7 +11372,7 @@ mod waiting_tests {
             .expect("rows")
         {
             if row.pointer("/event/owner/source/line/run_began").is_some() {
-                row["event"]["owner"]["source"]["at"] = json!(KIT_ENDED - 1);
+                row["event"]["owner"]["source"]["at"] = json!(KIT_ENDED + 1);
                 count += 1;
             }
         }
@@ -11351,7 +11390,7 @@ mod waiting_tests {
             }
         }
         assert_eq!(count, 1);
-        rejects(&changed, WAITING_RELEASE);
+        rejects(&changed, WAITING_LANDING);
     }
     #[test]
     fn review_cue_and_latest_qualified_ci_are_exact() {

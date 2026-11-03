@@ -69,6 +69,7 @@ pub struct Domain {
     pub(crate) placed: Map<u64, crate::PlacedHold>,
     pub(crate) person_proposals: Map<u64, crate::PersonProposal>,
     pub(crate) charters: Box<[crate::CharterModels]>,
+    pub(crate) kept_starts: Box<[crate::KeptStart]>,
     /// Each configured model's count of declared efforts, in configuration's order.
     pub(crate) efforts: Box<[u8]>,
     pub(crate) rng: Rng,
@@ -262,6 +263,7 @@ impl Domain {
             person_proposals: Map::with_capacity(limits.tasks),
             placed: Map::with_capacity(limits.placed_holds),
             charters,
+            kept_starts: Box::new([]),
             efforts,
             rng: Rng::new(seed),
             facts: Queue::with_capacity(limits.facts),
@@ -270,6 +272,30 @@ impl Domain {
             room_refusals_lost: 0,
             room_refusals_mark: 0,
         }
+    }
+
+    /// Configure procedures that start kept (jig/docs/design/domain/connectors.md, 6.1).
+    pub fn set_kept_starts(&mut self, starts: Box<[crate::KeptStart]>) {
+        self.kept_starts = starts;
+    }
+
+    pub(crate) fn starts_kept(&self, executor: crate::Executor) -> bool {
+        match executor {
+            crate::Executor::Procedure { connector, code } => {
+                for start in &self.kept_starts {
+                    if start.connector == connector && start.code == code {
+                        return true;
+                    }
+                }
+                false
+            }
+            crate::Executor::Agent { .. } | crate::Executor::Person(_) | crate::Executor::Job { .. } => false,
+        }
+    }
+
+    /// Dependencies do not delay a configured kept start (connectors.md, 6.1).
+    pub(crate) fn dependencies_ready(&self, row: &TaskRecord) -> bool {
+        row.waiting_on.is_empty() || self.starts_kept(row.executor)
     }
 
     /// Borrow the configured charters and their models admitted by this task hub.
@@ -1032,6 +1058,7 @@ impl Domain {
 }
 
 fn milestone(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Request>) {
+    let starts_kept = domain.starts_kept(record(domain, number).expect("milestone task live").executor);
     let task = task_mut(domain, number).expect("milestone task is live");
     if task.observed_phase.as_ref() == Some(&task.record.phase) {
         return;
@@ -1048,7 +1075,8 @@ fn milestone(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queu
     if task.record.phase == Phase::Active(Active::Due) {
         task.record.due_reason = match task.observed_phase.as_ref() {
             Some(Phase::Waiting)
-                if task.record.due_reason == crate::Why::Made && task.record.dependencies.is_empty() =>
+                if task.record.due_reason == crate::Why::Made
+                    && (task.record.dependencies.is_empty() || starts_kept) =>
             {
                 crate::Why::Made
             }
@@ -1434,6 +1462,7 @@ pub(crate) fn make_admitted(
                 hold_wait_since: None,
                 hold_bound_since: None,
                 dependencies: new.dependencies,
+                started_from: Box::new([]),
                 added: Box::new([]),
                 delegates: Box::new([]),
                 references: Box::new([]),
