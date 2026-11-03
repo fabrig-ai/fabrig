@@ -4846,12 +4846,21 @@ dependencies = [
 name = "temper-playground-world"
 version = "0.0.0"
 dependencies = [
+ "jig-client-shell-web",
  "serde_json",
+ "skein-fake-forge-domain",
+ "skein-fake-person",
  "skein-heap",
  "skein-io",
  "skein-lib",
+ "skein-playground",
  "skein-sim",
  "skein-sim-world",
+ "skein-ui",
+ "skein-ui-web",
+ "temper-client-domain",
+ "temper-client-shell-web",
+ "temper-client-view",
  "temper-playground",
  "temper-service",
 ]
