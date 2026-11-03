@@ -1402,6 +1402,8 @@ fn change_decodes_a_plan_member_each() {
                 name: Some(b"x".as_slice().into()),
                 landing: Some(expected),
                 after: Box::new([engine::ChangeAfter::Task(4), engine::ChangeAfter::Name(b"w".as_slice().into())]),
+                producer: None,
+                llm: engine::ChangeLlm::default(),
             }]
         );
     }
@@ -1451,8 +1453,138 @@ fn change_decodes_several_changes_in_order() {
             name: None,
             landing: Some(engine::ChangeLanding::Branch(b"main".as_slice().into())),
             after: Box::new([engine::ChangeAfter::Task(1)]),
+            producer: None,
+            llm: engine::ChangeLlm::default(),
         }]
     );
+}
+
+#[test]
+fn change_decodes_a_producer_and_llm_by_role() {
+    let input = r#"{"words":"a","producer":6,"llm":{"producer":{"main":{"model":"sol","effort":"high"},"sub_agents":[{"model":"haiku"}]},"review":{"main":{"model":"sol","effort":"medium"}}}}"#;
+    let expected = engine::ChangeCall {
+        producer: Some(6),
+        llm: engine::ChangeLlm {
+            producer: Some(tasks::LlmChoice {
+                account: None,
+                main: tasks::ModelEffort { model: 0, effort: Some(1) },
+                subagents: Box::new([tasks::ModelEffort { model: 1, effort: None }]),
+            }),
+            review: Some(tasks::LlmChoice {
+                account: None,
+                main: tasks::ModelEffort { model: 0, effort: Some(0) },
+                subagents: Box::new([]),
+            }),
+        },
+        ..engine::ChangeCall::words(b"a".as_slice().into(), None)
+    };
+    let engine::Tool::Change { changes } = configured_change(input.as_bytes()).expect("role choices").tool else {
+        panic!("change")
+    };
+    assert_eq!(changes.as_ref(), core::slice::from_ref(&expected));
+    let input = format!(
+        r#"{{"changes":[{input},{{"words":"b","producer":1,"llm":{{"review":{{"main":{{"model":"haiku"}}}}}}}},{{"words":"c","producer":4294967295,"llm":{{}}}},{{"words":"d","llm":{{"producer":{{"main":{{"model":"sol"}}}}}}}}]}}"#
+    );
+    let engine::Tool::Change { changes } = configured_change(input.as_bytes()).expect("per-change choices").tool else {
+        panic!("change")
+    };
+    assert_eq!(
+        changes.as_ref(),
+        &[
+            expected,
+            engine::ChangeCall {
+                producer: Some(1),
+                llm: engine::ChangeLlm {
+                    producer: None,
+                    review: Some(tasks::LlmChoice {
+                        account: None,
+                        main: tasks::ModelEffort { model: 1, effort: None },
+                        subagents: Box::new([]),
+                    }),
+                },
+                ..engine::ChangeCall::words(b"b".as_slice().into(), None)
+            },
+            engine::ChangeCall { producer: Some(u32::MAX), ..engine::ChangeCall::words(b"c".as_slice().into(), None) },
+            engine::ChangeCall {
+                llm: engine::ChangeLlm {
+                    producer: Some(tasks::LlmChoice {
+                        account: None,
+                        main: tasks::ModelEffort { model: 0, effort: None },
+                        subagents: Box::new([]),
+                    }),
+                    review: None,
+                },
+                ..engine::ChangeCall::words(b"d".as_slice().into(), None)
+            },
+        ]
+    );
+}
+
+fn configured_change(json: &[u8]) -> Result<engine::Call, Problem> {
+    let model = assignment().run.policy.model;
+    let models = [
+        engine::Model {
+            name: b"sol".as_slice().into(),
+            efforts: Box::new([b"medium".as_slice().into(), b"high".as_slice().into()]),
+            ..model.clone()
+        },
+        engine::Model { name: b"haiku".as_slice().into(), efforts: Box::new([]), ..model },
+    ];
+    let input = run::HostInput::attested(json.into()).expect("bounded object exterior");
+    match crate::call_configured(
+        run::CallName { activation: 7, completion: 2, position: 1 },
+        b"change",
+        &input,
+        &models,
+    )? {
+        crate::Decoded::Call(call) => Ok(call),
+        crate::Decoded::Answered(_) => panic!("change answered at decode"),
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "the test joins JSON entries at the sub-agent count boundary")]
+fn change_refuses_a_producer_or_llm_out_of_range() {
+    let cases: &[(&str, Problem)] = &[
+        (r#""producer":0"#, Problem::Range(b"producer")),
+        (r#""producer":-1"#, Problem::Range(b"producer")),
+        (r#""producer":"6""#, Problem::Type(b"producer")),
+        (r#""producer":4294967296"#, Problem::Range(b"producer")),
+        (r#""producer":1.5"#, Problem::Range(b"producer")),
+        (r#""llm":{"foreman":{}}"#, Problem::Range(b"llm")),
+        (r#""llm":[]"#, Problem::Type(b"llm")),
+        (r#""llm":{"producer":true}"#, Problem::Type(b"llm")),
+        (r#""llm":{"producer":{"main":{"model":"opus"}}}"#, Problem::Range(b"model")),
+        (r#""llm":{"review":{"main":{"model":"Sol"}}}"#, Problem::Range(b"model")),
+        (r#""llm":{"producer":{"main":{"model":"sol","effort":"max"}}}"#, Problem::Range(b"effort")),
+        (r#""llm":{"review":{"main":{"model":"haiku","effort":"high"}}}"#, Problem::Range(b"effort")),
+        (r#""llm":{"producer":{}}"#, Problem::Missing(b"main")),
+        (r#""llm":{"review":{"main":{}}}"#, Problem::Missing(b"model")),
+        (r#""llm":{"producer":{"main":{"model":0}}}"#, Problem::Type(b"model")),
+        (r#""llm":{"review":{"main":{"model":"sol","effort":0}}}"#, Problem::Type(b"effort")),
+        (r#""llm":{"producer":{"main":{"model":"sol"},"sub_agents":{}}}"#, Problem::Type(b"sub_agents")),
+        (r#""llm":{"review":{"main":{"model":"sol"},"sub_agents":[{"model":"opus"}]}}"#, Problem::Range(b"model")),
+    ];
+    for (member, expected) in cases {
+        for input in [format!(r#"{{"words":"a",{member}}}"#), format!(r#"{{"changes":[{{"words":"a",{member}}}]}}"#)] {
+            assert_eq!(configured_change(input.as_bytes()), Err(*expected), "{input}");
+        }
+    }
+    // Repeated models reach the root's fit check; decode checks the list's bound.
+    for count in [tasks::MODELS, tasks::MODELS + 1] {
+        let items = vec![r#"{"model":"haiku"}"#; usize::try_from(count).unwrap()].join(",");
+        let input =
+            format!(r#"{{"words":"a","llm":{{"producer":{{"main":{{"model":"sol"}},"sub_agents":[{items}]}}}}}}"#);
+        if count > tasks::MODELS {
+            assert_eq!(configured_change(input.as_bytes()), Err(Problem::TooLarge));
+        } else {
+            let engine::Tool::Change { changes } = configured_change(input.as_bytes()).expect("model limit").tool
+            else {
+                panic!("change")
+            };
+            assert_eq!(changes[0].llm.producer.as_ref().unwrap().subagents.len(), usize::try_from(count).unwrap());
+        }
+    }
 }
 
 #[test]
@@ -1492,7 +1624,7 @@ fn change_refuses_words_with_changes_and_empty_members() {
 #[test]
 fn change_offers_its_plan_members_only_with_control() {
     let legacy = br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."}},"required":["words"]}"#;
-    let plan = br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."},"name":{"type":"string","description":"Its name in this call, for a later change's after."},"landing":{"type":"string","description":"goal: your own goal branch; or a branch's name; left out, the default branch."},"after":{"type":"array","description":"What it lands after: your live delegates' task numbers, or names given earlier in this call.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"changes":{"type":"array","description":"Instead of words: several changes as one batch, each with the members above.","items":{"type":"object"}}}}"#;
+    let plan = br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."},"name":{"type":"string","description":"Its name in this call, for a later change's after."},"landing":{"type":"string","description":"goal: your own goal branch; or a branch's name; left out, the default branch."},"after":{"type":"array","description":"What it lands after: your live delegates' task numbers, or names given earlier in this call.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"producer":{"type":"integer","minimum":1,"description":"The charter its producer, repairs and resolutions run under; left out, the forge's change charter."},"llm":{"type":"object","description":"LLM choices by role, producer and review: each {main: {model, effort}, sub_agents: [{model, effort}]}, by configured names; a role left out takes its charter's default."},"changes":{"type":"array","description":"Instead of words: several changes as one batch, each with the members above.","items":{"type":"object"}}}}"#;
     let stock = 1_539;
     for (authority, schema) in [(stock, legacy.as_slice()), (stock | 0b100, plan.as_slice())] {
         let mut found = false;
