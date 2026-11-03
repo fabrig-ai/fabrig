@@ -3,7 +3,7 @@ id = "kinds-ctl-reads"
 part = "kinds-root"
 kind = "feature"
 needs = ["kinds-ctl-form", "apps-proposal-key", "kinds-switch-charters"]
-files = ["temper/crates/temper-client-protocol-wire/**", "temper/crates/temper-service/src/family.rs", "temper/crates/temper-service/src/tests/family.rs", "temper/crates/temper-engine-domain/src/route/kinds.rs", "temper/crates/temper-engine-domain/src/tests/kinds.rs", "temper/crates/temper-client-domain/src/forge/**", "temper/crates/temper-client-tools/src/jig/**", "temper/crates/temper-client-tools/src/table.rs", "temper/crates/temper-client-tools/src/tests/**", "temper/tests/codecs/tests/suite/fuzzy/client_wire.rs", "temper/docs/help/settings.md", "temper/docs/help/configure.md", "temper/docs/help/reference/ctl-settings.md", "temper/docs/help/reference/ctl-proposal.md", "temper/docs/design/client/tools.status.md", "temper/docs/design/client/forge.status.md"]
+files = ["temper/crates/temper-client-protocol-wire/**", "temper/crates/temper-service/src/family.rs", "temper/crates/temper-service/src/tests/family.rs", "temper/crates/temper-engine-domain/src/route/kinds.rs", "temper/crates/temper-engine-domain/src/boundary.rs", "temper/crates/temper-engine-domain/src/decision.rs", "temper/crates/temper-engine-domain/src/route.rs", "temper/crates/temper-service/src/route.rs", "temper/crates/temper-engine-domain/src/tests/kinds.rs", "temper/crates/temper-client-domain/src/forge/**", "temper/crates/temper-client-tools/src/jig/**", "temper/crates/temper-client-tools/src/table.rs", "temper/crates/temper-client-tools/src/tests/**", "temper/tests/codecs/tests/suite/fuzzy/client_wire.rs", "temper/docs/help/settings.md", "temper/docs/help/configure.md", "temper/docs/help/reference/ctl-settings.md", "temper/docs/help/reference/ctl-proposal.md", "temper/docs/design/client/tools.status.md", "temper/docs/design/client/forge.status.md"]
 effort = "high"
 minutes = 150
 +++
@@ -83,3 +83,20 @@ Acceptance:
 ## Report
 
 The implementer's text's report, plus: the help pages changed and the tests that read them.
+
+## Answers
+
+2026-11-03. May this task also change `temper-engine-domain/src/{boundary.rs,decision.rs,route.rs}`
+and `temper-service/src/route.rs` to carry and dispatch the typed reads? Yes; the header's
+files now name them. The playground's read is answered in the service (`family.rs`), so it is
+not the model; the root cannot be reached by jig's `core::reads::Read`, whose application arm
+carries an opaque token and window. Add, as the run recommended: a `PartyInput` for the
+forge's typed reads (the kit `Read`'s `reply`, `sign_in` and `scope`, and a typed query:
+`Setting { kind, scope, number }` or `ProposalItems { key }`) in `boundary.rs`; its arm in
+`route.rs` handing it to `route/kinds.rs`, which checks the read scope and answers from
+`domain.forge.setting(..)` and `domain.forge.proposal_settings(key)`; a `Delivery` for the
+answer, held behind preceding commits, in `decision.rs`; `family.rs` decoding the wire's two
+reads into that input and encoding the answer, and `temper-service/src/route.rs` sending it as
+the kit's `FromApplication::Read` (out of scope, the refusal the acceptance names). In those
+four files change only this plumbing and the arms the compiler forces (the workers' list of
+unexpected deliveries in `route.rs`); say in the report which deliveries you added.
