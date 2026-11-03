@@ -13,7 +13,11 @@ tooling and the `Rewrite` delivery lag (`domain/worker.md`,
 `protocol/tooling.md`, `domain/landing.md`, `protocol/git.md`). Settings of temper's kinds lag: the landing rules
 and the forge's charter are still read from the document
 (`domain/root.md`, `domain/forge.md`, `protocol/configuration.md`,
-`domain/agent.md`). Much of a change's own bounds, gates and charters,
+`domain/agent.md`). A goal's own branch is built but for its deletion
+as its goal closes (`domain/forge.md`); the reference's configuration
+lags in its template's own goal branch, which a settings file cannot
+name, its charters' turns and the project's checks
+(`protocol/configuration.md`). Much of a change's own bounds, gates and charters,
 the forge's merge queue and a goal's issue lag (`domain/forge.md`); so
 do the client's Board, Changes and How work runs pages and many of
 ctl's tools (`client/README.md`, `client/forge.md`, `client/tools.md`),
