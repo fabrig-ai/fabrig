@@ -108,7 +108,7 @@ fn template(
     limits: &Limits,
     problems: &mut Problems,
 ) -> Option<Template> {
-    let mut object = check::object(document, at, path, problems)?;
+    let mut object = check::object(document, at, path, problems, "template")?;
     let number = check::count(&mut object, document, b"number", path, problems);
     let name = match object.required(document, b"name", path, problems) {
         Some(at) => match read::text(document, at, limits.core.documents.text_bytes) {
@@ -228,7 +228,7 @@ fn resources(document: &Document, at: u32, path: &Path, limit: u32, problems: &m
     Some(resources.into_boxed())
 }
 fn resource(document: &Document, at: u32, path: &Path) -> Result<Symbol, What> {
-    let mut object = read::Object::new(document, at).or(Err(What::Form))?;
+    let mut object = read::Object::shaped(document, at, "resource").or(Err(What::Form))?;
     let mut form = Problems::empty();
     let connector = check::integer(&mut object, document, b"connector", path, &mut form);
     let symbol = check::integer(&mut object, document, b"symbol", path, &mut form);
@@ -252,20 +252,26 @@ fn named(document: &Document, at: u32, name: &[u8]) -> bool {
         Err(_) => false,
     }
 }
-fn form_object(document: &Document, at: u32, path: &Path, problems: &mut Problems) -> Option<read::Object> {
+fn form_object(
+    document: &Document,
+    at: u32,
+    path: &Path,
+    problems: &mut Problems,
+    shape: &'static str,
+) -> Option<read::Object> {
     if let Some(token) = document.token(at)
         && token.kind == Kind::String
     {
         problems.push(path.clone(), What::Form);
         return None;
     }
-    check::object(document, at, path, problems)
+    check::object(document, at, path, problems, shape)
 }
 pub(crate) fn executor(document: &Document, at: u32, path: &Path, problems: &mut Problems) -> Option<TemplateExecutor> {
     if named(document, at, b"chosen") {
         return Some(TemplateExecutor::Chosen);
     }
-    let mut object = form_object(document, at, path, problems)?;
+    let mut object = form_object(document, at, path, problems, "executor")?;
     let number = if object.member(document, b"charter").is_some() {
         check::count(&mut object, document, b"charter", path, problems)
     } else {
@@ -279,7 +285,7 @@ pub(crate) fn budget(document: &Document, at: u32, path: &Path, problems: &mut P
     if named(document, at, b"given") {
         return Some(TemplateBudget::Given);
     }
-    let mut object = form_object(document, at, path, problems)?;
+    let mut object = form_object(document, at, path, problems, "template-budget")?;
     let value = if let Some(at) = object.member(document, b"amount") {
         Some(TemplateBudget::Amount(report(read::integer(document, at, u64::MAX), &path.member(b"amount"), problems)?))
     } else if let Some(at) = object.member(document, b"as_allowed") {
@@ -304,7 +310,7 @@ pub(crate) fn deadline(document: &Document, at: u32, path: &Path, problems: &mut
     if named(document, at, b"none") {
         return Some(TemplateDeadline::None);
     }
-    let mut object = form_object(document, at, path, problems)?;
+    let mut object = form_object(document, at, path, problems, "template-deadline")?;
     let span = if object.member(document, b"span_ms").is_some() {
         check::duration(&mut object, document, b"span_ms", path, problems)
     } else {
@@ -330,7 +336,7 @@ fn priority(document: &Document, at: u32, path: &Path, problems: &mut Problems) 
     if null(document, at) {
         return Ok(None);
     }
-    let mut object = check::object(document, at, path, problems).ok_or(What::Kind)?;
+    let mut object = check::object(document, at, path, problems, "tracked").ok_or(What::Kind)?;
     let value = check::count(&mut object, document, b"priority", path, problems);
     object.finish(document, path, problems);
     Ok(Some(value.ok_or(What::Bound)?))
@@ -348,7 +354,7 @@ fn choice(
     if null(document, at) {
         return Ok(None);
     }
-    let mut object = check::object(document, at, path, problems).ok_or(What::Kind)?;
+    let mut object = check::object(document, at, path, problems, "llm-choice").ok_or(What::Kind)?;
     let main = match object.required(document, b"main", path, problems) {
         Some(at) => model_effort(document, at, &path.member(b"main"), models, problems),
         None => None,
@@ -389,7 +395,7 @@ fn model_effort(
     models: &[Model],
     problems: &mut Problems,
 ) -> Option<tasks::ModelEffort> {
-    let mut object = check::object(document, at, path, problems)?;
+    let mut object = check::object(document, at, path, problems, "model-effort")?;
     let name = check::text(&mut object, document, b"model", path, problems);
     let effort = match object.required(document, b"effort", path, problems) {
         Some(at) if null(document, at) => Some(None),
@@ -476,10 +482,10 @@ fn contract(
     limits: &tasks::Limits,
     problems: &mut Problems,
 ) -> Option<tasks::Contract> {
-    let mut object = check::object(document, at, path, problems)?;
+    let mut object = check::object(document, at, path, problems, "contract")?;
     let value = if let Some(at) = object.member(document, b"report") {
         let path = path.member(b"report");
-        let mut report = check::object(document, at, &path, problems)?;
+        let mut report = check::object(document, at, &path, problems, "report")?;
         let words = check::count(&mut report, document, b"words", &path, problems);
         report.finish(document, &path, problems);
         Some(tasks::Contract::Report { words: words? })
@@ -499,7 +505,7 @@ fn contract(
     Some(value)
 }
 fn change(document: &Document, at: u32, path: &Path, problems: &mut Problems) -> Option<tasks::Contract> {
-    let mut object = check::object(document, at, path, problems)?;
+    let mut object = check::object(document, at, path, problems, "change")?;
     let connector = check::short(&mut object, document, b"connector", path, problems);
     let kind = check::short(&mut object, document, b"kind", path, problems);
     let words = check::count(&mut object, document, b"words", path, problems);
@@ -513,14 +519,14 @@ fn verdict(
     limits: &tasks::Limits,
     problems: &mut Problems,
 ) -> Option<tasks::Contract> {
-    let mut object = check::object(document, at, path, problems)?;
+    let mut object = check::object(document, at, path, problems, "verdict")?;
     let items = check::list(&mut object, document, b"choices", limits.contract_choices, path, problems);
     object.finish(document, path, problems);
     let items = items?;
     let mut choices = List::with_capacity(items.len());
     for (index, at) in items.iter().enumerate() {
         let path = check::index(&path.member(b"choices"), index);
-        let mut object = check::object(document, *at, &path, problems)?;
+        let mut object = check::object(document, *at, &path, problems, "verdict-choice")?;
         let code = check::count(&mut object, document, b"code", &path, problems);
         let words = check::count(&mut object, document, b"words", &path, problems);
         let followups = check::count(&mut object, document, b"followups", &path, problems);
@@ -540,7 +546,7 @@ fn fields(document: &Document, at: u32, path: &Path, problems: &mut Problems) ->
     let mut fields = List::with_capacity(items.len());
     for (index, at) in items.iter().enumerate() {
         let path = check::index(path, index);
-        let mut object = check::object(document, *at, &path, problems)?;
+        let mut object = check::object(document, *at, &path, problems, "verdict-field")?;
         let name = check::text(&mut object, document, b"name", &path, problems);
         let max = check::count(&mut object, document, b"max", &path, problems);
         object.finish(document, &path, problems);
@@ -560,7 +566,7 @@ pub(crate) fn overrides(
     let mut entries = List::<jig_domain_people::TemplateOverride>::with_capacity(items.len());
     for (index, at) in items.iter().enumerate() {
         let path = check::index(path, index);
-        let mut object = check::object(document, *at, &path, problems)?;
+        let mut object = check::object(document, *at, &path, problems, "template-override")?;
         let template = check::count(&mut object, document, b"template", &path, problems);
         if let Some(number) = template {
             for previous in &entries {
