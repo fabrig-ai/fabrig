@@ -1,3 +1,41 @@
 draft = "wasm32-temper-2"
 repo = "fabrig"
 sources = ["temper/docs/plan/wasm32-temper-2/inputs/request.md", "AGENTS.md"]
+
+# temper-playground joins fab's wasm32 gate list, second try (inputs/request.md): wasm32-jig
+# scoped jig's size expectations to the host. One task measures, adds the line and narrows
+# temper's playground status, or changes nothing and reports. The gate's clippy lints the
+# listed packages and the workspace crates they depend on, so the line also brings skein's and
+# smith's remaining portable crates in: two status tasks, one per tree, close those entries
+# when the list holds the line. plan.md says why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "playground-list"
+title = "fabrig: temper-playground in .config/gate/wasm32.txt when its wasm32 clippy is green; temper's playground status narrows"
+mode = "direct"
+needs = []
+design = "temper/docs/design/playground.md, 9"
+
+[[part]]
+id = "skein-status"
+title = "skein: the portable crates temper-playground brings into the gate's wasm32 clippy leave skein's status"
+mode = "direct"
+needs = ["playground-list"]
+design = "skein/docs/design/testing.md, 10"
+
+[[part]]
+id = "smith-status"
+title = "smith: smith-agent-shell, which temper-playground brings into the gate's wasm32 clippy, leaves smith's status"
+mode = "direct"
+needs = ["playground-list"]
+design = "smith/docs/design/shell.md, 2.5"
+
+[[slice]]
+id = 1
+story = "fab's clippy-wasm32 step clippies temper-playground and the workspace crates it links for wasm32-unknown-unknown, warnings denied, and the trees' status files say so"
+parts = ["playground-list", "skein-status", "smith-status"]
+walk = false
