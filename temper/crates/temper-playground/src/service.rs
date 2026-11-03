@@ -16,9 +16,9 @@ use std::{
 /// A harness owns every capture, wire, commit, cut and reserved listener here.
 pub trait Observe: Sized {
     fn started(root: Fd, inherited: &Inherited) -> Self;
-    /// Return true when a completion belongs to the harness's reserved listener.
-    fn complete(&mut self, _complete: &Complete, _service: &mut temper_service::Service) -> bool {
-        false
+    /// Return a completion to the service, or consume one owned by a reserved listener.
+    fn complete(&mut self, complete: Complete, _service: &mut temper_service::Service) -> Option<Complete> {
+        Some(complete)
     }
     /// Observe completed store operations, then optionally run a reserved listener.
     /// Return true to replace the service's iteration on this turn.
@@ -186,7 +186,7 @@ impl<H: Harness> Host for ServiceState<H> {
         for _ in 0..self.service.completions().len() {
             let complete = self.service.completions().pop().expect("completion count");
             assert!(self.in_flight.remove(&complete.op), "completion has an operation in flight");
-            if !self.observer.complete(&complete, &mut self.service) {
+            if let Some(complete) = self.observer.complete(complete, &mut self.service) {
                 self.service.completions().push(complete);
             }
         }
