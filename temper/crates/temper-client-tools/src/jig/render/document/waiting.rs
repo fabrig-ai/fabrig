@@ -7,6 +7,7 @@ use skein_ui::phrases::Phrasebook;
 #[derive(Debug)]
 pub(crate) struct Waiting<'a> {
     pub digest: Option<crate::jig::digest::Digest>,
+    pub specification: Option<&'a crate::jig::runner::specification::Specification>,
     pub result: Option<&'a c::Result>,
     pub delivery: Option<&'a c::Delivery>,
     pub me: Option<&'a c::Me>,
@@ -109,7 +110,9 @@ fn subject_text(
     let Some(delivery) = wait.delivery else { return };
     match delivery {
         c::Delivery::Me(me) => super::me_text(me, book, limits, out),
-        c::Delivery::Task(task) => super::task_text(task, wait.me, book, vocabulary, out),
+        c::Delivery::Task(task) => {
+            super::task_with_specification(task, wait.me, book, vocabulary, wait.specification, out);
+        }
         c::Delivery::Tree(_) => super::super::lists::tree(delivery, None, book, out),
         c::Delivery::Tasks(tasks) => {
             for row in tasks.rows.as_slice().iter().take(most) {

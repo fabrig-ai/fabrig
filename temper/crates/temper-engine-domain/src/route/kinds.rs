@@ -8,7 +8,7 @@ use temper_engine_domain_forge::settings;
 
 use crate::{Domain, Limits, Work};
 
-#[expect(clippy::wildcard_enum_match_arm, reason = "the forge dispatcher selects only the five settings asks")]
+#[expect(clippy::wildcard_enum_match_arm, reason = "the forge dispatcher selects only the settings asks")]
 pub(super) fn ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: connector::Ask) {
     if number != domain.config.forge_connector {
         return;
@@ -51,6 +51,29 @@ pub(super) fn ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: conn
             let asked = typed_items(domain, None, &items);
             domain.forge.keep_proposal_settings(proposal, &asked, &mut out);
         }
+        connector::Ask::RestoreSettings { owner, proposal, items } => {
+            let answers = domain.forge.restore_settings(&bounds(&env.limits), proposal, &items, &mut out);
+            let mut judged = List::uncapped();
+            for answer in answers {
+                let answer = match answer {
+                    settings::Judged::Accept { size, charter } => connector::Judged::Accept {
+                        size,
+                        charters: match charter {
+                            Some(charter) => Box::new([charter]),
+                            None => Box::default(),
+                        },
+                    },
+                    settings::Judged::Refuse(why) => connector::Judged::Refuse { why: why.words().into() },
+                    settings::Judged::Same => unreachable!("a restore judges the kind's bounds alone"),
+                };
+                judged.push(answer).expect("one judgement per restored item");
+            }
+            domain.work.push(Work::Core(Event::EffectConnector(connector::Event::SettingsRestored {
+                owner,
+                judged: judged.into_boxed(),
+            })));
+        }
+        connector::Ask::ForgetReplaced { before } => domain.forge.forget_replaced(before, &mut out),
         connector::Ask::DropProposalSettings { proposal } => domain.forge.drop_proposal_settings(proposal, &mut out),
         connector::Ask::SaveSettingsDefaults { revision: _ } => save_defaults(domain, &mut out),
         _ => unreachable!("the forge routes only its settings asks here"),

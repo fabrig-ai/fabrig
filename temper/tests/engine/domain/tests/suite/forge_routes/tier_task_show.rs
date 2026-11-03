@@ -23,13 +23,13 @@ pub(super) fn world() -> World {
 pub(super) fn assert_words(world: &mut World, task: u64, expected: &str) {
     world.signed_in = None;
     world.sign_in();
-    let printed = show(world, task);
+    let printed = show(world, task, false, false);
     assert_eq!(printed.status, 0);
     let text = std::str::from_utf8(&printed.stdout).expect("ctl text");
     assert!(text.contains(&format!("asked: {expected}")), "missing full execution identity: {text}");
 }
 
-fn show(world: &mut World, task: u64) -> temper_client_tools::jig::Printed {
+fn show(world: &mut World, task: u64, json_output: bool, change: bool) -> temper_client_tools::jig::Printed {
     let env = Env {
         limits: root::Limits::new(temper_client_tools::limits::client(), temper_client_tools::limits::tools()),
         now: world.env.now,
@@ -46,11 +46,17 @@ fn show(world: &mut World, task: u64) -> temper_client_tools::jig::Printed {
     }
     let number = task.to_string();
     let Parsed::Call { call, json } =
-        temper_client_tools::table::parse(&[b"task", b"show", number.as_bytes()]).expect("task show")
+        temper_client_tools::table::parse(&[if change { b"change" } else { b"task" }, b"show", number.as_bytes()])
+            .expect("task show")
     else {
         panic!("call")
     };
-    root::step(&mut root, &env, root::Event::Call { number: 1, call, json, value: None }, &mut out);
+    root::step(
+        &mut root,
+        &env,
+        root::Event::Call { number: 1, call, json: json_output || json, value: None },
+        &mut out,
+    );
     // Each supplemental chunk consumes at least one source byte within ctl's text bound.
     for _ in 0..env.limits.tools.text {
         let request = out.pop().expect("ctl requests until printed");
@@ -90,13 +96,20 @@ fn answer(world: &mut World, read: reads::Read) -> c::ReadValue {
             .unwrap_or_else(|problem| panic!("engine projection: {problem:?}, {answer:?}"));
     let mut bytes = Writer::new(usize::try_from(wire.measure()).expect("document fits"));
     wire.encode(&mut bytes).expect("measured document");
-    let preset = temper_client_tools::limits::client().client;
+    let mut preset = temper_client_tools::limits::client().client;
+    preset.domain.text = preset.domain.text.min(world.env.limits.documents.text_bytes);
     let limits = jig_client_protocol_link::Limits::new(preset.domain, preset.exchanges).expect("client limits");
     jig_client_protocol_link::translate::reads::value(&bytes.finish(), &limits).expect("client translation")
 }
 
 fn response(world: &mut World, request: root::Request) -> Option<client::Event> {
     Some(match request {
+        root::Request::Client {
+            request:
+                client::Request::Down {
+                    down: client::Down::Open { watch, subject: client::Watchable::Family { record, .. } },
+                },
+        } => panel(world, watch, &record),
         root::Request::Client { request: client::Request::Down { down: client::Down::Open { watch, .. } } } => {
             let value = answer(world, reads::Read::Frame);
             let c::ReadValue::Me(me) = value else { panic!("me") };
@@ -115,4 +128,65 @@ fn response(world: &mut World, request: root::Request) -> Option<client::Event> 
 
         _ => return None,
     })
+}
+
+/// Exercise ctl's wire decoding and both renderers with the retained hold account.
+pub(in super::super) fn assert_hold_words(world: &mut World, task: u64, expected: &str) {
+    for (json, change) in [(false, false), (true, false), (false, true), (true, true)] {
+        let printed = show(world, task, json, change);
+        let registered = world
+            .store
+            .rows
+            .contains_key(&temper_engine_domain::Key::Forge(temper_engine_domain_forge::Key::Change(task)));
+        assert_eq!(printed.status, if change && !registered { 2 } else { 0 });
+        let bytes = [printed.stdout.as_ref(), printed.stderr.as_ref()].concat();
+        let text = std::str::from_utf8(&bytes).expect("ctl output");
+        assert!(text.contains(expected), "incomplete hold account: {text}");
+    }
+}
+
+fn panel(world: &mut World, watch: skein_lib::Token, record: &client::Family) -> client::Event {
+    use temper_client_protocol_wire as wire;
+    let watching = wire::decode_watching(&record.bytes, &wire::v1::CEILINGS).expect("change watch");
+    let wire::v1::Watch::Change(subject) = watching.into_parts().watch else { panic!("change") };
+    if !world
+        .store
+        .rows
+        .contains_key(&temper_engine_domain::Key::Forge(temper_engine_domain_forge::Key::Change(subject.task())))
+    {
+        return client::Event::Up { up: client::Up::WatchEnded { watch, end: c::WatchEnd::Unknown } };
+    }
+    let engine_watch = skein_lib::Token::new(world.env.now.as_nanos());
+    world.send(temper_engine_domain::Event::Party(temper_engine_domain::PartyInput::Watch {
+        watcher: engine_watch,
+        sign_in: world.signed_in.expect("owner"),
+        subject: jig_domain_core::documents::Watched::Application {
+            scope: jig_domain_people::ApplicationScope::Project(1),
+            connector: 0,
+            subject: skein_lib::Token::new(subject.task()),
+        },
+        window: jig_domain_core::documents::Window { rows: 0, after: None },
+    }));
+    for _ in 0..40 {
+        world.tick();
+        if let Some(index) = world.panels.iter().position(|(token, _)| *token == engine_watch) {
+            let panel = world.panels.remove(index).1;
+            let bytes = temper_service::family::panel(
+                panel,
+                &temper_service::forges::Forges::with_capacity(0),
+                &wire::v1::CEILINGS,
+            )
+            .expect("panel fits");
+            world.send(temper_engine_domain::Event::Party(temper_engine_domain::PartyInput::Unwatch {
+                watcher: engine_watch,
+            }));
+            return client::Event::Up {
+                up: client::Up::FamilyDelivered {
+                    watch,
+                    record: client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes },
+                },
+            };
+        }
+    }
+    panic!("change panel not delivered");
 }
