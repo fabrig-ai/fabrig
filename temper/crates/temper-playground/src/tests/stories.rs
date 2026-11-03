@@ -105,6 +105,18 @@ fn story_as_stock_runs_fit_the_hosted_agents_spend_bound() {
 }
 
 #[test]
+fn story_as_project_has_room_for_the_chat_and_its_delegate() {
+    // The chat and the script's immediate batch coexist in the same project.
+    const CHAT: u64 = 1;
+    let llm: Value = serde_json::from_slice(A.llm).expect("story LLM");
+    let batch = llm["asked"][0]["turns"][0]["lines"][1]["arguments"]["batch"].as_array().expect("delegate batch");
+    let tasks = CHAT + u64::try_from(batch.len()).expect("batch size");
+    let document: Value = serde_json::from_slice(A.deployment).expect("story deployment");
+    let engine = documents::settings::configuration(&document);
+    assert!(u64::from(engine.limits.core.tasks.project_tasks) >= tasks);
+}
+
+#[test]
 fn story_as_delegates_fit_the_result_contract_bound() {
     let llm: Value = serde_json::from_slice(A.llm).expect("story LLM");
     let contract = &llm["asked"][0]["turns"][0]["lines"][1]["arguments"]["batch"][0]["contract"];
