@@ -2,6 +2,7 @@ use super::fixtures;
 use crate::{jig, table};
 use skein_lib::List;
 const GOLDENS: &[(Option<u8>, &str)] = &[
+    (Some(jig::rows::GOAL_START_AT), "help_goal_start"),
     (Some(jig::rows::CHAT_CREATE_AT), "help_chat_start"),
     (Some(jig::rows::TASK_TEXT_AT), "help_task_text"),
     (Some(jig::rows::LIFT_AT), "help_hold_lift"),
@@ -139,6 +140,7 @@ const USAGES: &[&[u8]] = &[
     b"forge remove FORGE [--key KEY]\n",
     b"playground end [--key KEY]\n",
     b"task text TASK [--field specification|instructions] [--from OFFSET]\n",
+    b"goal start --project PROJECT [--template TEMPLATE] TEXT [--charter CHARTER] [--priority PRIORITY] [--budget AMOUNT] [--as-allowed] [--deadline TIME] [--model MODEL] [--effort EFFORT] [--sub-agent MODEL[:EFFORT]]... --key KEY\n",
 ];
 #[test]
 fn a_tools_usage_reads_as_the_design_writes_it() {
@@ -395,4 +397,9 @@ fn the_settings_reference_is_what_the_table_renders() {
 #[test]
 fn the_proposal_reference_is_what_the_table_renders() {
     reference_matches(b"proposal", b"ctl-proposal");
+}
+
+#[test]
+fn the_goal_reference_is_what_the_table_renders() {
+    reference_matches(b"goal", b"ctl-goal");
 }

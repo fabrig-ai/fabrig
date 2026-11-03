@@ -1,5 +1,6 @@
 //! Offered acts are read once, then kept by the shared client's request table.
 pub(crate) mod choice;
+mod goal;
 mod subject;
 use super::{Called, Out, Runner, finish};
 use crate::jig::{
@@ -86,9 +87,9 @@ pub(super) fn start(runner: &mut Runner, client: &Client, env: &Env<Limits>, cal
         prepared(runner, client, env, called, request, out);
         return;
     }
-    if called.call.tool == rows::CHAT_CREATE_AT {
+    if called.call.tool == rows::CHAT_CREATE_AT || called.call.tool == rows::GOAL_START_AT {
         let Some(me) = me(runner, client) else { return };
-        let ask = chat(&called.call, me, &env.limits);
+        let ask = creation(&called.call, me, &env.limits);
         prepared(runner, client, env, called, ask, out);
         return;
     }
@@ -133,6 +134,9 @@ fn project_fund(call: &Call, me: &c::Me) -> Prepared {
         None => Err(Failed::Fixed(b"unknown project")),
     }
 }
+fn creation(call: &Call, me: &c::Me, limits: &Limits) -> Prepared {
+    if call.tool == rows::GOAL_START_AT { goal::start(call, me, limits) } else { chat(call, me, limits) }
+}
 fn chat(call: &Call, me: &c::Me, limits: &Limits) -> Prepared {
     let project = super::reads::project(call, me).ok_or(Failed::Fixed(b"unknown project"))?;
     let template = number(call, 1);
@@ -157,15 +161,7 @@ fn chat(call: &Call, me: &c::Me, limits: &Limits) -> Prepared {
     };
     let c::Ask::Create { tasks, .. } = &mut ask else { unreachable!("chat creates") };
     let task = tasks.get_mut(0).expect("chat creates one task");
-    task.llm = choice::llm(call, 3, 4, me, project, task.llm.as_ref())?;
-    if let Some(Some(_)) = call.values.get(5)
-        && value(call, 3).is_none()
-    {
-        return Err(Failed::Fixed(b"--sub-agent needs --model"));
-    }
-    if let Some(subagents) = choice::sub_agents(call, 5, me, project)? {
-        task.llm.as_mut().expect("sub-agents require a main model").subagents = subagents;
-    }
+    task.llm = choice::selection(call, 3, 4, 5, me, project, task.llm.as_ref())?;
     let mut creating = None;
     for membership in &me.projects {
         if membership.project == project {
@@ -694,10 +690,7 @@ fn send(
     if let Some(me) = me(runner, client) {
         operation.party = Some(me.party.number);
     }
-    // The compound's public operation is close, rather than its final cancellation.
-    if called.call.tool == rows::CLOSE_AT {
-        operation.word = b"close";
-    }
+    operation.word = operation_word(called.call.tool, operation.word);
     if (rows::CONNECT_AT..=rows::RETRY_AT).contains(&called.call.tool)
         || called.call.tool == rows::DECLARE_AT
         || called.call.tool == rows::VERIFY_AT
@@ -852,5 +845,13 @@ fn draw_name(runner: &mut Runner, called: &mut Called) {
             }
         }
         called.call.key = Some(crate::jig::key::Name::new(&bytes).expect("drawn hexadecimal name"));
+    }
+}
+
+fn operation_word(tool: u8, word: &'static [u8]) -> &'static [u8] {
+    match tool {
+        rows::GOAL_START_AT => b"goal",
+        rows::CLOSE_AT => b"close",
+        _ => word,
     }
 }

@@ -2,7 +2,7 @@
 
 2026-11-03. Remaining gaps between temper's code and [tools.md](tools.md).
 
-- **Not yet:** 5.1: the groups `goal`, `finding`, `qa`, `party` and
+- **Not yet:** 5.1: the groups `finding`, `qa`, `party` and
   `deployment`, absent from `temper-client-tools`' `table.rs` `GROUPS`.
   5.2: `repository receipts`, `finding list`, `finding show`, `qa marks`,
   `qa passes` and `hold list`. 5.3: `task move
@@ -11,7 +11,7 @@
   restore`; a template's resources in a settings file and in
   `settings show`: the file's template has no `resources` member
   (`temper-settings-form/src/view.rs`), and one applied from a file
-  names none (`jig/settings_adapter.rs`, `client_template`). 5.5: area 2's `goal start` with its model flags,
+  names none (`jig/settings_adapter.rs`, `client_template`). 5.5: area 2's procedure executor choice for `goal start`,
   `proposal withdraw`, `seen`, and `task amend`'s `--budget`; area 3's `party make`, `sign-in --service`, `deployment
   show`, `task move`, `task take`, `task hand-back`, and the project's
   `policy`, `role` and `pool`; area 4's `create`, `propose` and
