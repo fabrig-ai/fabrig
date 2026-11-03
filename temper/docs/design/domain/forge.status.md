@@ -46,7 +46,6 @@
   - 8.8: the rule and criterion a change waits on, and its charter, on its
     panel.
   - 8.10: a change drained.
-  - 8.11: a change's foremen: a question is passed up, never given a foreman.
   - 8.4, 8.11: a change waiting on an agent whose question is open
     stalls as any wait on its delegate does (`temper-engine-domain-forge-change/src/domain.rs`,
     `waiting`).

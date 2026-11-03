@@ -12,7 +12,7 @@ const BUDGET: u64 = 200;
 // This story does not test stalls: keep that product timeout beyond its horizon
 // (skein/docs/foundation/testing-strategy.md, 6); relay-stall owns the question wait.
 
-fn plan_world(bound: Option<u32>) -> (World, engine::Assignment) {
+pub(super) fn plan_world(bound: Option<u32>) -> (World, engine::Assignment) {
     let mut world = World::configured_limits(
         true,
         true,
@@ -20,8 +20,17 @@ fn plan_world(bound: Option<u32>) -> (World, engine::Assignment) {
         1000,
         Gate { approval: None, agent: false, owner: false },
         None,
-        StoryLimits { questions: bound, stall: Some(Duration::from_secs(3600)), ..StoryLimits::default() },
+        StoryLimits {
+            slots: Some(3),
+            questions: bound,
+            stall: Some(Duration::from_secs(3600)),
+            ..StoryLimits::default()
+        },
     );
+    // The foreman's whole question and its contract share the required task section.
+    world.env.limits.brief.budgets.task = 512;
+    let client = world.env.limits.forge.client;
+    world = world.with_forge_client(client);
     world.adopt();
     world.send(protocol::hello_slots(CHANNEL, 3, Box::new([])));
     let people::Ask::Create { project, mut batch } = adoption_chat(&world) else { unreachable!() };
@@ -51,7 +60,7 @@ fn plan_world(bound: Option<u32>) -> (World, engine::Assignment) {
     (world, requester)
 }
 
-fn call(world: &mut World, run: &engine::Assignment, number: u64, tool: engine::Tool) {
+pub(super) fn call(world: &mut World, run: &engine::Assignment, number: u64, tool: engine::Tool) {
     let before = world.answers.len() + world.call_errors.len();
     let event = world.protocol.call(
         CHANNEL,
@@ -93,7 +102,7 @@ fn call(world: &mut World, run: &engine::Assignment, number: u64, tool: engine::
     panic!("call {number} answered: answers={:?}; errors={:?}", world.answers, world.call_errors);
 }
 
-fn make_change(
+pub(super) fn make_change(
     world: &mut World,
     requester: &engine::Assignment,
     number: u64,
@@ -108,7 +117,7 @@ fn make_change(
     made[0].task
 }
 
-fn next_producer(world: &mut World, change: u64) -> engine::Assignment {
+pub(super) fn next_producer(world: &mut World, change: u64) -> engine::Assignment {
     for _ in 0..TICKS {
         if let Some(run) =
             world.assigned.iter().find(|run| live_task(world, run.task).requester == tasks::Party::Task(change))
@@ -132,7 +141,7 @@ fn next_producer(world: &mut World, change: u64) -> engine::Assignment {
     );
 }
 
-fn row(world: &World, change: u64) -> &forge_top::ChangeRow {
+pub(super) fn row(world: &World, change: u64) -> &forge_top::ChangeRow {
     let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::Change(change))) else {
         panic!("change row")
     };
@@ -140,7 +149,7 @@ fn row(world: &World, change: u64) -> &forge_top::ChangeRow {
     row
 }
 
-fn replies(world: &World, target: u64, from: u64) -> Vec<&tasks::Word> {
+pub(super) fn replies(world: &World, target: u64, from: u64) -> Vec<&tasks::Word> {
     live_task(world, target).inbox.iter().filter(|word| word.from == tasks::Party::Task(from)).collect()
 }
 
@@ -255,16 +264,30 @@ fn a_restart_keeps_an_open_question_where_it_stood() {
 }
 
 #[test]
-fn questions_foreman_is_still_refused_at_the_call() {
+fn questions_foreman_is_offered_with_control() {
     let (mut world, requester) = plan_world(None);
-    let mut change = engine::ChangeCall::words(b"Make the agreed fix".as_slice().into(), None);
-    change.questions = Some(engine::ChangeQuestions::Foreman);
-    call(&mut world, &requester, CALL, engine::Tool::Change { changes: Box::new([change]) });
-    assert_eq!(world.call_errors.len(), 1);
-    assert_eq!(world.call_errors[0].text.as_ref(), b"change's questions foreman is not offered yet.");
+    let input = smith_domain_run::HostInput::attested(
+        br#"{"words":"Make the agreed fix","questions":"foreman"}"#.as_slice().into(),
+    )
+    .expect("change input");
+    let temper_engine_smith::Decoded::Call(decoded) = temper_engine_smith::call(
+        smith_domain_run::CallName { activation: requester.attempt, completion: 1, position: 1 },
+        b"change",
+        &input,
+    )
+    .expect("foreman change decodes") else {
+        panic!("change call")
+    };
+    call(&mut world, &requester, CALL, decoded.tool);
+    let Some(engine::CallAnswer::Delegated(made)) = world.answers.last() else { panic!("foreman change made") };
+    let change = made[0].task;
+    assert!(world.call_errors.is_empty());
+    assert!(live_task(&world, change).spec.parameters.contains(&tasks::Parameter::Number { name: 14, value: 1 }));
+    assert!(live_task(&world, change).authority.delegation.kinds.contains(&tasks::AuthorityExecutor::Charter(6)));
+    assert_eq!(live_task(&world, change).authority.delegation.tasks, 7);
 }
 
-fn wait_answer(world: &mut World, producer: u64, change: u64) {
+pub(super) fn wait_answer(world: &mut World, producer: u64, change: u64) {
     for _ in 0..TICKS {
         world.tick();
         if !replies(world, producer, change).is_empty()

@@ -1,13 +1,14 @@
 //! The root's half of a change's relay (temper/docs/design/domain/forge.md, 8.11).
 use super::{
-    Box, Domain, Env, Limits, List, ProcedureStep, append, forge_change as change, holds, landing_route,
-    takes_no_messages, tasks,
+    Box, Domain, Env, Limits, List, ProcedureStep, append, foreman, forge_change as change, holds, takes_no_messages,
+    tasks,
 };
 use jig_domain_core::{StepCancel, StepMessage};
 
 /// A proposed step's relay is saved only after jig admits the whole step.
 #[derive(Debug)]
 pub(crate) struct ChangeStep {
+    pub(crate) foreman: bool,
     pub(crate) delegate: Option<change::Delegate>,
     pub(crate) relayed: Option<change::Relayed>,
     pub(crate) refusal: Option<Box<[u8]>>,
@@ -54,22 +55,13 @@ pub(super) fn apply(domain: &mut Domain, env: &Env<Limits>, task: u64, mut decis
         Some(pending) => pending.released,
         None => false,
     };
-    let foreman = match questions.open.first() {
-        Some(change::Open { stands: change::Stands::Foreman { task }, .. }) => {
-            Some((task.unwrap_or(0), change::Settled::Failed(b"no foreman is offered yet.".as_slice())))
-        }
-        Some(change::Open {
-            stands: change::Stands::Taken | change::Stands::Asked | change::Stands::Held { .. },
-            ..
-        })
-        | None => None,
-    };
+    let foreman = foreman::settled(row, offered, &questions);
     let heard = change::RelayHeard {
         asked: asked.as_slice(),
         foreman,
         answer,
         ended: ended.as_slice(),
-        kept: landing_route::kept(domain, env, task),
+        kept: !row.waiting_on.is_empty(),
         released,
     };
     let deferred = answer.is_some() && messages.room() == 0 && !heard.kept;
@@ -81,12 +73,27 @@ pub(super) fn apply(domain: &mut Domain, env: &Env<Limits>, task: u64, mut decis
         usize::try_from(messages.room()).expect("bounded batch"),
     );
     relayed.more |= deferred;
-    relayed = settle_foreman(
-        relayed,
-        &heard,
-        &env.limits.forge.change_policy,
-        usize::try_from(messages.room()).expect("bounded batch"),
-    );
+    let mut foreman_delegate = None;
+    if has_foreman(&relayed.acts) {
+        // Learn one delegate number per step. Commit other work before asking a foreman.
+        if !decision.batch.is_empty() || !messages.is_empty() || relayed.acts.len() > 1 {
+            defer_foreman(&mut relayed);
+        } else if let Some(cause) = super::change_authority_lack(domain, task) {
+            relayed = failed_foreman(relayed, &heard, env, &change::authority_words(cause), messages.room());
+        } else {
+            let question = relayed.questions.open.first().expect("the foreman has a head question");
+            foreman_delegate = foreman::delegate(domain, env, task, question);
+            if foreman_delegate.is_none() {
+                relayed = failed_foreman(
+                    relayed,
+                    &heard,
+                    env,
+                    b"foreman delegate cannot be described within its authority and brief bounds",
+                    messages.room(),
+                );
+            }
+        }
+    }
     let mut cancels = List::with_capacity(env.limits.tasks.batch);
     for cancel in decision.cancels {
         cancels.push(cancel).expect("decision cancels fit the step batch");
@@ -98,7 +105,11 @@ pub(super) fn apply(domain: &mut Domain, env: &Env<Limits>, task: u64, mut decis
                     .push(StepMessage {
                         target: *asker,
                         kind: tasks::MessageKind::Answer { question: *number },
-                        words: words.clone(),
+                        words: super::forge::text::fit(
+                            words,
+                            usize::try_from(env.limits.tasks.message_bytes).expect("message bound"),
+                            "…".as_bytes(),
+                        ),
                     })
                     .expect("relay respects message room");
             }
@@ -137,20 +148,29 @@ pub(super) fn apply(domain: &mut Domain, env: &Env<Limits>, task: u64, mut decis
                     }
                 }
             }
-            change::RelayAct::Foreman { .. } => unreachable!("the unavailable foreman is settled above"),
+            change::RelayAct::Foreman { .. } => {
+                decision.batch = Box::new([foreman_delegate.take().expect("the foreman is described")]);
+            }
         }
     }
     decision.messages = messages.into_boxed();
     decision.cancels = cancels.into_boxed();
     if relayed.questions != questions || relayed.more {
         if let Some(pending) = domain.forge_delegating.get_mut(&(task, step)) {
+            pending.foreman = has_foreman(&relayed.acts);
             pending.relayed = Some(relayed);
         } else {
             domain
                 .forge_delegating
                 .insert(
                     (task, step),
-                    ChangeStep { delegate: None, relayed: Some(relayed), refusal: None, released: false },
+                    ChangeStep {
+                        foreman: has_foreman(&relayed.acts),
+                        delegate: None,
+                        relayed: Some(relayed),
+                        refusal: None,
+                        released: false,
+                    },
                 )
                 .expect("one pending relay per change");
         }
@@ -195,6 +215,9 @@ pub(crate) fn refused(
     pending: ChangeStep,
     why: &jig_domain_core::StepRefusal,
 ) -> bool {
+    if pending.foreman {
+        return refused_foreman(domain, env, task, step, pending, why);
+    }
     let jig_domain_core::StepRefusal::Refused(problem) = why else { return false };
     let Some(mut relayed) = pending.relayed else { return false };
     if !has_ask(&relayed.acts) || problem.why != tasks::Refusal::Busy {
@@ -243,7 +266,13 @@ pub(crate) fn refused(
         .forge_delegating
         .insert(
             (task, step),
-            ChangeStep { delegate: None, relayed: Some(relayed), refusal: Some(words), released: false },
+            ChangeStep {
+                foreman: false,
+                delegate: None,
+                relayed: Some(relayed),
+                refusal: Some(words),
+                released: false,
+            },
         )
         .expect("the refused step's slot is free");
     domain.work.push(super::Work::Core(jig_domain_core::Event::ProcedureStep {
@@ -334,55 +363,116 @@ fn take<'a>(
     Inbox { messages, asked, answer }
 }
 
-fn settle_foreman(
-    mut relayed: change::Relayed,
-    heard: &change::RelayHeard<'_>,
-    limits: &change::Limits,
-    room: usize,
-) -> change::Relayed {
-    let mut foreman = false;
-    for act in &relayed.acts {
+fn has_foreman(acts: &[change::RelayAct]) -> bool {
+    for act in acts {
         match act {
-            change::RelayAct::Foreman { .. } => foreman = true,
+            change::RelayAct::Foreman { .. } => return true,
             change::RelayAct::Answer { .. }
             | change::RelayAct::Ask { .. }
             | change::RelayAct::Cancel { .. }
             | change::RelayAct::Hold => {}
         }
     }
-    if !foreman {
-        return relayed;
-    }
+    false
+}
+
+fn defer_foreman(relayed: &mut change::Relayed) {
+    let question = relayed.questions.open.first_mut().expect("the foreman has a head question");
+    question.stands = change::Stands::Taken;
+    relayed.questions.taken = relayed.questions.taken.saturating_sub(1);
     let mut acts = List::uncapped();
-    let mut remaining = room;
-    for act in relayed.acts {
+    for act in &relayed.acts {
         match act {
             change::RelayAct::Foreman { .. } => {}
-            act @ (change::RelayAct::Answer { .. } | change::RelayAct::Ask { .. }) => {
-                remaining = remaining.saturating_sub(1);
-                acts.push(act).expect("bounded relay acts");
-            }
-            act @ (change::RelayAct::Cancel { .. } | change::RelayAct::Hold) => {
-                acts.push(act).expect("bounded relay acts");
+            change::RelayAct::Answer { .. }
+            | change::RelayAct::Ask { .. }
+            | change::RelayAct::Cancel { .. }
+            | change::RelayAct::Hold => {
+                acts.push(act.clone()).expect("bounded relay acts");
             }
         }
     }
+    relayed.acts = acts.into_boxed();
+    relayed.more = true;
+}
+
+fn failed_foreman(
+    relayed: change::Relayed,
+    heard: &change::RelayHeard<'_>,
+    env: &Env<Limits>,
+    words: &[u8],
+    room: u32,
+) -> change::Relayed {
     let settled = change::RelayHeard {
         asked: &[],
-        foreman: Some((0, change::Settled::Failed(b"no foreman is offered yet."))),
+        foreman: Some((0, change::Settled::Failed(words))),
         answer: None,
         ended: &[],
         kept: heard.kept,
         released: false,
     };
-    let next = change::relay(&relayed.questions, &settled, limits, remaining);
-    for act in next.acts {
-        acts.push(act).expect("bounded relay acts");
+    change::relay(
+        &relayed.questions,
+        &settled,
+        &env.limits.forge.change_policy,
+        usize::try_from(room).expect("bounded batch"),
+    )
+}
+
+fn refused_foreman(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    task: u64,
+    step: u64,
+    pending: ChangeStep,
+    why: &jig_domain_core::StepRefusal,
+) -> bool {
+    let Some(relayed) = pending.relayed else { return false };
+    let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
+    append(&mut words, b"Foreman delegate refused");
+    match why {
+        jig_domain_core::StepRefusal::Denied { findings, .. } => holds::findings(&mut words, findings),
+        jig_domain_core::StepRefusal::Refused(problem) => {
+            append(&mut words, b": ");
+            append(&mut words, foreman::refusal_words(problem.why));
+        }
+        jig_domain_core::StepRefusal::Moved { .. } => return false,
     }
-    relayed.questions = next.questions;
-    relayed.acts = acts.into_boxed();
-    relayed.more |= next.more;
-    relayed
+    let heard =
+        change::RelayHeard { asked: &[], foreman: None, answer: None, ended: &[], kept: false, released: false };
+    let relayed = failed_foreman(relayed, &heard, env, words.as_slice(), env.limits.tasks.batch);
+    let Some(question) = relayed.questions.open.first() else { return false };
+    let Some(row) = domain.core.tasks.task(task) else { return false };
+    let tasks::Party::Task(target) = row.requester else { return false };
+    let mut messages = List::with_capacity(env.limits.tasks.batch);
+    for act in &relayed.acts {
+        if let change::RelayAct::Ask { reasons, .. } = act {
+            messages
+                .push(StepMessage {
+                    target,
+                    kind: tasks::MessageKind::Question,
+                    words: question_words(&question.words, reasons, env.limits.tasks.message_bytes),
+                })
+                .expect("one foreman escalation");
+        }
+    }
+    let mut decision = ProcedureStep::new(super::StepEnd::Wait);
+    decision.messages = messages.into_boxed();
+    domain
+        .forge_delegating
+        .insert(
+            (task, step),
+            ChangeStep { foreman: false, delegate: None, relayed: Some(relayed), refusal: None, released: false },
+        )
+        .expect("the refused foreman's step is free");
+    domain.work.push(super::Work::Core(jig_domain_core::Event::ProcedureStep {
+        task,
+        step,
+        connector: domain.config.forge_connector,
+        code: super::CHANGE_CODE,
+        decision,
+    }));
+    true
 }
 
 fn has_ask(acts: &[change::RelayAct]) -> bool {
