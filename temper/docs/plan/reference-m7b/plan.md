@@ -48,6 +48,11 @@ The standing rules are `notes/common.md`; the shapes that cross tasks, `notes/co
   - `change-merge-route`, high, ~170 min, needs `change-merge-surface`, `change-merge-steps`,
     `merge-settings`: the root makes the job (C2's spec), reads its result, gives a change the
     merge kind, fills the facts; the engine world's stories.
+  - `merge-r1-paths`, medium, ~75 min, needs `change-merge-route`, `merge-kind`,
+    `merge-reference`: **revision 1** (`notes/contracts.md`, R1): the merge job's item keeps
+    its repository's name (an item's name is its remote's too, so C2's `home` fetched the wrong
+    repository); the capability resolves a command against the job's directory; the root's
+    command is `<name>/<merge_job>`.
 - **catch-up** (`temper/docs/design/domain/forge.md, 10`), slice 4.
   - `catch-up-call`, high, ~140 min, needs `change-merge-route`: `change`'s `merge`, its
     refusals, parameter 16; the catch-up stories.
@@ -66,7 +71,9 @@ hand as `configuration.md, 13.9` says, and the walk's document to carry `landing
 
 `change-merge-surface` (~110) → `change-merge-steps` (~120) → `change-merge-route` (~170) →
 `catch-up-call` (~140) → `merge-help` (~30): about 570 implementer-minutes, up to about 1140
-with the buffer, then fab's end check. `merge-settings` (~60) joins at `change-merge-route`;
+with the buffer, then fab's end check. `merge-r1-paths` (~75) runs beside `catch-up-call`
+after the route; both may touch the root's merge encoder, `merge-r1-paths` only the command's
+bytes. `merge-settings` (~60) joins at `change-merge-route`;
 `merge-kind` (~120) and `merge-reference` (~100, after `merge-settings`) run beside it and are
 done well before.
 
