@@ -1,0 +1,25 @@
+draft = "withdrawn-forms"
+repo = "fabrig"
+sources = ["temper/docs/plan/withdrawn-forms/inputs/request.md", "skein/docs/design/llm.md", "AGENTS.md"]
+
+# The withdrawn compatibility forms leave every tree (inputs/request.md, option (a)), in five
+# parts that land in the decision's order where one reads another: temper's configurations,
+# jig's dialect rule and smith's product first (none reads another's code), then smith's agent,
+# protocol and channel at v6, then skein's routes. plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "temper-configs"
+title = "temper: agent configurations without an endpoint identity, skein-llm credentials without an account id"
+mode = "direct"
+needs = []
+design = "smith/docs/design/protocol/agent.md, 4"
+
+[[slice]]
+id = 1
+story = "temper's shipped and test agent configurations name no identity profile, and its credentials no account id: smith and skein can drop both without touching temper"
+parts = ["temper-configs"]
+walk = false
