@@ -49,6 +49,17 @@ How an agent's run works: its instructions, models, tools, hosts and budget. A t
 - `hosts`: `"workers"`, `"engine"` or `"both"`. Which hosts may run it. `"workers"`: The deployment's workers alone. `"engine"`: The engine's own slots alone. `"both"`: Either.
 - `spend`: integer. A spend the charter must hold: at least `reserve_turns` plus one of the default model's completions at their costliest, else refused as `budget`. A run is given its task's funds left, at most `rules.maximum_run_spend`.
 - `wake`: `wake`, or null. Which messages wake a task made under the charter whose batch names no wake policy; null, or left out, for jig's default: every rule `"immediate"`, `results` `"last_or_failure"`, and questions, answers and timers waking.
+- `documents`: list of at most 8, each `document`. The documents the charter's runs read, each as a brief section of its own; at most `tasks.charter_documents`, else refused as `shape`.
+
+## document
+
+A document every run of the charter reads in its brief, as the file is at the branch's head when the run is prepared: a rule that lands there reaches the next run.
+
+- `forge`: text, at most 32,768 bytes. The forge's host, as its repositories' names carry it.
+- `repository`: text, at most 65,537 bytes. The repository as OWNER/NAME; one adopted in no project gives a section saying so.
+- `branch`: text, at most 131,075 bytes. The branch whose head is read, its segments joined by `/`.
+- `path`: text, at most 256 bytes. The file's path in the repository, at most 256 bytes.
+- `heading`: text, at most 80 bytes, or null. A Markdown heading's text: the run reads from that heading to the next of its level or above; null reads the whole file.
 
 ## model
 

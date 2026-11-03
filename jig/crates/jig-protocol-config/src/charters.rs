@@ -96,8 +96,10 @@ fn charter(
         Some(at) => wake(document, at, &path.member(b"wake"), problems),
         None => Some(WakePolicy::DEFAULT),
     };
+    let documents = documents(&mut object, document, path, problems);
     object.finish(document, path, problems);
     let charter = Charter {
+        documents: documents?,
         number: number?,
         hosts: hosts?,
         spend: spend?,
@@ -121,6 +123,59 @@ fn charter(
     };
     validate(&charter, path, problems);
     Some(charter)
+}
+
+fn documents(
+    object: &mut read::Object,
+    document: &Document,
+    path: &Path,
+    problems: &mut Problems,
+) -> Option<Box<[jig_domain_core::Document]>> {
+    let Some(at) = object.member(document, b"documents") else { return Some(Box::new([])) };
+    let path = path.member(b"documents");
+    let items = crate::domain::items(document, at, document.len(), &path, problems)?;
+    let mut documents = List::with_capacity(items.len());
+    for (index, at) in items.iter().enumerate() {
+        let path = check::index(&path, index);
+        let Some(mut object) = check::object(document, *at, &path, problems) else { continue };
+        let connector = check::short(&mut object, document, b"connector", &path, problems);
+        let name = document_name(&mut object, document, &path, problems);
+        let file = check::text(&mut object, document, b"path", &path, problems);
+        let mut heading = None;
+        if let Some(at) = object.member(document, b"heading") {
+            match read::text(document, at, u32::MAX) {
+                Ok(value) => heading = Some(value),
+                Err(what) => problems.push(path.member(b"heading"), what),
+            }
+        }
+        object.finish(document, &path, problems);
+        if let Some(connector) = connector
+            && let Some(name) = name
+            && let Some(path) = file
+        {
+            documents
+                .push(jig_domain_core::Document { connector, name, path, heading })
+                .expect("bounded document count");
+        }
+    }
+    Some(documents.into_boxed())
+}
+
+fn document_name(
+    object: &mut read::Object,
+    document: &Document,
+    path: &Path,
+    problems: &mut Problems,
+) -> Option<jig_domain_authority::Name> {
+    let items = check::list(object, document, b"name", document.len(), path, problems)?;
+    let mut segments = List::with_capacity(items.len());
+    for (index, at) in items.iter().enumerate() {
+        match read::text(document, *at, u32::MAX) {
+            Ok(value) => segments.push(value).expect("bounded name segments"),
+            Err(what) => problems.push(check::index(&path.member(b"name"), index), what),
+        }
+    }
+    Some(jig_domain_authority::Name { segments: segments.into_boxed() })
 }
 
 fn alternatives(

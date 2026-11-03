@@ -31,6 +31,15 @@ pub struct Charter {
     pub hosts: SettingHosts,
     pub spend: u64,
     pub wake: WakePolicy,
+    pub documents: List<CharterDocument>,
+}
+/// A charter document (temper/docs/design/protocol/configuration.md, 13.7).
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct CharterDocument {
+    pub connector: u16,
+    pub name: List<Box<[u8]>>,
+    pub path: Box<[u8]>,
+    pub heading: Option<Box<[u8]>>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct DocumentText {

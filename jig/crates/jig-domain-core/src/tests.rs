@@ -22,7 +22,7 @@ mod translate;
 use crate::{
     Settings,
     admission::{amendments, compound, person_task},
-    documents::*,
+    documents::{Document, *},
     effects::{connector, projections},
     routing::Work,
     runs::state as run,
@@ -99,6 +99,7 @@ pub(crate) fn limits() -> Limits {
         saved_resources: 2,
         contract_choices: 1,
         charters: 1,
+        charter_documents: 2,
         revisions: 4,
         versions: 8,
         authority_grants: 1,
@@ -465,6 +466,7 @@ pub(crate) fn config(seed: u64) -> Config {
         defaults: crate::settings::Defaults {
             charters: Box::new([Charter {
                 wake: jig_domain_tasks::WakePolicy::DEFAULT,
+                documents: Box::new([]),
                 number: 1,
                 hosts: fleet::Kinds::Workers,
                 spend: 100,

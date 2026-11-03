@@ -155,6 +155,24 @@ fn charter() -> jig_domain_core::Charter {
     use skein_lib::Duration;
     core::Charter {
         wake: jig_domain_tasks::WakePolicy::DEFAULT,
+        documents: Box::new([
+            core::Document {
+                connector: 2,
+                name: jig_domain_authority::Name {
+                    segments: Box::new([Box::from(b"resource".as_slice()), Box::from(b"part".as_slice())]),
+                },
+                path: Box::from(b"guide.md".as_slice()),
+                heading: None,
+            },
+            core::Document {
+                connector: 3,
+                name: jig_domain_authority::Name {
+                    segments: Box::new([Box::from(b"another".as_slice()), Box::from(b"part".as_slice())]),
+                },
+                path: Box::from(b"rules.md".as_slice()),
+                heading: Some(Box::from("Rules λ".as_bytes())),
+            },
+        ]),
         number: 1,
         hosts: jig_domain_fleet::Kinds::Both,
         spend: 100,
@@ -414,4 +432,43 @@ fn a_clients_charter_change_keeps_its_wake_policy() {
     let items = translate::items(f::pieces(&[writer.finish()]), &f::models(), &w::CEILINGS).unwrap();
     let s::Edit::Set(s::Value::Charter(charter)) = &items[0].edit else { panic!("charter change") };
     assert_eq!(charter.wake, expected);
+}
+
+#[test]
+fn charter_documents_round_trip_from_core_through_wire() {
+    let source = s::Value::Charter(Box::new(charter()));
+    let wire = translate::value(&source, &f::models(), &w::CEILINGS).unwrap();
+    let row = w::SettingItem::new(
+        &w::CEILINGS,
+        w::SettingItemParts {
+            setting: translate::name(s::Setting::Charter(1), &w::CEILINGS).unwrap(),
+            edit: w::SettingEdit::Set(w::SettingSet::new(&w::CEILINGS, w::SettingSetParts { value: wire }).unwrap()),
+        },
+    )
+    .unwrap();
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure()));
+    row.encode(&mut writer).unwrap();
+    let items = translate::items(f::pieces(&[writer.finish()]), &f::models(), &w::CEILINGS).unwrap();
+    assert_eq!(items.as_ref(), &[s::Item { setting: s::Setting::Charter(1), edit: s::Edit::Set(source) }]);
+}
+
+#[test]
+fn change_settings_keeps_the_charter_documents() {
+    let mut source = jig_client_test_records::settings::settings_change();
+    let charter_item = source.items.get(0).unwrap().clone();
+    source.items = List::with_capacity(1);
+    source.items.push(charter_item).unwrap();
+    let wire = jig_client_protocol_link::translate::settings::wire_change_settings(&source, &w::CEILINGS).unwrap();
+    let change = translate::change(wire, &f::models(), &w::CEILINGS).unwrap();
+    let jig_client_domain::contract::SettingEdit::Set(value) = &source.items.get(0).unwrap().edit else {
+        panic!("charter set");
+    };
+    let expected =
+        jig_client_protocol_link::translate::settings::wire_setting_value(&value.value, &w::CEILINGS).unwrap();
+    let s::Edit::Set(value) = &change.items[0].edit else { panic!("charter set") };
+    assert_eq!(translate::value(value, &f::models(), &w::CEILINGS).unwrap(), expected);
+    let s::Value::Charter(value) = value else { panic!("charter") };
+    assert_eq!(value.documents.len(), 2);
+    assert_eq!(value.documents[0].heading, None);
+    assert_eq!(value.documents[1].heading.as_deref(), Some(b"Rules".as_slice()));
 }

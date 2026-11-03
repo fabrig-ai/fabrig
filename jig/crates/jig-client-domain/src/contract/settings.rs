@@ -38,9 +38,18 @@ pub enum SettingHosts {
     Engine,
     Both,
 }
+/// A charter's document (jig/docs/design/domain/engine.md, 17.9).
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct CharterDocument {
+    pub connector: u16,
+    pub name: List<Box<[u8]>>,
+    pub path: Box<[u8]>,
+    pub heading: Option<Box<[u8]>>,
+}
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[expect(clippy::struct_excessive_bools, reason = "the whole charter carries independent tool grants and resume")]
 pub struct Charter {
+    pub documents: List<CharterDocument>,
     pub number: u32,
     pub instructions: Text,
     pub waiting: Duration,

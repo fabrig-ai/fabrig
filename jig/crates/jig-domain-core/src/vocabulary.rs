@@ -12,6 +12,14 @@ use jig_domain_tasks as tasks;
 use jig_domain_views as views;
 use skein_lib::{List, ReplyTo, Token, Wall};
 
+/// A charter document's section in a core plan, for the root to give its connector
+/// (domain/engine.md, 17.9).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct PlannedDocument {
+    pub token: Token,
+    pub document: crate::Document,
+}
+
 /// A value a client's request carried, kept in the secrets' store before
 /// the core sees the request (`protocol/client.md`, section 5): the core
 /// gets its number and digest, never the value.
@@ -342,8 +350,14 @@ pub enum Now {
     PartyInputs { request: Token, person: u64, project: u32, tasks: Box<[u64]> },
     /// Assemble connector-held sections for a still-current brief.
     CompleteBrief { brief: Token, order: Box<[brief::GatherPlaced]> },
-    /// Core-owned sections are ready; the root may append its connector sections.
-    BriefCorePlanned { task: u64, parent: Option<u64>, sections: List<brief::Planned> },
+    /// Core-owned sections and charter documents are ready; the root may append its connector
+    /// sections (domain/engine.md, 17.9).
+    BriefCorePlanned {
+        task: u64,
+        parent: Option<u64>,
+        sections: List<brief::Planned>,
+        documents: Box<[PlannedDocument]>,
+    },
     /// The root assembles a numbered connector workspace for this core-selected attempt.
     WorkspaceRequest { task: u64, attempt: u64, context: Box<tasks::RunContext> },
     /// Core admission and claim preparation failed; discard root-owned assembly parts.

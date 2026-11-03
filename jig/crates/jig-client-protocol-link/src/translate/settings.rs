@@ -108,9 +108,24 @@ pub fn wire_charter(value: &c::Charter, limits: &w::Limits) -> Result<w::Charter
     for item in &value.alternatives {
         alternatives.push(wire_setting_model(item, limits)?).expect("same capacity");
     }
+    let mut documents = List::with_capacity(value.documents.len());
+    for item in &value.documents {
+        documents
+            .push(w::CharterDocument::new(
+                limits,
+                w::CharterDocumentParts {
+                    connector: item.connector,
+                    name: item.name.clone(),
+                    path: item.path.clone(),
+                    heading: item.heading.clone(),
+                },
+            )?)
+            .expect("same capacity");
+    }
     w::Charter::new(
         limits,
         w::CharterParts {
+            documents,
             skein_bools: [value.resume, value.inspect, value.modify, value.shell, value.agents],
             number: value.number,
             instructions: bytes::copy_of(value.instructions.bytes()),
@@ -133,7 +148,19 @@ pub fn restore_charter(value: &w::Charter) -> Result<c::Charter, w::Problem> {
     for item in value.alternatives() {
         alternatives.push(restore_setting_model(item)?).expect("same capacity");
     }
+    let mut documents = List::with_capacity(value.documents().len());
+    for item in value.documents() {
+        documents
+            .push(c::CharterDocument {
+                connector: item.connector(),
+                name: item.name().clone(),
+                path: bytes::copy_of(item.path()),
+                heading: item.heading().clone(),
+            })
+            .expect("same capacity");
+    }
     Ok(c::Charter {
+        documents,
         number: value.number(),
         instructions: text(value.instructions(), 1_114_240)?,
         waiting: value.waiting(),

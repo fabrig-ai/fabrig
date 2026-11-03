@@ -20,6 +20,7 @@ pub(crate) struct Held {
     source: BriefSource,
     pub(crate) words: Box<[u8]>,
     ci: Option<crate::brief_ci::Section>,
+    document: Option<crate::brief_document::Section>,
 }
 
 #[expect(clippy::too_many_arguments, reason = "one bounded section handoff names its source and read limits")]
@@ -65,7 +66,7 @@ pub(crate) fn ready(domain: &mut Domain, section: Token, read: BriefRead, out: &
             let size = u32::try_from(words.len()).expect("bounded rendered section");
             domain
                 .brief_held
-                .insert(section, Held { source: pending.source, words, ci: None })
+                .insert(section, Held { source: pending.source, words, ci: None, document: None })
                 .expect("pending reserved held room");
             out.push(Request::BriefSized { section, size: Some(size) });
         }
@@ -97,7 +98,31 @@ pub(crate) fn ready_ci(
             let size = u32::try_from(words.len()).expect("bounded CI section");
             domain
                 .brief_held
-                .insert(section, Held { source: pending.source, words, ci: Some(ci) })
+                .insert(section, Held { source: pending.source, words, ci: Some(ci), document: None })
+                .expect("pending reserved held room");
+            out.push(Request::BriefSized { section, size: Some(size) });
+        }
+        None => out.push(Request::BriefSized { section, size: None }),
+    }
+}
+
+/// Keep the document's immutable words for every later line cut.
+pub(crate) fn ready_document(
+    domain: &mut Domain,
+    section: Token,
+    document: crate::brief_document::Section,
+    out: &mut Queue<Request>,
+) {
+    let Some(pending) = domain.brief_pending.remove(&section) else { return };
+    if pending.dropped {
+        return;
+    }
+    match document.render(pending.budget) {
+        Some(words) => {
+            let size = u32::try_from(words.len()).expect("bounded document section");
+            domain
+                .brief_held
+                .insert(section, Held { source: pending.source, words, ci: None, document: Some(document) })
                 .expect("pending reserved held room");
             out.push(Request::BriefSized { section, size: Some(size) });
         }
@@ -116,16 +141,19 @@ pub(crate) fn cut(domain: &mut Domain, section: Token, bytes: u32, out: &mut Que
         out.push(Request::BriefSized { section, size: Some(size) });
         return;
     }
-    let rendered = match &held.ci {
-        Some(ci) => ci.render(bytes),
-        None => render(held.source, held.words.clone(), 0, bytes),
+    let rendered = match &held.document {
+        Some(document) => document.render(bytes),
+        None => match &held.ci {
+            Some(ci) => ci.render(bytes),
+            None => render(held.source, held.words.clone(), 0, bytes),
+        },
     };
     match rendered {
         Some(words) => {
             let size = u32::try_from(words.len()).expect("bounded cut");
             domain
                 .brief_held
-                .insert(section, Held { source: held.source, words, ci: held.ci })
+                .insert(section, Held { source: held.source, words, ci: held.ci, document: held.document })
                 .expect("same held room");
             out.push(Request::BriefSized { section, size: Some(size) });
         }

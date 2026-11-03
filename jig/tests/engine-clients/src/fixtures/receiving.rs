@@ -85,6 +85,7 @@ fn configuration(limits: &core::Limits) -> core::Config {
         defaults: core::settings::Defaults {
             charters: Box::new([core::Charter {
                 wake: jig_domain_tasks::WakePolicy::DEFAULT,
+                documents: Box::new([]),
                 number: 1,
                 hosts: jig_domain_fleet::Kinds::Workers,
                 spend: 100,

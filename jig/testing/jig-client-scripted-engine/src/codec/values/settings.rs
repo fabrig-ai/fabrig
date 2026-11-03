@@ -146,6 +146,17 @@ pub(in crate::codec) fn wire_charter(value: &c::Charter, limits: &w::Limits) -> 
     w::Charter::new(
         limits,
         w::CharterParts {
+            documents: list(value.documents.iter().map(|item| {
+                w::CharterDocument::new(
+                    limits,
+                    w::CharterDocumentParts {
+                        connector: item.connector,
+                        name: item.name.clone(),
+                        path: item.path.clone(),
+                        heading: item.heading.clone(),
+                    },
+                )
+            }))?,
             skein_bools: [value.resume, value.inspect, value.modify, value.shell, value.agents],
             number: value.number,
             instructions: bytes::copy_of(value.instructions.bytes()),

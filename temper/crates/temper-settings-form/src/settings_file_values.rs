@@ -1,8 +1,9 @@
 //! Concrete whole-value decoders; the schema has fixed depth, with no recursive calls.
-use super::{Decoder, Error, error, field, optional};
+use super::{Decoder, Error, bound, error, field, optional};
 use crate::view as c;
+use alloc::boxed::Box;
 use skein_json::Kind;
-use skein_lib::{Duration, List, Wall};
+use skein_lib::{Duration, List, Wall, bytes};
 pub(super) fn charter(d: &Decoder, at: u32) -> Result<c::Charter, Error> {
     let fields = d.object(
         at,
@@ -25,9 +26,11 @@ pub(super) fn charter(d: &Decoder, at: u32) -> Result<c::Charter, Error> {
             b"hosts",
             b"spend",
             b"wake",
+            b"documents",
         ],
     )?;
     Ok(c::Charter {
+        documents: documents(d, field(&fields, b"documents")?)?,
         switches: [
             d.boolean(field(&fields, b"resume")?)?,
             d.boolean(field(&fields, b"inspect")?)?,
@@ -137,6 +140,101 @@ fn wake_error(path: &[u8], mut why: Error) -> Error {
     }
     why.member = member.finish();
     why
+}
+
+fn documents(d: &Decoder, at: u32) -> Result<List<c::CharterDocument>, Error> {
+    let positions = d.array(at, d.limits.charter_documents, b"charter.documents")?;
+    let mut values = List::with_capacity(positions.len());
+    for (index, at) in positions.iter().enumerate() {
+        match document(d, *at) {
+            Ok(value) => values.push(value).expect("checked list length"),
+            Err(why) => {
+                let mut measured = crate::Text::measure();
+                document_member(index, &why.member, &mut measured);
+                let mut out = crate::Text::writing_exact(measured);
+                document_member(index, &why.member, &mut out);
+                return Err(Error { member: out.finish(), ..why });
+            }
+        }
+    }
+    Ok(values)
+}
+fn document_member(index: usize, member: &[u8], out: &mut crate::Text) {
+    out.put(b"charter.documents[");
+    out.number(u64::try_from(index).expect("document index"));
+    out.put(b"].");
+    out.put(member);
+}
+fn document(d: &Decoder, at: u32) -> Result<c::CharterDocument, Error> {
+    let fields = d.object(at, &[b"forge", b"repository", b"branch", b"path", b"heading", b"connector", b"name"])?;
+    for member in [b"name".as_slice(), b"connector"] {
+        if optional(&fields, member).is_some() {
+            return Err(error(member, b"shape: forge branch required"));
+        }
+    }
+    let forge = d.document_string(field(&fields, b"forge")?, b"forge")?;
+    let repository = d.document_string(field(&fields, b"repository")?, b"repository")?;
+    let branch = d.document_string(field(&fields, b"branch")?, b"branch")?;
+    let slash = bytes::find(repository, b"/").ok_or(error(b"repository", b"OWNER/NAME required"))?;
+    let owner = repository.get(..slash).expect("repository prefix");
+    let repo = repository.get(slash.checked_add(1).expect("slash position")..).expect("repository suffix");
+    let segment_bound = d.limits.charter_document_name_item;
+    document_segment(forge, segment_bound, b"forge")?;
+    document_segment(owner, segment_bound, b"repository")?;
+    document_segment(repo, segment_bound, b"repository")?;
+    document_segment(b"forge", segment_bound, b"forge")?;
+    document_segment(b"branch", segment_bound, b"branch")?;
+    let count = bytes::count(branch, b"/", u32::MAX).saturating_add(6);
+    if count > d.limits.charter_document_name {
+        return Err(bound(b"branch", d.limits.charter_document_name));
+    }
+    let mut name = List::with_capacity(count);
+    for segment in [b"forge".as_slice(), forge, owner, repo, b"branch"] {
+        name.push(Box::from(segment)).expect("measured name");
+    }
+    let mut start = 0;
+    for _ in 5..count {
+        let end = bytes::find_from(branch, b"/", start).unwrap_or(branch.len());
+        let segment = branch.get(start..end).expect("branch segment");
+        document_segment(segment, segment_bound, b"branch")?;
+        name.push(Box::from(segment)).expect("measured name");
+        start = end.checked_add(1).expect("file bound");
+    }
+    let path_at = field(&fields, b"path")?;
+    d.document_string(path_at, b"path")?;
+    let path = d.words(path_at, d.limits.charter_document_path, b"path")?.into_bytes();
+    if path.is_empty() {
+        return Err(error(b"path", b"nonempty text required"));
+    }
+    let heading = match optional(&fields, b"heading") {
+        Some(at) if d.kind(at)? != Kind::Null => {
+            d.document_string(at, b"heading")?;
+            let heading = d.words(at, d.limits.charter_document_heading_some, b"heading")?.into_bytes();
+            if heading.is_empty() {
+                return Err(error(b"heading", b"nonempty text required"));
+            }
+            Some(heading)
+        }
+        Some(_) | None => None,
+    };
+    Ok(c::CharterDocument { connector: 0, name, path, heading })
+}
+impl Decoder {
+    fn document_string(&self, at: u32, member: &[u8]) -> Result<&[u8], Error> {
+        match self.string(at) {
+            Ok(bytes) => Ok(bytes),
+            Err(why) => Err(Error { member: member.into(), ..why }),
+        }
+    }
+}
+fn document_segment(bytes: &[u8], most: u32, member: &[u8]) -> Result<(), Error> {
+    if bytes.len() > usize::try_from(most).expect("segment bound") {
+        return Err(bound(member, most));
+    }
+    if bytes.is_empty() || bytes.contains(&b'/') {
+        return Err(error(member, b"nonempty name segment required"));
+    }
+    Ok(())
 }
 pub(super) fn template(d: &Decoder, at: u32) -> Result<c::Template, Error> {
     let fields = d.object(

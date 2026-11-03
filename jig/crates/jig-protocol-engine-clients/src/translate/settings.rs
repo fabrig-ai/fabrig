@@ -149,9 +149,28 @@ fn charter(value: &core::Charter, limits: &w::Limits) -> Result<w::Charter, w::P
     for row in &policy.alternatives {
         alternatives.push(model(row, limits)?).expect("model count");
     }
+    let mut documents = List::with_capacity(super::count(value.documents.len())?);
+    for item in &value.documents {
+        let mut name = List::with_capacity(super::count(item.name.segments.len())?);
+        for segment in &item.name.segments {
+            name.push(segment.clone()).expect("segment count");
+        }
+        documents
+            .push(w::CharterDocument::new(
+                limits,
+                w::CharterDocumentParts {
+                    connector: item.connector,
+                    name,
+                    path: item.path.clone(),
+                    heading: item.heading.clone(),
+                },
+            )?)
+            .expect("document count");
+    }
     w::Charter::new(
         limits,
         w::CharterParts {
+            documents,
             skein_bools: [policy.resume, policy.inspect, policy.modify, policy.shell, policy.agents],
             number: value.number,
             instructions: policy.instructions.clone(),
