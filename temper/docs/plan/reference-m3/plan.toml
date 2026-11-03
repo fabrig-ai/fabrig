@@ -39,3 +39,36 @@ id = 2
 story = "a jig world's connector owning a kind judges a change both ways, keeps it, keeps a proposal's items until it is accepted or withdrawn, and finds a changed default at a restart, the release's revision naming it"
 parts = ["appsettings"]
 walk = false
+
+[[part]]
+id = "kinds-forge"
+title = "the forge's side of temper's kinds 1 to 3: their values, its family Setting, holding and judging them, requirements 5 and 6 over the rules it holds"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/configuration.md, 13.2"
+
+[[slice]]
+id = 3
+story = "the forge judges an item of kinds 1 to 3, keeps it in its family Setting across a restart, and a merge is judged by requirements 5 and 6 over the rules it holds"
+parts = ["kinds-forge"]
+walk = false
+
+[[part]]
+id = "change-jig"
+title = "jig checks a batch's LLM choices against its charter's models, whoever makes it"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/tasks.md, 4"
+
+[[part]]
+id = "change-temper"
+title = "change names its producer's charter and an LLM choice per role; the change procedure delegates under them"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/agent.md, 4.3.1"
+
+[[slice]]
+id = 4
+story = "a goal's change names a designer's charter as its producer and LLM choices for its producer and reviews; its producing task is made under them; a change naming a model its charter does not allow, or a charter the run may not delegate to, is refused naming it"
+parts = ["change-jig", "change-temper"]
+walk = false

@@ -35,8 +35,9 @@ role; jig's check of a batch's LLM choices against its charter's models), **suba
   (in `settings::application`, since `settings::{Item, Edit}` name the core's own change
   items; `Kind` and `KindScope` are re-exported at `settings::`). A reset is judged by the connector as the default
   it keeps (a setting with no default: as a removal).
-- `Ask::JudgeSettings { owner: Token, revision: u64, items: Box<[Item]> }`, `revision` the one
-  the change would make; answered within the same decision's step by
+- `Ask::JudgeSettings { owner: Token, revision: u64, proposal: Option<u64>, items: Box<[Item]> }`,
+  `revision` the one the change would make, `proposal` the accepted proposal whose kept values
+  are judged; answered within the same decision's step by
   `Event::SettingsJudged { owner: Token, judged: Box<[Judged]> }`, one per item in the ask's
   order: `Judged::Accept { size: u32, charters: Box<[u32]> }` (the size of the value it would
   leave, and the charters it names), `Judged::Same` (it leaves the setting as it is) or

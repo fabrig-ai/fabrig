@@ -1,6 +1,6 @@
 # forge: status
 
-2026-11-02. Where temper's code lags or departs from [forge.md](forge.md).
+2026-11-03. Where temper's code lags or departs from [forge.md](forge.md).
 
 - **Not yet:**
   - 11, 11.1: a goal's own branch deleted as its goal closes once a change
@@ -29,6 +29,18 @@
     `change_policy` and its charters the deployment's
     (`temper-engine-domain/src/route/forge_route.rs`, `start_change`); its
     page's line that a change takes no words.
+  - 8.1, 8.9: a change's producer's charter and its agents' LLM
+    choices: parameters 11 to 13 are not taken, the change's row keeps
+    no LLM choice, its producer runs under the forge's change charter
+    and its delegates take their charter's default
+    (`temper-engine-domain/src/route/forge_route.rs`, `start_change`
+    and `change_delegate`).
+  - 8.9: a change held, saying so, when the newest settings no longer
+    offer the producer's charter it names, or its charter's models no
+    longer allow its LLM choice for a role, as it next needs a delegate
+    of that role: a procedure step refused for its delegate's executor
+    or LLM choice holds nothing
+    (`temper-engine-domain/src/route/asks.rs`, `StepRefused`).
   - 8.2: the pull request's body naming its goal's issue.
   - 8.3: a person's approval as a gate; a review's lens; gates run at once
     when the change asks; a verdict posted as a commit status; the review
