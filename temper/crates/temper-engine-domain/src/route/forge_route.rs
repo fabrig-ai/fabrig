@@ -3197,6 +3197,7 @@ fn change_landing_words(
 
 /// The forge supplies run identities when retained; otherwise name the configured tiers
 /// following this landing's branch (temper/docs/design/domain/after-landing.md, 6).
+#[expect(clippy::too_many_lines, reason = "Keeps cleared-tier wording beside the exhaustive change states.")]
 fn change_verification_words(domain: &Domain, task: u64, merge: &skein_forge::api::Commit, bound: u32) -> Box<[u8]> {
     let row = domain.forge.change(task).expect("landed change");
     let mut words = List::with_capacity(bound);
@@ -3215,7 +3216,9 @@ fn change_verification_words(domain: &Domain, task: u64, merge: &skein_forge::ap
         forge_change::State::Cleared { .. } => {
             let Some(repository) = domain.forge.repository(row.repository) else { return Box::new([]) };
             let Some(config) = domain.config.landings.get(&repository.project) else { return Box::new([]) };
+            let retained = domain.forge.landing_verification(row.repository, merge);
             let mut first = true;
+            let mut joined = false;
             for checks in &config.repositories {
                 if checks.repository != row.repository {
                     continue;
@@ -3229,8 +3232,43 @@ fn change_verification_words(domain: &Domain, task: u64, merge: &skein_forge::ap
                     if *branch != row.base {
                         continue;
                     }
-                    append(&mut words, if first { b"Cleared by " } else { b", " });
+                    let mut repair = None;
+                    if let Some(retained) = retained {
+                        for verification in &retained.tiers {
+                            if verification.tier == tier.name {
+                                repair = verification.repaired.as_ref();
+                                break;
+                            }
+                        }
+                    }
+                    if let Some(forge::TierRepair { run, by: Some(by), .. }) = repair {
+                        if !first {
+                            append(&mut words, if joined { b".\n" } else { b"\n" });
+                        }
+                        append(&mut words, b"Cleared by ");
+                        append(&mut words, &tier.name);
+                        append(&mut words, b" run ");
+                        append(&mut words, skein_lib::Decimal::of(*run).as_bytes());
+                        append(&mut words, b", which passed the failures blamed on it; repaired by ");
+                        let digits = commit_text(by);
+                        append(&mut words, digits.get(..12).expect("a commit has at least 40 hexadecimal digits"));
+                        append(&mut words, b".");
+                        first = false;
+                        joined = false;
+                        continue;
+                    }
+                    append(
+                        &mut words,
+                        if joined {
+                            b", "
+                        } else if first {
+                            b"Cleared by "
+                        } else {
+                            b"\nCleared by "
+                        },
+                    );
                     first = false;
+                    joined = true;
                     append(&mut words, &tier.name);
                     if let Some(number) = tier_landing_run(domain, row.repository, &tier.name, merge) {
                         append(&mut words, b" run ");
@@ -3238,7 +3276,7 @@ fn change_verification_words(domain: &Domain, task: u64, merge: &skein_forge::ap
                     }
                 }
             }
-            if !first {
+            if joined {
                 append(&mut words, b".");
             }
         }

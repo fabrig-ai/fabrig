@@ -60,6 +60,12 @@ impl Domain {
         }
         change::Verification::Unfollowed
     }
+
+    /// The live row of this repository and commit (temper/docs/design/domain/after-landing.md, 6).
+    #[must_use]
+    pub fn landing_verification(&self, repository: Repository, commit: &Commit) -> Option<&Verification> {
+        self.verifications.get(&(repository, *commit))
+    }
 }
 
 /// Save with the merge's Landed row; a found-again merge preserves its verdicts.
@@ -138,6 +144,18 @@ pub(crate) fn judged(
         }
     }
     for key in keys.into_boxed() {
+        let mut by = None;
+        'landings: for landing in landings.iter().rev() {
+            let Some(row) = d.verifications.get(&(repository, landing.commit)) else { continue };
+            for task in &row.changes {
+                if let Some(change) = d.changes.get(task)
+                    && change.repairs == Some(key.1)
+                {
+                    by = Some(landing.commit);
+                    break 'landings;
+                }
+            }
+        }
         let row = d.verifications.get_mut(&key).expect("retained verification");
         let commit = row.commit;
         let mut changed = false;
@@ -157,8 +175,7 @@ pub(crate) fn judged(
             {
                 match &prior.blame {
                     Blame::Owns(_) | Blame::Suspect(_) if policy::repaired(&prior.blame, &verdict.failing) => {
-                        verification.repaired =
-                            Some(crate::TierRepair { run: verdict.number, tip: verdict.tip, by: None });
+                        verification.repaired = Some(crate::TierRepair { run: verdict.number, tip: verdict.tip, by });
                         changed = true;
                     }
                     Blame::Cleared | Blame::Owns(_) | Blame::Suspect(_) => {}
