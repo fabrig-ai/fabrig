@@ -15,3 +15,17 @@ id = "rm8"
 backend = "chatgpt-forgejo"
 brief = ["kit.md", "rung-m8.md"]
 after = []
+
+[[rung]]
+id = "rm3"
+backend = "chatgpt-forgejo"
+brief = ["kit.md", "rung-m3.md"]
+after = []
+slice = "reference-m3/6"
+
+[[rung]]
+id = "rm4"
+backend = "claude-forgejo"
+brief = ["kit.md", "kit-claude.md", "rung-m4.md"]
+after = []
+slice = "reference-m3/6"

@@ -347,3 +347,102 @@ fn releasing_an_initial_admission_hold_rechecks_the_same_bound() {
     }
     panic!("release bypassed the persistent admission bound: {:?}", live_task(&world, task).phase);
 }
+
+fn stock_overlap_world() -> World {
+    let mut configured = World::configured_limits(
+        true,
+        true,
+        false,
+        STEPS,
+        Gate::default(),
+        None,
+        StoryLimits {
+            turn: true,
+            tier: Some(temper_engine_domain_world::tier_runs::Tier { silent: true, ..Default::default() }),
+            tasks: Some(TASKS),
+            slots: Some(SLOTS),
+            spec_bytes: Some(4096),
+            ..StoryLimits::default()
+        },
+    );
+    let stock = temper_service::limits::profile(temper_service::limits::Profile::Small);
+    configured.env.limits.forge.resources_per_task = stock.forge.resources_per_task;
+    configured.env.limits.forge.tasks = stock.forge.tasks;
+    let client = skein_forge_client::Limits {
+        resources: stock.forge.client.resources,
+        repositories: stock.forge.client.repositories,
+        ..configured.env.limits.forge.client
+    };
+    configured.with_forge_client(client)
+}
+
+#[test]
+fn stock_resources_fit_three_chats_changes_and_a_pending_tier() {
+    use temper_engine_domain_world::tier_runs::{self, change, task, tier};
+    let mut world = stock_overlap_world();
+    world.adopt();
+    world.send(protocol::hello_slots(CHANNEL, SLOTS, Box::new([])));
+    let mut changes = Vec::new();
+    for key in 92..95 {
+        world.env.now = world.env.now.saturating_add(CHAT_GAP);
+        world.env.wall = skein_lib::Wall::from_nanos(world.env.now.as_nanos());
+        super::tiers::sign_in(&mut world);
+        let ask = adoption_chat(&world);
+        let chat = assigned_chat(&mut world, key, ask);
+        let answer = super::change_tool::change(&mut world, &chat, u64::from(key), None, b"Small fix");
+        let number = tier_runs::produce_delegated(&mut world, answer, b"main", b"file", &[key]);
+        changes.push(number);
+        assert!(matches!(change(&world, number).change.state, change_step::State::Landed { .. }));
+        for number in &changes {
+            assert!(!matches!(task(&world, *number).phase, tasks::Phase::Held { .. } | tasks::Phase::Ended(_)));
+        }
+        assert_eq!(tier(&world).record.sequence, 0, "the baseline must remain pending");
+    }
+    eprintln!("distinct task watches={}, stock={}", watch_count(&world), world.env.limits.forge.client.resources);
+    assert_eq!(watch_count(&world), 9, "three chat branches, three change branches and pulls");
+    assert!(tier(&world).record.run.is_some(), "the tier still watches shared main");
+}
+
+#[test]
+fn resource_hold_account_survives_short_documents_and_unchanged_release() {
+    let mut documents = jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.documents;
+    documents.text_bytes = 128;
+    let mut configured = World::configured_limits(
+        true,
+        true,
+        false,
+        STEPS,
+        Gate::default(),
+        Some(documents),
+        StoryLimits { slots: Some(SLOTS), ..StoryLimits::default() },
+    );
+    configured.env.limits.forge.holds = 2;
+    let client = skein_forge_client::Limits { resources: 2, ..configured.env.limits.forge.client };
+    let mut world = configured.with_forge_client(client);
+    world.adopt();
+    world.send(protocol::hello_slots(CHANNEL, SLOTS, Box::new([])));
+    let ask = adoption_chat(&world);
+    let chat = assigned_chat(&mut world, 92, ask);
+    let engine::CallAnswer::Delegated(made) = super::change_tool::change(&mut world, &chat, 93, None, b"Small fix")
+    else {
+        panic!("change delegated")
+    };
+    let task = made[0].task;
+    await_hold(&mut world, task);
+    let words = String::from_utf8(held_words(&world, task).to_vec()).expect("hold words");
+    assert!(words.contains("forge.client.resources = 2; required usage 3"), "{words}");
+    assert!(words.len() > 128 && words.contains("restart, then release"), "{words}");
+    super::tiers::task_show::assert_hold_words(&mut world, task, &words);
+    let revision = live_task(&world, task).revisions.hold;
+    send_release(&mut world, task, revision);
+    for _ in 0..STEPS {
+        world.tick();
+        if live_task(&world, task).revisions.hold > revision {
+            let again = std::str::from_utf8(held_words(&world, task)).expect("hold words").to_owned();
+            assert_eq!(again.split(" for branch").next(), words.split(" for branch").next());
+            super::tiers::task_show::assert_hold_words(&mut world, task, &again);
+            return;
+        }
+    }
+    panic!("unchanged capacity must hold again");
+}
