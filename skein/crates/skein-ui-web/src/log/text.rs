@@ -1,4 +1,4 @@
-//! Version 1's report and printed line texts (playground.md, 6.1).
+//! Version 2's report and printed line texts (playground.md, 6.1).
 use crate::{bridge, fetch};
 use skein_lib::{Writer, base64};
 use std::fmt::Write;
@@ -13,8 +13,13 @@ pub(super) fn bytes(bytes: &[u8]) -> String {
 
 pub(super) fn report(report: &fetch::Report) -> String {
     match report {
-        fetch::Report::Answered { exchange, status, body } => {
-            format!("answered id={exchange} status={status} body={}\n", bytes(body))
+        fetch::Report::Answered { exchange, status, body, headers } => {
+            let mut out = format!("answered id={exchange} status={status} body={}", bytes(body));
+            for (name, value) in headers {
+                header(&mut out, name.as_bytes(), value.as_bytes());
+            }
+            out.push('\n');
+            out
         }
         fetch::Report::Failed { exchange } => format!("failed id={exchange}\n"),
         fetch::Report::StreamOpened => "opened\n".into(),
@@ -41,7 +46,7 @@ pub(super) fn digest(said: super::Said) -> String {
 }
 
 pub(super) fn first(build: Option<&[u8]>, seed: u64, start: skein_lib::Wall) -> Vec<u8> {
-    let mut out = b"skein-playground-log 1 build=".to_vec();
+    let mut out = b"skein-playground-log 2 build=".to_vec();
     out.extend_from_slice(build.unwrap_or(b"-"));
     out.extend_from_slice(format!(" seed={seed} start={}\n", start.as_nanos()).as_bytes());
     out
@@ -67,6 +72,14 @@ pub(super) fn entry(entry: &super::Entry) -> String {
                 bytes(&exchange.body)
             )
             .expect("writing to a String cannot fail");
+            let cache = match exchange.cache {
+                fetch::Cache::Browser => "browser",
+                fetch::Cache::NoStore => "no-store",
+            };
+            write!(out, " cache={cache} keep={}", exchange.keep.len()).expect("writing to a String cannot fail");
+            for name in &exchange.keep {
+                write!(out, " name={}", bytes(name.as_bytes())).expect("writing to a String cannot fail");
+            }
             for (name, value) in &exchange.headers {
                 header(&mut out, name.as_bytes(), value.as_bytes());
             }

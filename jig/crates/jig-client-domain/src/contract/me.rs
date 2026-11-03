@@ -36,7 +36,7 @@ pub struct MeParty {
     pub name: DocumentText,
 }
 
-/// Actual membership and the optional retained pool, independent of charter offers.
+/// Project membership, retained pool and public identifier (jig/docs/design/client/domain/contract.md, 5.1; jig/docs/design/domain/people.md, 13.8).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct MeProject {
     pub project: u32,
@@ -47,6 +47,8 @@ pub struct MeProject {
     pub creating: Option<Creating>,
     /// The models the party may choose here, as its authority allows them, in configuration's order.
     pub models: List<super::MeModel>,
+    /// Its public identifier while public, none while private.
+    pub public: Option<u64>,
 }
 
 /// One actual procedure alternative supplied for the fixed goal form.

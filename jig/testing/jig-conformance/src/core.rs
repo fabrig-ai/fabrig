@@ -872,6 +872,8 @@ impl Observer {
             | core::Held::ApplicationWatchEnded { .. }
             | core::Held::ReadLoad { .. }
             | core::Held::Read { .. }
+            | core::Held::PublicRead { .. }
+            | core::Held::PublicWait { .. }
             | core::Held::Applied { .. }
             | core::Held::CarriedUnused { .. }
             | core::Held::Delivery { .. }

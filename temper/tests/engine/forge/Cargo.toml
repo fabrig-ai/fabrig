@@ -12,6 +12,7 @@ test = false
 doctest = false
 
 [dependencies]
+temper-client-protocol-wire.workspace = true
 skein-forge.workspace = true
 jig-domain-people.workspace = true
 skein-world.workspace = true

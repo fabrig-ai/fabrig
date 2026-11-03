@@ -144,6 +144,10 @@ fn the_small_profile_passes_each_domains_validity() {
     let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
     let root = limits::engine(&jig, &settings.limits).expect("coherent root profile");
     assert!(temper_engine_domain::valid(&root));
+    assert_eq!(root.public_watermark, root.watermark / 2);
+    let mut jig = jig;
+    jig.clients.public.reads = 8;
+    assert_eq!(limits::engine_candidate(&jig, &settings.limits).public_reads, 8);
 }
 
 #[test]
@@ -593,4 +597,15 @@ fn an_unknown_name_is_refused() {
         assert_eq!(limits::apply(&mut changed, name, 1), Err(limits::Refused::Unknown));
         assert_eq!(changed, small);
     }
+}
+
+/// Configured public indexes reach the effective core (jig/docs/design/domain/root.md, 10).
+#[test]
+fn configured_public_index_bounds_reach_the_core() {
+    let mut config = fixtures::engine();
+    let default = limits::engine(&config.jig.limits, &config.limits).expect("default engine");
+    assert_eq!(temper_engine_domain::core_limits(&default).public, jig_domain_core::PublicIndexLimits::OFF);
+    config.jig.limits.core.public = jig_domain_core::PublicIndexLimits { goals: 4, ended: 3, lines: 8, depth: 4 };
+    let configured = limits::engine(&config.jig.limits, &config.limits).expect("configured engine");
+    assert_eq!(temper_engine_domain::core_limits(&configured).public, config.jig.limits.core.public);
 }

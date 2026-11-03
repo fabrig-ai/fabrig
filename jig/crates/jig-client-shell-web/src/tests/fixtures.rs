@@ -11,7 +11,7 @@ pub fn exchange(id: u32, body: &[u8]) -> Asked {
     // Use the mapping's actual call so the header check covers both components.
     let mapping = Mapping::new(b"/jig").expect("mapping");
     let call = mapped(&mapping, None, jig_client_protocol_link::Message::Read(body.into()));
-    Asked::Exchange { id, call, bound: BOUND }
+    Asked::Exchange { id, call, bound: BOUND, cache: skein_ui_web::fetch::Cache::Browser, keep: &[] }
 }
 pub fn stream(piece: u32) -> Asked {
     Asked::OpenStream {

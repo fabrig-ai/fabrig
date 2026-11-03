@@ -827,8 +827,8 @@ pub const PROJECT_SHOW_AT: u8 = 54;
 pub const PROJECT_FUND_AT: u8 = 55;
 pub const PROJECT_SHOW: Tool = Tool {
     name: b"project show",
-    line: b"Read a project, its roles and spends, its open period and each party's pool",
-    prints: b"The project, its homes and spend per period, each role, its open period and each pool",
+    line: b"Read a project, its public page, roles and spends, its open period and each party's pool",
+    prints: b"The project, whether it is public and its public page's path, its homes and spend per period, each role, its open period and each pool",
     result: b"project",
     forms: &[&[positional(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project")]],
     keyed: Keyed::Never,
@@ -968,4 +968,20 @@ pub const RESTORE: Tool = Tool {
     keyed: Keyed::Required,
     area: 1,
     notes: b"A forgotten revision exits 2, naming the oldest kept. A revision\ntoo large to restore exits 2; restore a later revision instead.\nRead the proposal with proposal show PROPOSAL, then decide it\nwith proposal decide PROPOSAL accept --key KEY.\n",
+};
+
+/// Visibility's position in the tools table (client/tools.md, 5.3).
+pub const PROJECT_AMEND_AT: u8 = 64;
+pub const PROJECT_AMEND: Tool = Tool {
+    name: b"project amend",
+    line: b"Make a project readable by anyone without signing in, or private again",
+    prints: b"`project 1: public` and, made public, `page: /public/projects/3f2a9c01d4e5b6a7`; made private, `project 1: private`",
+    result: b"project_amend",
+    forms: &[&[
+        positional(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project"),
+        flag(b"visibility", b"public|private", Kind::Word { set: &[b"public", b"private"] }, Required, b"Public reading, or private again"),
+    ]],
+    keyed: Keyed::Required,
+    area: 1,
+    notes: b"Only an owner changes visibility. A member and project 0 are refused, exit 2. The public page is a path under the deployment's address, from me's public identifier. A key replay prints the first answer.\n",
 };

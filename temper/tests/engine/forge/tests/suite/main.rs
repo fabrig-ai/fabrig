@@ -5,6 +5,7 @@ mod hooks;
 mod landing;
 mod memory;
 mod protection;
+mod public;
 mod replay;
 mod settle;
 mod simulation;

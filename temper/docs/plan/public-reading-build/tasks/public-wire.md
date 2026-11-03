@@ -1,0 +1,173 @@
++++
+id = "public-wire"
+part = "jig-public"
+kind = "interface"
+needs = []
+files = ["jig/crates/jig-client-protocol-wire/schema/public-v1.schema", "jig/crates/jig-client-protocol-wire/schema/public-v1.fields", "jig/crates/jig-client-protocol-wire/src/generated/public_v1.rs", "jig/crates/jig-client-protocol-wire/src/public.rs", "jig/crates/jig-client-protocol-wire/src/lib.rs", "jig/crates/jig-client-protocol-wire/src/tests/public.rs", "jig/crates/jig-client-protocol-wire/src/tests/public/**", "jig/crates/jig-client-protocol-wire/golden/public/**", "jig/crates/jig-client-protocol-wire/Cargo.toml", "jig/tests/codec-families.rs", "jig/docs/design/client/domain/contract.md", "jig/docs/design/domain/people.md"]
+effort = "high"
+minutes = 120
++++
+
+# jig's public records: a schema of their own, the golden of their reachable shape, their bounds
+
+## Goal
+
+`jig-client-protocol-wire` gains jig's public records as a schema apart, versioned apart from
+the client wire, naming nothing outside it, with the golden of the whole wire shape a visitor
+can receive and the tests that make a field's addition visible
+(`jig/docs/design/client/domain/contract.md`, section 12;
+`jig/docs/design/protocol/client.md`, section 19). Nothing produces or reads them yet.
+
+Acceptance:
+
+- `schema/public-v1.schema`, family `jig-public-wire 1`, holds exactly the records and enums
+  of `notes/contracts.md`, section 3 (`PublicProjects`, `PublicBoard`, `PublicGoal`,
+  `PublicCard`, `PublicLine`, `PublicCounts`, `PublicApplication`, `PublicExecutor`,
+  `PublicPhase`, `PublicHold`), in skein-codegen's syntax as `client-v19.schema` uses it:
+  identifiers `u64`, times `u64` seconds, no text field anywhere. `PublicPhase` has one unit
+  variant per `jig_client_domain::contract::Phase` variant, in its order; `PublicHold` one
+  per kind of hold the client contract's task line names for a held task (contract.md, 5.1),
+  never a reason.
+- Generated into `src/generated/public_v1.rs` by skein-codegen, declared in `lib.rs` as
+  `pub mod public_v1` (beside `v19`, not glob re-exported), with
+  `pub const PUBLIC_VERSION: u16 = 1` and the kind numbers `PUBLIC_PROJECTS: u16 = 1`,
+  `PUBLIC_BOARD: u16 = 2`, `PUBLIC_CARD: u16 = 3`; registered as a family of its own in
+  `jig/tests/codec-families.rs` (root the crate, golden `golden/public`), its goldens written
+  by the drift test.
+- `src/public.rs`: `pub struct PublicIndexBounds { pub goals: u16, pub ended: u16,
+  pub lines: u16, pub depth: u16, pub projects: u32 }` and
+  `pub fn public_bounds(bounds: &PublicIndexBounds) -> [u32; 3]`, the largest encoded answer
+  of *projects*, *board* and *card* at those bounds (each list at its bound, each option
+  present, each integer at its widest encoding), from the generated code's own bounds where
+  it gives them; and the generated codec's limits for the lists filled from the same bounds
+  (`pub fn public_limits(bounds: &PublicIndexBounds) -> public_v1::Limits`, or the generated
+  equivalent's name).
+- `schema/public-v1.fields`, the text golden: one line per record field (record, field, type,
+  tag, default) and per enum variant (enum, variant, tag, payload), for every record and enum
+  reachable from `PublicProjects`, `PublicBoard`, `PublicCard` and `PublicApplication`, in the
+  schema's order.
+- Step tests in `src/tests/public.rs` (and `src/tests/public/` if they grow):
+  - `the_public_schema_names_nothing_from_elsewhere`: every type the schema names is defined
+    in it or is a scalar; it names no record of `client-v19.schema` or `client-v19-part1.schema`;
+  - `the_fields_golden_is_the_reachable_wire_shape`: the listing made from the schema equals
+    `public-v1.fields` byte for byte, and lists every record and enum the four roots reach and
+    no other;
+  - `a_nested_field_added_changes_the_golden`: a copy of the schema text with one field
+    added to `PublicLine` (and, separately, a variant added to `PublicPhase`) gives a listing
+    that differs from the golden, so the comparison test would fail;
+  - `a_name_from_elsewhere_breaks_the_closure`: a copy naming `MeProject` in a field fails the
+    closure check;
+  - `no_public_record_carries_text`: no field of the schema is text or bytes, but
+    `PublicApplication.record`;
+  - `public_bounds_hold_the_largest_answers`: a board, a card and a projects list built at
+    exactly the bounds encode within `public_bounds`, and one entry more is refused by the
+    codec's limits.
+  The listing and the closure check read the schema with skein-codegen's parser
+  (`skein/testing/skein-codegen`, a dev-dependency) if its library exposes one, otherwise a
+  small reader of the schema's lines in the test module.
+- `heavy cargo nextest run -p jig-client-protocol-wire --lib` passes, and the drift test
+  (`heavy cargo nextest run -p jig-client-wire-world -E 'test(/drift::/)'`) with the new
+  family.
+
+## Inputs
+
+- `temper/docs/plan/public-reading-build/notes/common.md`; `notes/contracts.md`, section 3.
+- `jig/docs/design/client/domain/contract.md`, section 12 (the records, their sources, the
+  golden and its tests); `jig/docs/design/protocol/client.md`, section 19.
+- As they stand: `jig-client-protocol-wire`'s `lib.rs`, `schema/client-v19.schema` (syntax),
+  `src/tests.rs`; `jig/tests/codec-families.rs` (`Family`, `check()`); skein-codegen's
+  `src/lib.rs`, `parse.rs`, `emit_bounds.rs`, `emit_limits.rs`;
+  `jig_client_domain::contract::Phase` (`contract/common.rs`) and the task line's hold.
+
+## Owns and may change
+
+- Owns the files in the header. `lib.rs`: only the new module's declaration, the constants and
+  `mod public`; `v19` and its re-export stay as they are (`visibility-wire` edits the v19
+  schema at the same time, in other files).
+- `jig/tests/codec-families.rs`: one `Family` entry appended, and `"public"` appended to the
+  `client` family's `fixtures` (its golden directory holds the new family's); nothing else.
+- `Cargo.toml`: a dev-dependency on `skein-codegen` if the tests use its parser; nothing else.
+- Pre-approved: if skein-codegen cannot express an empty-payload enum as written, use its form
+  for unit variants and say which. If the generated code gives no worst-case size, compute
+  `public_bounds` by hand from the encoding the generated code writes, with a test that
+  encodes at the bounds as above, and say so. If the client contract's line names no hold kind
+  for a held task, `PublicHold` has the one variant `held`, and the report says so.
+
+## Steps
+
+1. The schema; register the family; generate with
+   `SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p jig-client-wire-world -E 'test(/drift::/)'`;
+   the declarations in `lib.rs`.
+2. `public.rs`'s bounds; the fields golden; the step tests; run them alone
+   (`heavy cargo nextest run -p jig-client-protocol-wire --lib -E 'test(/public/)'`).
+3. `cargo fmt`; `python3 -I -B jig/scripts/old_forms.py`;
+   `heavy cargo clippy -p jig-client-protocol-wire --all-targets -- -D warnings`; the crate's
+   tests and the drift test; the citations check.
+4. Commit (why: jig's public records as a schema apart with the golden of what a visitor can
+   receive, which the component and the clients build on); push your branch.
+
+## Report
+
+As the implementer's text says, and also: the schema as written (its records and enums, in a
+few lines), how the listing reads the schema, and `public_bounds`' three values at the
+figures proposed for dev.fabrig.ai (`temper/docs/design/draft/first-release.status.md`: 20
+live and 20 ended goals, 50 lines, depth 16, 64 projects).
+
+## Answers
+
+2026-11-03. **The user's decision on public titles.** User, 2026-11-03 15:40Z: public reading shows titles. A goal's and a task's title (the first line of its spec, as jig's client contract names a task's title) crosses into its public line, and a public project's name crosses into its public record. There is no author flag and no human publication capability for these. Everything else in people.md 13.3's "No text at all" list still never crosses: spec beyond its first line, instructions, inputs, results, words, questions and answers, transcripts, notes, reasons, labels' meanings, proposals, escalations, people's and parties' names, charters', procedures' and roles' names. Review finding 1 is settled by the user's decision.
+
+For this task: Add `title` to the public line and `name` to the public project record, each bounded by jig's existing bounds for a task's title and a project's name, with the golden updated. This task may also edit the design text: `jig/docs/design/client/domain/contract.md` 12 (the records, plus provenance rows: title from the spec's first line, name from the project's record) and `jig/docs/design/domain/people.md` 13.3, where "No text at all" becomes "No text but titles and the project's name", with 12's "human publication capability" entry narrowed to the other names.
+
+2026-11-03. **May `jig/tests/codec-families.rs` also add `"public"` to the `client` family's
+fixtures?** Yes. The `client` family's inventory check lists every entry of `golden/`, so the
+nested `golden/public/` must be named among its fixtures, as the `view records` family names its
+`rendered` directory; the new `public` family checks that directory's contents. Append
+`"public"` to the `client` entry's `fixtures` and append the new `Family`; nothing else in the
+file changes. The location `golden/public` stays.
+
+2026-11-03. **Where does a public project's name go: a `PublicProject` record in the projects
+list (A), or on `PublicBoard` alone (B)?** A, and the board carries it too. Add
+`record PublicProject { project: u64, name: text 64 }` (the bound of the client wire's project
+name), make `PublicProjects.projects` a `list PublicProject`, and add `name: text 64` to
+`PublicBoard` after `project`: the projects page lists the projects by name, and the board page
+reads the board alone and heads it with the name (`public-web`'s and `public-walk`'s answers).
+The schema is new and nothing reads it yet, so this is the task's to set, not the user's: the
+user's decision put the name in the public records. Section 3 of `notes/contracts.md` is
+amended to match; `public_bounds` counts each name at 64 bytes; the fields golden lists the new
+record; `no_public_record_carries_text` allows `PublicLine.title`, `PublicProject.name`,
+`PublicBoard.name` and `PublicApplication.record`. contract.md 12's table and source rows say
+the same.
+
+2026-11-03. **The schema's list ceilings and the bounds past them: explicit ceilings and
+helpers that refuse (A), or wider maxima in skein-codegen and skein-codec (B)?** A; skein is
+not widened. The schema's syntax needs a ceiling on every list, text and bytes, and skein-codec
+refuses a declaration whose largest encoding passes `u32`, so the ceilings are the schema's,
+set here (`notes/contracts.md`, section 3, amended to match):
+
+- `PublicProjects.projects: list 4096`; `PublicBoard.live` and `.ended: list 256`;
+  `PublicGoal.tree: list 256`; `PublicCard.lineage: list 64 u64`, `.delegates: list 256`;
+  `PublicApplication.tasks: list 1024 u64`, `.record: bytes 16777216`; names `text 64`.
+- **The title is cut, not carried whole.** This replaces the earlier answer's "bounded by
+  jig's existing bound for a task's title": that bound is the client wire's `DocumentText`
+  (`text 65536`, cut at `documents.text_bytes`), which makes a line 64 KiB and a board's
+  reservation hundreds of megabytes. `PublicLine` gains, after `task`, `title: text 256` and
+  `title_cut: bool`: the first line of the task's spec cut at 256 bytes on a character
+  boundary, `title_cut` true when it was cut, as `DocumentText.cut` says. The fields golden
+  lists both; `no_public_record_carries_text` allows `PublicLine.title`.
+- `public_limits(bounds: &PublicIndexBounds) -> Option<public_v1::Limits>`, as temper's
+  `public_limits` is: `None` when a bound passes its ceiling (the generated `check_limits`).
+  `public_bounds(bounds: &PublicIndexBounds) -> [u32; 3]` keeps its signature: each kind's
+  `encoded_bound` at those limits, and `u32::MAX` for each kind when `public_limits` is `None`
+  or a bound does not fit `u32`, so the component's check against `answer_bytes` refuses the
+  start (never 0, which would pass that check).
+- Tests: `public_bounds_hold_the_largest_answers` as written, at bounds within the ceilings;
+  and `bounds_past_a_ceiling_are_refused`: goals, ended or lines at 257, depth at 65 or
+  projects at 4097 give `public_limits` `None` and `public_bounds` `[u32::MAX; 3]`.
+- The design text: `jig/docs/design/client/domain/contract.md`, 12 states the ceilings and
+  the title's cut (its source row: the spec's first line, cut at 256 bytes).
+
+Report `public_bounds`' three values at the proposed figures as measured by the test; at those
+figures the board is about 730 KB, past the proposed `clients.public.answer_bytes` of 256 KiB.
+That proposal is the user's (`temper/docs/design/draft/first-release.status.md`, Open): leave
+it, and report the measured values.

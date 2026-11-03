@@ -426,3 +426,24 @@ fn a_served_template_carries_its_resources() {
         ]
     );
 }
+
+#[test]
+fn me_names_no_public_identifier_until_the_names_are_held() {
+    let limits = fixtures::wire_limits();
+    for public in [false, true] {
+        let mut frame = fixtures::frame_two_projects();
+        let mut projects = List::with_capacity(1);
+        let mut project = frame.projects.into_boxed().into_iter().next().expect("fixture project");
+        project.project = u32::MAX;
+        project.public = public;
+        projects.push(project).expect("one project");
+        frame.projects = projects;
+        let record = translate::owner::frame(&frame, &[], &limits).expect("me");
+        let mut pieces = skein_lib::Reader::new(record.projects());
+        let bytes = skein_codec::piece::split(&mut pieces).expect("project piece").expect("one project");
+        let project = w::MeProject::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("project");
+        assert_eq!(project.project(), u32::MAX);
+        assert_eq!(*project.public(), None);
+        assert!(pieces.is_empty());
+    }
+}

@@ -342,3 +342,49 @@ fn chats_and_plan_drop_each_unreadable_field_independently() {
         assert_eq!(parse(path), parse(canonical), "{path:?}");
     }
 }
+
+#[test]
+fn public_paths_print_and_parse_both_ways() {
+    use crate::address::{Public, print_public};
+    for (page, path) in [
+        (Public::Projects, b"/public".as_slice()),
+        (Public::Board { project: 1 }, b"/public/projects/0000000000000001"),
+        (Public::Task { project: 1, task: 10 }, b"/public/projects/0000000000000001/tasks/000000000000000a"),
+        (Public::Landings { project: 1 }, b"/public/projects/0000000000000001/landings"),
+        (
+            Public::Landing { project: 1, task: u64::MAX },
+            b"/public/projects/0000000000000001/landings/ffffffffffffffff",
+        ),
+    ] {
+        assert_eq!(print_public(&page).as_ref(), path);
+        assert_eq!(parse(path), Place::Public(page));
+    }
+}
+#[test]
+fn a_malformed_public_path_reads_as_public() {
+    use crate::address::Public;
+    for path in [
+        b"/public/projects/123".as_slice(),
+        b"/public/projects/ABCDEF0123456789",
+        b"/public/projects/123456789abcdef",
+        b"/public/projects/0123456789abcdef0",
+        b"/public/projects/0123456789abcdef/extra",
+        b"/public/projects/0123456789abcdef/",
+        b"/public/projects//0123456789abcdef",
+        b"/public/projects/0123456789abcdef?x=1",
+        b"/public/projects/%610123456789abcd",
+        b"/public/",
+        b"/public?x=1",
+        b"/public/projects/0123456789abcdef/landings/",
+        b"/public/projects/0123456789abcdef/tasks/0123456789abcdef/extra",
+    ] {
+        assert_eq!(parse(path), Place::Public(Public::Projects), "{path:?}");
+    }
+}
+#[test]
+fn other_paths_read_as_before() {
+    assert_eq!(parse(b"/publicx"), Place::Missing);
+    assert_eq!(parse(b"/publicx/projects/0123456789abcdef"), Place::Missing);
+    assert_eq!(parse(b"/chats/7"), Place::Address(Address::Chat { task: 7 }));
+    assert_eq!(parse(b"/"), Place::Address(Address::Inbox { filter: Filter::ALL }));
+}

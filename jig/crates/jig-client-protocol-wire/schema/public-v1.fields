@@ -1,0 +1,75 @@
+enum PublicExecutor agent tag=0 payload=-
+enum PublicExecutor procedure tag=1 payload=-
+enum PublicExecutor person tag=2 payload=-
+enum PublicExecutor job tag=3 payload=-
+enum PublicPhase waiting tag=0 payload=-
+enum PublicPhase idle tag=1 payload=-
+enum PublicPhase due tag=2 payload=-
+enum PublicPhase preparing tag=3 payload=-
+enum PublicPhase claimed tag=4 payload=-
+enum PublicPhase running tag=5 payload=-
+enum PublicPhase backing_off tag=6 payload=-
+enum PublicPhase active tag=7 payload=-
+enum PublicPhase closing tag=8 payload=-
+enum PublicPhase held tag=9 payload=-
+enum PublicPhase ended tag=10 payload=-
+enum PublicPhase done tag=11 payload=-
+enum PublicPhase failed tag=12 payload=-
+enum PublicPhase cancelled tag=13 payload=-
+enum PublicHold failures tag=0 payload=-
+enum PublicHold stalled tag=1 payload=-
+enum PublicHold dependency tag=2 payload=-
+enum PublicHold stopped tag=3 payload=-
+enum PublicHold placed tag=4 payload=-
+enum PublicHold drift tag=5 payload=-
+enum PublicHold effects tag=6 payload=-
+enum PublicHold effect_failed tag=7 payload=-
+enum PublicHold uncertain tag=8 payload=-
+enum PublicHold budget tag=9 payload=-
+enum PublicHold deadline tag=10 payload=-
+enum PublicHold holds_waited tag=11 payload=-
+enum PublicHold resource_unavailable tag=12 payload=-
+enum PublicHold resource_access tag=13 payload=-
+enum PublicHold pool_lost tag=14 payload=-
+enum PublicHold procedure tag=15 payload=-
+enum PublicHold circle tag=16 payload=-
+enum PublicHold exceeded tag=17 payload=-
+record PublicCounts working u32 tag=- default=-
+record PublicCounts waiting u32 tag=- default=-
+record PublicCounts held u32 tag=- default=-
+record PublicCounts closing u32 tag=- default=-
+record PublicCounts ended u32 tag=- default=-
+record PublicLine task u64 tag=- default=-
+record PublicLine title text 256 tag=- default=-
+record PublicLine title_cut bool tag=- default=-
+record PublicLine parent option u64 tag=- default=-
+record PublicLine goal bool tag=- default=-
+record PublicLine priority option u32 tag=- default=-
+record PublicLine executor PublicExecutor tag=- default=-
+record PublicLine phase PublicPhase tag=- default=-
+record PublicLine hold option PublicHold tag=- default=-
+record PublicLine made u64 tag=- default=-
+record PublicLine changed u64 tag=- default=-
+record PublicLine active option u64 tag=- default=-
+record PublicLine ended option u64 tag=- default=-
+record PublicLine spent u64 tag=- default=-
+record PublicLine budget u64 tag=- default=-
+record PublicLine delegates PublicCounts tag=- default=-
+record PublicProject project u64 tag=- default=-
+record PublicProject name text 64 tag=- default=-
+record PublicProjects projects list 4096 PublicProject tag=- default=-
+record PublicProjects max_age u32 tag=- default=-
+record PublicGoal line PublicLine tag=- default=-
+record PublicGoal tree list 256 PublicLine tag=- default=-
+record PublicGoal folded u32 tag=- default=-
+record PublicBoard project u64 tag=- default=-
+record PublicBoard name text 64 tag=- default=-
+record PublicBoard live list 256 PublicGoal tag=- default=-
+record PublicBoard live_folded u32 tag=- default=-
+record PublicBoard ended list 256 PublicGoal tag=- default=-
+record PublicCard line PublicLine tag=- default=-
+record PublicCard lineage list 64 u64 tag=- default=-
+record PublicCard delegates list 256 PublicLine tag=- default=-
+record PublicCard folded u32 tag=- default=-
+record PublicApplication tasks list 1024 u64 tag=- default=-
+record PublicApplication record bytes 16777216 tag=- default=-

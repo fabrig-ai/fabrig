@@ -309,6 +309,7 @@ impl Core {
                 | people::Outcome::PolicyChanged { .. }
                 | people::Outcome::Renamed { .. }
                 | people::Outcome::ProjectRemoved { .. }
+                | people::Outcome::VisibilitySet { .. }
                 | people::Outcome::ProjectMade { .. }
                 | people::Outcome::SettingsChanged { .. }
                 | people::Outcome::MovedToNewest { .. }
