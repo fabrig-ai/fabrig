@@ -28,14 +28,14 @@ yet** is task `goal-release`'s.
 
 | Part | Tasks (needs) |
 |---|---|
-| mine | `mine-call` [] (the call's shape, C1); `mine-procedure` [] (the procedure's new head, C3); `mine-start` [mine-call] (the root's `mine`, C4, and L's first story: g landed into main whole); `mine-forge` [mine-procedure, goal-release] (the forge's side, C5); `mine-help` [mine-call] (the change page's `branch`, within its 8,192-byte bound); `mine-story-moves` [mine-start, mine-forge, goal-release] (a change into g is L's new head; drift by another identity; a stale read; G's close deleting or keeping g); `mine-story-held` [mine-story-moves] (`reference-landing.md`, section 9's second story) |
+| mine | `mine-call` [] (the call's shape, C1); `mine-procedure` [] (the procedure's new head, C3); `mine-start` [mine-call] (the root's `mine`, C4, and L's first story: g landed into main whole); `mine-forge` [mine-procedure, goal-release] (the forge's side, C5); `mine-help` [mine-call] (the change page's `branch`, within its 8,192-byte bound); `mine-story-moves` [mine-start, mine-forge, goal-release] (a change into g is L's new head; drift by another identity; a stale read; G's close deleting or keeping g); `mine-story-held` [mine-story-moves] (`reference-landing.md`, section 9's second story); `mine-title` [mine-start] (L's pull request titled by its words' first line, parameter 10: forge.md 8.1's title bullet, added in the third batch) |
 | release | `goal-release` [] (C2) |
 | reference | `reference-landing-config` [] (`notes/settings.md`) |
 
 The cross-task shapes are `notes/contracts.md` (C1 to C5); the standing rules,
 `notes/common.md`.
 
-Every task of the milestone is released (two batches). The old branch
+Every task of the milestone is released (three batches). The old branch
 `o/forgejo-land-drift-world`'s idea (a branch read sent before a move and answered after it
 holds nothing) is carried into `mine-story-moves` for g.
 
