@@ -3,6 +3,9 @@
     clippy::disallowed_macros,
     reason = "stock instructions are held in the binary (protocol/configuration.md, 13.4)"
 )]
+mod kinds;
+pub use kinds::{forge_defaults, kinds};
+
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_core::{
