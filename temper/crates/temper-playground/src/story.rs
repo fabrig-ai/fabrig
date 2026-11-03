@@ -5,7 +5,7 @@ use crate::{
     programs::{self, Harness, Process},
 };
 use skein_lib::Wall;
-use skein_sim_world::{Inherited, Stream, World};
+use skein_sim_world::{Bare, Inherited, Meter, Stream, World};
 
 /// Inputs read as a deployment, with one seed and a supplied wall clock.
 pub struct Start {
@@ -39,6 +39,12 @@ pub enum Links {
 /// Make a harness-free world. The service is process zero.
 #[must_use]
 pub fn world(start: Start) -> World<Process<()>, Machine> {
+    world_metered(start, Bare)
+}
+
+/// Make a harness-free world with a meter installed before admitting any process.
+#[must_use]
+pub fn world_metered<N: Meter>(start: Start, meter: N) -> World<Process<()>, Machine, N> {
     let Start { seed, wall, deployment, fakes, links } = start;
     let mut disk = machine::fresh();
     machine::setup(&mut disk);
@@ -58,7 +64,7 @@ pub fn world(start: Start) -> World<Process<()>, Machine> {
     let mut config = skein_sim::Config::calm();
     config.wall = wall;
     config.trace = skein_sim::Trace::Off;
-    let mut world = World::new(seed, config).with_machine(machine);
+    let mut world = World::new(seed, config).with_machine(machine).with_meter(meter);
     for (program, roots) in programs::programs::<()>() {
         world.host_roots(program, roots);
     }
@@ -82,7 +88,7 @@ pub fn world(start: Start) -> World<Process<()>, Machine> {
 
 /// Drain the service's simulated standard output into the world's whole-line capture.
 /// A loop calls this between steps, just as it takes `World::printed`.
-pub fn capture<H: Harness>(world: &mut World<Process<H>, Machine>) {
+pub fn capture<H: Harness, N: Meter>(world: &mut World<Process<H>, Machine, N>) {
     let (sim, pids, processes) = world.parts();
     for (pid, process) in pids.iter().zip(processes) {
         if let Process::Service(service) = process
@@ -97,7 +103,7 @@ pub fn capture<H: Harness>(world: &mut World<Process<H>, Machine>) {
 
 /// Step with this world's factory parameters installed, then capture its output.
 /// The scope ends before returning to the caller or another world's loop.
-pub fn step<H: Harness>(world: &mut World<Process<H>, Machine>) -> skein_sim_world::Step {
+pub fn step<H: Harness, N: Meter>(world: &mut World<Process<H>, Machine, N>) -> skein_sim_world::Step {
     let parameters = world
         .processes()
         .iter()
