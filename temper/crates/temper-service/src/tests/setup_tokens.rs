@@ -50,19 +50,19 @@ use super::create_tests::Forge;
 use jig_protocol_store::{SecretOwner, Secrets};
 use skein_forge_connection as connection;
 use skein_lib::Reader;
-use temper_client_protocol_wire::{self as wire, v1 as w};
+use temper_client_protocol_wire::v1 as w;
 
-struct Tokens {
-    api: Secret,
-    git: Secret,
-    hook: Secret,
+pub(super) struct Tokens {
+    pub(super) api: Secret,
+    pub(super) git: Secret,
+    pub(super) hook: Secret,
 }
 impl Tokens {
-    fn new(seed: u64) -> Self {
+    pub(super) fn new(seed: u64) -> Self {
         let mut rng = Rng::new(seed);
         Self { api: random(&mut rng), git: random(&mut rng), hook: random(&mut rng) }
     }
-    fn bundle(&self, hook: bool) -> Secret {
+    pub(super) fn bundle(&self, hook: bool) -> Secret {
         temper_client_domain::forge::forges::pasted_tokens(
             Some(self.api.expose()),
             Some(self.git.expose()),
@@ -70,7 +70,7 @@ impl Tokens {
         )
         .unwrap()
     }
-    fn give(&self, forge: &mut Forge, login: &[u8], admin: bool, other_git_user: bool) -> u64 {
+    pub(super) fn give(&self, forge: &mut Forge, login: &[u8], admin: bool, other_git_user: bool) -> u64 {
         let setup = forge.service.setup_mut();
         let user = match setup.find(login) {
             Some(account) => account.id,
@@ -81,7 +81,7 @@ impl Tokens {
         setup.token(git_user, b"git", &[b"read:user", b"write:repository"], self.git.clone());
         user
     }
-    fn scan(&self, engine: &crate::engine::Engine) {
+    pub(super) fn scan(&self, engine: &crate::engine::Engine) {
         for secret in [&self.api, &self.git, &self.hook] {
             for note in &engine.notes {
                 assert!(!contains(alloc::format!("{note:?}").as_bytes(), secret.expose()));
@@ -111,7 +111,7 @@ fn empty_settings() -> crate::settings::Engine {
     fixtures::fill_files(&mut settings);
     settings
 }
-fn owner() -> (crate::Service, Box<[u8]>) {
+pub(super) fn owner() -> (crate::Service, Box<[u8]>) {
     use jig_client_protocol_wire::v19 as j;
     use jig_domain_people as people;
     let mut bootstrap = fixtures::ready();
@@ -165,8 +165,7 @@ fn making(new: bool) -> w::Making {
     .unwrap();
     w::Making::New(w::NewForge::new(&w::CEILINGS, w::NewForgeParts { forge: w::ForgeAsk::Connected(place) }).unwrap())
 }
-fn http_connect(service: &mut crate::Service, bearer: &[u8], key: u8, new: bool, bundle: Secret) {
-    use jig_client_protocol_wire::v19 as j;
+pub(super) fn http_connect(service: &mut crate::Service, bearer: &[u8], key: u8, new: bool, bundle: Secret) {
     let request = w::Request::Connect(
         w::Connect::new(
             &w::CEILINGS,
@@ -177,48 +176,21 @@ fn http_connect(service: &mut crate::Service, bearer: &[u8], key: u8, new: bool,
         )
         .unwrap(),
     );
-    let record = wire::requesting(&w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap());
-    let engine = service.engine.as_mut().unwrap();
-    let limits = &engine.clients.env.limits.wire;
-    let family = j::FamilyRequest::new(limits, j::FamilyRequestParts { scope: j::Scope::Deployment, record }).unwrap();
-    let mut bytes = skein_lib::Writer::new(usize::try_from(family.measure()).unwrap());
-    family.encode(&mut bytes).unwrap();
-    let keyed = j::Keyed::new(
-        limits,
-        j::KeyedParts {
-            key: [key; 16],
-            owner: j::Owner::Family(j::Family::new(limits, j::FamilyParts { number: wire::FORGE }).unwrap()),
-            version: wire::CLIENT_VERSION,
-            request: bytes.finish(),
-            value: Some(bundle),
-        },
-    )
-    .unwrap();
-    let mut bytes = skein_lib::Writer::new(usize::try_from(keyed.measure()).unwrap());
-    keyed.encode(&mut bytes).unwrap();
-    let mut peer = fixtures::http::Peer::new(engine, b"POST", b"/jig/v1/request", &bytes.finish(), Some(bearer));
-    peer.pump(engine, true);
-    let at = skein_lib::bytes::find(peer.received(), b"\r\n\r\n").unwrap().checked_add(4).unwrap();
-    let j::KeyedAnswer::FinalAnswer(answer) =
-        j::KeyedAnswer::decode(&engine.clients.env.limits.wire, &mut Reader::new(&peer.received()[at..])).unwrap()
-    else {
-        panic!("family terminal")
-    };
-    let answer = w::Answer::decode(&w::CEILINGS, &mut Reader::new(answer.record())).unwrap().into_parts().outcome;
-    assert_eq!(answer, w::Outcome::Connecting);
+    fixtures::forge_connecting(service, bearer, key, request, bundle);
 }
-struct Trace {
-    keeps: List<(Token, u64)>,
+
+pub(super) struct Trace {
+    pub(super) keeps: List<(Token, u64)>,
     login: bool,
     ended: bool,
     starts: Option<u32>,
     erase: bool,
 }
 impl Trace {
-    fn new() -> Self {
+    pub(super) fn new() -> Self {
         Self { keeps: List::with_capacity(8), login: false, ended: false, starts: None, erase: false }
     }
-    fn scan(&mut self, engine: &crate::engine::Engine, tokens: &Tokens) {
+    pub(super) fn scan(&mut self, engine: &crate::engine::Engine, tokens: &Tokens) {
         tokens.scan(engine);
         if self.starts.is_none() {
             self.starts = Some(engine.forge.starts.len());
@@ -300,7 +272,7 @@ fn is_connected(state: domain::Connection) -> bool {
         _ => false,
     }
 }
-fn settle(service: &mut crate::Service, forge: &mut Forge, tokens: &Tokens, connected: bool) -> Trace {
+pub(super) fn settle(service: &mut crate::Service, forge: &mut Forge, tokens: &Tokens, connected: bool) -> Trace {
     let mut trace = Trace::new();
     for tick in 1..20_000 {
         turn(service, forge, tokens, &mut trace, tick);
@@ -318,7 +290,7 @@ fn settle(service: &mut crate::Service, forge: &mut Forge, tokens: &Tokens, conn
     }
     panic!("tokens connect did not settle");
 }
-fn erased(service: &mut crate::Service) {
+pub(super) fn erased(service: &mut crate::Service) {
     let engine = service.engine.as_mut().unwrap();
     assert!(match engine
         .store
@@ -335,7 +307,7 @@ fn erased(service: &mut crate::Service) {
     };
     assert!(rows.is_empty(), "every carried row was erased");
 }
-fn connected(service: &crate::Service, user: u64, tokens: &Tokens, generation: u64) {
+pub(super) fn connected(service: &crate::Service, user: u64, tokens: &Tokens, generation: u64) {
     let engine = service.engine.as_ref().unwrap();
     assert_eq!(
         engine.domain.forge_connection(1),
@@ -405,7 +377,7 @@ fn wire_tokens_keep_in_order_erase_connect_and_restart_as_the_checked_user() {
     connected(&restarted, user, &tokens, 1);
 }
 
-fn stopped(service: &mut crate::Service, forge: &mut Forge, tokens: &Tokens) {
+pub(super) fn stopped(service: &mut crate::Service, forge: &mut Forge, tokens: &Tokens) {
     // A refused replacement drops the component's access and closes its pooled connection.
     let engine = service.engine.as_mut().unwrap();
     let user = engine.workers.forges.get(1).unwrap().user;
