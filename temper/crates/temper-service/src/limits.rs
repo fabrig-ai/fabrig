@@ -1,14 +1,15 @@
-//! The small profile and checked field overrides (protocol/configuration.md, section 7).
+//! The small and standard profiles and checked field overrides (protocol/configuration.md, section 7).
 mod names;
 use alloc::boxed::Box;
 use skein_lib::Duration;
 use temper_engine_domain as engine;
 use temper_engine_domain_forge as forge;
 use temper_worker_domain_checkout as checkout;
-/// Temper's profile for one person's machine.
+/// Temper's profiles for one person's machine and a project of fabrig's scale.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Profile {
     Small,
+    Standard,
 }
 /// Root's own limits, beyond jig's child limits.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -242,6 +243,43 @@ const FORGE: forge::Limits = forge::Limits {
     // Time to gather a landing queue, from the engine forge world fixture.
     queue_window: Duration::from_secs(30),
 };
+// A project of fabrig's scale (temper/docs/design/protocol/configuration.md, 13.4).
+const STANDARD_FORGE: forge::Limits = forge::Limits {
+    // Tasks following live changes in a project, 18 changes seen.
+    tasks: 128,
+    // Holds for live changes in a project, 18 seen.
+    holds: 128,
+    // Live changes in a project, 18 seen.
+    changes: 128,
+    // Named calls retained by jig standard core.call_records.
+    named_calls: 128,
+    // Live landings alongside the project's changes.
+    landings: 32,
+    client: skein_forge_client::Limits {
+        // Watched resources, at least one for each held branch.
+        resources: 128,
+        ..CLIENT
+    },
+    change_policy: temper_engine_domain_forge_change::Limits {
+        // Questions per change or task, 15 seen.
+        questions: 80,
+        // Tasks across a change's runs and retries, 14 runs seen.
+        tasks: 80,
+        // Repair attempts across a change's runs, 14 seen.
+        repairs: 80,
+        // Resolution attempts across a change's runs, 14 seen.
+        resolutions: 80,
+        // Update attempts across a change's runs, 14 seen.
+        updates: 80,
+        ..FORGE.change_policy
+    },
+    issue_policy: temper_engine_domain_forge_issues::Limits {
+        // Tasks in one goal's lifetime plan, 73 seen.
+        plan_items: 384,
+        ..FORGE.issue_policy
+    },
+    ..FORGE
+};
 const CHECKOUT: checkout::Limits = checkout::Limits {
     // Cached or held checkout workspaces, from the checkout world fixture.
     workspaces: 3,
@@ -341,10 +379,11 @@ const CLIENTS: Clients = Clients {
 /// The standalone process's socket admission.
 pub const SOCKETS: u32 = 64;
 
-/// Constant small-profile values in each owner's limits.
+/// Constant profile values in each owner's limits.
 #[must_use]
 pub fn profile(profile: Profile) -> Limits {
     match profile {
+        Profile::Standard => Limits { forge: STANDARD_FORGE, ..self::profile(Profile::Small) },
         Profile::Small => Limits {
             picker: Picker { page: 30 },
             routes: Routes { query_bytes: 2048 },

@@ -2,7 +2,7 @@
 
 2026-11-03. Where jig's code lags or departs from [tasks.md](tasks.md).
 
-- **Not yet:** 5.9: a drain; a project's scope; a
+- **Not yet:** 4, 11: a batch's bytes: `jig_domain_tasks::Limits` has no `batch_bytes`, and a batch is checked by its count alone (`jig/crates/jig-domain-tasks/src/batch.rs`). 5.9: a drain; a project's scope; a
   party's proposal of a release; a hold parked until an event.
   7: a
   widening funded by whoever gives it (the task's existing funder is

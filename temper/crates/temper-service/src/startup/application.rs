@@ -166,12 +166,15 @@ fn configured_limits(
     let profile = read::text(&mut object, document, b"profile", path, problems);
     let overrides = read::required(&mut object, document, b"overrides", path, problems);
     read::finish(object, document, path, problems);
-    if let Some(profile) = profile
-        && profile.as_ref() != b"small"
-    {
-        problems.push(path.member(b"profile"), What::Profile);
-    }
-    let mut limits = limits::profile(limits::Profile::Small);
+    let profile = match profile.as_deref() {
+        Some(b"standard") => limits::Profile::Standard,
+        Some(b"small") | None => limits::Profile::Small,
+        Some(_) => {
+            problems.push(path.member(b"profile"), What::Profile);
+            limits::Profile::Small
+        }
+    };
+    let mut limits = limits::profile(profile);
     let path = path.member(b"overrides");
     if let Some(at) = overrides
         && let Some(mut object) = read::object(document, at, &path, problems)

@@ -399,13 +399,37 @@ host's half reports it (`llm.md`, 5.5).
   as module documentation and constants, never in the design.
 - **A profile** is a named set of every limit jig's children and
   components take, consistent with one another: a small one for one
-  person's machine, a standard one for a team. A deployment names a
-  profile and overrides any limit by its name.
+  person's machine, and a standard one for a project of fabrig's scale.
+  A deployment names a profile and overrides any limit by its name.
   Small's store page byte ceiling admits an application's page floor
   derived from the largest shipped ordinary transcript's full frame
-  (`store.md`, 5.4). The ceiling is accounting alone: page rows, chunks,
-  decoder capacity, queues and read slots keep their own bounds; the
-  number and its derivation live beside `STORE_KV` in the profile.
+  (`store.md`, 5.4); standard's admits the frame of smith's largest
+  turn (`store.md`, 8.1), so any turn smith admits is stored. The
+  ceiling is accounting alone: page rows, chunks, decoder capacity,
+  queues and read slots keep their own bounds; the number and its
+  derivation live beside `STORE_KV` in the profile.
+- **Standard holds fabrig's own development** as its agents run it,
+  with five times the largest figure seen there: live tasks in the
+  deployment and in a project, live goals, a goal's tree over its life
+  and its depth, a task's live delegates, the tasks one batch makes, the
+  messages a task's inbox keeps (a result from each live delegate, a
+  question and an answer) and a run's inbox takes, a spec's bytes, and a
+  message's and a result's, a message at least a result, since a
+  parent's inbox holds a result as a message. What those figures couple
+  moves with them, the least that passes the checks below: the inbox's
+  bytes, a result's room for each live delegate and a message's for a
+  question and an answer; the people child's operations per request and
+  its inboxes; the notes' scopes over the grants; the hub's inbox with
+  the run's; a document's lines, which hold every charter and executor a
+  creating offer names; the funders, pools, waiters and exemptions with
+  the live tasks; and a batch's bytes, which hold five times the largest
+  plan seen, every task of it at the largest spec seen. Its store's
+  value, page and chunk are what those limits make of the largest row
+  (`store.md`, 5.4), since the store's formats change in place before
+  the first release (`store.md`, section 5); its map's budget, journal
+  and routes are a team's as they were. Its machine's concurrency (hub,
+  fleet and worker slots, workers, clients' streams and calls) is a
+  team's, which a deployment sets for its own machine.
 - **Stream overrides carry their calls.** `clients.streams`,
   `clients.exchanges`, `clients_http.streams` and `clients_http.calls`
   are positive scalar overrides. When any is overridden, both carriers
@@ -675,7 +699,9 @@ the same capacities even when every run slot is occupied.
   that work: a refused start, saying which, or the work's runs failing
   as not offered. A removed charter is answered: it lives while tasks
   hold it (section 8).
-- **Profiles' numbers,** from the first deployments' measurements.
+- **Profiles' numbers** beyond fabrig's development, which sizes
+  standard's work (section 6): small's, and each profile's machine
+  concurrency, from the first deployments' measurements.
 - **A configuration's format version,** once a deployment's configuration
   must survive a release that changes it.
 

@@ -722,7 +722,7 @@ fn settings_values_refuse_each_nonempty_byte_and_list_bound_on_both_sides() {
         (2, "setting_policy_permissions", 1),
         (2, "setting_policy_templates", 1),
         (2, "authority_grants", grant_bytes),
-        (2, "delegation_kinds", 1),
+        (2, "delegation_kinds", 16),
         (2, "pattern_segments", 2),
         (2, "pattern_segments_item", 3),
         (2, "pattern_end_open_value", 4),
@@ -730,7 +730,11 @@ fn settings_values_refuse_each_nonempty_byte_and_list_bound_on_both_sides() {
         (2, "model_set_names_names_item", 5),
         (3, "rules_implies", 1),
     ] {
-        let (setting, value) = values().remove(index);
+        let (setting, mut value) = values().remove(index);
+        if name == "delegation_kinds" {
+            let c::SettingValue::Policy(policy) = &mut value else { panic!("policy") };
+            policy.ceiling.delegation.kinds = list((1..=16).map(c::AuthorityExecutor::Charter));
+        }
         let file = file_from_setting(&setting_json(setting, value));
         for (bound, allowed) in [(length, true), (length - 1, false)] {
             let mut limits = crate::limits::tools();

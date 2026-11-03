@@ -44,6 +44,7 @@ At least these, each a configured limit of the tasks, people or authority child:
 | `tasks.contract_choices` | 4 | a foreman's verdict's three choices, a person task's four |
 | `people.operations` | 81 | delegates plus one; at least project goals |
 | `people.inbox_tasks` | 256 | twice the live tasks |
+| `people.words` | 8,192 | a person's words, a goal's spec a person writes among them: people-v14's ceiling, the most without a format change |
 | `documents.lines` | 16 | a creating offer's every charter (12) and executor (16): the engine refuses an offer past it (`jig-domain-core/src/acts/bounds.rs`); at most 32 (`jig-protocol-config/src/clients.rs`) |
 
 - Every limit these couple to (relations jig's checks hold, store rows, the inbox's bytes, the
@@ -93,7 +94,8 @@ small's constants, with:
 
 - The three profiles `"standard"` (K1).
 - **The agent** (`temper-init/template/agent.json` over smith's `standard`): `max_turns` 800,
-  `calls_per_response` 48, `conversations` 26 (a run and 25 sub-agents); `tool_payload` the
+  `calls_per_response` 48, `conversations` 26 (a run and 25 sub-agents), `inbox` 82 (jig's
+  `standard` `tasks.run_inbox`, which the fleet holds the agent's inbox to); `tool_payload` the
   largest smith's derivation admits for init's models (skein-llm's input within answer: about
   10,662 bytes at an output of 8,192), *derived*; `checkout.message_bytes` equal to it;
   `hub.event_bytes` two less.
