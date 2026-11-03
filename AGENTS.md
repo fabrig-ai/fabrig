@@ -68,7 +68,7 @@ Provisional, 2026-10-30. What every agent working here must know, whatever its r
 
 ## 8. Roles
 
-fab runs the pipeline (the agents repository's `docs/design/fab.md`): a cut, a Claude call, turns a draft into a plan and task specs; implementers are Codex runs, one task in one slot; answer calls settle questions; fab merges, checks and lands. Each gets its instructions from fab. The pre-fab pipeline's role files (lead, implementer, coordinator, operator, operations, ledger, backlog) are kept for reference only in the agents repository, under `old/fabrig/`: they give no instructions.
+fab runs the pipeline: a cut, a Claude call, turns a draft into a plan and task specs; implementers are Codex runs, one task in one slot; answer calls settle questions; fab merges, checks and lands. Each gets its instructions from fab. The pre-fab pipeline's role files (lead, implementer, coordinator, operator, operations, ledger, backlog) are kept for reference only in the agents repository, under `old/fabrig/`: they give no instructions.
 
 ## 9. Design documents
 
