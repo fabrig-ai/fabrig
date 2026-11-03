@@ -145,7 +145,11 @@ impl Domain {
                         && *name == tier.tier
                         && let Some(flight) = &row.record.run
                     {
-                        run = Some(flight.number);
+                        for landing in &flight.landings {
+                            if landing.commit == verification.commit {
+                                run = Some(flight.number);
+                            }
+                        }
                     }
                 }
                 suffix = Box::from(if run.is_some() { b" running".as_slice() } else { b" waiting".as_slice() });
