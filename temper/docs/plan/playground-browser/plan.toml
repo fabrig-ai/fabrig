@@ -35,3 +35,43 @@ id = 2
 story = "story A's world, stepped by skein's slices, posts its printed link, and its visitor spends the link at the clients' listener as a browser does"
 parts = ["visitor"]
 walk = false
+
+[[part]]
+id = "native-walk"
+title = "temper: story A walked natively through the web client's host on skein's bridge in memory, its session log kept and replayed"
+mode = "direct"
+needs = []
+design = "temper/docs/design/playground.md, 9"
+
+[[slice]]
+id = 3
+story = "story A walked natively by skein's fake person through temper's web client host on the in-memory bridge, from the welcome to the CSV change landed and the other two requests answered, its log kept and replayed"
+parts = ["native-walk"]
+walk = false
+
+[[part]]
+id = "worker"
+title = "temper: temper-playground on wasm32 is the worker's module, its start over skein's slices"
+mode = "direct"
+needs = []
+design = "temper/docs/design/playground.md, 3"
+
+[[part]]
+id = "page"
+title = "temper: temper-client-shell-web's feature playground, the worker's platform, the starter, the frame and the failure page"
+mode = "direct"
+needs = []
+design = "temper/docs/design/playground.md, 6"
+
+[[part]]
+id = "served"
+title = "temper: one page policy for the service and the playground, the headers file, bundle.sh --playground and the playground profile"
+mode = "direct"
+needs = []
+design = "temper/docs/design/playground.md, 7"
+
+[[slice]]
+id = 4
+story = "temper/scripts/bundle.sh --playground builds the page with its frame and the world's worker module into static files with their headers, two builds at one commit alike"
+parts = ["worker", "page", "served"]
+walk = false
