@@ -199,10 +199,14 @@ temper-client-journeys          tools/journeys: recorded walks replayed through 
   sum. The client reads no configuration: its only inputs are its two
   arguments (`../protocol/configuration.md`, section 9).
 
-The native terminal receives eight entries in a document's short lists,
-including creating's complete charter and procedure lists. This covers
-`temper init` and the owned example's `documents.lines` eight; it is a
-receiving capacity, independent of how many rows a screen shows.
+Both shells receive eight entries in a document's short lists,
+including creating's complete charter and procedure lists: the
+browser's client bounds, a constant of `temper-client-shell-web`, are
+the terminal's. This covers `temper init` and the owned example's
+`documents.lines` eight; it is a receiving capacity, independent of how
+many rows a screen shows. A list longer than a client receives makes
+its document undecodable there, and jig's link drops its stream on
+such a record: every watch ends, and the page reads Offline and Behind.
 
 ## 3. The client root
 

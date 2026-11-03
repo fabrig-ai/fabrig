@@ -1,3 +1,26 @@
 draft = "open-default"
 repo = "fabrig"
 sources = ["temper/docs/plan/open-default/inputs/request.md", "AGENTS.md", "DESIGN.md"]
+
+# The fault, found by this cut: the browser's client receives three entries in a document's
+# short lists (temper-client-shell-web's limits.rs, rows 3) while the box sends eight since
+# de759e2369, so once a project exists Me is undecodable there and jig's link drops its stream
+# on every connect. Not the policy or store-size commits, and nothing wasm32-specific. plan.md
+# says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "web-rows"
+title = "temper: the browser's client receives the box's short lists, rows 8 as the terminal's, so making a project keeps its link"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 2"
+
+[[slice]]
+id = 1
+story = "on temper box, once the playground's project is made, the browser's banner stays Live and never Behind, and a reload still delivers the Chats page and its chat; the browser's client bounds equal the terminal's"
+parts = ["web-rows"]
+walk = false
