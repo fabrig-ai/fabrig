@@ -93,14 +93,14 @@ so weigh that before starting from it.
 |---|---|---|---|---|---|
 | M0 | Ground: the playground's reset closed out; fab's designers write the design | | | done 2026-11-02: the close-out landed; fab's designers write design with specs |
 | M1 | The goal's own branch | N3, N4, N15, N23; N22 in part | M0 | 1, 3, 7, 19 | done: landed 2026-11-03 02:21Z (plan `reference-m1`, 24 tasks) |
-| M2 | The goal lands | N3 for L; N22's `mine` | M1 | 23, 24, 28 | cutting since 2026-11-03 02:22Z (plan `reference-m2`) |
-| M3 | Designers and the cut | N12, N13, N16, N19, N20 | M1 | 3, 4, 6, 22 | cutting since 2026-11-03 02:23Z (plan `reference-m3`) |
+| M2 | The goal lands | N3 for L; N22's `mine` | M1 | 23, 24, 28 | done: landed 2026-11-03 04:27Z (plan `reference-m2`) |
+| M3 | Designers and the cut | N12, N13, N16, N19, N20 | M1 | 3, 4, 6, 22 | building (plan `reference-m3`) |
 | M4 | Surveys as sub-agents | N10 | M0 | 2, 5 | done: landed 2026-11-02 20:47Z (plan `reference-m4`); its walk folds into M3's |
-| M5 | Questions, and holds passed up | N1, N8 | M1 | 5, 9, 11, 14, 15, 18 | cutting since 2026-11-03 02:24Z (plan `reference-m5`) |
-| M6 | Early starts | N2, N14 | M1 | 4, 8, 10, 13, 17 | cutting since 2026-11-03 02:25Z (plan `reference-m6`) |
-| M7 | Jobs, the merge job, catching up | N6, N7 | M0; M1 for g, M2 for L | 12, 16, 21 | M7a done: landed 2026-11-02 21:34Z; M7b cutting since 2026-11-03 02:27Z (plan `reference-m7b`) |
+| M5 | Questions, and holds passed up | N1, N8 | M1 | 5, 9, 11, 14, 15, 18 | building (plan `reference-m5`) |
+| M6 | Early starts | N2, N14 | M1 | 4, 8, 10, 13, 17 | building (plan `reference-m6`) |
+| M7 | Jobs, the merge job, catching up | N6, N7 | M0; M1 for g, M2 for L | 12, 16, 21 | M7a done: landed 2026-11-02 21:34Z; M7b building (plan `reference-m7b`) |
 | M8 | Tiers and verdicts on main | `after-landing.md`, 2 to 6; N5 for main | M0 | 25, 28 | done: landed 2026-11-02 22:33Z (plan `reference-m8`); first walks blocked by a chat finding (finding-111) |
-| M9 | Reds to the goal; g's tier | `after-landing.md`, 7; N5 for g; N22's `repairs` | M2, M8 | 20, 26, 27 | not started |
+| M9 | Reds to the goal; g's tier | `after-landing.md`, 7; N5 for g; N22's `repairs` | M2, M8 | 20, 26, 27 | cutting since 2026-11-03 04:30Z (plan `reference-m9`) |
 | M10 | The case | N21; the reference's configuration whole | every one; rung B2 passed | 1 to 28 | not started |
 
 N9 and N17 are the drafts' Later; N11 is accepted and asks no work.
