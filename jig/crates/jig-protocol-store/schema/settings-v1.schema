@@ -18,7 +18,8 @@ record CharterNumber { number: u32 }
 record TemplateNumber { number: u32 }
 record PolicyNumber { number: u32 }
 record ApplicationSetting { kind: u32 scope: u32 number: u32 }
-enum Setting { charter: CharterNumber, template: TemplateNumber, policy: PolicyNumber, rules, application: ApplicationSetting }
+record ProjectPolicySetting { project: u32 }
+enum Setting { charter: CharterNumber, template: TemplateNumber, policy: PolicyNumber, rules, application: ApplicationSetting, project_policy: ProjectPolicySetting }
 record LastExact { bytes: bytes 4096 }
 record LastOpen { bytes: bytes 4096 }
 enum Last { exact: LastExact, open: LastOpen }
@@ -80,17 +81,21 @@ record Head { number: u32 against: u32 at: u64 by: Decider proposal: option Prop
 record Set { value: Value }
 enum Edit { set: Set, removed, reset }
 record Item { setting: Setting edit: Edit }
+enum Replaced { value: Set, default, removed, not_offered }
+record RevisionItem { setting: Setting edit: Edit replaced: Replaced }
 
 record FollowsRevision { revision: u32 }
 enum Follows { default, changed: FollowsRevision, removed: FollowsRevision }
 record SizedSet { size: u32 }
 enum SizedEdit { set: SizedSet, remove, reset }
 record Recorded { kind: u32 scope: u32 number: u32 edit: SizedEdit }
+enum SizedReplaced { changed: SizedSet, default, removed, not_offered }
+record RevisionRecorded { kind: u32 scope: u32 number: u32 edit: SizedEdit replaced: SizedReplaced }
 versioned record ApplicationState { follows: Follows size: u32 charters: list 255 u32 }
 
 versioned record Default { models: list 64 ModelName value: Value revision: u32 }
 versioned record Changed { models: list 64 ModelName value: option Value revision: u32 }
-versioned record Revision { models: list 64 ModelName head: Head items: list 128 Item applications: list 128 Recorded }
+versioned record Revision { models: list 64 ModelName head: Head items: list 128 RevisionItem applications: list 128 RevisionRecorded }
 versioned record Extent { oldest: u32 keys: u64 }
 versioned record CharterVersion { charter: option Charter }
 versioned record Proposal { key: option u64 models: list 64 ModelName against: u32 items: list 128 Item applications: list 128 Recorded }
