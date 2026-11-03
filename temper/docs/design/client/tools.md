@@ -192,7 +192,7 @@ temper                       the binary: `temper ctl` runs the host
   hold's number), `LANDING`, `FINDING`, `REVISION` (a
   settings revision), `REV` (a revision a read printed of the object
   acted on: a spec's, a hold's), `PROPOSAL`, `QUESTION`, `NUMBER` (a
-  setting's), `TEMPLATE`, `CURSOR`, `COUNT`, `PART`, `OFFSET`, `PAGE`,
+  setting's), `TEMPLATE`, `CHARTER`, `CURSOR`, `COUNT`, `PART`, `OFFSET`, `PAGE`,
   `TURN`, `DIGEST`, `CONDITION`, `DURATION`, `TIME`, `PRIORITY`,
   `MODEL`, `EFFORT`, `AMOUNT`, `OWNER`, `ORG`, `REPOSITORY`, `BRANCH`,
   `PREFIX`, `GATE`, `LABEL`, `IDS`, `APP`, `ROLE`, `FILE`, `TEXT`,
@@ -621,11 +621,28 @@ The table grows area by area, each with its stories (section 11).
    `../README.md`, section 2): the host's tools of 5.6; every read
    of 5.2 other than the general proposal read of area 2; the watched
    reads' waits (5.4); every act of 5.3.
-2. **Goals and plans:** `goal start --project PROJECT [--priority
-   PRIORITY] [--budget AMOUNT | --as-allowed] [--deadline TIME] TEXT`
+2. **Goals and plans:** `goal start --project PROJECT [--template TEMPLATE]
+   [--charter CHARTER] [--priority PRIORITY] [--budget AMOUNT | --as-allowed] [--deadline TIME] TEXT`
    (`shapes::set_goal`, keyed), `proposal show PROPOSAL`, `task amend
    TASK [--rev REV] CHANGE... REASON`, `proposal withdraw PROPOSAL`,
    `seen`.
+
+   `goal start` defaults to stock template 2; `--template` names an
+   offered template, including its charter, contract, tracking, label,
+   flags, LLM choice and symbolic resources. The chosen executor needs
+   `--charter CHARTER`; omitting it fails as usage, exit 1, nothing sent:
+   `template 2 lets its creator choose the executor; name it: --charter CHARTER`.
+   A fixed executor takes its template's charter; also giving `--charter`
+   fails as usage: `template 4's executor is charter 5; leave out --charter`
+   (the numbers name that template and charter). A charter not offered
+   in the project's creating bounds sends nothing. The fill and authority/proposal
+   judgement are jig's (`jig/docs/design/client/domain/pages.md`, 6.2).
+   Absent controls keep template defaults. A given budget requires
+   `--budget` or `--as-allowed`; a given deadline requires `--deadline`,
+   UTC to the minute as `2026-10-24T17:00Z`. Explicit budget or deadline
+   controls replace the template's corresponding default before filling;
+   `--priority` replaces a tracked template's priority. Model controls
+   are area 5's; absent sub-agent flags preserve the template's list.
 
    The general `proposal show PROPOSAL` reads every proposal kind. For
    settings it prints the engine's current/origin/would-be review and its
@@ -789,7 +806,7 @@ The table grows area by area, each with its stories (section 11).
      ACCOUNT as `account list` shows it.
    - **The task's model** is chosen with this area: `chat start` and area
      2's `goal start` take `--model MODEL [--effort EFFORT]`, the task's
-     LLM choice, the charter's default without them (jig's
+     LLM choice, the template's choice or the charter's default without them (jig's
      `domain/tasks.md`, section 3), and area 2's `task amend` changes it.
      Both take `--sub-agent MODEL[:EFFORT]` too, repeatable, each one of
      the choice's sub-agents in the order given (jig's

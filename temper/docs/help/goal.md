@@ -62,7 +62,21 @@ A goal is a tracked task: work given a numeric priority, which orders the goals'
 
 ## Acting on it
 
-- **ctl:** `task list` lists a project's goals, tracked alone and
+- **ctl:** `goal start --project PROJECT --template TEMPLATE TEXT --key KEY`
+  starts one from an offered template, defaulting to template 2 without
+  `--template`. The template supplies its charter, contract, tracking,
+  label, flags, models and symbolic resources. For a creator-chosen
+  executor, name `--charter CHARTER`; for a fixed charter, omit it.
+  A template with budget given needs `--budget AMOUNT` or `--as-allowed`;
+  one with deadline given needs `--deadline TIME`, UTC to the minute,
+  as `2026-10-24T17:00Z`. `--priority` overrides its tracked priority.
+  `--model MODEL --effort EFFORT` changes its main choice and keeps
+  its sub-agents; explicit `--sub-agent MODEL[:EFFORT]` replaces them
+  and requires `--model`. Read `temper help ctl-goal` for the controls.
+  Within your creating bounds the goal is made; beyond them, when
+  offered, a proposal asks the named recipient first. An executor not
+  offered or a goal past the project's ceilings sends nothing.
+  `task list` lists a project's goals, tracked alone and
   ordered by priority; `task show` reads one; `task amend` changes its
   priority or its tracking; `proposal decide` accepts a proposal that
   makes one.
@@ -74,7 +88,6 @@ A goal is a tracked task: work given a numeric priority, which orders the goals'
 
 ## Limits
 
-- temper does not let ctl start a goal: one comes from a run's
-  delegation, an accepted proposal, or an amendment of a task.
+- ctl goal creation offers charter executors; procedures have no control here.
 - temper has no board to reorder goals: each changes by its own
   amendment.
