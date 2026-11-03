@@ -2119,6 +2119,23 @@ that changes the stock changes nothing of them.
   repository's scope, and reads the notes before it triages. Its
   goal's end waits for the landing's result at cleared, repaired or
   not.
+- **Charter 5's plan done, and its landing's words**
+  (`../draft/reference-code-production.md`, section 12;
+  `../draft/reference-landing.md`, section 3, step 2), in its
+  instructions beside the rest. The plan is done when every change has
+  landed or been cancelled, every Left list is made into a change or
+  accepted as left, and its goal branch's tier is settled: no red of
+  that tier it has heard is left without a repair that landed after it
+  or a live repair owning its failing tests. A green run says nothing
+  (`../domain/after-landing.md`, section 7), and a red still failing
+  reaches the goal's next run (the same, 5.4), so the reds it has heard
+  are what it knows; a red left unowned gets its repair first, and the
+  close-out waits for that repair to land. A run of the tier in flight
+  as the plan ends is not waited for: the landing's CI, the project's
+  full gate, checks the whole. The landing's words are the goal's title
+  in one line; then the draft it was built from, by path; then what the
+  goal built, by design section; the forge makes them the pull
+  request's title and body (`../domain/forge.md`, 8.1).
 - **What the repository carries:** the merge commit is its merge style
   on its forge, the repository's default on Forgejo
   (`../domain/forge.md`, section 4), set where the repository is made;
