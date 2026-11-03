@@ -1014,6 +1014,7 @@ fn key(row: &top::Stored) -> top::Key {
         }),
         top::Stored::Change(row) => top::Key::Change(row.task),
         top::Stored::Issue(row) => top::Key::Issue(row.goal),
+        top::Stored::Setting(row) => top::Key::Setting(row.key),
         top::Stored::Binding { address, .. } => top::Key::Binding(address.clone()),
         top::Stored::Flight { task, entry } => top::Key::Flight { task: *task, entry: *entry },
         top::Stored::Release(row) => top::Key::Release(row.task),

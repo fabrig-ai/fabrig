@@ -111,6 +111,10 @@ fn row(kind: RecordKind, number: u32) -> Stored {
         RecordKind::Binding => {
             Stored::Binding { address: Box::new([u8::try_from(number).unwrap()]), subject: Box::new([]) }
         }
+        RecordKind::Setting => Stored::Setting(crate::settings::SettingRow {
+            key: crate::settings::SettingKey { kind: 1, scope: 0, number, slot: crate::settings::SettingSlot::Change },
+            edit: crate::settings::Edit::Remove,
+        }),
         RecordKind::Flight => Stored::Flight { task: n, entry: n },
         RecordKind::Writer => {
             Stored::Writer(skein_forge_client::Writer { forge: u16::try_from(number).unwrap(), author: n })
@@ -172,6 +176,7 @@ fn owned_tables_fit_at_limit_replace_and_refuse_one_more() {
         (K::ProposedEffect, LIMITS.tasks),
         (K::Entry, LIMITS.entries),
         (K::Binding, LIMITS.bindings),
+        (K::Setting, crate::settings::rows(&LIMITS).unwrap()),
         (K::Flight, LIMITS.entries),
         (K::Writer, CLIENT.repositories),
         (K::Change, LIMITS.changes),
@@ -793,4 +798,45 @@ fn receipts_keep_tier_room_when_no_gates_are_configured() {
         })
     );
     assert!(out.is_empty());
+}
+
+#[test]
+fn setting_rule_fields_fit_at_the_bound_and_refuse_one_more_before_insertion() {
+    use crate::settings as s;
+    for (field, bound, set) in [
+        (0_u8, LIMITS.change_policy.gates, RestoreSet::SettingGates),
+        (1, LIMITS.roles, RestoreSet::SettingApprovals),
+        (2, LIMITS.authority_segments, RestoreSet::SettingSegments),
+    ] {
+        for extra in [0, 1] {
+            let count = usize::try_from(bound + extra).unwrap();
+            let mut rule = records::setting_rule();
+            match field {
+                0 => rule.gates = vec![rule.gates[0]; count].into_boxed_slice(),
+                1 => rule.approvals = vec![rule.approvals[0]; count].into_boxed_slice(),
+                2 => rule.pattern.segments = vec![Box::<[u8]>::default(); count].into_boxed_slice(),
+                _ => unreachable!("table field"),
+            }
+            let key = s::SettingKey { kind: 1, scope: 0, number: 1, slot: s::SettingSlot::Change };
+            let edit = s::Edit::Set(s::SizedValue { value: s::Value::Rule(rule), size: 42 });
+            let mut d = domain();
+            restore(&mut d, Stored::Setting(s::SettingRow { key, edit: edit.clone() }));
+            if extra == 0 {
+                assert_eq!(d.restore_fit_failure(), None);
+                assert_eq!(d.setting_rows.get(&key), Some(&edit));
+            } else {
+                assert_eq!(
+                    d.restore_fit_failure(),
+                    Some(&RestoreFit {
+                        family: Some(RecordKind::Setting),
+                        set,
+                        held: u64::from(bound + 1),
+                        additional: 0,
+                        limit: u64::from(bound),
+                    })
+                );
+                assert!(d.setting_rows.is_empty());
+            }
+        }
+    }
 }
