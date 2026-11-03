@@ -323,6 +323,12 @@ pub const SIDEBAR: Style = Style { owner: owner(), token: 158 };
 pub const PROJECTS: Style = Style { owner: owner(), token: 159 };
 /// The banner's way out of the playground (temper/docs/design/client/README.md, 5.6).
 pub const LEAVE_PLAYGROUND: Style = Style { owner: owner(), token: 160 };
+/// The switcher's Rename, at the end of the open project's row (temper/docs/design/client/README.md, 5.3).
+pub const PROJECT_RENAME: Style = Style { owner: owner(), token: 161 };
+/// The switcher's new project, its list's last row (temper/docs/design/client/README.md, 5.3).
+pub const PROJECT_NEW: Style = Style { owner: owner(), token: 162 };
+/// The open project's row while it is renamed (temper/docs/design/client/README.md, 5.3).
+pub const PROJECT_RENAME_FORM: Style = Style { owner: owner(), token: 163 };
 /// Native browser elements for the admin group and Model’s definition list.
 pub const ELEMENTS: &[(skein_ui::Owner, skein_ui::Role, Style, &str)] = &[
     (owner(), skein_ui::Role::Region, ADMIN_FIRST, "fieldset"),
@@ -497,6 +503,9 @@ pub const NAMES: Names<'static> = Names {
         b"temper-sidebar",
         b"temper-projects",
         b"temper-leave-playground",
+        b"temper-project-rename",
+        b"temper-project-new",
+        b"temper-project-rename-form",
     ],
     regions: &[b"temper-link"],
 };
