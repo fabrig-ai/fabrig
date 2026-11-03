@@ -99,7 +99,7 @@ const USAGES: &[&[u8]] = &[
     b"account export ACCOUNT FILE\n",
     b"account import FILE --key KEY\n",
     b"settings show\n",
-    b"settings show charter|template|policy NUMBER [--revision REVISION]\nsettings show rules\n",
+    b"settings show charter|template|policy NUMBER [--revision REVISION]\nsettings show rules\nsettings show landing-rule NUMBER [--project PROJECT]\nsettings show forge-charter NUMBER\n",
     b"revision show REVISION\n",
     b"revision list [--before REVISION]\n",
     b"settings apply FILE --against REVISION [--running stays|moves] --key KEY\n",
@@ -364,4 +364,13 @@ fn reference_matches(group_name: &[u8], page_name: &[u8]) {
         return;
     }
     assert_eq!(page.text.as_bytes(), rendered.as_ref(), "{}: the lead updates the reference page", page.name);
+}
+
+#[test]
+fn the_settings_reference_is_what_the_table_renders() {
+    reference_matches(b"settings", b"ctl-settings");
+}
+#[test]
+fn the_proposal_reference_is_what_the_table_renders() {
+    reference_matches(b"proposal", b"ctl-proposal");
 }

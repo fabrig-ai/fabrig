@@ -184,6 +184,7 @@ fn delivered(delivery: root::Delivery) -> Option<kit::Event> {
         | root::Delivery::Fleet(_)
         | root::Delivery::AssignedJob { .. }
         | root::Delivery::Assigned { .. }
+        | root::Delivery::ForgeRead { .. }
         | root::Delivery::ReadLoad { .. }
         | root::Delivery::Drained
         | root::Delivery::Refuse { .. }
@@ -210,7 +211,7 @@ pub fn not_ready(input: root::PartyInput) -> Option<kit::Event> {
         | root::PartyInput::Application { reply_to, .. } => {
             Some(kit::Event::Reply { to: reply_to, reply: people::Reply::Again(people::Again::NotReady) })
         }
-        root::PartyInput::Read { reply_to, .. } => {
+        root::PartyInput::ForgeRead { reply: reply_to, .. } | root::PartyInput::Read { reply_to, .. } => {
             Some(kit::Event::Read { reply: reply_to, answer: core::reads::Answer::None(core::reads::Why::Busy) })
         }
         root::PartyInput::Watch { watcher, .. } | root::PartyInput::WatchRun { watcher, .. } => {

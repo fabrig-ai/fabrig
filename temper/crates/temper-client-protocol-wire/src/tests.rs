@@ -59,6 +59,9 @@ fn limits_take_each_bound_from_its_source_field() {
     assert_eq!(
         fixtures::limits(),
         v1::Limits {
+            setting_answer_value_some: 1_048_576,
+            setting_value_value: 1_048_576,
+            proposal_items_answer_items: 1024,
             landing_exact_value: 8,
             landing_open_value: 8,
             landing_pattern_segments: 3,
@@ -1133,4 +1136,55 @@ fn post_landing_tiers_accept_their_bounds_and_refuse_one_more() {
         assert_eq!(red.is_ok(), within);
         assert_eq!(cleared.is_ok(), within);
     }
+}
+
+#[test]
+fn settings_reads_and_answers_require_one_complete_bounded_record() {
+    use crate::{self as wire, v1 as w};
+    for read in [
+        w::Read::Setting(
+            w::SettingRead::new(&w::CEILINGS, w::SettingReadParts { kind: 2, scope: 7, number: 1 }).unwrap(),
+        ),
+        w::Read::ProposalItems(
+            w::ProposalItemsRead::new(&w::CEILINGS, w::ProposalItemsReadParts { key: u64::MAX }).unwrap(),
+        ),
+    ] {
+        let record = w::Reading::new(&w::CEILINGS, w::ReadingParts { read }).unwrap();
+        let bytes = wire::reading(&record);
+        assert_eq!(wire::decode_reading(&bytes, &w::CEILINGS), Some(record));
+        assert!(wire::decode_reading(&bytes[..bytes.len() - 1], &w::CEILINGS).is_none());
+    }
+    let record =
+        w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(Box::new([6, 0, 0, 0])) }).unwrap();
+    let bytes = wire::setting_answer(&record);
+    assert_eq!(wire::decode_setting_answer(&bytes, &w::CEILINGS), Some(record));
+    let mut limits = w::CEILINGS;
+    limits.setting_answer_value_some = 3;
+    assert!(wire::decode_setting_answer(&bytes, &limits).is_none());
+    let mut trailing = skein_lib::Writer::new(bytes.len().checked_add(1).unwrap());
+    trailing.put(&bytes).unwrap();
+    trailing.put(&[0]).unwrap();
+    let trailing = trailing.finish();
+    assert!(wire::decode_setting_answer(&trailing, &w::CEILINGS).is_none());
+    let mut items = List::with_capacity(1);
+    items
+        .push(
+            w::ProposalItem::new(
+                &w::CEILINGS,
+                w::ProposalItemParts { kind: 1, scope: 0, number: 1, edit: w::SettingEdit::Reset },
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    let record = w::ProposalItemsAnswer::new(&w::CEILINGS, w::ProposalItemsAnswerParts { items }).unwrap();
+    let bytes = wire::proposal_items_answer(&record);
+    assert_eq!(wire::decode_proposal_items_answer(&bytes, &w::CEILINGS), Some(record));
+    limits.proposal_items_answer_items = 0;
+    assert!(wire::decode_proposal_items_answer(&bytes, &limits).is_none());
+    assert!(wire::decode_proposal_items_answer(&bytes[..bytes.len() - 1], &w::CEILINGS).is_none());
+    let mut trailing = skein_lib::Writer::new(bytes.len().checked_add(1).unwrap());
+    trailing.put(&bytes).unwrap();
+    trailing.put(&[0]).unwrap();
+    let trailing = trailing.finish();
+    assert!(wire::decode_proposal_items_answer(&trailing, &w::CEILINGS).is_none());
 }

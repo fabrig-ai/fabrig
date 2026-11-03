@@ -174,6 +174,11 @@ pub enum Delivery {
         reply: ReplyTo,
         answer: jig_domain_core::reads::Answer,
     },
+    /// A forge settings answer, held behind every preceding commit (client/forge.md, 9).
+    ForgeRead {
+        reply: ReplyTo,
+        answer: crate::ForgeReadAnswer,
+    },
     /// A core read's store load, after every preceding commit.
     ReadLoad {
         load: Token,
@@ -493,6 +498,7 @@ impl Decision {
             | Delivery::Application { .. }
             | Delivery::WebReply { .. }
             | Delivery::CarriedUnused { .. }
+            | Delivery::ForgeRead { .. }
             | Delivery::Read { .. }
             | Delivery::ReadLoad { .. }
             | Delivery::Document { .. }

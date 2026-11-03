@@ -62,24 +62,21 @@ pub(super) fn text(value: &c::ReadValue, reading: &Reading, limits: &Limits, out
         && let Some(review) = &s.review
     {
         for (index, item) in review.items.iter().enumerate() {
+            if let c::Setting::Application { kind: 1..=3, .. } = item.setting {
+                continue;
+            }
             settings::setting_text(item.setting, out);
             out.put(b" \xc2\xb7 ");
             out.put(review_change(item));
             out.put(b" \xc2\xb7 now ");
             review_value_text(&item.now, item.setting, reading.pages.get(&slot(index, false)), limits, out);
             out.put(b" (");
-            match &item.origin {
-                c::SettingOrigin::Change(r) => {
-                    out.put(b"revision ");
-                    out.number(u64::from(r.revision));
-                }
-                c::SettingOrigin::Default(_) => out.put(b"default"),
-                c::SettingOrigin::NotOffered => out.put(b"not offered"),
-            }
+            origin_text(&item.origin, out);
             out.put(b") \xc2\xb7 would be ");
             review_value_text(&item.would_be, item.setting, reading.pages.get(&slot(index, true)), limits, out);
             out.put(b"\n");
         }
+        application_items_text(reading, limits, out);
         if review.cut {
             out.put(b"cut: more not shown\n");
         }
@@ -106,34 +103,36 @@ fn resolved<'a>(
     match value {
         c::ReviewValue::Value(set) => Ok(Some(&set.value)),
         c::ReviewValue::None => Ok(None),
-        c::ReviewValue::TooLarge(_) => match page {
-            Some(Readout::Jig(c::ReadResult::Value(c::ReadValue::Setting(document))))
-                if document.setting == setting =>
-            {
-                Ok(document.value.as_ref())
-            }
-            Some(Readout::Jig(c::ReadResult::None(why))) => {
-                let reason: &[u8] = match why {
-                    c::ReadNone::Refused => b"refused",
-                    c::ReadNone::Unknown => b"unknown",
-                    c::ReadNone::Gone => b"gone",
-                    c::ReadNone::Busy => b"busy",
-                    c::ReadNone::SignedOut => b"signed out",
-                    c::ReadNone::Unreachable => b"unreachable",
-                    c::ReadNone::Malformed => b"malformed document",
-                    c::ReadNone::TooLarge { .. } => b"document limit",
-                    c::ReadNone::TooLinked { joins } => return Err(super::super::join_limit(*joins)),
-                };
-                Err(Box::from(reason))
-            }
-            Some(Readout::Limit) => Err(Box::from(b"read table limit".as_slice())),
-            Some(Readout::NotServed { .. }) => Err(Box::from(b"version not served".as_slice())),
-            Some(Readout::Jig(c::ReadResult::Value(_)) | Readout::Family { .. }) | None => {
-                Err(Box::from(b"tools' bug; unexpected setting document; report it as a finding".as_slice()))
-            }
-        },
+        c::ReviewValue::TooLarge(_) => read_value(setting, page),
     }
 }
+fn read_value(setting: c::Setting, page: Option<&Readout>) -> Result<Option<&c::SettingValue>, Box<[u8]>> {
+    match page {
+        Some(Readout::Jig(c::ReadResult::Value(c::ReadValue::Setting(document)))) if document.setting == setting => {
+            Ok(document.value.as_ref())
+        }
+        Some(Readout::Jig(c::ReadResult::None(why))) => {
+            let reason: &[u8] = match why {
+                c::ReadNone::Refused => b"refused",
+                c::ReadNone::Unknown => b"unknown",
+                c::ReadNone::Gone => b"gone",
+                c::ReadNone::Busy => b"busy",
+                c::ReadNone::SignedOut => b"signed out",
+                c::ReadNone::Unreachable => b"unreachable",
+                c::ReadNone::Malformed => b"malformed document",
+                c::ReadNone::TooLarge { .. } => b"document limit",
+                c::ReadNone::TooLinked { joins } => return Err(super::super::join_limit(*joins)),
+            };
+            Err(Box::from(reason))
+        }
+        Some(Readout::Limit) => Err(Box::from(b"read table limit".as_slice())),
+        Some(Readout::NotServed { .. }) => Err(Box::from(b"version not served".as_slice())),
+        Some(Readout::Jig(c::ReadResult::Value(_)) | Readout::Family { .. }) | None => {
+            Err(Box::from(b"tools' bug; unexpected setting document; report it as a finding".as_slice()))
+        }
+    }
+}
+
 fn review_value_text(
     value: &c::ReviewValue,
     setting: c::Setting,
@@ -141,8 +140,16 @@ fn review_value_text(
     limits: &Limits,
     out: &mut Text,
 ) {
-    match resolved(value, setting, page) {
-        Ok(Some(value)) => settings::value_inline(value, limits, out),
+    value_text(resolved(value, setting, page), setting, limits, out);
+}
+fn value_text(
+    value: Result<Option<&c::SettingValue>, Box<[u8]>>,
+    setting: c::Setting,
+    limits: &Limits,
+    out: &mut Text,
+) {
+    match value {
+        Ok(Some(value)) => settings::named_value_inline(setting, value, limits, out),
         Ok(None) => out.put(b"none"),
         Err(why) => out.put(&why),
     }
@@ -310,6 +317,12 @@ fn encode_settings_fields(
         Some(review) => encode_review(review, reading.expect("pending review reads"), out),
         None => out.null(),
     }
+    if let Some(reading) = reading
+        && reading.kinds.items.is_some()
+    {
+        out.key(b"application_items");
+        encode_application_items(reading, out);
+    }
     out.key(b"made");
     match made {
         Some(n) => out.unsigned(u64::from(n)),
@@ -358,7 +371,10 @@ fn origin_revision(kind: &[u8], revision: u32, out: &mut Encoder) {
 }
 
 fn encode_review_value(value: &c::ReviewValue, setting: c::Setting, page: Option<&Readout>, out: &mut Encoder) {
-    match resolved(value, setting, page) {
+    encode_value_result(resolved(value, setting, page), setting, out);
+}
+fn encode_value_result(value: Result<Option<&c::SettingValue>, Box<[u8]>>, setting: c::Setting, out: &mut Encoder) {
+    match value {
         Ok(Some(value)) => {
             out.object_start();
             out.key(b"value");
@@ -372,7 +388,7 @@ fn encode_review_value(value: &c::ReviewValue, setting: c::Setting, page: Option
                 c::SettingValue::Application(_) => b"application",
                 c::SettingValue::Rules(_) => b"rules",
             });
-            settings::encode_value(value, out);
+            settings::encode_named_value(setting, value, out);
             out.object_end();
             out.object_end();
             out.object_end();
@@ -527,4 +543,90 @@ fn encode_history_state(state: &c::ProposalHistoryState, out: &mut Encoder, budg
     }
     out.object_end();
     out.object_end();
+}
+
+fn item_setting(item: &temper_client_protocol_wire::v1::ProposalItem) -> c::Setting {
+    c::Setting::Application { kind: item.kind(), scope: item.scope(), number: item.number() }
+}
+fn current_item<'a>(reading: &'a Reading, item: &temper_client_protocol_wire::v1::ProposalItem) -> Option<&'a Readout> {
+    reading.kinds.current.get(&(item.kind(), item.scope(), item.number()))
+}
+fn application_items_text(reading: &Reading, limits: &Limits, out: &mut Text) {
+    use temper_client_protocol_wire::v1::SettingEdit;
+    let Some(items) = &reading.kinds.items else { return };
+    for item in items.items() {
+        let setting = item_setting(item);
+        settings::setting_text(setting, out);
+        out.put(b" \xc2\xb7 now ");
+        value_text(read_value(setting, current_item(reading, item)), setting, limits, out);
+        if let Some(origin) = application_origin(reading, setting) {
+            out.put(b" (");
+            origin_text(origin, out);
+            out.put(b")");
+        }
+        out.put(b" \xc2\xb7 ");
+        match item.edit() {
+            SettingEdit::Set(value) => {
+                out.put(b"set ");
+                settings::named_value_inline(setting, &c::SettingValue::Application(value.value().into()), limits, out);
+            }
+            SettingEdit::Removed => out.put(b"removed"),
+            SettingEdit::Reset => out.put(b"reset to default"),
+        }
+        out.put(b"\n");
+    }
+}
+fn encode_application_items(reading: &Reading, out: &mut Encoder) {
+    use temper_client_protocol_wire::v1::SettingEdit;
+    out.array_start();
+    if let Some(items) = &reading.kinds.items {
+        for item in items.items() {
+            let setting = item_setting(item);
+            out.object_start();
+            out.key(b"setting");
+            settings::encode_setting(setting, out);
+            out.key(b"edit");
+            out.string(match item.edit() {
+                SettingEdit::Set(_) => b"set",
+                SettingEdit::Removed => b"removed",
+                SettingEdit::Reset => b"reset",
+            });
+            if let SettingEdit::Set(value) = item.edit() {
+                out.key(b"value");
+                settings::encode_named_value(setting, &c::SettingValue::Application(value.value().into()), out);
+            }
+            if let Some(origin) = application_origin(reading, setting) {
+                out.key(b"origin");
+                match origin {
+                    c::SettingOrigin::Default(r) => origin_revision(b"default", r.revision, out),
+                    c::SettingOrigin::Change(r) => origin_revision(b"change", r.revision, out),
+                    c::SettingOrigin::NotOffered => out.string(b"not_offered"),
+                }
+            }
+            out.key(b"now");
+            encode_value_result(read_value(setting, current_item(reading, item)), setting, out);
+            out.object_end();
+        }
+    }
+    out.array_end();
+}
+
+fn origin_text(origin: &c::SettingOrigin, out: &mut Text) {
+    match origin {
+        c::SettingOrigin::Change(r) => {
+            out.put(b"revision ");
+            out.number(u64::from(r.revision));
+        }
+        c::SettingOrigin::Default(_) => out.put(b"default"),
+        c::SettingOrigin::NotOffered => out.put(b"not offered"),
+    }
+}
+fn application_origin(reading: &Reading, setting: c::Setting) -> Option<&c::SettingOrigin> {
+    let (_, review) = crate::jig::runner::proposal::review(reading.pages.get(&1)?)?;
+    for item in &review.items {
+        if item.setting == setting {
+            return Some(&item.origin);
+        }
+    }
+    None
 }
