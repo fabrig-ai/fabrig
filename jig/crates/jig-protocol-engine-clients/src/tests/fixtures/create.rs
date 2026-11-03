@@ -137,7 +137,7 @@ fn expected_member(role: bool, expected: p::Authority) -> p::Member {
         },
         authority: expected.clone(),
         budget: p::Budget::AsAllowed { cap: Some(42) },
-        wake: p::WakePolicy {
+        wake: Some(p::WakePolicy {
             words: p::WakeRule::Immediate,
             notices: p::WakeRule::Immediate,
             news: p::WakeRule::Immediate,
@@ -145,7 +145,7 @@ fn expected_member(role: bool, expected: p::Authority) -> p::Member {
             questions: true,
             answers: true,
             timers: true,
-        },
+        }),
         dependencies: Box::new([p::Dependency::Batch(1), p::Dependency::Existing(u64::MAX)]),
         named: expected.grants,
         tracked: Some(14),

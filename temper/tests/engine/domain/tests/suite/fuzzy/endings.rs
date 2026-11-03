@@ -99,7 +99,7 @@ fn delegate_child(driver: &mut Driver, assignment: &engine::Assignment) {
         },
         symbolic_grants: Box::new([]),
         dependencies: Box::new([]),
-        wake: tasks::WakePolicy::DEFAULT,
+        wake: Some(tasks::WakePolicy::DEFAULT),
         ..temper_engine_domain_world::fixtures::report_delegate(b"fixture", Box::new([]))
     };
     let body = engine::Call { completion: 1, position: 1, tool: engine::Tool::Delegate { batch: Box::new([child]) } };

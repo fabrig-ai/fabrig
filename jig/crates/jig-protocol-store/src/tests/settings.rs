@@ -27,6 +27,7 @@ fn model() -> core::Model {
 }
 fn charter() -> core::Charter {
     core::Charter {
+        wake: jig_domain_tasks::WakePolicy::DEFAULT,
         number: 1,
         hosts: fleet::Kinds::Both,
         spend: 100,
@@ -369,4 +370,35 @@ fn a_template_with_resources_round_trips_through_the_settings_store() {
             assert!(codec::decode(&row.key(), &bytes, &narrower, &*names).is_none(), "decoded resource bound");
         }
     }
+}
+
+#[test]
+fn a_charters_paced_wake_policy_round_trips() {
+    let limits = codec::limits(&fixtures::CORE_LIMITS).expect("store limits");
+    let mut charter = charter();
+    charter.wake = tasks::WakePolicy {
+        words: tasks::WakeRule::Never,
+        notices: tasks::WakeRule::Batch { count: 3, age: Duration::from_secs(2) },
+        news: tasks::WakeRule::Paced { span: Duration::from_millis(1_800_000) },
+        results: tasks::ResultsWake::Each,
+        ..tasks::WakePolicy::DEFAULT
+    };
+    let row =
+        s::Record::Charter { charter: 1, revision: 2, value: s::CharterVersion { charter: Some(Box::new(charter)) } };
+    let bytes = codec::settings::encode(&row, &limits.settings, &[]).expect("charter encoding");
+    assert_eq!(codec::settings::decode(&row.key(), &bytes, &limits.settings, &[]), Ok(row));
+}
+
+#[test]
+fn a_members_absent_wake_round_trips_without_a_default() {
+    let limits = codec::people::limits(&fixtures::CORE_LIMITS).expect("people store limits");
+    let mut member = fixtures::people_member();
+    member.wake = None;
+    let ask = people::Ask::Create { project: 1, batch: Box::new([member]) };
+    let value = codec::people::encode_ask(&ask, &limits).expect("bounded batch");
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(value.measure()));
+    value.encode(&mut writer).expect("measured batch");
+    let bytes = writer.finish();
+    let value = crate::people_v14::Ask::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("stored batch");
+    assert_eq!(codec::people::decode_ask(value, &limits), Ok(ask));
 }

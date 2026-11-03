@@ -142,6 +142,7 @@ pub fn domain() -> Domain {
                 },
                 defaults: core::settings::Defaults {
                     charters: Box::new([core::Charter {
+                        wake: jig_domain_tasks::WakePolicy::DEFAULT,
                         number: 1,
                         hosts: fleet::Kinds::Workers,
                         spend: 37,

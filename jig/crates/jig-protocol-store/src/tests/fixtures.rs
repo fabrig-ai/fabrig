@@ -511,7 +511,7 @@ pub fn people_member() -> people::Member {
         named: Box::new([]),
         contract: people::Contract::Report { words: 17 },
         authority: people_authority(),
-        wake: people::WakePolicy {
+        wake: Some(people::WakePolicy {
             words: people::WakeRule::Never,
             notices: people::WakeRule::Never,
             news: people::WakeRule::Never,
@@ -519,7 +519,7 @@ pub fn people_member() -> people::Member {
             questions: false,
             answers: false,
             timers: false,
-        },
+        }),
         dependencies: Box::new([]),
         tracked: Some(3),
         label: 41,

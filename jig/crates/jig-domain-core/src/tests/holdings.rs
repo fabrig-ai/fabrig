@@ -116,7 +116,7 @@ fn delegate(core: &Core) -> Delegate {
         llm: None,
         symbolic_grants: Box::new([]),
         dependencies: Box::new([]),
-        wake: member.wake,
+        wake: Some(member.wake),
         tracked: None,
         label: member.label,
         flags: member.flags,

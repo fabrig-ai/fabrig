@@ -3,9 +3,9 @@ use crate::{Directories, Directory, Limits, Llm, Path, Problems, Segment, What, 
 use alloc::boxed::Box;
 use jig_domain_core::{Charter, Model, RunPolicy};
 use jig_domain_fleet::Kinds;
+use jig_domain_tasks::{ResultsWake, WakePolicy, WakeRule};
 use skein_json::Document;
 use skein_lib::{Duration, List};
-use jig_domain_tasks::{ResultsWake, WakePolicy, WakeRule};
 pub(crate) fn parse(
     document: &Document,
     at: u32,
@@ -206,11 +206,24 @@ fn wake(document: &Document, at: u32, path: &Path, problems: &mut Problems) -> O
     let answers = check::boolean(&mut object, document, b"answers", path, problems);
     let timers = check::boolean(&mut object, document, b"timers", path, problems);
     object.finish(document, path, problems);
-    Some(WakePolicy { words: words?, notices: notices?, news: news?, results: results?,
-        questions: questions?, answers: answers?, timers: timers? })
+    Some(WakePolicy {
+        words: words?,
+        notices: notices?,
+        news: news?,
+        results: results?,
+        questions: questions?,
+        answers: answers?,
+        timers: timers?,
+    })
 }
 
-fn wake_member(object: &mut read::Object, document: &Document, name: &[u8], path: &Path, problems: &mut Problems) -> Option<WakeRule> {
+fn wake_member(
+    object: &mut read::Object,
+    document: &Document,
+    name: &[u8],
+    path: &Path,
+    problems: &mut Problems,
+) -> Option<WakeRule> {
     let at = object.required(document, name, path, problems)?;
     let path = path.member(name);
     match wake_rule(document, at, &path, problems) {
