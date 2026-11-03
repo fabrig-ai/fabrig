@@ -312,3 +312,26 @@ document omits it.
   one-process `story_a.rs` once alone with `--run-ignored all`) and the acceptance as written: the
   full walk, its kept `tests/fixtures/story-a.log` recorded under `SKEIN_CODEGEN_WRITE`, and its
   replay.
+
+2026-11-03. **Story A's deployment advertises no cues (`application.demo.llm.asked = []`): fill
+them from its LLM document here, or leave it to an owner?** Fill them here. It is the same
+documents as the earlier allowances, and the design says what they hold: story A offers the box's
+three suggested requests (`temper/docs/design/playground.md`, 2 and 5.2), and its deployment's
+public view of them is the `asked` array the service reads (`temper-service`'s
+`src/startup/application/demo.rs`, ~48-62), which story A leaves empty while its LLM document holds
+the three.
+
+- `temper/crates/temper-playground/stories/a/deployment.json`: `application.demo.llm.asked` holds
+  one object per cue of `stories/a/llm.json`'s `asked`, in its order, each `{"cue": ...}` alone
+  with the same words: the service reads `cue` alone, and the scripts stay in the LLM document,
+  their one source. `cued`, `otherwise` and every other value stay as they are.
+- A regression in `temper-playground`'s `src/tests/` (beside the stories' tests): story A's
+  deployment's `asked` cues equal its LLM document's `asked` cues, in order.
+- **The allowance widens once more, to this class:** where a value the service or engine reads from
+  story A's deployment disagrees with, or omits, what story A's own LLM or forge document holds for
+  the same thing, make the deployment agree, with a regression comparing the two, name it and its
+  evidence (file and line of the read) in the report, and go on. Anything else (a fault in the
+  service, engine, forge, host, client, skein or jig, or a value neither document holds) stays a
+  question with its evidence. Commit and push each repair with its test before asking.
+- Then the previous answers' steps and the acceptance as written: the full walk, its kept
+  `tests/fixtures/story-a.log` recorded under `SKEIN_CODEGEN_WRITE`, and its replay.
