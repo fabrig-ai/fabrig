@@ -1,0 +1,3 @@
+draft = "openai-manual"
+repo = "fabrig"
+sources = ["temper/docs/plan/openai-manual/inputs/request.md", "skein/docs/design/llm.md", "AGENTS.md"]
