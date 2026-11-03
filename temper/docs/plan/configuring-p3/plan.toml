@@ -5,6 +5,7 @@ sources = ["temper/docs/plan/configuring-p3/inputs/request.md", "temper/docs/des
 # P3 of temper/docs/design/draft/configuring.execution.md (the configuring agent), built on
 # main: P1, P2 and the reference's M1 to M10 landed (plan.md).
 
+retired = true
 [buffer]
 low = 1.0
 high = 2.0
