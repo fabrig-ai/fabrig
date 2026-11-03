@@ -185,17 +185,18 @@ fn manifest_link(engine: &Engine, forge: u16, state: &[u8], page: bool) -> Box<[
     writer.finish()
 }
 fn pasted(bytes: &[u8], item: u16, invalid: &'static [u8]) -> Result<Secret, &'static [u8]> {
-    let (found, value) = match temper_protocol_records::decode_pasted(bytes) {
+    let values = match temper_protocol_records::decode_pasted(bytes) {
         Ok(value) => value,
         Err(temper_protocol_records::PastedError::Version) => {
             return Err(temper_protocol_records::PastedError::Version.message());
         }
         Err(temper_protocol_records::PastedError::Unreadable) => return Err(invalid),
     };
-    if found != item || value.expose().is_empty() {
-        return Err(invalid);
+    let mut values = values.into_iter();
+    match (values.next(), values.next()) {
+        (Some((found, value)), None) if found == item && !value.expose().is_empty() => Ok(value),
+        _ => Err(invalid),
     }
-    Ok(value)
 }
 pub(crate) fn install(engine: &mut Engine, forge: u16, request: Token, back: Option<Box<[u8]>>) {
     // The engine's own run on the forge holds an Install rather than refusing it (setup.md, 5.1).
