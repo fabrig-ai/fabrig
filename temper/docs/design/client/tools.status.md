@@ -5,11 +5,9 @@
 - **Not yet:** 5.1: the groups `goal`, `finding`, `qa`, `party` and
   `deployment`, absent from `temper-client-tools`' `table.rs` `GROUPS`.
   5.2: `repository receipts`, `finding list`, `finding show`, `qa marks`,
-  `qa passes` and `hold list`; `revision show`'s items print nothing of
-  what each replaced, which jig's revision document does not carry. 5.3: `task move
+  `qa passes` and `hold list`. 5.3: `task move
   --under`, `task succeed --by`, `finding route`, `finding backlog`,
-  `finding drop`, `qa choose`, `task hold`, `project hold` and `revision
-  restore`; a template's resources in a settings file and in
+  `finding drop`, `qa choose`, `task hold` and `project hold`; a template's resources in a settings file and in
   `settings show`: the file's template has no `resources` member
   (`temper-settings-form/src/view.rs`), and one applied from a file
   names none (`jig/settings_adapter.rs`, `client_template`). 5.5: area 2's `goal start` with its model flags,

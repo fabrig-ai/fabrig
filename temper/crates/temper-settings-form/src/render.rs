@@ -9,6 +9,20 @@ pub fn setting_text(setting: c::Setting, out: &mut Text) {
         c::Setting::Charter(n) => (b"charter".as_slice(), Some(n.number)),
         c::Setting::Template(n) => (b"template".as_slice(), Some(n.number)),
         c::Setting::Policy(n) => (b"policy".as_slice(), Some(n.number)),
+        c::Setting::Application { kind: 1 | 2, scope, number } => {
+            out.put(b"landing-rule ");
+            out.number(u64::from(number));
+            if let c::Setting::Application { kind: 2, .. } = setting {
+                out.put(b" --project ");
+                out.number(u64::from(scope));
+            }
+            return;
+        }
+        c::Setting::Application { kind: 3, number, .. } => {
+            out.put(b"forge-charter ");
+            out.number(u64::from(number));
+            return;
+        }
         c::Setting::Application { kind, scope, number } => {
             out.put(b"application kind ");
             out.number(u64::from(kind));
@@ -379,32 +393,13 @@ fn revision_text(answer: &c::RevisionAnswer, requested: u64, limits: &Limits, ou
                         value_text(&set.value, limits, out);
                     }
                     c::RevisionEdit::TooLarge(size) => {
-                        out.put(b"too large, ");
-                        out.number(size.bytes);
-                        match item.setting {
-                            c::Setting::ProjectPolicy { .. } => {
-                                out.put(b" bytes\n");
-                                continue;
-                            }
-                            c::Setting::Charter(_) => out.put(b" bytes; read with settings show "),
-                            c::Setting::Application { .. }
-                            | c::Setting::Template(_)
-                            | c::Setting::Policy(_)
-                            | c::Setting::Rules => {
-                                out.put(b" bytes; read current value with settings show ");
-                            }
-                        }
-                        setting_text(item.setting, out);
-                        if let c::Setting::Charter(_) = item.setting {
-                            out.put(b" --revision ");
-                            out.number(u64::from(document.head.number));
-                        }
-                        out.put(b"\n");
+                        revision_size_text(item.setting, document.head.number, size, out);
                     }
                     c::RevisionEdit::Application(edit) => sized_edit_text(edit, out),
                     c::RevisionEdit::Removed => out.put(b"removed\n"),
                     c::RevisionEdit::Reset => out.put(b"reset\n"),
                 }
+                replaced_text(&item.replaced, limits, out);
             }
         }
         c::RevisionAnswer::Forgotten(f) => {
@@ -415,6 +410,45 @@ fn revision_text(answer: &c::RevisionAnswer, requested: u64, limits: &Limits, ou
             out.put(b"\n");
         }
         c::RevisionAnswer::Unknown => out.put(b"unknown revision\n"),
+    }
+}
+
+fn revision_size_text(setting: c::Setting, revision: u32, size: &c::Size, out: &mut Text) {
+    out.put(b"too large, ");
+    out.number(size.bytes);
+    if let c::Setting::ProjectPolicy { .. } = setting {
+        out.put(b" bytes\n");
+        return;
+    }
+    if let c::Setting::Charter(_) = setting {
+        out.put(b" bytes; read with settings show ");
+    } else {
+        out.put(b" bytes; read current value with settings show ");
+    }
+    setting_text(setting, out);
+    if let c::Setting::Charter(_) = setting {
+        out.put(b" --revision ");
+        out.number(u64::from(revision));
+    }
+    out.put(b"\n");
+}
+
+fn replaced_text(replaced: &c::RevisionReplaced, limits: &Limits, out: &mut Text) {
+    out.put(b"    was: ");
+    match replaced {
+        c::RevisionReplaced::Value(set) => value_text(&set.value, limits, out),
+        c::RevisionReplaced::TooLarge(size) => {
+            out.put(b"too large, ");
+            out.number(size.bytes);
+            out.put(b" bytes\n");
+        }
+        c::RevisionReplaced::Application { size } => {
+            out.number(u64::from(*size));
+            out.put(b" bytes\n");
+        }
+        c::RevisionReplaced::Default => out.put(b"default\n"),
+        c::RevisionReplaced::Removed => out.put(b"removed\n"),
+        c::RevisionReplaced::NotOffered => out.put(b"not offered\n"),
     }
 }
 
@@ -504,6 +538,8 @@ fn encode_revision(answer: &c::RevisionAnswer, out: &mut Encoder) {
                         out.string(b"reset");
                     }
                 }
+                out.key(b"replaced");
+                encode_replaced(&item.replaced, out);
                 out.object_end();
             }
             out.array_end();
@@ -519,6 +555,32 @@ fn encode_revision(answer: &c::RevisionAnswer, out: &mut Encoder) {
             out.key(b"unknown");
             out.boolean(true);
         }
+    }
+}
+
+fn encode_replaced(replaced: &c::RevisionReplaced, out: &mut Encoder) {
+    match replaced {
+        c::RevisionReplaced::Value(set) => {
+            out.object_start();
+            out.key(b"set");
+            encode_value(&set.value, out);
+            out.object_end();
+        }
+        c::RevisionReplaced::TooLarge(size) => {
+            out.object_start();
+            out.key(b"too_large");
+            out.unsigned(size.bytes);
+            out.object_end();
+        }
+        c::RevisionReplaced::Application { size } => {
+            out.object_start();
+            out.key(b"application");
+            out.unsigned(u64::from(*size));
+            out.object_end();
+        }
+        c::RevisionReplaced::Default => out.string(b"default"),
+        c::RevisionReplaced::Removed => out.string(b"removed"),
+        c::RevisionReplaced::NotOffered => out.string(b"not_offered"),
     }
 }
 

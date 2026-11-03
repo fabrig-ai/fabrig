@@ -30,6 +30,7 @@ const GOLDENS: &[(Option<u8>, &str)] = &[
     (Some(jig::rows::PROPOSE_SETTINGS_AT), "help_settings_propose"),
     (Some(jig::rows::PROPOSAL_AT), "help_proposal_show"),
     (Some(jig::rows::MOVE_TO_NEWEST_AT), "help_revision_advance"),
+    (Some(jig::rows::RESTORE_AT), "help_revision_restore"),
     (Some(jig::rows::PROJECT_SHOW_AT), "help_project_show"),
     (Some(jig::rows::PROJECT_FUND_AT), "help_project_fund"),
 ];
@@ -139,6 +140,7 @@ const USAGES: &[&[u8]] = &[
     b"forge remove FORGE [--key KEY]\n",
     b"playground end [--key KEY]\n",
     b"task text TASK [--field specification|instructions] [--from OFFSET]\n",
+    b"revision restore REVISION [REASON] --key KEY\n",
 ];
 #[test]
 fn a_tools_usage_reads_as_the_design_writes_it() {
@@ -150,7 +152,8 @@ fn a_tools_usage_reads_as_the_design_writes_it() {
 #[test]
 fn each_derivation_names_every_tool() {
     let mut forms = List::with_capacity(fixtures::TOOL_FORMS);
-    for words in fixtures::EVERY_TOOL {
+    let restore: &[&[&str]] = &[&["revision", "restore", "4", "--key", "restore-4"]];
+    for words in fixtures::EVERY_TOOL.iter().chain(restore) {
         let mut call = fixtures::call(words);
         if call.tool == jig::rows::CHANGE_SETTINGS_AT || call.tool == jig::rows::PROPOSE_SETTINGS_AT {
             *call.values.get_mut(0).expect("FILE") =
@@ -395,4 +398,9 @@ fn the_settings_reference_is_what_the_table_renders() {
 #[test]
 fn the_proposal_reference_is_what_the_table_renders() {
     reference_matches(b"proposal", b"ctl-proposal");
+}
+
+#[test]
+fn the_revision_reference_is_what_the_table_renders() {
+    reference_matches(b"revision", b"ctl-revision");
 }

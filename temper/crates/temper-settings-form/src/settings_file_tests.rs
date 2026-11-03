@@ -343,3 +343,38 @@ fn a_project_policy_edit_a_second_one_or_a_bad_project_is_refused_naming_the_ite
         assert_eq!(file::decode(&bytes, &Limits::standard()).expect_err("refused policy item").as_ref(), expected);
     }
 }
+
+#[test]
+fn revision_replaced_states_reach_the_host_settings_form_from_the_wire() {
+    use jig_client_protocol_wire as w;
+    let limits = Limits::standard();
+    let set = c::SettingSet { value: c::SettingValue::Charter(Box::new(charter(&charter_file(COORDINATOR)))) };
+    let cases = [
+        (
+            w::RevisionReplaced::Value(crate::wire::settings_wire_setting_set(&set, &limits.settings).unwrap()),
+            c::RevisionReplaced::Value(set),
+        ),
+        (
+            w::RevisionReplaced::TooLarge(w::Size::new(&limits.settings, w::SizeParts { bytes: 1_000_000 }).unwrap()),
+            c::RevisionReplaced::TooLarge(c::Size { bytes: 1_000_000 }),
+        ),
+        (
+            w::RevisionReplaced::Application(
+                w::ApplicationSize::new(&limits.settings, w::ApplicationSizeParts { size: 12 }).unwrap(),
+            ),
+            c::RevisionReplaced::Application { size: 12 },
+        ),
+        (w::RevisionReplaced::Default, c::RevisionReplaced::Default),
+        (w::RevisionReplaced::Removed, c::RevisionReplaced::Removed),
+        (w::RevisionReplaced::NotOffered, c::RevisionReplaced::NotOffered),
+    ];
+    for (replaced, expected) in cases {
+        let item = w::RevisionItem::new(
+            &limits.settings,
+            w::RevisionItemParts { setting: w::Setting::Rules, edit: w::RevisionEdit::Reset, replaced },
+        )
+        .unwrap();
+        let restored = crate::wire::settings_restore_revision_item(&item, &limits).unwrap();
+        assert_eq!(restored.replaced, expected);
+    }
+}

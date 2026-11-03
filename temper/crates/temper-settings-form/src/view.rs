@@ -242,6 +242,17 @@ pub struct RevisionHead {
 pub struct RevisionItem {
     pub setting: Setting,
     pub edit: RevisionEdit,
+    pub replaced: RevisionReplaced,
+}
+/// The state before an item changed it (jig/docs/design/domain/engine.md, 17.10).
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum RevisionReplaced {
+    Value(SettingSet),
+    TooLarge(Size),
+    Application { size: u32 },
+    Default,
+    Removed,
+    NotOffered,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum RevisionItemEdit {

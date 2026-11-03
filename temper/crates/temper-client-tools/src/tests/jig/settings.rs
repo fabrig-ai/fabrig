@@ -1058,7 +1058,9 @@ fn non_charter_revision_hints_explicitly_read_the_current_value() {
                 }]),
             }))),
         );
-        let line = format!("  {name}: too large, 1000000 bytes; read current value with settings show {name}\n");
+        let line = format!(
+            "  {name}: too large, 1000000 bytes; read current value with settings show {name}\n    was: not offered\n"
+        );
         assert!(answer.stdout.ends_with(line.as_bytes()), "{}", String::from_utf8_lossy(&answer.stdout));
     }
 }
@@ -2150,6 +2152,51 @@ fn a_large_project_policy_revision_prints_no_setting_read_hint() {
         }))),
     );
     assert_eq!(answer.status, 0);
-    assert!(answer.stdout.ends_with(b"  project-policy 1: too large, 1000000 bytes\n"));
+    assert!(answer.stdout.ends_with(b"  project-policy 1: too large, 1000000 bytes\n    was: not offered\n"));
     assert!(!core::str::from_utf8(&answer.stdout).expect("revision text").contains("settings show"));
+}
+
+#[test]
+fn revision_show_prints_what_each_item_replaced() {
+    let mut items = Vec::new();
+    for (index, (setting, value)) in values().into_iter().enumerate() {
+        let replaced = match index {
+            0 => c::RevisionReplaced::Value(c::SettingSet { value: value.clone() }),
+            1 => c::RevisionReplaced::Default,
+            2 => c::RevisionReplaced::Removed,
+            3 => c::RevisionReplaced::TooLarge(c::Size { bytes: 1_000_000 }),
+            _ => unreachable!("four fixture kinds"),
+        };
+        items.push(c::RevisionItem {
+            setting,
+            edit: if index == 3 { c::RevisionEdit::Reset } else { c::RevisionEdit::Set(c::SettingSet { value }) },
+            replaced,
+        });
+    }
+    items.push(c::RevisionItem {
+        setting: c::Setting::Application { kind: 2, scope: 3, number: 2 },
+        edit: c::RevisionEdit::Application(c::SizedEdit::Set { size: 24 }),
+        replaced: c::RevisionReplaced::Application { size: 12 },
+    });
+    let (_, policy) = values().remove(2);
+    items.push(c::RevisionItem {
+        setting: c::Setting::ProjectPolicy { project: 3 },
+        edit: c::RevisionEdit::TooLarge(c::Size { bytes: 2_000_000 }),
+        replaced: c::RevisionReplaced::Value(c::SettingSet { value: policy }),
+    });
+    items.push(c::RevisionItem {
+        setting: c::Setting::Charter(c::SettingNumber { number: 9 }),
+        edit: c::RevisionEdit::Removed,
+        replaced: c::RevisionReplaced::NotOffered,
+    });
+    let document = c::ReadValue::Revision(Box::new(c::RevisionAnswer::Revision(c::RevisionDocument {
+        head: head(c::RevisionDecider::Party(c::RevisionParty { number: 1 })),
+        items: list(items),
+    })));
+    for json in [false, true] {
+        let argv = if json { vec!["revision", "show", "5", "--json"] } else { vec!["revision", "show", "5"] };
+        let answer = read(&argv, document.clone());
+        assert_eq!(answer.status, 0);
+        golden(if json { "settings_revision_replaced_json" } else { "settings_revision_replaced" }, &answer.stdout);
+    }
 }

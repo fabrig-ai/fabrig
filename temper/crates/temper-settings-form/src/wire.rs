@@ -152,6 +152,21 @@ pub(crate) fn settings_restore_revision_item(
     Ok(c::RevisionItem {
         setting: settings_restore_setting(value.setting(), limits),
         edit: settings_restore_revision_edit(value.edit(), limits)?,
+        replaced: settings_restore_revision_replaced(value.replaced(), limits)?,
+    })
+}
+
+pub(crate) fn settings_restore_revision_replaced(
+    value: &w::RevisionReplaced,
+    limits: &Limits,
+) -> Result<c::RevisionReplaced, w::Problem> {
+    Ok(match value {
+        w::RevisionReplaced::Value(item) => c::RevisionReplaced::Value(settings_restore_setting_set(item, limits)?),
+        w::RevisionReplaced::TooLarge(item) => c::RevisionReplaced::TooLarge(settings_restore_size(item, limits)),
+        w::RevisionReplaced::Application(item) => c::RevisionReplaced::Application { size: item.size() },
+        w::RevisionReplaced::Default => c::RevisionReplaced::Default,
+        w::RevisionReplaced::Removed => c::RevisionReplaced::Removed,
+        w::RevisionReplaced::NotOffered => c::RevisionReplaced::NotOffered,
     })
 }
 
