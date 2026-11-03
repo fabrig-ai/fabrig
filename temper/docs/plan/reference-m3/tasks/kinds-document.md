@@ -131,3 +131,17 @@ Resolve the conflicts as follows:
 
 Inspect the auto-merged landing parser to ensure `merge_job` parsing and validation survive alongside the new rule refusals.
 Run the spec’s focused checks for the reconciled behavior, then its required package/workspace checks through `heavy`; never run live fixtures.
+
+## Rebase (2026-11-03, step merge, foreman reference-m3/kinds-document/foreman-2)
+
+rebase the document migration while preserving integration’s reference tiers and updated tier help.
+Reapply `e13a81bd21` onto `origin/reference-m3/integration`; do not replay older dependency merges.
+The merge failed in three paths; no test failure was reported.
+
+- `temper/docs/examples/reference/landing.json`: combine this branch’s rule removal with `642ceca3c5`’s repository checks. Keep project 1, `merge_job: ".temper/merge"`, and forge 1/repository 1’s `slow` and `goal` tiers. Keep `branch: "goal"` and `span_ms: 1200000`; omit `deployment` and project `rules`.
+- `temper/crates/temper-service/src/tests/reference_landing.rs`: keep `the_reference_landing_settings_decode` reading both rules from `reference/settings.json`. In `the_reference_landing_member_parses`, retain the merge-job assertion and integration’s repository/tier assertions: `Follows::Landing` with span 0 and `Follows::Goals` with span 1,200,000. Do not restore `members.landing_rules` or document-rule assertions.
+- `temper/docs/help/tier.md`: start from integration’s shortened page, preserving goal-tier, repair-news and `span_ms` guidance, including `085040def6`’s size reduction. Reapply only this task’s removal of the example’s `deployment` and `rules` members and prose about preserving document rules. This is a refused-member writer under the spec’s writer exception; list it in the report.
+- Inspect the auto-merged landing parser and `translate.rs`: retain integration’s `Follows`/`span_ms` parsing and translation alongside this branch’s stored-rule refusals and merge-job validation. Configuration 13.6 step 2 explicitly preserves project checks and tiers.
+
+Run focused `temper-service --lib` reference-landing tests, then `temper`’s reference-settings tests, through `heavy`, checking selected counts.
+Run the spec’s help checks (`temper-docs` and `temper --lib` filtered to help), then its required package/workspace checks through `heavy`. Never run live fixtures.
