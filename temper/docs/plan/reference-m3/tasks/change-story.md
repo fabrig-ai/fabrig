@@ -114,3 +114,10 @@ This covers `temper/crates/temper-engine-domain/src/restart.rs:544` and `temper/
 Fab should arrange the owning repairs before resuming validation.
 Once available, confirm the narrow run passes all 3 stories, then run the forge-route stories, formatting and required checks, and record the three story runtimes.
 Acceptance remains unobserved: the report states “Executed test count: 0” and “The task is not accepted yet.”
+
+### 2026-11-03: Four runs without landing, each stopped on a compile error under `temper/crates/` (restart.rs:544, refusal.rs:500): resume or defer? (reference-m3/change-story-4)
+
+Resume now: both blockers are repaired on the trunk. Merge b63cd7cfcc ("Merge goal-branch landing with producer and LLM choices", reached the trunk in b63d5429e0) gives `restart.rs` its `connector: domain.config.forge_connector` field and `refusal.rs` its `w::Refusal::Judged(_)` arm. Run 4 merged trunk 4f22de62be, which came before that merge.
+Next run: merge the current `origin/reference-m3/integration` (b63d5429e0 or later) into the branch first, then follow Steps 2 and 3 as written: the narrow run with its count of 3, the `forge_routes::` run, fmt and clippy. Report the three stories' run times.
+Do not ask this question again. If, after that merge, the build still fails in a file outside the header's `files`, stop with `Failed:`, quoting the diagnostic and the trunk commit you merged; do not stop with a `Question:`. The trunk's check and its repair own that failure.
+A story that compiles and then fails, showing the root, jig or the forge wrong, is still reported under `## Left`, not fixed here.
