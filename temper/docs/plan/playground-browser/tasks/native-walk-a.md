@@ -388,3 +388,29 @@ run got further (the project, the adoption, the cues, the chat; now the first ch
 pushed commits (to `6b9885849d`) stay and the next run starts from them. The earlier rules hold: a
 failure of `Route` itself, or any new failure outside the allowances' classes, is a question with its
 evidence, asked after committing and pushing what is repaired.
+
+2026-11-03. **Story A's chats are `EndedBy::Result` (finite), so the brief's cue never reaches the
+user message and the fake LLM answers the fallback: keep the stock requester-ended chat for demo
+worlds in `documents::given_with`, or leave the walk blocked?** Keep the stock ending, here. Story A
+is the box's playground (`temper/docs/design/playground.md`, 5.2), run on product code with only the
+composition's documents differing (1, 3): the box's chats are the stock's, requester-ended, and the
+`Result` override is the harness worlds' choice, not the playground's. The rule is the earlier
+answers' one: decided by `application.demo`.
+
+- `temper/crates/temper-playground/src/documents.rs`, `given_with`: when `read_wait` is false,
+  override `defaults.templates[0].flags.ended_by` to `EndedBy::Result` only when the document's
+  `application.demo` is null; a demo document keeps the stock template's ending. `read_wait`'s
+  branch, `stock`'s and every other value stay as they are. The one-process world's playground
+  stories reach it through `documents::given` and so get the same ending; its other stories, whose
+  document has no demo, keep `Result`.
+- A regression in `temper-playground`'s `src/tests/`: story A's deployment through
+  `documents::given` keeps the stock template's `ended_by` (`Requester`), and `world_document()`'s
+  stays `Result`.
+- Past this, the earlier allowances' classes hold as written; any other new failure (in the service,
+  engine, smith's run, the fake LLM, the host, skein or jig) is a question with its evidence, asked
+  after committing and pushing what is repaired.
+- The wasm32 clippy expectations the run listed (`skein-llm-connection`, `skein-forge-setup`,
+  `temper-engine-domain-forge`) are not this task's: leave them under `## Left`.
+- Then the acceptance as written: the full walk, its kept `tests/fixtures/story-a.log` recorded under
+  `SKEIN_CODEGEN_WRITE`, its replay, and the one-process `story_a.rs` once alone with
+  `--run-ignored all` (its `#[ignore]` lifted only if it passes).
