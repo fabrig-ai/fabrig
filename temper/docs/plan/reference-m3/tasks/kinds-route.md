@@ -53,8 +53,10 @@ Acceptance:
     segment_bytes: authority.segment_bytes.min(forge.name_bytes), charters: tasks.charters }`
     from the root's limits (the smaller segment bound, so that every rule the forge keeps
     fits the store's segment, whose bound is `forge.name_bytes`, `kinds-store`).
-  - `Ask::SaveSettingsDefaults` stays as `apps-surface` left it (`kinds-start`).
-- `forge_route.rs`: `apps-surface`'s `unreachable!` arm for the asks above becomes a call
+  - `Ask::SaveSettingsDefaults` routes to `route/kinds.rs`' `save_defaults`, which does
+    nothing yet (a comment naming `kinds-start`, which gives it its body), so that no later
+    kinds task edits `forge_route.rs`.
+- `forge_route.rs`: `apps-surface`'s `unreachable!` arm for the five asks becomes a call
   into `route/kinds.rs`; nothing else.
 - Tests in `src/tests/kinds.rs` pass (Steps); the crate's focused tests pass.
 

@@ -28,7 +28,9 @@ Released (needs in brackets):
   (`jig-test-connector` owns a kind); `apps-proposals` [change]; `apps-start` [proposals]
   (defaults at a start, the release's revision); `apps-store` [proposals] (settings-v1,
   people-v14, tasks-v9 in place); `apps-wire` [proposals] (client-v19 in place);
-  `apps-world` [connector, start, store] (the core world's story).
+  `apps-world` [connector, start, store] (the core world's story); `apps-proposal-key`
+  [proposals, store, wire] (a settings proposal's deployment-unique key, sent as C2's
+  `proposal`: a revision of what `apps-proposals`, `apps-store` and `apps-wire` build).
 - kinds-forge: `kinds-values` [] (the forge's values of kinds 1 to 3, `ForgeCharters`, its
   limits); `kinds-store` [values] (the forge's family `Setting`, store-v11 in place);
   `kinds-held` [store] (judging, keeping, holding, `charters()`); `kinds-requirements` [held]
@@ -67,10 +69,9 @@ runs beside it.
 ## Left for later in this cut
 
 - **A settings proposal's identity** (C2's `proposal`): jig keeps settings proposals by
-  proposer and number, so the u64 C2 sends the connector is not unique across proposers.
-  `apps-proposal-key` (to come) gives each a deployment-unique key; until it lands,
-  `apps-proposals` sends the tasks child's number and reports whether two proposers can share
-  one.
+  proposer and number, so the number is not unique across proposers; `apps-proposal-key`
+  gives each a deployment-unique key. It and `apps-world` may run at once with one-line field
+  edits in `jig-test-domain` and `jig/tests/core`: accepted.
 - **`change-held`** (forge.md, 8.9's hold when a role's charter or LLM choice is no longer
   offered or allowed) folds into the kinds family's switch of the forge's charters.
 
