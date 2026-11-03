@@ -2164,14 +2164,26 @@ pub(crate) fn change_batch(
     changes: &[crate::ChangeCall],
 ) -> Result<Box<[super::Delegate]>, ChangeRefused> {
     let plan = match changes {
-        [change] => change.name.is_some() || change.landing.is_some() || !change.after.is_empty(),
+        [change] => {
+            change.name.is_some() || change.landing.is_some() || !change.after.is_empty() || change.questions.is_some()
+        }
         _ => true,
     };
     let control = jig_domain_core::ToolFamilies::JIG.control.0;
     if plan && context.authority.tools.0 & control != control {
         return Err(ChangeRefused::Words(Box::from(
-            b"change's landing, name, after and changes are a plan's: this task's authority lacks the control family (amend, cancel, release).".as_slice(),
+            b"change's landing, name, after, questions and changes are a plan's: this task's authority lacks the control family (amend, cancel, release).".as_slice(),
         )));
+    }
+    for change in changes {
+        match change.questions {
+            Some(crate::ChangeQuestions::Foreman | crate::ChangeQuestions::Up) => {
+                return Err(ChangeRefused::Words(Box::from(
+                    b"change's questions foreman and up are not offered yet.".as_slice(),
+                )));
+            }
+            None | Some(crate::ChangeQuestions::None) => {}
+        }
     }
     if let Some(words) = super::goal::change_refusal(domain, task) {
         return Err(ChangeRefused::Words(words));
