@@ -12,6 +12,9 @@ files = [
   "skein/crates/skein-fake-forge-protocol/src/**/*.rs",
   "skein/crates/skein-fake-forge-github/src/**/*.rs",
   "skein/crates/skein-tls/src/**/*.rs",
+  "skein/crates/skein-shell/clippy.toml",
+  "skein/crates/skein-sim/clippy.toml",
+  "skein/crates/skein-fake-machine/clippy.toml",
 ]
 effort = "medium"
 minutes = 55
@@ -165,3 +168,18 @@ wasm32, split, or a fence); for `skein-tls`, `skein-fake-forge-github` and `skei
 each one's result in step 5; and under `## Left`, every warning or error outside `skein/` by
 tree, package, file, line and lint, smith's and jig's first, then temper's, since theirs are the
 next to fail once skein's pass.
+
+## Answers
+
+2026-11-03. **May the three `std::os::fd::OwnedFd` entries that wasm32 clippy reports as "does not
+refer to a reachable type" take `allow-invalid = true`?** Yes. On wasm32 `std::os::fd` does not
+exist, so the entry cannot resolve; on the host it resolves and the ban holds as before.
+`smith/crates/smith-agent-shell/clippy.toml:8` already uses this form. Add `, allow-invalid = true`
+to the end of the entry, and change nothing else in the entry (path and reason stay word for word):
+`skein/crates/skein-shell/clippy.toml:9`, `skein/crates/skein-sim/clippy.toml:20`,
+`skein/crates/skein-fake-machine/clippy.toml:24`. This is a clippy configuration key, not a
+lint `allow`, so `AGENTS.md`, 2 does not apply to it. If step 4 or 5 reports the same diagnostic
+in another skein crate's `clippy.toml`, give that entry the same form and name it in the report.
+No other `clippy.toml` change is allowed. The diff acceptance therefore also admits these entries.
+Keep commit `cce58fbb4f` on the branch, make the change in a second commit (on wasm32 the
+host-only `std::os::fd` path does not resolve), then run steps 4 to 7.

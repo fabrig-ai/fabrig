@@ -4,7 +4,9 @@ Every task of this plan names this note.
 
 - Read `AGENTS.md`, then `skein/AGENTS.md`. The plan changes lint attributes in skein's crates
   and, where a target fence leaves code dead on wasm32, the fence; nothing else: no type,
-  signature, variant, body, manifest, `clippy.toml` or document.
+  signature, variant, body, manifest, `clippy.toml` or document. The one exception is
+  `allow-invalid = true` on a `clippy.toml` entry that does not resolve on wasm32, as the
+  task's `## Answers` sets out.
 - **A lint exception is a scoped `expect`, never `allow`** (`AGENTS.md`, 2). Where an
   expectation holds on one target and not the other, the `expect` sits inside a `cfg_attr` on
   the target where the lint fires: `#[cfg_attr(not(target_arch = "wasm32"), expect(<lint>,
