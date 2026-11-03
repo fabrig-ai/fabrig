@@ -15,3 +15,5 @@ mod fuzzy {
     mod client;
     mod protocol;
 }
+
+mod public;
