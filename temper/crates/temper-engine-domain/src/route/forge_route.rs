@@ -1835,6 +1835,8 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
     let mut body = None;
     let mut priority = 0_i32;
     let mut base_repair = false;
+    let mut producer = None;
+    let mut llm = crate::ChangeLlm::default();
     for parameter in &context.spec.parameters {
         match parameter {
             tasks::Parameter::Resource { name: 1, connector, resource } => {
@@ -1852,6 +1854,10 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 priority = number;
             }
             tasks::Parameter::Number { name: 9, value: 1 } => base_repair = true,
+            tasks::Parameter::Bytes { name: 11, value } => {
+                let Some(choices) = change_llm::read(value) else { return false };
+                (producer, llm) = choices;
+            }
             tasks::Parameter::Bytes { name: 6 | 10, .. } => {}
             tasks::Parameter::Number { .. } | tasks::Parameter::Bytes { .. } | tasks::Parameter::Resource { .. } => {
                 return false;
@@ -1932,10 +1938,10 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 base_repair,
                 queue_repair: None,
                 queue_repairs: 0,
-                producing_charter: domain.config.forge_charter,
+                producing_charter: producer.unwrap_or(domain.config.forge_charter),
                 review_charter: 4,
-                producing_llm: None,
-                review_llm: None,
+                producing_llm: llm.producer,
+                review_llm: llm.review,
                 effect_account: None,
                 producer_failure: None,
                 report: Box::new([]),
@@ -2455,10 +2461,8 @@ fn change_spend(domain: &Domain, task: u64) -> Option<forge_change::DelegateSpen
     Some(forge_change::DelegateSpend {
         recovery: change_recovery(domain, task)?,
         left,
-        coding: jig_domain_core::reserve_floor(&domain.core.charter(row.producing_charter)?.policy)
-            .unwrap_or(u64::MAX),
-        review: jig_domain_core::reserve_floor(&domain.core.charter(row.review_charter)?.policy)
-            .unwrap_or(u64::MAX),
+        coding: jig_domain_core::reserve_floor(&domain.core.charter(row.producing_charter)?.policy).unwrap_or(u64::MAX),
+        review: jig_domain_core::reserve_floor(&domain.core.charter(row.review_charter)?.policy).unwrap_or(u64::MAX),
     })
 }
 

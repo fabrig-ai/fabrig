@@ -3,15 +3,19 @@
 
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
-use skein_lib::{List, bytes::decimal};
+use skein_lib::{
+    List,
+    bytes::{decimal, find},
+};
 
 pub(super) fn spell(producer: Option<u32>, llm: &crate::ChangeLlm) -> Box<[u8]> {
     // A charter has at most ten digits, two separators, and each choice entry
-    // at most seven bytes including its preceding space.
+    // at most eight bytes including its preceding space.
     let mut size = 12_u32;
     for choice in [&llm.producer, &llm.review].into_iter().flatten() {
         let entries = u32::try_from(choice.subagents.len()).expect("bounded sub-agents");
-        size = size.checked_add(entries.checked_add(1).expect("main entry").checked_mul(8).expect("choice bytes"))
+        size = size
+            .checked_add(entries.checked_add(1).expect("main entry").checked_mul(8).expect("choice bytes"))
             .expect("parameter bytes");
     }
     let mut out = List::with_capacity(size);
@@ -40,47 +44,54 @@ fn spell_entry(out: &mut List<u8>, entry: tasks::ModelEffort) {
 }
 
 pub(super) fn read(text: &[u8]) -> Option<(Option<u32>, crate::ChangeLlm)> {
-    let text = core::str::from_utf8(text).ok()?;
-    let mut parts = text.split(';');
-    let charter = parts.next()?;
+    let (charter, choices) = split(text, b';')?;
+    let (producer_choice, review_choice) = split(choices, b';')?;
+    if find(review_choice, b";").is_some() {
+        return None;
+    }
     let producer = if charter.is_empty() {
         None
     } else {
-        let charter = u32::try_from(decimal(charter.as_bytes())?).ok()?;
+        let charter = u32::try_from(decimal(charter)?).ok()?;
         if charter == 0 {
             return None;
         }
         Some(charter)
     };
-    let llm = crate::ChangeLlm { producer: read_choice(parts.next()?)?, review: read_choice(parts.next()?)? };
-    if parts.next().is_some() {
-        return None;
-    }
-    Some((producer, llm))
+    let producing = if producer_choice.is_empty() { None } else { Some(read_choice(producer_choice)?) };
+    let review = if review_choice.is_empty() { None } else { Some(read_choice(review_choice)?) };
+    Some((producer, crate::ChangeLlm { producer: producing, review }))
 }
 
-fn read_choice(text: &str) -> Option<Option<tasks::LlmChoice>> {
-    if text.is_empty() {
-        return Some(None);
-    }
-    let mut entries = text.split(' ');
-    let main = read_entry(entries.next()?)?;
+fn split(text: &[u8], separator: u8) -> Option<(&[u8], &[u8])> {
+    let at = find(text, &[separator])?;
+    Some((text.get(..at)?, text.get(at.checked_add(1)?..)?))
+}
+
+fn read_choice(text: &[u8]) -> Option<tasks::LlmChoice> {
+    let end = find(text, b" ").unwrap_or(text.len());
+    let main = read_entry(text.get(..end)?)?;
     let mut subagents = List::with_capacity(tasks::MODELS);
-    for entry in entries {
-        subagents.push(read_entry(entry)?).ok()?;
+    let mut at = end;
+    for _ in 0..tasks::MODELS {
+        if at == text.len() {
+            break;
+        }
+        let start = at.checked_add(1)?;
+        let remaining = text.get(start..)?;
+        at = start.checked_add(find(remaining, b" ").unwrap_or(remaining.len()))?;
+        subagents.push(read_entry(text.get(start..at)?)?).ok()?;
     }
-    Some(Some(tasks::LlmChoice { account: None, main, subagents: subagents.into_boxed() }))
-}
-
-fn read_entry(text: &str) -> Option<tasks::ModelEffort> {
-    let mut parts = text.split('.');
-    let model = u8::try_from(decimal(parts.next()?.as_bytes())?).ok()?;
-    let effort = match parts.next() {
-        Some(effort) => Some(u8::try_from(decimal(effort.as_bytes())?).ok()?),
-        None => None,
-    };
-    if parts.next().is_some() {
+    if at != text.len() {
         return None;
     }
-    Some(tasks::ModelEffort { model, effort })
+    Some(tasks::LlmChoice { account: None, main, subagents: subagents.into_boxed() })
+}
+
+fn read_entry(text: &[u8]) -> Option<tasks::ModelEffort> {
+    let (model, effort) = match split(text, b'.') {
+        Some((model, effort)) => (model, Some(u8::try_from(decimal(effort)?).ok()?)),
+        None => (text, None),
+    };
+    Some(tasks::ModelEffort { model: u8::try_from(decimal(model)?).ok()?, effort })
 }
