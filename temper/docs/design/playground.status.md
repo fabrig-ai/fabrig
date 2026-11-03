@@ -25,8 +25,10 @@
     world.
   - 9: the native walk through the web client's host:
     `tests/playground` checks story A's calm start alone. Story A's walk
-    in the one-process world, ignored (4). The wasm32 builds in the gate,
-    so no gate checks `temper-playground`'s build for wasm32, which
-    proves 3's product crates. A log replayed, and the browser tier's
-    walk.
+    in the one-process world, ignored (4). The wasm32 builds in the gate:
+    fab's gate list (`.config/gate/wasm32.txt`) holds neither
+    `temper-playground`, whose wasm32 clippy fails with rustls taken
+    without `std` (skein's `tls.md`, 4), nor the web shell, so no gate
+    proves 3's product crates on wasm32. A log replayed, and the browser
+    tier's walk.
   - 10: the bar.
