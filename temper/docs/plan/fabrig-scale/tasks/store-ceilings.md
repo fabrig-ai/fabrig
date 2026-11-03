@@ -96,3 +96,15 @@ Acceptance:
 
 As the implementer's text asks, with the printed row bound at the draft's figures (the figure
 `standard-scale` sizes standard's store by), and every generated file the writer changed.
+
+## Answers
+
+### 2026-11-03: Resume after tasks-pieces completes its codec translations (recommended), or expand this task to repair those mappings here? The required writer cannot compile the current prerequisite. (fabrig-scale/store-ceilings-1, foreman fabrig-scale/store-ceilings/foreman-1)
+
+Resume store-ceilings after tasks-pieces completes its codec translations and verdict bounds; those repairs remain with tasks-pieces.
+The store-ceilings spec declares `needs = ["tasks-pieces"]` and explicitly requires “No configured limit, profile or `codec/` mapping changes.”
+The tasks-pieces acceptance owns the encoders and decoders in `codec/tasks/` and the verdict bounds in `codec/tasks.rs`, including `min(VERDICT_FIELDS, result_bytes)` framing plus result bytes.
+`jig/docs/design/protocol/store.md`, 5.1, requires verdict pieces framed for “at most `VERDICT_FIELDS` items”, never as many items as result bytes.
+The checkout confirms the old list translations and result-byte multiplication remain.
+Keep store-ceilings parked until that prerequisite is complete, then resume generation, acceptance tests, status update and required checks.
+The pushed checkpoint is not accepted as done: generated files, the row bound and acceptance checks remain outstanding.
