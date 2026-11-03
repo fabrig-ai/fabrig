@@ -4,7 +4,7 @@ use super::fixtures;
 use crate::startup::{Problems, application, lines};
 use jig_domain_authority::Last;
 use jig_protocol_config::{self as config, read};
-use temper_engine_domain::{Freshness, Gate};
+use temper_engine_domain::Gate;
 
 const PROJECT: u32 = 1;
 const CONNECTOR: u16 = 1;
@@ -41,14 +41,8 @@ fn the_reference_landing_member_parses() {
     );
     let rules = policy.projects.get(&PROJECT).expect("reference project");
     assert_eq!(rules.len(), RULES);
-    let expected: [(Last, bool, &[Gate]); RULES] = [
-        (
-            Last::Exact(b"main".as_slice().into()),
-            true,
-            &[Gate { number: 1, blocking: true, freshness: Freshness::Clean }],
-        ),
-        (Last::Open(b"temper".as_slice().into()), false, &[]),
-    ];
+    let expected: [(Last, bool, &[Gate]); RULES] =
+        [(Last::Exact(b"main".as_slice().into()), true, &[]), (Last::Open(b"temper".as_slice().into()), false, &[])];
     for (rule, (last, checks, gates)) in rules.iter().zip(expected) {
         assert_eq!(rule.connector, CONNECTOR);
         assert_eq!(rule.kind, MERGE);

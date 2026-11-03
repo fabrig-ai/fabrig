@@ -45,6 +45,14 @@ fn the_reference_settings_file_decodes() {
     else {
         panic!("coordinator charter")
     };
+    assert!(
+        std::str::from_utf8(coordinator.instructions.bytes())
+            .expect("coordinator instructions are UTF-8")
+            .contains(r#""branch": "mine""#)
+    );
+    assert!(coordinator.instructions.bytes().ends_with(
+        b"If you finish without a landing, say why in your report; your goal branch is kept for a person to read."
+    ));
     assert!(!coordinator.resume());
     assert_eq!(coordinator.waiting, Duration::ZERO);
     assert!(core::str::from_utf8(coordinator.instructions.bytes()).expect("coordinator instructions").contains(

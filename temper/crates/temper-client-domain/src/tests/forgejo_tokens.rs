@@ -7,6 +7,7 @@ use jig_client::{Down, Up};
 use skein_lib::{List, Queue, Secret, Token};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 const FORGE: u16 = 3;
+const OTHER_FORGE: u16 = 4;
 fn event(root: &mut Domain, value: Event) -> Queue<Request> {
     let mut out = Queue::uncapped();
     crate::step(root, &f::env(&f::limits()), value, &mut out);
@@ -26,28 +27,22 @@ fn bytes(seed: u64, length: usize) -> Box<[u8]> {
     }
     bytes
 }
-fn row(kind: w::Kind, mode: w::Mode, connection: w::Connection, ended: bool) -> w::ForgeRow {
+fn row(number: u16, kind: w::Kind, mode: w::Mode, connection: w::Connection, ended: Option<&[u8]>) -> w::ForgeRow {
+    let mut stopped = None;
+    if let Some(why) = ended {
+        stopped = Some(w::ConnectStopped::new(&w::CEILINGS, w::ConnectStoppedParts { why: why.into() }).unwrap());
+    }
     w::ForgeRow::new(
         &w::CEILINGS,
         w::ForgeRowParts {
-            number: FORGE,
+            number,
             kind,
             mode,
             connection,
             offer: w::Offer::NotOffered,
             first: None,
             installations: List::with_capacity(0),
-            ended: if ended {
-                Some(
-                    w::ConnectStopped::new(
-                        &w::CEILINGS,
-                        w::ConnectStoppedParts { why: b"tokens refused".as_slice().into() },
-                    )
-                    .unwrap(),
-                )
-            } else {
-                None
-            },
+            ended: stopped,
             app: None,
             web: None,
             repositories: List::with_capacity(0),
@@ -59,9 +54,11 @@ fn row(kind: w::Kind, mode: w::Mode, connection: w::Connection, ended: bool) -> 
     )
     .unwrap()
 }
-fn deliver(root: &mut Domain, watch: Token, row: w::ForgeRow) {
-    let mut rows = List::with_capacity(1);
-    rows.push(row).unwrap();
+fn deliver(root: &mut Domain, watch: Token, delivered: &[w::ForgeRow]) {
+    let mut rows = List::with_capacity(u32::try_from(delivered.len()).unwrap());
+    for row in delivered {
+        rows.push(row.clone()).unwrap();
+    }
     event(
         root,
         Event::Client {
@@ -80,7 +77,7 @@ fn deliver(root: &mut Domain, watch: Token, row: w::ForgeRow) {
 }
 fn opened() -> (Domain, Token) {
     let (mut root, _, watch) = connect::opened(true);
-    deliver(&mut root, watch, row(w::Kind::Forgejo, w::Mode::Connected, w::Connection::NotConnected, false));
+    deliver(&mut root, watch, &[row(FORGE, w::Kind::Forgejo, w::Mode::Connected, w::Connection::NotConnected, None)]);
     (root, watch)
 }
 fn send(root: &mut Domain) -> Queue<Request> {
@@ -192,7 +189,7 @@ fn only_disconnected_forgejos_of_the_connected_mode_send() {
         (w::Kind::Github, w::Mode::Connected, w::Connection::NotConnected, false),
     ] {
         let (mut root, watch) = opened();
-        deliver(&mut root, watch, row(kind, mode, connection, false));
+        deliver(&mut root, watch, &[row(FORGE, kind, mode, connection, None)]);
         paste(&mut root, Field::Api, &bytes(1, 16));
         paste(&mut root, Field::Git, &bytes(2, 16));
         assert_eq!(!send(&mut root).is_empty(), allowed);
@@ -205,7 +202,11 @@ fn a_stop_clears_all_fields_and_returns_to_details_before_the_answer() {
     paste(&mut root, Field::Git, &bytes(2, 16));
     send(&mut root);
     let written = root.forge().tokens_form().written;
-    deliver(&mut root, watch, row(w::Kind::Forgejo, w::Mode::Connected, w::Connection::NotConnected, true));
+    deliver(
+        &mut root,
+        watch,
+        &[row(FORGE, w::Kind::Forgejo, w::Mode::Connected, w::Connection::NotConnected, Some(b"tokens refused"))],
+    );
     for field in [Field::Api, Field::Git, Field::Webhook] {
         assert!(!root.forge().tokens_form().has(field));
         assert!(root.forge().tokens_form().written[field.index()] > written[field.index()]);
@@ -216,9 +217,183 @@ fn a_stop_clears_all_fields_and_returns_to_details_before_the_answer() {
     );
     paste(&mut root, Field::Api, &bytes(1, 16));
     assert!(root.forge().tokens_form().has(Field::Api));
+    let written = root.forge().tokens_form().written;
+    let stopped =
+        row(FORGE, w::Kind::Forgejo, w::Mode::Connected, w::Connection::NotConnected, Some(b"tokens refused"));
+    deliver(&mut root, watch, core::slice::from_ref(&stopped));
+    assert!(root.forge().tokens_form().has(Field::Api));
+    assert_eq!(root.forge().tokens_form().written, written);
+    deliver(
+        &mut root,
+        watch,
+        &[stopped, row(OTHER_FORGE, w::Kind::Forgejo, w::Mode::Connected, w::Connection::Connecting, None)],
+    );
+    assert!(root.forge().tokens_form().has(Field::Api));
+    assert_eq!(root.forge().tokens_form().written, written);
+    paste(&mut root, Field::Git, &bytes(2, 16));
+    assert!(!send(&mut root).is_empty());
+    let written = root.forge().tokens_form().written;
+    deliver(
+        &mut root,
+        watch,
+        &[row(FORGE, w::Kind::Forgejo, w::Mode::Connected, w::Connection::NotConnected, Some(b"git token refused"))],
+    );
+    for field in [Field::Api, Field::Git, Field::Webhook] {
+        assert!(!root.forge().tokens_form().has(field));
+        assert!(root.forge().tokens_form().written[field.index()] > written[field.index()]);
+    }
+    assert_eq!(
+        forge::connect::step(Some(Choice::Forge(FORGE)), root.forges(), None),
+        forge::connect::Shown::Details(Choice::Forge(FORGE))
+    );
+    paste(&mut root, Field::Api, &bytes(1, 16));
     event(&mut root, Event::SignedOut);
     for field in [Field::Api, Field::Git, Field::Webhook] {
         assert!(!root.forge().tokens_form().has(field));
+    }
+}
+#[test]
+fn a_stopped_row_redelivered_keeps_a_fresh_paste() {
+    for (connection, ended) in [
+        (w::Connection::NotConnected, Some(b"tokens refused".as_slice())),
+        (
+            w::Connection::Stopped(
+                w::Stopped::new(&w::CEILINGS, w::StoppedParts { reason: b"stopped".as_slice().into() }).unwrap(),
+            ),
+            None,
+        ),
+    ] {
+        let (mut root, watch) = opened();
+        paste(&mut root, Field::Api, &bytes(1, 16));
+        paste(&mut root, Field::Git, &bytes(2, 16));
+        send(&mut root);
+        let written = root.forge().tokens_form().written;
+        let stopped = row(FORGE, w::Kind::Forgejo, w::Mode::Connected, connection, ended);
+        deliver(&mut root, watch, core::slice::from_ref(&stopped));
+        for field in [Field::Api, Field::Git, Field::Webhook] {
+            assert!(!root.forge().tokens_form().has(field));
+            assert!(root.forge().tokens_form().written[field.index()] > written[field.index()]);
+        }
+        paste(&mut root, Field::Api, &bytes(1, 16));
+        let written = root.forge().tokens_form().written;
+        deliver(&mut root, watch, &[stopped]);
+        assert!(root.forge().tokens_form().has(Field::Api));
+        assert_eq!(root.forge().tokens_form().written, written);
+    }
+}
+#[test]
+fn an_unrelated_stopped_forgejo_leaves_a_new_forges_draft() {
+    for (connection, ended) in [
+        (w::Connection::NotConnected, Some(b"tokens refused".as_slice())),
+        (
+            w::Connection::Stopped(
+                w::Stopped::new(&w::CEILINGS, w::StoppedParts { reason: b"stopped".as_slice().into() }).unwrap(),
+            ),
+            None,
+        ),
+    ] {
+        let (mut root, _, watch) = connect::opened(true);
+        let stopped = row(FORGE, w::Kind::Forgejo, w::Mode::Connected, connection.clone(), ended);
+        deliver(&mut root, watch, core::slice::from_ref(&stopped));
+        paste(&mut root, Field::Api, &bytes(1, 16));
+        paste(&mut root, Field::Git, &bytes(2, 16));
+        let written = root.forge().tokens_form().written;
+        deliver(&mut root, watch, &[stopped]);
+        assert!(root.forge().tokens_form().has(Field::Api));
+        assert!(root.forge().tokens_form().has(Field::Git));
+        assert_eq!(root.forge().tokens_form().written, written);
+        deliver(
+            &mut root,
+            watch,
+            &[row(FORGE, w::Kind::Forgejo, w::Mode::Connected, connection, Some(b"git token refused"))],
+        );
+        assert!(root.forge().tokens_form().has(Field::Api));
+        assert!(root.forge().tokens_form().has(Field::Git));
+        assert_eq!(root.forge().tokens_form().written, written);
+        act(
+            &mut root,
+            forge::Act::Forges(forge::forges::Act::PlaceWrite {
+                field: forge::admin::PlaceField::Host,
+                text: b"forge.example".as_slice().into(),
+            }),
+        );
+        let mut sent = 0_u32;
+        for request in &act(&mut root, forge::Act::Forges(forge::forges::Act::ConnectTokens)) {
+            if let Request::Client {
+                request:
+                    jig_client::Request::Down { down: Down::Send { request: jig_client::Ask::Family { record, .. }, .. } },
+            } = request
+            {
+                let w::Request::Connect(connect) =
+                    wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request
+                else {
+                    panic!("connect")
+                };
+                let w::Making::New(_) = connect.forge() else { panic!("new") };
+                let w::How::ForgejoTokens(_) = connect.how() else { panic!("tokens") };
+                sent += 1;
+            }
+        }
+        assert_eq!(sent, 1);
+    }
+}
+#[test]
+fn a_stop_of_another_forge_leaves_the_sent_connects_draft() {
+    let (mut root, watch) = opened();
+    paste(&mut root, Field::Api, &bytes(1, 16));
+    paste(&mut root, Field::Git, &bytes(2, 16));
+    let mut attempt = None;
+    for request in &send(&mut root) {
+        if let Request::Client { request: jig_client::Request::Down { down: Down::Send { attempt: value, .. } } } =
+            request
+        {
+            attempt = Some(*value);
+        }
+    }
+    let answer = w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome: w::Outcome::Connecting }).unwrap();
+    event(
+        &mut root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: Up::Answer {
+                    attempt: attempt.unwrap(),
+                    envelope: skein_lib::RequestEnvelope::Final,
+                    answer: Some(jig_client::Answered::Family(jig_client::Family {
+                        family: wire::FORGE,
+                        version: wire::CLIENT_VERSION,
+                        bytes: wire::answer(&answer),
+                    })),
+                    why: None,
+                },
+            },
+        },
+    );
+    paste(&mut root, Field::Api, &bytes(1, 16));
+    let written = root.forge().tokens_form().written;
+    deliver(
+        &mut root,
+        watch,
+        &[
+            row(FORGE, w::Kind::Forgejo, w::Mode::Connected, w::Connection::Connecting, None),
+            row(
+                OTHER_FORGE,
+                w::Kind::Forgejo,
+                w::Mode::Connected,
+                w::Connection::NotConnected,
+                Some(b"tokens refused"),
+            ),
+        ],
+    );
+    assert!(root.forge().tokens_form().has(Field::Api));
+    assert_eq!(root.forge().tokens_form().written, written);
+    deliver(
+        &mut root,
+        watch,
+        &[row(FORGE, w::Kind::Forgejo, w::Mode::Connected, w::Connection::NotConnected, Some(b"tokens refused"))],
+    );
+    for field in [Field::Api, Field::Git, Field::Webhook] {
+        assert!(!root.forge().tokens_form().has(field));
+        assert!(root.forge().tokens_form().written[field.index()] > written[field.index()]);
     }
 }
 #[test]
@@ -283,7 +458,11 @@ fn the_new_forge_follows_its_number_in_either_watch_answer_order() {
             }
         }
         if watch_first {
-            deliver(&mut root, watch, row(w::Kind::Forgejo, w::Mode::Connected, w::Connection::Connecting, false));
+            deliver(
+                &mut root,
+                watch,
+                &[row(FORGE, w::Kind::Forgejo, w::Mode::Connected, w::Connection::Connecting, None)],
+            );
         }
         let answer = w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome: w::Outcome::Connecting }).unwrap();
         let out = event(
@@ -317,7 +496,11 @@ fn the_new_forge_follows_its_number_in_either_watch_answer_order() {
             }
             assert!(followed);
         } else {
-            deliver(&mut root, watch, row(w::Kind::Forgejo, w::Mode::Connected, w::Connection::Connecting, false));
+            deliver(
+                &mut root,
+                watch,
+                &[row(FORGE, w::Kind::Forgejo, w::Mode::Connected, w::Connection::Connecting, None)],
+            );
         }
         assert_eq!(root.forge().tokens().unwrap().forge, FORGE);
         assert!(root.forge().setup_form().making.is_none());

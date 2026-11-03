@@ -511,13 +511,13 @@ fn the_account_line_precedes_entry_inside_the_composer_area() {
 }
 
 #[test]
-fn the_start_choice_is_a_sibling_before_entry() {
+fn the_start_choice_is_a_sibling_after_entry() {
     let view = fixtures::page_view(&catalogue(b"first", &[]));
     let nodes = view.tree().nodes();
     let choice = nodes.iter().position(|n| n.styles.as_slice().contains(&crate::look::ACCOUNT_LINE)).unwrap() - 1;
     let entry = nodes.iter().position(|n| n.styles.as_slice().contains(&crate::look::ENTRY)).unwrap();
     assert_eq!(nodes[choice].role, Role::Slot);
-    assert_eq!(choice + usize::try_from(nodes[choice].size).unwrap(), entry);
+    assert_eq!(entry + usize::try_from(nodes[entry].size).unwrap(), choice);
     let children = &nodes[entry + 1..entry + usize::try_from(nodes[entry].size).unwrap()];
     let buttons: Vec<_> = children.iter().filter(|n| n.role == Role::Button).map(|n| n.name.as_deref()).collect();
     assert_eq!(buttons, [Some(b"Start chat".as_slice())]);
@@ -1291,7 +1291,11 @@ pub(super) fn playground_offers_root(address: Address, playground: bool) -> (d::
 #[test]
 fn the_model_choice_leaves_the_scripted_provider_out() {
     for address in [Address::ConnectForge { forge: None }, Address::Forges] {
-        let (root, _) = playground_offers_root(address.clone(), true);
+        let (mut root, _) = playground_offers_root(address.clone(), true);
+        fixtures::root_event(
+            &mut root,
+            d::Event::Act { action: d::Action::Pages(d::pages::Act::Project { project: fixtures::SECOND_PROJECT }) },
+        );
         let check = |root: &d::Domain| {
             let mut view = fixtures::page_view(root);
             let tree = view.tree();
