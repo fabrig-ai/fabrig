@@ -190,6 +190,16 @@ fn forgejo_here_without_the_box_says_to_start_temper_with_the_box() {
     assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&crate::look::FLOW_CODE)));
 }
 #[test]
+fn forgejo_on_this_machine_shows_how_with_the_server_help_in_fabrig() {
+    let root = f::forge_root(Address::ConnectForge { forge: Some(Choice::Owned) }, List::with_capacity(0));
+    let view = f::page_view(&root);
+    let link = node(view.tree(), Role::Link, b"Show how");
+    assert_eq!(
+        view.tree().nodes().iter().find(|n| n.id == link).unwrap().external.as_deref(),
+        Some(b"https://github.com/fabrig-ai/fabrig/blob/main/temper/docs/help/server.md".as_slice())
+    );
+}
+#[test]
 fn elsewhere_details_give_the_next_unused_number() {
     let view = f::page_view(&root(Some(Choice::Elsewhere), w::Connection::NotSetUp, w::Offer::Offered));
     words_in_order(

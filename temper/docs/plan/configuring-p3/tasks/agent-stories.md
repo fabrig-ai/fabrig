@@ -3,7 +3,7 @@ id = "agent-stories"
 part = "configuring-agent"
 kind = "feature"
 needs = ["stock-configuring", "agent-kinds", "tools-store"]
-files = ["temper/tests/engine/domain/tests/suite/configuring.rs", "temper/tests/engine/domain/tests/suite/configuring/**", "temper/tests/engine/domain/tests/suite/main.rs", "temper/tests/engine/domain/src/host_tool.rs", "temper/tests/engine/domain/src/lib.rs", "temper/tests/engine/domain/tests/suite/settings.rs", "temper/tests/engine/domain/tests/suite/agent_reads.rs"]
+files = ["temper/tests/engine/domain/tests/suite/configuring.rs", "temper/tests/engine/domain/tests/suite/configuring/**", "temper/tests/engine/domain/tests/suite/main.rs", "temper/tests/engine/domain/src/host_tool.rs", "temper/tests/engine/domain/src/lib.rs", "temper/tests/engine/domain/tests/suite/settings.rs", "temper/tests/engine/domain/tests/suite/agent_reads.rs", "temper/crates/temper-settings-form/src/lib.rs", "temper/crates/temper-client-tools/src/jig/settings_adapter.rs"]
 effort = "high"
 minutes = 150
 +++
@@ -105,3 +105,22 @@ inherited stories pass again before going on with the remaining stories, one at 
 the codec, the schema and `src/oracle.rs` unchanged. If a story still fails at the oracle
 after the merge, read its log and report it under `## Left` with the log rather than editing
 outside this spec's `files`.
+
+2026-11-03. **Q** (`agent-stories-2`): the stock's fourteen forge grants pass the settings
+form's `authority` bound of twelve, so reading the stock rules or policy fails with `settings:
+document limit`: a prerequisite fix, or this task's files widened? **A:** widen; this task's
+acceptance (stock defaults, every focused test of the world) cannot hold without it, and every
+task that owned the form has landed. The form's one list bound `authority` caps a grant list, a
+note-resource list and a delegation's kinds (`wire.rs`), and twelve is below the stock's own
+grants (`temper-service/src/stock.rs`, `grants`), where jig's client already holds fourteen
+(`temper-client-tools/src/limits.rs`, `authority: 14`). Raise it to 14 in both places that set
+it: `temper-settings-form/src/lib.rs`, `Limits::standard`, and ctl's
+`temper-client-tools/src/jig/settings_adapter.rs`, `limits`, each with a short comment that it
+holds the stock's fourteen forge grants. Change nothing else in those files; no new field.
+Then: rerun the movement story alone, go on with the three unwritten stories one at a time,
+and add to step 3's checks `heavy cargo clippy -p temper-settings-form -p temper-client-tools
+--all-targets -- -D warnings` and the focused tests of `temper-settings-form`,
+`temper-client-tools` and `temper-engine-smith`. Commit the bound apart from the stories ("the
+settings form's authority bound holds the stock's fourteen grants"). `../protocol/configuration.md`
+names "ctl's twelve-kind list capacity" (13.9's box limits): leave the design as it is and
+report that sentence under `## Left` for its designer.
