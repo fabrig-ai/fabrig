@@ -1,6 +1,7 @@
 //! Engine story fixtures for temper/docs/design/domain/after-landing.md, 3–6 and 12.
 use crate::forge_routes::{Gate, StoryLimits, World};
 use crate::tier_runs;
+use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_fake_forge_domain as fake;
 use skein_fake_forge_domain::api as raw;
@@ -82,6 +83,107 @@ pub fn world(turn: bool, tier: Tier) -> World {
         None,
         StoryLimits { turn, tier: Some(tier), tasks: Some(12), spec_bytes: Some(4096), ..StoryLimits::default() },
     )
+}
+
+/// Room for the red's header, test ids, run URL and log, and both change results.
+#[must_use]
+pub fn news_world() -> World {
+    let mut world = world(false, Tier::default());
+    world.env.limits.tasks.message_bytes = 1024;
+    world.env.limits.tasks.result_bytes = 512;
+    world.env.limits.tasks.inbox_bytes = 4096;
+    let mut limits = crate::store::widest();
+    limits.tasks = world.env.limits.tasks;
+    limits.authority = world.env.limits.authority;
+    let mut store = crate::store::Store::with_limits(&limits);
+    store.seed(world.store.rows.values().cloned().collect(), Box::new([]));
+    world.store = store;
+    let client = world.env.limits.forge.client;
+    world.with_forge_client(client)
+}
+
+/// A tracked goal without a goal branch; its changes land into main.
+#[must_use]
+pub fn goal(world: &World) -> people::Ask {
+    let people::Ask::Create { project, mut batch } = world.chat(1, b"Repair a red after landing") else {
+        panic!("goal template")
+    };
+    batch[0].tracked = Some(0);
+    batch[0].label = 2;
+    batch[0].flags = people::Flags { listed: true, ..people::Flags::PLAIN };
+    batch[0].budget = people::Budget::AsAllowed { cap: Some(400) };
+    batch[0].authority.tools |= jig_domain_core::ToolFamilies::JIG.control.0;
+    people::Ask::Create { project, batch }
+}
+
+/// Red news alone, apart from ordinary landing news in the same inbox.
+#[must_use]
+pub fn red_news(world: &World, goal: u64) -> Vec<&tasks::Word> {
+    let Some(engine::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))) =
+        world.store.rows.get(&engine::Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(goal))))
+    else {
+        panic!("live goal")
+    };
+    row.inbox
+        .iter()
+        .filter(|word| {
+            matches!(word.kind, tasks::MessageKind::News { .. }) && word.words.starts_with(b"Red after landing:")
+        })
+        .collect()
+}
+
+/// The independent forge's dispatched slow runs, oldest first.
+#[must_use]
+pub fn runs(world: &World) -> Vec<raw::Run> {
+    let mut runs = Vec::new();
+    for page in 1..=world.fake_env.limits.limits.workflow_runs + 1 {
+        let raw::Answer::Runs(part) = world
+            .fake
+            .inspect(
+                &world.fake_env.limits,
+                b"org/repo",
+                &raw::Read::Runs {
+                    workflow: Some(b"slow.yml".as_slice().into()),
+                    commit: None,
+                    number: None,
+                    page,
+                    limit: 100,
+                },
+            )
+            .expect("forge runs")
+        else {
+            panic!("forge runs")
+        };
+        if part.is_empty() {
+            runs.sort_by_key(|run: &raw::Run| run.number);
+            return runs;
+        }
+        runs.extend(part.into_vec().into_iter().filter(|run| run.event == raw::RunEvent::Dispatch));
+    }
+    panic!("forge run pages exceed their bound")
+}
+
+#[must_use]
+pub fn run_url(run: &raw::Run) -> String {
+    format!("http://forge/org/repo/actions/runs/{}", run.number)
+}
+
+/// Failed jobs' failing-step logs, the same ends the forge serves for a job read.
+#[must_use]
+pub fn job_logs(world: &World, run: &raw::Run) -> Vec<temper_engine_domain_forge::JobLog> {
+    let raw::Answer::Jobs(jobs) =
+        world.fake.inspect(&world.fake_env.limits, b"org/repo", &raw::Read::Jobs { run: run.id }).expect("run jobs")
+    else {
+        panic!("run jobs")
+    };
+    jobs.into_vec()
+        .into_iter()
+        .filter(|job| job.conclusion == Some(raw::Conclusion::Failure))
+        .map(|job| {
+            let step = job.steps.iter().find(|step| step.status == raw::StepStatus::Failure).expect("failed step");
+            temper_engine_domain_forge::JobLog { name: job.name, end: Some(step.log.clone()) }
+        })
+        .collect()
 }
 
 /// Complete the typed run read with the fake's jobs, as the forge protocol does
