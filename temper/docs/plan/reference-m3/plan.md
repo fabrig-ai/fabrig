@@ -22,18 +22,50 @@ Released (needs in brackets):
 
 - subagents: `subagents-profile` [] (the owned example's agent declares `conversations` 3);
   `subagents-ctl` [] (`chat start --sub-agent MODEL[:EFFORT]`).
+- appsettings: `apps-surface` [] (C1's and C2's types, `Config.kinds`, the asks and events;
+  compiler-forced arms only, temper's among them); `apps-change` [surface] (a change of an
+  application's items judged by its connector and kept); `apps-connector` [surface]
+  (`jig-test-connector` owns a kind); `apps-proposals` [change]; `apps-start` [proposals]
+  (defaults at a start, the release's revision); `apps-store` [proposals] (settings-v1,
+  people-v14, tasks-v9 in place); `apps-wire` [proposals] (client-v19 in place);
+  `apps-world` [connector, start, store] (the core world's story).
+- kinds-forge: `kinds-values` [] (the forge's values of kinds 1 to 3, `ForgeCharters`, its
+  limits); `kinds-store` [values] (the forge's family `Setting`, store-v11 in place);
+  `kinds-held` [store] (judging, keeping, holding, `charters()`); `kinds-requirements` [held]
+  (requirements 5 and 6 over the held rules).
+- change-jig: `change-jig-check` [] (a batch's LLM choice against its charter's models, every
+  creator).
+- change-temper: `change-call-llm` [] (`ChangeCall.producer` and `llm` decoded, refused until
+  the root checks them).
+
+Written, held for the change family's batch: `reference-charters` (charter 6, the designer's;
+charter 5's second edition; their documents). configuring-p1, whose charter documents it
+names, landed on main at 01:39Z and is on this trunk.
 
 ## Slices
 
 1. subagents.
+2. appsettings.
+3. kinds-forge.
+4. change-jig and change-temper.
 
 ## Critical path, as it stands
 
-To come with the designers' batches: appsettings' surface, then its core, then the kinds'
-routing through the root.
+`apps-surface` (90) -> `apps-change` (150) -> `apps-proposals` (100) -> `apps-wire` (140) or
+`apps-start` (110) -> `apps-world` (120): about 610 implementer-minutes for jig's side; the
+kinds' routing through the root (to come) follows `apps-start`. The forge's side
+(`kinds-values` 90 -> `kinds-store` 150 -> `kinds-held` 120 -> `kinds-requirements` 100, 460)
+runs beside it.
 
 ## Overlaps with other plans
 
 - `subagents-ctl` changes `temper-client-tools`' chat start (`jig/rows.rs`, `runner/acts.rs`,
   `docs/help/reference/ctl-chat.md`), which configuring-p1's `ctl-chat-template` changed and
   which is already on this trunk: no overlap left in flight.
+- configuring-p1 landed on main before this cut began; `notes/common.md` names it among the
+  plans beside this one, which no longer holds: its files are on this trunk.
+- `kinds-store` and the change family's `change-row-llm` both change temper's store-v11 in
+  place and the forge's `boundary.rs`: `change-row-llm` follows `kinds-store`.
+- `apps-surface` puts compiler-forced arms in temper's `temper-engine-domain`
+  (`route/forge_route.rs`, `store/settings_bytes.rs`) and `temper-engine-smith`: arm-only hunks,
+  beside the change family's `forge_route.rs` work and reference-m2's.
