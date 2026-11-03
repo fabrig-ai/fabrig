@@ -233,6 +233,11 @@ pub enum Delivery {
         words: Box<[u8]>,
     },
     /// Complete a public read after its barrier (jig/docs/design/domain/people.md, 13.10).
+    Public {
+        reply: ReplyTo,
+        answer: jig_domain_core::PublicAnswer,
+        admitted: bool,
+    },
     PublicWait {
         read: Token,
     },
@@ -500,6 +505,7 @@ impl Decision {
             | Delivery::Bound { .. }
             | Delivery::Procedure { .. }
             | Delivery::Application { .. }
+            | Delivery::Public { .. }
             | Delivery::WebReply { .. }
             | Delivery::CarriedUnused { .. }
             | Delivery::ForgeRead { .. }

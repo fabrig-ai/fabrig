@@ -962,7 +962,7 @@ fn client_settings(
 ) -> kit::Settings {
     kit::Settings {
         public: {
-            let mut kinds = List::with_capacity(3);
+            let mut kinds = List::with_capacity(6);
             for kind in kit::public::jig_kinds(&jig_client_protocol_wire::PublicIndexBounds {
                 goals: config.limits.core.public.goals,
                 ended: config.limits.core.public.ended,
@@ -971,6 +971,9 @@ fn client_settings(
                 projects: config.limits.core.people.projects,
             }) {
                 kinds.push(kind).expect("three public kinds");
+            }
+            for kind in forge_public_kinds() {
+                kinds.push(kind).expect("six public kinds");
             }
             kinds
         },
@@ -1001,3 +1004,50 @@ fn client_settings(
 pub(crate) fn moved_bytes(limits: &config::Limits) -> u64 {
     jig_protocol_accounts::moved::bound(&limits.driver.client.document)
 }
+
+/// The public kinds use the same ceilings as `family::panel`'s generated codec
+/// (temper/docs/design/client/forge.md, 11.4).
+fn forge_public_kinds() -> [kit::public::PublicKind; 3] {
+    use temper_client_protocol_wire::{self as wire, v1};
+    let bounds = wire::Bounds {
+        segments: v1::CEILINGS.landing_pattern_segments,
+        segment_bytes: v1::CEILINGS.landing_pattern_segments_item,
+        gates: v1::CEILINGS.landing_rule_gates,
+        approvals: v1::CEILINGS.landing_rule_approvals,
+        field_bytes: v1::CEILINGS.adoption_owner,
+        checks: v1::CEILINGS.adopt_checks,
+        contexts: v1::CEILINGS.rule_contexts,
+        refusal_bytes: v1::CEILINGS.core_refused_refusal,
+    };
+    let [change, landings, landing] = wire::public_bounds(&bounds);
+    let owner = wire::number(wire::Owner::Forge).checked_add(1).expect("family owner");
+    [
+        kit::public::PublicKind {
+            owner,
+            kind: wire::PUBLIC_CHANGE,
+            first: wire::PUBLIC_VERSION,
+            last: wire::PUBLIC_VERSION,
+            task: true,
+            bound: change,
+        },
+        kit::public::PublicKind {
+            owner,
+            kind: wire::PUBLIC_LANDINGS,
+            first: wire::PUBLIC_VERSION,
+            last: wire::PUBLIC_VERSION,
+            task: false,
+            bound: landings,
+        },
+        kit::public::PublicKind {
+            owner,
+            kind: wire::PUBLIC_LANDING,
+            first: wire::PUBLIC_VERSION,
+            last: wire::PUBLIC_VERSION,
+            task: true,
+            bound: landing,
+        },
+    ]
+}
+#[cfg(test)]
+#[path = "tests/public.rs"]
+mod public_tests;

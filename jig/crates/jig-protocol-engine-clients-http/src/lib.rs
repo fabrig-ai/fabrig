@@ -120,6 +120,7 @@ impl Mount {
             Event::Call { call, head } => {
                 assert!(self.room_for(&head) > 0, "application hands calls only within their room");
                 let mut value = call::Call::new(call, &env.limits);
+                value.method = head.method;
                 value.public = public::under(&self.settings.prefix, &head);
                 value.body_kind = head.body;
                 if !guards::host(&self.settings, &self.hosts, &head) {
