@@ -765,9 +765,8 @@ fn validate_members(
     if !problems.is_empty() {
         return Ok(());
     }
-    if let Some(problem) = crate::domain::capacity(&limits.core) {
-        let What::Capacity { member, .. } = problem.what else { unreachable!("capacity diagnostic") };
-        problems.push(path.member(member), problem.what);
+    if let Some((member, what)) = crate::domain::capacity(&limits.core) {
+        problems.push(path.member(member), what);
         return Ok(());
     }
     let mut next = at.checked_add(1).ok_or(What::Bound)?;

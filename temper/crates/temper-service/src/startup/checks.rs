@@ -1119,8 +1119,29 @@ fn task_record_binds(codec: &jig_protocol_store::tasks_v9::Limits) -> bool {
     }
 }
 
+fn map_value(refused: crate::store::Refusal) -> Option<(u32, u32)> {
+    use crate::store::Refusal;
+    use jig_protocol_store::sizes::SizeRefusal;
+    match refused {
+        Refusal::Map(SizeRefusal::Value { needs, has }) => Some((needs, has)),
+        Refusal::Map(
+            SizeRefusal::Key { .. }
+            | SizeRefusal::Ops { .. }
+            | SizeRefusal::Commit { .. }
+            | SizeRefusal::Page { .. }
+            | SizeRefusal::Queue { .. }
+            | SizeRefusal::QueuedBytes { .. }
+            | SizeRefusal::Whole { .. }
+            | SizeRefusal::Ceiling,
+        )
+        | Refusal::ReadRoom { .. }
+        | Refusal::Transcript { .. }
+        | Refusal::Page { .. } => None,
+    }
+}
+
 fn task_store_refusal(engine: &config::Engine, refused: crate::store::Refusal) -> Problems {
-    if let crate::store::Refusal::Map(jig_protocol_store::sizes::SizeRefusal::Value { needs, has }) = refused
+    if let Some((needs, has)) = map_value(refused)
         && let Some(codec) = jig_protocol_store::codec::tasks::limits(&engine.limits.core.tasks)
         && jig_protocol_store::tasks_v9::Row::encoded_bound(&codec) == Some(u64::from(needs))
         && task_record_binds(&codec)

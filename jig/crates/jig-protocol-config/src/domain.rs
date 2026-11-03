@@ -176,23 +176,22 @@ pub(crate) fn items(document: &Document, at: u32, max: u32, path: &Path, problem
     }
 }
 /// The first failed task capacity dependency, after all scalar overrides.
-pub(crate) fn capacity(limits: &jig_domain_core::Limits) -> Option<Problem> {
+pub(crate) fn capacity(limits: &jig_domain_core::Limits) -> Option<(&'static [u8], What)> {
     let tasks = &limits.tasks;
     let people = &limits.people;
+    let inbox = u64::from(tasks.tasks).checked_mul(2).expect("two u32 counts fit u64");
+    let operations = u64::from(tasks.delegates).checked_add(1).expect("u32 count plus one fits u64");
     let (member, configured, dependency, minimum): (&'static [u8], u32, &'static [u8], u64) =
-        if u64::from(people.inbox_tasks) < u64::from(tasks.tasks) * 2 {
-            (b"tasks.tasks", tasks.tasks, b"people.inbox_tasks", u64::from(tasks.tasks) * 2)
-        } else if u64::from(people.operations) < u64::from(tasks.delegates) + 1 {
-            (b"tasks.delegates", tasks.delegates, b"people.operations", u64::from(tasks.delegates) + 1)
+        if u64::from(people.inbox_tasks) < inbox {
+            (b"tasks.tasks", tasks.tasks, b"people.inbox_tasks", inbox)
+        } else if u64::from(people.operations) < operations {
+            (b"tasks.delegates", tasks.delegates, b"people.operations", operations)
         } else if people.operations < tasks.project_goals {
             (b"tasks.project_goals", tasks.project_goals, b"people.operations", u64::from(tasks.project_goals))
         } else {
             return None;
         };
-    Some(Problem {
-        path: codec_path(member),
-        what: What::Capacity { member, configured, requires: dependency, required: minimum },
-    })
+    Some((member, What::Capacity { member, configured, requires: dependency, required: minimum }))
 }
 pub(crate) fn whole(engine: &crate::Engine, problems: &mut Problems) {
     if engine.limits.driver.client.url_bytes > jig_domain_accounts::ADDRESS {
@@ -226,8 +225,8 @@ pub(crate) fn whole(engine: &crate::Engine, problems: &mut Problems) {
     if engine.projects.len() >= skein_lib::length::usize_of(limits.people.projects) {
         problems.push(Path::root().member(b"projects"), What::Bound);
     }
-    if let Some(problem) = capacity(limits) {
-        problems.push(problem.path, problem.what);
+    if let Some((member, what)) = capacity(limits) {
+        problems.push(codec_path(member), what);
     }
     if let Err(what) = check_message(limits) {
         problems.push(Path::root().member(b"limits"), what);
