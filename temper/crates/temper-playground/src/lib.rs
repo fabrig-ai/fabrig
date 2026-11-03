@@ -4,6 +4,7 @@ pub mod fakes;
 pub mod machine;
 pub mod programs;
 pub mod service;
+pub mod stories;
 pub mod story;
 pub use story::{Fakes, Links, Start, world};
 
