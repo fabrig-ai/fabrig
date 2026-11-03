@@ -3239,7 +3239,7 @@ fn change_landing_words(
         for part in parts {
             append(&mut out, part);
         }
-        let verification = change_verification_words(domain, task, bound);
+        let verification = change_verification_words(domain, task, merge, bound);
         if !verification.is_empty() && verification.len() < usize::try_from(out.room()).expect("u32 fits usize") {
             append(&mut out, b"\n");
             append(&mut out, &verification);
@@ -3255,7 +3255,7 @@ fn change_landing_words(
 
 /// Name each landing's retained clearing run before its verification row is released
 /// (temper/docs/design/domain/after-landing.md, 6).
-fn change_verification_words(domain: &Domain, task: u64, bound: u32) -> Box<[u8]> {
+fn change_verification_words(domain: &Domain, task: u64, merge: &skein_forge::api::Commit, bound: u32) -> Box<[u8]> {
     let row = domain.forge.change(task).expect("landed change");
     let mut words = List::with_capacity(bound);
     if let forge_change::State::Uncleared { .. } = row.change.state {
@@ -3269,7 +3269,10 @@ fn change_verification_words(domain: &Domain, task: u64, bound: u32) -> Box<[u8]
         );
     }
     if let forge_change::State::Cleared { .. } = row.change.state {
-        for tier in domain.forge.change_verdicts(task) {
+        let Some(verification) = domain.forge.landing_verification(row.repository, merge) else {
+            return words.into_boxed();
+        };
+        for tier in &verification.tiers {
             let run = match (&tier.repaired, &tier.verdict) {
                 (Some(repaired), _) => repaired.run,
                 (None, Some(verdict)) => verdict.run,
@@ -3282,10 +3285,15 @@ fn change_verification_words(domain: &Domain, task: u64, bound: u32) -> Box<[u8]
             append(&mut words, &tier.tier);
             append(&mut words, b" run ");
             append(&mut words, skein_lib::Decimal::of(run).as_bytes());
-            append(
-                &mut words,
-                if tier.repaired.is_some() { b", which passed the failures blamed on it." } else { b"." },
-            );
+            if let Some(repaired) = &tier.repaired {
+                append(&mut words, b", which passed the failures blamed on it");
+                if let Some(by) = &repaired.by {
+                    append(&mut words, b"; repaired by ");
+                    let digits = commit_text(by);
+                    append(&mut words, digits.get(..12).expect("a commit has at least 40 hexadecimal digits"));
+                }
+            }
+            append(&mut words, b".");
         }
     }
     words.into_boxed()

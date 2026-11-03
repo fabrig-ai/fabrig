@@ -1951,6 +1951,100 @@ fn cleared_and_uncleared_results_qualify_the_landing_before_its_evidence() {
     }
 }
 
+fn cleared_repair_result(by: Option<skein_forge::api::Commit>) -> (super::Domain, skein_lib::Env<super::Limits>) {
+    use super::{forge, forge_change};
+    let (mut domain, env) = two_forges();
+    let mut row = change_row(Some(7));
+    row.change.state = forge_change::State::Cleared { merge: SHA1 };
+    let verification = forge::Verification {
+        repository: row.repository,
+        commit: SHA1,
+        changes: Box::new([row.task]),
+        tiers: Box::new([forge::TierVerification {
+            tier: Box::from(b"browser".as_slice()),
+            verdict: Some(forge::TierVerdict {
+                run: 1,
+                blame: temper_engine_domain_forge_tiers::Blame::Owns(temper_engine_domain_forge_tiers::Failures::Many),
+            }),
+            repaired: Some(forge::TierRepair { run: 2, tip: SHA256, by }),
+        }]),
+    };
+    let mut out = skein_lib::Queue::uncapped();
+    for record in [forge::Stored::Change(row), forge::Stored::Verification(verification)] {
+        forge::step(
+            &mut domain.forge,
+            &super::super::environment_forge(&env),
+            forge::Event::Restore { record },
+            &mut out,
+        );
+    }
+    (domain, env)
+}
+
+#[test]
+fn a_cleared_changes_result_names_its_repairing_landing() {
+    let (domain, _) = cleared_repair_result(Some(SHA256));
+    assert!(
+        super::change_landing_words(&domain, 7, &SHA1, 7, 512).ends_with(
+            b"\nCleared by browser run 2, which passed the failures blamed on it; repaired by abababababab."
+        )
+    );
+}
+
+#[test]
+fn a_change_cleared_by_the_run_alone_keeps_its_words() {
+    let (domain, _) = cleared_repair_result(None);
+    assert_eq!(
+        super::change_verification_words(&domain, 7, &SHA1, 512).as_ref(),
+        b"Cleared by browser run 2, which passed the failures blamed on it."
+    );
+}
+
+#[test]
+fn repairing_tiers_keep_their_own_lines_among_other_tiers() {
+    use super::forge;
+    let (mut domain, env) = cleared_repair_result(Some(SHA256));
+    let repository = change_row(Some(7)).repository;
+    let repaired = domain.forge.landing_verification(repository, &SHA1).unwrap().tiers[0].clone();
+    for (names, expected) in [
+        (
+            [b"browser".as_slice(), b"fuzzy", b"slow"],
+            b"Cleared by browser run 2, which passed the failures blamed on it; repaired by abababababab.\nCleared by fuzzy run 4.\nCleared by slow run 4.".as_slice(),
+        ),
+        (
+            [b"fuzzy".as_slice(), b"browser", b"slow"],
+            b"Cleared by fuzzy run 4.\nCleared by browser run 2, which passed the failures blamed on it; repaired by abababababab.\nCleared by slow run 4.".as_slice(),
+        ),
+        (
+            [b"fuzzy".as_slice(), b"slow", b"browser"],
+            b"Cleared by fuzzy run 4.\nCleared by slow run 4.\nCleared by browser run 2, which passed the failures blamed on it; repaired by abababababab.".as_slice(),
+        ),
+    ] {
+        let mut verification = domain.forge.landing_verification(repository, &SHA1).unwrap().clone();
+        let mut tiers = skein_lib::List::uncapped();
+        for name in names {
+            let tier = if name == b"browser" {
+                repaired.clone()
+            } else {
+                forge::TierVerification {
+                    tier: name.into(),
+                    verdict: Some(forge::TierVerdict { run: 4, blame: temper_engine_domain_forge_tiers::Blame::Cleared }),
+                    repaired: None,
+                }
+            };
+            tiers.push(tier).unwrap();
+        }
+        verification.tiers = tiers.into_boxed();
+        forge::step(
+            &mut domain.forge,
+            &super::super::environment_forge(&env),
+            forge::Event::Restore { record: forge::Stored::Verification(verification) },
+            &mut skein_lib::Queue::uncapped(),
+        );
+        assert_eq!(super::change_verification_words(&domain, 7, &SHA1, 512).as_ref(), expected);
+    }
+}
+
 #[test]
 fn an_uncleared_cancelled_change_names_cancellation() {
     use super::{forge, forge_change, tasks};
@@ -1979,7 +2073,7 @@ fn an_uncleared_cancelled_change_names_cancellation() {
         }),
     ));
     assert_eq!(
-        super::change_verification_words(&domain, task, 128).as_ref(),
+        super::change_verification_words(&domain, task, &SHA1, 128).as_ref(),
         b"Not cleared: cancelled while verifying."
     );
 }
