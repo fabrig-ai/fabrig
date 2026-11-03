@@ -1,9 +1,12 @@
 //! Person adoption of a live task, with one reservation transfer and requester-tree rewrite
 //! (domain/tasks.md, section 7; domain/authority.md, section 7). Root authenticates the
 //! adopter and policy rights; this child checks every local row before changing any of them.
-#![expect(
-    clippy::result_large_err,
-    reason = "bounded owner refusal keeps exact revision and capacity facts inline instead of allocating on refusal"
+#![cfg_attr(
+    not(target_arch = "wasm32"),
+    expect(
+        clippy::result_large_err,
+        reason = "bounded owner refusal keeps exact revision and capacity facts inline instead of allocating on refusal"
+    )
 )]
 use crate::domain::{Domain, publish, record, refused, task_mut};
 use crate::{Change, Funder, Limits, Numbers, Party, Phase, Refusal, Request, Was};

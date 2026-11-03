@@ -48,36 +48,11 @@ pub(crate) fn creating(
         .min(policy.ceiling.budget.spend)
         .min(core.authority.rules().ceiling.budget.spend);
     let maximum_deadline = earliest(policy.ceiling.budget.deadline, core.authority.rules().ceiling.budget.deadline);
-    let mut charters = List::with_capacity(limits.documents.lines);
     let canonical_deadline = earliest(role.authority.budget.deadline, maximum_deadline);
-    for setting in &core.current.offered() {
-        let number = match setting {
-            crate::settings::Setting::Charter(number) => *number,
-            crate::settings::Setting::Template(_)
-            | crate::settings::Setting::Policy(_)
-            | crate::settings::Setting::Rules => continue,
-            jig_domain_people::Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
-        };
-        let charter = core.charter(number).expect("offered charter");
-        if creating_charter(core, limits, party, project, held, charter.number) && charters.room() > 0 {
-            charters.push(charter.number).expect("bounded offered charters");
-        }
-    }
-    let mut procedures = List::with_capacity(limits.documents.lines);
-    if core.projections.len() < limits.tasks.tasks {
-        for kind in &role.authority.delegation.kinds {
-            let authority::Executor::Procedure(procedure) = kind else { continue };
-            for &connector in &core.connectors {
-                let executor = tasks::Executor::Procedure { connector, code: *procedure };
-                let supported =
-                    create_start(core, project, party, held, executor, 0, canonical_deadline, limits.tasks.tree_tasks)
-                        .is_ok();
-                if supported && procedures.push(super::CreateProcedure { connector, code: *procedure }).is_err() {
-                    return Admission::Refused(people::Refusal::Limit { which: people::LimitKind::Authority });
-                }
-            }
-        }
-    }
+    let (charters, procedures) = match creating_executors(core, limits, party, project, held, canonical_deadline) {
+        Ok(executors) => executors,
+        Err(why) => return Admission::Refused(why),
+    };
     let beyond = match recipient(core, project, authority::ProposalKind::Batch) {
         Some(to) => Beyond::Proposed { to },
         None => Beyond::Refused(unproposable()),
@@ -99,6 +74,49 @@ pub(crate) fn creating(
         },
         beyond,
     }
+}
+
+fn creating_executors(
+    core: &Core,
+    limits: &Limits,
+    party: u64,
+    project: u32,
+    held: people::Role,
+    canonical_deadline: Option<Wall>,
+) -> Result<(List<u32>, List<super::CreateProcedure>), people::Refusal> {
+    let role = core.authority.role(project, held.number()).expect("creating role");
+    let mut charters = List::with_capacity(limits.documents.lines);
+    for setting in &core.current.offered() {
+        let number = match setting {
+            crate::settings::Setting::Charter(number) => *number,
+            crate::settings::Setting::Template(_)
+            | crate::settings::Setting::Policy(_)
+            | crate::settings::Setting::Rules => continue,
+            jig_domain_people::Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
+        };
+        let charter = core.charter(number).expect("offered charter");
+        if creating_charter(core, limits, party, project, held, charter.number)
+            && charters.push(charter.number).is_err()
+        {
+            return Err(people::Refusal::Limit { which: people::LimitKind::Authority });
+        }
+    }
+    let mut procedures = List::with_capacity(limits.documents.lines);
+    if core.projections.len() < limits.tasks.tasks {
+        for kind in &role.authority.delegation.kinds {
+            let authority::Executor::Procedure(procedure) = kind else { continue };
+            for &connector in &core.connectors {
+                let executor = tasks::Executor::Procedure { connector, code: *procedure };
+                let supported =
+                    create_start(core, project, party, held, executor, 0, canonical_deadline, limits.tasks.tree_tasks)
+                        .is_ok();
+                if supported && procedures.push(super::CreateProcedure { connector, code: *procedure }).is_err() {
+                    return Err(people::Refusal::Limit { which: people::LimitKind::Authority });
+                }
+            }
+        }
+    }
+    Ok((charters, procedures))
 }
 
 pub(super) fn amend_preflight(

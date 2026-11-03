@@ -8,6 +8,38 @@ fn set(value: &mut Value, path: &str, replacement: Value) {
 }
 
 #[test]
+fn the_box_has_room_for_reference_creating_executors() {
+    let answered = files(&fixtures::facts(), &DIRECTORIES, &[0; 32], &[0xab; 32]).unwrap();
+    let written = parse(content(&answered, b"temper.json"));
+    let reference = parse(include_bytes!("../../../../docs/examples/reference/settings.json"));
+    let mut charters = vec![1, 2, 4];
+    for item in reference["items"].as_array().unwrap() {
+        if item["setting"]["kind"] == "charter" {
+            charters.push(item["setting"]["number"].as_u64().unwrap());
+        }
+    }
+    charters.sort_unstable();
+    charters.dedup();
+    assert_eq!(charters, [1, 2, 4, 5, 6, 7, 8]);
+    let bytes = serde_json::to_vec(&written["engine"]["limits"]).unwrap();
+    let document = jig_protocol_config::document(
+        &bytes,
+        &jig_protocol_config::DocumentLimits { bytes: 65_536, tokens: 4096, depth: 16 },
+    )
+    .unwrap();
+    let parsed = jig_protocol_config::overrides::parse(&document, 0, &jig_protocol_config::Path::root());
+    assert!(parsed.problems.is_empty(), "{:?}", parsed.problems);
+    let limits = parsed.limits.core;
+    jig_protocol_config::check_effective_limits(&limits).expect("deployment receiving limits fit the codecs");
+    assert_eq!(limits.documents.lines, 8);
+    assert!(usize::try_from(limits.documents.lines).unwrap() >= charters.len());
+    assert!(limits.documents.lines >= limits.tasks.charters);
+    // The reference permits procedures p2, p3 and p4 on each configured connector.
+    let procedures = 3 * written["engine"]["connectors"].as_array().unwrap().len();
+    assert!(usize::try_from(limits.documents.lines).unwrap() >= procedures);
+}
+
+#[test]
 fn the_box_keeps_eight_streams_and_four_calls_beside_them() {
     for source in [fixtures::OWNED, template::TEMPER] {
         let value = parse(source);

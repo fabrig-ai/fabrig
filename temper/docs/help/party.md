@@ -23,6 +23,10 @@ A party is who acts in a deployment, a person or a service, numbered, with a rol
 - **Its bounds:** what it may start, and with what, as `me` prints
   them: the tools, models and spend a task of its may have, the
   charters and procedures it may name, the deadline it may give.
+  The executor lists are complete. If either exceeds the deployment's
+  receiving bound `documents.lines`, the engine refuses the creating
+  offer instead of printing a shortened list. `temper init` gives each
+  list eight entries, enough for the reference settings.
 
 **What each role may do:**
 
