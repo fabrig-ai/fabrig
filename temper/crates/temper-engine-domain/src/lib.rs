@@ -46,7 +46,7 @@ pub use link::{inbox_sender, inbox_words};
 pub use route::{Approval, Freshness, Gate, HostDelivery, HostRequest, LandingRule, adopt_repository_ask};
 pub use temper_engine_domain_forge::commit_text;
 pub use translate::{
-    AfterLandingCheck, Config, GateCheck, LandingRules, ProjectLanding, RepositoryChecks, TierCheck, Way,
+    AfterLandingCheck, Config, GateCheck, LandingRules, ProjectLanding, RepositoryChecks, TierCheck, Way, landing_stock,
 };
 
 /// Startup's secret-free decision (protocol/credentials.md, 2.2).

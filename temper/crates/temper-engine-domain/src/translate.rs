@@ -23,8 +23,6 @@ pub struct Config {
     pub core: jig_domain_core::Config,
     /// Each project's landing way and repository checks.
     pub landings: Map<u32, ProjectLanding>,
-    /// Document rules used only to bridge typed configuration to forge defaults.
-    pub landing_rules: LandingRules,
     /// The forge's kind defaults at this start (temper/docs/design/domain/root.md, 5.6).
     pub kinds_stock: Box<[forge::settings::Stock]>,
     /// Forge writer identities and this deployment's branch namespace.
@@ -47,7 +45,7 @@ pub(crate) struct RootConfig {
     pub(crate) landings: Map<u32, ProjectLanding>,
 }
 
-/// Document landing rules translated to forge defaults (domain/root.md, 6).
+/// Landing rules for test worlds' builders alone (domain/root.md, 6).
 #[derive(Debug)]
 pub struct LandingRules {
     pub deployment: Box<[LandingRule]>,
@@ -554,4 +552,15 @@ pub(crate) fn is_settings_read(tool: &Tool) -> bool {
         | Tool::RejectedNote(_)
         | Tool::Unavailable => false,
     }
+}
+
+/// Translate test worlds' landing rules to forge stock (temper/docs/design/domain/root.md, 6).
+#[must_use]
+pub fn landing_stock(
+    deployment: &[LandingRule],
+    projects: &Map<u32, Box<[LandingRule]>>,
+    change: u32,
+    review: u32,
+) -> Box<[forge::settings::Stock]> {
+    crate::route::policy_translate::landing_stock(deployment, projects, change, review)
 }

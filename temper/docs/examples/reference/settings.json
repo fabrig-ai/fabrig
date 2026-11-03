@@ -205,6 +205,56 @@
           ]
         }
       }
+    },
+    {
+      "setting": {
+        "kind": "landing-rule",
+        "number": 1
+      },
+      "set": {
+        "pattern": {
+          "segments": [
+            "666f726765",
+            "3132372e302e302e313a33303030",
+            "61636d65",
+            "776964676574",
+            "6272616e6368"
+          ],
+          "last": {
+            "exact": "6d61696e"
+          }
+        },
+        "enforce": true,
+        "ci": true,
+        "up_to_date": true,
+        "gates": [],
+        "approvals": []
+      }
+    },
+    {
+      "setting": {
+        "kind": "landing-rule",
+        "number": 2
+      },
+      "set": {
+        "pattern": {
+          "segments": [
+            "666f726765",
+            "3132372e302e302e313a33303030",
+            "61636d65",
+            "776964676574",
+            "6272616e6368"
+          ],
+          "last": {
+            "open": "74656d706572"
+          }
+        },
+        "enforce": true,
+        "ci": false,
+        "up_to_date": false,
+        "gates": [],
+        "approvals": []
+      }
     }
   ]
 }

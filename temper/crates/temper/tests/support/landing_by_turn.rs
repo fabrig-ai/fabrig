@@ -104,7 +104,7 @@ pub fn configure_turn(root: &Path, setup: &Setup) {
     let path = root.join("temper.json");
     let mut config: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
     config["application"]["landing"]["projects"].as_array_mut().expect("project landings").push(json!({
-        "project":setup.project, "by":"turn", "rules":[],
+        "project":setup.project, "by":"turn",
         "gates":[{"forge":setup.forge, "repository":setup.repository,
             "gates":[{"name":"gate", "workflow":"gate.yaml", "ignored":["docs"], "blocking":true}]}]
     }));

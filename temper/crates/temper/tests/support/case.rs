@@ -150,26 +150,24 @@ fn base(value: &mut Value) {
     for member in ["charters", "templates", "policies", "rules"] {
         value["engine"].as_object_mut().expect("engine").remove(member);
     }
-    // The forge's delegates use the same ordinary charter as the real loop.
-    value["application"]["charter"] = 1.into();
 }
 fn process_settings(value: &mut Value) -> Value {
     let given = temper_real_loop_world::fixtures::own_defaults(value, &value["world_settings"]);
-    let temper_service::stock::Given::Own(defaults) = given else { panic!("case defaults") };
-    let items = temper_real_loop_world::case::defaults::items(&defaults);
+    let temper_service::stock::Given::Own { jig: defaults, forge } = given else { panic!("case defaults") };
+    let mut items = temper_real_loop_world::case::defaults::items(&defaults);
+    // Project 1 is made after sign-in; give its rules deployment scope for this story.
+    let mut forge = forge;
+    for item in &mut forge {
+        if item.kind == 2 {
+            item.kind = 1;
+            item.scope = 0;
+        }
+    }
+    items.as_array_mut().expect("case settings").extend(temper_real_loop_world::settings_items::forge_items(&forge));
     value.as_object_mut().expect("deployment").remove("world_settings");
     // Settings and the project are established by the owner after sign-in.
     // Fixture records supply credentials without adopting a project before sign-in.
     value["engine"]["projects"] = json!([]);
-    let landing = std::mem::take(&mut value["application"]["landing"]["projects"]);
-    assert_eq!(value["application"]["landing"]["deployment"], json!([]));
-    let mut rules = Vec::new();
-    for project in landing.as_array().expect("project landing rules") {
-        assert_eq!(project["project"], temper_real_loop_world::case::PROJECT);
-        rules.extend(project["rules"].as_array().expect("landing rules").iter().cloned());
-    }
-    value["application"]["landing"]["projects"] = json!([]);
-    value["application"]["landing"]["deployment"] = rules.into();
     for member in ["charters", "templates", "policies", "rules"] {
         value["engine"].as_object_mut().expect("engine").remove(member);
     }

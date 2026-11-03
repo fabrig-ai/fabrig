@@ -319,6 +319,8 @@ impl World {
             limits.people.holdings = 4;
             limits.journal.writes = journal::WALKING_WRITES;
             let mut config = walking::config(71);
+            let mut landing_rules =
+                engine::LandingRules { deployment: Box::default(), projects: skein_lib::Map::with_capacity(1) };
             if approval.is_some() || agent_gate || owner_gate {
                 limits.authority.roles = 3;
             }
@@ -488,9 +490,9 @@ impl World {
                         },
                     }]);
                     if !owner_gate {
-                        config.landing_rules.deployment.clone_from(&landing);
+                        landing_rules.deployment.clone_from(&landing);
                     }
-                    assert!(config.landing_rules.projects.insert(1, landing).is_ok());
+                    assert!(landing_rules.projects.insert(1, landing).is_ok());
                 }
                 if with_change {
                     rules.ceiling.delegation.kinds = Box::new([
@@ -572,15 +574,11 @@ impl World {
                     if across {
                         let mut lib = rule.clone();
                         lib.pattern.segments[3] = b"lib".as_slice().into();
-                        config.landing_rules.deployment = Box::new([rule.clone(), lib.clone()]);
-                        config
-                            .landing_rules
-                            .projects
-                            .insert(1, Box::new([rule.clone(), lib]))
-                            .expect("two repository rules");
+                        landing_rules.deployment = Box::new([rule.clone(), lib.clone()]);
+                        landing_rules.projects.insert(1, Box::new([rule.clone(), lib])).expect("two repository rules");
                     } else {
-                        config.landing_rules.deployment = Box::new([rule.clone()]);
-                        config.landing_rules.projects.insert(1, Box::new([rule])).expect("turn landing requirements");
+                        landing_rules.deployment = Box::new([rule.clone()]);
+                        landing_rules.projects.insert(1, Box::new([rule])).expect("turn landing requirements");
                     }
                     config
                         .landings
@@ -653,13 +651,13 @@ impl World {
                 config.core.settings.models = Box::new([model.clone()]);
                 config.core.settings.llm_providers.providers[0].models = Box::new([model.name.clone()]);
                 config.core.connectors = Box::new([1]);
-                for rule in &mut config.landing_rules.deployment {
+                for rule in &mut landing_rules.deployment {
                     rule.connector = 1;
                     for gate in &mut rule.gates {
                         gate.freshness = engine::Freshness::Clean;
                     }
                 }
-                config.landing_rules.projects = skein_lib::Map::with_capacity(1);
+                landing_rules.projects = skein_lib::Map::with_capacity(1);
                 // Stock includes the review and configuring charters; all ten forge grants fit.
                 limits.tasks.charters = STOCK_CHARTERS;
                 limits.tasks.executor_kinds = STOCK_EXECUTORS;
@@ -744,9 +742,11 @@ impl World {
                 charter.documents = charter_documents.into();
                 config.core.defaults.charters[0] = charter;
             }
-            config.kinds_stock = temper_service::stock::forge_defaults(
-                &config.landing_rules,
+            config.kinds_stock = engine::landing_stock(
+                &landing_rules.deployment,
+                &landing_rules.projects,
                 if stock.is_some() { 2 } else { forge_charter.unwrap_or(1) },
+                4,
             );
             if kinds {
                 // The story changes whole rules through the settings entrance.
@@ -1007,26 +1007,23 @@ impl World {
 
     /// Replace the deployment's landing rules before the world's first input.
     #[must_use]
+    #[expect(clippy::needless_pass_by_value, reason = "the world builder takes ownership of its startup rule inputs")]
     pub fn with_landing_deployment(mut self, rules: Box<[engine::LandingRule]>) -> Self {
         assert_eq!(self.env.now, Time::ZERO, "landing rules precede world startup");
         assert!(!self.root.ready(), "landing rules precede bootstrap");
-        self.restart_config.landing_rules.deployment = rules;
-        let change = self
-            .restart_config
-            .kinds_stock
-            .iter()
-            .find_map(|stock| match stock {
-                forge_top::settings::Stock {
-                    kind: 3,
-                    number: 1,
-                    value: forge_top::settings::SizedValue { value: forge_top::settings::Value::Charter(charter), .. },
-                    ..
-                } => Some(*charter),
-                _ => None,
-            })
-            .expect("configured change charter");
-        self.restart_config.kinds_stock =
-            temper_service::stock::forge_defaults(&self.restart_config.landing_rules, change);
+        let replacement = engine::landing_stock(&rules, &skein_lib::Map::with_capacity(0), 1, 4);
+        let mut stock = skein_lib::List::uncapped();
+        for item in replacement {
+            if item.kind == 1 {
+                stock.push(item).expect("uncapped replacement landing rules");
+            }
+        }
+        for item in &self.restart_config.kinds_stock {
+            if item.kind != 1 {
+                stock.push(item.clone()).expect("uncapped project rules and charters");
+            }
+        }
+        self.restart_config.kinds_stock = stock.into_boxed();
         self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
             .expect("valid deployment landing rules");
         self

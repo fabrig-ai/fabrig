@@ -236,30 +236,6 @@
       },
       "github": null
     },
-    "landing": {
-      "deployment": [
-        {
-          "connector": 1,
-          "kind": 4,
-          "pattern": {
-            "segments": [
-              "forge"
-            ],
-            "last": "open",
-            "value": ""
-          },
-          "enforce": true,
-          "ci": true,
-          "up_to_date": true,
-          "gates": [
-            {"number": 1, "blocking": true, "freshness": "clean"}
-          ],
-          "approvals": []
-        }
-      ],
-      "projects": []
-    },
-    "charter": 2,
     "clients": {
       "listener": {
         "socket": "$listener"
