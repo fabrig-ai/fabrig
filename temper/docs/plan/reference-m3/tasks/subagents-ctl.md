@@ -3,7 +3,7 @@ id = "subagents-ctl"
 part = "subagents"
 kind = "feature"
 needs = []
-files = ["temper/crates/temper-client-tools/src/jig/runner/acts/choice.rs", "temper/crates/temper-client-tools/src/jig/runner/acts.rs", "temper/crates/temper-client-tools/src/jig/rows.rs", "temper/crates/temper-client-tools/src/jig/help.rs", "temper/crates/temper-client-tools/src/tests/help.rs", "temper/crates/temper-client-tools/src/tests/jig/choices.rs", "temper/crates/temper-client-tools/src/tests/golden/**", "temper/crates/temper-client-tools/src/tests/limits.rs", "temper/docs/help/reference/ctl-chat.md", "temper/docs/design/client/tools.status.md"]
+files = ["temper/crates/temper-client-tools/src/jig/runner/acts/choice.rs", "temper/crates/temper-client-tools/src/jig/runner/acts.rs", "temper/crates/temper-client-tools/src/jig/rows.rs", "temper/crates/temper-client-tools/src/jig/help.rs", "temper/crates/temper-client-tools/src/tests/help.rs", "temper/crates/temper-client-tools/src/tests/jig/choices.rs", "temper/crates/temper-client-tools/src/tests/golden/**", "temper/crates/temper-client-tools/src/tests/limits.rs", "temper/crates/temper-client-tools/src/jig/table.rs", "temper/docs/help/reference/ctl-chat.md", "temper/docs/design/client/tools.status.md"]
 effort = "high"
 minutes = 75
 +++
@@ -88,3 +88,9 @@ acceptance (the bound of 64, and step 5's package suite green) cannot hold witho
 `the_rows_repeats_are_within_the_client_limits`, add a branch before the delegates default:
 `row.name == crate::jig::rows::CHAT_CREATE.name` takes `jig_domain_tasks::MODELS` as its most.
 Leave `limits.rs`' delegate limit (8) and every other row's bound unchanged.
+
+2026-11-03. May this task add `b"MODEL[:EFFORT]"` to `PLACEHOLDERS` in `src/jig/table.rs`? Yes,
+that one entry only, now in the header: the flag's shown argument is the task's own, and
+`tests::words::every_shown_is_in_the_vocabulary` (step 5's package suite) cannot pass without
+it. Put it after `b"EFFORT"`, as `b"HOST:PORT"` stands as a compound placeholder; change nothing
+else in `table.rs`. Then run that test alone, the package suite, and the remaining step 5 checks.
