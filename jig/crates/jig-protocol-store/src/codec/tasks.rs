@@ -38,25 +38,116 @@ fn word_bytes(domain: &domain::Limits) -> u32 {
         )
 }
 
+/// Fixed item sizes without any collection or byte payload (protocol/store.md, 5.1).
+pub(crate) const EMPTY: wire::Limits = wire::Limits {
+    bytes_parameter_value: 0,
+    job_spec_bytes: 0,
+    job_result_bytes: 0,
+    spec_words: 0,
+    spec_parameters: 0,
+    spec_inputs: 0,
+    part_segment_bytes: 0,
+    part_path_segments: 0,
+    field_rule_name: 0,
+    verdict_fields: 0,
+    approval_state: 0,
+    choices_choices: 0,
+    llm_choice_subagents: 0,
+    authority_segment_bytes: 0,
+    pattern_segments: 0,
+    delegation_kinds: 0,
+    authority_grants: 0,
+    authority_note_resources: 0,
+    segment_bytes: 0,
+    name_path: 0,
+    member_dependencies: 0,
+    member_holdings: 0,
+    recurring_template_batch: 0,
+    result_field_name: 0,
+    result_field_value: 0,
+    approved_state: 0,
+    approved_words_some: 0,
+    report_result_words: 0,
+    verdict_result_fields: 0,
+    verdict_result_words: 0,
+    change_result_title: 0,
+    change_result_words: 0,
+    failure_result_reason: 0,
+    cancelled_reason: 0,
+    circle_tasks: 0,
+    hold_account_words: 0,
+    rejected_proposal_reason: 0,
+    amendment_instructions_some: 0,
+    amendment_dependencies_some: 0,
+    amendment_reason: 0,
+    proposed_batch_members: 0,
+    proposed_settings_items: 0,
+    proposal_reason: 0,
+    settings_instructions_some: 0,
+    settings_dependencies: 0,
+    history_reason: 0,
+    rejected_person_proposal_reason: 0,
+    person_proposal_reason: 0,
+    grace_reason: 0,
+    approval_message_state: 0,
+    verdict_message_fields: 0,
+    word_words: 0,
+    activity_words_words: 0,
+    kept_line_pending: 0,
+    rejected_escalation_reason: 0,
+    recurring_state_last_batch: 0,
+    saved_resource_path: 0,
+    task_history_question_lines: 0,
+    task_history_proposal_rows: 0,
+    task_history_instructions_some: 0,
+    task_history_refused: 0,
+    task_run_replies: 0,
+    task_definition_dependencies: 0,
+    task_definition_waiting_on: 0,
+    task_definition_added: 0,
+    task_interests_holdings: 0,
+    task_interests_delegates: 0,
+    task_interests_result_followups: 0,
+    task_interests_references: 0,
+    task_interests_subscriptions: 0,
+    task_interests_inbox: 0,
+    task_interests_saved: 0,
+    task_record_started_from: 0,
+    placed_hold_reason: 0,
+    placed_hold_exempt: 0,
+    model_name_value: 0,
+    row_models: 0,
+    task_problem_blocked_by_some: 0,
+    result_followups_delegates_value: 0,
+};
+
 /// Translate the tasks child's bounds, refusing any schema ceiling.
+#[expect(clippy::too_many_lines, reason = "each tasks field derives its bound beside the complete limits mapping")]
 #[must_use]
 pub fn limits(domain: &domain::Limits) -> Option<wire::Limits> {
-    let empty = wire::Limits { field_rule_name: 0, result_field_name: 0, result_field_value: 0, ..wire::CEILINGS };
-    let rules = domain.result_bytes.checked_mul(
-        u32::try_from(
-            wire::FieldRule::encoded_bound(&empty)?
-                .checked_add(u64::try_from(size_of::<u32>()).expect("length size"))?
-                .checked_add(1)?,
-        )
-        .ok()?,
+    let rules = u32::try_from(
+        u64::from(domain.result_bytes.min(domain::VERDICT_FIELDS))
+            .checked_mul(wire::FieldRule::encoded_bound(&EMPTY)?.checked_add(4)?)?
+            .checked_add(u64::from(domain.result_bytes))?,
+    )
+    .ok()?;
+    let fields = u32::try_from(
+        u64::from(domain.result_bytes.min(domain::VERDICT_FIELDS))
+            .checked_mul(wire::ResultField::encoded_bound(&EMPTY)?.checked_add(4)?)?
+            .checked_add(u64::from(domain.result_bytes))?,
+    )
+    .ok()?;
+    let creations = super::people::pieces::piece_bound(
+        domain.batch_bytes,
+        size_of::<domain::New>(),
+        wire::Creation::encoded_bound(&EMPTY)?,
+        true,
     )?;
-    let fields = domain.result_bytes.checked_mul(
-        u32::try_from(
-            wire::ResultField::encoded_bound(&empty)?
-                .checked_add(u64::try_from(size_of::<u32>()).expect("length size"))?
-                .checked_add(1)?,
-        )
-        .ok()?,
+    let members = super::people::pieces::piece_bound(
+        domain.batch_bytes,
+        size_of::<domain::New>(),
+        wire::Member::encoded_bound(&EMPTY)?,
+        true,
     )?;
     let limits = wire::Limits {
         hold_account_words: domain::HOLD_ACCOUNT_BYTES,
@@ -68,17 +159,32 @@ pub fn limits(domain: &domain::Limits) -> Option<wire::Limits> {
         person_proposal_reason: domain.message_bytes,
         grace_reason: domain.result_bytes,
         task_problem_blocked_by_some: domain.delegates.max(domain.dependencies).max(domain.circle),
-        result_followups_delegates_value: domain.batch,
+        result_followups_delegates_value: creations,
         segment_bytes: domain.hold_bytes,
-        name_path: domain.hold_segments,
+        name_path: u32::try_from(
+            u64::from(domain.hold_segments)
+                .checked_mul(wire::Segment::encoded_bound(&EMPTY)?.checked_add(4)?)?
+                .checked_add(u64::from(domain.hold_bytes))?,
+        )
+        .ok()?,
         bytes_parameter_value: domain.spec_bytes,
         spec_words: domain.spec_bytes,
         job_spec_bytes: domain.spec_bytes,
         job_result_bytes: domain.result_bytes,
-        spec_parameters: domain.parameters,
+        spec_parameters: u32::try_from(
+            u64::from(domain.parameters)
+                .checked_mul(wire::Parameter::encoded_bound(&EMPTY)?.checked_add(4)?)?
+                .checked_add(u64::from(domain.spec_bytes))?,
+        )
+        .ok()?,
         spec_inputs: domain.inputs,
         part_segment_bytes: domain.hold_bytes,
-        part_path_segments: domain.hold_segments,
+        part_path_segments: u32::try_from(
+            u64::from(domain.hold_segments)
+                .checked_mul(wire::PartSegment::encoded_bound(&EMPTY)?.checked_add(4)?)?
+                .checked_add(u64::from(domain.hold_bytes))?,
+        )
+        .ok()?,
         field_rule_name: domain.result_bytes,
         verdict_fields: rules,
         approval_state: domain.result_bytes,
@@ -86,12 +192,26 @@ pub fn limits(domain: &domain::Limits) -> Option<wire::Limits> {
         llm_choice_subagents: domain::MODELS,
         authority_segment_bytes: domain.authority_bytes,
         pattern_segments: domain.authority_segments,
-        authority_grants: domain.authority_grants,
-        authority_note_resources: domain.authority_grants,
+        authority_grants: u32::try_from(
+            u64::from(domain.authority_grants)
+                .checked_mul(wire::Grant::encoded_bound(&EMPTY)?.checked_add(4)?.checked_add(
+                    u64::from(domain.authority_segments).checked_mul(wire::AuthoritySegment::encoded_bound(&EMPTY)?)?,
+                )?)?
+                .checked_add(u64::from(domain.authority_bytes))?,
+        )
+        .ok()?,
+        authority_note_resources: u32::try_from(
+            u64::from(domain.authority_grants)
+                .checked_mul(wire::ResourceScope::encoded_bound(&EMPTY)?.checked_add(4)?.checked_add(
+                    u64::from(domain.authority_segments).checked_mul(wire::AuthoritySegment::encoded_bound(&EMPTY)?)?,
+                )?)?
+                .checked_add(u64::from(domain.authority_bytes))?,
+        )
+        .ok()?,
         delegation_kinds: domain.executor_kinds,
         member_dependencies: domain.dependencies,
         member_holdings: domain.holdings,
-        recurring_template_batch: domain.batch,
+        recurring_template_batch: members,
         result_field_name: domain.result_bytes,
         result_field_value: domain.result_bytes,
         approved_state: domain.result_bytes,
@@ -107,7 +227,7 @@ pub fn limits(domain: &domain::Limits) -> Option<wire::Limits> {
         amendment_instructions_some: domain.message_bytes,
         amendment_dependencies_some: domain.dependencies,
         amendment_reason: domain.message_bytes,
-        proposed_batch_members: domain.batch,
+        proposed_batch_members: creations,
         proposal_reason: domain.message_bytes,
         settings_instructions_some: domain.message_bytes,
         settings_dependencies: domain.dependencies,
@@ -119,7 +239,12 @@ pub fn limits(domain: &domain::Limits) -> Option<wire::Limits> {
         activity_words_words: domain.message_bytes,
         rejected_escalation_reason: domain.result_bytes,
         recurring_state_last_batch: domain.batch,
-        saved_resource_path: domain.authority_segments,
+        saved_resource_path: u32::try_from(
+            u64::from(domain.authority_segments)
+                .checked_mul(wire::AuthoritySegment::encoded_bound(&EMPTY)?.checked_add(4)?)?
+                .checked_add(u64::from(domain.authority_bytes))?,
+        )
+        .ok()?,
         task_history_question_lines: domain.inbox_messages,
         task_history_proposal_rows: domain.inbox_messages,
         task_history_instructions_some: domain.message_bytes,
