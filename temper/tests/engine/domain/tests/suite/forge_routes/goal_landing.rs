@@ -8,7 +8,7 @@ use super::*;
 const STEPS: u32 = 1000; // The forge world's bound for a full landing and hold release.
 const LANDING_CALL: u64 = 95;
 
-fn mine(world: &mut World, run: &engine::Assignment, call: u64, input: &[u8]) -> Option<engine::CallAnswer> {
+pub(super) fn mine(world: &mut World, run: &engine::Assignment, call: u64, input: &[u8]) -> Option<engine::CallAnswer> {
     world.until(Until::Ready);
     let before = world.answers.len();
     let input = smith_domain_run::HostInput::attested(input.into()).expect("bounded change input");
@@ -30,7 +30,7 @@ fn mine(world: &mut World, run: &engine::Assignment, call: u64, input: &[u8]) ->
     world.answers.get(before).cloned()
 }
 
-fn row(world: &World, task: u64) -> &forge_top::ChangeRow {
+pub(super) fn row(world: &World, task: u64) -> &forge_top::ChangeRow {
     let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::Change(task))) else {
         panic!("registered change {task}")
     };
@@ -38,7 +38,7 @@ fn row(world: &World, task: u64) -> &forge_top::ChangeRow {
     row
 }
 
-fn assert_goal_holds(world: &World, goal: u64, branch: &[u8]) {
+pub(super) fn assert_goal_holds(world: &World, goal: u64, branch: &[u8]) {
     assert_eq!(forge_hold(world, branch).expect("goal branch hold").task, goal);
     assert!(live_task(world, goal).holdings.contains(&tasks::Holding::Write { resource: resource(branch), kind: 1 }));
 }
@@ -226,7 +226,7 @@ const PLAN_MERGES: u32 = 1; // The plan change into g, before L merges.
 const TWO_CHANGE_MERGES: u32 = 2; // The plan and implementation changes into g.
 const GOAL_MERGES: u32 = 3; // Those two changes, then L's whole goal branch into main.
 
-fn status(world: &mut World, head: u64, state: raw::Check) {
+pub(super) fn status(world: &mut World, head: u64, state: raw::Check) {
     assert_eq!(
         world.external(
             1,
@@ -242,14 +242,14 @@ fn status(world: &mut World, head: u64, state: raw::Check) {
     );
 }
 
-fn ended(world: &World, task: u64) -> Option<&tasks::TaskRecord> {
+pub(super) fn ended(world: &World, task: u64) -> Option<&tasks::TaskRecord> {
     match world.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(task)))) {
         Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(row)))) => Some(row),
         _ => None,
     }
 }
 
-fn producing_into_goal(
+pub(super) fn producing_into_goal(
     world: &mut World,
     goal: &engine::Assignment,
     branch: &[u8],
@@ -295,7 +295,13 @@ fn finish_goal_change(world: &mut World, change: u64, producer: &engine::Assignm
     assert!(matches!(row(world, change).change.state, temper_engine_domain_forge_change::State::Landed { .. }));
 }
 
-fn land_into_goal(world: &mut World, goal: &engine::Assignment, branch: &[u8], call: u64, file: &[u8]) -> u64 {
+pub(super) fn land_into_goal(
+    world: &mut World,
+    goal: &engine::Assignment,
+    branch: &[u8],
+    call: u64,
+    file: &[u8],
+) -> u64 {
     let (change, producer) = producing_into_goal(world, goal, branch, call, file);
     finish_goal_change(world, change, &producer);
     branch_tip(world, branch)
@@ -354,7 +360,7 @@ fn assert_landing_at(world: &mut World, landing: u64, head: u64) {
     assert!(pull.merged.is_some());
 }
 
-fn finish_run(world: &mut World, run: &engine::Assignment, result: tasks::TaskResult) {
+pub(super) fn finish_run(world: &mut World, run: &engine::Assignment, result: tasks::TaskResult) {
     let event = world.protocol.answer(
         Token::new(7),
         run.task,
