@@ -3,7 +3,7 @@ id = "person-answers-chats"
 part = "relay"
 kind = "feature"
 needs = []
-files = ["jig/crates/jig-domain-core/src/routing/task.rs", "jig/crates/jig-domain-core/src/tests/**", "jig/tests/core/tests/suite/reads.rs", "jig/docs/design/domain/people.status.md"]
+files = ["jig/crates/jig-domain-core/src/routing/task.rs", "jig/crates/jig-domain-core/src/inbox.rs", "jig/crates/jig-domain-core/src/tests/**", "jig/tests/core/tests/suite/reads.rs", "jig/docs/design/domain/people.status.md"]
 effort = "medium"
 minutes = 40
 +++
@@ -69,3 +69,17 @@ The files in the header. temper's `temper-engine-domain/src/domain.rs` keeps
 ## Report
 
 As the implementer's text says.
+
+## Answers
+
+2026-11-03. Q: may the task change `jig-domain-core/src/inbox.rs`, whose
+`Core::waiting_entries` projects every unanswered question of a person's task
+into their inbox, which `question_person` reads, so the refusal still holds?
+A: yes, it is this task's: its acceptance (not in the inbox, the task's answer
+admitted) cannot hold without it, and `inbox.rs` is now in its files. In
+`waiting_entries`, with `self.person_answers` on, skip the question lines of a
+row that `self.conversation_requester(row)` gives no person; with the switch
+off, nothing changes. The refusal (`routing/run/calls.rs`), the person's
+answer path and `question_person` stay as they are. The status line says the
+inbox now holds a person's questions to their conversations alone under the
+switch; the run's partial status wording about a remaining gap goes.
