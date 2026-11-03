@@ -257,6 +257,11 @@ deployment's rules       the most any project may have; requirements on effects
     section 8). Each projection effect is checked against it, its
     requirements included, as any effect is (8.2), and it costs no
     task's budget.
+- **The public party's role,** `public`, is fixed in code and in no
+  policy: it grants the public reads of a public project and nothing
+  else (people.md, section 13). A policy, the rules or a seed that names
+  it is refused: at the start at its path, and as an edit or a change
+  of settings, as a shape. No authority, spend or proposal reaches it.
 - **A party's authority** in a project is their role's, and their
   allotment is a pool per period with its own amount left. A party who
   creates a task (a chat, a goal), or accepts a proposal, funds it from

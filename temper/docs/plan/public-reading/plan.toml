@@ -1,3 +1,12 @@
 draft = "public-reading"
 repo = "fabrig"
 sources = ["temper/docs/plan/public-reading/inputs/request.md", "temper/docs/design/draft/first-release.md", "temper/docs/design/draft/first-release.status.md", "temper/docs/design/draft/v0.1.0.md", "AGENTS.md", "DESIGN.md"]
+
+# public-reading writes the design of v0.1.0's public reading (temper/docs/design/draft/first-release.md,
+# 5.3) and no tasks: the request (inputs/request.md) asks for a security review of the design before
+# any code, and a second plan builds it after the review. plan.md says what was released;
+# notes/next-cut.md sketches the code batch.
+
+[buffer]
+low = 1.0
+high = 2.0

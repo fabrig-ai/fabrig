@@ -216,6 +216,10 @@ it is live:
 
   The label and the flags are what a task is made as: no amendment
   changes them (section 7).
+- **Whether its title is shown:** a goal's, set by its requester alone
+  (people.md, 13.3), cleared when its spec is amended by another or it
+  moves to another requester; only a goal made by its requester's own
+  `Create` takes it.
 - **Its times:** when it is made, when it last changed, when it ended,
   and its **last activity**: when it last heard words, its run last
   committed a turn, or one of its delegates last ended, and until then

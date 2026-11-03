@@ -137,6 +137,12 @@ iterate, after the step:
   decision, store answers keep arrival order, and a kept turn precedes
   its terminal acknowledgement (sections 4 and 5;
   programming-model.md, 7.2).
+- **Public reads come behind.** A public read, the public party's
+  (people.md, section 13), is new work admitted only while the backlog
+  is under the public watermark, below the one every other new work
+  meets (section 10); handed back, it is answered busy by the clients'
+  component and never offered again, so load from signed-in parties
+  refuses public reads first.
 - **One decision per event.** Hand-offs complete within the step;
   nothing of a decision is left for a later step but what a child holds
   in its own state, saying so (a brief gathering, a load awaited).
@@ -406,6 +412,10 @@ stops taking them.
   the backlog. It limits pacing, not memory
   (programming-model.md, 7.1); where a person's reads wait behind it, it
   rises.
+- **The public watermark,** a second field of the root's `Limits`, at
+  most half the watermark, never above it: public reads are admitted
+  under it (section 3), so they never fill the backlog signed-in work
+  is admitted to.
 - **No sum along routes,** and no worst case of the root's: the
   per-process estimate goes with the startup fit check
   (programming-model.md, 6.3).
