@@ -58,6 +58,9 @@ skein-fake-forge-domain.workspace = true
 skein-kv.workspace = true
 
 [dev-dependencies]
+jig-domain-people.workspace = true
+jig-test-profile.workspace = true
+temper-client-shell-web.workspace = true
 smith-agent-world.workspace = true
 smith-domain-run.workspace = true
 temper-client-world = { path = "../../tests/client" }
