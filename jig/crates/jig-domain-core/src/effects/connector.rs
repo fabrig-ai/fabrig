@@ -227,10 +227,13 @@ pub struct AdoptedParty {
 /// What the core asks a numbered connector to do.
 #[derive(Debug)]
 pub enum Ask {
+    /// The live task names these resources.
     Names {
         task: u64,
         resources: Box<[tasks::Name]>,
     },
+    /// The task is erased whole: nothing it named need be kept for it
+    /// (jig/docs/design/domain/connectors.md, 3.4).
     Unname {
         task: u64,
     },

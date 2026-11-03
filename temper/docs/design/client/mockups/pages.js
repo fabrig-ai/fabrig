@@ -1496,7 +1496,7 @@
     }[why];
     return `<div class="forge-setup"><h3>${esc(head)}</h3><p>${fact('client forge.md, 9.1: the clients’ listener’s own page, in its words', esc(words))}</p><a class="button primary" href="${esc(u(back, step))}">Back to temper</a></div>`;
   }
-  function ownedCommands(f) { return `<div class="forge-setup"><h3>Set it up from a terminal</h3><p>temper was not started by temper box, so it does not start a Forgejo itself. Run these, keep the last two running (a service manager is best), then restart temper:</p><pre><code>${conf('the owned forge’s number in the configuration', esc(`temper forge fetch ${f.n}\ntemper forge prepare ${f.n}\ntemper forge run ${f.n} forgejo\ntemper forge run ${f.n} runner`))}</code></pre><p>Once it is connected, make your first repository here.</p></div>`; }
+  function ownedNotUnderTheBox(f) { return `<div class="forge-setup"><h3>Set it up under temper box</h3><p>temper was not started by temper box, so it does not start a Forgejo itself. Start temper with temper box to set one up here.</p></div>`; }
   function ownedForm(f, target = `connect-forge.html?forge=${f.n}`, at = '6') {
     const setup = f.setup;
     return `<div class="forge-setup">
@@ -1637,7 +1637,7 @@
     if (f.kind === 'GitHub') return f.state === 'connected' ? githubReady(f, from) : f.state === 'connecting' ? githubConnecting(f, from) : githubAppForm(f);
     if (f.state === 'connected') return `<h3>${fact('temper: the repository made at set-up', esc(`${f.setup.org}/${f.setup.repo} is ready`))}</h3><p>In the new project ${fact('jig’s client/domain/contract.md, 3.2: MakeProject’s ProjectMade, and Row.repositories[].project', esc(f.setup.project))}, on ${esc(forgeName(f))}.${future('ci', ' Its first CI run passed, on this machine.')}</p>${ownedProgress(f, { allDone: true })}<div class="button-row"><a class="button primary" href="${esc(u(`chats.html?project=${encodeURIComponent(f.setup.project)}`))}">Open ${esc(f.setup.project)}</a><a class="text-link" href="#" data-later="${esc(`Mockup: Forgejo opens in a new tab at its /user/oauth2/temper, and signs ${f.person} in through temper.`)}">Open Forgejo ↗</a></div><p class="muted tiny">${conf('the forge’s name', esc(forgeName(f)))} is on the <a class="text-link" href="${esc(u('forges.html'))}">Forges</a> page, with its details.</p>`;
     if (['setting up', 'set up failed'].includes(f.state)) return `<h3>Setting up Forgejo on this machine</h3>${chosenValues(f)}${ownedProgress(f, { failedAt: f.state === 'set up failed' ? 'preparing' : null })}${f.state === 'set up failed' ? `${ownedFailure()}<button class="button" data-later="Mockup: the box runs the steps again; a fetched binary is kept.">Set up again</button>` : '<p class="muted tiny">You may leave this page: the steps go on, and the banner says where they are.</p>'}`;
-    return f.box ? ownedForm(f) : ownedCommands(f);
+    return f.box ? ownedForm(f) : ownedNotUnderTheBox(f);
   }
   const flowCurrent = f => !f ? 1 : f.state === 'connected' ? 4 : ['setting up', 'connecting', 'set up failed'].includes(f.state) ? 2 : 1;
   const flowWrap = content => `<section class="card card-pad forge-flow">${content}</section>`;

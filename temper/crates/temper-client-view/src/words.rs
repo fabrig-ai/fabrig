@@ -2342,9 +2342,9 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ForgeConnectFailed => (&[b"Connecting failed: ", b""], &[Name]),
         Word::ForgeSetupFailed => (&[b"Set up failed: ", b""], &[Name]),
 
-        Word::ForgeTerminal => (&[b"Set it up from a terminal"], &[]),
-        Word::ForgeTerminalNext => (&[b"Once it is connected, make your first repository here."], &[]),
-        Word::ForgeTerminalDetails => (&[b"temper was not started by temper box, so it does not start a Forgejo itself. Run these, keep the last two running (a service manager is best), then restart temper:"], &[]),
+        Word::ForgeTerminal => (&[b"Set it up under temper box"], &[]),
+        Word::ForgeTerminalNext => (&[b"Start temper with temper box to set one up here."], &[]),
+        Word::ForgeTerminalDetails => (&[b"temper was not started by temper box, so it does not start a Forgejo itself."], &[]),
         Word::ForgeElsewhereDetails => (&[b"Add its address to the configuration and restart temper box. Then connect as its admin, and temper makes and keeps its bot, or paste its bot\xe2\x80\x99s tokens."], &[]),
         Word::ForgeConfig => (&[b"For a forge at forge.example, add this entry to application.forges in ~/.config/temper/temper.json. Replace the example host with yours; use an unused forge number."], &[]),
         Word::ForgeIdentity => (&[b"Add its git identity to application.identities, using an unused identity number and the same forge number:"], &[]),

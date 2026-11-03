@@ -190,7 +190,7 @@ record AccountChangeFinishSignIn { source: u32 digest: bytes 32 }
 enum AccountChange { add_key: AccountChangeAddKey, replace_key: AccountChangeReplaceKey, remove_key: AccountChangeRemoveKey, resume: AccountChangeResume, remove: AccountChangeRemove, move_account: AccountChangeMoveAccount, move_source: AccountChangeMoveSource, set_uses: AccountChangeSetUses, declare_program: AccountChangeDeclareProgram, check_program: AccountChangeCheckProgram, move_out: AccountChangeMoveOut, written: AccountChangeWritten, move_in: AccountChangeMoveIn, finish_sign_in: AccountChangeFinishSignIn }
 record AskAccountChange { holder: AccountHolder change: AccountChange }
 record AskMoveToNewest { revision: u32 }
-record AskRemoveProject { project: u32 }
+record AskRemoveProject { project: u32 grace: option u64 }
 enum Ask { rename: AskRename, make_project: AskMakeProject, compound: AskCompound, create: AskCreate, mark_seen: AskMarkSeen, application: AskApplication, edit_note: AskEditNote, make_service: AskMakeService, adopt: AskAdopt, stop: AskStop, cancel: AskCancel, release: AskRelease, take_person: AskTakePerson, hand_back_person: AskHandBackPerson, answer_person: AskAnswerPerson, move_task: AskMove, decide_proposal: AskDecideProposal, say: AskSay, answer_question: AskAnswerQuestion, amend: boxed AskAmend, set_roles: AskSetRoles, change_policy: AskChangePolicy, set_pool: AskSetPool, decide_escalation: AskDecideEscalation, propose: AskPropose, withdraw: AskWithdraw, account_sign_in: AskAccountSignIn, account_sign_out: AskAccountSignOut, account_change: AskAccountChange, change_settings: AskChangeSettings, move_to_newest: AskMoveToNewest, lift: AskLift, remove_project: AskRemoveProject }
 record StoredPerson { number: u64 identity: Identity }
 record StoredReadResults { party: u64 through: u64 }
@@ -313,11 +313,11 @@ record ActAddKey { provider: u32 join: option u32 digest: fixed 32 }
 record ActRemoveAccount { account: u32 }
 record ActAdopt { project: u32 adoption: Adoption }
 record ActMakeProject { maker: u64 name: text 64 policy: u32 }
-record ActRemoveProject { project: u32 }
+record ActRemoveProject { project: u32 grace: option u64 }
 enum Act { make_project: ActMakeProject, close: ActClose, add_key: ActAddKey, remove_account: ActRemoveAccount, adopt: ActAdopt, remove_project: ActRemoveProject }
 record StoredActed { key: ActKey act: Act outcome: Outcome at: u64 }
 record StoredAnswer { key: RequestKey ask: Ask models: list 64 ModelName outcome: Outcome at: u64 }
 enum DeletionStep { tasks, rows, release }
-record StoredDeletion { project: u32 step: DeletionStep }
+record StoredDeletion { project: u32 step: DeletionStep grace: option u64 }
 enum Value { person: StoredPerson, read_results: StoredReadResults, read_conversation: StoredReadConversation, sign_in: StoredSignIn, roles: StoredRoles, policy: StoredPolicy, answer: StoredAnswer, ended_read: EndedRead, acted: StoredActed, deletion: StoredDeletion }
 versioned record Row { value: Value }

@@ -1237,6 +1237,8 @@ pub enum Path {
     AskMoveToNewestTail,
     /// The `project` field of `AskRemoveProject`.
     AskRemoveProjectProject,
+    /// The `grace` field of `AskRemoveProject`.
+    AskRemoveProjectGrace,
     /// Bytes after `AskRemoveProject`.
     AskRemoveProjectTail,
     /// The tag of `Ask`.
@@ -1819,6 +1821,8 @@ pub enum Path {
     ActMakeProjectTail,
     /// The `project` field of `ActRemoveProject`.
     ActRemoveProjectProject,
+    /// The `grace` field of `ActRemoveProject`.
+    ActRemoveProjectGrace,
     /// Bytes after `ActRemoveProject`.
     ActRemoveProjectTail,
     /// The tag of `Act`.
@@ -1851,6 +1855,8 @@ pub enum Path {
     StoredDeletionProject,
     /// The `step` field of `StoredDeletion`.
     StoredDeletionStep,
+    /// The `grace` field of `StoredDeletion`.
+    StoredDeletionGrace,
     /// Bytes after `StoredDeletion`.
     StoredDeletionTail,
     /// The tag of `Value`.
@@ -9201,19 +9207,22 @@ impl AskMoveToNewest {
 pub struct AskRemoveProjectParts {
     /// The `project` field.
     pub project: u32,
+    /// The `grace` field.
+    pub grace: Option<u64>,
 }
 
 /// `AskRemoveProject` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct AskRemoveProject {
     project: u32,
+    grace: Option<u64>,
 }
 
 impl AskRemoveProject {
     /// Makes a value within the given limits.
     pub fn new(_limits: &Limits, parts: AskRemoveProjectParts) -> Result<Self, Problem> {
-        let AskRemoveProjectParts { project } = parts;
-        let value = Self { project };
+        let AskRemoveProjectParts { project, grace } = parts;
+        let value = Self { project, grace };
         Ok(value)
     }
 
@@ -9221,9 +9230,13 @@ impl AskRemoveProject {
     #[must_use]
     pub fn project(&self) -> u32 { self.project }
 
+    /// Reads the `grace` field.
+    #[must_use]
+    pub fn grace(&self) -> &Option<u64> { &self.grace }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> AskRemoveProjectParts { AskRemoveProjectParts { project: self.project } }
+    pub fn into_parts(self) -> AskRemoveProjectParts { AskRemoveProjectParts { project: self.project, grace: self.grace } }
 
 }
 
@@ -13756,19 +13769,22 @@ impl ActMakeProject {
 pub struct ActRemoveProjectParts {
     /// The `project` field.
     pub project: u32,
+    /// The `grace` field.
+    pub grace: Option<u64>,
 }
 
 /// `ActRemoveProject` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ActRemoveProject {
     project: u32,
+    grace: Option<u64>,
 }
 
 impl ActRemoveProject {
     /// Makes a value within the given limits.
     pub fn new(_limits: &Limits, parts: ActRemoveProjectParts) -> Result<Self, Problem> {
-        let ActRemoveProjectParts { project } = parts;
-        let value = Self { project };
+        let ActRemoveProjectParts { project, grace } = parts;
+        let value = Self { project, grace };
         Ok(value)
     }
 
@@ -13776,9 +13792,13 @@ impl ActRemoveProject {
     #[must_use]
     pub fn project(&self) -> u32 { self.project }
 
+    /// Reads the `grace` field.
+    #[must_use]
+    pub fn grace(&self) -> &Option<u64> { &self.grace }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> ActRemoveProjectParts { ActRemoveProjectParts { project: self.project } }
+    pub fn into_parts(self) -> ActRemoveProjectParts { ActRemoveProjectParts { project: self.project, grace: self.grace } }
 
 }
 
@@ -13970,6 +13990,8 @@ pub struct StoredDeletionParts {
     pub project: u32,
     /// The `step` field.
     pub step: DeletionStep,
+    /// The `grace` field.
+    pub grace: Option<u64>,
 }
 
 /// `StoredDeletion` in this codec family.
@@ -13977,13 +13999,14 @@ pub struct StoredDeletionParts {
 pub struct StoredDeletion {
     project: u32,
     step: DeletionStep,
+    grace: Option<u64>,
 }
 
 impl StoredDeletion {
     /// Makes a value within the given limits.
     pub fn new(_limits: &Limits, parts: StoredDeletionParts) -> Result<Self, Problem> {
-        let StoredDeletionParts { project, step } = parts;
-        let value = Self { project, step };
+        let StoredDeletionParts { project, step, grace } = parts;
+        let value = Self { project, step, grace };
         Ok(value)
     }
 
@@ -13995,9 +14018,13 @@ impl StoredDeletion {
     #[must_use]
     pub fn step(&self) -> &DeletionStep { &self.step }
 
+    /// Reads the `grace` field.
+    #[must_use]
+    pub fn grace(&self) -> &Option<u64> { &self.grace }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> StoredDeletionParts { StoredDeletionParts { project: self.project, step: self.step } }
+    pub fn into_parts(self) -> StoredDeletionParts { StoredDeletionParts { project: self.project, step: self.step, grace: self.grace } }
 
 }
 
@@ -21392,6 +21419,11 @@ impl AskRemoveProject {
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
         size = size.checked_add(4).expect("schema ceilings fit u32");
+        let field_grace = &self.grace;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_grace.is_some() {
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        }
         size
     }
 
@@ -21399,6 +21431,14 @@ impl AskRemoveProject {
     pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
         let field_project = &self.project;
         writer.put(&field_project.to_be_bytes())?;
+        let field_grace = &self.grace;
+        match field_grace {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
         Ok(())
     }
 
@@ -21411,7 +21451,8 @@ impl AskRemoveProject {
 
     fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_project = reader.u32().ok_or(Problem { path: Path::AskRemoveProjectProject, reason: skein_codec::Reason::Short })?;
-        Ok(Self { project: decoded_project })
+        let decoded_grace = match reader.u8().ok_or(Problem { path: Path::AskRemoveProjectGrace, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::AskRemoveProjectGrace, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::AskRemoveProjectGrace, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { project: decoded_project, grace: decoded_grace })
     }
 }
 
@@ -26159,6 +26200,11 @@ impl ActRemoveProject {
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
         size = size.checked_add(4).expect("schema ceilings fit u32");
+        let field_grace = &self.grace;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_grace.is_some() {
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        }
         size
     }
 
@@ -26166,6 +26212,14 @@ impl ActRemoveProject {
     pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
         let field_project = &self.project;
         writer.put(&field_project.to_be_bytes())?;
+        let field_grace = &self.grace;
+        match field_grace {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
         Ok(())
     }
 
@@ -26178,7 +26232,8 @@ impl ActRemoveProject {
 
     fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_project = reader.u32().ok_or(Problem { path: Path::ActRemoveProjectProject, reason: skein_codec::Reason::Short })?;
-        Ok(Self { project: decoded_project })
+        let decoded_grace = match reader.u8().ok_or(Problem { path: Path::ActRemoveProjectGrace, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::ActRemoveProjectGrace, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::ActRemoveProjectGrace, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { project: decoded_project, grace: decoded_grace })
     }
 }
 
@@ -26376,6 +26431,11 @@ impl StoredDeletion {
         size = size.checked_add(4).expect("schema ceilings fit u32");
         let field_step = &self.step;
         size = size.checked_add(field_step.measure()).expect("schema ceilings fit u32");
+        let field_grace = &self.grace;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_grace.is_some() {
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        }
         size
     }
 
@@ -26385,6 +26445,14 @@ impl StoredDeletion {
         writer.put(&field_project.to_be_bytes())?;
         let field_step = &self.step;
         field_step.encode(writer)?;
+        let field_grace = &self.grace;
+        match field_grace {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
         Ok(())
     }
 
@@ -26398,7 +26466,8 @@ impl StoredDeletion {
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_project = reader.u32().ok_or(Problem { path: Path::StoredDeletionProject, reason: skein_codec::Reason::Short })?;
         let decoded_step = DeletionStep::decode_from(limits, reader)?;
-        Ok(Self { project: decoded_project, step: decoded_step })
+        let decoded_grace = match reader.u8().ok_or(Problem { path: Path::StoredDeletionGrace, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::StoredDeletionGrace, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::StoredDeletionGrace, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { project: decoded_project, step: decoded_step, grace: decoded_grace })
     }
 }
 
@@ -31949,7 +32018,7 @@ impl AskRemoveProject {
 
     pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
-        size = size.checked_add(4_u64)?;
+        size = size.checked_add(4_u64)?.checked_add(1_u64.checked_add(8_u64)?)?;
         size.checked_add(0)
     }
 
@@ -31962,7 +32031,7 @@ impl AskRemoveProject {
 
     pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
 }
@@ -35505,7 +35574,7 @@ impl ActRemoveProject {
 
     pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
-        size = size.checked_add(4_u64)?;
+        size = size.checked_add(4_u64)?.checked_add(1_u64.checked_add(8_u64)?)?;
         size.checked_add(0)
     }
 
@@ -35518,7 +35587,7 @@ impl ActRemoveProject {
 
     pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
 }
@@ -35654,6 +35723,7 @@ impl StoredDeletion {
     pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
         size = size.checked_add(4_u64)?.checked_add(DeletionStep::encoded_bound_within(limits)?)?;
+        size = size.checked_add(1_u64.checked_add(8_u64)?)?;
         size.checked_add(0)
     }
 
@@ -35667,6 +35737,7 @@ impl StoredDeletion {
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
         heap = heap.checked_add(0_u64)?.checked_add(DeletionStep::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
 }
@@ -37043,8 +37114,8 @@ mod golden_tests {
         ("record_ask_account_change_full", || { let value = AskAccountChange::new(&CEILINGS, AskAccountChangeParts { holder: AccountHolder::Own, change: AccountChange::AddKey(AccountChangeAddKey::new(&CEILINGS, AccountChangeAddKeyParts { provider: u32::MAX, join: Some(u32::MAX), digest: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 255, 255, 255, 255, 1, 255, 255, 255, 255, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, AskAccountChange::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_ask_move_to_newest_smallest", || { let value = AskMoveToNewest::new(&CEILINGS, AskMoveToNewestParts { revision: 0_u32 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, AskMoveToNewest::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_ask_move_to_newest_full", || { let value = AskMoveToNewest::new(&CEILINGS, AskMoveToNewestParts { revision: u32::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, AskMoveToNewest::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_ask_remove_project_smallest", || { let value = AskRemoveProject::new(&CEILINGS, AskRemoveProjectParts { project: 0_u32 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, AskRemoveProject::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_ask_remove_project_full", || { let value = AskRemoveProject::new(&CEILINGS, AskRemoveProjectParts { project: u32::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, AskRemoveProject::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_ask_remove_project_smallest", || { let value = AskRemoveProject::new(&CEILINGS, AskRemoveProjectParts { project: 0_u32, grace: None }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, AskRemoveProject::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_ask_remove_project_full", || { let value = AskRemoveProject::new(&CEILINGS, AskRemoveProjectParts { project: u32::MAX, grace: Some(u64::MAX) }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 1, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, AskRemoveProject::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_ask_rename_smallest", || { let value = Ask::Rename(AskRename::new(&CEILINGS, AskRenameParts { project: 0_u32, name: Box::from([].as_slice()) }).expect("golden within ceilings")); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Ask::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_ask_rename_full", || { let value = Ask::Rename(AskRename::new(&CEILINGS, AskRenameParts { project: u32::MAX, name: Box::from([97_u8, 98_u8, 99_u8].as_slice()) }).expect("golden within ceilings")); let bytes: &[u8] = &[0, 255, 255, 255, 255, 0, 0, 0, 3, 97, 98, 99]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Ask::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_ask_make_project_smallest", || { let value = Ask::MakeProject(AskMakeProject::new(&CEILINGS, AskMakeProjectParts { name: Box::from([].as_slice()), policy: 0_u32 }).expect("golden within ceilings")); let bytes: &[u8] = &[1, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Ask::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -37109,8 +37180,8 @@ mod golden_tests {
         ("enum_ask_move_to_newest_full", || { let value = Ask::MoveToNewest(AskMoveToNewest::new(&CEILINGS, AskMoveToNewestParts { revision: u32::MAX }).expect("golden within ceilings")); let bytes: &[u8] = &[30, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Ask::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_ask_lift_smallest", || { let value = Ask::Lift(AskLift::new(&CEILINGS, AskLiftParts { hold: 0_u64, revision: 0_u64, with_tasks: false }).expect("golden within ceilings")); let bytes: &[u8] = &[31, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Ask::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_ask_lift_full", || { let value = Ask::Lift(AskLift::new(&CEILINGS, AskLiftParts { hold: u64::MAX, revision: u64::MAX, with_tasks: true }).expect("golden within ceilings")); let bytes: &[u8] = &[31, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Ask::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("enum_ask_remove_project_smallest", || { let value = Ask::RemoveProject(AskRemoveProject::new(&CEILINGS, AskRemoveProjectParts { project: 0_u32 }).expect("golden within ceilings")); let bytes: &[u8] = &[32, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Ask::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("enum_ask_remove_project_full", || { let value = Ask::RemoveProject(AskRemoveProject::new(&CEILINGS, AskRemoveProjectParts { project: u32::MAX }).expect("golden within ceilings")); let bytes: &[u8] = &[32, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Ask::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_ask_remove_project_smallest", || { let value = Ask::RemoveProject(AskRemoveProject::new(&CEILINGS, AskRemoveProjectParts { project: 0_u32, grace: None }).expect("golden within ceilings")); let bytes: &[u8] = &[32, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Ask::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_ask_remove_project_full", || { let value = Ask::RemoveProject(AskRemoveProject::new(&CEILINGS, AskRemoveProjectParts { project: u32::MAX, grace: Some(u64::MAX) }).expect("golden within ceilings")); let bytes: &[u8] = &[32, 255, 255, 255, 255, 1, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Ask::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_stored_person_smallest", || { let value = StoredPerson::new(&CEILINGS, StoredPersonParts { number: 0_u64, identity: Identity::new(&CEILINGS, IdentityParts { key: IdentityKey::new(&CEILINGS, IdentityKeyParts { provider: 0_u16, subject: Box::from([].as_slice()) }).expect("golden within ceilings"), login: Box::from([].as_slice()), name: Box::from([].as_slice()) }).expect("golden within ceilings") }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, StoredPerson::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_stored_person_full", || { let value = StoredPerson::new(&CEILINGS, StoredPersonParts { number: u64::MAX, identity: Identity::new(&CEILINGS, IdentityParts { key: IdentityKey::new(&CEILINGS, IdentityKeyParts { provider: u16::MAX, subject: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"), login: Box::from([0_u8, 127_u8, 255_u8].as_slice()), name: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings") }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, StoredPerson::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_stored_read_results_smallest", || { let value = StoredReadResults::new(&CEILINGS, StoredReadResultsParts { party: 0_u64, through: 0_u64 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, StoredReadResults::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -37807,8 +37878,8 @@ mod golden_tests {
         ("record_act_adopt_full", || { let value = ActAdopt::new(&CEILINGS, ActAdoptParts { project: u32::MAX, adoption: Adoption::new(&CEILINGS, AdoptionParts { resource: ResourceName::new(&CEILINGS, ResourceNameParts { connector: u16::MAX, path: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"), role: ResourceRole::Owned, options: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings") }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 255, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ActAdopt::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_act_make_project_smallest", || { let value = ActMakeProject::new(&CEILINGS, ActMakeProjectParts { maker: 0_u64, name: Box::from([].as_slice()), policy: 0_u32 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ActMakeProject::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_act_make_project_full", || { let value = ActMakeProject::new(&CEILINGS, ActMakeProjectParts { maker: u64::MAX, name: Box::from([97_u8, 98_u8, 99_u8].as_slice()), policy: u32::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 3, 97, 98, 99, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ActMakeProject::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_act_remove_project_smallest", || { let value = ActRemoveProject::new(&CEILINGS, ActRemoveProjectParts { project: 0_u32 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ActRemoveProject::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_act_remove_project_full", || { let value = ActRemoveProject::new(&CEILINGS, ActRemoveProjectParts { project: u32::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ActRemoveProject::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_act_remove_project_smallest", || { let value = ActRemoveProject::new(&CEILINGS, ActRemoveProjectParts { project: 0_u32, grace: None }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ActRemoveProject::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_act_remove_project_full", || { let value = ActRemoveProject::new(&CEILINGS, ActRemoveProjectParts { project: u32::MAX, grace: Some(u64::MAX) }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 1, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ActRemoveProject::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_act_make_project_smallest", || { let value = Act::MakeProject(ActMakeProject::new(&CEILINGS, ActMakeProjectParts { maker: 0_u64, name: Box::from([].as_slice()), policy: 0_u32 }).expect("golden within ceilings")); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Act::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_act_make_project_full", || { let value = Act::MakeProject(ActMakeProject::new(&CEILINGS, ActMakeProjectParts { maker: u64::MAX, name: Box::from([97_u8, 98_u8, 99_u8].as_slice()), policy: u32::MAX }).expect("golden within ceilings")); let bytes: &[u8] = &[0, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 3, 97, 98, 99, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Act::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_act_close_smallest", || { let value = Act::Close(ActClose::new(&CEILINGS, ActCloseParts { project: 0_u32, task: 0_u64, grace: None, reason: Box::from([].as_slice()) }).expect("golden within ceilings")); let bytes: &[u8] = &[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Act::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -37819,8 +37890,8 @@ mod golden_tests {
         ("enum_act_remove_account_full", || { let value = Act::RemoveAccount(ActRemoveAccount::new(&CEILINGS, ActRemoveAccountParts { account: u32::MAX }).expect("golden within ceilings")); let bytes: &[u8] = &[3, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Act::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_act_adopt_smallest", || { let value = Act::Adopt(ActAdopt::new(&CEILINGS, ActAdoptParts { project: 0_u32, adoption: Adoption::new(&CEILINGS, AdoptionParts { resource: ResourceName::new(&CEILINGS, ResourceNameParts { connector: 0_u16, path: Box::from([].as_slice()) }).expect("golden within ceilings"), role: ResourceRole::Owned, options: Box::from([].as_slice()) }).expect("golden within ceilings") }).expect("golden within ceilings")); let bytes: &[u8] = &[4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Act::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_act_adopt_full", || { let value = Act::Adopt(ActAdopt::new(&CEILINGS, ActAdoptParts { project: u32::MAX, adoption: Adoption::new(&CEILINGS, AdoptionParts { resource: ResourceName::new(&CEILINGS, ResourceNameParts { connector: u16::MAX, path: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"), role: ResourceRole::Owned, options: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings") }).expect("golden within ceilings")); let bytes: &[u8] = &[4, 255, 255, 255, 255, 255, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Act::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("enum_act_remove_project_smallest", || { let value = Act::RemoveProject(ActRemoveProject::new(&CEILINGS, ActRemoveProjectParts { project: 0_u32 }).expect("golden within ceilings")); let bytes: &[u8] = &[5, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Act::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("enum_act_remove_project_full", || { let value = Act::RemoveProject(ActRemoveProject::new(&CEILINGS, ActRemoveProjectParts { project: u32::MAX }).expect("golden within ceilings")); let bytes: &[u8] = &[5, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Act::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_act_remove_project_smallest", || { let value = Act::RemoveProject(ActRemoveProject::new(&CEILINGS, ActRemoveProjectParts { project: 0_u32, grace: None }).expect("golden within ceilings")); let bytes: &[u8] = &[5, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Act::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_act_remove_project_full", || { let value = Act::RemoveProject(ActRemoveProject::new(&CEILINGS, ActRemoveProjectParts { project: u32::MAX, grace: Some(u64::MAX) }).expect("golden within ceilings")); let bytes: &[u8] = &[5, 255, 255, 255, 255, 1, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Act::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_stored_acted_smallest", || { let value = StoredActed::new(&CEILINGS, StoredActedParts { key: ActKey::new(&CEILINGS, ActKeyParts { connector: 0_u16, key: [0_u8; 16] }).expect("golden within ceilings"), act: Act::MakeProject(ActMakeProject::new(&CEILINGS, ActMakeProjectParts { maker: 0_u64, name: Box::from([].as_slice()), policy: 0_u32 }).expect("golden within ceilings")), outcome: Outcome::Renamed(OutcomeRenamed::new(&CEILINGS, OutcomeRenamedParts { project: 0_u32 }).expect("golden within ceilings")), at: 0_u64 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, StoredActed::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_stored_acted_full", || { let value = StoredActed::new(&CEILINGS, StoredActedParts { key: ActKey::new(&CEILINGS, ActKeyParts { connector: u16::MAX, key: [165_u8; 16] }).expect("golden within ceilings"), act: Act::MakeProject(ActMakeProject::new(&CEILINGS, ActMakeProjectParts { maker: u64::MAX, name: Box::from([97_u8, 98_u8, 99_u8].as_slice()), policy: u32::MAX }).expect("golden within ceilings")), outcome: Outcome::Renamed(OutcomeRenamed::new(&CEILINGS, OutcomeRenamedParts { project: u32::MAX }).expect("golden within ceilings")), at: u64::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 0, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 3, 97, 98, 99, 255, 255, 255, 255, 0, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, StoredActed::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_stored_answer_smallest", || { let value = StoredAnswer::new(&CEILINGS, StoredAnswerParts { key: RequestKey::new(&CEILINGS, RequestKeyParts { person: 0_u64, key: [0_u8; 16] }).expect("golden within ceilings"), ask: Ask::Rename(AskRename::new(&CEILINGS, AskRenameParts { project: 0_u32, name: Box::from([].as_slice()) }).expect("golden within ceilings")), models: skein_lib::List::with_capacity(0), outcome: Outcome::Renamed(OutcomeRenamed::new(&CEILINGS, OutcomeRenamedParts { project: 0_u32 }).expect("golden within ceilings")), at: 0_u64 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, StoredAnswer::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -37831,8 +37902,8 @@ mod golden_tests {
         ("enum_deletion_step_rows_full", || { let value = DeletionStep::Rows; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, DeletionStep::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_deletion_step_release_smallest", || { let value = DeletionStep::Release; let bytes: &[u8] = &[2]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, DeletionStep::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_deletion_step_release_full", || { let value = DeletionStep::Release; let bytes: &[u8] = &[2]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, DeletionStep::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_stored_deletion_smallest", || { let value = StoredDeletion::new(&CEILINGS, StoredDeletionParts { project: 0_u32, step: DeletionStep::Tasks }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, StoredDeletion::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_stored_deletion_full", || { let value = StoredDeletion::new(&CEILINGS, StoredDeletionParts { project: u32::MAX, step: DeletionStep::Tasks }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, StoredDeletion::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_stored_deletion_smallest", || { let value = StoredDeletion::new(&CEILINGS, StoredDeletionParts { project: 0_u32, step: DeletionStep::Tasks, grace: None }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, StoredDeletion::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_stored_deletion_full", || { let value = StoredDeletion::new(&CEILINGS, StoredDeletionParts { project: u32::MAX, step: DeletionStep::Tasks, grace: Some(u64::MAX) }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 0, 1, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, StoredDeletion::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_value_person_smallest", || { let value = Value::Person(StoredPerson::new(&CEILINGS, StoredPersonParts { number: 0_u64, identity: Identity::new(&CEILINGS, IdentityParts { key: IdentityKey::new(&CEILINGS, IdentityKeyParts { provider: 0_u16, subject: Box::from([].as_slice()) }).expect("golden within ceilings"), login: Box::from([].as_slice()), name: Box::from([].as_slice()) }).expect("golden within ceilings") }).expect("golden within ceilings")); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Value::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_value_person_full", || { let value = Value::Person(StoredPerson::new(&CEILINGS, StoredPersonParts { number: u64::MAX, identity: Identity::new(&CEILINGS, IdentityParts { key: IdentityKey::new(&CEILINGS, IdentityKeyParts { provider: u16::MAX, subject: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"), login: Box::from([0_u8, 127_u8, 255_u8].as_slice()), name: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings") }).expect("golden within ceilings")); let bytes: &[u8] = &[0, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Value::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_value_read_results_smallest", || { let value = Value::ReadResults(StoredReadResults::new(&CEILINGS, StoredReadResultsParts { party: 0_u64, through: 0_u64 }).expect("golden within ceilings")); let bytes: &[u8] = &[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Value::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -37851,8 +37922,8 @@ mod golden_tests {
         ("enum_value_ended_read_full", || { let value = Value::EndedRead(EndedRead::new(&CEILINGS, EndedReadParts { task: u64::MAX, party: u64::MAX, through: u64::MAX }).expect("golden within ceilings")); let bytes: &[u8] = &[7, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Value::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_value_acted_smallest", || { let value = Value::Acted(StoredActed::new(&CEILINGS, StoredActedParts { key: ActKey::new(&CEILINGS, ActKeyParts { connector: 0_u16, key: [0_u8; 16] }).expect("golden within ceilings"), act: Act::MakeProject(ActMakeProject::new(&CEILINGS, ActMakeProjectParts { maker: 0_u64, name: Box::from([].as_slice()), policy: 0_u32 }).expect("golden within ceilings")), outcome: Outcome::Renamed(OutcomeRenamed::new(&CEILINGS, OutcomeRenamedParts { project: 0_u32 }).expect("golden within ceilings")), at: 0_u64 }).expect("golden within ceilings")); let bytes: &[u8] = &[8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Value::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_value_acted_full", || { let value = Value::Acted(StoredActed::new(&CEILINGS, StoredActedParts { key: ActKey::new(&CEILINGS, ActKeyParts { connector: u16::MAX, key: [165_u8; 16] }).expect("golden within ceilings"), act: Act::MakeProject(ActMakeProject::new(&CEILINGS, ActMakeProjectParts { maker: u64::MAX, name: Box::from([97_u8, 98_u8, 99_u8].as_slice()), policy: u32::MAX }).expect("golden within ceilings")), outcome: Outcome::Renamed(OutcomeRenamed::new(&CEILINGS, OutcomeRenamedParts { project: u32::MAX }).expect("golden within ceilings")), at: u64::MAX }).expect("golden within ceilings")); let bytes: &[u8] = &[8, 255, 255, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 165, 0, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 3, 97, 98, 99, 255, 255, 255, 255, 0, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Value::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("enum_value_deletion_smallest", || { let value = Value::Deletion(StoredDeletion::new(&CEILINGS, StoredDeletionParts { project: 0_u32, step: DeletionStep::Tasks }).expect("golden within ceilings")); let bytes: &[u8] = &[9, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Value::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("enum_value_deletion_full", || { let value = Value::Deletion(StoredDeletion::new(&CEILINGS, StoredDeletionParts { project: u32::MAX, step: DeletionStep::Tasks }).expect("golden within ceilings")); let bytes: &[u8] = &[9, 255, 255, 255, 255, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Value::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_value_deletion_smallest", || { let value = Value::Deletion(StoredDeletion::new(&CEILINGS, StoredDeletionParts { project: 0_u32, step: DeletionStep::Tasks, grace: None }).expect("golden within ceilings")); let bytes: &[u8] = &[9, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Value::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_value_deletion_full", || { let value = Value::Deletion(StoredDeletion::new(&CEILINGS, StoredDeletionParts { project: u32::MAX, step: DeletionStep::Tasks, grace: Some(u64::MAX) }).expect("golden within ceilings")); let bytes: &[u8] = &[9, 255, 255, 255, 255, 0, 1, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Value::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_row_smallest", || { let value = Row::new(&CEILINGS, RowParts { value: Value::Person(StoredPerson::new(&CEILINGS, StoredPersonParts { number: 0_u64, identity: Identity::new(&CEILINGS, IdentityParts { key: IdentityKey::new(&CEILINGS, IdentityKeyParts { provider: 0_u16, subject: Box::from([].as_slice()) }).expect("golden within ceilings"), login: Box::from([].as_slice()), name: Box::from([].as_slice()) }).expect("golden within ceilings") }).expect("golden within ceilings")) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Row::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_row_full", || { let value = Row::new(&CEILINGS, RowParts { value: Value::Person(StoredPerson::new(&CEILINGS, StoredPersonParts { number: u64::MAX, identity: Identity::new(&CEILINGS, IdentityParts { key: IdentityKey::new(&CEILINGS, IdentityKeyParts { provider: u16::MAX, subject: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings"), login: Box::from([0_u8, 127_u8, 255_u8].as_slice()), name: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings") }).expect("golden within ceilings")) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 14, 0, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Row::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
     ];

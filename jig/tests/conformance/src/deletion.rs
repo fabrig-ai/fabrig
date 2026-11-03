@@ -342,7 +342,7 @@ pub fn remove(world: &mut World) {
             }
         })
         .collect();
-    act(world, 50, people::Act::RemoveProject { project: 1 });
+    act(world, 50, people::Act::RemoveProject { project: 1, grace: None });
     // A cut before the acknowledgement can lose the answer; the kept deletion still ends whole.
     assert!(
         world.peers.acts.contains(&people::Outcome::ProjectRemoved { project: 1 })

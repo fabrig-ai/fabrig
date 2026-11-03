@@ -991,8 +991,10 @@ keeps (`../protocol/configuration.md`, section 2).
   8.3).
 - **Deleting a project** (jig's `domain/people.md`, 5.2): a project's
   settings offer its owners "Delete", confirmed by the project's name
-  (3.6), which sends jig's `RemoveProject { project }` (jig's
-  `client/domain/contract.md`, 3.2). Once it is answered, the project
+  (3.6), which sends jig's `RemoveProject` by
+  `shapes::remove_project`, with the chat template's grace (jig's
+  `client/domain/client.md`, section 19; `client/domain/contract.md`,
+  3.2). Once it is answered, the project
   leaves `me`, and with it the navigation and every list (5.3); its
   work is jig's to end and erase. The settings' other parts are
   section 11's.
