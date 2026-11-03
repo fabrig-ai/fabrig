@@ -29,7 +29,7 @@ pub(super) fn assert_words(world: &mut World, task: u64, expected: &str) {
     assert!(text.contains(&format!("asked: {expected}")), "missing full execution identity: {text}");
 }
 
-fn show(world: &mut World, task: u64) -> temper_client_tools::jig::Printed {
+pub(super) fn show(world: &mut World, task: u64) -> temper_client_tools::jig::Printed {
     let env = Env {
         limits: root::Limits::new(temper_client_tools::limits::client(), temper_client_tools::limits::tools()),
         now: world.env.now,
