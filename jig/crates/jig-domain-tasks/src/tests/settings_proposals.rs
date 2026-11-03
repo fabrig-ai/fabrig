@@ -32,6 +32,42 @@ fn pending() -> Harness {
     h
 }
 #[test]
+fn settings_without_jig_heads_wait_pending_at_deployment_owners() {
+    let mut h = Harness::new();
+    let offered = proposal(0);
+    let out = h.send(Event::ProposePerson { reply_to: to(), proposal: offered.clone() });
+    assert_eq!(h.domain.person_proposal(PROPOSER, PROPOSAL), Some(offered));
+    assert!(
+        out.iter().any(|row| match row {
+            Request::PersonProposed { proposal: PROPOSAL, .. } => true,
+            _ => false,
+        }),
+        "{out:?}"
+    );
+    let row = h.stored[&Key::PersonProposal(PROPOSAL)].clone();
+    h.domain = Domain::new(&LIMITS, 91, 1, super::charters(), Box::new([0]));
+    h.send(Event::Restore { record: row });
+    h.send(Event::Check);
+    h.send(Event::Restored);
+    assert_eq!(h.domain.person_proposal(PROPOSER, PROPOSAL), Some(proposal(0)));
+    let mut h = Harness::new();
+    h.make([super::revisions::task(1, &[])].into());
+    let offered = Proposal {
+        number: PROPOSAL + 1,
+        proposer: 1,
+        project: 0,
+        action: ProposalAction::Settings { against: 1, items: Box::default() },
+        reason: b"application items".as_slice().into(),
+        as_holder: false,
+        state: ProposalState::Pending {
+            holder: ProposalHolder::Policy { project: 0, kind: ProposalKind::Settings },
+            since: Wall::EPOCH,
+        },
+    };
+    let out = h.send(Event::Propose { reply_to: to(), proposal: offered.clone() });
+    assert_eq!(h.domain.proposal(1, PROPOSAL + 1), Some(offered), "{out:?}");
+}
+#[test]
 fn settings_heads_restore_without_a_task_or_funding() {
     let mut h = pending();
     let row = h.stored[&Key::PersonProposal(PROPOSAL)].clone();
