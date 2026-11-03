@@ -1,3 +1,31 @@
 draft = "forgejo-connect"
 repo = "fabrig"
 sources = ["temper/docs/plan/forgejo-connect/inputs/request.md", "temper/docs/design/protocol/forge.md", "AGENTS.md"]
+
+# A connected Forgejo, designed first (inputs/request.md, answered (a) on 2026-11-03): the five
+# open points are settled in temper's designs (this branch's first commit), then built. The
+# shapes that cross tasks are notes/contracts.md (C1 to C5); every task names notes/common.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "bundle"
+title = "temper: the carried bundle holds a list of items, in the codec's own form"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/credentials.md, 2.2"
+
+[[part]]
+id = "engine"
+title = "temper: the forge domain admits a connected Forgejo's tokens connect and a Replace, and keeps the checked login"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/forge.md, 2.2"
+
+[[slice]]
+id = 1
+story = "temper ctl forge connect forgejo FILE --api --git, with a tokens file of one Forgejo user: the setup host's Check finds both tokens answer as that user, the tokens are kept, and forge list says connected as its login"
+parts = ["bundle", "engine"]
+walk = false
