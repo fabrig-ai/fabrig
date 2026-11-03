@@ -13,7 +13,11 @@ tooling and the `Rewrite` delivery lag (`domain/worker.md`,
 `protocol/tooling.md`, `domain/landing.md`, `protocol/git.md`). Settings of temper's kinds lag: the landing rules
 and the forge's charter are still read from the document
 (`domain/root.md`, `domain/forge.md`, `protocol/configuration.md`,
-`domain/agent.md`). Much of a change's own bounds, gates and charters,
+`domain/agent.md`). A goal's own branch is built but for its deletion
+as its goal closes (`domain/forge.md`); the reference's configuration
+lags in its template's own goal branch, which a settings file cannot
+name, its charters' turns and the project's checks
+(`protocol/configuration.md`). Much of a change's own bounds, gates and charters,
 the forge's merge queue and a goal's issue lag (`domain/forge.md`); so
 do the client's Board, Changes and How work runs pages and many of
 ctl's tools (`client/README.md`, `client/forge.md`, `client/tools.md`),
@@ -22,11 +26,13 @@ commands and the baseline (`protocol/README.md`), and the release
 (`release.md`). Forges kept in the store, a forge's removal and the
 playground's reset are designed and built; the code departs where the
 box's group file holds a forge's kind alone (`protocol/setup.md`,
-`protocol/forge.md`, `protocol/README.md`), and lags in a removal without
-the box (`domain/forge.md`), a project's Delete (`client/README.md`) and
-the real loop's story of a connected Forgejo (`client/tools.md`); with
-`application.machine.github` null, GitHub's remotes come out malformed
-(`protocol/configuration.md`). The case library's
+`protocol/forge.md`, `protocol/README.md`), and lags in a
+removal without the box (`domain/forge.md`) and a project's Delete
+(`client/README.md`); a connected Forgejo, its connect with its bot's
+tokens and a forge's Replace are built, but for the real loop's story
+(`client/tools.md`) and a connected Forgejo made managed
+(`protocol/setup.md`); with `application.machine.github` null, GitHub's
+remotes come out malformed (`protocol/configuration.md`). The case library's
 purpose is retired (`domain/testing.md`). Of the drafts, the reference
 drafts are what the design lags most (`draft/notes.md`, N1 to N24, in
 their three statuses); the others record what the design carries of

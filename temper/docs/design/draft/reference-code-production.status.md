@@ -1,6 +1,6 @@
 # reference-code-production: status
 
-2026-11-02. Where the design lags or departs from [reference-code-production.md](reference-code-production.md).
+2026-11-03. Where the design lags or departs from [reference-code-production.md](reference-code-production.md).
 
 - **Design lags:**
   - **3, 5, 14: `change` and its fields (N22, N13).** `../domain/agent.md`,
@@ -30,19 +30,13 @@
     box's agent `conversations` 1, so every `sub_agent` is refused as too
     many, and `../client/tools.md`, 5.5 has `chat start` and `goal start`
     take a main model and effort alone, naming no sub-agents.
-  - **6, 14: the light rules (N4).** `../domain/forge.md`, 8.2 (steps 3 and
-    6), 8.7 and 10: every change is checked by CI at its head and updated
-    when first if it lacks its base's tip, whatever its landing branch's
-    rule. A merge refused for a conflict sends the change back to first
-    and its update (`../domain/forge.md`, section 6 and 8.2), which leaves a change under a rule
-    that asks no update without a path to the merge job.
-  - **6: a change's result (N15).** `../domain/forge.md`, 8.2, step 7: a
-    change's result words are its landing's facts, without its producer's
-    report.
   - **6, 11, 14: the merge job (N7).** `../domain/landing.md`, 5.3: the
     project's tooling settles conflicts for the turn's prepare alone.
     `../domain/forge.md`, 8.4 and 10: what an update leaves goes to a
-    resolution agent. `../protocol/configuration.md`, section 13: no
+    resolution agent. `../domain/forge.md`, 8.2, step 6: a change into a
+    branch whose rules ask no update, a goal's own, is held when its
+    merge conflicts, and `../domain/forge.md`, section 20 leaves open
+    what settles it. `../protocol/configuration.md`, section 13: no
     `merge_job` setting.
   - **7: early starts (N2).** `../domain/worker.md`, 4.1 and section 5: no
     checkout start merges dependencies' pushed heads onto the landing
@@ -62,6 +56,6 @@
   - **4, 14: the profile's limits (N21).** `../protocol/configuration.md`,
     13.4 and section 7, and `../domain/agent.md`, 4.3.1: the stock limits
     are a chat's (18 tasks 4 deep, 6 tasks under `change`, a result of 512
-    bytes, which jig's settings schema caps); jig's `domain/engine.md`,
+    bytes); jig's `domain/engine.md`,
     17.9 allows 2 documents per charter in Small. None is sized for a goal
     of a hundred changes.
