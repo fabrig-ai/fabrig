@@ -47,14 +47,14 @@ fn run(dialect: Provider, seed: u64) -> (Vec<String>, (u32, u32)) {
         Provider::OpenAiCodex | Provider::OpenAi => {}
         Provider::Anthropic => {
             call.endpoint = skein_llm::Endpoint::anthropic();
-            call.credential = Some(Credential::anthropic(b"fake-token".as_slice().into()));
+            call.credential = Some(Credential::key(b"fake-token".as_slice().into()));
             call.prompt.affinity = None;
         }
     }
     call.prompt.output_ceiling(dialect, 4096).expect("provider output ceiling");
     call.prompt.instructions = b"connection-world".as_slice().into();
     let peer_credential = Credential {
-        scheme: skein_llm::Scheme::Bearer,
+        scheme: skein_llm_world::credential_of(&call).scheme,
         value: skein_llm_world::credential_of(&call).value.clone(),
         account_id: skein_llm_world::credential_of(&call).account_id.clone(),
     };

@@ -10,7 +10,7 @@ fn input(provider: skein_llm::Provider, owner: u64) -> skein_llm::Call {
         skein_llm::Provider::OpenAiCodex | skein_llm::Provider::OpenAi => {}
         skein_llm::Provider::Anthropic => {
             input.endpoint = skein_llm::Endpoint::anthropic();
-            input.credential = Some(skein_llm::Credential::anthropic(b"fake-token".as_slice().into()));
+            input.credential = Some(skein_llm::Credential::key(b"fake-token".as_slice().into()));
             input.prompt.affinity = None;
         }
     }
@@ -108,7 +108,7 @@ fn prepared_client_is_adopted_and_drives_the_actual_scripted_peer() {
         let input = input(provider, 17);
         let endpoint = input.endpoint.clone();
         let credential = skein_llm::Credential {
-            scheme: skein_llm::Scheme::Bearer,
+            scheme: skein_llm_world::credential_of(&input).scheme,
             value: skein_llm_world::credential_of(&input).value.clone(),
             account_id: skein_llm_world::credential_of(&input).account_id.clone(),
         };
@@ -854,7 +854,7 @@ fn explicit_call_reasoning_policy_overrides_the_default_without_changing_wire_by
         let input = input(provider, 71);
         let endpoint = input.endpoint.clone();
         let credential = skein_llm::Credential {
-            scheme: skein_llm::Scheme::Bearer,
+            scheme: skein_llm_world::credential_of(&input).scheme,
             value: skein_llm_world::credential_of(&input).value.clone(),
             account_id: skein_llm_world::credential_of(&input).account_id.clone(),
         };

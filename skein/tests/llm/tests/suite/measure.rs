@@ -10,7 +10,7 @@ fn request(anthropic: bool) -> Call {
     input.prompt.affinity = Some(skein_llm::Affinity { key: [0x42; 16], thread: 19 });
     if anthropic {
         input.endpoint = Endpoint::anthropic();
-        input.credential = Some(Credential::anthropic(b"synthetic-token".as_slice().into()));
+        input.credential = Some(Credential::key(b"synthetic-token".as_slice().into()));
     }
     input
 }
