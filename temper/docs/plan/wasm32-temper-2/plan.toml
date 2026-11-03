@@ -9,6 +9,7 @@ sources = ["temper/docs/plan/wasm32-temper-2/inputs/request.md", "AGENTS.md"]
 # smith's remaining portable crates in: two status tasks, one per tree, close those entries
 # when the list holds the line. plan.md says why.
 
+retired = true
 [buffer]
 low = 1.0
 high = 2.0
