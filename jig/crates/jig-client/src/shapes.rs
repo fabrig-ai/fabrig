@@ -123,13 +123,19 @@ pub fn remove_project(me: &Me, project: u32) -> Result<Ask, NotOffered> {
     }
     Err(NotOffered::Project)
 }
+/// Fill the stock goal template and judge it against the project's creating bounds.
 #[must_use]
 pub fn set_goal(me: &Me, project: u32, draft: GoalDraft, reason: Text) -> Judged {
+    set_goal_from(me, project, GOAL, draft, reason)
+}
+/// Fill an offered template by number, keeping the goal's authority/proposal judgement.
+#[must_use]
+pub fn set_goal_from(me: &Me, project: u32, number: u32, draft: GoalDraft, reason: Text) -> Judged {
     let creating = match creating(me, project) {
         Ok(value) => value,
         Err(why) => return Judged::NotOffered(why),
     };
-    let Some(template) = template(me, project, GOAL) else {
+    let Some(template) = template(me, project, number) else {
         return Judged::NotOffered(NotOffered::Template);
     };
     let task = match fill(template, creating, draft.words.clone(), Some(&draft)) {

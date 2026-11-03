@@ -36,4 +36,5 @@ mod replays;
 
 mod specification;
 
+mod goal_template;
 mod restore;

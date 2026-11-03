@@ -881,8 +881,81 @@ pub const TASK_TEXT: Tool = Tool {
     notes: b"Each chunk keeps UTF-8 characters whole. Follow the printed call\nuntil no more. Instructions use the task's override, or its charter\nat the task's recorded settings revision.\n",
 };
 
+/// The goal creation tool's durable position.
+pub const GOAL_START_AT: u8 = 62;
+/// Fill a project's offered goal template and submit a keyed request.
+pub const GOAL_START: Tool = Tool {
+    name: b"goal start",
+    line: b"Start a goal from a project's template",
+    prints: b"`done: task N, goal`, or `proposed: PROPOSAL, to RECIPIENT` when another party must agree",
+    result: b"goal_create",
+    forms: &[&[
+        flag(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project"),
+        flag(
+            b"template",
+            b"TEMPLATE",
+            Kind::NumberRange { min: 1, max: 4_294_967_295 },
+            Optional,
+            b"An offered template; stock goal template 2 when absent",
+        ),
+        positional(b"text", b"TEXT", Kind::Text, Required, b"The goal's words"),
+        flag(
+            b"charter",
+            b"CHARTER",
+            Kind::NumberRange { min: 1, max: 4_294_967_295 },
+            Optional,
+            b"Required when the template lets its creator choose; omit when it fixes a charter",
+        ),
+        flag(
+            b"priority",
+            b"PRIORITY",
+            Kind::NumberRange { min: 0, max: 4_294_967_295 },
+            Optional,
+            b"Override the template's tracked priority",
+        ),
+        flag(
+            b"budget",
+            b"AMOUNT",
+            Kind::NumberRange { min: 0, max: u64::MAX },
+            Optional,
+            b"The spend in the deployment's unit; required for a given budget unless --as-allowed",
+        ),
+        switch(b"as-allowed", b"Take as much as allowed instead of a named budget"),
+        flag(
+            b"deadline",
+            b"TIME",
+            Kind::Literal,
+            Optional,
+            b"UTC to the minute, as 2026-10-24T17:00Z; required for a given deadline",
+        ),
+        MODEL,
+        EFFORT,
+        super::table::repeated(
+            b"sub-agent",
+            b"MODEL[:EFFORT]",
+            Kind::Text,
+            64,
+            b"Replace the template's sub-agents; needs --model; each model once, with its required effort",
+        ),
+    ]],
+    keyed: Keyed::Required,
+    area: 2,
+    notes: b"The template fills charter, contract, tracking, label, flags, models
+and symbolic resources. --charter is required only for a chosen executor.
+A template with budget given needs --budget or --as-allowed; one
+with deadline given needs --deadline. Other absent controls keep defaults.
+--budget and --as-allowed are alternatives. --effort needs --model;
+a model declaring efforts requires --effort. Without --sub-agent,
+the template's sub-agents survive a model override. Explicit sub-agents
+replace them. Bounds and proposal judgement are the same as for goals
+set from a client: within bounds, created; past them but proposable,
+proposed (exit 0); not offered or past ceilings, nothing sent (exit 1).
+Then task show TASK --until replied.
+",
+};
+
 /// The restore's position in the tools table; positions are durable (tests/help.rs).
-pub const RESTORE_AT: u8 = 62;
+pub const RESTORE_AT: u8 = 63;
 pub const RESTORE: Tool = Tool {
     name: b"revision restore",
     line: b"Propose the settings as REVISION left them, to the owners of its items",

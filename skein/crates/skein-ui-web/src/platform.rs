@@ -2,8 +2,11 @@
 use crate::mapping::Primary;
 #[cfg(target_arch = "wasm32")]
 mod web;
+pub mod worker;
 #[cfg(target_arch = "wasm32")]
 pub use web::{Browser, clocks, facts};
+#[cfg(target_arch = "wasm32")]
+pub use worker::{Worker, worker_address};
 
 pub trait Platform {
     fn read_all(&self) -> Vec<crate::store::Record>;
@@ -12,6 +15,10 @@ pub trait Platform {
     fn send(&mut self, exchange: &crate::fetch::Exchange);
     fn navigate(&mut self, to: &[u8]);
     fn stream(&mut self, duty: crate::transport::StreamDuty);
+    /// Abandons an exchange in flight: nothing more is reported of it (ui-web.md, 10).
+    fn abandon(&mut self, exchange: u32);
+    /// Asks the stream's next piece, after the step that took the last (ui-web.md, 5.2).
+    fn read_on(&mut self);
 }
 
 pub struct Facts {

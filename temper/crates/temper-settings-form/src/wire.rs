@@ -515,6 +515,13 @@ pub(crate) fn settings_restore_policy_edit_role(
 
 pub(crate) fn documents_me_template(value: &w::Template, limits: &Limits) -> Result<c::Template, w::Problem> {
     Ok(c::Template {
+        resources: {
+            let mut rows = List::with_capacity(value.resources().len());
+            for symbol in value.resources() {
+                rows.push(c::Symbol { connector: symbol.connector(), symbol: symbol.symbol() }).expect("same capacity");
+            }
+            rows
+        },
         number: value.number(),
         name: facts_document_text(value.name(), limits)?,
         executor: operations_restore_executor(value.executor()),
@@ -1314,7 +1321,17 @@ pub(crate) fn settings_wire_template(value: &c::Template, limits: &w::Limits) ->
     w::Template::new(
         limits,
         w::TemplateParts {
-            resources: List::with_capacity(0),
+            resources: {
+                let mut rows = List::with_capacity(value.resources.len());
+                for symbol in &value.resources {
+                    rows.push(w::Symbol::new(
+                        limits,
+                        w::SymbolParts { connector: symbol.connector, symbol: symbol.symbol },
+                    )?)
+                    .expect("same capacity");
+                }
+                rows
+            },
             number: value.number,
             name: settings_wire_document_text(&value.name, limits)?,
             executor: operations_executor(value.executor, limits)?,

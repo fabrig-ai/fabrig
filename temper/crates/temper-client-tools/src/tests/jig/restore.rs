@@ -23,7 +23,7 @@ fn restored(left_out: List<c::Setting>) -> c::Outcome {
 
 #[test]
 fn revision_restore_parses_its_revision_reason_and_required_key() {
-    assert_eq!(rows::RESTORE_AT, 62);
+    assert_eq!(rows::RESTORE_AT, 63);
     for argv in [
         ARGV,
         &["revision", "restore", "4", "--key", "restore-4"],

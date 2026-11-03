@@ -21,6 +21,7 @@ pub const GROUPS: &[Group] = &[
     Group { name: b"inbox", line: b"Read what waits on your party, then its updates" },
     Group { name: b"task", line: b"Tasks: read one and its parts, and act on it" },
     Group { name: b"chat", line: b"Chats: start one, read its conversation, close it" },
+    Group { name: b"goal", line: b"Goals: start one from a project template" },
     Group { name: b"proposal", line: b"Proposals: read one, decide it" },
     Group { name: b"hold", line: b"Placed holds: lift one you may lift" },
     Group { name: b"change", line: b"Changes: read a change's way to landing" },
@@ -103,6 +104,7 @@ pub const TOOLS: &[&Tool] = &[
     &crate::forges::REMOVE,
     &crate::forges::PLAYGROUND_END,
     &rows::TASK_TEXT,
+    &rows::GOAL_START,
     &rows::RESTORE,
 ];
 pub fn parse(words: &[&[u8]]) -> Result<Parsed, Usage> {

@@ -50,8 +50,8 @@ impl Operation {
                 c::Ask::Propose { action: c::ProposeAction::Settings(_), .. } => (b"propose_settings", None),
                 c::Ask::MoveToNewest(_) => (b"move-to-newest", None),
                 c::Ask::ChangeSettings(_) => (b"change-settings", None),
-                c::Ask::Create { .. } | c::Ask::Propose { action: c::ProposeAction::Batch { .. }, .. } => {
-                    (b"chat", None)
+                c::Ask::Create { tasks, .. } | c::Ask::Propose { action: c::ProposeAction::Batch { tasks }, .. } => {
+                    (creation_word(tasks), None)
                 }
                 c::Ask::Message { task, .. } => (b"message", Some(*task)),
                 c::Ask::Compound { operations, .. } => {
@@ -551,6 +551,7 @@ pub(crate) fn act_tool(tool: u8) -> &'static crate::jig::table::Tool {
     use crate::jig::rows;
     match tool {
         rows::CHAT_CREATE_AT => &rows::CHAT_CREATE,
+        rows::GOAL_START_AT => &rows::GOAL_START,
         rows::MESSAGE_AT => &rows::MESSAGE,
         rows::CLOSE_AT => &rows::CLOSE,
         rows::ANSWER_AT => &rows::ANSWER,
@@ -1017,4 +1018,11 @@ fn owner_lack(lacking: &c::Lacking) -> bool {
         return true;
     }
     false
+}
+
+fn creation_word(tasks: &skein_lib::List<c::NewTask>) -> &'static [u8] {
+    match tasks.get(0) {
+        Some(task) if !task.flags.conversation => b"goal",
+        Some(_) | None => b"chat",
+    }
 }
