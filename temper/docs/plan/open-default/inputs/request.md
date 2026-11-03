@@ -37,3 +37,33 @@ No design, unless the fault shows a design section wrong; then the section and i
 ## After it lands
 
 Nothing more here. The user walks the welcome-set-up journey anew in a browser once this and the three look-fixes branches are on main.
+
+## Addendum (the laptop session, 18:15Z): making a project is the fault, and it's the priority
+
+The same stall happens on "Try the playground". On a fresh fake box built from 3a2ef76a56, whose changes on top of `3803f68c40` are view-only:
+- the box's stderr reads "18:13:59Z Playground: starting / started";
+- the store's log was last written at 18:13:59Z, with "Demo" in it twice, as "Default" was;
+- then nothing: temper serve is up and idle (`io_cqring_wait`);
+- `/chats` shows "No project yet", with no "Set up temper →" in the banner and no playground note in the side pane.
+
+So the fault is in making a project, not in the welcome: serve stops answering once a project is made, by the welcome's `MakeProject` or by the playground's start. It also blocks the user's playground look work, so it is this plan's priority.
+
+**It looks like a regression since this morning:** `again welcome-playground` recorded Demo as project 1 successfully at `f6a5d32b60`. Between `f6a5d32b60` and `3803f68c40` there are about 360 commits. The likeliest are the jig store commits that touch project policies:
+- `6ed91f5429`, replace project policies through settings decisions;
+- `c743971fbe`, store size expectations for retained project policy values;
+- `239f6e6bf8` and `655de5b63c`, store codecs for replacements and restored settings.
+
+**Bisect between `f6a5d32b60` and `3803f68c40`** with `cargo run -p temper-client-journeys -- again welcome-playground`, which walks the playground on a fresh fake box in headless Chromium. Through `heavy`, one command at a time. Then reproduce the fault in the lowest tier: a jig world or engine test if it is jig's, which these commits suggest. The box test above still follows.
+
+## Second addendum (the laptop session, about 18:25Z): the browser's link drops, so check this first
+
+After the playground's start, the page's banner reads "Offline" and "Behind" (jig's "Behind: waiting for current facts"). So the browser's link to serve drops right after a project is made. serve's idleness is just no client being connected, and the earlier "serve stops answering" is likely this.
+
+**The hypothesis to check first:** the new project's records, its retained policy values, exceed a limit of the **wasm32 client**, which drops the link. The candidate commits:
+- the records: `6ed91f5429`, `c743971fbe`, `3d524c8f4b` and `655de5b63c`;
+- several of today's jig commits scoped size expectations to non-wasm targets: `b4e12f9304`, `f349e1fb26`, `a9822f8403` and `6bf9fadd50`.
+
+The native client tests would not see that. The browser tier (`tests/client-browser`) or `again welcome-playground` should. So:
+- **The failing test** is in the browser tier, or a wasm32-built client against a real serve: make a project, and the link stays up, watches delivered.
+- **The fix** is in the lowest tier that holds the limit. If it is a bound that differs between wasm32 and native, the record's worst-case size must hold on both targets.
+- **Bisect** only if this hypothesis fails.
