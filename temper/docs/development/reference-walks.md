@@ -270,7 +270,7 @@ a wrong item index in a refusal's words; the walk found the faulty setting by bi
 - Commit: 4ab8fac8a347249c755d2db69b91c75033ec575f
 - Area: help box / forge hands
 - Severity: low
-- Sightings: (none)
+- Sightings: finding-186
 
 ### Reproduction
 
@@ -400,7 +400,7 @@ the rung's story never lists ended tasks (it reads the chat's task by `task show
 - Commit: 943c9871ecadd29c2338405add4f954e4e3752ec
 - Area: ctl settings show words
 - Severity: low
-- Sightings: (none)
+- Sightings: finding-185
 
 ### Reproduction
 
