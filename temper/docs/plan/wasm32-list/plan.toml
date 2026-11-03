@@ -1,0 +1,24 @@
+draft = "wasm32-list"
+repo = "fabrig"
+sources = ["temper/docs/plan/wasm32-list/inputs/request.md", "AGENTS.md"]
+
+# fabrig's wasm32 gate list (inputs/request.md): fab's clippy-wasm32 step reads
+# `.config/gate/wasm32.txt`. One part, one task: the six packages measured green, and skein's
+# playground status closed with it. plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "gate-list"
+title = "fabrig: .config/gate/wasm32.txt lists the six packages fab's gate clippies for wasm32; skein-playground's status closes"
+mode = "direct"
+needs = []
+design = "skein/docs/design/testing.md, 6"
+
+[[slice]]
+id = 1
+story = "fab's clippy-wasm32 step reads fabrig's list and clippies skein-playground, the UI kit, its example and jig's browser shell for wasm32-unknown-unknown, warnings denied"
+parts = ["gate-list"]
+walk = false
