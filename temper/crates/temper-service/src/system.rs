@@ -223,6 +223,7 @@ impl Service {
         core.kinds = crate::stock::kinds(&limits, *core.connectors.first().expect("checked forge connector"));
         core.jobs = limits::merge_jobs(&settings.jig.limits);
         let config = temper_engine_domain::Config {
+            host_part: settings.host_part,
             kinds_stock: settings.kinds_stock,
             period_span: crate::stock::PERIOD_SPAN,
             core,

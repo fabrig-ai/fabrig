@@ -21,7 +21,7 @@ pub(crate) fn parse(
     directories: &Directories,
     problems: &mut Problems,
 ) -> Option<Hosts> {
-    let mut object = check::object(document, at, path, problems)?;
+    let mut object = check::object(document, at, path, problems, "hosts")?;
     let mut workers = List::<WorkerName>::with_capacity(limits.link.names);
     if let Some(items) = check::list(
         &mut object,
@@ -74,7 +74,7 @@ fn worker(
     directories: &Directories,
     problems: &mut Problems,
 ) -> Option<WorkerName> {
-    let mut object = check::object(document, at, path, problems)?;
+    let mut object = check::object(document, at, path, problems, "worker-name")?;
     let name = check::text(&mut object, document, b"name", path, problems);
     if let Some(name) = &name
         && name.len() > skein_lib::length::usize_of(max_name)

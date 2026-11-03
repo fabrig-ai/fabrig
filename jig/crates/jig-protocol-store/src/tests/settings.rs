@@ -47,6 +47,7 @@ fn charter() -> core::Charter {
             shell: true,
             agents: false,
             call_timeout: Duration::from_secs(1),
+            tools: core::RunPolicy::EVERY_FAMILY,
         },
     }
 }
@@ -405,6 +406,22 @@ fn a_template_with_resources_round_trips_through_the_settings_store() {
             narrower.settings.template_resources = u32::from(BOUND - 1);
             assert!(codec::decode(&row.key(), &bytes, &narrower, &*names).is_none(), "decoded resource bound");
         }
+    }
+}
+
+#[test]
+fn a_charters_tools_survive_the_store() {
+    let limits = codec::limits(&fixtures::CORE_LIMITS).expect("store limits");
+    for tools in [tasks::Tools(1_536), core::RunPolicy::EVERY_FAMILY] {
+        let mut charter = charter();
+        charter.policy.tools = tools;
+        let row = s::Record::Charter {
+            charter: 1,
+            revision: 2,
+            value: s::CharterVersion { charter: Some(Box::new(charter)) },
+        };
+        let bytes = codec::settings::encode(&row, &limits.settings, &[]).expect("charter encoding");
+        assert_eq!(codec::settings::decode(&row.key(), &bytes, &limits.settings, &[]), Ok(row));
     }
 }
 

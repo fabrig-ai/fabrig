@@ -98,7 +98,12 @@ acts in the client and setup worlds. Compatible retained edits remain
 untouched; a changed source requires explicit reset. The focused binary
 wiring proof is `suite::wiring::a_scratch_binary_answers_one_chat_and_drains`.
 The owned welcome walk combines its key and declared-program variants on
-one owned Forgejo. It keeps private fixtures and ordinary teardown.
+one owned Forgejo. It keeps private fixtures and ordinary teardown. Once
+it reaches Ready, a native client with the browser's client bounds
+(`../client/README.md`, 2) presses Open Default at the welcome's Ready
+and reaches the Chats page; a second such client, the reload, still
+receives its watches: Live, never Behind, the walk's forge on the Forges
+page and its key on the Accounts page.
 
 ### 2.1 System worlds
 

@@ -207,6 +207,7 @@ fn charter() -> jig_domain_core::Charter {
             shell: true,
             agents: false,
             call_timeout: Duration::from_secs(1),
+            tools: core::RunPolicy::EVERY_FAMILY,
         },
     }
 }
@@ -589,4 +590,31 @@ fn application_documents_reads_revisions_and_reviews_carry_metadata_only() {
         assert_eq!(application.edit, expected);
         assert_eq!(application.now.as_ref().unwrap().size, 0);
     }
+}
+
+#[test]
+fn a_charters_tools_round_trip_from_core_through_wire() {
+    let mut charter = charter();
+    charter.policy.tools = jig_domain_tasks::Tools(1536);
+    let source = s::Value::Charter(Box::new(charter));
+    let wire = translate::value(&source, &f::models(), &w::CEILINGS).unwrap();
+    let w::SettingValue::Charter(value) = &wire else { panic!("charter") };
+    assert_eq!(value.tools(), 1536);
+    let client =
+        jig_client_protocol_link::translate::settings::restore_setting_value(&wire, &f::client_limits()).unwrap();
+    let jig_client_domain::contract::SettingValue::Charter(value) = &client else { panic!("charter") };
+    assert_eq!(value.tools, 1536);
+    let wire = jig_client_protocol_link::translate::settings::wire_setting_value(&client, &w::CEILINGS).unwrap();
+    let row = w::SettingItem::new(
+        &w::CEILINGS,
+        w::SettingItemParts {
+            setting: translate::name(s::Setting::Charter(1), &w::CEILINGS).unwrap(),
+            edit: w::SettingEdit::Set(w::SettingSet::new(&w::CEILINGS, w::SettingSetParts { value: wire }).unwrap()),
+        },
+    )
+    .unwrap();
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure()));
+    row.encode(&mut writer).unwrap();
+    let items = translate::items(f::pieces(&[writer.finish()]), &f::models(), &w::CEILINGS).unwrap();
+    assert_eq!(items.as_ref(), &[s::Item { setting: s::Setting::Charter(1), edit: s::Edit::Set(source) }]);
 }

@@ -83,7 +83,7 @@ fn the_cluster_offers_every_stock_charter() {
     let mut engine = cluster_engine("cluster-creating");
     let frame = stock_frame(&engine);
     let expected: Vec<_> = engine.charters.iter().map(|charter| charter.number).collect();
-    assert_eq!(expected.len(), 4, "stock chat, producer and reviewers");
+    assert_eq!(expected.len(), 5, "stock chat, producer, configuring and reviewers");
     assert_eq!(offered(&frame), expected);
     let received = browser_frame(&frame, &jig_protocol_config::clients::models(&engine.llm));
     let words = jig_client::contract::Text::new(b"Hello".as_slice().into(), engine.limits.core.people.words)
@@ -93,7 +93,7 @@ fn the_cluster_offers_every_stock_charter() {
     assert_eq!(project, 1);
     assert_eq!(tasks.len(), 1);
     assert_eq!(tasks.get(0).expect("chat task").executor, jig_client::contract::Executor::Agent { charter: 1 });
-    engine.limits.core.documents.lines = 3;
+    engine.limits.core.documents.lines = 4;
     assert!(stock_frame(&engine).projects.get(0).expect("project").creating.is_none(), "overflow refuses whole");
 }
 
@@ -101,7 +101,7 @@ fn the_cluster_offers_every_stock_charter() {
 fn the_browser_receives_a_complete_stock_me_offer() {
     let mut engine = cluster_engine("browser-creating");
     // Isolate the receiver from the cluster's independently checked offer capacity.
-    engine.limits.core.documents.lines = 4;
+    engine.limits.core.documents.lines = 5;
     let frame = stock_frame(&engine);
     assert_eq!(offered(&frame).len(), engine.charters.len());
     let received = browser_frame(&frame, &jig_protocol_config::clients::models(&engine.llm));

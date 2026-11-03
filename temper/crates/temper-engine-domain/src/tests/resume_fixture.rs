@@ -287,6 +287,7 @@ pub fn config_with_project_room(seed: u64, projects: u32) -> engine::Config {
         requirements: Box::new([]),
     };
     engine::Config {
+        host_part: None,
         kinds_stock: crate::landing_stock(&[], &skein_lib::Map::with_capacity(0), 1, 4),
         period_span: Duration::from_secs(7 * 24 * 60 * 60),
         core: jig_domain_core::Config {
@@ -419,6 +420,7 @@ pub fn charter() -> engine::Charter {
             shell: true,
             agents: true,
             call_timeout: Duration::from_secs(10),
+            tools: engine::RunPolicy::EVERY_FAMILY,
         },
         hosts: fleet::Kinds::Workers,
         spend: 100,

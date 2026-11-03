@@ -73,7 +73,7 @@ fn forgejo_here_and_a_key_reach_a_first_chat_on_the_fake_box() {
         Act::Now(Call::new(&["chat", "show", "1", "--json"])),
         Act::Mark("first chat committed"),
     ]);
-    let seen = walk.run(acts);
+    let seen = walk.run_then(acts, super::open_default::open_and_reload);
     assert_adopted(seen.answers.get(2).expect("setup adoption"));
     super::assert_reply(&seen);
     walk.scratch.remove();
