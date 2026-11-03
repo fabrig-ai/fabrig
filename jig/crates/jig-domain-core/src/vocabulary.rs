@@ -259,6 +259,8 @@ pub enum Held {
     NotesDeleted { owner: Token, name: u64 },
     /// A public read's answer after durability (jig/docs/design/domain/people.md, 13.10).
     PublicRead { reply: ReplyTo, answer: crate::PublicAnswer },
+    /// Recheck a public read after preceding commits (jig/docs/design/domain/people.md, 13.10).
+    PublicWait { read: Token },
 }
 
 /// Why an unkeyed watch was not admitted (`client/domain/contract.md`, 7.2).
@@ -731,6 +733,8 @@ pub enum Event {
     PublicRead { reply: ReplyTo, read: crate::PublicRead },
     /// A connector's public document (jig/docs/design/domain/engine.md, 11).
     PublicAnswered { reply: ReplyTo, answer: Option<crate::PublicApplication> },
+    /// The root released this read after preceding commits became durable.
+    PublicDurable { read: Token },
 }
 /// Why a connector refuses a member's holdings (domain/tasks.md, 6.1 and 6.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -933,6 +937,7 @@ impl Event {
             | Self::Marked { .. }
             | Self::ReadLoaded { .. }
             | Self::PublicAnswered { .. }
+            | Self::PublicDurable { .. }
             | Self::ApplicationPart { .. }
             | Self::ApplicationFinished { .. }
             | Self::ProjectionSettled { .. }

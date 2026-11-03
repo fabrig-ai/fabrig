@@ -2,6 +2,7 @@
 
 pub(crate) mod index;
 mod line;
+pub(crate) mod reads;
 
 pub(crate) use index::{Index, follow, publish, restored};
 

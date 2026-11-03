@@ -87,6 +87,7 @@ fn has_watch_end(out: &[Request]) -> bool {
                 | Held::ReadLoad { .. }
                 | Held::Read { .. }
                 | Held::PublicRead { .. }
+                | Held::PublicWait { .. }
                 | Held::Applied { .. }
                 | Held::CarriedUnused { .. }
                 | Held::Delivery { .. }

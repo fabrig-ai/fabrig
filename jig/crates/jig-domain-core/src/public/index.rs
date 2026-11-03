@@ -163,6 +163,13 @@ impl Index {
         project.rebuild(core, *limits, row.project, self.depth);
     }
 
+    pub(crate) fn projects(&self) -> impl Iterator<Item = (u32, &Project)> {
+        self.projects.iter().filter_map(|(&number, project)| match project {
+            Some(project) => Some((number, project)),
+            None => None,
+        })
+    }
+
     #[cfg_attr(not(test), expect(dead_code, reason = "public reads consume the index in the public-reads-core task"))]
     pub(crate) fn project(&self, project: u32) -> Option<Entry<'_>> {
         match self.projects.get(&project) {

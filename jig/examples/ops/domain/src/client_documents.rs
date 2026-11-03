@@ -122,6 +122,7 @@ pub(crate) fn document(
                 | core::Held::ReadLoad { .. }
                 | core::Held::Read { .. }
                 | core::Held::PublicRead { .. }
+                | core::Held::PublicWait { .. }
                 | core::Held::Applied { .. }
                 | core::Held::Delivery { .. }
                 | core::Held::WatchEnded { .. }
