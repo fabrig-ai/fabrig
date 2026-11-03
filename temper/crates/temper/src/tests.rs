@@ -1,6 +1,7 @@
 mod box_kinds;
 mod commands;
 mod help;
+mod reference_settings;
 mod settings_fields;
 
 #[test]
