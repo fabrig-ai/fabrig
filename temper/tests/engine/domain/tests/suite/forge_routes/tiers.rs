@@ -583,6 +583,8 @@ fn observe_range(world: &mut World, task: u64) -> Vec<raw::Run> {
             }
         }
         if tier(world).record.sequence == 2 {
+            let words = execution_words(world, task).to_owned();
+            task_show::assert_words(world, task, &words);
             return runs;
         }
         tier_runs::tick(world);

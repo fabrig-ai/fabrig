@@ -1282,6 +1282,13 @@ may change with them.
 - **Program identifiers and manage URLs are whole or omitted.** If one
   cannot fit the text budget, JSON prints null and text omits its bytes;
   the document's cut flag is true. A displayed prefix is never a target.
+- **Plain `task show` fills its `asked:` words** with sequential specification
+  reads when the overview is cut, up to the smaller of the part and text
+  bounds and the result byte ceiling. Rendering shares the result's text
+  budget; any undisplayed source ends with a `task text TASK --field
+  specification --from OFFSET` continuation. A refused or nonadvancing
+  chunk stops retrieval and keeps a continuation. JSON keeps the bounded
+  overview and its digest; supplemental text never changes the digest.
 - **Long texts are paged, never whole by default:** `chat show`, `task
   activity`, `task turn` and `task text` take a cursor or an offset.
   `task text` reads the source rather than the overview's prefix. It prints

@@ -372,7 +372,7 @@ pub(crate) fn reads(
             vocabulary,
         );
     }
-    if reading.called.call.tool == 3 && reading.pages.len() == 1 && reading.documents.is_empty() {
+    if plain_task(reading) {
         return read(reading.pages.get(&1).expect("task read"), client, me, reading.called.json, limits, vocabulary);
     }
     document::print(document::Document::ReadSet(reading, party), reading.called.json, limits, vocabulary)
@@ -462,4 +462,11 @@ pub fn settings_refusal(why: &contract::Refusal, text: u32) -> Box<[u8]> {
     let mut out = Text::writing_exact(measure);
     acts::refusal(why, &book, &mut out);
     out.finish()
+}
+
+fn plain_task(reading: &crate::jig::runner::reads::Reading) -> bool {
+    reading.called.call.tool == 3
+        && reading.pages.len() == 1
+        && reading.documents.is_empty()
+        && reading.specification.is_none()
 }

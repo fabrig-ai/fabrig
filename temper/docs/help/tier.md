@@ -150,6 +150,9 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
   forge run number and URL. The judged run, failed-test reruns and
   bisection probes each name their own commit, branch and forge run.
   These words remain after completion, branch deletion and restart.
+  The words are read beyond the overview within ctl's output bounds;
+  if they exceed those bounds, `task show` prints a `task text TASK
+  --field specification --from OFFSET` call to continue.
 
 ## Limits
 
