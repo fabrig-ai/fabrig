@@ -274,17 +274,28 @@ impl Readiness {
 
     /// True once complete; false when the record still needs readiness.
     fn attempt(&mut self, index: u32, resumed: bool, waitable: bool) -> bool {
+        self.attempt_with(index, resumed, waitable, perform)
+    }
+
+    /// `attempt`, each call made through `call` (`perform` outside the tests).
+    fn attempt_with(
+        &mut self,
+        index: u32,
+        resumed: bool,
+        waitable: bool,
+        mut call: impl FnMut(&mut Op, bool, bool, &mut system::Listings) -> Result<Done, Error>,
+    ) -> bool {
         let record = self.slot(index).record.as_ref().expect("an in-flight record");
         let nonblocking = side(&record.kind).is_some_and(|(fd, _)| self.nonblocking.contains(&fd));
         let slot = self.slots.get_mut(usize::try_from(index).expect("u32 fits usize")).expect("an allocated slot");
         let kind = &mut slot.record.as_mut().expect("an in-flight record").kind;
         let mut again = 0;
         let result = loop {
-            let result = perform(kind, resumed, nonblocking, &mut self.listing);
-            // Open retries at openat2, before the descriptor check; repeating a
-            // successful create after that check failed could meet its own file.
-            // Linux releases a closed descriptor even when close reports EINTR.
-            if result == Err(Error::Other(libc::EINTR)) && !matches!(kind, Op::Open { .. } | Op::Close { .. }) {
+            let result = call(kind, resumed, nonblocking, &mut self.listing);
+            // Socket, Accept, Connect, Open and Close complete with their error;
+            // interrupted transfers are reissued (shell.md, 7.4). The other
+            // operations keep retrying while their rule is open (shell.md, 10).
+            if result == Err(Error::Other(libc::EINTR)) && retry_interrupted(kind) {
                 continue;
             }
             if matches!(kind, Op::Open { .. }) && result == Err(Error::Other(libc::EAGAIN)) && again < calls::AGAIN {
@@ -344,6 +355,38 @@ impl Readiness {
                 true
             }
         }
+    }
+}
+
+/// Whether to reissue an interrupted call (shell.md, 7.4 and 10).
+fn retry_interrupted(kind: &Op) -> bool {
+    match kind {
+        Op::Socket { .. } | Op::Accept { .. } | Op::Connect { .. } | Op::Open { .. } | Op::Close { .. } => false,
+        Op::PipeWrite { .. }
+        | Op::Write { .. }
+        | Op::Append { .. }
+        | Op::Send { .. }
+        | Op::PipeRead { .. }
+        | Op::Read { .. }
+        | Op::Recv { .. }
+        | Op::ReadSignal { .. }
+        | Op::Bind { .. }
+        | Op::Listen { .. }
+        | Op::Shutdown { .. }
+        | Op::Truncate { .. }
+        | Op::Sync { .. }
+        | Op::Stat { .. }
+        | Op::Rename { .. }
+        | Op::Remove { .. }
+        | Op::MakeDirectory { .. }
+        | Op::List { .. }
+        | Op::Lock { .. }
+        | Op::Wait { .. }
+        | Op::Spawn { .. }
+        | Op::Signal { .. }
+        | Op::Usage
+        | Op::Window { .. } => true,
+        Op::Cancel { .. } => unreachable!("cancel is settled against the table at submit"),
     }
 }
 
@@ -713,3 +756,6 @@ mod tests {
 
 #[cfg(test)]
 mod guards;
+
+#[cfg(test)]
+mod interrupted;

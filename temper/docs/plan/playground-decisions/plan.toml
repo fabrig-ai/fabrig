@@ -8,6 +8,7 @@ sources = ["temper/docs/plan/playground-decisions/inputs/request.md", "temper/do
 # task names them, and 3, a deleted project's conversations cancelled with their close's grace:
 # their designers state the mechanism first (notes/contracts.md, C1 and C2). 4 needs no change.
 
+retired = true
 [buffer]
 low = 1.0
 high = 2.0
