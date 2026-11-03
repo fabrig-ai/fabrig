@@ -4689,9 +4689,15 @@ name = "temper-init"
 version = "0.0.0"
 dependencies = [
  "serde_json",
+ "skein-fake-checkout",
+ "skein-fake-llm-domain",
  "skein-forge-setup",
  "skein-json",
  "skein-lib",
+ "skein-world",
+ "smith-agent-shell",
+ "smith-agent-world",
+ "smith-domain",
 ]
 
 [[package]]

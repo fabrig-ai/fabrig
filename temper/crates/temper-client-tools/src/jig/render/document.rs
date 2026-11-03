@@ -298,6 +298,7 @@ fn task_with_specification(
     super::task_source::summary(task, out);
     task_settings::text(task.settings.as_ref(), out);
     dependencies::text(task, me, book, out);
+    llm::text_choice(task.llm.as_ref(), out);
     llm::text_wait(task.run_wait, out);
     out.put(b"\nwaiting on: ");
     waiting(&task.waits_on, me, book, out);

@@ -132,8 +132,8 @@ fn check_set(
         }
         Some(Value::Application(_)) => unreachable!("an application's setting: apps-core"),
     };
-    if !authority::valid_rules(rules, &limits.authority) {
-        return Err(Failure { setting: Setting::Rules, fault: Fault::Rules });
+    if let Some(fault) = rules_fault(rules, &limits.authority, Fault::Rules) {
+        return Err(Failure { setting: Setting::Rules, fault });
     }
     if !authority_refs(current, defaults, items, &rules.ceiling, None, connectors, settings)
         || !requirement_refs(&rules.requirements, connectors)
@@ -199,7 +199,14 @@ pub(crate) fn shape(setting: Setting, value: &Value, limits: &Limits) -> Result<
             Setting::Policy(number) => number != 0,
             Setting::Charter(_) | Setting::Template(_) | Setting::Rules | Setting::Application { .. } => false,
         },
-        Value::Rules(value) => setting == Setting::Rules && authority::valid_rules(value, &limits.authority),
+        Value::Rules(value) => {
+            if setting == Setting::Rules
+                && let Some(fault) = rules_fault(value, &limits.authority, Fault::Shape)
+            {
+                return Err(Failure { setting, fault });
+            }
+            setting == Setting::Rules
+        }
         Value::Application(_) => super::application::is_application(setting),
     };
     if !valid {
@@ -235,9 +242,11 @@ pub(crate) fn restore_fit(setting: Setting, value: &Value, limits: &Limits) -> R
         }
         Value::Rules(value) => {
             let bound = &limits.authority;
+            if !delegation_fits(value, bound) {
+                return Err(Failure { setting, fault: Fault::Count });
+            }
             value.ceiling.grants.len() <= skein_lib::length::usize_of(bound.grants)
                 && value.ceiling.note_resources.len() <= skein_lib::length::usize_of(bound.grants)
-                && value.ceiling.delegation.kinds.len() <= skein_lib::length::usize_of(bound.executors)
                 && value.requirements.len() <= skein_lib::length::usize_of(bound.requirements)
                 && value.implies.len() <= bound.implications
                 && rules_patterns_fit(value, bound)
@@ -245,6 +254,20 @@ pub(crate) fn restore_fit(setting: Setting, value: &Value, limits: &Limits) -> R
         Value::Application(_) => super::application::is_application(setting),
     };
     if valid { Ok(()) } else { Err(Failure { setting, fault: Fault::Shape }) }
+}
+
+fn delegation_fits(rules: &authority::Rules, limits: &authority::Limits) -> bool {
+    rules.ceiling.delegation.kinds.len() <= skein_lib::length::usize_of(limits.executors)
+}
+
+fn rules_fault(rules: &authority::Rules, limits: &authority::Limits, malformed: Fault) -> Option<Fault> {
+    if !delegation_fits(rules, limits) {
+        Some(Fault::Count)
+    } else if !authority::valid_rules(rules, limits) {
+        Some(malformed)
+    } else {
+        None
+    }
 }
 
 fn documents_fit(charter: &crate::Charter, limits: &Limits) -> bool {

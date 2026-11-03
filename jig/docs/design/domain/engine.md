@@ -1962,8 +1962,10 @@ section 17; the records are `../protocol/store.md`, 4.4.
   the parser maps to the document's path when the document gave it,
   and its fault, one of a closed list a client words without checking
   anything itself: *shape* (a member out of its form or past its
-  bound), *count* (its kind past its limit), *reference* (it names a
-  charter, template, model or host the set does not offer), *rules* (a
+  bound, except a rules ceiling's delegation-kind count), *count* (its
+  kind past its limit, or a rules ceiling's delegation kinds past
+  `authority.executors`, also when restoring a stored value), *reference*
+  (it names a charter, template, model or host the set does not offer), *rules* (a
   policy above them), *budget* (a charter's below its reserve or short
   of one costliest completion), *grace* (a template's past the tasks
   child's span), *owner* (a policy's owner role unable to be a root's
