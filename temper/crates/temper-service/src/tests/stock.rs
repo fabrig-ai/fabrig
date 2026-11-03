@@ -290,6 +290,18 @@ fn a_stock_policy_past_its_limit_is_refused_while_naming_files() {
     );
 }
 #[test]
+fn the_chats_opening_sends_plain_edits_directly_to_change() {
+    let words = include_str!("../stock/chat.txt");
+    let opening = words.split("If your brief says you are an advisor").next().expect("opening");
+    assert!(
+        opening.contains(
+            "Repository changes must go through change; never implement them by writing your chat workspace."
+        )
+    );
+    assert!(opening.contains("then call change with their request and only what you read"));
+}
+
+#[test]
 fn the_chats_words_send_plain_changes_to_change() {
     let words = include_str!("../stock/chat.txt");
     assert!(words.starts_with("Help the person with their work.\n"));
