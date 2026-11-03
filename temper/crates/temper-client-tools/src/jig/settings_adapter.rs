@@ -948,6 +948,14 @@ pub fn client_task_flags(v: n::TaskFlags) -> c::TaskFlags {
 }
 pub fn form_template(v: &c::Template) -> n::Template {
     n::Template {
+        resources: {
+            let mut out = List::with_capacity(v.resources.len());
+            for resource in &v.resources {
+                out.push(n::TemplateSymbol { connector: resource.connector, symbol: resource.symbol })
+                    .expect("one value per input");
+            }
+            out
+        },
         number: v.number,
         name: form_document_text(&v.name),
         executor: form_template_executor(v.executor),
@@ -964,7 +972,14 @@ pub fn form_template(v: &c::Template) -> n::Template {
 }
 pub fn client_template(v: &n::Template) -> c::Template {
     c::Template {
-        resources: List::with_capacity(0),
+        resources: {
+            let mut out = List::with_capacity(v.resources.len());
+            for resource in &v.resources {
+                out.push(c::Symbol { connector: resource.connector, symbol: resource.symbol })
+                    .expect("one value per input");
+            }
+            out
+        },
         number: v.number,
         name: client_document_text(&v.name),
         executor: client_template_executor(v.executor),
