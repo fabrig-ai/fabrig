@@ -305,19 +305,22 @@ fn project_records_reach_people_with_their_whole_name_and_policy() {
 fn remove_project_decodes_to_the_people_ask() {
     let limits = f::wire();
     for project in [0, 3, u32::MAX] {
-        let value =
-            w::Ask::RemoveProject(w::RemoveProject::new(&limits, w::RemoveProjectParts { project }).expect("project"));
-        assert_eq!(ask(value.clone(), &f::models(), &limits), Ok(p::Ask::RemoveProject { project }));
-        let mut exchange = Exchange::new();
-        exchange.send(crate::Message::Request(f::keyed(w::Owner::Jig, 19, f::encode_ask(&value))));
-        exchange.authenticate();
-        let Some(Request::Core(event)) = exchange.out.pop() else { panic!("core request") };
-        let jig_domain_core::Event::People(p::Event::Ask { ask, key, sign_in, .. }) = *event else {
-            panic!("people ask")
-        };
-        assert_eq!(ask, p::Ask::RemoveProject { project });
-        assert_eq!(key, [5; 16]);
-        assert_eq!(sign_in, f::NUMBER);
-        assert!(exchange.out.is_empty());
+        for grace in [None, Some(skein_lib::Duration::from_millis(5000))] {
+            let value = w::Ask::RemoveProject(
+                w::RemoveProject::new(&limits, w::RemoveProjectParts { project, grace }).expect("project"),
+            );
+            assert_eq!(ask(value.clone(), &f::models(), &limits), Ok(p::Ask::RemoveProject { project, grace }));
+            let mut exchange = Exchange::new();
+            exchange.send(crate::Message::Request(f::keyed(w::Owner::Jig, 19, f::encode_ask(&value))));
+            exchange.authenticate();
+            let Some(Request::Core(event)) = exchange.out.pop() else { panic!("core request") };
+            let jig_domain_core::Event::People(p::Event::Ask { ask, key, sign_in, .. }) = *event else {
+                panic!("people ask")
+            };
+            assert_eq!(ask, p::Ask::RemoveProject { project, grace });
+            assert_eq!(key, [5; 16]);
+            assert_eq!(sign_in, f::NUMBER);
+            assert!(exchange.out.is_empty());
+        }
     }
 }

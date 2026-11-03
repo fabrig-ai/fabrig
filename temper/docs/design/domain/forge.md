@@ -440,10 +440,10 @@ temper-engine-domain-forge              the connector's top: resources and holds
     among them (`../protocol/forge.md`, 2.3);
   - *its records erased:* its writer and its outbox's entries in its
     decision; each of its repositories' rows once no kept task names
-    it, so that a chat that worked on one still reads its name until
-    the chat itself is erased; and its record once both acts below are
-    answered and its repositories' rows are gone, its number never given
-    again;
+    it, live or ended (below), so that a chat that worked on one still
+    reads its name until the chat itself is erased; and its record once
+    both acts below are answered and its repositories' rows are gone,
+    its number never given again;
   - *on the forge itself,* nothing is undone but what temper ran: an
     owned Forgejo goes with its directory; a managed Forgejo's bot and
     hooks stay, and the page says so; a GitHub App stays the person's,
@@ -463,14 +463,45 @@ temper-engine-domain-forge              the connector's top: resources and holds
   ids the setup host reconciles. Until its forge's removal erases its
   row (above), a lookup by its name or tag answers it, so that its
   tasks, chats and landings read as before.
+- **A task's names, kept until it is erased.** A kept task is one the
+  store keeps: live, or ended and not yet erased (jig's
+  `domain/tasks.md`, section 3). At a task's release (jig's
+  `domain/connectors.md`, 4.6) its watches, holds and subscriptions go,
+  and its `Names` row stays under its key as a kept row: the
+  repositories its names lie in, one repository's name each, in name
+  order (`../protocol/store.md`, section 2). A kept row watches nothing
+  (5.1) and is never named again: `Rename` changes a live task's names
+  alone, and `Names` for a task with a kept row changes nothing. A
+  removed forge's rule (above) reads the kept rows beside the live
+  tasks' names, holds and subscriptions, so that a removed forge's
+  repository's row stays while any kept task names it. jig tells the
+  connector when a task is erased, in the decision that erases it whole
+  (jig's `domain/connectors.md`, 3.4), and the root gives it
+  `Unnamed { task }`: the connector erases the task's kept row, or a row
+  still live with its watches, then each ended forge's repositories'
+  rows that no task names any more, and the forge's record once it is
+  whole.
+- **Their bound:** at most `forge.repositories` kept rows, beside the
+  `forge.tasks` live ones, so that a kept row never takes a live task's
+  room. A release that would keep one past it first erases, of the kept
+  rows and the released task's, the oldest each of whose repositories a
+  task numbered after it, live or kept, names too. There is always one:
+  a row no later one covers is the last to name one of its
+  repositories, and no more rows can be last than there are
+  repositories. So a removed forge's repository's row stays at least
+  while the last task that named it is kept.
 - **A project deleted** (jig's `domain/people.md`, 5.2): when the core
   asks the connector to release the project, the connector erases the
   rows of the repositories the project adopted, and the forge client's
   row of each, by a removed forge's rule (above), at once, since the
-  project's tasks that named them are erased by then; a row another
-  project adopted stays. temper's kinds' settings in the project's
-  scope go as `../protocol/configuration.md`, 13.2 says. It answers the
-  core once that has committed, and again, at once, when asked again.
+  project's tasks that named them are erased by then; it takes those
+  repositories out of every kept row, erasing a row left with none, so
+  that a kept row names only repositories with rows, and lets go of an
+  ended forge whose last repository went, as `Unnamed` does; a row
+  another project adopted stays. temper's kinds' settings in the
+  project's scope go as `../protocol/configuration.md`, 13.2 says. It
+  answers the core once that has committed, and again, at once, when
+  asked again.
 - **An adoption on a forge not connected** is refused as such, before
   any read, and the client offers Connect; the picker offers none of
   that forge's repositories (4.3). One on a connecting forge waits for
@@ -629,7 +660,9 @@ Held by skein's `forge-client.md`, section 3. temper's part:
 
 - **The live resources, and nothing else** (jig's
   `domain/connectors.md`, 3.4). A resource enters when a live task names
-  it, and leaves when none does. The top names them to the client.
+  it, and leaves when none does. The top names them to the client. A
+  task's names leave the working set at its release: what the
+  connector keeps of them for a kept task watches nothing (4.1).
 - **What temper watches:**
   - per repository: the landing branches' tips, and the CI on each tip;
   - per pull request temper owns that a live task names: its head and
@@ -1994,11 +2027,12 @@ higher priority.
 At a restart (jig's `domain/engine.md`, section 6; jig's
 `domain/connectors.md`, section 14) the connector is given its records
 from the store: the projects' repositories and what temper may do there,
-the live tasks' resources and holds, the changes' and issues' states, and
-its outbox's entries with their attempts. The deployment's id is given
-to the client first, as its namespace, before any restored entry or live
-resource; the client restores each forge's writer from its own record
-before any entry too (4.1). The client's part is skein's
+the live tasks' resources and holds, the kept tasks' names, the changes'
+and issues' states, and its outbox's entries with their attempts. The
+deployment's id is given to the client first, as its namespace, before
+any restored entry or live resource; the client restores each forge's
+writer from its own record before any entry too (4.1). The client's
+part is skein's
 `forge-client.md`, section 8: what it reads afresh before anything else
 steps, how it settles an outbox entry as its class says, and where its
 listings start. That fresh read, each adopted repository's, covers what
@@ -2010,7 +2044,11 @@ is connected as the routing tells the root (`../protocol/forge.md`, 2.1
 and 8.1); an ended forge stays ended, and each act its removal has not
 heard answered, its secrets erased or its group removed, is asked again
 (4.1); the adopted repositories of each managed or owned Forgejo are
-named to the routing for its reconcile (4.2). Until a forge connects,
+named to the routing for its reconcile (4.2). Each `Names` row of a task
+jig holds live is that task's names, and every other row a kept task's
+(4.1), whatever forges it names; a start with more live rows than
+`forge.tasks`, or more kept ones than `forge.repositories`, is refused
+as any record past the limits (`root.md`, 9.1). Until a forge connects,
 its reads and entries answer `NotConnected`, which narrows nothing
 (4.1), so the steps below run on each forge as it connects. Before its
 records, the connector loads its kinds' values from its family
@@ -2093,10 +2131,10 @@ watches retired and nothing read of it after. With the root's, in the
 engine's world (`tests/engine/domain`): a removal, and a project's
 deletion (jig's `domain/people.md`, 5.2), each cut by a crash after
 each kept act and resumed at the next start to the same end, a chat
-that worked on the forge reading its repository's name until the chat
-is erased; a removed forge's number never given again; and nothing of
-the forge or the project read afterwards but what 4.1 and jig's
-`domain/people.md`, 5.2 keep.
+that worked on the forge reading its repository's name, open or ended,
+until the chat is erased; a removed forge's number never given again;
+and nothing of the forge or the project read afterwards but what 4.1
+and jig's `domain/people.md`, 5.2 keep.
 
 Its referee, beyond jig's for every connector (jig's
 `domain/connectors.md`, section 15): nothing lands without every
@@ -2193,9 +2231,6 @@ whole.
   and echoes already on the forge are the old user's. Moving a
   deployment to another App or user is later; a forge goes whole, by
   its removal (4.1).
-- **A removed forge's history** (4.1): its repositories' names kept
-  while a task names them, or erased with the forge at once. Default:
-  kept.
 - **Which checks are CI on GitHub, without required checks:** temper's
   draft (`../draft/github.md`, section 9) takes the repository's Actions
   workflows' check runs there, so that another App's check run (a

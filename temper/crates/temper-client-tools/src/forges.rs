@@ -56,7 +56,7 @@ pub const SET_UP: Tool = Tool {
     ]],
     keyed: Keyed::Optional,
     area: 6,
-    notes: b"It waits up to 300 seconds while the box fetches, prepares and\nstarts Forgejo and its runner, then adopts the repository as the\nproject's home, landing on main, with CI. Past the wait, it prints\nthe forges and `not met: timeout` (exit 3): wait with forge list\n--until made:FORGE, then read it. `refused: not under the box` (exit\n2): the deployment is no box, and the refusal names the commands to\nrun instead.\n",
+    notes: b"It waits up to 300 seconds while the box fetches, prepares and\nstarts Forgejo and its runner, then adopts the repository as the\nproject's home, landing on main, with CI. Past the wait, it prints\nthe forges and `not met: timeout` (exit 3): wait with forge list\n--until made:FORGE, then read it. `refused: not under the box` (exit\n2): the deployment is no box; start temper with `temper box` to set\none up.\n",
 };
 pub const CONNECT: Tool = Tool {
     name: b"forge connect",
@@ -1021,7 +1021,7 @@ fn setup_text(forge: u16, answer: &SetUpAnswer, kept: bool, limits: &Limits, out
             out.put(words::set_up_refusal(*why));
             out.put(b"\n");
             if *why == SetUpRefusal::NotUnderTheBox && forge != 0 {
-                out.put(&words::set_up_commands(forge));
+                out.put(words::UNDER_THE_BOX);
                 out.put(b"\n");
             }
         }
@@ -1060,7 +1060,7 @@ fn setup_json(forge: u16, answer: &SetUpAnswer, kept: bool, out: &mut Encoder) {
             out.object_end();
             if *why == SetUpRefusal::NotUnderTheBox && forge != 0 {
                 out.key(b"next");
-                out.string(&words::set_up_commands(forge));
+                out.string(words::UNDER_THE_BOX);
             }
         }
         SetUpAnswer::Outcome(SetUpOutcome::Unknown) => {

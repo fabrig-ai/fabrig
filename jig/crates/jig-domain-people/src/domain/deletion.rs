@@ -1,13 +1,19 @@
 //! Project closure and retained deletion progress (jig/docs/design/domain/people.md, 5.2).
 use super::Domain;
-use crate::{Act, Ask, DeletionStep, Key, Outcome, Request, Stored};
-use skein_lib::{List, Queue};
+use crate::{Act, Ask, DeletionStep, KeptDeletion, Key, Outcome, Request, Stored};
+use skein_lib::{Duration, List, Queue};
 
-pub(super) fn keep(domain: &mut Domain, project: u32, step: Option<DeletionStep>, out: &mut Queue<Request>) {
+pub(super) fn keep(
+    domain: &mut Domain,
+    project: u32,
+    step: Option<DeletionStep>,
+    grace: Option<Duration>,
+    out: &mut Queue<Request>,
+) {
     match step {
         Some(step) => {
-            domain.deletions.insert(project, step).expect("deletions fit the project room");
-            out.push(Request::Save { record: Stored::Deletion { project, step } });
+            domain.deletions.insert(project, KeptDeletion { step, grace }).expect("deletions fit the project room");
+            out.push(Request::Save { record: Stored::Deletion { project, step, grace } });
         }
         None => {
             domain.deletions.remove(&project);
@@ -136,7 +142,7 @@ pub(super) fn made_project(outcome: &Outcome) -> Option<u32> {
 
 pub(super) fn act_project(act: &Act) -> Option<u32> {
     match act {
-        Act::Close { project, .. } | Act::Adopt { project, .. } | Act::RemoveProject { project } => Some(*project),
+        Act::Close { project, .. } | Act::Adopt { project, .. } | Act::RemoveProject { project, .. } => Some(*project),
         Act::MakeProject { .. } | Act::AddKey { .. } | Act::RemoveAccount { .. } => None,
     }
 }

@@ -296,9 +296,9 @@ pub(super) fn decode_escalation_decision(value: wire::EscalationDecision) -> dom
 #[expect(clippy::too_many_lines, reason = "one exhaustive arm translates each kind of keyed request")]
 pub fn encode_ask(value: &domain::Ask, limits: &wire::Limits) -> Result<wire::Ask, wire::Problem> {
     Ok(match value {
-        domain::Ask::RemoveProject { project } => wire::Ask::RemoveProject(wire::AskRemoveProject::new(
+        domain::Ask::RemoveProject { project, grace } => wire::Ask::RemoveProject(wire::AskRemoveProject::new(
             limits,
-            wire::AskRemoveProjectParts { project: *project },
+            wire::AskRemoveProjectParts { project: *project, grace: super::compound::encode_grace(*grace) },
         )?),
         domain::Ask::MoveToNewest { revision } => wire::Ask::MoveToNewest(wire::AskMoveToNewest::new(
             limits,
@@ -515,7 +515,10 @@ pub fn encode_ask(value: &domain::Ask, limits: &wire::Limits) -> Result<wire::As
 #[expect(clippy::too_many_lines, reason = "one exhaustive arm translates each kind of keyed request")]
 pub fn decode_ask(value: wire::Ask, limits: &wire::Limits) -> Result<domain::Ask, wire::Problem> {
     Ok(match value {
-        wire::Ask::RemoveProject(value) => domain::Ask::RemoveProject { project: value.project() },
+        wire::Ask::RemoveProject(value) => domain::Ask::RemoveProject {
+            project: value.project(),
+            grace: super::compound::decode_grace(*value.grace()),
+        },
         wire::Ask::MoveToNewest(value) => domain::Ask::MoveToNewest { revision: value.revision() },
         wire::Ask::ChangeSettings(value) => {
             domain::Ask::ChangeSettings { against: value.against(), digest: *value.digest() }

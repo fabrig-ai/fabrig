@@ -467,7 +467,7 @@ fn remove_project_without_its_grant_is_not_offered_and_saves_nothing() {
         ..Setup::default()
     });
     let before = world.commits.len();
-    act(&mut world, KEY, people::Act::RemoveProject { project: PROJECT });
+    act(&mut world, KEY, people::Act::RemoveProject { project: PROJECT, grace: None });
     assert_eq!(answered(&world), &people::Outcome::Refused(people::Refusal::NotOffered));
     assert_eq!(world.commits.len(), before);
     assert!(

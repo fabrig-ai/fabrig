@@ -208,7 +208,7 @@ not select accounts or infer provider membership. The public JSON refuses
   - the flags: *conversation*, *listed*, and the retention class,
     *kept* or *forgotten once read* (`../domain/tasks.md`, section 3);
   - the label: an opaque 32-bit number, which jig gives no meaning;
-  - the grace its helper cancels with, or none;
+  - the grace its helpers give a close or a deletion, or none;
   - the LLM choice: none, for the charter's default; or a main model
     with its effort, and the models its run's sub-agents may use, each
     with an effort (`../domain/tasks.md`, section 3). It names no
@@ -240,7 +240,7 @@ not select accounts or infer provider membership. The public JSON refuses
 | listed | no | yes |
 | retention | kept | kept |
 | label | 1 | 2 |
-| grace | a span, which the helper closing a chat cancels with | none |
+| grace | a span, which the helpers closing a chat or deleting a project give | none |
 | LLM choice | none: the charter's default | none: the charter's default |
 
 - **A project's policy may override,** per template number, the

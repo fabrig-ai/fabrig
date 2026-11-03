@@ -54,11 +54,3 @@
   - 13: participating objects beyond their news; a landing waiting for
     someone else's merge where temper may not merge (also 4.4 and 9).
   - 14: upstream contributions.
-- **Departs:** 4.1: a removed forge's repositories' rows are erased
-  once no live task, hold or subscription names them, a task's names
-  going at its release (`temper-engine-domain-forge/src/domain.rs`,
-  `erase_removed_repositories` and `unnamed`), not once no kept task
-  does, so a chat that worked on one reads its name until the chat
-  ends, not until it is erased, because the connector keeps names for
-  live tasks alone; which rule holds is the user's to decide (section
-  20).

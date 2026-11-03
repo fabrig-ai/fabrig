@@ -679,9 +679,10 @@ pub fn ask(value: &c::Ask, limits: &w::Limits) -> Result<w::Ask, w::Problem> {
             limits,
             w::AskSignOutParts { holder: account_holder(*holder), source: *source },
         )?),
-        c::Ask::RemoveProject { project } => {
-            w::Ask::RemoveProject(w::RemoveProject::new(limits, w::RemoveProjectParts { project: *project })?)
-        }
+        c::Ask::RemoveProject { project, grace } => w::Ask::RemoveProject(w::RemoveProject::new(
+            limits,
+            w::RemoveProjectParts { project: *project, grace: *grace },
+        )?),
         c::Ask::Rename { project, name } => w::Ask::Rename(w::Rename::new(
             limits,
             w::RenameParts { project: *project, name: bytes::copy_of(name.bytes()) },

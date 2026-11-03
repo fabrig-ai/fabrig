@@ -1452,17 +1452,21 @@ fn an_owing_reminder_survives_storage_with_small_caller_word_limits() {
 #[test]
 fn a_remove_project_act_round_trips() {
     use jig_domain_people::{Act, ActKey, Outcome, Refusal, Stored};
-    people_round_trip(Stored::Acted {
-        key: ActKey { connector: u16::MAX, key: [255; 16] },
-        act: Act::RemoveProject { project: u32::MAX },
-        outcome: Outcome::Refused(Refusal::Unknown),
-        at: skein_lib::Wall::from_nanos(u64::MAX),
-    });
+    for grace in [None, Some(skein_lib::Duration::from_millis(5000))] {
+        people_round_trip(Stored::Acted {
+            key: ActKey { connector: u16::MAX, key: [255; 16] },
+            act: Act::RemoveProject { project: u32::MAX, grace },
+            outcome: Outcome::Refused(Refusal::Unknown),
+            at: skein_lib::Wall::from_nanos(u64::MAX),
+        });
+    }
 }
 
 #[test]
 fn a_remove_project_ask_round_trips() {
-    ask_round_trip(jig_domain_people::Ask::RemoveProject { project: u32::MAX });
+    for grace in [None, Some(skein_lib::Duration::from_millis(5000))] {
+        ask_round_trip(jig_domain_people::Ask::RemoveProject { project: u32::MAX, grace });
+    }
 }
 
 #[test]
@@ -1476,7 +1480,9 @@ fn a_project_removed_outcome_round_trips() {
 fn a_deletion_row_round_trips_at_each_step() {
     use jig_domain_people::{DeletionStep, Stored};
     for step in [DeletionStep::Tasks, DeletionStep::Rows, DeletionStep::Release] {
-        people_round_trip(Stored::Deletion { project: u32::MAX, step });
+        for grace in [None, Some(skein_lib::Duration::from_millis(5000))] {
+            people_round_trip(Stored::Deletion { project: u32::MAX, step, grace });
+        }
     }
     let key = jig_domain_core::Key::People(jig_domain_people::Key::Deletion(u32::MAX));
     let bytes = crate::keys::encode(&key, fixtures::KEY_LIMIT).expect("deletion key fits");

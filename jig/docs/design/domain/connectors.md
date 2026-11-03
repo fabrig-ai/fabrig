@@ -71,7 +71,7 @@ application root            routes between the core and every connector
 
   | Down, root to connector | Up, connector to root |
   |---|---|
-  | a live task names these resources; it no longer does | each resource's role and kind of hold; unknown; not adopted |
+  | a live task names these resources; a task is erased, so nothing it named need be kept for it (3.4) | each resource's role and kind of hold; unknown; not adopted |
   | holds taken, handed down or released; a writer slot taken or freed | a pool's slots changed; a resource read afresh after a lost attempt |
   | describe this effect, from an agent's call or a step | its description: kind, resources, purpose, condition, form, price |
   | keep this effect under this key, or under this proposal; drop it | — (part of the decision) |
@@ -173,6 +173,18 @@ waits behind one that waits for it.
 The resources live tasks name are the connector's live resources: what
 its working set holds (section 5) and what it reads afresh at a restart.
 When no live task names a resource, it leaves the working set.
+
+- **What an ended task named** may outlive its release as a record of
+  the connector's own, which watches nothing, until the task is erased:
+  temper's forge keeps the repositories an ended chat worked on, so that
+  the chat reads their names while the store keeps it.
+- **The core tells every connector when a task is erased:** `Unname`,
+  in the decision that erases the task whole, whichever erases it: a
+  deleted project's erasure of its tasks (people.md, 5.2), the forget
+  of a task forgotten once read (people.md, section 6), or retention at
+  the deployment's horizon (`../protocol/store.md`, 11.1). From then on
+  nothing it named need be kept for it. A connector that keeps nothing
+  past a release takes `Unname` as nothing to do.
 
 ## 4. Effects and the outbox
 

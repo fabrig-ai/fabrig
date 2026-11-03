@@ -14,7 +14,3 @@
   `result_bytes` (`jig-protocol-store/src/codec/settings.rs`, `limits`), so a
   result's bytes past the schema's 512 fail at store open.
   12: the stories of these.
-- **Departs:** 7: a deleted project's conversations are cancelled with
-  no grace (`jig-domain-core/src/admission/deletion.rs`, `cancel`),
-  because `RemoveProject` names no grace and the engine reads no
-  template (`people.md`, 5.2, and its status).

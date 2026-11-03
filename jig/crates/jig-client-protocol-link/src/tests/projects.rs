@@ -97,14 +97,17 @@ fn neither_project_request_can_be_a_compound_operation() {
 #[test]
 fn remove_project_round_trips_through_the_link() {
     let limits = fixtures::limits();
-    let ask = c::Ask::RemoveProject { project: u32::MAX };
-    let record = asks::ask(&ask, limits.wire()).unwrap();
-    let w::Ask::RemoveProject(row) = &record else { panic!("remove_project wire record") };
-    assert_eq!(row.project(), u32::MAX);
-    let mut bytes = Writer::new(usize::try_from(record.measure()).unwrap());
-    record.encode(&mut bytes).unwrap();
-    let decoded = w::Ask::decode(limits.wire(), &mut Reader::new(&bytes.finish())).unwrap();
-    assert_eq!(store::restore_ask(decoded, &limits), Ok(ask));
+    for grace in [None, Some(skein_lib::Duration::from_millis(5000))] {
+        let ask = c::Ask::RemoveProject { project: u32::MAX, grace };
+        let record = asks::ask(&ask, limits.wire()).unwrap();
+        let w::Ask::RemoveProject(row) = &record else { panic!("remove_project wire record") };
+        assert_eq!(row.project(), u32::MAX);
+        assert_eq!(*row.grace(), grace);
+        let mut bytes = Writer::new(usize::try_from(record.measure()).unwrap());
+        record.encode(&mut bytes).unwrap();
+        let decoded = w::Ask::decode(limits.wire(), &mut Reader::new(&bytes.finish())).unwrap();
+        assert_eq!(store::restore_ask(decoded, &limits), Ok(ask));
+    }
     let outcome = w::DocumentOutcome::ProjectRemoved(
         w::OutcomeProjectRemoved::new(limits.wire(), w::OutcomeProjectRemovedParts { project: u32::MAX }).unwrap(),
     );
