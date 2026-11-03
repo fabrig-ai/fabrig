@@ -189,3 +189,24 @@ the bare `503` otherwise), and each service's existing refusal path sends that r
 of its literal, setting nothing of the mount's aside. 17.5 now says so. The acceptance's
 "Its room" bullet and "The services' refusal" in "Owns and may change" give the shape, the
 files (temper's `clients/bundle.rs` added, its busy path alone) and the tests.
+
+### 2026-11-03: Both services' servers add the page's policy (`Content-Security-Policy`, `Cross-Origin-Opener-Policy`, `Cross-Origin-Resource-Policy`, `Referrer-Policy`) to every answer, public ones among them: suppress it on public routes, or let the contract permit it? (public-reading-build/public-http-3, foreman public-reading-build/public-http/foreman-3)
+
+Permit it; neither server changes. `jig/docs/design/protocol/browser.md`, 12.1 makes the
+policy the origin's, "sent by its server on every answer", with `frame-ancestors 'none'` "on
+every answer of the origin's"; suppressing it on one route would carve a hole in that rule for
+no gain: the fields are fixed, carry nothing of the request and vary on nothing, so the public
+answer stays the same for every visitor, and `Cross-Origin-Resource-Policy: same-origin` only
+strengthens "no CORS". `jig/docs/design/protocol/client.md`, 17.5 now says so: its fixed
+headers are the engine end's, and the application's server adds its policy to them. So:
+
+- The mount's answers (the step tests) carry exactly the lists of "Its answers", as now.
+- Where an answer goes out through an application's server (`jig-test-service`'s or
+  temper's), its exact header list is the mount's, then the policy fields
+  `server/policy.rs::FIELDS` adds that are absent (nosniff is already there, so not twice),
+  then any `content-length` the response type adds (pre-approved). The world stories assert
+  that whole list, in order, taking the policy fields from `jig_test_service`'s `FIELDS` (or
+  the world's own copy of it), never a hand-written duplicate; if the engine-clients world
+  sends through the mount alone, its stories assert the mount's list.
+- Still forbidden on every answer, whoever adds it: `set-cookie`, `vary`, `etag`,
+  `last-modified`, `age`, any `access-control-` header, a stale directive.

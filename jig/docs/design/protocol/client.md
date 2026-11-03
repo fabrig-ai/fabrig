@@ -1307,7 +1307,12 @@ prefix; jig's test application mounts it at `/jig`.
   `X-Content-Type-Options: nosniff`, and none sets a cookie or carries
   `Vary`, `ETag`, `Last-Modified`, `Age` or any `Access-Control-`
   header. No answer allows stale serving: no `stale-while-revalidate`,
-  no `stale-if-error`.
+  no `stale-if-error`. The engine end gives these and no others; the
+  application's server adds its page's policy to every answer of its
+  origin's, these among them (`browser.md`, 12.1), as it would any
+  other: the same fields on every answer, varying on nothing the
+  request carries, and its `Cross-Origin-Resource-Policy: same-origin`
+  keeps another origin's page from loading the document at all.
 - **A room of its own in the engine end:** public calls in flight,
   apart from its other calls (17.4) and within the component's public
   room; a public call that finds none is `503` as busy, the call's
