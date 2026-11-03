@@ -13,6 +13,8 @@ use skein_ui::{
 pub enum Word {
     PlaygroundBanner,
     PlaygroundSetUp,
+    BannerSetUp,
+    Projects,
     PlaygroundLeaving,
     ForgeRemove,
     ForgeRemoveConfirm,
@@ -699,11 +701,14 @@ pub enum Word {
 pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The post-landing panel has ten phrases and eighteen segments.
 // The row's Replace adds seven phrases and nine segments (client/forge.md, 5.4).
-const PHRASES: u32 = 1219;
-const SEGMENTS: u32 = 2130;
-const ALL: [Word; 627] = [
+// The banner's setup link and project switcher add two literal phrases (5.1 and 5.6).
+const PHRASES: u32 = 1221;
+const SEGMENTS: u32 = 2132;
+const ALL: [Word; 629] = [
     Word::PlaygroundBanner,
     Word::PlaygroundSetUp,
+    Word::BannerSetUp,
+    Word::Projects,
     Word::PlaygroundLeaving,
     Word::ForgeRemove,
     Word::ForgeRemoveConfirm,
@@ -1336,6 +1341,8 @@ impl Word {
         let number = match self {
             Self::PlaygroundBanner => 2136,
             Self::PlaygroundSetUp => 2137,
+            Self::BannerSetUp => 2178,
+            Self::Projects => 2179,
             Self::PlaygroundLeaving => 2138,
             Self::ForgeRemove => 2139,
             Self::ForgeRemoveConfirm => 2140,
@@ -2231,6 +2238,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
     match word {
         Word::PlaygroundBanner => (&[b"This is the playground: a scripted model and in-memory forge. Use the wizard to"], &[]),
         Word::PlaygroundSetUp => (&[b"set up temper"], &[]),
+        Word::BannerSetUp => (&[b"Set up temper"], &[]),
+        Word::Projects => (&[b"Projects"], &[]),
         Word::PlaygroundLeaving => (&[b"Leaving the playground\xe2\x80\xa6"], &[]),
         Word::ForgeRemove => (&[b"Remove"], &[]),
         Word::ForgeRemoveConfirm => (&[b"Remove this forge?"], &[]),

@@ -319,6 +319,10 @@ pub const WELCOME_SETUP_DESCRIPTION: Style = Style { owner: owner(), token: 156 
 pub const WELCOME_TAGLINE: Style = Style { owner: owner(), token: 157 };
 /// The chats page's Project pane (temper/docs/design/client/README.md, 3.5).
 pub const SIDEBAR: Style = Style { owner: owner(), token: 158 };
+/// The banner's project switcher (temper/docs/design/client/README.md, 5.1).
+pub const PROJECTS: Style = Style { owner: owner(), token: 159 };
+/// The banner's way out of the playground (temper/docs/design/client/README.md, 5.6).
+pub const LEAVE_PLAYGROUND: Style = Style { owner: owner(), token: 160 };
 /// Native browser elements for the admin group and Model’s definition list.
 pub const ELEMENTS: &[(skein_ui::Owner, skein_ui::Role, Style, &str)] = &[
     (owner(), skein_ui::Role::Region, ADMIN_FIRST, "fieldset"),
@@ -491,6 +495,8 @@ pub const NAMES: Names<'static> = Names {
         b"temper-welcome-setup-description",
         b"temper-welcome-tagline",
         b"temper-sidebar",
+        b"temper-projects",
+        b"temper-leave-playground",
     ],
     regions: &[b"temper-link"],
 };
