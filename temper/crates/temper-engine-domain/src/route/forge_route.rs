@@ -2435,13 +2435,24 @@ fn chat_change(
     authority.budget.spend = spend;
     authority.notes = tasks::Scopes(0);
     authority.note_resources = Box::new([]);
-    let mut parameters = List::with_capacity(4);
+    let mut parameters = List::with_capacity(5);
     for parameter in change_parameters(domain.config.forge_connector, repository.provider, base) {
         parameters.push(parameter).expect("change repository and landing");
     }
     if let Some(branch) = branch {
         parameters.push(tasks::Parameter::Bytes { name: 3, value: branch }).expect("requester's branch");
         parameters.push(tasks::Parameter::Number { name: 11, value: 1 }).expect("requester's branch marker");
+        let mut title = change.words.as_ref();
+        for (index, byte) in change.words.iter().enumerate() {
+            if *byte == b'\n' {
+                let first = change.words.get(..index).expect("first line within words");
+                title = first.strip_suffix(b"\r").unwrap_or(first);
+                break;
+            }
+        }
+        if !title.is_empty() {
+            parameters.push(tasks::Parameter::Bytes { name: 10, value: title.into() }).expect("goal landing title");
+        }
     }
     Ok(super::Delegate {
         deadline: tasks::Deadline::Named,
