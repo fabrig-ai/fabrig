@@ -173,6 +173,10 @@ the shell: fetch, skein's HTTP client, a socket            skein's HTTP server, 
   silently (`../client/domain/client.md`, section 16). An authority
   carries no cut mark (`../client/domain/contract.md`, 5.3). The wire's
   generated worst cases price each document at the client's limits.
+  Connector hold accounts retain their independent 512-byte bound
+  (`../client/domain/contract.md`, 5.3), including when the client's general
+  text preview limit is smaller. The wire admits that room for document
+  texts; conversion still checks every other text against the client's limit.
 - **The schemas' ceilings bound the client's limits.** Each bounded
   field has a fixed ceiling in its schema, and the client's limits stay
   within them. A list the client bounds by its rows (a task's

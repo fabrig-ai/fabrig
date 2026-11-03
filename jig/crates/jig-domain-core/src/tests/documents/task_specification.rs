@@ -263,3 +263,27 @@ fn task_instruction_text_uses_the_tasks_charter_revision_without_an_override() {
     let page = task_text_from_row(&core, &limits, 1, row, TaskTextField::Instructions, 0).unwrap();
     assert_eq!(page.bytes.as_ref(), core.charter_at(charter, row.settings.task).unwrap().policy.instructions.as_ref());
 }
+
+#[test]
+fn connector_hold_accounts_keep_their_own_bound_in_task_and_chip() {
+    let (core, mut limits) = make_tree();
+    limits.documents.text_bytes = 128;
+    let mut row = core.tasks.task(2).unwrap().clone();
+    let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
+    for _ in 0..tasks::HOLD_ACCOUNT_BYTES {
+        words.push(b'x').unwrap();
+    }
+    let words = words.into_boxed();
+    row.revisions.hold = 1;
+    row.phase = tasks::Phase::Held {
+        was: tasks::Was::Waiting,
+        why: tasks::Hold::ResourceUnavailable,
+        source: Some(Box::new(tasks::HoldSource::Account { connector: 0, entry: None, words: words.clone() })),
+    };
+    let task = task_from_row(&core, &limits, 1, &row, Wall::EPOCH).unwrap();
+    for hold in [task.hold.unwrap(), task.chip.details.hold.unwrap()] {
+        let text = hold.words.unwrap();
+        assert_eq!(text.bytes, words);
+        assert!(!text.cut);
+    }
+}
