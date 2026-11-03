@@ -12,6 +12,7 @@ fn step(world: &mut Protocol, entry: u64, delegate: change::Status) -> change::D
     // Public admission recipe: protocol.rs's change_step / opened_change_in.
     world.take_seen();
     world.event(forge::Event::StepChange {
+        merge_job: false,
         task: 51,
         entry,
         heard: change::Heard {
@@ -178,6 +179,7 @@ fn scheduled_landing(world: &mut Protocol, first_entry: u64, seconds: u64) -> Ve
             due = false;
             until = None;
             world.event(forge::Event::StepChange {
+                merge_job: false,
                 task: 51,
                 entry,
                 heard: change::Heard {
@@ -304,6 +306,7 @@ fn pushed_change_requests_its_pull_once() {
     prepared(&mut world);
     world.take_seen();
     world.event(forge::Event::StepChange {
+        merge_job: false,
         task: 51,
         entry: 1,
         heard: change::Heard {

@@ -268,6 +268,7 @@ fn restart_forgets_ci_until_the_next_step_reads_it() {
     row.change.last_head = Some(head);
     driver.send(engine::Event::Forge(Box::new(forge::Event::Change { row })));
     driver.send(engine::Event::Forge(Box::new(forge::Event::StepChange {
+        merge_job: false,
         task: 51,
         entry: 990,
         heard: change::Heard {
@@ -301,6 +302,7 @@ fn restart_forgets_ci_until_the_next_step_reads_it() {
         "design domain/forge.md 8.8: a restarted panel must forget CI until a step reads it: {panel:?}"
     );
     restored.send(engine::Event::Forge(Box::new(forge::Event::StepChange {
+        merge_job: false,
         task: 51,
         entry: 991,
         heard: change::Heard {
