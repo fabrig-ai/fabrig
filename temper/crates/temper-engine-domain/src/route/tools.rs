@@ -100,6 +100,16 @@ pub(crate) fn relay_payload(
             match tool {
                 Tool::Settings { .. } => unreachable!("settings reads enter before replay"),
                 Tool::ProposeSettings { against, items, reason, kinds } => {
+                    if let Some(jig_domain_people::Refusal::Judged { why, .. }) =
+                        super::room_refusal(domain.host_part, &items)
+                    {
+                        super::host_route::rendered(
+                            domain,
+                            reply_to,
+                            core::SettledAnswer::Host { error: true, body: why },
+                        );
+                        return;
+                    }
                     domain.kinds = kinds;
                     domain.work.push(Work::Core(core::Event::NamedAction {
                         to: reply_to,

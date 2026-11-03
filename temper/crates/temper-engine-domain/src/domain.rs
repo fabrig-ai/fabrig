@@ -40,6 +40,7 @@ pub enum StartStop {
     reason = "the journal door, header, pending switch, sweep page and opened milestone are independent"
 )]
 pub struct Domain {
+    pub(crate) host_part: Option<crate::room::HostPart>,
     revision: u64,
     held_bytes: u64,
     /// Retired M1 reset marker; readiness never reads it. Keeping the marker
@@ -398,6 +399,7 @@ impl Domain {
         );
         assert!(configured.is_empty(), "configuration emits no request");
         Ok(Domain {
+            host_part: config.host_part,
             revision: 0,
             held_bytes: 0,
             calendar: calendar::Calendar::new(

@@ -697,8 +697,12 @@ fn checked_start_with(
         own,
         &mut problems,
     );
+    let mut host_part = None;
     if let Some(agent) = agent {
+        let measured = temper_engine_smith::room::host_part(&agent.run_limits);
         checks::agent(&parsed.engine, agent, &mut problems);
+        checks::room(&parsed.engine, measured, &mut problems);
+        host_part = Some(measured);
     }
     if !problems.is_empty() {
         return Err(problems);
@@ -730,6 +734,7 @@ fn checked_start_with(
         None
     };
     let mut engine = settings::Engine {
+        host_part,
         machine: parsed.application.machine,
         directories: directories.clone(),
         jig: parsed.engine,

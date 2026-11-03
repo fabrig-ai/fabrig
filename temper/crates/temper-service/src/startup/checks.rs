@@ -20,6 +20,15 @@ fn charter_path(engine: &config::Engine, index: usize) -> Path {
     name.put(number.as_bytes()).expect("setting number counted");
     Path::root().member(&name.finish())
 }
+/// Each default charter leaves its brief room before the core admits work
+/// (temper/docs/design/domain/agent.md, 4.3).
+pub fn room(engine: &config::Engine, host: domain::room::HostPart, problems: &mut Problems) {
+    for (index, charter) in engine.charters.iter().enumerate() {
+        if let Err(short) = host.check(charter.number, &charter.policy) {
+            problems.push(charter_path(engine, index), What::Room(short));
+        }
+    }
+}
 fn own(name: &[u8]) -> Path {
     Path::root().member(b"application").member(b"limits").member(b"overrides").member(name)
 }
@@ -650,6 +659,7 @@ pub fn root(
         core.kinds = crate::stock::kinds(limits, connector);
     }
     let config = domain::Config {
+        host_part: engine.host_part,
         kinds_stock: engine.kinds_stock.clone(),
         period_span: crate::stock::PERIOD_SPAN,
         playground: crate::system::playground_config(engine.demo.as_ref(), engine.limits.setup.deadline),

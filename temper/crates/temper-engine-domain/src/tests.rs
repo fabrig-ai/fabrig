@@ -829,3 +829,5 @@ fn a_dropped_transcript_crosses_the_journal() {
         Key::Core(core::Key::Core(core::CoreKey::Turn { task: 7, attempt: 1, turn: 1 }))
     );
 }
+
+mod room_checks;
