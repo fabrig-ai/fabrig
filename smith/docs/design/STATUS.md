@@ -1,6 +1,6 @@
 # Status
 
-2026-11-02. Where smith's code lags or departs from its design, from the
+2026-11-03. Where smith's code lags or departs from its design, from the
 status files below. Two threads cross several documents. Containment
 waits on skein's contained trees (skein's `io.md`, 6.2 to 6.4): the
 agent and its commands run as plain children in process groups, so the
@@ -10,7 +10,9 @@ view, the writable scope and `containment: trees` are not built
 `protocol/hosts.md`, `testing.md`). The withdrawn compatibility forms,
 the `codex` dialect, the account-id grant, an endpoint's `account` and
 its identity profile, are still accepted, since jig's worlds still write
-dialect 1, and their removal is not yet (`protocol/agent.md`,
+dialect 1, and smith's product still runs on them (its `codex` preset,
+the `anthropic` preset's identity and the ChatGPT account id); their
+removal is not yet (`shell.md`, `protocol/agent.md`,
 `protocol/channel.md`, `protocol/hosts.md`, `protocol/llm.md`). Beside
 them: live content in one process and a grant refreshed while a chat
 starts (`domain/host.md`), messages mid-work and threshold notes
