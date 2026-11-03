@@ -598,6 +598,11 @@ pub enum Outcome {
     },
     /// Final refusal, retained under the request key.
     Refused(/** Final refusal facts, retained under the request key. */ Refusal),
+    /// The project is public or private from this decision (jig/docs/design/domain/people.md, 13.2).
+    VisibilitySet {
+        project: u32,
+        public: bool,
+    },
 }
 
 /// Child-to-client answer routed by the parent; state-changing answers are withheld externally
@@ -1181,6 +1186,7 @@ impl Outcome {
             | Outcome::Renamed { .. }
             | Outcome::ProjectMade { .. }
             | Outcome::ProjectRemoved { .. }
+            | Outcome::VisibilitySet { .. }
             | Outcome::SettingsChanged { .. }
             | Outcome::MovedToNewest { .. }
             | Outcome::EscalationDecided { .. }

@@ -216,6 +216,9 @@ pub(super) fn encode_owner_outcome(
         jig_client::contract::DocumentOutcome::ProjectMade { project } => {
             encode_project(b"project_made", *project, out);
         }
+        jig_client::contract::DocumentOutcome::VisibilitySet { project, .. } => {
+            encode_project(b"visibility_set", *project, out);
+        }
         jig_client::contract::DocumentOutcome::Renamed { project } => encode_project(b"renamed", *project, out),
         jig_client::contract::DocumentOutcome::ProjectRemoved { project } => {
             encode_project(b"project_removed", *project, out);

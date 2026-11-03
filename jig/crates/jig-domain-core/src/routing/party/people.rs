@@ -224,6 +224,7 @@ pub(crate) fn tag_people_part(
                     | people::Outcome::Renamed { .. }
                     | people::Outcome::ProjectMade { .. }
                     | people::Outcome::ProjectRemoved { .. }
+                    | people::Outcome::VisibilitySet { .. }
                     | people::Outcome::SettingsChanged { .. }
                     | people::Outcome::MovedToNewest { .. }
                     | people::Outcome::PoolSet { .. }

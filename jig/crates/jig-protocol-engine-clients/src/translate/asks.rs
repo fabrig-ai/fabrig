@@ -129,6 +129,7 @@ fn decode(
         w::Ask::SignOut(value) => {
             p::Ask::AccountSignOut { holder: account_holder(value.holder()), source: value.source() }
         }
+        w::Ask::SetVisibility(value) => p::Ask::SetVisibility { project: value.project(), public: value.public() },
         w::Ask::RemoveProject(value) => p::Ask::RemoveProject { project: value.project(), grace: *value.grace() },
         w::Ask::Rename(value) => {
             let v = value.into_parts();

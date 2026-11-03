@@ -113,6 +113,9 @@ fn problem() -> w::Problem {
 #[expect(clippy::too_many_lines, reason = "one total match names every people outcome")]
 fn owner(value: &p::Outcome, limits: &w::Limits) -> Result<w::DocumentOutcome, w::Problem> {
     Ok(match value {
+        p::Outcome::VisibilitySet { project, public } => w::DocumentOutcome::VisibilitySet(
+            w::OutcomeVisibilitySet::new(limits, w::OutcomeVisibilitySetParts { project: *project, public: *public })?,
+        ),
         p::Outcome::ProjectRemoved { project } => w::DocumentOutcome::ProjectRemoved(w::OutcomeProjectRemoved::new(
             limits,
             w::OutcomeProjectRemovedParts { project: *project },

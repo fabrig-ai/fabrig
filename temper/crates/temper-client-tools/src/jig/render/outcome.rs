@@ -97,6 +97,7 @@ impl Operation {
                 c::Ask::ChangePolicy { .. } => (b"change-policy", None),
                 c::Ask::SetRoles { .. } => (b"set-roles", None),
                 c::Ask::MakeProject { .. } => (b"make-project", None),
+                c::Ask::SetVisibility { .. } => (b"set-visibility", None),
                 c::Ask::RemoveProject { .. } => (b"remove-project", None),
                 c::Ask::Rename { .. } => (b"rename", None),
                 c::Ask::MakeService { .. } => (b"make-service", None),
@@ -833,6 +834,7 @@ fn proposal_project(ask: &Ask) -> Option<u32> {
             | c::Ask::SetRoles { .. }
             | c::Ask::MakeService { .. }
             | c::Ask::RemoveProject { .. }
+            | c::Ask::SetVisibility { .. }
             | c::Ask::Rename { .. }
             | c::Ask::MakeProject { .. }
             | c::Ask::SetPool { .. }

@@ -492,6 +492,7 @@ fn a_set_up_carries_the_repository_name_regardless_of_the_current_project() {
             frame
                 .projects
                 .push(c::MeProject {
+                    public: None,
                     project,
                     name: jig_client::contract::DocumentText::complete(
                         jig_client::contract::Text::new(b"Project 1".as_slice().into(), 64).expect("project name"),

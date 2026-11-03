@@ -261,6 +261,7 @@ fn number(value: &DocumentOutcome, task: u64, place: u32) -> Option<u64> {
         | DocumentOutcome::AccountSignInStarted { .. }
         | DocumentOutcome::AccountSignedOut { .. }
         | DocumentOutcome::ProjectRemoved { .. }
+        | DocumentOutcome::VisibilitySet { .. }
         | DocumentOutcome::Renamed { .. }
         | DocumentOutcome::ProjectMade { .. }
         | DocumentOutcome::PoolSet { .. }

@@ -12,6 +12,7 @@ fn text(bytes: &[u8]) -> DocumentText {
 }
 fn member(role: HeldRole) -> MeProject {
     MeProject {
+        public: None,
         templates: List::with_capacity(0),
         creating: None,
         project: u32::MAX,

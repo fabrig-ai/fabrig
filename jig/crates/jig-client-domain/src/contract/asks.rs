@@ -240,6 +240,11 @@ pub enum Ask {
         holder: AskAccountHolder,
         source: u32,
     },
+    /// Set the project visibility (jig/docs/design/client/domain/contract.md, 3.2; jig/docs/design/domain/people.md, 13.2).
+    SetVisibility {
+        project: u32,
+        public: bool,
+    },
 }
 
 /// The holder of an LLM account sign-in.

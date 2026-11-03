@@ -108,6 +108,7 @@ pub(super) fn made_project(outcome: &Outcome) -> Option<u32> {
         | Outcome::PolicyChanged { .. }
         | Outcome::Renamed { .. }
         | Outcome::ProjectRemoved { .. }
+        | Outcome::VisibilitySet { .. }
         | Outcome::SettingsChanged { .. }
         | Outcome::MovedToNewest { .. }
         | Outcome::PoolSet { .. }

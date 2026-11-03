@@ -121,6 +121,7 @@ pub(super) fn frame(core: &Core, limits: &Limits, party: u64) -> Result<Frame, M
         }
         projects
             .push(FrameProjectRole {
+                public: false,
                 templates,
                 project: role.project,
                 role: role.role,

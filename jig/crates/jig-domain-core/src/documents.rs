@@ -304,6 +304,8 @@ pub struct FrameProjectRole {
     pub models: jig_domain_authority::Models,
     /// Configured templates with this project's policy overrides applied.
     pub templates: List<crate::Template>,
+    /// Whether the project is public (jig/docs/design/domain/people.md, 13.2).
+    pub public: bool,
 }
 
 /// Party identity, current roles, bounded counts and contract configuration.

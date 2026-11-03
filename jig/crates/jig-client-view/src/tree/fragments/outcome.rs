@@ -38,7 +38,7 @@ fn header(value: &DocumentOutcome) -> P {
         DocumentOutcome::Withdrawn { .. } => P::Withdrawn,
         DocumentOutcome::RolesSet { .. } => P::RolesSet,
         DocumentOutcome::ProjectRemoved { .. } => P::ProjectRemoved,
-        DocumentOutcome::Renamed { .. } => P::Renamed,
+        DocumentOutcome::VisibilitySet { .. } | DocumentOutcome::Renamed { .. } => P::Renamed,
         DocumentOutcome::ProjectMade { .. } => P::ProjectMade,
         DocumentOutcome::PolicyChanged { .. } => P::PolicyChanged,
         DocumentOutcome::AccountProgramDeclared { .. } => P::AccountProgramDeclared,
@@ -143,6 +143,7 @@ fn details(b: &mut Builder, value: &DocumentOutcome, words: &Words) {
         DocumentOutcome::NoteEdited { name } => number(b, words, P::Note, *name),
         DocumentOutcome::ServiceMade { person } => number(b, words, P::Person, *person),
         DocumentOutcome::Adopted { project }
+        | DocumentOutcome::VisibilitySet { project, .. }
         | DocumentOutcome::ProjectRemoved { project }
         | DocumentOutcome::Renamed { project }
         | DocumentOutcome::ProjectMade { project }

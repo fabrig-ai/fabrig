@@ -2164,6 +2164,7 @@ fn base_frame(person: &str, project: &str) -> c::Me {
     let mut projects = List::with_capacity(1);
     projects
         .push(c::MeProject {
+            public: None,
             project: PROJECT,
             name: doc(project),
             role: c::HeldRole::Owner,

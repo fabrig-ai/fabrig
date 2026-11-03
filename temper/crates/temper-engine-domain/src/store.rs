@@ -996,6 +996,7 @@ pub(crate) fn program_answer_bytes(outcome: &jig_domain_people::Outcome) -> Opti
         | Outcome::CompoundRefused { .. }
         | Outcome::ProjectMade { .. }
         | Outcome::ProjectRemoved { .. }
+        | Outcome::VisibilitySet { .. }
         | Outcome::Renamed { .. }
         | Outcome::Created { .. }
         | Outcome::MarkedSeen { .. }

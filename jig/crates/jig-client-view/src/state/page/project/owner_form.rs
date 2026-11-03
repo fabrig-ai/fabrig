@@ -47,6 +47,7 @@ pub fn supported(doc: &Project, ask: &Ask) -> bool {
         | Ask::AccountChange { .. }
         | Ask::SignOut { .. }
         | Ask::RemoveProject { .. }
+        | Ask::SetVisibility { .. }
         | Ask::Rename { .. }
         | Ask::ChangeSettings(_)
         | Ask::MoveToNewest(_)
@@ -236,6 +237,7 @@ pub fn baseline(doc: &Project, ask: &Ask) -> Option<Ask> {
         | Ask::AccountChange { .. }
         | Ask::SignOut { .. }
         | Ask::RemoveProject { .. }
+        | Ask::SetVisibility { .. }
         | Ask::Rename { .. }
         | Ask::ChangeSettings(_)
         | Ask::MoveToNewest(_)
@@ -287,6 +289,7 @@ pub(crate) fn review(domain: &mut Ui, ask: Box<Ask>) {
             | Ask::AccountChange { .. }
             | Ask::SignOut { .. }
             | Ask::RemoveProject { .. }
+            | Ask::SetVisibility { .. }
             | Ask::Rename { .. }
             | Ask::ChangeSettings(_)
             | Ask::MoveToNewest(_)
@@ -344,6 +347,7 @@ pub(crate) fn send(domain: &mut Ui, out: &mut Queue<Request>) {
         | Ask::AccountChange { .. }
         | Ask::SignOut { .. }
         | Ask::RemoveProject { .. }
+        | Ask::SetVisibility { .. }
         | Ask::Rename { .. }
         | Ask::ChangeSettings(_)
         | Ask::MoveToNewest(_)

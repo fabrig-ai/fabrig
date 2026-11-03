@@ -171,6 +171,7 @@ pub(crate) fn permanent(outcome: &Outcome) -> Option<CapacityCause> {
         | Outcome::Renamed { .. }
         | Outcome::ProjectMade { .. }
         | Outcome::ProjectRemoved { .. }
+        | Outcome::VisibilitySet { .. }
         | Outcome::SettingsChanged { .. }
         | Outcome::MovedToNewest { .. }
         | Outcome::PoolSet { .. }

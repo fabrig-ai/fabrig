@@ -279,6 +279,7 @@ pub(super) fn outcome(key: &Key, limits: &Limits, outcome: &Outcome) -> Result<(
         | Outcome::Renamed { .. }
         | Outcome::ProjectMade { .. }
         | Outcome::ProjectRemoved { .. }
+        | Outcome::VisibilitySet { .. }
         | Outcome::SettingsChanged { .. }
         | Outcome::MovedToNewest { .. }
         | Outcome::PoolSet { .. }

@@ -679,6 +679,10 @@ pub fn ask(value: &c::Ask, limits: &w::Limits) -> Result<w::Ask, w::Problem> {
             limits,
             w::AskSignOutParts { holder: account_holder(*holder), source: *source },
         )?),
+        c::Ask::SetVisibility { project, public } => w::Ask::SetVisibility(w::SetVisibility::new(
+            limits,
+            w::SetVisibilityParts { project: *project, public: *public },
+        )?),
         c::Ask::RemoveProject { project, grace } => w::Ask::RemoveProject(w::RemoveProject::new(
             limits,
             w::RemoveProjectParts { project: *project, grace: *grace },

@@ -411,6 +411,7 @@ pub fn me() -> contract::Me {
     }
     me.projects
         .push(contract::MeProject {
+            public: None,
             models: List::with_capacity(0),
             project: PROJECT,
             name: contract::DocumentText::complete(contract::Text::new(Box::from(*b"Tally"), 32).unwrap()),
