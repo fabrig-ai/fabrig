@@ -73,25 +73,14 @@ fn run(
     if !account.fields.contains_key("source") {
         return Err(format!("unknown account {name}"));
     }
-    let codex = settings.values.iter().any(|(key, value)| {
-        key.starts_with("endpoints.")
-            && key.ends_with(".account")
-            && value.value.as_str() == Some(name)
-            && key.strip_suffix("account").is_some_and(|prefix| {
-                ["dialect", "preset"].iter().any(|field| {
-                    settings.values.get(&format!("{prefix}{field}")).and_then(|value| value.value.as_str())
-                        == Some("codex")
-                })
-            })
-    });
     let directory = Directory::of(&settings);
-    let source = super::source(&account, codex, directory.as_ref()).map_err(|credential| credential.line(name))?;
+    let source = super::source(&account, directory.as_ref()).map_err(|credential| credential.line(name))?;
     if logout {
-        return super::logout::run(&account, &source, &settings, codex, clock, environment);
+        return super::logout::run(&account, &source, &settings, clock, environment);
     }
     match source {
         Source::SignIn { file, .. } => {
-            provider::run(&account, &file, &settings, codex, provider::Operation::SignIn, clock, environment)
+            provider::run(&account, &file, &settings, provider::Operation::SignIn, clock, environment)
         }
         Source::Key { file } => key::run(name, &file),
         Source::Program { .. } => program::run(name, &settings, false, clock, environment),
@@ -99,14 +88,14 @@ fn run(
             eprintln!("account {name}: needs nothing");
             Ok(LoginOutcome::Usable)
         }
-        Source::Env { variable, codex } => {
+        Source::Env { variable } => {
             let wall = clock.now().wall;
             let borrowed = environment
                 .variables
                 .iter()
                 .find(|(key, _)| key.as_os_str() == std::ffi::OsStr::new(&variable))
-                .and_then(|(_, value)| super::env_record(value.as_encoded_bytes(), codex, wall));
-            let credential = super::env_state(&variable, borrowed.as_ref(), codex, wall);
+                .and_then(|(_, value)| super::env_record(value.as_encoded_bytes(), wall));
+            let credential = super::env_state(&variable, borrowed.as_ref());
             eprintln!("{}", credential.line(name));
             Ok(if credential.usable() { LoginOutcome::Usable } else { LoginOutcome::Unavailable })
         }

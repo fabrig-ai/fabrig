@@ -2,7 +2,7 @@ use super::*;
 use crate::CredentialRequest;
 use skein_lib::Duration;
 
-fn limits() -> oauth::Limits {
+pub(crate) fn limits() -> oauth::Limits {
     oauth::Limits {
         accounts: 2,
         file_stall: Duration::from_secs(30),
@@ -82,10 +82,9 @@ fn borrowed() -> Borrowed {
             metadata: None,
             expires_at: Wall::from_nanos(120_000_000_000),
         },
-        account_id: b"acc".as_slice().into(),
     }
 }
-fn source() -> Source {
+pub(crate) fn source() -> Source {
     Source::Env { account: 7, borrowed: borrowed() }
 }
 fn accounts(source: Source) -> Accounts {
@@ -117,46 +116,19 @@ fn ready(
     assert_eq!(form, expected);
     assert_eq!(grant.name, smith_domain::GrantName { account: 7, generation });
     assert_eq!(grant.valid, Duration::from_secs(seconds));
+    assert!(!grant.renewable);
     assert!(token.as_ref() == value, "the lent access value matches the fixture");
 }
 
 #[test]
 fn an_env_account_lends_the_handed_in_value_without_a_file_operation() {
-    for (identifier, form) in [
-        (b"acc".as_slice(), smith_host_domain::Form::Withdrawn),
-        (b"".as_slice(), smith_host_domain::Form::Credential(smith_host_domain::Scheme::Bearer)),
-    ] {
-        let mut borrowed = borrowed();
-        borrowed.account_id = Box::from(identifier);
-        let mut owner = accounts(Source::Env { account: 7, borrowed });
-        let mut out = Queue::uncapped();
-        assert!(owner.request(7));
-        settle(&mut owner, Time::ZERO, &mut out);
-        ready(&mut out, 1, 20, b"header.eyJleHAiOjEyMH0.signature", form);
-        assert!(owner.submissions().is_empty());
-    }
-}
-
-#[test]
-fn an_env_grant_announces_expiry() {
     let mut owner = accounts(source());
     let mut out = Queue::uncapped();
     assert!(owner.request(7));
     settle(&mut owner, Time::ZERO, &mut out);
-    ready(&mut out, 1, 20, b"header.eyJleHAiOjEyMH0.signature", smith_host_domain::Form::Withdrawn);
-    owner.advance(Time::from_nanos(10_000_000_000), wall(), &mut out);
-    let Some(CredentialRequest::Notice { account: 7, reason: local::CredentialFailure::BorrowedExpiring { .. } }) =
-        out.pop()
-    else {
-        panic!("expiry lead notice");
-    };
-    owner.advance(Time::from_nanos(20_000_000_000), wall(), &mut out);
-    let Some(CredentialRequest::Failed {
-        event: local::Event::NoCredential { account: 7, reason: local::CredentialFailure::Missing },
-    }) = out.pop()
-    else {
-        panic!("expiry ends the held grant");
-    };
+    ready(&mut out, 1, 20, b"header.eyJleHAiOjEyMH0.signature",
+        smith_host_domain::Form::Credential(smith_host_domain::Scheme::Key));
+    assert!(owner.submissions().is_empty());
 }
 
 #[test]
@@ -165,7 +137,7 @@ fn releasing_a_finished_runs_grants_prevents_a_later_grant_failure() {
     let mut out = Queue::uncapped();
     assert!(owner.request(7));
     settle(&mut owner, Time::ZERO, &mut out);
-    ready(&mut out, 1, 20, b"header.eyJleHAiOjEyMH0.signature", smith_host_domain::Form::Withdrawn);
+    ready(&mut out, 1, 20, b"header.eyJleHAiOjEyMH0.signature", smith_host_domain::Form::Credential(smith_host_domain::Scheme::Key));
     owner.release_all(Time::ZERO, wall());
     owner.advance(Time::from_nanos(20_000_000_000), wall(), &mut out);
     assert!(out.is_empty());
@@ -218,4 +190,17 @@ fn invalid_limits_are_refused() {
         assert!(!accounts_valid(&invalid), "invalid: {invalid:?}");
         assert_eq!(validate_sources(&List::with_capacity(0), &invalid), Err(crate::Error::Memory));
     }
+}
+
+#[test]
+fn an_env_value_has_no_announced_expiry() {
+    let mut borrowed = borrowed();
+    borrowed.record.expires_at = Wall::from_nanos(u64::MAX);
+    let mut owner = accounts(Source::Env { account: 7, borrowed });
+    let mut out = Queue::uncapped();
+    assert!(owner.request(7));
+    settle(&mut owner, Time::ZERO, &mut out);
+    assert!(matches!(out.pop(), Some(CredentialRequest::Ready { .. })));
+    owner.advance(Time::from_nanos(30_000_000_000), wall(), &mut out);
+    assert!(out.is_empty(), "the env key announces no expiry");
 }

@@ -1,6 +1,6 @@
 //! Account sources and private keeper routing (protocol/hosts.md, 5.4).
 //! The driver owns records, exchanges and holds. This owner keeps source
-//! descriptors, account identifiers, socket and private file routing. Env
+//! descriptors, socket and private file routing. Env
 //! records are handed in once; refresh bytes stay in private sign-in records.
 use alloc::boxed::Box;
 use skein_io::{self as io, file, file_layer, kernel};
@@ -26,7 +26,7 @@ const ROOT_FILE: u64 = 1 << 63;
 #[expect(missing_debug_implementations, reason = "environment records contain credentials")]
 #[expect(clippy::large_enum_variant, reason = "source registrations move once through the account adoption boundary")]
 pub enum Source {
-    /// A variable read once by the shell, with its endpoint's account identifier.
+    /// A key read once by the shell from a variable.
     Env { account: u32, borrowed: Borrowed },
     /// An issuer account whose private record and exchanges the driver owns.
     SignIn {
@@ -37,23 +37,13 @@ pub enum Source {
         file: Box<[u8]>,
         registration: skein_oauth::Registration,
         endpoint: oauth::Endpoint,
-        account_id: Box<[u8]>,
         interactive: bool,
     },
-}
-
-impl Source {
-    /// Maximum account identifier accepted by this driver's handed-in boundary.
-    #[must_use]
-    pub const fn account_id_bytes() -> usize {
-        1024
-    }
 }
 
 struct Account {
     number: u32,
     source: Origin,
-    identifier: Box<[u8]>,
     generation: u64,
     expires: Wall,
     startup: bool,
@@ -69,7 +59,6 @@ enum Origin {
     },
     SignIn {
         root: Option<Token>,
-        claim: Option<skein_oauth::ClaimSelector>,
         interactive: bool,
         sign_in: bool,
         signing: bool,
@@ -144,7 +133,6 @@ fn validate_sources(sources: &List<Source>, limits: &oauth::Limits) -> Result<Op
         match source {
             Source::Env { borrowed, .. }
                 if borrowed.record.refresh_token.is_some()
-                    || borrowed.account_id.len() > 1024
                     || skein_oauth::encode_record(&borrowed.record, &limits.client.document).is_err() =>
             {
                 return Err(crate::Error::Process);
@@ -179,24 +167,12 @@ fn configured_driver(
     }
 }
 
-fn account_form(identifier: &[u8]) -> smith_host_domain::Form {
-    if identifier.is_empty() {
-        smith_host_domain::Form::Credential(smith_host_domain::Scheme::Bearer)
-    } else {
-        smith_host_domain::Form::Withdrawn
-    }
-}
-
-fn claim_identifier(account: &mut Account, token: &[u8], wall: Wall, limits: &skein_oauth::Limits) -> bool {
-    match &account.source {
-        Origin::SignIn { claim: Some(claim), .. } => match skein_oauth::read_claims(token, claim, wall, limits) {
-            Ok(claims) if claims.metadata.len() <= Source::account_id_bytes() => {
-                account.identifier = claims.metadata;
-                true
-            }
-            Ok(_) | Err(_) => false,
-        },
-        Origin::SignIn { claim: None, .. } | Origin::Env { .. } => true,
+impl Account {
+    fn scheme(&self) -> smith_host_domain::Scheme {
+        match self.source {
+            Origin::Env { .. } => smith_host_domain::Scheme::Key,
+            Origin::SignIn { .. } => smith_host_domain::Scheme::Bearer,
+        }
     }
 }
 
@@ -287,10 +263,6 @@ impl Accounts {
 
     fn hand_in(&mut self, index: u32, mut borrowed: Borrowed, now: Time, wall: Wall) -> bool {
         let account = self.entries.get_mut(index).expect("account index");
-        if borrowed.account_id.len() > 1024 {
-            self.fail(index, local::CredentialFailure::Missing);
-            return false;
-        }
         let Some(generation) = account.generation.checked_add(1) else {
             self.fail(index, local::CredentialFailure::Missing);
             return false;
@@ -299,7 +271,6 @@ impl Accounts {
         borrowed.record.generation = generation;
         account.generation = generation;
         account.expires = borrowed.record.expires_at;
-        account.identifier = borrowed.account_id;
         self.down(oauth::Request::HandIn { account: index, record: borrowed.record }, now, wall);
         self.out.is_empty()
     }
@@ -481,12 +452,12 @@ impl Accounts {
         self.events.is_empty()
     }
 
-    /// Directory identifiers accompany grants without putting them in traces.
+    /// The source determines the credential scheme for each driver account.
     #[must_use]
-    pub fn account_id(&self, number: u32) -> Option<&[u8]> {
+    pub fn scheme(&self, number: u32) -> Option<smith_host_domain::Scheme> {
         for account in &self.entries {
             if account.number == number {
-                return Some(&account.identifier);
+                return Some(account.scheme());
             }
         }
         None
@@ -544,7 +515,7 @@ impl Accounts {
         self.lock_progress(now);
         self.private_files(now, wall);
         self.socket_down(now, wall);
-        self.emit(now, wall, out);
+        self.emit(now, out);
         if self.closed() && self.closing.is_some() {
             self.closing = None;
             out.push(CredentialRequest::Closed);
@@ -553,4 +524,4 @@ impl Accounts {
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

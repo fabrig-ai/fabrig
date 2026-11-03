@@ -121,7 +121,6 @@ pub(crate) fn build(selection: Selection, document: bool) -> Result<(Resolved, B
         if account.source() == AccountSource::SignIn {
             crate::credentials::registration(
                 account,
-                crate::credentials::product_codex(&resolved, account.number),
                 &resolved.settings.workspace,
             )?;
         }

@@ -7,7 +7,7 @@ use skein_lib::{Duration, List, Map, Wall};
 use smith_local_service as service;
 use smith_protocol_translate::GrantValue;
 
-/// Names used by the shell when its driver reports a env token's expiry.
+/// Names used by the shell for its selected credential sources.
 #[derive(Debug)]
 pub struct Location {
     pub account: u32,
@@ -22,24 +22,6 @@ pub struct Prepared {
     /// Last lent generation (zero at startup) and value per shell-owned account.
     pub lendable: Map<u32, (u64, GrantValue)>,
     pub limits: skein_oauth_accounts::Limits,
-}
-
-pub(crate) fn codex(resolved: &Resolved, account: u32) -> bool {
-    for model in &resolved.local.models {
-        if model.account == Some(account) {
-            let endpoint = resolved
-                .agent
-                .service
-                .llm_endpoints
-                .resolve(smith_domain::llm::Endpoint(model.endpoint.0))
-                .expect("resolved endpoint");
-            match endpoint.provider {
-                skein_llm::Provider::OpenAiCodex => return true,
-                skein_llm::Provider::OpenAi | skein_llm::Provider::Anthropic => {}
-            }
-        }
-    }
-    false
 }
 
 /// Inspect selected accounts, report startup warnings once, and open private roots.
@@ -62,7 +44,7 @@ pub fn prepare(
     let mut lendable = Map::with_capacity(count);
     let directory = super::Directory::of(&resolved.settings);
     for account in &resolved.accounts {
-        let descriptor = source(account, codex(resolved, account.number), directory.as_ref())
+        let descriptor = source(account, directory.as_ref())
             .map_err(|credential| unavailable(&account.name, credential))?;
         locations
             .push(Location { account: account.number, name: account.name.clone(), source: descriptor.clone() })
@@ -89,9 +71,9 @@ pub fn prepare(
             Source::Env { .. } | Source::SignIn { .. } => {}
         }
         let handed = match descriptor {
-            Source::Env { variable, codex } => {
-                let borrowed = environment(&variable, codex, wall);
-                let credential = super::env_state(&variable, borrowed.as_ref(), codex, wall);
+            Source::Env { variable } => {
+                let borrowed = environment(&variable, wall);
+                let credential = super::env_state(&variable, borrowed.as_ref());
                 if !credential.usable() {
                     return Err(unavailable(&account.name, credential));
                 }
@@ -107,7 +89,7 @@ pub fn prepare(
                 super::sign_in::private_source(
                     account.number,
                     &file,
-                    super::registration(account, codex(resolved, account.number), &resolved.settings.workspace)
+                    super::registration(account, &resolved.settings.workspace)
                         .map_err(Refusal::Configuration)?,
                     interactive,
                 )
