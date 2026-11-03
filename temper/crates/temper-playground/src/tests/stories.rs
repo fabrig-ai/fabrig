@@ -77,9 +77,9 @@ fn harness_chats_keep_the_result_ending() {
 
 #[test]
 fn story_as_stock_authority_funds_its_scripted_delegate() {
-    let document: Value = serde_json::from_slice(A.deployment).expect("story deployment");
-    let engine = documents::settings::configuration(&document);
-    let defaults = temper_service::stock::defaults(&engine.llm);
+    // The tree includes the chat and its immediate delegate as well as the delegate's descendants.
+    const CREATORS: u64 = 2;
+    let (engine, defaults) = story_a_stock();
     let llm: Value = serde_json::from_slice(A.llm).expect("story LLM");
     let authority = &llm["asked"][0]["turns"][0]["lines"][1]["arguments"]["batch"][0]["authority"];
     let spend = authority["budget"]["spend"].as_u64().expect("delegate spend");
@@ -87,8 +87,6 @@ fn story_as_stock_authority_funds_its_scripted_delegate() {
     assert!(playground_owner(&defaults).budget.spend >= spend, "the chat funds its delegate");
     assert!(policy.ceiling.budget.spend >= spend, "the policy funds the delegate");
     assert!(defaults.rules.ceiling.budget.spend >= spend, "the rules fund the delegate");
-    // The tree includes the chat and its immediate delegate as well as the delegate's descendants.
-    const CREATORS: u64 = 2;
     assert!(
         u64::from(engine.limits.core.tasks.tree_tasks)
             >= authority["delegation"]["tasks"].as_u64().expect("delegate task count") + CREATORS,
@@ -98,9 +96,7 @@ fn story_as_stock_authority_funds_its_scripted_delegate() {
 
 #[test]
 fn story_as_stock_runs_fit_the_hosted_agents_spend_bound() {
-    let document: Value = serde_json::from_slice(A.deployment).expect("story deployment");
-    let engine = documents::settings::configuration(&document);
-    let defaults = temper_service::stock::defaults(&engine.llm);
+    let (_, defaults) = story_a_stock();
     assert!(documents::agent().bounds.spend >= defaults.rules.maximum_run_spend);
 }
 
@@ -399,6 +395,13 @@ fn opening(words: &str, mode: run::Mode) -> run::Opening {
     let Some(run::Request::Open { opening, .. }) = out.pop() else { panic!("main opening: {out:?}") };
     assert!(out.is_empty());
     opening
+}
+
+fn story_a_stock() -> (jig_protocol_config::Engine, jig_domain_core::settings::Defaults) {
+    let document: Value = serde_json::from_slice(A.deployment).expect("story deployment");
+    let engine = documents::settings::configuration(&document);
+    let defaults = temper_service::stock::defaults(&engine.llm);
+    (engine, defaults)
 }
 
 fn configured_deployments() -> [(jig_protocol_config::Engine, jig_domain_core::settings::Defaults); 2] {
