@@ -709,3 +709,19 @@ traits, takes no closures, and uses no `dyn` (programming-model.md,
 ## 13. Not built yet
 
 What of this document is not built is in [`lib.status.md`](lib.status.md).
+
+## 14. Open questions
+
+- **A peer's bytes in a carrier's `Debug`:** a record holding a
+  `Secret` prints without it (section 6), and a secret's bytes are
+  their owner's to keep out of `Debug` (io.md, 5.3); but the generic
+  carriers derive `Debug` over the bytes they carry: skein-channel's
+  `Frame` and `Event::Body`, skein-http's `Header`, a server's call and
+  a client's written head, io's stream, pipe and kernel bytes, kv's
+  values. Two carry a credential on a known path: a channel frame,
+  smith's grant refresh with its bearer or key; a header, an
+  `Authorization`, `Cookie` or `Set-Cookie` value. Either a rule here
+  that a record carrying a peer's bytes prints them as their length, and
+  a header its name and its value's length, carried out crate by crate,
+  the channel's frame and HTTP's header first; or the carriers stay as
+  they are, each owner keeping its records out of `Debug`.
