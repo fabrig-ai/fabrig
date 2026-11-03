@@ -83,6 +83,7 @@ fn append_models(current: &super::Current, settings: &Settings, charters: &mut L
         let number = match setting {
             super::Setting::Charter(number) => *number,
             super::Setting::Template(_) | super::Setting::Policy(_) | super::Setting::Rules => continue,
+            jig_domain_people::Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
         };
         let charter = current.charter(number).expect("offered charter");
         let (_, origin) = current.lookup(*setting);

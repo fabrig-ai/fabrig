@@ -27,6 +27,7 @@ fn charter(current: &mut Current) -> &mut Charter {
     match &mut current.defaults.get_mut(&Setting::Charter(1)).unwrap().value {
         Value::Charter(value) => value,
         Value::Template(_) | Value::Policy(_) | Value::Rules(_) => unreachable!(),
+        Value::Application(_) => unreachable!("an application's setting: apps-core"),
     }
 }
 #[test]
@@ -122,6 +123,7 @@ fn fault_case(fault: Fault) {
                 .unwrap();
             Setting::Policy(1)
         }
+        Fault::Judged => unreachable!("an application's setting: apps-core"),
     };
     assert_eq!(
         check(&current, &config.settings, &config.connectors, &limits),
@@ -265,6 +267,7 @@ fn decision_edits_apply_each_kind_over_defaults_and_additions() {
             }
             Value::Policy(value) => Some((Setting::Policy(2), Value::Policy(value))),
             Value::Rules(_) => None,
+            Value::Application(_) => unreachable!("an application's setting: apps-core"),
         };
         if let Some((setting, value)) = added {
             for erase in [Edit::Removed, Edit::Reset] {

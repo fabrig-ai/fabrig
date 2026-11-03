@@ -1,5 +1,6 @@
 //! Deployment settings, defaults and revisions (domain/engine.md, section 17).
 
+pub mod application;
 mod change;
 pub mod charters;
 pub(crate) mod check;
@@ -17,18 +18,21 @@ use jig_domain_authority as authority;
 use jig_domain_people as people;
 use skein_lib::{List, Map, Wall};
 
+pub use application::{Kind, KindScope};
 pub(crate) use change::{apply, change_shape, changes_current};
 pub use check::{check, check_change};
 pub use held::{Held, VersionKey};
 pub use restart::revision_writes;
 
 pub use people::{Running, Setting, SettingFault as Fault};
+/// A party's setting value (jig/docs/design/domain/engine.md, 17.1, 17.5).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Value {
     Charter(Box<Charter>),
     Template(Box<Template>),
     Policy(Box<ConfiguredPolicy>),
     Rules(Box<authority::Rules>),
+    Application(Box<[u8]>),
 }
 #[derive(Debug)]
 pub struct Defaults {
@@ -227,6 +231,7 @@ impl Current {
         match self.value(Setting::Charter(number)) {
             Some(Value::Charter(value)) => Some(value),
             Some(Value::Template(_) | Value::Policy(_) | Value::Rules(_)) | None => None,
+            Some(Value::Application(_)) => unreachable!("an application's setting: apps-core"),
         }
     }
     #[must_use]
@@ -234,6 +239,7 @@ impl Current {
         match self.value(Setting::Template(number)) {
             Some(Value::Template(value)) => Some(value),
             Some(Value::Charter(_) | Value::Policy(_) | Value::Rules(_)) | None => None,
+            Some(Value::Application(_)) => unreachable!("an application's setting: apps-core"),
         }
     }
     #[must_use]
@@ -241,6 +247,7 @@ impl Current {
         match self.value(Setting::Policy(number)) {
             Some(Value::Policy(value)) => Some(value),
             Some(Value::Charter(_) | Value::Template(_) | Value::Rules(_)) | None => None,
+            Some(Value::Application(_)) => unreachable!("an application's setting: apps-core"),
         }
     }
     #[must_use]
@@ -250,6 +257,7 @@ impl Current {
             Some(Value::Charter(_) | Value::Template(_) | Value::Policy(_)) | None => {
                 unreachable!("checked settings always offer rules")
             }
+            Some(Value::Application(_)) => unreachable!("an application's setting: apps-core"),
         }
     }
     #[must_use]
@@ -372,6 +380,7 @@ impl Current {
         match &mut self.defaults.get_mut(&Setting::Charter(number)).expect("fixture default charter").value {
             Value::Charter(value) => value,
             Value::Template(_) | Value::Policy(_) | Value::Rules(_) => unreachable!("fixture charter value"),
+            Value::Application(_) => unreachable!("an application's setting: apps-core"),
         }
     }
     pub(crate) fn test_templates(&mut self, templates: Box<[Template]>) {
@@ -380,6 +389,7 @@ impl Current {
             match setting {
                 Setting::Template(_) => old.push(setting).expect("fixture defaults"),
                 Setting::Charter(_) | Setting::Policy(_) | Setting::Rules => {}
+                Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
             }
         }
         for setting in old.into_boxed() {
@@ -429,6 +439,7 @@ pub fn proposal_heads(items: &[Item]) -> Box<[jig_domain_tasks::SettingHead]> {
                     Setting::Template(n) => jig_domain_tasks::Setting::Template(n),
                     Setting::Policy(n) => jig_domain_tasks::Setting::Policy(n),
                     Setting::Rules => jig_domain_tasks::Setting::Rules,
+                    Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
                 },
                 edit: match item.edit {
                     Edit::Set(_) => jig_domain_tasks::SettingEdit::Set,

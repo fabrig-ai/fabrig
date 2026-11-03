@@ -879,6 +879,14 @@ fn effect_ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: connecto
             | connector::Ask::Adopt { .. }
             | connector::Ask::Restore { .. },
         ) => {}
+        (
+            Some(Connector::Infrastructure | Connector::Observability) | None,
+            connector::Ask::JudgeSettings { .. }
+            | connector::Ask::KeepSettings { .. }
+            | connector::Ask::KeepProposalSettings { .. }
+            | connector::Ask::DropProposalSettings { .. }
+            | connector::Ask::SaveSettingsDefaults { .. },
+        ) => unreachable!("no application kind is declared"),
     }
 }
 
@@ -1070,6 +1078,7 @@ pub(crate) fn connector_out(
                     core::settings::Setting::Charter(_)
                     | core::settings::Setting::Policy(_)
                     | core::settings::Setting::Rules => continue,
+                    core::settings::Setting::Application { .. } => unreachable!("an application's setting: apps-wire"),
                 };
                 let template = domain.core.current.template(number).expect("offered template");
                 if template.flags.conversation {

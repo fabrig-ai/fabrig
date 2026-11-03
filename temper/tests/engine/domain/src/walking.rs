@@ -313,6 +313,7 @@ pub fn config(seed: u64) -> engine::Config {
                 identity: people::IdentityKey { provider: 0, subject: 7_u64.to_be_bytes().into() },
             }]),
             grants: Box::new([]),
+            kinds: Box::default(),
             defaults: jig_domain_core::settings::Defaults {
                 rules,
                 charters: Box::new([charter()]),

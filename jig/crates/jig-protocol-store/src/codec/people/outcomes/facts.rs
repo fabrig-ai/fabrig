@@ -835,6 +835,7 @@ fn encode_setting(value: domain::Setting, limits: &wire::Limits) -> Result<wire:
             wire::Setting::Policy(wire::SettingNumber::new(limits, wire::SettingNumberParts { number })?)
         }
         domain::Setting::Rules => wire::Setting::Rules,
+        domain::Setting::Application { .. } => unreachable!("an application's setting: apps-store"),
     })
 }
 fn encode_setting_fault(value: domain::SettingFault) -> wire::SettingFault {
@@ -846,6 +847,7 @@ fn encode_setting_fault(value: domain::SettingFault) -> wire::SettingFault {
         domain::SettingFault::Budget => wire::SettingFault::Budget,
         domain::SettingFault::Grace => wire::SettingFault::Grace,
         domain::SettingFault::Owner => wire::SettingFault::Owner,
+        domain::SettingFault::Judged => unreachable!("an application's setting: apps-store"),
     }
 }
 

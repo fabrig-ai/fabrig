@@ -422,6 +422,7 @@ fn encode_setting(value: p::Setting, limits: &w::Limits) -> Result<w::Setting, w
             w::Setting::Policy(w::SettingNumber::new(limits, w::SettingNumberParts { number })?)
         }
         p::Setting::Rules => w::Setting::Rules,
+        p::Setting::Application { .. } => unreachable!("an application's setting: apps-wire"),
     })
 }
 fn encode_setting_fault(value: p::SettingFault) -> w::SettingFault {
@@ -433,6 +434,7 @@ fn encode_setting_fault(value: p::SettingFault) -> w::SettingFault {
         p::SettingFault::Budget => w::SettingFault::Budget,
         p::SettingFault::Grace => w::SettingFault::Grace,
         p::SettingFault::Owner => w::SettingFault::Owner,
+        p::SettingFault::Judged => unreachable!("an application's setting: apps-wire"),
     }
 }
 

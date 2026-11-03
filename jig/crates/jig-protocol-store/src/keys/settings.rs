@@ -56,6 +56,7 @@ fn setting_write(writer: &mut KeyWriter, setting: Setting) {
         Setting::Template(n) => (1, n),
         Setting::Policy(n) => (2, n),
         Setting::Rules => (3, 0),
+        Setting::Application { .. } => unreachable!("an application's setting: apps-store"),
     };
     writer.tag(kind);
     writer.u64(0);

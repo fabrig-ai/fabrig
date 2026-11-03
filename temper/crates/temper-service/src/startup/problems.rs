@@ -335,6 +335,7 @@ fn stock(floor: crate::stock::Floor, writer: &mut Writer, length: &mut usize, me
             Setting::Template(number) => (b"template ", Some(number)),
             Setting::Policy(number) => (b"policy ", Some(number)),
             Setting::Rules => (b"rules", None),
+            Setting::Application { .. } => unreachable!("an application's setting: apps-wire"),
         };
         put(writer, length, measuring, kind);
         if let Some(number) = number {
