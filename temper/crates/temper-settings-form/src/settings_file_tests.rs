@@ -300,7 +300,7 @@ fn template(bytes: &[u8], limits: &Limits) -> c::Template {
 fn a_settings_file_template_names_its_resources() {
     let limits = Limits::standard();
     let value = template(&template_file(br#", "resources":[{"connector":1,"symbol":1}]"#), &limits);
-    assert_eq!(value.resources.as_slice(), &[c::TemplateSymbol { connector: 1, symbol: 1 }]);
+    assert_eq!(value.resources.as_slice(), &[c::Symbol { connector: 1, symbol: 1 }]);
     let wire = crate::wire::settings_wire_template(&value, &limits.settings).unwrap();
     assert_eq!(wire.resources().get(0).unwrap().connector(), 1);
     assert_eq!(wire.resources().get(0).unwrap().symbol(), 1);

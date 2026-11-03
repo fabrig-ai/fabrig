@@ -501,7 +501,7 @@ pub(crate) fn documents_me_template(value: &w::Template, limits: &Limits) -> Res
     let mut resources = List::with_capacity(value.resources().len());
     for resource in value.resources() {
         resources
-            .push(c::TemplateSymbol { connector: resource.connector(), symbol: resource.symbol() })
+            .push(c::Symbol { connector: resource.connector(), symbol: resource.symbol() })
             .expect("same capacity");
     }
     Ok(c::Template {
