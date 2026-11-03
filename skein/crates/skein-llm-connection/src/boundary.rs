@@ -46,7 +46,13 @@ impl Measures {
 
 /// A request from the owning protocol layer.
 #[expect(missing_debug_implementations, reason = "Start holds a bearer credential")]
-#[expect(clippy::large_enum_variant, reason = "the owning protocol layer moves each Start directly into the component")]
+#[cfg_attr(
+    not(target_arch = "wasm32"),
+    expect(
+        clippy::large_enum_variant,
+        reason = "the owning protocol layer moves each Start directly into the component"
+    )
+)]
 pub enum Request {
     /// Admit a call or refuse it at once; accepted calls have one terminal.
     /// The caller explicitly selects reasoning dropping for this model/call.
