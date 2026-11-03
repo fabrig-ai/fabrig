@@ -250,7 +250,7 @@ impl Judge {
         }
         self.stage += 1;
     }
-    fn keys(&mut self, proxy: &Proxy, visitor: &mut Visitor) {
+    fn keys(&mut self, proxy: &mut Proxy, visitor: &mut Visitor) {
         match self.stage {
             0 => self.send(visitor, b"one.example", PATH),
             1 | 3 => {
@@ -284,6 +284,17 @@ impl Judge {
                     proxy.counts.upstream_public, 6,
                     "raw paths are neither decoded nor normalized into the canonical cached path"
                 );
+                proxy.config.upstreams[0].names.retain(|name| name.as_ref() != b"one.example");
+                proxy.config.upstreams[1].names.push(b"one.example".as_slice().into());
+                self.send(visitor, b"one.example", PATH);
+            }
+            10 => {
+                assert_eq!(
+                    self.last(visitor).body.as_ref(),
+                    b"second",
+                    "the same Host and path on another upstream cannot reuse its old copy"
+                );
+                assert_eq!(proxy.counts.upstream_public, 7);
                 self.stage = usize::MAX;
                 return;
             }
@@ -292,12 +303,13 @@ impl Judge {
         }
         self.stage += 1;
     }
-    fn host(&mut self, proxy: &Proxy, visitor: &mut Visitor) {
+    fn host(&mut self, proxy: &mut Proxy, visitor: &mut Visitor) {
         match self.stage {
             0 => self.send(visitor, b"one.example", PATH),
             1 => {
                 assert_eq!(self.last(visitor).status, 200);
-                self.send(visitor, b"refused.example", PATH);
+                proxy.config.upstreams[0].names.retain(|name| name.as_ref() != b"one.example");
+                self.send(visitor, b"one.example", PATH);
             }
             2 => {
                 assert_eq!(self.last(visitor).status, 421);
