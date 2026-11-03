@@ -140,7 +140,7 @@ the restart in the middle of a run came from finding-135's workaround, not from 
 - Commit: 677e405ca112365653d5d504de259b00fd11a0d4
 - Area: chat / charter 1
 - Severity: medium
-- Sightings: finding-156
+- Sightings: finding-156, finding-162
 
 ### Reproduction
 
@@ -322,7 +322,7 @@ panel wording only; the change reads cleared and its result names the clearing r
 - Commit: 599f62cb9d3e5acb689afc5e8176b06f8660c9f7
 - Area: QA budget recipe / chat reservation
 - Severity: low
-- Sightings: (none)
+- Sightings: finding-161
 
 ### Reproduction
 
@@ -339,3 +339,55 @@ The kit's budget holds M8's three chats, or the recipe sizes the pool for them (
 ### Triage reason
 
 the refusal named the shortfall, the walker raised the period and pool through settings apply and project fund and the third chat started within a minute; rm8 passed; sizing qa.md's budget recipe for three concurrent chats is a QA-recipe improvement, not a step the story could not do
+
+## finding-163: ctl shows no sub-agent session: a child's effective choice (main's high, not the offered medium), its times and spend are visible only in host ps
+
+- Rung: rm4
+- Walk: walk-61
+- Backend: claude-forgejo
+- Commit: 95d170a5aaa3e073c84bcd06b07ae8c24d04c381
+- Area: ctl task show / task turn / chat show
+- Severity: low
+- Sightings: (none)
+
+### Reproduction
+
+Fresh box per rung M4 steps 1-4 (Claude Code, claude-sonnet-5-5, owned Forgejo, forge setup --playground). temper ctl DIR chat start --project 1 - --model claude-sonnet-5-5 --effort high --sub-agent claude-sonnet-5-5:medium --key K < request (the brief's words). temper ctl DIR task show 1 --until replied; task show 1; task turn 1 1.1 --json; chat show 1. Meanwhile sample ps for claude -p on the host.
+
+### Expected
+
+Each sub-agent's session read through ctl: its model and effort as run, its start and end, its turns and spend.
+
+### Seen
+
+task show prints the offered choices (main model: claude-sonnet-5-5/high, sub-agent model: claude-sonnet-5-5/medium) and each sub_agent call a 'Child usage: used 2 turns and 11 seconds; stopped for budget: no' line; no child model/effort, times or spend. The parent's calls named no llm, so the children ran --effort high (host ps), which ctl does not say. Backlog per the user's narrowing of finding-145.
+
+### Triage reason
+
+rm4 passed without it; the user narrowed finding-145 (same ask, not among the open findings, so no merge) to backlog, and the children running at main's effort when the parent's sub_agent call names no llm is what `help chat start` says ("omitted, it uses main's model and effort"); ctl naming each child's choice, times and spend waits in temper's backlog
+
+## finding-165: task list --project 1 --ended prints no rows while tasks 1 and 2 show Ended (off the happy path, backlog)
+
+- Rung: rm4
+- Walk: walk-61
+- Backend: claude-forgejo
+- Commit: 95d170a5aaa3e073c84bcd06b07ae8c24d04c381
+- Area: ctl task list
+- Severity: low
+- Sightings: (none)
+
+### Reproduction
+
+Fresh box per rung M4 steps 1-5 (two chats, tasks 1 and 2). temper ctl DIR chat close 1 --reason 'walk done' --key c1; chat close 2 --reason 'walk done' --key c2; task show 1 (Ended); task list --project 1 --ended; again 40 s later; task list --project 1 --ended --json.
+
+### Expected
+
+The ended page lists task 1 and task 2, a line each.
+
+### Seen
+
+'no more' with no rows; --json has ended.rows [] at 13:07:29Z and 13:08:08Z, while task show 1 and 2 print 'task N · chat · Ended'.
+
+### Triage reason
+
+the rung's story never lists ended tasks (it reads the chat's task by `task show`, which said Ended); a wrong `task list --ended` page is off the happy path and waits in temper's backlog

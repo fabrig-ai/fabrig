@@ -213,6 +213,7 @@ fn a_mismatched_ended_subject_cannot_route_an_act() {
 // Verbs without a retiring subject still send the same key and request, and
 // print its first refusal in both formats. This also guards future table rows.
 const DIRECT_CALLS: &[&[&str]] = &[
+    super::goal_template::START,
     f::CREATE_CHAT_CALL,
     f::ADOPTION,
     &["account", "connect", "9", "--key", "connect"],
@@ -241,10 +242,13 @@ const DIRECT_CALLS: &[&[&str]] = &[
     &["forge", "setup", "--key", "new-setup"],
     &["forge", "connect", "github", "--key", "new-github"],
 ];
+fn direct_me(argv: &[&str]) -> c::Me {
+    if argv.first() == Some(&"goal") { super::goal_template::goal_me() } else { f::chat_me(f::CHAT_BUDGET) }
+}
 fn direct(argv: &[&str]) {
     for json in [false, true] {
         let mut root = f::chat_root(f::CHAT_BUDGET, f::SEED);
-        let mut me = f::chat_me(f::CHAT_BUDGET);
+        let mut me = direct_me(argv);
         me.providers = f::provider_offers();
         root.deliver(c::Delivery::Me(Box::new(me)));
         let mut parsed = f::call(argv);

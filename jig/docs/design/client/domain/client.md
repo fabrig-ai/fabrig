@@ -1146,7 +1146,9 @@ with a person in front of a tree, are view.md's, 18.10.
     within as its deletion closes it (`../../domain/people.md`, 5.2);
     a project not in `me` gives `NotOffered::Project`, and nothing is
     sent;
-  - `shapes::set_goal(..)` fills the goal template, compares the draft
+  - `shapes::set_goal(..)` fills the stock goal template;
+    `shapes::set_goal_from(me, project, template, draft, reason)` fills
+    an offered template by number. Each compares the filled draft
     with the project's creating bounds in `me` (contract.md, 5.3), a
     deadline given as a span within both, for the engine to judge, and
     gives one of four: *made,* a `Create`, within the first bound;
@@ -1168,7 +1170,8 @@ with a person in front of a tree, are view.md's, 18.10.
     by configured names (contract.md, 3.2), none being the charter's
     default resolved at Create. Shapes copy configured intent, never
     `resolved_default`, the separate preview served in `me`;
-    no parameters, inputs, dependencies or grants named after it;
+    no parameters, inputs or dependencies; symbolic resources copied
+    from the template for the engine to resolve;
   - a template it cannot fill gives `NotOffered::Template`, and nothing
     is sent: a contract no `Create` names (an approval, or a verdict
     whose choices its document cut), a value its helper takes no input
