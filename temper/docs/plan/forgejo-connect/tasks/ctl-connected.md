@@ -12,6 +12,9 @@ files = [
   "temper/crates/temper-client-tools/src/tests/fixtures.rs",
   "temper/crates/temper-client-tools/src/tests/help.rs",
   "temper/crates/temper-client-tools/src/tests/landing.rs",
+  "temper/crates/temper-client-tools/src/tests/jig/replays.rs",
+  "temper/crates/temper-client-tools/src/tests/jig/settings.rs",
+  "temper/crates/temper-client-tools/src/tests/words.rs",
   "temper/crates/temper-client-tools/src/tests/golden/**",
   "temper/crates/temper-client-shell-cli/src/arguments.rs",
   "temper/crates/temper-client-shell-cli/src/tests/keys.rs",
@@ -176,3 +179,19 @@ acceptance changes instead. A test compares the bundle sent with the domain's ow
 `temper-client-domain`'s `tests/connect.rs` already decodes `pasted_tokens` with `decode_pasted`
 item by item, so the comparison checks the same thing without the client tools naming the records
 codec. Each test still asserts no value reaches the output. "Owns and may change" now says so.
+
+2026-11-03. May the task change `src/tests/jig/replays.rs`, `src/tests/jig/settings.rs` and
+`src/tests/words.rs`, which fail on `forge replace` and the approved shift? Yes: the three are now
+in `files`, for these edits only, since the full tools suite is the task's own acceptance. A tool's
+index is no stored value: a request's key comes from its name (`jig/key.rs`), a kept record holds
+its digest, so the shift moves no stored format. In `jig/replays.rs`, `DIRECT_CALLS` gains `["forge",
+"replace", "3", "file", "--key", "replace"]` after the `forge connect ... github` line, and `direct()`
+hands that tool a carried value, as it does `ADD_KEY_AT`'s, whose first line is `-----BEGIN RSA
+PRIVATE KEY-----`, naming the row by a `rows` constant if the branch has one, else by its name. In
+`jig/settings.rs`, the tuples at `:251` and `:789` become `(41, 42, 43, 47)` and `(48, 49)`. In
+`words.rs`, `KEPT_INDICES` gains `b"forge replace"` after `b"forge connect"`, and its comment,
+which no longer holds, says what is true: "The table's order through revision advance; a row's
+index is no stored value (requests are keyed by name), so a new row sits beside its group's." No
+other edit to these files. Should the run find a tool's index written to any store, record or
+wire, it stops and asks. The `forgejo_tokens` story's `same forge writer` failure stays under
+`## Left`: not this task's.
