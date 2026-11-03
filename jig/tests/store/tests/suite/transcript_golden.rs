@@ -14,9 +14,10 @@ const KEPT: &[u8] = include_bytes!("../../golden/transcript");
 const PATH: &[u8] = b"transcripts/0000000000000000/0000000000000015";
 const SEED: u64 = 0x0000_474f_4c44_454e;
 const READER: Token = Token::new(715);
-// Fixed above the world's roughly 323 KiB row floor with a margin, so a
-// changed row worst case does not move the kept bytes. If that floor passes
-// the fixed page below, sizes::check fails before the world opens.
+// A smaller task batch bound keeps this world's row floor below the fixed
+// page. check_commits verifies it before opening, without moving kept bytes
+// when the shared world's bounds change.
+const BATCH_BYTES: u32 = 65_536;
 const TRANSCRIPT_BYTES: u32 = 400_000;
 // sizes::frame counts 52 bytes of core-v6 metadata (including Some(read)
 // and the transcript's length) plus 12 wrapper bytes (store.md 8.1).
@@ -58,6 +59,7 @@ fn turns() -> [core::TurnRecord; 3] {
 /// A world with P exactly at the large frame, each turn committed separately.
 fn written() -> World {
     let mut limits = root::limits();
+    limits.core.tasks.batch_bytes = BATCH_BYTES;
     limits.store.page.bytes = PAGE;
     limits.store.chunk = limits.store.chunk.max(PAGE + KV_CHUNK_OVERHEAD);
     sizes::check_commits(&limits.core, &root::APPLICATION, &limits.commits, &limits.store, limits.orphan_erases)
