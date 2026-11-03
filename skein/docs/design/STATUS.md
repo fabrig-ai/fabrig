@@ -14,9 +14,8 @@ routes, `Artifact` and `Commits` among them (`forge.md`,
 and http's collector have no fuzz target (`json.md`, `tls.md`,
 `http.md`), and the withdrawn LLM routes still stand while smith uses
 them (`llm.md`). Single items lag in `lib.md`, `examples.md` and
-`ui.md`, and the readiness backend still makes most interrupted
-operations again (`shell.md`). The code departs in three crates'
-`tests/` directories (`testing.md`). `README.md`, `channel.md`,
+`ui.md`. The code departs in three crates' `tests/` directories
+(`testing.md`). `README.md`, `channel.md`,
 `codec.md`, `kv.md`, `world.md`, `fake-checkout.md`, `fake-llm.md`,
 `forge-client.md`, `forge-connection.md`, `forge-setup.md`,
 `llm-connection.md`, `oauth.md`, `oauth-issuer.md`, `ui-text.md` and
