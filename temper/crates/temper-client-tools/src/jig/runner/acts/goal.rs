@@ -31,8 +31,59 @@ pub(super) fn start(call: &Call, me: &c::Me, limits: &Limits) -> Prepared {
     match shapes::set_goal_from(&offered, project, number, draft, empty(limits)) {
         shapes::Judged::Create(ask) => Ok((Request::Ask(ask), None)),
         shapes::Judged::Propose { ask, to } => Ok((Request::Ask(ask), Some(to))),
-        shapes::Judged::Refused(_) => Err(Failed::Fixed(b"goal exceeds offered bounds")),
-        shapes::Judged::NotOffered(_) => Err(Failed::Fixed(b"goal not offered or exceeds offered bounds")),
+        shapes::Judged::Refused(why) => Err(refused(&why, limits)),
+        shapes::Judged::NotOffered(why) => Err(not_offered(why, me, project, number, executor)),
+    }
+}
+
+fn refused(why: &c::Refusal, limits: &Limits) -> Failed {
+    let book = crate::jig::render::document::phrasebook(limits.text);
+    let mut measure = Text::measure();
+    crate::jig::render::acts::refusal(why, &book, &mut measure);
+    let mut out = Text::writing_exact(measure);
+    crate::jig::render::acts::refusal(why, &book, &mut out);
+    Failed::Detail(out.finish())
+}
+
+fn not_offered(why: shapes::NotOffered, me: &c::Me, project: u32, template: u32, executor: c::Executor) -> Failed {
+    match why {
+        shapes::NotOffered::Project => Failed::Fixed(b"unknown project"),
+        shapes::NotOffered::Template => Failed::Fixed(b"goal template not offered"),
+        shapes::NotOffered::Ceiling => Failed::Fixed(b"goal budget or deadline exceeds the project's offered ceiling"),
+        shapes::NotOffered::Creating => Failed::Fixed(
+            b"project has no creating offer; check role and receiving bound documents.lines for charter and procedure lists",
+        ),
+        shapes::NotOffered::ChipExecutor => {
+            let c::Executor::Agent { charter } = executor else { unreachable!("goal templates name charters") };
+            let mut charters = &[][..];
+            for membership in &me.projects {
+                if membership.project == project
+                    && let Some(creating) = &membership.creating
+                {
+                    charters = creating.within.charters.as_slice();
+                }
+            }
+            let mut measure = Text::measure();
+            missing_executor_words(template, charter, charters, &mut measure);
+            let mut out = Text::writing_exact(measure);
+            missing_executor_words(template, charter, charters, &mut out);
+            Failed::Detail(out.finish())
+        }
+    }
+}
+
+fn missing_executor_words(template: u32, charter: u32, charters: &[u32], out: &mut Text) {
+    out.put(b"template ");
+    out.number(u64::from(template));
+    out.put(b" requires charter ");
+    out.number(u64::from(charter));
+    out.put(b", which is not offered; offered charters:");
+    if charters.is_empty() {
+        out.put(b" none");
+    }
+    for charter in charters {
+        out.put(b" ");
+        out.number(u64::from(*charter));
     }
 }
 

@@ -7,6 +7,7 @@ sources = ["temper/docs/plan/playground-temper/inputs/request.md", "temper/docs/
 # fakes' pace follow. The walk through the web client's host and a log replayed wait for
 # skein's kit (plan playground-skein).
 
+retired = true
 [buffer]
 low = 1.0
 high = 2.0

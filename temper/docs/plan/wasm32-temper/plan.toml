@@ -6,6 +6,7 @@ sources = ["temper/docs/plan/wasm32-temper/inputs/request.md", "AGENTS.md"]
 # reads `.config/gate/wasm32.txt`. One part, one task: measure, then add the line and narrow
 # temper's playground status, or change nothing and report the first error. plan.md says why.
 
+retired = true
 [buffer]
 low = 1.0
 high = 2.0
