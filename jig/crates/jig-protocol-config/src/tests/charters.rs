@@ -35,7 +35,7 @@ fn with_documents(value: &[u8]) -> Box<[u8]> {
 fn a_charters_documents_are_read_whole_in_order() {
     let bytes = with_documents(
         br#"[
-        {"connector":1,"name":["project","branch"],"path":"docs/rules.md"},
+        {"connector":1,"name":["project","resource"],"path":"docs/rules.md"},
         {"connector":1,"name":["other"],"path":"notes.md","heading":"Rules"}
     ]"#,
     );
@@ -46,7 +46,7 @@ fn a_charters_documents_are_read_whole_in_order() {
             jig_domain_core::Document {
                 connector: 1,
                 name: jig_domain_authority::Name {
-                    segments: Box::new([Box::from(b"project".as_slice()), Box::from(b"branch".as_slice())])
+                    segments: Box::new([Box::from(b"project".as_slice()), Box::from(b"resource".as_slice())])
                 },
                 path: Box::from(b"docs/rules.md".as_slice()),
                 heading: None,

@@ -11,7 +11,7 @@ use crate::{Core, Limits, RunPolicy, Settings};
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Document {
     pub connector: u16,
-    /// The branch's resource name, within the authority's pattern bounds.
+    /// The resource name, within the authority's pattern bounds.
     pub name: jig_domain_authority::Name,
     /// 1 to `crate::DOCUMENT_PATH_BYTES` bytes.
     pub path: Box<[u8]>,
