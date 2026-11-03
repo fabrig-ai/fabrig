@@ -136,3 +136,19 @@ and the help page's new lines.
 2026-11-03. **The user's decision on public titles.** User, 2026-11-03 15:40Z: public reading shows titles. A goal's and a task's title (the first line of its spec, as jig's client contract names a task's title) crosses into its public line, and a public project's name crosses into its public record. There is no author flag and no human publication capability for these. Everything else in people.md 13.3's "No text at all" list still never crosses: spec beyond its first line, instructions, inputs, results, words, questions and answers, transcripts, notes, reasons, labels' meanings, proposals, escalations, people's and parties' names, charters', procedures' and roles' names. Review finding 1 is settled by the user's decision.
 
 For this task: No title flag and no `goal amend --title`; only `project amend --visibility`. If this spec or `temper/docs/design/client/tools.md` 5.3 mentions a title flag, drop it.
+
+## Rebase (2026-11-03, step merge, foreman public-reading-build/public-ctl/foreman-1)
+
+preserve revision restore and append project amend at position 64 when rebasing.
+The merge conflicts with main’s `daf262545d` (“Restore a settings revision with one temper ctl call”), carried into the integration target through `c0a7eb23c2`.
+Resolve these five paths under `temper/crates/temper-client-tools/src/`:
+- `jig/rows.rs`: retain `RESTORE_AT = 63` and `RESTORE`; change `PROJECT_AMEND_AT` to 64 and retain `PROJECT_AMEND`.
+- `table.rs`: keep the final entries ordered `GOAL_START`, `RESTORE`, `PROJECT_AMEND`.
+- `jig/runner.rs`: dispatch both `RESTORE_AT` and `PROJECT_AMEND_AT` to `acts::start`; preserve visibility state and the `me` change handler.
+- `tests/help.rs`: retain both help goldens; order the final usage entries as goal start, revision restore, project amend. Preserve main’s model help tests and restore reference test.
+- `tests/jig.rs`: declare both `mod restore;` and `mod visibility;`.
+Also correct the automatically merged `tests/fixtures.rs`: both branches independently raised `TOOL_FORMS` from 73 to 74; the combined count must be 75.
+Keep the project-amend example in `EVERY_TOOL` and the restore example chained by `each_derivation_names_every_tool`, each exactly once.
+Inspect the automatic merges in `jig/runner/acts.rs`, `jig/render/outcome.rs`, and `tests/jig/replays.rs`; preserve both operations’ handlers, outcome mappings and replay cases.
+Retain the task’s visibility rendering, waiting behavior, project-show output and project help changes.
+Run the focused visibility, restore, help and replay tests through heavy, then the task’s required checks. Report project amend’s position as 64.
