@@ -23,11 +23,6 @@ Connect pages the journey passes through are other groups'.
 
 What the client doesn't draw yet:
 
-- **GitHub's target details:** Model and Ready use the durable adoption,
-  and the asking tab names its new project. The durable row does not
-  retain whether the project was new, so after reload Model says
-  "in PROJECT". No repository web address reaches the client for
-  Ready's "Open on GitHub ↗".
 - **A sign-in's port taken on Ready:** declined, held and misconfigured
   now draw their words and acts. "Try later" still needs the listener's
   port-taken fact in the client (M-j); `OwnerAccounts.last_end` does
@@ -35,16 +30,14 @@ What the client doesn't draw yet:
 
 Where the client does otherwise:
 
-- **Ready opened before a GitHub repository is chosen,** at
-  `/welcome?at=ready`, draws "Almost ready" with its forge and model
-  lines, as the client README's 3.5 allows; the mockup goes back to
-  the picker.
-- **Forgejo's "Run on this machine" under the box** sends the set up at
-  once, with `work`, `hello` and a new project `Default`, and the
-  welcome moves on to Model, with no Details (the client README's 3.5,
-  the user's stop-gap of 2026-10-27, `../forge.md` 10); the mockup's
-  `world-first-run-real.js` still walks Forgejo on this machine's
-  Details.
+- **The welcome adopts nothing** (the client README's 3.5 and 5.6;
+  `../../draft/first-run-projects.md`, 4): Forgejo on this machine's
+  Details have no "Into a new project, named" and GitHub's step no
+  "Choose a repository to start in"; the forge's line names no project;
+  Ready's last line is "Project: Default" and its act "Open Default",
+  which makes the project and opens its chats page, where the mockup's
+  Ready names its repository, "ORG/NAME is ready", and opens it. The
+  mockup is not edited.
 
 Not yet known: whether GitHub keeps the state through its
 installation's Configure and Save, and whether the picker reads the

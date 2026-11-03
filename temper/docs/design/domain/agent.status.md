@@ -10,6 +10,5 @@ The remaining gaps concern charters, settings, brief admission and result delive
   `settings` family offered only where the charter's `tools` names it too;
   the task's authority alone decides (`temper-engine-smith/src/calls.rs`).
   4.3, 8.1: the configuring agent: the stock's template and charter 3.
-  4.3.1: `change`'s `merge`, a catch-up, and the merge kind in a change's
-  authority. 4.4: a verdict's follow-up tasks. 8: a change's agents under charters of its own
+  4.4: a verdict's follow-up tasks. 8: a change's agents under charters of its own
   (`forge.md`, 8.1).

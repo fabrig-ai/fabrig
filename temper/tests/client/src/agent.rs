@@ -44,9 +44,12 @@ impl Agent {
         builder.close();
         builder.open(Role::Main);
         for task in &self.release_tasks {
-            builder.open(Role::Item);
-            builder.key(skein_ui::Key { owner: temper_client_view::frame::owner(), kind: 2, a: *task, b: 0 });
-            builder.close();
+            // The printed task supplies both its spec and its hold controls.
+            for kind in [0, 2] {
+                builder.open(Role::Item);
+                builder.key(skein_ui::Key { owner: temper_client_view::frame::owner(), kind, a: *task, b: 0 });
+                builder.close();
+            }
         }
         builder.close();
         builder.close();
