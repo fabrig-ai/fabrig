@@ -938,8 +938,9 @@ fn a_revision_item_past_the_single_read_budget_answers_its_encoded_size() {
     use jig_protocol_engine_clients::translate::settings as wire;
     const SINGLE_READ_BYTES: u64 = 4096;
     const NAME_BYTES: usize = 4096;
-    // v19 SettingValue tag + this fixture's Template: 46 fixed bytes + its 4096-byte name.
-    const ENCODED_TEMPLATE_BYTES: u64 = 4142;
+    // v19 SettingValue tag + this fixture's Template: 50 fixed bytes (including
+    // the empty resource list's count) + its 4096-byte name.
+    const ENCODED_TEMPLATE_BYTES: u64 = 4146;
     let (config, mut limits) = configuration();
     limits.core.load_bytes = SINGLE_READ_BYTES;
     let mut world = World::new(Setup {

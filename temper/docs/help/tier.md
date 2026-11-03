@@ -17,6 +17,11 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
   once the last ends. temper dispatches it on a branch of its own,
   `temper/tier/NAME.N`, made at the commit it runs, and deletes the
   branch when the run ends.
+- **The baseline:** A newly configured tier first runs at its followed
+  branch's current tip as a baseline, without any landing. Baseline
+  failures are blamed on no landing and inherited by the next run.
+  Subsequent ranges start after the baseline tip. Landings arriving
+  during the baseline wait for the next run to verify them.
 - **Its report:** the run uploads an artifact, named in the tier's
   settings, holding a JUnit file or one test id per line, and temper
   reads the failing tests' ids from it. A failed run that names no
@@ -58,21 +63,71 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
 
 ## Acting on it
 
-- **The configuration:** a repository's tiers go in the `landing`
-  member, beside its gates, and the project's `tier_retries` and
-  `verification_bound_ms` beside its `by`; then restart. Main's tiers,
-  the slow suites, follow main:
+- **The configuration:** in `CONFIG/temper.json`, a repository's tiers
+  go at `application.landing.projects[].gates[].tiers`.
+  The project's `gates` array holds repository entries; each
+  repository's `gates` array holds workflow gates, beside its `tiers`.
+  This example shows the nesting for project 1, forge 1, repository 7:
 
   ```json
-  {"forge": 1, "repository": 7, "gates": [],
-   "tiers": [{"name": "browser", "workflow": "browser.yml",
-              "ignored": ["docs/"], "artifact": "report", "format": "junit"}]}
+  {
+    "application": {
+      "landing": {
+        "deployment": [],
+        "projects": [{
+          "project": 1,
+          "rules": [],
+          "by": "queue",
+          "tier_retries": 2,
+          "verification_bound_ms": 7200000,
+          "gates": [{
+            "forge": 1,
+            "repository": 7,
+            "gates": [],
+            "tiers": [{
+              "name": "browser",
+              "workflow": "browser.yml",
+              "ignored": ["docs"],
+              "artifact": "report",
+              "format": "junit"
+            }]
+          }]
+        }]
+      }
+    }
+  }
   ```
 
+  Use the relevant project, forge and repository numbers, as printed
+  by `project show PROJECT`, `forge list` and
+  `forge repositories FORGE` through ctl (temper help ctl).
+  Preserve the existing configuration: add the tier to the matching
+  repository entry in the matching project, creating missing entries
+  with the shape above. Keep other members, deployment and project
+  rules, repositories, workflow gates and tiers, and the project's
+  existing `by` (`queue` or `turn`). The empty arrays here illustrate
+  the shape; they do not replace existing rules or gates.
+  Set `tier_retries` and `verification_bound_ms` beside the project's
+  `by`; the example shows their defaults. Stop and restart the deployment
+  afterward with the same directories (temper help deployment).
+  Without `branch`, the tier follows the repository's landing branch;
+  set `branch` to another branch's name to follow it instead.
+- **The report format:** set `format` to `junit` for JUnit reports or
+  `lines` for one failing test id per line. For a line report, change
+  the example's `"format": "junit"` to `"format": "lines"` and upload
+  the failing ids in the artifact named by `artifact`.
 - **The workflow** is dispatch-only and takes the inputs
   `temper_commit` and `temper_key`, and `temper_tests`, the ids to run
   alone, one per line, when temper gives them: it runs only those then.
   It uploads its report as the named artifact.
+- **The box's runner:** workflows using `temper-host` execute on the
+  host. JavaScript `uses:` actions such as `actions/checkout@v4` and
+  `actions/upload-artifact@v3` need compatible Node.js installed there
+  as `node`, on `application.machine.owned.runner.path` (default
+  `/usr/local/bin:/usr/bin:/bin`). After changing that configuration,
+  restart the box. An installation available only through an
+  interactive shell is insufficient: the runner uses the configured
+  PATH, not the shell's.
 - **ctl:** `change show TASK --until cleared` waits for a landed
   change's verdict, its step `verifying`, `red` or `cleared` naming the
   tiers and their runs; `task show` reads a tier's run task, and `task
