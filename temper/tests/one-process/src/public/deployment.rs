@@ -19,7 +19,7 @@ fn start(value: &serde_json::Value) -> Result<temper_service::Service, String> {
         temper_playground::documents::forges(),
         None,
         None,
-        &stories::given(&document),
+        &stories::given(&fixtures::world_document()),
     )
     .map_err(|problems| String::from_utf8_lossy(&temper_service::startup::lines(&problems)).into_owned())
 }
@@ -38,7 +38,7 @@ pub(super) fn relations() {
         ("clients.public.answer_bytes", 524_289),
         ("clients_http.public_calls", 5),
         ("clients.public.max_age", 61),
-        ("clients.public.answer_bytes", 1),
+        ("clients.public.answer_bytes", 198_732),
         ("core.public.lines", 257),
     ] {
         let mut bad = value.clone();
@@ -46,7 +46,7 @@ pub(super) fn relations() {
         let Err(problem) = start(&bad) else {
             panic!("broken relation {name}={broken} started");
         };
-        assert!(problem.contains(name), "broken relation {name} must name its path: {problem}");
+        assert!(problem.contains(name), "broken relation {name}={broken} must name its path: {problem}");
     }
     super::ACTIVE.with(|active| active.set(false));
 }

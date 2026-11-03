@@ -20,7 +20,7 @@ pub(crate) fn configure(value: &mut serde_json::Value) {
         ("clients.public.rate_burst", 8),
         ("clients.public.bytes", 524_288),
         ("clients.public.bytes_burst", 524_288),
-        ("clients.public.answer_bytes", 131_072),
+        ("clients.public.answer_bytes", 262_144),
         ("clients.public.max_age", 2),
         ("core.public.goals", 4),
         ("core.public.ended", 4),
