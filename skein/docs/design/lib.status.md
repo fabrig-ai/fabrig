@@ -2,5 +2,4 @@
 
 2026-11-03. Where skein's code lags or departs from [lib.md](lib.md).
 
-- **Not yet:** 3: `Slab::get2_mut`. 8: `CryptoRng` without `Clone` (it
-  derives it; two owners and two tests clone one).
+- **Not yet:** 3: `Slab::get2_mut`.
