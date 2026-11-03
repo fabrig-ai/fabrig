@@ -1,6 +1,6 @@
 # engine: status
 
-2026-11-02. Where jig's code lags or departs from [engine.md](engine.md).
+2026-11-03. Where jig's code lags or departs from [engine.md](engine.md).
 
 - **Not yet:** 2, 8: runs on the engine's own slots under
   `smith-inline-agent`; the engine hub's hello before placement; the
@@ -14,8 +14,9 @@
   or run `settings`, which the projection keeps durable, others for a
   frame's `needs` with a person proposal left pending and
   `Deployment.messages` advancing on a retried deadline; the core
-  world's `world` and `direct` drivers run no oracle. An
-  application's kinds in 17.6 and 17.7: jig's settings are closed
+  world's `world` and `direct` drivers run no oracle. 17.6: a
+  proposal naming a project's items waits for the deployment's owners alone. An
+  application's kinds in 17.7: jig's settings are closed
   (`jig-domain-people/src/settings.rs`'s `Setting`,
   `jig-domain-core/src/settings.rs`'s `Value`, settings-v1's `Setting`
   and `Value`), so an application declares no kind of its own, and no

@@ -3,7 +3,7 @@ id = "apps-start"
 part = "appsettings"
 kind = "feature"
 needs = ["apps-proposals"]
-files = ["jig/crates/jig-domain-core/src/settings/restart.rs", "jig/crates/jig-domain-core/src/settings/application.rs", "jig/crates/jig-domain-core/src/start/settings.rs", "jig/crates/jig-domain-core/src/start/first.rs", "jig/crates/jig-domain-core/src/effects.rs", "jig/crates/jig-domain-core/src/admission/deletion.rs", "jig/crates/jig-domain-core/src/tests/settings/application_start.rs", "jig/crates/jig-domain-core/src/tests/settings.rs", "jig/docs/design/domain/engine.status.md"]
+files = ["jig/crates/jig-domain-core/src/settings/restart.rs", "jig/crates/jig-domain-core/src/settings/application.rs", "jig/crates/jig-domain-core/src/start/settings.rs", "jig/crates/jig-domain-core/src/start/first.rs", "jig/crates/jig-domain-core/src/effects.rs", "jig/crates/jig-domain-core/src/admission/deletion.rs", "jig/crates/jig-domain-core/src/tests/settings/application_start.rs", "jig/crates/jig-domain-core/src/tests/settings.rs", "jig/docs/design/domain/engine.status.md", "jig/crates/jig-domain-core/src/effects/connector.rs", "jig/crates/jig-domain-core/src/start/script.rs", "jig/crates/jig-domain-core/src/tests/settings/application.rs"]
 effort = "high"
 minutes = 110
 +++
@@ -92,3 +92,25 @@ Acceptance:
 ## Report
 
 The options taken; where the defaults wait in the start; the start refusal's arms.
+
+## Answers
+
+2026-11-03. **Q:** may this task change `effects/connector.rs`, `start/script.rs` and
+`tests/settings/application.rs`, outside its files?
+
+**A:** Yes, all three, now in `files`; the task's acceptance cannot hold without them.
+
+- `effects/connector.rs`: `Event::SettingsDefaults` gains `connector: u16` (the
+  `Kind.connector` numbering), so the start counts one answer from each kind-owning
+  connector, an empty one included. The constructors and patterns the new field forces
+  (`jig-test-connector`, `jig-test-domain`, `jig/examples/ops`, temper's root) change by the
+  field alone.
+- `start/script.rs`: only the transitions that wait for the defaults before the release
+  decision and put the defaults' states into revision 1 at a first start (the pre-approved
+  default) and into the release's revision otherwise; no other transition changes.
+- `tests/settings/application.rs`: `declaring_an_application_kind_preserves_start_outputs`
+  says the old meaning of a start (no wait, no `SaveSettingsDefaults`): replace it with a
+  test that a start with declared kinds and its defaults received gives the outputs of a
+  start without kinds plus the one `SaveSettingsDefaults` per connector. Keep the change
+  tests as they are. The `jig/tests/core` start-settings and first-start stories still pass
+  unchanged.
