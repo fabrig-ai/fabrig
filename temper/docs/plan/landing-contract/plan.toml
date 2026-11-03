@@ -1,0 +1,3 @@
+draft = "landing-contract"
+repo = "fabrig"
+sources = ["temper/docs/plan/landing-contract/inputs/request.md"]
