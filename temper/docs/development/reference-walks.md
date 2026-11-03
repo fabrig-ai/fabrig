@@ -244,7 +244,7 @@ a second task's first run numbered run 2 / turn 2.1 is a numbering oddity off th
 - Commit: 4ab8fac8a347249c755d2db69b91c75033ec575f
 - Area: settings refusal words
 - Severity: low
-- Sightings: (none)
+- Sightings: finding-171
 
 ### Reproduction
 
