@@ -134,7 +134,7 @@ pub(crate) fn peer_with_ci(life: Duration) -> (Rc<RefCell<Forge>>, Peer) {
 }
 fn peer_options(life: Duration, ci: bool) -> (Rc<RefCell<Forge>>, Peer) {
     let wire = protocol();
-    let mut config = temper_fake_git_hosted::fixtures::CONFIG;
+    let mut config = temper_worker_checkout_world::hosted::CONFIG;
     config.limits.files = 4;
     config.limits.content_bytes = 1024;
     config.limits.calls = wire.calls;

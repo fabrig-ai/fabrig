@@ -242,7 +242,7 @@ members = [
     "temper/tools/fake-claude",
     "temper/tests/one-process",
     "temper/crates/temper-fake-git",
-    "temper/testing/temper-fake-git-hosted",
+    "temper/crates/temper-fake-git-hosted",
     "temper/testing/temper-github-app",
     "temper/crates/temper",
     "temper/crates/temper-client-bundle",
@@ -470,7 +470,7 @@ temper-init = { path = "temper/crates/temper-init" }
 temper-client-bundle = { path = "temper/crates/temper-client-bundle" }
 jig-boundary = { path = "jig/tests/boundary" }
 temper-fake-git = { path = "temper/crates/temper-fake-git" }
-temper-fake-git-hosted = { path = "temper/testing/temper-fake-git-hosted" }
+temper-fake-git-hosted = { path = "temper/crates/temper-fake-git-hosted" }
 jig-channel-world = { path = "jig/tests/channel" }
 temper-client-shell-terminal = { path = "temper/crates/temper-client-shell-terminal" }
 temper-client-shell-cli = { path = "temper/crates/temper-client-shell-cli" }

@@ -4616,15 +4616,14 @@ dependencies = [
 name = "temper-fake-git-hosted"
 version = "0.0.0"
 dependencies = [
+ "skein-fake-checkout",
  "skein-fake-forge-domain",
- "skein-fake-forge-protocol",
  "skein-fake-machine",
  "skein-fake-peers",
  "skein-io",
  "skein-lib",
  "skein-shell",
- "skein-world",
- "temper-fake-checkout",
+ "skein-sim-world",
  "temper-fake-git",
  "temper-worker-checkout-world",
  "temper-worker-domain-checkout",
@@ -4751,13 +4750,13 @@ dependencies = [
  "temper-engine-domain",
  "temper-engine-domain-forge",
  "temper-engine-smith",
- "temper-fake-checkout",
  "temper-fake-git",
  "temper-fake-git-hosted",
  "temper-forge-setup",
  "temper-github-app",
  "temper-protocol-store",
  "temper-service",
+ "temper-worker-checkout-world",
 ]
 
 [[package]]
@@ -4858,6 +4857,7 @@ dependencies = [
  "temper-protocol-records",
  "temper-protocol-store",
  "temper-service",
+ "temper-worker-checkout-world",
  "temper-worker-domain",
  "temper-worker-protocol-git",
 ]
@@ -5023,10 +5023,15 @@ name = "temper-worker-checkout-world"
 version = "0.0.0"
 dependencies = [
  "skein-fake-forge-domain",
+ "skein-fake-forge-protocol",
+ "skein-fake-peers",
+ "skein-io",
  "skein-lib",
  "skein-world",
  "temper-fake-checkout",
+ "temper-fake-git",
  "temper-worker-domain-checkout",
+ "temper-worker-protocol-git",
 ]
 
 [[package]]

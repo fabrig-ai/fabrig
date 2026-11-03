@@ -6,7 +6,7 @@ pub(crate) const API_TOKEN: &[u8] = b"0000000000000000000000000000000000000002";
 const TOKENS: u32 = 5;
 pub(crate) const GIT_TOKEN: &[u8] = b"0000000000000000000000000000000000000003";
 pub(crate) fn table() -> skein_fake_forge_protocol::Config {
-    let mut table = temper_fake_git_hosted::fixtures::table(b"acme/app", None);
+    let mut table = temper_worker_checkout_world::hosted::table(b"acme/app", None);
     table.users.get_mut(0).expect("bot user").1 = b"temper".as_slice().into();
     let mut tokens = skein_lib::List::with_capacity(TOKENS);
     for token in table.tokens.into_boxed() {

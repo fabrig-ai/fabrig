@@ -24,8 +24,7 @@
   Claude Code one on `claude-haiku-5-5` included; the pair's `#[ignore]`
   reasons still say "a person's sitting" and "owner-run only"
   (`crates/temper/tests/live.rs`). 4.3: the shell subset;
-  skein's fake machine runs no `sh` and no `rg`. 4.3, 7:
-  `temper-fake-git-hosted` in `crates/`; it is in `testing/`. 6.4: the
+  skein's fake machine runs no `sh` and no `rg`. 6.4: the
   settings stories that need temper's kinds of settings (`root.md`'s
   status). 6.4: the configuring agent's stories, since charter 3 is not
   built (`agent.status.md`); the client's How work runs, a proposal's
