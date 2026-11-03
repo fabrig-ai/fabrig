@@ -793,6 +793,22 @@ fn read_item(
             Some(public::Pasted::Admin(value)) if item == skein_forge_setup::item::Item::AdminToken => {
                 return Some(value.clone());
             }
+            Some(public::Pasted::Tokens(items)) => {
+                if let Some(record) = item_record(item) {
+                    for (code, value) in items {
+                        if *code == record.code() {
+                            return Some(value.clone());
+                        }
+                    }
+                    return match engine.forge_records.rows.forge(forge) {
+                        Some(rows) => match rows.get(record) {
+                            Ok(value) => Some(Secret::new(Box::from(value))),
+                            Err(_) => None,
+                        },
+                        None => None,
+                    };
+                }
+            }
             Some(public::Pasted::App(_) | public::Pasted::Admin(_)) | None => {}
         }
         if item == skein_forge_setup::item::Item::AdminToken {

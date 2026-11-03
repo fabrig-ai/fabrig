@@ -271,17 +271,35 @@ connected  the forge component       ◄── its access, built from the record
   Forgejo's `[webhook] ALLOWED_HOST_LIST` letting it reach the listener;
   CI, as each repository has it.
 - **Pasted from the client, together** (`Connect` with `ForgejoTokens`;
-  `../client/forge.md`, the deployment's page): both tokens, and the
-  secret when given, one value, kept by jig until its run ends
-  (credentials.md, pasted values). The setup host's `Check { forge }`
-  (skein's `forge-setup.md`, 4.6) finds that both answer as one user,
-  not a site admin, and writes that user, and the routing keeps the
-  tokens and the secret as the forge's records; the page then says
-  "Connected as LOGIN", with its id on an Account line (6.5). Tokens of
-  two users stop it `OtherUser`, a site admin's `BotIsAdmin`, a refused
-  token `Refused`, each named, and the forge stays as it was.
-- **Replaced** from the client (`Replace`): a new token, checked to
-  answer as the kept user, kept before the old is erased.
+  `../client/forge.md`, the deployment's page; `../client/tools.md`,
+  5.5): both tokens, and the secret when given, one value, kept by jig
+  until its run ends (credentials.md, pasted values). Its connect makes
+  the forge's record, connected, from the address the person gives, its
+  API's host, port and transport, its git and web bases, and its git
+  program when given, numbered next (forge.md, 2.2), in the connect's
+  admission, before any run; or, on a connected Forgejo kept and not
+  connected or stopped, connects it again. Any other forge refuses it,
+  *not taken*. The setup host's `Check { forge }` (skein's
+  `forge-setup.md`, 4.6) finds that both answer as one user, not a site
+  admin, and writes that user; the routing keeps the tokens and the
+  secret as the forge's records, then its `Origin`, and the forge
+  connector keeps the user's login as the record's bot (forge.md, 2.2);
+  the page then says "Connected as LOGIN", with its id on an Account
+  line (6.5). Tokens of two users stop it `OtherUser`, a site admin's
+  `BotIsAdmin`, a refused token `Refused`, each named, and the forge
+  stays as it was. This form makes no bot, organization, repository or
+  hook: the person's user is temper's, as it is.
+- **Connected again,** on a kept forge whose `User` is kept, by the same
+  user alone: `Check` compares the tokens' user with it, and tokens of
+  another user stop it `OtherUser`, nothing kept, the forge as it was.
+  A forge's writer is its user, so another user's tokens connect a new
+  forge, once this one is removed (credentials.md, 2.1).
+- **Replaced** from the client (`Replace`): a new API token, git token
+  or both, and the secret when it changes, one value: `Check` reads each
+  pasted token before the forge's record, so a token not pasted is the
+  kept one, and finds that both answer as the kept user; each pasted
+  item is then kept over the old, and the forge connects with them. A
+  stop keeps nothing, and the forge stays as it was.
 - **Nothing more is required** (`../domain/forge.md`, section 4): polling
   stands in for webhooks, and a project's checks for CI.
 - **A connected GitHub** is an App the person made, pasted (17.3).

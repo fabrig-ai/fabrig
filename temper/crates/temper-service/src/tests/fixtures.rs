@@ -2,8 +2,8 @@ use crate::{limits, settings};
 use jig_domain_host as host;
 use skein_lib::{Secret, Token};
 
-// smith's protocol/channel.md section 6 assigns Codex replay dialect one.
-pub const DIALECT: u32 = 1;
+// smith's protocol/agent.md, section 4: OpenAI's public Responses dialect.
+pub const DIALECT: u32 = 3;
 
 pub const ENGINE: &[u8] = br#"{
 "limits": {"profile": "small", "overrides": {"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":4096,"authority.grants":16,"authority.executors":8,"tasks.executor_kinds":8,"notes.scopes":32,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
@@ -12,7 +12,7 @@ pub const ENGINE: &[u8] = br#"{
 "endpoints": [{
 "name": "fake",
 "number": 1,
-"dialect": 1,
+"dialect": 3,
 "provider": "fake-provider",
 "address": {"socket": "127.0.0.1:7101"},
 "transport": "plaintext",
@@ -800,6 +800,7 @@ pub fn settle_root(
                 | root::Request::ResetAct { .. }
                 | root::Request::BoxRemove { .. }
                 | root::Request::Connect { .. }
+                | root::Request::Replace { .. }
                 | root::Request::Manifest { .. }
                 | root::Request::Reachable { .. }
                 | root::Request::Install { .. }
@@ -1504,4 +1505,46 @@ pub fn checked_endpoints(
         return Err(problems);
     }
     Ok(settings)
+}
+
+/// Send a carried forge request through the authenticated client bytes.
+pub fn forge_connecting(
+    service: &mut crate::Service,
+    bearer: &[u8],
+    key: u8,
+    request: temper_client_protocol_wire::v1::Request,
+    bundle: Secret,
+) {
+    use jig_client_protocol_wire::v19 as j;
+    use skein_lib::Reader;
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let record = wire::requesting(&w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap());
+    let engine = service.engine.as_mut().unwrap();
+    let limits = &engine.clients.env.limits.wire;
+    let family = j::FamilyRequest::new(limits, j::FamilyRequestParts { scope: j::Scope::Deployment, record }).unwrap();
+    let mut bytes = skein_lib::Writer::new(usize::try_from(family.measure()).unwrap());
+    family.encode(&mut bytes).unwrap();
+    let keyed = j::Keyed::new(
+        limits,
+        j::KeyedParts {
+            key: [key; 16],
+            owner: j::Owner::Family(j::Family::new(limits, j::FamilyParts { number: wire::FORGE }).unwrap()),
+            version: wire::CLIENT_VERSION,
+            request: bytes.finish(),
+            value: Some(bundle),
+        },
+    )
+    .unwrap();
+    let mut bytes = skein_lib::Writer::new(usize::try_from(keyed.measure()).unwrap());
+    keyed.encode(&mut bytes).unwrap();
+    let mut peer = http::Peer::new(engine, b"POST", b"/jig/v1/request", &bytes.finish(), Some(bearer));
+    peer.pump(engine, true);
+    let at = skein_lib::bytes::find(peer.received(), b"\r\n\r\n").unwrap().checked_add(4).unwrap();
+    let j::KeyedAnswer::FinalAnswer(answer) =
+        j::KeyedAnswer::decode(&engine.clients.env.limits.wire, &mut Reader::new(&peer.received()[at..])).unwrap()
+    else {
+        panic!("family terminal")
+    };
+    let answer = w::Answer::decode(&w::CEILINGS, &mut Reader::new(answer.record())).unwrap().into_parts().outcome;
+    assert_eq!(answer, w::Outcome::Connecting);
 }

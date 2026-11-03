@@ -14,6 +14,7 @@ mod relay;
 mod startup;
 
 mod admission_edges;
+mod producer_policy;
 mod provider_admission;
 mod support_tests;
 mod wiring;

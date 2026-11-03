@@ -12,7 +12,7 @@ record Adopt { project: u32 home: bool forge: u16 owner: bytes 1024 name: bytes 
 # temper/docs/design/client/README.md, 4.6: kept and new forges.
 record Kept { forge: u16 }
 record ManagedForge { host: bytes 255 port: u16 tls: option bytes 255 git: bytes 2048 web: option bytes 2048 git_program: option bytes 4096 }
-enum ForgeAsk { github, owned, managed: ManagedForge }
+enum ForgeAsk { github, owned, managed: ManagedForge, connected: ManagedForge }
 record NewForge { forge: ForgeAsk }
 enum Making { kept: Kept, new: NewForge }
 record ExistingProject { project: u32 }
@@ -24,7 +24,9 @@ record GitHubApp { id: u64 read_only: option bool }
 record GitHubManifest { back: option bytes 512 }
 record FirstAsk { org: bytes 1024 repository: bytes 1024 project: SetUpProject label: bytes 64 }
 record ForgejoAdmin { first: option FirstAsk }
-enum How { github_app: GitHubApp, github_manifest: GitHubManifest, forgejo_admin: ForgejoAdmin }
+record ForgejoTokens { }
+enum How { github_app: GitHubApp, github_manifest: GitHubManifest, forgejo_admin: ForgejoAdmin, forgejo_tokens: ForgejoTokens }
+record Replace { forge: u16 }
 record Connect { forge: Making how: How }
 record Install { forge: u16 back: option bytes 512 }
 record Reachable { forge: u16 installation: option u64 page: u32 }
@@ -32,7 +34,7 @@ record Accept { forge: u16 installation: u64 }
 
 # temper/docs/design/client/README.md, 4.6: removal and reset.
 record RemoveForge { forge: u16 }
-enum Request { adopt: Adopt, set_up: SetUp, return_: Return, connect: Connect, install: Install, reachable: Reachable, accept: Accept, remove_forge: RemoveForge, start_playground, end_playground }
+enum Request { adopt: Adopt, set_up: SetUp, return_: Return, connect: Connect, install: Install, reachable: Reachable, accept: Accept, remove_forge: RemoveForge, start_playground, end_playground, replace: Replace }
 versioned record Requesting { request: Request }
 enum SetUpRefusal { not_offered, not_under_the_box, busy, new_project, invalid }
 record SetUpRefused { why: SetUpRefusal }

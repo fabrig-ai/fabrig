@@ -165,14 +165,39 @@ pub struct Adoption {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Ask {
     Adopt(Adoption),
-    SetUp { forge: Making, org: Box<[u8]>, repository: Box<[u8]>, project: SetUpProject, playground: bool },
-    RemoveForge { forge: u16 },
+    SetUp {
+        forge: Making,
+        org: Box<[u8]>,
+        repository: Box<[u8]>,
+        project: SetUpProject,
+        playground: bool,
+    },
+    RemoveForge {
+        forge: u16,
+    },
     StartPlayground,
     EndPlayground,
-    Connect { forge: Making, how: How },
-    Install { forge: u16, back: Option<Box<[u8]>> },
-    Accept { forge: u16, installation: core::num::NonZeroU64 },
-    Reachable { forge: u16, installation: Option<u64>, page: u32 },
+    Connect {
+        forge: Making,
+        how: How,
+    },
+    Install {
+        forge: u16,
+        back: Option<Box<[u8]>>,
+    },
+    Accept {
+        forge: u16,
+        installation: core::num::NonZeroU64,
+    },
+    Reachable {
+        forge: u16,
+        installation: Option<u64>,
+        page: u32,
+    },
+    /// A GitHub App's new key or a connected Forgejo's new tokens, carried (client/README.md, 4.6).
+    Replace {
+        forge: u16,
+    },
 }
 /// The first repository requested when connecting a Forgejo (client/README.md, 8).
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -185,9 +210,18 @@ pub struct FirstAsk {
 /// The public connect's input; credentials remain carried handles.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum How {
-    ForgejoAdmin { first: Option<FirstAsk> },
-    GitHubApp { app: core::num::NonZeroU64, read_only: bool },
-    GitHubManifest { back: Option<Box<[u8]>> },
+    ForgejoAdmin {
+        first: Option<FirstAsk>,
+    },
+    GitHubApp {
+        app: core::num::NonZeroU64,
+        read_only: bool,
+    },
+    GitHubManifest {
+        back: Option<Box<[u8]>>,
+    },
+    /// A connected Forgejo's bot's tokens, carried (protocol/setup.md, section 4).
+    ForgejoTokens,
 }
 /// The App records' provenance since this engine started (client/README.md, 4.6).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -404,7 +438,15 @@ pub enum Making {
 pub enum ForgeAsk {
     GitHub,
     Owned,
-    Managed { place: Place, git_program: Option<Box<[u8]>> },
+    Managed {
+        place: Place,
+        git_program: Option<Box<[u8]>>,
+    },
+    /// A Forgejo of the person's connected with its bot's tokens (protocol/setup.md, section 4).
+    Connected {
+        place: Place,
+        git_program: Option<Box<[u8]>>,
+    },
 }
 /// The box group's kind (temper/docs/design/protocol/setup.md, 7.1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -1150,6 +1192,11 @@ pub struct ChangeDependencies {
 /// A parent or child input to the connector top.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Event {
+    /// A due step saved these specification words on its own task.
+    TierWords {
+        task: u64,
+        words: Box<[u8]>,
+    },
     TierTask {
         repository: skein_forge::api::Repository,
         tier: Box<[u8]>,
@@ -1558,6 +1605,12 @@ pub enum Event {
     ReadAfresh,
     /// Look for each restored uncertain entry before procedures step.
     SettleOutbox,
+    /// A connected Forgejo's Check found the user its tokens answer as: the connector keeps its
+    /// login as the record's bot (protocol/forge.md, 2.2).
+    BotLogin {
+        forge: u16,
+        login: Box<[u8]>,
+    },
 }
 /// The connector's output to the root, including child API calls.
 #[derive(PartialEq, Eq, Debug)]
@@ -1576,6 +1629,8 @@ pub enum Request {
     TierDecision {
         task: u64,
         decision: TierDecision,
+        /// Execution facts retained when a terminal decision clears the tier row.
+        projection: Option<Box<[u8]>>,
         entry: Option<u64>,
     },
     /// The project's adoption erasures precede this post-commit reply.
@@ -1858,6 +1913,13 @@ pub enum Request {
     RestartDone {
         stage: RestartStage,
     },
+    /// Run a Replace: Check on a connected Forgejo, Paste with the kept App id on GitHub
+    /// (protocol/forge.md, 2.2).
+    Replace {
+        forge: u16,
+        request: Token,
+        carried: jig_domain_core::Carried,
+    },
 }
 
 /// Whether this member address belongs to the presented Google subject.
@@ -1891,6 +1953,8 @@ pub struct TierHeard {
 /// Family 28's policy and task (temper/docs/design/domain/after-landing.md, 10).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct TierRow {
+    /// Observed execution identities awaiting or replaying the task projection across restart.
+    pub observations: Box<[u8]>,
     pub repository: skein_forge::api::Repository,
     pub tier: Box<[u8]>,
     pub record: temper_engine_domain_forge_tiers::Record,

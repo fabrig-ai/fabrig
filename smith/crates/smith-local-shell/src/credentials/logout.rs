@@ -7,7 +7,6 @@ pub(super) fn run(
     account: &Account,
     source: &Source,
     settings: &Settings,
-    codex: bool,
     clock: &Clock,
     environment: &Environment,
 ) -> Result<LoginOutcome, String> {
@@ -17,7 +16,6 @@ pub(super) fn run(
             account,
             file,
             settings,
-            codex,
             super::login::provider::Operation::SignOut,
             clock,
             environment,

@@ -1,6 +1,6 @@
 # after-landing: status
 
-2026-11-02. Where temper's code lags or departs from [after-landing.md](after-landing.md).
+2026-11-03. Where temper's code lags or departs from [after-landing.md](after-landing.md).
 
 - **Not yet:** 3: the pending verdict status a run posts on its tip
   before it is held (section 9's). 5.2, 11: the suspects' rule and a

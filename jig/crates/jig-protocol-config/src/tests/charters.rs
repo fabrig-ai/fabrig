@@ -105,7 +105,7 @@ fn a_charter_naming_an_unknown_model_is_refused() {
 fn a_charter_may_name_models_at_two_endpoints() {
     let alternative = br#""models": [{"name":"other", "endpoint":"second", "window":8192,
         "output":1024, "prices":{"input":1,"cached":1,"output":1,"unit":1000}},"#;
-    let endpoint = br#""endpoints": [{"name":"second", "number":2, "dialect":0,
+    let endpoint = br#""endpoints": [{"name":"second", "number":2, "dialect":3,
         "provider":"fake-provider", "address":{"socket":"127.0.0.1:7102"},"transport":"plaintext",
         "headers":[],"connect_ms":10000,"handshake_ms":10000},"#;
     let document = fixtures::with(fixtures::ENGINE_SMALL, br#""models": ["#, alternative);

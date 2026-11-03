@@ -905,7 +905,6 @@ pub(crate) fn grant_value(table: &Table, grant: smith::Grant, now: Time) -> Opti
 fn account(table: &Table, grant: smith::Grant, now: Time) -> Option<smith_protocol_channel::GrantValue> {
     match grant.form {
         smith::Form::Program(name) => return Some(smith_protocol_channel::GrantValue::Program(name.as_bytes().into())),
-        smith::Form::Withdrawn => return None,
         smith::Form::Credential(_) => {}
     }
     let value = table.value(grant.account, grant.generation, now)?;

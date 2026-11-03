@@ -1515,3 +1515,58 @@ fn a_pending_new_github_blocks_a_second_new_forge() {
     assert!(root.forge().set_up().is_none());
     assert_eq!(root.forge().setup_form().making.as_ref().unwrap().kind, Kind::GitHub);
 }
+
+#[test]
+fn pasted_tokens_round_trip_each_given_item_in_code_order() {
+    let mut rng = skein_lib::Rng::new(f::SEED);
+    let api = rng.next_u64().to_be_bytes();
+    let git = rng.next_u64().to_be_bytes();
+    let secret = rng.next_u64().to_be_bytes();
+    for (api, git, secret, codes) in [
+        (Some(api.as_slice()), Some(git.as_slice()), None, &[2_u16, 3][..]),
+        (Some(api.as_slice()), Some(git.as_slice()), Some(secret.as_slice()), &[2, 3, 5]),
+        (None, Some(git.as_slice()), None, &[3][..]),
+        (Some(b"".as_slice()), Some(git.as_slice()), Some(b"".as_slice()), &[3][..]),
+    ] {
+        let bundle = forges::pasted_tokens(api, git, secret).unwrap();
+        let decoded = temper_protocol_records::decode_pasted(bundle.expose()).unwrap();
+        assert_eq!(decoded.len(), codes.len());
+        for ((code, value), expected) in decoded.iter().zip(codes) {
+            assert_eq!(code, expected);
+            let expected = match code {
+                2 => api.unwrap(),
+                3 => git.unwrap(),
+                5 => secret.unwrap(),
+                _ => panic!("tokens item"),
+            };
+            assert!(value.expose() == expected, "item bytes preserved");
+        }
+    }
+    assert!(forges::pasted_tokens(None, None, None).is_none());
+    assert!(forges::pasted_tokens(Some(b""), Some(b""), Some(b"")).is_none());
+}
+#[test]
+fn pasted_tokens_respect_the_aggregate_bundle_bound() {
+    let mut rng = skein_lib::Rng::new(f::SEED);
+    let mut value = skein_lib::bytes::zeroed(forges::PASTED_PAYLOAD);
+    for byte in &mut value {
+        *byte = rng.next_u64().to_le_bytes()[0];
+    }
+    let bundle = forges::pasted_tokens(None, Some(&value), None).unwrap();
+    let decoded = temper_protocol_records::decode_pasted(bundle.expose()).unwrap();
+    assert_eq!(decoded.len(), 1);
+    assert_eq!(decoded[0].0, 3);
+    assert!(decoded[0].1.expose() == value.as_ref(), "item bytes preserved");
+    assert!(forges::pasted_tokens(Some(&value), Some(&value), None).is_none());
+}
+#[test]
+fn connection_refusals_offer_replace_or_connect_in_words() {
+    assert_eq!(
+        forges::connect_refusal(&w::ForgeRefusal::Connected),
+        (b"connected".as_slice(), b"connected already: forge replace replaces its key or tokens".as_slice())
+    );
+    assert_eq!(
+        forges::connect_refusal(&w::ForgeRefusal::NotConnected),
+        (b"not_connected".as_slice(), b"not connected: connect it first".as_slice())
+    );
+}

@@ -1,6 +1,6 @@
 #![expect(clippy::match_like_matches_macro, reason = "workspace bans matches so tests use explicit match assertions")]
 #![expect(clippy::wildcard_enum_match_arm, reason = "ordinary tests make focused partial-variant assertions")]
-//! Synthetic scenarios and separately identified archived provider traffic.
+//! Synthetic Responses scenarios and selective decoding controls.
 #![expect(clippy::disallowed_types, reason = "ordinary test code collects provider outputs in Vec")]
 #![expect(clippy::disallowed_methods, reason = "tests inspect fixture text and collect outputs")]
 #![expect(clippy::arithmetic_side_effects, reason = "the test's trusted archive cursor uses ordinary arithmetic")]
@@ -82,7 +82,7 @@ fn drain(queue: &mut Queue<Output>, trace: &mut Vec<Output>) {
     }
 }
 fn stream(events: &[Event], limits: &Limits) -> Vec<Output> {
-    let mut decoder = StreamDecoder::new(crate::Provider::OpenAiCodex, limits);
+    let mut decoder = StreamDecoder::new(crate::Provider::OpenAi, limits);
     let mut out = Queue::uncapped();
     let mut trace = Vec::new();
     for event in events {
@@ -96,28 +96,6 @@ fn stream(events: &[Event], limits: &Limits) -> Vec<Output> {
     decoder.end(&mut out);
     drain(&mut out, &mut trace);
     trace
-}
-fn fixture(scenario: &str, file: &str) -> Vec<u8> {
-    let root = std::env::var("CARGO_MANIFEST_DIR").unwrap();
-    std::fs::read(std::path::Path::new(&root).join("src/openai/fixtures").join(scenario).join(file)).unwrap()
-}
-fn dechunk(input: &[u8]) -> Vec<u8> {
-    let mut at: usize = 0;
-    let mut out = Vec::new();
-    while at < input.len() {
-        let end = bytes::find(&input[at..], b"\r\n").unwrap();
-        let size = usize::from_str_radix(core::str::from_utf8(&input[at..at + end]).unwrap(), 16).unwrap();
-        at += end + 2;
-        if size == 0 {
-            assert_eq!(&input[at..], b"\r\n");
-            return out;
-        }
-        out.extend_from_slice(&input[at..at + size]);
-        at += size;
-        assert_eq!(&input[at..at + 2], b"\r\n");
-        at += 2;
-    }
-    panic!("archive misses terminal chunk")
 }
 
 #[test]
@@ -391,7 +369,7 @@ fn server_events_roundtrip_echoes_skipped_and_errors_keep_reset_priority() {
     }
     let error = ProviderError {
         param: Box::new([]),
-        kind: owned(b"usage_limit_reached"),
+        kind: owned(b"subscription_sharing_usage_limit_exceeded"),
         message: owned(b"spent"),
         resets_in_seconds: Some(60),
         resets_at: Some(900),
@@ -400,13 +378,13 @@ fn server_events_roundtrip_echoes_skipped_and_errors_keep_reset_priority() {
     assert_eq!(decode_error(&value(&encoded), &LIMITS).unwrap(), error);
     let wall = Wall::from_nanos(100_000_000_000);
     assert_eq!(
-        classify(crate::Provider::OpenAiCodex, 429, Some(&error), RateLimit::NONE, wall),
+        classify(crate::Provider::OpenAi, 429, Some(&error), RateLimit::NONE, wall),
         Failure::Exhausted { retry_after: Some(Duration::from_secs(60)) }
     );
     let mut rate = RateLimit::NONE;
     rate.observe(b"Retry-After", b"2");
     assert_eq!(
-        classify(crate::Provider::OpenAiCodex, 429, Some(&error), rate, wall),
+        classify(crate::Provider::OpenAi, 429, Some(&error), rate, wall),
         Failure::Exhausted { retry_after: Some(Duration::from_secs(60)) }
     );
     let echo = encode_event(&Event::Created { echo: Some(request()) }, &LIMITS).unwrap();
@@ -416,15 +394,7 @@ fn server_events_roundtrip_echoes_skipped_and_errors_keep_reset_priority() {
 }
 
 #[test]
-fn completed_usage_keeps_cached_over_total_and_done_honors_incomplete_status() {
-    let valid = value(br#"{"type":"response.done","response":{"status":"incomplete","incomplete_details":{"reason":"content_filter"},"usage":{"input_tokens":8,"input_tokens_details":{"cached_tokens":3},"output_tokens":2},"output":[{"ignored":true}]}}"#);
-    assert_eq!(
-        decode_event(&valid, &LIMITS),
-        Ok(Event::Completed {
-            stop: Stop::Refusal,
-            usage: Usage { input: Some(5), output: Some(2), cache_read: Some(3), cache_write: None, reasoning: None }
-        })
-    );
+fn completed_usage_keeps_cached_over_total_and_checks_status() {
     let invalid = value(br#"{"type":"response.completed","response":{"status":"completed","usage":{"input_tokens":2,"input_tokens_details":{"cached_tokens":3},"output_tokens":2}}}"#);
     assert_eq!(
         decode_event(&invalid, &LIMITS),
@@ -446,7 +416,7 @@ fn completed_usage_keeps_cached_over_total_and_done_honors_incomplete_status() {
     )
     .unwrap();
     assert_eq!(
-        classify(crate::Provider::OpenAiCodex, 400, Some(&error), RateLimit::NONE, Wall::EPOCH),
+        classify(crate::Provider::OpenAi, 400, Some(&error), RateLimit::NONE, Wall::EPOCH),
         Failure::ContextTooLong
     );
 }
@@ -493,117 +463,9 @@ fn malformed_tokens_duplicates_and_every_document_limit_are_refused() {
     assert_eq!(decoded_bound(&overflowing), None);
 }
 
-fn assert_archive_deltas(trace: &[Output]) {
-    let mut text_delta = Vec::new();
-    let mut completed_text = Vec::new();
-    let mut argument_delta = Vec::new();
-    let mut completed_argument = Vec::new();
-    for output in trace {
-        match output {
-            Output::TextDelta { text, .. } => text_delta.extend_from_slice(text),
-            Output::ArgumentsDelta { delta, .. } => argument_delta.extend_from_slice(delta),
-            Output::Part(Part::Text { text, .. }) => completed_text.extend_from_slice(text),
-            Output::Part(Part::ToolCall { input, .. }) => completed_argument.extend_from_slice(input),
-            _ => {}
-        }
-    }
-    assert_eq!(text_delta, completed_text, "archived text deltas reconstruct the completed message");
-    assert_eq!(argument_delta, completed_argument, "archived argument deltas reconstruct the completed call");
-}
-
-#[test]
-fn archived_real_provider_requests_and_answers_match_known_completions() {
-    for (scenario, input, output, tool_count, opaque_count) in [
-        ("single-text", 27_u64, 17_u64, 0_usize, 1_usize),
-        ("tool-call", 76, 18, 1, 0),
-        ("tool-result-final", 116, 12, 0, 0),
-    ] {
-        let wrapper = Json::from_bytes(&fixture(scenario, "request.json"), &LIMITS.document()).unwrap();
-        let body =
-            json::text_ref(json::value_at(wrapper.view(), json::required(wrapper.view(), b"body").unwrap()).unwrap())
-                .unwrap();
-        let request = decode_request(&value(body), &LIMITS).unwrap();
-        assert!(!request.input.is_empty());
-        let captured = dechunk(&fixture(scenario, "response.sse"));
-        let mut decoder = StreamDecoder::new(crate::Provider::OpenAiCodex, &LIMITS);
-        let mut out = Queue::uncapped();
-        let mut trace = Vec::new();
-        for line in core::str::from_utf8(&captured).unwrap().lines() {
-            if let Some(data) = line.strip_prefix("data: ") {
-                decoder.event(decode_event(&value(data.as_bytes()), &LIMITS).unwrap(), &LIMITS, Wall::EPOCH, &mut out);
-                drain(&mut out, &mut trace);
-            }
-        }
-        decoder.end(&mut out);
-        drain(&mut out, &mut trace);
-        assert_archive_deltas(&trace);
-        assert_eq!(
-            trace
-                .iter()
-                .filter(|out| match out {
-                    Output::Part(Part::ToolCall { .. }) => true,
-                    _ => false,
-                })
-                .count(),
-            tool_count
-        );
-        assert_eq!(
-            trace
-                .iter()
-                .filter(|out| match out {
-                    Output::Part(Part::Opaque { .. }) => true,
-                    _ => false,
-                })
-                .count(),
-            opaque_count
-        );
-        assert_eq!(
-            trace.last(),
-            Some(&Output::Completed {
-                stop: if tool_count == 0 { Stop::EndTurn } else { Stop::ToolUse },
-                usage: Usage {
-                    input: Some(input),
-                    output: Some(output),
-                    cache_read: Some(0),
-                    cache_write: None,
-                    reasoning: Some(if scenario == "single-text" { 10 } else { 0 })
-                }
-            })
-        );
-        if scenario == "single-text" {
-            assert!(trace.iter().any(|out| match out {
-                Output::Part(Part::Text { text, .. }) if text.as_ref() == b"hello" => true,
-                _ => false,
-            }));
-            assert!(trace.iter().any(|out| match out {
-                Output::Part(Part::Opaque { bytes }) if bytes::find(bytes, b"encrypted_content").is_some() => true,
-                _ => false,
-            }));
-        }
-        if scenario == "tool-call" {
-            assert!(trace.iter().any(|out| match out {
-                Output::Part(Part::ToolCall {
-                    name,
-                    input,
-                    call_id,
-                    item_id,
-                    too_large: false,
-                    bytes: _,
-                    cut: false,
-                }) if name.as_ref() == b"get_weather"
-                    && input.as_ref() == br#"{"city":"Paris"}"#
-                    && !call_id.is_empty()
-                    && !item_id.is_empty() =>
-                    true,
-                _ => false,
-            }));
-        }
-    }
-}
-
 #[test]
 fn out_of_order_done_waits_for_order_and_terminal_waits_for_ready_parts() {
-    let mut decoder = StreamDecoder::new(crate::Provider::OpenAiCodex, &LIMITS);
+    let mut decoder = StreamDecoder::new(crate::Provider::OpenAi, &LIMITS);
     let mut out = Queue::uncapped();
     let mut trace = Vec::new();
     for index in 0..3_u32 {
@@ -675,13 +537,13 @@ fn incomplete_and_refused_terminals_override_tools_and_absolute_reset_uses_wall(
         ];
         assert_eq!(stream(&events, &LIMITS).last(), Some(&Output::Completed { stop, usage: Usage::NONE }));
     }
-    let mut decoder = StreamDecoder::new(crate::Provider::OpenAiCodex, &LIMITS);
+    let mut decoder = StreamDecoder::new(crate::Provider::OpenAi, &LIMITS);
     let mut out = Queue::uncapped();
     decoder.event(
         Event::Failed {
             error: ProviderError {
                 param: Box::new([]),
-                kind: owned(b"usage_limit_reached"),
+                kind: owned(b"subscription_sharing_usage_limit_exceeded"),
                 message: owned(b"spent"),
                 resets_in_seconds: None,
                 resets_at: Some(180),
@@ -1028,7 +890,7 @@ fn tool_choice_encodes_auto_none_and_only_without_filtering() {
         assert!(
             json::boolean(json::value_at(tokens, json::required(tokens, b"parallel_tool_calls").unwrap()).unwrap())
                 .unwrap(),
-            "native Codex choice retains parallel tool calls"
+            "native Responses choice retains parallel tool calls"
         );
         let decoded = decode_request(&value, &LIMITS).unwrap();
         assert_eq!(decoded.tools, request.tools);
@@ -1162,7 +1024,7 @@ fn reasoning_drop_is_opt_in_at_one_over_and_never_drops_unknown_items() {
         for (cap, enabled) in [(size, false), (size, true), (size - 1, false), (size - 1, true)] {
             let mut bounds = LIMITS;
             bounds.reasoning = cap;
-            let mut decoder = StreamDecoder::with_reasoning_drop(crate::Provider::OpenAiCodex, &bounds, enabled);
+            let mut decoder = StreamDecoder::with_reasoning_drop(crate::Provider::OpenAi, &bounds, enabled);
             let mut out = Queue::uncapped();
             let mut trace = Vec::new();
             for event in [
@@ -1199,7 +1061,7 @@ fn reasoning_drop_is_opt_in_at_one_over_and_never_drops_unknown_items() {
 }
 
 #[test]
-fn codex_usage_distinguishes_each_absent_present_and_zero_field() {
+fn responses_usage_distinguishes_each_absent_present_and_zero_field() {
     for amount in [0, 7] {
         for (wire, expected) in [
             (format!(r#"{{"input_tokens":{amount}}}"#), Usage { input: Some(amount), ..Usage::NONE }),
@@ -1244,7 +1106,7 @@ fn codex_usage_distinguishes_each_absent_present_and_zero_field() {
 }
 
 #[test]
-fn inconsistent_codex_usage_keeps_reports_and_the_model_completion() {
+fn inconsistent_responses_usage_keeps_reports_and_the_model_completion() {
     for (total, read, written, expected) in [
         (2, 3, None, None),
         (5, 3, Some(3), None),
@@ -1366,43 +1228,12 @@ fn projected(input: &[u8], provider: crate::Provider) -> skein_json::Document {
 }
 
 #[test]
-fn captured_completion_retains_status_and_usage_without_echoes() {
-    let document = projected(include_bytes!("fixtures/provider-completed.json"), crate::Provider::OpenAiCodex);
-    assert!(document.len() < 64, "capture costs only its retained paths");
-    assert!(document.text_len() < 512, "wire echoes do not occupy retained text");
-    for index in 0..document.len() {
-        let record = document.token(index).unwrap();
-        if record.kind == skein_json::Kind::Key {
-            let key = document.text(record).unwrap();
-            assert!(
-                ![b"output".as_slice(), b"instructions", b"tools", b"attribution"].contains(&key),
-                "echo key was retained"
-            );
-        }
-    }
-    let event = decode_event(&Json::collected(document), &LIMITS).unwrap();
-    assert_eq!(
-        event,
-        Event::Completed {
-            stop: Stop::EndTurn,
-            usage: Usage {
-                input: Some(5256),
-                output: Some(36),
-                cache_read: Some(0),
-                cache_write: Some(0),
-                reasoning: Some(0)
-            },
-        }
-    );
-}
-
-#[test]
 fn native_function_arguments_are_counted_without_text_even_with_a_late_tag() {
     let input = format!(
         r#"{{"type":"response.output_item.done","output_index":0,"item":{{"arguments":"{}","id":"i","call_id":"c","name":"read","type":"function_call"}}}}"#,
         "x".repeat(131_072)
     );
-    let value = Json::collected(projected(input.as_bytes(), crate::Provider::OpenAiCodex));
+    let value = Json::collected(projected(input.as_bytes(), crate::Provider::OpenAi));
     let item = json::value_at(value.view(), json::required(value.view(), b"item").unwrap()).unwrap();
     let args = json::value_at(item, json::required(item, b"arguments").unwrap()).unwrap();
     assert_eq!(crate::openai::response::long_text(args), Some(131_072));
@@ -1418,7 +1249,7 @@ fn both_native_filters_and_their_receiving_bounds_are_unambiguous() {
         text: 512,
         skip: 4096,
     };
-    for provider in [crate::Provider::OpenAiCodex, crate::Provider::Anthropic] {
+    for provider in [crate::Provider::OpenAi, crate::Provider::Anthropic] {
         let filter = crate::dialect::event_filter(provider);
         assert!(collector::Collector::new(filter, &bounds, &[3, 128, 64]).is_ok(), "static filter constructs");
         assert!(
@@ -1431,17 +1262,17 @@ fn both_native_filters_and_their_receiving_bounds_are_unambiguous() {
 #[test]
 fn an_http_error_body_refines_class_by_route_before_status() {
     for (provider, status, kind, expected) in [
-        (crate::Provider::OpenAiCodex, 503, b"authentication_error".as_slice(), Failure::Unavailable),
-        (crate::Provider::OpenAiCodex, 400, b"api_error".as_slice(), Failure::Invalid),
-        (crate::Provider::OpenAiCodex, 401, b"rate_limit_error".as_slice(), Failure::Unauthorized),
+        (crate::Provider::OpenAi, 503, b"authentication_error".as_slice(), Failure::Unavailable),
+        (crate::Provider::OpenAi, 400, b"api_error".as_slice(), Failure::Invalid),
+        (crate::Provider::OpenAi, 401, b"rate_limit_error".as_slice(), Failure::Unauthorized),
         (
-            crate::Provider::OpenAiCodex,
+            crate::Provider::OpenAi,
             429,
             b"authentication_error".as_slice(),
             Failure::RateLimited { retry_after: Duration::from_secs(7) },
         ),
-        (crate::Provider::OpenAiCodex, 503, b"overloaded_error".as_slice(), Failure::Overloaded),
-        (crate::Provider::OpenAiCodex, 400, b"context_length_exceeded".as_slice(), Failure::ContextTooLong),
+        (crate::Provider::OpenAi, 503, b"overloaded_error".as_slice(), Failure::Overloaded),
+        (crate::Provider::OpenAi, 400, b"context_length_exceeded".as_slice(), Failure::ContextTooLong),
         (crate::Provider::Anthropic, 400, b"api_error".as_slice(), Failure::Unavailable),
     ]
     .into_iter()
@@ -1480,9 +1311,7 @@ fn responses_error_cases() -> impl Iterator<Item = (crate::Provider, u16, &'stat
         (400, b"context_length_exceeded".as_slice(), Failure::ContextTooLong),
     ]
     .into_iter()
-    .flat_map(|(status, kind, expected)| {
-        [crate::Provider::OpenAi, crate::Provider::OpenAiCodex].map(|provider| (provider, status, kind, expected))
-    })
+    .map(|(status, kind, expected)| (crate::Provider::OpenAi, status, kind, expected))
 }
 
 fn reasoning_run_events(final_call: bool) -> Vec<Event> {
@@ -1603,7 +1432,7 @@ fn an_opted_in_drop_interrupts_a_retained_reasoning_run_without_losing_it() {
         },
     };
     events.push(Event::Completed { stop: Stop::EndTurn, usage: Usage::NONE });
-    let mut decoder = StreamDecoder::with_reasoning_drop(crate::Provider::OpenAiCodex, &limits, true);
+    let mut decoder = StreamDecoder::with_reasoning_drop(crate::Provider::OpenAi, &limits, true);
     let mut out = Queue::uncapped();
     let mut trace = Vec::new();
     for event in events {
@@ -1636,7 +1465,7 @@ fn a_reset_comes_from_the_first_field_given() {
         let rate = RateLimit { retry_after, reset: head, exhausted: false };
         let error = ProviderError {
             param: Box::new([]),
-            kind: owned(b"usage_limit_reached"),
+            kind: owned(b"subscription_sharing_usage_limit_exceeded"),
             message: owned(b"spent"),
             resets_in_seconds: seconds,
             resets_at: timestamp,
@@ -1649,7 +1478,7 @@ fn a_reset_comes_from_the_first_field_given() {
 fn a_failed_response_reads_back_as_written() {
     let error = ProviderError {
         param: owned(b"top_p"),
-        kind: owned(b"usage_limit_reached"),
+        kind: owned(b"subscription_sharing_usage_limit_exceeded"),
         message: owned(b"spent"),
         resets_in_seconds: Some(2),
         resets_at: None,
@@ -1676,7 +1505,7 @@ fn initial_arguments_and_a_preceding_block_fit_three_outputs() {
             arguments: owned(b"{}"),
         },
     ];
-    let mut decoder = StreamDecoder::new(crate::Provider::OpenAiCodex, &LIMITS);
+    let mut decoder = StreamDecoder::new(crate::Provider::OpenAi, &LIMITS);
     let mut out = Queue::uncapped();
     for (index, event) in events.into_iter().enumerate() {
         decoder.event(event, &LIMITS, Wall::EPOCH, &mut out);
@@ -1726,4 +1555,35 @@ fn a_completed_call_cannot_change_its_opened_identity() {
             _ => false,
         }));
     }
+}
+
+#[test]
+fn synthetic_echo_heavy_completion_keeps_only_status_and_usage() {
+    // Synthetic replacement for the recorded completion: the peer's echo
+    // carries instructions, tools and attribution far beyond retained bounds.
+    const ECHO_BYTES: usize = 8192; // Far beyond the projection's 512 retained bytes.
+    let mut request = request();
+    request.instructions = owned(&[b'x'; ECHO_BYTES]);
+    let usage =
+        Usage { input: Some(5256), output: Some(36), cache_read: Some(0), cache_write: Some(0), reasoning: Some(0) };
+    let input = crate::openai::encode_peer_event(
+        &Event::Completed { stop: Stop::EndTurn, usage },
+        Some(&request),
+        crate::openai::Echo { instructions: true, tools: true, attribution_bytes: u32::try_from(ECHO_BYTES).unwrap() },
+        &LIMITS,
+    )
+    .unwrap();
+    let document = projected(&input, crate::Provider::OpenAi);
+    assert!(document.len() < 64, "only retained paths count");
+    assert!(document.text_len() < 512, "echoes are scanned without retention");
+    for index in 0..document.len() {
+        let record = document.token(index).unwrap();
+        if record.kind == skein_json::Kind::Key {
+            assert!(
+                ![b"output".as_slice(), b"instructions", b"tools", b"attribution"]
+                    .contains(&document.text(record).unwrap())
+            );
+        }
+    }
+    assert_eq!(decode_event(&Json::collected(document), &LIMITS), Ok(Event::Completed { stop: Stop::EndTurn, usage }));
 }
