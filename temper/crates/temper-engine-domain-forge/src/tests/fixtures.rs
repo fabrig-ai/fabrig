@@ -80,6 +80,7 @@ pub fn opening_row() -> ChangeRow {
         priority: 1,
         ci: None,
         change: change::Change {
+            early: change::Early::None,
             way: temper_engine_domain_forge_change::Way::Queue,
             landing: None,
             task: CHANGE,
@@ -110,9 +111,16 @@ pub fn opening_row() -> ChangeRow {
         queue_repairs: 0,
         producing_charter: 2,
         review_charter: 4,
+        producing_llm: None,
+        review_llm: None,
+        foreman_charter: 6,
+        questions: temper_engine_domain_forge_change::Questions::default(),
         effect_account: None,
         producer_failure: None,
         report: Box::new([]),
+        repairs: None,
+        catch_up: None,
+        merge_result: None,
     }
 }
 
@@ -182,9 +190,11 @@ pub fn step_change(d: &mut Domain) {
     outputs(
         d,
         Event::StepChange {
+            merge_job: false,
             task: CHANGE,
             entry: OPEN + 1,
             heard: change::Heard {
+                start_conflict: None,
                 lacking: None,
                 spend: None,
                 delegate: change::Status::Passed,
@@ -194,6 +204,7 @@ pub fn step_change(d: &mut Domain) {
             },
             gates: Box::new([]),
             queue_repair_active: false,
+            pending: Box::new([]),
             kept: false,
         },
     );

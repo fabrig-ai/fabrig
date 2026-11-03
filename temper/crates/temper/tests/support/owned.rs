@@ -572,16 +572,11 @@ fn edited(bytes: &[u8], owned: &Owned) -> String {
 fn example_value(owned: &Owned) -> serde_json::Value {
     let mut value: serde_json::Value = serde_json::from_str(&edited(EXAMPLE, owned)).expect("owned JSON");
     value["engine"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket":owned.llm.to_string()});
-    if !owned.review {
-        value["application"]["landing"]["projects"][0]["rules"][0]["gates"] = serde_json::json!([]);
-    }
     value
 }
 #[must_use]
 pub fn application(owned: &Owned) -> serde_json::Value {
-    let mut value = example_value(owned)["application"].take();
-    value["charter"] = 1.into();
-    value
+    example_value(owned)["application"].take()
 }
 #[must_use]
 pub fn example_document(directory: &Path, owned: &Owned) -> Vec<u8> {
@@ -603,6 +598,9 @@ pub fn lay(directory: &Path, owned: &Owned) {
         fs::write(directory.join(name), text).expect("shipped file");
     }
     local_agent(directory, "owned/agent.json", owned.llm);
+    if !owned.review {
+        native_landing_settings(directory);
+    }
     super::write_private(&directory.join("secrets/worker.secret"), b"worker-secret\n");
     super::write_private(
         &directory.join("secrets/worker.digest"),
@@ -1048,4 +1046,18 @@ pub fn adopt(
             .expect("hook answers");
         assert_eq!(response.status, 201, "repository hook");
     }
+}
+
+/// This fixture's changes use the ordinary charter without an agent review.
+pub fn native_landing_settings(directory: &Path) {
+    let value = serde_json::json!({"items":[
+        {"setting":{"kind":"landing-rule","number":1},"set":{
+            "pattern":{"segments":["666f726765"],"last":{"open":""}},
+            "enforce":true,"ci":true,"up_to_date":true,"gates":[],"approvals":[]}},
+        {"setting":{"kind":"forge-charter","number":1},"set":1}
+    ]});
+    super::write_private(
+        &directory.join("native-landing-settings.json"),
+        &serde_json::to_vec(&value).expect("native landing settings"),
+    );
 }

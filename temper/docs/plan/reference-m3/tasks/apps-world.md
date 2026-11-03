@@ -2,7 +2,7 @@
 id = "apps-world"
 part = "appsettings"
 kind = "feature"
-needs = ["apps-connector", "apps-start", "apps-store"]
+needs = ["apps-connector", "apps-start", "apps-store", "apps-wire"]
 files = ["jig/testing/jig-test-domain/src/routes.rs", "jig/testing/jig-test-domain/src/lib.rs", "jig/testing/jig-test-domain/src/tests/**", "jig/tests/core/tests/suite/application_settings.rs", "jig/tests/core/tests/suite/main.rs", "jig/tests/core/src/**", "jig/docs/design/domain/connectors.status.md"]
 effort = "high"
 minutes = 120
@@ -76,3 +76,21 @@ Acceptance:
 ## Report
 
 How the restart oracle saw the connector's records; any finding left.
+
+## Answers
+
+2026-11-03. **Q:** the core discards `SettingsDefaults` and never asks
+`SaveSettingsDefaults`, and the settings document shows no application state or size:
+wait for those, or widen this task to build them?
+
+**A:** Wait; no widening. Both are other tasks' work, running now: the start's defaults,
+release revision and `SaveSettingsDefaults` are `apps-start`'s (steps 1 and 4, owning
+`effects.rs`); the document's application states and sizes are `apps-wire`'s (its step 2,
+owning `documents/settings.rs` and `reads/vocabulary.rs`). `apps-wire` is now in `needs`.
+
+- The next run starts from this branch's routing commit (`638771c162`), merges the landed
+  `apps-start` and `apps-wire`, then writes the story and edits the status file as the
+  steps say; nothing of `jig-domain-core` or the wire changes here.
+- If, with both merged, the story still lacks a core piece, stop and ask, naming it.
+- The temper compile errors this run saw (`Revision` literals lacking `applications`,
+  `Current::new` lacking `kinds`) stay under `## Left`.

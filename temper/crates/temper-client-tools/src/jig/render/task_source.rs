@@ -103,3 +103,22 @@ pub(super) fn reads(task: &c::Task, out: &mut Encoder) {
     }
     out.object_end();
 }
+
+/// Print retrieved asked words and a continuation from the first undisplayed source byte.
+pub(super) fn asked(task: &c::Task, source: Option<&crate::jig::runner::specification::Specification>, out: &mut Text) {
+    let Some(source) = source else {
+        out.words(task.spec.specification.words.bytes());
+        return;
+    };
+    let end = skein_lib::bytes::utf8_prefix(source.bytes.as_slice(), out.room()).len();
+    out.words(source.bytes.as_slice());
+    if source.more || end < source.bytes.as_slice().len() {
+        out.put(b"\n");
+        if let Some(total) = source.total {
+            out.number(total.saturating_sub(u64::try_from(end).expect("source bound")));
+            out.put(b" bytes left; ");
+        }
+        out.put(b"read on with: ");
+        call(task.chip.task, c::TaskTextField::Specification, u64::try_from(end).expect("source bound"), out);
+    }
+}

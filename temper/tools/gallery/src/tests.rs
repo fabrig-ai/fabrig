@@ -41,7 +41,7 @@ fn navigation_links_have_addresses_and_install_action_links_keep_their_binding()
                 temper_client_view::act(&mut view, node, skein_ui::Act::Press)
             {
                 let reset = view.tree().nodes().iter().find(|shown| shown.id == node).expect("bound reset link");
-                assert_eq!(reset.name.as_deref(), Some(b"set up temper".as_slice()));
+                assert!(matches!(reset.name.as_deref(), Some(b"set up temper" | b"Set up temper")));
             } else {
                 panic!("{}: link {node:?} has neither a destination nor its install act", sample.name);
             }
@@ -77,8 +77,9 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "chats-first-run-5",
-        heading: "What shall we change?",
+        heading: "Chats",
         parts: &[
+            Part::Named { role: Role::List, name: "Suggested requests" },
             Part::Named { role: Role::Region, name: "Playground" },
             Part::Absent { role: Role::Link, name: "Manage usage" },
         ],
@@ -226,14 +227,14 @@ const HOLDS: [Holds; samples::N] = [
         name: "github-picker",
         heading: "Connect a forge",
         parts: &[
-            Part::Named { role: Role::Choice, name: "sam/widget" },
-            Part::Named { role: Role::Button, name: "Adopt sam/widget" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "GitHub is connected" },
+            Part::Named { role: Role::Link, name: "Adopt a repository" },
         ],
     },
     Holds {
         name: "github-adopted",
         heading: "Connect a forge",
-        parts: &[Part::Named { role: Role::Link, name: "Open widget" }],
+        parts: &[Part::Named { role: Role::Link, name: "Adopt a repository" }],
     },
     Holds {
         name: "welcome-forge-choose",
@@ -268,7 +269,7 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named { role: Role::TextField, name: "Organization" },
             Part::Named { role: Role::TextField, name: "Repository" },
-            Part::Named { role: Role::TextField, name: "Into a new project, named" },
+            Part::Absent { role: Role::TextField, name: "Into a new project, named" },
         ],
     },
     Holds {
@@ -284,18 +285,18 @@ const HOLDS: [Holds; samples::N] = [
         heading: "Almost ready",
         parts: &[
             Part::Named { role: Role::Disclosure, name: "Each step" },
-            Part::Named { role: Role::Paragraph, name: "Project Default, with work/hello" },
+            Part::Named { role: Role::Paragraph, name: "Project: Default" },
             Part::Named { role: Role::Button, name: "Open Default" },
-            Part::Named { role: Role::Paragraph, name: "It opens once work/hello is made." },
+            Part::Named { role: Role::Paragraph, name: "It opens once your forge and model are ready." },
         ],
     },
     Holds {
         name: "welcome-ready-adopted",
-        heading: "work/hello is ready",
+        heading: "Almost ready",
         parts: &[
             Part::Named { role: Role::Paragraph, name: "Forge: Forgejo on this machine, connected as temper" },
-            Part::Named { role: Role::Paragraph, name: "Project hello, with work/hello" },
-            Part::Named { role: Role::Link, name: "Open hello" },
+            Part::Named { role: Role::Paragraph, name: "Project: Default" },
+            Part::Named { role: Role::Button, name: "Open Default" },
             Part::Absent { role: Role::Disclosure, name: "Each step" },
         ],
     },
@@ -305,7 +306,7 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named { role: Role::Heading { level: 2 }, name: "Setting up Forgejo on this machine" },
             Part::Named { role: Role::Status, name: "under way" },
-            Part::Named { role: Role::Paragraph, name: "work/hello, into Default" },
+            Part::Named { role: Role::Paragraph, name: "work/hello" },
         ],
     },
     Holds {
@@ -316,7 +317,7 @@ const HOLDS: [Holds; samples::N] = [
             Part::Described {
                 role: Role::Disclosure,
                 name: "Forgejo on this machine",
-                description: "forge 3 · Forgejo · Connected as temper\nwork/hello · project hello",
+                description: "forge 3 · Forgejo · Connected as temper\nwork/hello",
             },
             Part::Absent { role: Role::Heading { level: 2 }, name: "The playground" },
         ],
@@ -392,7 +393,7 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "chats-first-run-1",
-        heading: "What shall we change?",
+        heading: "Chats",
         parts: &[
             Part::Named { role: Role::List, name: "Suggested requests" },
             Part::Named { role: Role::Button, name: "Add CSV export to widget" },
@@ -497,10 +498,7 @@ const HOLDS: [Holds; samples::N] = [
     Holds {
         name: "chats-empty",
         heading: "Chats",
-        parts: &[
-            Part::Named { role: Role::Heading { level: 2 }, name: "Your chats" },
-            Part::Chats { live: 0, closed: 0 },
-        ],
+        parts: &[Part::Named { role: Role::Heading { level: 1 }, name: "Chats" }, Part::Chats { live: 0, closed: 0 }],
     },
     Holds {
         name: "inbox-empty",
@@ -999,8 +997,8 @@ fn connection_samples_assign_priority_and_progress_to_the_bundled_nodes() {
         ("welcome-model-choose", vec!["Continue with ChatGPT"]),
         ("github-app-details", vec!["GitHub"]),
         ("github-install", vec!["Install on GitHub"]),
-        ("github-picker", vec!["Adopt sam/widget"]),
-        ("github-adopted", vec!["Open widget"]),
+        ("github-picker", vec![]),
+        ("github-adopted", vec![]),
         ("forges-github-install", vec!["Install on GitHub"]),
     ] {
         let sample = samples::samples().into_iter().find(|sample| sample.name == name).expect("sample");
@@ -1016,7 +1014,7 @@ fn connection_samples_assign_priority_and_progress_to_the_bundled_nodes() {
         if name == "welcome-forge-details" {
             assert_eq!(
                 view.tree().nodes().iter().filter(|node| node.styles.as_slice().contains(&look::FLOW_PAIR)).count(),
-                2
+                1
             );
         }
     }

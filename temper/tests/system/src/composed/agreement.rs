@@ -17,7 +17,6 @@ pub(super) fn config(seed: u64) -> engine::Config {
     };
     config.core.defaults = temper_service::stock::defaults(&llm);
     config.core.connectors = Box::new([1]);
-    config.forge_charter = 2;
     let mut policy = config.core.defaults.policies.get(&1).expect("stock policy").clone();
     let mut roles = policy.policy.roles.to_vec();
     for number in 1..4 {
@@ -27,6 +26,7 @@ pub(super) fn config(seed: u64) -> engine::Config {
     }
     policy.policy.roles = roles.into_boxed_slice();
     config.core.seed_projects[0].policy = policy;
+    config.kinds_stock = temper_engine_domain::landing_stock(&[], &skein_lib::Map::with_capacity(0), 2, 4);
     config
 }
 

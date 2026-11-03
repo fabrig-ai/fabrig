@@ -451,13 +451,6 @@ fn credential(value: &smith_protocol_translate::GrantValue) -> Option<skein_llm:
     let credential = match value {
         smith_protocol_translate::GrantValue::Bearer(value) => skein_llm::Credential::bearer(value.clone()),
         smith_protocol_translate::GrantValue::Key(value) => skein_llm::Credential::key(value.clone()),
-        smith_protocol_translate::GrantValue::Withdrawn { account_id, bearer } => {
-            if account_id.is_empty() {
-                skein_llm::Credential::bearer(bearer.clone())
-            } else {
-                skein_llm::Credential::codex(bearer.clone(), account_id.clone())
-            }
-        }
         smith_protocol_translate::GrantValue::Program(_) => return None,
     };
     if credential.value.is_empty() {

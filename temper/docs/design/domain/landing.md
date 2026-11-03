@@ -583,6 +583,7 @@ Kind 4's members, each with its default and the section it serves:
 |---|---|---|
 | `by`: `queue` or `turn` | `queue` | section 1 |
 | `prepare`, `key`: paths in the home, or none; `home_revision`; `prepare_timeout` | temper's own prepare and key | 5.3, 6.1 |
+| `merge_job`: a path in each repository it merges, or none | none: a conflict goes to a resolution at once | `forge.md`, 8.4 and 10 |
 | `dependencies_join` | yes | 4.1 |
 | `pins`: each a downstream and an upstream repository; `pins_follow_main` | none; no | 4.1, 5.3 |
 | `stale_proofs`; `gate_retries` | 2; 2 | 9; 7.4 |
@@ -592,8 +593,8 @@ Kind 4's members, each with its default and the section it serves:
 
 - **Until both kinds are settings** on jig's application settings (jig's
   `domain/engine.md`, 17.5), a project's `by`, its `tier_retries` and
-  `verification_bound` (`verification_bound_ms` there), and its
-  repositories' gates and tiers are
+  `verification_bound` (`verification_bound_ms` there), its
+  `merge_job`, and its repositories' gates and tiers are
   configured in the document's `landing` member
   (`../protocol/configuration.md`, section 3), as the landing rules are,
   and read at the start.

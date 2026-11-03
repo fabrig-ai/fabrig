@@ -312,7 +312,7 @@ pub(crate) fn configure(value: &mut serde_json::Value) {
         overrides.remove(name);
     }
     if STORY.with(|slot| matches!(slot.get(), Story::HeldChange)) {
-        value["application"]["landing"]["deployment"] = serde_json::json!([{
+        value["world_settings"]["landing"]["deployment"] = serde_json::json!([{
             "connector": 1, "kind": 4,
             "pattern": {"segments": ["forge", "127.0.0.1:3000"], "last": "open", "value": "acme"},
             "enforce": true, "ci": true, "up_to_date": true,
@@ -551,5 +551,5 @@ pub(crate) fn given(document: &serde_json::Value) -> temper_service::stock::Give
         defaults.charters[0].policy.waiting = skein_lib::Duration::from_millis(u64::from(fixtures::CHAT_WAIT_MS));
         defaults.templates[0].budget = jig_domain_people::TemplateBudget::AsAllowed { cap: Some(50) };
     }
-    temper_service::stock::Given::Own(Box::new(defaults))
+    temper_service::stock::Given::Own { jig: defaults, forge: crate::settings::forge(&document) }
 }

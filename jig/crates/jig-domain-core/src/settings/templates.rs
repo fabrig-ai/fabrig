@@ -118,6 +118,7 @@ pub(crate) fn valid(
         let number = match setting {
             super::Setting::Template(number) => *number,
             super::Setting::Charter(_) | super::Setting::Policy(_) | super::Setting::Rules => continue,
+            jig_domain_people::Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
         };
         let template = current.template(number).expect("offered template");
         let mut executor = template.executor;
@@ -194,6 +195,7 @@ pub fn current_merged(current: &super::Current, overrides: &[jig_domain_people::
         let number = match setting {
             super::Setting::Template(number) => *number,
             super::Setting::Charter(_) | super::Setting::Policy(_) | super::Setting::Rules => continue,
+            jig_domain_people::Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
         };
         let template = current.template(number).expect("offered template");
         let mut value = template.clone();

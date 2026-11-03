@@ -106,7 +106,7 @@ pub(crate) fn config() -> Config {
             models: Box::new([run::charter::Llm {
                 effort: None,
                 prices: run::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 },
-                dialect: 1,
+                dialect: 3,
                 account: Some(7),
                 endpoint: Endpoint(4),
                 model: Box::from(&b"small"[..]),
@@ -566,7 +566,7 @@ fn colocated_chat(
     let mut sim = skein_sim::Sim::new(8, sim_config);
     let pid = sim.spawn_process();
     let peer_pid = sim.spawn_process();
-    let peer = smith_agent_process_world::fake::peer();
+    let peer = smith_agent_process_world::fake::peer_openai();
     let service = Service::new(config, 8).expect("colocated service");
     (service, sim, pid, peer, peer_pid)
 }
@@ -739,10 +739,7 @@ fn colocated_grant(service: &mut Service) {
             renewable: true,
             valid: Duration::from_secs(7200),
         },
-        smith_protocol_translate::GrantValue::Withdrawn {
-            account_id: Box::from(&b"acc"[..]),
-            bearer: Box::from(&b"token"[..]),
-        },
+        smith_protocol_translate::GrantValue::Bearer(Box::from(&b"token"[..])),
     );
 }
 
@@ -826,8 +823,9 @@ fn settle_colocated_exit(
 }
 
 fn colocated_config() -> Config {
-    let lower = smith_agent_process_world::configuration();
+    let lower = smith_local_process_world::process::lower_configuration();
     let mut config = config();
+    config.endpoints = lower.channel_endpoints.clone();
     config.limits.local.smith = lower.limits.domain;
     config.limits.process.io = lower.limits.io;
     config.limits.local.line_bytes =
@@ -904,7 +902,13 @@ pub(crate) fn session_started() -> smith_events::SessionStarted {
         profile: b"test".as_slice().into(),
         capture: smith_events::Capture::Calls,
         delivery: smith_events::Delivery::Complete,
-        versions: smith_events::Versions { events: 4, channel: 5, charter: 4, transcript: 6, chat_store: None },
+        versions: smith_events::Versions {
+            events: 4,
+            channel: smith_channel::KindRule::FORMAT_VERSION,
+            charter: 4,
+            transcript: 6,
+            chat_store: None,
+        },
         limits: List::with_capacity(0),
     }
 }

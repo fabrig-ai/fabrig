@@ -893,7 +893,8 @@ fn ended_refusal(refusal: &c::Refusal, archived: bool) -> bool {
     match refusal {
         c::Refusal::Ended { .. } => true,
         c::Refusal::Unknown => archived,
-        c::Refusal::Stale(_)
+        c::Refusal::Judged { .. }
+        | c::Refusal::Stale(_)
         | c::Refusal::Full(_)
         | c::Refusal::AccountMove { .. }
         | c::Refusal::SignInRedirect { .. }

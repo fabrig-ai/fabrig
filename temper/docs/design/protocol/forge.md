@@ -218,10 +218,12 @@ skein-io socket
   - whether a pasted GitHub App is another's, read-only (setup.md,
     17.7);
   - its bot's git identity: a login, and the name and email it commits
-    as, read on Forgejo alone: a GitHub forge commits as its App's bot,
+    as, read on Forgejo alone: a connected Forgejo's login is the user
+    its tokens answer as, written over the one the record was made with
+    at each `Check` done (2.2); a GitHub forge commits as its App's bot,
     from its `AppSlug` and `User` records (2.5);
   - for a first set up, the first repository's intent: its
-    organization, name, project and runner label (setup.md, 6.7), kept
+    organization, name and runner label, and no project (setup.md, 6.7), kept
     so that a restart before the repository is made makes it at the next
     connect;
   - its state: kept, or ended, with whether its secrets are erased and
@@ -336,6 +338,9 @@ skein-io socket
     the remotes' base, the pages and the git program the person gives,
     its mode managed, and the first repository's intent when it names
     one;
+  - `Connect` with a Forgejo's bot's tokens (setup.md, section 4) takes
+    them as an admin's does, its mode connected, with no first
+    repository;
   - the playground's start makes its fake forge on the machine's fake
     place (setup.md, 8.4).
 
@@ -354,8 +359,9 @@ skein-io socket
   the records, as at start, never from the run's outcome: a forge
   connected at runtime is the forge a restart would load.
 - **`Event::Connected { forge }`** reaches the root through the routing
-  with the identity the records hold, its id and login (the `User` row;
-  on GitHub, the App's bot user): the forge is connected, and the
+  with the identity the records hold, its id and login (the `User` row
+  and, on Forgejo, the record's bot; on GitHub, the App's bot user): the
+  forge is connected, and the
   deployment's page says as whom (client/forge.md, the deployment's
   page). The connector then gives the forge client its writer, which the
   forge client keeps as its own record and restores at start (skein's
@@ -378,6 +384,26 @@ skein-io socket
   once, at cost 0 (2.7). The root shows the forge connecting while a run
   holds it, setting up while the box runs its group, and not connected
   otherwise.
+- **A connected Forgejo's `Check`** (2.6), at its `Connect` and at each
+  `Replace`, ends `Done` with the user its tokens answer as, its id and
+  login. The routing keeps the run's `User` write, then each pasted
+  item, the tokens and the secret, then the `Origin`, and tells the root
+  the login with the run's end. The forge connector writes it as the
+  record's bot login in that decision and hands the record to the
+  routing again (2.1), before the carried row's erase and
+  `Request::Connect`, so the `Connected` that follows names it and a
+  restart reads it from the record. A login renamed on Forgejo is the
+  same user, by its id: the next `Check` keeps the new one.
+- **A forge's user stays.** A connected Forgejo's `Check` compares the
+  user its tokens answer as with the kept `User`, on a forge connected
+  again as on a `Replace`: tokens of another user stop the run
+  `OtherUser`, nothing kept and the forge as it was. A forge's writer is
+  its user (skein's `forge-client.md`, 7.1; credentials.md, 2.1), so
+  another user's tokens connect a new forge, once this one is removed.
+- **`Replace`** runs `Check` on a connected Forgejo, its pasted tokens
+  read before the forge's rows, so that a token not pasted is the kept
+  one, and `Paste` on GitHub with the kept `AppId` (setup.md, 17.3); on
+  `Done` each pasted item is kept over the old, then `Request::Connect`.
 - **A replacement** ends the calls the old access began `Forbidden`, as
   a revocation would. A credential that answers as another user is
   refused before anything is kept (`Check`, `Paste`); one the component
@@ -544,7 +570,7 @@ entrance limits and settings before it builds it, with room for
 | `TakeOver { forge, admin_token }` | an owned or fake forge's start, or the box's `started`, whenever the handover file is present, even with a kept `AdminToken` (setup.md, 6.5) | keeps the handover's admin token; only after its `Done` and the record kept is the file removed, before reconcile |
 | `Adopt { forge, repository }` | a managed or owned forge's adoption, before its reads | gives the bot access to the repository (`../domain/forge.md`, 4.2) |
 | `Create { forge, org, repository, files }` | an owned or managed forge's first repository, at its set up (setup.md, 6.7) | the repository made in its organization, the bot given access, the owner's files put on its main (skein's `forge-setup.md`, 4.9) |
-| `Check { forge }` | a connected Forgejo's pasted tokens, and their replacement | both tokens answer as one user, and as the kept user on a replacement |
+| `Check { forge }` | a connected Forgejo's `Connect` with its pasted tokens, and each `Replace` of them | both tokens answer as one user, not a site admin, and as the kept `User` when there is one, else it writes `User`; it ends `Done(Identity { id, login })`, the login kept as the record's bot's (2.2) |
 | `Manifest { forge, target }` | GitHub's Connect, always for `Personal`: the App is the person's, public, and installs on any account GitHub offers them (setup.md, 17.2) | a fresh state, the form's target and the manifest; it ends `Done(Manifest { state, target, manifest })`, from which temper renders the manifest's page (client/forge.md, 9.1) |
 | `Convert { forge, code, state }` | GitHub's redirect back | the code exchanged for the App's id, slug and key, the conversion's webhook secret and OAuth pair never kept; the bot user found; it writes `AppId`, `AppSlug`, `AppKey` and `User` |
 | `Install { forge }` | Install the App, or Install on another account | a fresh state, and the install link (`Link`) |
@@ -606,7 +632,8 @@ entrance limits and settings before it builds it, with room for
 - **A run's `Done`:** its writes kept and its carried row's erase
   carried out, then `Request::Connect` (2.2) after a plan that connects
   (a Forgejo's `Reconcile` or `Check`, GitHub's `Convert` or `Paste`),
-  and never after GitHub's `Reconcile`; after `Convert`'s, `Install`
+  after a `Check` once its login is kept (2.2), and never after GitHub's
+  `Reconcile`; after `Convert`'s, `Install`
   first, whose link answers the browser (setup.md, 17.2);
   `Request::Installations` after an `Accept` (2.4); the adoption's
   reads after an `Adopt`; `Reconcile` after a `TakeOver`. **A run's
@@ -1030,7 +1057,8 @@ Held by skein's `forge-connection.md`, section 8: a forge connection
 | ended | its removal's decision, its owners' `RemoveForge` or the playground's reset, or a start whose record reads ended (2.3) | `NotConnected`, by the routing, which passes none on to the connection component |
 
 A connecting forge goes back to what it was when its run stops; a
-stopped one is connected again by its next `Connected`, after a Replace.
+stopped one is connected again by its next `Connected`, after a Replace
+or, on a connected Forgejo, a `Connect` with its tokens.
 A setting up forge, at the box's `started`, connects as 2.2 says; set up
 failed, it is asked again from the client, as not set up is. Only a
 forge the box runs, owned or fake, is ever setting up or set up failed,
@@ -1100,7 +1128,14 @@ The tiers, the fakes and the layout are `../domain/testing.md`'s (sections 2,
   - **connecting at runtime:** a run's writes kept before
     `Request::Connect`, the access built from the records, `Connected`
     told to the root with the identity, and calls `NotConnected` at cost
-    0 until then;
+    0 until then; a connected Forgejo's `Check` with its pasted tokens,
+    its `User` write, the tokens and the secret then the `Origin` kept,
+    its login the record's bot's before `Request::Connect`, and
+    `Connected` naming it; tokens of two users, of a site admin, or of
+    another user than the kept one, each stopping it with nothing kept;
+    a `Replace` of the git token alone, checked with the kept API token
+    and kept over the old one; and on GitHub a `Replace` running `Paste`
+    with the kept `AppId`;
   - **one forge stopped:** its key refused, it answers `NotConnected`,
     is named with Replace, and the engine and the other forges run on;
   - **a forge made and removed:** a record kept, numbered next, joining

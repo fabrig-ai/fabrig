@@ -18,7 +18,7 @@ fn ten_thousand_declarations_preserve_all_client_relationships() {
         };
         match Limits::derive(&declared) {
             Ok(derived) => {
-                for provider in [Provider::OpenAiCodex, Provider::Anthropic] {
+                for provider in [Provider::OpenAi, Provider::Anthropic] {
                     let bounds = derived.dialect(provider);
                     assert_eq!(bounds.tools, declared.tools);
                     assert_eq!(bounds.history_items, declared.history_items);

@@ -21,20 +21,13 @@ fn fresh(under_box: bool) -> Domain {
     d
 }
 fn setup(forge: Making) -> Ask {
-    Ask::SetUp {
-        forge,
-        org: b"work".as_slice().into(),
-        repository: b"hello".as_slice().into(),
-        project: SetUpProject::New(b"hello".as_slice().into()),
-        playground: false,
-    }
+    Ask::SetUp { forge, org: b"work".as_slice().into(), repository: b"hello".as_slice().into(), playground: false }
 }
 fn admin() -> How {
     How::ForgejoAdmin {
         first: Some(FirstAsk {
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
-            project: SetUpProject::New(b"hello".as_slice().into()),
             label: b"docker".as_slice().into(),
         }),
     }
@@ -136,7 +129,7 @@ fn connect_new_github_makes_a_record_at_the_machines_place() {
             How::GitHubManifest { .. } => {
                 assert!(out.contains(&Request::Manifest { forge: 1, request: Token::new(1), back: None }));
             }
-            How::ForgejoAdmin { .. } => unreachable!(),
+            How::ForgejoAdmin { .. } | How::ForgejoTokens => unreachable!(),
         }
     }
 }
@@ -161,8 +154,43 @@ fn connect_new_managed_makes_a_record_with_its_intent() {
     assert_eq!(record.place, place(b"managed.example"));
     assert_eq!(record.git_program.as_deref(), Some(b"/data/bin/managed-git".as_slice()));
     assert_eq!(record.first.as_ref().unwrap().label.as_ref(), b"docker");
-    assert_eq!(record.first.as_ref().unwrap().project, SetUpProject::New(b"hello".as_slice().into()));
     assert!(out.contains(&Request::Connect { forge: 1, request: Token::new(1), how, carried: VALUE }));
+}
+#[test]
+fn connect_new_connected_makes_a_record_with_its_place_and_bot() {
+    let mut d = fresh(false);
+    outputs(&mut d, Event::Restore { record: Stored::ForgeNumber { last: 8 } });
+    let out = application(
+        &mut d,
+        1,
+        Ask::Connect {
+            forge: Making::New(ForgeAsk::Connected {
+                place: place(b"connected.example"),
+                git_program: Some(b"/data/bin/connected-git".as_slice().into()),
+            }),
+            how: How::ForgejoTokens,
+        },
+    );
+    let record = saved(&out);
+    assert_eq!(record.number, 9);
+    assert_eq!(record.kind, Kind::Forgejo);
+    assert_eq!(record.mode, Mode::Connected);
+    assert_eq!(record.state, ForgeState::Kept);
+    assert_eq!(record.place, place(b"connected.example"));
+    assert_eq!(record.git_program.as_deref(), Some(b"/data/bin/connected-git".as_slice()));
+    assert_eq!(record.bot, domain::make::bot());
+    assert!(!record.read_only);
+    assert!(!record.asked);
+    assert_eq!(record.first, None);
+    assert_eq!(d.record(9), Some(&record));
+    assert_eq!(d.connection(9), Connection::Connecting);
+    assert!(out.contains(&Request::ForgeKept(record)));
+    assert!(out.contains(&Request::Connect {
+        forge: 9,
+        request: Token::new(1),
+        how: How::ForgejoTokens,
+        carried: VALUE
+    }));
 }
 #[test]
 fn a_restart_before_the_first_repository_rebuilds_the_intent_from_the_record() {
@@ -187,7 +215,6 @@ fn a_restart_before_the_first_repository_rebuilds_the_intent_from_the_record() {
         assert_eq!(first.state, FirstState::Making);
         assert_eq!(first.org, record.first.as_ref().unwrap().org);
         assert_eq!(first.repository, record.first.as_ref().unwrap().repository);
-        assert_eq!(first.project, record.first.as_ref().unwrap().project);
         assert_eq!(first.label, record.first.as_ref().unwrap().label);
         if !owned {
             let out = application(
@@ -255,7 +282,6 @@ fn a_refused_connect_saves_no_record_and_a_failed_connect_keeps_it() {
                 first: Some(FirstAsk {
                     org: b"Temper".as_slice().into(),
                     repository: b"hello".as_slice().into(),
-                    project: SetUpProject::Existing(1),
                     label: b"docker".as_slice().into(),
                 }),
             },

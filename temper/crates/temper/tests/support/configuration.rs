@@ -10,7 +10,7 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
             "policy":{"max_turns":16,"check_timeout":60000,"group_stop":10,"inbox":8,"unacknowledged":8}},
         "endpoints":[{"name":"fake","number":0,"dialect":3,"provider":"openai",
             "address":"127.0.0.1:0","transport":"tls","server_name":"skein.test","trust_der":directory.join("root.der"),
-            "identity":"plain","connect":1000,"handshake":1000,
+            "connect":1000,"handshake":1000,
             "models":[{"name":"fake","prices":{"input":1,"cached":1,"output":1,"unit":1_000_000},"window":1_048_576,"output":2048,"reasoning_item":64,"head":60000,"idle":30000}]}],
         "environment":[]});
     let mut value: serde_json::Value =
@@ -21,7 +21,7 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
         project["policy"] = 1.into();
         project.as_object_mut().expect("seed").remove("roles");
     }
-    // A Create member owns stock's fourteen grants and six executors, plus its words.
+    // A Create member owns stock's fourteen grants and seven executors, plus its words.
     value["engine"]["limits"]["overrides"]["people.amendment_bytes"] = 2048.into();
     let worker: serde_json::Value =
         serde_json::from_slice(jig_channel_world::fixtures::WORKER_DOCUMENT).expect("worker JSON");
@@ -36,10 +36,10 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
     value["engine"]["connectors"] = serde_json::json!([1]);
     value["engine"]["llm"]["endpoints"][0]["dialect"] = 3.into();
     value["engine"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket":"127.0.0.1:0"});
-    // The stock carries three charters, fourteen grants and six executor kinds.
+    // The stock carries four charters, fourteen grants and seven executor kinds.
     value["engine"]["limits"]["overrides"]["tasks.charters"] = 4.into();
-    value["engine"]["limits"]["overrides"]["authority.executors"] = 6.into();
-    value["engine"]["limits"]["overrides"]["tasks.executor_kinds"] = 6.into();
+    value["engine"]["limits"]["overrides"]["authority.executors"] = 8.into();
+    value["engine"]["limits"]["overrides"]["tasks.executor_kinds"] = 8.into();
     value["engine"]["limits"]["overrides"]["authority.grants"] = 16.into();
     // A chat copies stock policy 1's fourteen grants into its task authority.
     value["engine"]["limits"]["overrides"]["tasks.authority_grants"] = 16.into();
@@ -62,7 +62,7 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
     value["application"] = serde_json::json!({
         "webhooks":null,
 "clients":{"listener":{"socket":"127.0.0.1:0"},"public":null,"bundle":null},
-        "machine":{"github":null},"demo":null,"sign_in":null,"landing":{"deployment":[],"projects":[]},"charter":1,
+        "machine":{"github":null},"demo":null,"sign_in":null,
         "limits":{"profile":"small","overrides":{"checkout.name_bytes":256,"checkout.repositories":2,
             "checkout.message_bytes":4096,"forge.name_bytes":64,"forge.judge_projects":3,"forge.resources_per_task":2,"git_component.stdout_bytes":2048}},
         "workers":[{"root":"worker-root","git":"/usr/bin/git"}]});

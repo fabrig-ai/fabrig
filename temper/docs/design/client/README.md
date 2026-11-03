@@ -333,14 +333,14 @@ keeps (`../protocol/configuration.md`, section 2).
 | Address | Mockup | Shows | Watches and reads | Acts |
 |---|---|---|---|---|
 | `Inbox` (home) | `inbox.html` | what needs the person, across projects, filtered by project, kind and goal (its root): proposals, questions, held tasks, person tasks; then updates (results, replies); "+ New chat", a link to the Chats page's start (`/chats?at=start`) | `inbox` with its filters; the `proposal` or `task` an entry's card needs | accept ("Accept"), reject with a reason, answer, release, leave held, take, hand back |
-| `Chats` | `chats.html`; the playground's start at the first run's first step, which `first-run.html` opens | a composer to start a chat, under the level-2 heading "Start a chat", its line and its chooser (5.5) above its text area "Start a chat" and its button "Start chat", with the hint "temper · Enter to start · Shift+Enter for newline"; in the playground's project while the playground starts or runs, the playground's start in a chat's frame, with its suggested requests (4.8, 5.6); the person's chats as one list, "Your chats", live and ended together, newest first, under All, Live or Closed (below), each with its project and number, title, status, own spend and live delegates | `tasks{query}`: requester the person, the chat label, its live group by last activity, its ended pages by when each ended; the playground, from the forge's side (4.8) | start a chat, from the composer or a suggested request; choose the list's filter; more closed chats |
+| `Chats` | `chats.html`; the playground's start at the first run's first step, which `first-run.html` opens | a pane at the head of its main, a complementary region named "Project" (`browser.md`, 2.5): the new chat's bar (below), in the playground's project while the playground starts or runs the playground's start (4.8, 5.6), then the person's chats under the level-1 heading "Chats", as one list, "Your chats", live and ended together, newest first, under All, Live or Closed (below), each with its project and number, title, status, own spend and live delegates, and last the playground's banner while it runs or is leaving (5.1); beside the pane, the composer to start a chat alone: its text area "Start a chat", showing "Describe a change" while it is empty, and its button "Start chat", with the hint "enter to start · shift+enter for newline", then its line and its chooser (5.5) under it, and in the playground's start its suggested requests under them (5.6) | `tasks{query}`: requester the person, the chat label, its live group by last activity, its ended pages by when each ended; the playground, from the forge's side (4.8) | start a chat, from the composer or a suggested request; choose the list's filter; more closed chats |
 | `Chat { task }` | `chat.html` | its chatbar: its number and title, its status, its spend and acts; after it, the context line, only in the playground's project while the playground runs (4.8, 5.6); the conversation (below): its request, the agent's words with its calls folded, the person's words, provisional text, and its end once it has ended; each task it delegated as that task's card, at the call that made it (a `delegate` or a `change`), or else at the result it sent back, or else after the conversation while it runs (5.7); the proposals waiting in its subtree, each at the call that made it where its turn names it, and after the conversation otherwise (jig's `client/domain/objects.md`, section 10); its status and spend; Stop and Close; the composer, while the chat lives: its line and its chooser (5.5), its text area "Message" with the placeholder "Message T6…", T6 the chat's number, shown while it is empty and never its name, and the hint "Enter to send · Shift+Enter for newline", and "Send", then a message's refusal or failure, if any: a message or the chat's start accepted draws no status of its own, neither at the conversation's end nor in the composer, since the conversation shows its words, "Being sent", then "Sent" (below); while Message is not offered, its line and chooser alone; an ended chat draws no composer and no composer's line | `task`, `activity` a page at a time, older pages while its window has room (5.4), `run` while one is live; each `proposal` its `task` names; each delegated `task` its calls, results and live delegates name, up to the domain's `reads` (5.7) | message, stop, close, accept or reject a proposal in place |
 | `Board { project }` | `board.html` | the project's goals in priority order, live, waiting and recently ended, with their progress, spend and deadlines; what needs the person; "Set a goal" | `tasks{query}`: the project, tracked, by priority; ended, by ended at | set a goal, reorder goals |
 | `Task { task }` | `task.html` | a goal: its header, what was asked and the result it gives, its result once ended, its plan as a tree of its delegates, live and ended, with their counts and its filter, each task's state, spend and dependencies, its latest activity and history, its budget and authority (5.8), with Amend, Stop and Cancel (5.11); a change: its header and "View on forge ↗", its steps, its step's line, its hold, its tasks live and ended, its gates at its head and its bounds (5.10); an agent's task: its lineage, its brief, its run's heading, its conversation as a chat's, its result once ended and its plan's held cards (5.9), with Amend, Stop and its composer (5.11); either's own held card while it is held | `task`, `tree`, `activity` a page at a time, older pages on an agent's task's "Older"; `run` while one is live; a change's panel, through the forge's side (`forge.md`, 9.2); a goal's or a procedure's ended delegates, a page read once and again on a change | a goal's plan's filter (5.8); as its document offers them (5.11): on a goal amend, stop, cancel; on an agent's task message, amend, stop; release its own held task or one of its plan |
 | `Changes { project }` | `changes.html` | the forge's changes and landing queues (`forge.md`, section 3) | the forge's, through the forge's side (4.2) | the forge's |
-| `Adopt { project }` | none: 4.4 | the adoption form, into `project`, or, with none, into a new project (4.4), with the picker of the repositories temper can reach on the chosen forge | `me`; the chosen forge's deployment part, for its kind, mode, user and installations (`forge.md`, 5.4); the picker's page, a `Reachable` request (section 8) | adopt a repository (4.4) |
+| `Adopt { project }` | none: 4.4 | the adoption form, into `project` (4.4), with the picker of the repositories temper can reach on the chosen forge | `me`; the chosen forge's deployment part, for its kind, mode, user and installations (`forge.md`, 5.4); the picker's page, a `Reachable` request (section 8) | adopt a repository (4.4) |
 | `Forges` | `forges.html` | the person's forges, each row folded until opened: its connection, its mode and access, on GitHub temper's App and its installations, a connect under way and how the last ended, its load; then the playground's forge, folded, while the playground is read (4.8); "+ Add a forge", to `ConnectForge`, but while the playground runs (`forge.md`, 5.4) | the forge's, through the forge's side (4.2) | connect a stopped forge; replace a key or tokens; install on another account; new repository; forget the admin's token; set up again; remove a forge, confirmed (section 8) |
-| `ConnectForge { forge }` | `connect-forge.html` | connecting one more forge, `forge` the choice it is at: Choose, Details, Setting up and Ready, which ends on the work it adopted (`forge.md`, 5.4) | the forge's, through the forge's side (4.2) | connect; connect as its admin; set up a Forgejo here (section 8) |
+| `ConnectForge { forge }` | `connect-forge.html` | connecting one more forge, `forge` the choice it is at: Choose, Details, Setting up and Ready, which ends on the forge connected, adopting nothing (`forge.md`, 5.4) | the forge's, through the forge's side (4.2) | connect; connect as its admin; set up a Forgejo here (section 8) |
 | `Welcome { step }` | `welcome.html`; the first run's step 0 | the first run's welcome, by the store's state, empty, unfinished or whole (below): "Try the playground" or "Set up temper", the latter a wizard of Welcome, Forge, Model and Ready, its `step` (5.6; `../draft/archive/first-run.md`, 2.3) | the playground's read (4.8); `accounts`; the `forges` watch, for a person whose role holds the deployment's forges; the forge's, as `ConnectForge` reads it | start the playground; start a forge cut short over, or go on with it; `ConnectForge`'s and `ConnectModel`'s acts |
 | `Accounts` | `accounts.html` | the person's LLM accounts, then, for an owner, the deployment's, each row folded until opened: its LLM provider and display name, its holder, its deciding source's state and its line (5.5, An account's line); opened, that state's words and acts, its sources in order, each with its state in words and, for a program's, on which hosts (5.5), what it pays for, the runs using it and the tasks waiting for it (facts jig gives the deployment's accounts alone for now, so a person's own leave them out: 5.5) and its acts; the checks under way, and how the last ended; then the playground's account, folded, while the playground is read (4.8); "+ Connect a model", to `ConnectModel`, but while the playground is read | `accounts` (jig's `client/domain/contract.md`, 7.1); `me`'s LLM providers | sign in again or add a key from a state's acts, as `ConnectModel`'s ways; sign a source out; add a key to an account; replace a key; remove a source or an account; check a program's login again; move an account, or a source, up or down; resume a limited source |
 | `ConnectModel { way }` | `connect-model.html` | connecting one more LLM account, `way` the way it is at, or none at Choose: Choose, a card for each way its providers offer (5.5, The ways); Signing in, at the provider, for a sign-in, or Details, a way's field, for a key or a program's login; and Ready, the account made, or how the sign-in ended (5.5, A sign-in) | `accounts`; `me`'s LLM providers | sign in with an LLM provider; add a key as an account of its own; declare a program's login |
@@ -456,8 +456,13 @@ keeps (`../protocol/configuration.md`, section 2).
     REASON"). Who closed it is the ending's `by` against the chat's
     requester, both in its document, never the reason's words. The
     result is not drawn again.
-- **The chats list** (`chats.html`), under the heading "Your chats",
-  under the playground's start too (5.6), is one list: the live group's
+- **The new chat's bar** (`chats.html`), the pane's head: "New chat"
+  and its status: in the playground's start, the playground's (5.6);
+  else "Starting" while a playground's start is out or its read answers
+  starting; else "Ready" while the composer can send (5.5, 5.6); else
+  none, the composer's line saying why.
+- **The chats list** (`chats.html`), under the pane's level-1 heading
+  "Chats", under the playground's start too (5.6), is one list: the live group's
   lines by last activity and the ended page's by when each ended,
   merged newest first, a tie by the lower number first. "All", "Live"
   and "Closed", three buttons, the chosen one pressed, filter it in
@@ -769,18 +774,24 @@ keeps (`../protocol/configuration.md`, section 2).
     Each step's heading is the page's level-1 heading.
   - *The store's state* is judged at its Welcome step, once each time
     the page opens, when its facts are in, from the forges the store
-    keeps and the accounts (`../protocol/setup.md`, 6.7 and 8.4). A
+    keeps, the accounts and `me`'s projects (`../protocol/setup.md`,
+    6.7 and 8.4; `../draft/first-run-projects.md`, 4). A
     real forge is one of the `forges` watch's rows other than the
-    playground's (4.8); a model is usable as below.
+    playground's (4.8); it is connected when its row says connected
+    and, on GitHub, an installation is accepted (`forge.md`, 5.4), an
+    owned or managed Forgejo's first repository being made before it
+    connects (`../protocol/setup.md`, 6.7); a model is usable as below;
+    and the person has a project when `me` lists one in which they hold
+    a role. No adoption is read.
     - *Empty:* no real forge kept and no model usable. The step shows
       its two cards, "Try the playground" and "Set up temper".
-    - *Unfinished:* neither: a real forge kept, but none connected with
-      its first repository adopted, or no model usable, or a model
-      usable with no real forge. The page opens at the step left undone, Forge while no real forge is connected with
-      its first repository adopted, else Model, its address replacing
-      the welcome's.
-    - *Whole:* a real forge connected with its first repository
-      adopted, and a model usable. The page moves on to the chats page,
+    - *Unfinished:* neither: a real forge kept, but none connected, or
+      no model usable, or a model usable with no real forge, or no
+      project. The page opens at the step left undone, Forge while no
+      real forge is connected, else Model while no model is usable,
+      else Ready, its address replacing the welcome's.
+    - *Whole:* a real forge connected, a model usable and a project.
+      The page moves on to the chats page,
       its address replacing the welcome's, so that back does not return
       to it.
 
@@ -824,11 +835,14 @@ keeps (`../protocol/configuration.md`, section 2).
     its cards and their order the same, its choice in the welcome's
     address (`browser.md`, 2.3); inside a choice, the foot's one "‹
     Back" returns to Forge's Choose. The welcome has no "‹ All
-    forges"; `ConnectForge` keeps it. Forgejo on this machine's card
-    opens its Details, its set up's fields, `work`, `hello` and a new
-    project named as the repository, as `ConnectForge`'s, and "Set up
+    forges"; `ConnectForge` keeps it. The step connects a forge and
+    nothing more, on every kind: it adopts no repository and asks no
+    project's name (`../draft/first-run-projects.md`, 4). Forgejo on this machine's card
+    opens its Details, its set up's fields, `work` and `hello`, as
+    `ConnectForge`'s, and "Set up
     a Forgejo here" sends the `SetUp` that makes the forge
-    (`forge.md`, 5.4). Refused, the refusal shows under the button, in
+    (`forge.md`, 5.4), its repository made unadopted
+    (`../protocol/setup.md`, 6.7). Refused, the refusal shows under the button, in
     the set up's words (4.6); while a set up is pending, or the page is
     out of date, the button is disabled. Once the `SetUp` is accepted,
     the welcome moves on to Model, the set up running on.
@@ -853,11 +867,16 @@ keeps (`../protocol/configuration.md`, section 2).
     not the set up's, and the Model step shows it ready.
     A forge connected is no choice either: the step says it, "FORGE ·
     CONNECTION", with "View", to `ConnectForge` at it; but a GitHub
-    forge with none of its repositories adopted, or a Forgejo connected
+    forge with no accepted installation, or a Forgejo connecting
     as its admin, shows `ConnectForge`'s step for it in the step, its
     `back` the welcome's Forge step, `/welcome?at=forge&forge=N`, so
-    that the tab GitHub sends back finds its choice there. Once a
-    repository is adopted, the welcome moves on to Model.
+    that the tab GitHub sends back finds its choice there. While the
+    step's address names a forge (`forge=N`) that is connected, as *The
+    store's state* says, the welcome moves on to Model, its address
+    replacing the step's, so that "‹ Back" from Model, to
+    `/welcome?at=forge`, stays on Forge. Its first repository, made on
+    an owned or managed Forgejo, waits unadopted: the person adopts it
+    later, from the project's "Adopt a repository" (4.4).
     *Model* is `ConnectModel`'s Choose and Details, its state and acts
     (above), its way in the welcome's address (`browser.md`, 2.3).
     Its ways sit directly under the lead, with neither the standalone
@@ -873,20 +892,13 @@ keeps (`../protocol/configuration.md`, section 2).
     Ready. Above
     them, once a forge is acted on, the forge's line, so that Model
     says what Forge did: while it sets up or connects, "FORGE ·
-    CONNECTION · ORG/NAME, into PROJECT", and a disclosure, "Each
-    step", holding `ConnectForge`'s Setting up steps; once connected
-    with its first repository adopted, ticked, "✓ FORGE · ORG/NAME, in
-    PROJECT", on GitHub the repository Ready adopted; PROJECT reads
-    "the new project NAME" when the setup retains that choice. GitHub's
-    durable `row.repositories` supplies the adopted owner, name and
-    project number; its name is resolved from `me.projects`. It does not
-    retain whether the project was new, so after a reload the line reads
-    "in NAME". The asking tab's picker retains its new-project request
-    and says "in the new project NAME" while it matches that adoption.
-    A GitHub forge with none
-    adopted yet reads "GitHub · no repository chosen yet", as a forge
-    connected with no first repository reads "FORGE · no repository
-    chosen yet"; a set up or a first repository that failed keeps all
+    CONNECTION · ORG/NAME", ORG/NAME its first repository, and a disclosure, "Each
+    step", holding `ConnectForge`'s Setting up steps; once connected,
+    as *The store's state* says, ticked, "✓ FORGE · ORG/NAME", its
+    first repository made. A forge with no first repository, GitHub's
+    or a Forgejo connected with its bot's tokens, reads "FORGE ·
+    CONNECTION" while it connects, and once connected, ticked, "✓ FORGE
+    · CONNECTION". The line names no project; a set up or a first repository that failed keeps all
     five steps, with its failed step marked ✕, preceding steps done
     and later steps to come, followed by "STEP failed: WHY"
     (`forge.md`, 5.4). With no failed step named, nothing is marked and
@@ -897,9 +909,11 @@ keeps (`../protocol/configuration.md`, section 2).
     ticked one keeps "Each step". *The seam:* the Model step's
     body is `ConnectModel`'s, the step's frame, heading, lead, set up
     line and foot the welcome's.
-    *Ready* is a checklist, under "Almost ready" while work is under
-    way: Model, Forge, then Project. Forge reads
-    "Forge: FORGE, connected as LOGIN" or
+    *Ready* is a checklist, under "Almost ready": Model, Forge, then
+    Project while either of the first two is under way, and Forge,
+    Model, then Project once both are done. Forge reads
+    "Forge: FORGE, connected as LOGIN" once connected, as *The store's
+    state* says, or
     "Forge: FORGE · CONNECTION" (with its "Each step" folded), or
     "Forge: none yet" with "Connect a forge", to the Forge step; while
     a model is usable, as *The store's state* says (the one test Ready and
@@ -924,33 +938,61 @@ keeps (`../protocol/configuration.md`, section 2).
     offered. These read `OwnerAccounts.last_end`, without retaining
     the signing page. The port-taken fact is not in that document
     (M-j); Not eligible remains Future in the mockup. There is no model
-    line until the `accounts` document is delivered; and "Project
-    PROJECT, with ORG/NAME" once the forge's first repository is on its
-    row. Until adopted, "Open PROJECT" is disabled, with "It opens once
-    ORG/NAME is made." Once that repository is adopted (`forge.md`,
-    5.4, Ready), its heading is "ORG/NAME is ready", its checklist
-    forge first, then Model and Project, with "Open PROJECT", to the
-    chats page in that project. On a connected owned Forgejo whose
-    page facts offer sign-in through temper (`forge.md`, 5.4),
-    "Open Forgejo ↗" follows it, with the same
-    `ROOT/user/oauth2/temper` address as Forges. It is absent until
-    adoption. GitHub uses its durable adoption for
-    the same checklist and heading; its row has no repository web
-    address, so no "Open on GitHub ↗" is drawn. While the forge is
-    connected with no first repository, "Adopt a repository", to `Adopt` into a new project
-    (4.4). Ready is
+    line until the `accounts` document is delivered; and "Project:
+    Default", the project Ready's act makes. Then Ready's one act,
+    "Open Default" (`../draft/first-run-projects.md`, 4): while no real
+    forge is connected or no model is usable, it is disabled, with "It
+    opens once your forge and model are ready."; once both are, it
+    makes the project and opens it, so that nothing is half made:
+    - *Its request:* jig's `MakeProject`, named "Default", on policy 1,
+      the stock policy (`../protocol/configuration.md`, 13.4), in the
+      deployment's scope (jig's `domain/people.md`, 5.1), one keyed
+      request (3.6) under a key of the welcome's own, named
+      `welcome-default` and the attempt's number, one attempt per
+      press, never the forge's set up keys. While it is out, the act is
+      disabled, with "Making Default…".
+    - *Made,* `ProjectMade { project }`: the welcome opens that
+      project as a project's button does (5.3), choosing it once `me`
+      lists it, and shows the chats page, `/chats`.
+    - *The name taken:* jig's refusal of a name another project holds
+      opens the person's project named "Default", as `me` lists it, as
+      Made does, and makes no other name. With no such project of the
+      person's in `me`, it is refused as below.
+    - *Any other refusal, or no answer* (unknown past the retention):
+      nothing is made; under the act, "Default was not made: WHY", WHY
+      jig's words for its refusal, or "It is not known whether Default
+      was made.", and the act is offered again, a new attempt under a
+      new key.
+
+    On a connected owned Forgejo whose page facts offer sign-in through
+    temper (`forge.md`, 5.4), "Open Forgejo ↗" follows the act, with
+    the same `ROOT/user/oauth2/temper` address as Forges; no other
+    forge's link is drawn. Ready adopts nothing: the project opens with
+    no repository, which its chats page says (*A project with no
+    repository,* below). Ready is
     done, not current, along the top once its forge and model both
     are.
-- **With no project yet** (`../draft/archive/first-run.md`, 2.4): until the
-  playground's start or the person's first repository makes one, the
+- **With no project yet** (`../draft/first-run-projects.md`, 2 and 4): until the
+  playground's start or the welcome's Ready makes one, the
   chats page's composer and "Your chats" give way to the level-1
-  heading "No project yet" and "A project starts with its first
-  repository.", with "Set up temper", to the welcome's Forge step,
-  while no forge of the person's is connected, else "Adopt a
-  repository", to `Adopt` into a new project (4.4); and, while the
+  heading "No project yet" and "Setting temper up makes your first
+  project.", with "Set up temper", to the welcome, which opens at the
+  step left undone (The welcome, above); and, while the
   playground is offered and none is read (3.5, The welcome; 4.8),
   "Try the playground". The navigation offers no project's entries
   (5.3), and the project's place in it reads "No project yet".
+- **A project with no repository** (`../draft/first-run-projects.md`,
+  5): a project has none while the `forges` watch has delivered its
+  rows and none of their `repositories` names it (4.6); with the
+  watch refused, ended or not delivered yet, nothing is said. It is
+  usable meanwhile: its chats start and run, a chat that names no
+  repository running with no workspace (`../domain/agent.md`, 4.2).
+  Its chats page says so where its repository would show, before the
+  composer: "No repository yet", and "Adopt a repository", a link to
+  the adoption form into this project, `Adopt { project }` (4.4). The
+  playground's project, while the playground is read, shows its
+  context line instead (5.6). Where the page draws it is the look's
+  (`journeys.md`, 7); its words and its link are these.
 - **A suggested request** (`chats.html`) starts a chat with the
   cue's words as its first message, as the composer's send does: one
   act, one request (3.6), the suggestions and the send disabled while
@@ -958,6 +1000,23 @@ keeps (`../protocol/configuration.md`, section 2).
   the scripted model finds the cue there (`../protocol/setup.md`, 8.4), so
   the chat plays the cue's script; the composer's text is left as it
   was.
+- **The first chat** (`../draft/configuring.md`, 5.1): on the chats
+  page of a project that is not the playground's and holds no chat
+  yet, live or ended, under "All", the offer "Tell temper how you
+  work", a button above the composer. Pressed, it starts the
+  configuring chat, from the configuring agent's stock template,
+  template 3 (`../protocol/configuration.md`, 13.4), while `me` lists
+  template 3 among the project's templates, else the stock chat,
+  template 1, so the offer moves to the configuring agent once the
+  settings offer it, with nothing else changed; its first message, the
+  person's, is "Help me tell temper how I work.", as a suggested
+  request starts its chat: one act, one request, the offer and the
+  send disabled while it is pending, the composer's text left as it
+  was, and the chat's page opened once it is made. The chat names no
+  repository. After the welcome's Ready, whose act opens the chats page
+  of the project it made (3.5, The welcome), it is the person's first
+  chat. Once the project holds a chat, the offer goes; "How work runs"
+  makes the same offer (5.13).
 - **The work's account and model.** A chat's composer names the
   account and model its next run takes in one line, the composer's line
   (5.5), and under it offers the models `me`
@@ -1217,26 +1276,30 @@ picker, below). In order:
 
 | Field | Node, named | Default | Rule |
 |---|---|---|---|
-| forge | text field "Forge number" | `1` | a number from 1 to 65535; one the store does not keep is refused as no such forge |
-| owner | text field "Owner" | empty | required |
-| name | text field "Name" | empty | required |
+| forge | text field "Forge number" | `1`, or a first repository's forge (below) | a number from 1 to 65535; one the store does not keep is refused as no such forge |
+| owner | text field "Owner" | empty, or a first repository's organization (below) | required |
+| name | text field "Name" | empty, or a first repository's name (below) | required |
 | role | choice group "Role": "Owned: temper pushes, opens pull requests and lands", "Fork: temper contributes through a fork", "Context: temper only reads" | owned | one of the three |
 | home | check "Make it the project's home" | checked | a context repository cannot be the home |
 | prefix | text field "Branch prefix" | `temper/` | required |
-| landing | text field "Landing branch" | empty | required: the forge connector refuses an adoption without one |
+| landing | text field "Landing branch" | empty, or `main` for a first repository (below) | required: the forge connector refuses an adoption without one |
 | ci | check "It runs CI" | checked | without CI, at least one check |
 | checks | text field "Checks: gate numbers, separated by spaces or commas" | empty: none | numbers from 1, each once, at most the client's limit on checks |
 
 Then a button "Adopt", and below it the request's state or outcome.
 
-**Into a new project** (`../draft/archive/first-run.md`, 2.4): `Adopt` with
-no project, from the welcome's Ready and the chats page with no
-project yet (3.5), is titled "Adopt a repository into a new project",
-and adds a last field, "Into a new project, named", the name's field
-following the picker's chosen repository until the person changes it,
-required. "Adopt" sends jig's `MakeProject` of that name and policy 1
-(`../protocol/setup.md`, 8.3), then `Adopt` into it, as its home; a
-name taken is jig's refusal, shown under the field.
+**From a project with no repository** (3.5; `../draft/first-run-projects.md`,
+4 and 5): the chats page's "Adopt a repository" opens this form into
+its project, always a project's: no form makes a project. While a
+set up's first repository is made and adopted nowhere
+(`../protocol/setup.md`, 6.7), as the `forges` watch's rows say it (a
+real forge's row whose `first` is made, and no row's `repositories`
+naming its organization and name, 4.6), the form opens filled for it,
+so that adopting it is one choice away: its forge's number, its
+organization as the owner, its name, and `main`, the branch its
+`Create` made, as the landing branch; the other fields at their
+defaults. With several, the one on the forge numbered lowest. The person may
+change any field, and "Adopt" sends `Adopt` alone.
 
 **The picker,** between "Forge number" and "Owner": the repositories
 temper can reach on that forge (`forge.md`, 5.1), the project's own
@@ -1404,32 +1467,33 @@ for its kind, its user's login and its installations. Its nodes:
   words.
 - **The forge a request makes or names, `Making`:** `kept`, `Kept`, a
   kept forge's number (u16); or `new`, `NewForge`, a forge for the
-  request to make, `ForgeAsk`: `github`; `owned`; or `managed`,
-  `ManagedForge`, a Forgejo of the person's: its API's host (at most
-  255 bytes) and port (u16), its TLS server name (at most 255 bytes,
-  none for plaintext), its git base and its web address (at most 2048
-  bytes each, the web address optional) and its git program (at most
-  4096 bytes, none for the worker's). A new forge is made as a record
+  request to make, `ForgeAsk`: `github`; `owned`; `managed`,
+  `ManagedForge`, a Forgejo of the person's connected as its admin:
+  its API's host (at most 255 bytes) and port (u16), its TLS server
+  name (at most 255 bytes, none for plaintext), its git base and its
+  web address (at most 2048 bytes each, the web address optional) and
+  its git program (at most 4096 bytes, none for the worker's); or
+  `connected`, the same `ManagedForge`, a Forgejo of the person's
+  connected with its bot's tokens, its mode connected
+  (`../protocol/setup.md`, section 4). A new forge is made as a record
   in the request's decision and numbered next, never reused
   (`../protocol/forge.md`, 2.1 and 2.2); the client finds its number
   on the `forges` watch's rows once the request is answered.
 - **`SetUp`:** of the deployment's scope (section 8): the forge,
   `Making`, a kept owned Forgejo or a new one; its first repository's org and name (byte strings,
-  bounded as `Adopt`'s owner and name); and its project, `SetUpProject`:
-  `existing`, a project's number (u32), or `new`, a new project's name
-  (a byte string bounded as `Adopt`'s name); and `playground`, a bool,
+  bounded as `Adopt`'s owner and name), and no project: the repository
+  is made unadopted (`../protocol/setup.md`, 6.7); and `playground`, a bool,
   the first repository made as the playground's copy, `playground/widget`
   with its files, the org and name then `playground` and `widget`
   (`../protocol/setup.md`, 6.7). Its outcome, `Answer`'s: *setting up*, the box asked
   for the forge's group; *set up refused*, with why: not offered (the
   forge's connection does not offer it, or no such forge), not under
-  the box, busy (`../protocol/forge.md`, 2.8), a new project, which
-  the engine no longer raises now that jig makes projects at runtime,
+  the box, busy (`../protocol/forge.md`, 2.8),
   or invalid, a name Forgejo
   would refuse (the org a login of at most 40 bytes, the repository
   1 to 100 bytes of letters, digits, `.`, `_` or `-`, neither `.` nor
   `..`; skein `forge-setup.md`, 4.9) or past the engine's
-  `name_bytes`, or a new project's name empty or past it; or *unknown*, its
+  `name_bytes`; or *unknown*, its
   outcome no longer held (section 8), the same unknown as an
   adoption's. A refusal at admission is jig's answer, as for `Adopt`.
 - **`StartPlayground`:** of the deployment's scope (section 8), with
@@ -1455,16 +1519,29 @@ for its kind, its user's login and its installations. Its nodes:
   taken`, the playground's forge, which only its reset removes; or
   *unknown*.
 - **`Connect`:** of the deployment's scope (section 8): the forge,
-  `Making`, a kept forge or a new GitHub or managed Forgejo, and how
-  it connects, `How`: `github_app`, `GitHubApp`,
+  `Making`, a kept forge or a new GitHub, managed or connected Forgejo,
+  and how it connects, `How`: `github_app`, `GitHubApp`,
   the App's id (u64, never 0) and optional `read_only` (bool, absent
   meaning false), set by ctl connect `--read-only` and kept on the forge
-  record (`../protocol/setup.md`, 17.7). The manifest's way and the Forgejo ways
-  join `How` with their work (section 8's table). The App's key is no
+  record (`../protocol/setup.md`, 17.7); `github_manifest`,
+  `GitHubManifest`; `forgejo_admin`, `ForgejoAdmin`; or
+  `forgejo_tokens`, `ForgejoTokens`, with no field, a connected
+  Forgejo's bot's tokens (section 8's table). The App's key is no
   field: it rides beside the record as jig's carried value, a bundle of
-  one `Pasted` item (`../protocol/credentials.md`, 2.2). Its outcome,
+  one `Pasted` item, and so do a Forgejo's tokens, a bundle of
+  `ApiToken`, `GitToken` and `WebhookSecret` when given
+  (`../protocol/credentials.md`, 2.2). Its outcome,
   `Answer`'s: *connecting*, the run started; *forge refused*, with why,
   `ForgeRefusal` (below); or *unknown*, as `SetUp`'s.
+- **`Replace`:** of the deployment's scope: the forge's number (u16).
+  The new key or tokens are no field: they ride as its carried value,
+  a bundle of one `Pasted` item, a GitHub App's new key, or of a
+  connected Forgejo's `ApiToken`, `GitToken` or both, and
+  `WebhookSecret` when it changes (`../protocol/credentials.md`, 2.2).
+  Its outcome is a `Connect`'s: *connecting*, the run started; *forge
+  refused*, `ForgeRefusal`; or *unknown*. It takes a GitHub forge or a
+  Forgejo of the connected mode, connected or stopped
+  (`../protocol/setup.md`, section 4 and 17.3).
 - **`Install`:** of the deployment's scope: the forge's number (u16)
   and `back`, an optional byte string checked as `Return`'s `path`
   (section 8). Its outcome: *a link*, `Link`, the install page's
@@ -1483,15 +1560,19 @@ for its kind, its user's login and its installations. Its nodes:
   GitHub down or past the run's deadline; `too large`, the accepted set
   full (`forges.installations`); `invalid answer` otherwise. The forge's
   row is unchanged by a stopped `Accept`.
-- **`ForgeRefusal`,** a `Connect`'s, an `Install`'s, an `Accept`'s or a
-  `RemoveForge`'s, by the root before any run: `role`, the sender not
-  the deployment's owner; `no such forge`; `not taken`, the forge's
-  kind or mode does not take the request (a Forgejo's install, the
-  playground's fake); `connected`, a `Connect` on a
-  forge connected or connecting already, whose key `Replace` replaces;
-  `not connected`, an `Install` or an `Accept` on a forge with no App; `busy`, a run
-  holding the forge, or `setup.runs` full; `no key`, a `Connect` of an
-  App with no carried value; `first is bot`, a `ForgejoAdmin` `Connect`
+- **`ForgeRefusal`,** a `Connect`'s, a `Replace`'s, an `Install`'s, an
+  `Accept`'s or a `RemoveForge`'s, by the root before any run: `role`,
+  the sender not the deployment's owner; `no such forge`; `not taken`,
+  the forge's kind or mode does not take the request (a Forgejo's
+  install, the playground's fake, a `Replace` on a managed or owned
+  Forgejo, a `ForgejoTokens` `Connect` on a GitHub or managed forge);
+  `connected`, a `Connect` on a forge connected or connecting already,
+  whose key or tokens `Replace` replaces; `not connected`, an `Install`
+  or an `Accept` on a forge with no App, or a `Replace` on a forge
+  neither connected nor stopped, nor connecting; `busy`, a run holding
+  the forge (a `Replace` on a connecting forge among them), or
+  `setup.runs` full; `no key`, a `Connect` or a `Replace` that takes a
+  carried value and has none; `first is bot`, a `ForgejoAdmin` `Connect`
   whose `first` organization is the bot's login, case-folded
   (`../protocol/setup.md`, 5.5). Its carried value, if any, is named unused
   (section 8).
@@ -1530,7 +1611,12 @@ for its kind, its user's login and its installations. Its nodes:
     gating, queued (its place, from 1 (u32), and the tasks ahead of it,
     nearest first, at most 64 (u64 each)), first, updating, resolving,
     repairing (its reason: CI, a gate by its number (u64), or a semantic
-    conflict), landing, or landed (its merge commit, 32 bytes);
+    conflict), landing, or landed (its merge commit, 32 bytes); verifying,
+    red and cleared also carry the merge and at most 32 tier strings of at
+    most 8192 bytes each. A tier string names its run and every full failing
+    ID owned by or suspected of that landing, or explicitly `many tests`.
+    The bound holds the 16 admitted IDs of up to 256 bytes each, their
+    separators and tier/run words; IDs are never cut to fit the wire;
   - its hold: none, or why: stalled; past its repairs, its resolutions
     or its updates; its branch moved; its branch missing; its pull
     request closed; its pull request retargeted; a delegate or effect
@@ -1542,7 +1628,16 @@ for its kind, its user's login and its installations. Its nodes:
     approval or check), whether it blocks (bool), and its verdict at the
     head: none, pending, approved, or changes asked;
   - its repairs, its resolutions and its updates, each used of its
-    limit (u32 each).
+    limit (u32 each);
+  - its questions (`../domain/forge.md`, 8.11): its route, none, foreman
+    or up; the questions taken, used of its limit (u32 each); and its
+    open questions, at most 8 in the order taken, each with its asker's
+    task (u64) and the question's number there (u32), the first line of
+    its words (at most 256 bytes, cut on a UTF-8 boundary and marked),
+    and where it stands: taken, with its foreman (its task, u64), asked
+    of the change's requester, or answered and held for the change's
+    dependencies. A change past its bound
+    shows the question that held it among them, as its hold says.
 - **The deployment's forges, the subject `forges`** (`forge.md`, 5.4
   and section 9): of the deployment's scope, with no fields, its window
   unused; on the wire `Watching`'s `forges`. Its document, `Forges`, a
@@ -1565,7 +1660,7 @@ for its kind, its user's login and its installations. Its nodes:
   selects its stop's words from this typed fact, never its text;
   its first repository, `first`: none, or the set up's org, name,
   whether it is the playground's copy (`playground`, appended), runner
-  label (at most 64 bytes) and `SetUpProject` with its state, `FirstState`:
+  label (at most 64 bytes) and its state, `FirstState`, with no project:
   making; made, with the repository's id (u64);
   or failed, with its step, `CreateStep`: admin, org, repository (its
   bot's access with it) or file (`../protocol/setup.md`, 6.7); its
@@ -1732,12 +1827,18 @@ client removes no account and closes no chat of its own.
   or that time has reached the instant its words next change (5.12),
   it builds the page in one outline (skein's `ui.md`, section 14), in
   the mockups' order:
-  - *a banner:* temper's name; the project the person is in, and the
-    others to choose from, each by the name `me` gives it, which no
-    other project of the deployment shares (jig's `domain/core.md`,
-    6.1), its visible and accessible name the same words;
-    the navigation (5.3) after the projects, as in
-    the mockups; the link's state, one word for each of
+  - *a banner:* temper's name; the project the person is in alone,
+    as the switcher, a disclosure named by the open project's name,
+    "Projects" while none is open (section 11), which holds the
+    projects to choose from, the open one first and pressed, then the
+    others, each a button by the name `me` gives it, which no other
+    project of the deployment shares (jig's `domain/core.md`, 6.1),
+    its visible and accessible name the same words; with no project,
+    "No project yet" in its place (3.5, With no project yet);
+    the navigation (5.3) after the switcher, as in
+    the mockups; while the playground runs and is not leaving (4.8),
+    "Set up temper", a link that sends `EndPlayground` (5.6); the
+    link's state, one word for each of
     `jig-client`'s `Link` states ("Signed out", "Connecting" while
     starting, "Live", "Offline", "Out of date"), and "Behind" while a
     page's watch reopens; the person's name and "Sign out"; all but
@@ -1749,16 +1850,18 @@ client removes no account and closes no chat of its own.
     name, the person's name and "Sign out" alone (3.5, The welcome);
   - *the accounts' banner,* while no account the person's work may use
     is usable (the `accounts` watch; jig's
-    `client/domain/contract.md`, 7.1): a region named "LLM account",
-    its words and three buttons
+    `client/domain/contract.md`, 7.1), but in the playground's project
+    while the playground runs or is leaving, whose work its scripted
+    model runs (4.8): a region named "LLM account", its words and three buttons
     (5.5), on every page but the accounts page, `ConnectModel` and
     `Welcome`;
   - *the playground's banner,* while the playground runs or is
     leaving (4.8): a region named "Playground", one line, its words and
     its link "set up temper" (5.6), on every page, `Welcome`, the
-    accounts and the forges pages, a chat's page and the playground's
-    start among them, above their chatbars, after the accounts' banner
-    where both show; while the link is signed out or out of date, none;
+    accounts and the forges pages and a chat's page among them, above
+    their chatbars, after the accounts' banner where both show, but
+    the chats page, whose pane it ends (3.5); while the link is signed
+    out or out of date, none;
   - *the main:* the page at the address (3.5), its title its level-1
     heading.
 
@@ -1932,6 +2035,42 @@ configuration. "Adopt
 a repository" and "Forges" are offered whatever the person's role: the
 engine judges each, and a refusal says why, since the client never
 computes what a party may do.
+
+**Projects in the banner** (`../draft/first-run-projects.md`, 7). The
+banner names the project the person is in alone, by the name `me` gives
+it, and a chevron; pressed, a switcher lists the person's other
+projects from `me`, the open one marked, each choosing its project as a
+project's entry does. On a narrow screen the switcher is the menu
+panel's first row (`browser.md`, 2.5). Its acts, each one act and one
+request (3.6):
+
+- **Rename,** on the open project's row, offered while `me`'s role on
+  that project is owner, the role jig gives, which the context line
+  reads too (5.6); jig judges the request (jig's `domain/people.md`,
+  5.1). Pressed, the row becomes a form, "Rename PROJECT", holding the
+  name's field, its value the project's name and the focus on it, then
+  "Save" and "Cancel". The field's Enter or "Save" sends jig's
+  `Rename { project, name }`, the form's acts disabled while it is out;
+  "Cancel", or Escape, which "Cancel" names (skein's `ui.md`, 6.1),
+  closes the form and sends nothing. An empty name, or the name
+  unchanged, sends nothing. Answered renamed, the form closes, and `me`
+  brings the new name wherever the project's name shows; refused (the
+  name taken, its shape, the role), the form stays and says why under
+  its field.
+- **A new project:** the list ends with a form, "New project", holding
+  a name's field, "+ New project" its placeholder, and "Create".
+  "Create", or the field's Enter, sends jig's `MakeProject { name,
+  policy: 1 }` in the deployment's scope, on the stock policy
+  (`../protocol/configuration.md`, 13.4); an empty name sends nothing.
+  Answered made, the field empties and the client opens the project
+  once `me` lists it, on its chats page, with no repository (3.5).
+  Offered whatever the person's role, as above: jig judges it (an owner
+  of the deployment), and a refusal says why under the field.
+- **Its state:** the rename's form, at most one, with its project and
+  words; the new project's words; each within jig's name bound; at most
+  one request out of either, with its key; and the refusal, with the
+  form it answers. Choosing another project, or a page of no project,
+  closes the rename's form.
 
 ### 5.4 Limits
 
@@ -2231,33 +2370,36 @@ repository, and the cues the playground's, copied in from its read:
   playground: a scripted model and in-memory forge. Use the wizard to
   set up temper", "set up temper" its link, which sends `EndPlayground`
   (4.8); while it is leaving, "Leaving the playground…" in its place,
-  with no link (5.1).
-- **The playground's start,** on the chats page, in place of its
-  level-1 heading "Chats" (`first-run.html`, the first run's first
-  step): a chatbar, "New chat", the status "Ready", and "Scripted
-  model", under the frame's banner (5.1); while its start is out or
-  its read answers starting (4.8), the status "Starting" and its
+  with no link (5.1). Beside it, the frame's banner leads its corner
+  with "Set up temper", the same act, while the playground runs and is
+  not leaving: the way out, prominent (5.1).
+- **The playground's start,** on the chats page, at the head of its
+  pane (3.5; `first-run.html`, the first run's first step): the new
+  chat's bar, "New chat" and the status "Ready"; while its start is
+  out or its read answers starting (4.8), the status "Starting" and its
   suggestions disabled; once the start failed, the status "Not
-  started"; the context line; the level-1 heading "What shall we
-  change?"; "Try a request in OWNER/NAME. Follow the task from its
-  branch to a landed change."; once the start failed, under it "The
+  started"; the context line; once the start failed, under it "The
   playground did not start: WHY." with "Try again", WHY "its fakes did
   not start (BOX'S WHY)", "the scripted model's account was refused",
   "OWNER/NAME was not adopted" or "Playground forge did not connect";
-  a list named "Suggested requests" of one button per suggested
-  request, the playground's `llm.asked` cues in order and never its
-  `llm.cued` (`../protocol/setup.md`, 8.4), each named by its cue's
-  words; "The scripted model plays these requests from its script.";
-  then the page's composer, with no heading of its own, and "Your
-  chats", as on any chats page (3.5). A chat starts with its first
+  then the pane's chats, as on any chats page (3.5). Beside the pane,
+  under the composer and its line, a list named "Suggested requests"
+  of one button per suggested request, the playground's `llm.asked`
+  cues in order and never its `llm.cued` (`../protocol/setup.md`,
+  8.4), each named by its cue's words, kept for the tests that walk
+  the playground by them while the look's invitation is gone (the
+  user, 11-03; section 11). The model's name is the composer's line's
+  alone. A chat starts with its first
   message, so the start has no task and no number; once a suggestion
   or the composer starts the chat, its page keeps the frame (3.5).
-- **The context line,** after the chatbar: "PROJECT · OWNER/NAME on
-  Playground forge", PROJECT the project as the banner names it; then "Signed in
+- **The context line,** after the chatbar: on a chat's page,
+  "PROJECT · OWNER/NAME on Playground forge", PROJECT the project as
+  the banner names it; then "Signed in
   as the deployment’s owner" while `me`'s role on the deployment is
   `Owner`, else "Signed in as the project’s owner" while the person's
   role on the project is `Owner`, else "Signed in as NAME", the
-  person's name as the banner shows it. OWNER/NAME is a node of its
+  person's name as the banner shows it. On the chats page's pane,
+  OWNER/NAME alone, since the switcher names the project (5.1). OWNER/NAME is a node of its
   own, for the look.
 - **The composer's line,** for the playground's LLM provider: "Using
   Scripted model · Default" (5.5). The scripted model's provider serves
@@ -2266,9 +2408,13 @@ repository, and the cues the playground's, copied in from its read:
   chat the scripted model ran keeps its line after it, since jig
   records the model at Create (`../protocol/setup.md`, 8.3).
 - **Its names:** the phrasebook names the playground's provider and
-  model "Scripted model", its forge "Playground forge" and its project
-  "Playground", from the read's numbers, whatever names the records
-  hold (`../protocol/setup.md`, 8.4).
+  model "Scripted model" and its forge "Playground forge", from the
+  read's numbers, whatever names the records hold
+  (`../protocol/setup.md`, 8.4). Its project is an ordinary project,
+  named by the name its record holds wherever a project's name shows,
+  in the banner, the context line, the chats, a task's page and the
+  inbox: "Demo" as its start makes it, its new name once renamed. No
+  fixed word names it.
 - **The welcome** (`welcome.html`; `../draft/archive/first-run.md`, 2.3): its
   steps' words, their order and their acts are its mockup's
   (`mockups/welcome.html`, at the states its worlds list), the set up
@@ -2277,7 +2423,20 @@ repository, and the cues the playground's, copied in from its read:
   inside a choice, otherwise to the step before, and its "Try the
   playground instead" shows while the playground is offered (3.5, The
   welcome). A forge cut short reads "FORGE · not finished", with "Go
-  on" on GitHub and "Start over" (3.5, The welcome).
+  on" on GitHub and "Start over" (3.5, The welcome). *Where it departs
+  from its mockup, for now* (`../draft/first-run-projects.md`, 4; the
+  mockup is not edited): the Forge step's Details have no "Into a new
+  project, named" and the step no "Choose a repository to start in";
+  the forge's line names no project, "FORGE · CONNECTION · ORG/NAME"
+  and "✓ FORGE · ORG/NAME"; Ready's heading stays "Almost ready", its
+  last line is "Project: Default", in place of "Project PROJECT, with
+  ORG/NAME", and its act "Open Default", with "It opens once your
+  forge and model are ready.", "Making Default…", "Default was not
+  made: WHY" and "It is not known whether Default was made.", in
+  place of "ORG/NAME is ready", "It opens once ORG/NAME is made." and
+  "Adopt a repository"; and the chats page of a project with no
+  repository says "No repository yet", with "Adopt a repository"
+  (3.5).
 - **Not drawn:** the mockup's placeholder, "Try a suggested request…"
   (section 11).
 
@@ -3576,10 +3735,11 @@ does for the client:
   |---|---|---|---|
   | `Connect { forge, how: GitHubManifest { back? } }` | none | the setup's host's `Manifest` run, for the person's own account, always (`forge.md`, 9.1), ending `Done(Manifest { state, target, manifest })`, from which temper renders the manifest's page (`forge.md`, 9.1); the page and `back` held with the state | a link to the manifest's page for a fresh state (the routes, above): with `back`, a path on the page's own origin, `/forges/N/github/manifest?state=S`; without it, the terminal's whole address on the clients' listener |
   | `Connect { forge, how: GitHubApp { id, read_only?, key } }` | `key`, the App's private key, PEM as GitHub gives it; `id` rides in the request | `Paste`: the key decoded and matched to the App `id` names, the App's user found, its hook pointed at `https://SLUG.invalid/` unless `read_only` leaves it as read (no webhook secret on GitHub: changes are heard from the App's delivery log), its permissions and events checked | connecting |
-  | `Connect { forge, how: ForgejoAdmin { first? } }` | the site admin's token, item 1 of the carried bundle (at most 4 KiB including its six-byte header) | `Reconcile` with the paste, its `AdminOrigin` write kept, then `Create` of `first` when given; only after Done is `AdminToken` kept, then the forge connects; every end erases the carried value; never `TakeOver` (`../protocol/setup.md`, 5.5); a managed forge (`ForgeRow.admin`) offers the client's admin Details, a new one's `ManagedForge` naming its addresses, with `first`'s org, repository, new project and runner label | connecting; then the watched row, its typed `ended_stop` on a stop, or `first` made and its adoption on Ready |
+  | `Connect { forge, how: ForgejoAdmin { first? } }` | the site admin's token, a bundle of one `AdminToken` item, at most 4 KiB in all | `Reconcile` with the paste, its `AdminOrigin` write kept, then `Create` of `first` when given; only after Done is `AdminToken` kept, then the forge connects; every end erases the carried value; never `TakeOver` (`../protocol/setup.md`, 5.5); a managed forge (`ForgeRow.admin`) offers the client's admin Details, a new one's `ManagedForge` naming its addresses, with `first`'s org, repository and runner label | connecting; then the watched row, its typed `ended_stop` on a stop, or `first` made, unadopted |
+  | `Connect { forge, how: ForgejoTokens }` | the bot's API token and git token, and the hooks' secret when given: `ApiToken`, `GitToken` and `WebhookSecret` in one bundle | `Check { forge }`: both tokens answer as one user, not a site admin, and on a kept forge as its kept user; on Done the run's `User` write kept, then the tokens and the secret under the forge's numbers, then `Origin`, its login kept as the record's bot, and the forge connects; every end erases the carried value (`../protocol/setup.md`, section 4); `forge` a kept connected Forgejo, not connected or stopped, or a new one, `connected` naming its addresses | connecting; then the watched row, connected as its login, or its last connect's line on a stop |
   | `Install { forge, back? }` | none | `Install`, GitHub alone; `back` held with the state | a link, the install page for a fresh state |
   | `Accept { forge, installation }` | none | `Accept` with no state, GitHub alone (`../protocol/setup.md`, 17.4) | accepted; forge refused, not found |
-  | `Replace { forge, value }` | a new App key, or a new API token, git token or both | `Paste` with the kept App id, or `Check` against the kept user: it must answer as the forge's user; the old is erased once the new is kept | connecting |
+  | `Replace { forge }` | a new App key, one `Pasted` item; or a new API token, git token or both, and the hooks' secret when it changes | `Paste` with the kept App id, or `Check` against the kept user: it must answer as the forge's user; each new record is kept over the old, then the forge connects with them, the calls its old access began ending `Forbidden` (`../protocol/forge.md`, 2.2) | connecting; then the watched row, connected, or its last connect's line on a stop, the forge as it was |
   | `Forget { forge }` | none | the admin's token erased; a managed forge becomes connected (`../protocol/credentials.md`) | forgotten |
   | `SetUp { forge }` | none | an owned forge, new, or kept and not set up, or whose set up failed, whose setup says `"start": "asked"`: the routing asks the box for the forge's group, `start FORGE` on its pipe (`../protocol/setup.md`, 7.1), refused "not under the box" without a pipe and "busy" while a group starts; at the box's `started`, its handover taken, then reconciled and connected (`../protocol/forge.md`, 2.2) | setting up |
   | `RemoveForge { forge }` | none | the forge ended in the request's decision, then removed whole by the kept acts that follow it: its live work cancelled, its box group stopped and its directory removed, its records erased (`../domain/forge.md`, 4.1); refused for the playground's forge, whose reset removes it | removed; remove refused, `ForgeRefusal` |
@@ -3587,8 +3747,8 @@ does for the client:
   | `EndPlayground` | none | the playground's reset (`../protocol/setup.md`, 8.4): the `Playground` row resetting in one decision, then its kept acts in order, the project deleted, the fake forge removed, the scripted account removed, the row erased | reset, once the row is erased; end refused, not offered, with no playground |
   | `Reachable { forge, installation?, page }` | none | on every kind, the setup's host's `Reachable { forge, installation?, page }` plan (skein's `forge-setup.md`, 4.8; `../domain/forge.md`, what the picker offers): on GitHub one accepted installation's repositories, `GET /installation/repositories` paged by number on a token minted for the page; on a connected Forgejo what the API token can push to; on a managed or owned Forgejo every repository the site admin can see by id ascending, read on the admin's token, which stays the setup's host's (`../protocol/forge.md`, the setup's host) | a page, `{ rows, more }`: at most `picker.page` rows on every forge, clipped to the forge's own page cap, each the repository's id, its owner's id and login, its name and whether it is private; `more` set when the page is full |
 
-  `first` is a `FirstAsk { org, repository, project, label }`: the
-  first repository's fields, as `SetUp`'s, and `label`, the runner label
+  `first` is a `FirstAsk { org, repository, label }`: the
+  first repository's fields, as `SetUp`'s, with no project, and `label`, the runner label
   its starter workflow runs on (default `docker` in the client and ctl;
   1 to 64 of letters, digits, `.`, `_` and `-`).
 
@@ -4028,8 +4188,12 @@ own tests:
   and a person whose role does not hold the deployment's connectors
   refused; the welcome's Model step reading its forge's line from the
   `forges` watch's row, under way while the forge connects, then
-  ticked with ORG/NAME and its project once its first repository is
-  adopted; with jig's faults (drops,
+  ticked with ORG/NAME once it is connected, its first repository made
+  and unadopted; the welcome's Ready making "Default" once, opening
+  it, opening the person's "Default" when the name is taken, and
+  offering its act again after any other refusal; a project with no
+  repository saying so on its chats page, with "Adopt a repository";
+  with jig's faults (drops,
   the engine restarting, a double press, a reload with an adoption
   pending, kept work), each request made once. jig's check holds in
   every story, said in temper's phrasebook, which temper's world gives
@@ -4184,8 +4348,10 @@ own tests:
 - **The playground's and the agent's placeholders** ("Try a suggested
   request…"; "Write to T12…", the
   agent's task's composer, 5.11): skein-ui's text area takes a
-  placeholder, which a chat's composer draws (3.5). Default: neither
-  drawn, the agent's waiting for its page's owner.
+  placeholder, which a chat's composer and the chats page's, "Describe
+  a change" in every project, the playground's start among them, draw
+  (3.5). Default: neither drawn, the agent's waiting for its page's
+  owner.
 - **The composer's selected account and source** (5.5): jig's
   `PayerReadiness` could carry the account and source its selection
   chose (`jig-domain-core`'s `catalogue.rs` already calls `select`).
@@ -4354,3 +4520,20 @@ own tests:
   review page draw counts alone and say in words which tasks stay.
 - **How work runs' place and look** (5.13): the user's to make, with
   no mockup yet. Default: 5.13 as drawn.
+- **The switcher's name** (5.1): the look requests name it "Project:
+  NAME" apart from its summary's words, NAME; skein's disclosure names
+  its summary by its words alone (skein's `ui-web.md`, section 6).
+  Default: named NAME, until skein's disclosure carries a label of its
+  own.
+- **The playground's suggested requests** (5.6): the look requests
+  (`journeys.md`, 7) drew the chats page without the playground's
+  invitation, its suggestions among it; the user kept the suggestions
+  while tests walk the playground by them, to revisit (11-03).
+  Default: a list under the composer's line, in the playground's start
+  alone.
+- **A taken "Default" at Ready** (3.5, The welcome;
+  `../draft/first-run-projects.md`, 9): a person who made "Default"
+  before finishing the welcome, from the banner's new project (5.3) or
+  ctl. The user's to decide: open it, or make "Default 2". Default:
+  Ready opens the person's "Default" and makes no other name, the
+  reading the draft's status records while the user is away.

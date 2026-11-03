@@ -3,7 +3,7 @@ id = "apps-store"
 part = "appsettings"
 kind = "feature"
 needs = ["apps-proposals"]
-files = ["jig/crates/jig-protocol-store/schema/settings-v1.schema", "jig/crates/jig-protocol-store/src/generated/settings_v1.rs", "jig/crates/jig-protocol-store/src/codec/settings.rs", "jig/crates/jig-protocol-store/src/keys/settings.rs", "jig/crates/jig-protocol-store/src/reads/settings.rs", "jig/crates/jig-protocol-store/golden/settings/**", "jig/crates/jig-protocol-store/schema/people-v14.schema", "jig/crates/jig-protocol-store/src/generated/people_v14.rs", "jig/crates/jig-protocol-store/src/codec/people/**", "jig/crates/jig-protocol-store/golden/people/**", "jig/crates/jig-protocol-store/schema/tasks-v9.schema", "jig/crates/jig-protocol-store/src/generated/tasks_v9.rs", "jig/crates/jig-protocol-store/src/codec/tasks/proposals.rs", "jig/crates/jig-protocol-store/golden/tasks/**", "jig/crates/jig-protocol-store/src/tests/**", "jig/docs/design/protocol/store.status.md"]
+files = ["jig/crates/jig-protocol-store/schema/settings-v1.schema", "jig/crates/jig-protocol-store/src/generated/settings_v1.rs", "jig/crates/jig-protocol-store/src/codec/settings.rs", "jig/crates/jig-protocol-store/src/keys/settings.rs", "jig/crates/jig-protocol-store/src/reads/settings.rs", "jig/crates/jig-protocol-store/golden/settings/**", "jig/crates/jig-protocol-store/schema/people-v14.schema", "jig/crates/jig-protocol-store/src/generated/people_v14.rs", "jig/crates/jig-protocol-store/src/codec/people/**", "jig/crates/jig-protocol-store/golden/people/**", "jig/crates/jig-protocol-store/schema/tasks-v9.schema", "jig/crates/jig-protocol-store/src/generated/tasks_v9.rs", "jig/crates/jig-protocol-store/src/codec/tasks/proposals.rs", "jig/crates/jig-protocol-store/golden/tasks/**", "jig/crates/jig-protocol-store/src/tests/**", "jig/docs/design/protocol/store.status.md", "jig/crates/jig-protocol-store/src/generated/layouts.rs"]
 effort = "high"
 minutes = 120
 +++
@@ -89,3 +89,41 @@ Acceptance:
 ## Report
 
 Which schemas changed and whether any version moved; the goldens remade, by name.
+
+## Answers
+
+2026-11-03. **Q:** may this task add `Setting::Application` to `jig_domain_tasks::Setting`
+(`proposals.rs`) and regenerate `src/generated/layouts.rs`?
+
+**A:** `layouts.rs` yes (now in `files`): it is the generator's output for the schemas
+changed in place, no version moves. `jig_domain_tasks::Setting` no: the tasks child keeps
+no application head. `apps-proposals`' answer (2026-11-03, from `engine.md`, 17.6, **The
+owner keeps the value**) settled that the tasks child's heads are jig's kinds only and the
+core keeps the set, its application items included; a set of application items alone has
+no heads.
+
+- Step 3 is dropped: `tasks-v9.schema` and `codec/tasks/proposals.rs` stay unchanged.
+- In the acceptance, `Setting::Application` means the settings and people families' setting
+  (steps 1 and 2), not a tasks head; the Goal's "the tasks child's settings heads naming an
+  application's setting" no longer applies.
+- `jig/tests/core`'s `apps-store` arms (`start_settings.rs`, `fuzzy/settings.rs`) are outside
+  `jig-protocol-store` and outside this acceptance: leave them, and list them under `## Left`.
+
+2026-11-03. **Q:** `jig-store-world`'s `test(/settings/)` selects nothing: may this task add
+settings stories under `jig/tests/store`?
+
+**A:** No new stories. The store world has no settings-named stories: it tests the
+component (pages, generations, crashes, patching), and the settings family is among the
+records it writes (`model.rs`'s `CopySettingsRevision`, `root.rs`'s settings limits) and
+its layout and transcript goldens hold. The settings records' round trips, key order and
+revision read-back are the crate's own tests (step 4), which passed.
+
+- The acceptance's "the `jig/tests/store` world's settings stories pass" reads "the
+  `jig/tests/store` world passes": run it whole, `heavy cargo nextest run -p
+  jig-store-world` (check the count, about 176), in place of step 5's filter.
+- If a golden of that world (`jig/tests/store/golden/**`) fails only because a changed
+  record's bytes moved (an empty `applications`), remake it with the world's own golden
+  tooling, name each remade file in the report; a fixture's new field stays allowed as
+  before. Any other failure there: stop and ask.
+- Then the checks still pending (the direct dependents' focused suites, workspace clippy);
+  compile errors outside this task's files and neighbours go under `## Left`.

@@ -879,6 +879,14 @@ fn effect_ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: connecto
             | connector::Ask::Adopt { .. }
             | connector::Ask::Restore { .. },
         ) => {}
+        (
+            Some(Connector::Infrastructure | Connector::Observability) | None,
+            connector::Ask::JudgeSettings { .. }
+            | connector::Ask::KeepSettings { .. }
+            | connector::Ask::KeepProposalSettings { .. }
+            | connector::Ask::DropProposalSettings { .. }
+            | connector::Ask::SaveSettingsDefaults { .. },
+        ) => unreachable!("no application kind is declared"),
     }
 }
 
@@ -1069,7 +1077,8 @@ pub(crate) fn connector_out(
                     core::settings::Setting::Template(number) => *number,
                     core::settings::Setting::Charter(_)
                     | core::settings::Setting::Policy(_)
-                    | core::settings::Setting::Rules => continue,
+                    | core::settings::Setting::Rules
+                    | core::settings::Setting::Application { .. } => continue,
                 };
                 let template = domain.core.current.template(number).expect("offered template");
                 if template.flags.conversation {
@@ -1306,6 +1315,7 @@ fn core_now(
             work.push(Work::Core(core::Event::WorkspacePrepared {
                 task,
                 attempt,
+                holds: Box::new([]),
                 workspace: None,
                 credentials: Box::new([]),
                 writes: Some(Box::new([])),

@@ -26,8 +26,8 @@ pub use account_report::{AccountReport, Kept, report};
 pub use directory::Directory;
 pub use key::KeyProblem;
 pub use login::{Environment, LoginOutcome, command};
+pub(crate) use product::status_words;
 pub use product::{Location, Prepared, limits, prepare, record_generation};
-pub(crate) use product::{codex as product_codex, status_words};
 use program_check::ProgramStates;
 pub use sign_in::{RefreshFacts, Registered, refresh_facts, registration};
 use smith_agent_shell::config::ProgramName;
@@ -132,7 +132,7 @@ pub(crate) fn time(nanos: u64) -> String {
 #[derive(Clone)]
 pub enum Source {
     /// The named variable is read once before the loop.
-    Env { variable: String, codex: bool },
+    Env { variable: String },
     /// The native driver keeps this account in its private state file.
     SignIn {
         file: PathBuf,
@@ -160,13 +160,13 @@ impl std::fmt::Debug for Source {
 }
 
 /// Resolve one account descriptor without exposing a variable's value.
-pub fn source(account: &Account, codex: bool, directory: Option<&Directory>) -> Result<Source, Credential> {
+pub fn source(account: &Account, directory: Option<&Directory>) -> Result<Source, Credential> {
     use settings::resolve::{AccountSource, Provider};
     let fields = &account.fields;
     let name = &account.name;
     let text = |key: &str| fields.get(key).and_then(|field| field.value.as_str()).unwrap_or_default();
     Ok(match account.source() {
-        AccountSource::Env => Source::Env { variable: text("variable").into(), codex },
+        AccountSource::Env => Source::Env { variable: text("variable").into() },
         AccountSource::Key => Source::Key { file: directory.ok_or(Credential::NotSignedIn)?.key(name) },
         AccountSource::Program => Source::Program { name: name.into() },
         AccountSource::Nothing => Source::Nothing,
@@ -185,9 +185,7 @@ pub fn source(account: &Account, codex: bool, directory: Option<&Directory>) -> 
 #[must_use]
 pub fn inspect(source: &Source, wall: Wall, programs: &ProgramStates) -> Credential {
     match source {
-        Source::Env { variable, codex } => {
-            env_state(variable, environment(variable, *codex, wall).as_ref(), *codex, wall)
-        }
+        Source::Env { variable } => env_state(variable, environment(variable, wall).as_ref()),
         Source::SignIn { file, required_scopes } => sign_in::inspect(file, wall, required_scopes.as_deref()),
         Source::Key { file } => key::inspect(file),
         Source::Program { name } => programs.get(name).cloned().unwrap_or_else(|| Credential::ProgramFailed {
@@ -198,48 +196,26 @@ pub fn inspect(source: &Source, wall: Wall, programs: &ProgramStates) -> Credent
     }
 }
 
-pub(super) fn env_state(variable: &str, value: Option<&Borrowed>, codex: bool, wall: Wall) -> Credential {
+pub(super) fn env_state(variable: &str, value: Option<&Borrowed>) -> Credential {
     match value {
-        Some(value) if value.record.remaining(wall) > skein_lib::Duration::ZERO => {
-            Credential::Usable { until: codex.then_some(value.record.expires_at.as_nanos()) }
-        }
-        Some(value) => {
-            Credential::ExpiredVariable { at: value.record.expires_at.as_nanos(), variable: variable.into() }
-        }
+        Some(_) => Credential::Usable { until: None },
         None => Credential::Unset { variable: variable.into() },
-    }
-}
-
-pub(super) fn codex_selector() -> skein_oauth::ClaimSelector {
-    skein_oauth::ClaimSelector {
-        object: b"https://api.openai.com/auth".as_slice().into(),
-        field: b"chatgpt_account_id".as_slice().into(),
     }
 }
 
 /// Read a named variable into one access-only record; no variable is revisited.
 #[must_use]
-pub fn environment(variable: &str, codex: bool, wall: Wall) -> Option<Borrowed> {
+pub fn environment(variable: &str, wall: Wall) -> Option<Borrowed> {
     let value = std::env::var_os(variable)?;
-    env_record(value.as_encoded_bytes(), codex, wall)
+    env_record(value.as_encoded_bytes(), wall)
 }
 
-/// Decode one handed-in variable value, with the endpoint's dialect supplied by resolution.
+/// Validate one handed-in variable value, without token claims or expiry.
 #[must_use]
-pub fn env_record(value: &[u8], codex: bool, wall: Wall) -> Option<Borrowed> {
+pub fn env_record(value: &[u8], _wall: Wall) -> Option<Borrowed> {
     if !valid_key(value) {
         return None;
     }
-    let (account_id, expires_at) = if codex {
-        let claims = skein_oauth::read_claims(value, &codex_selector(), wall, &token_limits()).ok()?;
-        if claims.metadata.is_empty() || claims.metadata.len() > smith_local_service::Source::account_id_bytes() {
-            return None;
-        }
-        (claims.metadata, claims.expires_at.unwrap_or(Wall::from_nanos(u64::MAX)))
-    } else {
-        let empty: Box<[u8]> = Box::new([]);
-        (empty, Wall::from_nanos(u64::MAX))
-    };
     Some(Borrowed {
         record: skein_oauth::SavedToken {
             issued_client_id: None,
@@ -252,9 +228,8 @@ pub fn env_record(value: &[u8], codex: bool, wall: Wall) -> Option<Borrowed> {
             access_token: value.into(),
             refresh_token: None,
             metadata: None,
-            expires_at,
+            expires_at: Wall::from_nanos(u64::MAX),
         },
-        account_id,
     })
 }
 

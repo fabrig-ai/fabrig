@@ -78,6 +78,7 @@ fn changed_defaults_commit_the_release_revision_before_sweep_and_switch() {
             let core::Request::Write(write) = h.out.pop().expect("release write") else { panic!("release writes") };
             match write {
                 core::Write::Save(core::Record::Core(core::CoreRecord::Settings(row))) => match row {
+                    settings::Record::Application { .. } => unreachable!("an application's record: apps-store"),
                     settings::Record::Default { setting, default: value } => {
                         assert_eq!(setting, settings::Setting::Template(1));
                         default = Some(value);
@@ -86,7 +87,7 @@ fn changed_defaults_commit_the_release_revision_before_sweep_and_switch() {
                         assert!(!history);
                         revision = Some(value);
                     }
-                    settings::Record::Extent { oldest } => {
+                    settings::Record::Extent { oldest, .. } => {
                         assert_eq!(oldest, 1);
                         extent = true;
                     }
@@ -186,6 +187,8 @@ fn stored_proposals_require_their_links_at_link() {
                 proposer: jig_domain_people::Proposer::Party(1),
                 proposal: 1,
                 value: settings::Proposal {
+                    key: None,
+                    applications: Box::default(),
                     against: 1,
                     items: Box::new([settings::Item {
                         setting: settings::Setting::Template(1),

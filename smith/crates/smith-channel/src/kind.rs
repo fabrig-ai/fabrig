@@ -1,4 +1,4 @@
-//! Version-five kind identities (smith/docs/design/protocol/channel.md, sections 3–4).
+//! Version-six kind identities (smith/docs/design/protocol/channel.md, sections 3–4).
 
 /// The `Start` body kind.
 pub const START: u16 = 0x0100;
@@ -61,4 +61,4 @@ pub const LIVE: u16 = 0x0112;
 pub const ACCOUNT_REFUSED: u16 = 0x0113;
 
 /// The supported channel version.
-pub const VERSION: u16 = 5;
+pub const VERSION: u16 = 6;

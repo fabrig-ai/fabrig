@@ -1,12 +1,15 @@
 //! Tiers follow their configured branches (temper/docs/design/domain/after-landing.md, 2, 3, 4 and 10).
-use crate::{Domain, Limits, Name, Request, Stored, Tier, TierBranch, TierFlight, TierLanding, TierRow, What};
+use crate::{Domain, Follows, Limits, Name, Request, Stored, Tier, TierBranch, TierFlight, TierLanding, TierRow, What};
 use alloc::boxed::Box;
 use core::mem::size_of;
 use skein_forge::api::{self, Commit, Repository, Write};
 use skein_lib::{Env, List, Map, Queue, Time, Token, Wall};
 use temper_engine_domain_forge_landing as landing;
 use temper_engine_domain_forge_tiers as p;
+mod goals;
 mod parts;
+pub(crate) mod red;
+pub(crate) mod words;
 use parts::{
     candidate, dispatch_operation, part_branch, part_inputs, part_number, probe_branch, report_read, reported,
 };
@@ -19,6 +22,7 @@ pub(crate) struct State {
     walks: Map<(Repository, Box<[u8]>), Walk>,
     pub(crate) reads: Map<Token, (Repository, Box<[u8]>)>,
     pub(crate) follows: Map<(Repository, Box<[u8]>), crate::runs::Follow>,
+    reds: Map<(Repository, Box<[u8]>), red::Fetch>,
 }
 impl State {
     pub(crate) fn new(l: &Limits) -> Self {
@@ -30,6 +34,7 @@ impl State {
             walks: Map::with_capacity(count),
             reads: Map::with_capacity(count.checked_mul(2).expect("tier reads")),
             follows: Map::with_capacity(count),
+            reds: Map::with_capacity(count),
         }
     }
 }
@@ -46,7 +51,7 @@ struct Walk {
 
 pub(crate) fn configured_all(d: &Domain, repository: Repository) -> &[Tier] {
     let Some(adopted) = d.repositories.get(&repository) else { return &[] };
-    if let Some((_, repositories, _)) = d.landing.projects.get(&adopted.project) {
+    if let Some((_, repositories, _, _)) = d.landing.projects.get(&adopted.project) {
         for row in repositories {
             if row.repository == repository {
                 return &row.tiers;
@@ -64,9 +69,10 @@ fn configured(d: &Domain, row: &TierRow) -> Option<Tier> {
     None
 }
 fn followed(d: &Domain, repository: Repository, tier: &Tier) -> Option<Box<[u8]>> {
-    match &tier.branch {
-        Some(branch) => Some(branch.clone()),
-        None => Some(d.repositories.get(&repository)?.settings.default_branch.clone()),
+    match &tier.follows {
+        Follows::Branch(branch) => Some(branch.clone()),
+        Follows::Landing => Some(d.repositories.get(&repository)?.settings.default_branch.clone()),
+        Follows::Goals => None,
     }
 }
 fn path_parts(bytes: &[u8]) -> Box<[Box<[u8]>]> {
@@ -85,13 +91,16 @@ fn name(repository: Repository, branch: &[u8]) -> Name {
     Name { forge: repository.forge, repository: repository.repository, what: What::Branch(path_parts(branch)) }
 }
 pub(crate) fn watched(d: &Domain) -> List<Name> {
-    let mut names = List::with_capacity(d.tiers.capacity());
+    let mut names =
+        List::with_capacity(d.tiers.capacity().checked_add(d.holds.capacity()).expect("tier and goal watches"));
     for (repository, _) in &d.repositories {
         if d.forge_ended(repository.forge) {
             continue;
         }
         for tier in configured_all(d, *repository) {
-            if let Some(branch) = followed(d, *repository, tier) {
+            if tier.follows == Follows::Goals {
+                goals::watches(d, *repository, &mut names);
+            } else if let Some(branch) = followed(d, *repository, tier) {
                 let name = name(*repository, &branch);
                 if !names.as_slice().contains(&name) {
                     names.push(name).expect("one watch per tier");
@@ -144,7 +153,7 @@ pub(crate) fn watch(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>)
     );
 }
 
-/// The tier definition includes the optional branch, so a changed following rule changes its key.
+/// The tier definition includes what it follows; the span does not change its key.
 pub(crate) fn definition(tier: &Tier) -> Box<[u8]> {
     let mut length = tier
         .workflow
@@ -156,8 +165,12 @@ pub(crate) fn definition(tier: &Tier) -> Box<[u8]> {
     for path in &tier.ignored {
         length = length.checked_add(2).expect("path header").checked_add(path.len()).expect("ignored path");
     }
-    if let Some(branch) = &tier.branch {
-        length = length.checked_add(2).expect("branch header").checked_add(branch.len()).expect("branch definition");
+    match &tier.follows {
+        Follows::Branch(branch) => {
+            length =
+                length.checked_add(2).expect("branch header").checked_add(branch.len()).expect("branch definition");
+        }
+        Follows::Landing | Follows::Goals => {}
     }
     let mut out = skein_lib::Writer::new(length);
     word(&mut out, tier.workflow.len());
@@ -174,10 +187,14 @@ pub(crate) fn definition(tier: &Tier) -> Box<[u8]> {
         p::Format::Lines => 1,
     }])
     .expect("format");
-    out.put(&[u8::from(tier.branch.is_some())]).expect("branch presence");
-    if let Some(branch) = &tier.branch {
-        word(&mut out, branch.len());
-        out.put(branch).expect("branch");
+    match &tier.follows {
+        Follows::Landing => out.put(&[0]).expect("landing marker"),
+        Follows::Branch(branch) => {
+            out.put(&[1]).expect("branch marker");
+            word(&mut out, branch.len());
+            out.put(branch).expect("branch");
+        }
+        Follows::Goals => out.put(&[2]).expect("goals marker"),
     }
     out.finish()
 }
@@ -187,6 +204,7 @@ fn word(out: &mut skein_lib::Writer, value: usize) {
 
 fn empty(repository: Repository, tier: Box<[u8]>) -> TierRow {
     TierRow {
+        observations: Box::new([]),
         repository,
         tier,
         record: p::Record {
@@ -208,6 +226,9 @@ fn empty(repository: Repository, tier: Box<[u8]>) -> TierRow {
         held: None,
         result: None,
         received: false,
+        goals: Box::new([]),
+        goal: None,
+        started: None,
     }
 }
 fn save(row: &TierRow, out: &mut Queue<Request>) {
@@ -240,6 +261,10 @@ pub(crate) fn start_due(d: &mut Domain, env: &Env<Limits>, repository: Repositor
         names.push(tier.clone()).expect("configured tiers");
     }
     for tier in names.into_boxed() {
+        if tier.follows == Follows::Goals {
+            goals::start_due(d, env, repository, &tier, out);
+            continue;
+        }
         let Some(branch) = followed(d, repository, &tier) else { continue };
         let Some(head) = d.heads.get(&name(repository, &branch)) else { continue };
         let tip = head.commit;
@@ -265,6 +290,7 @@ pub(crate) fn start_due(d: &mut Domain, env: &Env<Limits>, repository: Repositor
         if let Some(target) = target
             && let Some(tip_key) = target.key
             && p::due(&row.record, target.commit)
+            && goals::span_passed(row.started, tier.span, env.now)
         {
             let mut range = List::with_capacity(u32::try_from(row.pending.len()).expect("range bound"));
             if row.baseline.take().is_none() {
@@ -281,6 +307,7 @@ pub(crate) fn start_due(d: &mut Domain, env: &Env<Limits>, repository: Repositor
             row.result = d.landing.receipts.get(&receipt_key(d, &row, tip_key)).cloned();
             row.received = row.result.is_some();
             row.record.run = Some(run);
+            row.started = Some(env.now);
             row.requested = false;
             row.cancelled = false;
             row.purpose = None;
@@ -443,6 +470,7 @@ pub(crate) fn observed(
     after: Commit,
     out: &mut Queue<Request>,
 ) {
+    goals::observed(d, repository, branch, before, after, out);
     let mut names = List::with_capacity(env.limits.tiers.tiers);
     for tier in configured_all(d, repository) {
         if followed(d, repository, tier).as_deref() == Some(branch) {
@@ -700,26 +728,11 @@ fn advance(
     outcome: p::Outcome,
     out: &mut Queue<Request>,
 ) {
+    words::observe(row, follow);
     let run = row.record.run.as_ref().expect("followed run");
-    let observation = match &outcome {
-        p::Outcome::Fault => None,
-        p::Outcome::Passed | p::Outcome::Failed(_) => {
-            let workflow = follow.run.as_ref().expect("completed workflow");
-            let failures = match &outcome {
-                p::Outcome::Passed => p::Failures::Tests(Box::new([])),
-                p::Outcome::Failed(failures) => failures.clone(),
-                p::Outcome::Fault => unreachable!("completed observation"),
-            };
-            Some(crate::Receipt {
-                passed: outcome == p::Outcome::Passed,
-                failures: Some(failures),
-                candidate: candidate(run).0,
-                ended: env.wall,
-                run: crate::ReceiptRun { id: workflow.id, number: workflow.number, url: workflow.url.clone() },
-            })
-        }
-    };
-    if run.part == p::Part::Whole
+    let observation = observation(env, row, follow, &outcome);
+    if row.goal.is_none()
+        && run.part == p::Part::Whole
         && let Some(receipt) = &observation
     {
         crate::landing::put_receipt(d, env, receipt_key(d, row, run.key), receipt.clone(), out);
@@ -763,7 +776,7 @@ fn advance(
     save(row, out);
 }
 fn decision(task: u64, decision: crate::TierDecision, entry: Option<u64>, out: &mut Queue<Request>) {
-    out.push(Request::TierDecision { task, decision, entry });
+    out.push(Request::TierDecision { task, decision, projection: None, entry });
 }
 fn wait(task: u64, out: &mut Queue<Request>) {
     decision(task, crate::TierDecision::Wait { until: None }, None, out);
@@ -870,44 +883,24 @@ fn finish(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, out: &mut Queue<
         )
     };
     let p::Next::Judged(verdict) = next else { unreachable!("saved final observation judges the committed part") };
-    let count = u64::try_from(verdict.landings.len()).expect("bounded range");
-    let words = match &verdict.failing {
-        p::Failures::Tests(tests) if tests.is_empty() => joined(&[
-            b"Tier ",
-            &row.tier,
-            b" run ",
-            skein_lib::Decimal::of(verdict.number).as_bytes(),
-            b": green, cleared ",
-            skein_lib::Decimal::of(count).as_bytes(),
-            b" landings",
-        ]),
-        failing @ (p::Failures::Tests(_) | p::Failures::Many) => {
-            let failures = match failing {
-                p::Failures::Tests(tests) => {
-                    skein_lib::Decimal::of(u64::try_from(tests.len()).expect("bounded tests")).as_bytes().into()
-                }
-                p::Failures::Many => Box::from(b"many".as_slice()),
-            };
-            let mut blamed = 0_u64;
-            for blame in &verdict.landings {
-                if *blame != p::Blame::Cleared {
-                    blamed = blamed.checked_add(1).expect("bounded range");
-                }
-            }
-            joined(&[
-                b"Tier ",
-                &row.tier,
-                b" run ",
-                skein_lib::Decimal::of(verdict.number).as_bytes(),
-                b": red, ",
-                &failures,
-                b" tests failing, blamed on ",
-                skein_lib::Decimal::of(blamed).as_bytes(),
-                b" landings",
-            ])
+    let words = verdict_words(d, row, &verdict, &run.landings);
+    if row.goal.is_some() {
+        if !goals::finish(d, env, row, &verdict, out) {
+            wait(row.task.expect("tier task"), out);
+            return;
         }
-    };
-    crate::verification::judged(d, row.repository, &row.tier, &verdict, &run.landings, out);
+    } else {
+        let newly_red = red::landings(d, row, &verdict);
+        if !newly_red.is_empty() {
+            let Some(logs) = red::logs(d, env, row, out) else {
+                wait(row.task.expect("tier task"), out);
+                return;
+            };
+            red::landed(d, row, &newly_red, &logs, out);
+        }
+        let run = row.record.run.as_ref().expect("judged range");
+        crate::verification::judged(d, row.repository, &row.tier, &verdict, &run.landings, out);
+    }
     row.record = p::judged(
         &row.record,
         &verdict,
@@ -922,8 +915,9 @@ fn finish(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, out: &mut Queue<
     row.received = false;
     row.purpose = None;
     row.cancelled = false;
+    let projection = Some(core::mem::replace(&mut row.observations, Box::new([])));
     save(row, out);
-    decision(task, crate::TierDecision::Done { words }, None, out);
+    out.push(Request::TierDecision { task, decision: crate::TierDecision::Done { words }, entry: None, projection });
 }
 fn reading(d: &Domain, key: &(Repository, Box<[u8]>)) -> bool {
     for (owner, candidate) in &d.tier_ops.reads {
@@ -1073,21 +1067,7 @@ pub(crate) fn step(
             TierBranch::Absent => {
                 d.tier_ops.follows.remove(&key);
                 if row.cancelled {
-                    row.record.run = None;
-                    row.task = None;
-                    d.offered_tier(task);
-                    row.requested = false;
-                    row.flight = None;
-                    row.result = None;
-                    row.purpose = None;
-                    row.received = false;
-                    save(&row, out);
-                    decision(
-                        task,
-                        crate::TierDecision::Done { words: joined(&[b"Tier ", &row.tier, b" cancelled"]) },
-                        None,
-                        out,
-                    );
+                    cancelled(d, &mut row, task, out);
                 } else {
                     finish(d, env, &mut row, out);
                 }
@@ -1173,6 +1153,10 @@ pub(crate) fn answered(
         tree_answer(d, env, key, answer, out);
         return;
     }
+    if d.tier_ops.reds.contains_key(&key) {
+        red::answered(d, env, key, answer, out);
+        return;
+    }
     let Some(mut row) = d.tiers.remove(&key) else { return };
     if d.stopping || row.record.run.is_none() {
         d.tiers.insert(key, row).expect("replaces tier");
@@ -1191,6 +1175,7 @@ pub(crate) fn answered(
         true
     } else {
         let ended = follow.answered(answer, writer, env.now, env.limits.client.lifetime).is_some();
+        words::observe(&mut row, &follow);
         if row.held.is_none() && row.result.is_none() {
             observed_part(d, env, &mut row, &mut follow, out);
         }
@@ -1232,6 +1217,12 @@ pub(crate) fn deadline(d: &Domain) -> Option<Time> {
         }
     }
     for (_, row) in &d.tiers {
+        if let Some(at) = span_deadline(d, row) {
+            next = Some(match next {
+                Some(old) => old.min(at),
+                None => at,
+            });
+        }
         if let Some(flight) = &row.flight
             && row.result.is_none()
             && let Some(at) = flight.next
@@ -1245,6 +1236,18 @@ pub(crate) fn deadline(d: &Domain) -> Option<Time> {
     next
 }
 pub(crate) fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    let mut repositories = List::with_capacity(d.repositories.capacity());
+    for (_, row) in &d.tiers {
+        if let Some(at) = span_deadline(d, row)
+            && at <= env.now
+            && !repositories.as_slice().contains(&row.repository)
+        {
+            repositories.push(row.repository).expect("adopted repositories");
+        }
+    }
+    for repository in repositories.into_boxed() {
+        start_due(d, env, repository, out);
+    }
     let mut tasks = List::with_capacity(d.tier_ops.due.capacity());
     for (task, when) in &d.tier_ops.due {
         if *when <= env.wall {
@@ -1311,6 +1314,24 @@ fn branch_write(write: &Write) -> Option<(&[u8], bool)> {
 }
 pub(crate) fn outcome(d: &mut Domain, entry: u64, outcome: skein_forge_client::Outcome, out: &mut Queue<Request>) {
     use skein_forge_client::Outcome;
+    let made_branch = match outcome {
+        Outcome::Made { made: skein_forge_client::Made::Branch(commit), .. } => Some(commit),
+        Outcome::Made { .. }
+        | Outcome::Failed(_)
+        | Outcome::Raced { .. }
+        | Outcome::Withdrawn
+        | Outcome::Held
+        | Outcome::Uncertain
+        | Outcome::Queued => None,
+    };
+    if let Some(commit) = made_branch
+        && let Some(kept) = d.entries.get(&entry)
+        && let Some((branch, false)) = branch_write(&kept.entry.effect.write)
+    {
+        let repository = kept.entry.repository;
+        let branch = Box::from(branch);
+        goals::observed(d, repository, &branch, None, commit, out);
+    }
     let mut found = None;
     for (key, row) in &d.tiers {
         if row.branch == (TierBranch::Pending { entry })
@@ -1435,6 +1456,26 @@ pub(crate) fn veto(d: &mut Domain, task: u64, entry: u64, out: &mut Queue<Reques
     d.entries.remove(&entry);
     out.push(Request::Erase { key: crate::Key::Entry(entry) });
 }
+pub(crate) fn released(d: &mut Domain, name: &Name, out: &mut Queue<Request>) {
+    goals::released(d, name, out);
+}
+
+fn span_deadline(d: &Domain, row: &TierRow) -> Option<Time> {
+    if row.record.run.is_some() {
+        return None;
+    }
+    let tier = configured(d, row)?;
+    if tier.follows == Follows::Goals {
+        return goals::deadline(row, tier.span);
+    }
+    let target = row.baseline.as_ref().or(row.pending.last())?;
+    target.key?;
+    if !p::due(&row.record, target.commit) {
+        return None;
+    }
+    Some(row.started?.saturating_add(tier.span?))
+}
+
 pub(crate) fn restart(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     d.tier_ops.due = Map::with_capacity(d.tier_ops.due.capacity());
     let mut keys = List::with_capacity(d.tiers.capacity());
@@ -1595,15 +1636,25 @@ pub(crate) fn blame_bytes(blame: &p::Blame) -> Option<u64> {
     }
 }
 pub(crate) fn row_bytes(row: &TierRow) -> Option<u64> {
-    let mut held = u64::try_from(row.tier.len()).ok()?.checked_add(failures_bytes(&row.record.failing)?)?.checked_add(
-        u64::try_from(row.record.flakes.len()).ok()?.checked_mul(u64::try_from(size_of::<p::Flake>()).ok()?)?,
-    )?;
+    let mut held = u64::try_from(row.tier.len())
+        .ok()?
+        .checked_add(u64::try_from(row.observations.len()).ok()?)?
+        .checked_add(failures_bytes(&row.record.failing)?)?
+        .checked_add(
+            u64::try_from(row.record.flakes.len()).ok()?.checked_mul(u64::try_from(size_of::<p::Flake>()).ok()?)?,
+        )?;
     for flake in &row.record.flakes {
         held = held.checked_add(u64::try_from(flake.test.len()).ok()?)?;
     }
     held = held.checked_add(
         u64::try_from(row.pending.len()).ok()?.checked_mul(u64::try_from(size_of::<TierLanding>()).ok()?)?,
     )?;
+    held = held.checked_add(
+        u64::try_from(row.goals.len()).ok()?.checked_mul(u64::try_from(size_of::<crate::TierGoal>()).ok()?)?,
+    )?;
+    for goal in &row.goals {
+        held = held.checked_add(u64::try_from(goal.branch.len()).ok()?)?.checked_add(failures_bytes(&goal.failing)?)?;
+    }
     if let Some(flight) = &row.flight {
         if let Some(report) = &flight.report {
             held = held.checked_add(u64::try_from(report.url.len()).ok()?)?;
@@ -1668,4 +1719,176 @@ fn remember_tip(d: &mut Domain, key: &(Repository, Box<[u8]>)) {
             d.tier_ops.tip_keys.remove(key);
         }
     }
+}
+
+fn observation(
+    env: &Env<Limits>,
+    row: &TierRow,
+    follow: &crate::runs::Follow,
+    outcome: &p::Outcome,
+) -> Option<crate::Receipt> {
+    match outcome {
+        p::Outcome::Fault => None,
+        p::Outcome::Passed | p::Outcome::Failed(_) => {
+            let workflow = follow.run.as_ref().expect("completed workflow");
+            let failures = match outcome {
+                p::Outcome::Passed => p::Failures::Tests(Box::new([])),
+                p::Outcome::Failed(failures) => failures.clone(),
+                p::Outcome::Fault => unreachable!("completed observation"),
+            };
+            Some(crate::Receipt {
+                passed: *outcome == p::Outcome::Passed,
+                failures: Some(failures),
+                candidate: candidate(row.record.run.as_ref().expect("followed run")).0,
+                ended: env.wall,
+                run: crate::ReceiptRun { id: workflow.id, number: workflow.number, url: workflow.url.clone() },
+            })
+        }
+    }
+}
+
+fn verdict_words(d: &Domain, row: &TierRow, verdict: &p::Verdict, landings: &[p::Landing]) -> Box<[u8]> {
+    let mut parts = List::uncapped();
+    parts.push(verdict_summary(&row.tier, verdict)).expect("verdict words");
+    for (at, blame) in verdict.landings.iter().enumerate() {
+        let (kind, failures) = match blame {
+            p::Blame::Cleared => continue,
+            p::Blame::Owns(failures) => (b" owns: ".as_slice(), failures),
+            p::Blame::Suspect(failures) => (b" suspected of: ".as_slice(), failures),
+        };
+        let landing = landings.get(at).expect("one verdict per landing");
+        let continuation = landing_read(d, row.repository, landing.commit);
+        let prefix = joined(&[b"\n", &crate::commit_text(&landing.commit), kind]);
+        match failures {
+            p::Failures::Many => {
+                parts.push(joined(&[&prefix, b"many tests", &continuation])).expect("verdict words");
+            }
+            p::Failures::Tests(tests) => {
+                for test in tests {
+                    parts.push(joined(&[&prefix, &report_id(test), &continuation])).expect("verdict words");
+                }
+            }
+        }
+    }
+    let mut words = List::uncapped();
+    for part in parts.as_slice() {
+        for byte in part {
+            words.push(*byte).expect("verdict words");
+        }
+    }
+    words.into_boxed()
+}
+
+fn landing_read(d: &Domain, repository: Repository, commit: Commit) -> Box<[u8]> {
+    if let Some(verification) = d.verifications.get(&(repository, commit))
+        && let Some(change) = verification.changes.first()
+    {
+        joined(&[b"; change show ", skein_lib::Decimal::of(*change).as_bytes()])
+    } else {
+        Box::new([])
+    }
+}
+
+// One complete attribution per line lets the task shell fit its report without cutting an ID.
+fn report_id(test: &[u8]) -> Box<[u8]> {
+    let mut words = List::uncapped();
+    words.push(b'"').expect("opening quote");
+    for byte in test {
+        let escaped: &[u8] = match byte {
+            b'\n' => b"\\n",
+            b'\r' => b"\\r",
+            b'\\' => b"\\\\",
+            b'"' => b"\\\"",
+            _ => core::slice::from_ref(byte),
+        };
+        for byte in escaped {
+            words.push(*byte).expect("test id words");
+        }
+    }
+    words.push(b'"').expect("closing quote");
+    words.into_boxed()
+}
+
+fn verdict_summary(tier: &[u8], verdict: &p::Verdict) -> Box<[u8]> {
+    let count = u64::try_from(verdict.landings.len()).expect("bounded range");
+    let prefix = joined(&[b"Tier ", tier, b" run ", skein_lib::Decimal::of(verdict.number).as_bytes()]);
+    if let p::Failures::Tests(tests) = &verdict.failing
+        && tests.is_empty()
+    {
+        return joined(&[&prefix, b": green, cleared ", &count_words(count, b" landing", b" landings")]);
+    }
+    let mut blamed = 0_u64;
+    for blame in &verdict.landings {
+        if *blame != p::Blame::Cleared {
+            blamed = blamed.checked_add(1).expect("bounded range");
+        }
+    }
+    let failures = match &verdict.failing {
+        p::Failures::Tests(tests) => {
+            count_words(u64::try_from(tests.len()).expect("bounded tests"), b" test", b" tests")
+        }
+        p::Failures::Many => Box::from(b"many tests".as_slice()),
+    };
+    let mut words = joined(&[
+        &prefix,
+        b": red, ",
+        &failures,
+        b" failing, blamed on ",
+        &count_words(blamed, b" landing", b" landings"),
+    ]);
+    let inherited = inherited_tests(verdict);
+    if inherited > 0 {
+        words = joined(&[&words, b"; ", &count_words(inherited, b" inherited test", b" inherited tests")]);
+    }
+    words
+}
+
+fn count_words(count: u64, singular: &[u8], plural: &[u8]) -> Box<[u8]> {
+    joined(&[skein_lib::Decimal::of(count).as_bytes(), if count == 1 { singular } else { plural }])
+}
+
+fn inherited_tests(verdict: &p::Verdict) -> u64 {
+    let p::Failures::Tests(tests) = &verdict.failing else { return 0 };
+    let mut count = 0_u64;
+    for test in tests {
+        let mut owned = false;
+        for blame in &verdict.landings {
+            match blame {
+                p::Blame::Owns(p::Failures::Many) | p::Blame::Suspect(p::Failures::Many) => owned = true,
+                p::Blame::Owns(p::Failures::Tests(ids)) | p::Blame::Suspect(p::Failures::Tests(ids)) => {
+                    owned |= ids.contains(test);
+                }
+                p::Blame::Cleared => {}
+            }
+        }
+        if !owned {
+            count = count.checked_add(1).expect("bounded tests");
+        }
+    }
+    count
+}
+
+#[cfg(test)]
+#[path = "tests/tiers/verdict.rs"]
+mod verdict_tests;
+
+fn cancelled(d: &mut Domain, row: &mut TierRow, task: u64, out: &mut Queue<Request>) {
+    red::forget(d, row);
+    row.record.run = None;
+    row.goal = None;
+    row.task = None;
+    d.offered_tier(task);
+    row.requested = false;
+    row.flight = None;
+    row.result = None;
+    row.purpose = None;
+    row.received = false;
+    let projection = Some(core::mem::replace(&mut row.observations, Box::new([])));
+    save(row, out);
+    out.push(Request::TierDecision {
+        task,
+        decision: crate::TierDecision::Done { words: joined(&[b"Tier ", &row.tier, b" cancelled"]) },
+        entry: None,
+        projection,
+    });
 }

@@ -80,6 +80,7 @@ fn settings_proposal_items_use_the_file_decoder() {
     assert_eq!(
         body.tool,
         engine::Tool::ProposeSettings {
+            kinds: Box::default(),
             against: 1,
             reason: b"restore the default".as_slice().into(),
             items: Box::new([s::Item { setting: s::Setting::Charter(1), edit: s::Edit::Reset }])
@@ -94,7 +95,8 @@ fn inventory(count: u32) -> SettingsAnswer {
                 setting: s::Setting::Charter(number),
                 name: None,
                 follows: d::Follows::Change,
-                last: 5,
+                last: Some(5),
+                application: None,
             })
             .expect("inventory count");
     }
@@ -153,7 +155,8 @@ fn engine_and_ctl_render_the_same_settings_inventory() {
             setting: c::Setting::Charter(c::SettingNumber { number }),
             name: None,
             follows: c::SettingFollows::Change,
-            last: 5,
+            last: Some(5),
+            application: None,
         })
         .expect("two rows");
     }
@@ -373,5 +376,55 @@ fn settings_refusals_keep_ctls_words_without_a_client_dependency() {
             crate::settings::refusal(&core),
             temper_client_tools::jig::render::settings_refusal(&client, temper_client_tools::limits::TEXT)
         );
+    }
+}
+
+fn landing_value() -> temper_engine_domain_forge::settings::Value {
+    use temper_engine_domain_forge::{GateLast, GatePattern, settings};
+    settings::Value::Rule(settings::LandingRule {
+        pattern: GatePattern {
+            segments: Box::new([Box::from(b"forge".as_slice())]),
+            last: GateLast::Open(Box::new([])),
+        },
+        enforce: true,
+        ci: true,
+        up_to_date: false,
+        gates: Box::new([]),
+        approvals: Box::new([]),
+    })
+}
+fn application_item(bytes: Box<[u8]>) -> s::Item {
+    s::Item {
+        setting: s::Setting::Application { kind: 1, scope: 0, number: 1 },
+        edit: s::Edit::Set(s::Value::Application(bytes)),
+    }
+}
+#[test]
+fn settings_proposals_carry_typed_landing_values() {
+    let value = landing_value();
+    let bytes = crate::kinds::encode(&value);
+    let size = u32::try_from(bytes.len()).expect("fixture encoding");
+    let call = decided(b"propose_settings", br#"{"against":1,"reason":"landing","items":[{"setting":{"kind":"landing-rule","number":1},"set":{"pattern":{"segments":["666f726765"],"last":{"open":""}},"enforce":true,"ci":true,"up_to_date":false,"gates":[],"approvals":[]}}]}"#).expect("landing proposal");
+    let engine::Tool::ProposeSettings { kinds, .. } = call.tool else { panic!("settings proposal") };
+    assert_eq!(
+        kinds.as_ref(),
+        &[engine::KindValue {
+            kind: 1,
+            scope: 0,
+            number: 1,
+            value: temper_engine_domain_forge::settings::SizedValue { value, size }
+        }]
+    );
+}
+#[test]
+fn settings_proposals_refuse_cut_or_trailing_value_bytes() {
+    let bytes = crate::kinds::encode(&landing_value());
+    let cut = &bytes[..bytes.len() - 1];
+    let mut trailing = skein_lib::Writer::new(bytes.len().checked_add(1).expect("one trailing byte"));
+    trailing.put(&bytes).expect("encoding room");
+    trailing.put(&[0]).expect("trailing byte room");
+    let trailing = trailing.finish();
+    for malformed in [cut, trailing.as_ref()] {
+        assert_eq!(crate::settings::kind_values(&[application_item(malformed.into())]), Err(Problem::Range(b"items")));
     }
 }

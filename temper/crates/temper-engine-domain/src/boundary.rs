@@ -90,7 +90,16 @@ pub enum ForgeStart {
     Base(Box<[u8]>),
     Branch(Box<[u8]>),
     Saved(Box<[u8]>),
-    Merge { branch: Box<[u8]>, base: skein_forge::api::Commit },
+    Merge {
+        branch: Box<[u8]>,
+        base: skein_forge::api::Commit,
+    },
+    /// The landing branch with each head merged into it in order
+    /// (temper/docs/design/domain/worker.md, 4.1).
+    Merged {
+        branch: Box<[u8]>,
+        heads: Box<[skein_forge::api::Commit]>,
+    },
 }
 
 /// One adopted repository translated for the worker's workspace.
@@ -116,6 +125,16 @@ pub struct ForgeWorkspace {
     pub repositories: Box<[ForgeRepository]>,
 }
 
+/// A decoded value of temper's settings kinds, retained for its request's decision
+/// (temper/docs/design/domain/root.md, 5.6).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct KindValue {
+    pub kind: u32,
+    pub scope: u32,
+    pub number: u32,
+    pub value: forge::settings::SizedValue,
+}
+
 /// One typed engine tool request from the current worker claim
 /// (domain/root.md, sections 3 and 5.2). Later routes extend this vocabulary.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -123,7 +142,12 @@ pub enum Tool {
     /// Read settings without retaining a named-call record.
     Settings { read: jig_domain_core::SettingsRead, from: u32 },
     /// Propose whole settings to the deployment's owners.
-    ProposeSettings { against: u32, items: Box<[jig_domain_core::settings::Item]>, reason: Box<[u8]> },
+    ProposeSettings {
+        against: u32,
+        items: Box<[jig_domain_core::settings::Item]>,
+        reason: Box<[u8]>,
+        kinds: Box<[KindValue]>,
+    },
     /// Write or correct one scoped note by the revision this run recalled.
     Note { entry: jig_domain_notes::New, recalled: Option<u32> },
     /// Read one bounded page of notes by name or description.
@@ -186,7 +210,11 @@ pub struct ChangeCall {
     pub repository: Option<Box<[u8]>>,
     pub name: Option<Box<[u8]>>,
     pub landing: Option<ChangeLanding>,
+    pub branch: Option<ChangeBranch>,
+    pub merge: Option<[u8; 32]>,
     pub after: Box<[ChangeAfter]>,
+    pub questions: Option<ChangeQuestions>,
+    pub repairs: Option<skein_forge::api::Commit>,
     pub producer: Option<u32>,
     pub llm: ChangeLlm,
 }
@@ -213,9 +241,13 @@ impl ChangeCall {
             repository,
             name: None,
             landing: None,
+            branch: None,
+            merge: None,
             after: Box::new([]),
             producer: None,
             llm: ChangeLlm::default(),
+            questions: None,
+            repairs: None,
         }
     }
 }
@@ -225,6 +257,21 @@ impl ChangeCall {
 pub enum ChangeLanding {
     Goal,
     Branch(Box<[u8]>),
+}
+
+/// How a change takes its agents' questions (domain/agent.md, 4.3.1).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum ChangeQuestions {
+    None,
+    Foreman,
+    Up,
+}
+
+/// A change's branch choice (domain/agent.md, 4.3.1).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum ChangeBranch {
+    /// Its requester's held branch: the goal branch it holds in the change's repository.
+    Mine,
 }
 
 /// A change's dependency within a call (domain/agent.md, 4.3.1).
@@ -409,6 +456,8 @@ impl Parts {
 /// Why a repository could not be prepared, permanently (protocol/channel.md, 5).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Preparation {
+    /// The head that did not merge into this repository's base.
+    Conflicted { tag: u64, head: skein_forge::api::Commit },
     /// The forge lacks what the assignment names for this repository.
     Missing { tag: u64, missing: Missing },
     /// The forge refused this repository's identity.
@@ -445,7 +494,6 @@ pub enum Fact {
 }
 
 #[derive(Debug)]
-#[expect(clippy::large_enum_variant, reason = "decoded calls stay inline in the bounded input queue priced at startup")]
 pub enum WorkerInput {
     /// A worker channel's hello, record or loss.
     Link { channel: Token, link: Link },
@@ -476,6 +524,18 @@ pub enum ApplicationAnswer {
     Reachable(forge::ReachableAnswer),
     Returning,
 }
+/// Forge-owned settings reads (temper/docs/design/client/forge.md, 9).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum ForgeRead {
+    Setting { kind: u32, scope: u32, number: u32 },
+    ProposalItems { key: u64 },
+}
+/// Typed answers from the forge's held settings, encoded at the clients' boundary.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum ForgeReadAnswer {
+    Setting(Option<forge::settings::SizedValue>),
+    ProposalItems(Box<[(forge::settings::SettingKey, forge::settings::Edit)]>),
+}
 #[derive(Debug)]
 pub enum PartyInput {
     /// Resolve a sign-in through the people child for provider authorization.
@@ -490,6 +550,7 @@ pub enum PartyInput {
         key: [u8; 16],
         digest: [u8; 32],
         change: Box<core::settings::Proposed>,
+        kinds: Box<[KindValue]>,
     },
     /// A direct owner settings change, decided by jig.
     ChangeSettings {
@@ -498,6 +559,7 @@ pub enum PartyInput {
         key: [u8; 16],
         digest: [u8; 32],
         change: Box<core::settings::Change>,
+        kinds: Box<[KindValue]>,
     },
     /// End one authenticated sign-in through the people child (ruling 116).
     SignOut {
@@ -569,6 +631,13 @@ pub enum PartyInput {
         reply_to: ReplyTo,
         sign_in: u64,
         read: core::reads::Read,
+    },
+    /// The forge's typed read, answered after preceding commits (client/forge.md, 9).
+    ForgeRead {
+        reply: ReplyTo,
+        sign_in: u64,
+        scope: people::ApplicationScope,
+        query: ForgeRead,
     },
     /// Watch one subject's whole document on a live sign-in.
     /// A forge panel uses `Watched::Application` in its project's scope, the
@@ -651,6 +720,13 @@ pub enum Request {
         forge: u16,
         request: Token,
         how: forge::How,
+        carried: jig_domain_core::Carried,
+    },
+    /// Run a Replace: Check on a connected Forgejo, Paste with the kept App id on GitHub
+    /// (protocol/forge.md, 2.2).
+    Replace {
+        forge: u16,
+        request: Token,
         carried: jig_domain_core::Carried,
     },
     Manifest {
@@ -774,12 +850,14 @@ pub(crate) enum Work {
     StartDone(jig_domain_core::start::Phase),
     Start(jig_domain_core::start::Action),
     Decoded { to: ReplyTo, body: Call },
+    ForgeRead { reply: ReplyTo, sign_in: u64, scope: people::ApplicationScope, query: ForgeRead },
     Core(jig_domain_core::Event),
     Tasks(tasks::Event),
     People(people::Event),
     Fleet(fleet::Event),
     Brief(brief::GatherEvent),
     Forge(forge::Event),
+    ForgeSettings(skein_lib::Queue<forge::Request>),
     ForgeRestored,
     ProjectGoal(Box<jig_domain_core::ProjectionFeed>),
     GoalSubscribe(forge::Subscriber),
@@ -896,6 +974,7 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
         | Delivery::Application { .. }
         | Delivery::WebReply { .. }
         | Delivery::CarriedUnused { .. }
+        | Delivery::ForgeRead { .. }
         | Delivery::Read { .. }
         | Delivery::Document { .. }
         | Delivery::WatchEnded { .. }

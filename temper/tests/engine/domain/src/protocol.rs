@@ -30,6 +30,12 @@ pub fn bounds() -> host::Bounds {
     }
 }
 
+/// The merge kind advertised by the scripted worker (temper/docs/design/domain/worker.md, 4.4).
+#[must_use]
+pub fn merge_bound() -> host::JobBound {
+    host::JobBound { kind: host::JobKind(3), spec: 4096, result: 512, deadline: Duration::from_secs(600) }
+}
+
 /// One worker's hello on `channel`, listing the runs it hosts.
 #[must_use]
 pub fn hello(channel: Token, hosting: Box<[host::Hosting]>) -> engine::Event {
@@ -50,7 +56,7 @@ pub fn hello_at(channel: Token, worker: u32, slots: u32, hosting: Box<[host::Hos
         engine::Link::Hello {
             worker,
             hello: host::Hello {
-                jobs: Box::default(),
+                jobs: Box::new([merge_bound()]),
                 slots,
                 stop_bound: Duration::from_millis(100),
                 workstreams: Box::new([]),
@@ -101,6 +107,19 @@ pub fn turn(
         },
         engine::Parts::none(),
     )
+}
+
+/// A scripted worker's terminal answer when its checkout could not be prepared.
+#[must_use]
+pub fn failed_preparation(channel: Token, task: u64, attempt: u64, preparation: engine::Preparation) -> engine::Event {
+    let ending = host::Ending::Failed {
+        failure: host::Failure::Unprepared(host::Preparation::Permanent { resource: None }),
+        detail: Box::new([]),
+        work: host::Work { left: None, saved: None },
+    };
+    let answer = host::RunAnswer { read: None, refused: Box::new([]), turns: 0, spent: 1, ending };
+    let parts = engine::Parts { saved: None, pushed: Box::new([]), preparation: Some(preparation) };
+    up(channel, host::LinkUp::Answer { run: Token::new(task), attempt: Token::new(attempt), answer }, parts)
 }
 
 /// One hub record with no application part.
@@ -217,6 +236,15 @@ impl Protocol {
         up(channel, host::LinkUp::Answer { run: Token::new(task), attempt: Token::new(attempt), answer }, parts)
     }
 
+    /// A job's terminal arrives through the same worker link as a run's answer.
+    pub fn answer_job(&mut self, channel: Token, task: u64, attempt: u64, answer: host::JobEnding) -> engine::Event {
+        up(
+            channel,
+            host::LinkUp::JobAnswer { run: Token::new(task), attempt: Token::new(attempt), answer },
+            engine::Parts::none(),
+        )
+    }
+
     /// Play one root request this layer answers; return any other to the caller.
     ///
     /// # Errors
@@ -299,6 +327,7 @@ impl Protocol {
             | engine::Request::ResetAct { .. }
             | engine::Request::BoxRemove { .. }
             | engine::Request::Connect { .. }
+            | engine::Request::Replace { .. }
             | engine::Request::Manifest { .. }
             | engine::Request::Reachable { .. }
             | engine::Request::Install { .. }

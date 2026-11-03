@@ -174,7 +174,6 @@ fn cap_name(cap: Cap) -> &'static str {
         Cap::Answer => "answer",
         Cap::ErrorBody => "error-body",
         Cap::Value => "credential-value",
-        Cap::AccountId => "account-id",
     }
 }
 

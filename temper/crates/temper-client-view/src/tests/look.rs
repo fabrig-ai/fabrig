@@ -149,7 +149,8 @@ fn each_pages_main_carries_the_main_token() {
         assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([MAIN])]);
     }
     let view = fixtures::page_view(&fixtures::chats_root());
-    assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([MAIN, PAGE])]);
+    assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([MAIN])]);
+    assert_eq!(NAMES.style(SIDEBAR), Some(b"temper-sidebar".as_slice()));
     let view = fixtures::page_view(&fixtures::task::held_root());
     assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([MAIN, PAGE])]);
     let view = fixtures::page_view(&fixtures::inbox_root());
@@ -318,7 +319,6 @@ fn the_task_tokens_stay_on_their_roles() {
     crate::pages::task::header(
         &mut builder,
         &task,
-        None,
         None,
         &fixtures::words(),
         &mut crate::frame::Bindings::new(fixtures::tree_limits().bindings),

@@ -45,12 +45,11 @@ pub enum Act {
     SetUp { forge: u16 },
     SetUpAtOnce { forge: u16 },
     SetupWrite { field: super::forges::SetupField, text: Box<[u8]> },
-    StartIn { forge: u16 },
-    Picker { forge: u16, act: super::picker::Act },
     StartPlayground,
     EndPlayground,
     AdminWrite { field: super::admin::Field, text: Box<[u8]> },
     ConnectAdmin { forge: u16 },
+    ConnectTokens { forge: u16 },
     AppWrite { text: Box<[u8]> },
     ConnectApp { forge: u16 },
     ConnectManifest { forge: u16, back: Box<[u8]> },
@@ -117,6 +116,21 @@ pub fn form(project: u32) -> Form {
         outcome: None,
         served: Served::Unknown,
         confirmed: false,
+    }
+}
+/// Fill the first repository's defaults as domain writes (client/README.md, 4.4).
+pub fn fill_first(form: &mut Form, forge: u16, org: &[u8], name: &[u8]) {
+    let number = skein_lib::Decimal::of(u64::from(forge));
+    for (text, value, typed) in [
+        (Text::Forge, number.as_bytes(), Typed::Forge(Some(forge))),
+        (Text::Owner, org, Typed::Bytes),
+        (Text::Name, name, Typed::Bytes),
+        (Text::Landing, b"main".as_slice(), Typed::Bytes),
+    ] {
+        let field = form.texts.get_mut(text.index()).expect("six form fields");
+        field.text = Box::from(value);
+        field.typed = typed;
+        field.written = field.written.checked_add(1).expect("field writes fit u64");
     }
 }
 fn forge_number(form: &Form) -> Option<u16> {

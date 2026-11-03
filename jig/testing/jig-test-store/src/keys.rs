@@ -45,6 +45,15 @@ pub fn encode(number: u16, key: &RecordKey) -> Box<[u8]> {
             writer.tag(10);
             write_key(&mut writer, key);
         }
+        RecordKey::SettingDefault { kind, scope, number } => {
+            writer.tag(12).u64(u64::from(*kind)).u64(u64::from(*scope)).u64(u64::from(*number));
+        }
+        RecordKey::SettingChange { kind, scope, number } => {
+            writer.tag(13).u64(u64::from(*kind)).u64(u64::from(*scope)).u64(u64::from(*number));
+        }
+        RecordKey::SettingProposal { proposal, kind, scope, number } => {
+            writer.tag(14).u64(*proposal).u64(u64::from(*kind)).u64(u64::from(*scope)).u64(u64::from(*number));
+        }
         RecordKey::Made(key) => {
             writer.tag(11);
             write_key(&mut writer, key);
@@ -70,6 +79,22 @@ pub fn decode(bytes: &[u8], limits: &d::Limits) -> Option<(u16, RecordKey)> {
         9 => RecordKey::Proposal(reader.u64()?),
         10 => RecordKey::Outbox(read_key(&mut reader)?),
         11 => RecordKey::Made(read_key(&mut reader)?),
+        12 => RecordKey::SettingDefault {
+            kind: u32::try_from(reader.u64()?).ok()?,
+            scope: u32::try_from(reader.u64()?).ok()?,
+            number: u32::try_from(reader.u64()?).ok()?,
+        },
+        13 => RecordKey::SettingChange {
+            kind: u32::try_from(reader.u64()?).ok()?,
+            scope: u32::try_from(reader.u64()?).ok()?,
+            number: u32::try_from(reader.u64()?).ok()?,
+        },
+        14 => RecordKey::SettingProposal {
+            proposal: reader.u64()?,
+            kind: u32::try_from(reader.u64()?).ok()?,
+            scope: u32::try_from(reader.u64()?).ok()?,
+            number: u32::try_from(reader.u64()?).ok()?,
+        },
         _ => return None,
     };
     if !reader.is_empty() {

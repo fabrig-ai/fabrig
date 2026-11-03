@@ -68,6 +68,7 @@ pub(crate) fn admission(
     Err(crate::runs::state::denied(&mut findings, crate::RunWait::Credential))
 }
 
+#[expect(clippy::too_many_arguments, reason = "job preparation keeps authority writes apart from translated holds")]
 pub(crate) fn prepared(
     core: &mut Core,
     env: &Env<Limits>,
@@ -75,20 +76,14 @@ pub(crate) fn prepared(
     context: Box<tasks::RunContext>,
     attempt: u64,
     writes: Box<[authority::Write]>,
+    holds: Box<[tasks::Name]>,
     workspace: Option<Box<[u8]>>,
 ) -> Queue<Request> {
     let task = context.task;
     let mut names = List::with_capacity(env.limits.tasks.holdings);
-    for write in &writes {
-        let name = tasks::Name { connector: write.effect.connector, path: write.effect.name.segments.clone() };
+    for name in holds {
         if !names.as_slice().contains(&name) && names.push(name).is_err() {
             return hold(work, task, tasks::Hold::Effects);
-        }
-        for resource in &write.effect.additional {
-            let name = tasks::Name { connector: write.effect.connector, path: resource.name.segments.clone() };
-            if !names.as_slice().contains(&name) && names.push(name).is_err() {
-                return hold(work, task, tasks::Hold::Effects);
-            }
         }
     }
     match admission(core, &context, env.wall, writes) {

@@ -749,7 +749,7 @@ fn help_json_prints_every_record() {
     assert_eq!(chat[2]["name"], "chat close");
     let arguments = chat[1]["forms"][0].as_array().expect("chat start arguments");
     let names = arguments.iter().map(|arg| arg["name"].as_str().expect("argument name")).collect::<Vec<_>>();
-    assert_eq!(names, ["project", "template", "text", "model", "effort"]);
+    assert_eq!(names, ["project", "template", "text", "model", "effort", "sub_agent"]);
     assert_eq!(chat[1]["keyed"], "required");
 
     let settings = records(&["help", "settings", "show", "--json"]);
@@ -763,7 +763,7 @@ fn help_json_prints_every_record() {
     let forge = records(&["help", "forge", "connect", "--json"]);
     assert_eq!(forge.len(), 1);
     assert_eq!(forge[0]["name"], "forge connect");
-    assert_eq!(forge[0]["forms"].as_array().expect("forge connect forms").len(), 7);
+    assert_eq!(forge[0]["forms"].as_array().expect("forge connect forms").len(), 8);
 
     let me = records(&["help", "me", "--json"]);
     assert_eq!(me.len(), 1);

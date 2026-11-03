@@ -48,6 +48,33 @@ line says why; read the settings again. A file holds at most 1024
 items, one per setting; an item sets a value, or names `"edit":
 "removed"` or `"edit": "reset"` in place of `set`.
 
+For temper's settings, read the value in the same form:
+
+```
+temper ctl DIR settings show landing-rule 1 --json
+temper ctl DIR settings show landing-rule 1 --project PROJECT --json
+temper ctl DIR settings show forge-charter 1 --json
+```
+
+A landing rule item and a forge charter item may share a file. This
+example sets the deployment's first rule and selects charter 2 for new
+changes. Choose a charter the deployment offers, and keep the rule's
+other fields as the read gave them:
+
+```json
+{"items": [
+  {"setting": {"kind": "landing-rule", "number": 1},
+   "set": {"pattern": {"segments": ["666f726765"], "last": {"open": ""}},
+           "enforce": true, "ci": true, "up_to_date": true,
+           "gates": [], "approvals": []}},
+  {"setting": {"kind": "forge-charter", "number": 1}, "set": 2}
+]}
+```
+
+For a project's landing rule, add `"project": PROJECT` to its `setting`.
+A proposal's temper items, with their whole values or their removed or
+reset edits, are included in `proposal show PROPOSAL`.
+
 ## 3. Apply it, or propose it
 
 An owner applies it, naming the newest revision read:

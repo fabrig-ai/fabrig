@@ -307,6 +307,20 @@ fn refused_repair_scripts(at: std::net::SocketAddr) -> Scripts {
     use serde_json::json;
     use skein_fake_llm_domain::api::{Finish, Line, Turn};
     let mut scripts = repair_scripts(at);
+    // Each refused repair wakes the chat with a hold, rather than a landed change.
+    let chat = scripts.cued.first_mut().expect("chat script");
+    let mut turns = chat.turns.to_vec();
+    let waiting = Turn {
+        lines: Box::new([
+            Line::Text { text: b"The repair is held.".as_slice().into() },
+            Line::Call { name: b"wait".as_slice().into(), arguments: b"{}".as_slice().into() },
+        ]),
+        finish: Finish::ToolCalls,
+        tokens: 20,
+    };
+    *turns.last_mut().expect("chat's landing report") = waiting.clone();
+    turns.push(waiting);
+    chat.turns = turns.into();
     let script = scripts.cued.last_mut().expect("repair script");
     script.turns = Box::new([Turn {
         lines: Box::new([Line::Call {
@@ -336,6 +350,8 @@ fn replacement_acts() -> Vec<Step> {
             b"task release 2 --hold 1;",
         ),
         call(D1, argv!["task", "activity", number(CHANGE_TASK), "--json"]),
+        // The replacement's hold wakes the chat; wait for its acknowledgement to park.
+        call(D1, argv!["task", "show", number(CHAT_TASK), "--until", "phase:idle", "--json"]),
     ]);
     acts
 }

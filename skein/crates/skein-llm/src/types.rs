@@ -12,9 +12,7 @@ use skein_lib::{Duration, Token, bytes};
 pub enum Provider {
     /// `OpenAI`'s public Responses route, with either scheme as a bearer.
     OpenAi,
-    /// The withdrawn Codex Responses route; removed by the second part of LLM accounts.
-    OpenAiCodex,
-    /// Anthropic's Messages dialect, with a key or the withdrawn bearer route.
+    /// Anthropic's Messages dialect, with a key.
     Anthropic,
 }
 /// The conversation participant; instructions live separately in [`Prompt`].
@@ -46,11 +44,11 @@ pub enum Block {
     Refusal { text: Box<[u8]>, replay: Option<Replay> },
     /// A completed assistant tool call. `id` correlates the result; `arguments`
     /// are raw JSON bytes and can be malformed in received output. Inspect
-    /// them before executing a tool. Codex history preserves the exact bounded
+    /// them before executing a tool. Responses history preserves the exact bounded
     /// UTF-8 argument string, including malformed JSON; Anthropic history
     /// requires a representable JSON object for its native `tool_use.input`.
     ToolCall { id: Box<[u8]>, name: Box<[u8]>, arguments: Box<[u8]>, replay: Option<Replay> },
-    /// A result for the tool call named by `id`. Codex lacks a native error
+    /// A result for the tool call named by `id`. Responses lacks a native error
     /// flag, so `is_error` prefixes the wire text with `Error: ` when true;
     /// successful text is sent unchanged.
     ToolResult { id: Box<[u8]>, text: Box<[u8]>, is_error: bool },
@@ -58,7 +56,7 @@ pub enum Block {
     Oversize { id: Box<[u8]>, name: Box<[u8]>, bytes: u64 },
     /// A call cut at the provider's output cap; the caller replaces it before replay.
     Cut { id: Box<[u8]>, name: Box<[u8]>, arguments: Box<[u8]> },
-    /// Codex reasoning discarded by owner opt-in; history emits no native item for it.
+    /// Responses reasoning discarded by owner opt-in; history emits no native item for it.
     Dropped { bytes: u64 },
     /// Provider-owned assistant replay, including encrypted/signed reasoning
     /// and unknown bounded native content-block envelopes.
@@ -113,20 +111,20 @@ pub struct Prompt {
     /// Conversation routing identity; Anthropic accepts it without a wire field.
     pub affinity: Option<Affinity>,
     /// Anthropic's `max_tokens`; `None` uses the endpoint's declared output.
-    /// A cap above the declaration is refused. Codex subscription calls
-    /// require `None` because that route does not support token caps.
+    /// A cap above the declaration is refused. Responses calls require
+    /// `None` because that route does not support token caps.
     pub max_output_tokens: Option<u32>,
 }
 impl Prompt {
     /// Applies an application's nonzero output ceiling using the configured
-    /// dialect. Anthropic sends the ceiling; Codex omits the unsupported wire
-    /// option. The caller must still bound received output locally on Codex.
+    /// dialect. Anthropic sends the ceiling; Responses omits the unsupported wire
+    /// option. The caller must still bound received output locally on Responses.
     pub fn output_ceiling(&mut self, provider: Provider, ceiling: u32) -> Result<(), Error> {
         if ceiling == 0 {
             return Err(Error::Invalid);
         }
         self.max_output_tokens = match provider {
-            Provider::OpenAiCodex | Provider::OpenAi => None,
+            Provider::OpenAi => None,
             Provider::Anthropic => Some(ceiling),
         };
         Ok(())
@@ -234,8 +232,6 @@ pub enum Cap {
     ErrorBody,
     /// The configured bound on credential value.
     Value,
-    /// The configured bound on account identifier.
-    AccountId,
 }
 
 impl Cap {
@@ -261,7 +257,6 @@ impl Cap {
             Cap::Answer => b"completion answer",
             Cap::ErrorBody => b"provider error body",
             Cap::Value => b"credential value",
-            Cap::AccountId => b"account identifier",
         }
     }
 }
@@ -349,7 +344,7 @@ pub struct Endpoint {
     pub provider: Provider,
     /// HTTP authority, optionally including a port, with no URL scheme.
     pub authority: Box<[u8]>,
-    /// Origin-form request target, such as `/backend-api/codex/responses`.
+    /// Origin-form request target, such as `/v1/responses`.
     pub target: Box<[u8]>,
     /// Additional caller identity/route headers. Reserved framing and credential
     /// headers are rejected rather than allowing duplicate or conflicting fields.
@@ -377,7 +372,7 @@ impl Endpoint {
             encoding: Encoding::Identity,
         }
     }
-    /// Anthropic Messages, authenticated with a key or a bearer.
+    /// Anthropic Messages, authenticated with a key.
     #[must_use]
     pub fn anthropic() -> Endpoint {
         Endpoint {
@@ -386,17 +381,6 @@ impl Endpoint {
             target: bytes::copy_of(b"/v1/messages"),
             headers: Box::new([]),
             encoding: Encoding::Identity,
-        }
-    }
-    /// The withdrawn Codex route; removed by the second part of LLM accounts.
-    #[must_use]
-    pub fn codex() -> Endpoint {
-        Endpoint {
-            provider: Provider::OpenAiCodex,
-            authority: bytes::copy_of(b"chatgpt.com"),
-            target: bytes::copy_of(b"/backend-api/codex/responses"),
-            headers: Box::new([]),
-            encoding: Encoding::Gzip,
         }
     }
 }
@@ -415,29 +399,17 @@ pub struct Credential {
     pub value: Box<[u8]>,
     /// How the route presents the value.
     pub scheme: Scheme,
-    /// The withdrawn Codex account id; removed by the second part of LLM accounts.
-    pub account_id: Box<[u8]>,
 }
 impl Credential {
-    /// Uses a caller-obtained bearer token without an account id.
+    /// Uses a caller-obtained bearer token.
     #[must_use]
     pub fn bearer(value: Box<[u8]>) -> Credential {
-        Credential { value, scheme: Scheme::Bearer, account_id: Box::new([]) }
+        Credential { value, scheme: Scheme::Bearer }
     }
-    /// Uses a caller-obtained key without an account id.
+    /// Uses a caller-obtained key.
     #[must_use]
     pub fn key(value: Box<[u8]>) -> Credential {
-        Credential { value, scheme: Scheme::Key, account_id: Box::new([]) }
-    }
-    /// Uses the withdrawn Codex bearer; removed by the second part of LLM accounts.
-    #[must_use]
-    pub fn codex(value: Box<[u8]>, account_id: Box<[u8]>) -> Credential {
-        Credential { value, scheme: Scheme::Bearer, account_id }
-    }
-    /// Uses the withdrawn Anthropic bearer; removed by the second part of LLM accounts.
-    #[must_use]
-    pub fn anthropic(value: Box<[u8]>) -> Credential {
-        Self::bearer(value)
+        Credential { value, scheme: Scheme::Key }
     }
 }
 /// One owner-correlated request. Admission consumes it whether accepted or rejected.

@@ -83,9 +83,6 @@ fn operator_line(line: &str) -> bool {
             | "smith: commands run in process groups and are not contained"
             | "smith: chat chat"
     ) || trust_notice(line)
-        || ["codex", "anthropic"].iter().any(|account| {
-            line == format!("smith: warning: {}", smith_local_shell::credentials::Credential::NotSignedIn.line(account))
-        })
 }
 
 fn trust_notice(line: &str) -> bool {

@@ -139,37 +139,11 @@ fn decode_run(run: w::TierRun) -> Result<p::Run, Undecodable> {
 }
 #[expect(clippy::manual_map, reason = "step translations use explicit matches")]
 pub(super) fn encode(row: &d::TierRow) -> w::TierRow {
-    let mut flakes = List::with_capacity(u32::try_from(row.record.flakes.len()).expect(FITS));
-    for flake in &row.record.flakes {
-        flakes
-            .push(
-                w::TierFlake::new(&w::CEILINGS, w::TierFlakeParts { test: flake.test.clone(), count: flake.count })
-                    .expect(FITS),
-            )
-            .expect(FITS);
-    }
-    let judged = match row.record.judged {
-        Some(j) => Some(w::TierJudged::new(&w::CEILINGS, w::TierJudgedParts { tip: j.tip, key: j.key }).expect(FITS)),
-        None => None,
-    };
-    let run = match &row.record.run {
-        Some(run) => Some(encode_run(run)),
-        None => None,
-    };
-    let record = w::TierRecord::new(
-        &w::CEILINGS,
-        w::TierRecordParts {
-            sequence: row.record.sequence,
-            judged,
-            failing: verification::encode_failures(&row.record.failing),
-            flakes,
-            run,
-        },
-    )
-    .expect(FITS);
+    let record = encode_record(&row.record);
     w::TierRow::new(
         &w::CEILINGS,
         w::TierRowParts {
+            observations: row.observations.clone(),
             repository: names::encode_repository(row.repository),
             tier: row.tier.clone(),
             record,
@@ -215,6 +189,12 @@ pub(super) fn encode(row: &d::TierRow) -> w::TierRow {
                 None => None,
             },
             received: row.received,
+            goals: encode_goals(&row.goals),
+            goal: row.goal,
+            started: match row.started {
+                Some(at) => Some(at.as_nanos()),
+                None => None,
+            },
         },
     )
     .expect(FITS)
@@ -222,6 +202,7 @@ pub(super) fn encode(row: &d::TierRow) -> w::TierRow {
 #[expect(clippy::manual_map, reason = "step translations use explicit options")]
 pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
     let w::TierRowParts {
+        observations,
         repository,
         tier,
         record,
@@ -237,6 +218,9 @@ pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
         held,
         result,
         received,
+        goals,
+        goal,
+        started,
     } = row.into_parts();
     if tier.is_empty() {
         return Err(Undecodable);
@@ -246,30 +230,10 @@ pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
             return Err(Undecodable);
         }
     }
-    let w::TierRecordParts { sequence, judged, failing, flakes, run } = record.into_parts();
-    let judged = match judged {
-        Some(j) => {
-            let w::TierJudgedParts { tip, key } = j.into_parts();
-            Some(p::Judged { tip, key })
-        }
-        None => None,
-    };
-    let run = match run {
-        Some(run) => Some(decode_run(run)?),
-        None => None,
-    };
-    let mut values = List::with_capacity(flakes.len());
-    for flake in flakes.into_boxed() {
-        let w::TierFlakeParts { test, count } = flake.into_parts();
-        if let Some(previous) = values.as_slice().last() {
-            let previous: &p::Flake = previous;
-            if previous.test >= test {
-                return Err(Undecodable);
-            }
-        }
-        values.push(p::Flake { test, count }).expect(FITS);
-    }
+    let record = decode_record(record)?;
+    let run = record.run.as_ref();
     Ok(d::TierRow {
+        observations,
         repository: names::decode_repository(repository),
         tier,
         task,
@@ -292,7 +256,7 @@ pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
             w::TierBranch::Made => d::TierBranch::Made,
             w::TierBranch::Pending(entry) => d::TierBranch::Pending { entry: entry.into_parts().entry },
         },
-        probe: decode_probe(probe, run.as_ref())?,
+        probe: decode_probe(probe, run)?,
         flight: match flight {
             Some(flight) => Some(decode_flight(flight)),
             None => None,
@@ -306,13 +270,13 @@ pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
             None => None,
         },
         received,
-        record: p::Record {
-            sequence,
-            judged,
-            failing: verification::decode_failures(failing)?,
-            flakes: values.into_boxed(),
-            run,
+        goals: decode_goals(goals)?,
+        goal,
+        started: match started {
+            Some(at) => Some(Time::from_nanos(at)),
+            None => None,
         },
+        record,
     })
 }
 
@@ -471,4 +435,126 @@ fn decode_probe(
         }
         None => Ok(None),
     }
+}
+
+#[expect(clippy::manual_map, reason = "step translations use explicit matches")]
+fn encode_record(record: &p::Record) -> w::TierRecord {
+    let mut flakes = List::with_capacity(u32::try_from(record.flakes.len()).expect(FITS));
+    for flake in &record.flakes {
+        flakes
+            .push(
+                w::TierFlake::new(&w::CEILINGS, w::TierFlakeParts { test: flake.test.clone(), count: flake.count })
+                    .expect(FITS),
+            )
+            .expect(FITS);
+    }
+    let judged = match record.judged {
+        Some(j) => Some(w::TierJudged::new(&w::CEILINGS, w::TierJudgedParts { tip: j.tip, key: j.key }).expect(FITS)),
+        None => None,
+    };
+    let run = match &record.run {
+        Some(run) => Some(encode_run(run)),
+        None => None,
+    };
+    w::TierRecord::new(
+        &w::CEILINGS,
+        w::TierRecordParts {
+            sequence: record.sequence,
+            judged,
+            failing: verification::encode_failures(&record.failing),
+            flakes,
+            run,
+        },
+    )
+    .expect(FITS)
+}
+
+fn decode_record(record: w::TierRecord) -> Result<p::Record, Undecodable> {
+    let w::TierRecordParts { sequence, judged, failing, flakes, run } = record.into_parts();
+    let judged = match judged {
+        Some(j) => {
+            let w::TierJudgedParts { tip, key } = j.into_parts();
+            Some(p::Judged { tip, key })
+        }
+        None => None,
+    };
+    let run = match run {
+        Some(run) => Some(decode_run(run)?),
+        None => None,
+    };
+    let mut values = List::with_capacity(flakes.len());
+    for flake in flakes.into_boxed() {
+        let w::TierFlakeParts { test, count } = flake.into_parts();
+        if let Some(previous) = values.as_slice().last() {
+            let previous: &p::Flake = previous;
+            if previous.test >= test {
+                return Err(Undecodable);
+            }
+        }
+        values.push(p::Flake { test, count }).expect(FITS);
+    }
+    Ok(p::Record {
+        sequence,
+        judged,
+        failing: verification::decode_failures(failing)?,
+        flakes: values.into_boxed(),
+        run,
+    })
+}
+
+#[expect(clippy::manual_map, reason = "step translations use explicit options")]
+fn encode_goals(goals: &[d::TierGoal]) -> List<w::TierGoal> {
+    let mut values = List::with_capacity(u32::try_from(goals.len()).expect(FITS));
+    for goal in goals {
+        values
+            .push(
+                w::TierGoal::new(
+                    &w::CEILINGS,
+                    w::TierGoalParts {
+                        goal: goal.goal,
+                        branch: goal.branch.clone(),
+                        tip: goal.tip,
+                        ran: goal.ran,
+                        failing: verification::encode_failures(&goal.failing),
+                        started: match goal.started {
+                            Some(at) => Some(at.as_nanos()),
+                            None => None,
+                        },
+                    },
+                )
+                .expect(FITS),
+            )
+            .expect(FITS);
+    }
+    values
+}
+#[expect(clippy::manual_map, reason = "step translations use explicit options")]
+fn decode_goals(goals: List<w::TierGoal>) -> Result<Box<[d::TierGoal]>, Undecodable> {
+    let mut values = List::with_capacity(goals.len());
+    for goal in goals.into_boxed() {
+        let w::TierGoalParts { goal, branch, tip, ran, failing, started } = goal.into_parts();
+        if branch.is_empty() {
+            return Err(Undecodable);
+        }
+        if let Some(previous) = values.as_slice().last() {
+            let previous: &d::TierGoal = previous;
+            if previous.goal >= goal {
+                return Err(Undecodable);
+            }
+        }
+        values
+            .push(d::TierGoal {
+                goal,
+                branch,
+                tip,
+                ran,
+                failing: verification::decode_failures(failing)?,
+                started: match started {
+                    Some(at) => Some(Time::from_nanos(at)),
+                    None => None,
+                },
+            })
+            .expect(FITS);
+    }
+    Ok(values.into_boxed())
 }

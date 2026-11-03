@@ -1,3 +1,7 @@
+#[path = "forge_replace.rs"]
+mod forge_replace;
+#[path = "forgejo_tokens.rs"]
+mod forgejo_tokens;
 use super::fixtures;
 use crate::forge::{
     self, family,
@@ -19,15 +23,9 @@ fn answer(outcome: w::Outcome) -> Family {
 }
 #[test]
 fn set_up_is_a_deployment_request_and_forges_a_deployment_watch() {
-    let Ask::Family { scope, record } = ask(
-        3,
-        b"work".as_slice().into(),
-        b"hello".as_slice().into(),
-        forge::forges::SetUpProject::Existing(1),
-        false,
-        &fixtures::limits().forge,
-    )
-    .unwrap() else {
+    let Ask::Family { scope, record } =
+        ask(3, b"work".as_slice().into(), b"hello".as_slice().into(), false, &fixtures::limits().forge).unwrap()
+    else {
         panic!("family")
     };
     assert_eq!(scope, c::Scope::Deployment);
@@ -374,36 +372,25 @@ fn an_out_of_order_document_is_refused() {
 }
 
 #[test]
-fn setup_carries_each_field_and_new_project_names_without_semantic_form_checks() {
-    use forge::forges::SetUpProject;
-    for project in
-        [SetUpProject::Existing(7), SetUpProject::New(b"Next".as_slice().into()), SetUpProject::New(Box::default())]
-    {
-        let Ask::Family { record, .. } =
-            ask(3, Box::default(), b"widget".as_slice().into(), project.clone(), false, &fixtures::limits().forge)
-                .unwrap()
-        else {
-            panic!("family")
-        };
-        let w::Request::SetUp(request) =
-            wire::decode_requesting(&record.bytes, &limits()).unwrap().into_parts().request
-        else {
-            panic!("setup")
-        };
-        let w::Making::Kept(kept) = request.forge() else { panic!("kept forge") };
-        assert_eq!(kept.forge(), 3);
-        assert_eq!(request.org(), b"");
-        assert_eq!(request.repository(), b"widget");
-        match (project, request.project()) {
-            (SetUpProject::Existing(number), w::SetUpProject::Existing(value)) => assert_eq!(number, value.project()),
-            (SetUpProject::New(name), w::SetUpProject::New(value)) => assert_eq!(name.as_ref(), value.name()),
-            _ => panic!("project changed"),
-        }
-    }
+fn setup_carries_each_field_without_semantic_form_checks() {
+    let Ask::Family { record, .. } =
+        ask(3, Box::default(), b"widget".as_slice().into(), false, &fixtures::limits().forge).unwrap()
+    else {
+        panic!("family")
+    };
+    let w::Request::SetUp(request) = wire::decode_requesting(&record.bytes, &limits()).unwrap().into_parts().request
+    else {
+        panic!("setup")
+    };
+    let w::Making::Kept(kept) = request.forge() else { panic!("kept forge") };
+    assert_eq!(kept.forge(), 3);
+    assert_eq!(request.org(), b"");
+    assert_eq!(request.repository(), b"widget");
+    assert!(!request.playground());
 }
 #[test]
-fn first_repository_decodes_each_state_project_and_creation_step() {
-    use forge::forges::{CreateStep, First, FirstState, SetUpProject};
+fn first_repository_decodes_each_state_and_creation_step() {
+    use forge::forges::{CreateStep, First, FirstState};
     let mut states = List::with_capacity(6);
     states.push((w::FirstState::Making, FirstState::Making)).unwrap();
     states
@@ -426,71 +413,58 @@ fn first_repository_decodes_each_state_project_and_creation_step() {
             .unwrap();
     }
     for (wire_state, state) in states.into_boxed() {
-        for new in [false, true] {
-            let project = if new {
-                w::SetUpProject::New(
-                    w::NewProject::new(&limits(), w::NewProjectParts { name: b"Next".as_slice().into() }).unwrap(),
+        let first = w::FirstRepository::new(
+            &limits(),
+            w::FirstRepositoryParts {
+                playground: false,
+                org: b"team".as_slice().into(),
+                repository: b"widget".as_slice().into(),
+                state: wire_state.clone(),
+                label: Box::from(b"docker_1.x-y".as_slice()),
+            },
+        )
+        .unwrap();
+        let mut forges = List::with_capacity(1);
+        forges
+            .push(
+                w::ForgeRow::new(
+                    &limits(),
+                    w::ForgeRowParts {
+                        number: 3,
+                        kind: w::Kind::Forgejo,
+                        mode: w::Mode::Owned,
+                        connection: w::Connection::Connecting,
+                        offer: w::Offer::NotOffered,
+                        first: Some(first),
+                        installations: List::with_capacity(0),
+                        ended: None,
+                        app: None,
+                        web: None,
+                        repositories: List::with_capacity(0),
+                        owned: None,
+                        admin: false,
+                        read_only: false,
+                        ended_stop: None,
+                    },
                 )
-            } else {
-                w::SetUpProject::Existing(
-                    w::ExistingProject::new(&limits(), w::ExistingProjectParts { project: 7 }).unwrap(),
-                )
-            };
-            let first = w::FirstRepository::new(
-                &limits(),
-                w::FirstRepositoryParts {
-                    playground: false,
-                    org: b"team".as_slice().into(),
-                    repository: b"widget".as_slice().into(),
-                    project,
-                    state: wire_state.clone(),
-                    label: Box::from(b"docker_1.x-y".as_slice()),
-                },
+                .unwrap(),
             )
             .unwrap();
-            let mut forges = List::with_capacity(1);
-            forges
-                .push(
-                    w::ForgeRow::new(
-                        &limits(),
-                        w::ForgeRowParts {
-                            number: 3,
-                            kind: w::Kind::Forgejo,
-                            mode: w::Mode::Owned,
-                            connection: w::Connection::Connecting,
-                            offer: w::Offer::NotOffered,
-                            first: Some(first),
-                            installations: List::with_capacity(0),
-                            ended: None,
-                            app: None,
-                            web: None,
-                            repositories: List::with_capacity(0),
-                            owned: None,
-                            admin: false,
-                            read_only: false,
-                            ended_stop: None,
-                        },
-                    )
-                    .unwrap(),
-                )
-                .unwrap();
-            let record = Family {
-                family: wire::FORGE,
-                version: wire::CLIENT_VERSION,
-                bytes: wire::forges(&w::Forges::new(&limits(), w::ForgesParts { forges }).unwrap()),
-            };
-            assert_eq!(
-                rows(&record, &fixtures::limits().forge).unwrap()[0].first,
-                Some(First {
-                    playground: false,
-                    org: b"team".as_slice().into(),
-                    repository: b"widget".as_slice().into(),
-                    project: if new { SetUpProject::New(b"Next".as_slice().into()) } else { SetUpProject::Existing(7) },
-                    state,
-                    label: Box::from(b"docker_1.x-y".as_slice()),
-                })
-            );
-        }
+        let record = Family {
+            family: wire::FORGE,
+            version: wire::CLIENT_VERSION,
+            bytes: wire::forges(&w::Forges::new(&limits(), w::ForgesParts { forges }).unwrap()),
+        };
+        assert_eq!(
+            rows(&record, &fixtures::limits().forge).unwrap()[0].first,
+            Some(First {
+                playground: false,
+                org: b"team".as_slice().into(),
+                repository: b"widget".as_slice().into(),
+                state,
+                label: Box::from(b"docker_1.x-y".as_slice()),
+            })
+        );
     }
 }
 

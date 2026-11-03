@@ -633,3 +633,98 @@ fn ordered_printed_link(number: u32) -> Box<[u8]> {
     let secret = skein_lib::Secret::new(Box::new([u8::try_from(number).unwrap(); 32]));
     crate::clients::printed::link(([127, 0, 0, 1], 7100).into(), &secret)
 }
+
+fn settings_landing_value() -> temper_engine_domain_forge::settings::Value {
+    use temper_engine_domain_forge::{GateLast, GatePattern, settings};
+    settings::Value::Rule(settings::LandingRule {
+        pattern: GatePattern {
+            segments: Box::new([Box::from(b"forge".as_slice())]),
+            last: GateLast::Open(Box::new([])),
+        },
+        enforce: true,
+        ci: true,
+        up_to_date: false,
+        gates: Box::new([]),
+        approvals: Box::new([]),
+    })
+}
+fn settings_application_items(bytes: &[u8]) -> Box<[core::settings::Item]> {
+    use core::settings as s;
+    Box::new([s::Item {
+        setting: s::Setting::Application { kind: 1, scope: 0, number: 1 },
+        edit: s::Edit::Set(s::Value::Application(bytes.into())),
+    }])
+}
+fn settings_entrances(bytes: &[u8]) -> [core::Event; 2] {
+    use core::settings as s;
+    [
+        core::Event::ChangeSettings {
+            reply_to: REPLY,
+            sign_in: 3,
+            key: [5; 16],
+            digest: [6; 32],
+            change: Box::new(s::Change {
+                against: 1,
+                items: settings_application_items(bytes),
+                running: s::Running::Stays,
+            }),
+        },
+        core::Event::ProposeSettings {
+            reply_to: REPLY,
+            sign_in: 3,
+            key: [5; 16],
+            digest: [6; 32],
+            change: Box::new(s::Proposed {
+                against: 1,
+                items: settings_application_items(bytes),
+                reason: b"landing".as_slice().into(),
+            }),
+        },
+    ]
+}
+#[test]
+fn settings_entrances_carry_typed_landing_values() {
+    let value = settings_landing_value();
+    let bytes = temper_engine_smith::kinds::encode(&value);
+    let size = u32::try_from(bytes.len()).expect("fixture encoding");
+    let expected = [root::KindValue {
+        kind: 1,
+        scope: 0,
+        number: 1,
+        value: temper_engine_domain_forge::settings::SizedValue { value, size },
+    }];
+    for event in settings_entrances(&bytes) {
+        let input = translation::to_root(event).expect("valid settings");
+        let (root::PartyInput::ChangeSettings { kinds, .. } | root::PartyInput::ProposeSettings { kinds, .. }) = input
+        else {
+            panic!("settings input")
+        };
+        assert_eq!(kinds.as_ref(), &expected);
+    }
+}
+#[test]
+fn settings_entrances_refuse_cut_or_trailing_values_naming_item_one() {
+    let bytes = temper_engine_smith::kinds::encode(&settings_landing_value());
+    let cut = &bytes[..bytes.len() - 1];
+    let mut trailing = skein_lib::Writer::new(bytes.len().checked_add(1).expect("one trailing byte"));
+    trailing.put(&bytes).expect("encoding room");
+    trailing.put(&[0]).expect("trailing byte room");
+    let trailing = trailing.finish();
+    for malformed in [cut, trailing.as_ref()] {
+        for event in settings_entrances(malformed) {
+            let reply = translation::to_root(event).expect_err("malformed settings");
+            let kit::Event::Reply { to, reply: people::Reply::Refused(why) } = *reply else { panic!("shape refusal") };
+            assert_eq!(to, REPLY);
+            assert_eq!(
+                why,
+                people::Refusal::NotWellFormed {
+                    at: 1,
+                    why: people::Malformed::Settings {
+                        setting: people::Setting::Application { kind: 1, scope: 0, number: 1 },
+                        fault: people::SettingFault::Shape
+                    }
+                }
+            );
+        }
+    }
+}

@@ -1,6 +1,6 @@
 # The mockups' status
 
-Revised 2026-10-25. How far temper's client is from its mockups
+Revised 2026-11-03. How far temper's client is from its mockups
 (`README.md`), a group of pages at a time. A group under the rules has
 a row for each thing its main drawing shows that the client doesn't
 draw yet (a lag), and for each place the client does otherwise (a
@@ -23,11 +23,6 @@ Connect pages the journey passes through are other groups'.
 
 What the client doesn't draw yet:
 
-- **GitHub's target details:** Model and Ready use the durable adoption,
-  and the asking tab names its new project. The durable row does not
-  retain whether the project was new, so after reload Model says
-  "in PROJECT". No repository web address reaches the client for
-  Ready's "Open on GitHub ↗".
 - **A sign-in's port taken on Ready:** declined, held and misconfigured
   now draw their words and acts. "Try later" still needs the listener's
   port-taken fact in the client (M-j); `OwnerAccounts.last_end` does
@@ -35,16 +30,14 @@ What the client doesn't draw yet:
 
 Where the client does otherwise:
 
-- **Ready opened before a GitHub repository is chosen,** at
-  `/welcome?at=ready`, draws "Almost ready" with its forge and model
-  lines, as the client README's 3.5 allows; the mockup goes back to
-  the picker.
-- **Forgejo's "Run on this machine" under the box** sends the set up at
-  once, with `work`, `hello` and a new project `Default`, and the
-  welcome moves on to Model, with no Details (the client README's 3.5,
-  the user's stop-gap of 2026-10-27, `../forge.md` 10); the mockup's
-  `world-first-run-real.js` still walks Forgejo on this machine's
-  Details.
+- **The welcome adopts nothing** (the client README's 3.5 and 5.6;
+  `../../draft/first-run-projects.md`, 4): Forgejo on this machine's
+  Details have no "Into a new project, named" and GitHub's step no
+  "Choose a repository to start in"; the forge's line names no project;
+  Ready's last line is "Project: Default" and its act "Open Default",
+  which makes the project and opens its chats page, where the mockup's
+  Ready names its repository, "ORG/NAME is ready", and opens it. The
+  mockup is not edited.
 
 Not yet known: whether GitHub keeps the state through its
 installation's Configure and Save, and whether the picker reads the
@@ -147,6 +140,17 @@ unmarked in their main drawing.
 
 Where the client's recorded picks stand against the drawing:
 
+- **The chats page's pane** (the person's look requests, 11-03;
+  `../README.md`, 3.5 and 5.1; `../journeys.md`, 7): a left pane holds
+  the new chat's bar, "Chats" with its filters and list, and the
+  playground's banner; the prompt stands alone beside it, the
+  composer's line under it. The banner names the open project alone,
+  with its switcher, and leads its corner with "Set up temper →" while
+  the playground runs. The playground's start has no invitation, "What
+  shall we change?" and its words; its suggested requests stay, under
+  the composer's line (`../README.md`, 5.6 and 11). `chats.html` and
+  `first-run.html` still draw one column under a banner of every
+  project, the invitation in the playground's start.
 - **Accept**, not “Accept goal”. The chatbar carries status and own
   spend, “N spent · of B”, and no model, template, charter, host or
   budget mode; the composer's line names the next run. Its chooser

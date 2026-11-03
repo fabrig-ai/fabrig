@@ -102,7 +102,8 @@ pub(crate) fn stage(
             wire::Start::Base { .. }
             | wire::Start::Branch { .. }
             | wire::Start::Commit { .. }
-            | wire::Start::Saved { .. } => {}
+            | wire::Start::Saved { .. }
+            | wire::Start::Merged { .. } => {}
         }
     }
     let mut saving = false;
@@ -155,7 +156,8 @@ fn stage_items(
             wire::Start::Merge { .. }
             | wire::Start::Base { .. }
             | wire::Start::Branch { .. }
-            | wire::Start::Commit { .. } => false,
+            | wire::Start::Commit { .. }
+            | wire::Start::Merged { .. } => false,
         };
         from_saved.push(saved).expect("room for each item start");
     }
@@ -587,9 +589,9 @@ fn ended(
             then.checkout = Some(checkout::Event::Release { hold });
             let failure = match failure {
                 checkout::Failure::Transient => host::Preparation::Transient,
-                checkout::Failure::Missing { .. } | checkout::Failure::Refused { .. } => {
-                    host::Preparation::Permanent { resource: Some(items) }
-                }
+                checkout::Failure::Missing { .. }
+                | checkout::Failure::Refused { .. }
+                | checkout::Failure::Conflicted { .. } => host::Preparation::Permanent { resource: Some(items) },
             };
             then.host = Some(unprepared(owner, failure));
             State::Releasing

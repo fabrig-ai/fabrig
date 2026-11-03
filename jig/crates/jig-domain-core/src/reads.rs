@@ -647,8 +647,8 @@ fn task_live(
 
 /// Maximum answer payload retained in a root's held-output slot.
 #[must_use]
-pub fn answer_bound(limits: &Limits) -> Option<u64> {
-    let document = documents::document_with_context_bound(limits)?;
+pub fn answer_bound(limits: &Limits, kinds: &[crate::settings::Kind]) -> Option<u64> {
+    let document = documents::document_with_context_bound(limits, kinds)?;
     // Run settings answers own the same documents, in an inline sum carrier.
     u64::try_from(size_of::<Answer>().max(size_of::<SettingsAnswer>())).ok()?.checked_add(
         document

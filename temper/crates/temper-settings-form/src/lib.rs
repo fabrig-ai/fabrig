@@ -5,6 +5,7 @@ extern crate alloc;
 pub mod fields;
 pub mod file;
 mod json;
+mod kinds;
 pub mod page;
 pub mod render;
 mod text;
@@ -17,6 +18,7 @@ pub use text::{Text, text_end};
 #[derive(Clone, Copy, Debug)]
 pub struct Limits {
     pub settings: jig_client_protocol_wire::Limits,
+    pub kinds: temper_client_protocol_wire::v1::Limits,
     pub ask_bytes: u64,
     pub result_bytes: u64,
     pub text: u32,
@@ -123,6 +125,7 @@ impl Limits {
 
         Self {
             settings,
+            kinds: temper_client_protocol_wire::v1::CEILINGS,
             ask_bytes: 1_048_576,
             result_bytes: 6_292_480,
             text: 32_768,

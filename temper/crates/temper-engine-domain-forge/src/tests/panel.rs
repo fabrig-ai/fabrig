@@ -404,8 +404,8 @@ fn landed_panel_keeps_passed_ci_across_a_restart() {
     use skein_forge::api::{Answer, State};
     use skein_forge_client::RecoveryClock;
 
-    // Repository, initial change, observed contexts, landed change, and settlement.
-    const RESTART_RECORDS: u32 = 5;
+    // Repository, initial change, branch and base heads, contexts, landed change, and settlement.
+    const RESTART_RECORDS: u32 = 7;
     let repository = Stored::Repository(adopted());
     let mut records = skein_lib::List::with_capacity(RESTART_RECORDS);
     records.push(repository.clone()).expect("repository fits");
@@ -496,7 +496,7 @@ fn after_landing_steps_keep_each_tiers_verdict_and_repairing_run() {
     let merge = fixtures::BASE;
     let lines: Box<[Box<[u8]>]> = Box::new([
         Box::from(b"fast run 2".as_slice()),
-        Box::from(b"slow run 1 \xc2\xb7 many tests".as_slice()),
+        Box::from(b"slow run 1 \xc2\xb7 suspected of many tests".as_slice()),
         Box::from(b"later waiting".as_slice()),
     ]);
     for (state, expected) in [
@@ -516,7 +516,7 @@ fn after_landing_steps_keep_each_tiers_verdict_and_repairing_run() {
                 TierVerification {
                     tier: Box::from(b"fast".as_slice()),
                     verdict: Some(TierVerdict { run: 1, blame: Blame::Owns(Failures::Many) }),
-                    repaired: Some(TierRepair { run: 2, tip: fixtures::HEAD }),
+                    repaired: Some(TierRepair { run: 2, tip: fixtures::HEAD, by: None }),
                 },
                 TierVerification {
                     tier: Box::from(b"slow".as_slice()),
@@ -532,48 +532,13 @@ fn after_landing_steps_keep_each_tiers_verdict_and_repairing_run() {
 }
 
 #[test]
-fn tier_lines_show_runs_in_flight_counted_blame_and_outright_clearance() {
+fn tier_lines_show_runs_in_flight_failed_ids_and_outright_clearance() {
     use temper_engine_domain_forge_tiers as p;
     let merge = fixtures::BASE;
     let mut row = fixtures::opening_row();
     row.change.state = change::State::Landed { merge, since: env().wall };
     let mut d = with_row(row);
-    let tier: Box<[u8]> = Box::from(b"running".as_slice());
-    d.tiers
-        .insert(
-            (REPO, tier.clone()),
-            TierRow {
-                repository: REPO,
-                tier,
-                task: Some(61),
-                requested: false,
-                cancelled: false,
-                purpose: None,
-                pending: Box::new([]),
-                baseline: None,
-                branch: TierBranch::Absent,
-                probe: None,
-                flight: None,
-                held: None,
-                result: None,
-                received: false,
-                record: p::Record {
-                    sequence: 7,
-                    judged: None,
-                    failing: p::Failures::Tests(Box::new([])),
-                    flakes: Box::new([]),
-                    run: Some(p::Run {
-                        number: 7,
-                        tip: merge,
-                        key: merge,
-                        landings: Box::new([]),
-                        part: p::Part::Whole,
-                        faults: 0,
-                    }),
-                },
-            },
-        )
-        .expect("tier room");
+    running_tier(&mut d, 7, merge, &[merge]);
     d.verifications
         .insert(
             (REPO, merge),
@@ -582,7 +547,7 @@ fn tier_lines_show_runs_in_flight_counted_blame_and_outright_clearance() {
                 commit: merge,
                 changes: Box::new([fixtures::CHANGE]),
                 tiers: Box::new([
-                    TierVerification { tier: Box::from(b"running".as_slice()), verdict: None, repaired: None },
+                    TierVerification { tier: Box::from(b"slow".as_slice()), verdict: None, repaired: None },
                     TierVerification {
                         tier: Box::from(b"red".as_slice()),
                         verdict: Some(TierVerdict {
@@ -608,10 +573,260 @@ fn tier_lines_show_runs_in_flight_counted_blame_and_outright_clearance() {
         PanelStep::Verifying {
             merge,
             tiers: Box::new([
-                Box::from(b"running run 7 running".as_slice()),
-                Box::from(b"red run 4 \xc2\xb7 2 tests".as_slice()),
+                Box::from(b"slow run 7 running".as_slice()),
+                Box::from(b"red run 4 \xc2\xb7 owns 2 tests: one, two".as_slice()),
                 Box::from(b"green run 5".as_slice()),
             ])
         }
     );
+}
+
+#[test]
+fn a_landing_during_the_baseline_waits_for_the_next_run() {
+    let mut d = waiting_changes(&[(fixtures::CHANGE, fixtures::HEAD)]);
+    running_tier(&mut d, 1, fixtures::BASE, &[]);
+    assert_tier_panel(&d, fixtures::CHANGE, fixtures::HEAD, b"slow waiting");
+    running_tier(&mut d, 2, fixtures::HEAD, &[fixtures::HEAD]);
+    assert_tier_panel(&d, fixtures::CHANGE, fixtures::HEAD, b"slow run 2 running");
+}
+
+#[test]
+fn later_landings_wait_until_the_next_run_covers_them() {
+    const NEXT_CHANGE: u64 = 52;
+    const LAST_CHANGE: u64 = 53;
+    const LAST_TIP: skein_forge::api::Commit = [6; 32];
+    let later = [(NEXT_CHANGE, fixtures::HEAD), (LAST_CHANGE, LAST_TIP)];
+    let mut d = waiting_changes(&[(fixtures::CHANGE, fixtures::BASE), later[0], later[1]]);
+    running_tier(&mut d, 2, fixtures::BASE, &[fixtures::BASE]);
+    assert_tier_panel(&d, fixtures::CHANGE, fixtures::BASE, b"slow run 2 running");
+    for (task, merge) in later {
+        assert_tier_panel(&d, task, merge, b"slow waiting");
+    }
+    running_tier(&mut d, 3, LAST_TIP, &[fixtures::HEAD, LAST_TIP]);
+    for (task, merge) in later {
+        assert_tier_panel(&d, task, merge, b"slow run 3 running");
+    }
+}
+
+fn waiting_changes(changes: &[(u64, skein_forge::api::Commit)]) -> Domain {
+    let mut d = domain();
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    for (task, merge) in changes {
+        let mut row = fixtures::opening_row();
+        row.task = *task;
+        row.change.task = *task;
+        row.change.state = change::State::Landed { merge: *merge, since: env().wall };
+        outputs(&mut d, Event::Restore { record: Stored::Change(row) });
+        d.verifications
+            .insert(
+                (REPO, *merge),
+                Verification {
+                    repository: REPO,
+                    commit: *merge,
+                    changes: Box::new([*task]),
+                    tiers: Box::new([TierVerification {
+                        tier: Box::from(b"slow".as_slice()),
+                        verdict: None,
+                        repaired: None,
+                    }]),
+                },
+            )
+            .expect("verification room");
+    }
+    d
+}
+
+fn assert_tier_panel(d: &Domain, task: u64, merge: skein_forge::api::Commit, line: &[u8]) {
+    let shown = d.panel(task, ApplicationScope::Project(5), env().wall, &LIMITS).expect("known change");
+    assert_eq!(shown.step, PanelStep::Verifying { merge, tiers: Box::new([Box::from(line)]) });
+}
+
+fn running_tier(d: &mut Domain, number: u64, tip: skein_forge::api::Commit, commits: &[skein_forge::api::Commit]) {
+    use temper_engine_domain_forge_tiers as p;
+    let tier: Box<[u8]> = Box::from(b"slow".as_slice());
+    let mut landings = skein_lib::List::uncapped();
+    for commit in commits {
+        landings.push(p::Landing { commit: *commit, key: *commit }).expect("landing room");
+    }
+    d.tiers
+        .insert(
+            (REPO, tier.clone()),
+            TierRow {
+                observations: Box::new([]),
+                repository: REPO,
+                tier,
+                task: Some(61),
+                requested: false,
+                cancelled: false,
+                purpose: None,
+                pending: Box::new([]),
+                baseline: None,
+                branch: TierBranch::Absent,
+                probe: None,
+                flight: None,
+                held: None,
+                result: None,
+                received: false,
+                goals: Box::new([]),
+                goal: None,
+                started: None,
+                record: p::Record {
+                    sequence: number,
+                    judged: None,
+                    failing: p::Failures::Tests(Box::new([])),
+                    flakes: Box::new([]),
+                    run: Some(p::Run {
+                        number,
+                        tip,
+                        key: tip,
+                        landings: landings.into_boxed(),
+                        part: p::Part::Whole,
+                        faults: 0,
+                    }),
+                },
+            },
+        )
+        .expect("tier room");
+}
+
+#[test]
+fn a_panel_shows_its_questions() {
+    let mut row = fixtures::opening_row();
+    row.questions = change::Questions {
+        route: change::Route::Foreman,
+        taken: 2,
+        open: Box::new([
+            change::Open {
+                asker: 71,
+                number: 1,
+                line: Box::from(b"Which branch?".as_slice()),
+                words: Box::from(b"Which branch?".as_slice()),
+                stands: change::Stands::Foreman { task: Some(15) },
+            },
+            change::Open {
+                asker: 72,
+                number: 2,
+                line: Box::from(b"Which check?".as_slice()),
+                words: Box::from(b"Which check?".as_slice()),
+                stands: change::Stands::Taken,
+            },
+            change::Open {
+                asker: 73,
+                number: 3,
+                line: Box::from(b"Which dependency?".as_slice()),
+                words: Box::from(b"Which dependency?".as_slice()),
+                stands: change::Stands::Held { answer: Box::from(b"answer words stay private".as_slice()) },
+            },
+        ]),
+    };
+    let got = panel(&with_row(row));
+    assert_eq!(
+        got.questions,
+        PanelQuestions {
+            route: change::Route::Foreman,
+            taken: PanelUsed { used: 2, limit: LIMITS.change_policy.questions },
+            open: Box::new([
+                PanelQuestion {
+                    asker: 71,
+                    number: 1,
+                    line: Box::from(b"Which branch?".as_slice()),
+                    stands: PanelStands::Foreman(Some(15))
+                },
+                PanelQuestion {
+                    asker: 72,
+                    number: 2,
+                    line: Box::from(b"Which check?".as_slice()),
+                    stands: PanelStands::Taken
+                },
+                PanelQuestion {
+                    asker: 73,
+                    number: 3,
+                    line: Box::from(b"Which dependency?".as_slice()),
+                    stands: PanelStands::Held
+                },
+            ]),
+        }
+    );
+    assert!(got.within());
+}
+
+#[test]
+fn a_panel_shows_at_most_eight_questions() {
+    let mut row = fixtures::opening_row();
+    let mut open = skein_lib::List::with_capacity(9);
+    for number in 1..=9 {
+        open.push(change::Open {
+            asker: 71,
+            number,
+            line: Box::from(b"Question".as_slice()),
+            words: Box::from(b"Question".as_slice()),
+            stands: change::Stands::Taken,
+        })
+        .expect("nine questions fit the record");
+    }
+    row.questions.open = open.into_boxed();
+    let got = panel(&with_row(row));
+    assert_eq!(got.questions.open.len(), 8);
+    for (index, question) in got.questions.open.iter().enumerate() {
+        assert_eq!(
+            question.number,
+            u64::try_from(index.checked_add(1).expect("question index fits")).expect("question number")
+        );
+    }
+}
+
+#[test]
+fn a_panel_bounds_question_lines_in_bytes_and_open_questions() {
+    let mut got = panel(&with_row(fixtures::opening_row()));
+    // Two-byte UTF-8 words make the bound a byte count rather than a character count.
+    let line = "é".repeat(change::QUESTION_LINE / 2).into_bytes().into_boxed_slice();
+    got.questions.open = Box::new([PanelQuestion { asker: 71, number: 1, line, stands: PanelStands::Asked }]);
+    assert!(got.within());
+    got.questions.open[0].line = Box::from("é".repeat(change::QUESTION_LINE / 2 + 1).as_bytes());
+    assert!(!got.within());
+    let mut open = skein_lib::List::with_capacity(9);
+    for number in 1..=9 {
+        open.push(PanelQuestion { asker: 71, number, line: Box::new([]), stands: PanelStands::Taken })
+            .expect("fixture room");
+    }
+    got.questions.open = open.into_boxed();
+    assert!(!got.within());
+}
+
+#[test]
+fn red_panels_keep_all_sixteen_full_length_test_ids() {
+    use temper_engine_domain_forge_tiers::{Blame, Failures};
+    let merge = fixtures::BASE;
+    let mut row = fixtures::opening_row();
+    row.change.state = change::State::Red { merge, since: env().wall };
+    let mut d = with_row(row);
+    let mut ids = skein_lib::List::with_capacity(16);
+    for byte in b'a'..=b'p' {
+        ids.push(Box::<[u8]>::from([byte; 256])).unwrap();
+    }
+    d.verifications
+        .insert(
+            (REPO, merge),
+            Verification {
+                repository: REPO,
+                commit: merge,
+                changes: Box::new([fixtures::CHANGE]),
+                tiers: Box::new([TierVerification {
+                    tier: Box::from(b"slow".as_slice()),
+                    verdict: Some(TierVerdict {
+                        run: 3,
+                        blame: Blame::Owns(Failures::Tests(ids.clone().into_boxed())),
+                    }),
+                    repaired: None,
+                }]),
+            },
+        )
+        .unwrap();
+    let shown = panel(&d);
+    assert!(shown.within());
+    let PanelStep::Red { tiers, .. } = shown.step else { panic!("red panel") };
+    assert!(tiers[0].starts_with(b"slow run 3 \xc2\xb7 owns 16 tests: "));
+    for id in ids.as_slice() {
+        assert!(skein_lib::bytes::find(&tiers[0], id).is_some());
+    }
 }

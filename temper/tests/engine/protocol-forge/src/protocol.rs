@@ -520,6 +520,7 @@ impl Protocol {
                 | top::Request::BoxGroup { .. }
                 | top::Request::BoxRemove { .. }
                 | top::Request::Connect { .. }
+                | top::Request::Replace { .. }
                 | top::Request::Manifest { .. }
                 | top::Request::Reachable { .. }
                 | top::Request::Install { .. }
@@ -530,6 +531,7 @@ impl Protocol {
                 | top::Request::Resource { .. }
                 | top::Request::Taken { .. }
                 | top::Request::Refused { .. }
+                | top::Request::ResourceRefused { .. }
                 | top::Request::LostReadFailed { .. }
                 | top::Request::MakeFailed { .. }
                 | top::Request::Outcome { .. }
@@ -541,6 +543,7 @@ impl Protocol {
                 | top::Request::ProjectReleased { .. }
                 | top::Request::Retained { .. }
                 | top::Request::ReleaseFailed { .. }
+                | top::Request::StepDependents { .. }
                 | top::Request::WakeProcedure { .. }
                 | top::Request::ProjectAfter { .. }
                 | top::Request::ProjectionSettled { .. }
@@ -687,6 +690,7 @@ fn key(row: &top::Stored) -> top::Key {
         }),
         top::Stored::Change(row) => top::Key::Change(row.task),
         top::Stored::Issue(row) => top::Key::Issue(row.goal),
+        top::Stored::Setting(row) => top::Key::Setting(row.key),
         top::Stored::Binding { address, .. } => top::Key::Binding(address.clone()),
         top::Stored::Flight { task, entry } => top::Key::Flight { task: *task, entry: *entry },
         top::Stored::Release(row) => top::Key::Release(row.task),

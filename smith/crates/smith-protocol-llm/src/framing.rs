@@ -11,15 +11,14 @@ use skein_llm::client;
 use crate::Error;
 
 /// Measure fixed provider framing, including the largest supported optional routing fields.
-/// Observed endpoint option text and identity are counted separately in its own part.
+/// Observed endpoint option text are counted separately in its own part.
 pub fn prompt_allowance(provider: skein_llm::Provider, client: &client::Limits, tools: u32) -> Result<u64, Error> {
     let endpoint = match provider {
         skein_llm::Provider::OpenAi => skein_llm::Endpoint::openai(),
-        skein_llm::Provider::OpenAiCodex => skein_llm::Endpoint::codex(),
         skein_llm::Provider::Anthropic => skein_llm::Endpoint::anthropic(),
     };
     let reasoning_effort: Option<Box<[u8]>> = match provider {
-        skein_llm::Provider::OpenAi | skein_llm::Provider::OpenAiCodex => Some(Box::new([0; 32])),
+        skein_llm::Provider::OpenAi => Some(Box::new([0; 32])),
         skein_llm::Provider::Anthropic => Some(Box::from(b"medium".as_slice())),
     };
     let mut prompt = skein_llm::Prompt {
@@ -36,12 +35,10 @@ pub fn prompt_allowance(provider: skein_llm::Provider, client: &client::Limits, 
         max_output_tokens: None,
     };
     prompt.output_ceiling(provider, client.declared_output_tokens).or(Err(Error::Invalid))?;
-    let account_id: Box<[u8]> = match provider {
-        skein_llm::Provider::OpenAiCodex => Box::from(b"a".as_slice()),
-        skein_llm::Provider::OpenAi | skein_llm::Provider::Anthropic => Box::new([]),
+    let credential = match provider {
+        skein_llm::Provider::OpenAi => skein_llm::Credential::bearer(Box::from(b"a".as_slice())),
+        skein_llm::Provider::Anthropic => skein_llm::Credential::key(Box::from(b"a".as_slice())),
     };
-    let credential =
-        skein_llm::Credential { value: Box::from(b"a".as_slice()), account_id, scheme: skein_llm::Scheme::Bearer };
     let mut limits = *client;
     // Only these observed fixed records participate in this measurement.
     // Runtime history/tool maxima do not belong to its temporary wrappers.

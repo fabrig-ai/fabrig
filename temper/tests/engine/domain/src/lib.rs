@@ -23,6 +23,7 @@ pub mod fixtures;
 /// Requester-backed forge change fixture and delayed required-read control.
 pub mod forge_routes;
 pub mod forge_stand;
+pub mod kinds;
 pub mod oracle;
 pub mod tier_runs;
 

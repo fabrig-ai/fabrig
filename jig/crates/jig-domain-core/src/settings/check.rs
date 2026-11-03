@@ -51,7 +51,9 @@ fn offered(current: &Current, defaults: bool, items: &[Item]) -> skein_lib::List
             names.insert(setting, ()).expect("change names");
         }
         for item in items {
-            names.insert(item.setting, ()).expect("overlay names");
+            if !super::application::is_application(item.setting) {
+                names.insert(item.setting, ()).expect("overlay names");
+            }
         }
     }
     let mut result = skein_lib::List::with_capacity(names.len());
@@ -128,6 +130,7 @@ fn check_set(
         Some(Value::Charter(_) | Value::Template(_) | Value::Policy(_)) | None => {
             return Err(Failure { setting: Setting::Rules, fault: Fault::Rules });
         }
+        Some(Value::Application(_)) => unreachable!("an application's setting: apps-core"),
     };
     if !authority::valid_rules(rules, &limits.authority) {
         return Err(Failure { setting: Setting::Rules, fault: Fault::Rules });
@@ -174,6 +177,7 @@ fn check_set(
                 policy_fault(current, defaults, items, policy, rules, settings, connectors, limits)
             }
             Value::Rules(_) => None,
+            Value::Application(_) => unreachable!("application values stay outside jig's offered settings"),
         };
         if let Some(fault) = fault {
             return Err(Failure { setting, fault });
@@ -193,9 +197,10 @@ pub(crate) fn shape(setting: Setting, value: &Value, limits: &Limits) -> Result<
         }
         Value::Policy(_) => match setting {
             Setting::Policy(number) => number != 0,
-            Setting::Charter(_) | Setting::Template(_) | Setting::Rules => false,
+            Setting::Charter(_) | Setting::Template(_) | Setting::Rules | Setting::Application { .. } => false,
         },
         Value::Rules(value) => setting == Setting::Rules && authority::valid_rules(value, &limits.authority),
+        Value::Application(_) => super::application::is_application(setting),
     };
     if !valid {
         return Err(Failure { setting, fault: Fault::Shape });
@@ -237,6 +242,7 @@ pub(crate) fn restore_fit(setting: Setting, value: &Value, limits: &Limits) -> R
                 && value.implies.len() <= bound.implications
                 && rules_patterns_fit(value, bound)
         }
+        Value::Application(_) => super::application::is_application(setting),
     };
     if valid { Ok(()) } else { Err(Failure { setting, fault: Fault::Shape }) }
 }
@@ -433,6 +439,7 @@ fn template_fault(
             } {
                 Some(Value::Charter(value)) => value,
                 Some(Value::Template(_) | Value::Policy(_) | Value::Rules(_)) | None => return Some(Fault::Reference),
+                Some(Value::Application(_)) => unreachable!("an application's setting: apps-core"),
             };
             if let Some(choice) = &template.llm
                 && !crate::runs::llm::takes(&settings.models, &charter.policy, choice)
@@ -544,6 +551,7 @@ fn policy_fault(
         } {
             Some(Value::Template(value)) => value,
             Some(Value::Charter(_) | Value::Policy(_) | Value::Rules(_)) | None => return Some(Fault::Reference),
+            Some(Value::Application(_)) => unreachable!("an application's setting: apps-core"),
         };
         let executor = entry.executor.unwrap_or(template.executor);
         if let Some(fault) = template_fault(current, defaults, items, template, executor, settings, connectors, limits)
@@ -620,7 +628,7 @@ pub(super) fn count(setting: Setting, counts: &mut [u32; 3], limits: &Limits) ->
         Setting::Charter(_) => (0, limits.tasks.charters),
         Setting::Template(_) => (1, limits.templates),
         Setting::Policy(_) => (2, limits.authority.projects),
-        Setting::Rules => return Ok(()),
+        Setting::Rules | Setting::Application { .. } => return Ok(()),
     };
     let count = counts.get_mut(slot).expect("three numbered kinds");
     *count = count.saturating_add(1);
@@ -681,6 +689,7 @@ pub(crate) fn changed_charters(
         match setting {
             Setting::Charter(_) => {}
             Setting::Template(_) | Setting::Policy(_) | Setting::Rules => continue,
+            Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
         }
         let value = match edit(items, setting) {
             Some(Edit::Set(value)) => Some(value),
@@ -691,6 +700,7 @@ pub(crate) fn changed_charters(
         let charter = match value {
             Some(Value::Charter(charter)) => charter,
             Some(Value::Template(_) | Value::Policy(_) | Value::Rules(_)) | None => unreachable!("checked charter"),
+            Some(Value::Application(_)) => unreachable!("an application's setting: apps-core"),
         };
         result.push(super::charters::one_models(charter, current.newest(), settings)).expect("checked charter count");
     }

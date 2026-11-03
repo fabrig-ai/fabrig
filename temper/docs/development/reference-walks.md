@@ -79,3 +79,107 @@ role 0, owner: spend per period 415104; parties: party 1 owner; only the period 
 ### Triage reason
 
 project show's owner pool lacking reserved, spent and left balances is a budget read, not part of M8's tier story, and blocked nothing
+
+## finding-131: A chat's read_branches with prefix '' answers 'Forge read failed: empty' while the repository has main and temper/tier/slow.1
+
+- Rung: rm8
+- Walk: walk-53
+- Backend: chatgpt-forgejo
+- Commit: 8b15ca51842f5bb3295bbe94783161fa92e7e91b
+- Area: chat forge reads
+- Severity: low
+- Sightings: (none)
+
+### Reproduction
+
+Walk-53 steps 1-5; chat show 2 after its first reply.
+
+### Expected
+
+The branch list, or words saying why none.
+
+### Seen
+
+call read_branches {repository: playground/widget, prefix: ''} -> 'Forge read failed: empty'; serve.log 'read refused ... tool=read_branches layer=forge-client reason=forge read failed error=Some(Empty)'.
+
+### Triage reason
+
+the chat's read_branches with an empty prefix fails with "Forge read failed: empty" instead of listing branches; the chat worked around it and nothing on the walk stalled
+
+## finding-136: A box restart kills the host runner's in-flight tier job; Forgejo marks it failed only ~10 min later, temper reruns it, and the task lists the lost run as a Judged run
+
+- Rung: rm8
+- Walk: walk-55
+- Backend: chatgpt-forgejo
+- Commit: 677e405ca112365653d5d504de259b00fd11a0d4
+- Area: box runner / tier run task
+- Severity: medium
+- Sightings: (none)
+
+### Reproduction
+
+Box with tier slow; while a tier run's job is in its sleep (forge run 7), run give-back, systemctl --user stop the box, then start it again with the same directories.
+
+### Expected
+
+The stop drains or marks the runner's job, or temper names the lost run at the restart; the help warns that a stop loses running jobs; the task does not call a lost run judged.
+
+### Seen
+
+Run 7's job log stops at 08:52:00 after checkout; the box stopped at 08:56:27Z; Forgejo marked run 7 failed at 09:06:49Z; temper dispatched run 12 at 09:06:51Z (green 09:16:53Z). task 7 lists 'Judged run: ... forge run 7' and '... forge run 12'. About 15 minutes lost.
+
+### Triage reason
+
+the restart in the middle of a run came from finding-135's workaround, not from the scenario (its one restart, step 3, is before any run); losing the runner's job and calling the lost run judged is real but off the path
+
+## finding-138: Chats do not tell the person about tier verdicts: the red change's chat never says landed or red; others say merged, not cleared; a held change's chat says nothing
+
+- Rung: rm8
+- Walk: walk-55
+- Backend: chatgpt-forgejo
+- Commit: 677e405ca112365653d5d504de259b00fd11a0d4
+- Area: chat / charter 1
+- Severity: medium
+- Sightings: (none)
+
+### Reproduction
+
+Box with tier slow; chat 'Add the line "BREAK the slow check" to the end of README.md in widget.' and another chat for a third line; follow to the tier's red; chat show each.
+
+### Expected
+
+Each chat tells the person its change landed and whether it was cleared or red, and tells of a hold at once, as charter 1 says.
+
+### Seen
+
+Chat 8: only 'The README change has started.' Chat 2: 'Added ... Pull request #1 was merged into main as 157e049ca6fe.' and chat 11 the same of PR #3, though results say 'Cleared by slow run N.'; chat 11 said nothing of change 13's hold.
+
+### Triage reason
+
+What passes does not include the chats' words, and step 7 only asks the walker to report them; the chat saying 'merged' rather than cleared or red, and nothing of a hold, is the model's reply, off the acceptance; after-landing.md 7's red news to the goal can be checked when the repair is scheduled
+
+## finding-141: Closing the chat of a red change cancels it, and its panel then reads 'landed, uncleared' with the red and its blame gone
+
+- Rung: rm8
+- Walk: walk-55
+- Backend: chatgpt-forgejo
+- Commit: 677e405ca112365653d5d504de259b00fd11a0d4
+- Area: chat close / change panel
+- Severity: low
+- Sightings: (none)
+
+### Reproduction
+
+After run 3 blames change 9: chat close 8 --key K; change show 9.
+
+### Expected
+
+The panel keeps the red, its run and its failing test after the cancel.
+
+### Seen
+
+chat close 8: done; task 9 Cancelled; change show 9: 'step: landed, uncleared'.
+
+### Triage reason
+
+the panel losing the red and its blame after the chat's close cancels the change happens at clean-up, after the verdicts What passes reads; finding-128's repair (close no longer holds) held

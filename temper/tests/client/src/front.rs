@@ -23,6 +23,7 @@ pub struct Joint {
     pub refuse_return: bool,
     set_ups: Vec<(u16, Token)>,
     pub admin_connects: Vec<(u16, Token)>,
+    pub replacements: Vec<(u16, Token)>,
     pub playground: Option<temper_client_protocol_wire::v1::PlaygroundAnswer>,
     pub hold_playground_end: bool,
     held_playground_end: Vec<(ClientId, Event)>,
@@ -532,7 +533,10 @@ impl Joint {
     #[must_use]
     pub(crate) fn with_procedures(seed: u64, limits: &client::Limits) -> Self {
         const SLOTS: u32 = 1;
-        let [(bootstrap, engine_limits), (config, _)] = std::array::from_fn(|_| Self::procedure_config(seed));
+        // The unknown-panel fixture names its repository and a malformed role choice.
+        const PARAMETERS: u32 = 2;
+        let [(bootstrap, mut engine_limits), (config, _)] = std::array::from_fn(|_| Self::procedure_config(seed));
+        engine_limits.tasks.parameters = PARAMETERS;
         Self::with_engine(seed, limits, Store::new(), [bootstrap, config], &engine_limits, SLOTS)
     }
     fn procedure_config(seed: u64) -> (engine::Config, engine::Limits) {
@@ -610,8 +614,9 @@ impl Joint {
                 gates: Box::new([engine::Gate { number: 1, blocking: true, freshness: engine::Freshness::Exact }]),
                 approvals: Box::new([]),
             }]);
-            config.landing.deployment.clone_from(&landing);
-            assert!(config.landing.projects.insert(1, landing).is_ok());
+            let mut projects = skein_lib::Map::with_capacity(1);
+            projects.insert(1, landing.clone()).expect("one project landing rule");
+            config.kinds_stock = engine::landing_stock(&landing, &projects, 1, 4);
             let mut rules = config.core.defaults.rules.clone();
             let mut policy = config.core.seed_projects[0].policy.policy.clone();
             rules.ceiling.delegation.kinds =
@@ -775,6 +780,7 @@ impl Joint {
             refuse_return: false,
             set_ups: Vec::new(),
             admin_connects: Vec::new(),
+            replacements: Vec::new(),
             playground: None,
             hold_playground_end: false,
             held_playground_end: Vec::new(),
@@ -1462,16 +1468,47 @@ impl Joint {
             if let engine::Request::Install { forge, request, .. } = &request {
                 self.installs.push((*forge, *request));
             }
-            if let engine::Request::Connect {
-                forge,
-                request: attempt,
-                carried,
-                how: temper_engine_domain_forge::How::ForgejoAdmin { .. },
-            } = &request
-            {
-                let value = self.component.carried.get(&carried.number).expect("admin carrier");
-                assert!(value.expose().starts_with(&[0, 1, 0]), "temper-secrets admin bundle");
-                self.admin_connects.push((*forge, *attempt));
+            if let engine::Request::Connect { forge, request: attempt, carried, how } = &request {
+                let codes: &[u16] = match how {
+                    temper_engine_domain_forge::How::ForgejoAdmin { .. } => &[1],
+                    temper_engine_domain_forge::How::ForgejoTokens => &[2, 3],
+                    temper_engine_domain_forge::How::GitHubApp { .. }
+                    | temper_engine_domain_forge::How::GitHubManifest { .. } => &[],
+                };
+                if !codes.is_empty() {
+                    let value = self.component.carried.get(&carried.number).expect("connect carrier");
+                    let items = temper_client_domain::forge::forges::decode_pasted(value.expose())
+                        .expect("pasted connect bundle");
+                    for code in codes {
+                        assert!(items.iter().any(|(kind, _)| kind == code));
+                    }
+                    for (code, _) in &items {
+                        assert!(codes.contains(code) || (*code == 5 && codes == [2, 3]));
+                    }
+                    self.admin_connects.push((*forge, *attempt));
+                    self.engine.send(engine::Event::Forge(Box::new(
+                        temper_engine_domain_forge::Event::ConnectAnswered {
+                            forge: *forge,
+                            request: *attempt,
+                            answer: temper_engine_domain_forge::ConnectAnswer::Connecting,
+                        },
+                    )));
+                }
+            }
+            if let engine::Request::Replace { forge, request: attempt, carried } = &request {
+                let value = self.component.carried.get(&carried.number).expect("replace carrier");
+                let items =
+                    temper_client_domain::forge::forges::decode_pasted(value.expose()).expect("replacement bundle");
+                assert!(!items.is_empty());
+                if items.iter().any(|(code, _)| *code == 11) {
+                    assert_eq!(items.len(), 1);
+                } else {
+                    assert!(items.iter().any(|(code, _)| *code == 2 || *code == 3));
+                    for (code, _) in &items {
+                        assert!([2, 3, 5].contains(code));
+                    }
+                }
+                self.replacements.push((*forge, *attempt));
                 self.engine.send(engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::ConnectAnswered {
                     forge: *forge,
                     request: *attempt,

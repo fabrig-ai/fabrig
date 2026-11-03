@@ -834,15 +834,7 @@ fn setup_tools(driver: &mut Driver) -> Result<(), String> {
         "playground/widget adopted",
     )?;
     let me = driver.ctl(&["me"], None)?;
-    let made = first["first"]["project"]["new"].as_str().ok_or("playground project name")?;
-    let project = me["projects"]
-        .as_array()
-        .ok_or("projects missing")?
-        .iter()
-        .find(|p| p["name"]["bytes"] == made)
-        .and_then(|p| p["project"].as_u64())
-        .ok_or("playground project")?
-        .to_string();
+    let project = super::super::first_repository::project_number(&me, "widget")?.to_string();
     driver.project.clone_from(&project);
     driver.ctl(&["project", "fund", &project, "449696", "--key", "rung-project-funds"], None)?;
     driver.ctl(&["project", "fund", &project, "415104", "--role", "0", "--key", "rung-role-funds"], None)?;

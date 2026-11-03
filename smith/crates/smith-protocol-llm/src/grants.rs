@@ -47,8 +47,7 @@ pub struct Grants {
 }
 
 impl Grants {
-    /// Reserve two generations per account; the value cap includes bearer and
-    /// provider account-id bytes.
+    /// Reserve two generations per account within the credential value cap.
     pub fn new(accounts: u32, value_bytes: u32) -> Result<Grants, GrantError> {
         let capacity = accounts.checked_mul(2).ok_or(GrantError::Bounds)?;
         Ok(Grants { values: Map::with_capacity(capacity), accounts, value_bytes })
@@ -57,7 +56,7 @@ impl Grants {
     /// Keep a newer generation and evict the oldest only when the account
     /// already has two. A stale refresh never replaces a value in flight.
     pub fn grant(&mut self, name: GrantName, credential: Credential, lapses: Time) -> Result<(), GrantError> {
-        let bytes = credential.value.len().checked_add(credential.account_id.len()).ok_or(GrantError::Bounds)?;
+        let bytes = credential.value.len();
         if name.generation == 0 || bytes > usize::try_from(self.value_bytes).expect("u32 fits usize") {
             return Err(GrantError::Bounds);
         }
@@ -104,8 +103,10 @@ impl Grants {
             return Err(GrantError::Lapsed);
         }
         let value = bytes::copy_of(&entry.credential.value);
-        let account_id = bytes::copy_of(&entry.credential.account_id);
-        Ok(Credential { value, account_id, scheme: entry.credential.scheme })
+        Ok(match entry.credential.scheme {
+            skein_llm::Scheme::Bearer => Credential::bearer(value),
+            skein_llm::Scheme::Key => Credential::key(value),
+        })
     }
 
     /// Read a named grant only; absent accounts carry no credential.

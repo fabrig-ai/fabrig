@@ -1,0 +1,66 @@
+draft = "reference-m5"
+repo = "fabrig"
+sources = ["temper/docs/plan/reference-m5/inputs/request.md", "temper/docs/design/draft/reference-case.execution.md", "temper/docs/design/draft/reference-code-production.md", "temper/docs/design/draft/reference-landing.md", "AGENTS.md", "DESIGN.md"]
+
+# M5 of temper/docs/design/draft/reference-case.execution.md: questions, and holds passed up.
+# A change relays its agents' questions through a foreman of its own or straight up (N1),
+# within a bound, an answer held until a dependency lands, its open questions in ctl; the
+# reference's coordinator answers, amends, makes a change, asks its person, and decides
+# holds. The shapes that cross tasks are notes/contracts.md; the lead wrote the design.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "relay"
+title = "the change procedure relays its producer's, repairs' and resolutions' questions: a foreman per question or straight up, a bound, an answer held for dependencies"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/forge.md, 8.11"
+
+[[part]]
+id = "call"
+title = "change's questions member, a plan's: none, foreman or up"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/agent.md, 4.3.1"
+
+[[part]]
+id = "foreman"
+title = "the stock's charter 6, a foreman's: read-only, a verdict of answer, finish or escalate"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/configuration.md, 13.4"
+
+[[slice]]
+id = 1
+story = "a coordinator's change made with questions foreman relays its producer's question: a foreman settles it from the words and the design or escalates it, the coordinator's answer reaches the producer, the change lands; past its four questions the change holds and escalates; an answer that adds a dependency waits for it to land"
+parts = ["relay", "call", "foreman"]
+walk = false
+
+[[part]]
+id = "panel"
+title = "a change's questions on its panel and in temper ctl change show"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/forge.md, 9.2"
+
+[[slice]]
+id = 2
+story = "temper ctl change show prints a change's question route, the questions taken of its bound, and each open question with where it stands"
+parts = ["panel"]
+walk = false
+
+[[part]]
+id = "reference"
+title = "the reference's coordinator, coding agent and foreman for questions and holds; the help pages"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/configuration.md, 13.9"
+
+[[slice]]
+id = 3
+story = "the reference's goal makes its changes with questions foreman; a producer asks, a foreman settles it or escalates, the coordinator answers, amends, adds a change the work waits on or asks its person, and decides holds; temper ctl change show shows each open question"
+parts = ["reference"]
+walk = true

@@ -325,6 +325,14 @@ mod tests {
         (serde_json::from_slice(&agent).expect("agent JSON"), serde_json::from_slice(&value).expect("deployment JSON"))
     }
     #[test]
+    fn the_tier_passes_startup_validation_with_stock_defaults() {
+        let (_, deployment) =
+            documents(Path::new("/private/test"), Path::new("/test/temper"), Path::new("/test/bundle"));
+        let shape = temper_service::startup::shape(&deployment, &jig_protocol_config::Directories::working())
+            .expect("browser deployment admits stock settings");
+        assert_eq!(shape, temper_service::startup::Shape::Standalone);
+    }
+    #[test]
     fn the_tier_names_the_bundle_for_its_server() {
         assert_eq!(tier_configuration().1["application"]["clients"]["bundle"], "/test/bundle");
     }

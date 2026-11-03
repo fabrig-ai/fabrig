@@ -6,6 +6,14 @@ use crate::{Authority, Class, Funder, Numbers, Tries};
 use alloc::boxed::Box;
 use skein_lib::{Duration, List, ReplyTo, Wall};
 
+/// A connector's procedure whose tasks, made with a pending dependency, are active and
+/// kept rather than waiting (jig/docs/design/domain/connectors.md, 6.1).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct KeptStart {
+    pub connector: u16,
+    pub code: u32,
+}
+
 /// A closed wake rule for task words and subscription hints (domain/tasks.md, section 8.3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum WakeRule {
@@ -356,11 +364,15 @@ pub struct RecurringState {
 /// (domain/tasks.md, section 5.3).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct ProcedureDecision {
+    /// Replace this procedure task's specification words, within the specification byte bound.
+    pub words: Option<Box<[u8]>>,
     pub batch: Box<[New]>,
     pub amendments: Box<[ProcedureAmendment]>,
     pub cancels: Box<[ProcedureCancel]>,
     pub messages: Box<[ProcedureMessage]>,
     pub proposals: Box<[crate::Proposal]>,
+    /// Dependencies the procedure's work started from (domain/connectors.md, 6.1).
+    pub started_from: Box<[u64]>,
     pub end: ProcedureEnd,
 }
 
@@ -398,11 +410,13 @@ impl ProcedureDecision {
     #[must_use]
     pub fn new(end: ProcedureEnd) -> Self {
         Self {
+            words: None,
             batch: Box::new([]),
             amendments: Box::new([]),
             cancels: Box::new([]),
             messages: Box::new([]),
             proposals: Box::new([]),
+            started_from: Box::new([]),
             end,
         }
     }
@@ -1161,6 +1175,8 @@ pub struct TaskRecord {
     /// Admitted dependency identities, bounded by `Limits::dependencies`: those named at creation,
     /// then those amendments added, the oldest first (domain/tasks.md, section 7).
     pub dependencies: Box<[u64]>,
+    /// Dependencies started from, in first-marked order, each once (domain/connectors.md, 6.1).
+    pub started_from: Box<[u64]>,
     /// The dependencies an amendment added, each with when and by whom, in their order among
     /// `dependencies`.
     pub added: Box<[Added]>,
@@ -1411,7 +1427,8 @@ pub struct Problem {
     /// Bounded structural, lifecycle, financial or restore admission reason.
     pub why: Refusal,
     /// The tasks the refusal names: the live delegates that prevented a finish, in the requester's
-    /// current order; a circle's tasks; an unreachable dependency; an ended dependency; or the
+    /// current order; a circle's tasks; an unreachable dependency; an ended dependency;
+    /// omitted dependencies marked started from; or the
     /// pending dependencies keeping the task. Absent for every other refusal.
     pub blocked_by: Option<Box<[u64]>>,
     /// Exact room check metadata; absent for shape, state and other refusals.

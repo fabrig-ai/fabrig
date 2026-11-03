@@ -260,9 +260,42 @@ fn a_cached_summary_key_uses_the_answer_byte_bound() {
 fn a_change_in_each_state_round_trips_unchanged() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
     for state in &fixtures::change_states() {
-        let row = forge::Stored::Change(fixtures::change_row(state.clone()));
-        let bytes = records::encode(&row);
-        assert_eq!(records::decode(&bytes, &bounds), Ok(row), "{state:?}");
+        for repairs in [None, Some([28; 32])] {
+            let mut row = fixtures::change_row(state.clone());
+            row.repairs = repairs;
+            let row = forge::Stored::Change(row);
+            let meter = skein_world::domain::heap::Meter::new();
+            meter.start();
+            let cloned = row.clone();
+            let held = meter.end().held();
+            assert_eq!(forge::stored_bytes(&cloned), Some(held));
+            drop(cloned);
+            let bytes = records::encode(&row);
+            assert_eq!(records::decode(&bytes, &bounds), Ok(row), "{state:?}");
+        }
+    }
+}
+#[test]
+fn a_changes_role_choices_round_trip_with_or_without_models() {
+    use jig_domain_tasks::{LlmChoice, ModelEffort};
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    let producing = LlmChoice {
+        main: ModelEffort { model: 3, effort: Some(1) },
+        subagents: Box::new([ModelEffort { model: 0, effort: Some(0) }, ModelEffort { model: 2, effort: None }]),
+        account: Some(17),
+    };
+    let review = LlmChoice {
+        main: ModelEffort { model: 4, effort: Some(2) },
+        subagents: Box::new([ModelEffort { model: 1, effort: None }, ModelEffort { model: 3, effort: Some(1) }]),
+        account: None,
+    };
+    for (producing_llm, review_llm) in [(None, None), (Some(producing), Some(review))] {
+        let mut row = fixtures::change_row(temper_engine_domain_forge_change::State::Producing { requested: false });
+        row.repairs = Some([28; 32]);
+        row.producing_llm = producing_llm;
+        row.review_llm = review_llm;
+        let row = forge::Stored::Change(row);
+        assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
     }
 }
 #[test]
@@ -359,6 +392,16 @@ fn each_change_delegate_round_trips_unchanged() {
         let row = forge::Stored::Change(row);
         let bytes = records::encode(&row);
         assert_eq!(records::decode(&bytes, &bounds), Ok(row), "{delegate:?}");
+    }
+}
+
+/// The merge delegate and its retained fields survive storage (temper/docs/design/domain/forge.md, 8.4).
+#[test]
+fn a_change_row_with_a_merge_delegate_and_a_catch_up_round_trips() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    for from in [Some([30; 32]), None] {
+        let row = forge::Stored::Change(fixtures::merge_change_row(from));
+        assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row), "from {from:?}");
     }
 }
 
@@ -753,9 +796,11 @@ fn every_application_outcome_preserves_its_complete_record() {
         assert_eq!(records::row(&key, &bytes, &bounds), Ok(row.clone()), "{row:?}");
         assert_eq!(bytes[2], 15, "the Application family tag");
     }
+    // Settings judgement words cannot occur in a forge application refusal.
+    let limits =
+        jig_protocol_store::people_v14::Limits { refusal_judged_why: 0, ..jig_protocol_store::people_v14::CEILINGS };
     assert!(
-        jig_protocol_store::people_v14::Refusal::encoded_bound(&jig_protocol_store::people_v14::CEILINGS)
-            .expect("bounded facts")
+        jig_protocol_store::people_v14::Refusal::encoded_bound(&limits).expect("bounded facts")
             <= u64::from(v11::CEILINGS.core_refused_refusal)
     );
 }
@@ -1289,11 +1334,7 @@ fn forge_record_round_trips_every_mode_and_state() {
                 forge::ForgeState::Ended { secrets_erased: true, box_removed: false },
                 forge::ForgeState::Ended { secrets_erased: true, box_removed: true },
             ] {
-                for first in [
-                    None,
-                    Some(forge::SetUpProject::Existing(u32::MAX)),
-                    Some(forge::SetUpProject::New(Box::new([0, 255]))),
-                ] {
+                for first in [false, true] {
                     for optional in [false, true] {
                         let mut record = fixtures::forge_record();
                         record.kind = kind;
@@ -1301,13 +1342,13 @@ fn forge_record_round_trips_every_mode_and_state() {
                         record.state = state;
                         record.read_only = optional;
                         record.asked = optional;
-                        record.first = match first.clone() {
-                            None => None,
-                            Some(project) => Some(forge::FirstIntent {
+                        record.first = if first {
+                            Some(forge::FirstIntent {
                                 playground: optional,
-                                project,
                                 ..record.first.take().expect("fixture first intent")
-                            }),
+                            })
+                        } else {
+                            None
                         };
                         if !optional {
                             record.git_program = None;
@@ -1354,7 +1395,7 @@ fn playground_round_trips_every_state() {
 #[test]
 fn forge_names_decode_at_the_deployment_bound_and_refuse_one_past() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
-    for field in ["org", "repository", "project"] {
+    for field in ["org", "repository"] {
         for extra in [0, 1] {
             let mut row = fixtures::forge_record();
             let first = row.first.as_mut().expect("fixture first intent");
@@ -1363,7 +1404,6 @@ fn forge_names_decode_at_the_deployment_bound_and_refuse_one_past() {
             match field {
                 "org" => first.org = name,
                 "repository" => first.repository = name,
-                "project" => first.project = forge::SetUpProject::New(name),
                 _ => panic!("named field"),
             }
             let row = forge::Stored::Forge(row);
@@ -1409,5 +1449,97 @@ fn a_producer_report_is_bounded_by_the_forge_operation_bytes() {
         } else {
             assert_eq!(decoded, Err(crate::Undecodable));
         }
+    }
+}
+
+#[test]
+fn a_changes_questions_and_foreman_charter_round_trip_unchanged() {
+    use temper_engine_domain_forge_change::{Hold, Open, Questions, Route, Stands, State};
+    const ASKER: u64 = 7;
+    let mut row =
+        fixtures::change_row(State::Held { was: Box::new(State::Checking { head: [1; 32] }), why: Hold::Questions });
+    let mut open = skein_lib::List::uncapped();
+    for (number, stands) in [
+        (1, Stands::Taken),
+        (2, Stands::Foreman { task: None }),
+        (3, Stands::Foreman { task: Some(9) }),
+        (4, Stands::Asked),
+        (5, Stands::Held { answer: b"Keep the documented behavior".as_slice().into() }),
+    ] {
+        open.push(Open {
+            asker: ASKER,
+            number,
+            line: b"Which behavior?".as_slice().into(),
+            words: b"Which behavior?\nKeep both options.".as_slice().into(),
+            stands,
+        })
+        .unwrap();
+    }
+    row.questions = Questions { route: Route::Foreman, taken: 3, open: open.into_boxed() };
+    row.foreman_charter = 6;
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    let row = forge::Stored::Change(row);
+    assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+}
+
+#[test]
+fn a_held_answer_is_bounded_by_the_forge_operation_bytes() {
+    use temper_engine_domain_forge_change::{Open, Stands, State};
+    let bound = fixtures::LIMITS.client.op_bytes;
+    let bounds = crate::bounds(&fixtures::LIMITS, bound).expect("fixture bounds");
+    assert_eq!(bounds.limits().held_answer, bound);
+    for (length, accepted) in [(bound, true), (bound + 1, false)] {
+        let mut row = fixtures::change_row(State::Producing { requested: true });
+        row.questions.open = Box::new([Open {
+            asker: 7,
+            number: 1,
+            line: Box::new([]),
+            words: Box::new([]),
+            stands: Stands::Held { answer: skein_lib::bytes::zeroed(usize::try_from(length).unwrap()) },
+        }]);
+        let row = forge::Stored::Change(row);
+        let expected = if accepted { Ok(row.clone()) } else { Err(crate::Undecodable) };
+        assert_eq!(records::decode(&records::encode(&row), &bounds), expected, "answer bytes: {length}");
+    }
+}
+
+#[test]
+fn an_open_questions_words_are_bounded_by_the_forge_operation_bytes() {
+    use temper_engine_domain_forge_change::{Open, Stands, State};
+    let bound = fixtures::LIMITS.client.op_bytes;
+    let bounds = crate::bounds(&fixtures::LIMITS, bound).expect("fixture bounds");
+    assert_eq!(bounds.limits().open_words, bound);
+    for (length, accepted) in [(bound, true), (bound + 1, false)] {
+        let mut row = fixtures::change_row(State::Producing { requested: true });
+        row.questions.open = Box::new([Open {
+            asker: 7,
+            number: 1,
+            line: Box::new([]),
+            words: skein_lib::bytes::zeroed(usize::try_from(length).unwrap()),
+            stands: Stands::Asked,
+        }]);
+        let row = forge::Stored::Change(row);
+        let expected = if accepted { Ok(row.clone()) } else { Err(crate::Undecodable) };
+        assert_eq!(records::decode(&records::encode(&row), &bounds), expected, "question bytes: {length}");
+    }
+}
+
+#[test]
+fn a_changes_early_start_round_trips_each_arm_and_head_order() {
+    use temper_engine_domain_forge_change::{Early, StartedFrom, State};
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    let heads = Box::new([StartedFrom { task: 12, head: [2; 32] }, StartedFrom { task: 11, head: [1; 32] }]);
+    for early in [
+        Early::None,
+        Early::Started(Box::new([])),
+        Early::Spent(Box::new([])),
+        Early::Started(heads.clone()),
+        Early::Spent(heads),
+    ] {
+        let mut row = fixtures::change_row(State::Producing { requested: false });
+        row.change.early = early;
+        let row = forge::Stored::Change(row);
+        let bytes = records::encode(&row);
+        assert_eq!(records::decode(&bytes, &bounds), Ok(row));
     }
 }

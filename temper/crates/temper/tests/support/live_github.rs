@@ -153,7 +153,6 @@ pub(crate) fn configure_engine(value: &mut Value, owner: &str, api: SocketAddr, 
     render_owner(value, owner);
     value["engine"]["hosts"]["listener"][0]["socket"] = workers.to_string().into();
     value["application"]["machine"]["github"] = json!({"api":{"socket":api.to_string()},"transport":"plaintext","remote":format!("http://{git}"),"web":format!("http://{git}")});
-    github_land::configure_landing(value, git, owner, REPOSITORY);
     value["application"]["limits"]["overrides"]["forge_component.log_poll_ms"] = 15000.into();
 }
 fn configure_llm(path: &Path, inputs: &Inputs) {
@@ -293,6 +292,15 @@ impl Judge<'_> {
             host,
             vec![
                 ctl::Call::sign_in(),
+                ctl::Call::new(&[
+                    "settings",
+                    "apply",
+                    self.inputs.scratch.join("landing-settings.json").to_str().expect("landing settings FILE"),
+                    "--against",
+                    "1",
+                    "--key",
+                    "live-landing-settings",
+                ]),
                 ctl::Call::new(&[
                     "account",
                     "add-key",
@@ -623,6 +631,10 @@ impl Referee<cluster::Root> for Judge<'_> {
             let mut value = document(&path);
             configure_engine(&mut value, &self.inputs.owner, self.relay.api, self.relay.git, self.workers);
             save(&path, &value);
+            save(
+                &self.inputs.scratch.join("landing-settings.json"),
+                &json!({"items":github_land::landing_settings(self.relay.git, &self.inputs.owner, REPOSITORY)}),
+            );
             self.members.up(&["engine"]);
             self.stage = Stage::Engine;
         } else if self.stage == Stage::Engine && self.members.is_up() {

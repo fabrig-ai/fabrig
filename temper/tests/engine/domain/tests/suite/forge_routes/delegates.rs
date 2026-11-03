@@ -28,6 +28,9 @@ fn a_resolution_delegate_carries_its_base_as_hexadecimal_text() {
     answer_producer(&mut world, &producer);
     let resolver = next_delegate(&mut world);
     assert_commit(&world, resolver.task, RESOLVE_COMMIT, BASE_DIGITS);
+    let words = core::str::from_utf8(&live_task(&world, resolver.task).spec.words).expect("resolution words");
+    assert!(words.contains("Preserve the requested change"), "{words}");
+    assert!(words.contains("independent appended lines and existing blank lines"), "{words}");
 }
 
 #[test]

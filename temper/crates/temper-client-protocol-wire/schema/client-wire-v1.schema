@@ -12,19 +12,18 @@ record Adopt { project: u32 home: bool forge: u16 owner: bytes 1024 name: bytes 
 # temper/docs/design/client/README.md, 4.6: kept and new forges.
 record Kept { forge: u16 }
 record ManagedForge { host: bytes 255 port: u16 tls: option bytes 255 git: bytes 2048 web: option bytes 2048 git_program: option bytes 4096 }
-enum ForgeAsk { github, owned, managed: ManagedForge }
+enum ForgeAsk { github, owned, managed: ManagedForge, connected: ManagedForge }
 record NewForge { forge: ForgeAsk }
 enum Making { kept: Kept, new: NewForge }
-record ExistingProject { project: u32 }
-record NewProject { name: bytes 1024 }
-enum SetUpProject { existing: ExistingProject, new: NewProject }
-record SetUp { forge: Making org: bytes 1024 repository: bytes 1024 project: SetUpProject playground: bool }
+record SetUp { forge: Making org: bytes 1024 repository: bytes 1024 playground: bool }
 record Return { source: u32 path: bytes 512 }
 record GitHubApp { id: u64 read_only: option bool }
 record GitHubManifest { back: option bytes 512 }
-record FirstAsk { org: bytes 1024 repository: bytes 1024 project: SetUpProject label: bytes 64 }
+record FirstAsk { org: bytes 1024 repository: bytes 1024 label: bytes 64 }
 record ForgejoAdmin { first: option FirstAsk }
-enum How { github_app: GitHubApp, github_manifest: GitHubManifest, forgejo_admin: ForgejoAdmin }
+record ForgejoTokens { }
+enum How { github_app: GitHubApp, github_manifest: GitHubManifest, forgejo_admin: ForgejoAdmin, forgejo_tokens: ForgejoTokens }
+record Replace { forge: u16 }
 record Connect { forge: Making how: How }
 record Install { forge: u16 back: option bytes 512 }
 record Reachable { forge: u16 installation: option u64 page: u32 }
@@ -32,9 +31,9 @@ record Accept { forge: u16 installation: u64 }
 
 # temper/docs/design/client/README.md, 4.6: removal and reset.
 record RemoveForge { forge: u16 }
-enum Request { adopt: Adopt, set_up: SetUp, return_: Return, connect: Connect, install: Install, reachable: Reachable, accept: Accept, remove_forge: RemoveForge, start_playground, end_playground }
+enum Request { adopt: Adopt, set_up: SetUp, return_: Return, connect: Connect, install: Install, reachable: Reachable, accept: Accept, remove_forge: RemoveForge, start_playground, end_playground, replace: Replace }
 versioned record Requesting { request: Request }
-enum SetUpRefusal { not_offered, not_under_the_box, busy, new_project, invalid }
+enum SetUpRefusal { not_offered, not_under_the_box, busy, invalid }
 record SetUpRefused { why: SetUpRefusal }
 enum StartRefusal { not_offered }
 record StartRefused { why: StartRefusal }
@@ -60,7 +59,7 @@ enum CreateStep { admin, org, repository, file }
 record Made { id: u64 }
 record CreateFailed { step: CreateStep }
 enum FirstState { making, made: Made, failed: CreateFailed }
-record FirstRepository { org: bytes 1024 repository: bytes 1024 project: SetUpProject state: FirstState label: bytes 64 playground: bool }
+record FirstRepository { org: bytes 1024 repository: bytes 1024 state: FirstState label: bytes 64 playground: bool }
 record Account { id: u64 login: bytes 1024 }
 record Installation { id: u64 account: option Account suspended: bool stray: bool }
 record ConnectStopped { why: bytes 256 }
@@ -73,8 +72,16 @@ record OwnedForge { forgejo: bytes 64 runner: option bytes 64 password: bytes 51
 record ForgeRow { number: u16 kind: Kind mode: Mode connection: Connection offer: Offer first: option FirstRepository installations: list 64 Installation ended: option ConnectStopped app: option AppWay web: option bytes 2048 repositories: list 16 Adoption owned: option OwnedForge admin: bool ended_stop: option AdminStop read_only: bool }
 versioned record Forges { forges: list 16 ForgeRow }
 
-# The playground read (temper/docs/design/client/README.md, 4.6).
-enum Read { playground }
+# The forge's reads (temper/docs/design/client/forge.md, 9).
+record SettingRead { kind: u32 scope: u32 number: u32 }
+record ProposalItemsRead { key: u64 }
+enum Read { playground, setting: SettingRead, proposal_items: ProposalItemsRead }
+# Values are kinds-codec's LandingRule and ForgeCharter records.
+versioned record SettingAnswer { value: option bytes 1048576 }
+record SettingValue { value: bytes 1048576 }
+enum SettingEdit { set: SettingValue, removed, reset }
+record ProposalItem { kind: u32 scope: u32 number: u32 edit: SettingEdit }
+versioned record ProposalItemsAnswer { items: list 1024 ProposalItem }
 versioned record Reading { read: Read }
 
 # temper/docs/design/client/README.md, 4.6: no playground is no record.
@@ -106,19 +113,24 @@ enum Reason { ci, gate: GateReason, semantic }
 record Repairing { reason: Reason }
 record Landed { merge: fixed 32 }
 record InLanding { landing: option u64 }
-record Verifying { merge: fixed 32 tiers: list 32 bytes 128 }
-record Red { merge: fixed 32 tiers: list 32 bytes 128 }
-record Cleared { merge: fixed 32 tiers: list 32 bytes 128 uncleared: bool }
+record Verifying { merge: fixed 32 tiers: list 32 bytes 8192 }
+record Red { merge: fixed 32 tiers: list 32 bytes 8192 }
+record Cleared { merge: fixed 32 tiers: list 32 bytes 8192 uncleared: bool }
 enum Step { producing, opening, recreating, reopening, checking, gating, queued: Queued, first, updating, resolving, repairing: Repairing, landing, landed: Landed, ended, ready: InLanding, preparing: InLanding, verifying: Verifying, red: Red, cleared: Cleared }
 record AuthorityHold { reason: bytes 512 }
-enum Hold { stalled, repairs, resolutions, updates, moved, missing, closed, retargeted, failed, rejected, authority: AuthorityHold }
+enum Hold { stalled, repairs, resolutions, updates, moved, missing, closed, retargeted, failed, rejected, authority: AuthorityHold, questions }
 enum Ci { unknown, pending, passed, failed }
 enum GateKind { review, approval, check }
 enum Verdict { none, pending, approved, changes }
 record Gate { number: u64 kind: GateKind blocks: bool verdict: Verdict }
 record Used { used: u32 limit: u32 }
 enum Way { queue, turn }
-versioned record ChangePanel { task: u64 forge: u16 owner: bytes 1024 name: bytes 1024 branch: bytes 1024 landing: bytes 1024 head: option fixed 32 pull: option Pull step: Step hold: option Hold runs: option u64 ci: Ci gates: list 64 Gate repairs: Used resolutions: Used updates: Used way: Way in_landing: option u64 }
+enum Route { none, foreman, up }
+record Foreman { task: option u64 }
+enum Stands { taken, foreman: Foreman, asked, held }
+record Question { asker: u64 number: u64 line: bytes 256 stands: Stands }
+record Questions { route: Route taken: Used open: list 8 Question }
+versioned record ChangePanel { task: u64 forge: u16 owner: bytes 1024 name: bytes 1024 branch: bytes 1024 landing: bytes 1024 head: option fixed 32 pull: option Pull step: Step hold: option Hold runs: option u64 ci: Ci gates: list 64 Gate repairs: Used resolutions: Used updates: Used way: Way in_landing: option u64 questions: Questions }
 
 # Its outcome (client/README.md, 4.6 and 4.7).
 record Kinds { read: bool push: bool open: bool land: bool review: bool status: bool comment: bool issue: bool branch: bool }
@@ -145,3 +157,15 @@ record EndRefused { why: EndRefusal }
 record RemoveRefused { why: ForgeRefusal }
 enum Outcome { adopted: Adopted, core_refused: CoreRefused, forge_refused: ForgeRefused, unknown, setting_up, set_up_refused: SetUpRefused, running, start_refused: StartRefused, start_failed: StartFailed, returning, connecting, link: Link, connect_refused: ConnectRefused, page: Page, accepted: AcceptedInstallation, removed, remove_refused: RemoveRefused, reset, end_refused: EndRefused }
 versioned record Answer { outcome: Outcome }
+
+# Values of temper's settings kinds (temper/docs/design/domain/root.md, 5.6;
+# temper/docs/design/protocol/configuration.md, 13.2).
+record LandingExact { value: bytes 4096 }
+record LandingOpen { value: bytes 4096 }
+enum LandingLast { exact: LandingExact, open: LandingOpen }
+record LandingPattern { segments: list 16 bytes 4096 last: LandingLast }
+enum RuleFreshness { exact, clean }
+record RuleGate { number: u32 blocking: bool freshness: RuleFreshness }
+record RuleApproval { role: u32 people: u32 freshness: RuleFreshness }
+record LandingRule { pattern: LandingPattern enforce: bool ci: bool up_to_date: bool gates: list 64 RuleGate approvals: list 64 RuleApproval }
+record ForgeCharter { charter: u32 }

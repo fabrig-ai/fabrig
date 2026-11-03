@@ -5,11 +5,20 @@ use jig_domain_core::Carried;
 use jig_domain_people::Role;
 use skein_lib::{Map, Queue, Token};
 
+/// The run's admission determines its end (temper/docs/design/protocol/forge.md, 2.2).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum RunKind {
+    Admin,
+    Tokens,
+    Replace,
+    App,
+}
+
 #[derive(Debug)]
 pub(crate) struct State {
     pub(crate) answers: Map<Token, Answered>,
     pending: Map<Token, Token>,
-    running: Map<u16, (Token, Option<Carried>)>,
+    running: Map<u16, (Token, Option<Carried>, RunKind)>,
     reading: Map<u16, Token>,
     previous: Map<u16, (Connection, Option<crate::FailedStep>)>,
 }
@@ -32,6 +41,7 @@ impl State {
         out.push(Request::ApplicationDone { request, token });
     }
 }
+#[expect(clippy::too_many_lines, reason = "one admission dispatcher checks each public connect request")]
 pub(crate) fn start(
     d: &mut Domain,
     request: Token,
@@ -53,6 +63,7 @@ pub(crate) fn start(
         Ask::StartPlayground => Some(Answered::StartPlayground(crate::StartAnswer::NotOffered)),
         Ask::EndPlayground => Some(Answered::EndPlayground(crate::EndAnswer::NotOffered)),
         Ask::Connect { .. }
+        | Ask::Replace { .. }
         | Ask::Adopt(_)
         | Ask::SetUp { .. }
         | Ask::Install { .. }
@@ -71,7 +82,18 @@ pub(crate) fn start(
         admin(d, request, token, forge, how, role, carried, out);
         return;
     }
+    if let Ask::Connect { forge: crate::Making::Kept(forge), how: crate::How::ForgejoTokens } = ask {
+        tokens_or_replace(d, request, token, forge, RunKind::Tokens, role, carried, out);
+        return;
+    }
+    if let Ask::Replace { forge } = ask {
+        tokens_or_replace(d, request, token, forge, RunKind::Replace, role, carried, out);
+        return;
+    }
     let (forge, install, manifest) = match &ask {
+        Ask::Replace { .. } | Ask::Connect { how: crate::How::ForgejoTokens, .. } => {
+            unreachable!("tokens and Replace use their own admission")
+        }
         Ask::Connect { forge: crate::Making::Kept(forge), how: crate::How::GitHubApp { .. } } => (*forge, false, false),
         Ask::Connect { forge: crate::Making::Kept(forge), how: crate::How::GitHubManifest { .. } } => {
             (*forge, false, true)
@@ -170,7 +192,8 @@ fn resolve(
         | Ask::SetUp { .. }
         | Ask::Install { .. }
         | Ask::Accept { .. }
-        | Ask::Reachable { .. }) => Ok(ask),
+        | Ask::Reachable { .. }
+        | Ask::Replace { .. }) => Ok(ask),
     }
 }
 /// Admission precedes the first save (temper/docs/design/protocol/forge.md, 2.2; temper/docs/design/protocol/setup.md, 6.7).
@@ -187,21 +210,33 @@ fn make(
     }
     let (kind, mode, place, git_program) = match forge {
         crate::ForgeAsk::GitHub => {
-            let Some(machine) = &d.machine else { return Err(ForgeRefusal::NoSuchForge) };
             match how {
                 crate::How::GitHubApp { .. } | crate::How::GitHubManifest { .. } => {}
-                crate::How::ForgejoAdmin { .. } => return Err(ForgeRefusal::NotTaken),
+                crate::How::ForgejoAdmin { .. } | crate::How::ForgejoTokens => return Err(ForgeRefusal::NotTaken),
             }
+            let Some(machine) = &d.machine else { return Err(ForgeRefusal::NoSuchForge) };
             (crate::Kind::GitHub, crate::Mode::Connected, machine.github.clone(), machine.github_git_program.clone())
         }
         crate::ForgeAsk::Managed { place, git_program } => {
             match how {
                 crate::How::ForgejoAdmin { .. } => {}
-                crate::How::GitHubApp { .. } | crate::How::GitHubManifest { .. } => {
+                crate::How::GitHubApp { .. } | crate::How::GitHubManifest { .. } | crate::How::ForgejoTokens => {
                     return Err(ForgeRefusal::NotTaken);
                 }
             }
             (crate::Kind::Forgejo, crate::Mode::Managed, place, git_program)
+        }
+        crate::ForgeAsk::Connected { place, git_program } => {
+            match how {
+                crate::How::ForgejoTokens => {}
+                crate::How::ForgejoAdmin { .. } | crate::How::GitHubApp { .. } | crate::How::GitHubManifest { .. } => {
+                    return Err(ForgeRefusal::NotTaken);
+                }
+            }
+            if carried.is_none() {
+                return Err(ForgeRefusal::NoKey);
+            }
+            (crate::Kind::Forgejo, crate::Mode::Connected, place, git_program)
         }
         crate::ForgeAsk::Owned => return Err(ForgeRefusal::NotTaken),
     };
@@ -217,7 +252,7 @@ fn make(
             }
             None
         }
-        crate::How::GitHubManifest { .. } => None,
+        crate::How::ForgejoTokens | crate::How::GitHubManifest { .. } => None,
         crate::How::ForgejoAdmin { first } => {
             if carried.is_none() {
                 return Err(ForgeRefusal::NoKey);
@@ -231,7 +266,6 @@ fn make(
                         playground: false,
                         org: first.org.clone(),
                         repository: first.repository.clone(),
-                        project: first.project.clone(),
                         label: first.label.clone(),
                     })
                 }
@@ -241,7 +275,7 @@ fn make(
     };
     let read_only = match how {
         crate::How::GitHubApp { read_only, .. } => *read_only,
-        crate::How::GitHubManifest { .. } | crate::How::ForgejoAdmin { .. } => false,
+        crate::How::GitHubManifest { .. } | crate::How::ForgejoAdmin { .. } | crate::How::ForgejoTokens => false,
     };
     match crate::forges::make(
         d,
@@ -262,6 +296,9 @@ fn make(
 
 fn send(d: &mut Domain, request: Token, forge: u16, ask: Ask, carried: Option<Carried>, out: &mut Queue<Request>) {
     match ask {
+        Ask::Replace { .. } | Ask::Connect { how: crate::How::ForgejoTokens, .. } => {
+            unreachable!("tokens and Replace use their own admission")
+        }
         Ask::Connect { how: how @ crate::How::GitHubApp { read_only, .. }, .. } => {
             if let Some(record) = d.record(forge)
                 && record.read_only != read_only
@@ -272,7 +309,7 @@ fn send(d: &mut Domain, request: Token, forge: u16, ask: Ask, carried: Option<Ca
                 out.push(Request::ForgeKept(record));
             }
             let carried = carried.expect("admitted key");
-            d.connect.running.insert(forge, (request, Some(carried))).expect("room checked");
+            d.connect.running.insert(forge, (request, Some(carried), RunKind::App)).expect("room checked");
             d.connections.insert(forge, (Connection::Connecting, None)).expect("configured forge");
             out.push(Request::MarkedForges);
             out.push(Request::Connect { forge, request, how, carried });
@@ -281,21 +318,21 @@ fn send(d: &mut Domain, request: Token, forge: u16, ask: Ask, carried: Option<Ca
             if let Some(value) = carried {
                 out.push(Request::CarriedUnused { number: value.number });
             }
-            d.connect.running.insert(forge, (request, None)).expect("room checked");
+            d.connect.running.insert(forge, (request, None, RunKind::App)).expect("room checked");
             out.push(Request::Manifest { forge, request, back });
         }
         Ask::Accept { installation, .. } => {
             if let Some(value) = carried {
                 out.push(Request::CarriedUnused { number: value.number });
             }
-            d.connect.running.insert(forge, (request, None)).expect("room checked");
+            d.connect.running.insert(forge, (request, None, RunKind::App)).expect("room checked");
             out.push(Request::Accept { forge, request, installation });
         }
         Ask::Install { back, .. } => {
             if let Some(value) = carried {
                 out.push(Request::CarriedUnused { number: value.number });
             }
-            d.connect.running.insert(forge, (request, None)).expect("room checked");
+            d.connect.running.insert(forge, (request, None, RunKind::App)).expect("room checked");
             out.push(Request::Install { forge, request, back });
         }
         Ask::Connect { how: crate::How::ForgejoAdmin { .. }, .. }
@@ -316,7 +353,6 @@ fn with_intent(d: &Domain, forge: u16, how: crate::How) -> crate::How {
                     Some(first) => Some(crate::FirstAsk {
                         org: first.org.clone(),
                         repository: first.repository.clone(),
-                        project: first.project.clone(),
                         label: first.label.clone(),
                     }),
                     None => None,
@@ -327,9 +363,80 @@ fn with_intent(d: &Domain, forge: u16, how: crate::How) -> crate::How {
         }
         how @ (crate::How::ForgejoAdmin { first: Some(_) }
         | crate::How::GitHubApp { .. }
-        | crate::How::GitHubManifest { .. }) => how,
+        | crate::How::GitHubManifest { .. }
+        | crate::How::ForgejoTokens) => how,
     }
 }
+/// Tokens and replacement preserve the connection until their run finishes (temper/docs/design/protocol/forge.md, 2.2).
+#[expect(clippy::too_many_arguments, reason = "the admitted request and its caller travel together")]
+fn tokens_or_replace(
+    d: &mut Domain,
+    request: Token,
+    token: Token,
+    forge: u16,
+    kind: RunKind,
+    role: Option<Role>,
+    carried: Option<Carried>,
+    out: &mut Queue<Request>,
+) {
+    let config = d.configured.get(&forge);
+    let previous = d.connection(forge);
+    let (occupied, replaceable) = match &previous {
+        Connection::Connected { .. } => (true, true),
+        Connection::Stopped { .. } => (false, true),
+        Connection::Connecting | Connection::SettingUp { .. } => (true, false),
+        Connection::NotConnected | Connection::NotSetUp | Connection::SetUpFailed { .. } => (false, false),
+    };
+    let takes = match config {
+        Some(config) => match config.kind {
+            crate::Kind::Forgejo => config.mode == crate::Mode::Connected,
+            crate::Kind::GitHub => kind == RunKind::Replace && config.mode != crate::Mode::Fake,
+        },
+        None => false,
+    };
+    let refusal = if role != Some(Role::Owner) {
+        Some(ForgeRefusal::Role)
+    } else if config.is_none() || d.forge_ended(forge) {
+        Some(ForgeRefusal::NoSuchForge)
+    } else if !takes {
+        Some(ForgeRefusal::NotTaken)
+    } else if kind == RunKind::Tokens && occupied {
+        Some(ForgeRefusal::Connected)
+    } else if d.connect.running.contains_key(&forge)
+        || previous == Connection::Connecting
+        || d.connect.pending.len() == d.connect.pending.capacity()
+        || d.connect.running.len() == d.connect.running.capacity()
+    {
+        Some(ForgeRefusal::Busy)
+    } else if kind == RunKind::Replace && !replaceable {
+        Some(ForgeRefusal::NotConnected)
+    } else if carried.is_none() {
+        Some(ForgeRefusal::NoKey)
+    } else {
+        None
+    };
+    if let Some(why) = refusal {
+        refused(d, request, token, Answered::Connect(ConnectAnswer::Refused(why)), carried, out);
+        return;
+    }
+    let carried = carried.expect("admitted carried value");
+    d.ended.remove(&forge);
+    d.connect.pending.insert(request, token).expect("room checked");
+    d.connect.running.insert(forge, (request, Some(carried), kind)).expect("room checked");
+    let failed = match d.connections.get(&forge) {
+        Some((_, failed)) => *failed,
+        None => None,
+    };
+    d.connect.previous.insert(forge, (previous, failed)).expect("one previous connection per running connect");
+    d.connections.insert(forge, (Connection::Connecting, None)).expect("configured forge");
+    out.push(Request::MarkedForges);
+    if kind == RunKind::Replace {
+        out.push(Request::Replace { forge, request, carried });
+    } else {
+        out.push(Request::Connect { forge, request, how: crate::How::ForgejoTokens, carried });
+    }
+}
+
 /// Admission for the string-managed Forgejo form (client/README.md, 8).
 #[expect(clippy::too_many_arguments, reason = "the admitted request and its caller travel together")]
 fn admin(
@@ -342,6 +449,10 @@ fn admin(
     carried: Option<Carried>,
     out: &mut Queue<Request>,
 ) {
+    if let crate::How::ForgejoTokens = how {
+        refused(d, request, token, Answered::Connect(ConnectAnswer::Refused(ForgeRefusal::NotTaken)), carried, out);
+        return;
+    }
     let how = with_intent(d, forge, how);
     let previous = d.connection(forge);
     let config = d.configured.get(&forge);
@@ -387,7 +498,7 @@ fn admin(
     let carried = carried.expect("admitted admin token");
     d.ended.remove(&forge);
     d.connect.pending.insert(request, token).expect("room checked");
-    d.connect.running.insert(forge, (request, Some(carried))).expect("room checked");
+    d.connect.running.insert(forge, (request, Some(carried), RunKind::Admin)).expect("room checked");
     let failed = match d.connections.get(&forge) {
         Some((_, failed)) => *failed,
         None => None,
@@ -404,7 +515,6 @@ fn admin(
                         playground: false,
                         org: first.org.clone(),
                         repository: first.repository.clone(),
-                        project: first.project.clone(),
                         state: crate::FirstState::Making,
                         label: first.label.clone(),
                     },
@@ -425,7 +535,6 @@ fn keep_first(d: &mut Domain, forge: u16, out: &mut Queue<Request>) {
                 playground: first.playground,
                 org: first.org.clone(),
                 repository: first.repository.clone(),
-                project: first.project.clone(),
                 label: first.label.clone(),
             }),
             None => None,
@@ -435,19 +544,34 @@ fn keep_first(d: &mut Domain, forge: u16, out: &mut Queue<Request>) {
         }
     }
 }
+/// Keep the user found by Check (temper/docs/design/protocol/forge.md, 2.2).
+pub(crate) fn bot_login(d: &mut Domain, forge: u16, login: Box<[u8]>, out: &mut Queue<Request>) {
+    if login.is_empty() || login.len() > 255 || d.forge_ended(forge) {
+        return;
+    }
+    let Some(record) = d.record(forge) else { return };
+    if record.kind != crate::Kind::Forgejo || record.mode != crate::Mode::Connected || record.bot.login == login {
+        return;
+    }
+    let mut record = record.clone();
+    record.bot.login = login;
+    crate::forges::save(d, record.clone(), out);
+    out.push(Request::ForgeKept(record));
+}
+
 pub(crate) fn connected(d: &mut Domain, forge: u16, request: Token, answer: ConnectAnswer, out: &mut Queue<Request>) {
     if let Some(token) = d.connect.pending.remove(&request) {
         if let ConnectAnswer::Link(_) = &answer
-            && let Some((held, _)) = d.connect.running.get(&forge)
+            && let Some((held, _, _)) = d.connect.running.get(&forge)
             && *held == request
         {
             d.connect.running.remove(&forge);
         }
         if let ConnectAnswer::Refused(_) = answer
-            && let Some((held, _)) = d.connect.running.get(&forge)
+            && let Some((held, _, _)) = d.connect.running.get(&forge)
             && *held == request
         {
-            if let Some((_, Some(carried))) = d.connect.running.remove(&forge) {
+            if let Some((_, Some(carried), _)) = d.connect.running.remove(&forge) {
                 out.push(Request::CarriedUnused { number: carried.number });
             }
             let (previous, failed) = d.connect.previous.remove(&forge).unwrap_or((Connection::NotConnected, None));
@@ -466,7 +590,7 @@ pub(crate) fn installed(
     out: &mut Queue<Request>,
 ) {
     if let Some(token) = d.connect.pending.remove(&request) {
-        if let Some((held, _)) = d.connect.running.get(&forge)
+        if let Some((held, _, _)) = d.connect.running.get(&forge)
             && *held == request
         {
             d.connect.running.remove(&forge);
@@ -486,7 +610,7 @@ pub(crate) fn accepted(
     out: &mut Queue<Request>,
 ) {
     if let Some(token) = d.connect.pending.remove(&request) {
-        if let Some((held, _)) = d.connect.running.get(&forge)
+        if let Some((held, _, _)) = d.connect.running.get(&forge)
             && *held == request
         {
             d.connect.running.remove(&forge);
@@ -506,17 +630,18 @@ pub(crate) fn ended(
     stop: Option<crate::AdminStop>,
     out: &mut Queue<Request>,
 ) {
-    if let Some((held, _)) = d.connect.running.get(&forge)
+    if let Some((held, _, _)) = d.connect.running.get(&forge)
         && *held == request
     {
-        if let Some((_, Some(carried))) = d.connect.running.remove(&forge) {
+        let (_, carried, kind) = d.connect.running.remove(&forge).expect("matching run");
+        if let Some(carried) = carried {
             out.push(Request::EraseCarried { number: carried.number });
         }
-        let admin = d.connect.previous.contains_key(&forge);
+        let admin = kind == RunKind::Admin;
         if connected {
             d.connect.previous.remove(&forge);
         }
-        if connected && !admin {
+        if connected && !admin && d.configured.get(&forge).expect("running forge").kind == crate::Kind::GitHub {
             d.apps.insert(forge, crate::AppWay::Pasted).expect("configured forge App way");
             out.push(Request::MarkedForges);
         }

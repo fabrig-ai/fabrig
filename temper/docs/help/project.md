@@ -26,17 +26,21 @@ A project is where work happens: the repositories adopted into it, one of them i
 
 ## How it changes
 
-- **Made:** `temper init` makes project 1, `Project 1`. Setting up the
-  box's Forgejo, or connecting a Forgejo with a first repository, makes
-  a new project, named after the repository, unless you name one that
-  exists; the playground's start makes `Playground`. A new project's
-  policy is a copy of policy 1 as it is then.
+- **Made:** `temper init` makes none. Setting up the box's Forgejo,
+  or connecting a Forgejo with a first repository, makes a new
+  project, named after the repository, unless you name one that
+  exists; the playground's start makes `Demo`. In the client, the
+  welcome's Ready makes `Default`, and the banner's project switcher
+  makes one by the name you give it. A new project's policy is a copy
+  of policy 1 as it is then.
+- **Renamed:** its owners rename it in place from the banner's project
+  switcher; the new name shows wherever the project's does.
 - **Given repositories:** `repository adopt` adopts one into a project
   that exists; the first one adopted becomes its home unless the
   adoption says otherwise.
 - **Deleted:** its owners delete it with Delete on its settings in the
   client, confirmed by its name; the playground's reset deletes
-  `Playground`. It takes no new work at once and leaves every list;
+  `Demo`. It takes no new work at once and leaves every list;
   its live tasks are cancelled, then erased, its own settings and roles
   with them, and its repositories leave it. Its name is free again; its
   number is never given again.

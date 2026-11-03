@@ -17,15 +17,16 @@ A settings file, as `settings apply` and `settings propose` read it.
 One setting, and what becomes of it: `setting`, then exactly one of `set` and `edit`.
 
 - `setting`: `setting`. The setting the item changes.
-- `set`: the setting's kind's value: `charter`, `template`, `policy` or `rules`. Its new value, whole, which replaces the one before.
+- `set`: the setting's kind's value: `charter`, `template`, `policy`, `rules`, `landing-rule` or `forge-charter`. Its new value, whole, which replaces the one before.
 - `edit`: `"removed"` or `"reset"`. What becomes of the setting, in place of a value. `"removed"`: No longer offered, its default included; the rules cannot be removed. `"reset"`: Its change erased, so that it follows its default again.
 
 ## setting
 
 Which setting: its kind and, but for the rules, its number.
 
-- `kind`: `"charter"`, `"template"`, `"policy"` or `"rules"`. The setting's kind.
+- `kind`: `"charter"`, `"template"`, `"policy"`, `"rules"`, `"landing-rule"` or `"forge-charter"`. The setting's kind.
 - `number`: integer, 0 to 4,294,967,295. The setting's number, from 1; left out for the rules.
+- `project`: integer, 0 to 4,294,967,295. For a landing rule alone, a project's number, from 1. Left out, the rule is the deployment's.
 
 ## charter
 
@@ -408,3 +409,48 @@ When a requirement is judged: a word, or an object with one member.
 A requirement judged from facts read before the effect.
 
 - `freshness`: nanoseconds. How old those facts may be.
+
+## landing-rule
+
+A landing rule for the deployment or one project. Its criteria apply to every landing it covers.
+
+- `pattern`: `landing-pattern`. The resources the rule covers: a forge's host, repository owner and name, then branch and its segments.
+- `enforce`: true or false. True makes each criterion a requirement every landing it covers must meet; false leaves them to the change procedure alone.
+- `ci`: true or false. CI must have passed at the change's head.
+- `up_to_date`: true or false. The change's head must contain its base's tip.
+- `gates`: list of at most 64, each `landing-gate`. The gates every change it covers asks for.
+- `approvals`: list of at most 64, each `landing-approval`. The distinct people holding each role who must approve the change by a forge review.
+
+## landing-gate
+
+A gate every change covered by the rule asks for: an agent's review, or a repository's check when it has no CI.
+
+- `number`: integer, 0 to 4,294,967,295. The agent review's or repository check's gate number.
+- `blocking`: true or false. Whether this gate must pass before the change lands.
+- `freshness`: `"exact"` or `"clean"`. At which later heads a verdict still counts. `"exact"`: The verdict counts at the head it was given at. `"clean"`: The verdict also counts at later heads reached by updates that merged cleanly.
+
+## landing-approval
+
+Distinct people holding a project role approve the change, each by a review on the forge.
+
+- `role`: integer, 0 to 4,294,967,295. A role in the project's policy whose people approve the change.
+- `people`: integer, 0 to 4,294,967,295. How many distinct people holding the role must approve the change.
+- `freshness`: `"exact"` or `"clean"`. At which later heads an approval still counts. `"exact"`: The verdict counts at the head it was given at. `"clean"`: The verdict also counts at later heads reached by updates that merged cleanly.
+
+## landing-pattern
+
+The resources the rule covers: the exact base segments, then an exact last segment or an open prefix and all below it.
+
+- `segments`: list of at most 9, each hex, at most 4,096 bytes. The exact base segments of the resources the rule covers.
+- `last`: `landing-last`. One more segment, equal to an exact value or beginning with an open value, with all below it.
+
+## landing-last
+
+The final resource segment, in the same hex form as a pattern's last segment.
+
+- `exact`: hex, at most 4,096 bytes. One last segment equal to these bytes.
+- `open`: hex, at most 4,096 bytes. A final segment beginning with these bytes, with all below it.
+
+## forge-charter
+
+An integer from 0 to 4,294,967,295: the charter's number. Setting 1 selects the change's charter; setting 2 selects its reviews'.

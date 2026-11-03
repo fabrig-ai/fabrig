@@ -41,8 +41,10 @@ fn an_override_sets_the_field_its_dotted_name_names() {
     assert_eq!(limits.forge_component.log_catch_up, Duration::from_secs(86_400));
     assert_eq!(limits.forge_component.log_pages, 10);
     assert_eq!(limits.forge_component.delivery_bytes, 1_048_576);
-    let rows: [(&[u8], u64); 14] = [
+    assert_eq!(limits.forge.change_policy.questions, 4);
+    let rows: [(&[u8], u64); 15] = [
         (b"forge.repositories", 3),
+        (b"forge.change_policy.questions", 7),
         (b"forge.client.calls", 5),
         (b"forge.client.settle_ms", 2_000),
         (b"checkout.remote_timeout_ms", 7_000),
@@ -61,6 +63,7 @@ fn an_override_sets_the_field_its_dotted_name_names() {
         assert_eq!(limits::apply(&mut limits, name, value), Ok(()), "{name:?}");
     }
     assert_eq!(limits.forge.repositories, 3);
+    assert_eq!(limits.forge.change_policy.questions, 7);
     assert_eq!(limits.forge.client.calls, 5);
     assert_eq!(limits.forge.client.settle, Duration::from_secs(2));
     assert_eq!(limits.checkout.remote_timeout, Duration::from_millis(7_000));
@@ -90,7 +93,8 @@ fn an_unknown_name_or_a_value_past_its_type_is_refused() {
         assert_eq!(limits, before, "{name:?}");
     }
     for (name, maximum) in [
-        (b"forges.log_origins".as_slice(), u64::from(u32::MAX)),
+        (b"forge.change_policy.questions".as_slice(), u64::from(u32::MAX)),
+        (b"forges.log_origins", u64::from(u32::MAX)),
         (b"forge_component.log_origins", u64::from(u32::MAX)),
         (b"forge_component.log_poll_ms", u64::MAX / 1_000_000),
         (b"forge_component.log_catch_up_ms", u64::MAX / 1_000_000),
@@ -475,7 +479,7 @@ fn secrets_schema_fits_the_small_page_ceiling() {
     const KEY_BYTES: u64 = 10;
     let (_, _, profile) = fixtures::store_limits();
     assert_eq!(v1::Stored::encoded_bound(&v1::CEILINGS), Some(APPLICATION_BYTES));
-    assert_eq!(profile.store.page.bytes, 1_606_795);
+    assert_eq!(profile.store.page.bytes, 1_606_863);
     assert!(APPLICATION_BYTES + KEY_BYTES < u64::from(profile.store.page.bytes));
 }
 

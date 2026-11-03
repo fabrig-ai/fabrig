@@ -43,7 +43,7 @@ fn model() -> SettingModel {
     let mut efforts = List::with_capacity(1);
     efforts.push(text(b"high")).expect("one effort");
     SettingModel {
-        dialect: 1,
+        dialect: 3,
         endpoint: 2,
         program: Some(text(b"runner")),
         name: text(b"model"),
@@ -224,7 +224,8 @@ pub fn settings_document() -> SettingsDocument {
                 setting,
                 name: if setting == Setting::Rules { None } else { Some(DocumentText::complete(text(b"name"))) },
                 follows: SettingFollows::Change,
-                last: 6,
+                last: Some(6),
+                application: None,
             })
             .expect("four settings");
     }

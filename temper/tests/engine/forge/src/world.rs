@@ -79,6 +79,7 @@ pub const LIMITS: top::Limits = top::Limits {
         repairs: 3,
         resolutions: 3,
         updates: 3,
+        questions: 4,
         stall: Duration::from_secs(30),
         gates: 8,
         clean_heads: 8,
@@ -872,6 +873,7 @@ impl World {
                 | top::Request::BoxRemove { .. }
                 | top::Request::SetUp { .. }
                 | top::Request::Connect { .. }
+                | top::Request::Replace { .. }
                 | top::Request::Reachable { .. }
                 | top::Request::Install { .. }
                 | top::Request::Accept { .. }
@@ -881,6 +883,7 @@ impl World {
                 | top::Request::Resource { .. }
                 | top::Request::Taken { .. }
                 | top::Request::Refused { .. }
+                | top::Request::ResourceRefused { .. }
                 | top::Request::LostReadFailed { .. }
                 | top::Request::MakeFailed { .. }
                 | top::Request::Outcome { .. }
@@ -892,6 +895,7 @@ impl World {
                 | top::Request::ProjectReleased { .. }
                 | top::Request::Retained { .. }
                 | top::Request::ReleaseFailed { .. }
+                | top::Request::StepDependents { .. }
                 | top::Request::WakeProcedure { .. }
                 | top::Request::ProjectAfter { .. }
                 | top::Request::ProjectionSettled { .. }
@@ -1014,6 +1018,7 @@ fn key(row: &top::Stored) -> top::Key {
         }),
         top::Stored::Change(row) => top::Key::Change(row.task),
         top::Stored::Issue(row) => top::Key::Issue(row.goal),
+        top::Stored::Setting(row) => top::Key::Setting(row.key),
         top::Stored::Binding { address, .. } => top::Key::Binding(address.clone()),
         top::Stored::Flight { task, entry } => top::Key::Flight { task: *task, entry: *entry },
         top::Stored::Release(row) => top::Key::Release(row.task),
@@ -1149,7 +1154,6 @@ mod records {
                     playground: false,
                     org: b"org".as_slice().into(),
                     repository: b"repo".as_slice().into(),
-                    project: top::SetUpProject::Existing(5),
                     label: b"Work".as_slice().into(),
                 }),
             };

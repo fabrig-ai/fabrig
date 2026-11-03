@@ -71,8 +71,8 @@ fn invalid(to: ReplyTo, problem: Problem) -> engine::Event {
         answer: core::SettledAnswer::Host { error: true, body },
     })
 }
-pub(crate) fn render(to: ReplyTo, answer: &engine::CallAnswer, max_bytes: u32) -> engine::Event {
-    let (body, error) = temper_engine_smith::answer_bounded(answer, max_bytes).into_parts();
+pub(crate) fn render(to: ReplyTo, answer: &engine::CallAnswer, tool: &[u8], max_bytes: u32) -> engine::Event {
+    let (body, error) = temper_engine_smith::answer_for_tool(answer, tool, max_bytes).into_parts();
     engine::Event::Worker(engine::WorkerInput::RenderedHostCall {
         to,
         answer: core::SettledAnswer::Host { error, body },

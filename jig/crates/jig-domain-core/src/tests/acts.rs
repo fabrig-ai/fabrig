@@ -199,7 +199,7 @@ fn an_amendment_uses_live_pool_and_remaining_task_facts_and_preserves_narrowing(
     assert_eq!(budget_left, 400);
     assert_eq!(authority.ceiling.spend, 500);
     assert_eq!(ceiling.ceiling.spend, 600);
-    assert_eq!(authority.tasks, core.tasks.delegation(1).unwrap().tasks_left);
+    assert_eq!(authority.tasks, core.authority.role(1, 0).unwrap().authority.delegation.tasks);
     assert_eq!(beyond, Beyond::Proposed { to: policy_holder(&[0]) });
     let mut after = core.tasks.task(1).unwrap().authority.clone();
     after.budget.spend = 550;
@@ -1137,4 +1137,48 @@ fn person_task_flight(core: &mut Core, token: Token) -> Option<PersonTaskRoute> 
     }
     let flight::Flight::PersonTask { route, .. } = core.land(found?.token())? else { return None };
     Some(route)
+}
+
+#[test]
+fn a_party_can_replace_a_tasks_lifetime_allowance_within_its_roles_authority() {
+    let (mut core, limits) = core();
+    policy(&mut core, true, 1000);
+    make_task(&mut core, &limits, 1);
+    send_task(
+        &mut core,
+        &limits,
+        tasks::Event::CarvePool {
+            reply_to: ReplyTo::new(Token::new(2)),
+            project: 1,
+            person: 1,
+            period: 1,
+            budget: 600,
+        },
+    );
+    let mut after = core.tasks.task(1).unwrap().authority.clone();
+    after.delegation.tasks = core.authority.role(1, 0).unwrap().authority.delegation.tasks;
+    assert!(after.delegation.tasks > core.tasks.delegation(1).unwrap().tasks_left);
+    let mut change = tasks::Amendment { authority: Some(after), ..fixtures::unchanged(b"") };
+    assert_eq!(
+        core.amend_admit(
+            compound::PartyTask { person: 1, role: Some(people::Role::Owner), project: 1, task: 1 },
+            &change,
+            limits.tasks.depth,
+            &limits.tasks
+        ),
+        Ok(false)
+    );
+    change.authority.as_mut().unwrap().delegation.tasks += 1;
+    assert_eq!(
+        core.amend_admit(
+            compound::PartyTask { person: 1, role: Some(people::Role::Owner), project: 1, task: 1 },
+            &change,
+            limits.tasks.depth,
+            &limits.tasks
+        ),
+        Err(people::Refusal::Authority {
+            lacking: people::Lack::Tasks { left: core.authority.role(1, 0).unwrap().authority.delegation.tasks },
+            proposable: Some(people::Accepter::Role(0)),
+        })
+    );
 }

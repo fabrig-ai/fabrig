@@ -259,7 +259,7 @@ fn authority_value(spend: u64, kinds: Box<[authority::Executor]>) -> authority::
 #[must_use]
 pub fn scripted_model() -> core::Model {
     core::Model {
-        dialect: 1,
+        dialect: 3,
         endpoint: 1,
         program: None,
         name: b"scripted".as_slice().into(),
@@ -328,6 +328,7 @@ pub fn config(seed: u64) -> root::Config {
         second,
         core: core::Config {
             jobs: Box::new([]),
+            kept_starts: Box::new([]),
             worker_names: Box::new([b"alpha".as_slice().into(), b"beta".as_slice().into()]),
             deployment: [31; 16],
             seed,
@@ -371,6 +372,7 @@ pub fn config(seed: u64) -> root::Config {
                     }]),
                 },
             },
+            kinds: Box::default(),
             defaults: core::settings::Defaults {
                 charters: Box::new([core::Charter {
                     wake: jig_domain_tasks::WakePolicy::DEFAULT,

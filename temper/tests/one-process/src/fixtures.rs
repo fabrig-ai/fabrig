@@ -132,7 +132,7 @@ pub(crate) fn world_document() -> serde_json::Value {
     value["application"] = serde_json::json!({
         "webhooks":{"listener":{"socket":"127.0.0.1:0"}},
 "clients":{"listener":{"socket":CLIENTS.to_string()},"public":null,"bundle":null},
-        "machine":{},"demo":null,"sign_in":null,"landing":{"deployment":[],"projects":[]},"charter":1,
+        "machine":{},"demo":null,"sign_in":null,
         "limits":{"profile":"small","overrides":{"checkout.name_bytes":256,"checkout.repositories":2,"checkout.message_bytes":4096,"forge.name_bytes":64,"forge.resources_per_task":2,"git_component.stdout_bytes":2048}},
         "workers":[{"root":"worker","git":"/usr/bin/git"}]});
     crate::settings::stage_policies(&mut value);
@@ -154,8 +154,8 @@ pub(crate) fn world_document() -> serde_json::Value {
         for (name, count) in [
             ("core.policy_bytes", 4096),
             ("authority.grants", 16),
-            ("authority.executors", 6),
-            ("tasks.executor_kinds", 6),
+            ("authority.executors", 8),
+            ("tasks.executor_kinds", 8),
             ("notes.scopes", 32),
         ] {
             value["engine"]["limits"]["overrides"][name] = count.into();
@@ -288,7 +288,6 @@ pub(crate) fn agent_configuration() -> smith_agent_service::Config {
             destination,
             connect: Duration::from_secs(1),
             handshake: Duration::from_secs(1),
-            identity: smith_protocol_llm::IdentityProfile::Plain,
             models: Box::default(),
         }]),
         1,
@@ -372,7 +371,7 @@ pub(crate) fn scripted_provider(scripts: Box<[skein_fake_llm_domain::api::Script
             headers: Box::new([]),
             without_credential: false,
         },
-        skein_llm::Credential { value: channel::KEY.into(), scheme: skein_llm::Scheme::Key, account_id: Box::new([]) },
+        skein_llm::Credential::key(channel::KEY.into()),
         protocol,
         skein_fake_llm_domain::Domain::try_scripted(&config, 17, scripts).expect("bounded provider scripts"),
         config,

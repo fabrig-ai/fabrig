@@ -817,15 +817,67 @@ fn the_persons_answer_reaches_the_asking_task() {
 }
 
 #[test]
+fn a_question_to_a_persons_tracked_task_is_the_tasks_to_answer() {
+    let seed = 815;
+    let (configuration, limits) = jig_core_world::faults::plan_fixture(seed);
+    let creating = jig_test_profile::fixtures::Creating::new(&configuration.core, limits.core.tasks.tree_tasks);
+    let people::Ask::Create { project, mut batch } =
+        jig_test_profile::fixtures::create_chat(&creating, 1, 0, b"coordinate work".as_slice().into())
+    else {
+        panic!("task creation")
+    };
+    batch[0].flags.conversation = false;
+    batch[0].flags.listed = true;
+    batch[0].tracked = Some(1);
+    let mut world = jig_core_world::world::World::new(Setup {
+        seed,
+        configuration: Some(configuration),
+        limits,
+        initial: Some(people::Ask::Create { project, batch }),
+        startup: Some(enable_person_answers),
+        ..Setup::default()
+    });
+    world.reads = Some(jig_core_world::reads::Parties::new(world.store.applied));
+    let task = chat_task(&world);
+    let row = live_task(&world, task);
+    assert_eq!(row.requester, tasks::Party::Person(1));
+    assert_eq!(row.tracked, Some(1));
+    assert!(!row.flags.conversation);
+    let member = jig_core_world::fixtures::member(&world, tasks::Executor::Agent { charter: 1 }, b"ask the task");
+    let key = run_key(&world, task, 1);
+    let child = jig_core_world::fixtures::delegate(&mut world, (task, key.attempt), 1, member);
+    let question = message(&mut world, child, task, 1, tasks::MessageKind::Question, b"proceed?");
+    assert_eq!(live_task(&world, child).questions[0].answerer, tasks::Party::Task(task));
+    ask(
+        &mut world,
+        911,
+        reads::Read::Inbox {
+            group: reads::Group::Questions,
+            filter: reads::Filter { project: Some(1), goal: None },
+            from: None,
+        },
+    );
+    let reads::Answer::Page(page) = latest(&world) else { panic!("questions inbox") };
+    assert!(page.rows.is_empty());
+    let answer = reply(&mut world, task, child, question, 2);
+    let row = live_task(&world, child);
+    assert!(row.questions.is_empty());
+    assert!(row.inbox.iter().any(|word| word.number == answer
+        && word.from == tasks::Party::Task(task)
+        && word.kind == tasks::MessageKind::Answer { question }
+        && word.words.as_ref() == b"answer"));
+}
+
+#[test]
 fn a_task_answering_for_its_person_is_refused_by_name() {
     let (mut world, director) = question_world_with_switch(812, None, None, true);
     let delegate = chat_task(&world);
     let question = question(&mut world, director, 1);
     let input = format!(r#"{{"target":{delegate},"form":"answer","question":{question},"words":"proceed"}}"#);
     let key = run_key(&world, director, 2);
-    let name = smith_channel::v5::CallName::new(
-        &smith_channel::v5::CEILINGS,
-        smith_channel::v5::CallNameParts { activation: key.attempt, completion: key.completion, position: 0 },
+    let name = smith_channel::CallName::new(
+        &smith_channel::CEILINGS,
+        smith_channel::CallNameParts { activation: key.attempt, completion: key.completion, position: 0 },
     )
     .expect("call name");
     let mut encoded = skein_lib::Writer::new(name.measure() as usize);

@@ -4,7 +4,7 @@
     "limits": {
       "profile": "small",
       "overrides": {
-        "authority.executors": 6,
+        "authority.executors": 8,
         "authority.grants": 14,
         "authority.segments": 8,
         "clients.exchanges": 12,
@@ -23,8 +23,9 @@
         "tasks.authority_grants": 14,
         "tasks.authority_segments": 8,
         "tasks.batch": 1,
-        "tasks.contract_choices": 2,
-        "tasks.executor_kinds": 6,
+        "tasks.charters": 8,
+        "tasks.contract_choices": 4,
+        "tasks.executor_kinds": 8,
         "tasks.hold_segments": 8,
         "tasks.inbox_bytes": 12288,
         "tasks.parameters": 5,
@@ -166,12 +167,7 @@
       1
     ],
     "memory_bytes": 1073741824,
-    "projects": [
-      {
-        "number": 1,
-        "policy": 1
-      }
-    ]
+    "projects": []
   },
   "workers": [
     {
@@ -241,30 +237,6 @@
       },
       "github": null
     },
-    "landing": {
-      "deployment": [
-        {
-          "connector": 1,
-          "kind": 4,
-          "pattern": {
-            "segments": [
-              "forge"
-            ],
-            "last": "open",
-            "value": ""
-          },
-          "enforce": true,
-          "ci": true,
-          "up_to_date": true,
-          "gates": [
-            {"number": 1, "blocking": true, "freshness": "clean"}
-          ],
-          "approvals": []
-        }
-      ],
-      "projects": []
-    },
-    "charter": 2,
     "clients": {
       "listener": {
         "socket": "$listener"

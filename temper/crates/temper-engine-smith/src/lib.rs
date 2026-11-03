@@ -18,13 +18,14 @@ mod docs;
 mod finish;
 mod forge;
 mod json;
+pub mod kinds;
 mod nested;
 mod notes;
 mod reference;
 mod settings;
 mod start;
 
-pub use answers::{answer, answer_bounded};
+pub use answers::{answer, answer_bounded, answer_for_tool};
 pub use calls::{call, call_configured, tools};
 pub use finish::{ChangeResource, Terminal, result, turn};
 pub use reference::reference;
@@ -62,7 +63,7 @@ pub enum Decoded {
 /// (protocol/documentation.md, section 5).
 pub const DOC_ANSWER: u32 = 2_048;
 
-/// Smith channel v5's `CallName`: fixed-width activation (u64), completion
+/// Smith channel v6's `CallName`: fixed-width activation (u64), completion
 /// (u32), position (u32), with no record prefix or tail.
 pub const CALL_NAME_BYTES: u32 = 16;
 

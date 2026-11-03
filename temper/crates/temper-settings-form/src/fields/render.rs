@@ -34,10 +34,14 @@ fn write(forms: &[Form], fields: &[Field], limits: &Limits, out: &mut Text) {
         out.put(b"\n\n");
         if !form.line.is_empty() {
             out.put(form.line);
-            out.put(b"\n\n");
+            out.put(b"\n");
+            match form.choice {
+                Choice::Number => {}
+                Choice::Every | Choice::One { .. } => out.put(b"\n"),
+            }
         }
         match form.choice {
-            Choice::Every => {}
+            Choice::Every | Choice::Number => {}
             Choice::One { words } => {
                 for word in words {
                     out.put(b"- ");
@@ -133,7 +137,9 @@ fn value(value: &Value, forms: &[Form], limits: &Limits, out: &mut Text) {
             }
             unreachable!("nested shape has a form")
         }
-        Value::Setting => out.put(b"the setting's kind's value: `charter`, `template`, `policy` or `rules`"),
+        Value::Setting => out.put(
+            b"the setting's kind's value: `charter`, `template`, `policy`, `rules`, `landing-rule` or `forge-charter`",
+        ),
     }
 }
 fn number(value: u64, out: &mut Text) {

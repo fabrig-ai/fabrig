@@ -7,7 +7,7 @@ const ENGINE: &[u8] = br#"{
 "endpoints": [{
 "name": "fake",
 "number": 1,
-"dialect": 0,
+"dialect": 3,
 "provider": "fake-provider",
 "address": {"socket": "127.0.0.1:7101"},
 "transport": "plaintext",

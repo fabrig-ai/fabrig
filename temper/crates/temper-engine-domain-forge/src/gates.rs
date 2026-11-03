@@ -1,9 +1,7 @@
-//! Forge-owned landing gate templates and selection. The caller supplies the
-//! core's opaque required verdicts; this owner interprets gate parameters.
+//! Forge landing patterns and gate selection (temper/docs/design/domain/forge.md, 8.7).
 use crate::{Limits, Repository};
 use alloc::boxed::Box;
-use core::mem::size_of;
-use skein_lib::{List, Map};
+use skein_lib::List;
 use temper_engine_domain_forge_change as change;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -30,72 +28,6 @@ pub struct Requires {
     pub ci: bool,
     pub up_to_date: bool,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct GateTemplate {
-    pub pattern: GatePattern,
-    pub gates: Box<[GateCandidate]>,
-    pub requires: Requires,
-}
-#[derive(Debug)]
-pub struct GatePolicy {
-    pub deployment: Box<[GateTemplate]>,
-    pub projects: Map<u32, Box<[GateTemplate]>>,
-}
-impl GatePolicy {
-    #[must_use]
-    pub fn empty(projects: u32) -> Self {
-        Self { deployment: Box::new([]), projects: Map::with_capacity(projects) }
-    }
-}
-fn bytes(rules: &[GateTemplate]) -> Option<u64> {
-    let mut total = u64::try_from(rules.len()).ok()?.checked_mul(u64::try_from(size_of::<GateTemplate>()).ok()?)?;
-    for rule in rules {
-        total = total.checked_add(
-            u64::try_from(rule.pattern.segments.len())
-                .ok()?
-                .checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?,
-        )?;
-        for segment in &rule.pattern.segments {
-            total = total.checked_add(u64::try_from(segment.len()).ok()?)?;
-        }
-        total = total
-            .checked_add(match &rule.pattern.last {
-                GateLast::Exact(last) | GateLast::Open(last) => u64::try_from(last.len()).ok()?,
-            })?
-            .checked_add(
-                u64::try_from(rule.gates.len()).ok()?.checked_mul(u64::try_from(size_of::<GateCandidate>()).ok()?)?,
-            )?;
-    }
-    Some(total)
-}
-fn rules_within(rules: &[GateTemplate], limits: &Limits) -> bool {
-    if rules.len() > usize::try_from(limits.judge_criteria).expect("bounded criteria") {
-        return false;
-    }
-    if match bytes(rules) {
-        Some(bytes) => bytes > u64::from(limits.client.op_bytes),
-        None => true,
-    } {
-        return false;
-    }
-    for rule in rules {
-        if rule.gates.len() > usize::try_from(limits.change_policy.gates).expect("bounded gates") {
-            return false;
-        }
-    }
-    true
-}
-pub(crate) fn within(policy: &GatePolicy, limits: &Limits) -> bool {
-    if policy.projects.capacity() > limits.judge_projects || !rules_within(&policy.deployment, limits) {
-        return false;
-    }
-    for (_, rules) in &policy.projects {
-        if !rules_within(rules, limits) {
-            return false;
-        }
-    }
-    true
-}
 pub(crate) fn covers(pattern: &GatePattern, name: &[Box<[u8]>]) -> bool {
     if name.get(..pattern.segments.len()) != Some(pattern.segments.as_ref()) {
         return false;
@@ -109,50 +41,6 @@ pub(crate) fn covers(pattern: &GatePattern, name: &[Box<[u8]>]) -> bool {
             None => false,
         },
     }
-}
-pub(crate) fn requires(policy: &GatePolicy, project: u32, name: &[Box<[u8]>]) -> Requires {
-    let mut result = Requires { ci: false, up_to_date: false };
-    let mut covered = false;
-    let project_rules = match policy.projects.get(&project) {
-        Some(rules) => rules.as_ref(),
-        None => &[],
-    };
-    for rules in [policy.deployment.as_ref(), project_rules] {
-        for rule in rules {
-            if covers(&rule.pattern, name) {
-                covered = true;
-                result.ci |= rule.requires.ci;
-                result.up_to_date |= rule.requires.up_to_date;
-            }
-        }
-    }
-    if covered { result } else { Requires { ci: true, up_to_date: true } }
-}
-pub(crate) fn candidates(
-    policy: &GatePolicy,
-    limits: &Limits,
-    project: u32,
-    name: &[Box<[u8]>],
-) -> Option<Box<[GateCandidate]>> {
-    let mut result =
-        List::with_capacity(limits.judge_criteria.checked_mul(limits.change_policy.gates)?.checked_mul(2)?);
-    for rule in &policy.deployment {
-        if covers(&rule.pattern, name) {
-            for gate in &rule.gates {
-                result.push(*gate).ok()?;
-            }
-        }
-    }
-    if let Some(rules) = policy.projects.get(&project) {
-        for rule in rules.as_ref() {
-            if covers(&rule.pattern, name) {
-                for gate in &rule.gates {
-                    result.push(*gate).ok()?;
-                }
-            }
-        }
-    }
-    Some(result.into_boxed())
 }
 pub(crate) fn selected(
     limits: &Limits,

@@ -9,7 +9,7 @@ use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{List, Queue, Token, Wall};
 
-use crate::{Core, Family, fresh, translate};
+use crate::{Core, Family, fresh, settings, translate};
 
 /// Core-authorized task identity and funding for one connector repair.
 #[derive(Debug)]
@@ -102,8 +102,18 @@ pub enum EffectRefusal {
 }
 
 /// A connector's answer in jig's vocabulary, after root translation.
+/// Application settings: jig/docs/design/domain/engine.md, 17.5;
+/// jig/docs/design/domain/connectors.md, section 17.
 #[derive(Debug)]
 pub enum Event {
+    SettingsJudged {
+        owner: Token,
+        judged: Box<[Judged]>,
+    },
+    SettingsDefaults {
+        connector: u16,
+        defaults: Box<[DefaultState]>,
+    },
     Resource {
         project: u32,
         name: tasks::Name,
@@ -224,9 +234,59 @@ pub struct AdoptedParty {
     pub role: people::Role,
 }
 
+/// A connector's judgment of one item (jig/docs/design/domain/engine.md, 17.5;
+/// jig/docs/design/domain/connectors.md, section 17).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum Judged {
+    Accept { size: u32, charters: Box<[u32]> },
+    Same,
+    Refuse { why: Box<[u8]> },
+}
+
+/// A connector's default metadata (jig/docs/design/domain/engine.md, 17.5;
+/// jig/docs/design/domain/connectors.md, section 17).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct DefaultState {
+    pub kind: u32,
+    pub scope: u32,
+    pub number: u32,
+    pub size: u32,
+    pub charters: Box<[u32]>,
+    pub differs: bool,
+}
+
 /// What the core asks a numbered connector to do.
+/// Application settings: jig/docs/design/domain/engine.md, 17.5;
+/// jig/docs/design/domain/connectors.md, section 17.
 #[derive(Debug)]
 pub enum Ask {
+    /// Judge items in this decision, in their order, for the revision they would make.
+    JudgeSettings {
+        owner: Token,
+        revision: u64,
+        /// Accepted proposal whose kept values Set items name, with empty bytes.
+        proposal: Option<u64>,
+        items: Box<[settings::application::Item]>,
+    },
+    /// Keep committed changes in the same decision, taking a proposal's kept values when named.
+    KeepSettings {
+        revision: u64,
+        proposal: Option<u64>,
+        items: Box<[settings::application::Item]>,
+    },
+    /// Keep a proposal's values, checked against the kinds' bounds alone.
+    KeepProposalSettings {
+        proposal: u64,
+        items: Box<[settings::application::Item]>,
+    },
+    /// Erase the values of a withdrawn or rejected proposal.
+    DropProposalSettings {
+        proposal: u64,
+    },
+    /// Save defaults in the release's decision; none means no revision was needed.
+    SaveSettingsDefaults {
+        revision: Option<u64>,
+    },
     /// The live task names these resources.
     Names {
         task: u64,

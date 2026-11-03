@@ -7,9 +7,11 @@
   `Board { project }` with its reordering, and `Changes { project }`: no
   address in `temper-client-domain`'s `address.rs`. 3.5, 5.13, 10:
   `HowWorkRuns`, `Proposal { proposal }` and a proposal's card in a chat,
-  with their tests. 3.5, 4.6, 8: Replace and Forget, on the Forges page
-  and as the FORGE requests `Replace` and `Forget`: no such request in
-  `temper-client-protocol-wire`'s schema or in `temper-service`'s routing.
+  with their tests. 3.5, 4.6, 8: Forget, on the Forges page and as the FORGE
+  request `Forget`: no `forget` in `temper-client-protocol-wire`'s schema
+  or in `temper-service`'s routing.
+  4.4: the picker, which the adoption page does not draw
+  (`temper-client-view`'s `forge/page.rs`).
   5.5: a plan's first use, its card in the conversation. 3.5, 3.6, 10:
   Delete on a project's settings, confirmed by its name, and jig's
   `RemoveProject` by `shapes::remove_project`, with the chat
@@ -27,5 +29,13 @@
   `apps`), so a GitHub forge found unfinished after a restart offers
   "Start over" alone. The Model step showing an account added before
   as ready, where it shows `ConnectModel`'s Choose. 3.5, With no project
-  yet: its heading, words and acts; `pages/chats.rs` draws the list
-  alone.
+  yet: its heading, words and acts; `pages/chats.rs` draws the pane
+  alone, the new chat's bar with no status and the list under "Chats".
+- **Departs:** 3.5, With no project yet, and 5.3: with no project, the
+  banner's place for it reads "No project yet" followed by the new
+  project's form, "New project" and "Create" (`temper-client-view`'s
+  `frame.rs`, `switcher`), where 5.3 ends the switcher's list with that
+  form and 3.5 leaves the first project to the playground's start or
+  the welcome's Ready. The code records no reason; it lets a person make
+  "Default" before Ready, the case of the draft's open question
+  (`../draft/first-run-projects.status.md`).

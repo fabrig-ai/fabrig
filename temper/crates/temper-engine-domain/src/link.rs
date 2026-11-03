@@ -170,22 +170,23 @@ pub(crate) fn delivery(domain: &mut Domain, event: hub::Event) -> crate::Deliver
             crate::Delivery::Assigned { channel, assignment: assignment(domain, value) }
         }
         hub::Request::AssignedJob { channel, job } => {
-            let items = job.workspace;
-            let workspace = if items.is_some() {
+            let workspace = domain.job_workspaces.remove(&job.task);
+            assert_eq!(workspace.is_some(), job.workspace.is_some(), "prepared job items");
+            let host_workspace = if workspace.is_some() {
                 Some(host::Workspace { workstream: job.workstream, items: Token::new(job.task) })
             } else {
                 None
             };
             crate::Delivery::AssignedJob {
                 channel,
-                items,
+                workspace,
                 job: host::JobAssignment {
                     run: Token::new(job.task),
                     attempt: Token::new(job.attempt),
                     kind: job.kind,
                     spec: job.spec,
                     deadline: job.deadline,
-                    workspace,
+                    workspace: host_workspace,
                     grants: job.grants,
                 },
             }
@@ -235,6 +236,13 @@ fn decorate_answer(domain: &mut Domain, event: &mut core::Event) {
     let (task, attempt) = (run.raw(), attempt.raw());
     let parts = domain.answer_parts.get(payload).expect("worker answer has temper parts").clone();
     let Parts { saved, pushed, preparation } = if parts_within(&parts, &domain.limits) { parts } else { Parts::none() };
+    if let Some(crate::Preparation::Conflicted { tag, head }) = &preparation {
+        domain.work.push(Work::Forge(temper_engine_domain_forge::Event::StartConflicted {
+            child: task,
+            tag: *tag,
+            head: *head,
+        }));
+    }
     if let Some(preparation) = preparation
         && domain.facts.try_push(crate::Fact::PreparationFailed { task, attempt, preparation }).is_err()
     {

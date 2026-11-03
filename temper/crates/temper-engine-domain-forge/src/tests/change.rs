@@ -180,9 +180,11 @@ fn start_opening_kept(d: &mut Domain, task: u64, entry: u64, kept: bool) {
     outputs(
         d,
         Event::StepChange {
+            merge_job: false,
             task,
             entry,
             heard: change::Heard {
+                start_conflict: None,
                 lacking: None,
                 spend: None,
                 delegate: change::Status::Passed,
@@ -192,6 +194,7 @@ fn start_opening_kept(d: &mut Domain, task: u64, entry: u64, kept: bool) {
             },
             gates: Box::new([]),
             queue_repair_active: false,
+            pending: Box::new([]),
             kept,
         },
     );
@@ -693,7 +696,7 @@ fn projected_words(explicit_title: &[u8], words: &[u8]) -> skein_forge::api::Wri
     row.body = words.into();
     let registered = outputs(&mut d, Event::Change { row });
     for request in &registered {
-        if let Request::Refused { .. } = request {
+        if let Request::Refused { .. } | Request::ResourceRefused { .. } = request {
             panic!("change registration refused: {request:?}");
         }
     }

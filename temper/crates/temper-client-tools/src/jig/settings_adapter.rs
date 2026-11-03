@@ -478,6 +478,7 @@ pub fn form_revision_document(v: &c::RevisionDocument) -> n::RevisionDocument {
 
 pub fn form_revision_edit(v: &c::RevisionEdit) -> n::RevisionEdit {
     match v {
+        c::RevisionEdit::Application(x) => n::RevisionEdit::Application(form_sized_edit(x)),
         c::RevisionEdit::Set(x) => n::RevisionEdit::Set(form_setting_set(x)),
         c::RevisionEdit::TooLarge(x) => n::RevisionEdit::TooLarge(form_size(x)),
         c::RevisionEdit::Removed => n::RevisionEdit::Removed,
@@ -598,6 +599,7 @@ pub fn form_setting(v: c::Setting) -> n::Setting {
         c::Setting::Charter(x) => n::Setting::Charter(form_setting_number(x)),
         c::Setting::Template(x) => n::Setting::Template(form_setting_number(x)),
         c::Setting::Policy(x) => n::Setting::Policy(form_setting_number(x)),
+        c::Setting::Application { kind, scope, number } => n::Setting::Application { kind, scope, number },
         c::Setting::Rules => n::Setting::Rules,
     }
 }
@@ -606,11 +608,28 @@ pub fn client_setting(v: n::Setting) -> c::Setting {
         n::Setting::Charter(x) => c::Setting::Charter(client_setting_number(x)),
         n::Setting::Template(x) => c::Setting::Template(client_setting_number(x)),
         n::Setting::Policy(x) => c::Setting::Policy(client_setting_number(x)),
+        n::Setting::Application { kind, scope, number } => c::Setting::Application { kind, scope, number },
         n::Setting::Rules => c::Setting::Rules,
     }
 }
+#[expect(clippy::manual_map, reason = "step translations match optional fields without closures")]
 pub fn form_setting_document(v: &c::SettingDocument) -> n::SettingDocument {
-    n::SettingDocument { setting: form_setting(v.setting), revision: v.revision, value: form_setting_value(&v.value) }
+    n::SettingDocument {
+        setting: form_setting(v.setting),
+        revision: v.revision,
+        value: match &v.value {
+            Some(v) => Some(form_setting_value(v)),
+            None => None,
+        },
+        application: match &v.application {
+            Some(v) => Some(form_application_state(v)),
+            None => None,
+        },
+        proposed: match &v.proposed {
+            Some(v) => Some(form_sized_edit(v)),
+            None => None,
+        },
+    }
 }
 
 pub fn client_setting_edit(v: &n::SettingEdit) -> c::SettingEdit {
@@ -628,6 +647,7 @@ pub fn form_setting_fault(v: c::SettingFault) -> n::SettingFault {
         c::SettingFault::Rules => n::SettingFault::Rules,
         c::SettingFault::Budget => n::SettingFault::Budget,
         c::SettingFault::Grace => n::SettingFault::Grace,
+        c::SettingFault::Judged => n::SettingFault::Judged,
         c::SettingFault::Owner => n::SettingFault::Owner,
     }
 }
@@ -657,12 +677,17 @@ pub fn client_setting_hosts(v: &n::SettingHosts) -> c::SettingHosts {
 pub fn client_setting_item(v: &n::SettingItem) -> c::SettingItem {
     c::SettingItem { setting: client_setting(v.setting), edit: client_setting_edit(&v.edit) }
 }
+#[expect(clippy::manual_map, reason = "step translations match optional fields without closures")]
 pub fn form_setting_line(v: &c::SettingLine) -> n::SettingLine {
     n::SettingLine {
         setting: form_setting(v.setting),
         name: form_optional_document_text(v.name.as_ref()),
         follows: form_setting_follows(&v.follows),
         last: v.last,
+        application: match &v.application {
+            Some(v) => Some(form_application_state(v)),
+            None => None,
+        },
     }
 }
 
@@ -810,6 +835,7 @@ pub fn client_setting_set(v: &n::SettingSet) -> c::SettingSet {
 }
 pub fn form_setting_value(v: &c::SettingValue) -> n::SettingValue {
     match v {
+        c::SettingValue::Application(x) => n::SettingValue::Application(x.clone()),
         c::SettingValue::Charter(x) => n::SettingValue::Charter(Box::new(form_charter(x))),
         c::SettingValue::Template(x) => n::SettingValue::Template(Box::new(form_template(x))),
         c::SettingValue::Policy(x) => n::SettingValue::Policy(Box::new(form_setting_policy(x))),
@@ -818,6 +844,7 @@ pub fn form_setting_value(v: &c::SettingValue) -> n::SettingValue {
 }
 pub fn client_setting_value(v: &n::SettingValue) -> c::SettingValue {
     match v {
+        n::SettingValue::Application(x) => c::SettingValue::Application(x.clone()),
         n::SettingValue::Charter(x) => c::SettingValue::Charter(Box::new(client_charter(x))),
         n::SettingValue::Template(x) => c::SettingValue::Template(Box::new(client_template(x))),
         n::SettingValue::Policy(x) => c::SettingValue::Policy(Box::new(client_setting_policy(x))),
@@ -1138,6 +1165,7 @@ fn client_optional_template_deadline(v: Option<&n::TemplateDeadline>) -> Option<
 pub fn limits(v: &crate::jig::Limits) -> settings_form::Limits {
     settings_form::Limits {
         settings: v.settings,
+        kinds: settings_form::Limits::standard().kinds,
         ask_bytes: v.ask_bytes,
         result_bytes: v.result_bytes,
         text: v.text,
@@ -1219,5 +1247,24 @@ fn client_wake_rule(v: n::WakeRule) -> c::WakeRule {
         n::WakeRule::Immediate => c::WakeRule::Immediate,
         n::WakeRule::Batch { count, age } => c::WakeRule::Batch { count, age },
         n::WakeRule::Paced { span } => c::WakeRule::Paced { span },
+    }
+}
+
+fn form_sized_edit(v: &c::SizedEdit) -> n::SizedEdit {
+    match v {
+        c::SizedEdit::Set { size } => n::SizedEdit::Set { size: *size },
+        c::SizedEdit::Remove => n::SizedEdit::Remove,
+        c::SizedEdit::Reset => n::SizedEdit::Reset,
+    }
+}
+fn form_application_state(v: &c::ApplicationState) -> n::ApplicationState {
+    n::ApplicationState {
+        follows: match v.follows {
+            c::ApplicationFollows::Default => n::ApplicationFollows::Default,
+            c::ApplicationFollows::Changed { revision } => n::ApplicationFollows::Changed { revision },
+            c::ApplicationFollows::Removed { revision } => n::ApplicationFollows::Removed { revision },
+        },
+        size: v.size,
+        charters: v.charters.clone(),
     }
 }

@@ -684,6 +684,7 @@ impl World {
                 | engine::Request::ResetAct { .. }
                 | engine::Request::BoxRemove { .. }
                 | engine::Request::Connect { .. }
+                | engine::Request::Replace { .. }
                 | engine::Request::Manifest { .. }
                 | engine::Request::Reachable { .. }
                 | engine::Request::Install { .. }
@@ -821,6 +822,7 @@ impl World {
             | Delivery::Link { .. }
             | Delivery::ForgeCall { .. }
             | Delivery::Bound { .. }
+            | Delivery::ForgeRead { .. }
             | Delivery::Read { .. }
             | Delivery::Document { .. }
             | Delivery::WatchEnded { .. }

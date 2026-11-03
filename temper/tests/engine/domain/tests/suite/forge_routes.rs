@@ -20,8 +20,19 @@ use temper_engine_domain_world::{protocol, walking};
 
 use temper_engine_forge_world::{self as forge_world, translate};
 
+#[path = "forge_routes/kind_charters.rs"]
+mod kind_charters;
+#[path = "forge_routes/resource_admission.rs"]
+mod resource_admission;
+
 #[path = "forge_routes/asks_no_one.rs"]
 mod asks_no_one;
+
+#[path = "forge_routes/questions.rs"]
+mod questions;
+
+#[path = "forge_routes/foremen.rs"]
+mod foremen;
 
 #[path = "forge_routes/flights.rs"]
 mod flights;
@@ -38,6 +49,12 @@ mod change_tool;
 #[path = "forge_routes/light_rules.rs"]
 mod light_rules;
 
+#[path = "forge_routes/catch_up.rs"]
+mod catch_up;
+
+#[path = "forge_routes/merge_job.rs"]
+mod merge_job;
+
 #[path = "forge_routes/plain_change.rs"]
 mod plain_change;
 
@@ -53,6 +70,12 @@ mod result;
 
 #[path = "forge_routes/tiers.rs"]
 mod tiers;
+
+#[path = "forge_routes/repairs.rs"]
+mod repairs;
+
+#[path = "forge_routes/goal_tier.rs"]
+mod goal_tier;
 
 #[path = "forge_routes/reviews.rs"]
 mod reviews;
@@ -72,6 +95,21 @@ mod goal_branch;
 #[path = "forge_routes/goal_changes.rs"]
 mod goal_changes;
 
+#[path = "forge_routes/change_producer.rs"]
+mod change_producer;
+
+#[path = "forge_routes/early_start.rs"]
+mod early_start;
+
+#[path = "forge_routes/goal_questions.rs"]
+mod goal_questions;
+
+#[path = "forge_routes/goal_landing.rs"]
+mod goal_landing;
+
+#[path = "forge_routes/goal_landing_held.rs"]
+mod goal_landing_held;
+
 #[path = "forge_routes/hints.rs"]
 mod hints;
 
@@ -80,6 +118,9 @@ mod ci_poll;
 
 #[path = "forge_routes/documents.rs"]
 mod documents;
+
+#[path = "forge_routes/goal_landing_title.rs"]
+mod goal_landing_title;
 
 #[test]
 #[expect(clippy::too_many_lines, reason = "one race follows the kept merge through refusal and Met to landing")]
@@ -540,7 +581,7 @@ fn a_change_to_a_repository_without_ci_lands_on_its_checks() {
 }
 
 #[test]
-fn an_owner_adds_a_branch_requirement_and_later_changes_wait_for_it() {
+fn a_projects_own_enforced_rule_holds_landing_for_its_gate() {
     check_gate_landing(false, true);
 }
 
@@ -584,7 +625,7 @@ fn check_gate_landing(no_ci: bool, owner_gate: bool) {
                 Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::Change(change)
                     if matches!(change.change.state, temper_engine_domain_forge_change::State::Landed { .. }))
             )),
-            "the owner-added review holds landing until its verdict"
+            "the project's rule holds landing until its verdict"
         );
     }
     assert!(
@@ -636,6 +677,15 @@ fn a_review_asking_for_changes_is_repaired_with_its_remarks_and_reviewed_again()
 #[test]
 fn a_failing_check_is_repaired_and_checked_again() {
     check_gate_repair(true);
+}
+
+fn assert_gate_repair_words(words: &[u8], kind: &str) {
+    let expected =
+        format!("Repair gate 1 ({kind}) at 975835de1c97: changes requested\nRepair the requested gate changes.");
+    let words = core::str::from_utf8(words).expect("repair instruction");
+    assert!(words.starts_with(&expected), "{words}");
+    assert!(words.contains("Preserve the requested change"), "{words}");
+    assert!(words.contains("do not remove content to make a check pass"), "{words}");
 }
 
 #[expect(clippy::too_many_lines, reason = "the check repair story spans both gate heads and their worker reports")]
@@ -696,9 +746,7 @@ fn check_gate_repair(no_ci: bool) {
     }
     let repair = world.assigned.get(3).expect("review repair assigned").clone();
     let kind = if no_ci { "check" } else { "review" };
-    let expected =
-        format!("Repair gate 1 ({kind}) at 975835de1c97: changes requested\nRepair the requested gate changes");
-    assert_eq!(live_task(&world, repair.task).spec.words.as_ref(), expected.as_bytes());
+    assert_gate_repair_words(&live_task(&world, repair.task).spec.words, kind);
     assert!(
         repair.sections.iter().any(|section| section.kind == engine::BriefKind::Forge(engine::ForgeBriefKind::Reviews)
             && matches!(&section.body, engine::BriefBody::Text(words)

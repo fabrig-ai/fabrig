@@ -368,6 +368,22 @@ fn forges(world: World) -> Box<[u8]> {
         .expect("forge row");
     }
     if let FirstRun { step: step @ (6..=9 | 23) } = world {
+        let mut repositories = List::with_capacity(1);
+        if step == 7 {
+            repositories
+                .push(
+                    w::Adoption::new(
+                        &limits,
+                        w::AdoptionParts {
+                            owner: b"work".as_slice().into(),
+                            name: b"hello".as_slice().into(),
+                            project: 2,
+                        },
+                    )
+                    .expect("first adoption"),
+                )
+                .expect("one repository");
+        }
         let connection = match step {
             9 => w::Connection::SetUpFailed(
                 w::SetUpFailed::new(
@@ -397,7 +413,7 @@ fn forges(world: World) -> Box<[u8]> {
                 w::ForgeRowParts {
                     number: 3,
                     kind: w::Kind::Forgejo,
-                    mode: if step == 23 { w::Mode::Connected } else { w::Mode::Owned },
+                    mode: if step == 23 { w::Mode::Managed } else { w::Mode::Owned },
                     connection,
                     offer: if step == 23 { w::Offer::NotOffered } else { w::Offer::Offered },
                     first: if step == 6 || step == 7 || step == 9 {
@@ -408,13 +424,6 @@ fn forges(world: World) -> Box<[u8]> {
                                     playground: false,
                                     org: b"work".as_slice().into(),
                                     repository: b"hello".as_slice().into(),
-                                    project: w::SetUpProject::Existing(
-                                        w::ExistingProject::new(
-                                            &limits,
-                                            w::ExistingProjectParts { project: if step == 7 { 2 } else { 1 } },
-                                        )
-                                        .expect("project"),
-                                    ),
                                     state: if step == 7 {
                                         w::FirstState::Made(
                                             w::Made::new(&limits, w::MadeParts { id: 42 }).expect("made"),
@@ -434,7 +443,7 @@ fn forges(world: World) -> Box<[u8]> {
                     ended: None,
                     app: None,
                     web: if step == 23 { Some(b"http://forgejo.test".as_slice().into()) } else { None },
-                    repositories: List::with_capacity(0),
+                    repositories,
                     owned: if step == 23 {
                         None
                     } else {
@@ -516,6 +525,15 @@ fn change_panel(w: World, task: u64) -> Option<temper_client_protocol_wire::v1::
                 repairs: w::Used::new(&l, w::UsedParts { used: 0, limit: 3 }).expect("repairs"),
                 resolutions: w::Used::new(&l, w::UsedParts { used: 0, limit: 3 }).expect("resolutions"),
                 updates: w::Used::new(&l, w::UsedParts { used: 0, limit: 3 }).expect("updates"),
+                questions: w::Questions::new(
+                    &w::CEILINGS,
+                    w::QuestionsParts {
+                        route: w::Route::None,
+                        taken: w::Used::new(&w::CEILINGS, w::UsedParts { used: 0, limit: 4 }).expect("question limit"),
+                        open: List::with_capacity(0),
+                    },
+                )
+                .expect("no questions"),
             },
         )
         .expect("change panel"),
@@ -2563,43 +2581,12 @@ fn adopt_owned_sample(root: &mut Domain, watch: Token, out: &mut Queue<Request>)
     step(
         root,
         Event::Act {
-            action: temper_client_domain::Action::Forge(temper_client_domain::forge::Act::SetUp { forge: 3 }),
+            action: temper_client_domain::Action::Forge(temper_client_domain::forge::Act::SetUpAtOnce { forge: 3 }),
         },
         out,
     );
     let attempt = sample_attempt(root, out);
     sample_forge_answer(root, attempt, w::Outcome::SettingUp, out);
-    // The first row is durable Made; the project's creation and Adopt follow it.
+    // The engine creates the project and adopts the repository before publishing Made.
     forges_watched(root, FirstRun { step: 7 }, watch, out);
-    let attempt = sample_attempt(root, out);
-    sample_answer(
-        root,
-        attempt,
-        jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::ProjectMade {
-            project: 2,
-        }))),
-        out,
-    );
-    let attempt = sample_attempt(root, out);
-    sample_forge_answer(
-        root,
-        attempt,
-        w::Outcome::Adopted(
-            w::Adopted::new(
-                &w::CEILINGS,
-                w::AdoptedParts {
-                    forge: 3,
-                    repository: 42,
-                    owner: b"work".as_slice().into(),
-                    name: b"hello".as_slice().into(),
-                    role: w::Role::Owned,
-                    home: true,
-                    kinds: w::Kinds::new(&w::CEILINGS, w::KindsParts { skein_bools: [true; 9] }).expect("sample kinds"),
-                    protection: w::Protection::Unknown,
-                },
-            )
-            .expect("sample adopted"),
-        ),
-        out,
-    );
 }

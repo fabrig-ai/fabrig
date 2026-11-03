@@ -1632,6 +1632,9 @@ mod bound_webhook;
 #[path = "setup_admin.rs"]
 mod admin_tests;
 
+#[path = "setup_tokens.rs"]
+mod tokens_tests;
+
 #[path = "setup_create.rs"]
 mod create_tests;
 
@@ -1988,7 +1991,6 @@ fn the_intent_comes_from_the_record_after_a_restart() {
             playground: true,
             org: b"kept-org".as_slice().into(),
             repository: b"kept-repository".as_slice().into(),
-            project: domain::SetUpProject::Existing(1),
             label: b"kept-label".as_slice().into(),
         });
         for _restart in 0_u32..2 {
@@ -2279,3 +2281,6 @@ fn fixture_fixed(
     let (settings, _) = layer.pending.unwrap();
     Ok((settings, layer.env.limits))
 }
+
+#[path = "setup_replace.rs"]
+mod replace_tests;

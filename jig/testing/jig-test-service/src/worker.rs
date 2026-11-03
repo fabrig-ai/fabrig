@@ -720,7 +720,6 @@ fn account(table: &Table, grant: &smith::Grant, now: Time) -> Option<smith_proto
     match grant.form {
         smith::Form::Program(name) => return Some(smith_protocol_channel::GrantValue::Program(name.as_bytes().into())),
         smith::Form::Credential(_) => {}
-        smith::Form::Withdrawn => return None,
     }
     let value = table.value(grant.account, grant.generation, now)?;
     let token = value.token.expose().into();

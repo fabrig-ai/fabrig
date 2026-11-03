@@ -15,6 +15,7 @@ pub const OUTPUTS_BOUND: u32 = 9;
 /// A connector's live working set and records.
 #[derive(Debug)]
 pub struct Domain {
+    pub(crate) settings: crate::settings::State,
     pub(crate) client_subjects: Map<Token, crate::ClientSubject>,
     pub(crate) application: crate::application::State,
     pub(crate) config: Config,
@@ -128,6 +129,7 @@ impl Domain {
             assert!(pools.insert(pool.path.clone(), pool.slots) == Ok(None), "pool paths are unique");
         }
         Domain {
+            settings: crate::settings::State::new(),
             application: crate::application::State::new(limits),
             client_subjects: Map::with_capacity(limits.values),
             config,
@@ -175,8 +177,22 @@ impl Domain {
 }
 
 /// One input from the root or the fake system.
+#[expect(clippy::too_many_lines, reason = "one exhaustive connector event dispatcher")]
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
+        Event::SettingsDefaults => crate::settings::defaults(domain, out),
+        Event::JudgeSettings { token, revision: _, proposal, items } => {
+            crate::settings::judge(domain, token, proposal, &items, out);
+        }
+        Event::KeepSettings { revision: _, proposal, items } => crate::settings::keep(domain, proposal, &items, out),
+        Event::KeepProposalSettings { proposal, items } => {
+            crate::settings::keep_proposal(domain, proposal, &items, out);
+        }
+        Event::DropProposalSettings { proposal } => crate::settings::drop_proposal(domain, proposal, out),
+        Event::SaveSettingsDefaults { revision: _ } => crate::settings::save_defaults(domain, out),
+        Event::ReadSetting { token, kind, scope, number } => {
+            out.push(Request::SettingValue { token, value: crate::settings::value(domain, (kind, scope, number)) });
+        }
         Event::DocumentPrepare { token, subject } => crate::client_documents::prepare(domain, token, subject),
         Event::DocumentForget { subject } => {
             domain.client_subjects.remove(&subject);
@@ -494,6 +510,15 @@ fn unsubscribe(domain: &mut Domain, task: u64, topic: u16, out: &mut Queue<Reque
 
 fn restore(domain: &mut Domain, record: Record, out: &mut Queue<Request>) {
     match record {
+        Record::SettingDefault { kind, scope, number, value } => {
+            crate::settings::restore_default(domain, (kind, scope, number), value, out);
+        }
+        Record::SettingChange { kind, scope, number, value } => {
+            crate::settings::restore_change(domain, (kind, scope, number), value, out);
+        }
+        Record::SettingProposal { proposal, kind, scope, number, edit } => {
+            crate::settings::restore_proposal(domain, proposal, (kind, scope, number), edit, out);
+        }
         Record::ApplicationObject { object, now } => domain.application.restore_object(object, now),
         Record::ApplicationAnswer { token, until, outcome } => domain.application.restore_answer(token, until, outcome),
         Record::Procedure(state) => {
@@ -601,6 +626,7 @@ fn report_adoption(domain: &Domain, project: u32, resource: &Path, out: &mut Que
 
 /// Release the connector's project rows (jig/docs/design/domain/people.md, 5.2).
 fn release_project(domain: &mut Domain, project: u32, out: &mut Queue<Request>) {
+    crate::settings::release_project(domain, project, out);
     // At most the configured adoption capacity is visited and erased.
     for _ in 0..domain.adoptions.len() {
         let mut next = None;

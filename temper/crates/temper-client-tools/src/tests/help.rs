@@ -11,14 +11,15 @@ const GOLDENS: &[(Option<u8>, &str)] = &[
     (Some(10), "help_chat_close"),
     (Some(16), "help_task_tree"),
     (Some(34), "help_forge_list"),
-    (Some(49), "help_change_show"),
-    (Some(56), "help_landing_show"),
-    (Some(57), "help_landing_list"),
+    (Some(50), "help_change_show"),
+    (Some(57), "help_landing_show"),
+    (Some(58), "help_landing_list"),
     (Some(20), "help_pending"),
     (Some(17), "help_repository_adopt"),
     (Some(31), "help_task_amend"),
     (Some(37), "help_forge_connect"),
-    (Some(38), "help_forge_install"),
+    (Some(38), "help_forge_replace"),
+    (Some(39), "help_forge_install"),
     (Some(jig::rows::EXPORT_AT), "help_account_export"),
     (Some(jig::rows::IMPORT_AT), "help_account_import"),
     (Some(jig::rows::SETTINGS_AT), "help_settings_show"),
@@ -62,7 +63,7 @@ const USAGES: &[&[u8]] = &[
     b"task activity TASK [--before CURSOR] [--limit COUNT]\n",
     b"task turn TASK TURN [--part PART] [--from OFFSET]\n",
     b"task run TASK [--since DIGEST] [--until CONDITION] [--timeout DURATION]\n",
-    b"chat start --project PROJECT [--template TEMPLATE] TEXT [--model MODEL] [--effort EFFORT] --key KEY\n",
+    b"chat start --project PROJECT [--template TEMPLATE] TEXT [--model MODEL] [--effort EFFORT] [--sub-agent MODEL[:EFFORT]]... --key KEY\n",
     b"task message TASK TEXT --key KEY\n",
     b"chat close TASK [--move TASK]... [--reason TEXT] --key KEY\n",
     b"task answer TASK QUESTION TEXT [--key KEY]\n",
@@ -85,19 +86,20 @@ const USAGES: &[&[u8]] = &[
     b"account forget ACCOUNT [--source sign_in|key|program] [--key KEY]\n",
     b"account rank ACCOUNT POSITION [--source sign_in|key|program] [--key KEY]\n",
     b"account retry ACCOUNT [--source sign_in|key|program] [--key KEY]\n",
-    b"task amend TASK [--rev REV] [--priority PRIORITY | --untracked] [--deadline TIME | --no-deadline] [--instructions FILE] [--spec FILE] [--dependency TASK]... [--no-dependencies] [--model MODEL [--effort EFFORT]] REASON [--key KEY]\n",
+    b"task amend TASK [--rev REV] [--priority PRIORITY | --untracked] [--deadline TIME | --no-deadline] [--instructions FILE] [--spec FILE] [--dependency TASK]... [--no-dependencies] [--model MODEL [--effort EFFORT]] [--tasks N] REASON [--key KEY]\n",
     b"account declare PROVIDER ADAPTER NAME [--account ACCOUNT] --key KEY\n",
     b"account verify ACCOUNT [--source sign_in|key|program] [--key KEY]\n",
     b"forge list [--since DIGEST] [--until CONDITION] [--timeout DURATION]\n",
     b"forge setup [FORGE] [--org ORG] [--repository REPOSITORY] [--project PROJECT] [--playground] [--key KEY]\n",
     b"playground start [--key KEY]\n",
-    b"forge connect FORGE github-app APP FILE [--read-only] --key KEY\nforge connect FORGE github --key KEY\nforge connect FORGE forgejo FILE --key KEY\nforge connect FORGE forgejo-admin FILE [--first ORG/REPOSITORY] [--project PROJECT] [--label LABEL] --key KEY\nforge connect github-app APP FILE [--read-only] --key KEY\nforge connect github --key KEY\nforge connect forgejo-admin FILE [--first ORG/REPOSITORY] [--project PROJECT] [--label LABEL] --api HOST:PORT [--tls NAME] --git URL [--web URL] [--git-program FILE] --key KEY\n",
+    b"forge connect FORGE github-app APP FILE [--read-only] --key KEY\nforge connect FORGE github --key KEY\nforge connect FORGE forgejo FILE --key KEY\nforge connect FORGE forgejo-admin FILE [--first ORG/REPOSITORY] [--project PROJECT] [--label LABEL] --key KEY\nforge connect github-app APP FILE [--read-only] --key KEY\nforge connect github --key KEY\nforge connect forgejo-admin FILE [--first ORG/REPOSITORY] [--project PROJECT] [--label LABEL] --api HOST:PORT [--tls NAME] --git URL [--web URL] [--git-program FILE] --key KEY\nforge connect forgejo FILE --api HOST:PORT [--tls NAME] --git URL [--web URL] [--git-program FILE] --key KEY\n",
+    b"forge replace FORGE FILE --key KEY\n",
     b"forge install FORGE [--key KEY]\n",
     b"forge repositories FORGE [--installation INSTALLATION] [--page PAGE]\n",
     b"account export ACCOUNT FILE\n",
     b"account import FILE --key KEY\n",
     b"settings show\n",
-    b"settings show charter|template|policy NUMBER [--revision REVISION]\nsettings show rules\n",
+    b"settings show charter|template|policy NUMBER [--revision REVISION]\nsettings show rules\nsettings show landing-rule NUMBER [--project PROJECT]\nsettings show forge-charter NUMBER\n",
     b"revision show REVISION\n",
     b"revision list [--before REVISION]\n",
     b"settings apply FILE --against REVISION [--running stays|moves] --key KEY\n",
@@ -322,6 +324,10 @@ fn the_project_reference_is_what_the_table_renders() {
 }
 
 #[test]
+fn the_chat_reference_is_what_the_table_renders() {
+    reference_matches(b"chat", b"ctl-chat");
+}
+#[test]
 fn the_account_reference_is_what_the_table_renders() {
     reference_matches(b"account", b"ctl-account");
 }
@@ -358,4 +364,13 @@ fn reference_matches(group_name: &[u8], page_name: &[u8]) {
         return;
     }
     assert_eq!(page.text.as_bytes(), rendered.as_ref(), "{}: the lead updates the reference page", page.name);
+}
+
+#[test]
+fn the_settings_reference_is_what_the_table_renders() {
+    reference_matches(b"settings", b"ctl-settings");
+}
+#[test]
+fn the_proposal_reference_is_what_the_table_renders() {
+    reference_matches(b"proposal", b"ctl-proposal");
 }

@@ -485,7 +485,19 @@ way but failed or cancelled while kept and asking no effect that waits
 for dependencies (4.1). It is for work whose producing may run beside
 its dependency's, and whose landing or result is what the dependency
 orders: temper's change procedure, whose dependent change across
-repositories is coded beside its dependency and merged after it.
+repositories is coded beside its dependency and merged after it. The
+declaration is the connector's, given with its configuration to the
+core, which keeps it for each procedure it names by connector and code.
+
+**A dependency started from.** A step of such a procedure may mark
+pending dependencies of its task as started from, when what its task
+makes builds on their unfinished work (temper's early start, whose
+producer starts on its dependencies' pushed heads). The mark is kept
+with the task's dependencies and never lifted: an amendment that leaves
+a marked dependency out is refused, naming it (tasks.md, section 7),
+since the task's work cannot drop what it was built on; its requester
+cancels the task and makes it again instead. A mark naming a task that
+is not among its task's dependencies refuses the step whole (6.3).
 
 ### 6.2 When it steps
 
@@ -520,6 +532,12 @@ repositories is coded beside its dependency and merged after it.
 
 One decision, committed with its new state:
 
+- optional specification words for its own task: `ProcedureStep.words`
+  reaches `ProcedureDecision.words`, replaces only its specification
+  words, and saves in this decision (tasks.md, 5.3). Its connector and
+  code must match the task's due step; words and byte-valued parameters
+  share `Limits::spec_bytes`. Parameters, inputs and `asks` do not change;
+  this adds no revision, amendment, message, wake or amendment history;
 - effects, described and kept for the outbox (4.1);
 - batches of delegates: agents for what needs judgement (a triage, a
   diagnosis, a repair), people for what needs a decision, each task
@@ -536,6 +554,7 @@ One decision, committed with its new state:
 - messages: words to its delegates and to the tasks its task references
   (tasks.md, 8.5), and an answer to a delegate's question; and up, a
   question, an escalation, news its requester should have;
+- marks on pending dependencies of its task, started from (6.1);
 - a hold, when it needs a decision it cannot make;
 - its result, which ends its task: in jig's terms (a report, a verdict),
   or a connector's result it keeps, with words summarising it (tasks.md,

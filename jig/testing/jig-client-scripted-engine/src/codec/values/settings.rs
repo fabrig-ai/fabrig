@@ -31,6 +31,7 @@ pub(in crate::codec) fn wire_setting_line(
             name: value.name.as_ref().map(|item| wire_document_text(item, limits)).transpose()?,
             follows: wire_setting_follows(&value.follows, limits)?,
             last: value.last,
+            application: value.application.as_ref().map(|v| wire_application_state(v, limits)).transpose()?,
         },
     )
 }
@@ -40,6 +41,10 @@ pub(in crate::codec) fn wire_setting(value: &c::Setting, limits: &w::Limits) -> 
         c::Setting::Charter(value) => w::Setting::Charter(wire_setting_number(value, limits)?),
         c::Setting::Template(value) => w::Setting::Template(wire_setting_number(value, limits)?),
         c::Setting::Policy(value) => w::Setting::Policy(wire_setting_number(value, limits)?),
+        c::Setting::Application { kind, scope, number } => w::Setting::Application(w::ApplicationSetting::new(
+            limits,
+            w::ApplicationSettingParts { kind: *kind, scope: *scope, number: *number },
+        )?),
         c::Setting::Rules => w::Setting::Rules,
     })
 }
@@ -125,7 +130,9 @@ pub(in crate::codec) fn wire_setting_document(
         w::SettingDocumentParts {
             setting: wire_setting(&value.setting, limits)?,
             revision: value.revision,
-            value: wire_setting_value(&value.value, limits)?,
+            value: value.value.as_ref().map(|v| wire_setting_value(v, limits)).transpose()?,
+            application: value.application.as_ref().map(|v| wire_application_state(v, limits)).transpose()?,
+            proposed: value.proposed.as_ref().map(|v| wire_sized_edit(v, limits)).transpose()?,
         },
     )
 }
@@ -138,6 +145,10 @@ pub(in crate::codec) fn wire_setting_value(
         c::SettingValue::Charter(value) => w::SettingValue::Charter(Box::new(wire_charter(value, limits)?)),
         c::SettingValue::Template(value) => w::SettingValue::Template(Box::new(wire_template(value, limits)?)),
         c::SettingValue::Policy(value) => w::SettingValue::Policy(Box::new(wire_setting_policy(value, limits)?)),
+        c::SettingValue::Application(value) => w::SettingValue::Application(w::ApplicationValue::new(
+            limits,
+            w::ApplicationValueParts { bytes: value.clone() },
+        )?),
         c::SettingValue::Rules(value) => w::SettingValue::Rules(Box::new(wire_rules(value, limits)?)),
     })
 }
@@ -299,6 +310,10 @@ pub(in crate::codec) fn wire_revision_edit(
     Ok::<_, w::Problem>(match value {
         c::RevisionEdit::Set(value) => w::RevisionEdit::Set(wire_setting_set(value, limits)?),
         c::RevisionEdit::TooLarge(value) => w::RevisionEdit::TooLarge(wire_size(value, limits)?),
+        c::RevisionEdit::Application(value) => w::RevisionEdit::Application(w::ApplicationEdit::new(
+            limits,
+            w::ApplicationEditParts { edit: wire_sized_edit(value, limits)? },
+        )?),
         c::RevisionEdit::Removed => w::RevisionEdit::Removed,
         c::RevisionEdit::Reset => w::RevisionEdit::Reset,
     })
@@ -419,6 +434,7 @@ pub(in crate::codec) fn wire_setting_fault(
         c::SettingFault::Rules => w::SettingFault::Rules,
         c::SettingFault::Budget => w::SettingFault::Budget,
         c::SettingFault::Grace => w::SettingFault::Grace,
+        c::SettingFault::Judged => w::SettingFault::Judged,
         c::SettingFault::Owner => w::SettingFault::Owner,
     })
 }
@@ -459,6 +475,7 @@ pub(in crate::codec) fn wire_settings_review(
     w::SettingsReview::new(
         limits,
         w::SettingsReviewParts {
+            key: None,
             newest: value.newest,
             items: pieces(
                 value.items.iter().map(|item| wire_review_item(item, limits)),
@@ -482,6 +499,19 @@ pub(in crate::codec) fn wire_review_item(
             now: wire_review_value(&value.now, limits)?,
             origin: wire_setting_origin(&value.origin, limits)?,
             would_be: wire_review_value(&value.would_be, limits)?,
+            application: value
+                .application
+                .as_ref()
+                .map(|v| {
+                    w::ApplicationReview::new(
+                        limits,
+                        w::ApplicationReviewParts {
+                            edit: wire_sized_edit(&v.edit, limits)?,
+                            now: v.now.as_ref().map(|v| wire_application_state(v, limits)).transpose()?,
+                        },
+                    )
+                })
+                .transpose()?,
         },
     )
 }
@@ -530,4 +560,28 @@ pub(in crate::codec) fn wire_outcome_moved_to_newest(
         limits,
         w::OutcomeMovedToNewestParts { newest: value.newest, moved: value.moved, stayed: value.stayed },
     )
+}
+
+fn wire_application_state(v: &c::ApplicationState, limits: &w::Limits) -> Result<w::ApplicationState, w::Problem> {
+    let follows = match v.follows {
+        c::ApplicationFollows::Default => w::ApplicationFollows::Default,
+        c::ApplicationFollows::Changed { revision } => w::ApplicationFollows::Changed(w::ApplicationRevision::new(
+            limits,
+            w::ApplicationRevisionParts { revision },
+        )?),
+        c::ApplicationFollows::Removed { revision } => w::ApplicationFollows::Removed(w::ApplicationRevision::new(
+            limits,
+            w::ApplicationRevisionParts { revision },
+        )?),
+    };
+    w::ApplicationState::new(limits, w::ApplicationStateParts { follows, size: v.size, charters: v.charters.clone() })
+}
+fn wire_sized_edit(v: &c::SizedEdit, limits: &w::Limits) -> Result<w::SizedEdit, w::Problem> {
+    Ok(match v {
+        c::SizedEdit::Set { size } => {
+            w::SizedEdit::Set(w::ApplicationSize::new(limits, w::ApplicationSizeParts { size: *size })?)
+        }
+        c::SizedEdit::Remove => w::SizedEdit::Remove,
+        c::SizedEdit::Reset => w::SizedEdit::Reset,
+    })
 }

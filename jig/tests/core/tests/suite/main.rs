@@ -11,6 +11,7 @@ mod admission;
 #[path = "../support/admission.rs"]
 mod admission_support;
 mod application_documents;
+mod application_settings;
 #[path = "../support/bundle.rs"]
 mod bundle;
 mod charters;

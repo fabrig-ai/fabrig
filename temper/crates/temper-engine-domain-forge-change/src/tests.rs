@@ -1,7 +1,8 @@
 //! Procedure cells, queue order and landing-rule agreement.
 use crate::{
-    Change, Ci, Decision, Delegate, Effect, EffectResult, Facts, Freshness, Gate, GateFailure, GateKind, GateReport,
-    Heard, Hold, Limits, Pull, Ready, Repair, State, Status, first, released, step,
+    Change, Ci, Decision, Delegate, Early, Effect, EffectResult, Facts, Freshness, Gate, GateFailure, GateKind,
+    GateReport, Heard, Hold, Limits, Pending, PendingKind, Pull, QUESTIONS_OPEN, Questions, Ready, Repair, Route,
+    StartedFrom, State, Status, first, released, step,
 };
 use alloc::boxed::Box;
 use skein_lib::{Duration, Wall};
@@ -10,13 +11,21 @@ const HEAD: [u8; 32] = [1; 32];
 const BASE: [u8; 32] = [2; 32];
 const NEW: [u8; 32] = [3; 32];
 const MERGE: [u8; 32] = [4; 32];
-const LIMITS: Limits =
-    Limits { repairs: 2, resolutions: 2, updates: 3, stall: Duration::from_secs(30), gates: 4, clean_heads: 4 };
+const LIMITS: Limits = Limits {
+    repairs: 2,
+    resolutions: 2,
+    updates: 3,
+    questions: 4,
+    stall: Duration::from_secs(30),
+    gates: 4,
+    clean_heads: 4,
+};
 fn at(seconds: u64) -> Wall {
     Wall::from_nanos(seconds.saturating_mul(1_000_000_000))
 }
 fn change(state: State) -> Change {
     Change {
+        early: Early::None,
         way: crate::Way::Queue,
         landing: None,
         task: 7,
@@ -36,6 +45,7 @@ fn change(state: State) -> Change {
 }
 fn facts() -> Facts {
     Facts {
+        pending: Box::new([]),
         ask: None,
         branch: Some(HEAD),
         expected_base: BASE,
@@ -44,16 +54,22 @@ fn facts() -> Facts {
         base_ci: Ci { head: BASE, status: Status::Passed },
         base_tip: BASE,
         contains_base: Status::Passed,
+        merge_job: false,
+        delegate: None,
+        catch_up: None,
+        contains_catch_up: Status::Pending,
         updates: true,
         mergeable: Status::Passed,
         gates: Box::new([]),
         live_gate: None,
         writer_taken: false,
+        requester_branch: false,
         drift: None,
         first: false,
         may_merge: true,
         queue_repair_active: false,
         kept: false,
+        asking: false,
         settling: None,
         verification: crate::Verification::Unfollowed,
         verification_bound: Duration::from_secs(7200),
@@ -61,6 +77,7 @@ fn facts() -> Facts {
 }
 fn heard() -> Heard {
     Heard {
+        start_conflict: None,
         lacking: None,
         spend: None,
         delegate: Status::Pending,
@@ -71,6 +88,54 @@ fn heard() -> Heard {
 }
 fn decide(change: &Change, facts: &Facts, heard: &Heard) -> crate::Stepped {
     step(change, facts, heard, at(1), &LIMITS)
+}
+
+#[test]
+fn an_agent_with_an_open_question_never_stalls() {
+    let mut f = facts();
+    f.branch = None;
+    f.pull = Pull::Missing;
+    f.asking = true;
+    for (state, early) in [
+        (State::Producing { requested: true }, Early::None),
+        (State::Producing { requested: true }, Early::Started(Box::new([StartedFrom { task: 11, head: HEAD }]))),
+        (State::Producing { requested: true }, Early::Spent(Box::new([StartedFrom { task: 11, head: HEAD }]))),
+        (State::Repairing { requested: true, why: Repair::Ci }, Early::None),
+        (State::Resolving { requested: true, base: BASE }, Early::None),
+    ] {
+        let mut c = change(state);
+        c.early = early;
+        let next = step(&c, &f, &heard(), at(3600), &LIMITS);
+        assert_eq!(next.decision, Decision::Wait { until: None });
+        assert_eq!(next.change.since, at(3600));
+        assert_eq!(next.change.state, c.state);
+    }
+}
+
+#[test]
+fn the_stall_counts_from_the_last_question() {
+    let mut f = facts();
+    f.branch = None;
+    f.pull = Pull::Missing;
+    f.asking = true;
+    let c = change(State::Producing { requested: true });
+    let asking = step(&c, &f, &heard(), at(3600), &LIMITS);
+    f.asking = false;
+    let waiting = step(&asking.change, &f, &heard(), at(3629), &LIMITS);
+    assert_eq!(waiting.decision, Decision::Wait { until: Some(at(3630)) });
+    assert_eq!(waiting.change.since, at(3600));
+    let held = step(&waiting.change, &f, &heard(), at(3631), &LIMITS);
+    assert_eq!(held.decision, Decision::Hold(Hold::Stalled));
+    assert_eq!(held.change.state, State::Held { was: Box::new(c.state), why: Hold::Stalled });
+}
+
+#[test]
+fn an_open_question_does_not_suspend_a_wait_on_ci() {
+    let mut f = facts();
+    f.asking = true;
+    f.ci.status = Status::Pending;
+    let next = step(&change(State::Checking { head: HEAD }), &f, &heard(), at(3600), &LIMITS);
+    assert_eq!(next.decision, Decision::Hold(Hold::Stalled));
 }
 
 #[test]
@@ -134,7 +199,7 @@ fn a_change_is_produced_opened_checked_queued_and_landed() {
     let one = decide(&change(State::Producing { requested: false }), &f, &heard());
     assert_eq!(one.decision, Decision::Delegate(Delegate::Produce));
     assert_eq!(one.change.state, State::Producing { requested: true });
-    assert_eq!(decide(&one.change, &f, &heard()).decision, Decision::Wait { until: Some(at(30)) });
+    assert_eq!(decide(&one.change, &f, &heard()).decision, Decision::Wait { until: Some(at(31)) });
     f.branch = Some(HEAD);
     let two = decide(&one.change, &f, &heard());
     assert_eq!(two.change.state, State::Opening { requested: false });
@@ -177,7 +242,7 @@ fn failed_producer() -> (Change, Facts, Heard) {
 }
 
 fn failed_ci_repair() -> (Change, Facts, Heard, Limits) {
-    let limits = Limits { repairs: 3, ..LIMITS };
+    let limits = Limits { repairs: 3, questions: 4, ..LIMITS };
     let mut f = facts();
     f.ci.status = Status::Failed;
     let c = change(State::Checking { head: HEAD });
@@ -284,9 +349,28 @@ fn a_released_failed_producers_replacement_needs_authority_and_a_bare_release_ho
         assert_eq!(blocked.decision, Decision::Hold(Hold::Authority(cause)));
         let again = decide(&released(&blocked.change, at(1)), &f, &h);
         assert_eq!(again.decision, Decision::Hold(Hold::Authority(AuthorityHold { released: true, ..cause })));
-        let words = crate::authority_words(cause);
-        assert!(words.ends_with(b"release it: task release 7 --hold 2 (it holds again unless it has more); or cancel it: task cancel 7 REASON"));
+        for released in [false, true] {
+            let words = crate::authority_words(AuthorityHold { released, ..cause });
+            assert!(words.ends_with(b"; or ask afresh; bare release holds again"));
+            assert!(has_hold_words(&words, b"; cancel: task cancel 7 REASON"));
+            assert_eq!(has_hold_words(&words, b"task release"), lack == AuthorityLack::Tasks);
+            if lack == AuthorityLack::Tasks {
+                assert!(has_hold_words(
+                    &words,
+                    b"task amend 7 --rev 0 --tasks 4 REASON; then release it: task release 7 --hold 2",
+                ));
+            }
+        }
     }
+}
+
+fn has_hold_words(words: &[u8], expected: &[u8]) -> bool {
+    for part in words.windows(expected.len()) {
+        if part == expected {
+            return true;
+        }
+    }
+    false
 }
 
 #[test]
@@ -306,16 +390,17 @@ fn a_release_keeps_other_producing_holds_and_a_pushed_head_goes_on_without_a_new
     assert_eq!(next.change.last_head, Some(NEW));
 }
 
+/// A conflict resolves under rules asking no update (temper/docs/design/domain/forge.md, 8.4).
 #[test]
-fn a_conflict_under_rules_asking_no_update_holds_the_change() {
+fn a_conflict_under_rules_asking_no_update_is_resolved() {
     let c = change(State::First { head: HEAD, ready_since: at(0) });
     let mut f = facts();
     f.mergeable = Status::Failed;
     f.updates = false;
     let next = decide(&c, &f, &heard());
-    assert_eq!(next.change.state, State::Held { was: Box::new(c.state), why: Hold::Resolutions });
-    assert_eq!(next.decision, Decision::Hold(Hold::Resolutions));
-    assert_eq!(next.change.resolutions, 0);
+    assert_eq!(next.change.state, State::Resolving { requested: true, base: BASE });
+    assert_eq!(next.decision, Decision::Delegate(Delegate::Resolve { base: BASE }));
+    assert_eq!(next.change.resolutions, 1);
 }
 
 #[test]
@@ -480,6 +565,120 @@ fn drift_writer_slots_and_stalls_do_not_write_over_a_branch() {
         Decision::Hold(Hold::Stalled)
     );
 }
+fn movable_phases() -> [(State, Option<Wall>); 7] {
+    [
+        (State::Opening { requested: false }, Some(at(30))),
+        (State::Opening { requested: true }, Some(at(30))),
+        (State::Checking { head: HEAD }, Some(at(30))),
+        (State::Gating { head: HEAD, asked: Box::new([9]) }, Some(at(30))),
+        (State::Queued { head: HEAD, ready_since: at(0) }, Some(at(30))),
+        (State::First { head: HEAD, ready_since: at(0) }, Some(at(30))),
+        (State::Ready { head: HEAD, ready_since: at(0) }, None),
+    ]
+}
+
+fn moved_branch(requester_branch: bool) -> Facts {
+    Facts { requester_branch, branch: Some(NEW), asking: false, ..facts() }
+}
+
+#[test]
+fn a_move_of_a_requesters_held_branch_is_its_new_head_in_each_phase() {
+    for (way, expected) in [
+        (crate::Way::Queue, State::Checking { head: NEW }),
+        (crate::Way::Turn, State::Gating { head: NEW, asked: Box::new([]) }),
+    ] {
+        for (state, _) in movable_phases() {
+            let mut c = change(state);
+            c.way = way;
+            c.clean = Box::new([BASE]);
+            c.gate_failures = Box::new([GateFailure { number: 9, count: 1 }]);
+            c.owns_turn = true;
+            c.repairs = LIMITS.repairs;
+            c.resolutions = LIMITS.resolutions;
+            c.updates = LIMITS.updates;
+            let next = decide(&c, &moved_branch(true), &heard());
+            assert_eq!(next.change.state, expected, "{:?}", c.state);
+            assert_eq!(next.change.last_head, Some(NEW));
+            assert_eq!(next.change.since, at(1));
+            assert!(next.change.clean.is_empty());
+            assert!(next.change.gate_failures.is_empty());
+            assert!(!next.change.owns_turn);
+            assert_eq!(next.change.repairs, c.repairs);
+            assert_eq!(next.change.resolutions, c.resolutions);
+            assert_eq!(next.change.updates, c.updates);
+            assert_eq!(next.decision, Decision::None);
+        }
+    }
+}
+
+#[test]
+fn a_move_of_its_own_branch_still_holds_it() {
+    for (state, _) in movable_phases() {
+        let c = change(state);
+        let next = decide(&c, &moved_branch(false), &heard());
+        assert_eq!(next.change.state, State::Held { was: Box::new(c.state), why: Hold::BranchMoved });
+        assert_eq!(next.decision, Decision::Hold(Hold::BranchMoved));
+    }
+}
+
+#[test]
+fn a_requesters_branch_with_drift_or_a_writer_is_not_taken() {
+    for (state, _) in movable_phases() {
+        let c = change(state);
+        for why in [Hold::BranchMoved, Hold::Retargeted, Hold::BranchMissing] {
+            let mut f = moved_branch(true);
+            f.drift = Some(why);
+            let next = decide(&c, &f, &heard());
+            assert_eq!(next.change.state, State::Held { was: Box::new(c.state.clone()), why });
+            assert_eq!(next.change.last_head, Some(HEAD));
+            assert_eq!(next.decision, Decision::Hold(why));
+        }
+    }
+    for (state, until) in movable_phases() {
+        let c = change(state);
+        let mut f = moved_branch(true);
+        f.writer_taken = true;
+        let next = decide(&c, &f, &heard());
+        assert_eq!(next.change, c);
+        assert_eq!(next.decision, Decision::Wait { until });
+    }
+}
+
+#[test]
+fn a_held_change_on_its_requesters_branch_takes_the_head_at_release() {
+    let mut c = change(State::Checking { head: HEAD });
+    c.repairs = LIMITS.repairs;
+    let mut f = facts();
+    f.requester_branch = true;
+    f.ci.status = Status::Failed;
+    let held = decide(&c, &f, &heard()).change;
+    f.branch = Some(NEW);
+    let waiting = decide(&held, &f, &heard());
+    assert_eq!(waiting.change, held);
+    assert_eq!(waiting.decision, Decision::None);
+    assert_eq!(waiting.change.state, State::Held { was: Box::new(c.state), why: Hold::Repairs });
+
+    let lifted = released(&waiting.change, at(1));
+    let reset = decide(&lifted, &f, &heard());
+    let taken = decide(&reset.change, &f, &heard());
+    assert_eq!(taken.change.last_head, Some(NEW));
+    assert_eq!(taken.change.state, State::Checking { head: NEW });
+    assert_eq!(taken.change.repairs, 0);
+    assert_eq!(taken.decision, Decision::None);
+    f.ci = Ci { head: NEW, status: Status::Pending };
+    assert_eq!(decide(&taken.change, &f, &heard()).decision, Decision::Wait { until: Some(at(31)) });
+    f.ci.status = Status::Passed;
+    assert_eq!(decide(&taken.change, &f, &heard()).change.state, State::Gating { head: NEW, asked: Box::new([]) });
+}
+
+#[test]
+fn a_requesters_branch_move_during_landing_keeps_the_merge_head() {
+    let c = change(State::Landing { head: HEAD });
+    let next = decide(&c, &moved_branch(true), &heard());
+    assert_eq!(next.change, c);
+    assert_eq!(next.decision, Decision::Wait { until: Some(at(30)) });
+}
+
 #[test]
 fn generated_phase_cells_decide_the_same_from_the_same_snapshot() {
     let states = [
@@ -818,7 +1017,7 @@ fn cancelled_gates_preserve_the_semantic_repair_and_its_bound() {
     let repair = decide(&cancelled.change, &f, &heard());
     assert_eq!(repair.decision, Decision::Delegate(Delegate::Repair(Repair::Semantic)));
     c.repairs = LIMITS.repairs;
-    let cancelled = decide(&c, &Facts { live_gate: Some(HEAD), ..f.clone() }, &heard());
+    let cancelled = decide(&c, &Facts { live_gate: Some(HEAD), asking: false, ..f.clone() }, &heard());
     let held = decide(&cancelled.change, &f, &heard());
     assert_eq!(held.decision, Decision::Hold(Hold::Repairs));
     assert_eq!(held.change.repairs, LIMITS.repairs);
@@ -841,4 +1040,190 @@ fn a_live_advisory_gate_does_not_hold_a_green_head() {
     assert_eq!(decide(&c, &f, &heard()).decision, Decision::CancelGates { head: HEAD });
 }
 
+mod merge;
+mod relay;
 mod verifying;
+
+#[test]
+fn a_changes_questions_default_to_none() {
+    let questions = Questions::default();
+    assert_eq!(questions.route, Route::None);
+    assert_eq!(questions.taken, 0);
+    assert!(questions.open.is_empty());
+}
+
+#[test]
+fn the_open_bound_leaves_room_for_the_one_past_the_bound() {
+    // The reference's bound (draft/reference-code-production.md, section 8).
+    const QUESTIONS: usize = 4;
+    const { assert!(QUESTIONS_OPEN > QUESTIONS) };
+}
+
+fn pending_facts(pending: Box<[Pending]>) -> Facts {
+    Facts { pending, branch: None, pull: Pull::Missing, kept: true, ..facts() }
+}
+
+#[test]
+fn a_change_with_a_pending_change_without_a_head_waits_with_no_stall() {
+    let c = change(State::Producing { requested: false });
+    let mut f = pending_facts(Box::new([Pending { task: 11, kind: PendingKind::Change { head: None, kept: false } }]));
+    let waiting = decide(&c, &f, &heard());
+    assert_eq!(waiting.decision, Decision::Wait { until: None });
+    assert_eq!(waiting.change.state, State::Producing { requested: false });
+    assert_eq!(waiting.change.early, Early::None);
+    let waiting = step(&waiting.change, &f, &heard(), at(60), &LIMITS);
+    assert_eq!(waiting.decision, Decision::Wait { until: None });
+    assert_eq!(waiting.change.state, State::Producing { requested: false });
+    f.pending = Box::new([Pending { task: 11, kind: PendingKind::Change { head: Some(HEAD), kept: false } }]);
+    let started = step(&waiting.change, &f, &heard(), at(61), &LIMITS);
+    assert_eq!(started.decision, Decision::Delegate(Delegate::Produce));
+    assert_eq!(started.change.since, at(61));
+    assert_eq!(step(&started.change, &f, &heard(), at(62), &LIMITS).decision, Decision::Wait { until: Some(at(91)) });
+}
+
+#[test]
+fn dependencies_finishing_before_an_early_start_leave_a_fresh_producer_stall() {
+    let c = change(State::Producing { requested: false });
+    let mut f = pending_facts(Box::new([Pending { task: 11, kind: PendingKind::Other }]));
+    let waiting = step(&c, &f, &heard(), at(60), &LIMITS);
+    assert_eq!(waiting.decision, Decision::Wait { until: None });
+    f.pending = Box::new([]);
+    let started = step(&waiting.change, &f, &heard(), at(90), &LIMITS);
+    assert_eq!(started.decision, Decision::Delegate(Delegate::Produce));
+    assert_eq!(started.change.early, Early::None);
+    assert_eq!(started.change.since, at(90));
+    assert_eq!(step(&started.change, &f, &heard(), at(91), &LIMITS).decision, Decision::Wait { until: Some(at(120)) });
+}
+
+#[test]
+fn a_change_whose_pending_changes_have_heads_starts_early_from_them() {
+    let c = change(State::Producing { requested: false });
+    let f = pending_facts(Box::new([
+        Pending { task: 19, kind: PendingKind::Change { head: Some(NEW), kept: false } },
+        Pending { task: 12, kind: PendingKind::Elsewhere },
+        Pending { task: 11, kind: PendingKind::Change { head: Some(HEAD), kept: false } },
+    ]));
+    let started = step(&c, &f, &heard(), at(60), &LIMITS);
+    assert_eq!(started.decision, Decision::Delegate(Delegate::Produce));
+    assert_eq!(started.change.state, State::Producing { requested: true });
+    assert_eq!(
+        started.change.early,
+        Early::Started(Box::new([StartedFrom { task: 19, head: NEW }, StartedFrom { task: 11, head: HEAD },]))
+    );
+    assert_eq!(started.change.since, at(60));
+    let repeated = step(&started.change, &f, &heard(), at(61), &LIMITS);
+    assert_eq!(repeated.decision, Decision::Wait { until: Some(at(90)) });
+    let mut pushed = f;
+    pushed.branch = Some(NEW);
+    let opening = step(&repeated.change, &pushed, &heard(), at(62), &LIMITS);
+    assert_eq!(opening.change.state, State::Opening { requested: false });
+    assert_eq!(opening.change.early, started.change.early);
+}
+
+#[test]
+fn a_pending_dependency_kept_by_its_own_dependency_blocks_the_early_start() {
+    let c = change(State::Producing { requested: false });
+    let f = pending_facts(Box::new([
+        Pending { task: 11, kind: PendingKind::Change { head: Some(HEAD), kept: false } },
+        Pending { task: 12, kind: PendingKind::Change { head: Some(NEW), kept: true } },
+    ]));
+    let waiting = step(&c, &f, &heard(), at(60), &LIMITS);
+    assert_eq!(waiting.decision, Decision::Wait { until: None });
+    assert_eq!(waiting.change.state, State::Producing { requested: false });
+    assert_eq!(waiting.change.early, Early::None);
+}
+
+#[test]
+fn a_pending_other_dependency_blocks_the_early_start() {
+    let c = change(State::Producing { requested: false });
+    let f = pending_facts(Box::new([
+        Pending { task: 11, kind: PendingKind::Change { head: Some(HEAD), kept: false } },
+        Pending { task: 12, kind: PendingKind::Other },
+    ]));
+    let waiting = step(&c, &f, &heard(), at(60), &LIMITS);
+    assert_eq!(waiting.decision, Decision::Wait { until: None });
+    assert_eq!(waiting.change.state, State::Producing { requested: false });
+    assert_eq!(waiting.change.early, Early::None);
+}
+
+#[test]
+fn only_elsewhere_dependencies_start_the_producer_with_no_heads() {
+    let c = change(State::Producing { requested: false });
+    let f = pending_facts(Box::new([Pending { task: 12, kind: PendingKind::Elsewhere }]));
+    let started = decide(&c, &f, &heard());
+    assert_eq!(started.decision, Decision::Delegate(Delegate::Produce));
+    assert_eq!(started.change.state, State::Producing { requested: true });
+    assert_eq!(started.change.early, Early::Started(Box::new([])));
+}
+
+#[test]
+fn a_conflicting_early_start_cancels_its_producer_and_waits() {
+    let c = change(State::Producing { requested: false });
+    let mut f =
+        pending_facts(Box::new([Pending { task: 11, kind: PendingKind::Change { head: Some(HEAD), kept: false } }]));
+    let started = decide(&c, &f, &heard());
+    let mut h = Heard { start_conflict: Some(HEAD), ..heard() };
+    f.writer_taken = true;
+    let cancelled = decide(&started.change, &f, &h);
+    assert_eq!(cancelled.decision, Decision::CancelProducer);
+    assert_eq!(cancelled.change.early, Early::Spent(Box::new([StartedFrom { task: 11, head: HEAD }])));
+    assert_eq!(cancelled.change.state, State::Producing { requested: false });
+    let waiting = step(&cancelled.change, &f, &h, at(60), &LIMITS);
+    assert_eq!(waiting.decision, Decision::Wait { until: None });
+    f.pending = Box::new([]);
+    assert_eq!(step(&waiting.change, &f, &h, at(61), &LIMITS).decision, Decision::Wait { until: None });
+    f.pending = Box::new([Pending { task: 11, kind: PendingKind::Change { head: Some(NEW), kept: false } }]);
+    f.writer_taken = false;
+    h.start_conflict = None;
+    h.delegate = Status::Failed;
+    let ended = step(&waiting.change, &f, &h, at(62), &LIMITS);
+    assert_eq!(ended.decision, Decision::Wait { until: None });
+    assert_eq!(ended.change.state, State::Producing { requested: false });
+    assert_eq!(ended.change.early, cancelled.change.early);
+    f.pending = Box::new([]);
+    let replacement = step(&ended.change, &f, &h, at(63), &LIMITS);
+    assert_eq!(replacement.decision, Decision::Delegate(Delegate::Produce));
+    assert_eq!(replacement.change.since, at(63));
+}
+
+#[test]
+fn a_failed_early_producer_holds_nothing_and_the_next_waits_for_the_dependencies() {
+    let c = change(State::Producing { requested: false });
+    let mut f =
+        pending_facts(Box::new([Pending { task: 11, kind: PendingKind::Change { head: Some(HEAD), kept: false } }]));
+    let started = decide(&c, &f, &heard());
+    f.branch = Some(NEW);
+    let h = Heard { delegate: Status::Failed, ..heard() };
+    let failed = decide(&started.change, &f, &h);
+    assert_eq!(failed.decision, Decision::Wait { until: None });
+    assert_eq!(failed.change.early, Early::Spent(Box::new([StartedFrom { task: 11, head: HEAD }])));
+    assert_eq!(failed.change.state, State::Producing { requested: false });
+    let waiting = step(&failed.change, &f, &h, at(60), &LIMITS);
+    assert_eq!(waiting.decision, Decision::Wait { until: None });
+    f.pending = Box::new([]);
+    let replacement = step(&waiting.change, &f, &h, at(61), &LIMITS);
+    assert_eq!(replacement.decision, Decision::Delegate(Delegate::Produce));
+    assert_eq!(replacement.change.since, at(61));
+    assert_eq!(replacement.change.early, failed.change.early);
+    assert_eq!(
+        step(&replacement.change, &f, &heard(), at(62), &LIMITS).decision,
+        Decision::Wait { until: Some(at(91)) }
+    );
+    let failed = step(&replacement.change, &f, &h, at(63), &LIMITS);
+    assert_eq!(failed.decision, Decision::Hold(Hold::Failed));
+    assert_eq!(
+        failed.change.state,
+        State::Held { was: Box::new(State::Producing { requested: true }), why: Hold::Failed }
+    );
+}
+
+#[test]
+fn a_change_never_starts_early_twice() {
+    let mut c = change(State::Producing { requested: false });
+    c.early = Early::Spent(Box::new([StartedFrom { task: 11, head: HEAD }]));
+    let f = pending_facts(Box::new([Pending { task: 11, kind: PendingKind::Change { head: Some(NEW), kept: false } }]));
+    let waiting = step(&c, &f, &heard(), at(60), &LIMITS);
+    assert_eq!(waiting.decision, Decision::Wait { until: None });
+    assert_eq!(waiting.change.state, State::Producing { requested: false });
+    assert_eq!(waiting.change.early, c.early);
+}

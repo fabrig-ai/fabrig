@@ -1,4 +1,7 @@
 //! Settings cross the root's journal and real store, including cold restoration.
+#[path = "settings/kinds.rs"]
+mod kinds;
+
 use crate::stock;
 use temper_engine_domain_world::journal_limits as journal;
 
@@ -302,6 +305,7 @@ fn an_owner_of_a_deployment_with_no_project_makes_one_from_policy_1() {
     policy.policy.ceiling.tools = widened;
     policy.policy.roles[0].authority.tools = widened;
     driver.send(Event::Party(PartyInput::ChangeSettings {
+        kinds: Box::default(),
         reply_to: ReplyTo::new(Token::new(30)),
         sign_in: driver.session(),
         key: [30; 16],
@@ -379,6 +383,7 @@ fn rules(minimum: u64) -> s::Item {
 }
 fn change(driver: &mut Driver, against: u32, key: u8, item: s::Item) {
     driver.send(Event::Party(PartyInput::ChangeSettings {
+        kinds: Box::default(),
         reply_to: ReplyTo::new(Token::new(u64::from(key))),
         sign_in: driver.session(),
         key: [key; 16],
@@ -434,7 +439,7 @@ fn an_owner_change_commits_and_the_next_read_serves_it() {
         Delivery::WebReply { reply: people::Reply::Outcome(people::Outcome::SettingsChanged { revision: 2 }), .. }
     )));
     assert_eq!(head(&driver).by, s::Decider::Party(OWNER_PERSON)); // First issued person, independent of their identity subject.
-    assert_eq!(read_rules(&mut driver, 2).value, rule_value(2));
+    assert_eq!(read_rules(&mut driver, 2).value, Some(rule_value(2)));
 }
 #[test]
 fn a_nonowner_cannot_change_the_deployments_settings() {
@@ -493,7 +498,7 @@ fn changed_settings_restore_before_accounts_and_survive_a_restart() {
             engine::Range::Core(engine::CoreRange::Accounts)
         ]
     );
-    assert_eq!(read_rules(&mut restarted, 2).value, rule_value(2));
+    assert_eq!(read_rules(&mut restarted, 2).value, Some(rule_value(2)));
 }
 #[test]
 fn changed_release_defaults_record_a_revision_once() {

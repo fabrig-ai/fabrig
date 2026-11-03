@@ -3,8 +3,6 @@
 2026-11-03. Where temper's code lags or departs from [forge.md](forge.md).
 
 - **Not yet:**
-  - 11, 11.1: a goal's own branch deleted as its goal closes once a change
-    has landed it: the release keeps it whatever way the goal ended.
   - 4.1: a removal without the box, its group's act answered in its
     decision: an owned or fake forge's removal asks the box link for
     `remove N` whether or not a pipe is there, and without one waits for
@@ -25,41 +23,43 @@
   - 7.1, 12: the findings topic and findings (`findings.md`).
   - 7.3: a hold parked until a landing.
   - 8.1: a change's own bounds, gates and charters: `change` takes
-    parameters 1 to 6, 9 and 10, its bounds are the deployment's
+    parameters 1 to 6, 9 to 11 and 16, its bounds are the deployment's
     `change_policy` and its charters the deployment's
     (`temper-engine-domain/src/route/forge_route.rs`, `start_change`); its
     page's line that a change takes no words.
-  - 8.1, 8.9: a change's producer's charter and its agents' LLM
-    choices: parameter 11 is not taken, the change's row keeps
-    no LLM choice, its producer runs under the forge's change charter
-    and its delegates take their charter's default
-    (`temper-engine-domain/src/route/forge_route.rs`, `start_change`
-    and `change_delegate`).
-  - 8.9: a change held, saying so, when the newest settings no longer
-    offer the producer's charter it names, or its charter's models no
-    longer allow its LLM choice for a role, as it next needs a delegate
-    of that role: a procedure step refused for its delegate's executor
-    or LLM choice holds nothing
-    (`temper-engine-domain/src/route/asks.rs`, `StepRefused`).
   - 8.2: the pull request's body naming its goal's issue.
   - 8.3: a person's approval as a gate; a review's lens; gates run at once
-    when the change asks; a verdict posted as a commit status; the review
-    charter, kind 3's number 2, is fixed at charter 4.
+    when the change asks; a verdict posted as a commit status.
+  - 8.4: widening exhausted spend with ctl before release: `task amend`'s
+    `--budget` is not implemented (`../client/tools.md`, 5.5). A spend
+    hold offers cancellation or asking afresh instead.
+  - 8.4, 8.5: a goal's landing held past its repairs, then released after
+    a change into its goal branch (`../draft/reference-landing.md`,
+    section 9's second story), is built, but its story is ignored: after
+    the released landing, the restart oracle finds the deployment's
+    `messages` number changed across a restart, its cause not yet found
+    (`tests/engine/domain/tests/suite/forge_routes/goal_landing_held.rs`).
+  - 8.4, 10, 11.1: a goal's landing whose update into main conflicts,
+    settled by the merge job and a resolution on its goal's branch
+    (`../draft/reference-landing.md`, section 9's first story), is built
+    by every change's path, the job writing the branch under the goal's
+    hold as the landing's resolution does
+    (`temper-engine-domain-forge/src/items.rs`, `change_branch_holder`),
+    but no story runs it: the merge job's stories are changes into a
+    goal's branch and into main, none a goal's landing
+    (`tests/engine/domain/tests/suite/forge_routes/merge_job.rs`).
   - 8.5: a retargeted pull request retargeted back on release; the change
     is held as a failed effect.
-  - 8.7: the explicit choice to adopt a GitHub repository without CI;
-    requirements 5 and 6.
-  - 8.7 to 8.9, 16, 18: the landing rules and the forge's charter as
-    settings of temper's kinds; the rules are read from the document's
-    `landing` member at start and compiled into the core's requirements
-    and the forge's gate templates (`root.md`'s status).
+  - 8.7: the explicit choice to adopt a GitHub repository without CI.
   - 8.8: the rule and criterion a change waits on, and its charter, on its
     panel.
   - 8.10: a change drained.
+  - 8.11: a dependent's landing holding its dependency's pushed head in
+    g's ancestry is unobserved in stories, the fake forge squashing
+    merges (skein's `fake-forge.md`, 2.2).
   - 9: a branch a tier follows still pauses its queue on its own CI's
     red and makes a repair, where its tiers judge it instead
     (`temper-engine-domain-forge-change/src/domain.rs`, `base_ci`).
-  - 11.1: a goal's own branch.
   - 12: the issue's milestones but its lifecycle and revisions: the plan
     accepted, a change landed or held, a report kept.
   - 12.1: questions on the forge.

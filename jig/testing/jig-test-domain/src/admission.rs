@@ -90,6 +90,13 @@ pub fn class(event: &Event) -> Class {
 
 fn connector_class(event: &connector::Event) -> Class {
     match event {
+        connector::Event::SettingsDefaults
+        | connector::Event::JudgeSettings { .. }
+        | connector::Event::KeepSettings { .. }
+        | connector::Event::KeepProposalSettings { .. }
+        | connector::Event::DropProposalSettings { .. }
+        | connector::Event::SaveSettingsDefaults { .. }
+        | connector::Event::ReadSetting { .. } => unreachable!("settings routing: apps-world"),
         connector::Event::System(event) => match event {
             connector::SystemEvent::Fact { origin: connector::Origin::Other, .. } => Class::Mixed,
             connector::SystemEvent::Fact { origin: connector::Origin::Own, .. }

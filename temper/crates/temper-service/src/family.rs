@@ -13,7 +13,6 @@ const _: () = {
     assert!(forge::PULL_ADDRESS_BYTES == wire::ADDRESS_BYTES, "pull address bound");
     assert!(forge::FIRST_NAME_BYTES == w::CEILINGS.first_ask_org, "first repository org bound");
     assert!(forge::FIRST_NAME_BYTES == w::CEILINGS.first_ask_repository, "first repository name bound");
-    assert!(forge::FIRST_NAME_BYTES == w::CEILINGS.new_project_name, "first repository project bound");
     assert!(forge::PANEL_AHEAD == wire::TASKS_AHEAD, "panel predecessor bound");
     assert!(forge::PANEL_GATES == wire::GATES, "panel gate bound");
     assert!(forge::PANEL_NAME_BYTES == w::CEILINGS.change_panel_owner, "panel owner bound");
@@ -64,10 +63,6 @@ pub fn to_root(
                             forge,
                             org: value.org,
                             repository: value.repository,
-                            project: match value.project {
-                                w::SetUpProject::Existing(value) => forge::SetUpProject::Existing(value.project()),
-                                w::SetUpProject::New(value) => forge::SetUpProject::New(value.into_parts().name),
-                            },
                         }),
                     }));
                 }
@@ -88,7 +83,10 @@ pub fn to_root(
                         request: root::Application::Return { source: value.source, path: value.path },
                     }));
                 }
-                value @ (w::Request::Connect(_) | w::Request::Install(_) | w::Request::Accept(_)) => {
+                value @ (w::Request::Connect(_)
+                | w::Request::Replace(_)
+                | w::Request::Install(_)
+                | w::Request::Accept(_)) => {
                     let request = match value {
                         w::Request::Connect(value) => {
                             let value = value.into_parts();
@@ -100,14 +98,6 @@ pub fn to_root(
                                             Some(forge::FirstAsk {
                                                 org: first.org,
                                                 repository: first.repository,
-                                                project: match first.project {
-                                                    w::SetUpProject::Existing(value) => {
-                                                        forge::SetUpProject::Existing(value.project())
-                                                    }
-                                                    w::SetUpProject::New(value) => {
-                                                        forge::SetUpProject::New(value.into_parts().name)
-                                                    }
-                                                },
                                                 label: first.label,
                                             })
                                         }
@@ -115,6 +105,7 @@ pub fn to_root(
                                     };
                                     forge::How::ForgejoAdmin { first }
                                 }
+                                w::How::ForgejoTokens(_) => forge::How::ForgejoTokens,
                                 w::How::GithubApp(app) => forge::How::GitHubApp {
                                     app: core::num::NonZeroU64::new(app.id()).expect("decoded nonzero App"),
                                     read_only: app.read_only().unwrap_or(false),
@@ -143,6 +134,7 @@ pub fn to_root(
                                 how,
                             }
                         }
+                        w::Request::Replace(value) => forge::Ask::Replace { forge: value.forge() },
                         w::Request::Accept(value) => {
                             let value = value.into_parts();
                             let Some(installation) = core::num::NonZeroU64::new(value.installation) else {
@@ -261,15 +253,29 @@ pub fn to_root(
                 carried,
             }))
         }
-        kit::ToApplication::Read { reply, family, version, record, .. } => {
+        kit::ToApplication::Read { reply, sign_in, family, version, record, scope, .. } => {
             let mut answer = None;
             if family == wire::FORGE
                 && version == wire::CLIENT_VERSION
                 && let Some(reading) = wire::decode_reading(&record, limits)
-                && *reading.read() == w::Read::Playground
-                && let (Some(row), Some(demo)) = (playground, demo)
             {
-                answer = Some(playground_answer(row, demo, limits));
+                let query = match reading.into_parts().read {
+                    w::Read::Setting(value) => Some(root::ForgeRead::Setting {
+                        kind: value.kind(),
+                        scope: value.scope(),
+                        number: value.number(),
+                    }),
+                    w::Read::ProposalItems(value) => Some(root::ForgeRead::ProposalItems { key: value.key() }),
+                    w::Read::Playground => {
+                        if let (Some(row), Some(demo)) = (playground, demo) {
+                            answer = Some(playground_answer(row, demo, limits));
+                        }
+                        None
+                    }
+                };
+                if let Some(query) = query {
+                    return Ok(root::Event::Party(root::PartyInput::ForgeRead { reply, sign_in, scope, query }));
+                }
             }
             Err(Box::new(kit::Event::Application(kit::FromApplication::Read { reply, family, record: answer })))
         }
@@ -382,10 +388,50 @@ pub fn panel(value: forge::Panel, forges: &crate::forges::Forges, limits: &w::Li
             repairs: used(value.repairs, limits)?,
             resolutions: used(value.resolutions, limits)?,
             updates: used(value.updates, limits)?,
+            questions: panel_questions(value.questions, limits)?,
         },
     )
     .ok()?;
     Some(wire::change_panel(&record))
+}
+
+fn panel_questions(value: forge::PanelQuestions, limits: &w::Limits) -> Option<w::Questions> {
+    let mut open = List::with_capacity(8);
+    for question in value.open {
+        open.push(
+            w::Question::new(
+                limits,
+                w::QuestionParts {
+                    asker: question.asker,
+                    number: question.number,
+                    line: question.line,
+                    stands: match question.stands {
+                        forge::PanelStands::Taken => w::Stands::Taken,
+                        forge::PanelStands::Foreman(task) => {
+                            w::Stands::Foreman(w::Foreman::new(limits, w::ForemanParts { task }).ok()?)
+                        }
+                        forge::PanelStands::Asked => w::Stands::Asked,
+                        forge::PanelStands::Held => w::Stands::Held,
+                    },
+                },
+            )
+            .ok()?,
+        )
+        .ok()?;
+    }
+    w::Questions::new(
+        limits,
+        w::QuestionsParts {
+            route: match value.route {
+                change::Route::None => w::Route::None,
+                change::Route::Foreman => w::Route::Foreman,
+                change::Route::Up => w::Route::Up,
+            },
+            taken: used(value.taken, limits)?,
+            open,
+        },
+    )
+    .ok()
 }
 
 fn used(value: forge::PanelUsed, limits: &w::Limits) -> Option<w::Used> {
@@ -452,6 +498,7 @@ fn panel_hold(value: Option<change::Hold>) -> Option<w::Hold> {
     Some(match value? {
         change::Hold::Stalled => w::Hold::Stalled,
         change::Hold::Repairs => w::Hold::Repairs,
+        change::Hold::Questions => w::Hold::Questions,
         change::Hold::Resolutions => w::Hold::Resolutions,
         change::Hold::Updates => w::Hold::Updates,
         change::Hold::BranchMoved => w::Hold::Moved,
@@ -660,7 +707,6 @@ pub fn answer(
                             forge::SetUpRefusal::NotOffered => w::SetUpRefusal::NotOffered,
                             forge::SetUpRefusal::NotUnderTheBox => w::SetUpRefusal::NotUnderTheBox,
                             forge::SetUpRefusal::Busy => w::SetUpRefusal::Busy,
-                            forge::SetUpRefusal::NewProject => w::SetUpRefusal::NewProject,
                             forge::SetUpRefusal::Invalid => w::SetUpRefusal::Invalid,
                         },
                     },
@@ -873,14 +919,6 @@ fn connection(
 }
 
 fn first_repository(first: forge::First, limits: &w::Limits) -> Option<w::FirstRepository> {
-    let project = match first.project {
-        forge::SetUpProject::Existing(project) => {
-            w::SetUpProject::Existing(w::ExistingProject::new(limits, w::ExistingProjectParts { project }).ok()?)
-        }
-        forge::SetUpProject::New(name) => {
-            w::SetUpProject::New(w::NewProject::new(limits, w::NewProjectParts { name }).ok()?)
-        }
-    };
     let state = match first.state {
         forge::FirstState::Making => w::FirstState::Making,
         forge::FirstState::Made { id } => w::FirstState::Made(w::Made::new(limits, w::MadeParts { id }).ok()?),
@@ -905,7 +943,6 @@ fn first_repository(first: forge::First, limits: &w::Limits) -> Option<w::FirstR
             playground: first.playground,
             org: first.org,
             repository: first.repository,
-            project,
             state,
             label: first.label,
         },
@@ -1128,18 +1165,26 @@ fn making(value: w::Making, directories: &jig_protocol_config::Directories) -> O
         w::Making::New(value) => forge::Making::New(match value.into_parts().forge {
             w::ForgeAsk::Github => forge::ForgeAsk::GitHub,
             w::ForgeAsk::Owned => forge::ForgeAsk::Owned,
-            w::ForgeAsk::Managed(value) => {
+            value @ (w::ForgeAsk::Managed(_) | w::ForgeAsk::Connected(_)) => {
+                let (value, connected) = match value {
+                    w::ForgeAsk::Managed(value) => (value, false),
+                    w::ForgeAsk::Connected(value) => (value, true),
+                    w::ForgeAsk::Github | w::ForgeAsk::Owned => unreachable!("Forgejo place"),
+                };
                 let value = value.into_parts();
-                forge::ForgeAsk::Managed {
-                    git_program: match value.git_program {
-                        Some(program) => Some(directories.join(jig_protocol_config::Directory::Data, &program).ok()?),
-                        None => None,
-                    },
-                    place: forge::Place {
-                        api: forge::Address { host: value.host, port: value.port, tls: value.tls },
-                        git: value.git,
-                        web: value.web,
-                    },
+                let git_program = match value.git_program {
+                    Some(program) => Some(directories.join(jig_protocol_config::Directory::Data, &program).ok()?),
+                    None => None,
+                };
+                let place = forge::Place {
+                    api: forge::Address { host: value.host, port: value.port, tls: value.tls },
+                    git: value.git,
+                    web: value.web,
+                };
+                if connected {
+                    forge::ForgeAsk::Connected { place, git_program }
+                } else {
+                    forge::ForgeAsk::Managed { place, git_program }
                 }
             }
         }),
@@ -1191,4 +1236,47 @@ fn panel_tiers(lines: Box<[Box<[u8]>]>) -> List<Box<[u8]>> {
         tiers.push(line).expect("admitted tiers");
     }
     tiers
+}
+
+/// Encode the forge's typed settings answer (temper/docs/design/client/forge.md, 9).
+#[must_use]
+pub fn forge_read(answer: root::ForgeReadAnswer, limits: &w::Limits) -> Option<Box<[u8]>> {
+    use forge::settings::Edit;
+    match answer {
+        root::ForgeReadAnswer::Setting(value) => {
+            let value = match value {
+                Some(value) => Some(temper_engine_smith::kinds::encode(&value.value)),
+                None => None,
+            };
+            let record = w::SettingAnswer::new(limits, w::SettingAnswerParts { value }).ok()?;
+            Some(wire::setting_answer(&record))
+        }
+        root::ForgeReadAnswer::ProposalItems(values) => {
+            let mut items = List::with_capacity(limits.proposal_items_answer_items);
+            for (key, edit) in values {
+                let edit = match edit {
+                    Edit::Set(value) => w::SettingEdit::Set(
+                        w::SettingValue::new(
+                            limits,
+                            w::SettingValueParts { value: temper_engine_smith::kinds::encode(&value.value) },
+                        )
+                        .ok()?,
+                    ),
+                    Edit::Remove => w::SettingEdit::Removed,
+                    Edit::Reset => w::SettingEdit::Reset,
+                };
+                items
+                    .push(
+                        w::ProposalItem::new(
+                            limits,
+                            w::ProposalItemParts { kind: key.kind, scope: key.scope, number: key.number, edit },
+                        )
+                        .ok()?,
+                    )
+                    .ok()?;
+            }
+            let record = w::ProposalItemsAnswer::new(limits, w::ProposalItemsAnswerParts { items }).ok()?;
+            Some(wire::proposal_items_answer(&record))
+        }
+    }
 }
