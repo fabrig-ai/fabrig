@@ -313,8 +313,9 @@ impl Walk {
                 let projects = p::PublicProjects::decode(&p::CEILINGS, &mut Reader::new(&self.last(visitor).body))
                     .expect("public projects");
                 assert_eq!(projects.projects().len(), 2);
-                let other =
-                    projects.projects().iter().find(|row| row.project() != project).expect("other project").project();
+                let other_row = projects.projects().iter().find(|row| row.project() != project).expect("other project");
+                assert_eq!(other_row.name(), b"Other public project", "the public record carries the project's name");
+                let other = other_row.project();
                 let task = self.task.expect("a genuinely public task of project one");
                 for (address, task) in [(crate::fixtures::CLIENTS, task), (PROXY, task), (crate::fixtures::CLIENTS, 0)]
                 {
