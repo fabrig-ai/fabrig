@@ -942,8 +942,9 @@ recipient.
   no stream, and in all; a message's bytes, which bound a change of
   settings (`../domain/engine.md`, 17.8), what a stream may have
   queued before nothing more is handed out, the heartbeat's span, mints
-  in flight; and the public reads' own: in flight, per second, and their
-  answers' bytes per second (section 19).
+  in flight; and the public reads' own: in flight, per second and its
+  burst, their answers' bytes per second and its burst, and the answer
+  ceiling (section 19).
 - **The public answers' `max-age`,** the deployment's, at most a bound
   of jig's (17.5).
 - **The default mapping's,** at each end: its HTTP machines', TLS's, and
@@ -1111,7 +1112,7 @@ prefix; jig's test application mounts it at `/jig`.
 | `POST <prefix>/v1/sign-in/deployment` | signing in as a service, its credential as the bearer |
 | `POST <prefix>/v1/sign-out` | signing out |
 | `POST <prefix>/v1/authorize` | an OpenID authorization (section 18) |
-| `GET <prefix>/v1/public/<owner>/<version>/<kind>[/<n>[/<n>]]` | a public read (17.5, section 19) |
+| `GET <prefix>/v1/public/<owner>/<version>/<kind>[/<id>[/<id>]]` | a public read (17.5, section 19) |
 
 - **A POST's body** is its message's record, `application/octet-stream`.
   Its answer is `200` with the reply's record and `Cache-Control:
@@ -1270,23 +1271,31 @@ prefix; jig's test application mounts it at `/jig`.
 
 ### 17.5 Public reads
 
-- **A `GET`, its read in its path:** `<prefix>/v1/public/<owner>/<version>/<kind>[/<n>[/<n>]]`,
-  each segment a decimal number with no sign and no leading zero, no
-  query, no trailing slash: the owner's number, its wire's version, the
-  public kind, and the kind's numbers (section 19). One document has one
-  address, so a proxy keeps one copy of it. Any other path under
-  `<prefix>/v1/public/` is `404` with `Cache-Control: no-store`, and so
-  is any method but `GET`.
+- **A `GET`, its read in its path:**
+  `<prefix>/v1/public/<owner>/<version>/<kind>[/<id>[/<id>]]`: the
+  owner's number (0 for jig, and one more than its family's number for
+  an application's), its public records' version and the public kind, each
+  a decimal number with no sign and no leading zero, within its field's
+  type; then the kind's public identifiers (section 19), each exactly 16
+  lowercase hexadecimal digits. No query, no trailing slash, no empty,
+  dot or percent-encoded segment. One document has one address, so a
+  proxy keeps one copy of it. Any other path under
+  `<prefix>/v1/public/`, and any method there but `GET`, a preflight's
+  `OPTIONS` among them, is `404` with `Cache-Control: no-store`.
 - **No credential is read.** The engine end reads no cookie and no
   bearer on these routes, and hands the component no credential, so the
   answer is the same for every visitor, signed in or not, and varies on
   nothing the request carries but its path. The guards that stand are
-  the `Host` allow-list (`browser.md`, 12.2); a public read changes
-  nothing, as the printed link's `GET` does not (`browser.md`, section
-  19), so it needs neither the browser header nor a content type.
-- **Its answers:**
+  the `Host` allow-list (`browser.md`, 12.2), checked first; a public
+  read changes nothing, as the printed link's `GET` does not
+  (`browser.md`, section 19), so it needs neither the browser header nor
+  a content type. No guard of another route is relaxed.
+- **Its answers,** each with a fixed set of headers and no others:
   - *the document:* `200`, `application/octet-stream`, its record, and
-    `Cache-Control: public, max-age=<the deployment's>`;
+    `Cache-Control: public, max-age=<rest>, must-revalidate`, where the
+    rest is the deployment's `max-age` less the whole seconds, rounded
+    up, since the decision that made the answer (`../domain/people.md`,
+    13.10), and never less than zero;
   - *unknown:* `404`, no body, with the same `Cache-Control`, so a
     private project and one never made cost a proxy alike;
   - *busy:* `503`, no body, `Cache-Control: no-store` and `Retry-After`
@@ -1294,22 +1303,32 @@ prefix; jig's test application mounts it at `/jig`.
   - *a version not served:* `200` with its record, as every version
     reads it (section 9), and `Cache-Control: no-store`.
 
-  Every answer carries `X-Content-Type-Options: nosniff`, and none
-  sets a cookie or carries `Vary`.
+  Every answer, a malformed path's and a guard's among them, carries
+  `X-Content-Type-Options: nosniff`, and none sets a cookie or carries
+  `Vary`, `ETag`, `Last-Modified`, `Age` or any `Access-Control-`
+  header. No answer allows stale serving: no `stale-while-revalidate`,
+  no `stale-if-error`.
 - **A room of its own in the engine end:** public calls in flight,
   apart from its other calls (17.4) and within the component's public
   room; a public call that finds none is `503` as busy, the call's
-  head read and nothing more. The application's server bounds its
-  connections, as 17.4 says; a proxy in front holds few of them.
+  head read and nothing more. A call to another route with no
+  credential is answered signed out by the component with no engine
+  work (section 19). The application's server bounds its connections,
+  as 17.4 says; a proxy in front holds few of them.
 - **No CORS:** a page of another origin may send it, as any site may
-  send a `GET`, and cannot read the answer; the documents are public,
-  so nothing it learns is not.
+  send a `GET`, and cannot read the answer; neither end grants any
+  origin, on a document, an error or a preflight.
 - **The `max-age`** is the deployment's, `clients.public.max_age`, a
-  few seconds, at most jig's bound of 60, so a project made private is
-  closed at every proxy within it (`../domain/people.md`, 13.2).
-- **The client end** sends it as an `Exchange` with no bearer and no
-  body, and takes back the status and the body as a `Reply`; a `503` is
-  busy, a `404` unknown.
+  few seconds, at most jig's bound of 60. With `must-revalidate` and no
+  stale serving, a cache that keeps the age it adds (`Age`) serves a
+  copy no longer than the rest it was given, so a project made private
+  stops being served everywhere within the `max-age` of the decision
+  that made the last answer (`../domain/people.md`, 13.2); what was
+  already downloaded is not withdrawn.
+- **The client end** sends it as a `Call` with the method `GET`, no
+  bearer and no body, and takes back the status, the body and the
+  freshness left: the `Cache-Control`'s `max-age` less the `Age` a
+  cache added. A `503` is busy, a `404` unknown.
 
 ## 18. The OpenID provider
 
@@ -1405,37 +1424,72 @@ and their addresses are the application's (17.1: no provider route).
 
 The messages of public reading (`../domain/people.md`, section 13):
 
-- **`PublicRead { owner, version, kind, numbers }`,** an exchange with
-  no credential and no stream: an owner, jig or an application's family;
+- **`PublicRead { owner, version, kind, ids }`,** an exchange with no
+  credential and no stream: an owner, jig or an application's family;
   the version of the owner's public records, which are versioned apart
   (`../client/domain/contract.md`, section 12); a kind of that owner's
-  public documents; at most
-  two numbers, which the kind names. jig's kinds: *projects*, with none;
-  *board*, a project; *card*, a project and a task. An application's
-  kinds take a project first, and at most one number of its own.
+  public documents; and at most two public identifiers, which the kind
+  names. jig's kinds: *projects*, with none; *board*, a project; *card*,
+  a project and a task. An application's kinds take a project, then at
+  most a task: never a number of the application's own.
 - **Answered once:** the document, as the owner's record at that
   version; unknown; busy; or the version not served. Nothing else, and
-  never why: a private project, one never made, a task outside a public
-  project's goals, and a kind no owner declared are all unknown.
-- **The component admits it** within its public room (in flight),
-  its reads per second and its answers' bytes per second
+  never why: a private project, one never made, a task that is not
+  public, an identifier that names nothing, a kind no owner declared, a
+  connector's failure and a fault decoding or encoding are all unknown,
+  each with the same answer.
+- **Public identifiers** are the component's (`../domain/people.md`,
+  13.8): a keyed permutation of a project's or a task's number, under a
+  key kept in the secrets' store under an owner of its own, made from
+  the component's random source at its first start and read at each
+  start before it answers a public read (until then, busy). Every
+  well-formed read is mapped and handed on alike, whatever its
+  identifiers name; the core's public index decides.
+- **The component admits it** within its public room (in flight), its
+  reads' bucket and its bytes' bucket, reserving the kind's declared
+  largest answer before it hands the read on and giving back what the
+  answer did not use, or all of it on any other end
   (`../domain/people.md`, 13.5), each apart from the sign-ins' room;
   past any, it answers busy at once and hands the engine nothing. It
   hands the engine's root what it admits as the public party's read,
-  and a read the root refuses at its public watermark is answered busy,
-  never offered again.
-- **The engine's side** admits it on the project's visibility
-  (`../domain/engine.md`, section 11), makes jig's kinds, and asks the
-  connector that declared an application's kind for its document, once
-  admitted; an application declares its public kinds to the component
-  at start, so a kind no owner declared is unknown before the engine.
+  and a read the root refuses is answered busy, never offered again.
+- **An application declares its public kinds** to the component at
+  start: owner, kind, the versions it serves, whether it takes a task,
+  and its answer's bound in bytes, within the deployment's answer
+  ceiling; a kind past it refuses the start. A kind no owner declared
+  is unknown before the engine.
+- **The engine's side** admits it on the public index
+  (`../domain/engine.md`, section 11): the project public, then the
+  task. It makes jig's kinds from the index, and asks the connector
+  that declared an application's kind for its document, handing it the
+  project's public tasks; the connector answers with the document and
+  the list of tasks it names, which the core checks again before it
+  answers (`../domain/people.md`, 13.10).
+- **An application's document crosses in jig's envelope:**
+  `PublicApplication { tasks, record }`, the tasks' public identifiers
+  in the order the connector listed them, and its record in its own
+  wire, which names a task only by its place in that list. The
+  component maps the list; a connector never holds the key.
+- **Its freshness:** each answer carries when the decision that made it
+  was taken, by the engine's monotonic clock, from which the clients'
+  end gives the rest of its `max-age` (17.5).
 - **Every other exchange without a credential** is answered signed out
-  (section 8): a read, a watch, a stream, a keyed request. The public
-  party opens no stream and no watch; a page reads again by its own
-  timer.
+  (section 8) by the component from the exchange alone: a read, a
+  watch, a stream, a keyed request. The public party opens no stream
+  and no watch; a page reads again by its own timer.
 - **Testing:** the component's world plays public reads with no
   credential and with a signed-in person's cookie, answered alike; past
   the room, the rate and the bytes, busy while signed-in exchanges are
-  answered; an unknown kind and a private project, unknown alike; and
-  the mapping's world, each answer's status and headers, a credential
-  on the route never read, and a malformed path `404`.
+  answered; reservations given back on every end, two reads completing
+  at once and one whose exchange is gone among them, the bytes' bucket
+  whole after; an unknown kind, a private project, an identifier that
+  names nothing and one of a task that is not public, unknown alike,
+  with the same messages to the engine; identifiers mapped both ways,
+  distinct for projects and tasks, and the same after a restart. The
+  mapping's world: each answer's status and exact headers, a late
+  answer's shortened `max-age`, a credential on the route never read,
+  malformed paths (an overflowing number, a leading zero, upper-case or
+  short identifiers, an encoded or dot segment, a query, a trailing
+  slash) `404`, and `OPTIONS`, `HEAD` and `POST` `404` with no
+  `Access-Control-` header. Its fuzzy tests: the public path's parser
+  and the public records' decoders over seeded bytes.

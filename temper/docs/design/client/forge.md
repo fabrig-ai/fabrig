@@ -1366,66 +1366,114 @@ What a visitor reads of a public project's forge, without signing in
 (jig's `domain/people.md`, section 13; `../draft/first-release.md`,
 5.3): the forge's public projections, beside jig's board and cards. Each
 is a record of its own, made by a projection from the forge's state,
-never a cut of a panel: a field is in it only once added there.
+never a cut of a panel: a field is in it only once added there. None
+holds words, a configured name or an internal number; its only strings
+are the forge's addresses it links (11.3).
 
 ### 11.1 Their kinds
 
 Declared by the forge family to jig's clients' component at start, read
 by jig's `PublicRead` (jig's `protocol/client.md`, section 19; over HTTP,
-17.5), each naming a public project first:
+17.5), each naming a public project first, and carried in jig's
+`PublicApplication`, whose list names every task a record refers to by
+its place (jig's `client/domain/contract.md`, section 12):
 
 | Kind | Names | Answered with |
 |---|---|---|
-| *change* | a project, a change's task | `PublicChange`: the change's task; its repository's and its pull's addresses on the forge; its head; its step, without words; its hold's kind; CI's state; its gates, each its number, kind, whether it blocks and its verdict; its repairs, resolutions and updates, used and allowed; its way and its landing |
-| *landings* | a project | `PublicLandings`: the turn's landing; the project's landings, newest first within the panel's bound, each its task, phase, changes and landed commits; and each landing branch's queue in order, each change its task, its goal and when it became ready |
-| *landing* | a project, a landing's task | `PublicLanding`: its phase; its hold's kind and counts; its members, each its change's task, its repository's and pull's addresses, its base, candidate and landed commits, and its gates, each its configured name, whether it blocks, its proof's state and, once run, the run's address; its stale proofs; whether it holds the turn |
+| *change* | a project, a public change's task | `PublicChange`: the change's task; its repository's and its pull's addresses on the forge; its head's hash; its step, without words; its hold's kind; CI's state; its gates, each its number, kind, whether it blocks and its verdict; its repairs, resolutions and updates, used and allowed; its way; and whether it is a member of a public landing |
+| *landings* | a project | `PublicLandings`: the public landing that holds the turn, if one does; the project's public landings, newest first within the panel's bound, each its members' tasks, its phase and its landed commits' hashes; and each landing branch's queue, as its repository's address and its public changes in order, each its task, its public goal and when it became ready |
+| *landing* | a project, a public change's task | `PublicLanding`, of the public landing that change is a member of: its phase; its hold's kind and counts; its members, each its change's task, its repository's and pull's addresses, its base's, candidate's and landed commits' hashes, and its gates, each its number, kind, whether it blocks, its proof's state and, once run, the run's address; its stale proofs' count; whether it holds the turn |
 
-A change whose task is in no goal's tree of the project, and a change
-or a landing of another project, are unknown, as jig's card is; jig's
-core admits the read on the project's visibility, and the forge judges
-the task's (jig's `domain/connectors.md`, 5.5).
+### 11.2 Which are public
 
-### 11.2 What crosses, and what never
+jig's rule (jig's `domain/people.md`, 13.7), applied by the forge to
+the public tasks jig's core hands it with the ask:
 
-- **Structure and mechanics:** task numbers, steps and phases, holds'
-  kinds, CI's states, gates' kinds, names and verdicts, counts, commit
-  hashes, times, a run's state, and a landing branch's name, which its
-  adoption configures.
-- **Linked, not shown:** a pull request and a commit are addresses on
-  the forge, its web address with the repository's path, the pull's
-  number and the commit's hash, never its title, body or message; the
-  forge decides who reads there. A CI run's address likewise.
+- **A public change** is a change whose task is public. A change
+  outside every goal's tree (`../domain/forge.md`, section 9 lets one
+  queue) is not, nor is a change of another project.
+- **A public landing** is a landing of the project whose every member
+  is a public change. A landing with a member that is not, a pin-only
+  member among them (`../domain/landing.md`, 4.1), is not public at
+  all: it is absent from *landings*, and *landing* through any of its
+  members is unknown. A landing's own task, which the deployment
+  requests for the project (`../domain/landing.md`, 4.2), is never
+  named: a public landing is reached through one of its members.
+- **Filtered before it is ordered or counted:** a queue lists its
+  public changes alone, in the queue's order; a change's place and the
+  tasks ahead of it are not given, since they count changes that are
+  not public; the turn is given only when a public landing holds it;
+  every count is of public members.
+- **Named through the list:** every task a record names, and the goal
+  a queue's change serves, is one of the tasks jig handed, listed in
+  the answer's tasks for jig's core to check again before it answers
+  (jig's `domain/people.md`, 13.10). A task jig did not hand is never
+  named.
+
+### 11.3 What crosses, and what never
+
+- **Structure and mechanics:** steps and phases, holds' kinds, CI's
+  states, gates' numbers, kinds and verdicts, counts, commit hashes,
+  times to the second, a run's state.
+- **Linked, not shown:** a pull request, a commit and a CI run are
+  addresses on the forge, its web address with the repository's path,
+  the pull's number, the commit's hash or the run's number, never a
+  title, body or message; the forge decides who reads there.
+- **A step without words:** the step's name; for a repair, its
+  reason's kind (CI, a gate's number, semantic) without its words; for
+  a landed change, its merge's hash.
 - **Never:** a question's line and every question (2.2), an authority
   hold's reason, a verifying or red tier's text (the step carries the
-  tiers' count alone), a change's branch name, a review's words, a
-  result, findings, the outbox's descriptions, a forge's credentials,
-  installations or accounts, and the settings.
-- **A step without words:** the public step is the step's name, with a
-  queued change's place and the tasks ahead, a repair's reason's kind
-  (CI, a gate's number, semantic), and a landed change's merge; nothing
-  that carries text.
+  tiers' count alone), a change's or a landing branch's name, a gate's
+  or a charter's configured name, a review's words, a result, findings,
+  the outbox's descriptions, a forge's credentials, installations or
+  accounts, the settings, and a task's or a project's number.
+- **Every field's source:**
 
-### 11.3 Their records and golden
+  | Field | Source | Made by |
+  |---|---|---|
+  | a task, a member's task, a queue's change and its goal | the change's or landing member's task, the goal of its public tree | its place in the answer's tasks |
+  | a repository's, a pull's, a run's address | the adoption's forge and repository, the pull's number, CI's run | the forge's web address and path |
+  | a head, base, candidate, landed or merge hash | the change's and landing's commits | as is |
+  | step, repair kind, hold's kind, phase, CI's state, way, proof's state | the change's and landing's state | its kind alone, never its words |
+  | a gate's number, kind, whether it blocks, verdict | the landing rule's gates and their verdicts | never the gate's name |
+  | counts used and allowed, stale proofs | the change's and landing's counters | public members alone |
+  | when it became ready | the change's `ready_since` | to the second |
+
+### 11.4 Their records and golden
 
 - **A schema of their own,** `temper-client-protocol-wire`'s
   `public-v1.schema`, versioned apart from the family's other records:
   its records name only one another and scalars, never a record of the
   panels' schema, so a field added to a panel never reaches a visitor.
   A test reads the schema and refuses a name from elsewhere.
-- **The golden of the public types:** a text file beside the schema
-  listing each public record with its fields and their types, which a
-  test compares with the schema. Any addition changes it, and shows in
-  review as a public field; adding one passes the user's test, that no
-  agent wrote it.
+- **The golden of the whole reachable wire shape:** a text file beside
+  the schema listing every record and enum reachable from the kinds'
+  answers, each field with its type, tag and default and each variant
+  with its tag and payload, which a test compares with the schema. Any
+  change shows in review as a public one; adding a field passes the
+  user's test, that no agent wrote it.
+- **Tested for meaning:** each projection compared with an expected
+  record built independently from the source table, from a forge state
+  whose forbidden sources (a question line, a branch, a gate's name, a
+  reason, tiers' text, a task number) hold distinct markers that no
+  answer's bytes contain; mutation tests show the golden failing on a
+  nested field added to a copy of the schema and the projection test
+  failing on a field filled from the wrong source.
 - **Bounded** as the panels are (`Bounds`), each list within its
-  panel's bound, so each answer's bytes are known at start.
+  panel's bound, so each kind's largest answer is known at start and
+  declared to jig.
 
-### 11.4 Their world
+### 11.5 Their world
 
 In the forge's world (`../domain/forge.md`, section 18): a public
 project's change, from producing to landed, read at each step as its
-public document, with no question line, branch or reason in it; a
-landing with two members and a failed gate read as its public document,
-the run's address in it; a change of a private project, and one in a
-conversation's tree, unknown; and the golden test failing on a field
-added to `public-v1.schema` until the golden says it.
+public document, with no question line, branch, gate name or reason in
+it; a landing with two members and a failed gate read as its public
+document, the run's address in it, reached through either member; a
+change of a private project, one outside every goal's tree, and one in
+a conversation's tree, unknown; a queue holding a change outside every
+goal's tree, which the landings leave out and count nowhere; a landing
+with a member that is not public, absent and unknown; a task jig did
+not hand never named; and the golden test failing on a field added to
+`public-v1.schema` until the golden says it.

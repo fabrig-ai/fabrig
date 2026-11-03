@@ -6,11 +6,11 @@
   `Hold`; `Move` under another task; `Succeed`; a party's `Propose` of a
   release; a widening funded from the amender's pool. 6: retention; a
   delegate's question to a conversation kept with the conversation. 7: a chat answering its delegates' questions and asking
-  its person by a person task. 13: public reading: no public party
-  or role `public`, no `SetVisibility` or `ShowTitle`, no visibility in
-  the people family's project row and no title flag in the tasks'
-  (`../protocol/store.md`, 4.4), no public documents, admission or
-  world.
+  its person by a person task. 13: public reading: no public party,
+  no `SetVisibility`, no visibility in the people family's rows
+  (`../protocol/store.md`, 4.4), no public tasks' rule (13.7), public
+  identifiers (13.8) or public index (13.9), no public documents,
+  admission, recheck of a read under way (13.10), races or world.
 - **Departs:** 6, 8: the person's own answer is off by default, behind
   `Core::person_answers()` (`jig-domain-core/src/inbox.rs`), because
   each application opts in before the first step, as temper does. With

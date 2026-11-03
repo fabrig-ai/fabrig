@@ -1,0 +1,38 @@
+draft = "public-reading-build"
+repo = "fabrig"
+sources = ["temper/docs/plan/public-reading-build/inputs/request.md", "temper/docs/plan/public-reading-build/inputs/review.md", "temper/docs/plan/public-reading/plan.md", "temper/docs/plan/public-reading/notes/next-cut.md", "temper/docs/design/draft/first-release.md", "temper/docs/design/draft/first-release.status.md", "AGENTS.md", "DESIGN.md"]
+
+# public-reading-build settles the security review of public reading's design (inputs/review.md) in the
+# design, released with the first batch, then builds it: jig's generic part (people.md 13, client.md 17.5
+# and 19, contract.md 12), temper's (forge.md 11, browser.md 8, sign-in.md 2.4-2.5, tools.md 5.3), and the
+# negative walk and fuzzy tests. plan.md says how each finding is settled and what each batch released.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "jig-public"
+title = "jig's public reading: the public party, visibility, the public index, public reads and their GET"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/people.md, 13"
+
+[[part]]
+id = "temper-public"
+title = "temper's public reading: the forge's public documents, ctl's visibility, the web client's public mode"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/forge.md, 11"
+
+[[slice]]
+id = 1
+story = "a public project's board read by GET with no credential through jig's HTTP mapping, a private one and a stranger's identifier unknown alike, past the rate busy while a signed-in read is answered"
+parts = ["jig-public"]
+walk = false
+
+[[slice]]
+id = 2
+story = "an anonymous visitor reads a public project's board, a goal's tree and the landings in the web client, and sees nothing private"
+parts = ["temper-public"]
+walk = true

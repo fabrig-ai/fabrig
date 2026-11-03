@@ -1143,13 +1143,15 @@ never streaming (`../draft/first-release.md`, 5.3).
 | Page | Path | Reads |
 |---|---|---|
 | `PublicProjects` | `/public` | jig's *projects* |
-| `PublicBoard { project }` | `/public/projects/<project>` | jig's *board*, and the forge's *landings* for its queue's line |
+| `PublicBoard { project }` | `/public/projects/<project>` | jig's *board*, and the forge's *landings* for its queues' lines |
 | `PublicTask { project, task }` | `/public/projects/<project>/tasks/<task>` | jig's *card*, and the forge's *change* where the task makes one |
 | `PublicLandings { project }` | `/public/projects/<project>/landings` | the forge's *landings* |
-| `PublicLanding { project, task }` | `/public/projects/<project>/landings/<task>` | the forge's *landing* |
+| `PublicLanding { project, task }` | `/public/projects/<project>/landings/<task>` | the forge's *landing*, through a member's change's task |
 
-- **By temper's address codec,** as every page's (2.3), numbers in
-  decimal; a path under `/public` that does not read is `/public`.
+- **By temper's address codec,** as every page's (2.3); `<project>`
+  and `<task>` are public identifiers, 16 lowercase hexadecimal digits
+  (jig's `domain/people.md`, 13.8), never numbers. A path under
+  `/public` that does not read is `/public`.
 - **Served as every page is:** the server answers each with the page
   and the bundle (2.2); nothing on the server is new but the public
   kinds the forge declares to jig (`forge.md`, 11.1).
@@ -1162,14 +1164,20 @@ never streaming (`../draft/first-release.md`, 5.3).
   document its page shows by jig's public `GET` through jig's HTTP
   client end (jig's `protocol/client.md`, 17.5), and decodes it with
   jig's and the forge's public records alone.
-- **It reads again by itself,** every `max-age`, which jig's *projects*
-  document gives, while its tab is visible; a hidden tab reads nothing,
-  and reads at once when shown. The browser's cache and the proxy's
-  answer most of these reads; the engine sees one per document per
-  `max-age` (`../protocol/sign-in.md`, 2.4).
-- **Busy** keeps what the page shows, marked as of when it was read, and
-  reads again after `Retry-After`, doubling to a bound of a minute;
-  **unknown** shows "Not public, or not here." with a link to `/public`.
+- **It reads again by itself,** when a document's freshness ends (the
+  `max-age` its answer gave, less the `Age` a cache added), while its
+  tab is visible; a hidden tab reads nothing, and reads at once when
+  shown. The proxy's cache answers most of these reads; the engine sees
+  one per document per `max-age` (`../protocol/sign-in.md`, 2.4).
+- **Nothing shown past its freshness.** A document is shown only until
+  its freshness ends: a read again that is answered busy or fails keeps
+  it until then, marked as of when it was read, and after it the page
+  drops it and says "Not available just now.", reading again after
+  `Retry-After`, doubling to a bound of a minute. So a project made
+  private leaves an open page within the `max-age`, as it leaves the
+  proxy; a copy already shown or saved is not withdrawn.
+- **Unknown** shows "Not public, or not here." with a link to
+  `/public`, and drops what the page showed.
 - **Anyone, signed in or not,** sees the same pages at these addresses:
   the answers are the same for every visitor. A signed-in person's
   cookie goes with the `GET` and is never read. The banner offers "Sign
@@ -1177,26 +1185,35 @@ never streaming (`../draft/first-release.md`, 5.3).
 
 ### 8.3 What it shows
 
-- **The board:** the project's goals, each a line: its number, its
-  title where its author shows it and "Goal N" otherwise, its phase in
-  words, for how long, its spend; under it its tree's lines: "task 1234,
-  a coder, running for 14 minutes", its charter's name, its phase, its
-  times; and the queue's line from the landings.
+- **No names:** the records carry no text, so a project is "Project"
+  and a goal "Goal", each with the first eight digits of its public
+  identifier, and a task "task" with the same; an executor is its kind,
+  "an agent", "a procedure", "a person".
+- **The board:** the project's goals, each a line: its identifier, its
+  phase in words, for how long, its spend; under it its tree's lines:
+  "task 3f2a9c01, an agent, running for 14 minutes", its phase, its
+  times; the count of lines folded; and the queues' lines from the
+  landings.
 - **A task:** its line, its lineage up to its goal as links, its
   delegates, and where it makes a change, the change's step in words,
-  CI's state, its gates' verdicts, and "its change on the forge", the
-  pull's address, with the head's commit linked by its short hash.
-- **The landings:** the turn, the queue in order and the recent
-  landings, each landed commit a link.
+  CI's state, its gates' verdicts by number and kind, and "its change
+  on the forge", the pull's address, with the head's commit linked by
+  its short hash.
+- **The landings:** the turn, each queue in order, without places, and
+  the recent landings, each landed commit a link.
 - **Never** a person's name, words, an agent's words, or anything the
   records do not carry: the view reads only the public records.
 
 ### 8.4 Its tests
 
 - **Step tests:** the address codec's public paths, both ways, and a
-  malformed one read as `/public`; the public mode's reads, its timer,
-  a hidden tab reading nothing, busy keeping the page and backing off,
+  malformed one (a number, upper-case, short or long identifiers) read
+  as `/public`; the public mode's reads, its timer from the answer's
+  freshness and `Age`, a hidden tab reading nothing, busy keeping the
+  page until its freshness ends and then dropping it, backing off,
   unknown's main.
+- **Fuzzy tests:** the address codec's parser over seeded paths under
+  `/public`, never panicking and printing back what it read.
 - **The browser tier** (section 4): a public project on fakes read at
   `/public`, its board, a task and its landings, by a page with no
   sign-in and no stream, the view's text checked against the public

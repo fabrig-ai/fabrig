@@ -436,16 +436,31 @@ host's half reports it (`llm.md`, 5.5).
   a programmer precondition (`../domain/engine.md`, section 14).
 - **Public reading's limits,** the clients' component's
   (`../domain/people.md`, 13.5; `client.md`, section 19):
-  `clients.public.reads` in flight, `clients.public.rate` reads per
-  second, `clients.public.bytes` of answers per second, and
-  `clients.public.max_age` in seconds, at most 60; and the HTTP mount's
-  `clients_http.public_calls` in flight, within `clients.public.reads`.
-  Every profile's rate is zero, which answers every public read busy:
-  a deployment that opens sets its own figures. The board's bounds,
-  goals ended and lines per goal, are the core's, priced within a task
-  query's (`../domain/engine.md`, section 13).
-- **The role `public` is reserved:** a policy, configured or in the
-  rules, that names a role `public` refuses the start at its path
+  `clients.public.reads` in flight; `clients.public.rate` reads per
+  second and `clients.public.rate_burst`, the most its bucket holds;
+  `clients.public.bytes` of answers per second and
+  `clients.public.bytes_burst`; `clients.public.answer_bytes`, the
+  ceiling of one answer; and `clients.public.max_age` in seconds, at
+  most 60. The HTTP mount's `clients_http.public_calls` in flight. The
+  root's public figures follow from these (`../domain/root.md`, section
+  10). The core's public index (`../domain/people.md`, 13.9):
+  `core.public.goals`, live goals per board, `core.public.ended`, ended
+  goals kept per project, `core.public.lines`, lines per goal and
+  delegates per card, and `core.public.depth`, a card's lineage.
+  Every profile's public figures are zero, a rate of zero answering
+  every public read busy: a deployment that opens sets its own.
+- **Their relations, checked at start** once the rate is above zero
+  (with a rate of zero only `max_age`'s bound is), each refusing the
+  start at its path: a burst at least its rate, but for a rate of zero;
+  `answer_bytes` within `bytes_burst`, every jig kind's and every
+  declared application kind's bound within `answer_bytes`;
+  `clients_http.public_calls` within `clients.public.reads`; `max_age`
+  at most 60;
+  and the public index's memory, its bounds times the deployment's
+  projects, within the process's fit check (`../domain/engine.md`,
+  section 13).
+- **The role `public` has no number:** a policy, configured or in the
+  rules, names roles by number, so none can name the public party's
   (`../domain/authority.md`, section 6).
 - **Charters' budgets:** each charter's turns and time are above its
   reserve's, and its default budget holds its reserve and one of its

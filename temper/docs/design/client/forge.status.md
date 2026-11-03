@@ -19,8 +19,9 @@
   forge, which `temper-client-domain`'s `forge/listed.rs` `rows` counts.
   6.2: a drift hold's card, what changed, by whom and when.
   7: a goal's issue, landings as news, findings on a project's page. 9:
-  the reads of the forge's other parts. 11: the public documents (`change`, `landings`, `landing`), their
-  kinds declared to jig, `public-v1.schema` and its golden.
+  the reads of the forge's other parts. 11: the public documents (`change`, `landings`, `landing`), which
+  changes and landings are public (11.2), their kinds declared to jig, `public-v1.schema`, its
+  golden of the reachable wire shape and its tests of meaning, and their world.
 - **Departs:** 5.4: `ConnectForge`'s `?forge=elsewhere` draws A Forgejo
   elsewhere's Details, the configuration's entries for a forge and a
   restart (`forge/connect.rs` `elsewhere`); Your Forgejo's card has the

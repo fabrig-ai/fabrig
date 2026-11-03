@@ -1325,14 +1325,18 @@ computes for them is said below (11.1 to 11.5).
   do (`../client/domain/contract.md`, 7.5). Only the document, or why
   there is none, crosses back; the root only routes.
 - **Public reads** (people.md, section 13) are the public party's,
-  with no sign-in: the core admits one only on a live, public project,
-  and for a card on a task in one of its goals' trees, and answers
-  every other unknown. It makes jig's public documents (projects, a
-  board, a card) by their projections from the live tasks and a load
-  of the ended ones, within the board's bounds, as a task query's are
-  (11.2); an application's it asks of the connector that declared the
-  kind, as an application's read, naming the public party's scope. No
-  watch is opened, nothing is marked, nothing is committed.
+  with no sign-in: the core admits one only on its public index
+  (people.md, 13.9), the project first, then the task, before any other
+  work, and answers every other unknown alike. It makes jig's public
+  documents (projects, a board, a card) by their projections from the
+  index alone, within the board's bounds, never scanning the live tasks
+  or loading from the store; an application's it asks of the connector
+  that declared the kind, handing it the project's public tasks, and
+  checks the tasks its answer names again in the step that completes
+  the read (people.md, 13.10). It keeps the index with every decision
+  that changes what is public (people.md, 13.7), and loads a project's
+  ended public goals once, at start or when the project is made public.
+  No watch is opened, nothing is marked, nothing is committed.
 - **Level-triggered,** as facts are (core.md, section 4). A delivery is
   the subject's whole current document, within the watch's window, made
   by the subject's owner when the delivery is made: the core, or a
