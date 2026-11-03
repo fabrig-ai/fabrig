@@ -55,6 +55,9 @@ pub struct ProcedureStep {
     pub cancels: Box<[StepCancel]>,
     pub messages: Box<[StepMessage]>,
     pub proposals: Box<[tasks::ProposalAction]>,
+    /// Dependencies of the procedure's task its work started from; an amendment may never
+    /// remove them (jig/docs/design/domain/connectors.md, 6.1).
+    pub started_from: Box<[u64]>,
     pub end: StepEnd,
 }
 
@@ -97,6 +100,7 @@ impl ProcedureStep {
             cancels: Box::new([]),
             messages: Box::new([]),
             proposals: Box::new([]),
+            started_from: Box::new([]),
             end,
         }
     }

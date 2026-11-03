@@ -1212,9 +1212,9 @@ pub mod waiting {
     pub const A1: u64 = 2;
     pub const E1: u64 = 3;
     pub const REPIN: u64 = 4;
-    pub const E1_CODER: u64 = 5;
-    pub const E1_REVIEWER: u64 = 6;
-    pub const REPIN_CODER: u64 = 7;
+    pub const E1_CODER: u64 = 6;
+    pub const E1_REVIEWER: u64 = 7;
+    pub const REPIN_CODER: u64 = 5;
     pub const REPIN_REVIEWER: u64 = 8;
     pub const KIT_ID: u32 = 3;
     pub const APP_ID: u32 = 2;
@@ -1232,8 +1232,9 @@ pub mod waiting {
     pub const OWNER_REPORT: &str = "A1 reports e1 and app's waiting repin landed without relay.";
     pub const DIRECTOR_REPORT: &str = "The director reports kit e1 and app's dependent repin landed.";
     pub const REVIEW_HOLD: &[u8] = b"case-6-6-e1-review";
+    pub const REPIN_HOLD: &[u8] = b"case-6-6-repin-producer";
     // Script inputs only: app root 1, kit root 2, e1 coder 3, kit merge 4,
-    // repin coder 5, app merge 6. Initial Waiting serializes the coders.
+    // repin coder 5, app merge 6. The repin turn waits for kit to land.
     // The oracle instead renders the unique actual kit Merged.commit.
     pub const KIT_REVIEW_HEAD: u64 = 3;
     pub const PIN_INPUT: u64 = 4;

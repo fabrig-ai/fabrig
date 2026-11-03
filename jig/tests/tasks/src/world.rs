@@ -157,6 +157,7 @@ pub struct Frozen {
     pub results: BTreeMap<u64, Ending>,
     ended_topics: Vec<(u64, u64, u16)>,
     deadlines: BTreeMap<u64, (Wall, Time)>,
+    kept_starts: Box<[tasks::KeptStart]>,
     kinds: Vec<tasks::Kind>,
     reports: BTreeMap<tasks::Name, tasks::HoldKind>,
     restoring: bool,
@@ -221,6 +222,7 @@ pub struct World {
     priced: Option<(u64, u64)>,
     restoring: bool,
     deadlines: BTreeMap<u64, (Wall, Time)>,
+    kept_starts: Box<[tasks::KeptStart]>,
     kinds: Vec<tasks::Kind>,
     reports: BTreeMap<tasks::Name, tasks::HoldKind>,
 }
@@ -259,6 +261,7 @@ impl World {
             priced: None,
             restoring: true,
             deadlines: BTreeMap::new(),
+            kept_starts: Box::new([]),
             kinds: Vec::new(),
             reports: BTreeMap::new(),
         };
@@ -285,6 +288,7 @@ impl World {
             results: self.results,
             ended_topics: self.ended_topics,
             deadlines: self.deadlines,
+            kept_starts: self.kept_starts,
             kinds: self.kinds,
             reports: self.reports,
             restoring: self.restoring,
@@ -311,6 +315,12 @@ impl World {
     pub fn open_period(&mut self, period: u64, budget: u64) {
         let reply_to = self.to();
         self.send(Event::OpenPeriod { reply_to, project: 1, period, budget });
+    }
+
+    /// Configure procedures that start kept, including after a restart.
+    pub fn set_kept_starts(&mut self, starts: Box<[tasks::KeptStart]>) {
+        self.domain.set_kept_starts(starts.clone());
+        self.kept_starts = starts;
     }
 
     /// Install connector hold rules, replayed before live rows on restart.
@@ -1312,6 +1322,7 @@ impl World {
         self.deadlines.clear();
         self.accounting_referee.reset(&self.records);
         self.domain = domain(&self.env.limits, self.seed);
+        self.domain.set_kept_starts(self.kept_starts.clone());
         let kinds = self.kinds.clone();
         for configured in kinds {
             self.send(Event::Kinds { connector: configured.connector, kinds: Box::new([configured]) });

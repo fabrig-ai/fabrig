@@ -40,6 +40,15 @@ fn a_live_task_record_reads_back_whole() {
     let row = domain::Stored::Live(Box::new(fixtures::task_record()));
     assert_eq!(saved_tasks(&row), Ok(row));
 }
+#[test]
+fn a_task_record_with_started_from_dependencies_reads_back() {
+    let mut record = current_record();
+    record.dependencies = Box::new([19, 23]);
+    record.waiting_on = Box::new([19]);
+    record.started_from = Box::new([23, 19]);
+    let row = live_record(record);
+    assert_eq!(saved_tasks(&row), Ok(row));
+}
 fn an_ended_task_with_its_result_reads_back() {
     let mut record = fixtures::task_record();
     record.settings = domain::SettingsRevision { task: 5, run: None };

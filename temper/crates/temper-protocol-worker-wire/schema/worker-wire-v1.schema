@@ -4,9 +4,10 @@ family temper-worker-wire 4
 # the save branch take Bounds.name_bytes; the remote Bounds.remote_bytes;
 # the list Bounds.repositories.
 record Merge { branch: bytes 1024 base: fixed 32 }
+record Merged { branch: bytes 1024 heads: list 64 fixed 32 }
 record Branch { branch: bytes 1024 }
 record Commit { commit: fixed 32 }
-enum Start { merge: Merge, base: Branch, branch: Branch, commit: Commit, saved: Branch }
+enum Start { merge: Merge, base: Branch, branch: Branch, commit: Commit, saved: Branch, merged: Merged }
 record Writable { push: bytes 1024 expected: option fixed 32 landing: option bytes 1024 }
 enum Access { writable: Writable, read_only }
 record Repository { tag: u64 name: bytes 1024 remote: bytes 1024 git: option bytes 4096 start: Start access: Access identity: u32 account: option u64 save: option bytes 1024 }
@@ -31,7 +32,8 @@ record Saved { repositories: list 64 SavedRepository }
 enum Missing { repository, branch, commit }
 record Missed { tag: u64 missing: Missing }
 record Tag { tag: u64 }
-enum Preparation { transient, missing: Missed, refused: Tag }
+record Conflicted { tag: u64 head: fixed 32 }
+enum Preparation { transient, missing: Missed, refused: Tag, conflicted: Conflicted }
 
 # Beside a grant: a git identity's value (protocol/channel.md, 6).
 record Token { token: secret 4096 }

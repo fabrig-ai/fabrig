@@ -237,15 +237,7 @@ pub(crate) fn progress(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<R
             };
             match &task.phase {
                 Phase::Waiting => {
-                    let mut ready = true;
-                    for dependency in &task.waiting_on {
-                        if domain.names.contains_key(dependency) {
-                            ready = false;
-                        } else {
-                            unreachable!("unfinished dependency must remain live");
-                        }
-                    }
-                    if ready {
+                    if domain.dependencies_ready(task) {
                         if task.holdings.is_empty() {
                             crate::holds::take(domain, number, out);
                             task_mut(domain, number).expect("waiting task live").record.phase =
@@ -382,10 +374,12 @@ fn end_task(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue
     out.push(Request::Save { record: Stored::Ended(Box::new(ended)) });
     let dependents = snapshot(domain, env.limits.tasks);
     for dependent in dependents.into_boxed() {
-        let task = task_mut(domain, dependent).expect("dependent snapshot is live");
-        if !crate::batch::contains(&task.record.waiting_on, number) {
+        let task = record(domain, dependent).expect("dependent snapshot is live");
+        if !crate::batch::contains(&task.waiting_on, number) {
             continue;
         }
+        let was_queued = crate::holds::queued(domain, task);
+        let task = task_mut(domain, dependent).expect("dependent snapshot is live");
         let was_kept = crate::run::ends::for_record(&task.record).blocks_claims();
         let mut remaining = List::with_capacity(env.limits.dependencies);
         for &waiting in &task.record.waiting_on {
@@ -419,8 +413,8 @@ fn end_task(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue
                 }
             },
         }
-        let task = task_mut(domain, dependent).expect("dependent remains live");
-        if crate::holds::queued(&task.record) {
+        let task = record(domain, dependent).expect("dependent remains live");
+        if !was_queued && crate::holds::queued(domain, task) {
             crate::holds::back(domain, env, dependent, out);
         } else {
             publish(domain, env, dependent, out);
