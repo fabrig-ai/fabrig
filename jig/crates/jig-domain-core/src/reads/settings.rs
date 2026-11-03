@@ -136,7 +136,7 @@ fn setting_value(core: &Core, setting: settings::Setting, revision: u32) -> Answ
         return Answer::None(Why::Unknown);
     }
     match setting {
-        settings::Setting::ProjectPolicy { .. } => unreachable!("a project's policy: policy-change"),
+        settings::Setting::ProjectPolicy { .. } => return Answer::None(Why::Unknown),
         settings::Setting::Application { .. } => {
             if revision != core.current.newest() {
                 return Answer::None(Why::Unknown);

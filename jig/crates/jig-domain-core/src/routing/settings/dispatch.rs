@@ -1,4 +1,6 @@
 //! Owner settings decisions, atomic with their keyed answer (engine.md, 17.2).
+mod project_policy;
+
 use crate::{
     Core, Event, Limits, Request,
     routing::{
@@ -114,7 +116,7 @@ fn preflight(
         return Err(malformed_refusal(failure));
     }
     match s::check_change(&core.current, &change.items, &core.settings, &core.connectors, &env.limits) {
-        Ok(()) => Ok(()),
+        Ok(()) => project_policy::check(core, &env.limits, &change.items),
         Err(failure) => Err(malformed_refusal(failure)),
     }
 }
@@ -166,10 +168,20 @@ fn decide_with(
     if change.against != previous {
         return Err(people::Refusal::Stale { newest: previous });
     }
-    if kept.is_empty() && !s::changes_current(&core.current, &change.items) {
+    if kept.is_empty() && !project_policy::changes(core, &change.items) {
         return Err(people::Refusal::NotWellFormed { at: 0, why: people::Malformed::SettingsUnchanged });
     }
     preflight(core, env, &change, proposal)?;
+    match by {
+        s::Decider::Party(person) => {
+            for item in &change.items {
+                if let Some(project) = project_policy::project(item.setting) {
+                    core.role_allowed(person, project, env.limits.tasks.tree_tasks)?;
+                }
+            }
+        }
+        s::Decider::FirstStart | s::Decider::Release => {}
+    }
     if let Err(failure) = s::application::references(&core.current, &change.items, &kept) {
         return Err(malformed_refusal(failure));
     }
@@ -218,7 +230,7 @@ fn decide_with(
                 s::Setting::Template(_) | s::Setting::Policy(_) => templates = true,
                 s::Setting::Rules => rules = true,
                 jig_domain_people::Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
-                jig_domain_people::Setting::ProjectPolicy { .. } => unreachable!("a project's policy: policy-change"),
+                jig_domain_people::Setting::ProjectPolicy { .. } => {}
             }
         }
     }
@@ -233,7 +245,9 @@ fn decide_with(
     let mut items = skein_lib::List::with_capacity(u32::try_from(change.items.len()).expect("bounded revision items"));
     for item in &change.items {
         let replaced = match item.setting {
-            s::Setting::ProjectPolicy { .. } => unreachable!("a project's policy: policy-change"),
+            s::Setting::ProjectPolicy { project } => s::Replaced::Value(s::Value::Policy(Box::new(
+                core.configured_policy(project).expect("checked live project"),
+            ))),
             s::Setting::Charter(_)
             | s::Setting::Template(_)
             | s::Setting::Policy(_)
@@ -264,6 +278,7 @@ fn decide_with(
         room.saturating_sub(s::withdrawal_writes(&env.limits).expect("withdrawal write bound"))
             .saturating_sub(held_writes)
             .saturating_sub(application_writes)
+            .saturating_sub(project_policy::writes_bound(&env.limits).expect("policy write bound"))
             .saturating_sub(s::move_writes(&env.limits).expect("move write bound")),
         keep_previous,
     );
@@ -273,6 +288,7 @@ fn decide_with(
     }
     withdraw_stale(core, env, &mut routed.out, proposal);
     core.tell_replaced_settings(env, rules, charters);
+    project_policy::commit(core, env, routed, &change.items);
     if moves {
         move_tasks(core, env, &mut routed.out, None);
     }
@@ -401,11 +417,8 @@ fn proposal_check(core: &mut Core, env: &Env<Limits>, against: u32) -> Result<Bo
     if let Err(failure) = s::check_change(&core.current, &change.items, &core.settings, &core.connectors, &env.limits) {
         return Err(malformed_refusal(failure));
     }
-    let mut owner = false;
-    for holding in core.people.project_members(people::DEPLOYMENT).unwrap_or(&[]) {
-        owner |= holding.role == people::Role::Owner;
-    }
-    if !owner {
+    project_policy::check(core, &env.limits, &change.items)?;
+    if !project_policy::has_approver(core, &change.items) {
         return Err(people::Refusal::Authority {
             lacking: people::Lack::Approver,
             proposable: Some(people::Accepter::Nobody),
@@ -433,6 +446,44 @@ pub(crate) fn withdraw_stale(
             pending.push(key).expect("bounded pending sets");
         }
     }
+    withdraw_pending(core, env, out, pending);
+}
+
+/// Deletion admits all its settings withdrawals before changing any project state.
+pub(crate) fn withdraw_project(
+    core: &mut Core,
+    env: &Env<Limits>,
+    out: &mut Queue<Request>,
+    project: u32,
+) -> Result<(), people::Refusal> {
+    let mut pending = skein_lib::List::with_capacity(env.limits.settings.proposals);
+    for (&key, set) in &core.settings_proposals {
+        for item in &set.items {
+            if item.setting == (s::Setting::ProjectPolicy { project }) {
+                pending.push(key).expect("one policy per pending set");
+                break;
+            }
+        }
+    }
+    let mut messages = 0_u64;
+    for &(proposer, _) in &pending {
+        if let people::Proposer::Task(_) = proposer {
+            messages = messages.checked_add(1).expect("bounded pending sets");
+        }
+    }
+    if core.counters.deployment().messages.checked_add(messages).is_none() {
+        return Err(people::Refusal::Limit { which: people::LimitKind::Arithmetic });
+    }
+    withdraw_pending(core, env, out, pending);
+    Ok(())
+}
+
+fn withdraw_pending(
+    core: &mut Core,
+    env: &Env<Limits>,
+    out: &mut Queue<Request>,
+    pending: skein_lib::List<(people::Proposer, u32)>,
+) {
     for (proposer, proposal) in pending.into_boxed() {
         if let people::Proposer::Task(task) = proposer {
             let message = crate::fresh(&mut core.counters, crate::Family::Message).expect("settings outcome sequence");
@@ -593,7 +644,7 @@ fn move_tasks(core: &mut Core, env: &Env<Limits>, out: &mut Queue<Request>, from
 }
 
 fn prepare_proposal(core: &mut Core, env: &Env<Limits>, against: u32, items: Box<[s::Item]>) {
-    core.proposed_input = Some(if !has_application(&items) && !s::changes_current(&core.current, &items) {
+    core.proposed_input = Some(if !has_application(&items) && !project_policy::changes(core, &items) {
         Err(people::Malformed::SettingsUnchanged)
     } else if items.len() > skein_lib::length::usize_of(jig_domain_tasks::SETTINGS_ITEMS) {
         Err(people::Malformed::Settings {
@@ -689,6 +740,7 @@ pub(crate) fn accept(
     running: people::Running,
 ) -> Result<Option<u32>, people::Refusal> {
     let set = core.settings_proposals.get(&key).expect("pending settings set").clone();
+    project_policy::owns(core, person, &set.items)?;
     let room = route_writes(&env.limits)
         .expect("settings decision room")
         .saturating_sub(1)
