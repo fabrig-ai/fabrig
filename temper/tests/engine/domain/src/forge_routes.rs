@@ -576,6 +576,7 @@ impl World {
                         .insert(
                             1,
                             engine::ProjectLanding {
+                                merge_job: None,
                                 after: engine::AfterLandingCheck {
                                     tier_retries: 2,
                                     verification_bound_ms: tier.map_or(7_200_000, |tier| tier.bound_ms),

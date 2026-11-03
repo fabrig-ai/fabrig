@@ -38,7 +38,7 @@ pub(crate) fn landed(d: &mut Domain, commit: Commit, task: u64, out: &mut Queue<
         return;
     }
     let Some(adopted) = d.repositories.get(&repository) else { return };
-    let Some((_, configured, _)) = d.landing.projects.get(&adopted.project) else { return };
+    let Some((_, configured, _, _)) = d.landing.projects.get(&adopted.project) else { return };
     let mut tiers = List::with_capacity(d.landing.limits.tiers.tiers);
     for entry in configured {
         if entry.repository != repository {
