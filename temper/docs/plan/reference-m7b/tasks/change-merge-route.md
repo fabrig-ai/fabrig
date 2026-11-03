@@ -22,7 +22,8 @@ Acceptance:
 - `change_delegate`'s `Merge` arm makes a job task: `tasks::Executor::Job { kind: MERGE_KIND }`,
   `Spec::job` `Some(JobSpec { bytes, deadline })` with C2's bytes and the core's declared
   deadline for kind 3, no LLM choice, the item `change-merge-surface` made; a deployment whose
-  core declares no kind 3 never reaches this arm (`merge_job` false);
+  core declares no kind 3 never reaches this arm (`merge_job` false), nor does a project whose
+  C2 spec would exceed the declared kind's spec bound (`notes/contracts.md`, R2);
 - `change_delegate_status` reads a `ResultKind::Job` result as the delegate's `Passed`, keeping
   its bytes, at most `MERGE_RESULT_BYTES`, as `ChangeRow::merge_result`; a job's failure as a
   delegate's failure;

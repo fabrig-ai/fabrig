@@ -1708,6 +1708,7 @@ fn cleared_and_uncleared_results_qualify_the_landing_before_its_evidence() {
             .insert(
                 5,
                 crate::translate::ProjectLanding {
+                    merge_job: None,
                     by: crate::translate::Way::Queue,
                     repositories: Box::new([crate::translate::RepositoryChecks {
                         repository: row.repository,

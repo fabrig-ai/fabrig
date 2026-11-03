@@ -78,3 +78,16 @@ Acceptance:
 ## Report
 
 As the implementer's text says; list every file with a forced arm.
+
+## Answers
+
+2026-11-03. **May `src/tests/sizes.rs`'s `APPLICATION_ROW_BYTES` and its derivation comment
+change, or should C4 be revised?** Both, as follows. `sizes.rs` is in the task's `files`, and a
+literal that prices the schema the task changes is not an "existing test" the acceptance means:
+update the literal and its derivation comment to what the generated bound and the application's
+sizing return, the assertions otherwise unchanged. C4's `merge_result` is revised to `option
+bytes 512` (`notes/contracts.md`, R2: the merge kind's result is 512 bytes, the tasks child's
+bound), so regenerate the schema, generated code and goldens again; by the run's own accounting
+(33 for `catch_up`, 517 for `merge_result`, 25 for the delegate) the literal becomes 119,767;
+take the value the code returns and say in the report if it differs. Nothing else of the pushed
+work changes.
