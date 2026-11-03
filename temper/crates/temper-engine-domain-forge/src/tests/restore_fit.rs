@@ -14,29 +14,7 @@ fn name(number: u32) -> Name {
 fn row(kind: RecordKind, number: u32) -> Stored {
     let n = u64::from(number);
     match kind {
-        RecordKind::Tier => Stored::Tier(TierRow {
-            requested: false,
-            cancelled: false,
-            purpose: None,
-            pending: Box::new([]),
-            baseline: None,
-            branch: TierBranch::Absent,
-            probe: None,
-            flight: None,
-            held: None,
-            result: None,
-            received: false,
-            repository: skein_forge::api::Repository { forge: 1, repository: number },
-            tier: Box::from(b"tier".as_slice()),
-            record: temper_engine_domain_forge_tiers::Record {
-                sequence: 0,
-                judged: None,
-                failing: temper_engine_domain_forge_tiers::Failures::Tests(Box::new([])),
-                flakes: Box::new([]),
-                run: None,
-            },
-            task: None,
-        }),
+        RecordKind::Tier => Stored::Tier(tier_row(number)),
         RecordKind::Verification => Stored::Verification(Verification {
             repository: REPO,
             commit: [u8::try_from(number).unwrap(); 32],
@@ -722,7 +700,9 @@ fn unknown_tier_events_keep_state_and_hold_the_step() {
     }
     let out =
         outputs(&mut d, Event::StepTier { task: 23, entry: 5, heard: TierHeard { released: true, cancelled: true } });
-    let [Request::TierDecision { task, decision, entry }] = out.as_ref() else { panic!("one tier decision") };
+    let [Request::TierDecision { task, decision, entry, projection: _ }] = out.as_ref() else {
+        panic!("one tier decision")
+    };
     assert_eq!(
         (*task, decision, *entry),
         (23, &TierDecision::Held { words: b"Tier run is unavailable".as_slice().into() }, None)
@@ -838,5 +818,32 @@ fn setting_rule_fields_fit_at_the_bound_and_refuse_one_more_before_insertion() {
                 assert!(d.setting_rows.is_empty());
             }
         }
+    }
+}
+
+fn tier_row(number: u32) -> TierRow {
+    TierRow {
+        observations: Box::new([]),
+        requested: false,
+        cancelled: false,
+        purpose: None,
+        pending: Box::new([]),
+        baseline: None,
+        branch: TierBranch::Absent,
+        probe: None,
+        flight: None,
+        held: None,
+        result: None,
+        received: false,
+        repository: skein_forge::api::Repository { forge: 1, repository: number },
+        tier: Box::from(b"tier".as_slice()),
+        record: temper_engine_domain_forge_tiers::Record {
+            sequence: 0,
+            judged: None,
+            failing: temper_engine_domain_forge_tiers::Failures::Tests(Box::new([])),
+            flakes: Box::new([]),
+            run: None,
+        },
+        task: None,
     }
 }

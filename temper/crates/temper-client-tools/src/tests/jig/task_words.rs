@@ -787,3 +787,16 @@ fn task_text_render_cuts_at_its_own_window_and_never_repeats_an_offset() {
         assert!(skein_lib::bytes::is_utf8(&answer.stdout));
     }
 }
+
+#[test]
+fn task_show_names_the_tier_execution_and_its_forge_link_without_json() {
+    let words = b"Tier slow run 1\nRepository: org/repo\nJudged run: commit 8f059a9000000000000000000000000000000000000000000000000000000000, branch temper/tier/slow.1, forge run 4 http://forge/org/repo/actions/runs/4\n";
+    let (core, mut limits, mut row) = f::source_task(b"Tier slow run 1");
+    limits.documents.text_bytes = limits.tasks.spec_bytes;
+    row.spec.words = words.as_slice().into();
+    let task = f::source_summary(&core, &limits, &row);
+    let printed = f::read_answer(&["task", "show", "1"], f::task_result(task));
+    assert_eq!(printed.status, 0);
+    assert!(skein_lib::bytes::find(&printed.stdout, words).is_some());
+    assert!(skein_lib::bytes::find(&printed.stdout, b"asked: Tier slow run 1").is_some());
+}

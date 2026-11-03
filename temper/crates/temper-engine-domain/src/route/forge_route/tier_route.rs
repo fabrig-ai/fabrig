@@ -27,15 +27,7 @@ fn make_tier_run(
 ) -> bool {
     let Some(adopted) = domain.forge.repository(repository) else { return false };
     let project = adopted.project;
-    let mut words = List::with_capacity(env.limits.tasks.spec_bytes);
-    let digits = skein_lib::Decimal::of(number);
-    for part in [b"Tier ".as_slice(), tier, b" run ", digits.as_bytes()] {
-        for byte in part {
-            if words.push(*byte).is_err() {
-                return false;
-            }
-        }
-    }
+    let Some(words) = domain.forge.tier_specification(repository, tier, number, tip) else { return false };
     let Some(seed) = domain.core.procedure_seed(project) else { return false };
     let task = seed.number();
     domain.work.push(Work::Core(jig_domain_core::Event::ConnectorRepair {
@@ -44,7 +36,7 @@ fn make_tier_run(
         spec: tasks::Spec {
             job: None,
             asks: false,
-            words: words.into_boxed(),
+            words,
             parameters: Box::new([
                 tasks::Parameter::Resource {
                     name: 1,
@@ -64,13 +56,17 @@ fn make_tier_run(
     true
 }
 
-pub(crate) fn start_tier_step(domain: &mut Domain, _env: &Env<Limits>, context: &tasks::RunContext) {
+pub(crate) fn start_tier_step(domain: &mut Domain, env: &Env<Limits>, context: &tasks::RunContext) {
     let task = context.task;
-    let Some(entry) = crate::fresh(&mut domain.core.counters, Family::ConnectorRow) else { return };
     let released = match domain.core.tasks.task(task) {
         Some(row) => row.due_reason == tasks::Why::Released,
         None => false,
     };
+    if !released && projection_needed(domain, task) {
+        tier_decision(domain, env, task, forge::TierDecision::Wait { until: Some(env.wall) }, None);
+        return;
+    }
+    let Some(entry) = crate::fresh(&mut domain.core.counters, Family::ConnectorRow) else { return };
     domain.forge.offered_tier(task);
     domain.work.push(Work::Forge(forge::Event::StepTier {
         task,
@@ -79,13 +75,19 @@ pub(crate) fn start_tier_step(domain: &mut Domain, _env: &Env<Limits>, context: 
     }));
 }
 
-pub(super) fn tier_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: forge::TierDecision) {
+pub(super) fn tier_decision(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    task: u64,
+    choice: forge::TierDecision,
+    projection: Option<Box<[u8]>>,
+) {
     let Some((connector, code, step)) = domain.core.tasks.procedure_due(task) else { return };
     if connector != domain.config.forge_connector || code != AFTER_LANDING_CODE {
         return;
     }
     domain.forge.offered_tier(task);
-    let decision = match choice {
+    let mut decision = match choice {
         forge::TierDecision::Wait { until } => {
             domain.forge.wait_tier(&super::super::environment_forge(env), task, until);
             ProcedureStep::new(StepEnd::Wait)
@@ -93,6 +95,10 @@ pub(super) fn tier_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, c
         forge::TierDecision::Held { words } => super::holds::decision(domain, env, task, words),
         forge::TierDecision::Done { words } => ProcedureStep::new(StepEnd::Result(tasks::TaskResult::Report { words })),
     };
+    let projection = projection.or(domain.forge.tier_execution_words(task));
+    if let Some(projection) = projection {
+        decision.words = projected_words(domain, task, &projection);
+    }
     domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep { task, step, connector, code, decision }));
 }
 
@@ -134,4 +140,58 @@ pub(super) fn describe_tier_effect(
             forge::Recovery::Unrecoverable => Recovery::Unrecoverable,
         },
     })
+}
+
+fn projected_words(domain: &Domain, task: u64, projection: &[u8]) -> Option<Box<[u8]>> {
+    let row = domain.core.tasks.task(task)?;
+    let bound = u32::try_from(row.spec.words.len().checked_add(projection.len())?.checked_add(1)?).ok()?;
+    let mut combined = List::with_capacity(bound);
+    for byte in &row.spec.words {
+        combined.push(*byte).expect("measured words");
+    }
+    if combined.as_slice().last() != Some(&b'\n') {
+        combined.push(b'\n').expect("separator");
+    }
+    for byte in projection {
+        combined.push(*byte).expect("measured projection");
+    }
+    let combined = combined.as_slice();
+    let mut words = List::with_capacity(bound);
+    let mut from = 0;
+    for at in 0..combined.len() {
+        if combined.get(at) != Some(&b'\n') {
+            continue;
+        }
+        let line = combined.get(from..=at).expect("bounded projection line");
+        from = at.checked_add(1).expect("bounded line cursor");
+        if has_run(combined, line) {
+            continue;
+        }
+        if skein_lib::bytes::find(words.as_slice(), line).is_none() {
+            for byte in line {
+                words.push(*byte).expect("measured projection");
+            }
+        }
+    }
+    Some(words.into_boxed())
+}
+
+fn has_run(words: &[u8], line: &[u8]) -> bool {
+    let stem = line.get(..line.len().checked_sub(1).expect("nonempty line")).expect("line without newline");
+    let suffix = b", forge run ";
+    for earlier in words.windows(stem.len().checked_add(suffix.len()).expect("bounded line")) {
+        if earlier.starts_with(stem) && earlier.ends_with(suffix) {
+            return true;
+        }
+    }
+    false
+}
+
+fn projection_needed(domain: &Domain, task: u64) -> bool {
+    let Some(projection) = domain.forge.tier_execution_words(task) else { return false };
+    let Some(words) = projected_words(domain, task, &projection) else { return false };
+    match domain.core.tasks.task(task) {
+        Some(row) => row.spec.words != words,
+        None => false,
+    }
 }
