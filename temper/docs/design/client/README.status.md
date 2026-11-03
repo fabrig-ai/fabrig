@@ -32,5 +32,5 @@
   `apps`), so a GitHub forge found unfinished after a restart offers
   "Start over" alone. The Model step showing an account added before
   as ready, where it shows `ConnectModel`'s Choose. 3.5, With no project
-  yet: its heading, words and acts; `pages/chats.rs` draws the list
-  alone.
+  yet: its heading, words and acts; `pages/chats.rs` draws the pane
+  alone, the new chat's bar with no status and the list under "Chats".

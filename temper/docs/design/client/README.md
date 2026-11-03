@@ -4334,8 +4334,10 @@ own tests:
 - **The playground's and the agent's placeholders** ("Try a suggested
   request…"; "Write to T12…", the
   agent's task's composer, 5.11): skein-ui's text area takes a
-  placeholder, which a chat's composer draws (3.5). Default: neither
-  drawn, the agent's waiting for its page's owner.
+  placeholder, which a chat's composer and the chats page's, "Describe
+  a change" in every project, the playground's start among them, draw
+  (3.5). Default: neither drawn, the agent's waiting for its page's
+  owner.
 - **The composer's selected account and source** (5.5): jig's
   `PayerReadiness` could carry the account and source its selection
   chose (`jig-domain-core`'s `catalogue.rs` already calls `select`).
