@@ -91,6 +91,6 @@ versioned record ApplicationState { follows: Follows size: u32 charters: list 25
 versioned record Default { models: list 64 ModelName value: Value revision: u32 }
 versioned record Changed { models: list 64 ModelName value: option Value revision: u32 }
 versioned record Revision { models: list 64 ModelName head: Head items: list 128 Item applications: list 128 Recorded }
-versioned record Extent { oldest: u32 }
+versioned record Extent { oldest: u32 keys: u64 }
 versioned record CharterVersion { charter: option Charter }
-versioned record Proposal { models: list 64 ModelName against: u32 items: list 128 Item applications: list 128 Recorded }
+versioned record Proposal { key: option u64 models: list 64 ModelName against: u32 items: list 128 Item applications: list 128 Recorded }

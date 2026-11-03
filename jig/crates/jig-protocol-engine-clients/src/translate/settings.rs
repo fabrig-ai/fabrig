@@ -543,6 +543,7 @@ pub(crate) fn review(
     w::SettingsReview::new(
         limits,
         w::SettingsReviewParts {
+            key: v.key,
             newest: v.newest,
             items: super::pieces(&pieces, limits.settings_review_items, w::Path::SettingsReviewItems)?,
             cut,

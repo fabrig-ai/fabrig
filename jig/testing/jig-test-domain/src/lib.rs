@@ -1307,7 +1307,7 @@ pub fn initial_settings(defaults: &core::settings::Defaults) -> Box<[core::Recor
         },
     })))
     .expect("fixture settings count");
-    rows.push(core::Record::Core(core::CoreRecord::Settings(s::Record::Extent { oldest: 0 })))
+    rows.push(core::Record::Core(core::CoreRecord::Settings(s::Record::Extent { oldest: 0, keys: 1 })))
         .expect("fixture settings count");
     rows.into_boxed()
 }
@@ -1344,7 +1344,7 @@ pub fn initial_settings_current(current: &core::settings::Current) -> Box<[core:
         },
     })))
     .expect("fixture settings count");
-    rows.push(core::Record::Core(core::CoreRecord::Settings(s::Record::Extent { oldest: 0 })))
+    rows.push(core::Record::Core(core::CoreRecord::Settings(s::Record::Extent { oldest: 0, keys: 1 })))
         .expect("fixture settings count");
     rows.into_boxed()
 }

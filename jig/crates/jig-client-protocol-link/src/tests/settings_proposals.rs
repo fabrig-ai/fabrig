@@ -187,7 +187,7 @@ fn reviews_keep_their_byte_bound_and_refuse_malformed_pieces() {
             would_be: c::ReviewValue::None,
         })
         .expect("one item");
-    let review = c::SettingsReview { newest: 6, items, cut: false };
+    let review = c::SettingsReview { key: None, newest: 6, items, cut: false };
     limits = fixtures::limits_for_document(u64::from(REVIEW_PIECE));
     let wire = t::wire_settings_review(&review, limits.wire()).expect("exact review bound");
     assert_eq!(t::restore_settings_review(&wire, &limits), Ok(review.clone()));
@@ -198,7 +198,7 @@ fn reviews_keep_their_byte_bound_and_refuse_malformed_pieces() {
     for bytes in [b"\0".as_slice(), b"\0\0\0\x07\x03\x02\x02\x02\x02\0\0".as_slice()] {
         let wire = w::SettingsReview::new(
             limits.wire(),
-            w::SettingsReviewParts { newest: 6, cut: false, items: skein_lib::bytes::copy_of(bytes) },
+            w::SettingsReviewParts { key: None, newest: 6, cut: false, items: skein_lib::bytes::copy_of(bytes) },
         )
         .expect("outer review");
         t::restore_settings_review(&wire, &limits).expect_err("malformed review framing is refused");
@@ -298,5 +298,18 @@ fn a_settings_decision_keeps_its_three_outcomes_through_the_wire_and_link() {
             translate::pages::message_kind_fields(&value, &limits).unwrap(),
             c::MessageKind::SettingsDecision { proposal: 41, outcome: expected }
         );
+    }
+}
+
+#[test]
+fn settings_review_keys_cross_the_wire_and_link_whole() {
+    let limits = fixtures::limits();
+    for key in [None, Some(1), Some(u64::MAX)] {
+        let review = c::SettingsReview { key, newest: 6, items: skein_lib::List::with_capacity(0), cut: false };
+        let wire = t::wire_settings_review(&review, limits.wire()).unwrap();
+        let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(wire.measure()));
+        wire.encode(&mut bytes).unwrap();
+        let wire = w::SettingsReview::decode(limits.wire(), &mut Reader::new(&bytes.finish())).unwrap();
+        assert_eq!(t::restore_settings_review(&wire, &limits), Ok(review));
     }
 }

@@ -915,6 +915,7 @@ fn inbox_context_memory_prices_every_reserved_container_and_complete_document_en
     // and its two optional Values), and RevisionItemHead by 8 bytes for 128 heads.
     // Optional application states add 40 bytes per inventory and review row;
     // each of the 128 review rows also prices 255 charter numbers at four bytes.
+    // The settings review carries a 16-byte optional proposal key.
     const SETTINGS_DOCUMENT: u64 = 120_528
         + 4 * 72
         + 16 * 8
@@ -927,7 +928,8 @@ fn inbox_context_memory_prices_every_reserved_container_and_complete_document_en
         + 128 * 8
         + 2 * 11 * 40
         + 128 * 40
-        + 128 * 255 * 4;
+        + 128 * 255 * 4
+        + 16;
 
     let (mut core, limits) = fixture();
     waiting(

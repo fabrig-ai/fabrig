@@ -706,7 +706,7 @@ record ProposalActionAmend { task: TaskLink addressed: option AddressChange befo
 record ProposalActionWiden { task: TaskLink before: AuthorityDocument after: AuthorityDocument }
 record ProposalActionRelease { task: TaskLink hold: option ChipHold }
 # items is a list of length-prefixed ReviewItem records, at most 128, within the document's byte bound.
-record SettingsReview { newest: u32 items: bytes 16777216 cut: bool }
+record SettingsReview { key: option u64 newest: u32 items: bytes 16777216 cut: bool }
 record ProposalActionSettings { against: u32 items: list 128 RevisionItemHead review: option SettingsReview made: option u32 }
 enum ProposalAction { batch: ProposalActionBatch, effect: ProposalActionEffect, procedure_effect: ProposalActionProcedureEffect, amend: boxed ProposalActionAmend, widen: ProposalActionWiden, release: ProposalActionRelease, settings: boxed ProposalActionSettings }
 record ProposalWaiting { holder: HistoryHolder since: u64 }

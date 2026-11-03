@@ -234,7 +234,7 @@ fn decide_with(
         s::Head { number, against: previous, at: env.wall, by, proposal, moved: change.running == s::Running::Moves };
     let application_writes = u32::try_from(kept.len()).expect("bounded application writes");
     let proposal_number = match proposal {
-        Some((_, number)) => Some(u64::from(number)),
+        Some(key) => core.settings_proposals.get(&key).expect("accepted proposal set").key,
         None => None,
     };
     let applications = s::application::keep(core, &mut routed.out, kept, number, proposal_number);
@@ -243,6 +243,7 @@ fn decide_with(
         Some(revision),
         writes,
         core.current.oldest,
+        core.current.keys,
         core.current.newest(),
         env.limits.settings.history,
         room.saturating_sub(s::withdrawal_writes(&env.limits).expect("withdrawal write bound"))
@@ -349,7 +350,7 @@ pub(crate) fn propose_admitted(
         request,
         by: person,
         number,
-        value: s::Proposal { applications: Box::default(), against, items: change.items },
+        value: s::Proposal { key: None, applications: Box::default(), against, items: change.items },
     });
     let request = core.fly_goal(
         request,
@@ -397,6 +398,9 @@ fn proposal_check(core: &mut Core, env: &Env<Limits>, against: u32) -> Result<Bo
     }
     if core.settings_proposals.len() >= env.limits.settings.proposals {
         return Err(people::Refusal::Limit { which: people::LimitKind::SettingsProposals });
+    }
+    if has_application(&change.items) && core.current.keys.checked_add(1).is_none() {
+        return Err(people::Refusal::Limit { which: people::LimitKind::Arithmetic });
     }
     Ok(change)
 }
@@ -501,7 +505,15 @@ fn keep_set(core: &mut Core, proposer: people::Proposer, number: u64, pending: b
             people::Proposer::Party(n) | people::Proposer::Task(n) => n,
         };
         assert!(offered_by == who && offered == number, "same proposal set");
-        s::application::keep_proposal(core, &mut value, number, out);
+        if has_application(&value.items) {
+            let key = core.current.keys;
+            core.current.keys = key.checked_add(1).expect("proposal key preflighted");
+            value.key = Some(key);
+            out.push(Request::Write(crate::Write::Save(crate::Record::Core(crate::CoreRecord::Settings(
+                s::Record::Extent { oldest: core.current.oldest, keys: core.current.keys },
+            )))));
+            s::application::keep_proposal(core, &mut value, key, out);
+        }
         out.push(Request::Write(crate::Write::Save(crate::Record::Core(crate::CoreRecord::Settings(
             s::Record::Proposal { proposer, proposal: number, value: value.clone() },
         )))));
@@ -509,8 +521,10 @@ fn keep_set(core: &mut Core, proposer: people::Proposer, number: u64, pending: b
     } else {
         let value = core.settings_proposals.remove(&key).expect("decided settings set");
         // An accepted set has already become connector changes in this revision.
-        if core.current.head.proposal != Some(key) {
-            s::application::drop_proposal(core, &value.applications, number, out);
+        if core.current.head.proposal != Some(key)
+            && let Some(key) = value.key
+        {
+            s::application::drop_proposal(core, &value.applications, key, out);
         }
         out.push(Request::Write(crate::Write::Erase(crate::Key::Core(crate::CoreKey::Settings(s::Key::Proposal {
             proposer,
@@ -573,7 +587,7 @@ fn prepare_proposal(core: &mut Core, env: &Env<Limits>, against: u32, items: Box
         })
     } else {
         match s::change_shape(&items, &env.limits) {
-            Ok(()) => Ok(Box::new(s::Proposal { applications: Box::default(), against, items })),
+            Ok(()) => Ok(Box::new(s::Proposal { key: None, applications: Box::default(), against, items })),
             Err(failure) => Err(people::Malformed::Settings { setting: failure.setting, fault: failure.fault }),
         }
     });

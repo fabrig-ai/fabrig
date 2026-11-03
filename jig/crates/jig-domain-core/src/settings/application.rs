@@ -252,7 +252,7 @@ pub(crate) fn start(
             ask: crate::Ask::Effect(connector::Ask::JudgeSettings {
                 owner,
                 revision: u64::from(number),
-                proposal: proposal_number(proposal),
+                proposal: proposal_number(core, proposal),
                 items: items.into_boxed(),
             }),
         });
@@ -507,15 +507,15 @@ pub(crate) fn keep(
     records.into_boxed()
 }
 
-fn proposal_number(proposal: Option<(people::Proposer, u32)>) -> Option<u64> {
+fn proposal_number(core: &Core, proposal: Option<(people::Proposer, u32)>) -> Option<u64> {
     match proposal {
-        Some((_, number)) => Some(u64::from(number)),
+        Some(key) => core.settings_proposals.get(&key).expect("accepted proposal set").key,
         None => None,
     }
 }
 
 /// Values cross to their connectors only when the tasks child keeps the proposal.
-pub(crate) fn keep_proposal(core: &Core, set: &mut super::Proposal, proposal: u32, out: &mut Queue<Request>) {
+pub(crate) fn keep_proposal(core: &Core, set: &mut super::Proposal, proposal: u64, out: &mut Queue<Request>) {
     let bound = u32::try_from(set.items.len()).expect("bounded proposal items");
     let mut connectors = Map::with_capacity(bound);
     let mut applications = List::with_capacity(bound);
@@ -561,17 +561,14 @@ pub(crate) fn keep_proposal(core: &Core, set: &mut super::Proposal, proposal: u3
         }
         out.push(Request::Ask {
             connector,
-            ask: crate::Ask::Effect(connector::Ask::KeepProposalSettings {
-                proposal: u64::from(proposal),
-                items: items.into_boxed(),
-            }),
+            ask: crate::Ask::Effect(connector::Ask::KeepProposalSettings { proposal, items: items.into_boxed() }),
         });
     }
     set.items = jig.into_boxed();
     set.applications = applications.into_boxed();
 }
 
-pub(crate) fn drop_proposal(core: &Core, items: &[Recorded], proposal: u32, out: &mut Queue<Request>) {
+pub(crate) fn drop_proposal(core: &Core, items: &[Recorded], proposal: u64, out: &mut Queue<Request>) {
     let mut connectors = Map::with_capacity(u32::try_from(items.len()).expect("bounded proposal items"));
     for item in items {
         let connector = kind_of(&core.kinds, item.kind).expect("kept proposal kind").connector;
@@ -580,7 +577,7 @@ pub(crate) fn drop_proposal(core: &Core, items: &[Recorded], proposal: u32, out:
     for (&connector, ()) in &connectors {
         out.push(Request::Ask {
             connector,
-            ask: crate::Ask::Effect(connector::Ask::DropProposalSettings { proposal: u64::from(proposal) }),
+            ask: crate::Ask::Effect(connector::Ask::DropProposalSettings { proposal }),
         });
     }
 }
