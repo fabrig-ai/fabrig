@@ -57,6 +57,14 @@ pub enum Word {
     TokensMissing,
     TokensUnknown,
     TokensLink,
+    ForgeReplace,
+    ForgeReplaceKey,
+    ForgeReplaceTokens,
+    ForgeReplaceEmpty,
+    ForgeReplaceFirst,
+    ForgeReplaceTerminal,
+    ForgeReplaceClose,
+
     AdminTitle,
     AdminDescription,
     AdminCard,
@@ -691,9 +699,10 @@ pub enum Word {
 // Eighteen playground, removal and forge choice literals.
 pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The post-landing panel has ten phrases and eighteen segments.
-const PHRASES: u32 = 1213;
-const SEGMENTS: u32 = 2126;
-const ALL: [Word; 621] = [
+// The row's Replace adds seven phrases and nine segments (client/forge.md, 5.4).
+const PHRASES: u32 = 1220;
+const SEGMENTS: u32 = 2135;
+const ALL: [Word; 628] = [
     Word::PlaygroundBanner,
     Word::PlaygroundSetUp,
     Word::PlaygroundLeaving,
@@ -739,6 +748,13 @@ const ALL: [Word; 621] = [
     Word::TokensMissing,
     Word::TokensUnknown,
     Word::TokensLink,
+    Word::ForgeReplace,
+    Word::ForgeReplaceKey,
+    Word::ForgeReplaceTokens,
+    Word::ForgeReplaceEmpty,
+    Word::ForgeReplaceFirst,
+    Word::ForgeReplaceTerminal,
+    Word::ForgeReplaceClose,
     Word::AdminTitle,
     Word::AdminDescription,
     Word::AdminCard,
@@ -1418,6 +1434,14 @@ impl Word {
             Self::TokensMissing => 2166,
             Self::TokensUnknown => 2167,
             Self::TokensLink => 2168,
+            Self::ForgeReplace => 2169,
+            Self::ForgeReplaceKey => 2170,
+            Self::ForgeReplaceTokens => 2171,
+            Self::ForgeReplaceEmpty => 2172,
+            Self::ForgeReplaceFirst => 2173,
+            Self::ForgeReplaceTerminal => 2174,
+            Self::ForgeReplaceClose => 2175,
+
             Self::AdminTitle => 1980,
             Self::AdminDescription => 1981,
             Self::AdminCard => 1982,
@@ -2303,6 +2327,13 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::TokensChecking => (&[b"Checking that both answer as one user, not a site admin."], &[]),
         Word::TokensMissing => (&[b"The tokens did not reach temper: paste them again."], &[]),
         Word::TokensUnknown => (&[b"It is not known whether the forge was connected: see Forges."], &[]),
+        Word::ForgeReplace => (&[b"Replace"], &[]),
+        Word::ForgeReplaceKey => (&[b"Replace the key"], &[]),
+        Word::ForgeReplaceTokens => (&[b"Replace the tokens"], &[]),
+        Word::ForgeReplaceEmpty => (&[b"Paste a new API token, git token or both."], &[]),
+        Word::ForgeReplaceFirst => (&[b"Connect it first."], &[]),
+        Word::ForgeReplaceClose => (&[b"Cancel"], &[]),
+        Word::ForgeReplaceTerminal => (&[b"Paste the key on this page in a browser, or run temper ctl forge replace ", b" FILE, FILE the key's file, readable by you alone."], &[Number]),
         Word::TokensLink => (&[b"Connect \xe2\x80\xba"], &[]),
         Word::TokensConnecting => (&[b"Connecting forge ", b" with its bot\xe2\x80\x99s tokens."], &[Number]),
         Word::TokensConnected => (&[b"Forge ", b" is connected already: replace its tokens on Forges."], &[Number]),

@@ -23,6 +23,7 @@ pub struct Joint {
     pub refuse_return: bool,
     set_ups: Vec<(u16, Token)>,
     pub admin_connects: Vec<(u16, Token)>,
+    pub replacements: Vec<(u16, Token)>,
     pub playground: Option<temper_client_protocol_wire::v1::PlaygroundAnswer>,
     pub hold_playground_end: bool,
     held_playground_end: Vec<(ClientId, Event)>,
@@ -775,6 +776,7 @@ impl Joint {
             refuse_return: false,
             set_ups: Vec::new(),
             admin_connects: Vec::new(),
+            replacements: Vec::new(),
             playground: None,
             hold_playground_end: false,
             held_playground_end: Vec::new(),
@@ -1488,6 +1490,26 @@ impl Joint {
                         },
                     )));
                 }
+            }
+            if let engine::Request::Replace { forge, request: attempt, carried } = &request {
+                let value = self.component.carried.get(&carried.number).expect("replace carrier");
+                let items =
+                    temper_client_domain::forge::forges::decode_pasted(value.expose()).expect("replacement bundle");
+                assert!(!items.is_empty());
+                if items.iter().any(|(code, _)| *code == 11) {
+                    assert_eq!(items.len(), 1);
+                } else {
+                    assert!(items.iter().any(|(code, _)| *code == 2 || *code == 3));
+                    for (code, _) in &items {
+                        assert!([2, 3, 5].contains(code));
+                    }
+                }
+                self.replacements.push((*forge, *attempt));
+                self.engine.send(engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::ConnectAnswered {
+                    forge: *forge,
+                    request: *attempt,
+                    answer: temper_engine_domain_forge::ConnectAnswer::Connecting,
+                })));
             }
             if let engine::Request::EraseCarried { number } = &request {
                 self.component.carried.remove(number);

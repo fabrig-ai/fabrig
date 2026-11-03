@@ -10,8 +10,8 @@
   the forge's part of a project's settings. 5.4: a row's summary by its
   name and host and its repositories' line, where the view says "forge N
   · KIND" (`temper-client-view`'s `forge/forges.rs`); its load, the
-  App's setup URL and the `Lacking` line on the row; Replace
-  and Forget, with no request on the wire; the warning of no git on the
+  App's setup URL and the `Lacking` line on the row; Forget,
+  with no request on the wire; the warning of no git on the
   machine. 5.4: Forgejo on this machine's Details for a forge to make,
   their words and notes, where the view draws "Show how", a link to the
   deployment's help, and the fields alone (`forge/connect.rs` `body`,

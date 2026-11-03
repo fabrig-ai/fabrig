@@ -354,6 +354,9 @@ pub enum Act {
     PlaceWrite { field: super::admin::PlaceField, text: Box<[u8]> },
     ConnectManaged,
     ConnectTokens,
+    OpenReplace { forge: u16 },
+    CloseReplace { forge: u16 },
+    Replace { forge: u16 },
     Remove { forge: u16 },
     ConfirmRemove,
     CancelRemove,
@@ -410,6 +413,9 @@ pub(crate) fn act(side: &mut super::Side, limits: super::Limits, act: Act, out: 
         Act::Connected { place } => super::tokens::send_new(side, limits, place, out),
         Act::PlaceWrite { field, text } => super::admin::place_write(side, limits, field, text),
         Act::ConnectManaged => super::admin::connect_managed(side, limits, out),
+        Act::OpenReplace { forge } => super::replace::open(side, forge),
+        Act::CloseReplace { forge } => super::replace::close(side, forge),
+        Act::Replace { forge } => super::replace::send(side, limits, forge, out),
         Act::ConnectTokens => super::tokens::connect_new(side, limits, out),
         Act::Remove { forge } => remove(side, forge),
         Act::ConfirmRemove => confirm_remove(side, limits, out),
@@ -637,6 +643,7 @@ fn removal_told(
             side.setup_form.making = None;
             side.app = None;
             side.admin = None;
+            side.replacements.clear();
             side.tokens_form.clear();
             side.tokens = None;
             out.push(super::Request::Leave { to: Box::from(b"/welcome?at=forge".as_slice()) });
@@ -679,6 +686,7 @@ pub(crate) fn configure(side: &mut super::Side, limits: super::Limits, out: &mut
             side.pickers.clear();
             side.admin_form = super::admin::Draft::new();
             side.admin = None;
+            side.replacements.clear();
             side.tokens_form.clear();
             side.tokens = None;
             side.app_form.clear();
@@ -836,6 +844,9 @@ pub(crate) fn told(
     out: &mut skein_lib::Queue<super::Request>,
 ) -> bool {
     use jig_client::{Latest, Outcome, Progress, Told};
+    if super::replace::told(side, client, value, limits) {
+        return true;
+    }
     if super::tokens::told(side, client, value, limits) {
         bind_new(side, out);
         return true;
@@ -925,6 +936,7 @@ pub(crate) fn told(
     bind_new(side, out);
     super::admin::stopped(side);
     super::tokens::stopped(side);
+    super::replace::stopped(side);
     maybe_adopt(side, limits, out);
     side.changed();
     true
