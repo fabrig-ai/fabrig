@@ -145,7 +145,9 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   (`../protocol/configuration.md`, 13.4). The task's authority decides
   each call by its family (jig's `domain/authority.md`, sections 3 and
   8.5): a call beyond it is answered beyond authority, naming what it
-  lacked, and the run may `propose` it instead.
+  lacked, and the run may `propose` it instead. A refused tool family
+  is named from the call's tool, and repeated findings for that family
+  print once; the refusal grants no additional authority.
 - **The host part's budget.** smith refuses a run whose host part (its
   host tools, instructions, brief, and finish and deliver schemas) passes
   its bound, 51,717 bytes in the small profile, before any turn. The largest stock
@@ -335,6 +337,7 @@ delegate from what it knows:
  "name": "parser", "landing": "goal", "after": [41, "lexer"]}
 {"changes": [{"name": "lexer", "words": "...", "landing": "goal"},
              {"name": "parser", "words": "...", "landing": "goal", "after": ["lexer"]}]}
+{"words": "...", "branch": "mine"}
 ```
 
 - **`landing`:** `"goal"`, the requester's own goal branch,
@@ -345,6 +348,15 @@ delegate from what it knows:
   name that is not a branch's (an empty segment) is refused, naming it;
   a branch the repository lacks holds the change at its opening, the
   forge refusing its pull request (forge.md, 8.2).
+- **`branch`:** `"mine"`, its requester's held branch: the goal branch
+  the run's task holds in the change's repository (forge.md, 11.1),
+  which the change lands whole as it stands, with no producer (forge.md,
+  8.1); left out, the change's own branch, which its producer pushes.
+  `"mine"` from a run whose task holds no goal branch in that repository
+  is refused, saying so; with `"landing": "goal"`, a branch into
+  itself, refused, saying so; while another live change of the task is
+  on that branch, refused, naming its task; any other value refused,
+  naming it.
 - **`name`:** a name for the change within the call, at most 64 bytes,
   unique in it, which another change of the same call names in its
   `after`; it names nothing once the call is decided.
@@ -372,8 +384,7 @@ delegate from what it knows:
   grants on the repository, its dependencies by jig's batch.
 - **Members to come** join each change's object, each optional and
   checked by the root as it decides that change's delegate, leaving
-  these as they are: the change's branch, `mine` for its requester's
-  held branch; its questions; its agents' LLM choices; its producer, a
+  these as they are: its questions; its agents' LLM choices; its producer, a
   charter or a job; the landing it repairs.
 
 #### 4.3.2 A goal, in the run's words

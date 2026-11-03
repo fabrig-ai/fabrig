@@ -126,7 +126,7 @@ fn the_largest_smith_call_name_fits_the_documentation_allowance() {
 }
 #[test]
 fn a_decided_answer_is_rendered_as_smiths_text() {
-    let event = crate::tools::render(TO, &root::CallAnswer::NoteWritten { name: 4, revision: 2 }, 1024);
+    let event = crate::tools::render(TO, &root::CallAnswer::NoteWritten { name: 4, revision: 2 }, b"note", 1024);
     let root::Event::Worker(root::WorkerInput::RenderedHostCall { to, answer }) = event else {
         panic!("rendered answer")
     };
@@ -321,4 +321,22 @@ fn a_flat_forge_read_error_names_its_missing_member() {
         };
         assert_eq!(answer, core::SettledAnswer::Host { error: true, body: expected.into() });
     }
+}
+
+#[test]
+fn a_denied_release_retains_its_family_when_rendered_for_the_host() {
+    use jig_domain_authority::{Answer, Finding};
+    let denied = root::CallAnswer::ToolDenied {
+        answer: Answer::Refuse,
+        findings: Box::new([Finding::Tool, Finding::Tool, Finding::Tool]),
+    };
+    let event = crate::tools::render(TO, &denied, b"release", 1024);
+    let root::Event::Worker(root::WorkerInput::RenderedHostCall { to, answer }) = event else {
+        panic!("rendered refusal")
+    };
+    assert_eq!(to, TO);
+    assert_eq!(
+        answer,
+        core::SettledAnswer::Host { error: true, body: b"Authority refused: tool family control; ".as_slice().into() }
+    );
 }

@@ -152,7 +152,7 @@ const PERMISSION_SPEC: Spec = Spec {
     effect: run::HostEffect::Read,
 };
 
-const PLAN_CHANGE: Spec = Spec { name: b"change", description: b"Have one change written on a branch of a repository of this project, opened as a pull request and merged once its checks pass; you hear its result.", schema: br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."},"name":{"type":"string","description":"Its name in this call, for a later change's after."},"landing":{"type":"string","description":"goal: your own goal branch; or a branch's name; left out, the default branch."},"after":{"type":"array","description":"What it lands after: your live delegates' task numbers, or names given earlier in this call.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"changes":{"type":"array","description":"Instead of words: several changes as one batch, each with the members above.","items":{"type":"object"}}}}"#, effect: run::HostEffect::Write };
+const PLAN_CHANGE: Spec = Spec { name: b"change", description: b"Have one change written on a branch of a repository of this project, opened as a pull request and merged once its checks pass; you hear its result.", schema: br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."},"name":{"type":"string","description":"Its name in this call, for a later change's after."},"landing":{"type":"string","description":"goal: your own goal branch; or a branch's name; left out, the default branch."},"branch":{"type":"string","enum":["mine"],"description":"mine: your own goal branch, landed whole as it stands, with no coder; left out, a branch of the change's own."},"after":{"type":"array","description":"What it lands after: your live delegates' task numbers, or names given earlier in this call.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"changes":{"type":"array","description":"Instead of words: several changes as one batch, each with the members above.","items":{"type":"object"}}}}"#, effect: run::HostEffect::Write };
 
 pub(crate) const SPECS: [Spec; 39] = [
     Spec { name: b"goal", description: b"Have one goal in your words tracked and reported; it may plan, ask you and call change. With advisor set, it reads and reports and changes nothing.", schema: br#"{"type":"object","additionalProperties":false,"properties":{"words":{"type":"string"},"advisor":{"type":"boolean","description":"Set by a goal alone, for a survey that changes nothing."},"agree":{"type":"boolean","description":"Set by the person's chat when they want the work agreed first: the goal asks its plan before any change."}},"required":["words"]}"#, effect: run::HostEffect::Write },
@@ -560,6 +560,16 @@ fn change(value: &Value) -> Result<engine::ChangeCall, Problem> {
         }
         None => None,
     };
+    let branch = match value.field(b"branch")? {
+        Some(branch) => {
+            let branch = branch.text(b"branch")?;
+            if branch.as_ref() != b"mine" {
+                return Err(Problem::Range(b"branch"));
+            }
+            Some(engine::ChangeBranch::Mine)
+        }
+        None => None,
+    };
     let after = match value.field(b"after")? {
         Some(after) => {
             let items = after.array(b"after")?;
@@ -592,5 +602,5 @@ fn change(value: &Value) -> Result<engine::ChangeCall, Problem> {
         }
         None => Box::new([]),
     };
-    Ok(engine::ChangeCall { words, repository, name, landing, after })
+    Ok(engine::ChangeCall { words, repository, name, landing, branch, after })
 }

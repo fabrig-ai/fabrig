@@ -75,6 +75,12 @@ mod goal_changes;
 #[path = "forge_routes/early_start.rs"]
 mod early_start;
 
+#[path = "forge_routes/goal_landing.rs"]
+mod goal_landing;
+
+#[path = "forge_routes/goal_landing_held.rs"]
+mod goal_landing_held;
+
 #[path = "forge_routes/hints.rs"]
 mod hints;
 
@@ -83,6 +89,9 @@ mod ci_poll;
 
 #[path = "forge_routes/documents.rs"]
 mod documents;
+
+#[path = "forge_routes/goal_landing_title.rs"]
+mod goal_landing_title;
 
 #[test]
 #[expect(clippy::too_many_lines, reason = "one race follows the kept merge through refusal and Met to landing")]
