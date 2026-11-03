@@ -1057,6 +1057,7 @@ pub(crate) fn answered(
                 wait(p.task, env, out);
                 return;
             };
+            let repo = repository(row.landing.members.get(usize::from(member)).expect("member"));
             for entry in entries {
                 if p.entries
                     .push(policy::Entry {
@@ -1071,11 +1072,17 @@ pub(crate) fn answered(
                     })
                     .is_err()
                 {
-                    emit(out, Request::Refused { task: p.task });
+                    crate::refusal::limit(
+                        out,
+                        p.task,
+                        repo,
+                        "forge.key_entries",
+                        env.limits.key_entries,
+                        u64::from(p.entries.len()).saturating_add(1),
+                    );
                     return;
                 }
             }
-            let repo = repository(row.landing.members.get(usize::from(member)).expect("member"));
             if more {
                 let Some(page) = page.checked_add(1) else {
                     emit(out, Request::Refused { task: p.task });
@@ -1087,7 +1094,14 @@ pub(crate) fn answered(
             }
             let entries = core::mem::replace(&mut p.entries, List::with_capacity(env.limits.key_entries));
             if p.trees.push(policy::Tree { object, entries: entries.into_boxed() }).is_err() {
-                emit(out, Request::Refused { task: p.task });
+                crate::refusal::limit(
+                    out,
+                    p.task,
+                    repo,
+                    "forge.trees_in_flight",
+                    env.limits.trees_in_flight,
+                    u64::from(p.trees.len()).saturating_add(1),
+                );
                 return;
             }
             let configured =
@@ -1339,7 +1353,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
         policy::Decision::Dispatch { member, gate, key, try_ }
         | policy::Decision::Retry { member, gate, key, try_ } => {
             if d.entries.contains_key(&p.entry) || d.entries.len() == env.limits.entries {
-                emit(out, Request::Refused { task: p.task });
+                refuse_entry(d, env, &p, &row, member, out);
                 return;
             }
             let m = row.landing.members.get(usize::from(member)).expect("member");
@@ -1394,7 +1408,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
         }
         policy::Decision::Post { member, gate, posting } => {
             if d.entries.contains_key(&p.entry) || d.entries.len() == env.limits.entries {
-                emit(out, Request::Refused { task: p.task });
+                refuse_entry(d, env, &p, &row, member, out);
                 return;
             }
             let m = row.landing.members.get(usize::from(member)).expect("member");
@@ -1420,7 +1434,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
         }
         policy::Decision::Merge { member, candidate } => {
             if d.entries.contains_key(&p.entry) || d.entries.len() == env.limits.entries {
-                emit(out, Request::Refused { task: p.task });
+                refuse_entry(d, env, &p, &row, member, out);
                 return;
             }
             let m = row.landing.members.get(usize::from(member)).expect("member");
@@ -2357,5 +2371,35 @@ fn mark_key(d: &Domain, key: &ReceiptKey, out: &mut Queue<Request>) {
     }
     if !tasks.is_empty() {
         emit(out, Request::Marked { tasks: tasks.into_boxed() });
+    }
+}
+
+fn refuse_entry(
+    d: &Domain,
+    env: &Env<Limits>,
+    pending: &Pending,
+    row: &LandingRow,
+    member: u16,
+    out: &mut Queue<Request>,
+) {
+    let repo = repository(row.landing.members.get(usize::from(member)).expect("member"));
+    if d.entries.contains_key(&pending.entry) {
+        crate::refusal::read(
+            out,
+            pending.task,
+            b"reserve landing effect",
+            repo,
+            &api::Read::Settings,
+            api::Error::Exists,
+        );
+    } else {
+        crate::refusal::limit(
+            out,
+            pending.task,
+            repo,
+            "forge.entries",
+            env.limits.entries,
+            u64::from(d.entries.len()).saturating_add(1),
+        );
     }
 }

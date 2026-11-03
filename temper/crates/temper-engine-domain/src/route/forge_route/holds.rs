@@ -205,6 +205,23 @@ pub(super) fn lost_words(domain: &Domain, task: u64, attempt: u64, resource: &fo
     words.into_boxed()
 }
 
+pub(super) fn refused_words(
+    domain: &Domain,
+    operation: &[u8],
+    resource: Option<&forge::Name>,
+    cause: forge::RefusalCause,
+) -> Box<[u8]> {
+    let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
+    append(&mut words, operation);
+    if let Some(resource) = resource {
+        append(&mut words, b" on ");
+        resource_words(domain, resource, &mut words);
+    }
+    append(&mut words, b": ");
+    append(&mut words, &cause.words());
+    words.into_boxed()
+}
+
 fn resource_words(domain: &Domain, resource: &forge::Name, words: &mut List<u8>) {
     match &resource.what {
         forge::What::Branch(segments) => {

@@ -91,7 +91,8 @@ impl Scheduler {
                         | change::Decision::Cancel
                         | change::Decision::Hold(_)) => panic!("kept change must wait: {other:?}"),
                     }
-                } else if let forge::Request::Refused { task } = request {
+                } else if let forge::Request::Refused { task } | forge::Request::ResourceRefused { task, .. } = request
+                {
                     panic!("fixture capacity must admit task {task}");
                 }
             }

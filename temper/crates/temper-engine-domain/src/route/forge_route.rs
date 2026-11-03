@@ -1771,6 +1771,57 @@ fn watch_change_pull(domain: &mut Domain, env: &Env<Limits>, row: &forge::Change
     }
 }
 
+fn retry_change_names(domain: &mut Domain, env: &Env<Limits>, task: u64) {
+    if domain.forge.names(task).is_some() {
+        return;
+    }
+    let Some(owner) = domain.core.tasks.task(task) else { return };
+    if owner.due_reason != tasks::Why::Released {
+        return;
+    }
+    let Some(row) = domain.forge.change(task) else { return };
+    match row.change.state {
+        forge_change::State::Landed { .. }
+        | forge_change::State::Red { .. }
+        | forge_change::State::Cleared { .. }
+        | forge_change::State::Uncleared { .. }
+        | forge_change::State::NoChange { .. }
+        | forge_change::State::Ended => return,
+        forge_change::State::Producing { .. }
+        | forge_change::State::Opening { .. }
+        | forge_change::State::Recreating { .. }
+        | forge_change::State::Reopening { .. }
+        | forge_change::State::Checking { .. }
+        | forge_change::State::Gating { .. }
+        | forge_change::State::Ready { .. }
+        | forge_change::State::Preparing { .. }
+        | forge_change::State::CancellingGates { .. }
+        | forge_change::State::Queued { .. }
+        | forge_change::State::First { .. }
+        | forge_change::State::Updating { .. }
+        | forge_change::State::Resolving { .. }
+        | forge_change::State::Repairing { .. }
+        | forge_change::State::Landing { .. }
+        | forge_change::State::Held { .. } => {}
+    }
+    let Some(branch) = branch_what(&row.branch, env.limits.forge.name_bytes) else { return };
+    let other = match row.pull {
+        Some(number) => forge::What::Pull(number),
+        None => {
+            let Some(base) = branch_what(&row.base, env.limits.forge.name_bytes) else { return };
+            base
+        }
+    };
+    let repository = row.repository;
+    domain.work.push(Work::Forge(forge::Event::Names {
+        task,
+        resources: Box::new([
+            forge::Name { forge: repository.forge, repository: repository.repository, what: branch },
+            forge::Name { forge: repository.forge, repository: repository.repository, what: other },
+        ]),
+    }));
+}
+
 fn initial_change_title(parameters: &[tasks::Parameter]) -> Box<[u8]> {
     let mut handed = false;
     let mut title = None;
@@ -1980,6 +2031,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
             }
         }
     }
+    retry_change_names(domain, env, task);
     landing_route::join_landing(domain, env, task);
     let Some(entry) = crate::fresh(&mut domain.core.counters, Family::ConnectorRow) else { return false };
     domain.work.push(Work::Forge(forge::Event::StepChange {
@@ -3661,6 +3713,12 @@ pub(crate) fn outputs(
                         tasks::Hold::ResourceUnavailable,
                         b"forge resource request refused; check resource access and configured bounds",
                     );
+                }
+            }
+            forge::Request::ResourceRefused { task, operation, resource, cause } => {
+                if admission_refused(domain, task) {
+                    let words = holds::refused_words(domain, operation, resource.as_ref(), cause);
+                    holds::hold_as(domain, task, tasks::Hold::ResourceUnavailable, &words);
                 }
             }
             forge::Request::MakeFailed { task, resource, reason } => {
