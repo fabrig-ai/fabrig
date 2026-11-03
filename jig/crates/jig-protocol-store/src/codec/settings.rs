@@ -31,6 +31,7 @@ fn decode_kinds(value: wire::Kinds) -> fleet::Kinds {
 }
 fn encode_setting(value: &settings::Setting, limits: &wire::Limits) -> Result<wire::Setting, wire::Problem> {
     Ok(match value {
+        jig_domain_people::Setting::ProjectPolicy { .. } => unreachable!("a project's policy: policy-store"),
         settings::Setting::Charter(entry) => {
             wire::Setting::Charter(wire::CharterNumber::new(limits, wire::CharterNumberParts { number: *entry })?)
         }
@@ -1802,6 +1803,7 @@ pub fn encode(
     match record {
         settings::Record::Application { setting, state } => {
             match setting {
+                jig_domain_people::Setting::ProjectPolicy { .. } => unreachable!("a project's policy: policy-store"),
                 settings::Setting::Application { .. } => {}
                 settings::Setting::Charter(_)
                 | settings::Setting::Template(_)
@@ -1864,6 +1866,7 @@ pub fn decode(
             default: decode_default(wire::Default::decode(limits, &mut reader)?, limits, names)?,
         },
         settings::Key::Changed(setting) => match setting {
+            jig_domain_people::Setting::ProjectPolicy { .. } => unreachable!("a project's policy: policy-store"),
             settings::Setting::Application { .. } => settings::Record::Application {
                 setting: *setting,
                 state: decode_application(wire::ApplicationState::decode(limits, &mut reader)?),

@@ -52,6 +52,7 @@ pub(super) fn write(writer: &mut KeyWriter, key: &Key) {
 }
 fn setting_write(writer: &mut KeyWriter, setting: Setting) {
     let (kind, number) = match setting {
+        Setting::ProjectPolicy { .. } => unreachable!("a project's policy: policy-store"),
         Setting::Charter(n) => (0, n),
         Setting::Template(n) => (1, n),
         Setting::Policy(n) => (2, n),

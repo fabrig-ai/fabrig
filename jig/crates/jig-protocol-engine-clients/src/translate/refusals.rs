@@ -416,6 +416,7 @@ fn name_rule(rule: p::NameRule) -> w::NameRule {
 
 fn encode_setting(value: p::Setting, limits: &w::Limits) -> Result<w::Setting, w::Problem> {
     Ok(match value {
+        jig_domain_people::Setting::ProjectPolicy { .. } => unreachable!("a project's policy: policy-wire"),
         p::Setting::Charter(number) => {
             w::Setting::Charter(w::SettingNumber::new(limits, w::SettingNumberParts { number })?)
         }

@@ -234,6 +234,9 @@ impl Core {
                 let mut known = false;
                 for setting in &self.current.offered() {
                     let number = match setting {
+                        crate::settings::Setting::ProjectPolicy { .. } => {
+                            unreachable!("a project's policy: policy-change")
+                        }
                         crate::settings::Setting::Template(number) => *number,
                         crate::settings::Setting::Charter(_)
                         | crate::settings::Setting::Policy(_)
