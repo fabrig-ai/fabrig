@@ -317,6 +317,7 @@ pub struct Core {
     pub(crate) names: Map<u32, Box<str>>,
     visibility: admission::visibility::Visibility,
     public_index: public::Index,
+    public_reads: skein_lib::Slab<Option<public::reads::Pending>>,
     /// Mutable connector permission mappings approved by policy edits.
     pub permission_roles: Map<u32, Box<[people::PermissionRole]>>,
     /// Template overrides retained with each project policy.
@@ -523,6 +524,7 @@ impl Core {
             names: Map::with_capacity(limits.authority.projects),
             visibility: admission::visibility::Visibility::new(limits.authority.projects),
             public_index: public::Index::new(limits.people.projects, limits.tasks.depth),
+            public_reads: skein_lib::Slab::with_capacity(limits.load_slots),
             permission_roles: Map::with_capacity(limits.authority.projects),
             template_overrides: Map::with_capacity(limits.authority.projects),
             connectors: config.connectors,

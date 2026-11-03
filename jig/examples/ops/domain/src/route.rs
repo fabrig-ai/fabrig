@@ -286,6 +286,7 @@ fn core_held(
     };
     match value {
         core::Held::PublicRead { .. } => {}
+        core::Held::PublicWait { read } => child(decision, Released::Core(core::Event::PublicDurable { read })),
         core::Held::Load(load) => held(decision, Output::CoreLoad(*load)),
         core::Held::ApplicationDelivery { .. } => unreachable!("document assembly owns this synchronous output"),
         core::Held::ApplicationWatchEnded { watcher, connector, subject, why } => {
