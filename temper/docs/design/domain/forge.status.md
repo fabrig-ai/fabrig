@@ -31,6 +31,10 @@
   - 8.3: a person's approval as a gate; a review's lens; gates run at once
     when the change asks; a verdict posted as a commit status; the review
     charter, kind 3's number 2, is fixed at charter 4.
+  - 8.4: widening exhausted authority with ctl before release: `task
+    amend`'s `--tasks` and `--budget` are not implemented
+    (`../client/tools.md`, 5.5). The hold offers cancellation or asking
+    afresh instead.
   - 8.5: a retargeted pull request retargeted back on release; the change
     is held as a failed effect.
   - 8.7: the explicit choice to adopt a GitHub repository without CI;
