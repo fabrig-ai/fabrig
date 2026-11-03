@@ -162,3 +162,26 @@ an item named `home` fetches the wrong repository. Revision 1, binding from batc
 
 `change-merge-surface` and `change-merge-route` build to C2 as released; `merge-r1-paths` moves
 their item, the root's command and the capability to R1, with the stories that pin them.
+
+## R2. Revision 2: the merge kind's bounds fit the tasks child (supersedes C1's and C4's sizes)
+
+jig's core holds every declared job's bounds under its tasks child (`jig-domain-core`, `Core::new`:
+`job.spec <= tasks.spec_bytes`, `job.result <= tasks.result_bytes`), and the small profile's
+tasks child is 4,096 and 512. `tasks.result_bytes` cannot rise past 512 without jig's settings
+schema (`temper/docs/design/protocol/configuration.md`, 13's "`tasks.result_bytes` stays small's
+512"; `jig/docs/design/domain/tasks.status.md`, 11), a stored format, so C1's 8 KiB and 64 KiB
+could never be declared. Revision 2, binding now (`temper/docs/design/domain/worker.md, 4.4`):
+
+- `MERGE_SPEC_BYTES: u32 = 4_096` and `MERGE_RESULT_BYTES: u32 = 512`; kind, verb and deadline
+  as C1. The merge command's result (`tooling.md, 4.1`, a list of paths) past 512 bytes is the
+  command's failure, as any result past its bound.
+- **The engine declares kind 3 only where its tasks child holds the bound:** `config.core.jobs`
+  is `[merge_bound()]` where `merge_bound().spec <= tasks.spec_bytes` and `merge_bound().result
+  <= tasks.result_bytes` of the jig limits the core is built with, else empty, in both places
+  C1 names (one helper in `limits.rs` both call). No startup refusal and no capacity changes: a
+  deployment configured smaller (the service's test fixtures, 128 and 32) declares no kind 3 and
+  makes no merge job (C1, C5). The worker's hello states `merge_bound()` unconditionally.
+- C4's `merge_result` is `option bytes 512` (`MERGE_RESULT_BYTES`); C3's "(64 KiB)" reads 512 bytes.
+- **A spec that does not fit makes no merge job:** a project's `merge_job` may be 4,096 bytes
+  (C5), so C2's encoded spec can exceed the declared kind's spec bound; `Facts::merge_job` is
+  also false where it would, and the conflict goes to a resolution as without a `merge_job`.

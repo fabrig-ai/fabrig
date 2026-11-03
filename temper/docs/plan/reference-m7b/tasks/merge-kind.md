@@ -74,3 +74,21 @@ Acceptance:
 
 As the implementer's text says; say whether the job's merge in progress needed any change in
 the worker.
+
+## Answers
+
+2026-11-03. **Extend the task to align temper's task byte limits, startup checks and fixtures
+with C1, or a separate task?** Neither: C1's sizes were wrong, and are revised
+(`notes/contracts.md`, R2; `temper/docs/design/domain/worker.md, 4.4`). Raising
+`tasks.result_bytes` past 512 is jig's settings schema, a stored format, and not this plan's.
+So: `MERGE_SPEC_BYTES` is 4,096 and `MERGE_RESULT_BYTES` 512 (the small profile's tasks child);
+the worker's hello states `merge_bound()` as it does now; the engine's core declares
+`[merge_bound()]` only where the jig limits it is built with hold it (`spec <= tasks.spec_bytes`,
+`result <= tasks.result_bytes`), else no jobs, through one helper in `limits.rs` that
+`system.rs` and `startup/checks.rs` both call. No limit, profile, startup check or service
+fixture changes: the service's fixtures (128 and 32) declare no kind 3, so their tests pass
+unchanged. Acceptance's "the engine's core configuration declares the same `JobBound`" holds on
+the small profile's own limits: add a temper-service lib test
+`the_engine_declares_the_merge_kind_where_its_tasks_child_holds_it` beside the hello's test,
+the helper giving `[merge_bound()]` for the small profile's limits and nothing for limits with
+`tasks.result_bytes` 32. Keep the worker world's merge stories within the 512-byte result.
