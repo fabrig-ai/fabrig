@@ -117,6 +117,9 @@ done well before.
 - **The stock is unchanged:** no stock project names a `merge_job`, and the stock's delegation
   gains no job kind (its six executors fill `temper init`'s six); the reference adds the merge
   kind on the box with charter 5.
+- **The merge kind fits the tasks child** (`notes/contracts.md`, R2): spec 4,096, result 512,
+  declared by the engine only where its tasks limits hold them; `tasks.result_bytes` past 512
+  is jig's settings schema, a stored format, not this plan's.
 - **Parameter 16** for a catch-up's commit, clear of 11 to 15, which the wave's sibling plans
   are likeliest to take next.
 

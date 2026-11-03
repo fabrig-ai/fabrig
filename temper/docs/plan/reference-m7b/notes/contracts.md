@@ -167,7 +167,7 @@ an item named `home` fetches the wrong repository. Revision 1, binding from batc
 `change-merge-surface` and `change-merge-route` build to C2 as released; `merge-r1-paths` moves
 their item, the root's command and the capability to R1, with the stories that pin them.
 
-## R2. Revision 2: what the trunk holds the merge job to (supersedes C1's bounds)
+## R2. Revision 2: what the trunk holds the merge job to (supersedes C1's and C4's sizes)
 
 Binding from batch 5 on; each item names the task it concerns.
 
@@ -175,9 +175,24 @@ Binding from batch 5 on; each item names the task it concerns.
   jig's core asserts every declared kind's spec and result within `tasks.spec_bytes` and
   `tasks.result_bytes` (`jig/crates/jig-domain-core/src/lib.rs`, `Core::new`), 4,096 and 512
   in the small profile temper's engine takes, so C1's 8 KiB and 64 KiB stop the engine at its
-  start. The worker declares the same. The deadline stays 10 minutes. The merge command keeps
-  its result within 512 bytes (`temper/docs/design/protocol/tooling.md, 4.1`: the paths that
-  fit, then `"more": N`).
+  start; `tasks.result_bytes` cannot rise past 512 without jig's settings schema
+  (`temper/docs/design/protocol/configuration.md`, 13; `jig/docs/design/domain/tasks.status.md`,
+  11), a stored format. The worker's hello states `merge_bound()` unconditionally. The deadline
+  stays 10 minutes. The merge command keeps its result within 512 bytes
+  (`temper/docs/design/protocol/tooling.md, 4.1`: the paths that fit, then `"more": N`).
+- **The engine declares kind 3 only where its tasks child holds the bound** (`merge-kind`):
+  `config.core.jobs` is `[merge_bound()]` where `merge_bound().spec <= tasks.spec_bytes` and
+  `merge_bound().result <= tasks.result_bytes` of the jig limits the core is built with, else
+  empty, in both places the service builds it (`system.rs` and `startup.rs`, `notes/common.md`;
+  one helper in `limits.rs` both call). No startup refusal and no
+  capacity changes: a deployment configured smaller (the service's test fixtures, 128 and 32)
+  declares no kind 3 and makes no merge job (C1, C5).
+- **C4's `merge_result`** (`change-merge-surface`) is `option bytes 512` (`MERGE_RESULT_BYTES`);
+  C3's "(64 KiB)" reads 512 bytes.
+- **A spec that does not fit makes no merge job** (`change-merge-route`): a project's
+  `merge_job` may be 4,096 bytes (C5), so C2's encoded spec can exceed the declared kind's spec
+  bound; `Facts::merge_job` is also false where it would, and the conflict goes to a resolution
+  as without a `merge_job`.
 - **A job task takes no words, parameters or inputs** (`jig/crates/jig-domain-tasks/src/batch.rs`
   refuses them with `Refusal::Spec`; `change-merge-route`): the `Merge` arm of
   `change_delegate` builds its own delegate with none of the parameters `change_delegate`
