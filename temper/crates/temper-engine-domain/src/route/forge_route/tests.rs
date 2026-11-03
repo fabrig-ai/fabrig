@@ -1882,26 +1882,43 @@ fn a_landing_by_turn_starts_while_the_period_is_reserved_whole() {
     assert_eq!(row.spec.words.as_ref(), b"Land Change");
 }
 
-fn result_tier(name: &[u8], branch: Option<&[u8]>) -> crate::translate::TierCheck {
-    crate::translate::TierCheck {
-        name: name.into(),
-        workflow: Box::from(b"checks.yml".as_slice()),
-        ignored: Box::new([]),
-        artifact: Box::from(b"report".as_slice()),
-        format: temper_engine_domain_forge_tiers::Format::Lines,
-        follows: match branch {
-            Some(branch) => temper_engine_domain_forge::Follows::Branch(Box::from(branch)),
-            None => temper_engine_domain_forge::Follows::Landing,
+fn result_verdicts(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits>) {
+    use super::forge;
+    let tiers = Box::new([
+        forge::TierVerification {
+            tier: b"fuzzy".as_slice().into(),
+            verdict: Some(forge::TierVerdict { run: 2, blame: temper_engine_domain_forge_tiers::Blame::Cleared }),
+            repaired: None,
         },
-        span_ms: 0,
-    }
+        forge::TierVerification {
+            tier: b"browser".as_slice().into(),
+            verdict: Some(forge::TierVerdict { run: 4, blame: temper_engine_domain_forge_tiers::Blame::Cleared }),
+            repaired: None,
+        },
+    ]);
+    forge::step(
+        &mut domain.forge,
+        &super::super::environment_forge(env),
+        forge::Event::Restore {
+            record: forge::Stored::Verification(forge::Verification {
+                repository: change_row(Some(7)).repository,
+                commit: SHA1,
+                changes: Box::new([7]),
+                tiers,
+            }),
+        },
+        &mut skein_lib::Queue::uncapped(),
+    );
 }
 
 #[test]
 fn cleared_and_uncleared_results_qualify_the_landing_before_its_evidence() {
     use super::{forge, forge_change};
     for (state, line) in [
-        (forge_change::State::Cleared { merge: SHA1 }, b"Cleared by fuzzy, browser.".as_slice()),
+        (
+            forge_change::State::Cleared { merge: SHA1 },
+            b"Cleared by fuzzy run 2.\nCleared by browser run 4.".as_slice(),
+        ),
         (
             forge_change::State::Uncleared { merge: SHA1 },
             b"Not cleared: no verdict within the verification bound.".as_slice(),
@@ -1911,26 +1928,7 @@ fn cleared_and_uncleared_results_qualify_the_landing_before_its_evidence() {
         let mut row = change_row(Some(7));
         row.change.state = state;
         row.change.last_head = Some(SHA1);
-        domain
-            .config
-            .landings
-            .insert(
-                5,
-                crate::translate::ProjectLanding {
-                    by: crate::translate::Way::Queue,
-                    repositories: Box::new([crate::translate::RepositoryChecks {
-                        repository: row.repository,
-                        gates: Box::new([]),
-                        tiers: Box::new([
-                            result_tier(b"fuzzy", None),
-                            result_tier(b"release", Some(b"release/v1")),
-                            result_tier(b"browser", Some(b"main")),
-                        ]),
-                    }]),
-                    after: crate::translate::AfterLandingCheck { tier_retries: 2, verification_bound_ms: 7_200_000 },
-                },
-            )
-            .unwrap();
+        result_verdicts(&mut domain, &env);
         let mut out = skein_lib::Queue::uncapped();
         forge::step(
             &mut domain.forge,
@@ -1950,6 +1948,100 @@ fn cleared_and_uncleared_results_qualify_the_landing_before_its_evidence() {
         for part in short.windows(line.len() - 1) {
             assert_ne!(part, &line[..line.len() - 1], "qualification is kept whole");
         }
+    }
+}
+
+fn cleared_repair_result(by: Option<skein_forge::api::Commit>) -> (super::Domain, skein_lib::Env<super::Limits>) {
+    use super::{forge, forge_change};
+    let (mut domain, env) = two_forges();
+    let mut row = change_row(Some(7));
+    row.change.state = forge_change::State::Cleared { merge: SHA1 };
+    let verification = forge::Verification {
+        repository: row.repository,
+        commit: SHA1,
+        changes: Box::new([row.task]),
+        tiers: Box::new([forge::TierVerification {
+            tier: Box::from(b"browser".as_slice()),
+            verdict: Some(forge::TierVerdict {
+                run: 1,
+                blame: temper_engine_domain_forge_tiers::Blame::Owns(temper_engine_domain_forge_tiers::Failures::Many),
+            }),
+            repaired: Some(forge::TierRepair { run: 2, tip: SHA256, by }),
+        }]),
+    };
+    let mut out = skein_lib::Queue::uncapped();
+    for record in [forge::Stored::Change(row), forge::Stored::Verification(verification)] {
+        forge::step(
+            &mut domain.forge,
+            &super::super::environment_forge(&env),
+            forge::Event::Restore { record },
+            &mut out,
+        );
+    }
+    (domain, env)
+}
+
+#[test]
+fn a_cleared_changes_result_names_its_repairing_landing() {
+    let (domain, _) = cleared_repair_result(Some(SHA256));
+    assert!(
+        super::change_landing_words(&domain, 7, &SHA1, 7, 512).ends_with(
+            b"\nCleared by browser run 2, which passed the failures blamed on it; repaired by abababababab."
+        )
+    );
+}
+
+#[test]
+fn a_change_cleared_by_the_run_alone_keeps_its_words() {
+    let (domain, _) = cleared_repair_result(None);
+    assert_eq!(
+        super::change_verification_words(&domain, 7, &SHA1, 512).as_ref(),
+        b"Cleared by browser run 2, which passed the failures blamed on it."
+    );
+}
+
+#[test]
+fn repairing_tiers_keep_their_own_lines_among_other_tiers() {
+    use super::forge;
+    let (mut domain, env) = cleared_repair_result(Some(SHA256));
+    let repository = change_row(Some(7)).repository;
+    let repaired = domain.forge.landing_verification(repository, &SHA1).unwrap().tiers[0].clone();
+    for (names, expected) in [
+        (
+            [b"browser".as_slice(), b"fuzzy", b"slow"],
+            b"Cleared by browser run 2, which passed the failures blamed on it; repaired by abababababab.\nCleared by fuzzy run 4.\nCleared by slow run 4.".as_slice(),
+        ),
+        (
+            [b"fuzzy".as_slice(), b"browser", b"slow"],
+            b"Cleared by fuzzy run 4.\nCleared by browser run 2, which passed the failures blamed on it; repaired by abababababab.\nCleared by slow run 4.".as_slice(),
+        ),
+        (
+            [b"fuzzy".as_slice(), b"slow", b"browser"],
+            b"Cleared by fuzzy run 4.\nCleared by slow run 4.\nCleared by browser run 2, which passed the failures blamed on it; repaired by abababababab.".as_slice(),
+        ),
+    ] {
+        let mut verification = domain.forge.landing_verification(repository, &SHA1).unwrap().clone();
+        let mut tiers = skein_lib::List::uncapped();
+        for name in names {
+            let tier = if name == b"browser" {
+                repaired.clone()
+            } else {
+                forge::TierVerification {
+                    tier: name.into(),
+                    verdict: Some(forge::TierVerdict { run: 4, blame: temper_engine_domain_forge_tiers::Blame::Cleared }),
+                    repaired: None,
+                }
+            };
+            tiers.push(tier).unwrap();
+        }
+        verification.tiers = tiers.into_boxed();
+        forge::step(
+            &mut domain.forge,
+            &super::super::environment_forge(&env),
+            forge::Event::Restore { record: forge::Stored::Verification(verification) },
+            &mut skein_lib::Queue::uncapped(),
+        );
+        assert_eq!(super::change_verification_words(&domain, 7, &SHA1, 512).as_ref(), expected);
     }
 }
 
@@ -2110,4 +2202,101 @@ fn release_held_tier(domain: &mut super::Domain, env: &skein_lib::Env<super::Lim
     };
     assert_eq!(got, task);
     assert!(heard.released && !heard.cancelled);
+}
+
+fn repairs_call(control: bool) -> (super::Domain, skein_lib::Env<super::Limits>, super::tasks::DelegationContext) {
+    let (mut domain, env) = two_forges();
+    let mut other = adopted(3);
+    other.project = 6;
+    super::forge::step(
+        &mut domain.forge,
+        &super::super::environment_forge(&env),
+        super::forge::Event::Restore { record: super::forge::Stored::Repository(other) },
+        &mut skein_lib::Queue::uncapped(),
+    );
+    let (source, _, task) = crate::tests::live_task(None, super::tasks::Executor::Procedure { connector: 0, code: 1 });
+    let mut context = source.core.tasks.delegation(task).expect("fixture delegation context");
+    context.project = 5;
+    context.numbers.budget = 100;
+    context.tasks_left = 8;
+    let family = jig_domain_core::ToolFamilies::JIG.control.0;
+    if control {
+        context.authority.tools.0 |= family;
+    } else {
+        context.authority.tools.0 &= !family;
+    }
+    (domain, env, context)
+}
+
+#[test]
+fn repairs_without_control_is_refused_as_a_plan_member() {
+    let (domain, env, context) = repairs_call(false);
+    let change = crate::ChangeCall { repairs: Some(SHA1), ..crate::ChangeCall::words(b"Fix".as_slice().into(), None) };
+    let Err(super::ChangeRefused::Words(words)) = super::change_batch(&domain, &env, 7, &context, &[change]) else {
+        panic!("repairs refused")
+    };
+    assert_eq!(words.as_ref(), b"change's landing, branch, name, after, repairs and changes are a plan's: this task's authority lacks the control family (amend, cancel, release).");
+}
+
+#[test]
+fn repairs_naming_no_live_landing_is_refused() {
+    let (domain, env, context) = repairs_call(true);
+    let change = crate::ChangeCall { repairs: Some(SHA1), ..crate::ChangeCall::words(b"Fix".as_slice().into(), None) };
+    let Err(super::ChangeRefused::Words(words)) = super::change_batch(&domain, &env, 7, &context, &[change]) else {
+        panic!("unknown landing refused")
+    };
+    assert_eq!(
+        words.as_ref(),
+        b"repairs: abcdef0123456789abcdef0123456789abcdef01 is no live landing of temper's in org/repo."
+    );
+}
+
+fn start_repairs(digits: Option<&[u8]>) -> (bool, skein_lib::Queue<super::Work>) {
+    use super::tasks;
+    let (mut domain, mut env) = two_forges();
+    // forge, host, owner, repository, branch marker, main.
+    env.limits.authority.segments = 6;
+    let (source, _, task) = crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: 2 });
+    let mut context = source.core.tasks.run_context(task).expect("fixture run context");
+    context.project = 5;
+    let mut parameters = skein_lib::List::with_capacity(3);
+    for parameter in [
+        tasks::Parameter::Resource { name: 1, connector: 0, resource: super::forge::tag(1, 1) },
+        tasks::Parameter::Bytes { name: 3, value: b"temper/repair".as_slice().into() },
+    ] {
+        parameters.push(parameter).expect("repository and branch");
+    }
+    if let Some(digits) = digits {
+        parameters.push(tasks::Parameter::Bytes { name: 12, value: digits.into() }).expect("repairs");
+    }
+    context.spec.parameters = parameters.into_boxed();
+    let accepted = super::start_change(&mut domain, &env, &context);
+    (accepted, domain.work)
+}
+
+#[test]
+fn a_started_change_keeps_repairs_at_each_commit_width() {
+    for (commit, digits) in COMMITS {
+        let (accepted, mut work) = start_repairs(Some(digits));
+        assert!(accepted, "commit {digits:?}");
+        let Some(super::Work::Forge(super::forge::Event::Change { row })) = work.pop() else { panic!("change row") };
+        assert_eq!(row.repairs, Some(*commit));
+    }
+}
+
+#[test]
+fn a_started_change_without_repairs_keeps_none() {
+    let (accepted, mut work) = start_repairs(None);
+    assert!(accepted);
+    let Some(super::Work::Forge(super::forge::Event::Change { row })) = work.pop() else { panic!("change row") };
+    assert_eq!(row.repairs, None);
+}
+
+#[test]
+fn malformed_repairs_refuses_a_change_start() {
+    for digits in [[b'A'; 40].as_slice(), [b'a'; 39].as_slice(), [b'g'; 64].as_slice()] {
+        let (accepted, work) = start_repairs(Some(digits));
+        assert!(!accepted, "commit {digits:?}");
+        assert!(work.is_empty(), "no change or step queued for malformed repairs");
+    }
 }

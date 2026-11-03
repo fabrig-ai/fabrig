@@ -2004,6 +2004,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
     let mut priority = 0_i32;
     let mut base_repair = false;
     let mut requester_branch = false;
+    let mut repairs = None;
     for parameter in &context.spec.parameters {
         match parameter {
             tasks::Parameter::Resource { name: 1, connector, resource } => {
@@ -2022,6 +2023,23 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
             }
             tasks::Parameter::Number { name: 9, value: 1 } => base_repair = true,
             tasks::Parameter::Number { name: 11, value: 1 } => requester_branch = true,
+            tasks::Parameter::Bytes { name: 12, value } => {
+                if value.len() != 40 && value.len() != 64 {
+                    return false;
+                }
+                let mut commit = [0_u8; 32];
+                for (pair, cell) in value.chunks_exact(2).zip(&mut commit) {
+                    for digit in pair {
+                        let nibble = match digit {
+                            b'0'..=b'9' => digit.saturating_sub(b'0'),
+                            b'a'..=b'f' => digit.saturating_sub(b'a').saturating_add(10),
+                            _ => return false,
+                        };
+                        *cell = cell.saturating_mul(16).saturating_add(nibble);
+                    }
+                }
+                repairs = Some(commit);
+            }
             tasks::Parameter::Bytes { name: 6 | 10, .. } => {}
             tasks::Parameter::Number { .. } | tasks::Parameter::Bytes { .. } | tasks::Parameter::Resource { .. } => {
                 return false;
@@ -2107,7 +2125,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 effect_account: None,
                 producer_failure: None,
                 report: Box::new([]),
-                repairs: None,
+                repairs,
             },
         }));
         let branch_name =
@@ -2331,6 +2349,7 @@ pub(crate) enum ChangeRefused {
 
 /// Build a plan's changes together; jig admits all of them in one delegation.
 /// Plan members require the control family (domain/agent.md, 4.3.1).
+#[expect(clippy::too_many_lines, reason = "the batch resolves plan members before admitting delegates together")]
 pub(crate) fn change_batch(
     domain: &Domain,
     env: &Env<Limits>,
@@ -2340,14 +2359,18 @@ pub(crate) fn change_batch(
 ) -> Result<Box<[super::Delegate]>, ChangeRefused> {
     let plan = match changes {
         [change] => {
-            change.name.is_some() || change.landing.is_some() || change.branch.is_some() || !change.after.is_empty()
+            change.name.is_some()
+                || change.landing.is_some()
+                || change.branch.is_some()
+                || !change.after.is_empty()
+                || change.repairs.is_some()
         }
         _ => true,
     };
     let control = jig_domain_core::ToolFamilies::JIG.control.0;
     if plan && context.authority.tools.0 & control != control {
         return Err(ChangeRefused::Words(Box::from(
-            b"change's landing, branch, name, after and changes are a plan's: this task's authority lacks the control family (amend, cancel, release).".as_slice(),
+            b"change's landing, branch, name, after, repairs and changes are a plan's: this task's authority lacks the control family (amend, cancel, release).".as_slice(),
         )));
     }
     if let Some(words) = super::goal::change_refusal(domain, task) {
@@ -2409,6 +2432,38 @@ pub(crate) fn change_batch(
         };
         let branch = change_branch(domain, env, task, &repository, change, batch.as_slice())?;
         let base = change_landing(domain, env, task, &repository, change.landing.as_ref())?;
+        if let Some(commit) = change.repairs {
+            let red = domain.forge.landing_red(repository.provider, &commit, &base);
+            if red != forge::LandingRed::Red {
+                let name = repository_name(&repository);
+                // Fixed refusal words, commit digits, and the two bounded branch names.
+                let capacity = 128_u32
+                    .checked_add(u32::try_from(name.len()).expect("repository name fits u32"))
+                    .expect("bounded repository name")
+                    .checked_add(env.limits.forge.name_bytes.saturating_mul(2))
+                    .expect("bounded repairs refusal");
+                let mut words = List::with_capacity(capacity);
+                append(&mut words, b"repairs: ");
+                append(&mut words, &commit_text(&commit));
+                match red {
+                    forge::LandingRed::Unknown => {
+                        append(&mut words, b" is no live landing of temper's in ");
+                        append(&mut words, &name);
+                        append(&mut words, b".");
+                    }
+                    forge::LandingRed::Elsewhere { branch } => {
+                        append(&mut words, b" landed into ");
+                        append(&mut words, &branch);
+                        append(&mut words, b", not ");
+                        append(&mut words, &base);
+                        append(&mut words, b".");
+                    }
+                    forge::LandingRed::NotRed => append(&mut words, b" is red in no tier."),
+                    forge::LandingRed::Red => unreachable!("red landings admit repairs"),
+                }
+                return Err(ChangeRefused::Words(words.into_boxed()));
+            }
+        }
         let mut member = match chat_change(domain, env, &remaining, change, &repository, base, branch, spend) {
             Ok(member) => member,
             Err(why) => return Err(ChangeRefused::Refusal(why)),
@@ -2601,7 +2656,7 @@ fn chat_change(
     authority.budget.spend = spend;
     authority.notes = tasks::Scopes(0);
     authority.note_resources = Box::new([]);
-    let mut parameters = List::with_capacity(5);
+    let mut parameters = List::with_capacity(6);
     for parameter in change_parameters(domain.config.forge_connector, repository.provider, base) {
         parameters.push(parameter).expect("change repository and landing");
     }
@@ -2619,6 +2674,9 @@ fn chat_change(
         if !title.is_empty() {
             parameters.push(tasks::Parameter::Bytes { name: 10, value: title.into() }).expect("goal landing title");
         }
+    }
+    if let Some(commit) = change.repairs {
+        parameters.push(tasks::Parameter::Bytes { name: 12, value: commit_text(&commit) }).expect("red landing commit");
     }
     Ok(super::Delegate {
         deadline: tasks::Deadline::Named,
@@ -3195,73 +3253,48 @@ fn change_landing_words(
     out.into_boxed()
 }
 
-/// The forge supplies run identities when retained; otherwise name the configured tiers
-/// following this landing's branch (temper/docs/design/domain/after-landing.md, 6).
+/// Name each landing's retained clearing run before its verification row is released
+/// (temper/docs/design/domain/after-landing.md, 6).
 fn change_verification_words(domain: &Domain, task: u64, merge: &skein_forge::api::Commit, bound: u32) -> Box<[u8]> {
     let row = domain.forge.change(task).expect("landed change");
     let mut words = List::with_capacity(bound);
-    match row.change.state {
-        forge_change::State::Uncleared { .. } => {
-            let cancelled = change_cancelled(domain, task);
-            append(
-                &mut words,
-                if cancelled {
-                    b"Not cleared: cancelled while verifying."
-                } else {
-                    b"Not cleared: no verdict within the verification bound."
-                },
-            );
-        }
-        forge_change::State::Cleared { .. } => {
-            let Some(repository) = domain.forge.repository(row.repository) else { return Box::new([]) };
-            let Some(config) = domain.config.landings.get(&repository.project) else { return Box::new([]) };
-            let mut first = true;
-            for checks in &config.repositories {
-                if checks.repository != row.repository {
-                    continue;
-                }
-                for tier in &checks.tiers {
-                    let branch = match &tier.follows {
-                        forge::Follows::Branch(branch) => branch,
-                        forge::Follows::Landing => &repository.settings.default_branch,
-                        forge::Follows::Goals => continue,
-                    };
-                    if *branch != row.base {
-                        continue;
-                    }
-                    append(&mut words, if first { b"Cleared by " } else { b", " });
-                    first = false;
-                    append(&mut words, &tier.name);
-                    if let Some(number) = tier_landing_run(domain, row.repository, &tier.name, merge) {
-                        append(&mut words, b" run ");
-                        append(&mut words, skein_lib::Decimal::of(number).as_bytes());
-                    }
+    if let forge_change::State::Uncleared { .. } = row.change.state {
+        append(
+            &mut words,
+            if change_cancelled(domain, task) {
+                b"Not cleared: cancelled while verifying.".as_slice()
+            } else {
+                b"Not cleared: no verdict within the verification bound.".as_slice()
+            },
+        );
+    }
+    if let forge_change::State::Cleared { .. } = row.change.state {
+        let Some(verification) = domain.forge.landing_verification(row.repository, merge) else {
+            return words.into_boxed();
+        };
+        for tier in &verification.tiers {
+            let run = match (&tier.repaired, &tier.verdict) {
+                (Some(repaired), _) => repaired.run,
+                (None, Some(verdict)) => verdict.run,
+                (None, None) => continue,
+            };
+            if !words.is_empty() {
+                append(&mut words, b"\n");
+            }
+            append(&mut words, b"Cleared by ");
+            append(&mut words, &tier.tier);
+            append(&mut words, b" run ");
+            append(&mut words, skein_lib::Decimal::of(run).as_bytes());
+            if let Some(repaired) = &tier.repaired {
+                append(&mut words, b", which passed the failures blamed on it");
+                if let Some(by) = &repaired.by {
+                    append(&mut words, b"; repaired by ");
+                    let digits = commit_text(by);
+                    append(&mut words, digits.get(..12).expect("a commit has at least 40 hexadecimal digits"));
                 }
             }
-            if !first {
-                append(&mut words, b".");
-            }
+            append(&mut words, b".");
         }
-        forge_change::State::Producing { .. }
-        | forge_change::State::Opening { .. }
-        | forge_change::State::Recreating { .. }
-        | forge_change::State::Reopening { .. }
-        | forge_change::State::Checking { .. }
-        | forge_change::State::Gating { .. }
-        | forge_change::State::CancellingGates { .. }
-        | forge_change::State::Ready { .. }
-        | forge_change::State::Preparing { .. }
-        | forge_change::State::Queued { .. }
-        | forge_change::State::First { .. }
-        | forge_change::State::Updating { .. }
-        | forge_change::State::Resolving { .. }
-        | forge_change::State::Repairing { .. }
-        | forge_change::State::Landing { .. }
-        | forge_change::State::Landed { .. }
-        | forge_change::State::Red { .. }
-        | forge_change::State::Held { .. }
-        | forge_change::State::NoChange { .. }
-        | forge_change::State::Ended => {}
     }
     words.into_boxed()
 }
@@ -3281,27 +3314,6 @@ fn change_cancelled(domain: &Domain, task: u64) -> bool {
         tasks::Ending::Cancelled { .. } => true,
         tasks::Ending::Done(_) | tasks::Ending::Failed { .. } => false,
     }
-}
-
-fn tier_landing_run(
-    domain: &Domain,
-    repository: skein_forge::api::Repository,
-    tier: &[u8],
-    merge: &skein_forge::api::Commit,
-) -> Option<u64> {
-    for task in domain.core.tasks.view_tasks() {
-        let Some(row) = domain.forge.tier_task(task.number) else { continue };
-        if row.repository != repository || row.tier.as_ref() != tier {
-            continue;
-        }
-        if let Some(judged) = &row.record.judged
-            && judged.tip == *merge
-            && row.record.sequence != 0
-        {
-            return Some(row.record.sequence);
-        }
-    }
-    None
 }
 
 /// Explain a failed review in the same decision that holds its change.

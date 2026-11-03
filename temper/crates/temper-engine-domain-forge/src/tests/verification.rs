@@ -7,6 +7,8 @@ const REPO: skein_forge::api::Repository = skein_forge::api::Repository { forge:
 const PROJECT: u32 = 5;
 const CHANGE: u64 = 51;
 const SECOND: u64 = 52;
+const OLDER_REPAIR: u64 = 53;
+const NEWER_REPAIR: u64 = 54;
 const TIER_TASK: u64 = 61;
 const OPEN: u64 = 11;
 const HEAD: skein_forge::api::Commit = [3; 32];
@@ -483,6 +485,57 @@ fn later_green_repairs_red_without_replacing_its_verdict() {
     );
 }
 
+fn repairing_range(older: Option<skein_forge::api::Commit>, newer: Option<skein_forge::api::Commit>) -> Domain {
+    let mut d = verifying();
+    red(&mut d);
+    for (task, commit, repairs) in [(OLDER_REPAIR, REPAIR, older), (NEWER_REPAIR, HEAD, newer)] {
+        add_change(&mut d, task, b"main");
+        d.changes.get_mut(&task).expect("repair change").repairs = repairs;
+        merged(&mut d, task, commit);
+    }
+    green(&mut d, 2, &[REPAIR, HEAD]);
+    d
+}
+
+#[test]
+fn later_run_attributes_repair_to_the_landing_naming_red() {
+    let d = repairing_range(None, Some(LAST));
+    assert_eq!(
+        d.verifications.get(&(REPO, LAST)).expect("red landing").tiers[0].repaired,
+        Some(TierRepair { run: 2, tip: HEAD, by: Some(HEAD) })
+    );
+}
+
+#[test]
+fn later_run_alone_repairs_when_no_change_names_red() {
+    let d = repairing_range(None, None);
+    assert_eq!(
+        d.verifications.get(&(REPO, LAST)).expect("red landing").tiers[0].repaired,
+        Some(TierRepair { run: 2, tip: HEAD, by: None })
+    );
+}
+
+#[test]
+fn newest_landing_naming_red_is_its_repairer() {
+    let d = repairing_range(Some(LAST), Some(LAST));
+    assert_eq!(
+        d.verifications.get(&(REPO, LAST)).expect("red landing").tiers[0].repaired,
+        Some(TierRepair { run: 2, tip: HEAD, by: Some(HEAD) })
+    );
+}
+
+#[test]
+fn repairer_precedes_newer_landings_that_do_not_name_red() {
+    for newer in [None, Some(FIRST)] {
+        let d = repairing_range(Some(LAST), newer);
+        assert_eq!(
+            d.verifications.get(&(REPO, LAST)).expect("red landing").tiers[0].repaired,
+            Some(TierRepair { run: 2, tip: HEAD, by: Some(REPAIR) }),
+            "newer landing repairs {newer:?}"
+        );
+    }
+}
+
 #[test]
 fn no_verdict_at_the_project_bound_finishes_uncleared() {
     let mut d = verifying();
@@ -750,4 +803,40 @@ fn landing_red_is_red_for_unrepaired_owns_and_suspect_verdicts() {
         policy::Failures::Many,
     );
     assert_eq!(d.landing_red(REPO, &FIRST, b"main"), LandingRed::Red);
+}
+
+#[test]
+fn retained_tier_runs_survive_later_verdicts_restart_and_shared_change_release() {
+    const OTHER: &[u8] = b"fuzzy";
+    let mut d = configured_domain(&[(TIER, None), (OTHER, None)]);
+    add_change(&mut d, CHANGE, b"main");
+    merged(&mut d, CHANGE, FIRST);
+    green(&mut d, 2, &[FIRST, LAST]);
+    judge(
+        &mut d,
+        OTHER,
+        4,
+        &[FIRST, LAST],
+        Box::new([policy::Blame::Owns(policy::Failures::Many), policy::Blame::Cleared]),
+        policy::Failures::Many,
+    );
+    judge(&mut d, OTHER, 5, &[REPAIR], Box::new([policy::Blame::Cleared]), policy::Failures::Tests(Box::new([])));
+    green(&mut d, 6, &[HEAD]);
+    let expected = [d.change_verdicts(CHANGE)[0].clone(), d.change_verdicts(CHANGE)[1].clone()];
+    assert_eq!(expected[0].verdict.as_ref().unwrap().run, 2);
+    assert_eq!(expected[1].verdict.as_ref().unwrap().run, 4);
+    assert_eq!(expected[1].repaired.unwrap().run, 5);
+    let row = d.verifications.get(&(REPO, FIRST)).unwrap().clone();
+    let mut restored = configured_domain(&[(TIER, None), (OTHER, None)]);
+    restored.restore_begin(Wall::EPOCH);
+    restore(&mut restored, &env(), Stored::Verification(row));
+    assert_eq!(restored.change_verdicts(CHANGE), expected);
+    assert!(restored.change_verdicts(SECOND).is_empty());
+    add_change(&mut restored, SECOND, b"main");
+    merged(&mut restored, SECOND, FIRST);
+    verification::released(&mut restored, CHANGE, &mut Queue::uncapped());
+    assert!(restored.change_verdicts(CHANGE).is_empty());
+    assert_eq!(restored.change_verdicts(SECOND), expected);
+    verification::released(&mut restored, SECOND, &mut Queue::uncapped());
+    assert!(restored.change_verdicts(SECOND).is_empty());
 }

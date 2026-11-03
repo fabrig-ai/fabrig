@@ -146,6 +146,19 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
   restart the box. An installation available only through an
   interactive shell is insufficient: the runner uses the configured
   PATH, not the shell's.
+- **Runner capacity:** CI and tiers using `temper-host` share the box's
+  runner. `application.machine.owned.runner.capacity` defaults to 1,
+  the minimum: one job runs at a time, so a slow tier can keep CI waiting
+  and prevent changes from landing during its run. Set it to 2 for one
+  single-job tier plus CI, or 3 for two such tiers plus CI. Count
+  concurrent jobs in multi-job workflows and jobs from other repositories
+  sharing the runner as well; each needs a slot.
+  On a real-backend box, stop with Ctrl-C or SIGTERM and wait for
+  `Stopped`. Edit that setting in `CONFIG/temper.json`, preserving the
+  other settings, then restart `temper box --config CONFIG --data DATA
+  --cache CACHE` with the same directories. This also updates an already
+  prepared runner's configuration while preserving its registration and
+  secrets. Capacity changes require the runner to be stopped.
 - **ctl:** `change show TASK --until cleared` waits for a landed
   change's verdict, its step `verifying`, `red` or `cleared` naming the
   tiers and their runs; `task show` reads a tier's run task, and `task

@@ -2016,3 +2016,15 @@ fn document_sections_have_repository_path_and_heading_titles() {
         assert_eq!(section.text.as_ref(), b"[read failed]");
     }
 }
+
+#[test]
+fn a_denied_release_names_the_control_family_once() {
+    use jig_domain_authority::{Answer, Finding};
+    let denied = engine::CallAnswer::ToolDenied {
+        answer: Answer::Refuse,
+        findings: Box::new([Finding::Tool, Finding::Tool, Finding::Tool]),
+    };
+    let rendered = crate::answer_for_tool(&denied, b"release", 1024);
+    assert!(rendered.error());
+    assert_eq!(rendered.text(), b"Authority refused: tool family control; ");
+}

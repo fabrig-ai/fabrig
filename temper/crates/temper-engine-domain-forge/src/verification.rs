@@ -50,15 +50,28 @@ impl Domain {
         LandingRed::NotRed
     }
 
+    /// Borrow the admitted tiers' retained verdicts until the change releases its landing.
+    #[must_use]
+    pub fn change_verdicts(&self, task: u64) -> &[TierVerification] {
+        for (_, row) in &self.verifications {
+            if row.changes.contains(&task) {
+                return &row.tiers;
+            }
+        }
+        &[]
+    }
+
     /// The landing's retained verdicts, including a merge observed before its change steps.
     #[must_use]
     pub fn change_verification(&self, task: u64) -> change::Verification {
-        for (_, row) in &self.verifications {
-            if row.changes.contains(&task) {
-                return fact(row);
-            }
-        }
-        change::Verification::Unfollowed
+        let tiers = self.change_verdicts(task);
+        if tiers.is_empty() { change::Verification::Unfollowed } else { fact(tiers) }
+    }
+
+    /// The live row of this repository and commit (temper/docs/design/domain/after-landing.md, 6).
+    #[must_use]
+    pub fn landing_verification(&self, repository: Repository, commit: &Commit) -> Option<&Verification> {
+        self.verifications.get(&(repository, *commit))
     }
 }
 
@@ -106,9 +119,9 @@ pub(crate) fn landed(d: &mut Domain, commit: Commit, task: u64, out: &mut Queue<
     save(row, out);
 }
 
-fn fact(row: &Verification) -> change::Verification {
+fn fact(tiers: &[TierVerification]) -> change::Verification {
     let mut cleared = true;
-    for tier in &row.tiers {
+    for tier in tiers {
         if tier.repaired.is_some() {
             continue;
         }
@@ -138,6 +151,18 @@ pub(crate) fn judged(
         }
     }
     for key in keys.into_boxed() {
+        let mut by = None;
+        'landings: for landing in landings.iter().rev() {
+            let Some(row) = d.verifications.get(&(repository, landing.commit)) else { continue };
+            for task in &row.changes {
+                if let Some(change) = d.changes.get(task)
+                    && change.repairs == Some(key.1)
+                {
+                    by = Some(landing.commit);
+                    break 'landings;
+                }
+            }
+        }
         let row = d.verifications.get_mut(&key).expect("retained verification");
         let commit = row.commit;
         let mut changed = false;
@@ -157,8 +182,7 @@ pub(crate) fn judged(
             {
                 match &prior.blame {
                     Blame::Owns(_) | Blame::Suspect(_) if policy::repaired(&prior.blame, &verdict.failing) => {
-                        verification.repaired =
-                            Some(crate::TierRepair { run: verdict.number, tip: verdict.tip, by: None });
+                        verification.repaired = Some(crate::TierRepair { run: verdict.number, tip: verdict.tip, by });
                         changed = true;
                     }
                     Blame::Cleared | Blame::Owns(_) | Blame::Suspect(_) => {}

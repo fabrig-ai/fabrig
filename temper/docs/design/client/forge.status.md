@@ -29,4 +29,12 @@
   (`words.rs` `ForgeLeave`), where no banner says it: words for a forge
   added to the configuration by hand, and for a banner's set up under
   way, which the store's records and the playground's one line leave
-  without a place.
+  without a place. 5.4, A managed Forgejo: a stop empties the admin's
+  token whatever connect it ends: with no admin connect sent, any
+  stopped managed Forgejo's row empties it, and while the sent
+  connect's forge stays stopped, each delivery of the forges watch
+  empties a token pasted again (`temper-client-domain`'s
+  `forge/admin.rs` `stopped`), where the bot's tokens are emptied by
+  their own connect's new stop alone (`forge/tokens.rs` `stopped`); the
+  code records no reason, and a code task gives the admin's form the
+  tokens' rule.

@@ -10,6 +10,7 @@ use fixtures::{BASE, CHANGE, HEAD, OPEN};
 use skein_forge::api;
 use temper_engine_domain_forge_landing as keys;
 use temper_engine_domain_forge_tiers as p;
+mod goals;
 mod red;
 
 const TIER: &[u8] = b"browser";
@@ -670,7 +671,7 @@ fn tier_definitions_pin_landing_and_explicit_branch_bytes() {
 }
 
 #[test]
-fn goal_tiers_start_no_run_on_main_or_goal_moves() {
+fn goal_tiers_start_no_run_without_a_held_goal_branch() {
     let mut d = restoring_following(Follows::Goals);
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     let out = outputs(&mut d, Event::ReadAfresh);
