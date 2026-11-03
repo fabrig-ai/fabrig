@@ -22,7 +22,13 @@ fn heard() -> RelayHeard<'static> {
 }
 
 fn open(asker: u64, number: u64, stands: Stands) -> Open {
-    Open { asker, number, line: Box::from(b"Which path?".as_slice()), stands }
+    Open {
+        asker,
+        number,
+        line: Box::from(b"Which path?".as_slice()),
+        words: Box::from(b"Which path?\nOptions follow.".as_slice()),
+        stands,
+    }
 }
 
 fn head(stands: Stands) -> Questions {

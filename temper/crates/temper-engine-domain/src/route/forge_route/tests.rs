@@ -1874,14 +1874,28 @@ fn a_change_made_with_parameter_14_keeps_its_route() {
     use super::{Work, forge, forge_change, tasks};
     // forge, host, owner, repository, branch, main.
     const BASE_AUTHORITY_SEGMENTS: u32 = 6;
-    for (parameter, expected) in [
-        (None, Some(forge_change::Route::None)),
-        (Some(tasks::Parameter::Number { name: 14, value: 1 }), Some(forge_change::Route::Foreman)),
-        (Some(tasks::Parameter::Number { name: 14, value: 2 }), Some(forge_change::Route::Up)),
-        (Some(tasks::Parameter::Number { name: 14, value: 3 }), None),
-        (Some(tasks::Parameter::Number { name: 14, value: 0 }), None),
-        (Some(tasks::Parameter::Bytes { name: 14, value: b"foreman".as_slice().into() }), None),
-        (Some(tasks::Parameter::Resource { name: 14, connector: 0, resource: 1 }), None),
+    for (parameter, requester, expected) in [
+        (None, tasks::Party::Task(91), Some(forge_change::Route::None)),
+        (
+            Some(tasks::Parameter::Number { name: 14, value: 1 }),
+            tasks::Party::Task(91),
+            Some(forge_change::Route::Foreman),
+        ),
+        (Some(tasks::Parameter::Number { name: 14, value: 2 }), tasks::Party::Task(91), Some(forge_change::Route::Up)),
+        (Some(tasks::Parameter::Number { name: 14, value: 3 }), tasks::Party::Task(91), None),
+        (Some(tasks::Parameter::Number { name: 14, value: 0 }), tasks::Party::Task(91), None),
+        (Some(tasks::Parameter::Bytes { name: 14, value: b"foreman".as_slice().into() }), tasks::Party::Task(91), None),
+        (Some(tasks::Parameter::Resource { name: 14, connector: 0, resource: 1 }), tasks::Party::Task(91), None),
+        (
+            Some(tasks::Parameter::Number { name: 14, value: 2 }),
+            tasks::Party::Person(1),
+            Some(forge_change::Route::None),
+        ),
+        (
+            Some(tasks::Parameter::Number { name: 14, value: 1 }),
+            tasks::Party::Deployment { project: 1 },
+            Some(forge_change::Route::None),
+        ),
     ] {
         let (mut domain, mut env) = procedure_root();
         env.limits.authority.segments = BASE_AUTHORITY_SEGMENTS;
@@ -1897,6 +1911,7 @@ fn a_change_made_with_parameter_14_keeps_its_route() {
         if let Some(parameter) = parameter {
             parameters.push(parameter).unwrap();
         }
+        context.requester = requester;
         context.spec.parameters = parameters.into_boxed();
         assert_eq!(super::start_change(&mut domain, &env, &context), expected.is_some());
         let mut made = None;
@@ -1923,6 +1938,7 @@ fn a_hold_past_questions_names_its_bound() {
                 asker: 9,
                 number: 12,
                 line: b"Which behavior?".as_slice().into(),
+                words: Box::new([]),
                 stands: forge_change::Stands::Taken,
             }][..],
             b"its questions are spent: 4 of 4 taken; question 12 of task 9 waits; release it to pass the question up"

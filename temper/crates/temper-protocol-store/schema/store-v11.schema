@@ -187,7 +187,7 @@ enum Route { none, foreman, up }
 record Foreman { task: option u64 }
 record Held { answer: bytes 65536 }
 enum Stands { taken, foreman: Foreman, asked, held: Held }
-record Open { asker: u64 number: u64 line: bytes 256 stands: Stands }
+record Open { asker: u64 number: u64 line: bytes 256 words: bytes 65536 stands: Stands }
 record Questions { route: Route taken: u32 open: list 16 Open }
 record ChangeRow { result: ChangeResult task: u64 repository: Repository branch: bytes 4096 base: bytes 4096 title: bytes 1048576 body: bytes 1048576 priority: u32 change: Change ci: option ChangeCi pull: option u64 pending: option u64 effect: EffectResult delegate: option DelegateRef delegate_status: ChangeStatus verdicts: list 1024 GateReport gate_remarks: list 1024 GateRemark drift: option ChangeHold base_repair: bool queue_repair: option u64 queue_repairs: u32 producing_charter: u32 review_charter: u32 foreman_charter: u32 effect_account: option EffectAccount producer_failure: option bytes 512 report: bytes 1048576 questions: Questions }
 # 04.4ac: goal issue projections and the root-authorized desired view.
