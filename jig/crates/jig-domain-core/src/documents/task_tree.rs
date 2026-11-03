@@ -596,7 +596,7 @@ fn hold_account(task: u64, reason: tasks::Hold, source: Option<&tasks::HoldSourc
         | tasks::Hold::Procedure => None,
     }
 }
-pub(super) fn hold(limits: &Limits, row: &tasks::TaskRecord) -> Result<Option<HoldLine>, Missing> {
+pub(crate) fn hold(limits: &Limits, row: &tasks::TaskRecord) -> Result<Option<HoldLine>, Missing> {
     match &row.phase {
         tasks::Phase::Held { was, why, source } => Ok(Some(HoldLine {
             placed: None,

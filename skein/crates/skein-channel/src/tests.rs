@@ -895,3 +895,62 @@ fn valid_refuses_a_control_frame_past_u32() {
         assert!(!super::valid(&schema(), Role::Initiator, &bounds));
     }
 }
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "Debug regression tests format made-up credential canaries")]
+fn debug_of_an_opening_shows_the_credentials_length_never_its_bytes() {
+    const CANARY: &[u8; 13] = b"canary-c42e8b";
+    let canary_bytes = alloc::format!("{CANARY:?}");
+    let request = Request::Open { credential: Box::from(*CANARY) };
+    let event = Event::Opening { credential: Box::from(*CANARY), lowest: 1, highest: 2 };
+    let control = Control::Open { magic: *b"test", lowest: 1, highest: 2, features: 0, credential: Box::from(*CANARY) };
+    for (debug, pretty, expected) in [
+        (alloc::format!("{request:?}"), alloc::format!("{request:#?}"), "Open { credential_len: 13 }"),
+        (
+            alloc::format!("{event:?}"),
+            alloc::format!("{event:#?}"),
+            "Opening { credential_len: 13, lowest: 1, highest: 2 }",
+        ),
+        (
+            alloc::format!("{control:?}"),
+            alloc::format!("{control:#?}"),
+            "Open { magic: [116, 101, 115, 116], lowest: 1, highest: 2, features: 0, credential_len: 13 }",
+        ),
+    ] {
+        assert!(!debug.contains("canary-c42e8b"));
+        assert!(!debug.contains(&canary_bytes));
+        assert_eq!(debug, expected);
+        assert!(!pretty.contains("canary-c42e8b"));
+        assert!(!pretty.replace([' ', '\n'], "").contains(&canary_bytes.replace(' ', "")));
+        assert!(pretty.contains("credential_len: 13"));
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "Debug regression tests preserve derived record formatting")]
+fn debug_of_records_without_a_credential_is_the_derived_form() {
+    let request = Request::Refuse { reason: 1, text: Box::from(*b"busy") };
+    let mut terms = List::with_capacity(1);
+    terms.push(Term { kind: 256, largest: 32 }).expect("one term fits");
+    let event = Event::Ready { version: 2, terms };
+    let control = Control::Accept { version: 2, features: 0 };
+    let mut writer = frame_writer(256, 1).expect("measured frame");
+    writer.put(b"x").expect("body fits");
+    let send = Request::Send { token: Token::new(7), frame: writer.finish().expect("frame") };
+    let body = Event::Body { kind: 256, body: Box::from(*b"x") };
+    for (debug, expected) in [
+        (alloc::format!("{request:?}"), "Refuse { reason: 1, text: [98, 117, 115, 121] }"),
+        (
+            alloc::format!("{event:?}"),
+            "Ready { version: 2, terms: List { items: [Term { kind: 256, largest: 32 }], capacity: 1 } }",
+        ),
+        (alloc::format!("{control:?}"), "Accept { version: 2, features: 0 }"),
+        (
+            alloc::format!("{send:?}"),
+            "Send { token: Token(7), frame: Frame { kind: 256, body_len: 1, bytes: [1, 0, 0, 0, 0, 0, 0, 1, 120] } }",
+        ),
+        (alloc::format!("{body:?}"), "Body { kind: 256, body: [120] }"),
+    ] {
+        assert_eq!(debug, expected);
+    }
+}

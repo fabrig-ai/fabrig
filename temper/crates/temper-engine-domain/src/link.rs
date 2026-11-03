@@ -417,6 +417,10 @@ pub fn inbox_words(task: u64, word: &tasks::Word) -> Box<[u8]> {
     if let tasks::MessageKind::SettingsDecision { outcome, .. } = word.kind {
         return settings_decision_words(outcome, &word.words);
     }
+    if let tasks::MessageKind::Escalation { task, revision, .. } = word.kind {
+        return escalation_words(task, revision, &word.words);
+    }
+
     let (label, number) = match word.kind {
         tasks::MessageKind::QuestionAnswered { question } => {
             if let tasks::Party::Task(asker) = word.from
@@ -577,6 +581,28 @@ fn sender(value: tasks::Party) -> Box<[u8]> {
         tasks::Party::Task(number) | tasks::Party::Person(number) => Box::from(Decimal::of(number).as_bytes()),
         tasks::Party::Deployment { .. } => Box::from(&b"deployment"[..]),
     }
+}
+
+fn escalation_words(task: u64, revision: u64, words: &[u8]) -> Box<[u8]> {
+    let task = Decimal::of(task);
+    let revision = Decimal::of(revision);
+    let parts: [&[u8]; 6] = [
+        words,
+        b"\nHeld task ",
+        task.as_bytes(),
+        b", hold revision ",
+        revision.as_bytes(),
+        b". Use read_task on that task.",
+    ];
+    let mut size = 0_usize;
+    for part in parts {
+        size = size.checked_add(part.len()).expect("bounded escalation envelope");
+    }
+    let mut writer = Writer::new(size);
+    for part in parts {
+        writer.put(part).expect("sized escalation envelope");
+    }
+    writer.finish()
 }
 
 fn settings_decision_words(outcome: tasks::SettingsOutcome, reason: &[u8]) -> Box<[u8]> {
