@@ -442,7 +442,11 @@ fn step_made(domain: &mut Domain, task: u64, step: u64, child: Option<u64>) {
         {
             domain.work.push(Work::Forge(forge::Event::Delegated { task, child, kind }));
         }
-        if let Some(relayed) = pending.relayed {
+        if let Some(mut relayed) = pending.relayed {
+            if pending.foreman {
+                let question = relayed.questions.open.first_mut().expect("the made foreman has a head question");
+                question.stands = super::forge_change::Stands::Foreman { task: child };
+            }
             let event = match pending.refusal {
                 Some(words) => forge::Event::RelayRefused { task, questions: relayed.questions, words },
                 None => forge::Event::Relayed { task, questions: relayed.questions },

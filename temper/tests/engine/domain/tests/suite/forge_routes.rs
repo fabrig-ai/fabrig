@@ -26,6 +26,9 @@ mod asks_no_one;
 #[path = "forge_routes/questions.rs"]
 mod questions;
 
+#[path = "forge_routes/foremen.rs"]
+mod foremen;
+
 #[path = "forge_routes/flights.rs"]
 mod flights;
 
