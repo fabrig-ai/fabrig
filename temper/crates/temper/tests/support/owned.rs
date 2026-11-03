@@ -411,8 +411,6 @@ pub fn setup_without_runner(directory: &Path) {
 pub fn refused(directory: &Path, verb: &str, expected: &[u8]) {
     let result = if verb == "prepare" {
         prepare(directory, 1)
-    } else if verb == "reconcile" {
-        reconcile(directory, 1)
     } else {
         command(directory, "forgejo").output().expect("run refuses")
     };
@@ -455,16 +453,6 @@ pub fn start(directory: &Path) -> Running {
     let running = run(directory, "forgejo");
     eprintln!("stage start: {} ms", clock.now().now.saturating_since(began).as_nanos() / 1_000_000);
     running
-}
-#[must_use]
-pub fn reconcile(directory: &Path, forge: u16) -> Output {
-    Command::new(skein_scratch::paths::binary("temper"))
-        .args(["forge", "reconcile"])
-        .args(super::configuration::flags(directory))
-        .arg(forge.to_string())
-        .current_dir(directory)
-        .output()
-        .expect("temper forge reconcile")
 }
 /// Attaches the owned Forgejo through preparation's private admin token.
 #[must_use]
