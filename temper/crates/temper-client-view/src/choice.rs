@@ -53,6 +53,11 @@ pub(crate) fn banner(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut B
             | Address::Task { .. }
             | Address::Adopt { .. } => false,
         }
+        || (root.forge().playground_running() || root.forge().leaving())
+            && match root.forge().playground() {
+                Some(playground) => playground.project.is_some() && playground.project == root.pages().project(),
+                None => false,
+            }
         || root.pages().availability(root.client()) != Some(false)
     {
         return;

@@ -89,7 +89,7 @@ fn a_closed_chat_shows_in_your_chats() {
             Step::Press { find: Find::named(Role::Button, b"Confirm") },
             Step::Pause { span: PAST_CLOSE_GRACE },
             Step::Press { find: Find::exactly_named(Role::Link, b"Chats") },
-            Step::See { find: Find::named(Role::Heading { level: 2 }, b"Your chats"), within: fixtures::WITHIN },
+            Step::See { find: Find::named(Role::Heading { level: 1 }, b"Chats"), within: fixtures::WITHIN },
             Step::See { find: Find::text(b"A chat to close"), within: fixtures::WITHIN },
         ],
     );
