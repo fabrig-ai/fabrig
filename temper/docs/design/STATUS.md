@@ -34,7 +34,9 @@ goal's issue lag (`domain/forge.md`); so do the client's Board, Changes
 and How work runs pages and many of ctl's tools (`client/README.md`,
 `client/forge.md`, `client/tools.md`),
 the client's crates in the gate's wasm32 clippy (`client/browser.md`),
-`temper-playground` (`playground.md`, `domain/testing.md`), upgrades'
+the playground in the browser, whose world is composed natively but
+whose story A stalls at the playground's setup (`playground.md`,
+`domain/testing.md`), upgrades'
 commands and the baseline (`protocol/README.md`), and the release
 (`release.md`). Forges kept in the store, a forge's removal and the
 playground's reset are designed and built; the code departs where the
