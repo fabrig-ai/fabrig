@@ -125,7 +125,7 @@ fn delegate_agent(world: &mut World, words: &[u8], spend: u64, tasks_left: u32, 
             llm: None,
             symbolic_grants: Box::new([]),
             dependencies: Box::new([]),
-            wake: tasks::WakePolicy::DEFAULT,
+            wake: Some(tasks::WakePolicy::DEFAULT),
         }]),
         stubs: Box::new([]),
     }));

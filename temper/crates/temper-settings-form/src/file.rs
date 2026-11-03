@@ -442,3 +442,7 @@ mod tests {
         assert_eq!(message(None, wire_error(problem, &limits)).as_ref(), b"settings file: value: wire value bound");
     }
 }
+
+#[cfg(test)]
+#[path = "settings_file_tests.rs"]
+mod wake_tests;

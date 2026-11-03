@@ -723,7 +723,13 @@ fn first(mut change: Change, head: [u8; 32], ready_since: Wall, facts: &Facts, n
             change.state = State::Landing { head };
             Stepped { change, decision: Decision::Effect(Effect::Merge { head, base: facts.expected_base }) }
         }
-        Status::Failed => resolving_due(change, facts.base_tip, now, limits),
+        Status::Failed => {
+            if facts.updates {
+                resolving_due(change, facts.base_tip, now, limits)
+            } else {
+                hold(change, Hold::Resolutions)
+            }
+        }
         Status::Unknown | Status::Pending => settling(change, facts, now, limits),
     }
 }

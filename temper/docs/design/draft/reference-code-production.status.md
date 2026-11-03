@@ -3,25 +3,9 @@
 2026-11-02. Where the design lags or departs from [reference-code-production.md](reference-code-production.md).
 
 - **Design lags:**
-  - **1, 3, 4, 12, 14: the goal's own branch (N3).** temper's
-    `../domain/forge.md`, 11.1 makes a goal's own branch "a change of its
-    own", and 11 has that change create it at its base's tip as an effect
-    and delete it as the change closes; section 2 has every branch under
-    temper's prefix held by a change; 11 offers a template no symbolic
-    *its own goal branch*. jig's `protocol/configuration.md`, 3.1: a
-    template names no resources. jig's `domain/tasks.md`, 6.1 and
-    `domain/connectors.md`, 3.3: a resource a landing queue orders is not
-    held. jig names an effect of a hold's release, not of its taking
-    (`domain/connectors.md`, 3.3 and 4.6; `domain/tasks.md`, 6.5). jig's
-    `domain/tasks.md`, 6.3 reads as if every run under a hold takes its
-    writer slot, where `domain/engine.md`, 7.1 takes the slots of what the
-    run writes.
   - **3, 5, 14: `change` and its fields (N22, N13).** `../domain/agent.md`,
-    4.3.1: `change` takes the words and a repository, makes one change per
-    call and lands it into the repository's default branch; it names no
-    landing branch, requester's branch, dependency, batch, `questions`,
-    LLM choice, producer's charter or merge job, nor `repairs`, and no
-    charter's authority governs them. `../domain/forge.md`, 8.1 and 8.9: a
+    4.3.1: `change` names no requester's branch, `questions`, LLM choice,
+    producer's charter or merge job, nor `repairs`. `../domain/forge.md`, 8.1 and 8.9: a
     change's producer runs under the forge's change charter, and
     `../protocol/configuration.md`, 13.2 numbers the forge's charters for
     the change and its reviews alone.
@@ -75,13 +59,6 @@
     updates only because its base moved; 11.1: a goal's own branch takes
     the base's landings by an update. Neither has a catch-up change into
     a goal's branch.
-  - **11, 13, 14: the coordinator's wake policy (N23).** jig's
-    `domain/tasks.md`, 8.3 gives a coordinator a default that wakes on the
-    last delegate's result rather than on each, and on waking news at
-    once; its closed vocabulary batches by count or by age, a delay, and
-    has no "at most once in 30 minutes". jig's
-    `protocol/configuration.md`, 3.1 and section 3: a charter in
-    configuration carries no default wake policy.
   - **4, 14: the profile's limits (N21).** `../protocol/configuration.md`,
     13.4 and section 7, and `../domain/agent.md`, 4.3.1: the stock limits
     are a chat's (18 tasks 4 deep, 6 tasks under `change`, a result of 512

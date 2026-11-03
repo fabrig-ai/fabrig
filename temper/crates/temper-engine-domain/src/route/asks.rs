@@ -100,7 +100,7 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
         core::Ask::Gather { section, budget } => Some(brief::GatherRequest::Gather { connector, section, budget }),
         core::Ask::CutTo { section, size } => Some(brief::GatherRequest::CutTo { connector, section, size }),
         core::Ask::Drop { section } => Some(brief::GatherRequest::Drop { connector, section }),
-        core::Ask::Hold { task, resource } => {
+        core::Ask::Hold { entry, task, resource, .. } => {
             if connector == domain.config.forge_connector
                 && let Some(name) =
                     forge_route::forge_name(domain.config.forge_connector, &resource, env.limits.forge.name_bytes)
@@ -109,7 +109,7 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                     Some(row) if row.task != task => Some(row.task),
                     Some(_) | None => None,
                 };
-                domain.work.push(Work::Forge(forge::Event::Hold { task, resource: name, from }));
+                domain.work.push(Work::Forge(forge::Event::Hold { entry, task, resource: name, from }));
             }
             None
         }
@@ -186,16 +186,22 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             }
             None
         }
-        core::Ask::TaskHoldings { request, project, root, number, executor, spec } => {
-            let holdings = if connector == domain.config.forge_connector {
-                forge_route::task_holdings(domain, env, project, root, number, executor, &spec, None)
+        core::Ask::TaskHoldings { request, project, root, number, executor, spec, tracked, symbols } => {
+            let (holdings, refused) = if connector == domain.config.forge_connector {
+                match forge_route::task_holdings(
+                    domain, env, project, root, number, executor, &spec, None, tracked, &symbols,
+                ) {
+                    Ok(holdings) => (Some(holdings), None),
+                    Err(refused) => (None, refused),
+                }
             } else {
-                None
+                (None, None)
             };
-            domain.work.push(Work::Core(core::Event::Holdings { request, connector, holdings }));
+            domain.work.push(Work::Core(core::Event::Holdings { refused, request, connector, holdings }));
             None
         }
         core::Ask::DelegateHoldings { request, from, members } => {
+            let mut refused = None;
             let holdings = if connector == domain.config.forge_connector {
                 let mut collected = List::with_capacity(u32::try_from(members.len()).expect("bounded delegate batch"));
                 let mut failed = false;
@@ -209,19 +215,26 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                         member.executor,
                         &member.spec,
                         Some(from),
+                        member.tracked,
+                        &member.symbols,
                     ) {
-                        Some(holdings) => collected.push(holdings).expect("one per member"),
-                        None => failed = true,
+                        Ok(holdings) => collected.push(holdings).expect("one per member"),
+                        Err(reason) => {
+                            refused = reason;
+                            failed = true;
+                            break;
+                        }
                     }
                 }
                 if failed { None } else { Some(collected.into_boxed()) }
             } else {
                 None
             };
-            domain.work.push(Work::Core(core::Event::DelegateHoldings { request, connector, holdings }));
+            domain.work.push(Work::Core(core::Event::DelegateHoldings { refused, request, connector, holdings }));
             None
         }
         core::Ask::ProcedureHoldings { task, step, members } => {
+            let mut refused = None;
             let holdings = if connector == domain.config.forge_connector {
                 let mut collected = List::with_capacity(u32::try_from(members.len()).expect("bounded procedure batch"));
                 let mut failed = false;
@@ -235,16 +248,22 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                         member.executor,
                         &member.spec,
                         Some(task),
+                        member.tracked,
+                        &member.symbols,
                     ) {
-                        Some(holdings) => collected.push(holdings).expect("one per member"),
-                        None => failed = true,
+                        Ok(holdings) => collected.push(holdings).expect("one per member"),
+                        Err(reason) => {
+                            refused = reason;
+                            failed = true;
+                            break;
+                        }
                     }
                 }
                 if failed { None } else { Some(collected.into_boxed()) }
             } else {
                 None
             };
-            domain.work.push(Work::Core(core::Event::ProcedureHoldings { task, step, connector, holdings }));
+            domain.work.push(Work::Core(core::Event::ProcedureHoldings { refused, task, step, connector, holdings }));
             None
         }
         core::Ask::ProjectGoal { feed } => {

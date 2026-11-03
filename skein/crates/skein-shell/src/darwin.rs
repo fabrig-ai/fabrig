@@ -157,13 +157,12 @@ fn decode(storage: &libc::sockaddr_storage, len: libc::socklen_t) -> Result<Addr
         _ => Err(libc::EAFNOSUPPORT),
     }
 }
+/// An `EINTR` is returned, not retried (shell.md, 7.4).
 pub(crate) fn bind(fd: Fd, addr: &Addr) -> Result<(), i32> {
     let mut storage = storage();
     let len = encode(addr, &mut storage);
-    retry(|| {
-        // SAFETY: the initialized encoded address lives across bind.
-        status(unsafe { libc::bind(fd.raw(), ptr::from_ref(&storage).cast(), len) })
-    })
+    // SAFETY: the initialized encoded address lives across bind.
+    status(unsafe { libc::bind(fd.raw(), ptr::from_ref(&storage).cast(), len) })
 }
 /// An `EINTR` is returned, not retried (shell.md, 7.4).
 pub(crate) fn connect(fd: Fd, addr: &Addr) -> Result<(), i32> {
@@ -234,11 +233,10 @@ pub fn wait_readable(fd: Fd, bound: skein_lib::Duration) -> Result<bool, i32> {
     }
 }
 
+/// An `EINTR` is returned, not retried (shell.md, 7.4).
 pub(crate) fn listen(fd: Fd, backlog: u32) -> Result<(), i32> {
-    retry(|| {
-        // SAFETY: listen takes only integer arguments.
-        status(unsafe { libc::listen(fd.raw(), i32::try_from(backlog).unwrap_or(i32::MAX)) })
-    })
+    // SAFETY: listen takes only integer arguments.
+    status(unsafe { libc::listen(fd.raw(), i32::try_from(backlog).unwrap_or(i32::MAX)) })
 }
 pub(crate) fn recv(fd: Fd, buf: &mut [u8]) -> Result<u32, i32> {
     retry(|| {
@@ -275,11 +273,10 @@ pub(crate) fn close(fd: Fd) -> Result<(), i32> {
     // SAFETY: ownership of this integer descriptor is relinquished exactly once.
     status(unsafe { libc::close(fd.raw()) })
 }
+/// An `EINTR` is returned, not retried (shell.md, 7.4).
 pub(crate) fn shutdown(fd: Fd) -> Result<(), i32> {
-    retry(|| {
-        // SAFETY: shutdown takes only integers.
-        status(unsafe { libc::shutdown(fd.raw(), libc::SHUT_WR) })
-    })
+    // SAFETY: shutdown takes only integers.
+    status(unsafe { libc::shutdown(fd.raw(), libc::SHUT_WR) })
 }
 pub(crate) fn setsockopt(fd: i32, level: i32, name: i32) -> Result<(), i32> {
     let one: libc::c_int = 1;

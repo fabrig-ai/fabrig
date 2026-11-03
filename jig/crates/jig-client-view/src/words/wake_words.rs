@@ -1,5 +1,5 @@
 //! Checked wake language data, composable with the normal jig phrasebook.
-//! See client/domain/view.md, section 7. IDs 4000–4026 are reserved for these phrases.
+//! See client/domain/view.md, section 7. IDs 4000–4027 are reserved for these phrases.
 use crate::Owner;
 use alloc::boxed::Box;
 use skein_lib::{List, bytes::copy_of};
@@ -20,6 +20,7 @@ pub enum WakePhrase {
     Never,
     Immediate,
     Batch,
+    Paced,
     ResultsNever,
     ResultsEach,
     ResultsLastOrFailure,
@@ -41,7 +42,7 @@ pub enum WakePhrase {
     Once,
     Topic,
 }
-pub const ALL: [WakePhrase; 27] = [
+pub const ALL: [WakePhrase; 28] = [
     WakePhrase::Policy,
     WakePhrase::Words,
     WakePhrase::Notices,
@@ -49,6 +50,7 @@ pub const ALL: [WakePhrase; 27] = [
     WakePhrase::Never,
     WakePhrase::Immediate,
     WakePhrase::Batch,
+    WakePhrase::Paced,
     WakePhrase::ResultsNever,
     WakePhrase::ResultsEach,
     WakePhrase::ResultsLastOrFailure,
@@ -101,6 +103,7 @@ impl WakePhrase {
             Self::Period => 4024,
             Self::Once => 4025,
             Self::Topic => 4026,
+            Self::Paced => 4027,
         };
         PhraseId { owner: Owner::Jig.opaque(), number }
     }
@@ -132,7 +135,7 @@ impl WakePhrase {
                 HoleShape { kind: HoleKind::Number, bytes: 0 },
                 HoleShape { kind: HoleKind::Number, bytes: 0 },
             ]),
-            Self::Number | Self::Task | Self::Timer | Self::Period => {
+            Self::Paced | Self::Number | Self::Task | Self::Timer | Self::Period => {
                 Box::new([HoleShape { kind: HoleKind::Number, bytes: 0 }])
             }
         };
@@ -142,7 +145,7 @@ impl WakePhrase {
 /// Shapes for a composing phrasebook.
 #[must_use]
 pub fn shapes() -> Box<[PhraseShape]> {
-    let mut rows = List::with_capacity(27);
+    let mut rows = List::with_capacity(28);
     for phrase in ALL {
         rows.push(phrase.shape()).expect("all wake shapes fit");
     }
@@ -151,7 +154,7 @@ pub fn shapes() -> Box<[PhraseShape]> {
 /// English forms retain every numeric field; durations and times use nanoseconds.
 #[must_use]
 pub fn language() -> Language {
-    let mut phrases = List::with_capacity(27);
+    let mut phrases = List::with_capacity(28);
     for phrase in ALL {
         let segments: Box<[Segment]> = match phrase {
             WakePhrase::Policy => Box::new([Segment::Text(copy_of(b"Wake policy"))]),
@@ -166,6 +169,11 @@ pub fn language() -> Language {
                 Segment::Text(copy_of(b" messages or ")),
                 Segment::Hole { index: 1, kind: HoleKind::Number },
                 Segment::Text(copy_of(b" ns of oldest message age")),
+            ]),
+            WakePhrase::Paced => Box::new([
+                Segment::Text(copy_of(b"Wakes at most once in ")),
+                Segment::Hole { index: 0, kind: HoleKind::Number },
+                Segment::Text(copy_of(b" ns")),
             ]),
             WakePhrase::ResultsNever => Box::new([Segment::Text(copy_of(b"Delegate results do not wake"))]),
             WakePhrase::ResultsEach => Box::new([Segment::Text(copy_of(b"Each delegate result wakes"))]),
@@ -224,6 +232,6 @@ pub fn english() -> Result<Phrasebook, Invalid> {
     Phrasebook::load(
         shapes(),
         Box::new([language()]),
-        &PhraseLimits { languages: 1, phrases: 27, holes: 2, segments: 100, text_bytes: 2000, hole_bytes: 0 },
+        &PhraseLimits { languages: 1, phrases: 28, holes: 2, segments: 100, text_bytes: 2000, hole_bytes: 0 },
     )
 }

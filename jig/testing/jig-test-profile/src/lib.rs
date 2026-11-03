@@ -373,6 +373,7 @@ pub fn config(seed: u64) -> root::Config {
             },
             defaults: core::settings::Defaults {
                 charters: Box::new([core::Charter {
+                    wake: jig_domain_tasks::WakePolicy::DEFAULT,
                     documents: Box::new([]),
                     number: 1,
                     hosts: fleet::Kinds::Workers,

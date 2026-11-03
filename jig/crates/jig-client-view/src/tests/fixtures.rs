@@ -231,6 +231,7 @@ pub(crate) fn chat_templates() -> skein_lib::List<jig_client::contract::Template
     let mut values = crate::tests::kit::list_in(
         2,
         [c::Template {
+            resources: skein_lib::List::with_capacity(0),
             llm: None,
             number: jig_client::shapes::CHAT,
             name: c::DocumentText::complete(Text::new(b"Chat".as_slice().into(), 32).unwrap()),
@@ -313,6 +314,7 @@ pub(crate) fn chat_request(project: u32, words: Text) -> jig_client::contract::A
     let mut authority = crate::tests::tree::cards_objects::owner_authority().authority;
     authority.spend = 0;
     let tasks = crate::tests::kit::list([NewTask {
+        symbols: skein_lib::List::with_capacity(0),
         llm: None,
         deadline: NewDeadline::Named,
         executor: Executor::Agent { charter: 1 },
@@ -343,6 +345,7 @@ pub(crate) fn goal_request(
     authority.spend = form.budget;
     authority.deadline = form.deadline;
     let tasks = crate::tests::kit::list([NewTask {
+        symbols: skein_lib::List::with_capacity(0),
         llm: None,
         deadline: NewDeadline::Named,
         executor: form.executor,

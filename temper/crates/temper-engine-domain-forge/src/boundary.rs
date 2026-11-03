@@ -165,14 +165,39 @@ pub struct Adoption {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Ask {
     Adopt(Adoption),
-    SetUp { forge: Making, org: Box<[u8]>, repository: Box<[u8]>, project: SetUpProject, playground: bool },
-    RemoveForge { forge: u16 },
+    SetUp {
+        forge: Making,
+        org: Box<[u8]>,
+        repository: Box<[u8]>,
+        project: SetUpProject,
+        playground: bool,
+    },
+    RemoveForge {
+        forge: u16,
+    },
     StartPlayground,
     EndPlayground,
-    Connect { forge: Making, how: How },
-    Install { forge: u16, back: Option<Box<[u8]>> },
-    Accept { forge: u16, installation: core::num::NonZeroU64 },
-    Reachable { forge: u16, installation: Option<u64>, page: u32 },
+    Connect {
+        forge: Making,
+        how: How,
+    },
+    Install {
+        forge: u16,
+        back: Option<Box<[u8]>>,
+    },
+    Accept {
+        forge: u16,
+        installation: core::num::NonZeroU64,
+    },
+    Reachable {
+        forge: u16,
+        installation: Option<u64>,
+        page: u32,
+    },
+    /// A GitHub App's new key or a connected Forgejo's new tokens, carried (client/README.md, 4.6).
+    Replace {
+        forge: u16,
+    },
 }
 /// The first repository requested when connecting a Forgejo (client/README.md, 8).
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -185,9 +210,18 @@ pub struct FirstAsk {
 /// The public connect's input; credentials remain carried handles.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum How {
-    ForgejoAdmin { first: Option<FirstAsk> },
-    GitHubApp { app: core::num::NonZeroU64, read_only: bool },
-    GitHubManifest { back: Option<Box<[u8]>> },
+    ForgejoAdmin {
+        first: Option<FirstAsk>,
+    },
+    GitHubApp {
+        app: core::num::NonZeroU64,
+        read_only: bool,
+    },
+    GitHubManifest {
+        back: Option<Box<[u8]>>,
+    },
+    /// A connected Forgejo's bot's tokens, carried (protocol/setup.md, section 4).
+    ForgejoTokens,
 }
 /// The App records' provenance since this engine started (client/README.md, 4.6).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -404,7 +438,15 @@ pub enum Making {
 pub enum ForgeAsk {
     GitHub,
     Owned,
-    Managed { place: Place, git_program: Option<Box<[u8]>> },
+    Managed {
+        place: Place,
+        git_program: Option<Box<[u8]>>,
+    },
+    /// A Forgejo of the person's connected with its bot's tokens (protocol/setup.md, section 4).
+    Connected {
+        place: Place,
+        git_program: Option<Box<[u8]>>,
+    },
 }
 /// The box group's kind (temper/docs/design/protocol/setup.md, 7.1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -792,6 +834,8 @@ pub struct ChangeRow {
     pub effect_account: Option<EffectAccount>,
     /// Producer failure words retained within the hold account bound (domain/forge.md, 8.4).
     pub producer_failure: Option<Box<[u8]>>,
+    /// Its producing task's last successful result words (domain/forge.md, 8.2 step 7)
+    pub report: Box<[u8]>,
 }
 impl ChangeRow {
     pub(crate) fn terminal(&self) -> bool {
@@ -1367,6 +1411,7 @@ pub enum Event {
     },
     /// Take a hold or hand one down from its current holder.
     Hold {
+        entry: u64,
         task: u64,
         resource: Name,
         from: Option<u64>,
@@ -1448,11 +1493,12 @@ pub enum Event {
         task: u64,
         child: u64,
     },
-    /// Keep the successful producer's explicit title before its result wakes the change.
+    /// Keep the successful producer's title and report before its result wakes the change.
     ProducedTitle {
         task: u64,
         child: u64,
         title: Box<[u8]>,
+        report: Box<[u8]>,
     },
     /// Resolve the named child's terminal result before stepping again.
     DelegateResult {
@@ -1550,9 +1596,19 @@ pub enum Event {
     ReadAfresh,
     /// Look for each restored uncertain entry before procedures step.
     SettleOutbox,
+    /// A connected Forgejo's Check found the user its tokens answer as: the connector keeps its
+    /// login as the record's bot (protocol/forge.md, 2.2).
+    BotLogin {
+        forge: u16,
+        login: Box<[u8]>,
+    },
 }
 /// The connector's output to the root, including child API calls.
 #[derive(PartialEq, Eq, Debug)]
+#[expect(
+    clippy::large_enum_variant,
+    reason = "Save carries the change row and its producer report; changing the request boundary is separate"
+)]
 pub enum Request {
     /// Make the tier run's task; the root answers `TierTask` or `TierRefused`.
     TierRun {
@@ -1738,6 +1794,12 @@ pub enum Request {
     Refused {
         task: u64,
     },
+    /// A goal's own branch could not be made (domain/forge.md, 11.1).
+    MakeFailed {
+        task: u64,
+        resource: Name,
+        reason: Box<[u8]>,
+    },
     /// A run ended, but its branch could not be read afresh.
     LostReadFailed {
         task: u64,
@@ -1839,6 +1901,13 @@ pub enum Request {
     /// The requested restart phase finished; the root may request the next.
     RestartDone {
         stage: RestartStage,
+    },
+    /// Run a Replace: Check on a connected Forgejo, Paste with the kept App id on GitHub
+    /// (protocol/forge.md, 2.2).
+    Replace {
+        forge: u16,
+        request: Token,
+        carried: jig_domain_core::Carried,
     },
 }
 

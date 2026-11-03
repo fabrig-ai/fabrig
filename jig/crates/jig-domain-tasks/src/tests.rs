@@ -2,6 +2,17 @@ use crate::{Retry, failures::backoff};
 use skein_lib::{Duration, Rng};
 
 #[test]
+fn verdict_field_bytes_refuse_more_than_the_schema_count() {
+    let mut fields = skein_lib::List::with_capacity(crate::VERDICT_FIELDS + 1);
+    for name in 0..=crate::VERDICT_FIELDS {
+        fields
+            .push(crate::ResultField { name: Box::new(name.to_be_bytes()), value: Box::new([]) })
+            .expect("one past the schema field count");
+    }
+    assert_eq!(crate::verdict::fields_bytes(fields.as_slice()), None);
+}
+
+#[test]
 fn exponential_equal_jitter_saturates_without_overflow_and_replays() {
     let retry = Retry { retries: 4, base: Duration::from_millis(10), max: Duration::from_secs(1) };
     let mut first = Rng::new(42);

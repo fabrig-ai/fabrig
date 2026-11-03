@@ -8,6 +8,7 @@ mod effects;
 mod fill;
 mod fixtures;
 mod funding;
+mod holdings;
 mod inbox;
 mod jobs;
 mod limits;
@@ -464,6 +465,7 @@ pub(crate) fn config(seed: u64) -> Config {
         },
         defaults: crate::settings::Defaults {
             charters: Box::new([Charter {
+                wake: jig_domain_tasks::WakePolicy::DEFAULT,
                 documents: Box::new([]),
                 number: 1,
                 hosts: fleet::Kinds::Workers,

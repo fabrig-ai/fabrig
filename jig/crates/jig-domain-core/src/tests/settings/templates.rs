@@ -65,6 +65,7 @@ fn a_policy_change_overriding_a_template_twice_is_refused_as_a_repeated_identity
 
 fn template() -> Template {
     Template {
+        resources: Box::new([people::Symbol { connector: 1, symbol: 7 }]),
         number: PROJECT,
         name: Box::from(&b"work"[..]),
         executor: people::TemplateExecutor::Chosen,
@@ -118,7 +119,14 @@ fn an_override_replaces_only_the_fields_it_names() {
             Template { tracked: Some(5), ..template() },
         ),
     ] {
-        assert_eq!(templates::merged(&[template()], &[overrides]).as_ref(), &[expected], "{name}");
+        assert_eq!(
+            templates::merged(&[template()], core::slice::from_ref(&overrides)).as_ref(),
+            core::slice::from_ref(&expected),
+            "{name}"
+        );
+        let (mut core, _) = make_tree();
+        core.current.test_templates(Box::new([template()]));
+        assert_eq!(templates::current_merged(&core.current, &[overrides]).as_ref(), &[expected], "{name}");
     }
 }
 

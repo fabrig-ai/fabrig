@@ -707,6 +707,7 @@ pub(crate) fn settings_restore_charter(value: &w::Charter, limits: &Limits) -> R
         call_timeout: value.call_timeout(),
         hosts: settings_restore_setting_hosts(value.hosts(), limits),
         spend: value.spend(),
+        wake: settings_restore_wake(value.wake()),
     })
 }
 
@@ -1273,6 +1274,7 @@ pub(crate) fn settings_wire_template(value: &c::Template, limits: &w::Limits) ->
     w::Template::new(
         limits,
         w::TemplateParts {
+            resources: List::with_capacity(0),
             number: value.number,
             name: settings_wire_document_text(&value.name, limits)?,
             executor: operations_executor(value.executor, limits)?,
@@ -1467,6 +1469,7 @@ pub(crate) fn settings_wire_charter(value: &c::Charter, limits: &w::Limits) -> R
             call_timeout: value.call_timeout,
             hosts: settings_wire_setting_hosts(&value.hosts, limits),
             spend: value.spend,
+            wake: settings_wire_wake(value.wake, limits)?,
         },
     )
 }
@@ -1550,4 +1553,59 @@ fn optional_deadline(value: Option<&w::TemplateDeadline>) -> Option<c::TemplateD
 fn optional_text(value: Option<&c::Text>) -> Option<Box<[u8]>> {
     let value = value?;
     Some(bytes::copy_of(value.bytes()))
+}
+
+fn settings_wire_wake(value: c::WakePolicy, limits: &w::Limits) -> Result<w::WakePolicy, w::Problem> {
+    w::WakePolicy::new(
+        limits,
+        w::WakePolicyParts {
+            words: settings_wire_wake_rule(value.words, limits)?,
+            notices: settings_wire_wake_rule(value.notices, limits)?,
+            news: settings_wire_wake_rule(value.news, limits)?,
+            results: match value.results {
+                c::ResultsWake::Never => w::ResultsWake::Never,
+                c::ResultsWake::Each => w::ResultsWake::Each,
+                c::ResultsWake::LastOrFailure => w::ResultsWake::LastOrFailure,
+            },
+            questions: value.questions,
+            answers: value.answers,
+            timers: value.timers,
+        },
+    )
+}
+fn settings_wire_wake_rule(value: c::WakeRule, limits: &w::Limits) -> Result<w::WakeRule, w::Problem> {
+    Ok(match value {
+        c::WakeRule::Never => w::WakeRule::Never,
+        c::WakeRule::Immediate => w::WakeRule::Immediate,
+        c::WakeRule::Batch { count, age } => {
+            w::WakeRule::Batch(w::WakeRuleBatch::new(limits, w::WakeRuleBatchParts { count, age })?)
+        }
+        c::WakeRule::Paced { span } => {
+            w::WakeRule::Paced(w::WakeRulePaced::new(limits, w::WakeRulePacedParts { span })?)
+        }
+    })
+}
+
+fn settings_restore_wake(value: &w::WakePolicy) -> c::WakePolicy {
+    c::WakePolicy {
+        words: settings_restore_wake_rule(value.words()),
+        notices: settings_restore_wake_rule(value.notices()),
+        news: settings_restore_wake_rule(value.news()),
+        results: match value.results() {
+            w::ResultsWake::Never => c::ResultsWake::Never,
+            w::ResultsWake::Each => c::ResultsWake::Each,
+            w::ResultsWake::LastOrFailure => c::ResultsWake::LastOrFailure,
+        },
+        questions: value.questions(),
+        answers: value.answers(),
+        timers: value.timers(),
+    }
+}
+fn settings_restore_wake_rule(value: &w::WakeRule) -> c::WakeRule {
+    match value {
+        w::WakeRule::Never => c::WakeRule::Never,
+        w::WakeRule::Immediate => c::WakeRule::Immediate,
+        w::WakeRule::Batch(value) => c::WakeRule::Batch { count: value.count(), age: value.age() },
+        w::WakeRule::Paced(value) => c::WakeRule::Paced { span: value.span() },
+    }
 }

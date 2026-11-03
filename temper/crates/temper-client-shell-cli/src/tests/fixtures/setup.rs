@@ -47,6 +47,7 @@ impl Frame {
             | f::Request::StartPlayground
             | f::Request::EndPlayground
             | f::Request::Install(_)
+            | f::Request::Replace(_)
             | f::Request::Connect(_)
             | f::Request::Accept(_)
             | f::Request::Reachable(_) => return false,

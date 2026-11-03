@@ -254,17 +254,21 @@ fn numeric_rows_are_big_endian_beyond_the_boundary() {
 fn pasted_payload_fits_its_unchanged_aggregate_budget() {
     let bytes = vec![b'p'; records::PASTED_PAYLOAD];
     for code in [1, 11] {
-        let encoded = records::encode_pasted(code, &bytes).expect("pasted value at budget");
+        let encoded = records::encode_pasted(&[(code, &bytes)]).expect("pasted value at budget");
         assert_eq!(encoded.len(), 4096);
-        let (found, decoded) = records::decode_pasted(encoded.expose()).expect("producer record");
-        assert_eq!(found, code);
-        assert_eq!(decoded.expose(), bytes);
+        let decoded = records::decode_pasted(encoded.expose()).expect("producer record");
+        assert_eq!(decoded.len(), 1);
+        assert_eq!(decoded[0].0, code);
+        assert!(decoded[0].1.expose() == bytes);
     }
 }
 #[test]
 fn pasted_payload_one_past_the_aggregate_budget_is_refused() {
     for code in [1, 11] {
-        assert_eq!(records::encode_pasted(code, &vec![b'p'; records::PASTED_PAYLOAD + 1]), Err(records::Unreadable));
+        let bytes = vec![b'p'; records::PASTED_PAYLOAD + 1];
+        let items = [(code, bytes.as_slice())];
+        assert_eq!(records::encode_pasted(&items), Err(records::Unreadable));
+        assert_eq!(records::decode_pasted(&untrusted_pasted(&items)), Err(records::PastedError::Unreadable));
     }
 }
 
@@ -282,4 +286,87 @@ fn each_row_decoder_refuses_one_past_its_limit() {
     for (item, bytes) in bounded_rows(1) {
         assert_eq!(records::decode(item, &untrusted_row(item, &bytes)), Err(records::Unreadable), "{item:?}");
     }
+}
+
+#[test]
+fn pasted_items_round_trip_in_their_order() {
+    let mut rng = Rng::new(86);
+    let bytes = temper_codecs_world::drawn(&mut rng, 32);
+    let items = [(2, bytes.as_slice()), (3, bytes.as_slice()), (5, bytes.as_slice())];
+    let encoded = records::encode_pasted(&items).expect("three items");
+    let decoded = records::decode_pasted(encoded.expose()).expect("three items");
+    assert_eq!(decoded.len(), items.len());
+    for ((code, value), (expected, bytes)) in decoded.iter().zip(items) {
+        assert_eq!(*code, expected);
+        assert!(value.expose() == bytes);
+    }
+}
+
+// Use generated item encoders with an unchecked count to reach lists the schema refuses.
+fn untrusted_pasted(items: &[(u16, &[u8])]) -> Box<[u8]> {
+    use records::v1;
+    let mut size = size_of::<u16>() + size_of::<u32>();
+    for &(_, bytes) in items {
+        size += size_of::<u8>() + size_of::<u32>() + bytes.len();
+    }
+    let mut out = skein_lib::Writer::new(size);
+    out.put(&records::VERSION.to_be_bytes()).expect("version");
+    out.put(&u32::try_from(items.len()).expect("test count").to_be_bytes()).expect("count");
+    for &(code, bytes) in items {
+        let item = match code {
+            1 => v1::PastedItem::AdminToken(
+                v1::AdminToken::new(&v1::CEILINGS, v1::AdminTokenParts { value: Secret::new(bytes.into()) })
+                    .expect("token"),
+            ),
+            2 => v1::PastedItem::ApiToken(
+                v1::ApiToken::new(&v1::CEILINGS, v1::ApiTokenParts { value: Secret::new(bytes.into()) })
+                    .expect("token"),
+            ),
+            3 => v1::PastedItem::GitToken(
+                v1::GitToken::new(&v1::CEILINGS, v1::GitTokenParts { value: Secret::new(bytes.into()) })
+                    .expect("token"),
+            ),
+            5 => v1::PastedItem::WebhookSecret(
+                v1::WebhookSecret::new(&v1::CEILINGS, v1::WebhookSecretParts { value: Secret::new(bytes.into()) })
+                    .expect("secret"),
+            ),
+            11 => v1::PastedItem::Pem(
+                v1::Pem::new(&v1::CEILINGS, v1::PemParts { value: Secret::new(bytes.into()) }).expect("PEM"),
+            ),
+            _ => panic!("test item"),
+        };
+        item.encode(&mut out).expect("test bundle fits");
+    }
+    out.finish()
+}
+
+#[test]
+fn invalid_pasted_lists_are_unreadable() {
+    let mut rng = Rng::new(87);
+    let bytes = temper_codecs_world::drawn(&mut rng, 32);
+    let value = bytes.as_slice();
+    for items in [
+        &[][..],
+        &[(2, value), (2, value)],
+        &[(2, &[][..])],
+        &[(11, &[][..])],
+        &[(1, value), (2, value), (3, value), (5, value)],
+    ] {
+        assert_eq!(records::encode_pasted(items), Err(records::Unreadable));
+        assert_eq!(records::decode_pasted(&untrusted_pasted(items)), Err(records::PastedError::Unreadable));
+    }
+    for code in [0, 12, u16::MAX] {
+        assert_eq!(records::encode_pasted(&[(code, value)]), Err(records::Unreadable));
+    }
+    let mut unknown = untrusted_pasted(&[(1, value)]);
+    // The tag follows the generated record's version and list count.
+    unknown[size_of::<u16>() + size_of::<u32>()] = 11;
+    assert_eq!(records::decode_pasted(&unknown), Err(records::PastedError::Unreadable));
+}
+
+#[test]
+fn pasted_bundles_of_another_version_are_refused() {
+    let mut bytes = untrusted_pasted(&[]);
+    bytes[..size_of::<u16>()].copy_from_slice(&(records::VERSION + 1).to_be_bytes());
+    assert_eq!(records::decode_pasted(&bytes), Err(records::PastedError::Version));
 }

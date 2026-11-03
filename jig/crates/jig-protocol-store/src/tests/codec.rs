@@ -1600,3 +1600,55 @@ fn job_delegation_kinds_round_trip_in_people() {
     policy.roles[0].authority.delegation.kinds = Box::new([jig_domain_people::Executor::Job(0)]);
     people_round_trip(jig_domain_people::Stored::Policy { project: 3, name: Box::from("Jobs"), value: policy });
 }
+
+#[test]
+fn a_stored_member_keeps_its_symbols() {
+    const BOUND: u16 = 32;
+    use jig_domain_people as p;
+    let limits = people_limits();
+    let names = fixtures::configured_model_names(&[b"first", b"second", b"third"]);
+    assert_eq!(limits.member_symbols, u32::from(BOUND));
+    for count in [0, 2, BOUND, BOUND + 1] {
+        let mut member = fixtures::people_member();
+        let mut symbols = skein_lib::List::with_capacity(u32::from(count));
+        for symbol in 0..count {
+            symbols.push(p::Symbol { connector: u16::MAX - symbol, symbol }).expect("symbol fixture count");
+        }
+        member.symbols = symbols.into_boxed();
+        for ask in [
+            p::Ask::Create { project: 1, batch: Box::new([member.clone()]) },
+            p::Ask::Propose { project: 1, action: p::Action::Batch(Box::new([member])), reason: Box::new([]) },
+        ] {
+            let row = p::Stored::Answer {
+                key: p::RequestKey { person: 1, key: [2; 16] },
+                ask: Box::new(ask),
+                models: fixtures::model_names(&[b"first"]),
+                outcome: p::Outcome::Refused(p::Refusal::Unknown),
+                at: skein_lib::Wall::EPOCH,
+            };
+            if count > BOUND {
+                assert_eq!(
+                    crate::codec::people::encode(&row, &limits, &names),
+                    Err(crate::people_v14::Problem {
+                        path: crate::people_v14::Path::MemberSymbols,
+                        reason: skein_codec::Reason::Bound,
+                    }),
+                );
+                continue;
+            }
+            let bytes = crate::codec::people::encode(&row, &limits, &names).expect("bounded symbols");
+            assert_eq!(crate::codec::people::decode(&bytes, &limits, &names), Ok(row));
+            if count == BOUND {
+                let mut narrower = limits;
+                narrower.member_symbols = u32::from(BOUND - 1);
+                assert_eq!(
+                    crate::codec::people::decode(&bytes, &narrower, &names),
+                    Err(crate::people_v14::Problem {
+                        path: crate::people_v14::Path::MemberSymbols,
+                        reason: skein_codec::Reason::Bound,
+                    }),
+                );
+            }
+        }
+    }
+}

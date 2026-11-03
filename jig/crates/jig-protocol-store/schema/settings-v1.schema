@@ -6,9 +6,14 @@ record ModelName { name: bytes 4096 efforts: list 16 bytes 32 }
 record Model { dialect: u32 endpoint: u32 program: option bytes 32 name: bytes 4096 window: u32 output: u32 input_price: u64 cached_price: u64 cache_write_price: option u64 output_price: u64 price_unit: u32 efforts: list 16 Text effort: option bytes 32 }
 record RunPolicy { instructions: bytes 65536 waiting: duration resume: bool turns: u32 time: duration reserve_turns: u32 reserve_time: duration model: Model alternatives: list 64 Model inspect: bool modify: bool shell: bool agents: bool call_timeout: duration }
 enum Kinds { workers, engine, both }
+record WakeBatch { count: u32 age: duration }
+record WakePace { span: duration }
+enum WakeRule { never, immediate, batch: WakeBatch, paced: WakePace }
+enum ResultsWake { never, each, last_or_failure }
+record WakePolicy { words: WakeRule notices: WakeRule news: WakeRule results: ResultsWake questions: bool answers: bool timers: bool }
 record Segment { bytes: bytes 4096 }
 record Document { connector: u16 name: list 8 Segment path: bytes 256 heading: option bytes 80 }
-record Charter { number: u32 policy: RunPolicy hosts: Kinds spend: u64 documents: list 2 Document }
+record Charter { number: u32 policy: RunPolicy hosts: Kinds spend: u64 wake: WakePolicy documents: list 2 Document }
 record CharterNumber { number: u32 }
 record TemplateNumber { number: u32 }
 record PolicyNumber { number: u32 }
@@ -63,7 +68,8 @@ enum EndedBy { result, requester }
 record Flags { conversation: bool listed: bool retention: Retention ended_by: EndedBy }
 record ModelEffort { model: u8 effort: option u8 }
 record LlmChoice { account: option u32 main: ModelEffort subagents: list 64 ModelEffort }
-record Template { number: u32 name: bytes 65536 executor: TemplateExecutor contract: Contract shallower: u32 budget: TemplateBudget deadline: TemplateDeadline tracked: option u32 flags: Flags label: u32 grace: option duration llm: option LlmChoice }
+record Symbol { connector: u16 symbol: u16 }
+record Template { number: u32 name: bytes 65536 executor: TemplateExecutor contract: Contract shallower: u32 budget: TemplateBudget deadline: TemplateDeadline tracked: option u32 flags: Flags label: u32 grace: option duration llm: option LlmChoice resources: list 32 Symbol }
 enum Value { charter: boxed Charter, template: boxed Template, policy: boxed ConfiguredPolicy, rules: boxed Rules }
 record Party { number: u64 }
 enum Decider { first_start, release, party: Party }

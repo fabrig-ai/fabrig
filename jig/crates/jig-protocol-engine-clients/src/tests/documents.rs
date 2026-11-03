@@ -398,3 +398,31 @@ fn an_owner_is_offered_remove_project_and_a_member_is_not() {
         assert!(input.is_empty());
     }
 }
+
+#[test]
+fn a_served_template_carries_its_resources() {
+    let resources =
+        [jig_domain_people::Symbol { connector: 7, symbol: 3 }, jig_domain_people::Symbol { connector: 2, symbol: 11 }];
+    let mut frame = fixtures::frame_two_projects();
+    let mut template = fixtures::template();
+    template.resources = Box::new(resources);
+    frame.projects.get_mut(0).unwrap().templates = List::from_boxed(Box::new([template]));
+    let record = translate::owner::frame(&frame, &[], &w::CEILINGS).unwrap();
+    let bytes = skein_codec::piece::split(&mut skein_lib::Reader::new(record.projects())).unwrap().unwrap();
+    let project = w::MeProject::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&bytes)).unwrap();
+    let bytes = skein_codec::piece::split(&mut skein_lib::Reader::new(project.templates())).unwrap().unwrap();
+    let template = w::Template::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&bytes)).unwrap();
+    assert_eq!(template.resources().len(), 2);
+    for (wire, expected) in template.resources().into_iter().zip(resources) {
+        assert_eq!((wire.connector(), wire.symbol()), (expected.connector, expected.symbol));
+    }
+    let client = jig_client_protocol_link::translate::documents::frame(record, &fixtures::client_limits()).unwrap();
+    let template = client.projects.get(0).unwrap().templates.get(0).unwrap();
+    assert_eq!(
+        template.resources.as_slice(),
+        &[
+            jig_client_domain::contract::Symbol { connector: 7, symbol: 3 },
+            jig_client_domain::contract::Symbol { connector: 2, symbol: 11 },
+        ]
+    );
+}

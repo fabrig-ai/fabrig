@@ -6,17 +6,26 @@ use skein_lib::{List, Map};
 #[derive(Debug)]
 pub struct Forges {
     forges: Map<u16, Forge>,
+    // Record bots distinguish a login rewrite from an author change.
+    bots: Map<u16, temper_engine_domain_forge::Bot>,
 }
 
 impl Forges {
     #[must_use]
     pub const fn with_capacity(capacity: u32) -> Self {
-        Self { forges: Map::with_capacity(capacity) }
+        Self { forges: Map::with_capacity(capacity), bots: Map::with_capacity(capacity) }
     }
 
     #[must_use]
     pub fn get(&self, forge: u16) -> Option<&Forge> {
         self.forges.get(&forge)
+    }
+
+    pub(crate) fn bot_login(&self, forge: u16) -> Option<&[u8]> {
+        match self.bots.get(&forge) {
+            Some(bot) => Some(&bot.login),
+            None => None,
+        }
     }
 
     #[must_use]
@@ -68,6 +77,7 @@ impl Forges {
     }
 
     pub fn remove(&mut self, forge: u16) -> Option<Forge> {
+        self.bots.remove(&forge);
         self.forges.remove(&forge)
     }
 }
@@ -94,6 +104,10 @@ pub(crate) fn record(engine: &mut crate::engine::Engine, record: temper_engine_d
         return;
     }
     let kept = record.clone();
+    let login_only = match engine.workers.forges.bots.get(&record.number) {
+        Some(bot) => bot.name == record.bot.name && bot.email == record.bot.email,
+        None => false,
+    };
     let (forge, identity) = record_settings(engine, record);
     if let Some(held) = engine.workers.forges.get(forge.number)
         && held.kind == forge.kind
@@ -104,8 +118,12 @@ pub(crate) fn record(engine: &mut crate::engine::Engine, record: temper_engine_d
         && held.web == forge.web
         && held.app_read_only == forge.app_read_only
         && held.git_program == forge.git_program
-        && engine.values.tokens.same_identity(&identity)
+        && (engine.values.tokens.same_identity(&identity) || login_only)
     {
+        if !engine.values.tokens.same_identity(&identity) {
+            engine.values.tokens.keep(&identity, engine.forge.env.limits.installations);
+        }
+        engine.workers.forges.bots.insert(kept.number, kept.bot.clone()).expect("kept forge capacity");
         if engine.setup.serves(forge.number) {
             crate::setup::keep(engine, &kept);
         }
@@ -118,6 +136,7 @@ pub(crate) fn record(engine: &mut crate::engine::Engine, record: temper_engine_d
         engine.forge.down(skein_forge_connection::Request::Remove { forge: kept.number });
     }
     if keep(engine, forge) {
+        engine.workers.forges.bots.insert(kept.number, kept.bot.clone()).expect("kept forge capacity");
         engine.values.tokens.keep(&identity, engine.forge.env.limits.installations);
         crate::setup::keep(engine, &kept);
         if engine.forge_records.done() {

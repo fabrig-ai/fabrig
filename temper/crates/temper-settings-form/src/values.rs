@@ -52,6 +52,8 @@ pub fn encode_charter(value: &c::Charter, out: &mut Encoder) {
     encode_setting_hosts(&value.hosts, out);
     out.key(b"spend");
     out.unsigned(value.spend);
+    out.key(b"wake");
+    encode_wake(value.wake, out);
     out.key(b"documents");
     out.array_start();
     for document in &value.documents {
@@ -770,6 +772,52 @@ pub fn encode_owner_pattern_end(value: &c::PatternEnd, out: &mut Encoder) {
             out.object_start();
             out.key(b"open");
             crate::hex(value, out);
+            out.object_end();
+        }
+    }
+}
+
+fn encode_wake(value: c::WakePolicy, out: &mut Encoder) {
+    out.object_start();
+    out.key(b"words");
+    encode_wake_rule(value.words, out);
+    out.key(b"notices");
+    encode_wake_rule(value.notices, out);
+    out.key(b"news");
+    encode_wake_rule(value.news, out);
+    out.key(b"results");
+    out.string(match value.results {
+        c::ResultsWake::Never => b"never",
+        c::ResultsWake::Each => b"each",
+        c::ResultsWake::LastOrFailure => b"last_or_failure",
+    });
+    out.key(b"questions");
+    out.boolean(value.questions);
+    out.key(b"answers");
+    out.boolean(value.answers);
+    out.key(b"timers");
+    out.boolean(value.timers);
+    out.object_end();
+}
+fn encode_wake_rule(value: c::WakeRule, out: &mut Encoder) {
+    match value {
+        c::WakeRule::Never => out.string(b"never"),
+        c::WakeRule::Immediate => out.string(b"immediate"),
+        c::WakeRule::Batch { count, age } => {
+            out.object_start();
+            out.key(b"batch");
+            out.object_start();
+            out.key(b"count");
+            out.unsigned(u64::from(count));
+            out.key(b"age");
+            out.unsigned(age.as_nanos());
+            out.object_end();
+            out.object_end();
+        }
+        c::WakeRule::Paced { span } => {
+            out.object_start();
+            out.key(b"paced");
+            out.unsigned(span.as_nanos());
             out.object_end();
         }
     }

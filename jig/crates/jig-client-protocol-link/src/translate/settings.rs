@@ -139,6 +139,7 @@ pub fn wire_charter(value: &c::Charter, limits: &w::Limits) -> Result<w::Charter
             call_timeout: value.call_timeout,
             hosts: wire_setting_hosts(&value.hosts)?,
             spend: value.spend,
+            wake: super::asks::wire_owner_wake_policy(&value.wake, limits)?,
         },
     )
 }
@@ -177,6 +178,7 @@ pub fn restore_charter(value: &w::Charter) -> Result<c::Charter, w::Problem> {
         call_timeout: value.call_timeout(),
         hosts: restore_setting_hosts(value.hosts())?,
         spend: value.spend(),
+        wake: super::facts::wake_policy(value.wake()),
     })
 }
 pub fn wire_setting_policy(value: &c::SettingPolicy, limits: &w::Limits) -> Result<w::SettingPolicy, w::Problem> {
@@ -977,6 +979,7 @@ fn wire_template(value: &c::Template, limits: &w::Limits) -> Result<w::Template,
     w::Template::new(
         limits,
         w::TemplateParts {
+            resources: super::documents::me::wire_symbols(&value.resources, limits)?,
             number: value.number,
             name: wire_document_text(&value.name, limits)?,
             executor: super::operations::executor(value.executor, limits)?,

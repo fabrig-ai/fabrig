@@ -389,6 +389,7 @@ pub fn models() -> Box<[engine::Model]> {
 #[must_use]
 pub fn charter() -> engine::Charter {
     engine::Charter {
+        wake: jig_domain_tasks::WakePolicy::DEFAULT,
         documents: Box::new([]),
         number: 1,
         policy: engine::RunPolicy {
@@ -738,6 +739,7 @@ impl StartStore {
                     | engine::Request::Return { .. }
                     | engine::Request::SetUp { .. }
                     | engine::Request::Connect { .. }
+                    | engine::Request::Replace { .. }
                     | engine::Request::Manifest { .. }
                     | engine::Request::Reachable { .. }
                     | engine::Request::Accept { .. }
