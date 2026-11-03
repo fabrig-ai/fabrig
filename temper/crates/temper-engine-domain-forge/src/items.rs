@@ -125,16 +125,20 @@ impl Domain {
             start = Start::Saved(saved);
         }
         if let Some((row, change::Delegate::Produce)) = inherited {
-            match &row.change.early {
-                change::Early::Started(_) | change::Early::Spent(_) => {
-                    if let Start::Branch(branch) | Start::Saved(branch) = &start {
+            let merge_landing = match &row.change.early {
+                change::Early::Started(_) | change::Early::Spent(_) => true,
+                change::Early::None => !self.requires(repository, &row.base).up_to_date,
+            };
+            if merge_landing {
+                match &start {
+                    Start::Branch(branch) | Start::Saved(branch) => {
                         start = Start::Merge {
                             branch: branch.clone(),
                             base: branch_head(self, seed.repository, &row.base)?,
                         };
                     }
+                    Start::Base(_) | Start::Merge { .. } | Start::Merged { .. } => {}
                 }
-                change::Early::None => {}
             }
         }
         if repository.role == Role::Context || !repository.kinds.push {

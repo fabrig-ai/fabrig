@@ -336,7 +336,8 @@ pub(crate) fn acted(
         people::Outcome::Refused(people::Refusal::Role { held: None }) => {
             (true, Some(b"no first owner configured".as_slice()))
         }
-        people::Outcome::Refused(_)
+        people::Outcome::Restored { .. }
+        | people::Outcome::Refused(_)
         | people::Outcome::CompoundRefused { .. }
         | people::Outcome::Compound { .. }
         | people::Outcome::AccountRemoved { .. }

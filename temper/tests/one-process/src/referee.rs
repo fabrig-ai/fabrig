@@ -1,4 +1,5 @@
 //! Outside conformance over actual bytes and independently decoded durable records.
+use crate::world::HarnessProcess;
 pub(crate) mod durable;
 pub(crate) use durable::{Capture, Store};
 mod agent;
@@ -62,6 +63,13 @@ pub(crate) struct Referee {
     story: crate::world::Story,
 }
 impl Referee {
+    fn story_deadline(&self) -> Time {
+        Time::from_nanos(if matches!(self.story, crate::world::Story::PlaygroundA) {
+            30_000_000_000
+        } else {
+            10_000_000_000
+        })
+    }
     pub(crate) fn new(
         controls: skein_world::Controls,
         store: Rc<RefCell<Store>>,
@@ -157,7 +165,7 @@ impl Referee {
     fn adoption_window(&mut self, service: &crate::world::ServiceHost) {
         let saved = crate::world::saved_adoptions();
         if !saved.is_empty() && self.run.borrow().window_start.is_none() {
-            self.run.borrow_mut().window_start = Some(service.submitted);
+            self.run.borrow_mut().window_start = Some(service.observer.submitted);
         }
         self.run.borrow_mut().saved = saved;
         let start = self.run.borrow().window_start;
@@ -167,12 +175,12 @@ impl Referee {
                 root::Record::Forge { row } if matches!(row.as_ref(), temper_engine_domain_forge::Stored::Application { .. })
             ))
         {
-            self.run.borrow_mut().window = Some((start, service.before_iteration));
+            self.run.borrow_mut().window = Some((start, service.observer.before_iteration));
         }
     }
-    pub(crate) fn check_roots(service: &crate::world::ServiceHost) {
+    pub(crate) fn check_roots(service: &temper_service::Service) {
         let mut text = String::new();
-        write!(&mut text, "{:?}", secrets::Roots(&service.service)).expect("root formatting");
+        write!(&mut text, "{:?}", secrets::Roots(service)).expect("root formatting");
         secrets::require_formatted(&text, "root");
     }
 }
@@ -237,9 +245,9 @@ impl Referee {
     fn phase_complete(&self, other: &[Proc]) -> bool {
         match self.phase {
             crate::world::Phase::Refused => unreachable!("refused starts send no shutdown signal"),
-            crate::world::Phase::SignIn => {
-                other.iter().any(|proc| matches!(proc, Proc::Client(person) if person.signed_in > 0))
-            }
+            crate::world::Phase::SignIn => other
+                .iter()
+                .any(|proc| matches!(proc, Proc::Other(HarnessProcess::Client(person)) if person.signed_in > 0)),
             crate::world::Phase::Drain => {
                 snapshot(&self.store.borrow()).receipts.contains(&rules::Receipt::Turn(1, 1, 1))
             }
@@ -257,7 +265,7 @@ impl Referee {
                     let forge = self.forge.borrow();
                     forge.complete() && forge::Forge::hooks_complete(other, crate::stories::ADOPT_HOOKS)
                 }
-                crate::world::Story::Merge => self.forge.borrow().complete(),
+                crate::world::Story::Merge | crate::world::Story::PlaygroundA => self.forge.borrow().complete(),
                 crate::world::Story::HeldChange => crate::stories::change_held(&self.store.borrow().rows),
             },
         }
@@ -267,11 +275,11 @@ impl skein_world::Referee<Proc> for Referee {
     fn act(&mut self, now: Time, procs: &mut [Proc]) {
         let (service, other) = procs.split_at_mut(1);
         let Proc::Service(service) = &mut service[0] else { panic!("service first") };
-        if let Some(bound) = service.hooks {
+        if let Some(bound) = service.observer.hooks {
             self.forge.borrow_mut().hand_hooks(bound);
         }
-        if !service.attached {
-            service.attached = true;
+        if !service.observer.attached {
+            service.observer.attached = true;
             if self.attached.is_some() || self.cold.is_some() {
                 let pending_keys = {
                     let run = self.run.borrow();
@@ -294,7 +302,7 @@ impl skein_world::Referee<Proc> for Referee {
                 self.agent_seen = 0;
                 self.run.borrow_mut().restarts += 1;
             } else if let crate::world::Phase::Fault { before, .. } = self.phase {
-                service.cut_before = Some(before);
+                service.observer.cut_before = Some(before);
             }
             self.attached = Some(());
         }
@@ -304,7 +312,7 @@ impl skein_world::Referee<Proc> for Referee {
         {
             crate::oracle::linked(&link);
             for proc in other.iter_mut() {
-                if let Proc::Client(person) = proc
+                if let Proc::Other(HarnessProcess::Client(person)) = proc
                     && person.signed_in == 0
                 {
                     person.sign_in(&link);
@@ -313,7 +321,7 @@ impl skein_world::Referee<Proc> for Referee {
             self.handed = true;
         }
         let done = other.iter().all(|proc| match proc {
-            Proc::Client(person) => person.is_empty(),
+            Proc::Other(HarnessProcess::Client(person)) => person.is_empty(),
             Proc::Service(_)
             | Proc::Agent(_)
             | Proc::Peer(_)
@@ -321,8 +329,7 @@ impl skein_world::Referee<Proc> for Referee {
             | Proc::Git(_)
             | Proc::Shell(_)
             | Proc::Forge(_)
-            | Proc::Ctl(_)
-            | Proc::Calls(_) => true,
+            | Proc::Other(HarnessProcess::Ctl(_) | HarnessProcess::Calls(_)) => true,
         });
         if crate::stories::adopted(&self.store.borrow().rows) > 0 {
             self.forge.borrow_mut().adopted();
@@ -343,7 +350,7 @@ impl skein_world::Referee<Proc> for Referee {
             && crate::oracle::readback(other)
         {
             for proc in other.iter_mut() {
-                if let Proc::Client(person) = proc {
+                if let Proc::Other(HarnessProcess::Client(person)) = proc {
                     person.finish();
                 }
             }
@@ -361,7 +368,7 @@ impl skein_world::Referee<Proc> for Referee {
         let Proc::Service(service) = &procs[0] else { panic!("service first") };
         self.adoption_window(service);
         let store = self.store.borrow();
-        for commit in &service.commits {
+        for commit in &service.observer.commits {
             if commit.number <= self.applied {
                 continue;
             }
@@ -400,12 +407,12 @@ impl skein_world::Referee<Proc> for Referee {
             self.settled_at = Some(store.applied);
         }
         drop(store);
-        for event in &service.wire.events[self.agent_seen..] {
+        for event in &service.observer.wire.events[self.agent_seen..] {
             self.say(now, event.clone());
         }
-        self.agent_seen = service.wire.events.len();
+        self.agent_seen = service.observer.wire.events.len();
         for proc in procs {
-            if let Proc::Client(person) = proc {
+            if let Proc::Other(HarnessProcess::Client(person)) = proc {
                 if person.life != self.client_life {
                     self.client_life = person.life;
                     self.client_seen = 0;
@@ -445,7 +452,7 @@ impl skein_world::Referee<Proc> for Referee {
             }
         }
         if self.done.is_some() && self.drained.is_none() && service.is_empty() {
-            Self::check_roots(service);
+            Self::check_roots(&service.service);
             assert!(self.store.borrow().pending.is_empty(), "drain settles commits");
             self.say(now, rules::Observed::Drained { at: self.applied });
             self.drained = Some(());
@@ -457,10 +464,10 @@ impl skein_world::Referee<Proc> for Referee {
         if matches!(self.story, crate::world::Story::HeldChange) && matches!(self.phase, crate::world::Phase::SignIn) {
             return None;
         }
-        self.done.is_none().then_some(Time::from_nanos(10_000_000_000))
+        self.done.is_none().then_some(self.story_deadline())
     }
     fn overdue(&self, now: Time) -> Option<String> {
-        (self.done.is_none() && now >= Time::from_nanos(10_000_000_000)).then(|| {
+        (self.done.is_none() && now >= self.story_deadline()).then(|| {
             format!(
                 "story not complete: link {}, signed in {}, terminals {}, tasks {:?}, agents {:?}, forge {:?}",
                 self.handed,
@@ -604,8 +611,6 @@ pub(crate) fn shutdown_peer(proc: &mut Proc) {
         | Proc::GitRoute(_)
         | Proc::Git(_)
         | Proc::Shell(_)
-        | Proc::Client(_)
-        | Proc::Ctl(_)
-        | Proc::Calls(_) => {}
+        | Proc::Other(HarnessProcess::Client(_) | HarnessProcess::Ctl(_) | HarnessProcess::Calls(_)) => {}
     }
 }

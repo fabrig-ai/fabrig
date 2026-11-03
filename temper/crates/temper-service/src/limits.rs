@@ -200,6 +200,7 @@ const FORGE: forge::Limits = forge::Limits {
     landing_rules: 4,
     roles: 4,
     setting_proposals: 4,
+    setting_history: 4,
     // Forge brief sections gathering at once, from the engine forge world fixture.
     brief_sections: 32,
     // Bytes of one gathered forge section: at least the root's brief.read_bytes.
@@ -229,6 +230,8 @@ const FORGE: forge::Limits = forge::Limits {
         updates: 3,
         // The reference's bound (draft/reference-code-production.md, section 8).
         questions: 4,
+        // Small's producer, a review, and two repairs each followed by its review.
+        tasks: 6,
         // Outlast ordinary CI; report a silent forge within the same sitting (domain/forge.md, 8.4).
         stall: Duration::from_secs(30 * 60),
         // Gates retained by a change, from the engine forge world fixture.
@@ -408,6 +411,7 @@ pub(crate) fn engine_candidate(jig: &jig_protocol_config::Limits, limits: &Limit
             authority_segments: jig.core.authority.segments,
             roles: jig.core.authority.roles,
             setting_proposals: jig.core.settings.proposals,
+            setting_history: jig.core.settings.history,
             ..limits.forge
         },
     }

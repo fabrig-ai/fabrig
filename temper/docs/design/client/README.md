@@ -199,6 +199,11 @@ temper-client-journeys          tools/journeys: recorded walks replayed through 
   sum. The client reads no configuration: its only inputs are its two
   arguments (`../protocol/configuration.md`, section 9).
 
+The native terminal receives eight entries in a document's short lists,
+including creating's complete charter and procedure lists. This covers
+`temper init` and the owned example's `documents.lines` eight; it is a
+receiving capacity, independent of how many rows a screen shows.
+
 ## 3. The client root
 
 `temper-client-domain` is temper's client root, in jig's one shape

@@ -30,11 +30,13 @@ pub(crate) fn route_people(
     work: &mut Queue<Work>,
     event: people::Event,
 ) -> Queue<Request> {
+    let mut restore_out = Queue::uncapped();
     if let people::Event::Forget { task, .. } = &event {
         drop(core.ended_chats.remove(task));
     }
     let event = match event {
         people::Event::Decided { request, outcome } => {
+            let outcome = crate::routing::settings::restore::outcome(core, request, outcome, &mut restore_out);
             let request = match core.land_kind(request, crate::routing::flight::Kind::Party) {
                 Some(crate::routing::flight::Flight::Party { request }) => request,
                 Some(crate::routing::flight::Flight::PartyPart { application, original, connector }) => {
@@ -79,7 +81,11 @@ pub(crate) fn route_people(
     };
     let mut child = Queue::uncapped();
     crate::routing::step::step_people(core, env, event, &mut child);
-    tag_people(core, env, child, work)
+    let mut tagged = tag_people(core, env, child, work);
+    for _ in 0..tagged.len() {
+        restore_out.push(tagged.pop().expect("tagged people output"));
+    }
+    restore_out
 }
 
 pub(crate) fn sign_in(
@@ -181,6 +187,9 @@ pub(crate) fn tag_people_part(
                 Request::Write(Write::Erase(Key::People(key)))
             }
             people::Request::Reply { to, reply } => match reply {
+                people::Reply::Outcome(people::Outcome::Restored { .. }) => {
+                    Request::Held(Box::new(Held::PeopleReply { to, reply }))
+                }
                 reply @ (people::Reply::Full { .. }
                 | people::Reply::Again(people::Again::Busy)
                 | people::Reply::Outcome(people::Outcome::Again(people::Again::Busy))) => {
@@ -279,6 +288,16 @@ pub(crate) fn tag_people_part(
                             request,
                             outcome: people::Outcome::Refused(people::Refusal::NotOffered),
                         })));
+                    }
+                    people::Ask::Restore { revision, reason } => {
+                        let mut restoring =
+                            crate::routing::settings::restore::start(core, env, party, revision, reason);
+                        for _ in 0..restoring.out.len() {
+                            routed.out.push(restoring.out.pop().expect("restore outputs"));
+                        }
+                        for _ in 0..restoring.work.len() {
+                            routed.work.push(restoring.work.pop().expect("restore continuations"));
+                        }
                     }
                     people::Ask::RemoveProject { project, grace } => {
                         let result = if !core.open_project(project) {

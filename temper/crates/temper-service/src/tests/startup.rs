@@ -41,7 +41,7 @@ fn transcript_document(bytes: u32) -> Box<[u8]> {
 
 #[test]
 fn startup_admits_a_frame_exactly_at_the_profile_page_ceiling() {
-    let document = transcript_document(1_662_042);
+    let document = transcript_document(2_168_723);
     crate::startup(
         &document,
         &config::Directories::working(),
@@ -55,13 +55,13 @@ fn startup_admits_a_frame_exactly_at_the_profile_page_ceiling() {
     .expect("a whole frame exactly at Small's page ceiling starts");
     let opened =
         crate::store_limits(&document, &config::Directories::working(), Some(&fixtures::startup_agent())).unwrap();
-    assert_eq!(opened.store.store.page.bytes, 1_662_106);
+    assert_eq!(opened.store.store.page.bytes, 2_168_787);
 }
 
 #[test]
 fn startup_names_a_frame_one_byte_past_the_profile_page_ceiling() {
-    let document = transcript_document(1_662_043);
-    let expected = b"application.limits.overrides.root.loads.transcript_bytes: its turn's transcript frame, 1662107 bytes, needs a store page past the profile's ceiling of 1662106 bytes\n";
+    let document = transcript_document(2_168_724);
+    let expected = b"application.limits.overrides.root.loads.transcript_bytes: its turn's transcript frame, 2168788 bytes, needs a store page past the profile's ceiling of 2168787 bytes\n";
     let named = crate::named(&document, &config::Directories::working()).unwrap_err();
     assert_eq!(lines(&named).as_ref(), expected);
     let opened =
@@ -1587,5 +1587,45 @@ fn landing_configuration_reads_goal_tiers_and_optional_spans() {
         let tier = &members.landings.get(&1).unwrap().repositories[0].tiers[0];
         assert_eq!(tier.follows, follows);
         assert_eq!(tier.span_ms, span_ms);
+    }
+}
+
+#[test]
+fn capacity_overrides_name_the_failed_dependency() {
+    let initial = super::stock::generated();
+    for (member, value, causes) in [
+        (b"tasks.tasks".as_slice(), 64, &["tasks.tasks", "64", "people.inbox_tasks", "128"][..]),
+        (b"tasks.project_tasks", 64, &[][..]),
+        (b"tasks.batch", 8, &["tasks.batch", "8", "ResultFollowupsDelegates.value", "4", "schema ceiling", "reduce"]),
+        (b"tasks.batch", 2, &["tasks.batch", "2", "TaskRecord", "2391079", "2166708", "profile ceiling", "reduce"]),
+        (b"tasks.delegates", 8, &["tasks.delegates", "8", "people.operations", "9"]),
+        (b"tasks.delegates", 16, &["tasks.delegates", "16", "people.operations", "17"]),
+        (b"documents.lines", 8, &[][..]),
+        (b"tasks.tree_tasks", 128, &[][..]),
+    ] {
+        let document = super::stock::limited(&initial, member, value);
+        if causes.is_empty() {
+            crate::named(&document, &config::Directories::working()).expect("independent init override is admitted");
+            continue;
+        }
+        let found = crate::startup(
+            &document,
+            &config::Directories::working(),
+            &fixtures::files(),
+            &fixtures::startup_agent(),
+            &fixtures::seeds(),
+            None,
+            fixtures::worker_runtime(),
+            fixtures::forge_runtime(),
+        )
+        .err()
+        .expect("capacity dependency refuses before file or runtime access");
+        let rendered = lines(&found);
+        let text = core::str::from_utf8(&rendered).unwrap();
+        for cause in causes {
+            assert!(text.contains(cause), "missing {cause}: {text}");
+        }
+        assert!(!text.contains("invalid override"), "capacity cause must survive validation: {text}");
+        assert_eq!(text.lines().count(), 1, "unrelated init overrides must not be accused: {text}");
     }
 }

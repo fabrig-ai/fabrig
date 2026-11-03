@@ -58,6 +58,8 @@ pub struct Limits {
     pub roles: u32,
     /// Pending proposals of settings, supplied from jig's `settings.proposals`.
     pub setting_proposals: u32,
+    /// Revisions whose replaced values are retained, supplied from jig's `settings.history`.
+    pub setting_history: u32,
     /// Connector brief sections gathering concurrently.
     pub brief_sections: u32,
     /// Maximum bytes retained for one gathered brief section.
@@ -99,6 +101,7 @@ pub fn valid(l: &Limits) -> bool {
         || l.name_bytes > crate::PANEL_NAME_BYTES
         || l.change_policy.gates > crate::PANEL_GATES
         || usize::try_from(l.change_policy.questions).expect("u32 fits usize") >= temper_engine_domain_forge_change::QUESTIONS_OPEN
+        || l.change_policy.tasks == 0
         || l.queue_window == skein_lib::Duration::ZERO
         || l.adoptions == 0
         || l.applications == 0

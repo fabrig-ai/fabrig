@@ -26,7 +26,9 @@ pub(crate) fn named(record: w::Ask, models: &[crate::Model], limits: &w::Limits)
             }
         }
     }
-    p::remap_models(&mut ask, &moved);
+    if !original.is_empty() {
+        p::remap_models(&mut ask, &moved);
+    }
     Ok(NamedAsk { ask, models: canonical })
 }
 
@@ -43,6 +45,10 @@ fn decode(
     names: &mut List<Box<[u8]>>,
 ) -> Result<p::Ask, Untranslatable> {
     Ok(match record {
+        w::Ask::Restore(value) => {
+            let value = value.into_parts();
+            p::Ask::Restore { revision: value.revision, reason: value.reason }
+        }
         w::Ask::MoveToNewest(value) => p::Ask::MoveToNewest { revision: value.revision() },
         w::Ask::ChangeSettings(value) => {
             let against = value.against();

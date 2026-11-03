@@ -300,6 +300,10 @@ pub fn encode_ask(value: &domain::Ask, limits: &wire::Limits) -> Result<wire::As
             limits,
             wire::AskSetVisibilityParts { project: *project, public: *public },
         )?),
+        domain::Ask::Restore { revision, reason } => wire::Ask::Restore(wire::AskRestore::new(
+            limits,
+            wire::AskRestoreParts { revision: *revision, reason: reason.clone() },
+        )?),
         domain::Ask::RemoveProject { project, grace } => wire::Ask::RemoveProject(wire::AskRemoveProject::new(
             limits,
             wire::AskRemoveProjectParts { project: *project, grace: super::compound::encode_grace(*grace) },
@@ -533,6 +537,10 @@ pub fn decode_ask(value: wire::Ask, limits: &wire::Limits) -> Result<domain::Ask
             grace: super::compound::decode_grace(*value.grace()),
         },
         wire::Ask::MoveToNewest(value) => domain::Ask::MoveToNewest { revision: value.revision() },
+        wire::Ask::Restore(value) => {
+            let wire::AskRestoreParts { revision, reason } = value.into_parts();
+            domain::Ask::Restore { revision, reason }
+        }
         wire::Ask::ChangeSettings(value) => {
             let wire::AskChangeSettingsParts { against, digest, projects } = value.into_parts();
             domain::Ask::ChangeSettings { against, digest, projects: projects.into_boxed() }

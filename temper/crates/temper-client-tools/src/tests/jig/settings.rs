@@ -618,10 +618,15 @@ fn whole_settings_document_renderings_are_stable() {
         head: head(c::RevisionDecider::Release),
         items: list([
             c::RevisionItem {
+                replaced: c::RevisionReplaced::NotOffered,
                 setting: c::Setting::Charter(c::SettingNumber { number: 3 }),
                 edit: c::RevisionEdit::TooLarge(c::Size { bytes: 1_000_000 }),
             },
-            c::RevisionItem { setting: c::Setting::Rules, edit: c::RevisionEdit::Reset },
+            c::RevisionItem {
+                replaced: c::RevisionReplaced::NotOffered,
+                setting: c::Setting::Rules,
+                edit: c::RevisionEdit::Reset,
+            },
         ]),
     })));
     let revisions = c::ReadValue::Revisions(Box::new(c::RevisionsPage {
@@ -834,7 +839,7 @@ fn setting_text_and_revisions_include_whole_set_values_and_last_page_facts() {
             c::Setting::Charter(_) => vec!["settings", "show", "charter", "3"],
             c::Setting::Template(_) => vec!["settings", "show", "template", "4"],
             c::Setting::Policy(_) => vec!["settings", "show", "policy", "5"],
-            c::Setting::Application { .. } => continue,
+            c::Setting::Application { .. } | c::Setting::ProjectPolicy { .. } => continue,
             c::Setting::Rules => vec!["settings", "show", "rules"],
         };
         let answer = read(
@@ -859,6 +864,7 @@ fn setting_text_and_revisions_include_whole_set_values_and_last_page_facts() {
                 c::ReadValue::Revision(Box::new(c::RevisionAnswer::Revision(c::RevisionDocument {
                     head: head(c::RevisionDecider::Release),
                     items: list([c::RevisionItem {
+                        replaced: c::RevisionReplaced::NotOffered,
                         setting,
                         edit: c::RevisionEdit::Set(c::SettingSet { value: value.clone() }),
                     }]),
@@ -1046,12 +1052,15 @@ fn non_charter_revision_hints_explicitly_read_the_current_value() {
             c::ReadValue::Revision(Box::new(c::RevisionAnswer::Revision(c::RevisionDocument {
                 head: head(c::RevisionDecider::Release),
                 items: list([c::RevisionItem {
+                    replaced: c::RevisionReplaced::NotOffered,
                     setting,
                     edit: c::RevisionEdit::TooLarge(c::Size { bytes: 1_000_000 }),
                 }]),
             }))),
         );
-        let line = format!("  {name}: too large, 1000000 bytes; read current value with settings show {name}\n");
+        let line = format!(
+            "  {name}: too large, 1000000 bytes; read current value with settings show {name}\n    was: not offered\n"
+        );
         assert!(answer.stdout.ends_with(line.as_bytes()), "{}", String::from_utf8_lossy(&answer.stdout));
     }
 }
@@ -1934,6 +1943,355 @@ fn forge_setting_commands_refuse_selectors_outside_their_forms() {
     }
 }
 
+fn project_policy() -> c::SettingValue {
+    let (_, value) = values().remove(2);
+    value
+}
+fn project_policy_file() -> Vec<u8> {
+    file_from_setting(&setting_json(c::Setting::ProjectPolicy { project: 1 }, project_policy()))
+}
+#[test]
+fn a_settings_file_with_a_project_policy_sends_its_item() {
+    let file = project_policy_file();
+    let (root, call) = changed(&file, false);
+    let (_, _, jig_client::Ask::Jig(ask)) = root.sends.get(&call).expect("sent change") else { panic!("jig ask") };
+    let c::Ask::ChangeSettings(change) = ask.as_ref() else { panic!("settings change") };
+    assert_eq!(root.sends.len(), 1);
+    assert_eq!(
+        change.items,
+        list([c::SettingItem {
+            setting: c::Setting::ProjectPolicy { project: 1 },
+            edit: c::SettingEdit::Set(c::SettingSet { value: project_policy() }),
+        }])
+    );
+    let (root, call) = proposed(&file, false);
+    let (_, _, jig_client::Ask::Jig(ask)) = root.sends.get(&call).expect("sent proposal") else { panic!("jig ask") };
+    let c::Ask::Propose { action: c::ProposeAction::Settings(proposal), .. } = ask.as_ref() else {
+        panic!("settings proposal")
+    };
+    assert_eq!(root.sends.len(), 1);
+    assert_eq!(proposal.items, change.items);
+}
+fn project_policy_json() -> String {
+    let value = jig::form_setting_value(&project_policy());
+    let bounds = skein_json::writer::Limits { depth: 32, length: 8192 };
+    let mut measure = skein_json::writer::Encoder::measure(&bounds);
+    settings_form::render::encode_value(&value, &mut measure);
+    let mut out = skein_json::writer::Encoder::write(measure.measured().expect("policy JSON fits"), &bounds);
+    settings_form::render::encode_value(&value, &mut out);
+    String::from_utf8(out.finish().into_vec()).expect("policy JSON")
+}
+#[test]
+fn a_project_policy_item_refused_by_the_form_sends_nothing() {
+    let value = project_policy_json();
+    for (items, expected) in [
+        (
+            r#"{"setting":{"kind":"project-policy","project":1},"edit":"removed"}"#.to_owned(),
+            "settings file item 1: edit: a project's policy is set alone",
+        ),
+        (
+            r#"{"setting":{"kind":"project-policy","project":1},"edit":"reset"}"#.to_owned(),
+            "settings file item 1: edit: a project's policy is set alone",
+        ),
+        (
+            format!(
+                r#"{{"setting":{{"kind":"project-policy","project":1}},"set":{value}}},{{"setting":{{"kind":"project-policy","project":2}},"set":{value}}}"#
+            ),
+            "settings file item 2: setting: one project's policy per file",
+        ),
+        (
+            format!(r#"{{"setting":{{"kind":"project-policy","project":0}},"set":{value}}}"#),
+            "settings file item 1: project: from 1",
+        ),
+        (
+            format!(r#"{{"setting":{{"kind":"project-policy"}},"set":{value}}}"#),
+            "settings file item 1: project: missing member",
+        ),
+        (
+            format!(r#"{{"setting":{{"kind":"project-policy","project":1,"number":1}},"set":{value}}}"#),
+            "settings file item 1: number: project-policy has no number",
+        ),
+    ] {
+        let file = format!(r#"{{"items":[{items}]}}"#);
+        let (root, call) = changed(file.as_bytes(), false);
+        project_policy_form_refusal(root, call, expected);
+        let (root, call) = proposed(file.as_bytes(), false);
+        project_policy_form_refusal(root, call, expected);
+    }
+}
+fn project_policy_form_refusal(mut root: fixtures::Harness, call: u32, expected: &str) {
+    let answer = root.answer(call).expect("form refusal");
+    assert_eq!(answer.status, 1);
+    assert!(root.sends.is_empty());
+    assert_eq!(answer.stderr.as_ref(), format!("{expected}\n").as_bytes());
+}
+fn project_policy_review(now: c::ReviewValue, would_be: c::ReviewValue) -> c::ReadValue {
+    let setting = c::Setting::ProjectPolicy { project: 1 };
+    let mut proposal = review_proposal(Some(c::SettingsReview {
+        key: None,
+        newest: 5,
+        items: list([c::ReviewItem {
+            setting,
+            edit: c::RevisionItemEdit::Set,
+            now,
+            origin: c::SettingOrigin::NotOffered,
+            would_be,
+            application: None,
+        }]),
+        cut: false,
+    }));
+    let c::ReadValue::Proposal(p) = &mut proposal else { panic!("proposal") };
+    let c::ProposalAction::Settings(s) = &mut p.action else { panic!("settings proposal") };
+    s.items = list([c::RevisionItemHead { setting, edit: c::RevisionItemEdit::Set }]);
+    proposal
+}
+#[test]
+fn proposal_show_prints_a_project_policy_now_and_as_it_would_be() {
+    let now = project_policy();
+    let c::SettingValue::Policy(mut policy) = now.clone() else { panic!("policy") };
+    policy.period_spend = 3000;
+    let would_be = c::SettingValue::Policy(policy);
+    let review = project_policy_review(
+        c::ReviewValue::Value(c::SettingSet { value: now }),
+        c::ReviewValue::Value(c::SettingSet { value: would_be }),
+    );
+    for (argv, name) in [
+        (vec!["proposal", "show", "p73/7"], "settings_review_project_policy_text"),
+        (vec!["proposal", "show", "p73/7", "--json"], "settings_review_project_policy_json"),
+    ] {
+        let answer = read(&argv, review.clone());
+        assert_eq!(answer.status, 0);
+        golden(name, &answer.stdout);
+    }
+}
+#[test]
+fn a_large_project_policy_review_reads_the_proposed_value_and_keeps_the_current_size() {
+    // The fixture exceeds the review's envelope by carrying its size alone.
+    const POLICY_BYTES: u64 = 8192;
+    let review = project_policy_review(
+        c::ReviewValue::TooLarge(c::Size { bytes: POLICY_BYTES }),
+        c::ReviewValue::TooLarge(c::Size { bytes: POLICY_BYTES }),
+    );
+    let policy = project_policy_json();
+    for (argv, expected) in [
+        (
+            vec!["proposal", "show", "p73/7"],
+            format!("project-policy 1 · set · now too large, 8192 bytes · would be {policy}"),
+        ),
+        (
+            vec!["proposal", "show", "p73/7", "--json"],
+            format!(
+                "{}{}",
+                r#""now":{"too_large":{"bytes":8192}},"origin":"not_offered","would_be":{"value":{"value":{"policy":"#,
+                policy
+            ),
+        ),
+    ] {
+        let (mut root, call) = fixtures::read_call(&argv);
+        root.serve(call, c::ReadResult::Value(review.clone()));
+        let setting = c::Setting::ProjectPolicy { project: 1 };
+        assert_eq!(
+            root.reads.get(&call).expect("proposed policy read").1,
+            c::Read::Setting(c::ReadSetting {
+                setting,
+                revision: 0,
+                proposal: Some(c::ProposalKey { proposer: c::Proposer::Party(73), number: 7 }),
+            })
+        );
+        root.serve(
+            call,
+            c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+                setting,
+                revision: 5,
+                value: Some(project_policy()),
+                application: None,
+                proposed: None,
+            }))),
+        );
+        let answer = root.answer(call).expect("review resolves the proposed policy");
+        assert_eq!(answer.status, 0);
+        assert!(core::str::from_utf8(&answer.stdout).expect("review text or JSON").contains(&expected));
+    }
+}
+#[test]
+fn an_engine_refusal_naming_a_project_policy_prints_its_setting() {
+    for (refusal, expected) in [
+        (
+            c::Refusal::Malformed {
+                at: 0,
+                why: c::Malformed::Settings(c::MalformedSettings {
+                    setting: c::Setting::ProjectPolicy { project: 1 },
+                    fault: c::SettingFault::Rules,
+                }),
+            },
+            "settings apply: out of shape; item 0; project-policy 1: rules\n",
+        ),
+        (c::Refusal::Role { held: None }, "settings apply: The held role does not permit this action\n"),
+    ] {
+        let (mut root, call) = changed(&project_policy_file(), false);
+        root.answered(call, c::Answer::Refused { refusal, at: None });
+        let answer = root.answer(call).expect("engine refusal");
+        assert_eq!(answer.status, 2);
+        assert_eq!(answer.stderr.as_ref(), expected.as_bytes());
+    }
+}
+
+#[test]
+fn a_large_project_policy_revision_prints_no_setting_read_hint() {
+    // The retained value is represented by its byte size past the read's bound.
+    const POLICY_BYTES: u64 = 1_000_000;
+    let answer = read(
+        &["revision", "show", "5"],
+        c::ReadValue::Revision(Box::new(c::RevisionAnswer::Revision(c::RevisionDocument {
+            head: head(c::RevisionDecider::Release),
+            items: list([c::RevisionItem {
+                replaced: c::RevisionReplaced::NotOffered,
+                setting: c::Setting::ProjectPolicy { project: 1 },
+                edit: c::RevisionEdit::TooLarge(c::Size { bytes: POLICY_BYTES }),
+            }]),
+        }))),
+    );
+    assert_eq!(answer.status, 0);
+    assert!(answer.stdout.ends_with(b"  project-policy 1: too large, 1000000 bytes\n    was: not offered\n"));
+    assert!(!core::str::from_utf8(&answer.stdout).expect("revision text").contains("settings show"));
+}
+
+#[test]
+fn revision_show_prints_what_each_item_replaced() {
+    let mut items = Vec::new();
+    for (index, (setting, value)) in values().into_iter().enumerate() {
+        let replaced = match index {
+            0 => c::RevisionReplaced::Value(c::SettingSet { value: value.clone() }),
+            1 => c::RevisionReplaced::Default,
+            2 => c::RevisionReplaced::Removed,
+            3 => c::RevisionReplaced::TooLarge(c::Size { bytes: 1_000_000 }),
+            _ => unreachable!("four fixture kinds"),
+        };
+        items.push(c::RevisionItem {
+            setting,
+            edit: if index == 3 { c::RevisionEdit::Reset } else { c::RevisionEdit::Set(c::SettingSet { value }) },
+            replaced,
+        });
+    }
+    items.push(c::RevisionItem {
+        setting: c::Setting::Application { kind: 2, scope: 3, number: 2 },
+        edit: c::RevisionEdit::Application(c::SizedEdit::Set { size: 24 }),
+        replaced: c::RevisionReplaced::Application { size: 12 },
+    });
+    let (_, policy) = values().remove(2);
+    items.push(c::RevisionItem {
+        setting: c::Setting::ProjectPolicy { project: 3 },
+        edit: c::RevisionEdit::TooLarge(c::Size { bytes: 2_000_000 }),
+        replaced: c::RevisionReplaced::Value(c::SettingSet { value: policy }),
+    });
+    items.push(c::RevisionItem {
+        setting: c::Setting::Charter(c::SettingNumber { number: 9 }),
+        edit: c::RevisionEdit::Removed,
+        replaced: c::RevisionReplaced::NotOffered,
+    });
+    let document = c::ReadValue::Revision(Box::new(c::RevisionAnswer::Revision(c::RevisionDocument {
+        head: head(c::RevisionDecider::Party(c::RevisionParty { number: 1 })),
+        items: list(items),
+    })));
+    for json in [false, true] {
+        let argv = if json { vec!["revision", "show", "5", "--json"] } else { vec!["revision", "show", "5"] };
+        let answer = read(&argv, document.clone());
+        assert_eq!(answer.status, 0);
+        golden(if json { "settings_revision_replaced_json" } else { "settings_revision_replaced" }, &answer.stdout);
+    }
+}
+
+#[test]
+fn a_settings_file_template_sends_its_resources_to_jig() {
+    let file = br#"{"items":[{"setting":{"kind":"template","number":4},"set":{"number":4,"name":{"bytes":"draft","cut":false},"executor":{"charter":1},"contract":{"report":{"words":1024}},"shallower":1,"budget":"given","deadline":"none","tracked":1,"flags":{"conversation":false,"listed":true,"retention":"kept","ended_by":"result"},"label":1,"grace":null,"llm":null,"resources":[{"connector":1,"symbol":1}]}}]}"#;
+    let (root, call) = changed(file, false);
+    let (_, _, jig_client::Ask::Jig(ask)) = root.sends.get(&call).expect("sent") else { panic!("jig ask") };
+    let c::Ask::ChangeSettings(change) = ask.as_ref() else { panic!("settings change") };
+    let c::SettingEdit::Set(set) = &change.items.get(0).unwrap().edit else { panic!("set") };
+    let c::SettingValue::Template(value) = &set.value else { panic!("template") };
+    assert_eq!(value.resources.as_slice(), &[c::Symbol { connector: 1, symbol: 1 }]);
+
+    let bounds = crate::limits::form();
+    let neutral = settings_form::view::ChangeSettings {
+        against: 5,
+        items: settings_form::file::decode(file, &bounds).expect("neutral items"),
+        running: settings_form::view::Running::Moves,
+    };
+    let wire = settings_form::wire::wire_change_settings(&neutral, &bounds.settings).expect("neutral wire");
+    let preset = crate::limits::client().client;
+    let link = jig_client_protocol_link::Limits::new(preset.domain, preset.exchanges).expect("client limits");
+    assert_eq!(
+        jig_client_protocol_link::translate::settings::restore_change_settings(&wire, &link).expect("client ask"),
+        *change
+    );
+}
+#[test]
+fn settings_show_template_resources_apply_again_unchanged() {
+    let (setting, c::SettingValue::Template(mut template)) = values().remove(1) else { panic!("template") };
+    template.resources = list([c::Symbol { connector: 1, symbol: 1 }, c::Symbol { connector: 1, symbol: 2 }]);
+    let value = c::SettingValue::Template(template);
+    let json = setting_json(setting, value.clone());
+    let text = core::str::from_utf8(&json).unwrap();
+    assert!(text.contains(r#""resources":[{"connector":1,"symbol":1},{"connector":1,"symbol":2}]"#), "{text}");
+    let file = file_from_setting(&json);
+    let (root, call) = changed(&file, false);
+    let (_, _, jig_client::Ask::Jig(ask)) = root.sends.get(&call).expect("sent") else { panic!("jig ask") };
+    let c::Ask::ChangeSettings(change) = ask.as_ref() else { panic!("settings change") };
+    assert_eq!(
+        change.items.as_slice(),
+        &[c::SettingItem { setting, edit: c::SettingEdit::Set(c::SettingSet { value: value.clone() }) }]
+    );
+
+    let bounds = crate::limits::form();
+    let wire = jig_client_protocol_link::translate::settings::wire_setting_value(&value, &bounds.settings)
+        .expect("wire template");
+    let wire = jig_client_protocol_wire::SettingDocument::new(
+        &bounds.settings,
+        jig_client_protocol_wire::SettingDocumentParts {
+            setting: jig_client_protocol_wire::Setting::Template(
+                jig_client_protocol_wire::SettingNumber::new(
+                    &bounds.settings,
+                    jig_client_protocol_wire::SettingNumberParts { number: 4 },
+                )
+                .unwrap(),
+            ),
+            revision: 5,
+            value: Some(wire),
+            application: None,
+            proposed: None,
+        },
+    )
+    .unwrap();
+    assert_eq!(
+        settings_form::wire::restore_setting_document(&wire, &bounds).unwrap().value,
+        Some(jig::form_setting_value(&value))
+    );
+}
+#[test]
+fn settings_show_template_resources_are_readable_when_present() {
+    for resources in [list([]), list([c::Symbol { connector: 1, symbol: 1 }, c::Symbol { connector: 2, symbol: 3 }])] {
+        let (setting, c::SettingValue::Template(mut template)) = values().remove(1) else { panic!("template") };
+        template.resources = resources.clone();
+        let printed = read(
+            &["settings", "show", "template", "4"],
+            c::ReadValue::Setting(Box::new(c::SettingDocument {
+                setting,
+                revision: 5,
+                value: Some(c::SettingValue::Template(template)),
+                application: None,
+                proposed: None,
+            })),
+        );
+        assert_eq!(printed.status, 0);
+        let text = core::str::from_utf8(&printed.stdout).unwrap();
+        if resources.is_empty() {
+            assert!(!text.contains("connector "), "{text}");
+        } else {
+            assert!(text.contains("connector 1 symbol 1\nconnector 2 symbol 3\n"), "{text}");
+        }
+    }
+}
+
 #[test]
 fn reference_goal_template_resources_survive_apply_and_show() {
     let file = include_bytes!("../../../../../docs/examples/reference/settings.json");
@@ -1946,7 +2304,7 @@ fn reference_goal_template_resources_survive_apply_and_show() {
     let c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Template(template) }) = &item.edit else {
         panic!("template value")
     };
-    assert_eq!(template.resources.as_slice(), &[c::Symbol { connector: 0, symbol: 1 }]);
+    assert_eq!(template.resources.as_slice(), &[c::Symbol { connector: 1, symbol: 1 }]);
     assert_eq!(template.tracked, Some(1));
     goal_template_wire_round_trip(file, change, template);
     for json in [false, true] {
@@ -1966,7 +2324,7 @@ fn reference_goal_template_resources_survive_apply_and_show() {
         let answer = root.answer(call).expect("settings show");
         assert_eq!(answer.status, 0);
         let text = core::str::from_utf8(&answer.stdout).expect("text or JSON");
-        assert!(text.contains(r#""resources":[{"connector":0,"symbol":1}]"#), "{text}");
+        assert!(text.contains(r#""resources":[{"connector":1,"symbol":1}]"#), "{text}");
         if json {
             let decoded = settings_file::decode(&file_from_setting(&answer.stdout), &crate::limits::tools())
                 .expect("show JSON applies");

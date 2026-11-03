@@ -4,7 +4,11 @@
 
 - **Not yet:** 2.1: the shell's `playground` feature
   (`../playground.md`, 6); `temper-client-shell-web` has the features
-  `record` and `loopback-navigation` alone. 4.6: item 12, the
+  `record` and `loopback-navigation` alone.
+  4.3: none of `temper-client-domain`, `temper-client-view`,
+  `temper-client-protocol-wire` and `temper-client-shell-web` is in the gate's wasm32
+  clippy (fab's gate list, `.config/gate/wasm32.txt`); `temper-client-shell-web` fails
+  it at `clippy::too_many_lines` (`src/lib.rs`, `turn`). 4.6: item 12, the
   playground's story A on the built playground and its log replayed
   natively (`../playground.status.md`). 8: reading without signing in: the public pages and their addresses by
   public identifier, the public mode's reads, its timer from each answer's freshness, content dropped

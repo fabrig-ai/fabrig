@@ -24,15 +24,19 @@ for the held landing's story, ignored for a restart fault
 (`domain/forge.md`). A change relays its agents' questions through a
 foreman of its own or straight up, within its bound, but no story asks
 from a repair or a resolution (`domain/forge.md`), and neither a
-project's question route nor the foremen's charter is a setting; the
-reference's configuration lags in its template's own goal branch, which
-a settings file cannot name, its designers' question route, its
-charters' turns and the project's checks (`protocol/configuration.md`).
+project's question route nor the foremen's charter is a setting. The
+reference is one profile a box is set up with, but on a small box a
+result's bytes, a batch and the live delegates stay below the sizes it
+is designed for, and the case's repository carries no CI or tiers'
+workflows (`protocol/configuration.md`).
 Much of a change's own bounds and gates, the forge's merge queue and a
 goal's issue lag (`domain/forge.md`); so do the client's Board, Changes
 and How work runs pages and many of ctl's tools (`client/README.md`,
 `client/forge.md`, `client/tools.md`),
-`temper-playground` (`playground.md`, `domain/testing.md`), upgrades'
+the client's crates in the gate's wasm32 clippy (`client/browser.md`),
+the playground in the browser, whose world is composed natively but
+whose story A stalls at the playground's setup (`playground.md`,
+`domain/testing.md`), upgrades'
 commands and the baseline (`protocol/README.md`), and the release
 (`release.md`). Forges kept in the store, a forge's removal and the
 playground's reset are designed and built; the code departs where the
@@ -49,8 +53,9 @@ tokens and a forge's Replace are built, but for the real loop's story
 remotes come out malformed (`protocol/configuration.md`). The case library's
 purpose is retired (`domain/testing.md`), and the `welcome-set-up`
 journey waits on a new walk (`client/journeys.md`). Of the drafts, the reference
-drafts are what the design lags most (`draft/notes.md`, N1 to N24, in
-their three statuses); the others record what the design carries of
+drafts' statuses hold two departures their cuts decided, a foreman's
+LLM choice and a red of a goal branch's tier that wakes its goal only
+when new (`draft/reference-code-production.md`); the others record what the design carries of
 them and where it lags or departs. `README.md`, `domain/README.md` and
 `protocol/llm.md` have no gap.
 

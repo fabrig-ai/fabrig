@@ -334,7 +334,8 @@ fn ask_names(ask: &people::Ask, project: u32) -> bool {
         | people::Ask::SetPool { project: owner, .. }
         | people::Ask::DecideEscalation { project: owner, .. }
         | people::Ask::Application { scope: people::ApplicationScope::Project(owner), .. } => *owner == project,
-        people::Ask::Application {
+        people::Ask::Restore { .. }
+        | people::Ask::Application {
             scope: people::ApplicationScope::Own | people::ApplicationScope::Deployment,
             ..
         }
@@ -398,6 +399,7 @@ fn rows_naming(world: &World, project: u32) -> Vec<String> {
                 root::Record::Connector { record, .. } => match record {
                     connector::Record::SettingDefault { .. }
                     | connector::Record::SettingChange { .. }
+                    | connector::Record::SettingReplaced { .. }
                     | connector::Record::SettingProposal { .. } => unreachable!("settings routing: apps-world"),
                     connector::Record::Task { project: owner, .. }
                     | connector::Record::Adoption { project: owner, .. }

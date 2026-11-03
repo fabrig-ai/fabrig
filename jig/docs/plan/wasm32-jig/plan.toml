@@ -1,0 +1,24 @@
+draft = "wasm32-jig"
+repo = "fabrig"
+sources = ["jig/docs/plan/wasm32-jig/inputs/request.md", "AGENTS.md", "AGENTS.md", "DESIGN.md"]
+
+# jig's crates under temper-playground pass wasm32 clippy (inputs/request.md): a lint
+# expectation met on the host and not on wasm32, where sizes differ, is scoped to the host.
+# One part, one task, no design (the request says so). plan.md says why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "wasm32-expects"
+title = "jig: every jig crate temper-playground depends on passes wasm32 clippy, native clippy kept green"
+mode = "direct"
+needs = []
+design = "temper/docs/design/playground.md, 9"
+
+[[slice]]
+id = 1
+story = "cargo clippy --target wasm32-unknown-unknown -p temper-playground -- -D warnings finds nothing in jig's code"
+parts = ["wasm32-expects"]
+walk = false

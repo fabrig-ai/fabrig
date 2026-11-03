@@ -1,0 +1,11 @@
+revision restore REVISION [REASON] --key KEY
+  REVISION (revision): a number from 0 to 4294967295; required. The revision to restore
+  REASON (reason): text, at most 1048576 bytes, or - to read stdin; optional. Why; restores revision R when absent
+Propose the settings as REVISION left them, to the owners of its items
+Prints: `proposed restoring revision R as proposal P to role K`, then each item left out
+--json: the record restore.
+Key: --key KEY, required.
+A forgotten revision exits 2, naming the oldest kept. A revision
+too large to restore exits 2; restore a later revision instead.
+Read the proposal with proposal show PROPOSAL, then decide it
+with proposal decide PROPOSAL accept --key KEY.

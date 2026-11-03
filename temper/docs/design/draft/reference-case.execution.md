@@ -101,7 +101,7 @@ so weigh that before starting from it.
 | M7 | Jobs, the merge job, catching up | N6, N7 | M0; M1 for g, M2 for L | 12, 16, 21 | done: M7a landed 2026-11-02 21:34Z, M7b 2026-11-03 07:18Z |
 | M8 | Tiers and verdicts on main | `after-landing.md`, 2 to 6; N5 for main | M0 | 25, 28 | done: landed 2026-11-02 22:33Z (plan `reference-m8`); first walks blocked by a chat finding (finding-111) |
 | M9 | Reds to the goal; g's tier | `after-landing.md`, 7; N5 for g; N22's `repairs` | M2, M8 | 20, 26, 27 | done: landed 2026-11-03 08:28Z (plan `reference-m9`) |
-| M10 | The case | N21; the reference's configuration whole | every one; rung B2 passed | 1 to 28 | cutting since 2026-11-03 10:33Z (plan `reference-m10`) |
+| M10 | The case | N21; the reference's configuration whole | every one; rung B2 passed | 1 to 28 | done 2026-11-03 (plan `reference-m10`); its walk is rung C |
 
 N9 and N17 are the drafts' Later; N11 is accepted and asks no work.
 Each entry's Design names the documents and sections its designers

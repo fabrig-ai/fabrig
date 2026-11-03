@@ -30,6 +30,7 @@ fn rule() -> LandingRule {
 fn keep(d: &mut Domain, scope: u32, number: u32, rule: LandingRule) {
     d.keep_settings(
         &env(),
+        2,
         None,
         &[Asked {
             kind: if scope == 0 { 1 } else { 2 },

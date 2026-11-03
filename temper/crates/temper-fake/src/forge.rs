@@ -14,7 +14,7 @@ use temper_forge_setup::name::{branch, relative, repository};
 
 /// Setup increments its account number before insertion, so it cannot issue MAX.
 pub const OWNER: u64 = u64::MAX;
-/// The one named check, with no delay, silence or rerun.
+/// The one named check, with no silence or rerun.
 pub const CONTEXT: &[u8] = b"check";
 /// A first commit has an empty message in skein's repository constructor.
 pub const MESSAGE: &[u8] = b"";
@@ -46,6 +46,7 @@ pub struct Document {
     owner: Box<[u8]>,
     repositories: Box<[Repository]>,
     github: Option<github::Github>,
+    ci_ms: u32,
 }
 impl Document {
     /// The fake forge of a checked setup entry, its token at `admin_token` (protocol/setup.md, 8.4).
@@ -71,6 +72,7 @@ impl Document {
             owner: fake.owner.clone(),
             repositories: repositories.into_boxed(),
             github: None,
+            ci_ms: 0,
         }
     }
     /// The seeded App's public test private key, for the fake box's own-App path.
@@ -79,6 +81,7 @@ impl Document {
         let github = self.github.as_ref()?;
         Some(github.pem())
     }
+    #[expect(clippy::too_many_lines, reason = "standalone members and repository validation share one decoder")]
     pub fn decode(bytes: &[u8]) -> Result<Self, Refusal> {
         let d = read::document(bytes)?;
         let p = Path::root();
@@ -95,6 +98,7 @@ impl Document {
             Some(at) => Some(github::decode(&d, at, &p.member(b"github"))?),
             None => None,
         };
+        let ci_ms = read::pace(&mut o, &d, b"ci_ms", &p)?;
         read::finish(o, &d, &p)?;
         let listen = read::listen(&d, listen_at, &p.member(b"listen"))?;
         read::absolute(&admin_token, &p.member(b"admin_token"))?;
@@ -179,7 +183,7 @@ impl Document {
         if let Some(github) = &github {
             github.check(repositories.as_slice())?;
         }
-        Ok(Self { listen, admin_token, owner, repositories: repositories.into_boxed(), github })
+        Ok(Self { listen, admin_token, owner, repositories: repositories.into_boxed(), github, ci_ms })
     }
     #[must_use]
     pub fn listen(&self) -> SocketAddr {
@@ -230,7 +234,7 @@ impl Document {
                     default: repository.landing.clone(),
                     tree,
                     labels: Box::new([]),
-                    checks: checks(repository.ci.as_ref()),
+                    checks: checks_paced(repository.ci.as_ref(), self.ci_ms),
                     protection: None,
                     hooked: true,
                 },
@@ -290,13 +294,19 @@ pub fn setup(store: &mut forgejo::setup::Store, admin_token: &[u8; 40]) {
     store.token(admin, b"temper-admin", &[b"all"], Secret::new(bytes::copy_of(admin_token)));
 }
 #[must_use]
-#[expect(clippy::manual_map, reason = "step code uses explicit matches, never closures")]
 pub fn checks(ci: Option<&Ci>) -> api::Checks {
+    checks_paced(ci, 0)
+}
+/// The same CI cue with a fixed verdict latency (protocol/setup.md, 8.4).
+#[must_use]
+#[expect(clippy::manual_map, reason = "step code uses explicit matches, never closures")]
+pub fn checks_paced(ci: Option<&Ci>, ci_ms: u32) -> api::Checks {
+    let latency = Duration::from_millis(u64::from(ci_ms));
     api::Checks {
         cues: Box::new([]),
         contexts: Box::new([bytes::copy_of(CONTEXT)]),
-        latency_min: Duration::ZERO,
-        latency_max: Duration::ZERO,
+        latency_min: latency,
+        latency_max: latency,
         silent: 0,
         passes: 1000,
         reruns: 0,

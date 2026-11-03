@@ -3,9 +3,12 @@
 2026-11-03. Where temper's code lags or departs from [testing.md](testing.md).
 
 - **Not yet:** 2.4: GitHub's real-loop stories 3, 4, 5, 7 and 8; 1, 2 and 6
-  run (`tests/real-loop/tests/suite/github_land.rs`, `github.rs`). 2.4, 2.5,
-  7: the twins' documents and the one-process world's composition in
-  `temper-playground`, which does not exist; `tests/playground`. 2.6:
+  run (`tests/real-loop/tests/suite/github_land.rs`, `github.rs`). 2.4:
+  the twins' documents among `temper-playground`'s stories: B0's and
+  B1's are still the real loop's own fixtures
+  (`tests/real-loop/tests/fixtures/b0`, `b1`). 7: `tests/playground`
+  walks no story and replays no log: it checks story A's calm start
+  (`../playground.status.md`, 9). 2.6:
   `a_default_box_with_a_sign_in_registration_starts_without_dns` is ignored:
   a start without DNS fails while the sign-in's endpoints resolve at start.
   2.6, 5.3: the cluster's 4.6 process story is ignored: a retry placed on a
@@ -24,8 +27,7 @@
   Claude Code one on `claude-haiku-5-5` included; the pair's `#[ignore]`
   reasons still say "a person's sitting" and "owner-run only"
   (`crates/temper/tests/live.rs`). 4.3: the shell subset;
-  skein's fake machine runs no `sh` and no `rg`. 4.3, 7:
-  `temper-fake-git-hosted` in `crates/`; it is in `testing/`. 6.4: of
+  skein's fake machine runs no `sh` and no `rg`. 6.4: of
   temper's kinds' stories, the forge's world's (`forge.md`'s status,
   18); the domain world's project's rule refused to another project's
   owner, a project made after the first start covered by the

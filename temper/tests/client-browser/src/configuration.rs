@@ -72,8 +72,8 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
     value["engine"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket":UNREACHED});
     value["engine"]["limits"]["overrides"]["core.load_slots"] = 8.into();
     value["engine"]["limits"]["overrides"]["documents.rows"] = 2.into();
-    // The creation offer includes all three stock procedures.
-    value["engine"]["limits"]["overrides"]["documents.lines"] = 3.into();
+    // The creation offer carries four stock charters and three procedures.
+    value["engine"]["limits"]["overrides"]["documents.lines"] = 4.into();
     value["engine"]["limits"]["overrides"]["documents.text_bytes"] = 128.into();
     value["engine"]["limits"]["overrides"]["people.sign_ins"] = 2.into();
     value["engine"]["limits"]["overrides"]["views.watchers"] = 16.into();

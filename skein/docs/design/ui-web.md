@@ -188,8 +188,9 @@ Steps from the standard, each needing one before it only where it says.
   binary, never linked into a service or a module. It makes the bundle
   from the module (a `.wasm` file cargo built), the application's name,
   the bundle's prefix (4.3), its stylesheets in order, each owner's
-  pictures' directory, and its page and its files where it has them
-  (3.3, steps 4 and 5).
+  pictures' directory, its page and its files where it has them
+  (3.3, steps 4 and 5), and a playground's worker module where it has
+  one (playground.md, 7).
 - **The bundle is a directory, written whole:**
   - `index.html`, the page, the bundler's or the application's (4.3);
   - beside it, one directory **named by the digest of everything in
@@ -202,7 +203,9 @@ Steps from the standard, each needing one before it only where it says.
       file name, in the order given;
     - `pictures/<owner prefix>/`, each owner's pictures, so two owners'
       never clash;
-    - `files/`, the application's files.
+    - `files/`, the application's files;
+    - a worker's starter, glue and module, its snippets in `snippets/`
+      with the page's (playground.md, 7).
 - **The same inputs give the same bundle,** byte for byte; a change to
   any file in the directory gives another digest, and so another
   directory.

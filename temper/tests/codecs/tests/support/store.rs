@@ -34,6 +34,7 @@ pub const LIMITS: forge::Limits = forge::Limits {
     landing_rules: 4,
     roles: 4,
     setting_proposals: 4,
+    setting_history: 4,
     brief_sections: 32,
     brief_bytes: 4096,
     client: skein_forge_client::Limits {
@@ -75,6 +76,7 @@ pub const LIMITS: forge::Limits = forge::Limits {
         resolutions: 3,
         updates: 3,
         questions: 4,
+        tasks: 6,
         stall: Duration::from_secs(30),
         gates: 8,
         clean_heads: 8,

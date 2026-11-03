@@ -1,0 +1,85 @@
+draft = "playground-temper"
+repo = "fabrig"
+sources = ["temper/docs/plan/playground-temper/inputs/request.md", "temper/docs/design/playground.md", "temper/docs/design/playground.status.md", "AGENTS.md", "DESIGN.md"]
+
+# temper's playground world, natively (inputs/request.md): playground.md 3, 4, 5, 8 and 9's
+# native part. The hosted fake git moves first, alone; the composition, its stories and the
+# fakes' pace follow. The walk through the web client's host and a log replayed wait for
+# skein's kit (plan playground-skein).
+
+retired = true
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "hosted-git"
+title = "temper: the hosted fake git in crates/, on product crates alone, its fixtures with the checkout world"
+mode = "direct"
+needs = []
+design = "temper/docs/design/playground.md, 3"
+
+[[slice]]
+id = 1
+story = "the fake git program the world hosts ships from temper's crates/ on product crates alone, and every world that hosts it walks its stories as before"
+parts = ["hosted-git"]
+walk = false
+
+[[part]]
+id = "fake-pace"
+title = "temper: the fakes' documents of their own gain pace, the LLM's reply_ms and the forge's ci_ms"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/setup.md, 8.4"
+
+[[slice]]
+id = 2
+story = "a fake LLM document with pace reply_ms answers each reply after it, and a fake forge document with pace ci_ms gives its CI's verdict after it; the box's fakes keep none"
+parts = ["fake-pace"]
+walk = false
+
+[[part]]
+id = "composition"
+title = "temper: temper-playground, the composition moved out of tests/one-process on product crates alone, and the one-process world composed on it"
+mode = "direct"
+needs = []
+design = "temper/docs/design/playground.md, 3"
+
+[[slice]]
+id = 3
+story = "the one-process world's stories run on temper-playground's composition with its harness beside it, and the composition builds with no test kit"
+parts = ["composition"]
+walk = false
+
+[[part]]
+id = "story"
+title = "temper: story A as data in temper-playground, checked as data, and walked natively in the one-process world"
+mode = "direct"
+needs = []
+design = "temper/docs/design/playground.md, 5.2"
+
+[[slice]]
+id = 4
+story = "story A walked natively through temper ctl, as rung A walks it: the playground tried, its three suggested requests asked, the CSV export delegated, pushed, passed by CI and landed on main, the dark theme and the empty search answered in text"
+parts = ["story"]
+walk = true
+
+[[part]]
+id = "world"
+title = "temper: tests/playground, story A's world harness-free: no box, calm, one seed, the printed link on standard output"
+mode = "direct"
+needs = []
+design = "temper/docs/design/playground.md, 4"
+
+[[part]]
+id = "bounds"
+title = "temper: the playground world's memory measured at its first step and through story A, by document"
+mode = "direct"
+needs = []
+design = "temper/docs/design/playground.md, 8"
+
+[[slice]]
+id = 5
+story = "story A's world runs with no harness and no box, calm, from one seed, printing its sign-in link, and what its memory holds at its first step and through story A is measured by the document that controls it"
+parts = ["world", "bounds"]
+walk = false

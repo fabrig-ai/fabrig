@@ -19,7 +19,7 @@ pub(crate) fn seed(path: &Path, address: SocketAddr, github: Option<crate::githu
             &path.join("state"),
             record,
             1,
-            temper_fake_git_hosted::fixtures::TOKEN,
+            temper_worker_checkout_world::hosted::TOKEN,
             crate::forge::HOOK_SECRET,
             None,
         );

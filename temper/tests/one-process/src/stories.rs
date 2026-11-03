@@ -6,7 +6,15 @@ use skein_lib::Duration;
 use skein_ui::Role;
 use std::collections::BTreeMap;
 use temper_engine_domain as root;
-use temper_fake_checkout::git::Remote;
+use temper_fake_git_hosted::Remote;
+use temper_playground::documents;
+pub(crate) use temper_playground::documents::settings_file;
+pub(crate) use temper_playground::fakes::forge_table;
+pub mod playground;
+
+pub(crate) fn playground() -> bool {
+    STORY.with(|slot| matches!(slot.get(), Story::PlaygroundA))
+}
 
 // One hook per push: the setup's topic push and the agent's change.
 pub(crate) const ADOPT_HOOKS: usize = 2;
@@ -136,9 +144,9 @@ pub(crate) fn forge(story: Story) -> temper_fake_git_hosted::Typed {
     let config = skein_fake_forge_domain::Config {
         limits: skein_fake_forge_domain::Limits {
             statuses: fixtures::FORGE_STATUSES,
-            ..temper_fake_git_hosted::fixtures::CONFIG.limits
+            ..documents::hosted_git::CONFIG.limits
         },
-        ..temper_fake_git_hosted::fixtures::CONFIG
+        ..documents::hosted_git::CONFIG
     };
     let mut domain = skein_fake_forge_domain::Domain::new(&config, fixtures::SEED);
     let base = skein_fake_forge_domain::repository(
@@ -176,7 +184,7 @@ pub(crate) fn forge(story: Story) -> temper_fake_git_hosted::Typed {
     );
     let forge = std::rc::Rc::new(std::cell::RefCell::new(skein_fake_peers::forge::Forge::new(domain, config)));
     let mut transport = temper_fake_git_hosted::Typed::new(forge, &forge_table());
-    let mut identity = temper_fake_git_hosted::fixtures::identity();
+    let mut identity = documents::hosted_git::identity();
     identity.login = b"temper".as_slice().into();
     transport.authenticate(Some(&(identity.login, identity.token)));
     assert_eq!(
@@ -272,45 +280,7 @@ pub(crate) fn configure(value: &mut serde_json::Value) {
     if STORY.with(|slot| matches!(slot.get(), Story::Chat { .. })) {
         return;
     }
-    value["workers"][0]["slots"] = fixtures::AGENTS.into();
-    value["workers"][0]["limits"]["overrides"]["hub.slots"] = fixtures::AGENTS.into();
-    let grants: Vec<_> = fixtures::GRANT_KINDS
-        .into_iter()
-        .map(|kind| {
-            serde_json::json!({
-                "connector":fixtures::FORGE_CONNECTOR,"kind":kind,"pattern":{"segments":["forge","127.0.0.1:3000"],"last":"open","value":"acme"}
-            })
-        })
-        .collect();
-    let kinds = serde_json::json!([{"kind":"charter","number":fixtures::CHARTER_NUMBER},{"kind":"procedure","number":fixtures::PROCEDURE_CODE}]);
-    let mut ceiling = value["world_settings"]["policies"][0]["policy"]["ceiling"].clone();
-    ceiling["tools"] = fixtures::PRODUCER_TOOLS.into();
-    ceiling["grants"] = grants.into();
-    ceiling["delegation"]["kinds"] = kinds;
-    ceiling["delegation"]["depth"] = fixtures::AUTHORITY_DEPTH.into();
-    value["world_settings"]["policies"][0]["policy"]["ceiling"] = ceiling.clone();
-    value["world_settings"]["policies"][0]["policy"]["roles"][0]["authority"] = ceiling;
-    for (name, count) in fixtures::ENGINE_OVERRIDES {
-        value["engine"]["limits"]["overrides"][name] = count.into();
-    }
-    let overrides = value["engine"]["limits"]["overrides"].as_object_mut().expect("engine overrides");
-    for name in [
-        "tasks.funders",
-        "tasks.dependencies",
-        "tasks.charters",
-        "people.amendment_bytes",
-        "people.projects",
-        "tasks.hold_bytes",
-        "notes.entries_per_scope",
-        "notes.recalled",
-        "views.runs",
-        "people.holdings",
-        "people.waiters",
-        "people.goals",
-        "people.pending",
-    ] {
-        overrides.remove(name);
-    }
+    documents::configure(value);
     if STORY.with(|slot| matches!(slot.get(), Story::HeldChange)) {
         value["world_settings"]["landing"]["deployment"] = serde_json::json!([{
             "connector": 1, "kind": 4,
@@ -335,131 +305,6 @@ pub(crate) fn change_held(rows: &BTreeMap<root::Key, root::Record>) -> bool {
 pub(crate) fn held_change() -> bool {
     STORY.with(|slot| matches!(slot.get(), Story::HeldChange))
 }
-pub(crate) fn forge_table() -> skein_fake_forge_protocol::Config {
-    crate::restart_control::table()
-}
-
-/// The scripted shell's echo redirection acts on the inherited machine files.
-pub(crate) struct Shell {
-    jobs: std::collections::VecDeque<skein_io::kernel::Op>,
-    owned: std::collections::BTreeSet<skein_io::kernel::Fd>,
-    content: Box<[u8]>,
-    pub(crate) target: Vec<u8>,
-    pub(crate) written: Vec<u8>,
-    code: u8,
-    completions: skein_lib::Queue<skein_io::kernel::Complete>,
-    submissions: skein_lib::Queue<skein_io::kernel::Submit>,
-    pending: bool,
-    finished: bool,
-}
-impl Shell {
-    pub(crate) fn new(spawn: &skein_io::kernel::Spawn, inherited: &skein_world::Inherited) -> Self {
-        use skein_io::kernel::{Op, OpenHow};
-        assert_eq!(spawn.args[0].as_ref(), b"-c", "shell command invocation");
-        let command = std::str::from_utf8(&spawn.args[1]).ok();
-        let edit = command.and_then(|command| command.split_once('>')).and_then(|(echo, target)| {
-            let text = echo.trim().strip_prefix("echo ")?;
-            let target = target.trim().as_bytes();
-            (!target.is_empty() && !target.contains(&b'/') && target != b"..").then_some((text, target))
-        });
-        let root = inherited.roots.iter().find(|(name, _)| name.as_ref() == b"worker").expect("shell worker root").1;
-        let mut jobs = std::collections::VecDeque::new();
-        let (content, target, code) = if let Some((text, target)) = edit {
-            let path = [spawn.dir.as_ref(), b"/", target].concat();
-            jobs.push_back(Op::Open { root, path: path.into(), how: OpenHow::WriteNoFollow });
-            ([text.as_bytes(), b"\n"].concat().into(), target.to_vec(), 0)
-        } else {
-            let error = inherited.pipes.iter().find(|(child, _)| *child == 2).expect("shell stderr").1;
-            jobs.push_back(Op::PipeWrite {
-                fd: error,
-                bytes: b"/bin/sh: command not found\n".as_slice().into(),
-                from: 0,
-            });
-            (Box::new([]) as Box<[u8]>, Vec::new(), 127)
-        };
-        let mut owned: std::collections::BTreeSet<_> = inherited.roots.iter().map(|(_, fd)| *fd).collect();
-        owned.extend(inherited.pipes.iter().map(|(_, fd)| *fd));
-        owned.insert(inherited.signal);
-        Self {
-            jobs,
-            owned,
-            content,
-            target,
-            written: Vec::new(),
-            code,
-            completions: skein_lib::Queue::with_capacity(1),
-            submissions: skein_lib::Queue::with_capacity(1),
-            pending: false,
-            finished: false,
-        }
-    }
-}
-impl skein_shell::Host for Shell {
-    fn iterate(&mut self, _now: skein_lib::Time, _wall: skein_lib::Wall) {
-        use skein_io::kernel::{Done, Op};
-        while let Some(complete) = self.completions.pop() {
-            self.pending = false;
-            match (complete.kind, complete.result.expect("shell file operation")) {
-                (Op::Open { .. }, Done::Fd(fd)) => {
-                    self.owned.insert(fd);
-                    self.jobs.push_back(Op::Truncate { fd, length: 0 });
-                }
-                (Op::Truncate { fd, .. }, Done::Nothing) => {
-                    self.written.clear();
-                    self.jobs.push_back(Op::Write { fd, bytes: self.content.clone(), from: 0, at: 0 });
-                }
-                (Op::Write { fd, bytes, from, .. }, Done::Count(count)) => {
-                    self.written.extend_from_slice(&bytes[from as usize..(from + count) as usize]);
-                    let from = from + count;
-                    if (from as usize) < bytes.len() {
-                        self.jobs.push_back(Op::Write { fd, bytes, from, at: u64::from(from) });
-                    }
-                }
-                (Op::PipeWrite { fd, bytes, from }, Done::Count(count)) => {
-                    if (from + count) as usize != bytes.len() {
-                        self.jobs.push_back(Op::PipeWrite { fd, bytes, from: from + count });
-                    }
-                }
-                (Op::Close { fd }, Done::Nothing) => {
-                    self.owned.remove(&fd);
-                }
-                (op, done) => panic!("shell terminal {op:?}: {done:?}"),
-            }
-        }
-        if !self.pending {
-            if let Some(kind) = self.jobs.pop_front().or_else(|| self.owned.first().map(|fd| Op::Close { fd: *fd })) {
-                self.pending = true;
-                self.submissions.push(skein_io::kernel::Submit { op: skein_lib::Token::new(1), kind });
-            } else {
-                self.finished = true;
-            }
-        }
-    }
-    fn completions(&mut self) -> &mut skein_lib::Queue<skein_io::kernel::Complete> {
-        &mut self.completions
-    }
-    fn submissions(&mut self) -> &mut skein_lib::Queue<skein_io::kernel::Submit> {
-        &mut self.submissions
-    }
-    fn work_pending(&self, _now: skein_lib::Time) -> bool {
-        !self.completions.is_empty() || (!self.finished && !self.pending)
-    }
-    fn next_mechanism_deadline(&self) -> Option<skein_lib::Time> {
-        None
-    }
-    fn next_policy_deadline(&self) -> Option<skein_lib::Time> {
-        None
-    }
-    fn is_empty(&self) -> bool {
-        self.finished
-    }
-    fn exit(&self) -> Option<skein_io::kernel::Exit> {
-        self.finished.then_some(skein_io::kernel::Exit::Code(self.code))
-    }
-    fn operations(&self) -> u32 {
-        1
-    }
-}
 
 /// Chat-only seeds fit the stock ceiling; repository seeds use wider own defaults.
 pub(crate) fn uses_stock() -> bool {
@@ -473,7 +318,9 @@ pub(crate) fn first_start() -> bool {
 thread_local! { static SETTINGS: std::cell::Cell<bool> = const { std::cell::Cell::new(false) }; }
 thread_local! { static REVISION: std::cell::Cell<u32> = const { std::cell::Cell::new(1) }; }
 pub(crate) fn setup_settings(phase: crate::world::Phase) {
-    FIRST_START.with(|slot| slot.set(matches!(phase, crate::world::Phase::Story | crate::world::Phase::Fault { .. })));
+    FIRST_START.with(|slot| {
+        slot.set(!playground() && matches!(phase, crate::world::Phase::Story | crate::world::Phase::Fault { .. }));
+    });
     SETTINGS.with(|slot| slot.set(matches!(phase, crate::world::Phase::Drain)));
     REVISION.with(|slot| {
         slot.set(if matches!(phase, crate::world::Phase::Drain | crate::world::Phase::Restart) { 2 } else { 1 });
@@ -485,71 +332,20 @@ pub(crate) fn needs_settings() -> bool {
 pub(crate) fn settings_revision() -> u32 {
     REVISION.with(std::cell::Cell::get)
 }
-pub(crate) fn settings_file() -> Vec<u8> {
-    let document: serde_json::Value = serde_json::from_slice(&fixtures::document()).expect("deployment JSON");
-    let stock = crate::settings::stock(&document);
-    // This world's restart smoke changes its 1 s Own wait to 500 ms through ctl.
-    let mut charter = stock["charter"].clone();
-    charter["waiting"] = (u64::from(fixtures::CHAT_WAIT_MS) * 1_000_000 / 2).into();
-    serde_json::to_vec(&serde_json::json!({"items":[crate::settings::item("charter", 1, charter)]}))
-        .expect("settings FILE")
-}
-
 /// The service's typed defaults, starting from the binary's stock and the document's models.
 pub(crate) fn given(document: &serde_json::Value) -> temper_service::stock::Given {
     let mut document = document.clone();
     document["world_settings"] = fixtures::world_document()["world_settings"].clone();
-    let engine = crate::settings::configuration(&document);
-    let mut defaults = temper_service::stock::defaults(&engine.llm);
     let read_wait =
         STORY.with(|slot| matches!(slot.get(), Story::ChatReadThenWait { .. })) || crate::lower::github::waiting();
-    if read_wait {
-        defaults.charters[0].policy.waiting = skein_lib::Duration::from_millis(u64::from(fixtures::CHAT_WAIT_MS));
-    } else {
-        defaults.templates[0].flags.ended_by = jig_domain_tasks::EndedBy::Result;
-    }
-    let seed = engine.projects.first().expect("world policy");
-    let number = if uses_stock() {
-        let mut policies = skein_lib::Map::with_capacity(2);
-        policies.insert(1, defaults.policies.get(&1).expect("stock policy 1").clone()).expect("two world policies");
-        defaults.policies = policies;
-        2
-    } else {
-        1
-    };
-    defaults
-        .policies
-        .insert(
-            number,
-            jig_domain_core::ConfiguredPolicy {
-                policy: seed.policy.clone(),
-                permissions: seed.roles.clone(),
-                templates: seed.templates.clone(),
-            },
-        )
-        .expect("existing policy slot");
-    if !uses_stock() {
-        let seed = engine.projects.first().expect("repository seed");
-        defaults.rules.ceiling = seed.policy.ceiling.clone();
-        defaults.rules.maximum_run_spend = fixtures::PRODUCER_SPEND;
-        let pairs = fixtures::IMPLICATIONS.map(|implies| jig_domain_authority::Implication {
-            connector: fixtures::FORGE_CONNECTOR,
-            kind: fixtures::GRANT_KINDS[0],
-            implies,
-        });
-        defaults.rules.implies = jig_domain_authority::Implies::new(Box::new(pairs), 2).expect("fixture implications");
-        let charter = &mut defaults.charters[0];
-        charter.policy.inspect = true;
-        charter.policy.modify = true;
-        charter.policy.shell = true;
-        charter.policy.agents = false;
-        charter.policy.turns = fixtures::CHARTER_TURNS;
-        charter.spend = fixtures::PRODUCER_SPEND;
-    }
+    let mut given = documents::given_with(&document, uses_stock(), read_wait);
     if STORY.with(|slot| matches!(slot.get(), Story::HeldChange)) {
-        defaults.charters[0].spend = RUN_ALLOWANCE;
-        defaults.charters[0].policy.waiting = skein_lib::Duration::from_millis(u64::from(fixtures::CHAT_WAIT_MS));
-        defaults.templates[0].budget = jig_domain_people::TemplateBudget::AsAllowed { cap: Some(50) };
+        let temper_service::stock::Given::Own { jig, .. } = &mut given else {
+            unreachable!("playground supplies own defaults");
+        };
+        jig.charters[0].spend = RUN_ALLOWANCE;
+        jig.charters[0].policy.waiting = skein_lib::Duration::from_millis(u64::from(fixtures::CHAT_WAIT_MS));
+        jig.templates[0].budget = jig_domain_people::TemplateBudget::AsAllowed { cap: Some(50) };
     }
-    temper_service::stock::Given::Own { jig: defaults, forge: crate::settings::forge(&document) }
+    given
 }

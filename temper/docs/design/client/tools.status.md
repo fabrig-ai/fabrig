@@ -2,19 +2,24 @@
 
 2026-11-03. Remaining gaps between temper's code and [tools.md](tools.md).
 
+- **Not yet:** 5.5: area 2 cannot distinguish a refused creating offer's
+  capacity cause from its role cause: jig's `me` carries absence alone
+  (`jig/docs/design/client/domain/contract.md`, 5.3). Its diagnostic names
+  the role and `documents.lines` as checks, without asserting either cause.
 - **Not yet:** 5.1: the groups `finding`, `qa`, `party` and
   `deployment`, absent from `temper-client-tools`' `table.rs` `GROUPS`.
   5.2: `repository receipts`, `finding list`, `finding show`, `qa marks`,
   `qa passes` and `hold list`; `project show`'s visibility and public page. 5.3:
   `project amend --visibility`; `task move
   --under`, `task succeed --by`, `finding route`, `finding backlog`,
-  `finding drop`, `qa choose`, `task hold`, `project hold` and `revision
-  restore`. 5.5: area 2's procedure executor choice for `goal start`,
+  `finding drop`, `qa choose`, `task hold` and `project hold`.
+  5.5: area 2's procedure executor choice for `goal start`,
   `proposal withdraw`, `seen`, and `task amend`'s `--budget`; area 3's `party make`, `sign-in --service`, `deployment
   show`, `task move`, `task take`, `task hand-back`, and the project's
   `policy`, `role` and `pool`; area 4's `create`, `propose` and
   `compound`; area 6's `forge forget`, with no request on the wire.
-  6.1: a task wait's refusal by a worker's hello
+  5.3, beside its acts above: `revision restore`'s
+  items of temper's kinds and of a project's policy. 6.1: a task wait's refusal by a worker's hello
   prints its stop bound as jig's nanoseconds, `allowed grace N ns`, not
   whole seconds (`render/document/llm.rs`, `HelloRefusal::StopBound`).
   8.1: `GROUP VERB --help`; `temper ctl` parses a

@@ -499,7 +499,7 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             out
         }
         Event::SignIn { reply_to, identity, held } => sign_in(core, env, work, reply_to, identity, held),
-        Event::ReadLoaded { load, result } => crate::reads::loaded(core, env, load, result),
+        Event::ReadLoaded { load, result } => crate::reads::loaded(core, env, work, load, result),
         Event::PublicRead { reply, .. } => {
             let mut out = Queue::uncapped();
             out.push(Request::Held(Box::new(Held::PublicRead { reply, answer: crate::PublicAnswer::Unknown })));

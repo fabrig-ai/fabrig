@@ -150,7 +150,8 @@ pub(crate) fn read(
     for _ in 0..out.len() {
         let request = out.pop().expect("read completion count");
         match request {
-            connector::Request::SettingsJudged { .. }
+            connector::Request::SettingsRestored { .. }
+            | connector::Request::SettingsJudged { .. }
             | connector::Request::SettingsDefaults { .. }
             | connector::Request::SettingValue { .. }
             | connector::Request::RestoreRefused { .. } => unreachable!("settings routing: apps-world"),

@@ -4,8 +4,11 @@
 
 - **Not yet:** 3: a service's credential reissued or removed. 5.1:
   `Hold`; `Move` under another task; `Succeed`; a party's `Propose` of a
-  release; a widening funded from the amender's pool. 6: retention; a
-  delegate's question to a conversation kept with the conversation. 7: a chat answering its delegates' questions and asking
+  release; a widening funded from the amender's pool. 5.2: a project's
+  policy changed whole by a change of settings, and a pending proposal
+  of settings naming it withdrawn by its deletion.
+  6: retention; a delegate's question to a conversation kept with the
+  conversation. 7: a chat answering its delegates' questions and asking
   its person by a person task. 13: public reading: no public party,
   no `SetVisibility`, no visibility in the people family's rows
   (`../protocol/store.md`, 4.4), no public tasks' rule (13.7), public

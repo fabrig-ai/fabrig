@@ -17,6 +17,7 @@ impl<A: Application> Engine<A> {
             Ask::SetVisibility { .. }
             | Ask::ChangeSettings(_)
             | Ask::MoveToNewest(_)
+            | Ask::Restore { .. }
             | Ask::Create { .. }
             | Ask::Propose { .. }
             | Ask::Withdraw { .. }

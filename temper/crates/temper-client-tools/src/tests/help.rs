@@ -31,6 +31,7 @@ const GOLDENS: &[(Option<u8>, &str)] = &[
     (Some(jig::rows::PROPOSE_SETTINGS_AT), "help_settings_propose"),
     (Some(jig::rows::PROPOSAL_AT), "help_proposal_show"),
     (Some(jig::rows::MOVE_TO_NEWEST_AT), "help_revision_advance"),
+    (Some(jig::rows::RESTORE_AT), "help_revision_restore"),
     (Some(jig::rows::PROJECT_SHOW_AT), "help_project_show"),
     (Some(jig::rows::PROJECT_FUND_AT), "help_project_fund"),
 ];
@@ -62,7 +63,7 @@ fn chat_start_explains_subagent_choices() {
         "each model named once, with one effort",
         "effort is required when the model declares efforts",
         "--sub-agent MODEL_A:EFFORT_A --sub-agent MODEL_B:EFFORT_B",
-        "distinct model names offered by `models`",
+        "distinct model names offered by `model list`",
         "Available choices only: this list neither starts children nor assigns",
         "choices by child order",
         "The parent's `sub_agent` call selects a model with",
@@ -76,6 +77,102 @@ fn chat_start_explains_subagent_choices() {
         );
     }
 }
+#[test]
+fn chat_start_points_to_model_list_and_models_print_readably() {
+    let help = fixtures::help(Some(jig::rows::CHAT_CREATE_AT));
+    for reference in ["as model list shows it", "distinct model names offered by `model list`"] {
+        assert!(skein_lib::bytes::find(&help, reference.as_bytes()).is_some(), "{reference}");
+    }
+    let mut root = fixtures::account_root(false);
+    root.deliver(jig_client::contract::Delivery::Me(Box::new(readable_models())));
+    let call = root.submit(&["model", "list", "--project", "1"]);
+    fixtures::deliver_accounts(&mut root, fixtures::accounts());
+    let printed = root.answer(call).expect("model panel");
+    assert_eq!(printed.status, 0);
+    for fact in [
+        "models for project 1",
+        "provider 9 · Scripted",
+        "model chosen-model",
+        "description: Careful reasoning",
+        "window: 8192 tokens",
+        "output: 1024 tokens",
+        "efforts: high",
+        "prices (per 1000 tokens)",
+        "input: 7",
+        "cached input: 2",
+        "cache write: 9",
+        "output: 11",
+        "account 43",
+        "source 71",
+        "not usable",
+        "model plain-model",
+        "provider unknown",
+        "efforts: none listed",
+        "digest: models ",
+    ] {
+        assert!(fixtures::has(&printed, fact.as_bytes()), "{fact}: {printed:?}");
+    }
+    for raw in [b"provider_name:".as_slice(), b"bytes:", b"cut:", b"cache_write:", b"needs an account"] {
+        assert!(!fixtures::has(&printed, raw), "{raw:?}: {printed:?}");
+    }
+    let json = root.submit(&["model", "list", "--project", "1", "--json"]);
+    fixtures::deliver_accounts(&mut root, fixtures::accounts());
+    let json = root.answer(json).expect("model records");
+    assert_eq!(json.status, 0);
+    assert!(fixtures::has(&printed, &fixtures::last_digest(&json.stdout)));
+}
+
+#[test]
+fn model_panels_keep_projection_loss_and_output_bounds() {
+    use jig_client::contract as c;
+    for loss in 0..3u8 {
+        let mut me = readable_models();
+        match loss {
+            0 => me.providers.get_mut(0).expect("provider").name.cut = true,
+            1 => {
+                let mut description = skein_lib::Writer::new(usize::try_from(crate::limits::TEXT).expect("text bound"));
+                for _ in 0..crate::limits::TEXT {
+                    description.put(b"x").expect("description bound");
+                }
+                me.projects.get_mut(0).expect("project").models.get_mut(0).expect("model").description =
+                    Some(c::Text::new(description.finish(), crate::limits::TEXT).expect("description"));
+            }
+            _ => {
+                let project = me.projects.get_mut(0).expect("project");
+                let model = project.models.get(0).expect("model").clone();
+                project.models = List::with_capacity(64);
+                for _ in 0..64u32 {
+                    project.models.push(model.clone()).expect("model room");
+                }
+            }
+        }
+        let mut root = fixtures::account_root(false);
+        root.deliver(c::Delivery::Me(Box::new(me)));
+        let call = root.submit(&["model", "list", "--project", "1"]);
+        fixtures::deliver_accounts(&mut root, fixtures::accounts());
+        let printed = root.answer(call).expect("cut model panel");
+        assert_eq!(printed.status, 0);
+        assert!(printed.stdout.len() <= usize::try_from(crate::limits::TEXT).expect("text bound"));
+        assert!(fixtures::has(&printed, b"cut: true"), "loss {loss}: {printed:?}");
+        let json = root.submit(&["model", "list", "--project", "1", "--json"]);
+        fixtures::deliver_accounts(&mut root, fixtures::accounts());
+        let json = root.answer(json).expect("cut model records");
+        assert!(fixtures::has(&json, b"\"cut\":true"));
+        assert!(fixtures::has(&printed, &fixtures::last_digest(&json.stdout)));
+    }
+}
+
+fn readable_models() -> jig_client::contract::Me {
+    use jig_client::contract as c;
+    let mut me = fixtures::choice_me(100);
+    me.providers = fixtures::provider_offers();
+    let model = me.projects.get_mut(0).expect("project").models.get_mut(0).expect("model");
+    model.provider = Some(fixtures::PROVIDER);
+    model.description = Some(fixtures::act_text(b"Careful reasoning"));
+    model.prices = c::ModelPrices { input: 7, cached: 2, cache_write: Some(9), output: 11, unit: 1000 };
+    me
+}
+
 // client/tools.md 5.2--5.6, with the plan's typed proposals and close reason.
 const USAGES: &[&[u8]] = &[
     b"me [--since DIGEST] [--until CONDITION] [--timeout DURATION]\n",
@@ -141,6 +238,7 @@ const USAGES: &[&[u8]] = &[
     b"playground end [--key KEY]\n",
     b"task text TASK [--field specification|instructions] [--from OFFSET]\n",
     b"goal start --project PROJECT [--template TEMPLATE] TEXT [--charter CHARTER] [--priority PRIORITY] [--budget AMOUNT] [--as-allowed] [--deadline TIME] [--model MODEL] [--effort EFFORT] [--sub-agent MODEL[:EFFORT]]... --key KEY\n",
+    b"revision restore REVISION [REASON] --key KEY\n",
 ];
 #[test]
 fn a_tools_usage_reads_as_the_design_writes_it() {
@@ -152,7 +250,8 @@ fn a_tools_usage_reads_as_the_design_writes_it() {
 #[test]
 fn each_derivation_names_every_tool() {
     let mut forms = List::with_capacity(fixtures::TOOL_FORMS);
-    for words in fixtures::EVERY_TOOL {
+    let restore: &[&[&str]] = &[&["revision", "restore", "4", "--key", "restore-4"]];
+    for words in fixtures::EVERY_TOOL.iter().chain(restore) {
         let mut call = fixtures::call(words);
         if call.tool == jig::rows::CHANGE_SETTINGS_AT || call.tool == jig::rows::PROPOSE_SETTINGS_AT {
             *call.values.get_mut(0).expect("FILE") =
@@ -402,4 +501,9 @@ fn the_proposal_reference_is_what_the_table_renders() {
 #[test]
 fn the_goal_reference_is_what_the_table_renders() {
     reference_matches(b"goal", b"ctl-goal");
+}
+
+#[test]
+fn the_revision_reference_is_what_the_table_renders() {
+    reference_matches(b"revision", b"ctl-revision");
 }

@@ -13,15 +13,7 @@ use jig_test_domain as root;
 use skein_lib::{Duration, ReplyTo, Token};
 
 fn job(world: &World, kind: u32, bytes: usize, seconds: u64) -> core::Delegate {
-    let mut child = member(world, tasks::Executor::Job { kind }, b"");
-    child.spec.job = Some(Box::new(tasks::JobSpec {
-        bytes: vec![0; bytes].into_boxed_slice(),
-        deadline: Duration::from_secs(seconds),
-    }));
-    child.contract = tasks::Contract::Job { bytes: 0 };
-    child.authority.budget.spend = 0;
-    child.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
-    child
+    jig_core_world::fixtures::job(world, kind, vec![0; bytes].into_boxed_slice(), Duration::from_secs(seconds))
 }
 
 fn step(world: &World, task: u64, child: core::Delegate) -> core::Event {

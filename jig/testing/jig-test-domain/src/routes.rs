@@ -434,65 +434,7 @@ fn route_now(
         core::Now::BriefCorePlanned { task, sections, .. } => brief::plan(env, task, sections, work),
         core::Now::CompleteBrief { brief: token, order } => brief::complete(domain, token, order, work),
         core::Now::WorkspaceRequest { task, attempt, context } => {
-            let mut names = List::with_capacity(env.limits.core.tasks.holdings);
-            let mut checks = List::with_capacity(env.limits.core.authority.writes);
-            for number in [1, 2] {
-                let Some(holdings) = specification_holdings(domain, env, number, context.project, &context.spec, work)
-                else {
-                    work.push(Work::Core(core::Event::WorkspacePrepared {
-                        task,
-                        attempt,
-                        holds: Box::new([]),
-                        workspace: None,
-                        credentials: Box::new([]),
-                        writes: None,
-                    }));
-                    return;
-                };
-                for holding in holdings {
-                    match holding {
-                        tasks::Holding::Write { resource, .. } => {
-                            checks
-                                .push(authority::Write {
-                                    effect: authority::Effect {
-                                        connector: resource.connector,
-                                        kind: 5,
-                                        name: authority::Name { segments: resource.path.clone() },
-                                        state: [0; 32],
-                                        price: None,
-                                        access: authority::EffectAccess::Owned,
-                                        additional: Box::new([]),
-                                        guards: Box::new([]),
-                                    },
-                                    held: authority::Writer::Task,
-                                })
-                                .expect("workspace write check room");
-                            names.push(resource).expect("admitted holding count");
-                        }
-                        tasks::Holding::Slot { .. } => {}
-                    }
-                }
-            }
-            assert!(domain.workspace_writes.insert(task, names.into_boxed()).is_ok(), "workspace per task");
-            let prepared = workspace::credentials(domain, &env.limits, context.project, &context.spec);
-            let (credentials, writes) = match prepared {
-                Some(credentials) => (credentials, Some(checks.into_boxed())),
-                None => (Box::<[u32]>::from([]), None),
-            };
-            let holds = match context.executor {
-                tasks::Executor::Job { .. } => domain.workspace_writes.get(&task).expect("prepared writes").clone(),
-                tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => {
-                    Box::new([])
-                }
-            };
-            work.push(Work::Core(core::Event::WorkspacePrepared {
-                task,
-                attempt,
-                holds,
-                credentials,
-                writes,
-                workspace: None,
-            }));
+            prepare_workspace(domain, env, work, task, attempt, &context);
         }
         core::Now::RunPrepared {
             live,
@@ -612,6 +554,26 @@ pub(super) fn route_connector(
                     judged: answers.into_boxed(),
                 })));
             }
+            connector::Request::SettingsRestored { token, judged } => {
+                let owner = domain.settings_judges.remove(&token).expect("settings restore has a core owner");
+                let mut answers = List::with_capacity(u32::try_from(judged.len()).expect("bounded judgments"));
+                for answer in judged {
+                    answers
+                        .push(match answer {
+                            connector::SettingJudged::Accept { size, charters } => {
+                                core::effects::connector::Judged::Accept { size, charters }
+                            }
+                            connector::SettingJudged::Same => core::effects::connector::Judged::Same,
+                            connector::SettingJudged::Refuse { why } => {
+                                core::effects::connector::Judged::Refuse { why }
+                            }
+                        })
+                        .expect("one answer per judgment");
+                }
+                work.push(Work::Core(core::Event::EffectConnector(
+                    core::effects::connector::Event::SettingsRestored { owner, judged: answers.into_boxed() },
+                )));
+            }
             connector::Request::SettingsDefaults { defaults } => {
                 let mut states = List::with_capacity(u32::try_from(defaults.len()).expect("bounded defaults"));
                 for default in defaults {
@@ -699,6 +661,7 @@ pub(super) fn route_connector(
                     }
                     connector::Record::SettingDefault { .. }
                     | connector::Record::SettingChange { .. }
+                    | connector::Record::SettingReplaced { .. }
                     | connector::Record::SettingProposal { .. }
                     | connector::Record::ApplicationObject { .. }
                     | connector::Record::ApplicationAnswer { .. }
@@ -840,8 +803,28 @@ pub(super) fn route_connector(
 }
 
 /// Translate the core's choice without choosing a judge or admitting a write.
+#[expect(clippy::too_many_lines, reason = "one exhaustive effect handoff dispatcher")]
 fn route_effect_ask(domain: &mut Domain, number: u16, ask: core::effects::connector::Ask, work: &mut Queue<Work>) {
     let event = match ask {
+        core::effects::connector::Ask::ForgetReplaced { before } => connector::Event::ForgetReplaced { before },
+        core::effects::connector::Ask::RestoreSettings { owner, proposal, items } => {
+            let token = domain.hub_link.fresh();
+            domain.settings_judges.insert(token, owner).expect("settings restore route fits");
+            let mut translated = List::with_capacity(u32::try_from(items.len()).expect("bounded restore items"));
+            for item in items {
+                let edit = match item.edit {
+                    core::settings::application::RestoredEdit::Set { revision } => {
+                        connector::RestoredEdit::Set { revision }
+                    }
+                    core::settings::application::RestoredEdit::Remove => connector::RestoredEdit::Remove,
+                    core::settings::application::RestoredEdit::Reset => connector::RestoredEdit::Reset,
+                };
+                translated
+                    .push(connector::RestoredItem { kind: item.kind, scope: item.scope, number: item.number, edit })
+                    .expect("one translated restore item");
+            }
+            connector::Event::RestoreSettings { token, proposal, items: translated.into_boxed() }
+        }
         core::effects::connector::Ask::ResolveUncertain { entry, again } => {
             connector::Event::Resolve { entry, repeat: again }
         }
@@ -1078,7 +1061,8 @@ fn application_answer(outcome: people::Outcome) -> connector::ApplicationCoreAns
             connector::ApplicationCoreAnswer::Refused(crate::application_facts::refusal(why))
         }
         people::Outcome::Again(why) => connector::ApplicationCoreAnswer::Again(crate::application_facts::again(why)),
-        people::Outcome::Compound { .. }
+        people::Outcome::Restored { .. }
+        | people::Outcome::Compound { .. }
         | people::Outcome::CompoundRefused { .. }
         | people::Outcome::Applied { .. }
         | people::Outcome::SignedOut
@@ -1119,5 +1103,213 @@ fn application_answer(outcome: people::Outcome) -> connector::ApplicationCoreAns
         | people::Outcome::AccountSignedOut { .. }
         | people::Outcome::Lifted { .. }
         | people::Outcome::MarkedSeen { .. } => unreachable!("release core part returns a release terminal"),
+    }
+}
+
+fn prepare_workspace(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    work: &mut Queue<Work>,
+    task: u64,
+    attempt: u64,
+    context: &tasks::RunContext,
+) {
+    let checked = workspace_checks(domain, env, context, work);
+    let (holds, credentials, writes) = match checked {
+        Some(WorkspaceChecks { names, writes: checks }) => {
+            let holds = match context.executor {
+                tasks::Executor::Job { .. } => names.clone(),
+                tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => {
+                    Box::new([])
+                }
+            };
+            assert!(domain.workspace_writes.insert(task, names).is_ok(), "workspace per task");
+            match workspace::credentials(domain, &env.limits, context.project, &context.spec) {
+                Some(credentials) => (holds, credentials, Some(checks)),
+                None => (holds, Box::<[u32]>::from([]), None),
+            }
+        }
+        None => (Box::<[tasks::Name]>::from([]), Box::<[u32]>::from([]), None),
+    };
+    let event = core::Event::WorkspacePrepared { task, attempt, holds, credentials, writes, workspace: None };
+    if let Some(waiting) = &mut domain.scripted_workspaces {
+        waiting.push(event);
+    } else {
+        work.push(Work::Core(event));
+    }
+}
+
+struct WorkspaceChecks {
+    names: Box<[tasks::Name]>,
+    writes: Box<[authority::Write]>,
+}
+
+fn workspace_checks(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    context: &tasks::RunContext,
+    work: &mut Queue<Work>,
+) -> Option<WorkspaceChecks> {
+    let mut names = List::with_capacity(env.limits.core.tasks.holdings);
+    let mut checks = List::with_capacity(env.limits.core.authority.writes);
+    for number in [1, 2] {
+        let holdings = specification_holdings(domain, env, number, context.project, &context.spec, work)?;
+        for holding in holdings {
+            match holding {
+                tasks::Holding::Write { resource, .. } => {
+                    checks
+                        .push(authority::Write {
+                            effect: authority::Effect {
+                                connector: resource.connector,
+                                kind: 5,
+                                name: authority::Name { segments: resource.path.clone() },
+                                state: [0; 32],
+                                price: None,
+                                access: authority::EffectAccess::Owned,
+                                additional: Box::new([]),
+                                guards: Box::new([]),
+                            },
+                            held: authority::Writer::Task,
+                        })
+                        .expect("workspace write check room");
+                    names.push(resource).expect("admitted holding count");
+                }
+                tasks::Holding::Slot { .. } => {}
+            }
+        }
+    }
+    Some(WorkspaceChecks { names: names.into_boxed(), writes: checks.into_boxed() })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tests::fixtures;
+
+    #[test]
+    #[expect(clippy::too_many_lines, reason = "one restore round trip checks its edits, records and owner binding")]
+    fn a_restore_ask_reaches_the_connector_and_its_answer_reaches_the_core() {
+        let mut domain = fixtures::domain();
+        let env = fixtures::env();
+        let mut config = jig_test_connector_world::config(1);
+        config.settings = Some(connector::SettingsKind {
+            kind: 71,
+            project: false,
+            value_bytes: 16,
+            per_scope: 4,
+            charters: false,
+            defaults: Box::from([]),
+        });
+        domain.first = connector::Domain::new(config, &env.limits.connector);
+        let mut requests = Queue::uncapped();
+        connector::step(
+            &mut domain.first,
+            &env.with(env.limits.connector),
+            connector::Event::Restore {
+                record: connector::Record::SettingReplaced {
+                    kind: 71,
+                    scope: 0,
+                    number: 1,
+                    revision: 7,
+                    value: Box::from(&b"old"[..]),
+                },
+            },
+            &mut requests,
+        );
+        assert!(requests.is_empty());
+        let owner = Token::new(900);
+        let edits = [
+            core::settings::application::RestoredEdit::Set { revision: 7 },
+            core::settings::application::RestoredEdit::Remove,
+            core::settings::application::RestoredEdit::Reset,
+            core::settings::application::RestoredEdit::Set { revision: 6 },
+        ];
+        let mut items = List::with_capacity(4);
+        for (index, edit) in edits.into_iter().enumerate() {
+            items
+                .push(core::settings::application::Restored {
+                    kind: 71,
+                    scope: 0,
+                    number: u32::try_from(index).expect("four items") + 1,
+                    edit,
+                })
+                .expect("four items");
+        }
+        let mut out = Queue::uncapped();
+        out.push(core::Request::Ask {
+            connector: 1,
+            ask: core::Ask::Effect(core::effects::connector::Ask::RestoreSettings {
+                owner,
+                proposal: 12,
+                items: items.into_boxed(),
+            }),
+        });
+        let mut decision = domain.journal.decide();
+        let mut work = fixtures::work();
+        route_core(&mut domain, &env, &mut decision, out, &mut work);
+        let Work::Connector { number, event } = work.pop().expect("restore reaches connector") else {
+            panic!("restore routes to connector");
+        };
+        assert_eq!(number, 1);
+        let connector::Event::RestoreSettings { token, proposal, items } = &event else {
+            panic!("restore keeps its proposal and edits");
+        };
+        assert_ne!(*token, owner);
+        assert_eq!(*proposal, 12);
+        assert_eq!(
+            items.as_ref(),
+            [
+                connector::RestoredItem {
+                    kind: 71,
+                    scope: 0,
+                    number: 1,
+                    edit: connector::RestoredEdit::Set { revision: 7 }
+                },
+                connector::RestoredItem { kind: 71, scope: 0, number: 2, edit: connector::RestoredEdit::Remove },
+                connector::RestoredItem { kind: 71, scope: 0, number: 3, edit: connector::RestoredEdit::Reset },
+                connector::RestoredItem {
+                    kind: 71,
+                    scope: 0,
+                    number: 4,
+                    edit: connector::RestoredEdit::Set { revision: 6 }
+                },
+            ]
+        );
+        connector::step(&mut domain.first, &env.with(env.limits.connector), event, &mut requests);
+        route_connector(&mut domain, &env, &mut decision, number, &mut requests, &mut work);
+        let Some(Work::Core(core::Event::EffectConnector(core::effects::connector::Event::SettingsRestored {
+            owner: returned,
+            judged,
+        }))) = work.pop()
+        else {
+            panic!("restored answer reaches core");
+        };
+        assert_eq!(returned, owner);
+        assert_eq!(
+            judged.as_ref(),
+            [
+                core::effects::connector::Judged::Accept { size: 3, charters: Box::from([]) },
+                core::effects::connector::Judged::Accept { size: 0, charters: Box::from([]) },
+                core::effects::connector::Judged::Accept { size: 0, charters: Box::from([]) },
+                core::effects::connector::Judged::Refuse { why: Box::from(&b"no value kept"[..]) },
+            ]
+        );
+        assert!(domain.settings_judges.is_empty());
+        assert!(work.is_empty());
+        domain.journal.accept(decision);
+        assert_eq!(domain.journal.commit().expect("proposal records share one commit").writes.len(), 3);
+        route_effect_ask(&mut domain, 1, core::effects::connector::Ask::ForgetReplaced { before: 8 }, &mut work);
+        let Some(Work::Connector { number: 1, event }) = work.pop() else {
+            panic!("forget reaches connector");
+        };
+        assert_eq!(event, connector::Event::ForgetReplaced { before: 8 });
+        connector::step(&mut domain.first, &env.with(env.limits.connector), event, &mut requests);
+        assert_eq!(
+            requests.pop(),
+            Some(connector::Request::Erase {
+                key: connector::RecordKey::SettingReplaced { kind: 71, scope: 0, number: 1, revision: 7 },
+            })
+        );
+        assert!(requests.is_empty());
     }
 }

@@ -135,8 +135,35 @@ fn fixed_executor_refuses_a_charter_override() {
 #[test]
 fn a_charter_outside_creating_bounds_sends_nothing() {
     let mut me = goal_me();
-    me.projects.get_mut(0).unwrap().creating.as_mut().unwrap().within.charters = List::with_capacity(0);
-    refused(me, START, b"goal not offered or exceeds offered bounds\n");
+    let mut charters = List::with_capacity(3);
+    for number in [1, 2, 4] {
+        charters.push(number).unwrap();
+    }
+    me.projects.get_mut(0).unwrap().creating.as_mut().unwrap().within.charters = charters;
+    refused(me, START, b"template 4 requires charter 5, which is not offered; offered charters: 1 2 4\n");
+}
+
+#[test]
+fn absent_creating_offer_names_the_receiving_bound() {
+    let mut me = goal_me();
+    me.projects.get_mut(0).unwrap().creating = None;
+    refused(me, START, b"project has no creating offer; check role and receiving bound documents.lines for charter and procedure lists\n");
+}
+
+#[test]
+fn a_goal_past_the_ceiling_names_budget_or_deadline() {
+    let mut me = goal_me();
+    me.projects.get_mut(0).unwrap().creating.as_mut().unwrap().within.maximum_budget = 79;
+    refused(me, START, b"goal budget or deadline exceeds the project's offered ceiling\n");
+}
+
+#[test]
+fn a_goal_without_a_proposal_recipient_keeps_the_refusal() {
+    let mut me = goal_me();
+    let creating = me.projects.get_mut(0).unwrap().creating.as_mut().unwrap();
+    creating.within.budget = 79;
+    creating.beyond = c::Beyond::Refused(c::Refusal::NoEscalationHolder);
+    refused(me, START, b"No one to escalate to\n");
 }
 
 #[test]

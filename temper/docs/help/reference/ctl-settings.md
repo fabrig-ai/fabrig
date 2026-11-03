@@ -52,6 +52,9 @@ is `{"setting": {"kind": KIND, "number": NUMBER}, "set": VALUE}`, or
 number. A file out of form names the item, member and rule (exit
 1). `settings apply: stale; newest revision R; read settings show
 again` (exit 2): read the settings, then decide again.
+`{"kind": "project-policy", "project": P}` sets project P's own
+policy, set alone, once a file; it needs an owner of P, and with
+the deployment's items one owner of both.
 ```
 
 ## settings propose

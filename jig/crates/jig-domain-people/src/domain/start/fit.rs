@@ -146,6 +146,7 @@ fn person_result(key: &Key, limits: &Limits, result: &crate::PersonResult) -> Re
 
 pub(super) fn ask(key: &Key, limits: &Limits, value: &Ask) -> Result<(), RestoreCause> {
     match value {
+        Ask::Restore { reason, .. } => within(key, RestoreBound::Words, reason.len(), limits.words),
         Ask::Compound { operations, .. } => {
             measured(RestoreBound::Operations, u64::from(operations.len()), limits.operations)?;
             for operation in operations {
@@ -260,6 +261,7 @@ pub(super) fn outcome(key: &Key, limits: &Limits, outcome: &Outcome) -> Result<(
         | Outcome::ServiceMade { .. }
         | Outcome::Adopted { .. }
         | Outcome::Created { .. }
+        | Outcome::Restored { .. }
         | Outcome::Proposed { .. }
         | Outcome::Withdrawn { .. }
         | Outcome::Stopped { .. }
@@ -302,6 +304,7 @@ fn refusal(key: &Key, why: &Refusal) -> Result<(), RestoreCause> {
         Refusal::Kept { pending } => within(key, RestoreBound::KeptPending, pending.len(), 64),
         Refusal::Judged { .. }
         | Refusal::SignInRedirect { .. }
+        | Refusal::Forgotten { .. }
         | Refusal::Stale { .. }
         | Refusal::NameTaken
         | Refusal::AccountMove { .. }

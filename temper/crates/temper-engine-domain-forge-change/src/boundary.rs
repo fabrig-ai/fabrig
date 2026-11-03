@@ -453,7 +453,8 @@ pub struct Stepped {
     pub decision: Decision,
 }
 
-/// Bounds on delegates, updates, stalls and supplied gate facts.
+/// Bounds on delegates, updates, stalls and supplied gate facts
+/// (temper/docs/design/domain/agent.md, 4.3.1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
     pub repairs: u32,
@@ -461,6 +462,8 @@ pub struct Limits {
     pub updates: u32,
     /// Questions a change takes from its making or its last release (domain/forge.md, 8.11).
     pub questions: u32,
+    /// Tasks a change's delegate may make beside its foremen.
+    pub tasks: u32,
     pub stall: Duration,
     pub gates: u32,
     pub clean_heads: u32,
