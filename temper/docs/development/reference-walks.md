@@ -391,3 +391,29 @@ The ended page lists task 1 and task 2, a line each.
 ### Triage reason
 
 the rung's story never lists ended tasks (it reads the chat's task by `task show`, which said Ended); a wrong `task list --ended` page is off the happy path and waits in temper's backlog
+
+## finding-170: settings show template 4 prints a raw JSON record; it never names 'its own goal branch'
+
+- Rung: rm3
+- Walk: walk-62
+- Backend: chatgpt-forgejo
+- Commit: 943c9871ecadd29c2338405add4f954e4e3752ec
+- Area: ctl settings show words
+- Severity: low
+- Sightings: (none)
+
+### Reproduction
+
+settings apply the reference's template 4; settings show template 4
+
+### Expected
+
+A line naming the template's own goal branch (the brief's step 3)
+
+### Seen
+
+'template 4, revision 3' then a raw record with resources [{connector:0,symbol:1}]; no words for the goal branch
+
+### Triage reason
+
+finding-150's repair (21611e57bd, in the walk's commit) holds: settings show template 4 now prints `resources [{connector:0,symbol:1}]`, which `temper help` settings-fields names as "its own goal branch", so the step can be read with the help; what is left is that settings show prints every setting as a raw record (by design, the goldens show the same for every template), which is friction in the words, not a step that cannot be done or a What passes that cannot be read (What passes asks for the goal on its own branch g, not for these words); whether connector 0 is the right connector is finding-168's cause, not this one's
