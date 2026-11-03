@@ -36,7 +36,8 @@ refused.
 | charter | `charter-push` | | a test pinning the reference charter's "push as you go" | 20 |
 
 Released in the first push: `kept-start`, `checkout-heads`, `early-step`, `charter-push`.
-The rest follow in the next push.
+Released in the second: `kept-started-from`, `checkout-heads-engine`, `early-route`,
+`early-stories`. The plan is whole: no task is left to write.
 
 ## Critical path
 
