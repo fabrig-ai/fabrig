@@ -677,8 +677,8 @@ pub enum Word {
 // Eighteen playground, removal and forge choice literals.
 pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The post-landing panel has ten phrases and eighteen segments.
-const PHRASES: u32 = 1199;
-const SEGMENTS: u32 = 2106;
+const PHRASES: u32 = 1200;
+const SEGMENTS: u32 = 2107;
 const ALL: [Word; 607] = [
     Word::PlaygroundBanner,
     Word::PlaygroundSetUp,
