@@ -597,6 +597,13 @@ pub enum Request {
         how: forge::How,
         carried: jig_domain_core::Carried,
     },
+    /// Run a Replace: Check on a connected Forgejo, Paste with the kept App id on GitHub
+    /// (protocol/forge.md, 2.2).
+    Replace {
+        forge: u16,
+        request: Token,
+        carried: jig_domain_core::Carried,
+    },
     Manifest {
         forge: u16,
         request: Token,

@@ -136,7 +136,7 @@ fn connect_new_github_makes_a_record_at_the_machines_place() {
             How::GitHubManifest { .. } => {
                 assert!(out.contains(&Request::Manifest { forge: 1, request: Token::new(1), back: None }));
             }
-            How::ForgejoAdmin { .. } => unreachable!(),
+            How::ForgejoAdmin { .. } | How::ForgejoTokens => unreachable!(),
         }
     }
 }

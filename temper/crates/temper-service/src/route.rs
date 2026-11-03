@@ -46,7 +46,14 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
                 crate::setup::public::admin_connect(engine, forge, request, first, carried);
             }
             temper_engine_domain_forge::How::GitHubManifest { .. } => unreachable!("manifest has its own door"),
+            temper_engine_domain_forge::How::ForgejoTokens => {
+                unreachable!("a tokens connect is refused at admission until the routing stages Check")
+            }
         },
+
+        root::Request::Replace { .. } => {
+            unreachable!("a Replace is refused at admission until the routing stages Check and Paste")
+        }
         root::Request::Manifest { forge, request, back } => {
             crate::setup::public::manifest(engine, forge, request, back);
         }
