@@ -29,9 +29,9 @@ box's group file holds a forge's kind alone (`protocol/setup.md`,
 `protocol/forge.md`, `protocol/README.md`), and lags in a
 removal without the box (`domain/forge.md`) and a project's Delete
 (`client/README.md`); a connected Forgejo, its connect with its bot's
-tokens and a forge's Replace lag (`protocol/forge.md`,
-`protocol/setup.md`, `protocol/credentials.md`, `client/README.md`,
-`client/forge.md`, `client/tools.md`); with `application.machine.github` null, GitHub's
+tokens and a forge's Replace are built, but for the real loop's story
+(`client/tools.md`) and a connected Forgejo made managed
+(`protocol/setup.md`); with `application.machine.github` null, GitHub's
 remotes come out malformed (`protocol/configuration.md`). The case library's
 purpose is retired (`domain/testing.md`). Of the drafts, the reference
 drafts are what the design lags most (`draft/notes.md`, N1 to N24, in
