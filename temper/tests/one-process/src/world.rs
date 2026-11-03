@@ -133,7 +133,7 @@ impl Harness for OneProcess {
             Role::Agent => observer::process(Observed::Agent, inherited, base),
             Role::Git => observer::process(Observed::Git, inherited, base),
             Role::Shell => observer::process(Observed::Shell, inherited, base),
-            Role::Provider | Role::Forge | Role::Other => {}
+            Role::Provider | Role::Forge | Role::Visitor | Role::Other => {}
         }
     }
     fn complete(role: Role, complete: &Complete) {
@@ -145,7 +145,7 @@ impl Harness for OneProcess {
             Role::Shell => Observed::Shell,
             Role::Provider => Observed::Provider,
             Role::Forge => Observed::Forge,
-            Role::Other => return,
+            Role::Visitor | Role::Other => return,
         };
         observer::complete(role, complete);
     }
@@ -1088,6 +1088,7 @@ fn run_phase(
             | Proc::Shell(_)
             | Proc::Peer(_)
             | Proc::Forge(_)
+            | Proc::Visitor(_)
             | Proc::Other(HarnessProcess::Ctl(_) | HarnessProcess::Calls(_)) => None,
         })
         .sum();

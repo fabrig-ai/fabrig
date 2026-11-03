@@ -112,3 +112,34 @@ Acceptance:
 As the implementer's text says, and also: the walk's world time, step count and wall time; the
 log's size in bytes and its input count; the script's differences from the one-process one; the
 pace used.
+
+## Answers
+
+2026-11-03. **Who diagnoses story A's stall at "Starting" (person step 3, no "Add CSV export to
+widget"): the composition's owner, or this task?** This task, diagnosis first: the native walk is
+the plan's meeting point, the stall is its own acceptance, and nothing yet says which side holds
+the fault. One-process story A walks the same composition through the terminal client; what is
+new here is the driver, the web host and the visitor. Steps, with throwaway diagnostics only:
+
+1. **The world's side at the stall.** Keep the world's printed lines through the walk (the turn
+   loop drops `Heard::Printed` now) and print, on failure, every line of each process's standard
+   error and output after the link. Read the world's state as the one-process world's `outcome`
+   does: did `StartPlayground` reach the service, is the Playground forge's record there and
+   connected, is `playground/widget` adopted on the fake forge, does the project exist.
+2. **The page's side.** Count, through the walk, the host's requests carried by
+   `transport::carry` and the bridge's answers (`StreamOpened`, `StreamPiece`, `StreamRefused`,
+   each fetch's status), and whether `read_on` follows each piece; check the person's wait and
+   the host's deadline move `self.browser`, so the world steps between the person's polls.
+
+Then:
+
+- **The fault is in this package** (the driver's carrying, its stream reading, its time steps,
+  the script): fix it here and go on with the acceptance as written.
+- **The world finished `StartPlayground` but the page never shows it,** and the cause is in
+  `temper-client-shell-web` (`host`, `adapter`, `transport`) or skein's bridge: stop and ask with
+  the evidence, file and line. Those stay as the trunk has them.
+- **The world itself never finishes `StartPlayground`** (the composition with the visitor, the
+  fakes, the service): stop and ask with the evidence and the process lines from step 1, naming
+  the component; `temper-playground` is `playground-visitor`'s and `playground-worker`'s now.
+
+The report gives the diagnosis whichever way it goes, with the counts and lines that show it.

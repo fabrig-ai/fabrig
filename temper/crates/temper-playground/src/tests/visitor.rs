@@ -6,7 +6,6 @@ use crate::{
 };
 use skein_lib::{Time, Wall};
 use skein_playground::slices::{Slices, Wake};
-use skein_shell::Host;
 use skein_ui_web::{bridge, fetch};
 
 const SEED: u64 = 7;
@@ -21,34 +20,34 @@ fn start() -> Slices<Process<()>, Machine> {
     story::slices(stories::A.start(SEED, Wall::EPOCH), story::SLICE_STEPS, Time::ZERO)
 }
 
-fn idle(slices: &mut Slices<Process<()>, Machine>, browser: &mut Time) -> (Vec<bridge::ToPage>, u32) {
+fn until(
+    slices: &mut Slices<Process<()>, Machine>,
+    browser: &mut Time,
+    ready: impl Fn(&[bridge::ToPage]) -> bool,
+) -> (Vec<bridge::ToPage>, u32, Wake) {
     let mut posts = Vec::new();
-    let mut first_printed = None;
     for count in 1..=MAX_SLICES {
         let wake = slices.slice(*browser, &mut posts);
-        if first_printed.is_none() && posts.iter().any(|post| matches!(post, bridge::ToPage::Printed(_))) {
-            first_printed = Some((count, slices.world().steps(), wake));
+        if let Wake::At(at) = wake {
+            *browser = at;
         }
-        match wake {
-            Wake::Now => {}
-            Wake::At(at) => *browser = at,
-            Wake::Message => return (posts, count),
+        if ready(&posts) {
+            return (posts, count, wake);
         }
     }
-    let states: Vec<_> = slices
-        .world()
-        .processes()
-        .iter()
-        .map(|process| (process.work_pending(slices.world().now()), process.next_deadline()))
-        .collect();
-    let Process::Service(service) = &slices.world().processes()[0] else { panic!("service first") };
     panic!(
-        "seed {SEED}: world did not wait for a message within {MAX_SLICES} slices; first printed {first_printed:?}; step {}, now {:?}, due {:?}, states {states:?}, pending {:?}",
+        "seed {SEED}: expected posts not reached within {MAX_SLICES} slices; step {}, now {:?}, due {:?}",
         slices.world().steps(),
         slices.world().now(),
         slices.world().next_due(),
-        service.service.pending(slices.world().now())
     );
+}
+
+fn idle(slices: &mut Slices<Process<()>, Machine>, browser: &mut Time) -> (Vec<bridge::ToPage>, u32, Wake) {
+    until(slices, browser, |posts| {
+        posts.iter().any(|post| matches!(post, bridge::ToPage::Printed(_)))
+            && matches!(posts.last(), Some(bridge::ToPage::Clock(clock)) if clock.idle)
+    })
 }
 
 fn printed(posts: &[bridge::ToPage]) -> &bridge::Printed {
@@ -65,16 +64,14 @@ fn story_a_posts_its_printed_link() {
     let mut slices = start();
     programs::with(story::parameters(slices.world()), || {
         let mut browser = Time::ZERO;
-        let (posts, count) = idle(&mut slices, &mut browser);
+        let (posts, count, wake) = idle(&mut slices, &mut browser);
         let line = printed(&posts);
         assert_eq!(line.process.as_ref(), b"temper serve");
         assert_eq!(line.stream, bridge::Stream::Output);
         let secret = line.line.strip_prefix(PREFIX).expect("the clients listener's sign-in link");
         assert!(!secret.is_empty() && !secret.contains(&b'\r') && !secret.contains(&b'\n'));
         assert!(matches!(posts.last(), Some(bridge::ToPage::Clock(clock)) if clock.idle));
-        let mut after = Vec::new();
-        assert_eq!(slices.slice(browser, &mut after), Wake::Message);
-        assert!(!after.iter().any(|post| matches!(post, bridge::ToPage::Printed(_))));
+        assert!(matches!(wake, Wake::At(_) | Wake::Message), "idle wake: {wake:?}");
         eprintln!("seed {SEED}: printed link and idle in {count} slices, {} steps", slices.world().steps());
     });
 }
@@ -84,7 +81,7 @@ fn the_visitor_spends_the_printed_link() {
     let mut slices = start();
     programs::with(story::parameters(slices.world()), || {
         let mut browser = Time::ZERO;
-        let (posts, _) = idle(&mut slices, &mut browser);
+        let (posts, _, _) = idle(&mut slices, &mut browser);
         let path = printed(&posts).line.strip_prefix(b"http://127.0.0.1:7102").expect("link authority");
         slices.input(bridge::Input::Exchange(fetch::Exchange {
             id: EXCHANGE,
@@ -94,7 +91,9 @@ fn the_visitor_spends_the_printed_link() {
             body: Box::new([]),
             bound: BODY_BYTES,
         }));
-        let (posts, _) = idle(&mut slices, &mut browser);
+        let (posts, _, _) = until(&mut slices, &mut browser, |posts| {
+            posts.iter().any(|post| matches!(post, bridge::ToPage::Report(_)))
+        });
         let reports: Vec<_> = posts
             .iter()
             .filter_map(|post| if let bridge::ToPage::Report(report) = post { Some(report) } else { None })

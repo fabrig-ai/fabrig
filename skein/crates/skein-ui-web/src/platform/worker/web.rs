@@ -4,7 +4,7 @@ use crate::{bridge, fetch, inbox::Inbox, log::Log, platform::Platform, store, tr
 use skein_lib::{Duration, Time, Wall};
 use std::{
     cell::{Cell, RefCell},
-    rc::Rc,
+    rc::{Rc, Weak},
 };
 use wasm_bindgen::{JsCast, JsValue, closure::Closure};
 
@@ -120,6 +120,44 @@ impl<R: 'static> Worker<R> {
     /// Ends the worker, its handlers and its pending timer.
     pub fn end(&self) {
         self.shared.end();
+    }
+
+    /// A handle for the page's panic hook, which stops the worker and takes its log without
+    /// borrowing the platform (playground.md, 7).
+    #[must_use]
+    pub fn fail_stop(&self) -> FailStop<R> {
+        FailStop { shared: Rc::downgrade(&self.shared) }
+    }
+}
+
+/// Stops a worker from the page's panic hook (playground.md, 7). It holds no borrow of what the
+/// loop holds, keeps nothing alive, and dropping it ends nothing.
+pub struct FailStop<R> {
+    shared: Weak<Shared<R>>,
+}
+
+impl<R> FailStop<R> {
+    /// Terminates the worker and clears its timer; every later call of the platform is then idle.
+    /// A panic may hold any of the platform's cells, so this only tries them.
+    pub fn stop(&self) {
+        let Some(shared) = self.shared.upgrade() else { return };
+        shared.ended.set(true);
+        if let Some(handle) = shared.timeout.take() {
+            web_sys::window().expect("browser window").clear_timeout_with_handle(handle);
+        }
+        if let Ok(worker) = shared.worker.try_borrow()
+            && let Some(worker) = worker.as_ref()
+        {
+            worker.terminate();
+        }
+    }
+
+    /// The session log's text, or none when the worker is gone or the panic holds the log.
+    #[must_use]
+    pub fn log(&self) -> Option<Box<[u8]>> {
+        let shared = self.shared.upgrade()?;
+        let log = shared.log.try_borrow().ok()?;
+        Some(log.text())
     }
 }
 

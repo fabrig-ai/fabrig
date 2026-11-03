@@ -899,6 +899,20 @@ have one, an engine alone none. Each:
   operations, staged and in flight, independently of its domain's room.
   With the owned example's worker it fits the kernel's 32,768 entries.
 
+A goal's deployment capacity is sized with `engine.limits.overrides`:
+`tasks.tasks` and `tasks.project_tasks` bound live concurrency;
+`tasks.tree_tasks` counts lifetime tasks including the root, and
+`tasks.depth` counts depth below that root at zero. `tasks.delegates`
+bounds live direct delegates, `tasks.batch` one atomic creation,
+`tasks.project_goals` live tracked goals per project, and `documents.lines`
+a charter document read. These are distinct from stored policy authority.
+The inbox and compound-operation dependencies are jig's configuration.md,
+section 6; refusals preserve the source, dependent capacity and required
+minimum. Task batch refusals preserve the codec field and ceiling. When
+a task record drives the map value past the fixed profile ceiling, the
+refusal names `TaskRecord`, its batch capacity and both sizes, and says to
+reduce task record capacities; that ceiling has no scalar override.
+
 ## 8. First start and every start
 
 - **Every command that reads the document checks it,** once its three
@@ -1237,6 +1251,18 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
   focused tests at a push in the box's worker, warm and cold, beside
   the checks' deadline (the agent's `policy.check_timeout`, 60 s on the
   box, a timeout the user sets).
+- **The reference's sizes on the small profile** (13.9). Small's store
+  bounds, which no override moves, hold the largest task record, which
+  grows with a result's bytes, a batch, the live delegates and the
+  people's operations, so the profile cannot take the table's values
+  for those on a small box; init's agent and worker carriers hold a
+  run's inbox and the agent's tool payload at init's. Default: on a
+  small box the profile takes, of each, the largest the start admits,
+  so a designer's report is cut at that bound and a family's changes
+  may be made one to a call. Either the reference's box runs the
+  standard profile, whose store holds a larger record, or jig's store
+  bounds follow the limits they hold; the case's walk shows whether a
+  family's list, cut at that bound, still reaches the coordinator.
 
 ## 12. The three directories
 

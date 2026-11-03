@@ -658,3 +658,61 @@ fn placed_hold_overrides_reject_zero_and_exemptions_past_the_live_set() {
         What::Override,
     );
 }
+
+#[test]
+fn capacity_dependencies_survive_override_parsing() {
+    for (bytes, member, configured, dependency, minimum) in [
+        (
+            br#"{"profile":"small","overrides":{"documents.lines":3,"tasks.tasks":64}}"#.as_slice(),
+            b"tasks.tasks".as_slice(),
+            64,
+            b"people.inbox_tasks".as_slice(),
+            128,
+        ),
+        (
+            br#"{"profile":"small","overrides":{"documents.lines":3,"tasks.delegates":8}}"#,
+            b"tasks.delegates",
+            8,
+            b"people.operations",
+            9,
+        ),
+        (
+            br#"{"profile":"small","overrides":{"documents.lines":3,"tasks.delegates":16}}"#,
+            b"tasks.delegates",
+            16,
+            b"people.operations",
+            17,
+        ),
+        (
+            br#"{"profile":"small","overrides":{"tasks.project_goals":9}}"#,
+            b"tasks.project_goals",
+            9,
+            b"people.operations",
+            9,
+        ),
+    ] {
+        problem(
+            bytes,
+            &[b"limits", b"overrides", member],
+            What::Capacity { member, configured, requires: dependency, required: minimum },
+        );
+    }
+    parse(br#"{"profile":"small","overrides":{"tasks.project_tasks":64}}"#).expect("project capacity is independent");
+    parse(br#"{"profile":"small","overrides":{"tasks.tasks":64,"people.inbox_tasks":128}}"#)
+        .expect("sufficient inbox capacity");
+}
+
+#[test]
+fn batch_past_the_schema_keeps_its_binding_count() {
+    problem(
+        br#"{"profile":"small","overrides":{"documents.lines":3,"tasks.batch":8}}"#,
+        &[b"limits", b"overrides", b"tasks.batch"],
+        What::CodecCeiling {
+            bound: crate::CodecBound {
+                field: b"tasks-v9.ResultFollowupsDelegates.value",
+                needed: 8,
+                ceiling: jig_protocol_store::tasks_v9::CEILINGS.result_followups_delegates_value,
+            },
+        },
+    );
+}

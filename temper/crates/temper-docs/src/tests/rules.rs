@@ -103,6 +103,35 @@ fn budget_help_sizes_a_hundred_change_goal() {
 }
 
 #[test]
+fn capacity_help_names_members_and_dependencies() {
+    for name in [b"budget".as_slice(), b"configure"] {
+        let text = find(name).expect("capacity help page").text;
+        let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
+        for words in [
+            "engine.limits.overrides",
+            "tasks.tasks",
+            "tasks.project_tasks",
+            "tasks.tree_tasks",
+            "tasks.depth",
+            "tasks.delegates",
+            "tasks.batch",
+            "tasks.project_goals",
+            "documents.lines",
+            "people.inbox_tasks",
+            "people.operations",
+            "128",
+            "lifetime tree capacity",
+            "schema ceiling",
+            "profile",
+            "reduce",
+            "spec/result/authority",
+        ] {
+            assert!(text.contains(words), "capacity help must explain {words}: {text}");
+        }
+    }
+}
+
+#[test]
 fn each_guide_is_one_of_the_six_names() {
     let guides = PAGES.iter().filter(|page| page.kind == Kind::Guide).map(|page| page.name).collect::<Vec<_>>();
     assert!(guides.iter().all(|name| GUIDES.contains(name)), "guides among the six transitional names");
