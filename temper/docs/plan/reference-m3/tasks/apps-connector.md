@@ -70,8 +70,10 @@ Acceptance:
    `SettingValue { token, value: Option<Box<[u8]>> }`.
 3. `domain.rs`: handle each as connectors.md, section 17 says: a reset judged as its
    default (none: as a removal); a proposal's judge reads the kept value; keep writes the
-   records in the event's decision; a stored value it cannot decode, or of a kind or scope
-   it no longer owns, refuses its restore naming it (its existing restore refusal).
+   records in the event's decision; a stored value of a kind or scope it no longer owns,
+   or past its `value_bytes`, refuses its restore naming it. The connector's `restore` has
+   no refusal today: add `Request::RestoreRefused { kind, scope, number }` (default); the
+   root's arm for it is `apps-world`'s (here `unreachable!`).
 4. Tests: unit tests in `src/tests/settings.rs` (each rule; keep and drop; defaults
    compared: same, changed, added, gone); subtree world `jig/tests/test-connector/tests/
    suite/settings.rs` (the root scripted above, a restart between steps): a change judged

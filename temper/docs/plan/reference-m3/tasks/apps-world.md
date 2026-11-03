@@ -55,8 +55,10 @@ Acceptance:
    connector's events (the root keeps the core's `owner` token beside the connector's own,
    as `Judge` does), and its `SettingsJudged`/`SettingsDefaults` requests to
    `connector::Event::SettingsJudged`/`SettingsDefaults`; the start gives the connector its
-   defaults before its restore (engine.md, section 6, step 2). The routing reads nothing
-   of a value.
+   defaults before its restore (engine.md, section 6, step 2); the connector's
+   `RestoreRefused { kind, scope, number }` refuses the start through the root's start
+   failure path, naming them (if the root has none for a connector, `panic!` naming them
+   and say so). The routing reads nothing of a value.
 2. Story `jig/tests/core/tests/suite/application_settings.rs` (the world's drivers, its
    oracle on): the test connector owns kind 1, project-scoped, `charters` 1, with one
    default. An owner's change sets a value: accepted, kept, the settings document's state
