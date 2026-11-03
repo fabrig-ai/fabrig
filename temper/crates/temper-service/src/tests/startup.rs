@@ -41,7 +41,7 @@ fn transcript_document(bytes: u32) -> Box<[u8]> {
 
 #[test]
 fn startup_admits_a_frame_exactly_at_the_profile_page_ceiling() {
-    let document = transcript_document(1_606_799);
+    let document = transcript_document(1_606_813);
     crate::startup(
         &document,
         &config::Directories::working(),
@@ -55,13 +55,13 @@ fn startup_admits_a_frame_exactly_at_the_profile_page_ceiling() {
     .expect("a whole frame exactly at Small's page ceiling starts");
     let opened =
         crate::store_limits(&document, &config::Directories::working(), Some(&fixtures::startup_agent())).unwrap();
-    assert_eq!(opened.store.store.page.bytes, 1_606_863);
+    assert_eq!(opened.store.store.page.bytes, 1_606_877);
 }
 
 #[test]
 fn startup_names_a_frame_one_byte_past_the_profile_page_ceiling() {
-    let document = transcript_document(1_606_800);
-    let expected = b"application.limits.overrides.root.loads.transcript_bytes: its turn's transcript frame, 1606864 bytes, needs a store page past the profile's ceiling of 1606863 bytes\n";
+    let document = transcript_document(1_606_814);
+    let expected = b"application.limits.overrides.root.loads.transcript_bytes: its turn's transcript frame, 1606878 bytes, needs a store page past the profile's ceiling of 1606877 bytes\n";
     let named = crate::named(&document, &config::Directories::working()).unwrap_err();
     assert_eq!(lines(&named).as_ref(), expected);
     let opened =
