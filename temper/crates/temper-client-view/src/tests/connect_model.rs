@@ -163,11 +163,13 @@ fn a_program_way_shows_the_default_name_and_the_command_on_each_host() {
 }
 
 pub(super) fn flow_fixture(kind: d::WayKind) -> (d::Domain, skein_lib::Token) {
-    let (mut root, me_watch, _, _, accounts_watch) = fixtures::root_at_full(
+    flow_fixture_at(
+        kind,
         d::Address::ConnectModel { way: Some(d::ModelWay { source: None, provider: PROVIDER, kind }) },
-        &fixtures::limits(),
-        b"Shop",
-    );
+    )
+}
+fn flow_fixture_at(kind: d::WayKind, address: d::Address) -> (d::Domain, skein_lib::Token) {
+    let (mut root, me_watch, _, _, accounts_watch) = fixtures::root_at_full(address, &fixtures::limits(), b"Shop");
     let mut me = d::pages::accounts::current_me(root.client()).unwrap().clone();
     me.providers = List::with_capacity(1);
     me.providers
@@ -273,6 +275,31 @@ fn a_key_has_details_then_ready_with_its_account_and_chat_link() {
         Some(d::Action::Pages(d::pages::Act::Go {
             address: d::Address::Chats { filter: d::ChatsFilter::All, start: false }
         }))
+    );
+}
+#[test]
+fn a_key_added_on_the_welcome_continues_to_its_ready() {
+    let way = d::ModelWay { source: None, provider: PROVIDER, kind: d::WayKind::Key };
+    let (mut root, _) =
+        flow_fixture_at(d::WayKind::Key, d::Address::Welcome { step: d::Step::Model { way: Some(way) } });
+    let mut view = fixtures::view();
+    fixtures::build(&mut view, &root);
+    press(
+        &mut view,
+        &mut root,
+        Role::TextField,
+        b"Key (pasted once)",
+        Act::Input { value: Box::from(b"private-once".as_slice()) },
+    );
+    let attempt = sent(&mut root, M::Submit { name: [1; 16] });
+    answer(&mut root, attempt, c::DocumentOutcome::AccountKeyKept { source: 43 });
+    let tree = fixtures::build(&mut view, &root);
+    assert!(words(&root).contains("Added your OpenAI API key"));
+    assert_eq!(fixtures::find(tree, Role::Link, b"Start a chat"), None);
+    let node = fixtures::find(tree, Role::Link, b"Continue").unwrap();
+    assert_eq!(
+        crate::act(&mut view, node, Act::Press),
+        Some(d::Action::Pages(d::pages::Act::Go { address: d::Address::Welcome { step: d::Step::Ready } }))
     );
 }
 #[test]
