@@ -77,8 +77,9 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "chats-first-run-5",
-        heading: "What shall we change?",
+        heading: "Chats",
         parts: &[
+            Part::Named { role: Role::List, name: "Suggested requests" },
             Part::Named { role: Role::Region, name: "Playground" },
             Part::Absent { role: Role::Link, name: "Manage usage" },
         ],
@@ -392,7 +393,7 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "chats-first-run-1",
-        heading: "What shall we change?",
+        heading: "Chats",
         parts: &[
             Part::Named { role: Role::List, name: "Suggested requests" },
             Part::Named { role: Role::Button, name: "Add CSV export to widget" },
@@ -497,10 +498,7 @@ const HOLDS: [Holds; samples::N] = [
     Holds {
         name: "chats-empty",
         heading: "Chats",
-        parts: &[
-            Part::Named { role: Role::Heading { level: 2 }, name: "Your chats" },
-            Part::Chats { live: 0, closed: 0 },
-        ],
+        parts: &[Part::Named { role: Role::Heading { level: 1 }, name: "Chats" }, Part::Chats { live: 0, closed: 0 }],
     },
     Holds {
         name: "inbox-empty",

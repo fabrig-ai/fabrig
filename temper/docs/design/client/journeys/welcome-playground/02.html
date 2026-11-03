@@ -4,7 +4,7 @@
 ><meta charset="utf-8"
 ><meta name="viewport" content="width=device-width, initial-scale=1"
 ><title
->What shall we change? · temper</title
+>Chats · temper</title
 ><link rel="stylesheet" href="../skein-ui.css"
 ><link rel="stylesheet" href="../../../../../crates/temper-client-shell-web/temper.css"
 ><link rel="stylesheet" href="../../../../../crates/temper-client-shell-web/task-pages.css"
@@ -65,24 +65,44 @@
 ></div
 ></details
 ></header
-><section aria-label="LLM account" class="temper-accounts"
-><p aria-label="Agents need an LLM account to run."
+><main class="temper-main"
+><aside aria-label="Project" class="temper-sidebar"
+><div class="temper-chatbar"
+><div
+><p aria-label="New chat"
 ><span
->Agents need an LLM account to run.</span
+>New chat</span
 ></p
-><a aria-label="Continue with ChatGPT" href="/accounts/connect?provider=1&amp;way=sign-in"
+><div role="status" aria-label="Ready" class="temper-status-quiet"
 ><span
->Continue with ChatGPT</span
-></a
-><a aria-label="Use an API key" href="/accounts/connect?provider=1&amp;way=key"
+>Ready</span
+></div
+></div
+></div
+><div class="temper-context"
+><p
+><span class="temper-repository"
+>playground/widget</span
+></p
+></div
+><div class="temper-heading"
+><h1 aria-label="Chats"
 ><span
->Use an API key</span
-></a
-><a aria-label="Use your Claude subscription" href="/accounts/connect?provider=2&amp;way=program"
+>Chats</span
+></h1
+><div class="temper-filters"
+><button type="button" aria-pressed="true"
+>All</button
+><button type="button"
+>Live</button
+><button type="button"
+>Closed</button
+></div
+></div
+><p aria-label="No chats yet." class="temper-empty"
 ><span
->Use your Claude subscription</span
-></a
-></section
+>No chats yet.</span
+></p
 ><section aria-label="Playground" class="temper-accounts"
 ><p
 ><span
@@ -95,67 +115,17 @@
 ></a
 ></p
 ></section
-><main class="temper-main"
-><div class="temper-chatbar"
-><div
-><p aria-label="New chat"
+></aside
+><div class="temper-entry"
+><textarea aria-label="Start a chat" placeholder="Describe a change" enterkeyhint="send" class="temper-composer"
+></textarea
+><p class="temper-hint"
 ><span
->New chat</span
+>enter to start · shift+enter for newline</span
 ></p
-><div role="status" aria-label="Ready" class="temper-status-quiet"
-><span
->Ready</span
-></div
-></div
-><div
-><p aria-label="Scripted model"
-><span
->Scripted model</span
-></p
-></div
-></div
-><div class="temper-context"
-><p
-><span
->Playground · </span
-><span class="temper-repository"
->playground/widget</span
-><span
-> on Playground forge</span
-></p
-><p aria-label="Signed in as the deployment’s owner"
-><span
->Signed in as the deployment’s owner</span
-></p
-></div
-><section aria-label="What shall we change?" class="temper-invitation"
-><h1 aria-label="What shall we change?"
-><span
->What shall we change?</span
-></h1
-><p aria-label="Try a request in playground/widget. Follow the task from its branch to a landed change."
-><span
->Try a request in playground/widget. Follow the task from its branch to a landed change.</span
-></p
-><ul aria-label="Suggested requests"
-><li
 ><button type="button"
->Add CSV export to widget</button
-></li
-><li
-><button type="button"
->Add a dark theme to widget</button
-></li
-><li
-><button type="button"
->Fix widget's empty search state</button
-></li
-></ul
-><p aria-label="The scripted model plays these requests from its script."
-><span
->The scripted model plays these requests from its script.</span
-></p
-></section
+>Start chat</button
+></div
 ><div class="temper-choice"
 ><p aria-label="Using the default model" class="temper-account-line"
 ><span
@@ -206,34 +176,22 @@
 >Reset choice</button
 ></details
 ></div
-><div class="temper-entry"
-><textarea aria-label="Start a chat" enterkeyhint="send" class="temper-composer"
-></textarea
-><p class="temper-hint"
-><span
->temper · Enter to start · Shift+Enter for newline</span
-></p
+><div class="temper-invitation"
+><ul aria-label="Suggested requests"
+><li
 ><button type="button"
->Start chat</button
-></div
-><div class="temper-heading"
-><h2 aria-label="Your chats"
-><span
->Your chats</span
-></h2
-><div class="temper-filters"
-><button type="button" aria-pressed="true"
->All</button
+>Add CSV export to widget</button
+></li
+><li
 ><button type="button"
->Live</button
+>Add a dark theme to widget</button
+></li
+><li
 ><button type="button"
->Closed</button
+>Fix widget's empty search state</button
+></li
+></ul
 ></div
-></div
-><p aria-label="No chats yet." class="temper-empty"
-><span
->No chats yet.</span
-></p
 ></main
 ></div
 ></body
