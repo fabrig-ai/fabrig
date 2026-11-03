@@ -130,3 +130,15 @@ and finish the Steps.
 
 The service fixture missing `started_from` (`temper-service/src/tests/fixtures.rs`) stays
 under `## Left`, as reported.
+
+## Rebase (2026-11-03, step merge, foreman reference-m6/early-route/foreman-2)
+
+resolve the test-file append conflict by retaining both independent additions
+The merge conflicts only in `temper/crates/temper-engine-domain/src/route/forge_route/tests.rs`.
+The branch appends `pending_dependencies_distinguish_changes_elsewhere_and_other_tasks`.
+Integration appends `release_held_tier`, introduced on main by `f012f783bf` and incorporated through `3243c39733`.
+Keep both complete functions as separate module-level items, with their closing braces intact.
+Keep the branch test’s `#[test]` and scoped `#[expect(...)]` attached to that test.
+Preserve integration’s call to `release_held_tier`, `projection: None` fields, and updated tier-words assertion.
+Neither addition replaces the other; no production behavior change is needed for this conflict.
+After resolving, run formatting and the focused `temper-engine-domain` library tests through `heavy`.
