@@ -1,0 +1,3 @@
+draft = "fabrig-scale"
+repo = "fabrig"
+sources = ["temper/docs/plan/fabrig-scale/inputs/request.md", "AGENTS.md"]
