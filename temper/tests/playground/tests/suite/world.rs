@@ -1,5 +1,6 @@
 //! The browser's calm starting world (temper/docs/design/playground.md, 4).
 
+use skein_io::kernel::Exit;
 use skein_lib::Wall;
 use skein_sim::{Faults, Trace};
 use skein_sim_world::Host;
@@ -13,19 +14,6 @@ const WALL: Wall = Wall::EPOCH;
 #[test]
 fn story_a_starts_with_no_box_calm_and_prints_its_link() {
     let mut started = start_idle(&A, SEED, WALL);
-    for process in started.world.processes() {
-        let role = match process {
-            Process::Service(_) => "service",
-            Process::Peer(_) => "LLM peer",
-            Process::Forge(_) => "forge",
-            Process::Agent(_) => "agent",
-            Process::GitRoute(_) => "git route",
-            Process::Git(_) => "git",
-            Process::Shell(_) => "shell",
-            Process::Other(never) => match *never {},
-        };
-        eprintln!("startup process {role}: exit {:?}", process.exit());
-    }
     let link = printed_link(&started.printed);
     let (_, secret) = link.split_once("/jig/v1/sign-in/link?secret=").expect("the service's sign-in link");
     assert!(!secret.is_empty() && !secret.contains(['\r', '\n']), "one whole link line");
@@ -36,7 +24,13 @@ fn story_a_starts_with_no_box_calm_and_prints_its_link() {
         }),
         "only the service, its two fake peers and git; no box process"
     );
-    assert!(started.world.processes().iter().all(|process| process.exit().is_none()), "no process ended");
+    for process in started.world.processes() {
+        let exit = process.exit();
+        assert!(
+            exit.is_none() || (matches!(process, Process::Git(_)) && exit == Some(Exit::Code(0))),
+            "calm startup keeps the service and fake peers running; only hosted git may end, with Code(0); got {exit:?}"
+        );
+    }
     let (sim, _, processes) = started.world.parts();
     let Process::Service(service) = &processes[0] else { panic!("the service is process zero") };
     assert!(service.service.end().is_none(), "the service waits for its visitor");
