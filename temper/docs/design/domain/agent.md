@@ -319,9 +319,10 @@ any `delegate` (jig's authority, named and decided once):
   producer's and its reviews' (forge.md, 8.9), as the only kinds it may
   delegate, the merge kind, job 3, where the run's authority delegates
   to it (forge.md, 8.4), and a person's role where a landing rule
-  covering the branch names a person gate; at most 6 tasks (a
-  producer, a review, and two repairs each followed by its review), one
-  fewer than the run has left, and a depth of at most 2; no notes; half of
+  covering the branch names a person gate; at most
+  `forge.change_policy.tasks` tasks (`../protocol/configuration.md`,
+  section 7: 6 in `small`, a producer, a review, and two repairs each
+  followed by its review), one fewer than the run has left, and a depth of at most 2; no notes; half of
   what the run's budget has left, so that it can still read the result
   and answer, refused when that is no more than a run's minimum. That
   half is a default, open to tuning. Several changes in one call share
@@ -439,10 +440,10 @@ delegate from what it knows:
   default is `"none"`. Any other value is refused, naming it. A change
   taking `"foreman"` is given one more task per question of its bound
   (`forge.change_policy.questions`, `../protocol/configuration.md`,
-  section 7), beside the six above, for its foremen.
+  section 7), beside the tasks above, for its foremen.
 - **Members to come** join each change's object, each optional and
   checked by the root as it decides that change's delegate, leaving
-  these as they are: its general producer that is a job.
+  these as they are.
 
 #### 4.3.2 A goal, in the run's words
 
@@ -899,3 +900,9 @@ host:
   (jig's `domain/engine.md`, 7.3); temper's takes none.
 - **A code graph** for a workspace (worker.md, section 12), as an MCP
   tool source once smith has one.
+- **A change produced by a job of any kind.** `producer` names a
+  charter, and `merge` the merge job, a catch-up's producer (4.3.1):
+  every producer a reference change needs
+  (`../draft/reference-code-production.md`, section 3). Default: no
+  other job kind produces a change; a project whose tooling makes
+  changes with no model would name its kind as a member of `change`.

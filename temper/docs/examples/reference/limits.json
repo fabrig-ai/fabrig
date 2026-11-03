@@ -1,0 +1,37 @@
+{
+  "engine": {
+    "limits": {
+      "overrides": {
+        "tasks.tree_tasks": 1024,
+        "tasks.tasks": 64,
+        "tasks.project_tasks": 64,
+        "tasks.delegates": 12,
+        "people.operations": 13,
+        "tasks.inbox_messages": 40,
+        "tasks.run_inbox": 8,
+        "tasks.inbox_bytes": 163840,
+        "tasks.result_bytes": 461,
+        "tasks.batch": 1,
+        "authority.batch": 4,
+        "people.batch": 4,
+        "authority.executors": 16,
+        "tasks.executor_kinds": 16,
+        "tasks.charters": 12,
+        "people.inbox_tasks": 128,
+        "people.inbox_recipients": 88
+      }
+    }
+  },
+  "application": {
+    "limits": {
+      "overrides": {
+        "forge.change_policy.tasks": 8,
+        "forge.changes": 32,
+        "forge.holds": 32,
+        "forge.tasks": 64,
+        "checkout.message_bytes": 16386,
+        "forge.client.resources": 32
+      }
+    }
+  }
+}

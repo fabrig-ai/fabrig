@@ -115,15 +115,20 @@ pub(crate) fn apply(core: &mut Core, env: &Env<Limits>, task: u64, step: u64, ev
             kept.push(request);
         }
     }
-    if let Some(why) = refusal {
-        drop(core.land(token));
-        return refused(core, task, step, why);
-    }
     let mut routed = crate::routing::task::tag_task_outputs(core, env, kept);
     let mut out = Queue::uncapped();
     for _ in 0..routed.len() {
         let request = routed.pop().expect("routed step count");
         out.push(request);
+    }
+    if let Some(why) = refusal {
+        drop(core.land(token));
+        let mut refused = refused(core, task, step, why);
+        for _ in 0..refused.len() {
+            let request = refused.pop().expect("procedure refusal output");
+            out.push(request);
+        }
+        return out;
     }
     let mut revisions = List::with_capacity(revised.capacity());
     for number in revised.into_boxed() {
