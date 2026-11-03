@@ -56,13 +56,17 @@ fn make_tier_run(
     true
 }
 
-pub(crate) fn start_tier_step(domain: &mut Domain, _env: &Env<Limits>, context: &tasks::RunContext) {
+pub(crate) fn start_tier_step(domain: &mut Domain, env: &Env<Limits>, context: &tasks::RunContext) {
     let task = context.task;
-    let Some(entry) = crate::fresh(&mut domain.core.counters, Family::ConnectorRow) else { return };
     let released = match domain.core.tasks.task(task) {
         Some(row) => row.due_reason == tasks::Why::Released,
         None => false,
     };
+    if !released && projection_needed(domain, task) {
+        tier_decision(domain, env, task, forge::TierDecision::Wait { until: Some(env.wall) }, None);
+        return;
+    }
+    let Some(entry) = crate::fresh(&mut domain.core.counters, Family::ConnectorRow) else { return };
     domain.forge.offered_tier(task);
     domain.work.push(Work::Forge(forge::Event::StepTier {
         task,
@@ -181,4 +185,13 @@ fn has_run(words: &[u8], line: &[u8]) -> bool {
         }
     }
     false
+}
+
+fn projection_needed(domain: &Domain, task: u64) -> bool {
+    let Some(projection) = domain.forge.tier_execution_words(task) else { return false };
+    let Some(words) = projected_words(domain, task, &projection) else { return false };
+    match domain.core.tasks.task(task) {
+        Some(row) => row.spec.words != words,
+        None => false,
+    }
 }

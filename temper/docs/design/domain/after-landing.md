@@ -274,7 +274,9 @@ red by earlier failures it does not run (5.3).
   run, a failed-test rerun and each bisection probe, with its commit and
   branch, and the forge run number and URL once observed. The procedure
   projects these facts through its own task's specification words in a
-  due step (jig's `domain/tasks.md`, 5.3). The task keeps them after
+  due step (jig's `domain/tasks.md`, 5.3). New part words are saved
+  before its effects are issued; the procedure continues at a deadline
+  due immediately. The task keeps them after
   completion, branch release and restart. Observations not yet projected
   are kept on the tier row until a step acknowledges their task words,
   including across follower replacement and restart.
