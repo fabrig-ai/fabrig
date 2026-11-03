@@ -51,6 +51,7 @@ pub fn sent(request: &Request) -> Option<Sent> {
 
 /// Observe a linked client's request independently of its application's root type.
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "one exhaustive observer classifies every client ask")]
 pub fn client_sent(request: &ClientRequest) -> Option<Sent> {
     let ClientRequest::Exchange { exchange, message: Message::Request(bytes), .. } = request else { return None };
     let keyed = w::Keyed::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("keyed bytes");
@@ -129,6 +130,7 @@ pub fn client_sent(request: &ClientRequest) -> Option<Sent> {
                 | w::Ask::Rename(_)
                 | w::Ask::ChangeSettings(_)
                 | w::Ask::MoveToNewest(_)
+                | w::Ask::Restore(_)
                 | w::Ask::MakeProject(_)
                 | w::Ask::SetPool(_) => None,
             };

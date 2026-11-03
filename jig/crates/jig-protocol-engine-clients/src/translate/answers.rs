@@ -10,6 +10,17 @@ pub(crate) fn answer(
     limits: &w::Limits,
 ) -> Result<w::KeyedAnswer, w::Problem> {
     let final_answer = match reply {
+        p::Reply::Outcome(p::Outcome::Restored { proposal, to, left_out }) => {
+            let mut settings = skein_lib::List::with_capacity(super::count(left_out.len())?);
+            for setting in left_out {
+                settings.push(super::settings::name(*setting, limits)?).expect("left-out count");
+            }
+            let outcome = w::Outcome::Restored(w::OutcomeRestored::new(
+                limits,
+                w::OutcomeRestoredParts { proposal: *proposal, to: *to, left_out: settings },
+            )?);
+            w::Final::Done(w::Done::new(limits, w::DoneParts { outcome })?)
+        }
         p::Reply::Outcome(p::Outcome::MovedToNewest { newest, moved, stayed }) => w::Final::Done(w::Done::new(
             limits,
             w::DoneParts {
@@ -113,7 +124,6 @@ fn problem() -> w::Problem {
 #[expect(clippy::too_many_lines, reason = "one total match names every people outcome")]
 fn owner(value: &p::Outcome, limits: &w::Limits) -> Result<w::DocumentOutcome, w::Problem> {
     Ok(match value {
-        p::Outcome::Restored { .. } => unreachable!("a restore: settings-wire"),
         p::Outcome::ProjectRemoved { project } => w::DocumentOutcome::ProjectRemoved(w::OutcomeProjectRemoved::new(
             limits,
             w::OutcomeProjectRemovedParts { project: *project },
@@ -298,7 +308,8 @@ fn owner(value: &p::Outcome, limits: &w::Limits) -> Result<w::DocumentOutcome, w
                 },
             )?)
         }
-        p::Outcome::SettingsChanged { .. }
+        p::Outcome::Restored { .. }
+        | p::Outcome::SettingsChanged { .. }
         | p::Outcome::MovedToNewest { .. }
         | p::Outcome::AccountMovingOut { .. }
         | p::Outcome::CompoundRefused { .. }

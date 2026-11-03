@@ -60,6 +60,7 @@ fn setting(value: w::Setting) -> s::Setting {
         w::Setting::Template(value) => s::Setting::Template(value.number()),
         w::Setting::Policy(value) => s::Setting::Policy(value.number()),
         w::Setting::Rules => s::Setting::Rules,
+        w::Setting::ProjectPolicy(v) => s::Setting::ProjectPolicy { project: v.project() },
         w::Setting::Application(v) => s::Setting::Application { kind: v.kind(), scope: v.scope(), number: v.number() },
     }
 }

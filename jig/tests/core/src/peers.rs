@@ -546,7 +546,7 @@ fn party_refusal(why: people::Refusal) -> parties::Refusal {
         people::Refusal::Judged { at, setting, why } => parties::Refusal::Judged {
             at,
             setting: match setting {
-                jig_domain_people::Setting::ProjectPolicy { .. } => unreachable!("a project's policy: policy-wire"),
+                jig_domain_people::Setting::ProjectPolicy { project } => parties::Setting::Policy(project),
                 people::Setting::Charter(n) => parties::Setting::Charter(n),
                 people::Setting::Template(n) => parties::Setting::Template(n),
                 people::Setting::Policy(n) => parties::Setting::Policy(n),
