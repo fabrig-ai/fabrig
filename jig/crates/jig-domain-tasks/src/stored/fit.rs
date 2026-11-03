@@ -298,6 +298,7 @@ pub(super) fn task(limits: &Limits, value: &TaskRecord) -> Result<(), RestoreCau
     count(RestoreBound::Dependencies, value.dependencies.len(), limits.dependencies)?;
     count(RestoreBound::Dependencies, value.waiting_on.len(), limits.dependencies)?;
     count(RestoreBound::Dependencies, value.added.len(), limits.dependencies)?;
+    count(RestoreBound::Dependencies, value.started_from.len(), limits.dependencies)?;
     count(RestoreBound::InboxMessages, value.questions.len(), limits.inbox_messages)?;
     count(RestoreBound::InboxMessages, value.question_lines.len(), limits.inbox_messages)?;
     count(RestoreBound::InboxMessages, value.proposal_rows.len(), limits.inbox_messages)?;

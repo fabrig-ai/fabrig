@@ -1421,3 +1421,23 @@ fn a_producer_report_is_bounded_by_the_forge_operation_bytes() {
         }
     }
 }
+
+#[test]
+fn a_changes_early_start_round_trips_each_arm_and_head_order() {
+    use temper_engine_domain_forge_change::{Early, StartedFrom, State};
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    let heads = Box::new([StartedFrom { task: 12, head: [2; 32] }, StartedFrom { task: 11, head: [1; 32] }]);
+    for early in [
+        Early::None,
+        Early::Started(Box::new([])),
+        Early::Spent(Box::new([])),
+        Early::Started(heads.clone()),
+        Early::Spent(heads),
+    ] {
+        let mut row = fixtures::change_row(State::Producing { requested: false });
+        row.change.early = early;
+        let row = forge::Stored::Change(row);
+        let bytes = records::encode(&row);
+        assert_eq!(records::decode(&bytes, &bounds), Ok(row));
+    }
+}

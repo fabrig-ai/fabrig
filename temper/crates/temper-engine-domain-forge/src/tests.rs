@@ -8,6 +8,7 @@ mod change;
 #[path = "tests/brief.rs"]
 mod ci_brief;
 mod connect;
+mod early;
 mod fixtures;
 mod flight;
 mod goal_branch;
@@ -348,6 +349,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::News { .. }
         | Request::Drift { .. }
         | Request::ProjectionEffect { .. }
+        | Request::StepDependents { .. }
         | Request::WakeProcedure { .. }
         | Request::ProjectAfter { .. }
         | Request::ProjectionFailed { .. }
@@ -427,6 +429,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::News { .. }
         | Request::Drift { .. }
         | Request::ProjectionEffect { .. }
+        | Request::StepDependents { .. }
         | Request::WakeProcedure { .. }
         | Request::ProjectAfter { .. }
         | Request::ProjectionFailed { .. }
@@ -503,6 +506,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::News { .. }
         | Request::Drift { .. }
         | Request::ProjectionEffect { .. }
+        | Request::StepDependents { .. }
         | Request::WakeProcedure { .. }
         | Request::ProjectAfter { .. }
         | Request::ProjectionFailed { .. }
@@ -2218,6 +2222,7 @@ fn workspace_landing_is_only_for_an_existing_inherited_writable_producer() {
                         items::Start::Base(b)
                         | items::Start::Branch(b)
                         | items::Start::Saved(b)
+                        | items::Start::Merged { branch: b, .. }
                         | items::Start::Merge { branch: b, .. } => b,
                     };
                     let pushed = match &item.push {

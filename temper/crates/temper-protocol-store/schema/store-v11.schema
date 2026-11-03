@@ -179,7 +179,10 @@ record GateReport { number: u64 head: fixed 32 status: ChangeStatus }
 record GateFailure { number: u64 count: u32 }
 record GateRemark { number: u64 head: fixed 32 words: bytes 1048576 }
 enum Way { queue, turn }
-record Change { task: u64 state: ChangeState gates: list 1024 Gate clean: list 1024 fixed 32 repairs: u32 resolutions: u32 updates: u32 since: u64 ready_since: option u64 owns_turn: bool last_head: option fixed 32 gate_failures: list 1024 GateFailure released: option ChangeHold way: Way landing: option u64 }
+record StartedFrom { task: u64 head: fixed 32 }
+record EarlyHeads { heads: list 64 StartedFrom }
+enum Early { none, started: EarlyHeads, spent: EarlyHeads }
+record Change { early: Early task: u64 state: ChangeState gates: list 1024 Gate clean: list 1024 fixed 32 repairs: u32 resolutions: u32 updates: u32 since: u64 ready_since: option u64 owns_turn: bool last_head: option fixed 32 gate_failures: list 1024 GateFailure released: option ChangeHold way: Way landing: option u64 }
 record ChangeCi { head: fixed 32 status: ChangeStatus }
 record EffectAccount { entry: u64 words: bytes 512 }
 record ResultText { bytes: bytes 1048576 cut: u64 }

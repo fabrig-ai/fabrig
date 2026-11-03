@@ -181,8 +181,11 @@ temper's workspace items beside it:
     each operation and never reads; otherwise the worker's own git
     (`../protocol/git.md`, section 3);
   - where to start: a base branch, a branch, a commit by its full object
-    id, saved work, or **a merge in progress**: a branch, and the commit
-    of its base to merge into it (section 5);
+    id, saved work, **a merge in progress**: a branch, and the commit
+    of its base to merge into it, or **a base with heads merged in**: a
+    base branch, and the commits to merge into its tip, one by one in
+    their order, each by its full object id (a change's early start:
+    `forge.md`, 8.11) (section 5);
   - whether it may be written, and if so the branch a change is pushed
     to, and the head that branch must still be at, if the assignment
     names one (section 5);
@@ -447,6 +450,17 @@ runs as contained processes and whose output it parses.
   preparation. The next hold fetches it afresh, so the landing tip may move
   between attempts. This comparison changes neither the checkout start nor
   ownership, drift admission or the saved-work baseline.
+- **A base with heads merged in** fetches the base branch and each head,
+  checks out the base's tip, and merges each head into it in their
+  order, committing each merge at once, with two parents (what was
+  checked out so far and the head) and the repository's identity as its
+  author; a head the checkout already contains is no merge. The last
+  commit is the checkout's start, for its saves and its push alike, and
+  the branch it pushes is made by its first push, as a base's is. A
+  head that does not merge cleanly fails the preparation as a conflict,
+  naming the head, permanent for this assignment: nothing of the
+  merges is kept, and nothing is pushed. The change it was for then
+  waits for its dependencies to land (`forge.md`, 8.11).
 - **A merge in progress** fetches the branch and the base commit, checks
   out the branch, and merges the base into it as git does, leaving the
   files in conflict with their markers and the merge's state in the

@@ -384,9 +384,10 @@ pub(super) const DRIVER: skein_oauth_accounts::Limits = skein_oauth_accounts::Li
 // its recurring members and its proposed creations with their recurring members.
 // Task/run settings revisions add nine bytes: u32 plus an optional u32.
 // Each stored spec includes optional job bytes and a deadline.
+// Started-from dependencies cost a four-byte count plus 8 eight-byte numbers = 68 bytes.
 pub(super) const STORE_KV: skein_kv::Limits = skein_kv::Limits {
     key: 2079,
-    value: 1_604_716,
+    value: 1_604_784,
     // Two operations per journal write, three creation rows and an orphan erase: 2 * 20,801 + 4.
     ops: 41_606,
     // 256 MiB values + 41,606 operations * (2,079 key + 9 framing) + 26 frame bytes.
@@ -397,9 +398,9 @@ pub(super) const STORE_KV: skein_kv::Limits = skein_kv::Limits {
     budget: 268_435_456,
     segment: 710_617_620,
     snapshot_after: 355_308_810,
-    chunk: 1_606_815,
+    chunk: 1_606_883,
     // The largest task row, including job specs, fits with its key.
-    page: skein_kv::Page { rows: 2, bytes: 1_606_795 },
+    page: skein_kv::Page { rows: 2, bytes: 1_606_863 },
     deadline: Duration::from_secs(30),
 };
 pub(super) const STORE: jig_protocol_store::Limits = jig_protocol_store::Limits {

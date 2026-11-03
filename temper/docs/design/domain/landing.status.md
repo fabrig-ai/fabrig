@@ -2,8 +2,7 @@
 
 2026-11-03. Where temper's code lags or departs from [landing.md](landing.md).
 
-- **Not yet:** 4.1: `with`; a dependent made with its dependency, started
-  kept (jig's `domain/connectors.md`, 6.1); pin-only members; a stack of
+- **Not yet:** 4.1: `with`; pin-only members; a stack of
   members in one repository, whose second member a later landing takes
   (`temper-engine-domain-forge/src/landing.rs`). 5.3, 6.1: the project's
   prepare and key commands, as jobs (`worker.md`, 4.4). 13.1: kind 4's
