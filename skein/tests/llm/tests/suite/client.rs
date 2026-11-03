@@ -11,20 +11,15 @@ fn wire_request_and_streamed_answer() {
         world.request(client::Request::Start);
         world.run();
         world.assert_once();
-        // The Codex route sends its body gzip, its length the bytes sent.
+        // The public route sends its rendered body with its length.
         let end = world.sent.windows(4).position(|bytes| bytes == b"\r\n\r\n").unwrap();
         let wire = std::str::from_utf8(&world.sent[..end]).unwrap().to_ascii_lowercase();
-        assert!(wire.contains("\r\ncontent-encoding: gzip\r\n"), "{wire}");
+        assert!(!wire.contains("\r\ncontent-encoding:"), "{wire}");
         assert!(wire.contains(&format!("\r\ncontent-length: {}", world.sent.len() - end - 4)), "{wire}");
         let sent = String::from_utf8(skein_llm_world::identity(&world.sent)).unwrap();
         let (head, body) = sent.split_once("\r\n\r\n").unwrap();
-        assert!(head.starts_with("POST /backend-api/codex/responses HTTP/1.1\r\n"));
-        for header in [
-            "Host: chatgpt.com",
-            "Authorization: Bearer secret-test-token",
-            "chatgpt-account-id: account-test",
-            "originator: skein-world",
-        ] {
+        assert!(head.starts_with("POST /v1/responses HTTP/1.1\r\n"));
+        for header in ["Host: api.openai.com", "Authorization: Bearer secret-test-token", "originator: skein-world"] {
             assert!(head.to_ascii_lowercase().contains(&header.to_ascii_lowercase()), "{head}");
         }
         assert!(head.to_ascii_lowercase().contains(&format!("content-length: {}", body.len())));
@@ -197,7 +192,7 @@ fn cancellation_waits_for_actual_settlement() {
 }
 
 #[test]
-fn codex_accepts_sse_without_content_type_but_rejects_explicit_wrong_or_duplicate_types() {
+fn responses_accepts_sse_without_content_type_but_rejects_explicit_wrong_or_duplicate_types() {
     let body =
         events(&[skein_llm_world::TEXT_ADDED, skein_llm_world::TEXT_DELTA, skein_llm_world::TEXT_DONE, TERMINAL]);
     for chunked in [false, true] {
@@ -283,11 +278,10 @@ fn reuse_preserves_binding_and_rejects_other_authority() {
 
 #[test]
 fn hostile_request_is_refused_before_connection() {
-    for field in 0..4 {
+    for field in [0, 2, 3] {
         let mut request = call(1);
         match field {
             0 => request.credential.as_mut().expect("fixture credential").value = b"bad\r\ninjected".to_vec().into(),
-            1 => request.credential.as_mut().expect("fixture credential").account_id = Box::new([]),
             2 => request.endpoint.target = b"/bad target".to_vec().into(),
             3 => request.endpoint.authority = b"bad/name".to_vec().into(),
             _ => unreachable!(),
@@ -329,7 +323,8 @@ fn terminal_only_unknown_events_refusal_and_token_limit() {
 
 #[test]
 fn error_within_sse_stream_is_terminal_and_uses_headers() {
-    let body = events(&[r#"{"type":"error","code":"usage_limit_reached","message":"account spent"}"#]);
+    let body =
+        events(&[r#"{"type":"error","code":"subscription_sharing_usage_limit_exceeded","message":"account spent"}"#]);
     let mut world = World::new(
         call(1),
         limits(),
@@ -339,7 +334,7 @@ fn error_within_sse_stream_is_terminal_and_uses_headers() {
     world.request(client::Request::Start);
     world.run();
     world.assert_once();
-    assert!(world.seen.iter().any(|e| matches!(e, client::Event::Failed { failure: Failure::Exhausted { retry_after }, .. } if retry_after.is_none())), "{:?}", world.seen);
+    assert!(world.seen.iter().any(|e| matches!(e, client::Event::Failed { failure: Failure::Exhausted { retry_after }, .. } if *retry_after == Some(Duration::from_secs(17)))), "{:?}", world.seen);
     world.settle();
     world.assert_once();
 }
@@ -506,10 +501,7 @@ fn exact_request_head_cap_is_checked_before_transport_binding() {
     let input = call(1);
     let measured = client::request_head(
         &input.endpoint,
-        &client::CredentialLimits {
-            value: u32::try_from(skein_llm_world::credential_of(&input).value.len()).unwrap(),
-            account_id: u32::try_from(skein_llm_world::credential_of(&input).account_id.len()).unwrap(),
-        },
+        &client::CredentialLimits { value: u32::try_from(skein_llm_world::credential_of(&input).value.len()).unwrap() },
         &limits(),
     )
     .unwrap();
@@ -517,7 +509,7 @@ fn exact_request_head_cap_is_checked_before_transport_binding() {
     assert_eq!(
         usize::try_from(measured).unwrap(),
         head_end + content_length_extra,
-        "standalone endpoint maximum prices both fixed affinity headers and maximum body length digits"
+        "standalone endpoint maximum prices maximum body length digits"
     );
     exact.http.request -= 1;
     assert!(matches!(
@@ -692,7 +684,7 @@ fn undecoded_error_bodies_keep_their_clipped_provider_text_for_both_dialects() {
         br#"{"error":{"code": "#,
         b"",
     ];
-    for provider in [skein_llm::Provider::OpenAiCodex, skein_llm::Provider::Anthropic] {
+    for provider in [skein_llm::Provider::OpenAi, skein_llm::Provider::Anthropic] {
         for chunked in [false, true] {
             for body in bodies {
                 for detail_bound in [0, 1, body.len().saturating_sub(1), body.len()] {
@@ -729,7 +721,7 @@ fn undecoded_error_bodies_keep_their_clipped_provider_text_for_both_dialects() {
 
 #[test]
 fn decoded_error_messages_and_undecoded_utf8_bodies_keep_the_detail_boundary() {
-    for provider in [skein_llm::Provider::OpenAiCodex, skein_llm::Provider::Anthropic] {
+    for provider in [skein_llm::Provider::OpenAi, skein_llm::Provider::Anthropic] {
         for (body, expected) in [
             (r#"{"error":{"code":"invalid_api_key","message":"héllo"}}"#.as_bytes(), b"h".as_slice()),
             ("héllo".as_bytes(), b"h".as_slice()),
@@ -765,8 +757,8 @@ fn decoded_error_messages_and_undecoded_utf8_bodies_keep_the_detail_boundary() {
 
 #[test]
 fn an_oversized_error_body_keeps_unparsed_detail_and_closes_without_draining() {
-    let json = br#"{"error":{"code":"usage_limit_reached","message":"unparsed prefix"}}"#;
-    for provider in [skein_llm::Provider::OpenAiCodex, skein_llm::Provider::Anthropic] {
+    let json = br#"{"error":{"code":"subscription_sharing_usage_limit_exceeded","message":"unparsed prefix"}}"#;
+    for provider in [skein_llm::Provider::OpenAi, skein_llm::Provider::Anthropic] {
         for (status, expected) in
             [(503, Failure::Unavailable), (429, Failure::RateLimited { retry_after: Duration::from_secs(4) })]
         {
@@ -791,7 +783,7 @@ fn an_oversized_error_body_keeps_unparsed_detail_and_closes_without_draining() {
                 world.settle();
                 world.assert_once();
                 assert!(world.source_at < wire_length, "the remaining page is not drained");
-                assert!(world.seen.iter().any(|event| matches!(event, client::Event::Failed { failure, evidence: client::Evidence::Response { status: observed }, detail, .. } if *failure == expected && *observed == status && detail.len() == 48 && detail.starts_with(b"error body cut: {\"error\":{\"code\":\"usage_limit"))));
+                assert!(world.seen.iter().any(|event| matches!(event, client::Event::Failed { failure, evidence: client::Evidence::Response { status: observed }, detail, .. } if *failure == expected && *observed == status && detail.len() == 48 && detail.starts_with(b"error body cut: {\"error\":{\"code\":\"subscription"))));
                 assert!(world.seen.iter().any(|event| matches!(event, client::Event::Close)));
                 assert!(!world.seen.iter().any(|event| matches!(event, client::Event::Reusable)));
             }
@@ -1187,7 +1179,7 @@ fn incomplete_responses_heads_keep_their_argument_deltas_unnamed() {
 
 #[test]
 fn invalid_tool_identity_fails_before_a_start_in_both_dialects() {
-    for provider in [skein_llm::Provider::OpenAiCodex, skein_llm::Provider::Anthropic] {
+    for provider in [skein_llm::Provider::OpenAi, skein_llm::Provider::Anthropic] {
         for (id, name, expected) in [
             (String::new(), "read".to_owned(), Failure::Protocol),
             ("call".to_owned(), String::new(), Failure::Protocol),

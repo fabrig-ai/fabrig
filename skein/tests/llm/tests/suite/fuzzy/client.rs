@@ -197,14 +197,14 @@ fn randomized_receiving_limits_name_the_cap_and_the_bound_that_was_passed() {
 
 #[test]
 fn selective_known_events_ignore_seeded_extensions_and_field_order() {
-    for provider in [skein_llm::Provider::OpenAiCodex, skein_llm::Provider::Anthropic] {
+    for provider in [skein_llm::Provider::OpenAi, skein_llm::Provider::Anthropic] {
         for seed in 1_u64..=256 {
             let mut rng = skein_lib::Rng::new(seed);
             let noise =
                 "x".repeat(usize::try_from(rng.next_u64() % 2048).expect("seeded value fits the configured bound"));
             let extra = format!(r#""extension_{seed}":{{"future":[null,1,{{"wire":"{noise}"}}]}}"#);
             let documents = match provider {
-                skein_llm::Provider::OpenAiCodex | skein_llm::Provider::OpenAi => {
+                skein_llm::Provider::OpenAi => {
                     let item = if seed % 2 == 0 {
                         format!(
                             r#"{{{extra},"id":"m","content":[{{{extra},"text":"hello","type":"output_text"}}],"type":"message"}}"#

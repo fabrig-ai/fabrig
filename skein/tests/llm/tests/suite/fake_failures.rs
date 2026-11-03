@@ -45,7 +45,6 @@ fn a_line_naming_another_index_lets_the_call_through() {
 
 fn exchange(provider: Provider, lines: Box<[Line]>) -> Exchange {
     let mut input = match provider {
-        Provider::OpenAiCodex => call(1),
         Provider::Anthropic => skein_llm_world::anthropic_call(1),
         Provider::OpenAi => skein_llm_world::public_call(1),
     };
@@ -80,53 +79,53 @@ fn terminal(world: &Exchange) -> (Failure, Report, client::Evidence) {
 
 type ClassRow = (api::Error, Failure, u16, &'static [u8]);
 fn class_rows(provider: Provider) -> Vec<ClassRow> {
-    let codex = provider == Provider::OpenAiCodex;
+    let responses = provider == Provider::OpenAi;
     let mut rows: Vec<ClassRow> = vec![
         (
             api::Error::Exhausted { retry_after: None },
             Failure::Exhausted { retry_after: None },
-            if codex { 429 } else { 402 },
-            if codex { b"usage_limit_reached" } else { b"billing_error" },
+            if responses { 429 } else { 402 },
+            if responses { b"subscription_sharing_usage_limit_exceeded" } else { b"billing_error" },
         ),
         (
             api::Error::RateLimited { retry_after: Duration::from_secs(2) },
             Failure::RateLimited { retry_after: Duration::from_secs(2) },
             429,
-            if codex { b"rate_limit_exceeded" } else { b"rate_limit_error" },
+            if responses { b"rate_limit_exceeded" } else { b"rate_limit_error" },
         ),
         (
             api::Error::Refused,
             Failure::Refused,
             403,
-            if codex { b"subscription_sharing_user_not_eligible" } else { b"permission_error" },
+            if responses { b"subscription_sharing_user_not_eligible" } else { b"permission_error" },
         ),
-        (api::Error::Overloaded, Failure::Overloaded, if codex { 503 } else { 529 }, b"overloaded_error"),
+        (api::Error::Overloaded, Failure::Overloaded, if responses { 503 } else { 529 }, b"overloaded_error"),
         (
             api::Error::Unavailable,
             Failure::Unavailable,
-            if codex { 503 } else { 500 },
-            if codex { b"subscription_sharing_usage_unavailable" } else { b"api_error" },
+            if responses { 503 } else { 500 },
+            if responses { b"subscription_sharing_usage_unavailable" } else { b"api_error" },
         ),
         (
             api::Error::ContextTooLong,
             Failure::ContextTooLong,
             400,
-            if codex { b"context_length_exceeded" } else { b"invalid_request_error" },
+            if responses { b"context_length_exceeded" } else { b"invalid_request_error" },
         ),
         (
             api::Error::InvalidRequest,
             Failure::Invalid,
-            if codex { 403 } else { 400 },
-            if codex { b"subscription_sharing_route_not_supported" } else { b"invalid_request_error" },
+            if responses { 403 } else { 400 },
+            if responses { b"subscription_sharing_route_not_supported" } else { b"invalid_request_error" },
         ),
         (
             api::Error::Unauthorized,
             Failure::Unauthorized,
             401,
-            if codex { b"invalid_api_key" } else { b"authentication_error" },
+            if responses { b"invalid_api_key" } else { b"authentication_error" },
         ),
     ];
-    if codex {
+    if responses {
         rows.push((api::Error::Unsupported, Failure::Unsupported, 400, b"subscription_sharing_unsupported_capability"));
     }
     rows
@@ -134,7 +133,7 @@ fn class_rows(provider: Provider) -> Vec<ClassRow> {
 
 #[test]
 fn each_scripted_class_reaches_the_client_as_scripted() {
-    for provider in [Provider::OpenAiCodex, Provider::Anthropic] {
+    for provider in [Provider::OpenAi, Provider::Anthropic] {
         for (error, class, status, code) in class_rows(provider) {
             let mut world = exchange(
                 provider,
@@ -168,7 +167,7 @@ fn each_scripted_class_reaches_the_client_as_scripted() {
 
 #[test]
 fn scripted_evidence_reaches_the_report_or_arrives_empty() {
-    for provider in [Provider::OpenAiCodex, Provider::Anthropic] {
+    for provider in [Provider::OpenAi, Provider::Anthropic] {
         for length in [0, 5, 128, 129] {
             let value: Box<[u8]> = vec![b'x'; length].into();
             let mut world = exchange(
@@ -198,7 +197,7 @@ fn scripted_evidence_reaches_the_report_or_arrives_empty() {
 
 #[test]
 fn a_reset_reaches_exhausted_in_whole_seconds_rounded_up() {
-    let provider = Provider::OpenAiCodex;
+    let provider = Provider::OpenAi;
     let mut world = exchange(
         provider,
         failing(api::Error::Exhausted { retry_after: Some(Duration::from_millis(1500)) }, api::Report::none()),
@@ -212,7 +211,7 @@ fn a_reset_reaches_exhausted_in_whole_seconds_rounded_up() {
 
 #[test]
 fn exhausted_without_a_reset_reaches_the_client_without_one() {
-    for provider in [Provider::OpenAiCodex, Provider::Anthropic] {
+    for provider in [Provider::OpenAi, Provider::Anthropic] {
         let mut world = exchange(provider, failing(api::Error::Exhausted { retry_after: None }, api::Report::none()));
         world.start();
         world.run();
@@ -223,7 +222,7 @@ fn exhausted_without_a_reset_reaches_the_client_without_one() {
 #[test]
 fn every_response_head_carries_its_routes_request_id() {
     for (provider, name) in
-        [(Provider::OpenAiCodex, b"x-oai-request-id: req_1".as_slice()), (Provider::Anthropic, b"request-id: req_1")]
+        [(Provider::OpenAi, b"x-request-id: req_1".as_slice()), (Provider::Anthropic, b"request-id: req_1")]
     {
         for lines in [
             failing(api::Error::Overloaded, api::Report::none()),
@@ -239,7 +238,7 @@ fn every_response_head_carries_its_routes_request_id() {
 
 #[test]
 fn a_seeded_failure_carries_its_classs_code() {
-    for provider in [Provider::OpenAiCodex, Provider::Anthropic] {
+    for provider in [Provider::OpenAi, Provider::Anthropic] {
         let mut world = exchange(provider, Box::new([Line::Text { text: b"unused".as_slice().into() }]));
         let mut chances = skein_llm_world::fake::config();
         chances.overloaded = 1000;
@@ -285,7 +284,7 @@ fn after_text(error: api::Error) -> Box<[Line]> {
 
 #[test]
 fn a_failure_after_text_ends_the_stream_as_its_route_fails() {
-    let rows: [(Provider, &[u8]); 2] = [(Provider::OpenAiCodex, b"top_p"), (Provider::Anthropic, b"")];
+    let rows: [(Provider, &[u8]); 2] = [(Provider::OpenAi, b"top_p"), (Provider::Anthropic, b"")];
     for (provider, field) in rows {
         let mut world = exchange(provider, after_text(api::Error::Overloaded));
         world.start();
@@ -312,7 +311,7 @@ fn a_failure_after_text_ends_the_stream_as_its_route_fails() {
 #[test]
 fn a_failure_after_a_hold_waits_for_its_release() {
     let mut world = exchange(
-        Provider::OpenAiCodex,
+        Provider::OpenAi,
         Box::new([
             Line::Pieces {
                 pieces: Box::new([
@@ -332,11 +331,11 @@ fn a_failure_after_a_hold_waits_for_its_release() {
 }
 
 #[test]
-fn an_exhausted_reset_after_text_reaches_the_client_on_the_codex_route() {
+fn an_exhausted_reset_after_text_reaches_the_client_on_the_responses_route() {
     let mut lines = after_text(api::Error::Exhausted { retry_after: Some(Duration::from_millis(1500)) });
     let Line::Fail { report, .. } = &mut lines[1] else { panic!("fixture's failing line") };
     report.code = Box::new([]);
-    let mut world = exchange(Provider::OpenAiCodex, lines);
+    let mut world = exchange(Provider::OpenAi, lines);
     world.start();
     world.run();
     assert_eq!(

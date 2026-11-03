@@ -36,19 +36,9 @@ fn measured_head_and_body_equal_the_uploaded_wire() {
         let plain = skein_llm_world::identity(&world.sent);
         let plain_head = plain.windows(4).position(|bytes| bytes == b"\r\n\r\n").unwrap() + 4;
         assert_eq!(u32::try_from(plain.len() - plain_head).unwrap(), measured.body, "the rendered body");
-        if anthropic {
-            assert_eq!(u32::try_from(head).unwrap(), measured.head);
-            assert_eq!(u32::try_from(sent).unwrap(), measured.body);
-            assert_eq!(measured.compressed, 0);
-        } else {
-            // Codex sends gzip: the room for its compressed copy is the
-            // body's bound, and its head is measured with the bound's digits.
-            let bound = skein_http::gzip::bound(usize::try_from(measured.body).unwrap()).unwrap();
-            assert_eq!(usize::try_from(measured.compressed).unwrap(), bound);
-            assert!(sent <= bound);
-            let digits = |length: usize| length.to_string().len();
-            assert_eq!(usize::try_from(measured.head).unwrap(), head - digits(sent) + digits(bound));
-        }
+        assert_eq!(u32::try_from(head).unwrap(), measured.head);
+        assert_eq!(u32::try_from(sent).unwrap(), measured.body);
+        assert_eq!(measured.compressed, 0);
         assert_eq!(world.machine.request_bytes(), skein_lib::len_u64(world.sent.len()));
         assert_eq!(
             client::reservation(measured, &bounds).unwrap(),

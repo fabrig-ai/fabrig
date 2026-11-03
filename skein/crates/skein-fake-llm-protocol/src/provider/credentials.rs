@@ -21,31 +21,18 @@ pub struct Presented {
 
 /// Names the configured route, refusing credentials or a path it cannot serve.
 pub fn route(config: &Config, credentials: &[Credential]) -> Result<Provider, Error> {
-    let codex = match credentials.first() {
-        Some(credential) => !credential.account_id.is_empty(),
-        None => false,
-    };
     for credential in credentials {
-        if (!credential.account_id.is_empty() && credential.scheme == Scheme::Key)
-            || (config.provider == documents::Provider::Anthropic
-                && (!credential.account_id.is_empty() || credential.scheme == Scheme::Bearer))
-            || (config.provider == documents::Provider::OpenAi && codex == credential.account_id.is_empty())
-        {
+        if config.provider == documents::Provider::Anthropic && credential.scheme == Scheme::Bearer {
             return Err(Error::Limits);
         }
     }
     match config.provider {
         documents::Provider::Anthropic => Ok(Provider::Anthropic),
         documents::Provider::OpenAi => {
-            let (route, path): (_, &[u8]) = if codex {
-                (Provider::OpenAiCodex, b"/backend-api/codex/responses")
-            } else {
-                (Provider::OpenAi, b"/v1/responses")
-            };
-            if config.path.as_ref() != path || (codex && config.without_credential) {
+            if config.path.as_ref() != b"/v1/responses" {
                 return Err(Error::Limits);
             }
-            Ok(route)
+            Ok(Provider::OpenAi)
         }
     }
 }
@@ -53,13 +40,12 @@ pub fn route(config: &Config, credentials: &[Credential]) -> Result<Provider, Er
 pub(super) struct Fields<'a> {
     authorization: Option<&'a [u8]>,
     api_key: Option<&'a [u8]>,
-    account: Option<&'a [u8]>,
     repeated: bool,
 }
 
 impl<'a> Fields<'a> {
     pub(super) const fn new() -> Self {
-        Self { authorization: None, api_key: None, account: None, repeated: false }
+        Self { authorization: None, api_key: None, repeated: false }
     }
 
     pub(super) fn read(&mut self, header: &'a Header) {
@@ -67,8 +53,6 @@ impl<'a> Fields<'a> {
             &mut self.authorization
         } else if header.is(b"x-api-key") {
             &mut self.api_key
-        } else if header.is(b"chatgpt-account-id") {
-            &mut self.account
         } else {
             return;
         };
@@ -85,7 +69,7 @@ impl<'a> Fields<'a> {
             Auth::Open | Auth::Unauthorized => {
                 let scheme = if self.api_key.is_some() {
                     Some(Scheme::Key)
-                } else if self.authorization.is_some() || self.account.is_some() {
+                } else if self.authorization.is_some() {
                     Some(Scheme::Bearer)
                 } else {
                     None
@@ -108,7 +92,7 @@ pub(super) fn authorize(route: Provider, list: &[Credential], fields: &Fields<'_
     if fields.repeated || (fields.authorization.is_some() && fields.api_key.is_some()) {
         return Auth::Unauthorized;
     }
-    if fields.authorization.is_none() && fields.api_key.is_none() && fields.account.is_none() {
+    if fields.authorization.is_none() && fields.api_key.is_none() {
         return if without { Auth::Open } else { Auth::Unauthorized };
     }
     let bearer = match fields.authorization {
@@ -117,17 +101,11 @@ pub(super) fn authorize(route: Provider, list: &[Credential], fields: &Fields<'_
     };
     for (index, credential) in list.iter().enumerate() {
         let matched = match route {
-            Provider::OpenAi => fields.account.is_none() && bearer == Some(credential.value.as_ref()),
-            Provider::OpenAiCodex => {
-                bearer == Some(credential.value.as_ref()) && fields.account == Some(credential.account_id.as_ref())
-            }
-            Provider::Anthropic => {
-                fields.account.is_none()
-                    && match credential.scheme {
-                        Scheme::Key => fields.api_key == Some(credential.value.as_ref()),
-                        Scheme::Bearer => false,
-                    }
-            }
+            Provider::OpenAi => bearer == Some(credential.value.as_ref()),
+            Provider::Anthropic => match credential.scheme {
+                Scheme::Key => fields.api_key == Some(credential.value.as_ref()),
+                Scheme::Bearer => false,
+            },
         };
         if matched {
             return Auth::Matched(u32::try_from(index).expect("bounded credential list"));
@@ -139,7 +117,7 @@ pub(super) fn authorize(route: Provider, list: &[Credential], fields: &Fields<'_
 pub(super) fn observed_headers(headers: Box<[Header]>) -> Box<[Header]> {
     let mut observed = skein_lib::List::with_capacity(u32::try_from(headers.len()).expect("bounded headers"));
     for header in headers {
-        if !header.is(b"authorization") && !header.is(b"x-api-key") && !header.is(b"chatgpt-account-id") {
+        if !header.is(b"authorization") && !header.is(b"x-api-key") {
             observed.push(header).expect("bounded headers");
         }
     }
@@ -150,10 +128,10 @@ pub(super) fn observed_headers(headers: Box<[Header]>) -> Box<[Header]> {
 mod tests {
     use super::*;
 
-    type Row<'a> = (Provider, &'a [Credential], Option<&'a [u8]>, Option<&'a [u8]>, Option<&'a [u8]>, bool, Auth);
+    type Row<'a> = (Provider, &'a [Credential], Option<&'a [u8]>, Option<&'a [u8]>, bool, Auth);
 
     fn fields<'a>(authorization: Option<&'a [u8]>, api_key: Option<&'a [u8]>) -> Fields<'a> {
-        Fields { authorization, api_key, account: None, repeated: false }
+        Fields { authorization, api_key, repeated: false }
     }
 
     fn config(provider: documents::Provider, path: &[u8], without_credential: bool) -> Config {
@@ -174,34 +152,26 @@ mod tests {
     #[test]
     fn each_route_authorizes_its_schemes_in_their_fields() {
         let public = list();
-        let codex = [
-            Credential::codex(b"b0".as_slice().into(), b"a0".as_slice().into()),
-            Credential::codex(b"b1".as_slice().into(), b"a1".as_slice().into()),
-        ];
         let rows: &[Row<'_>] = &[
-            (Provider::OpenAi, &public, Some(b"Bearer k0"), None, None, false, Auth::Matched(0)),
-            (Provider::OpenAi, &public, Some(b"Bearer b1"), None, None, false, Auth::Matched(1)),
-            (Provider::OpenAi, &public, None, Some(b"k0"), None, false, Auth::Unauthorized),
-            (Provider::OpenAiCodex, &codex, Some(b"Bearer b1"), None, Some(b"a1"), false, Auth::Matched(1)),
-            (Provider::OpenAiCodex, &codex, Some(b"Bearer b1"), None, Some(b"a0"), false, Auth::Unauthorized),
-            (Provider::OpenAiCodex, &codex, Some(b"Bearer b1"), None, None, false, Auth::Unauthorized),
-            (Provider::Anthropic, &public, None, Some(b"k0"), None, false, Auth::Matched(0)),
-            (Provider::Anthropic, &public, Some(b"Bearer b1"), None, None, false, Auth::Unauthorized),
-            (Provider::Anthropic, &public, Some(b"Bearer k0"), None, None, false, Auth::Unauthorized),
-            (Provider::Anthropic, &public, None, Some(b"b1"), None, false, Auth::Unauthorized),
-            (Provider::Anthropic, &public, Some(b"Bearer b1"), Some(b"k0"), None, false, Auth::Unauthorized),
-            (Provider::Anthropic, &public, Some(b"Bearer b1"), None, None, true, Auth::Unauthorized),
+            (Provider::OpenAi, &public, Some(b"Bearer k0"), None, false, Auth::Matched(0)),
+            (Provider::OpenAi, &public, Some(b"Bearer b1"), None, false, Auth::Matched(1)),
+            (Provider::OpenAi, &public, None, Some(b"k0"), false, Auth::Unauthorized),
+            (Provider::Anthropic, &public, None, Some(b"k0"), false, Auth::Matched(0)),
+            (Provider::Anthropic, &public, Some(b"Bearer b1"), None, false, Auth::Unauthorized),
+            (Provider::Anthropic, &public, Some(b"Bearer k0"), None, false, Auth::Unauthorized),
+            (Provider::Anthropic, &public, None, Some(b"b1"), false, Auth::Unauthorized),
+            (Provider::Anthropic, &public, Some(b"Bearer b1"), Some(b"k0"), false, Auth::Unauthorized),
+            (Provider::Anthropic, &public, Some(b"Bearer b1"), None, true, Auth::Unauthorized),
         ];
-        for (row, &(route, list, authorization, api_key, account, repeated, want)) in rows.iter().enumerate() {
+        for (row, &(route, list, authorization, api_key, repeated, want)) in rows.iter().enumerate() {
             let mut fields = fields(authorization, api_key);
-            fields.account = account;
             fields.repeated = repeated;
             assert_eq!(authorize(route, list, &fields, false), want, "row {row}");
         }
     }
 
     #[test]
-    fn the_route_follows_the_credentials() {
+    fn the_route_follows_the_configured_provider_and_path() {
         for (row, (provider, path, list, want)) in [
             (
                 documents::Provider::Anthropic,
@@ -216,12 +186,6 @@ mod tests {
                 Provider::OpenAi,
             ),
             (documents::Provider::OpenAi, b"/v1/responses".as_slice(), Box::<[Credential]>::from([]), Provider::OpenAi),
-            (
-                documents::Provider::OpenAi,
-                b"/backend-api/codex/responses".as_slice(),
-                Box::<[Credential]>::from([Credential::codex(b"b0".as_slice().into(), b"a0".as_slice().into())]),
-                Provider::OpenAiCodex,
-            ),
         ]
         .into_iter()
         .enumerate()
@@ -232,36 +196,14 @@ mod tests {
 
     #[test]
     fn a_list_the_route_cannot_serve_is_refused() {
-        let key_with_id =
-            || Credential { scheme: Scheme::Key, value: b"k0".as_slice().into(), account_id: b"a0".as_slice().into() };
-        let codex = || Credential::codex(b"b0".as_slice().into(), b"a0".as_slice().into());
         for (row, (provider, path, without, list)) in [
-            (
-                documents::Provider::OpenAi,
-                b"/backend-api/codex/responses".as_slice(),
-                false,
-                Box::<[Credential]>::from([key_with_id()]),
-            ),
             (
                 documents::Provider::Anthropic,
                 b"/v1/messages".as_slice(),
                 false,
                 Box::<[Credential]>::from([Credential::bearer(b"b1".as_slice().into())]),
             ),
-            (documents::Provider::Anthropic, b"/v1/messages".as_slice(), false, Box::<[Credential]>::from([codex()])),
-            (
-                documents::Provider::OpenAi,
-                b"/v1/responses".as_slice(),
-                false,
-                Box::<[Credential]>::from([codex(), Credential::bearer(b"b1".as_slice().into())]),
-            ),
             (documents::Provider::OpenAi, b"/other".as_slice(), false, Box::<[Credential]>::from(list())),
-            (
-                documents::Provider::OpenAi,
-                b"/backend-api/codex/responses".as_slice(),
-                true,
-                Box::<[Credential]>::from([codex()]),
-            ),
         ]
         .into_iter()
         .enumerate()

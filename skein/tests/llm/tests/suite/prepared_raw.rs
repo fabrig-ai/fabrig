@@ -112,7 +112,7 @@ fn observe(mut world: World, owner: Token, path: &[u8], usage: [Option<u64>; 4],
 }
 
 #[test]
-fn actual_prepared_codex_owner_and_request_survive_raw_world_adoption() {
+fn actual_prepared_responses_owner_and_request_survive_raw_world_adoption() {
     let bounds = limits();
     let mut input = call(0);
     input.prompt.messages[0].content =
@@ -120,13 +120,7 @@ fn actual_prepared_codex_owner_and_request_survive_raw_world_adoption() {
     let machine = client::Client::prepare(input, &bounds).expect("one caller-owned prepared Client");
     let source = response(200, "Content-Type: text/event-stream\r\n", &events(CODEX), false);
     let world = World::prepared(machine, bounds, source, 17);
-    observe(
-        world,
-        Token::new(0),
-        b"POST /backend-api/codex/responses HTTP/1.1\r\n",
-        [Some(8), Some(3), Some(4), None],
-        true,
-    );
+    observe(world, Token::new(0), b"POST /v1/responses HTTP/1.1\r\n", [Some(8), Some(3), Some(4), None], true);
 }
 
 #[test]

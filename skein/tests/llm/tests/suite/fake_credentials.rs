@@ -13,7 +13,7 @@ fn credential(provider: Provider, index: u32) -> Credential {
         0 => Credential::key(b"account-key".as_slice().into()),
         1 => match provider {
             Provider::Anthropic => Credential::key(b"account-second-key".as_slice().into()),
-            Provider::OpenAi | Provider::OpenAiCodex => Credential::bearer(b"account-bearer".as_slice().into()),
+            Provider::OpenAi => Credential::bearer(b"account-bearer".as_slice().into()),
         },
         _ => panic!("the fixture has two credentials"),
     }
@@ -28,7 +28,7 @@ fn issued(provider: Provider, index: u32) -> Credential {
     };
     match provider {
         Provider::Anthropic => Credential::key(value.into()),
-        Provider::OpenAi | Provider::OpenAiCodex => Credential::bearer(value.into()),
+        Provider::OpenAi => Credential::bearer(value.into()),
     }
 }
 
@@ -47,7 +47,6 @@ fn exchange(provider: Provider, sent: Option<Credential>, first: Option<Credenti
     let mut input = match provider {
         Provider::Anthropic => anthropic_call(1),
         Provider::OpenAi => public_call(1),
-        Provider::OpenAiCodex => panic!("the story uses public or Anthropic routes"),
     };
     input.credential = sent;
     input.prompt.instructions = CUE.into();

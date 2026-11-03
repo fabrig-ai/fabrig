@@ -138,17 +138,12 @@ fn live_limits() -> client::Limits {
 }
 fn input(provider: Provider, owner: u64) -> Call {
     let (endpoint, credential, model, instructions, effort, max_tokens) = match provider {
-        Provider::OpenAiCodex | Provider::OpenAi => {
-            let mut endpoint = Endpoint::codex();
-            endpoint.headers = skein_llm::openai::identity::headers()
-                .into_vec()
-                .into_iter()
-                .map(|header| skein_http::Header { name: header.name, value: header.value })
-                .collect();
-            let [value, account_id] = lent(&CODEX, [&["tokens", "access_token"], &["tokens", "account_id"]]);
+        Provider::OpenAi => {
+            let endpoint = Endpoint::openai();
+            let [value] = lent(&CODEX, [&["tokens", "access_token"]]);
             (
                 endpoint,
-                Credential { scheme: skein_llm::Scheme::Bearer, value, account_id },
+                Credential::bearer(value),
                 setting("SKEIN_TEST_LIVE_OPENAI_MODEL").unwrap_or_else(|| "gpt-5.5".into()),
                 bytes("Follow the user's instructions exactly. Be terse."),
                 Some(bytes("low")),
@@ -508,7 +503,7 @@ fn unauthorized(provider: Provider) {
 }
 #[test]
 fn openai_streamed_text_and_history() {
-    text_and_history(Provider::OpenAiCodex);
+    text_and_history(Provider::OpenAi);
 }
 #[test]
 fn anthropic_streamed_text_and_history() {
@@ -516,7 +511,7 @@ fn anthropic_streamed_text_and_history() {
 }
 #[test]
 fn openai_tool_round_trip() {
-    tool_round_trip(Provider::OpenAiCodex);
+    tool_round_trip(Provider::OpenAi);
 }
 #[test]
 fn anthropic_tool_round_trip() {
@@ -524,7 +519,7 @@ fn anthropic_tool_round_trip() {
 }
 #[test]
 fn openai_unauthorized() {
-    unauthorized(Provider::OpenAiCodex);
+    unauthorized(Provider::OpenAi);
 }
 #[test]
 fn anthropic_unauthorized() {
@@ -532,7 +527,7 @@ fn anthropic_unauthorized() {
 }
 
 /// Synthetic: a Codex `auth.json`'s fields, its values fixtures.
-const CODEX_AUTH: &[u8] = br#"{"OPENAI_API_KEY":null,"tokens":{"id_token":"fixture-id","access_token":"fixture-codex-access","refresh_token":"fixture-codex-refresh","account_id":"fixture-account"},"last_refresh":"2026-11-01T00:00:00Z"}"#;
+const CODEX_AUTH: &[u8] = br#"{"OPENAI_API_KEY":null,"tokens":{"id_token":"fixture-id","access_token":"fixture-responses-access","refresh_token":"fixture-responses-refresh"},"last_refresh":"2026-11-01T00:00:00Z"}"#;
 /// Offline: a login's field read from the file its variable names, or from
 /// the directory holding that file.
 #[test]
@@ -540,8 +535,8 @@ fn a_login_is_read_from_its_file_or_the_directory_holding_it() {
     let scratch = skein_scratch::Scratch::new("live-logins");
     std::fs::write(scratch.path().join(CODEX.file), CODEX_AUTH).expect("write the Codex login");
     let rows: [(&str, &str, &[&str], &[u8]); 2] = [
-        (CODEX.file, CODEX.file, &["tokens", "access_token"], b"fixture-codex-access"),
-        (".", CODEX.file, &["tokens", "account_id"], b"fixture-account"),
+        (CODEX.file, CODEX.file, &["tokens", "access_token"], b"fixture-responses-access"),
+        (".", CODEX.file, &["tokens", "access_token"], b"fixture-responses-access"),
     ];
     for (named, file, field, expected) in rows {
         let [value] = login_fields(&scratch.path().join(named), file, [field]).expect("a lent login");
@@ -551,19 +546,15 @@ fn a_login_is_read_from_its_file_or_the_directory_holding_it() {
 /// Offline: the refusal names the file and the field, and no value the file holds.
 #[test]
 fn a_login_lacking_a_field_is_refused_naming_only_the_field() {
-    let rows: [&[u8]; 3] = [
-        br#"{"tokens":{"access_token":"fixture-codex-access"}}"#,
-        br#"{"tokens":{"access_token":"fixture-codex-access","account_id":null}}"#,
-        br#"{"tokens":{"access_token":"fixture-codex-access","account_id":""}}"#,
-    ];
+    let rows: [&[u8]; 3] =
+        [br#"{"tokens":{}}"#, br#"{"tokens":{"access_token":null}}"#, br#"{"tokens":{"access_token":""}}"#];
     for contents in rows {
         let scratch = skein_scratch::Scratch::new("live-login");
         let path = scratch.path().join(CODEX.file);
         std::fs::write(&path, contents).expect("write the Codex login");
-        let refusal =
-            login_fields(scratch.path(), CODEX.file, [&["tokens", "access_token"], &["tokens", "account_id"]])
-                .expect_err("a login without its account");
-        assert_eq!(refusal, format!("{}: no non-empty string at .tokens.account_id", path.display()));
+        let refusal = login_fields(scratch.path(), CODEX.file, [&["tokens", "access_token"]])
+            .expect_err("a login without its access token");
+        assert_eq!(refusal, format!("{}: no non-empty string at .tokens.access_token", path.display()));
     }
 }
 

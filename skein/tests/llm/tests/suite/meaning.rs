@@ -79,7 +79,7 @@ fn tools_and_history_counts_name_their_own_admission_bound() {
 
 #[test]
 fn sent_text_uses_the_request_budget_beside_tiny_receiving_strings() {
-    for provider in [skein_llm::Provider::OpenAiCodex, skein_llm::Provider::Anthropic] {
+    for provider in [skein_llm::Provider::OpenAi, skein_llm::Provider::Anthropic] {
         let mut bounds = skein_llm_world::limits_for(provider);
         bounds.strings = 4;
         let mut input = call(3);

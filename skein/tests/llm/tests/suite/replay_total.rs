@@ -17,7 +17,7 @@ fn standard_client_preparation_stays_under_the_peak_ceiling() {
         history_items: 1,
     };
     let derived = Limits::derive(&declared).unwrap();
-    for (provider, receiving) in [(Provider::OpenAiCodex, 3_527_212), (Provider::Anthropic, 3_527_206)] {
+    for (provider, receiving) in [(Provider::OpenAi, 3_527_212), (Provider::Anthropic, 3_527_206)] {
         let mut bounds = derived.dialect(provider);
         bounds.http.request = 4096;
         bounds.http.read = 256;
