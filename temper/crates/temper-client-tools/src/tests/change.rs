@@ -39,6 +39,15 @@ pub(super) fn panel(step: w::Step) -> w::ChangePanel {
             repairs: used.clone(),
             resolutions: used,
             updates: w::Used::new(&w::CEILINGS, w::UsedParts { used: 0, limit: 5 }).unwrap(),
+            questions: w::Questions::new(
+                &w::CEILINGS,
+                w::QuestionsParts {
+                    route: w::Route::None,
+                    taken: w::Used::new(&w::CEILINGS, w::UsedParts { used: 0, limit: 4 }).expect("question limit"),
+                    open: List::with_capacity(0),
+                },
+            )
+            .expect("no questions"),
         },
     )
     .unwrap()
@@ -157,7 +166,7 @@ fn checking_text_and_json_name_pull_head_gates_bounds_and_same_digest() {
     let call = root.submit(&["change", "show", "2", "--project", "1", "--json"]);
     deliver(&mut root, panel(w::Step::Checking));
     let json = root.answer(call).unwrap();
-    let expected = br#"{"task":2,"forge":3,"owner":"qa","name":"pilot-20261026","branch":"temper/2-readme","landing":"main","head":"1111111111111111111111111111111111111111","pull":{"number":1,"address":"http://127.0.0.1:3000/qa/pilot-20261026/pulls/1"},"step":"checking","merge":null,"queue":null,"repair":null,"hold":null,"runs":null,"ci":"pending","gates":[],"repairs":{"used":0,"limit":3},"resolutions":{"used":0,"limit":3},"updates":{"used":0,"limit":5}"#;
+    let expected = br#"{"task":2,"forge":3,"owner":"qa","name":"pilot-20261026","branch":"temper/2-readme","landing":"main","head":"1111111111111111111111111111111111111111","pull":{"number":1,"address":"http://127.0.0.1:3000/qa/pilot-20261026/pulls/1"},"step":"checking","merge":null,"queue":null,"repair":null,"hold":null,"runs":null,"ci":"pending","gates":[],"repairs":{"used":0,"limit":3},"resolutions":{"used":0,"limit":3},"updates":{"used":0,"limit":5},"questions":{"route":"none","taken":0,"limit":4,"open":[]}"#;
     assert!(json.stdout.starts_with(expected));
     let mut document = skein_lib::Writer::new(expected.len() + 1);
     document.put(expected).unwrap();
@@ -823,5 +832,75 @@ fn landed_is_met_by_every_later_step_and_cleared_waits_through_red() {
         }
         deliver(&mut root, panel(after_step(final_step)));
         assert_eq!(root.answer(call).unwrap().status, 0);
+    }
+}
+
+fn question_parts() -> w::ChangePanelParts {
+    let mut parts = panel(w::Step::Checking).into_parts();
+    let mut open = List::with_capacity(2);
+    for (asker, number, line, stands) in [
+        (
+            7,
+            1,
+            b"Which branch?".as_slice(),
+            w::Stands::Foreman(w::Foreman::new(&w::CEILINGS, w::ForemanParts { task: Some(15) }).unwrap()),
+        ),
+        (8, 2, b"Which check?".as_slice(), w::Stands::Taken),
+    ] {
+        open.push(
+            w::Question::new(&w::CEILINGS, w::QuestionParts { asker, number, line: Box::from(line), stands }).unwrap(),
+        )
+        .unwrap();
+    }
+    parts.questions = w::Questions::new(
+        &w::CEILINGS,
+        w::QuestionsParts {
+            route: w::Route::Foreman,
+            taken: w::Used::new(&w::CEILINGS, w::UsedParts { used: 2, limit: 4 }).unwrap(),
+            open,
+        },
+    )
+    .unwrap();
+    parts
+}
+#[test]
+fn change_show_prints_its_questions() {
+    let value = w::ChangePanel::new(&w::CEILINGS, question_parts()).unwrap();
+    let text = change::print(Some(&value), false, None, b"", &f::limits_root(), &change::Holds::new());
+    assert_eq!(text.status, 0);
+    f::check_golden("change_questions", &text.stdout);
+    let json = change::print(Some(&value), true, None, b"", &f::limits_root(), &change::Holds::new());
+    contains(&json.stdout, br#""questions":{"route":"foreman","taken":2,"limit":4,"open":[{"asker":7,"number":1,"line":"Which branch?","stands":"foreman","foreman":15},{"asker":8,"number":2,"line":"Which check?","stands":"taken"}]}"#);
+}
+#[test]
+fn change_show_names_questions_without_a_made_foreman_and_answers_held() {
+    for (stands, text, json) in [
+        (
+            w::Stands::Foreman(w::Foreman::new(&w::CEILINGS, w::ForemanParts { task: None }).unwrap()),
+            b"with foreman".as_slice(),
+            br#""stands":"foreman""#.as_slice(),
+        ),
+        (w::Stands::Asked, b"asked of requester", br#""stands":"asked""#),
+        (w::Stands::Held, b"answered, held for dependencies", br#""stands":"held""#),
+    ] {
+        let mut parts = question_parts();
+        let mut questions = parts.questions.into_parts();
+        let mut open = List::with_capacity(1);
+        open.push(
+            w::Question::new(
+                &w::CEILINGS,
+                w::QuestionParts { asker: 7, number: 1, line: Box::from(b"Which branch?".as_slice()), stands },
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        questions.open = open;
+        parts.questions = w::Questions::new(&w::CEILINGS, questions).unwrap();
+        let value = w::ChangePanel::new(&w::CEILINGS, parts).unwrap();
+        let answer = change::print(Some(&value), false, None, b"", &f::limits_root(), &change::Holds::new());
+        contains(&answer.stdout, text);
+        let answer = change::print(Some(&value), true, None, b"", &f::limits_root(), &change::Holds::new());
+        contains(&answer.stdout, json);
+        assert!(skein_lib::bytes::find(&answer.stdout, br#""foreman":"#).is_none());
     }
 }

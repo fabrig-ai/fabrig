@@ -17,8 +17,7 @@
   deployment's help, and the fields alone (`forge/connect.rs` `body`,
   `Choice::Owned`). 5.4, Elsewhere: the dot leaving out the playground's
   forge, which `temper-client-domain`'s `forge/listed.rs` `rows` counts.
-  6.2: a drift hold's card, what changed, by whom and when. 9.2: a
-  change's questions in its panel (`ChangePanel` carries none).
+  6.2: a drift hold's card, what changed, by whom and when.
   7: a goal's issue, landings as news, findings on a project's page. 9:
   the reads of the forge's other parts.
 - **Departs:** 5.4: `ConnectForge`'s `?forge=elsewhere` draws A Forgejo
