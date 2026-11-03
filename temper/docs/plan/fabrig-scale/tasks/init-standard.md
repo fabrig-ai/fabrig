@@ -3,7 +3,7 @@ id = "init-standard"
 part = "box"
 kind = "feature"
 needs = ["standard-scale", "forge-profile", "smith-calls", "client-capacities"]
-files = ["temper/crates/temper-init/template/temper.json", "temper/crates/temper-init/template/agent.json", "temper/docs/examples/owned.json", "temper/docs/examples/owned/agent.json", "temper/crates/temper-init/src/tests/**", "temper/crates/temper/tests/suite/startup.rs", "temper/crates/temper/tests/suite/configuration.rs", "temper/crates/temper/tests/support/owned.rs", "temper/crates/temper-service/src/tests/startup.rs", "temper/crates/temper-service/src/tests/stock_brief.rs", "temper/tests/real-loop/tests/suite/template_bounds.rs", "temper/tests/engine/domain/src/forge_routes.rs", "temper/docs/design/protocol/configuration.status.md", "temper/docs/design/protocol/setup.status.md", "temper/crates/temper-service/src/limits.rs", "temper/crates/temper-service/src/tests/checks.rs", "temper/docs/design/protocol/configuration.md"]
+files = ["temper/crates/temper-init/template/temper.json", "temper/crates/temper-init/template/agent.json", "temper/docs/examples/owned.json", "temper/docs/examples/owned/agent.json", "temper/crates/temper-init/src/tests/**", "temper/crates/temper/tests/suite/startup.rs", "temper/crates/temper/tests/suite/configuration.rs", "temper/crates/temper/tests/support/owned.rs", "temper/crates/temper-service/src/tests/startup.rs", "temper/crates/temper-service/src/tests/stock_brief.rs", "temper/tests/real-loop/tests/suite/template_bounds.rs", "temper/tests/engine/domain/src/forge_routes.rs", "temper/docs/design/protocol/configuration.status.md", "temper/docs/design/protocol/setup.status.md", "temper/crates/temper-service/src/limits.rs", "temper/crates/temper-service/src/tests/checks.rs", "temper/docs/design/protocol/configuration.md", "temper/crates/temper-engine-domain/src/limits.rs"]
 effort = "high"
 minutes = 240
 +++
@@ -156,3 +156,34 @@ contracts' figure, listed in the report. If the cause is a figure in `limits.rs`
 jig's profile or a codec ceiling, stop and ask with the function, the figure and the bound it
 passes.
 
+2026-11-03. **`StoreMap(Ceiling)`: widen core-v6's `EscalationDecisionReject.reason` past 8,192, or
+change temper's projection?** temper's projection; no format changes. The core's
+`escalation_reason_bytes` bounds "an ended person escalation rejection reason"
+(`jig-domain-core/src/vocabulary.rs`): a person's words, which people-v14 already holds to
+`people.words` (`codec/people.rs`, 8,192 in `standard`, contracts K2: "the most without a format
+change"). A reason past it can never arrive, so a wider core-v6 ceiling would store room no person
+fills. This task is widened to one line:
+
+- `temper/crates/temper-engine-domain/src/limits.rs`, `core_limits`: `escalation_reason_bytes`
+  also takes `.min(limits.people.words)`, beside the result and journal bounds it takes now.
+  Nothing else in the file. jig's `codec/core.rs` then derives `max(8,192, 8,192)`, within
+  core-v6's 8,192. If a test of `temper-engine-domain` pins the old figure, change its figure
+  only and list it.
+
+**The root's validity (`limits::valid` false) is init's document's,** under the pre-approval
+above; list each with the check's words:
+
+- `forge.client.op_bytes < tasks.result_bytes` (512 < 10,660): the application's override
+  `forge.client.op_bytes` 10,660, the result bound. If it moves `forge_component.body_bytes` or
+  another start check, the least that passes, listed.
+- `root.journal.transcript_bytes` below `row_bound` (the row holds `standard`'s
+  `tasks.inbox_bytes` 21,495,808, 82 messages of 262,144): keep the engine override
+  `tasks.inbox_bytes` at `tasks.inbox_messages` × the box's message bound, 82 × 10,660 = 874,120
+  (the inbox's bytes follow the box's message bound as its messages do; K2 couples them, the
+  table does not name it, and jig requires only `message_bytes ≤ inbox_bytes`). The journal
+  carrier stays T's, as the writer writes it. If the row then still passes it, stop and ask with
+  `row_bound`'s figure and its largest terms; do not raise the carrier by hand.
+
+Then rerun `startup::checked_in_deployment_profiles_pass_startup_admission`, both documents in
+lockstep, and carry on with the acceptance. Another refusal from `limits.rs` beyond `SOCKETS`,
+jig's profile or a codec ceiling: stop and ask as before.
