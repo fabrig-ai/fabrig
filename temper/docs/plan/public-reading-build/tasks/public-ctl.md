@@ -121,7 +121,7 @@ Acceptance:
 4. `cargo fmt`; `python3 -I -B temper/scripts/old_forms.py`; `heavy cargo clippy -p
    temper-client-tools -p temper-docs --all-targets -- -D warnings`; the focused tests of
    `temper-client-tools`, `temper-docs`, `temper-client-shell-cli` and `temper/tests/client`'s
-   world (`-p temper-client-world` or its package name); the citations check.
+   world (`-p temper-client-world`); the citations check.
 5. Commit (why: an owner opens a project to public reading from ctl and reads its page's
    path); push your branch.
 
