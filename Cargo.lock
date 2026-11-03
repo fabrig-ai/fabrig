@@ -4808,6 +4808,7 @@ dependencies = [
  "temper-fake-git",
  "temper-fake-git-hosted",
  "temper-service",
+ "temper-worker-checkout-world",
  "temper-worker-protocol-git",
 ]
 

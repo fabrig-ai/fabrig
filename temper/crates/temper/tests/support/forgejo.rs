@@ -378,7 +378,7 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>, value: &mut Value) {
     let Forge::Throwaway { api, forgejo, .. } = forge else { return };
     let mut owned = owned::Owned::beside(*api);
     owned.forgejo_binary = forgejo.into();
-    owned::native_landing_settings(directory);
+    owned::producer_landing_settings(directory, 2);
     let path = directory.join("temper.json");
     if let Ok(bytes) = fs::read(&path) {
         let previous: Value = serde_json::from_slice(&bytes).expect("previous configuration");
@@ -414,10 +414,19 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>, value: &mut Value) {
 pub fn landing_scripts(answer: &[u8], forgejo: &Throwaway) -> Box<[skein_fake_llm_domain::api::Script]> {
     let Forge::Throwaway { api, .. } = forgejo.forge() else { panic!("throwaway forge") };
     let repository = u32::try_from(forgejo.repository()).expect("forge-local repository fits u32");
+    native_scripts(answer, api, repository, &forgejo.main_readme())
+}
+
+fn native_scripts(
+    answer: &[u8],
+    api: SocketAddr,
+    repository: u32,
+    readme: &[u8],
+) -> Box<[skein_fake_llm_domain::api::Script]> {
     let mut scripts = landing::change_scripts(
         landing::ChangeAuthority { coding_kind: 2, scope: Some((api, "acme")) },
         temper_engine_domain_forge::tag(1, repository),
-        &forgejo.main_readme(),
+        readme,
         landing::EDIT,
         b"@forge_chat",
         "@coding Fix",
@@ -427,6 +436,35 @@ pub fn landing_scripts(answer: &[u8], forgejo: &Throwaway) -> Box<[skein_fake_ll
     initial.cue = b"Hello".as_slice().into();
     scripts.push(initial);
     scripts.into_boxed_slice()
+}
+
+/// Native fixture contracts checked without starting Forgejo.
+pub mod tests {
+    use super::{Forge, Path, Scratch, Value, fs, json, native_scripts};
+
+    /// The native fixture's selected producer is authorized by its scripted delegate.
+    pub fn native_settings_preserve_the_coding_producer() {
+        let scratch = Scratch::new("native_forgejo_producer");
+        let api = "127.0.0.1:3000".parse().expect("fixture forge");
+        let forge = Forge::Throwaway { forgejo: Path::new("/fixture/forgejo"), api, git: format!("http://{api}/") };
+        super::super::configuration(scratch.path(), &forge);
+        let settings: Value = serde_json::from_slice(
+            &fs::read(scratch.path().join("native-landing-settings.json")).expect("landing settings"),
+        )
+        .expect("settings JSON");
+        let producer = &settings["items"][1]["set"];
+        assert_eq!(producer, 2, "native scripts delegate to charter 2");
+        assert_eq!(settings["items"][0]["set"]["gates"], json!([]));
+        let scripts = native_scripts(b"hello", api, 1, b"README");
+        let skein_fake_llm_domain::api::Line::Call { name, arguments } = &scripts[0].turns[0].lines[0] else {
+            panic!("delegate call")
+        };
+        assert_eq!(name.as_ref(), b"delegate");
+        let delegate: Value = serde_json::from_slice(arguments).expect("delegate JSON");
+        let kinds = delegate["batch"][0]["authority"]["delegation"]["kinds"].as_array().expect("kinds");
+        assert!(kinds.contains(&json!({"kind":"agent", "number":producer})));
+        scratch.remove();
+    }
 }
 
 fn stage(name: &str, began: skein_lib::Time) {

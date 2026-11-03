@@ -96,7 +96,7 @@ struct Binding {
 thread_local! { static ROOTS: RefCell<Roots> = RefCell::new(Roots::default()); }
 #[must_use]
 pub fn agent_roots<H: crate::programs::Harness>(_spawn: &skein_io::kernel::Spawn) -> Vec<skein_sim_world::StartupRoot> {
-    if H::GITHUB {
+    if H::github() {
         return vec![skein_sim_world::StartupRoot {
             name: b"worker".as_slice().into(),
             path: b"agent".as_slice().into(),

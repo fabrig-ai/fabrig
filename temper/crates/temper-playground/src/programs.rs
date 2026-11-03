@@ -17,8 +17,12 @@ pub use shell::Shell;
 pub trait Harness: 'static {
     type Service: Observe;
     type Process: Host;
-    /// Whether git uses the authenticated HTTP route and prepared agent roots.
-    const GITHUB: bool = false;
+    /// Whether git uses the authenticated HTTP route and prepared agent roots,
+    /// read at each spawn so one harness may serve worlds of both kinds.
+    #[must_use]
+    fn github() -> bool {
+        false
+    }
     fn configure(_document: &mut serde_json::Value) {}
     fn spawned(_role: Role, _inherited: &Inherited, _base: &[u8]) {}
     fn complete(_role: Role, _complete: &Complete) {}
@@ -275,7 +279,7 @@ pub fn agent<H: Harness>(_spawn: &Spawn, inherited: &Inherited) -> Process<H> {
 #[must_use]
 pub fn git<H: Harness>(spawn: &Spawn, inherited: &Inherited) -> Process<H> {
     H::spawned(Role::Git, inherited, b"worker");
-    if H::GITHUB {
+    if H::github() {
         Process::GitRoute(Box::new(temper_fake_git::Git::new(
             spawn,
             temper_fake_git_hosted::start(inherited),
@@ -299,7 +303,7 @@ fn agent_roots<H: Harness>(spawn: &Spawn) -> Vec<StartupRoot> {
 }
 #[must_use]
 pub fn agent_root<H: Harness>(spawn: &Spawn) -> Vec<StartupRoot> {
-    if H::GITHUB {
+    if H::github() {
         vec![StartupRoot { name: b"worker".as_slice().into(), path: b"agent".as_slice().into() }]
     } else {
         worker_root(spawn)
