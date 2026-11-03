@@ -48,7 +48,7 @@ fn policies(
     let mut policies = List::<Policy>::with_capacity(items.len());
     for (index, at) in items.iter().enumerate() {
         let path = check::index(path, index);
-        let Some(mut object) = check::object(document, *at, &path, problems) else { continue };
+        let Some(mut object) = check::object(document, *at, &path, problems, "configured-policy") else { continue };
         let number = check::count(&mut object, document, b"number", &path, problems);
         let at = object.required(document, b"policy", &path, problems);
         let policy = policy(document, at, &path.member(b"policy"), limits, configured, problems);
@@ -82,7 +82,7 @@ pub(crate) fn rules(
     configured: &[Model],
     problems: &mut Problems,
 ) -> Option<authority::Rules> {
-    let mut object = check::object(document, at, path, problems)?;
+    let mut object = check::object(document, at, path, problems, "rules")?;
     let at = object.required(document, b"ceiling", path, problems);
     let ceiling = value(document, at, &path.member(b"ceiling"), limits, configured, problems);
     let period_spend = check::integer(&mut object, document, b"period_spend", path, problems);
@@ -146,7 +146,7 @@ pub(crate) fn projects(
     let mut name_paths = List::with_capacity(items.len());
     for (index, at) in items.iter().enumerate() {
         let path = check::index(path, index);
-        let Some(mut object) = check::object(document, *at, &path, problems) else { continue };
+        let Some(mut object) = check::object(document, *at, &path, problems, "project") else { continue };
         let number = check::count(&mut object, document, b"number", &path, problems);
         let name_at = object.member(document, b"name");
         let name = project_name(document, name_at, number, &path.member(b"name"), problems);
@@ -271,7 +271,7 @@ fn permissions(
     let mut roles = List::<PermissionRole>::with_capacity(items.len());
     for (index, at) in items.iter().enumerate() {
         let path = check::index(&path.member(b"roles"), index);
-        let Some(mut object) = check::object(document, *at, &path, problems) else { continue };
+        let Some(mut object) = check::object(document, *at, &path, problems, "permission-role") else { continue };
         let connector = check::short(&mut object, document, b"connector", &path, problems);
         let permission = check::short(&mut object, document, b"permission", &path, problems);
         let role = check::count(&mut object, document, b"role", &path, problems);
@@ -304,7 +304,7 @@ fn policy(
     configured: &[Model],
     problems: &mut Problems,
 ) -> Option<(authority::Policy, Box<[jig_domain_people::TemplateOverride]>)> {
-    let mut object = check::object(document, at?, path, problems)?;
+    let mut object = check::object(document, at?, path, problems, "policy")?;
     let at = object.required(document, b"templates", path, problems);
     let templates =
         crate::templates::overrides(document, at?, &path.member(b"templates"), limits.core.templates, problems);
@@ -342,7 +342,7 @@ fn roles(
     let mut roles = List::<authority::Role>::with_capacity(items.len());
     for (index, at) in items.iter().enumerate() {
         let path = check::index(&path.member(b"roles"), index);
-        let Some(mut object) = check::object(document, *at, &path, problems) else { continue };
+        let Some(mut object) = check::object(document, *at, &path, problems, "role") else { continue };
         let number = check::count(&mut object, document, b"number", &path, problems);
         let at = object.required(document, b"authority", &path, problems);
         let authority = value(document, at, &path.member(b"authority"), limits, configured, problems);
@@ -389,7 +389,7 @@ fn value(
     configured: &[Model],
     problems: &mut Problems,
 ) -> Option<authority::Authority> {
-    let mut object = check::object(document, at?, path, problems)?;
+    let mut object = check::object(document, at?, path, problems, "authority")?;
     let tools = check::integer(&mut object, document, b"tools", path, problems);
     let models = models(&mut object, document, path, configured, problems);
     let grants = grants(&mut object, document, b"grants", path, limits, problems);
@@ -468,7 +468,7 @@ fn models(
     if named { Some(authority::Models::Named(models)) } else { None }
 }
 fn budget(document: &Document, at: Option<u32>, path: &Path, problems: &mut Problems) -> Option<authority::Budget> {
-    let mut object = check::object(document, at?, path, problems)?;
+    let mut object = check::object(document, at?, path, problems, "budget")?;
     let spend = check::integer(&mut object, document, b"spend", path, problems);
     let deadline = check::optional(&mut object, document, b"deadline_unix_seconds", path, problems);
     object.finish(document, path, problems);
@@ -491,7 +491,7 @@ fn delegation(
     limits: &authority::Limits,
     problems: &mut Problems,
 ) -> Option<authority::Delegation> {
-    let mut object = check::object(document, at?, path, problems)?;
+    let mut object = check::object(document, at?, path, problems, "delegation")?;
     let tasks = check::count(&mut object, document, b"tasks", path, problems);
     let depth = check::count(&mut object, document, b"depth", path, problems);
     let items = check::list(&mut object, document, b"kinds", limits.executors, path, problems);
@@ -499,7 +499,7 @@ fn delegation(
     if let Some(items) = items {
         for (index, at) in items.iter().enumerate() {
             let path = check::index(&path.member(b"kinds"), index);
-            let Some(mut object) = check::object(document, *at, &path, problems) else { continue };
+            let Some(mut object) = check::object(document, *at, &path, problems, "executor-kind") else { continue };
             let kind = check::text(&mut object, document, b"kind", &path, problems);
             let number = check::count(&mut object, document, b"number", &path, problems);
             object.finish(document, &path, problems);
@@ -547,7 +547,7 @@ fn grants(
     let mut grants = List::with_capacity(items.len());
     for (index, at) in items.iter().enumerate() {
         let path = check::index(&path.member(name), index);
-        let Some(mut object) = check::object(document, *at, &path, problems) else { continue };
+        let Some(mut object) = check::object(document, *at, &path, problems, "grant") else { continue };
         let connector = check::short(&mut object, document, b"connector", &path, problems);
         let kind = check::short(&mut object, document, b"kind", &path, problems);
         let at = object.required(document, b"pattern", &path, problems);
@@ -573,7 +573,7 @@ fn scopes(
     let mut scopes = List::with_capacity(items.len());
     for (index, at) in items.iter().enumerate() {
         let path = check::index(&path.member(b"note_resources"), index);
-        let Some(mut object) = check::object(document, *at, &path, problems) else { continue };
+        let Some(mut object) = check::object(document, *at, &path, problems, "resource-scope") else { continue };
         let connector = check::short(&mut object, document, b"connector", &path, problems);
         let at = object.required(document, b"pattern", &path, problems);
         let pattern = pattern(document, at, &path.member(b"pattern"), limits, problems);
@@ -593,7 +593,7 @@ fn pattern(
     limits: &authority::Limits,
     problems: &mut Problems,
 ) -> Option<authority::Pattern> {
-    let mut object = check::object(document, at?, path, problems)?;
+    let mut object = check::object(document, at?, path, problems, "pattern")?;
     let items = check::list(&mut object, document, b"segments", limits.segments, path, problems);
     let mut segments = List::with_capacity(limits.segments);
     if let Some(items) = items {
@@ -633,7 +633,7 @@ fn implications(
     let mut pairs = List::with_capacity(items.len());
     for (index, at) in items.iter().enumerate() {
         let path = check::index(&path.member(b"implies"), index);
-        let Some(mut object) = check::object(document, *at, &path, problems) else { continue };
+        let Some(mut object) = check::object(document, *at, &path, problems, "implication") else { continue };
         let connector = check::short(&mut object, document, b"connector", &path, problems);
         let kind = check::short(&mut object, document, b"kind", &path, problems);
         let implies = check::short(&mut object, document, b"implies", &path, problems);
@@ -675,7 +675,7 @@ fn requirement(
     limits: &authority::Limits,
     problems: &mut Problems,
 ) -> Option<authority::Requirement> {
-    let mut object = check::object(document, at, path, problems)?;
+    let mut object = check::object(document, at, path, problems, "requirement")?;
     let connector = check::short(&mut object, document, b"connector", path, problems);
     let kind = check::short(&mut object, document, b"kind", path, problems);
     let at = object.required(document, b"pattern", path, problems);
@@ -721,7 +721,7 @@ fn requirement(
     })
 }
 fn judge(document: &Document, at: Option<u32>, path: &Path, problems: &mut Problems) -> Option<authority::Judge> {
-    let mut object = check::object(document, at?, path, problems)?;
+    let mut object = check::object(document, at?, path, problems, "judge")?;
     let connector = check::short(&mut object, document, b"connector", path, problems);
     let requirement = check::short(&mut object, document, b"requirement", path, problems);
     let parameters = check::count(&mut object, document, b"parameters", path, problems);

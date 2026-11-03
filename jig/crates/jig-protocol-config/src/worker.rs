@@ -45,7 +45,7 @@ pub fn stop_bound(graces: &Graces, ping: Duration, silence: Duration) -> Option<
 pub fn worker(document: &Document, at: u32, directories: &Directories) -> Result<Worker, Problems> {
     let path = Path::root();
     let mut problems = Problems::empty();
-    let Some(mut object) = check::object(document, at, &path, &mut problems) else {
+    let Some(mut object) = check::object(document, at, &path, &mut problems, "worker") else {
         return Err(problems);
     };
     let mut limits = profile(Profile::Small);
@@ -81,7 +81,7 @@ pub fn worker(document: &Document, at: u32, directories: &Directories) -> Result
     let mut check_interval = None;
     if let Some(at) = object.required(document, b"programs", &path, &mut problems) {
         let path = path.member(b"programs");
-        if let Some(mut programs) = check::object(document, at, &path, &mut problems) {
+        if let Some(mut programs) = check::object(document, at, &path, &mut problems, "programs") {
             check_interval = check::duration(&mut programs, document, b"check_interval_ms", &path, &mut problems);
             if check_interval == Some(Duration::ZERO) {
                 problems.push(path.member(b"check_interval_ms"), What::Bound);
@@ -116,7 +116,7 @@ pub fn worker(document: &Document, at: u32, directories: &Directories) -> Result
     })
 }
 fn parse_graces(document: &Document, at: u32, path: &Path, problems: &mut Problems) -> Option<Graces> {
-    let mut object = check::object(document, at, path, problems)?;
+    let mut object = check::object(document, at, path, problems, "graces")?;
     let grace = check::duration(&mut object, document, b"grace_ms", path, problems);
     let agent_stop = check::duration(&mut object, document, b"agent_stop_ms", path, problems);
     let delivery = check::duration(&mut object, document, b"delivery_ms", path, problems);
@@ -131,7 +131,7 @@ fn parse_agent(
     directories: &Directories,
     problems: &mut Problems,
 ) -> Option<Agent> {
-    let mut object = check::object(document, at, path, problems)?;
+    let mut object = check::object(document, at, path, problems, "agent")?;
     let program = check::text(&mut object, document, b"program", path, problems);
     let configuration =
         check::path(&mut object, document, b"configuration", path, Directory::Config, directories, problems);

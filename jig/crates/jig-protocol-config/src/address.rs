@@ -17,7 +17,7 @@ fn socket(bytes: &[u8]) -> Result<SocketAddr, What> {
 }
 
 pub fn read(document: &Document, at: u32, path: &Path, problems: &mut Problems) -> Option<Address> {
-    let mut object = match read::Object::new(document, at) {
+    let mut object = match read::Object::shaped(document, at, "address") {
         Ok(object) => object,
         Err(what) => {
             problems.push(path.clone(), what);
