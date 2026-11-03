@@ -347,7 +347,7 @@ pub static FIELDS: [Field; 190] = [
         value: Value::Shape(Shape::Symbol),
         list: Some(Bound::Limit(Limit::TemplateResources)),
         null: false,
-        line: b"Optional; absent means an empty list. Resource symbols resolved for the new task; forge connector 0, symbol 1 is its own goal branch.",
+        line: b"Optional; absent means an empty list. Resource symbols resolved for the new task; forge connector 1, symbol 1 is its own goal branch.",
     },
     Field {
         shape: Shape::Template,

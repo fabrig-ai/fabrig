@@ -112,7 +112,7 @@ A batch of messages that wakes a task once.
 
 How a new task of one shape is filled: its executor, result, budget, deadline and flags. A task keeps the values it was made with; a change reaches the tasks made after it.
 
-- `resources`: list of at most 32, each `symbol`. Optional; absent means an empty list. Resource symbols resolved for the new task; forge connector 0, symbol 1 is its own goal branch.
+- `resources`: list of at most 32, each `symbol`. Optional; absent means an empty list. Resource symbols resolved for the new task; forge connector 1, symbol 1 is its own goal branch.
 - `number`: integer, 0 to 4,294,967,295. The template's number, the same as `setting.number`; a chat is filled from template 1 and a goal from template 2.
 - `name`: `text`. Its name, as clients show it.
 - `executor`: `executor`. Who runs the task.

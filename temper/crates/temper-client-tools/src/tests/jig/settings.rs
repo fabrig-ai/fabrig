@@ -1946,7 +1946,7 @@ fn reference_goal_template_resources_survive_apply_and_show() {
     let c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Template(template) }) = &item.edit else {
         panic!("template value")
     };
-    assert_eq!(template.resources.as_slice(), &[c::Symbol { connector: 0, symbol: 1 }]);
+    assert_eq!(template.resources.as_slice(), &[c::Symbol { connector: 1, symbol: 1 }]);
     assert_eq!(template.tracked, Some(1));
     goal_template_wire_round_trip(file, change, template);
     for json in [false, true] {
@@ -1966,7 +1966,7 @@ fn reference_goal_template_resources_survive_apply_and_show() {
         let answer = root.answer(call).expect("settings show");
         assert_eq!(answer.status, 0);
         let text = core::str::from_utf8(&answer.stdout).expect("text or JSON");
-        assert!(text.contains(r#""resources":[{"connector":0,"symbol":1}]"#), "{text}");
+        assert!(text.contains(r#""resources":[{"connector":1,"symbol":1}]"#), "{text}");
         if json {
             let decoded = settings_file::decode(&file_from_setting(&answer.stdout), &crate::limits::tools())
                 .expect("show JSON applies");

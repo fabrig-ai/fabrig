@@ -166,7 +166,7 @@
         "number": 4
       },
       "set": {
-        "resources": [{"connector": 0, "symbol": 1}],
+        "resources": [{"connector": 1, "symbol": 1}],
         "number": 4,
         "name": {
           "bytes": "goal for a draft",
