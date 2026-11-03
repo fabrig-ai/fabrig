@@ -11,7 +11,10 @@
   --under`, `task succeed --by`, `finding route`, `finding backlog`,
   `finding drop`, `qa choose`, `task hold`, `project hold` and `revision
   restore`; a settings file's items of temper's kinds and a proposal's
-  (`ProposalItems`). 5.5: area 2's `goal start` with its model flags,
+  (`ProposalItems`); a template's resources in a settings file and in
+  `settings show`: the file's template has no `resources` member
+  (`temper-settings-form/src/view.rs`), and one applied from a file
+  names none (`jig/settings_adapter.rs`, `client_template`). 5.5: area 2's `goal start` with its model flags,
   `proposal withdraw`, `seen`, and `task amend`'s `--budget` and
   `--tasks`; area 3's `party make`, `sign-in --service`, `deployment
   show`, `task move`, `task take`, `task hand-back`, and the project's

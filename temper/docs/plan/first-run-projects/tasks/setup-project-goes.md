@@ -194,3 +194,13 @@ Acceptance:
 
 As the implementer's text says, with the regenerated files' `git diff --stat`, the goldens
 deleted, and each test renamed or rewritten.
+
+## Rebase (2026-11-03, step merge, foreman first-run-projects/setup-project-goes/foreman-1)
+
+resolve README.status.md by preserving both adjacent gap removals
+The merge conflicts only in `temper/docs/design/client/README.status.md`.
+Task commit `610719c9c6` removes the three-line `4.6, 8: SetUp, FirstAsk` project gap.
+Incoming integration commit `3fb03466e3` removes the adjacent three-line `3.5, The first chat` gap.
+Resolve by deleting both blocks, leaving the `4.4` picker entry followed directly by `5.3, Projects in the banner`.
+Preserve all other status text; choosing either side wholesale would restore a closed gap.
+`temper/tools/gallery/src/worlds.rs` auto-merged successfully; the refusal reports no conflict there.

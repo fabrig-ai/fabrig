@@ -14,7 +14,7 @@ const PRODUCER_RUN: usize = 1;
 const ONE_MERGE: u32 = 1;
 const GOAL_BUDGET: u64 = 300; // Leaves 200 of the owner's 500 units for an outside chat.
 
-fn adopted_world() -> World {
+pub(super) fn adopted_world() -> World {
     let mut world = World::configured(true, true);
     world.adopt();
     world.send(protocol::hello_slots(Token::new(7), 2, Box::new([])));
@@ -35,7 +35,7 @@ pub(super) fn goal_request(world: &World, tracked: bool) -> people::Ask {
     people::Ask::Create { project, batch }
 }
 
-fn running_goal() -> (World, engine::Assignment, Box<[u8]>) {
+pub(super) fn running_goal() -> (World, engine::Assignment, Box<[u8]>) {
     let mut world = adopted_world();
     let ask = goal_request(&world, true);
     let goal = assigned_chat(&mut world, GOAL_REQUEST, ask);
@@ -44,7 +44,7 @@ fn running_goal() -> (World, engine::Assignment, Box<[u8]>) {
     (world, goal, branch)
 }
 
-fn resource(branch: &[u8]) -> tasks::Name {
+pub(super) fn resource(branch: &[u8]) -> tasks::Name {
     tasks::Name {
         connector: FORGE_CONNECTOR,
         path: Box::new([
@@ -85,7 +85,11 @@ fn ask(world: &mut World, key: u8, ask: people::Ask) -> people::Outcome {
     panic!("person request {key} did not answer")
 }
 
-fn change(world: &mut World, run: &engine::Assignment, landing: engine::ChangeLanding) -> engine::CallAnswer {
+pub(super) fn change(
+    world: &mut World,
+    run: &engine::Assignment,
+    landing: engine::ChangeLanding,
+) -> engine::CallAnswer {
     let before = world.answers.len();
     let event = world.protocol.call(
         Token::new(7),
@@ -130,7 +134,7 @@ pub(super) fn forge_hold<'a>(world: &'a World, branch: &[u8]) -> Option<&'a forg
     })
 }
 
-fn writer(world: &World, branch: &[u8]) -> Option<tasks::Writer> {
+pub(super) fn writer(world: &World, branch: &[u8]) -> Option<tasks::Writer> {
     let resource = resource(branch);
     world
         .store

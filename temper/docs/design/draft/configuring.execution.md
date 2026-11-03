@@ -15,10 +15,10 @@ the reference's M1 to M10.
   17.5 to 17.7, temper's `../protocol/configuration.md`, 13.2 to 13.4
   and the section M1 adds after 13.8, and `../domain/agent.md`, 4.3.1,
   and P2 and P3 follow M3 beside them.
-- **P1 now:** what is designed and touches nothing in flight: a
-  charter's documents, charters read at their task's revision, and
-  `chat start --template`. The reference's M3 takes a charter's
-  documents from P1 rather than building them.
+- **P1 first,** landed 2026-11-03: what was designed and touched
+  nothing in flight: a charter's documents, charters read at their
+  task's revision, and `chat start --template`. The reference's M3
+  takes a charter's documents from P1 rather than building them.
 - **P2 and P3 after M3:** P2 the settings through ctl, temper's kinds in
   them; P3 the configuring agent. Their designers start once M3's cut
   has released its design into M3's trunk, and build on its text.
@@ -45,7 +45,7 @@ under Old code, assessed in hel8's `~/src/fabrig/coord/old-repos-value/`.
 
 | | Phase | Executes (`configuring.md`) | Needs | State |
 |---|---|---|---|---|
-| P1 | Documents, revisions, a chat's template | 2 (rules reach the runs), 4, 5.4 (`chat start`) | | not started |
+| P1 | Documents, revisions, a chat's template | 2 (rules reach the runs), 4, 5.4 (`chat start`) | | done: landed 2026-11-03 01:39Z (plan `configuring-p1`, 13 tasks); its walk folds into P2's |
 | P2 | Settings through ctl | 3.3, 5.4 | P1; the reference's M3 | not started |
 | P3 | The configuring agent | 5.3, 6 | P2 | not started |
 | P4 | Stage 1 | 8.1 | P3 | not started |
