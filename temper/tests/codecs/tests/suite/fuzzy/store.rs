@@ -249,6 +249,16 @@ fn tier_rows(rng: &mut Rng, bounds: &Bounds) {
         held: None,
         result: None,
         received: false,
+        goals: Box::new([forge::TierGoal {
+            goal: 7,
+            branch: Box::from(b"temper/1/g7".as_slice()),
+            tip: Some([11; 32]),
+            ran: Some([12; 32]),
+            failing: failures.clone(),
+            started: Some(skein_lib::Time::from_nanos(rng.next_u64())),
+        }]),
+        goal: Some(7),
+        started: Some(skein_lib::Time::from_nanos(rng.next_u64())),
         repository,
         tier: Box::from(b"tier".as_slice()),
         task: if rng.below(2) == 0 { None } else { Some(rng.next_u64()) },
@@ -352,7 +362,7 @@ fn verification_row(
             repaired: if rng.below(2) == 0 {
                 None
             } else {
-                Some(temper_engine_domain_forge::TierRepair { run: 2, tip: [8; 32] })
+                Some(temper_engine_domain_forge::TierRepair { run: 2, tip: [8; 32], by: Some([9; 32]) })
             },
         }]),
     });

@@ -685,7 +685,24 @@ Held by skein's `forge-client.md`, section 3. temper's part:
   already due cannot leave it waiting on an older CI verdict.
 - **Its capacity:** `forge.client.resources` live resources and
   `forge.client.repositories` repositories. A batch naming resources past
-  it is refused.
+  either bound is refused with the configuration member, its configured
+  value and required usage. Task names, their count and their bytes are
+  checked against `forge.tasks`, `forge.resources_per_task`,
+  `forge.name_bytes` and the client's `forge.client.op_bytes` as well.
+  A refusal carries the failed operation, its resource and its typed cause
+  to the root. A persistent hold explains the act that resolves it:
+  reduce the named work, or change the named configuration member and
+  restart, then release; an access or backend failure names its own cause.
+  A released change whose initial names were refused asks for them again;
+  while the bound still refuses them it holds again.
+- **Temporary admission pressure waits:** when recovery is incomplete,
+  or a departing resource's read still occupies capacity, the desired
+  names are saved and the complete watch set is retried after one second.
+  Removing a task removes its desired names; retry never revives it.
+  A restart rebuilds the watch set from those durable names. No person
+  releases this wait. A fresh change read refused as busy keeps its timed
+  procedure wait; other branch, base and pull read failures retain their
+  operation, resource and backend cause in the hold.
 
 ### 5.2 Keeping up
 
@@ -1363,6 +1380,10 @@ delegate's terminal wakes it to offer the landed result.
   before sizing the pull section's contents, retaining the core's
   context. When the brief cannot hold both section caps, their gathered
   sizes decide the fit, with the repair reason before the pull section.
+  Repair instructions preserve the requested change and unrelated content
+  already landed on the base, including both independent appended lines
+  and existing blank lines. Lost content is restored from the review's
+  remarks; content is never removed just to make a check pass.
 - **The merge job** comes before a resolution where the change's
   project names a `merge_job` and the change's authority delegates to
   the merge kind (`../protocol/configuration.md`, section 3): a job of
@@ -1377,15 +1398,26 @@ delegate's terminal wakes it to offer the landed result.
   means the command left conflicts, and the change makes a resolution
   of the same base, its words carrying the job's result, cut to the
   resolution's words' room and marked. A job that fails for good holds
-  the change as a resolution that fails does. Without a `merge_job`, or
-  without the kind in its authority, a conflict goes to a resolution at
-  once. A merge job counts as one of the change's resolutions, and the
-  resolution after it as none, so the bound counts each conflict once.
+  the change as a resolution that fails does. Without a `merge_job`,
+  without the kind declared (`worker.md`, 4.4) or in its authority, or
+  with the job's spec past the kind's bound, a conflict goes to a
+  resolution at once. A merge job counts as one of the change's
+  resolutions, and the resolution after it as none, so the bound counts
+  each conflict once.
 - **A resolution** is a task for an agent whose workspace starts from a
   merge in progress: the base merged into the branch, the conflicting
   files marked. The agent edits them and runs the checks, with no git
   writes of its own; the worker commits the tree as the merge, with both
-  parents, and pushes it (`worker.md`, section 5).
+  parents, and pushes it (`worker.md`, section 5). Its instructions keep
+  both sides' intended content by the same preservation rule as repairs;
+  the shared coding charter applies it to repairs and resolutions too.
+  The specification reserves its pinned parameters' bytes before its words.
+  Where the full instructions do not fit, a compact instruction keeps both
+  sides and blank lines, with the full rule in the coding charter; where
+  neither fits, the change holds instead of issuing an oversized delegate.
+  Required preservation instructions precede optional merge-job results. A
+  result is appended only with room for its context and any truncation marker;
+  it never displaces the preservation instructions.
 - **A verdict whose post is refused** (8.3) is no repair and no stall:
   the gate counts as temper's verdict says, nothing is held for the
   post, and its `Forbidden` narrows what temper may do in that
@@ -1407,8 +1439,12 @@ delegate's terminal wakes it to offer the landed result.
   `../client/tools.md`, area 2's `task amend`) lets it go on, a bare one
   holds it again, saying so. The requester and panel's recovery words
   offer `task cancel TASK REASON`, or asking for the change afresh, and
-  explain that bare release holds again. They advertise only commands
-  the client takes.
+  explain that bare release holds again. A task allowance hold also offers
+  `task amend TASK --rev REV --tasks N REASON`, followed by
+  `task release TASK --hold HOLD`, with room for a repair and review in
+  the replacement lifetime allowance. Cancellation comes before these
+  commands so a bounded task summary retains a way out. They advertise
+  only commands the client takes.
 - **Stalls:** each wait on the forge (CI that never reports, a
   mergeability never known, a forge's merge queue that neither lands
   nor ejects it, a gate's task stuck) is bounded by a stall counted from

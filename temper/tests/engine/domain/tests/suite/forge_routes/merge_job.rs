@@ -192,13 +192,36 @@ fn a_conflict_the_merge_job_leaves_goes_to_a_resolution() {
     finish_job(&mut world, &job, LEFT);
     let resolution = super::reviews::next_assignment(&mut world, 2);
     let words = &live_task(&world, resolution.task).spec.words;
-    assert_eq!(words.as_ref(), format!("Resolve the merge conflict and push the merge commit\n\nThe merge job settled what the project's merge command knows and left the rest:\n{}", core::str::from_utf8(LEFT).expect("result text")).as_bytes());
+    assert_preserving_resolution(words);
+    assert!(
+        words.ends_with(
+            format!(
+                "\n\nThe merge job settled what the project's merge command knows and left the rest:\n{}",
+                core::str::from_utf8(LEFT).expect("result text")
+            )
+            .as_bytes()
+        )
+    );
     assert_eq!(change_row(&world, task).change.resolutions, 1);
     assert!(change_row(&world, task).merge_result.is_none(), "making the resolution consumes the account");
     let merged = push_merge(&mut world, task, head, base);
     finish_resolution(&mut world, &resolution);
     landed(&mut world, task, merged);
     world.close();
+}
+
+fn assert_preserving_resolution(words: &[u8]) {
+    let text = core::str::from_utf8(words).expect("resolution text");
+    assert!(text.starts_with("Resolve the merge conflict."));
+    for expected in [
+        "Preserve the requested change",
+        "unrelated content already landed on the base",
+        "both independent appended lines and existing blank lines",
+        "Do not remove content to make a check pass",
+        "The worker commits and pushes the resolved merge",
+    ] {
+        assert!(text.contains(expected), "{text}");
+    }
 }
 
 fn finish_resolution(world: &mut World, resolution: &engine::Assignment) {
@@ -247,10 +270,7 @@ fn without_a_merge_job_a_conflict_goes_to_a_resolution() {
     let (mut world, task, head, base) = pushed_change_in(world(false, true, true), true, GOAL);
     let resolution = next_resolution(&mut world, task);
     assert!(world.jobs.is_empty());
-    assert_eq!(
-        live_task(&world, resolution.task).spec.words.as_ref(),
-        b"Resolve the merge conflict and push the merge commit"
-    );
+    assert_preserving_resolution(&live_task(&world, resolution.task).spec.words);
     let merged = push_merge(&mut world, task, head, base);
     finish_resolution(&mut world, &resolution);
     landed(&mut world, task, merged);

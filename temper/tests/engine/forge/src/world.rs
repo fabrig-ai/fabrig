@@ -882,6 +882,7 @@ impl World {
                 | top::Request::Resource { .. }
                 | top::Request::Taken { .. }
                 | top::Request::Refused { .. }
+                | top::Request::ResourceRefused { .. }
                 | top::Request::LostReadFailed { .. }
                 | top::Request::MakeFailed { .. }
                 | top::Request::Outcome { .. }

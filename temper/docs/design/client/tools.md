@@ -648,7 +648,10 @@ The table grows area by area, each with its stories (section 11).
      the next bullets say. It is the way out a hold for a task's own
      budget or tasks names (jig's `domain/tasks.md`, 5.5; `../domain/forge.md`,
      8.4): `task amend 41 --rev 8 --budget 2000 "room for its review"`,
-     then `task release 41 --hold 3`; a hold whose lack the task's
+     then `task release 41 --hold 3`; for tasks, the hold prints
+     `task amend 41 --rev 8 --tasks N REASON`, then the release. N is
+     a replacement lifetime allowance with room for a repair and review;
+     release never erases tasks already made. A hold whose lack the task's
      authority does not hold (a project's period, a pool) names `project
      fund` instead, and a hold no amendment lifts names the cancel.
    - **`--rev REV` is the spec's revision** that `task show TASK`
@@ -666,7 +669,7 @@ The table grows area by area, each with its stories (section 11).
      tasks restates the task's authority, a spec's words its spec. Where the document cut
      it to the client's bounds, the tool sends nothing and exits 1,
      `temper ctl: task 41's authority is cut in this read; amend its
-     deadline from a client with wider bounds` (or `spec`, `words`).
+     deadline or tasks from a client with wider bounds` (or `spec`, `words`).
    - **Beyond the party's bounds,** an amendment follows 5.3, compared
      by jig's admission for the task's offered `amend` act: within,
      sent; past what the party holds but proposable, a deadline later

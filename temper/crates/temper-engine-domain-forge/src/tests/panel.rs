@@ -516,7 +516,7 @@ fn after_landing_steps_keep_each_tiers_verdict_and_repairing_run() {
                 TierVerification {
                     tier: Box::from(b"fast".as_slice()),
                     verdict: Some(TierVerdict { run: 1, blame: Blame::Owns(Failures::Many) }),
-                    repaired: Some(TierRepair { run: 2, tip: fixtures::HEAD }),
+                    repaired: Some(TierRepair { run: 2, tip: fixtures::HEAD, by: None }),
                 },
                 TierVerification {
                     tier: Box::from(b"slow".as_slice()),
@@ -603,6 +603,9 @@ fn running_tier(d: &mut Domain, merge: skein_forge::api::Commit) {
                 held: None,
                 result: None,
                 received: false,
+                goals: Box::new([]),
+                goal: None,
+                started: None,
                 record: p::Record {
                     sequence: 7,
                     judged: None,

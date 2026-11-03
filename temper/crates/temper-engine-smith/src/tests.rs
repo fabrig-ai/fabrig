@@ -1406,6 +1406,7 @@ fn change_decodes_a_plan_member_each() {
                 after: Box::new([engine::ChangeAfter::Task(4), engine::ChangeAfter::Name(b"w".as_slice().into())]),
                 producer: None,
                 llm: engine::ChangeLlm::default(),
+                repairs: None,
             }]
         );
     }
@@ -1416,6 +1417,46 @@ fn change_decodes_a_plan_member_each() {
     };
     assert_eq!(changes[0].name.as_deref(), Some(name.as_bytes()));
     assert!(changes[0].after.is_empty());
+}
+
+#[test]
+fn change_decodes_repairs_alone_and_in_changes_at_each_commit_width() {
+    for digits in [40, 64] {
+        let text = "ab".repeat(digits / 2);
+        let mut commit = [0_u8; 32];
+        commit[..digits / 2].fill(0xab);
+        for input in [
+            format!(r#"{{"words":"a","repairs":"{text}"}}"#),
+            format!(r#"{{"changes":[{{"words":"a","repairs":"{text}"}}]}}"#),
+        ] {
+            let engine::Tool::Change { changes } = decided(b"change", input.as_bytes()).expect("repair change").tool
+            else {
+                panic!("change")
+            };
+            assert_eq!(
+                changes.as_ref(),
+                &[engine::ChangeCall {
+                    repairs: Some(commit),
+                    ..engine::ChangeCall::words(b"a".as_slice().into(), None)
+                }]
+            );
+        }
+    }
+}
+
+#[test]
+fn change_refuses_repairs_that_are_not_lowercase_commit_digits() {
+    for text in ["AB".repeat(20), "AB".repeat(32), "a".repeat(39), "a".repeat(41), "a".repeat(63), "g".repeat(64)] {
+        for input in [
+            format!(r#"{{"words":"a","repairs":"{text}"}}"#),
+            format!(r#"{{"changes":[{{"words":"a","repairs":"{text}"}}]}}"#),
+        ] {
+            assert_eq!(decided(b"change", input.as_bytes()), Err(Problem::Range(b"repairs")));
+        }
+    }
+    for input in [br#"{"words":"a","repairs":1}"#.as_slice(), br#"{"changes":[{"words":"a","repairs":null}]}"#] {
+        assert_eq!(decided(b"change", input), Err(Problem::Type(b"repairs")));
+    }
 }
 
 #[test]
@@ -1435,15 +1476,16 @@ fn change_decodes_branch_mine() {
 }
 
 #[test]
-fn change_keeps_branch_producer_and_llm_together() {
+fn change_keeps_branch_repairs_producer_and_llm_together() {
     let input =
-        br#"{"words":"a","branch":"mine","producer":6,"llm":{"producer":{"main":{"model":"sol","effort":"high"}}}}"#;
+        br#"{"words":"a","branch":"mine","repairs":"abababababababababababababababababababababababababababababababab","producer":6,"llm":{"producer":{"main":{"model":"sol","effort":"high"}}}}"#;
     let engine::Tool::Change { changes } = configured_change(input).expect("branch and role choices").tool else {
         panic!("change")
     };
     assert_eq!(changes.len(), 1);
     assert_eq!(changes[0].branch, Some(engine::ChangeBranch::Mine));
     assert_eq!(changes[0].producer, Some(6));
+    assert_eq!(changes[0].repairs, Some([0xab; 32]));
     assert_eq!(
         changes[0].llm.producer.as_ref().expect("producer choice").main,
         tasks::ModelEffort { model: 0, effort: Some(1) }
@@ -1506,6 +1548,7 @@ fn change_decodes_several_changes_in_order() {
             after: Box::new([engine::ChangeAfter::Task(1)]),
             producer: None,
             llm: engine::ChangeLlm::default(),
+            repairs: None,
         }]
     );
 }
@@ -1675,7 +1718,7 @@ fn change_refuses_words_with_changes_and_empty_members() {
 #[test]
 fn change_offers_its_plan_members_only_with_control() {
     let legacy = br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."}},"required":["words"]}"#;
-    let plan = br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."},"name":{"type":"string","description":"Its name in this call, for a later change's after."},"landing":{"type":"string","description":"goal: your own goal branch; or a branch's name; left out, the default branch."},"branch":{"type":"string","enum":["mine"],"description":"mine: your own goal branch, landed whole as it stands, with no coder; left out, a branch of the change's own."},"merge":{"type":"string","description":"A catch-up: the commit to merge into a branch made at the landing branch's tip, as 40 or 64 hexadecimal digits; the merge job, not an agent, produces it."},"after":{"type":"array","description":"What it lands after: your live delegates' task numbers, or names given earlier in this call.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"producer":{"type":"integer","minimum":1,"description":"The charter its producer, repairs and resolutions run under; left out, the forge's change charter."},"llm":{"type":"object","description":"LLM choices by role, producer and review: each {main: {model, effort}, sub_agents: [{model, effort}]}, by configured names; a role left out takes its charter's default."},"changes":{"type":"array","description":"Instead of words: several changes as one batch, each with the members above.","items":{"type":"object"}}}}"#;
+    let plan = br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."},"name":{"type":"string","description":"Its name in this call, for a later change's after."},"landing":{"type":"string","description":"goal: your own goal branch; or a branch's name; left out, the default branch."},"branch":{"type":"string","enum":["mine"],"description":"mine: your own goal branch, landed whole as it stands, with no coder; left out, a branch of the change's own."},"merge":{"type":"string","description":"A catch-up: the commit to merge into a branch made at the landing branch's tip, as 40 or 64 hexadecimal digits; the merge job, not an agent, produces it."},"after":{"type":"array","description":"What it lands after: your live delegates' task numbers, or names given earlier in this call.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"producer":{"type":"integer","minimum":1,"description":"The charter its producer, repairs and resolutions run under; left out, the forge's change charter."},"llm":{"type":"object","description":"LLM choices by role, producer and review: each {main: {model, effort}, sub_agents: [{model, effort}]}, by configured names; a role left out takes its charter's default."},"changes":{"type":"array","description":"Instead of words: several changes as one batch, each with the members above.","items":{"type":"object","properties":{"repairs":{"type":"string","description":"The red landing this change repairs: its merge commit's 40 or 64 hexadecimal digits, as the red's news names it.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"}}}},"repairs":{"type":"string","description":"The red landing this change repairs: its merge commit's 40 or 64 hexadecimal digits, as the red's news names it.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"}}}"#;
     let stock = 1_539;
     for (authority, schema) in [(stock, legacy.as_slice()), (stock | 0b100, plan.as_slice())] {
         let mut found = false;

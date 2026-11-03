@@ -189,7 +189,7 @@ record ResultText { bytes: bytes 1048576 cut: u64 }
 record ChangeResult { head: option fixed 32 checks: ResultText failed: ResultText repairs: ResultText repair_count: u64 reviews: ResultText }
 record ModelEffort { model: u8 effort: option u8 }
 record LlmChoice { main: ModelEffort subagents: list 64 ModelEffort account: option u32 }
-record ChangeRow { result: ChangeResult task: u64 repository: Repository branch: bytes 4096 base: bytes 4096 title: bytes 1048576 body: bytes 1048576 priority: u32 change: Change ci: option ChangeCi pull: option u64 pending: option u64 effect: EffectResult delegate: option DelegateRef delegate_status: ChangeStatus verdicts: list 1024 GateReport gate_remarks: list 1024 GateRemark drift: option ChangeHold base_repair: bool queue_repair: option u64 queue_repairs: u32 producing_charter: u32 review_charter: u32 producing_llm: option LlmChoice review_llm: option LlmChoice effect_account: option EffectAccount producer_failure: option bytes 512 report: bytes 1048576 catch_up: option fixed 32 merge_result: option bytes 512 }
+record ChangeRow { result: ChangeResult task: u64 repository: Repository branch: bytes 4096 base: bytes 4096 title: bytes 1048576 body: bytes 1048576 priority: u32 change: Change ci: option ChangeCi pull: option u64 pending: option u64 effect: EffectResult delegate: option DelegateRef delegate_status: ChangeStatus verdicts: list 1024 GateReport gate_remarks: list 1024 GateRemark drift: option ChangeHold base_repair: bool queue_repair: option u64 queue_repairs: u32 producing_charter: u32 review_charter: u32 producing_llm: option LlmChoice review_llm: option LlmChoice effect_account: option EffectAccount producer_failure: option bytes 512 report: bytes 1048576 repairs: option fixed 32 catch_up: option fixed 32 merge_result: option bytes 512 }
 # 04.4ac: goal issue projections and the root-authorized desired view.
 enum Phase { waiting, active, settling, held, done, failed, cancelled }
 record PlanItem { text: text 65536 phase: Phase }
@@ -245,7 +245,7 @@ enum Failures { tests: FailedTests, many }
 record BlamedFailures { failures: Failures }
 enum Blame { cleared, owns: BlamedFailures, suspect: BlamedFailures }
 record TierVerdict { run: u64 blame: Blame }
-record TierRepair { run: u64 tip: fixed 32 }
+record TierRepair { run: u64 tip: fixed 32 by: option fixed 32 }
 record TierVerification { tier: bytes 32 verdict: option TierVerdict repaired: option TierRepair }
 record Verification { repository: Repository commit: fixed 32 changes: list 65536 u64 tiers: list 32 TierVerification }
 record TierJudged { tip: fixed 32 key: fixed 32 }
@@ -265,7 +265,8 @@ enum TierFault { setup, completion, no_step, cancelled, other_commit, lost }
 record TierProbeBranch { landing: u32 branch: TierBranch }
 record TierFlight { entry: u64 start: option u64 since: option u64 waiting: bool next: option u64 run: option u64 pending: list 65536 JobAttempt fault: option TierFault report: option ReceiptRun }
 record Receipt { failures: option Failures passed: bool run: ReceiptRun candidate: fixed 32 ended: u64 }
-record TierRow { observations: bytes 8192 repository: Repository tier: bytes 32 record: TierRecord task: option u64 requested: bool cancelled: bool purpose: option fixed 30 pending: list 257 TierPending baseline: option TierPending branch: TierBranch probe: option TierProbeBranch flight: option TierFlight held: option TierFault result: option Receipt received: bool }
+record TierGoal { goal: u64 branch: bytes 4096 tip: option fixed 32 ran: option fixed 32 failing: Failures started: option u64 }
+record TierRow { observations: bytes 8192 repository: Repository tier: bytes 32 record: TierRecord task: option u64 requested: bool cancelled: bool purpose: option fixed 30 pending: list 257 TierPending baseline: option TierPending branch: TierBranch probe: option TierProbeBranch flight: option TierFlight held: option TierFault result: option Receipt received: bool goals: list 256 TierGoal goal: option u64 started: option u64 }
 record ReceiptRow { key: ReceiptKey receipt: Receipt }
 # 04.2: families 25 to 27 (temper/docs/design/protocol/store.md, 2).
 enum ForgeKind { forgejo, github }

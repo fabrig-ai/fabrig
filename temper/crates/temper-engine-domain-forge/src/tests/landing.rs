@@ -12,7 +12,8 @@ fn project_landing_keeps_repository_tiers_and_settings_separate_by_project() {
         ignored: Box::new([Box::from(b"docs".as_slice())]),
         artifact: Box::from(b"failures".as_slice()),
         format: Format::Junit,
-        branch: Some(Box::from(b"release/next".as_slice())),
+        follows: Follows::Branch(Box::from(b"release/next".as_slice())),
+        span: None,
     };
     let repositories = Box::new([
         RepositoryGates {
@@ -28,7 +29,7 @@ fn project_landing_keeps_repository_tiers_and_settings_separate_by_project() {
         RepositoryGates {
             repository: skein_forge::api::Repository { repository: 3, ..REPO },
             gates: Box::new([]),
-            tiers: Box::new([Tier { branch: None, format: Format::Lines, ..tier }]),
+            tiers: Box::new([Tier { follows: Follows::Landing, format: Format::Lines, ..tier }]),
         },
     ]);
     let after = AfterLanding {
@@ -105,7 +106,8 @@ fn project_landing_refuses_tiers_past_the_bound_and_duplicate_check_names() {
         ignored: Box::new([]),
         artifact: Box::from(b"failures".as_slice()),
         format: Format::Lines,
-        branch: None,
+        follows: Follows::Landing,
+        span: None,
     };
     let after = AfterLanding {
         verdict: Settings { retries: 2, suspects: Suspects::Bisect },
@@ -543,4 +545,42 @@ fn an_upstream_join_and_a_member_leaving_remap_the_live_effects() {
     assert_eq!(d.landing.keys.get(&(61, 0, 0)), Some(&(fixtures::HEAD, key)));
     assert_eq!(d.landing.keys.get(&(62, 0, 0)), Some(&(fixtures::HEAD, key)));
     assert_eq!(d.landing.results.get(&(61, 0, 0, 5)), Some(&policy::Status::Passed));
+}
+
+#[test]
+fn project_tiers_require_a_nonempty_explicit_branch_only() {
+    use temper_engine_domain_forge_change::Way;
+    use temper_engine_domain_forge_tiers::{Format, Settings, Suspects};
+    for (follows, expected) in [
+        (Follows::Landing, true),
+        (Follows::Goals, true),
+        (Follows::Branch(Box::new([])), false),
+        (Follows::Branch(b"release/next".as_slice().into()), true),
+    ] {
+        let mut d = domain();
+        assert_eq!(
+            d.project_landing(
+                5,
+                Way::Queue,
+                Box::new([RepositoryGates {
+                    repository: REPO,
+                    gates: Box::new([]),
+                    tiers: Box::new([Tier {
+                        name: b"g".as_slice().into(),
+                        workflow: b"g.yml".as_slice().into(),
+                        ignored: Box::new([]),
+                        artifact: b"report".as_slice().into(),
+                        format: Format::Lines,
+                        follows,
+                        span: None,
+                    }]),
+                }]),
+                AfterLanding {
+                    verdict: Settings { retries: 2, suspects: Suspects::Bisect },
+                    bound: Duration::from_secs(7200),
+                }
+            ),
+            expected
+        );
+    }
 }

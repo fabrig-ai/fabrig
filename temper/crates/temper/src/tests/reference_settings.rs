@@ -82,6 +82,11 @@ fn the_reference_settings_file_decodes() {
             .expect("coordinator instructions are UTF-8")
             .contains(r#""branch": "mine""#)
     );
+    let instructions =
+        std::str::from_utf8(coordinator.instructions.bytes()).expect("coordinator instructions are UTF-8");
+    assert!(instructions.contains(r#""repairs""#));
+    assert!(instructions.contains("a red of your goal branch's tier"));
+    assert!(instructions.contains("with `note`"));
     assert!(coordinator.instructions.bytes().ends_with(
         b"If you finish without a landing, say why in your report; your goal branch is kept for a person to read."
     ));
