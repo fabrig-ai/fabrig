@@ -977,13 +977,9 @@ pub fn authority_words(why: AuthorityHold) -> Box<[u8]> {
             },
         );
     }
-    put(&mut words, b"; release it: task release ");
+    put(&mut words, b"; cancel: task cancel ");
     put(&mut words, skein_lib::Decimal::of(why.recovery.task).as_bytes());
-    put(&mut words, b" --hold ");
-    put(&mut words, skein_lib::Decimal::of(why.recovery.hold).as_bytes());
-    put(&mut words, b" (it holds again unless it has more); or cancel it: task cancel ");
-    put(&mut words, skein_lib::Decimal::of(why.recovery.task).as_bytes());
-    put(&mut words, b" REASON");
+    put(&mut words, b" REASON; or ask afresh; bare release holds again");
     words.into_boxed()
 }
 

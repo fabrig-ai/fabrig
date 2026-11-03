@@ -257,6 +257,29 @@ fn box_and_tier_help_name_the_host_runners_node_prerequisite() {
 }
 
 #[test]
+fn box_and_tier_help_explain_shared_capacity_and_existing_boxes() {
+    for page in ["box", "tier"] {
+        let text = help::answer(&configured(&["help", page])).expect("help page");
+        let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
+        for required in [
+            "CI and tiers",
+            "`temper-host`",
+            "`application.machine.owned.runner.capacity`",
+            "defaults to 1",
+            "2 for one single-job tier plus CI, or 3 for two such tiers plus CI",
+            "multi-job workflows",
+            "other repositories",
+            "Ctrl-C or SIGTERM",
+            "`Stopped`",
+            "`CONFIG/temper.json`",
+            "same",
+            "registration and secrets",
+        ] {
+            assert!(text.contains(required), "{page}: missing {required}: {text}");
+        }
+    }
+}
+#[test]
 fn box_and_change_help_locate_temper_review_gates_in_change_show() {
     let box_page = help::answer(&configured(&["help", "box"])).expect("box page");
     let step = box_page

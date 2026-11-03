@@ -10,6 +10,7 @@ sources = ["temper/docs/plan/reference-m2/inputs/request.md", "temper/docs/desig
 # shapes are notes/contracts.md; the lead wrote the design itself (forge.md 8.1, 8.5, 11;
 # agent.md 4.3.1; after-landing.md 6).
 
+retired = true
 [buffer]
 low = 1.0
 high = 2.0

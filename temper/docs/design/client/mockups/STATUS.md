@@ -1,6 +1,6 @@
 # The mockups' status
 
-Revised 2026-10-25. How far temper's client is from its mockups
+Revised 2026-11-03. How far temper's client is from its mockups
 (`README.md`), a group of pages at a time. A group under the rules has
 a row for each thing its main drawing shows that the client doesn't
 draw yet (a lag), and for each place the client does otherwise (a
@@ -153,8 +153,11 @@ Where the client's recorded picks stand against the drawing:
   playground's banner; the prompt stands alone beside it, the
   composer's line under it. The banner names the open project alone,
   with its switcher, and leads its corner with "Set up temper →" while
-  the playground runs. `chats.html` and `first-run.html` still draw one
-  column under a banner of every project.
+  the playground runs. The playground's start has no invitation, "What
+  shall we change?" and its words; its suggested requests stay, under
+  the composer's line (`../README.md`, 5.6 and 11). `chats.html` and
+  `first-run.html` still draw one column under a banner of every
+  project, the invitation in the playground's start.
 - **Accept**, not “Accept goal”. The chatbar carries status and own
   spend, “N spent · of B”, and no model, template, charter, host or
   budget mode; the composer's line names the next run. Its chooser

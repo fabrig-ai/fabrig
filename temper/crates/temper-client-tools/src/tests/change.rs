@@ -512,7 +512,7 @@ fn a_refused_reviewer_watch_ends_the_landing_wait() {
 
 #[test]
 fn an_authority_hold_prints_its_precise_cause_in_text_and_json() {
-    let reason = b"its 6 tasks are made; released without more tasks; release it: task release 2 --hold 3 (it holds again unless it has more); or cancel it: task cancel 2 REASON";
+    let reason = b"its 6 tasks are made; released without more tasks; cancel: task cancel 2 REASON; or ask afresh; bare release holds again";
     let mut value = panel(w::Step::Gating).into_parts();
     value.hold = Some(w::Hold::Authority(
         w::AuthorityHold::new(&w::CEILINGS, w::AuthorityHoldParts { reason: reason.as_slice().into() }).unwrap(),

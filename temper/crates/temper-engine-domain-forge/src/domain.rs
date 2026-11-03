@@ -3877,6 +3877,48 @@ fn release_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<
     }
 }
 
+// Cancellation never writes to a pull whose merge is already recorded (domain/forge.md, 8.6).
+fn cancellation_pull(d: &Domain, task: u64) -> Option<u64> {
+    let change = d.changes.get(&task)?;
+    if landed_commit(&change.change.state).is_some() {
+        return None;
+    }
+    if recorded_merge(d, task).is_some() {
+        return None;
+    }
+    change.pull
+}
+
+fn recorded_merge(d: &Domain, task: u64) -> Option<skein_forge::api::Commit> {
+    for (commit, owner) in &d.landed {
+        if *owner == task {
+            return Some(*commit);
+        }
+    }
+    None
+}
+
+fn release_row(
+    task: u64,
+    root: u64,
+    ending: ReleaseEnding,
+    close_pull: Option<u64>,
+    effects_settled: bool,
+    releasing: bool,
+) -> ReleaseRow {
+    ReleaseRow {
+        task,
+        root,
+        ending,
+        close_pull: if ending == ReleaseEnding::Cancelled { close_pull } else { None },
+        comment: None,
+        pending: None,
+        failed: false,
+        effects_settled,
+        releasing,
+    }
+}
+
 fn settle_effects(
     d: &mut Domain,
     env: &Env<Limits>,
@@ -3886,6 +3928,7 @@ fn settle_effects(
     out: &mut Queue<Request>,
 ) {
     crate::landing::closing(d, task, ending, out);
+    let close_pull = cancellation_pull(d, task);
     if let Some(row) = d.releases.get_mut(&task) {
         if row.root != root || (row.ending != ending && ending != ReleaseEnding::Cancelled) {
             emit(out, Request::ReleaseFailed { task, account: None });
@@ -3894,10 +3937,7 @@ fn settle_effects(
         if row.ending != ending {
             row.ending = ending;
             row.releasing = false;
-            row.close_pull = match d.changes.get(&task) {
-                Some(change) => change.pull,
-                None => None,
-            };
+            row.close_pull = close_pull;
             emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Release(row.clone()) });
         }
         if row.effects_settled {
@@ -3909,55 +3949,42 @@ fn settle_effects(
             emit(out, Request::ReleaseFailed { task, account: None });
             return;
         }
-        let row = ReleaseRow {
-            task,
-            root,
-            ending,
-            close_pull: if ending == ReleaseEnding::Cancelled {
-                match d.changes.get(&task) {
-                    Some(change) => change.pull,
-                    None => None,
-                }
-            } else {
-                None
-            },
-            comment: None,
-            pending: None,
-            failed: false,
-            effects_settled: false,
-            releasing: false,
-        };
+        let row = release_row(task, root, ending, close_pull, false, false);
         d.releases.insert(task, row.clone()).expect("release capacity checked");
         emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Release(row) });
     }
     if ending == ReleaseEnding::Cancelled {
-        let mut unsent = List::with_capacity(env.limits.entries);
-        for (number, row) in &d.entries {
-            if row.entry.task == task && !row.held && row.entry.attempt.is_none() {
-                unsent.push(*number).expect("entry table bounded");
-            }
-        }
-        for number in unsent.into_boxed() {
-            withdraw(d, env, number, out);
-            if let Some(row) = d.entries.get(&number)
-                && row.entry.start.is_none()
-            {
-                let account = crate::effect_words::account(
-                    &row.entry,
-                    d.repositories.get(&row.entry.repository),
-                    skein_forge_client::Outcome::Withdrawn,
-                );
-                d.entries.remove(&number);
-                emit(out, Request::Erase { key: Key::Entry(number) });
-                d.named_outcome(number, skein_forge_client::Outcome::Withdrawn);
-                emit(
-                    out,
-                    Request::Outcome { entry: number, task, outcome: skein_forge_client::Outcome::Withdrawn, account },
-                );
-            }
-        }
+        withdraw_unsent(d, env, task, out);
     }
     settle_prior_effects(d, task, out);
+}
+
+fn withdraw_unsent(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
+    let mut unsent = List::with_capacity(env.limits.entries);
+    for (number, row) in &d.entries {
+        if row.entry.task == task && !row.held && row.entry.attempt.is_none() {
+            unsent.push(*number).expect("entry table bounded");
+        }
+    }
+    for number in unsent.into_boxed() {
+        withdraw(d, env, number, out);
+        if let Some(row) = d.entries.get(&number)
+            && row.entry.start.is_none()
+        {
+            let account = crate::effect_words::account(
+                &row.entry,
+                d.repositories.get(&row.entry.repository),
+                skein_forge_client::Outcome::Withdrawn,
+            );
+            d.entries.remove(&number);
+            emit(out, Request::Erase { key: Key::Entry(number) });
+            d.named_outcome(number, skein_forge_client::Outcome::Withdrawn);
+            emit(
+                out,
+                Request::Outcome { entry: number, task, outcome: skein_forge_client::Outcome::Withdrawn, account },
+            );
+        }
+    }
 }
 
 fn settle_prior_effects(d: &mut Domain, task: u64, out: &mut Queue<Request>) {
@@ -3996,6 +4023,7 @@ fn release(
         emit(out, Request::ReleaseFailed { task, account: None });
         return;
     }
+    let close_pull = cancellation_pull(d, task);
     if let Some(row) = d.releases.get_mut(&task) {
         if row.root != root || (row.ending != ending && ending != ReleaseEnding::Cancelled) {
             emit(out, Request::ReleaseFailed { task, account: None });
@@ -4004,10 +4032,7 @@ fn release(
         if row.ending != ending {
             row.ending = ending;
             row.releasing = false;
-            row.close_pull = match d.changes.get(&task) {
-                Some(change) => change.pull,
-                None => None,
-            };
+            row.close_pull = close_pull;
         }
         if row.failed {
             row.failed = false;
@@ -4022,24 +4047,7 @@ fn release(
             emit(out, Request::ReleaseFailed { task, account: None });
             return;
         }
-        let mut row = ReleaseRow {
-            task,
-            root,
-            ending,
-            close_pull: if ending == ReleaseEnding::Cancelled {
-                match d.changes.get(&task) {
-                    Some(change) => change.pull,
-                    None => None,
-                }
-            } else {
-                None
-            },
-            comment: None,
-            pending: None,
-            failed: false,
-            effects_settled: true,
-            releasing: true,
-        };
+        let mut row = release_row(task, root, ending, close_pull, true, true);
         if ending == ReleaseEnding::Cancelled && row.close_pull.is_some() {
             row.comment = reason;
         }
@@ -4159,7 +4167,7 @@ fn release_pull(d: &mut Domain, env: &Env<Limits>, row: &mut ReleaseRow, entry: 
         return false;
     };
     let repository = change.repository;
-    if d.forge_ended(repository.forge) {
+    if d.forge_ended(repository.forge) || cancellation_pull(d, row.task).is_none() {
         row.close_pull = None;
         row.comment = None;
         d.releases.insert(row.task, row.clone()).expect("replaces release");
@@ -4174,16 +4182,33 @@ fn release_pull(d: &mut Domain, env: &Env<Limits>, row: &mut ReleaseRow, entry: 
 
 /// The panel outlives its task, but never its task's live state (domain/forge.md, 8.3).
 fn end_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
+    let merge = recorded_merge(d, task);
+    let cancelled = match d.releases.get(&task) {
+        Some(row) => row.ending == ReleaseEnding::Cancelled,
+        None => false,
+    };
     crate::verification::released(d, task, out);
     let Some(row) = d.changes.get_mut(&task) else { return };
     let before = crate::panel::ready(row);
-    let mut merge = None;
-    for (commit, owner) in &d.landed {
-        if *owner == task {
-            merge = Some(*commit);
+    row.change.state = ended_change_state(&row.change.state, merge, cancelled, env.wall);
+    row.change.released = None;
+    row.change.owns_turn = false;
+    row.delegate = None;
+    row.drift = None;
+    let saved = row.clone();
+    save_queue_change(d, env, before, saved, out);
+}
+
+fn ended_change_state(
+    state: &change::State,
+    merge: Option<skein_forge::api::Commit>,
+    cancelled: bool,
+    now: skein_lib::Wall,
+) -> change::State {
+    match state {
+        change::State::Landed { merge, .. } | change::State::Red { merge, .. } if cancelled => {
+            change::State::Uncleared { merge: *merge }
         }
-    }
-    row.change.state = match &row.change.state {
         change::State::NoChange { words } => change::State::NoChange { words: words.clone() },
         change::State::Landed { merge, since } => change::State::Landed { merge: *merge, since: *since },
         change::State::Red { merge, since } => change::State::Red { merge: *merge, since: *since },
@@ -4206,16 +4231,11 @@ fn end_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Requ
         | change::State::Landing { .. }
         | change::State::Ended
         | change::State::Held { .. } => match merge {
-            Some(merge) => change::State::Landed { merge, since: env.wall },
+            Some(merge) if cancelled => change::State::Uncleared { merge },
+            Some(merge) => change::State::Landed { merge, since: now },
             None => change::State::Ended,
         },
-    };
-    row.change.released = None;
-    row.change.owns_turn = false;
-    row.delegate = None;
-    row.drift = None;
-    let saved = row.clone();
-    save_queue_change(d, env, before, saved, out);
+    }
 }
 
 fn release_pull_write(row: &ReleaseRow, namespace: &[u8], number: u64, limits: &Limits) -> skein_forge::api::Write {
