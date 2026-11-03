@@ -1072,7 +1072,7 @@ pub fn records(jig: &config::Engine, limits: &limits::Limits, problems: &mut Pro
             }
         }
         Err(refused) => {
-            let found = store_refusal(refused);
+            let found = task_store_refusal(jig, refused);
             for problem in &found.problems {
                 problems.push(problem.path.clone(), problem.what);
             }
@@ -1110,6 +1110,50 @@ pub(crate) fn secret_value_bound(jig: &config::Engine, own: &limits::Limits) -> 
     let root = limits::engine(&jig.limits, own)
         .ok_or(crate::store::Refusal::Map(jig_protocol_store::sizes::SizeRefusal::Ceiling))?;
     Ok(crate::store::layout(&root, &root.forge, &jig.limits.store)?.secrets.value)
+}
+
+fn task_record_binds(codec: &jig_protocol_store::tasks_v9::Limits) -> bool {
+    match jig_protocol_store::tasks_v9::Value::encoded_bound(codec) {
+        Some(bytes) => jig_protocol_store::tasks_v9::TaskRecord::encoded_bound(codec) == bytes.checked_sub(1),
+        None => false,
+    }
+}
+
+fn map_value(refused: crate::store::Refusal) -> Option<(u32, u32)> {
+    use crate::store::Refusal;
+    use jig_protocol_store::sizes::SizeRefusal;
+    match refused {
+        Refusal::Map(SizeRefusal::Value { needs, has }) => Some((needs, has)),
+        Refusal::Map(
+            SizeRefusal::Key { .. }
+            | SizeRefusal::Ops { .. }
+            | SizeRefusal::Commit { .. }
+            | SizeRefusal::Page { .. }
+            | SizeRefusal::Queue { .. }
+            | SizeRefusal::QueuedBytes { .. }
+            | SizeRefusal::Whole { .. }
+            | SizeRefusal::Ceiling,
+        )
+        | Refusal::ReadRoom { .. }
+        | Refusal::Transcript { .. }
+        | Refusal::Page { .. } => None,
+    }
+}
+
+fn task_store_refusal(engine: &config::Engine, refused: crate::store::Refusal) -> Problems {
+    if let Some((needs, has)) = map_value(refused)
+        && let Some(codec) = jig_protocol_store::codec::tasks::limits(&engine.limits.core.tasks)
+        && jig_protocol_store::tasks_v9::Row::encoded_bound(&codec) == Some(u64::from(needs))
+        && task_record_binds(&codec)
+    {
+        let mut problems = Problems::empty();
+        problems.push(
+            Path::root().member(b"engine").member(b"limits").member(b"overrides").member(b"tasks.batch"),
+            What::StoreTask { needs, has, batch: engine.limits.core.tasks.batch },
+        );
+        return problems;
+    }
+    store_refusal(refused)
 }
 
 pub(crate) fn store_refusal(refused: crate::store::Refusal) -> Problems {

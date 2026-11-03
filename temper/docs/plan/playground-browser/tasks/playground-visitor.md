@@ -34,7 +34,8 @@ Acceptance:
     SLICE_STEPS, Time::ZERO)` posts, within a bounded number of slices, one
     `bridge::ToPage::Printed` from `temper serve` on standard output whose line is
     `http://127.0.0.1:7102/jig/v1/sign-in/link?secret=` and a non-empty secret, and then waits
-    idle (`Wake::Message`).
+    idle: a slice whose last post is a `bridge::ToPage::Clock` with `idle` true, its wake
+    `Wake::At` (the service's next deadline) or `Wake::Message`, and no second `Printed` by then.
   - `the_visitor_spends_the_printed_link`: the link's path and query entered as one
     `bridge::Input::Exchange` (GET, no body, a bound of `temper_client_shell_web`'s
     `BODY_BYTES` written as a literal with a comment naming it, since this crate does not depend
@@ -127,3 +128,15 @@ as in skein's `tests/playground/src/native.rs`, so it stays live and takes the n
 `temper/tests/playground/tests/suite/world.rs`, the exit assertion admits `Process::Git(_)` or
 `Process::Visitor(_)` with `Some(Exit::Code(0))`, and its message says "only hosted git and the
 idle visitor may report Code(0)". This edit is within "Reader files" above; nothing else widens.
+
+2026-11-03. **May startup accept an idle `Clock` with `Wake::At` for the service's heartbeat, or
+must it reach `Wake::Message`?** Accept `Wake::At`; the acceptance above is amended. A live
+service always has a deadline (the worker link's ping, five seconds in jig's `small` profile), so
+an unsettled, unpaused world idle with something due wakes `At`, and `Message` comes only when
+settled, paused or with nothing due (`skein/docs/design/playground.md`, 3;
+`skein/crates/skein-playground/src/slices.rs`). Change no heartbeat, deadline, composition or
+skein code to obtain `Message`. `story_a_posts_its_printed_link` passes on the first slice whose
+`Clock` is idle after the one `Printed`, with no second `Printed` by then;
+`the_visitor_spends_the_printed_link` reaches that idle boundary the same way, enters its
+`Exchange`, and moves browser time to each `Wake::At` (stepping at once on `Wake::Now`) until the
+visitor's report answers, within its own slice bound.

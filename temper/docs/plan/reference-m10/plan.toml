@@ -8,6 +8,7 @@ sources = ["temper/docs/plan/reference-m10/inputs/request.md", "temper/docs/desi
 # (N21), and `.temper/pre-pr` revisited with numbers. Released in batches: first the
 # coordinator's charter's last gaps; then the rest as the surveys settle it.
 
+retired = true
 [buffer]
 low = 1.0
 high = 2.0

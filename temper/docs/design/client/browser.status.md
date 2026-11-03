@@ -2,9 +2,7 @@
 
 2026-11-03. Where temper's code lags or departs from [browser.md](browser.md).
 
-- **Not yet:** 2.1: the shell's `playground` feature
-  (`../playground.md`, 6); `temper-client-shell-web` has the features
-  `record` and `loopback-navigation` alone.
+- **Not yet:**
   4.3: none of `temper-client-domain`, `temper-client-view`
   and `temper-client-protocol-wire` is in the gate's wasm32
   clippy (fab's gate list, `.config/gate/wasm32.txt`).

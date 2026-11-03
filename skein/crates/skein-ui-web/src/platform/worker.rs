@@ -2,7 +2,7 @@
 #[cfg(target_arch = "wasm32")]
 mod web;
 #[cfg(target_arch = "wasm32")]
-pub use web::{Worker, worker_address};
+pub use web::{FailStop, Worker, worker_address};
 
 use crate::{bridge, navigation, store};
 use skein_lib::{Duration, Time, Wall};
