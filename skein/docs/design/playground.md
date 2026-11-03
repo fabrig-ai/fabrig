@@ -352,14 +352,17 @@ end step=<u64> instant=<ns> said=<digest>       or: cut
 - **The slices:** a world paced at speeds and pauses drawn from the seed
   ends as the same world run whole; an input entered at a stamp replays
   at it; a paused world answers an input at its paused instant.
-- **The log:** written and read back; refused for another build or
-  version; a replay that differs fails at its first input.
+- **The log:** written and read back; refused for another format or
+  version; a replay of another build goes on, the digests deciding
+  (section 6); a replay that differs fails at its first input, naming
+  the build the log came from.
 - **The worker's platform:** its pure half (the clock, the timer in the
   world's time, the messages' encoding) in `skein-ui-web`'s step tests.
 - **In a browser:** the application's browser tier walks its playground
   in Chromium, reading the world's memory and slices from what the page
-  shows, since the browser kit reaches no worker, (temper's `docs/design/playground.md`); skein's own
-  example in a playground waits (section 9).
+  shows, since the browser kit reaches no worker (temper's
+  `docs/design/playground.md`, 9); skein's own example in a playground
+  waits (section 9).
 - **For the portable target:** clippy over `skein-playground` for
   wasm32 in the gate (testing.md, 10).
 
