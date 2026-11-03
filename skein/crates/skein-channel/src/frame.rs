@@ -123,7 +123,6 @@ pub struct Term {
 }
 
 /// One of the six fixed channel messages, sent by either peer as allowed by phase.
-#[derive(Debug)]
 pub enum Control {
     /// The initiator's protocol magic, version offer and opaque credential.
     Open { magic: [u8; 4], lowest: u16, highest: u16, features: u16, credential: Box<[u8]> },
@@ -137,6 +136,31 @@ pub enum Control {
     Ping,
     /// A kind the sender skipped after its terms.
     Unsupported { kind: u16 },
+}
+
+// skein/docs/design/lib.md, 6 and skein/docs/design/channel.md, 5: a credential prints as its length.
+impl core::fmt::Debug for Control {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Open { magic, lowest, highest, features, credential } => f
+                .debug_struct("Open")
+                .field("magic", magic)
+                .field("lowest", lowest)
+                .field("highest", highest)
+                .field("features", features)
+                .field("credential_len", &credential.len())
+                .finish(),
+            Self::Accept { version, features } => {
+                f.debug_struct("Accept").field("version", version).field("features", features).finish()
+            }
+            Self::Refuse { reason, text } => {
+                f.debug_struct("Refuse").field("reason", reason).field("text", text).finish()
+            }
+            Self::Terms { entries } => f.debug_struct("Terms").field("entries", entries).finish(),
+            Self::Ping => f.write_str("Ping"),
+            Self::Unsupported { kind } => f.debug_struct("Unsupported").field("kind", kind).finish(),
+        }
+    }
 }
 
 /// Encodes a fixed message, checking variable lengths before allocation.

@@ -681,6 +681,13 @@ pub enum Request {
     within `max` entries and `max_bytes` of names, and counts those left
     out;
   - `Store` replaces a file, conditionally and atomically (below).
+- **A file's contents print as their length.** The `Debug` of a request
+  or an event shows the contents it carries, `Store`'s and `WriteAt`'s
+  bytes, `Loaded`'s and `Read`'s, as their length, never a byte of
+  them; every other field prints as derived. So does `FileIo`'s own
+  `Debug`, for the contents it holds while a store, a read or a load is
+  in flight. A trace of a stored record, a credential's among them,
+  shows none of it (5.3).
 - **Open files** stay open across requests, behind tokens, up to the
   number the driver is made with. `ReadAt` and `WriteAt` work at an
   offset, and io continues a short transfer until the request is met or

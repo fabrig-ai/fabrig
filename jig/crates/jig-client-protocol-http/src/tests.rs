@@ -85,3 +85,36 @@ fn a_printed_link_under_another_prefix_is_refused() {
         Err(Unlinked::NoSecret)
     );
 }
+
+#[test]
+fn debug_of_a_keyed_call_shows_lengths_never_the_bearer_or_body() {
+    const CANARY: &[u8] = b"canary-jig-call-7f3a9c";
+    const ENCODED_CREDENTIAL: &[u8] = b"CQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQ";
+    let credential = credential();
+    let call = exchange(&mapping(), Some(&credential), Message::SignInLink(bytes::copy_of(CANARY)));
+    let compact = alloc::fmt::format(format_args!("{call:?}"));
+    let pretty = alloc::fmt::format(format_args!("{call:#?}"));
+    for debug in [&compact, &pretty] {
+        assert!(bytes::find(debug.as_bytes(), credential.expose()).is_none());
+        assert!(bytes::find(debug.as_bytes(), ENCODED_CREDENTIAL).is_none());
+        assert!(bytes::find(debug.as_bytes(), CANARY).is_none());
+        let normalized = debug.replace([' ', '\n', '\r', '\t'], "");
+        for secret in [credential.expose(), ENCODED_CREDENTIAL, CANARY] {
+            let numbers = alloc::fmt::format(format_args!("{secret:?}")).replace(' ', "");
+            assert!(!normalized.contains(numbers.trim_matches(['[', ']'])));
+        }
+        let name = alloc::fmt::format(format_args!("{:?}", b"Authorization".as_slice())).replace(' ', "");
+        assert!(normalized.contains(name.trim_matches(['[', ']'])));
+        assert!(debug.contains("value_len: "));
+        assert!(debug.contains("body_len: "));
+    }
+    // The fixture's 40 bytes encode to 54; "Bearer " adds 7. The canary is 22 bytes.
+    assert_eq!(
+        compact,
+        concat!(
+            "Call { method: Post, path: [47, 106, 105, 103, 47, 118, 49, 47, 115, 105, 103, 110, 45, 105, 110, 47, 108, 105, 110, 107], ",
+            "headers: [Header { name: [67, 111, 110, 116, 101, 110, 116, 45, 84, 121, 112, 101], value_len: 24 }, ",
+            "Header { name: [65, 117, 116, 104, 111, 114, 105, 122, 97, 116, 105, 111, 110], value_len: 61 }], body_len: 22 }"
+        )
+    );
+}
