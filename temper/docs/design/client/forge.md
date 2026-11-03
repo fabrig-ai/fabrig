@@ -1374,7 +1374,9 @@ are the forge's addresses it links (11.3).
 
 Declared by the forge family to jig's clients' component at start, read
 by jig's `PublicRead` (jig's `protocol/client.md`, section 19; over HTTP,
-17.5), each naming a public project first, and carried in jig's
+17.5), each naming a public project first, made by the forge child from
+its state and encoded there in `public-v1`, its addresses from the forge
+records it holds, as the panels' are, and carried in jig's
 `PublicApplication`, whose list names every task a record refers to by
 its place (jig's `client/domain/contract.md`, section 12):
 

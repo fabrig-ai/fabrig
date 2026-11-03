@@ -32,8 +32,10 @@ Acceptance:
 - It sends `jig_client::contract::Ask::SetVisibility { project, public }` (contracts 2), the
   project resolved from `me` as `project fund`'s is (`runner/reads.rs` `project`); an unknown
   project prints `unknown project`, exit 1, as `project fund` does, sending nothing.
-- Answered done, it prints, once `me`'s entry for that project agrees with the answer (its
-  `MeProject.public` is `Some` when made public, `None` when made private):
+- Answered `c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::VisibilitySet { project,
+  public }))` (`visibility-wire`'s outcome), it prints, once `me`'s entry for that project
+  agrees with the answer (its `MeProject.public` is `Some` when made public, `None` when made
+  private):
   - text, made public: `project 1: public` then `page: /public/projects/3f2a9c01d4e5b6a7`,
     one line each; made private: `project 1: private`;
   - `--json`: `{"answer":{"project":1,"public":true,"page":"/public/projects/3f2a9c01d4e5b6a7"}}`,
@@ -100,9 +102,8 @@ Acceptance:
   so).
 - `temper/tests/client` (the ctl stories): not this task's; the real-engine walk of
   `project amend` is `public-walk`'s.
-- Pre-approved: if jig's `SetVisibility` answer carries the identifier itself (read the
-  `Outcome` `visibility-wire` gave it), print from it and still check `me` agrees; if
-  `Keyed::Required` acts cannot wait on `me` without a new runner state, add a private state
+- Pre-approved: if `visibility-wire` named the outcome otherwise, match the outcome it gave
+  `SetVisibility` and say so; if `Keyed::Required` acts cannot wait on `me` without a new runner state, add a private state
   to `acts.rs` beside `Sent`, and say so. If the tool's position must be below 63 for the
   table's order test, keep the table's order rule and report the position.
 
@@ -121,11 +122,11 @@ Acceptance:
 4. `cargo fmt`; `python3 -I -B temper/scripts/old_forms.py`; `heavy cargo clippy -p
    temper-client-tools -p temper-docs --all-targets -- -D warnings`; the focused tests of
    `temper-client-tools`, `temper-docs`, `temper-client-shell-cli` and `temper/tests/client`'s
-   world (`-p temper-client-world` or its package name); the citations check.
+   world (`-p temper-client-world`); the citations check.
 5. Commit (why: an owner opens a project to public reading from ctl and reads its page's
    path); push your branch.
 
 ## Report
 
-As the implementer's text says, and also: the tool's position, the outcome `SetVisibility`
-answers with, how the call waits for `me`, and the help page's new lines.
+As the implementer's text says, and also: the tool's position, how the call waits for `me`,
+and the help page's new lines.

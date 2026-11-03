@@ -1334,8 +1334,8 @@ computes for them is said below (11.1 to 11.5).
   that declared the kind, handing it the project's public tasks, and
   checks the tasks its answer names again in the step that completes
   the read (people.md, 13.10). It keeps the index with every decision
-  that changes what is public (people.md, 13.7), and loads a project's
-  ended public goals once, at start or when the project is made public.
+  that changes what is public (people.md, 13.7), building a project's
+  entry from its live tasks at start and when it is made public.
   No watch is opened, nothing is marked, nothing is committed.
 - **Level-triggered,** as facts are (core.md, section 4). A delivery is
   the subject's whole current document, within the watch's window, made

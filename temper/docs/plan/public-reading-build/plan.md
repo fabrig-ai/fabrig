@@ -55,8 +55,20 @@ How each finding is settled, and where:
     `public-fuzzy-temper`.
 
 Also settled on the way: `public` has no role number, so no policy can name it (no start
-check is needed); owner numbers on the route (0 jig, family + 1); a store written before
-public reading holds no public row and reads every project private.
+check is needed); owner numbers on the route (0 jig, family + 1), the root mapping a family to
+its connector; a store written before public reading holds no public row and reads every
+project private.
+
+## Revisions after batch 1
+
+Compatible detail, released with batch 2b; no released spec relied on what changed:
+
+- **people.md 13.9, engine.md 11:** the public index's ended goals are those ended since start
+  or publication; the store keeps no index of a project's ended goals to load from
+  (store.md 7.4), so nothing is loaded. A store index for them is open (people.md 12).
+- **skein's ui-web.md 10:** an exchange's cache (`no-store`) and an answer's kept headers, which
+  the web client's public mode needs for its freshness and `Retry-After`; built by
+  `fetch-headers` (part `skein-fetch`), found by the temper designer.
 
 ## Parts
 
@@ -64,8 +76,11 @@ public reading holds no public row and reads every project private.
 - `temper-public`: the forge's public documents, ctl's visibility, the web client's public
   mode and the walk.
 - `public-checks`: the negative walk, the fuzzy tests and the statuses.
+- `skein-fetch`: skein's fetch reporting an answer's kept headers, with no browser cache.
 
 ## Tasks
+
+Every task below is released (batches 1, 2a, 2b, 2c, 3 and 4).
 
 | Task | Part | Kind | Needs | Minutes | Batch |
 |---|---|---|---|---|---|
@@ -74,41 +89,43 @@ public reading holds no public row and reads every project private.
 | `public-wire` | jig-public | interface | | 120 | 1 |
 | `public-vocabulary` | jig-public | interface | | 100 | 1 |
 | `forge-public-wire` | temper-public | interface | | 90 | 1 |
-| `visibility-wire` | jig-public | interface | visibility-surface | 100 | 2 |
-| `visibility-core` | jig-public | feature | visibility-surface, visibility-wire | 120 | 2 |
-| `public-index` | jig-public | feature | public-limits, public-vocabulary, visibility-core | 150 | 2 |
-| `public-reads-core` | jig-public | feature | public-index | 150 | 2 |
-| `public-component` | jig-public | feature | public-limits, public-vocabulary, public-wire, visibility-wire | 150 | 2 |
-| `public-http` | jig-public | feature | public-component | 120 | 2 |
-| `public-story` | jig-public | feature | public-reads-core, public-http | 120 | 2 |
-| `public-fuzzy-jig` | public-checks | feature | public-http, public-wire | 60 | 2 |
-| `forge-public` | temper-public | feature | forge-public-wire, public-reads-core, public-component | 150 | 3 |
-| `public-ctl` | temper-public | feature | visibility-wire | 90 | 3 |
-| `public-web` | temper-public | feature | forge-public-wire, public-wire, public-http | 180 | 3 |
+| `fetch-headers` | skein-fetch | interface | | 75 | 2b |
+| `visibility-wire` | jig-public | interface | visibility-surface | 130 | 2a |
+| `visibility-core` | jig-public | feature | visibility-surface, visibility-wire | 120 | 2a |
+| `public-index` | jig-public | feature | public-limits, public-vocabulary, visibility-core | 150 | 2b |
+| `public-reads-core` | jig-public | feature | public-index | 150 | 2b |
+| `public-component` | jig-public | feature | public-limits, public-vocabulary, public-wire, visibility-wire | 150 | 2b |
+| `public-http` | jig-public | feature | public-component | 120 | 2c |
+| `public-story` | jig-public | feature | public-reads-core, public-http | 120 | 3 |
+| `public-fuzzy-jig` | public-checks | feature | public-http, public-wire | 60 | 3 |
+| `forge-public` | temper-public | feature | forge-public-wire, public-reads-core, public-component | 150 | 2b |
+| `public-ctl` | temper-public | feature | visibility-wire | 90 | 2a |
+| `public-web` | temper-public | feature | forge-public-wire, public-wire, public-http, fetch-headers | 180 | 2c |
 | `public-walk` | temper-public | feature | forge-public, public-web, public-ctl, visibility-core | 120 | 3 |
 | `public-fuzzy-temper` | public-checks | feature | forge-public-wire, public-web | 60 | 3 |
-| `public-negative` | public-checks | feature | forge-public, public-http, public-ctl | 150 | 3 |
-| `public-status` | public-checks | docs | every other task | 30 | 3 |
+| `public-negative` | public-checks | feature | forge-public, public-http, public-ctl | 210 | 3 |
+| `public-status` | public-checks | docs | every other task | 30 | 4 |
 
 ## Critical path
 
-`visibility-surface` (150) -> `visibility-wire` (100) -> `visibility-core` (120) ->
+`visibility-surface` (150) -> `visibility-wire` (130) -> `visibility-core` (120) ->
 `public-index` (150) -> `public-reads-core` (150) -> `forge-public` (150) ->
-`public-negative` (150) -> `public-status` (30): about 1000 implementer-minutes. Beside it,
+`public-negative` (210) -> `public-status` (30): about 1090 implementer-minutes. Beside it,
 `public-wire`/`public-vocabulary`/`public-limits` -> `public-component` -> `public-http` ->
-`public-web` -> `public-walk`. Five tasks start at once.
+`public-web` -> `public-walk`. Six tasks start at once (`fetch-headers` among them). 21 tasks, about 2470 implementer-minutes in all.
 
 ## Overlaps with other plans
 
 - configuring-p2-build (on its trunk, not yet on main) edits files this plan's early tasks
   also edit, unavoidably, since visibility is a new request and `me` gains a field:
   `jig-client-protocol-wire`'s `client-v19.schema`, `src/generated/v19.rs` and `golden/**`
-  (`visibility-wire`); `jig-client-domain/src/contract/asks.rs` (`visibility-surface`);
+  (`visibility-wire`); `jig-client-domain/src/contract/asks.rs` (`visibility-wire`);
   the engine-clients' and link's `translate/asks.rs` (`visibility-wire`); the store's people
   family, `people-v14.schema` in place, its generated code, codec and goldens
   (`visibility-surface`); and jig's `domain/engine.status.md` and `client/domain/contract.status.md`
   (the revision). Every variant is appended last and every hunk kept local, so whichever lands
   second merges lines; the generated code and goldens are regenerated, not merged by hand.
 - playground-temper (integration) edits `temper/tests/one-process/**`; `public-negative`
-  adds files there and a module line in its `lib.rs` and `tests/suite/main.rs`.
+  adds files there, a module line in its `lib.rs` and `tests/suite/main.rs`, and one
+  `configure` call in `src/fixtures.rs`.
 - No other draft beside this one touches the files of batch 1.

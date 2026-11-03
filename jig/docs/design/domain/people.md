@@ -1053,6 +1053,10 @@ what outlives it (5.2).
 - **A deleted project's spend:** kept in the deployment's and its
   parties' totals for the period, never per task (5.2). Default: as
   said.
+- **A public board's ended goals across a restart:** a store index of
+  a project's ended goals, newest first, that the public index loads
+  once at start and at publication (13.9). Default: none; the board's
+  ended goals are those ended since.
 - **A human publication capability:** a way for a person to publish a
   goal's title, or a name they wrote, that an agent holding their
   credential could not use, since a credential proves who sent a
@@ -1334,10 +1338,15 @@ One rule, the same for every field, list, count and connector:
   public lines as they ended, within the index's bounds (goals ended
   per project, lines per goal, depth). A read examines the index alone,
   never the live tasks of the deployment and never the store.
-- **Built before it is read:** at start, and when a project is made
-  public, the core loads the project's most recently ended goals and
-  their trees within those bounds, once; until it has, a public read of
+- **Built before it is read:** at start, once the live tasks are
+  restored, and when a project is made public, the core builds the
+  project's entry from its live tasks; until it has, a public read of
   the project is answered busy. Kept with the decisions (13.7) after.
+- **Ended goals since it was built:** the ended goals the index holds
+  are those that ended while it kept the project, frozen as they ended;
+  the store keeps no index of a project's ended goals to load from
+  (`../protocol/store.md`, 7.4), so a start, or a project made public,
+  begins with none. Loading them is open (section 12).
 - **Bounded per read:** a board examines at most its goals' bound times
   its lines' bound, a card its lineage's depth and its delegates'
   bound; each answer's bytes are known from those bounds, which its
