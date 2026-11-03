@@ -1,0 +1,3 @@
+draft = "wasm32-temper"
+repo = "fabrig"
+sources = ["temper/docs/plan/wasm32-temper/inputs/request.md", "AGENTS.md"]
