@@ -808,7 +808,7 @@ fn restore_refusal(operation: &Operation, refusal: &c::Refusal, prefix: &[u8], o
     let revision = operation.revision.expect("restore revision retained");
     if let c::Refusal::Forgotten { oldest } = refusal {
         out.put(prefix);
-        out.put(b"revision ");
+        out.put(b": revision ");
         out.number(u64::from(revision));
         out.put(b" is forgotten; the oldest kept is revision ");
         out.number(u64::from(*oldest));
