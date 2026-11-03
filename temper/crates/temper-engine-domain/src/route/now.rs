@@ -126,8 +126,8 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
         core::Now::EndedEscalation { request, person, project, task, revision } => {
             escalation::historical_begin(domain, env, decision, request, person, project, task, revision);
         }
-        core::Now::BriefCorePlanned { task, parent, sections, .. } => {
-            finish_brief_plan(domain, env, task, parent, sections);
+        core::Now::BriefCorePlanned { task, parent, sections, documents } => {
+            finish_brief_plan(domain, env, task, parent, sections, documents);
         }
         core::Now::CompleteBrief { brief, order } => {
             let mut child = Queue::with_capacity(1);
@@ -136,6 +136,7 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
         }
         core::Now::WorkspaceRequest { task, attempt, context } => workspace(domain, env, task, attempt, &context),
         core::Now::RunPreparationFailed { task } => {
+            drop(domain.brief_document_titles.remove(&task));
             if let Some(sections) = crate::link::take_sections(domain, task) {
                 domain.release_bytes(
                     crate::budget::section_bytes(&sections),
