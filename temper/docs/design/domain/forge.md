@@ -25,7 +25,8 @@ makes each call to a forge and hears its deliveries, is
 - **The change procedure** takes a change from produced to landed:
   produce, open, CI, gates, its turn in its landing branch's queue, an
   update from its base when it lacks the base's tip, and a merge at
-  exactly its head. Agents are woken for what needs judgement: producing,
+  exactly its head; CI and the update only where its landing branch's
+  rules ask them (8.7). Agents are woken for what needs judgement: producing,
   repairs, reviews, conflicts.
 - **Landing rules are requirements.** A project's rules say what a merge
   into a branch needs: CI passed, the head up to date with the branch,
@@ -1006,7 +1007,10 @@ branch. Its parameters:
 - **the branch,** held by the task: one it is handed, already pushed (a
   chat's small fix, handed over by the chat that made it: jig's
   `domain/tasks.md`, 6.4), or its own, named after its tree
-  (section 11), which a producing task pushes;
+  (section 11), which a producing task pushes; or, held by its
+  requester and not by the task, its requester's held branch, the
+  requester's own goal branch (11.1), which the change lands whole
+  (below);
 - **what to produce,** when nothing is pushed yet: the spec and charter
   of its producing task;
 - **its gates** (8.3);
@@ -1065,6 +1069,31 @@ amendments and cancels are its own (8.2, 8.6).
 A goal across repositories is several change tasks, ordered by their
 dependencies: skein's change lands before temper's that bumps its lock.
 
+**A change on its requester's held branch** (`change`'s `"branch":
+"mine"`, `agent.md`, 4.3.1) is how a goal lands its own branch: the
+goal's landing, a change into the base whose branch is the goal's own
+(11.1). It is an ordinary change, but for the branch:
+
+- **No producing step,** as for a branch handed over: it starts at
+  opening, its head the branch's tip as read then. Its pull request is
+  the branch's into its landing branch, its title its words' first line
+  (bytes parameter 10, fitted as a handed branch's title is; an empty
+  first line takes that path's default), its body its words.
+- **Held by its requester, not by the change.** The change takes no
+  hold of the branch and hands none: its requester holds it for its own
+  life (11.1). The change writes it only through its own delegates (its
+  repairs and its resolution) and the updates it asks for, each taking
+  the branch's writer slot under its requester's hold as it writes
+  (jig's `domain/tasks.md`, 6.3), as a change's delegates write its own
+  branch. Its requester's other delegates write it too, a change landing
+  into it among them: each such move is the change's new head (8.5).
+- **One at a time:** a second change on the same held branch, while one
+  lives, is refused at its batch, naming the first.
+- **Closing deletes nothing:** landed, cancelled or failed, the change
+  leaves the branch its requester's, deleted or kept as its requester
+  closes (section 11). Cancelled, its pull request is closed as any
+  (8.6), and its requester may make another.
+
 ### 8.2 Its way to landing
 
 An explicit successful no-change result from the producer ends the change
@@ -1118,8 +1147,9 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    task at the exact head. A blocking review or check that asks for
    changes is a repair, given its remarks; a blocking approval a person
    declines holds the change (8.3).
-5. **Queued:** ready (CI passed and every blocking gate holds, at its
-   head, and its task is not kept by a dependency) and waiting its turn
+5. **Queued:** ready (CI passed where its landing branch's rules ask
+   it, and every blocking gate holds, at its head, and its task is not
+   kept by a dependency) and waiting its turn
    in its landing branch's queue (section 9).
 6. **First:** its turn, which it keeps through what follows unless it
    leaves the queue (section 9). If its head lacks the base's tip and
@@ -1385,6 +1415,19 @@ the change reads the head afresh once the slot is freed. Otherwise:
   when its recorded number or pushed head matches (section 6); any other
   merged pull request is Missing and cannot land the change.
 
+**On its requester's held branch** (8.1), the branch's writers are its
+requester's delegates, one at a time, the change's own among them.
+While the slot is taken by another of them (a change landing into the
+branch, its merge job, its resolution), the change decides nothing on
+its head, as above. Once the slot is freed it reads the head afresh,
+and a forward move by temper's identity is its new head, never drift:
+taken as after a repair, checked again (8.2, step 3), its gates asked
+again; its repairs, resolutions and updates count on, and its merge is
+never sent at a head it has not checked. Held, it decides nothing until
+released, and the release takes the head as it then is, checked again.
+A move with no writer of its requester's subtree in the slot, by
+another identity, or not forward, is drift, as above.
+
 Nothing is written over: a held change makes no effect until it is
 released. A drift is the change's to judge: what the forge says of a
 known change's pull request or branch wakes its procedure, which holds
@@ -1598,7 +1641,8 @@ one project (another may read it as context), so its goals' priorities
 are comparable.
 
 - **In the queue:** a change is in the queue once it is ready (CI passed
-  and every blocking gate holds, at its head, and its task is not kept:
+  where its landing branch's rules ask it (8.7), and every blocking gate
+  holds, at its head, and its task is not kept:
   no dependency it was given is pending, jig's `domain/tasks.md`, 5.7).
   It keeps the time it
   first became ready while it stays live, so leaving and coming back
@@ -1774,7 +1818,10 @@ instead (`landing.md`, section 5).
   to read, and deleted as its tree's root closes. A goal's own branch is
   deleted as its goal closes if a change landed it (its tip reachable
   from that change's landing branch), and otherwise kept for a person to
-  read, until deleted by hand or by the deployment's retention. A release waits for a lost
+  read, until deleted by hand or by the deployment's retention. A change
+  on its requester's held branch (8.1) holds no branch and deletes none
+  as it closes: the goal's landing leaves its goal's branch to the
+  goal's own close. A release waits for a lost
   writer's reread, and fails only if that reread fails.
 
 ### 11.1 A branch per goal
@@ -1811,7 +1858,7 @@ own, never a change's:
   neither that goal nor one of its subtree, is refused at its batch,
   naming the goal.
 - **Landed whole** by a change into the base whose branch is the goal's
-  own, and deleted as the goal closes once that change has landed it
+  own, made by the goal on its held branch (8.1), and deleted as the goal closes once that change has landed it
   (section 11); otherwise kept as the goal closes. It takes the base's
   landings that touch its area as they come, by an update. A project's
   rule may require or forbid it.
