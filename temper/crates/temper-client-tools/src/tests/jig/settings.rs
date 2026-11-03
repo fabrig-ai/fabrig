@@ -618,10 +618,15 @@ fn whole_settings_document_renderings_are_stable() {
         head: head(c::RevisionDecider::Release),
         items: list([
             c::RevisionItem {
+                replaced: c::RevisionReplaced::NotOffered,
                 setting: c::Setting::Charter(c::SettingNumber { number: 3 }),
                 edit: c::RevisionEdit::TooLarge(c::Size { bytes: 1_000_000 }),
             },
-            c::RevisionItem { setting: c::Setting::Rules, edit: c::RevisionEdit::Reset },
+            c::RevisionItem {
+                replaced: c::RevisionReplaced::NotOffered,
+                setting: c::Setting::Rules,
+                edit: c::RevisionEdit::Reset,
+            },
         ]),
     })));
     let revisions = c::ReadValue::Revisions(Box::new(c::RevisionsPage {
@@ -833,6 +838,7 @@ fn setting_text_and_revisions_include_whole_set_values_and_last_page_facts() {
         let argv = match setting {
             c::Setting::Charter(_) => vec!["settings", "show", "charter", "3"],
             c::Setting::Template(_) => vec!["settings", "show", "template", "4"],
+            c::Setting::ProjectPolicy { .. } => unreachable!("a project's policy: policy-ctl"),
             c::Setting::Policy(_) => vec!["settings", "show", "policy", "5"],
             c::Setting::Application { .. } => continue,
             c::Setting::Rules => vec!["settings", "show", "rules"],
@@ -859,6 +865,7 @@ fn setting_text_and_revisions_include_whole_set_values_and_last_page_facts() {
                 c::ReadValue::Revision(Box::new(c::RevisionAnswer::Revision(c::RevisionDocument {
                     head: head(c::RevisionDecider::Release),
                     items: list([c::RevisionItem {
+                        replaced: c::RevisionReplaced::NotOffered,
                         setting,
                         edit: c::RevisionEdit::Set(c::SettingSet { value: value.clone() }),
                     }]),
@@ -1046,6 +1053,7 @@ fn non_charter_revision_hints_explicitly_read_the_current_value() {
             c::ReadValue::Revision(Box::new(c::RevisionAnswer::Revision(c::RevisionDocument {
                 head: head(c::RevisionDecider::Release),
                 items: list([c::RevisionItem {
+                    replaced: c::RevisionReplaced::NotOffered,
                     setting,
                     edit: c::RevisionEdit::TooLarge(c::Size { bytes: 1_000_000 }),
                 }]),

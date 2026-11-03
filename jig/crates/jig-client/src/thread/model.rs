@@ -154,7 +154,12 @@ impl Thread {
         };
         let message = match answer {
             Answer::Done(Outcome::Document(value)) => number(value, self.task, place),
-            Answer::Done(Outcome::Made { .. } | Outcome::SettingsChanged(_) | Outcome::MovedToNewest(_))
+            Answer::Done(
+                Outcome::Made { .. }
+                | Outcome::SettingsChanged(_)
+                | Outcome::MovedToNewest(_)
+                | Outcome::Restored { .. },
+            )
             | Answer::Refused { .. } => None,
         };
         match message {

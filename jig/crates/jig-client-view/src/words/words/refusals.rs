@@ -14,6 +14,9 @@ impl Words {
                 JigPhrase::Word(Word::Refusal(RefusalWord::Judged)),
                 &[Hole::Name(skein_lib::bytes::copy_of(why.bytes()))],
             ),
+            Refusal::Forgotten { oldest } => {
+                self.text(b, JigPhrase::SettingsForgotten, &[Hole::Number(u64::from(*oldest))]);
+            }
             Refusal::Stale(value) => self.text(b, JigPhrase::SettingsStale, &[Hole::Number(u64::from(value.newest))]),
             Refusal::Full(value) => {
                 self.text(b, JigPhrase::SettingsFull, &[Hole::Number(u64::from(value.revision))]);
@@ -111,26 +114,8 @@ impl Words {
             Malformed::Running => self.text(b, JigPhrase::MalformedRunning, &[]),
             Malformed::SettingsUnchanged => self.text(b, JigPhrase::SettingsUnchanged, &[]),
             Malformed::Settings(value) => {
-                use jig_client::contract::{Setting, SettingFault};
-                match value.setting {
-                    Setting::Charter(n) => {
-                        self.text(b, JigPhrase::SettingCharter, &[Hole::Number(u64::from(n.number))]);
-                    }
-                    Setting::Template(n) => {
-                        self.text(b, JigPhrase::SettingTemplate, &[Hole::Number(u64::from(n.number))]);
-                    }
-                    Setting::Policy(n) => self.text(b, JigPhrase::SettingPolicy, &[Hole::Number(u64::from(n.number))]),
-                    Setting::Application { kind, scope, number } => self.text(
-                        b,
-                        JigPhrase::SettingApplication,
-                        &[
-                            Hole::Number(u64::from(kind)),
-                            Hole::Number(u64::from(scope)),
-                            Hole::Number(u64::from(number)),
-                        ],
-                    ),
-                    Setting::Rules => self.text(b, JigPhrase::SettingRules, &[]),
-                }
+                use jig_client::contract::SettingFault;
+                self.setting(b, &value.setting);
                 let phrase = match value.fault {
                     SettingFault::Shape => JigPhrase::SettingFaultShape,
                     SettingFault::Count => JigPhrase::SettingFaultCount,
@@ -241,5 +226,29 @@ impl Words {
             AdmissionLimit::SettingsProposals => JigPhrase::EngineLimitSettingsProposals,
         };
         self.text(b, phrase, &[]);
+    }
+}
+
+impl Words {
+    pub(super) fn setting(&self, b: &mut Builder, setting: &jig_client::contract::Setting) {
+        use jig_client::contract::Setting;
+        match *setting {
+            Setting::Charter(n) => {
+                self.text(b, JigPhrase::SettingCharter, &[Hole::Number(u64::from(n.number))]);
+            }
+            Setting::Template(n) => {
+                self.text(b, JigPhrase::SettingTemplate, &[Hole::Number(u64::from(n.number))]);
+            }
+            Setting::ProjectPolicy { project } => {
+                self.text(b, JigPhrase::SettingProjectPolicy, &[Hole::Number(u64::from(project))]);
+            }
+            Setting::Policy(n) => self.text(b, JigPhrase::SettingPolicy, &[Hole::Number(u64::from(n.number))]),
+            Setting::Application { kind, scope, number } => self.text(
+                b,
+                JigPhrase::SettingApplication,
+                &[Hole::Number(u64::from(kind)), Hole::Number(u64::from(scope)), Hole::Number(u64::from(number))],
+            ),
+            Setting::Rules => self.text(b, JigPhrase::SettingRules, &[]),
+        }
     }
 }

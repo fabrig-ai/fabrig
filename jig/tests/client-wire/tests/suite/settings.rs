@@ -737,3 +737,154 @@ fn move_to_newest_records_round_trip() {
     assert_eq!(w::Outcome::decode(&w::CEILINGS, &mut input), Ok(outcome));
     assert!(input.is_empty());
 }
+
+#[expect(clippy::too_many_lines, reason = "one table checks the restore records and every new wire arm")]
+#[test]
+fn restore_records_and_new_arms_round_trip_their_committed_bytes() {
+    {
+        let bytes = include_bytes!(
+            "../../../../crates/jig-client-protocol-wire/golden/record_project_policy_setting_smallest.bin"
+        );
+        let mut input = Reader::new(bytes);
+        let value = w::ProjectPolicySetting::decode(&w::CEILINGS, &mut input).expect("committed record");
+        assert!(input.is_empty());
+        let mut out = Writer::new(usize::try_from(value.measure()).expect("record size"));
+        value.encode(&mut out).expect("measured record");
+        assert_eq!(out.finish().as_ref(), bytes.as_slice());
+    }
+    {
+        let bytes = include_bytes!(
+            "../../../../crates/jig-client-protocol-wire/golden/enum_setting_project_policy_smallest.bin"
+        );
+        let mut input = Reader::new(bytes);
+        let value = w::Setting::decode(&w::CEILINGS, &mut input).expect("committed record");
+        assert!(input.is_empty());
+        let mut out = Writer::new(usize::try_from(value.measure()).expect("record size"));
+        value.encode(&mut out).expect("measured record");
+        assert_eq!(out.finish().as_ref(), bytes.as_slice());
+    }
+    {
+        let bytes = include_bytes!(
+            "../../../../crates/jig-client-protocol-wire/golden/enum_revision_replaced_value_smallest.bin"
+        );
+        let mut input = Reader::new(bytes);
+        let value = w::RevisionReplaced::decode(&w::CEILINGS, &mut input).expect("committed record");
+        assert!(input.is_empty());
+        let mut out = Writer::new(usize::try_from(value.measure()).expect("record size"));
+        value.encode(&mut out).expect("measured record");
+        assert_eq!(out.finish().as_ref(), bytes.as_slice());
+    }
+    {
+        let bytes = include_bytes!(
+            "../../../../crates/jig-client-protocol-wire/golden/enum_revision_replaced_too_large_smallest.bin"
+        );
+        let mut input = Reader::new(bytes);
+        let value = w::RevisionReplaced::decode(&w::CEILINGS, &mut input).expect("committed record");
+        assert!(input.is_empty());
+        let mut out = Writer::new(usize::try_from(value.measure()).expect("record size"));
+        value.encode(&mut out).expect("measured record");
+        assert_eq!(out.finish().as_ref(), bytes.as_slice());
+    }
+    {
+        let bytes = include_bytes!(
+            "../../../../crates/jig-client-protocol-wire/golden/enum_revision_replaced_default_smallest.bin"
+        );
+        let mut input = Reader::new(bytes);
+        let value = w::RevisionReplaced::decode(&w::CEILINGS, &mut input).expect("committed record");
+        assert!(input.is_empty());
+        let mut out = Writer::new(usize::try_from(value.measure()).expect("record size"));
+        value.encode(&mut out).expect("measured record");
+        assert_eq!(out.finish().as_ref(), bytes.as_slice());
+    }
+    {
+        let bytes = include_bytes!(
+            "../../../../crates/jig-client-protocol-wire/golden/enum_revision_replaced_removed_smallest.bin"
+        );
+        let mut input = Reader::new(bytes);
+        let value = w::RevisionReplaced::decode(&w::CEILINGS, &mut input).expect("committed record");
+        assert!(input.is_empty());
+        let mut out = Writer::new(usize::try_from(value.measure()).expect("record size"));
+        value.encode(&mut out).expect("measured record");
+        assert_eq!(out.finish().as_ref(), bytes.as_slice());
+    }
+    {
+        let bytes = include_bytes!(
+            "../../../../crates/jig-client-protocol-wire/golden/enum_revision_replaced_not_offered_smallest.bin"
+        );
+        let mut input = Reader::new(bytes);
+        let value = w::RevisionReplaced::decode(&w::CEILINGS, &mut input).expect("committed record");
+        assert!(input.is_empty());
+        let mut out = Writer::new(usize::try_from(value.measure()).expect("record size"));
+        value.encode(&mut out).expect("measured record");
+        assert_eq!(out.finish().as_ref(), bytes.as_slice());
+    }
+    {
+        let bytes = include_bytes!(
+            "../../../../crates/jig-client-protocol-wire/golden/enum_revision_replaced_application_smallest.bin"
+        );
+        let mut input = Reader::new(bytes);
+        let value = w::RevisionReplaced::decode(&w::CEILINGS, &mut input).expect("committed record");
+        assert!(input.is_empty());
+        let mut out = Writer::new(usize::try_from(value.measure()).expect("record size"));
+        value.encode(&mut out).expect("measured record");
+        assert_eq!(out.finish().as_ref(), bytes.as_slice());
+    }
+    {
+        let bytes = include_bytes!("../../../../crates/jig-client-protocol-wire/golden/record_restore_smallest.bin");
+        let mut input = Reader::new(bytes);
+        let value = w::Restore::decode(&w::CEILINGS, &mut input).expect("committed record");
+        assert!(input.is_empty());
+        let mut out = Writer::new(usize::try_from(value.measure()).expect("record size"));
+        value.encode(&mut out).expect("measured record");
+        assert_eq!(out.finish().as_ref(), bytes.as_slice());
+    }
+    {
+        let bytes = include_bytes!("../../../../crates/jig-client-protocol-wire/golden/enum_ask_restore_smallest.bin");
+        let mut input = Reader::new(bytes);
+        let value = w::Ask::decode(&w::CEILINGS, &mut input).expect("committed record");
+        assert!(input.is_empty());
+        let mut out = Writer::new(usize::try_from(value.measure()).expect("record size"));
+        value.encode(&mut out).expect("measured record");
+        assert_eq!(out.finish().as_ref(), bytes.as_slice());
+    }
+    {
+        let bytes =
+            include_bytes!("../../../../crates/jig-client-protocol-wire/golden/record_outcome_restored_full.bin");
+        let mut input = Reader::new(bytes);
+        let value = w::OutcomeRestored::decode(&w::CEILINGS, &mut input).expect("committed record");
+        assert!(input.is_empty());
+        let mut out = Writer::new(usize::try_from(value.measure()).expect("record size"));
+        value.encode(&mut out).expect("measured record");
+        assert_eq!(out.finish().as_ref(), bytes.as_slice());
+    }
+    {
+        let bytes =
+            include_bytes!("../../../../crates/jig-client-protocol-wire/golden/enum_outcome_restored_smallest.bin");
+        let mut input = Reader::new(bytes);
+        let value = w::Outcome::decode(&w::CEILINGS, &mut input).expect("committed record");
+        assert!(input.is_empty());
+        let mut out = Writer::new(usize::try_from(value.measure()).expect("record size"));
+        value.encode(&mut out).expect("measured record");
+        assert_eq!(out.finish().as_ref(), bytes.as_slice());
+    }
+    {
+        let bytes =
+            include_bytes!("../../../../crates/jig-client-protocol-wire/golden/record_refusal_forgotten_smallest.bin");
+        let mut input = Reader::new(bytes);
+        let value = w::RefusalForgotten::decode(&w::CEILINGS, &mut input).expect("committed record");
+        assert!(input.is_empty());
+        let mut out = Writer::new(usize::try_from(value.measure()).expect("record size"));
+        value.encode(&mut out).expect("measured record");
+        assert_eq!(out.finish().as_ref(), bytes.as_slice());
+    }
+    {
+        let bytes =
+            include_bytes!("../../../../crates/jig-client-protocol-wire/golden/enum_refusal_forgotten_smallest.bin");
+        let mut input = Reader::new(bytes);
+        let value = w::Refusal::decode(&w::CEILINGS, &mut input).expect("committed record");
+        assert!(input.is_empty());
+        let mut out = Writer::new(usize::try_from(value.measure()).expect("record size"));
+        value.encode(&mut out).expect("measured record");
+        assert_eq!(out.finish().as_ref(), bytes.as_slice());
+    }
+}

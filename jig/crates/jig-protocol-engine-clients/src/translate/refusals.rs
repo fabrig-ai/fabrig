@@ -5,7 +5,9 @@ use skein_lib::Writer;
 #[expect(clippy::too_many_lines, reason = "one total match preserves every people refusal")]
 pub(crate) fn refusal(value: p::Refusal, limits: &w::Limits) -> Result<w::Refusal, w::Problem> {
     Ok(match value {
-        p::Refusal::Forgotten { .. } => unreachable!("a restore: settings-wire"),
+        p::Refusal::Forgotten { oldest } => {
+            w::Refusal::Forgotten(w::RefusalForgotten::new(limits, w::RefusalForgottenParts { oldest })?)
+        }
         p::Refusal::NameTaken => w::Refusal::NameTaken,
         p::Refusal::Role { held } => {
             let held = match held {
@@ -417,7 +419,9 @@ fn name_rule(rule: p::NameRule) -> w::NameRule {
 
 fn encode_setting(value: p::Setting, limits: &w::Limits) -> Result<w::Setting, w::Problem> {
     Ok(match value {
-        jig_domain_people::Setting::ProjectPolicy { .. } => unreachable!("a project's policy: policy-wire"),
+        jig_domain_people::Setting::ProjectPolicy { project } => {
+            w::Setting::ProjectPolicy(w::ProjectPolicySetting::new(limits, w::ProjectPolicySettingParts { project })?)
+        }
         p::Setting::Charter(number) => {
             w::Setting::Charter(w::SettingNumber::new(limits, w::SettingNumberParts { number })?)
         }
