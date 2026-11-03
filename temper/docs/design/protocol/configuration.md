@@ -1237,6 +1237,18 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
   focused tests at a push in the box's worker, warm and cold, beside
   the checks' deadline (the agent's `policy.check_timeout`, 60 s on the
   box, a timeout the user sets).
+- **The reference's sizes on the small profile** (13.9). Small's store
+  bounds, which no override moves, hold the largest task record, which
+  grows with a result's bytes, a batch, the live delegates and the
+  people's operations, so the profile cannot take the table's values
+  for those on a small box; init's agent and worker carriers hold a
+  run's inbox and the agent's tool payload at init's. Default: on a
+  small box the profile takes, of each, the largest the start admits,
+  so a designer's report is cut at that bound and a family's changes
+  may be made one to a call. Either the reference's box runs the
+  standard profile, whose store holds a larger record, or jig's store
+  bounds follow the limits they hold; the case's walk shows whether a
+  family's list, cut at that bound, still reaches the coordinator.
 
 ## 12. The three directories
 
