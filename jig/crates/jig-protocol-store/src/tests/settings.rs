@@ -254,8 +254,7 @@ fn frozen_model_masks_and_template_choices_follow_names_after_a_catalogue_reorde
                 assert_eq!(choice.main.model, 1);
                 assert_eq!(choice.subagents[0].model, 0);
             }
-            s::Value::Policy(_) | s::Value::Charter(_) => panic!("fixture setting"),
-            s::Value::Application(_) => unreachable!("an application's setting: apps-store"),
+            s::Value::Policy(_) | s::Value::Charter(_) | s::Value::Application(_) => panic!("fixture setting"),
         }
     }
 }
@@ -300,14 +299,16 @@ fn live_settings_remap_efforts_by_name_and_refuse_missing_efforts() {
             let decoded = codec::decode(&original.key(), &bytes, &limits, names).unwrap();
             let core::Record::Core(core::CoreRecord::Settings(record)) = decoded else { panic!("settings") };
             let value = match record {
-                s::Record::Application { .. } => unreachable!("an application's record: apps-store"),
                 s::Record::Default { default, .. } => default.value,
                 s::Record::Changed { changed, .. } => changed.value.unwrap(),
                 s::Record::Proposal { value, .. } => match value.items[0].edit.clone() {
                     s::Edit::Set(value) => value,
                     s::Edit::Removed | s::Edit::Reset => panic!("set"),
                 },
-                s::Record::Revision { .. } | s::Record::Extent { .. } | s::Record::Charter { .. } => {
+                s::Record::Application { .. }
+                | s::Record::Revision { .. }
+                | s::Record::Extent { .. }
+                | s::Record::Charter { .. } => {
                     panic!("live fixture")
                 }
             };
@@ -592,3 +593,5 @@ fn charter_documents_obey_lowered_limits_in_every_settings_record() {
         }
     }
 }
+
+mod applications;

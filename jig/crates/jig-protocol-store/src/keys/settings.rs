@@ -56,7 +56,13 @@ fn setting_write(writer: &mut KeyWriter, setting: Setting) {
         Setting::Template(n) => (1, n),
         Setting::Policy(n) => (2, n),
         Setting::Rules => (3, 0),
-        Setting::Application { .. } => unreachable!("an application's setting: apps-store"),
+        Setting::Application { kind, scope, number } => {
+            writer.tag(4);
+            writer.u64(u64::from(kind));
+            writer.u64(u64::from(scope));
+            writer.u64(u64::from(number));
+            return;
+        }
     };
     writer.tag(kind);
     writer.u64(0);
@@ -85,6 +91,13 @@ pub(super) fn read(reader: &mut KeyReader<'_>, history: bool) -> Option<Key> {
 }
 fn setting_read(reader: &mut KeyReader<'_>) -> Option<Setting> {
     let kind = reader.tag()?;
+    if kind == 4 {
+        return Some(Setting::Application {
+            kind: u32::try_from(reader.u64()?).ok()?,
+            scope: u32::try_from(reader.u64()?).ok()?,
+            number: u32::try_from(reader.u64()?).ok()?,
+        });
+    }
     if reader.u64()? != 0 {
         return None;
     }
