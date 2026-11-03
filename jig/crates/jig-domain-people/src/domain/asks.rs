@@ -16,6 +16,7 @@ pub(super) fn project(ask: &Ask) -> u32 {
         | Ask::AccountChange { .. } => 0,
         Ask::MakeProject { .. } | Ask::ChangeSettings { .. } | Ask::MoveToNewest { .. } => crate::DEPLOYMENT,
         Ask::RemoveProject { project, .. }
+        | Ask::SetVisibility { project, .. }
         | Ask::Rename { project, .. }
         | Ask::Compound { project, .. }
         | Ask::EditNote { project, .. }
@@ -151,6 +152,7 @@ pub(crate) fn valid_ask(limits: &Limits, ask: &Ask) -> bool {
                 }
         }
         Ask::RemoveProject { .. }
+        | Ask::SetVisibility { .. }
         | Ask::ChangeSettings { .. }
         | Ask::MoveToNewest { .. }
         | Ask::Application { .. }
@@ -273,6 +275,7 @@ pub(crate) fn invalid_ask(limits: &Limits, ask: &Ask) -> Refusal {
             crate::batch::invalid(limits, batch)
         }
         Ask::RemoveProject { .. }
+        | Ask::SetVisibility { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }

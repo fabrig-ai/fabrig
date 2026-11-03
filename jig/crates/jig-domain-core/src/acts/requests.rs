@@ -120,7 +120,9 @@ pub(crate) fn request(
             );
         }
         people::Ask::Adopt { .. } => (Act::Adopt, documents::Subject::Project { project }),
-        people::Ask::RemoveProject { .. } => return Err(people::Refusal::NotOffered),
+        people::Ask::RemoveProject { .. } | people::Ask::SetVisibility { .. } => {
+            return Err(people::Refusal::NotOffered);
+        }
         people::Ask::Rename { .. } => (Act::Rename, documents::Subject::Project { project }),
         people::Ask::ChangePolicy { .. } => (Act::ChangePolicy, documents::Subject::Project { project }),
         people::Ask::SetRoles { .. } => (Act::SetRoles, documents::Subject::Project { project }),
@@ -171,6 +173,7 @@ pub(crate) fn request(
         | people::Ask::EditNote { .. }
         | people::Ask::Adopt { .. }
         | people::Ask::RemoveProject { .. }
+        | people::Ask::SetVisibility { .. }
         | people::Ask::Rename { .. }
         | people::Ask::MakeProject { .. }
         | people::Ask::ChangeSettings { .. }

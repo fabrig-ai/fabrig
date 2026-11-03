@@ -51,6 +51,7 @@ pub(super) fn valid_identity(limits: &Limits, identity: &Identity) -> bool {
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "role application checks each request kind exhaustively")]
 pub(super) fn apply_roles(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -71,6 +72,7 @@ pub(super) fn apply_roles(
         | Ask::Adopt { .. }
         | Ask::ChangePolicy { .. }
         | Ask::RemoveProject { .. }
+        | Ask::SetVisibility { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
@@ -125,6 +127,7 @@ pub(super) fn apply_roles(
         | Ask::Adopt { .. }
         | Ask::ChangePolicy { .. }
         | Ask::RemoveProject { .. }
+        | Ask::SetVisibility { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
@@ -266,6 +269,7 @@ pub(super) fn make_service(
         | Ask::SetRoles { .. }
         | Ask::ChangePolicy { .. }
         | Ask::RemoveProject { .. }
+        | Ask::SetVisibility { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }

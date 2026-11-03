@@ -294,6 +294,7 @@ fn request(ask: &people::Ask) -> Option<(Act, Subject)> {
         | people::Ask::AccountSignOut { .. }
         | people::Ask::AccountChange { .. }
         | people::Ask::RemoveProject { .. }
+        | people::Ask::SetVisibility { .. }
         | people::Ask::MarkSeen { seen: people::Seen::Results { .. } } => return None,
     })
 }

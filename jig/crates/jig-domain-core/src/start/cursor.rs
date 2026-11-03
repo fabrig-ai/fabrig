@@ -40,7 +40,11 @@ fn place(range: &RestoreRange, key: &Key) -> Option<(u32, Option<u32>)> {
         }
         RestoreRange::People => {
             let interval = match key {
-                Key::People(jig_domain_people::Key::Acted(_) | jig_domain_people::Key::Deletion(_)) => 1,
+                Key::People(
+                    jig_domain_people::Key::Acted(_)
+                    | jig_domain_people::Key::Deletion(_)
+                    | jig_domain_people::Key::Public(_),
+                ) => 1,
                 Key::People(
                     jig_domain_people::Key::Person(_)
                     | jig_domain_people::Key::ReadResults { .. }

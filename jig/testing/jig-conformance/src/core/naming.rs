@@ -67,7 +67,10 @@ pub fn naming(key: &core::Key, record: &core::Record) -> Option<r::Naming> {
             | tasks::Key::PlacedHold(_) => {}
         },
         core::Key::People(key) => match key {
-            people::Key::Roles(project) | people::Key::Policy(project) | people::Key::Deletion(project) => {
+            people::Key::Roles(project)
+            | people::Key::Policy(project)
+            | people::Key::Deletion(project)
+            | people::Key::Public(project) => {
                 name.project = Some(*project);
             }
             people::Key::ReadConversation { task, .. } | people::Key::EndedRead { task, .. } => name.task = Some(*task),
@@ -159,6 +162,7 @@ fn record_names(record: &core::Record, name: &mut r::Naming) {
                 people::Act::MakeProject { .. } | people::Act::AddKey { .. } | people::Act::RemoveAccount { .. } => {}
             },
             people::Stored::Deletion { .. }
+            | people::Stored::Public { .. }
             | people::Stored::Person { .. }
             | people::Stored::ReadResults { .. }
             | people::Stored::ReadConversation { .. }
@@ -202,6 +206,7 @@ fn ask_project(ask: &people::Ask) -> Option<u32> {
         | people::Ask::Adopt { project, .. }
         | people::Ask::SetRoles { project, .. }
         | people::Ask::RemoveProject { project, .. }
+        | people::Ask::SetVisibility { project, .. }
         | people::Ask::Rename { project, .. }
         | people::Ask::ChangePolicy { project, .. }
         | people::Ask::SetPool { project, .. }
