@@ -51,6 +51,7 @@ impl Domain {
     pub fn keep_settings(
         &mut self,
         env: &Env<Limits>,
+        revision: u64,
         proposal: Option<u64>,
         items: &[settings::Asked],
         out: &mut Queue<Request>,
@@ -61,6 +62,13 @@ impl Domain {
         );
         for item in items {
             let key = SettingKey { kind: item.kind, scope: item.scope, number: item.number, slot: SettingSlot::Change };
+            match self.setting_rows.get(&key) {
+                Some(Edit::Set(value)) => {
+                    let edit = Edit::Set(value.clone());
+                    self.save_setting(SettingKey { slot: SettingSlot::Replaced(revision), ..key }, edit, out);
+                }
+                Some(Edit::Remove | Edit::Reset) | None => {}
+            }
             let edit = match proposal {
                 Some(proposal) => self.setting_rows.get(&SettingKey { slot: SettingSlot::Proposal(proposal), ..key }),
                 None => None,
@@ -249,7 +257,7 @@ impl Domain {
                 SettingSlot::Default | SettingSlot::Change => {
                     keys.insert((key.kind, key.scope, key.number), ()).expect("bounded current settings");
                 }
-                SettingSlot::Proposal(_) => {}
+                SettingSlot::Proposal(_) | SettingSlot::Replaced(_) => {}
             }
         }
         if let Some(stock) = &self.setting_stock {

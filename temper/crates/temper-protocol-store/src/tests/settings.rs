@@ -34,7 +34,12 @@ fn settings_round_trip_every_slot_edit_value_and_pattern_last_and_match_their_ke
     let mut open = rule();
     open.pattern.last = forge::GateLast::Open(Box::from(b"feature".as_slice()));
     for (kind, value) in [(1, d::Value::Rule(rule())), (2, d::Value::Rule(open)), (3, d::Value::Charter(u32::MAX))] {
-        for slot in [d::SettingSlot::Default, d::SettingSlot::Change, d::SettingSlot::Proposal(u64::MAX)] {
+        for slot in [
+            d::SettingSlot::Default,
+            d::SettingSlot::Change,
+            d::SettingSlot::Proposal(u64::MAX),
+            d::SettingSlot::Replaced(u64::MAX),
+        ] {
             for edit in
                 [d::Edit::Set(d::SizedValue { value: value.clone(), size: 123 }), d::Edit::Remove, d::Edit::Reset]
             {
@@ -144,6 +149,19 @@ fn setting_records_refuse_unknown_kinds_and_slot_tags() {
         assert_eq!(records::decode(&writer.finish(), &bounds), Err(Undecodable));
     }
     let mut bytes = records::encode(&row(d::Edit::Remove));
-    bytes[15] = 3; // Version, Value tag, kind, scope and number precede the slot.
+    bytes[15] = 4; // Version, Value tag, kind, scope and number precede the slot.
     assert_eq!(records::decode(&bytes, &bounds), Err(Undecodable));
+}
+
+#[test]
+fn a_replaced_row_has_store_v11_golden_bytes() {
+    let row = forge::Stored::Setting(d::SettingRow {
+        key: d::SettingKey { kind: 3, scope: 0, number: 1, slot: d::SettingSlot::Replaced(3) },
+        edit: d::Edit::Set(d::SizedValue { value: d::Value::Charter(2), size: 4 }),
+    });
+    let bytes: &[u8] =
+        &[0, 11, 26, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 1, 3, 0, 0, 0, 0, 0, 0, 0, 3, 0, 1, 0, 0, 0, 2, 0, 0, 0, 4];
+    assert_eq!(records::encode(&row).as_ref(), bytes);
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    assert_eq!(records::decode(bytes, &bounds), Ok(row));
 }

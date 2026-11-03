@@ -122,6 +122,7 @@ pub enum SettingSlot {
     Default,
     Change,
     Proposal(u64),
+    Replaced(u64),
 }
 
 /// The store's key order (temper/docs/design/protocol/store.md, sections 2 and 3).
@@ -293,9 +294,10 @@ pub fn requires(held: &[Held], name: &[Box<[u8]>]) -> Requires {
     if covered { result } else { Requires { ci: true, up_to_date: true } }
 }
 
-/// The retained defaults, changes and proposal items (temper/docs/design/protocol/store.md, 2).
+/// Defaults, changes, proposals and replaced values (jig/docs/design/domain/connectors.md, 17).
 #[must_use]
 pub fn rows(l: &Limits) -> Option<u32> {
     let rules = l.judge_projects.checked_add(1)?.checked_mul(l.landing_rules)?;
-    rules.checked_mul(2)?.checked_add(4)?.checked_add(l.setting_proposals.checked_mul(rules.checked_add(2)?)?)
+    let values = rules.checked_add(2)?;
+    values.checked_mul(2)?.checked_add(l.setting_proposals.checked_add(l.setting_history)?.checked_mul(values)?)
 }
