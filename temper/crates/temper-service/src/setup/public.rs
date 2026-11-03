@@ -1,4 +1,4 @@
-//! Public Paste and Install; carried bytes stay beside the host (protocol/forge.md, 2.6).
+//! Public Check, Paste and Install; carried bytes stay beside the host (protocol/forge.md, 2.6).
 use crate::engine::Engine;
 use alloc::boxed::Box;
 use core::num::NonZeroU64;
@@ -24,6 +24,7 @@ pub(super) enum Caller {
 pub(super) enum Pasted {
     App(Secret),
     Admin(Secret),
+    Tokens(Box<[(u16, Secret)]>),
 }
 pub(super) struct ReturnTo {
     pub(super) forge: u16,
@@ -154,6 +155,101 @@ pub(crate) fn connect(engine: &mut Engine, forge: u16, request: Token, app: NonZ
         stage(engine, run, host::Plan::Paste { forge, app });
     }
 }
+/// A connected Forgejo checks the carried tokens before keeping any of them.
+pub(crate) fn tokens_connect(engine: &mut Engine, forge: u16, request: Token, carried: Carried) {
+    if full(engine, forge) {
+        event(
+            engine,
+            domain::Event::ConnectAnswered {
+                forge,
+                request,
+                answer: domain::ConnectAnswer::Refused(domain::ForgeRefusal::Busy),
+            },
+        );
+        return;
+    }
+    let run = super::lifecycle::next_run(&mut engine.setup.lifecycle);
+    event(engine, domain::Event::ConnectAnswered { forge, request, answer: domain::ConnectAnswer::Connecting });
+    let value = engine.store.secrets(run, Secrets::Get { owner: SecretOwner::Application, number: carried.number });
+    let parsed = match value {
+        Some(Event::Secret { value: Some(SecretValue::Carried { kind: CarriedKind::Value, value }), .. })
+            if skein_lib::sha256::digest(value.expose()) == carried.digest =>
+        {
+            tokens(value.expose())
+        }
+        Some(_) | None => Err(b"the pasted value changed".as_slice()),
+    };
+    let (pasted, failure) = match parsed {
+        Ok(items) => (Some(Pasted::Tokens(items)), None),
+        Err(reason) => (None, Some(reason)),
+    };
+    engine
+        .setup
+        .public
+        .insert(run, Caller::Connect { forge, request, number: carried.number, pasted, stop: None })
+        .expect("public room checked");
+    if let Some(reason) = failure {
+        super::ended(engine, run, root::SetupEnd::Stopped { forge, reason: Box::from(reason) });
+    } else {
+        stage(engine, run, host::Plan::Check { forge });
+    }
+}
+#[expect(clippy::type_complexity, reason = "the bundle keeps the codec item list and the refusal words")]
+fn tokens(bytes: &[u8]) -> Result<Box<[(u16, Secret)]>, &'static [u8]> {
+    let invalid = b"the pasted values are not a Forgejo's tokens".as_slice();
+    let items = match temper_protocol_records::decode_pasted(bytes) {
+        Ok(items) => items,
+        Err(temper_protocol_records::PastedError::Version) => {
+            return Err(temper_protocol_records::PastedError::Version.message());
+        }
+        Err(temper_protocol_records::PastedError::Unreadable) => return Err(invalid),
+    };
+    let (mut api, mut git) = (false, false);
+    for (code, value) in &items {
+        if value.expose().is_empty() {
+            return Err(invalid);
+        }
+        match code {
+            2 => api = true,
+            3 => git = true,
+            5 => {}
+            _ => return Err(invalid),
+        }
+    }
+    if api && git { Ok(items) } else { Err(invalid) }
+}
+/// Check's token failures use the connected Forgejo's words (protocol/forge.md, 2.2).
+pub(super) fn tokens_failure(
+    engine: &Engine,
+    run: Token,
+    failure: &skein_forge_setup::reconcile::Failure,
+) -> Option<Box<[u8]>> {
+    use skein_forge_setup::reconcile::Why;
+    let Some(Caller::Connect { forge, pasted: Some(Pasted::Tokens(_)), .. }) = engine.setup.public.get(&run) else {
+        return None;
+    };
+    let words = match (failure.subject.as_ref(), failure.why) {
+        (b"git", Why::OtherUser) => b"the git token answers as another user than the API token".as_slice(),
+        (b"api", Why::OtherUser) => {
+            let bot = engine.workers.forges.bot_login(*forge)?;
+            let prefix = b"the tokens answer as another user than ";
+            let suffix = b", this forge's: connect that user as a new forge";
+            let fixed = prefix.len().checked_add(suffix.len()).expect("stop framing");
+            let room = 256_usize.checked_sub(fixed).expect("stop login room");
+            let login = skein_lib::bytes::utf8_prefix(bot, room);
+            let mut writer = skein_lib::Writer::new(fixed.checked_add(login.len()).expect("bounded stop"));
+            writer.put(prefix).expect("measured stop");
+            writer.put(login).expect("measured stop");
+            writer.put(suffix).expect("measured stop");
+            return Some(writer.finish());
+        }
+        (b"api", Why::BotIsAdmin) => b"the API token is a site admin's: give the tokens of a user that is not one",
+        (b"api", Why::Refused(_)) => b"Forgejo refused the API token",
+        (b"git", Why::Refused(_)) => b"Forgejo refused the git token",
+        _ => return None,
+    };
+    Some(Box::from(words))
+}
 pub(crate) fn manifest(engine: &mut Engine, forge: u16, request: Token, back: Option<Box<[u8]>>) {
     if full(engine, forge) {
         event(
@@ -248,7 +344,7 @@ pub(crate) fn accept(engine: &mut Engine, forge: u16, request: Token, installati
 }
 fn matches_app(pasted: Option<&Pasted>) -> bool {
     match pasted {
-        Some(Pasted::App(_)) => true,
+        Some(Pasted::App(_) | Pasted::Tokens(_)) => true,
         Some(Pasted::Admin(_)) | None => false,
     }
 }
