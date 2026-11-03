@@ -187,12 +187,36 @@ pub struct ChangeCall {
     pub name: Option<Box<[u8]>>,
     pub landing: Option<ChangeLanding>,
     pub after: Box<[ChangeAfter]>,
+    pub producer: Option<u32>,
+    pub llm: ChangeLlm,
+}
+
+/// A change's LLM choices by role (domain/agent.md, 4.3.1; domain/forge.md, 8.1).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct ChangeLlm {
+    pub producer: Option<tasks::LlmChoice>,
+    pub review: Option<tasks::LlmChoice>,
+}
+
+#[expect(clippy::derivable_impls, reason = "the Default derive is banned; a change names neither role by default")]
+impl Default for ChangeLlm {
+    fn default() -> Self {
+        Self { producer: None, review: None }
+    }
 }
 
 impl ChangeCall {
     #[must_use]
     pub fn words(words: Box<[u8]>, repository: Option<Box<[u8]>>) -> Self {
-        Self { words, repository, name: None, landing: None, after: Box::new([]) }
+        Self {
+            words,
+            repository,
+            name: None,
+            landing: None,
+            after: Box::new([]),
+            producer: None,
+            llm: ChangeLlm::default(),
+        }
     }
 }
 
