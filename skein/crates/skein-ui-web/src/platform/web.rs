@@ -15,6 +15,12 @@ fn storage() -> Option<web_sys::Storage> {
     web_sys::window()?.session_storage().ok().flatten()
 }
 impl<R: 'static> super::Platform for Browser<R> {
+    fn abandon(&mut self, exchange: u32) {
+        self.fetch.abandon(exchange);
+    }
+    fn read_on(&mut self) {
+        self.fetch.read_on();
+    }
     fn stream(&mut self, duty: crate::transport::StreamDuty) {
         self.hidden.carry(duty);
     }
