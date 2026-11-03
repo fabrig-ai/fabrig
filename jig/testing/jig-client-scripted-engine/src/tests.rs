@@ -8,6 +8,7 @@ use skein_lib::List;
 mod frame_facts;
 mod policy;
 mod project;
+mod settings_restore;
 
 fn text(bytes: &[u8]) -> Text {
     Text::new(bytes.into(), 4096).expect("fixture text fits")
