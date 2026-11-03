@@ -109,7 +109,7 @@ impl Host {
         let address = match parse(path) {
             Place::Authorize { .. } | Place::AuthorizeMalformed => return self.address.clone(),
             Place::Address(address) => address,
-            Place::Missing => Address::Inbox { filter: Filter::ALL },
+            Place::Missing | Place::Public(_) => Address::Inbox { filter: Filter::ALL },
         };
         let printed = print(&address);
         if *printed != *path {
