@@ -3,7 +3,7 @@ id = "public-ctl"
 part = "temper-public"
 kind = "feature"
 needs = ["visibility-wire"]
-files = ["temper/crates/temper-client-tools/**", "temper/docs/help/project.md", "temper/docs/help/reference/ctl-project.md"]
+files = ["temper/crates/temper-client-tools/**", "temper/docs/help/project.md", "temper/docs/help/reference/ctl-project.md", "temper/docs/design/client/tools.md"]
 effort = "high"
 minutes = 90
 +++
@@ -130,3 +130,9 @@ Acceptance:
 
 As the implementer's text says, and also: the tool's position, how the call waits for `me`,
 and the help page's new lines.
+
+## Answers
+
+2026-11-03. **The user's decision on public titles.** User, 2026-11-03 15:40Z: public reading shows titles. A goal's and a task's title (the first line of its spec, as jig's client contract names a task's title) crosses into its public line, and a public project's name crosses into its public record. There is no author flag and no human publication capability for these. Everything else in people.md 13.3's "No text at all" list still never crosses: spec beyond its first line, instructions, inputs, results, words, questions and answers, transcripts, notes, reasons, labels' meanings, proposals, escalations, people's and parties' names, charters', procedures' and roles' names. Review finding 1 is settled by the user's decision.
+
+For this task: No title flag and no `goal amend --title`; only `project amend --visibility`. If this spec or `temper/docs/design/client/tools.md` 5.3 mentions a title flag, drop it.

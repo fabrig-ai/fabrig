@@ -158,3 +158,9 @@ Acceptance:
 As the implementer's text says, and also: `jig_kinds`' bounds at the dev.fabrig.ai figures,
 how the key is kept, how an exchange's end reaches the refund, and every literal and arm
 outside the header's files.
+
+## Answers
+
+2026-11-03. **The user's decision on public titles.** User, 2026-11-03 15:40Z: public reading shows titles. A goal's and a task's title (the first line of its spec, as jig's client contract names a task's title) crosses into its public line, and a public project's name crosses into its public record. There is no author flag and no human publication capability for these. Everything else in people.md 13.3's "No text at all" list still never crosses: spec beyond its first line, instructions, inputs, results, words, questions and answers, transcripts, notes, reasons, labels' meanings, proposals, escalations, people's and parties' names, charters', procedures' and roles' names. Review finding 1 is settled by the user's decision.
+
+For this task: Fill the title and the name from their sources. A spec amendment changes the title, so the public line's last-changed covers it; the recheck after asynchronous work reads the current title.

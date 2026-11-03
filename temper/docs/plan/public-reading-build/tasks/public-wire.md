@@ -3,7 +3,7 @@ id = "public-wire"
 part = "jig-public"
 kind = "interface"
 needs = []
-files = ["jig/crates/jig-client-protocol-wire/schema/public-v1.schema", "jig/crates/jig-client-protocol-wire/schema/public-v1.fields", "jig/crates/jig-client-protocol-wire/src/generated/public_v1.rs", "jig/crates/jig-client-protocol-wire/src/public.rs", "jig/crates/jig-client-protocol-wire/src/lib.rs", "jig/crates/jig-client-protocol-wire/src/tests/public.rs", "jig/crates/jig-client-protocol-wire/src/tests/public/**", "jig/crates/jig-client-protocol-wire/golden/public/**", "jig/crates/jig-client-protocol-wire/Cargo.toml", "jig/tests/codec-families.rs"]
+files = ["jig/crates/jig-client-protocol-wire/schema/public-v1.schema", "jig/crates/jig-client-protocol-wire/schema/public-v1.fields", "jig/crates/jig-client-protocol-wire/src/generated/public_v1.rs", "jig/crates/jig-client-protocol-wire/src/public.rs", "jig/crates/jig-client-protocol-wire/src/lib.rs", "jig/crates/jig-client-protocol-wire/src/tests/public.rs", "jig/crates/jig-client-protocol-wire/src/tests/public/**", "jig/crates/jig-client-protocol-wire/golden/public/**", "jig/crates/jig-client-protocol-wire/Cargo.toml", "jig/tests/codec-families.rs", "jig/docs/design/client/domain/contract.md", "jig/docs/design/domain/people.md"]
 effort = "high"
 minutes = 120
 +++
@@ -111,3 +111,9 @@ As the implementer's text says, and also: the schema as written (its records and
 few lines), how the listing reads the schema, and `public_bounds`' three values at the
 figures proposed for dev.fabrig.ai (`temper/docs/design/draft/first-release.status.md`: 20
 live and 20 ended goals, 50 lines, depth 16, 64 projects).
+
+## Answers
+
+2026-11-03. **The user's decision on public titles.** User, 2026-11-03 15:40Z: public reading shows titles. A goal's and a task's title (the first line of its spec, as jig's client contract names a task's title) crosses into its public line, and a public project's name crosses into its public record. There is no author flag and no human publication capability for these. Everything else in people.md 13.3's "No text at all" list still never crosses: spec beyond its first line, instructions, inputs, results, words, questions and answers, transcripts, notes, reasons, labels' meanings, proposals, escalations, people's and parties' names, charters', procedures' and roles' names. Review finding 1 is settled by the user's decision.
+
+For this task: Add `title` to the public line and `name` to the public project record, each bounded by jig's existing bounds for a task's title and a project's name, with the golden updated. This task may also edit the design text: `jig/docs/design/client/domain/contract.md` 12 (the records, plus provenance rows: title from the spec's first line, name from the project's record) and `jig/docs/design/domain/people.md` 13.3, where "No text at all" becomes "No text but titles and the project's name", with 12's "human publication capability" entry narrowed to the other names.
