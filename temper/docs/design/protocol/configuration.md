@@ -1577,10 +1577,9 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
   its row: its producing, its repairs, its resolutions and its checks'
   gates run under the producer's charter it was made with, its agents'
   gates, the reviews, under the
-  review charter it was made with (number 2; the stock's charter 4,
-  fixed by the binary, until 13.6's step 2), its foremen under the
-  foreman's charter it was made with (number 3; the stock's charter 6,
-  fixed by the binary likewise), and a newer charter of any reaches the
+  review charter it was made with (number 2; the stock's charter 4), its
+  foremen under the foreman's charter it was made with (number 3; the
+  stock's charter 6), and a newer charter of any reaches the
   changes made after it (`../domain/root.md`, section 6). A change whose
   questions take no foreman is granted no delegation to the foreman's.
 - **A project's questions are read when a change is made,** as its
@@ -2034,9 +2033,11 @@ that changes the stock changes nothing of them.
   `domain/people.md`, section 8), and jig's notes family beside it, so
   that it notes what it learns, then applied whole. Charter 5 is the
   deployment's sixth charter, within the 8 `tasks.charters` 13.4 gives the box;
-  it and the merge kind are two more executors in the delegation, eight
-  with the stock's six, within the 8 `authority.executors` and
-  `tasks.executor_kinds` 13.4 gives the box.
+  it, the merge kind and role 0 are three more executors in the
+  delegation, nine with the stock's six, past the 8 `authority.executors`
+  and `tasks.executor_kinds` 13.4 gives the box, so the walk's document
+  raises both to hold the delegation whole, charter 7's included
+  (below).
 - **Designers and the cut** (`../draft/reference-code-production.md`,
   sections 3, 5 and 12): the same file's later edition adds
   - *charter 7, the designer's:* instructions to write one family's
@@ -2065,7 +2066,9 @@ that changes the stock changes nothing of them.
     concerns, and the close-out, X, a designer's change, before its
     report; each change's `producer` and `llm` (`../domain/agent.md`,
     4.3.1): a designer's change `"producer": 7` at the template's LLM
-    choice, Opus 5.5 at xhigh with sub-agents at Opus 5.5 and high; a
+    choice, Opus 5.5 at xhigh with sub-agents at Opus 5.5 and high, with
+    questions `up`, its designer's questions going straight to the
+    coordinator with no foreman (`../domain/forge.md`, 8.11); a
     coding change the coding agent's charter, its default, at
     gpt-6.1-sol and the spec's effort, high or medium, on smith's direct
     backend with an OpenAI account's key (N20); its documents:
@@ -2073,8 +2076,10 @@ that changes the stock changes nothing of them.
     `docs/foundation/programming-model.md`'s "1. In one page", on the
     home repository's `main`.
   Charter 7 joins the rules' and policy 1's delegation as charter 5 did;
-  it is the deployment's seventh charter, so the walk's document sets
-  jig's `tasks.charters` to 8, its executors within the 8 13.4 gives.
+  it is the deployment's seventh charter, within the 8 `tasks.charters`
+  13.4 gives the box, and the delegation's tenth executor, within what
+  the walk's document gives `authority.executors` and
+  `tasks.executor_kinds` (above).
   Each document names the forge's host, owner and repository the walk's
   document fills in, as `landing.json`'s rules do.
 - **The landing rules,** until 13.6's second step, are the document's

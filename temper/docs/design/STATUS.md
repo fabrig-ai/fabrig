@@ -19,13 +19,17 @@ and the forge's charter are still read from the document
 (`domain/root.md`, `domain/forge.md`, `protocol/configuration.md`,
 `domain/agent.md`). A goal's own branch and its landing are built, but
 for the held landing's story, ignored for a restart fault
-(`domain/forge.md`); the reference's configuration
-lags in its template's own goal branch, which a settings file cannot
-name, its charters' turns and the project's checks
-(`protocol/configuration.md`). Much of a change's own bounds, gates and charters,
-the forge's merge queue and a goal's issue lag (`domain/forge.md`); so
-do the client's Board, Changes and How work runs pages and many of
-ctl's tools (`client/README.md`, `client/forge.md`, `client/tools.md`),
+(`domain/forge.md`). A change relays its agents' questions through a
+foreman of its own or straight up, within its bound, but no story asks
+from a repair or a resolution (`domain/forge.md`), and neither a
+project's question route nor the foremen's charter is a setting; the
+reference's configuration lags in its template's own goal branch, which
+a settings file cannot name, its designers' question route, its
+charters' turns and the project's checks (`protocol/configuration.md`).
+Much of a change's own bounds and gates, the forge's merge queue and a
+goal's issue lag (`domain/forge.md`); so do the client's Board, Changes
+and How work runs pages and many of ctl's tools (`client/README.md`,
+`client/forge.md`, `client/tools.md`),
 `temper-playground` (`playground.md`, `domain/testing.md`), upgrades'
 commands and the baseline (`protocol/README.md`), and the release
 (`release.md`). Forges kept in the store, a forge's removal and the
