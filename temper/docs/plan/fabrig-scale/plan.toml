@@ -58,3 +58,83 @@ parts = ["forge-scale"]
 id = "brief-room"
 text = """The draft asks a run's brief of 1 MB (fab's largest 200 kB, median 55 kB). smith renders a run's brief in its host part, half of the room left in the smallest configured window at its 4/5 threshold; init's scripted model's window (177,523 tokens) sizes it at 51,717 bytes today. Default taken: init's scripted model takes gpt-6-luna's window (1,048,576), so the host part is about 400,000 bytes, which holds the stock's tools with the control family and a brief whose task section is a whole 128 kB spec, about 350 kB in all (six times fab's median brief, past its largest). A 1 MB brief needs a window of about 2.7M tokens or a larger share of it for the host. Options: (a, recommended) keep the default; a follow-up asks smith's room split (smith's protocol/limits.md 13, "A window's halves") with measurements; (b) declare a larger window for a model whose provider has one."""
 parts = ["forge-scale"]
+
+[[part]]
+id = "clients"
+title = "what a client receives from a fabrig-scale box: sixteen grants, kinds and short-list entries, eighty live delegates, an inbox entry 33 goals deep"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 2"
+
+[[slice]]
+id = 3
+story = "temper ctl, the terminal and the configuring agent's settings form decode the stock's policy with sixteen grants and kinds; a chat with more live delegates than its document's lines is served and closed; an inbox entry 33 goals deep reaches every client"
+parts = ["clients"]
+walk = false
+
+[[part]]
+id = "jig-rows"
+title = "jig: tasks-v9 priced as store.md 5.1 says (pieces by the domain's byte limits, a batch's bytes, no batch inside a batch), its ceilings and core-v6's raised for the draft's figures"
+mode = "direct"
+needs = ["refusal", "ceilings"]
+design = "jig/docs/design/protocol/store.md, 5.1"
+
+[[slice]]
+id = 4
+story = "a batch past its bytes is refused naming them; the largest task row is a sum of byte bounds, linear in every limit; the store's ceilings take 80 delegates, 82 messages, a 128 KiB spec and a 256 KiB result"
+parts = ["jig-rows"]
+walk = false
+
+[[part]]
+id = "jig-standard"
+title = "jig: the standard profile raised to fabrig's development with 5x headroom, its store sized by the largest task row"
+mode = "direct"
+needs = ["jig-rows"]
+design = "jig/docs/design/protocol/configuration.md, 6"
+
+[[part]]
+id = "box"
+title = "temper: init's document and the owned example on the standard profiles, their agent at 800 turns, 48 calls and 26 conversations, T and its carriers"
+mode = "direct"
+needs = ["jig-standard", "forge-scale", "ceilings", "clients"]
+design = "temper/docs/design/protocol/setup.md, 8.1"
+
+[[slice]]
+id = 5
+story = "a document from temper init names the standard profiles with only the overrides that differ, starts, and its agent of 48 calls per response passes smith's derivation with T and its carriers within the store's page"
+parts = ["jig-standard", "box"]
+walk = false
+
+[[part]]
+id = "room"
+title = "temper: the stock's goal offered change's plan form (the control family), a run's brief holding a whole spec"
+mode = "direct"
+needs = ["box"]
+design = "temper/docs/design/domain/agent.md, 4.3"
+
+[[part]]
+id = "stock"
+title = "temper: the stock's charters at 64 and 800 turns, its delegation 384 tasks 32 deep, its pool funding 80 chats or goals at once"
+mode = "direct"
+needs = ["room"]
+design = "temper/docs/design/protocol/configuration.md, 13.4"
+
+[[part]]
+id = "reference"
+title = "temper: the reference's files set only what the box does not hold"
+mode = "direct"
+needs = ["stock"]
+design = "temper/docs/design/protocol/configuration.md, 13.9"
+
+[[part]]
+id = "gate"
+title = "temper: a fresh box runs fabrig-scale work with no override, its memory and disk measured"
+mode = "direct"
+needs = ["stock", "reference"]
+design = "temper/docs/design/protocol/setup.md, 8.3"
+
+[[slice]]
+id = 6
+story = "a fresh box from temper init, with no override, starts; its me lists the stock charters at 64 and 800 turns; its pool funds 80 chats at once and one goal's tree takes 384 tasks; the reference applies its charters and template alone; the box's memory and disk are measured within the user's gate"
+parts = ["room", "stock", "reference", "gate"]
+walk = true

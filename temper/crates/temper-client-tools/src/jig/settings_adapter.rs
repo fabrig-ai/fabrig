@@ -1196,7 +1196,7 @@ pub fn limits(v: &crate::jig::Limits) -> settings_form::Limits {
         result_bytes: v.result_bytes,
         text: v.text,
         rows: 32,
-        authority: 12,
+        authority: 16,
         fields: 16,
     }
 }

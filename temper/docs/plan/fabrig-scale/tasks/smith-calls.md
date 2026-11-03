@@ -3,7 +3,7 @@ id = "smith-calls"
 part = "ceilings"
 kind = "migration"
 needs = ["transcript-ceilings"]
-files = ["smith/crates/smith-transcript/schema/transcript-v6.schema", "smith/crates/smith-transcript/src/generated/v6.rs", "smith/crates/smith-transcript/golden/**", "smith/crates/smith-channel/schema/**", "smith/crates/smith-channel/src/generated/**", "smith/crates/smith-local-protocol/src/generated/**", "smith/crates/smith-agent-service/src/profile/tests.rs", "jig/crates/jig-protocol-store/src/tests/fixtures/smith-transcript-v6.schema", "jig/crates/jig-protocol-store/src/generated/layouts.rs"]
+files = ["smith/crates/smith-transcript/schema/transcript-v6.schema", "smith/crates/smith-transcript/src/generated/v6.rs", "smith/crates/smith-transcript/golden/**", "smith/crates/smith-channel/schema/**", "smith/crates/smith-channel/src/generated/**", "smith/crates/smith-local-protocol/src/generated/**", "smith/crates/smith-agent-service/src/profile/tests.rs", "smith/crates/smith-agent-service/src/profile.rs", "jig/crates/jig-protocol-store/src/tests/fixtures/smith-transcript-v6.schema", "jig/crates/jig-protocol-store/src/generated/layouts.rs"]
 effort = "high"
 minutes = 120
 +++
@@ -84,3 +84,26 @@ Acceptance:
 ## Report
 
 As the implementer's text asks, with T at that agent and each ceiling raised.
+
+## Answers
+
+- 2026-11-03. Q: the agent's turn derives to 16,803,810 bytes (`turn-in-channel`, before the
+  transcript checks), 26,594 past K3's 16,777,216: repair smith's turn derivation keeping K3, or
+  revise K3 and the carriers? A: keep K3; investigate the derivation, and repair it only where
+  smith's design makes the tighter bound sound. `profile.rs` joins the files (header amended),
+  for `channel_bodies`' `turn` only. The turn's terms there are a completion's reserve plus
+  `results.max(delegated)`, with `delegated = delegated_result_bytes × run.calls`, plus the host
+  part, the offer, the answer and the run's bytes, clamped by `history_bytes`; read first which
+  terms set the 16,803,810 (a temporary `eprintln!`, gone before the commit). smith's
+  `protocol/limits.md`, 3.3 prices a turn by "its results at their render bounds": a candidate is
+  that one completion's delegated results are bounded by the sub-agents that can answer within
+  it (at most `conversations` − 1 = 25 at this agent), the other calls' results at their own
+  render bounds, rather than all 48 calls at the delegated bound. Take that, or another
+  tightening, only if the code shows it holds (a delegation past the conversation table is
+  refused with a result of tool size, and no call returns a delegated result twice in one
+  completion); cite limits.md, 3.3 at the change, keep the check's order, and add a test that a
+  completion at the bound fits the derived T. Then continue the acceptance as written (the
+  transcript ceilings are still to raise). If no tightening is sound, change nothing in
+  `profile.rs` and stop with `Question:` giving each term of T at this agent and its figure:
+  raising K3 re-sizes the landed carriers of `transcript-ceilings` and jig's `standard` page, a
+  cross-task decision for the plan and its resource gate, not this task's.

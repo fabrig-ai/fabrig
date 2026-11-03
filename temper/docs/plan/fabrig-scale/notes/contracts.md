@@ -44,6 +44,8 @@ At least these, each a configured limit of the tasks, people or authority child:
 | `tasks.contract_choices` | 4 | a foreman's verdict's three choices, a person task's four |
 | `people.operations` | 81 | delegates plus one; at least project goals |
 | `people.inbox_tasks` | 256 | twice the live tasks |
+| `people.words` | 8,192 | a person's words, a goal's spec a person writes among them: people-v14's ceiling, the most without a format change |
+| `documents.lines` | 16 | a creating offer's every charter (12) and executor (16): the engine refuses an offer past it (`jig-domain-core/src/acts/bounds.rs`); at most 32 (`jig-protocol-config/src/clients.rs`) |
 
 - Every limit these couple to (relations jig's checks hold, store rows, the inbox's bytes, the
   funders and pools 80 chats at once need, the notes' scopes over the grants, the recipients
@@ -92,7 +94,8 @@ small's constants, with:
 
 - The three profiles `"standard"` (K1).
 - **The agent** (`temper-init/template/agent.json` over smith's `standard`): `max_turns` 800,
-  `calls_per_response` 48, `conversations` 26 (a run and 25 sub-agents); `tool_payload` the
+  `calls_per_response` 48, `conversations` 26 (a run and 25 sub-agents), `inbox` 82 (jig's
+  `standard` `tasks.run_inbox`, which the fleet holds the agent's inbox to); `tool_payload` the
   largest smith's derivation admits for init's models (skein-llm's input within answer: about
   10,662 bytes at an output of 8,192), *derived*; `checkout.message_bytes` equal to it;
   `hub.event_bytes` two less.
@@ -109,7 +112,7 @@ small's constants, with:
   clients figure init takes today (small's or its overrides) is kept by override where
   `standard` sets another.
 - Overrides that stay because they are temper's client's or this machine's: `documents.rows`
-  2, `documents.lines` 8, `documents.text_bytes` 128, `hub.accounts` 4, `hub.event_bytes`,
+  2, `documents.text_bytes` 128 (`documents.lines` is the profile's 16, K2), `hub.accounts` 4, `hub.event_bytes`,
   the T carriers, `forge.repositories` and `forge.client.repositories` 3, `forge.output` 82;
   every other override equal to the profile's figure is dropped.
 
@@ -125,18 +128,30 @@ small's constants, with:
 - Templates 1 and 2's report: the deployment's `tasks.result_bytes`, read at each start as C is
   (so the stock's floor on `tasks.result_bytes` always holds).
 
-## K8. The room (task `brief-room`; `temper/docs/design/domain/agent.md`, 4.3)
+## K8. The room (`temper/docs/design/domain/agent.md`, 4.3 and 4.6)
 
 - init's scripted model, `demo`, takes `gpt-6-luna`'s window, 1,048,576, in both init documents
   (`template/temper.json`'s `engine.llm.models` and `template/agent.json`'s endpoint), so the
   smallest window over init's models is luna's and the host part's bound is luna's room
-  (*derived* by smith; about six times today's 51,717).
+  (*derived* by smith; about 400,000 bytes): task `init-standard`, with the agent, so the
+  stock's brief keeps fitting whole as the agent's own part grows. The rest of K8 is task
+  `brief-room`'s.
 - The stock's `CHAT_TOOLS` gains the control family (4) in this task, since control's plan form of
   `change` (1,939 bytes more in charters 1 and 2) is what the room must hold.
 - temper's `standard` brief: its task section a whole spec (131,072) with its contract's and
   requester's lines; `root.brief.brief_bytes` and `root.journal.result_bytes` equal, the most the
   host part leaves the largest stock charter (charter 1, a Change contract, control) with its 64
   sections' titles and at least small's margin, 1,129 bytes (*derived*).
+
+## K9. What clients receive (`temper/docs/design/client/README.md`, 2; jig's `client/domain/objects.md`, 11 and `pages.md`, 3)
+
+- temper's shells (terminal, browser, `temper ctl`): `authority` 16, `rows` 16 (ctl's 32),
+  `delegates` 80; the settings form and ctl's settings adapter: `authority` and
+  `delegation_kinds` 16 (task `client-capacities`).
+- A task's document lists its live delegates up to `tasks.delegates`, not `documents.lines`
+  (task `delegates-document`).
+- jig's client wire v19 `InboxSelection.goals` `list 64`, and a client receives the whole list,
+  not its `rows` (task `inbox-depth`).
 
 ## K7. The override refusal (task `override-relations`; `jig/docs/design/protocol/configuration.md`, 6)
 

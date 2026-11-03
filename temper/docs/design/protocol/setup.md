@@ -1819,8 +1819,10 @@ runs it (section 7).
   sub-agents', each a program session of its own on Claude Code, smith's
   `protocol/programs.md`, 5.10) and `calls_per_response` 48 (smith's
   `domain/session.md`, 5, and `protocol/limits.md`, 2.3), and `policy`
-  `max_turns` 800, `check_timeout` 60,000 ms, `group_stop` 10, `inbox` 8
-  and `unacknowledged` 8. The stock's charters run up to 800 turns;
+  `max_turns` 800, `check_timeout` 60,000 ms, `group_stop` 10, `inbox` 82
+  (a run's inbox, jig's `standard` `tasks.run_inbox`, which the fleet
+  holds the agent to at its hello) and `unacknowledged` 8. The stock's
+  charters run up to 800 turns;
   each permits modifying work with a 60,000 ms reserve, so the agent's
   check timeout must fit that reserve. smith's two-byte rendered
   separator makes the agent's advertised message bytes its payload less
