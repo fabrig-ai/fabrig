@@ -901,7 +901,9 @@ The tier's tests, each one test of the steps it names, each on its own
 9. **`ConnectModel`'s round trip** (4.2).
 10. **GitHub's manifest page** posts itself once, and Back shows it
     without posting again until Continue (4.4).
-11. **The task pages** by their addresses (4.2).
+11. **The task pages** by their addresses (4.2); then, the
+    playground's project made, the Chats page Live, never Behind, with
+    the story's chat, before and after a reload (`README.md`, 2).
 12. **The playground's story A** on the built playground, its log
     downloaded and replayed natively (`../playground.md`, 9).
 
