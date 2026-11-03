@@ -1713,7 +1713,7 @@ impl LiveJudge<'_> {
         let owned = super::first_repository::owned_forge(self.plan.client);
         let number = owned["number"].as_u64().ok_or("forge number missing")?;
         let token = oracle_token(self.plan.paths, self.plan.first, number);
-        self.setup_project(calls, address, &token)?;
+        self.setup_project(calls, address, &token, u16::try_from(number).map_err(|_| "forge number invalid")?)?;
         self.token = Some(token);
         if self.plan.first {
             // All fixed setup indices were consumed before these extra reads.
@@ -1740,16 +1740,14 @@ impl LiveJudge<'_> {
         calls: &super::ctl::Calls,
         address: std::net::SocketAddr,
         token: &str,
+        forge: u16,
     ) -> Result<(), String> {
         if self.plan.first {
             let pulls = merged_pulls(address, token);
             self.baseline = pulls.iter().map(pull_number).collect();
             if self.plan.kept {
-                // The first-repository offer is transient and closed chats
-                // are unlisted. The owned pull names its root task; ctl's
-                // durable task document supplies the project it belongs to.
                 let me = live_json(&calls.ends()[4])?;
-                self.tasks.project = kept_project(self.plan.client, &me, &pulls)?;
+                self.tasks.project = read_kept_project(self.plan.client, &me, address, token, forge)?;
             } else {
                 let forges = live_json(&calls.ends()[5])?;
                 let forge = super::first_repository::owned_row(&forges);
@@ -2586,26 +2584,119 @@ fn client_address(calls: &super::ctl::Calls) -> Result<std::net::SocketAddr, Str
         .map_err(|_| "client listener address".into())
 }
 
-/// Shipped branches are temper/ROOT/NAME (`forge_route::tree_branch`).
-/// Forgejo keeps the branch in head.label after merge (head.ref becomes
-/// refs/pull/N/head). The root's ctl document supplies its project.
-fn kept_project(client: &std::path::Path, me: &serde_json::Value, pulls: &[serde_json::Value]) -> Result<u64, String> {
-    let projects = me["projects"].as_array().ok_or("person's projects missing")?;
-    for pull in pulls.iter().rev() {
-        let Some(root) = pull["head"]["label"]
-            .as_str()
-            .and_then(|branch| branch.strip_prefix("temper/"))
-            .and_then(|branch| branch.split_once('/'))
-            .and_then(|(root, _)| root.parse::<u64>().ok())
-        else {
-            continue;
-        };
-        let read = super::ctl::alone(client, super::ctl::Call::new(&["task", "show", &root.to_string(), "--json"]));
-        require(read.exit == Some(Exit::Code(0)), "kept change read failed")?;
-        let task = live_json(&read)?;
-        let project = task["project"].as_u64().ok_or("kept change project missing")?;
-        require(projects.iter().any(|row| row["project"] == project), "kept change project is visible to the person")?;
-        return Ok(project);
+/// Read durable adoptions even when the kept sitting has never landed a change.
+fn read_kept_project(
+    client: &std::path::Path,
+    me: &serde_json::Value,
+    address: std::net::SocketAddr,
+    token: &str,
+    forge: u16,
+) -> Result<u64, String> {
+    let repository = super::owned::answer(address.port(), "/api/v1/repos/work/hello", Some(token))
+        .map_err(|error| format!("kept work/hello read failed: {error}"))?;
+    let repository = repository["id"]
+        .as_u64()
+        .and_then(|number| u32::try_from(number).ok())
+        .filter(|number| *number != 0)
+        .ok_or("kept work/hello repository number invalid")?;
+    let mut projects = Vec::new();
+    for project in visible_projects(me)? {
+        let read =
+            super::ctl::alone(client, super::ctl::Call::new(&["project", "show", &project.to_string(), "--json"]));
+        require(read.exit == Some(Exit::Code(0)), "kept project read failed")?;
+        let document = live_json(&read)?;
+        require(document["number"] == project, "kept project read names another project")?;
+        projects.push(document);
     }
-    Err("kept deployment lacks a merged work/hello change".into())
+    kept_project(me, &projects, forge, repository)
+}
+
+fn visible_projects(me: &serde_json::Value) -> Result<Vec<u64>, String> {
+    require(me["cut"] == false, "person's projects read is incomplete")?;
+    let mut numbers = Vec::new();
+    for row in me["projects"].as_array().ok_or("person's projects missing")? {
+        let number = row["project"].as_u64().filter(|number| *number != 0).ok_or("person's project number invalid")?;
+        require(!numbers.contains(&number), "person's project number repeated")?;
+        numbers.push(number);
+    }
+    Ok(numbers)
+}
+
+/// Init's forge connector is 1; adoption paths encode forge and repository numbers
+/// as big-endian bytes (`temper-engine-domain/src/route/forge_route.rs`, `report_adoption`).
+fn kept_project(
+    me: &serde_json::Value,
+    projects: &[serde_json::Value],
+    forge: u16,
+    repository: u32,
+) -> Result<u64, String> {
+    let visible = visible_projects(me)?;
+    let part = serde_json::json!({"connector":1,"kind":"resource",
+        "key":{"path":[format!("{forge:04x}"),format!("{repository:08x}")]}});
+    let mut found = None;
+    for project in projects {
+        let number = project["number"].as_u64().ok_or("kept project number missing")?;
+        require(visible.contains(&number), "kept project is not visible to the person")?;
+        require(project["cut"] == false, "kept project's adoptions read is incomplete")?;
+        for resource in project["resources"].as_array().ok_or("kept project's adoptions missing")? {
+            if resource["role"] == "owned" && resource["part"] == part {
+                require(found.is_none(), "kept work/hello adoption is ambiguous")?;
+                found = Some(number);
+            }
+        }
+    }
+    found.ok_or_else(|| "kept deployment lacks an owned work/hello adoption".to_owned())
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::{Value, json};
+
+    fn person() -> Value {
+        json!({"projects":[{"project":2,"name":{"bytes":"hello"}},
+            {"project":7,"name":{"bytes":"renamed"}}],"cut":false})
+    }
+
+    fn adopted(project: u64, forge: u16, repository: u32, role: &str) -> Value {
+        json!({"number":project,"resources":[{"role":role,"home":true,
+            "part":{"connector":1,"kind":"resource","key":{"path":[
+                format!("{forge:04x}"),format!("{repository:08x}")]}}}],"cut":false})
+    }
+
+    #[test]
+    fn a_kept_deployment_with_no_merged_pulls_can_find_its_project() {
+        let projects = [adopted(2, 1, 9, "owned"), adopted(7, 3, 42, "owned")];
+        assert_eq!(super::kept_project(&person(), &projects, 3, 42), Ok(7));
+    }
+
+    #[test]
+    fn a_kept_project_matches_the_owned_adoptions_identity() {
+        for (forge, repository, role) in [(1, 42, "owned"), (3, 9, "owned"), (3, 42, "context")] {
+            let projects = [adopted(7, forge, repository, role)];
+            assert!(super::kept_project(&person(), &projects, 3, 42).is_err());
+        }
+        let mut project = adopted(7, 3, 42, "owned");
+        project["resources"][0]["part"]["connector"] = json!(2);
+        assert!(super::kept_project(&person(), &[project], 3, 42).is_err());
+    }
+
+    #[test]
+    fn a_kept_project_requires_complete_visible_unambiguous_adoptions() {
+        let project = adopted(7, 3, 42, "owned");
+        for me in [
+            json!({}),
+            json!({"projects":[],"cut":false}),
+            json!({"projects":[{"project":7}],"cut":true}),
+            json!({"projects":[{"project":0}],"cut":false}),
+        ] {
+            assert!(super::kept_project(&me, std::slice::from_ref(&project), 3, 42).is_err());
+        }
+        let projects = [adopted(2, 3, 42, "owned"), project.clone()];
+        assert!(super::kept_project(&person(), &projects, 3, 42).is_err());
+        for key in ["cut", "resources", "number"] {
+            let mut incomplete = project.clone();
+            incomplete.as_object_mut().expect("project").remove(key);
+            assert!(super::kept_project(&person(), &[incomplete], 3, 42).is_err());
+        }
+    }
 }
