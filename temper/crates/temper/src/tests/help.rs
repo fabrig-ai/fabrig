@@ -315,6 +315,45 @@ fn box_and_tier_help_name_the_host_runners_node_prerequisite() {
 }
 
 #[test]
+fn box_help_names_delivery_checks_path_and_tools() {
+    let text = help::answer(&configured(&["help", "box"])).expect("box help");
+    let prerequisites = text
+        .split("## Before you start\n")
+        .nth(1)
+        .expect("prerequisites")
+        .split("\n## ")
+        .next()
+        .expect("prerequisite section")
+        .split("- **Host delivery checks:**")
+        .nth(1)
+        .expect("host delivery checks prerequisite")
+        .split("\n- ")
+        .next()
+        .expect("delivery checks text")
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    for required in [
+        "`.temper/pre-pr`",
+        "inherit the box process's `PATH` captured at startup",
+        "box unit's `PATH`",
+        "before step 2",
+        "fabrig",
+        "`cargo`",
+        "rustfmt",
+        "`cargo fmt`",
+        "`python3`",
+        "`W/bin:/usr/local/bin:/usr/bin:/bin`",
+        "`PATH=/home/box/.cargo/bin:W/bin:/usr/local/bin:/usr/bin:/bin`",
+        "absolute paths",
+        "restart the box unit after changing its environment",
+        "`application.machine.owned.runner.path` configures the runner alone",
+    ] {
+        assert!(prerequisites.contains(required), "delivery checks missing {required}: {prerequisites}");
+    }
+}
+
+#[test]
 fn box_and_tier_help_explain_shared_capacity_and_existing_boxes() {
     for page in ["box", "tier"] {
         let text = help::answer(&configured(&["help", page])).expect("help page");

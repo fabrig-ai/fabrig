@@ -73,8 +73,8 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
     value["engine"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket":UNREACHED});
     value["engine"]["limits"]["overrides"]["core.load_slots"] = 8.into();
     value["engine"]["limits"]["overrides"]["documents.rows"] = 2.into();
-    // The creation offer carries four stock charters and three procedures.
-    value["engine"]["limits"]["overrides"]["documents.lines"] = 4.into();
+    // The creation offer carries five stock charters and three procedures.
+    value["engine"]["limits"]["overrides"]["documents.lines"] = 5.into();
     value["engine"]["limits"]["overrides"]["documents.text_bytes"] = 128.into();
     value["engine"]["limits"]["overrides"]["people.sign_ins"] = 2.into();
     value["engine"]["limits"]["overrides"]["views.watchers"] = 16.into();
@@ -251,5 +251,25 @@ fn replace_sockets(value: &mut serde_json::Value, replacements: &[(String, Strin
             }
         }
         serde_json::Value::Null | serde_json::Value::Bool(_) | serde_json::Value::Number(_) => {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn the_browser_fixture_admits_every_stock_charter() {
+        let directory = std::path::Path::new("/fixture");
+        let (_, bytes) = super::documents(directory, &directory.join("temper"), &directory.join("bundle"));
+        let value: serde_json::Value = serde_json::from_slice(&bytes).expect("deployment JSON");
+        let bytes = serde_json::to_vec(&value["engine"]).expect("engine JSON");
+        let document = jig_protocol_config::document(
+            &bytes,
+            &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 },
+        )
+        .expect("engine document");
+        let engine = temper_service::startup::engine(&document, 0, &jig_protocol_config::Directories::working())
+            .expect("stock engine");
+        assert_eq!(engine.charters.len(), 5);
+        assert_eq!(usize::try_from(engine.limits.core.documents.lines).expect("line capacity"), engine.charters.len());
     }
 }
