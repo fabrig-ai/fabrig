@@ -87,7 +87,10 @@ A landing's branch is its changes' `ChangeRow.base` (its first live change's).
   The digits read into the commit's fixed form as every other commit text temper reads (40
   digits fill its first 20 bytes).
 - **A plan member:** like `landing` and `after`, only a run holding jig's control family names
-  it (the plan predicate in `forge_route::change_batch`).
+  it (the plan predicate in `forge_route::change_batch`). The refusal's words list it
+  (`change's landing, branch, name, after, repairs and changes are a plan's: …`); the two
+  assertions of those words in `temper/tests/engine/domain/tests/suite/forge_routes/change_tool.rs`
+  follow them, and `repairs-call` may edit them for that alone.
 - **Checked** in `change_batch` once the change's repository and landing branch are resolved,
   with `domain.forge.landing_red(repository, &commit, &base)`; a refusal refuses the call, its
   words exactly:
