@@ -401,3 +401,42 @@ fn a_step_counts_each_questions_reply_credit_before_its_next_message_or_proposal
         );
     }
 }
+
+#[test]
+fn procedure_words_share_the_specification_bound_with_parameters() {
+    let mut world = World::new(207, LIMITS);
+    world.make(Party::Person(REQUESTER), vec![task(ROOT, &[])]);
+    let mut procedure = task(PROCEDURE, &[]);
+    procedure.executor = Executor::Procedure { connector: 1, code: 1 };
+    procedure.funder = Funder::Task(ROOT);
+    procedure.spec.parameters = Box::new([tasks::Parameter::Bytes { name: 1, value: Box::new([b'p'; 8]) }]);
+    world.make(Party::Task(ROOT), vec![procedure]);
+    let bound = usize::try_from(LIMITS.spec_bytes).expect("spec bound") - 8;
+    assert_eq!(
+        step(
+            &mut world,
+            PROCEDURE,
+            1,
+            ProcedureDecision {
+                words: Some(vec![b'x'; bound].into_boxed_slice()),
+                ..ProcedureDecision::new(tasks::ProcedureEnd::Wait)
+            }
+        ),
+        Reply::Done
+    );
+    world.send(Event::WakeProcedure { task: PROCEDURE });
+    let before = world.record(PROCEDURE).clone();
+    for words in [vec![b'x'; bound + 1], vec![255]] {
+        let reply = step(
+            &mut world,
+            PROCEDURE,
+            2,
+            ProcedureDecision {
+                words: Some(words.into_boxed_slice()),
+                ..ProcedureDecision::new(tasks::ProcedureEnd::Wait)
+            },
+        );
+        assert!(matches!(reply, Reply::Refused(problem) if problem.why == tasks::Refusal::Spec));
+        assert_eq!(world.record(PROCEDURE), &before);
+    }
+}
