@@ -148,7 +148,7 @@ pub struct Domain {
     pub(crate) installations: Map<(u16, u64), crate::Installation>,
     pub(crate) repositories: Map<skein_forge::api::Repository, Repository>,
     pub(crate) names: Map<u64, Box<[Name]>>,
-    holds: Map<Name, Hold>,
+    pub(crate) holds: Map<Name, Hold>,
     pub(crate) subscriptions: Map<(u64, Topic), Subscriber>,
     pub(crate) goal_files: Map<u64, topics::Files>,
     pub(crate) goal_file_reads: Map<Token, topics::Pending>,
@@ -3986,6 +3986,7 @@ fn release(
     continue_release(d, env, task, entry, out);
 }
 
+#[expect(clippy::too_many_lines, reason = "release drops each goal tier entry with its hold in the same transition")]
 fn continue_release(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, out: &mut Queue<Request>) {
     for _ in 0..=env.limits.holds {
         let Some(mut row) = d.releases.get(&task).cloned() else { return };
@@ -4015,6 +4016,7 @@ fn continue_release(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, ou
         if let Some((name, writer)) = selected {
             if d.forge_ended(name.forge) {
                 d.holds.remove(&name);
+                crate::tiers::released(d, &name, out);
                 emit(out, Request::Erase { key: Key::Hold(name) });
                 continue;
             }
@@ -4035,6 +4037,7 @@ fn continue_release(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, ou
             if goal_branch::is_goal(d, &name) {
                 if !goal_branch::landed(d, &name) {
                     d.holds.remove(&name);
+                    crate::tiers::released(d, &name, out);
                     emit(out, Request::Erase { key: Key::Hold(name) });
                     continue;
                 }
@@ -4066,6 +4069,7 @@ fn continue_release(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, ou
                 }
             }
             d.holds.remove(&name);
+            crate::tiers::released(d, &name, out);
             emit(out, Request::Erase { key: Key::Hold(name) });
             continue;
         }
@@ -4225,6 +4229,7 @@ fn release_outcome(d: &mut Domain, entry: u64, outcome: skein_forge_client::Outc
         // Removal leaves the remote forge untouched (temper/docs/design/domain/forge.md, 4.1).
         if let Some(name) = resource {
             d.holds.remove(&name);
+            crate::tiers::released(d, &name, out);
             emit(out, Request::Erase { key: Key::Hold(name) });
         } else {
             row.close_pull = None;
@@ -4239,6 +4244,7 @@ fn release_outcome(d: &mut Domain, entry: u64, outcome: skein_forge_client::Outc
             skein_forge_client::Outcome::Made { .. } => match resource {
                 Some(name) => {
                     d.holds.remove(&name);
+                    crate::tiers::released(d, &name, out);
                     emit(out, Request::Erase { key: Key::Hold(name) });
                 }
                 None => row.close_pull = None,
