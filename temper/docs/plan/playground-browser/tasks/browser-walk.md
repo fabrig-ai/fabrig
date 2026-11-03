@@ -15,6 +15,7 @@ files = [
   "temper/docs/design/client/browser.status.md",
   "temper/docs/development/playground-figures.md",
   "Cargo.lock",
+  "Cargo.toml",
 ]
 effort = "high"
 minutes = 150
@@ -114,3 +115,14 @@ Acceptance:
 
 As the implementer's text says, and also: the figures' line; the tier's wall and CPU with 12
 tests; the playground's build time in the setup; the speed used; Chromium's version.
+
+## Answers
+
+2026-11-03. **`temper-playground-world` is no workspace dependency: add it to the root
+`Cargo.toml`, or a path dependency in `client-browser/Cargo.toml`?** Add it to the root manifest;
+no path dependency. Test worlds already sit among the workspace dependencies
+(`temper-worker-protocol-git-world`), and every dependency of this crate is a workspace one.
+The root `Cargo.toml` joins this task's files for this alone: one line,
+`temper-playground-world = { path = "temper/tests/playground" }`, in `[workspace.dependencies]`
+beside `temper-playground`; no other change there. Then verify 3b1099ce84's draft and go on as the
+acceptance says.
