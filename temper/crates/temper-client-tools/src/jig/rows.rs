@@ -502,6 +502,7 @@ pub const AMEND: Tool = Tool {
         super::table::Argument { line: b"A model the task may use, as models lists it", ..MODEL },
         super::table::Argument { line: b"An effort that model offers", ..EFFORT },
         positional(b"reason", b"REASON", Kind::Text, Required, b"Why"),
+        flag(b"tasks", b"N", Kind::Number, Optional, b"The tasks its subtree may make over its life; the rest of its authority kept"),
     ]],
     keyed: Keyed::Optional,
     area: 2,
