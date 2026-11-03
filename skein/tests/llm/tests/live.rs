@@ -502,6 +502,7 @@ fn unauthorized(provider: Provider) {
     assert!(!events.iter().any(|event| matches!(event, client::Event::Completed { .. })));
 }
 #[test]
+#[ignore = "live: needs a login that holds api.responses.write; run by the owner, how is decided later (skein/docs/design/llm.status.md, 5)"]
 fn openai_streamed_text_and_history() {
     text_and_history(Provider::OpenAi);
 }
@@ -511,6 +512,7 @@ fn anthropic_streamed_text_and_history() {
     text_and_history(Provider::Anthropic);
 }
 #[test]
+#[ignore = "live: needs a login that holds api.responses.write; run by the owner, how is decided later (skein/docs/design/llm.status.md, 5)"]
 fn openai_tool_round_trip() {
     tool_round_trip(Provider::OpenAi);
 }
