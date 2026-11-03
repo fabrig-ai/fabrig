@@ -340,3 +340,23 @@ fn a_denied_release_retains_its_family_when_rendered_for_the_host() {
         core::SettledAnswer::Host { error: true, body: b"Authority refused: tool family control; ".as_slice().into() }
     );
 }
+
+#[test]
+fn an_abbreviated_commit_read_explains_the_full_identifier_and_review_head() {
+    for (tool, input) in [
+        (b"read_file".as_slice(), br#"{"head":"f471720","path":"README.md"}"#.as_slice()),
+        (b"read_compare", br#"{"before":"f471720","after":"f471720"}"#),
+    ] {
+        let event = crate::tools::decode(TO, 3, 7, &call(7, tool, input));
+        let root::Event::Worker(root::WorkerInput::RenderedHostCall {
+            to,
+            answer: core::SettledAnswer::Host { error, body },
+        }) = event
+        else {
+            panic!("read refusal")
+        };
+        assert_eq!(to, TO);
+        assert!(error);
+        assert_eq!(body.as_ref(), b"expected a full commit identifier (40 or 64 lowercase hexadecimal digits); use the full head from the review brief");
+    }
+}
