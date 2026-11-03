@@ -93,12 +93,21 @@ replay, HTTP connection reuse, and invalid-token failures for each provider.
 There are no retries or credential refreshes. OpenAI tests use subscription
 quota and require a valid, unexpired OAuth access token. Anthropic tests use an API key.
 
-Name a Codex login and a private plaintext Anthropic key file, then run:
+Name a Codex login, then run the automatic live suite:
 
 ```sh
 export SKEIN_TEST_LIVE_OPENAI_AUTH="$HOME/.codex/auth.json"
-export SKEIN_TEST_LIVE_ANTHROPIC_KEY="/path/to/private/anthropic-key"
 heavy cargo nextest run -p skein-llm-world --profile live-skein
+```
+
+The three Anthropic stories, `anthropic_streamed_text_and_history`,
+`anthropic_tool_round_trip` and `anthropic_unauthorized`, are ignored and manual
+(skein/docs/design/llm.status.md, 5). The owner supplies a private plaintext key
+file and runs one alone, replacing `NAME` with its exact test name:
+
+```sh
+export SKEIN_TEST_LIVE_ANTHROPIC_KEY="/path/to/private/anthropic-key"
+heavy cargo nextest run -p skein-llm-world --test live --profile live-skein --run-ignored only -E 'test(=NAME)'
 ```
 
 `SKEIN_TEST_LIVE_OPENAI_AUTH` names a Codex `auth.json`, or a directory

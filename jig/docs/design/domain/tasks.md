@@ -1106,6 +1106,11 @@ circle, each for another of the set, so that none of them could end.
     the plainest.
   - *Removing* one lifts it: a task that waits on nothing else goes on,
     a waiting one to its queues at its place, a kept one woken.
+  - *Started from:* a dependency its procedure marked started from
+    (connectors.md, 6.1) is never removed: an amendment leaving it out
+    is refused as `Dependencies` naming exactly it in the problem's
+    `blocked_by`, as one out of reach is, whether it is pending or
+    done.
   - *Kept:* each added dependency with when it was added and by whom
     (section 3), and its history as every amendment's.
 - **Tracking and untracking.** A task an amendment tracks is a goal from

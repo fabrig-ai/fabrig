@@ -266,7 +266,6 @@ fn make(
                         playground: false,
                         org: first.org.clone(),
                         repository: first.repository.clone(),
-                        project: first.project.clone(),
                         label: first.label.clone(),
                     })
                 }
@@ -354,7 +353,6 @@ fn with_intent(d: &Domain, forge: u16, how: crate::How) -> crate::How {
                     Some(first) => Some(crate::FirstAsk {
                         org: first.org.clone(),
                         repository: first.repository.clone(),
-                        project: first.project.clone(),
                         label: first.label.clone(),
                     }),
                     None => None,
@@ -517,7 +515,6 @@ fn admin(
                         playground: false,
                         org: first.org.clone(),
                         repository: first.repository.clone(),
-                        project: first.project.clone(),
                         state: crate::FirstState::Making,
                         label: first.label.clone(),
                     },
@@ -538,7 +535,6 @@ fn keep_first(d: &mut Domain, forge: u16, out: &mut Queue<Request>) {
                 playground: first.playground,
                 org: first.org.clone(),
                 repository: first.repository.clone(),
-                project: first.project.clone(),
                 label: first.label.clone(),
             }),
             None => None,

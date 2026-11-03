@@ -7,8 +7,9 @@ use alloc::boxed::Box;
 use skein_lib::{List, Wall};
 
 use crate::{
-    Ask, AuthorityHold, AuthorityLack, Change, Decision, Delegate, Effect, EffectResult, Facts, Freshness, Gate,
-    GateFailure, GateKind, Heard, Hold, Limits, Pull, Repair, State, Status, Stepped, Verification, Way,
+    Ask, AuthorityHold, AuthorityLack, Change, Decision, Delegate, Early, Effect, EffectResult, Facts, Freshness, Gate,
+    GateFailure, GateKind, Heard, Hold, Limits, PendingKind, Pull, Repair, StartedFrom, State, Status, Stepped,
+    Verification, Way,
 };
 
 /// Decide one change from current forge and task facts, independent of its wake.
@@ -63,7 +64,13 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
     if let State::Held { .. } = change.state {
         return Stepped { change: next, decision: Decision::None };
     }
-    if facts.writer_taken {
+    // A conflicting preparation cancels its producer before waiting for that
+    // producer's writer slot (domain/forge.md, 8.11).
+    let start_conflicted = match next.early {
+        Early::None => false,
+        Early::Started(_) | Early::Spent(_) => standing.start_conflict.is_some(),
+    };
+    if facts.writer_taken && !start_conflicted {
         return if let State::Ready { .. } = change.state {
             Stepped { change: next, decision: Decision::Wait { until: None } }
         } else {
@@ -412,6 +419,31 @@ fn producing(
     now: Wall,
     limits: &Limits,
 ) -> Stepped {
+    match &change.early {
+        Early::Started(heads) => {
+            if standing.start_conflict.is_some() {
+                change.early = Early::Spent(heads.clone());
+                change.state = State::Producing { requested: false };
+                return Stepped { change, decision: Decision::CancelProducer };
+            }
+            if requested && standing.delegate == Status::Failed {
+                change.early = Early::Spent(heads.clone());
+                change.state = State::Producing { requested: false };
+                return Stepped { change, decision: Decision::Wait { until: None } };
+            }
+        }
+        Early::Spent(_) => {
+            if !requested {
+                return request_producer(change, facts, standing, now);
+            }
+            match standing.delegate {
+                Status::Failed => return hold(change, Hold::Failed),
+                Status::Unknown | Status::Pending => return waiting(change, now, limits),
+                Status::Passed => {}
+            }
+        }
+        Early::None => {}
+    }
     match facts.branch {
         Some(head) => {
             change.state = State::Opening { requested: false };
@@ -419,15 +451,49 @@ fn producing(
             change.since = now;
             Stepped { change, decision: Decision::None }
         }
-        None if !requested => {
-            change.state = State::Producing { requested: true };
-            Stepped { change, decision: Decision::Delegate(Delegate::Produce) }
-        }
+        None if !requested => request_producer(change, facts, standing, now),
         None => match standing.delegate {
             Status::Failed => hold(change, Hold::Failed),
             Status::Unknown | Status::Pending | Status::Passed => waiting(change, now, limits),
         },
     }
+}
+
+fn request_producer(mut change: Change, facts: &Facts, standing: &Heard, now: Wall) -> Stepped {
+    if !producer_start(&mut change, facts, standing) {
+        return Stepped { change, decision: Decision::Wait { until: None } };
+    }
+    change.state = State::Producing { requested: true };
+    change.since = now;
+    Stepped { change, decision: Decision::Delegate(Delegate::Produce) }
+}
+
+// Dependency waits arm no stall; producing starts its clock when the wait ends
+// (temper/docs/design/domain/forge.md, 8.11).
+fn producer_start(change: &mut Change, facts: &Facts, standing: &Heard) -> bool {
+    match change.early {
+        Early::Started(_) | Early::Spent(_) => {
+            // A refused preparation still owns its delegate until the top sees its end.
+            return facts.pending.is_empty() && standing.start_conflict.is_none();
+        }
+        Early::None => {}
+    }
+    if facts.pending.is_empty() {
+        return true;
+    }
+    let capacity = u32::try_from(facts.pending.len()).expect("pending dependencies fit u32");
+    let mut heads = List::with_capacity(capacity);
+    for pending in &facts.pending {
+        match pending.kind {
+            PendingKind::Change { head: Some(head), kept: false } => {
+                heads.push(StartedFrom { task: pending.task, head }).expect("one head per pending dependency");
+            }
+            PendingKind::Elsewhere => {}
+            PendingKind::Change { .. } | PendingKind::Other => return false,
+        }
+    }
+    change.early = Early::Started(heads.into_boxed());
+    true
 }
 
 fn opening(

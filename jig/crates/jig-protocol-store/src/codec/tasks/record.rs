@@ -286,6 +286,12 @@ pub fn task_record(
             history: task_history(source, limits)?,
             run: task_run(source, limits, moved)?,
             definition: task_definition(source, limits, moved)?,
+            started_from: phase::references(
+                &source.started_from,
+                limits.task_record_started_from,
+                wire::Path::TaskRecordStartedFrom,
+                limits,
+            )?,
             interests: task_interests(source, limits)?,
             outcome: task_outcome(source, limits)?,
         },
@@ -421,7 +427,8 @@ fn task_outcome(source: &domain::TaskRecord, limits: &wire::Limits) -> Result<wi
 }
 /// Read every retained task field.
 pub fn read_task_record(source: wire::TaskRecord, limits: &wire::Limits) -> Result<domain::TaskRecord, wire::Problem> {
-    let wire::TaskRecordParts { history, run, definition, interests, outcome, asked_requester } = source.into_parts();
+    let wire::TaskRecordParts { history, run, definition, started_from, interests, outcome, asked_requester } =
+        source.into_parts();
     let history = history.into_parts();
     let run = run.into_parts();
     let definition = definition.into_parts();
@@ -481,6 +488,7 @@ pub fn read_task_record(source: wire::TaskRecord, limits: &wire::Limits) -> Resu
         numbers: phase::read_numbers(definition.numbers),
         funder: value::read_funder(definition.funder),
         dependencies: phase::read_references(definition.dependencies),
+        started_from: phase::read_references(started_from),
         waiting_on: phase::read_references(definition.waiting_on),
         added: read_added(definition.added),
         holdings: read_holdings(interests.holdings, limits)?,

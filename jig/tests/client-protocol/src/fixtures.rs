@@ -235,7 +235,7 @@ pub fn server_http() -> skein_http::server::Limits {
 
 pub const TURN_BYTES: &[u8] = include_bytes!("../../../crates/jig-protocol-transcript/tests/data/record_turn_full.bin");
 // The short call ID leaves eight bytes for the task's asks carrier,
-// within the unchanged single-row read budget.
+// within the single-row read budget.
 // One source call in addition to the golden's text block.
 // Blocks are numbered from one; the call follows the text.
 pub const TURN_CALL_NUMBER: u64 = 2;
@@ -249,8 +249,9 @@ pub const TURN_TEXT: &[u8] = b"abc";
 // Ending authority adds eight bytes to its aligned task owner.
 // The owner's run proof lists its outstanding read fences, 48 bytes.
 // A job spec's pointer adds eight bytes to the task owner.
+// The started-from dependency slice adds 16 bytes to the task owner.
 // Its joined activity line remains past this exact single-row budget.
-pub const TURN_OVERLAP_BYTES: u64 = 2520;
+pub const TURN_OVERLAP_BYTES: u64 = 2536;
 #[must_use]
 pub fn turn_overlap_limits() -> jig_test_domain::Limits {
     let mut limits = owner_limits();

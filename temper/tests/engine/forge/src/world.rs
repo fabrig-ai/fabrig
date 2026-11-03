@@ -890,6 +890,7 @@ impl World {
                 | top::Request::ProjectReleased { .. }
                 | top::Request::Retained { .. }
                 | top::Request::ReleaseFailed { .. }
+                | top::Request::StepDependents { .. }
                 | top::Request::WakeProcedure { .. }
                 | top::Request::ProjectAfter { .. }
                 | top::Request::ProjectionSettled { .. }
@@ -1147,7 +1148,6 @@ mod records {
                     playground: false,
                     org: b"org".as_slice().into(),
                     repository: b"repo".as_slice().into(),
-                    project: top::SetUpProject::Existing(5),
                     label: b"Work".as_slice().into(),
                 }),
             };
