@@ -97,7 +97,11 @@ mod tests {
             core.settings_proposals
                 .insert(
                     (jig_domain_people::Proposer::Party(1), 7),
-                    s::Proposal { against: 2, items: Box::new([s::Item { setting, edit }]) },
+                    s::Proposal {
+                        applications: Box::default(),
+                        against: 2,
+                        items: Box::new([s::Item { setting, edit }]),
+                    },
                 )
                 .unwrap();
             let review = review(&core, &limits, jig_domain_people::Proposer::Party(1), 7).unwrap();
@@ -112,7 +116,11 @@ mod tests {
         core.settings_proposals
             .insert(
                 (jig_domain_people::Proposer::Party(1), 7),
-                s::Proposal { against: 3, items: Box::new([s::Item { setting, edit: s::Edit::Reset }]) },
+                s::Proposal {
+                    applications: Box::default(),
+                    against: 3,
+                    items: Box::new([s::Item { setting, edit: s::Edit::Reset }]),
+                },
             )
             .unwrap();
         let review = review(&core, &limits, jig_domain_people::Proposer::Party(1), 7).unwrap();

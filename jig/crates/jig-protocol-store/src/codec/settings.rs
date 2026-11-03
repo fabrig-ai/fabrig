@@ -1652,7 +1652,7 @@ fn decode_proposal(
             settings::Edit::Removed | settings::Edit::Reset => {}
         }
     }
-    Ok(settings::Proposal { against: field_against, items: field_items })
+    Ok(settings::Proposal { applications: Box::default(), against: field_against, items: field_items })
 }
 
 #[must_use]
