@@ -480,9 +480,9 @@ impl World {
                         },
                     }]);
                     if !owner_gate {
-                        config.landing.deployment.clone_from(&landing);
+                        config.landing_rules.deployment.clone_from(&landing);
                     }
-                    assert!(config.landing.projects.insert(1, landing).is_ok());
+                    assert!(config.landing_rules.projects.insert(1, landing).is_ok());
                 }
                 if with_change {
                     rules.ceiling.delegation.kinds = Box::new([
@@ -564,14 +564,17 @@ impl World {
                     if across {
                         let mut lib = rule.clone();
                         lib.pattern.segments[3] = b"lib".as_slice().into();
-                        config.landing.deployment = Box::new([rule.clone(), lib.clone()]);
-                        config.landing.projects.insert(1, Box::new([rule.clone(), lib])).expect("two repository rules");
+                        config.landing_rules.deployment = Box::new([rule.clone(), lib.clone()]);
+                        config
+                            .landing_rules
+                            .projects
+                            .insert(1, Box::new([rule.clone(), lib]))
+                            .expect("two repository rules");
                     } else {
-                        config.landing.deployment = Box::new([rule.clone()]);
-                        config.landing.projects.insert(1, Box::new([rule])).expect("turn landing requirements");
+                        config.landing_rules.deployment = Box::new([rule.clone()]);
+                        config.landing_rules.projects.insert(1, Box::new([rule])).expect("turn landing requirements");
                     }
                     config
-                        .landing
                         .landings
                         .insert(
                             1,
@@ -599,7 +602,7 @@ impl World {
                         )
                         .expect("one turn project");
                     if across {
-                        let landing = config.landing.landings.get_mut(&1).expect("turn project");
+                        let landing = config.landings.get_mut(&1).expect("turn project");
                         let mut lib = landing.repositories[0].clone();
                         lib.repository = skein_forge::api::Repository { forge: 1, repository: 4 };
                         landing.repositories = Box::new([landing.repositories[0].clone(), lib]);
@@ -639,13 +642,13 @@ impl World {
                 config.core.settings.llm_providers.providers[0].models = Box::new([model.name.clone()]);
                 config.core.connectors = Box::new([1]);
                 config.forge_charter = 2;
-                for rule in &mut config.landing.deployment {
+                for rule in &mut config.landing_rules.deployment {
                     rule.connector = 1;
                     for gate in &mut rule.gates {
                         gate.freshness = engine::Freshness::Clean;
                     }
                 }
-                config.landing.projects = skein_lib::Map::with_capacity(1);
+                config.landing_rules.projects = skein_lib::Map::with_capacity(1);
                 // Stock includes the review and configuring charters; all ten forge grants fit.
                 limits.tasks.charters = STOCK_CHARTERS;
                 limits.tasks.executor_kinds = STOCK_EXECUTORS;
@@ -935,7 +938,7 @@ impl World {
     pub fn with_landing_deployment(mut self, rules: Box<[engine::LandingRule]>) -> Self {
         assert_eq!(self.env.now, Time::ZERO, "landing rules precede world startup");
         assert!(!self.root.ready(), "landing rules precede bootstrap");
-        self.restart_config.landing.deployment = rules;
+        self.restart_config.landing_rules.deployment = rules;
         self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
             .expect("valid deployment landing rules");
         self

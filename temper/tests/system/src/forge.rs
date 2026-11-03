@@ -209,8 +209,8 @@ impl World {
                         gates: Box::new([]),
                         approvals: Box::new([engine::Approval { role: 2, people: 1, freshness }]),
                     }]);
-                    config.landing.deployment = landing.clone();
-                    assert!(config.landing.projects.insert(1, landing).is_ok());
+                    config.landing_rules.deployment = landing.clone();
+                    assert!(config.landing_rules.projects.insert(1, landing).is_ok());
                 }
                 if with_change {
                     rules.ceiling.delegation.kinds = change_executors();

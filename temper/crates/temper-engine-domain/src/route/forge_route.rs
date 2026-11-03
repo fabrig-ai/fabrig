@@ -1602,27 +1602,13 @@ fn pull_what(number: Option<u64>) -> Option<forge::What> {
     }
 }
 
-/// Project landing gates are procedure gates before they become effect requirements.
-fn gate_required(domain: &Domain, project: u32, name: &authority::Name, parameters: u32, project_scope: bool) -> bool {
-    domain.core.connector_gate_required(project, domain.config.forge_connector, name, parameters, project_scope)
-}
-
 fn configured_gates(
     domain: &Domain,
     env: &Env<Limits>,
     repository: &forge::Repository,
     base: &[u8],
 ) -> Option<Box<[forge_change::Gate]>> {
-    let what = branch_what(base, env.limits.forge.name_bytes)?;
-    let name = resource_name(repository, &what, env.limits.authority.segments)?;
-    let candidates = domain.forge.gate_candidates(&env.limits.forge, repository.project, &name.segments)?;
-    let mut required = List::with_capacity(u32::try_from(candidates.len()).ok()?);
-    for candidate in &candidates {
-        required
-            .push(gate_required(domain, repository.project, &name, candidate.parameters, candidate.project_scope))
-            .ok()?;
-    }
-    domain.forge.configured_gates(&env.limits.forge, repository, &candidates, required.as_slice())
+    domain.forge.held_gates(&env.limits.forge, repository, base)
 }
 
 fn landing_reviewers(

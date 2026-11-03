@@ -3,7 +3,7 @@
 use alloc::boxed::Box;
 use jig_domain_core::settings::{Kind, KindScope};
 use skein_lib::{List, bytes};
-use temper_engine_domain::{LandingPolicy, Limits};
+use temper_engine_domain::{LandingRules, Limits};
 use temper_engine_domain_forge::{self as forge, settings};
 use temper_engine_smith::kinds::size;
 
@@ -79,7 +79,7 @@ fn word(len: u32) -> Box<[u8]> {
 
 /// The document's rules and change charter, with the stock review charter.
 #[must_use]
-pub fn forge_defaults(landing: &LandingPolicy, charter: u32) -> Box<[settings::Stock]> {
+pub fn forge_defaults(landing: &LandingRules, charter: u32) -> Box<[settings::Stock]> {
     let mut stock = List::uncapped();
     rules(&mut stock, 1, 0, &landing.deployment);
     for (&project, landing) in &landing.projects {

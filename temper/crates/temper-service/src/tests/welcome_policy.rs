@@ -64,7 +64,8 @@ fn generated() -> (engine::Config, engine::Limits) {
         webhooks: resolved.webhooks,
         files,
         demo: parsed.application.demo,
-        landing: parsed.application.landing,
+        landing_rules: parsed.application.landing_rules,
+        landings: parsed.application.landings,
         charter: parsed.application.charter,
         limits: parsed.application.limits,
     };
@@ -84,7 +85,8 @@ fn generated() -> (engine::Config, engine::Limits) {
             identities,
             forges,
             playground: crate::system::playground_config(settings.demo.as_ref(), settings.limits.setup.deadline),
-            landing: settings.landing,
+            landing_rules: settings.landing_rules,
+            landings: settings.landings,
             forge_charter: settings.charter,
             under_box: false,
         },
@@ -190,8 +192,8 @@ fn real_init_policy_fits_with_two_long_github_repositories() {
     // Init inherits today's Small profile; also prove the stricter product question.
     assert_eq!(limits.policy_bytes, 16_384);
     assert_eq!(config.core.seed_projects.len(), 1);
-    assert_eq!(config.landing.deployment.len(), 1);
-    assert!(config.landing.projects.is_empty());
+    assert_eq!(config.landing_rules.deployment.len(), 1);
+    assert!(config.landing_rules.projects.is_empty());
     let seed = &config.core.seed_projects[0].policy;
     let snapshot =
         core::policy_snapshot(&seed.policy, &seed.permissions, &seed.templates).expect("whole configured seed");

@@ -541,6 +541,9 @@ fn give_settings_defaults(domain: &mut Domain) {
             .expect("one state per forge default");
     }
     domain.work.push(Work::Core(jig_domain_core::Event::EffectConnector(
-        jig_domain_core::effects::connector::Event::SettingsDefaults { defaults: defaults.into_boxed() },
+        jig_domain_core::effects::connector::Event::SettingsDefaults {
+            connector: domain.config.forge_connector,
+            defaults: defaults.into_boxed(),
+        },
     )));
 }

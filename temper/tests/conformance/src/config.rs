@@ -225,7 +225,7 @@ pub fn root(
             Box::new([])
         },
     }]);
-    config.landing.deployment.clone_from(&landing);
-    assert!(config.landing.projects.insert(1, landing).is_ok());
+    config.landing_rules.deployment.clone_from(&landing);
+    assert!(config.landing_rules.projects.insert(1, landing).is_ok());
     (config, limits)
 }

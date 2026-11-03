@@ -76,11 +76,11 @@ pub fn engine() -> settings::Engine {
         },
         files: settings::Files { entries: skein_lib::List::with_capacity(0) },
         demo: None,
-        landing: temper_engine_domain::LandingPolicy {
+        landing_rules: temper_engine_domain::LandingRules {
             deployment: Box::new([]),
             projects: skein_lib::Map::with_capacity(0),
-            landings: skein_lib::Map::with_capacity(0),
         },
+        landings: skein_lib::Map::with_capacity(0),
         charter: 1,
         limits: limits::profile(limits::Profile::Small),
     }

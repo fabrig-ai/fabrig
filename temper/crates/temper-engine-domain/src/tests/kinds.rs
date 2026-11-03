@@ -2,6 +2,7 @@
 //! temper/docs/design/protocol/configuration.md, 13.2).
 use super::*;
 use crate::{Domain, KindValue, Limits as RootLimits, Work};
+use jig_domain_authority as authority;
 use jig_domain_core::{Event, effects::connector, settings::application};
 use skein_lib::Env;
 use temper_engine_domain_forge::{self as forge, settings};
@@ -323,7 +324,8 @@ fn a_start_gives_the_forge_its_defaults() {
     assert_eq!(domain.forge.setting(3, 0, 1), Some(&charter(2)), "the stored default reached the forge");
     crate::restart::restore_connector_done(&mut domain);
     assert_eq!(domain.core.start_phase(), Some(Phase::RestoreConnector { connector: 0 }));
-    let Some(Work::Core(Event::EffectConnector(connector::Event::SettingsDefaults { defaults }))) = domain.work.pop()
+    let Some(Work::Core(Event::EffectConnector(connector::Event::SettingsDefaults { connector: 0, defaults }))) =
+        domain.work.pop()
     else {
         panic!("the core receives the defaults before the restore completes");
     };
@@ -379,14 +381,114 @@ fn save_settings_defaults_writes_the_forges_rows() {
 }
 
 #[test]
-fn no_kinds_declared_sends_no_defaults() {
+fn no_kinds_declared_gives_the_forge_defaults_without_a_core_event() {
     use jig_domain_core::start::Phase;
     let (mut domain, _) = at_connector_restore(false);
-    assert!(domain.kinds_stock.is_none(), "undeclared stock is not retained");
+    assert!(domain.kinds_stock.is_none(), "undeclared stock goes to the forge during construction");
     crate::restart::restore_connector_done(&mut domain);
     let Some(Work::StartDone(Phase::RestoreConnector { connector: 0 })) = domain.work.pop() else {
         panic!("the forge restore completes after its defaults");
     };
     assert!(domain.work.is_empty(), "no SettingsDefaults precedes the restore completion");
-    assert!(domain.forge.setting(1, 0, RULE).is_none());
+    assert_eq!(domain.forge.setting(1, 0, RULE), Some(&rule(true)));
+}
+
+#[test]
+fn the_rules_default_carries_the_standing_requirements() {
+    let limits = resume_fixture::limits();
+    let mut config = resume_fixture::config(7);
+    let base = config.core.defaults.rules.requirements.clone();
+    // Supplying one standing requirement already must not duplicate it.
+    let standing = crate::route::policy_translate::standing_requirements(0);
+    let mut supplied = List::uncapped();
+    for requirement in &base {
+        supplied.push(requirement.clone()).unwrap();
+    }
+    supplied.push(standing[0].clone()).unwrap();
+    config.core.defaults.rules.requirements = supplied.into_boxed();
+    let (domain, _) = resume_fixture::root_with_config_and_limits(config, &limits);
+    let requirements = &domain.core.current.rules().requirements;
+    assert_eq!(requirements.len(), base.len() + 2);
+    for (number, guard, must_be_guarded) in [
+        (5, authority::Guard::Guarded, true),
+        (6, authority::Guard::Observed { freshness: skein_lib::Duration::ZERO }, false),
+    ] {
+        let mut count: u32 = 0;
+        let mut found = None;
+        for requirement in requirements {
+            if requirement.judge.requirement == number {
+                count += 1;
+                found = Some(requirement);
+            }
+        }
+        assert_eq!(count, 1);
+        let requirement = found.unwrap();
+        assert_eq!(requirement.connector, 0);
+        assert_eq!(requirement.kind, 4);
+        assert_eq!(requirement.pattern.segments.as_ref(), &[Box::from(b"forge".as_slice())]);
+        assert_eq!(requirement.pattern.last, authority::Last::Open(Box::new([])));
+        assert_eq!(requirement.judge, authority::Judge { connector: 0, requirement: number, parameters: 0 });
+        assert_eq!(requirement.guard, guard);
+        assert_eq!(requirement.must_be_guarded, must_be_guarded);
+    }
+}
+
+#[test]
+fn a_document_rule_reaches_the_forge_as_a_default() {
+    let limits = resume_fixture::limits();
+    let mut config = resume_fixture::config(7);
+    config.landing_rules.deployment = Box::new([crate::LandingRule {
+        connector: 0,
+        kind: 4,
+        pattern: authority::Pattern {
+            segments: Box::new([Box::from(b"forge".as_slice())]),
+            last: authority::Last::Open(Box::new([])),
+        },
+        enforce: true,
+        ci: false,
+        up_to_date: true,
+        gates: Box::new([crate::Gate { number: 1, blocking: true, freshness: crate::Freshness::Clean }]),
+        approvals: Box::new([crate::Approval { role: 0, people: 1, freshness: crate::Freshness::Exact }]),
+    }]);
+    config.landing_rules.projects.insert(PROJECT, config.landing_rules.deployment.clone()).unwrap();
+    // Restored defaults must not replace this start's document defaults.
+    let records = [Record::Forge {
+        row: Box::new(forge::Stored::Setting(settings::SettingRow {
+            key: settings::SettingKey { kind: 1, scope: 0, number: 1, slot: settings::SettingSlot::Default },
+            edit: settings::Edit::Set(rule(true)),
+        })),
+    }];
+    let (domain, _) = resume_fixture::root_with_records(config, &limits, &records);
+    let expected = settings::SizedValue {
+        size: 0,
+        value: settings::Value::Rule(settings::LandingRule {
+            pattern: forge::GatePattern {
+                segments: Box::new([Box::from(b"forge".as_slice())]),
+                last: forge::GateLast::Open(Box::new([])),
+            },
+            enforce: true,
+            ci: false,
+            up_to_date: true,
+            gates: Box::new([settings::RuleGate {
+                number: 1,
+                blocking: true,
+                freshness: forge::JudgeFreshness::Clean,
+            }]),
+            approvals: Box::new([settings::RuleApproval {
+                role: 0,
+                people: 1,
+                freshness: forge::JudgeFreshness::Exact,
+            }]),
+        }),
+    };
+    assert_eq!(domain.forge.setting(1, 0, 1), Some(&expected));
+    assert_eq!(domain.forge.setting(2, PROJECT, 1), Some(&expected));
+    assert_eq!(
+        domain.forge.setting(3, 0, 1),
+        Some(&settings::SizedValue { size: 0, value: settings::Value::Charter(1) })
+    );
+    assert_eq!(
+        domain.forge.setting(3, 0, 2),
+        Some(&settings::SizedValue { size: 0, value: settings::Value::Charter(4) })
+    );
 }

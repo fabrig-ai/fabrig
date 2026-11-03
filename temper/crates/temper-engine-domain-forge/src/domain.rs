@@ -204,9 +204,6 @@ pub struct Domain {
     pub(crate) document_fetches: Map<Token, crate::brief_document::Fetch>,
     pub(crate) brief_pending: Map<Token, held::Pending>,
     pub(crate) brief_held: Map<Token, held::Held>,
-    judges: crate::Judges,
-    gate_policy: crate::GatePolicy,
-    judge_criteria: u32,
     projection_due: Map<u64, skein_lib::Wall>,
     change_due: Map<u64, skein_lib::Wall>,
     pub(crate) procedure_wakes: Map<u64, bool>,
@@ -383,39 +380,10 @@ impl Domain {
         self.installations.get(&(forge, installation))
     }
 
-    pub fn gate_policy(&mut self, policy: crate::GatePolicy, limits: &Limits) -> bool {
-        if !crate::gates::within(&policy, limits) {
-            return false;
-        }
-        self.gate_policy = policy;
-        true
-    }
-    #[must_use]
-    pub fn gate_candidates(
-        &self,
-        limits: &Limits,
-        project: u32,
-        name: &[Box<[u8]>],
-    ) -> Option<Box<[crate::GateCandidate]>> {
-        crate::gates::candidates(&self.gate_policy, limits, project, name)
-    }
     /// Read the landing branch's procedure waits (temper/docs/design/domain/forge.md, 8.7).
     #[must_use]
     pub fn requires(&self, repository: &Repository, branch: &[u8]) -> crate::Requires {
-        match branch_resource_name(repository, branch) {
-            Some(name) => crate::gates::requires(&self.gate_policy, repository.project, &name),
-            None => crate::Requires { ci: true, up_to_date: true },
-        }
-    }
-    #[must_use]
-    pub fn configured_gates(
-        &self,
-        limits: &Limits,
-        repository: &Repository,
-        candidates: &[crate::GateCandidate],
-        required: &[bool],
-    ) -> Option<Box<[change::Gate]>> {
-        crate::gates::selected(limits, repository, candidates, required)
+        self.held_requires(repository, branch)
     }
 
     /// Read the connector's retained part for the exact supplied call identity.
@@ -630,9 +598,6 @@ impl Domain {
             document_fetches: Map::with_capacity(l.brief_sections),
             brief_pending: Map::with_capacity(l.brief_sections),
             brief_held: Map::with_capacity(l.brief_sections),
-            judges: crate::Judges::empty(l.judge_projects),
-            gate_policy: crate::GatePolicy::empty(l.judge_projects),
-            judge_criteria: l.judge_criteria,
             projection_due: Map::with_capacity(l.issues),
             change_due: Map::with_capacity(l.changes),
             procedure_wakes: Map::with_capacity(l.changes),
@@ -640,38 +605,10 @@ impl Domain {
         })
     }
 
-    /// Install deployment criteria before decisions begin.
-    pub fn deployment_judges(&mut self, criteria: Box<[crate::Criterion]>) -> bool {
-        if !self.judge_count_fits(criteria.len()) {
-            return false;
-        }
-        self.judges.deployment = criteria;
-        true
-    }
-
-    /// Replace one project's judge parameters with its committed policy.
-    pub fn project_judges(&mut self, project: u32, criteria: Box<[crate::Criterion]>) -> bool {
-        self.judge_count_fits(criteria.len()) && self.judges.projects.insert(project, criteria).is_ok()
-    }
-
-    fn judge_count_fits(&self, count: usize) -> bool {
-        match u32::try_from(count) {
-            Ok(count) => count <= self.judge_criteria,
-            Err(_) => false,
-        }
-    }
-
     /// Whether the landing effect's exact-head condition guards this judge.
     #[must_use]
-    #[expect(clippy::match_like_matches_macro, reason = "the foundation forbids matches in domain steps")]
-    pub fn guards_landing(&self, project: u32, requirement: u16, parameters: u32) -> bool {
-        match (requirement, crate::judge::criterion(&self.judges, project, parameters)) {
-            (5, _)
-            | (1, Some(crate::Criterion::Ci))
-            | (3, Some(crate::Criterion::Gate { .. }))
-            | (4, Some(crate::Criterion::Approval { .. })) => true,
-            _ => false,
-        }
+    pub fn guards_landing(&self, _project: u32, requirement: u16, _parameters: u32) -> bool {
+        requirement == 5
     }
 
     /// Judge one forge requirement for the exact head of a change effect.
@@ -682,35 +619,22 @@ impl Domain {
     )]
     pub fn judge_landing(
         &self,
-        project: u32,
+        _project: u32,
         requirement: u16,
-        parameters: u32,
+        _parameters: u32,
         task: u64,
         head: skein_forge::api::Commit,
         evidence: &crate::ChangeEvidence,
         reviewers: &[crate::Reviewer],
     ) -> Option<crate::JudgeVerdict> {
         match requirement {
-            5 => return self.judge_held_landing(false, task, head, evidence, reviewers),
-            6 => return self.judge_held_landing(true, task, head, evidence, reviewers),
-            _ => {}
+            5 => self.judge_held_landing(false, task, head, evidence, reviewers),
+            6 => self.judge_held_landing(true, task, head, evidence, reviewers),
+            // temper/docs/design/domain/forge.md, 8.7: requirements 1 to 4 attached
+            // by owners wait; their parameters no longer index a criteria table.
+            1..=4 => Some(crate::JudgeVerdict::Wait),
+            _ => None,
         }
-        let criterion = crate::judge::criterion(&self.judges, project, parameters)?;
-        let matching = match criterion {
-            crate::Criterion::Ci => requirement == 1,
-            crate::Criterion::UpToDate => requirement == 2,
-            crate::Criterion::Gate { .. } => requirement == 3,
-            crate::Criterion::Approval { .. } => requirement == 4,
-        };
-        if !matching {
-            return None;
-        }
-        if let Some(row) = self.landing.rows.get(&task) {
-            return crate::landing::judge(self, row, criterion, head, evidence, reviewers);
-        }
-        let row = self.changes.get(&task)?;
-        let repository = self.repositories.get(&row.repository)?;
-        Some(crate::judge::judge(criterion, repository, head, &row.change.clean, evidence, reviewers))
     }
 
     /// The next child timer, if one is armed.

@@ -481,7 +481,7 @@ fn a_landing_rule_reads_jigs_pattern_form() {
     let (members, problems) = application(&application_with_landing_requirements(), &jig);
     assert_eq!(&*lines(&problems), b"", "landing accepted");
     let members = members.unwrap();
-    let rule = &members.landing.projects.get(&1).unwrap()[0];
+    let rule = &members.landing_rules.projects.get(&1).unwrap()[0];
     assert_eq!(rule.pattern.segments[0].as_ref(), b"forge");
     assert_eq!(rule.pattern.last, jig_domain_authority::Last::Open(b"main".as_slice().into()));
     assert_eq!(rule.gates[0].number, 3);
@@ -1152,10 +1152,10 @@ fn turn_configuration_can_name_a_project_adopted_after_the_seed() {
     let (members, problems) = turn_configuration(ADOPTED);
     assert!(problems.is_empty(), "{:?}", lines(&problems));
     let members = members.unwrap();
-    let landing = members.landing.landings.get(&ADOPTED).unwrap();
+    let landing = members.landings.get(&ADOPTED).unwrap();
     assert_eq!(landing.by, temper_engine_domain::Way::Turn);
     assert_eq!(landing.repositories[0].gates[0].workflow.as_ref(), b"gate.yml");
-    assert!(!members.landing.projects.contains_key(&ADOPTED));
+    assert!(!members.landing_rules.projects.contains_key(&ADOPTED));
     let document = fixtures::with(&fixtures::document(), b"application.landing.projects", &turn_projects(ADOPTED));
     let started = crate::startup(
         &document,
@@ -1178,7 +1178,7 @@ fn landing_configuration_reads_the_way_and_bounded_repository_gates() {
     let (members, problems) = turn_configuration(1);
     assert!(problems.is_empty(), "{:?}", lines(&problems));
     let members = members.unwrap();
-    let landing = members.landing.landings.get(&1).unwrap();
+    let landing = members.landings.get(&1).unwrap();
     assert_eq!(landing.by, temper_engine_domain::Way::Turn);
     assert_eq!(landing.repositories[0].repository.repository, 2);
     let check = &landing.repositories[0].gates[0];
@@ -1194,7 +1194,7 @@ fn landing_configuration_reads_the_way_and_bounded_repository_gates() {
     let (members, problems) = application(fixtures::APPLICATION, &jig);
     assert!(problems.is_empty());
     let members = members.unwrap();
-    let landing = members.landing.landings.get(&1).unwrap();
+    let landing = members.landings.get(&1).unwrap();
     assert_eq!(landing.by, temper_engine_domain::Way::Queue);
     assert!(landing.repositories.is_empty());
     assert_eq!(
@@ -1227,7 +1227,7 @@ fn landing_configuration_reads_tiers_and_project_settings_by_queue_and_turn() {
         let (members, problems) = application(&input, &fixtures::engine().jig);
         assert!(problems.is_empty(), "{:?}", lines(&problems));
         let members = members.unwrap();
-        let landing = members.landing.landings.get(&1).unwrap();
+        let landing = members.landings.get(&1).unwrap();
         assert_eq!(landing.by, way);
         assert_eq!(landing.after, AfterLandingCheck { tier_retries: 7, verification_bound_ms: 123_456 });
         assert_eq!(landing.repositories[0].gates[0].name.as_ref(), b"gate");
@@ -1275,7 +1275,7 @@ fn landing_configuration_defaults_tier_settings_when_tiers_are_present() {
     let (members, problems) = application(&input, &fixtures::engine().jig);
     assert!(problems.is_empty(), "{:?}", lines(&problems));
     let members = members.unwrap();
-    let landing = members.landing.landings.get(&1).unwrap();
+    let landing = members.landings.get(&1).unwrap();
     assert_eq!(landing.by, temper_engine_domain::Way::Queue);
     assert_eq!(landing.repositories[0].tiers.len(), 1);
     assert_eq!(
@@ -1374,7 +1374,7 @@ fn landing_configuration_tier_settings_keep_their_integer_bounds() {
         match expected {
             Some(after) => {
                 assert!(problems.is_empty(), "{:?}", lines(&problems));
-                assert_eq!(members.unwrap().landing.landings.get(&1).unwrap().after, after);
+                assert_eq!(members.unwrap().landings.get(&1).unwrap().after, after);
             }
             None => {
                 assert!(members.is_none());

@@ -850,7 +850,7 @@ fn admin_connect_role_refusals_deliver_the_carried_value_unused() {
 }
 
 // Include permission mappings and a real template override in the admission
-// fixture: pricing only authority or only appended requirements undercounts it.
+// fixture: permissions and template overrides count beside authority.
 fn seed_with_landing() -> crate::Config {
     use jig_domain_authority as authority;
     use jig_domain_tasks as tasks;
@@ -883,7 +883,7 @@ fn seed_with_landing() -> crate::Config {
         priority: Some(2),
     }]);
     configured
-        .landing
+        .landing_rules
         .projects
         .insert(
             1,
@@ -912,45 +912,26 @@ fn seed_bytes(policy: &jig_domain_core::ConfiguredPolicy) -> u64 {
     .unwrap()
 }
 
-fn joined_seed_bytes(configured: &crate::Config, limits: &Limits) -> u64 {
-    let mut policy = configured.core.seed_projects[0].policy.clone();
-    let built = crate::route::policy_translate::build_landing(
-        configured.landing.projects.get(&1).unwrap(),
-        true,
-        limits.authority.requirements,
-        0,
-    )
-    .unwrap();
-    policy.policy.requirements = crate::route::policy_translate::combine_requirements(
-        &policy.policy.requirements,
-        &built.requirements,
-        limits.authority.requirements,
-    )
-    .unwrap();
-    seed_bytes(&policy)
-}
-
 #[test]
-fn a_parsed_fit_seed_policy_refuses_its_joined_bytes_before_core_construction() {
+fn a_seed_policy_past_its_bytes_refuses_before_core_construction() {
     let configured = seed_with_landing();
     let mut limits = super::resume_fixture::limits();
-    let joined = joined_seed_bytes(&configured, &limits);
-    limits.policy_bytes = joined.checked_sub(1).unwrap();
-    assert!(seed_bytes(&configured.core.seed_projects[0].policy) <= limits.policy_bytes);
+    let bytes = seed_bytes(&configured.core.seed_projects[0].policy);
+    limits.policy_bytes = bytes.checked_sub(1).unwrap();
     assert!(!configured.core.seed_projects[0].policy.permissions.is_empty());
     assert!(!configured.core.seed_projects[0].policy.templates.is_empty());
     assert_eq!(
         crate::refused(configured, &limits).as_ref(),
-        [crate::Refused::Policy { project: 1, bytes: Some(joined) }]
+        [crate::Refused::Policy { project: 1, bytes: Some(bytes) }]
     );
 }
 
 #[test]
-fn a_seed_policy_at_its_actual_joined_byte_bound_is_admitted() {
+fn landing_rules_add_no_bytes_to_a_seed_policy() {
     let mut limits = super::resume_fixture::limits();
-    limits.policy_bytes = joined_seed_bytes(&seed_with_landing(), &limits);
+    limits.policy_bytes = seed_bytes(&seed_with_landing().core.seed_projects[0].policy);
     assert!(crate::refused(seed_with_landing(), &limits).is_empty());
-    Domain::new(seed_with_landing(), &limits).expect("joined seed policy at its exact bound constructs the root");
+    Domain::new(seed_with_landing(), &limits).expect("seed policy at its exact bound constructs the root");
 }
 
 #[test]

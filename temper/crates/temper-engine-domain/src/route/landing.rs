@@ -1,4 +1,4 @@
-//! Temper's forge landing policy and connector judge parameters. These values
+//! Document landing rules translated to the forge's defaults. These values
 //! belong to the application; people carries only authority requirements
 //! (domain/forge.md, 8.7; jig's domain/authority.md, sections 6 and 10).
 
@@ -35,7 +35,7 @@ pub struct LandingRule {
     pub connector: u16,
     pub kind: u16,
     pub pattern: Pattern,
-    /// Whether this configured criterion is required before a project policy edit.
+    /// Whether this rule holds a merge through the standing requirements.
     pub enforce: bool,
     pub ci: bool,
     pub up_to_date: bool,
