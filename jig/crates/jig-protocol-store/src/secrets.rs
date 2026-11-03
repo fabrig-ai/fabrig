@@ -71,6 +71,9 @@ fn prefix(owner: SecretOwner) -> [u8; 2] {
     }
 }
 pub(super) fn key(owner: SecretOwner, number: u64, limit: u32) -> Option<Box<[u8]>> {
+    if owner == SecretOwner::PublicNames && number != 0 {
+        return None;
+    }
     let [tag, owner] = prefix(owner);
     let mut key = skein_kv::KeyWriter::new(limit);
     key.tag(tag).tag(owner).u64(number);
@@ -100,16 +103,21 @@ fn read_key(key: &[u8]) -> Option<(SecretOwner, u64)> {
             1 => SecretOwner::Service,
             _ => return None,
         },
-        2 | 3 => {
+        2..=4 => {
             if kind != 0 {
                 return None;
             }
-            if tag == 2 { SecretOwner::Application } else { SecretOwner::Source }
+            match tag {
+                2 => SecretOwner::Application,
+                3 => SecretOwner::Source,
+                4 => SecretOwner::PublicNames,
+                _ => return None,
+            }
         }
         _ => return None,
     };
     let number = reader.u64()?;
-    if !reader.is_empty() {
+    if !reader.is_empty() || (owner == SecretOwner::PublicNames && number != 0) {
         return None;
     }
     Some((owner, number))
@@ -293,6 +301,10 @@ pub(crate) fn secrets(
         }
         Secrets::Get { owner: kind, number } => get(store, env, owner, (kind, number), above, below),
         Secrets::Load { owner: kind, after } => {
+            if kind == SecretOwner::PublicNames && after == Some(0) {
+                above.push(Event::SecretsLoaded { owner, rows: Box::new([]), next: None });
+                return;
+            }
             let mut range = skein_kv::Range::prefix(&prefix(kind));
             if let Some(number) = after {
                 let Some(number) = number.checked_add(1) else {

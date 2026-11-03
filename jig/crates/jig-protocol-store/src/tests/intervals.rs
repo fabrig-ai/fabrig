@@ -363,15 +363,17 @@ fn the_accounts_restore_range_stops_before_the_installations_row() {
 }
 
 #[test]
-fn the_people_restore_ranges_include_acted_and_deletions_and_skip_ended_read_positions() {
+fn the_people_restore_ranges_include_acted_deletions_and_public_and_skip_ended_read_positions() {
     let ranges = intervals::restore(&RestoreRange::People);
     for connector in [0, u16::MAX] {
         let key = Key::People(jig_domain_people::Key::Acted(jig_domain_people::ActKey { connector, key: [255; 16] }));
         assert!(fixtures::within(&ranges, &key_bytes(&key)), "{key:?}");
     }
     for project in [0, u32::MAX] {
-        let key = Key::People(jig_domain_people::Key::Deletion(project));
-        assert!(fixtures::within(&ranges, &key_bytes(&key)), "{key:?}");
+        for key in [jig_domain_people::Key::Deletion(project), jig_domain_people::Key::Public(project)] {
+            let key = Key::People(key);
+            assert!(fixtures::within(&ranges, &key_bytes(&key)), "{key:?}");
+        }
     }
     assert_eq!(ranges[0].end.as_deref(), Some([keys::JIG, 2, 7].as_slice()));
     assert!(!fixtures::within(

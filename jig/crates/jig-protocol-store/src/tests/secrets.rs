@@ -66,6 +66,80 @@ fn an_erased_secret_gets_none() {
     };
     assert_eq!(get(&mut store, SecretOwner::SignIn, 4), None);
 }
+
+#[test]
+fn the_public_names_secret_is_kept_read_and_erased() {
+    let mut store = marked();
+    let value = SecretValue::Key(Secret::new(Box::new([53; 32])));
+    let events = ask(&mut store, Secrets::Keep { owner: SecretOwner::PublicNames, number: 0, value: value.clone() });
+    let [Event::Kept { owner: OWNER }] = &*events else { panic!("public names kept") };
+    assert_eq!(get(&mut store, SecretOwner::PublicNames, 0), Some(value.clone()));
+    let key = crate::secrets::key(SecretOwner::PublicNames, 0, fixtures::KEY_LIMIT).expect("public names key");
+    assert_eq!(key.as_ref(), &[4, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    assert_eq!(kept_root(&key), Some("Source"));
+    let mut store = fixtures::over(store.into_stores());
+    let events = fixtures::run(
+        &mut store,
+        Request::Open { owner: OWNER, root: fixtures::ROOT, installation: fixtures::INSTALLATION },
+    );
+    let [Event::Opened { last: 1, pending: false, .. }] = &*events else { panic!("public names reopen") };
+    fixtures::committed(&mut store, Box::new([fixtures::header(2), crate::Write::Wires]));
+    restore_people(&mut store);
+    assert_eq!(get(&mut store, SecretOwner::PublicNames, 0), Some(value.clone()));
+    let events = ask(&mut store, Secrets::Load { owner: SecretOwner::PublicNames, after: None });
+    let [Event::SecretsLoaded { owner: OWNER, rows, next: None }] = &*events else {
+        panic!("one public names page: {events:?}");
+    };
+    let [row] = &**rows else { panic!("one public names row") };
+    assert_eq!((row.owner, row.number, &row.value), (SecretOwner::PublicNames, 0, &value));
+    let events = ask(&mut store, Secrets::Load { owner: SecretOwner::PublicNames, after: Some(0) });
+    let [Event::SecretsLoaded { rows, next: None, .. }] = &*events else { panic!("end of public names") };
+    assert!(rows.is_empty());
+    // Replacing a durable value checks its payload digest through its stored key.
+    let events = ask(
+        &mut store,
+        Secrets::Replace {
+            owner: SecretOwner::PublicNames,
+            number: 0,
+            value: value.clone(),
+            replaces: Some(skein_lib::sha256::digest(&[53; 32])),
+        },
+    );
+    let [Event::Kept { owner: OWNER }] = &*events else { panic!("public names replaced") };
+    let events = ask(&mut store, Secrets::Erase { owner: SecretOwner::PublicNames, number: 0 });
+    let [Event::Erased { owner: OWNER }] = &*events else { panic!("public names erased") };
+    assert_eq!(get(&mut store, SecretOwner::PublicNames, 0), None);
+}
+
+#[test]
+fn public_names_refuses_other_lengths_and_numbers_before_writing() {
+    for length in [0, 1, 31, 33, 64] {
+        let value = SecretValue::Key(Secret::new(Box::from([53; 64].get(..length).expect("fixture length"))));
+        for request in [
+            Secrets::Keep { owner: SecretOwner::PublicNames, number: 0, value: value.clone() },
+            Secrets::Replace { owner: SecretOwner::PublicNames, number: 0, value, replaces: None },
+        ] {
+            let mut store = marked();
+            assert!(ask(&mut store, request).is_empty());
+            assert_eq!(store.phase, Phase::Stopped);
+            assert_eq!(store.stores.secrets.last(), 0);
+        }
+    }
+    for number in [1, CARRIED, u64::MAX] {
+        let value = SecretValue::Key(Secret::new(Box::new([53; 32])));
+        for request in [
+            Secrets::Keep { owner: SecretOwner::PublicNames, number, value: value.clone() },
+            Secrets::Replace { owner: SecretOwner::PublicNames, number, value, replaces: None },
+            Secrets::Get { owner: SecretOwner::PublicNames, number },
+            Secrets::Erase { owner: SecretOwner::PublicNames, number },
+        ] {
+            let mut store = marked();
+            assert!(ask(&mut store, request).is_empty());
+            assert_eq!(store.phase, Phase::Stopped);
+            assert_eq!(store.stores.secrets.last(), 0);
+        }
+    }
+}
 #[test]
 fn a_load_pages_an_owners_secrets_in_number_order() {
     let mut store = kept();
@@ -576,6 +650,11 @@ fn an_owners_other_value_kinds_are_refused_before_writing() {
         (SecretOwner::Source, application.clone()),
         (SecretOwner::Source, carried.clone()),
         (SecretOwner::Source, held.clone()),
+        (SecretOwner::PublicNames, digest.clone()),
+        (SecretOwner::PublicNames, record.clone()),
+        (SecretOwner::PublicNames, application.clone()),
+        (SecretOwner::PublicNames, carried.clone()),
+        (SecretOwner::PublicNames, held.clone()),
         (SecretOwner::Application, digest),
         (SecretOwner::Application, record),
         (SecretOwner::Application, key),
@@ -583,12 +662,13 @@ fn an_owners_other_value_kinds_are_refused_before_writing() {
         (SecretOwner::Application, held),
     ];
     for (owner, value) in rows {
+        let number = u64::from(owner != SecretOwner::PublicNames);
         for request in [
-            Secrets::Keep { owner, number: 1, value: value.clone() },
-            Secrets::Replace { owner, number: 1, value: value.clone(), replaces: None },
+            Secrets::Keep { owner, number, value: value.clone() },
+            Secrets::Replace { owner, number, value: value.clone(), replaces: None },
             Secrets::AdoptValue {
                 owner,
-                number: 1,
+                number,
                 value: value.clone(),
                 replaces: None,
                 carried: CARRIED,
@@ -678,6 +758,7 @@ fn the_secrets_familys_ranges_hold_only_jigs_rows() {
         (SecretOwner::Service, u64::MAX, Some("Digest")),
         (SecretOwner::Source, 0, Some("Source")),
         (SecretOwner::Source, u64::MAX, Some("Source")),
+        (SecretOwner::PublicNames, 0, Some("Source")),
         (SecretOwner::Application, 0, None),
         (SecretOwner::Application, CARRIED - 1, None),
         (SecretOwner::Application, CARRIED, Some("Carried")),

@@ -507,6 +507,7 @@ fn ended(key: &root::Key) -> Option<u64> {
                 | people::Key::ReadConversation { .. }
                 | people::Key::Roles(..)
                 | people::Key::Deletion(..)
+                | people::Key::Public(..)
                 | people::Key::Policy(..)
                 | people::Key::Acted(..)
                 | people::Key::Answer(..),
