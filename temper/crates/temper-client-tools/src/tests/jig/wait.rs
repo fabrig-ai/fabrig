@@ -1,6 +1,227 @@
 use crate::tests::fixtures as f;
 use jig_client::{Watchable, contract as c};
 use skein_lib::Time;
+
+fn tier_run_words() -> Box<[u8]> {
+    let prefix = b"Judged run: commit bc9128bd..., branch temper/tier/sl";
+    let identity = b"Judged run: commit bc9128bd..., branch temper/tier/slow.1, forge run 91 http://forge/org/repo/actions/runs/91";
+    let padding = 128usize.checked_sub(prefix.len()).unwrap();
+    let mut words = skein_lib::Writer::new(padding.checked_add(identity.len()).unwrap());
+    words.put(b"Tier slow run 1\n").unwrap();
+    for _ in b"Tier slow run 1\n".len()..padding {
+        words.put(b" ").unwrap();
+    }
+    words.put(identity).unwrap();
+    words.finish()
+}
+
+fn serve_specification(root: &mut f::Harness, call: u32, words: &[u8]) {
+    let (core, limits, row) = f::source_task(words);
+    for _ in 0..words.len() {
+        let Some((_, c::Read::TaskText { task: 1, field: c::TaskTextField::Specification, from })) =
+            root.reads.get(&call)
+        else {
+            break;
+        };
+        let chunk = f::source_chunk(&core, &limits, &row, jig_domain_core::reads::TaskTextField::Specification, *from);
+        root.serve(call, c::ReadResult::Value(c::ReadValue::TaskText(Box::new(chunk))));
+    }
+    assert!(root.reads.is_empty(), "sequential source reads finish within their byte bound");
+}
+
+fn source_wait(
+    words: &[u8],
+    tools: &crate::jig::Limits,
+    end: Option<c::WatchEnd>,
+    json: bool,
+) -> (f::Harness, u32, Box<[u8]>) {
+    let (core, limits, row) = f::source_task(words);
+    let mut task = f::source_summary(&core, &limits, &row);
+    task.chip.phase = c::Phase::Done;
+    let digest = f::task_digest(&c::Delivery::Task(Box::new(task.clone()))).hex();
+    let mut root = f::signed_in(f::PARTY);
+    root.limits.tools = *tools;
+    let argv = f::extended(
+        &["task", "show", "1", "--until", "ended", "--timeout", "1s"],
+        if json { &["--json"] } else { &[] },
+    );
+    let call = root.submit(argv.as_slice());
+    let watch = Watchable::Jig(c::Subject::Task { task: 1 });
+    if let Some(end) = end {
+        if end == c::WatchEnd::SubjectEnded {
+            let mut live = task.clone();
+            live.chip.phase = c::Phase::Running;
+            root.deliver_subject(&watch, c::Delivery::Task(Box::new(live)));
+        }
+        root.end(call, &watch, end);
+    } else {
+        root.serving = Some(call);
+        root.deliver_subject(&watch, c::Delivery::Task(Box::new(task.clone())));
+        root.serving = None;
+    }
+    root.serve(call, f::ended_task_result(task, c::Ending::Done));
+    assert_eq!(crate::root::next_deadline(&root.root), None);
+    root.now = Time::ZERO.checked_add(f::WAIT_SPAN).unwrap();
+    root.fire();
+    (root, call, Box::from(digest.as_slice()))
+}
+
+fn settled_source_wait(root: &mut f::Harness, call: u32) {
+    assert!(root.reads.is_empty());
+    assert_eq!(root.watches.len(), f::SHARED_WATCHES);
+    assert_eq!(crate::root::next_deadline(&root.root), None);
+    root.now = Time::ZERO.checked_add(f::WAIT_SPAN).unwrap();
+    root.fire();
+    assert!(root.answer(call).is_none(), "one answer despite the expired wait deadline");
+}
+
+// The client-tools root is the lowest world owning waits and their printed document.
+#[test]
+fn task_wait_fills_the_tier_run_identity_after_the_terminal_read() {
+    let words = tier_run_words();
+    let (core, limits, row) = f::source_task(&words);
+    let task = f::source_summary(&core, &limits, &row);
+    assert!(task.spec.specification.words.cut);
+    assert!(task.spec.specification.words.bytes().ends_with(b"branch temper/tier/sl"));
+    let (plain, _) = f::source_show(&words, &crate::limits::tools(), false);
+    assert!(f::has(&plain, &words), "plain task show prints the whole run identity");
+    for end in [Some(c::WatchEnd::SubjectEnded), Some(c::WatchEnd::Unknown), None] {
+        let (mut root, call, digest) = source_wait(&words, &crate::limits::tools(), end, false);
+        assert!(root.answer(call).is_none(), "source reads precede the answer");
+        serve_specification(&mut root, call, &words);
+        let answer = root.answer(call).expect("terminal wait document");
+        assert_eq!(answer.status, 0);
+        assert!(f::has(&answer, &words), "wait must retain the branch, forge run and URL");
+        assert!(f::has(&answer, b"Final task report"));
+        assert!(f::has(&answer, &digest));
+        assert!(answer.stdout.ends_with(b"met\n"));
+        settled_source_wait(&mut root, call);
+    }
+}
+
+#[test]
+fn task_wait_fills_a_meeting_delivery_without_changing_its_digest() {
+    let words = tier_run_words();
+    let (core, limits, row) = f::source_task(&words);
+    let mut task = f::source_summary(&core, &limits, &row);
+    task.chip.phase = c::Phase::Running;
+    let delivery = c::Delivery::Task(Box::new(task));
+    let digest = f::task_digest(&delivery).hex();
+    let mut root = f::signed_in(f::PARTY);
+    let call = root.submit(&["task", "show", "1", "--until", "phase:running", "--timeout", "1s"]);
+    root.serving = Some(call);
+    root.deliver_subject(&Watchable::Jig(c::Subject::Task { task: 1 }), delivery);
+    root.serving = None;
+    assert!(root.answer(call).is_none());
+    assert_eq!(crate::root::next_deadline(&root.root), None);
+    serve_specification(&mut root, call, &words);
+    let answer = root.answer(call).unwrap();
+    assert_eq!(answer.status, 0);
+    assert!(f::has(&answer, &words));
+    assert!(f::has(&answer, &digest));
+    assert!(answer.stdout.ends_with(b"met\n"));
+    settled_source_wait(&mut root, call);
+}
+
+#[test]
+fn task_wait_json_keeps_the_projected_document_without_supplemental_reads() {
+    for end in [Some(c::WatchEnd::SubjectEnded), Some(c::WatchEnd::Unknown), None] {
+        let (mut root, call, digest) = source_wait(&tier_run_words(), &crate::limits::tools(), end, true);
+        let answer = root.answer(call).unwrap();
+        assert_eq!(answer.status, 0);
+        assert!(f::has(&answer, &digest));
+        assert!(f::has(&answer, b"Final task report"));
+        assert!(f::has(&answer, b"branch temper/tier/sl"));
+        assert!(!f::has(&answer, b"forge run 91"));
+        assert!(answer.stdout.ends_with(b",\"met\":true}"));
+        settled_source_wait(&mut root, call);
+    }
+}
+
+fn check_source_continuation(answer: &crate::jig::Printed, words: &[u8]) -> usize {
+    let start = skein_lib::bytes::find(&answer.stdout, b"asked: ").unwrap().checked_add(b"asked: ".len()).unwrap();
+    let shown = skein_lib::bytes::find(&answer.stdout[start..], b"\n").unwrap();
+    assert_eq!(&answer.stdout[start..start.checked_add(shown).unwrap()], &words[..shown]);
+    let mut measure = crate::jig::render::Text::measure();
+    measure.number(u64::try_from(shown).unwrap());
+    let mut number = crate::jig::render::Text::writing_exact(measure);
+    number.number(u64::try_from(shown).unwrap());
+    let next = f::appended(b"read on with: task text 1 --field specification --from ", &number.finish());
+    assert!(f::has(answer, &f::appended(&next, b"\n")));
+    assert!(skein_lib::bytes::is_utf8(&answer.stdout));
+    shown
+}
+
+#[test]
+fn task_wait_continues_at_the_first_undisplayed_utf8_byte_under_each_ceiling() {
+    let mut words = skein_lib::Writer::new(2001);
+    words.put(&[b'x'; 511]).unwrap();
+    words.put("é".as_bytes()).unwrap();
+    words.put(&[b'y'; 1488]).unwrap();
+    let words = words.finish();
+    let (mut whole, call, _) = source_wait(&words, &crate::limits::tools(), Some(c::WatchEnd::Unknown), false);
+    serve_specification(&mut whole, call, &words);
+    let text_bound = u32::try_from(whole.answer(call).unwrap().stdout.len().checked_sub(128).unwrap()).unwrap();
+    for ceiling in [0u8, 1, 2] {
+        let mut limits = crate::limits::tools();
+        match ceiling {
+            0 => limits.result_bytes = 1024 + 512 * 6,
+            1 => limits.part = 512,
+            2 => limits.text = text_bound,
+            _ => unreachable!(),
+        }
+        let (mut root, call, digest) = source_wait(&words, &limits, Some(c::WatchEnd::SubjectEnded), false);
+        serve_specification(&mut root, call, &words);
+        let answer = root.answer(call).unwrap();
+        assert_eq!(answer.status, 0);
+        let shown = check_source_continuation(&answer, &words);
+        if ceiling == 2 {
+            assert!(shown < words.len(), "exercise the renderer's text budget");
+        } else {
+            assert_eq!(shown, 511, "the source bound preserves the UTF-8 boundary");
+        }
+        assert!(u64::try_from(answer.stdout.len()).unwrap() <= limits.result_bytes);
+        assert!(answer.stdout.len() <= usize::try_from(limits.text).unwrap());
+        assert!(f::has(&answer, b"result: Completed"));
+        if ceiling != 2 {
+            assert!(f::has(&answer, b"Final task report"));
+        }
+        assert!(f::has(&answer, &digest));
+        assert!(f::has(&answer, b"\nmet\n"));
+        settled_source_wait(&mut root, call);
+    }
+}
+
+#[test]
+fn task_wait_retains_its_terminal_result_when_source_reads_cannot_advance() {
+    for result in [
+        c::ReadResult::None(c::ReadNone::Unknown),
+        c::ReadResult::Value(c::ReadValue::TaskText(Box::new(c::TaskText {
+            task: 1,
+            field: c::TaskTextField::Specification,
+            from: 128,
+            total: 300,
+            next: Some(128),
+            text: c::Text::new(Box::new([]), 128).unwrap(),
+        }))),
+    ] {
+        let words = [b'x'; 300];
+        let (mut root, call, digest) = source_wait(&words, &crate::limits::tools(), Some(c::WatchEnd::Unknown), false);
+        assert!(root.answer(call).is_none());
+        let Some((_, c::Read::TaskText { from: 128, .. })) = root.reads.get(&call) else {
+            panic!("supplemental read starts after the overview");
+        };
+        root.serve(call, result);
+        let answer = root.answer(call).unwrap();
+        assert_eq!(answer.status, 0);
+        assert_eq!(check_source_continuation(&answer, &words), 128);
+        assert!(f::has(&answer, b"Final task report"));
+        assert!(f::has(&answer, &digest));
+        assert!(answer.stdout.ends_with(b"met\n"));
+        settled_source_wait(&mut root, call);
+    }
+}
+
 #[test]
 fn a_wait_until_replied_answers_at_the_parked_delivery_with_its_digest() {
     let (mut root, call) = f::waiting_call(f::WAIT_TASK, f::UNTIL_REPLIED);
