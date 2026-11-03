@@ -7,6 +7,7 @@ use skein_lib::{Env, List, Map, Queue, Time, Token, Wall};
 use temper_engine_domain_forge_landing as landing;
 use temper_engine_domain_forge_tiers as p;
 mod parts;
+pub(crate) mod red;
 pub(crate) mod words;
 use parts::{
     candidate, dispatch_operation, part_branch, part_inputs, part_number, probe_branch, report_read, reported,
@@ -20,6 +21,7 @@ pub(crate) struct State {
     walks: Map<(Repository, Box<[u8]>), Walk>,
     pub(crate) reads: Map<Token, (Repository, Box<[u8]>)>,
     pub(crate) follows: Map<(Repository, Box<[u8]>), crate::runs::Follow>,
+    reds: Map<(Repository, Box<[u8]>), red::Fetch>,
 }
 impl State {
     pub(crate) fn new(l: &Limits) -> Self {
@@ -31,6 +33,7 @@ impl State {
             walks: Map::with_capacity(count),
             reads: Map::with_capacity(count.checked_mul(2).expect("tier reads")),
             follows: Map::with_capacity(count),
+            reds: Map::with_capacity(count),
         }
     }
 }
@@ -868,6 +871,15 @@ fn finish(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, out: &mut Queue<
         )
     };
     let p::Next::Judged(verdict) = next else { unreachable!("saved final observation judges the committed part") };
+    let newly_red = red::landings(d, row, &verdict);
+    if !newly_red.is_empty() {
+        let Some(logs) = red::logs(d, env, row, out) else {
+            wait(row.task.expect("tier task"), out);
+            return;
+        };
+        red::landed(d, row, &newly_red, &logs, out);
+    }
+    let run = row.record.run.as_ref().expect("judged range");
     let words = verdict_words(&row.tier, &verdict);
     crate::verification::judged(d, row.repository, &row.tier, &verdict, &run.landings, out);
     row.record = p::judged(
@@ -1120,6 +1132,10 @@ pub(crate) fn answered(
         && walk.owner == owner
     {
         tree_answer(d, env, key, answer, out);
+        return;
+    }
+    if d.tier_ops.reds.contains_key(&key) {
+        red::answered(d, env, key, answer, out);
         return;
     }
     let Some(mut row) = d.tiers.remove(&key) else { return };
@@ -1691,6 +1707,7 @@ fn verdict_words(tier: &[u8], verdict: &p::Verdict) -> Box<[u8]> {
 }
 
 fn cancelled(d: &mut Domain, row: &mut TierRow, task: u64, out: &mut Queue<Request>) {
+    red::forget(d, row);
     row.record.run = None;
     row.task = None;
     d.offered_tier(task);
