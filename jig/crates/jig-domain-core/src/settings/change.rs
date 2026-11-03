@@ -5,21 +5,34 @@ use crate::{
 };
 use skein_lib::List;
 
-#[expect(clippy::match_same_arms, reason = "the separate project policy refusal is replaced by policy-change")]
 pub(crate) fn change_shape(items: &[Item], limits: &Limits) -> Result<(), Failure> {
     if items.len()
         > skein_lib::length::usize_of(
-            super::capacity(limits).expect("settings capacity").checked_mul(2).expect("item union"),
+            super::capacity(limits)
+                .expect("settings capacity")
+                .checked_mul(2)
+                .expect("item union")
+                .checked_add(1)
+                .expect("one project policy"),
         )
     {
         return Err(Failure { setting: items.first().expect("past nonzero capacity").setting, fault: Fault::Count });
     }
     let mut counts = [0_u32; 3];
+    let mut project_policy = false;
     for (at, item) in items.iter().enumerate() {
         match item.setting {
-            // A project's policy is refused until policy-change gives it a check (engine.md, 17.2).
-            Setting::ProjectPolicy { .. } => {
-                return Err(Failure { setting: item.setting, fault: Fault::Shape });
+            Setting::ProjectPolicy { project } => {
+                if project == 0 || project_policy {
+                    return Err(Failure { setting: item.setting, fault: Fault::Shape });
+                }
+                match &item.edit {
+                    Edit::Set(super::Value::Policy(_)) => {}
+                    Edit::Set(_) | Edit::Removed | Edit::Reset => {
+                        return Err(Failure { setting: item.setting, fault: Fault::Shape });
+                    }
+                }
+                project_policy = true;
             }
             Setting::Charter(0)
             | Setting::Template(0)
@@ -54,7 +67,7 @@ pub(crate) fn change_shape(items: &[Item], limits: &Limits) -> Result<(), Failur
 #[must_use]
 pub(crate) fn changes_current(current: &Current, items: &[Item]) -> bool {
     for item in items {
-        if super::application::is_application(item.setting) {
+        if super::application::is_application(item.setting) || super::is_project_policy(item.setting) {
             continue;
         }
         let after = match &item.edit {
@@ -77,6 +90,9 @@ pub(crate) fn apply(current: &mut Current, items: &[Item], revision: u32) -> Lis
         List::with_capacity(u32::try_from(items.len()).expect("bounded items").checked_mul(2).expect("reset writes"));
     // Erases precede puts in memory so replacing a whole bounded kind needs no spare slot.
     for item in items {
+        if super::is_project_policy(item.setting) {
+            continue;
+        }
         let erase = match item.edit {
             Edit::Reset => true,
             Edit::Removed => current.defaults.get(&item.setting).is_none(),
@@ -87,6 +103,9 @@ pub(crate) fn apply(current: &mut Current, items: &[Item], revision: u32) -> Lis
         }
     }
     for item in items {
+        if super::is_project_policy(item.setting) {
+            continue;
+        }
         let value = match &item.edit {
             Edit::Set(value) => Some(Some(value.clone())),
             Edit::Removed if current.defaults.get(&item.setting).is_some() => Some(None),
