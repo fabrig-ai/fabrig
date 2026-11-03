@@ -392,7 +392,8 @@ pub fn set_bound(limits: &crate::Limits) -> Option<u64> {
             .checked_add(u64::from(limits.documents.text_bytes))?
             .checked_add(crate::limits::task_carrier(limits)?)?,
     )?;
-    let policies = u64::from(limits.authority.projects)
+    // A change or proposal may carry one live project's policy beside all policy settings.
+    let policies = u64::from(limits.authority.projects.checked_add(1)?)
         .checked_mul(limits.policy_bytes.checked_add(u64::try_from(size_of::<ConfiguredPolicy>()).ok()?)?)?;
     charters
         .checked_add(templates)?
@@ -406,7 +407,7 @@ pub fn set_bound(limits: &crate::Limits) -> Option<u64> {
 pub fn revision_bound(limits: &crate::Limits) -> Option<u64> {
     set_bound(limits)?
         .checked_mul(2)?
-        .checked_add(List::<RevisionItem>::price(capacity(limits)?.checked_mul(2)?)?)?
+        .checked_add(List::<RevisionItem>::price(capacity(limits)?.checked_mul(2)?.checked_add(1)?)?)?
         .checked_add(u64::try_from(size_of::<Head>()).ok()?)
 }
 
@@ -424,9 +425,8 @@ impl Current {
         for (&setting, _) in &self.defaults {
             match setting {
                 Setting::Template(_) => old.push(setting).expect("fixture defaults"),
-                Setting::Charter(_) | Setting::Policy(_) | Setting::Rules => {}
+                Setting::Charter(_) | Setting::Policy(_) | Setting::Rules | Setting::ProjectPolicy { .. } => {}
                 Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
-                Setting::ProjectPolicy { .. } => unreachable!("a project's policy: policy-change"),
             }
         }
         for setting in old.into_boxed() {
@@ -455,7 +455,8 @@ pub fn writes_bound(limits: &crate::Limits) -> Option<u32> {
     first
         .max(count.checked_mul(4)?.checked_add(8)?.checked_add(limits.settings.versions.checked_mul(2)?)?)
         .checked_add(withdrawal_writes(limits)?)?
-        .checked_add(move_writes(limits)?)
+        .checked_add(move_writes(limits)?)?
+        .checked_add(limits.people.holdings.checked_mul(2)?.checked_add(2)?)
 }
 
 /// A party withdrawal takes five writes. A task withdrawal takes two activity
@@ -469,7 +470,7 @@ pub fn withdrawal_writes(limits: &crate::Limits) -> Option<u32> {
 pub fn proposal_heads(items: &[Item]) -> Box<[jig_domain_tasks::SettingHead]> {
     let mut heads = List::with_capacity(u32::try_from(items.len()).expect("bounded settings items"));
     for item in items {
-        if application::is_application(item.setting) {
+        if application::is_application(item.setting) || is_project_policy(item.setting) {
             continue;
         }
         heads
@@ -480,7 +481,7 @@ pub fn proposal_heads(items: &[Item]) -> Box<[jig_domain_tasks::SettingHead]> {
                     Setting::Policy(n) => jig_domain_tasks::Setting::Policy(n),
                     Setting::Rules => jig_domain_tasks::Setting::Rules,
                     Setting::Application { .. } => unreachable!("an application's setting: apps-core"),
-                    Setting::ProjectPolicy { .. } => unreachable!("a project's policy: policy-change"),
+                    Setting::ProjectPolicy { .. } => continue,
                 },
                 edit: match item.edit {
                     Edit::Set(_) => jig_domain_tasks::SettingEdit::Set,
@@ -501,4 +502,16 @@ pub(crate) fn release_writes(limits: &crate::Limits) -> Option<u32> {
 /// Each moved live record and at most two projection rows, plus release cleanup.
 pub(crate) fn move_writes(limits: &crate::Limits) -> Option<u32> {
     limits.tasks.tasks.checked_mul(3)?.checked_add(release_writes(limits)?)
+}
+
+/// A project's own policy is never retained among current settings (engine.md, 17.2).
+pub(crate) fn is_project_policy(setting: Setting) -> bool {
+    match setting {
+        Setting::ProjectPolicy { .. } => true,
+        Setting::Charter(_)
+        | Setting::Template(_)
+        | Setting::Policy(_)
+        | Setting::Rules
+        | Setting::Application { .. } => false,
+    }
 }
