@@ -8,6 +8,7 @@ files = [
   "temper/crates/temper-init/src/template.rs",
   "temper/crates/temper-init/src/tests/documents.rs",
   "temper/crates/temper-service/src/tests/welcome_policy.rs",
+  "temper/crates/temper-service/src/tests/stock.rs",
   "temper/crates/temper/tests/support/github_land.rs",
   "temper/crates/temper/tests/support/first_repository.rs",
   "temper/crates/temper/tests/support/forge_land.rs",
@@ -118,3 +119,19 @@ init seeds no project (the lead's text, on the trunk).
 
 As the implementer's text says, with each test that read the seeded project and what it reads
 now.
+
+## Answers
+
+2026-11-03. **May this task also edit `temper/crates/temper-service/src/tests/stock.rs`?** Yes:
+its acceptance (the focused tests of every package that reads the template pass) cannot hold
+without it, and it is the "any other test that fails because init seeds no project" this spec
+names; it is now in `files`. Repair its two seed readers as the run recommended, keeping their
+projection coverage: `a_worlds_own_defaults_replace_the_stock_without_document_members` and
+`stock_and_init_admit_the_landing_procedure_and_its_effects` each parse a document of their own,
+`generated()` with `engine.projects` set to `[{"number": 1, "policy": 1}]` (the form
+`github_land.rs` now seeds), so `engine.projects[0]` and `core.seed_projects[0]` still read a
+project copied from policy 1; the comment "Init's seed copies this policy" says the test's own
+project copies it. Init's template stays project-free. Run each repaired test alone, then the
+focused run of the packages in step 5, then the status edit and its separate commit. The help
+page failure (`temper/docs/help/box.md`'s walk bound, `temper-docs`' `rules.rs`) is not this
+task's: list it under `## Left`, as the run did.
