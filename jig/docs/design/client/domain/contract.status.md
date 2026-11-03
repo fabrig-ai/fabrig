@@ -2,6 +2,14 @@
 
 2026-11-03. Where jig's code lags or departs from [contract.md](contract.md).
 
+- **Departs:** 4: answers give typed lacking facts, how an object ended,
+  and who decided it and how; the client wire carries these fields, but
+  `jig-protocol-engine-clients/src/translate/refusals.rs`, `lack` and
+  `ending`, always fill `LackingTaskKind.executor`, `LackingDepth.needed`,
+  `LackingTasks.needed`, `LackingDeadline.asked` and `latest`, failed and
+  cancelled endings' `reason`, and a decided ending's `party` and `how`
+  with `None`, so a client always reads them empty. Either the engine
+  fills them or a client wire version drops them; no reason is recorded.
 - **Not yet:** 5.3: `me` represents a refused creating offer by absence,
   without carrying its refusal reason, including an authority-limit
   refusal when an executor list exceeds `documents.lines`.
