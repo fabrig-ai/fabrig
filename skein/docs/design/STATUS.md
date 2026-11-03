@@ -1,6 +1,6 @@
 # Status
 
-2026-11-02. Where skein's code lags or departs from its design, and its
+2026-11-03. Where skein's code lags or departs from its design, and its
 design from its drafts, from the status files below. The kernel's
 records of a tree's metadata, the filesystem's status and btrfs's
 subvolumes, and cgroups with contained spawn, are not built, nor their
@@ -14,8 +14,8 @@ routes, `Artifact` and `Commits` among them (`forge.md`,
 and http's collector have no fuzz target (`json.md`, `tls.md`,
 `http.md`), and the withdrawn LLM routes still stand while smith uses
 them (`llm.md`). Single items lag in `lib.md`, `examples.md` and
-`ui.md`. The code departs in the readiness backend's
-retry of an interrupted `Socket`, `Accept` or `Connect` (`shell.md`); and in three
+`ui.md`, and the readiness backend still makes an interrupted `Socket`,
+`Accept`, `Connect` or `Open` again (`shell.md`). The code departs in three
 crates' `tests/` directories (`testing.md`). `README.md`, `channel.md`,
 `codec.md`, `kv.md`, `world.md`, `fake-checkout.md`, `fake-llm.md`,
 `forge-client.md`, `forge-connection.md`, `forge-setup.md`,
