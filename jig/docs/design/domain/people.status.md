@@ -1,6 +1,6 @@
 # people: status
 
-2026-11-02. Where jig's code lags or departs from [people.md](people.md).
+2026-11-03. Where jig's code lags or departs from [people.md](people.md).
 
 - **Not yet:** 3: a service's credential reissued or removed. 5.1:
   `Hold`; `Move` under another task; `Succeed`; a party's `Propose` of a
@@ -15,7 +15,12 @@
 - **Departs:** 6, 8: the person's own answer is off by default, behind
   `Core::person_answers()` (`jig-domain-core/src/inbox.rs`), because
   each application opts in before the first step, as temper does. With
-  it off, the asked task answers and relays. With it on, credits stored
+  it off, the asked task answers and relays. With it on, question admission
+  gives a conversation's question to its person and any other task's
+  question to that task. The inbox projection still includes unanswered
+  questions to every task its person asked for, so those tasks' answers
+  are still refused (`jig-domain-core/src/inbox.rs`, `waiting_entries`).
+  Credits stored
   before it was set, naming a task answerer, route by the question's
   current inbox owner, and moving a recipient re-points its incoming
   person-answerer credits to its new person.

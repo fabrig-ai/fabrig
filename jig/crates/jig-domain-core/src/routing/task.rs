@@ -225,10 +225,7 @@ pub(crate) fn route_tasks(
 fn question_event(core: &Core, event: tasks::Event) -> tasks::Event {
     if let tasks::Event::Message { reply_to, project, task, word } = event {
         let person = match core.tasks.task(task) {
-            Some(row) => match row.requester {
-                tasks::Party::Person(person) => Some(person),
-                tasks::Party::Task(_) | tasks::Party::Deployment { .. } => None,
-            },
+            Some(row) => core.conversation_requester(row),
             None => None,
         };
         if core.person_answers
