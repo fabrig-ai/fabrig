@@ -1,4 +1,6 @@
 # The browser shell is ordinary Rust (ui-web.md, 3.1), with one thread.
+# It takes replay bans instead of the inherited jig/clippy.toml step-code subset;
+# the platform part supplies clocks.
 disallowed-types = [
     { path = "std::time::Instant", reason = "the platform part supplies clocks" },
     { path = "std::time::SystemTime", reason = "the platform part supplies clocks" },
