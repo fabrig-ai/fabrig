@@ -110,7 +110,10 @@ engine's routing encodes it (`../protocol/llm.md`, section 5).
   says why: its read failed, timed out, or exceeded its limit. smith adds
   the sections about its own mechanics, and each repository's guide.
   The small profile admits 14,592 body bytes across at most 64 brief
-  sections; the forge reviews budget is 4,608 bytes within that total.
+  sections; the forge reviews budget is 4,608 bytes within that total;
+  `standard`, which `temper init`'s box runs, admits what its host part
+  leaves the largest stock charter, its task section a whole spec
+  (`../protocol/configuration.md`, section 7).
 
 ### 4.2 Workspace
 
@@ -150,14 +153,15 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   print once; the refusal grants no additional authority.
 - **The host part's budget.** smith refuses a run whose host part (its
   host tools, instructions, brief, and finish and deliver schemas) passes
-  its bound, 51,717 bytes in the small profile, before any turn. The largest stock
-  charter's non-brief host part, charter 1 with a Change contract, is
-  34,524 bytes; with the authorised brief's 14,592 body bytes and
-  1,472 bytes for 64 stock sections' titles and framing (16 title bytes
-  and 7 framing bytes each), the sum is 50,588, leaving 1,129 bytes.
-  Charter 1 Open has 32,919 non-brief bytes and leaves 2,734; charter 2
-  has 32,119 and leaves 3,534; charter 4 has 30,640 and leaves 5,013.
-  A gathered brief spends what the non-brief host part leaves. So a new
+  its bound, the room of the agent's smallest window (4.6), before any
+  turn. The largest stock charter's non-brief host part is charter 1's
+  with a Change contract and the control family's plan form of
+  `change` (4.3.1); with the authorised brief, its task section a whole
+  spec (`../protocol/configuration.md`, section 7), and 1,472 bytes for
+  64 stock sections' titles and framing (16 title bytes and 7 framing
+  bytes each), it leaves at least 1,129 bytes at `temper init`'s
+  models; `temper-service`'s step tests hold each stock charter's
+  figures. A gathered brief spends what the non-brief host part leaves. So a new
   host tool is offered only where a family and the charter gate it,
   never to every run, and a charter's room is measured before a tool
   joins it.
@@ -170,7 +174,7 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   `temper-engine-smith` owns the fitter; its typed start takes explicit
   receiving limits and fits the brief too. A brief already within the
   room is kept whole. The stock charters and authorised brief fit
-  whole in the small profile; fitting is the fallback for a charter
+  whole at `temper init`'s models; fitting is the fallback for a charter
   that leaves less room. Otherwise, fitting cuts bodies from the last
   section in the core's order, at UTF-8 boundaries, keeping each cut
   section's title and ending its body with its own line:
@@ -204,7 +208,9 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   the charter's own text, where the domain reads it, not a call into
   smith; a step test in `temper-engine-smith` holds the table equal to
   smith's own measure. The bound is the engine's size profile's, the
-  one its workers are configured from (51,717 in the small one); an
+  one its workers are configured from (51,717 in the small one, for a
+  window of 177,523 tokens; in `standard`, the room of luna's window,
+  4.6); an
   engine without that figure skips the start's check. A run smith
   refuses for its host part anyway is held with smith's reason, the
   bound and the figure, never a bare "invalid".
@@ -322,7 +328,7 @@ any `delegate` (jig's authority, named and decided once):
   covering the branch names a person gate; at most
   `forge.change_policy.tasks` tasks (`../protocol/configuration.md`,
   section 7: 6 in `small`, a producer, a review, and two repairs each
-  followed by its review), one fewer than the run has left, and a depth of at most 2; no notes; half of
+  followed by its review; 80 in `standard`), one fewer than the run has left, and a depth of at most 2; no notes; half of
   what the run's budget has left, so that it can still read the result
   and answer, refused when that is no more than a run's minimum. That
   half is a default, open to tuning. Several changes in one call share
@@ -425,8 +431,9 @@ delegate from what it knows:
   plan's, and only a run whose task's authority holds jig's control
   family (amend and cancel, with `release`: jig's `domain/authority.md`,
   section 3) may set them: a plan's maker amends, cancels and releases
-  what it makes. The stock policy's families leave it out, so a chat sets
-  none. `change`'s declaration offers them only where the run's
+  what it makes. The stock policy's families give it
+  (`../protocol/configuration.md`, 13.4), so a chat or a goal under the
+  stock sets them. `change`'s declaration offers them only where the run's
   authority holds that family (4.3, the host part's budget), and the root
   refuses a call naming one from a run without it, beyond authority,
   naming the family, as it decides the delegate. What each member sets is
@@ -473,8 +480,8 @@ it as any `delegate`:
   run is untracked: one past the largest tracked priority in the
   project, saturating, or 0 with none (the lower first, jig's
   `domain/tasks.md`, section 3), with a report's contract bounded by
-  the deployment's largest result, jig's `tasks.result_bytes` (512 on
-  the small profile a box runs), whatever the run's own contract's
+  the deployment's largest result, jig's `tasks.result_bytes` (the box's
+  agent's message, `../protocol/configuration.md`, 13.4), whatever the run's own contract's
   bound (a chat's bound reaches neither its brief nor its replies,
   since its requester ends it, jig's `domain/tasks.md`, 5.8), since jig
   refuses a batch whose contract is above it (4.4): the work a person
@@ -580,14 +587,17 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
   (`../protocol/credentials.md`, section 3). A run on a program has
   smith's sub-agents, inspect only, each a program session of its own
   (smith's `protocol/programs.md`, 5.10).
-  The stock demo is temper's fake model, declared with a window of
-  177,523 tokens and an output of 8,192. At smith's 4/5 threshold,
-  after two outputs the shared room is 125,634 bytes. Less smith's own
-  22,200 bytes, half of the remaining room gives the small profile's
-  51,717-byte host part and a quarter gives its 25,858-byte offer
-  (smith's `protocol/limits.md`, 3.9). Every stock charter retains it;
-  its declared window is chosen to hold the stock tools and authorised
-  brief: ⌊(⌊177,523 × 4/5⌋ − 2 × 8,192 − 22,200) / 2⌋ = 51,717.
+  The stock demo is temper's fake model, declared with `gpt-6-luna`'s
+  window, 1,048,576 tokens, and an output of 8,192, so it leaves every
+  charter the room luna does. At smith's 4/5 threshold, after two
+  outputs and less smith's own part, half of the remaining room gives
+  the host part and a quarter the offer (smith's `protocol/limits.md`,
+  3.9): ⌊(⌊1,048,576 × 4/5⌋ − 2 × 8,192 − own) / 2⌋, about 400,000
+  bytes; `temper-service`'s step tests hold the figure at init's agent.
+  Every stock charter retains it, and it holds the stock tools and the
+  authorised brief with a whole spec. A message offered a run is at
+  most an offer and the agent's tool payload, which the model's output
+  bounds (`../protocol/configuration.md`, 13.8).
 - **Waiting and resuming:** the waiting time is the charter's; a
   coordinator's is zero. A chat resumes its transcript, and a
   coordinator starts fresh from its brief (jig's `domain/engine.md`,
