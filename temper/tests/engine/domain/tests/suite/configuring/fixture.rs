@@ -6,6 +6,7 @@ use temper_engine_domain_world::{direct::Driver, protocol, store::Store, walking
 
 pub(super) const CHAT: u32 = 1;
 pub(super) const CONFIGURING: u32 = 3;
+pub(super) const REMOVED: u32 = 7;
 pub(super) const PROJECT: u32 = 1;
 pub(super) const CHANNEL: Token = Token::new(7);
 pub(super) const SEED: u64 = 9761;
@@ -16,10 +17,12 @@ const CHARTERS: u32 = 6;
 const TASKS: u32 = 4;
 const SLOTS: u32 = 3;
 const GRANTS: u32 = 16;
-const EXECUTORS: u32 = 8;
+const EXECUTORS: u32 = 9; // Eight stock kinds and the removable world's charter.
 const RUN_BYTES: u32 = 16_384;
 const TRANSCRIPT_BYTES: u32 = 32_768;
 const MESSAGE_BYTES: u32 = 512;
+// Account, three chats, a decision and up to three owner messages or edits.
+const REQUESTS: u32 = 8;
 // Four stock runs at this cheap model's 32-unit K, for three concurrent chats.
 const CHAT_BUDGET: u64 = 128;
 
@@ -47,6 +50,7 @@ pub(super) fn limits() -> engine::Limits {
     let mut limits = walking::limits();
     limits.authority.grants = GRANTS;
     limits.authority.executors = EXECUTORS;
+    limits.authority.roles = 2; // Stock owner and the member story's requesting role.
     limits.documents.grants = GRANTS;
     limits.documents.executors = EXECUTORS;
     limits.notes.scopes = 32; // Three scalar scopes and the stock's fourteen grants.
@@ -63,6 +67,7 @@ pub(super) fn limits() -> engine::Limits {
     limits.people.initial_owners = 2; // Deployment and project holdings for the same owner.
     limits.people.amendment_bytes = 2048; // Stock role authority's request carrier.
     limits.people.words = MESSAGE_BYTES;
+    limits.people.requests = REQUESTS;
     limits.people.inbox_tasks = TASKS * 2;
     limits.journal.result_bytes = MESSAGE_BYTES;
     limits.fleet.slots = SLOTS;
@@ -73,6 +78,63 @@ pub(super) fn limits() -> engine::Limits {
     limits.loads.reply_bytes = TRANSCRIPT_BYTES;
     limits.journal.writes = temper_engine_domain_world::journal_limits::TREE_WRITES;
     limits
+}
+
+pub(super) fn member_config() -> engine::Config {
+    let mut config = config();
+    let mut policy = config.core.seed_projects[0].policy.clone();
+    let mut member = policy.policy.roles[0].clone();
+    member.number = people::Role::Member.number();
+    member.decides = jig_domain_authority::Proposals(0);
+    policy.policy.roles = Box::new([policy.policy.roles[0].clone(), member]);
+    config.core.seed_projects[0].policy = policy.clone();
+    config.core.defaults.policies.insert(1, policy).expect("world's policy 1");
+    config
+}
+
+pub(super) fn moving_config() -> engine::Config {
+    let mut config = config();
+    let mut charter = config
+        .core
+        .defaults
+        .charters
+        .iter()
+        .find(|charter| charter.number == CHAT)
+        .expect("stock chat charter")
+        .clone();
+    charter.number = REMOVED;
+    charter.policy.instructions = b"Keep this charter's instructions.".as_slice().into();
+    let mut charters = config.core.defaults.charters.into_vec();
+    charters.push(charter);
+    config.core.defaults.charters = charters.into_boxed_slice();
+    let mut template = config
+        .core
+        .defaults
+        .templates
+        .iter()
+        .find(|template| template.number == CHAT)
+        .expect("stock chat template")
+        .clone();
+    template.number = REMOVED;
+    template.name = b"removable".as_slice().into();
+    template.executor = people::TemplateExecutor::Charter(REMOVED);
+    let mut templates = config.core.defaults.templates.into_vec();
+    templates.push(template);
+    config.core.defaults.templates = templates.into_boxed_slice();
+    offer_removable(&mut config.core.defaults.rules.ceiling);
+    let mut policy = config.core.seed_projects[0].policy.clone();
+    offer_removable(&mut policy.policy.ceiling);
+    for role in &mut policy.policy.roles {
+        offer_removable(&mut role.authority);
+    }
+    config.core.seed_projects[0].policy = policy.clone();
+    config.core.defaults.policies.insert(1, policy).expect("world's policy 1");
+    config
+}
+fn offer_removable(authority: &mut jig_domain_authority::Authority) {
+    let mut kinds = authority.delegation.kinds.clone().into_vec();
+    kinds.push(jig_domain_authority::Executor::Charter(REMOVED));
+    authority.delegation.kinds = kinds.into_boxed_slice();
 }
 
 pub(super) struct World {
@@ -136,6 +198,66 @@ impl World {
         }));
         self.driver.settle();
     }
+    pub fn reply(&self, key: u8) -> &people::Reply {
+        self.driver
+            .delivered
+            .iter()
+            .rev()
+            .find_map(|delivery| {
+                if let Delivery::WebReply { to, reply } = delivery
+                    && *to == ReplyTo::new(Token::new(u64::from(key)))
+                {
+                    Some(reply)
+                } else {
+                    None
+                }
+            })
+            .expect("party's answer")
+    }
+    pub fn member(&mut self) -> u64 {
+        self.driver.send(Event::Party(PartyInput::SignedIn {
+            held: None,
+            reply_to: ReplyTo::new(Token::new(11)),
+            identity: people::Identity {
+                key: people::IdentityKey { provider: 0, subject: 8_u64.to_be_bytes().into() },
+                login: b"member".as_slice().into(),
+                name: b"Member".as_slice().into(),
+            },
+        }));
+        self.driver.settle();
+        let people::Reply::SignedIn { person: member, sign_in, .. } = *self.reply(11) else {
+            panic!("member signed in")
+        };
+        let owner = self
+            .driver
+            .delivered
+            .iter()
+            .find_map(|delivery| {
+                if let Delivery::WebReply { reply: people::Reply::SignedIn { person, sign_in, .. }, .. } = delivery
+                    && *sign_in == self.owner
+                {
+                    Some(*person)
+                } else {
+                    None
+                }
+            })
+            .expect("owner person");
+        // The world's policy gives members the stock request authority. The
+        // member holds no role in the deployment and cannot decide proposals.
+        self.ask(
+            self.owner,
+            12,
+            people::Ask::SetRoles {
+                project: PROJECT,
+                holdings: Box::new([
+                    people::Holding { person: owner, role: people::Role::Owner },
+                    people::Holding { person: member, role: people::Role::Member },
+                ]),
+            },
+        );
+        assert_eq!(self.reply(12), &people::Reply::Outcome(people::Outcome::RolesSet { project: PROJECT }));
+        sign_in
+    }
     pub fn chat(&mut self, template: u32, session: u64, key: u8) -> engine::Assignment {
         let template = self.templates.iter().find(|value| value.number == template).expect("stock template");
         let mut ask = self.driver.chat_ask(PROJECT, b"Explain how our work runs");
@@ -185,6 +307,18 @@ impl World {
             .max_by_key(|head| head.number)
             .expect("newest revision")
     }
+    pub fn change(&mut self, against: u32, key: u8, items: Box<[s::Item]>) {
+        self.driver.send(Event::Party(PartyInput::ChangeSettings {
+            kinds: Box::new([]),
+            reply_to: ReplyTo::new(Token::new(u64::from(key))),
+            sign_in: self.owner,
+            key: [key; 16],
+            digest: [key; 32],
+            change: Box::new(s::Change { against, items, running: s::Running::Stays }),
+        }));
+        self.driver.settle();
+        assert_eq!(self.head().number, against + 1, "owner's own change accepted");
+    }
     pub fn review(&mut self, run: &engine::Assignment, proposal: u64) -> core::documents::Proposal {
         self.driver.send(Event::Party(PartyInput::Read {
             reply_to: ReplyTo::new(Token::new(90)),
@@ -215,6 +349,7 @@ impl World {
         decision: people::ProposalDecision,
         running: people::Running,
     ) {
+        let running = if matches!(decision, people::ProposalDecision::Accept) { Some(running) } else { None };
         self.ask(
             self.owner,
             key,
@@ -223,24 +358,10 @@ impl World {
                 proposer: people::Proposer::Task(run.task),
                 proposal,
                 decision,
-                running: Some(running),
+                running,
             },
         );
-        let answer = self
-            .driver
-            .delivered
-            .iter()
-            .rev()
-            .find_map(|delivery| {
-                if let Delivery::WebReply { to, reply } = delivery
-                    && *to == ReplyTo::new(Token::new(u64::from(key)))
-                {
-                    Some(reply)
-                } else {
-                    None
-                }
-            })
-            .expect("owner's decision answer");
+        let answer = self.reply(key);
         assert!(matches!(answer, people::Reply::Outcome(people::Outcome::ProposalDecided { .. })), "{answer:?}");
     }
     pub fn next(&mut self, run: &engine::Assignment) -> engine::Assignment {
@@ -251,13 +372,38 @@ impl World {
         assert_ne!(next.attempt, run.attempt);
         next
     }
+    pub fn park(&mut self, run: &engine::Assignment) {
+        self.driver.answer(CHANNEL, run.task, run.attempt, 0, tasks::End::Parked, engine::Parts::none());
+        self.driver.settle();
+        assert_eq!(self.driver.task(run.task).expect("parked task").settings.run, None);
+    }
+    pub fn wake(&mut self, run: &engine::Assignment, key: u8) -> engine::Assignment {
+        self.ask(
+            self.owner,
+            key,
+            people::Ask::Say { project: PROJECT, task: run.task, words: b"Continue the work.".as_slice().into() },
+        );
+        let next = self.driver.last_assignment();
+        assert_eq!(next.task, run.task);
+        assert_ne!(next.attempt, run.attempt);
+        next
+    }
 }
 
 pub(super) fn read_charter(driver: &mut Driver, run: &engine::Assignment, completion: u32, number: u32) -> Value {
     let input = json!({"setting":{"kind":"charter","number":number}});
+    read_value(driver, run, completion, input)
+}
+pub(super) fn read_value(driver: &mut Driver, run: &engine::Assignment, completion: u32, input: Value) -> Value {
     let (text, _) = read_whole(driver, run, completion, input);
-    let (_, text) = text.split_once('\n').expect("charter heading");
-    serde_json::from_str(text.trim()).expect("charter JSON")
+    let (_, text) = text.split_once('\n').expect("setting heading");
+    serde_json::from_str(text.trim()).expect("setting JSON")
+}
+pub(super) fn omit_removable(authority: &mut Value) {
+    let kinds = authority["delegation"]["kinds"].as_array_mut().expect("delegation kinds");
+    let before = kinds.len();
+    kinds.retain(|kind| kind != &json!({"charter":REMOVED}));
+    assert_eq!(kinds.len() + 1, before, "one charter reference removed");
 }
 pub(super) fn read_whole(
     driver: &mut Driver,
@@ -271,7 +417,7 @@ pub(super) fn read_whole(
     loop {
         input["from"] = json!(from);
         let (body, error) = host_tool(driver, run, completion + pages, b"settings", input.to_string().as_bytes());
-        assert!(!error, "{}", String::from_utf8_lossy(&body));
+        assert!(!error, "{input}: {}", String::from_utf8_lossy(&body));
         assert!(
             body.len() <= usize::try_from(smith_agent_world::LIMITS.run.host_reply_bytes).expect("host reply bound")
         );
@@ -293,6 +439,18 @@ pub(super) fn read_whole(
 pub(super) fn charter_item(mut value: Value, instructions: &[u8]) -> Value {
     value["instructions"] = Value::String(std::str::from_utf8(instructions).expect("instructions").into());
     json!([{"setting":{"kind":"charter","number":CHAT},"set":value}])
+}
+pub(super) fn owner_charter(instructions: &[u8]) -> s::Item {
+    let mut charter = config()
+        .core
+        .defaults
+        .charters
+        .into_vec()
+        .into_iter()
+        .find(|value| value.number == CHAT)
+        .expect("stock chat charter");
+    charter.policy.instructions = instructions.into();
+    s::Item { setting: s::Setting::Charter(CHAT), edit: s::Edit::Set(s::Value::Charter(Box::new(charter))) }
 }
 pub(super) fn propose(
     driver: &mut Driver,
