@@ -530,6 +530,26 @@ names its source and the dependency to raise, without labeling unrelated
 overrides invalid. Raising a dependency still requires the resulting
 profile to pass every admission check.
 
+The relations are every "at least" between two configured limits that the
+core's and its children's admission holds, checked in this order, each
+naming its source first and its dependency second: the two above and
+`project_goals`'; `people.operations` within `tasks.tasks`;
+`authority.grants` plus three within `notes.scopes`;
+`tasks.message_bytes` within `tasks.inbox_bytes`; `tasks.run_inbox` and
+`people.inbox_entries` within `tasks.inbox_messages`; `tasks.exemptions`
+within `tasks.tasks`; `fleet.configured_workers` plus one within
+`people.program_hosts` and `accounts.program_hosts`;
+`fleet.worker_name_bytes` within `people.program_host_name_bytes`;
+`accounts.program_names` within `fleet.program_sources`;
+`authority.roles` within `documents.roles`; the inbox's waiting room,
+twice `tasks.inbox_messages` with `authority.roles` and four, within
+`people.inbox_recipients`; and the accounts' credentials with their
+accounts, up to the models' 64, within `fleet.grants` and
+`authority.accounts`. A relation with a zero on either side is not
+checked: a zero is a bound, refused as an override past its family's
+bound, as are the settings' equalities (`tasks.revisions` and the
+versions with `core.settings`'s).
+
 The **effective store codec envelope** bounds the framed byte collections
 people-v14 derives from `core.policy_bytes` and `people.amendment_bytes`,
 as well as its independent fields. Configuration checks it after overrides
