@@ -127,16 +127,16 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
 - **smith's own families** by the charter's policy: inspecting,
   modifying and the shell in the workspace, and sub-agents, each as the
   charter's `inspect`, `modify`, `shell` and `agents` say; `wait`, always;
-  `deliver`, for a change's contract, and mid-run for a run with a
-  repository it may write, as a chat delivers a small fix (jig's
-  `domain/hosts.md`, section 8; smith's `domain/run.md`, 8.4), but
-  never in an Open run (4.6). A run that cannot deliver cannot write:
-  `modify` is granted only with `deliver`, so a chat's, a goal's, an
-  advisor's and a reviewer's runs inspect alone, whatever their
-  charter's `modify`, and no run leaves edits that nothing delivers (a
-  rail, not an instruction). Where mid-run delivery is granted, `modify`
-  comes with it. The stock coder has read, write, edit and remove: a
-  file the change drops is removed once read.
+  `deliver`, for a finite change's contract (jig's `domain/hosts.md`,
+  section 8; smith's `domain/run.md`, 8.4), never in an Open run (4.6).
+  A run that cannot deliver cannot modify files: at temper's Smith
+  charter boundary, `modify` is granted only with `deliver` and the
+  charter's permission. A chat's, a goal's, an advisor's and a reviewer's
+  runs inspect alone, whatever their charter's `modify` (a rail, not an
+  instruction). Stock charter 1 disables `modify`; repository edits,
+  including small fixes, go through `change` (4.3.1). The stock coder
+  has read, write, edit and remove: a file the change drops is removed
+  once read.
 - **Every host tool below,** declared in every charter, each with the
   charter's call timeout, but those of the `settings` family, declared
   only where the run's charter names that family in its `tools` (jig's

@@ -30,3 +30,4 @@ walk = false
 id = "pair-timeout"
 text = """Profile live-temper's global-timeout is 50 minutes, set when the owner ran one story at a time; each landing story bounds itself at 40 minutes, and after every landing the two now run in one invocation, one after the other. If the first takes long, the 50 minutes stop the second, and it fails on the profile's bound rather than its own. No wall time of either story is recorded. Default taken: 50 minutes unchanged (task pair-profile). Options: keep 50 minutes and set the figure from the first after-landing runs' wall times, by your x1.5 rule (recommended); or raise it now to 85 minutes, both stories' bounds and 5 minutes."""
 parts = ["live-pair"]
+answer = "Keep 50 minutes; set the figure from the first after-landing runs' wall times by the x1.5 rule (the recommended option, taken unattended by agents/loop at the director's word, 11-03)."

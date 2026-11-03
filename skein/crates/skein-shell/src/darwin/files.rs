@@ -29,6 +29,7 @@ fn path_name(path: &Path) -> Result<CString, i32> {
 fn escape(errno: i32) -> i32 {
     if errno == libc::ENOTCAPABLE { libc::EXDEV } else { errno }
 }
+/// An `EINTR` is returned, not retried (shell.md, 7.4).
 pub(crate) fn open(root: Fd, path: &[u8], how: OpenHow) -> Result<i32, i32> {
     let (flags, mode) = match how {
         OpenHow::PathNoFollow => (libc::O_SYMLINK | libc::O_EVTONLY | libc::O_NOFOLLOW_ANY, 0),
@@ -48,16 +49,18 @@ pub(crate) fn open(root: Fd, path: &[u8], how: OpenHow) -> Result<i32, i32> {
     // writer, where Linux's O_PATH opens the entry without opening the FIFO.
     let flags = flags | O_RESOLVE_BENEATH | libc::O_CLOEXEC | libc::O_NONBLOCK;
     let flags = if matches!(how, OpenHow::PathNoFollow) { flags } else { flags | libc::O_NOCTTY };
-    open_flags(root, path, flags, mode)
+    open_once(root, path, flags, mode)
 }
 pub(super) fn open_flags(root: Fd, path: &[u8], flags: i32, mode: u32) -> Result<i32, i32> {
+    retry(|| open_once(root, path, flags, mode))
+}
+/// One `openat` beneath `root`: an `EINTR` is returned, not retried (shell.md, 7.4).
+fn open_once(root: Fd, path: &[u8], flags: i32, mode: u32) -> Result<i32, i32> {
     let path = c_path(path)?;
     let mode = libc::mode_t::try_from(mode).map_err(|_| libc::EINVAL)?;
-    retry(|| {
-        // SAFETY: path is terminated and live; mode is promoted to int for the variadic call.
-        let raw = unsafe { libc::openat(root.raw(), path.as_ptr(), flags, i32::from(mode)) };
-        if raw < 0 { Err(escape(last_errno())) } else { Ok(raw) }
-    })
+    // SAFETY: path is terminated and live; mode is promoted to int for the variadic call.
+    let raw = unsafe { libc::openat(root.raw(), path.as_ptr(), flags, i32::from(mode)) };
+    if raw < 0 { Err(escape(last_errno())) } else { Ok(raw) }
 }
 pub(crate) fn read(fd: Fd, buf: &mut [u8], at: u64) -> Result<u32, i32> {
     let at = libc::off_t::try_from(at).expect("io validates offsets");

@@ -592,7 +592,7 @@ fn serve_checks_the_owned_agents_admission_at_each_bound() {
             "check_timeout",
             60001,
             Some(
-                "charter 1.reserve_time_ms: needs checks within 60000 ms; the agent's profile.policy.check_timeout is 60001 ms\n",
+                "charter 2.reserve_time_ms: needs checks within 60000 ms; the agent's profile.policy.check_timeout is 60001 ms\n",
             ),
         ),
         ("check_timeout", 60000, None),
@@ -600,7 +600,7 @@ fn serve_checks_the_owned_agents_admission_at_each_bound() {
             "check_timeout",
             300_000,
             Some(
-                "charter 1.reserve_time_ms: needs checks within 60000 ms; the agent's profile.policy.check_timeout is 300000 ms\n",
+                "charter 2.reserve_time_ms: needs checks within 60000 ms; the agent's profile.policy.check_timeout is 300000 ms\n",
             ),
         ),
         (
