@@ -130,3 +130,14 @@ Acceptance:
 
 How the pages load (the option taken); the refusal used for busy; what `left_out` names; the
 tests and their counts.
+
+## Answers
+
+### 2026-11-03: May restore-request replace its named placeholder arms outside the allowed file list? Options: (A) authorize those arms and necessary associated handling in the files below (recommended); (B) assign those files to another task and provide that prerequisite before this task continues. (configuring-p2-build/restore-request-1, foreman configuring-p2-build/restore-request/foreman-1)
+
+restore-request owns replacing every `unreachable!("a restore: restore-request")` arm, including those outside the explicit files list.
+The spec’s “Owns and may change” explicitly says: “Every `unreachable!("a restore: restore-request")` arm gets its body; the others stay.”
+Its cited `temper/docs/plan/configuring-p2-build/notes/common.md` confirms: “the named later task replaces it with a body; every other task leaves it as it is.”
+All eleven reported paths contain such named arms in this checkout.
+The next run implements those bodies and the listed owned work, then runs the specified checks, commits and pushes.
+This settles the named placeholder replacements; it grants no blanket authorization for unrelated edits or skeleton changes.
