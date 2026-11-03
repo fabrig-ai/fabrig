@@ -917,6 +917,41 @@ impl World {
         self
     }
 
+    /// Size a goal's question story for its changes and their foremen before startup
+    /// (temper/docs/design/domain/forge.md, 8.11 and 11.1).
+    #[must_use]
+    pub fn with_goal_question_capacity(mut self, tasks: u32, inbox_bytes: u32) -> Self {
+        assert_eq!(self.env.now, Time::ZERO, "question capacity precedes startup");
+        assert!(!self.root.ready(), "question capacity precedes bootstrap");
+        self.env.limits.tasks.tasks = tasks;
+        self.env.limits.tasks.project_tasks = tasks;
+        self.env.limits.tasks.tree_tasks = tasks;
+        self.env.limits.tasks.inbox_bytes = inbox_bytes;
+        self.env.limits.tasks.batch = 2;
+        self.env.limits.people.inbox_tasks = tasks * 2;
+        self.env.limits.forge.tasks = tasks;
+        self.env.limits.forge.client.resources = tasks * self.env.limits.forge.resources_per_task;
+        self.env.limits.brief.budgets.task = 512;
+        self.restart_config.core.defaults.rules.ceiling.delegation.tasks = tasks;
+        let policy = &mut self.restart_config.core.seed_projects[0].policy.policy;
+        policy.ceiling.delegation.tasks = tasks;
+        policy.roles[0].authority.delegation.tasks = tasks;
+        self.creating = jig_test_profile::fixtures::Creating::new(&self.restart_config.core, tasks);
+        let mut codec = crate::store::widest();
+        codec.tasks = self.env.limits.tasks;
+        codec.authority = self.env.limits.authority;
+        codec.people.words = self.env.limits.people.words;
+        self.store = crate::fixtures::restored_over(
+            Store::with_limits(&codec),
+            crate::oracle::config::copy(&self.restart_config),
+            &self.env.limits,
+        );
+        self.events = VecDeque::from([engine::Event::Restart { pending: self.store.pending_generation }]);
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("valid goal question capacity");
+        self
+    }
+
     /// Replace the deployment's landing rules before the world's first input.
     #[must_use]
     pub fn with_landing_deployment(mut self, rules: Box<[engine::LandingRule]>) -> Self {
@@ -1307,6 +1342,141 @@ impl World {
     pub fn release_write_answers(&mut self) {
         self.hold_write_answers = None;
         self.events.extend(self.held_write_answers.drain(..));
+    }
+
+    /// Read the messages offered to this run before its next scripted action.
+    pub fn scripted_read_inbox(&mut self, run: &engine::Assignment) {
+        let proof_key = Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::RunProof(run.task)));
+        let Some(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::RunProof(proof)))) =
+            self.store.rows.get(&proof_key)
+        else {
+            panic!("scripted run proof")
+        };
+        let Some(read) = proof.outstanding.last().copied() else { return };
+        let task_key = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(run.task)));
+        let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))) =
+            self.store.rows.get(&task_key)
+        else {
+            panic!("scripted reader is live")
+        };
+        let turn = row.turn + 1;
+        self.send(protocol::turn(
+            Token::new(7),
+            run.task,
+            run.attempt,
+            turn,
+            0,
+            Some(read),
+            b"Read the offered messages",
+        ));
+        for _ in 0..STEPS {
+            self.tick();
+            if let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))) =
+                self.store.rows.get(&task_key)
+                && row.turn >= turn
+                && self.store.pending.is_empty()
+            {
+                return;
+            }
+        }
+        panic!("scripted reader commits turn {turn}");
+    }
+
+    /// Send a scripted agent's tool call and commit its turn's call evidence.
+    pub fn scripted_call(&mut self, run: &engine::Assignment, number: u64, tool: engine::Tool) -> engine::CallAnswer {
+        const CHANNEL: Token = Token::new(7);
+        self.scripted_read_inbox(run);
+        let key = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(run.task)));
+        let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))) = self.store.rows.get(&key)
+        else {
+            panic!("scripted caller is live")
+        };
+        let turn = row.turn + 1;
+        let before = self.answers.len();
+        let errors = self.call_errors.len();
+        let event = self.protocol.call(
+            CHANNEL,
+            run.task,
+            run.attempt,
+            number,
+            engine::Call { completion: turn, position: 1, tool },
+        );
+        self.send(event);
+        for _ in 0..STEPS {
+            self.tick();
+            assert_eq!(self.call_errors.len(), errors, "scripted call {number}: {:?}", self.call_errors);
+            if self.answers.len() > before && self.store.pending.is_empty() {
+                let answer = self.answers[before].clone();
+                let proof_key = Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::RunProof(run.task)));
+                let Some(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::RunProof(proof)))) =
+                    self.store.rows.get(&proof_key)
+                else {
+                    panic!("scripted run proof")
+                };
+                let read = proof.turn.as_ref().and_then(|turn| turn.read);
+                self.send(protocol::turn(CHANNEL, run.task, run.attempt, turn, 0, read, b"Continue the agreed work"));
+                for _ in 0..STEPS {
+                    self.tick();
+                    if let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))) =
+                        self.store.rows.get(&key)
+                        && row.turn >= turn
+                        && self.store.pending.is_empty()
+                    {
+                        return answer;
+                    }
+                }
+                panic!("scripted call {number} turn committed");
+            }
+        }
+        panic!("scripted call {number} answered: {:?}", self.answers);
+    }
+
+    /// A producer asks its change through the worker's message call.
+    pub fn producer_question(&mut self, producer: &engine::Assignment, number: u64, words: &[u8]) -> u64 {
+        let key = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(producer.task)));
+        let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))) = self.store.rows.get(&key)
+        else {
+            panic!("live producer")
+        };
+        let tasks::Party::Task(target) = row.requester else { panic!("producer's change") };
+        let engine::CallAnswer::Sent { message } = self.scripted_call(
+            producer,
+            number,
+            engine::Tool::Message { target, form: engine::MessageForm::Question, words: words.into() },
+        ) else {
+            panic!("producer's question sent")
+        };
+        message
+    }
+
+    /// A foreman settles its contract through the worker's result.
+    pub fn foreman_verdict(&mut self, foreman: &engine::Assignment, code: u32, words: &[u8]) {
+        let event = self.protocol.answer(
+            Token::new(7),
+            foreman.task,
+            foreman.attempt,
+            5,
+            tasks::End::Finished {
+                result: tasks::TaskResult::Verdict { code, fields: Box::new([]), words: words.into() },
+                cancel_delegates: false,
+            },
+            engine::Parts::none(),
+        );
+        self.send(event);
+    }
+
+    /// The goal answers the change's own question through its message call.
+    pub fn goal_answer(&mut self, goal: &engine::Assignment, number: u64, change: u64, question: u64, words: &[u8]) {
+        let answer = self.scripted_call(
+            goal,
+            number,
+            engine::Tool::Message {
+                target: change,
+                form: engine::MessageForm::Answer { question },
+                words: words.into(),
+            },
+        );
+        assert!(matches!(answer, engine::CallAnswer::Sent { .. }), "goal answers question {question}: {answer:?}");
     }
 
     /// Restore a delegate question with its reserved answer room at a committed cut.

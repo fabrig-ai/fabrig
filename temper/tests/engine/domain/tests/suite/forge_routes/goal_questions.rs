@@ -1,0 +1,524 @@
+//! A goal's changes ask, settle their questions and land into its held branch
+//! (temper/docs/design/domain/forge.md, 8.11 and 11.1;
+//! temper/docs/design/draft/reference-code-production.md, 8).
+use super::goal_branch::{branch_tip, forge_hold, goal_request};
+use super::questions::{replies, row};
+use super::*;
+use temper_engine_domain_forge_change::{Route, Stands};
+
+const CHANNEL: Token = Token::new(7);
+const WORKER_SLOTS: u32 = 3; // The goal, a producer and a foreman may run together.
+const TWO_CHANGES: usize = 2;
+const GOAL_AND_A: usize = 2;
+const STEPS: u32 = 1000; // The goal-change world's bound for landing and hold release.
+const QUESTION: &[u8] = b"Which behavior?\nKeep the design or widen it? I recommend the design.";
+const SECOND: &[u8] = b"May I widen the scope?\nKeep it small or add a file? I recommend keeping it small.";
+const ANSWER: &[u8] = b"Keep the design.";
+const REASONS: &[u8] = b"The design leaves this open.";
+const DEPENDENCY_ANSWER: &[u8] = b"Wait for C, then use its design.";
+const A_REPORT: &[u8] = b"Done: added A.\n## Left\n- none";
+const B_REPORT: &[u8] = b"Done: added B.\n## Left\n- none";
+const C_REPORT: &[u8] = b"Done: clarified the design.\n## Left\n- none";
+// A goal plus three changes, each with its six ordinary delegates and four foremen (C5/C6).
+const STORY_TASKS: u32 = 1 + 3 * (1 + 6 + 4);
+// Each result retains the producer's report before the check evidence is cut.
+const RESULT_BYTES: u32 = 256;
+// Three change results, two topic notices, core news, a question and a hold escalation.
+const INBOX_BYTES: u32 = 8 * RESULT_BYTES;
+
+struct Story {
+    world: World,
+    goal: engine::Assignment,
+    a: u64,
+    b: u64,
+    branch: Box<[u8]>,
+    main: u64,
+    producer: engine::Assignment,
+}
+
+fn start(bound: Option<u32>) -> Story {
+    let mut world = World::configured_limits(
+        true,
+        true,
+        true,
+        STEPS,
+        Gate::default(),
+        None,
+        StoryLimits {
+            slots: Some(WORKER_SLOTS),
+            result_bytes: Some(RESULT_BYTES),
+            questions: bound,
+            ..StoryLimits::default()
+        },
+    )
+    .with_goal_question_capacity(STORY_TASKS, INBOX_BYTES);
+    let segments = [b"forge".as_slice(), b"forge.example", b"org", b"repo", b"branch"].map(Box::from);
+    world = world.with_landing_deployment(Box::new([
+        engine::LandingRule {
+            connector: 0,
+            kind: 4,
+            enforce: true,
+            pattern: authority::Pattern {
+                segments: segments.clone().into(),
+                last: authority::Last::Exact(b"main".as_slice().into()),
+            },
+            ci: true,
+            up_to_date: true,
+            gates: Box::new([]),
+            approvals: Box::new([]),
+        },
+        engine::LandingRule {
+            connector: 0,
+            kind: 4,
+            enforce: true,
+            pattern: authority::Pattern {
+                segments: segments.into(),
+                last: authority::Last::Open(b"temper".as_slice().into()),
+            },
+            ci: false,
+            up_to_date: false,
+            gates: Box::new([]),
+            approvals: Box::new([]),
+        },
+    ]));
+    world.adopt();
+    world.send(protocol::hello_slots(CHANNEL, WORKER_SLOTS, Box::new([])));
+    let people::Ask::Create { project, mut batch } = goal_request(&world, true) else { panic!("goal template") };
+    batch[0].authority.tools |= jig_domain_core::ToolFamilies::JIG.control.0;
+    let goal = assigned_chat(&mut world, 92, people::Ask::Create { project, batch });
+    world.until(Until::Ready);
+    let branch = format!("temper/{}/g{}", goal.task, goal.task).into_bytes().into_boxed_slice();
+    assert_eq!(forge_hold(&world, &branch).expect("goal holds g").task, goal.task);
+    let main = branch_tip(&mut world, b"main");
+    assert_eq!(branch_tip(&mut world, &branch), main);
+    let input = smith_domain_run::HostInput::attested(
+        br#"{"changes":[{"name":"a","words":"Add A","landing":"goal","questions":"foreman"},{"name":"b","words":"Add B","landing":"goal","after":["a"],"questions":"foreman"}]}"#.as_slice().into(),
+    ).expect("bounded change input");
+    let temper_engine_smith::Decoded::Call(call) = temper_engine_smith::call(
+        smith_domain_run::CallName { activation: goal.attempt, completion: 1, position: 1 },
+        b"change",
+        &input,
+    )
+    .expect("change decodes") else {
+        panic!("change call")
+    };
+    let engine::CallAnswer::Delegated(made) = world.scripted_call(&goal, 93, call.tool) else {
+        panic!("both changes admitted")
+    };
+    assert_eq!(made.len(), TWO_CHANGES);
+    let (a, b) = (made[0].task, made[1].task);
+    assert_eq!(live_task(&world, b).dependencies.as_ref(), &[a]);
+    let producer = next_producer(&mut world, a);
+    world.until(Until::Ready);
+    assert_eq!(world.assigned.len(), GOAL_AND_A, "B waits although a worker slot is free");
+    assert_eq!(row(&world, a).base, branch);
+    assert_eq!(row(&world, a).questions.route, Route::Foreman);
+    assert!(live_task(&world, b).spec.parameters.contains(&tasks::Parameter::Number { name: 14, value: 1 }));
+    Story { world, goal, a, b, branch, main, producer }
+}
+
+fn next_producer(world: &mut World, change: u64) -> engine::Assignment {
+    for _ in 0..STEPS {
+        world.tick();
+        if let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::Change(change)))
+            && let forge_top::Stored::Change(row) = row.as_ref()
+            && let Some((task, temper_engine_domain_forge_change::Delegate::Produce)) = row.delegate
+            && let Some(run) = world.assigned.iter().rev().find(|run| run.task == task)
+        {
+            return run.clone();
+        }
+    }
+    panic!("change {change} has an assigned producer");
+}
+
+fn park(world: &mut World, producer: &engine::Assignment) {
+    let turns = live_task(world, producer.task).turn;
+    park_after_turn(world, producer, None, turns);
+}
+
+fn ask_foreman(world: &mut World, producer: &engine::Assignment, change: u64) -> (u64, engine::Assignment) {
+    let question = world.producer_question(producer, 100 + producer.attempt, QUESTION);
+    assert!(live_task(world, producer.task).questions.iter().any(|q| q.number == question));
+    park(world, producer);
+    for _ in 0..STEPS {
+        world.tick();
+        if let Some(open) = row(world, change).questions.open.first()
+            && let Stands::Foreman { task: Some(task) } = open.stands
+            && let Some(run) = world.assigned.iter().find(|run| run.task == task)
+            && world.store.pending.is_empty()
+        {
+            let foreman = run.clone();
+            assert_panel(world, change, producer.task, question, QUESTION, forge_top::PanelStands::Foreman(Some(task)));
+            return (question, foreman);
+        }
+    }
+    panic!("foreman assigned: {:?}", row(world, change));
+}
+
+fn assert_panel(world: &mut World, change: u64, asker: u64, number: u64, words: &[u8], stands: forge_top::PanelStands) {
+    let watcher = Token::new(500 + u64::try_from(world.panels.len()).expect("panel delivery count fits u64"));
+    world.send(engine::Event::Party(engine::PartyInput::Watch {
+        watcher,
+        sign_in: world.signed_in.expect("goal's owner session"),
+        subject: jig_domain_core::documents::Watched::Application {
+            scope: people::ApplicationScope::Project(1),
+            connector: 0,
+            subject: Token::new(change),
+        },
+        window: jig_domain_core::documents::Window { rows: world.env.limits.documents.rows, after: None },
+    }));
+    let wanted_watcher = watcher;
+    for _ in 0..STEPS {
+        world.tick();
+        if world.panels.iter().any(|(watcher, _)| *watcher == wanted_watcher) {
+            break;
+        }
+    }
+    let panel =
+        &world.panels.iter().rev().find(|(watcher, _)| *watcher == wanted_watcher).expect("forge change panel").1;
+    assert_eq!(panel.task, change);
+    assert!(panel.within());
+    assert_eq!(panel.questions.route, Route::Foreman);
+    assert_eq!(panel.questions.taken.limit, world.env.limits.forge.change_policy.questions);
+    assert_eq!(panel.questions.taken.used, row(world, change).questions.taken);
+    let line = words.split(|byte| *byte == b'\n').next().expect("question first line");
+    assert_eq!(panel.questions.open.as_ref(), &[forge_top::PanelQuestion { asker, number, line: line.into(), stands }]);
+    world.send(engine::Event::Party(engine::PartyInput::Unwatch { watcher }));
+    world.until(Until::Ready);
+}
+
+fn resumed(
+    world: &mut World,
+    producer: &engine::Assignment,
+    change: u64,
+    question: u64,
+    answer: &[u8],
+) -> engine::Assignment {
+    for _ in 0..STEPS {
+        world.tick();
+        if let Some(run) =
+            world.assigned.iter().rev().find(|run| run.task == producer.task && run.attempt > producer.attempt)
+            && world.store.pending.is_empty()
+        {
+            assert!(run.messages.iter().any(|word| word.from == tasks::Party::Task(change)
+                && word.kind == tasks::MessageKind::Answer { question }
+                && word.words.as_ref() == answer));
+            assert!(live_task(world, producer.task).questions.is_empty());
+            assert!(row(world, change).questions.open.is_empty());
+            return run.clone();
+        }
+    }
+    panic!("producer resumes with its answer: {:?}", live_task(world, producer.task));
+}
+
+fn ended(world: &World, task: u64) -> Option<&tasks::TaskRecord> {
+    match world.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(task)))) {
+        Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(row)))) => Some(row),
+        _ => None,
+    }
+}
+
+fn land(
+    world: &mut World,
+    goal: u64,
+    change: u64,
+    producer: &engine::Assignment,
+    base: u64,
+    file: &[u8],
+    report: &[u8],
+) -> u64 {
+    let branch = producer.workspace.repositories[0].push.clone().expect("producer's push branch");
+    assert_eq!(
+        world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: base })),
+        raw::Answer::Branch(raw::Created::Created)
+    );
+    let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, file, b"added", 2)
+        .expect("producer pushes");
+    assert_eq!(
+        world.external(
+            1,
+            raw::Op::Write(raw::Write::Status {
+                commit: head,
+                context: b"build".as_slice().into(),
+                state: raw::Check::Pending,
+                description: Box::new([]),
+                link: Box::new([]),
+            })
+        ),
+        raw::Answer::Done
+    );
+    let event = world.protocol.answer(
+        CHANNEL,
+        producer.task,
+        producer.attempt,
+        5,
+        tasks::End::Finished {
+            result: tasks::TaskResult::Change {
+                title: tasks::ChangeTitle::new(file.into()),
+                connector: 0,
+                kind: 2,
+                resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
+                words: report.into(),
+            },
+            cancel_delegates: false,
+        },
+        engine::Parts::none(),
+    );
+    world.send(event);
+    for _ in 0..STEPS {
+        world.tick();
+        if ended(world, change).is_some() {
+            break;
+        }
+    }
+    let change_row = row(world, change);
+    let temper_engine_domain_forge_change::State::Landed { merge, .. } = change_row.change.state else {
+        panic!("change {change} lands: {change_row:?}; task {:?}", live_task(world, change))
+    };
+    assert_eq!(change_row.report.as_ref(), report);
+    assert_eq!((change_row.change.repairs, change_row.change.updates, change_row.change.resolutions), (0, 0, 0));
+    let landing = change_row.base.clone();
+    let number = change_row.pull.expect("landed pull");
+    let tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Change { words, .. })) =
+        &ended(world, change).expect("change ended").phase
+    else {
+        panic!("change ended done")
+    };
+    let expected = format!(
+        "Landed: pull request #{number} merged into {} as ",
+        core::str::from_utf8(&landing).expect("goal branch")
+    );
+    assert!(words.windows(expected.len()).any(|part| part == expected.as_bytes()));
+    let evidence = [b"Report:\n".as_slice(), report, b"\n"].concat();
+    assert!(
+        words.windows(evidence.len()).any(|part| part == evidence),
+        "result carries producer's report: {}",
+        String::from_utf8_lossy(words)
+    );
+    assert!(
+        replies(world, goal, change)
+            .iter()
+            .any(|word| matches!(word.kind, tasks::MessageKind::Result(tasks::ResultKind::Change { .. }))
+                && word.words == *words)
+    );
+    assert!(world.writes.iter().any(|write| matches!(write, skein_forge::api::Write::Merge { number: pull, head: merged, .. } if *pull == number && *merged == translate::commit(head))));
+    let raw::Answer::Pull(pull) = world.external(1, raw::Op::Read(raw::Read::Pull { number })) else { panic!("pull") };
+    assert_eq!(pull.base, landing);
+    assert_eq!(pull.commit, head);
+    assert!(
+        pull.statuses.iter().any(|status| status.context.as_ref() == b"build" && status.state == raw::Check::Pending)
+    );
+    let tip = branch_tip(world, &landing);
+    assert_eq!(translate::commit(tip), merge);
+    assert_eq!(forge_hold(world, &landing).expect("goal retains g").task, goal);
+    tip
+}
+
+fn settle_a(story: &mut Story) -> u64 {
+    let (question, foreman) = ask_foreman(&mut story.world, &story.producer, story.a);
+    story.world.foreman_verdict(&foreman, 1, ANSWER);
+    let producer = resumed(&mut story.world, &story.producer, story.a, question, ANSWER);
+    assert!(replies(&story.world, story.goal.task, story.a).is_empty(), "the foreman answers without asking the goal");
+    land(&mut story.world, story.goal.task, story.a, &producer, story.main, b"A", A_REPORT)
+}
+
+fn escalate_b(story: &mut Story) -> (engine::Assignment, u64, u64) {
+    story.world.until(Until::Ready);
+    story.world.scripted_read_inbox(&story.goal);
+    let producer = next_producer(&mut story.world, story.b);
+    assert!(ended(&story.world, story.a).is_some(), "B starts after A lands");
+    assert_eq!(row(&story.world, story.b).base, story.branch);
+    let (question, foreman) = ask_foreman(&mut story.world, &producer, story.b);
+    story.world.foreman_verdict(&foreman, 3, REASONS);
+    let up = passed_up(&mut story.world, story.goal.task, story.b, &[QUESTION, b"\n\nForeman:\n", REASONS].concat());
+    assert_panel(&mut story.world, story.b, producer.task, question, QUESTION, forge_top::PanelStands::Asked);
+    assert!(replies(&story.world, producer.task, story.b).is_empty());
+    (producer, question, up)
+}
+
+fn passed_up(world: &mut World, goal: u64, change: u64, words: &[u8]) -> u64 {
+    for _ in 0..STEPS {
+        world.tick();
+        if row(world, change).questions.open.first().is_some_and(|open| open.stands == Stands::Asked)
+            && world.store.pending.is_empty()
+        {
+            let message = replies(world, goal, change)
+                .into_iter()
+                .find(|word| word.kind == tasks::MessageKind::Question && word.words.as_ref() == words)
+                .expect("goal receives question and reasons whole");
+            return message.number;
+        }
+    }
+    panic!(
+        "question reaches goal: relay {:?}; phase {:?}; goal inbox {:?}",
+        row(world, change).questions,
+        live_task(world, change).phase,
+        live_task(world, goal).inbox
+    );
+}
+
+fn finish_story(story: &mut Story) {
+    if ended(&story.world, story.b).is_none() {
+        let producer = next_producer(&mut story.world, story.b);
+        let base = branch_tip(&mut story.world, &story.branch);
+        land(&mut story.world, story.goal.task, story.b, &producer, base, b"B", B_REPORT);
+    }
+    let turns = live_task(&story.world, story.goal.task).turn;
+    let mut event = story.world.protocol.answer(
+        CHANNEL,
+        story.goal.task,
+        story.goal.attempt,
+        5,
+        tasks::End::Finished {
+            result: tasks::TaskResult::Report { words: b"Done: the changes landed.".as_slice().into() },
+            cancel_delegates: false,
+        },
+        engine::Parts::none(),
+    );
+    let engine::Event::Worker(engine::WorkerInput::Link {
+        link: engine::Link::Up { up: host::LinkUp::Answer { answer, .. }, .. },
+        ..
+    }) = &mut event
+    else {
+        panic!("worker result")
+    };
+    answer.turns = turns;
+    story.world.send(event);
+    for _ in 0..STEPS {
+        story.world.tick();
+        if ended(&story.world, story.goal.task).is_some() && story.world.store.pending.is_empty() {
+            break;
+        }
+    }
+    assert!(matches!(
+        ended(&story.world, story.goal.task).expect("goal ended").phase,
+        tasks::Phase::Ended(tasks::Ending::Done(_))
+    ));
+    story.world.until(Until::Ready);
+    assert!(forge_hold(&story.world, &story.branch).is_none(), "the goal releases g when done");
+    story.world.close();
+}
+
+#[test]
+fn a_foreman_settles_a_question_and_the_change_lands() {
+    let mut story = start(None);
+    let tip = settle_a(&mut story);
+    assert_ne!(tip, story.main);
+    assert_eq!(branch_tip(&mut story.world, b"main"), story.main);
+    assert_eq!(story.world.merges, 1);
+    finish_story(&mut story);
+}
+
+#[test]
+fn an_escalated_question_reaches_the_goal_and_its_answer_the_producer() {
+    let mut story = start(None);
+    let base = settle_a(&mut story);
+    let (producer, question, up) = escalate_b(&mut story);
+    story.world.goal_answer(&story.goal, 110, story.b, up, ANSWER);
+    let producer = resumed(&mut story.world, &producer, story.b, question, ANSWER);
+    land(&mut story.world, story.goal.task, story.b, &producer, base, b"B", B_REPORT);
+    assert_eq!(story.world.merges, 2);
+    assert_eq!(branch_tip(&mut story.world, b"main"), story.main);
+    finish_story(&mut story);
+}
+
+#[test]
+fn an_answer_that_adds_a_dependency_waits_for_it() {
+    let mut story = start(None);
+    let base = settle_a(&mut story);
+    let (producer, question, up) = escalate_b(&mut story);
+    let mut change = engine::ChangeCall::words(b"Clarify the design".as_slice().into(), None);
+    change.landing = Some(engine::ChangeLanding::Goal);
+    change.questions = Some(engine::ChangeQuestions::Foreman);
+    let engine::CallAnswer::Delegated(made) =
+        story.world.scripted_call(&story.goal, 110, engine::Tool::Change { changes: Box::new([change]) })
+    else {
+        panic!("C admitted")
+    };
+    let c = made[0].task;
+    let upstream = next_producer(&mut story.world, c);
+    assert_eq!(row(&story.world, c).base, story.branch);
+    let mut amendment = temper_engine_domain_world::fixtures::task_amendment(None, None, b"Wait for C's design");
+    amendment.dependencies = Some(Box::new([c]));
+    let revision = live_task(&story.world, story.b).revisions.spec;
+    assert!(matches!(
+        story.world.scripted_call(&story.goal, 111, engine::Tool::Amend { target: story.b, revision, amendment }),
+        engine::CallAnswer::Amended { .. }
+    ));
+    story.world.goal_answer(&story.goal, 112, story.b, up, DEPENDENCY_ANSWER);
+    for _ in 0..STEPS {
+        story.world.tick();
+        if row(&story.world, story.b)
+            .questions
+            .open
+            .first()
+            .is_some_and(|open| matches!(open.stands, Stands::Held { .. }))
+            && story.world.store.pending.is_empty()
+        {
+            break;
+        }
+    }
+    assert_panel(&mut story.world, story.b, producer.task, question, QUESTION, forge_top::PanelStands::Held);
+    assert!(replies(&story.world, producer.task, story.b).is_empty());
+    assert!(!story.world.assigned.iter().any(|run| run.task == producer.task && run.attempt > producer.attempt));
+    assert_eq!(branch_tip(&mut story.world, &story.branch), base);
+    let c_merge = land(&mut story.world, story.goal.task, c, &upstream, base, b"C", C_REPORT);
+    let producer = resumed(&mut story.world, &producer, story.b, question, DEPENDENCY_ANSWER);
+    assert!(ended(&story.world, c).is_some(), "the answer waits for C's landing");
+    land(&mut story.world, story.goal.task, story.b, &producer, c_merge, b"B", B_REPORT);
+    assert_eq!(story.world.merges, 3);
+    assert_eq!(branch_tip(&mut story.world, b"main"), story.main);
+    finish_story(&mut story);
+}
+
+#[test]
+fn a_change_past_its_questions_holds_and_the_goal_releases_it() {
+    let mut story = start(Some(1));
+    let (first, foreman) = ask_foreman(&mut story.world, &story.producer, story.a);
+    story.world.foreman_verdict(&foreman, 1, ANSWER);
+    let producer = resumed(&mut story.world, &story.producer, story.a, first, ANSWER);
+    let question = story.world.producer_question(&producer, 110, SECOND);
+    park(&mut story.world, &producer);
+    for _ in 0..STEPS {
+        story.world.tick();
+        if matches!(live_task(&story.world, story.a).phase, tasks::Phase::Held { why: tasks::Hold::Procedure, .. })
+            && story.world.store.pending.is_empty()
+        {
+            break;
+        }
+    }
+    let expected = format!(
+        "its questions are spent: 1 of 1 taken; question {question} of task {} waits; release it to pass the question up",
+        producer.task
+    );
+    let tasks::Phase::Held { why: tasks::Hold::Procedure, source: Some(source), .. } =
+        &live_task(&story.world, story.a).phase
+    else {
+        panic!("held past question bound")
+    };
+    let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("hold's words") };
+    assert_eq!(words.as_ref(), expected.as_bytes());
+    assert!(
+        replies(&story.world, story.goal.task, story.a).iter().any(|word| word.words.as_ref() == expected.as_bytes())
+    );
+    assert_eq!(story.world.assigned.iter().filter(|run| run.charter == 6).count(), 1);
+    assert!(
+        !replies(&story.world, story.goal.task, story.a).iter().any(|word| word.kind == tasks::MessageKind::Question)
+    );
+    let revision = live_task(&story.world, story.a).revisions.hold;
+    assert!(matches!(
+        story.world.scripted_call(&story.goal, 111, engine::Tool::Release { target: story.a, revision, again: None }),
+        engine::CallAnswer::Revised { .. }
+    ));
+    let up = passed_up(&mut story.world, story.goal.task, story.a, SECOND);
+    assert_panel(&mut story.world, story.a, producer.task, question, SECOND, forge_top::PanelStands::Asked);
+    assert_eq!(
+        story.world.assigned.iter().filter(|run| run.charter == 6).count(),
+        1,
+        "release passes up without a second foreman"
+    );
+    story.world.goal_answer(&story.goal, 112, story.a, up, ANSWER);
+    let producer = resumed(&mut story.world, &producer, story.a, question, ANSWER);
+    land(&mut story.world, story.goal.task, story.a, &producer, story.main, b"A", A_REPORT);
+    finish_story(&mut story);
+}
