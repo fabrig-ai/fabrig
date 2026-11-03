@@ -330,6 +330,7 @@ pub struct Domain {
     busy: Queue<Box<Event>>,
     workspace_writes: Map<u64, Box<[tasks::Name]>>,
     effects: Map<Token, connector::Effect>,
+    settings_judges: Map<Token, Token>,
     decision_wrote: bool,
     stopped_reported: bool,
     start_opened: bool,
@@ -453,6 +454,7 @@ impl Domain {
             effects: Map::with_capacity(
                 limits.core.call_records.checked_add(limits.core.tasks.tasks).expect("effect room"),
             ),
+            settings_judges: Map::with_capacity(2),
             decision_wrote: false,
             stopped_reported: false,
             start_opened: false,
@@ -610,6 +612,18 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
                 Some(_) | None => unreachable!("connector completion belongs to SettleOutbox"),
             },
             Work::Start(input) => {
+                if let StartInput::Done(phase @ core::start::Phase::RestoreConnector { connector: number }) = input {
+                    let mut out = Queue::uncapped();
+                    connector::step(
+                        numbered(domain, number),
+                        &env.with(env.limits.connector),
+                        connector::Event::SettingsDefaults,
+                        &mut out,
+                    );
+                    route_connector(domain, env, &mut decision, number, &mut out, &mut work);
+                    work.push(Work::Start(StartInput::DefaultsReported(phase)));
+                    continue;
+                }
                 let mut out = Queue::uncapped();
                 let core_env = env.with(env.limits.core);
                 let action = match input {
@@ -617,7 +631,9 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
                     StartInput::Done(core::start::Phase::Sweep) => {
                         domain.core.start_sweep(&core_env, core::start::SweepInput::Finished, &mut out)
                     }
-                    StartInput::Done(phase) => domain.core.start_done(&core_env, phase, &mut out),
+                    StartInput::Done(phase) | StartInput::DefaultsReported(phase) => {
+                        domain.core.start_done(&core_env, phase, &mut out)
+                    }
                     StartInput::Resume(continuation) => domain.core.start_resume(&core_env, continuation, &mut out),
                     StartInput::Sweep => domain.core.start_sweep(&core_env, core::start::SweepInput::Next, &mut out),
                 };
@@ -760,6 +776,7 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
 enum StartInput {
     Begin { pending: bool },
     Done(core::start::Phase),
+    DefaultsReported(core::start::Phase),
     Resume(core::start::Continuation),
     Sweep,
 }
@@ -1109,15 +1126,15 @@ fn relay_message(domain: &mut Domain, task: u64, attempt: u64, word: tasks::Word
 /// Restore connector-owned rows and replay their current adoption reports.
 fn restore_connector(domain: &mut Domain, env: &Env<Limits>, number: u16, record: connector::Record) -> bool {
     match &record {
-        connector::Record::SettingDefault { .. }
-        | connector::Record::SettingChange { .. }
-        | connector::Record::SettingProposal { .. } => unreachable!("settings routing: apps-world"),
         connector::Record::Outbox(row) => {
             if !remember_outbox(domain, number, row) {
                 return false;
             }
         }
-        connector::Record::ApplicationObject { .. }
+        connector::Record::SettingDefault { .. }
+        | connector::Record::SettingChange { .. }
+        | connector::Record::SettingProposal { .. }
+        | connector::Record::ApplicationObject { .. }
         | connector::Record::ApplicationAnswer { .. }
         | connector::Record::Proposal { .. }
         | connector::Record::Procedure(_)
@@ -1138,10 +1155,14 @@ fn restore_connector(domain: &mut Domain, env: &Env<Limits>, number: u16, record
     );
     for _ in 0..out.len() {
         match out.pop().expect("restored connector output count") {
+            connector::Request::RestoreRefused { kind, scope, number } => {
+                refuse_settings_restore(kind, scope, number);
+            }
             connector::Request::SettingsJudged { .. }
             | connector::Request::SettingsDefaults { .. }
-            | connector::Request::SettingValue { .. }
-            | connector::Request::RestoreRefused { .. } => unreachable!("settings routing: apps-world"),
+            | connector::Request::SettingValue { .. } => {
+                unreachable!("restoring a row only reports resources or a refusal")
+            }
             connector::Request::Resource { project, resource } => {
                 let role = match resource.role {
                     connector::ResourceRole::Owned => core::effects::connector::ResourceRole::Owned,
@@ -1292,4 +1313,10 @@ pub fn initial_settings_current(current: &core::settings::Current) -> Box<[core:
     rows.push(core::Record::Core(core::CoreRecord::Settings(s::Record::Extent { oldest: 0 })))
         .expect("fixture settings count");
     rows.into_boxed()
+}
+
+/// The testing root has no connector-owned start failure (connectors.md, 17).
+#[expect(clippy::panic, reason = "a connector restore refusal stops the test start and names the setting")]
+fn refuse_settings_restore(kind: u32, scope: u32, number: u32) -> ! {
+    panic!("connector settings restore refused: kind {kind}, scope {scope}, number {number}");
 }
