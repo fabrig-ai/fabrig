@@ -20,12 +20,14 @@ questions lag (`domain/people.md`, `domain/tasks.md`, `domain/engine.md`,
 `me`'s `resolved_default`, a service's root, the one-shot mode and the
 drawing family (`client/domain/`); and `ops` standalone, with its
 service and its connectors' protocols (`examples.md`). `RemoveProject`
-is offered in no project's document (`client/domain/contract.md`). The
-code departs in a few single items (`README.md`, `client/domain/client.md`, `domain/engine.md`,
+is offered in no project's document (`client/domain/contract.md`). Of
+jig's wasm32 builds, the gate's clippy (fab's gate list) holds
+`jig-client-shell-web` alone (`protocol/browser.md`, `protocol/README.md`).
+The code departs in a few single items (`README.md`, `client/domain/client.md`, `domain/engine.md`,
 `domain/people.md`, `domain/root.md`, `examples.md`,
 `protocol/client.md`, `protocol/configuration.md`). `domain/core.md`,
-`domain/providers.md`, `client/domain/README.md` and
-`protocol/browser.md` have no gap of their own. jig has no drafts.
+`domain/providers.md` and `client/domain/README.md` have no gap of their
+own. jig has no drafts.
 
 Design documents:
 - [`README.md`](README.status.md)
