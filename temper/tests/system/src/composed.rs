@@ -38,6 +38,7 @@ mod agreement;
 mod chat;
 mod link;
 mod process;
+mod review;
 
 pub use agreement::call;
 use process::{Around, Process};
@@ -752,9 +753,7 @@ impl World {
     fn play(&mut self, request: engine::Request) -> Result<Vec<engine::Event>, Box<engine::Request>> {
         let event = match request {
             engine::Request::Worker(engine::WorkerRequest::Host(host_request)) => match *host_request {
-                engine::HostRequest::Decode { to, call, .. } => {
-                    engine::WorkerInput::DecodedHostCall { to, body: link::decode(&call) }
-                }
+                engine::HostRequest::Decode { to, call, .. } => review::decode(to, &call),
                 engine::HostRequest::Dropped { .. } => return Ok(Vec::new()),
             },
             engine::Request::Worker(engine::WorkerRequest::Deliver(Delivery::Host(delivery))) => match *delivery {
@@ -832,6 +831,7 @@ impl World {
         assert_eq!(channel, CHANNEL);
         let live = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(assignment.task)));
         assert!(self.store.rows.contains_key(&live), "assignment follows durable task");
+        self.bind_review_script();
         self.select_process(assignment.task);
         self.observed.assignments += 1;
         let repositories = usize::from(self.adoption != Adoption::Without);

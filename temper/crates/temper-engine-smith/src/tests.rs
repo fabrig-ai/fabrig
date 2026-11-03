@@ -1897,7 +1897,7 @@ fn flat_forge_reads_decode_the_repository_name_and_name_bad_members() {
         (b"read_branch", br#"{"branch":1}"#, Problem::Type(b"branch")),
         (b"read_reviews", br#"{"number":1,"page":4294967296}"#, Problem::Range(b"page")),
         (b"read_reviews", br#"{"number":1,"page":0}"#, Problem::Range(b"page")),
-        (b"read_checks", br#"{"commit":"bad"}"#, Problem::Range(b"commit")),
+        (b"read_checks", br#"{"commit":"bad"}"#, Problem::Range(b"full commit identifier")),
     ] {
         assert_eq!(decided(tool, input), Err(problem));
     }
@@ -2282,5 +2282,26 @@ fn change_decodes_branch_mine_with_questions() {
                 ..engine::ChangeCall::words(b"a".as_slice().into(), None)
             }]
         );
+    }
+}
+
+#[test]
+fn commit_reads_refuse_abbreviated_or_non_hexadecimal_identifiers() {
+    for (tool, input) in [
+        (b"read_file".as_slice(), br#"{"head":"f471720","path":"README.md"}"#.as_slice()),
+        (b"read_compare", br#"{"before":"f471720","after":"f471720"}"#),
+        (b"read_checks", br#"{"commit":"ABCDEF0123456789abcdef0123456789abcdef01"}"#),
+    ] {
+        assert_eq!(decoded(tool, input).unwrap_err(), Problem::Range(b"full commit identifier"));
+    }
+    for (_, full) in COMMIT_SPELLINGS {
+        let prefix = br#"{"head":""#;
+        let suffix = br#"","path":"README.md"}"#;
+        let bytes = prefix.len().checked_add(full.len()).unwrap().checked_add(suffix.len()).unwrap();
+        let mut input = skein_lib::Writer::new(bytes);
+        input.put(prefix).unwrap();
+        input.put(full).unwrap();
+        input.put(suffix).unwrap();
+        decoded(b"read_file", &input.finish()).expect("full identifier accepted");
     }
 }
