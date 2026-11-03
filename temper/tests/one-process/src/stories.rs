@@ -7,6 +7,9 @@ use skein_ui::Role;
 use std::collections::BTreeMap;
 use temper_engine_domain as root;
 use temper_fake_git_hosted::Remote;
+use temper_playground::documents;
+pub(crate) use temper_playground::documents::settings_file;
+pub(crate) use temper_playground::fakes::forge_table;
 
 // One hook per push: the setup's topic push and the agent's change.
 pub(crate) const ADOPT_HOOKS: usize = 2;
@@ -136,9 +139,9 @@ pub(crate) fn forge(story: Story) -> temper_fake_git_hosted::Typed {
     let config = skein_fake_forge_domain::Config {
         limits: skein_fake_forge_domain::Limits {
             statuses: fixtures::FORGE_STATUSES,
-            ..temper_worker_checkout_world::hosted::CONFIG.limits
+            ..documents::hosted_git::CONFIG.limits
         },
-        ..temper_worker_checkout_world::hosted::CONFIG
+        ..documents::hosted_git::CONFIG
     };
     let mut domain = skein_fake_forge_domain::Domain::new(&config, fixtures::SEED);
     let base = skein_fake_forge_domain::repository(
@@ -176,7 +179,7 @@ pub(crate) fn forge(story: Story) -> temper_fake_git_hosted::Typed {
     );
     let forge = std::rc::Rc::new(std::cell::RefCell::new(skein_fake_peers::forge::Forge::new(domain, config)));
     let mut transport = temper_fake_git_hosted::Typed::new(forge, &forge_table());
-    let mut identity = temper_worker_checkout_world::hosted::identity();
+    let mut identity = documents::hosted_git::identity();
     identity.login = b"temper".as_slice().into();
     transport.authenticate(Some(&(identity.login, identity.token)));
     assert_eq!(
@@ -272,45 +275,7 @@ pub(crate) fn configure(value: &mut serde_json::Value) {
     if STORY.with(|slot| matches!(slot.get(), Story::Chat { .. })) {
         return;
     }
-    value["workers"][0]["slots"] = fixtures::AGENTS.into();
-    value["workers"][0]["limits"]["overrides"]["hub.slots"] = fixtures::AGENTS.into();
-    let grants: Vec<_> = fixtures::GRANT_KINDS
-        .into_iter()
-        .map(|kind| {
-            serde_json::json!({
-                "connector":fixtures::FORGE_CONNECTOR,"kind":kind,"pattern":{"segments":["forge","127.0.0.1:3000"],"last":"open","value":"acme"}
-            })
-        })
-        .collect();
-    let kinds = serde_json::json!([{"kind":"charter","number":fixtures::CHARTER_NUMBER},{"kind":"procedure","number":fixtures::PROCEDURE_CODE}]);
-    let mut ceiling = value["world_settings"]["policies"][0]["policy"]["ceiling"].clone();
-    ceiling["tools"] = fixtures::PRODUCER_TOOLS.into();
-    ceiling["grants"] = grants.into();
-    ceiling["delegation"]["kinds"] = kinds;
-    ceiling["delegation"]["depth"] = fixtures::AUTHORITY_DEPTH.into();
-    value["world_settings"]["policies"][0]["policy"]["ceiling"] = ceiling.clone();
-    value["world_settings"]["policies"][0]["policy"]["roles"][0]["authority"] = ceiling;
-    for (name, count) in fixtures::ENGINE_OVERRIDES {
-        value["engine"]["limits"]["overrides"][name] = count.into();
-    }
-    let overrides = value["engine"]["limits"]["overrides"].as_object_mut().expect("engine overrides");
-    for name in [
-        "tasks.funders",
-        "tasks.dependencies",
-        "tasks.charters",
-        "people.amendment_bytes",
-        "people.projects",
-        "tasks.hold_bytes",
-        "notes.entries_per_scope",
-        "notes.recalled",
-        "views.runs",
-        "people.holdings",
-        "people.waiters",
-        "people.goals",
-        "people.pending",
-    ] {
-        overrides.remove(name);
-    }
+    documents::configure(value);
     if STORY.with(|slot| matches!(slot.get(), Story::HeldChange)) {
         value["world_settings"]["landing"]["deployment"] = serde_json::json!([{
             "connector": 1, "kind": 4,
@@ -334,9 +299,6 @@ pub(crate) fn change_held(rows: &BTreeMap<root::Key, root::Record>) -> bool {
 
 pub(crate) fn held_change() -> bool {
     STORY.with(|slot| matches!(slot.get(), Story::HeldChange))
-}
-pub(crate) fn forge_table() -> skein_fake_forge_protocol::Config {
-    crate::restart_control::table()
 }
 
 /// The scripted shell's echo redirection acts on the inherited machine files.
@@ -485,71 +447,20 @@ pub(crate) fn needs_settings() -> bool {
 pub(crate) fn settings_revision() -> u32 {
     REVISION.with(std::cell::Cell::get)
 }
-pub(crate) fn settings_file() -> Vec<u8> {
-    let document: serde_json::Value = serde_json::from_slice(&fixtures::document()).expect("deployment JSON");
-    let stock = crate::settings::stock(&document);
-    // This world's restart smoke changes its 1 s Own wait to 500 ms through ctl.
-    let mut charter = stock["charter"].clone();
-    charter["waiting"] = (u64::from(fixtures::CHAT_WAIT_MS) * 1_000_000 / 2).into();
-    serde_json::to_vec(&serde_json::json!({"items":[crate::settings::item("charter", 1, charter)]}))
-        .expect("settings FILE")
-}
-
 /// The service's typed defaults, starting from the binary's stock and the document's models.
 pub(crate) fn given(document: &serde_json::Value) -> temper_service::stock::Given {
     let mut document = document.clone();
     document["world_settings"] = fixtures::world_document()["world_settings"].clone();
-    let engine = crate::settings::configuration(&document);
-    let mut defaults = temper_service::stock::defaults(&engine.llm);
     let read_wait =
         STORY.with(|slot| matches!(slot.get(), Story::ChatReadThenWait { .. })) || crate::lower::github::waiting();
-    if read_wait {
-        defaults.charters[0].policy.waiting = skein_lib::Duration::from_millis(u64::from(fixtures::CHAT_WAIT_MS));
-    } else {
-        defaults.templates[0].flags.ended_by = jig_domain_tasks::EndedBy::Result;
-    }
-    let seed = engine.projects.first().expect("world policy");
-    let number = if uses_stock() {
-        let mut policies = skein_lib::Map::with_capacity(2);
-        policies.insert(1, defaults.policies.get(&1).expect("stock policy 1").clone()).expect("two world policies");
-        defaults.policies = policies;
-        2
-    } else {
-        1
-    };
-    defaults
-        .policies
-        .insert(
-            number,
-            jig_domain_core::ConfiguredPolicy {
-                policy: seed.policy.clone(),
-                permissions: seed.roles.clone(),
-                templates: seed.templates.clone(),
-            },
-        )
-        .expect("existing policy slot");
-    if !uses_stock() {
-        let seed = engine.projects.first().expect("repository seed");
-        defaults.rules.ceiling = seed.policy.ceiling.clone();
-        defaults.rules.maximum_run_spend = fixtures::PRODUCER_SPEND;
-        let pairs = fixtures::IMPLICATIONS.map(|implies| jig_domain_authority::Implication {
-            connector: fixtures::FORGE_CONNECTOR,
-            kind: fixtures::GRANT_KINDS[0],
-            implies,
-        });
-        defaults.rules.implies = jig_domain_authority::Implies::new(Box::new(pairs), 2).expect("fixture implications");
-        let charter = &mut defaults.charters[0];
-        charter.policy.inspect = true;
-        charter.policy.modify = true;
-        charter.policy.shell = true;
-        charter.policy.agents = false;
-        charter.policy.turns = fixtures::CHARTER_TURNS;
-        charter.spend = fixtures::PRODUCER_SPEND;
-    }
+    let mut given = documents::given_with(&document, uses_stock(), read_wait);
     if STORY.with(|slot| matches!(slot.get(), Story::HeldChange)) {
-        defaults.charters[0].spend = RUN_ALLOWANCE;
-        defaults.charters[0].policy.waiting = skein_lib::Duration::from_millis(u64::from(fixtures::CHAT_WAIT_MS));
-        defaults.templates[0].budget = jig_domain_people::TemplateBudget::AsAllowed { cap: Some(50) };
+        let temper_service::stock::Given::Own { jig, .. } = &mut given else {
+            unreachable!("playground supplies own defaults");
+        };
+        jig.charters[0].spend = RUN_ALLOWANCE;
+        jig.charters[0].policy.waiting = skein_lib::Duration::from_millis(u64::from(fixtures::CHAT_WAIT_MS));
+        jig.templates[0].budget = jig_domain_people::TemplateBudget::AsAllowed { cap: Some(50) };
     }
-    temper_service::stock::Given::Own { jig: defaults, forge: crate::settings::forge(&document) }
+    given
 }
