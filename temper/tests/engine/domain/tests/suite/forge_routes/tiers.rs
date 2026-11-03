@@ -399,14 +399,42 @@ fn a_change_landed_by_turn_waits_for_main_to_clear_it() {
 }
 
 #[test]
-#[ignore = "tiers-root: forge_route.rs tier_landing_run loses the completed tier task; cleared results omit run N"]
 fn a_cleared_chat_result_names_its_tier_run() {
     let (world, number) = green(false);
     cleared_result(&world, number, 2, false);
 }
 
 #[test]
-#[ignore = "tiers-root: forge_route.rs tier_landing_run loses completed ranges; both cleared results must name run N"]
+fn a_cleared_result_reaches_its_requester_and_the_ctl_document_after_restart() {
+    use jig_domain_core::{documents, reads};
+    let (mut world, number) = green(false);
+    let tasks::Party::Task(requester) = task(&world, number).requester else { panic!("chat requester") };
+    until(&mut world, LANDING_TICKS, "result delivered", |world| {
+        task(world, requester).inbox.iter().any(|word| word.from == tasks::Party::Task(number))
+    });
+    let delivered = task(&world, requester)
+        .inbox
+        .iter()
+        .find(|word| word.from == tasks::Party::Task(number))
+        .expect("delivered result");
+    assert!(std::str::from_utf8(&delivered.words).expect("result text").contains("Cleared by slow run 2."));
+    until(&mut world, LANDING_TICKS, "restart cut", restart_cut);
+    world.restart_same();
+    until(&mut world, LANDING_TICKS, "restarted", |world| world.root.ready());
+    sign_in(&mut world);
+    let Some(reads::Answer::Document(document)) = super::paths::read(&mut world, reads::Read::Result { task: number })
+    else {
+        panic!("ctl result read")
+    };
+    let documents::Document::Result(result) = *document else { panic!("result document") };
+    let documents::Ending::Done(documents::ResultValue::Change { words, .. }) = result.ending else {
+        panic!("landed result")
+    };
+    assert!(!words.cut);
+    assert!(std::str::from_utf8(&words.bytes).expect("document text").contains("Cleared by slow run 2."));
+}
+
+#[test]
 fn both_landing_results_name_the_run_that_cleared_them() {
     let (world, numbers) = two_landings();
     for number in numbers {
@@ -415,7 +443,6 @@ fn both_landing_results_name_the_run_that_cleared_them() {
 }
 
 #[test]
-#[ignore = "tiers-root: forge_route.rs tier_landing_run loses completed ranges; unblamed changes must name run N"]
 fn unblamed_results_name_the_red_run_that_cleared_them() {
     let (world, _, [a, _, c]) = red_range();
     for number in [a, c] {
@@ -424,7 +451,6 @@ fn unblamed_results_name_the_red_run_that_cleared_them() {
 }
 
 #[test]
-#[ignore = "tiers-root: forge_route.rs change_verification_words omits the repairing run and passed-failures wording"]
 fn a_repaired_result_names_the_run_that_passed_its_failures() {
     let (world, [red, repair]) = repaired();
     cleared_result(&world, red, 3, true);
@@ -432,7 +458,6 @@ fn a_repaired_result_names_the_run_that_passed_its_failures() {
 }
 
 #[test]
-#[ignore = "tiers-root: forge_route.rs tier_landing_run loses the completed tier task for a by-turn change"]
 fn a_cleared_by_turn_result_names_its_tier_run() {
     let (world, number) = green(true);
     cleared_result(&world, number, 2, false);

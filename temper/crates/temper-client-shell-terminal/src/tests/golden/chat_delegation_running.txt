@@ -1,10 +1,11 @@
 == T1 · Add CSV export to widget == Live
 [1] temper
 Menu:
-  [2] demo (pressed)
-  New project:
-    [3] New project: (empty) (enter sends)
-    [4] Create
+  demo:
+    [2] demo (pressed)
+    New project:
+      [3] New project: (empty) (enter sends)
+      [4] Create
   Main navigation:
     [5] Inbox
     [6] Chats (current)

@@ -16,22 +16,31 @@ Run a whole deployment on one machine, on loopback, from its configuration to a 
   `/usr/local/bin:/usr/bin:/bin`); restart the box after changing it.
   Availability only in an interactive shell is insufficient:
   the runner uses the configured PATH.
-- **Real or fake backends:** choose before step 2; never mix them.
-  Real needs a model account and fetches Forgejo and its runner on first
-  use. Fake needs no account: GitHub, model, sign-in and remote Forgejo
-  are fakes on loopback; local Forgejo stays real. From a checkout:
+- **Capacity:** CI and tiers on `temper-host` share
+  `application.machine.owned.runner.capacity`, which defaults to 1,
+  the minimum. A slow tier blocks CI and landings. Use 2
+  for one single-job tier plus CI, or 3 for two such tiers plus CI.
+  Count concurrent jobs in multi-job workflows and other repositories
+  too (temper help tier). On real backends, stop with Ctrl-C or SIGTERM;
+  wait for `Stopped`. Edit this setting in `CONFIG/temper.json`, keep
+  other settings, then restart as in step 2 with the same `CONFIG`,
+  `DATA` and `CACHE`. This updates prepared runners, keeping their
+  registration and secrets.
+- **Backends:** choose before step 2; never mix them. Real needs an
+  account and fetches Forgejo and its runner. Fake needs no account:
+  GitHub, model, sign-in and remote Forgejo are loopback fakes;
+  local Forgejo stays real. From a checkout:
   `cargo build -p temper -p temper-fake-claude` to put `fake-claude`
   beside `temper`, then `scripts/bundle.sh --loopback BUNDLE`.
-- **The directories:** `CONFIG`, `DATA` and `CACHE`: absolute, empty,
-  private (0700), without links. `DIR`: private. No other use of them.
-- **A model account** for real backends: a login export or API key
-  in a private file; browser sign-in on this machine; or Claude Code
-  (`claude` on `PATH`), signed in at step 5 or in your configuration
-  directory.
+- **Directories:** `CONFIG`, `DATA`, `CACHE`: absolute, empty, private
+  (0700), without links; for this box alone. `DIR`: private.
+- **A model account:** real backends need a private login export or API
+  key, browser sign-in here, or Claude Code (`claude` on `PATH`), signed
+  in at step 5 or in your configuration directory.
 - `BUNDLE`: the loopback bundle directory, on fake backends.
-- `REQUEST`: the change request file.
+- `REQUEST`: change request file.
 - `CHANGE`: the change task's number (step 6).
-- `FORGE`: the box's Forgejo's number (step 4).
+- `FORGE`: Forgejo's number (step 4).
 - `NAME`: a Claude Code login, 1–32 lowercase letters, digits or
   hyphens (step 5).
 
@@ -43,22 +52,20 @@ temper init --config CONFIG --data DATA --cache CACHE
 
 Init chooses five loopback ports: 8367–8371 for clients, owned Forgejo,
 fake forge, demo LLM and webhooks, or free kernel ports if occupied.
-Both configuration files agree. For another box, keep the first running
-and use separate empty `CONFIG`, `DATA` and `CACHE`.
+Both files agree. Another box needs separate empty directories;
+keep the first running.
 
-Later starts refuse occupied saved addresses. Init releases ports on
-exit; step 2's `temper box` on empty directories runs init and retains
-the listeners. Finish edits before starting; fake backends require
-`CONFIG` unchanged from init.
+Later starts refuse occupied saved addresses. Init releases ports;
+step 2's `temper box` on empty directories runs init and retains them.
+Finish edits before starting; fake backends require unchanged `CONFIG`.
 
 Expect: `init: wrote DATA/worker.secret`; the last line names step 2's
 real-backend command.
 
 **Claude Code:** replace OpenAI's provider with Anthropic's below.
 `MODEL`: a Claude Code model, such as `sonnet` or `opus`.
-`PROGRAMS`: its private login directory, such as `DATA/programs`,
-or your signed-in directory's parent (step 5).
-`DIR` holds scratch copies.
+`PROGRAMS`: private login directory, such as `DATA/programs`, or your
+signed-in directory's parent (step 5). `DIR` holds scratch copies.
 
 ```
 jq --arg model MODEL '.engine.llm |= (
@@ -81,12 +88,11 @@ jq --arg model MODEL --arg claude "$(command -v claude)" --arg programs PROGRAMS
   CONFIG/agent.json > DIR/agent.json && cat DIR/agent.json > CONFIG/agent.json
 ```
 
-Expect: no output; `me` later lists provider 2, Anthropic, program
-`claude_code`. Use Claude Code's way in step 5. Keep the demo model
-to stay within init's limits.
+Expect: no output; `me` lists provider 2, Anthropic, `claude_code`.
+Use its way in step 5. Keep the demo model within init's limits.
 
 If not: `temper init: CONFIG/temper.json: already exists` (exit 1):
-Use empty directories.
+use empty directories.
 
 ## 2. Start the box
 
@@ -102,7 +108,7 @@ Fake backends:
 temper box --fake-backends --bundle BUNDLE --config CONFIG --data DATA --cache CACHE
 ```
 
-Keep it running; in the background, send output to a file.
+Keep running; redirect background output to a file.
 Its sign-in link follows `Open this link in a browser on this machine.`
 
 Expect: real, `Logs: DATA/box/logs/`. Fake,
@@ -113,15 +119,12 @@ the next lines, `box: model key FILE` and
 If not: `missing or nonexecutable adapter`: build `fake-claude` beside
 `temper`. `not in current init shape`: use empty directories; `CONFIG`
 changed after init. `retained documents must be private files`:
-`chmod 600` the effective document. Refused state prints
-`temper serve: restore KIND: REASON` or `temper serve: restart refused
-during STEP`; retries end at exit 1. Keep `DATA` and report the line.
-An incompatible store prints `temper serve: DATA/deployment holds a
-store from an older build, whose FAMILY family's layout differs from
-this build's, ...`, with the same retries. No store translation before
-the first release. To start afresh, stop the box and move `active`,
-`generations/` and `transcripts/` out of `DATA/deployment` together.
-Restart creates an empty store; every client signs in again.
+`chmod 600` the effective document. Refused state names its restore
+reason or restart step; retries end at exit 1. Keep `DATA` and report it.
+An incompatible store names the older build's differing family layout.
+No store translation before release. To start afresh, stop and move
+`active`, `generations/` and `transcripts/` out of `DATA/deployment`
+together. Restart creates an empty store; clients sign in again.
 
 ## 3. Sign in
 
@@ -134,19 +137,17 @@ temper ctl DIR me
 
 Expect: `party 1 · owner · Owner`; `me` lists no project yet.
 
-No project yet: the playground makes `Demo`, setting up makes yours
-(temper help playground); policy 1 sizes each. After `settings apply`,
-`project fund` a project's period, then role 0's pool, with distinct
-keys (temper help weekly-budget); settings never resize budgets.
-Check with `project show PROJECT`.
+The playground makes `Demo`; setup makes yours (temper help playground).
+Policy 1 sizes each. After `settings apply`, fund the project's period,
+then role 0's pool, with distinct keys (temper help weekly-budget).
+Settings never resize budgets. Check with `project show PROJECT`.
 
 If not: `temper ctl: the sign-in link was refused` (exit 1): spent or
 expired. Use the new link after `A fresh sign-in link:`.
 
 ## 4. Set up Forgejo on this machine
 
-Use the project `me` lists, 1 on a new box: setup adopts the repository
-into this existing project.
+Setup adopts into the project `me` lists, 1 on a new box.
 
 ```
 temper ctl DIR forge setup --org work --repository hello --project PROJECT --key KEY
@@ -156,27 +157,24 @@ Expect: `setting up`, then `project: PROJECT · NAME`, the project
 and its name, then `Adopted work/hello on forge FORGE as owned.` and
 `It is the project's home.`
 
-At each Forgejo start the box prints its API and your login:
+Each Forgejo start prints its API and your login:
 
 ```
 Forgejo: api http://127.0.0.1:PORT/api/v1
 Forgejo: person LOGIN
 ```
 
-Your headers are `person_read.header` and `person_write.header` in
-`DATA/forge-FORGE/`: use `curl -H @PATH` to keep the header's token
-private. `person_password` beside them holds your first password;
-Forgejo lets you change it but does not require it.
+Headers: `person_read.header` and `person_write.header` in
+`DATA/forge-FORGE/`; use `curl -H @PATH` to keep tokens private.
+`person_password` holds your first password; changing it is optional.
 
-If not: past 300 seconds it prints the forges and `not met: timeout`
-(exit 3) while the box still fetches Forgejo: run `temper ctl DIR
-forge list --until made:FORGE`, then go on. A failed fetch or start
-shows in `temper ctl DIR forge list`, with its reason.
+If not: `not met: timeout` (exit 3) after 300 seconds while fetching:
+run `temper ctl DIR forge list --until made:FORGE`, then continue.
+`temper ctl DIR forge list` gives failed fetches' or starts' reasons.
 
 ## 5. Give the model an account
 
-Choose one way. `me` lists providers; `temper init` makes OpenAI
-provider 1.
+Choose one way. `me` lists providers; init makes OpenAI provider 1.
 
 A login from another deployment:
 
@@ -210,8 +208,6 @@ temper ctl DIR account verify ACCOUNT --source program
 For an existing login, use its parent as `PROGRAMS`, its name as `NAME`,
 and skip `program-login`. Only one box uses it at a time.
 
-Then:
-
 ```
 temper ctl DIR account list --until usable
 ```
@@ -237,9 +233,8 @@ temper ctl DIR chat show TASK
 temper ctl DIR task show TASK --tree
 ```
 
-`TASK` is the chat; its tree lists `CHANGE`.
-`chat show` prints the conversation and continuation commands for
-earlier pages.
+`TASK` is the chat; its tree lists `CHANGE`. `chat show` prints the
+conversation and commands for earlier pages.
 
 Expect: `done: task TASK, chat`; the wait's `task TASK · chat · `
 panel ends `met`; `chat show` prints the reply.
@@ -287,16 +282,15 @@ temper ctl DIR account export ACCOUNT FILE
 `FILE` must not exist. Then stop the box with `SIGINT` (Ctrl-C) or
 `SIGTERM`.
 
-Expect: `moved out: account ACCOUNT to FILE`; the box's last line
-ends `Stopped`.
+Expect: `moved out: account ACCOUNT to FILE`; the last line ends `Stopped`.
 
 If not: `account export: not signed in` (exit 2): add a key where needed.
 `temper ctl: the engine holds its N answers of the last day; room again
 at TIME` (exit 2): no room for the move's answers; nothing moved.
 Keep the box running and export again after TIME.
 `temper ctl: unsent` (exit 1): busy engine, nothing moved; export later.
-Other failures: keep the box running; the engine keeps
-the account and cancels the move at its deadline. Export after it.
+Other failures: keep running; the engine keeps the account and cancels
+the move at its deadline. Export after it.
 
 ## Clean up
 

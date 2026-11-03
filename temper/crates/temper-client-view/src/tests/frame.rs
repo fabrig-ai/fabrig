@@ -84,6 +84,18 @@ fn a_navigation_without_projects_says_no_project_yet() {
         let label = label.expect("empty project label");
         assert_eq!(label.styles.as_slice(), [crate::look::PROJECT_EMPTY]);
         assert!(label.binding.is_none());
+        assert_menu(
+            &view,
+            &[
+                (Role::Paragraph, Some(b"No project yet")),
+                (Role::Form, Some(b"New project")),
+                (Role::Navigation, Some(b"Main navigation")),
+                (Role::Slot, None),
+            ],
+        );
+        for node in view.tree().nodes() {
+            assert!(!node.styles.as_slice().contains(&crate::look::PROJECTS));
+        }
     }
 }
 #[test]
@@ -132,13 +144,7 @@ fn choosing_another_project_changes_the_navigations_project() {
     fixtures::build(&mut view, &root);
     assert_menu(
         &view,
-        &[
-            (Role::Button, Some(b"Second")),
-            (Role::Button, Some(b"Shop")),
-            (Role::Form, Some(b"New project")),
-            (Role::Navigation, Some(b"Main navigation")),
-            (Role::Slot, None),
-        ],
+        &[(Role::Disclosure, Some(b"Second")), (Role::Navigation, Some(b"Main navigation")), (Role::Slot, None)],
     );
     let link = fixtures::find(view.tree(), Role::Link, b"Adopt a repository").expect("selected project's adoption");
     assert_eq!(
@@ -159,13 +165,7 @@ fn a_sign_out_that_did_not_reach_the_engine_is_offered_again() {
     assert!(fixtures::find(tree, Role::Button, b"Sign out").is_some());
     assert_menu(
         &view,
-        &[
-            (Role::Button, Some(b"Shop")),
-            (Role::Button, Some(b"Second")),
-            (Role::Form, Some(b"New project")),
-            (Role::Navigation, Some(b"Main navigation")),
-            (Role::Slot, None),
-        ],
+        &[(Role::Disclosure, Some(b"Shop")), (Role::Navigation, Some(b"Main navigation")), (Role::Slot, None)],
     );
 }
 #[test]
@@ -511,14 +511,123 @@ fn the_banner_menu_holds_projects_navigation_and_corner_in_order() {
     let view = fixtures::signed_in_with_project();
     assert_menu(
         &view,
-        &[
-            (Role::Button, Some(b"Shop")),
-            (Role::Button, Some(b"Second")),
-            (Role::Form, Some(b"New project")),
-            (Role::Navigation, Some(b"Main navigation")),
-            (Role::Slot, None),
-        ],
+        &[(Role::Disclosure, Some(b"Shop")), (Role::Navigation, Some(b"Main navigation")), (Role::Slot, None)],
     );
+    assert_switcher(view.tree(), b"Shop", &[(b"Shop", true), (b"Second", false)]);
+}
+
+#[test]
+fn the_switcher_puts_the_open_project_first_and_binds_the_other_project() {
+    let root = fixtures::root_in_project(None);
+    let mut view = fixtures::page_view(&root);
+    let button = fixtures::find(view.tree(), Role::Button, b"Second").expect("other project");
+    let action = crate::act(&mut view, button, Act::Press).expect("project binding");
+    assert_eq!(action, Action::Pages(pages::Act::Project { project: fixtures::SECOND_PROJECT }));
+    let mut root = root;
+    fixtures::root_event(&mut root, temper_client_domain::Event::Act { action });
+    fixtures::build(&mut view, &root);
+    assert_switcher(view.tree(), b"Second", &[(b"Second", true), (b"Shop", false)]);
+}
+
+#[test]
+fn the_switcher_is_named_projects_before_a_project_is_open() {
+    let root = fixtures::root_in_project(None);
+    let mut builder = skein_ui::Builder::new(&fixtures::tree_limits());
+    let mut bindings = crate::frame::Bindings::new(fixtures::tree_limits().bindings);
+    crate::frame::switcher(&mut builder, &root, &fixtures::words(), &mut bindings, None);
+    assert_switcher(&builder.finish(), b"Projects", &[(b"Shop", false), (b"Second", false)]);
+}
+
+fn assert_switcher(tree: &skein_ui::Tree, name: &[u8], projects: &[(&[u8], bool)]) {
+    let nodes = tree.nodes();
+    let mut index = None;
+    for (at, node) in nodes.iter().enumerate() {
+        if node.role == Role::Disclosure && node.name.as_deref() == Some(name) {
+            index = Some(at);
+            break;
+        }
+    }
+    let index = index.expect("named switcher");
+    let switcher = &nodes[index];
+    assert_eq!(switcher.styles.as_slice(), [crate::look::PROJECTS]);
+    assert!(!switcher.states.as_slice().contains(&skein_ui::State::Expanded));
+    let end = index.checked_add(usize::try_from(switcher.size).unwrap()).unwrap();
+    let mut at = index.checked_add(1).unwrap();
+    for (name, pressed) in projects {
+        let button = &nodes[at];
+        assert_eq!(button.role, Role::Button);
+        assert_eq!(button.name.as_deref(), Some(*name));
+        assert_eq!(button.states.as_slice().contains(&skein_ui::State::Pressed), *pressed);
+        assert!(button.binding.is_some());
+        at = at.checked_add(usize::try_from(button.size).unwrap()).unwrap();
+        if nodes[at].role == Role::Button && nodes[at].name.as_deref() == Some(b"Rename") {
+            assert!(*pressed, "rename belongs to the open project");
+            at = at.checked_add(usize::try_from(nodes[at].size).unwrap()).unwrap();
+        }
+    }
+    assert_eq!(nodes[at].role, Role::Form);
+    assert_eq!(nodes[at].name.as_deref(), Some(b"New project".as_slice()));
+    at = at.checked_add(usize::try_from(nodes[at].size).unwrap()).unwrap();
+    assert_eq!(at, end, "the disclosure ends with the new project form");
+}
+
+#[test]
+fn the_corner_leads_with_set_up_temper_while_the_playground_runs() {
+    use temper_client_domain::{Address, Event, forge};
+    let mut root = fixtures::playground_root(Address::Forges, fixtures::PROJECT, true);
+    for words in [fixtures::words(), fixtures::browser_words()] {
+        let mut view = fixtures::view_of(words);
+        fixtures::build(&mut view, &root);
+        let nodes = view.tree().nodes();
+        let mut corner = None;
+        for (at, node) in nodes.iter().enumerate() {
+            if node.styles.as_slice().contains(&crate::look::CORNER) {
+                corner = Some(at);
+                break;
+            }
+        }
+        let corner = corner.expect("banner corner");
+        let link = &nodes[corner.checked_add(1).unwrap()];
+        assert_eq!(link.role, Role::Link);
+        assert_eq!(link.name.as_deref(), Some(b"Set up temper".as_slice()));
+        assert_eq!(link.styles.as_slice(), [crate::look::LEAVE_PLAYGROUND]);
+        let text = &nodes[corner.checked_add(2).unwrap()];
+        assert_eq!(text.role, Role::Text);
+        assert_eq!(text.text.get(0).unwrap().text.as_ref(), b"Set up temper");
+        let region = corner.checked_add(1).unwrap().checked_add(usize::try_from(link.size).unwrap()).unwrap();
+        assert_eq!(nodes[region].region, Some(crate::frame::link_region()));
+        let id = link.id;
+        assert_eq!(crate::act(&mut view, id, Act::Press), Some(Action::Forge(forge::Act::EndPlayground)));
+    }
+    fixtures::root_event(&mut root, Event::Act { action: Action::Forge(forge::Act::EndPlayground) });
+    assert!(root.forge().leaving());
+    assert!(fixtures::find(fixtures::page_view(&root).tree(), Role::Link, b"Set up temper").is_none());
+}
+
+#[test]
+fn the_corner_has_no_set_up_link_outside_the_playground_or_on_welcome() {
+    use temper_client_domain::{Address, Event, Step};
+    let mut root = fixtures::playground_root(Address::Forges, fixtures::PROJECT, true);
+    fixtures::root_event(
+        &mut root,
+        Event::Went { place: temper_client_domain::Place::Address(Address::Welcome { step: Step::Welcome }) },
+    );
+    for root in fixtures::pair(root, fixtures::root_in_project(None)) {
+        let view = fixtures::page_view(&root);
+        let nodes = view.tree().nodes();
+        let mut banner = None;
+        for (at, node) in nodes.iter().enumerate() {
+            if node.role == Role::Banner {
+                banner = Some(at);
+                break;
+            }
+        }
+        let banner = banner.expect("banner");
+        let end = banner.checked_add(usize::try_from(nodes[banner].size).unwrap()).unwrap();
+        for node in &nodes[banner..end] {
+            assert!(node.role != Role::Link || node.name.as_deref() != Some(b"Set up temper"));
+        }
+    }
 }
 
 #[test]
@@ -552,13 +661,7 @@ fn projects_me_leaves_unnamed_take_their_numbers_in_the_banner() {
     let view = fixtures::page_view(&root);
     assert_menu(
         &view,
-        &[
-            (Role::Button, Some(b"Project 1")),
-            (Role::Button, Some(b"Project 2")),
-            (Role::Form, Some(b"New project")),
-            (Role::Navigation, Some(b"Main navigation")),
-            (Role::Slot, None),
-        ],
+        &[(Role::Disclosure, Some(b"Project 1")), (Role::Navigation, Some(b"Main navigation")), (Role::Slot, None)],
     );
     for name in [b"Project 1", b"Project 2"] {
         assert!(fixtures::person_find(view.tree(), Role::Button, name).is_some(), "a person finds {name:?}");
@@ -590,13 +693,7 @@ fn the_offline_banner_menu_keeps_its_choices() {
     );
     assert_menu(
         &fixtures::page_view(&root),
-        &[
-            (Role::Button, Some(b"Shop")),
-            (Role::Button, Some(b"Second")),
-            (Role::Form, Some(b"New project")),
-            (Role::Navigation, Some(b"Main navigation")),
-            (Role::Slot, None),
-        ],
+        &[(Role::Disclosure, Some(b"Shop")), (Role::Navigation, Some(b"Main navigation")), (Role::Slot, None)],
     );
 }
 
@@ -1100,14 +1197,7 @@ fn an_owner_is_offered_rename_on_the_open_project() {
         fixtures::build(&mut view, &root);
         assert_menu(
             &view,
-            &[
-                (Role::Button, Some(b"Shop")),
-                (Role::Button, Some(b"Rename")),
-                (Role::Button, Some(b"Second")),
-                (Role::Form, Some(b"New project")),
-                (Role::Navigation, Some(b"Main navigation")),
-                (Role::Slot, None),
-            ],
+            &[(Role::Disclosure, Some(b"Shop")), (Role::Navigation, Some(b"Main navigation")), (Role::Slot, None)],
         );
         let rename = switcher_node(&view, Role::Button, b"Rename").id;
         assert_eq!(
@@ -1144,14 +1234,7 @@ fn the_rename_form_binds_its_field_save_and_cancel() {
         fixtures::build(&mut view, &root);
         assert_menu(
             &view,
-            &[
-                (Role::Button, Some(b"Shop")),
-                (Role::Form, Some(b"Rename Shop")),
-                (Role::Button, Some(b"Second")),
-                (Role::Form, Some(b"New project")),
-                (Role::Navigation, Some(b"Main navigation")),
-                (Role::Slot, None),
-            ],
+            &[(Role::Disclosure, Some(b"Shop")), (Role::Navigation, Some(b"Main navigation")), (Role::Slot, None)],
         );
         assert_eq!(skein_ui::outline::check(view.tree()), None);
         let field = switcher_node(&view, Role::TextField, b"Rename");
@@ -1202,13 +1285,7 @@ fn the_new_project_form_ends_the_list() {
         fixtures::build(&mut view, &root);
         assert_menu(
             &view,
-            &[
-                (Role::Button, Some(b"Shop")),
-                (Role::Button, Some(b"Second")),
-                (Role::Form, Some(b"New project")),
-                (Role::Navigation, Some(b"Main navigation")),
-                (Role::Slot, None),
-            ],
+            &[(Role::Disclosure, Some(b"Shop")), (Role::Navigation, Some(b"Main navigation")), (Role::Slot, None)],
         );
         assert_eq!(skein_ui::outline::check(view.tree()), None);
         let field = switcher_node(&view, Role::TextField, b"New project");

@@ -6,5 +6,5 @@ opened, the welcome drawn, "Try the playground" pressed.
 - `01.html`: the welcome as it was when "Try the playground" was
   pressed. Its "Try the playground" leads to `02.html`.
 - `02.html`: the chats page in the Playground project, the playground
-  started, its banner's one line above it, as it was when the recording
-  ended.
+  started, its banner's one line at its pane's foot, as it was when the
+  recording ended.
