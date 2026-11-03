@@ -115,3 +115,14 @@ rename field opening from the banner takes the tree's one focus request (skein-u
 asserts at most one) and the composer's focus returns once the rename is saved or cancelled. Add
 a frame or chats test that opens Rename on `/chats?at=start` and finds the field focused and no
 panic. `pages/chats.rs` is added to `files` for this alone; other tasks' edits there stand.
+
+## Rebase (2026-11-03, step merge, foreman first-run-projects/switcher-view/foreman-2)
+
+resolve the status conflict by preserving both tasks’ gap closures.
+The merge conflicts only in `temper/docs/design/client/README.status.md`.
+Integration commit `88ad6cd9ae` (“Close the first-repository project contract gaps”), landed via `46f6964a7f`, removes the adjacent 4.6, 8 setup-project gap.
+Branch commit `e8ef996393` replaces the 5.3 switcher gap with the remaining banner-layout gap.
+Resolve by keeping the 4.6, 8 paragraph deleted and retaining this 5.3 text:
+“5.3, Projects in the banner: the banner draws one button per project (`temper-client-view`'s `frame.rs`, `project_buttons`), not the open one alone with its switcher.”
+`frame.rs::project_buttons` still draws every project, so this remaining gap is required by the spec.
+Preserve all other status text and the branch’s implementation and goldens.
