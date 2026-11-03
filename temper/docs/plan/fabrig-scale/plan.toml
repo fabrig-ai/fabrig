@@ -1,3 +1,37 @@
 draft = "fabrig-scale"
 repo = "fabrig"
 sources = ["temper/docs/plan/fabrig-scale/inputs/request.md", "AGENTS.md"]
+
+# temper's defaults sized for fabrig's own development with 5x headroom (inputs/request.md).
+# Released in batches: first the independent ceilings and the override refusal; then jig's
+# rows and standard profile (a designer's family), temper's application profile, init's
+# documents, the stock, the pinned tests and the resource gate's measurement (plan.md).
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "refusal"
+title = "jig: a broken relation between two configured limits names its source and dependency, not 'invalid override' on every override"
+mode = "direct"
+needs = []
+design = "jig/docs/design/protocol/configuration.md, 6"
+
+[[part]]
+id = "ceilings"
+title = "the codec ceilings that cap a turn of smith's, 48 calls in one response and 80 questions on a change, raised in place"
+mode = "direct"
+needs = []
+design = "jig/docs/design/protocol/store.md, 8.1"
+
+[[slice]]
+id = 1
+story = "an override past a relation is refused naming the relation; smith derives an agent of 48 calls per response and 26 conversations whose turns the store and the worker wire carry; a change's question bound can be 80"
+parts = ["refusal", "ceilings"]
+walk = false
+
+[[question]]
+id = "realistic-defaults"
+text = """Draft realistic-defaults (cut in flight, inputs committed 17:24Z) is an earlier edition of this one: the same why and the same files (temper-init's documents, temper-service's stock and limits, temper's setup.md 8.1 and configuration.md 13.4, 13.8, 13.9, the pinned tests), with smaller figures (tree 256, live tasks 64, 400 turns, 32 chats at once) and no store format change. Both plans write the same design sections and code with different figures, so whichever lands second meets conflicts on every file. Default taken: this plan is cut as if it supersedes realistic-defaults; nothing here waits on the answer. Options: (a, recommended) retire realistic-defaults; (b) let realistic-defaults land first and this plan raise its figures, its conflicts repaired by catch-ups."""
+parts = ["refusal", "ceilings"]

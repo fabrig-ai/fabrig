@@ -370,7 +370,7 @@ other.
   as every store before the baseline is. Every other
   `bytes` of a turn is opaque: a provider's replay and opaque blocks, a
   call's input, paths, a command's output and a hit's text. A host's own
-  schema says it holds the turn: jig's `transcript: bytes 8388608 holds
+  schema says it holds the turn: jig's `transcript: bytes 16777216 holds
   smith-transcript Turn`.
 - **The set, as data:** `smith-transcript` exports, as `&'static`
   constants, what a host's store takes for an owner's patches, naming no

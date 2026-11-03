@@ -998,8 +998,9 @@ first by time is keyed reversed. skein-kv's load runs forwards only
   first two bytes are the core family's version; its `transcript` is
   smith's turn, versioned on its own (smith's `protocol/transcript.md`,
   section 6), so its first two bytes are smith-transcript's version, and
-  the core's schema says so: `transcript: bytes 8388608 holds
-  smith-transcript Turn` (skein's `codec.md`, section 3). No frame is
+  the core's schema says so (skein's `codec.md`, section 3):
+  `transcript: bytes 16777216 holds smith-transcript Turn`, its ceiling
+  smith's largest turn (smith's `protocol/limits.md`, 4). No frame is
   rewritten: one behind the binary's versions is patched each time it is
   read (8.6). The word is core-v6's: it is part of the family's layout
   and moves no byte (skein's `codec.md`, section 9).
