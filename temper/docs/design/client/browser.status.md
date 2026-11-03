@@ -5,12 +5,11 @@
 - **Not yet:** 2.1: the shell's `playground` feature
   (`../playground.md`, 6); `temper-client-shell-web` has the features
   `record` and `loopback-navigation` alone.
-  4.3: these crates fail the gate's wasm32 clippy, so fab's gate list
-  (`.config/gate/wasm32.txt`) leaves them out; each at its first error:
-  `temper-client-shell-web`: `clippy::too_many_lines` at `temper/crates/temper-client-shell-web/src/lib.rs:131`.
-  4.6: item 12, the
-  playground's story A on the built playground and its log replayed
-  natively (`../playground.status.md`).
+  4.3: `temper-client-shell-web` fails the gate's wasm32 clippy, so
+  fab's gate list (`.config/gate/wasm32.txt`) leaves it out; its first
+  error: `clippy::too_many_lines` at `temper/crates/temper-client-shell-web/src/lib.rs:131` (`turn`).
+  4.6: item 12, the playground's story A on the built playground and its
+  log replayed natively (`../playground.status.md`).
 - **Departs:** 2.3: `?forge=elsewhere` still reads, as A Forgejo
   elsewhere's Details (`temper-client-domain`'s `address.rs`
   `forge_choice`), words for a forge added to the configuration by hand,
