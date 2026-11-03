@@ -30,8 +30,10 @@ role; jig's check of a batch's LLM choices against its charter's models), **suba
   `jig_domain_core::effects::connector::Ask`, answers come back on
   `jig_domain_core::effects::connector::Event`, routed by the root to the connector the kind
   names, as a requirement's `Judge` and `Verdict` are.
-- `jig_domain_core::settings::Item { kind: u32, scope: u32, number: u32, edit: Edit }`,
-  `Edit { Set(Box<[u8]>), Remove, Reset }`. A reset is judged by the connector as the default
+- `jig_domain_core::settings::application::Item { kind: u32, scope: u32, number: u32, edit:
+  Edit }`, `jig_domain_core::settings::application::Edit { Set(Box<[u8]>), Remove, Reset }`
+  (in `settings::application`, since `settings::{Item, Edit}` name the core's own change
+  items; `Kind` and `KindScope` are re-exported at `settings::`). A reset is judged by the connector as the default
   it keeps (a setting with no default: as a removal).
 - `Ask::JudgeSettings { owner: Token, revision: u64, items: Box<[Item]> }`, `revision` the one
   the change would make; answered within the same decision's step by

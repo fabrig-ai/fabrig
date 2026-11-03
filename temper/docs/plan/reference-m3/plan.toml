@@ -26,3 +26,16 @@ id = 1
 story = "a chat started with --model and two --sub-agent flags asks two inspect-only sub-agents side by side, each at its own LLM choice, none refused as too many"
 parts = ["subagents"]
 walk = false
+
+[[part]]
+id = "appsettings"
+title = "jig's application settings: an application's kinds declared at the start, judged and kept by their connector in the change's decision, proposed, stored as state and size"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/engine.md, 17.5"
+
+[[slice]]
+id = 2
+story = "a jig world's connector owning a kind judges a change both ways, keeps it, keeps a proposal's items until it is accepted or withdrawn, and finds a changed default at a restart, the release's revision naming it"
+parts = ["appsettings"]
+walk = false
