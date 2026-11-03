@@ -229,7 +229,7 @@ pub fn http_limits() -> jig_protocol_engine_clients_http::Limits {
 #[must_use]
 pub fn mount() -> jig_protocol_engine_clients_http::Mount {
     let mut mount = jig_protocol_engine_clients_http::Mount::new(
-        jig_protocol_engine_clients_http::Settings { prefix: Box::from(b"/jig".as_slice()), public: None },
+        jig_protocol_engine_clients_http::Settings { max_age: 5, prefix: Box::from(b"/jig".as_slice()), public: None },
         &http_limits(),
     );
     let mut hosts = skein_lib::List::with_capacity(1);

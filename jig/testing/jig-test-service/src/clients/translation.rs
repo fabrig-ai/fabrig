@@ -19,6 +19,7 @@ pub(crate) fn to_component(held: core::Held) -> Option<kit::Event> {
         | core::Held::ApplicationDelivery { .. }
         | core::Held::ApplicationWatchEnded { .. }
         | core::Held::ReadLoad { .. }
+        | core::Held::PublicWait { .. }
         | core::Held::Applied { .. }
         | core::Held::MakeEffect { .. }
         | core::Held::SettledCall { .. }
@@ -139,6 +140,7 @@ pub(crate) fn watcher(value: &core::Event) -> Option<Token> {
         | core::Event::ReadLoaded { .. }
         | core::Event::PublicRead { .. }
         | core::Event::PublicAnswered { .. }
+        | core::Event::PublicDurable { .. }
         | core::Event::Read { .. }
         | core::Event::Act { .. }
         | core::Event::ProposeSettings { .. }
@@ -222,6 +224,7 @@ pub(crate) fn starting(value: core::Event) -> Option<kit::Event> {
         | core::Event::Marked { .. }
         | core::Event::ReadLoaded { .. }
         | core::Event::PublicAnswered { .. }
+        | core::Event::PublicDurable { .. }
         | core::Event::Act { .. }
         | core::Event::Key { .. }
         | core::Event::Application { .. }

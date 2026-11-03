@@ -90,3 +90,13 @@ its seed.
 2026-11-03. **The user's decision on public titles.** User, 2026-11-03 15:40Z: public reading shows titles. A goal's and a task's title (the first line of its spec, as jig's client contract names a task's title) crosses into its public line, and a public project's name crosses into its public record. There is no author flag and no human publication capability for these. Everything else in people.md 13.3's "No text at all" list still never crosses: spec beyond its first line, instructions, inputs, results, words, questions and answers, transcripts, notes, reasons, labels' meanings, proposals, escalations, people's and parties' names, charters', procedures' and roles' names. Review finding 1 is settled by the user's decision.
 
 For this task: Titles and the project's name are expected in public bytes now; every other text source keeps its marker and must never appear.
+
+### 2026-11-03: Resume this task after public-http pushes public_path, PublicPath and public_target (recommended), or revise the dependency/API contract? The fetched dependency contains none of those exports; both sweeps are committed and pushed. (public-reading-build/public-fuzzy-jig-1, foreman public-reading-build/public-fuzzy-jig/foreman-1)
+
+Resume after public-http pushes public_path, PublicPath and public_target; retain the specified dependency/API contract.
+The task declares `needs = ["public-http", "public-wire"]`.
+Its Inputs explicitly require “`public-http`'s `public_path`, `public_target` and `PublicPath`”.
+Its acceptance requires “Both run under `heavy cargo nextest run -p <world> --profile fuzzy`, within the fuzzy tier's budget”.
+The checkout lacks those exports; the report states “acceptance is incomplete”, so this task cannot be accepted as done.
+The next run merges the pushed public-http dependency, compiles and runs the path sweeps, measures their budget, and completes the required checks, commit and push.
+Implementing the missing dependency or revising its API is outside this task’s pre-approved repairs.

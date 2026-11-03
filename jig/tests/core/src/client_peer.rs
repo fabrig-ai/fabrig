@@ -94,6 +94,7 @@ impl ClientPeer {
                 | core::Held::Applied { .. }
                 | core::Held::ReadLoad { .. }
                 | core::Held::PublicRead { .. }
+                | core::Held::PublicWait { .. }
                 | core::Held::MakeEffect { .. }
                 | core::Held::SettledCall { .. }
                 | core::Held::Assign { .. }

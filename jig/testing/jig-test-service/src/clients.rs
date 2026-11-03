@@ -167,7 +167,10 @@ impl Clients {
             component: None,
             settings: Some(settings),
             server: crate::server::Server::new(listener, transport),
-            mount: http::Mount::new(http_settings(), &config.limits.clients_http),
+            mount: http::Mount::new(
+                http::Settings { max_age: config.limits.clients.public.max_age, ..http_settings() },
+                &config.limits.clients_http,
+            ),
             mount_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config.limits.clients_http },
             mount_out: Queue::uncapped(),
             server_out: Queue::uncapped(),
@@ -271,19 +274,14 @@ impl Clients {
             match self.server_out.pop().expect("server requests") {
                 crate::server::Routed::Io(request) => self.io.push(tag(request)),
                 crate::server::Routed::Call { call, head } => {
-                    if self.mount.room() > 0 {
+                    if self.mount.room_for(&head) > 0 {
                         self.mount.down(&self.mount_env, http::Event::Call { call, head });
                     } else {
                         self.refused.insert(call, ()).expect("bounded refused server calls");
                         self.server.answer(call, skein_http::server::Request::Discard, &mut self.server_out);
                         self.server.answer(
                             call,
-                            skein_http::server::Request::Respond(skein_http::server::Response {
-                                status: 503,
-                                headers: Box::new([]),
-                                body: skein_http::server::Body::None,
-                                close: true,
-                            }),
+                            skein_http::server::Request::Respond(self.mount.refusal(&head)),
                             &mut self.server_out,
                         );
                     }
@@ -759,7 +757,7 @@ fn address_text(address: ::core::net::SocketAddr) -> Option<Box<[u8]>> {
 }
 
 pub(super) fn http_settings() -> http::Settings {
-    http::Settings { prefix: Box::from(b"/jig".as_slice()), public: None }
+    http::Settings { max_age: 0, prefix: Box::from(b"/jig".as_slice()), public: None }
 }
 
 #[cfg(test)]

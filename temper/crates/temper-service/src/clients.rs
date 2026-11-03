@@ -260,7 +260,13 @@ impl Clients {
             provider_replies: Map::with_capacity(crate::limits::server(&config.limits).connections),
             next_provider: 1,
             server: crate::server::Server::new(*listener, &crate::limits::server(&config.limits)),
-            mount: http::Mount::new(http_settings(clients.public.as_ref()), &config.limits.clients_http),
+            mount: http::Mount::new(
+                http::Settings {
+                    max_age: config.limits.clients.public.max_age,
+                    ..http_settings(clients.public.as_ref())
+                },
+                &config.limits.clients_http,
+            ),
             mount_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config.limits.clients_http },
             mount_out: Queue::uncapped(),
             server_out: Queue::uncapped(),
@@ -416,7 +422,7 @@ impl Clients {
                 crate::server::Routed::Call { call, head } => {
                     // Claims depend on the prefix alone; the mounted mapping checks the Host.
                     let claimed = http::claims(&http_settings(None), &head);
-                    if claimed && self.mount.room() > 0 {
+                    if claimed && self.mount.room_for(&head) > 0 {
                         self.mount.down(&self.mount_env, http::Event::Call { call, head });
                     } else if !claimed && provider::claims(&head.target) {
                         self.provider_call(call, head);
@@ -925,7 +931,7 @@ fn http_settings(public: Option<&crate::startup::application::Origin>) -> http::
         Some(origin) => Some(origin.name.clone()),
         None => None,
     };
-    http::Settings { prefix: Box::from(b"/jig".as_slice()), public }
+    http::Settings { max_age: 0, prefix: Box::from(b"/jig".as_slice()), public }
 }
 
 fn event_owner(event: &io::Event) -> Option<Token> {

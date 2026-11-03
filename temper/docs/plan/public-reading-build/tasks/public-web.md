@@ -3,7 +3,7 @@ id = "public-web"
 part = "temper-public"
 kind = "feature"
 needs = ["forge-public-wire", "public-wire", "public-http", "fetch-headers"]
-files = ["temper/crates/temper-client-domain/src/address.rs", "temper/crates/temper-client-domain/src/public.rs", "temper/crates/temper-client-domain/src/public/**", "temper/crates/temper-client-domain/src/lib.rs", "temper/crates/temper-client-domain/src/route.rs", "temper/crates/temper-client-domain/src/authorize.rs", "temper/crates/temper-client-domain/src/tests.rs", "temper/crates/temper-client-domain/src/tests/address.rs", "temper/crates/temper-client-domain/src/tests/public.rs", "temper/crates/temper-client-domain/src/tests/public/**", "temper/crates/temper-client-view/src/public.rs", "temper/crates/temper-client-view/src/public/**", "temper/crates/temper-client-view/src/words.rs", "temper/crates/temper-client-view/src/sign_in.rs", "temper/crates/temper-client-view/src/lib.rs", "temper/crates/temper-client-view/src/look.rs", "temper/crates/temper-client-view/src/tests.rs", "temper/crates/temper-client-view/src/tests/public.rs", "temper/crates/temper-client-view/src/tests/public/**", "temper/crates/temper-client-shell-web/**"]
+files = ["temper/crates/temper-client-domain/src/address.rs", "temper/crates/temper-client-domain/src/public.rs", "temper/crates/temper-client-domain/src/public/**", "temper/crates/temper-client-domain/src/lib.rs", "temper/crates/temper-client-domain/src/route.rs", "temper/crates/temper-client-domain/src/authorize.rs", "temper/crates/temper-client-domain/src/tests.rs", "temper/crates/temper-client-domain/src/tests/address.rs", "temper/crates/temper-client-domain/src/tests/public.rs", "temper/crates/temper-client-domain/src/tests/public/**", "temper/crates/temper-client-view/Cargo.toml", "temper/crates/temper-client-view/src/public.rs", "temper/crates/temper-client-view/src/public/**", "temper/crates/temper-client-view/src/words.rs", "temper/crates/temper-client-view/src/sign_in.rs", "temper/crates/temper-client-view/src/lib.rs", "temper/crates/temper-client-view/src/look.rs", "temper/crates/temper-client-view/src/tests.rs", "temper/crates/temper-client-view/src/tests/public.rs", "temper/crates/temper-client-view/src/tests/public/**", "temper/crates/temper-client-shell-web/**"]
 effort = "high"
 minutes = 180
 +++
@@ -201,3 +201,10 @@ For this task: Show each goal's and task's title on the board and the goal tree,
 *projects* answer is a list of `PublicProject { project, name }`, and `PublicBoard` carries
 `name` after `project`, each the project's name within the client wire's project-name bound
 (64 bytes).
+
+2026-11-03. **The view's dependency on jig's public wire** (A): move the existing line
+`jig-client-protocol-wire.workspace = true` in `temper/crates/temper-client-view/Cargo.toml`
+from `[dev-dependencies]` to `[dependencies]`, and nothing else in that file; the file is
+added to this task's `files`. The view decodes nothing itself and names jig's public records
+by their crate, as `temper-client-domain` already does; the reader re-exports nothing (no
+public item beyond the spec's).

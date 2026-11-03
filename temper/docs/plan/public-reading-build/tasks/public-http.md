@@ -36,8 +36,9 @@ Acceptance:
   body is `404`. `Host` is checked first, as for every route (`421`). No other route's guard
   changes.
 - **Its room:** at most `limits.public_calls` public calls in flight, apart from the other
-  calls (`Mount::room()` keeps counting the others as now); a public call past it is `503`
-  busy with its head read and nothing more, never handed on.
+  calls (`Mount::room()` keeps counting the others as now); a public call past it is never
+  handed on: the service answers it with the mount's `refusal(&head)` (below), `421` for a
+  refused `Host`, else the `503` busy answer, its head read and nothing more.
 - **Its answers** (`PublicReply` mapped), each with exactly these headers and no others:
   - `Document`: `200`, its bytes, `content-type: application/octet-stream`,
     `cache-control: public, max-age=<rest>, must-revalidate`, `x-content-type-options:
@@ -120,9 +121,21 @@ Acceptance:
   `mount.room() > 0`, which would hold public calls behind the signed-in calls' room. Give the
   mount a pure `pub fn room_for(&self, head: &Head) -> u32` (or the name you choose, reported)
   that answers the public room for a public read's head and `room()` otherwise, and change
-  those two checks to it, nothing else in either file; a story shows a public read answered
+  those two checks to it; a story shows a public read answered
   while every other call's room is full, and a signed-in call answered while the public room is
   full.
+- **The services' refusal** (answer of 11-03, below): the mount gains a pure
+  `pub fn refusal(&self, head: &http::Call) -> http::Response`, the response a service sends a
+  claimed call that finds no `room_for` it: for a head under `<prefix>/v1/public/`, the
+  `Host` guard first (`421`, no body, `x-content-type-options`), then the fixed `Busy` answer
+  above (`503`, no body, `cache-control: no-store`, `retry-after: 1`, nosniff); for any other
+  head, today's bare `503`; every one `close: true`. The mount sets nothing aside for it.
+  `jig/testing/jig-test-service/src/clients.rs` sends `mount.refusal(&head)` in place of its
+  literal `503`; `temper/crates/temper-service/src/clients.rs` and
+  `temper/crates/temper-service/src/clients/bundle.rs` send it on their busy path (a claimed
+  call with no room), held and ended as that path holds and ends a busy answer now. No other
+  change in those files. Step test `a_refused_public_call_gets_host_then_busy_and_others_bare_503`;
+  world story `a_public_read_past_its_room_gets_the_fixed_busy_answer_and_a_bad_host_421`.
 - Pre-approved: if the server's response type adds a header the list above lacks (a
   `content-length`), keep it and say so; if `skein_http`'s call head gives the target with its
   query split off, refuse a call whose query is present all the same. If an `Unknown` must
@@ -162,3 +175,38 @@ The client-end acceptance states: “max-age less Age, saturating at zero”.
 The root `AGENTS.md` establishes: “The design is the contract”.
 The test example’s expected 2 conflicts with that rule; use 3.
 The next run implements the stated subtraction rule and asserts 3 in `freshness_reads_present_absent_and_malformed_headers`, then completes the task’s checks, commit and push.
+
+### 2026-11-03: At zero public room the services answer a bare `503` and bypass the mount's `Host` check: may `room_for` admit every public head to the mount, or do the services gain the refusal? (public-reading-build/public-http-2, foreman public-reading-build/public-http/foreman-2)
+
+Neither as offered: `room_for` stays the exact remaining public room, and the mount builds the
+refusal the services send. `jig/docs/design/protocol/client.md`, 17.4 makes the room the engine
+end's alone, held per call from head to end, with "a call handed with no room is the
+application's bug, asserted"; admitting heads past `public_calls` would put the mount's bound
+at the server's connections, which the mount neither knows nor may rely on. Duplicating the
+`Host` guard and the busy headers in each service would split one guard in three. So the mount
+gives a pure `refusal(&head)` (the `Host` guard, then the fixed busy answer, for a public head;
+the bare `503` otherwise), and each service's existing refusal path sends that response instead
+of its literal, setting nothing of the mount's aside. 17.5 now says so. The acceptance's
+"Its room" bullet and "The services' refusal" in "Owns and may change" give the shape, the
+files (temper's `clients/bundle.rs` added, its busy path alone) and the tests.
+
+### 2026-11-03: Both services' servers add the page's policy (`Content-Security-Policy`, `Cross-Origin-Opener-Policy`, `Cross-Origin-Resource-Policy`, `Referrer-Policy`) to every answer, public ones among them: suppress it on public routes, or let the contract permit it? (public-reading-build/public-http-3, foreman public-reading-build/public-http/foreman-3)
+
+Permit it; neither server changes. `jig/docs/design/protocol/browser.md`, 12.1 makes the
+policy the origin's, "sent by its server on every answer", with `frame-ancestors 'none'` "on
+every answer of the origin's"; suppressing it on one route would carve a hole in that rule for
+no gain: the fields are fixed, carry nothing of the request and vary on nothing, so the public
+answer stays the same for every visitor, and `Cross-Origin-Resource-Policy: same-origin` only
+strengthens "no CORS". `jig/docs/design/protocol/client.md`, 17.5 now says so: its fixed
+headers are the engine end's, and the application's server adds its policy to them. So:
+
+- The mount's answers (the step tests) carry exactly the lists of "Its answers", as now.
+- Where an answer goes out through an application's server (`jig-test-service`'s or
+  temper's), its exact header list is the mount's, then the policy fields
+  `server/policy.rs::FIELDS` adds that are absent (nosniff is already there, so not twice),
+  then any `content-length` the response type adds (pre-approved). The world stories assert
+  that whole list, in order, taking the policy fields from `jig_test_service`'s `FIELDS` (or
+  the world's own copy of it), never a hand-written duplicate; if the engine-clients world
+  sends through the mount alone, its stories assert the mount's list.
+- Still forbidden on every answer, whoever adds it: `set-cookie`, `vary`, `etag`,
+  `last-modified`, `age`, any `access-control-` header, a stale directive.
