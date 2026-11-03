@@ -8,6 +8,7 @@ sources = ["temper/docs/plan/openai-manual/inputs/request.md", "skein/docs/desig
 # the three Anthropic ones (skein/docs/design/llm.status.md, 5). One skein task, which also
 # places the lead's status texts and the README's live section. plan.md says what was decided.
 
+retired = true
 [buffer]
 low = 1.0
 high = 2.0
