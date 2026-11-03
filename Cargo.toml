@@ -363,6 +363,7 @@ io-uring = { version = "0.7.15" }
 libc = { version = "0.2.186" }
 ring = { version = "0.17" }
 rustls = { version = "=0.23.41", default-features = false, features = ["ring", "std", "tls12"] }
+rustls-pki-types = { version = "1.15" }
 smith-transcript-patches = { path = "smith/tests/transcript-patches" }
 smith-fake-claude = { path = "smith/tests/fake-claude" }
 skein-tls-world = { path = "skein/tests/tls" }
