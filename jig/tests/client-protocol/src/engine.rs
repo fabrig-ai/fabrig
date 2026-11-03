@@ -408,6 +408,7 @@ pub fn watcher(event: &core::Event) -> Option<Token> {
         | core::Event::Read { .. }
         | core::Event::PublicRead { .. }
         | core::Event::PublicAnswered { .. }
+        | core::Event::PublicDurable { .. }
         | core::Event::Act { .. }
         | core::Event::ProposeSettings { .. }
         | core::Event::ChangeSettings { .. }

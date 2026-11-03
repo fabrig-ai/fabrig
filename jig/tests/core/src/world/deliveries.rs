@@ -242,6 +242,9 @@ impl World {
                 | core::Held::Refuse { .. }
                 | core::Held::MakeEffect { .. },
             ) => {}
+            root::Delivery::Core(core::Held::PublicWait { .. }) => {
+                panic!("root releases its public durability callbacks internally");
+            }
             root::Delivery::Fleet(_) => panic!("root releases its fleet continuations internally"),
         }
     }

@@ -232,6 +232,10 @@ pub enum Delivery {
         /// Owned result text, at most journal `result_bytes`.
         words: Box<[u8]>,
     },
+    /// Complete a public read after its barrier (jig/docs/design/domain/people.md, 13.10).
+    PublicWait {
+        read: Token,
+    },
 }
 
 /// Journal to its root caller: at most one value per entry point; the caller
@@ -501,6 +505,7 @@ impl Decision {
             | Delivery::ForgeRead { .. }
             | Delivery::Read { .. }
             | Delivery::ReadLoad { .. }
+            | Delivery::PublicWait { .. }
             | Delivery::Document { .. }
             | Delivery::WatchEnded { .. }
             | Delivery::Drained
