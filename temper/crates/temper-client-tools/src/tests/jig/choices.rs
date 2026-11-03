@@ -3,6 +3,49 @@ use jig_client::contract as c;
 use skein_lib::List;
 
 #[test]
+fn task_show_prints_main_and_subagent_choices() {
+    let text = task_choice_text(Some(f::prior_choice()));
+    assert!(
+        skein_lib::bytes::find(&text, b"\nmain model: template-model/low\nsub-agent model: small-model/low\n")
+            .is_some()
+    );
+    assert!(skein_lib::bytes::find(&text, b"account:").is_none());
+}
+
+#[test]
+fn task_show_without_choice_keeps_its_panel() {
+    let text = task_choice_text(None);
+    f::check_golden("task_goal_waiting", &text);
+}
+
+#[test]
+fn task_show_keeps_subagent_order_and_optional_efforts() {
+    let mut choice = f::prior_choice();
+    choice.main.effort = None;
+    let mut subagents = List::with_capacity(2);
+    subagents.push(choice.subagents.get(0).expect("first sub-agent").clone()).expect("first choice");
+    subagents.push(f::model_effort(b"plain-model", None)).expect("second choice");
+    choice.subagents = subagents;
+    let text = task_choice_text(Some(choice));
+    assert!(
+        skein_lib::bytes::find(
+            &text,
+            b"\nmain model: template-model\nsub-agent model: small-model/low\nsub-agent model: plain-model\n"
+        )
+        .is_some()
+    );
+}
+
+fn task_choice_text(choice: Option<c::LlmChoice>) -> Box<[u8]> {
+    let (mut root, call, mut task) = f::task_read();
+    task.llm = choice;
+    root.serve(call, f::task_result(task));
+    let answer = root.answer(call).expect("task panel");
+    assert_eq!(answer.status, 0);
+    answer.stdout
+}
+
+#[test]
 fn chat_uses_the_named_model() {
     let mut root = f::choice_root(f::choice_me(f::CHAT_BUDGET));
     let call = root.submit(f::MODEL_CHAT);

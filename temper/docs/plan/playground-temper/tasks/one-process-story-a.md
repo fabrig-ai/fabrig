@@ -86,3 +86,15 @@ Acceptance:
 
 As the implementer's text says, and: the person's steps; the story's time; each step the world
 took longest on.
+
+## Answers
+
+### 2026-11-03: Resume this task after one-process-composed pushes its OneProcess harness (recommended), or authorize this task to take over that migration? (playground-temper/one-process-story-a-1, foreman playground-temper/one-process-story-a/foreman-1)
+
+Resume one-process-story-a after one-process-composed pushes its completed OneProcess harness migration; do not take over that migration.
+The story spec declares `needs = ["one-process-composed", "story-a"]`.
+Its acceptance requires “its harness's edits applied through `Harness::configure` and its links kept (`Links::Keep`) for its referee”.
+The dependency’s acceptance assigns it “`temper_playground::Process<OneProcess>`” with “`OneProcess: Harness`”.
+The checkout still defines local `ServiceHost` and `Proc` in `temper/tests/one-process/src/world.rs`, confirming the required migration is absent.
+The next run uses the completed dependency, implements the native Story A walk, and performs the specified checks.
+The ignored-test fallback covers a product refusal or stall during the walk; it does not cover the missing dependency.

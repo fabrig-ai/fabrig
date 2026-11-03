@@ -1,12 +1,11 @@
 //! One real startup, native person, hosted agent and git, and loopback byte peers.
 use crate::{
     fixtures,
-    machine::{self, Machine, SignalHost},
     referee::{self, Capture, Store, Wire},
     stories,
 };
 use jig_client_protocol_link::Signing;
-use skein_fake_peers::forge::{Delivery, Observation, Peer};
+use skein_fake_peers::forge::{Delivery, Observation};
 use skein_fake_person::{Doing, Face, Find, Found, Next, Step, TreeFace};
 use skein_io::kernel::{Complete, Exit, Fd, Submit};
 use skein_lib::{Duration, Queue, Time, Wall};
@@ -14,6 +13,12 @@ use skein_shell::Host;
 use skein_world::{Inherited, Memory};
 use std::{cell::RefCell, net::SocketAddr, rc::Rc};
 use temper_client_shell_terminal::client::{NativeClient, Settings as ClientSettings, Start};
+use temper_playground::{
+    Links,
+    machine::{self, Machine, SignalHost},
+    programs::{self, Harness, Parameters, Role},
+    service::Observe,
+};
 #[derive(Clone, Copy, Debug)]
 pub struct Settings {
     pub seed: u64,
@@ -80,8 +85,86 @@ thread_local! {
 pub(crate) fn setup_signed(party: u64) {
     PROGRESS.with(|progress| progress.borrow_mut().setup_party = Some(party));
 }
-pub(crate) struct ServiceHost {
-    pub(crate) service: temper_service::Service,
+/// The one-process world's harness (temper/docs/design/playground.md, 3).
+pub(crate) struct OneProcess;
+pub(crate) type Proc = programs::Process<OneProcess>;
+pub(crate) type ServiceHost = temper_playground::service::ServiceHost<OneProcess>;
+impl Harness for OneProcess {
+    type Service = ServiceObserver;
+    type Process = HarnessProcess;
+    fn github() -> bool {
+        crate::lower::github::active()
+    }
+    fn configure(document: &mut serde_json::Value) {
+        if REFUSE_START.with(std::cell::Cell::get) {
+            document["engine"]["projects"] = serde_json::json!([]);
+            document["application"]["webhooks"]["listener"] =
+                serde_json::json!({"socket": crate::box_listener::ADDRESS.to_string()});
+            // No seed policies on this start; its persisted policy exceeds the smaller read bound.
+            document["engine"]["limits"]["overrides"]["core.policy_bytes"] = REFUSED_POLICY_BYTES.into();
+        }
+    }
+    fn spawned(role: Role, inherited: &Inherited, base: &[u8]) {
+        use crate::m15::observer::{self, Role as Observed};
+        match role {
+            Role::Service => {
+                for (name, fd) in &inherited.roots {
+                    observer::root(Observed::Service, *fd, name);
+                }
+            }
+            Role::Agent => observer::process(Observed::Agent, inherited, base),
+            Role::Git => observer::process(Observed::Git, inherited, base),
+            Role::Shell => observer::process(Observed::Shell, inherited, base),
+            Role::Provider | Role::Forge | Role::Other => {}
+        }
+    }
+    fn complete(role: Role, complete: &Complete) {
+        use crate::m15::observer::{self, Role as Observed};
+        let role = match role {
+            Role::Service => Observed::Service,
+            Role::Agent => Observed::Agent,
+            Role::Git => Observed::Git,
+            Role::Shell => Observed::Shell,
+            Role::Provider => Observed::Provider,
+            Role::Forge => Observed::Forge,
+            Role::Other => return,
+        };
+        observer::complete(role, complete);
+    }
+    fn git_limits() -> skein_fake_forge_protocol::Limits {
+        crate::lower::github::protocol()
+    }
+    fn seeds(_one: u64) -> temper_service::settings::Seeds {
+        fixtures::seeds()
+    }
+    fn agent_seed(_one: u64) -> u64 {
+        fixtures::SEED
+    }
+    fn provider(_one: u64) -> skein_fake_peers::llm::Peer {
+        fixtures::provider()
+    }
+    fn forge_seed(_one: u64) -> u64 {
+        fixtures::SEED
+    }
+    fn files() -> temper_service::settings::Files {
+        fixtures::files()
+    }
+    fn given(_document: &serde_json::Value) -> temper_service::stock::Given {
+        stories::given(&serde_json::from_slice(&fixtures::document()).expect("deployment JSON"))
+    }
+}
+/// Scope the harness's scenario documents and shared forge around its world.
+pub(crate) fn parameters(machine: &Machine, forge: temper_fake_git_hosted::Typed) -> Parameters {
+    Parameters {
+        deployment: fixtures::document().into(),
+        seed: fixtures::SEED,
+        links: Links::Keep,
+        forge,
+        disk: machine.0.clone(),
+    }
+}
+/// Captures, faults and assertions beside the composition's service.
+pub(crate) struct ServiceObserver {
     pub(crate) hooks: Option<SocketAddr>,
     bound_hooks: Option<(Fd, SocketAddr)>,
     capture: Capture,
@@ -93,52 +176,54 @@ pub(crate) struct ServiceHost {
     pub(crate) submitted: u32,
     pub(crate) before_iteration: u32,
     in_flight: std::collections::BTreeSet<skein_lib::Token>,
-    now: Time,
     reserve: Option<crate::box_listener::Listener>,
     codec: jig_protocol_store::codec::View,
     families: temper_protocol_store::Bounds,
 }
-impl Host for ServiceHost {
-    fn drain(&mut self) {
-        while let Some(read) = self.service.take_handover_read() {
-            let value =
-                stories::first_start().then(|| skein_lib::Secret::new(crate::restart_control::ADMIN_TOKEN.into()));
-            self.service.handover_read(read.forge, read.run, Ok(value));
+impl Observe for ServiceObserver {
+    fn started(root: Fd, _inherited: &Inherited) -> Self {
+        let mut capture = Capture::default();
+        capture.root(root);
+        let store = STORE.with(|store| store.borrow().as_ref().expect("world store").clone());
+        Self {
+            hooks: None,
+            bound_hooks: None,
+            capture,
+            store: store.clone(),
+            commits: Vec::new(),
+            wire: Wire::new(store),
+            attached: false,
+            cut_before: None,
+            submitted: 0,
+            before_iteration: 0,
+            in_flight: std::collections::BTreeSet::new(),
+            reserve: REFUSE_START.with(std::cell::Cell::get).then(crate::box_listener::Listener::new),
+            codec: fixtures::codec(),
+            families: temper_protocol_store::bounds(
+                &temper_service::limits::profile(temper_service::limits::Profile::Small).forge,
+                jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.tasks.spec_bytes,
+            )
+            .expect("application codec bounds"),
         }
-        while let Some(remove) = self.service.take_handover_removal() {
-            self.service.handover_removed(remove.forge, remove.run, Ok(()));
-        }
-        assert!(
-            self.service.is_empty()
-                || self.service.work_pending(self.now)
-                || self.service.next_deadline().is_some()
-                || !self.in_flight.is_empty(),
-            "service would wait forever with nothing in flight: end={:?}; state={:?}; pending={:?}",
-            self.service.end(),
-            self.service.wait_state(),
-            self.service.pending(self.now)
-        );
     }
-    fn iterate(&mut self, now: Time, wall: Wall) {
-        self.now = now;
-        self.before_iteration = self.submitted;
-        for _ in 0..self.service.completions().len() {
-            let complete = self.service.completions().pop().expect("completion count");
-            assert!(self.in_flight.remove(&complete.op), "completion has an operation in flight");
-            if complete.op == crate::box_listener::OWNER {
-                if let Some(fd) = self.reserve.as_mut().expect("box listener setup").complete(complete) {
-                    self.service.adopt_listener(fd, crate::box_listener::ADDRESS).expect("held webhook listener");
-                    self.reserve = None;
-                }
-                continue;
+    fn complete(&mut self, complete: Complete, service: &mut temper_service::Service) -> Option<Complete> {
+        assert!(self.in_flight.remove(&complete.op), "completion has an operation in flight");
+        if complete.op == crate::box_listener::OWNER {
+            if let Some(fd) = self.reserve.as_mut().expect("box listener setup").complete(complete) {
+                service.adopt_listener(fd, crate::box_listener::ADDRESS).expect("held webhook listener");
+                self.reserve = None;
             }
-            if let Some(bound) = hooks_address(&mut self.bound_hooks, &complete) {
-                self.hooks = Some(bound);
-            }
-            self.capture.complete(&complete);
-            self.wire.complete(&complete);
-            self.service.completions().push(complete);
+            return None;
         }
+        if let Some(bound) = hooks_address(&mut self.bound_hooks, &complete) {
+            self.hooks = Some(bound);
+        }
+        self.capture.complete(&complete);
+        self.wire.complete(&complete);
+        Some(complete)
+    }
+    fn before_iterate(&mut self, service: &mut temper_service::Service, _now: Time, _wall: Wall) -> bool {
+        self.before_iteration = self.submitted;
         self.commits.extend(self.store.borrow_mut().observe(
             &mut self.capture.events,
             &self.codec,
@@ -146,88 +231,67 @@ impl Host for ServiceHost {
             &self.families,
         ));
         if let Some(reserve) = &mut self.reserve {
-            reserve.submit(self.service.submissions());
+            reserve.submit(service.submissions());
+            true
         } else {
-            temper_service::iterate(&mut self.service, now, wall);
+            false
         }
-        for submit in self.service.submissions().iter() {
-            assert!(self.in_flight.insert(submit.op), "one operation per token");
-            self.capture.pending(&submit.kind);
-        }
-        self.submitted += self.service.submissions().len();
+    }
+    fn submitted(&mut self, submit: &Submit) {
+        assert!(self.in_flight.insert(submit.op), "one operation per token");
+        self.capture.pending(&submit.kind);
+    }
+    fn after_iterate(&mut self, service: &mut temper_service::Service, submitted: u32) {
+        self.submitted += submitted;
         if self.cut_before.is_some_and(|before| self.before_iteration <= before && before < self.submitted) {
-            referee::Referee::check_roots(self);
+            referee::Referee::check_roots(service);
             self.cut_before = None;
         }
     }
-    fn completions(&mut self) -> &mut Queue<Complete> {
-        self.service.completions()
+    fn handover_read(
+        &mut self,
+        _read: &temper_service::HandoverRead,
+    ) -> Option<Result<Option<skein_lib::Secret>, temper_service::HandoverUnread>> {
+        Some(Ok(stories::first_start().then(|| skein_lib::Secret::new(crate::restart_control::ADMIN_TOKEN.into()))))
     }
-    fn submissions(&mut self) -> &mut Queue<Submit> {
-        self.service.submissions()
+    fn drain(&mut self, service: &mut temper_service::Service, now: Time) {
+        assert!(
+            service.is_empty()
+                || service.work_pending(now)
+                || service.next_deadline().is_some()
+                || !self.in_flight.is_empty(),
+            "service would wait forever with nothing in flight: end={:?}; state={:?}; pending={:?}",
+            service.end(),
+            service.wait_state(),
+            service.pending(now)
+        );
     }
-    fn work_pending(&self, now: Time) -> bool {
-        match &self.reserve {
-            Some(reserve) => reserve.ready(),
-            None => self.service.work_pending(now),
-        }
-    }
-    fn next_mechanism_deadline(&self) -> Option<Time> {
-        self.service.next_deadline()
-    }
-    fn next_policy_deadline(&self) -> Option<Time> {
-        self.service.next_policy_deadline()
-    }
-    fn is_empty(&self) -> bool {
-        self.service.is_empty()
-    }
-    fn operations(&self) -> u32 {
-        self.service.operations()
+    fn work_pending(&self, _now: Time) -> Option<bool> {
+        self.reserve.as_ref().map(crate::box_listener::Listener::ready)
     }
 }
-pub(crate) enum Proc {
-    Service(Box<ServiceHost>),
+pub(crate) enum HarnessProcess {
     Ctl(Box<crate::ctl::Recorded>),
     Calls(Box<crate::ctl::Caller>),
-    Agent(Box<machine::Rooted<skein_world::PipeHost<smith_agent_shell::Agent>>>),
-    GitRoute(Box<temper_fake_git::Git<temper_fake_git::Route>>),
-    Git(Box<temper_fake_git_hosted::Git<temper_fake_git_hosted::Typed>>),
-    Shell(Box<stories::Shell>),
-    Peer(Box<SignalHost<skein_fake_peers::llm::Peer>>),
-    Forge(Box<SignalHost<Peer>>),
     Client(Box<SignalHost<Person>>),
 }
-impl Proc {
+impl HarnessProcess {
     fn host(&self) -> &dyn Host {
         match self {
-            Self::Service(h) => h.as_ref(),
             Self::Ctl(h) => h.as_ref(),
             Self::Calls(h) => h.as_ref(),
-            Self::Agent(h) => h.as_ref(),
-            Self::Git(h) => h.as_ref(),
-            Self::GitRoute(h) => h.as_ref(),
-            Self::Shell(h) => h.as_ref(),
-            Self::Peer(h) => h.as_ref(),
-            Self::Forge(h) => h.as_ref(),
             Self::Client(h) => h.as_ref(),
         }
     }
     fn host_mut(&mut self) -> &mut dyn Host {
         match self {
-            Self::Service(h) => h.as_mut(),
             Self::Ctl(h) => h.as_mut(),
             Self::Calls(h) => h.as_mut(),
-            Self::Agent(h) => h.as_mut(),
-            Self::Git(h) => h.as_mut(),
-            Self::GitRoute(h) => h.as_mut(),
-            Self::Shell(h) => h.as_mut(),
-            Self::Peer(h) => h.as_mut(),
-            Self::Forge(h) => h.as_mut(),
             Self::Client(h) => h.as_mut(),
         }
     }
 }
-impl Host for Proc {
+impl Host for HarnessProcess {
     fn drain(&mut self) {
         self.host_mut().drain();
     }
@@ -235,14 +299,8 @@ impl Host for Proc {
         if crate::m15::observer::enabled() {
             use crate::m15::observer::{self, Role};
             let role = match self {
-                Self::Service(_) => Role::Service,
                 Self::Ctl(_) => Role::Ctl,
                 Self::Calls(_) => Role::Caller,
-                Self::Agent(_) => Role::Agent,
-                Self::Git(_) | Self::GitRoute(_) => Role::Git,
-                Self::Shell(_) => Role::Shell,
-                Self::Peer(_) => Role::Provider,
-                Self::Forge(_) => Role::Forge,
                 Self::Client(_) => Role::Client,
             };
             for complete in self.host_mut().completions().iter() {
@@ -651,131 +709,6 @@ fn person_failed(step: u32, why: &skein_fake_person::Why, wire: &referee::client
         panic!("person step {step}: {why:?}; adoption keys sent {sent:?}, answered {answered:?}, durable outcomes {durable}; pre-cut sent {before:?}; Adopt presses had frame {:?}; private cache {:?}", progress.press_had_frame, progress.cache.borrow());
     })
 }
-pub(crate) fn service_roots() -> Vec<skein_world::StartupRoot> {
-    vec![
-        skein_world::StartupRoot { name: b"state".as_slice().into(), path: b"state".as_slice().into() },
-        skein_world::StartupRoot { name: b"worker".as_slice().into(), path: b"worker".as_slice().into() },
-    ]
-}
-pub(crate) fn service(inherited: &Inherited) -> Proc {
-    let root = inherited.roots.iter().find(|(name, _)| name.as_ref() == b"state").expect("state root").1;
-    let worker = inherited.roots.iter().find(|(name, _)| name.as_ref() == b"worker").expect("worker root").1;
-    crate::m15::observer::root(crate::m15::observer::Role::Service, root, b"state");
-    crate::m15::observer::root(crate::m15::observer::Role::Service, worker, b"worker");
-    let mut document: serde_json::Value = serde_json::from_slice(&fixtures::document()).expect("deployment JSON");
-    if REFUSE_START.with(std::cell::Cell::get) {
-        document["engine"]["projects"] = serde_json::json!([]);
-        document["application"]["webhooks"]["listener"] =
-            serde_json::json!({"socket": crate::box_listener::ADDRESS.to_string()});
-        // No seed policies on this start; its persisted policy exceeds the smaller read bound.
-        document["engine"]["limits"]["overrides"]["core.policy_bytes"] = REFUSED_POLICY_BYTES.into();
-    }
-    let document = serde_json::to_vec(&document).expect("deployment JSON");
-    let mut service = temper_service::startup::with_setup_given(
-        &document,
-        // Simulated fixture paths stay relative to their inherited roots.
-        &jig_protocol_config::Directories::working(),
-        &fixtures::files(),
-        Some(&fixtures::agent()),
-        &fixtures::seeds(),
-        None,
-        Some(temper_service::WorkerRuntime { root: worker, path: b"/worker".as_slice().into() }),
-        fixtures::forges(),
-        None,
-        None,
-        &stories::given(&serde_json::from_slice(&fixtures::document()).expect("deployment JSON")),
-    )
-    .expect("one-process startup");
-    service.adopt_store(root, 1000).expect("deployment store");
-    service.adopt_signals(inherited.signal).expect("service signal");
-    let mut capture = Capture::default();
-    capture.root(root);
-    let families = temper_protocol_store::bounds(
-        &temper_service::limits::profile(temper_service::limits::Profile::Small).forge,
-        jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.tasks.spec_bytes,
-    )
-    .expect("application codec bounds");
-    Proc::Service(Box::new(ServiceHost {
-        service,
-        hooks: None,
-        bound_hooks: None,
-        capture,
-        store: STORE.with(|store| store.borrow().as_ref().expect("world store").clone()),
-        commits: Vec::new(),
-        wire: Wire::new(STORE.with(|store| store.borrow().as_ref().expect("world store").clone())),
-        attached: false,
-        cut_before: None,
-        submitted: 0,
-        before_iteration: 0,
-        in_flight: std::collections::BTreeSet::new(),
-        now: Time::ZERO,
-        reserve: REFUSE_START.with(std::cell::Cell::get).then(crate::box_listener::Listener::new),
-        codec: fixtures::codec(),
-        families,
-    }))
-}
-#[expect(
-    clippy::zero_sized_map_values,
-    reason = "smith's endpoint program selections use the sole adapter name as the map's value"
-)]
-fn agent(_spawn: &skein_io::kernel::Spawn, inherited: &Inherited) -> Proc {
-    crate::m15::observer::process(crate::m15::observer::Role::Agent, inherited, b"worker/agent");
-    let stderr = inherited.pipes.iter().find(|(child, _)| *child == 2).expect("stderr").1;
-    let (errors, capture) = smith_agent_process_world::AgentErrors::pipe(stderr);
-    Proc::Agent(Box::new(machine::Rooted::new(
-        capture.host(
-            smith_agent_shell::Agent::new(
-                smith_agent_shell::config::Configuration {
-                    service: fixtures::agent_configuration(),
-                    memory: fixtures::agent_profile().declared.memory,
-                    trace: None,
-                    profile: fixtures::agent_profile(),
-                    declarations: fixtures::agent_declarations(),
-                    programs: std::collections::BTreeMap::new(),
-                    endpoint_programs: std::collections::BTreeMap::new(),
-                },
-                smith_agent_shell::Resources {
-                    input: inherited.pipes.iter().find(|(child, _)| *child == 0).expect("stdin").1,
-                    output: inherited.pipes.iter().find(|(child, _)| *child == 1).expect("stdout").1,
-                    error: Some(stderr),
-                    signals: inherited.signal,
-                    seed: fixtures::SEED,
-                    pid: 101,
-                    trace: None,
-                    roots: Some(inherited.roots.iter().map(|(_, fd)| *fd).collect()),
-                    programs: None,
-                },
-                Box::new(errors),
-            )
-            .expect("hosted agent"),
-        ),
-        inherited,
-    )))
-}
-fn git(spawn: &skein_io::kernel::Spawn, inherited: &Inherited) -> Proc {
-    crate::m15::observer::process(crate::m15::observer::Role::Git, inherited, b"worker");
-    if crate::lower::github::active() {
-        return Proc::GitRoute(Box::new(temper_fake_git::Git::new(
-            spawn,
-            temper_fake_git_hosted::start(inherited),
-            temper_fake_git::Route::new(crate::lower::github::protocol()),
-        )));
-    }
-    Proc::Git(Box::new(temper_fake_git_hosted::git(spawn, inherited, transport())))
-}
-fn shell(spawn: &skein_io::kernel::Spawn, inherited: &Inherited) -> Proc {
-    crate::m15::observer::process(crate::m15::observer::Role::Shell, inherited, b"worker/shell");
-    Proc::Shell(Box::new(stories::Shell::new(spawn, inherited)))
-}
-fn worker_root(_spawn: &skein_io::kernel::Spawn) -> Vec<skein_world::StartupRoot> {
-    vec![skein_world::StartupRoot { name: b"worker".as_slice().into(), path: b"worker".as_slice().into() }]
-}
-fn agent_root(spawn: &skein_io::kernel::Spawn) -> Vec<skein_world::StartupRoot> {
-    if !crate::lower::github::active() {
-        return worker_root(spawn);
-    }
-    vec![skein_world::StartupRoot { name: b"worker".as_slice().into(), path: b"agent".as_slice().into() }]
-}
 #[must_use]
 pub fn run(settings: Settings, scenario: Story) -> Outcome {
     run_phase(
@@ -859,12 +792,8 @@ fn person(inherited: &Inherited) -> Proc {
         );
         person.signed_in = 1;
     }
-    Proc::Client(Box::new(SignalHost::new(person, Some(inherited.signal))))
+    Proc::Other(HarnessProcess::Client(Box::new(SignalHost::new(person, Some(inherited.signal)))))
 }
-fn llm_peer(inherited: &Inherited) -> Proc {
-    Proc::Peer(Box::new(SignalHost::new(fixtures::provider(), Some(inherited.signal))))
-}
-
 fn hooks_address(bound: &mut Option<(Fd, SocketAddr)>, complete: &Complete) -> Option<SocketAddr> {
     use skein_io::kernel::{Done, Op};
     match (&complete.kind, &complete.result) {
@@ -875,64 +804,6 @@ fn hooks_address(bound: &mut Option<(Fd, SocketAddr)>, complete: &Complete) -> O
         (Op::Listen { fd, .. }, Ok(_)) if bound.is_some_and(|(at, _)| at == *fd) => bound.take().map(|(_, addr)| addr),
         _ => None,
     }
-}
-thread_local! { static SHARED: RefCell<Option<temper_fake_git_hosted::Typed>> = const { RefCell::new(None) }; }
-pub(crate) fn share(transport: Option<temper_fake_git_hosted::Typed>) {
-    SHARED.with(|shared| *shared.borrow_mut() = transport);
-}
-fn transport() -> temper_fake_git_hosted::Typed {
-    SHARED.with(|shared| shared.borrow().as_ref().expect("world's forge").clone())
-}
-pub(crate) fn peer() -> Peer {
-    let mut peer = Peer::new(
-        fixtures::FORGE,
-        fixtures::peer_limits(),
-        stories::forge_table(),
-        fixtures::forge_limits(),
-        transport().forge,
-        fixtures::SEED,
-    )
-    .expect("forge peer");
-    crate::restart_control::setup_peer(&mut peer);
-    peer
-}
-
-fn fake_forge(inherited: &Inherited) -> Proc {
-    Proc::Forge(Box::new(SignalHost::new(peer(), Some(inherited.signal))))
-}
-pub(crate) fn host_programs<R: skein_world::Referee<Proc>>(world: &mut skein_world::World<Proc, R, Machine>) {
-    let limits = temper_client_shell_cli::limits::native();
-    world.host_roots(
-        skein_world::HostedProgram {
-            program: crate::ctl::PROGRAM.into(),
-            make: |spawn, inherited| Proc::Ctl(Box::new(crate::ctl::host(spawn, inherited))),
-            instances: 1,
-            operations: skein_io::operations(&limits.io).expect("ctl operations") * 2 + 5,
-        },
-        crate::ctl::roots,
-    );
-    world.host_roots(
-        skein_world::HostedProgram {
-            program: b"/opt/temper/bin/temper".as_slice().into(),
-            make: agent,
-            instances: fixtures::AGENTS,
-            operations: fixtures::agent_limits().routes + 3,
-        },
-        machine::agent_roots,
-    );
-    world.host_roots(
-        skein_world::HostedProgram {
-            program: b"/usr/bin/git".as_slice().into(),
-            make: git,
-            instances: 1,
-            operations: 1,
-        },
-        worker_root,
-    );
-    world.host_roots(
-        skein_world::HostedProgram { program: b"/bin/sh".as_slice().into(), make: shell, instances: 1, operations: 1 },
-        agent_root,
-    );
 }
 fn deliveries(procs: &[Proc]) -> Vec<Delivery> {
     procs
@@ -1058,6 +929,7 @@ fn ended(procs: &[Proc], phase: Phase) -> Option<temper_service::End> {
     None
 }
 
+#[expect(clippy::too_many_lines, reason = "the scenario owns its registry, restartable processes and outcome together")]
 fn run_phase(
     settings: Settings,
     scenario: Story,
@@ -1078,40 +950,67 @@ fn run_phase(
     });
     let transport = forge_for_run(&run, scenario, phase);
     let observed_forge = Rc::new(RefCell::new(referee::forge::Forge::new(transport.clone(), scenario)));
-    share(Some(transport.clone()));
-    let mut world = skein_world::World::new_controlled(settings.seed, settings.config, Memory::Unchecked, |controls| {
-        referee::Referee::new(controls, store.clone(), scenario, observed_forge.clone(), run.clone(), phase)
-    })
-    .with_machine(Machine(disk));
-    host_programs(&mut world);
-    world.spawn_restartable(service_roots(), service);
-    match phase {
-        Phase::Fault { cut, before } => {
-            world.spawn_restartable(
-                vec![skein_world::StartupRoot {
-                    name: b"private".as_slice().into(),
-                    path: b"client".as_slice().into(),
-                }],
-                person,
-            );
-            world.spawn_restartable(vec![], llm_peer);
-            world.spawn_restartable(vec![], fake_forge);
-            crate::oracle::spawn(&mut world);
-            world.cut(0, before, cut);
+
+    let machine = Machine::new(disk);
+    let parameters = parameters(&machine, transport.clone());
+    let outcome = programs::with(parameters, || {
+        let mut world =
+            skein_world::World::new_controlled(settings.seed, settings.config, Memory::Unchecked, |controls| {
+                referee::Referee::new(controls, store.clone(), scenario, observed_forge.clone(), run.clone(), phase)
+            })
+            .with_machine(machine);
+        for (program, roots) in programs::programs::<OneProcess>() {
+            world.host_roots(program, roots);
         }
-        Phase::Restart | Phase::Refused => {
-            world.spawn(|| Proc::Peer(Box::new(SignalHost::new(stories::provider(scenario), None))));
-            world.spawn(|| Proc::Forge(Box::new(SignalHost::new(peer(), None))));
+        let limits = temper_client_shell_cli::limits::native();
+        world.host_roots(
+            skein_world::HostedProgram {
+                program: crate::ctl::PROGRAM.into(),
+                make: |spawn, inherited| Proc::Other(HarnessProcess::Ctl(Box::new(crate::ctl::host(spawn, inherited)))),
+                instances: 1,
+                operations: skein_io::operations(&limits.io).expect("ctl operations") * 2 + 5,
+            },
+            crate::ctl::roots,
+        );
+        world.spawn_restartable(programs::service_roots(), programs::service::<OneProcess>);
+        match phase {
+            Phase::Fault { cut, before } => {
+                world.spawn_restartable(
+                    vec![skein_world::StartupRoot {
+                        name: b"private".as_slice().into(),
+                        path: b"client".as_slice().into(),
+                    }],
+                    person,
+                );
+                world.spawn_restartable(vec![], programs::llm::<OneProcess>);
+                world.spawn_restartable(vec![], programs::forge::<OneProcess>);
+                crate::oracle::spawn(&mut world);
+                world.cut(0, before, cut);
+            }
+            Phase::Restart | Phase::Refused => {
+                world.spawn(|| Proc::Peer(Box::new(SignalHost::new(stories::provider(scenario), None))));
+                world.spawn(|| {
+                    Proc::Forge(Box::new(SignalHost::new(
+                        temper_playground::fakes::forge_peer(&transport, fixtures::SEED),
+                        None,
+                    )))
+                });
+            }
+            Phase::Story | Phase::SignIn | Phase::Drain => {
+                world.spawn_root(skein_sim::Handle::new(client.expect("story client root").raw()), |root| {
+                    Proc::Other(HarnessProcess::Client(Box::new(SignalHost::new(Person::new(root, scenario), None))))
+                });
+                world.spawn(|| Proc::Peer(Box::new(SignalHost::new(stories::provider(scenario), None))));
+                world.spawn(|| {
+                    Proc::Forge(Box::new(SignalHost::new(
+                        temper_playground::fakes::forge_peer(&transport, fixtures::SEED),
+                        None,
+                    )))
+                });
+            }
         }
-        Phase::Story | Phase::SignIn | Phase::Drain => {
-            world.spawn_root(skein_sim::Handle::new(client.expect("story client root").raw()), |root| {
-                Proc::Client(Box::new(SignalHost::new(Person::new(root, scenario), None)))
-            });
-            world.spawn(|| Proc::Peer(Box::new(SignalHost::new(stories::provider(scenario), None))));
-            world.spawn(|| Proc::Forge(Box::new(SignalHost::new(peer(), None))));
-        }
-    }
-    let mut outcome = world.run();
+        world.run()
+    });
     if matches!(scenario, Story::Adopt) {
         observed_forge.borrow().require_hooks(stories::ADOPT_HOOKS);
     }
@@ -1119,7 +1018,7 @@ fn run_phase(
         .procs
         .iter()
         .filter_map(|proc| match proc {
-            Proc::Client(person) => Some(person.signed_in),
+            Proc::Other(HarnessProcess::Client(person)) => Some(person.signed_in),
             Proc::Service(_)
             | Proc::Agent(_)
             | Proc::GitRoute(_)
@@ -1127,8 +1026,7 @@ fn run_phase(
             | Proc::Shell(_)
             | Proc::Peer(_)
             | Proc::Forge(_)
-            | Proc::Ctl(_)
-            | Proc::Calls(_) => None,
+            | Proc::Other(HarnessProcess::Ctl(_) | HarnessProcess::Calls(_)) => None,
         })
         .sum();
     let chats_answered = if matches!(scenario, Story::ChatReadThenWait { .. }) {
@@ -1143,7 +1041,7 @@ fn run_phase(
     let pushed = std::mem::take(&mut observed_forge.borrow_mut().pushed);
     let deliveries = deliveries(&outcome.procs);
     let end = ended(&outcome.procs, phase);
-    share(None);
+
     STORE.with(|cell| {
         *cell.borrow_mut() = None;
     });
@@ -1164,7 +1062,7 @@ fn run_phase(
         adoption_pending_at_restart: run.borrow().pending_adoption,
     };
     drop(run);
-    (result, std::mem::replace(&mut outcome.machine.0, machine::fresh()), records)
+    (result, std::mem::replace(&mut outcome.machine.0.borrow_mut(), machine::fresh()), records)
 }
 
 #[cfg(test)]

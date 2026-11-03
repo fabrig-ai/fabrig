@@ -14,6 +14,12 @@ skein-forge-setup.workspace = true
 
 [dev-dependencies]
 serde_json.workspace = true
+skein-fake-checkout.workspace = true
+skein-fake-llm-domain.workspace = true
+skein-world.workspace = true
+smith-agent-shell.workspace = true
+smith-agent-world.workspace = true
+smith-domain.workspace = true
 
 [lints]
 workspace = true

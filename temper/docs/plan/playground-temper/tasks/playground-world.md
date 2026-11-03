@@ -74,3 +74,18 @@ Acceptance:
 ## Report
 
 As the implementer's text says, and: each test's time, and the world's steps to idle.
+
+## Answers
+
+2026-11-03. **Q:** "no process ended" fails at idle because the worker's startup `git --version`
+probe (`temper-worker-protocol-git`'s `Command::Version`) is a hosted process that exited
+`Code(0)`; exempt it, or change the composition?
+
+**A:** Exempt it; the composition and the product stay as they are. The check is calm
+(`temper/docs/design/playground.md`, 4), not "no program ever ran to completion": a hosted git
+command that ran and succeeded is the product's ordinary behaviour, and the world retains it.
+`story_a_starts_with_no_box_calm_and_prints_its_link` asserts instead: the service, the fake
+LLM peer and the fake forge have not ended; every other process that ended is a hosted git
+program that exited `Code(0)`; no process ended otherwise (a non-zero code, a signal, a kill).
+Name the rule in the test's message and keep the later assertions (the service's one printed
+line, no box, no fault, trace off). Then do the status edit as the spec says.
