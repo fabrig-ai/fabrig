@@ -35,6 +35,7 @@ pub(crate) fn create_request(core: &mut Core, env: &Env<Limits>, routed: &mut Ro
                     person: creation.person,
                     project: creation.project,
                     role: creation.role,
+                    symbols: symbols(&creation.batch),
                     members,
                     given,
                     proposal: None,
@@ -49,6 +50,7 @@ pub(crate) fn create_request(core: &mut Core, env: &Env<Limits>, routed: &mut Ro
         Err(why) => pool_refused(&mut routed.work, request, why),
     }
 }
+#[expect(clippy::too_many_lines, reason = "one party batch is checked whole before any connector ask")]
 pub(crate) fn checked(
     core: &mut Core,
     env: &Env<Limits>,
@@ -71,6 +73,11 @@ pub(crate) fn checked(
     let mut delegates = List::with_capacity(env.limits.people.batch);
     let mut members = List::with_capacity(env.limits.people.batch);
     for member in batch {
+        for symbol in &member.symbols {
+            if !core.connectors.contains(&symbol.connector) {
+                return Err(people::Refusal::Limit { which: people::LimitKind::HoldKind });
+            }
+        }
         let new = new_task(core, env, creation, member, first, members.len())?;
         let executor = core.delegation_executor(*project, new.executor).ok_or(people::Refusal::Unknown)?;
         delegates
@@ -230,7 +237,10 @@ fn new_task(
         funder: tasks::Funder::Pool { project: *project, person: *person, period: core.period(*project) },
         dependencies: dependencies.into_boxed(),
         holdings: Box::new([]),
-        wake: crate::admission::amendments::wake(member.wake),
+        wake: match member.wake {
+            Some(wake) => crate::admission::amendments::wake(wake),
+            None => crate::admission::amendments::default_wake(core, &executor),
+        },
         recurring: None,
         tracked: member.tracked,
         label: member.label,
@@ -455,4 +465,14 @@ fn budget(core: &Core, creation: &mut Creation) -> Result<Option<(u32, u64)>, pe
         }
     }
     Ok(None)
+}
+
+/// Per-member symbols stay in flights until their connector resolves the holdings
+/// (jig/docs/design/domain/tasks.md, 6.2).
+pub(crate) fn symbols(batch: &[people::Member]) -> Box<[Box<[people::Symbol]>]> {
+    let mut symbols = List::with_capacity(u32::try_from(batch.len()).expect("bounded party batch"));
+    for member in batch {
+        symbols.push(member.symbols.clone()).expect("one symbol list per member");
+    }
+    symbols.into_boxed()
 }

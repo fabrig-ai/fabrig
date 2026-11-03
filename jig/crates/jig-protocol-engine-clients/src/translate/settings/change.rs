@@ -92,6 +92,30 @@ fn model(value: w::SettingModel) -> c::Model {
         effort: v.effort,
     }
 }
+fn wake_rule(value: w::WakeRule) -> t::WakeRule {
+    match value {
+        w::WakeRule::Never => t::WakeRule::Never,
+        w::WakeRule::Immediate => t::WakeRule::Immediate,
+        w::WakeRule::Batch(value) => t::WakeRule::Batch { count: value.count(), age: value.age() },
+        w::WakeRule::Paced(value) => t::WakeRule::Paced { span: value.span() },
+    }
+}
+fn wake(value: w::WakePolicy) -> t::WakePolicy {
+    let value = value.into_parts();
+    t::WakePolicy {
+        words: wake_rule(value.words),
+        notices: wake_rule(value.notices),
+        news: wake_rule(value.news),
+        results: match value.results {
+            w::ResultsWake::Never => t::ResultsWake::Never,
+            w::ResultsWake::Each => t::ResultsWake::Each,
+            w::ResultsWake::LastOrFailure => t::ResultsWake::LastOrFailure,
+        },
+        questions: value.questions,
+        answers: value.answers,
+        timers: value.timers,
+    }
+}
 fn charter(value: w::Charter) -> c::Charter {
     let resume = value.resume();
     let inspect = value.inspect();
@@ -124,6 +148,7 @@ fn charter(value: w::Charter) -> c::Charter {
             w::SettingHosts::Both => jig_domain_fleet::Kinds::Both,
         },
         spend: v.spend,
+        wake: wake(v.wake),
         policy: c::RunPolicy {
             instructions: v.instructions,
             waiting: v.waiting,
@@ -262,7 +287,14 @@ fn template(value: w::Template, models: &[crate::Model], limits: &w::Limits) -> 
         }
         None => None,
     };
+    let mut resources = List::with_capacity(v.resources.len());
+    for symbol in v.resources.into_boxed() {
+        resources
+            .push(jig_domain_people::Symbol { connector: symbol.connector(), symbol: symbol.symbol() })
+            .expect("same capacity");
+    }
     Ok(c::Template {
+        resources: resources.into_boxed(),
         number: v.number,
         name: v.name.into_parts().bytes,
         executor: operations::executor(v.executor),

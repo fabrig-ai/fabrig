@@ -7,7 +7,7 @@ use skein_lib::{Duration, Env, Map, Queue, ReplyTo, Time, Token, Wall};
 /// The one configured model, which the charter names.
 fn model() -> core::Model {
     core::Model {
-        dialect: 1,
+        dialect: 3,
         endpoint: 1,
         program: None,
         name: Box::from(b"scripted".as_slice()),
@@ -84,6 +84,7 @@ fn configuration(limits: &core::Limits) -> core::Config {
         },
         defaults: core::settings::Defaults {
             charters: Box::new([core::Charter {
+                wake: jig_domain_tasks::WakePolicy::DEFAULT,
                 documents: Box::new([]),
                 number: 1,
                 hosts: jig_domain_fleet::Kinds::Workers,

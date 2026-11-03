@@ -9,7 +9,7 @@ use smith_protocol_llm_world::pool_peer::Peer;
 const LINE: u64 = 1_000;
 const CONTROL_BYTES: usize = 16;
 // Two message envelopes and separators, plus "answer" and "go on".
-const CODEX_MEASURE: u64 = 171;
+const OPENAI_MEASURE: u64 = 171;
 const ANTHROPIC_MEASURE: u64 = 124;
 
 fn prompt(guard: Option<llm::Guard>, text: &[u8]) -> llm::Prompt {
@@ -46,8 +46,7 @@ fn attempt(provider: Provider, guard: Option<llm::Guard>, text: &[u8]) -> Peer {
 
 fn measure(provider: Provider) -> u64 {
     match provider {
-        skein_llm::Provider::OpenAi => panic!("fixture exercises the withdrawn routes"),
-        Provider::OpenAiCodex => CODEX_MEASURE,
+        Provider::OpenAi => OPENAI_MEASURE,
         Provider::Anthropic => ANTHROPIC_MEASURE,
     }
 }
@@ -64,7 +63,7 @@ fn refusal(peer: &Peer) -> &[u8] {
 
 #[test]
 fn a_request_within_the_line_is_sent() {
-    for provider in [Provider::OpenAiCodex, Provider::Anthropic] {
+    for provider in [Provider::OpenAi, Provider::Anthropic] {
         let guard = llm::Guard { line: LINE, last_prompt: LINE - measure(provider), from: 1 };
         let peer = attempt(provider, Some(guard), b"answer");
         assert!(peer.request_bytes > 0, "{provider:?}");
@@ -74,7 +73,7 @@ fn a_request_within_the_line_is_sent() {
 
 #[test]
 fn a_request_one_byte_past_the_line_fails_unsent() {
-    for provider in [Provider::OpenAiCodex, Provider::Anthropic] {
+    for provider in [Provider::OpenAi, Provider::Anthropic] {
         let guard = llm::Guard { line: LINE, last_prompt: LINE - measure(provider) + 1, from: 1 };
         let peer = attempt(provider, Some(guard), b"answer");
         refusal(&peer);
@@ -85,7 +84,7 @@ fn a_request_one_byte_past_the_line_fails_unsent() {
 #[test]
 fn the_guards_failure_names_the_line_and_the_measure() {
     for (provider, expected) in [
-        (Provider::OpenAiCodex, b"past the line: last prompt 830 + new part 171 > line 1000".as_slice()),
+        (Provider::OpenAi, b"past the line: last prompt 830 + new part 171 > line 1000".as_slice()),
         (Provider::Anthropic, b"past the line: last prompt 877 + new part 124 > line 1000".as_slice()),
     ] {
         let guard = llm::Guard { line: LINE, last_prompt: LINE - measure(provider) + 1, from: 1 };
@@ -97,7 +96,7 @@ fn the_guards_failure_names_the_line_and_the_measure() {
 fn short_lines_are_measured_as_they_render() {
     for (provider, expected) in [
         // Six payload bytes, with three newlines taking two encoded bytes each.
-        (Provider::OpenAiCodex, b"past the line: last prompt 830 + new part 174 > line 1000".as_slice()),
+        (Provider::OpenAi, b"past the line: last prompt 830 + new part 174 > line 1000".as_slice()),
         (Provider::Anthropic, b"past the line: last prompt 877 + new part 127 > line 1000".as_slice()),
     ] {
         let guard = llm::Guard { line: LINE, last_prompt: LINE - measure(provider) + 1, from: 1 };
@@ -109,7 +108,7 @@ fn short_lines_are_measured_as_they_render() {
 fn escaped_bytes_are_measured_as_they_render() {
     for (provider, expected) in [
         // CONTROL_BYTES * 6 replaces six plain answer bytes: an addition of 90.
-        (Provider::OpenAiCodex, b"past the line: last prompt 830 + new part 261 > line 1000".as_slice()),
+        (Provider::OpenAi, b"past the line: last prompt 830 + new part 261 > line 1000".as_slice()),
         (Provider::Anthropic, b"past the line: last prompt 877 + new part 214 > line 1000".as_slice()),
     ] {
         let guard = llm::Guard { line: LINE, last_prompt: LINE - measure(provider) + 1, from: 1 };
@@ -119,7 +118,7 @@ fn escaped_bytes_are_measured_as_they_render() {
 
 #[test]
 fn a_request_without_a_guard_is_sent_unmeasured() {
-    for provider in [Provider::OpenAiCodex, Provider::Anthropic] {
+    for provider in [Provider::OpenAi, Provider::Anthropic] {
         let peer = attempt(provider, None, &[1; CONTROL_BYTES]);
         assert!(peer.request_bytes > 0);
         assert!(peer.terminals.is_empty());

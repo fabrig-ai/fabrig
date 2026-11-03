@@ -483,7 +483,7 @@ fn check_amend_fields(
     if let Some(wake) = &amendment.wake
         && !crate::wake::valid(wake)
     {
-        return Err(Refusal::Read);
+        return Err(Refusal::Spec);
     }
     if let Some(dependencies) = &amendment.dependencies {
         if dependencies.len() > skein_lib::length::usize_of(env.limits.dependencies) {

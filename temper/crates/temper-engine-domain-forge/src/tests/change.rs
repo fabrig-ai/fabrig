@@ -108,7 +108,7 @@ fn a_pending_prepare_rebase_is_not_branch_drift() {
         let mut d = domain();
         outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
         let name = run_branch(b"51");
-        outputs(&mut d, Event::Hold { task: fixtures::CHANGE, resource: name.clone(), from: None });
+        outputs(&mut d, Event::Hold { entry: 0, task: fixtures::CHANGE, resource: name.clone(), from: None });
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
         outputs(&mut d, Event::ReadAfresh);
         outputs(&mut d, Event::SettleOutbox);

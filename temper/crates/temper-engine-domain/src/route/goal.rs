@@ -119,7 +119,7 @@ pub(crate) fn goal(
         llm: None,
         symbolic_grants: Box::new([]),
         dependencies: Box::new([]),
-        wake: tasks::WakePolicy::DEFAULT,
+        wake: None,
         tracked,
         label,
         flags,

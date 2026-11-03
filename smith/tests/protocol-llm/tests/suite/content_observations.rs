@@ -7,7 +7,7 @@ use smith_protocol_llm::Measure;
 use smith_protocol_llm_world::pool_peer::Peer;
 
 #[test]
-fn observed_codex_text_deltas_join_to_the_observed_completion() {
+fn observed_openai_text_deltas_join_to_the_observed_completion() {
     let body = [
         r#"{"type":"response.output_item.added","output_index":0,"item":{"type":"message","id":"item","role":"assistant","content":[]}}"#,
         r#"{"type":"response.output_text.delta","output_index":0,"content_index":0,"delta":"one "}"#,
@@ -124,9 +124,9 @@ fn deltas_are_handed_over_only_when_asked() {
         }
         assert_eq!(text, expected, "observed={observed}, deltas={deltas}");
     }
-    for provider in [skein_llm::Provider::OpenAiCodex, skein_llm::Provider::Anthropic] {
+    for provider in [skein_llm::Provider::OpenAi, skein_llm::Provider::Anthropic] {
         let events: &[&str] = match provider {
-            skein_llm::Provider::OpenAiCodex => &[
+            skein_llm::Provider::OpenAi => &[
                 r#"{"type":"response.output_item.added","output_index":0,"item":{"type":"function_call","id":"item","call_id":"call","name":"read","arguments":""}}"#,
                 r#"{"type":"response.function_call_arguments.delta","output_index":0,"delta":"{}"}"#,
                 r#"{"type":"response.output_item.done","output_index":0,"item":{"type":"function_call","id":"item","call_id":"call","name":"read","arguments":"{}"}}"#,
@@ -140,7 +140,6 @@ fn deltas_are_handed_over_only_when_asked() {
                 r#"{"type":"message_delta","delta":{"stop_reason":"tool_use"},"usage":{"output_tokens":1}}"#,
                 r#"{"type":"message_stop"}"#,
             ],
-            skein_llm::Provider::OpenAi => unreachable!("current dialects"),
         };
         let mut body = String::new();
         for event in events {

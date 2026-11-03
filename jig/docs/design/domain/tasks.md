@@ -863,6 +863,13 @@ again. Words alone do not release it (people.md, 5.1).
   and repair runs write the resource their procedure's task holds.
 - **Shared resources are not held:** writing into them is ordered by
   their connector's mechanics (a landing queue), not by a hold.
+- **A held resource a queue orders:** a resource may be both held and
+  written through its connector's queue, as a goal's own branch is, held
+  by its goal and landed into by its goal's changes one at a time. The
+  hold says who may write it, the holder's delegates alone; the queue
+  orders their writes, each taking the writer slot as it writes (6.3). A
+  write into it by a task outside the holder's subtree is refused at its
+  batch, naming the holder (connectors.md, 3.3).
 
 ### 6.2 Taking holds
 
@@ -875,6 +882,17 @@ again. Words alone do not release it (people.md, 5.1).
   whether a hold that is taken refuses or waits. A batch whose task needs
   a hold that refuses is refused, naming the holder. A task whose hold
   waits is made, and waits in the resource's queue.
+- **What a task holds is its connector's to name,** asked once the task
+  has its number: from its executor and specification, and from the
+  connectors' symbols its batch member names (authority.md, section 4;
+  `../protocol/configuration.md`, 3.3), each resolved to the name the
+  task holds, and whether the task is tracked. A symbol the connector
+  does not offer that task refuses the batch, naming the symbol.
+- **A taking has its effects,** as a release does (6.5): as the commit
+  that makes a task active takes its write holds, each hold's connector
+  hears of it with an outbox entry of its own, and does what its kind's
+  taking does (connectors.md, 4.7). One that fails for good holds the
+  task, saying why (5.5).
 - **Queues are ordered** by the priority of the goal each task serves
   (core.md, 6.2), then by when it began to wait, and bounded per
   resource. A task waiting past its bound is held (5.5), and its
@@ -893,9 +911,12 @@ again. Words alone do not release it (people.md, 5.1).
 Each write hold has one writer slot: the one run that may write it at a
 time.
 
-- **A run takes the slot** when it is claimed, whether its task holds the
-  resource or writes under a task above it that does, and frees it when
-  its answer is committed, or, when its attempt is settled as lost past
+- **A run takes the slot of each held resource its workspace writes**
+  (engine.md, 7.1) when it is claimed, whether its task holds the
+  resource or writes under a task above it that does, and none of a
+  resource it only reads: a goal's run that inspects its goal's branch
+  takes none of it, while the merges into it take it in turn. It frees
+  each when its answer is committed, or, when its attempt is settled as lost past
   the engine's grace (engine.md, section 8), once the connector has read
   the resource afresh, so that what a lost attempt wrote is known before
   anyone writes again.
@@ -915,7 +936,8 @@ task that finishes the job.
 
 Holds are released as the task closes (5.1), after every other effect of
 the task has settled. What becomes of the resource is its connector's to
-say, per kind and per way the task ended, as effects of its own: an
+say, per kind and per way the task ended, as effects of its own, as its
+taking's are (6.2): an
 environment provisioned for a task that ended is torn down; a branch a
 change landed from is deleted; one a failed change left is kept for a
 person to read until its tree's root closes.
@@ -1315,6 +1337,14 @@ A wake policy is data, from a closed vocabulary:
   the oldest is older than T, so a watch hearing a storm of alerts wakes
   once. A person's words, a cancel and an amendment are never batched,
   and never wait behind what a batch holds;
+- **a pace,** for the kinds batching allows: wake at most once in a
+  span. Such a message wakes the task at once when its last run
+  started at least the span before, or it has never run; otherwise it
+  waits until the span since that start has passed, and what arrived
+  meanwhile wakes it once. A run started for any other message carries
+  what the pace holds, as every run carries its inbox (8.2); a message
+  the pace holds is not relayed to a live run. A pace is not a delay:
+  the first message after a quiet span wakes at once;
 - **timers:** wake at a time, or every period.
 
 A proposal or an escalation waiting for its decision always wakes a
@@ -1325,12 +1355,21 @@ A message a run refused or left unread (8.2) is judged again when the
 run ends, as if it arrived then: it wakes the task if its kind does, and
 otherwise waits for the next activation.
 
-Each charter brings a default policy, which the task's creator may
-narrow or widen: a chat wakes on its person's words and on its
-delegates' results; a coordinator on questions, failures, the last of its
-delegates done, a person's words and news its connectors class as
-waking; most other agents on nothing, since they finish within one run.
-A procedure's policy is its owner's: it steps on whatever it reads.
+Each charter brings a default policy, named with the charter in
+configuration (`../protocol/configuration.md`, section 3) and kept with
+it in the settings: an agent task made under the charter, by a batch
+entry that names no policy or from a template, which names none
+(`../protocol/configuration.md`, 3.1), takes the charter's default as
+the settings hold it when the task is made, and keeps it as its own;
+its creator narrows or widens it by naming a whole policy in the entry,
+and an amendment changes it as any policy. A chat's default wakes on
+its person's words and on its delegates' results; a coordinator's on
+questions, escalations, failures, each delegate's result, not only the
+last, words from its delegates and its person's words, at once, and on
+news its connectors class as waking at a pace, at most once in a span
+(the reference's coordinator: 30 minutes); most other agents' on
+nothing, since they finish within one run. A procedure's policy is its
+owner's: it steps on whatever it reads.
 
 ### 8.4 Subscriptions
 

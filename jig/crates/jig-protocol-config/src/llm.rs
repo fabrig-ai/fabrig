@@ -7,6 +7,9 @@ use skein_lib::{Duration, List};
 /// The most models configuration names: authority keeps a party's models one bit each
 /// (configuration.md, section 6).
 pub(crate) const MODELS: u32 = 64;
+// smith/docs/design/protocol/agent.md, section 4: the dialect numbers are fixed for good.
+const ANTHROPIC: u32 = 2;
+const OPENAI: u32 = 3;
 #[derive(Debug)]
 pub struct Llm {
     pub endpoints: Box<[Endpoint]>,
@@ -137,6 +140,12 @@ fn endpoint(
     let name = check::text(&mut object, document, b"name", path, problems);
     let number = check::count(&mut object, document, b"number", path, problems);
     let dialect = check::count(&mut object, document, b"dialect", path, problems);
+    if let Some(dialect) = dialect {
+        match dialect {
+            ANTHROPIC | OPENAI => {}
+            _ => problems.push(path.member(b"dialect"), What::Form),
+        }
+    }
     let provider = check::text(&mut object, document, b"provider", path, problems);
     let program = optional_text(&mut object, document, b"program", path, problems);
     let address = check::address(&mut object, document, b"address", path, problems);

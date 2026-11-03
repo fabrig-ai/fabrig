@@ -216,6 +216,7 @@ fn opening_row() -> ChangeRow {
         review_charter: 4,
         effect_account: None,
         producer_failure: None,
+        report: Box::new([]),
     }
 }
 

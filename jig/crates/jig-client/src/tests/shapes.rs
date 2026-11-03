@@ -351,3 +351,19 @@ fn close_chat_reads_the_edited_template_grace() {
         &[Operation::Cancel { project: PROJECT, task: CHAT_TASK, reason: words(), grace: Some(grace) }]
     );
 }
+
+#[test]
+fn a_filled_template_carries_its_resources_as_symbols() {
+    let resources =
+        List::from_boxed(Box::new([Symbol { connector: 7, symbol: 3 }, Symbol { connector: 2, symbol: 11 }]));
+    let mut me = me();
+    let project = shape_project(&mut me);
+    for index in 0..project.templates.len() {
+        project.templates.get_mut(index).unwrap().resources = resources.clone();
+    }
+    let task = shape_task(chat(&me, PROJECT, words()).unwrap());
+    assert_eq!(task.symbols, resources);
+    let Judged::Propose { ask, .. } = set_goal(&me, PROJECT, draft(), words()) else { panic!("proposed") };
+    let Ask::Propose { action: ProposeAction::Batch { tasks }, .. } = ask else { panic!("batch") };
+    assert_eq!(tasks.get(0).unwrap().symbols, resources);
+}

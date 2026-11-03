@@ -8,6 +8,7 @@ mod effects;
 mod fill;
 mod fixtures;
 mod funding;
+mod holdings;
 mod inbox;
 mod jobs;
 mod limits;
@@ -368,7 +369,7 @@ fn authority_value(spend: u64, kinds: Box<[authority::Executor]>) -> authority::
 /// The one configured model, its charter's, which declares two efforts (tasks.md, 3).
 fn scripted_model() -> Model {
     Model {
-        dialect: 1,
+        dialect: 3,
         endpoint: 1,
         program: None,
         name: b"scripted".as_slice().into(),
@@ -464,6 +465,7 @@ pub(crate) fn config(seed: u64) -> Config {
         },
         defaults: crate::settings::Defaults {
             charters: Box::new([Charter {
+                wake: jig_domain_tasks::WakePolicy::DEFAULT,
                 documents: Box::new([]),
                 number: 1,
                 hosts: fleet::Kinds::Workers,

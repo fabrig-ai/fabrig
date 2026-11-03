@@ -154,6 +154,7 @@ fn charter() -> jig_domain_core::Charter {
     use jig_domain_core as core;
     use skein_lib::Duration;
     core::Charter {
+        wake: jig_domain_tasks::WakePolicy::DEFAULT,
         documents: Box::new([
             core::Document {
                 connector: 2,
@@ -398,6 +399,39 @@ fn settings_decisions_translate_the_revision_and_stale_newest_without_changing_r
         assert_eq!(kind.outcome(), &expected);
         assert_eq!(value.words(), b"review reason");
     }
+}
+
+#[test]
+fn a_clients_charter_change_keeps_its_wake_policy() {
+    use jig_domain_tasks::{ResultsWake, WakePolicy, WakeRule};
+    use skein_lib::Duration;
+    // C7's coordinator wakes for each result and paces news at 30 minutes.
+    let expected = WakePolicy {
+        news: WakeRule::Paced { span: Duration::from_secs(30 * 60) },
+        results: ResultsWake::Each,
+        ..WakePolicy::DEFAULT
+    };
+    let mut source = charter();
+    source.wake = expected;
+    let value = translate::value(&s::Value::Charter(Box::new(source)), &f::models(), &w::CEILINGS).unwrap();
+    let client =
+        jig_client_protocol_link::translate::settings::restore_setting_value(&value, &f::client_limits()).unwrap();
+    let value = jig_client_protocol_link::translate::settings::wire_setting_value(&client, &w::CEILINGS).unwrap();
+    let wire = w::SettingItem::new(
+        &w::CEILINGS,
+        w::SettingItemParts {
+            setting: w::Setting::Charter(
+                w::SettingNumber::new(&w::CEILINGS, w::SettingNumberParts { number: 1 }).unwrap(),
+            ),
+            edit: w::SettingEdit::Set(w::SettingSet::new(&w::CEILINGS, w::SettingSetParts { value }).unwrap()),
+        },
+    )
+    .unwrap();
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(wire.measure()));
+    wire.encode(&mut writer).unwrap();
+    let items = translate::items(f::pieces(&[writer.finish()]), &f::models(), &w::CEILINGS).unwrap();
+    let s::Edit::Set(s::Value::Charter(charter)) = &items[0].edit else { panic!("charter change") };
+    assert_eq!(charter.wake, expected);
 }
 
 #[test]

@@ -793,6 +793,7 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
         review_charter: 4,
         effect_account: None,
         producer_failure: None,
+        report: Box::new([]),
     }
 }
 pub fn change_states() -> List<temper_engine_domain_forge_change::State> {

@@ -186,6 +186,19 @@ fn wake_rule(value: people::WakeRule) -> tasks::WakeRule {
         people::WakeRule::Never => tasks::WakeRule::Never,
         people::WakeRule::Immediate => tasks::WakeRule::Immediate,
         people::WakeRule::Batch { count, age } => tasks::WakeRule::Batch { count, age },
+        people::WakeRule::Paced { span } => tasks::WakeRule::Paced { span },
+    }
+}
+
+pub(crate) fn default_wake(core: &Core, executor: &tasks::Executor) -> tasks::WakePolicy {
+    match executor {
+        tasks::Executor::Agent { charter } => match core.charter(*charter) {
+            Some(charter) => charter.wake,
+            None => tasks::WakePolicy::DEFAULT,
+        },
+        tasks::Executor::Procedure { .. } | tasks::Executor::Job { .. } | tasks::Executor::Person(_) => {
+            tasks::WakePolicy::DEFAULT
+        }
     }
 }
 

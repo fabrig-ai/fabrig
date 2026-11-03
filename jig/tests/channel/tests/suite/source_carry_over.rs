@@ -10,7 +10,7 @@ fn opening() -> record::Opening {
     let transcript = record::Transcript {
         version: record::VERSION,
         endpoint: Some(llm::Endpoint(0)),
-        dialect: 1,
+        dialect: 3,
         turns: Box::new([record::Turn {
             version: record::VERSION,
             kind: record::Kind::First(Box::new(record::Opener {
@@ -19,7 +19,7 @@ fn opening() -> record::Opening {
                 backend: record::Backend::Direct,
             })),
             endpoint: Some(llm::Endpoint(0)),
-            dialect: 1,
+            dialect: 3,
             model: b"fake".as_slice().into(),
             effort: None,
             sequence: 1,
@@ -79,7 +79,7 @@ fn opening() -> record::Opening {
                 time: Duration::from_secs(60),
             },
         },
-        dialect: 1,
+        dialect: 3,
         prices: record::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 },
         budget: 100,
         answered: Box::new([]),

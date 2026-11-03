@@ -484,6 +484,7 @@ fn core_ask(
             Some(Connector::Infrastructure | Connector::Observability) | None,
             core::Ask::TaskHoldings { request, executor, spec, .. },
         ) => work.push(Work::Core(core::Event::Holdings {
+            refused: None,
             request,
             connector: number,
             holdings: connector_holdings(env, number, executor, &spec),
@@ -501,7 +502,12 @@ fn core_ask(
                 }
             }
             let holdings = if valid { Some(holdings.into_boxed()) } else { None };
-            work.push(Work::Core(core::Event::DelegateHoldings { request, connector: number, holdings }));
+            work.push(Work::Core(core::Event::DelegateHoldings {
+                refused: None,
+                request,
+                connector: number,
+                holdings,
+            }));
         }
         (
             Some(Connector::Infrastructure | Connector::Observability) | None,
@@ -516,7 +522,13 @@ fn core_ask(
                 }
             }
             let holdings = if valid { Some(holdings.into_boxed()) } else { None };
-            work.push(Work::Core(core::Event::ProcedureHoldings { task, step, connector: number, holdings }));
+            work.push(Work::Core(core::Event::ProcedureHoldings {
+                refused: None,
+                task,
+                step,
+                connector: number,
+                holdings,
+            }));
         }
         (
             Some(Connector::Infrastructure | Connector::Observability) | None,

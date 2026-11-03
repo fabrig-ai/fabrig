@@ -38,7 +38,7 @@ pub struct Delegate {
     /// Open connector grants narrowed with the allocated task number.
     pub symbolic_grants: Box<[tasks::Grant]>,
     pub dependencies: Box<[Dependency]>,
-    pub wake: tasks::WakePolicy,
+    pub wake: Option<tasks::WakePolicy>,
     pub tracked: Option<u32>,
     pub label: u32,
     pub flags: tasks::Flags,

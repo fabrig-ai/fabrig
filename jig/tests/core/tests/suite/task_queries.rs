@@ -46,7 +46,7 @@ fn delegate_question(world: &mut jig_core_world::world::World, parent: u64) {
             llm: None,
             symbolic_grants: Box::new([]),
             dependencies: Box::new([]),
-            wake: tasks::WakePolicy::DEFAULT,
+            wake: Some(tasks::WakePolicy::DEFAULT),
         }]),
         stubs: Box::new([]),
     }));

@@ -586,16 +586,26 @@ kernel with `io_uring_disabled` set, or macOS (Apple Silicon, from macOS
   (`EAGAIN`) is made again, up to 16 times, then fails with
   `Other(EAGAIN)`. A `Close` is never made again: its descriptor may
   already be another's.
-- **An interrupted `Socket`, `Accept`, `Connect` or `Open` completes
-  `Other(EINTR)`,** as the ring's does, so that one error number means
-  one thing on both backends. Neither the shared part nor the system's
-  call (7.5) makes it again: a `Socket` or an `Accept` makes one call,
-  an `Open` one `openat2` (`openat` on Darwin), and a `Connect` never
-  calls `connect` a second time on its socket, which one whose
-  connection is under way would answer `EALREADY`. On the non-blocking
-  sockets the backend makes, Linux and Darwin seldom interrupt these
-  calls. The rule for every other interrupted operation is open
-  (section 10).
+- **Every other interrupted operation completes `Other(EINTR)`,** a
+  `Close` among them (above), as the ring's does, so that one error
+  number means one thing on both backends: a `Socket`, `Bind`, `Listen`,
+  `Accept`, `Connect`, `Shutdown`, `Open`, `Truncate`, `Sync`, `Stat`,
+  `Rename`, `Remove`, `MakeDirectory`, `List`, `Lock`, `Wait`, `Spawn`,
+  `Signal`, `Usage` or `Window`. Neither the shared part nor the
+  system's call (7.5) makes it again, nor any call of its own: an `Open`
+  makes one `openat2` (`openat` on Darwin), a `Wait` one `waitid`, and a
+  `Connect` never calls `connect` a second time on its socket, which one
+  whose connection is under way would answer `EALREADY`. The calls that
+  set up or inspect around an operation's own (a socket's options, a
+  bound address, the kind of what an `Open` opened, a `Spawn`'s working
+  directory and the report of its exec) keep their retries: none makes
+  the operation again. On Linux the ring's synchronous operations share
+  these calls (section 3), so its `List`, `Lock`, `Spawn`, `Signal`,
+  `Usage` and `Window` complete so too. The callers outside the kernel
+  that share a call make it again: a held listener's `bind` and `listen`
+  (6.6), and `poll_child`, the harness's. With the signals the shell
+  watches blocked (Linux) or ignored (Darwin), these calls are seldom
+  interrupted.
 - **Errors map as the ring's do,** per operation, by the same functions
   (7.5): an error number means what it means to the ring.
 - **A cancel** of a record that waits takes it off its side, completes
@@ -1003,12 +1013,6 @@ and changes no code above io:
 - **A hashed certificate directory** (`SSL_CERT_DIR`) as the machine's
   trust roots, on a machine with no bundle file: read it, or refuse to
   start, as the shell does (6.2).
-- **Every other interrupted operation** (7.4): whether the readiness
-  backend completes an interrupted `Bind`, `Listen`, `Shutdown`,
-  `Truncate`, `Sync`, `Stat`, `Rename`, `Remove`, `MakeDirectory`,
-  `List`, `Lock`, `Wait`, `Spawn`, `Signal`, `Usage` or `Window`
-  `Other(EINTR)`, as the ring completes those it makes as ring entries,
-  or makes it again, a difference 7.4 would then state.
 - **An inherited listener under the readiness backend** (7.3): whether
   the kit makes a listener it was given non-blocking, which the shared
   description makes non-blocking for every process that holds it.

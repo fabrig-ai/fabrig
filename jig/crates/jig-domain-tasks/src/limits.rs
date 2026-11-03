@@ -1,6 +1,10 @@
 //! Root-configured admission and edge limits (domain/tasks.md, section 10).
 use crate::{Class, Retries};
 
+/// Maximum fields in one verdict, equal to the settings-v1 schema's `list 512` ceiling
+/// (domain/tasks.md, section 11).
+pub const VERDICT_FIELDS: u32 = 512;
+
 /// Immutable root-configured limits for live task state, finite sources, owned semantic payloads
 /// and retry policies; validate through `valid` before construction. (domain/tasks.md, section 10).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

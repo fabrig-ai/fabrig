@@ -8,19 +8,22 @@ fn the_halves_open_on_the_highest_version_both_speak() {
     for mode in [StreamMode::One, StreamMode::Two] {
         let mut world = World::new(CEILINGS, CEILINGS, mode);
         world.settle();
-        assert!(world.observations().contains(&Observation::HostOpened(5)));
-        assert!(world.observations().contains(&Observation::AgentOpened(5)));
+        assert!(world.observations().contains(&Observation::HostOpened(smith_channel::kind::VERSION)));
+        assert!(world.observations().contains(&Observation::AgentOpened(smith_channel::kind::VERSION)));
     }
 }
 
 #[test]
 fn no_version_in_common_ends_the_channel_before_a_start() {
-    for version in [1, 2, 3, 4] {
+    for version in [1, 2, 3, 4, 5] {
         let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
         world.agent_hears_foreign_version(version);
         world.settle();
         assert!(world.observations().contains(&Observation::AgentEnded(Closed::RefusedHere(1))), "version {version}");
-        assert!(!world.observations().contains(&Observation::AgentOpened(5)), "version {version}");
+        assert!(
+            !world.observations().contains(&Observation::AgentOpened(smith_channel::kind::VERSION)),
+            "version {version}"
+        );
     }
 }
 
@@ -1341,7 +1344,6 @@ fn grant_shape(value: Option<smith_protocol_translate::GrantValue>) -> Option<(&
         GrantValue::Bearer(bytes) => ("bearer", bytes.len(), 0),
         GrantValue::Key(bytes) => ("key", bytes.len(), 0),
         GrantValue::Program(name) => ("program", name.len(), 0),
-        GrantValue::Withdrawn { account_id, bearer } => ("withdrawn", bearer.len(), account_id.len()),
     })
 }
 
@@ -1351,19 +1353,14 @@ fn each_grant_form_reaches_the_table_by_its_tag() {
     // Sizes follow the fixture words below.
     const VALUE_BYTES: usize = 5;
     const SOURCE_BYTES: usize = 6;
-    const ACCOUNT_BYTES: usize = 7;
     let rows = [
         (GrantValue::Bearer(Box::from(&b"value"[..])), Some(("bearer", VALUE_BYTES, 0))),
         (GrantValue::Key(Box::from(&b"value"[..])), Some(("key", VALUE_BYTES, 0))),
         (GrantValue::Program(Box::from(&b"source"[..])), Some(("program", SOURCE_BYTES, 0))),
-        (
-            GrantValue::Withdrawn { account_id: Box::from(&b"account"[..]), bearer: Box::from(&b"value"[..]) },
-            Some(("withdrawn", VALUE_BYTES, ACCOUNT_BYTES)),
-        ),
     ];
     let mut world = world_with_initial_grant();
     for (index, (value, expected)) in rows.into_iter().enumerate() {
-        let generation = u64::try_from(index).expect("four rows").checked_add(5).expect("generation");
+        let generation = u64::try_from(index).expect("three rows").checked_add(5).expect("generation");
         world.host_refreshes_grant(3, generation, value);
         world.settle();
         assert_eq!(grant_shape(world.agent_grant_value(3, generation)), expected, "row {index}");
@@ -1378,7 +1375,6 @@ fn a_grant_values_debug_shows_no_bytes() {
         (GrantValue::Bearer(Box::from(&b"secret"[..])), HIDDEN),
         (GrantValue::Key(Box::from(&b"secret"[..])), HIDDEN),
         (GrantValue::Program(Box::from(&b"source"[..])), HIDDEN),
-        (GrantValue::Withdrawn { account_id: Box::from(&b"account"[..]), bearer: Box::from(&b"secret"[..]) }, HIDDEN),
     ];
     for (index, (value, expected)) in rows.into_iter().enumerate() {
         assert_eq!(format!("{value:?}"), expected, "row {index}");

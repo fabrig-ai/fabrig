@@ -53,7 +53,7 @@ fn branch_name(branch: &[u8]) -> forge::Name {
 fn enroll(world: &mut Protocol) {
     let branch = branch_name(b"temper/51");
     world.event(forge::Event::Names { task: 51, resources: Box::new([branch.clone(), branch_name(b"main")]) });
-    world.event(forge::Event::Hold { task: 51, resource: branch, from: None });
+    world.event(forge::Event::Hold { entry: 0, task: 51, resource: branch, from: None });
     // Let enrollment's fresh resource reads finish before stepping the procedure.
     world.run_for(0);
 }

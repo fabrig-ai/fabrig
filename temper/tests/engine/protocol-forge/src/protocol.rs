@@ -520,6 +520,7 @@ impl Protocol {
                 | top::Request::BoxGroup { .. }
                 | top::Request::BoxRemove { .. }
                 | top::Request::Connect { .. }
+                | top::Request::Replace { .. }
                 | top::Request::Manifest { .. }
                 | top::Request::Reachable { .. }
                 | top::Request::Install { .. }
@@ -531,6 +532,7 @@ impl Protocol {
                 | top::Request::Taken { .. }
                 | top::Request::Refused { .. }
                 | top::Request::LostReadFailed { .. }
+                | top::Request::MakeFailed { .. }
                 | top::Request::Outcome { .. }
                 | top::Request::ProjectionOutcome { .. }
                 | top::Request::NotMade { .. }

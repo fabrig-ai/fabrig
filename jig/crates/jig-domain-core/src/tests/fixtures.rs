@@ -152,6 +152,7 @@ pub(crate) fn creating(core: &Core, limits: &Limits, party: u64, project: u32) -
 pub(crate) fn member(words: &[u8], spend: u64) -> jig_domain_people::Member {
     use jig_domain_people as people;
     people::Member {
+        symbols: Box::new([]),
         llm: None,
         deadline: jig_domain_people::Deadline::Named,
         executor: people::TaskExecutor::Agent { charter: 1 },
@@ -171,7 +172,7 @@ pub(crate) fn member(words: &[u8], spend: u64) -> jig_domain_people::Member {
             notes: 0,
             note_resources: Box::new([]),
         },
-        wake: people::WakePolicy {
+        wake: Some(people::WakePolicy {
             words: people::WakeRule::Immediate,
             notices: people::WakeRule::Never,
             news: people::WakeRule::Never,
@@ -179,7 +180,7 @@ pub(crate) fn member(words: &[u8], spend: u64) -> jig_domain_people::Member {
             questions: false,
             answers: false,
             timers: false,
-        },
+        }),
         dependencies: Box::new([]),
         tracked: None,
         label: 0,

@@ -184,6 +184,14 @@ pub(super) fn taken_words(domain: &Domain, resource: &forge::Name, by: u64) -> B
     words.into_boxed()
 }
 
+pub(super) fn make_words(domain: &Domain, resource: &forge::Name, reason: &[u8]) -> Box<[u8]> {
+    let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
+    resource_words(domain, resource, &mut words);
+    append(&mut words, b" could not be made: ");
+    append(&mut words, reason);
+    words.into_boxed()
+}
+
 pub(super) fn lost_words(domain: &Domain, task: u64, attempt: u64, resource: &forge::Name, reason: &[u8]) -> Box<[u8]> {
     let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
     append(&mut words, b"task ");
@@ -264,5 +272,72 @@ pub(crate) fn start_refused(domain: &mut Domain, task: u64) {
         }));
     } else {
         hold(domain, task, b"change procedure cannot start from its repository and branch parameters");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use skein_lib::Queue;
+
+    fn goal_branch() -> forge::Name {
+        forge::Name {
+            forge: 1,
+            repository: 2,
+            what: forge::What::Branch(Box::new([
+                b"temper".as_slice().into(),
+                b"7".as_slice().into(),
+                b"g7".as_slice().into(),
+            ])),
+        }
+    }
+
+    #[test]
+    fn a_failed_goal_branch_making_holds_the_goal_with_the_forge_answer() {
+        let (mut domain, env, task) = crate::tests::live_task(Some(1), tasks::Executor::Agent { charter: 1 });
+        let mut out = Queue::uncapped();
+        out.push(forge::Request::MakeFailed {
+            task,
+            resource: goal_branch(),
+            reason: b"forge refused permission".as_slice().into(),
+        });
+        let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
+        super::super::outputs(&mut domain, &env, &mut decision, &mut out);
+        let Some(Work::Tasks(event @ tasks::Event::HoldFrom { .. })) = domain.work.pop() else {
+            panic!("the making failure holds its goal");
+        };
+        tasks::step(
+            &mut domain.core.tasks,
+            &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
+            event,
+            &mut Queue::uncapped(),
+        );
+        let tasks::Phase::Held { why, source: Some(source), .. } = &domain.core.tasks.task(task).unwrap().phase else {
+            panic!("the goal retains the making's failure");
+        };
+        assert_eq!(*why, tasks::Hold::EffectFailed);
+        let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("retained forge answer") };
+        assert!(
+            words
+                .starts_with(b"branch temper/7/g7 in forge 1 repository 2 could not be made: forge refused permission")
+        );
+    }
+
+    #[test]
+    fn a_taking_routes_the_cores_entry_to_the_forge() {
+        const ENTRY: u64 = 21;
+        let (mut domain, env, task) = crate::tests::live_task(Some(1), tasks::Executor::Agent { charter: 1 });
+        let connector = domain.config.forge_connector;
+        let resource = super::super::hub_name(connector, &goal_branch(), &env.limits.tasks).unwrap();
+        let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
+        crate::route::asks::ask(
+            &mut domain,
+            &env,
+            &mut decision,
+            connector,
+            jig_domain_core::Ask::Hold { task, resource, entry: ENTRY },
+        );
+        let Some(Work::Forge(event)) = domain.work.pop() else { panic!("the forge hears the taking") };
+        assert_eq!(event, forge::Event::Hold { entry: ENTRY, task, resource: goal_branch(), from: None });
     }
 }

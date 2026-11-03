@@ -60,7 +60,7 @@ fn a_real_engine_question_offers_exactly_its_admitted_answer_act() {
                 llm: None,
                 symbolic_grants: Box::new([]),
                 dependencies: Box::new([]),
-                wake: jig_domain_tasks::WakePolicy::DEFAULT,
+                wake: Some(jig_domain_tasks::WakePolicy::DEFAULT),
             }]),
             stubs: Box::new([]),
         }),

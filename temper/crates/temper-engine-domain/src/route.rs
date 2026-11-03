@@ -264,13 +264,14 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
 
 fn keep_produced_title(domain: &mut Domain, record: &core::Record) {
     if let core::Record::Tasks(tasks::Stored::Ended(row)) = record
-        && let tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Change { title, .. })) = &row.phase
+        && let tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Change { title, words, .. })) = &row.phase
         && let tasks::Party::Task(task) = row.requester
     {
         domain.work.push(Work::Forge(forge::Event::ProducedTitle {
             task,
             child: row.number,
             title: title.words.clone(),
+            report: words.clone(),
         }));
     }
 }

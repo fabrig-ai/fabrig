@@ -6,6 +6,14 @@ use super::{Box, List, Reader, Writer, count, domain, problem, wire};
 pub(super) fn encode(batch: &[domain::Member], limits: &wire::Limits) -> Result<List<wire::Member>, wire::Problem> {
     let mut members = List::with_capacity(count(batch.len())?);
     for member in batch {
+        let mut symbols = List::with_capacity(limits.member_symbols);
+        for symbol in &member.symbols {
+            let value =
+                wire::Symbol::new(limits, wire::SymbolParts { connector: symbol.connector, symbol: symbol.symbol })?;
+            if symbols.push(value).is_err() {
+                return Err(wire::Problem { path: wire::Path::MemberSymbols, reason: skein_codec::Reason::Bound });
+            }
+        }
         members
             .push(wire::Member::new(
                 limits,
@@ -44,9 +52,13 @@ pub(super) fn encode(batch: &[domain::Member], limits: &wire::Limits) -> Result<
                         shared_sum(limits),
                         limits.member_named,
                     )?,
+                    symbols,
                     contract: encode_contract(&member.contract, limits)?,
                     authority: encode_authority(&member.authority, limits)?,
-                    wake: encode_wake_policy(&member.wake, limits)?,
+                    wake: match &member.wake {
+                        Some(wake) => Some(encode_wake_policy(wake, limits)?),
+                        None => None,
+                    },
                     dependencies: parts::encode_dependencies(&member.dependencies, limits)?,
                     tracked: member.tracked,
                     label: member.label,
@@ -84,6 +96,7 @@ pub(super) fn decode(batch: List<wire::Member>, limits: &wire::Limits) -> Result
             deadline,
             inputs,
             named,
+            symbols,
             wake,
             dependencies,
             tracked,
@@ -91,9 +104,15 @@ pub(super) fn decode(batch: List<wire::Member>, limits: &wire::Limits) -> Result
             flags,
             llm,
         } = member.into_parts();
+        let mut decoded_symbols = List::with_capacity(symbols.len());
+        for symbol in symbols.into_boxed() {
+            let wire::SymbolParts { connector, symbol } = symbol.into_parts();
+            decoded_symbols.push(domain::Symbol { connector, symbol }).expect("decoded symbols bound");
+        }
         let wire::FlagsParts { conversation, listed, retention, ended_by } = flags.into_parts();
         members
             .push(domain::Member {
+                symbols: decoded_symbols.into_boxed(),
                 llm: super::llm::decode_llm(llm),
                 deadline: match deadline {
                     wire::Deadline::Named => domain::Deadline::Named,
@@ -104,7 +123,10 @@ pub(super) fn decode(batch: List<wire::Member>, limits: &wire::Limits) -> Result
                 parameters: decode_spec_parameters(parameters, limits, shared_sum(limits))?,
                 contract: decode_contract(contract, limits)?,
                 authority: decode_authority(authority, limits)?,
-                wake: decode_wake_policy(wake),
+                wake: match wake {
+                    Some(wake) => Some(decode_wake_policy(wake)),
+                    None => None,
+                },
                 dependencies: parts::decode_dependencies(dependencies, limits)?,
                 inputs: super::pieces::decode_numbers(inputs, limits, shared_sum(limits))?,
                 budget: match budget {

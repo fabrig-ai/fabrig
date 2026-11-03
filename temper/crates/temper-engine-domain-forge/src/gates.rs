@@ -24,10 +24,17 @@ pub struct GateCandidate {
     pub project_scope: bool,
     pub freshness: change::Freshness,
 }
+/// The procedure's waits from landing rules (temper/docs/design/domain/forge.md, 8.7).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Requires {
+    pub ci: bool,
+    pub up_to_date: bool,
+}
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct GateTemplate {
     pub pattern: GatePattern,
     pub gates: Box<[GateCandidate]>,
+    pub requires: Requires,
 }
 #[derive(Debug)]
 pub struct GatePolicy {
@@ -89,7 +96,7 @@ pub(crate) fn within(policy: &GatePolicy, limits: &Limits) -> bool {
     }
     true
 }
-fn covers(pattern: &GatePattern, name: &[Box<[u8]>]) -> bool {
+pub(crate) fn covers(pattern: &GatePattern, name: &[Box<[u8]>]) -> bool {
     if name.get(..pattern.segments.len()) != Some(pattern.segments.as_ref()) {
         return false;
     }
@@ -102,6 +109,24 @@ fn covers(pattern: &GatePattern, name: &[Box<[u8]>]) -> bool {
             None => false,
         },
     }
+}
+pub(crate) fn requires(policy: &GatePolicy, project: u32, name: &[Box<[u8]>]) -> Requires {
+    let mut result = Requires { ci: false, up_to_date: false };
+    let mut covered = false;
+    let project_rules = match policy.projects.get(&project) {
+        Some(rules) => rules.as_ref(),
+        None => &[],
+    };
+    for rules in [policy.deployment.as_ref(), project_rules] {
+        for rule in rules {
+            if covers(&rule.pattern, name) {
+                covered = true;
+                result.ci |= rule.requires.ci;
+                result.up_to_date |= rule.requires.up_to_date;
+            }
+        }
+    }
+    if covered { result } else { Requires { ci: true, up_to_date: true } }
 }
 pub(crate) fn candidates(
     policy: &GatePolicy,

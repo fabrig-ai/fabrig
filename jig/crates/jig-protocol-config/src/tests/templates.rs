@@ -1,9 +1,102 @@
 use crate::{Segment, What, tests::fixtures};
-use jig_domain_people::{TemplateBudget, TemplateDeadline, TemplateExecutor};
+use jig_domain_people::{Symbol, TemplateBudget, TemplateDeadline, TemplateExecutor};
 use jig_domain_tasks::{Contract, Flags, LlmChoice, ModelEffort, Retention};
 use skein_lib::Duration;
 const CHAT: u32 = 1;
 const GOAL: u32 = 2;
+
+fn with_resources(resources: &[u8]) -> Box<[u8]> {
+    let template = fixtures::with(br#""name": "goal", "resources": RESOURCES"#, b"RESOURCES", resources);
+    fixtures::with(fixtures::ENGINE_SMALL, br#""name": "goal""#, &template)
+}
+
+fn resource_path() -> crate::Path {
+    fixtures::path(&[b"templates"]).child(Segment::Index(1)).member(b"resources")
+}
+
+#[test]
+fn a_template_naming_resources_parses_them_in_order() {
+    let bytes = with_resources(
+        br#"[{"connector": 65535, "symbol": 65535}, {"connector": 0, "symbol": 0},
+            {"connector": 0, "symbol": 65535}, {"connector": 65535, "symbol": 0}]"#,
+    );
+    let engine = fixtures::engine(&bytes).expect("four resources fit the small profile's holdings");
+    assert_eq!(engine.limits.core.tasks.holdings, 4);
+    assert_eq!(
+        engine.templates[1].resources.as_ref(),
+        &[
+            Symbol { connector: u16::MAX, symbol: u16::MAX },
+            Symbol { connector: 0, symbol: 0 },
+            Symbol { connector: 0, symbol: u16::MAX },
+            Symbol { connector: u16::MAX, symbol: 0 },
+        ],
+    );
+}
+
+#[test]
+fn a_template_resource_naming_an_unknown_member_is_refused() {
+    let bytes = with_resources(br#"[{"connector": 1, "symbol": 1, "unknown": 0}]"#);
+    let problems = fixtures::engine(&bytes).expect_err("unknown resource member");
+    assert_eq!(problems.problems.len(), 1);
+    assert_eq!(
+        problems.problems.get(0),
+        Some(&crate::Problem { path: resource_path().child(Segment::Index(0)), what: What::Form }),
+    );
+}
+
+#[test]
+fn a_template_resource_named_twice_is_refused() {
+    let bytes = with_resources(br#"[{"connector": 1, "symbol": 1}, {"connector": 1, "symbol": 1}]"#);
+    let problems = fixtures::engine(&bytes).expect_err("duplicate resource pair");
+    assert_eq!(problems.problems.len(), 1);
+    assert_eq!(
+        problems.problems.get(0),
+        Some(&crate::Problem { path: resource_path().child(Segment::Index(1)), what: What::Unique }),
+    );
+}
+
+#[test]
+fn a_template_with_more_resources_than_holdings_is_refused() {
+    let bytes = with_resources(
+        br#"[{"connector": 1, "symbol": 1}, {"connector": 1, "symbol": 2},
+            {"connector": 1, "symbol": 3}, {"connector": 1, "symbol": 4}, {"connector": 1, "symbol": 5}]"#,
+    );
+    let problems = fixtures::engine(&bytes).expect_err("five resources exceed the small profile's holdings");
+    assert_eq!(problems.problems.len(), 1);
+    assert_eq!(problems.problems.get(0), Some(&crate::Problem { path: resource_path(), what: What::Bound }),);
+}
+
+#[test]
+fn empty_template_resources_name_no_symbols() {
+    let engine = fixtures::engine(&with_resources(b"[]")).expect("empty resources");
+    assert!(engine.templates[1].resources.is_empty());
+}
+
+#[test]
+fn malformed_template_resources_are_refused_at_the_item() {
+    for resource in [
+        b"[{}]".as_slice(),
+        br#"[{"connector": 1}]"#,
+        br#"[{"symbol": 1}]"#,
+        br#"[{"connector": 65536, "symbol": 1}]"#,
+        br#"[{"connector": 1, "symbol": 65536}]"#,
+        br#"[{"connector": -1, "symbol": 1}]"#,
+        br#"[{"connector": 1, "symbol": 1.5}]"#,
+        br#"[{"connector": "1", "symbol": 1}]"#,
+        br#"[{"connector": 1, "symbol": null}]"#,
+        b"[null]",
+        b"[1]",
+        b"[[]]",
+    ] {
+        let problems = fixtures::engine(&with_resources(resource)).expect_err("invalid resource form");
+        assert_eq!(problems.problems.len(), 1, "{resource:?}");
+        assert_eq!(
+            problems.problems.get(0),
+            Some(&crate::Problem { path: resource_path().child(Segment::Index(0)), what: What::Form }),
+            "{resource:?}",
+        );
+    }
+}
 
 #[test]
 fn the_chat_and_goal_templates_parse_with_their_defaults() {
@@ -12,6 +105,7 @@ fn the_chat_and_goal_templates_parse_with_their_defaults() {
         engine.templates.as_ref(),
         &[
             jig_domain_core::Template {
+                resources: Box::new([]),
                 number: CHAT,
                 name: Box::from(b"chat".as_slice()),
                 executor: TemplateExecutor::Charter(CHAT),
@@ -31,6 +125,7 @@ fn the_chat_and_goal_templates_parse_with_their_defaults() {
                 llm: None,
             },
             jig_domain_core::Template {
+                resources: Box::new([]),
                 number: GOAL,
                 name: Box::from(b"goal".as_slice()),
                 executor: TemplateExecutor::Chosen,

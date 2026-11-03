@@ -44,6 +44,7 @@ pub mod runs;
 mod views;
 pub use reconcile::{MissingLink, Need, RecordKind};
 pub mod resources;
+pub mod settings;
 mod settle;
 #[cfg(test)]
 mod tests;
@@ -55,7 +56,7 @@ pub use boundary::*;
 pub use brief::{HOME_SECTION_BYTES, hex, home_access_reason};
 pub use commit::commit_text;
 pub use domain::{Domain, RestoreFit, RestoreSet, fire, resume, step, tag, untag, writer};
-pub use gates::{GateCandidate, GateLast, GatePattern, GatePolicy, GateTemplate};
+pub use gates::{GateCandidate, GateLast, GatePattern, GatePolicy, GateTemplate, Requires};
 pub use judge::{Criterion, Freshness as JudgeFreshness, Judges, Reviewer, Verdict as JudgeVerdict};
 pub use limits::{
     BOT_LOGIN_SUFFIX, CONNECT_WHY_BYTES, FIRST_NAME_BYTES, Limits, STOPPED_TEXT_BYTES, TierLimits, valid,
@@ -438,6 +439,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             .checked_add(bytes(&row.base)?)?
             .checked_add(bytes(&row.title)?)?
             .checked_add(bytes(&row.body)?)?
+            .checked_add(bytes(&row.report)?)?
             .checked_add(
                 u64::try_from(row.change.gates.len())
                     .ok()?

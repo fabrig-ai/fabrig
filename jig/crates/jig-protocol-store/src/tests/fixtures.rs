@@ -339,7 +339,7 @@ pub fn task_wake() -> jig_domain_tasks::WakePolicy {
     WakePolicy {
         words: WakeRule::Batch { count: 3, age: skein_lib::Duration::from_nanos(7) },
         notices: WakeRule::Immediate,
-        news: WakeRule::Never,
+        news: WakeRule::Paced { span: skein_lib::Duration::from_nanos(11) },
         results: ResultsWake::Each,
         questions: true,
         answers: false,
@@ -485,7 +485,7 @@ pub fn people_amendment() -> people::Amendment {
             inputs: Box::new([8]),
         }),
         wake: Some(people::WakePolicy {
-            words: people::WakeRule::Never,
+            words: people::WakeRule::Paced { span: skein_lib::Duration::from_nanos(101) },
             notices: people::WakeRule::Immediate,
             news: people::WakeRule::Batch { count: 2, age: skein_lib::Duration::from_nanos(99) },
             results: people::ResultsWake::LastOrFailure,
@@ -501,6 +501,7 @@ pub fn people_amendment() -> people::Amendment {
 
 pub fn people_member() -> people::Member {
     people::Member {
+        symbols: Box::new([]),
         llm: None,
         deadline: jig_domain_people::Deadline::Named,
         executor: people::TaskExecutor::Agent { charter: 3 },
@@ -511,7 +512,7 @@ pub fn people_member() -> people::Member {
         named: Box::new([]),
         contract: people::Contract::Report { words: 17 },
         authority: people_authority(),
-        wake: people::WakePolicy {
+        wake: Some(people::WakePolicy {
             words: people::WakeRule::Never,
             notices: people::WakeRule::Never,
             news: people::WakeRule::Never,
@@ -519,7 +520,7 @@ pub fn people_member() -> people::Member {
             questions: false,
             answers: false,
             timers: false,
-        },
+        }),
         dependencies: Box::new([]),
         tracked: Some(3),
         label: 41,

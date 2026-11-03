@@ -30,22 +30,18 @@ pub fn limits_for(provider: skein_llm::Provider) -> client::Limits {
 
 #[must_use]
 pub fn limits() -> client::Limits {
-    limits_for(skein_llm::Provider::OpenAiCodex)
+    limits_for(skein_llm::Provider::OpenAi)
 }
 
 #[must_use]
 pub fn call(owner: u64) -> Call {
-    let mut endpoint = Endpoint::codex();
+    let mut endpoint = Endpoint::openai();
     endpoint.headers =
         Box::new([Header { name: b"originator".to_vec().into(), value: b"skein-world".to_vec().into() }]);
     Call {
         owner: Token::new(owner),
         endpoint,
-        credential: Some(Credential {
-            scheme: skein_llm::Scheme::Bearer,
-            value: b"secret-test-token".to_vec().into(),
-            account_id: b"account-test".to_vec().into(),
-        }),
+        credential: Some(Credential { scheme: skein_llm::Scheme::Bearer, value: b"secret-test-token".to_vec().into() }),
         prompt: Prompt {
             model: b"fixture-model".to_vec().into(),
             instructions: b"Be brief.".to_vec().into(),
@@ -62,21 +58,20 @@ pub fn call(owner: u64) -> Call {
     }
 }
 
-/// Public Responses call with the fixture bearer and no account id.
+/// Public Responses call with the fixture bearer.
 #[must_use]
 pub fn public_call(owner: u64) -> Call {
     let mut input = call(owner);
     input.endpoint = Endpoint::openai();
-    input.credential.as_mut().expect("fixture credential").account_id = Box::new([]);
     input
 }
 
-/// Anthropic Messages call with the fixture bearer and explicit output cap.
+/// Anthropic Messages call with the fixture key and explicit output cap.
 #[must_use]
 pub fn anthropic_call(owner: u64) -> skein_llm::Call {
     let mut input = call(owner);
     input.endpoint = Endpoint::anthropic();
-    input.credential = Some(Credential::anthropic(b"synthetic-oauth-token".to_vec().into()));
+    input.credential = Some(Credential::key(b"synthetic-key".to_vec().into()));
     input.prompt.affinity = None;
     input.prompt.max_output_tokens = Some(1024);
     input

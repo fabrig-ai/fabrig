@@ -142,6 +142,7 @@ pub fn domain() -> Domain {
                 },
                 defaults: core::settings::Defaults {
                     charters: Box::new([core::Charter {
+                        wake: jig_domain_tasks::WakePolicy::DEFAULT,
                         documents: Box::new([]),
                         number: 1,
                         hosts: fleet::Kinds::Workers,
@@ -187,7 +188,7 @@ pub fn run() -> Box<core::RunCharter> {
             reserve_turns: 1,
             reserve_time: Duration::from_secs(10),
             model: core::Model {
-                dialect: 1,
+                dialect: 3,
                 endpoint: 1,
                 program: None,
                 name: b"small".as_slice().into(),

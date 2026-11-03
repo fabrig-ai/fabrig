@@ -397,7 +397,7 @@ fn forges(world: World) -> Box<[u8]> {
                 w::ForgeRowParts {
                     number: 3,
                     kind: w::Kind::Forgejo,
-                    mode: if step == 23 { w::Mode::Connected } else { w::Mode::Owned },
+                    mode: if step == 23 { w::Mode::Managed } else { w::Mode::Owned },
                     connection,
                     offer: if step == 23 { w::Offer::NotOffered } else { w::Offer::Offered },
                     first: if step == 6 || step == 7 || step == 9 {
@@ -2128,6 +2128,7 @@ fn base_frame(person: &str, project: &str) -> c::Me {
     let mut templates = List::with_capacity(1);
     templates
         .push(c::Template {
+            resources: List::with_capacity(0),
             number: 1,
             name: doc("chat"),
             executor: c::TemplateExecutor::Charter(1),

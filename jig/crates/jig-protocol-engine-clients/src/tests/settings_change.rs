@@ -323,3 +323,23 @@ fn public_settings_items_share_model_resolution_and_name_invalid_fields() {
     let bad = translate::settings::items(request.items().into(), &[], &limits).expect_err("unconfigured model");
     assert_eq!(bad.field, w::Path::TemplateLlm);
 }
+
+#[test]
+fn a_changed_template_keeps_its_resources() {
+    use jig_client_domain::contract as client;
+    let limits = f::wire();
+    let resources = [p::Symbol { connector: 7, symbol: 3 }, p::Symbol { connector: 2, symbol: 11 }];
+    let mut change = jig_client_test_records::settings::settings_change();
+    let client::SettingEdit::Set(set) = &mut change.items.get_mut(1).unwrap().edit else { panic!("set") };
+    let client::SettingValue::Template(template) = &mut set.value else { panic!("template") };
+    template.resources = List::from_boxed(Box::new([
+        client::Symbol { connector: 7, symbol: 3 },
+        client::Symbol { connector: 2, symbol: 11 },
+    ]));
+    let wire = jig_client_protocol_link::translate::settings::wire_change_settings(&change, &limits).unwrap();
+    let mut models = f::models();
+    models[0].name = Box::from(b"model".as_slice());
+    let translated = translate::settings::items(wire.into_parts().items, &models, &limits).unwrap();
+    let s::Edit::Set(s::Value::Template(template)) = &translated[1].edit else { panic!("template") };
+    assert_eq!(template.resources.as_ref(), &resources);
+}

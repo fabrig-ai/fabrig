@@ -284,6 +284,77 @@ fn a_connector_effect_waits_for_a_run_and_owns_the_writer_until_it_settles() {
 }
 
 #[test]
+fn a_run_writing_one_of_two_held_resources_leaves_the_other_to_its_delegates_effects() {
+    let mut world = configured(321);
+    let held10 = resource(10);
+    let held11 = resource(11);
+    let Holding::Write { resource: name10, .. } = &held10 else { unreachable!() };
+    let Holding::Write { resource: name11, .. } = &held11 else { unreachable!() };
+    let (name10, name11) = (name10.clone(), name11.clone());
+    let mut parent = task(1, &[]);
+    parent.holdings = Box::new([held10, held11]);
+    assert_eq!(world.make(Party::Person(1), vec![parent]), Reply::Made(vec![1]));
+    assert_eq!(world.claim_budget_writing(1, 1, 50, Box::new([name10.clone()])), Reply::Done);
+
+    let writers =
+        |world: &World| {
+            world
+                .records
+                .values()
+                .filter_map(|row| {
+                    if let Stored::Writer(slot) = row { Some((slot.resource.clone(), slot.writer)) } else { None }
+                })
+                .collect::<Vec<_>>()
+        };
+    assert_eq!(writers(&world), vec![(name10.clone(), Writer::Run { task: 1, attempt: 1 })]);
+    assert_eq!(world.make(Party::Task(1), vec![task(2, &[])]), Reply::Made(vec![2]));
+    assert!(world.record(2).holdings.is_empty());
+    let reply_to = world.to();
+    world.send(Event::EffectInFlight { reply_to, task: 2, resource: name11.clone(), entry: 70 });
+    assert_eq!(world.replies.last_key_value().expect("effect reply").1, &Reply::Done);
+    assert_eq!(
+        writers(&world),
+        vec![(name10.clone(), Writer::Run { task: 1, attempt: 1 }), (name11.clone(), Writer::Effect { entry: 70 }),]
+    );
+
+    let reply_to = world.to();
+    world.send(Event::EffectInFlight { reply_to, task: 2, resource: name11.clone(), entry: 71 });
+    assert_eq!(world.replies.last_key_value().expect("effect reply").1, &Reply::WriterWaiting(name11.clone()));
+    assert_eq!(
+        writers(&world),
+        vec![(name10.clone(), Writer::Run { task: 1, attempt: 1 }), (name11.clone(), Writer::Effect { entry: 70 }),]
+    );
+    world.send(Event::EffectSettled { resource: name11.clone(), entry: 70 });
+    assert_eq!(writers(&world), vec![(name10.clone(), Writer::Run { task: 1, attempt: 1 })]);
+    let reply_to = world.to();
+    world.send(Event::EffectInFlight { reply_to, task: 2, resource: name11.clone(), entry: 71 });
+    assert_eq!(world.replies.last_key_value().expect("effect reply").1, &Reply::Done);
+    assert_eq!(
+        writers(&world),
+        vec![(name10, Writer::Run { task: 1, attempt: 1 }), (name11, Writer::Effect { entry: 71 }),]
+    );
+}
+
+#[test]
+fn a_run_claimed_reading_only_takes_no_writer_slot() {
+    let mut world = configured(322);
+    let held = resource(12);
+    let Holding::Write { resource: name, .. } = &held else { unreachable!() };
+    let name = name.clone();
+    let mut task = task(1, &[]);
+    task.holdings = Box::new([held]);
+    assert_eq!(world.make(Party::Person(1), vec![task]), Reply::Made(vec![1]));
+    assert_eq!(world.claim_budget_writing(1, 1, 50, Box::new([])), Reply::Done);
+    assert!(!world.records.values().any(|row| matches!(row, Stored::Writer(slot) if slot.resource == name)));
+
+    let reply_to = world.to();
+    world.send(Event::EffectInFlight { reply_to, task: 1, resource: name.clone(), entry: 72 });
+    assert_eq!(world.replies.last_key_value().expect("effect reply").1, &Reply::Done);
+    assert!(world.records.values().any(|row| matches!(row, Stored::Writer(slot)
+        if slot.resource == name && slot.writer == Writer::Effect { entry: 72 })));
+}
+
+#[test]
 fn a_failed_child_keeps_its_resource_held_until_its_tree_root_closes() {
     let mut world = configured(311);
     assert_eq!(world.make(Party::Person(1), vec![task(1, &[])]), Reply::Made(vec![1]));

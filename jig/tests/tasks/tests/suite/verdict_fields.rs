@@ -1,7 +1,77 @@
 use jig_domain_tasks::{
-    self as tasks, Contract, Event, Executor, FieldRule, Party, PersonAddress, ResultField, TaskResult, Verdict,
+    self as tasks, Contract, Event, Executor, FieldRule, Party, PersonAddress, Refusal, ResultField, TaskResult,
+    Verdict,
 };
 use jig_tasks_world::{LIMITS, Reply, World, task};
+
+const LARGE_LIMITS: tasks::Limits = tasks::Limits { result_bytes: 2048, ..LIMITS };
+
+fn schema_rules(count: u32) -> Box<[FieldRule]> {
+    (0..count)
+        .map(|name| FieldRule {
+            name: Box::new(u16::try_from(name).expect("schema field count fits u16").to_be_bytes()),
+            max: 0,
+        })
+        .collect()
+}
+
+fn schema_task(count: u32) -> tasks::New {
+    let mut new = task(1, &[]);
+    new.executor = Executor::Person(PersonAddress::Person(9));
+    new.contract = Contract::Verdict {
+        choices: Box::new([Verdict { code: 2, words: 0, followups: 0, fields: schema_rules(count) }]),
+    };
+    new
+}
+
+fn schema_world(seed: u64) -> World {
+    let mut world = World::new(seed, LARGE_LIMITS);
+    world.make(Party::Person(9), vec![schema_task(tasks::VERDICT_FIELDS)]);
+    world
+}
+
+fn schema_fields(count: u32) -> Vec<ResultField> {
+    schema_rules(count).into_iter().map(|rule| ResultField { name: rule.name, value: Box::new([]) }).collect()
+}
+
+#[test]
+fn a_verdict_contract_admits_the_schema_field_ceiling() {
+    let mut world = World::new(461, LARGE_LIMITS);
+    assert_eq!(world.make(Party::Person(9), vec![schema_task(tasks::VERDICT_FIELDS)]), Reply::Made(vec![1]));
+    assert!(world.records.contains_key(&tasks::Key::Live(1)));
+}
+
+#[test]
+fn a_verdict_contract_refuses_one_field_past_the_schema_ceiling() {
+    let mut world = World::new(462, LARGE_LIMITS);
+    assert_eq!(
+        world.make(Party::Person(9), vec![schema_task(tasks::VERDICT_FIELDS + 1)]),
+        Reply::Refused(tasks::Problem::new(Some(1), Refusal::Contract))
+    );
+    assert!(!world.records.contains_key(&tasks::Key::Live(1)));
+}
+
+#[test]
+fn a_verdict_result_admits_the_schema_field_ceiling() {
+    let mut world = schema_world(463);
+    let fields = schema_fields(tasks::VERDICT_FIELDS);
+    assert_eq!(answer(&mut world, fields.clone()), Reply::Done);
+    world.settle(1);
+    assert_eq!(
+        world.results[&1],
+        tasks::Ending::Done(TaskResult::Verdict { code: 2, words: Box::new([]), fields: fields.into_boxed_slice() })
+    );
+}
+
+#[test]
+fn a_verdict_result_refuses_one_field_past_the_schema_ceiling() {
+    let mut world = schema_world(464);
+    assert_eq!(
+        answer(&mut world, schema_fields(tasks::VERDICT_FIELDS + 1)),
+        Reply::Refused(tasks::Problem::new(Some(1), Refusal::Contract))
+    );
+    assert_eq!(world.record(1).person_answer, None);
+}
 
 fn rules() -> Box<[FieldRule]> {
     Box::new([FieldRule { name: b"a".as_slice().into(), max: 4 }, FieldRule { name: b"b".as_slice().into(), max: 4 }])

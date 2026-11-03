@@ -188,6 +188,7 @@ fn charter(value: &core::Charter, limits: &w::Limits) -> Result<w::Charter, w::P
                 jig_domain_fleet::Kinds::Both => w::SettingHosts::Both,
             },
             spend: value.spend,
+            wake: owner::wake(value.wake, limits)?,
         },
     )
 }

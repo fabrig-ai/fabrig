@@ -81,7 +81,7 @@ fn queued_channel_events_keep_opening_sends_and_hangup_order() {
     const FIRST: Token = Token::new(21);
     const SECOND: Token = Token::new(22);
     let (mut process, mut above, mut below) = opening();
-    process.channel_events.push(Received::Opened { version: 5 });
+    process.channel_events.push(Received::Opened { version: smith_channel::kind::VERSION });
     process.channel_events.push(Received::Sent { token: FIRST });
     process.channel_events.push(Received::Sent { token: SECOND });
     process.channel_events.push(Received::Hangup { why: Closed::Stream });

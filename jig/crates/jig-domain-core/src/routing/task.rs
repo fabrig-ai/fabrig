@@ -354,7 +354,7 @@ fn tag_tasks(
         | tasks::Request::WriterWaiting { task: None, .. }
         | tasks::Request::EscalationsInspected { .. }
         | tasks::Request::EscalationsRechecked { .. } => {}
-        tasks::Request::Taken { task, holdings } => terminals::taken(task, holdings, out),
+        tasks::Request::Taken { task, holdings } => terminals::taken(core, env, task, holdings, pending, out),
         tasks::Request::EndTopic { task, subscription, connector } => {
             terminals::end_topic(task, subscription, connector, out);
         }

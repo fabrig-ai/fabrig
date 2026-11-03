@@ -72,7 +72,7 @@ pub fn member(world: &crate::world::World, executor: tasks::Executor, words: &[u
         llm: None,
         symbolic_grants: Box::new([]),
         dependencies: Box::new([]),
-        wake: tasks::WakePolicy::DEFAULT,
+        wake: Some(tasks::WakePolicy::DEFAULT),
     }
 }
 

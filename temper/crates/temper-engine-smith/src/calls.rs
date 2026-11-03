@@ -152,6 +152,8 @@ const PERMISSION_SPEC: Spec = Spec {
     effect: run::HostEffect::Read,
 };
 
+const PLAN_CHANGE: Spec = Spec { name: b"change", description: b"Have one change written on a branch of a repository of this project, opened as a pull request and merged once its checks pass; you hear its result.", schema: br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."},"name":{"type":"string","description":"Its name in this call, for a later change's after."},"landing":{"type":"string","description":"goal: your own goal branch; or a branch's name; left out, the default branch."},"after":{"type":"array","description":"What it lands after: your live delegates' task numbers, or names given earlier in this call.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"changes":{"type":"array","description":"Instead of words: several changes as one batch, each with the members above.","items":{"type":"object"}}}}"#, effect: run::HostEffect::Write };
+
 pub(crate) const SPECS: [Spec; 39] = [
     Spec { name: b"goal", description: b"Have one goal in your words tracked and reported; it may plan, ask you and call change. With advisor set, it reads and reports and changes nothing.", schema: br#"{"type":"object","additionalProperties":false,"properties":{"words":{"type":"string"},"advisor":{"type":"boolean","description":"Set by a goal alone, for a survey that changes nothing."},"agree":{"type":"boolean","description":"Set by the person's chat when they want the work agreed first: the goal asks its plan before any change."}},"required":["words"]}"#, effect: run::HostEffect::Write },
     Spec { name: b"change", description: b"Have one change written on a branch of a repository of this project, opened as a pull request and merged once its checks pass; you hear its result.", schema: br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."}},"required":["words"]}"#, effect: run::HostEffect::Write },
@@ -205,19 +207,25 @@ pub(crate) const SPECS: [Spec; 39] = [
 /// The complete host-tool registry, with exact schemas and write effects.
 #[must_use]
 pub fn tools(timeout: Duration) -> Box<[run::HostTool]> {
-    offered_tools(timeout, true, true)
+    offered_tools(timeout, true, true, true)
 }
 
-/// Settings and message declarations require their respective run families.
+/// Settings, message and plan declarations require their respective run families.
 /// Root authority still decides each accepted call by its durable name.
 pub(crate) fn tools_for(timeout: Duration, authority: tasks::Tools) -> Box<[run::HostTool]> {
     let families = jig_domain_core::ToolFamilies::JIG;
-    offered_tools(timeout, authority.0 & families.settings != 0, authority.0 & families.message.0 != 0)
+    offered_tools(
+        timeout,
+        authority.0 & families.settings != 0,
+        authority.0 & families.message.0 != 0,
+        authority.0 & families.control.0 != 0,
+    )
 }
 
-fn offered_tools(timeout: Duration, settings: bool, message: bool) -> Box<[run::HostTool]> {
+fn offered_tools(timeout: Duration, settings: bool, message: bool, plan: bool) -> Box<[run::HostTool]> {
     let mut tools = List::with_capacity(u32::try_from(SPECS.len()).expect("fixed tool list"));
     for spec in SPECS {
+        let spec = if plan && spec.name == b"change" { PLAN_CHANGE } else { spec };
         if (!settings && (spec.name == b"settings" || spec.name == b"propose_settings"))
             || (!message && spec.name == b"message")
         {
@@ -319,31 +327,27 @@ pub fn call_configured(
             }
         }
         b"change" => {
-            let words = value.required(b"words")?.text(b"words")?;
-            if words.is_empty() {
-                return Err(Problem::Range(b"words"));
-            }
-            let repository = match value.field(b"repository")? {
-                Some(name) => {
-                    let name = name.text(b"repository")?;
-                    let mut slash = None;
-                    for (at, byte) in name.iter().enumerate() {
-                        if *byte == b'/' {
-                            if slash.is_some() {
-                                return Err(Problem::Range(b"repository"));
-                            }
-                            slash = Some(at);
+            let changes = match value.field(b"changes")? {
+                Some(changes) => {
+                    if value.field(b"words")?.is_some() {
+                        return Err(Problem::Range(b"changes"));
+                    }
+                    let items = changes.array(b"changes")?;
+                    if items.is_empty() {
+                        return Err(Problem::Range(b"changes"));
+                    }
+                    let Ok(capacity) = u32::try_from(items.len()) else { return Err(Problem::TooLarge) };
+                    let mut changes = List::with_capacity(capacity);
+                    for item in items {
+                        if changes.push(change(item.object(b"changes")?)?).is_err() {
+                            return Err(Problem::TooLarge);
                         }
                     }
-                    let slash = slash.ok_or(Problem::Range(b"repository"))?;
-                    if slash == 0 || slash.checked_add(1) == Some(name.len()) {
-                        return Err(Problem::Range(b"repository"));
-                    }
-                    Some(name)
+                    changes.into_boxed()
                 }
-                None => None,
+                None => Box::new([change(&value)?]),
             };
-            engine::Tool::Change { words, repository }
+            engine::Tool::Change { changes }
         }
         b"delegate" => engine::Tool::Delegate { batch: nested::delegates(value.required(b"batch")?)? },
         b"amend" => {
@@ -502,4 +506,91 @@ fn optional_bool(value: &Value, field: &'static [u8], default: bool) -> Result<b
         Some(value) => value.boolean(field),
         None => Ok(default),
     }
+}
+
+fn change(value: &Value) -> Result<engine::ChangeCall, Problem> {
+    if value.field(b"changes")?.is_some() {
+        return Err(Problem::Range(b"changes"));
+    }
+    let words = value.required(b"words")?.text(b"words")?;
+    if words.is_empty() {
+        return Err(Problem::Range(b"words"));
+    }
+    let repository = match value.field(b"repository")? {
+        Some(name) => {
+            let name = name.text(b"repository")?;
+            let mut slash = None;
+            for (at, byte) in name.iter().enumerate() {
+                if *byte == b'/' {
+                    if slash.is_some() {
+                        return Err(Problem::Range(b"repository"));
+                    }
+                    slash = Some(at);
+                }
+            }
+            let slash = slash.ok_or(Problem::Range(b"repository"))?;
+            if slash == 0 || slash.checked_add(1) == Some(name.len()) {
+                return Err(Problem::Range(b"repository"));
+            }
+            Some(name)
+        }
+        None => None,
+    };
+    let name = match value.field(b"name")? {
+        Some(name) => {
+            let name = name.text(b"name")?;
+            if name.is_empty() || name.len() > 64 {
+                return Err(Problem::Range(b"name"));
+            }
+            Some(name)
+        }
+        None => None,
+    };
+    let landing = match value.field(b"landing")? {
+        Some(landing) => {
+            let landing = landing.text(b"landing")?;
+            if landing.is_empty() {
+                return Err(Problem::Range(b"landing"));
+            }
+            Some(if landing.as_ref() == b"goal" {
+                engine::ChangeLanding::Goal
+            } else {
+                engine::ChangeLanding::Branch(landing)
+            })
+        }
+        None => None,
+    };
+    let after = match value.field(b"after")? {
+        Some(after) => {
+            let items = after.array(b"after")?;
+            let Ok(capacity) = u32::try_from(items.len()) else { return Err(Problem::TooLarge) };
+            let mut after = List::with_capacity(capacity);
+            for item in items {
+                let dependency = match item {
+                    Value::String(name) => {
+                        if name.is_empty() {
+                            return Err(Problem::Range(b"after"));
+                        }
+                        engine::ChangeAfter::Name(name.clone())
+                    }
+                    Value::Number(_) => {
+                        let task = item.number(b"after")?;
+                        if task == 0 {
+                            return Err(Problem::Range(b"after"));
+                        }
+                        engine::ChangeAfter::Task(task)
+                    }
+                    Value::Object(_) | Value::Array(_) | Value::Boolean(_) | Value::Null => {
+                        return Err(Problem::Type(b"after"));
+                    }
+                };
+                if after.push(dependency).is_err() {
+                    return Err(Problem::TooLarge);
+                }
+            }
+            after.into_boxed()
+        }
+        None => Box::new([]),
+    };
+    Ok(engine::ChangeCall { words, repository, name, landing, after })
 }

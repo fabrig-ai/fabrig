@@ -1,0 +1,179 @@
++++
+id = "goal-forge-story"
+part = "goal-forge"
+kind = "feature"
+needs = ["goal-jig-holdings", "goal-forge-branch", "goal-forge-symbol"]
+files = ["temper/tests/engine/domain/tests/suite/forge_routes/goal_branch.rs", "temper/tests/engine/domain/tests/suite/forge_routes.rs", "temper/tests/engine/domain/src/forge_routes.rs", "temper/crates/temper-engine-domain/src/route/forge_route.rs", "temper/crates/temper-engine-domain/src/route/forge_route/tests.rs", "temper/crates/temper-engine-domain-forge/src/domain.rs", "temper/crates/temper-engine-domain-forge/src/tests/goal_branch.rs"]
+effort = "high"
+minutes = 110
++++
+
+# goal-forge-story: a goal holding its own branch, end to end in temper's engine world
+
+## Goal
+
+The goal family's story, through temper's root, jig's core and the fake forge, in temper's
+engine world (`temper/tests/engine/domain`): a tracked goal whose batch member names the
+forge's *its own goal branch* becomes active holding `temper/<G>/g<G>`, made at the home's
+default branch's tip; a change into that branch from outside the goal's subtree is refused
+at its batch, naming the goal; a merge into it takes its writer slot; the goal's end keeps
+the branch.
+
+Acceptance, in a new module `forge_routes/goal_branch.rs` (declared in
+`tests/suite/forge_routes.rs` beside `goal_tool`):
+
+- `a_tracked_goal_naming_its_own_goal_branch_holds_it_made_at_mains_tip`: after adoption
+  (`World::adopt`, `sign_in`), a person's `people::Ask::Create` with one tracked agent member
+  (the goal template's shape: tracked, listed, a report) and `symbols: [Symbol { connector:
+  <the forge connector>, symbol: 1 }]` makes task G; G's live record's holdings include a
+  write hold on `temper/<G>/g<G>` in the home; the fake forge shows that branch at the
+  default branch's tip (`World::external` with a branch read); G's first run is assigned.
+- `an_untracked_task_naming_its_own_goal_branch_is_refused`: the same member untracked is
+  refused (`people::Refusal::Limit { which: LimitKind::HoldKind }`), and no branch is made.
+- `a_change_into_a_goal_branch_from_outside_its_goal_is_refused_naming_it`: with G active, a
+  second person-made root (a chat) whose run makes a change into `temper/<G>/g<G>` (the
+  change procedure's base, parameter 2, set to that branch: by the `change` tool's landing
+  branch if the change family's `landing` parameter is on your base, otherwise by a
+  person's `Create` of a change procedure task with that base) is refused, its problem
+  naming G (`blocked_by: Some([G])`, `Refusal::HoldTaken`; or, through a person's batch,
+  `LimitKind::HoldTaken`).
+- `a_goals_end_keeps_its_own_branch`: G ends (its result, or its person's cancel, as the
+  world's helpers allow); its holds are released and `temper/<G>/g<G>` still exists on the
+  fake forge, at the tip it was made at.
+- If the change family's `landing: "goal"` is on your base, also
+  `a_change_by_the_goal_into_its_own_branch_lands_there_taking_its_writer_slot`: G's run
+  calls `change` with `landing: "goal"`; the change is admitted, and its merge into g is in
+  flight holding g's writer slot (a `Stored::Writer`-style row or the world's equivalent),
+  then lands into g. Otherwise leave it out and name it under `## Left`.
+
+## Inputs
+
+- `temper/docs/design/domain/forge.md`, section 2 ("Holds", "Symbols"), section 11 and 11.1.
+- jig's `jig/docs/design/domain/tasks.md`, 6.1 to 6.3, and `jig/docs/design/domain/
+  connectors.md`, 3.1, 3.3 and 4.7.
+- `temper/docs/plan/reference-m1/notes/common.md`; `notes/contracts.md`, C1, C2 and C3.
+
+## Owns and may change
+
+- Owns the files in the header. `temper/tests/engine/domain/tests/suite/forge_routes.rs` and
+  `src/forge_routes.rs` are changed on plan reference-m8's trunk (`tiers-stories`): add the
+  module line and any helper at the end, nothing else.
+- **Options:** a helper the world lacks (a branch read on the fake forge, a tracked member
+  with symbols) goes in `src/forge_routes.rs` as a small public function. If a story fails
+  in a crate this plan's goal family changed, stop and report it (`Question:`) with the
+  failing assertion and the log: the fix is that task's crate, never this test's.
+- **Not yours:** every crate; the design.
+
+## Steps
+
+1. Read `forge_routes/goal_tool.rs` and `forge_routes/plain_change.rs` for the world's
+   shapes, and `src/forge_routes.rs`'s `World`.
+2. Write the stories; run each: `heavy cargo nextest run -p temper-engine-domain-world --test
+   suite -E 'test(/forge_routes::goal_branch::/)'` (check the count).
+3. `cargo fmt`; `heavy cargo clippy -p temper-engine-domain-world --all-targets -- -D
+   warnings`; `heavy cargo nextest run -p temper-engine-domain-world`.
+4. Commit ("temper engine world: a goal's own branch, end to end"), push.
+
+## Report
+
+Each story and what it asserts, the tests and counts, and whether the inside change ran.
+
+## Answers
+
+### 2026-11-02: Should fab route the missing goal-branch merge writer slot to the goal-family production owner and then resume this task (recommended), or explicitly defer the inside-change acceptance? (reference-m1/goal-forge-story-1, foreman reference-m1/goal-forge-story/foreman-1)
+
+Route the failure to the goal-family production owner, then resume this story task; retain the inside-change acceptance.
+The spec’s “Owns and may change” settles ownership: “the fix is that task’s crate, never this test’s.”
+Contract C3 requires: “a merge into g takes g’s writer slot while in flight”.
+The acceptance includes the inside-change story when `landing: "goal"` is available; the run reports that it is available.
+Deferral is therefore not a pre-approved option, and the reported failure prevents accepting this task as done.
+After the production owner’s repair, resume the story task, verify the writer assertion and remaining landing assertions, and complete the prescribed checks.
+
+### 2026-11-02: The required goal-branch merge writer repair is still absent on this checkout. Should fab route it to the goal-family production owner and resume after it lands (recommended), or supply the repair commit if it already exists? (reference-m1/goal-forge-story-2, foreman reference-m1/goal-forge-story/foreman-2)
+
+Route the missing merge writer-slot repair to the goal-family production owner, then resume this story task; retain the inside-change acceptance.
+The spec’s existing answer says: “Route the failure to the goal-family production owner, then resume this story task; retain the inside-change acceptance.”
+Ownership is explicit: “the fix is that task’s crate, never this test’s.”
+Contract C3 requires: “a merge into g takes g’s writer slot while in flight”.
+The resumed report reproduces that acceptance failure; pushed stories alone do not satisfy acceptance.
+After the production repair lands, resume this task, verify the writer assertion and remaining landing assertions, and complete the prescribed checks.
+
+### 2026-11-02: The goal-branch merge still has no writer slot on this resumed checkout. Should fab resume after the production owner's repair lands (recommended), or supply its commit if already repaired? (reference-m1/goal-forge-story-3, foreman reference-m1/goal-forge-story/foreman-3)
+
+Resume this story task after the goal-family production owner’s writer-slot repair lands; retain the inside-change acceptance.
+The existing Answers settle this: “Route the missing merge writer-slot repair to the goal-family production owner, then resume this story task; retain the inside-change acceptance.”
+Ownership remains explicit: “the fix is that task’s crate, never this test’s.”
+Contract C3 requires: “a merge into g takes g’s writer slot while in flight”.
+The report reproduces that acceptance failure; the pushed stories do not establish acceptance.
+Fab must make the production repair available before resuming this task. No repair commit is established by the supplied report.
+The next run verifies the writer assertion and remaining landing assertions, then completes the prescribed checks.
+
+### 2026-11-02: Should fab resume only after the goal-family production owner's merge writer-slot repair lands (recommended), or supply its repair commit if already available? The required writer assertion still fails on this checkout. (reference-m1/goal-forge-story-4, foreman reference-m1/goal-forge-story/foreman-4)
+
+Resume this story task only after the goal-family production owner’s writer-slot repair lands; retain the inside-change acceptance.
+The existing Answer requires: “Fab must make the production repair available before resuming this task.”
+Ownership is explicit: “the fix is that task’s crate, never this test’s.”
+Contract C3 requires: “a merge into g takes g’s writer slot while in flight”.
+The report reproduces that acceptance failure; pushed stories alone do not satisfy acceptance.
+No repair commit is established by the supplied report.
+After the production repair lands, the next run verifies the writer assertion and remaining landing assertions, then completes the prescribed checks.
+
+### 2026-11-02: Four runs have waited for a writer-slot repair no task owns; route it elsewhere, or defer the inside change? (reference-m1/goal-forge-story-4)
+
+Neither: this task takes the repair. The earlier answers routed it to a "goal-family production
+owner", but no task of the plan owns it (`goal-jig-writers` changes no crate; `goal-forge-branch`
+and `goal-forge-symbol` have landed), so waiting loops. The inside-change acceptance stays
+(contract C3), and it cannot hold without the change, so the task widens to the root's effect
+description: `temper/crates/temper-engine-domain/src/route/forge_route.rs` and its
+`forge_route/tests.rs` are now in the header. This supersedes "every crate" under **Not yours**
+for those two files only.
+
+The cause, as read on the trunk (verify it first): jig's core gives an effect a writer slot
+only for a described resource that has a holder (`jig/crates/jig-domain-core/src/effects.rs`,
+`held_resources`: `tasks::Name { connector, path: effect.name.segments }`, then
+`core.tasks.holder`). The goal's hold is named by `hub_name` (`forge_route.rs`):
+`[forge, repository, "temper/<G>/g<G>"]`. A change's merge is described by
+`describe_change_effect` with `resource_name`'s authority name, `["forge", host, owner, name,
+"branch", "temper", "<G>", "g<G>"]`. The two never match, so no `EffectInFlight` is sent, and
+the merge into g takes no slot.
+
+- **Fix in temper's root, on the effect's side:** when a change effect writes a branch held in
+  jig (`domain.core.tasks.holder(&hub_name(..))` is some), the description must name that hold
+  so `held_resources` finds it (for instance an `additional` resource carrying the hold's
+  name, if authority's checks of `additional` admit it; otherwise the narrowest equivalent in
+  `forge_route.rs`). Say in the report which and why.
+- **Not to change:** `hub_name`'s shape (held names are stored in task rows: a stored format),
+  and jig's interfaces (`EffectDescription`, `held_resources`). If the only fix needs either,
+  stop and ask (`Question:`), with the options.
+- **Lowest tier first:** a unit test in `forge_route/tests.rs` that a change merge whose base is
+  a held branch is described so that jig's core takes the base's writer slot (or, if that is
+  only observable in the core, that the description names the hold); then the fifth story.
+- **Leave:** a landing queue's merge (`landing_route.rs`, `describe_landing_effect`) has the same
+  shape; it is M2's (L into main). Name it under `## Left`, unchanged.
+- Run, beside this spec's checks: `heavy cargo nextest run -p temper-engine-domain --lib -E
+  'test(/forge_route::tests::/)'` (check the count), and `heavy cargo clippy -p
+  temper-engine-domain --all-targets -- -D warnings`.
+
+### 2026-11-02: The writer-slot repair is pushed; the inside-change story now fails its restart oracle on the goal branch's stale stored head. Widen to the forge child, or route it elsewhere? (reference-m1/goal-forge-story-5)
+
+Widen: this task takes it. The forge child's `domain.rs` and `tests/goal_branch.rs` were
+`goal-forge-branch`'s, which has landed; no other task of the plan owns them, so routing it
+would loop as the writer slot did. The inside-change acceptance stays (contract C3), and its
+restart check cannot hold without the repair. `temper/crates/temper-engine-domain-forge/src/
+domain.rs` and `src/tests/goal_branch.rs` are now in the header; this supersedes "every
+crate" under **Not yours** for those two files only. Keep the writer-slot repair as pushed.
+
+- **The fix, as read on the trunk (verify it first):** in `outcome_facts`, the
+  `Made::Merged` arm reads the base's stored head as `before` for `tiers::observed` but never
+  advances it. After that read, when the base's `BranchHead` is in `d.heads` with
+  `owned: true`, set its commit to the merge commit and emit `Request::Save` with
+  `Stored::BranchHead`, as the `Made::Branch` arm does. `before` must still be the head
+  before the merge (read it first), so tiers see the landing as a step. Leave a base the
+  forge does not own (`owned: false`, or no row) as it is: its head is read afresh.
+- **Lowest tier first:** a unit test in `src/tests/goal_branch.rs` that a merge into a held
+  goal branch saves its advanced `BranchHead` (owned, at the merge commit), then the fifth
+  story with its restart oracle unchanged.
+- **Not to change:** the oracle, the stored `BranchHead` shape, `tiers::observed`.
+- Run, beside this spec's checks: `heavy cargo nextest run -p temper-engine-domain-forge
+  --lib -E 'test(/tests::goal_branch::/)'` (check the count), and `heavy cargo clippy -p
+  temper-engine-domain-forge --all-targets -- -D warnings`.
