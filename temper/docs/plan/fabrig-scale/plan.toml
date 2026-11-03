@@ -84,3 +84,57 @@ id = 4
 story = "a batch past its bytes is refused naming them; the largest task row is a sum of byte bounds, linear in every limit; the store's ceilings take 80 delegates, 82 messages, a 128 KiB spec and a 256 KiB result"
 parts = ["jig-rows"]
 walk = false
+
+[[part]]
+id = "jig-standard"
+title = "jig: the standard profile raised to fabrig's development with 5x headroom, its store sized by the largest task row"
+mode = "direct"
+needs = ["jig-rows"]
+design = "jig/docs/design/protocol/configuration.md, 6"
+
+[[part]]
+id = "box"
+title = "temper: init's document and the owned example on the standard profiles, their agent at 800 turns, 48 calls and 26 conversations, T and its carriers"
+mode = "direct"
+needs = ["jig-standard", "forge-scale", "ceilings", "clients"]
+design = "temper/docs/design/protocol/setup.md, 8.1"
+
+[[slice]]
+id = 5
+story = "a document from temper init names the standard profiles with only the overrides that differ, starts, and its agent of 48 calls per response passes smith's derivation with T and its carriers within the store's page"
+parts = ["jig-standard", "box"]
+walk = false
+
+[[part]]
+id = "room"
+title = "temper: the stock's goal offered change's plan form (the control family), a run's brief holding a whole spec"
+mode = "direct"
+needs = ["box"]
+design = "temper/docs/design/domain/agent.md, 4.3"
+
+[[part]]
+id = "stock"
+title = "temper: the stock's charters at 64 and 800 turns, its delegation 384 tasks 32 deep, its pool funding 80 chats or goals at once"
+mode = "direct"
+needs = ["room"]
+design = "temper/docs/design/protocol/configuration.md, 13.4"
+
+[[part]]
+id = "reference"
+title = "temper: the reference's files set only what the box does not hold"
+mode = "direct"
+needs = ["stock"]
+design = "temper/docs/design/protocol/configuration.md, 13.9"
+
+[[part]]
+id = "gate"
+title = "temper: a fresh box runs fabrig-scale work with no override, its memory and disk measured"
+mode = "direct"
+needs = ["stock", "reference"]
+design = "temper/docs/design/protocol/setup.md, 8.3"
+
+[[slice]]
+id = 6
+story = "a fresh box from temper init, with no override, starts; its me lists the stock charters at 64 and 800 turns; its pool funds 80 chats at once and one goal's tree takes 384 tasks; the reference applies its charters and template alone; the box's memory and disk are measured within the user's gate"
+parts = ["room", "stock", "reference", "gate"]
+walk = true
