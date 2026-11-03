@@ -138,7 +138,7 @@ fn value(value: &Value, forms: &[Form], limits: &Limits, out: &mut Text) {
             unreachable!("nested shape has a form")
         }
         Value::Setting => out.put(
-            b"the setting's kind's value: `charter`, `template`, `policy`, `rules`, `landing-rule` or `forge-charter`",
+            b"the setting's kind's value: `charter`, `template`, `policy`, `rules`, `landing-rule`, `forge-charter` or `project-policy`",
         ),
     }
 }
