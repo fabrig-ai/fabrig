@@ -17,7 +17,7 @@ release):
 record ChangeRow { … report: bytes 1048576 repairs: option fixed 32 }
 record TierRepair { run: u64 tip: fixed 32 by: option fixed 32 }
 record TierGoal { goal: u64 branch: bytes 4096 tip: option fixed 32 ran: option fixed 32 failing: Failures started: option u64 }
-record TierRow { … received: bool goals: list 65536 TierGoal goal: option u64 started: option u64 }
+record TierRow { … received: bool goals: list 256 TierGoal goal: option u64 started: option u64 }
 ```
 
 `TierGoal` is declared before `TierRow`. `started` takes the encoding
@@ -50,8 +50,12 @@ pub struct TierRow { …, pub goals: Box<[TierGoal]>, pub goal: Option<u64>, pub
   nothing.
 - `TierRepair.by`: the repairing landing's commit; `None` when the run alone cleared it.
 - `TierRow.goals`: sorted by `goal`, unique, empty for a tier following one branch, at most the
-  forge's `holds`. `TierRow.goal`: the goal whose branch the run in flight is for, `None` for a
-  tier following one branch. `TierRow.started`: when the last run of a tier following one
+  forge's `holds`: its ceiling 256 keeps `TierRow`'s encoded worst case within the codec's
+  u32 (each `TierGoal`'s `failing` alone is up to 1024 test ids of 4096 bytes), and the store's
+  limit `tier_row_goals` is `forge.holds` (`records.rs`'s `tier_limits`), so a forge whose
+  `holds` passes 256 is refused at start, as `tier_row_pending` bounds `changes`.
+  `TierRow.goal`: the goal whose branch the run in flight is for, `None` for a tier following
+  one branch. `TierRow.started`: when the last run of a tier following one
   branch started, for its span.
 - Every new field is `None` or empty where nothing sets it yet.
 
