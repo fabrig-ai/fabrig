@@ -91,6 +91,7 @@ pub(crate) fn parts(
         cancels: cancels(core, env, &step.cancels)?,
         messages: messages.into_boxed(),
         proposals: proposals(core, env, task, &step.proposals)?,
+        started_from: step.started_from.clone(),
         end,
     })
 }

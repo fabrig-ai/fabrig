@@ -7,8 +7,7 @@
   7: a
   widening funded by whoever gives it (the task's existing funder is
   charged); moving a task under another task; successors; questions that
-  outlive their asker; a dependency started from (connectors.md, 6.1),
-  refused removal. 8.3: markers.
+  outlive their asker. 8.3: markers.
   8.5: a conversation's questions.
   11: a verdict's fields counted apart from a result's bytes: there is no
   `VERDICT_FIELDS`, and the settings codec sizes a verdict's fields by
