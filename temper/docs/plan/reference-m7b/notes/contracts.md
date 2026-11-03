@@ -76,6 +76,30 @@ pub enum Delegate {
 - **Counting:** making a merge job adds one to `Change::resolutions` (and holds past the bound
   as `resolving_due` does); the resolution made after a merge job that left conflicts adds none.
 
+## C3.1. The steps' facts (added with the steps, batch 3; compatible with C3)
+
+`Facts` gains two more fields, which `change-merge-steps` adds and `change-merge-route` fills:
+
+```rust
+    /// The change's current delegate, as the forge's row keeps it (`ChangeRow::delegate`);
+    /// `None` when it has none.
+    pub delegate: Option<Delegate>,
+    /// A catch-up's commit (`ChangeRow::catch_up`), `None` for every other change.
+    pub catch_up: Option<Commit>,
+```
+
+- A merge job runs while the change is `Resolving { requested: true, base }` (a conflict) or
+  `Producing { requested: true }` (a catch-up), and `facts.delegate` says it is
+  `Delegate::Merge { base, from }`. On its passed result, `facts.branch` (read afresh, as every
+  fact a decision depends on: `temper/docs/design/domain/forge.md, 5.3`) other than `from`
+  means the merge was pushed; equal to `from` means the command left conflicts.
+- The resolution after a merge job is `Delegate::Resolve { base }` with the same base, made in
+  the step that reads the job's result, adding nothing to `Change::resolutions`; a resolution
+  asked again after a release is a resolution, never a merge job.
+- A catch-up's merge job is its producer and counts no resolution; the resolution after it,
+  where the job left conflicts, counts one. Each conflict is counted once either way, as
+  `change-merge-steps` has it.
+
 ## C4. Stored records: `temper/crates/temper-protocol-store`, `store-v11.schema`, in place
 
 - `record MergeDelegate { base: Commit from: option fixed 32 }`;
@@ -117,3 +141,24 @@ pub enum Delegate {
   whose project names no `merge_job` ("the project names no merge_job"); `merge` from a run whose
   authority does not delegate to `Job(3)` ("its authority does not delegate to the merge job");
   a `merge` that is not 40 or 64 hexadecimal digits, naming it.
+
+## R1. Revision 1: the merge job's repository keeps its name (supersedes C2's `home`)
+
+C2 named the merge job's one item `home`, so that the job capability, which runs
+`<directory>/home/<command>`, would find the merge command in it. An item's name is also its
+remote's (`temper-service/src/translate.rs` builds the remote from the owner and the name), so
+an item named `home` fetches the wrong repository. Revision 1, binding from batch 4 on
+(`temper/docs/design/domain/worker.md, 4.4`; `temper/docs/design/protocol/tooling.md`, 2 and
+4.1):
+
+- the merge job's item keeps the repository's own name, as every other item does;
+- the job capability (`temper-worker-domain-tooling`) resolves a spec's `command` against the
+  job's directory, `<directory>/<command>`, no longer under `home/`; the command stays relative,
+  without `..`, NUL or a leading `/`;
+- the merge job's spec's `command` is the repository's name, `/`, then the project's
+  `merge_job` path (`fabrig/.temper/merge`); a future prepare or key job's is `home/` then its
+  path;
+- the merge command finds its repository from its own path, never by the name `home`.
+
+`change-merge-surface` and `change-merge-route` build to C2 as released; `merge-r1-paths` moves
+their item, the root's command and the capability to R1, with the stories that pin them.

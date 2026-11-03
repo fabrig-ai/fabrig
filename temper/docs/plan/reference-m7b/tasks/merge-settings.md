@@ -3,7 +3,7 @@ id = "merge-settings"
 part = "merge-kind"
 kind = "feature"
 needs = []
-files = ["temper/crates/temper-service/src/startup/application/landing.rs", "temper/crates/temper-service/src/tests/startup.rs", "temper/crates/temper-engine-domain/src/translate.rs", "temper/crates/temper-engine-domain-forge/src/domain.rs", "temper/crates/temper-engine-domain-forge/src/tests/landing.rs"]
+files = ["temper/crates/temper-service/src/startup/application/landing.rs", "temper/crates/temper-service/src/tests/startup.rs", "temper/crates/temper-engine-domain/src/translate.rs", "temper/crates/temper-engine-domain-forge/src/domain.rs", "temper/crates/temper-engine-domain-forge/src/landing.rs", "temper/crates/temper-engine-domain-forge/src/tests/landing.rs"]
 effort = "medium"
 minutes = 60
 +++
@@ -64,3 +64,19 @@ Acceptance:
 ## Report
 
 As the implementer's text says.
+
+## Answers
+
+2026-11-03. **May the task change `temper-engine-domain-forge/src/landing.rs` to keep
+`merge_job` beside the project's way?** Yes. `landing::State::projects` is the structure that
+already holds the project's way, so the path goes there: its row gains a fourth member,
+`Option<Box<[u8]>>`, the project's `merge_job`; no new map. `Domain::project_landing` (in
+`landing.rs`) writes the row with `None`, so a reconfigured project without the member holds
+none; `translate::project_landing` then calls `Domain::project_merge_job` when the path is
+`Some`. `project_merge_job` sets the member of the existing row and returns false where the
+project has no row (it inserts nothing, so the map's bound is unchanged); `merge_job` reads it.
+The setter and reader may live in `domain.rs` or beside `after_landing` in `landing.rs`,
+whichever reads better. The tuple patterns the new member breaks (`landing.rs`, `tiers.rs`,
+`verification.rs`, `tests/landing.rs`) gain a `_`, field only, as the Readers bullet allows for
+`ProjectLanding` literals. The forge's lint step is `-p temper-engine-domain-forge`, as step 3
+says.
