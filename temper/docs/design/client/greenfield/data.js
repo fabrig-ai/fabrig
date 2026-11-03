@@ -335,3 +335,83 @@ window.MOCK = {
     },
   },
 };
+
+// The first run: a fresh temper box with real backends, from the terminal
+// through the welcome's wizard to the project Ready makes. Times are the
+// mockup's, shortened: the Forgejo set-up takes a minute, not fifteen
+// seconds.
+window.MOCK.firstRun = {
+  link: 'http://127.0.0.1:8367/jig/v1/sign-in/link?secret=mock-q7RvT2xLwE5nZp9aYc3HsB7uFgJ1oVi4NtXe6Wk',
+  forgejo: {
+    n: 3, name: 'Forgejo on this machine', web: 'http://127.0.0.1:8368', org: 'work', repo: 'hello', login: 'temper',
+    versions: { forgejo: '17.0.0', runner: '13.2.0' },
+    steps: [
+      { ms: 4000, doing: 'Fetching Forgejo 17.0.0 and its runner 13.2.0', done: 'Fetched Forgejo 17.0.0 and its runner 13.2.0' },
+      { ms: 3000, doing: 'Preparing its database, temper’s admin and your account', done: 'Prepared its database, temper’s admin and your account' },
+      { ms: 2500, doing: 'Starting Forgejo and its runner', done: 'Started Forgejo and its runner' },
+      { ms: 2000, doing: 'Connecting as temper', done: 'Connected as temper' },
+      { ms: 2000, doing: 'Making work/hello, with a README and a CI workflow', done: 'Made work/hello, with a README and a CI workflow' },
+    ],
+  },
+  github: { ms: 2200, account: 'owner-dev', repos: ['owner-dev/website', 'owner-dev/notes', 'owner-dev/budget-cli', 'owner-dev/dotfiles'] },
+  models: {
+    chatgpt: { name: 'ChatGPT plan', who: 'owner@example.com', model: 'gpt-6-luna', line: 'ChatGPT, through your plan · gpt-6-luna' },
+    key: { name: 'OpenAI API key', who: 'billed to the key’s organization', model: 'gpt-6-luna', line: 'OpenAI API key · gpt-6-luna' },
+    claude: { name: 'Claude subscription', who: 'claude-owner, signed in on this machine', model: 'Opus', line: 'Claude, through your subscription · Opus' },
+  },
+  // What Ready makes: an ordinary project on the stock policy, with no
+  // repository, showing only what any way of working needs until the
+  // person says how they work.
+  project: {
+    name: 'Default', repo: null, forge: null, fresh: true, chatBase: 0,
+    parts: { drafts: false, goals: false, changes: false, away: false },
+    awayUntil: '08:00',
+    ways: [
+      { id: 'whole', name: 'Plan, tasks, land whole', text: 'A plan from the draft, its tasks on a goal branch, landed as one change once all are checked.', used: 0 },
+      { id: 'each', name: 'Task by task', text: 'The same plan; each task lands on its own once checked.', used: 0 },
+      { id: 'one', name: 'One agent, one branch', text: 'No plan: one agent works the request through and opens one change.', used: 0 },
+    ],
+    defaultWay: 'one',
+    morning: { kicker: '', headline: '', text: '', by: '' },
+    away: { kicker: '', headline: '', text: '', by: '' },
+    landing: { line: 'nothing has landed yet' },
+    needs: [], decided: [], goals: [], chats: [], drafts: [],
+    changes: { queue: [], landed: [] },
+  },
+  // The configuring chat's answers: what it proposes depends on what the
+  // person says, so that the same temper fits other ways of working.
+  configure: {
+    explain: 'temper can run work in a few ways. A chat per change: it works on a branch and lands once your checks pass. Or a draft first: a chat writes a design document with you, and a goal plans its tasks and lands them. And it can decide small things while you’re away, within limits you set. Which sounds like you? Your own words are fine.',
+    proposals: {
+      small: {
+        intro: 'Here’s how I’ll run that. Nothing changes until you accept.',
+        lines: [
+          ['Each change is one chat: its agent works on a branch and opens one change.', 'Way: one agent, one branch'],
+          ['A change lands once its CI passes, with no review by you first.', 'Landing: when checked'],
+          ['Changes on their way to main get a page of their own.', 'Changes page: shown'],
+          ['Questions wait for you; nothing is decided while you’re away.', 'Away switch: hidden'],
+        ],
+        enforced: 'branches, landing once checked, budgets',
+        followed: 'how an agent writes and tests its change',
+        parts: { drafts: false, goals: false, changes: true, away: false }, way: 'one',
+      },
+      drafts: {
+        intro: 'Here’s how I’ll run that. Nothing changes until you accept.',
+        lines: [
+          ['A chat can write a design draft beside it, in docs/design/draft/.', 'Drafts: on'],
+          ['A draft becomes a goal: a plan, its tasks on a goal branch, landed whole once all are checked.', 'Goals: shown · way: plan, tasks, land whole'],
+          ['Changes on their way to main get a page of their own.', 'Changes page: shown'],
+          ['While you’re away, agents may decide small things within limits, and tell you after.', 'Away switch: shown'],
+        ],
+        enforced: 'the goal branch, landing once checked, budgets, what waits for you',
+        followed: 'how designers write drafts, and how producers work a task',
+        parts: { drafts: true, goals: true, changes: true, away: true }, way: 'whole',
+      },
+    },
+    starters: [
+      'I work alone on small changes: one chat per change, landed once CI passes.',
+      'I write a design draft first; agents plan its tasks and land them together once checked.',
+      'Not sure yet. What can temper do?',
+    ],
+  },
+};
