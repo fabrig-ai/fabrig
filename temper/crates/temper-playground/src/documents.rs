@@ -23,7 +23,7 @@ pub const REPOSITORY: u32 = 2;
 /// Producer tools for the composition.
 pub const PRODUCER_TOOLS: u64 = 3;
 /// Document lines for the composition.
-pub const DOCUMENT_LINES: u32 = 2;
+pub const DOCUMENT_LINES: u32 = 4;
 /// Chat wait ms for the composition.
 pub const CHAT_WAIT_MS: u32 = 1000;
 /// Worker user for the composition.

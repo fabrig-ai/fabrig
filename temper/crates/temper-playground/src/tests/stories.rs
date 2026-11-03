@@ -70,6 +70,20 @@ fn story_as_deployment_offers_its_llm_cues_in_order() {
 }
 
 #[test]
+fn story_as_documents_can_list_every_offered_charter() {
+    for deployment in [serde_json::from_slice(A.deployment).expect("story deployment"), documents::world_document()] {
+        let engine = documents::settings::configuration(&deployment);
+        let temper_service::stock::Given::Own { jig, .. } = documents::given(&deployment) else {
+            panic!("the composition supplies its settings")
+        };
+        assert!(
+            engine.limits.core.documents.lines >= u32::try_from(jig.charters.len()).expect("offered charter count"),
+            "the creating document lists every eligible charter before offering a chat"
+        );
+    }
+}
+
+#[test]
 fn story_as_scripts_are_the_templates() {
     let story: Value = serde_json::from_slice(A.llm).expect("story LLM");
     let template: Value =
