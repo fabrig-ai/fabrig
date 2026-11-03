@@ -381,3 +381,50 @@ fn each_repository_keeps_its_own_saved_work_destination() {
     let saves = [workspace.repositories[0].save.as_deref(), workspace.repositories[1].save.as_deref()];
     assert_eq!(saves, [Some(b"temper/7/s7".as_slice()), Some(b"other/7/s7".as_slice())]);
 }
+
+#[test]
+fn a_conflicted_preparation_reaches_the_engine_with_its_tag_and_head() {
+    use temper_worker_domain::wire as worker;
+    let source = worker::Preparation::Conflicted { tag: 7, head: [3; 32] };
+    let resource = translate::preparation(&source).expect("permanent resource");
+    let bytes = temper_protocol_worker_wire::preparation(&resource);
+    let decoded = wire::Preparation::decode(&fixtures::wire_limits(), &mut skein_lib::Reader::new(&bytes)).unwrap();
+    assert_eq!(
+        translate::parts(None, None, Some(decoded)).preparation,
+        Some(root::Preparation::Conflicted { tag: 7, head: [3; 32] })
+    );
+}
+
+#[test]
+fn merged_items_decode_to_the_workers_ordered_heads() {
+    let limits = fixtures::wire_limits();
+    let mut assignment = fixtures::assignment_with(fixtures::repository(7, b"acme", b"shop"));
+    assignment.workspace.repositories[0].start = root::ForgeStart::Base(b"main".as_slice().into());
+    let original = translate::items(
+        &assignment,
+        &fixtures::forge_table(&fixtures::forges()),
+        &crate::forge::tokens::Tokens::empty(),
+        &limits,
+    )
+    .unwrap()
+    .unwrap();
+    let mut parts = original.repositories().get(0).unwrap().clone().into_parts();
+    let mut heads = List::with_capacity(2);
+    heads.push([3; 32]).unwrap();
+    heads.push([4; 32]).unwrap();
+    parts.start = wire::Start::Merged(
+        wire::Merged::new(&limits, wire::MergedParts { branch: b"main".as_slice().into(), heads }).unwrap(),
+    );
+    let mut repositories = List::with_capacity(1);
+    repositories.push(wire::Repository::new(&limits, parts).unwrap()).unwrap();
+    let items = wire::Items::new(&limits, wire::ItemsParts { repositories }).unwrap();
+    let bytes = temper_protocol_worker_wire::items(&items);
+    let decoded = wire::Items::decode(&limits, &mut skein_lib::Reader::new(&bytes)).unwrap();
+    assert_eq!(
+        translate::workspace(Some(&decoded)).repositories[0].start,
+        temper_worker_domain::wire::Start::Merged {
+            branch: b"main".as_slice().into(),
+            heads: Box::new([[3; 32], [4; 32]])
+        }
+    );
+}

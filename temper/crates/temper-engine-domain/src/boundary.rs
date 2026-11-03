@@ -385,6 +385,8 @@ impl Parts {
 /// Why a repository could not be prepared, permanently (protocol/channel.md, 5).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Preparation {
+    /// The head that did not merge into this repository's base.
+    Conflicted { tag: u64, head: skein_forge::api::Commit },
     /// The forge lacks what the assignment names for this repository.
     Missing { tag: u64, missing: Missing },
     /// The forge refused this repository's identity.
@@ -421,7 +423,6 @@ pub enum Fact {
 }
 
 #[derive(Debug)]
-#[expect(clippy::large_enum_variant, reason = "decoded calls stay inline in the bounded input queue priced at startup")]
 pub enum WorkerInput {
     /// A worker channel's hello, record or loss.
     Link { channel: Token, link: Link },
