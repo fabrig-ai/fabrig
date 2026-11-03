@@ -1,0 +1,3 @@
+draft = "playground-temper"
+repo = "fabrig"
+sources = ["temper/docs/plan/playground-temper/inputs/request.md", "temper/docs/design/playground.md", "temper/docs/design/playground.status.md", "AGENTS.md", "DESIGN.md"]
