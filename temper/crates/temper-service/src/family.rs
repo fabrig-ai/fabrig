@@ -13,7 +13,6 @@ const _: () = {
     assert!(forge::PULL_ADDRESS_BYTES == wire::ADDRESS_BYTES, "pull address bound");
     assert!(forge::FIRST_NAME_BYTES == w::CEILINGS.first_ask_org, "first repository org bound");
     assert!(forge::FIRST_NAME_BYTES == w::CEILINGS.first_ask_repository, "first repository name bound");
-    assert!(forge::FIRST_NAME_BYTES == w::CEILINGS.new_project_name, "first repository project bound");
     assert!(forge::PANEL_AHEAD == wire::TASKS_AHEAD, "panel predecessor bound");
     assert!(forge::PANEL_GATES == wire::GATES, "panel gate bound");
     assert!(forge::PANEL_NAME_BYTES == w::CEILINGS.change_panel_owner, "panel owner bound");
@@ -64,10 +63,6 @@ pub fn to_root(
                             forge,
                             org: value.org,
                             repository: value.repository,
-                            project: match value.project {
-                                w::SetUpProject::Existing(value) => forge::SetUpProject::Existing(value.project()),
-                                w::SetUpProject::New(value) => forge::SetUpProject::New(value.into_parts().name),
-                            },
                         }),
                     }));
                 }
@@ -103,14 +98,6 @@ pub fn to_root(
                                             Some(forge::FirstAsk {
                                                 org: first.org,
                                                 repository: first.repository,
-                                                project: match first.project {
-                                                    w::SetUpProject::Existing(value) => {
-                                                        forge::SetUpProject::Existing(value.project())
-                                                    }
-                                                    w::SetUpProject::New(value) => {
-                                                        forge::SetUpProject::New(value.into_parts().name)
-                                                    }
-                                                },
                                                 label: first.label,
                                             })
                                         }
@@ -665,7 +652,6 @@ pub fn answer(
                             forge::SetUpRefusal::NotOffered => w::SetUpRefusal::NotOffered,
                             forge::SetUpRefusal::NotUnderTheBox => w::SetUpRefusal::NotUnderTheBox,
                             forge::SetUpRefusal::Busy => w::SetUpRefusal::Busy,
-                            forge::SetUpRefusal::NewProject => w::SetUpRefusal::NewProject,
                             forge::SetUpRefusal::Invalid => w::SetUpRefusal::Invalid,
                         },
                     },
@@ -878,14 +864,6 @@ fn connection(
 }
 
 fn first_repository(first: forge::First, limits: &w::Limits) -> Option<w::FirstRepository> {
-    let project = match first.project {
-        forge::SetUpProject::Existing(project) => {
-            w::SetUpProject::Existing(w::ExistingProject::new(limits, w::ExistingProjectParts { project }).ok()?)
-        }
-        forge::SetUpProject::New(name) => {
-            w::SetUpProject::New(w::NewProject::new(limits, w::NewProjectParts { name }).ok()?)
-        }
-    };
     let state = match first.state {
         forge::FirstState::Making => w::FirstState::Making,
         forge::FirstState::Made { id } => w::FirstState::Made(w::Made::new(limits, w::MadeParts { id }).ok()?),
@@ -910,7 +888,6 @@ fn first_repository(first: forge::First, limits: &w::Limits) -> Option<w::FirstR
             playground: first.playground,
             org: first.org,
             repository: first.repository,
-            project,
             state,
             label: first.label,
         },
