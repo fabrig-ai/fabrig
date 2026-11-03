@@ -78,7 +78,7 @@ Acceptance:
   - `the_jar_sends_a_cookie_under_its_path`, `a_cleared_cookie_is_not_sent`,
     `an_expired_cookie_is_not_sent` (the clock moved past its `Max-Age`),
     `a_cookie_past_the_jar_is_refused`;
-  - `the_visitors_worst_case_is_bounded`: every bound full at once (exchanges in flight,
+  - `the_visitors_peak_is_bounded`: every bound full at once (exchanges in flight,
     bodies at their bounds, the stream, the jar), under `Memory::Within(CEILING)`, the
     ceiling the measured peak plus a quarter, as `skein/tests/world/tests/suite/world.rs`
     sets its own.
@@ -117,7 +117,7 @@ Acceptance:
 
 1. The jar, pure, with its step tests.
 2. The visitor's connections: an exchange, then the stream; its `Host` impl.
-3. The site world and the world tests, one by one; the worst case last, its ceiling measured.
+3. The site world and the world tests, one by one; the peak last, its ceiling measured.
 4. `cargo fmt`; `python3 -I -B skein/scripts/old_forms.py`; the clippy runs; the citations
    check.
 5. Commit (why: the visitor carries a page's fetch into the world as a browser would); push
@@ -127,3 +127,13 @@ Acceptance:
 
 As the implementer's text says, and also: the measured peak and the ceiling, and the
 visitor's states in a few lines.
+
+## Answers
+
+- 2026-11-03. Q: rename the memory test, or allow an old-form exception for
+  `the_visitors_worst_case_is_bounded`? A: rename it to
+  `the_visitors_peak_is_bounded`; the test is otherwise as specified (every
+  bound full at once, under `Memory::Within(CEILING)`, the measured peak plus a
+  quarter). `worst_case` is an old form (`skein/scripts/old_forms.py`) whose
+  count only falls; no exception, and the baseline stays as it is. The name
+  in the acceptance above is amended.
