@@ -280,6 +280,7 @@ members = [
     "temper/crates/temper-worker-domain-checkout",
     "temper/crates/temper-worker-domain-tooling",
     "temper/tests/fake-checkout",
+    "temper/tests/playground",
     "temper/tests/engine/domain",
     "temper/tests/system",
     "temper/tests/conformance",
