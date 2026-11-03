@@ -257,7 +257,6 @@ fn agent_configuration_for(llm: skein_llm::Endpoint) -> smith_agent_service::Con
             destination,
             connect: Duration::from_secs(1),
             handshake: Duration::from_secs(1),
-            identity: smith_protocol_llm::IdentityProfile::Plain,
             models: Box::default(),
         }]),
         1,

@@ -288,7 +288,6 @@ pub(crate) fn agent_configuration() -> smith_agent_service::Config {
             destination,
             connect: Duration::from_secs(1),
             handshake: Duration::from_secs(1),
-            identity: smith_protocol_llm::IdentityProfile::Plain,
             models: Box::default(),
         }]),
         1,

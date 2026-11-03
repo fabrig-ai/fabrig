@@ -312,7 +312,6 @@ fn cloned_endpoints(lower: &agent::Config) -> smith_protocol_llm::Endpoints {
                 },
                 connect: options.connect,
                 handshake: options.handshake,
-                identity: options.identity,
                 models: options.models.clone(),
             }
         })

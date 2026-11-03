@@ -30,7 +30,7 @@ fn charter(settings: &Settings, instructions: &str) -> run::Charter {
     let llm = Llm {
         effort: None,
         prices: run::Prices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 },
-        dialect: 1,
+        dialect: 3,
         account: Some(0),
         endpoint: Endpoint(0),
         model: b"fake-1".as_slice().into(),
@@ -465,16 +465,7 @@ fn identityless_resume_keeps_the_recorded_run_key_for_main_and_a_new_child() {
             let observed = smith_protocol_llm_world::referee::NativeRequest::from_http(&binding.request);
             match (&original.affinity, &observed.affinity) {
                 (Some(original), Some(observed)) => {
-                    assert_eq!(
-                        observed[..2],
-                        original[..2],
-                        "recorded run key and session header survive the new seed"
-                    );
-                    if query.system.starts_with(b"@affinity-child") {
-                        assert_ne!(observed[2], original[2], "a child has its own conversation thread");
-                    } else {
-                        assert_eq!(observed[2], original[2], "resumed main retains thread zero");
-                    }
+                    assert_eq!(observed, original, "the recorded run cache key survives the new seed");
                 }
                 (None, None) => {}
                 other => panic!("both requests use the same dialect: {other:?}"),

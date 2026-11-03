@@ -47,7 +47,7 @@ impl Default for Setup {
             mode: Mode::Ordinary,
             tracing: None,
             capture: Capture::Everything,
-            provider: skein_llm::Provider::OpenAiCodex,
+            provider: skein_llm::Provider::OpenAi,
             output: 0,
             order_requests: false,
         }

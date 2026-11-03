@@ -42,19 +42,13 @@ fn resources() -> crate::Resources {
 }
 
 #[test]
-fn an_endpoints_account_is_read_and_ignored() {
-    for account in [None, Some(u32::MAX)] {
-        let mut document = document();
-        let mut endpoint = shaped_document()["endpoints"][0].clone();
-        endpoint.as_object_mut().expect("endpoint object").remove("account");
-        if let Some(account) = account {
-            endpoint["account"] = account.into();
-        }
-        document.endpoints[0] = serde_json::from_value(endpoint).expect("withdrawn account or absent");
-        document.endpoints[0].dialect = 1;
-        let configuration = build(document).expect("withdrawn account is ignored");
-        let endpoint = configuration.service.channel_endpoints.resolve(b"local").expect("configured endpoint");
-        assert_eq!((endpoint.number, endpoint.dialect), (0, 1));
+fn withdrawn_endpoint_fields_are_refused_by_name() {
+    for (field, value) in [("account", serde_json::json!(0)), ("identity", serde_json::json!("claude-code"))] {
+        let mut document = shaped_document();
+        document["endpoints"][0][field] = value;
+        let refusal =
+            decode(&serde_json::to_vec(&document).expect("configuration JSON")).err().expect("unknown endpoint field");
+        assert!(refusal.contains(&format!("unknown field `{field}`")), "{refusal}");
     }
 }
 
@@ -131,8 +125,8 @@ fn a_dialect_name_and_number_must_match() {
     let rows = [
         ("openai", 3, None),
         ("anthropic", 2, None),
-        ("codex", 1, None),
-        ("openai", 1, Some("endpoint dialect does not match provider")),
+        ("codex", 1, Some("endpoint provider must be openai or anthropic")),
+        ("openai", 1, Some("endpoint provider must be openai or anthropic")),
         ("anthropic", 3, Some("endpoint dialect does not match provider")),
     ];
     for (index, (provider, dialect, expected)) in rows.into_iter().enumerate() {
@@ -261,7 +255,7 @@ fn a_credential_field_is_not_part_of_configuration() {
 fn shaped_document() -> serde_json::Value {
     serde_json::json!({
         "profile":{"name":"standard","declared":{"memory":2_147_483_648_u64,"tool_payload":256,"read_window":256}},
-        "endpoints":[{"name":"local","number":0,"dialect":1,"account":0,"provider":"codex",
+        "endpoints":[{"name":"local","number":0,"dialect":3,"provider":"openai",
             "address":"127.0.0.1:8080","transport":"plaintext","connect":10000,"handshake":10000,
             "models":[{"name":"test","window":65536,"output":512,"reasoning_item":64,"prices":{"input":1,"cached":1,"output":1,"unit":1},"head":60000,"idle":30000}]}],
         "environment":[]
@@ -415,7 +409,6 @@ fn all_product_models(mut document: serde_json::Value) -> serde_json::Value {
     anthropic["dialect"] = 2.into();
     anthropic["provider"] = "anthropic".into();
     anthropic["server_name"] = "api.anthropic.com".into();
-    anthropic["identity"] = "claude-code".into();
     let mut models = Vec::new();
     for name in ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"] {
         let mut model = document["endpoints"][0]["models"][0].clone();
@@ -439,11 +432,7 @@ fn native_validated_dense_prompts_fit_the_seen_joint_receiving_ceiling() {
     let client = configured.service.limits.llm.adapter.client;
     let events = configured.service.limits.events.expect("product destination");
     let ceiling = events.sinks.line_ceiling(Capture::Everything).expect("joint ceiling");
-    let credential = shared::Credential {
-        value: b"secret-prompt-bound-token".as_slice().into(),
-        account_id: b"secret-prompt-bound-account".as_slice().into(),
-        scheme: skein_llm::Scheme::Bearer,
-    };
+    let credential = shared::Credential::bearer(b"secret-prompt-bound-token".as_slice().into());
     for dense in [true, false] {
         let count = if dense { client.history_items } else { 8 };
         let text = if dense { b"x".as_slice().into() } else { vec![0; 256_000].into_boxed_slice() };
@@ -462,7 +451,7 @@ fn native_validated_dense_prompts_fit_the_seen_joint_receiving_ceiling() {
             affinity: None,
             max_output_tokens: None,
         };
-        let measured = shared::client::measure(&native, Some(&credential), &shared::Endpoint::codex(), &client)
+        let measured = shared::client::measure(&native, Some(&credential), &shared::Endpoint::openai(), &client)
             .expect("the native writer admits the complete source payload");
         assert!(measured.body <= client.request, "native body stays within its owning cap");
         let mut messages = List::with_capacity(count);

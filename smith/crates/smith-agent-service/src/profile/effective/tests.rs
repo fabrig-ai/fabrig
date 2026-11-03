@@ -107,11 +107,10 @@ fn endpoints(configuration: &super::super::Configuration, limits: &crate::Limits
                     credential: skein_llm::client::CredentialLimits { value: 0, account_id: 0 },
                     address: skein_io::kernel::Addr::from((core::net::Ipv4Addr::LOCALHOST, 443)),
                     transport: skein_llm_connection::Transport::Plaintext,
-                    llm: skein_llm::Endpoint::codex(),
+                    llm: skein_llm::Endpoint::openai(),
                 },
                 connect: endpoint.connect,
                 handshake: endpoint.handshake,
-                identity: smith_protocol_llm::IdentityProfile::Plain,
                 models: Box::new([]),
             })
             .expect("two endpoints");
