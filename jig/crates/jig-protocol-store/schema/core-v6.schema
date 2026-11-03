@@ -101,12 +101,12 @@ record PartyTask { value: u64 }
 record PartyPerson { value: u64 }
 record PartyDeployment { project: u32 }
 enum Party { task: PartyTask, person: PartyPerson, deployment: PartyDeployment }
-record ProjectionGoal { number: u64 project: u32 priority: u32 words: bytes 65536 phase: PhaseBytes }
-record ProjectionTask { number: u64 requester: Party words: bytes 65536 phase: PhaseBytes }
+record ProjectionGoal { number: u64 project: u32 priority: u32 words: bytes 262144 phase: PhaseBytes }
+record ProjectionTask { number: u64 requester: Party words: bytes 262144 phase: PhaseBytes }
 record MilestoneLifecycle { task: u64 position: u64 }
 record MilestoneRevision { task: u64 revision: u64 }
 enum MilestoneId { lifecycle: MilestoneLifecycle, revision: MilestoneRevision }
-record ProjectionMilestone { identity: MilestoneId phase: option PhaseBytes change: option ChangeBytes words: bytes 65536 }
+record ProjectionMilestone { identity: MilestoneId phase: option PhaseBytes change: option ChangeBytes words: bytes 524288 }
 record Connector { value: u16 }
 record ProjectionGoalRow { goal: ProjectionGoal pending: list 1024 Connector changed: bool fed_at: option u64 }
 record ProjectionTaskRow { goal: u64 task: ProjectionTask }
@@ -117,7 +117,7 @@ record TurnProof { turn: u32 cumulative: u64 read: option u64 }
 record Window { attempt: u64 turn: u32 closed: bool }
 record Credential { value: u32 }
 record AccountBinding { provider: u32 account: u32 source: u32 }
-record RunProof { task: u64 attempt: u64 conversation: u64 accounts: list 64 AccountBinding placement: option u64 account_failure: option u32 account_terminal: bool credentials: list 1024 Credential window: option Window crossed: bool host: HostKind offered: option u64 outstanding: list 64 Number turn: option TurnProof terminal: option TerminalRecord }
+record RunProof { task: u64 attempt: u64 conversation: u64 accounts: list 64 AccountBinding placement: option u64 account_failure: option u32 account_terminal: bool credentials: list 1024 Credential window: option Window crossed: bool host: HostKind offered: option u64 outstanding: list 128 Number turn: option TurnProof terminal: option TerminalRecord }
 versioned record TurnRecord { opens_window: bool task: u64 attempt: u64 turn: u32 spent: u64 read: option u64 at: u64 transcript: bytes 33554432 holds smith-transcript Turn }
 record Created { first: u64 last: u64 }
 record ProposalDecisionRecord { project: u32 proposer: Proposer proposal: u64 kind: ProposalKind by: u64 at: u64 choice: ProposalChoice created: option Created }
