@@ -171,14 +171,11 @@ pub(crate) fn switcher(
                         if root.pages().switcher().renaming() == Some(row.project) {
                             rename_form(builder, root, words, &name, bindings);
                         } else if row.role == jig_client::contract::HeldRole::Owner {
-                            action(
-                                builder,
-                                Role::Button,
-                                &words.say(crate::words::Word::Rename, &[]),
-                                Act::Switcher(switcher::Act::Rename),
-                                false,
-                                bindings,
-                            );
+                            builder.open(Role::Button);
+                            builder.style(crate::look::PROJECT_RENAME);
+                            builder.name(&words.say(crate::words::Word::Rename, &[]));
+                            builder.bind(bindings.insert(Act::Switcher(switcher::Act::Rename)));
+                            builder.close();
                         }
                     }
                 }
@@ -194,6 +191,7 @@ fn rename_form(b: &mut Builder, root: &Domain, words: &crate::words::Words, proj
     let switcher = root.pages().switcher();
     let pending = switcher.pending().is_some();
     b.open(Role::Form);
+    b.style(crate::look::PROJECT_RENAME_FORM);
     b.name(&words.say(Word::RenameProject, &[skein_ui::phrases::Hole::Name(project.into())]));
     b.open(Role::TextField);
     b.state(skein_ui::State::SubmitsOnEnter);
@@ -222,6 +220,7 @@ fn new_project_form(b: &mut Builder, root: &Domain, words: &crate::words::Words,
     let switcher = root.pages().switcher();
     let pending = switcher.pending().is_some();
     b.open(Role::Form);
+    b.style(crate::look::PROJECT_NEW);
     b.name(&words.say(Word::NewProject, &[]));
     b.open(Role::TextField);
     b.state(skein_ui::State::SubmitsOnEnter);

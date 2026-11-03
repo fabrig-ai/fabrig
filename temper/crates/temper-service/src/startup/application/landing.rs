@@ -43,12 +43,10 @@ pub(super) fn parse(
                         found = true;
                     }
                 }
-                // domain/landing.md, 13.1: a turn can configure an adopted project.
-                let restored_turn = match &landing {
-                    Some(landing) => landing.by == engine::Way::Turn,
-                    None => false,
-                };
-                if !found && !restored_turn {
+                // temper/docs/design/protocol/configuration.md, 3: either way
+                // can configure a restored project; policy rules live in the store.
+                let restored = landing.is_some();
+                if !found && !restored {
                     problems.push(path.member(b"project"), What::Jig(config::What::Refers));
                 }
                 if landings.contains_key(&project) {

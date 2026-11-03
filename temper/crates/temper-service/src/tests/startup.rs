@@ -546,7 +546,6 @@ fn members_and_references_are_checked() {
     let jig = fixtures::engine().jig;
     let input = core::str::from_utf8(fixtures::APPLICATION).unwrap();
     for (from, to, expected) in [
-        ("\"project\":1", "\"project\":2", "application.landing.projects[0].project: unknown reference\n"),
         ("\"git\":\"/usr/bin/git\"", "\"git\":\"git\"", "application.workers[0].git: must be an absolute path\n"),
         ("\"git\":\"/usr/bin/git\"", "\"git\":null", ""),
     ] {
@@ -1147,6 +1146,22 @@ fn turn_configuration(project: u32) -> (Option<application::Members>, Problems) 
     application(&input, &jig)
 }
 
+fn assert_landing_projects_start(projects: &[u8]) {
+    let document = fixtures::with(&fixtures::document(), b"application.landing.projects", projects);
+    if let Err(problems) = crate::startup(
+        &document,
+        &config::Directories::working(),
+        &fixtures::files(),
+        &fixtures::startup_agent(),
+        &fixtures::seeds(),
+        None,
+        fixtures::worker_runtime(),
+        fixtures::forge_runtime(),
+    ) {
+        panic!("configured landing starts: {}", core::str::from_utf8(&lines(&problems)).unwrap());
+    }
+}
+
 #[test]
 fn turn_configuration_can_name_a_project_adopted_after_the_seed() {
     const ADOPTED: u32 = 2;
@@ -1156,19 +1171,60 @@ fn turn_configuration_can_name_a_project_adopted_after_the_seed() {
     let landing = members.landings.get(&ADOPTED).unwrap();
     assert_eq!(landing.by, temper_engine_domain::Way::Turn);
     assert_eq!(landing.repositories[0].gates[0].workflow.as_ref(), b"gate.yml");
-    let document = fixtures::with(&fixtures::document(), b"application.landing.projects", &turn_projects(ADOPTED));
-    let started = crate::startup(
-        &document,
-        &config::Directories::working(),
-        &fixtures::files(),
-        &fixtures::startup_agent(),
-        &fixtures::seeds(),
-        None,
-        fixtures::worker_runtime(),
-        fixtures::forge_runtime(),
-    );
-    if let Err(problems) = started {
-        panic!("restored turn startup: {}", core::str::from_utf8(&lines(&problems)).unwrap());
+    assert_landing_projects_start(&turn_projects(ADOPTED));
+}
+
+#[test]
+fn queue_tiers_can_name_a_project_adopted_after_the_seed() {
+    use skein_forge::api::Repository;
+    use temper_engine_domain::{AfterLandingCheck, TierCheck, Way};
+    use temper_engine_domain_forge::Follows;
+    use temper_engine_domain_forge_tiers::Format;
+    const ADOPTED: u32 = 2;
+    let jig = fixtures::engine().jig;
+    for project in &jig.projects {
+        assert_ne!(project.number, ADOPTED);
+    }
+    for by in [r#""by":"queue","#, ""] {
+        let projects = format!(
+            r#"[{{"project":{ADOPTED},{by}"tier_retries":2,"verification_bound_ms":7200000,"gates":[{{"forge":1,"repository":1,"gates":[],"tiers":[{{"name":"slow","workflow":"slow.yml","ignored":[],"artifact":"report","format":"lines"}}]}}]}}]"#
+        );
+        let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", projects.as_bytes());
+        let (members, problems) = application(&input, &jig);
+        assert!(problems.is_empty(), "{by}: {:?}", lines(&problems));
+        let members = members.unwrap();
+        let landing = members.landings.get(&ADOPTED).unwrap();
+        assert_eq!(landing.by, Way::Queue);
+        assert_eq!(landing.after, AfterLandingCheck { tier_retries: 2, verification_bound_ms: 7_200_000 });
+        assert_eq!(landing.repositories.len(), 1);
+        let repository = &landing.repositories[0];
+        assert_eq!(repository.repository, Repository { forge: 1, repository: 1 });
+        assert!(repository.gates.is_empty());
+        assert_eq!(
+            repository.tiers.as_ref(),
+            &[TierCheck {
+                name: Box::from(b"slow".as_slice()),
+                workflow: Box::from(b"slow.yml".as_slice()),
+                ignored: Box::new([]),
+                artifact: Box::from(b"report".as_slice()),
+                format: Format::Lines,
+                follows: Follows::Landing,
+                span_ms: 0,
+            }]
+        );
+        assert_landing_projects_start(projects.as_bytes());
+    }
+}
+
+#[test]
+fn restored_projects_cannot_configure_stored_landing_rules() {
+    let jig = fixtures::engine().jig;
+    for by in [r#""by":"queue","#, r#""by":"turn","#, ""] {
+        let projects = format!(r#"[{{"project":2,{by}"rules":[]}}]"#);
+        let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", projects.as_bytes());
+        let (members, problems) = application(&input, &jig);
+        assert!(members.is_none());
+        assert_eq!(lines(&problems).as_ref(), b"application.landing.projects[0].rules: landing rules live in the store; read them with temper ctl settings show landing-rule --project\n");
     }
 }
 
@@ -1254,19 +1310,7 @@ fn landing_configuration_reads_tiers_and_project_settings_by_queue_and_turn() {
                 },
             ]
         );
-        let document = fixtures::with(&fixtures::document(), b"application.landing.projects", &projects);
-        if let Err(problems) = crate::startup(
-            &document,
-            &config::Directories::working(),
-            &fixtures::files(),
-            &fixtures::startup_agent(),
-            &fixtures::seeds(),
-            None,
-            fixtures::worker_runtime(),
-            fixtures::forge_runtime(),
-        ) {
-            panic!("configured tiers start: {}", core::str::from_utf8(&lines(&problems)).unwrap());
-        }
+        assert_landing_projects_start(&projects);
     }
 }
 

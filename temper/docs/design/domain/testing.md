@@ -1917,8 +1917,13 @@ meets a story only when its item closes. The system world checks its
 stories independently of the roots, against durable task and call
 records and smith's own observations (`tests/system`). The conformance
 world (`tests/conformance`) runs the engine root on jig's conformance
-harness, under its outside referee. The worker's child domain worlds
-keep their checks inline.
+harness, under its outside referee. Its stories' and scenarios' heap
+ceilings are three times the figure skein's testing-strategy.md,
+section 6 gives (the measured peak plus a quarter, rounded up), the
+user's, 2026-11-03: an engine running a workload of many goals holds
+tens of MB, so a quarter's headroom over one story cost a repair at
+each milestone's added state, while three times still catches a leak.
+The worker's child domain worlds keep their checks inline.
 
 ### 5.3 The reference case
 
