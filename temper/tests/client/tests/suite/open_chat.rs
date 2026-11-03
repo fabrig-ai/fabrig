@@ -54,7 +54,7 @@ fn an_open_chat_stays_live_takes_a_second_message_and_is_closed() {
         see(Find::text(b"Closed 00:00")),
         Step::Gone { find: Find::named(Role::TextArea, b"Message"), within: fixtures::WITHIN },
         Step::Press { find: Find::exactly_named(Role::Link, b"Chats") },
-        see(Find::named(Role::Heading { level: 2 }, b"Your chats")),
+        see(Find::named(Role::Heading { level: 1 }, b"Chats")),
         see(Find::text(QUESTION)),
         see(Find::text(b"Closed").within(Box::new([skein_fake_person::Target::ExactRole {
             role: Role::List,

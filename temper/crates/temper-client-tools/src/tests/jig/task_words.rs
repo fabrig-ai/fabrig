@@ -800,3 +800,81 @@ fn task_show_names_the_tier_execution_and_its_forge_link_without_json() {
     assert!(skein_lib::bytes::find(&printed.stdout, words).is_some());
     assert!(skein_lib::bytes::find(&printed.stdout, b"asked: Tier slow run 1").is_some());
 }
+
+const CLEARING: &str = "Cleared by slow run 2.";
+fn cleared_words() -> Box<[u8]> {
+    Box::from(
+        concat!(
+            "1d0b14e4db018fed000000000000000300000000\n",
+            "pull request #1 of work/hello on forge.example: ",
+            "https://forge.example/work/a-repository-with-a-long-name-and-a-long-pull-request-address/pulls/1\n",
+            "Landed: pull request #1 merged into main as 1d0b14e4db01.\n",
+            "Cleared by slow run 2.\n",
+        )
+        .as_bytes(),
+    )
+}
+fn cleared_read(words: c::DocumentText) -> c::ReadResult {
+    ended(
+        delegate(),
+        c::Ending::Done,
+        Some(c::ResultValue::Change {
+            kind: 1,
+            part: c::Part { connector: FORGE, kind: c::PartKind::Result, key: c::PartKey::Number(1) },
+            words,
+        }),
+    )
+}
+#[test]
+fn task_show_keeps_clearing_words_beyond_byte_128_in_text_and_json() {
+    let words = cleared_words();
+    assert!(skein_lib::bytes::find(&words, CLEARING.as_bytes()).unwrap() > 128);
+    for argv in [["task", "show", "2"].as_slice(), &["task", "show", "2", "--json"]] {
+        let printed = f::read_answer(argv, cleared_read(f::document_text(&words)));
+        assert_eq!(printed.status, 0);
+        assert!(f::has(&printed, CLEARING.as_bytes()), "{printed:?}");
+    }
+}
+#[test]
+fn task_show_preserves_the_clearing_verdict_before_spending_its_budget_on_the_pull_address() {
+    let (mut root, call) = f::read_call(&["task", "show", "2"]);
+    root.limits.tools.text = 550;
+    root.serve(call, cleared_read(f::document_text(&cleared_words())));
+    let printed = root.answer(call).unwrap();
+    assert_eq!(printed.status, 0);
+    assert!(f::has(&printed, CLEARING.as_bytes()), "{printed:?}");
+}
+
+#[test]
+fn task_result_document_cut_and_ctl_json_budget_are_independent() {
+    let words = cleared_words();
+    let (core, mut limits, mut row) = f::source_task(b"Make a change");
+    row.phase = jig_domain_tasks::Phase::Ended(jig_domain_tasks::Ending::Done(jig_domain_tasks::TaskResult::Change {
+        connector: FORGE,
+        kind: 1,
+        resource: 1,
+        title: jig_domain_tasks::ChangeTitle::new(b"Change".as_slice().into()),
+        words: words.clone(),
+    }));
+    for upstream_bound in [128, 4096] {
+        limits.documents.text_bytes = upstream_bound;
+        let result = jig_domain_core::documents::result_from_row(&core, &limits, 1, &row, Wall::EPOCH).unwrap();
+        let jig_domain_core::documents::Ending::Done(jig_domain_core::documents::ResultValue::Change { words, .. }) =
+            result.ending
+        else {
+            panic!("change result")
+        };
+        assert_eq!(words.cut, upstream_bound == 128);
+        assert_eq!(words.bytes.len(), if upstream_bound == 128 { 128 } else { cleared_words().len() });
+        let document = c::DocumentText { bytes: c::Text::new(words.bytes, 4096).unwrap(), cut: words.cut };
+        for ctl_bound in [128, crate::limits::TEXT] {
+            let (mut root, call) = f::read_call(&["task", "show", "1", "--json"]);
+            root.limits.tools.text = ctl_bound;
+            root.serve(call, cleared_read(document.clone()));
+            let printed = root.answer(call).unwrap();
+            assert_eq!(printed.status, 0);
+            assert_eq!(f::has(&printed, CLEARING.as_bytes()), upstream_bound > 128 && ctl_bound > 128);
+            assert_eq!(f::has(&printed, b"\"cut\":true"), upstream_bound == 128);
+        }
+    }
+}
