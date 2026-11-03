@@ -8,8 +8,8 @@
   6, 10: fab's gate list (`.config/gate/wasm32.txt`) leaves out
   `skein-tls`, `skein-fake-forge-github` and `skein-fake-peers`, and no
   listed package reaches them on wasm32, so the gate's wasm32 clippy
-  lints none of them. Their wasm32 build takes rustls without `std`
-  (`tls.md`, 4); whether its clippy passes is unmeasured.
+  lints none of them; run outside the gate, their wasm32 clippy passes,
+  warnings denied.
   7: `live-skein` has no CPU budget or wall hard limit in
   `tools/tiers/budgets.toml`.
 - **Departs:** 6: `crates/skein-fail-stop`, `crates/skein-fake-forge-protocol`
