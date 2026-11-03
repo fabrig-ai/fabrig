@@ -403,6 +403,7 @@ fn carried_bound(ask: &w::Ask, key_bytes: u32, moved_bytes: u64, redirect_bytes:
 /// The pasted address is the sole jig value held without a durable carry.
 fn carried_kind(ask: &people::Ask) -> Option<crate::CarriedKind> {
     match ask {
+        people::Ask::Restore { .. } => unreachable!("a restore: restore-request"),
         people::Ask::AccountChange { change, .. } => match change {
             people::AccountChange::FinishSignIn { .. } => None,
             people::AccountChange::AddKey { .. } | people::AccountChange::ReplaceKey { .. } => {
