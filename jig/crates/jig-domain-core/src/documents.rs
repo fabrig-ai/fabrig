@@ -464,10 +464,9 @@ pub fn make(
     }
 }
 
-/// Checked allocation bound for one document; parents price each retained delivery separately.
+/// Checked allocation bound excluding live delegates and task-limit context;
+/// `document_with_context_bound` prices those. Parents price each retained delivery separately.
 #[must_use]
-/// The inbox selection roots additionally require `document_with_context_bound`,
-/// because their configured requester depth belongs to the task limits.
 pub fn document_bound(limits: &DocumentLimits) -> Option<u64> {
     if limits.rows == 0
         || limits.text_bytes == 0
@@ -504,10 +503,13 @@ pub fn document_bound(limits: &DocumentLimits) -> Option<u64> {
     )
 }
 
-/// Bound of a document including the inbox's requester selection context.
+/// Bound of a document including live delegates up to `tasks.delegates`, their
+/// chip heaps, and the inbox's requester selection context.
 #[must_use]
 pub fn document_with_context_bound(limits: &Limits, kinds: &[crate::settings::Kind]) -> Option<u64> {
     document_bound(&limits.documents)?
+        .checked_add(List::<LiveDelegate>::price(limits.tasks.delegates)?)?
+        .checked_add(u64::from(limits.tasks.delegates).checked_mul(chip_phase::heap_bound(&limits.documents)?)?)?
         .checked_add(settings::document_bound(limits, kinds)?)?
         .checked_add(settings_review::document_bound(limits)?)?
         .checked_add(inbox_selection_bound(limits.documents.rows, limits.tasks.depth)?)?
