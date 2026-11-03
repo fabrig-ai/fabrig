@@ -38,3 +38,68 @@ as an authority's tools.
   4.3): `settings` and `propose_settings` are declared where
   `policy.tools.0 & authority.tools.0 & ToolFamilies::JIG.settings != 0`; every other host
   tool is declared as now, by the task's authority where it is today (message, plan).
+
+## C2. A charter's brief room (room)
+
+temper's `domain/agent.md`, 4.3: a charter is refused at a start and at a change's three
+entrances when it leaves its brief less than 2,048 bytes of smith's host part.
+
+- `temper/crates/temper-engine-domain/src/room.rs`, `pub mod room;` in the crate's `lib.rs`:
+  ```rust
+  /// A run's least brief room (domain/agent.md, 4.3).
+  pub const BRIEF_ROOM: u64 = 2_048;
+
+  /// What a charter's non-brief host part costs, by its parts, in smith's bytes: built once at a
+  /// start by temper-engine-smith from its declarations and smith's measures; the domain reads it.
+  #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+  pub struct HostPart {
+      /// smith's host part in the receiving profile (51,717 in small).
+      pub bound: u64,
+      /// What every run pays: smith's own text and the largest finish and deliver schemas.
+      pub fixed: u64,
+      /// Every host tool declared whatever the charter's `tools`, at the largest offer.
+      pub declared: u64,
+      /// The settings family's tools, paid where the charter's `tools` names the family.
+      pub settings: u64,
+      /// smith's own families' tools, each paid where the charter's policy turns it on.
+      pub inspect: u64,
+      pub modify: u64,
+      pub shell: u64,
+      pub agents: u64,
+  }
+
+  /// A charter that leaves its brief less than `BRIEF_ROOM`.
+  #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+  pub struct Short {
+      pub charter: u32,
+      /// Its brief's room, 0 where its non-brief part alone passes the bound.
+      pub room: u64,
+      pub bound: u64,
+  }
+
+  impl HostPart {
+      /// `fixed + declared + instructions`, with `settings` where
+      /// `policy.tools.0 & ToolFamilies::JIG.settings != 0` and each smith family the policy
+      /// turns on.
+      pub fn non_brief(&self, policy: &jig_domain_core::RunPolicy) -> u64;
+      /// `bound - non_brief`, 0 at or past the bound.
+      pub fn room(&self, policy: &jig_domain_core::RunPolicy) -> u64;
+      pub fn check(&self, charter: u32, policy: &jig_domain_core::RunPolicy) -> Result<(), Short>;
+  }
+
+  impl Short {
+      /// "charter N leaves its brief R bytes of its host part's B; it needs at least 2,048",
+      /// the figures with thousands' commas.
+      pub fn words(&self) -> Box<[u8]>;
+  }
+  ```
+- `temper_engine_smith::room::host_part(limits: &smith_domain_run::Limits) -> temper_engine_domain::room::HostPart`,
+  `bound` = `limits.host_part`.
+- **Where it is checked** (`room-checks`): at a start, each charter of the current settings
+  (the defaults with the stored changes over them); at the engine's `ChangeSettings` and
+  `ProposeSettings` routes, each charter an item sets, refused as
+  `jig_domain_people::Refusal::Judged { at, setting, why: short.words() }`, `at` the item's
+  index; at a run's `propose_settings`, answered as a host error,
+  `SettledAnswer::Host { error: true, body: short.words() }`, the run going on. A stored
+  proposal's acceptance, a restore and a reset are not checked. An engine given no
+  `HostPart` (no agent configured) checks nothing.

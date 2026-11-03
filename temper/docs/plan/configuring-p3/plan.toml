@@ -21,3 +21,29 @@ id = 1
 story = "Only a run whose charter names the settings family, and whose authority holds it, is offered settings and propose_settings"
 parts = ["charter-tools"]
 walk = false
+
+[[part]]
+id = "configuring-agent"
+title = "The configuring agent: charter 3 and template 3 in the stock, its reads and proposals of every settings kind, its stories"
+mode = "direct"
+needs = ["charter-tools"]
+design = "temper/docs/design/domain/agent.md, 8.1"
+
+[[part]]
+id = "room"
+title = "Each charter leaves its brief 2,048 bytes of smith's host part, checked at a start and at a change's three entrances"
+mode = "direct"
+needs = ["charter-tools"]
+design = "temper/docs/design/domain/agent.md, 4.3"
+
+[[slice]]
+id = 2
+story = "No charter leaves its brief less than 2,048 bytes: a start and each entrance of a change of settings refuse one, naming it and both figures"
+parts = ["room"]
+walk = false
+
+[[slice]]
+id = 3
+story = "A configuring chat started through temper ctl on a real model reads the settings, proposes a small description, and an owner accepts it"
+parts = ["configuring-agent"]
+walk = true
