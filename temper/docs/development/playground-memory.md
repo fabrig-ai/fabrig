@@ -62,8 +62,8 @@ is missing and the playground remains `Starting`. It does not return an outcome
 or peaks. This is a story failure before a release check, so no `Observe`
 accounting workaround has been applied. Its high water and every knob's effect
 on its high water are **unmeasured: story A does not walk yet**. The measurement
-binary remains ignored for manual use once the story walks. The section 8 status
-entry remains open for that reason.
+binary remains ignored for manual use once the story walks. Its status entry
+(`temper/docs/design/playground.status.md`, 8) remains open for that reason.
 
 ## Halving the knobs
 
