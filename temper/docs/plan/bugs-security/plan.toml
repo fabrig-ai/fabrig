@@ -1,0 +1,3 @@
+draft = "bugs-security"
+repo = "fabrig"
+sources = ["temper/docs/plan/bugs-security/inputs/request.md", "skein/docs/design/lib.md", "AGENTS.md"]
