@@ -18,7 +18,9 @@ The standing rules are `notes/common.md`; the names and figures that cross tasks
 - **48 calls in one response:** smith's transcript schema holds 64 message blocks and 3 MiB of
   opaque bytes; 48 calls need 98 and about 6.4 MB (`smith-calls`).
 - **A turn of smith's** is at most 16 MiB (its channel's `turn_body`), but the store's frame and
-  the worker wire hold 8 MiB (`transcript-ceilings`).
+  the worker wire hold 8 MiB (`transcript-ceilings`); init's agent's turn, clamped by luna's
+  history, is 16,803,810 bytes, so the ceiling and its carriers go to 32 MiB (`smith-calls`,
+  K3).
 - **80 questions on a change:** the forge keeps at most 16 open (`forge-questions`).
 - **A tool call's payload** is bounded by the model's output (skein-llm: input within answer):
   at init's models' 8,192 output tokens, 10,662 bytes. The agent's `tool_payload` and
@@ -109,7 +111,7 @@ The standing rules are `notes/common.md`; the names and figures that cross tasks
 | jig-rows | `batch-bytes` (jig): `tasks.batch_bytes`, a batch's bytes, admitted and refused | override-relations, transcript-ceilings | released |
 | jig-rows | `tasks-pieces` (jig): tasks-v9 priced by pieces, no batch inside a batch | batch-bytes, forge-profile | released |
 | jig-rows | `store-ceilings` (jig): tasks-v9's and core-v6's ceilings for the draft's figures | tasks-pieces | released |
-| jig-standard | `standard-scale` (jig): `standard` raised to K2, its store sized by the largest row | store-ceilings, override-relations | released |
+| jig-standard | `standard-scale` (jig): `standard` raised to K2, its store sized by the largest row | store-ceilings, override-relations, smith-calls | released |
 | box | `init-standard` (temper): init's document and the owned example on `standard`, the agent at 800 turns, 48 calls, 26 conversations, inbox 82, the demo at luna's window, T | standard-scale, forge-profile, smith-calls, client-capacities | released |
 | room | `brief-room` (temper): control in the stock; `standard`'s brief holds a whole spec | init-standard | released |
 | stock | `stock-scale` (temper): the stock's runs, delegation, pool, report; QA's funding raise gone; the task row's words | brief-room | released |

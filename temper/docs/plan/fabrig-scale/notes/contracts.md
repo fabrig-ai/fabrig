@@ -60,16 +60,18 @@ At least these, each a configured limit of the tasks, people or authority child:
   by its bytes in all is one piece; a record's worst case is the sum): the jig family's design
   says how, and its tasks build it.
 
-## K3. Transcript ceilings (task `transcript-ceilings`)
+## K3. Transcript ceilings (tasks `transcript-ceilings`, `smith-calls`)
 
-- smith's largest turn T is at most 16,777,216 bytes, smith's channel's `turn_body` ceiling
-  (smith's `protocol/limits.md`, 4, `turn-in-channel`). So, in place: the store's core-v6
-  `TurnRecord.transcript` and jig's worker wire v9 `Turn.body`, each one turn, `bytes 16777216`;
-  the worker wire's `Assignment.transcript`, the worker's resumed transcript (resume plus twelve
-  bytes a four-byte step, at most 67,108,880 at that T), `bytes 134217728`. jig's client wire's
-  `TurnCarried` stays: a larger turn reaches a client as `too_large`.
-- jig's `standard` page holds a TurnRecord frame of a transcript of 16,777,216 bytes, so any
-  turn smith admits is stored (the jig family sizes it).
+- smith's largest turn T is at most 33,554,432 bytes, smith's channel's `turn_body` ceiling
+  (smith's `protocol/limits.md`, 4, `turn-in-channel`), raised in place from 16,777,216 by
+  `smith-calls`: at init's agent T is clamped by luna's history, 16,803,538 bytes before its
+  cells, past 2^24. So, in place: the store's core-v6 `TurnRecord.transcript` and jig's worker
+  wire v9 `Turn.body`, each one turn, `bytes 33554432`; the worker wire's
+  `Assignment.transcript`, the worker's resumed transcript (resume plus twelve bytes a
+  four-byte step, about 4 × T + 16, 67.2 MB at init's T), `bytes 134217728`. jig's client
+  wire's `TurnCarried` stays: a larger turn reaches a client as `too_large`.
+- jig's `standard` page holds a TurnRecord frame of a transcript of 33,554,432 bytes, so any
+  turn smith admits is stored (the jig family sizes it, after `smith-calls`).
 
 ## K4. temper's application `standard` (task `forge-profile`)
 
