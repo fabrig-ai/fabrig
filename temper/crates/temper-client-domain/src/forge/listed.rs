@@ -1,4 +1,4 @@
-//! Kept forges and their navigation dot (temper/docs/design/client/forge.md, 5.4; temper/docs/design/client/README.md, 4.8).
+//! Kept forges and their navigation dot (temper/docs/design/client/forge.md, 5.4; temper/docs/design/client/README.md, 3.5, 4.4 and 4.8).
 use super::{
     Playground, connect,
     forges::{Connection, Mode, Row, State},
@@ -113,4 +113,53 @@ pub fn setup(root: &Domain) -> Option<Setup> {
         model,
         step,
     })
+}
+
+/// K4: Some(true) once the rows are delivered and none names `project`.
+#[must_use]
+pub fn without_repository(forges: &State, playground: Option<&Playground>, project: u32) -> Option<bool> {
+    if let Some(playground) = playground
+        && playground.project == Some(project)
+    {
+        return None;
+    }
+    let State::Rows(rows) = forges else { return None };
+    for row in rows {
+        for repository in &row.repositories {
+            if repository.project == project {
+                return Some(false);
+            }
+        }
+    }
+    Some(true)
+}
+/// 4.4: the first repository made and adopted nowhere, on the lowest-numbered real forge.
+#[must_use]
+pub fn unadopted_first(forges: &State) -> Option<(u16, &[u8], &[u8])> {
+    let State::Rows(rows) = forges else { return None };
+    let mut first = None;
+    for row in rows {
+        if row.mode == Mode::Fake {
+            continue;
+        }
+        let Some(candidate) = &row.first else { continue };
+        match candidate.state {
+            super::forges::FirstState::Made { .. } => {}
+            super::forges::FirstState::Making | super::forges::FirstState::Failed { .. } => continue,
+        }
+        let mut adopted = false;
+        for other in rows {
+            for repository in &other.repositories {
+                adopted |= repository.owner == candidate.org && repository.name == candidate.repository;
+            }
+        }
+        let lower = match first {
+            Some((number, _, _)) => row.number < number,
+            None => true,
+        };
+        if !adopted && lower {
+            first = Some((row.number, candidate.org.as_ref(), candidate.repository.as_ref()));
+        }
+    }
+    first
 }

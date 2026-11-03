@@ -35,7 +35,7 @@ fn the_project_chosen_is_the_first_of_me_at_start() {
     assert_eq!(root.pages().project(), Some(fixtures::PROJECT));
 }
 #[test]
-fn the_running_playground_project_button_is_named_playground() {
+fn the_running_playground_project_button_is_named_by_its_record() {
     let root = fixtures::playground_root(
         temper_client_domain::Address::Chats { filter: ChatsFilter::All, start: false },
         fixtures::PROJECT,
@@ -44,12 +44,12 @@ fn the_running_playground_project_button_is_named_playground() {
     for words in [fixtures::words(), fixtures::browser_words()] {
         let mut view = fixtures::view_of(words);
         fixtures::build(&mut view, &root);
-        let button = fixtures::find(view.tree(), Role::Button, b"Playground").expect("playground project");
+        let button = fixtures::find(view.tree(), Role::Button, b"Shop").expect("stored project name");
         assert_eq!(
             crate::act(&mut view, button, Act::Press),
             Some(Action::Pages(pages::Act::Project { project: fixtures::PROJECT }))
         );
-        assert!(fixtures::find(view.tree(), Role::Button, b"Shop").is_none());
+        assert!(fixtures::find(view.tree(), Role::Button, b"Playground").is_none());
         assert!(fixtures::find(view.tree(), Role::Paragraph, b"No project yet").is_none());
     }
 }
@@ -88,6 +88,7 @@ fn a_navigation_without_projects_says_no_project_yet() {
             &view,
             &[
                 (Role::Paragraph, Some(b"No project yet")),
+                (Role::Form, Some(b"New project")),
                 (Role::Navigation, Some(b"Main navigation")),
                 (Role::Slot, None),
             ],
@@ -532,7 +533,7 @@ fn the_switcher_puts_the_open_project_first_and_binds_the_other_project() {
 fn the_switcher_is_named_projects_before_a_project_is_open() {
     let root = fixtures::root_in_project(None);
     let mut builder = skein_ui::Builder::new(&fixtures::tree_limits());
-    let mut bindings = crate::frame::Bindings::new(2);
+    let mut bindings = crate::frame::Bindings::new(fixtures::tree_limits().bindings);
     crate::frame::switcher(&mut builder, &root, &fixtures::words(), &mut bindings, None);
     assert_switcher(&builder.finish(), b"Projects", &[(b"Shop", false), (b"Second", false)]);
 }
@@ -559,8 +560,15 @@ fn assert_switcher(tree: &skein_ui::Tree, name: &[u8], projects: &[(&[u8], bool)
         assert_eq!(button.states.as_slice().contains(&skein_ui::State::Pressed), *pressed);
         assert!(button.binding.is_some());
         at = at.checked_add(usize::try_from(button.size).unwrap()).unwrap();
+        if nodes[at].role == Role::Button && nodes[at].name.as_deref() == Some(b"Rename") {
+            assert!(*pressed, "rename belongs to the open project");
+            at = at.checked_add(usize::try_from(nodes[at].size).unwrap()).unwrap();
+        }
     }
-    assert_eq!(at, end, "the disclosure holds just the project buttons");
+    assert_eq!(nodes[at].role, Role::Form);
+    assert_eq!(nodes[at].name.as_deref(), Some(b"New project".as_slice()));
+    at = at.checked_add(usize::try_from(nodes[at].size).unwrap()).unwrap();
+    assert_eq!(at, end, "the disclosure ends with the new project form");
 }
 
 #[test]
@@ -1146,4 +1154,299 @@ fn the_link_sends_end_playground_and_shows_leaving() {
     assert!(root.forge().leaving());
     assert!(skein_lib::bytes::find(&f::text(view.tree()), "Leaving the playground…".as_bytes()).is_some());
     assert!(f::find(view.tree(), Role::Link, b"set up temper").is_none());
+}
+
+fn switcher_act(root: &mut temper_client_domain::Domain, act: pages::switcher::Act) {
+    fixtures::root_event(root, temper_client_domain::Event::Act { action: Action::Pages(pages::Act::Switcher(act)) });
+}
+
+fn switcher_owner(start: bool) -> temper_client_domain::Domain {
+    use jig_client::contract as c;
+    let (mut root, watch, _) = fixtures::root_at(
+        temper_client_domain::Address::Chats { filter: ChatsFilter::All, start },
+        &fixtures::domain_limits(),
+    );
+    let mut me = root.pages().me(root.client()).unwrap().clone();
+    me.projects.get_mut(0).unwrap().role = c::HeldRole::Owner;
+    fixtures::root_event(
+        &mut root,
+        temper_client_domain::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) },
+            },
+        },
+    );
+    root
+}
+
+fn switcher_node<'a>(view: &'a crate::View, role: Role, name: &[u8]) -> &'a skein_ui::Node {
+    let id = fixtures::person_find(view.tree(), role, name).expect("switcher control");
+    for node in view.tree().nodes() {
+        if node.id == id {
+            return node;
+        }
+    }
+    panic!("found node belongs to tree");
+}
+
+#[test]
+fn an_owner_is_offered_rename_on_the_open_project() {
+    for words in [fixtures::words(), fixtures::browser_words()] {
+        let root = switcher_owner(false);
+        let mut view = fixtures::view_of(words);
+        fixtures::build(&mut view, &root);
+        assert_menu(
+            &view,
+            &[(Role::Disclosure, Some(b"Shop")), (Role::Navigation, Some(b"Main navigation")), (Role::Slot, None)],
+        );
+        let rename = switcher_node(&view, Role::Button, b"Rename").id;
+        assert_eq!(
+            crate::act(&mut view, rename, Act::Press),
+            Some(Action::Pages(pages::Act::Switcher(pages::switcher::Act::Rename)))
+        );
+    }
+}
+
+#[test]
+fn a_member_is_offered_no_rename() {
+    let mut root = switcher_owner(false);
+    fixtures::root_event(
+        &mut root,
+        temper_client_domain::Event::Act {
+            action: Action::Pages(pages::Act::Project { project: fixtures::SECOND_PROJECT }),
+        },
+    );
+    let view = fixtures::page_view(&root);
+    assert!(fixtures::person_find(view.tree(), Role::Button, b"Rename").is_none());
+    assert!(fixtures::person_find(view.tree(), Role::Form, b"New project").is_some());
+}
+
+#[test]
+fn the_rename_form_binds_its_field_save_and_cancel() {
+    use pages::switcher::Act as S;
+    for words in [fixtures::words(), fixtures::browser_words()] {
+        let mut root = switcher_owner(false);
+        let mut view = fixtures::view_of(words);
+        fixtures::build(&mut view, &root);
+        let rename = switcher_node(&view, Role::Button, b"Rename").id;
+        let action = crate::act(&mut view, rename, Act::Press).unwrap();
+        fixtures::root_event(&mut root, temper_client_domain::Event::Act { action });
+        fixtures::build(&mut view, &root);
+        assert_menu(
+            &view,
+            &[(Role::Disclosure, Some(b"Shop")), (Role::Navigation, Some(b"Main navigation")), (Role::Slot, None)],
+        );
+        assert_eq!(skein_ui::outline::check(view.tree()), None);
+        let field = switcher_node(&view, Role::TextField, b"Rename");
+        assert_eq!(field.value.as_ref().unwrap().text.as_ref(), b"Shop");
+        assert_eq!(field.focus, Some(0));
+        let field = field.id;
+        let action = crate::act(&mut view, field, Act::Input { value: b"New shop".as_slice().into() }).unwrap();
+        assert_eq!(
+            action,
+            Action::Pages(pages::Act::Switcher(S::RenameWords { words: b"New shop".as_slice().into() }))
+        );
+        fixtures::root_event(&mut root, temper_client_domain::Event::Act { action });
+        let mut patches = skein_lib::Queue::uncapped();
+        crate::build(&mut view, &root, fixtures::NOW, &mut patches);
+        assert_eq!(switcher_node(&view, Role::TextField, b"Rename").id, field);
+        assert_eq!(switcher_node(&view, Role::TextField, b"Rename").value.as_ref().unwrap().text.as_ref(), b"New shop");
+        for patch in &patches {
+            if let skein_ui::Patch::Attribute { node, attribute } = patch
+                && *node == field
+            {
+                assert_eq!(attribute.focus, Some(0), "editing does not advance the focus request");
+            }
+        }
+        let save = switcher_node(&view, Role::Button, b"Save").id;
+        let cancel = switcher_node(&view, Role::Button, b"Cancel");
+        assert_eq!(cancel.shortcut, Some(skein_ui::Shortcut::ESCAPE));
+        let cancel = cancel.id;
+        for (node, act, expected) in
+            [(field, Act::Submit, S::Save), (save, Act::Press, S::Save), (cancel, Act::Press, S::Cancel)]
+        {
+            assert_eq!(crate::act(&mut view, node, act), Some(Action::Pages(pages::Act::Switcher(expected))));
+        }
+        let action = crate::act(&mut view, cancel, Act::Press).unwrap();
+        fixtures::root_event(&mut root, temper_client_domain::Event::Act { action });
+        fixtures::build(&mut view, &root);
+        assert!(fixtures::person_find(view.tree(), Role::Form, b"Rename Shop").is_none());
+        assert!(fixtures::person_find(view.tree(), Role::Button, b"Rename").is_some());
+    }
+}
+
+#[test]
+fn the_new_project_form_ends_the_list() {
+    use pages::switcher::Act as S;
+    for words in [fixtures::words(), fixtures::browser_words()] {
+        let mut root = fixtures::root_in_project(None);
+        switcher_act(&mut root, S::NewWords { words: b"Third".as_slice().into() });
+        let mut view = fixtures::view_of(words);
+        fixtures::build(&mut view, &root);
+        assert_menu(
+            &view,
+            &[(Role::Disclosure, Some(b"Shop")), (Role::Navigation, Some(b"Main navigation")), (Role::Slot, None)],
+        );
+        assert_eq!(skein_ui::outline::check(view.tree()), None);
+        let field = switcher_node(&view, Role::TextField, b"New project");
+        assert_eq!(field.placeholder.as_deref(), Some(b"+ New project".as_slice()));
+        assert_eq!(field.value.as_ref().unwrap().text.as_ref(), b"Third");
+        assert_eq!(field.focus, None);
+        let field = field.id;
+        assert_eq!(
+            crate::act(&mut view, field, Act::Input { value: b"Fourth".as_slice().into() }),
+            Some(Action::Pages(pages::Act::Switcher(S::NewWords { words: b"Fourth".as_slice().into() })))
+        );
+        let create = switcher_node(&view, Role::Button, b"Create").id;
+        for (node, act) in [(field, Act::Submit), (create, Act::Press)] {
+            assert_eq!(crate::act(&mut view, node, act), Some(Action::Pages(pages::Act::Switcher(S::Create))));
+        }
+    }
+}
+
+fn send_switcher(root: &mut temper_client_domain::Domain, act: pages::switcher::Act) -> skein_lib::Token {
+    use temper_client_domain::{Event, Request};
+    let env = skein_lib::Env { now: skein_lib::Time::ZERO, wall: fixtures::NOW, limits: fixtures::domain_limits() };
+    let mut out = skein_lib::Queue::uncapped();
+    temper_client_domain::step(root, &env, Event::Act { action: Action::Pages(pages::Act::Switcher(act)) }, &mut out);
+    temper_client_domain::step(root, &env, Event::Client { event: jig_client::Event::Stored }, &mut out);
+    let mut sent = None;
+    for request in &out {
+        if let Request::Client { request: jig_client::Request::Down { down: jig_client::Down::Send { attempt, .. } } } =
+            request
+        {
+            assert!(sent.replace(*attempt).is_none(), "one switcher request");
+        }
+    }
+    sent.expect("switcher sends")
+}
+
+#[test]
+fn a_pending_rename_disables_save() {
+    use pages::switcher::Act as S;
+    let mut root = switcher_owner(false);
+    switcher_act(&mut root, S::Rename);
+    switcher_act(&mut root, S::RenameWords { words: b"Renamed".as_slice().into() });
+    send_switcher(&mut root, S::Save);
+    assert_eq!(root.pages().switcher().pending(), Some(pages::switcher::Form::Rename));
+    let mut view = fixtures::page_view(&root);
+    for (role, name, act) in [
+        (Role::Button, b"Save".as_slice(), Act::Press),
+        (Role::Button, b"Cancel", Act::Press),
+        (Role::TextField, b"Rename", Act::Submit),
+        (Role::Button, b"Create", Act::Press),
+    ] {
+        let node = switcher_node(&view, role, name);
+        assert!(node.states.as_slice().contains(&skein_ui::State::Disabled));
+        let id = node.id;
+        assert_eq!(crate::act(&mut view, id, act), None);
+    }
+}
+
+#[test]
+fn a_pending_new_project_disables_its_field_and_create() {
+    use pages::switcher::Act as S;
+    let mut root = fixtures::root_in_project(None);
+    switcher_act(&mut root, S::NewWords { words: b"Third".as_slice().into() });
+    send_switcher(&mut root, S::Create);
+    let mut view = fixtures::page_view(&root);
+    for (role, name, act) in
+        [(Role::TextField, b"New project".as_slice(), Act::Submit), (Role::Button, b"Create", Act::Press)]
+    {
+        let node = switcher_node(&view, role, name);
+        assert!(node.states.as_slice().contains(&skein_ui::State::Disabled));
+        let id = node.id;
+        assert_eq!(crate::act(&mut view, id, act), None);
+    }
+}
+
+fn refuse_switcher(root: &mut temper_client_domain::Domain, attempt: skein_lib::Token) {
+    fixtures::root_event(
+        root,
+        temper_client_domain::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Answer {
+                    attempt,
+                    envelope: skein_lib::RequestEnvelope::Final,
+                    answer: Some(jig_client::Answered::Jig(jig_client::contract::Answer::Refused {
+                        refusal: jig_client::contract::Refusal::NameTaken,
+                        at: None,
+                    })),
+                    why: None,
+                },
+            },
+        },
+    );
+}
+
+#[test]
+fn a_refused_new_project_shows_why() {
+    use pages::switcher::Act as S;
+    for words in [fixtures::words(), fixtures::browser_words()] {
+        let mut root = fixtures::root_in_project(None);
+        switcher_act(&mut root, S::NewWords { words: b"Shop".as_slice().into() });
+        let attempt = send_switcher(&mut root, S::Create);
+        refuse_switcher(&mut root, attempt);
+        let mut view = fixtures::view_of(words);
+        fixtures::build(&mut view, &root);
+        let field = switcher_node(&view, Role::TextField, b"New project");
+        assert_eq!(field.value.as_ref().unwrap().text.as_ref(), b"Shop");
+        assert_refusal_under_field(&view, b"New project", b"New project");
+        assert!(!switcher_node(&view, Role::Button, b"Create").states.as_slice().contains(&skein_ui::State::Disabled));
+    }
+}
+
+#[test]
+fn a_refused_rename_keeps_the_words_and_shows_why() {
+    use pages::switcher::Act as S;
+    let mut root = switcher_owner(false);
+    switcher_act(&mut root, S::Rename);
+    switcher_act(&mut root, S::RenameWords { words: b"Second".as_slice().into() });
+    let attempt = send_switcher(&mut root, S::Save);
+    refuse_switcher(&mut root, attempt);
+    let view = fixtures::page_view(&root);
+    assert_eq!(switcher_node(&view, Role::TextField, b"Rename").value.as_ref().unwrap().text.as_ref(), b"Second");
+    assert_refusal_under_field(&view, b"Rename Shop", b"Rename");
+    assert!(!switcher_node(&view, Role::Button, b"Save").states.as_slice().contains(&skein_ui::State::Disabled));
+}
+
+fn assert_refusal_under_field(view: &crate::View, form_name: &[u8], field_name: &[u8]) {
+    let form = switcher_node(view, Role::Form, form_name).id;
+    let field = switcher_node(view, Role::TextField, field_name).id;
+    let why =
+        fixtures::words().say_word(jig_client::words::Word::refusal(&jig_client::contract::Refusal::NameTaken), &[]);
+    let nodes = view.tree().nodes();
+    for (index, node) in nodes.iter().enumerate() {
+        if node.id == form {
+            let first = index.checked_add(1).unwrap();
+            assert_eq!(nodes[first].id, field);
+            let next = first.checked_add(usize::try_from(nodes[first].size).unwrap()).unwrap();
+            assert_eq!(nodes[next].role, Role::Status);
+            assert_eq!(nodes[next].name.as_deref(), Some(why.as_ref()));
+            return;
+        }
+    }
+    panic!("refusal in its form");
+}
+
+#[test]
+fn opening_rename_on_the_start_address_focuses_its_field_and_cancel_restores_the_composer() {
+    let mut root = switcher_owner(true);
+    let mut view = fixtures::page_view(&root);
+    assert_eq!(switcher_node(&view, Role::TextArea, b"Start a chat").focus, Some(0));
+    let rename = switcher_node(&view, Role::Button, b"Rename").id;
+    let action = crate::act(&mut view, rename, Act::Press).unwrap();
+    fixtures::root_event(&mut root, temper_client_domain::Event::Act { action });
+    fixtures::build(&mut view, &root);
+    assert_eq!(skein_ui::outline::check(view.tree()), None);
+    let field = switcher_node(&view, Role::TextField, b"Rename").id;
+    for node in view.tree().nodes() {
+        assert_eq!(node.focus.is_some(), node.id == field);
+    }
+    let cancel = switcher_node(&view, Role::Button, b"Cancel").id;
+    let action = crate::act(&mut view, cancel, Act::Press).unwrap();
+    fixtures::root_event(&mut root, temper_client_domain::Event::Act { action });
+    fixtures::build(&mut view, &root);
+    assert_eq!(switcher_node(&view, Role::TextArea, b"Start a chat").focus, Some(0));
+    assert!(fixtures::person_find(view.tree(), Role::TextField, b"Rename").is_none());
 }

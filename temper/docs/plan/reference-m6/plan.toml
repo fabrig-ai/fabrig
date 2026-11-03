@@ -10,6 +10,7 @@ sources = ["temper/docs/plan/reference-m6/inputs/request.md", "temper/docs/desig
 # The shapes that cross them are notes/contracts.md; the design is forge.md 8.11,
 # worker.md 4.1 and 5, channel.md 4 and 5, jig's connectors.md 6.1 and tasks.md 7.
 
+retired = true
 [buffer]
 low = 1.0
 high = 2.0

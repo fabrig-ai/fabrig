@@ -277,10 +277,7 @@ enum ForgeMode { connected, managed, owned, fake }
 record Address { host: bytes 255 port: u16 tls: option bytes 255 }
 record Place { api: Address git: bytes 2048 web: option bytes 2048 }
 record Bot { login: bytes 255 name: bytes 255 email: bytes 255 }
-record ExistingFirst { project: u32 }
-record NewFirst { name: bytes 4096 }
-enum FirstProject { existing: ExistingFirst, new: NewFirst }
-record FirstIntent { playground: bool org: bytes 4096 repository: bytes 4096 project: FirstProject label: bytes 64 }
+record FirstIntent { playground: bool org: bytes 4096 repository: bytes 4096 label: bytes 64 }
 record EndedForge { secrets_erased: bool box_removed: bool }
 enum ForgeState { kept, ended: EndedForge }
 record Forge { number: u16 kind: ForgeKind mode: ForgeMode state: ForgeState place: Place git_program: option bytes 4096 read_only: bool bot: Bot asked: bool first: option FirstIntent }

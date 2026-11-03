@@ -11,7 +11,7 @@ routes, `Artifact` and `Commits` among them (`forge.md`,
 `forge-github.md`); the fake GitHub refuses no push as `GH013`
 (`fake-forge.md`). `skein-playground` is not built (`playground.md`, and
 `ui-web.md` for the worker's platform). json, tls and http's collector
-have no fuzz target (`json.md`, `tls.md`, `http.md`). Single items lag
+have no fuzz target (`json.md`, `tls.md`, `http.md`). A few items lag
 in `lib.md`, `examples.md` and `ui.md`. The code departs in three
 crates' `tests/` directories (`testing.md`). `README.md`, `channel.md`,
 `codec.md`, `kv.md`, `world.md`, `fake-checkout.md`, `fake-llm.md`,
