@@ -243,6 +243,7 @@ fn assert_closed_prepares(tail_bytes: u32, body: &[u8], expected_tail: &[u8]) {
         Event::WorkspacePrepared {
             task: 1,
             attempt,
+            holds: Box::new([]),
             writes: Some(Box::new([])),
             credentials: Box::new([]),
             workspace: None,

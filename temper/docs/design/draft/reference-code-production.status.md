@@ -4,8 +4,8 @@
 
 - **Design lags:**
   - **3, 5, 14: `change` and its fields (N22, N13).** `../domain/agent.md`,
-    4.3.1: `change` names no `questions`, LLM choice,
-    producer's charter or merge job. `../domain/forge.md`, 8.1 and 8.9: a
+    4.3.1: `change` names no `questions`, LLM choice
+    or producer's charter. `../domain/forge.md`, 8.1 and 8.9: a
     change's producer runs under the forge's change charter, and
     `../protocol/configuration.md`, 13.2 numbers the forge's charters for
     the change and its reviews alone.
@@ -30,22 +30,10 @@
     box's agent `conversations` 1, so every `sub_agent` is refused as too
     many, and `../client/tools.md`, 5.5 has `chat start` and `goal start`
     take a main model and effort alone, naming no sub-agents.
-  - **6, 11, 14: the merge job (N7).** `../domain/landing.md`, 5.3: the
-    project's tooling settles conflicts for the turn's prepare alone.
-    `../domain/forge.md`, 8.4 and 10: what an update leaves goes to a
-    resolution agent. `../domain/forge.md`, 8.2, step 6: a change into a
-    branch whose rules ask no update, a goal's own, is held when its
-    merge conflicts, and `../domain/forge.md`, section 20 leaves open
-    what settles it. `../protocol/configuration.md`, section 13: no
-    `merge_job` setting.
-  - **11: catching up (N6).** `../domain/forge.md`, 10: a change never
-    updates only because its base moved; 11.1: a goal's own branch takes
-    the base's landings by an update. Neither has a catch-up change into
-    a goal's branch.
   - **4, 14: the profile's limits (N21).** `../protocol/configuration.md`,
     13.4 and section 7, and `../domain/agent.md`, 4.3.1: the stock limits
     are a chat's (18 tasks 4 deep, 6 tasks under `change`, a result of 512
-    bytes); jig's `domain/engine.md`,
+    bytes, which jig's settings schema caps); jig's `domain/engine.md`,
     17.9 allows 2 documents per charter in Small. None is sized for a goal
     of a hundred changes.
   - **5, 7, 8: a producer's next run once its dependencies move (N2).**

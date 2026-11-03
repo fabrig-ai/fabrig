@@ -115,6 +115,8 @@ pub fn opening_row() -> ChangeRow {
         producer_failure: None,
         report: Box::new([]),
         repairs: None,
+        catch_up: None,
+        merge_result: None,
     }
 }
 
@@ -184,6 +186,7 @@ pub fn step_change(d: &mut Domain) {
     outputs(
         d,
         Event::StepChange {
+            merge_job: false,
             task: CHANGE,
             entry: OPEN + 1,
             heard: change::Heard {

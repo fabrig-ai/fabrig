@@ -306,6 +306,13 @@ settings in the store, temper's kinds 1 and 2; until its second step
   `tier_retries`, a u8, 2 when absent; `verification_bound_ms`, the
   project's verification bound, a u64, 7,200,000 (two hours) when absent
   (`../domain/after-landing.md`, sections 3 and 6).
+- **The merge job's command,** beside `by`, by either way: `merge_job`,
+  a relative path of at most 4,096 bytes, without `..`, in each
+  repository the merge job merges, none when absent: the project's merge
+  command (`tooling.md`, 4.1), and with it the merge job before each
+  resolution of its changes and catch-ups into its goals' branches
+  (`../domain/forge.md`, 8.4 and section 10). A path past its bounds
+  refuses the start at its member.
 - **The turn's project settings,** beside `by`:
   `prepare` and `key`, paths in the project's home, or absent for
   temper's own; `home_revision`, the home's commit they run at;
@@ -1926,7 +1933,10 @@ that changes the stock changes nothing of them.
     goal branch with its dependencies, one batch per family:
     `../domain/agent.md`, 4.3.1), for each result and its Left list (a
     new change for what is left, an amendment of a live change, or
-    nothing), for the goal's landing once the plan's changes have
+    nothing), for catch-ups (on a landing into main that touches the
+    goal's open work, heard as news, a catch-up into its goal branch
+    naming the landing's merge commit with `change`'s `merge`, one live
+    at a time), for the goal's landing once the plan's changes have
     landed (one change on its own goal branch, `"branch": "mine"`, its
     words the goal's title in one line, then what the goal built, by
     design section: `../domain/forge.md`, 8.1), for that landing's life
@@ -1958,14 +1968,16 @@ that changes the stock changes nothing of them.
     3.1).
 - **The rules and policy 1** are changed on the box from their current
   values, which hold the deployment's own budgets (13.4): read with
-  `temper ctl settings show --json`, charter 5 added to the rules' and
-  policy 1's delegation and jig's control family to their tools and
-  role 0's, so the coordinator may name `change`'s plan members
+  `temper ctl settings show --json`, charter 5 and the merge kind (job
+  3) added to the rules' and policy 1's delegation and jig's control
+  family to their tools and role 0's, so the coordinator may name
+  `change`'s plan members and its changes may make the merge job
   (`../domain/agent.md`, 4.3.1), and jig's notes family beside it, so
   that it notes what it learns, then applied whole. Charter 5 is the
-  deployment's fourth charter, within small's `tasks.charters` of 4, and
-  one more executor in the delegation, within the 8 `authority.executors`
-  and `tasks.executor_kinds` 13.4 gives the box.
+  deployment's fourth charter, within small's `tasks.charters` of 4;
+  it and the merge kind are two more executors in the delegation, eight
+  with the stock's six, within the 8 `authority.executors` and
+  `tasks.executor_kinds` 13.4 gives the box.
 - **The landing rules,** until 13.6's second step, are the document's
   `application.landing` (section 3): `docs/examples/reference/landing.json`
   is that member's value, which the walk's document carries, with its
@@ -1976,7 +1988,8 @@ that changes the stock changes nothing of them.
   path to `branch`, open on `temper`: enforced, asking no CI, no update
   and no gate), and no rule on every branch, since rules add
   (`../domain/forge.md`, 8.7) and such a rule's CI would hold every merge
-  into a goal's branch. From the second step they are kind 1's rules 1
+  into a goal's branch; and the project's `merge_job`, `.temper/merge`.
+  From the second step they are kind 1's rules 1
   and 2, items of the settings file.
 - **The tiers,** in the same member, project 1's `gates` entry for its
   repository (`forge` and `repository` filled in as the rules' host and
@@ -2015,7 +2028,10 @@ that changes the stock changes nothing of them.
   tests and the counted baselines; its tiers' workflows are
   `tier-slow.yml` and `tier-goal.yml`, dispatch-only, each running the
   ids in its `temper_tests` input alone when given them
-  (`../domain/after-landing.md`, section 2).
+  (`../domain/after-landing.md`, section 2). Its merge command is its
+  `.temper/merge` (`tooling.md`, 4.1), which recounts a counted
+  baseline left in conflict (each tree's `scripts/old-forms.txt`, by
+  its `scripts/old_forms.py --write`) and leaves every other conflict.
 - **Checked as it is read:** a test decodes the settings file as
   `temper ctl settings apply` decodes one, and the landing member as the
   document's is parsed, so an edition that no longer reads is red before

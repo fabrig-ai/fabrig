@@ -14,12 +14,13 @@ use temper_engine_domain_forge_landing as policy;
 type Position = (u64, u16, u16);
 type RepositoryGate = (api::Repository, Box<[u8]>);
 type KeyAt = (api::Commit, policy::Key);
+type ProjectLanding = (change::Way, Box<[RepositoryGates]>, crate::AfterLanding, Option<Box<[u8]>>);
 #[derive(Debug)]
 pub(crate) struct State {
     pub(crate) rows: Map<u64, LandingRow>,
     pub(crate) due: Map<u64, Wall>,
     pub(crate) receipts: Map<ReceiptKey, Receipt>,
-    pub(crate) projects: Map<u32, (change::Way, Box<[RepositoryGates]>, crate::AfterLanding)>,
+    pub(crate) projects: Map<u32, ProjectLanding>,
     pub(crate) pending: Map<Token, Pending>,
     pub(crate) keys: Map<Position, (api::Commit, policy::Key)>,
     pub(crate) main_keys: Map<RepositoryGate, KeyAt>,
@@ -93,12 +94,12 @@ impl State {
     }
     pub fn way(&self, project: u32) -> change::Way {
         match self.projects.get(&project) {
-            Some((way, _, _)) => *way,
+            Some((way, _, _, _)) => *way,
             None => change::Way::Queue,
         }
     }
     pub(crate) fn gates(&self, project: u32, repository: api::Repository) -> &[policy::Gate] {
-        if let Some((_, repositories, _)) = self.projects.get(&project) {
+        if let Some((_, repositories, _, _)) = self.projects.get(&project) {
             for row in repositories {
                 if row.repository == repository {
                     return &row.gates;
@@ -218,7 +219,7 @@ impl Domain {
             }
         }
         let mut has_tiers = false;
-        if let Some((_, old, _)) = self.landing.projects.get(&project) {
+        if let Some((_, old, _, _)) = self.landing.projects.get(&project) {
             for repository in old {
                 has_tiers |= !repository.tiers.is_empty();
             }
@@ -226,18 +227,30 @@ impl Domain {
         for repository in &gates {
             has_tiers |= !repository.tiers.is_empty();
         }
-        let saved = self.landing.projects.insert(project, (way, gates, after)).is_ok();
+        let saved = self.landing.projects.insert(project, (way, gates, after, None)).is_ok();
         if saved && has_tiers {
             self.tier_ops.dirty = true;
         }
         saved
+    }
+    /// A configured project's merge command (temper/docs/design/protocol/configuration.md, 3).
+    pub fn project_merge_job(&mut self, project: u32, merge_job: Box<[u8]>) -> bool {
+        let Some((_, _, _, command)) = self.landing.projects.get_mut(&project) else { return false };
+        *command = Some(merge_job);
+        true
+    }
+    /// The project's optional merge command (temper/docs/design/protocol/configuration.md, 3).
+    #[must_use]
+    pub fn merge_job(&self, project: u32) -> Option<&[u8]> {
+        let (_, _, _, command) = self.landing.projects.get(&project)?;
+        command.as_deref()
     }
     /// The project's retained verification settings (domain/after-landing.md, 11).
     #[must_use]
     #[expect(clippy::manual_map, reason = "the foundation uses explicit options without callbacks")]
     pub fn after_landing(&self, project: u32) -> Option<crate::AfterLanding> {
         match self.landing.projects.get(&project) {
-            Some((_, _, after)) => Some(*after),
+            Some((_, _, after, _)) => Some(*after),
             None => None,
         }
     }
