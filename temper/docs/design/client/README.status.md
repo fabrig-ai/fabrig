@@ -7,12 +7,10 @@
   `Board { project }` with its reordering, and `Changes { project }`: no
   address in `temper-client-domain`'s `address.rs`. 3.5, 5.13, 10:
   `HowWorkRuns`, `Proposal { proposal }` and a proposal's card in a chat,
-  with their tests. 3.5, 4.6, 8: a connected Forgejo's `Connect` with
-  `ForgejoTokens`, of a kept forge or a new one, `connected`; and
-  Replace and Forget, on the Forges page and as the FORGE requests
-  `Replace` and `Forget`: no `forgejo_tokens`, `connected`, `Replace`
-  or `Forget` in `temper-client-protocol-wire`'s schema or in
-  `temper-service`'s routing.
+  with their tests. 3.5, 4.6, 8: a connected Forgejo's `Connect`
+  with its tokens and Replace, on the Forges page (`temper-client-domain` sends neither); and
+  Forget, on the Forges page and as the FORGE request `Forget`: no `forget` in
+  `temper-client-protocol-wire`'s schema or in `temper-service`'s routing.
   5.5: a plan's first use, its card in the conversation. 3.5, 3.6, 10:
   Delete on a project's settings, confirmed by its name, and jig's
   `RemoveProject`: no project's settings and no such act in
