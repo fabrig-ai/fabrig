@@ -908,13 +908,21 @@ host:
 
 ## 10. Open questions
 
-- **Which host tools a charter offers.** jig's charter carries the tools
-  its task's authority gives (jig's `domain/engine.md`, 7.1); temper's
-  declares every host tool but the `settings` family's (4.3), and the
-  authority refuses what it does not allow. Whether to declare only what
-  it allows for the other families too, which the host part's budget
-  (4.3) may force, and how a brief teaches an LLM when to delegate a task
-  rather than a sub-agent.
+- **Which host tools a charter offers.** jig's charter carries the host
+  families its charter's `tools` names and its task's authority holds
+  (jig's `domain/engine.md`, 7.1), each stock charter's named in
+  `../protocol/configuration.md`, 13.4; temper's declares by them the
+  `settings` family alone and every other host tool in every charter
+  (4.3), and the authority refuses what it does not allow. Whether to
+  declare only what the charter names for the other families too, which
+  the host part's budget (4.3) may force, and how a brief teaches an LLM
+  when to delegate a task rather than a sub-agent.
+- **The configuring agent woken by a landing** of a document a charter
+  names, where the landing touches structure, to say what it means for
+  the settings ("the process document changed; here is what it means
+  for your setup": `../draft/configuring.md`, section 6). Default: a
+  person starts it (8.1); a landed document reaches the next runs of the
+  charters that name it (`../protocol/configuration.md`, 13.7).
 - **Who may name a plan's members of `change`:** the control family
   says it (4.3.1), since a plan's maker amends, cancels and releases what
   it makes. A family of its own would let a policy grant control without

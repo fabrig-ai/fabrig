@@ -160,6 +160,36 @@ fn inbox_results_read_newest_first_within_the_group() {
 }
 
 #[test]
+fn an_inbox_continuation_reads_a_goal_with_many_delegates() {
+    const SMALL_JOINS: u32 = 4;
+    let mut store = inbox_store();
+    let goal = super::keep_delegated_goal(&mut store, GOAL);
+    store.limits.joins = SMALL_JOINS;
+    let mut range = inbox_range(reads::Group::Updates);
+    range.rows = 1;
+    for (value, related) in [
+        (fixtures::update(ALICE, 50, GRANDCHILD, tasks::UpdateObject::Result), None),
+        (fixtures::update(ALICE, 40, GOAL, reply_object(2)), Some(reply_line(GOAL, 2, 40))),
+        (fixtures::update(ALICE, 30, CHILD, tasks::UpdateObject::Result), None),
+        (fixtures::update(ALICE, 20, GOAL, reply_object(1)), Some(reply_line(GOAL, 1, 20))),
+        (fixtures::update(ALICE, 10, GOAL, tasks::UpdateObject::Result), None),
+    ] {
+        let (rows, next) = page(load(&mut store, range.clone()));
+        let [row] = rows.as_ref() else { panic!("complete update row") };
+        assert_eq!(row.value, value);
+        assert_eq!(row.related, related);
+        let owner = row.owner.as_ref().unwrap();
+        if owner.number == GOAL {
+            assert_eq!(owner, &goal);
+        }
+        assert!(row.linked.is_empty());
+        assert_ne!(next, range.after);
+        range.after = next;
+    }
+    assert_eq!(range.after, None);
+}
+
+#[test]
 fn an_inbox_filter_keeps_one_projects_rows() {
     let mut store = inbox_store();
     let mut range = inbox_range(reads::Group::Results);
@@ -282,6 +312,28 @@ fn inbox_goal_filters_select_on_the_joined_ancestry() {
     let (rows, next) = page(load(&mut store, range));
     assert_eq!(owner_numbers(&rows).as_ref(), [CHILD, GOAL]);
     assert_eq!(next, None);
+}
+
+#[test]
+fn an_inbox_with_many_delegates_keeps_its_goal_ancestry() {
+    const SMALL_JOINS: u32 = 4;
+    let mut store = inbox_store();
+    let mut owner = super::keep_delegated_goal(&mut store, CHILD);
+    owner.requester = tasks::Party::Task(GOAL);
+    keep(&mut store, &[core::Record::Tasks(tasks::Stored::Ended(owner.clone()))]);
+    store.limits.joins = SMALL_JOINS;
+    let mut range = inbox_range(reads::Group::Results);
+    range.scope =
+        reads::Scope::Inbox { group: reads::Group::Results, filter: reads::Filter { project: None, goal: Some(GOAL) } };
+    range.rows = 1;
+    range.after = Some(position(fixtures::update(ALICE, 40, GOAL, reply_object(2))));
+    let (rows, next) = page(load(&mut store, range));
+    let [row] = rows.as_ref() else { panic!("descendant result") };
+    assert_eq!(row.owner, Some(owner));
+    assert_eq!(row.value, fixtures::update(ALICE, 30, CHILD, tasks::UpdateObject::Result));
+    assert_eq!(row.ancestors.as_ref(), [GOAL]);
+    assert_eq!(linked_numbers(row).as_ref(), [GOAL]);
+    assert_eq!(next, Some(position(fixtures::update(ALICE, 30, CHILD, tasks::UpdateObject::Result))));
 }
 
 fn ended(phase: &tasks::Phase) -> bool {

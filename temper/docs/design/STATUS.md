@@ -28,7 +28,11 @@ project's question route nor the foremen's charter is a setting. A
 project's policy in a change of settings and a revision restored are
 built through ctl, but the restore's stories in the domain world and
 the joined client world are ignored (`protocol/configuration.md`,
-`client/tools.md`). The
+`client/tools.md`). The configuring agent, charter 3 and template 3, is
+in the stock and the reference pages it reads are built, but its runs
+cannot read a project's own policy (`domain/agent.md`), and a charter's
+`tools` decides only whether its runs are offered the settings family
+(`protocol/configuration.md`). The
 reference is one profile a box is set up with, but on a small box a
 result's bytes, a batch and the live delegates stay below the sizes it
 is designed for, and the case's repository carries no CI or tiers'

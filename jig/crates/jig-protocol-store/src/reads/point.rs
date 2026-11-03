@@ -247,7 +247,7 @@ pub(crate) fn finish(
         }
     };
     let Some(owner) = joins::owner(store, task, &mut spent)? else { return Ok(empty()) };
-    let mut row = joins::row(store, value, Some(&owner), None, &mut spent)?;
+    let mut row = joins::activity_row(value, &owner, &mut spent)?;
     row.related = related;
     let mut charged = row.owned_bytes().ok_or(Failure::Corrupt)?;
     if let Some(size) = party.frame_bytes {
