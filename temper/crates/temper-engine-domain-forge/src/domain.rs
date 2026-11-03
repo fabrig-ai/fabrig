@@ -5200,7 +5200,7 @@ pub(crate) fn classify(d: &Domain, subscription: &Subscriber, news: &News) -> Cl
                 Some(_) => Class::Kept,
             }
         }
-        News::Ci { .. } | News::Changed { .. } => Class::Wakes,
+        News::Ci { .. } | News::Changed { .. } | News::Red(_) => Class::Wakes,
     }
 }
 

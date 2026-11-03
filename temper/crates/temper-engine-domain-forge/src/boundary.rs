@@ -732,11 +732,21 @@ pub enum Class {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum News {
     /// A branch moved; overlap is decided from bounded file facts.
-    Landing { before: skein_forge::api::Commit, after: skein_forge::api::Commit, files: Option<Box<[Box<[u8]>]>> },
+    Landing {
+        before: skein_forge::api::Commit,
+        after: skein_forge::api::Commit,
+        files: Option<Box<[Box<[u8]>]>>,
+    },
     /// The combined CI state changed at its head.
-    Ci { head: skein_forge::api::Commit, status: skein_forge::api::Ci },
+    Ci {
+        head: skein_forge::api::Commit,
+        status: skein_forge::api::Ci,
+    },
     /// A pull or participating object's state changed.
-    Changed { number: u64 },
+    Changed {
+        number: u64,
+    },
+    Red(crate::RedNews),
 }
 /// A live subscription and its known paths for landing overlap.
 #[derive(Clone, PartialEq, Eq, Debug)]
