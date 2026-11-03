@@ -101,3 +101,20 @@ Owns the files in the header.
 ## Report
 
 As the implementer's text says.
+
+## Rebase (2026-11-03, step merge, foreman reference-m5/relay-foreman/foreman-1)
+
+resolve the merge conflicts by preserving held-branch parameters alongside foreman routing and retaining current status text.
+The merge failed in two task-owned paths against `origin/reference-m5/integration` (`f5bb3892cc`).
+
+In `temper/crates/temper-engine-domain/src/route/forge_route.rs`, resolve `chat_change` by combining both changes:
+- Keep the trunk’s complete `if let Some(branch)` block: parameters 3 (branch), 11 (requester-held branch), and 10 (first-line title).
+- Immediately afterward, keep this task’s route match and parameter 14 insertion: Foreman = 1, Up = 2, None = absent.
+- Remove the superseded Up-only condition; preserve each block’s refusal handling.
+The overlapping trunk changes originate in `87c57fa5fa` (held branch) and `f537ee0c72` (title), integrated by `995ce1601e`.
+
+In `temper/docs/design/protocol/configuration.status.md`, retain the trunk’s current paragraphs and remove only `kind 3's number 3; ` from the “13.2, 13.4” entry.
+Keep kind 6’s clause and all newer status wording, including the `.temper/pre-pr` departure; do not restore the branch’s older paragraphs.
+
+Preserve the automatically merged branch/control checks and foreman implementation.
+After resolving, run the spec’s foremen tests, full forge_routes tests and required checks; verify that tests select a nonzero count.
