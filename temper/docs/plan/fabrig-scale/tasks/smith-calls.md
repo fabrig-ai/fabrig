@@ -139,3 +139,29 @@ As the implementer's text asks, with T at that agent and each ceiling raised.
     package of `jig/tests/store`) and `-p temper-service --lib` to the packages run.
   - `standard-scale` now needs this task and sizes the page by `frame(&CORE, 33_554_432)`; it
     is not this task's.
+- 2026-11-03. Q: at `Message.blocks` 128 and `Opaque.bytes` 8,388,608 the transcript's `Turn`
+  passes u32 (codec.md, 4); a jointly byte-bounded envelope (`pieces`), or other figures? A:
+  **no `pieces`; keep the lists and size the three ceilings so `Turn` fits u32.** A `pieces`
+  field is `Box<[u8]>` in Rust, so every consumer of `blocks` or `messages` would change, which
+  is a task of its own and not needed. `Turn.messages` holds 16 messages, but every derivation
+  sets `turn_messages` to 4 (`profile.rs`, `transcript`). So, in place, in smith's schema and
+  jig's copy:
+  - `Turn.messages` `list 16 Message` becomes `list 4 Message`, the derivation's own figure (a
+    count of the schema, not a figure of the draft); its comment says that one completion and
+    its surrounding messages are four;
+  - `Message.blocks` `list 128 Block` (98 needed);
+  - `Opaque.bytes` `bytes 7340032` (7 MiB, as the old 3 MiB was a multiple of MiB; needed
+    98 × 65,536 + 7 = 6,422,535). Not 8,388,608: 4 × 128 × 8 MiB is 2^32 before framing.
+  The worst-case `Turn` is then about 3,758,100,000 bytes, under u32, with the largest other
+  block (text, call or result, about 2.1 MB) well below an opaque block. This replaces "the least
+  power of two" for these three; report each figure with its check. A test that pins
+  `turn_messages` 16 (a ceiling, not a derived limit) names 4, and is listed. A test that builds
+  a turn of more than four messages under the ceilings: stop and ask with its name. If the
+  writer still refuses at these figures, stop and ask with its words and the arithmetic.
+  - jig's `protocol/store.md` quotes "smith's real turn, 16 messages of 64 blocks, takes
+    2,109,520 nodes" (8.1) and "2,109,520 nodes" with "about 298 MB" (section 16). Change
+    only those figures to what the code gives at the new ceilings: `node_bound`
+    (`transcripts/patches.rs`) and `Patcher::workspace_bound` read through a temporary
+    `eprintln!`, removed before the commit. Report both. If either is larger than now, report
+    it for `measure-box` (the resource gate) and do nothing else about it.
+  - Everything else stays as written above. The header already holds every file this names.
