@@ -7,7 +7,7 @@ use skein_lib::{Env, Queue, Time, Wall};
 pub(crate) fn source_task(words: &[u8]) -> (core::Core, core::Limits, tasks::TaskRecord) {
     let mut limits = jig_test_profile::limits().core;
     limits.documents.text_bytes = 128;
-    limits.tasks.spec_bytes = 512;
+    limits.tasks.spec_bytes = 4096;
     let config = jig_test_profile::config(17).core;
     let mut authority = core::task_authority(&config.seed_projects[0].policy.policy.roles[0].authority);
     authority.budget.spend = 100;

@@ -49,6 +49,22 @@ fn task_show_stops_at_its_source_bound_with_an_exact_utf8_continuation() {
 }
 
 #[test]
+fn task_show_stops_at_its_result_byte_bound_with_a_continuation() {
+    let words = [b'x'; 2000];
+    for retained in [512, 700, 1024] {
+        let mut limits = crate::limits::tools();
+        limits.result_bytes = 1024 + retained * 6;
+        let (printed, offsets) = f::source_show(&words, &limits, false);
+        assert_eq!(printed.status, 0);
+        assert!(u64::try_from(printed.stdout.len()).unwrap() <= limits.result_bytes);
+        assert!(find(&printed.stdout, &continuation(retained)).is_some());
+        for from in offsets.as_slice() {
+            assert!(*from < retained);
+        }
+    }
+}
+
+#[test]
 fn task_show_continues_from_the_bytes_that_fit_its_printed_output() {
     let words = [b'x'; 500];
     let mut limits = crate::limits::tools();
