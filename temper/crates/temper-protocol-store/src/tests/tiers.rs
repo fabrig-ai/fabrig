@@ -168,7 +168,7 @@ fn tier_family_bounds_follow_the_forge_and_full_row_measure() {
     assert_eq!(l.failing_test_test_id, fixtures::LIMITS.tiers.test_id_bytes);
     let row = records::encode(&d::Stored::Tier(fixtures::tier_row()));
     assert_eq!(u64::try_from(row.len()).unwrap(), crate::v11::TierRow::encoded_bound(l).unwrap() + 3);
-    assert_eq!(row.len(), 103_061);
+    assert_eq!(row.len(), 111_257);
     assert!(row.len() < 118_676);
 }
 

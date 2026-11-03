@@ -1226,6 +1226,14 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
   of the agent's largest size with its wrapper can pass. Default: such a
   turn, which no plan's model reaches in ordinary use, shows as too
   large to read (jig's `protocol/store.md`, 7.3).
+- **What the project's checks run at each push** (13.9). Lints and the
+  changed packages' focused tests are builds in the box's worker at
+  every delivery. Default: the reference's first edition of
+  `.temper/pre-pr` runs the format check and the counted baselines
+  alone, and the coding agent's charter asks for the rest; whether the
+  script runs them too is decided from the reds that reach a goal's
+  branch, their repairs' cost and the check's time at each push (the
+  user, 2026-11-02).
 
 ## 12. The three directories
 

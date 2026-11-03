@@ -241,6 +241,7 @@ fn tier_rows(rng: &mut Rng, bounds: &Bounds) {
         })
     };
     let row = forge::Stored::Tier(forge::TierRow {
+        observations: temper_codecs_world::drawn(rng, 512).into_boxed_slice(),
         requested: false,
         cancelled: false,
         purpose: None,
@@ -264,21 +265,7 @@ fn tier_rows(rng: &mut Rng, bounds: &Bounds) {
         },
     });
     row_and_key(&row, rng, bounds);
-    let row = forge::Stored::Verification(forge::Verification {
-        repository,
-        commit: [7; 32],
-        changes: Box::new([rng.next_u64(), rng.next_u64()]),
-        tiers: Box::new([forge::TierVerification {
-            tier: Box::from(b"tier".as_slice()),
-            verdict: if rng.below(2) == 0 { None } else { Some(forge::TierVerdict { run: rng.next_u64(), blame }) },
-            repaired: if rng.below(2) == 0 {
-                None
-            } else {
-                Some(temper_engine_domain_forge::TierRepair { run: 2, tip: [8; 32] })
-            },
-        }]),
-    });
-    row_and_key(&row, rng, bounds);
+    verification_row(rng, bounds, repository, blame);
     let row = forge::Stored::Receipt {
         key: forge::ReceiptKey {
             project: 5,
@@ -315,4 +302,27 @@ fn optional_field(rng: &mut Rng) -> Option<Box<[u8]>> {
 
 fn optional_number(rng: &mut Rng) -> Option<u32> {
     if rng.below(2) == 0 { None } else { Some(u32::try_from(rng.below(4_294_967_296)).expect("u32")) }
+}
+
+fn verification_row(
+    rng: &mut Rng,
+    bounds: &Bounds,
+    repository: skein_forge::api::Repository,
+    blame: temper_engine_domain_forge_tiers::Blame,
+) {
+    let row = forge::Stored::Verification(forge::Verification {
+        repository,
+        commit: [7; 32],
+        changes: Box::new([rng.next_u64(), rng.next_u64()]),
+        tiers: Box::new([forge::TierVerification {
+            tier: Box::from(b"tier".as_slice()),
+            verdict: if rng.below(2) == 0 { None } else { Some(forge::TierVerdict { run: rng.next_u64(), blame }) },
+            repaired: if rng.below(2) == 0 {
+                None
+            } else {
+                Some(temper_engine_domain_forge::TierRepair { run: 2, tip: [8; 32] })
+            },
+        }]),
+    });
+    row_and_key(&row, rng, bounds);
 }
