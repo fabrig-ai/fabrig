@@ -51,6 +51,5 @@ pub use v6::{
     RefusedFaultParts, RefusedParts, Reply, RunFailure, RunResult, SavedReply, Scheme, Start, StartParts, StartRefusal,
     TranscriptRefusal, TranscriptRefusalValue, TranscriptRefusalValueParts, Turn, TurnParts, Unauthorized,
     UnauthorizedFault, UnauthorizedFaultParts, UnauthorizedParts, Waiting, WaitingParts, Window, WindowBound,
-    WindowBoundParts, WindowParts, Withdraw, WithdrawParts, Workspace,
-    WorkspaceParts,
+    WindowBoundParts, WindowParts, Withdraw, WithdrawParts, Workspace, WorkspaceParts,
 };

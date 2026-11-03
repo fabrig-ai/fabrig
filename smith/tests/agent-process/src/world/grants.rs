@@ -29,9 +29,6 @@ impl World {
                 smith_channel::Scheme::Bearer => skein_llm::Credential::bearer(Box::from(value.bytes().expose())),
                 smith_channel::Scheme::Key => skein_llm::Credential::key(Box::from(value.bytes().expose())),
             },
-            Some(smith_channel::GrantValue::Withdrawn(value)) => {
-                skein_llm::Credential::codex(Box::from(value.bearer().expose()), Box::from(value.id()))
-            }
             Some(smith_channel::GrantValue::Program(_)) | None => {
                 crate::scenario_credential(self.anthropic, self.private_grant)
             }

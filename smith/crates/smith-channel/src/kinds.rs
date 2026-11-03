@@ -198,11 +198,17 @@ mod optional_tests {
         let schema = Schema { magic: *b"smth", versions };
         let mut host_terms = List::with_capacity(1);
         host_terms.push(Term { kind: 0x0100, largest: 32 }).expect("one required kind");
-        assert_eq!(required_terms_gap(&schema, Role::Initiator, 5, &host_terms, &rules), None);
-        assert_eq!(required_terms_gap(&schema, Role::Initiator, 5, &List::with_capacity(0), &rules), Some(0x0100));
+        assert_eq!(required_terms_gap(&schema, Role::Initiator, kind::VERSION, &host_terms, &rules), None);
+        assert_eq!(
+            required_terms_gap(&schema, Role::Initiator, kind::VERSION, &List::with_capacity(0), &rules),
+            Some(0x0100)
+        );
         let mut agent_terms = List::with_capacity(1);
         agent_terms.push(Term { kind: 0x0102, largest: 32 }).expect("one required kind");
-        assert_eq!(required_terms_gap(&schema, Role::Responder, 5, &agent_terms, &rules), None);
-        assert_eq!(required_terms_gap(&schema, Role::Responder, 5, &List::with_capacity(0), &rules), Some(0x0102));
+        assert_eq!(required_terms_gap(&schema, Role::Responder, kind::VERSION, &agent_terms, &rules), None);
+        assert_eq!(
+            required_terms_gap(&schema, Role::Responder, kind::VERSION, &List::with_capacity(0), &rules),
+            Some(0x0102)
+        );
     }
 }
