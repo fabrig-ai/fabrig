@@ -633,6 +633,7 @@ fn charter_documents_obey_lowered_limits_in_every_settings_record() {
 }
 
 mod applications;
+mod replaced;
 
 #[test]
 fn proposal_keys_and_the_extent_counter_round_trip_without_narrowing() {

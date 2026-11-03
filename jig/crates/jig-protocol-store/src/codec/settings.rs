@@ -12,6 +12,53 @@ use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use settings::application;
 use skein_lib::{List, Reader, Wall, Writer};
+const EMPTY: wire::Limits = wire::Limits {
+    text_bytes: 0,
+    model_name_name: 0,
+    model_name_efforts: 0,
+    model_name_efforts_item: 0,
+    model_program_some: 0,
+    model_name: 0,
+    model_efforts: 0,
+    model_effort_some: 0,
+    run_policy_instructions: 0,
+    run_policy_alternatives: 0,
+    segment_bytes: 0,
+    document_name: 0,
+    document_path: 0,
+    document_heading_some: 0,
+    charter_documents: 0,
+    last_exact_bytes: 0,
+    last_open_bytes: 0,
+    pattern_segments: 0,
+    delegation_kinds: 0,
+    authority_grants: 0,
+    authority_note_resources: 0,
+    rules_implies: 0,
+    rules_requirements: 0,
+    policy_projections: 0,
+    policy_roles: 0,
+    policy_requirements: 0,
+    configured_policy_permissions: 0,
+    configured_policy_templates: 0,
+    field_rule_name: 0,
+    verdict_fields: 0,
+    part_path_segments: 0,
+    approval_state: 0,
+    verdict_choices_choices: 0,
+    llm_choice_subagents: 0,
+    template_name: 0,
+    template_resources: 0,
+    application_state_charters: 0,
+    default_models: 0,
+    changed_models: 0,
+    revision_models: 0,
+    revision_items: 0,
+    revision_applications: 0,
+    proposal_models: 0,
+    proposal_items: 0,
+    proposal_applications: 0,
+};
 fn bound() -> wire::Problem {
     wire::Problem { path: wire::Path::DefaultValue, reason: skein_codec::Reason::Bound }
 }
@@ -31,7 +78,10 @@ fn decode_kinds(value: wire::Kinds) -> fleet::Kinds {
 }
 fn encode_setting(value: &settings::Setting, limits: &wire::Limits) -> Result<wire::Setting, wire::Problem> {
     Ok(match value {
-        jig_domain_people::Setting::ProjectPolicy { .. } => unreachable!("a project's policy: policy-store"),
+        settings::Setting::ProjectPolicy { project } => wire::Setting::ProjectPolicy(wire::ProjectPolicySetting::new(
+            limits,
+            wire::ProjectPolicySettingParts { project: *project },
+        )?),
         settings::Setting::Charter(entry) => {
             wire::Setting::Charter(wire::CharterNumber::new(limits, wire::CharterNumberParts { number: *entry })?)
         }
@@ -64,6 +114,7 @@ fn decode_setting(value: wire::Setting) -> settings::Setting {
             let wire::PolicyNumberParts { number } = entry.into_parts();
             settings::Setting::Policy(number)
         }
+        wire::Setting::ProjectPolicy(value) => settings::Setting::ProjectPolicy { project: value.project() },
         wire::Setting::Rules => settings::Setting::Rules,
         wire::Setting::Application(value) => {
             let wire::ApplicationSettingParts { kind, scope, number } = value.into_parts();
@@ -1560,31 +1611,109 @@ fn decode_changed(
     }
     Ok(settings::Changed { value: field_value, revision: field_revision })
 }
+fn encode_replaced(value: &settings::Replaced, limits: &wire::Limits) -> Result<wire::Replaced, wire::Problem> {
+    Ok(match value {
+        settings::Replaced::Value(value) => {
+            wire::Replaced::Value(wire::Set::new(limits, wire::SetParts { value: encode_value(value, limits)? })?)
+        }
+        settings::Replaced::Default => wire::Replaced::Default,
+        settings::Replaced::Removed => wire::Replaced::Removed,
+        settings::Replaced::NotOffered => wire::Replaced::NotOffered,
+    })
+}
+fn decode_replaced(value: wire::Replaced, limits: &wire::Limits) -> Result<settings::Replaced, wire::Problem> {
+    Ok(match value {
+        wire::Replaced::Value(value) => settings::Replaced::Value(decode_value(value.into_parts().value, limits)?),
+        wire::Replaced::Default => settings::Replaced::Default,
+        wire::Replaced::Removed => settings::Replaced::Removed,
+        wire::Replaced::NotOffered => settings::Replaced::NotOffered,
+    })
+}
+fn encode_revision_item(
+    value: &settings::RevisionItem,
+    limits: &wire::Limits,
+) -> Result<wire::RevisionItem, wire::Problem> {
+    wire::RevisionItem::new(
+        limits,
+        wire::RevisionItemParts {
+            setting: encode_setting(&value.setting, limits)?,
+            edit: encode_edit(&value.edit, limits)?,
+            replaced: encode_replaced(&value.replaced, limits)?,
+        },
+    )
+}
+fn decode_revision_item(
+    value: wire::RevisionItem,
+    limits: &wire::Limits,
+) -> Result<settings::RevisionItem, wire::Problem> {
+    let wire::RevisionItemParts { setting, edit, replaced } = value.into_parts();
+    Ok(settings::RevisionItem {
+        setting: decode_setting(setting),
+        edit: decode_edit(edit, limits)?,
+        replaced: decode_replaced(replaced, limits)?,
+    })
+}
+fn encode_revision_recorded(
+    value: &application::RevisionRecorded,
+    limits: &wire::Limits,
+) -> Result<wire::RevisionRecorded, wire::Problem> {
+    let edit = match value.edit {
+        application::SizedEdit::Set { size } => {
+            wire::SizedEdit::Set(wire::SizedSet::new(limits, wire::SizedSetParts { size })?)
+        }
+        application::SizedEdit::Remove => wire::SizedEdit::Remove,
+        application::SizedEdit::Reset => wire::SizedEdit::Reset,
+    };
+    let replaced = match value.replaced {
+        application::Replaced::Changed { size } => {
+            wire::SizedReplaced::Changed(wire::SizedSet::new(limits, wire::SizedSetParts { size })?)
+        }
+        application::Replaced::Default => wire::SizedReplaced::Default,
+        application::Replaced::Removed => wire::SizedReplaced::Removed,
+        application::Replaced::NotOffered => wire::SizedReplaced::NotOffered,
+    };
+    wire::RevisionRecorded::new(
+        limits,
+        wire::RevisionRecordedParts { kind: value.kind, scope: value.scope, number: value.number, edit, replaced },
+    )
+}
+fn decode_revision_recorded(value: wire::RevisionRecorded) -> application::RevisionRecorded {
+    let wire::RevisionRecordedParts { kind, scope, number, edit, replaced } = value.into_parts();
+    let edit = match edit {
+        wire::SizedEdit::Set(value) => application::SizedEdit::Set { size: value.size() },
+        wire::SizedEdit::Remove => application::SizedEdit::Remove,
+        wire::SizedEdit::Reset => application::SizedEdit::Reset,
+    };
+    let replaced = match replaced {
+        wire::SizedReplaced::Changed(value) => application::Replaced::Changed { size: value.size() },
+        wire::SizedReplaced::Default => application::Replaced::Default,
+        wire::SizedReplaced::Removed => application::Replaced::Removed,
+        wire::SizedReplaced::NotOffered => application::Replaced::NotOffered,
+    };
+    application::RevisionRecorded { kind, scope, number, edit, replaced }
+}
 fn encode_revision(
     value: &settings::Revision,
     limits: &wire::Limits,
     names: &[settings::ModelName],
 ) -> Result<wire::Revision, wire::Problem> {
-    let field_head = encode_head(&value.head, limits)?;
-    let mut list_35 = List::with_capacity(limits.revision_items);
-    for entry in &value.items {
-        let element = encode_item(&settings::Item { setting: entry.setting, edit: entry.edit.clone() }, limits)?;
-        if list_35.push(element).is_err() {
+    let mut items = List::with_capacity(limits.proposal_items);
+    for item in &value.items {
+        let item = encode_revision_item(item, limits)?;
+        let mut writer = Writer::new(skein_lib::length::usize_of(item.measure()));
+        item.encode(&mut writer).expect("measured revision item");
+        if items.push(writer.finish()).is_err() {
             return Err(bound());
         }
     }
-    let field_items = list_35;
+    let items = match super::pieces::join(items, limits.revision_items) {
+        Ok(bytes) => bytes,
+        Err(reason) => return Err(wire::Problem { path: wire::Path::RevisionItems, reason }),
+    };
     let mut applications = List::with_capacity(limits.revision_applications);
     for item in &value.applications {
-        if applications
-            .push(application::Recorded {
-                kind: item.kind,
-                scope: item.scope,
-                number: item.number,
-                edit: item.edit.clone(),
-            })
-            .is_err()
-        {
+        let item = encode_revision_recorded(item, limits)?;
+        if applications.push(item).is_err() {
             return Err(bound());
         }
     }
@@ -1592,9 +1721,9 @@ fn encode_revision(
         limits,
         wire::RevisionParts {
             models: encode_names(names, limits)?,
-            head: field_head,
-            items: field_items,
-            applications: encode_recorded(applications.as_slice(), limits, limits.revision_applications)?,
+            head: encode_head(&value.head, limits)?,
+            items,
+            applications,
         },
     )
 }
@@ -1604,42 +1733,44 @@ fn decode_revision(
     names: &[settings::ModelName],
 ) -> Result<settings::Revision, wire::Problem> {
     let wire::RevisionParts { models, head, items, applications } = value.into_parts();
-    let field_head = decode_head(head);
-    let mut list_36 = List::with_capacity((items).len());
-    for entry in (items).into_boxed() {
-        let element = decode_item(entry, limits)?;
-        // The store keeps no replaced state until settings-store.
-        list_36
-            .push(settings::RevisionItem {
-                setting: element.setting,
-                edit: element.edit,
-                replaced: settings::Replaced::NotOffered,
-            })
-            .expect("decoded list bound");
+    let mut reader = Reader::new(&items);
+    let mut items = List::with_capacity(limits.proposal_items);
+    for _ in 0..limits.proposal_items {
+        let bytes = match super::people::pieces::split(&mut reader) {
+            Ok(Some(bytes)) => bytes,
+            Ok(None) => break,
+            Err(problem) => return Err(wire::Problem { path: wire::Path::RevisionItems, reason: problem.reason }),
+        };
+        let mut piece = Reader::new(&bytes);
+        let item = wire::RevisionItem::decode(limits, &mut piece)?;
+        if !piece.is_empty() {
+            return Err(wire::Problem { path: wire::Path::RevisionItems, reason: skein_codec::Reason::Malformed });
+        }
+        let item = decode_revision_item(item, limits)?;
+        if items.push(item).is_err() {
+            return Err(bound());
+        }
     }
-    let field_items = list_36.into_boxed();
-    let mut field_items = field_items;
+    if !reader.is_empty() {
+        return Err(bound());
+    }
+    let mut items = items.into_boxed();
     let moved = model_moves(&models, names);
-    for item in &mut field_items {
+    for item in &mut items {
         match &mut item.edit {
             settings::Edit::Set(value) => remap_value(value, &moved, &models, names),
             settings::Edit::Removed | settings::Edit::Reset => {}
         }
+        match &mut item.replaced {
+            settings::Replaced::Value(value) => remap_value(value, &moved, &models, names),
+            settings::Replaced::Default | settings::Replaced::Removed | settings::Replaced::NotOffered => {}
+        }
     }
     let mut recorded = List::with_capacity(applications.len());
-    for item in decode_recorded(applications) {
-        // The store keeps no replaced state until settings-store.
-        recorded
-            .push(application::RevisionRecorded {
-                kind: item.kind,
-                scope: item.scope,
-                number: item.number,
-                edit: item.edit,
-                replaced: application::Replaced::NotOffered,
-            })
-            .expect("decoded application item count");
+    for item in applications.into_boxed() {
+        recorded.push(decode_revision_recorded(item)).expect("decoded application item count");
     }
-    Ok(settings::Revision { head: field_head, items: field_items, applications: recorded.into_boxed() })
+    Ok(settings::Revision { head: decode_head(head), items, applications: recorded.into_boxed() })
 }
 fn encode_charter_version(
     value: &settings::CharterVersion,
@@ -1819,8 +1950,13 @@ pub fn limits(domain: &core::Limits) -> Option<wire::Limits> {
     limits.approval_state = domain.tasks.result_bytes;
     limits.verdict_choices_choices = domain.tasks.contract_choices;
     limits.template_name = domain.documents.text_bytes;
-    limits.revision_items = settings::capacity(domain)?.checked_mul(2)?;
-    limits.proposal_items = limits.revision_items;
+    limits.revision_items = super::people::pieces::piece_bound(
+        u32::try_from(settings::revision_bound(domain)?).ok()?,
+        size_of::<settings::RevisionItem>(),
+        wire::RevisionItem::encoded_bound(&EMPTY)?,
+        true,
+    )?;
+    limits.proposal_items = settings::capacity(domain)?.checked_mul(2)?;
     limits.revision_applications = tasks::SETTINGS_ITEMS;
     limits.proposal_applications = tasks::SETTINGS_ITEMS;
     if wire::check_limits(&limits).is_err() {
@@ -1837,12 +1973,12 @@ pub fn encode(
     match record {
         settings::Record::Application { setting, state } => {
             match setting {
-                jig_domain_people::Setting::ProjectPolicy { .. } => unreachable!("a project's policy: policy-store"),
                 settings::Setting::Application { .. } => {}
                 settings::Setting::Charter(_)
                 | settings::Setting::Template(_)
                 | settings::Setting::Policy(_)
-                | settings::Setting::Rules => return Err(bound()),
+                | settings::Setting::Rules
+                | settings::Setting::ProjectPolicy { .. } => return Err(bound()),
             }
             let value = encode_application(state, limits)?;
             let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
@@ -1900,7 +2036,6 @@ pub fn decode(
             default: decode_default(wire::Default::decode(limits, &mut reader)?, limits, names)?,
         },
         settings::Key::Changed(setting) => match setting {
-            jig_domain_people::Setting::ProjectPolicy { .. } => unreachable!("a project's policy: policy-store"),
             settings::Setting::Application { .. } => settings::Record::Application {
                 setting: *setting,
                 state: decode_application(wire::ApplicationState::decode(limits, &mut reader)?),
@@ -1908,7 +2043,8 @@ pub fn decode(
             settings::Setting::Charter(_)
             | settings::Setting::Template(_)
             | settings::Setting::Policy(_)
-            | settings::Setting::Rules => settings::Record::Changed {
+            | settings::Setting::Rules
+            | settings::Setting::ProjectPolicy { .. } => settings::Record::Changed {
                 setting: *setting,
                 changed: decode_changed(wire::Changed::decode(limits, &mut reader)?, limits, names)?,
             },
