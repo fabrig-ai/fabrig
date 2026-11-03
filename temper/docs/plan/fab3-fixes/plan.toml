@@ -1,0 +1,3 @@
+draft = "fab3-fixes"
+repo = "fabrig"
+sources = ["temper/docs/plan/fab3-fixes/inputs/request.md", "temper/docs/design/client/forge.md", "AGENTS.md"]
