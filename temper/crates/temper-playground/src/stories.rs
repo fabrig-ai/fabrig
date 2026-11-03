@@ -27,6 +27,12 @@ pub fn all() -> &'static [Story] {
     &[A]
 }
 
+/// The story a start message names, by its `name`.
+#[must_use]
+pub fn named(name: &[u8]) -> Option<&'static Story> {
+    all().iter().find(|story| story.name.as_bytes() == name)
+}
+
 impl Story {
     /// Decode the compiled documents and build the same peers as `temper fake`.
     #[must_use]
