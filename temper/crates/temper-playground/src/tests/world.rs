@@ -118,6 +118,22 @@ fn keeping_links_leaves_them_for_the_harness() {
 }
 
 #[test]
+fn story_a_lays_the_playground_forges_handover_before_starting() {
+    use crate::{service::read_handover, stories::A};
+    use skein_lib::Token;
+    let world = story::world(A.start(7, Wall::EPOCH));
+    let parameters = story::parameters(&world);
+    let read = temper_service::HandoverRead {
+        forge: 1,
+        run: Token::new(1),
+        path: b"playground-1/admin_token".as_slice().into(),
+        max: u32::try_from(fakes::ADMIN_TOKEN.len()).expect("synthetic handover's length"),
+    };
+    let handover = read_handover(&mut parameters.disk.borrow_mut(), &read).expect("playground handover read");
+    assert_eq!(handover.expect("present before the service starts").expose(), fakes::ADMIN_TOKEN);
+}
+
+#[test]
 fn handover_reads_its_path_and_bounds_the_file_before_reading() {
     use crate::{
         machine::{fresh, lay_handover},
