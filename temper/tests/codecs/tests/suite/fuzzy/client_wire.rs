@@ -32,8 +32,19 @@ fn playground_answer(bytes: &[u8]) {
 }
 #[test]
 fn client_wire_decoders_never_panic_and_reencode_the_same() {
-    let decoders: [fn(&[u8]); 9] =
-        [requesting, answer, reading, playground_answer, watching, forges, panel, landing_rule, forge_charter];
+    let decoders: [fn(&[u8]); 11] = [
+        requesting,
+        answer,
+        reading,
+        playground_answer,
+        watching,
+        forges,
+        panel,
+        landing_rule,
+        forge_charter,
+        setting_answer,
+        proposal_items_answer,
+    ];
     let mut rng = Rng::new(0x7e3d_0302);
     let goldens = temper_codecs_world::goldens("crates/temper-client-protocol-wire/golden");
     for _ in 0..2_000 {
@@ -198,5 +209,16 @@ fn forges(bytes: &[u8]) {
 fn panel(bytes: &[u8]) {
     if let Some(record) = temper_client_protocol_wire::decode_change_panel(bytes, &v1::CEILINGS) {
         assert_eq!(temper_client_protocol_wire::change_panel(&record).as_ref(), bytes, "ChangePanel");
+    }
+}
+
+fn setting_answer(bytes: &[u8]) {
+    if let Some(record) = temper_client_protocol_wire::decode_setting_answer(bytes, &v1::CEILINGS) {
+        assert_eq!(temper_client_protocol_wire::setting_answer(&record).as_ref(), bytes, "SettingAnswer");
+    }
+}
+fn proposal_items_answer(bytes: &[u8]) {
+    if let Some(record) = temper_client_protocol_wire::decode_proposal_items_answer(bytes, &v1::CEILINGS) {
+        assert_eq!(temper_client_protocol_wire::proposal_items_answer(&record).as_ref(), bytes, "ProposalItemsAnswer");
     }
 }

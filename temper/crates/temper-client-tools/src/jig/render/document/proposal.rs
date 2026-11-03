@@ -62,24 +62,35 @@ pub(super) fn text(value: &c::ReadValue, reading: &Reading, limits: &Limits, out
         && let Some(review) = &s.review
     {
         for (index, item) in review.items.iter().enumerate() {
-            settings::setting_text(item.setting, out);
+            if let c::Setting::Application { .. } = item.setting {
+                continue;
+            }
+            settings::setting_text(item.setting, reading.parts, out);
             out.put(b" \xc2\xb7 ");
             out.put(review_change(item));
             out.put(b" \xc2\xb7 now ");
-            review_value_text(&item.now, item.setting, reading.pages.get(&slot(index, false)), limits, out);
+            review_value_text(
+                &item.now,
+                item.setting,
+                reading.pages.get(&slot(index, false)),
+                limits,
+                reading.parts,
+                out,
+            );
             out.put(b" (");
-            match &item.origin {
-                c::SettingOrigin::Change(r) => {
-                    out.put(b"revision ");
-                    out.number(u64::from(r.revision));
-                }
-                c::SettingOrigin::Default(_) => out.put(b"default"),
-                c::SettingOrigin::NotOffered => out.put(b"not offered"),
-            }
+            origin_text(&item.origin, out);
             out.put(b") \xc2\xb7 would be ");
-            review_value_text(&item.would_be, item.setting, reading.pages.get(&slot(index, true)), limits, out);
+            review_value_text(
+                &item.would_be,
+                item.setting,
+                reading.pages.get(&slot(index, true)),
+                limits,
+                reading.parts,
+                out,
+            );
             out.put(b"\n");
         }
+        application_items_text(reading, limits, out);
         if review.cut {
             out.put(b"cut: more not shown\n");
         }
@@ -106,43 +117,55 @@ fn resolved<'a>(
     match value {
         c::ReviewValue::Value(set) => Ok(Some(&set.value)),
         c::ReviewValue::None => Ok(None),
-        c::ReviewValue::TooLarge(_) => match page {
-            Some(Readout::Jig(c::ReadResult::Value(c::ReadValue::Setting(document))))
-                if document.setting == setting =>
-            {
-                Ok(document.value.as_ref())
-            }
-            Some(Readout::Jig(c::ReadResult::None(why))) => {
-                let reason: &[u8] = match why {
-                    c::ReadNone::Refused => b"refused",
-                    c::ReadNone::Unknown => b"unknown",
-                    c::ReadNone::Gone => b"gone",
-                    c::ReadNone::Busy => b"busy",
-                    c::ReadNone::SignedOut => b"signed out",
-                    c::ReadNone::Unreachable => b"unreachable",
-                    c::ReadNone::Malformed => b"malformed document",
-                    c::ReadNone::TooLarge { .. } => b"document limit",
-                    c::ReadNone::TooLinked { joins } => return Err(super::super::join_limit(*joins)),
-                };
-                Err(Box::from(reason))
-            }
-            Some(Readout::Limit) => Err(Box::from(b"read table limit".as_slice())),
-            Some(Readout::NotServed { .. }) => Err(Box::from(b"version not served".as_slice())),
-            Some(Readout::Jig(c::ReadResult::Value(_)) | Readout::Family { .. }) | None => {
-                Err(Box::from(b"tools' bug; unexpected setting document; report it as a finding".as_slice()))
-            }
-        },
+        c::ReviewValue::TooLarge(_) => read_value(setting, page),
     }
 }
+fn read_value(setting: c::Setting, page: Option<&Readout>) -> Result<Option<&c::SettingValue>, Box<[u8]>> {
+    match page {
+        Some(Readout::Jig(c::ReadResult::Value(c::ReadValue::Setting(document)))) if document.setting == setting => {
+            Ok(document.value.as_ref())
+        }
+        Some(Readout::Jig(c::ReadResult::None(why))) => {
+            let reason: &[u8] = match why {
+                c::ReadNone::Refused => b"refused",
+                c::ReadNone::Unknown => b"unknown",
+                c::ReadNone::Gone => b"gone",
+                c::ReadNone::Busy => b"busy",
+                c::ReadNone::SignedOut => b"signed out",
+                c::ReadNone::Unreachable => b"unreachable",
+                c::ReadNone::Malformed => b"malformed document",
+                c::ReadNone::TooLarge { .. } => b"document limit",
+                c::ReadNone::TooLinked { joins } => return Err(super::super::join_limit(*joins)),
+            };
+            Err(Box::from(reason))
+        }
+        Some(Readout::Limit) => Err(Box::from(b"read table limit".as_slice())),
+        Some(Readout::NotServed { .. }) => Err(Box::from(b"version not served".as_slice())),
+        Some(Readout::Jig(c::ReadResult::Value(_)) | Readout::Family { .. }) | None => {
+            Err(Box::from(b"tools' bug; unexpected setting document; report it as a finding".as_slice()))
+        }
+    }
+}
+
 fn review_value_text(
     value: &c::ReviewValue,
     setting: c::Setting,
     page: Option<&Readout>,
     limits: &Limits,
+    vocabulary: &dyn crate::jig::render::Parts,
     out: &mut Text,
 ) {
-    match resolved(value, setting, page) {
-        Ok(Some(value)) => settings::value_inline(value, limits, out),
+    value_text(resolved(value, setting, page), setting, limits, vocabulary, out);
+}
+fn value_text(
+    value: Result<Option<&c::SettingValue>, Box<[u8]>>,
+    setting: c::Setting,
+    limits: &Limits,
+    vocabulary: &dyn crate::jig::render::Parts,
+    out: &mut Text,
+) {
+    match value {
+        Ok(Some(value)) => settings::named_value_inline(setting, value, limits, vocabulary, out),
         Ok(None) => out.put(b"none"),
         Err(why) => out.put(&why),
     }
@@ -310,6 +333,12 @@ fn encode_settings_fields(
         Some(review) => encode_review(review, reading.expect("pending review reads"), out),
         None => out.null(),
     }
+    if let Some(reading) = reading
+        && reading.application.items.is_some()
+    {
+        out.key(b"application_items");
+        encode_application_items(reading, out);
+    }
     out.key(b"made");
     match made {
         Some(n) => out.unsigned(u64::from(n)),
@@ -331,7 +360,7 @@ fn encode_review(review: &c::SettingsReview, reading: &Reading, out: &mut Encode
         out.key(b"edit");
         out.string(settings::edit_word(&item.edit));
         out.key(b"now");
-        encode_review_value(&item.now, item.setting, reading.pages.get(&slot(index, false)), out);
+        encode_review_value(&item.now, item.setting, reading.pages.get(&slot(index, false)), reading.parts, out);
         out.key(b"origin");
         match &item.origin {
             c::SettingOrigin::Default(r) => origin_revision(b"default", r.revision, out),
@@ -339,7 +368,7 @@ fn encode_review(review: &c::SettingsReview, reading: &Reading, out: &mut Encode
             c::SettingOrigin::NotOffered => out.string(b"not_offered"),
         }
         out.key(b"would_be");
-        encode_review_value(&item.would_be, item.setting, reading.pages.get(&slot(index, true)), out);
+        encode_review_value(&item.would_be, item.setting, reading.pages.get(&slot(index, true)), reading.parts, out);
         out.object_end();
     }
     out.array_end();
@@ -357,8 +386,22 @@ fn origin_revision(kind: &[u8], revision: u32, out: &mut Encoder) {
     out.object_end();
 }
 
-fn encode_review_value(value: &c::ReviewValue, setting: c::Setting, page: Option<&Readout>, out: &mut Encoder) {
-    match resolved(value, setting, page) {
+fn encode_review_value(
+    value: &c::ReviewValue,
+    setting: c::Setting,
+    page: Option<&Readout>,
+    vocabulary: &dyn crate::jig::render::Parts,
+    out: &mut Encoder,
+) {
+    encode_value_result(resolved(value, setting, page), setting, vocabulary, out);
+}
+fn encode_value_result(
+    value: Result<Option<&c::SettingValue>, Box<[u8]>>,
+    setting: c::Setting,
+    vocabulary: &dyn crate::jig::render::Parts,
+    out: &mut Encoder,
+) {
+    match value {
         Ok(Some(value)) => {
             out.object_start();
             out.key(b"value");
@@ -372,7 +415,7 @@ fn encode_review_value(value: &c::ReviewValue, setting: c::Setting, page: Option
                 c::SettingValue::Application(_) => b"application",
                 c::SettingValue::Rules(_) => b"rules",
             });
-            settings::encode_value(value, out);
+            settings::encode_named_value(setting, value, vocabulary, out);
             out.object_end();
             out.object_end();
             out.object_end();
@@ -527,4 +570,87 @@ fn encode_history_state(state: &c::ProposalHistoryState, out: &mut Encoder, budg
     }
     out.object_end();
     out.object_end();
+}
+
+fn current_item<'a>(reading: &'a Reading, item: &c::SettingItem) -> Option<&'a Readout> {
+    reading.application.current.get(&crate::jig::runner::application::key(item.setting))
+}
+fn application_items_text(reading: &Reading, limits: &Limits, out: &mut Text) {
+    use c::SettingEdit;
+    let Some(items) = &reading.application.items else { return };
+    for item in items {
+        let setting = item.setting;
+        settings::setting_text(setting, reading.parts, out);
+        out.put(b" \xc2\xb7 now ");
+        value_text(read_value(setting, current_item(reading, item)), setting, limits, reading.parts, out);
+        if let Some(origin) = application_origin(reading, setting) {
+            out.put(b" (");
+            origin_text(origin, out);
+            out.put(b")");
+        }
+        out.put(b" \xc2\xb7 ");
+        match &item.edit {
+            SettingEdit::Set(value) => {
+                out.put(b"set ");
+                settings::named_value_inline(setting, &value.value, limits, reading.parts, out);
+            }
+            SettingEdit::Removed => out.put(b"removed"),
+            SettingEdit::Reset => out.put(b"reset to default"),
+        }
+        out.put(b"\n");
+    }
+}
+fn encode_application_items(reading: &Reading, out: &mut Encoder) {
+    use c::SettingEdit;
+    out.array_start();
+    if let Some(items) = &reading.application.items {
+        for item in items {
+            let setting = item.setting;
+            out.object_start();
+            out.key(b"setting");
+            settings::encode_setting(setting, out);
+            out.key(b"edit");
+            out.string(match &item.edit {
+                SettingEdit::Set(_) => b"set",
+                SettingEdit::Removed => b"removed",
+                SettingEdit::Reset => b"reset",
+            });
+            if let SettingEdit::Set(value) = &item.edit {
+                out.key(b"value");
+                settings::encode_named_value(setting, &value.value, reading.parts, out);
+            }
+            if let Some(origin) = application_origin(reading, setting) {
+                out.key(b"origin");
+                match origin {
+                    c::SettingOrigin::Default(r) => origin_revision(b"default", r.revision, out),
+                    c::SettingOrigin::Change(r) => origin_revision(b"change", r.revision, out),
+                    c::SettingOrigin::NotOffered => out.string(b"not_offered"),
+                }
+            }
+            out.key(b"now");
+            encode_value_result(read_value(setting, current_item(reading, item)), setting, reading.parts, out);
+            out.object_end();
+        }
+    }
+    out.array_end();
+}
+
+fn origin_text(origin: &c::SettingOrigin, out: &mut Text) {
+    match origin {
+        c::SettingOrigin::Change(r) => {
+            out.put(b"revision ");
+            out.number(u64::from(r.revision));
+        }
+        c::SettingOrigin::Default(_) => out.put(b"default"),
+        c::SettingOrigin::NotOffered => out.put(b"not offered"),
+    }
+}
+fn application_origin(reading: &Reading, setting: c::Setting) -> Option<&c::SettingOrigin> {
+    let (_, review) = crate::jig::runner::proposal::review(reading.pages.get(&1)?)?;
+    for item in &review.items {
+        if item.setting == setting {
+            return Some(&item.origin);
+        }
+    }
+    None
 }

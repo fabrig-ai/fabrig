@@ -161,6 +161,9 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
         Event::Party(crate::PartyInput::Key { reply_to, sign_in, key, ask, carried }) => {
             domain.work.push(Work::Core(core::Event::Key { reply_to, sign_in, key, ask, carried }));
         }
+        Event::Party(crate::PartyInput::ForgeRead { reply, sign_in, scope, query }) => {
+            domain.work.push(Work::ForgeRead { reply, sign_in, scope, query });
+        }
         Event::Party(crate::PartyInput::Read { reply_to, sign_in, read }) => {
             domain.work.push(Work::Core(core::Event::Read { reply: reply_to, sign_in, read }));
         }
@@ -350,6 +353,9 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
             }
             Work::Start(action) => start_action(domain, env, decision, action),
             Work::Decoded { to, body } => host_route::decoded(domain, env, decision, to, body),
+            Work::ForgeRead { reply, sign_in, scope, query } => {
+                kinds::read(domain, env, decision, reply, sign_in, scope, query);
+            }
             Work::Core(event) => {
                 if let core::Event::AcceptedTurn { accepted: tasks::Accepted::Already, transcript, .. } = &event {
                     domain.release_bytes(

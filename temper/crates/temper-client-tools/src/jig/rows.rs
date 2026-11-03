@@ -600,7 +600,7 @@ pub const SETTINGS: Tool = Tool {
 pub const SETTING: Tool = Tool {
     name: b"settings show",
     line: b"Read one setting's value whole",
-    prints: b"`KIND N, revision R`, or `rules, revision R`, then the value as JSON on one line",
+    prints: b"`KIND N, revision R`, or `rules, revision R`, then the value as JSON",
     result: b"setting",
     forms: &[
         &[
@@ -723,7 +723,7 @@ pub const PROPOSAL: Tool = Tool {
     )]],
     keyed: Keyed::Never,
     area: 2,
-    notes: b"A decided proposal prints how it was decided. Decide a live one\nwith proposal decide.\n",
+    notes: b"A settings proposal includes landing rules and the forge's charters,\neach set whole, removed or reset.\nA decided proposal prints how it was decided. Decide a live one\nwith proposal decide.\n",
 };
 
 /// The row's position in the tools table.
