@@ -5,6 +5,7 @@ use crate::{
 };
 use skein_lib::List;
 
+#[expect(clippy::match_same_arms, reason = "the separate project policy refusal is replaced by policy-change")]
 pub(crate) fn change_shape(items: &[Item], limits: &Limits) -> Result<(), Failure> {
     if items.len()
         > skein_lib::length::usize_of(
@@ -16,6 +17,10 @@ pub(crate) fn change_shape(items: &[Item], limits: &Limits) -> Result<(), Failur
     let mut counts = [0_u32; 3];
     for (at, item) in items.iter().enumerate() {
         match item.setting {
+            // A project's policy is refused until policy-change gives it a check (engine.md, 17.2).
+            Setting::ProjectPolicy { .. } => {
+                return Err(Failure { setting: item.setting, fault: Fault::Shape });
+            }
             Setting::Charter(0)
             | Setting::Template(0)
             | Setting::Policy(0)
