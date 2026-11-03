@@ -3,7 +3,7 @@
 2026-11-03. Where skein's code lags or departs from [llm.md](llm.md).
 
 - **Departs:** 5: five of the live suite's provider stories are ignored, manual
-  stories run by the owner; how the owner runs them is to be decided later.
+  stories run by the owner; how the owner runs them is for later (section 6).
   `anthropic_streamed_text_and_history`, `anthropic_tool_round_trip` and
   `anthropic_unauthorized` need an Anthropic API key: none is provided or wanted
   for the automatic suite, by the user's decision of 2026-11-03.

@@ -42,6 +42,10 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
 - **Its settings revision:** an agent task records the settings
   revision its runs use; `task show` prints it as `settings: revision R`,
   with the run's own and the newest where they differ.
+- **Its model choice:** when the task carries an LLM choice, `task show`
+  prints `main model: MODEL/EFFORT`, then `sub-agent model: MODEL/EFFORT`
+  for each sub-agent choice in order. A model without an effort prints
+  just its name. A task without a choice prints no model lines.
 
 ## How it changes
 
