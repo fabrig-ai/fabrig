@@ -150,6 +150,8 @@ fn charter_with_history(assignment: &engine::Assignment, resumed: bool) -> run::
         checks: bytes::copy_of(b".temper/pre-pr"),
     });
     let mut charter = jig_protocol_charter::charter(charter).expect("bounded charter");
+    // A workspace edit needs a delivery path (temper/docs/design/domain/agent.md, 4.3).
+    charter.grants.tools.modify &= charter.grants.deliver.is_some();
     if assignment.charter == 1 && charter.mode == run::Mode::Finite {
         for tool in &mut charter.grants.host_tools {
             tool.reserve = tool.name.as_ref() == b"message";

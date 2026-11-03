@@ -218,9 +218,9 @@ fn a_charters_mode_is_its_tasks_ending() {
 }
 
 #[test]
-fn a_report_run_without_modify_keeps_it_off() {
+fn a_report_run_cannot_modify_without_delivery() {
     let mut assignment = assignment();
-    assignment.run.policy.modify = false;
+    assignment.run.policy.modify = true;
     let charter = crate::charter(&assignment);
     assert_eq!(charter.mode, run::Mode::Finite);
     assert!(charter.grants.deliver.is_none());
@@ -229,11 +229,11 @@ fn a_report_run_without_modify_keeps_it_off() {
 }
 
 #[test]
-fn an_open_run_without_modify_keeps_it_off() {
+fn an_open_run_cannot_modify_even_when_policy_requests_it() {
     let mut assignment = assignment();
     assignment.run.ended_by = tasks::EndedBy::Requester;
     assignment.run.contract = tasks::Contract::Change { connector: 1, kind: 1, words: 128 };
-    assignment.run.policy.modify = false;
+    assignment.run.policy.modify = true;
     assignment.run.policy.shell = true;
     let charter = crate::charter(&assignment);
     assert_eq!(charter.mode, run::Mode::Open);

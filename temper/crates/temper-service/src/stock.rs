@@ -236,7 +236,7 @@ fn charter(number: u32, turns: u32, instructions: &[u8], llm: &jig_protocol_conf
             reserve_turns: 1,
             reserve_time: Duration::from_millis(60_000),
             inspect: true,
-            modify: true,
+            modify: number != 1,
             shell: false,
             agents: true,
             call_timeout: Duration::from_millis(10_000),
