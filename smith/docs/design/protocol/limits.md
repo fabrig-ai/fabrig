@@ -854,7 +854,7 @@ and policy values are named as section 2 names them; a derived limit is
 named by its layer and its field in that layer's `Limits`, such as
 `llm.request` or `session.history_bytes`. A value per endpoint or per
 model adds them by their configured names, never by a number:
-`llm.request[endpoint=codex]`, `declared.head[endpoint=codex,model=gpt-6-luna]`,
+`llm.request[endpoint=openai]`, `declared.head[endpoint=openai,model=gpt-6-luna]`,
 so a reader joins them to the names in `conversation.opened`. Sizes are
 in bytes or tokens as their names say; durations in whole milliseconds. `smith check` prints them (`docs/design/shell.md`, 4.4), and the
 event stream's header carries them (events.md, section 3.2). Their names

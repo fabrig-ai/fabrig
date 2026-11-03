@@ -954,7 +954,7 @@ impl Service {
                 | local::CredentialFailure::ProgramInterrupted
                 | local::CredentialFailure::BorrowedExpiring { .. } => true,
                 local::CredentialFailure::Missing | local::CredentialFailure::Refresh => match &self.accounts {
-                    Some(accounts) => accounts.account_id(*account).is_some(),
+                    Some(accounts) => accounts.scheme(*account).is_some(),
                     None => false,
                 },
             },

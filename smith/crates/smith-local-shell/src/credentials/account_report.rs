@@ -2,7 +2,7 @@
 //! protocol/hosts.md, sections 5.2 and 5.4).
 //! Keeps provider, source, number and place, never credential values. `report`
 //! inspects the catalog; startup warnings omit program sources not checked.
-use super::{Account, Credential, Directory, Source, inspect, product, program_check::ProgramStates, source};
+use super::{Account, Credential, Directory, Source, inspect, program_check::ProgramStates, source};
 use crate::settings::{self, resolve::Resolved};
 use skein_lib::Wall;
 use std::{collections::BTreeMap, fmt::Write, path::PathBuf};
@@ -88,11 +88,7 @@ fn catalog(
             if needed.is_some() && !include_required {
                 return None;
             }
-            let descriptor = source(
-                &account,
-                needed.is_some_and(|needed| product::codex(resolved, needed.number)),
-                directory.as_ref(),
-            );
+            let descriptor = source(&account, directory.as_ref());
             let (source, kept) = match &descriptor {
                 Ok(Source::SignIn { file, .. }) => ("sign_in", Some(Kept::File(file.clone()))),
                 Ok(Source::Key { file }) => ("key", Some(Kept::File(file.clone()))),
