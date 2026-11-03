@@ -20,11 +20,16 @@ fn offered(world: &mut ClientWorld, agent: ClientId, task: u64) -> Vec<Vec<Strin
     let text = std::str::from_utf8(&printed.stdout).expect("panel text");
     let reason = text.lines().find_map(|line| line.strip_prefix("held: ")).expect("held panel");
     let (release, cancel) = reason.split_once("; or cancel it: ").expect("both ways out");
-    let release = release.split_once("; release it: ").expect("release command").1;
+    let (amend, release) = release
+        .split_once("; grant more tasks: ")
+        .expect("amend command")
+        .1
+        .split_once("; then release it: ")
+        .expect("release command");
     let release = release.split_once(" (it holds again unless it has more)").expect("release's consequence").0;
     let cancel = cancel.split_once(" at ").expect("held step").0;
-    assert_eq!(reason.matches("task ").count(), 2, "every offered command is checked: {reason}");
-    [release, cancel]
+    assert_eq!(reason.matches("task ").count(), 3, "every offered command is checked: {reason}");
+    [release, cancel, amend]
         .into_iter()
         .map(|command| {
             let words: Vec<String> = command
@@ -43,25 +48,7 @@ fn offered(world: &mut ClientWorld, agent: ClientId, task: u64) -> Vec<Vec<Strin
 
 #[test]
 fn a_holds_offered_commands_are_ones_ctl_takes() {
-    let mut front = Joint::with_change_landing(fixtures::SEED, &fixtures::domain_limits());
-    front.engine.forge =
-        Some(temper_engine_domain_world::forge_stand::ForgeStand::with_checks(fixtures::REPOSITORIES, &[b"build"]));
-    fixtures::adopt_change_repository(&mut front);
-    front.engine.forge.as_mut().expect("fake forge").push_branch(7, b"temper/held");
-    let task = fixtures::goal_with_pushed_change_with_tasks(&mut front, b"temper/held", 0);
-    let mut world = World::<Temper, Joint>::new(
-        Settings { seed: fixtures::SEED, words: fixtures::decision_words(), ..Settings::default() },
-        front,
-    );
-    assert!(world.front().engine.task(task).is_some(), "created change exists");
-    let agent = fixtures::agent(&mut world);
-    for _ in 0..100 {
-        let until = world.now().saturating_add(skein_lib::Duration::from_millis(100));
-        assert_eq!(world.run(Until::Time(until)).verdict, Verdict::Passed);
-        if matches!(world.front().engine.task(task).expect("live change").phase, tasks::Phase::Held { .. }) {
-            break;
-        }
-    }
+    let (mut world, agent, task) = tasks_hold();
     call(&mut world, agent, &[b"task", b"show", task.to_string().as_bytes(), b"--until", b"held"]);
     let before = world.front().engine.task(task).expect("held change").clone();
     assert!(matches!(before.phase, tasks::Phase::Held { .. }));
@@ -178,4 +165,61 @@ fn refused_batch_and_vetoed_effect_cards_and_ctl_name_the_reason_and_offer_worki
         call(&mut world, agent, &[b"task", b"show", task.to_string().as_bytes(), b"--until", b"ended"]);
         assert!(world.front().engine.task(task).is_none());
     }
+}
+
+fn tasks_hold() -> (ClientWorld, ClientId, u64) {
+    let mut front = Joint::with_change_landing(fixtures::SEED, &fixtures::domain_limits());
+    front.engine.forge =
+        Some(temper_engine_domain_world::forge_stand::ForgeStand::with_checks(fixtures::REPOSITORIES, &[b"build"]));
+    fixtures::adopt_change_repository(&mut front);
+    front.engine.forge.as_mut().expect("fake forge").push_branch(7, b"temper/held");
+    let task = fixtures::goal_with_pushed_change_with_tasks(&mut front, b"temper/held", 0);
+    let mut world = World::<Temper, Joint>::new(
+        Settings { seed: fixtures::SEED, words: fixtures::decision_words(), ..Settings::default() },
+        front,
+    );
+    assert!(world.front().engine.task(task).is_some(), "created change exists");
+    let agent = fixtures::agent(&mut world);
+    for _ in 0..100 {
+        let until = world.now().saturating_add(skein_lib::Duration::from_millis(100));
+        assert_eq!(world.run(Until::Time(until)).verdict, Verdict::Passed);
+        if matches!(world.front().engine.task(task).expect("live change").phase, tasks::Phase::Held { .. }) {
+            break;
+        }
+    }
+    (world, agent, task)
+}
+
+#[test]
+fn a_printed_tasks_amendment_and_release_admit_a_fresh_review() {
+    let (mut world, agent, task) = tasks_hold();
+    call(&mut world, agent, &[b"task", b"show", task.to_string().as_bytes(), b"--until", b"held"]);
+    let before = world.front().engine.task(task).expect("held change").clone();
+    let commands = offered(&mut world, agent, task);
+    let amend: Vec<&[u8]> = commands[2].iter().map(String::as_bytes).collect();
+    let number = fixtures::give(&mut world, agent, &amend);
+    assert_eq!(fixtures::answered(&mut world, agent, number).status, 1, "the pool has no widening room");
+    call(&mut world, agent, &[b"project", b"fund", b"1", b"1000", b"--role", b"0", b"--key", b"fund-widening"]);
+    let amended = call(&mut world, agent, &amend);
+    assert!(amended.stdout.starts_with(b"done:"), "{amended:?}");
+    let widened = world.front().engine.task(task).expect("amended change").clone();
+    assert!(widened.revisions.spec > before.revisions.spec);
+    let mut authority = before.authority.clone();
+    authority.delegation.tasks = widened.authority.delegation.tasks;
+    assert_eq!(widened.authority, authority, "every other authority control is preserved");
+    assert!(widened.authority.delegation.tasks > before.authority.delegation.tasks);
+    assert_eq!(widened.made, before.made);
+    let commands = offered(&mut world, agent, task);
+    let release: Vec<&[u8]> = commands[0].iter().map(String::as_bytes).collect();
+    call(&mut world, agent, &release);
+    for _ in 0..100 {
+        let until = world.now().saturating_add(skein_lib::Duration::from_millis(100));
+        assert_eq!(world.run(Until::Time(until)).verdict, Verdict::Passed);
+        if world.front().engine.task(task).expect("released change").made > before.made {
+            break;
+        }
+    }
+    let after = world.front().engine.task(task).expect("released change").clone();
+    assert_eq!(after.made, before.made + 1, "a review is admitted without resetting the lifetime count");
+    assert!(!matches!(after.phase, tasks::Phase::Held { .. }));
 }

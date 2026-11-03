@@ -279,3 +279,22 @@ fn words_replace_a_cut_read_while_preserving_parameters_inputs_and_revision() {
     expected.words = text(b"Replacement");
     assert_eq!(amended.change.spec, Some(expected));
 }
+
+#[test]
+fn task_allowance_and_deadline_edits_compose_in_either_order() {
+    let task = goal();
+    for deadline_first in [false, true] {
+        let mut draft = Draft::of(&task);
+        if deadline_first {
+            draft.deadline(Some(LATER_DEADLINE)).unwrap();
+        }
+        draft.tasks(12).unwrap();
+        if !deadline_first {
+            draft.deadline(Some(LATER_DEADLINE)).unwrap();
+        }
+        let mut authority = task.authority.whole().unwrap();
+        authority.delegation.tasks = 12;
+        authority.deadline = Some(LATER_DEADLINE);
+        assert_eq!(draft.amendment().unwrap().change.authority, Some(authority));
+    }
+}

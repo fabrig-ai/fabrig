@@ -1148,7 +1148,12 @@ fn assert_authority_hold(
         "release it: task release {task} --hold {} (it holds again unless it has more); or cancel it: task cancel {task} REASON",
         live.revisions.hold,
     );
-    assert!(temper_engine_domain_forge_change::authority_words(cause).ends_with(way.as_bytes()));
+    let printed = temper_engine_domain_forge_change::authority_words(cause);
+    assert!(printed.ends_with(way.as_bytes()));
+    if lack == temper_engine_domain_forge_change::AuthorityLack::Tasks {
+        let amendment = format!("task amend {task} --rev {} --tasks {} REASON; then ", live.revisions.spec, needed + 2);
+        assert!(printed.windows(amendment.len()).any(|part| part == amendment.as_bytes()));
+    }
 }
 
 #[test]
@@ -1861,4 +1866,109 @@ fn lost_read_diagnostics_change_no_reviewer_grant_or_answer() {
         std::iter::from_fn(|| world.root.pop_fact()).count(),
         usize::try_from(engine::FACTS).expect("fact capacity fits usize")
     );
+}
+
+const THIRD_APPEND: &[u8] = b"README\n\nTier walk: third.\n";
+const BOTH_APPENDS: &[u8] = b"README\n\nBREAK the slow check\nTier walk: third.\n";
+
+// The engine domain world is lowest: it assembles the briefs and admits each delegate.
+#[test]
+fn a_third_append_preserves_base_content_after_conflict_and_review_repairs() {
+    let (mut world, change, branch) = third_append_conflict();
+    let resolver = next_assignment(&mut world, 3);
+    assert_preserving_assignment(&world, &resolver, b"What landed in the base");
+    resolve_append(&mut world, &resolver, &branch, THIRD_APPEND);
+    let review = next_assignment(&mut world, 4);
+    reject_lost_content(&mut world, &review, b"Restore BREAK the slow check");
+    let repair = next_assignment(&mut world, 5);
+    assert_preserving_assignment(&world, &repair, b"Restore BREAK the slow check");
+    push_append(&mut world, &repair, &branch, b"README\nBREAK the slow check\nTier walk: third.\n");
+    let review = next_assignment(&mut world, 6);
+    reject_lost_content(&mut world, &review, b"Restore the existing blank line after README");
+    wait_held(&mut world, change);
+    assert_authority_hold(
+        &world,
+        change,
+        temper_engine_domain_forge_change::AuthorityLack::Tasks,
+        b"its 6 tasks are made",
+        false,
+    );
+    assert_eq!(world.assigned.len(), 7);
+    let made = live_task(&world, change).made;
+    change_authority(&mut world, change, Some(9), None, Some(60));
+    release(&mut world, change);
+    let repair = next_assignment(&mut world, 7);
+    assert_preserving_assignment(&world, &repair, b"Restore the existing blank line after README");
+    push_append(&mut world, &repair, &branch, BOTH_APPENDS);
+    let review = next_assignment(&mut world, 8);
+    assert_eq!(live_task(&world, change).made, made + 2, "release preserves lifetime counts");
+    approve(&mut world, &review);
+    assert_lands(&mut world, change);
+    let head = world.fake.branch(b"org/repo", b"main").expect("landed main");
+    assert_eq!(
+        world.external(1, raw::Op::Read(raw::Read::File { commit: head, path: FILE.into() })),
+        raw::Answer::File(BOTH_APPENDS.into())
+    );
+}
+
+fn third_append_conflict() -> (World, u64, Box<[u8]>) {
+    let (mut world, _, producer, branch) = change_world_with_gate(false, 1000, None, true);
+    let base = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", FILE, b"README\n\n", 1)
+        .expect("original blank line");
+    world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: base }));
+    push_append(&mut world, &producer, &branch, THIRD_APPEND);
+    let review = next_assignment(&mut world, 2);
+    let change = requester(&world, review.task);
+    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", FILE, b"README\n\nBREAK the slow check\n", 1)
+        .expect("earlier landing");
+    approve(&mut world, &review);
+    (world, change, branch)
+}
+
+fn assert_preserving_assignment(world: &World, run: &engine::Assignment, context: &[u8]) {
+    let words = &live_task(world, run.task).spec.words;
+    for expected in [
+        b"Preserve the requested change".as_slice(),
+        b"independent appended lines and existing blank lines",
+        b"do not remove content to make a check pass",
+    ] {
+        let words = core::str::from_utf8(words).expect("task words").to_ascii_lowercase();
+        let expected = core::str::from_utf8(expected).expect("expected words").to_ascii_lowercase();
+        assert!(words.contains(&expected), "{words}");
+    }
+    assert!(
+        run.sections.iter().any(|section| matches!(&section.body,
+        engine::BriefBody::Text(words) if words.windows(context.len()).any(|part| part == context))),
+        "assignment carries change or review context: {:?}",
+        run.sections
+    );
+}
+
+fn reject_lost_content(world: &mut World, run: &engine::Assignment, words: &[u8]) {
+    finish_review(world, run, tasks::TaskResult::Verdict { code: 2, fields: Box::new([]), words: words.into() });
+}
+
+fn push_append(world: &mut World, run: &engine::Assignment, branch: &[u8], content: &[u8]) {
+    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", branch, FILE, content, 1)
+        .expect("scripted worker push");
+    super::delegates::fixtures::answer_producer(world, run);
+}
+
+fn resolve_append(world: &mut World, run: &engine::Assignment, branch: &[u8], content: &[u8]) {
+    let old = world.fake.branch(b"org/repo", branch).expect("branch head");
+    let base = world.fake.branch(b"org/repo", b"main").expect("base head");
+    let merge = fake::merge_commit(
+        &mut world.fake,
+        &world.fake_env.limits,
+        old,
+        base,
+        Box::new([raw::File { path: FILE.into(), content: content.into() }]),
+        b"Resolve conflict",
+    )
+    .expect("scripted resolution");
+    assert_eq!(
+        world.external(1, raw::Op::Git(raw::Git::Push { branch: branch.into(), commit: merge, expected: Some(old) })),
+        raw::Answer::Pushed(raw::Pushed::Pushed)
+    );
+    super::delegates::fixtures::answer_producer(world, run);
 }

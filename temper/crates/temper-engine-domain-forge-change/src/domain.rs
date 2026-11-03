@@ -976,7 +976,17 @@ pub fn authority_words(why: AuthorityHold) -> Box<[u8]> {
             },
         );
     }
-    put(&mut words, b"; release it: task release ");
+    if why.lack == AuthorityLack::Tasks {
+        put(&mut words, b"; grant more tasks: task amend ");
+        put(&mut words, skein_lib::Decimal::of(why.recovery.task).as_bytes());
+        put(&mut words, b" --rev ");
+        put(&mut words, skein_lib::Decimal::of(why.recovery.spec).as_bytes());
+        put(&mut words, b" --tasks ");
+        put(&mut words, skein_lib::Decimal::of(why.recovery.tasks.saturating_add(2)).as_bytes());
+        put(&mut words, b" REASON; then release it: task release ");
+    } else {
+        put(&mut words, b"; release it: task release ");
+    }
     put(&mut words, skein_lib::Decimal::of(why.recovery.task).as_bytes());
     put(&mut words, b" --hold ");
     put(&mut words, skein_lib::Decimal::of(why.recovery.hold).as_bytes());

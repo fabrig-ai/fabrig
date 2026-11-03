@@ -10,7 +10,7 @@ pub fn usage(tool: &Tool, out: &mut Writer) -> Result<(), Overflow> {
 }
 fn form_usage(tool: &Tool, form: &[Argument], out: &mut Writer) -> Result<(), Overflow> {
     if tool.name == b"task amend" {
-        return out.put(b"task amend TASK [--rev REV] [--priority PRIORITY | --untracked] [--deadline TIME | --no-deadline] [--instructions FILE] [--spec FILE] [--dependency TASK]... [--no-dependencies] [--model MODEL [--effort EFFORT]] REASON [--key KEY]\n");
+        return out.put(b"task amend TASK [--rev REV] [--priority PRIORITY | --untracked] [--deadline TIME | --no-deadline] [--instructions FILE] [--spec FILE] [--dependency TASK]... [--no-dependencies] [--model MODEL [--effort EFFORT]] [--tasks N] REASON [--key KEY]\n");
     }
     if tool.name == super::rows::HELP.name {
         return out.put(b"help [GROUP [VERB]]\n");
