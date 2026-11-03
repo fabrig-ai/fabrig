@@ -54,3 +54,18 @@ Acceptance:
 ## Report
 
 As the implementer's text says, and also: each status entry written, and why.
+
+## Answers
+
+2026-11-03. The six reports said to be missing (bundle-worker, playground-crate,
+ui-web-worker-web, playground-visitor, playground-memory, playground-worker): where are they?
+They are in the run directory, each under its run's name, `<task>-<n>/report.md`, not under
+`<task>/` (which holds only the foreman's). Read the last run's of each:
+`/home/free/src/fabrig/fab/runs/playground-skein/` + `bundle-worker-2/report.md`,
+`playground-crate-1/report.md`, `ui-web-worker-web-1/report.md`,
+`playground-visitor-2/report.md`, `playground-memory-1/report.md`,
+`playground-worker-1/report.md` (an earlier run of the same task, `-1` where `-2` exists, asked a
+question its later run settled). The requirement stands. Check each for a departure from
+playground.md or ui-web.md, 18 (bundle-worker-2 reports none); write a **Departs** entry only
+for one built otherwise than the design says, with its reason, and keep the edits already pushed
+otherwise.
