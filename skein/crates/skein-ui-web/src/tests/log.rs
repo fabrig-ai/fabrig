@@ -31,7 +31,7 @@ fn the_digest_is_the_designs() {
     assert_eq!(bytes.len(), 65);
     assert_eq!(digest_text(&sha256::digest(&bytes)), golden);
     let mut saying = Saying::new();
-    saying.report(&Report::Answered { exchange: 7, status: 200, body: b"ok".as_slice().into() });
+    saying.report(&Report::Answered { exchange: 7, status: 200, body: b"ok".as_slice().into(), headers: Vec::new() });
     saying.printed(&printed(Stream::Error));
     assert_eq!(digest_text(&saying.said().0), golden);
     assert_eq!(
@@ -78,7 +78,7 @@ fn the_digest_folds_each_stream_apart() {
 
 const EMPTY: &str = "82c0f0f259e8cffecead54325fadb48f15a4e761dae5ffaf31209993eacbb24d";
 const GOLDEN: &str = concat!(
-    "skein-playground-log 1 build=abcd seed=7 start=9\n",
+    "skein-playground-log 2 build=abcd seed=7 start=9\n",
     "input step=2 instant=3 said=82c0f0f259e8cffecead54325fadb48f15a4e761dae5ffaf31209993eacbb24d read-on\n",
     "end step=4 instant=5 said=8a894be3e2c50fe07fc8fdd08e996daff999185b1cb9fe3c75859778de61574e\n"
 );
@@ -110,7 +110,12 @@ fn golden_log() -> Log {
     let mut log = Log::new(Some(b"abcd"), &start(), u32::MAX);
     log.sent(&Input::ReadOn);
     log.heard(&stamp(2, 3));
-    log.heard(&ToPage::Report(Report::Answered { exchange: 7, status: 200, body: b"ok".as_slice().into() }));
+    log.heard(&ToPage::Report(Report::Answered {
+        exchange: 7,
+        status: 200,
+        body: b"ok".as_slice().into(),
+        headers: Vec::new(),
+    }));
     log.heard(&ToPage::Printed(printed(Stream::Error)));
     log.heard(&clock(4, 5));
     log
@@ -124,7 +129,7 @@ fn the_text_is_the_designs() {
 #[test]
 fn a_native_log_names_no_build() {
     let log = Log::new(None, &start(), u32::MAX);
-    let expected = format!("skein-playground-log 1 build=- seed=7 start=9\nend step=0 instant=0 said={EMPTY}\n");
+    let expected = format!("skein-playground-log 2 build=- seed=7 start=9\nend step=0 instant=0 said={EMPTY}\n");
     assert_eq!(log.text().as_ref(), expected.as_bytes());
     assert_eq!(read(&log.text()).expect("native log").build, None);
 }
@@ -145,7 +150,7 @@ fn what_comes_after_the_last_clock_is_not_in_the_end() {
 #[test]
 fn a_log_past_its_bound_is_cut() {
     // The last line must still fit when both clock fields grow to u64::MAX.
-    let first = "skein-playground-log 1 build=- seed=7 start=9\n";
+    let first = "skein-playground-log 2 build=- seed=7 start=9\n";
     let input = format!("input step=2 instant=3 said={EMPTY} read-on\n");
     let last = format!("end step={} instant={} said={EMPTY}\n", u64::MAX, u64::MAX);
     let bound = u32::try_from(first.len().saturating_add(input.len()).saturating_add(last.len())).expect("small log");
@@ -183,7 +188,7 @@ fn a_stamp_with_no_input_is_a_broken_contract() {
 }
 
 use crate::{
-    fetch::Exchange,
+    bridge::Exchange,
     log::{Read, Refused, read},
     transport::StreamDuty,
 };
@@ -197,6 +202,8 @@ fn inputs() -> Vec<Input> {
             bound: u32::MAX,
             body: Box::from([]),
             headers: vec![("content-type".into(), "application/json".into()), (String::new(), "é".into())],
+            cache: crate::fetch::Cache::NoStore,
+            keep: vec!["cache-control".into(), "age".into()],
         }),
         Input::Exchange(Exchange {
             id: 0,
@@ -205,6 +212,8 @@ fn inputs() -> Vec<Input> {
             bound: 0,
             body: b"\xfb\xff\0".as_slice().into(),
             headers: Vec::new(),
+            cache: crate::fetch::Cache::Browser,
+            keep: Vec::new(),
         }),
         Input::Abandon { exchange: u32::MAX },
         Input::Stream(StreamDuty::Open {
@@ -223,8 +232,13 @@ fn inputs() -> Vec<Input> {
 
 fn reports() -> Vec<Report> {
     vec![
-        Report::Answered { exchange: u32::MAX, status: u16::MAX, body: b"\xfb\xff".as_slice().into() },
-        Report::Answered { exchange: 0, status: 0, body: Box::from([]) },
+        Report::Answered {
+            exchange: u32::MAX,
+            status: u16::MAX,
+            body: b"\xfb\xff".as_slice().into(),
+            headers: vec![("age".into(), "123".into())],
+        },
+        Report::Answered { exchange: 0, status: 0, body: Box::from([]), headers: Vec::new() },
         Report::Failed { exchange: 7 },
         Report::StreamOpened,
         Report::StreamRefused { status: 403 },
@@ -289,7 +303,7 @@ fn every_report_has_the_designs_text() {
         saying.report(&report);
     }
     let reports = concat!(
-        "answered id=4294967295 status=65535 body=+/8=\n",
+        "answered id=4294967295 status=65535 body=+/8= header=YWdl:MTIz\n",
         "answered id=0 status=0 body=\n",
         "failed id=7\nopened\nrefused status=403\npiece bytes=YQAK\npiece bytes=\nended\n"
     );
@@ -303,38 +317,43 @@ fn every_report_has_the_designs_text() {
 #[test]
 fn another_format_or_version_is_refused() {
     assert_eq!(read(GOLDEN.replacen("skein-playground-log", "another-log", 1).as_bytes()), Err(Refused::Format));
-    for version in ["2", "01", "next", "18446744073709551616"] {
-        let text = GOLDEN.replacen("log 1 ", &format!("log {version} "), 1);
+    for version in ["1", "01", "next", "18446744073709551616"] {
+        let text = GOLDEN.replacen("log 2 ", &format!("log {version} "), 1);
         assert_eq!(read(text.as_bytes()), Err(Refused::Version { found: version.as_bytes().into() }));
     }
 }
 
 #[test]
 fn a_malformed_line_is_refused_naming_it() {
-    let first = "skein-playground-log 1 build=- seed=7 start=9\n";
+    let first = "skein-playground-log 2 build=- seed=7 start=9\n";
     let last = format!("end step=4 instant=5 said={EMPTY}\n");
     let prefix = format!("input step=2 instant=3 said={EMPTY} ");
     let input_cases = [
-        "exchange id=1 method=R0VU path=Lw bound=0 body=",   // missing padding
-        "exchange id=1 path=Lw== method=R0VU bound=0 body=", // order
-        "exchange id=1 method=R0VU path=Lw== body=",         // missing bound
-        "exchange id=1 method=R0VU path=Lw== bound=0 body= header=YQ==", // no colon
-        "exchange id=1 method=R0VU path=Lw== bound=0 body= header=YQ==:Yg==:",
-        "exchange id=1 method=R0VU path=Lw== bound=0 body= header=YQ==:Yh==", // bits
-        "exchange id=1 method=R0VU path=Lw== bound=0 body= header=/w==:",     // UTF-8 name
-        "exchange id=1 method=R0VU path=Lw== bound=0 body= header=:/w==",     // UTF-8 value
-        "exchange id=1 method=/w== path=Lw== bound=0 body=",                  // UTF-8 method
-        "exchange id=4294967296 method= path= bound=0 body=",                 // id overflow
-        "exchange id=1 method= path= bound=4294967296 body=",                 // bound overflow
-        "exchange id=1 method= path= bound=00 body=",                         // leading zero bound
-        "exchange id=1 method= path= bound=0 body=_w==",                      // URL alphabet
-        "exchange id=1 method= path= bound=0 body=YQ",                        // no padding
-        "exchange id=1 method= path= bound=0 body=YQ===",                     // excess padding
-        "exchange id=1 method= path= bound=0 body=YQ==Yg==",                  // interior padding
-        "exchange id=1 method= path= bound=0 body=Yg=A",                      // padding placement
-        "exchange id=1 method= path= bound=0 body=A",                         // length
-        "exchange id=1 method= path= bound=0 body=?",                         // alphabet
-        "exchange id=1 method= path= bound=0 body= body=",                    // duplicate field
+        "exchange id=1 method=R0VU path=Lw bound=0 body= cache=browser keep=0", // missing padding
+        "exchange id=1 path=Lw== method=R0VU bound=0 body= cache=browser keep=0", // order
+        "exchange id=1 method=R0VU path=Lw== body= cache=browser keep=0",       // missing bound
+        "exchange id=1 method=R0VU path=Lw== bound=0 body= cache=browser keep=0 header=YQ==", // no colon
+        "exchange id=1 method=R0VU path=Lw== bound=0 body= cache=browser keep=0 header=YQ==:Yg==:",
+        "exchange id=1 method=R0VU path=Lw== bound=0 body= cache=browser keep=0 header=YQ==:Yh==", // bits
+        "exchange id=1 method=R0VU path=Lw== bound=0 body= cache=browser keep=0 header=/w==:",     // UTF-8 name
+        "exchange id=1 method=R0VU path=Lw== bound=0 body= cache=browser keep=0 header=:/w==",     // UTF-8 value
+        "exchange id=1 method=/w== path=Lw== bound=0 body= cache=browser keep=0",                  // UTF-8 method
+        "exchange id=4294967296 method= path= bound=0 body= cache=browser keep=0",                 // id overflow
+        "exchange id=1 method= path= bound=4294967296 body= cache=browser keep=0",                 // bound overflow
+        "exchange id=1 method= path= bound=00 body= cache=browser keep=0",                         // leading zero bound
+        "exchange id=1 method= path= bound=0 body=_w== cache=browser keep=0",                      // URL alphabet
+        "exchange id=1 method= path= bound=0 body=YQ cache=browser keep=0",                        // no padding
+        "exchange id=1 method= path= bound=0 body=YQ=== cache=browser keep=0",                     // excess padding
+        "exchange id=1 method= path= bound=0 body=YQ==Yg== cache=browser keep=0",                  // interior padding
+        "exchange id=1 method= path= bound=0 body=Yg=A cache=browser keep=0",                      // padding placement
+        "exchange id=1 method= path= bound=0 body=A cache=browser keep=0",                         // length
+        "exchange id=1 method= path= bound=0 body=? cache=browser keep=0",                         // alphabet
+        "exchange id=1 method= path= bound=0 body= body= cache=browser keep=0",                    // duplicate field
+        "exchange id=1 method= path= bound=0 body= cache=unknown keep=0",
+        "exchange id=1 method= path= bound=0 body= cache=browser keep=01 name=",
+        "exchange id=1 method= path= bound=0 body= cache=browser keep=1",
+        "exchange id=1 method= path= bound=0 body= cache=browser keep=1 name=/w==",
+        "exchange id=1 method= path= bound=0 body= cache=browser keep=0 name=YWdl",
         "abandon id=01",
         "abandon id=4294967296",
         "abandon id=",
@@ -365,8 +384,8 @@ fn a_malformed_line_is_refused_naming_it() {
         (GOLDEN.replacen("seed=7", "seed=", 1), 1),
         (GOLDEN.replacen("build=abcd", "build=", 1), 1),
         (GOLDEN.replacen("build=abcd seed=7", "seed=7 build=abcd", 1), 1),
-        (GOLDEN.replacen("log 1 ", "log  ", 1), 1),
-        (GOLDEN.replacen("log 1 ", "log 1  ", 1), 1),
+        (GOLDEN.replacen("log 2 ", "log  ", 1), 1),
+        (GOLDEN.replacen("log 2 ", "log 2  ", 1), 1),
         (GOLDEN.replacen("start=9", "start=9 extra=0", 1), 1),
         (GOLDEN.replacen("step=2", "step=02", 1), 2),
         (GOLDEN.replacen("instant=3", "instant=03", 1), 2),

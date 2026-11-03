@@ -44,13 +44,15 @@ fn record_bounded(seed: u64, build: Option<&[u8]>, bound: u32) -> Recorded {
         at = at.saturating_add(Duration::from_nanos(draw(&mut random, 401)));
         schedule.push((
             at,
-            Input::Exchange(fetch::Exchange {
+            Input::Exchange(skein_ui_web::bridge::Exchange {
                 id,
                 path: b"/".as_slice().into(),
                 method: "GET".into(),
                 headers: Vec::new(),
                 body: Box::from([]),
                 bound: 64,
+                cache: skein_ui_web::fetch::Cache::Browser,
+                keep: Vec::new(),
             }),
         ));
         // Two stamps in one slice, with no digest accumulated between them.
@@ -193,10 +195,10 @@ fn a_cut_log_replays_to_its_last_input() {
 #[test]
 fn another_version_is_refused() {
     for seed in SEEDS {
-        let text = format!("skein-playground-log 2 build=- seed={seed} start=0\ncut\n");
+        let text = format!("skein-playground-log 1 build=- seed={seed} start=0\ncut\n");
         assert_eq!(
             log::read(text.as_bytes()),
-            Err(log::Refused::Version { found: b"2".as_slice().into() }),
+            Err(log::Refused::Version { found: b"1".as_slice().into() }),
             "seed {seed}"
         );
     }

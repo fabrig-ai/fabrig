@@ -34,13 +34,13 @@ fn an_answer_past_the_bound_is_an_exchange_failed() {
     let requests = adapter::requests(vec![fixtures::exchange(ID, b"\x01")]);
     let exchange = &requests.exchanges[0];
     let mut fetch = fetch::Fetch::new(1);
-    let ticket = fetch.begin(exchange.id, exchange.bound).expect("one flight");
+    let ticket = fetch.begin(exchange.id, exchange.bound, exchange.keep).expect("one flight");
     let too_long = [0; BOUND as usize + 1];
     assert_eq!(
         adapter::fetched(fetch.piece(ticket, &too_long).expect("over bound fails")),
         Heard::Failed { exchange: ID }
     );
-    assert_eq!(fetch.finish(ticket, 200), None);
+    assert_eq!(fetch.finish(ticket, 200, &[]), None);
 }
 #[test]
 fn a_refused_write_is_heard_as_not_stored() {
@@ -129,8 +129,13 @@ fn erasing_a_record_is_carried() {
 #[test]
 fn platform_reports_keep_their_contents() {
     assert_eq!(
-        adapter::fetched(fetch::Report::Answered { exchange: ID, status: 200, body: b"ok".as_slice().into() }),
-        Heard::Answered { exchange: ID, status: 200, body: b"ok".as_slice().into() }
+        adapter::fetched(fetch::Report::Answered {
+            exchange: ID,
+            status: 200,
+            body: b"ok".as_slice().into(),
+            headers: Vec::new(),
+        }),
+        Heard::Answered { exchange: ID, status: 200, body: b"ok".as_slice().into(), headers: Vec::new() }
     );
     assert_eq!(adapter::fetched(fetch::Report::StreamOpened), Heard::StreamOpened);
     assert_eq!(adapter::fetched(fetch::Report::StreamRefused { status: 401 }), Heard::StreamRefused { status: 401 });
@@ -140,4 +145,32 @@ fn platform_reports_keep_their_contents() {
         Heard::Stored { key: b"k".as_slice().into() }
     );
     assert_eq!(adapter::carried(transport::Carried::Failed { exchange: ID }), Heard::Failed { exchange: ID });
+}
+
+#[test]
+fn an_exchange_carries_its_cache_and_kept_names() {
+    const KEEP: &[&str] = &["cache-control", "age", "retry-after"];
+    for cache in [fetch::Cache::Browser, fetch::Cache::NoStore] {
+        let mut ask = fixtures::exchange(ID, b"body");
+        if let Asked::Exchange { cache: asked_cache, keep, .. } = &mut ask {
+            *asked_cache = cache.clone();
+            *keep = KEEP;
+        }
+        let requests = adapter::requests(vec![ask]);
+        assert_eq!(requests.exchanges[0].cache, cache);
+        assert_eq!(requests.exchanges[0].keep, KEEP);
+    }
+}
+#[test]
+fn an_answer_carries_its_kept_headers() {
+    let headers = vec![("cache-control".into(), "max-age=60".into()), ("age".into(), "12".into())];
+    assert_eq!(
+        adapter::fetched(fetch::Report::Answered {
+            exchange: ID,
+            status: 200,
+            body: b"ok".as_slice().into(),
+            headers: headers.clone(),
+        }),
+        Heard::Answered { exchange: ID, status: 200, body: b"ok".as_slice().into(), headers }
+    );
 }

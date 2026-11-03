@@ -174,7 +174,7 @@ impl Host {
     fn heard(&mut self, heard: Heard) {
         let mut above = Queue::uncapped();
         match heard {
-            Heard::Answered { exchange, status, body } => {
+            Heard::Answered { exchange, status, body, headers: _ } => {
                 if let Some(token) = self.tickets.remove(&exchange) {
                     above.push(jig_client_protocol_http::answered(token, status, body));
                 }
@@ -279,6 +279,8 @@ impl Host {
                     id: self.next,
                     call: jig_client_protocol_http::exchange(&self.mapping, credential.as_ref(), message),
                     bound: limits::BODY_BYTES,
+                    cache: skein_ui_web::fetch::Cache::Browser,
+                    keep: &[],
                 });
             }
             jig_client::Request::OpenStream { credential } => {

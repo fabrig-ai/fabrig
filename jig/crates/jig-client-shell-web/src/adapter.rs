@@ -5,7 +5,7 @@ use skein_ui_web::{fetch, store, transport};
 /// A step's HTTP and small-store duties, before touching the platform.
 #[derive(Debug)]
 pub enum Asked {
-    Exchange { id: u32, call: Call, bound: u32 },
+    Exchange { id: u32, call: Call, bound: u32, cache: fetch::Cache, keep: &'static [&'static str] },
     OpenStream { call: Call, piece: u32 },
     CloseStream,
     Save { key: Box<[u8]>, value: Box<[u8]> },
@@ -14,7 +14,7 @@ pub enum Asked {
 /// A platform report to translate into the application's host event.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Heard {
-    Answered { exchange: u32, status: u16, body: Box<[u8]> },
+    Answered { exchange: u32, status: u16, body: Box<[u8]>, headers: Vec<(String, String)> },
     Failed { exchange: u32 },
     StreamOpened,
     StreamRefused { status: u16 },
@@ -36,7 +36,7 @@ pub fn requests(asked: Vec<Asked>) -> transport::Requests {
                 requests.stream =
                     Some(transport::StreamDuty::Open { path: call.path, headers: headers(call.headers), bound: piece });
             }
-            Asked::Exchange { id, call, bound } => {
+            Asked::Exchange { id, call, bound, cache, keep } => {
                 let headers =
                     headers(call.headers).into_iter().map(|(name, value)| (text(name), text(value))).collect();
                 requests.exchanges.push(fetch::Exchange {
@@ -46,6 +46,8 @@ pub fn requests(asked: Vec<Asked>) -> transport::Requests {
                     headers,
                     body: call.body,
                     bound,
+                    cache,
+                    keep,
                 });
             }
         }
@@ -65,7 +67,9 @@ fn text(bytes: Box<[u8]>) -> String {
 #[must_use]
 pub fn fetched(report: fetch::Report) -> Heard {
     match report {
-        fetch::Report::Answered { exchange, status, body } => Heard::Answered { exchange, status, body },
+        fetch::Report::Answered { exchange, status, body, headers } => {
+            Heard::Answered { exchange, status, body, headers }
+        }
         fetch::Report::Failed { exchange } => Heard::Failed { exchange },
         fetch::Report::StreamOpened => Heard::StreamOpened,
         fetch::Report::StreamRefused { status } => Heard::StreamRefused { status },

@@ -1,10 +1,11 @@
 //! Window fetch carries exchanges; the pure half bounds and retires answers.
-use super::{Exchange, Report};
+use super::{Cache, Exchange, Report};
 use crate::inbox::Inbox;
 use std::{cell::RefCell, collections::BTreeMap, rc::Rc};
 use wasm_bindgen::{JsCast, JsValue, closure::Closure};
 use web_sys::{
-    AbortController, ReadableStreamDefaultReader, Request, RequestCredentials, RequestInit, RequestMode, Response,
+    AbortController, ReadableStreamDefaultReader, Request, RequestCache, RequestCredentials, RequestInit, RequestMode,
+    Response,
 };
 
 pub struct Fetch<R> {
@@ -42,7 +43,7 @@ impl<R: 'static> Fetch<R> {
         }
     }
     pub fn exchange(&self, exchange: &Exchange) {
-        let ticket = self.shared.fetch.borrow_mut().begin(exchange.id, exchange.bound);
+        let ticket = self.shared.fetch.borrow_mut().begin(exchange.id, exchange.bound, exchange.keep);
         let Some(ticket) = ticket else {
             self.shared.inbox.raise((self.shared.wrap)(Report::Failed { exchange: exchange.id }));
             return;
@@ -57,6 +58,8 @@ impl<R: 'static> Fetch<R> {
             return;
         };
         let promise = web_sys::window().expect("browser window").fetch_with_request(&request);
+        let keep = exchange.keep;
+        let bound = exchange.bound;
         let shared = Rc::clone(&self.shared);
         let failed = Rc::clone(&shared);
         listen(
@@ -67,14 +70,27 @@ impl<R: 'static> Fetch<R> {
                     return;
                 };
                 let status = response.status();
+                let mut headers = Vec::new();
+                for name in keep {
+                    match response.headers().get(name) {
+                        Ok(Some(value)) if value.len() <= usize::try_from(bound).expect("bound fits") => {
+                            headers.push((name.to_ascii_lowercase(), value));
+                        }
+                        Ok(None) => {}
+                        Ok(Some(_)) | Err(_) => {
+                            shared.fail(ticket);
+                            return;
+                        }
+                    }
+                }
                 if let Some(body) = response.body() {
                     let Ok(reader) = body.get_reader().dyn_into::<ReadableStreamDefaultReader>() else {
                         shared.fail(ticket);
                         return;
                     };
-                    read(Rc::clone(&shared), ticket, status, reader.clone());
+                    read(Rc::clone(&shared), ticket, status, headers, reader.clone());
                 } else {
-                    shared.finish(ticket, status);
+                    shared.finish(ticket, status, &headers);
                 }
             },
             move |_| failed.fail(ticket),
@@ -101,7 +117,16 @@ impl<R: 'static> Fetch<R> {
             self.shared.end_stream(ticket);
             return;
         };
-        let exchange = Exchange { id: 0, path: path.into(), method: "GET".into(), headers, body: Box::from([]), bound };
+        let exchange = Exchange {
+            id: 0,
+            path: path.into(),
+            method: "GET".into(),
+            headers,
+            body: Box::from([]),
+            bound,
+            cache: Cache::Browser,
+            keep: &[],
+        };
         let Ok(request) = request(&exchange, &controller) else {
             self.shared.end_stream(ticket);
             return;
@@ -191,8 +216,8 @@ impl<R: 'static> Shared<R> {
         let report = self.fetch.borrow_mut().fail(ticket);
         self.report(ticket, report);
     }
-    fn finish(&self, ticket: u64, status: u16) {
-        let report = self.fetch.borrow_mut().finish(ticket, status);
+    fn finish(&self, ticket: u64, status: u16, headers: &[(String, String)]) {
+        let report = self.fetch.borrow_mut().finish(ticket, status, headers);
         self.report(ticket, report);
     }
 }
@@ -203,6 +228,10 @@ fn request(exchange: &Exchange, controller: &AbortController) -> Result<Request,
     }
     let init = RequestInit::new();
     init.set_method(&exchange.method);
+    match exchange.cache {
+        Cache::Browser => {}
+        Cache::NoStore => init.set_cache(RequestCache::NoStore),
+    }
     init.set_credentials(RequestCredentials::SameOrigin);
     init.set_mode(RequestMode::SameOrigin);
     init.set_signal(Some(&controller.signal()));
@@ -216,8 +245,15 @@ fn request(exchange: &Exchange, controller: &AbortController) -> Result<Request,
     }
     Request::new_with_str_and_init(path, &init)
 }
-fn read<R: 'static>(shared: Rc<Shared<R>>, ticket: u64, status: u16, reader: ReadableStreamDefaultReader) {
+fn read<R: 'static>(
+    shared: Rc<Shared<R>>,
+    ticket: u64,
+    status: u16,
+    headers: Vec<(String, String)>,
+    reader: ReadableStreamDefaultReader,
+) {
     let failed = Rc::clone(&shared);
+    let mut headers = Some(headers);
     listen(
         &reader.read(),
         move |result| {
@@ -226,7 +262,7 @@ fn read<R: 'static>(shared: Rc<Shared<R>>, ticket: u64, status: u16, reader: Rea
             }
             let done = js_sys::Reflect::get(&result, &JsValue::from_str("done")).ok().and_then(|v| v.as_bool());
             if done == Some(true) {
-                shared.finish(ticket, status);
+                shared.finish(ticket, status, &headers.take().expect("one response"));
                 return;
             }
             let Ok(value) = js_sys::Reflect::get(&result, &JsValue::from_str("value")) else {
@@ -244,7 +280,7 @@ fn read<R: 'static>(shared: Rc<Shared<R>>, ticket: u64, status: u16, reader: Rea
             }
             let report = shared.fetch.borrow_mut().piece(ticket, &bytes.to_vec());
             shared.report(ticket, report);
-            read(Rc::clone(&shared), ticket, status, reader.clone());
+            read(Rc::clone(&shared), ticket, status, headers.take().expect("one response"), reader.clone());
         },
         move |_| failed.fail(ticket),
     );
