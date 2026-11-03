@@ -143,6 +143,7 @@ pub struct CharterVersion {
 pub struct Proposal {
     pub against: u32,
     pub items: Box<[Item]>,
+    pub applications: Box<[application::Recorded]>,
 }
 
 /// Only defaults and changes own current values. Revision history stays in the store.
@@ -436,6 +437,9 @@ pub fn withdrawal_writes(limits: &crate::Limits) -> Option<u32> {
 pub fn proposal_heads(items: &[Item]) -> Box<[jig_domain_tasks::SettingHead]> {
     let mut heads = List::with_capacity(u32::try_from(items.len()).expect("bounded settings items"));
     for item in items {
+        if application::is_application(item.setting) {
+            continue;
+        }
         heads
             .push(jig_domain_tasks::SettingHead {
                 setting: match item.setting {

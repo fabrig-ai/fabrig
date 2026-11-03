@@ -206,6 +206,7 @@ struct Decision {
     person: u64,
     change: Change,
     room: u32,
+    proposal: Option<(people::Proposer, u32)>,
 }
 #[derive(Debug)]
 struct Group {
@@ -224,7 +225,15 @@ impl Judging {
     }
 }
 
-pub(crate) fn start(core: &mut Core, routed: &mut Routed, request: Token, person: u64, change: Change, room: u32) {
+pub(crate) fn start(
+    core: &mut Core,
+    routed: &mut Routed,
+    request: Token,
+    person: u64,
+    change: Change,
+    room: u32,
+    proposal: Option<(people::Proposer, u32)>,
+) {
     assert!(core.settings_judging.decision.is_none(), "one settings decision within a step");
     let number = core.current.newest().checked_add(1).expect("revision preflighted");
     let mut connectors = List::with_capacity(u32::try_from(core.kinds.len()).expect("declared kinds"));
@@ -262,12 +271,12 @@ pub(crate) fn start(core: &mut Core, routed: &mut Routed, request: Token, person
             ask: crate::Ask::Effect(connector::Ask::JudgeSettings {
                 owner,
                 revision: u64::from(number),
-                proposal: None,
+                proposal: proposal_number(proposal),
                 items: items.into_boxed(),
             }),
         });
     }
-    core.settings_judging.decision = Some(Decision { request, person, change, room });
+    core.settings_judging.decision = Some(Decision { request, person, change, room, proposal });
 }
 
 #[derive(Debug)]
@@ -331,9 +340,14 @@ pub(crate) fn judged(
             decision.change,
             decision.room,
             kept,
+            decision.proposal,
         ),
         Err(why) => Err(why),
     };
+    if let Some(key) = decision.proposal {
+        finish_proposal(core, &mut routed, decision.request, decision.person, key, result);
+        return routed.finish(work);
+    }
     let outcome = match result {
         Ok(revision) => people::Outcome::SettingsChanged { revision },
         Err(why) => people::Outcome::Refused(why),
@@ -445,7 +459,13 @@ fn setting_of(item: &Item) -> Setting {
 }
 
 /// Values leave with `KeepSettings`; only metadata and sized edits enter jig's records.
-pub(crate) fn keep(core: &mut Core, out: &mut Queue<Request>, kept: Box<[Kept]>, revision: u32) -> Box<[Recorded]> {
+pub(crate) fn keep(
+    core: &mut Core,
+    out: &mut Queue<Request>,
+    kept: Box<[Kept]>,
+    revision: u32,
+    proposal: Option<u64>,
+) -> Box<[Recorded]> {
     let bound = u32::try_from(kept.len()).expect("bounded accepted items");
     let mut records = List::with_capacity(bound);
     let mut connectors = Map::with_capacity(bound);
@@ -465,7 +485,7 @@ pub(crate) fn keep(core: &mut Core, out: &mut Queue<Request>, kept: Box<[Kept]>,
             connector,
             ask: crate::Ask::Effect(connector::Ask::KeepSettings {
                 revision: u64::from(revision),
-                proposal: None,
+                proposal,
                 items: items.into_boxed(),
             }),
         });
@@ -491,4 +511,173 @@ pub(crate) fn keep(core: &mut Core, out: &mut Queue<Request>, kept: Box<[Kept]>,
         )))));
     }
     records.into_boxed()
+}
+
+fn proposal_number(proposal: Option<(people::Proposer, u32)>) -> Option<u64> {
+    match proposal {
+        Some((_, number)) => Some(u64::from(number)),
+        None => None,
+    }
+}
+
+/// Values cross to their connectors only when the tasks child keeps the proposal.
+pub(crate) fn keep_proposal(core: &Core, set: &mut super::Proposal, proposal: u32, out: &mut Queue<Request>) {
+    let bound = u32::try_from(set.items.len()).expect("bounded proposal items");
+    let mut connectors = Map::with_capacity(bound);
+    let mut applications = List::with_capacity(bound);
+    let mut jig = List::with_capacity(bound);
+    for item in &set.items {
+        let (kind, scope, number) = match item.setting {
+            Setting::Application { kind, scope, number } => (kind, scope, number),
+            Setting::Charter(_) | Setting::Template(_) | Setting::Policy(_) | Setting::Rules => {
+                jig.push(item.clone()).expect("bounded jig items");
+                continue;
+            }
+        };
+        {
+            let connector = kind_of(&core.kinds, kind).expect("checked proposal kind").connector;
+            connectors.insert(connector, ()).expect("one connector per item");
+            let edit = match &item.edit {
+                super::Edit::Set(super::Value::Application(bytes)) => {
+                    SizedEdit::Set { size: u32::try_from(bytes.len()).expect("checked value bytes") }
+                }
+                super::Edit::Removed => SizedEdit::Remove,
+                super::Edit::Reset => SizedEdit::Reset,
+                super::Edit::Set(
+                    super::Value::Charter(_)
+                    | super::Value::Template(_)
+                    | super::Value::Policy(_)
+                    | super::Value::Rules(_),
+                ) => unreachable!("checked proposal value"),
+            };
+            applications.push(Recorded { kind, scope, number, edit }).expect("bounded proposal items");
+        }
+    }
+    for (&connector, ()) in &connectors {
+        let mut items = List::with_capacity(bound);
+        for item in &set.items {
+            match item.setting {
+                Setting::Application { kind, .. } => {
+                    if kind_of(&core.kinds, kind).expect("checked kind").connector == connector {
+                        items.push(translate(item)).expect("connector proposal items");
+                    }
+                }
+                Setting::Charter(_) | Setting::Template(_) | Setting::Policy(_) | Setting::Rules => {}
+            }
+        }
+        out.push(Request::Ask {
+            connector,
+            ask: crate::Ask::Effect(connector::Ask::KeepProposalSettings {
+                proposal: u64::from(proposal),
+                items: items.into_boxed(),
+            }),
+        });
+    }
+    set.items = jig.into_boxed();
+    set.applications = applications.into_boxed();
+}
+
+pub(crate) fn drop_proposal(core: &Core, items: &[Recorded], proposal: u32, out: &mut Queue<Request>) {
+    let mut connectors = Map::with_capacity(u32::try_from(items.len()).expect("bounded proposal items"));
+    for item in items {
+        let connector = kind_of(&core.kinds, item.kind).expect("kept proposal kind").connector;
+        connectors.insert(connector, ()).expect("one connector per item");
+    }
+    for (&connector, ()) in &connectors {
+        out.push(Request::Ask {
+            connector,
+            ask: crate::Ask::Effect(connector::Ask::DropProposalSettings { proposal: u64::from(proposal) }),
+        });
+    }
+}
+
+/// Empty set bytes identify values retained under the proposal at its connector.
+pub(crate) fn proposal_change(
+    core: &Core,
+    set: super::Proposal,
+    running: super::Running,
+) -> Result<Change, people::Refusal> {
+    let bound = set.items.len().checked_add(set.applications.len()).expect("bounded proposal items");
+    let mut items = List::with_capacity(u32::try_from(bound).expect("bounded proposal items"));
+    for item in set.items {
+        items.push(item).expect("jig proposal items");
+    }
+    for item in set.applications {
+        let setting = Setting::Application { kind: item.kind, scope: item.scope, number: item.number };
+        let kind = kind_of(&core.kinds, item.kind)
+            .ok_or(crate::routing::settings::dispatch::malformed_refusal(Failure { setting, fault: Fault::Shape }))?;
+        let edit = match item.edit {
+            SizedEdit::Set { size } => {
+                if size > kind.value_bytes {
+                    return Err(crate::routing::settings::dispatch::malformed_refusal(Failure {
+                        setting,
+                        fault: Fault::Shape,
+                    }));
+                }
+                super::Edit::Set(super::Value::Application(Box::default()))
+            }
+            SizedEdit::Remove => super::Edit::Removed,
+            SizedEdit::Reset => super::Edit::Reset,
+        };
+        items.push(super::Item { setting, edit }).expect("application proposal items");
+    }
+    Ok(Change { against: set.against, items: items.into_boxed(), running })
+}
+
+fn finish_proposal(
+    core: &mut Core,
+    routed: &mut Routed,
+    request: Token,
+    person: u64,
+    key: (people::Proposer, u32),
+    result: Result<u32, people::Refusal>,
+) {
+    use jig_domain_tasks as tasks;
+    let revision = match result {
+        Ok(revision) => revision,
+        Err(why) => {
+            routed.work.push(Work::Event(Event::People(people::Event::Decided {
+                request,
+                outcome: people::Outcome::Refused(why),
+            })));
+            return;
+        }
+    };
+    let proposal = u64::from(key.1);
+    let event = match key.0 {
+        people::Proposer::Party(proposer) => {
+            let request = core.fly_goal(request, crate::GoalRoute::Deciding { proposer, proposal, by: person });
+            tasks::Event::DecidePersonProposal {
+                reply_to: skein_lib::ReplyTo::new(request),
+                proposer,
+                proposal,
+                by: tasks::Party::Person(person),
+                message: None,
+                revision: Some(revision),
+                decision: tasks::ProposalDecision::Accept,
+            }
+        }
+        people::Proposer::Task(proposer) => {
+            let message = crate::fresh(&mut core.counters, crate::Family::Message).expect("preflighted outcome number");
+            let request = core.fly_person_proposal(crate::PersonProposalRoute::Deciding {
+                request,
+                proposer,
+                proposal,
+                by: person,
+                moved: None,
+            });
+            tasks::Event::DecideSettingsProposal {
+                reply_to: Some(skein_lib::ReplyTo::new(request)),
+                decision: tasks::SettingsDecision {
+                    proposer,
+                    proposal,
+                    message,
+                    by: tasks::Party::Person(person),
+                    outcome: tasks::SettingsOutcome::Accepted { revision },
+                    reason: Box::default(),
+                },
+            }
+        }
+    };
+    routed.work.push(Work::Event(Event::Tasks(event)));
 }

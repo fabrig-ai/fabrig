@@ -207,7 +207,7 @@ fn each_settings_record_round_trips_its_whole_domain_value() {
         rows.push(s::Record::Proposal {
             proposer: people::Proposer::Party(6),
             proposal: 7,
-            value: s::Proposal { against: 2, items },
+            value: s::Proposal { applications: Box::default(), against: 2, items },
         })
         .expect("settings fixture count");
     }
@@ -286,6 +286,7 @@ fn live_settings_remap_efforts_by_name_and_refuse_missing_efforts() {
             proposer: people::Proposer::Party(1),
             proposal: 1,
             value: s::Proposal {
+                applications: Box::default(),
                 against: 1,
                 items: Box::new([s::Item { setting: s::Setting::Template(1), edit: s::Edit::Set(value.clone()) }]),
             },
@@ -465,7 +466,7 @@ fn document_records(charter: core::Charter) -> [s::Record; 6] {
         s::Record::Proposal {
             proposer: people::Proposer::Party(3),
             proposal: 4,
-            value: s::Proposal { against: 1, items },
+            value: s::Proposal { applications: Box::default(), against: 1, items },
         },
     ]
 }
