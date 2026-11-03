@@ -213,23 +213,21 @@ pub(crate) const SPECS: [Spec; 40] = [
 /// The complete host-tool registry, with exact schemas and write effects.
 #[must_use]
 pub fn tools(timeout: Duration) -> Box<[run::HostTool]> {
-    offered_tools(timeout, true, true, true, true)
+    offered_tools(timeout, tasks::Tools(u64::MAX), tasks::Tools(u64::MAX))
 }
 
 /// Settings declarations require both charter and run authority; message, task-read and plan declarations require run authority.
 /// Root authority still decides each accepted call by its durable name.
 pub(crate) fn tools_for(timeout: Duration, charter: tasks::Tools, authority: tasks::Tools) -> Box<[run::HostTool]> {
-    let families = jig_domain_core::ToolFamilies::JIG;
-    offered_tools(
-        timeout,
-        charter.0 & authority.0 & families.settings != 0,
-        authority.0 & families.message.0 != 0,
-        authority.0 & families.control.0 != 0,
-        authority.0 & families.read.0 != 0,
-    )
+    offered_tools(timeout, charter, authority)
 }
 
-fn offered_tools(timeout: Duration, settings: bool, message: bool, plan: bool, read: bool) -> Box<[run::HostTool]> {
+fn offered_tools(timeout: Duration, charter: tasks::Tools, authority: tasks::Tools) -> Box<[run::HostTool]> {
+    let families = jig_domain_core::ToolFamilies::JIG;
+    let settings = charter.0 & authority.0 & families.settings != 0;
+    let message = authority.0 & families.message.0 != 0;
+    let plan = authority.0 & families.control.0 != 0;
+    let read = authority.0 & families.read.0 != 0;
     let mut tools = List::with_capacity(u32::try_from(SPECS.len()).expect("fixed tool list"));
     for spec in SPECS {
         let spec = if plan && spec.name == b"change" { PLAN_CHANGE } else { spec };

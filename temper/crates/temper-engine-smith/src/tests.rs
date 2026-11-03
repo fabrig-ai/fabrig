@@ -2354,7 +2354,8 @@ fn commit_reads_refuse_abbreviated_or_non_hexadecimal_identifiers() {
 fn task_reads_declare_read_effect_and_decode_continuations() {
     for allowed in [false, true] {
         let authority = if allowed { jig_domain_core::ToolFamilies::JIG.read.0 } else { 0 };
-        let tools = crate::calls::tools_for(Duration::from_secs(10), engine::RunPolicy::EVERY_FAMILY, tasks::Tools(authority));
+        let tools =
+            crate::calls::tools_for(Duration::from_secs(10), engine::RunPolicy::EVERY_FAMILY, tasks::Tools(authority));
         let mut found = false;
         for declaration in &tools {
             if declaration.name.as_ref() == b"read_task" {
