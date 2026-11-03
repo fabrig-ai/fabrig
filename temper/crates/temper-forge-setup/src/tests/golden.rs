@@ -28,9 +28,14 @@ fn app_ini_allows_the_webhooks_listener_when_given_one() {
 }
 #[test]
 fn the_runner_configuration_matches_the_golden_text() {
-    let owned = fixtures::owned();
-    let text = runner::configuration(owned.runner.as_ref().unwrap(), &owned, &fixtures::place(), b"runner-uuid");
-    assert_eq!(&*text, RUNNER);
+    for (capacity, digit) in [(1, b'1'), (2, b'2'), (3, b'3')] {
+        let mut owned = fixtures::owned();
+        owned.runner.as_mut().unwrap().capacity = capacity;
+        let text = runner::configuration(owned.runner.as_ref().unwrap(), &owned, &fixtures::place(), b"runner-uuid");
+        let mut expected = skein_lib::bytes::copy_of(RUNNER);
+        expected[b"runner:\n  capacity: ".len()] = digit;
+        assert_eq!(text, expected, "capacity {capacity}");
+    }
 }
 #[test]
 fn app_ini_with_a_public_address_matches_the_golden_text() {

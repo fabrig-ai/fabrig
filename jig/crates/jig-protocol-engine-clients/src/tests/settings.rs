@@ -363,7 +363,7 @@ fn review_values_hold_at_the_document_bound_and_give_the_size_one_past_it() {
                     would_be: Some(value.clone()),
                 })
                 .expect("review item");
-            let review = d::SettingsReview { newest: 1, items, value_bytes: bound };
+            let review = d::SettingsReview { key: None, newest: 1, items, value_bytes: bound };
             let wire = translate::review(&review, &f::models(), &limits).expect("review");
             let mut input = Reader::new(wire.items());
             let piece = skein_codec::piece::split(&mut input).expect("frame").expect("review item");
@@ -560,8 +560,14 @@ fn application_documents_reads_revisions_and_reviews_carry_metadata_only() {
                 application: Some(d::ApplicationReview { edit, now: Some(state.clone()) }),
             })
             .unwrap();
-        let review = translate::review(&d::SettingsReview { newest: 6, items, value_bytes: 0 }, &[], &limits).unwrap();
+        let review = translate::review(
+            &d::SettingsReview { key: Some(u64::MAX), newest: 6, items, value_bytes: 0 },
+            &[],
+            &limits,
+        )
+        .unwrap();
         let review = proposals::restore_settings_review(&review, &client_limits).unwrap();
+        assert_eq!(review.key, Some(u64::MAX));
         let item = review.items.get(0).unwrap();
         assert_eq!(item.now, c::ReviewValue::None);
         assert_eq!(item.would_be, c::ReviewValue::None);

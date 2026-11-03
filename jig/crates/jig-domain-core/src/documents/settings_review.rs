@@ -21,6 +21,7 @@ pub struct ApplicationReview {
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct SettingsReview {
+    pub key: Option<u64>,
     pub newest: u32,
     pub items: List<ReviewItem>,
     pub value_bytes: u64,
@@ -95,6 +96,7 @@ pub(super) fn review(
             .expect("bounded application review");
     }
     Some(Box::new(SettingsReview {
+        key: set.key,
         newest: core.current.newest(),
         items,
         value_bytes: u64::from(limits.documents.text_bytes),
@@ -131,6 +133,7 @@ mod tests {
                 .insert(
                     (jig_domain_people::Proposer::Party(1), 7),
                     s::Proposal {
+                        key: None,
                         applications: Box::default(),
                         against: 2,
                         items: Box::new([s::Item { setting, edit }]),
@@ -140,6 +143,7 @@ mod tests {
             let review = review(&core, &limits, jig_domain_people::Proposer::Party(1), 7).unwrap();
             let item = review.items.get(0).unwrap();
             assert_eq!(review.newest, 2);
+            assert_eq!(review.key, None);
             assert_eq!(item.now, Some(changed.clone()));
             assert_eq!(item.origin, Some((true, 2)));
             assert_eq!(item.would_be, expected);
@@ -150,6 +154,7 @@ mod tests {
             .insert(
                 (jig_domain_people::Proposer::Party(1), 7),
                 s::Proposal {
+                    key: None,
                     applications: Box::default(),
                     against: 3,
                     items: Box::new([s::Item { setting, edit: s::Edit::Reset }]),
@@ -175,6 +180,7 @@ mod tests {
                 .insert(
                     (jig_domain_people::Proposer::Party(1), 1),
                     s::Proposal {
+                        key: Some(23),
                         against: 1,
                         items: Box::default(),
                         applications: Box::new([Recorded { kind: 7, scope: 0, number: 3, edit: edit.clone() }]),
@@ -183,6 +189,7 @@ mod tests {
                 .unwrap();
             let review = review(&core, &limits, jig_domain_people::Proposer::Party(1), 1).unwrap();
             assert_eq!(review.items.len(), 1);
+            assert_eq!(review.key, Some(23));
             let item = review.items.get(0).unwrap();
             assert_eq!(item.setting, setting);
             assert_eq!((item.now.as_ref(), item.would_be.as_ref(), item.origin), (None, None, None));

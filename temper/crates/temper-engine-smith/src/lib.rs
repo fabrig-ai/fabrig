@@ -25,7 +25,7 @@ mod reference;
 mod settings;
 mod start;
 
-pub use answers::{answer, answer_bounded};
+pub use answers::{answer, answer_bounded, answer_for_tool};
 pub use calls::{call, call_configured, tools};
 pub use finish::{ChangeResource, Terminal, result, turn};
 pub use reference::reference;

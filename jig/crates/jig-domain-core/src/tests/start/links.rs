@@ -503,7 +503,12 @@ fn settings_proposals_link_both_records_and_the_retained_revision() {
                     CoreRecord::Settings(crate::settings::Record::Proposal {
                         proposer: people::Proposer::Party(1),
                         proposal: 7,
-                        value: crate::settings::Proposal { applications: Box::default(), against, items: Box::new([]) },
+                        value: crate::settings::Proposal {
+                            key: None,
+                            applications: Box::default(),
+                            against,
+                            items: Box::new([])
+                        },
                     }),
                     &env.limits
                 ),

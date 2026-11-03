@@ -1,4 +1,4 @@
-//! The person's chats: a composer and one filtered list of live and closed lines.
+//! The chats pane and composer (temper/docs/design/client/README.md, 3.5, 5.1 and 5.6).
 use crate::{
     frame::Bindings,
     words::{TimeForm, Times, Word, Words},
@@ -38,74 +38,75 @@ pub(crate) fn main(
     root: &Domain,
     words: &Words,
     bindings: &mut Bindings,
+    forge: &mut crate::forge::bindings::Bindings,
     text_limit: u32,
     times: &mut Times,
 ) {
     b.open(Role::Main);
     b.style(crate::look::MAIN);
     let playground = playground_start(root);
+    b.open(Role::Complementary);
+    b.name(&words.say(Word::ProjectPane, &[]));
+    b.style(crate::look::SIDEBAR);
+    start(b, root, words);
     if let Some(playground) = playground {
-        start(b, root, playground, words, bindings);
-    } else {
-        b.style(crate::look::PAGE);
-        b.open(Role::Slot);
-        b.style(crate::look::PAGEBAR);
-        text(b, Role::Heading { level: 1 }, &words.say(Word::Chats, &[]));
-        b.close();
-        if root.forge().playground_starting() {
-            text(b, Role::Status, &words.say(Word::PlaygroundStarting, &[]));
-        }
+        context(b, root, words);
+        failure(b, root, playground, words, bindings);
     }
-    if let Some(chats) = root.pages().chats() {
-        if root.pages().me(root.client()).is_some() && root.pages().project().is_some() {
-            if playground.is_none() {
-                text(b, Role::Heading { level: 2 }, &words.say(Word::StartChat, &[]));
-            }
-            crate::choice::composer(b, root, None, words, bindings, times);
-            let ready = ready_to_start(root);
+    list(b, root, words, bindings, times);
+    crate::frame::playground_banner(b, root, words, forge);
+    b.close();
+    if let Some(chats) = root.pages().chats()
+        && root.pages().me(root.client()).is_some()
+        && root.pages().project().is_some()
+    {
+        let ready = ready_to_start(root);
+        if !ready {
+            bindings.block_submissions();
+        }
+        b.open(Role::Slot);
+        b.style(crate::look::ENTRY);
+        b.open(Role::TextArea);
+        b.name(&words.say(Word::StartChat, &[]));
+        b.placeholder(&words.say(Word::DescribeChange, &[]));
+        if let Address::Chats { start: true, .. } = root.pages().address() {
+            b.focus(0);
+        }
+        if ready {
+            b.state(State::SubmitsOnEnter);
+        }
+        b.style(crate::look::COMPOSER);
+        b.value(&chats.words, temper_client_domain::pages::shown(root.pages()));
+        b.bind(bindings.insert(Act::ChatWords { words: Box::default() }));
+        b.close();
+        b.open(Role::Paragraph);
+        b.style(crate::look::HINT);
+        words.text(b, Word::ChatHint, &[]);
+        b.close();
+        if let Some(me) = root.pages().me(root.client())
+            && root.pages().choice().valid(me)
+        {
+            b.open(Role::Button);
+            b.name(&words.say(Word::Start, &[]));
             if !ready {
-                bindings.block_submissions();
+                b.state(State::Disabled);
             }
-            b.open(Role::Slot);
-            b.style(crate::look::ENTRY);
-            b.open(Role::TextArea);
-            b.name(&words.say(Word::StartChat, &[]));
-            if let Address::Chats { start: true, .. } = root.pages().address() {
-                b.focus(0);
-            }
-            if ready {
-                b.state(State::SubmitsOnEnter);
-            }
-            b.style(crate::look::COMPOSER);
-            b.value(&chats.words, temper_client_domain::pages::shown(root.pages()));
-            b.bind(bindings.insert(Act::ChatWords { words: Box::default() }));
-            b.close();
-            b.open(Role::Paragraph);
-            b.style(crate::look::HINT);
-            words.text(b, Word::ChatHint, &[]);
-            b.close();
-            if let Some(me) = root.pages().me(root.client())
-                && root.pages().choice().valid(me)
-            {
-                b.open(Role::Button);
-                b.name(&words.say(Word::Start, &[]));
-                if !ready {
-                    b.state(State::Disabled);
-                }
-                b.bind(bindings.insert(Act::StartChat));
-                b.close();
-            }
-            if chats.refusal.is_some() {
-                words.refusal(b, &jig_client::contract::Refusal::NotOffered, text_limit);
-            }
-            if let Some(outcome) = &chats.outcome
-                && !accepted(outcome)
-            {
-                outcome_text(b, words, outcome, text_limit);
-            }
+            b.bind(bindings.insert(Act::StartChat));
             b.close();
         }
-        list(b, root, words, bindings, times);
+        if chats.refusal.is_some() {
+            words.refusal(b, &jig_client::contract::Refusal::NotOffered, text_limit);
+        }
+        if let Some(outcome) = &chats.outcome
+            && !accepted(outcome)
+        {
+            outcome_text(b, words, outcome, text_limit);
+        }
+        b.close();
+        crate::choice::composer(b, root, None, words, bindings, times);
+        if let Some(playground) = playground {
+            suggestions(b, root, playground, words, bindings);
+        }
     }
     b.close();
 }
@@ -113,7 +114,7 @@ fn list(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, 
     let Some(chats) = root.pages().chats() else { return };
     b.open(Role::Slot);
     b.style(crate::look::HEADING);
-    text(b, Role::Heading { level: 2 }, &words.say(Word::YourChats, &[]));
+    text(b, Role::Heading { level: 1 }, &words.say(Word::Chats, &[]));
     b.open(Role::Slot);
     b.style(crate::look::FILTERS);
     for (filter, word) in [
@@ -194,39 +195,56 @@ fn before(a: (skein_lib::Wall, u64), b: (skein_lib::Wall, u64)) -> bool {
     a.0 > b.0 || (a.0 == b.0 && a.1 < b.1)
 }
 
-fn start(
-    b: &mut Builder,
-    root: &Domain,
-    playground: &temper_client_domain::forge::Playground,
-    words: &Words,
-    bindings: &mut Bindings,
-) {
+fn start(b: &mut Builder, root: &Domain, words: &Words) {
     b.open(Role::Slot);
     b.style(crate::look::CHATBAR);
     b.open(Role::Slot);
     text(b, Role::Paragraph, &words.say(Word::NewChat, &[]));
-    b.open(Role::Status);
-    b.style(crate::look::STATUS_QUIET);
-    let status = if root.forge().playground_failure().is_some() {
-        Word::PlaygroundNotStarted
+    let status = if playground_start(root).is_some() && root.forge().playground_failure().is_some() {
+        Some(Word::PlaygroundNotStarted)
     } else if root.forge().playground_starting() {
-        Word::PlaygroundStarting
+        Some(Word::PlaygroundStarting)
+    } else if playground_start(root).is_some() || ready_to_start(root) {
+        Some(Word::Ready)
     } else {
-        Word::Ready
+        None
     };
-    let ready = words.say(status, &[]);
-    b.name(&ready);
-    b.text(Run::Plain, &ready);
-    b.close();
-    b.close();
-    b.open(Role::Slot);
-    text(b, Role::Paragraph, &words.say(Word::PlaygroundModelName, &[]));
-    b.close();
-    b.close();
-    if let Some(project) = root.pages().project() {
-        super::chat::context(b, root, project, words);
+    if let Some(status) = status {
+        b.open(Role::Status);
+        b.style(crate::look::STATUS_QUIET);
+        let status = words.say(status, &[]);
+        b.name(&status);
+        b.text(Run::Plain, &status);
+        b.close();
     }
-    suggestions(b, root, playground, words, bindings);
+    b.close();
+    b.close();
+}
+
+fn context(b: &mut Builder, root: &Domain, words: &Words) {
+    let Some(playground) = root.forge().playground() else { return };
+    if playground.project.is_none()
+        || playground.project != root.pages().project()
+        || playground.state != temper_client_domain::forge::PlaygroundState::Running
+        || root.pages().me(root.client()).is_none()
+    {
+        return;
+    }
+    b.open(Role::Slot);
+    b.style(crate::look::CONTEXT);
+    b.open(Role::Paragraph);
+    b.open(Role::Text);
+    b.style(crate::look::REPOSITORY);
+    b.run(
+        Run::Plain,
+        &words.say(
+            Word::PlaygroundRepository,
+            &[Hole::Name(playground.owner.clone()), Hole::Name(playground.name.clone())],
+        ),
+    );
+    b.close();
+    b.close();
+    b.close();
 }
 
 pub(crate) fn ended(chip: &jig_client::contract::Chip) -> bool {
@@ -428,7 +446,7 @@ fn closed_status(b: &mut Builder, words: &Words) {
     b.close();
 }
 
-/// The playground whose invitation the Chats page shows (temper/docs/design/client/README.md, 4.8).
+/// The playground whose start the Chats page shows (temper/docs/design/client/README.md, 4.8).
 pub(crate) fn playground_start(root: &Domain) -> Option<&temper_client_domain::forge::Playground> {
     let Address::Chats { .. } = root.pages().address() else { return None };
     let playground = root.forge().playground()?;
@@ -443,25 +461,13 @@ pub(crate) fn playground_start(root: &Domain) -> Option<&temper_client_domain::f
     }
 }
 
-fn suggestions(
+fn failure(
     b: &mut Builder,
     root: &Domain,
     playground: &temper_client_domain::forge::Playground,
     words: &Words,
     bindings: &mut Bindings,
 ) {
-    let Some(chats) = root.pages().chats() else { return };
-    let heading = words.say(Word::PlaygroundHeading, &[]);
-    b.open(Role::Region);
-    b.name(&heading);
-    b.style(crate::look::INVITATION);
-    text(b, Role::Heading { level: 1 }, &heading);
-    text(
-        b,
-        Role::Paragraph,
-        &words
-            .say(Word::PlaygroundRequest, &[Hole::Name(playground.owner.clone()), Hole::Name(playground.name.clone())]),
-    );
     if let Some(failure) = root.forge().playground_failure() {
         use temper_client_domain::forge::playground::StartFailure;
         let message = match failure {
@@ -481,6 +487,18 @@ fn suggestions(
         b.bind(bindings.insert(Act::RetryPlayground));
         b.close();
     }
+}
+
+fn suggestions(
+    b: &mut Builder,
+    root: &Domain,
+    playground: &temper_client_domain::forge::Playground,
+    words: &Words,
+    bindings: &mut Bindings,
+) {
+    let Some(chats) = root.pages().chats() else { return };
+    b.open(Role::Slot);
+    b.style(crate::look::INVITATION);
     b.open(Role::List);
     b.name(&words.say(Word::SuggestedRequests, &[]));
     for (cue, value) in playground.cues.iter().enumerate() {
@@ -495,6 +513,5 @@ fn suggestions(
         b.close();
     }
     b.close();
-    text(b, Role::Paragraph, &words.say(Word::PlaygroundScript, &[]));
     b.close();
 }

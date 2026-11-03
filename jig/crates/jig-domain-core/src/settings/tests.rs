@@ -163,19 +163,19 @@ fn the_whole_check_names_owner_and_its_setting() {
 
 #[test]
 fn pruning_a_lowered_history_limit_uses_only_the_commits_remaining_room() {
-    let (writes, oldest) = revision_writes(None, List::with_capacity(0), 1, 20, 2, 4);
+    let (writes, oldest) = revision_writes(None, List::with_capacity(0), 1, 1, 20, 2, 4);
     assert_eq!(oldest, 4);
     assert_eq!(writes.len(), 4);
-    let crate::Write::Save(crate::Record::Core(CoreRecord::Settings(Record::Extent { oldest: stored }))) =
+    let crate::Write::Save(crate::Record::Core(CoreRecord::Settings(Record::Extent { oldest: stored, .. }))) =
         &writes.as_slice()[3]
     else {
         panic!("the extent closes the pruning commit")
     };
     assert_eq!(*stored, 4);
-    let (writes, oldest) = revision_writes(None, List::with_capacity(0), oldest, 20, 2, 32);
+    let (writes, oldest) = revision_writes(None, List::with_capacity(0), oldest, 1, 20, 2, 32);
     assert_eq!(oldest, 18);
     assert_eq!(writes.len(), 15);
-    let (writes, oldest) = revision_writes(None, List::with_capacity(0), oldest, 20, 2, 32);
+    let (writes, oldest) = revision_writes(None, List::with_capacity(0), oldest, 1, 20, 2, 32);
     assert!(writes.is_empty());
     assert_eq!(oldest, 18);
 }
@@ -331,7 +331,7 @@ fn stored_policy_change(bytes: u64) -> (Core, Limits, Record) {
             history: false,
             revision: Revision { head: core.current.head.clone(), items: Box::new([]), applications: Box::default() },
         },
-        Record::Extent { oldest: 0 },
+        Record::Extent { oldest: 0, keys: 1 },
     ] {
         let _restored = core.restore_core(CoreRecord::Settings(record), &limits);
     }
@@ -470,6 +470,7 @@ fn releasing_multiple_revisions_writes_one_extent_after_all_copies_and_erases() 
     for request in &out {
         if let crate::Request::Write(crate::Write::Save(crate::Record::Core(CoreRecord::Settings(Record::Extent {
             oldest,
+            ..
         })))) = request
         {
             extents += 1;
@@ -485,6 +486,7 @@ fn releasing_multiple_revisions_writes_one_extent_after_all_copies_and_erases() 
     }
     let Some(crate::Request::Write(crate::Write::Save(crate::Record::Core(CoreRecord::Settings(Record::Extent {
         oldest: 1,
+        ..
     }))))) = out.pop()
     else {
         panic!("extent follows every revision write")
@@ -609,7 +611,7 @@ fn restore_settings_fixture() -> (Core, Limits) {
     for row in defaults.into_boxed() {
         assert!(core.restore_setting(row, &limits));
     }
-    assert!(core.restore_setting(Record::Extent { oldest: 0 }, &limits));
+    assert!(core.restore_setting(Record::Extent { oldest: 0, keys: 1 }, &limits));
     (core, limits)
 }
 
@@ -699,7 +701,8 @@ fn a_held_revision_left_without_holders_is_released_by_the_start() {
                 erased_version |=
                     *key == crate::Key::Core(crate::CoreKey::Settings(Key::Charter { charter: 1, revision: 1 }));
             }
-            if let crate::Write::Save(crate::Record::Core(CoreRecord::Settings(Record::Extent { oldest }))) = write {
+            if let crate::Write::Save(crate::Record::Core(CoreRecord::Settings(Record::Extent { oldest, .. }))) = write
+            {
                 saved_extent |= oldest == 1;
             }
         }

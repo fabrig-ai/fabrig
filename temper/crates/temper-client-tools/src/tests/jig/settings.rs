@@ -1132,6 +1132,7 @@ fn settings_review_goldens_keep_every_edit_value_origin_and_head_fact() {
     for (index, (setting, value)) in values().into_iter().enumerate() {
         let set = c::ReviewValue::Value(c::SettingSet { value });
         let review = c::SettingsReview {
+            key: None,
             newest: 6,
             cut: true,
             items: list([
@@ -1195,7 +1196,7 @@ fn settings_review_goldens_keep_every_edit_value_origin_and_head_fact() {
             golden(&format!("settings_review_{index}_{}", if json { "json" } else { "text" }), &answer.stdout);
         }
     }
-    for review in [None, Some(c::SettingsReview { newest: 5, items: list([]), cut: false })] {
+    for review in [None, Some(c::SettingsReview { key: None, newest: 5, items: list([]), cut: false })] {
         let answer = read(&["proposal", "show", "p73/7"], review_proposal(review));
         assert_eq!(answer.status, 0);
         assert!(!core::str::from_utf8(&answer.stdout).expect("text").contains("cut:"));
@@ -1516,6 +1517,7 @@ fn proposal_review_reads_both_large_values_whole_and_keeps_refusals_in_place() {
             root.serve(
                 call,
                 c::ReadResult::Value(review_proposal(Some(c::SettingsReview {
+                    key: None,
                     newest: 6,
                     cut: false,
                     items: list([c::ReviewItem {

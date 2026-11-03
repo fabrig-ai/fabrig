@@ -475,6 +475,7 @@ pub(in crate::codec) fn wire_settings_review(
     w::SettingsReview::new(
         limits,
         w::SettingsReviewParts {
+            key: None,
             newest: value.newest,
             items: pieces(
                 value.items.iter().map(|item| wire_review_item(item, limits)),

@@ -50,7 +50,7 @@ pub fn review() -> c::SettingsReview {
             })
             .expect("three review items");
     }
-    c::SettingsReview { newest: 6, items, cut: true }
+    c::SettingsReview { key: None, newest: 6, items, cut: true }
 }
 #[must_use]
 pub fn pending() -> c::ProposalActionSettings {

@@ -1644,6 +1644,7 @@ fn encode_proposal(
     wire::Proposal::new(
         limits,
         wire::ProposalParts {
+            key: value.key,
             models: encode_names(names, limits)?,
             against: field_against,
             items: field_items,
@@ -1656,7 +1657,7 @@ fn decode_proposal(
     limits: &wire::Limits,
     names: &[settings::ModelName],
 ) -> Result<settings::Proposal, wire::Problem> {
-    let wire::ProposalParts { models, against, items, applications } = value.into_parts();
+    let wire::ProposalParts { key, models, against, items, applications } = value.into_parts();
     let field_against = against;
     let mut list_38 = List::with_capacity((items).len());
     for entry in (items).into_boxed() {
@@ -1672,7 +1673,12 @@ fn decode_proposal(
             settings::Edit::Removed | settings::Edit::Reset => {}
         }
     }
-    Ok(settings::Proposal { applications: decode_recorded(applications), against: field_against, items: field_items })
+    Ok(settings::Proposal {
+        key,
+        applications: decode_recorded(applications),
+        against: field_against,
+        items: field_items,
+    })
 }
 
 fn encode_application(
@@ -1825,8 +1831,8 @@ pub fn encode(
             value.encode(&mut writer).expect("measured row");
             Ok(writer.finish())
         }
-        settings::Record::Extent { oldest } => {
-            let value = wire::Extent::new(limits, wire::ExtentParts { oldest: *oldest })?;
+        settings::Record::Extent { oldest, keys } => {
+            let value = wire::Extent::new(limits, wire::ExtentParts { oldest: *oldest, keys: *keys })?;
             let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
             value.encode(&mut writer).expect("measured row");
             Ok(writer.finish())
@@ -1886,7 +1892,8 @@ pub fn decode(
             }
         }
         settings::Key::Extent => {
-            settings::Record::Extent { oldest: wire::Extent::decode(limits, &mut reader)?.into_parts().oldest }
+            let wire::ExtentParts { oldest, keys } = wire::Extent::decode(limits, &mut reader)?.into_parts();
+            settings::Record::Extent { oldest, keys }
         }
         settings::Key::Charter { charter, revision } => settings::Record::Charter {
             charter: *charter,

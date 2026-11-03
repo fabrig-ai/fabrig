@@ -61,7 +61,7 @@ fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
     let see = |find| Step::Person(PersonStep::See { find, within: WITHIN });
     let press = |role, name: &[u8]| Step::Person(PersonStep::Press { find: Find::exactly_named(role, name) });
     let pressed = |position| Step::Keep {
-        selector: format!("main [aria-label='Your chats'] + * > button[aria-pressed='true']:nth-child({position})")
+        selector: format!("main [aria-label='Chats'] + * > button[aria-pressed='true']:nth-child({position})")
             .into_bytes()
             .into_boxed_slice(),
         attribute: Some(b"aria-pressed".as_slice().into()),

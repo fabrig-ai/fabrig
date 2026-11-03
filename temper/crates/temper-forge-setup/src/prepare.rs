@@ -307,7 +307,7 @@ impl Prepare {
         if self.first || self.forgejo == Course::Older { self.run(Command::Migrate) } else { self.after_migrate() }
     }
     fn after_migrate(&mut self) -> Request {
-        if self.runner_changes() {
+        if self.owned.runner.is_some() {
             if self.runner == RunnerCourse::Added && self.runner_secret.is_some() {
                 self.request(Phase::Draw(4), Request::Draw)
             } else {
