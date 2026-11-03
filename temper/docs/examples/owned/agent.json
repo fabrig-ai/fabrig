@@ -6,7 +6,7 @@
       "tool_payload": 4098,
       "read_window": 256,
       "conversations": 3,
-      "calls_per_response": 1
+      "calls_per_response": 2
     },
     "policy": {
       "max_turns": 16,
