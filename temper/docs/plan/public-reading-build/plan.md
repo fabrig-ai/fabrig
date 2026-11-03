@@ -126,5 +126,6 @@ Every task below is released (batches 1, 2a, 2b, 2c, 3 and 4).
   (the revision). Every variant is appended last and every hunk kept local, so whichever lands
   second merges lines; the generated code and goldens are regenerated, not merged by hand.
 - playground-temper (integration) edits `temper/tests/one-process/**`; `public-negative`
-  adds files there and a module line in its `lib.rs` and `tests/suite/main.rs`.
+  adds files there, a module line in its `lib.rs` and `tests/suite/main.rs`, and one
+  `configure` call in `src/fixtures.rs`.
 - No other draft beside this one touches the files of batch 1.
