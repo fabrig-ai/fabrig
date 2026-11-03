@@ -1324,6 +1324,15 @@ computes for them is said below (11.1 to 11.5).
   (connectors.md, 5.5). Its watches and reads carry a window, as jig's
   do (`../client/domain/contract.md`, 7.5). Only the document, or why
   there is none, crosses back; the root only routes.
+- **Public reads** (people.md, section 13) are the public party's,
+  with no sign-in: the core admits one only on a live, public project,
+  and for a card on a task in one of its goals' trees, and answers
+  every other unknown. It makes jig's public documents (projects, a
+  board, a card) by their projections from the live tasks and a load
+  of the ended ones, within the board's bounds, as a task query's are
+  (11.2); an application's it asks of the connector that declared the
+  kind, as an application's read, naming the public party's scope. No
+  watch is opened, nothing is marked, nothing is committed.
 - **Level-triggered,** as facts are (core.md, section 4). A delivery is
   the subject's whole current document, within the watch's window, made
   by the subject's owner when the delivery is made: the core, or a

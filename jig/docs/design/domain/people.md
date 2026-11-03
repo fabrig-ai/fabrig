@@ -1,6 +1,6 @@
 # Parties
 
-Provisional, 2026-10-07, revised 2026-11-02. How people, and the
+Provisional, 2026-10-07, revised 2026-11-03. How people, and the
 services that act like them, take part: who they are and the credentials
 they sign in with, what their role in a project lets them do, the
 operations they ask of the engine and what waits for them, the
@@ -63,6 +63,11 @@ is still open is listed in section 12.
   what waits for a party, and live runs; not the shapes of work built
   from them, which are templates and helpers above it. An application
   adds its own kinds of object.
+- **Anyone may read a public project,** without signing in, as one
+  party fixed in code whose role grants public reads alone: a few typed
+  documents of structure and mechanics, within a budget behind every
+  signed-in request. Projects are private until their owners make them
+  public (section 13).
 
 ## 2. Structure
 
@@ -295,6 +300,8 @@ Each project has its roles, and its policy says what each may do
   if its policy names one (authority.md, section 6; tasks.md,
   section 9). A party may be the requester of a root only when one of
   the two holds it (5.1).
+- **`public` is no project's role.** It is the public party's, fixed in
+  code, and no policy names it (13.1).
 
 ## 5. What a party does
 
@@ -365,6 +372,8 @@ The operations as the client sends them are
 | `MoveToNewest`, in the deployment's scope | owner in the deployment; a revision held | every live agent task on it that may move set to the newest, in one decision, those moved and those that could not counted in the answer (engine.md, 17.4) |
 | `MakeProject`, in the deployment's scope | owner in the deployment (section 3); a name in shape that no other project holds (core.md, 6.1); a policy among the settings (engine.md, 17.1); room in the deployment's projects | a project, numbered next, its policy a copy of the configured one, its maker its owner and only party (5.2) |
 | `RemoveProject` | owner of the project; a project that is live, not being deleted; a grace within the tasks child's bound (tasks.md, section 11), or none; never in a compound request | the project closed in the decision that admits it, answered removed then, and deleted whole in the steps that follow (5.2), each of its live conversations asked to finish within the grace |
+| `SetVisibility` | owner of the project, never project 0; a project that is live, not being deleted | the project public or private from that decision, `me` saying so (13.2) |
+| `ShowTitle` | the goal's requester, a person, on a goal their own `Create` made whose spec no one else has amended | its title shown in its public line, or hidden (13.3) |
 | edit or delete a note | the note's scope within their role | the note revised (engine.md, section 10) |
 | set a party's pool | owner | the pool opened or resized in the current period, what was spent and reserved kept |
 | an account request: sign in, sign out, add, replace or remove a key, declare or check a program's login, order, uses, resume, remove an account | the account's holder, not a role: a person for their own, a first owner for the deployment's (authority.md, 8.4) | accounts.md, section 5: the account's sources, states and uses changed; a value never committed |
@@ -1035,10 +1044,9 @@ what outlives it (5.2).
   requires it independently. jig holds no provider's credential; an
   application's sign-in may keep one, and its connector would then need
   to know which party gave the approval.
-- **Who may see what** among a project's parties: whether a chat and its
-  transcript are its requester's alone, or their role's, or the
-  project's; what an observer reads. A role in the project lets a party
-  watch and read all of it.
+- **Finer cuts among a project's parties:** whether a chat and its
+  transcript are its requester's alone, or what an observer reads.
+  Default: a role in the project reads all of it (13.4).
 - **Roles that span projects,** as the inbox does.
 - **Who deletes a project:** its owners, and the deployment by its act
   (5.2, 5.3). The deployment's owners over any project is later.
@@ -1046,7 +1054,186 @@ what outlives it (5.2).
 - **A deleted project's spend:** kept in the deployment's and its
   parties' totals for the period, never per task (5.2). Default: as
   said.
-- **Guests:** someone with no identity at any provider, invited to one
-  conversation. An application's sign-in may mint an identity for an
-  invitation; which role lets its holder take part in one conversation,
-  and see nothing else, is open.
+
+## 13. Public reading
+
+Anyone may read a project its owners have made public, without signing
+in: one party, fixed in code, reads for every visitor, a few documents
+only, within a budget of its own behind every signed-in request. The
+documents are public projections: types of their own, which hold only
+what is added to them. The application adds its own beside jig's
+(13.3). How a public read travels is `../protocol/client.md`, section
+19, and over HTTP, 17.5.
+
+### 13.1 The public party
+
+- **One party for every visitor,** fixed in code: the public party. It
+  is no row: no identity, provider, credential, sign-in, inbox, pool,
+  `me` or place in a roster. The core names it by a value of its own,
+  which no stored party, sign-in or connector takes, and no record
+  stores.
+- **Its role is fixed:** `public`, which grants one thing, the public
+  reads of a public project (13.3) and of the deployment's public
+  projects. It makes no request, opens no watch and no stream, reads
+  none of jig's other documents and none of an application's other
+  reads or subjects, and is the requester, funder, executor or holder of
+  nothing. Every other exchange without a credential is signed out
+  (`../protocol/client.md`, section 8).
+- **No policy widens it.** `public` is no role a policy may name: a
+  configured policy, a project's or the deployment's rules that names
+  a role `public`, maps a connector's permission to it, or gives it
+  authority or a kind of proposal, refuses the start at its path
+  (`../protocol/configuration.md`, section 6), and an edit or a change
+  of settings that would is refused as a shape (engine.md, 17.1). No
+  party is given it (5.2), and no seed at adoption maps to it
+  (section 4).
+- **It writes nothing.** A public read is a read: it commits nothing,
+  keeps no answer under a key, and names no party in any history.
+- **Only the core decides,** as for every party: the clients'
+  component forms a public read from the route alone, and the core
+  admits it on the project's visibility (13.2), never on anything the
+  visitor sent but the read's own fields.
+
+### 13.2 A project's visibility
+
+- **Private by default.** Every project is seeded and made private
+  (5.2), and no configuration makes one public: a start opens nothing.
+  Project 0, the deployment's roster, is never public.
+- **Made public by its owners:** `SetVisibility { project, public }`,
+  owner of the project alone; no policy gives it to another role, as
+  `public` is no role a policy names. It is committed and answered once
+  durable, as any request (5.1), and is a record of the project's, as
+  its name is, kept in the people family's project row
+  (`../protocol/store.md`, 4.4). Its name is public with it: making a
+  project public is its owners' mark on the name they gave it.
+- **Every party of the project sees it:** the project's entry in `me`
+  carries whether it is public (`../client/domain/contract.md`, 5.1),
+  so a client says so wherever it shows the project.
+- **Made private again,** the decision that commits it refuses every
+  later public read of the project as unknown. What a caching proxy
+  holds lives out its `max-age` (`../protocol/client.md`, 17.5), the
+  bound on how long a closed project stays readable there.
+- **Closed with the project:** a project being deleted answers every
+  public read unknown from the decision that admits its deletion, as
+  one never made (5.2).
+- **Answered alike:** a project that is private, being deleted or never
+  made, and a task outside a public project's goals, are one answer,
+  unknown, so a visitor learns nothing of what is not public.
+
+### 13.3 What it reads
+
+Each public document is a type of its own, made by a projection from
+the state that holds it; a field reaches it only when it is added
+there. jig's hold structure and mechanics alone: numbers, states,
+times, the shape of a tree, configured names, spend. What a person
+wrote appears only where they marked it, and what an agent wrote
+never. Their records are `../client/domain/contract.md`, section 12.
+
+- **The deployment's public projects:** each public project's number
+  and name, and the `max-age` the public answers carry, so a page
+  knows how often to read again.
+- **A project's board:** its goals, live first, each with its priority,
+  then the most recently ended, within a bound of the board's; each
+  goal's line and its tree's lines below it, within tasks per tree,
+  folded past the board's bound per goal as a tree is
+  (`../client/domain/contract.md`, 5.1).
+- **A task's card:** the line of one task in a goal's tree of a public
+  project, its lineage up to its goal as numbers, and its delegates'
+  lines, folded past the bound.
+- **A public line:** the task's number; its parent's; whether it is a
+  goal, and its priority; its executor's kind and, for an agent or a
+  procedure, its charter's or procedure's configured name, never a
+  person's or a role's holder; its phase, and if held, the hold's kind
+  without its reason; when it was made, last changed, last active and
+  ended; its spend and its budget; its delegates' counts by phase; and
+  its title, only for a goal whose title is shown (below).
+- **Never in them:** a spec, instructions, inputs, results, words,
+  questions and answers, turns and transcripts, notes, a reason, a
+  label's meaning, a proposal or an escalation, a party's name, login
+  or number, an account, a resource's name beyond what the
+  application's projection adds.
+- **Only goals' trees:** a task in no goal's tree (a conversation and
+  its delegates, a recurring task) has no public line, and a card of
+  one is unknown. A goal's tree is the goal and every task below it.
+- **A goal's title is shown by its author:** `ShowTitle { task, shown
+  }`, by the goal's requester, a person, while its spec is as they
+  wrote it: a goal made by their own `Create`, whose spec no one else
+  has amended. A goal made by accepting a proposal, which an agent or
+  another party wrote, is refused the flag. An amendment of its spec by
+  anyone but its requester, or a move to another requester (5.1),
+  clears it. The title is the spec's first line
+  (`../client/domain/pages.md`, 5.1), within the line's bound.
+- **An application's own public documents** are its connectors' (the
+  application's records, `../protocol/client.md`, section 19): a
+  connector declares its public kinds, and is asked for one only once
+  the core has admitted it on the project's visibility. It judges, as
+  for any read (connectors.md, 5.5), what of the project its document
+  holds, by the same rule: a type of its own, private by default.
+
+### 13.4 Who sees what
+
+Inside a project and outside it, and guests:
+
+- **A party with a role in a project** reads and watches all of it;
+  finer cuts among a project's parties (a chat its requester's
+  alone) would be a role's, and are open (section 12).
+- **Anyone else** reads only a public project's public documents, as the
+  public party, and takes part in nothing.
+- **No guest role.** Someone with no identity anywhere reads as the
+  public party; to take part in a conversation they sign in, through
+  the application's sign-in and a `Mint`, and are given a role (section
+  3). jig keeps no role that sees one conversation and nothing else.
+
+### 13.5 Its admission
+
+The crowd is one party, bounded as jig bounds any party, and behind
+every signed-in one:
+
+- **A room of its own:** public reads in flight, within a limit of the
+  clients' component's, apart from the sign-ins' exchanges in flight;
+  no signed-in exchange waits for one, and none of them takes a
+  signed-in party's room (`../protocol/client.md`, section 13).
+- **A rate:** public reads admitted per second, and the bytes of their
+  answers per second, each a budget the component refills by its
+  monotonic clock. A read is admitted while both have room; its
+  answer's bytes are charged when it is answered.
+- **Behind every signed-in request:** the engine's root admits a public
+  read only while its backlog is under the public watermark, lower than
+  the one that admits every other new work (root.md, sections 3 and
+  10). Load from signed-in parties refuses public reads first.
+- **Busy first, never queued:** a public read past any of these is
+  answered busy at once, saying nothing more; nothing waits, and the
+  component never offers it again.
+- **Off unless figured:** the limits are the deployment's
+  (`../protocol/configuration.md`, section 6). A rate of zero answers
+  every public read busy, and is every profile's: a deployment that
+  opens sets its figures.
+- **The proxy's own limits:** a reverse proxy before the engine caches
+  the answers for their `max-age` and limits each address; jig trusts no
+  address and counts none.
+- **Durable before shown,** as every read's answer is (engine.md, 5.2).
+
+### 13.6 Its world
+
+In the core's world: a project's owner makes it public, and the public
+party reads its board and a delegate's card, with no spec, result, words
+or name in them; a member's `SetVisibility` is refused; a goal's
+requester shows its title and it appears, while a goal accepted from a
+proposal is refused the flag, and another's amendment of a shown goal's
+spec clears it; the project made private, and a public read answered
+unknown, as a project never made and a private one are; a conversation's
+delegate's card, unknown; a deleted public project, unknown from its
+deletion's decision; a policy naming the role `public`, refused at the
+start and as an edit; public reads past their rate, their bytes and their
+room answered busy, while signed-in reads at the same moment are all
+answered; the root's backlog past the public watermark refusing a
+public read and admitting a signed-in one; a rate of zero refusing
+every public read; and every exchange without a credential but a public
+read answered signed out.
+
+Its referee: the public party commits nothing and appears in no
+record; no public document holds a field its type does not; no public
+read of a project is answered while the project is private, being
+deleted, or unknown; no public read is admitted while the root's
+backlog is at its public watermark, nor holds a signed-in exchange's
+room.

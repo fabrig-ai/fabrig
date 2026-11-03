@@ -63,6 +63,11 @@ is still open is listed in section 15.
   routes, then a `Mint`. A credential is a sign-in's number beside
   random bytes; the engine keeps its digest, and hands the domain only
   the number (section 8).
+- **Public reads need no credential.** A public read, one exchange of
+  its own, is served as the public party (`../domain/people.md`,
+  section 13), within its own room and rate, behind every signed-in
+  exchange; over HTTP it is a `GET` a caching proxy may keep (section
+  19; 17.5).
 - **Versions per owner:** the ranges served in the hello, and a version
   not served answered so, typed, naming the owner and the ranges, in an
   envelope every version reads (section 9).
@@ -937,7 +942,10 @@ recipient.
   no stream, and in all; a message's bytes, which bound a change of
   settings (`../domain/engine.md`, 17.8), what a stream may have
   queued before nothing more is handed out, the heartbeat's span, mints
-  in flight.
+  in flight; and the public reads' own: in flight, per second, and their
+  answers' bytes per second (section 19).
+- **The public answers' `max-age`,** the deployment's, at most a bound
+  of jig's (17.5).
 - **The default mapping's,** at each end: its HTTP machines', TLS's, and
   the stream's buffer, at those limits.
 - **Internal hand-offs are uncapped.** The client retains each pending
@@ -1103,6 +1111,7 @@ prefix; jig's test application mounts it at `/jig`.
 | `POST <prefix>/v1/sign-in/deployment` | signing in as a service, its credential as the bearer |
 | `POST <prefix>/v1/sign-out` | signing out |
 | `POST <prefix>/v1/authorize` | an OpenID authorization (section 18) |
+| `GET <prefix>/v1/public/<owner>/<version>/<kind>[/<n>[/<n>]]` | a public read (17.5, section 19) |
 
 - **A POST's body** is its message's record, `application/octet-stream`.
   Its answer is `200` with the reply's record and `Cache-Control:
@@ -1111,7 +1120,7 @@ prefix; jig's test application mounts it at `/jig`.
   `application/octet-stream` is `415`, a body that is not a record of
   its route `400`, and one past the route's bound `413`, each with
   nothing done; any other method or path under the prefix is `404`, but
-  a `GET` of the link's route (below). The guards' answers are the
+  a `GET` of the link's route (below) and the public reads' (17.5). The guards' answers are the
   example guards' (`browser.md`, 12.2).
 - **The printed link's URL** is `<prefix>/v1/sign-in/link?secret=…` on
   the loopback address the application's server listens on, which the
@@ -1259,6 +1268,49 @@ prefix; jig's test application mounts it at `/jig`.
   (its content security policy, its frames) is the application's
   page's.
 
+### 17.5 Public reads
+
+- **A `GET`, its read in its path:** `<prefix>/v1/public/<owner>/<version>/<kind>[/<n>[/<n>]]`,
+  each segment a decimal number with no sign and no leading zero, no
+  query, no trailing slash: the owner's number, its wire's version, the
+  public kind, and the kind's numbers (section 19). One document has one
+  address, so a proxy keeps one copy of it. Any other path under
+  `<prefix>/v1/public/` is `404` with `Cache-Control: no-store`, and so
+  is any method but `GET`.
+- **No credential is read.** The engine end reads no cookie and no
+  bearer on these routes, and hands the component no credential, so the
+  answer is the same for every visitor, signed in or not, and varies on
+  nothing the request carries but its path. The guards that stand are
+  the `Host` allow-list (`browser.md`, 12.2); a public read changes
+  nothing, as the printed link's `GET` does not (`browser.md`, section
+  19), so it needs neither the browser header nor a content type.
+- **Its answers:**
+  - *the document:* `200`, `application/octet-stream`, its record, and
+    `Cache-Control: public, max-age=<the deployment's>`;
+  - *unknown:* `404`, no body, with the same `Cache-Control`, so a
+    private project and one never made cost a proxy alike;
+  - *busy:* `503`, no body, `Cache-Control: no-store` and `Retry-After`
+    of one second; nothing waits;
+  - *a version not served:* `200` with its record, as every version
+    reads it (section 9), and `Cache-Control: no-store`.
+
+  Every answer carries `X-Content-Type-Options: nosniff`, and none
+  sets a cookie or carries `Vary`.
+- **A room of its own in the engine end:** public calls in flight,
+  apart from its other calls (17.4) and within the component's public
+  room; a public call that finds none is `503` as busy, the call's
+  head read and nothing more. The application's server bounds its
+  connections, as 17.4 says; a proxy in front holds few of them.
+- **No CORS:** a page of another origin may send it, as any site may
+  send a `GET`, and cannot read the answer; the documents are public,
+  so nothing it learns is not.
+- **The `max-age`** is the deployment's, `clients.public.max_age`, a
+  few seconds, at most jig's bound of 60, so a project made private is
+  closed at every proxy within it (`../domain/people.md`, 13.2).
+- **The client end** sends it as an `Exchange` with no bearer and no
+  body, and takes back the status and the body as a `Reply`; a `503` is
+  busy, a `404` unknown.
+
 ## 18. The OpenID provider
 
 The clients' component may be an OpenID Connect provider for the
@@ -1348,3 +1400,40 @@ and their addresses are the application's (17.1: no provider route).
   wrong verifier; signed out, then signed in; a service refused; the
   codes full. skein's issuer world checks the protocol against skein's
   client; the application's process tier, against a real client.
+
+## 19. Public reads
+
+The messages of public reading (`../domain/people.md`, section 13):
+
+- **`PublicRead { owner, version, kind, numbers }`,** an exchange with
+  no credential and no stream: an owner, jig or an application's family;
+  the owner's version; a kind of that owner's public documents; at most
+  two numbers, which the kind names. jig's kinds: *projects*, with none;
+  *board*, a project; *card*, a project and a task. An application's
+  kinds take a project first, and at most one number of its own.
+- **Answered once:** the document, as the owner's record at that
+  version; unknown; busy; or the version not served. Nothing else, and
+  never why: a private project, one never made, a task outside a public
+  project's goals, and a kind no owner declared are all unknown.
+- **The component admits it** within its public room (in flight),
+  its reads per second and its answers' bytes per second
+  (`../domain/people.md`, 13.5), each apart from the sign-ins' room;
+  past any, it answers busy at once and hands the engine nothing. It
+  hands the engine's root what it admits as the public party's read,
+  and a read the root refuses at its public watermark is answered busy,
+  never offered again.
+- **The engine's side** admits it on the project's visibility
+  (`../domain/engine.md`, section 11), makes jig's kinds, and asks the
+  connector that declared an application's kind for its document, once
+  admitted; an application declares its public kinds to the component
+  at start, so a kind no owner declared is unknown before the engine.
+- **Every other exchange without a credential** is answered signed out
+  (section 8): a read, a watch, a stream, a keyed request. The public
+  party opens no stream and no watch; a page reads again by its own
+  timer.
+- **Testing:** the component's world plays public reads with no
+  credential and with a signed-in person's cookie, answered alike; past
+  the room, the rate and the bytes, busy while signed-in exchanges are
+  answered; an unknown kind and a private project, unknown alike; and
+  the mapping's world, each answer's status and headers, a credential
+  on the route never read, and a malformed path `404`.

@@ -434,6 +434,19 @@ host's half reports it (`llm.md`, 5.5).
   list's allocated capacity, and the deployment's roster is the only
   one implied. `Core::new` asserts the same people-roster relation as
   a programmer precondition (`../domain/engine.md`, section 14).
+- **Public reading's limits,** the clients' component's
+  (`../domain/people.md`, 13.5; `client.md`, section 19):
+  `clients.public.reads` in flight, `clients.public.rate` reads per
+  second, `clients.public.bytes` of answers per second, and
+  `clients.public.max_age` in seconds, at most 60; and the HTTP mount's
+  `clients_http.public_calls` in flight, within `clients.public.reads`.
+  Every profile's rate is zero, which answers every public read busy:
+  a deployment that opens sets its own figures. The board's bounds,
+  goals ended and lines per goal, are the core's, priced within a task
+  query's (`../domain/engine.md`, section 13).
+- **The role `public` is reserved:** a policy, configured or in the
+  rules, that names a role `public` refuses the start at its path
+  (`../domain/authority.md`, section 6).
 - **Charters' budgets:** each charter's turns and time are above its
   reserve's, and its default budget holds its reserve and one of its
   default model's most costly completions (`../domain/authority.md`,
