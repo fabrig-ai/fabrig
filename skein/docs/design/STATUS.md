@@ -18,8 +18,8 @@ them (`llm.md`). Single items lag in `lib.md`, `examples.md` and
 (`testing.md`). `README.md`, `channel.md`,
 `codec.md`, `kv.md`, `world.md`, `fake-checkout.md`, `fake-llm.md`,
 `forge-client.md`, `forge-connection.md`, `forge-setup.md`,
-`llm-connection.md`, `oauth.md`, `oauth-issuer.md` and `ui-text.md` have
-no gap. The foundation's rules
+`llm-connection.md`, `oauth.md`, `oauth-issuer.md`, `ui-text.md` and
+`browser.md` have no gap. The foundation's rules
 (`../foundation/`) have no status file: of `testing-strategy.md`, 6, no
 tree runs transition coverage (`cargo llvm-cov`) or fuzzes a machine or a
 decoder (`cargo fuzz`). Of the drafts, `component-kit.md` waits on
