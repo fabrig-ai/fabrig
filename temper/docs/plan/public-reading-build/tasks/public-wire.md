@@ -84,7 +84,8 @@ Acceptance:
 - Owns the files in the header. `lib.rs`: only the new module's declaration, the constants and
   `mod public`; `v19` and its re-export stay as they are (`visibility-wire` edits the v19
   schema at the same time, in other files).
-- `jig/tests/codec-families.rs`: one `Family` entry appended; nothing else.
+- `jig/tests/codec-families.rs`: one `Family` entry appended, and `"public"` appended to the
+  `client` family's `fixtures` (its golden directory holds the new family's); nothing else.
 - `Cargo.toml`: a dev-dependency on `skein-codegen` if the tests use its parser; nothing else.
 - Pre-approved: if skein-codegen cannot express an empty-payload enum as written, use its form
   for unit variants and say which. If the generated code gives no worst-case size, compute
@@ -117,3 +118,10 @@ live and 20 ended goals, 50 lines, depth 16, 64 projects).
 2026-11-03. **The user's decision on public titles.** User, 2026-11-03 15:40Z: public reading shows titles. A goal's and a task's title (the first line of its spec, as jig's client contract names a task's title) crosses into its public line, and a public project's name crosses into its public record. There is no author flag and no human publication capability for these. Everything else in people.md 13.3's "No text at all" list still never crosses: spec beyond its first line, instructions, inputs, results, words, questions and answers, transcripts, notes, reasons, labels' meanings, proposals, escalations, people's and parties' names, charters', procedures' and roles' names. Review finding 1 is settled by the user's decision.
 
 For this task: Add `title` to the public line and `name` to the public project record, each bounded by jig's existing bounds for a task's title and a project's name, with the golden updated. This task may also edit the design text: `jig/docs/design/client/domain/contract.md` 12 (the records, plus provenance rows: title from the spec's first line, name from the project's record) and `jig/docs/design/domain/people.md` 13.3, where "No text at all" becomes "No text but titles and the project's name", with 12's "human publication capability" entry narrowed to the other names.
+
+2026-11-03. **May `jig/tests/codec-families.rs` also add `"public"` to the `client` family's
+fixtures?** Yes. The `client` family's inventory check lists every entry of `golden/`, so the
+nested `golden/public/` must be named among its fixtures, as the `view records` family names its
+`rendered` directory; the new `public` family checks that directory's contents. Append
+`"public"` to the `client` entry's `fixtures` and append the new `Family`; nothing else in the
+file changes. The location `golden/public` stays.
