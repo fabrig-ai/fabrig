@@ -883,8 +883,11 @@ scope, a position, a direction and its bounds. The component serves each
 scope as intervals over jig's families, and joins each row in the same
 step by point reads, those its scope's rows carry: its owner task, live
 or ended; its requester ancestry, within the domain's depth limit; its
-links; the record it relates to. A task's activity joins its owner
-alone, once a page, and each turn's line its turn (below).
+links; the record it relates to. A task's document joins all its links.
+A turn joins its owner alone; an inbox entry joins its owner, the record
+it relates to and its requester ancestry for selection, without the
+owner's other task links. A task's activity joins its owner alone, once
+a page, and each turn's line its turn (below).
 
 | Scope | Served from |
 |---|---|
