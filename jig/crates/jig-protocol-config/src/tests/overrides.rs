@@ -44,7 +44,7 @@ fn an_override_that_breaks_a_bound_is_refused_naming_it() {
 #[test]
 fn overrides_past_a_familys_bound_are_each_reported_once() {
     let errors =
-        parse(br#"{"profile":"small","overrides":{"tasks.tasks":0,"tasks.inbox_messages":1,"tasks.run_inbox":1}}"#)
+        parse(br#"{"profile":"small","overrides":{"tasks.tasks":0,"tasks.inbox_messages":0,"tasks.run_inbox":0}}"#)
             .unwrap_err();
     assert_eq!(errors.problems.len(), 3);
     assert_eq!(errors.past, 0);
@@ -655,11 +655,15 @@ fn placed_hold_overrides_reject_zero_and_exemptions_past_the_live_set() {
     problem(
         br#"{"profile":"small","overrides":{"tasks.exemptions":9}}"#,
         &[b"limits", b"overrides", b"tasks.exemptions"],
-        What::Override,
+        What::Capacity { member: b"tasks.exemptions", configured: 9, requires: b"tasks.tasks", required: 9 },
     );
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "each capacity dependency retains its override document and named diagnostic"
+)]
 fn capacity_dependencies_survive_override_parsing() {
     for (bytes, member, configured, dependency, minimum) in [
         (
@@ -690,6 +694,118 @@ fn capacity_dependencies_survive_override_parsing() {
             b"people.operations",
             9,
         ),
+        (
+            br#"{"profile":"small","overrides":{"documents.lines":3,"tasks.message_bytes":8192}}"#,
+            b"tasks.message_bytes",
+            8192,
+            b"tasks.inbox_bytes",
+            8192,
+        ),
+        (
+            br#"{"profile":"small","overrides":{"documents.lines":3,"authority.grants":6}}"#,
+            b"authority.grants",
+            6,
+            b"notes.scopes",
+            9,
+        ),
+        (
+            br#"{"profile":"small","overrides":{"documents.lines":3,"tasks.tasks":4}}"#,
+            b"people.operations",
+            8,
+            b"tasks.tasks",
+            8,
+        ),
+        (
+            br#"{"profile":"small","overrides":{"documents.lines":3,"tasks.run_inbox":9}}"#,
+            b"tasks.run_inbox",
+            9,
+            b"tasks.inbox_messages",
+            9,
+        ),
+        (
+            br#"{"profile":"small","overrides":{"documents.lines":3,"people.inbox_entries":9}}"#,
+            b"people.inbox_entries",
+            9,
+            b"tasks.inbox_messages",
+            9,
+        ),
+        (
+            br#"{"profile":"small","overrides":{"documents.lines":3,"tasks.exemptions":9}}"#,
+            b"tasks.exemptions",
+            9,
+            b"tasks.tasks",
+            9,
+        ),
+        (
+            br#"{"profile":"small","overrides":{"documents.lines":3,"fleet.configured_workers":9}}"#,
+            b"fleet.configured_workers",
+            9,
+            b"people.program_hosts",
+            10,
+        ),
+        (
+            br#"{"profile":"small","overrides":{"documents.lines":3,"accounts.program_hosts":8}}"#,
+            b"fleet.configured_workers",
+            8,
+            b"accounts.program_hosts",
+            9,
+        ),
+        (
+            br#"{"profile":"small","overrides":{"documents.lines":3,"fleet.worker_name_bytes":33}}"#,
+            b"fleet.worker_name_bytes",
+            33,
+            b"people.program_host_name_bytes",
+            33,
+        ),
+        (
+            br#"{"profile":"small","overrides":{"documents.lines":3,"accounts.program_names":13}}"#,
+            b"accounts.program_names",
+            13,
+            b"fleet.program_sources",
+            13,
+        ),
+        (
+            br#"{"profile":"small","overrides":{"documents.lines":3,"tasks.inbox_messages":13}}"#,
+            b"tasks.inbox_messages",
+            13,
+            b"people.inbox_recipients",
+            34,
+        ),
+        (
+            br#"{"profile":"small","overrides":{"documents.lines":3,"accounts.credentials":5}}"#,
+            b"accounts.credentials",
+            5,
+            b"fleet.grants",
+            9,
+        ),
+        (
+            br#"{"profile":"small","overrides":{"documents.lines":3,"authority.accounts":3}}"#,
+            b"accounts.credentials",
+            3,
+            b"authority.accounts",
+            4,
+        ),
+        (
+            br#"{"profile":"small","overrides":{"documents.lines":3,"accounts.accounts":65}}"#,
+            b"accounts.credentials",
+            3,
+            b"fleet.grants",
+            67,
+        ),
+        (
+            br#"{"profile":"small","overrides":{"documents.lines":3,"accounts.accounts":65,"fleet.grants":67,"authority.accounts":63}}"#,
+            b"accounts.credentials",
+            3,
+            b"authority.accounts",
+            64,
+        ),
+        (
+            br#"{"profile":"small","overrides":{"documents.lines":3,"accounts.credentials":9,"fleet.grants":13,"authority.accounts":8}}"#,
+            b"accounts.credentials",
+            9,
+            b"authority.accounts",
+            9,
+        ),
     ] {
         problem(
             bytes,
@@ -715,4 +831,33 @@ fn batch_past_the_schema_keeps_its_binding_count() {
             },
         },
     );
+}
+
+#[test]
+fn a_broken_relation_is_the_only_problem() {
+    problem(
+        br#"{"profile":"small","overrides":{"documents.lines":3,"tasks.charters":8,"authority.grants":6,"tasks.message_bytes":8192}}"#,
+        &[b"limits", b"overrides", b"authority.grants"],
+        What::Capacity { member: b"authority.grants", configured: 6, requires: b"notes.scopes", required: 9 },
+    );
+}
+
+#[test]
+fn zero_capacity_sides_keep_their_family_bound_problem() {
+    for (bytes, member, what) in [
+        (
+            br#"{"profile":"small","overrides":{"tasks.run_inbox":0}}"#.as_slice(),
+            b"tasks.run_inbox".as_slice(),
+            What::Override,
+        ),
+        (br#"{"profile":"small","overrides":{"tasks.inbox_bytes":0}}"#, b"tasks.inbox_bytes", What::Override),
+        (br#"{"profile":"small","overrides":{"tasks.inbox_messages":0}}"#, b"tasks.inbox_messages", What::Override),
+        (
+            br#"{"profile":"small","overrides":{"people.operations":0}}"#,
+            b"tasks.delegates",
+            What::Capacity { member: b"tasks.delegates", configured: 4, requires: b"people.operations", required: 5 },
+        ),
+    ] {
+        problem(bytes, &[b"limits", b"overrides", member], what);
+    }
 }

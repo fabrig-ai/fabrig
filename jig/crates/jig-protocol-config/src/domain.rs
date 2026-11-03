@@ -175,23 +175,68 @@ pub(crate) fn items(document: &Document, at: u32, max: u32, path: &Path, problem
         }
     }
 }
-/// The first failed task capacity dependency, after all scalar overrides.
+/// The first failed capacity dependency, after all scalar overrides (configuration.md, 6).
+#[rustfmt::skip]
 pub(crate) fn capacity(limits: &jig_domain_core::Limits) -> Option<(&'static [u8], What)> {
     let tasks = &limits.tasks;
     let people = &limits.people;
-    let inbox = u64::from(tasks.tasks).checked_mul(2).expect("two u32 counts fit u64");
-    let operations = u64::from(tasks.delegates).checked_add(1).expect("u32 count plus one fits u64");
-    let (member, configured, dependency, minimum): (&'static [u8], u32, &'static [u8], u64) =
-        if u64::from(people.inbox_tasks) < inbox {
-            (b"tasks.tasks", tasks.tasks, b"people.inbox_tasks", inbox)
-        } else if u64::from(people.operations) < operations {
-            (b"tasks.delegates", tasks.delegates, b"people.operations", operations)
-        } else if people.operations < tasks.project_goals {
-            (b"tasks.project_goals", tasks.project_goals, b"people.operations", u64::from(tasks.project_goals))
-        } else {
-            return None;
-        };
-    Some((member, What::Capacity { member, configured, requires: dependency, required: minimum }))
+    let authority = &limits.authority;
+    let fleet = &limits.fleet;
+    let accounts = &limits.accounts;
+    let inbox = u64::from(tasks.tasks).checked_mul(2);
+    let operations = u64::from(tasks.delegates).checked_add(1);
+    let scopes = u64::from(authority.grants).checked_add(3);
+    let hosts = u64::from(fleet.configured_workers).checked_add(1);
+    // jig_domain_core::inbox::waiting_capacity is private to the core.
+    let waiting = match u64::from(tasks.inbox_messages).checked_mul(2) {
+        Some(count) => match count.checked_add(u64::from(authority.roles)) {
+            Some(count) => count.checked_add(4),
+            None => None,
+        },
+        None => None,
+    };
+    let models = accounts.accounts.min(jig_domain_tasks::MODELS);
+    let grants = u64::from(accounts.credentials).checked_add(u64::from(models));
+    for (index, (member, configured, requires, dependency, required)) in [
+        (b"tasks.tasks".as_slice(), tasks.tasks, b"people.inbox_tasks".as_slice(), people.inbox_tasks, inbox),
+        (b"tasks.delegates", tasks.delegates, b"people.operations", people.operations, operations),
+        (b"tasks.project_goals", tasks.project_goals, b"people.operations", people.operations, Some(u64::from(tasks.project_goals))),
+        (b"people.operations", people.operations, b"tasks.tasks", tasks.tasks, Some(u64::from(people.operations))),
+        (b"authority.grants", authority.grants, b"notes.scopes", limits.notes.scopes, scopes),
+        (b"tasks.message_bytes", tasks.message_bytes, b"tasks.inbox_bytes", tasks.inbox_bytes, Some(u64::from(tasks.message_bytes))),
+        (b"tasks.run_inbox", tasks.run_inbox, b"tasks.inbox_messages", tasks.inbox_messages, Some(u64::from(tasks.run_inbox))),
+        (b"people.inbox_entries", people.inbox_entries, b"tasks.inbox_messages", tasks.inbox_messages, Some(u64::from(people.inbox_entries))),
+        (b"tasks.exemptions", tasks.exemptions, b"tasks.tasks", tasks.tasks, Some(u64::from(tasks.exemptions))),
+        (b"fleet.configured_workers", fleet.configured_workers, b"people.program_hosts", people.program_hosts, hosts),
+        (b"fleet.configured_workers", fleet.configured_workers, b"accounts.program_hosts", accounts.program_hosts, hosts),
+        (b"fleet.worker_name_bytes", fleet.worker_name_bytes, b"people.program_host_name_bytes", people.program_host_name_bytes, Some(u64::from(fleet.worker_name_bytes))),
+        (b"accounts.program_names", accounts.program_names, b"fleet.program_sources", fleet.program_sources, Some(u64::from(accounts.program_names))),
+        (b"authority.roles", authority.roles, b"documents.roles", limits.documents.roles, Some(u64::from(authority.roles))),
+        (b"tasks.inbox_messages", tasks.inbox_messages, b"people.inbox_recipients", people.inbox_recipients, waiting),
+        (b"accounts.credentials", accounts.credentials, b"fleet.grants", fleet.grants, grants),
+        (b"accounts.credentials", accounts.credentials, b"authority.accounts", authority.accounts, Some(u64::from(accounts.credentials.max(models)))),
+    ].into_iter().enumerate() {
+        // The first three dependencies are checked whatever their figures.
+        if let Some(problem) = relation(member, configured, requires, dependency, required, index >= 3) {
+            return Some(problem);
+        }
+    }
+    None
+}
+
+fn relation(
+    member: &'static [u8],
+    configured: u32,
+    requires: &'static [u8],
+    dependency: u32,
+    minimum: Option<u64>,
+    skip_zero: bool,
+) -> Option<(&'static [u8], What)> {
+    let minimum = minimum?;
+    if (skip_zero && (configured == 0 || dependency == 0)) || u64::from(dependency) >= minimum {
+        return None;
+    }
+    Some((member, What::Capacity { member, configured, requires, required: minimum }))
 }
 pub(crate) fn whole(engine: &crate::Engine, problems: &mut Problems) {
     if engine.limits.driver.client.url_bytes > jig_domain_accounts::ADDRESS {
