@@ -846,6 +846,8 @@ pub struct ChangeRow {
     pub producer_failure: Option<Box<[u8]>>,
     /// Its producing task's last successful result words (domain/forge.md, 8.2 step 7)
     pub report: Box<[u8]>,
+    /// The red landing this change repairs (temper/docs/design/domain/agent.md, 4.3.1).
+    pub repairs: Option<skein_forge::api::Commit>,
 }
 impl ChangeRow {
     pub(crate) fn terminal(&self) -> bool {
@@ -1967,6 +1969,22 @@ pub struct TierHeard {
     pub released: bool,
     pub cancelled: bool,
 }
+/// A goal branch a tier following goal branches follows (temper/docs/design/domain/after-landing.md, 3).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct TierGoal {
+    /// The goal task holding the branch.
+    pub goal: u64,
+    /// `temper/<root>/g<goal>`, as the hold names it.
+    pub branch: Box<[u8]>,
+    /// The branch's newest tip seen since the goal's hold made it.
+    pub tip: Option<skein_forge::api::Commit>,
+    /// The tip its last run tested.
+    pub ran: Option<skein_forge::api::Commit>,
+    /// What its last run failed again after its rerun; empty when green.
+    pub failing: temper_engine_domain_forge_tiers::Failures,
+    /// When its last run started.
+    pub started: Option<skein_lib::Time>,
+}
 /// Family 28's policy and task (temper/docs/design/domain/after-landing.md, 10).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct TierRow {
@@ -1989,6 +2007,9 @@ pub struct TierRow {
     /// The final part observation or cached receipt awaiting release and judgement.
     pub result: Option<Receipt>,
     pub received: bool,
+    pub goals: Box<[TierGoal]>,
+    pub goal: Option<u64>,
+    pub started: Option<skein_lib::Time>,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct TierLanding {
@@ -2045,4 +2066,5 @@ pub struct TierVerdict {
 pub struct TierRepair {
     pub run: u64,
     pub tip: skein_forge::api::Commit,
+    pub by: Option<skein_forge::api::Commit>,
 }

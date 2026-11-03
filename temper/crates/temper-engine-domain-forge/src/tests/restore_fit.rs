@@ -789,6 +789,9 @@ fn tier_row(number: u32) -> TierRow {
         held: None,
         result: None,
         received: false,
+        goals: Box::new([]),
+        goal: None,
+        started: None,
         repository: skein_forge::api::Repository { forge: 1, repository: number },
         tier: Box::from(b"tier".as_slice()),
         record: temper_engine_domain_forge_tiers::Record {

@@ -222,6 +222,9 @@ fn empty(repository: Repository, tier: Box<[u8]>) -> TierRow {
         held: None,
         result: None,
         received: false,
+        goals: Box::new([]),
+        goal: None,
+        started: None,
     }
 }
 fn save(row: &TierRow, out: &mut Queue<Request>) {
