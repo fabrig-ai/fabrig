@@ -15,18 +15,23 @@ python3 -I -B tools/citations/test_citations.py
   fails too, at the citing file: whoever removes or moves a section fixes its citations.
 - **The full run** (`--all`) lists every broken citation; the count is to stay at zero.
 - Both read committed trees through `git archive`: commit before checking.
-- **What is read:** every tree's `docs/`, every `AGENTS.md` and `CLAUDE.md`, and the comments of
-  `.rs .py .sh .toml .js` files. Paths may lead up any number of directories (`../../a.md`);
+- **What is read:** every tree's `docs/`, the root `DESIGN.md`, Markdown under `tools/`, every
+  `AGENTS.md` and `CLAUDE.md`, and the comments of `.rs .py .sh .toml .js` files.
+  Paths may lead up any number of directories (`../../a.md`);
   Markdown links may name any tracked file, with a query or anchor ignored when resolving it.
   Sections after a path include possessives followed by a comma or "section"
   ("`x.md`'s, 6.2", "`x.md`'s section 15") and parentheses ("`x.md` (section 10 is ...)").
   An "its" before a path inherits the nearest explicit tree owner in the same sentence.
   A list item's bold heading path ("- **`x.md`:**", "6. **x.md:**") is also a target for bare
   sections throughout the item. Strings in code are test data, not citations. Left out:
-  `docs/plan/`, fab's records of a change (a task spec cites what its task deletes), and
+  everything under a tree's `docs/plan/`, whatever its extension, fab's records of a change
+  (a task spec cites what its task deletes), and
   `docs/development/` files dated in their name, which describe the tree at their date.
-- **Not citations:** another repository's documents ("hearth's `domain/store.md`", "the agents
-  repository's `docs/design/fab.md`"), dates or counts ("`x.md`, 21 places") after a path,
+- **Another repository's documents:** hearth's ("hearth's `domain/store.md`") are left
+  unchecked. A citation of any other repository's document ("the probe repository's
+  `docs/a.md`") is refused: a finding (`outside`) even where a file of that name exists
+  here.
+- **Not citations:** dates or counts ("`x.md`, 21 places") after a path,
   a possessive followed by a bare number ("x.md's 32 bytes"), and RFC sections
   ("RFC 6749, section 5.1", "RFC 9500's `testRSA2048` (section 2.1)", with a code span or
   at most two words before the parenthesis). Bare sections after "its", "their", "that" or
