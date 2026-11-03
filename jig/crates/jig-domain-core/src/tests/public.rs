@@ -3,6 +3,9 @@
     clippy::disallowed_macros,
     reason = "unit tests snapshot the complete core state to check that public messages change nothing"
 )]
+#[path = "public/index.rs"]
+mod index;
+
 use crate::{Event, Held, PublicAnswer, PublicApplication, PublicRead, Request, step};
 use skein_lib::{Env, ReplyTo, Time, Token, Wall};
 

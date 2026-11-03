@@ -289,7 +289,7 @@ pub(crate) fn tag_people_part(
                 let party = super::dispatch::Party { request, person, project, role };
                 match *ask {
                     people::Ask::SetVisibility { public, .. } => {
-                        super::projects::visibility_request(core, &mut routed, party, public);
+                        super::projects::visibility_request(core, env, &mut routed, party, public);
                     }
                     people::Ask::Restore { revision, reason } => {
                         let mut restoring =
