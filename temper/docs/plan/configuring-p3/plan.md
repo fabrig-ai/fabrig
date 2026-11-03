@@ -13,7 +13,7 @@ brought up to date with each.
 | `configuring-agent` | 3, **the walk** (`walk = true`) | temper's `domain/agent.md` 8.1; `protocol/configuration.md` 13.4; `domain/testing.md` 6.4 | `agent-kinds`, `stock-configuring` (batch 3); `agent-stories`, `agent-ctl-story`, `help-stock` (batch 4) |
 | `pages` | 4 | temper's `protocol/documentation.md` 8 | `limits-jig`, `limits-pages`, `members-jig`, `configuration-pages` (batch 4) |
 
-17 tasks, all released in four batches, about 1,900 implementer-minutes. The cross-task shapes
+15 tasks, all released in four batches, about 1,785 implementer-minutes. The cross-task shapes
 are `notes/contracts.md` (C1 a charter's tools, C2 its brief room, C3 the limits' names, C4 the
 document's members); the standing rules, `notes/common.md`.
 
