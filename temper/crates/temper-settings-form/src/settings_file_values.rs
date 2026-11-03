@@ -239,9 +239,14 @@ pub(super) fn template(d: &Decoder, at: u32) -> Result<c::Template, Error> {
             b"label",
             b"grace",
             b"llm",
+            b"resources",
         ],
     )?;
     Ok(c::Template {
+        resources: match optional(&fields, b"resources") {
+            Some(at) => template_resources(d, at)?,
+            None => List::with_capacity(0),
+        },
         number: u32::try_from(d.number(field(&fields, b"number")?)?)
             .or(Err(error(b"template_number", b"integer bound")))?,
         name: d.document_text(field(&fields, b"name")?)?,
@@ -273,6 +278,34 @@ pub(super) fn template(d: &Decoder, at: u32) -> Result<c::Template, Error> {
             Some(llm_choice(d, field(&fields, b"llm")?)?)
         },
     })
+}
+fn template_resources(d: &Decoder, at: u32) -> Result<List<c::TemplateSymbol>, Error> {
+    let positions = d.array(at, d.limits.template_resources, b"template.resources")?;
+    let mut resources = List::with_capacity(positions.len());
+    for at in &positions {
+        let value = match template_symbol(d, *at) {
+            Ok(value) => value,
+            Err(why) => return Err(why.at(b"template.resources")),
+        };
+        if resources.as_slice().contains(&value) {
+            return Err(error(b"template.resources", b"duplicate pair"));
+        }
+        resources.push(value).expect("checked list length");
+    }
+    Ok(resources)
+}
+fn template_symbol(d: &Decoder, at: u32) -> Result<c::TemplateSymbol, Error> {
+    let fields = d.object(at, &[b"connector", b"symbol"])?;
+    let mut numbers = [0; 2];
+    for (index, member) in [b"connector".as_slice(), b"symbol"].iter().enumerate() {
+        let value = match d.number(field(&fields, member)?) {
+            Ok(value) => value,
+            Err(why) => return Err(why.named(member)),
+        };
+        *numbers.get_mut(index).expect("symbol member") =
+            u16::try_from(value).or(Err(error(member, b"integer bound")))?;
+    }
+    Ok(c::TemplateSymbol { connector: numbers[0], symbol: numbers[1] })
 }
 pub(super) fn setting_policy(d: &Decoder, at: u32) -> Result<c::SettingPolicy, Error> {
     let fields = d.object(

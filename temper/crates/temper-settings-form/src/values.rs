@@ -122,6 +122,19 @@ fn write_joined_name(name: &skein_lib::List<alloc::boxed::Box<[u8]>>, start: u32
 }
 pub fn encode_template(value: &c::Template, out: &mut Encoder) {
     out.object_start();
+    if !value.resources.is_empty() {
+        out.key(b"resources");
+        out.array_start();
+        for resource in &value.resources {
+            out.object_start();
+            out.key(b"connector");
+            out.unsigned(u64::from(resource.connector));
+            out.key(b"symbol");
+            out.unsigned(u64::from(resource.symbol));
+            out.object_end();
+        }
+        out.array_end();
+    }
     out.key(b"number");
     out.unsigned(u64::from(value.number));
     out.key(b"name");

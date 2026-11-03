@@ -85,6 +85,7 @@ fn named_value_text(setting: c::Setting, value: &c::SettingValue, limits: &Limit
     encode_named_value(setting, value, &mut write);
     out.put(&write.finish());
     out.put(b"\n");
+    template_resources_text(value, out);
 }
 pub fn encode_value(value: &c::SettingValue, out: &mut Encoder) {
     match value {
@@ -115,6 +116,18 @@ pub fn value_inline(value: &c::SettingValue, limits: &Limits, out: &mut Text) {
 fn value_text(value: &c::SettingValue, limits: &Limits, out: &mut Text) {
     value_inline(value, limits, out);
     out.put(b"\n");
+    template_resources_text(value, out);
+}
+fn template_resources_text(value: &c::SettingValue, out: &mut Text) {
+    if let c::SettingValue::Template(template) = value {
+        for resource in &template.resources {
+            out.put(b"connector ");
+            out.number(u64::from(resource.connector));
+            out.put(b" symbol ");
+            out.number(u64::from(resource.symbol));
+            out.put(b"\n");
+        }
+    }
 }
 pub fn proposal_text(proposal: c::ProposalKey, out: &mut Text) {
     let (tag, owner) = match proposal.proposer {

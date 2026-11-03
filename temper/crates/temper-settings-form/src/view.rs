@@ -417,6 +417,7 @@ pub struct TaskFlags {
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Template {
+    pub resources: List<TemplateSymbol>,
     pub number: u32,
     pub name: DocumentText,
     pub executor: TemplateExecutor,
@@ -430,6 +431,12 @@ pub struct Template {
     pub grace: Option<Duration>,
     /// The LLM choice the template gives its task; `None` is its charter's default.
     pub llm: Option<LlmChoice>,
+}
+/// A connector's resource named after the task (jig/docs/design/protocol/configuration.md, 3.3).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct TemplateSymbol {
+    pub connector: u16,
+    pub symbol: u16,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum TemplateBudget {
