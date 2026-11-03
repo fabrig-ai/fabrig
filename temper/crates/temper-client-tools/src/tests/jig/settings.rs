@@ -90,6 +90,15 @@ fn values() -> Vec<(c::Setting, c::SettingValue)> {
                 call_timeout: Duration::from_secs(3),
                 hosts: c::SettingHosts::Both,
                 spend: 900,
+                wake: c::WakePolicy {
+                    words: c::WakeRule::Immediate,
+                    notices: c::WakeRule::Immediate,
+                    news: c::WakeRule::Immediate,
+                    results: c::ResultsWake::LastOrFailure,
+                    questions: true,
+                    answers: true,
+                    timers: true,
+                },
             })),
         ),
         (

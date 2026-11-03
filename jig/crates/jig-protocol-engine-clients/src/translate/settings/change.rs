@@ -92,6 +92,30 @@ fn model(value: w::SettingModel) -> c::Model {
         effort: v.effort,
     }
 }
+fn wake_rule(value: w::WakeRule) -> t::WakeRule {
+    match value {
+        w::WakeRule::Never => t::WakeRule::Never,
+        w::WakeRule::Immediate => t::WakeRule::Immediate,
+        w::WakeRule::Batch(value) => t::WakeRule::Batch { count: value.count(), age: value.age() },
+        w::WakeRule::Paced(value) => t::WakeRule::Paced { span: value.span() },
+    }
+}
+fn wake(value: w::WakePolicy) -> t::WakePolicy {
+    let value = value.into_parts();
+    t::WakePolicy {
+        words: wake_rule(value.words),
+        notices: wake_rule(value.notices),
+        news: wake_rule(value.news),
+        results: match value.results {
+            w::ResultsWake::Never => t::ResultsWake::Never,
+            w::ResultsWake::Each => t::ResultsWake::Each,
+            w::ResultsWake::LastOrFailure => t::ResultsWake::LastOrFailure,
+        },
+        questions: value.questions,
+        answers: value.answers,
+        timers: value.timers,
+    }
+}
 fn charter(value: w::Charter) -> c::Charter {
     let resume = value.resume();
     let inspect = value.inspect();
@@ -111,8 +135,7 @@ fn charter(value: w::Charter) -> c::Charter {
             w::SettingHosts::Both => jig_domain_fleet::Kinds::Both,
         },
         spend: v.spend,
-        // A client's charter names no wake policy yet.
-        wake: jig_domain_tasks::WakePolicy::DEFAULT,
+        wake: wake(v.wake),
         policy: c::RunPolicy {
             instructions: v.instructions,
             waiting: v.waiting,

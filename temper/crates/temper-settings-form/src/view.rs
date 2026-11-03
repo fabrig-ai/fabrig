@@ -30,6 +30,7 @@ pub struct Charter {
     pub call_timeout: Duration,
     pub hosts: SettingHosts,
     pub spend: u64,
+    pub wake: WakePolicy,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct DocumentText {
@@ -512,4 +513,40 @@ impl Charter {
     pub fn agents(&self) -> bool {
         *self.switches.get(4).expect("charter switch")
     }
+}
+
+/// A charter's default activation policy (jig/docs/design/domain/tasks.md, 8.3).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct WakePolicy {
+    pub words: WakeRule,
+    pub notices: WakeRule,
+    pub news: WakeRule,
+    pub results: ResultsWake,
+    pub questions: bool,
+    pub answers: bool,
+    pub timers: bool,
+}
+impl WakePolicy {
+    pub const DEFAULT: Self = Self {
+        words: WakeRule::Immediate,
+        notices: WakeRule::Immediate,
+        news: WakeRule::Immediate,
+        results: ResultsWake::LastOrFailure,
+        questions: true,
+        answers: true,
+        timers: true,
+    };
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum WakeRule {
+    Never,
+    Immediate,
+    Batch { count: u32, age: Duration },
+    Paced { span: Duration },
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum ResultsWake {
+    Never,
+    Each,
+    LastOrFailure,
 }
