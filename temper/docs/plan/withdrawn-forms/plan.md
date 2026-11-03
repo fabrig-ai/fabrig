@@ -55,13 +55,30 @@ its tree; every task updates its tree's design text and status files (`notes/com
      `Cap`'s `account_id` (tag 20), both last, so nothing renumbers; every half and reader drops
      them, jig's `jig-test-service` arm and temper's `temper-service` and `temper-worker-domain`
      arms included.
-5. **skein-routes** (skein): to come.
+5. **skein-routes** (skein, with smith's and jig's last lines; `skein/docs/design/llm.md, 4.7`),
+   slice 5: two tasks, in order, since they share skein-llm's types, client and worlds.
+   - `tasks/skein-anthropic-bearer.md`, high, ~120 minutes, needs `smith-agent-llm` (smith then
+     installs a key alone on Anthropic and names no identity profile): a bearer on Anthropic is
+     refused at admission as `Invalid`; the OAuth beta, `Credential::anthropic`,
+     `anthropic::identity` and the unified plan-limit rule go; the Anthropic recordings stay as
+     grammar; the live suite's Anthropic tests take a key file. Runs beside `smith-channel-v6`.
+   - `tasks/skein-codex-route.md`, high, ~240 minutes, needs `skein-anthropic-bearer` and
+     `smith-channel-v6`: `Endpoint::codex()`, `Provider::OpenAiCodex`, the `codex` limits,
+     replay tag 1 (refused, 2 and 3 unmoved), the account id (`Credential`, `CredentialLimits`,
+     `Cap::AccountId`), `openai::identity` and the Codex recordings go; their coverage becomes
+     synthetic, labelled so; the shared worlds move to the public route; section 4.6 is deleted,
+     its number unused; smith's last arms and fields on these items and jig's one line go with it.
+6. **skein-live** (skein; `skein/docs/design/llm.md, 5`), slice 6: **a question** (`live-logins`).
+   The live suite runs only the withdrawn routes; which logins it uses next is the user's. The
+   skein tasks build the recommended default (the ChatGPT login's token on the public route, an
+   Anthropic key file), so nothing waits; another answer is a small later plan.
 
 ## Critical path
 
-As it stands: `smith-product` (~180 minutes) beside `jig-dialects` (~90) and `temper-configs`
-(~30, done), then smith's channel at v6, then skein's routes. Parts 1, 2 and 3 share no code and
-run side by side; part 4 needs all three; part 5 needs part 4.
+`smith-product` (~180 minutes; `jig-dialects`, ~90, beside it; `temper-configs` landed) →
+`smith-agent-llm` (~180) → `smith-channel-v6` (~150) → `skein-codex-route` (~240): about 750
+implementer-minutes, up to twice that with the buffer. `skein-anthropic-bearer` (~120) runs beside
+`smith-channel-v6` and is off the path.
 
 ## Overlaps
 
@@ -77,6 +94,11 @@ run side by side; part 4 needs all three; part 5 needs part 4.
   since the fixtures are the decision's.
 - `smith-product` touches no file an open draft beside this one changes; sign-in-wait's
   `credentials/product.rs` change is on main.
+- Parts 4 and 5 touch only smith, skein and the reader lines listed in their specs; no draft beside
+  this one changes smith's channel, agent or LLM crates or skein-llm. Within the plan, files shared
+  between tasks are always ordered by `needs` (`smith-agent-llm` and `smith-channel-v6` share
+  `agent-shell/src/config/endpoints.rs` and `agent-process/src/lib.rs`; the skein tasks share
+  skein-llm's types, client and worlds).
 
 ## Calls made
 
@@ -98,3 +120,22 @@ run side by side; part 4 needs all three; part 5 needs part 4.
 - **Status sentences that name several parts' gaps** (smith's `STATUS.md`, `agent.status.md`,
   skein's `llm.status.md`) are left to the part that removes the whole entry, so that parallel
   branches never edit one sentence: jig's task closes only jig's own status.
+- **Seven tasks for the decision's five:** each of the five is a part. smith's agent and channel and
+  skein's routes each take two ordered branches, because one branch would hold 100 or more files.
+  Each half compiles and passes alone, in the order the surveys found: smith's agent before its
+  channel (its worlds grant Codex only through the withdrawn grant), Anthropic's bearer before the
+  Codex route (they share skein-llm's types and worlds).
+- **Arms that cannot leave early:** `wildcard_enum_match_arm` is denied, so smith's exhaustive
+  arms on skein's `Provider::OpenAiCodex` and `Cap::AccountId`, and its `CredentialLimits.account_id`
+  fields, stay inert through part 4 and go in `skein-codex-route`, the branch that removes them
+  (the producer carries its readers' lines).
+- **Stored data starts afresh, as decided:** no format version moves but the channel's. A stored
+  dialect-1 transcript is carried over by compaction, the transcript's existing rule
+  (`transcript.md`, 4), not migrated; a tag-1 replay is refused; skein's replay tags 2 and 3 are
+  never renumbered.
+- **Reserved header names stay reserved** (`session-id`, `thread-id`, `chatgpt-account-id`), so a
+  configured endpoint cannot rebuild the Codex route; gzip stays as a mechanism with no shipped
+  endpoint using it; the decoder constants measured from Codex captures keep their values,
+  written out and pinned by synthetic tests.
+- **One question, `live-logins`,** the user's (sign-ins and credentials): it holds only the
+  `skein-live` part, which has no tasks.
