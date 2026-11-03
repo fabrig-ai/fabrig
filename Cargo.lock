@@ -4761,6 +4761,52 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-playground"
+version = "0.0.0"
+dependencies = [
+ "jig-channel-world",
+ "jig-domain-authority",
+ "jig-domain-core",
+ "jig-domain-fleet",
+ "jig-domain-host",
+ "jig-domain-people",
+ "jig-domain-tasks",
+ "jig-protocol-config",
+ "serde_json",
+ "skein-channel",
+ "skein-fake-forge-domain",
+ "skein-fake-forge-protocol",
+ "skein-fake-llm-domain",
+ "skein-fake-llm-protocol",
+ "skein-fake-peers",
+ "skein-forge",
+ "skein-forge-connection",
+ "skein-http",
+ "skein-io",
+ "skein-json",
+ "skein-lib",
+ "skein-llm",
+ "skein-llm-connection",
+ "skein-llm-world",
+ "smith-agent-process-world",
+ "smith-agent-service",
+ "smith-agent-shell",
+ "smith-domain",
+ "smith-host-protocol",
+ "smith-local-service",
+ "smith-protocol-channel",
+ "smith-protocol-llm",
+ "smith-protocol-machine",
+ "smith-protocol-translate",
+ "temper-engine-domain",
+ "temper-engine-domain-forge",
+ "temper-engine-smith",
+ "temper-fake-git-hosted",
+ "temper-service",
+ "temper-worker-protocol-git",
+]
+
+[[package]]
 name = "temper-protocol-records"
 version = "0.0.0"
 dependencies = [
