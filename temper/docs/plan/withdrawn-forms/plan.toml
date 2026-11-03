@@ -23,3 +23,29 @@ id = 1
 story = "temper's shipped and test agent configurations name no identity profile, and its credentials no account id: smith and skein can drop both without touching temper"
 parts = ["temper-configs"]
 walk = false
+
+[[part]]
+id = "jig-dialects"
+title = "jig: an endpoint's dialect is 2 or 3, refused otherwise; jig's fixtures write 3"
+mode = "direct"
+needs = []
+design = "jig/docs/design/protocol/llm.md, 4"
+
+[[slice]]
+id = 2
+story = "a jig configuration naming dialect 0, 1 or 4 is refused at the endpoint's dialect, and no jig fixture or world writes the withdrawn Codex dialect"
+parts = ["jig-dialects"]
+walk = false
+
+[[part]]
+id = "smith-product"
+title = "smith: the product without the codex preset, the identity, the account-id claim or the withdrawn grant"
+mode = "direct"
+needs = []
+design = "smith/docs/design/shell.md, 5.3"
+
+[[slice]]
+id = 3
+story = "smith's product runs on the openai and anthropic presets alone: settings naming the codex preset or an identity are refused with use openai/<model>, and the local service lends a bearer or a key, never an account id"
+parts = ["smith-product"]
+walk = false
