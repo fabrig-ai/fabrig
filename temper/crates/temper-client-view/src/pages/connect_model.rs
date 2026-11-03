@@ -133,6 +133,101 @@ fn choice(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, wa
     b.close();
     b.close();
 }
+/// The welcome's Model step: a card for each plan its card names, `openai`'s
+/// and `anthropic`'s, its sign-in or subscription first and a key, where its
+/// provider takes one, a quiet link beside it; no other provider's ways
+/// (`temper/docs/design/client/README.md`, 3.5).
+fn welcome_choices(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, ways: &skein_lib::List<Way>) {
+    let Some(me) = accounts::current_me(root.client()) else { return };
+    let mut shown = false;
+    b.open(Role::Slot);
+    b.style(crate::look::MODEL_CHOICES);
+    for offer in &me.providers {
+        if offer.name.bytes() != b"openai" && offer.name.bytes() != b"anthropic" {
+            continue;
+        }
+        let mut main = None;
+        let mut key = None;
+        for way in ways {
+            if way.provider() != offer.provider {
+                continue;
+            }
+            match way {
+                Way::Key { .. } => key = key.or(Some(*way)),
+                Way::SignIn { .. } | Way::Program { .. } => main = main.or(Some(*way)),
+            }
+        }
+        if main.is_none() && key.is_none() {
+            continue;
+        }
+        shown = true;
+        let (brand, plan) = names(me, offer_way(main, key));
+        flow::choice_card(b, &crate::choice::shown(plan, w));
+        let name = [Hole::Name(crate::choice::shown(plan, w))];
+        let description = match main {
+            Some(Way::Program { .. }) => w.say(Word::WelcomeModelSubscription, &name),
+            Some(Way::SignIn { .. } | Way::Key { .. }) => w.say(Word::WelcomeModelPlan, &name),
+            None => named(w, W::KeyDescription, brand),
+        };
+        crate::cards::text(b, Role::Paragraph, &description);
+        if main.is_some() && key.is_some() {
+            let note = w.say(Word::WelcomeModelKeyToo, &[Hole::Name(crate::choice::shown(brand, w))]);
+            b.open(Role::Paragraph);
+            b.style(crate::look::FLOW_MUTED);
+            b.name(&note);
+            b.text(Run::Plain, &note);
+            b.close();
+        }
+        b.open(Role::Slot);
+        b.style(crate::look::FLOW_ACTIONS);
+        if let Some(way) = main {
+            let label = label(me, way, ways, w);
+            let meaning = match way {
+                Way::SignIn { .. } => Meaning::Model(Act::SignIn { name: root.pages().account_name(), way }),
+                Way::Key { .. } | Way::Program { .. } => {
+                    Meaning::Go(model::address(root.pages().address(), Some(model::model_way(way))))
+                }
+            };
+            if let Some(to) = bindings.insert(meaning) {
+                flow::control(
+                    b,
+                    match way {
+                        Way::SignIn { .. } => Control::PrimaryButton { name: &label, to },
+                        Way::Key { .. } | Way::Program { .. } => Control::PrimaryLink { name: &label, to },
+                    },
+                );
+            }
+        }
+        if let Some(way) = key {
+            let word = match brand.first() {
+                Some(b'a' | b'e' | b'i' | b'o' | b'u' | b'A' | b'E' | b'I' | b'O' | b'U') => W::KeyWayAn,
+                _ => W::KeyWay,
+            };
+            let label = named(w, word, brand);
+            if let Some(to) =
+                bindings.insert(Meaning::Go(model::address(root.pages().address(), Some(model::model_way(way)))))
+            {
+                flow::control(
+                    b,
+                    if main.is_some() {
+                        Control::Link { name: &label, to }
+                    } else {
+                        Control::SecondaryLink { name: &label, to }
+                    },
+                );
+            }
+        }
+        b.close();
+        b.close();
+    }
+    b.close();
+    if !shown {
+        choices(b, root, w, bindings, ways);
+    }
+}
+fn offer_way(main: Option<Way>, key: Option<Way>) -> Way {
+    main.or(key).expect("a card has a way")
+}
 fn choices(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, ways: &skein_lib::List<Way>) {
     b.open(Role::Slot);
     b.style(crate::look::MODEL_CHOICES);
@@ -311,7 +406,11 @@ fn choose_body(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Binding
             }
         }
     }
-    choices(b, root, w, bindings, &ways);
+    if welcome {
+        welcome_choices(b, root, w, bindings, &ways);
+    } else {
+        choices(b, root, w, bindings, &ways);
+    }
     super::accounts::outcome(b, root, w, bindings, &page.request, text_per_node);
     if !welcome {
         b.close();
@@ -495,7 +594,17 @@ fn ready_body(
     }
     b.open(Role::Slot);
     b.style(crate::look::MODEL_ACTIONS);
-    go(b, bindings, &say(w, W::StartChat), Address::Chats { filter: ChatsFilter::All, start: false }, true);
+    if welcome(root) {
+        go(
+            b,
+            bindings,
+            &w.say(Word::WelcomeContinue, &[]),
+            Address::Welcome { step: temper_client_domain::Step::Ready },
+            true,
+        );
+    } else {
+        go(b, bindings, &say(w, W::StartChat), Address::Chats { filter: ChatsFilter::All, start: false }, true);
+    }
     manage_usage(b, root, w, way);
     if model::model_way(way).kind == WayKind::SignIn {
         button(
