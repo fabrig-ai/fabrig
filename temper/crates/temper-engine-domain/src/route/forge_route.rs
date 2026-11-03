@@ -2107,6 +2107,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 effect_account: None,
                 producer_failure: None,
                 report: Box::new([]),
+                repairs: None,
             },
         }));
         let branch_name =

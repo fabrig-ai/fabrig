@@ -189,6 +189,12 @@ pub(super) fn encode(row: &d::TierRow) -> w::TierRow {
                 None => None,
             },
             received: row.received,
+            goals: encode_goals(&row.goals),
+            goal: row.goal,
+            started: match row.started {
+                Some(at) => Some(at.as_nanos()),
+                None => None,
+            },
         },
     )
     .expect(FITS)
@@ -212,6 +218,9 @@ pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
         held,
         result,
         received,
+        goals,
+        goal,
+        started,
     } = row.into_parts();
     if tier.is_empty() {
         return Err(Undecodable);
@@ -261,6 +270,12 @@ pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
             None => None,
         },
         received,
+        goals: decode_goals(goals)?,
+        goal,
+        started: match started {
+            Some(at) => Some(Time::from_nanos(at)),
+            None => None,
+        },
         record,
     })
 }
@@ -485,4 +500,61 @@ fn decode_record(record: w::TierRecord) -> Result<p::Record, Undecodable> {
         flakes: values.into_boxed(),
         run,
     })
+}
+
+#[expect(clippy::manual_map, reason = "step translations use explicit options")]
+fn encode_goals(goals: &[d::TierGoal]) -> List<w::TierGoal> {
+    let mut values = List::with_capacity(u32::try_from(goals.len()).expect(FITS));
+    for goal in goals {
+        values
+            .push(
+                w::TierGoal::new(
+                    &w::CEILINGS,
+                    w::TierGoalParts {
+                        goal: goal.goal,
+                        branch: goal.branch.clone(),
+                        tip: goal.tip,
+                        ran: goal.ran,
+                        failing: verification::encode_failures(&goal.failing),
+                        started: match goal.started {
+                            Some(at) => Some(at.as_nanos()),
+                            None => None,
+                        },
+                    },
+                )
+                .expect(FITS),
+            )
+            .expect(FITS);
+    }
+    values
+}
+#[expect(clippy::manual_map, reason = "step translations use explicit options")]
+fn decode_goals(goals: List<w::TierGoal>) -> Result<Box<[d::TierGoal]>, Undecodable> {
+    let mut values = List::with_capacity(goals.len());
+    for goal in goals.into_boxed() {
+        let w::TierGoalParts { goal, branch, tip, ran, failing, started } = goal.into_parts();
+        if branch.is_empty() {
+            return Err(Undecodable);
+        }
+        if let Some(previous) = values.as_slice().last() {
+            let previous: &d::TierGoal = previous;
+            if previous.goal >= goal {
+                return Err(Undecodable);
+            }
+        }
+        values
+            .push(d::TierGoal {
+                goal,
+                branch,
+                tip,
+                ran,
+                failing: verification::decode_failures(failing)?,
+                started: match started {
+                    Some(at) => Some(Time::from_nanos(at)),
+                    None => None,
+                },
+            })
+            .expect(FITS);
+    }
+    Ok(values.into_boxed())
 }
