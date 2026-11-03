@@ -1054,6 +1054,8 @@ pub enum Stored {
         address: Box<[u8]>,
         subject: Box<[u8]>,
     },
+    /// The forge's kinds (temper/docs/design/protocol/store.md, 2; temper/docs/design/domain/forge.md, 8.9).
+    Setting(crate::settings::SettingRow),
     /// A sent write not yet settled (domain/forge.md, 6; protocol/store.md, 2).
     Flight {
         task: u64,
@@ -1084,6 +1086,7 @@ pub struct ProposedEffect {
 }
 
 /// Stable store key of a connector record.
+/// The settings family is temper/docs/design/protocol/store.md, 2; temper/docs/design/domain/forge.md, 8.9.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Key {
     Call(NamedCall),
@@ -1104,6 +1107,7 @@ pub enum Key {
     Application(u64),
     Writer(u16),
     Binding(Box<[u8]>),
+    Setting(crate::settings::SettingKey),
     Flight { task: u64, entry: u64 },
     Landing(u64),
     Receipt(ReceiptKey),

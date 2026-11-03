@@ -208,7 +208,6 @@ record ForgeWriter { forge: u16 author: u64 }
 # Family 18: first Google subject for a folded member address (protocol/sign-in.md, 5).
 record Binding { address: bytes 254 subject: bytes 255 }
 # Family 21: writes with a committed attempt (protocol/store.md, 2).
-# Key family 20 is reserved for Setting, still design-only. Value tags are codec-local.
 record Flight { task: u64 entry: u64 }
 # Families 23 and 24: landing state and receipts (domain/landing.md, 12).
 record LandingAt { at: u64 }
@@ -280,5 +279,17 @@ enum ResetStep { project, forge, account }
 record Resetting { step: ResetStep }
 enum PlaygroundState { starting, running, resetting: Resetting }
 record Playground { state: PlaygroundState forge: u16 project: option u32 account: option u32 }
-enum Value { call: Call, proposed_effect: ProposedEffect, repository: Adopted, hold: Hold, names: Names, subscription: Subscriber, branch_head: BranchHead, pull_state: PullState, ci: CiState, landed: Landed, entry: EntryRow, client: ClientRow, change: boxed ChangeRow, issue: boxed IssueRow, release: ReleaseRow, application: Application, writer: ForgeWriter, binding: Binding, flight: Flight, landing: LandingRow, receipt: ReceiptRow, forge: Forge, forge_number: ForgeNumber, playground: Playground, tier: boxed TierRow, verification: Verification }
+# Family 20: the forge's kinds (temper/docs/design/protocol/store.md, 2).
+enum PatternLast { exact: Segment, open: Segment }
+record RulePattern { segments: bytes 65536 pieces Segment last: PatternLast }
+record RuleGate { number: u32 blocking: bool freshness: Freshness }
+record RuleApproval { role: u32 people: u32 freshness: Freshness }
+record LandingRule { pattern: RulePattern enforce: bool ci: bool up_to_date: bool gates: list 64 RuleGate approvals: list 64 RuleApproval }
+record CharterValue { number: u32 }
+enum SettingValue { rule: LandingRule, charter: CharterValue }
+record SizedValue { value: SettingValue size: u32 }
+enum SettingEdit { set: SizedValue, remove, reset }
+enum SettingSlot { default, change, proposal: Number }
+record SettingRow { kind: u32 scope: u32 number: u32 slot: SettingSlot edit: SettingEdit }
+enum Value { call: Call, proposed_effect: ProposedEffect, repository: Adopted, hold: Hold, names: Names, subscription: Subscriber, branch_head: BranchHead, pull_state: PullState, ci: CiState, landed: Landed, entry: EntryRow, client: ClientRow, change: boxed ChangeRow, issue: boxed IssueRow, release: ReleaseRow, application: Application, writer: ForgeWriter, binding: Binding, flight: Flight, landing: LandingRow, receipt: ReceiptRow, forge: Forge, forge_number: ForgeNumber, playground: Playground, tier: boxed TierRow, verification: Verification, setting: SettingRow }
 versioned record Row { value: Value }

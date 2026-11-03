@@ -258,6 +258,7 @@ pub fn stored_key(row: &Stored) -> Key {
         Stored::Release(row) => Key::Release(row.task),
         Stored::Application { token, .. } => Key::Application(*token),
         Stored::Writer(row) => Key::Writer(row.forge),
+        Stored::Setting(row) => Key::Setting(row.key),
         Stored::Binding { address, .. } => Key::Binding(address.clone()),
         Stored::Flight { task, entry } => Key::Flight { task: *task, entry: *entry },
     }
@@ -326,6 +327,33 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             }
             Some(held)
         }
+        Stored::Setting(row) => match &row.edit {
+            settings::Edit::Set(settings::SizedValue { value: settings::Value::Rule(rule), .. }) => {
+                let mut held = u64::try_from(rule.pattern.segments.len())
+                    .ok()?
+                    .checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?;
+                for segment in &rule.pattern.segments {
+                    held = held.checked_add(bytes(segment)?)?;
+                }
+                let last = match &rule.pattern.last {
+                    GateLast::Exact(last) | GateLast::Open(last) => last,
+                };
+                held.checked_add(bytes(last)?)?
+                    .checked_add(
+                        u64::try_from(rule.gates.len())
+                            .ok()?
+                            .checked_mul(u64::try_from(size_of::<settings::RuleGate>()).ok()?)?,
+                    )?
+                    .checked_add(
+                        u64::try_from(rule.approvals.len())
+                            .ok()?
+                            .checked_mul(u64::try_from(size_of::<settings::RuleApproval>()).ok()?)?,
+                    )
+            }
+            settings::Edit::Set(settings::SizedValue { value: settings::Value::Charter(_), .. })
+            | settings::Edit::Remove
+            | settings::Edit::Reset => Some(0),
+        },
         Stored::Tier(row) => tiers::row_bytes(row),
         Stored::Verification(row) => verification::row_bytes(row),
         Stored::Landing(row) => landing::row_bytes(row),
