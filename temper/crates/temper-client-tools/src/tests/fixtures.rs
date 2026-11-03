@@ -114,6 +114,19 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
         "--key",
         "new-admin",
     ],
+    &[
+        "forge",
+        "connect",
+        "forgejo",
+        "tokens",
+        "--api",
+        "forge.invalid:3000",
+        "--git",
+        "http://forge.invalid:3000",
+        "--key",
+        "new-tokens",
+    ],
+    &["forge", "replace", "3", "tokens", "--key", "replace"],
     &["forge", "remove", "3"],
     &["playground", "end"],
     &["forge", "install", "3"],
@@ -586,7 +599,10 @@ impl Harness {
                 | 9..=15
                 | crate::jig::rows::TASK_DECIDE_AT
                 | 31
-                | 42..=45
+                | crate::jig::rows::SETTINGS_AT
+                | crate::jig::rows::SETTING_AT
+                | crate::jig::rows::REVISION_AT
+                | crate::jig::rows::REVISIONS_AT
                 | crate::jig::rows::PROPOSAL_AT
                 | crate::jig::rows::TASK_TEXT_AT
                 | crate::jig::rows::PROJECT_SHOW_AT => SINGLE_READ,
@@ -744,7 +760,7 @@ pub(crate) const UNKNOWN_ASKER: client::Asker = client::Asker(999);
 /// A stable stored request's engine key, unrelated to its client call prefix.
 const KEPT_KEY: skein_lib::RequestKey = [9; 16];
 /// One slot per row and form; fewer omits decide's second form.
-pub(super) const TOOL_FORMS: u32 = 68;
+pub(super) const TOOL_FORMS: u32 = 70;
 /// Exactly one example exercises each row and form; zero misses it entirely.
 pub(super) const EXAMPLES_PER_FORM: u32 = 1;
 /// One missing byte exercises the first refused destination; zero would fit.

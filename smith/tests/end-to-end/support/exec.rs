@@ -25,10 +25,10 @@ pub enum Reply {
 pub fn fake_provider_settings(scratch: &Scratch) -> Vec<u8> {
     let clock = Clock::new();
     let token = world::login_at(clock.now().wall, false);
-    let document = serde_json::json!({"tokens": {"access_token": std::str::from_utf8(&token).expect("scratch token text"), "account_id": "acc", "refresh_token": "UNISSUED_NEVER_COPY"}});
+    let document = serde_json::json!({"tokens": {"access_token": std::str::from_utf8(&token).expect("scratch token text"), "refresh_token": "UNISSUED_NEVER_COPY"}});
     std::fs::write(scratch.path().join("auth.json"), serde_json::to_vec(&document).expect("scratch login encoding"))
         .expect("scratch login file");
-    format!("credentials='{}'\nmodel='codex/gpt-6-luna'\neffort='low'\ninstructions='@local-shell Assist'\n[accounts.codex]\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n[endpoints.codex]\naddress='{}:34443'\nserver_name='skein.test'\ntrust.system=false\ntrust.der=['{}']\n", scratch.path().join("credentials").display(), smith_real_world::loopback(), scratch.path().join("root.der").display()).into_bytes()
+    format!("credentials='{}'\nmodel='openai/gpt-6-luna'\neffort='low'\ninstructions='@local-shell Assist'\n[accounts.openai]\nprovider='openai'\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n[endpoints.openai]\naddress='{}:34443'\nserver_name='skein.test'\ntrust.system=false\ntrust.der=['{}']\n", scratch.path().join("credentials").display(), smith_real_world::loopback(), scratch.path().join("root.der").display()).into_bytes()
 }
 
 #[must_use]
@@ -111,17 +111,15 @@ pub fn chat_signed_in(scratch: &Scratch, commands: Vec<Action>) -> Ran {
 fn credential(scratch: &Scratch) -> skein_llm::Credential {
     let login = std::fs::read(scratch.path().join("auth.json")).expect("scratch login");
     let document: serde_json::Value = serde_json::from_slice(&login).expect("scratch login document");
-    skein_llm::Credential {
-        value: document
+    skein_llm::Credential::bearer(
+        document
             .get("tokens")
             .and_then(|tokens| tokens.get("access_token"))
             .and_then(serde_json::Value::as_str)
             .expect("scratch access token")
             .as_bytes()
             .into(),
-        account_id: b"acc".as_slice().into(),
-        scheme: skein_llm::Scheme::Bearer,
-    }
+    )
 }
 
 fn provider(scratch: &Scratch, reply: Reply) -> skein_fake_peers::llm::Peer {
@@ -129,7 +127,7 @@ fn provider(scratch: &Scratch, reply: Reply) -> skein_fake_peers::llm::Peer {
     match reply {
         Reply::Wait => world::headless_provider(true, credential),
         Reply::Accepted => world::headless_provider(false, credential),
-        Reply::Filtered => smith_agent_process_world::fake::configured_transport(
+        Reply::Filtered => smith_agent_process_world::fake::configured_openai(
             Box::new([skein_fake_llm_domain::api::Script {
                 cue: b"@local-shell".as_slice().into(),
                 turns: Box::new([skein_fake_llm_domain::api::Turn {

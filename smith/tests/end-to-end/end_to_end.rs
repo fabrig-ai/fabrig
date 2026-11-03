@@ -49,12 +49,13 @@ fn end_of_input_at_the_terminal_lets_the_run_answer_then_exits_0() {
     let scratch = Scratch::new();
     let mut settings: toml::Value =
         toml::from_str(std::str::from_utf8(&support::fake_provider_settings(&scratch)).unwrap()).unwrap();
-    settings["accounts"]["codex"] = toml::Value::try_from(serde_json::json!({"source":"key"})).unwrap();
-    settings["endpoints"]["codex"].as_table_mut().unwrap().insert("preset".into(), "openai".into());
+    settings["accounts"]["openai"] =
+        toml::Value::try_from(serde_json::json!({"provider":"openai", "source":"key"})).unwrap();
+    settings["endpoints"]["openai"].as_table_mut().unwrap().insert("preset".into(), "openai".into());
     let _file = support::user_layer(&scratch, toml::to_string(&settings).unwrap().as_bytes());
     let token: serde_json::Value =
         serde_json::from_slice(&std::fs::read(scratch.path().join("auth.json")).unwrap()).unwrap();
-    let key = scratch.path().join("credentials/keys/codex");
+    let key = scratch.path().join("credentials/keys/openai");
     std::fs::create_dir_all(key.parent().unwrap()).unwrap();
     std::fs::write(&key, token["tokens"]["access_token"].as_str().unwrap()).unwrap();
     std::fs::set_permissions(&key, std::fs::Permissions::from_mode(0o600)).unwrap();
@@ -77,7 +78,7 @@ fn a_window_size_change_reaches_the_status_line() {
         vec![
             Action::Wait(b"> ".as_slice().into()),
             Action::Send(b"Ask first\n".as_slice().into()),
-            Action::Wait(b"codex/gpt-6-luna; API key: in ".as_slice().into()),
+            Action::Wait(b"openai/gpt-6-luna; API key: in ".as_slice().into()),
             Action::Wait(b"\r\nFinishing now\r\n".as_slice().into()),
             Action::Send(b"Again\n".as_slice().into()),
             Action::Eof,
@@ -89,7 +90,7 @@ fn a_window_size_change_reaches_the_status_line() {
         .stdout
         .split(|byte| *byte == b'\n')
         .map(|line| line.strip_suffix(b"\r").unwrap_or(line))
-        .filter(|line| line.starts_with(b"codex/gpt-6-luna;"))
+        .filter(|line| line.starts_with(b"openai/gpt-6-luna;"))
         .map(<[u8]>::len)
         .collect();
     assert_eq!(widths, [80, 20]);
@@ -145,7 +146,8 @@ fn smith_on_a_terminal_signs_in_and_commits_in_place() {
         toml::from_str(std::str::from_utf8(&support::fake_provider_settings(&scratch)).unwrap()).unwrap();
     let host = smith_real_world::loopback();
     let redirect = smith_real_world::redirect_port();
-    settings["accounts"]["codex"] = toml::Value::try_from(serde_json::json!({
+    settings["endpoints"]["openai"].as_table_mut().unwrap().insert("account".into(), "openai".into());
+    settings["accounts"]["openai"] = toml::Value::try_from(serde_json::json!({
         "source":"sign_in", "client_id":"client", "authorization_url":format!("http://{host}:34444/authorize"),
         "token_url":format!("http://{host}:34444/token"), "redirect_uri":format!("http://127.0.0.1:{redirect}/callback"),
         "scope":"read", "token_format":"form"
@@ -173,7 +175,7 @@ fn smith_on_a_terminal_signs_in_and_commits_in_place() {
     );
     assert_eq!(ran.code, 0, "{}", String::from_utf8_lossy(&ran.stderr));
     assert!(String::from_utf8_lossy(&ran.stdout).contains(&format!("Sign in: http://{host}:34444/authorize")));
-    assert!(scratch.path().join("credentials/tokens/codex").is_file());
+    assert!(scratch.path().join("credentials/tokens/openai").is_file());
     let checkout = scratch.checkout();
     let after = checkout.head().unwrap();
     assert_ne!(before, after);
@@ -189,6 +191,28 @@ fn an_agent_configuration_metadata_refusal_reaches_stderr() {
 }
 
 #[test]
+fn withdrawn_endpoint_settings_exit_two_at_their_key() {
+    let scratch = Scratch::new();
+    for (text, key, line) in [
+        ("[endpoints.work]\nidentity='claude-code'\n", "endpoints.work.identity", 2_u32),
+        ("[endpoints.work]\ndialect='codex'\n", "endpoints.work.dialect", 2),
+        ("[endpoints.work]\npreset='codex'\n", "endpoints.work.preset", 2),
+        ("[endpoints.codex]\n", "endpoints.codex", 1),
+        ("model='codex/gpt-6-luna'\n", "model", 1),
+        ("[models.'codex/gpt-6-luna']\nwindow=272000\n", "models.codex/gpt-6-luna", 1),
+    ] {
+        let path = support::user_layer(&scratch, text.as_bytes());
+        let ran = support::smith(&scratch, &["check"], b"");
+        let diagnostic = String::from_utf8_lossy(&ran.stderr);
+        assert_eq!(ran.code, 2, "{key}: {diagnostic}");
+        assert!(
+            diagnostic.contains(&format!("{}:{line}: {key}: use `openai/<model>`", path.display())),
+            "{key}: {diagnostic}"
+        );
+    }
+}
+
+#[test]
 fn a_product_settings_metadata_refusal_reaches_stderr() {
     let scratch = Scratch::new();
     let config = scratch.path().join("config/smith/config.toml");
@@ -200,7 +224,7 @@ fn a_product_settings_metadata_refusal_reaches_stderr() {
 fn agent_document(address: &str) -> serde_json::Value {
     serde_json::json!({
         "profile":{"name":"standard","declared":{"memory":1_099_511_627_776_u64,"conversations":1,"calls_per_response":2,"tool_payload":256,"read_window":256},"policy":{"group_stop":10}},
-        "endpoints":[{"name":"fake","number":0,"dialect":1,"account":0,"provider":"codex","address":address,"transport":"plaintext","connect":1000,"handshake":1000,
+        "endpoints":[{"name":"fake","number":0,"dialect":3,"provider":"openai","address":address,"transport":"plaintext","connect":1000,"handshake":1000,
             "models":[{"name":"fake","window":65536,"output":512,"reasoning_item":64,"prices":{"input":1,"cached":1,"output":1,"unit":1},"head":1000,"idle":1000}]}],
         "environment":[]
     })
@@ -266,7 +290,7 @@ fn standard_profile_runs_a_large_coding_write_and_the_following_checks() {
         turns.push((name.as_bytes(), arguments.as_bytes().to_vec()));
     }
     let token = support::settings(&scratch, &scenario);
-    let peer = smith_agent_process_world::fake::configured_transport(
+    let peer = smith_agent_process_world::fake::configured_openai(
         Box::new([api::Script {
             cue: b"@local-shell".as_slice().into(),
             turns: turns
@@ -279,7 +303,7 @@ fn standard_profile_runs_a_large_coding_write_and_the_following_checks() {
                 })
                 .collect(),
         }]),
-        skein_llm::Credential { value: token, account_id: b"acc".as_slice().into(), scheme: skein_llm::Scheme::Bearer },
+        skein_llm::Credential::bearer(token),
         skein_lib::Duration::ZERO,
         skein_fake_peers::Transport::Tls,
     );
@@ -351,7 +375,7 @@ fn smith_agent_spawned_by_the_sample_host_answers() {
 #[test]
 fn smith_check_json_shows_each_value_with_its_layer() {
     let scratch = Scratch::new();
-    let _file = support::user_layer(&scratch, b"model='codex/gpt-6-luna'\neffort='low'\n[accounts.codex]\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n[endpoints.codex]\naddress='127.0.0.1:443'\n");
+    let _file = support::user_layer(&scratch, b"model='openai/gpt-6-luna'\neffort='low'\n[accounts.openai]\nprovider='openai'\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n[endpoints.openai]\naddress='127.0.0.1:443'\n");
     let directory = scratch.path().join(".smith");
     std::fs::create_dir(&directory).expect("repository layer");
     std::fs::write(directory.join("config.toml"), b"[environment.set]\nREPO='repository-value'\n")
@@ -368,7 +392,7 @@ fn smith_check_json_shows_each_value_with_its_layer() {
     assert!(!String::from_utf8_lossy(&ran.stdout).contains("repository-value"));
     assert_eq!(
         report["formats"],
-        serde_json::json!({"channel":5,"charter":4,"transcript":6,"events":4,"chat_store":1,"check":2})
+        serde_json::json!({"channel":6,"charter":4,"transcript":6,"events":4,"chat_store":1,"check":2})
     );
     for tool in ["sh", "rg", "git"] {
         assert!(report["tools"][tool].as_str().expect("tool path").starts_with('/'));
@@ -380,7 +404,7 @@ fn smith_check_json_shows_each_value_with_its_layer() {
 #[test]
 fn smith_check_names_both_sides_of_a_budget_past_the_profile_ceiling() {
     let scratch = Scratch::new();
-    let _file = support::user_layer(&scratch, b"model='codex/gpt-6-luna'\n[accounts.codex]\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n[endpoints.codex]\naddress='cannot-resolve.invalid:443'\n");
+    let _file = support::user_layer(&scratch, b"model='openai/gpt-6-luna'\n[accounts.openai]\nprovider='openai'\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n[endpoints.openai]\naddress='cannot-resolve.invalid:443'\n");
     let ran = support::smith(&scratch, &["check", "-c", "budget.turns=5000"], b"");
     assert_eq!(ran.code, 2);
     assert_eq!(

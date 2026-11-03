@@ -245,7 +245,8 @@ fn fixture_access(directory: &Path) -> Box<[u8]> {
 #[must_use]
 pub fn settings(scratch: &Scratch, scenario: &Scenario) -> Box<[u8]> {
     let token = smith_local_process_world::world::login_at(Clock::new().now().wall, false);
-    let login = serde_json::json!({"tokens":{"access_token":std::str::from_utf8(&token).expect("synthetic token text"),"account_id":"acc"}});
+    let login =
+        serde_json::json!({"tokens":{"access_token":std::str::from_utf8(&token).expect("synthetic token text")}});
     std::fs::write(scratch.path().join("auth.json"), serde_json::to_vec(&login).expect("synthetic login JSON"))
         .expect("synthetic login file");
     let mut text = format!(
@@ -254,14 +255,15 @@ pub fn settings(scratch: &Scratch, scenario: &Scenario) -> Box<[u8]> {
         [deployment]\nmemory=4294967296\nconversations=2\nllm_pool=134217728\ngroup_stop=1\n\
         [models.'fake/fake']\nwindow=2097152\noutput=65536\nreasoning_item=2048\nhead=60\nidle=30\n\
         input_price=1.25\ncached_price=0.125\noutput_price=10.0\nprice_unit=1000000\n\
-        [endpoints.fake]\npreset='codex'\naccount='fake'\naddress='{}:34443'\nserver_name='skein.test'\n\
-        identity='plain'\ntrust.system=false\ntrust.der=['{}']\n\
+        [endpoints.fake]\npreset='openai'\naccount='fake'\naddress='{}:34443'\nserver_name='skein.test'\n\
+        trust.system=false\ntrust.der=['{}']\n\
         [environment]\ninherit=[]\n[trace]\npath='{}'\ncapture='calls'\n",
         scratch.path().join("credentials").display(),
         smith_real_world::loopback(),
         scratch.path().join("root.der").display(),
         scratch.path().join("agent-trace.jsonl").display()
     );
+    text.push_str("[accounts.anthropic]\nsource='none'\n");
     if scenario.launch.authenticated {
         write!(text, "[accounts.fake]\nsource='sign_in'\nclient_id='client'\nauthorization_url='http://{host}:34444/authorize'\n\
             token_url='http://{host}:34444/token'\nredirect_uri='http://127.0.0.1:{redirect}/callback'\nscope='read'\ntoken_format='form'\n", host = smith_real_world::loopback(), redirect = smith_real_world::redirect_port()).expect("fixture string");
@@ -323,13 +325,9 @@ pub fn run_with_provider(
         Process::Script(Proc::Terminal(Box::new(Terminal::attached(stream, scenario.commands.clone()))))
     });
     world.spawn(|| {
-        Process::Script(Proc::Peer(Box::new(provider.unwrap_or_else(|| {
-            scenario.provider_with(skein_llm::Credential {
-                value: token.clone(),
-                account_id: b"acc".as_slice().into(),
-                scheme: skein_llm::Scheme::Bearer,
-            })
-        }))))
+        Process::Script(Proc::Peer(Box::new(
+            provider.unwrap_or_else(|| scenario.provider_with(skein_llm::Credential::bearer(token.clone()))),
+        )))
     });
     if scenario.launch.authenticated {
         world.spawn(|| {

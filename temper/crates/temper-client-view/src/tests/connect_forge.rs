@@ -2389,3 +2389,181 @@ fn a_connected_github_row_shows_the_refused_log_origin() {
     let view = f::browser_page_view(&root);
     words_in_order(view.tree(), &["Job-log origin refused: https://unrelated.test:443"]);
 }
+
+fn tokens_row(connection: w::Connection, stopped: bool) -> w::ForgeRow {
+    let mut parts = row(HERE, w::Kind::Forgejo, w::Mode::Connected, connection, w::Offer::NotOffered).into_parts();
+    if stopped {
+        parts.ended = Some(
+            w::ConnectStopped::new(
+                &w::CEILINGS,
+                w::ConnectStoppedParts {
+                    why: b"the git token answers as another user than the API token".as_slice().into(),
+                },
+            )
+            .unwrap(),
+        );
+    }
+    w::ForgeRow::new(&w::CEILINGS, parts).unwrap()
+}
+fn tokens_send(root: &mut d::Domain) {
+    let action = press(root, Role::Button, b"Connect with its tokens");
+    f::root_event(root, d::Event::Act { action });
+}
+fn tokens_bytes(seed: u64) -> Box<[u8]> {
+    let mut rng = skein_lib::Rng::new(seed);
+    let mut bytes = skein_lib::bytes::zeroed(32);
+    for byte in &mut bytes {
+        *byte = b'a'.checked_add(u8::try_from(rng.next_u64() % 26).unwrap()).unwrap();
+    }
+    bytes
+}
+fn no_tokens(tree: &skein_ui::Tree, values: &[Box<[u8]>]) {
+    for node in tree.nodes() {
+        for value in [node.name.as_deref(), node.description.as_deref(), node.value.as_ref().map(|v| v.text.as_ref())]
+            .into_iter()
+            .flatten()
+        {
+            for secret in values {
+                assert!(skein_lib::bytes::find(value, secret).is_none());
+            }
+        }
+        for run in &node.text {
+            for secret in values {
+                assert!(skein_lib::bytes::find(&run.text, secret).is_none());
+            }
+        }
+    }
+    let mut print = skein_ui_text::Print::new(&f::tree_limits()).unwrap();
+    skein_ui_text::render(tree, b"temper", None, &mut print);
+    for secret in values {
+        assert!(skein_lib::bytes::find(print.text.as_slice(), secret).is_none());
+    }
+}
+#[test]
+fn your_forgejo_offers_both_forms_and_keeps_all_bot_tokens_secret() {
+    let mut root = f::forge_root(Address::ConnectForge { forge: Some(Choice::Managed) }, List::with_capacity(0));
+    let values = [tokens_bytes(1), tokens_bytes(2), tokens_bytes(3)];
+    let mut view = f::page_view(&root);
+    words_in_order(
+        view.tree(),
+        &[
+            "Connect as its admin",
+            "Connect with its bot’s tokens",
+            "API token",
+            "Git token",
+            "Webhook secret",
+            "Only if you made hooks to temper’s listener: their secret.",
+            "Connect with its tokens",
+        ],
+    );
+    for (name, value) in
+        [(b"API token".as_slice(), &values[0]), (b"Git token", &values[1]), (b"Webhook secret", &values[2])]
+    {
+        let id = node(view.tree(), Role::TextField, name);
+        assert!(crate::act(&mut view, id, Act::Input { value: value.clone() }).is_none());
+        let field = view.tree().nodes().iter().find(|n| n.id == id).unwrap();
+        assert_eq!(field.entry, Some(skein_ui::EntryKind::Secret));
+        assert!(field.value.as_ref().unwrap().text.is_empty());
+        admin_input(&mut root, name, value);
+    }
+    no_tokens(f::page_view(&root).tree(), &values);
+    admin_input(&mut root, b"Its address", b"https://forge.example:8443");
+    let action = press(&root, Role::Button, b"Connect with its tokens");
+    let d::Action::Forge(d::forge::Act::Forges(d::forge::forges::Act::Connected { place })) = &action else {
+        panic!("connected place")
+    };
+    assert_eq!(place.host.as_ref(), b"forge.example");
+    assert_eq!(place.port, 8443);
+    assert_eq!(place.tls.as_deref(), Some(b"forge.example".as_slice()));
+    f::root_event(&mut root, d::Event::Act { action });
+    for field in [d::forge::tokens::Field::Api, d::forge::tokens::Field::Git, d::forge::tokens::Field::Webhook] {
+        assert!(!root.forge().tokens_form().has(field));
+    }
+    no_tokens(f::page_view(&root).tree(), &values);
+}
+#[test]
+fn bot_tokens_local_refusals_mark_missing_tokens_and_oversized_bundles() {
+    for (field, value, refusal) in [
+        (b"API token".as_slice(), Box::<[u8]>::default(), "Required."),
+        (b"Git token".as_slice(), Box::<[u8]>::default(), "Required."),
+        (
+            b"API token".as_slice(),
+            skein_lib::bytes::zeroed(4096),
+            "The pasted values are past 4 KiB, the most a request carries.",
+        ),
+        (
+            b"Webhook secret".as_slice(),
+            skein_lib::bytes::zeroed(4096),
+            "The pasted values are past 4 KiB, the most a request carries.",
+        ),
+    ] {
+        let mut root = admin_root(Some(Choice::Forge(HERE)), tokens_row(w::Connection::NotConnected, false));
+        admin_input(&mut root, b"API token", &tokens_bytes(1));
+        admin_input(&mut root, b"Git token", &tokens_bytes(2));
+        admin_input(&mut root, field, &value);
+        tokens_send(&mut root);
+        let view = f::page_view(&root);
+        words_in_order(view.tree(), &[refusal]);
+        assert!(has_state(view.tree(), Role::TextField, field, State::Invalid));
+        assert!(f::find(view.tree(), Role::TextField, "The site admin’s token".as_bytes()).is_none());
+    }
+}
+#[test]
+fn bot_tokens_connecting_and_ready_use_their_own_words() {
+    let root = admin_root(Some(Choice::Forge(HERE)), tokens_row(w::Connection::Connecting, false));
+    let view = f::page_view(&root);
+    words_in_order(
+        view.tree(),
+        &["Connecting forge 3 with its bot’s tokens.", "Checking that both answer as one user, not a site admin."],
+    );
+    assert!(f::find(view.tree(), Role::TextField, b"API token").is_none());
+    let root = admin_root(Some(Choice::Forge(HERE)), tokens_row(connected(), false));
+    words_in_order(f::page_view(&root).tree(), &["Forgejo is connected", "Connected as temper."]);
+}
+#[test]
+fn bot_tokens_stopped_form_is_alone_with_the_last_connect_under_its_button() {
+    for connection in [
+        w::Connection::NotConnected,
+        w::Connection::Stopped(
+            w::Stopped::new(&w::CEILINGS, w::StoppedParts { reason: b"stopped".as_slice().into() }).unwrap(),
+        ),
+    ] {
+        let root = admin_root(Some(Choice::Forge(HERE)), tokens_row(connection, true));
+        let view = f::page_view(&root);
+        words_in_order(
+            view.tree(),
+            &[
+                "Connect with its tokens",
+                "The last connect stopped: the git token answers as another user than the API token",
+            ],
+        );
+        for name in [b"API token".as_slice(), b"Git token", b"Webhook secret"] {
+            let id = node(view.tree(), Role::TextField, name);
+            let entry = view.tree().nodes().iter().find(|n| n.id == id).unwrap();
+            assert_eq!(entry.entry, Some(skein_ui::EntryKind::Secret));
+            assert!(entry.value.as_ref().unwrap().text.is_empty());
+        }
+        assert!(f::find(view.tree(), Role::TextField, b"Organization").is_none());
+        assert!(f::find(view.tree(), Role::Button, b"Connect as its admin").is_none());
+    }
+}
+#[test]
+fn bot_tokens_connected_refusal_is_under_the_button_and_clears_the_fields() {
+    let mut root = admin_root(Some(Choice::Forge(HERE)), tokens_row(w::Connection::NotConnected, false));
+    admin_input(&mut root, b"API token", &tokens_bytes(1));
+    admin_input(&mut root, b"Git token", &tokens_bytes(2));
+    let action = press(&root, Role::Button, b"Connect with its tokens");
+    let token = attempt(drive(&mut root, d::Event::Act { action }));
+    answer(
+        &mut root,
+        token,
+        w::Outcome::ConnectRefused(
+            w::ConnectRefused::new(&w::CEILINGS, w::ConnectRefusedParts { why: w::ForgeRefusal::Connected }).unwrap(),
+        ),
+    );
+    words_in_order(
+        f::page_view(&root).tree(),
+        &["Connect with its tokens", "Forge 3 is connected already: replace its tokens on Forges."],
+    );
+    assert!(!root.forge().tokens_form().has(d::forge::tokens::Field::Api));
+}

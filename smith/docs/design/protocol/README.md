@@ -344,7 +344,7 @@ to an older reader or writer. Each has one version at a time.
     section 12), so a reader is still handed one version.
   - **the event stream** carries its version on every record, and a
     reader refuses a stream in another (events.md, section 6).
-- **Where each is.** The channel speaks version 5 (channel.md, section
+- **Where each is.** The channel speaks version 6 (channel.md, section
   2); the charter and its result, version 4 (charter.md, section 5); turns
   and transcripts, version 6 (transcript.md, section 6); the event
   stream, version 4 (events.md, section 6); and the local host's store,
@@ -420,8 +420,7 @@ it.
     bearer or a key (2.6); and the failure classes exhausted, with its
     reset only where the provider gives one, refused and unsupported,
     naming its field, with the provider's error code and request id as
-    evidence (2.5). The Codex dialect and its account header stay,
-    withdrawn (4.6);
+    evidence (2.5);
   - an oversized call as a block of its own, and a call cut off by the
     output limit marked;
   - typed `Limit` kinds, and HTTP statuses in failures;
@@ -458,7 +457,7 @@ it.
     checkout;
   - protocol worlds that join two ends with streams cut at random
     (testing-strategy.md, 2.5).
-- **Later, and only if measured:** Codex's routing state and reasoning
+- **Later, and only if measured:** OpenAI's routing state and reasoning
   context, and an incremental transport over WebSocket.
 
 ## 11. Open questions

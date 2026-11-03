@@ -3396,6 +3396,9 @@ pub(crate) fn outputs(
             forge::Request::Connect { forge, request, how, carried } => {
                 assert!(super::now(domain, Request::Connect { forge, request, how, carried }), "connect door");
             }
+            forge::Request::Replace { forge, request, carried } => {
+                assert!(super::now(domain, Request::Replace { forge, request, carried }), "replace door");
+            }
             forge::Request::Manifest { forge, request, back } => {
                 assert!(super::now(domain, Request::Manifest { forge, request, back }), "manifest door");
             }

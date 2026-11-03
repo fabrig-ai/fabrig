@@ -45,9 +45,11 @@ A forge is where repositories live, GitHub or Forgejo, numbered when it is set u
 - **Set up:** a box's owned Forgejo is fetched, prepared and started
   with its runner, then makes its first repository with a starter CI
   workflow and adopts it.
-- **Connected:** GitHub by its App, a Forgejo by its admin's token; a
-  managed Forgejo can make and adopt a first repository as it
-  connects.
+- **Connected:** GitHub by its App; a Forgejo by its admin's token, or
+  by a user's two tokens: `forge connect forgejo FILE`, FILE a tokens
+  file, one `NAME VALUE` line each for `api`, `git` and, for hooks to
+  temper's listener, `webhook_secret`; a managed Forgejo can make
+  and adopt a first repository as it connects.
 - **Its installations,** on GitHub: one made through temper's install
   link is accepted at once; one made on GitHub waits to be accepted. An
   installation not accepted prints ` · not accepted · uninstalled at
@@ -115,11 +117,11 @@ and an empty origin list disables job logs.
 
 ## Limits
 
-- temper cannot replace a forge's key: a second connect is refused
-  with `connected already` (exit 2). Removed and connected again, it
-  is a new forge, with a new number.
-- temper does not connect a Forgejo by a user's token: only as its
-  site admin.
+- A forge's key or tokens are replaced by `forge replace FORGE FILE`:
+  a GitHub App's new key, or a tokens file of the same Forgejo user. A
+  second connect is refused with `connected already` (exit 2).
+  Another user's tokens are another forge: removed and connected
+  again, a forge is new, with a new number.
 - temper sets up an owned Forgejo under a box alone: elsewhere, `forge
   setup` is refused with `refused: not under the box` (exit 2).
 - A Forgejo connected at a host name, not an IP address, is reached

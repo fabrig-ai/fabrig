@@ -571,15 +571,15 @@ pub const IMPORT: Tool = Tool {
 };
 /// `export`'s and `import`'s places in the host's table, `table::TOOLS`,
 /// after every row before them (tests/help.rs checks them).
-pub const EXPORT_AT: u8 = 40;
-pub const IMPORT_AT: u8 = 41;
+pub const EXPORT_AT: u8 = 41;
+pub const IMPORT_AT: u8 = 42;
 
-/// Settings append after account moves to preserve every published identity.
-pub const SETTINGS_AT: u8 = 42;
-pub const SETTING_AT: u8 = 43;
-pub const REVISION_AT: u8 = 44;
-pub const REVISIONS_AT: u8 = 45;
-pub const CHANGE_SETTINGS_AT: u8 = 46;
+/// Settings follow account moves in the tools table.
+pub const SETTINGS_AT: u8 = 43;
+pub const SETTING_AT: u8 = 44;
+pub const REVISION_AT: u8 = 45;
+pub const REVISIONS_AT: u8 = 46;
+pub const CHANGE_SETTINGS_AT: u8 = 47;
 pub const SETTINGS: Tool = Tool {
     name: b"settings show",
     line: b"Read the settings, the revisions running work holds, and pending proposals",
@@ -678,9 +678,9 @@ pub const CHANGE_SETTINGS: Tool = Tool {
     notes: b"The file is `{\"items\": [ITEM, ...]}`, at most 1024 items; an item\nis `{\"setting\": {\"kind\": KIND, \"number\": NUMBER}, \"set\": VALUE}`, or\n`\"edit\": \"removed\"` or `\"reset\"` in place of `set`; rules takes no\nnumber. A file out of form names the item, member and rule (exit\n1). `settings apply: stale; newest revision R; read settings show\nagain` (exit 2): read the settings, then decide again.\n",
 };
 
-/// New rows append to preserve every earlier durable call identity.
-pub const PROPOSE_SETTINGS_AT: u8 = 47;
-pub const PROPOSAL_AT: u8 = 48;
+/// The row's position in the tools table.
+pub const PROPOSE_SETTINGS_AT: u8 = 48;
+pub const PROPOSAL_AT: u8 = 49;
 pub const PROPOSE_SETTINGS: Tool = Tool {
     name: b"settings propose",
     line: b"Propose a change of the settings to the deployment's owners",
@@ -719,8 +719,8 @@ pub const PROPOSAL: Tool = Tool {
     notes: b"A decided proposal prints how it was decided. Decide a live one\nwith proposal decide.\n",
 };
 
-/// New rows append to preserve every earlier durable call identity.
-pub const MOVE_TO_NEWEST_AT: u8 = 51;
+/// The row's position in the tools table.
+pub const MOVE_TO_NEWEST_AT: u8 = 52;
 pub const MOVE_TO_NEWEST: Tool = Tool {
     name: b"revision advance",
     line: b"Move the live tasks on held REVISION to the newest revision",
@@ -738,8 +738,8 @@ pub const MOVE_TO_NEWEST: Tool = Tool {
     notes: b"",
 };
 
-/// The held-task decision appends to keep existing durable call identities.
-pub const TASK_DECIDE_AT: u8 = 52;
+/// The held-task decision's position in the tools table.
+pub const TASK_DECIDE_AT: u8 = 53;
 pub const TASK_DECIDE: Tool = Tool {
     name: b"task decide",
     line: b"Decide the escalation of a held task",
@@ -815,8 +815,8 @@ pub(crate) fn watched(tool: u8) -> Option<&'static Tool> {
     })
 }
 
-pub const PROJECT_SHOW_AT: u8 = 53;
-pub const PROJECT_FUND_AT: u8 = 54;
+pub const PROJECT_SHOW_AT: u8 = 54;
+pub const PROJECT_FUND_AT: u8 = 55;
 pub const PROJECT_SHOW: Tool = Tool {
     name: b"project show",
     line: b"Read a project, its roles and spends, its open period and each party's pool",
@@ -841,10 +841,10 @@ pub const PROJECT_FUND: Tool = Tool {
     area: 1,
     notes: b"An owner's chats are funded from their pool, and pools reserve from the project's period. Raise both with two calls: project fund PROJECT AMOUNT first, then project fund PROJECT AMOUNT --role ROLE. A role's raise past the period's room is refused, exit 2, naming what the period has left. A cut keeps each budget at what it has used. A key replay prints the original edit, then today's balances marked now:. JSON has answer (project, optional role, period_spend) and now (the project read).\n",
 };
-pub const LIFT_AT: u8 = 55;
+pub const LIFT_AT: u8 = 56;
 
 /// The bounded source-text read's position in the tools table.
-pub const TASK_TEXT_AT: u8 = 60;
+pub const TASK_TEXT_AT: u8 = 61;
 /// Retrieve stored task words without the overview's text truncation.
 pub const TASK_TEXT: Tool = Tool {
     name: b"task text",

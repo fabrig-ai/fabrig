@@ -405,7 +405,6 @@ const fn completion_cap(cap: llm::Cap) -> run::Cap {
         llm::Cap::Answer => run::Cap::Answer,
         llm::Cap::ErrorBody => run::Cap::ErrorBody,
         llm::Cap::AccessToken => run::Cap::AccessToken,
-        llm::Cap::AccountId => run::Cap::AccountId,
     }
 }
 

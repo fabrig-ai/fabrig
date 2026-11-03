@@ -97,8 +97,10 @@ fn empty_tokens_and_names_and_invalid_labels_send_nothing() {
     }
 }
 #[test]
-fn the_bundle_bound_includes_its_seven_byte_header() {
-    for (bytes, accepted) in [(&[b'x'; 4089][..], true), (&[b'x'; 4090][..], false)] {
+fn the_bundle_bound_includes_its_framing() {
+    for (bytes, accepted) in
+        [(&[b'x'; forge::forges::PASTED_PAYLOAD][..], true), (&[b'x'; forge::forges::PASTED_PAYLOAD + 1][..], false)]
+    {
         let (mut root, _) = opened();
         token(&mut root, bytes);
         write(&mut root, Field::Label, &[b'a'; 64]);
@@ -129,7 +131,7 @@ fn the_token_is_secret_and_carried_once_with_the_first_ask() {
         } = request
         {
             count += 1;
-            let mut expected = vec![0, 1, 0, 0, 0, 0, 28];
+            let mut expected = vec![0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 28];
             expected.extend_from_slice(TOKEN);
             assert_eq!(value.expose(), expected);
             let jig_client::Ask::Family { record, .. } = request else { panic!("family") };
