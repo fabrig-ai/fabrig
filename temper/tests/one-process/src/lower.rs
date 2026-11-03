@@ -1,13 +1,16 @@
 //! Lower owners of service composition behaviors (temper/docs/design/domain/testing.md, 2.4).
+use temper_playground::{
+    machine::{Machine, SignalHost},
+    programs,
+};
 pub mod github;
 mod paging;
 use crate::{
     ctl::{Caller, Command},
     fixtures,
-    machine::{Machine, SignalHost},
     referee::{self, Store},
     stories,
-    world::{self, Proc, Story},
+    world::{self, HarnessProcess, OneProcess, Proc, Story},
 };
 use serde_json::{Value, json};
 use skein_io::kernel::Exit;
@@ -167,7 +170,7 @@ impl skein_world::Referee<Proc> for Judge {
     fn act(&mut self, _now: Time, procs: &mut [Proc]) {
         let (first, others) = procs.split_at_mut(1);
         let Proc::Service(service) = &mut first[0] else { panic!("service first") };
-        let Proc::Calls(caller) = &mut others[0] else { panic!("native caller second") };
+        let Proc::Other(HarnessProcess::Calls(caller)) = &mut others[0] else { panic!("native caller second") };
         if !self.handed
             && let Some(link) = service.service.links().pop()
         {
@@ -216,7 +219,7 @@ impl skein_world::Referee<Proc> for Judge {
         let Proc::Service(service) = &procs[0] else { panic!("service") };
         let applied = self.store.borrow().applied;
         if self.checked.replace(applied) != applied {
-            referee::Referee::check_roots(service);
+            referee::Referee::check_roots(&service.service);
         }
     }
     fn next_deadline(&self) -> Option<Time> {
@@ -248,39 +251,57 @@ pub fn paging(draw: u64) -> Paging {
     ACTIVE.with(|active| active.set(true));
     stories::set(Story::Adopt);
     stories::setup_settings(world::Phase::Story);
-    world::share(Some(stories::forge(Story::Adopt)));
+    let transport = stories::forge(Story::Adopt);
     let store = Rc::new(RefCell::new(Store::new()));
     world::lower_store(Some(store.clone()));
     let seen = Rc::new(RefCell::new(Paging::default()));
-    let mut disk = crate::machine::fresh();
+    let mut disk = temper_playground::machine::fresh();
     let setup = disk.lay(&[skein_fake_machine::Item::file(b"llm.key", fixtures::LLM_TOKEN).mode(0o600)]);
     disk.close(setup);
     let client = disk.reopen_root(2);
-    let mut world = skein_world::World::new_controlled(
-        draw,
-        skein_sim::Config::calm(),
-        skein_world::Memory::Unchecked,
-        |controls| Judge {
-            controls,
-            store,
-            seen: seen.clone(),
-            stage: Stage::Setup,
-            answers: 0,
-            activity_head: 0,
-            handed: false,
-            stopping: false,
-            checked: Cell::new(u64::MAX),
-        },
-    )
-    .with_machine(Machine(disk));
-    world::host_programs(&mut world);
-    world.spawn_restartable(world::service_roots(), world::service);
-    world.spawn_root(skein_sim::Handle::new(client.raw()), |root| Proc::Calls(Box::new(Caller::scripted(root))));
-    world.spawn(|| Proc::Peer(Box::new(SignalHost::new(fixtures::scripted_provider(paging::scripts()), None))));
-    let outcome = world.run();
+    let machine = Machine::new(disk);
+    let parameters = world::parameters(&machine, transport.clone());
+    let outcome = programs::with(parameters, || {
+        let mut world = skein_world::World::new_controlled(
+            draw,
+            skein_sim::Config::calm(),
+            skein_world::Memory::Unchecked,
+            |controls| Judge {
+                controls,
+                store,
+                seen: seen.clone(),
+                stage: Stage::Setup,
+                answers: 0,
+                activity_head: 0,
+                handed: false,
+                stopping: false,
+                checked: Cell::new(u64::MAX),
+            },
+        )
+        .with_machine(machine);
+        for (program, roots) in programs::programs::<OneProcess>() {
+            world.host_roots(program, roots);
+        }
+        let limits = temper_client_shell_cli::limits::native();
+        world.host_roots(
+            skein_world::HostedProgram {
+                program: crate::ctl::PROGRAM.into(),
+                make: |spawn, inherited| Proc::Other(HarnessProcess::Ctl(Box::new(crate::ctl::host(spawn, inherited)))),
+                instances: 1,
+                operations: skein_io::operations(&limits.io).expect("ctl operations") * 2 + 5,
+            },
+            crate::ctl::roots,
+        );
+        world.spawn_restartable(programs::service_roots(), programs::service::<OneProcess>);
+        world.spawn_root(skein_sim::Handle::new(client.raw()), |root| {
+            Proc::Other(HarnessProcess::Calls(Box::new(Caller::scripted(root))))
+        });
+        world.spawn(|| Proc::Peer(Box::new(SignalHost::new(fixtures::scripted_provider(paging::scripts()), None))));
+        world.run()
+    });
     assert!(outcome.procs.iter().all(Host::is_empty), "all paging processes drain");
     world::lower_store(None);
-    world::share(None);
+
     ACTIVE.with(|active| active.set(false));
     Rc::try_unwrap(seen).expect("released paging referee").into_inner()
 }
