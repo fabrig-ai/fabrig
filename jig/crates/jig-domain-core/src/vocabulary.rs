@@ -161,6 +161,8 @@ pub enum Ask {
     DelegateRefused { task: Option<u64> },
     /// Start one admitted procedure through its numbered connector.
     StartProcedure { context: Box<tasks::RunContext>, step: u64 },
+    /// Ask a connector for a public document (jig/docs/design/domain/engine.md, 11).
+    Public { reply: ReplyTo, kind: u16, version: u16, project: u32, task: Option<u64>, public: Box<[u64]> },
 }
 
 /// Store mutation issued by a child of the core.
@@ -255,6 +257,8 @@ pub enum Held {
     NotesWritten { owner: Token, name: u64, revision: u32 },
     /// A note deletion's accepted name.
     NotesDeleted { owner: Token, name: u64 },
+    /// A public read's answer after durability (jig/docs/design/domain/people.md, 13.10).
+    PublicRead { reply: ReplyTo, answer: crate::PublicAnswer },
 }
 
 /// Why an unkeyed watch was not admitted (`client/domain/contract.md`, 7.2).
@@ -723,6 +727,10 @@ pub enum Event {
     View(views::Event),
     /// A scoped note.
     Notes(notes::Event),
+    /// An unsigned public read (jig/docs/design/protocol/client.md, 19).
+    PublicRead { reply: ReplyTo, read: crate::PublicRead },
+    /// A connector's public document (jig/docs/design/domain/engine.md, 11).
+    PublicAnswered { reply: ReplyTo, answer: Option<crate::PublicApplication> },
 }
 /// Why a connector refuses a member's holdings (domain/tasks.md, 6.1 and 6.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -908,6 +916,7 @@ impl Event {
             | Self::ProposeSettings { .. }
             | Self::Act { .. }
             | Self::Read { .. }
+            | Self::PublicRead { .. }
             | Self::Application { .. }
             | Self::Key { .. }
             | Self::EffectStart { .. }
@@ -923,6 +932,7 @@ impl Event {
             | Self::Stopping
             | Self::Marked { .. }
             | Self::ReadLoaded { .. }
+            | Self::PublicAnswered { .. }
             | Self::ApplicationPart { .. }
             | Self::ApplicationFinished { .. }
             | Self::ProjectionSettled { .. }

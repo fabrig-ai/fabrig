@@ -751,6 +751,9 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
                 let answer = payload(domain, Payload::SettledCall(call));
                 work.push(Work::Core(core::Event::Fleet(fleet::Event::Relayed { to, answer })));
             }
+            Work::Core(core::Event::PublicRead { reply, .. }) => {
+                client_documents::public_busy(&mut decision, reply);
+            }
             Work::Core(event) => {
                 let requests = core::step(&mut domain.core, &env.with(env.limits.core), event);
                 route_core(domain, env, &mut decision, requests, &mut work);

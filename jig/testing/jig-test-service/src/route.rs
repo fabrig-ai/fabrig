@@ -278,6 +278,7 @@ fn immediate(engine: &mut Engine, now: core::Now) {
 
 fn core_held(engine: &mut Engine, held: core::Held) {
     match held {
+        core::Held::PublicRead { .. } => {}
         core::Held::Sources { .. } | core::Held::CheckSource { .. } | core::Held::SignOutSource { .. } => {
             unreachable!("link translates host-wide source commands")
         }
