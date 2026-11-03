@@ -158,7 +158,6 @@ fn charter() -> jig_domain_core::Charter {
         number: 1,
         hosts: jig_domain_fleet::Kinds::Both,
         spend: 100,
-        wake: jig_domain_tasks::WakePolicy::DEFAULT,
         policy: core::RunPolicy {
             instructions: Box::from("instructions λ".as_bytes()),
             waiting: Duration::from_secs(2),
