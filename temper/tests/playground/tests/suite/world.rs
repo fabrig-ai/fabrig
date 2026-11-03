@@ -20,15 +20,18 @@ fn story_a_starts_with_no_box_calm_and_prints_its_link() {
 
     assert!(
         started.world.processes().iter().all(|process| {
-            matches!(process, Process::Service(_) | Process::Peer(_) | Process::Forge(_) | Process::Git(_))
+            matches!(
+                process,
+                Process::Service(_) | Process::Peer(_) | Process::Forge(_) | Process::Git(_) | Process::Visitor(_)
+            )
         }),
-        "only the service, its two fake peers and git; no box process"
+        "only the service, its two fake peers, git and the visitor; no box process"
     );
     for process in started.world.processes() {
         let exit = process.exit();
         assert!(
-            exit.is_none() || (matches!(process, Process::Git(_)) && exit == Some(Exit::Code(0))),
-            "calm startup keeps the service and fake peers running; only hosted git may end, with Code(0); got {exit:?}"
+            exit.is_none() || (matches!(process, Process::Git(_) | Process::Visitor(_)) && exit == Some(Exit::Code(0))),
+            "only hosted git and the idle visitor may report Code(0); got {exit:?}"
         );
     }
     let (sim, _, processes) = started.world.parts();

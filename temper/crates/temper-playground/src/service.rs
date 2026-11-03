@@ -6,7 +6,7 @@ use crate::{
 use skein_io::kernel::{Complete, Exit, Fd, Submit};
 use skein_lib::{Queue, Secret, Time, Token, Wall};
 use skein_shell::Host;
-use skein_sim_world::{Inherited, PipeHost, PipeWriter, Printer};
+use skein_sim_world::{Inherited, Printer};
 use std::{
     collections::BTreeSet,
     io::Write,
@@ -58,20 +58,18 @@ pub struct ServiceState<H: Harness> {
     pub parameters: Parameters,
     in_flight: BTreeSet<Token>,
     now: Time,
-    output: Option<PipeWriter>,
+    output: Option<Printer>,
     output_failed: bool,
 }
-/// The service, with an optional standard-output pipe bridge.
+/// The service, with an optional world printer for standard output.
 pub struct ServiceHost<H: Harness> {
-    bare: Option<ServiceState<H>>,
-    piped: Option<PipeHost<ServiceState<H>>>,
-    capture: Option<(Fd, Printer)>,
+    state: ServiceState<H>,
 }
 impl<H: Harness> ServiceHost<H> {
     #[must_use]
     pub fn new(service: temper_service::Service, observer: H::Service, parameters: Parameters) -> Self {
         Self {
-            bare: Some(ServiceState {
+            state: ServiceState {
                 service,
                 observer,
                 parameters,
@@ -79,78 +77,59 @@ impl<H: Harness> ServiceHost<H> {
                 now: Time::ZERO,
                 output: None,
                 output_failed: false,
-            }),
-            piped: None,
-            capture: None,
+            },
         }
     }
-    /// Attach the standard output before stepping the world.
-    pub fn capture_output(&mut self, fd: Fd, printer: Printer) {
-        let mut state = self.bare.take().expect("output attached once before stepping");
-        let (writer, capture) =
-            PipeWriter::new(fd, u32::try_from(skein_sim_world::PRINTED_BYTES).expect("output bound"));
-        state.output = Some(writer);
-        self.piped = Some(capture.host(state));
-        self.capture = Some((fd, printer));
-    }
-    pub(crate) fn output_capture(&mut self) -> Option<(Fd, &mut Printer)> {
-        self.capture.as_mut().map(|(fd, printer)| (*fd, printer))
-    }
-    fn host(&self) -> &dyn Host {
-        if let Some(pipe) = &self.piped { pipe } else { self.bare.as_ref().expect("service state") }
-    }
-    fn host_mut(&mut self) -> &mut dyn Host {
-        if let Some(pipe) = &mut self.piped { pipe } else { self.bare.as_mut().expect("service state") }
+    /// Attach the world's standard-output printer before stepping.
+    pub fn print_to(&mut self, printer: Printer) {
+        assert!(self.state.output.is_none(), "output attached once before stepping");
+        self.state.output = Some(printer);
     }
 }
 impl<H: Harness> Deref for ServiceHost<H> {
     type Target = ServiceState<H>;
     fn deref(&self) -> &Self::Target {
-        if let Some(pipe) = &self.piped { pipe.inner() } else { self.bare.as_ref().expect("service state") }
+        &self.state
     }
 }
 impl<H: Harness> DerefMut for ServiceHost<H> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        if let Some(pipe) = &mut self.piped { pipe.inner_mut() } else { self.bare.as_mut().expect("service state") }
+        &mut self.state
     }
 }
 impl<H: Harness> Host for ServiceHost<H> {
     fn state_digest(&self) -> Option<[u8; 32]> {
-        self.host().state_digest()
+        self.state.state_digest()
     }
     fn drain(&mut self) {
-        self.host_mut().drain();
+        self.state.drain();
     }
     fn iterate(&mut self, now: Time, wall: Wall) {
-        self.host_mut().iterate(now, wall);
-        if self.piped.as_ref().is_some_and(|pipe| pipe.failure().is_some()) {
-            self.output_failed = true;
-            self.service.shutdown();
-        }
+        self.state.iterate(now, wall);
     }
     fn completions(&mut self) -> &mut Queue<Complete> {
-        self.host_mut().completions()
+        self.state.completions()
     }
     fn submissions(&mut self) -> &mut Queue<Submit> {
-        self.host_mut().submissions()
+        self.state.submissions()
     }
     fn work_pending(&self, now: Time) -> bool {
-        self.host().work_pending(now)
+        self.state.work_pending(now)
     }
     fn next_mechanism_deadline(&self) -> Option<Time> {
-        self.host().next_mechanism_deadline()
+        self.state.next_mechanism_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
-        self.host().next_policy_deadline()
+        self.state.next_policy_deadline()
     }
     fn is_empty(&self) -> bool {
-        self.host().is_empty()
+        self.state.is_empty()
     }
     fn exit(&self) -> Option<Exit> {
-        self.host().exit()
+        self.state.exit()
     }
     fn operations(&self) -> u32 {
-        self.host().operations()
+        self.state.operations()
     }
 }
 impl<H: Harness> Host for ServiceState<H> {
