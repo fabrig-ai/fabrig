@@ -1,3 +1,24 @@
 draft = "wasm32-temper"
 repo = "fabrig"
 sources = ["temper/docs/plan/wasm32-temper/inputs/request.md", "AGENTS.md"]
+
+# temper-playground joins fab's wasm32 gate list (inputs/request.md): fab's clippy-wasm32 step
+# reads `.config/gate/wasm32.txt`. One part, one task: measure, then add the line and narrow
+# temper's playground status, or change nothing and report the first error. plan.md says why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "playground-list"
+title = "fabrig: temper-playground in .config/gate/wasm32.txt when its wasm32 clippy is green; temper's playground status narrows"
+mode = "direct"
+needs = []
+design = "temper/docs/design/playground.md, 9"
+
+[[slice]]
+id = 1
+story = "fab's clippy-wasm32 step clippies temper-playground for wasm32-unknown-unknown, warnings denied, beside skein-playground"
+parts = ["playground-list"]
+walk = false
