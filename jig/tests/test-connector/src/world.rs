@@ -352,6 +352,7 @@ impl World {
                 }
                 Record::SettingDefault { .. }
                 | Record::SettingChange { .. }
+                | Record::SettingReplaced { .. }
                 | Record::SettingProposal { .. }
                 | Record::ApplicationObject { .. }
                 | Record::ApplicationAnswer { .. }
