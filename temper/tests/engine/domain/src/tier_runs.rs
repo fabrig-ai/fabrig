@@ -33,7 +33,8 @@ pub(crate) fn checks() -> Box<[engine::TierCheck]> {
         ignored: Box::new([b"docs".as_slice().into()]),
         artifact: b"report".as_slice().into(),
         format: Format::Junit,
-        branch: None,
+        follows: temper_engine_domain_forge::Follows::Landing,
+        span_ms: 0,
     }])
 }
 

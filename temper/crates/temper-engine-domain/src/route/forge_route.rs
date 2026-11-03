@@ -3055,9 +3055,10 @@ fn change_verification_words(domain: &Domain, task: u64, merge: &skein_forge::ap
                     continue;
                 }
                 for tier in &checks.tiers {
-                    let branch = match &tier.branch {
-                        Some(branch) => branch,
-                        None => &repository.settings.default_branch,
+                    let branch = match &tier.follows {
+                        forge::Follows::Branch(branch) => branch,
+                        forge::Follows::Landing => &repository.settings.default_branch,
+                        forge::Follows::Goals => continue,
                     };
                     if *branch != row.base {
                         continue;

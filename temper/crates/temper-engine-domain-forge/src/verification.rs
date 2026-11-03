@@ -45,8 +45,12 @@ pub(crate) fn landed(d: &mut Domain, commit: Commit, task: u64, out: &mut Queue<
             continue;
         }
         for tier in &entry.tiers {
-            let branch = tier.branch.as_deref().unwrap_or(&adopted.settings.default_branch);
-            if branch == change.base.as_ref() {
+            let branch = match &tier.follows {
+                crate::Follows::Landing => &adopted.settings.default_branch,
+                crate::Follows::Branch(branch) => branch,
+                crate::Follows::Goals => continue,
+            };
+            if branch == &change.base {
                 tiers
                     .push(TierVerification { tier: tier.name.clone(), verdict: None, repaired: None })
                     .expect("admitted tiers");

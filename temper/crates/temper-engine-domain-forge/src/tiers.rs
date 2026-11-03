@@ -1,5 +1,5 @@
 //! Tiers follow their configured branches (temper/docs/design/domain/after-landing.md, 2, 3, 4 and 10).
-use crate::{Domain, Limits, Name, Request, Stored, Tier, TierBranch, TierFlight, TierLanding, TierRow, What};
+use crate::{Domain, Follows, Limits, Name, Request, Stored, Tier, TierBranch, TierFlight, TierLanding, TierRow, What};
 use alloc::boxed::Box;
 use core::mem::size_of;
 use skein_forge::api::{self, Commit, Repository, Write};
@@ -65,9 +65,10 @@ fn configured(d: &Domain, row: &TierRow) -> Option<Tier> {
     None
 }
 fn followed(d: &Domain, repository: Repository, tier: &Tier) -> Option<Box<[u8]>> {
-    match &tier.branch {
-        Some(branch) => Some(branch.clone()),
-        None => Some(d.repositories.get(&repository)?.settings.default_branch.clone()),
+    match &tier.follows {
+        Follows::Branch(branch) => Some(branch.clone()),
+        Follows::Landing => Some(d.repositories.get(&repository)?.settings.default_branch.clone()),
+        Follows::Goals => None,
     }
 }
 fn path_parts(bytes: &[u8]) -> Box<[Box<[u8]>]> {
@@ -145,7 +146,7 @@ pub(crate) fn watch(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>)
     );
 }
 
-/// The tier definition includes the optional branch, so a changed following rule changes its key.
+/// The tier definition includes what it follows; the span does not change its key.
 pub(crate) fn definition(tier: &Tier) -> Box<[u8]> {
     let mut length = tier
         .workflow
@@ -157,8 +158,12 @@ pub(crate) fn definition(tier: &Tier) -> Box<[u8]> {
     for path in &tier.ignored {
         length = length.checked_add(2).expect("path header").checked_add(path.len()).expect("ignored path");
     }
-    if let Some(branch) = &tier.branch {
-        length = length.checked_add(2).expect("branch header").checked_add(branch.len()).expect("branch definition");
+    match &tier.follows {
+        Follows::Branch(branch) => {
+            length =
+                length.checked_add(2).expect("branch header").checked_add(branch.len()).expect("branch definition");
+        }
+        Follows::Landing | Follows::Goals => {}
     }
     let mut out = skein_lib::Writer::new(length);
     word(&mut out, tier.workflow.len());
@@ -175,10 +180,14 @@ pub(crate) fn definition(tier: &Tier) -> Box<[u8]> {
         p::Format::Lines => 1,
     }])
     .expect("format");
-    out.put(&[u8::from(tier.branch.is_some())]).expect("branch presence");
-    if let Some(branch) = &tier.branch {
-        word(&mut out, branch.len());
-        out.put(branch).expect("branch");
+    match &tier.follows {
+        Follows::Landing => out.put(&[0]).expect("landing marker"),
+        Follows::Branch(branch) => {
+            out.put(&[1]).expect("branch marker");
+            word(&mut out, branch.len());
+            out.put(branch).expect("branch");
+        }
+        Follows::Goals => out.put(&[2]).expect("goals marker"),
     }
     out.finish()
 }

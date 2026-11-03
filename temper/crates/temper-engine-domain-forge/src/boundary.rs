@@ -880,7 +880,18 @@ pub struct Tier {
     pub ignored: Box<[Box<[u8]>]>,
     pub artifact: Box<[u8]>,
     pub format: temper_engine_domain_forge_tiers::Format,
-    pub branch: Option<Box<[u8]>>,
+    pub follows: Follows,
+    pub span: Option<skein_lib::Duration>,
+}
+/// What a tier follows (temper/docs/design/domain/after-landing.md, 2).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum Follows {
+    /// The repository's landing branch, its adoption's default.
+    Landing,
+    /// One branch by its name on the forge.
+    Branch(Box<[u8]>),
+    /// The goals' own branches of the repository; judges no landing.
+    Goals,
 }
 /// A project's verification settings (temper/docs/design/domain/after-landing.md, 11).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
