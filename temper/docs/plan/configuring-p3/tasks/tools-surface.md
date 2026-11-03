@@ -3,7 +3,7 @@ id = "tools-surface"
 part = "charter-tools"
 kind = "interface"
 needs = []
-files = ["jig/crates/jig-domain-core/src/runs/state.rs", "jig/crates/jig-domain-core/src/tests/run_policy_tools.rs"]
+files = ["jig/crates/jig-domain-core/src/runs/state.rs", "jig/crates/jig-domain-core/src/tests/run_policy_tools.rs", "jig/crates/jig-protocol-config/src/profile/small.rs"]
 effort = "medium"
 minutes = 60
 +++
@@ -89,3 +89,22 @@ Acceptance:
 As the implementer's text says, and: each file edited outside `state.rs`, with its row; every
 price or golden corrected, with its old and new figure; every encoder or decoder that met
 `RunPolicy` other than the table's (a later task carries the mask through it).
+
+## Answers
+
+2026-11-03. **Q:** may this task raise Small's store value bound (`STORE_KV.value`, 2,166,708)
+when `the_reference_profile_passes_startup_admission` needs 2,166,900? **A:** yes, if the
+shortfall is this change's; it is a derived figure, not a budget, and the acceptance needs it.
+
+- First, once, run that test alone on the trunk without this branch's commit. If it fails there
+  too, the shortfall is not this task's: change nothing for it and report it under `## Left`.
+- Otherwise, in `jig/crates/jig-protocol-config/src/profile/small.rs` set `value` to the figure
+  the refusal names (2,166,900 or what the rerun reports), and its comment's figure, naming
+  `RunPolicy.tools`; move `chunk` and `page.bytes` by the same delta (they are `value` plus the
+  key and framing, as their comments say); leave `commit`, `queued_bytes`, `segment`,
+  `snapshot_after` and `budget`, which do not derive from `value`. Correct the pinned
+  `page.bytes` assertions that move with it (`jig-protocol-config/src/tests/profile.rs`,
+  `temper-service/src/{store.rs,tests/limits.rs,tests/startup.rs,tests/store.rs}`), and any
+  other pinned figure of `value` the tests show, the expectation alone. Standard's figures stay
+  unless a test of Standard fails the same way; then the same rule. List each, old and new.
+- Any other production bound, limit or budget that fails: still stop and ask.
