@@ -1,0 +1,19 @@
+/* The page's frame (temper/docs/design/playground.md, 2 and 6). */
+.playground [hidden] { display: none !important; }
+.playground-frame { padding: 18px 24px; border-bottom: 1px solid var(--temper-line); background: var(--temper-topbar); }
+.playground-frame p { margin: 0 0 10px; }
+.playground-intro { font-weight: 700; }
+#playground-description { max-width: 100ch; color: var(--temper-muted); }
+.playground-controls, .playground-controls [role=group], .playground-figures { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.playground-controls [role=group] { gap: 4px; }
+.playground-controls button, .playground-controls select, .playground-failure button, .playground-failure a { padding: 5px 10px; border: 1px solid var(--temper-line); border-radius: 4px; background: var(--temper-paper); color: var(--temper-ink); }
+.playground-controls button[aria-pressed=true] { border-color: var(--temper-accent); background: var(--temper-accent-pale); color: var(--temper-accent-dark); }
+.playground-controls button:disabled, .playground-controls select:disabled { opacity: .5; cursor: default; }
+.playground :is(button, select, a):focus-visible { outline: 2px solid var(--temper-accent); outline-offset: 3px; }
+.playground-figures { margin-top: 12px; font-variant-numeric: tabular-nums; color: var(--temper-muted); }
+.playground-frame .playground-download { margin: 10px 0 0; color: var(--temper-muted); }
+.playground-loading, .playground-failure { margin: 24px; }
+.playground-failure { max-width: 90ch; padding: 24px; border: 1px solid var(--temper-red); border-radius: 4px; background: var(--temper-paper); }
+.playground-failure h1 { margin-top: 0; font-size: 18px; color: var(--temper-red); }
+#playground-failure-words { white-space: pre-wrap; overflow-wrap: anywhere; }
+.playground-failure a { display: inline-block; color: var(--temper-accent-dark); text-decoration: underline; }
