@@ -2,6 +2,7 @@
 temper/docs/help/**
 jig/docs/design/protocol/store.md
 smith/docs/design/**
+smith/crates/smith-agent-shell/README.md
 smith/benchmarks/README.md
 smith/benchmarks/tasks/**
 smith/benchmarks/tests/fixtures/**
