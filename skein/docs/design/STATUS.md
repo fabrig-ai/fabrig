@@ -10,17 +10,18 @@ no dialect has yet (the labels, `UpdateRef`) and GitHub's Actions
 routes, `Artifact` and `Commits` among them (`forge.md`,
 `forge-github.md`); the fake GitHub refuses no push as `GH013`
 (`fake-forge.md`). Of the portable crates, `skein-tls`,
-`skein-fake-forge-github`, `skein-fake-peers` fail the gate's wasm32
-clippy (`testing.md`). json, tls and http's collector have no fuzz
-target (`json.md`, `tls.md`, `http.md`). A few items lag in `lib.md`,
-`examples.md` and `ui.md`. The code departs in three crates' `tests/`
-directories (`testing.md`) and in `skein-playground`'s manifest
-(`playground.md`), and five of the LLM live suite's provider stories are
-manual, run by the owner (`llm.md`). `README.md`, `channel.md`,
-`codec.md`, `kv.md`, `fake-checkout.md`, `fake-llm.md`,
-`forge-client.md`, `forge-connection.md`, `forge-setup.md`,
-`llm-connection.md`, `oauth.md`, `oauth-issuer.md`, `ui-text.md`,
-`ui-web.md` and `browser.md` have no gap. The foundation's rules
+`skein-fake-forge-github` and `skein-fake-peers` are not in the gate's
+wasm32 clippy, their build there unmeasured (`testing.md`). json, tls
+and http's collector have no fuzz target (`json.md`, `tls.md`,
+`http.md`). A few items lag in `lib.md`, `examples.md` and `ui.md`. The
+code departs in three crates' `tests/` directories (`testing.md`) and in
+`skein-playground`'s manifest (`playground.md`), and five of the LLM
+live suite's provider stories are manual, run by the owner (`llm.md`).
+`README.md`, `channel.md`, `codec.md`, `kv.md`, `world.md`,
+`fake-checkout.md`, `fake-llm.md`, `forge-client.md`,
+`forge-connection.md`, `forge-setup.md`, `llm-connection.md`,
+`oauth.md`, `oauth-issuer.md`, `ui-text.md`, `ui-web.md` and
+`browser.md` have no gap. The foundation's rules
 (`../foundation/`) have no status file: of `testing-strategy.md`, 6, no
 tree runs transition coverage (`cargo llvm-cov`) or fuzzes a machine or
 a decoder (`cargo fuzz`). Of the drafts, `component-kit.md` waits on
