@@ -38,6 +38,7 @@ jig-client-protocol-link.workspace = true
 jig-client-fake-person-browser.workspace = true
 
 [dev-dependencies]
+temper-service.workspace = true
 skein-world.workspace = true
 skein-sim = { path = "../../../skein/crates/skein-sim" }
 
