@@ -475,7 +475,7 @@ fn encode(document: &Document<'_>, limits: &Limits, digest: Option<crate::jig::d
             cut.digest = digest;
             tasks::encode_ended_task(task, result, out, &mut cut);
         }
-        Document::ReadSet(reading, _) => read_sets::encode(reading, limits, out, &mut cut),
+        Document::ReadSet(reading, me) => read_sets::encode(reading, *me, limits, out, &mut cut),
         Document::SizedTurn { task, name, bytes } => {
             out.object_start();
             out.key(b"task");
