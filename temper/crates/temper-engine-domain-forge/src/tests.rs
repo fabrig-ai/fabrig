@@ -2136,13 +2136,13 @@ fn setup_failures_name_the_held_step_until_state_changes() {
     }
 }
 
-/// A merge job uses the change's writable home (temper/docs/design/domain/forge.md, 8.4).
+/// A merge job keeps its repository's name (temper/docs/design/domain/worker.md, 4.4).
 #[test]
-fn a_merge_delegate_asks_for_a_merge_in_progress_named_home() {
+fn a_merge_delegate_asks_for_a_merge_in_progress_named_as_its_repository() {
     use temper_engine_domain_forge_change as change;
     const CHILD: u64 = 90;
-    // home (4), forge.example (13), org (3), and the push branch temper/51 (9).
-    const FIXED_ITEM_BYTES: usize = 29;
+    // project (7), forge.example (13), org (3), and the push branch temper/51 (9).
+    const FIXED_ITEM_BYTES: usize = 32;
     for (from, branch) in [(Some(fixtures::HEAD), b"temper/51".as_slice()), (None, b"main".as_slice())] {
         let mut d = domain();
         let mut repository = adopted();
@@ -2161,7 +2161,7 @@ fn a_merge_delegate_asks_for_a_merge_in_progress_named_home() {
             })
             .expect("merge item");
         assert_eq!(item.provider, REPO);
-        assert_eq!(item.name.as_ref(), b"home");
+        assert_eq!(item.name.as_ref(), b"project");
         assert_eq!(item.start, items::Start::Merge { branch: Box::from(branch), base: fixtures::BASE });
         assert_eq!(item.push.as_deref(), Some(b"temper/51".as_slice()));
         assert_eq!(item.holder, Some(fixtures::CHANGE));

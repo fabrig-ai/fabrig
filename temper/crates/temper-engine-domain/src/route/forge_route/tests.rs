@@ -1920,7 +1920,7 @@ fn release_held_tier(domain: &mut super::Domain, env: &skein_lib::Env<super::Lim
     assert!(heard.released && !heard.cancelled);
 }
 
-/// temper/docs/design/domain/worker.md, 4.4: the root writes C2's worker record.
+/// temper/docs/design/domain/worker.md, 4.4: the root writes R1's repository-relative command.
 #[test]
 #[expect(
     clippy::disallowed_macros,
@@ -1931,9 +1931,9 @@ fn a_merge_jobs_spec_is_its_command_and_its_two_commits() {
     use temper_protocol_worker_wire::v1;
     for (head, head_text) in COMMITS {
         for (base, base_text) in COMMITS {
-            let bytes = super::merge::spec(b".temper/merge", head, base, 4096).expect("merge spec");
+            let bytes = super::merge::spec(b"fabrig", b".temper/merge", head, base, 4096).expect("merge spec");
             let decoded = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)).unwrap();
-            assert_eq!(decoded.command(), b".temper/merge");
+            assert_eq!(decoded.command(), b"fabrig/.temper/merge");
             let expected = alloc::format!(
                 "{{\"version\":1,\"head\":\"{}\",\"base\":\"{}\"}}",
                 core::str::from_utf8(head_text).unwrap(),
@@ -1941,8 +1941,8 @@ fn a_merge_jobs_spec_is_its_command_and_its_two_commits() {
             );
             assert_eq!(decoded.request(), expected.as_bytes());
             let bound = u32::try_from(bytes.len()).unwrap();
-            assert_eq!(super::merge::spec(b".temper/merge", head, base, bound), Some(bytes));
-            assert_eq!(super::merge::spec(b".temper/merge", head, base, bound - 1), None);
+            assert_eq!(super::merge::spec(b"fabrig", b".temper/merge", head, base, bound), Some(bytes));
+            assert_eq!(super::merge::spec(b"fabrig", b".temper/merge", head, base, bound - 1), None);
         }
     }
 }

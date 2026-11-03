@@ -1,7 +1,7 @@
 # The reference's merge job
 
 `.temper/merge merge <request.json>` runs from a job directory with the merge
-in progress in `home/` (temper/docs/design/protocol/tooling.md, 4.1). It recounts
+in progress in `<repository name>/` (temper/docs/design/protocol/tooling.md, 4.1). It recounts
 unmerged tree baselines from the head's comments and the larger side counts,
 stages successful recounts, and leaves other conflicts for a resolution. A new
 `# Raised:` line on the incoming side or a failed recount leaves the baseline.
