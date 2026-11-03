@@ -1707,8 +1707,9 @@ init`'s document carries none of them (`setup.md`, 8.3).
   every budget above, scales with it.
 - **The box's limits for that work.** `temper init`'s document, and
   `docs/examples/owned.json`, raise `authority.executors` and
-  `tasks.executor_kinds` to 8 (small's 4), since the stock delegates to
-  six executors, charters 1 to 4 and 6 and the change procedure;
+  `tasks.executor_kinds` to 12 (small's 4), holding the stock and the
+  reference's whole delegation (13.9) within ctl's twelve-kind list
+  capacity;
   `tasks.charters` to 8 (small's 4), since the stock holds five
   charters and a deployment's settings add their own (13.9);
   `tasks.contract_choices` to 4, since a foreman's verdict has three
@@ -1918,34 +1919,34 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
   turn (`smith-agent-service`'s `profile.rs`). That measurement uses the
   smallest shared room over every configured model, so one set of bounds
   holds whichever model a charter names (smith's `limits.md`, 3.9).
-  With `temper init`'s demo endpoint, window 177,523, output 8,192 and
-  `reasoning_item` 65,536, the measured turn is 1,066,989 bytes. Init's
-  configured T of 1,067,219 leaves 230 bytes of room; its carrier ceilings
-  below remain sufficient. A box without the demo is measured from its
-  own models and must declare every carrier at least as large as that
-  measurement. `docs/examples/owned.json` supplies such declarations.
+  With `temper init`'s demo endpoint, window 177,523, output 8,192,
+  `reasoning_item` 65,536 and two calls per response, T is 1,662,042 bytes.
+  A box without the demo is measured from its own models and must declare
+  every carrier at least as large as that measurement.
+  Init's stock profile takes `calls_per_response` 2;
+  `docs/examples/owned/agent.json` keeps 1, with T of 1,589,621 bytes
+  in `docs/examples/owned.json`. Its sub-agent calls run one after another.
   Init keeps the demo, whose window gives the 51,717-byte host part
   (13.4), enough for the stock tools and authorised brief.
 - **The store's ceiling:** small's page holds a loaded transcript of at
-  most 1,590,046 bytes (its 1,590,110 less the frame's 64), so T is at
-  most that. At output 32,000, `reasoning_item` is at most 53,394; a box
-  sets 32,768, its reasoning's bound per item, with room.
-- **Output 16,000** does not start on init's limits either; the example
-  below declares T as 1,254,611 at `reasoning_item` 65,536.
+  most 1,662,042 bytes (its 1,662,106 less the frame's 64), so T is at
+  most that. The page ceiling admits the largest shipped ordinary
+  transcript (jig's `protocol/configuration.md`, 6). A deployment with
+  larger output or reasoning items derives T from its own agent and
+  checks that its full frame fits the selected profile's page.
 - **The limits T sets,** "both hubs" being the engine's and each
-  worker's; init's values are output 8,192's:
+  worker's; init's values are output 8,192's with two calls per response:
 
-| Limit | Relation | Init: output 8,192, item 65,536 | Output 16,000, item 65,536 | Output 32,000, item 32,768 |
-|---|---|---|---|---|
-| both `hub.turn_bytes` | T | 1,067,219 | 1,254,611 | 1,507,539 |
-| the engine's `core.resume_bytes` | T + 4 | 1,067,223 | 1,254,615 | 1,507,543 |
-| both `hub.transcript_bytes` | resume + 12 × ⌊resume / 4⌋ | 4,268,883 | 5,018,451 | 6,030,163 |
-| a worker's `hub.turn_queue_bytes` | 8 × T | 8,537,752 | 10,036,888 | 12,060,312 |
-| the engine's `hub.turn_queue_bytes` | at least T | 8,537,752 | init's holds | init's holds |
-| `root.journal.transcript_bytes` | resume | 1,067,223 | 1,254,615 | 1,507,543 |
-| `root.loads.transcript_bytes` | T, at most 1,590,046 | 1,067,219 | 1,254,611 | 1,507,539 |
-| `root.loads.bytes`, `root.loads.reply_bytes` | T + 248 (a temper record) | 1,067,467 | 1,254,859 | 1,507,787 |
-| `root.loads.read_bytes` | init: 2 × T; holds T and a row and a record | 2,134,438 | init's holds | init's holds |
+| Limit | Relation | Init |
+|---|---|---|
+| both `hub.turn_bytes` | T | 1,662,042 |
+| the engine's `core.resume_bytes` | T + 4 | 1,662,046 |
+| both `hub.transcript_bytes` | resume + 12 × ⌊resume / 4⌋ | 6,648,178 |
+| both `hub.turn_queue_bytes` | 8 × T | 13,296,336 |
+| `root.journal.transcript_bytes` | resume | 1,662,046 |
+| `root.loads.transcript_bytes` | T, at most 1,662,042 | 1,662,042 |
+| `root.loads.bytes`, `root.loads.reply_bytes` | T + a temper record's size | 1,662,290 |
+| `root.loads.read_bytes` | init: 2 × T; holds T and a row and a record | 3,324,084 |
 
 - **Memory:** `engine.memory_bytes` is the engine's byte budget
   (`../domain/root.md`, 4.1), independent of a model's edge bounds.
@@ -2037,10 +2038,10 @@ that changes the stock changes nothing of them.
   that it notes what it learns, then applied whole. Charter 5 is the
   deployment's sixth charter, within the 8 `tasks.charters` 13.4 gives the box;
   it, the merge kind and role 0 are three more executors in the
-  delegation, nine with the stock's six, past the 8 `authority.executors`
-  and `tasks.executor_kinds` 13.4 gives the box, so the walk's document
-  raises both to hold the delegation whole, charter 7's included
-  (below).
+  delegation, nine with the stock's six, within the 12 `authority.executors`
+  and `tasks.executor_kinds` 13.4 gives the box, including room for
+  charter 7 (below). Applying the reference needs no delegation-limit
+  change or restart.
 - **Designers and the cut** (`../draft/reference-code-production.md`,
   sections 3, 5 and 12): the same file's later edition adds
   - *charter 7, the designer's:* instructions to write one family's
@@ -2080,9 +2081,9 @@ that changes the stock changes nothing of them.
     home repository's `main`.
   Charter 7 joins the rules' and policy 1's delegation as charter 5 did;
   it is the deployment's seventh charter, within the 8 `tasks.charters`
-  13.4 gives the box, and the delegation's tenth executor, within what
-  the walk's document gives `authority.executors` and
-  `tasks.executor_kinds` (above).
+  13.4 gives the box, and the delegation's tenth executor, within the
+  12 `authority.executors` and `tasks.executor_kinds` init gives the box
+  (13.4).
   Each document names the forge's host, owner and repository the walk's
   document fills in, as the landing rules do.
 - **The landing rules** are kind 1's rules 1 and 2, items of the
