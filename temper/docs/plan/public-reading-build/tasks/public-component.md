@@ -170,3 +170,11 @@ For this task: Fill the title and the name from their sources. A spec amendment 
 `public_v1::PublicBoard` carries `name` after `project`; the translation maps the core's
 `PublicProject` (its project through the permutation) and `PublicBoard.name`, and
 `PublicLine.title`, as they are (`public-index` adds them to the core's types).
+
+2026-11-03. **`public-wire`'s bounds past its ceilings** (from `public-wire`'s answer).
+`jig_client_protocol_wire::public_limits` returns `Option<public_v1::Limits>`, `None` when an
+index bound passes the public schema's ceilings, and `public_bounds` gives `u32::MAX` for each
+kind then. With `limits.public.on()`, `Component::new` refuses (`Unusable::Limits`) when
+`public_limits` is `None`, as it refuses a kind's `bound` past `answer_bytes`.
+Its records fill `PublicLine.title` from the core's title cut at 256 bytes on a character
+boundary, and `title_cut` true when the core's title was cut or is cut here.

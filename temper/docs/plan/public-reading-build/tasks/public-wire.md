@@ -138,3 +138,36 @@ amended to match; `public_bounds` counts each name at 64 bytes; the fields golde
 record; `no_public_record_carries_text` allows `PublicLine.title`, `PublicProject.name`,
 `PublicBoard.name` and `PublicApplication.record`. contract.md 12's table and source rows say
 the same.
+
+2026-11-03. **The schema's list ceilings and the bounds past them: explicit ceilings and
+helpers that refuse (A), or wider maxima in skein-codegen and skein-codec (B)?** A; skein is
+not widened. The schema's syntax needs a ceiling on every list, text and bytes, and skein-codec
+refuses a declaration whose largest encoding passes `u32`, so the ceilings are the schema's,
+set here (`notes/contracts.md`, section 3, amended to match):
+
+- `PublicProjects.projects: list 4096`; `PublicBoard.live` and `.ended: list 256`;
+  `PublicGoal.tree: list 256`; `PublicCard.lineage: list 64 u64`, `.delegates: list 256`;
+  `PublicApplication.tasks: list 1024 u64`, `.record: bytes 16777216`; names `text 64`.
+- **The title is cut, not carried whole.** This replaces the earlier answer's "bounded by
+  jig's existing bound for a task's title": that bound is the client wire's `DocumentText`
+  (`text 65536`, cut at `documents.text_bytes`), which makes a line 64 KiB and a board's
+  reservation hundreds of megabytes. `PublicLine` gains, after `task`, `title: text 256` and
+  `title_cut: bool`: the first line of the task's spec cut at 256 bytes on a character
+  boundary, `title_cut` true when it was cut, as `DocumentText.cut` says. The fields golden
+  lists both; `no_public_record_carries_text` allows `PublicLine.title`.
+- `public_limits(bounds: &PublicIndexBounds) -> Option<public_v1::Limits>`, as temper's
+  `public_limits` is: `None` when a bound passes its ceiling (the generated `check_limits`).
+  `public_bounds(bounds: &PublicIndexBounds) -> [u32; 3]` keeps its signature: each kind's
+  `encoded_bound` at those limits, and `u32::MAX` for each kind when `public_limits` is `None`
+  or a bound does not fit `u32`, so the component's check against `answer_bytes` refuses the
+  start (never 0, which would pass that check).
+- Tests: `public_bounds_hold_the_largest_answers` as written, at bounds within the ceilings;
+  and `bounds_past_a_ceiling_are_refused`: goals, ended or lines at 257, depth at 65 or
+  projects at 4097 give `public_limits` `None` and `public_bounds` `[u32::MAX; 3]`.
+- The design text: `jig/docs/design/client/domain/contract.md`, 12 states the ceilings and
+  the title's cut (its source row: the spec's first line, cut at 256 bytes).
+
+Report `public_bounds`' three values at the proposed figures as measured by the test; at those
+figures the board is about 730 KB, past the proposed `clients.public.answer_bytes` of 256 KiB.
+That proposal is the user's (`temper/docs/design/draft/first-release.status.md`, Open): leave
+it, and report the measured values.

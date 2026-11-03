@@ -36,9 +36,10 @@ task's; every other task builds on it as written. Private helpers are each task'
 - Every profile's public figures are zero. The relations of
   `jig/docs/design/protocol/configuration.md`, section 6, are checked by jig-protocol-config
   at start once `clients.public.rate > 0`; with a rate of zero only `max_age <= 60` is.
-- `jig_client_protocol_wire::public_bounds(index: &PublicIndexBounds, projects: u32) -> [u32; 3]`
-  (section 3) gives jig's three kinds' largest answers; the start checks each against
-  `answer_bytes`.
+- `jig_client_protocol_wire::public_bounds(bounds: &PublicIndexBounds) -> [u32; 3]`
+  (section 3) gives jig's three kinds' largest answers, `u32::MAX` for each when a bound is past
+  its schema ceiling; the start checks each against `answer_bytes`, and refuses public reading
+  on when `public_limits` gives `None`.
 
 ## 2. Visibility (`visibility-surface`, `visibility-wire`, `visibility-core`)
 
@@ -75,17 +76,17 @@ module `jig_client_protocol_wire::public_v1` (`src/generated/public_v1.rs`), gol
 Every identifier is `u64`; every time is `u64` seconds since the epoch.
 
 ```
-record PublicProjects { projects: list PublicProject, max_age: u32 }
+record PublicProjects { projects: list 4096 PublicProject, max_age: u32 }
 record PublicProject { project: u64, name: text 64 }
-record PublicBoard { project: u64, name: text 64, live: list PublicGoal, live_folded: u32, ended: list PublicGoal }
-record PublicGoal { line: PublicLine, tree: list PublicLine, folded: u32 }
-record PublicCard { line: PublicLine, lineage: list u64, delegates: list PublicLine, folded: u32 }
-record PublicLine { task: u64, parent: option u64, goal: bool, priority: option u32,
+record PublicBoard { project: u64, name: text 64, live: list 256 PublicGoal, live_folded: u32, ended: list 256 PublicGoal }
+record PublicGoal { line: PublicLine, tree: list 256 PublicLine, folded: u32 }
+record PublicCard { line: PublicLine, lineage: list 64 u64, delegates: list 256 PublicLine, folded: u32 }
+record PublicLine { task: u64, title: text 256, title_cut: bool, parent: option u64, goal: bool, priority: option u32,
                     executor: PublicExecutor, phase: PublicPhase, hold: option PublicHold,
                     made: u64, changed: u64, active: option u64, ended: option u64,
                     spent: u64, budget: u64, delegates: PublicCounts }
 record PublicCounts { working: u32, waiting: u32, held: u32, closing: u32, ended: u32 }
-record PublicApplication { tasks: list u64, record: bytes }
+record PublicApplication { tasks: list 1024 u64, record: bytes 16777216 }
 enum PublicExecutor { agent, procedure, person, job }            # unit variants
 enum PublicPhase { ... }    # one unit variant per jig_client_domain::contract::Phase variant
 enum PublicHold { ... }     # one unit variant per kind of hold a held task's line names
@@ -93,7 +94,12 @@ enum PublicHold { ... }     # one unit variant per kind of hold a held task's li
 
 List bounds come from `PublicIndexBounds { goals, ended, lines, depth, projects }` (the
 crate's own `u16`/`u32` struct, filled from section 1's limits by its callers), each list
-within its bound, so `public_bounds` is exact. Kind numbers: *projects* 1, *board* 2, *card*
+within its bound, so `public_bounds` is exact. The numbers after `list`, `text` and `bytes`
+are the schema's ceilings (`CEILINGS`), chosen so every declaration's largest encoding fits
+`u32`: a bound past its ceiling (goals, ended or lines past 256, depth past 64, projects past
+4096) makes `public_limits` `None` and `public_bounds` `u32::MAX` for each kind. A title is the
+first line of the task's spec cut at 256 bytes on a character boundary, `title_cut` saying it
+was cut, as the client wire's `DocumentText` carries `cut`. Kind numbers: *projects* 1, *board* 2, *card*
 3. The schema's syntax is skein-codegen's as the client schema uses it; where the sketch
 above departs from that syntax, the syntax wins and the report says how.
 
