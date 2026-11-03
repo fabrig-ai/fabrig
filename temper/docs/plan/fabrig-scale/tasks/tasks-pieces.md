@@ -181,3 +181,16 @@ Acceptance:
 As the implementer's text asks, with: `size_of::<New>()`, `Member(EMPTY)` and
 `Creation(EMPTY)`; small's and standard's largest task row before and after (the jig-test-service
 figures); the temper row's new member and figures; and every generated file the writer changed.
+
+## Answers
+
+### 2026-11-03: Resume tasks-pieces after batch-bytes pushes its required domain API (recommended), or assign that dependency's implementation to this task? The current dependency branch lacks Limits.batch_bytes and the public jig_domain_tasks::batch_bytes function. (fabrig-scale/tasks-pieces-1, foreman fabrig-scale/tasks-pieces/foreman-1)
+
+Resume tasks-pieces after batch-bytes pushes its required domain API; that implementation remains with batch-bytes.
+The tasks-pieces spec declares `needs = ["batch-bytes", "override-relations", "transcript-ceilings", "forge-profile"]`.
+Its acceptance requires “`jig_domain_tasks::batch_bytes`” and derives batch piece bounds from `batch_bytes`.
+The batch-bytes spec explicitly requires “`jig_domain_tasks::Limits` has `pub batch_bytes: u32`” and “`jig_domain_tasks::batch_bytes(batch: &[New]) -> Option<u64>` is public (exported from `lib.rs`)”.
+Those domain files belong to batch-bytes and are outside tasks-pieces’ permitted files.
+The checkout confirms the field and public export are absent; `owned.rs`’s function remains private.
+Keep tasks-pieces parked until that dependency is available, then resume its remaining implementation and required checks.
+The pushed schema checkpoint does not meet the task’s acceptance and is not accepted as done.
