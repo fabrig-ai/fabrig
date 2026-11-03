@@ -97,9 +97,14 @@ impl Domain {
                 change::Delegate::Repair(_) => {
                     (Start::Branch(row.branch.clone()), Some(row.branch.clone()), Some(row.task))
                 }
-                change::Delegate::Resolve { base } => {
-                    (Start::Merge { branch: row.branch.clone(), base }, Some(row.branch.clone()), Some(row.task))
-                }
+                change::Delegate::Resolve { base } => (
+                    Start::Merge {
+                        branch: if row.change.last_head.is_some() { row.branch.clone() } else { row.base.clone() },
+                        base,
+                    },
+                    Some(row.branch.clone()),
+                    Some(row.task),
+                ),
                 change::Delegate::Merge { base, from } => (
                     Start::Merge { branch: if from.is_some() { row.branch.clone() } else { row.base.clone() }, base },
                     Some(row.branch.clone()),

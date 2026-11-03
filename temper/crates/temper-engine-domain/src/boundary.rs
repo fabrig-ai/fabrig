@@ -186,13 +186,14 @@ pub struct ChangeCall {
     pub repository: Option<Box<[u8]>>,
     pub name: Option<Box<[u8]>>,
     pub landing: Option<ChangeLanding>,
+    pub merge: Option<[u8; 32]>,
     pub after: Box<[ChangeAfter]>,
 }
 
 impl ChangeCall {
     #[must_use]
     pub fn words(words: Box<[u8]>, repository: Option<Box<[u8]>>) -> Self {
-        Self { words, repository, name: None, landing: None, after: Box::new([]) }
+        Self { words, repository, name: None, landing: None, merge: None, after: Box::new([]) }
     }
 }
 
