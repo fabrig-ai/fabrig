@@ -388,7 +388,8 @@ pub(super) const DRIVER: skein_oauth_accounts::Limits = skein_oauth_accounts::Li
 // Started-from dependencies cost a four-byte count plus 8 eight-byte numbers = 68 bytes.
 pub(super) const STORE_KV: skein_kv::Limits = skein_kv::Limits {
     key: 2079,
-    value: 1_604_798,
+    // Settings history with twelve configured charters needs 2,166,708 bytes.
+    value: 2_166_708,
     // Two operations per journal write, three creation rows and an orphan erase: 2 * 20,801 + 4.
     ops: 41_606,
     // 256 MiB values + 41,606 operations * (2,079 key + 9 framing) + 26 frame bytes.
@@ -399,11 +400,9 @@ pub(super) const STORE_KV: skein_kv::Limits = skein_kv::Limits {
     budget: 268_435_456,
     segment: 710_617_620,
     snapshot_after: 355_308_810,
-    chunk: 1_606_897,
-    // The largest shipped ordinary transcript is 1,662,042 bytes; its full
-    // frame adds 64 bytes (protocol/configuration.md, 6; protocol/store.md, 5.4).
-    // This page ceiling also holds the largest task row with its key.
-    page: skein_kv::Page { rows: 2, bytes: 1_662_106 },
+    chunk: 2_168_807,
+    // The revision envelope, including what its items replaced, fits with its key.
+    page: skein_kv::Page { rows: 2, bytes: 2_168_787 },
     deadline: Duration::from_secs(30),
 };
 pub(super) const STORE: jig_protocol_store::Limits = jig_protocol_store::Limits {

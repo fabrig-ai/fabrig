@@ -18,6 +18,9 @@ pub(in crate::codec) fn wire_refusal(value: &c::Refusal, limits: &w::Limits) -> 
                 why: why.bytes().into(),
             },
         )?),
+        c::Refusal::Forgotten { oldest } => {
+            w::Refusal::Forgotten(w::RefusalForgotten::new(limits, w::RefusalForgottenParts { oldest: *oldest })?)
+        }
         c::Refusal::Stale(value) => w::Refusal::Stale(wire_refusal_stale(value, limits)?),
         c::Refusal::Full(value) => w::Refusal::Full(wire_refusal_full(value, limits)?),
         c::Refusal::AccountMove { why } => w::Refusal::AccountMove(w::RefusalAccountMove::new(

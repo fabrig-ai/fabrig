@@ -105,6 +105,9 @@ pub fn encode(key: &forge::Key, limit: u32) -> Option<Box<[u8]>> {
                 forge::settings::SettingSlot::Proposal(proposal) => {
                     writer.tag(2).u64(proposal);
                 }
+                forge::settings::SettingSlot::Replaced(revision) => {
+                    writer.tag(3).u64(revision);
+                }
             }
         }
         forge::Key::Tier { repository, tier } => {
@@ -274,6 +277,7 @@ pub fn decode(bytes: &[u8], limits: &forge::Limits) -> Option<forge::Key> {
                 0 => forge::settings::SettingSlot::Default,
                 1 => forge::settings::SettingSlot::Change,
                 2 => forge::settings::SettingSlot::Proposal(reader.u64()?),
+                3 => forge::settings::SettingSlot::Replaced(reader.u64()?),
                 _ => return None,
             };
             forge::Key::Setting(forge::settings::SettingKey { kind, scope, number, slot })

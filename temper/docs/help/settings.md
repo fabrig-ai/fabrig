@@ -21,6 +21,11 @@ number: `charter 2`, `template 1`, `policy 1`, `rules`,
 - A policy is what a project made from it starts with, and the rules are
   the ceilings of every project: `temper help policy`.
 
+A project's own policy is no setting, yet it is an item of a change,
+named `project-policy P`: set to a policy whole, set alone and at most
+once a file. `settings show` lists no project's policy; `project show
+PROJECT` reads its roles and spends.
+
 The binary holds the defaults, and the store holds the changes over
 them. The current settings are the defaults with the stored changes over
 them: a setting no change names follows its default. The settings live
@@ -43,8 +48,10 @@ The rules are set or reset, never removed.
 
 A change names the newest revision its maker read. It makes one revision
 (`temper help revision`), or it is refused whole and changes nothing.
-Only the deployment's owners make a change. A party with a role in the
-deployment or in a project proposes one instead, for an owner to decide
+The deployment's items need its owners; a project's policy needs that
+project's owners; a change of both needs one person who owns both. A
+party with a role in the deployment or in a project proposes one
+instead, for those owners to decide
 (`temper help proposal`).
 
 A start whose binary has a new default for a setting that follows its
@@ -81,7 +88,8 @@ default that changed.
   `settings show forge-charter NUMBER` reads one of the forge's charters.
   Both print the setting's state and its value; `--json` prints the value
   in the form a settings file's `set` takes. `proposal show PROPOSAL`
-  includes temper's proposed values, removals and resets.
+  includes temper's proposed values, removals and resets, and a project's
+  policy now and as it would be, each whole.
   Each verb's arguments are its help: `temper
   ctl help settings apply`.
 - A settings file holds a change's items: its form is

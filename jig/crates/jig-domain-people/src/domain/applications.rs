@@ -16,7 +16,8 @@ pub fn application_part(domain: &mut Domain, env: &Env<Limits>, request: Token, 
             crate::ApplicationScope::Project(project) => *project,
             crate::ApplicationScope::Own | crate::ApplicationScope::Deployment => 0,
         },
-        Ask::Compound { .. }
+        Ask::Restore { .. }
+        | Ask::Compound { .. }
         | Ask::MarkSeen { .. }
         | Ask::MakeService { .. }
         | Ask::Adopt { .. }
@@ -50,6 +51,7 @@ pub fn application_part(domain: &mut Domain, env: &Env<Limits>, request: Token, 
         | Ask::AccountChange { .. } => return Err(Outcome::Refused(Refusal::NotOffered)),
     };
     match &ask {
+        Ask::Restore { .. } => return Err(Outcome::Refused(Refusal::NotOffered)),
         // An account request is its holder's own and a sign-out waits on the accounts'
         // component, so neither is a synchronous part of an application's request.
         Ask::Application { .. }
@@ -110,10 +112,10 @@ pub fn application_part(domain: &mut Domain, env: &Env<Limits>, request: Token, 
 
 pub(super) fn admission(domain: &Domain, person: u64, _project: u32, role: Option<Role>, ask: &Ask) -> Option<Refusal> {
     match ask {
-        Ask::Propose { project, action: crate::Action::Settings { .. }, .. } => {
-            if *project != crate::DEPLOYMENT {
-                return Some(Refusal::Unknown);
-            }
+        Ask::Propose { project, action: crate::Action::Settings { .. }, .. } if *project != crate::DEPLOYMENT => {
+            Some(Refusal::Unknown)
+        }
+        Ask::Restore { .. } | Ask::Propose { action: crate::Action::Settings { .. }, .. } => {
             for (_, holdings) in &domain.roles {
                 for holding in &**holdings {
                     if holding.person == person {
@@ -125,6 +127,9 @@ pub(super) fn admission(domain: &Domain, person: u64, _project: u32, role: Optio
         }
         Ask::ChangeSettings { projects, .. } => {
             for &project in projects {
+                if !domain.has_project(project) || domain.deletions.contains_key(&project) {
+                    return Some(Refusal::Unknown);
+                }
                 let held = super::role(domain, person, project);
                 if held != Some(Role::Owner) {
                     return Some(Refusal::Role { held });

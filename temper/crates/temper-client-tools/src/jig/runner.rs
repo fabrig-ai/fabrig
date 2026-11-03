@@ -197,6 +197,7 @@ fn run(runner: &mut Runner, client: &Client, env: &Env<crate::jig::Limits>, call
         | rows::CHANGE_SETTINGS_AT
         | rows::PROPOSE_SETTINGS_AT
         | rows::MOVE_TO_NEWEST_AT
+        | rows::RESTORE_AT
         | rows::PROJECT_FUND_AT => {
             acts::start(runner, client, env, called, out);
         }

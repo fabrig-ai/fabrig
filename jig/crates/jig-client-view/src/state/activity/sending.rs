@@ -50,6 +50,7 @@ fn message(ask: &Ask, task: u64) -> Option<(&Text, u32)> {
         | Ask::Rename { .. }
         | Ask::ChangeSettings(_)
         | Ask::MoveToNewest(_)
+        | Ask::Restore { .. }
         | Ask::MakeProject { .. }
         | Ask::DeleteNote { .. }
         | Ask::ChangePolicy { .. }

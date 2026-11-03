@@ -27,7 +27,8 @@ pub(crate) fn request(
     }
     let (act, subject) = match ask {
         // An account request's check is its holder's, which people made (domain/authority.md, 8.4).
-        people::Ask::Lift { .. }
+        people::Ask::Restore { .. }
+        | people::Ask::Lift { .. }
         | people::Ask::Propose { action: people::Action::Settings { .. }, .. }
         | people::Ask::ChangeSettings { .. }
         | people::Ask::MoveToNewest { .. }
@@ -152,7 +153,8 @@ pub(crate) fn request(
                 | jig_domain_tasks::Escalation::Rejected { .. } => return Ok(()),
             }
         }
-        people::Ask::Compound { .. }
+        people::Ask::Restore { .. }
+        | people::Ask::Compound { .. }
         | people::Ask::Application { .. }
         | people::Ask::Say { .. }
         | people::Ask::AnswerQuestion { .. }
