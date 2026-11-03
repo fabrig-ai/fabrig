@@ -317,6 +317,8 @@ pub const REPOSITORY_SELECTED: Style = Style { owner: owner(), token: 155 };
 pub const WELCOME_SETUP_DESCRIPTION: Style = Style { owner: owner(), token: 156 };
 /// The opening welcome’s software factory tagline.
 pub const WELCOME_TAGLINE: Style = Style { owner: owner(), token: 157 };
+/// The chats page's Project pane (temper/docs/design/client/README.md, 3.5).
+pub const SIDEBAR: Style = Style { owner: owner(), token: 158 };
 /// Native browser elements for the admin group and Model’s definition list.
 pub const ELEMENTS: &[(skein_ui::Owner, skein_ui::Role, Style, &str)] = &[
     (owner(), skein_ui::Role::Region, ADMIN_FIRST, "fieldset"),
@@ -488,6 +490,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-repository-selected",
         b"temper-welcome-setup-description",
         b"temper-welcome-tagline",
+        b"temper-sidebar",
     ],
     regions: &[b"temper-link"],
 };
