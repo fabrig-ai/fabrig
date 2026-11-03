@@ -265,10 +265,13 @@ fn saved(source: &[domain::SavedResource], limits: &wire::Limits) -> Result<List
     }
     Ok(members)
 }
-fn read_saved(source: List<wire::SavedResource>) -> Result<Box<[domain::SavedResource]>, wire::Problem> {
+fn read_saved(
+    source: List<wire::SavedResource>,
+    limits: &wire::Limits,
+) -> Result<Box<[domain::SavedResource]>, wire::Problem> {
     let mut members = List::with_capacity(source.len());
     for member in source.into_boxed() {
-        members.push(state::read_saved_resource(member)?).expect("same number of members");
+        members.push(state::read_saved_resource(member, limits)?).expect("same number of members");
     }
     Ok(members.into_boxed())
 }
@@ -505,7 +508,7 @@ pub fn read_task_record(source: wire::TaskRecord, limits: &wire::Limits) -> Resu
         turn: interests.turn,
         last_message: interests.last_message,
         inbox,
-        saved: read_saved(interests.saved)?,
+        saved: read_saved(interests.saved, limits)?,
         ever_turned: interests.ever_turned.into_parts().ever_turned,
         made: interests.made,
         attempt: outcome.attempt,
