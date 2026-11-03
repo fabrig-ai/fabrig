@@ -210,6 +210,7 @@ impl World {
             None,
             StoryLimits::default(),
             Some((defaults, model, None)),
+            &[],
         )
     }
 
@@ -229,6 +230,7 @@ impl World {
             None,
             StoryLimits::default(),
             Some((defaults, model, Some(limits))),
+            &[],
         )
     }
 
@@ -242,7 +244,24 @@ impl World {
         documents: Option<jig_domain_core::documents::DocumentLimits>,
         timing: StoryLimits,
     ) -> Self {
-        Self::configured_settings(with_read, with_change, silent_ci, passes, gate, documents, timing, None)
+        Self::configured_settings(with_read, with_change, silent_ci, passes, gate, documents, timing, None, &[])
+    }
+
+    /// Charter documents through the core's plan, root binding and forge gather
+    /// (temper/docs/design/domain/testing.md, 6.4).
+    #[must_use]
+    pub fn configured_documents(documents: &[jig_domain_core::Document]) -> Self {
+        Self::configured_settings(
+            true,
+            false,
+            true,
+            1000,
+            paths::Gate::default(),
+            None,
+            StoryLimits::default(),
+            None,
+            documents,
+        )
     }
 
     #[expect(
@@ -259,6 +278,7 @@ impl World {
         documents: Option<jig_domain_core::documents::DocumentLimits>,
         timing: StoryLimits,
         stock: Option<(&jig_domain_core::settings::Defaults, &engine::Model, Option<&engine::Limits>)>,
+        charter_documents: &[jig_domain_core::Document],
     ) -> Self {
         // Sizes subscription/hold notifications and workspace-resource bookkeeping
         let StoryLimits {
@@ -676,6 +696,17 @@ impl World {
             }
             if let Some((_, _, Some(deployment))) = stock {
                 limits = *deployment;
+            }
+            if !charter_documents.is_empty() {
+                // Six core sections and the two documents admitted by these stories
+                // (jig/docs/design/domain/engine.md, 17.9).
+                const DOCUMENT_SECTIONS: u32 = 8;
+                const CHARTER_DOCUMENTS: u32 = 2;
+                limits.brief.sections = DOCUMENT_SECTIONS;
+                limits.tasks.charter_documents = CHARTER_DOCUMENTS;
+                let mut charter = walking::charter();
+                charter.documents = charter_documents.into();
+                config.core.defaults.charters[0] = charter;
             }
             (config, limits)
         });

@@ -83,6 +83,7 @@ pub struct BriefLimits {
 /// Byte ceilings for the root's core sections and its forge connector.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct BriefBudgets {
+    pub document: u32,
     pub task: u32,
     pub dependencies: u32,
     pub ci: u32,

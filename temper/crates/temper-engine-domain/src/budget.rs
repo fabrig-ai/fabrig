@@ -20,6 +20,11 @@ pub(crate) fn payload_bytes(payload: &Payload) -> u64 {
 pub(crate) fn section_bytes(sections: &[BriefSection]) -> u64 {
     let mut bytes = 0_u64;
     for section in sections {
+        if let crate::BriefKind::Forge(crate::ForgeBriefKind::Document(title)) = &section.kind {
+            bytes = bytes
+                .checked_add(u64::try_from(title.len()).expect("document title fits u64"))
+                .expect("completed brief titles fit u64");
+        }
         if let BriefBody::Text(text) = &section.body {
             bytes = bytes
                 .checked_add(u64::try_from(text.len()).expect("section length fits u64"))

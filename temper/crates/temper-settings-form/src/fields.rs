@@ -11,6 +11,7 @@ pub enum Shape {
     Item,
     Setting,
     Charter,
+    Document,
     Model,
     Wake,
     WakeRule,
@@ -108,6 +109,12 @@ pub enum Bound {
 pub enum Limit {
     CharterInstructions,
     CharterAlternatives,
+    CharterDocuments,
+    DocumentSegment,
+    DocumentRepository,
+    DocumentBranch,
+    DocumentPath,
+    DocumentHeading,
     SettingModelProgramSome,
     SettingModelName,
     SettingModelEffortsItem,
@@ -150,6 +157,17 @@ pub fn most(bound: Bound, limits: &crate::Limits) -> u64 {
         Bound::Limit(limit) => match limit {
             Limit::CharterInstructions => limits.settings.charter_instructions,
             Limit::CharterAlternatives => limits.settings.charter_alternatives,
+            Limit::CharterDocuments => limits.settings.charter_documents,
+            Limit::DocumentSegment => limits.settings.charter_document_name_item,
+            Limit::DocumentRepository => limits.settings.charter_document_name_item.saturating_mul(2).saturating_add(1),
+            Limit::DocumentBranch => limits
+                .settings
+                .charter_document_name
+                .saturating_sub(5)
+                .saturating_mul(limits.settings.charter_document_name_item.saturating_add(1))
+                .saturating_sub(1),
+            Limit::DocumentPath => limits.settings.charter_document_path,
+            Limit::DocumentHeading => limits.settings.charter_document_heading_some,
             Limit::SettingModelProgramSome => limits.settings.setting_model_program_some,
             Limit::SettingModelName => limits.settings.setting_model_name,
             Limit::SettingModelEffortsItem => limits.settings.setting_model_efforts_item,

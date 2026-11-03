@@ -908,11 +908,9 @@ fn inbox_context_memory_prices_every_reserved_container_and_complete_document_en
     // bounded review/item-head carriers add 115,248 bytes at this fixture.
     // Four older held revision heads, each with its holder count, add 288 bytes.
     // Sixteen retained specification lines carry eight aligned bytes for asks.
-    // Both value sets carry eight templates with sixteen-byte resource slices.
-    // Each retained specification line also carries an eight-byte job spec pointer.
-    // Both value sets carry one charter with a 56-byte default wake policy:
-    // three 16-byte wake rules, four one-byte fields, and four bytes of alignment.
-    const SETTINGS_DOCUMENT: u64 = 120_496 + 4 * 72 + 16 * 8 + 2 * 8 * 16 + 16 * 8 + 2 * 56;
+    // Two value sets each price charter wake policies and two documents.
+    // Templates retain resource slices and specification lines retain job specs.
+    const SETTINGS_DOCUMENT: u64 = 120_528 + 4 * 72 + 16 * 8 + 2 * 8 * 16 + 16 * 8 + 2 * 56 + 2 * 2 * 440;
 
     let (mut core, limits) = fixture();
     waiting(

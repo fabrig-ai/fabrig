@@ -18,6 +18,8 @@ macro_rules! check {
 mod documents;
 
 fn records_1(bytes: &[u8]) {
+    check!(CharterDocument, bytes);
+    check!(Charter, bytes);
     check!(ReadValue, bytes);
     check!(DeliveryValue, bytes);
     check!(StreamText, bytes);
@@ -643,6 +645,7 @@ fn mutation_seed(path: &Path) -> bool {
     };
     name.ends_with("_full.bin")
         && [
+            "record_charter_",
             "record_keyed_",
             "record_owned_",
             "record_refused_",

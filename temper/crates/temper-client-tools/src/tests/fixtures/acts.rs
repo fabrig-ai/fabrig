@@ -274,7 +274,7 @@ pub(crate) fn restored_chat() -> List<skein_lib::RequestRecord<client::Held>> {
     let mut records = restored_message(PARTY);
     let record = records.get_mut(EMPTY).expect("one restored record");
     let c::Ask::Create { project, tasks, .. } =
-        jig_client::shapes::chat(&chat_me(CHAT_BUDGET), PROJECT, call_words(CREATE_CHAT_CALL, 1)).expect("chat shape")
+        jig_client::shapes::chat(&chat_me(CHAT_BUDGET), PROJECT, call_words(CREATE_CHAT_CALL, 2)).expect("chat shape")
     else {
         panic!("chat creates")
     };

@@ -21,8 +21,9 @@ adds its words so far.
 ## chat start
 
 ```
-chat start --project PROJECT TEXT [--model MODEL] [--effort EFFORT] --key KEY
+chat start --project PROJECT [--template TEMPLATE] TEXT [--model MODEL] [--effort EFFORT] --key KEY
   --project PROJECT: a project's name or number; required. The project
+  --template TEMPLATE: a number; optional. A chat's template by its number; the project's chat template when absent
   TEXT (text): text, at most 1048576 bytes, or - to read stdin; required. The opening words
   --model MODEL: text, at most 1048576 bytes, or - to read stdin; optional. A model the chat may use, as models lists it
   --effort EFFORT: text, at most 1048576 bytes, or - to read stdin; optional. An effort that model offers
@@ -35,6 +36,8 @@ The chat's template chooses its model unless `--model` names one;
 `--effort`. A chat past what your party may start, but within what
 it may propose, is proposed (exit 0). `chat not offered` and `chat
 exceeds offered bounds` (exit 1): your party may not start it.
+`--template` names one of the project's chat templates; one that is
+no chat's, or not offered, fails naming those `me` offers (exit 1).
 Then task show TASK --until replied.
 ```
 

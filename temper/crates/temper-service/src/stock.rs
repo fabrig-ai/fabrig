@@ -222,6 +222,7 @@ fn charter(number: u32, turns: u32, instructions: &[u8], llm: &jig_protocol_conf
     }
     Charter {
         wake: jig_domain_tasks::WakePolicy::DEFAULT,
+        documents: Box::new([]),
         number,
         hosts: jig_domain_fleet::Kinds::Workers,
         spend: 0,

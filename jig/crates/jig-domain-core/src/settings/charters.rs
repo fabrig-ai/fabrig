@@ -7,7 +7,20 @@ use skein_lib::{List, Queue};
 
 use crate::{Core, Limits, RunPolicy, Settings};
 
-/// One numbered charter offered by the deployment (protocol/configuration.md, 3).
+/// A charter's document (domain/engine.md, 17.9).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Document {
+    pub connector: u16,
+    /// The resource name, within the authority's pattern bounds.
+    pub name: jig_domain_authority::Name,
+    /// 1 to `crate::DOCUMENT_PATH_BYTES` bytes.
+    pub path: Box<[u8]>,
+    /// 1 to `crate::DOCUMENT_HEADING_BYTES` bytes when present.
+    pub heading: Option<Box<[u8]>>,
+}
+
+/// One numbered charter offered by the deployment, with its documents
+/// (protocol/configuration.md, 3; domain/engine.md, 17.9).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Charter {
     pub number: u32,
@@ -16,6 +29,7 @@ pub struct Charter {
     pub spend: u64,
     /// Its default wake policy, which a task made under it takes when its batch entry names none (domain/tasks.md, 8.3).
     pub wake: tasks::WakePolicy,
+    pub documents: Box<[Document]>,
 }
 
 const _: () = assert!(fleet::CATALOGUE_MODELS == tasks::MODELS, "fleet evidence prices the model catalogue");

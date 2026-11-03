@@ -37,6 +37,7 @@
         "call_timeout": 10000000000,
         "hosts": "workers",
         "spend": 4228,
+        "documents": [],
         "wake": {
           "words": "immediate",
           "notices": "immediate",
@@ -86,7 +87,8 @@
         "agents": true,
         "call_timeout": 10000000000,
         "hosts": "workers",
-        "spend": 4228
+        "spend": 4228,
+        "documents": []
       }
     },
     {

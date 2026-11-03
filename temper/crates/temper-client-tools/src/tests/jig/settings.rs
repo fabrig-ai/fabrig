@@ -68,11 +68,257 @@ fn model() -> c::SettingModel {
         effort: Some(words("high")),
     }
 }
+fn documents() -> List<c::CharterDocument> {
+    list([
+        c::CharterDocument {
+            connector: 0,
+            name: list(["forge", "code.example", "team", "rules", "branch", "main"].map(|s| s.as_bytes().into())),
+            path: b"AGENTS.md".as_slice().into(),
+            heading: Some(b"Rules".as_slice().into()),
+        },
+        c::CharterDocument {
+            connector: 0,
+            name: list(
+                ["forge", "code.example", "team", "rules", "branch", "topic", "rules"].map(|s| s.as_bytes().into()),
+            ),
+            path: b"docs/rules.md".as_slice().into(),
+            heading: None,
+        },
+    ])
+}
+fn charter_file(documents: &str) -> Vec<u8> {
+    let (setting, c::SettingValue::Charter(mut value)) = values().remove(0) else { panic!("charter") };
+    value.documents = list([]);
+    let file = file_from_setting(&setting_json(setting, c::SettingValue::Charter(value)));
+    String::from_utf8(file)
+        .expect("file JSON")
+        .replace("\"documents\":[]", &format!("\"documents\":{documents}"))
+        .into_bytes()
+}
+const DOCUMENTS: &str = r#"[{"forge":"code.example","repository":"team/rules","branch":"main","path":"AGENTS.md","heading":"Rules"},{"forge":"code.example","repository":"team/rules","branch":"topic/rules","path":"docs/rules.md"}]"#;
+
+#[test]
+fn a_settings_file_charter_names_documents() {
+    let file = charter_file(DOCUMENTS);
+    let (root, call) = changed(&file, false);
+    let (_, _, jig_client::Ask::Jig(ask)) = root.sends.get(&call).expect("sent") else { panic!("jig ask") };
+    let c::Ask::ChangeSettings(change) = ask.as_ref() else { panic!("settings change") };
+    let (setting, value) = values().remove(0);
+    assert_eq!(
+        change,
+        &c::ChangeSettings {
+            against: 5,
+            items: list([c::SettingItem {
+                setting,
+                edit: c::SettingEdit::Set(c::SettingSet { value: value.clone() })
+            }]),
+            running: c::Running::Moves
+        }
+    );
+    let (root, call) = proposed(&file, true);
+    let (_, _, jig_client::Ask::Jig(ask)) = root.sends.get(&call).expect("sent") else { panic!("jig ask") };
+    let c::Ask::Propose { action: c::ProposeAction::Settings(proposal), .. } = ask.as_ref() else {
+        panic!("settings proposal")
+    };
+    assert_eq!(proposal.items, change.items);
+
+    let form = jig::form_setting_value(&value);
+    let bounds = crate::limits::form();
+    let wire_value = jig_client_protocol_link::translate::settings::wire_setting_value(&value, &bounds.settings)
+        .expect("wire value");
+    let wire = jig_client_protocol_wire::SettingDocument::new(
+        &bounds.settings,
+        jig_client_protocol_wire::SettingDocumentParts {
+            setting: jig_client_protocol_wire::Setting::Charter(
+                jig_client_protocol_wire::SettingNumber::new(
+                    &bounds.settings,
+                    jig_client_protocol_wire::SettingNumberParts { number: 3 },
+                )
+                .expect("number"),
+            ),
+            revision: 5,
+            value: wire_value,
+        },
+    )
+    .expect("wire document");
+    assert_eq!(settings_form::wire::restore_setting_document(&wire, &bounds).expect("restore").value, form);
+    let neutral = settings_form::view::ChangeSettings {
+        against: 5,
+        items: settings_form::file::decode(&file, &bounds).expect("neutral items"),
+        running: settings_form::view::Running::Moves,
+    };
+    let wire = settings_form::wire::wire_change_settings(&neutral, &bounds.settings).expect("neutral wire");
+    let preset = crate::limits::client().client;
+    let link = jig_client_protocol_link::Limits::new(preset.domain, preset.exchanges).expect("client limits");
+    assert_eq!(
+        jig_client_protocol_link::translate::settings::restore_change_settings(&wire, &link).expect("client ask"),
+        *change
+    );
+}
+#[test]
+fn settings_show_charter_renders_its_documents() {
+    let (setting, value) = values().remove(0);
+    for json in [false, true] {
+        let mut argv = vec!["settings", "show", "charter", "3"];
+        if json {
+            argv.push("--json");
+        }
+        let answer = read(
+            &argv,
+            c::ReadValue::Setting(Box::new(c::SettingDocument { setting, revision: 5, value: value.clone() })),
+        );
+        assert_eq!(answer.status, 0);
+        golden(if json { "settings_value_0_json" } else { "settings_value_0" }, &answer.stdout);
+    }
+}
+#[test]
+fn a_document_that_is_no_forge_branch_renders_its_name() {
+    for (connector, name) in [
+        (7, vec!["forge", "code.example", "team", "rules", "branch", "main"]),
+        (0, vec!["other", "resource"]),
+        (0, vec!["forge", "code.example", "team", "rules", "branch"]),
+    ] {
+        let (setting, c::SettingValue::Charter(mut value)) = values().remove(0) else { panic!("charter") };
+        value.documents = list([c::CharterDocument {
+            connector,
+            name: list(name.iter().map(|s| s.as_bytes().into())),
+            path: b"rules.md".as_slice().into(),
+            heading: None,
+        }]);
+        let json = setting_json(setting, c::SettingValue::Charter(value));
+        let text = core::str::from_utf8(&json).expect("JSON");
+        let names = name.iter().map(|s| format!("\"{s}\"")).collect::<Vec<_>>().join(",");
+        assert!(
+            text.contains(&format!(
+                r#""documents":[{{"connector":{connector},"name":[{names}],"path":"rules.md","heading":null}}]"#
+            )),
+            "{text}"
+        );
+        let file = file_from_setting(&json);
+        let error = settings_file::decode(&file, &crate::limits::tools()).expect_err("not a forge branch");
+        let error = core::str::from_utf8(&error).expect("error text");
+        assert!(error.contains("charter.documents[0].name") && error.contains("shape"), "{error}");
+        let (mut root, call) = changed(&file, false);
+        assert!(root.sends.is_empty());
+        assert_eq!(root.answer(call).expect("local refusal").status, 1);
+    }
+}
+#[test]
+fn document_bounds_refuse_each_member_one_past_its_bound() {
+    let file = charter_file(DOCUMENTS);
+    for (name, length, path) in [
+        ("charter_documents", 2, "charter.documents"),
+        ("charter_document_name", 7, "charter.documents[1].branch"),
+        ("charter_document_name_item", 12, "charter.documents[0].forge"),
+        ("charter_document_path", 13, "charter.documents[1].path"),
+        ("charter_document_heading_some", 5, "charter.documents[0].heading"),
+    ] {
+        for (bound, allowed) in [(length, true), (length - 1, false)] {
+            let mut limits = crate::limits::tools();
+            match name {
+                "charter_documents" => limits.settings.charter_documents = bound,
+                "charter_document_name" => limits.settings.charter_document_name = bound,
+                "charter_document_name_item" => limits.settings.charter_document_name_item = bound,
+                "charter_document_path" => limits.settings.charter_document_path = bound,
+                "charter_document_heading_some" => limits.settings.charter_document_heading_some = bound,
+                _ => panic!("fixture bound"),
+            }
+            let result = settings_file::decode(&file, &limits);
+            assert_eq!(result.is_ok(), allowed, "{name}: {result:?}");
+            if let Err(error) = result {
+                let text = core::str::from_utf8(&error).expect("error text");
+                assert!(text.contains("item 1") && text.contains(path), "{text}");
+            }
+        }
+    }
+}
+
+#[test]
+fn document_name_parts_and_fixed_byte_bounds_name_the_refused_member() {
+    let limits = crate::limits::tools();
+    for (member, maximum, base) in [
+        ("forge", limits.settings.charter_document_name_item, "x"),
+        ("repository", limits.settings.charter_document_name_item, "x/repo"),
+        ("repository", limits.settings.charter_document_name_item, "owner/x"),
+        ("branch", limits.settings.charter_document_name_item, "x"),
+        ("path", 256, "x"),
+        ("heading", 80, "x"),
+    ] {
+        for extra in [0, 1] {
+            let count = usize::try_from(maximum + extra).expect("test length");
+            let text = base.replace('x', &"x".repeat(count));
+            let mut fields = [
+                ("forge", "host".to_owned()),
+                ("repository", "owner/repo".to_owned()),
+                ("branch", "main".to_owned()),
+                ("path", "rules.md".to_owned()),
+                ("heading", "Rules".to_owned()),
+            ];
+            fields.iter_mut().find(|(name, _)| *name == member).expect("field").1 = text;
+            let document =
+                fields.iter().map(|(name, value)| format!(r#""{name}":"{value}""#)).collect::<Vec<_>>().join(",");
+            let file = charter_file(&format!("[{{{document}}}]"));
+            let result = settings_file::decode(&file, &limits);
+            assert_eq!(result.is_ok(), extra == 0, "{member} bound {maximum}, extra {extra}: {result:?}");
+            if let Err(error) = result {
+                let error = core::str::from_utf8(&error).expect("error text");
+                assert!(error.contains(&format!("charter.documents[0].{member}")), "{error}");
+            }
+        }
+    }
+}
+#[test]
+fn document_shape_refusals_name_the_member_and_a_heading_is_optional() {
+    for (member, value) in [
+        ("forge", "null"),
+        ("forge", r#""""#),
+        ("repository", r#""owner""#),
+        ("repository", r#""owner/repo/other""#),
+        ("repository", r#""/repo""#),
+        ("repository", r#""owner/""#),
+        ("branch", r#""topic//rules""#),
+        ("path", "false"),
+        ("path", r#""""#),
+        ("heading", "7"),
+        ("heading", r#""""#),
+    ] {
+        let document =
+            r#"[{"forge":"host","repository":"owner/repo","branch":"main","path":"rules.md","heading":null}]"#
+                .to_owned();
+        let original = match member {
+            "forge" => r#""forge":"host""#,
+            "repository" => r#""repository":"owner/repo""#,
+            "branch" => r#""branch":"main""#,
+            "path" => r#""path":"rules.md""#,
+            "heading" => r#""heading":null"#,
+            _ => panic!("fixture field"),
+        };
+        let document = document.replace(original, &format!(r#""{member}":{value}"#));
+        let file = charter_file(&document);
+        let error = settings_file::decode(&file, &crate::limits::tools()).expect_err("invalid document");
+        let error = core::str::from_utf8(&error).expect("error text");
+        assert!(error.contains(&format!("charter.documents[0].{member}")), "{error}");
+    }
+    for heading in ["", r#", "heading":null"#] {
+        let file = charter_file(&format!(
+            r#"[{{"forge":"host","repository":"owner/repo","branch":"main","path":"rules.md"{heading}}}]"#
+        ));
+        let items = settings_file::decode(&file, &crate::limits::tools()).expect("optional heading");
+        let c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Charter(charter) }) =
+            &items.get(0).expect("charter item").edit
+        else {
+            panic!("charter")
+        };
+        assert!(charter.documents.get(0).expect("document").heading.is_none());
+    }
+}
+
 fn values() -> Vec<(c::Setting, c::SettingValue)> {
     vec![
         (
             c::Setting::Charter(c::SettingNumber { number: 3 }),
             c::SettingValue::Charter(Box::new(c::Charter {
+                documents: documents(),
                 number: 3,
                 instructions: words("keep \"boundaries\"\nwhole"),
                 waiting: Duration::from_secs(1),

@@ -62,7 +62,10 @@ pub use crate::{
         },
     },
     funding::pools::CreateStart,
-    limits::{Problem, policy_owned_bytes, valid},
+    limits::{
+        CORE_SECTIONS, DOCUMENT_HEADING_BYTES, DOCUMENT_KIND, DOCUMENT_PATH_BYTES, DOCUMENT_PRIORITY, Problem,
+        brief_holds_documents, charter_owned_bytes, policy_owned_bytes, valid,
+    },
     numbers::{Counters, Deployment, Family, fresh},
     reads::{SettingsAnswer, SettingsRead},
     routing::{
@@ -87,7 +90,10 @@ pub use crate::{
         },
         transcript_text::{TranscriptRow, TranscriptText},
     },
-    settings::{charters::Charter, templates::Template},
+    settings::{
+        charters::{Charter, Document},
+        templates::Template,
+    },
     start::{Census, HeldLimit, ReadResults, Restore, RestoreRange, restore_cursor},
     stored::{
         CallKey, CallPart, CallRecord, CallReplay, CoreKey, CoreRecord, CurrentWindow, EscalationDecisionRecord, Key,
@@ -96,7 +102,8 @@ pub use crate::{
     translate::{authority_to_people, pattern_to_people, people_authority, requirement_to_authority, task_authority},
     vocabulary::{
         Ask, Carried, CoreBriefBudgets, EscalationChoice, Event, Held, HoldingsRefusal, Limits, NamedAction, Now,
-        PayloadRefusal, ProposalChoice, Request, StepRefusal, Timer, ToolKind, TranscriptLoad, WatchRefusal, Write,
+        PayloadRefusal, PlannedDocument, ProposalChoice, Request, StepRefusal, Timer, ToolKind, TranscriptLoad,
+        WatchRefusal, Write,
     },
 };
 
