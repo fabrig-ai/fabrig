@@ -814,4 +814,4 @@ pub(super) fn selected_help(selection: crate::help::Selection) -> Box<[u8]> {
 }
 
 mod task_text;
-pub(crate) use task_text::{source_chunk, source_summary, source_task};
+pub(crate) use task_text::{source_chunk, source_show, source_summary, source_task};

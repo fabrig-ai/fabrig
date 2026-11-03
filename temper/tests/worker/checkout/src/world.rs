@@ -787,7 +787,7 @@ impl World {
                     Failure::Missing { missing: Missing::Repository, .. } => &mut stats.missing_repository,
                     Failure::Missing { missing: Missing::Branch, .. } => &mut stats.missing_branch,
                     Failure::Missing { missing: Missing::Commit, .. } => &mut stats.missing_commit,
-                    Failure::Refused { .. } => &mut stats.refused,
+                    Failure::Refused { .. } | Failure::Conflicted { .. } => &mut stats.refused,
                 };
                 *count += 1;
             }

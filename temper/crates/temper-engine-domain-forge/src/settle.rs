@@ -147,6 +147,7 @@ pub(crate) fn cap(
         }
         change::Decision::Wait { until: None }
         | change::Decision::None
+        | change::Decision::CancelProducer
         | change::Decision::Delegate(_)
         | change::Decision::CancelGates { .. }
         | change::Decision::Effect(_)

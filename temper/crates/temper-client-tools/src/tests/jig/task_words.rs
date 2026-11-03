@@ -710,7 +710,7 @@ fn core_cut_task_words_offer_reads_and_preserve_the_failure_suffix() {
     assert!(summary.spec.specification.words.cut);
     assert!(summary.instructions.as_ref().unwrap().cut);
     for argv in [&["task", "show", "1"][..], &["task", "show", "1", "--json"][..]] {
-        let answer = f::read_answer(argv, f::task_result(summary.clone()));
+        let (answer, _) = f::source_show(words, &crate::limits::tools(), argv.len() == 4);
         assert_eq!(answer.status, 0);
         assert!(skein_lib::bytes::find(&answer.stdout, b"task text 1 --field specification --from 0").is_some());
         assert!(skein_lib::bytes::find(&answer.stdout, b"task text 1 --field instructions --from 0").is_some());
@@ -791,11 +791,7 @@ fn task_text_render_cuts_at_its_own_window_and_never_repeats_an_offset() {
 #[test]
 fn task_show_names_the_tier_execution_and_its_forge_link_without_json() {
     let words = b"Tier slow run 1\nRepository: org/repo\nJudged run: commit 8f059a9000000000000000000000000000000000000000000000000000000000, branch temper/tier/slow.1, forge run 4 http://forge/org/repo/actions/runs/4\n";
-    let (core, mut limits, mut row) = f::source_task(b"Tier slow run 1");
-    limits.documents.text_bytes = limits.tasks.spec_bytes;
-    row.spec.words = words.as_slice().into();
-    let task = f::source_summary(&core, &limits, &row);
-    let printed = f::read_answer(&["task", "show", "1"], f::task_result(task));
+    let (printed, _) = f::source_show(words, &crate::limits::tools(), false);
     assert_eq!(printed.status, 0);
     assert!(skein_lib::bytes::find(&printed.stdout, words).is_some());
     assert!(skein_lib::bytes::find(&printed.stdout, b"asked: Tier slow run 1").is_some());

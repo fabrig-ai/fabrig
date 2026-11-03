@@ -1,6 +1,6 @@
 # worker: status
 
-2026-11-02. Where temper's code lags or departs from [worker.md](worker.md).
+2026-11-03. Where temper's code lags or departs from [worker.md](worker.md).
 
 - **Not yet:** 4.4: the prepare and key kinds: no kind's entry is built,
   so the worker's hello declares none (`temper/crates/temper-service/src/worker.rs`

@@ -72,6 +72,11 @@ fn the_reference_settings_file_decodes() {
     };
     assert_eq!(coder.wake, WakePolicy::DEFAULT);
     assert!(coder.instructions.bytes().starts_with(include_bytes!("../../../temper-service/src/stock/coding.txt")));
+    assert!(
+        core::str::from_utf8(coder.instructions.bytes())
+            .expect("coding instructions")
+            .contains("Push as you go: deliver a first head as soon as the change builds, then again as it grows.")
+    );
     let SettingValue::Template(goal) = value(&items, Setting::Template(SettingNumber { number: GOAL })) else {
         panic!("goal template")
     };
