@@ -37,6 +37,7 @@ pub struct Runner {
     names: skein_lib::Rng,
     acts: BTreeMap<u32, acts::Reading>,
     sent: BTreeMap<jig_client::Key, acts::Sent>,
+    visibility: BTreeMap<u32, acts::Visibility>,
     recording: BTreeMap<u32, moves::Recording>,
     kept: BTreeMap<jig_client::Key, render::outcome::Operation>,
     kept_json: bool,
@@ -75,6 +76,7 @@ impl Runner {
             names: skein_lib::Rng::new(seed ^ 0x4143_434F_554E_5453),
             acts: BTreeMap::new(),
             sent: BTreeMap::new(),
+            visibility: BTreeMap::new(),
             recording: BTreeMap::new(),
             kept: BTreeMap::new(),
             kept_json: false,
@@ -96,6 +98,8 @@ impl Runner {
             .checked_add(self.acts.len())
             .expect("bounded calls")
             .checked_add(self.waits.len())
+            .expect("bounded calls")
+            .checked_add(self.visibility.len())
             .expect("bounded calls")
             .checked_add(self.sent.len())
             .expect("bounded calls")
@@ -198,7 +202,8 @@ fn run(runner: &mut Runner, client: &Client, env: &Env<crate::jig::Limits>, call
         | rows::PROPOSE_SETTINGS_AT
         | rows::MOVE_TO_NEWEST_AT
         | rows::RESTORE_AT
-        | rows::PROJECT_FUND_AT => {
+        | rows::PROJECT_FUND_AT
+        | rows::PROJECT_AMEND_AT => {
             acts::start(runner, client, env, called, out);
         }
         rows::TREE_AT => reads::start(runner, client, env, called, out),
@@ -215,6 +220,7 @@ pub fn told(runner: &mut Runner, client: &Client, env: &Env<crate::jig::Limits>,
     match told {
         Told::Changed { handle } if handle == runner.me() => {
             if live(runner, client) {
+                acts::visibility_changed(runner, client, out);
                 if !runner.ready {
                     runner.ready = true;
                     recovery::parked(runner, client, out);
