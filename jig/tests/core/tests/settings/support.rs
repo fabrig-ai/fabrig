@@ -302,6 +302,21 @@ pub(super) fn inventory(world: &mut World, signed: u64) -> documents::Settings {
     let documents::Document::Settings(value) = *document else { panic!("settings inventory") };
     *value
 }
+pub(super) fn project_policy_item(world: &World, project: u32, period_spend: u64) -> settings::Item {
+    let mut policy = world.domain.settings().policy(1).expect("fixture policy").clone();
+    policy.policy.period_spend = period_spend;
+    settings::Item {
+        setting: settings::Setting::ProjectPolicy { project },
+        edit: settings::Edit::Set(settings::Value::Policy(Box::new(policy))),
+    }
+}
+pub(super) fn project_document(world: &mut World, signed: u64, project: u32) -> documents::Project {
+    let reads::Answer::Document(document) = read(world, signed, reads::Read::Project { project }) else {
+        panic!("project document")
+    };
+    let documents::Document::Project(value) = *document else { panic!("project document") };
+    *value
+}
 pub(super) fn proposal_set_key(proposer: u64, proposal: u64) -> root::Key {
     key(settings::Key::Proposal {
         proposer: people::Proposer::Party(proposer),
