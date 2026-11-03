@@ -31,7 +31,6 @@ pub(super) struct PreparedEndpoint {
     pub(super) name: domain::llm::Endpoint,
     pub(super) connect: Duration,
     pub(super) handshake: Duration,
-    pub(super) identity: llm::IdentityProfile,
     pub(super) models: Box<[llm::ConfiguredModel]>,
 }
 
@@ -95,7 +94,6 @@ pub(super) fn build_endpoints(
             headers.push(Header { name: header.name.into_bytes().into(), value: header.value.into_bytes().into() });
         }
         llm_endpoint.headers = headers.into_boxed_slice();
-        let identity = llm::IdentityProfile::Plain;
         domain_endpoints.push(run::charter::Endpoint(endpoint.number));
         channel_endpoints
             .push(smith_protocol_translate::Endpoint {
@@ -123,7 +121,6 @@ pub(super) fn build_endpoints(
             name: domain::llm::Endpoint(endpoint.number),
             connect: declared.connect,
             handshake: declared.handshake,
-            identity,
             models: endpoint_models(&endpoint.models)?,
         });
     }
@@ -223,8 +220,7 @@ pub(super) fn build_models(endpoint: &Endpoint) -> Result<service::profile::Endp
     if endpoint.dialect != dialect {
         return Err("endpoint dialect does not match provider".into());
     }
-    let identity = llm::IdentityProfile::Plain;
-    let option_bytes = llm::endpoint_own(identity).map_err(|_| {
+    let option_bytes = llm::endpoint_own().map_err(|_| {
         ConfigurationRefusal::Profile(Refusal::Derived {
             limit: LimitName { layer: Layer::Service, field: "endpoint_own", per: Per::Endpoint(number) },
         })

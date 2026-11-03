@@ -51,7 +51,7 @@ pub use component::{Component, ComponentError, ComponentLimits, component_valid}
 pub use contract::{decode_deliver, decode_finish, deliver_schema, finish_schema};
 pub use decode::decode;
 pub use endpoints::{
-    ConfiguredEndpoint, ConfiguredModel, EndpointError, EndpointOptions, Endpoints, IdentityProfile,
+    ConfiguredEndpoint, ConfiguredModel, EndpointError, EndpointOptions, Endpoints,
     OversizedReasoning, endpoint_own,
 };
 use failure::{cancelled, failed, refusal};
