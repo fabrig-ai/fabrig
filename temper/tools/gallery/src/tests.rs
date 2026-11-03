@@ -637,8 +637,8 @@ const HOLDS: [Holds; samples::N] = [
         heading: "T9 · Produce T8's branch",
         parts: &[
             Part::Named { role: Role::Log, name: "Conversation" },
-            Part::Described { role: Role::Disclosure, name: "3 tool calls", description: "read ×3" },
-            Part::Described { role: Role::Disclosure, name: "3 tool calls", description: "edit ×3" },
+            Part::Described { role: Role::Disclosure, name: "5 tool calls", description: "read ×4 · shell" },
+            Part::Described { role: Role::Disclosure, name: "5 tool calls", description: "edit ×3 · shell ×2" },
             Part::Named { role: Role::Paragraph, name: "Errors carry their line now" },
         ],
     },

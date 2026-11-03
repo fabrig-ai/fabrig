@@ -49,8 +49,8 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
     value["engine"]["limits"]["overrides"]["core.policy_bytes"] = 4096.into();
     value["engine"]["limits"]["overrides"]["core.load_slots"] = 8.into();
     value["engine"]["limits"]["overrides"]["documents.rows"] = 2.into();
-    // The creation offer carries all three stock procedures in one list.
-    value["engine"]["limits"]["overrides"]["documents.lines"] = 3.into();
+    // The creation offer carries four stock charters and three procedures.
+    value["engine"]["limits"]["overrides"]["documents.lines"] = 4.into();
     value["engine"]["limits"]["overrides"]["documents.text_bytes"] = 128.into();
     value["engine"]["limits"]["overrides"]["people.sign_ins"] = 2.into();
     value["engine"]["limits"]["overrides"]["views.watchers"] = 16.into();

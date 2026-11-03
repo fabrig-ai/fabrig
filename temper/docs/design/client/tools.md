@@ -649,7 +649,12 @@ The table grows area by area, each with its stories (section 11).
    A fixed executor takes its template's charter; also giving `--charter`
    fails as usage: `template 4's executor is charter 5; leave out --charter`
    (the numbers name that template and charter). A charter not offered
-   in the project's creating bounds sends nothing. The fill and authority/proposal
+   in the project's creating bounds sends nothing, naming the template,
+   the required charter and the offered charters. A budget or deadline
+   past the offered ceiling has a separate diagnostic; a refusal beyond
+   the direct bounds retains jig's reason. If the project has no creating
+   offer, the diagnostic points to the role and the receiving bound
+   `documents.lines` for charter and procedure lists. The fill and authority/proposal
    judgement are jig's (`jig/docs/design/client/domain/pages.md`, 6.2).
    Absent controls keep template defaults. A given budget requires
    `--budget` or `--as-allowed`; a given deadline requires `--deadline`,
