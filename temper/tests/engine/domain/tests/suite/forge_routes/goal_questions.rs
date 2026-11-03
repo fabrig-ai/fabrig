@@ -9,6 +9,7 @@ use temper_engine_domain_forge_change::{Route, Stands};
 const CHANNEL: Token = Token::new(7);
 const WORKER_SLOTS: u32 = 3; // The goal, a producer and a foreman may run together.
 const TWO_CHANGES: usize = 2;
+const DEPENDENCIES: u32 = 2; // B keeps A, whose work it started from, while adding C.
 const GOAL_AND_A: usize = 2;
 const STEPS: u32 = 1000; // The goal-change world's bound for landing and hold release.
 const QUESTION: &[u8] = b"Which behavior?\nKeep the design or widen it? I recommend the design.";
@@ -50,8 +51,9 @@ fn start(bound: Option<u32>) -> Story {
             questions: bound,
             ..StoryLimits::default()
         },
-    )
-    .with_goal_question_capacity(STORY_TASKS, INBOX_BYTES);
+    );
+    world.env.limits.tasks.dependencies = DEPENDENCIES;
+    let mut world = world.with_goal_question_capacity(STORY_TASKS, INBOX_BYTES);
     let segments = [b"forge".as_slice(), b"forge.example", b"org", b"repo", b"branch"].map(Box::from);
     world = world.with_landing_deployment(Box::new([
         engine::LandingRule {
@@ -439,12 +441,11 @@ fn an_answer_that_adds_a_dependency_waits_for_it() {
     let upstream = next_producer(&mut story.world, c);
     assert_eq!(row(&story.world, c).base, story.branch);
     let mut amendment = temper_engine_domain_world::fixtures::task_amendment(None, None, b"Wait for C's design");
-    amendment.dependencies = Some(Box::new([c]));
+    amendment.dependencies = Some(Box::new([story.a, c]));
     let revision = live_task(&story.world, story.b).revisions.spec;
-    assert!(matches!(
-        story.world.scripted_call(&story.goal, 111, engine::Tool::Amend { target: story.b, revision, amendment }),
-        engine::CallAnswer::Amended { .. }
-    ));
+    let answer =
+        story.world.scripted_call(&story.goal, 111, engine::Tool::Amend { target: story.b, revision, amendment });
+    assert!(matches!(answer, engine::CallAnswer::Amended { .. }), "dependency added: {answer:?}");
     story.world.goal_answer(&story.goal, 112, story.b, up, DEPENDENCY_ANSWER);
     for _ in 0..STEPS {
         story.world.tick();

@@ -1533,6 +1533,12 @@ pub enum Event {
         questions: change::Questions,
         words: Box<[u8]>,
     },
+    /// The live producer's preparation could not merge a dependency head (domain/forge.md, 8.11).
+    StartConflicted {
+        child: u64,
+        tag: u64,
+        head: skein_forge::api::Commit,
+    },
     /// Gather fresh forge facts and step one registered change.
     StepChange {
         task: u64,
@@ -1541,6 +1547,7 @@ pub enum Event {
         gates: Box<[change::GateReport]>,
         queue_repair_active: bool,
         kept: bool,
+        pending: Box<[change::Pending]>,
     },
     /// A requester or person released a held change.
     ReleaseChange {
@@ -1748,6 +1755,10 @@ pub enum Request {
     ApplicationAgain {
         request: Token,
         why: jig_domain_people::Again,
+    },
+    /// A pushed or first-read change head can enable its dependents (domain/forge.md, 8.11).
+    StepDependents {
+        task: u64,
     },
     /// The connector has fresh news or a retry deadline for its procedure.
     WakeProcedure {

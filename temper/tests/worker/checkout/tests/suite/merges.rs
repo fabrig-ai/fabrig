@@ -15,3 +15,13 @@ fn merge_scenarios_replay_and_facts_do_not_change_requests_or_effects() {
         assert_eq!(merges::run(119, case, 0), expected);
     }
 }
+
+#[test]
+fn a_base_with_two_heads_merged_in_pushes_one_history_holding_all() {
+    merges::merged_heads();
+}
+
+#[test]
+fn a_conflicting_head_fails_the_prepare_and_the_next_starts_clean() {
+    merges::conflicting_head();
+}

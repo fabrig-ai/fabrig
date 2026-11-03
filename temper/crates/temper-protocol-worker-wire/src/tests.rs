@@ -10,6 +10,8 @@ fn limits_take_each_bound_from_its_source_field() {
         fixtures::limits(),
         v1::Limits {
             merge_branch: 16,
+            merged_branch: 16,
+            merged_heads: 64,
             branch_branch: 16,
             writable_push: 16,
             writable_landing_some: 16,
@@ -133,10 +135,10 @@ fn largest_parts_are_the_generated_encoded_bounds() {
     assert_eq!(u64::from(sizes.saved), v1::Saved::encoded_bound(&limits).expect("saved"));
     assert_eq!(u64::from(sizes.resource), v1::Preparation::encoded_bound(&limits).expect("preparation"));
     assert_eq!(u64::from(sizes.grant), v1::Identity::encoded_bound(&limits).expect("identity"));
-    // Each repository owns a one-byte option, four-byte length and save name.
-    assert_eq!(v1::Items::encoded_bound(&v1::CEILINGS), Some(662_980));
-    // At ceilings: 64 * 10,359-byte repositories + the four-byte list length.
-    assert_eq!(sizes, crate::Largest { items: 8690, left: 84, saved: 1084, resource: 10, grant: 233 });
+    // Merged adds a list length and 64 full ids in place of Merge's base id.
+    assert_eq!(v1::Items::encoded_bound(&v1::CEILINGS), Some(792_260));
+    // At ceilings: 64 * 12,379-byte repositories + the four-byte list length.
+    assert_eq!(sizes, crate::Largest { items: 12730, left: 84, saved: 1084, resource: 41, grant: 233 });
 }
 
 #[test]
@@ -298,4 +300,32 @@ fn a_repositorys_save_branch_past_its_name_bound_is_refused() {
         repository_with_save(fixtures::limits().repository_save_some + 1).expect_err("past the bound").path,
         v1::Path::RepositorySave
     );
+}
+
+#[test]
+fn merged_heads_stop_at_sixty_four_when_built_and_decoded() {
+    const HEADS: u32 = 64; // channel.md, 4: at most 64 heads.
+    let limits = fixtures::limits();
+    let mut heads = List::with_capacity(HEADS);
+    for _ in 0..HEADS {
+        heads.push([3; 32]).expect("counted heads");
+    }
+    let value = v1::Merged::new(&limits, v1::MergedParts { branch: Box::from(&b"main"[..]), heads }).expect("at bound");
+    let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("bounded length"));
+    value.encode(&mut writer).expect("measured room");
+    let bytes = writer.finish();
+    assert_eq!(v1::Merged::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("roundtrip"), value);
+    let smaller = v1::Limits { merged_heads: HEADS - 1, ..limits };
+    assert_eq!(
+        v1::Merged::decode(&smaller, &mut skein_lib::Reader::new(&bytes)).expect_err("past decode bound").path,
+        v1::Path::MergedHeads
+    );
+    let mut parts = value.into_parts();
+    // List capacity is fixed, so supply the past-bound count in a fresh list.
+    let mut heads = List::with_capacity(HEADS + 1);
+    for _ in 0..=HEADS {
+        heads.push([3; 32]).expect("counted heads");
+    }
+    parts.heads = heads;
+    assert_eq!(v1::Merged::new(&limits, parts).expect_err("past bound").path, v1::Path::MergedHeads);
 }
