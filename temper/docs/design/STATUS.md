@@ -22,13 +22,11 @@ commands and the baseline (`protocol/README.md`), and the release
 (`release.md`). Forges kept in the store, a forge's removal and the
 playground's reset are designed and built; the code departs where the
 box's group file holds a forge's kind alone (`protocol/setup.md`,
-`protocol/forge.md`, `protocol/README.md`), and lags in a
-removal without the box (`domain/forge.md`) and a project's Delete
-(`client/README.md`); a connected Forgejo, its connect with its bot's
-tokens and a forge's Replace lag (`protocol/forge.md`,
-`protocol/setup.md`, `protocol/credentials.md`, `client/README.md`,
-`client/forge.md`, `client/tools.md`); with `application.machine.github` null, GitHub's
-remotes come out malformed (`protocol/configuration.md`). The case library's
+`protocol/forge.md`, `protocol/README.md`), and lags in a removal without
+the box (`domain/forge.md`), a project's Delete (`client/README.md`) and
+the real loop's story of a connected Forgejo (`client/tools.md`); with
+`application.machine.github` null, GitHub's remotes come out malformed
+(`protocol/configuration.md`). The case library's
 purpose is retired (`domain/testing.md`). Of the drafts, the reference
 drafts are what the design lags most (`draft/notes.md`, N1 to N24, in
 their three statuses); the others record what the design carries of
