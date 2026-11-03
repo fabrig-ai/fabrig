@@ -6,6 +6,7 @@ needs = ["playground-visitor"]
 files = [
   "temper/tests/playground/**",
   "temper/crates/temper-playground/src/story.rs",
+  "temper/crates/temper-playground/src/stories.rs",
   "temper/crates/temper-playground/src/tests/**",
   "temper/crates/temper-playground/Cargo.toml",
   "temper/tests/one-process/tests/suite/story_a.rs",
@@ -187,3 +188,26 @@ Then the walk goes on as the acceptance says. If it stalls again past the fake f
 (the takeover, the account, the project or the adoption), the previous answer's diagnosis and
 stop rules apply: a fault in the service or the engine is a question, not this task's. Add
 `heavy cargo nextest run -p temper-playground` to the checks.
+
+2026-11-03. **Takeover is refused (401): lay story A's seeded admin credential, or change the
+peer to accept `fakes::ADMIN_TOKEN`?** Lay the seeded credential; the peer stays as it is. The
+handover the composition lays is the one its own forge peer accepts (`temper/docs/design/playground.md`,
+4), and a story's peer draws its credential from the visit's one seed as `temper fake` does (5.1,
+section 4's one seed); the previous answer's `fakes::ADMIN_TOKEN` was wrong for a story's world, and
+this answer overrides it for that value only. `fakes::ADMIN_TOKEN` stays for the `setup` array's
+entries, whose peer `Fakes::new` builds with it.
+
+- `stories.rs` (added to this task's files for this alone): one function gives the credential,
+  `pub(crate) fn admin_token(seed: u64) -> [u8; 40]`, returning
+  `credential::credential(documents::seeds(seed).forge, credential::ADMIN_TOKEN)`, and
+  `Story::start` uses it in place of its line 44. No other change there.
+- `story.rs`: `world_metered` lays `stories::admin_token(seed)` at the playground forge's path,
+  still only when `application.demo` is present; every world with a demo today is built by
+  `Story::start`. The regression expects that credential.
+- `temper/tests/one-process/tests/suite/story_a.rs`: run its ignored test once alone again with
+  `--run-ignored all`; passing, remove the `#[ignore]`; failing, keep it with a one-line reason
+  and report it under `## Left`, not chased.
+
+Then the walk goes on as the acceptance says, with the earlier answers' diagnosis and stop rules
+past the takeover.
+
