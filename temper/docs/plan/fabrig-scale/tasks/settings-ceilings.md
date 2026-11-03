@@ -79,8 +79,10 @@ Acceptance:
 3. Tests in `jig/crates/jig-protocol-store/src/tests/codec/` (a new module beside
    `settings_proposals.rs`, `settings_scale.rs`):
    - `settings_hold_fabrig_scale`: the limits above give `Some`;
-   - `a_verdict_round_trips_as_pieces`: a template whose verdict holds three field rules, one
-     name of 262,144 bytes, encodes and decodes equal at those limits;
+   - `a_verdict_round_trips_as_pieces`: at those limits (`result_bytes` 262,144), a template
+     whose verdict holds three field rules whose names and maxes sum to exactly 262,144 (one
+     name of 262,140 bytes, two of 2 bytes, every `max` 0) encodes and decodes equal; the same
+     verdict with the long name one byte longer is refused;
    - `settings_refuse_a_result_past_their_ceiling`: `result_bytes` 524,289 gives `None`.
 4. Narrow: `heavy cargo nextest run -p jig-protocol-store --lib -E 'test(/settings_scale::/)'`;
    then `heavy cargo nextest run -p jig-store-codecs-world --test drift`, the packages
@@ -93,3 +95,14 @@ Acceptance:
 
 As the implementer's text asks, with every generated or golden file the writer changed and
 any ceiling raised beyond the table, with the figure that asked for it.
+
+## Answers
+
+2026-11-03. Q: the round-trip's 262,144-byte name plus two nonempty names cannot fit
+`result_bytes` 262,144 under `rules`/`read_rules`; raise the test's `result_bytes` to 524,288,
+or change the fixture? A: change the fixture; keep the limits at K2's figures, and keep
+`rules`/`read_rules`' semantics (nonempty names, names and maxes summed against
+`result_bytes`). The verdict's names and maxes sum to exactly 262,144: one name of 262,140
+bytes, two of 2 bytes, every `max` 0; it round-trips equal, and the same verdict with the long
+name one byte longer (sum 262,145) is refused. Step 3 says so. `settings_hold_fabrig_scale`
+and `settings_refuse_a_result_past_their_ceiling` are unchanged.
