@@ -1767,7 +1767,10 @@ runs it (section 7).
   directory the person names; and takes the process tier's profile, the
   sizes its live tier runs a real model with: smith's `standard`, with
   `declared` `memory` 2,147,483,648, `tool_payload` 4,098, `read_window`
-  256, `conversations` 1 and `calls_per_response` 1, and `policy`
+  256, `conversations` 3 (a run and two sub-agents side by side, smith's
+  `protocol/limits.md`, 2.2: a run's main conversation and its
+  sub-agents', each a program session of its own on Claude Code, smith's
+  `protocol/programs.md`, 5.10) and `calls_per_response` 1, and `policy`
   `max_turns` 8, `check_timeout` 60,000 ms, `group_stop` 10, `inbox` 8
   and `unacknowledged` 8. Both charters require eight turns; each permits
   modifying work with a 60,000 ms reserve, so the agent's check timeout

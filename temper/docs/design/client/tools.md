@@ -778,6 +778,13 @@ The table grows area by area, each with its stories (section 11).
      2's `goal start` take `--model MODEL [--effort EFFORT]`, the task's
      LLM choice, the charter's default without them (jig's
      `domain/tasks.md`, section 3), and area 2's `task amend` changes it.
+     Both take `--sub-agent MODEL[:EFFORT]` too, repeatable, each one of
+     the choice's sub-agents in the order given (jig's
+     `protocol/configuration.md`, 3.1), a model at most once, its effort
+     required where the model declares efforts as `--model`'s is; given,
+     they replace the template's sub-agents whole, and they need
+     `--model`. Without them the choice keeps the template's sub-agents,
+     or names none.
      The bracket applies only to a model with no declared efforts: when
      a model declares efforts, `--effort EFFORT` is required, naming one
      of them. An amendment replaces the main choice whole; its effort is

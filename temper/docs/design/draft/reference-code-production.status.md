@@ -24,12 +24,6 @@
   - **5: the plan's text (N12).** jig's `domain/core.md`, 7.1 keeps a plan's
     strategy in its transcript, its notes and a goal's projection, not in
     the repository's design.
-  - **2, 5, 14: surveys from temper's runs (N10).** smith serves
-    sub-agents on Claude Code (smith's `protocol/programs.md`, 5.10), but
-    no temper run reaches them: `../protocol/setup.md`, 8.1 gives the
-    box's agent `conversations` 1, so every `sub_agent` is refused as too
-    many, and `../client/tools.md`, 5.5 has `chat start` and `goal start`
-    take a main model and effort alone, naming no sub-agents.
   - **6, 14: the light rules (N4).** `../domain/forge.md`, 8.2 (steps 3 and
     6), 8.7 and 10: every change is checked by CI at its head and updated
     when first if it lacks its base's tip, whatever its landing branch's
