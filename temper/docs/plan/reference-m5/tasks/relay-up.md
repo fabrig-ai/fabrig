@@ -149,3 +149,19 @@ bound; set the owned size assertions to that runtime bound; then finish the rema
 checks of step 3 and 4 (the service filter whole, the forge-route group, clippy, the
 `check --tests`). `change_tool.rs`'s `questions_foreman_is_not_offered_yet` and
 `stored_bytes` stay outside the task: report them under `## Left` as before.
+
+## Rebase (2026-11-03, step merge, foreman reference-m5/relay-up/foreman-2)
+
+preserve tier-word recording and relay commits in asks.rs; regenerate store v11 with both schema additions.
+
+The merge failed in `temper/crates/temper-engine-domain/src/route/asks.rs` and `temper/crates/temper-protocol-store/src/generated/v11.rs`.
+
+In `asks.rs::step_made`, preserve the trunk’s initial `tier_task` check and `Event::TierWords` emission from main commit `f012f783bf` (“Keep tier executions readable from their run tasks”). Follow it with relay-up’s pending-step handling, preserving `pending.delegate`, `Relayed`/`RelayRefused`, and `WakeProcedure` when `relayed.more`. Remove the pending entry only once. Limit this conflict resolution to that function.
+
+In `temper/crates/temper-protocol-store/schema/store-v11.schema`, preserve both `TierRow.observations: bytes 8192` from the trunk and relay-up’s `Open.words: bytes 65536` after `line`, as C2 revision 2 requires. Keep store version 11.
+
+Resolve `src/generated/v11.rs` by regenerating from the combined schema:
+`heavy cargo run -p skein-codegen -- temper/crates/temper-protocol-store/schema/store-v11.schema temper/crates/temper-protocol-store/src/generated`
+Keep the generated v11 code and goldens for both additions. Preserve the runtime `open_words: forge.client.op_bytes` binding and its tests.
+
+Validate the combined result with the spec’s store, domain library, and forge-route question tests, then the remaining required checks.
