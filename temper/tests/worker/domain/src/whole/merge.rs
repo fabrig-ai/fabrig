@@ -36,13 +36,13 @@ pub fn run(seed: u64, case: Case) -> Report {
     limits.checkout.conflicts = 1;
     limits.checkout.path_bytes = 64;
     let mut world = World::new(seed, kind(), limits);
-    world.repository = b"home".as_slice().into();
+    world.repository = b"fabrig".as_slice().into();
     let head = world.forge.advance(REMOTE, b"topic", b"code", b"head\n");
     let base = world.forge.advance(REMOTE, b"main", b"code", b"base\n");
     world.event(Event::Ready);
     assert_eq!(world.report.kinds.as_ref(), [kind().bound]);
     assign(&mut world, head, base);
-    let owner = world.start();
+    let owner = world.start(b"fabrig/tools/merge");
     command(&mut world, owner, head, base, case);
     let commit = world.forge.branch(REMOTE, b"topic").expect("delivery branch");
     let answer = world.report.answer.as_ref().expect("one terminal answer");
@@ -92,7 +92,7 @@ fn assign(world: &mut World, head: u64, base: u64) {
         items: Ok(wire::Workspace {
             repositories: Box::new([wire::Repository {
                 tag: 0,
-                name: b"home".as_slice().into(),
+                name: b"fabrig".as_slice().into(),
                 remote: REMOTE.into(),
                 save: None,
                 git: None,
@@ -106,14 +106,17 @@ fn assign(world: &mut World, head: u64, base: u64) {
                 account: None,
             }]),
         }),
-        spec: Ok(wire::JobSpec { command: b"tools/merge".as_slice().into(), request: b"request".as_slice().into() }),
+        spec: Ok(wire::JobSpec {
+            command: b"fabrig/tools/merge".as_slice().into(),
+            request: b"request".as_slice().into(),
+        }),
     });
 }
 
 fn command(world: &mut World, owner: Token, head: u64, base: u64, case: Case) {
     let workspace = world.workspace.expect("merge checkout prepared");
     let directory = translate::dir(workspace);
-    let repository = [directory.as_slice(), b"/home"].concat();
+    let repository = [directory.as_slice(), b"/fabrig"].concat();
     let code = [repository.as_slice(), b"/code"].concat();
     let marked = world.disk.content(&code).expect("conflicting file").to_vec();
     assert!(marked.starts_with(b"<<<<<<<"));

@@ -6233,11 +6233,18 @@ fn merge_available(d: &Domain, row: &ChangeRow, pending: &PendingStep, base_tip:
     let Some(command) = d.merge_job(repository.project) else { return false };
     let head = pending.branch.unwrap_or(base_tip);
     let base = row.catch_up.unwrap_or(base_tip);
-    let length = command
-        .len()
-        .saturating_add(8)
-        .saturating_add(b"{\"version\":1,\"head\":\"\",\"base\":\"\"}".len())
-        .saturating_add(crate::commit_text(&head).len())
-        .saturating_add(crate::commit_text(&base).len());
+    let mut length = 0_usize;
+    for part in [
+        repository.name.len(),
+        1,
+        command.len(),
+        8,
+        b"{\"version\":1,\"head\":\"\",\"base\":\"\"}".len(),
+        crate::commit_text(&head).len(),
+        crate::commit_text(&base).len(),
+    ] {
+        let Some(sum) = length.checked_add(part) else { return false };
+        length = sum;
+    }
     length <= usize::try_from(bound).expect("u32 fits usize")
 }

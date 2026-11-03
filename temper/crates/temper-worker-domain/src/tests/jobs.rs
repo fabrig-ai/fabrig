@@ -68,7 +68,10 @@ fn assignment(decoded: bool, writable: bool) -> Event {
         grants: Box::new([]),
     };
     let spec = if decoded {
-        Ok(wire::JobSpec { command: Box::from(b"tools/check".as_slice()), request: Box::from(b"request".as_slice()) })
+        Ok(wire::JobSpec {
+            command: Box::from(b"home/tools/check".as_slice()),
+            request: Box::from(b"request".as_slice()),
+        })
     } else {
         Err(wire::Undecodable)
     };
