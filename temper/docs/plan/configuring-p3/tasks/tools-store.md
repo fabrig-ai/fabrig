@@ -73,3 +73,12 @@ Acceptance:
 ## Report
 
 As the implementer's text says, and the list of regenerated files by group.
+
+## Answers
+
+2026-11-03. **Q** (asked by `tools-surface`, answered for this task too): a production profile
+figure that no longer fits because the settings record grew. **A:** Small's (and Standard's)
+store `value`, with `chunk` and `page.bytes` moved by the same delta and their pinned test
+assertions, may be raised to the figure the refusal names, as `tools-surface`'s answer says,
+when the trunk without this branch passes and this branch fails; list each, old and new. Any
+other production bound, limit or budget: stop and ask.
