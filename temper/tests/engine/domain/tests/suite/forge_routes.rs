@@ -22,6 +22,8 @@ use temper_engine_forge_world::{self as forge_world, translate};
 
 #[path = "forge_routes/kind_charters.rs"]
 mod kind_charters;
+#[path = "forge_routes/resource_admission.rs"]
+mod resource_admission;
 
 #[path = "forge_routes/asks_no_one.rs"]
 mod asks_no_one;
@@ -62,6 +64,12 @@ mod result;
 
 #[path = "forge_routes/tiers.rs"]
 mod tiers;
+
+#[path = "forge_routes/repairs.rs"]
+mod repairs;
+
+#[path = "forge_routes/goal_tier.rs"]
+mod goal_tier;
 
 #[path = "forge_routes/reviews.rs"]
 mod reviews;
@@ -662,6 +670,15 @@ fn a_failing_check_is_repaired_and_checked_again() {
     check_gate_repair(true);
 }
 
+fn assert_gate_repair_words(words: &[u8], kind: &str) {
+    let expected =
+        format!("Repair gate 1 ({kind}) at 975835de1c97: changes requested\nRepair the requested gate changes.");
+    let words = core::str::from_utf8(words).expect("repair instruction");
+    assert!(words.starts_with(&expected), "{words}");
+    assert!(words.contains("Preserve the requested change"), "{words}");
+    assert!(words.contains("do not remove content to make a check pass"), "{words}");
+}
+
 #[expect(clippy::too_many_lines, reason = "the check repair story spans both gate heads and their worker reports")]
 fn check_gate_repair(no_ci: bool) {
     let (mut world, _chat, producer, branch) = change_world_with_policy(no_ci, 1000, None, true, no_ci, false, false);
@@ -720,9 +737,7 @@ fn check_gate_repair(no_ci: bool) {
     }
     let repair = world.assigned.get(3).expect("review repair assigned").clone();
     let kind = if no_ci { "check" } else { "review" };
-    let expected =
-        format!("Repair gate 1 ({kind}) at 975835de1c97: changes requested\nRepair the requested gate changes");
-    assert_eq!(live_task(&world, repair.task).spec.words.as_ref(), expected.as_bytes());
+    assert_gate_repair_words(&live_task(&world, repair.task).spec.words, kind);
     assert!(
         repair.sections.iter().any(|section| section.kind == engine::BriefKind::Forge(engine::ForgeBriefKind::Reviews)
             && matches!(&section.body, engine::BriefBody::Text(words)

@@ -4,7 +4,7 @@
 
 - **Design lags:**
   - **3, 5, 14: `change` and its fields (N22, N13).** `../domain/agent.md`,
-    4.3.1: `change` names no `questions` or general producer job, nor `repairs`.
+    4.3.1: `change` names no `questions` or general producer job.
     `../protocol/configuration.md`, 13.2 numbers the forge's charters for
     the change and its reviews alone.
   - **8, 14: questions (N1).** `../domain/agent.md`, 8.2 and
@@ -12,11 +12,6 @@
     have no Message family; there is no `questions` setting, foreman or
     question bound. `../protocol/configuration.md`, 13.2: no foreman's
     charter among the forge's.
-  - **10, 14: g's tier (N5).** `../domain/after-landing.md`, sections 1 to
-    3: a tier follows the one branch it names and judges the landings on
-    it; none follows the goals' own branches as they come and go, judges
-    no landing, runs at most once in a span, or sends its reds to the
-    goal as news without a verdict.
   - **4, 14: the profile's limits (N21).** `../protocol/configuration.md`,
     13.4 and section 7, and `../domain/agent.md`, 4.3.1: the stock limits
     are a chat's (18 tasks 4 deep, 6 tasks under `change`, a result of 512

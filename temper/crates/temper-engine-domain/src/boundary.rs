@@ -213,6 +213,7 @@ pub struct ChangeCall {
     pub branch: Option<ChangeBranch>,
     pub merge: Option<[u8; 32]>,
     pub after: Box<[ChangeAfter]>,
+    pub repairs: Option<skein_forge::api::Commit>,
     pub producer: Option<u32>,
     pub llm: ChangeLlm,
 }
@@ -244,6 +245,7 @@ impl ChangeCall {
             after: Box::new([]),
             producer: None,
             llm: ChangeLlm::default(),
+            repairs: None,
         }
     }
 }

@@ -4,7 +4,9 @@ use super::fixtures;
 use crate::startup::{Problems, application, lines};
 use jig_domain_authority::Last;
 use jig_protocol_config::{self as config, read};
-use temper_engine_domain::Gate;
+use temper_engine_domain::{Gate, RepositoryChecks, TierCheck};
+use temper_engine_domain_forge::Follows;
+use temper_engine_domain_forge_tiers::Format;
 
 const PROJECT: u32 = 1;
 const CONNECTOR: u16 = 1;
@@ -64,4 +66,32 @@ fn the_reference_landing_member_parses() {
         assert_eq!(rule.gates.as_ref(), gates);
         assert!(rule.approvals.is_empty());
     }
+    let landing = members.landings.get(&PROJECT).expect("reference project landing");
+    assert_eq!(
+        landing.repositories.as_ref(),
+        &[RepositoryChecks {
+            repository: skein_forge::api::Repository { forge: 1, repository: 1 },
+            gates: Box::new([]),
+            tiers: Box::new([
+                TierCheck {
+                    name: b"slow".as_slice().into(),
+                    workflow: b"tier-slow.yml".as_slice().into(),
+                    ignored: Box::new([]),
+                    artifact: b"failing".as_slice().into(),
+                    format: Format::Lines,
+                    follows: Follows::Landing,
+                    span_ms: 0,
+                },
+                TierCheck {
+                    name: b"goal".as_slice().into(),
+                    workflow: b"tier-goal.yml".as_slice().into(),
+                    ignored: Box::new([]),
+                    artifact: b"failing".as_slice().into(),
+                    format: Format::Lines,
+                    follows: Follows::Goals,
+                    span_ms: 1_200_000,
+                },
+            ]),
+        }]
+    );
 }

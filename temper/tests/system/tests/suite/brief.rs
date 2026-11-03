@@ -10,7 +10,14 @@ use smith_domain_run as run;
 use temper_engine_domain as engine;
 use temper_system_world::world;
 
+// The task and a marked CI prefix fit; the repeated CI body must be cut.
+const BRIEF_ROOM: u32 = 1_300;
+
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one stock repair follows its oversized CI brief through smith to its declared change"
+)]
 fn a_stock_charter_two_repair_starts_with_its_oversized_ci_cut_and_marked() {
     let mut chat = world::chat(b"@report", Job::Reporting);
     chat.run();
@@ -59,11 +66,19 @@ fn a_stock_charter_two_repair_starts_with_its_oversized_ci_cut_and_marked() {
     settings.limits.run.budget = settings.budget;
     settings.limits.session.spend = coder.spend;
     settings.limits.run.host_tools = 40;
-    settings.limits.run.host_part = 33_419;
     settings.limits.run.schema_costs = smith_protocol_llm::schema_costs().expect("production renderer costs");
     let uncut = temper_engine_smith::charter(&repair);
-    let room = run::brief_room(&uncut, Some(&workspace), &settings.limits.run).expect("declarations fit");
-    assert!(run::brief_bytes(&uncut.brief).expect("uncut brief bytes") > u64::from(room));
+    let non_brief = settings
+        .limits
+        .run
+        .host_part
+        .checked_sub(u64::from(
+            run::brief_room(&uncut, Some(&workspace), &settings.limits.run).expect("declarations fit"),
+        ))
+        .expect("declarations within host bound");
+    settings.limits.run.host_part = non_brief.checked_add(u64::from(BRIEF_ROOM)).expect("host bound with brief room");
+    assert_eq!(run::brief_room(&uncut, Some(&workspace), &settings.limits.run), Some(BRIEF_ROOM));
+    assert!(run::brief_bytes(&uncut.brief).expect("uncut brief bytes") > u64::from(BRIEF_ROOM));
     let start = temper_engine_smith::start(
         &repair,
         Some(workspace),
@@ -83,7 +98,7 @@ fn a_stock_charter_two_repair_starts_with_its_oversized_ci_cut_and_marked() {
     assert_eq!(charter.brief.sections[0].text, uncut.brief.sections[0].text);
     assert_eq!(charter.brief.sections[1].title.as_ref(), b"CI");
     assert!(charter.brief.sections[1].text.ends_with(b" bytes; whole: read_job/read_checks]\n"));
-    assert!(run::brief_bytes(&charter.brief).expect("fitted brief bytes") <= u64::from(room));
+    assert!(run::brief_bytes(&charter.brief).expect("fitted brief bytes") <= u64::from(BRIEF_ROOM));
     let call = |name: &[u8], arguments: &[u8]| Turn {
         lines: Box::new([Line::Call { name: name.into(), arguments: arguments.into() }]),
         finish: Finish::ToolCalls,

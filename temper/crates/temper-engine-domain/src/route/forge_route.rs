@@ -269,8 +269,173 @@ fn news_words(news: &forge::News, limit: u32) -> Box<[u8]> {
             append_hex(&mut out, &number.to_be_bytes());
             append(&mut out, b" changed");
         }
+        forge::News::Red(red) => return red_news_words(red, limit),
     }
     out.into_boxed()
+}
+
+/// A red's whole lines precede log tails (temper/docs/design/domain/after-landing.md, 7).
+fn red_news_words(red: &forge::RedNews, limit: u32) -> Box<[u8]> {
+    let mut out = List::with_capacity(limit);
+    let complete = match &red.on {
+        forge::RedOn::Landing { commit, branch, failing } => red_landing_words(&mut out, red, commit, branch, failing),
+        forge::RedOn::Goal { branch, tip, new, still } => red_goal_words(&mut out, red, branch, tip, new, still),
+    };
+    if !complete {
+        return out.into_boxed();
+    }
+    if let Some(url) = &red.url
+        && !red_line(&mut out, &[b"Run: ", url])
+    {
+        return out.into_boxed();
+    }
+    red_logs(&mut out, &red.logs);
+    out.into_boxed()
+}
+
+fn red_landing_words(
+    out: &mut List<u8>,
+    red: &forge::RedNews,
+    commit: &skein_forge::api::Commit,
+    branch: &[u8],
+    failing: &temper_engine_domain_forge_tiers::Failures,
+) -> bool {
+    let run = skein_lib::Decimal::of(red.run);
+    let commit = commit_text(commit);
+    let count = red_failure_count(failing);
+    if !red_line(
+        out,
+        &[
+            b"Red after landing: tier ",
+            &red.tier,
+            b" run ",
+            run.as_bytes(),
+            b" blames landing ",
+            &commit,
+            b" on ",
+            branch,
+            b": ",
+            &count,
+            b" failing.",
+        ],
+    ) {
+        return false;
+    }
+    red_test_lines(out, b"", failing)
+}
+
+fn red_goal_words(
+    out: &mut List<u8>,
+    red: &forge::RedNews,
+    branch: &[u8],
+    tip: &skein_forge::api::Commit,
+    new: &temper_engine_domain_forge_tiers::Failures,
+    still: &temper_engine_domain_forge_tiers::Failures,
+) -> bool {
+    let run = skein_lib::Decimal::of(red.run);
+    let tip = commit_text(tip);
+    let tip = tip.get(..12).expect("a commit has at least twelve digits");
+    let new_count = red_failure_count(new);
+    let still_count = red_failure_count(still);
+    if !red_line(
+        out,
+        &[
+            b"Red on ",
+            branch,
+            b": tier ",
+            &red.tier,
+            b" run ",
+            run.as_bytes(),
+            b" at ",
+            tip,
+            b": ",
+            &new_count,
+            b" new, ",
+            &still_count,
+            b" still failing.",
+        ],
+    ) {
+        return false;
+    }
+    if !red_test_lines(out, b"new: ", new) {
+        return false;
+    }
+    red_test_lines(out, b"still failing: ", still)
+}
+
+fn red_failure_count(failing: &temper_engine_domain_forge_tiers::Failures) -> Box<[u8]> {
+    match failing {
+        temper_engine_domain_forge_tiers::Failures::Tests(tests) => {
+            let count = u64::try_from(tests.len()).expect("a bounded test count fits u64");
+            Box::from(skein_lib::Decimal::of(count).as_bytes())
+        }
+        temper_engine_domain_forge_tiers::Failures::Many => Box::from(b"many".as_slice()),
+    }
+}
+
+fn red_test_lines(out: &mut List<u8>, prefix: &[u8], failing: &temper_engine_domain_forge_tiers::Failures) -> bool {
+    match failing {
+        temper_engine_domain_forge_tiers::Failures::Tests(tests) => {
+            for test in tests {
+                if !red_line(out, &[prefix, test]) {
+                    return false;
+                }
+            }
+            true
+        }
+        temper_engine_domain_forge_tiers::Failures::Many => red_line(out, &[prefix, b"many"]),
+    }
+}
+
+fn red_line_bytes(parts: &[&[u8]]) -> usize {
+    let mut bytes = 0_usize;
+    for part in parts {
+        bytes = bytes.saturating_add(part.len());
+    }
+    bytes
+}
+
+fn red_line(out: &mut List<u8>, parts: &[&[u8]]) -> bool {
+    let separator = usize::from(!out.is_empty());
+    let bytes = red_line_bytes(parts).saturating_add(separator);
+    if bytes > usize::try_from(out.room()).expect("message room fits usize") {
+        return false;
+    }
+    if !out.is_empty() {
+        append(out, b"\n");
+    }
+    for part in parts {
+        append(out, part);
+    }
+    true
+}
+
+fn red_logs(out: &mut List<u8>, logs: &[forge::JobLog]) {
+    let room = usize::try_from(out.room()).expect("message room fits usize");
+    let share = room.checked_div(logs.len()).unwrap_or(0);
+    for log in logs {
+        match &log.end {
+            Some(end) => {
+                let heading: &[&[u8]] = &[b"End of job ", &log.name, b"'s log:"];
+                let overhead = red_line_bytes(heading).saturating_add(2);
+                if overhead > share {
+                    continue;
+                }
+                let length = end.len().min(share.saturating_sub(overhead));
+                let start = end.len().checked_sub(length).expect("tail within log");
+                let tail = end.get(start..).expect("tail within log");
+                assert!(red_line(out, heading), "heading fits the job's share");
+                append(out, b"\n");
+                append(out, tail);
+            }
+            None => {
+                let line: &[&[u8]] = &[b"End of job ", &log.name, b"'s log: [no log]"];
+                if red_line_bytes(line).saturating_add(1) <= share {
+                    assert!(red_line(out, line), "unread log line fits the job's share");
+                }
+            }
+        }
+    }
 }
 
 fn topic_name(topic: &forge::Topic, limits: &forge::Limits) -> Option<forge::Name> {
@@ -1766,6 +1931,57 @@ fn watch_change_pull(domain: &mut Domain, env: &Env<Limits>, row: &forge::Change
     }
 }
 
+fn retry_change_names(domain: &mut Domain, env: &Env<Limits>, task: u64) {
+    if domain.forge.names(task).is_some() {
+        return;
+    }
+    let Some(owner) = domain.core.tasks.task(task) else { return };
+    if owner.due_reason != tasks::Why::Released {
+        return;
+    }
+    let Some(row) = domain.forge.change(task) else { return };
+    match row.change.state {
+        forge_change::State::Landed { .. }
+        | forge_change::State::Red { .. }
+        | forge_change::State::Cleared { .. }
+        | forge_change::State::Uncleared { .. }
+        | forge_change::State::NoChange { .. }
+        | forge_change::State::Ended => return,
+        forge_change::State::Producing { .. }
+        | forge_change::State::Opening { .. }
+        | forge_change::State::Recreating { .. }
+        | forge_change::State::Reopening { .. }
+        | forge_change::State::Checking { .. }
+        | forge_change::State::Gating { .. }
+        | forge_change::State::Ready { .. }
+        | forge_change::State::Preparing { .. }
+        | forge_change::State::CancellingGates { .. }
+        | forge_change::State::Queued { .. }
+        | forge_change::State::First { .. }
+        | forge_change::State::Updating { .. }
+        | forge_change::State::Resolving { .. }
+        | forge_change::State::Repairing { .. }
+        | forge_change::State::Landing { .. }
+        | forge_change::State::Held { .. } => {}
+    }
+    let Some(branch) = branch_what(&row.branch, env.limits.forge.name_bytes) else { return };
+    let other = match row.pull {
+        Some(number) => forge::What::Pull(number),
+        None => {
+            let Some(base) = branch_what(&row.base, env.limits.forge.name_bytes) else { return };
+            base
+        }
+    };
+    let repository = row.repository;
+    domain.work.push(Work::Forge(forge::Event::Names {
+        task,
+        resources: Box::new([
+            forge::Name { forge: repository.forge, repository: repository.repository, what: branch },
+            forge::Name { forge: repository.forge, repository: repository.repository, what: other },
+        ]),
+    }));
+}
+
 fn initial_change_title(parameters: &[tasks::Parameter]) -> Box<[u8]> {
     let mut handed = false;
     let mut title = None;
@@ -1836,6 +2052,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
     let mut producer = None;
     let mut llm = crate::ChangeLlm::default();
     let mut requester_branch = false;
+    let mut repairs = None;
     let mut catch_up = None;
     for parameter in &context.spec.parameters {
         match parameter {
@@ -1859,6 +2076,23 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 (producer, llm) = choices;
             }
             tasks::Parameter::Number { name: 11, value: 1 } => requester_branch = true,
+            tasks::Parameter::Bytes { name: 12, value } => {
+                if value.len() != 40 && value.len() != 64 {
+                    return false;
+                }
+                let mut commit = [0_u8; 32];
+                for (pair, cell) in value.chunks_exact(2).zip(&mut commit) {
+                    for digit in pair {
+                        let nibble = match digit {
+                            b'0'..=b'9' => digit.saturating_sub(b'0'),
+                            b'a'..=b'f' => digit.saturating_sub(b'a').saturating_add(10),
+                            _ => return false,
+                        };
+                        *cell = cell.saturating_mul(16).saturating_add(nibble);
+                    }
+                }
+                repairs = Some(commit);
+            }
             tasks::Parameter::Bytes { name: 16, value } => {
                 let Some(commit) = catch_up_commit(value) else { return false };
                 catch_up = Some(commit);
@@ -1956,6 +2190,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 effect_account: None,
                 producer_failure: None,
                 report: Box::new([]),
+                repairs,
                 catch_up,
                 merge_result: None,
             },
@@ -1997,6 +2232,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
         }
     }
     step_dependents(domain, env, task);
+    retry_change_names(domain, env, task);
     landing_route::join_landing(domain, env, task);
     let Some(entry) = crate::fresh(&mut domain.core.counters, Family::ConnectorRow) else { return false };
     domain.work.push(Work::Forge(forge::Event::StepChange {
@@ -2190,7 +2426,7 @@ pub(crate) enum ChangeRefused {
 
 /// Build a plan's changes together; jig admits all of them in one delegation.
 /// Plan members require the control family (domain/agent.md, 4.3.1).
-#[expect(clippy::too_many_lines, reason = "one batch validates plan members before constructing atomic delegates")]
+#[expect(clippy::too_many_lines, reason = "the batch resolves plan members before admitting delegates together")]
 pub(crate) fn change_batch(
     domain: &Domain,
     env: &Env<Limits>,
@@ -2207,6 +2443,7 @@ pub(crate) fn change_batch(
                 || !change.after.is_empty()
                 || change.producer.is_some()
                 || change.llm != crate::ChangeLlm::default()
+                || change.repairs.is_some()
         }
         _ => true,
     };
@@ -2219,7 +2456,7 @@ pub(crate) fn change_batch(
         let words: &[u8] = if merge {
             b"change's merge is a plan's: this task's authority lacks the control family (amend, cancel, release)."
         } else {
-            b"change's landing, branch, name, after, changes, producer and llm are a plan's: this task's authority lacks the control family (amend, cancel, release)."
+            b"change's landing, branch, name, after, repairs, changes, producer and llm are a plan's: this task's authority lacks the control family (amend, cancel, release)."
         };
         return Err(ChangeRefused::Words(Box::from(words)));
     }
@@ -2294,6 +2531,38 @@ pub(crate) fn change_batch(
             }
         }
         let base = change_landing(domain, env, task, &repository, change.landing.as_ref())?;
+        if let Some(commit) = change.repairs {
+            let red = domain.forge.landing_red(repository.provider, &commit, &base);
+            if red != forge::LandingRed::Red {
+                let name = repository_name(&repository);
+                // Fixed refusal words, commit digits, and the two bounded branch names.
+                let capacity = 128_u32
+                    .checked_add(u32::try_from(name.len()).expect("repository name fits u32"))
+                    .expect("bounded repository name")
+                    .checked_add(env.limits.forge.name_bytes.saturating_mul(2))
+                    .expect("bounded repairs refusal");
+                let mut words = List::with_capacity(capacity);
+                append(&mut words, b"repairs: ");
+                append(&mut words, &commit_text(&commit));
+                match red {
+                    forge::LandingRed::Unknown => {
+                        append(&mut words, b" is no live landing of temper's in ");
+                        append(&mut words, &name);
+                        append(&mut words, b".");
+                    }
+                    forge::LandingRed::Elsewhere { branch } => {
+                        append(&mut words, b" landed into ");
+                        append(&mut words, &branch);
+                        append(&mut words, b", not ");
+                        append(&mut words, &base);
+                        append(&mut words, b".");
+                    }
+                    forge::LandingRed::NotRed => append(&mut words, b" is red in no tier."),
+                    forge::LandingRed::Red => unreachable!("red landings admit repairs"),
+                }
+                return Err(ChangeRefused::Words(words.into_boxed()));
+            }
+        }
         let mut member = match chat_change(domain, env, &remaining, change, &repository, base, branch, spend) {
             Ok(member) => member,
             Err(why) => return Err(ChangeRefused::Refusal(why)),
@@ -2524,6 +2793,9 @@ fn chat_change(
             .push(tasks::Parameter::Bytes { name: 11, value: change_llm::spell(change.producer, &change.llm) })
             .expect("producer and LLM choices");
     }
+    if let Some(commit) = change.repairs {
+        parameters.push(tasks::Parameter::Bytes { name: 12, value: commit_text(&commit) }).expect("red landing commit");
+    }
     if let Some(commit) = change.merge {
         parameters.push(tasks::Parameter::Bytes { name: 16, value: commit_text(&commit) }).expect("catch-up parameter");
     }
@@ -2707,11 +2979,7 @@ fn change_delegate(
             parameters.push(tasks::Parameter::Bytes { name: 6, value: commit_text(&base) }).ok()?;
             (
                 tasks::Executor::Agent { charter: row.producing_charter },
-                merge::resolution_words(
-                    row.merge_result.as_deref(),
-                    parameters.as_slice(),
-                    env.limits.tasks.spec_bytes,
-                ),
+                resolution_words(row.merge_result.as_deref(), parameters.as_slice(), env.limits.tasks.spec_bytes)?,
                 change_contract,
                 row.producing_llm.clone(),
             )
@@ -2892,6 +3160,54 @@ fn repair_opening(row: &forge::ChangeRow, why: forge_change::Repair) -> Option<B
     Some(writer.finish())
 }
 
+/// domain/forge.md, 8.4: both sides keep their intended content.
+fn resolution_words(result: Option<&[u8]>, parameters: &[tasks::Parameter], bound: u32) -> Option<Box<[u8]>> {
+    let words = concat!(
+        "Resolve the merge conflict. Preserve the requested change and unrelated content ",
+        "already landed on the base, including both independent appended lines and existing blank lines. ",
+        "Do not remove content to make a check pass. The worker commits and pushes the resolved merge."
+    )
+    .as_bytes();
+    let room = usize::try_from(parameter_word_room(parameters, bound)).ok()?;
+    // The coding charter carries the full preservation rule when the spec is small.
+    let compact = b"Resolve the merge conflict. Keep both sides and blank lines.";
+    let opening = if words.len() <= room {
+        words
+    } else if compact.len() <= room {
+        compact.as_slice()
+    } else {
+        return None;
+    };
+    let mut out = List::with_capacity(u32::try_from(room).ok()?);
+    append(&mut out, opening);
+    if let Some(result) = result {
+        let prefix = b"\n\nThe merge job settled what the project's merge command knows and left the rest:\n";
+        let remaining = usize::try_from(out.room()).ok()?;
+        if prefix.len().checked_add(result.len().min(3))? <= remaining {
+            append(&mut out, prefix);
+            let result = forge::text::fit(result, usize::try_from(out.room()).ok()?, b"...");
+            append(&mut out, &result);
+        }
+    }
+    Some(out.into_boxed())
+}
+
+fn parameter_word_room(parameters: &[tasks::Parameter], bound: u32) -> u32 {
+    let mut room = bound;
+    for parameter in parameters {
+        if let tasks::Parameter::Bytes { value, .. } = parameter {
+            room = room.saturating_sub(u32::try_from(value.len()).unwrap_or(u32::MAX));
+        }
+    }
+    room
+}
+
+const REPAIR_PRESERVATION: &[u8] = concat!(
+    " Preserve the requested change and unrelated base content, including both ",
+    "independent appended lines and existing blank lines; do not remove content to make a check pass."
+)
+.as_bytes();
+
 /// domain/forge.md, 8.4: a cut task read still names what the repair repairs.
 fn repair_words(
     row: &forge::ChangeRow,
@@ -2900,20 +3216,15 @@ fn repair_words(
     bound: u32,
 ) -> Option<Box<[u8]>> {
     let previous: &[u8] = match why {
-        forge_change::Repair::Ci => b"Repair the failed CI on the change branch",
-        forge_change::Repair::Semantic => b"Repair the base update's semantic conflict",
-        forge_change::Repair::Gate(_) => b"Repair the requested gate changes",
+        forge_change::Repair::Ci => b"Repair the failed CI on the change branch.",
+        forge_change::Repair::Semantic => b"Repair the base update's semantic conflict.",
+        forge_change::Repair::Gate(_) => b"Repair the requested gate changes.",
         forge_change::Repair::Landing { .. } => return None,
     };
     let head = row.change.last_head?;
     let digits = commit_text(&head);
-    let mut room = bound;
-    for parameter in parameters {
-        if let tasks::Parameter::Bytes { value, .. } = parameter {
-            room = room.saturating_sub(u32::try_from(value.len()).unwrap_or(u32::MAX));
-        }
-    }
-    let tail = u32::try_from(previous.len().checked_add(1)?).ok()?;
+    let room = parameter_word_room(parameters, bound);
+    let tail = u32::try_from(previous.len().checked_add(REPAIR_PRESERVATION.len())?.checked_add(1)?).ok()?;
     let mut identity = List::with_capacity(room.checked_sub(tail)?);
     let opening = repair_opening(row, why)?;
     // Keep the opening and head whole even under a small task spec bound.
@@ -2937,6 +3248,7 @@ fn repair_words(
     append(&mut words, identity.as_slice());
     append(&mut words, b"\n");
     append(&mut words, previous);
+    append(&mut words, REPAIR_PRESERVATION);
     Some(words.into_boxed())
 }
 
@@ -3138,7 +3450,7 @@ fn change_landing_words(
         for part in parts {
             append(&mut out, part);
         }
-        let verification = change_verification_words(domain, task, bound);
+        let verification = change_verification_words(domain, task, merge, bound);
         if !verification.is_empty() && verification.len() < usize::try_from(out.room()).expect("u32 fits usize") {
             append(&mut out, b"\n");
             append(&mut out, &verification);
@@ -3154,7 +3466,7 @@ fn change_landing_words(
 
 /// Name each landing's retained clearing run before its verification row is released
 /// (temper/docs/design/domain/after-landing.md, 6).
-fn change_verification_words(domain: &Domain, task: u64, bound: u32) -> Box<[u8]> {
+fn change_verification_words(domain: &Domain, task: u64, merge: &skein_forge::api::Commit, bound: u32) -> Box<[u8]> {
     let row = domain.forge.change(task).expect("landed change");
     let mut words = List::with_capacity(bound);
     if let forge_change::State::Uncleared { .. } = row.change.state {
@@ -3168,7 +3480,10 @@ fn change_verification_words(domain: &Domain, task: u64, bound: u32) -> Box<[u8]
         );
     }
     if let forge_change::State::Cleared { .. } = row.change.state {
-        for tier in domain.forge.change_verdicts(task) {
+        let Some(verification) = domain.forge.landing_verification(row.repository, merge) else {
+            return words.into_boxed();
+        };
+        for tier in &verification.tiers {
             let run = match (&tier.repaired, &tier.verdict) {
                 (Some(repaired), _) => repaired.run,
                 (None, Some(verdict)) => verdict.run,
@@ -3181,10 +3496,15 @@ fn change_verification_words(domain: &Domain, task: u64, bound: u32) -> Box<[u8]
             append(&mut words, &tier.tier);
             append(&mut words, b" run ");
             append(&mut words, skein_lib::Decimal::of(run).as_bytes());
-            append(
-                &mut words,
-                if tier.repaired.is_some() { b", which passed the failures blamed on it." } else { b"." },
-            );
+            if let Some(repaired) = &tier.repaired {
+                append(&mut words, b", which passed the failures blamed on it");
+                if let Some(by) = &repaired.by {
+                    append(&mut words, b"; repaired by ");
+                    let digits = commit_text(by);
+                    append(&mut words, digits.get(..12).expect("a commit has at least 40 hexadecimal digits"));
+                }
+            }
+            append(&mut words, b".");
         }
     }
     words.into_boxed()
@@ -3824,6 +4144,12 @@ pub(crate) fn outputs(
                         tasks::Hold::ResourceUnavailable,
                         b"forge resource request refused; check resource access and configured bounds",
                     );
+                }
+            }
+            forge::Request::ResourceRefused { task, operation, resource, cause } => {
+                if admission_refused(domain, task) {
+                    let words = holds::refused_words(domain, operation, resource.as_ref(), cause);
+                    holds::hold_as(domain, task, tasks::Hold::ResourceUnavailable, &words);
                 }
             }
             forge::Request::MakeFailed { task, resource, reason } => {

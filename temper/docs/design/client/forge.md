@@ -959,6 +959,14 @@ repairs, resolutions and updates, and counts its stall from the release.
 Nothing on the forge is written over until the person decides
 (`../domain/forge.md`, 8.4 and 8.5).
 
+A local watch-admission wait needs no release: recovery or a departing
+read can temporarily consume the client's capacity, and temper retries.
+A persistent resource refusal names the operation, its resource, the
+configuration member, its value and the required usage. Its words say
+what to reduce or reconfigure before release. Release asks for a refused
+watch set again, and holds again while the same bound refuses it. A branch, base or pull
+read failure names its backend cause and what a release retries.
+
 ### 6.1 The change's own
 
 | Held because | The card says | A release |
@@ -1300,7 +1308,9 @@ made by the forge connector from what it keeps of the change
   request of 2026-10-27, one Forgejo card, run on this machine or a
   deployment of one's own, set up at once with `work`, `hello` and a
   project `Default` (the look request `welcome-forgejo-card`), waits
-  on the user's review of these pages.
+  on the user's review of these pages; its project is Ready's now, the
+  set up naming none (`README.md`, 3.5; `../draft/first-run-projects.md`,
+  4).
 - **An App of one's own, offered again** (5.4). Default: GitHub's card
   offers Connect GitHub alone, and the own App's Details are reached by
   their address; a link returns to the card once v0.1.0's successor

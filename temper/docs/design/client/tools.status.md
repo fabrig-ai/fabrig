@@ -12,8 +12,7 @@
   `settings show`: the file's template has no `resources` member
   (`temper-settings-form/src/view.rs`), and one applied from a file
   names none (`jig/settings_adapter.rs`, `client_template`). 5.5: area 2's `goal start` with its model flags,
-  `proposal withdraw`, `seen`, and `task amend`'s `--budget` and
-  `--tasks`; area 3's `party make`, `sign-in --service`, `deployment
+  `proposal withdraw`, `seen`, and `task amend`'s `--budget`; area 3's `party make`, `sign-in --service`, `deployment
   show`, `task move`, `task take`, `task hand-back`, and the project's
   `policy`, `role` and `pool`; area 4's `create`, `propose` and
   `compound`; area 6's `forge forget`, with no request on the wire.

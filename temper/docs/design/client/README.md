@@ -4522,3 +4522,9 @@ own tests:
   while tests walk the playground by them, to revisit (11-03).
   Default: a list under the composer's line, in the playground's start
   alone.
+- **A taken "Default" at Ready** (3.5, The welcome;
+  `../draft/first-run-projects.md`, 9): a person who made "Default"
+  before finishing the welcome, from the banner's new project (5.3) or
+  ctl. The user's to decide: open it, or make "Default 2". Default:
+  Ready opens the person's "Default" and makes no other name, the
+  reading the draft's status records while the user is away.

@@ -1,6 +1,7 @@
 use crate::*;
 
 use temper_engine_domain_forge_issues as issues;
+mod admission;
 mod adoption;
 mod binding;
 mod brief_document;
@@ -145,8 +146,11 @@ fn restoring_domain(started: Wall) -> Domain {
     d
 }
 fn domain() -> Domain {
+    domain_with_limits(&LIMITS)
+}
+fn domain_with_limits(limits: &Limits) -> Domain {
     Domain::new(
-        &LIMITS,
+        limits,
         4,
         skein_forge_client::Config {
             namespace: Box::from(&b"test"[..]),
@@ -341,6 +345,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Erase { .. }
         | Request::Taken { .. }
         | Request::Refused { .. }
+        | Request::ResourceRefused { .. }
         | Request::LostReadFailed { .. }
         | Request::MakeFailed { .. }
         | Request::Outcome { .. }
@@ -421,6 +426,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Erase { .. }
         | Request::Taken { .. }
         | Request::Refused { .. }
+        | Request::ResourceRefused { .. }
         | Request::LostReadFailed { .. }
         | Request::MakeFailed { .. }
         | Request::Outcome { .. }
@@ -498,6 +504,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Erase { .. }
         | Request::Taken { .. }
         | Request::Refused { .. }
+        | Request::ResourceRefused { .. }
         | Request::LostReadFailed { .. }
         | Request::MakeFailed { .. }
         | Request::Outcome { .. }

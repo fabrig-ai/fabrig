@@ -3413,6 +3413,11 @@ Each is intended; what it needs is named with it.
   written in the merge's `Entry`'s commit, is the route when a run
   needs either, a store schema change in place until the first release
   (store.md, section 4; skein's `codec.md`, section 5).
+- **Demo after a reset** (8.4; `../draft/first-run-projects.md`, 9):
+  a second playground run makes "Demo" again, the first having been
+  deleted by the reset, and reuses nothing but the name. The user's to
+  confirm. Default: as 8.4's start makes it, the reading the draft's
+  status records while the user is away.
 
 ## 17. Connecting GitHub
 

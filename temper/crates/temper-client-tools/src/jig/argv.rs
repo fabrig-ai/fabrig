@@ -651,8 +651,8 @@ fn present(call: &Call, index: usize) -> bool {
 }
 fn check_amend(call: &Call, limits: &Limits) -> Result<(), Usage> {
     check_choice(call, 10, 11, limits)?;
-    let mut change = false;
-    let mut needs_revision = false;
+    let mut change = present(call, 13);
+    let mut needs_revision = change;
     for index in 2..12 {
         if present(call, index) {
             change = true;
@@ -672,6 +672,9 @@ fn check_amend(call: &Call, limits: &Limits) -> Result<(), Usage> {
     }
     if let Some(Value::Text(text)) = crate::jig::call::value(call, 4) {
         deadline(text).ok_or(Usage::Kind { tool: 0, form: 0, argument: 4 })?;
+    }
+    if let Some(tasks) = crate::jig::call::number(call, 13) {
+        u32::try_from(tasks).or(Err(Usage::Kind { tool: 0, form: 0, argument: 13 }))?;
     }
     if let Some(priority) = crate::jig::call::number(call, 2) {
         u32::try_from(priority).or(Err(Usage::Kind { tool: 0, form: 0, argument: 2 }))?;

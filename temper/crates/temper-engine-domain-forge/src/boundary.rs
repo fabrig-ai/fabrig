@@ -722,11 +722,21 @@ pub enum Class {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum News {
     /// A branch moved; overlap is decided from bounded file facts.
-    Landing { before: skein_forge::api::Commit, after: skein_forge::api::Commit, files: Option<Box<[Box<[u8]>]>> },
+    Landing {
+        before: skein_forge::api::Commit,
+        after: skein_forge::api::Commit,
+        files: Option<Box<[Box<[u8]>]>>,
+    },
     /// The combined CI state changed at its head.
-    Ci { head: skein_forge::api::Commit, status: skein_forge::api::Ci },
+    Ci {
+        head: skein_forge::api::Commit,
+        status: skein_forge::api::Ci,
+    },
     /// A pull or participating object's state changed.
-    Changed { number: u64 },
+    Changed {
+        number: u64,
+    },
+    Red(crate::RedNews),
 }
 /// A live subscription and its known paths for landing overlap.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -829,6 +839,8 @@ pub struct ChangeRow {
     pub producer_failure: Option<Box<[u8]>>,
     /// Its producing task's last successful result words (domain/forge.md, 8.2 step 7)
     pub report: Box<[u8]>,
+    /// The red landing this change repairs (temper/docs/design/domain/agent.md, 4.3.1).
+    pub repairs: Option<skein_forge::api::Commit>,
     /// The commit this catch-up merges (temper/docs/design/domain/forge.md, 8.2).
     pub catch_up: Option<skein_forge::api::Commit>,
     /// The last merge job's result, at most 512 bytes (temper/docs/design/domain/forge.md, 8.4).
@@ -877,7 +889,18 @@ pub struct Tier {
     pub ignored: Box<[Box<[u8]>]>,
     pub artifact: Box<[u8]>,
     pub format: temper_engine_domain_forge_tiers::Format,
-    pub branch: Option<Box<[u8]>>,
+    pub follows: Follows,
+    pub span: Option<skein_lib::Duration>,
+}
+/// What a tier follows (temper/docs/design/domain/after-landing.md, 2).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum Follows {
+    /// The repository's landing branch, its adoption's default.
+    Landing,
+    /// One branch by its name on the forge.
+    Branch(Box<[u8]>),
+    /// The goals' own branches of the repository; judges no landing.
+    Goals,
 }
 /// A project's verification settings (temper/docs/design/domain/after-landing.md, 11).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -1815,6 +1838,13 @@ pub enum Request {
     Refused {
         task: u64,
     },
+    /// A named operation failed with its resource and admission or backend cause.
+    ResourceRefused {
+        task: u64,
+        operation: &'static [u8],
+        resource: Option<Name>,
+        cause: crate::RefusalCause,
+    },
     /// A goal's own branch could not be made (domain/forge.md, 11.1).
     MakeFailed {
         task: u64,
@@ -1960,6 +1990,22 @@ pub struct TierHeard {
     pub released: bool,
     pub cancelled: bool,
 }
+/// A goal branch a tier following goal branches follows (temper/docs/design/domain/after-landing.md, 3).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct TierGoal {
+    /// The goal task holding the branch.
+    pub goal: u64,
+    /// `temper/<root>/g<goal>`, as the hold names it.
+    pub branch: Box<[u8]>,
+    /// The branch's newest tip seen since the goal's hold made it.
+    pub tip: Option<skein_forge::api::Commit>,
+    /// The tip its last run tested.
+    pub ran: Option<skein_forge::api::Commit>,
+    /// What its last run failed again after its rerun; empty when green.
+    pub failing: temper_engine_domain_forge_tiers::Failures,
+    /// When its last run started.
+    pub started: Option<skein_lib::Time>,
+}
 /// Family 28's policy and task (temper/docs/design/domain/after-landing.md, 10).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct TierRow {
@@ -1982,6 +2028,9 @@ pub struct TierRow {
     /// The final part observation or cached receipt awaiting release and judgement.
     pub result: Option<Receipt>,
     pub received: bool,
+    pub goals: Box<[TierGoal]>,
+    pub goal: Option<u64>,
+    pub started: Option<skein_lib::Time>,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct TierLanding {
@@ -2038,4 +2087,5 @@ pub struct TierVerdict {
 pub struct TierRepair {
     pub run: u64,
     pub tip: skein_forge::api::Commit,
+    pub by: Option<skein_forge::api::Commit>,
 }
