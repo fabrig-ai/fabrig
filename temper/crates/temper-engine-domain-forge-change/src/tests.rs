@@ -138,7 +138,7 @@ fn a_change_is_produced_opened_checked_queued_and_landed() {
     let one = decide(&change(State::Producing { requested: false }), &f, &heard());
     assert_eq!(one.decision, Decision::Delegate(Delegate::Produce));
     assert_eq!(one.change.state, State::Producing { requested: true });
-    assert_eq!(decide(&one.change, &f, &heard()).decision, Decision::Wait { until: Some(at(30)) });
+    assert_eq!(decide(&one.change, &f, &heard()).decision, Decision::Wait { until: Some(at(31)) });
     f.branch = Some(HEAD);
     let two = decide(&one.change, &f, &heard());
     assert_eq!(two.change.state, State::Opening { requested: false });
