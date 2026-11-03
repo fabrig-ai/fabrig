@@ -72,6 +72,7 @@ fn chat_project() -> List<MeProject> {
     let mut projects = List::with_capacity(1);
     projects
         .push(MeProject {
+            public: None,
             models: List::with_capacity(0),
             project: PROJECT,
             name: DocumentText::complete(Text::new(Box::from(*b"Tally"), 32).unwrap()),

@@ -181,6 +181,7 @@ pub(crate) fn tag_people_part(
                     | people::Key::SignIn(_)
                     | people::Key::Roles(_)
                     | people::Key::Deletion(_)
+                    | people::Key::Public(_)
                     | people::Key::Policy(_) => {}
                 }
                 Request::Write(Write::Erase(Key::People(key)))
@@ -232,6 +233,7 @@ pub(crate) fn tag_people_part(
                     | people::Outcome::Renamed { .. }
                     | people::Outcome::ProjectMade { .. }
                     | people::Outcome::ProjectRemoved { .. }
+                    | people::Outcome::VisibilitySet { .. }
                     | people::Outcome::SettingsChanged { .. }
                     | people::Outcome::MovedToNewest { .. }
                     | people::Outcome::PoolSet { .. }
@@ -269,7 +271,12 @@ pub(crate) fn tag_people_part(
                     continue;
                 }
                 let admission = match &*ask {
-                    people::Ask::RemoveProject { project: named, .. } if *named == project => Ok(()),
+                    people::Ask::RemoveProject { project: named, .. }
+                    | people::Ask::SetVisibility { project: named, .. }
+                        if *named == project =>
+                    {
+                        Ok(())
+                    }
                     other => crate::acts::request(core, &env.limits, person, project, role, other, env.wall),
                 };
                 if let Err(why) = admission {
@@ -281,6 +288,9 @@ pub(crate) fn tag_people_part(
                 }
                 let party = super::dispatch::Party { request, person, project, role };
                 match *ask {
+                    people::Ask::SetVisibility { public, .. } => {
+                        super::projects::visibility_request(core, env, &mut routed, party, public);
+                    }
                     people::Ask::Restore { revision, reason } => {
                         let mut restoring =
                             crate::routing::settings::restore::start(core, env, party, revision, reason);

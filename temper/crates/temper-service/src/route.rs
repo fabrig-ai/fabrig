@@ -355,6 +355,7 @@ fn worker(engine: &mut Engine, request: root::WorkerRequest) {
             | root::Delivery::Forges { .. }
             | root::Delivery::ForgeDocument { .. }
             | root::Delivery::Panel { .. }
+            | root::Delivery::Public { .. }
             | root::Delivery::WebReply { .. }
             | root::Delivery::CarriedUnused { .. }
             | root::Delivery::ForgeRead { .. }
@@ -372,6 +373,7 @@ fn worker(engine: &mut Engine, request: root::WorkerRequest) {
             | root::Delivery::ReadEscalationDecision { .. }
             | root::Delivery::Fleet(_)
             | root::Delivery::ReadLoad { .. }
+            | root::Delivery::PublicWait { .. }
             | root::Delivery::NotesLoad { .. }
             | root::Delivery::Start(_)
             | root::Delivery::Load { .. }

@@ -577,7 +577,12 @@ fn nothing_leaves_before_the_mark() {
     assert!(engine.forge.starts.is_empty());
     assert!(!engine.forge.startup_begun());
     assert!(!engine.setup.startup_restored());
-    assert!(!engine.work_pending(Time::from_nanos(1)), "a held mark waits for its storage answer");
+    assert_eq!(engine.clients.secrets.len(), 1, "the public names key waits for the mark");
+    assert!(
+        !engine.work_pending(Time::from_nanos(1)),
+        "a held mark waits for its storage answer: {:?}",
+        engine.pending(Time::from_nanos(1))
+    );
     let mark = engine.store.held_mark.take().expect("held mark");
     engine.store.hold_mark = false;
     assert!(engine.store.down(mark));

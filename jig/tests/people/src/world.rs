@@ -486,6 +486,7 @@ impl World {
                 | Stored::Acted { .. }
                 | Stored::Answer { .. }
                 | Stored::Deletion { .. }
+                | Stored::Public { .. }
                 | Stored::Policy { .. } => None,
             })
             .unwrap_or(0);
@@ -621,6 +622,7 @@ impl World {
                         | Ask::AnswerQuestion { .. }
                         | Ask::SetRoles { .. }
                         | Ask::RemoveProject { .. }
+                        | Ask::SetVisibility { .. }
                         | Ask::Rename { .. }
                         | Ask::MakeProject { .. }
                         | Ask::ChangeSettings { .. }
@@ -1030,6 +1032,7 @@ impl World {
                                         | Ask::Amend { .. }
                                         | Ask::SetRoles { .. }
                                         | Ask::RemoveProject { .. }
+                                        | Ask::SetVisibility { .. }
                                         | Ask::Rename { .. }
                                         | Ask::MakeProject { .. }
                                         | Ask::ChangeSettings { .. }
@@ -1058,6 +1061,7 @@ impl World {
                             | Ask::AnswerQuestion { .. }
                             | Ask::SetRoles { .. }
                             | Ask::RemoveProject { .. }
+                            | Ask::SetVisibility { .. }
                             | Ask::Rename { .. }
                             | Ask::MakeProject { .. }
                             | Ask::ChangeSettings { .. }

@@ -3,6 +3,10 @@ use jig_domain_people::{ActKey, Key, RequestKey};
 use skein_kv::{KeyReader, KeyWriter};
 pub(super) fn write(writer: &mut KeyWriter, key: &Key) {
     match key {
+        Key::Public(project) => {
+            writer.tag(10);
+            writer.u64(u64::from(*project));
+        }
         Key::Deletion(project) => {
             writer.tag(9);
             writer.u64(u64::from(*project));
@@ -55,6 +59,7 @@ pub(super) fn write(writer: &mut KeyWriter, key: &Key) {
 }
 pub(super) fn read(reader: &mut KeyReader<'_>) -> Option<Key> {
     Some(match reader.tag()? {
+        10 => Key::Public(u32::try_from(reader.u64()?).ok()?),
         9 => Key::Deletion(u32::try_from(reader.u64()?).ok()?),
         0 => Key::Person(reader.u64()?),
         1 => Key::ReadResults { party: reader.u64()? },

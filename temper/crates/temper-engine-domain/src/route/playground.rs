@@ -346,6 +346,7 @@ pub(crate) fn acted(
         | people::Outcome::Renamed { .. }
         | people::Outcome::ProjectMade { .. }
         | people::Outcome::ProjectRemoved { .. }
+        | people::Outcome::VisibilitySet { .. }
         | people::Outcome::Created { .. }
         | people::Outcome::MarkedSeen { .. }
         | people::Outcome::Applied { .. }

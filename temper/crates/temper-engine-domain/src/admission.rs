@@ -32,7 +32,8 @@ pub fn completes(event: &Event) -> bool {
             | PartyInput::ProcedureStep { .. },
         ) => true,
         Event::Party(
-            PartyInput::Whose { .. }
+            PartyInput::PublicRead { .. }
+            | PartyInput::Whose { .. }
             | PartyInput::ProposeSettings { .. }
             | PartyInput::ChangeSettings { .. }
             | PartyInput::SignOut { .. }
@@ -168,6 +169,16 @@ pub fn try_step(domain: &mut Domain, env: &Env<Limits>, event: Event) -> Result<
         }
         Event::Released(released) => {
             step(domain, env, Event::Released(released));
+            Ok(())
+        }
+        Event::Party(PartyInput::PublicRead { reply, read }) => {
+            if crate::limits::backlog(domain) >= u64::from(env.limits.public_watermark)
+                || domain.public_reads >= env.limits.public_reads
+            {
+                crate::route::public::busy(domain, reply);
+            } else {
+                step(domain, env, Event::Party(PartyInput::PublicRead { reply, read }));
+            }
             Ok(())
         }
         event @ (Event::Worker(_)

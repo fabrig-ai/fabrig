@@ -271,6 +271,8 @@ impl Driver {
             | Delivery::ForgeRead { .. }
             | Delivery::Read { .. }
             | Delivery::ReadLoad { .. }
+            | Delivery::Public { .. }
+            | Delivery::PublicWait { .. }
             | Delivery::Document { .. }
             | Delivery::WatchEnded { .. }
             | Delivery::Drained

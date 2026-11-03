@@ -45,6 +45,59 @@ fn a_get_of_a_missing_key_answers_none() {
 }
 
 #[test]
+fn set_visibility_round_trips_as_a_kept_ask() {
+    for public in [false, true] {
+        let record = Record::People(people::Stored::Answer {
+            key: people::RequestKey { person: ALICE, key: [17; 16] },
+            ask: Box::new(people::Ask::SetVisibility { project: u32::MAX, public }),
+            models: Box::new([]),
+            outcome: people::Outcome::Refused(people::Refusal::NotOffered),
+            at: skein_lib::Wall::EPOCH,
+        });
+        let mut store = fixtures::opened();
+        fixtures::committed(&mut store, Box::new([fixtures::header(1), fixtures::save(record.clone())]));
+        let Some(Row::Jig(found)) = got(get(&mut store, Get::Jig(record.key()))) else { panic!("kept ask") };
+        assert_eq!(found, record);
+    }
+}
+
+#[test]
+fn a_public_row_round_trips_under_its_project_key() {
+    let mut previous = None;
+    for project in [1, 256, u32::MAX] {
+        let record = Record::People(people::Stored::Public { project });
+        let bytes = keys::encode(&record.key(), fixtures::KEY_LIMIT).expect("public key");
+        assert_eq!(bytes.get(..3), Some([keys::JIG, 2, 10].as_slice()));
+        assert_eq!(bytes.get(3..), Some(u64::from(project).to_be_bytes().as_slice()));
+        assert_eq!(keys::decode(&bytes), Some(Key::People(people::Key::Public(project))));
+        if let Some(previous) = previous {
+            assert!(previous < bytes, "public keys sort by project");
+        }
+        let mut before = None;
+        for key in [
+            people::Key::Roles(project),
+            people::Key::Policy(project),
+            people::Key::Deletion(project),
+            people::Key::Public(project),
+        ] {
+            let key = keys::encode(&Key::People(key), fixtures::KEY_LIMIT).expect("project key");
+            assert_eq!(key.get(3..), bytes.get(3..), "same project suffix");
+            if let Some(before) = before {
+                assert!(before < key, "public follows the project's deletion");
+            }
+            before = Some(key);
+        }
+        previous = Some(bytes);
+        let mut store = fixtures::opened();
+        fixtures::committed(&mut store, Box::new([fixtures::header(1), fixtures::save(record.clone())]));
+        let Some(Row::Jig(found)) = got(get(&mut store, Get::Jig(record.key()))) else { panic!("public row") };
+        assert_eq!(found, record);
+        fixtures::committed(&mut store, Box::new([fixtures::header(2), Write::Erase(record.key())]));
+        assert!(got(get(&mut store, Get::Jig(record.key()))).is_none());
+    }
+}
+
+#[test]
 fn an_application_get_answers_its_bytes() {
     let mut store = fixtures::opened();
     fixtures::committed(

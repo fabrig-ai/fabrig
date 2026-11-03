@@ -29,9 +29,19 @@ pub(super) struct Connection {
     status: Option<u16>,
     stream: Option<u32>,
     reading: bool,
+    keep: Vec<String>,
+    bound: u32,
+    headers: Vec<(String, String)>,
 }
 impl Connection {
-    pub(super) fn new(limits: &http::Limits, call: http::Call, body: Box<[u8]>, stream: Option<u32>) -> Self {
+    pub(super) fn new(
+        limits: &http::Limits,
+        call: http::Call,
+        body: Box<[u8]>,
+        stream: Option<u32>,
+        keep: Vec<String>,
+        bound: u32,
+    ) -> Self {
         let mut calls = Queue::uncapped();
         let path = call.target.clone();
         calls.push(http::Request::Call(call));
@@ -56,6 +66,9 @@ impl Connection {
             status: None,
             stream,
             reading: false,
+            keep,
+            bound,
+            headers: Vec::new(),
         }
     }
     pub(super) fn connecting(&mut self, socket: Token, requests: &mut Queue<io::Request>) {
@@ -107,12 +120,33 @@ impl Connection {
         let report = if self.stream.is_some() {
             fetch.end_stream(ticket)
         } else if done {
-            fetch.finish(ticket, self.status.expect("answer before Done"))
+            fetch.finish(ticket, self.status.expect("answer before Done"), &self.headers)
         } else {
             fetch.fail(ticket)
         };
         reports.extend(report);
         self.close(requests);
+    }
+    fn keep_headers(&mut self, headers: &[skein_http::Header]) -> bool {
+        let bound = usize::try_from(self.bound).expect("bound fits");
+        for name in &self.keep {
+            let mut value = String::new();
+            let mut present = false;
+            for header in headers.iter().filter(|header| header.is(name.as_bytes())) {
+                let part = String::from_utf8_lossy(&header.value);
+                let separator = if present { ", " } else { "" };
+                if value.len().saturating_add(separator.len()).saturating_add(part.len()) > bound {
+                    return false;
+                }
+                value.push_str(separator);
+                value.push_str(&part);
+                present = true;
+            }
+            if present {
+                self.headers.push((name.to_ascii_lowercase(), value));
+            }
+        }
+        true
     }
     pub(super) fn progress(
         &mut self,
@@ -134,6 +168,10 @@ impl Connection {
                         if header.is(b"set-cookie") {
                             jar.set(&header.value, &self.path, env.wall);
                         }
+                    }
+                    if !self.keep_headers(&response.headers) {
+                        self.terminal(ticket, fetch, reports, requests, false);
+                        return;
                     }
                     self.status = Some(response.status);
                     if let Some(bound) = self.stream {

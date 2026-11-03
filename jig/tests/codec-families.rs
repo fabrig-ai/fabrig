@@ -22,7 +22,7 @@ pub const FAMILIES: &[Family] = &[
         schemas: &["schema/client-v19.schema", "schema/client-v19-part1.schema"],
         generated: &["src/generated/v19.rs"],
         golden: "golden",
-        fixtures: &["task_hold_placed_full.bin", "task_hold_placed_smallest.bin"],
+        fixtures: &["task_hold_placed_full.bin", "task_hold_placed_smallest.bin", "public"],
     },
     Family {
         name: "view records",
@@ -134,6 +134,14 @@ pub const FAMILIES: &[Family] = &[
         schemas: &["schema/moved-v1.schema"],
         generated: &["src/generated/v1.rs"],
         golden: "golden",
+        fixtures: &[],
+    },
+    Family {
+        name: "public",
+        root: "crates/jig-client-protocol-wire",
+        schemas: &["schema/public-v1.schema"],
+        generated: &["src/generated/public_v1.rs"],
+        golden: "golden/public",
         fixtures: &[],
     },
 ];
