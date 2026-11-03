@@ -10,7 +10,7 @@ use crate::jig::{
 };
 use alloc::boxed::Box;
 use jig_client::{Client, Event, Handle, Key, Latest, Readable, Readout, contract as c, shapes};
-use skein_lib::{Env, List, Queue};
+use skein_lib::{Decimal, Env, List, Queue, Writer};
 #[derive(Debug)]
 pub(super) struct Reading {
     called: Called,
@@ -134,12 +134,29 @@ fn project_fund(call: &Call, me: &c::Me) -> Prepared {
 }
 fn chat(call: &Call, me: &c::Me, limits: &Limits) -> Prepared {
     let project = super::reads::project(call, me).ok_or(Failed::Fixed(b"unknown project"))?;
-    let Ok(mut ask) = shapes::chat(me, project, words(call, 1, limits)?) else {
-        return Err(Failed::Fixed(b"chat not offered"));
+    let template = number(call, 1);
+    let words = words(call, 2, limits)?;
+    let shaped = match template {
+        Some(template) => match u32::try_from(template) {
+            Ok(template) => shapes::chat_from(me, project, template, words),
+            Err(_) => return Err(chat_template_refusal(me, project, template)),
+        },
+        None => shapes::chat(me, project, words),
+    };
+    let mut ask = match shaped {
+        Ok(ask) => ask,
+        Err(why) => {
+            if why == shapes::NotOffered::Template
+                && let Some(template) = template
+            {
+                return Err(chat_template_refusal(me, project, template));
+            }
+            return Err(Failed::Fixed(b"chat not offered"));
+        }
     };
     let c::Ask::Create { tasks, .. } = &mut ask else { unreachable!("chat creates") };
     let task = tasks.get_mut(0).expect("chat creates one task");
-    task.llm = choice::llm(call, 2, 3, me, project, task.llm.as_ref())?;
+    task.llm = choice::llm(call, 3, 4, me, project, task.llm.as_ref())?;
     let mut creating = None;
     for membership in &me.projects {
         if membership.project == project {
@@ -170,6 +187,66 @@ fn chat(call: &Call, me: &c::Me, limits: &Limits) -> Prepared {
         }
         shapes::Fall::Refused(_) | shapes::Fall::NotOffered(_) => Err(Failed::Fixed(b"chat exceeds offered bounds")),
     }
+}
+// client/tools.md, 5.3: name the chat templates offered here.
+fn chat_template_refusal(me: &c::Me, project: u32, template: u64) -> Failed {
+    let number = Decimal::of(template);
+    let prefix = b"template ";
+    let middle = b" is no chat template of this project; its chat templates: ";
+    let mut length = prefix
+        .len()
+        .checked_add(number.as_bytes().len())
+        .expect("template number fits")
+        .checked_add(middle.len())
+        .expect("refusal prefix fits");
+    let mut any = false;
+    for membership in &me.projects {
+        if membership.project == project {
+            for template in &membership.templates {
+                if template.flags.conversation {
+                    let digits = Decimal::of(u64::from(template.number));
+                    length = length
+                        .checked_add(if any { 2 } else { 0 })
+                        .expect("separator fits")
+                        .checked_add(digits.as_bytes().len())
+                        .expect("template number fits")
+                        .checked_add(1)
+                        .expect("space fits")
+                        .checked_add(template.name.bytes().len())
+                        .expect("template name fits");
+                    any = true;
+                }
+            }
+        }
+    }
+    if !any {
+        length = length.checked_add(b"none".len()).expect("empty list fits");
+    }
+    let mut out = Writer::new(length);
+    out.put(prefix).expect("measured prefix");
+    out.put(number.as_bytes()).expect("measured template number");
+    out.put(middle).expect("measured refusal");
+    let mut any = false;
+    for membership in &me.projects {
+        if membership.project == project {
+            for template in &membership.templates {
+                if template.flags.conversation {
+                    if any {
+                        out.put(b", ").expect("measured separator");
+                    }
+                    let digits = Decimal::of(u64::from(template.number));
+                    out.put(digits.as_bytes()).expect("measured number");
+                    out.put(b" ").expect("measured space");
+                    out.put(template.name.bytes()).expect("measured name");
+                    any = true;
+                }
+            }
+        }
+    }
+    if !any {
+        out.put(b"none").expect("measured empty list");
+    }
+    Failed::Detail(out.finish())
 }
 pub(crate) fn words(call: &Call, index: usize, limits: &Limits) -> Result<c::Text, Failed> {
     let bytes = match value(call, index) {

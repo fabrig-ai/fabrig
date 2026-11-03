@@ -333,8 +333,17 @@ impl Record {
 /// carrier shares the conservative construction bound.
 #[must_use]
 pub fn set_bound(limits: &crate::Limits) -> Option<u64> {
-    let charters = u64::from(limits.tasks.charters)
-        .checked_mul(u64::from(limits.run_bytes).checked_add(u64::try_from(size_of::<Charter>()).ok()?)?)?;
+    let segment = u64::from(limits.authority.segment_bytes).checked_add(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?;
+    let document = u64::try_from(size_of::<crate::Document>())
+        .ok()?
+        .checked_add(u64::from(limits.authority.segments).checked_mul(segment)?)?
+        .checked_add(u64::from(crate::DOCUMENT_PATH_BYTES))?
+        .checked_add(u64::from(crate::DOCUMENT_HEADING_BYTES))?;
+    let charters = u64::from(limits.tasks.charters).checked_mul(
+        u64::from(limits.run_bytes)
+            .checked_add(u64::try_from(size_of::<Charter>()).ok()?)?
+            .checked_add(u64::from(limits.tasks.charter_documents).checked_mul(document)?)?,
+    )?;
     let templates = u64::from(limits.templates).checked_mul(
         u64::try_from(size_of::<Template>())
             .ok()?

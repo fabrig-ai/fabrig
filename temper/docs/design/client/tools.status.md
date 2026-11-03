@@ -7,7 +7,7 @@
   5.2: `repository receipts`, `finding list`, `finding show`, `qa marks`,
   `qa passes`, `hold list`, and `settings show landing-rule` and
   `forge-charter` (`jig/rows.rs` `SETTING` reads charters, templates,
-  policies and rules alone). 5.3: `chat start`'s `--template`; `task move
+  policies and rules alone). 5.3: `task move
   --under`, `task succeed --by`, `finding route`, `finding backlog`,
   `finding drop`, `qa choose`, `task hold`, `project hold` and `revision
   restore`; a settings file's items of temper's kinds and a proposal's

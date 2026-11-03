@@ -194,6 +194,11 @@ pub(crate) fn whole(engine: &crate::Engine, problems: &mut Problems) {
         problems.push(Path::root().member(b"limits").member(b"driver.url_bytes"), What::Bound);
     }
     let limits = &engine.limits.core;
+    if !jig_domain_core::brief_holds_documents(limits.brief.sections, limits.tasks.charter_documents) {
+        let path = Path::root().member(b"limits").member(b"overrides");
+        problems.push(path.member(b"brief.sections"), What::Bound);
+        problems.push(path.member(b"tasks.charter_documents"), What::Bound);
+    }
     let settings_path = Path::root().member(b"limits").member(b"core").member(b"settings.history");
     if limits.settings.proposals == 0 {
         problems.push(Path::root().member(b"limits").member(b"core").member(b"settings.proposals"), What::Bound);

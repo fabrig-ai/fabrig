@@ -4,8 +4,10 @@ use crate::boundary::{BriefBody, BriefConnector, BriefKind, BriefSection, ForgeB
 use crate::domain::Domain;
 use crate::limits::{BriefBudgets, Limits};
 use crate::route::forge_route::unheld_run_branch;
+use alloc::boxed::Box;
 use jig_domain_brief as brief;
-use skein_lib::{Env, Id, List, Queue, Token};
+use jig_domain_core::{Document, PlannedDocument};
+use skein_lib::{Env, Id, List, Queue, Token, Writer};
 use temper_engine_domain_forge as forge;
 use temper_engine_domain_forge_change as forge_change;
 
@@ -17,8 +19,17 @@ pub(crate) fn brief_outputs(
 ) {
     for _ in 0..out.len() {
         match out.pop().expect("brief output count") {
-            brief::GatherRequest::Gather { connector: 0, section, budget } => {
+            brief::GatherRequest::Gather { connector: _, section, budget } => {
                 let Some(connector) = domain.brief_connectors.get(Id::from_token(section)) else { continue };
+                if !connector.active {
+                    continue;
+                }
+                if !connector.gatherable {
+                    domain
+                        .work
+                        .push(Work::Brief(brief::GatherEvent::Missing { brief: Token::new(connector.task), section }));
+                    continue;
+                }
                 domain.work.push(Work::Forge(forge::Event::GatherPlanned {
                     section,
                     parts: env.limits.brief.parts,
@@ -27,22 +38,26 @@ pub(crate) fn brief_outputs(
                     deadline: connector.deadline,
                 }));
             }
-            brief::GatherRequest::CutTo { connector: 0, section, size } => {
-                if let Some(row) = domain.brief_connectors.get_mut(Id::from_token(section)) {
+            brief::GatherRequest::CutTo { connector: _, section, size } => {
+                if let Some(row) = domain.brief_connectors.get_mut(Id::from_token(section))
+                    && row.active
+                {
                     row.cutting = true;
                     domain.work.push(Work::Forge(forge::Event::CutBrief { section, bytes: size }));
                 }
             }
-            brief::GatherRequest::Drop { connector: 0, section } => {
+            brief::GatherRequest::Drop { connector: _, section } => {
                 let id = Id::from_token(section);
-                if domain.brief_connectors.get(id).is_some() {
-                    domain.brief_connectors.retire(id);
-                    domain.work.push(Work::Forge(forge::Event::DropBrief { section }));
+                if let Some(row) = domain.brief_connectors.get(id)
+                    && row.active
+                {
+                    let gatherable = row.gatherable;
+                    retire_connector(domain, id);
+                    if gatherable {
+                        domain.work.push(Work::Forge(forge::Event::DropBrief { section }));
+                    }
                 }
             }
-            brief::GatherRequest::Gather { .. }
-            | brief::GatherRequest::CutTo { .. }
-            | brief::GatherRequest::Drop { .. } => unreachable!("temper's sole connector is numbered zero"),
             brief::GatherRequest::Complete { brief, order } => {
                 let task = brief.raw();
                 let mut sections = List::with_capacity(u32::try_from(order.len()).expect("bounded section count"));
@@ -61,8 +76,8 @@ pub(crate) fn brief_outputs(
                                 missing_owner = true;
                                 continue;
                             };
-                            let kind = row.kind;
-                            domain.brief_connectors.retire(id);
+                            let kind = row.kind.clone();
+                            retire_connector(domain, id);
                             let bytes = domain.forge.take_brief(token);
                             match bytes {
                                 Some(bytes) if bytes.len() == usize::try_from(size).expect("bounded section") => {
@@ -75,12 +90,13 @@ pub(crate) fn brief_outputs(
                             }
                         }
                         brief::GatherPlaced::Missing { kind, why, .. } => BriefSection {
-                            kind: BriefKind::Forge(numbered_brief_kind(kind)),
+                            kind: BriefKind::Forge(placed_brief_kind(domain, task, kind)),
                             body: BriefBody::Missing(why),
                         },
                     };
                     sections.push(section).expect("bounded brief sections");
                 }
+                drop(domain.brief_document_titles.remove(&task));
                 if missing_owner {
                     domain.work.push(Work::Core(jig_domain_core::Event::BriefAssembled { task, ready: false }));
                     continue;
@@ -98,6 +114,12 @@ pub(crate) fn brief_outputs(
     }
 }
 
+fn placed_brief_kind(domain: &Domain, task: u64, kind: u16) -> ForgeBriefKind {
+    let Some(index) = kind.checked_sub(DOCUMENT_KINDS) else { return numbered_brief_kind(kind) };
+    let titles = domain.brief_document_titles.get(&task).expect("planned document titles");
+    ForgeBriefKind::Document(titles.get(usize::from(index)).expect("document kind index").clone())
+}
+
 pub(crate) fn numbered_brief_kind(kind: u16) -> ForgeBriefKind {
     match kind {
         1 => ForgeBriefKind::Ci,
@@ -112,6 +134,177 @@ pub(crate) fn take_payload(domain: &mut Domain, token: Token) -> Option<Payload>
     domain.answer_parts.remove(&token);
     domain.refused_calls.remove(&token);
     domain.hub_link.take_payload(token)
+}
+
+/// Charter document kinds keep their order apart from the forge's fixed kinds
+/// (temper/docs/design/protocol/configuration.md, 13.7).
+pub(crate) const DOCUMENT_KINDS: u16 = 16;
+
+fn document_source(document: &Document) -> Option<forge::BriefDocument> {
+    let [prefix, host, owner, name, branch, segments @ ..] = document.name.segments.as_ref() else { return None };
+    if document.connector != 0 || prefix.as_ref() != b"forge" || branch.as_ref() != b"branch" || segments.is_empty() {
+        return None;
+    }
+    let mut bytes = segments.len().checked_sub(1).expect("branch has a segment");
+    for segment in segments {
+        bytes = bytes.checked_add(segment.len()).expect("bounded branch name");
+    }
+    let mut branch = Writer::new(bytes);
+    for (index, segment) in segments.iter().enumerate() {
+        if index > 0 {
+            branch.put(b"/").expect("branch separator counted");
+        }
+        branch.put(segment).expect("branch segment counted");
+    }
+    Some(forge::BriefDocument {
+        host: host.clone(),
+        owner: owner.clone(),
+        name: name.clone(),
+        branch: branch.finish(),
+        path: document.path.clone(),
+        heading: document.heading.clone(),
+    })
+}
+
+fn document_title(document: &Document, source: Option<&forge::BriefDocument>) -> Box<[u8]> {
+    let mut bytes = document.path.len();
+    if let Some(source) = source {
+        bytes = bytes
+            .checked_add(source.owner.len())
+            .expect("bounded owner")
+            .checked_add(source.name.len())
+            .expect("bounded repository")
+            .checked_add(2)
+            .expect("title separators");
+        if let Some(heading) = &document.heading {
+            bytes =
+                bytes.checked_add(heading.len()).expect("bounded heading").checked_add(4).expect("heading punctuation");
+        }
+    }
+    let mut title = Writer::new(bytes);
+    if let Some(source) = source {
+        title.put(&source.owner).expect("owner counted");
+        title.put(b"/").expect("separator counted");
+        title.put(&source.name).expect("repository counted");
+        title.put(b" ").expect("separator counted");
+    }
+    title.put(&document.path).expect("path counted");
+    if source.is_some()
+        && let Some(heading) = &document.heading
+    {
+        title.put(b", \"").expect("heading punctuation counted");
+        title.put(heading).expect("heading counted");
+        title.put(b"\"").expect("heading punctuation counted");
+    }
+    title.finish()
+}
+
+fn bind_documents(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    task: u64,
+    wanted: &mut List<brief::Planned>,
+    documents: Box<[PlannedDocument]>,
+) {
+    if documents.is_empty() {
+        return;
+    }
+    let mut titles = List::with_capacity(domain.limits.tasks.charter_documents);
+    for (index, planned) in documents.into_iter().enumerate() {
+        let source = document_source(&planned.document);
+        let title = document_title(&planned.document, source.as_ref());
+        titles.push(title.clone()).expect("charter document limit");
+        let token = domain
+            .brief_connectors
+            .insert(BriefConnector {
+                task,
+                kind: ForgeBriefKind::Document(title),
+                gatherable: source.is_some(),
+                active: true,
+                cutting: false,
+                deadline: env.now.saturating_add(domain.limits.brief.gather),
+            })
+            .expect("reserved document section room")
+            .token();
+        let mut bound = false;
+        for at in 0..wanted.len() {
+            let section = wanted.get_mut(at).expect("planned section");
+            if let brief::Planned::Connector { connector, token: core_token, kind, limit, .. } = section
+                && *connector == planned.document.connector
+                && *core_token == planned.token
+            {
+                *core_token = token;
+                *kind = DOCUMENT_KINDS
+                    .checked_add(u16::try_from(index).expect("bounded document index"))
+                    .expect("document kind");
+                *limit = domain.limits.brief.budgets.document;
+                bound = true;
+                break;
+            }
+        }
+        assert!(bound, "each planned document has a matching section");
+        if let Some(document) = source {
+            domain.work.push(Work::Forge(forge::Event::PlanDocument { section: token, document: Box::new(document) }));
+        }
+    }
+    assert!(domain.brief_document_titles.insert(task, titles.into_boxed()) == Ok(None), "one document plan per task");
+}
+
+fn retire_connector(domain: &mut Domain, id: Id<BriefConnector>) {
+    let row = domain.brief_connectors.get_mut(id).expect("retiring a bound section");
+    row.active = false;
+    if let ForgeBriefKind::Document(title) = &mut row.kind {
+        *title = Box::new([]);
+    }
+    domain.brief_connectors.retire(id);
+}
+
+fn abandon_plan(domain: &mut Domain, task: u64) {
+    loop {
+        let mut section = None;
+        for (id, row) in &domain.brief_connectors {
+            if row.active && row.task == task {
+                section = Some((id, row.gatherable));
+                break;
+            }
+        }
+        let Some((id, gatherable)) = section else { break };
+        retire_connector(domain, id);
+        if gatherable {
+            domain.work.push(Work::Forge(forge::Event::DropBrief { section: id.token() }));
+        }
+    }
+    drop(domain.brief_document_titles.remove(&task));
+}
+
+/// A core batch routes all drops and its completion together. Titles without
+/// connector rows after that batch belong to an abandoned brief (domain/root.md, 7.2).
+pub(crate) fn retire_document_titles(domain: &mut Domain) {
+    loop {
+        let mut abandoned = None;
+        for (task, _) in &domain.brief_document_titles {
+            let mut rows = false;
+            for (_, row) in &domain.brief_connectors {
+                if row.active && row.task == *task {
+                    rows = true;
+                    break;
+                }
+            }
+            if !rows {
+                abandoned = Some(*task);
+                break;
+            }
+        }
+        let Some(task) = abandoned else { break };
+        drop(domain.brief_document_titles.remove(&task));
+    }
+}
+
+fn optional_core(section: &brief::Planned) -> bool {
+    match section {
+        brief::Planned::Core { required, .. } => !required,
+        brief::Planned::Connector { .. } => false,
+    }
 }
 
 fn plan_home_access(
@@ -143,7 +336,7 @@ fn plan_home_access(
     // slot is already required, preparation fails rather than omitting Home.
     let mut optional = None;
     for (index, section) in wanted.iter().enumerate() {
-        if !section.required() {
+        if optional_core(section) {
             optional = Some(index);
         }
     }
@@ -156,7 +349,9 @@ fn plan_home_access(
         .brief_connectors
         .insert(BriefConnector {
             task,
-            kind,
+            kind: kind.clone(),
+            gatherable: true,
+            active: true,
             cutting: false,
             deadline: env.now.saturating_add(domain.limits.brief.gather),
         })
@@ -165,10 +360,10 @@ fn plan_home_access(
     domain.work.push(Work::Forge(forge::Event::PlanBrief { section: token, source }));
     let section = brief::Planned::Connector {
         connector: 0,
-        kind: forge_kind_number(kind),
+        kind: forge_kind_number(&kind),
         token,
         size: 0,
-        limit: forge_brief_budget(kind, &domain.limits.brief.budgets),
+        limit: forge_brief_budget(&kind, &domain.limits.brief.budgets),
         priority: 5,
         required: true,
     };
@@ -189,7 +384,7 @@ fn make_forge_room(wanted: &mut List<brief::Planned>, needed: u32) {
         }
         let mut optional = None;
         for (index, section) in wanted.iter().enumerate() {
-            if !section.required() {
+            if optional_core(section) {
                 optional = u32::try_from(index).ok();
             }
         }
@@ -216,7 +411,9 @@ fn plan_forge_section(
         .brief_connectors
         .insert(BriefConnector {
             task,
-            kind,
+            kind: kind.clone(),
+            gatherable: true,
+            active: true,
             cutting: false,
             deadline: env.now.saturating_add(domain.limits.brief.gather),
         })
@@ -226,7 +423,7 @@ fn plan_forge_section(
     wanted
         .push(brief::Planned::Connector {
             connector: 0,
-            kind: forge_kind_number(kind),
+            kind: forge_kind_number(&kind),
             token,
             size: 0,
             limit,
@@ -242,8 +439,11 @@ pub(crate) fn finish_brief_plan(
     task: u64,
     parent: Option<u64>,
     mut wanted: List<brief::Planned>,
+    documents: Box<[PlannedDocument]>,
 ) {
+    bind_documents(domain, env, task, &mut wanted, documents);
     if !plan_home_access(domain, env, task, parent, &mut wanted) {
+        abandon_plan(domain, task);
         domain.work.push(Work::Core(jig_domain_core::Event::BriefAssembled { task, ready: false }));
         return;
     }
@@ -270,11 +470,12 @@ pub(crate) fn finish_brief_plan(
         let needed = if why.is_some() { 2 } else { 1 };
         let mut room = wanted.room();
         for section in &wanted {
-            if !section.required() {
+            if optional_core(section) {
                 room = room.saturating_add(1);
             }
         }
         if room < needed {
+            abandon_plan(domain, task);
             domain.work.push(Work::Core(jig_domain_core::Event::BriefAssembled { task, ready: false }));
             return;
         }
@@ -283,7 +484,7 @@ pub(crate) fn finish_brief_plan(
         if let Some(why) = why {
             // The reason keeps its section budget. Pull contents yield before
             // the retained core context, including its optional sections.
-            let reason_limit = forge_brief_budget(forge_brief_kind(why), &domain.limits.brief.budgets);
+            let reason_limit = forge_brief_budget(&forge_brief_kind(why), &domain.limits.brief.budgets);
             let mut left = domain.limits.brief.brief_bytes.saturating_sub(reason_limit);
             for section in &wanted {
                 left = left.saturating_sub(section.size().min(section.limit()));
@@ -296,7 +497,7 @@ pub(crate) fn finish_brief_plan(
         }
         plan_forge_section(domain, env, task, pull, 6, pull_limit, &mut wanted);
         if let Some(why) = why {
-            let limit = forge_brief_budget(forge_brief_kind(why), &domain.limits.brief.budgets);
+            let limit = forge_brief_budget(&forge_brief_kind(why), &domain.limits.brief.budgets);
             plan_forge_section(domain, env, task, why, 5, limit, &mut wanted);
         }
     }
@@ -310,6 +511,7 @@ pub(crate) fn finish_brief_plan(
 
 pub(crate) fn forge_brief_kind(source: forge::BriefSource) -> ForgeBriefKind {
     match source {
+        forge::BriefSource::Document => unreachable!("documents are planned by PlanDocument"),
         forge::BriefSource::Home { .. } => ForgeBriefKind::Home,
         forge::BriefSource::Ci { .. } => ForgeBriefKind::Ci,
         forge::BriefSource::Reviews { .. } => ForgeBriefKind::Reviews,
@@ -317,8 +519,9 @@ pub(crate) fn forge_brief_kind(source: forge::BriefSource) -> ForgeBriefKind {
     }
 }
 
-pub(crate) fn forge_kind_number(kind: ForgeBriefKind) -> u16 {
+pub(crate) fn forge_kind_number(kind: &ForgeBriefKind) -> u16 {
     match kind {
+        ForgeBriefKind::Document(_) => unreachable!("document kinds carry their charter index"),
         ForgeBriefKind::Home => 4,
         ForgeBriefKind::Ci => 1,
         ForgeBriefKind::Reviews => 2,
@@ -326,8 +529,9 @@ pub(crate) fn forge_kind_number(kind: ForgeBriefKind) -> u16 {
     }
 }
 
-pub(crate) fn forge_brief_budget(kind: ForgeBriefKind, budgets: &BriefBudgets) -> u32 {
+pub(crate) fn forge_brief_budget(kind: &ForgeBriefKind, budgets: &BriefBudgets) -> u32 {
     match kind {
+        ForgeBriefKind::Document(_) => budgets.document,
         ForgeBriefKind::Home => forge::HOME_SECTION_BYTES,
         ForgeBriefKind::Ci => budgets.ci,
         ForgeBriefKind::Reviews => budgets.reviews,
@@ -364,6 +568,7 @@ mod tests {
         assert_eq!(left, 0);
         assert_eq!(bytes.len(), usize::try_from(forge::HOME_SECTION_BYTES).expect("section bytes"));
         let budgets = crate::BriefBudgets {
+            document: 4096,
             task: 1,
             dependencies: 1,
             ci: 1,
@@ -373,6 +578,6 @@ mod tests {
             plan: 1,
             notes: 1,
         };
-        assert_eq!(forge_brief_budget(ForgeBriefKind::Home, &budgets), forge::HOME_SECTION_BYTES);
+        assert_eq!(forge_brief_budget(&ForgeBriefKind::Home, &budgets), forge::HOME_SECTION_BYTES);
     }
 }

@@ -92,8 +92,9 @@ A chat is a conversation between a party and an agent in a project: an untracked
 
 ## Limits
 
-- temper does not let ctl choose a chat's template: `chat start` uses the
-  project's chat template.
+- `chat start` uses the project's chat template unless `--template`
+  names another of its chat templates; a template that is no chat's
+  starts none.
 - temper does not promise a final summary before the close's grace
   ends.
 - A chat whose request goes past what the party may start alone is

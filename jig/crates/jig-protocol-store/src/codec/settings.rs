@@ -343,7 +343,7 @@ fn encode_value(value: &settings::Value, limits: &wire::Limits) -> Result<wire::
 }
 fn decode_value(value: wire::Value, limits: &wire::Limits) -> Result<settings::Value, wire::Problem> {
     Ok(match value {
-        wire::Value::Charter(entry) => settings::Value::Charter(Box::new(decode_charter(*entry))),
+        wire::Value::Charter(entry) => settings::Value::Charter(Box::new(decode_charter(*entry, limits)?)),
         wire::Value::Template(entry) => settings::Value::Template(Box::new(decode_template(*entry))),
         wire::Value::Policy(entry) => settings::Value::Policy(Box::new(decode_configured_policy(*entry))),
         wire::Value::Rules(entry) => settings::Value::Rules(Box::new(decode_rules(*entry, limits)?)),
@@ -606,18 +606,70 @@ fn encode_charter(value: &core::Charter, limits: &wire::Limits) -> Result<wire::
     let field_policy = encode_run_policy(&value.policy, limits)?;
     let field_hosts = encode_kinds(&value.hosts);
     let field_spend = value.spend;
+    let mut documents = List::with_capacity(limits.charter_documents);
+    // Hold paths share Segment, but document names follow the authority's byte bound.
+    let name_limits = wire::Limits { segment_bytes: limits.last_exact_bytes, ..*limits };
+    for document in &value.documents {
+        let mut name = List::with_capacity(limits.document_name);
+        for segment in &document.name.segments {
+            let segment = encode_segment(segment, &name_limits)?;
+            if name.push(segment).is_err() {
+                return Err(bound());
+            }
+        }
+        let document = wire::Document::new(
+            limits,
+            wire::DocumentParts {
+                connector: document.connector,
+                name,
+                path: document.path.clone(),
+                heading: document.heading.clone(),
+            },
+        )?;
+        if documents.push(document).is_err() {
+            return Err(bound());
+        }
+    }
     wire::Charter::new(
         limits,
-        wire::CharterParts { number: field_number, policy: field_policy, hosts: field_hosts, spend: field_spend },
+        wire::CharterParts {
+            number: field_number,
+            policy: field_policy,
+            hosts: field_hosts,
+            spend: field_spend,
+            documents,
+        },
     )
 }
-fn decode_charter(value: wire::Charter) -> core::Charter {
-    let wire::CharterParts { number, policy, hosts, spend } = value.into_parts();
-    let field_number = number;
-    let field_policy = decode_run_policy(policy);
-    let field_hosts = decode_kinds(hosts);
-    let field_spend = spend;
-    core::Charter { number: field_number, policy: field_policy, hosts: field_hosts, spend: field_spend }
+fn decode_charter(value: wire::Charter, limits: &wire::Limits) -> Result<core::Charter, wire::Problem> {
+    let wire::CharterParts { number, policy, hosts, spend, documents } = value.into_parts();
+    let mut decoded = List::with_capacity(documents.len());
+    for document in documents.into_boxed() {
+        let wire::DocumentParts { connector, name, path, heading } = document.into_parts();
+        let mut segments = List::with_capacity(name.len());
+        for segment in name.into_boxed() {
+            let bytes = decode_segment(segment);
+            if bytes.len() > skein_lib::length::usize_of(limits.last_exact_bytes) {
+                return Err(bound());
+            }
+            segments.push(bytes).expect("decoded document name bound");
+        }
+        decoded
+            .push(core::Document {
+                connector,
+                name: authority::Name { segments: segments.into_boxed() },
+                path,
+                heading,
+            })
+            .expect("decoded documents bound");
+    }
+    Ok(core::Charter {
+        number,
+        policy: decode_run_policy(policy),
+        hosts: decode_kinds(hosts),
+        spend,
+        documents: decoded.into_boxed(),
+    })
 }
 fn encode_segment(value: &[u8], limits: &wire::Limits) -> Result<wire::Segment, wire::Problem> {
     let field_bytes = Box::from(value);
@@ -1529,13 +1581,16 @@ fn encode_charter_version(
     };
     wire::CharterVersion::new(limits, wire::CharterVersionParts { charter: field_charter })
 }
-fn decode_charter_version(value: wire::CharterVersion) -> settings::CharterVersion {
+fn decode_charter_version(
+    value: wire::CharterVersion,
+    limits: &wire::Limits,
+) -> Result<settings::CharterVersion, wire::Problem> {
     let wire::CharterVersionParts { charter } = value.into_parts();
     let field_charter = match charter {
-        Some(charter) => Some(Box::new(decode_charter(charter))),
+        Some(charter) => Some(Box::new(decode_charter(charter, limits)?)),
         None => None,
     };
-    settings::CharterVersion { charter: field_charter }
+    Ok(settings::CharterVersion { charter: field_charter })
 }
 fn encode_proposal(
     value: &settings::Proposal,
@@ -1593,6 +1648,10 @@ pub fn limits(domain: &core::Limits) -> Option<wire::Limits> {
     limits.last_exact_bytes = domain.authority.segment_bytes;
     limits.last_open_bytes = domain.authority.segment_bytes;
     limits.pattern_segments = domain.authority.segments;
+    limits.charter_documents = domain.tasks.charter_documents;
+    limits.document_name = domain.authority.segments;
+    limits.document_path = core::DOCUMENT_PATH_BYTES;
+    limits.document_heading_some = core::DOCUMENT_HEADING_BYTES;
     limits.delegation_kinds = domain.authority.executors;
     limits.authority_grants = domain.authority.grants;
     limits.authority_note_resources = domain.authority.grants;
@@ -1700,7 +1759,7 @@ pub fn decode(
         settings::Key::Charter { charter, revision } => settings::Record::Charter {
             charter: *charter,
             revision: *revision,
-            value: decode_charter_version(wire::CharterVersion::decode(limits, &mut reader)?),
+            value: decode_charter_version(wire::CharterVersion::decode(limits, &mut reader)?, limits)?,
         },
         settings::Key::Proposal { proposer, proposal } => settings::Record::Proposal {
             proposer: *proposer,

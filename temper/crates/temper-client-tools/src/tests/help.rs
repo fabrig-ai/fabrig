@@ -2,6 +2,7 @@ use super::fixtures;
 use crate::{jig, table};
 use skein_lib::List;
 const GOLDENS: &[(Option<u8>, &str)] = &[
+    (Some(jig::rows::CHAT_CREATE_AT), "help_chat_start"),
     (Some(jig::rows::TASK_TEXT_AT), "help_task_text"),
     (Some(jig::rows::LIFT_AT), "help_hold_lift"),
     (Some(3), "help_task_show"),
@@ -62,7 +63,7 @@ const USAGES: &[&[u8]] = &[
     b"task activity TASK [--before CURSOR] [--limit COUNT]\n",
     b"task turn TASK TURN [--part PART] [--from OFFSET]\n",
     b"task run TASK [--since DIGEST] [--until CONDITION] [--timeout DURATION]\n",
-    b"chat start --project PROJECT TEXT [--model MODEL] [--effort EFFORT] --key KEY\n",
+    b"chat start --project PROJECT [--template TEMPLATE] TEXT [--model MODEL] [--effort EFFORT] --key KEY\n",
     b"task message TASK TEXT --key KEY\n",
     b"chat close TASK [--move TASK]... [--reason TEXT] --key KEY\n",
     b"task answer TASK QUESTION TEXT [--key KEY]\n",
