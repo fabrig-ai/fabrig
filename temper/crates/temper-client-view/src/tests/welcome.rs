@@ -349,8 +349,12 @@ fn the_model_step_offers_the_accounts_ways() {
     let view = f::page_view(&root);
     node(view.tree(), Role::Heading { level: 1 }, "Connect a model");
     node(view.tree(), Role::Paragraph, "temper’s agents run on it: on a plan you sign in to, or on a key.");
+    node(view.tree(), Role::Heading { level: 2 }, "ChatGPT");
+    node(view.tree(), Role::Paragraph, "Your ChatGPT plan: sign in, and temper’s agents use its included usage.");
+    node(view.tree(), Role::Paragraph, "Or paste a key from OpenAI’s platform, billed to its organization.");
     node(view.tree(), Role::Button, "Continue with ChatGPT");
-    let action = press(&root, Role::Link, "Use an API key");
+    assert!(f::find(view.tree(), Role::Button, "This browser isn't on temper's computer ›".as_bytes()).is_none());
+    let action = press(&root, Role::Link, "Use an OpenAI API key");
     let d::Action::Pages(pages::Act::Go { address: Address::Welcome { step: Step::Model { way: Some(_) } } }) = &action
     else {
         panic!("shared account binding")
@@ -671,7 +675,7 @@ fn model_choose_has_direct_ways_and_the_persons_default_holder() {
     }
     assert!(f::find(tree, Role::Region, b"Choose").is_none());
     assert_eq!(root.pages().connect_model().unwrap().holder, c::AskAccountHolder::Own);
-    assert_eq!(tree.nodes().iter().filter(|n| n.styles.as_slice().contains(&crate::look::FLOW_CHOICE)).count(), 2);
+    assert_eq!(tree.nodes().iter().filter(|n| n.styles.as_slice().contains(&crate::look::FLOW_CHOICE)).count(), 1);
     assert_eq!(
         press(&root, Role::Link, "‹ Back"),
         d::Action::Pages(pages::Act::Go { address: Address::Welcome { step: Step::Forge { forge: None } } })

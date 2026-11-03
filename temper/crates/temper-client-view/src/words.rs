@@ -36,6 +36,9 @@ pub enum Word {
     WelcomeForgejoRun,
     WelcomeForgejoDeployment,
     WelcomeContinue,
+    WelcomeModelPlan,
+    WelcomeModelSubscription,
+    WelcomeModelKeyToo,
     WelcomeYourModel,
     BrandChats,
     ForgeHereVersionDetails,
@@ -699,9 +702,10 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The banner's setup link and project switcher add two literal phrases (5.1 and 5.6).
 // Restore's forgotten refusal adds one phrase and two segments.
 // The welcome's "Continue" to Ready adds one literal phrase (client/README.md, 3.5).
-const PHRASES: u32 = 1220;
-const SEGMENTS: u32 = 2101;
-const ALL: [Word; 625] = [
+// The welcome's Model cards add three phrases of one hole and three segments each (3.5).
+const PHRASES: u32 = 1223;
+const SEGMENTS: u32 = 2110;
+const ALL: [Word; 628] = [
     Word::PlaygroundBanner,
     Word::PlaygroundSetUp,
     Word::BannerSetUp,
@@ -727,6 +731,9 @@ const ALL: [Word; 625] = [
     Word::WelcomeForgejoRun,
     Word::WelcomeForgejoDeployment,
     Word::WelcomeContinue,
+    Word::WelcomeModelPlan,
+    Word::WelcomeModelSubscription,
+    Word::WelcomeModelKeyToo,
     Word::WelcomeYourModel,
     Word::BrandChats,
     Word::ForgeHereVersionDetails,
@@ -1791,6 +1798,9 @@ impl Word {
             Self::ProjectPane => 2192,
             Self::DescribeChange => 2193,
             Self::WelcomeContinue => 2194,
+            Self::WelcomeModelPlan => 2195,
+            Self::WelcomeModelSubscription => 2196,
+            Self::WelcomeModelKeyToo => 2197,
             Self::NewChatLink => 1258,
             Self::Ready => 287,
             Self::Playground => 187,
@@ -2277,6 +2287,16 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeForgejoRun => (&[b"Run on this machine"], &[]),
         Word::WelcomeForgejoDeployment => (&[b"Or connect your deployment"], &[]),
         Word::WelcomeContinue => (&[b"Continue"], &[]),
+        Word::WelcomeModelPlan => {
+            (&[b"Your ", b" plan: sign in, and temper\xe2\x80\x99s agents use its included usage."], &[Name])
+        }
+        Word::WelcomeModelSubscription => (
+            &[b"Your ", b" subscription, through Claude Code on each host temper\xe2\x80\x99s agents run on."],
+            &[Name],
+        ),
+        Word::WelcomeModelKeyToo => {
+            (&[b"Or paste a key from ", b"\xe2\x80\x99s platform, billed to its organization."], &[Name])
+        }
         Word::WelcomeYourModel => (&[b"Your model: ChatGPT or Claude"], &[]),
         Word::BrandChats => (&[b"temper chats"], &[]),
         Word::ForgeHereVersionDetails => (&[b"temper box downloads Forgejo ", b" and its runner, starts them, and makes your first repository, with a README and a CI workflow. No restart."], &[Name]),

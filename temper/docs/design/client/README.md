@@ -887,7 +887,21 @@ keeps (`../protocol/configuration.md`, section 2).
     *Model* is `ConnectModel`'s Choose and Details, its state and acts
     (above), its way in the welcome's address (`browser.md`, 2.3).
     Its ways sit directly under the lead, with neither the standalone
-    Choose container nor its holder controls; entering from a deployment
+    Choose container nor its holder controls, as two cards, one for each
+    plan its card names (the user, 2026-11-03): "ChatGPT", for the
+    `openai` provider, "Your ChatGPT plan: sign in, and temper’s agents
+    use its included usage.", then, while the provider offers keys, the
+    muted "Or paste a key from OpenAI’s platform, billed to its
+    organization.", its buttons "Continue with ChatGPT" and the quiet
+    link "Use an OpenAI API key"; and "Claude", for `anthropic`, "Your
+    Claude subscription, through Claude Code on each host temper’s
+    agents run on.", with "Use your Claude subscription", and a key's
+    line and link while the provider offers keys. A provider with a key
+    alone reads its key's description with its key's link. No other
+    provider's ways are on the welcome, the box's fake model among
+    them, and no card offers "This browser isn't on temper's computer
+    ›"; with neither provider offered, the step shows Choose's cards as
+    `ConnectModel` does. Entering from a deployment
     chooser resets the holder to the person's own. Inside a way, "‹ All
     ways" and the foot's "‹ Back" both return to Model Choose; on Choose
     the foot's returns to Forge. Standalone `ConnectModel` keeps its
