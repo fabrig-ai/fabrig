@@ -247,7 +247,7 @@ fn repaired() -> (World, [u64; 2]) {
 #[test]
 fn a_silent_runner_past_the_bound_ends_landed_uncleared() {
     const BOUND_MS: u64 = 60_000; // This story exercises the project's verification timeout itself.
-    let (mut world, chat) = chat_world(false, Tier { silent: true, bound_ms: BOUND_MS });
+    let (mut world, chat) = chat_world(false, Tier { silent: true, bound_ms: BOUND_MS, ..Tier::default() });
     let number = produce(&mut world, &chat, 93, b"file", b"small fix");
     verifying(&mut world, number);
     let State::Landed { since, .. } = change(&world, number).change.state else { panic!("verifying") };

@@ -21,22 +21,31 @@ pub const RUN_TICKS: u32 = 1800;
 /// The producer and landing fixture's 600 ticks, at 100 milliseconds each.
 pub const LANDING_TICKS: u32 = 600;
 pub const FAILURES: &[u8] = b"suite.alpha\nsuite.beta\n";
+// Four changes' CI topics, the goal's landing topic and its idle timer.
+const GOAL_SUBSCRIPTIONS: u32 = 6;
+// Result reservations and the subscription credits, with core news kept separately.
+const GOAL_INBOX_MESSAGES: u32 = 16;
+const GOAL_INBOX_BYTES: u32 = 8192;
+// Four change calls and the timer retain their replay answers.
+const GOAL_CALL_RECORDS: u32 = 5;
+const GOAL_SPAN_MS: u64 = 1_200_000; // after-landing.md, 2: g's 20-minute span.
 
 #[derive(Clone, Copy)]
 pub struct Tier {
     pub silent: bool,
     pub bound_ms: u64,
+    pub goals: bool,
 }
 
 impl Default for Tier {
     fn default() -> Self {
-        Self { silent: false, bound_ms: 7_200_000 }
+        Self { silent: false, bound_ms: 7_200_000, goals: false }
     }
 }
 
 #[must_use]
-pub(crate) fn checks() -> Box<[engine::TierCheck]> {
-    Box::new([engine::TierCheck {
+pub(crate) fn checks(options: Tier) -> Box<[engine::TierCheck]> {
+    let slow = engine::TierCheck {
         name: b"slow".as_slice().into(),
         workflow: b"slow.yml".as_slice().into(),
         ignored: Box::new([b"docs".as_slice().into()]),
@@ -44,7 +53,19 @@ pub(crate) fn checks() -> Box<[engine::TierCheck]> {
         format: Format::Junit,
         follows: temper_engine_domain_forge::Follows::Landing,
         span_ms: 0,
-    }])
+    };
+    if options.goals {
+        let goal = engine::TierCheck {
+            name: b"goal".as_slice().into(),
+            workflow: b"goal.yml".as_slice().into(),
+            follows: forge_top::Follows::Goals,
+            span_ms: GOAL_SPAN_MS,
+            ..slow.clone()
+        };
+        Box::new([slow, goal])
+    } else {
+        Box::new([slow])
+    }
 }
 
 #[must_use]
@@ -68,6 +89,11 @@ pub(crate) fn workflows(tier: Option<Tier>, gates: Box<[raw::Workflow]>) -> Box<
             }),
             select: Some(b"temper_tests".as_slice().into()),
         });
+        if tier.goals {
+            let mut goal = workflows.last().expect("slow workflow").clone();
+            goal.file = b"goal.yml".as_slice().into();
+            workflows.push(goal);
+        }
     }
     workflows.into_boxed_slice()
 }
@@ -88,13 +114,32 @@ pub fn world(turn: bool, tier: Tier) -> World {
 /// Room for the red's header, test ids, run URL and log, and both change results.
 #[must_use]
 pub fn news_world() -> World {
-    let mut world = world(false, Tier::default());
+    news_world_with(Tier::default())
+}
+
+/// The news world with a second tier following goal branches every 20 minutes.
+#[must_use]
+pub fn goal_world() -> World {
+    news_world_with(Tier { goals: true, ..Tier::default() })
+}
+
+fn news_world_with(options: Tier) -> World {
+    let mut world = world(false, options);
     world.env.limits.tasks.message_bytes = 1024;
     world.env.limits.tasks.result_bytes = 512;
     world.env.limits.tasks.inbox_bytes = 4096;
+    if options.goals {
+        world.env.limits.tasks.subscriptions = GOAL_SUBSCRIPTIONS;
+        world.env.limits.tasks.inbox_messages = GOAL_INBOX_MESSAGES;
+        world.env.limits.tasks.inbox_bytes = GOAL_INBOX_BYTES;
+        world.env.limits.people.inbox_recipients = GOAL_INBOX_MESSAGES * 2 + world.env.limits.authority.roles + 4;
+        world.env.limits.call_records = GOAL_CALL_RECORDS;
+    }
     let mut limits = crate::store::widest();
     limits.tasks = world.env.limits.tasks;
     limits.authority = world.env.limits.authority;
+    limits.call_records = world.env.limits.call_records;
+    limits.people.inbox_recipients = world.env.limits.people.inbox_recipients;
     let mut store = crate::store::Store::with_limits(&limits);
     store.seed(world.store.rows.values().cloned().collect(), Box::new([]));
     world.store = store;
@@ -135,6 +180,12 @@ pub fn red_news(world: &World, goal: u64) -> Vec<&tasks::Word> {
 /// The independent forge's dispatched slow runs, oldest first.
 #[must_use]
 pub fn runs(world: &World) -> Vec<raw::Run> {
+    workflow_runs(world, b"slow.yml")
+}
+
+/// Dispatched runs of one fixture workflow, oldest first.
+#[must_use]
+pub fn workflow_runs(world: &World, workflow: &[u8]) -> Vec<raw::Run> {
     let mut runs = Vec::new();
     for page in 1..=world.fake_env.limits.limits.workflow_runs + 1 {
         let raw::Answer::Runs(part) = world
@@ -142,13 +193,7 @@ pub fn runs(world: &World) -> Vec<raw::Run> {
             .inspect(
                 &world.fake_env.limits,
                 b"org/repo",
-                &raw::Read::Runs {
-                    workflow: Some(b"slow.yml".as_slice().into()),
-                    commit: None,
-                    number: None,
-                    page,
-                    limit: 100,
-                },
+                &raw::Read::Runs { workflow: Some(workflow.into()), commit: None, number: None, page, limit: 100 },
             )
             .expect("forge runs")
         else {
@@ -239,12 +284,15 @@ pub fn change(world: &World, number: u64) -> &forge_top::ChangeRow {
 
 #[must_use]
 pub fn tier(world: &World) -> &forge_top::TierRow {
-    let Some(Record::Forge { row }) = world
-        .store
-        .rows
-        .get(&Key::Forge(forge_top::Key::Tier { repository: forge_world::REPO, tier: b"slow".as_slice().into() }))
+    named_tier(world, b"slow")
+}
+
+#[must_use]
+pub fn named_tier<'a>(world: &'a World, name: &[u8]) -> &'a forge_top::TierRow {
+    let Some(Record::Forge { row }) =
+        world.store.rows.get(&Key::Forge(forge_top::Key::Tier { repository: forge_world::REPO, tier: name.into() }))
     else {
-        panic!("slow tier")
+        panic!("tier {:?}", std::str::from_utf8(name))
     };
     let forge_top::Stored::Tier(row) = row.as_ref() else { panic!("tier row") };
     row
