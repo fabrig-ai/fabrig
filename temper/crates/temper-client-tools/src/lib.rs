@@ -14,6 +14,7 @@ mod landing;
 pub mod limits;
 pub mod recovery;
 pub mod root;
+mod settings;
 pub mod table;
 #[cfg(test)]
 mod tests;

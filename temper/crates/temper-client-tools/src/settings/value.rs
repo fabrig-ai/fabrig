@@ -1,8 +1,8 @@
-//! Temper's inline proposal values (temper/docs/design/client/tools.md, 5.3).
+//! Temper's inline values (temper/docs/design/client/tools.md, 5.2 and 5.3).
 use skein_json::writer::Encoder;
 use skein_lib::Reader;
 use temper_client_protocol_wire::v1 as w;
-pub(super) fn render(kind: u32, bytes: &[u8], out: &mut Encoder) -> bool {
+pub(crate) fn render(kind: u32, bytes: &[u8], out: &mut Encoder) -> bool {
     let mut reader = Reader::new(bytes);
     match kind {
         1 | 2 => {
@@ -36,7 +36,7 @@ fn render_rule(value: &w::LandingRule, out: &mut Encoder) {
     out.key(b"segments");
     out.array_start();
     for segment in value.pattern().segments() {
-        super::super::hex(segment, out);
+        crate::jig::render::document::hex(segment, out);
     }
     out.array_end();
     out.key(b"last");
@@ -44,11 +44,11 @@ fn render_rule(value: &w::LandingRule, out: &mut Encoder) {
     match value.pattern().last() {
         w::LandingLast::Exact(value) => {
             out.key(b"exact");
-            super::super::hex(value.value(), out);
+            crate::jig::render::document::hex(value.value(), out);
         }
         w::LandingLast::Open(value) => {
             out.key(b"open");
-            super::super::hex(value.value(), out);
+            crate::jig::render::document::hex(value.value(), out);
         }
     }
     out.object_end();

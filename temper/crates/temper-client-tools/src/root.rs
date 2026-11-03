@@ -421,6 +421,28 @@ mod tests;
 #[derive(Debug)]
 pub struct Parts;
 impl jig::render::Parts for Parts {
+    fn prepare_setting(&self, call: &mut jig::call::Call, me: Option<&jig_client::contract::Me>) -> bool {
+        crate::settings::resolve_project(call, me)
+    }
+    fn setting_selector(&self, call: &jig::call::Call) -> Option<jig_client::contract::Setting> {
+        crate::settings::selector(call)
+    }
+    fn application_read(&self, query: runner::application::Query) -> jig_client::Readable {
+        crate::settings::read(query)
+    }
+    fn application_answer(
+        &self,
+        query: runner::application::Query,
+        page: &jig_client::Readout,
+    ) -> Option<runner::application::Answer> {
+        crate::settings::decode(query, page)
+    }
+    fn setting_name(&self, setting: jig_client::contract::Setting, out: &mut jig::render::Text) -> bool {
+        crate::settings::name(setting, out)
+    }
+    fn setting_value(&self, kind: u32, bytes: &[u8], out: &mut skein_json::writer::Encoder) -> bool {
+        crate::settings::render(kind, bytes, out)
+    }
     fn diagnostic_prefix(&self) -> &'static [u8] {
         DIAGNOSTIC_PREFIX
     }

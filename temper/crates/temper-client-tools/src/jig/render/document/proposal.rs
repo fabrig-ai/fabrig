@@ -62,18 +62,32 @@ pub(super) fn text(value: &c::ReadValue, reading: &Reading, limits: &Limits, out
         && let Some(review) = &s.review
     {
         for (index, item) in review.items.iter().enumerate() {
-            if let c::Setting::Application { kind: 1..=3, .. } = item.setting {
+            if let c::Setting::Application { .. } = item.setting {
                 continue;
             }
-            settings::setting_text(item.setting, out);
+            settings::setting_text(item.setting, reading.parts, out);
             out.put(b" \xc2\xb7 ");
             out.put(review_change(item));
             out.put(b" \xc2\xb7 now ");
-            review_value_text(&item.now, item.setting, reading.pages.get(&slot(index, false)), limits, out);
+            review_value_text(
+                &item.now,
+                item.setting,
+                reading.pages.get(&slot(index, false)),
+                limits,
+                reading.parts,
+                out,
+            );
             out.put(b" (");
             origin_text(&item.origin, out);
             out.put(b") \xc2\xb7 would be ");
-            review_value_text(&item.would_be, item.setting, reading.pages.get(&slot(index, true)), limits, out);
+            review_value_text(
+                &item.would_be,
+                item.setting,
+                reading.pages.get(&slot(index, true)),
+                limits,
+                reading.parts,
+                out,
+            );
             out.put(b"\n");
         }
         application_items_text(reading, limits, out);
@@ -138,18 +152,20 @@ fn review_value_text(
     setting: c::Setting,
     page: Option<&Readout>,
     limits: &Limits,
+    vocabulary: &dyn crate::jig::render::Parts,
     out: &mut Text,
 ) {
-    value_text(resolved(value, setting, page), setting, limits, out);
+    value_text(resolved(value, setting, page), setting, limits, vocabulary, out);
 }
 fn value_text(
     value: Result<Option<&c::SettingValue>, Box<[u8]>>,
     setting: c::Setting,
     limits: &Limits,
+    vocabulary: &dyn crate::jig::render::Parts,
     out: &mut Text,
 ) {
     match value {
-        Ok(Some(value)) => settings::named_value_inline(setting, value, limits, out),
+        Ok(Some(value)) => settings::named_value_inline(setting, value, limits, vocabulary, out),
         Ok(None) => out.put(b"none"),
         Err(why) => out.put(&why),
     }
@@ -318,7 +334,7 @@ fn encode_settings_fields(
         None => out.null(),
     }
     if let Some(reading) = reading
-        && reading.kinds.items.is_some()
+        && reading.application.items.is_some()
     {
         out.key(b"application_items");
         encode_application_items(reading, out);
@@ -344,7 +360,7 @@ fn encode_review(review: &c::SettingsReview, reading: &Reading, out: &mut Encode
         out.key(b"edit");
         out.string(settings::edit_word(&item.edit));
         out.key(b"now");
-        encode_review_value(&item.now, item.setting, reading.pages.get(&slot(index, false)), out);
+        encode_review_value(&item.now, item.setting, reading.pages.get(&slot(index, false)), reading.parts, out);
         out.key(b"origin");
         match &item.origin {
             c::SettingOrigin::Default(r) => origin_revision(b"default", r.revision, out),
@@ -352,7 +368,7 @@ fn encode_review(review: &c::SettingsReview, reading: &Reading, out: &mut Encode
             c::SettingOrigin::NotOffered => out.string(b"not_offered"),
         }
         out.key(b"would_be");
-        encode_review_value(&item.would_be, item.setting, reading.pages.get(&slot(index, true)), out);
+        encode_review_value(&item.would_be, item.setting, reading.pages.get(&slot(index, true)), reading.parts, out);
         out.object_end();
     }
     out.array_end();
@@ -370,10 +386,21 @@ fn origin_revision(kind: &[u8], revision: u32, out: &mut Encoder) {
     out.object_end();
 }
 
-fn encode_review_value(value: &c::ReviewValue, setting: c::Setting, page: Option<&Readout>, out: &mut Encoder) {
-    encode_value_result(resolved(value, setting, page), setting, out);
+fn encode_review_value(
+    value: &c::ReviewValue,
+    setting: c::Setting,
+    page: Option<&Readout>,
+    vocabulary: &dyn crate::jig::render::Parts,
+    out: &mut Encoder,
+) {
+    encode_value_result(resolved(value, setting, page), setting, vocabulary, out);
 }
-fn encode_value_result(value: Result<Option<&c::SettingValue>, Box<[u8]>>, setting: c::Setting, out: &mut Encoder) {
+fn encode_value_result(
+    value: Result<Option<&c::SettingValue>, Box<[u8]>>,
+    setting: c::Setting,
+    vocabulary: &dyn crate::jig::render::Parts,
+    out: &mut Encoder,
+) {
     match value {
         Ok(Some(value)) => {
             out.object_start();
@@ -388,7 +415,7 @@ fn encode_value_result(value: Result<Option<&c::SettingValue>, Box<[u8]>>, setti
                 c::SettingValue::Application(_) => b"application",
                 c::SettingValue::Rules(_) => b"rules",
             });
-            settings::encode_named_value(setting, value, out);
+            settings::encode_named_value(setting, value, vocabulary, out);
             out.object_end();
             out.object_end();
             out.object_end();
@@ -545,30 +572,27 @@ fn encode_history_state(state: &c::ProposalHistoryState, out: &mut Encoder, budg
     out.object_end();
 }
 
-fn item_setting(item: &temper_client_protocol_wire::v1::ProposalItem) -> c::Setting {
-    c::Setting::Application { kind: item.kind(), scope: item.scope(), number: item.number() }
-}
-fn current_item<'a>(reading: &'a Reading, item: &temper_client_protocol_wire::v1::ProposalItem) -> Option<&'a Readout> {
-    reading.kinds.current.get(&(item.kind(), item.scope(), item.number()))
+fn current_item<'a>(reading: &'a Reading, item: &c::SettingItem) -> Option<&'a Readout> {
+    reading.application.current.get(&crate::jig::runner::application::key(item.setting))
 }
 fn application_items_text(reading: &Reading, limits: &Limits, out: &mut Text) {
-    use temper_client_protocol_wire::v1::SettingEdit;
-    let Some(items) = &reading.kinds.items else { return };
-    for item in items.items() {
-        let setting = item_setting(item);
-        settings::setting_text(setting, out);
+    use c::SettingEdit;
+    let Some(items) = &reading.application.items else { return };
+    for item in items {
+        let setting = item.setting;
+        settings::setting_text(setting, reading.parts, out);
         out.put(b" \xc2\xb7 now ");
-        value_text(read_value(setting, current_item(reading, item)), setting, limits, out);
+        value_text(read_value(setting, current_item(reading, item)), setting, limits, reading.parts, out);
         if let Some(origin) = application_origin(reading, setting) {
             out.put(b" (");
             origin_text(origin, out);
             out.put(b")");
         }
         out.put(b" \xc2\xb7 ");
-        match item.edit() {
+        match &item.edit {
             SettingEdit::Set(value) => {
                 out.put(b"set ");
-                settings::named_value_inline(setting, &c::SettingValue::Application(value.value().into()), limits, out);
+                settings::named_value_inline(setting, &value.value, limits, reading.parts, out);
             }
             SettingEdit::Removed => out.put(b"removed"),
             SettingEdit::Reset => out.put(b"reset to default"),
@@ -577,23 +601,23 @@ fn application_items_text(reading: &Reading, limits: &Limits, out: &mut Text) {
     }
 }
 fn encode_application_items(reading: &Reading, out: &mut Encoder) {
-    use temper_client_protocol_wire::v1::SettingEdit;
+    use c::SettingEdit;
     out.array_start();
-    if let Some(items) = &reading.kinds.items {
-        for item in items.items() {
-            let setting = item_setting(item);
+    if let Some(items) = &reading.application.items {
+        for item in items {
+            let setting = item.setting;
             out.object_start();
             out.key(b"setting");
             settings::encode_setting(setting, out);
             out.key(b"edit");
-            out.string(match item.edit() {
+            out.string(match &item.edit {
                 SettingEdit::Set(_) => b"set",
                 SettingEdit::Removed => b"removed",
                 SettingEdit::Reset => b"reset",
             });
-            if let SettingEdit::Set(value) = item.edit() {
+            if let SettingEdit::Set(value) = &item.edit {
                 out.key(b"value");
-                settings::encode_named_value(setting, &c::SettingValue::Application(value.value().into()), out);
+                settings::encode_named_value(setting, &value.value, reading.parts, out);
             }
             if let Some(origin) = application_origin(reading, setting) {
                 out.key(b"origin");
@@ -604,7 +628,7 @@ fn encode_application_items(reading: &Reading, out: &mut Encoder) {
                 }
             }
             out.key(b"now");
-            encode_value_result(read_value(setting, current_item(reading, item)), setting, out);
+            encode_value_result(read_value(setting, current_item(reading, item)), setting, reading.parts, out);
             out.object_end();
         }
     }

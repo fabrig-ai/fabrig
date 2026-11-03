@@ -429,7 +429,7 @@ impl Cut {
         out.string(bytes.get(..end).expect("UTF-8 cut"));
     }
 }
-fn hex(bytes: &[u8], out: &mut Encoder) {
+pub(crate) fn hex(bytes: &[u8], out: &mut Encoder) {
     let mut hex = skein_lib::Writer::new(bytes.len().checked_mul(2).expect("document bound fits"));
     for byte in bytes {
         for digit in [byte >> 4u32, byte & 15] {

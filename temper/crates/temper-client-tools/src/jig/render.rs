@@ -173,6 +173,23 @@ pub trait Parts: core::fmt::Debug {
     fn release_again_refusal(&self, _task: &contract::Task) -> Option<&'static [u8]> {
         None
     }
+    /// Resolve the host's setting selector before reading the inventory.
+    fn prepare_setting(&self, call: &mut crate::jig::call::Call, me: Option<&contract::Me>) -> bool;
+    /// Select a host setting; none leaves selection to the kit's forms.
+    fn setting_selector(&self, call: &crate::jig::call::Call) -> Option<contract::Setting>;
+    /// Build the family record and scope for one application read.
+    fn application_read(&self, query: crate::jig::runner::application::Query) -> jig_client::Readable;
+    /// Decode a family answer into settings items and values.
+    /// Returns none for a record outside the query or the application's value form.
+    fn application_answer(
+        &self,
+        query: crate::jig::runner::application::Query,
+        page: &Readout,
+    ) -> Option<crate::jig::runner::application::Answer>;
+    /// Write a known application name, returning false without writing for other kinds.
+    fn setting_name(&self, setting: contract::Setting, out: &mut Text) -> bool;
+    /// Encode a known application value, returning false without writing for other kinds.
+    fn setting_value(&self, kind: u32, bytes: &[u8], out: &mut Encoder) -> bool;
     fn task_next(&self, task: &contract::Task, out: &mut Text);
     fn owner_part(&self, part: &contract::Part, out: &mut Text);
     fn part(&self, part: &contract::ApplicationPart, out: &mut Text);
@@ -444,12 +461,27 @@ pub(crate) fn answers_full(prefix: &[u8], held: u32, room_at: skein_lib::Wall) -
 #[must_use]
 pub fn settings_text(value: &ReadValue, requested: Option<u64>, limits: &Limits) -> Box<[u8]> {
     let mut measure = Text::measure();
-    document::settings::text(value, requested, limits, &mut measure);
+    settings_form::render::text(
+        &crate::jig::settings_adapter::form_read_value(value),
+        requested,
+        &crate::jig::settings_adapter::limits(limits),
+        &mut measure,
+    );
     let structural = measure.structural();
     let mut measure = Text::bounded(limits.text, structural);
-    document::settings::text(value, requested, limits, &mut measure);
+    settings_form::render::text(
+        &crate::jig::settings_adapter::form_read_value(value),
+        requested,
+        &crate::jig::settings_adapter::limits(limits),
+        &mut measure,
+    );
     let mut out = measure.writing(limits.text, structural);
-    document::settings::text(value, requested, limits, &mut out);
+    settings_form::render::text(
+        &crate::jig::settings_adapter::form_read_value(value),
+        requested,
+        &crate::jig::settings_adapter::limits(limits),
+        &mut out,
+    );
     out.finish()
 }
 
