@@ -3,7 +3,7 @@ id = "apps-wire"
 part = "appsettings"
 kind = "feature"
 needs = ["apps-proposals"]
-files = ["jig/crates/jig-client-protocol-wire/schema/client-v19*.schema", "jig/crates/jig-client-protocol-wire/src/generated/v19.rs", "jig/crates/jig-client-protocol-wire/golden/**", "jig/crates/jig-protocol-engine-clients/src/translate/settings.rs", "jig/crates/jig-protocol-engine-clients/src/translate/settings/**", "jig/crates/jig-protocol-engine-clients/src/translate/refusals.rs", "jig/crates/jig-protocol-engine-clients/src/tests/settings*.rs", "jig/crates/jig-client-protocol-link/src/translate/settings.rs", "jig/crates/jig-client-protocol-link/src/tests/settings*.rs", "jig/crates/jig-client-domain/src/contract/settings.rs", "jig/crates/jig-domain-core/src/documents/settings.rs", "jig/crates/jig-domain-core/src/reads/settings.rs", "jig/docs/design/client/domain/contract.status.md"]
+files = ["jig/crates/jig-client-protocol-wire/schema/client-v19*.schema", "jig/crates/jig-client-protocol-wire/src/generated/v19.rs", "jig/crates/jig-client-protocol-wire/golden/**", "jig/crates/jig-protocol-engine-clients/src/translate/settings.rs", "jig/crates/jig-protocol-engine-clients/src/translate/settings/**", "jig/crates/jig-protocol-engine-clients/src/translate/refusals.rs", "jig/crates/jig-protocol-engine-clients/src/tests/settings*.rs", "jig/crates/jig-client-protocol-link/src/translate/settings.rs", "jig/crates/jig-client-protocol-link/src/tests/settings*.rs", "jig/crates/jig-client-domain/src/contract/settings.rs", "jig/crates/jig-domain-core/src/documents/settings.rs", "jig/crates/jig-domain-core/src/reads/settings.rs", "jig/docs/design/client/domain/contract.status.md", "jig/crates/jig-domain-core/src/documents/settings_review.rs", "jig/crates/jig-domain-core/src/reads/vocabulary.rs", "jig/crates/jig-client-domain/src/contract/refusals.rs", "jig/crates/jig-client-protocol-link/src/translate/answers.rs", "jig/examples/ops/domain/src/route.rs", "jig/tests/core/src/peers.rs", "temper/crates/temper-service/src/startup/problems.rs", "temper/crates/temper-engine-domain/src/store/settings_bytes.rs"]
 effort = "high"
 minutes = 140
 +++
@@ -92,3 +92,26 @@ Acceptance:
 ## Report
 
 The schema records changed; the goldens remade; temper's arms, by file.
+
+## Answers
+
+2026-11-03. **Q:** may this task change the core's proposal review builder and the other
+files that hold its arms, outside its files?
+
+**A:** Yes, option A: all eight are now in `files`. `apps-proposals` took its pre-approved
+option and left the review's application items to this task, so
+`documents/settings_review.rs` is this task's to build.
+
+- `documents/settings_review.rs`: a review item of an application's setting from the set's
+  `applications` (its `SizedEdit`) and `Current.applications`: the setting, the edit, its
+  state now (`Follows`) and its size now and after, never a value; `document_bound` counts
+  the application items. Change no other behaviour there (`apps-proposal-key` adds its `key`
+  later).
+- `reads/vocabulary.rs`: `SettingDocument`'s per-setting state gains an application's size
+  and charters, no value.
+- `jig-client-domain` `contract/refusals.rs`: the judged arm; `jig-client-protocol-link`
+  `translate/answers.rs`: its decoding.
+- `jig/examples/ops/domain/src/route.rs`, `jig/tests/core/src/peers.rs`, temper's
+  `startup/problems.rs` and `store/settings_bytes.rs`: each `apps-wire` arm replaced by its
+  real handling (an application's setting named by its numbers, a judged refusal by its
+  words, an application's value as its bytes), the arm alone.
