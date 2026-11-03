@@ -420,8 +420,7 @@ it.
     bearer or a key (2.6); and the failure classes exhausted, with its
     reset only where the provider gives one, refused and unsupported,
     naming its field, with the provider's error code and request id as
-    evidence (2.5). The Codex dialect and its account header stay,
-    withdrawn (4.6);
+    evidence (2.5);
   - an oversized call as a block of its own, and a call cut off by the
     output limit marked;
   - typed `Limit` kinds, and HTTP statuses in failures;
@@ -458,7 +457,7 @@ it.
     checkout;
   - protocol worlds that join two ends with streams cut at random
     (testing-strategy.md, 2.5).
-- **Later, and only if measured:** Codex's routing state and reasoning
+- **Later, and only if measured:** OpenAI's routing state and reasoning
   context, and an incremental transport over WebSocket.
 
 ## 11. Open questions
