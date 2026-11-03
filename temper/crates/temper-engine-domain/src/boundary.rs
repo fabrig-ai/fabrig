@@ -116,6 +116,16 @@ pub struct ForgeWorkspace {
     pub repositories: Box<[ForgeRepository]>,
 }
 
+/// A decoded value of temper's settings kinds, retained for its request's decision
+/// (temper/docs/design/domain/root.md, 5.6).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct KindValue {
+    pub kind: u32,
+    pub scope: u32,
+    pub number: u32,
+    pub value: forge::settings::SizedValue,
+}
+
 /// One typed engine tool request from the current worker claim
 /// (domain/root.md, sections 3 and 5.2). Later routes extend this vocabulary.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -123,7 +133,12 @@ pub enum Tool {
     /// Read settings without retaining a named-call record.
     Settings { read: jig_domain_core::SettingsRead, from: u32 },
     /// Propose whole settings to the deployment's owners.
-    ProposeSettings { against: u32, items: Box<[jig_domain_core::settings::Item]>, reason: Box<[u8]> },
+    ProposeSettings {
+        against: u32,
+        items: Box<[jig_domain_core::settings::Item]>,
+        reason: Box<[u8]>,
+        kinds: Box<[KindValue]>,
+    },
     /// Write or correct one scoped note by the revision this run recalled.
     Note { entry: jig_domain_notes::New, recalled: Option<u32> },
     /// Read one bounded page of notes by name or description.
@@ -490,6 +505,7 @@ pub enum PartyInput {
         key: [u8; 16],
         digest: [u8; 32],
         change: Box<core::settings::Proposed>,
+        kinds: Box<[KindValue]>,
     },
     /// A direct owner settings change, decided by jig.
     ChangeSettings {
@@ -498,6 +514,7 @@ pub enum PartyInput {
         key: [u8; 16],
         digest: [u8; 32],
         change: Box<core::settings::Change>,
+        kinds: Box<[KindValue]>,
     },
     /// End one authenticated sign-in through the people child (ruling 116).
     SignOut {
@@ -787,6 +804,7 @@ pub(crate) enum Work {
     Fleet(fleet::Event),
     Brief(brief::GatherEvent),
     Forge(forge::Event),
+    ForgeSettings(skein_lib::Queue<forge::Request>),
     ForgeRestored,
     ProjectGoal(Box<jig_domain_core::ProjectionFeed>),
     GoalSubscribe(forge::Subscriber),

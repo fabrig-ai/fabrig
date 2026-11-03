@@ -14,6 +14,7 @@ mod budget;
 mod documents;
 mod projection_settled;
 pub(crate) use projection_settled::live_task;
+mod kinds;
 mod release;
 mod removal;
 mod restore_fit;
