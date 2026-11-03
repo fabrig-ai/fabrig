@@ -1,4 +1,4 @@
-family smith-channel 5
+family smith-channel 6
 
 # The receiving host/agent additionally checks aggregate ownership and counts
 # against its configured domain Limits. Bytes carried from other codec families
@@ -16,9 +16,7 @@ record Workspace { directories: list 64 Directory }
 enum Scheme { bearer, key }
 record CredentialValue { scheme: Scheme bytes: secret 8192 }
 record ProgramValue { name: text 32 }
-# Withdrawn; accounts-sources removes the id-and-bearer form.
-record WithdrawnValue { id: text 1024 bearer: secret 8192 }
-enum GrantValue { credential: CredentialValue, program: ProgramValue, withdrawn: WithdrawnValue }
+enum GrantValue { credential: CredentialValue, program: ProgramValue }
 record Grant {
     account: u32
     generation: u64
@@ -111,7 +109,7 @@ enum BudgetFailure { turns, spend, time, tokens: ReceivingLimitValue, overflow: 
 enum Cap {
     request, request_head, response_head, response_fields, skip, field,
     retained, tokens, depth, strings, number, reasoning, output_items,
-    metadata, tools, history_items, output, answer, error_body, access_token, account_id
+    metadata, tools, history_items, output, answer, error_body, access_token
 }
 record PathCap { value: Cap }
 record PoolLimit { reservation: u64 }
