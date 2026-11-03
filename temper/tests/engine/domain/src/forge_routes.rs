@@ -76,6 +76,7 @@ pub struct World {
     pub forge_calls: u32,
     pub adopted: Vec<forge_top::ApplicationOutcome>,
     pub signed_in: Option<u64>,
+    pub web_replies: Vec<people::Reply>,
     pub assigned: Vec<engine::Assignment>,
     /// Inbox messages delivered after an assignment, as a real worker receives them.
     pub delivered_messages: BTreeMap<(u64, u64), Vec<u64>>,
@@ -128,6 +129,7 @@ pub struct StoryLimits {
     pub spec_bytes: Option<u32>,
     pub result_bytes: Option<u32>,
     pub forge_charter: Option<u32>,
+    pub kinds: bool,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -287,6 +289,7 @@ impl World {
             spec_bytes,
             result_bytes,
             forge_charter,
+            kinds,
             turn,
             landing_members,
             slots,
@@ -296,7 +299,7 @@ impl World {
             tier,
         } = timing;
         let paths::Gate { approval, agent: agent_gate, owner: owner_gate } = gate;
-        let [(bootstrap, mut limits), (config, _)] = std::array::from_fn(|_| {
+        let [(bootstrap, mut limits), (config, _)] = std::array::from_fn(|index| {
             let mut limits = walking::limits();
             if let Some(bytes) = result_bytes {
                 limits.tasks.result_bytes = bytes;
@@ -353,7 +356,6 @@ impl World {
                 reviewer.policy.modify = false;
                 reviewer.policy.agents = false;
                 config.core.defaults.charters = Box::new([walking::charter(), producer, reviewer]);
-                config.forge_charter = forge_charter.unwrap_or(1);
                 limits.tasks.authority_grants = 10;
                 limits.journal.run_bytes = 8192;
                 limits.tasks.authority_segments = 9;
@@ -638,7 +640,6 @@ impl World {
                 config.core.settings.models = Box::new([model.clone()]);
                 config.core.settings.llm_providers.providers[0].models = Box::new([model.name.clone()]);
                 config.core.connectors = Box::new([1]);
-                config.forge_charter = 2;
                 for rule in &mut config.landing_rules.deployment {
                     rule.connector = 1;
                     for gate in &mut rule.gates {
@@ -707,6 +708,17 @@ impl World {
                 let mut charter = walking::charter();
                 charter.documents = charter_documents.into();
                 config.core.defaults.charters[0] = charter;
+            }
+            config.kinds_stock = temper_service::stock::forge_defaults(
+                &config.landing_rules,
+                if stock.is_some() { 2 } else { forge_charter.unwrap_or(1) },
+            );
+            if kinds {
+                // The story changes whole rules through the settings entrance.
+                limits.people.amendment_bytes = 2048;
+            }
+            if kinds && index == 1 {
+                config.core.kinds = temper_service::stock::kinds(&limits, config.core.connectors[0]);
             }
             (config, limits)
         });
@@ -863,6 +875,7 @@ impl World {
             forge_calls: 0,
             adopted: Vec::new(),
             signed_in: None,
+            web_replies: Vec::new(),
             assigned: Vec::new(),
             delivered_messages: BTreeMap::new(),
             answers: Vec::new(),
@@ -936,6 +949,22 @@ impl World {
         assert_eq!(self.env.now, Time::ZERO, "landing rules precede world startup");
         assert!(!self.root.ready(), "landing rules precede bootstrap");
         self.restart_config.landing_rules.deployment = rules;
+        let change = self
+            .restart_config
+            .kinds_stock
+            .iter()
+            .find_map(|stock| match stock {
+                forge_top::settings::Stock {
+                    kind: 3,
+                    number: 1,
+                    value: forge_top::settings::SizedValue { value: forge_top::settings::Value::Charter(charter), .. },
+                    ..
+                } => Some(*charter),
+                _ => None,
+            })
+            .expect("configured change charter");
+        self.restart_config.kinds_stock =
+            temper_service::stock::forge_defaults(&self.restart_config.landing_rules, change);
         self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
             .expect("valid deployment landing rules");
         self
@@ -1234,6 +1263,9 @@ impl World {
                 }
                 engine::Request::Worker(engine::WorkerRequest::Deliver(delivery))
                 | engine::Request::Party(engine::PartyRequest::Deliver(delivery)) => match delivery {
+                    Delivery::WebReply { reply, .. } if !matches!(reply, people::Reply::SignedIn { .. }) => {
+                        self.web_replies.push(reply);
+                    }
                     Delivery::WebReply { reply: people::Reply::SignedIn { sign_in, .. }, .. } => {
                         self.signed_in = Some(sign_in);
                     }

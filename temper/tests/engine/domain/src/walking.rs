@@ -299,7 +299,10 @@ pub fn config(seed: u64) -> engine::Config {
         requirements: Box::new([]),
     };
     engine::Config {
-        kinds_stock: Box::default(),
+        kinds_stock: temper_service::stock::forge_defaults(
+            &engine::LandingRules { deployment: Box::default(), projects: skein_lib::Map::with_capacity(1) },
+            1,
+        ),
         period_span: PERIOD_SPAN,
         core: jig_domain_core::Config {
             deployment: [31; 16],
@@ -361,7 +364,6 @@ pub fn config(seed: u64) -> engine::Config {
         // The forge's git identity is application credential 1, which the
         // worlds name at start (D10).
         identities: Box::new([temper_engine_domain_forge::GitIdentity { forge: 1, credential: 1 }]),
-        forge_charter: 1,
         machine: None,
         forges: Box::new([configured_forge()]),
         under_box: false,

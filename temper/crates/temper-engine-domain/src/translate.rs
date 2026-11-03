@@ -32,9 +32,6 @@ pub struct Config {
     /// Each forge's git identity, an application credential (D10;
     /// protocol/credentials.md, "each repository to a git identity").
     pub identities: Box<[forge::GitIdentity]>,
-    /// The charter the forge's procedures start their agent work under, one
-    /// of the core's charters (domain/root.md, 6).
-    pub forge_charter: u32,
     /// Machine places for new forge records (temper/docs/design/protocol/configuration.md, 3).
     pub machine: Option<forge::Machine>,
     pub forges: Box<[forge::Configured]>,
@@ -46,7 +43,6 @@ pub struct Config {
 #[derive(Debug)]
 pub(crate) struct RootConfig {
     pub(crate) forge_connector: u16,
-    pub(crate) forge_charter: u32,
     pub(crate) landings: Map<u32, ProjectLanding>,
 }
 

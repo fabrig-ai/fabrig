@@ -662,7 +662,6 @@ pub fn root(
         landings,
         forge,
         identities,
-        forge_charter: engine.charter,
         machine: Some(crate::system::machine_config(&engine.machine)),
         forges: Box::new([]),
         under_box: false,

@@ -87,7 +87,6 @@ fn generated() -> (engine::Config, engine::Limits) {
             playground: crate::system::playground_config(settings.demo.as_ref(), settings.limits.setup.deadline),
             landing_rules: settings.landing_rules,
             landings: settings.landings,
-            forge_charter: settings.charter,
             under_box: false,
         },
         limits,

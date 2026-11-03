@@ -28,7 +28,6 @@ fn configuration() -> engine::Config {
     config.core.seed_projects[0].policy =
         config.core.defaults.policies.get(&POLICY_NUMBER).expect("stock policy 1").clone();
     config.core.owners[0].project = 1;
-    config.forge_charter = 2;
     config.landing_rules.deployment = Box::new([engine::LandingRule {
         connector: 1,
         kind: 4,
@@ -42,6 +41,7 @@ fn configuration() -> engine::Config {
         gates: Box::new([engine::Gate { number: 1, blocking: true, freshness: engine::Freshness::Exact }]),
         approvals: Box::new([]),
     }]);
+    config.kinds_stock = temper_service::stock::forge_defaults(&config.landing_rules, 2);
     config
 }
 

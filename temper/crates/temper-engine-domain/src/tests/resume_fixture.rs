@@ -287,7 +287,14 @@ pub fn config_with_project_room(seed: u64, projects: u32) -> engine::Config {
         requirements: Box::new([]),
     };
     engine::Config {
-        kinds_stock: Box::default(),
+        kinds_stock: crate::route::policy_translate::forge_stock(
+            &engine::LandingRules { deployment: Box::default(), projects: skein_lib::Map::with_capacity(1) },
+            1,
+            4,
+            0,
+            &limits(),
+        )
+        .unwrap(),
         period_span: Duration::from_secs(7 * 24 * 60 * 60),
         core: jig_domain_core::Config {
             deployment: [31; 16],
@@ -349,7 +356,6 @@ pub fn config_with_project_room(seed: u64, projects: u32) -> engine::Config {
         // The forge's git identity is application credential 1, which the
         // worlds name at start (D10).
         identities: Box::new([temper_engine_domain_forge::GitIdentity { forge: 1, credential: 1 }]),
-        forge_charter: 1,
         machine: None,
         forges: configured_forges(),
         under_box: false,

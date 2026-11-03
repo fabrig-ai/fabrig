@@ -451,6 +451,9 @@ fn a_document_rule_reaches_the_forge_as_a_default() {
         approvals: Box::new([crate::Approval { role: 0, people: 1, freshness: crate::Freshness::Exact }]),
     }]);
     config.landing_rules.projects.insert(PROJECT, config.landing_rules.deployment.clone()).unwrap();
+    for item in &mut config.kinds_stock {
+        item.value.size = CHARTER_BYTES;
+    }
     // Restored defaults must not replace this start's document defaults.
     let records = [Record::Forge {
         row: Box::new(forge::Stored::Setting(settings::SettingRow {
@@ -485,10 +488,10 @@ fn a_document_rule_reaches_the_forge_as_a_default() {
     assert_eq!(domain.forge.setting(2, PROJECT, 1), Some(&expected));
     assert_eq!(
         domain.forge.setting(3, 0, 1),
-        Some(&settings::SizedValue { size: 0, value: settings::Value::Charter(1) })
+        Some(&settings::SizedValue { size: CHARTER_BYTES, value: settings::Value::Charter(1) })
     );
     assert_eq!(
         domain.forge.setting(3, 0, 2),
-        Some(&settings::SizedValue { size: 0, value: settings::Value::Charter(4) })
+        Some(&settings::SizedValue { size: CHARTER_BYTES, value: settings::Value::Charter(4) })
     );
 }
