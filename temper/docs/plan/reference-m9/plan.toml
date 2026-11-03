@@ -1,0 +1,41 @@
+draft = "reference-m9"
+repo = "fabrig"
+sources = ["temper/docs/plan/reference-m9/inputs/request.md", "temper/docs/design/draft/reference-case.execution.md", "temper/docs/design/draft/reference-code-production.md", "temper/docs/design/draft/reference-landing.md", "AGENTS.md", "DESIGN.md"]
+
+# M9 of temper/docs/design/draft/reference-case.execution.md: reds to the goal; g's tier.
+# A tier following goal branches (temper/docs/design/domain/after-landing.md, 2, 3 and 5.4),
+# a red's news to its goal (7), and `repairs` (temper/docs/design/domain/agent.md, 4.3.1;
+# after-landing.md, 5.3 and 7). Released in batches: first the surfaces (the store, the news's
+# words, a tier's settings) and the charter's triage; then `repairs` and the red's news from
+# main's tiers; then g's tier in the forge, the reference's tiers, help and the stories.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "surface"
+title = "temper: the store keeps a change's repairs, a repair's landing and a tier's goal branches; a red's news has its type and words"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/after-landing.md, 10"
+
+[[part]]
+id = "tier-config"
+title = "temper: a tier follows its landing branch, one branch or the goals' own branches, with a span, read from the configuration"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/after-landing.md, 2"
+
+[[part]]
+id = "charter"
+title = "temper: the reference coordinator's charter triages reds along the way and after landing, and notes what it learns"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/configuration.md, 13.9"
+
+[[slice]]
+id = 1
+story = "the store keeps what a repair names and a tier's goal branches, a red's news has its words, a tier reads `goal` and its span, and the coordinator's charter triages"
+parts = ["surface", "tier-config", "charter"]
+walk = false

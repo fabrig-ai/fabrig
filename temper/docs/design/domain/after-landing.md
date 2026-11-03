@@ -16,7 +16,8 @@ them in the verdict's own record. What is still open is section 13.
   suite, an exhaustive profile), defined like a gate: a dispatch-only
   workflow, its ignored paths, its key (section 2). It also names where
   its run reports its failing tests, and the branch it follows: its
-  repository's landing branch, main, unless it names another.
+  repository's landing branch, main, unless it names another or the
+  goals' own branches.
 - **Tiers follow their branch, not the landings** (section 3). When the
   tip of the branch a tier follows moves, by temper or by anyone, the
   tier runs on it: one run per tier at a time, the next taking the
@@ -24,6 +25,11 @@ them in the verdict's own record. What is still open is section 13.
   whose key has a receipt is judged by it, with no run. A landing on a
   branch no tier follows, a goal's own branch while its repository's
   tiers follow main, is cleared as it lands.
+- **A tier following goal branches** (g's tier, section 2) follows each
+  live goal's own branch on its own, at most once per its span, and
+  judges no landing: a change into a goal's branch is cleared as it
+  lands. A red there is rerun once alone, and what still fails is news
+  to the goal holding the branch (section 7), never a verdict.
 - **A run reports** pass or fail, and its failing tests by id, read from
   its artifact (section 4). A run that names no tests when it fails, or
   never ends, is a fault, never a red.
@@ -62,6 +68,18 @@ them in the verdict's own record. What is still open is section 13.
   its repository (a goal's own branch, a release branch) starts none of
   its runs, and none of its verdicts judges a landing there. Following
   two branches takes two tiers, which may name one workflow.
+- **Goal branches:** a tier whose `branch` is `goal`, the symbol
+  `change`'s `landing` takes (`agent.md`, 4.3.1), names no branch of
+  that name: it follows the goals' own branches of its repository
+  (`forge.md`, 11.1), each from its goal's first landing into it to the
+  goal's close, and judges no landing (sections 3 and 5.4). It suits
+  the gate without its slowest suites, checking a goal's work along the
+  way while merges into it go on (`../draft/notes.md`, N5); the
+  repository's other tiers follow main.
+- **A tier's span,** `span`, the least time between the starts of two
+  of its runs on one branch; none when absent. A move within the span
+  waits for its end, and the run then takes the newest tip. g's tier in
+  the reference: 20 minutes.
 - **A tier's key** is a gate's (`landing.md`, 6.1), over the tier's own
   definition and ignored paths, and its receipts are a gate's: kept per
   project by key, made only from runs temper dispatched (`landing.md`,
@@ -106,6 +124,19 @@ them in the verdict's own record. What is still open is section 13.
   are the landings whose commits it holds: temper's, each with its
   changes, and those temper did not make, each a range of commits with
   no change of temper's.
+- **On a goal's branch,** for a tier following goal branches: each
+  branch is followed on its own, with its last run's tip, failures and
+  start, while the tier keeps one run at a time across them, numbered
+  in its one sequence. A branch is due when its tip has moved since its
+  last run and its span has passed since that run started; when the
+  tier has no run in flight, the branch due longest runs next, at its
+  newest tip. The first run is at the first move after the goal's hold
+  made the branch, so a branch no change has landed into is never run.
+  A run's range holds no landing, so it judges none: the changes
+  landing into a goal's branch are cleared as they land (section 6). It
+  takes no receipt and makes none: every run is dispatched, so its news
+  names a run. The branch's following ends as its goal's hold is
+  released; a run still in flight then ends with no news.
 - **Faults** (`landing.md`, 7.4's): rerun, then dispatched again, up to
   the project's `tier_retries`; one past its bound holds the tier's run
   task, whose escalation reaches the project's escalation role (jig's
@@ -171,6 +202,16 @@ red by earlier failures it does not run (5.3).
 - So a green tip never hides a red landing behind it, and a red run of
   inherited failures never reddens the landings after.
 
+### 5.4 No verdict on a goal's branch
+
+A run of a tier following goal branches gives no verdict. Green says
+nothing to anyone. Red reruns its failed tests once alone, as 5.2, 1
+does, and keeps the flakes on the tier's record; what fails again is
+news to the goal holding the branch (section 7), each test marked *new*
+or, where the previous run on that branch failed it too, *still
+failing*. Nothing is blamed, bisected or inherited onto a landing, and
+a fault is a fault (section 3).
+
 ## 6. A change lives to cleared
 
 ```
@@ -181,7 +222,8 @@ red by earlier failures it does not run (5.3).
 
 - **Landed means verifying.** The task lives, with no run, until its
   landing is cleared in every tier following the branch it landed on
-  (at once, where no tier follows it: section 2); its branch's
+  (at once, where no tier follows it, or only tiers following goal
+  branches do: sections 2 and 3); its branch's
   hold stays until then, and the branch is deleted as the task closes
   (`forge.md`, 11), by queue and by turn alike. A goal's landing, a
   change on its requester's held branch (`forge.md`, 8.1), holds none:
@@ -210,6 +252,41 @@ red by earlier failures it does not run (5.3).
   log (skein's `Read::Job`). The goal repairs it as it makes any change;
   that change names the red landing (`repairs`), and its own landing
   repairs it when a later run passes the failures.
+- **A member's goal** is its change's requester's tracked ancestor, the
+  goal its landings' news reaches (`forge.md`, 7.2): the news goes
+  through that goal's subscription to the landings on the branch the
+  landing went into, once per goal, as the verdict that reddens the
+  landing is kept, and wakes it, whatever its overlap (`forge.md`,
+  7.3). A goal with no such subscription left is told nothing.
+- **The news's words:** `Red after landing: tier NAME run N blames
+  landing COMMIT on BRANCH: K failing.`, the landing's commit whole,
+  then each failing test blamed on it, one per line ("many" past
+  `failing_tests`), then `Run: URL`, then each failed job's log's end,
+  headed `End of job NAME's log:`. The failed jobs are those of the
+  run's last part that failed; their logs' ends share the forge's
+  `brief_bytes`, and a job whose log cannot be read is named with
+  `[no log]`. The root cuts the whole to the deployment's
+  `tasks.message_bytes`, the logs' ends first.
+- **`repairs`** (`agent.md`, 4.3.1): the change names the red landing by
+  its commit, checked by the root as it decides the delegate (a landing
+  of temper's in the change's repository, on its landing branch, red in
+  some tier), and kept with the change. When a later run of a tier
+  passes the failures blamed on the red landing (5.3), the landing is
+  cleared in that tier, repaired by the newest landing in that run's
+  range whose change names it, or by the run alone when none does. The
+  red landing's changes' results name the landing that repaired it
+  (section 6): `Cleared by NAME run N, which passed the failures blamed
+  on it; repaired by COMMIT.`, twelve digits of the repairing landing's
+  commit.
+- **A red of a tier following goal branches** (5.4) goes to the goal
+  holding the branch, through its subscription to the landings on that
+  branch, as news: `Red on BRANCH: tier NAME run N at COMMIT: K new, J
+  still failing.`, then each failing test, one per line, prefixed `new:`
+  or `still failing:`, then `Run: URL` and the failed jobs' logs' ends,
+  as above. It wakes the goal when a test is new, and is kept for its
+  next run otherwise. Nothing names it: the goal repairs it with any
+  change into its branch, or amends the live change that owns the
+  failing files (`../draft/reference-code-production.md`, section 10).
 - **Others go on.** Landings keep landing, and their verdicts do not
   count the inherited failures. A project's setting may pause new turns
   (or queue merges) into that repository while one of its landings is
@@ -302,13 +379,17 @@ red by earlier failures it does not run (5.3).
   flight, its last judged tip and failures, its flakes, the reds of no
   goal's until findings take them (section 7), with a count of those
   dropped past their bound, and a held run's last fault (section 3);
+  for a tier following goal branches, each goal branch it follows,
+  with its goal, its last run's tip, failures and start, and the branch
+  its run in flight is for, within the forge's `holds`;
   `Verification`, keyed by repository and landing commit, for temper's
   own landings alone, made with the landing's `Landed` row and erased
   when its last change closes, so bounded by `changes`: the changes it
   landed, each tier's verdict (cleared, owns failures, or suspected of
   them), the failures blamed on it and the commit that repaired it; the
   `Change` family's landed state means verifying, and `Red` and
-  `Cleared` join it. Through the baseline's rules (`landing.md`, section
+  `Cleared` join it; a change keeps the commit of the red landing it
+  repairs (`repairs`). Through the baseline's rules (`landing.md`, section
   12).
 - **The landing log,** a family of its own, `LandingLog`, per adopted
   repository: its last `landings_kept` landings, each with its commit,
@@ -329,7 +410,7 @@ red by earlier failures it does not run (5.3).
 ## 11. Settings
 
 Beside kind 5's gates, each repository's tiers, each with the branch
-it follows (section 2); with kind 4, the
+it follows, or goal branches, and its span (section 2); with kind 4, the
 project's `tier_retries` (2), `verification_bound` (two hours), several
 suspects' rule (`bisect` or `tell all`), and whether a red pauses its
 repository (no). Until the kinds are settings, the tiers,
@@ -360,6 +441,17 @@ with failing tests by id and uploading their artifacts:
 - **a branch no tier follows:** a change landing into a goal's own
   branch, in a repository whose tiers follow main, is cleared as it
   lands, and the move starts no run;
+- **g's tier,** a tier following goal branches, its span 20 minutes:
+  two changes landing into a goal's branch within the span are each
+  cleared as they land, and one run starts at the newest tip once the
+  span has passed; a red reruns, and what fails again reaches the goal
+  holding the branch as news, its test marked new, waking it; the next
+  run failing the same test sends it marked still failing, kept; a
+  green says nothing; a goal's branch no change landed into is never
+  run;
+- **a red to its goal:** a red of main's tier blamed on a goal's
+  landing reaches that goal as news, waking it, with the failing tests,
+  the run and each failed job's log's end;
 - **under queue and by turn,** the same stories.
 - **The reference case** (`../draft/reference-case.md`): these mechanics
   open its steps 25 to 27, a red of main's tier triaged and repaired by
