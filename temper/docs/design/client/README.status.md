@@ -29,3 +29,12 @@
   as ready, where it shows `ConnectModel`'s Choose. 3.5, With no project
   yet: its heading, words and acts; `pages/chats.rs` draws the list
   alone.
+  3.5, 5.1, 5.6: the chats page's pane, "Project", with the new chat's
+  bar, the level-1 heading "Chats" and the playground's banner in it,
+  the composer beside it, its line under it, its placeholder and
+  hint's words, and the context line there OWNER/NAME alone;
+  `pages/chats.rs` draws one column, the playground's invitation and
+  "Scripted model" in it, and `root.rs` the playground's banner above
+  every main. 5.1: the switcher, "Set up temper" in the banner's
+  corner, and no accounts' banner while the playground runs or is
+  leaving; `frame.rs` draws every project as a button of "Menu".
