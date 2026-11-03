@@ -1,5 +1,6 @@
 //! A connected Forgejo's one-shot bot tokens (temper/docs/design/client/forge.md, 5.4).
 use super::{Limits, Request, Served, Side, forges, github};
+use alloc::boxed::Box;
 use jig_client::{Ask, Event, Family, Key, Told, contract as c};
 use skein_lib::{Queue, Secret};
 use temper_client_protocol_wire::{self as wire, v1 as w};
@@ -64,11 +65,22 @@ impl Draft {
         }
     }
 }
+/// What a sent connect has seen of its forge's row: the stop that empties the fields
+/// again is its own (temper/docs/design/client/forge.md, 5.4).
+#[derive(Debug, PartialEq, Eq)]
+enum Seen {
+    /// Not yet stopped or connected: the row's stop and its last connect's words, as last delivered.
+    Open { stopped: bool, ended: Option<Box<[u8]>> },
+    /// Stopped once, connected, or answered without a connect: no later row empties the fields.
+    Settled,
+}
 #[derive(Debug)]
+#[expect(clippy::partial_pub_fields, reason = "the view reads the connect's presentation; its seen row stays private")]
 pub struct Pending {
     pub forge: u16,
     pub key: Key,
     pub answer: Option<github::Answer>,
+    seen: Seen,
 }
 pub(crate) fn busy(side: &Side) -> bool {
     match &side.tokens {
@@ -114,14 +126,18 @@ fn send_target(side: &mut Side, limits: Limits, forge: u16, place: Option<forges
     if busy(side) || side.served == Served::OutOfDate {
         return;
     }
-    if forge != 0 {
+    let seen = if forge != 0 {
         let Some(row) = super::connect::row(forge, &side.forges, super::connect::playground(side)) else { return };
         if !offered(row) {
             return;
         }
-    } else if !forges::can_make(side) || side.playground_running() || place.is_none() {
-        return;
-    }
+        Seen::Open { stopped: stop(row), ended: row.ended.clone() }
+    } else {
+        if !forges::can_make(side) || side.playground_running() || place.is_none() {
+            return;
+        }
+        Seen::Open { stopped: false, ended: None }
+    };
     let draft = &mut side.tokens_form;
     draft.checked = true;
     if !draft.has(Field::Api) || !draft.has(Field::Git) || draft.too_long {
@@ -158,7 +174,7 @@ fn send_target(side: &mut Side, limits: Limits, forge: u16, place: Option<forges
         b"temper-tokens",
         &crate::key::Name::new(skein_lib::Decimal::of(side.serial).as_bytes()).expect("serial fits"),
     );
-    side.tokens = Some(Pending { forge, key, answer: None });
+    side.tokens = Some(Pending { forge, key, answer: None, seen });
     out.push(Request::Client { asked: Event::Carry { key, name, request, value: Some(value) } });
     side.changed();
 }
@@ -186,7 +202,17 @@ pub(crate) fn told(side: &mut Side, client: &jig_client::Client, told: &Told, li
         | Told::Page { .. } => return false,
     };
     if pending.answer.is_none() {
-        pending.answer = Some(answer.unwrap_or(github::Answer::Unknown));
+        let answer = answer.unwrap_or(github::Answer::Unknown);
+        match &answer {
+            github::Answer::Connecting | github::Answer::Unknown => {}
+            github::Answer::Link(_)
+            | github::Answer::Page(_)
+            | github::Answer::NoAccess
+            | github::Answer::NotFound
+            | github::Answer::Refused(_)
+            | github::Answer::Entrance(_) => pending.seen = Seen::Settled,
+        }
+        pending.answer = Some(answer);
         side.tokens_form.clear();
         if pending.forge == 0
             && pending.answer == Some(github::Answer::Connecting)
@@ -201,33 +227,40 @@ pub(crate) fn told(side: &mut Side, client: &jig_client::Client, told: &Told, li
     true
 }
 pub(crate) fn stopped(side: &mut Side) {
-    let forges::State::Rows(rows) = &side.forges else { return };
-    for row in rows {
-        if row.kind != forges::Kind::Forgejo || row.mode != forges::Mode::Connected {
-            continue;
+    let Some(pending) = &mut side.tokens else { return };
+    if pending.forge == 0 {
+        return;
+    }
+    let Some(row) = super::connect::row(pending.forge, &side.forges, None) else { return };
+    let Seen::Open { stopped, ended } = &pending.seen else { return };
+    let now = stop(row);
+    if now && (!stopped || row.ended != *ended) {
+        side.tokens_form.clear();
+        if pending.answer.is_none() {
+            pending.answer = Some(github::Answer::Connecting);
         }
-        if let Some(pending) = &side.tokens
-            && pending.forge != row.number
-        {
-            continue;
-        }
-        let stopped = match row.connection {
-            forges::Connection::Stopped { .. } => true,
-            forges::Connection::NotConnected => row.ended.is_some(),
-            forges::Connection::NotSetUp
+        pending.seen = Seen::Settled;
+    } else {
+        pending.seen = match row.connection {
+            forges::Connection::Connected { .. } => Seen::Settled,
+            forges::Connection::Stopped { .. }
+            | forges::Connection::NotConnected
+            | forges::Connection::NotSetUp
             | forges::Connection::SettingUp { .. }
             | forges::Connection::SetUpFailed { .. }
-            | forges::Connection::Connecting
-            | forges::Connection::Connected { .. } => false,
+            | forges::Connection::Connecting => Seen::Open { stopped: now, ended: row.ended.clone() },
         };
-        if stopped {
-            side.tokens_form.clear();
-            if let Some(pending) = &mut side.tokens
-                && pending.answer.is_none()
-            {
-                pending.answer = Some(github::Answer::Connecting);
-            }
-        }
+    }
+}
+fn stop(row: &forges::Row) -> bool {
+    match row.connection {
+        forges::Connection::Stopped { .. } => true,
+        forges::Connection::NotConnected => row.ended.is_some(),
+        forges::Connection::NotSetUp
+        | forges::Connection::SettingUp { .. }
+        | forges::Connection::SetUpFailed { .. }
+        | forges::Connection::Connecting
+        | forges::Connection::Connected { .. } => false,
     }
 }
 

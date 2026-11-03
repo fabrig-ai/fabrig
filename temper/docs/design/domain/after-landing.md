@@ -232,7 +232,12 @@ a fault is a fault (section 3).
 - **Its result is given at cleared,** naming the landing and, for a red
   one, the landing that repaired it. Its goal waits for it as for any
   delegate's result; a coordinator that goes on sooner does not wait,
-  and still hears the verdict as news.
+  and still hears the verdict as news. Each tier's clearing line says
+  `Cleared by TIER run N.`, using the landing's retained verdict even
+  after its tier task retires or another run judges a later tip. A
+  repaired tier names its repairing run, `Cleared by TIER run N, which
+  passed the failures blamed on it.` The result is composed before the
+  landing's last verification row is released.
 - **The bound:** past the project's `verification_bound` (two hours by
   default) with no verdict, because the runner was faulty or down, the
   change ends landed and uncleared, saying so, and its goal is told. A

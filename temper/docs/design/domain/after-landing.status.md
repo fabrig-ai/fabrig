@@ -13,13 +13,8 @@
   and no red pauses its repository. 5.3, 6: a red landing is cleared by
   a later run that passes its failures, never repaired by a landing
   that names it, since no change names its red (7), so its result names
-  no landing that repaired it. 6: a cleared change's result names a
-  tier's run only while that tier's task lives and its last judged tip
-  is the landing's commit, the tier alone otherwise, though the
-  landing's `Verification` row keeps the run
-  (`temper-engine-domain/src/route/forge_route.rs`, `tier_landing_run`);
-  a verdict is news to no goal; and a verdict after the bound, or after
-  a verifying change is cancelled, reaches no one: the `Verification`
+  no landing that repaired it. 6: a verdict is news to no goal; and a
+  verdict after the bound, or after a verifying change is cancelled, reaches no one: the `Verification`
   row goes with the landing's last change, and no landing log or red of
   no goal's keeps the landing's verdict. 7: no red reaches a goal, and
   none of no goal's is kept on the tier's record or counted when
@@ -30,9 +25,7 @@
   12: the stories of a documentation landing cleared at once by its
   receipt, the late red kept for findings, a repair naming its red,
   g's tier and a red to its goal;
-  by turn, one story, a change waiting for main's tier; five root
-  stories of a cleared result naming its run, one of them by turn, are
-  ignored (`tests/engine/domain/tests/suite/forge_routes/tiers.rs`).
+  by turn, one story, a change waiting for main's tier.
 - **Departs:** 10: a tier task holds the project's whole ceiling, not
   kinds 6, 7, 9, 16 and 17 alone, as a landing does (`landing.md`,
   section 11), because jig gives a procedure the deployment starts its
