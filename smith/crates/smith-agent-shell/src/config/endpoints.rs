@@ -67,7 +67,7 @@ pub(super) fn build_endpoints(
         let transport = endpoint_transport(&mut endpoint)?;
         let mut llm_endpoint = match declared.provider {
             shared::Provider::OpenAi => shared::Endpoint::openai(),
-            shared::Provider::OpenAiCodex => shared::Endpoint::codex(),
+            shared::Provider::OpenAiCodex => return Err("endpoint provider must be openai or anthropic".into()),
             shared::Provider::Anthropic => shared::Endpoint::anthropic(),
         };
         if let Some(authority) = endpoint.authority {
@@ -95,10 +95,7 @@ pub(super) fn build_endpoints(
             headers.push(Header { name: header.name.into_bytes().into(), value: header.value.into_bytes().into() });
         }
         llm_endpoint.headers = headers.into_boxed_slice();
-        let identity = endpoint_identity(endpoint.identity.as_deref())?;
-        if identity == llm::IdentityProfile::ClaudeCode && declared.provider != shared::Provider::Anthropic {
-            return Err(format!("LLM endpoints: {:?}", llm::EndpointError::Identity).into());
-        }
+        let identity = llm::IdentityProfile::Plain;
         domain_endpoints.push(run::charter::Endpoint(endpoint.number));
         channel_endpoints
             .push(smith_protocol_translate::Endpoint {
@@ -204,14 +201,6 @@ fn endpoint_duration(millis: u64, endpoint: u32, field: &'static str) -> Result<
     duration(millis, LimitName { layer: Layer::Policy, field, per: Per::Endpoint(endpoint) })
 }
 
-fn endpoint_identity(value: Option<&str>) -> Result<llm::IdentityProfile, ConfigurationRefusal> {
-    match value {
-        None | Some("plain") => Ok(llm::IdentityProfile::Plain),
-        Some("claude-code") => Ok(llm::IdentityProfile::ClaudeCode),
-        Some(_) => Err("endpoint identity must be plain or claude-code".into()),
-    }
-}
-
 fn reasoning_policy(value: Option<&str>) -> Result<llm::OversizedReasoning, ConfigurationRefusal> {
     match value {
         None | Some("fail") => Ok(llm::OversizedReasoning::Fail),
@@ -225,14 +214,16 @@ pub(super) fn build_models(endpoint: &Endpoint) -> Result<service::profile::Endp
     let models = &endpoint.models;
     let (provider, dialect) = match endpoint.provider.as_str() {
         "openai" => (shared::Provider::OpenAi, 3),
-        "codex" => (shared::Provider::OpenAiCodex, 1),
         "anthropic" => (shared::Provider::Anthropic, 2),
-        _ => return Err("endpoint provider must be openai, codex or anthropic".into()),
+        _ => return Err("endpoint provider must be openai or anthropic".into()),
     };
+    if endpoint.dialect == 1 {
+        return Err("endpoint provider must be openai or anthropic".into());
+    }
     if endpoint.dialect != dialect {
         return Err("endpoint dialect does not match provider".into());
     }
-    let identity = endpoint_identity(endpoint.identity.as_deref())?;
+    let identity = llm::IdentityProfile::Plain;
     let option_bytes = llm::endpoint_own(identity).map_err(|_| {
         ConfigurationRefusal::Profile(Refusal::Derived {
             limit: LimitName { layer: Layer::Service, field: "endpoint_own", per: Per::Endpoint(number) },
