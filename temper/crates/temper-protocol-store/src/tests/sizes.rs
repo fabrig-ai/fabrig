@@ -2,10 +2,10 @@ use super::fixtures;
 use crate::{Undecodable, application, keys, records};
 use temper_engine_domain_forge as forge;
 
-// ChangeRow includes its 512-byte report, a four-byte foreman charter and 1,061,337 question bytes:
+// ChangeRow includes its 512-byte report, a four-byte foreman charter and 20,953 question bytes:
 // route (1), taken (4), count (4), and sixteen entries of asker (8), number (8),
-// line (4 + 256), whole words (4 + 65,536), stands (1) and held answer (4 + 512).
-const APPLICATION_ROW_BYTES: u32 = 1_180_533;
+// line (4 + 256), whole words (4 + 512), stands (1) and held answer (4 + 512).
+const APPLICATION_ROW_BYTES: u32 = 140_149;
 
 #[test]
 fn the_application_sizes_are_the_largest_key_and_row() {
