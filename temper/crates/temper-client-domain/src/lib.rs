@@ -18,6 +18,7 @@ pub mod key;
 pub mod limits;
 pub mod owner;
 pub mod pages;
+pub mod public;
 mod route;
 pub mod sign_in;
 pub mod words;
