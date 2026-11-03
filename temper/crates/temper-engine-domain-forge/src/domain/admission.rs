@@ -220,7 +220,9 @@ pub(super) fn read_failed(
                 None => Read::PullFor { head: row.branch.clone(), base: row.base.clone() },
             },
         ),
-        StepStage::Ci | StepStage::BaseCi | StepStage::Compare | StepStage::Reviews(_) => return false,
+        StepStage::Ci | StepStage::BaseCi | StepStage::Compare | StepStage::CatchUp | StepStage::Reviews(_) => {
+            return false;
+        }
     };
     let error = match (pending.stage, result) {
         (StepStage::Branch | StepStage::Base, Ok(Answer::Commit(_)))
