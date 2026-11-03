@@ -377,7 +377,7 @@ impl Endpoint {
             encoding: Encoding::Identity,
         }
     }
-    /// Anthropic Messages, authenticated with a key or a bearer.
+    /// Anthropic Messages, authenticated with a key.
     #[must_use]
     pub fn anthropic() -> Endpoint {
         Endpoint {
@@ -433,11 +433,6 @@ impl Credential {
     #[must_use]
     pub fn codex(value: Box<[u8]>, account_id: Box<[u8]>) -> Credential {
         Credential { value, scheme: Scheme::Bearer, account_id }
-    }
-    /// Uses the withdrawn Anthropic bearer; removed by the second part of LLM accounts.
-    #[must_use]
-    pub fn anthropic(value: Box<[u8]>) -> Credential {
-        Self::bearer(value)
     }
 }
 /// One owner-correlated request. Admission consumes it whether accepted or rejected.

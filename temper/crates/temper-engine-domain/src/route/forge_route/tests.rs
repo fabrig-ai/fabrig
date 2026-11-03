@@ -485,7 +485,7 @@ fn a_ci_repair_keeps_its_failed_step_and_log_end_before_pull_contents_and_option
         }
         wanted.push(Planned::Core { kind, text: text.finish(), limit: size, priority, required }).unwrap();
     }
-    crate::assemble::finish_brief_plan(&mut domain, &env, 8, Some(7), wanted);
+    crate::assemble::finish_brief_plan(&mut domain, &env, 8, Some(7), wanted, Box::new([]));
     let mut gathered = None;
     while let Some(work) = domain.work.pop() {
         if let Work::Brief(GatherEvent::Plan { budget, sections, .. }) = work {
@@ -565,7 +565,7 @@ fn a_github_repair_prepares_when_the_ci_ceiling_fills_the_brief() {
             required: true,
         })
         .unwrap();
-    crate::assemble::finish_brief_plan(&mut domain, &env, 8, Some(7), wanted);
+    crate::assemble::finish_brief_plan(&mut domain, &env, 8, Some(7), wanted, Box::new([]));
     let limits = crate::limits::brief_limits(&env.limits.brief);
     let gather_env = Env { now: env.now, wall: env.wall, limits };
     let mut gather = GatherDomain::new(&limits);
@@ -580,11 +580,11 @@ fn a_github_repair_prepares_when_the_ci_ceiling_fills_the_brief() {
     assert_eq!(out.len(), 2, "gather both required forge sections");
     for _ in 0..out.len() {
         let Some(GatherRequest::Gather { section, budget: 512, .. }) = out.pop() else { panic!("bounded forge read") };
-        let kind = domain.brief_connectors.get(Id::from_token(section)).unwrap().kind;
+        let kind = domain.brief_connectors.get(Id::from_token(section)).unwrap().kind.clone();
         let size = match kind {
             ForgeBriefKind::Pull => pull.len(),
             ForgeBriefKind::Ci => ci.len(),
-            ForgeBriefKind::Home | ForgeBriefKind::Reviews => panic!("pull and CI only"),
+            ForgeBriefKind::Home | ForgeBriefKind::Reviews | ForgeBriefKind::Document(_) => panic!("pull and CI only"),
         };
         gather_step(
             &mut gather,

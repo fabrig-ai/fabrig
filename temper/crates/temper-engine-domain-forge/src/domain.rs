@@ -193,6 +193,8 @@ pub struct Domain {
     pub(crate) brief_reclaim: u64,
     pub(crate) brief_fetches: Map<Token, brief::BriefFetch>,
     brief_planned: Map<Token, crate::BriefSource>,
+    pub(crate) brief_documents: Map<Token, Box<crate::BriefDocument>>,
+    pub(crate) document_fetches: Map<Token, crate::brief_document::Fetch>,
     pub(crate) brief_pending: Map<Token, held::Pending>,
     pub(crate) brief_held: Map<Token, held::Held>,
     judges: crate::Judges,
@@ -503,6 +505,7 @@ impl Domain {
     }
     /// Construct a connector with the deployment namespace and any writers
     /// known at start; invalid limits or writer configuration are refused.
+    #[expect(clippy::too_many_lines, reason = "the connector's bounded state is initialized together")]
     pub fn new(
         l: &Limits,
         seed: u64,
@@ -600,6 +603,8 @@ impl Domain {
             brief_reclaim: 0,
             brief_fetches: Map::with_capacity(l.brief_sections),
             brief_planned: Map::with_capacity(l.brief_sections),
+            brief_documents: Map::with_capacity(l.brief_sections),
+            document_fetches: Map::with_capacity(l.brief_sections),
             brief_pending: Map::with_capacity(l.brief_sections),
             brief_held: Map::with_capacity(l.brief_sections),
             judges: crate::Judges::empty(l.judge_projects),
@@ -759,6 +764,8 @@ impl Domain {
     #[must_use]
     pub fn briefs_idle(&self) -> bool {
         self.brief_fetches.is_empty()
+            && self.document_fetches.is_empty()
+            && self.brief_documents.is_empty()
             && self.brief_planned.is_empty()
             && self.brief_pending.is_empty()
             && self.brief_held.is_empty()
@@ -1262,6 +1269,13 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 emit(out, Request::Erase { key: Key::Issue(goal) });
             }
         }
+        Event::PlanDocument { section, document } => {
+            assert!(
+                d.brief_planned.insert(section, crate::BriefSource::Document) == Ok(None),
+                "one bounded planned section"
+            );
+            assert!(d.brief_documents.insert(section, document) == Ok(None), "one bounded planned document");
+        }
         Event::PlanBrief { section, source } => {
             assert!(d.brief_planned.insert(section, source) == Ok(None), "one bounded planned section");
         }
@@ -1271,12 +1285,14 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 return;
             };
             let max_job_bytes = match source {
+                crate::BriefSource::Document => env.limits.client.answer_bytes,
                 crate::BriefSource::Ci { .. } => env.limits.client.answer_bytes.min(ci_budget / 5).max(1),
                 crate::BriefSource::Home { .. }
                 | crate::BriefSource::Reviews { .. }
                 | crate::BriefSource::Pull { .. } => 0,
             };
             held::gather(d, section, source, parts, bytes, max_job_bytes, env.limits.brief_bytes, out);
+            d.brief_documents.remove(&section);
             brief::set_deadline(d, section, deadline);
         }
         Event::GatherBrief { owner, source, parts, bytes, max_job_bytes } => {
@@ -1289,6 +1305,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::TakeBrief { section } => held::take(d, section, out),
         Event::DropBrief { section } => {
             d.brief_planned.remove(&section);
+            d.brief_documents.remove(&section);
             held::drop_section(d, section);
             brief::drop_section(d, section);
         }
@@ -1643,7 +1660,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                     crate::landing::answered(d, env, owner, result, out);
                 } else if d.capabilities.contains_key(&owner) {
                     crate::capabilities::answered(d, env, owner, result, out);
-                } else if d.brief_fetches.contains_key(&owner) {
+                } else if d.brief_fetches.contains_key(&owner) || d.document_fetches.contains_key(&owner) {
                     brief::brief_answer(d, owner, result, out);
                 } else if d.adoptions.contains_key(&owner) {
                     adoption::adoption_read(d, env, owner, result, out);

@@ -104,6 +104,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::Application { .. }
             | forge::Event::ApplicationAnswered { .. }
             | forge::Event::ForgetProjection { .. }
+            | forge::Event::PlanDocument { .. }
             | forge::Event::PlanBrief { .. }
             | forge::Event::GatherPlanned { .. }
             | forge::Event::GatherBrief { .. }

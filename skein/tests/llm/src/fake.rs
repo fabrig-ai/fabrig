@@ -797,7 +797,7 @@ mod tests {
             }
             Provider::Anthropic => {
                 input.endpoint = Endpoint::anthropic();
-                input.credential = Some(Credential::anthropic(b"fake-token".as_slice().into()));
+                input.credential = Some(Credential::key(b"fake-token".as_slice().into()));
                 input.prompt.affinity = None;
             }
         }

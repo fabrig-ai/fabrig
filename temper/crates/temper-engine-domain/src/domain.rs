@@ -78,6 +78,7 @@ pub struct Domain {
     pub(crate) core_header_loaded: bool,
     pub(crate) restored_commits: Option<u64>,
     pub(crate) brief_connectors: Slab<BriefConnector>,
+    pub(crate) brief_document_titles: Map<u64, Box<[Box<[u8]>]>>,
     pub(crate) forge_briefs: Map<Token, BriefSection>,
     pub(crate) run_workspaces: Map<u64, PreparedWorkspace>,
     pub(crate) forge: forge::Domain,
@@ -466,6 +467,7 @@ impl Domain {
                     .checked_mul(2)
                     .expect("validated brief connector room"),
             ),
+            brief_document_titles: Map::with_capacity(limits.brief.briefs),
             forge_briefs: Map::uncapped(),
             run_workspaces: Map::with_capacity(limits.tasks.tasks),
             forge,
@@ -586,6 +588,7 @@ impl Domain {
             && self.forge_effecting.is_empty()
             && self.forge_effects.is_empty()
             && self.brief_connectors.is_empty()
+            && self.brief_document_titles.is_empty()
             && !self.forge.is_ready()
     }
 

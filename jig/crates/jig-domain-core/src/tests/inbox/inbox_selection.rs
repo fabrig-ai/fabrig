@@ -909,7 +909,8 @@ fn inbox_context_memory_prices_every_reserved_container_and_complete_document_en
     // Four older held revision heads, each with its holder count, add 288 bytes.
     // Sixteen retained specification lines carry eight aligned bytes for asks.
     // Each line also carries an eight-byte job spec pointer.
-    const SETTINGS_DOCUMENT: u64 = 120_496 + 4 * 72 + 16 * 8 + 16 * 8;
+    // Two value sets each price one charter's two documents at 440 bytes apiece.
+    const SETTINGS_DOCUMENT: u64 = 120_528 + 4 * 72 + 16 * 8 + 16 * 8 + 2 * 2 * 440;
 
     let (mut core, limits) = fixture();
     waiting(

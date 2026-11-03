@@ -1,4 +1,5 @@
 //! Runs tests.
+pub(in crate::tests) mod brief_documents;
 pub(in crate::tests) mod brief_revisions;
 pub(in crate::tests) mod closed_unread;
 pub(in crate::tests) mod completion_retry;

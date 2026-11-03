@@ -198,21 +198,16 @@ fn scripted_evidence_reaches_the_report_or_arrives_empty() {
 
 #[test]
 fn a_reset_reaches_exhausted_in_whole_seconds_rounded_up() {
-    for provider in [Provider::OpenAiCodex, Provider::Anthropic] {
-        let mut world = exchange(
-            provider,
-            failing(api::Error::Exhausted { retry_after: Some(Duration::from_millis(1500)) }, api::Report::none()),
-        );
-        world.at(Time::ZERO, Wall::from_nanos(100_700_000_000));
-        world.start();
-        world.run();
-        assert_eq!(
-            terminal(&world).0,
-            Failure::Exhausted { retry_after: Some(Duration::from_secs(2)) },
-            "{provider:?}"
-        );
-        assert!(!world.responses.windows(b"retry-after".len()).any(|bytes| bytes.eq_ignore_ascii_case(b"retry-after")));
-    }
+    let provider = Provider::OpenAiCodex;
+    let mut world = exchange(
+        provider,
+        failing(api::Error::Exhausted { retry_after: Some(Duration::from_millis(1500)) }, api::Report::none()),
+    );
+    world.at(Time::ZERO, Wall::from_nanos(100_700_000_000));
+    world.start();
+    world.run();
+    assert_eq!(terminal(&world).0, Failure::Exhausted { retry_after: Some(Duration::from_secs(2)) }, "{provider:?}");
+    assert!(!world.responses.windows(b"retry-after".len()).any(|bytes| bytes.eq_ignore_ascii_case(b"retry-after")));
 }
 
 #[test]

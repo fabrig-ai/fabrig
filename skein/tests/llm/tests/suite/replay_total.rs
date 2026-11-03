@@ -26,7 +26,7 @@ fn standard_client_preparation_stays_under_the_peak_ceiling() {
         let mut input = call(1);
         if provider == Provider::Anthropic {
             input.endpoint = skein_llm::Endpoint::anthropic();
-            input.credential = Some(skein_llm::Credential::anthropic(b"fixture".as_slice().into()));
+            input.credential = Some(skein_llm::Credential::key(b"fixture".as_slice().into()));
         }
         let span = skein_heap::Span::start();
         let prepared = client::Client::prepare(input, &bounds).expect("standard client prepares");

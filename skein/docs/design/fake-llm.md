@@ -132,16 +132,8 @@ answer ownership is checked before effects or payload copies.
 - **A reset, per route.** On the public and the withdrawn Codex routes,
   `Exhausted`'s reset goes in the error's `resets_in_seconds`, in whole
   seconds rounded up, never in `retry-after`, before a stream as in
-  `response.failed`. On Anthropic only the withdrawn bearer route
-  carries one: the reply's head gives
-  `anthropic-ratelimit-unified-status: rejected` and
-  `anthropic-ratelimit-unified-reset`, the reply's wall time in whole
-  seconds since the epoch plus the reset rounded up to whole seconds
-  (llm.md, section 4.7). Such a line must answer before any stream and
-  fail bearers alone: on Anthropic it is refused at configuration where
-  a line of its turn that is not a failing line comes before it, or
-  where it names no credential or a key's index, and `Peer::accept`
-  refuses a key at an index such a line names.
+  `response.failed`. Anthropic's `Exhausted` has no reset; a script that
+  supplies one is refused at configuration (llm.md, section 4.7).
 - **A class needs its row.** A class has a row on a route where the
   route's section names an error for it, not a status alone; a failing
   line of a class without one on its peer's route is refused at
@@ -247,8 +239,8 @@ accepted before the peer serves its first request, and none after. Each
 entry receives the accepted credentials, borrowed. A request is
 authorized when it presents one of them as its route sends it: on
 Responses, either scheme as `Authorization: Bearer`; on Anthropic, a key
-as `x-api-key` and a bearer as `Authorization` (the withdrawn route,
-llm.md, section 4.7), never both. A peer whose wire configuration takes
+as `x-api-key`; the peer refuses a bearer on Anthropic, as the client does
+(llm.md, section 4.7). A peer whose wire configuration takes
 calls with no credential, as a local model's server does, also
 authorizes a request that presents no credential field (llm.md, section
 2.6); that configuration is the public route's or Anthropic's, and

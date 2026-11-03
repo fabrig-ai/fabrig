@@ -284,7 +284,7 @@ fn native_and_actual_client_request_bounds_charge_complete_escaped_history() {
 fn anthropic_history(arguments: &[u8]) -> Call {
     let mut input = history(arguments);
     input.endpoint = skein_llm::Endpoint::anthropic();
-    input.credential = Some(skein_llm::Credential::anthropic(b"caller-token".as_slice().into()));
+    input.credential = Some(skein_llm::Credential::key(b"caller-token".as_slice().into()));
     input.prompt.max_output_tokens = Some(32);
     input
 }

@@ -27,6 +27,7 @@ fn model() -> core::Model {
 }
 fn charter() -> core::Charter {
     core::Charter {
+        documents: Box::new([]),
         number: 1,
         hosts: fleet::Kinds::Both,
         spend: 100,
@@ -337,4 +338,185 @@ fn job_delegation_kinds_round_trip_in_settings() {
     };
     let bytes = codec::settings::encode(&row, &limits.settings, &[]).unwrap();
     assert_eq!(codec::settings::decode(&row.key(), &bytes, &limits.settings, &[]), Ok(row));
+}
+
+fn document_domain() -> core::Limits {
+    let mut domain = fixtures::CORE_LIMITS;
+    domain.authority.segments = 8;
+    domain.authority.segment_bytes = 4096;
+    domain.tasks.hold_bytes = 4096;
+    domain
+}
+
+fn charter_with_documents() -> core::Charter {
+    let domain = document_domain();
+    let mut segments = skein_lib::List::with_capacity(domain.authority.segments);
+    for _ in 0..domain.authority.segments {
+        segments.push(Box::<[u8]>::from([b'n'; 4096])).unwrap();
+    }
+    let document = core::Document {
+        connector: 7,
+        name: a::Name { segments: segments.into_boxed() },
+        path: Box::new([b'p'; 256]),
+        heading: Some(Box::new([b'h'; 80])),
+    };
+    let mut without_heading = document.clone();
+    without_heading.connector = 9;
+    without_heading.heading = None;
+    core::Charter { documents: Box::new([document, without_heading]), ..charter() }
+}
+
+fn document_records(charter: core::Charter) -> [s::Record; 6] {
+    let setting = s::Setting::Charter(charter.number);
+    let value = s::Value::Charter(Box::new(charter.clone()));
+    let items = Box::new([s::Item { setting, edit: s::Edit::Set(value.clone()) }]);
+    let revision = s::Revision {
+        head: s::Head {
+            number: 2,
+            against: 1,
+            at: Wall::from_nanos(10),
+            by: s::Decider::Party(3),
+            proposal: None,
+            moved: false,
+        },
+        items: items.clone(),
+    };
+    [
+        s::Record::Default { setting, default: s::Default { value: value.clone(), revision: 2 } },
+        s::Record::Changed { setting, changed: s::Changed { value: Some(value), revision: 2 } },
+        s::Record::Charter {
+            charter: charter.number,
+            revision: 2,
+            value: s::CharterVersion { charter: Some(Box::new(charter)) },
+        },
+        s::Record::Revision { history: false, revision: revision.clone() },
+        s::Record::Revision { history: true, revision },
+        s::Record::Proposal {
+            proposer: people::Proposer::Party(3),
+            proposal: 4,
+            value: s::Proposal { against: 1, items },
+        },
+    ]
+}
+
+/// Documents stay with every stored charter value (jig/docs/design/domain/engine.md, 17.9).
+#[test]
+fn charter_documents_at_their_bounds_round_trip_in_every_settings_record() {
+    let limits = codec::settings::limits(&document_domain()).unwrap();
+    for row in document_records(charter_with_documents()) {
+        let bytes = codec::settings::encode(&row, &limits, &[]).unwrap();
+        assert_eq!(codec::settings::decode(&row.key(), &bytes, &limits, &[]), Ok(row));
+    }
+}
+
+// The generated encoder refuses these rows; write their document fields directly
+// to check that stored bytes past the bounds are refused at decode too.
+#[expect(clippy::disallowed_methods, reason = "ordinary tests construct stored bytes that the bounded encoder refuses")]
+fn assert_documents_refused(charter: core::Charter) {
+    let limits = codec::settings::limits(&document_domain()).unwrap();
+    for row in document_records(charter.clone()) {
+        assert_eq!(codec::settings::encode(&row, &limits, &[]).unwrap_err().reason, skein_codec::Reason::Bound);
+    }
+    let empty = s::Record::Charter {
+        charter: charter.number,
+        revision: 2,
+        value: s::CharterVersion {
+            charter: Some(Box::new(core::Charter { documents: Box::new([]), ..charter.clone() })),
+        },
+    };
+    let mut bytes = codec::settings::encode(&empty, &limits, &[]).unwrap().into_vec();
+    bytes.truncate(bytes.len().checked_sub(4).unwrap());
+    bytes.extend_from_slice(&u32::try_from(charter.documents.len()).unwrap().to_be_bytes());
+    for document in &charter.documents {
+        bytes.extend_from_slice(&document.connector.to_be_bytes());
+        bytes.extend_from_slice(&u32::try_from(document.name.segments.len()).unwrap().to_be_bytes());
+        for segment in &document.name.segments {
+            bytes.extend_from_slice(&u32::try_from(segment.len()).unwrap().to_be_bytes());
+            bytes.extend_from_slice(segment);
+        }
+        bytes.extend_from_slice(&u32::try_from(document.path.len()).unwrap().to_be_bytes());
+        bytes.extend_from_slice(&document.path);
+        match &document.heading {
+            None => bytes.push(0),
+            Some(heading) => {
+                bytes.push(1);
+                bytes.extend_from_slice(&u32::try_from(heading.len()).unwrap().to_be_bytes());
+                bytes.extend_from_slice(heading);
+            }
+        }
+    }
+    assert_eq!(
+        codec::settings::decode(&empty.key(), &bytes, &limits, &[]).unwrap_err().reason,
+        skein_codec::Reason::Bound
+    );
+}
+
+#[test]
+fn charter_documents_one_past_the_count_are_refused() {
+    let mut charter = charter_with_documents();
+    charter.documents =
+        Box::new([charter.documents[0].clone(), charter.documents[0].clone(), charter.documents[0].clone()]);
+    assert_documents_refused(charter);
+}
+
+#[test]
+fn charter_document_names_one_past_the_segments_are_refused() {
+    let mut charter = charter_with_documents();
+    let mut segments = skein_lib::List::with_capacity(9);
+    for _ in 0_u32..9 {
+        segments.push(Box::from(b"n".as_slice())).unwrap();
+    }
+    charter.documents[0].name.segments = segments.into_boxed();
+    assert_documents_refused(charter);
+}
+
+#[test]
+fn charter_document_segments_one_past_the_bytes_are_refused() {
+    let mut charter = charter_with_documents();
+    charter.documents[0].name.segments[0] = Box::new([b'n'; 4097]);
+    assert_documents_refused(charter);
+}
+
+#[test]
+fn charter_document_paths_one_past_the_bytes_are_refused() {
+    let mut charter = charter_with_documents();
+    charter.documents[0].path = Box::new([b'p'; 257]);
+    assert_documents_refused(charter);
+}
+
+#[test]
+fn charter_document_headings_one_past_the_bytes_are_refused() {
+    let mut charter = charter_with_documents();
+    charter.documents[0].heading = Some(Box::new([b'h'; 81]));
+    assert_documents_refused(charter);
+}
+
+#[test]
+fn charter_documents_obey_lowered_limits_in_every_settings_record() {
+    let domain = document_domain();
+    let limits = codec::settings::limits(&domain).unwrap();
+    let mut fewer_documents = domain;
+    fewer_documents.tasks.charter_documents -= 1;
+    let mut fewer_segments = domain;
+    fewer_segments.authority.segments -= 1;
+    let mut shorter_segments = domain;
+    shorter_segments.authority.segment_bytes -= 1;
+    let shorter_segments = codec::settings::limits(&shorter_segments).unwrap();
+    assert_eq!(shorter_segments.segment_bytes, limits.segment_bytes, "hold paths retain their byte bound");
+    for row in document_records(charter_with_documents()) {
+        let bytes = codec::settings::encode(&row, &limits, &[]).unwrap();
+        for lowered in [
+            codec::settings::limits(&fewer_documents).unwrap(),
+            codec::settings::limits(&fewer_segments).unwrap(),
+            shorter_segments,
+            crate::settings_v1::Limits { document_path: core::DOCUMENT_PATH_BYTES - 1, ..limits },
+            crate::settings_v1::Limits { document_heading_some: core::DOCUMENT_HEADING_BYTES - 1, ..limits },
+        ] {
+            assert_eq!(codec::settings::encode(&row, &lowered, &[]).unwrap_err().reason, skein_codec::Reason::Bound);
+            assert_eq!(
+                codec::settings::decode(&row.key(), &bytes, &lowered, &[]).unwrap_err().reason,
+                skein_codec::Reason::Bound
+            );
+        }
+    }
 }

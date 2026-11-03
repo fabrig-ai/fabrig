@@ -34,6 +34,7 @@ files = [
   "jig/tests/channel/src/worker_orders/probe.rs",
   "temper/crates/temper-service/src/worker.rs",
   "temper/crates/temper-service/src/tests/worker.rs",
+  "temper/crates/temper-service/src/tests/fixtures/startup.rs",
   "temper/crates/temper-worker-domain/src/translate.rs",
   "temper/crates/temper-worker-domain/src/tests/translate.rs",
   "temper/docs/design/domain/worker.md",
@@ -227,3 +228,15 @@ Pre-approved options:
 As the implementer's text says, and also: the goldens renamed and deleted (by `git diff
 --stat`); each version literal changed, by file; every reader edited outside smith, by file;
 what the acceptance's `rg` leaves.
+
+## Answers
+
+- 2026-11-03. May this task correct the channel-bound snapshot in
+  `temper/crates/temper-service/src/tests/fixtures/startup.rs`? Yes, option (a). Its acceptance
+  needs `temper-service --lib` to pass, and the fixture hardcodes v5's exact Start encoded
+  maximum, which v6 lowers by 8,216 bytes (eight grants, 1,027 bytes each, with the last grant
+  arm gone). The file joins `files`. Change only the three bounds, derived from v6's schema and
+  the fixture's unchanged field limits: `limits.start_bytes` and `limits.channel.skip`
+  72,113,866 -> 72,105,650; `limits.channel.output_bytes` 72,113,874 -> 72,105,658 (body plus
+  the eight-byte header). No other limit, budget or timeout moves. List the file in the report
+  with both maxima.

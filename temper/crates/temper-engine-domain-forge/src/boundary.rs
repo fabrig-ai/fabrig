@@ -20,9 +20,23 @@ pub struct BriefItem {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct BriefCommit(pub [u8; 32]);
 
+/// A charter's document to gather (temper/docs/design/protocol/configuration.md, 13.7).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct BriefDocument {
+    pub host: Box<[u8]>,
+    pub owner: Box<[u8]>,
+    pub name: Box<[u8]>,
+    /// The branch's segments joined by `/`.
+    pub branch: Box<[u8]>,
+    pub path: Box<[u8]>,
+    pub heading: Option<Box<[u8]>>,
+}
+
 /// Which forge context the connector owns for a brief.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum BriefSource {
+    /// A document at its branch head.
+    Document,
     /// Failed checks and their logs on a pinned head.
     Ci { item: BriefItem, head: BriefCommit },
     /// Reviews and remarks on a pinned head.
@@ -1280,6 +1294,11 @@ pub enum Event {
     /// Drop a projection only after the core has settled its closing feed.
     ForgetProjection {
         goal: u64,
+    },
+    /// Plan a charter document as a connector-owned section.
+    PlanDocument {
+        section: Token,
+        document: Box<BriefDocument>,
     },
     /// Keep a connector-owned section source while the core budgets its brief.
     PlanBrief {

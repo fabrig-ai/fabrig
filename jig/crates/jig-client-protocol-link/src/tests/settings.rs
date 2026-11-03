@@ -615,3 +615,43 @@ fn proposed_setting_read_round_trips_its_exact_proposal_key() {
     let wire = t::wire_read_setting(&client, limits.wire()).unwrap();
     assert_eq!(t::restore_read_setting(&wire), Ok(client));
 }
+
+#[test]
+fn charter_documents_round_trip_through_the_contract() {
+    let limits = Limits::new(jig_client_domain::Limits { rows: 8, ..*fixtures::limits().client() }, 4).unwrap();
+    let c::SettingValue::Charter(value) = values::settings_values().get(0).unwrap().clone() else {
+        panic!("charter");
+    };
+    let wire = t::wire_charter(&value, limits.wire()).unwrap();
+    assert_eq!(wire.documents().len(), 2);
+    assert_eq!(wire.documents().get(0).unwrap().heading(), &None);
+    assert_eq!(wire.documents().get(1).unwrap().heading().as_deref(), Some(b"Rules".as_slice()));
+    let restored = t::restore_charter(&wire).unwrap();
+    assert_eq!(restored, *value);
+    assert_eq!(t::wire_charter(&restored, limits.wire()), Ok(wire));
+}
+
+#[test]
+fn charter_documents_use_the_clients_row_and_name_bounds() {
+    let base = fixtures::limits();
+    let limits = Limits::new(jig_client_domain::Limits { rows: 2, segments: 2, text: 8, ..*base.client() }, 4).unwrap();
+    let c::SettingValue::Charter(mut value) = values::settings_values().get(0).unwrap().clone() else {
+        panic!("charter");
+    };
+    assert_eq!(limits.wire().charter_documents, 2);
+    assert_eq!(limits.wire().charter_document_name, 2);
+    assert_eq!(limits.wire().charter_document_name_item, 8);
+    let mut wire_limits = w::CEILINGS;
+    wire_limits.charter_documents = 2;
+    wire_limits.charter_document_name = 2;
+    wire_limits.charter_document_name_item = 8;
+    t::wire_charter(&value, &wire_limits).unwrap();
+    *value.documents.get_mut(0).unwrap().name.get_mut(0).unwrap() = Box::from(b"123456789".as_slice());
+    assert_eq!(t::wire_charter(&value, &wire_limits).unwrap_err().path, w::Path::CharterDocumentName);
+    *value.documents.get_mut(0).unwrap().name.get_mut(0).unwrap() = Box::from(b"resource".as_slice());
+    wire_limits.charter_document_name = 1;
+    assert_eq!(t::wire_charter(&value, &wire_limits).unwrap_err().path, w::Path::CharterDocumentName);
+    wire_limits.charter_document_name = 2;
+    wire_limits.charter_documents = 1;
+    assert_eq!(t::wire_charter(&value, &wire_limits).unwrap_err().path, w::Path::CharterDocuments);
+}

@@ -1,5 +1,5 @@
-//! Real OAuth endpoints. Selected only by `cargo nextest run --profile live-skein`.
-//! Credentials come from the login files the caller names, read and never
+//! Real provider endpoints. Selected only by `cargo nextest run --profile live-skein`.
+//! Credentials come from the files the caller names, read and never
 //! written: no refreshes, retries, or alternate endpoints in this harness.
 use std::io::{Read as _, Write as _};
 use std::net::{Shutdown, TcpStream, ToSocketAddrs};
@@ -14,7 +14,7 @@ use skein_lib::stream::{Down, Read, Up};
 use skein_lib::{Env, Intake, Queue, Time, Token, Wall};
 use skein_llm::{
     Block, Call, Completion, Credential, Delta, Endpoint, Failure, Json, Message, Prompt, Provider, Role, Stop, Tool,
-    anthropic, client,
+    client,
 };
 
 // Environment input is intentional for this opt-in, nondeterministic suite.
@@ -33,8 +33,8 @@ struct Login {
 }
 /// Codex's `auth.json`, or a `CODEX_HOME` holding it.
 const CODEX: Login = Login { variable: "SKEIN_TEST_LIVE_OPENAI_AUTH", file: "auth.json" };
-/// Claude Code's `.credentials.json`, or a `CLAUDE_CONFIG_DIR` holding it.
-const CLAUDE_CODE: Login = Login { variable: "SKEIN_TEST_LIVE_ANTHROPIC_CREDENTIALS", file: ".credentials.json" };
+/// A plaintext Anthropic key file, readable by its owner alone.
+const ANTHROPIC_KEY: &str = "SKEIN_TEST_LIVE_ANTHROPIC_KEY";
 /// The longest login file the harness reads: one is a few kilobytes.
 const LOGIN_BYTES: u32 = 1 << 16;
 /// A login's grammar: no string or number is longer than its file, and a
@@ -49,8 +49,35 @@ const LOGIN_RETAINED: document::Limits = document::Limits { tokens: LOGIN_BYTES,
 /// and the field, never a value read from it.
 fn lent<const N: usize>(login: &Login, fields: [&[&str]; N]) -> [Box<[u8]>; N] {
     let variable = login.variable;
-    let named = setting(variable).unwrap_or_else(|| panic!("live profile requires {variable}"));
-    login_fields(Path::new(&named), login.file, fields).unwrap_or_else(|refusal| panic!("{variable}: {refusal}"))
+    let named = lent_path(variable);
+    login_fields(&named, login.file, fields).unwrap_or_else(|refusal| panic!("{variable}: {refusal}"))
+}
+fn lent_path(variable: &str) -> PathBuf {
+    PathBuf::from(setting(variable).unwrap_or_else(|| panic!("live profile requires {variable}")))
+}
+fn lent_key() -> Box<[u8]> {
+    key_file(&lent_path(ANTHROPIC_KEY)).unwrap_or_else(|refusal| panic!("{ANTHROPIC_KEY}: {refusal}"))
+}
+/// Read the owner's plaintext key once; refusals never include its bytes.
+fn key_file(path: &Path) -> Result<Box<[u8]>, String> {
+    use std::os::unix::fs::PermissionsExt as _;
+    let file = std::fs::File::open(path).map_err(|error| format!("{}: {error}", path.display()))?;
+    let metadata = file.metadata().map_err(|error| format!("{}: {error}", path.display()))?;
+    if !metadata.is_file() || metadata.permissions().mode() & 0o777 != 0o600 {
+        return Err(format!("{}: key file must have mode 0600", path.display()));
+    }
+    let mut text = Vec::new();
+    file.take(u64::from(LOGIN_BYTES) + 1)
+        .read_to_end(&mut text)
+        .map_err(|error| format!("{}: {error}", path.display()))?;
+    if text.len() > usize::try_from(LOGIN_BYTES).expect("u32 fits usize") {
+        return Err(format!("{}: key file is too large", path.display()));
+    }
+    let value = text.trim_ascii();
+    if value.is_empty() {
+        return Err(format!("{}: key file is empty", path.display()));
+    }
+    Ok(value.into())
 }
 /// The file a login's variable names: `named` itself, or `file` in the
 /// directory `named`.
@@ -128,26 +155,14 @@ fn input(provider: Provider, owner: u64) -> Call {
                 None,
             )
         }
-        Provider::Anthropic => {
-            let mut endpoint = Endpoint::anthropic();
-            endpoint.headers = anthropic::identity::claude_code_headers();
-            // The archived full beta set includes gated long-context access.
-            for header in &mut endpoint.headers {
-                if header.name.eq_ignore_ascii_case(b"anthropic-beta") {
-                    header.value = bytes("claude-code-20250219,oauth-2025-04-20");
-                }
-            }
-            let [token] = lent(&CLAUDE_CODE, [&["claudeAiOauth", "accessToken"]]);
-            (
-                endpoint,
-                Credential::anthropic(token),
-                setting("SKEIN_TEST_LIVE_ANTHROPIC_MODEL").unwrap_or_else(|| "claude-haiku-4-5".into()),
-                anthropic::identity::instructions(b"Follow the user's instructions exactly. Be terse.")
-                    .expect("bounded identity instructions"),
-                None,
-                Some(128),
-            )
-        }
+        Provider::Anthropic => (
+            Endpoint::anthropic(),
+            Credential::key(lent_key()),
+            setting("SKEIN_TEST_LIVE_ANTHROPIC_MODEL").unwrap_or_else(|| "claude-haiku-4-5".into()),
+            bytes("Follow the user's instructions exactly. Be terse."),
+            None,
+            Some(128),
+        ),
     };
     Call {
         owner: Token::new(owner),
@@ -518,21 +533,15 @@ fn anthropic_unauthorized() {
 
 /// Synthetic: a Codex `auth.json`'s fields, its values fixtures.
 const CODEX_AUTH: &[u8] = br#"{"OPENAI_API_KEY":null,"tokens":{"id_token":"fixture-id","access_token":"fixture-codex-access","refresh_token":"fixture-codex-refresh","account_id":"fixture-account"},"last_refresh":"2026-11-01T00:00:00Z"}"#;
-/// Synthetic: a Claude Code `.credentials.json`'s fields, its values fixtures.
-const CLAUDE_CODE_CREDENTIALS: &[u8] = br#"{"claudeAiOauth":{"accessToken":"fixture-claude-access","refreshToken":"fixture-claude-refresh","expiresAt":1793491200000,"scopes":["user:inference","user:profile"],"subscriptionType":"max"}}"#;
 /// Offline: a login's field read from the file its variable names, or from
 /// the directory holding that file.
 #[test]
 fn a_login_is_read_from_its_file_or_the_directory_holding_it() {
     let scratch = skein_scratch::Scratch::new("live-logins");
     std::fs::write(scratch.path().join(CODEX.file), CODEX_AUTH).expect("write the Codex login");
-    std::fs::write(scratch.path().join(CLAUDE_CODE.file), CLAUDE_CODE_CREDENTIALS)
-        .expect("write the Claude Code login");
-    let rows: [(&str, &str, &[&str], &[u8]); 4] = [
+    let rows: [(&str, &str, &[&str], &[u8]); 2] = [
         (CODEX.file, CODEX.file, &["tokens", "access_token"], b"fixture-codex-access"),
         (".", CODEX.file, &["tokens", "account_id"], b"fixture-account"),
-        (CLAUDE_CODE.file, CLAUDE_CODE.file, &["claudeAiOauth", "accessToken"], b"fixture-claude-access"),
-        (".", CLAUDE_CODE.file, &["claudeAiOauth", "accessToken"], b"fixture-claude-access"),
     ];
     for (named, file, field, expected) in rows {
         let [value] = login_fields(&scratch.path().join(named), file, [field]).expect("a lent login");
@@ -555,5 +564,25 @@ fn a_login_lacking_a_field_is_refused_naming_only_the_field() {
             login_fields(scratch.path(), CODEX.file, [&["tokens", "access_token"], &["tokens", "account_id"]])
                 .expect_err("a login without its account");
         assert_eq!(refusal, format!("{}: no non-empty string at .tokens.account_id", path.display()));
+    }
+}
+
+/// Offline: a synthetic key is read as plaintext only from a private file.
+#[test]
+fn an_anthropic_key_file_requires_private_nonempty_plaintext() {
+    use std::os::unix::fs::PermissionsExt as _;
+    let scratch = skein_scratch::Scratch::new("live-key");
+    let path = scratch.path().join("key");
+    for (contents, mode, refusal) in [
+        (b"fixture-key\n".as_slice(), 0o600, None),
+        (b"fixture-key".as_slice(), 0o644, Some("key file must have mode 0600")),
+        (b" \n".as_slice(), 0o600, Some("key file is empty")),
+    ] {
+        std::fs::write(&path, contents).expect("write synthetic key");
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(mode)).expect("set synthetic key mode");
+        match refusal {
+            Some(refusal) => assert_eq!(key_file(&path).err(), Some(format!("{}: {refusal}", path.display()))),
+            None => assert_eq!(key_file(&path).expect("private key file").as_ref(), b"fixture-key"),
+        }
     }
 }
