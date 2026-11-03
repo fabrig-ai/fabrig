@@ -1,0 +1,3 @@
+draft = "open-default"
+repo = "fabrig"
+sources = ["temper/docs/plan/open-default/inputs/request.md", "AGENTS.md", "DESIGN.md"]
