@@ -19,6 +19,7 @@ pub mod host;
 #[cfg(any(not(target_arch = "wasm32"), feature = "record"))]
 pub mod journey;
 pub mod limits;
+pub mod playground;
 pub mod records;
 #[cfg(target_arch = "wasm32")]
 enum Report {
@@ -32,6 +33,10 @@ enum Report {
     Fetch(fetch::Report),
     Carried(Vec<transport::Carried>, u32),
     Place(Box<[u8]>),
+    #[expect(dead_code, reason = "the playground frame supplies these reports")]
+    Frame(playground::Control),
+    #[expect(dead_code, reason = "the playground worker supplies these reports")]
+    World(platform::worker::Heard),
 }
 #[cfg(target_arch = "wasm32")]
 /// The shared host loop (temper/docs/design/playground.md, 6).
@@ -195,6 +200,7 @@ impl<P: ShellPlatform> Shell<P> {
     fn host_report(&mut self, report: Report) -> Option<host::Report> {
         match report {
             Report::Start => host::Report::Start,
+            Report::Frame(_) | Report::World(_) => return None,
             #[cfg(feature = "record")]
             Report::Mark => {
                 if let Some(recorder) = &mut self.recorder {
