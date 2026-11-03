@@ -1,12 +1,12 @@
-//! Landing-rule values and procedure waits
+//! Values of the forge's kinds and procedure waits
 //! (temper/docs/design/protocol/configuration.md, 13.2 and 13.3).
-use crate::settings::{Bounds, Held, Item, Kind, LandingRule, Refusal, RuleApproval, RuleGate, judge, requires};
+use crate::settings::{Bounds, Held, Item, Kind, LandingRule, Refusal, RuleApproval, RuleGate, Value, judge, requires};
 use crate::{GateLast, GatePattern, JudgeFreshness, Requires};
 use alloc::boxed::Box;
 use skein_lib::List;
 
 // Tiny admission bounds: two gates and roles, five base segments, eight bytes each.
-const BOUNDS: Bounds = Bounds { landing_rules: 4, gates: 2, roles: 2, segments: 5, segment_bytes: 8 };
+const BOUNDS: Bounds = Bounds { landing_rules: 4, gates: 2, roles: 2, charters: 3, segments: 5, segment_bytes: 8 };
 const PROJECT: u32 = 1;
 const FIRST_RULE: u32 = 1;
 const GATE: RuleGate = RuleGate { number: 1, blocking: true, freshness: JudgeFreshness::Exact };
@@ -44,11 +44,11 @@ fn bounded_item() -> Item {
     let mut rule = rule(pattern, BOTH);
     rule.gates = Box::new([GATE, RuleGate { number: 2, blocking: false, freshness: JudgeFreshness::Clean }]);
     rule.approvals = Box::new([APPROVAL, RuleApproval { role: 1, freshness: JudgeFreshness::Exact, ..APPROVAL }]);
-    Item { kind: Kind::DeploymentRules.number(), scope: 0, number: FIRST_RULE, rule: Some(rule) }
+    Item { kind: Kind::DeploymentRules.number(), scope: 0, number: FIRST_RULE, value: Some(Value::Rule(rule)) }
 }
 
 fn with_rule(rule: LandingRule) -> Item {
-    Item { rule: Some(rule), ..bounded_item() }
+    Item { value: Some(Value::Rule(rule)), ..bounded_item() }
 }
 
 fn held(scope: u32, number: u32, rule: LandingRule) -> Held {
@@ -97,8 +97,8 @@ fn judge_accepts_rules_within_their_bounds() {
             Item { kind: Kind::ProjectRules.number(), scope: PROJECT, number: BOUNDS.landing_rules, ..base.clone() },
             Ok(()),
         ),
-        ("remove deployment", Item { rule: None, ..base.clone() }, Ok(())),
-        ("remove project", Item { kind: 2, scope: PROJECT, rule: None, ..base }, Ok(())),
+        ("remove deployment", Item { value: None, ..base.clone() }, Ok(())),
+        ("remove project", Item { kind: 2, scope: PROJECT, value: None, ..base }, Ok(())),
     ];
     for (label, item, expected) in rows {
         assert_eq!(judge(&item, &BOUNDS), expected, "{label}");
@@ -107,7 +107,7 @@ fn judge_accepts_rules_within_their_bounds() {
         (0, None),
         (1, Some(Kind::DeploymentRules)),
         (2, Some(Kind::ProjectRules)),
-        (3, None),
+        (3, Some(Kind::Charters)),
         (4, None),
         (5, None),
         (u32::MAX, None),
@@ -120,7 +120,7 @@ fn judge_accepts_rules_within_their_bounds() {
 #[expect(clippy::too_many_lines, reason = "each admission fault is a row of the required single table test")]
 fn judge_refuses_each_fault_by_name() {
     let base = bounded_item();
-    let valid = base.rule.clone().expect("rule fixture");
+    let Some(Value::Rule(valid)) = base.value.clone() else { panic!("rule fixture") };
     let mut wrong_first = valid.pattern.clone();
     wrong_first.segments[0] = Box::from(b"branch".as_slice());
     let mut long_segment = valid.pattern.clone();
@@ -131,7 +131,7 @@ fn judge_refuses_each_fault_by_name() {
     }
     extra_segments.push(Box::from(b"extra".as_slice())).expect("one past bound fits fixture");
     let rows = [
-        ("kind 3", Item { kind: 3, ..base.clone() }, Err(Refusal::Kind)),
+        ("kind 4", Item { kind: 4, ..base.clone() }, Err(Refusal::Kind)),
         ("deployment scope", Item { scope: 2, ..base.clone() }, Err(Refusal::Scope)),
         ("project scope", Item { kind: 2, ..base.clone() }, Err(Refusal::Scope)),
         ("number zero", Item { number: 0, ..base.clone() }, Err(Refusal::Number)),
@@ -215,12 +215,76 @@ fn judge_refuses_each_fault_by_name() {
             }),
             Err(Refusal::Approvals),
         ),
-        ("removal kind", Item { kind: 3, rule: None, ..base.clone() }, Err(Refusal::Kind)),
-        ("removal scope", Item { scope: PROJECT, rule: None, ..base.clone() }, Err(Refusal::Scope)),
-        ("removal number", Item { number: 0, rule: None, ..base }, Err(Refusal::Number)),
+        ("removal kind", Item { kind: 4, value: None, ..base.clone() }, Err(Refusal::Kind)),
+        ("removal scope", Item { scope: PROJECT, value: None, ..base.clone() }, Err(Refusal::Scope)),
+        ("removal number", Item { number: 0, value: None, ..base }, Err(Refusal::Number)),
     ];
     for (label, item, expected) in rows {
         assert_eq!(judge(&item, &BOUNDS), expected, "{label}");
+    }
+}
+
+#[test]
+fn judge_reads_the_forge_charters() {
+    let base = Item { kind: Kind::Charters.number(), scope: 0, number: 1, value: Some(Value::Charter(1)) };
+    for number in [1, 2] {
+        let rows = [
+            ("first charter", base.clone(), Ok(())),
+            ("last charter", Item { value: Some(Value::Charter(BOUNDS.charters)), ..base.clone() }, Ok(())),
+            ("charter zero", Item { value: Some(Value::Charter(0)), ..base.clone() }, Err(Refusal::Charter)),
+            (
+                "charter past bound",
+                Item { value: Some(Value::Charter(BOUNDS.charters + 1)), ..base.clone() },
+                Err(Refusal::Charter),
+            ),
+            ("remove charter", Item { value: None, ..base.clone() }, Err(Refusal::Charter)),
+            ("scope", Item { scope: 1, ..base.clone() }, Err(Refusal::Scope)),
+        ];
+        for (label, item, expected) in rows {
+            assert_eq!(judge(&Item { number, ..item }, &BOUNDS), expected, "{label}, number {number}");
+        }
+    }
+    let rows = [
+        ("number zero", Item { number: 0, ..base.clone() }, Refusal::Number),
+        ("number three", Item { number: 3, ..base.clone() }, Refusal::Number),
+        ("scope before number", Item { scope: 1, number: 0, ..base.clone() }, Refusal::Scope),
+        ("number before removal", Item { number: 3, value: None, ..base.clone() }, Refusal::Number),
+        ("number before value", Item { number: 0, value: Some(Value::Rule(main_rule())), ..base }, Refusal::Number),
+    ];
+    for (label, item, refusal) in rows {
+        assert_eq!(judge(&item, &BOUNDS), Err(refusal), "{label}");
+    }
+}
+
+#[test]
+fn judge_refuses_a_value_of_another_kind() {
+    let rows = [
+        Item { kind: 1, scope: 0, number: 1, value: Some(Value::Charter(1)) },
+        Item { kind: 2, scope: PROJECT, number: 1, value: Some(Value::Charter(1)) },
+        Item { kind: 3, scope: 0, number: 1, value: Some(Value::Rule(main_rule())) },
+    ];
+    for item in rows {
+        assert_eq!(judge(&item, &BOUNDS), Err(Refusal::Value), "{item:?}");
+    }
+}
+
+#[test]
+fn refusal_words_are_distinct() {
+    let refusals = [
+        Refusal::Kind,
+        Refusal::Scope,
+        Refusal::Number,
+        Refusal::Pattern,
+        Refusal::Gates,
+        Refusal::Approvals,
+        Refusal::Charter,
+        Refusal::Value,
+    ];
+    for (at, refusal) in refusals.iter().enumerate() {
+        assert!(!refusal.words().is_empty(), "{refusal:?}");
+        for prior in refusals.iter().take(at) {
+            assert_ne!(refusal.words(), prior.words(), "{refusal:?} and {prior:?}");
+        }
     }
 }
 

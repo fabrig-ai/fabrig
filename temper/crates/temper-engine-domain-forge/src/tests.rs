@@ -95,6 +95,9 @@ const LIMITS: Limits = Limits {
     tiers: TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
     judge_projects: 2,
     judge_criteria: 8,
+    landing_rules: 4,
+    roles: 4,
+    setting_proposals: 4,
     brief_sections: 32,
     brief_bytes: 4096,
     issue_policy: temper_engine_domain_forge_issues::Limits {

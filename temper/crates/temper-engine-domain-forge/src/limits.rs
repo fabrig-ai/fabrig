@@ -52,6 +52,12 @@ pub struct Limits {
     pub judge_projects: u32,
     /// Criteria in each deployment or project judge table.
     pub judge_criteria: u32,
+    /// Rules per scope, configured by `forge.landing_rules` (protocol/configuration.md, 13.2).
+    pub landing_rules: u32,
+    /// Roles supplied from jig's `authority.roles`.
+    pub roles: u32,
+    /// Pending proposals of settings, supplied from jig's `settings.proposals`.
+    pub setting_proposals: u32,
     /// Connector brief sections gathering concurrently.
     pub brief_sections: u32,
     /// Maximum bytes retained for one gathered brief section.
@@ -97,6 +103,7 @@ pub fn valid(l: &Limits) -> bool {
         || l.applications == 0
         || l.collaborators == 0
         || l.landings == 0
+        || l.landing_rules == 0
         || l.brief_sections == 0
         || l.brief_bytes == 0
         || !skein_forge_client::valid(&l.client)
