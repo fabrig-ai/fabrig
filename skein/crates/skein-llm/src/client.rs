@@ -134,7 +134,11 @@ pub fn request_head(endpoint: &Endpoint, credential: &CredentialLimits, limits: 
         return Err(Error::limit(crate::Cap::Value, credential.value));
     }
     let maximum_affinity = [[b'0'; 36]; 2];
-    let fields = provider_headers(endpoint, Some(Scheme::Bearer), &[], Some(&maximum_affinity));
+    let scheme = match endpoint.provider {
+        Provider::OpenAiCodex | Provider::OpenAi => Scheme::Bearer,
+        Provider::Anthropic => Scheme::Key,
+    };
+    let fields = provider_headers(endpoint, &[], Some(&maximum_affinity));
     let account_bytes = match endpoint.provider {
         Provider::OpenAiCodex => usize::try_from(credential.account_id).expect("u32 fits usize"),
         Provider::Anthropic | Provider::OpenAi => 0,
@@ -164,7 +168,7 @@ pub fn request_head(endpoint: &Endpoint, credential: &CredentialLimits, limits: 
         // body sent as rendered within it, so the bound fixes the digits.
         endpoint.encoding,
         u64::from(limits.request),
-        Some(Scheme::Bearer),
+        Some(scheme),
         &fields,
     )?;
     match u32::try_from(measured) {
@@ -1574,6 +1578,12 @@ fn measure_headers(
     {
         return Err(Error::Invalid);
     }
+    if endpoint.provider == Provider::Anthropic
+        && let Some(credential) = credential
+        && credential.scheme == Scheme::Bearer
+    {
+        return Err(Error::Invalid);
+    }
     match (endpoint.provider, credential) {
         (Provider::OpenAiCodex, Some(credential)) => {
             if credential.account_id.is_empty() || credential.scheme == Scheme::Key {
@@ -1597,7 +1607,7 @@ fn measure_headers(
         Some(affinity) => Some(crate::affinity::rendered(affinity)),
         None => None,
     };
-    let fields = provider_headers(endpoint, scheme, account_id, rendered.as_ref());
+    let fields = provider_headers(endpoint, account_id, rendered.as_ref());
     let total = head_length(endpoint, value_bytes, account_id.len(), coding, content_length, scheme, &fields)?;
     let mut fixed_count = if credential.is_some() { 5_usize } else { 4_usize };
     if coding == Encoding::Gzip {
@@ -1639,11 +1649,11 @@ fn headers(
         Some(affinity) => Some(crate::affinity::rendered(affinity)),
         None => None,
     };
-    let (scheme, account_id) = match credential {
-        Some(credential) => (Some(credential.scheme), credential.account_id.as_ref()),
-        None => (None, b"".as_slice()),
+    let account_id = match credential {
+        Some(credential) => credential.account_id.as_ref(),
+        None => b"".as_slice(),
     };
-    let fields = provider_headers(endpoint, scheme, account_id, rendered.as_ref());
+    let fields = provider_headers(endpoint, account_id, rendered.as_ref());
     let mut headers = List::with_capacity(limits.http.headers);
     for (name, value) in [
         (b"Host".as_slice(), endpoint.authority.as_ref()),
@@ -1670,8 +1680,8 @@ fn headers(
             (Provider::Anthropic, Scheme::Key) => {
                 Header { name: bytes::copy_of(b"x-api-key"), value: credential.value.clone() }
             }
-            (Provider::OpenAiCodex | Provider::OpenAi, Scheme::Key)
-            | (Provider::OpenAiCodex | Provider::OpenAi | Provider::Anthropic, Scheme::Bearer) => {
+            (Provider::Anthropic, Scheme::Bearer) => return Err(Error::Invalid),
+            (Provider::OpenAiCodex | Provider::OpenAi, Scheme::Key | Scheme::Bearer) => {
                 let len = credential
                     .value
                     .len()
@@ -1744,8 +1754,8 @@ fn head_length(
         total = total.checked_add(b"Content-Encoding: gzip\r\n".len()).ok_or(Error::Invalid)?;
     }
     let credential_field = match (endpoint.provider, scheme) {
-        (Provider::OpenAiCodex | Provider::OpenAi, Some(Scheme::Key))
-        | (Provider::OpenAiCodex | Provider::OpenAi | Provider::Anthropic, Some(Scheme::Bearer)) => {
+        (Provider::Anthropic, Some(Scheme::Bearer)) => return Err(Error::Invalid),
+        (Provider::OpenAiCodex | Provider::OpenAi, Some(Scheme::Key | Scheme::Bearer)) => {
             b"Authorization: Bearer \r\n".as_slice()
         }
         (Provider::Anthropic, Some(Scheme::Key)) => b"x-api-key: \r\n".as_slice(),
@@ -1767,7 +1777,6 @@ fn head_length(
 
 fn provider_headers<'a>(
     endpoint: &Endpoint,
-    scheme: Option<Scheme>,
     account_id: &'a [u8],
     affinity: Option<&'a [[u8; 36]; 2]>,
 ) -> [Option<(&'static [u8], &'a [u8])>; 3] {
@@ -1781,15 +1790,7 @@ fn provider_headers<'a>(
     match endpoint.provider {
         Provider::OpenAiCodex => [Some((b"chatgpt-account-id", account_id)), session, thread],
         Provider::OpenAi => [None, None, None],
-        Provider::Anthropic => [
-            default_header(endpoint, b"anthropic-version", b"2023-06-01"),
-            // The bearer route is withdrawn; the second part of LLM accounts removes it.
-            match scheme {
-                Some(Scheme::Bearer) => default_header(endpoint, b"anthropic-beta", b"oauth-2025-04-20"),
-                Some(Scheme::Key) | None => None,
-            },
-            None,
-        ],
+        Provider::Anthropic => [default_header(endpoint, b"anthropic-version", b"2023-06-01"), None, None],
     }
 }
 fn default_header(

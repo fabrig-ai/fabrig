@@ -214,12 +214,6 @@ impl RateLimit {
                 self.retry_after = Some(Duration::from_secs(n));
             }
         }
-        if name.eq_ignore_ascii_case(b"anthropic-ratelimit-unified-reset") {
-            self.reset = bytes::decimal(value);
-        }
-        if name.eq_ignore_ascii_case(b"anthropic-ratelimit-unified-status") && value == b"rejected" {
-            self.exhausted = true;
-        }
     }
     #[must_use]
     pub fn delay(self, error: Option<&ProviderError>, wall: Wall) -> Duration {
@@ -335,11 +329,7 @@ fn anthropic_failure(kind: &[u8], error: Option<&ProviderError>, rate: RateLimit
         return Some(Failure::Exhausted { retry_after: None });
     }
     if kind == b"rate_limit_error" {
-        return Some(if rate.exhausted {
-            Failure::Exhausted { retry_after: unified_reset(rate, wall) }
-        } else {
-            Failure::RateLimited { retry_after: rate.delay(error, wall) }
-        });
+        return Some(Failure::RateLimited { retry_after: rate.delay(error, wall) });
     }
     if kind == b"overloaded_error" {
         return Some(Failure::Overloaded);
@@ -354,11 +344,6 @@ fn anthropic_failure(kind: &[u8], error: Option<&ProviderError>, rate: RateLimit
         return Some(Failure::Invalid);
     }
     None
-}
-
-fn unified_reset(rate: RateLimit, wall: Wall) -> Option<Duration> {
-    let seconds = rate.reset?.saturating_sub(wall.as_secs());
-    if seconds == 0 { None } else { Some(Duration::from_secs(seconds)) }
 }
 
 fn context(kind: &[u8], error: Option<&ProviderError>) -> bool {
