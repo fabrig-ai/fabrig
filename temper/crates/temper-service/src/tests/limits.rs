@@ -595,7 +595,7 @@ fn secrets_schema_fits_the_small_page_ceiling() {
     const KEY_BYTES: u64 = 10;
     let (_, _, profile) = fixtures::store_limits();
     assert_eq!(v1::Stored::encoded_bound(&v1::CEILINGS), Some(APPLICATION_BYTES));
-    assert_eq!(profile.store.page.bytes, 2_168_787);
+    assert_eq!(profile.store.page.bytes, 2_168_979);
     assert!(APPLICATION_BYTES + KEY_BYTES < u64::from(profile.store.page.bytes));
 }
 
@@ -649,4 +649,36 @@ fn small_holds_two_document_sections_with_their_own_budget_and_override() {
     assert_eq!(limits.forge.brief_sections, limits.root.brief.briefs * limits.root.brief.sections * 2);
     assert_eq!(limits::apply(&mut limits, b"root.brief.budgets.document", 2048), Ok(()));
     assert_eq!(limits.root.brief.budgets.document, 2048);
+}
+
+#[test]
+fn every_row_is_a_name_the_parser_takes() {
+    let small = limits::profile(limits::Profile::Small);
+    for (index, row) in limits::NAMES.iter().enumerate() {
+        let mut changed = small;
+        let value = (row.value)(&small);
+        let other = if row.name == "setup.state_life_ms" { value - 1 } else { value + 1 };
+        assert_eq!(limits::find(row.name.as_bytes()).unwrap().name, row.name);
+        assert_eq!(limits::apply(&mut changed, row.name.as_bytes(), other), Ok(()), "{}", row.name);
+        assert_eq!((row.value)(&changed), other, "{}", row.name);
+        assert_eq!(limits::apply(&mut changed, row.name.as_bytes(), value), Ok(()));
+        assert_eq!(changed, small);
+        assert!(!row.line.is_empty() && row.line.len() <= 120, "{}", row.name);
+        assert!(row.line.ends_with('.') && !row.line.contains(['\n', '\r']));
+        assert_eq!(row.line.matches('.').count(), 1);
+        for other in &limits::NAMES[index + 1..] {
+            assert_ne!(row.name, other.name);
+        }
+    }
+}
+
+#[test]
+fn an_unknown_name_is_refused() {
+    let small = limits::profile(limits::Profile::Small);
+    for name in [b"".as_slice(), b"root.absent", b"setup.absent", b"sign_in.members.extra", b"box.restarts"] {
+        let mut changed = small;
+        assert!(limits::find(name).is_none());
+        assert_eq!(limits::apply(&mut changed, name, 1), Err(limits::Refused::Unknown));
+        assert_eq!(changed, small);
+    }
 }

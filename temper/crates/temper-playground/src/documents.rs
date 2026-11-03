@@ -365,6 +365,39 @@ pub fn given_with(document: &serde_json::Value, stock: bool, read_wait: bool) ->
     }
     let engine = settings::configuration(&document);
     let mut defaults = temper_service::stock::defaults(&engine.llm);
+    // The playground's scripted model plays the stock chat; the configuring agent needs a real one (configuration.md, 13.4).
+    defaults.charters = defaults.charters.into_vec().into_iter().filter(|charter| charter.number != 3).collect();
+    defaults.templates = defaults.templates.into_vec().into_iter().filter(|template| template.number != 3).collect();
+    defaults.rules.ceiling.delegation.kinds = defaults
+        .rules
+        .ceiling
+        .delegation
+        .kinds
+        .into_vec()
+        .into_iter()
+        .filter(|kind| *kind != jig_domain_authority::Executor::Charter(3))
+        .collect();
+    let policy = &mut defaults.policies.get_mut(&1).expect("stock policy 1").policy;
+    policy.ceiling.delegation.kinds = policy
+        .ceiling
+        .delegation
+        .kinds
+        .clone()
+        .into_vec()
+        .into_iter()
+        .filter(|kind| *kind != jig_domain_authority::Executor::Charter(3))
+        .collect();
+    for role in &mut policy.roles {
+        role.authority.delegation.kinds = role
+            .authority
+            .delegation
+            .kinds
+            .clone()
+            .into_vec()
+            .into_iter()
+            .filter(|kind| *kind != jig_domain_authority::Executor::Charter(3))
+            .collect();
+    }
     if read_wait {
         defaults.charters[0].policy.waiting = skein_lib::Duration::from_millis(u64::from(CHAT_WAIT_MS));
     } else {

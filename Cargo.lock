@@ -5019,6 +5019,7 @@ dependencies = [
  "smith-protocol-channel",
  "smith-protocol-program",
  "smith-transcript",
+ "temper-box",
  "temper-client-domain",
  "temper-client-protocol-wire",
  "temper-client-tools",

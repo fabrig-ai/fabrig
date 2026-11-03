@@ -195,6 +195,7 @@ fn charter(value: &core::Charter, limits: &w::Limits) -> Result<w::Charter, w::P
             model: model(&policy.model, limits)?,
             alternatives,
             call_timeout: policy.call_timeout,
+            tools: policy.tools.0,
             hosts: match value.hosts {
                 jig_domain_fleet::Kinds::Workers => w::SettingHosts::Workers,
                 jig_domain_fleet::Kinds::Engine => w::SettingHosts::Engine,

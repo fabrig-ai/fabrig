@@ -41,7 +41,7 @@ fn transcript_document(bytes: u32) -> Box<[u8]> {
 
 #[test]
 fn startup_admits_a_frame_exactly_at_the_profile_page_ceiling() {
-    let document = transcript_document(2_168_723);
+    let document = transcript_document(2_168_915);
     crate::startup(
         &document,
         &config::Directories::working(),
@@ -55,13 +55,13 @@ fn startup_admits_a_frame_exactly_at_the_profile_page_ceiling() {
     .expect("a whole frame exactly at Small's page ceiling starts");
     let opened =
         crate::store_limits(&document, &config::Directories::working(), Some(&fixtures::startup_agent())).unwrap();
-    assert_eq!(opened.store.store.page.bytes, 2_168_787);
+    assert_eq!(opened.store.store.page.bytes, 2_168_979);
 }
 
 #[test]
 fn startup_names_a_frame_one_byte_past_the_profile_page_ceiling() {
-    let document = transcript_document(2_168_724);
-    let expected = b"application.limits.overrides.root.loads.transcript_bytes: its turn's transcript frame, 2168788 bytes, needs a store page past the profile's ceiling of 2168787 bytes\n";
+    let document = transcript_document(2_168_916);
+    let expected = b"application.limits.overrides.root.loads.transcript_bytes: its turn's transcript frame, 2168980 bytes, needs a store page past the profile's ceiling of 2168979 bytes\n";
     let named = crate::named(&document, &config::Directories::working()).unwrap_err();
     assert_eq!(lines(&named).as_ref(), expected);
     let opened =
@@ -398,10 +398,12 @@ fn the_standalone_example_reads_into_its_members() {
 fn the_example_engine_keeps_jigs_chat_and_goal_templates() {
     let jig = fixtures::engine().jig;
     let labels: Box<[u32]> = jig.templates.iter().map(|template| template.label).collect();
-    assert_eq!(*labels, [1, 2], "jig's chat and goal templates, in order");
+    assert_eq!(*labels, [1, 2, 1], "chat, goal and configuring templates, in order");
     assert_eq!(jig.templates[0].number, 1);
     assert_eq!(jig.templates[0].flags.ended_by, jig_domain_tasks::EndedBy::Requester);
     assert_eq!(jig.templates[1].flags.ended_by, jig_domain_tasks::EndedBy::Result);
+    assert_eq!(jig.templates[2].number, 3);
+    assert_eq!(jig.templates[2].flags.ended_by, jig_domain_tasks::EndedBy::Requester);
 }
 #[test]
 fn a_chats_member_is_refused_as_unknown_naming_its_path() {
@@ -1604,7 +1606,7 @@ fn capacity_overrides_name_the_failed_dependency() {
         (
             b"tasks.batch_bytes",
             1_048_576,
-            &["tasks.batch", "TaskRecord", "2539901", "2166708", "profile ceiling", "reduce"],
+            &["tasks.batch", "TaskRecord", "2539901", "2166900", "profile ceiling", "reduce"],
         ),
         (b"tasks.delegates", 8, &["tasks.delegates", "8", "people.operations", "9"]),
         (b"tasks.delegates", 16, &["tasks.delegates", "16", "people.operations", "17"]),

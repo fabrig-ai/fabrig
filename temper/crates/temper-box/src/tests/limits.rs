@@ -100,3 +100,32 @@ fn group_files_have_a_configurable_count_bound() {
     assert_eq!(limits.groups, 2);
     assert_eq!(Unfit::Groups.names(), &[b"box.groups".as_slice()]);
 }
+
+#[test]
+fn every_row_is_a_name_the_parser_takes() {
+    let small = limits::small();
+    for (index, row) in limits::NAMES.iter().enumerate() {
+        let mut changed = small;
+        let value = (row.value)(&small);
+        assert_eq!(limits::apply(&mut changed, row.name.as_bytes(), value + 1), Ok(()), "{}", row.name);
+        assert_eq!((row.value)(&changed), value + 1, "{}", row.name);
+        assert_eq!(limits::apply(&mut changed, row.name.as_bytes(), value), Ok(()));
+        assert_eq!(changed, small);
+        assert!(!row.line.is_empty() && row.line.len() <= 120, "{}", row.name);
+        assert!(row.line.ends_with('.') && !row.line.contains(['\n', '\r']));
+        assert_eq!(row.line.matches('.').count(), 1);
+        for other in &limits::NAMES[index + 1..] {
+            assert_ne!(row.name, other.name);
+        }
+    }
+}
+
+#[test]
+fn an_unknown_name_is_refused() {
+    for name in [b"".as_slice(), b"box.absent", b"setup.runs", b"box.groups.extra"] {
+        let small = limits::small();
+        let mut changed = small;
+        assert_eq!(limits::apply(&mut changed, name, 1), Err(Refused::Unknown));
+        assert_eq!(changed, small);
+    }
+}
