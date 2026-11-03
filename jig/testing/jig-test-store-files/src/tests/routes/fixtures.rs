@@ -294,6 +294,7 @@ pub fn ended_chat() -> Box<jig_domain_tasks::TaskRecord> {
         tries: tasks::Tries::NONE,
         invalid_result: None,
         refusals: 0,
+        room_wait: None,
         phase: tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Report { words: b"done".as_slice().into() })),
     })
 }

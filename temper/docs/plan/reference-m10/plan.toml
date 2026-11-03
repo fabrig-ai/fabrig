@@ -1,0 +1,92 @@
+draft = "reference-m10"
+repo = "fabrig"
+sources = ["temper/docs/plan/reference-m10/inputs/request.md", "temper/docs/design/draft/reference-case.execution.md", "temper/docs/design/draft/reference-code-production.md", "temper/docs/design/draft/reference-landing.md", "temper/docs/design/draft/notes.md", "AGENTS.md", "DESIGN.md"]
+
+# M10 of temper/docs/design/draft/reference-case.execution.md: the case. The reference's
+# configuration (temper/docs/design/draft/reference-code-production.md, section 14) whole, as
+# one reference profile a box is set up with, its limits sized for a goal of a hundred changes
+# (N21), and `.temper/pre-pr` revisited with numbers. Released in batches: first the
+# coordinator's charter's last gaps; then the rest as the surveys settle it.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "charter"
+title = "temper: the reference coordinator's charter ends the plan with its goal branch's tier settled, and its landing's words name the draft"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/configuration.md, 13.9"
+
+[[slice]]
+id = 1
+story = "the reference coordinator closes out only once its goal branch's tier is settled, and its landing's pull request names the draft"
+parts = ["charter"]
+walk = false
+
+[[part]]
+id = "checks"
+title = "temper: the reference's coding agent runs its changed packages' lints and focused tests with the shell; .temper/pre-pr stays as it is"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/configuration.md, 13.9"
+
+[[part]]
+id = "change-tasks"
+title = "temper: a change's tasks bounded by forge.change_policy.tasks, 6 in small, in place of a constant"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/agent.md, 4.3.1"
+
+[[part]]
+id = "next-run"
+title = "temper: a goal branch's change's next producer merges the branch's tip first, as an early-started one's does"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/forge.md, 8.11"
+
+[[part]]
+id = "template"
+title = "temper: a settings file's template carries its resources, so a goal template names its own goal branch"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/tools.md, 5.3"
+
+[[part]]
+id = "room"
+title = "jig: a procedure's batch refused for live room waits for that room, in refusal order, across a restart"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/connectors.md, 6.2"
+
+[[slice]]
+id = 2
+story = "a producer runs its own lints and tests; a change's tasks come from a limit; a goal branch's producer goes on from g's tip; a template applied from a file names its goal branch; a procedure refused for room waits for it"
+parts = ["checks", "change-tasks", "next-run", "template", "room"]
+walk = false
+
+[[part]]
+id = "triager"
+title = "temper: the reference's triage charter, read-only; the coordinator delegates a red's triage to it and lets designers ask straight up"
+mode = "direct"
+needs = ["charter"]
+design = "temper/docs/design/protocol/configuration.md, 13.9"
+
+[[part]]
+id = "profile"
+title = "temper: the reference as one profile a box is set up with, its limits sized for a goal of a hundred changes, its settings sized to them"
+mode = "direct"
+needs = ["triager", "checks", "change-tasks", "template"]
+design = "temper/docs/design/protocol/configuration.md, 13.9"
+
+[[slice]]
+id = 3
+story = "a box set up from docs/examples/reference/ (limits.json, agent.json, landing.json, settings.json) starts, takes the reference's settings, and runs a goal of up to a hundred changes from template 4 with its own goal branch: the case, acts 1 to 5"
+parts = ["triager", "profile"]
+walk = true
+
+[[question]]
+id = "case-workflows"
+text = """The reference's repository carries its CI and its tiers' workflows (temper/docs/design/protocol/configuration.md, 13.9, What the repository carries): main's landing rule waits for CI passed, and landing.json's tiers dispatch tier-slow.yml and tier-goal.yml. The case (rung C) runs on fabrig's own code on the box's forge, and fabrig carries no workflow at all (no .forgejo/ or .github/): without them L never passes CI and neither tier runs. Writing them means a box's Forgejo runner building and testing the whole workspace (a cold build of minutes, the gate's thousands of tests) at each L head, each tier run at most every 20 minutes on g, and the slow suites on main: the box's machine and its budget. Default taken: none written by this plan; the profile names them as the repository's, and nothing here waits on the answer. Options: (a, recommended) the walk's copy of fabrig carries them, written by fabrig/qa for the box it sets up, each running the gate's nextest profiles with cargo (CI: the full gate; tier-goal.yml: the gate without its slowest suites; tier-slow.yml: the slow tiers), within a runner budget you set; (b) fabrig carries them under .forgejo/workflows/, a task of a later plan once you set the box runner's budget; (c) the case runs on a smaller repository than fabrig, whose workflows are cheap."""
+parts = ["profile"]

@@ -774,6 +774,33 @@ pub fn bounded_records(directory: &Path) -> Bounded {
 /// Init's own document and agent, with the same counted paths at their bounds.
 #[must_use]
 pub fn bounded_template(directory: &Path) -> Bounded {
+    bounded_template_profile(directory, &[])
+}
+
+/// The reference overlays init's document and agent (temper/docs/design/protocol/configuration.md, 13.9).
+#[must_use]
+pub fn bounded_reference(directory: &Path) -> Bounded {
+    bounded_template_profile(
+        directory,
+        &[
+            ("temper.json", include_bytes!("../../../../docs/examples/reference/limits.json")),
+            ("agent.json", include_bytes!("../../../../docs/examples/reference/agent.json")),
+        ],
+    )
+}
+
+fn merge_profile(value: &mut serde_json::Value, overlay: serde_json::Value) {
+    match (value, overlay) {
+        (serde_json::Value::Object(members), serde_json::Value::Object(overrides)) => {
+            for (name, value) in overrides {
+                merge_profile(members.entry(name).or_insert(serde_json::Value::Null), value);
+            }
+        }
+        (value, overlay) => *value = overlay,
+    }
+}
+
+fn bounded_template_profile(directory: &Path, overlays: &[(&str, &[u8])]) -> Bounded {
     use std::num::NonZeroU16;
     use temper_init::{Content, Directories, Facts, Ports};
     let answer = temper_init::files(
@@ -804,6 +831,12 @@ pub fn bounded_template(directory: &Path) -> Bounded {
             }
             Content::Link { .. } => {}
         }
+    }
+    for (name, overlay) in overlays {
+        let path = directory.join(name);
+        let mut value = serde_json::from_slice(&fs::read(&path).expect("init file")).expect("init JSON");
+        merge_profile(&mut value, serde_json::from_slice(overlay).expect("reference overlay"));
+        super::write_private(&path, &serde_json::to_vec(&value).expect("merged profile JSON"));
     }
     local_agent(directory, "agent.json", "127.0.0.1:8370".parse().expect("LLM stand-in"));
     let value =

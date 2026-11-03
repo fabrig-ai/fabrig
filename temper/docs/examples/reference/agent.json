@@ -1,0 +1,10 @@
+{
+  "profile": {
+    "declared": {
+      "tool_payload": 4098
+    },
+    "policy": {
+      "max_turns": 64
+    }
+  }
+}
