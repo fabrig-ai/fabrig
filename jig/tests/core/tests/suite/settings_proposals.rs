@@ -644,7 +644,7 @@ fn run_propose(world: &mut World, against: u32, items: Box<[settings::Item]>) ->
         &settings::Record::Proposal {
             proposer: people::Proposer::Task(1),
             proposal: 1,
-            value: settings::Proposal { against, items },
+            value: settings::Proposal { applications: Box::default(), against, items },
         },
         &jig_protocol_store::codec::settings::limits(&limits.core).expect("settings codec limits"),
         &models,
