@@ -23,9 +23,8 @@ are explicit endpoint headers; reserved credential and framing headers
 are refused. The caller selects the model and any required compatibility
 headers.
 
-**Withdrawn routes.** OpenAI's Codex route (section 4.6) and Anthropic's
-bearer route (section 4.7) are withdrawn, each described in its own
-section, which says what replaces it.
+**A withdrawn route.** OpenAI's Codex route (section 4.6) is withdrawn;
+its section says what replaces it.
 
 ## 1. In one page
 
@@ -368,8 +367,8 @@ pub struct Credential {
 - **The route puts it where its provider takes it.** OpenAI's public
   route sends either scheme as `Authorization: Bearer`, and renders the
   same request for a key as for a plan's token (section 4.8). Anthropic
-  takes a key in `x-api-key`, with no authorization field; a bearer there
-  is the withdrawn subscription route (section 4.7).
+  takes a key in `x-api-key`, with no authorization field, and refuses a
+  bearer at admission, as `Invalid`.
 - **Or none.** A call's credential is optional (`Option<Credential>`),
   for an endpoint that takes none, such as a local model's server on
   loopback (llm-connection.md, section 3). A call without one sends no
@@ -707,15 +706,6 @@ ordering, delta types, cumulative usage patches and completion at `message_stop`
   field, and `anthropic-version` goes with it (`2023-06-01` unless the
   endpoint's headers set it). No beta flag is sent unless the endpoint's
   headers name one.
-- **The bearer route, withdrawn.** A bearer credential is Anthropic's
-  OAuth subscription route: `Authorization: Bearer`, and the OAuth beta
-  flag `anthropic-beta: oauth-2025-04-20` unless the endpoint's headers
-  set the beta. Its archived Claude Code identity profile
-  (`anthropic::identity`) is opt-in: identity headers, and a system
-  instruction that goes as the first system block. The route and its
-  profile stay for the callers that use them and take no new one; a key
-  replaces them, and they are removed once their last caller has moved
-  (llm.status.md). `Credential::anthropic`, a bearer, goes with them.
 - **`max_tokens` comes from the declared output.** It is the prompt's
   output cap, which the caller sets from its model's declared output, or
   lower; a prompt without one sends the endpoint's declared output. There
@@ -723,8 +713,7 @@ ordering, delta types, cumulative usage patches and completion at `message_stop`
   admission.
 - **Affinity** is accepted and has no wire effect: a prompt encodes to the
   same bytes with and without it.
-- **Breakpoints.** `system` is a block array, the withdrawn identity
-  profile's block first when a caller opts in, and its last block carries
+- **Breakpoints.** `system` is a block array, and its last block carries
   `cache_control: {"type":"ephemeral"}`. Anthropic orders its cache as
   tools, then system, then messages, so this marker caches the tools with
   the system text. A second marker, the tail, goes on the last block of
@@ -758,10 +747,7 @@ ordering, delta types, cumulative usage patches and completion at `message_stop`
   not apply.
 - **Failures, by the error's type before the status.**
   `authentication_error` is `Unauthorized`; `permission_error` is
-  `Refused`; `rate_limit_error` is `RateLimited`, or `Exhausted` where
-  the head's `anthropic-ratelimit-unified-status` is `rejected` (the
-  withdrawn route's plan limit), its reset from
-  `anthropic-ratelimit-unified-reset`; `billing_error` is `Exhausted`
+  `Refused`; `rate_limit_error` is `RateLimited`; `billing_error` is `Exhausted`
   with no reset (section 7); `overloaded_error` is `Overloaded`;
   `api_error` is `Unavailable`; a context too long, an
   `invalid_request_error` whose message says `prompt is too long`, or a
@@ -951,7 +937,7 @@ unless marked:
   section 4.7 does not list, are `Unavailable` with that code or type in
   the report.
 - **Credentials:** a key on Anthropic goes as `x-api-key` with neither an
-  authorization field nor a beta, and a bearer with both; the public
+  authorization field nor a beta, and a bearer is refused at admission; the public
   route sends a key and a token alike as a bearer, the two requests'
   bodies byte-identical; an account id is refused on the public and
   Anthropic routes and required on the Codex route; an endpoint header
