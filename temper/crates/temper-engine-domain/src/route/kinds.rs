@@ -52,7 +52,7 @@ pub(super) fn ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: conn
             domain.forge.keep_proposal_settings(proposal, &asked, &mut out);
         }
         connector::Ask::DropProposalSettings { proposal } => domain.forge.drop_proposal_settings(proposal, &mut out),
-        connector::Ask::SaveSettingsDefaults { revision } => save_defaults(revision),
+        connector::Ask::SaveSettingsDefaults { revision: _ } => save_defaults(domain, &mut out),
         _ => unreachable!("the forge routes only its settings asks here"),
     }
     if !out.is_empty() {
@@ -113,6 +113,6 @@ fn typed_items(domain: &Domain, proposal: Option<u64>, items: &[application::Ite
     asked.into_boxed()
 }
 
-fn save_defaults(_revision: Option<u64>) {
-    // kinds-start gives the defaults' save its body.
+fn save_defaults(domain: &mut Domain, out: &mut Queue<temper_engine_domain_forge::Request>) {
+    domain.forge.save_settings_defaults(out);
 }

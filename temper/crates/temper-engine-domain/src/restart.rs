@@ -287,12 +287,11 @@ pub(crate) fn startup_page(
         emit(&mut decision, &env.limits, Delivery::Load { waiter: Token::new(u64::MAX), range, after: None });
     } else {
         domain.startup_range = None;
-        let phase = if range == Range::Forge {
-            Phase::RestoreConnector { connector: domain.config.forge_connector }
+        if range == Range::Forge {
+            restore_connector_done(domain);
         } else {
-            Phase::LoadCore
-        };
-        domain.work.push(Work::StartDone(phase));
+            domain.work.push(Work::StartDone(Phase::LoadCore));
+        }
     }
     route_into(domain, env, &mut decision);
     close(domain, env, decision, out);
@@ -514,4 +513,34 @@ fn census_page(
     domain.work.push(Work::StartDone(Phase::LoadInbox));
     route_into(domain, env, &mut decision);
     close(domain, env, decision, out);
+}
+
+/// Supply defaults after every forge row has been routed, before completing its restore
+/// (temper/docs/design/domain/root.md, 5.6 and 9.1).
+pub(crate) fn restore_connector_done(domain: &mut Domain) {
+    give_settings_defaults(domain);
+    domain.work.push(Work::StartDone(Phase::RestoreConnector { connector: domain.config.forge_connector }));
+}
+
+fn give_settings_defaults(domain: &mut Domain) {
+    let Some(stock) = domain.kinds_stock.take() else { return };
+    let mut defaults = skein_lib::List::uncapped();
+    for state in domain.forge.give_settings_defaults(stock) {
+        defaults
+            .push(jig_domain_core::effects::connector::DefaultState {
+                kind: state.kind,
+                scope: state.scope,
+                number: state.number,
+                size: state.size,
+                charters: match state.charter {
+                    Some(charter) => Box::new([charter]),
+                    None => Box::default(),
+                },
+                differs: state.differs,
+            })
+            .expect("one state per forge default");
+    }
+    domain.work.push(Work::Core(jig_domain_core::Event::EffectConnector(
+        jig_domain_core::effects::connector::Event::SettingsDefaults { defaults: defaults.into_boxed() },
+    )));
 }
