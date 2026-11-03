@@ -58,6 +58,7 @@ pub struct LandingPolicy {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct ProjectLanding {
     pub by: Way,
+    pub merge_job: Option<Box<[u8]>>,
     pub repositories: Box<[RepositoryChecks]>,
     pub after: AfterLandingCheck,
 }
