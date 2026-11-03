@@ -144,6 +144,7 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                 );
             }
             drop(domain.run_workspaces.remove(&task));
+            drop(domain.job_workspaces.remove(&task));
         }
         core::Now::RunPrepared {
             task,
@@ -174,6 +175,8 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             run_prepared(domain, env, prepared);
         }
         core::Now::DropAssignment { task } => {
+            drop(domain.run_workspaces.remove(&task));
+            drop(domain.job_workspaces.remove(&task));
             if let Some(assignment) = crate::link::take_assignment(domain, task) {
                 domain.release_bytes(
                     crate::budget::assignment_bytes(&assignment),
@@ -281,12 +284,25 @@ fn workspace(domain: &mut Domain, env: &Env<Limits>, task: u64, attempt: u64, co
         Some(_) => credentials.into_boxed(),
         None => Box::new([]),
     };
+    let job = match context.executor {
+        tasks::Executor::Job { .. } => true,
+        tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => false,
+    };
+    let job_workspace = if job
+        && match domain.run_workspaces.get(&task) {
+            Some(prepared) => !prepared.workspace.workspace.repositories.is_empty(),
+            None => false,
+        } {
+        Some(Box::from(task.to_le_bytes().as_slice()))
+    } else {
+        None
+    };
     domain.work.push(Work::Core(core::Event::WorkspacePrepared {
         task,
         attempt,
         writes,
         credentials,
-        workspace: None,
+        workspace: job_workspace,
     }));
 }
 
@@ -343,9 +359,19 @@ fn run_prepared(domain: &mut Domain, env: &Env<Limits>, prepared: Prepared) {
     };
     let budget = assignment.run.budget;
     domain.hub_link.keep_assignment(assignment);
+    let writes = claim_workspace(domain, env, task, &workspace, claim_names);
+    domain.work.push(Work::Core(core::Event::ClaimPrepared { task, attempt, budget, writes }));
+}
+
+pub(super) fn claim_workspace(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    task: u64,
+    workspace: &forge_route::RunWorkspace,
+    claim_names: Box<[super::forge::Name]>,
+) -> Box<[tasks::Name]> {
     if workspace.names.is_empty() {
-        domain.work.push(Work::Core(core::Event::ClaimPrepared { task, attempt, budget, writes: Box::new([]) }));
-        return;
+        return Box::new([]);
     }
     let mut hub_writes = List::with_capacity(env.limits.tasks.holdings);
     for name in &workspace.names {
@@ -354,8 +380,8 @@ fn run_prepared(domain: &mut Domain, env: &Env<Limits>, prepared: Prepared) {
         hub_writes.push(resource).expect("workspace write bound fits hub");
     }
     domain.work.push(Work::Forge(super::forge::Event::Names { task, resources: claim_names }));
-    for name in workspace.own_holds {
-        domain.work.push(Work::Forge(super::forge::Event::Hold { entry: 0, task, resource: name, from: None }));
+    for name in &workspace.own_holds {
+        domain.work.push(Work::Forge(super::forge::Event::Hold { entry: 0, task, resource: name.clone(), from: None }));
     }
-    domain.work.push(Work::Core(core::Event::ClaimPrepared { task, attempt, budget, writes: hub_writes.into_boxed() }));
+    hub_writes.into_boxed()
 }

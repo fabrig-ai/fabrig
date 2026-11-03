@@ -14,7 +14,20 @@ pub(super) fn change_row(world: &World, task: u64) -> &forge_top::ChangeRow {
 }
 
 fn pushed_change(conflict: bool) -> (World, u64, u64, u64) {
-    let world = World::configured_ci(true, true, true).with_landing_deployment(Box::new([engine::LandingRule {
+    pushed_change_with_resolutions(conflict, None)
+}
+
+fn pushed_change_with_resolutions(conflict: bool, resolutions: Option<u32>) -> (World, u64, u64, u64) {
+    let world = World::configured_limits(
+        true,
+        true,
+        true,
+        1000,
+        Gate::default(),
+        None,
+        StoryLimits { resolutions, ..StoryLimits::default() },
+    )
+    .with_landing_deployment(Box::new([engine::LandingRule {
         connector: 0,
         kind: 4,
         enforce: true,
@@ -156,8 +169,7 @@ fn a_change_under_rules_asking_neither_merges_at_its_head() {
 /// temper/docs/design/domain/forge.md, 8.4: a conflict past the resolution bound holds under every rule.
 #[test]
 fn a_conflict_under_rules_asking_neither_says_why_it_holds() {
-    let (mut world, task, head, base) = pushed_change(true);
-    world.env.limits.forge.change_policy.resolutions = 0;
+    let (mut world, task, head, base) = pushed_change_with_resolutions(true, Some(0));
     // A persistent conflict is decided after the shipped mergeability window,
     // with the world's twenty-second durable round trip left for the hold.
     let deadline =

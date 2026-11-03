@@ -302,6 +302,7 @@ fn advance(d: &mut Domain, task: u64, wall: Wall, cancelled: bool) -> Queue<Requ
         d,
         &environment,
         StepInput {
+            merge_job: false,
             task,
             entry: OPEN,
             heard: heard(cancelled),

@@ -2462,6 +2462,7 @@ fn child_authority(context: &tasks::DelegationContext) -> Option<tasks::Authorit
     Some(authority)
 }
 
+#[expect(clippy::too_many_lines, reason = "each change delegate keeps its executor, spec and contract together")]
 fn change_delegate(
     domain: &Domain,
     env: &Env<Limits>,

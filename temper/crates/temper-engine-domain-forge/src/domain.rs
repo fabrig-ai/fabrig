@@ -2612,8 +2612,9 @@ fn delegated(
         row.result.repaired(why, row.change.last_head, env.limits.client.answer_bytes);
     }
     row.delegate = Some((child, kind));
-    if matches!(kind, change::Delegate::Resolve { .. } | change::Delegate::Merge { .. }) {
-        row.merge_result = None;
+    match kind {
+        change::Delegate::Resolve { .. } | change::Delegate::Merge { .. } => row.merge_result = None,
+        change::Delegate::Produce | change::Delegate::Repair(_) | change::Delegate::Gate { .. } => {}
     }
     row.producer_failure = None;
     row.effect_account = None;
@@ -2718,8 +2719,9 @@ fn delegate_result(
         return;
     }
     // Keep the merge's identity through the fresh branch read, including after restart.
-    if !matches!(kind, change::Delegate::Merge { .. } | change::Delegate::Resolve { .. }) {
-        row.delegate = None;
+    match kind {
+        change::Delegate::Merge { .. } | change::Delegate::Resolve { .. } => {}
+        change::Delegate::Produce | change::Delegate::Repair(_) | change::Delegate::Gate { .. } => row.delegate = None,
     }
     row.delegate_status = if no_change { change::Status::Failed } else { status };
     match kind {
@@ -2750,7 +2752,8 @@ fn delegate_result(
                     Some((_, result)) => usize::try_from(result).expect("u32 fits usize"),
                     None => 0,
                 };
-                row.merge_result = Some(Box::from(&words[..words.len().min(bound)]));
+                row.merge_result =
+                    Some(Box::from(words.get(..words.len().min(bound)).expect("merge result within its bytes")));
             }
         }
         change::Delegate::Repair(_) | change::Delegate::Resolve { .. } => {}
@@ -6150,10 +6153,11 @@ fn merge_available(d: &Domain, row: &ChangeRow, pending: &PendingStep, base_tip:
     let Some(command) = d.merge_job(repository.project) else { return false };
     let head = pending.branch.unwrap_or(base_tip);
     let base = row.catch_up.unwrap_or(base_tip);
-    let length = command.len()
-        + 8
-        + b"{\"version\":1,\"head\":\"\",\"base\":\"\"}".len()
-        + crate::commit_text(&head).len()
-        + crate::commit_text(&base).len();
+    let length = command
+        .len()
+        .saturating_add(8)
+        .saturating_add(b"{\"version\":1,\"head\":\"\",\"base\":\"\"}".len())
+        .saturating_add(crate::commit_text(&head).len())
+        .saturating_add(crate::commit_text(&base).len());
     length <= usize::try_from(bound).expect("u32 fits usize")
 }

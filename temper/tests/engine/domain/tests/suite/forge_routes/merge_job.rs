@@ -61,13 +61,29 @@ fn next_job(world: &mut World, task: u64, optimistic: bool) -> host::JobAssignme
         }
         world.tick();
     }
-    panic!("merge job was not assigned: {:?}; errors {:?}", change_row(world, task), world.call_errors);
+    let child = change_row(world, task).delegate.map(|(child, _)| child);
+    let phase = child.and_then(|child| world.root.tasks().task(child)).map(|row| &row.phase);
+    panic!(
+        "merge job was not assigned: {:?}; child phase {:?}; errors {:?}",
+        change_row(world, task),
+        phase,
+        world.call_errors
+    );
 }
 
 fn check_job(world: &World, task: u64, job: &host::JobAssignment, head: u64, base: u64) {
     assert_eq!(job.kind, host::JobKind(forge_top::MERGE_KIND));
     assert_eq!(job.deadline, Duration::from_secs(600));
-    assert!(job.workspace.is_some());
+    let workspace = job.workspace.as_ref().expect("job workspace");
+    assert_eq!(workspace.workstream, task, "the change owns the checkout cache");
+    let items = &world.job_workspaces.get(&job.run.raw()).expect("typed job items").repositories;
+    assert_eq!(items.len(), 1);
+    let item = &items[0];
+    let change = change_row(world, task);
+    assert_eq!(item.provider, change.repository);
+    assert_eq!(item.name.as_ref(), b"home");
+    assert_eq!(item.push.as_deref(), Some(change.branch.as_ref()));
+    assert_eq!(item.start, engine::ForgeStart::Merge { branch: change.branch.clone(), base: translate::commit(base) });
     let row = live_task(world, job.run.raw());
     assert_eq!(row.requester, tasks::Party::Task(task));
     assert_eq!(row.executor, tasks::Executor::Job { kind: 3 });
@@ -281,8 +297,8 @@ fn a_failed_merge_job_holds_the_change() {
         job.run.raw(),
         job.attempt.raw(),
         host::JobEnding::Failed {
-            failure: host::JobFailure::Failed,
-            detail: b"merge command failed".as_slice().into(),
+            failure: host::JobFailure::Undelivered(host::DeliveryOutcome::Refused),
+            detail: b"merge delivery refused".as_slice().into(),
             work: host::Work { left: None, saved: None },
         },
     );
@@ -293,7 +309,39 @@ fn a_failed_merge_job_holds_the_change() {
         }
         world.tick();
     }
-    assert!(matches!(change_row(&world, task).change.state, change::State::Held { why: change::Hold::Failed, .. }));
+    assert!(
+        matches!(change_row(&world, task).change.state, change::State::Held { why: change::Hold::Failed, .. }),
+        "{:?}; {:?}",
+        change_row(&world, task),
+        world.root.tasks().task(job.run.raw())
+    );
     assert_eq!(world.assigned.len(), 2);
+    world.close();
+}
+
+/// temper/docs/design/domain/worker.md, 4.4: a retry prepares its workspace afresh after a transient failure.
+#[test]
+fn a_failed_merge_jobs_retry_keeps_the_changes_workspace() {
+    let (mut world, task, head, base) = pushed_change_in(world(false, true, true).with_merge_job(COMMAND), true, GOAL);
+    let first = next_job(&mut world, task, false);
+    check_job(&world, task, &first, head, base);
+    let event = world.protocol.answer_job(
+        CHANNEL,
+        first.run.raw(),
+        first.attempt.raw(),
+        host::JobEnding::Failed {
+            failure: host::JobFailure::Unprepared(host::Preparation::Transient),
+            detail: b"checkout temporarily unavailable".as_slice().into(),
+            work: host::Work { left: None, saved: None },
+        },
+    );
+    world.send(event);
+    let retry = next_job(&mut world, task, false);
+    assert_eq!(retry.run, first.run);
+    assert_ne!(retry.attempt, first.attempt);
+    check_job(&world, task, &retry, head, base);
+    let merged = push_merge(&mut world, task, head, base);
+    finish_job(&mut world, &retry, RESULT);
+    landed(&mut world, task, merged);
     world.close();
 }
