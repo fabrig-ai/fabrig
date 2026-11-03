@@ -66,7 +66,6 @@ pub(super) fn build_endpoints(
         let transport = endpoint_transport(&mut endpoint)?;
         let mut llm_endpoint = match declared.provider {
             shared::Provider::OpenAi => shared::Endpoint::openai(),
-            shared::Provider::OpenAiCodex => return Err("endpoint provider must be openai or anthropic".into()),
             shared::Provider::Anthropic => shared::Endpoint::anthropic(),
         };
         if let Some(authority) = endpoint.authority {
@@ -281,5 +280,5 @@ pub(super) fn build_models(endpoint: &Endpoint) -> Result<service::profile::Endp
 }
 
 fn credential_limits(limits: &llm::ComponentLimits) -> shared::client::CredentialLimits {
-    shared::client::CredentialLimits { value: limits.grant_value_bytes, account_id: 0 }
+    shared::client::CredentialLimits { value: limits.grant_value_bytes }
 }

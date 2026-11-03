@@ -11,9 +11,6 @@ fn anthropic_call() -> skein_llm::Call {
 }
 #[test]
 fn credentials_and_reserved_headers_cannot_cross_auth_modes() {
-    let mut input = anthropic_call();
-    input.credential.as_mut().expect("fixture credential").account_id = b"unexpected-account".to_vec().into();
-    assert_eq!(rejection(input, &limits()).expect("expected admission rejection"), Error::Invalid);
     for name in [
         b"Authorization".as_slice(),
         b"x-api-key",

@@ -14,8 +14,7 @@ pub(super) struct Row {
 
 pub(super) fn row(route: Provider, error: api::Error) -> Option<Row> {
     let (status, code): (_, &[u8]) = match route {
-        Provider::OpenAi | Provider::OpenAiCodex => match error {
-            api::Error::Exhausted { .. } if route == Provider::OpenAiCodex => (429, b"usage_limit_reached"),
+        Provider::OpenAi => match error {
             api::Error::Exhausted { .. } => (429, b"subscription_sharing_usage_limit_exceeded"),
             api::Error::RateLimited { .. } => (429, b"rate_limit_exceeded"),
             api::Error::Refused => (403, b"subscription_sharing_user_not_eligible"),
@@ -74,7 +73,6 @@ pub(super) fn request_header(server: &Server, request: &[u8]) -> Header {
     Header {
         name: bytes::copy_of(match server.route {
             Provider::OpenAi => b"x-request-id",
-            Provider::OpenAiCodex => b"x-oai-request-id",
             Provider::Anthropic => b"request-id",
         }),
         value: if request.is_empty() { generated.into_boxed() } else { bytes::copy_of(request) },
@@ -161,8 +159,8 @@ pub(super) fn provider_error(route: Provider, failure: &api::Failure) -> openai:
 fn body(route: Provider, failure: &api::Failure, env: &Env<Limits>) -> Box<[u8]> {
     let error = provider_error(route, failure);
     let limits = match route {
+        Provider::OpenAi => &env.limits.documents.openai,
         Provider::Anthropic => &env.limits.documents.anthropic,
-        Provider::OpenAi | Provider::OpenAiCodex => &env.limits.documents.openai,
     };
     match openai::encode_error(&error, limits) {
         Ok(body) => body,
@@ -180,37 +178,28 @@ mod tests {
     use super::*;
     use crate::documents;
     use skein_lib::Duration;
-    use skein_llm::Provider::{Anthropic, OpenAi, OpenAiCodex};
+    use skein_llm::Provider::{Anthropic, OpenAi};
 
-    fn rows() -> [(Provider, api::Error, u16, &'static [u8]); 28] {
+    fn rows() -> [(Provider, api::Error, u16, &'static [u8]); 18] {
         let none = api::Error::Exhausted { retry_after: None };
         let rate = api::Error::RateLimited { retry_after: Duration::ZERO };
         [
             (OpenAi, none, 429, b"subscription_sharing_usage_limit_exceeded"),
-            (OpenAiCodex, none, 429, b"usage_limit_reached"),
             (Anthropic, none, 402, b"billing_error"),
             (OpenAi, rate, 429, b"rate_limit_exceeded"),
-            (OpenAiCodex, rate, 429, b"rate_limit_exceeded"),
             (Anthropic, rate, 429, b"rate_limit_error"),
             (OpenAi, api::Error::Refused, 403, b"subscription_sharing_user_not_eligible"),
-            (OpenAiCodex, api::Error::Refused, 403, b"subscription_sharing_user_not_eligible"),
             (Anthropic, api::Error::Refused, 403, b"permission_error"),
             (OpenAi, api::Error::Unsupported, 400, b"subscription_sharing_unsupported_capability"),
-            (OpenAiCodex, api::Error::Unsupported, 400, b"subscription_sharing_unsupported_capability"),
             (OpenAi, api::Error::Overloaded, 503, b"overloaded_error"),
-            (OpenAiCodex, api::Error::Overloaded, 503, b"overloaded_error"),
             (Anthropic, api::Error::Overloaded, 529, b"overloaded_error"),
             (OpenAi, api::Error::Unavailable, 503, b"subscription_sharing_usage_unavailable"),
-            (OpenAiCodex, api::Error::Unavailable, 503, b"subscription_sharing_usage_unavailable"),
             (Anthropic, api::Error::Unavailable, 500, b"api_error"),
             (OpenAi, api::Error::ContextTooLong, 400, b"context_length_exceeded"),
-            (OpenAiCodex, api::Error::ContextTooLong, 400, b"context_length_exceeded"),
             (Anthropic, api::Error::ContextTooLong, 400, b"invalid_request_error"),
             (OpenAi, api::Error::InvalidRequest, 403, b"subscription_sharing_route_not_supported"),
-            (OpenAiCodex, api::Error::InvalidRequest, 403, b"subscription_sharing_route_not_supported"),
             (Anthropic, api::Error::InvalidRequest, 400, b"invalid_request_error"),
             (OpenAi, api::Error::Unauthorized, 401, b"invalid_api_key"),
-            (OpenAiCodex, api::Error::Unauthorized, 401, b"invalid_api_key"),
             (Anthropic, api::Error::Unauthorized, 401, b"authentication_error"),
             (
                 OpenAi,
@@ -218,7 +207,6 @@ mod tests {
                 429,
                 b"subscription_sharing_usage_limit_exceeded",
             ),
-            (OpenAiCodex, api::Error::Exhausted { retry_after: Some(Duration::ZERO) }, 429, b"usage_limit_reached"),
         ]
     }
 

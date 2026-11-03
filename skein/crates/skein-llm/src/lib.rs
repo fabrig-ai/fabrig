@@ -1,6 +1,6 @@
 //! Provider-neutral LLM calls over an externally owned plaintext stream.
 //!
-//! Supports `OpenAI`'s public and Codex Responses routes and Anthropic Messages.
+//! Supports `OpenAI`'s public Responses route and Anthropic Messages.
 //! Socket/TLS ownership, OAuth sign-in and renewal, deadlines and retry
 //! policy belong to the caller. See `docs/design/llm.md` for the contract.
 #![cfg_attr(not(test), no_std)]

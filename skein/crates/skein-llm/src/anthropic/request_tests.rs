@@ -144,7 +144,7 @@ fn malformed_unsigned_and_duplicate_reasoning_cannot_replay() {
         assert_eq!(measure_request(&prompt(Role::Assistant, reasoning(value)), 4096, &LIMITS), Err(Error::Invalid));
     }
     let replay = Replay {
-        provider: Provider::OpenAiCodex,
+        provider: Provider::OpenAi,
         value: Json::from_bytes(br#"{"type":"thinking","thinking":"a","signature":"s"}"#, &LIMITS.document())
             .expect("JSON"),
     };

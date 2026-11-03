@@ -7,11 +7,9 @@ use skein_llm_world::{TINY_DECL, World, call, limits_for};
 #[test]
 fn declared_quantities_price_the_retained_event_and_leave_transport_to_the_owner() {
     let derived = Limits::derive(&TINY_DECL).expect("declaration");
-    for (provider, head, fields, fixed_tokens, fixed_text, metadata) in [
-        (Provider::OpenAiCodex, 16384, 168, 30, 196, 86),
-        (Provider::Anthropic, 16384, 128, 29, 202, 0),
-        (Provider::OpenAi, 16384, 128, 30, 196, 86),
-    ] {
+    for (provider, head, fields, fixed_tokens, fixed_text, metadata) in
+        [(Provider::Anthropic, 16384, 128, 29, 202, 0), (Provider::OpenAi, 16384, 128, 30, 196, 86)]
+    {
         let limits = derived.dialect(provider);
         assert_eq!(limits.http.head, head);
         assert_eq!(limits.http.headers, fields);
@@ -56,34 +54,25 @@ fn declared_quantities_price_the_retained_event_and_leave_transport_to_the_owner
 
 #[test]
 fn only_the_messages_endpoint_requires_a_nonzero_native_output_cap() {
-    let credential = client::CredentialLimits { value: 32, account_id: 32 };
+    let credential = client::CredentialLimits { value: 32 };
     let declared = Declared { output: 0, tool_payload: 0, ..TINY_DECL };
-    let derived = Limits::derive(&declared).expect("zero output can describe Codex");
-    assert!(client::request_head(&Endpoint::codex(), &credential, &derived.codex).is_ok());
+    let derived = Limits::derive(&declared).expect("zero output can describe Responses");
+    assert!(client::request_head(&Endpoint::openai(), &credential, &derived.openai).is_ok());
     assert_eq!(
         client::request_head(&Endpoint::anthropic(), &credential, &derived.anthropic),
         Err(Error::Limit { which: Cap::Output, bound: 0 })
     );
 }
 
-fn capture(provider: Provider, scenario: &str, file: &str) -> Vec<u8> {
-    let dialect = match provider {
-        Provider::OpenAiCodex | Provider::OpenAi => "openai",
-        Provider::Anthropic => "anthropic",
-    };
+fn capture(scenario: &str, file: &str) -> Vec<u8> {
     std::fs::read(
-        skein_scratch::paths::package()
-            .join("../../crates/skein-llm/src")
-            .join(dialect)
-            .join("fixtures")
-            .join(scenario)
-            .join(file),
+        skein_scratch::paths::package().join("../../crates/skein-llm/src/anthropic/fixtures").join(scenario).join(file),
     )
     .expect("historical capture")
 }
 
-fn captured_head(provider: Provider, scenario: &str) -> (Vec<u8>, u32) {
-    let source = capture(provider, scenario, "response.headers");
+fn captured_head(scenario: &str) -> (Vec<u8>, u32) {
+    let source = capture(scenario, "response.headers");
     // Admission for the inert fixture wrapper, independent of client limits.
     let parsed = skein_llm::Json::from_bytes(
         &source,
@@ -119,26 +108,22 @@ fn captured_head(provider: Provider, scenario: &str) -> (Vec<u8>, u32) {
 
 #[test]
 fn archived_heads_fit_with_headroom_and_complete_with_derived_limits() {
-    for provider in [Provider::OpenAiCodex, Provider::Anthropic] {
+    {
+        let provider = Provider::Anthropic;
         let bounds = limits_for(provider);
         let mut maximum = 0;
         let mut maximum_fields = 0;
-        let scenarios: &[&str] = match provider {
-            Provider::OpenAiCodex | Provider::OpenAi => &["single-text", "tool-call", "tool-result-final"],
-            Provider::Anthropic => &["single-text", "tool-call", "parallel-tool-calls", "tool-result-final"],
-        };
+        let scenarios = ["single-text", "tool-call", "parallel-tool-calls", "tool-result-final"];
         for scenario in scenarios {
-            let (mut wire, fields) = captured_head(provider, scenario);
+            let (mut wire, fields) = captured_head(scenario);
             maximum = maximum.max(u32::try_from(wire.len()).expect("capture length"));
             maximum_fields = maximum_fields.max(fields);
-            wire.extend_from_slice(&capture(provider, scenario, "response.sse"));
+            wire.extend_from_slice(&capture(scenario, "response.sse"));
             let mut input = call(1);
-            if provider == Provider::Anthropic {
-                input.endpoint = Endpoint::anthropic();
-                input.credential = Some(skein_llm::Credential::key(b"archive-test".as_slice().into()));
-                input.prompt.affinity = None;
-                input.prompt.max_output_tokens = Some(TINY_DECL.output);
-            }
+            input.endpoint = Endpoint::anthropic();
+            input.credential = Some(skein_llm::Credential::key(b"archive-test".as_slice().into()));
+            input.prompt.affinity = None;
+            input.prompt.max_output_tokens = Some(TINY_DECL.output);
             let mut world = World::new(input, bounds, wire, 17);
             world.fragmentation(31, 1);
             world.request(client::Request::Start);
@@ -156,7 +141,7 @@ fn archived_heads_fit_with_headroom_and_complete_with_derived_limits() {
 }
 
 #[test]
-fn a_codex_response_with_one_hundred_fields_in_nine_kib_completes() {
+fn a_responses_response_with_one_hundred_fields_in_nine_kib_completes() {
     let body = skein_llm_world::events(&[
         skein_llm_world::TEXT_ADDED,
         skein_llm_world::TEXT_DELTA,
@@ -179,7 +164,7 @@ fn a_codex_response_with_one_hundred_fields_in_nine_kib_completes() {
     let head = wire.windows(4).position(|part| part == b"\r\n\r\n").unwrap() + 4;
     assert_eq!(head, 9 * 1024);
     assert_eq!(wire[..head].split(|byte| *byte == b'\n').count() - 3, 100);
-    let mut world = World::new(call(1), limits_for(Provider::OpenAiCodex), wire, 29);
+    let mut world = World::new(call(1), limits_for(Provider::OpenAi), wire, 29);
     world.fragmentation(31, 1);
     world.request(client::Request::Start);
     world.run();

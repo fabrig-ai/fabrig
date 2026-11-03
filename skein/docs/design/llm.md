@@ -23,9 +23,6 @@ are explicit endpoint headers; reserved credential and framing headers
 are refused. The caller selects the model and any required compatibility
 headers.
 
-**A withdrawn route.** OpenAI's Codex route (section 4.6) is withdrawn;
-its section says what replaces it.
-
 ## 1. In one page
 
 - **One call, one terminal.** A client prepares one call from a neutral
@@ -35,11 +32,10 @@ its section says what replaces it.
 - **A neutral vocabulary.** Prompts, messages, blocks, tools, tool choice,
   affinity and usage name no provider. Provider metadata travels as
   tagged opaque replay. Two dialects render the vocabulary: OpenAI's
-  Responses, on its public route and on the withdrawn Codex route, and
-  Anthropic's Messages.
+  Responses and Anthropic's Messages.
 - **A credential says how it is sent.** A bearer or a key, which the
   route puts where its provider takes it. A credential carries no
-  account id, the withdrawn Codex route's aside. A call to an endpoint
+  account id. A call to an endpoint
   that takes none, such as a local model's server, carries none
   (section 2.6).
 - **Per-call outcomes are not failures.** A tool call too large to keep
@@ -165,7 +161,7 @@ pub struct Affinity {
   content, and puts the same affinity, unchanged, into every prompt of a
   conversation, resumed ones included. Conversations that share a prefix, such as a run and its
   children, share the key and differ in the thread.
-- **The dialect renders it** (sections 4.6 to 4.8): OpenAI routes by it;
+- **The dialect renders it** (sections 4.7 and 4.8): OpenAI routes by it;
   Anthropic accepts it with no wire effect. A prompt without affinity
   renders none of it.
 - **Fixed size:** it allocates nothing, and its rendering has a fixed
@@ -281,7 +277,7 @@ pub struct Report {
 
 - **The provider's classes.** Each route maps its provider's answers
   onto these by the error's code first, and by the status where the code
-  is absent or not one the route names (sections 4.6 to 4.8):
+  is absent or not one the route names (sections 4.7 and 4.8):
   - `Exhausted`: the account's usage or quota is spent, a plan's usage
     limit or a key's quota. `retry_after` is the reset the response
     gives, and `None` when it gives none: the client never guesses a
@@ -353,7 +349,6 @@ pub enum Scheme {
 pub struct Credential {
     pub value: Box<[u8]>,       // the secret
     pub scheme: Scheme,
-    pub account_id: Box<[u8]>,  // withdrawn: the Codex route's account; empty elsewhere
 }
 ```
 
@@ -362,8 +357,7 @@ pub struct Credential {
   token from a sign-in (oauth.md), and hands it with each call that has
   one (llm-connection.md, section 4.2). The client keeps it no longer than
   its call, and no `Debug` shows it. `Credential::bearer` and
-  `Credential::key` make one; the field `account_id` is the withdrawn
-  Codex route's alone (below).
+  `Credential::key` make one.
 - **The route puts it where its provider takes it.** OpenAI's public
   route sends either scheme as `Authorization: Bearer`, and renders the
   same request for a key as for a plan's token (section 4.8). Anthropic
@@ -374,19 +368,14 @@ pub struct Credential {
   loopback (llm-connection.md, section 3). A call without one sends no
   credential field: no `Authorization` on the public route, and neither
   `x-api-key` nor `Authorization` on Anthropic, whose `anthropic-version`
-  is sent. The withdrawn Codex route refuses a call without one at
-  admission, as `Invalid`. The client never makes one up: a provider
-  that wants one answers `Unauthorized`.
-- **No account id.** The account id is the withdrawn Codex route's alone
-  (section 4.6), made with `Credential::codex`. The other routes refuse a
-  credential that carries one, and the Codex route one without, at
-  admission, as `Invalid`.
-- **Its bounds.** The value and the account id are each within the
-  bounds the owner gives when the component is made (llm-connection.md,
-  section 3), which the request head's measure counts; either past its
+  is sent. The client never makes one up: a provider that wants one
+  answers `Unauthorized`.
+- **Its bounds.** The value is within the bounds the owner gives when
+  the component is made (llm-connection.md,
+  section 3), which the request head's measure counts; a value past its
   bound is refused at admission, by name.
-- **Reserved names.** `Authorization`, `x-api-key` and the Codex route's
-  `chatgpt-account-id` are credential fields: an endpoint's configured
+- **Reserved names.** `Authorization` and `x-api-key` are credential fields,
+  and `chatgpt-account-id` stays reserved: an endpoint's configured
   headers may not use them, as they may not use the framing fields.
 
 ## 3. Driving the stack
@@ -437,9 +426,8 @@ instruct a caller to retry.
 
 Every limit of the client is derived from declared quantities (sections
 4.1 to 4.3). Limits are per route: `Limits` holds a set for OpenAI's
-public route (`openai`), for Anthropic's (`anthropic`) and for the
-withdrawn Codex route (`codex`), as their heads, events, replay and
-output caps differ. Startup checks
+public route (`openai`) and for Anthropic's (`anthropic`), as their
+heads, events, replay and output caps differ. Startup checks
 ensure SSE demands fit HTTP's read cap and that each piece size fits the
 transport's (llm-connection.md, section 7). JSON is decoded as each
 event's data streams, selectively (section 4.4). HTTP read/room maxima are
@@ -661,37 +649,6 @@ refuses the configuration and names the relationship:
   function of the prompt's shape (section 4.7): only the tail marker
   moves, and a marker is not part of the content the provider caches.
 
-### 4.6 The Codex route, withdrawn
-
-**Withdrawn.** ChatGPT's Codex subscription route stays for the callers
-that use it and takes no new one. The public route of section 4.8
-replaces it, and it is removed once its last caller has moved
-(llm.status.md). Its requests, tool choice, usage, cut calls and reasoning
-opt-in are section 4.8's, which holds the Responses dialect; it differs
-in these alone:
-
-- **The endpoint** is `Endpoint::codex()`: `chatgpt.com` and
-  `/backend-api/codex/responses`, `Provider::OpenAiCodex`. Its replay has
-  its own tag, so neither OpenAI route replays the other's metadata
-  (section 2).
-- **The credential** is a bearer with an account id (`Credential::codex`,
-  section 2.6), which goes in a `chatgpt-account-id` header.
-- **Affinity** renders in the body as `prompt_cache_key`, as on the
-  public route, and also in a `session-id` header. The thread renders the
-  same way, from the key with the thread number XORed, big-endian, into
-  its last four bytes, in a `thread-id` header: thread 0 is the key
-  itself, as a native Codex root thread's ID is its session's. A prompt
-  without affinity sends none of the three. `session-id` and `thread-id`
-  are skein's per-call headers.
-- **Identity headers** are optional data (`openai::identity`), never
-  installed by default.
-- **Failures.** `usage_limit_reached`, in an HTTP error or in
-  `response.failed`, is `Exhausted`, with the reset the error gives in
-  `resets_in_seconds` or `resets_at`; another 429 is `RateLimited`; the
-  rest is classed as on the public route. The request id is the head's
-  `x-oai-request-id`.
-- **Head bounds** are its own (section 7).
-
 ### 4.7 The Anthropic dialect
 
 Anthropic sends `stream:true`, native `messages`, tool `input_schema`, and
@@ -782,8 +739,8 @@ a plan's route refuses: `background`, `conversation`,
 admission refuses an explicit output-token cap, and the local output
 bounds still hold.
 
-- **Response media type.** Both OpenAI Responses routes accept a missing
-  `Content-Type` and validate SSE events through their terminal. An explicit
+- **Response media type.** The public route accepts a missing
+  `Content-Type` and validates SSE events through their terminal. An explicit
   type must be `text/event-stream` (case-insensitive, parameters ignored);
   duplicate types are refused. This follows the provider dialect regardless
   of credential kind or endpoint override. A refusal names the media type
@@ -834,9 +791,7 @@ bounds still hold.
   than a body at the bound, whatever its endpoint's coding, and the
   largest call's reservation is the same on every route (llm-connection.md,
   section 7).
-  `Endpoint::codex()` compresses: its endpoint takes gzip and zstd, and a
-  request of a long conversation shrinks several times, and so does
-  its upload time on a slow uplink. `Endpoint::openai()` does not,
+  `Endpoint::openai()` does not,
   until a capture shows the public endpoint takes it. A local model's
   server never does.
 - **The request id** is the head's `x-request-id`.
@@ -847,8 +802,7 @@ bounds still hold.
   `RateLimited`; a 5xx `Unavailable`, or `Overloaded` where it is 529 or
   its error's code, else type, is `overloaded_error`. In the stream,
   after a head that said 200, no status applies: a `response.failed` or
-  `error` event whose code, else type, neither this section nor, on the
-  Codex route, section 4.6 names is `Unavailable`, the code kept in the
+  `error` event whose code, else type, this section does not name is `Unavailable`, the code kept in the
   report (section 2.5). A well-formed failure event is the provider's
   answer, never `Protocol`.
 
@@ -886,9 +840,7 @@ The contracts of sections 2 and 4 add these, all in the focused suite
 unless marked:
 
 - **Affinity:** the public route carries the key in the body alone, with
-  neither header; the Codex route carries it in the body and in both
-  headers, each conversation's thread distinct and thread 0 equal to the
-  key; no affinity sends none of them; an endpoint header named
+  neither header; no affinity sends none; an endpoint header named
   `session-id` or `thread-id` is refused on every route; Anthropic encodes
   byte-identical requests with and without affinity. Through the fake peer, every request of one
   conversation carries the same affinity (fake-llm.md, section 3.1).
@@ -923,8 +875,8 @@ unless marked:
   its status and its own clipped text as the detail; each deadline's
   phase reaches the failure.
 - **Failure classes:** each row of section 4.8's table, as an HTTP error
-  and, for the plan's limit, inside `response.failed`, the Codex route's
-  `usage_limit_reached` in both, and each of section 4.7's types; a code
+  and, for the plan's limit, inside `response.failed`, and each of
+  section 4.7's types; a code
   the table names wins over its status;
   `Exhausted` carries a reset where the response gives one and `None`
   where it does not, never zero; each route's request id reaches the
@@ -932,19 +884,16 @@ unless marked:
   and field at their bound are kept and one over are empty; a failure
   before a head has an empty report, and a local one after it the
   request id alone; in the stream after a 200 head, a `response.failed`
-  or `error` event of a code neither section 4.8 nor, on the Codex
-  route, section 4.6 names, and an Anthropic `error` event of a type
+  or `error` event of a code section 4.8 does not name, and an Anthropic `error` event of a type
   section 4.7 does not list, are `Unavailable` with that code or type in
   the report.
 - **Credentials:** a key on Anthropic goes as `x-api-key` with neither an
   authorization field nor a beta, and a bearer is refused at admission; the public
   route sends a key and a token alike as a bearer, the two requests'
-  bodies byte-identical; an account id is refused on the public and
-  Anthropic routes and required on the Codex route; an endpoint header
-  named `x-api-key`, `Authorization` or `chatgpt-account-id` is refused;
-  a value or account id past its bound is refused by name; a call
+  bodies byte-identical; an endpoint header named `x-api-key` or
+  `Authorization` is refused; a value past its bound is refused by name; a call
   without a credential sends no credential field on the public and
-  Anthropic routes, and is refused on the Codex route.
+  Anthropic routes.
 - **The public route:** over drawn prompts, no request carries a field
   of section 4.8's refused list or `previous_response_id`, and every one
   carries `store:false` and `stream:true`; an explicit output cap is
@@ -958,15 +907,16 @@ unless marked:
 - **Selective decoding:** a protocol world under tiny limits, a handful of
   retained tokens and a few hundred bytes of strings, decodes events that
   echo instructions, tools and attribution far larger than both, with a
-  high water independent of the echo's size. A real-structure Codex
-  `response.completed` event is kept as a golden event. In the fuzzy
+  high water independent of the echo's size. A synthetic echo-heavy
+  `response.completed` event, labelled so, is kept as a golden event. In the fuzzy
   suite, random extension fields never change what is decoded.
 
 ## 6. Later
 
-- **Routing state.** The Codex route's private turn-state token, which a
+- **Routing state.** A Responses route's turn-state token, which a
   response returns and the client replays within a turn, and its
-  `reasoning.context`, which keeps reasoning across user messages, are
+  `reasoning.context`, which ChatGPT's backend offers to keep reasoning
+  across user messages, are
   adopted on an OpenAI route that takes them only if a consumer's
   benchmarks show a material gain. Adopted, routing state is
   an opaque value the dialect returns with a completion and the caller
@@ -979,10 +929,6 @@ unless marked:
 
 ## 7. Open questions
 
-- **Codex's thread rendering.** The backend's use of `thread-id` is
-  private. The UUID-shaped rendering of section 4.6 mirrors native Codex;
-  whether the header matters at all is for a consumer's benchmarks to
-  measure. It goes with the route.
 - **Responses' cache writes.** Whether `cache_write_tokens` is counted
   within `input_tokens`, as cached tokens are, is not yet seen on the
   wire. Section 4.8 assumes it is; a capture that shows otherwise
@@ -993,8 +939,7 @@ unless marked:
 - **A bound on what the provider sends has headroom over its captures.**
   The response head's bytes and fields are the provider's and its
   proxies' to grow. Each is at least four times the largest captured,
-  and never below 16 KiB and 128 fields: 16 KiB and 168 fields for the
-  Codex route, 16 KiB and 128 fields for Anthropic, and the floor, 16 KiB
+  and never below 16 KiB and 128 fields: 16 KiB and 128 fields for Anthropic, and the floor, 16 KiB
   and 128 fields, for the public route until a capture of it sets its
   bound. Each capture must fit
   within a quarter of its bound. A fresh capture past a quarter is a
@@ -1012,7 +957,7 @@ unless marked:
 - **`Only` on OpenAI.** The public Responses API expresses `Only` as an
   allowed-tools choice; whether a plan's token may use it, rather than
   being answered `subscription_sharing_unsupported_capability`, waits for
-  a live test. Until then both OpenAI routes render `Auto`.
+  a live test. Until then the public route renders `Auto`.
 - **The plan's reset.** Whether OpenAI gives a reset with
   `subscription_sharing_usage_limit_exceeded` is not yet seen; the class
   carries one only where the response does (section 4.8).

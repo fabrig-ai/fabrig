@@ -211,16 +211,12 @@ fn configuration_with_limits(provider: skein_llm::Provider, limits: &agent::Limi
             name: smith_domain::llm::Endpoint(0),
             destination: skein_llm_connection::Endpoint {
                 limits: limits.llm.adapter.client,
-                credential: skein_llm::client::CredentialLimits {
-                    value: limits.llm.grant_value_bytes,
-                    account_id: limits.llm.grant_value_bytes,
-                },
+                credential: skein_llm::client::CredentialLimits { value: limits.llm.grant_value_bytes },
                 address: kernel::Addr::from((std::net::Ipv4Addr::LOCALHOST, 443)),
                 transport: skein_llm_connection::Transport::Plaintext,
                 llm: match provider {
                     skein_llm::Provider::Anthropic => skein_llm::Endpoint::anthropic(),
                     skein_llm::Provider::OpenAi => skein_llm::Endpoint::openai(),
-                    skein_llm::Provider::OpenAiCodex => unreachable!("unsupported fixture dialect"),
                 },
             },
             models: Box::new([]),

@@ -174,7 +174,7 @@ const NATIVE_PEER_PEAK_CEILING: u64 = 3_700_000;
 
 #[test]
 fn native_peer_and_client_stay_under_their_peak_ceiling_until_every_owner_drops() {
-    for provider in [Provider::OpenAiCodex, Provider::Anthropic] {
+    for provider in [Provider::OpenAi, Provider::Anthropic] {
         let bounds = limits();
         let caps = observations(&bounds);
         let meter = Meter::new();
@@ -399,7 +399,7 @@ const HEAD_OBSERVATION_PEAK_CEILING: u64 = 3_700_000;
 
 #[test]
 fn exact_head_observation_capacity_retains_actual_fields_and_one_less_retains_nothing() {
-    for provider in [Provider::OpenAiCodex, Provider::Anthropic] {
+    for provider in [Provider::OpenAi, Provider::Anthropic] {
         let bounds = limits();
         let mut baseline = Exchange::new(input(1, provider), bounds, scripts());
         baseline.start();

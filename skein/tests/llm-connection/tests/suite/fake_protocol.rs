@@ -44,7 +44,7 @@ fn limits() -> Limits {
 fn run(dialect: Provider, seed: u64) -> (Vec<String>, (u32, u32)) {
     let mut call = skein_llm_world::call(7);
     match dialect {
-        Provider::OpenAiCodex | Provider::OpenAi => {}
+        Provider::OpenAi => {}
         Provider::Anthropic => {
             call.endpoint = skein_llm::Endpoint::anthropic();
             call.credential = Some(Credential::key(b"fake-token".as_slice().into()));
@@ -56,11 +56,10 @@ fn run(dialect: Provider, seed: u64) -> (Vec<String>, (u32, u32)) {
     let peer_credential = Credential {
         scheme: skein_llm_world::credential_of(&call).scheme,
         value: skein_llm_world::credential_of(&call).value.clone(),
-        account_id: skein_llm_world::credential_of(&call).account_id.clone(),
     };
     let peer_limits = skein_llm_world::fake::limits(&skein_llm_world::limits());
     let provider_kind = match dialect {
-        Provider::OpenAiCodex | Provider::OpenAi => documents::Provider::OpenAi,
+        Provider::OpenAi => documents::Provider::OpenAi,
         Provider::Anthropic => documents::Provider::Anthropic,
     };
     let mut service = provider::Service::new(
@@ -93,7 +92,7 @@ fn run(dialect: Provider, seed: u64) -> (Vec<String>, (u32, u32)) {
             transport: skein_llm_connection::Transport::Plaintext,
             llm: call.endpoint,
             limits: skein_llm_world::limits(),
-            credential: skein_llm::client::CredentialLimits { value: 2048, account_id: 128 },
+            credential: skein_llm::client::CredentialLimits { value: 2048 },
         })
         .expect("one endpoint");
     let mut component = Component::new(endpoints, &limits()).expect("component");
@@ -287,8 +286,8 @@ fn run(dialect: Provider, seed: u64) -> (Vec<String>, (u32, u32)) {
 }
 
 #[test]
-fn codex_fake_peer_over_plaintext_replays() {
-    assert_replays(7, 8, |seed| run(Provider::OpenAiCodex, seed));
+fn responses_fake_peer_over_plaintext_replays() {
+    assert_replays(7, 8, |seed| run(Provider::OpenAi, seed));
 }
 
 #[test]

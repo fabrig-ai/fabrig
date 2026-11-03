@@ -210,7 +210,6 @@ fn run_story(
 ) -> Story {
     let mut call = skein_llm_world::public_call(7);
     match dialect {
-        skein_llm::Provider::OpenAiCodex => unreachable!("unsupported fixture dialect"),
         Provider::OpenAi => {}
         Provider::Anthropic => {
             call.endpoint = skein_llm::Endpoint::anthropic();
@@ -227,7 +226,6 @@ fn run_story(
     };
     let peer_limits = skein_llm_world::fake::limits(&skein_llm_world::limits());
     let provider_kind = match dialect {
-        skein_llm::Provider::OpenAiCodex => unreachable!("unsupported fixture dialect"),
         Provider::OpenAi => documents::Provider::OpenAi,
         Provider::Anthropic => documents::Provider::Anthropic,
     };
@@ -269,10 +267,7 @@ fn run_story(
             name: llm::Endpoint(1),
             destination: skein_llm_connection::Endpoint {
                 limits: limits().adapter.client,
-                credential: skein_llm::client::CredentialLimits {
-                    value: limits().grant_value_bytes,
-                    account_id: limits().grant_value_bytes,
-                },
+                credential: skein_llm::client::CredentialLimits { value: limits().grant_value_bytes },
                 address: Addr::from((Ipv4Addr::LOCALHOST, 443)),
                 transport: skein_llm_connection::Transport::Tls {
                     server_name: skein_tls::Name::new("skein.test").expect("test name"),
@@ -610,7 +605,6 @@ fn run_story(
                         assert!(completion.blocks.iter().any(|block| matches!(block, smith_events::Block::Call { tool, input, .. } if tool.as_ref() == b"read" && input.as_ref() == br#"{"path":"README.md"}"#)));
                     } else {
                         match dialect {
-                            skein_llm::Provider::OpenAiCodex => unreachable!("unsupported fixture dialect"),
                             Provider::OpenAi => assert!(
                                 deltas.is_empty(),
                                 "the shared synthetic OpenAI renderer emits Added/Done, without text deltas"

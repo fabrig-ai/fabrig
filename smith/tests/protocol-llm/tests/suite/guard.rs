@@ -46,7 +46,6 @@ fn attempt(provider: Provider, guard: Option<llm::Guard>, text: &[u8]) -> Peer {
 
 fn measure(provider: Provider) -> u64 {
     match provider {
-        skein_llm::Provider::OpenAiCodex => unreachable!("unsupported fixture dialect"),
         Provider::OpenAi => OPENAI_MEASURE,
         Provider::Anthropic => ANTHROPIC_MEASURE,
     }

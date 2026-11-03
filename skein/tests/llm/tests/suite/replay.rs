@@ -1,12 +1,12 @@
 //! The durable opaque seam exercised independently of application domains.
 
 use skein_llm::{Block, Error, Json, Message, Provider, Replay, Role, client};
-use skein_llm_world::{call, limits, public_call, rejection};
+use skein_llm_world::{anthropic_call, call, limits, rejection};
 
 #[test]
 fn replay_envelopes_keep_tag_fields_and_exact_bounds_before_negative_mutations() {
     let bounds = limits();
-    for provider in [Provider::OpenAiCodex, Provider::Anthropic] {
+    for provider in [Provider::OpenAi, Provider::Anthropic] {
         let replay = Replay {
             provider,
             value: Json::from_bytes(
@@ -54,7 +54,7 @@ fn provider_mismatch_is_rejected_by_actual_client_after_positive_control() {
     let bounds = limits();
     let mut input = call(1);
     let replay = Replay {
-        provider: Provider::OpenAiCodex,
+        provider: Provider::OpenAi,
         value: Json::from_bytes(br#"{"id":"message-id","phase":"final_answer"}"#, &bounds.native().document())
             .expect("metadata"),
     };
@@ -87,23 +87,23 @@ fn output_ceiling_uses_shared_dialect_configuration() {
     let mut input = call(1);
     input.prompt.output_ceiling(Provider::Anthropic, 1234).expect("bounded ceiling");
     assert_eq!(input.prompt.max_output_tokens, Some(1234));
-    input.prompt.output_ceiling(Provider::OpenAiCodex, 1234).expect("unsupported wire option omitted");
+    input.prompt.output_ceiling(Provider::OpenAi, 1234).expect("unsupported wire option omitted");
     assert_eq!(input.prompt.max_output_tokens, None);
     assert_eq!(input.prompt.output_ceiling(Provider::Anthropic, 0), Err(Error::Invalid));
 }
 
 #[test]
 fn each_route_replays_only_its_own_metadata() {
-    // llm.md 7: durable tags stay 1 and 2; the public route takes 3.
+    // Stored provider tags are fixed: Anthropic is 2 and OpenAI is 3.
     const TAG_OFFSET: usize = 2;
     let bounds = limits().native().document();
-    for (provider, tag) in [(Provider::OpenAiCodex, 1), (Provider::Anthropic, 2), (Provider::OpenAi, 3)] {
+    for (provider, tag) in [(Provider::Anthropic, 2), (Provider::OpenAi, 3)] {
         let replay = Replay { provider, value: Json::from_bytes(b"{}", &bounds).unwrap() };
         let encoded = replay.to_bytes(&bounds).unwrap();
         assert_eq!(encoded.get(TAG_OFFSET), Some(&tag), "{provider:?}");
         assert_eq!(Replay::from_bytes(&encoded, &bounds), Ok(replay), "{provider:?}");
     }
-    for (mut input, provider) in [(call(1), Provider::OpenAi), (public_call(1), Provider::OpenAiCodex)] {
+    for (mut input, provider) in [(call(1), Provider::Anthropic), (anthropic_call(1), Provider::OpenAi)] {
         let replay = Replay { provider, value: Json::from_bytes(b"{}", &bounds).unwrap() };
         input.prompt.messages = Box::new([Message {
             role: Role::Assistant,
@@ -117,7 +117,7 @@ fn each_route_replays_only_its_own_metadata() {
 fn a_replay_written_before_reads_the_same() {
     let bounds = limits().native().document();
     for (encoded, provider) in [
-        (b"\x00\x01\x01\x00\x00\x00\x02{}".as_slice(), Provider::OpenAiCodex),
+        (b"\x00\x01\x03\x00\x00\x00\x02{}".as_slice(), Provider::OpenAi),
         (b"\x00\x01\x02\x00\x00\x00\x02{}".as_slice(), Provider::Anthropic),
     ] {
         assert_eq!(

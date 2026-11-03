@@ -61,12 +61,11 @@ impl Peer {
                 name: llm::Endpoint(0),
                 destination: skein_llm_connection::Endpoint {
                     limits: limits.adapter.client,
-                    credential: skein_llm::client::CredentialLimits { value: 128, account_id: 128 },
+                    credential: skein_llm::client::CredentialLimits { value: 128 },
                     address: "127.0.0.1:443".parse().expect("fixture address"),
                     transport: skein_llm_connection::Transport::Plaintext,
                     llm: match provider {
                         skein_llm::Provider::OpenAi => skein_llm::Endpoint::openai(),
-                        skein_llm::Provider::OpenAiCodex => unreachable!("unsupported fixture dialect"),
                         skein_llm::Provider::Anthropic => skein_llm::Endpoint::anthropic(),
                     },
                 },
@@ -80,7 +79,6 @@ impl Peer {
             .grant(
                 GrantName { account: 0, generation: 1 },
                 match provider {
-                    skein_llm::Provider::OpenAiCodex => unreachable!("unsupported fixture dialect"),
                     skein_llm::Provider::OpenAi => skein_llm::Credential::bearer(b"fake".as_slice().into()),
                     skein_llm::Provider::Anthropic => skein_llm::Credential::key(b"fake".as_slice().into()),
                 },

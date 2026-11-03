@@ -14,7 +14,6 @@ fn destination(name: u32, provider: shared::Provider) -> ConfiguredEndpoint {
         .expect("fixture TLS root");
     let llm = match provider {
         shared::Provider::OpenAi => shared::Endpoint::openai(),
-        shared::Provider::OpenAiCodex => unreachable!("unsupported fixture dialect"),
         shared::Provider::Anthropic => shared::Endpoint::anthropic(),
     };
     ConfiguredEndpoint {
@@ -23,7 +22,7 @@ fn destination(name: u32, provider: shared::Provider) -> ConfiguredEndpoint {
         name: llm::Endpoint(name),
         destination: skein_llm_connection::Endpoint {
             limits: skein_llm_world::limits(),
-            credential: skein_llm::client::CredentialLimits { value: 64, account_id: 64 },
+            credential: skein_llm::client::CredentialLimits { value: 64 },
             address: SocketAddr::from(([127, 0, 0, 1], 443)),
             transport: skein_llm_connection::Transport::Tls {
                 server_name: skein_tls::Name::new("example.test").expect("server name"),
@@ -120,11 +119,8 @@ fn a_sparse_account_number_is_granted_and_used() {
     grants.grant(name, Credential::key(b"key".as_slice().into()), Time::from_nanos(100)).expect("sparse grant");
     let installed = grants.read(name, Time::ZERO).expect("sparse name resolves");
     assert_eq!(installed.scheme, shared::Scheme::Key);
-    shared::client::check_credential(
-        &installed,
-        &shared::client::CredentialLimits { value: GRANT_BYTES, account_id: 0 },
-    )
-    .expect("installed credential has no account id");
+    shared::client::check_credential(&installed, &shared::client::CredentialLimits { value: GRANT_BYTES })
+        .expect("installed credential fits its value bound");
 }
 
 #[test]

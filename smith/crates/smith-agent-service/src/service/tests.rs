@@ -56,12 +56,12 @@ fn each_grant_value_installs_its_scheme() {
     use skein_llm::Scheme;
     use smith_protocol_translate::GrantValue;
     let rows = [
-        (GrantValue::Bearer(Box::from(&b"value"[..])), Scheme::Bearer, &b""[..]),
-        (GrantValue::Key(Box::from(&b"value"[..])), Scheme::Key, &b""[..]),
+        (GrantValue::Bearer(Box::from(&b"value"[..])), Scheme::Bearer),
+        (GrantValue::Key(Box::from(&b"value"[..])), Scheme::Key),
     ];
-    for (index, (input, scheme, account_id)) in rows.into_iter().enumerate() {
+    for (index, (input, scheme)) in rows.into_iter().enumerate() {
         let installed = credential(&input).expect("installable form");
-        assert_eq!((installed.scheme, installed.account_id.as_ref()), (scheme, account_id), "row {index}");
+        assert_eq!(installed.scheme, scheme, "row {index}");
     }
 }
 

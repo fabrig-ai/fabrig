@@ -43,9 +43,9 @@ pub(crate) fn endpoint() -> Endpoint {
             server_name: skein_tls::Name::new("example.test").expect("valid test name"),
             trust: skein_tls::Config::new(roots, &[]).expect("valid test trust"),
         },
-        llm: skein_llm::Endpoint::codex(),
+        llm: skein_llm::Endpoint::openai(),
         limits: client_limits(),
-        credential: skein_llm::client::CredentialLimits { value: 2048, account_id: 128 },
+        credential: skein_llm::client::CredentialLimits { value: 2048 },
     }
 }
 
@@ -66,11 +66,7 @@ pub(crate) fn prompt() -> Prompt {
 }
 
 pub(crate) fn credential() -> Credential {
-    Credential {
-        scheme: skein_llm::Scheme::Bearer,
-        value: bytes::copy_of(b"secret"),
-        account_id: bytes::copy_of(b"account"),
-    }
+    Credential { scheme: skein_llm::Scheme::Bearer, value: bytes::copy_of(b"secret") }
 }
 
 #[test]
@@ -336,9 +332,9 @@ fn plaintext_admission_checks_the_exact_loopback_ranges() {
             .push(Endpoint {
                 address: address.parse().expect("test address"),
                 transport: Transport::Plaintext,
-                llm: skein_llm::Endpoint::codex(),
+                llm: skein_llm::Endpoint::openai(),
                 limits: client_limits(),
-                credential: skein_llm::client::CredentialLimits { value: 2048, account_id: 128 },
+                credential: skein_llm::client::CredentialLimits { value: 2048 },
             })
             .expect("one endpoint");
         assert_eq!(
@@ -356,9 +352,9 @@ fn plaintext_connect_starts_http_and_never_arms_a_handshake_deadline() {
         .push(Endpoint {
             address: Addr::from((Ipv4Addr::LOCALHOST, 80)),
             transport: Transport::Plaintext,
-            llm: skein_llm::Endpoint::codex(),
+            llm: skein_llm::Endpoint::openai(),
             limits: client_limits(),
-            credential: skein_llm::client::CredentialLimits { value: 2048, account_id: 128 },
+            credential: skein_llm::client::CredentialLimits { value: 2048 },
         })
         .expect("one endpoint");
     let mut config = limits();
@@ -624,13 +620,12 @@ fn the_measured_head_accepts_a_credential_at_its_bound_and_refuses_one_byte_more
     let mut destination = endpoint();
     destination.llm.headers =
         Box::new([skein_http::Header { name: bytes::copy_of(b"x-owner"), value: bytes::copy_of(b"declared") }]);
-    destination.credential = skein_llm::client::CredentialLimits { value: 2048, account_id: 128 };
+    destination.credential = skein_llm::client::CredentialLimits { value: 2048 };
     let mut endpoints = List::with_capacity(1);
     endpoints.push(destination).expect("endpoint");
     let component = Component::new(endpoints, &config).expect("measured endpoint");
     let mut at_bound = credential();
     at_bound.value = Box::new([b'x'; 2048]);
-    at_bound.account_id = Box::new([b'y'; 128]);
     drop(
         component
             .admit(Token::new(7), 0, prompt(), Some(at_bound))
@@ -826,50 +821,6 @@ fn a_whole_deadline_due_at_admission_fails_without_preparing_a_binding() {
     assert_eq!(component.reserved(), 0);
 }
 
-fn invalid_start(credential: Option<Credential>) {
-    let config = limits();
-    let mut endpoints = List::with_capacity(config.endpoints);
-    endpoints.push(endpoint()).expect("one endpoint fits");
-    let mut component = Component::new(endpoints, &config).expect("valid endpoint");
-    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config };
-    let mut above = Queue::uncapped();
-    let mut below = Queue::uncapped();
-    component.down(
-        &env,
-        Request::Start {
-            drop_reasoning: false,
-            call: Token::new(7),
-            endpoint: 0,
-            prompt: prompt(),
-            credential,
-            deadlines: Deadlines::none(),
-        },
-        &mut above,
-        &mut below,
-    );
-    assert_eq!(above.len(), 1);
-    assert!(below.is_empty());
-    match above.pop() {
-        Some(Event::Refused { call, why }) => {
-            assert_eq!(call, Token::new(7));
-            assert_eq!(why, Refusal::Client(skein_llm::Error::Invalid));
-        }
-        event => panic!("expected refusal, got {event:?}"),
-    }
-}
-
-#[test]
-fn a_key_on_the_codex_route_is_refused_at_entrance() {
-    let mut key = credential();
-    key.scheme = skein_llm::Scheme::Key;
-    invalid_start(Some(key));
-}
-
-#[test]
-fn a_start_without_a_credential_on_codex_is_refused() {
-    invalid_start(None);
-}
-
 #[test]
 fn a_value_past_its_bound_is_refused_by_name() {
     const VALUE_BYTES: usize = 2048; // endpoint()'s credential value bound.
@@ -912,10 +863,9 @@ fn a_whole_deadline_wait_fails_with_an_empty_report() {
 #[test]
 fn measured_admission_keeps_each_providers_lengths_and_refusals() {
     use skein_llm::{Endpoint as WireEndpoint, Provider};
-    for provider in [Provider::OpenAiCodex, Provider::OpenAi, Provider::Anthropic] {
+    for provider in [Provider::OpenAi, Provider::Anthropic] {
         let mut destination = endpoint();
         destination.llm = match provider {
-            Provider::OpenAiCodex => WireEndpoint::codex(),
             Provider::OpenAi => WireEndpoint::openai(),
             Provider::Anthropic => WireEndpoint::anthropic(),
         };
@@ -929,8 +879,8 @@ fn measured_admission_keeps_each_providers_lengths_and_refusals() {
         for enabled in [false, true] {
             for fault in 0_u32..3 {
                 let mut value = credential();
-                if provider != Provider::OpenAiCodex {
-                    value.account_id = Box::new([]);
+                if provider == Provider::Anthropic {
+                    value.scheme = skein_llm::Scheme::Key;
                 }
                 if fault == 1 {
                     value.value = bytes::copy_of(b"bad\r\nvalue");

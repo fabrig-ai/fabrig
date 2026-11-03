@@ -7,7 +7,7 @@ use skein_llm_world::{call, fake::Exchange, limits};
 fn input(provider: skein_llm::Provider, owner: u64) -> skein_llm::Call {
     let mut input = call(owner);
     match provider {
-        skein_llm::Provider::OpenAiCodex | skein_llm::Provider::OpenAi => {}
+        skein_llm::Provider::OpenAi => {}
         skein_llm::Provider::Anthropic => {
             input.endpoint = skein_llm::Endpoint::anthropic();
             input.credential = Some(skein_llm::Credential::key(b"fake-token".as_slice().into()));
@@ -95,22 +95,21 @@ fn check_feedback(provider: skein_llm::Provider, text: &[u8], error: bool) {
             assert_eq!(text, b"actual feedback");
             assert!(error, "native error flag reaches peer");
         }
-        skein_llm::Provider::OpenAiCodex | skein_llm::Provider::OpenAi => {
+        skein_llm::Provider::OpenAi => {
             assert_eq!(text, b"Error: actual feedback");
-            assert!(!error, "Codex encodes error in exact text");
+            assert!(!error, "Responses encodes error in exact text");
         }
     }
 }
 
 #[test]
 fn prepared_client_is_adopted_and_drives_the_actual_scripted_peer() {
-    for provider in [skein_llm::Provider::OpenAiCodex, skein_llm::Provider::Anthropic] {
+    for provider in [skein_llm::Provider::OpenAi, skein_llm::Provider::Anthropic] {
         let input = input(provider, 17);
         let endpoint = input.endpoint.clone();
         let credential = skein_llm::Credential {
             scheme: skein_llm_world::credential_of(&input).scheme,
             value: skein_llm_world::credential_of(&input).value.clone(),
-            account_id: skein_llm_world::credential_of(&input).account_id.clone(),
         };
         let machine = client::Client::prepare(input, &limits()).expect("caller prepares its one Client");
         let mut world = Exchange::prepared(machine, endpoint, Some(credential), limits(), scripts());
@@ -152,7 +151,7 @@ fn prepared_client_is_adopted_and_drives_the_actual_scripted_peer() {
 
 #[test]
 fn actual_client_and_independent_byte_peer_relay_whole_schema_call_and_feedback() {
-    for provider in [skein_llm::Provider::OpenAiCodex, skein_llm::Provider::Anthropic] {
+    for provider in [skein_llm::Provider::OpenAi, skein_llm::Provider::Anthropic] {
         let mut world = Exchange::new(input(provider, 1), limits(), scripts());
         world.start();
         world.run();
@@ -253,7 +252,7 @@ fn actual_client_and_independent_byte_peer_relay_whole_schema_call_and_feedback(
 
 #[test]
 fn cancelling_an_actual_peer_exchange_retains_the_terminal_until_lower_settlement() {
-    let mut world = Exchange::new(input(skein_llm::Provider::OpenAiCodex, 1), limits(), scripts());
+    let mut world = Exchange::new(input(skein_llm::Provider::OpenAi, 1), limits(), scripts());
     world.start();
     world.request(client::Request::Cancel);
     assert!(
@@ -300,7 +299,7 @@ fn actual_two_connection_routing_preserves_each_terminal_and_returns_a_closed_ro
     // domain, two intakes, queues and observation tapes. The shared delayed
     // domain is additional; no native connection storage is charged as inline routing slots.
     let span = skein_heap::Span::start();
-    let dialect = skein_llm::Provider::OpenAiCodex;
+    let dialect = skein_llm::Provider::OpenAi;
     let mut first = Exchange::new(input(dialect, 1), limits(), scripts());
     let mut second = Exchange::new(input(dialect, 2), limits(), scripts());
     first.manual_replies = true;
@@ -412,7 +411,7 @@ fn opaque_script(opaque: &[u8]) -> Box<[Script]> {
 #[test]
 fn actual_byte_peer_preserves_opaque_extensions_refusal_stop_and_continuation_replay() {
     for (provider, opaque) in [
-        (skein_llm::Provider::OpenAiCodex, br#"{"type":"future_reasoning","id":"opaque_1","encrypted_content":"signed","summary":[],"extension":{"signed":true}}"#.as_slice()),
+        (skein_llm::Provider::OpenAi, br#"{"type":"future_reasoning","id":"opaque_1","encrypted_content":"signed","summary":[],"extension":{"signed":true}}"#.as_slice()),
         (skein_llm::Provider::Anthropic, br#"{"type":"thinking","extension":{"signed":true},"thinking":"visible","signature":"signed"}"#.as_slice()),
         (skein_llm::Provider::Anthropic, br#"{"type":"future_block","proof":{"a":[1,2]},"data":"opaque"}"#.as_slice()),
     ] {
@@ -496,7 +495,7 @@ Some(prompt_tokens(query) - fresh)
 fn tool_choice_none_and_an_outside_call_cross_both_actual_wires() {
     use skein_fake_llm_domain::{Domain, api, fire, step};
     use skein_lib::{Duration, Env, Queue, Time, Wall};
-    for provider in [skein_llm::Provider::OpenAiCodex, skein_llm::Provider::Anthropic] {
+    for provider in [skein_llm::Provider::OpenAi, skein_llm::Provider::Anthropic] {
         for outside_choice in [0, 1000] {
             let mut input = input(provider, 1);
             input.prompt.instructions = Box::new([]);
@@ -547,7 +546,7 @@ fn tool_choice_none_and_an_outside_call_cross_both_actual_wires() {
 
 #[test]
 fn scripted_calls_are_delivered_even_when_tool_choice_is_none() {
-    for provider in [skein_llm::Provider::OpenAiCodex, skein_llm::Provider::Anthropic] {
+    for provider in [skein_llm::Provider::OpenAi, skein_llm::Provider::Anthropic] {
         let mut input = input(provider, 1);
         input.prompt.choice = skein_llm::ToolChoice::None;
         let mut world = Exchange::new(input, limits(), scripts());
@@ -563,7 +562,7 @@ fn scripted_calls_are_delivered_even_when_tool_choice_is_none() {
 #[test]
 fn escaped_calls_at_the_input_edge_and_one_over_complete_beside_a_normal_call() {
     let arguments = br#"{"x":"\u0000\u0000"}"#;
-    for provider in [skein_llm::Provider::OpenAiCodex, skein_llm::Provider::Anthropic] {
+    for provider in [skein_llm::Provider::OpenAi, skein_llm::Provider::Anthropic] {
         for below in [false, true] {
             let mut bounds = limits();
             bounds.input = u32::try_from(arguments.len()).expect("tiny argument cap") - u32::from(below);
@@ -607,7 +606,7 @@ fn escaped_calls_at_the_input_edge_and_one_over_complete_beside_a_normal_call() 
 
 #[test]
 fn scripted_provider_output_cuts_complete_and_are_refused_in_history() {
-    for provider in [skein_llm::Provider::OpenAiCodex, skein_llm::Provider::Anthropic] {
+    for provider in [skein_llm::Provider::OpenAi, skein_llm::Provider::Anthropic] {
         let mut call_input = input(provider, 1);
         call_input.prompt.output_ceiling(provider, 1).expect("caller output ceiling");
         let mut world = Exchange::new(call_input, limits(), scripts());
@@ -631,7 +630,7 @@ fn scripted_provider_output_cuts_complete_and_are_refused_in_history() {
 
 #[test]
 fn oversized_arguments_charge_only_the_call_id_and_name() {
-    for provider in [skein_llm::Provider::OpenAiCodex, skein_llm::Provider::Anthropic] {
+    for provider in [skein_llm::Provider::OpenAi, skein_llm::Provider::Anthropic] {
         let mut bounds = limits();
         bounds.input = 3;
         bounds.answer = 32; // 21-byte fake call ID plus 11-byte caller name.
@@ -658,19 +657,19 @@ fn oversized_arguments_charge_only_the_call_id_and_name() {
 }
 
 #[test]
-fn scripted_codex_reasoning_drops_only_by_owner_opt_in_and_can_remain_in_history() {
+fn scripted_responses_reasoning_drops_only_by_owner_opt_in_and_can_remain_in_history() {
     let opaque = br#"{"type":"reasoning","id":"opaque_1","encrypted_content":"signed","summary":[]}"#;
     for enabled in [false, true] {
         let mut bounds = limits();
         bounds.reasoning = 5;
         bounds.drop_reasoning = enabled;
-        let mut world = Exchange::new(input(skein_llm::Provider::OpenAiCodex, 1), bounds, opaque_script(opaque));
+        let mut world = Exchange::new(input(skein_llm::Provider::OpenAi, 1), bounds, opaque_script(opaque));
         world.start();
         world.run();
         if enabled {
             let answer = completion(&world).clone();
             assert!(matches!(answer.content.as_ref(), [Block::Dropped { bytes }, Block::Text { .. }] if *bytes == 6));
-            let mut next = input(skein_llm::Provider::OpenAiCodex, 2);
+            let mut next = input(skein_llm::Provider::OpenAi, 2);
             next.prompt.messages = Box::new([Message { role: Role::Assistant, content: answer.content }]);
             let next = client::Client::prepare(next, &bounds).unwrap();
             assert!(world.machine.next_call(next).is_ok());
@@ -687,7 +686,7 @@ fn scripted_codex_reasoning_drops_only_by_owner_opt_in_and_can_remain_in_history
 }
 
 fn echo_input(owner: u64) -> skein_llm::Call {
-    let mut input = input(skein_llm::Provider::OpenAiCodex, owner);
+    let mut input = input(skein_llm::Provider::OpenAi, owner);
     input.prompt.messages = (0..20)
         .map(|_| Message {
             role: Role::User,
@@ -714,7 +713,7 @@ fn a_public_call_gets_the_configured_echoes() {
     input.endpoint = skein_llm::Endpoint::openai();
     input.credential = Some(skein_llm::Credential::bearer(b"public-bearer".as_slice().into()));
     let echo = skein_llm::openai::Echo { instructions: true, tools: true, attribution_bytes: 24 };
-    let mut world = Exchange::new_with_codex_echo(input, bounds, scripts(), echo);
+    let mut world = Exchange::new_with_echo(input, bounds, scripts(), echo);
     world.start();
     world.run();
     let _ = completion(&world);
@@ -725,7 +724,7 @@ fn a_public_call_gets_the_configured_echoes() {
 }
 
 #[test]
-fn configured_codex_echoes_preserve_the_completion_past_the_previous_token_cliff() {
+fn configured_responses_echoes_preserve_the_completion_past_the_previous_token_cliff() {
     let mut bounds = limits();
     bounds.output_items = 32;
     bounds.history_items = 32;
@@ -741,7 +740,7 @@ fn configured_codex_echoes_preserve_the_completion_past_the_previous_token_cliff
             .all(|name| key_count(plain_document.document(), name) == 0),
         "echoes are off by default"
     );
-    let mut echoed = Exchange::new_with_codex_echo(echo_input(1), bounds, scripts(), echo);
+    let mut echoed = Exchange::new_with_echo(echo_input(1), bounds, scripts(), echo);
     echoed.start();
     echoed.run();
     assert_eq!(completion(&echoed), &expected);
@@ -763,7 +762,7 @@ fn configured_codex_echoes_preserve_the_completion_past_the_previous_token_cliff
     assert!(request.document().len() < tokens.len(), "attribution cliff exceeds the admitted request");
     for cap in [edge, edge - 1] {
         bounds.tokens = cap;
-        let mut world = Exchange::new_with_codex_echo(echo_input(1), bounds, scripts(), echo);
+        let mut world = Exchange::new_with_echo(echo_input(1), bounds, scripts(), echo);
         world.start();
         world.run();
         assert_eq!(completion(&world), &expected, "echo wire tokens never become retained tokens");
@@ -773,7 +772,7 @@ fn configured_codex_echoes_preserve_the_completion_past_the_previous_token_cliff
 #[test]
 fn byte_peers_can_omit_each_usage_report_without_changing_completion() {
     use skein_fake_llm_protocol::documents::{Options, UsageField, UsageFields};
-    for provider in [skein_llm::Provider::OpenAiCodex, skein_llm::Provider::Anthropic] {
+    for provider in [skein_llm::Provider::OpenAi, skein_llm::Provider::Anthropic] {
         for selected in [
             None,
             Some(UsageField::Input),
@@ -800,7 +799,7 @@ fn byte_peers_can_omit_each_usage_report_without_changing_completion() {
             assert_eq!(answer.usage.output, (selected == Some(UsageField::Output)).then_some(8));
             assert_eq!(
                 answer.usage.reasoning,
-                (provider == skein_llm::Provider::OpenAiCodex && selected == Some(UsageField::Reasoning)).then_some(0)
+                (provider == skein_llm::Provider::OpenAi && selected == Some(UsageField::Reasoning)).then_some(0)
             );
         }
     }
@@ -808,7 +807,7 @@ fn byte_peers_can_omit_each_usage_report_without_changing_completion() {
 
 #[test]
 fn actual_request_heads_match_the_independent_http_reader_on_both_dialects() {
-    for provider in [skein_llm::Provider::OpenAiCodex, skein_llm::Provider::Anthropic] {
+    for provider in [skein_llm::Provider::OpenAi, skein_llm::Provider::Anthropic] {
         let mut input = input(provider, 101);
         input.endpoint.headers = Box::new([skein_http::Header {
             name: b"x-caller-proof".as_slice().into(),
@@ -844,7 +843,7 @@ fn actual_request_heads_match_the_independent_http_reader_on_both_dialects() {
 
 #[test]
 fn explicit_call_reasoning_policy_overrides_the_default_without_changing_wire_bytes() {
-    let provider = skein_llm::Provider::OpenAiCodex;
+    let provider = skein_llm::Provider::OpenAi;
     let opaque = br#"{"type":"reasoning","id":"r","encrypted_content":"signed","summary":[]}"#;
     let mut request = None;
     for enabled in [false, true] {
@@ -856,7 +855,6 @@ fn explicit_call_reasoning_policy_overrides_the_default_without_changing_wire_by
         let credential = skein_llm::Credential {
             scheme: skein_llm_world::credential_of(&input).scheme,
             value: skein_llm_world::credential_of(&input).value.clone(),
-            account_id: skein_llm_world::credential_of(&input).account_id.clone(),
         };
         let machine =
             client::Client::prepare_with_reasoning_drop(input, &bounds, enabled).expect("explicit policy admission");
@@ -896,41 +894,8 @@ fn affinity_head<'a>(head: &'a [skein_http::Header], name: &[u8]) -> Option<&'a 
 }
 
 #[test]
-fn affinity_is_fixed_across_calls_and_threads_are_distinct_on_the_actual_wire() {
-    for thread in [0, 0x0102_0304] {
-        let mut first = input(skein_llm::Provider::OpenAiCodex, 151);
-        first.prompt.affinity.as_mut().expect("valid bounded affinity control").thread = thread;
-        let mut world = Exchange::new(first, limits(), scripts());
-        world.start();
-        world.run();
-        let mut next = input(skein_llm::Provider::OpenAiCodex, 152);
-        next.prompt.affinity.as_mut().expect("valid bounded affinity control").thread = thread;
-        let prepared = client::Client::prepare(next, &limits()).expect("valid bounded affinity control");
-        assert!(world.machine.next_call(prepared).is_ok());
-        world.seen.clear();
-        world.request(client::Request::Start);
-        world.run();
-        assert_eq!(world.heads.len(), 2);
-        assert_eq!(world.queries.len(), 2);
-        for head in &world.heads {
-            assert_eq!(affinity_head(head, b"session-id"), Some(b"42424242-4242-4242-4242-424242424242".as_slice()));
-            let expected: &[u8] = if thread == 0 {
-                b"42424242-4242-4242-4242-424242424242"
-            } else {
-                b"42424242-4242-4242-4242-424243404146"
-            };
-            assert_eq!(affinity_head(head, b"thread-id"), Some(expected));
-        }
-        assert!(
-            world.queries.iter().all(|query| query.caching == skein_fake_llm_domain::api::Caching::Scope([0x42; 16]))
-        );
-        assert_eq!(completion(&world).stop, skein_llm::Stop::ToolUse);
-    }
-}
-
-#[test]
 fn absent_affinity_sends_none_and_anthropic_ignores_it_on_the_actual_wire() {
-    for provider in [skein_llm::Provider::OpenAiCodex, skein_llm::Provider::Anthropic] {
+    for provider in [skein_llm::Provider::OpenAi, skein_llm::Provider::Anthropic] {
         let mut without = input(provider, 161);
         without.prompt.affinity = None;
         let mut world = Exchange::new(without, limits(), scripts());
@@ -943,8 +908,7 @@ fn absent_affinity_sends_none_and_anthropic_ignores_it_on_the_actual_wire() {
         assert_eq!(
             world.queries[0].caching,
             match provider {
-                skein_llm::Provider::OpenAiCodex | skein_llm::Provider::OpenAi =>
-                    skein_fake_llm_domain::api::Caching::Unscoped,
+                skein_llm::Provider::OpenAi => skein_fake_llm_domain::api::Caching::Unscoped,
                 skein_llm::Provider::Anthropic => skein_fake_llm_domain::api::Caching::Marks(Box::new([
                     skein_fake_llm_domain::api::Mark::System,
                     skein_fake_llm_domain::api::Mark::Part { message: 0, part: 0 }
@@ -966,7 +930,7 @@ fn absent_affinity_sends_none_and_anthropic_ignores_it_on_the_actual_wire() {
 
 #[test]
 fn endpoint_affinity_headers_are_reserved_for_both_dialects() {
-    for provider in [skein_llm::Provider::OpenAiCodex, skein_llm::Provider::Anthropic] {
+    for provider in [skein_llm::Provider::OpenAi, skein_llm::Provider::Anthropic] {
         for name in [b"Session-ID".as_slice(), b"THREAD-id"] {
             let mut input = input(provider, 171);
             input.endpoint.headers =
@@ -996,7 +960,7 @@ fn peer_native_request(
             echo: skein_llm::openai::Echo::NONE,
             usage_fields: documents::UsageFields::ALL,
             provider: match dialect {
-                skein_llm::Provider::OpenAiCodex | skein_llm::Provider::OpenAi => documents::Provider::OpenAi,
+                skein_llm::Provider::OpenAi => documents::Provider::OpenAi,
                 skein_llm::Provider::Anthropic => documents::Provider::Anthropic,
             },
             path: input.endpoint.target.clone(),
@@ -1085,32 +1049,6 @@ fn peer_native_request(
     panic!("finite peer story settles");
 }
 
-#[test]
-fn independent_peer_refuses_mismatched_affinity_and_malformed_thread_before_dispatch() {
-    let mut world = Exchange::new(input(skein_llm::Provider::OpenAiCodex, 181), limits(), scripts());
-    world.start();
-    world.run();
-    let wire = String::from_utf8(skein_llm_world::identity(&world.requests)).expect("valid bounded affinity control");
-    let (accepted, response) = peer_native_request(wire.as_bytes(), skein_llm::Provider::OpenAiCodex);
-    assert_eq!(
-        accepted.expect("valid bounded affinity control").caching,
-        skein_fake_llm_domain::api::Caching::Scope([0x42; 16])
-    );
-    assert!(response.is_empty());
-    for (from, to) in [
-        ("session-id: 42424242", "session-id: 43434343"),
-        ("thread-id: 42424242", "thread-id: z2424242"),
-        ("session-id: 42424242-4242-4242-4242-424242424242\r\n", ""),
-        ("thread-id: 42424242-4242-4242-4242-424242424242\r\n", ""),
-    ] {
-        let changed = wire.replacen(from, to, 1);
-        assert_ne!(changed, wire, "control really mutates actual header bytes");
-        let (query, response) = peer_native_request(changed.as_bytes(), skein_llm::Provider::OpenAiCodex);
-        assert!(query.is_none(), "invalid affinity never enters the neutral domain");
-        assert!(response.starts_with(b"HTTP/1.1 403 "), "{:?}", String::from_utf8_lossy(&response));
-    }
-}
-
 /// Replaces the one `from` in `wire` with `to`.
 fn replaced(wire: &[u8], from: &[u8], to: &[u8]) -> Vec<u8> {
     let at = wire.windows(from.len()).position(|bytes| bytes == from).expect("control names actual bytes");
@@ -1118,8 +1056,10 @@ fn replaced(wire: &[u8], from: &[u8], to: &[u8]) -> Vec<u8> {
 }
 
 #[test]
-fn a_codex_request_arrives_gzip_encoded_and_the_fake_answers_it() {
-    let mut world = Exchange::new(input(skein_llm::Provider::OpenAiCodex, 181), limits(), scripts());
+fn an_explicit_gzip_endpoint_arrives_gzip_encoded_and_the_fake_answers_it() {
+    let mut input = input(skein_llm::Provider::OpenAi, 181);
+    input.endpoint = skein_llm::Endpoint { encoding: skein_llm::Encoding::Gzip, ..skein_llm::Endpoint::openai() };
+    let mut world = Exchange::new(input, limits(), scripts());
     world.start();
     world.run();
     let end = world.requests.windows(4).position(|bytes| bytes == b"\r\n\r\n").expect("one actual request head");
@@ -1128,16 +1068,18 @@ fn a_codex_request_arrives_gzip_encoded_and_the_fake_answers_it() {
     assert!(world.responses.starts_with(b"HTTP/1.1 200 "), "{:?}", String::from_utf8_lossy(&world.responses));
     assert!(world.seen.iter().any(|event| matches!(event, skein_llm::client::Event::Completed { .. })));
     // The fake reads the member as the same query as the body as rendered.
-    let (inflated, response) = peer_native_request(&world.requests, skein_llm::Provider::OpenAiCodex);
+    let (inflated, response) = peer_native_request(&world.requests, skein_llm::Provider::OpenAi);
     assert!(response.is_empty());
     let identity = skein_llm_world::identity(&world.requests);
-    let (rendered, _) = peer_native_request(&identity, skein_llm::Provider::OpenAiCodex);
+    let (rendered, _) = peer_native_request(&identity, skein_llm::Provider::OpenAi);
     assert_eq!(inflated.expect("the fake inflates a gzip body"), rendered.expect("the rendered body is a query"));
 }
 
 #[test]
 fn the_fake_refuses_a_body_in_any_coding_but_gzip_or_a_member_that_does_not_inflate() {
-    let mut world = Exchange::new(input(skein_llm::Provider::OpenAiCodex, 181), limits(), scripts());
+    let mut input = input(skein_llm::Provider::OpenAi, 181);
+    input.endpoint = skein_llm::Endpoint { encoding: skein_llm::Encoding::Gzip, ..skein_llm::Endpoint::openai() };
+    let mut world = Exchange::new(input, limits(), scripts());
     world.start();
     world.run();
     let wire = world.requests;
@@ -1157,9 +1099,9 @@ fn the_fake_refuses_a_body_in_any_coding_but_gzip_or_a_member_that_does_not_infl
         corrupt,
         rendered,
     ] {
-        let (query, response) = peer_native_request(&changed, skein_llm::Provider::OpenAiCodex);
+        let (query, response) = peer_native_request(&changed, skein_llm::Provider::OpenAi);
         assert!(query.is_none(), "a refused body never enters the neutral domain");
-        // The Codex route answers an invalid request as its route not supported.
+        // The Responses route answers an invalid request as its route not supported.
         assert!(response.starts_with(b"HTTP/1.1 403 "), "{:?}", String::from_utf8_lossy(&response));
         assert!(response.ends_with(br#""code":"subscription_sharing_route_not_supported","message":"subscription_sharing_route_not_supported"}}"#));
     }
@@ -1205,7 +1147,7 @@ fn actual_anthropic_cache_markers_are_validated_before_domain_dispatch() {
 #[test]
 fn growing_conversations_preserve_native_content_and_encode_twice_identically() {
     let marker = r#","cache_control":{"type":"ephemeral"}"#;
-    for dialect in [skein_llm::Provider::OpenAiCodex, skein_llm::Provider::Anthropic] {
+    for dialect in [skein_llm::Provider::OpenAi, skein_llm::Provider::Anthropic] {
         let mut previous_body: Option<String> = None;
         let mut conversation = input(dialect, 201);
         conversation.prompt.reasoning_effort = None;
@@ -1225,16 +1167,14 @@ fn growing_conversations_preserve_native_content_and_encode_twice_identically() 
             let body = wire.split_once("\r\n\r\n").unwrap().1.replace(marker, "");
             if let Some(previous) = previous_body {
                 let anchor = match dialect {
-                    skein_llm::Provider::OpenAiCodex | skein_llm::Provider::OpenAi => r#""input":["#,
+                    skein_llm::Provider::OpenAi => r#""input":["#,
                     skein_llm::Provider::Anthropic => r#""messages":["#,
                 };
                 let (prefix, history) = previous.split_once(anchor).unwrap();
                 let (next_prefix, next_history) = body.split_once(anchor).unwrap();
                 assert_eq!(prefix, next_prefix, "fixed instructions/tools/cache key");
                 let history = match dialect {
-                    skein_llm::Provider::OpenAiCodex | skein_llm::Provider::OpenAi => {
-                        history.split_once(r#"],"prompt_cache_key":"#).unwrap().0
-                    }
+                    skein_llm::Provider::OpenAi => history.split_once(r#"],"prompt_cache_key":"#).unwrap().0,
                     skein_llm::Provider::Anthropic => history.strip_suffix("]}").unwrap(),
                 };
                 assert!(next_history.starts_with(history), "prior native history remains a literal prefix");
@@ -1258,9 +1198,9 @@ fn actual_scopes_and_marked_tails_read_only_written_prefixes_and_unscoped_reads_
     use skein_fake_llm_domain::{Domain, Request, fire, step};
     use skein_lib::{Env, Queue, Time, Wall};
     for (dialect, affinity, chance) in [
-        (skein_llm::Provider::OpenAiCodex, true, 0),
-        (skein_llm::Provider::OpenAiCodex, false, 0),
-        (skein_llm::Provider::OpenAiCodex, false, 1000),
+        (skein_llm::Provider::OpenAi, true, 0),
+        (skein_llm::Provider::OpenAi, false, 0),
+        (skein_llm::Provider::OpenAi, false, 1000),
         (skein_llm::Provider::Anthropic, false, 0),
     ] {
         let mut first = input(dialect, 211);
@@ -1314,7 +1254,7 @@ fn actual_scopes_and_marked_tails_read_only_written_prefixes_and_unscoped_reads_
 #[test]
 fn a_held_reply_reaches_the_client_only_after_its_release() {
     use skein_fake_llm_domain::api::Piece;
-    for provider in [skein_llm::Provider::Anthropic, skein_llm::Provider::OpenAiCodex] {
+    for provider in [skein_llm::Provider::Anthropic, skein_llm::Provider::OpenAi] {
         let scripts = Box::new([Script {
             cue: b"caller-script".as_slice().into(),
             turns: Box::new([Turn {
@@ -1390,7 +1330,7 @@ fn text_and_completion(world: &Exchange) -> Vec<Option<&[u8]>> {
 
 #[test]
 fn pieces_reach_the_client_as_deltas_before_the_completion() {
-    for provider in [skein_llm::Provider::Anthropic, skein_llm::Provider::OpenAiCodex] {
+    for provider in [skein_llm::Provider::Anthropic, skein_llm::Provider::OpenAi] {
         let mut world = piece_exchange(provider, false, None);
         world.run();
         assert_eq!(
@@ -1405,7 +1345,7 @@ fn pieces_reach_the_client_as_deltas_before_the_completion() {
 
 #[test]
 fn a_held_reply_shows_only_the_pieces_before_its_hold() {
-    for provider in [skein_llm::Provider::Anthropic, skein_llm::Provider::OpenAiCodex] {
+    for provider in [skein_llm::Provider::Anthropic, skein_llm::Provider::OpenAi] {
         let mut world = piece_exchange(provider, true, None);
         while world.tick(true) {}
         assert_eq!(text_and_completion(&world), [Some(b"Hel".as_slice()), Some(b"lo")], "{provider:?}");
@@ -1421,7 +1361,7 @@ fn a_held_reply_shows_only_the_pieces_before_its_hold() {
 
 #[test]
 fn the_lines_after_the_pieces_follow_them_whole() {
-    for provider in [skein_llm::Provider::Anthropic, skein_llm::Provider::OpenAiCodex] {
+    for provider in [skein_llm::Provider::Anthropic, skein_llm::Provider::OpenAi] {
         let mut world = piece_exchange(
             provider,
             false,
@@ -1465,7 +1405,7 @@ fn the_stream_opened_by_a_piece_reports_the_replys_usage() {
 
 #[test]
 fn ordinary_responses_call_streams_identity_and_one_whole_arguments_delta() {
-    let mut world = Exchange::new(input(skein_llm::Provider::OpenAiCodex, 1), limits(), scripts());
+    let mut world = Exchange::new(input(skein_llm::Provider::OpenAi, 1), limits(), scripts());
     world.start();
     world.run();
     let answer = completion(&world);

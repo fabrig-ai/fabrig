@@ -88,9 +88,7 @@ impl Peer {
         if !valid(&limits, &protocol_limits) {
             return Err(Error::Limits);
         }
-        if credential.value.len().checked_add(credential.account_id.len()).ok_or(Error::Limits)?
-            > usize::try_from(protocol_limits.http.head).expect("u32 fits")
-        {
+        if credential.value.len() > usize::try_from(protocol_limits.http.head).expect("u32 fits") {
             return Err(Error::Limits);
         }
         let mut credentials = Vec::with_capacity(usize::try_from(provider::MAX_CREDENTIALS).expect("u32 fits"));
@@ -127,13 +125,9 @@ impl Peer {
     /// Returns `Limits` after serving, for an incompatible list or script, or past its bounds.
     pub fn accept(&mut self, credential: Credential) -> Result<u32, Error> {
         let index = u32::try_from(self.credentials.len()).map_err(|_| Error::Limits)?;
-        let mut bytes = credential.value.len().checked_add(credential.account_id.len()).ok_or(Error::Limits)?;
+        let mut bytes = credential.value.len();
         for accepted in &self.credentials {
-            bytes = bytes
-                .checked_add(accepted.value.len())
-                .ok_or(Error::Limits)?
-                .checked_add(accepted.account_id.len())
-                .ok_or(Error::Limits)?;
+            bytes = bytes.checked_add(accepted.value.len()).ok_or(Error::Limits)?;
         }
         if index == provider::MAX_CREDENTIALS
             || bytes > usize::try_from(self.protocol_limits.http.head).expect("u32 fits")

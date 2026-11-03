@@ -140,7 +140,6 @@ fn deltas_are_handed_over_only_when_asked() {
                 r#"{"type":"message_delta","delta":{"stop_reason":"tool_use"},"usage":{"output_tokens":1}}"#,
                 r#"{"type":"message_stop"}"#,
             ],
-            skein_llm::Provider::OpenAiCodex => unreachable!("unsupported fixture dialect"),
         };
         let mut body = String::new();
         for event in events {
