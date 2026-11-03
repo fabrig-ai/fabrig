@@ -1,0 +1,3 @@
+draft = "debt-1"
+repo = "fabrig"
+sources = ["temper/docs/plan/debt-1/inputs/request.md", "jig/docs/development/debt/D019-lint-config-copied.md", "skein/docs/development/debt/D024-echo-template-flags.md", "smith/docs/development/debt/D004-session-knows-wait.md", "temper/docs/development/debt/D006-forge-reconcile-dead.md"]
