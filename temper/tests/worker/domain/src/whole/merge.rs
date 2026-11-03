@@ -22,12 +22,7 @@ pub enum Case {
 
 fn kind() -> tooling::Kind {
     tooling::Kind {
-        bound: host::JobBound {
-            kind: host::JobKind(3),
-            spec: 8_192,
-            result: 65_536,
-            deadline: Duration::from_secs(600),
-        },
+        bound: host::JobBound { kind: host::JobKind(3), spec: 4_096, result: 512, deadline: Duration::from_secs(600) },
         verb: b"merge".as_slice().into(),
         delivers: true,
     }
@@ -38,7 +33,6 @@ fn kind() -> tooling::Kind {
 #[must_use]
 pub fn run(seed: u64, case: Case) -> Report {
     let mut limits = crate::limits();
-    limits.tooling.file_bytes = 65_536;
     limits.checkout.conflicts = 1;
     limits.checkout.path_bytes = 64;
     let mut world = World::new(seed, kind(), limits);
@@ -150,7 +144,7 @@ fn command(world: &mut World, owner: Token, head: u64, base: u64, case: Case) {
     let tooling::Request::Read { owner: inner, path, most } = op else { panic!("read result") };
     assert_eq!(inner, owner);
     assert_eq!(path.as_ref(), format!("workspaces/{}/result.json", workspace.raw()).as_bytes());
-    assert_eq!(most, 65_536);
+    assert_eq!(most, 512);
     world.event(Event::Job { owner, event: tooling::Event::Read { owner, bytes: Some(result.into()) } });
     if case == Case::Settled {
         assert!(world.report.answer.is_none(), "push before answer");

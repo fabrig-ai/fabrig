@@ -641,7 +641,7 @@ fn landing_config(engine: &settings::Engine) -> domain::LandingPolicy {
 /// What the root's construction asserts, refused before it is made, each
 /// naming the configuration that breaks it (domain/root.md, 6).
 pub fn root(
-    mut core: jig_domain_core::Config,
+    core: jig_domain_core::Config,
     engine: &settings::Engine,
     seeds: &settings::Seeds,
     landing_projects: &[u32],
@@ -650,7 +650,6 @@ pub fn root(
 ) {
     let landing = landing_config(engine);
     let (forge, identities) = crate::forge::config(engine, seeds.deployment);
-    core.jobs = Box::new([limits::merge_bound()]);
     let config = domain::Config {
         period_span: crate::stock::PERIOD_SPAN,
         playground: crate::system::playground_config(engine.demo.as_ref(), engine.limits.setup.deadline),
