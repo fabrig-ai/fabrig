@@ -12,6 +12,7 @@ pub(crate) struct Waiting<'a> {
     pub me: Option<&'a c::Me>,
     pub name: &'a [u8],
     pub met: bool,
+    pub watch_ended: bool,
     pub why: &'a [u8],
 }
 pub(super) fn encode(wait: &Waiting<'_>, limits: &Limits, out: &mut Encoder) {
@@ -33,6 +34,17 @@ pub(super) fn encode(wait: &Waiting<'_>, limits: &Limits, out: &mut Encoder) {
         }
         None => out.null(),
     }
+    if watch_tree(wait) {
+        out.key(b"completion");
+        out.object_start();
+        out.key(b"source");
+        out.string(b"watch");
+        out.key(b"ended");
+        out.boolean(true);
+        out.object_end();
+        out.key(b"snapshot");
+        out.string(b"last_observed");
+    }
     if !wait.met {
         out.key(b"why");
         out.string(wait.why);
@@ -49,38 +61,11 @@ pub(super) fn text(
     out: &mut Text,
 ) {
     let most = usize::try_from(limits.rows).expect("rows fit");
+    if watch_tree(wait) {
+        out.put(b"tree ended (watch)\nlast observed snapshot:\n");
+    }
     if let Some(delivery) = wait.delivery {
-        match delivery {
-            c::Delivery::Me(me) => super::me_text(me, book, limits, out),
-            c::Delivery::Task(task) => super::task_text(task, wait.me, book, vocabulary, out),
-            c::Delivery::Tree(_) => super::super::lists::tree(delivery, None, book, out),
-            c::Delivery::Tasks(tasks) => {
-                for row in tasks.rows.as_slice().iter().take(most) {
-                    super::super::lists::chip(&row.chip, book, out);
-                }
-            }
-
-            c::Delivery::Inbox(inbox) => {
-                for row in inbox.needs.as_slice().iter().chain(inbox.updates.as_slice()).take(most) {
-                    super::super::lists::owner_inbox_row(row, book, out);
-                }
-            }
-
-            c::Delivery::Run(_) => super::super::activity::run(delivery, None, out),
-            c::Delivery::RunState(run) => super::super::activity::run(delivery, run.writing.as_ref(), out),
-            c::Delivery::Project(_)
-            | c::Delivery::Proposal(_)
-            | c::Delivery::Chips(_)
-            | c::Delivery::Settings(_)
-            | c::Delivery::Deployment(_)
-            | c::Delivery::Accounts(_) => unreachable!("wait subject"),
-        }
-        if let Some(result) = wait.result {
-            super::result_text(result, vocabulary, out);
-        }
-        if let c::Delivery::Task(task) = delivery {
-            vocabulary.task_next(task, out);
-        }
+        subject_text(wait, book, limits, vocabulary, out);
         let part = Part::delivery(delivery).expect("subject form");
         let list = match part {
             Part::Inbox(_) | Part::Tasks(_) => true,
@@ -107,5 +92,50 @@ pub(super) fn text(
         out.put(b"not met: ");
         out.put(wait.why);
         out.put(b"\n");
+    }
+}
+
+fn watch_tree(wait: &Waiting<'_>) -> bool {
+    wait.watch_ended && wait.name == b"tree"
+}
+fn subject_text(
+    wait: &Waiting<'_>,
+    book: &Phrasebook,
+    limits: &Limits,
+    vocabulary: &dyn crate::jig::render::Parts,
+    out: &mut Text,
+) {
+    let most = usize::try_from(limits.rows).expect("rows fit");
+    let Some(delivery) = wait.delivery else { return };
+    match delivery {
+        c::Delivery::Me(me) => super::me_text(me, book, limits, out),
+        c::Delivery::Task(task) => super::task_text(task, wait.me, book, vocabulary, out),
+        c::Delivery::Tree(_) => super::super::lists::tree(delivery, None, book, out),
+        c::Delivery::Tasks(tasks) => {
+            for row in tasks.rows.as_slice().iter().take(most) {
+                super::super::lists::chip(&row.chip, book, out);
+            }
+        }
+
+        c::Delivery::Inbox(inbox) => {
+            for row in inbox.needs.as_slice().iter().chain(inbox.updates.as_slice()).take(most) {
+                super::super::lists::owner_inbox_row(row, book, out);
+            }
+        }
+
+        c::Delivery::Run(_) => super::super::activity::run(delivery, None, out),
+        c::Delivery::RunState(run) => super::super::activity::run(delivery, run.writing.as_ref(), out),
+        c::Delivery::Project(_)
+        | c::Delivery::Proposal(_)
+        | c::Delivery::Chips(_)
+        | c::Delivery::Settings(_)
+        | c::Delivery::Deployment(_)
+        | c::Delivery::Accounts(_) => unreachable!("wait subject"),
+    }
+    if let Some(result) = wait.result {
+        super::result_text(result, vocabulary, out);
+    }
+    if let c::Delivery::Task(task) = delivery {
+        vocabulary.task_next(task, out);
     }
 }
