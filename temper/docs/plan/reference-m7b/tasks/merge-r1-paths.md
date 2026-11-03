@@ -91,3 +91,16 @@ them.
   stories that they block are unobserved, not failed by this task; run them once each after
   merging `origin/reference-m7b/change-merge-route` if it has moved, and report what they show.
   With the worker unit suite green and the rest as reported, acceptance holds.
+
+## Rebase (2026-11-03, step merge, foreman reference-m7b/merge-r1-paths/foreman-2)
+
+resolve forge_route/tests.rs by retaining the tier-release helper and R1’s merge-command test.
+The merge refused `temper/crates/temper-engine-domain/src/route/forge_route/tests.rs`.
+Integration commit `b406e75ee5` retained `release_held_tier` immediately before the merge-spec test; this branch changes that test’s adjacent documentation to R1.
+Preserve `release_held_tier` and its callers, including main’s tier-reporting changes from `f012f783bf`.
+Keep `a_merge_jobs_spec_is_its_command_and_its_two_commits` with its R1 documentation.
+All three `super::merge::spec` calls in that test must pass `b"fabrig"` before `b".temper/merge"`; the decoded command must remain `b"fabrig/.temper/merge"`.
+Preserve the request-byte assertions, exact-bound checks and following resolution-result test.
+Keep the automatically merged repository-name argument in `forge_route.rs` and R1 encoder in `route/forge_route/merge.rs`.
+Verify with `heavy cargo nextest run -p temper-engine-domain --lib -E 'test(/merge/)'`; confirm tests were selected.
+Limit the conflict resolution to combining these existing changes; no budget or protocol change is needed.
