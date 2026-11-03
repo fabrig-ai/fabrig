@@ -1,7 +1,7 @@
 == What shall we change? == Live
 [1] temper
 Menu:
-  [2] Playground (pressed)
+  [2] demo (pressed)
   Main navigation:
     [3] Inbox
     [4] Chats (current)
@@ -15,7 +15,7 @@ Playground:
 New chat
 * Ready
 Scripted model
-Playground · playground/widget on Playground forge
+demo · playground/widget on Playground forge
 Signed in as the deployment’s owner
 What shall we change?
   Try a request in playground/widget. Follow the task from its branch to a landed change.

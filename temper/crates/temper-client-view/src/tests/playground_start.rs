@@ -43,7 +43,7 @@ fn the_start_draws_the_frame_banner_before_its_chatbar_context_and_invitation() 
         (Role::Paragraph, b"New chat"),
         (Role::Status, b"Ready"),
         (Role::Paragraph, b"Scripted model"),
-        (Role::Paragraph, "Playground · acme/shop on Playground forge".as_bytes()),
+        (Role::Paragraph, "Shop · acme/shop on Playground forge".as_bytes()),
         (Role::Paragraph, b"Signed in as Pat"),
         (Role::Heading { level: 1 }, b"What shall we change?"),
         (Role::Paragraph, b"Try a request in acme/shop. Follow the task from its branch to a landed change."),
@@ -111,7 +111,7 @@ fn the_context_names_the_deployment_owner_then_the_project_owner_then_the_person
             c::HeldRole::Owner,
             true,
             "Signed in as the deployment’s owner".as_bytes(),
-            "Playground · acme/shop on Playground forge",
+            "Shop · acme/shop on Playground forge",
         ),
         (
             "project owner",
@@ -119,7 +119,7 @@ fn the_context_names_the_deployment_owner_then_the_project_owner_then_the_person
             c::HeldRole::Owner,
             true,
             "Signed in as the project’s owner".as_bytes(),
-            "Playground · acme/shop on Playground forge",
+            "Shop · acme/shop on Playground forge",
         ),
         (
             "another role",
@@ -127,7 +127,7 @@ fn the_context_names_the_deployment_owner_then_the_project_owner_then_the_person
             c::HeldRole::Policy { role: 1 },
             true,
             b"Signed in as Pat",
-            "Playground · acme/shop on Playground forge",
+            "Shop · acme/shop on Playground forge",
         ),
         (
             "project fallback",
@@ -135,7 +135,7 @@ fn the_context_names_the_deployment_owner_then_the_project_owner_then_the_person
             c::HeldRole::Policy { role: 1 },
             false,
             b"Signed in as Pat",
-            "Playground · acme/shop on Playground forge",
+            "Project 1 · acme/shop on Playground forge",
         ),
     ] {
         let mut me = template.pages().me(template.client()).unwrap().clone();

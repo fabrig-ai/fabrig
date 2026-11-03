@@ -654,7 +654,7 @@ fn setting_up_names_the_playground_project_playground() {
         f::build(&mut view, &root);
         words_in_order(
             view.tree(),
-            &["work/hello, into Playground", "Making work/hello, and adopting it into Playground"],
+            &["work/hello, into Project 1", "Making work/hello, and adopting it into Project 1"],
         );
     }
 }
