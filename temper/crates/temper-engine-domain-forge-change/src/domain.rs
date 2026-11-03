@@ -336,6 +336,7 @@ fn release(mut change: Change, was: &State, why: Hold, facts: &Facts) -> Stepped
         }
         Hold::Stalled
         | Hold::Repairs
+        | Hold::Questions
         | Hold::Resolutions
         | Hold::Updates
         | Hold::Failed
@@ -393,6 +394,15 @@ fn waiting(change: Change, now: Wall, limits: &Limits) -> Stepped {
     }
 }
 
+fn waiting_on_agent(mut change: Change, facts: &Facts, now: Wall, limits: &Limits) -> Stepped {
+    if facts.asking {
+        change.since = now;
+        Stepped { change, decision: Decision::Wait { until: None } }
+    } else {
+        waiting(change, now, limits)
+    }
+}
+
 fn settling(change: Change, facts: &Facts, now: Wall, limits: &Limits) -> Stepped {
     if let Some(end) = facts.settling
         && now < end
@@ -438,7 +448,7 @@ fn producing(
             }
             match standing.delegate {
                 Status::Failed => return hold(change, Hold::Failed),
-                Status::Unknown | Status::Pending => return waiting(change, now, limits),
+                Status::Unknown | Status::Pending => return waiting_on_agent(change, facts, now, limits),
                 Status::Passed => {}
             }
         }
@@ -470,7 +480,7 @@ fn producing(
                 | None => waiting(change, now, limits),
             },
             Status::Failed => hold(change, Hold::Failed),
-            Status::Unknown | Status::Pending => waiting(change, now, limits),
+            Status::Unknown | Status::Pending => waiting_on_agent(change, facts, now, limits),
         },
     }
 }
@@ -1027,11 +1037,11 @@ fn delegated(
     }
     match standing.delegate {
         Status::Passed => {
-            let Some(head) = facts.branch else { return waiting(change, now, limits) };
+            let Some(head) = facts.branch else { return waiting_on_agent(change, facts, now, limits) };
             take_pushed_head(change, head, now)
         }
         Status::Failed => hold(change, Hold::Failed),
-        Status::Unknown | Status::Pending => waiting(change, now, limits),
+        Status::Unknown | Status::Pending => waiting_on_agent(change, facts, now, limits),
     }
 }
 

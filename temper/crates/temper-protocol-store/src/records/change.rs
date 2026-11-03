@@ -49,6 +49,7 @@ fn encode_hold(value: d::Hold) -> w::ChangeHold {
     match value {
         d::Hold::Stalled => w::ChangeHold::Stalled,
         d::Hold::Repairs => w::ChangeHold::Repairs,
+        d::Hold::Questions => w::ChangeHold::Questions,
         d::Hold::Resolutions => w::ChangeHold::Resolutions,
         d::Hold::Updates => w::ChangeHold::Updates,
         d::Hold::BranchMoved => w::ChangeHold::BranchMoved,
@@ -82,6 +83,7 @@ fn decode_hold(value: w::ChangeHold) -> d::Hold {
     match value {
         w::ChangeHold::Stalled => d::Hold::Stalled,
         w::ChangeHold::Repairs => d::Hold::Repairs,
+        w::ChangeHold::Questions => d::Hold::Questions,
         w::ChangeHold::Resolutions => d::Hold::Resolutions,
         w::ChangeHold::Updates => d::Hold::Updates,
         w::ChangeHold::BranchMoved => d::Hold::BranchMoved,
@@ -616,6 +618,8 @@ pub(super) fn encode_change_row(value: &top::ChangeRow) -> w::ChangeRow {
         queue_repairs,
         producing_charter,
         review_charter,
+        foreman_charter,
+        questions,
         result,
         effect_account,
         producer_failure,
@@ -671,6 +675,8 @@ pub(super) fn encode_change_row(value: &top::ChangeRow) -> w::ChangeRow {
             queue_repairs: *queue_repairs,
             producing_charter: *producing_charter,
             review_charter: *review_charter,
+            foreman_charter: *foreman_charter,
+            questions: encode_questions(questions),
             producer_failure: producer_failure.clone(),
             report: report.clone(),
             repairs: *repairs,
@@ -715,6 +721,8 @@ pub(super) fn decode_change_row(value: w::ChangeRow) -> top::ChangeRow {
         queue_repairs,
         producing_charter,
         review_charter,
+        foreman_charter,
+        questions,
         result,
         effect_account,
         producer_failure,
@@ -762,6 +770,8 @@ pub(super) fn decode_change_row(value: w::ChangeRow) -> top::ChangeRow {
         queue_repairs,
         producing_charter,
         review_charter,
+        foreman_charter,
+        questions: decode_questions(questions),
         producer_failure,
         report,
         repairs,
@@ -900,5 +910,72 @@ fn decode_result(value: w::ChangeResult) -> top::ChangeResult {
         repairs: decode_result_text(repairs),
         repair_count,
         reviews: decode_result_text(reviews),
+    }
+}
+
+fn encode_questions(value: &d::Questions) -> w::Questions {
+    let mut open = List::with_capacity(u32::try_from(value.open.len()).expect("admitted count"));
+    for question in &value.open {
+        let stands = match &question.stands {
+            d::Stands::Taken => w::Stands::Taken,
+            d::Stands::Foreman { task } => {
+                w::Stands::Foreman(w::Foreman::new(&w::CEILINGS, w::ForemanParts { task: *task }).expect(FITS))
+            }
+            d::Stands::Asked => w::Stands::Asked,
+            d::Stands::Held { answer } => {
+                w::Stands::Held(w::Held::new(&w::CEILINGS, w::HeldParts { answer: answer.clone() }).expect(FITS))
+            }
+        };
+        open.push(
+            w::Open::new(
+                &w::CEILINGS,
+                w::OpenParts {
+                    asker: question.asker,
+                    number: question.number,
+                    line: question.line.clone(),
+                    words: question.words.clone(),
+                    stands,
+                },
+            )
+            .expect(FITS),
+        )
+        .expect("same count");
+    }
+    w::Questions::new(
+        &w::CEILINGS,
+        w::QuestionsParts {
+            route: match value.route {
+                d::Route::None => w::Route::None,
+                d::Route::Foreman => w::Route::Foreman,
+                d::Route::Up => w::Route::Up,
+            },
+            taken: value.taken,
+            open,
+        },
+    )
+    .expect(FITS)
+}
+
+fn decode_questions(value: w::Questions) -> d::Questions {
+    let w::QuestionsParts { route, taken, open } = value.into_parts();
+    let mut questions = List::with_capacity(open.len());
+    for question in open.into_boxed() {
+        let w::OpenParts { asker, number, line, words, stands } = question.into_parts();
+        let stands = match stands {
+            w::Stands::Taken => d::Stands::Taken,
+            w::Stands::Foreman(value) => d::Stands::Foreman { task: value.into_parts().task },
+            w::Stands::Asked => d::Stands::Asked,
+            w::Stands::Held(value) => d::Stands::Held { answer: value.into_parts().answer },
+        };
+        questions.push(d::Open { asker, number, line, words, stands }).expect("same count");
+    }
+    d::Questions {
+        route: match route {
+            w::Route::None => d::Route::None,
+            w::Route::Foreman => d::Route::Foreman,
+            w::Route::Up => d::Route::Up,
+        },
+        taken,
+        open: questions.into_boxed(),
     }
 }

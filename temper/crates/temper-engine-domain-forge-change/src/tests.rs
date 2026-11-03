@@ -1,8 +1,8 @@
 //! Procedure cells, queue order and landing-rule agreement.
 use crate::{
     Change, Ci, Decision, Delegate, Early, Effect, EffectResult, Facts, Freshness, Gate, GateFailure, GateKind,
-    GateReport, Heard, Hold, Limits, Pending, PendingKind, Pull, Ready, Repair, StartedFrom, State, Status, first,
-    released, step,
+    GateReport, Heard, Hold, Limits, Pending, PendingKind, Pull, QUESTIONS_OPEN, Questions, Ready, Repair, Route,
+    StartedFrom, State, Status, first, released, step,
 };
 use alloc::boxed::Box;
 use skein_lib::{Duration, Wall};
@@ -11,8 +11,15 @@ const HEAD: [u8; 32] = [1; 32];
 const BASE: [u8; 32] = [2; 32];
 const NEW: [u8; 32] = [3; 32];
 const MERGE: [u8; 32] = [4; 32];
-const LIMITS: Limits =
-    Limits { repairs: 2, resolutions: 2, updates: 3, stall: Duration::from_secs(30), gates: 4, clean_heads: 4 };
+const LIMITS: Limits = Limits {
+    repairs: 2,
+    resolutions: 2,
+    updates: 3,
+    questions: 4,
+    stall: Duration::from_secs(30),
+    gates: 4,
+    clean_heads: 4,
+};
 fn at(seconds: u64) -> Wall {
     Wall::from_nanos(seconds.saturating_mul(1_000_000_000))
 }
@@ -62,6 +69,7 @@ fn facts() -> Facts {
         may_merge: true,
         queue_repair_active: false,
         kept: false,
+        asking: false,
         settling: None,
         verification: crate::Verification::Unfollowed,
         verification_bound: Duration::from_secs(7200),
@@ -80,6 +88,54 @@ fn heard() -> Heard {
 }
 fn decide(change: &Change, facts: &Facts, heard: &Heard) -> crate::Stepped {
     step(change, facts, heard, at(1), &LIMITS)
+}
+
+#[test]
+fn an_agent_with_an_open_question_never_stalls() {
+    let mut f = facts();
+    f.branch = None;
+    f.pull = Pull::Missing;
+    f.asking = true;
+    for (state, early) in [
+        (State::Producing { requested: true }, Early::None),
+        (State::Producing { requested: true }, Early::Started(Box::new([StartedFrom { task: 11, head: HEAD }]))),
+        (State::Producing { requested: true }, Early::Spent(Box::new([StartedFrom { task: 11, head: HEAD }]))),
+        (State::Repairing { requested: true, why: Repair::Ci }, Early::None),
+        (State::Resolving { requested: true, base: BASE }, Early::None),
+    ] {
+        let mut c = change(state);
+        c.early = early;
+        let next = step(&c, &f, &heard(), at(3600), &LIMITS);
+        assert_eq!(next.decision, Decision::Wait { until: None });
+        assert_eq!(next.change.since, at(3600));
+        assert_eq!(next.change.state, c.state);
+    }
+}
+
+#[test]
+fn the_stall_counts_from_the_last_question() {
+    let mut f = facts();
+    f.branch = None;
+    f.pull = Pull::Missing;
+    f.asking = true;
+    let c = change(State::Producing { requested: true });
+    let asking = step(&c, &f, &heard(), at(3600), &LIMITS);
+    f.asking = false;
+    let waiting = step(&asking.change, &f, &heard(), at(3629), &LIMITS);
+    assert_eq!(waiting.decision, Decision::Wait { until: Some(at(3630)) });
+    assert_eq!(waiting.change.since, at(3600));
+    let held = step(&waiting.change, &f, &heard(), at(3631), &LIMITS);
+    assert_eq!(held.decision, Decision::Hold(Hold::Stalled));
+    assert_eq!(held.change.state, State::Held { was: Box::new(c.state), why: Hold::Stalled });
+}
+
+#[test]
+fn an_open_question_does_not_suspend_a_wait_on_ci() {
+    let mut f = facts();
+    f.asking = true;
+    f.ci.status = Status::Pending;
+    let next = step(&change(State::Checking { head: HEAD }), &f, &heard(), at(3600), &LIMITS);
+    assert_eq!(next.decision, Decision::Hold(Hold::Stalled));
 }
 
 #[test]
@@ -186,7 +242,7 @@ fn failed_producer() -> (Change, Facts, Heard) {
 }
 
 fn failed_ci_repair() -> (Change, Facts, Heard, Limits) {
-    let limits = Limits { repairs: 3, ..LIMITS };
+    let limits = Limits { repairs: 3, questions: 4, ..LIMITS };
     let mut f = facts();
     f.ci.status = Status::Failed;
     let c = change(State::Checking { head: HEAD });
@@ -522,7 +578,7 @@ fn movable_phases() -> [(State, Option<Wall>); 7] {
 }
 
 fn moved_branch(requester_branch: bool) -> Facts {
-    Facts { requester_branch, branch: Some(NEW), ..facts() }
+    Facts { requester_branch, branch: Some(NEW), asking: false, ..facts() }
 }
 
 #[test]
@@ -961,7 +1017,7 @@ fn cancelled_gates_preserve_the_semantic_repair_and_its_bound() {
     let repair = decide(&cancelled.change, &f, &heard());
     assert_eq!(repair.decision, Decision::Delegate(Delegate::Repair(Repair::Semantic)));
     c.repairs = LIMITS.repairs;
-    let cancelled = decide(&c, &Facts { live_gate: Some(HEAD), ..f.clone() }, &heard());
+    let cancelled = decide(&c, &Facts { live_gate: Some(HEAD), asking: false, ..f.clone() }, &heard());
     let held = decide(&cancelled.change, &f, &heard());
     assert_eq!(held.decision, Decision::Hold(Hold::Repairs));
     assert_eq!(held.change.repairs, LIMITS.repairs);
@@ -985,7 +1041,23 @@ fn a_live_advisory_gate_does_not_hold_a_green_head() {
 }
 
 mod merge;
+mod relay;
 mod verifying;
+
+#[test]
+fn a_changes_questions_default_to_none() {
+    let questions = Questions::default();
+    assert_eq!(questions.route, Route::None);
+    assert_eq!(questions.taken, 0);
+    assert!(questions.open.is_empty());
+}
+
+#[test]
+fn the_open_bound_leaves_room_for_the_one_past_the_bound() {
+    // The reference's bound (draft/reference-code-production.md, section 8).
+    const QUESTIONS: usize = 4;
+    const { assert!(QUESTIONS_OPEN > QUESTIONS) };
+}
 
 fn pending_facts(pending: Box<[Pending]>) -> Facts {
     Facts { pending, branch: None, pull: Pull::Missing, kept: true, ..facts() }

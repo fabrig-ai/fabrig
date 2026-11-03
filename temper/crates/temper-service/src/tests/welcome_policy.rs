@@ -324,7 +324,7 @@ fn real_init_policy_fits_with_two_long_github_repositories() {
         "third welcome selection exceeds the unchanged two-project capacity"
     );
     let bytes = people::policy_bytes(&snapshot).expect("exact joined snapshot bytes");
-    assert_eq!(bytes, 3250);
+    assert_eq!(bytes, 3266);
     std::eprintln!(
         "real init joined policy: {bytes}/4096 requested bytes, configured bound {}; projects 1 and 2; adopted=2; owner=39, repositories=64 bytes each; third welcome MakeProject refuses Projects",
         limits.policy_bytes

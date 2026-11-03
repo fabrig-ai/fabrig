@@ -48,6 +48,27 @@ pub struct PanelUsed {
     pub used: u32,
     pub limit: u32,
 }
+/// A change's questions (domain/forge.md, 8.11; client/README.md, 4.6).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct PanelQuestions {
+    pub route: change::Route,
+    pub taken: PanelUsed,
+    pub open: Box<[PanelQuestion]>,
+}
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct PanelQuestion {
+    pub asker: u64,
+    pub number: u64,
+    pub line: Box<[u8]>,
+    pub stands: PanelStands,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum PanelStands {
+    Taken,
+    Foreman(Option<u64>),
+    Asked,
+    Held,
+}
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Panel {
     pub way: change::Way,
@@ -68,6 +89,7 @@ pub struct Panel {
     pub repairs: PanelUsed,
     pub resolutions: PanelUsed,
     pub updates: PanelUsed,
+    pub questions: PanelQuestions,
 }
 impl Panel {
     #[must_use]
@@ -78,6 +100,8 @@ impl Panel {
             && self.branch.len() <= names
             && self.landing.len() <= names
             && self.gates.len() <= usize::try_from(PANEL_GATES).expect("u32 fits usize")
+            && self.questions.open.len() <= 8
+            && question_lines_within(&self.questions.open)
             && match &self.step {
                 PanelStep::Queued { place, ahead } => {
                     *place > 0 && ahead.len() <= usize::try_from(PANEL_AHEAD).expect("u32 fits usize")
@@ -228,6 +252,24 @@ impl Domain {
             Some(read) if Some(read.head) == head => read.status,
             Some(_) | None => change::Status::Unknown,
         };
+        let mut open = List::with_capacity(8);
+        for question in &row.questions.open {
+            if open.room() == 0 {
+                break;
+            }
+            open.push(PanelQuestion {
+                asker: question.asker,
+                number: question.number,
+                line: question.line.clone(),
+                stands: match &question.stands {
+                    change::Stands::Taken => PanelStands::Taken,
+                    change::Stands::Foreman { task } => PanelStands::Foreman(*task),
+                    change::Stands::Asked => PanelStands::Asked,
+                    change::Stands::Held { .. } => PanelStands::Held,
+                },
+            })
+            .expect("first eight questions fit");
+        }
         let panel = Panel {
             way: row.change.way,
             in_landing: row.change.landing,
@@ -250,6 +292,11 @@ impl Domain {
             repairs: PanelUsed { used: row.change.repairs, limit: limits.change_policy.repairs },
             resolutions: PanelUsed { used: row.change.resolutions, limit: limits.change_policy.resolutions },
             updates: PanelUsed { used: row.change.updates, limit: limits.change_policy.updates },
+            questions: PanelQuestions {
+                route: row.questions.route,
+                taken: PanelUsed { used: row.questions.taken, limit: limits.change_policy.questions },
+                open: open.into_boxed(),
+            },
         };
         assert!(panel.within(), "admitted change fits the panel");
         Some(panel)
@@ -335,6 +382,15 @@ pub(crate) fn queue_before(
 fn tier_lines_within(lines: &[Box<[u8]>]) -> bool {
     for line in lines {
         if line.len() > 8192 {
+            return false;
+        }
+    }
+    true
+}
+
+fn question_lines_within(questions: &[PanelQuestion]) -> bool {
+    for question in questions {
+        if question.line.len() > change::QUESTION_LINE {
             return false;
         }
     }

@@ -223,6 +223,8 @@ const FORGE: forge::Limits = forge::Limits {
         resolutions: 3,
         // Update attempts, from the engine forge world fixture.
         updates: 3,
+        // The reference's bound (draft/reference-code-production.md, section 8).
+        questions: 4,
         // Outlast ordinary CI; report a silent forge within the same sitting (domain/forge.md, 8.4).
         stall: Duration::from_secs(30 * 60),
         // Gates retained by a change, from the engine forge world fixture.

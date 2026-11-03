@@ -255,6 +255,8 @@ fn repair() -> forge::ChangeRow {
         queue_repairs: 0,
         producing_charter: 2,
         review_charter: 4,
+        foreman_charter: 6,
+        questions: temper_engine_domain_forge_change::Questions::default(),
         effect_account: None,
         producer_failure: None,
         report: Box::new([]),

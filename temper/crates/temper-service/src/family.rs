@@ -374,10 +374,50 @@ pub fn panel(value: forge::Panel, forges: &crate::forges::Forges, limits: &w::Li
             repairs: used(value.repairs, limits)?,
             resolutions: used(value.resolutions, limits)?,
             updates: used(value.updates, limits)?,
+            questions: panel_questions(value.questions, limits)?,
         },
     )
     .ok()?;
     Some(wire::change_panel(&record))
+}
+
+fn panel_questions(value: forge::PanelQuestions, limits: &w::Limits) -> Option<w::Questions> {
+    let mut open = List::with_capacity(8);
+    for question in value.open {
+        open.push(
+            w::Question::new(
+                limits,
+                w::QuestionParts {
+                    asker: question.asker,
+                    number: question.number,
+                    line: question.line,
+                    stands: match question.stands {
+                        forge::PanelStands::Taken => w::Stands::Taken,
+                        forge::PanelStands::Foreman(task) => {
+                            w::Stands::Foreman(w::Foreman::new(limits, w::ForemanParts { task }).ok()?)
+                        }
+                        forge::PanelStands::Asked => w::Stands::Asked,
+                        forge::PanelStands::Held => w::Stands::Held,
+                    },
+                },
+            )
+            .ok()?,
+        )
+        .ok()?;
+    }
+    w::Questions::new(
+        limits,
+        w::QuestionsParts {
+            route: match value.route {
+                change::Route::None => w::Route::None,
+                change::Route::Foreman => w::Route::Foreman,
+                change::Route::Up => w::Route::Up,
+            },
+            taken: used(value.taken, limits)?,
+            open,
+        },
+    )
+    .ok()
 }
 
 fn used(value: forge::PanelUsed, limits: &w::Limits) -> Option<w::Used> {
@@ -444,6 +484,7 @@ fn panel_hold(value: Option<change::Hold>) -> Option<w::Hold> {
     Some(match value? {
         change::Hold::Stalled => w::Hold::Stalled,
         change::Hold::Repairs => w::Hold::Repairs,
+        change::Hold::Questions => w::Hold::Questions,
         change::Hold::Resolutions => w::Hold::Resolutions,
         change::Hold::Updates => w::Hold::Updates,
         change::Hold::BranchMoved => w::Hold::Moved,

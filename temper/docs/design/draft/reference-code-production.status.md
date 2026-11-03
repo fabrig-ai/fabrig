@@ -4,16 +4,11 @@
 
 - **Design lags:**
   - **3, 5, 14: `change` and its fields (N22, N13).** `../domain/agent.md`,
-    4.3.1: `change` names no `questions`, LLM choice
+    4.3.1: `change` names no LLM choice
     or producer's charter. `../domain/forge.md`, 8.1 and 8.9: a
     change's producer runs under the forge's change charter, and
     `../protocol/configuration.md`, 13.2 numbers the forge's charters for
-    the change and its reviews alone.
-  - **8, 14: questions (N1).** `../domain/agent.md`, 8.2 and
-    `../domain/forge.md`, 8.1: a change takes no questions, and its agents
-    have no Message family; there is no `questions` setting, foreman or
-    question bound. `../protocol/configuration.md`, 13.2: no foreman's
-    charter among the forge's.
+    the change, its reviews and its foremen, none of a change's own.
   - **5, 14: LLM choices per role (N19).** `../domain/forge.md`, 8.1: a
     change's parameters name its producer's spec and charter, and no LLM
     choice for any of its agents. jig's `domain/tasks.md`, section 4

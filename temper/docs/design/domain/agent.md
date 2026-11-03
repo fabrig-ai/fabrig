@@ -403,9 +403,18 @@ delegate from what it knows:
   naming the family, as it decides the delegate. What each member sets is
   checked as the rest of the batch is: its landing branch by the change's
   grants on the repository, its dependencies by jig's batch.
+- **`questions`:** how the change takes its agents' questions (forge.md,
+  8.11): `"none"`, a change that asks no one (8.2); `"foreman"`, each
+  question settled first by a foreman of its own; `"up"`, each passed
+  straight to the requester, a designer's change's way; left out, the
+  project's setting (`../protocol/configuration.md`, 13.2, kind 6), whose
+  default is `"none"`. Any other value is refused, naming it. A change
+  taking `"foreman"` is given one more task per question of its bound
+  (`forge.change_policy.questions`, `../protocol/configuration.md`,
+  section 7), beside the six above, for its foremen.
 - **Members to come** join each change's object, each optional and
   checked by the root as it decides that change's delegate, leaving
-  these as they are: its questions; its agents' LLM choices; its producer, a
+  these as they are: its agents' LLM choices; its producer, a
   charter or a job.
 
 #### 4.3.2 A goal, in the run's words
@@ -628,10 +637,11 @@ run starts fresh, its brief carrying the tail.
 
 | Agent | Messages in | Tools its authority gives | Ends when |
 |---|---|---|---|
-| producing a change (forge.md, 8.2) | none | the workspace's, from the landing branch or saved work, or started early with its dependencies' pushed heads merged in (forge.md, 8.11); `deliver` mid-run, as it goes; `finish` with a change | its change passes its checks and is pushed |
-| a repair (forge.md, 8.4) | none | the workspace's, from the change's branch, its brief carrying why; `finish` with a change | its new head passes its checks and is pushed |
-| resolving a conflict (forge.md, 8.4) | none | the workspace's, from a merge in progress; `finish` with a change | the merge is resolved, checked and pushed |
+| producing a change (forge.md, 8.2) | none; where its change relays questions, the answers to its own (forge.md, 8.11) | the workspace's, from the landing branch or saved work, or started early with its dependencies' pushed heads merged in (forge.md, 8.11); `deliver` mid-run, as it goes; `finish` with a change; `message`, to ask its change, where it relays questions | its change passes its checks and is pushed |
+| a repair (forge.md, 8.4) | as producing | the workspace's, from the change's branch, its brief carrying why; `finish` with a change; `message`, as producing | its new head passes its checks and is pushed |
+| resolving a conflict (forge.md, 8.4) | as producing | the workspace's, from a merge in progress; `finish` with a change; `message`, as producing | the merge is resolved, checked and pushed |
 | a review (forge.md, 8.3), a triage | none | reads; `finish` with a verdict | its verdict meets its contract |
+| a foreman (forge.md, 8.11) | none | reads: the workspace's inspection, from the landing branch's tip, and the forge's; `finish` with a verdict | its verdict meets its contract |
 | a chat | its person's words; its delegates' results and questions, and its person's answers to those questions (8.2) | most; `deliver` mid-run; `message`; `wait` | its person closes it |
 | a coordinator | questions, results, overlapping landings, the answers to its own questions (8.2); proposals and escalations to decide | `delegate`, `amend`, `cancel`, `release`, `decide`, `decide_escalation`, `propose`, `subscribe_forge`, `note`, `message`; `wait` | its goal's report is written |
 | the configuring agent (8.1) | its person's words; its proposals' outcomes: accepted, rejected with a reason, withdrawn as stale | `settings`, `propose_settings`, `withdraw`, the forge's reads, `read_docs`; `wait` | its person closes it |
@@ -644,10 +654,16 @@ under the forge's review charter, a reviewer's, whose instructions are
 to judge the change through its brief and the forge's reads and give a
 verdict, or fail saying why it cannot (forge.md, 8.3), and whose tools
 are the workspace's inspection and the forge's reads, never
-modification or the shell: a reviewer changes nothing.
+modification or the shell: a reviewer changes nothing. Its foremen run
+under the forge's foreman charter, whose instructions are to settle a
+question from the change's words, the design in its checkout and the
+change's pushed head, and give a verdict of answer, finish or escalate
+(forge.md, 8.11), with a reviewer's tools: a foreman changes nothing.
 
 The change's agents ask no one, and take no questions, answers or words
-(8.2).
+(8.2), unless the change relays their questions (forge.md, 8.11): then
+its producing, its repairs and its resolutions ask the change, and hear
+its answers. Its reviews and its foremen never ask.
 
 A refused forge read keeps its refusing layer and reason. Connector authority
 findings reach the agent as `ToolDenied`, with the findings intact. The root
@@ -721,14 +737,18 @@ a person says they work into a proposal of settings
 A person who wants to agree a plan before anything is changed: rung B0
 of `../draft/v0.1.0.md`, 2.1.
 
-- **The work that waits asks; a change never does.** A change is
-  decided work, asked for once what to change is agreed. Its agents,
-  the table's first four rows, ask no one: the change procedure
-  delegates each with the Message family taken out of the tool families
-  it passes on, which a child's authority otherwise keeps (jig's
+- **The work that waits asks; a change asks only as it is made to.** A
+  change is decided work, asked for once what to change is agreed. Made
+  with `questions` `"none"` (4.3.1), the default, its agents, the
+  table's first four rows, ask no one: the change procedure delegates
+  each with the Message family taken out of the tool families it passes
+  on, which a child's authority otherwise keeps (jig's
   `domain/authority.md`, section 3). The change itself takes no
   questions, answers or words (forge.md, 8.1); its amendments and its
-  cancel reach it as forge.md says.
+  cancel reach it as forge.md says. A plan's maker that wants its
+  changes' producers to ask makes them with `"foreman"` or `"up"`, and
+  the change relays their questions (forge.md, 8.11); what follows is a
+  chat's, whose changes take none.
 - **The chat delegates the work as a goal** when its person asks to
   agree it first, with `goal` (4.3.2) and the person's words: a
   delegate under charter 1 holding the authority to call `change` and

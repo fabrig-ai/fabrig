@@ -198,6 +198,7 @@ pub struct ChangeCall {
     pub branch: Option<ChangeBranch>,
     pub merge: Option<[u8; 32]>,
     pub after: Box<[ChangeAfter]>,
+    pub questions: Option<ChangeQuestions>,
     pub repairs: Option<skein_forge::api::Commit>,
 }
 
@@ -212,6 +213,7 @@ impl ChangeCall {
             branch: None,
             merge: None,
             after: Box::new([]),
+            questions: None,
             repairs: None,
         }
     }
@@ -222,6 +224,14 @@ impl ChangeCall {
 pub enum ChangeLanding {
     Goal,
     Branch(Box<[u8]>),
+}
+
+/// How a change takes its agents' questions (domain/agent.md, 4.3.1).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum ChangeQuestions {
+    None,
+    Foreman,
+    Up,
 }
 
 /// A change's branch choice (domain/agent.md, 4.3.1).

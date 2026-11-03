@@ -12,6 +12,7 @@ use jig_domain_brief as brief;
 use temper_engine_domain_forge_landing as landing;
 pub(crate) const GOAL_BRANCH_SYMBOL: u16 = 1;
 pub(crate) const CHANGE_CODE: u32 = 2;
+const FOREMAN_CHARTER: u32 = 6;
 pub(crate) const LANDING_CODE: u32 = 3;
 pub(crate) const AFTER_LANDING_CODE: u32 = 4;
 use jig_domain_core::effects::connector::{EffectDescription, EffectForm, Recovery};
@@ -26,8 +27,11 @@ use landing_route::{describe_landing_effect, landing_decision, start_landing};
 mod reads;
 use reads::read_answer;
 pub(crate) use reads::read_call;
+mod foreman;
 mod holds;
+mod relay;
 pub(crate) use holds::{hold as hold_reason, refused_step, start_refused};
+pub(crate) use relay::{ChangeStep, refused as relay_refused};
 
 mod merge;
 
@@ -1560,9 +1564,13 @@ pub(crate) fn run_workspace(
         },
         None => None,
     };
-    let adopted = match inherited {
-        Some((row, _)) => domain.forge.repository(row.repository),
-        None => domain.forge.home(context.project),
+    let foreman = match change {
+        Some(row) if foreman::is_task(&row.questions, context.task) => Some(row),
+        Some(_) | None => None,
+    };
+    let adopted = match (inherited, foreman) {
+        (Some((row, _)), _) | (_, Some(row)) => domain.forge.repository(row.repository),
+        (None, None) => domain.forge.home(context.project),
     };
     let mut selected = List::with_capacity(env.limits.forge.resources_per_task);
     if let Some(repository) = adopted {
@@ -1620,7 +1628,12 @@ pub(crate) fn run_workspace(
             run_branch,
             saved_branch,
         })?;
-        let mut push = item.push.take();
+        if let Some(row) = foreman
+            && row.repository == repository.provider
+        {
+            item.start = forge::items::Start::Base(row.base.clone());
+        }
+        let mut push = if foreman.is_some() { None } else { item.push.take() };
         let holder = item.holder;
         if let Some((row, _)) = inherited {
             key = row.task;
@@ -2060,6 +2073,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
     let mut body = None;
     let mut priority = 0_i32;
     let mut base_repair = false;
+    let mut route = forge_change::Route::None;
     let mut requester_branch = false;
     let mut repairs = None;
     let mut catch_up = None;
@@ -2080,6 +2094,8 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 priority = number;
             }
             tasks::Parameter::Number { name: 9, value: 1 } => base_repair = true,
+            tasks::Parameter::Number { name: 14, value: 1 } => route = forge_change::Route::Foreman,
+            tasks::Parameter::Number { name: 14, value: 2 } => route = forge_change::Route::Up,
             tasks::Parameter::Number { name: 11, value: 1 } => requester_branch = true,
             tasks::Parameter::Bytes { name: 12, value } => {
                 if value.len() != 40 && value.len() != 64 {
@@ -2107,6 +2123,10 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 return false;
             }
         }
+    }
+    match context.requester {
+        tasks::Party::Task(_) => {}
+        tasks::Party::Person(_) | tasks::Party::Deployment { .. } => route = forge_change::Route::None,
     }
     let Some(provider) = provider else { return false };
     if base_repair {
@@ -2190,6 +2210,8 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 queue_repairs: 0,
                 producing_charter: domain.config.forge_charter,
                 review_charter: 4,
+                foreman_charter: FOREMAN_CHARTER,
+                questions: forge_change::Questions { route, taken: 0, open: Box::new([]) },
                 effect_account: None,
                 producer_failure: None,
                 report: Box::new([]),
@@ -2238,6 +2260,19 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
     retry_change_names(domain, env, task);
     landing_route::join_landing(domain, env, task);
     let Some(entry) = crate::fresh(&mut domain.core.counters, Family::ConnectorRow) else { return false };
+    let released_questions = match (domain.forge.change(task), domain.core.tasks.task(task)) {
+        (Some(row), Some(task)) => relay::questions_held(&row.change.state) && task.due_reason == tasks::Why::Released,
+        _ => false,
+    };
+    if released_questions && let Some((_, _, step)) = domain.core.tasks.procedure_due(task) {
+        domain
+            .forge_delegating
+            .insert(
+                (task, step),
+                ChangeStep { foreman: false, delegate: None, relayed: None, refusal: None, released: true },
+            )
+            .expect("one released relay per change step");
+    }
     domain.work.push(Work::Forge(forge::Event::StepChange {
         merge_job: match domain.core.tasks.delegation(task) {
             Some(context) => {
@@ -2443,6 +2478,7 @@ pub(crate) fn change_batch(
                 || change.landing.is_some()
                 || change.branch.is_some()
                 || !change.after.is_empty()
+                || change.questions.is_some()
                 || change.repairs.is_some()
                 || change.merge.is_some()
         }
@@ -2457,7 +2493,7 @@ pub(crate) fn change_batch(
         let words: &[u8] = if merge {
             b"change's merge is a plan's: this task's authority lacks the control family (amend, cancel, release)."
         } else {
-            b"change's landing, branch, name, after, repairs and changes are a plan's: this task's authority lacks the control family (amend, cancel, release)."
+            b"change's landing, branch, name, after, questions, repairs and changes are a plan's: this task's authority lacks the control family (amend, cancel, release)."
         };
         return Err(ChangeRefused::Words(Box::from(words)));
     }
@@ -2714,6 +2750,7 @@ fn change_branch(
 /// Expand one change with its share of the call's remaining authority.
 /// Ordinary delegation admission decides the resulting batch by its call name.
 #[expect(clippy::too_many_arguments, reason = "the resolved branch and landing accompany the admitted change context")]
+#[expect(clippy::too_many_lines, reason = "the change delegate keeps its authority and plan parameters together")]
 fn chat_change(
     domain: &Domain,
     env: &Env<Limits>,
@@ -2742,6 +2779,10 @@ fn chat_change(
     if domain.config.forge_charter != 4 {
         kinds.push(tasks::AuthorityExecutor::Charter(4)).expect("review kind");
     }
+    let foreman = change.questions == Some(crate::ChangeQuestions::Foreman);
+    if foreman && !kinds.as_slice().contains(&tasks::AuthorityExecutor::Charter(FOREMAN_CHARTER)) {
+        kinds.push(tasks::AuthorityExecutor::Charter(FOREMAN_CHARTER)).expect("foreman kind");
+    }
     let gates = configured_gates(domain, env, repository, &base).ok_or(tasks::Refusal::Spec)?;
     for gate in &gates {
         if gate.kind == forge_change::GateKind::Person && !kinds.as_slice().contains(&tasks::AuthorityExecutor::Role(1))
@@ -2754,18 +2795,24 @@ fn chat_change(
     }
     authority.delegation.kinds = kinds.into_boxed();
     // A producer, a review, and two repairs each followed by its review.
-    authority.delegation.tasks = 6.min(context.tasks_left.saturating_sub(1));
+    let tasks = if foreman { 6_u32.saturating_add(env.limits.forge.change_policy.questions) } else { 6 };
+    authority.delegation.tasks = tasks.min(context.tasks_left.saturating_sub(1));
     authority.delegation.depth = 2.min(authority.delegation.depth.saturating_sub(1));
     authority.budget.spend = spend;
     authority.notes = tasks::Scopes(0);
     authority.note_resources = Box::new([]);
-    let mut parameters = List::with_capacity(6);
+    let mut parameters = List::with_capacity(env.limits.tasks.parameters);
     for parameter in change_parameters(domain.config.forge_connector, repository.provider, base) {
-        parameters.push(parameter).expect("change repository and landing");
+        if parameters.push(parameter).is_err() {
+            return Err(tasks::Refusal::Spec);
+        }
     }
     if let Some(branch) = branch {
-        parameters.push(tasks::Parameter::Bytes { name: 3, value: branch }).expect("requester's branch");
-        parameters.push(tasks::Parameter::Number { name: 11, value: 1 }).expect("requester's branch marker");
+        if parameters.push(tasks::Parameter::Bytes { name: 3, value: branch }).is_err()
+            || parameters.push(tasks::Parameter::Number { name: 11, value: 1 }).is_err()
+        {
+            return Err(tasks::Refusal::Spec);
+        }
         let mut title = change.words.as_ref();
         for (index, byte) in change.words.iter().enumerate() {
             if *byte == b'\n' {
@@ -2774,15 +2821,29 @@ fn chat_change(
                 break;
             }
         }
-        if !title.is_empty() {
-            parameters.push(tasks::Parameter::Bytes { name: 10, value: title.into() }).expect("goal landing title");
+        if !title.is_empty() && parameters.push(tasks::Parameter::Bytes { name: 10, value: title.into() }).is_err() {
+            return Err(tasks::Refusal::Spec);
         }
     }
-    if let Some(commit) = change.repairs {
-        parameters.push(tasks::Parameter::Bytes { name: 12, value: commit_text(&commit) }).expect("red landing commit");
+    let route = match change.questions {
+        Some(crate::ChangeQuestions::Foreman) => Some(1),
+        Some(crate::ChangeQuestions::Up) => Some(2),
+        None | Some(crate::ChangeQuestions::None) => None,
+    };
+    if let Some(value) = route
+        && parameters.push(tasks::Parameter::Number { name: 14, value }).is_err()
+    {
+        return Err(tasks::Refusal::Spec);
     }
-    if let Some(commit) = change.merge {
-        parameters.push(tasks::Parameter::Bytes { name: 16, value: commit_text(&commit) }).expect("catch-up parameter");
+    if let Some(commit) = change.repairs
+        && parameters.push(tasks::Parameter::Bytes { name: 12, value: commit_text(&commit) }).is_err()
+    {
+        return Err(tasks::Refusal::Spec);
+    }
+    if let Some(commit) = change.merge
+        && parameters.push(tasks::Parameter::Bytes { name: 16, value: commit_text(&commit) }).is_err()
+    {
+        return Err(tasks::Refusal::Spec);
     }
     Ok(super::Delegate {
         deadline: tasks::Deadline::Named,
@@ -2892,9 +2953,20 @@ fn change_delegate(
     let row = domain.forge.change(task)?;
     let context = domain.core.tasks.delegation(task)?;
     let mut authority = child_authority(&context)?;
-    // Every agent below a change asks no one (domain/agent.md, 8.2) and
-    // leaves deployment settings to its requester.
-    authority.tools.0 &= !(domain.core.settings.tools.message.0 | domain.core.settings.tools.settings);
+    // domain/agent.md, 8: only producing, repairs and resolutions may ask.
+    authority.tools.0 &= !domain.core.settings.tools.settings;
+    let asking = match kind {
+        forge_change::Delegate::Produce
+        | forge_change::Delegate::Repair(_)
+        | forge_change::Delegate::Resolve { .. } => row.questions.route != forge_change::Route::None,
+        forge_change::Delegate::Gate { .. } | forge_change::Delegate::Merge { .. } => false,
+    };
+    if !asking {
+        authority.tools.0 &= !domain.core.settings.tools.message.0;
+    } else if row.questions.route == forge_change::Route::Foreman {
+        // Keep spend for a foreman while this coding delegate waits on its question.
+        authority.budget.spend /= 2;
+    }
     if let forge_change::Delegate::Merge { base, from } = kind {
         let bound = domain.config.merge_kind?;
         let repository = domain.forge.repository(row.repository)?;
@@ -3251,73 +3323,12 @@ fn produce_words(title: &[u8], base: &[u8], branch: &[u8], bound: u32) -> Box<[u
 
 /// Keep the decision's messages first, then fill its remaining room with inbox replies.
 pub(super) fn append_change_replies(
-    domain: &Domain,
+    domain: &mut Domain,
     env: &Env<Limits>,
     task: u64,
     decision: ProcedureStep,
 ) -> ProcedureStep {
-    let mut messages = List::with_capacity(env.limits.tasks.batch);
-    for message in decision.messages {
-        messages.push(message).expect("the decision's messages fit the step batch");
-    }
-    ProcedureStep { messages: change_replies(domain, env, task, messages), ..decision }
-}
-
-/// domain/forge.md, 8.1: replies take the same inbox prefix as their step.
-fn change_replies(
-    domain: &Domain,
-    env: &Env<Limits>,
-    task: u64,
-    mut messages: List<jig_domain_core::StepMessage>,
-) -> Box<[jig_domain_core::StepMessage]> {
-    let Some(row) = domain.core.tasks.task(task) else { return messages.into_boxed() };
-    let Some(offered) = domain.core.tasks.procedure_offered(task) else { return messages.into_boxed() };
-    for word in &row.inbox {
-        // domain/forge.md, 8.1: answer the oldest within the batch; the rest are taken unanswered.
-        if messages.len() == env.limits.tasks.batch {
-            break;
-        }
-        if word.number > offered {
-            continue;
-        }
-        let kind = match word.kind {
-            tasks::MessageKind::Question => tasks::MessageKind::Answer { question: word.number },
-            tasks::MessageKind::Words | tasks::MessageKind::Answer { .. } => tasks::MessageKind::Words,
-            tasks::MessageKind::Result(_)
-            | tasks::MessageKind::Escalation { .. }
-            | tasks::MessageKind::Proposal { .. }
-            | tasks::MessageKind::ProposalDecision { .. }
-            | tasks::MessageKind::SettingsDecision { .. }
-            | tasks::MessageKind::FinishRequested { .. }
-            | tasks::MessageKind::Amendment { .. }
-            | tasks::MessageKind::Met { .. }
-            | tasks::MessageKind::Notice { .. }
-            | tasks::MessageKind::QuestionAnswered { .. }
-            | tasks::MessageKind::QuestionOwed
-            | tasks::MessageKind::NothingAwaited
-            | tasks::MessageKind::QuestionEnded { .. }
-            | tasks::MessageKind::Timer { .. }
-            | tasks::MessageKind::PersonStalled { .. }
-            | tasks::MessageKind::EffectNotMade { .. }
-            | tasks::MessageKind::News { .. } => continue,
-        };
-        let tasks::Party::Task(target) = word.from else { continue };
-        // Jig's domain/tasks.md, 8.5: a step can address only these tasks.
-        if row.requester != tasks::Party::Task(target)
-            && !row.delegates.contains(&target)
-            && !row.references.contains(&target)
-        {
-            continue;
-        }
-        messages
-            .push(jig_domain_core::StepMessage {
-                target,
-                kind,
-                words: takes_no_messages(row.requester, env.limits.tasks.message_bytes),
-            })
-            .expect("replies capped at the step batch");
-    }
-    messages.into_boxed()
+    relay::apply(domain, env, task, decision)
 }
 
 /// The change names who requested its already agreed work (domain/forge.md, 8.1).
@@ -3556,8 +3567,29 @@ fn hold_change_decision(domain: &Domain, env: &Env<Limits>, task: u64, why: forg
     {
         return holds::decision_as(domain, env, task, tasks::Hold::EffectFailed, words.clone());
     }
-    let account =
-        if let forge_change::Hold::Authority(cause) = why { Some(forge_change::authority_words(cause)) } else { None };
+    let account = if why == forge_change::Hold::Questions {
+        let bound = skein_lib::Decimal::of(u64::from(env.limits.forge.change_policy.questions));
+        let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
+        append(&mut words, b"its questions are spent: ");
+        append(&mut words, bound.as_bytes());
+        append(&mut words, b" of ");
+        append(&mut words, bound.as_bytes());
+        append(&mut words, b" taken");
+        if let Some(row) = domain.forge.change(task)
+            && let Some(question) = row.questions.open.first()
+        {
+            append(&mut words, b"; question ");
+            append(&mut words, skein_lib::Decimal::of(question.number).as_bytes());
+            append(&mut words, b" of task ");
+            append(&mut words, skein_lib::Decimal::of(question.asker).as_bytes());
+            append(&mut words, b" waits; release it to pass the question up");
+        }
+        Some(words.into_boxed())
+    } else if let forge_change::Hold::Authority(cause) = why {
+        Some(forge_change::authority_words(cause))
+    } else {
+        None
+    };
     let message = if let forge_change::Hold::Authority(cause) = why {
         authority_hold_message(domain, env, task, cause)
     } else if why == forge_change::Hold::Failed {
@@ -3575,9 +3607,10 @@ fn hold_change_decision(domain: &Domain, env: &Env<Limits>, task: u64, why: forg
             forge_change::AuthorityLack::Spend => tasks::Hold::Budget,
         },
         forge_change::Hold::Stalled => tasks::Hold::Stalled,
-        forge_change::Hold::Repairs | forge_change::Hold::Resolutions | forge_change::Hold::Updates => {
-            tasks::Hold::Procedure
-        }
+        forge_change::Hold::Repairs
+        | forge_change::Hold::Resolutions
+        | forge_change::Hold::Updates
+        | forge_change::Hold::Questions => tasks::Hold::Procedure,
         forge_change::Hold::Failed | forge_change::Hold::Rejected => tasks::Hold::EffectFailed,
     };
     let end = if let Some(words) = account {
@@ -3734,6 +3767,11 @@ fn delegate_change_step(
     code: u32,
     kind: forge_change::Delegate,
 ) {
+    if relay::continuing_asker(domain, task, kind) {
+        let decision = append_change_replies(domain, env, task, ProcedureStep::new(StepEnd::Wait));
+        domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep { task, step, connector, code, decision }));
+        return;
+    }
     let Some(delegate) = change_delegate(domain, env, task, kind) else {
         let held = holds::decision(
             domain,
@@ -3741,32 +3779,32 @@ fn delegate_change_step(
             task,
             Box::from(&b"change delegate cannot be described within its authority"[..]),
         );
-        domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep {
-            task,
-            step,
-            connector,
-            code,
-            decision: append_change_replies(domain, env, task, held),
-        }));
+        let decision = append_change_replies(domain, env, task, held);
+        domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep { task, step, connector, code, decision }));
         return;
     };
-    assert!(domain.forge_delegating.insert((task, step), kind).is_ok(), "one forge procedure delegate");
-    domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep {
+    if let Some(pending) = domain.forge_delegating.get_mut(&(task, step)) {
+        pending.delegate = Some(kind);
+    } else {
+        domain
+            .forge_delegating
+            .insert(
+                (task, step),
+                ChangeStep { foreman: false, delegate: Some(kind), relayed: None, refusal: None, released: false },
+            )
+            .expect("one forge procedure delegate");
+    }
+    let decision = append_change_replies(
+        domain,
+        env,
         task,
-        step,
-        connector,
-        code,
-        decision: append_change_replies(
-            domain,
-            env,
-            task,
-            ProcedureStep {
-                batch: Box::new([delegate]),
-                started_from: producer_started_from(domain, env, task, kind),
-                ..ProcedureStep::new(StepEnd::Wait)
-            },
-        ),
-    }));
+        ProcedureStep {
+            batch: Box::new([delegate]),
+            started_from: producer_started_from(domain, env, task, kind),
+            ..ProcedureStep::new(StepEnd::Wait)
+        },
+    );
+    domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep { task, step, connector, code, decision }));
 }
 
 fn producer_started_from(domain: &Domain, env: &Env<Limits>, task: u64, kind: forge_change::Delegate) -> Box<[u64]> {

@@ -163,13 +163,8 @@ pub(crate) fn refused_step(
     findings(&mut words, findings_);
     recovery(domain, task, &mut words);
     let decision = decision(domain, env, task, words.into_boxed());
-    domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep {
-        task,
-        step,
-        connector,
-        code,
-        decision: append_change_replies(domain, env, task, decision),
-    }));
+    let decision = append_change_replies(domain, env, task, decision);
+    domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep { task, step, connector, code, decision }));
 }
 
 pub(crate) fn hold(domain: &mut Domain, task: u64, reason: &[u8]) {

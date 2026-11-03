@@ -132,6 +132,8 @@ pub enum Hold {
     Rejected,
     /// The next delegate is beyond the change's remaining authority.
     Authority(AuthorityHold),
+    /// Another question would exceed the change's bound.
+    Questions,
 }
 
 /// A change's committed place through verification (temper/docs/design/domain/after-landing.md, 6).
@@ -334,6 +336,8 @@ pub struct Facts {
     pub queue_repair_active: bool,
     /// The task has a pending dependency (jig's `domain/tasks.md`, 5.7), so it is not ready.
     pub kept: bool,
+    /// An open question of the change's current agent stands (domain/forge.md, 8.4 and 8.11).
+    pub asking: bool,
     /// The end of the window Forgejo is still settling in, when open.
     pub settling: Option<Wall>,
     pub verification: Verification,
@@ -455,9 +459,60 @@ pub struct Limits {
     pub repairs: u32,
     pub resolutions: u32,
     pub updates: u32,
+    /// Questions a change takes from its making or its last release (domain/forge.md, 8.11).
+    pub questions: u32,
     pub stall: Duration,
     pub gates: u32,
     pub clean_heads: u32,
+}
+
+/// How a change takes its agents' questions (domain/forge.md, 8.11).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Default)]
+pub enum Route {
+    #[default]
+    None,
+    Foreman,
+    Up,
+}
+
+/// Open questions a change's record keeps at most (domain/forge.md, 8.11).
+pub const QUESTIONS_OPEN: usize = 16;
+/// Bytes of a question's first line kept on the record and shown on the panel.
+pub const QUESTION_LINE: usize = 256;
+
+/// A change's relay of its agents' questions (domain/forge.md, 8.11).
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Default)]
+pub struct Questions {
+    pub route: Route,
+    /// Questions taken since the change was made or last released.
+    pub taken: u32,
+    /// Open questions in the order taken; the first is the one being worked.
+    pub open: Box<[Open]>,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Open {
+    /// The asking task: the change's producing task, a repair or a resolution.
+    pub asker: u64,
+    /// The question's number in the change's inbox, which its answer names.
+    pub number: u64,
+    /// Its words' first line, at most `QUESTION_LINE` bytes, cut on a UTF-8 boundary, marked "…".
+    pub line: Box<[u8]>,
+    /// The question's whole words, within the deployment's message bound.
+    pub words: Box<[u8]>,
+    pub stands: Stands,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Stands {
+    /// Waiting its turn, its foreman's delegation or its passing up.
+    Taken,
+    /// With its foreman: `None` while the delegate is asked, its task once made.
+    Foreman { task: Option<u64> },
+    /// Asked of the change's requester, the change kept by its own question.
+    Asked,
+    /// Answered by the requester and held while the change is kept by a pending dependency.
+    Held { answer: Box<[u8]> },
 }
 
 /// One change ready for a landing branch's derived queue.

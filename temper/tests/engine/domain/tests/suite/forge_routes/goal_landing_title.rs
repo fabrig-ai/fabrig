@@ -130,3 +130,34 @@ fn a_goals_landing_fits_its_title_only_when_opening_the_pull() {
         assert_landing_title(&words, Some(words.as_bytes()), title.as_bytes());
     }
 }
+
+#[test]
+fn a_goals_landing_keeps_its_branch_title_and_questions_up() {
+    let (mut world, goal, branch) = landing_world();
+    let answer = super::goal_landing::mine(
+        &mut world,
+        &goal,
+        LANDING_CALL,
+        br#"{"words":"Land the goal\r\nWhat it built: ...","branch":"mine","questions":"up"}"#,
+    );
+    let Some(engine::CallAnswer::Delegated(made)) = answer else { panic!("goal landing admitted") };
+    assert_eq!(made.len(), 1);
+    let landing = made[0].task;
+    assert_eq!(
+        live_task(&world, landing).spec.parameters.as_ref(),
+        &[
+            tasks::Parameter::Resource {
+                name: 1,
+                connector: 0,
+                resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
+            },
+            tasks::Parameter::Bytes { name: 2, value: b"main".as_slice().into() },
+            tasks::Parameter::Bytes { name: 3, value: branch },
+            tasks::Parameter::Number { name: 11, value: 1 },
+            tasks::Parameter::Bytes { name: 10, value: b"Land the goal".as_slice().into() },
+            tasks::Parameter::Number { name: 14, value: 2 },
+        ]
+    );
+    assert_eq!(change_row(&world, landing).questions.route, temper_engine_domain_forge_change::Route::Up);
+    world.close();
+}

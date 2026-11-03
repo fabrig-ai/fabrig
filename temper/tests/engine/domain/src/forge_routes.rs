@@ -131,6 +131,7 @@ pub struct StoryLimits {
     pub spec_bytes: Option<u32>,
     pub result_bytes: Option<u32>,
     pub forge_charter: Option<u32>,
+    pub questions: Option<u32>,
     pub merge_kind: bool,
     pub resolutions: Option<u32>,
     pub merge_authority: bool,
@@ -293,6 +294,7 @@ impl World {
             spec_bytes,
             result_bytes,
             forge_charter,
+            questions,
             merge_kind,
             merge_authority,
             resolutions,
@@ -307,6 +309,9 @@ impl World {
         let paths::Gate { approval, agent: agent_gate, owner: owner_gate } = gate;
         let [(bootstrap, mut limits), (config, _)] = std::array::from_fn(|_| {
             let mut limits = walking::limits();
+            if let Some(questions) = questions {
+                limits.forge.change_policy.questions = questions;
+            }
             if let Some(bytes) = result_bytes {
                 limits.tasks.result_bytes = bytes;
             }
@@ -356,7 +361,7 @@ impl World {
                 limits.tasks.depth = 4;
                 limits.tasks.parameters = 8;
                 limits.tasks.spec_bytes = 512;
-                limits.tasks.executor_kinds = 4;
+                limits.tasks.executor_kinds = 5;
                 limits.tasks.charters = 4;
                 let mut producer = walking::charter();
                 producer.number = 2;
@@ -364,16 +369,19 @@ impl World {
                 reviewer.number = 4;
                 reviewer.policy.modify = false;
                 reviewer.policy.agents = false;
-                config.core.defaults.charters = Box::new([walking::charter(), producer, reviewer]);
+                let mut foreman = reviewer.clone();
+                foreman.number = 6;
+                foreman.policy.shell = false;
+                config.core.defaults.charters = Box::new([walking::charter(), producer, reviewer, foreman]);
                 config.forge_charter = forge_charter.unwrap_or(1);
                 limits.tasks.authority_grants = 10;
                 limits.journal.run_bytes = 8192;
                 limits.tasks.authority_segments = 9;
                 limits.tasks.authority_bytes = 512;
-                limits.tasks.contract_choices = 2;
+                limits.tasks.contract_choices = 3;
                 limits.tasks.inbox_messages = 8;
                 limits.tasks.inbox_bytes = 1024;
-                limits.authority.executors = 4;
+                limits.authority.executors = 5;
                 limits.authority.batch = 2;
                 limits.authority.grants = 10;
                 limits.authority.segments = 8;
@@ -498,6 +506,7 @@ impl World {
                         authority::Executor::Charter(1),
                         authority::Executor::Charter(2),
                         authority::Executor::Charter(4),
+                        authority::Executor::Charter(6),
                         authority::Executor::Procedure(2),
                     ]);
                     rules.ceiling.delegation.tasks = 12;
@@ -531,8 +540,8 @@ impl World {
                 if turn || tier.is_some() {
                     limits.authority.grants = 14;
                     limits.tasks.authority_grants = 14;
-                    limits.authority.executors = 6;
-                    limits.tasks.executor_kinds = 6;
+                    limits.authority.executors = 7;
+                    limits.tasks.executor_kinds = 7;
                     limits.tasks.result_bytes = 256;
                     limits.journal.run_bytes = 32768;
                     if let Some(slots) = landing_members {
@@ -550,6 +559,7 @@ impl World {
                         authority::Executor::Charter(1),
                         authority::Executor::Charter(2),
                         authority::Executor::Charter(4),
+                        authority::Executor::Charter(6),
                         authority::Executor::Procedure(2),
                         authority::Executor::Procedure(3),
                         authority::Executor::Procedure(4),
@@ -705,11 +715,12 @@ impl World {
                 config.core.jobs = Box::new([bound]);
             }
             if merge_authority {
-                limits.tasks.executor_kinds = limits.tasks.executor_kinds.max(5);
-                limits.authority.executors = limits.authority.executors.max(5);
                 let kinds = &mut config.core.defaults.rules.ceiling.delegation.kinds;
                 let mut extended = kinds.to_vec();
                 extended.push(authority::Executor::Job(3));
+                let executors = u32::try_from(extended.len()).expect("fixture executor count fits");
+                limits.tasks.executor_kinds = limits.tasks.executor_kinds.max(executors);
+                limits.authority.executors = limits.authority.executors.max(executors);
                 *kinds = extended.into_boxed_slice();
                 for project in &mut config.core.seed_projects {
                     let policy = &mut project.policy.policy;
@@ -867,6 +878,7 @@ impl World {
         store_limits.tasks.executor_kinds = limits.tasks.executor_kinds;
         store_limits.authority.executors = limits.authority.executors;
         store_limits.tasks.charters = limits.tasks.charters;
+        store_limits.tasks.contract_choices = limits.tasks.contract_choices;
         if stock.is_some() {
             store_limits.forge.issue_policy = limits.forge.issue_policy;
             store_limits.forge.client.op_bytes = limits.forge.client.op_bytes;
@@ -940,6 +952,41 @@ impl World {
         self.env.limits.forge.client = limits;
         self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
             .expect("valid client admission bounds");
+        self
+    }
+
+    /// Size a goal's question story for its changes and their foremen before startup
+    /// (temper/docs/design/domain/forge.md, 8.11 and 11.1).
+    #[must_use]
+    pub fn with_goal_question_capacity(mut self, tasks: u32, inbox_bytes: u32) -> Self {
+        assert_eq!(self.env.now, Time::ZERO, "question capacity precedes startup");
+        assert!(!self.root.ready(), "question capacity precedes bootstrap");
+        self.env.limits.tasks.tasks = tasks;
+        self.env.limits.tasks.project_tasks = tasks;
+        self.env.limits.tasks.tree_tasks = tasks;
+        self.env.limits.tasks.inbox_bytes = inbox_bytes;
+        self.env.limits.tasks.batch = 2;
+        self.env.limits.people.inbox_tasks = tasks * 2;
+        self.env.limits.forge.tasks = tasks;
+        self.env.limits.forge.client.resources = tasks * self.env.limits.forge.resources_per_task;
+        self.env.limits.brief.budgets.task = 512;
+        self.restart_config.core.defaults.rules.ceiling.delegation.tasks = tasks;
+        let policy = &mut self.restart_config.core.seed_projects[0].policy.policy;
+        policy.ceiling.delegation.tasks = tasks;
+        policy.roles[0].authority.delegation.tasks = tasks;
+        self.creating = jig_test_profile::fixtures::Creating::new(&self.restart_config.core, tasks);
+        let mut codec = crate::store::widest();
+        codec.tasks = self.env.limits.tasks;
+        codec.authority = self.env.limits.authority;
+        codec.people.words = self.env.limits.people.words;
+        self.store = crate::fixtures::restored_over(
+            Store::with_limits(&codec),
+            crate::oracle::config::copy(&self.restart_config),
+            &self.env.limits,
+        );
+        self.events = VecDeque::from([engine::Event::Restart { pending: self.store.pending_generation }]);
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("valid goal question capacity");
         self
     }
 
@@ -1037,7 +1084,13 @@ impl World {
             if self.gate.owner { 0 } else { 1000 },
             self.gate,
             None,
-            StoryLimits { brief: Some(self.env.limits.brief), forge_charter, ..StoryLimits::default() },
+            StoryLimits {
+                brief: Some(self.env.limits.brief),
+                forge_charter,
+                questions: Some(self.env.limits.forge.change_policy.questions),
+                stall: Some(self.env.limits.forge.change_policy.stall),
+                ..StoryLimits::default()
+            },
         );
         self.restart_domain(fresh.restart_config, with_change);
     }
@@ -1067,9 +1120,10 @@ impl World {
         if !self.assigned.is_empty() {
             self.events.push_back(protocol::hello_slots(
                 Token::new(7),
-                if with_change { 2 } else { 1 },
+                self.oracle_peer.map_or(if with_change { 2 } else { 1 }, |(_, _, slots)| slots),
                 self.assigned
                     .iter()
+                    .filter(|assignment| matches!(self.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(assignment.task)))), Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))) if matches!(row.phase, tasks::Phase::Active(tasks::Active::Running { attempt }) if attempt == assignment.attempt)))
                     .map(|assignment| {
                         protocol::hosting(assignment.task, assignment.attempt, jig_domain_host::Phase::Active)
                     })
@@ -1360,8 +1414,142 @@ impl World {
         self.events.extend(self.held_write_answers.drain(..));
     }
 
-    /// Restore a question admitted by an older delegate, including its reserved
-    /// answer room. Current change delegates cannot call Message themselves.
+    /// Read the messages offered to this run before its next scripted action.
+    pub fn scripted_read_inbox(&mut self, run: &engine::Assignment) {
+        let proof_key = Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::RunProof(run.task)));
+        let Some(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::RunProof(proof)))) =
+            self.store.rows.get(&proof_key)
+        else {
+            panic!("scripted run proof")
+        };
+        let Some(read) = proof.outstanding.last().copied() else { return };
+        let task_key = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(run.task)));
+        let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))) =
+            self.store.rows.get(&task_key)
+        else {
+            panic!("scripted reader is live")
+        };
+        let turn = row.turn + 1;
+        self.send(protocol::turn(
+            Token::new(7),
+            run.task,
+            run.attempt,
+            turn,
+            0,
+            Some(read),
+            b"Read the offered messages",
+        ));
+        for _ in 0..STEPS {
+            self.tick();
+            if let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))) =
+                self.store.rows.get(&task_key)
+                && row.turn >= turn
+                && self.store.pending.is_empty()
+            {
+                return;
+            }
+        }
+        panic!("scripted reader commits turn {turn}");
+    }
+
+    /// Send a scripted agent's tool call and commit its turn's call evidence.
+    pub fn scripted_call(&mut self, run: &engine::Assignment, number: u64, tool: engine::Tool) -> engine::CallAnswer {
+        const CHANNEL: Token = Token::new(7);
+        self.scripted_read_inbox(run);
+        let key = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(run.task)));
+        let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))) = self.store.rows.get(&key)
+        else {
+            panic!("scripted caller is live")
+        };
+        let turn = row.turn + 1;
+        let before = self.answers.len();
+        let errors = self.call_errors.len();
+        let event = self.protocol.call(
+            CHANNEL,
+            run.task,
+            run.attempt,
+            number,
+            engine::Call { completion: turn, position: 1, tool },
+        );
+        self.send(event);
+        for _ in 0..STEPS {
+            self.tick();
+            assert_eq!(self.call_errors.len(), errors, "scripted call {number}: {:?}", self.call_errors);
+            if self.answers.len() > before && self.store.pending.is_empty() {
+                let answer = self.answers[before].clone();
+                let proof_key = Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::RunProof(run.task)));
+                let Some(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::RunProof(proof)))) =
+                    self.store.rows.get(&proof_key)
+                else {
+                    panic!("scripted run proof")
+                };
+                let read = proof.turn.as_ref().and_then(|turn| turn.read);
+                self.send(protocol::turn(CHANNEL, run.task, run.attempt, turn, 0, read, b"Continue the agreed work"));
+                for _ in 0..STEPS {
+                    self.tick();
+                    if let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))) =
+                        self.store.rows.get(&key)
+                        && row.turn >= turn
+                        && self.store.pending.is_empty()
+                    {
+                        return answer;
+                    }
+                }
+                panic!("scripted call {number} turn committed");
+            }
+        }
+        panic!("scripted call {number} answered: {:?}", self.answers);
+    }
+
+    /// A producer asks its change through the worker's message call.
+    pub fn producer_question(&mut self, producer: &engine::Assignment, number: u64, words: &[u8]) -> u64 {
+        let key = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(producer.task)));
+        let Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))) = self.store.rows.get(&key)
+        else {
+            panic!("live producer")
+        };
+        let tasks::Party::Task(target) = row.requester else { panic!("producer's change") };
+        let engine::CallAnswer::Sent { message } = self.scripted_call(
+            producer,
+            number,
+            engine::Tool::Message { target, form: engine::MessageForm::Question, words: words.into() },
+        ) else {
+            panic!("producer's question sent")
+        };
+        message
+    }
+
+    /// A foreman settles its contract through the worker's result.
+    pub fn foreman_verdict(&mut self, foreman: &engine::Assignment, code: u32, words: &[u8]) {
+        let event = self.protocol.answer(
+            Token::new(7),
+            foreman.task,
+            foreman.attempt,
+            5,
+            tasks::End::Finished {
+                result: tasks::TaskResult::Verdict { code, fields: Box::new([]), words: words.into() },
+                cancel_delegates: false,
+            },
+            engine::Parts::none(),
+        );
+        self.send(event);
+    }
+
+    /// The goal answers the change's own question through its message call.
+    pub fn goal_answer(&mut self, goal: &engine::Assignment, number: u64, change: u64, question: u64, words: &[u8]) {
+        let answer = self.scripted_call(
+            goal,
+            number,
+            engine::Tool::Message {
+                target: change,
+                form: engine::MessageForm::Answer { question },
+                words: words.into(),
+            },
+        );
+        assert!(matches!(answer, engine::CallAnswer::Sent { .. }), "goal answers question {question}: {answer:?}");
+    }
+
+    /// Restore a delegate question with its reserved answer room at a committed cut.
     pub fn restore_delegate_question(&mut self, delegate: u64, words: &[u8]) -> u64 {
         assert!(self.store.pending.is_empty());
         let mut header = self.store.header();
@@ -1383,12 +1571,14 @@ impl World {
         };
         assert!(target.delegates.contains(&delegate));
         sender.activity += 1;
-        sender.questions = Box::new([tasks::QuestionCredit {
+        let mut credits = sender.questions.into_vec();
+        credits.push(tasks::QuestionCredit {
             number: question,
             answerer: tasks::Party::Task(change),
             asked: tasks::Party::Task(change),
             line: sender.activity,
-        }]);
+        });
+        sender.questions = credits.into_boxed_slice();
         let mut inbox = target.inbox.into_vec();
         inbox.push(tasks::Word {
             number: question,

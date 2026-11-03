@@ -831,11 +831,15 @@ pub struct ChangeRow {
     /// Charter numbers captured when the change is made (protocol/configuration.md, 13.6).
     pub producing_charter: u32,
     pub review_charter: u32,
+    /// The foreman's charter captured when made (domain/forge.md, 8.11).
+    pub foreman_charter: u32,
     pub effect_account: Option<EffectAccount>,
     /// Producer failure words retained within the hold account bound (domain/forge.md, 8.4).
     pub producer_failure: Option<Box<[u8]>>,
     /// Its producing task's last successful result words (domain/forge.md, 8.2 step 7)
     pub report: Box<[u8]>,
+    /// Its agents' questions and their relay (domain/forge.md, 8.11).
+    pub questions: change::Questions,
     /// The red landing this change repairs (temper/docs/design/domain/agent.md, 4.3.1).
     pub repairs: Option<skein_forge::api::Commit>,
     /// The commit this catch-up merges (temper/docs/design/domain/forge.md, 8.2).
@@ -1532,6 +1536,17 @@ pub enum Event {
         failed: bool,
         /// The delegate was cancelled; it supplied no verdict and used no review retry.
         cancelled: bool,
+        words: Box<[u8]>,
+    },
+    /// Save the relay admitted with a change's procedure step.
+    Relayed {
+        task: u64,
+        questions: change::Questions,
+    },
+    /// A relay question refused by jig holds with its words and stays unasked.
+    RelayRefused {
+        task: u64,
+        questions: change::Questions,
         words: Box<[u8]>,
     },
     /// The live producer's preparation could not merge a dependency head (domain/forge.md, 8.11).

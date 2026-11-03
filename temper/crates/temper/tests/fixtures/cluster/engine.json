@@ -3,7 +3,7 @@
     "limits": {{
       "profile": "small",
       "overrides": {{
-        "authority.executors": 6,
+        "authority.executors": 8,
         "authority.grants": 14,
         "authority.projects": 2,
         "authority.requirements": 3,
@@ -54,7 +54,7 @@
         "tasks.contract_choices": 2,
         "tasks.delegates": 4,
         "tasks.dependencies": 1,
-        "tasks.executor_kinds": 6,
+        "tasks.executor_kinds": 8,
         "tasks.funders": 4,
         "tasks.hold_bytes": 64,
         "tasks.hold_segments": 8,

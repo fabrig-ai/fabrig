@@ -26,6 +26,12 @@ mod resource_admission;
 #[path = "forge_routes/asks_no_one.rs"]
 mod asks_no_one;
 
+#[path = "forge_routes/questions.rs"]
+mod questions;
+
+#[path = "forge_routes/foremen.rs"]
+mod foremen;
+
 #[path = "forge_routes/flights.rs"]
 mod flights;
 
@@ -89,6 +95,9 @@ mod goal_changes;
 
 #[path = "forge_routes/early_start.rs"]
 mod early_start;
+
+#[path = "forge_routes/goal_questions.rs"]
+mod goal_questions;
 
 #[path = "forge_routes/goal_landing.rs"]
 mod goal_landing;

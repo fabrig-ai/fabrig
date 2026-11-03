@@ -22,12 +22,14 @@ the task reads its charter, whole:
   how long it waits idle, and the timeout of its calls to temper's
   tools.
 
-The forge's procedures run a change's agent work under two charters,
+The forge's procedures run a change's agent work under three charters,
 which the change keeps from its making to its end: its producing and
 repairs under the forge's charter, the one the configuration's
 `application.charter` names, `charter 2` as `temper init` writes it;
 its reviews under the reviewer's charter, `charter 4`, which reads the
-change and gives its verdict, and edits, pushes and runs nothing.
+change and gives its verdict, and edits, pushes and runs nothing;
+its foremen's, `charter 6`, which reads the change and the design and settles its
+producer's question, and edits, pushes and runs nothing.
 
 Each member, with its type and bound, is in
 `temper help settings-fields`.
@@ -74,7 +76,8 @@ Tasks made before keep it, on their revision.
 - temper does not hold which charter the forge uses as a setting: naming
   another in `application.charter` needs a restart. The charter it names
   is a setting like any other. The reviewer's charter is `charter 4`,
-  fixed by temper; its contents are a setting like any other.
+  and the foreman's `charter 6`, fixed by temper; their contents are settings
+  like any other.
 - temper does not check, when a charter changes, that a connected host
   can run it.
 - A charter's instructions and models are within the deployment's bytes
