@@ -1,5 +1,5 @@
 //! Tiers follow their configured branches (temper/docs/design/domain/after-landing.md, 2, 3, 4 and 10).
-use crate::{Domain, Limits, Name, Request, Stored, Tier, TierBranch, TierFlight, TierLanding, TierRow, What};
+use crate::{Domain, Follows, Limits, Name, Request, Stored, Tier, TierBranch, TierFlight, TierLanding, TierRow, What};
 use alloc::boxed::Box;
 use core::mem::size_of;
 use skein_forge::api::{self, Commit, Repository, Write};
@@ -7,6 +7,7 @@ use skein_lib::{Env, List, Map, Queue, Time, Token, Wall};
 use temper_engine_domain_forge_landing as landing;
 use temper_engine_domain_forge_tiers as p;
 mod parts;
+pub(crate) mod red;
 pub(crate) mod words;
 use parts::{
     candidate, dispatch_operation, part_branch, part_inputs, part_number, probe_branch, report_read, reported,
@@ -20,6 +21,7 @@ pub(crate) struct State {
     walks: Map<(Repository, Box<[u8]>), Walk>,
     pub(crate) reads: Map<Token, (Repository, Box<[u8]>)>,
     pub(crate) follows: Map<(Repository, Box<[u8]>), crate::runs::Follow>,
+    reds: Map<(Repository, Box<[u8]>), red::Fetch>,
 }
 impl State {
     pub(crate) fn new(l: &Limits) -> Self {
@@ -31,6 +33,7 @@ impl State {
             walks: Map::with_capacity(count),
             reads: Map::with_capacity(count.checked_mul(2).expect("tier reads")),
             follows: Map::with_capacity(count),
+            reds: Map::with_capacity(count),
         }
     }
 }
@@ -65,9 +68,10 @@ fn configured(d: &Domain, row: &TierRow) -> Option<Tier> {
     None
 }
 fn followed(d: &Domain, repository: Repository, tier: &Tier) -> Option<Box<[u8]>> {
-    match &tier.branch {
-        Some(branch) => Some(branch.clone()),
-        None => Some(d.repositories.get(&repository)?.settings.default_branch.clone()),
+    match &tier.follows {
+        Follows::Branch(branch) => Some(branch.clone()),
+        Follows::Landing => Some(d.repositories.get(&repository)?.settings.default_branch.clone()),
+        Follows::Goals => None,
     }
 }
 fn path_parts(bytes: &[u8]) -> Box<[Box<[u8]>]> {
@@ -145,7 +149,7 @@ pub(crate) fn watch(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>)
     );
 }
 
-/// The tier definition includes the optional branch, so a changed following rule changes its key.
+/// The tier definition includes what it follows; the span does not change its key.
 pub(crate) fn definition(tier: &Tier) -> Box<[u8]> {
     let mut length = tier
         .workflow
@@ -157,8 +161,12 @@ pub(crate) fn definition(tier: &Tier) -> Box<[u8]> {
     for path in &tier.ignored {
         length = length.checked_add(2).expect("path header").checked_add(path.len()).expect("ignored path");
     }
-    if let Some(branch) = &tier.branch {
-        length = length.checked_add(2).expect("branch header").checked_add(branch.len()).expect("branch definition");
+    match &tier.follows {
+        Follows::Branch(branch) => {
+            length =
+                length.checked_add(2).expect("branch header").checked_add(branch.len()).expect("branch definition");
+        }
+        Follows::Landing | Follows::Goals => {}
     }
     let mut out = skein_lib::Writer::new(length);
     word(&mut out, tier.workflow.len());
@@ -175,10 +183,14 @@ pub(crate) fn definition(tier: &Tier) -> Box<[u8]> {
         p::Format::Lines => 1,
     }])
     .expect("format");
-    out.put(&[u8::from(tier.branch.is_some())]).expect("branch presence");
-    if let Some(branch) = &tier.branch {
-        word(&mut out, branch.len());
-        out.put(branch).expect("branch");
+    match &tier.follows {
+        Follows::Landing => out.put(&[0]).expect("landing marker"),
+        Follows::Branch(branch) => {
+            out.put(&[1]).expect("branch marker");
+            word(&mut out, branch.len());
+            out.put(branch).expect("branch");
+        }
+        Follows::Goals => out.put(&[2]).expect("goals marker"),
     }
     out.finish()
 }
@@ -210,6 +222,9 @@ fn empty(repository: Repository, tier: Box<[u8]>) -> TierRow {
         held: None,
         result: None,
         received: false,
+        goals: Box::new([]),
+        goal: None,
+        started: None,
     }
 }
 fn save(row: &TierRow, out: &mut Queue<Request>) {
@@ -856,6 +871,15 @@ fn finish(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, out: &mut Queue<
         )
     };
     let p::Next::Judged(verdict) = next else { unreachable!("saved final observation judges the committed part") };
+    let newly_red = red::landings(d, row, &verdict);
+    if !newly_red.is_empty() {
+        let Some(logs) = red::logs(d, env, row, out) else {
+            wait(row.task.expect("tier task"), out);
+            return;
+        };
+        red::landed(d, row, &newly_red, &logs, out);
+    }
+    let run = row.record.run.as_ref().expect("judged range");
     let words = verdict_words(&row.tier, &verdict);
     crate::verification::judged(d, row.repository, &row.tier, &verdict, &run.landings, out);
     row.record = p::judged(
@@ -1108,6 +1132,10 @@ pub(crate) fn answered(
         && walk.owner == owner
     {
         tree_answer(d, env, key, answer, out);
+        return;
+    }
+    if d.tier_ops.reds.contains_key(&key) {
+        red::answered(d, env, key, answer, out);
         return;
     }
     let Some(mut row) = d.tiers.remove(&key) else { return };
@@ -1679,6 +1707,7 @@ fn verdict_words(tier: &[u8], verdict: &p::Verdict) -> Box<[u8]> {
 }
 
 fn cancelled(d: &mut Domain, row: &mut TierRow, task: u64, out: &mut Queue<Request>) {
+    red::forget(d, row);
     row.record.run = None;
     row.task = None;
     d.offered_tier(task);

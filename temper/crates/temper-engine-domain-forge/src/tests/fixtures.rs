@@ -113,6 +113,7 @@ pub fn opening_row() -> ChangeRow {
         effect_account: None,
         producer_failure: None,
         report: Box::new([]),
+        repairs: None,
     }
 }
 

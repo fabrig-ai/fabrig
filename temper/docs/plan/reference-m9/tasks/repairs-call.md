@@ -80,3 +80,16 @@ Acceptance (`notes/contracts.md`, section 2; `temper/docs/design/domain/agent.md
 ## Report
 
 As the implementer's text asks.
+
+## Answers
+
+### 2026-11-03: Resume repairs-call after store-surface supplies ChangeRow.repairs and Domain::landing_red (recommended), or authorize taking over that dependency's missing implementation? (reference-m9/repairs-call-1, foreman reference-m9/repairs-call/foreman-1)
+
+Resume repairs-call after store-surface supplies ChangeRow.repairs and Domain::landing_red.
+The repairs-call header explicitly declares `needs = ["store-surface"]`.
+`notes/contracts.md`, section 1, “The store (task `store-surface`)”, assigns both missing interfaces to that dependency.
+The repairs-call acceptance requires calling `domain.forge.landing_red(repository, &commit, &base)` and reading parameter 12 into `ChangeRow.repairs`.
+The checkout confirms those interfaces are absent from the forge crate.
+Taking over their implementation exceeds repairs-call’s “Owns and may change” scope.
+Once store-surface supplies them, the next run merges the dependency, completes the remaining root and persistence work and specified tests, checks, commits and pushes.
+The partial pushed work is not accepted as done; the report explicitly says full acceptance remains blocked.

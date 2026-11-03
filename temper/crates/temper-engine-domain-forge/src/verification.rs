@@ -8,7 +8,48 @@ use skein_lib::{List, Queue};
 use temper_engine_domain_forge_change as change;
 use temper_engine_domain_forge_tiers::{self as policy, Blame};
 
+/// What the forge knows of a landing a change names as the red it repairs (temper/docs/design/domain/agent.md, 4.3.1).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum LandingRed {
+    /// No live `Verification` row of temper's has this commit in the repository.
+    Unknown,
+    /// Its changes landed into another branch than the one asked.
+    Elsewhere {
+        branch: Box<[u8]>,
+    },
+    /// No tier holds it red: no verdict `Owns` or `Suspect` without its `repaired`.
+    NotRed,
+    Red,
+}
+
 impl Domain {
+    /// The live landing's branch and whether any tier still holds it red.
+    #[must_use]
+    pub fn landing_red(&self, repository: Repository, commit: &Commit, branch: &[u8]) -> LandingRed {
+        let Some(row) = self.verifications.get(&(repository, *commit)) else {
+            return LandingRed::Unknown;
+        };
+        for task in &row.changes {
+            if let Some(change) = self.changes.get(task) {
+                if change.base.as_ref() != branch {
+                    return LandingRed::Elsewhere { branch: change.base.clone() };
+                }
+                break;
+            }
+        }
+        for tier in &row.tiers {
+            if tier.repaired.is_none()
+                && let Some(verdict) = &tier.verdict
+            {
+                match &verdict.blame {
+                    Blame::Owns(_) | Blame::Suspect(_) => return LandingRed::Red,
+                    Blame::Cleared => {}
+                }
+            }
+        }
+        LandingRed::NotRed
+    }
+
     /// The landing's retained verdicts, including a merge observed before its change steps.
     #[must_use]
     pub fn change_verification(&self, task: u64) -> change::Verification {
@@ -45,8 +86,12 @@ pub(crate) fn landed(d: &mut Domain, commit: Commit, task: u64, out: &mut Queue<
             continue;
         }
         for tier in &entry.tiers {
-            let branch = tier.branch.as_deref().unwrap_or(&adopted.settings.default_branch);
-            if branch == change.base.as_ref() {
+            let branch = match &tier.follows {
+                crate::Follows::Landing => &adopted.settings.default_branch,
+                crate::Follows::Branch(branch) => branch,
+                crate::Follows::Goals => continue,
+            };
+            if branch == &change.base {
                 tiers
                     .push(TierVerification { tier: tier.name.clone(), verdict: None, repaired: None })
                     .expect("admitted tiers");
@@ -112,7 +157,8 @@ pub(crate) fn judged(
             {
                 match &prior.blame {
                     Blame::Owns(_) | Blame::Suspect(_) if policy::repaired(&prior.blame, &verdict.failing) => {
-                        verification.repaired = Some(crate::TierRepair { run: verdict.number, tip: verdict.tip });
+                        verification.repaired =
+                            Some(crate::TierRepair { run: verdict.number, tip: verdict.tip, by: None });
                         changed = true;
                     }
                     Blame::Cleared | Blame::Owns(_) | Blame::Suspect(_) => {}

@@ -63,7 +63,7 @@ pub(super) fn encode(row: &d::Verification) -> w::Verification {
                             Some(repair) => Some(
                                 w::TierRepair::new(
                                     &w::CEILINGS,
-                                    w::TierRepairParts { run: repair.run, tip: repair.tip },
+                                    w::TierRepairParts { run: repair.run, tip: repair.tip, by: repair.by },
                                 )
                                 .expect(FITS),
                             ),
@@ -142,7 +142,7 @@ pub(super) fn decode(row: w::Verification) -> Result<d::Verification, Undecodabl
             None => None,
         };
         let repaired = match repaired {
-            Some(repair) => Some(d::TierRepair { run: repair.run(), tip: *repair.tip() }),
+            Some(repair) => Some(d::TierRepair { run: repair.run(), tip: *repair.tip(), by: *repair.by() }),
             None => None,
         };
         decoded.push(d::TierVerification { tier, verdict, repaired }).expect(FITS);
