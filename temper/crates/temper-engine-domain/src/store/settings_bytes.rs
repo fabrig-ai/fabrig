@@ -16,7 +16,7 @@ pub(super) fn record(row: &Record) -> Option<u64> {
         Record::Charter { value: version, .. } => match &version.charter {
             Some(charter) => u64::try_from(size_of::<jig_domain_core::Charter>())
                 .ok()?
-                .checked_add(jig_domain_core::policy_owned_bytes(&charter.policy)?),
+                .checked_add(jig_domain_core::charter_owned_bytes(charter)?),
             None => Some(0),
         },
         Record::Extent { .. } => Some(0),
@@ -35,7 +35,7 @@ fn value(value: &Value) -> Option<u64> {
     match value {
         Value::Charter(charter) => u64::try_from(size_of::<jig_domain_core::Charter>())
             .ok()?
-            .checked_add(jig_domain_core::policy_owned_bytes(&charter.policy)?),
+            .checked_add(jig_domain_core::charter_owned_bytes(charter)?),
         Value::Template(template) => {
             let mut bytes = u64::try_from(size_of::<jig_domain_core::Template>())
                 .ok()?

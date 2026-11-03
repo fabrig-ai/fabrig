@@ -21,6 +21,13 @@ fn an_override_replaces_one_limit_of_the_profile() {
     expected.core.tasks.inbox_messages = 9;
     assert_eq!(parse(br#"{"profile":"small","overrides":{"tasks.inbox_messages":9}}"#), Ok(expected));
 }
+
+#[test]
+fn the_charter_documents_limit_can_be_overridden() {
+    let mut expected = small();
+    expected.core.tasks.charter_documents = 0;
+    assert_eq!(parse(br#"{"profile":"small","overrides":{"tasks.charter_documents":0}}"#), Ok(expected));
+}
 fn an_override_of_an_unknown_name_is_refused() {
     assert_eq!(overrides::apply(&mut small(), b"tasks.absent", 1), Err(What::Override));
 }
@@ -215,6 +222,7 @@ const SMALL: &[(&[u8], u64)] = &[
     (b"tasks.saved_resources", 4),
     (b"tasks.contract_choices", 1),
     (b"tasks.charters", 4),
+    (b"tasks.charter_documents", 2),
     (b"tasks.authority_grants", 4),
     (b"tasks.authority_segments", 4),
     (b"tasks.authority_bytes", 2_048),
@@ -268,7 +276,7 @@ const SMALL: &[(&[u8], u64)] = &[
     (b"authority.accounts", 4),
     (b"authority.writes", 4),
     (b"brief.briefs", 4),
-    (b"brief.sections", 4),
+    (b"brief.sections", 8),
     (b"brief.read_bytes", 8_192),
     (b"brief.brief_bytes", 16_384),
     (b"accounts.accounts", 4),

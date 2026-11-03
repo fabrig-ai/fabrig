@@ -561,6 +561,16 @@ READ [--since DIGEST] [--until CONDITION] [--timeout DURATION]
   `SubjectEnded` answers not met with the last document and its digest,
   and an opening `Unknown` keeps status 2. Run/tree waits retain their
   watch-based completion; there is no additional retry or timer policy.
+  A tree completing from `SubjectEnded` prints `tree ended (watch)`
+  and labels its retained rows `last observed snapshot` before the tree.
+  Their chip phases remain as delivered, even when live: the watch
+  establishes tree completion, not terminal chip facts or a task result.
+  JSON retains the tree and its snapshot digest unchanged and adds
+  `"completion":{"source":"watch","ended":true}` and
+  `"snapshot":"last_observed"` outside it. The digest describes the
+  last observed snapshot, never a reconstructed final tree. A terminal
+  delivery uses the ordinary tree form. Without any delivery, a
+  run/tree watch end refuses `gone`, status 2.
 - **`--timeout`:** 300 seconds by default, at most 3600; answered with
   the current document, its digest, and that the condition is not met
   (6.3).
@@ -1654,6 +1664,12 @@ is reset, the store empty again.
   hidden history, Busy, sign-out and read failure. Only matching
   terminal records meet `ended`; each path emits exactly one result
   and releases its handles and timer. No new harness (5.4).
+- **Tree waits,** in the same tools step fixture: an Idle-root delivery
+  remains pending until `SubjectEnded`; text and JSON then report
+  watch completion and label the unchanged rows as the last observed
+  snapshot, with its digest. Terminal deliveries, no-delivery `gone`,
+  timeout, `--since`, and a single answer with watch/timer cleanup
+  are covered here: no forge, workflow, model or kernel is needed (5.4).
 - **The boundary:** `src/jig/` names no temper item (section 4).
 - **The bounds:** each of the tools' ceilings within the client's limit
   it reads from, and a picker's page within a result's text (section
@@ -1837,9 +1853,11 @@ Settings inventory, individual values, history, proposals, owner decisions
 and placed holds use the CLI's scripted machine world, client tools' step
 tests and jig's core worlds. Their rendering is 11.1's. Running work
 keeps its revision in `tests/system/tests/suite/running_revision.rs`
-(`../domain/testing.md`, 2.1): two parked chats retain R after an owner's
-instruction change makes R+1; the owner's advance moves both, and smith's
-next requests read R+1's instructions. Jig's worlds cover a restart with
+(`../domain/testing.md`, 2.1): after an owner's instruction change makes
+R+1, running work staying, a parked task that is no conversation runs
+again on R, its run and smith's requests reading R's instructions, while
+a parked chat moves at its next run and reads R+1's; the owner's advance
+then moves the first, whose next run reads R+1's. Jig's worlds cover a restart with
 R held, a removed charter and revision bounds.
 
 The focused suite has one short path through the shipped binary on fakes

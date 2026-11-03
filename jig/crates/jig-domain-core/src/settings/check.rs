@@ -160,7 +160,13 @@ fn check_set(
         })
         .expect("offered setting")
         {
-            Value::Charter(charter) => charter_fault(charter, settings, limits),
+            Value::Charter(charter) => {
+                let mut registered = true;
+                for document in &charter.documents {
+                    registered &= connectors.contains(&document.connector);
+                }
+                if registered { charter_fault(charter, settings, limits) } else { Some(Fault::Shape) }
+            }
             Value::Template(template) => {
                 template_fault(current, defaults, items, template, template.executor, settings, connectors, limits)
             }
@@ -198,10 +204,13 @@ pub(crate) fn shape(setting: Setting, value: &Value, limits: &Limits) -> Result<
 /// Stored values retain their byte and count bounds without judging their writer.
 pub(crate) fn restore_fit(setting: Setting, value: &Value, limits: &Limits) -> Result<(), Failure> {
     let valid = match value {
-        Value::Charter(value) => match crate::limits::policy_owned_bytes(&value.policy) {
-            Some(bytes) => bytes <= u64::from(limits.run_bytes),
-            None => false,
-        },
+        Value::Charter(value) => {
+            documents_fit(value, limits)
+                && match crate::limits::policy_owned_bytes(&value.policy) {
+                    Some(bytes) => bytes <= u64::from(limits.run_bytes),
+                    None => false,
+                }
+        }
         Value::Template(value) => {
             value.name.len() <= skein_lib::length::usize_of(limits.documents.text_bytes)
                 && contract_fits(&value.contract, &limits.tasks)
@@ -228,6 +237,26 @@ pub(crate) fn restore_fit(setting: Setting, value: &Value, limits: &Limits) -> R
         }
     };
     if valid { Ok(()) } else { Err(Failure { setting, fault: Fault::Shape }) }
+}
+
+fn documents_fit(charter: &crate::Charter, limits: &Limits) -> bool {
+    if charter.documents.len() > skein_lib::length::usize_of(limits.tasks.charter_documents) {
+        return false;
+    }
+    for document in &charter.documents {
+        if !authority::name_within(&document.name, &limits.authority)
+            || document.path.is_empty()
+            || document.path.len() > skein_lib::length::usize_of(crate::DOCUMENT_PATH_BYTES)
+        {
+            return false;
+        }
+        if let Some(heading) = &document.heading
+            && (heading.is_empty() || heading.len() > skein_lib::length::usize_of(crate::DOCUMENT_HEADING_BYTES))
+        {
+            return false;
+        }
+    }
+    true
 }
 
 fn rules_patterns_fit(value: &authority::Rules, limits: &authority::Limits) -> bool {

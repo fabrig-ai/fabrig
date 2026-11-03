@@ -13,8 +13,9 @@ A chat is a conversation between a party and an agent in a project: an untracked
   the party and from the agent, and each run's start and end.
 - **A reply is not a result.** The agent's words answer the party,
   and the chat goes on: it ends only when its party closes it.
-- **A change is another task's.** Asked for a change to a repository,
-  the chat first reads the code it touches with the forge's reads:
+- **A change is another task's.** The stock chat can inspect its workspace;
+  its tools cannot write, edit or remove files. Asked for a repository
+  change, the chat first reads the code it touches with the forge's reads:
   `read_branch` for its head, then `read_file`. It asks for the change
   with the host tool `change`, giving the party's request and only code
   it has read. If a fix's named fault is absent, it changes nothing and
@@ -91,8 +92,9 @@ A chat is a conversation between a party and an agent in a project: an untracked
 
 ## Limits
 
-- temper does not let ctl choose a chat's template: `chat start` uses the
-  project's chat template.
+- `chat start` uses the project's chat template unless `--template`
+  names another of its chat templates; a template that is no chat's
+  starts none.
 - temper does not promise a final summary before the close's grace
   ends.
 - A chat whose request goes past what the party may start alone is

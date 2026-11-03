@@ -65,7 +65,7 @@ pub use check::{
     check_request_with_standing, check_run, covers, needed_judges, needs,
 };
 pub use domain::{Domain, Event, PolicyFact, PolicyRefusal, policy_refusal, step, valid_rules};
-pub use limits::{Limits, rules_bound, stored_finding_limit};
+pub use limits::{Limits, name_within, rules_bound, stored_finding_limit};
 pub use numbers::{Numbers, carve, charge, left, settle};
 pub use order::{
     Implication, Implies, at_most, grant_at_most, grant_covers, pattern_at_most, pattern_covers, resolve_task_grants,

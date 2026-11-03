@@ -18,6 +18,12 @@ HERE = Path(__file__).resolve().parent
 CPU = runpy.run_path(str(HERE / 'cpu.py'))
 
 
+def abort(signal_number, name, kind='test abort', *, message=True):
+    text = f'process aborted with signal {signal_number} ({name})'
+    attribute = f' message="{text}"' if message else ''
+    return f'<failure type="{kind}"{attribute}>{text}</failure>'
+
+
 def setUpModule():
     global WRAPPER, SETTLEMENT_WRAPPER
     native = tempfile.TemporaryDirectory(dir=HERE.parents[1], prefix='tiers-cpu-native-')
@@ -327,6 +333,99 @@ sys.exit(130)
         self.record('cpu-extra-pass', test_name='extra', attempt=2)
         self.assertEqual(CPU['summary'](self.directory)['failures'], [])
         self.assert_cancelled_verdict(0)
+
+    def test_starved_cancellation_abort_without_record_is_unobserved(self):
+        self.starved(junit=True)
+        self.record()
+        warning = ('qa-jig fixture::suite two: attempt 1 unobserved, '
+                   'cancelled before its record')
+        for element in (abort(15, 'SIGTERM'), abort(9, 'SIGKILL'),
+                        abort(15, 'SIGTERM', 'test abort (leaked handles)'),
+                        abort(15, 'SIGTERM', message=False),
+                        '<failure type="TEST ABORT" '
+                        'message="process aborted with signal 15 (SIGTERM)"/>',
+                        '<failure type="test abort" message="2 errors occurred executing test">'
+                        '* process aborted with signal 15 (SIGTERM)\n* leaked handles</failure>'):
+            with self.subTest(element=element):
+                self.xml(f'<testcase name="one"/><testcase name="two">{element}</testcase>')
+                result = CPU['summary'](self.directory)
+                self.assertEqual(result['unobserved'], [dict(binary_id='fixture::suite',
+                                                            test_name='two', attempt=1)])
+                self.assertEqual(result['suite']['unobserved'], 1)
+                self.assertEqual(result['failures'], [])
+                self.assertEqual([test['test_name'] for test in result['tests']], ['one'])
+                self.assertEqual((result['suite']['attempts'], result['suite']['tests']), (1, 1))
+                self.assertEqual(result['verdict'], 'starved')
+                self.assertEqual(result['warnings'], [warning])
+                command = self.cli()
+                self.assertEqual(command.returncode, 0, command.stderr)
+                self.assertIn('starved_run True unobserved 1 leaked', command.stdout)
+                self.assertIn(f'warning: {warning}\n', command.stdout)
+        result = CPU['summary'](self.directory, {'qa-jig': {'cpu_suite_s': 1}})
+        self.assertEqual(result['verdict'], 'over budget')
+        self.assertEqual(result['suite']['unobserved'], 1)
+        element = abort(15, 'SIGTERM')
+        self.xml(f'<testcase name="one"/><testcase name="zero">{element}</testcase>'
+                 f'<testcase name="two">{element}</testcase>')
+        result = CPU['summary'](self.directory)
+        self.assertEqual(result['unobserved'], [dict(binary_id='fixture::suite',
+                                                    test_name=name, attempt=1)
+                                                for name in ('two', 'zero')])
+        self.assertEqual(result['suite']['unobserved'], 2)
+        self.assertEqual(result['warnings'], [warning, warning.replace(' two:', ' zero:')])
+        self.xml(f'<testcase name="one"/><testcase name="two">{element}</testcase>')
+        self.assert_cancelled_verdict(0)
+
+    def test_cancellation_abort_without_record_fails_coverage_when_not_starved(self):
+        self.record()
+        result = CPU['summary'](self.directory)
+        self.assertEqual(result['unobserved'], [])
+        self.assertEqual(result['suite']['unobserved'], 0)
+        self.xml(f'<testcase name="one"/><testcase name="two">{abort(15, "SIGTERM")}</testcase>')
+        result = self.cli()
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertIn("record coverage: missing [('qa-jig', 'fixture::suite', 'two', 1)]",
+                      result.stderr)
+
+    def test_starved_run_missing_other_records_fails_coverage(self):
+        self.starved(junit=True)
+        self.record()
+        for case in ('<testcase name="two"/>',
+                     '<testcase name="two"><failure type="test failure with exit code 101" '
+                     'message="thread \'two\' panicked"/></testcase>',
+                     '<testcase name="two"><failure type="test failure with exit code 7"/></testcase>',
+                     f'<testcase name="two">{abort(11, "SIGSEGV")}</testcase>',
+                     f'<testcase name="two">{abort(90, "OTHER")}</testcase>',
+                     f'<testcase name="two">{abort(150, "OTHER")}</testcase>',
+                     f'<testcase name="two">{abort(15, "SIGTERM", "test failure")}</testcase>',
+                     '<testcase name="two"><failure type="test abort"/></testcase>',
+                     '<testcase name="two"><failure type="test timeout"/></testcase>'):
+            with self.subTest(case=case):
+                self.xml('<testcase name="one"/>' + case)
+                result = self.cli()
+                self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                self.assertIn('record coverage: missing', result.stderr)
+
+    def test_unobserved_retry_keeps_the_observed_failure(self):
+        self.starved(junit=True)
+        self.record(exit_code=7)
+        self.xml('<testcase name="one"><failure type="test failure with exit code 7"/>'
+                 '<rerunFailure type="test abort" '
+                 'message="process aborted with signal 15 (SIGTERM)"/></testcase>')
+        result = CPU['summary'](self.directory)
+        self.assertEqual(result['unobserved'], [dict(binary_id='fixture::suite',
+                                                    test_name='one', attempt=2)])
+        self.assertEqual(result['failures'], ['fixture::suite one'])
+        self.assertEqual((result['suite']['attempts'], result['suite']['tests']), (1, 1))
+        self.assert_cancelled_verdict(100)
+        (self.directory / 'records/cpu-one').unlink()
+        self.record('cpu-pass', attempt=2)
+        self.xml('<testcase name="one"><flakyFailure type="test abort" '
+                 'message="process aborted with signal 9 (SIGKILL)"/></testcase>')
+        result = CPU['summary'](self.directory)
+        self.assertEqual(result['unobserved'], [dict(binary_id='fixture::suite',
+                                                    test_name='one', attempt=1)])
+        self.assertEqual(result['failures'], [])
 
     def test_cancel_pending_retry_preserves_completed_failure(self):
         self.starved()
@@ -976,7 +1075,10 @@ os.waitpid(child,0)
         self.assertIn('tools', CPU['budgets'](budget, {'qa-jig'}))
         result = self.summary(*arguments)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(json.loads(result.stdout)['suite']['tests'], 2)
+        report = json.loads(result.stdout)
+        self.assertEqual(report['suite']['tests'], 2)
+        self.assertEqual(report['unobserved'], [])
+        self.assertEqual(report['suite']['unobserved'], 0)
         budget.write_text('[tools."tools/fixture.py"]\ncpu_suite_s=1.0\ncpu_test_s=1.0\n')
         result = self.summary(*arguments)
         self.assertEqual(result.returncode, 1, result.stderr)

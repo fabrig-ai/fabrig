@@ -318,6 +318,7 @@ pub(crate) fn route_core_requests(
             core::Request::ProjectMade { project } => emit(decision, &env.limits, Delivery::ProjectMade { project }),
         }
     }
+    crate::assemble::retire_document_titles(domain);
 }
 
 pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision) {

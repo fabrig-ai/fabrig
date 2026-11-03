@@ -12,7 +12,7 @@ use temper_engine_domain as engine;
 /// Render one already bounded root brief section with its kind as a title.
 #[must_use]
 pub fn section(section: &engine::BriefSection) -> run::Section {
-    let title: &[u8] = match section.kind {
+    let title: &[u8] = match &section.kind {
         engine::BriefKind::Core(brief::Core::Task) => b"Task",
         engine::BriefKind::Core(brief::Core::Lineage) => b"Lineage",
         engine::BriefKind::Core(brief::Core::Results) => b"Dependencies",
@@ -22,20 +22,29 @@ pub fn section(section: &engine::BriefSection) -> run::Section {
         engine::BriefKind::Core(brief::Core::Waiting) => b"Waiting",
         engine::BriefKind::Core(brief::Core::NotesIndex) => b"Notes",
         engine::BriefKind::Core(brief::Core::TranscriptTail) => b"Transcript tail",
+        engine::BriefKind::Forge(engine::ForgeBriefKind::Document(words)) => {
+            let mut title = Writer::new(b"Document ".len().checked_add(words.len()).expect("bounded document title"));
+            title.put(b"Document ").expect("title prefix");
+            title.put(words).expect("title words");
+            return run::Section { title: title.finish(), text: section_text(&section.body) };
+        }
         engine::BriefKind::Forge(engine::ForgeBriefKind::Home) => b"Home",
         engine::BriefKind::Forge(engine::ForgeBriefKind::Ci) => b"CI",
         engine::BriefKind::Forge(engine::ForgeBriefKind::Reviews) => b"Reviews",
         engine::BriefKind::Forge(engine::ForgeBriefKind::Pull) => b"Pull request",
     };
-    let text = match &section.body {
+    run::Section { title: bytes::copy_of(title), text: section_text(&section.body) }
+}
+
+fn section_text(body: &engine::BriefBody) -> Box<[u8]> {
+    match body {
         engine::BriefBody::Text(text) => text.clone(),
         engine::BriefBody::Missing(reason) => match reason {
             brief::GatherMissing::Failed => bytes::copy_of(b"[read failed]"),
             brief::GatherMissing::Late => bytes::copy_of(b"[read timed out]"),
             brief::GatherMissing::Budget => bytes::copy_of(b"[read exceeded limit]"),
         },
-    };
-    run::Section { title: bytes::copy_of(title), text }
+    }
 }
 
 /// Produce Smith's complete typed start after the root's claim is durable.
@@ -141,6 +150,8 @@ fn charter_with_history(assignment: &engine::Assignment, resumed: bool) -> run::
         checks: bytes::copy_of(b".temper/pre-pr"),
     });
     let mut charter = jig_protocol_charter::charter(charter).expect("bounded charter");
+    // A workspace edit needs a delivery path (temper/docs/design/domain/agent.md, 4.3).
+    charter.grants.tools.modify &= charter.grants.deliver.is_some();
     if assignment.charter == 1 && charter.mode == run::Mode::Finite {
         for tool in &mut charter.grants.host_tools {
             tool.reserve = tool.name.as_ref() == b"message";

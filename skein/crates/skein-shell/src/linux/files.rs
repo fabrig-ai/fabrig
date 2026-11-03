@@ -17,6 +17,7 @@ use super::{count, retry, status};
 use skein_io::kernel::{Fd, OpenHow};
 use std::{mem, ptr};
 
+/// An `EINTR` is returned, not retried (shell.md, 7.4).
 pub(crate) fn open(root: Fd, path: &[u8], how: OpenHow) -> Result<i32, i32> {
     let path = sync::c_path(path);
     let fields = super::opens::fields(how);
@@ -25,19 +26,11 @@ pub(crate) fn open(root: Fd, path: &[u8], how: OpenHow) -> Result<i32, i32> {
     how.flags = fields.flags;
     how.mode = fields.mode;
     how.resolve = fields.resolve;
-    retry(|| {
-        // SAFETY: path is NUL-terminated; how and its exact size remain live.
-        let result = unsafe {
-            libc::syscall(
-                libc::SYS_openat2,
-                root.raw(),
-                path.as_ptr(),
-                ptr::from_ref(&how),
-                size_of::<libc::open_how>(),
-            )
-        };
-        if result < 0 { Err(sync::last_errno()) } else { Ok(i32::try_from(result).expect("a descriptor fits i32")) }
-    })
+    // SAFETY: path is NUL-terminated; how and its exact size remain live.
+    let result = unsafe {
+        libc::syscall(libc::SYS_openat2, root.raw(), path.as_ptr(), ptr::from_ref(&how), size_of::<libc::open_how>())
+    };
+    if result < 0 { Err(sync::last_errno()) } else { Ok(i32::try_from(result).expect("a descriptor fits i32")) }
 }
 
 pub(crate) fn read(fd: Fd, buf: &mut [u8], at: u64) -> Result<u32, i32> {

@@ -1584,8 +1584,8 @@ init`'s document carries none of them (`setup.md`, 8.3).
 
 | Setting | Its value |
 |---|---|
-| charter 1, a chat's | the instructions in the `stock` module's `chat.txt`; this table holds the structure alone; models: every model `engine.llm` configures, in the document's order, the first its default; hosts `workers`; waiting 10 s; resume; a run of 8 turns and 120 s, a reserve of 1 turn and 60 s; a default spend of K (below); the inspect, modify and agents tool families, no shell; a call's timeout 10 s |
-| charter 2, a coding agent's | as charter 1, with the `stock` module's `coding.txt`, but a run of 16 turns and 120 s, a reserve of 1 turn and 60 s: the shipped model, `gpt-6-luna` at effort medium, reads before it writes, and 8 turns leave the smallest change unwritten; K is unmoved, its floor of 4 units a run turn counting the chat's 8, so a coding agent at a cheap model's coarse prices is held to its spend before its 16 turns; a run that meets its 120 s before its turns is the figure to raise next |
+| charter 1, a chat's | the instructions in the `stock` module's `chat.txt`; this table holds the structure alone; models: every model `engine.llm` configures, in the document's order, the first its default; hosts `workers`; waiting 10 s; resume; a run of 8 turns and 120 s, a reserve of 1 turn and 60 s; a default spend of K (below); the inspect and agents tool families, no modify, no shell; a call's timeout 10 s |
+| charter 2, a coding agent's | as charter 1, with the `stock` module's `coding.txt` and the modify family, but a run of 16 turns and 120 s, a reserve of 1 turn and 60 s: the shipped model, `gpt-6-luna` at effort medium, reads before it writes, and 8 turns leave the smallest change unwritten; K is unmoved, its floor of 4 units a run turn counting the chat's 8, so a coding agent at a cheap model's coarse prices is held to its spend before its 16 turns; a run that meets its 120 s before its turns is the figure to raise next |
 | charter 4, a reviewer's | its instructions in the `stock` module's `review.txt`; charter 2's models, hosts and run, so 16 turns; the inspect family and the forge's reads alone, no modify, no shell, no agents, no delegation; a review's verdict as its contract (`../domain/forge.md`, 8.3) |
 | template 1, a chat | jig's chat, run by charter 1 |
 | charter 3, the configuring agent's | as charter 1, with new instructions held in the binary (`../draft/configuring.md`, sections 2 and 5.2: split what temper enforces from what agents follow, offer a rule as structure where temper has it, ask until it can propose; `../domain/agent.md`, 8.1); jig's `settings` family (jig's `domain/engine.md`, 7.3), as `settings` and `propose_settings`, the forge's reads, `read_docs` and `withdraw`; no workspace's families (it has none), no delegation, no effects, no shell |
@@ -1817,15 +1817,20 @@ section 2), by jig's charter documents (jig's `domain/engine.md`, 17.9).
   the line before the next heading of its level or above. Cut to the
   section's allotment at the last line end within it, saying how many
   bytes were left out, as the brief's other cuts do. Its budget is
-  `document`, a limit of the forge's beside `ci`, `reviews` and `pull`
+  `root.brief.budgets.document`, beside `ci`, `reviews` and `pull`
   (section 7), 4,096 bytes in `small`, bounding each document section
-  the forge prepares. A repository not
-  adopted, a file or heading not there, or a read that failed, is a
-  section saying so.
+  the forge prepares. The repository is the one adopted, in any
+  project, under the name's host, owner and repository: the charter's
+  owners chose its documents, and no authority is asked of the run
+  (jig's `domain/engine.md`, 17.9). A repository not
+  adopted, a branch, file or heading not there, or a read that failed,
+  is a section saying so.
 - **In a settings file** (`../client/tools.md`, 5.3), a charter's value
   carries `"documents": [{"forge": F, "repository": "owner/name",
-  "branch": B, "path": P, "heading": H}]`, `heading` optional, which
-  ctl turns into the branch's resource name and back.
+  "branch": B, "path": P, "heading": H}]`, `heading` optional, `F` the
+  forge's host as its resources name it, which ctl turns into the
+  branch's resource name, `forge F owner name branch` and B's
+  segments, and back.
 - **The configuring agent** (`../domain/agent.md`, 8.1) names a
   document in place of copying its rules into a charter's instructions,
   when the person points to one in an adopted repository, and says that

@@ -1,13 +1,13 @@
 # tools: status
 
-2026-11-02. Where temper's code lags or departs from [tools.md](tools.md).
+2026-11-03. Where temper's code lags or departs from [tools.md](tools.md).
 
 - **Not yet:** 5.1: the groups `goal`, `finding`, `qa`, `party` and
   `deployment`, absent from `temper-client-tools`' `table.rs` `GROUPS`.
   5.2: `repository receipts`, `finding list`, `finding show`, `qa marks`,
   `qa passes`, `hold list`, and `settings show landing-rule` and
   `forge-charter` (`jig/rows.rs` `SETTING` reads charters, templates,
-  policies and rules alone). 5.3: `chat start`'s `--template`; `task move
+  policies and rules alone). 5.3: `task move
   --under`, `task succeed --by`, `finding route`, `finding backlog`,
   `finding drop`, `qa choose`, `task hold`, `project hold` and `revision
   restore`; a settings file's items of temper's kinds and a proposal's

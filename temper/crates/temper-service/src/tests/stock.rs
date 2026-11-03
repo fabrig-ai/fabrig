@@ -98,6 +98,18 @@ fn stock_chats_can_delegate_message_and_read_the_forge() {
 }
 
 #[test]
+fn stock_chats_inspect_and_delegate_while_coders_modify() {
+    let engine = engine(&single_model());
+    let defaults = crate::stock::defaults(&engine.llm);
+    for charter in &defaults.charters {
+        assert!(charter.policy.inspect);
+        assert!(!charter.policy.shell);
+        assert_eq!(charter.policy.modify, charter.number == 2);
+        assert_eq!(charter.policy.agents, charter.number != 4);
+    }
+}
+
+#[test]
 fn the_stock_passes_jigs_one_check() {
     let init = generated();
     let without_demo = fixtures::with(&init, b"application.demo", b"null");

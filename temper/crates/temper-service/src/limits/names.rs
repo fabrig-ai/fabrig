@@ -55,6 +55,9 @@ pub(super) fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), 
         b"root.brief.budgets.dependencies" => {
             limits.root.brief.budgets.dependencies = u32::try_from(value).or(Err(Refused::Range))?;
         }
+        b"root.brief.budgets.document" => {
+            limits.root.brief.budgets.document = u32::try_from(value).or(Err(Refused::Range))?;
+        }
         b"root.brief.budgets.ci" => limits.root.brief.budgets.ci = u32::try_from(value).or(Err(Refused::Range))?,
         b"root.brief.budgets.reviews" => {
             limits.root.brief.budgets.reviews = u32::try_from(value).or(Err(Refused::Range))?;

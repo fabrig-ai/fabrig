@@ -3,6 +3,7 @@ use crate::*;
 use temper_engine_domain_forge_issues as issues;
 mod adoption;
 mod binding;
+mod brief_document;
 mod change;
 #[path = "tests/brief.rs"]
 mod ci_brief;

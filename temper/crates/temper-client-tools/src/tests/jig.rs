@@ -18,6 +18,8 @@ mod account_acts;
 
 mod choices;
 
+mod chat_template;
+
 mod amend_choice;
 
 mod task_words;

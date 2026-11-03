@@ -369,22 +369,99 @@ fn a_task_ended_text_uses_the_final_reads_part() {
     }
 }
 #[test]
-fn a_run_or_tree_ending_meets_ended() {
+fn a_run_ending_meets_ended() {
     let mut root = f::signed_in(f::PARTY);
-    for (argv, watch, delivery) in [
-        (f::WAIT_RUN, f::run_watch(), f::no_provisional()),
-        (f::WAIT_TREE, f::tree_watch(), c::Delivery::Tree(Box::new(f::composite_tree()))),
-    ] {
-        let call = root.wait_since(argv, f::UNTIL_ENDED, &f::task_digest(&f::parked()).hex());
-        root.deliver_subject(&watch, delivery);
-        assert!(root.answer(call).is_none());
-        root.end(call, &watch, c::WatchEnd::SubjectEnded);
-        let answer = root.answer(call).expect("ended meets despite since");
-        assert_eq!(answer.status, 0, "{argv:?}");
-        assert!(answer.stdout.ends_with(b",\"met\":true}"));
-        assert!(root.reads.is_empty());
-        assert_eq!(root.watches.len(), f::SHARED_WATCHES);
+    let call = root.wait_since(f::WAIT_RUN, f::UNTIL_ENDED, &f::task_digest(&f::parked()).hex());
+    root.deliver_subject(&f::run_watch(), f::no_provisional());
+    assert!(root.answer(call).is_none());
+    root.end(call, &f::run_watch(), c::WatchEnd::SubjectEnded);
+    let answer = root.answer(call).expect("ended meets despite since");
+    assert_eq!(answer.status, 0);
+    assert!(answer.stdout.ends_with(b",\"met\":true}"));
+    assert!(root.reads.is_empty());
+    assert_eq!(root.watches.len(), f::SHARED_WATCHES);
+}
+// The tools step fixture supplies the cached document and watch end directly.
+#[test]
+fn a_tree_watch_ending_labels_live_rows_as_the_last_observed_snapshot() {
+    for json in [false, true] {
+        for since in [false, true] {
+            let mut root = f::signed_in(f::PARTY);
+            let mut chip = f::parked_task().chip;
+            chip.title = f::document_text(b"Tier slow run 1");
+            let tree = f::delivery(f::tree_at(chip));
+            let digest = f::task_digest(&tree).hex();
+            let expected = f::subject_json(&crate::jig::render::Part::delivery(&tree).expect("tree"));
+            let flags = f::extended(f::UNTIL_ENDED, f::SHORT_TIMEOUT);
+            let words = f::extended(f::WAIT_TREE, flags.as_slice());
+            let words = f::extended(words.as_slice(), if json { &["--json"] } else { &[] });
+            #[expect(clippy::disallowed_methods, reason = "the test passes a rendered hex digest back through argv")]
+            let baseline = ["--since", core::str::from_utf8(&digest).expect("digest")];
+            let words = f::extended(words.as_slice(), if since { &baseline } else { &[] });
+            let call = root.submit(words.as_slice());
+            root.deliver_subject(&f::tree_watch(), tree);
+            assert!(root.answer(call).is_none(), "Idle root has not ended");
+            let watch = root.end(call, &f::tree_watch(), c::WatchEnd::SubjectEnded);
+            let answer = root.answer(call).expect("watch establishes tree completion");
+            assert_eq!(answer.status, 0);
+            if json {
+                assert!(f::has(&answer, &expected), "cached chips and digest stay unchanged");
+                assert!(f::has(&answer, b"\"completion\":{\"source\":\"watch\",\"ended\":true}"));
+                assert!(f::has(&answer, b"\"snapshot\":\"last_observed\""));
+            } else {
+                assert!(answer.stdout.starts_with(b"tree ended (watch)\nlast observed snapshot:\n"));
+                assert!(f::has(&answer, "Tier slow run 1 · Waiting for news".as_bytes()));
+                assert!(f::has(&answer, &digest));
+            }
+            assert!(root.reads.is_empty(), "watch completion needs no final task read");
+            assert_eq!(root.watches.len(), f::SHARED_WATCHES);
+            let handle = jig_client::Handle { asker: crate::root::RUNNER.asker(), number: u64::from(call) << 32 };
+            assert!(root.root.client().document(handle).is_none());
+            assert_eq!(crate::root::next_deadline(&root.root), None);
+            root.client(jig_client::Event::Up {
+                up: jig_client::Up::WatchEnded { watch, end: c::WatchEnd::SubjectEnded },
+            });
+            root.now = Time::ZERO.checked_add(f::WAIT_SPAN).expect("old deadline");
+            root.fire();
+            assert!(root.answer(call).is_none(), "completion is emitted once");
+            assert_eq!(crate::root::next_deadline(&root.root), None);
+        }
     }
+}
+#[test]
+fn a_terminal_tree_delivery_meets_ended_without_watch_evidence() {
+    for phase in f::ENDED_PHASES {
+        let (mut root, call) = f::waiting_call(f::WAIT_TREE, f::UNTIL_ENDED);
+        let tree = f::delivery(f::tree_at(f::ended_task(*phase).chip));
+        let expected = f::subject_json(&crate::jig::render::Part::delivery(&tree).expect("tree"));
+        root.deliver_subject(&f::tree_watch(), tree);
+        let answer = root.answer(call).expect("terminal delivery");
+        assert_eq!(answer.status, 0);
+        assert!(f::has(&answer, &expected));
+        assert!(!f::has(&answer, b"\"completion\""));
+        assert!(!f::has(&answer, b"\"snapshot\""));
+        assert_eq!(root.watches.len(), f::SHARED_WATCHES);
+        assert_eq!(crate::root::next_deadline(&root.root), None);
+    }
+}
+#[test]
+fn a_tree_timeout_retains_its_snapshot_without_claiming_completion() {
+    let flags = f::extended(f::UNTIL_ENDED, f::SHORT_TIMEOUT);
+    let (mut root, call) = f::waiting_call(f::WAIT_TREE, flags.as_slice());
+    let tree = f::delivery(f::tree_at(f::parked_task().chip));
+    let expected = f::subject_json(&crate::jig::render::Part::delivery(&tree).expect("tree"));
+    root.deliver_subject(&f::tree_watch(), tree);
+    assert!(root.answer(call).is_none());
+    root.now = Time::ZERO.checked_add(f::WAIT_SPAN).expect("deadline");
+    root.fire();
+    let answer = root.answer(call).expect("timeout");
+    assert_eq!(answer.status, 3);
+    assert!(f::has(&answer, &expected));
+    assert!(f::has(&answer, b"\"why\":\"timeout\",\"met\":false"));
+    assert!(!f::has(&answer, b"\"completion\""));
+    assert!(!f::has(&answer, b"\"snapshot\""));
+    assert_eq!(root.watches.len(), f::SHARED_WATCHES);
+    assert_eq!(crate::root::next_deadline(&root.root), None);
 }
 #[test]
 fn a_subject_ending_unmet_keeps_its_last_digest() {

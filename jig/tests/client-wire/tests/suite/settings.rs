@@ -100,6 +100,16 @@ fn settings_records_and_all_enum_arms_round_trip() {
         assert_eq!(out.finish().as_ref(), bytes.as_slice());
     }
     {
+        let bytes =
+            include_bytes!("../../../../crates/jig-client-protocol-wire/golden/record_charter_document_full.bin");
+        let mut input = Reader::new(bytes);
+        let value = w::CharterDocument::decode(&w::CEILINGS, &mut input).unwrap();
+        assert!(input.is_empty());
+        let mut out = Writer::new(usize::try_from(value.measure()).unwrap());
+        value.encode(&mut out).unwrap();
+        assert_eq!(out.finish().as_ref(), bytes.as_slice());
+    }
+    {
         let bytes = include_bytes!("../../../../crates/jig-client-protocol-wire/golden/record_charter_smallest.bin");
         let mut input = Reader::new(bytes);
         let value = w::Charter::decode(&w::CEILINGS, &mut input).unwrap();

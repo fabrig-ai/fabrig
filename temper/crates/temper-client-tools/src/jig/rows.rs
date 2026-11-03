@@ -189,13 +189,14 @@ pub const CHAT_CREATE: Tool = Tool {
     result: b"chat_create",
     forms: &[&[
         flag(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project"),
+        flag(b"template", b"TEMPLATE", Kind::Number, Optional, b"A chat's template by its number; the project's chat template when absent"),
         positional(b"text", b"TEXT", Kind::Text, Required, b"The opening words"),
         super::table::Argument { line: b"A model the chat may use, as models lists it", ..MODEL },
         super::table::Argument { line: b"An effort that model offers", ..EFFORT },
     ]],
     keyed: Keyed::Required,
     area: 1,
-    notes: b"The chat's template chooses its model unless `--model` names one;\n`--effort` needs `--model`, and a model that declares efforts needs\n`--effort`. A chat past what your party may start, but within what\nit may propose, is proposed (exit 0). `chat not offered` and `chat\nexceeds offered bounds` (exit 1): your party may not start it.\nThen task show TASK --until replied.\n",
+    notes: b"The chat's template chooses its model unless `--model` names one;\n`--effort` needs `--model`, and a model that declares efforts needs\n`--effort`. A chat past what your party may start, but within what\nit may propose, is proposed (exit 0). `chat not offered` and `chat\nexceeds offered bounds` (exit 1): your party may not start it.\n`--template` names one of the project's chat templates; one that is\nno chat's, or not offered, fails naming those `me` offers (exit 1).\nThen task show TASK --until replied.\n",
 };
 pub const MESSAGE: Tool = Tool {
     name: b"task message",
@@ -338,7 +339,7 @@ pub const TREE: Tool = Tool {
     ]],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"With `--until ended`, it returns when a read shows the tree ended; a watch that ends with no read of it delivered is refused: `gone`, status 2.\nA large tree folds what does not fit: read the rest with task list\n--parent TASK, a page at a time.\n",
+    notes: b"With `--until ended`, it returns when a delivery shows the tree ended or its watch reports completion. Watch completion prints `tree ended (watch)` and labels the retained rows `last observed snapshot`; their phases and digest describe that snapshot. JSON keeps the tree unchanged and adds `completion: {source: \"watch\", ended: true}` and `snapshot: \"last_observed\"` outside it. A watch that ends with no delivery is refused: `gone`, status 2.\nA large tree folds what does not fit: read the rest with task list\n--parent TASK, a page at a time.\n",
 };
 
 /// Area 5 reads append to preserve earlier tool and keyed-call identities.

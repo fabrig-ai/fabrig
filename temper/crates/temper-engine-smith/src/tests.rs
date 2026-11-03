@@ -218,9 +218,9 @@ fn a_charters_mode_is_its_tasks_ending() {
 }
 
 #[test]
-fn a_report_run_without_modify_keeps_it_off() {
+fn a_report_run_cannot_modify_without_delivery() {
     let mut assignment = assignment();
-    assignment.run.policy.modify = false;
+    assignment.run.policy.modify = true;
     let charter = crate::charter(&assignment);
     assert_eq!(charter.mode, run::Mode::Finite);
     assert!(charter.grants.deliver.is_none());
@@ -229,11 +229,11 @@ fn a_report_run_without_modify_keeps_it_off() {
 }
 
 #[test]
-fn an_open_run_without_modify_keeps_it_off() {
+fn an_open_run_cannot_modify_even_when_policy_requests_it() {
     let mut assignment = assignment();
     assignment.run.ended_by = tasks::EndedBy::Requester;
     assignment.run.contract = tasks::Contract::Change { connector: 1, kind: 1, words: 128 };
-    assignment.run.policy.modify = false;
+    assignment.run.policy.modify = true;
     assignment.run.policy.shell = true;
     let charter = crate::charter(&assignment);
     assert_eq!(charter.mode, run::Mode::Open);
@@ -1792,5 +1792,21 @@ fn job_metadata_refusals_fit_even_a_tiny_host_bound() {
         let rendered = crate::answer_bounded(&engine::CallAnswer::ForgeRead(Box::new(Ok(read))), cap);
         assert!(rendered.error());
         assert!(rendered.text().len() <= usize::try_from(cap).unwrap());
+    }
+}
+
+#[test]
+fn document_sections_have_repository_path_and_heading_titles() {
+    for (words, title) in [
+        (b"org/rules docs/rules.md".as_slice(), b"Document org/rules docs/rules.md".as_slice()),
+        (b"org/rules docs/rules.md, \"Safety\"".as_slice(), b"Document org/rules docs/rules.md, \"Safety\"".as_slice()),
+        (b"docs/rules.md".as_slice(), b"Document docs/rules.md".as_slice()),
+    ] {
+        let section = crate::section(&engine::BriefSection {
+            kind: engine::BriefKind::Forge(engine::ForgeBriefKind::Document(words.into())),
+            body: engine::BriefBody::Missing(brief::GatherMissing::Failed),
+        });
+        assert_eq!(section.title.as_ref(), title);
+        assert_eq!(section.text.as_ref(), b"[read failed]");
     }
 }
