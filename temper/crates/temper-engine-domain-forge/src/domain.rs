@@ -3594,11 +3594,22 @@ fn change_facts(
         may_merge,
         queue_repair_active: pending.queue_repair_active,
         kept: pending.kept,
+        asking: agent_asking(row),
         settling: match window {
             Some((_, end)) => Some(end),
             None => None,
         },
     }
+}
+
+fn agent_asking(row: &ChangeRow) -> bool {
+    let Some((task, _)) = row.delegate else { return false };
+    for question in &row.questions.open {
+        if question.asker == task {
+            return true;
+        }
+    }
+    false
 }
 
 fn emit_change_effect(

@@ -62,6 +62,7 @@ fn facts() -> Facts {
         may_merge: true,
         queue_repair_active: false,
         kept: false,
+        asking: false,
         settling: None,
         verification: crate::Verification::Unfollowed,
         verification_bound: Duration::from_secs(7200),
@@ -79,6 +80,51 @@ fn heard() -> Heard {
 }
 fn decide(change: &Change, facts: &Facts, heard: &Heard) -> crate::Stepped {
     step(change, facts, heard, at(1), &LIMITS)
+}
+
+#[test]
+fn an_agent_with_an_open_question_never_stalls() {
+    let mut f = facts();
+    f.branch = None;
+    f.pull = Pull::Missing;
+    f.asking = true;
+    for state in [
+        State::Producing { requested: true },
+        State::Repairing { requested: true, why: Repair::Ci },
+        State::Resolving { requested: true, base: BASE },
+    ] {
+        let c = change(state);
+        let next = step(&c, &f, &heard(), at(3600), &LIMITS);
+        assert_eq!(next.decision, Decision::Wait { until: None });
+        assert_eq!(next.change.since, at(3600));
+        assert_eq!(next.change.state, c.state);
+    }
+}
+
+#[test]
+fn the_stall_counts_from_the_last_question() {
+    let mut f = facts();
+    f.branch = None;
+    f.pull = Pull::Missing;
+    f.asking = true;
+    let c = change(State::Producing { requested: true });
+    let asking = step(&c, &f, &heard(), at(3600), &LIMITS);
+    f.asking = false;
+    let waiting = step(&asking.change, &f, &heard(), at(3629), &LIMITS);
+    assert_eq!(waiting.decision, Decision::Wait { until: Some(at(3630)) });
+    assert_eq!(waiting.change.since, at(3600));
+    let held = step(&waiting.change, &f, &heard(), at(3631), &LIMITS);
+    assert_eq!(held.decision, Decision::Hold(Hold::Stalled));
+    assert_eq!(held.change.state, State::Held { was: Box::new(c.state), why: Hold::Stalled });
+}
+
+#[test]
+fn an_open_question_does_not_suspend_a_wait_on_ci() {
+    let mut f = facts();
+    f.asking = true;
+    f.ci.status = Status::Pending;
+    let next = step(&change(State::Checking { head: HEAD }), &f, &heard(), at(3600), &LIMITS);
+    assert_eq!(next.decision, Decision::Hold(Hold::Stalled));
 }
 
 #[test]
@@ -501,7 +547,7 @@ fn movable_phases() -> [(State, Option<Wall>); 7] {
 }
 
 fn moved_branch(requester_branch: bool) -> Facts {
-    Facts { requester_branch, branch: Some(NEW), ..facts() }
+    Facts { requester_branch, branch: Some(NEW), asking: false, ..facts() }
 }
 
 #[test]
@@ -940,7 +986,7 @@ fn cancelled_gates_preserve_the_semantic_repair_and_its_bound() {
     let repair = decide(&cancelled.change, &f, &heard());
     assert_eq!(repair.decision, Decision::Delegate(Delegate::Repair(Repair::Semantic)));
     c.repairs = LIMITS.repairs;
-    let cancelled = decide(&c, &Facts { live_gate: Some(HEAD), ..f.clone() }, &heard());
+    let cancelled = decide(&c, &Facts { live_gate: Some(HEAD), asking: false, ..f.clone() }, &heard());
     let held = decide(&cancelled.change, &f, &heard());
     assert_eq!(held.decision, Decision::Hold(Hold::Repairs));
     assert_eq!(held.change.repairs, LIMITS.repairs);
