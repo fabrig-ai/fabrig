@@ -13,9 +13,8 @@ A change is a task that writes one repository's branch and lands it: its pull re
   With the control family, a run names, too, `landing` (`goal`, a
   branch, or the default), `branch` (`mine`: its goal branch, landed
   whole), `after` (what it waits for: task numbers, or names from the
-  same call),
-  `changes` (several at once, all or none) and `merge` (a catch-up's
-  commit).
+  same call), `changes` (several at once, all or none) and `merge`
+  (a catch-up).
 - **Its pull request title** is its coder's, punctuation kept, cut at a
   UTF-8 boundary with “…” where the forge needs it.
 - **Its panel,** as `change show` prints it: `change TASK ·
