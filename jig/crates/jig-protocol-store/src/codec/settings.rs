@@ -600,6 +600,7 @@ fn encode_run_policy(value: &core::RunPolicy, limits: &wire::Limits) -> Result<w
     let field_shell = value.shell;
     let field_agents = value.agents;
     let field_call_timeout = value.call_timeout;
+    let field_tools = value.tools.0;
     wire::RunPolicy::new(
         limits,
         wire::RunPolicyParts {
@@ -612,6 +613,7 @@ fn encode_run_policy(value: &core::RunPolicy, limits: &wire::Limits) -> Result<w
             model: field_model,
             alternatives: field_alternatives,
             call_timeout: field_call_timeout,
+            tools: field_tools,
             skein_bools: [field_resume, field_inspect, field_modify, field_shell, field_agents],
         },
     )
@@ -627,6 +629,7 @@ fn decode_run_policy(value: wire::RunPolicy) -> core::RunPolicy {
         model,
         alternatives,
         call_timeout,
+        tools,
         skein_bools: [resume, inspect, modify, shell, agents],
     } = value.into_parts();
     let field_instructions = instructions;
@@ -648,6 +651,7 @@ fn decode_run_policy(value: wire::RunPolicy) -> core::RunPolicy {
     let field_shell = shell;
     let field_agents = agents;
     let field_call_timeout = call_timeout;
+    let field_tools = jig_domain_tasks::Tools(tools);
     core::RunPolicy {
         instructions: field_instructions,
         waiting: field_waiting,
@@ -663,8 +667,7 @@ fn decode_run_policy(value: wire::RunPolicy) -> core::RunPolicy {
         shell: field_shell,
         agents: field_agents,
         call_timeout: field_call_timeout,
-        // Its format carries no mask yet (configuring-p3, contracts C1).
-        tools: core::RunPolicy::EVERY_FAMILY,
+        tools: field_tools,
     }
 }
 fn encode_charter(value: &core::Charter, limits: &wire::Limits) -> Result<wire::Charter, wire::Problem> {
