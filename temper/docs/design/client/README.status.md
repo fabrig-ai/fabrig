@@ -15,9 +15,6 @@
   4.6, 8: `SetUp`, `FirstAsk` and the row's `first` carry a project,
   `SetUpProject`, and `SetUpRefusal` keeps `new_project`
   (`temper-client-protocol-wire/schema/client-wire-v1.schema`).
-  3.5, The first chat: the offer "Tell temper how you work" on a chats
-  page with no chat; no such act in `temper-client-domain`'s `pages.rs`
-  and no offer in `temper-client-view`'s `pages/chats.rs`.
   5.3, Projects in the banner: the switcher's Rename and new project:
   no such acts in `temper-client-domain`'s `pages.rs`, and the banner
   draws one button per project (`temper-client-view`'s `frame.rs`,
