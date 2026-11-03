@@ -737,7 +737,7 @@ pub fn bounded(directory: &Path) -> Bounded {
     )
 }
 
-/// The shipped owned form has file-free access and no orgs.
+/// The shipped owned form has file-free access.
 #[must_use]
 pub fn bounded_records(directory: &Path) -> Bounded {
     let owned =

@@ -19,8 +19,6 @@ fn a_backoff_past_its_maximum_names_both_limits() {
 fn an_unknown_zero_or_overflowing_limit_is_refused() {
     for (name, value, expected) in [
         (b"box.restarts".as_slice(), 1, limits::Refused::Unknown),
-        (b"setup.orgs", 0, limits::Refused::Range),
-        (b"setup.orgs", u64::MAX, limits::Refused::Range),
         (b"setup.deadline_ms", u64::MAX, limits::Refused::Range),
     ] {
         assert_eq!(limits::apply(&mut limits::small(), name, value), Err(expected));
@@ -84,7 +82,7 @@ fn every_row_is_a_name_the_parser_takes() {
 
 #[test]
 fn an_unknown_name_is_refused() {
-    for name in [b"".as_slice(), b"setup.absent", b"box.restarts", b"setup.orgs.extra"] {
+    for name in [b"".as_slice(), b"setup.absent", b"box.restarts", b"setup.deadline_ms.extra"] {
         let small = limits::small();
         let mut plan = small.clone();
         assert_eq!(limits::apply(&mut plan, name, 1), Err(limits::Refused::Unknown));

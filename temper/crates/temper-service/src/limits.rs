@@ -439,12 +439,11 @@ pub fn handed_on(name: &[u8]) -> bool {
     (name.starts_with(b"setup.") && name != b"setup.runs" && name != b"setup.states" && name != b"setup.state_life_ms")
         || name.starts_with(b"box.")
 }
-/// Setup bounds also consumed by the engine's host; the old shell keeps its four overrides.
+/// Setup bounds consumed by the engine's host.
 #[must_use]
 pub fn host_setup(name: &[u8]) -> bool {
     [
-        b"setup.orgs".as_slice(),
-        b"setup.deadline_ms",
+        b"setup.deadline_ms".as_slice(),
         b"setup.backoff_ms",
         b"setup.backoff_max_ms",
         b"setup.runs",
