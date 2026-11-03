@@ -110,7 +110,7 @@ fn a_plan_member_from_a_task_without_control_is_refused() {
     let rows = world.store.rows.clone();
     plan_change(&mut world, &chat, br#"{"words":"Small fix","landing":"main"}"#);
     assert_eq!(world.call_errors.len(), 1);
-    assert_eq!(world.call_errors[0].text.as_ref(), b"change's landing, branch, name, after and changes are a plan's: this task's authority lacks the control family (amend, cancel, release).");
+    assert_eq!(world.call_errors[0].text.as_ref(), b"change's landing, branch, name, after, repairs and changes are a plan's: this task's authority lacks the control family (amend, cancel, release).");
     assert_eq!(world.store.rows, rows, "no delegate or call record is built");
 }
 
@@ -120,7 +120,7 @@ fn a_branch_without_the_control_family_is_a_plans_member_refused() {
     let rows = world.store.rows.clone();
     plan_change(&mut world, &chat, br#"{"words":"Small fix","branch":"mine"}"#);
     assert_eq!(world.call_errors.len(), 1);
-    assert_eq!(world.call_errors[0].text.as_ref(), b"change's landing, branch, name, after and changes are a plan's: this task's authority lacks the control family (amend, cancel, release).");
+    assert_eq!(world.call_errors[0].text.as_ref(), b"change's landing, branch, name, after, repairs and changes are a plan's: this task's authority lacks the control family (amend, cancel, release).");
     assert_eq!(world.store.rows, rows, "no delegate or call record is built");
 }
 

@@ -2111,3 +2111,100 @@ fn release_held_tier(domain: &mut super::Domain, env: &skein_lib::Env<super::Lim
     assert_eq!(got, task);
     assert!(heard.released && !heard.cancelled);
 }
+
+fn repairs_call(control: bool) -> (super::Domain, skein_lib::Env<super::Limits>, super::tasks::DelegationContext) {
+    let (mut domain, env) = two_forges();
+    let mut other = adopted(3);
+    other.project = 6;
+    super::forge::step(
+        &mut domain.forge,
+        &super::super::environment_forge(&env),
+        super::forge::Event::Restore { record: super::forge::Stored::Repository(other) },
+        &mut skein_lib::Queue::uncapped(),
+    );
+    let (source, _, task) = crate::tests::live_task(None, super::tasks::Executor::Procedure { connector: 0, code: 1 });
+    let mut context = source.core.tasks.delegation(task).expect("fixture delegation context");
+    context.project = 5;
+    context.numbers.budget = 100;
+    context.tasks_left = 8;
+    let family = jig_domain_core::ToolFamilies::JIG.control.0;
+    if control {
+        context.authority.tools.0 |= family;
+    } else {
+        context.authority.tools.0 &= !family;
+    }
+    (domain, env, context)
+}
+
+#[test]
+fn repairs_without_control_is_refused_as_a_plan_member() {
+    let (domain, env, context) = repairs_call(false);
+    let change = crate::ChangeCall { repairs: Some(SHA1), ..crate::ChangeCall::words(b"Fix".as_slice().into(), None) };
+    let Err(super::ChangeRefused::Words(words)) = super::change_batch(&domain, &env, 7, &context, &[change]) else {
+        panic!("repairs refused")
+    };
+    assert_eq!(words.as_ref(), b"change's landing, branch, name, after, repairs and changes are a plan's: this task's authority lacks the control family (amend, cancel, release).");
+}
+
+#[test]
+fn repairs_naming_no_live_landing_is_refused() {
+    let (domain, env, context) = repairs_call(true);
+    let change = crate::ChangeCall { repairs: Some(SHA1), ..crate::ChangeCall::words(b"Fix".as_slice().into(), None) };
+    let Err(super::ChangeRefused::Words(words)) = super::change_batch(&domain, &env, 7, &context, &[change]) else {
+        panic!("unknown landing refused")
+    };
+    assert_eq!(
+        words.as_ref(),
+        b"repairs: abcdef0123456789abcdef0123456789abcdef01 is no live landing of temper's in org/repo."
+    );
+}
+
+fn start_repairs(digits: Option<&[u8]>) -> (bool, skein_lib::Queue<super::Work>) {
+    use super::tasks;
+    let (mut domain, mut env) = two_forges();
+    // forge, host, owner, repository, branch marker, main.
+    env.limits.authority.segments = 6;
+    let (source, _, task) = crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: 2 });
+    let mut context = source.core.tasks.run_context(task).expect("fixture run context");
+    context.project = 5;
+    let mut parameters = skein_lib::List::with_capacity(3);
+    for parameter in [
+        tasks::Parameter::Resource { name: 1, connector: 0, resource: super::forge::tag(1, 1) },
+        tasks::Parameter::Bytes { name: 3, value: b"temper/repair".as_slice().into() },
+    ] {
+        parameters.push(parameter).expect("repository and branch");
+    }
+    if let Some(digits) = digits {
+        parameters.push(tasks::Parameter::Bytes { name: 12, value: digits.into() }).expect("repairs");
+    }
+    context.spec.parameters = parameters.into_boxed();
+    let accepted = super::start_change(&mut domain, &env, &context);
+    (accepted, domain.work)
+}
+
+#[test]
+fn a_started_change_keeps_repairs_at_each_commit_width() {
+    for (commit, digits) in COMMITS {
+        let (accepted, mut work) = start_repairs(Some(digits));
+        assert!(accepted, "commit {digits:?}");
+        let Some(super::Work::Forge(super::forge::Event::Change { row })) = work.pop() else { panic!("change row") };
+        assert_eq!(row.repairs, Some(*commit));
+    }
+}
+
+#[test]
+fn a_started_change_without_repairs_keeps_none() {
+    let (accepted, mut work) = start_repairs(None);
+    assert!(accepted);
+    let Some(super::Work::Forge(super::forge::Event::Change { row })) = work.pop() else { panic!("change row") };
+    assert_eq!(row.repairs, None);
+}
+
+#[test]
+fn malformed_repairs_refuses_a_change_start() {
+    for digits in [[b'A'; 40].as_slice(), [b'a'; 39].as_slice(), [b'g'; 64].as_slice()] {
+        let (accepted, work) = start_repairs(Some(digits));
+        assert!(!accepted, "commit {digits:?}");
+        assert!(work.is_empty(), "no change or step queued for malformed repairs");
+    }
+}
