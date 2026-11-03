@@ -737,17 +737,22 @@ fn park_chat(world: &mut World, spent: u64) {
     world.park_for_message(spent);
 }
 
+// The effect fixture grants its caller the role's 300-unit task budget.
+const CALLER_BUDGET: u64 = 300;
+// The role's period ceiling is 500; replenishing it leaves 200 beyond the caller.
+const REPLENISHED_POOL: u64 = 500;
+// The configured project period is 1000, doubled by the settings story.
+const RAISED_PROJECT_SPEND: u64 = 2000;
+// job_world declares this kind, its byte bounds and its one-minute deadline.
+const TIER_JOB: u32 = 7;
+const TIER_SPEC_BYTES: u32 = 64;
+const TIER_RESULT_BYTES: u32 = 32;
+const TIER_DEADLINE: skein_lib::Duration = skein_lib::Duration::from_secs(60);
+
 fn live_funding_work() -> World {
     use jig_core_world::fixtures::{delegate, job_world, live_row, member};
     let (mut world, procedure) = job_world(160, true);
-    let mut child = member(&world, tasks::Executor::Job { kind: 7 }, b"");
-    child.spec.job = Some(Box::new(tasks::JobSpec {
-        bytes: b"tier".as_slice().into(),
-        deadline: skein_lib::Duration::from_secs(60),
-    }));
-    child.contract = tasks::Contract::Job { bytes: 0 };
-    child.authority.budget.spend = 0;
-    child.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
+    let child = jig_core_world::fixtures::job(&world, TIER_JOB, b"tier".as_slice().into(), TIER_DEADLINE);
     let (step, connector, code, _) = world.procedure_inputs.last().expect("tier procedure");
     let event = core::Event::ProcedureStep {
         task: procedure,
@@ -761,10 +766,10 @@ fn live_funding_work() -> World {
         Token::new(8),
         1,
         Box::new([jig_domain_host::JobBound {
-            kind: jig_domain_host::JobKind(7),
-            spec: 64,
-            result: 32,
-            deadline: skein_lib::Duration::from_secs(60),
+            kind: jig_domain_host::JobKind(TIER_JOB),
+            spec: TIER_SPEC_BYTES,
+            result: TIER_RESULT_BYTES,
+            deadline: TIER_DEADLINE,
         }]),
     );
     assert_eq!(world.jobs.len(), 1);
@@ -822,10 +827,14 @@ fn raise_run_funding(world: &mut World) {
         161,
         jig_domain_people::Ask::ChangePolicy {
             project: 1,
-            change: jig_domain_people::PolicyChange::ProjectSpend { period_spend: 2000 },
+            change: jig_domain_people::PolicyChange::ProjectSpend { period_spend: RAISED_PROJECT_SPEND },
         },
     );
-    crate::read_support::request(world, 162, jig_domain_people::Ask::SetPool { project: 1, person: 1, budget: 500 });
+    crate::read_support::request(
+        world,
+        162,
+        jig_domain_people::Ask::SetPool { project: 1, person: 1, budget: REPLENISHED_POOL },
+    );
 }
 
 fn funding_wait(world: &mut World, task: u64) -> Option<core::documents::TaskRunWait> {
@@ -868,18 +877,7 @@ fn a_due_change_dispatches_after_funding_changes_with_live_work() {
         replaced_funding_workspace(old_first);
     }
     for (grant_first, stop) in [(false, false), (true, false), (false, true), (true, true)] {
-        let mut world = live_funding_work();
-        crate::read_support::request(
-            &mut world,
-            159,
-            jig_domain_people::Ask::SetPool { project: 1, person: 1, budget: 300 },
-        );
-        assert!(matches!(
-            world.people_answers.last(),
-            Some(jig_domain_people::Reply::Outcome(jig_domain_people::Outcome::PoolSet { .. }))
-        ));
-        assert_eq!(funding_chat(&mut world, 163), None, "the exhausted pool refuses the third chat");
-        raise_run_funding(&mut world);
+        let mut world = replenished_work();
         account_failed(&mut world);
         let task = funding_chat(&mut world, 164).expect("funded third chat");
         assert_eq!(live_row(&world, task).phase, tasks::Phase::Active(tasks::Active::Due));
@@ -916,14 +914,7 @@ fn a_due_change_dispatches_after_funding_changes_with_live_work() {
 }
 
 fn replaced_funding_workspace(old_first: bool) {
-    let mut world = live_funding_work();
-    crate::read_support::request(
-        &mut world,
-        159,
-        jig_domain_people::Ask::SetPool { project: 1, person: 1, budget: 300 },
-    );
-    assert_eq!(funding_chat(&mut world, 163), None);
-    raise_run_funding(&mut world);
+    let mut world = replenished_work();
     world.domain.script_workspaces();
     let task = funding_chat(&mut world, 164).expect("funded third chat");
     let old = world.domain.take_workspace().expect("first preparation in flight");
@@ -946,4 +937,20 @@ fn assert_funded_assignment(world: &World, task: u64) {
     for other in [task, world.assignments[1].0, world.jobs[0].1.run.raw()] {
         assert!(matches!(live_row(world, other).phase, tasks::Phase::Active(tasks::Active::Running { .. })));
     }
+}
+
+fn replenished_work() -> World {
+    let mut world = live_funding_work();
+    crate::read_support::request(
+        &mut world,
+        159,
+        jig_domain_people::Ask::SetPool { project: 1, person: 1, budget: CALLER_BUDGET },
+    );
+    assert!(matches!(
+        world.people_answers.last(),
+        Some(jig_domain_people::Reply::Outcome(jig_domain_people::Outcome::PoolSet { .. }))
+    ));
+    assert_eq!(funding_chat(&mut world, 163), None, "the exhausted pool refuses the third chat");
+    raise_run_funding(&mut world);
+    world
 }
