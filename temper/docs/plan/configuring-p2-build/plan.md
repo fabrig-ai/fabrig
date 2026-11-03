@@ -1,8 +1,8 @@
 # configuring-p2-build: plan
 
 Phase P2 of `temper/docs/design/draft/configuring.execution.md`: settings through ctl, built
-from the design `configuring-p2` released, on the reference's M3 as landed on main. 16 tasks,
-all released in five batches; P1 (a charter's documents reaching a run's brief), which the
+from the design `configuring-p2` released, on the reference's M3 as landed on main. 14 tasks
+(1,535 implementer-minutes), all released in five batches; P1 (a charter's documents reaching a run's brief), which the
 walk also exercises, landed with `configuring-p1`.
 
 ## Parts
@@ -72,12 +72,14 @@ The addenda the request names, after M3, in their sections and no other:
    the gate, jig's core world, temper's domain world and a settings file of each kind through
    ctl in the joined client world; it closes the status entries left.
 
-## Critical path, as it stands
+## Critical path
 
-`policy-surface` (60) -> `restore-surface` (90) -> `policy-change` (150) -> `restore-request`
-(150) -> `restore-story` (120): about 570 implementer-minutes. One writer per crate keeps
-jig-domain-core's three tasks in a line; the store, wire, connector, forge and ctl tasks run
-beside `policy-change`.
+`policy-surface` (60) -> `restore-surface` (90) -> `settings-wire` (170) -> `policy-ctl` (90)
+-> `restore-ctl` (90) -> `restore-story` (120): about 620 implementer-minutes. The core's line
+(`restore-surface` -> `policy-change` (150) -> `restore-request` (150)) ends at about 450, and
+`policy-story` at about 500, both before `restore-ctl`. One writer per crate keeps
+jig-domain-core's four tasks in a line and temper-client-tools' two; the store, connector and
+forge tasks run beside them.
 
 ## Decided along the way
 
