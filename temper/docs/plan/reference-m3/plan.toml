@@ -1,0 +1,28 @@
+draft = "reference-m3"
+repo = "fabrig"
+sources = ["temper/docs/plan/reference-m3/inputs/request.md", "temper/docs/design/draft/reference-case.execution.md", "temper/docs/design/draft/reference-code-production.md", "temper/docs/design/draft/reference-landing.md", "AGENTS.md", "DESIGN.md"]
+
+# M3 of temper/docs/design/draft/reference-case.execution.md: designers and the cut.
+# Families: subagents (M4's sub-agents reachable from temper, released first), appsettings
+# (jig's application settings), kinds (temper's kinds 1 to 3 on them: the landing rules and the
+# forge's charters out of Config), change (`change` naming its producer's charter and an LLM
+# choice per role, jig's check of a batch's LLM choices against its charter's models), and
+# reference (the designer's and coordinator's charters, released last, after configuring-p1).
+# The shapes that cross them are notes/contracts.md (C1 to C6).
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "subagents"
+title = "M4's sub-agents reachable from temper: the owned example's agent declares three conversations, and chat start names sub-agents"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/setup.md, 8.1"
+
+[[slice]]
+id = 1
+story = "a chat started with --model and two --sub-agent flags asks two inspect-only sub-agents side by side, each at its own LLM choice, none refused as too many"
+parts = ["subagents"]
+walk = false
