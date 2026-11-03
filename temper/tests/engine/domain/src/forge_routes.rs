@@ -1897,6 +1897,7 @@ pub fn hint_step(world: &mut forge_world::World, task: u64, entry: u64) {
         task,
         entry,
         heard: change::Heard {
+            start_conflict: None,
             lacking: None,
             spend: None,
             delegate: change::Status::Unknown,
