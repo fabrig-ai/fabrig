@@ -844,12 +844,20 @@ fn a_broken_relation_is_the_only_problem() {
 
 #[test]
 fn zero_capacity_sides_keep_their_family_bound_problem() {
-    for (bytes, member) in [
-        (br#"{"profile":"small","overrides":{"tasks.run_inbox":0}}"#.as_slice(), b"tasks.run_inbox".as_slice()),
-        (br#"{"profile":"small","overrides":{"tasks.inbox_bytes":0}}"#, b"tasks.inbox_bytes"),
-        (br#"{"profile":"small","overrides":{"tasks.inbox_messages":0}}"#, b"tasks.inbox_messages"),
-        (br#"{"profile":"small","overrides":{"people.operations":0}}"#, b"people.operations"),
+    for (bytes, member, what) in [
+        (
+            br#"{"profile":"small","overrides":{"tasks.run_inbox":0}}"#.as_slice(),
+            b"tasks.run_inbox".as_slice(),
+            What::Override,
+        ),
+        (br#"{"profile":"small","overrides":{"tasks.inbox_bytes":0}}"#, b"tasks.inbox_bytes", What::Override),
+        (br#"{"profile":"small","overrides":{"tasks.inbox_messages":0}}"#, b"tasks.inbox_messages", What::Override),
+        (
+            br#"{"profile":"small","overrides":{"people.operations":0}}"#,
+            b"tasks.delegates",
+            What::Capacity { member: b"tasks.delegates", configured: 4, requires: b"people.operations", required: 5 },
+        ),
     ] {
-        problem(bytes, &[b"limits", b"overrides", member], What::Override);
+        problem(bytes, &[b"limits", b"overrides", member], what);
     }
 }

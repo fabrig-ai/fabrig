@@ -197,7 +197,7 @@ pub(crate) fn capacity(limits: &jig_domain_core::Limits) -> Option<(&'static [u8
     };
     let models = accounts.accounts.min(jig_domain_tasks::MODELS);
     let grants = u64::from(accounts.credentials).checked_add(u64::from(models));
-    for (member, configured, requires, dependency, required) in [
+    for (index, (member, configured, requires, dependency, required)) in [
         (b"tasks.tasks".as_slice(), tasks.tasks, b"people.inbox_tasks".as_slice(), people.inbox_tasks, inbox),
         (b"tasks.delegates", tasks.delegates, b"people.operations", people.operations, operations),
         (b"tasks.project_goals", tasks.project_goals, b"people.operations", people.operations, Some(u64::from(tasks.project_goals))),
@@ -215,8 +215,9 @@ pub(crate) fn capacity(limits: &jig_domain_core::Limits) -> Option<(&'static [u8
         (b"tasks.inbox_messages", tasks.inbox_messages, b"people.inbox_recipients", people.inbox_recipients, waiting),
         (b"accounts.credentials", accounts.credentials, b"fleet.grants", fleet.grants, grants),
         (b"accounts.credentials", accounts.credentials, b"authority.accounts", authority.accounts, Some(u64::from(accounts.credentials.max(models)))),
-    ] {
-        if let Some(problem) = relation(member, configured, requires, dependency, required) {
+    ].into_iter().enumerate() {
+        // The first three dependencies are checked whatever their figures.
+        if let Some(problem) = relation(member, configured, requires, dependency, required, index >= 3) {
             return Some(problem);
         }
     }
@@ -229,9 +230,10 @@ fn relation(
     requires: &'static [u8],
     dependency: u32,
     minimum: Option<u64>,
+    skip_zero: bool,
 ) -> Option<(&'static [u8], What)> {
     let minimum = minimum?;
-    if configured == 0 || dependency == 0 || u64::from(dependency) >= minimum {
+    if (skip_zero && (configured == 0 || dependency == 0)) || u64::from(dependency) >= minimum {
         return None;
     }
     Some((member, What::Capacity { member, configured, requires, required: minimum }))
