@@ -1401,6 +1401,7 @@ fn change_decodes_a_plan_member_each() {
                 repository: None,
                 name: Some(b"x".as_slice().into()),
                 landing: Some(expected),
+                branch: None,
                 merge: None,
                 after: Box::new([engine::ChangeAfter::Task(4), engine::ChangeAfter::Name(b"w".as_slice().into())]),
             }]
@@ -1413,6 +1414,37 @@ fn change_decodes_a_plan_member_each() {
     };
     assert_eq!(changes[0].name.as_deref(), Some(name.as_bytes()));
     assert!(changes[0].after.is_empty());
+}
+
+#[test]
+fn change_decodes_branch_mine() {
+    for input in [br#"{"words":"a","branch":"mine"}"#.as_slice(), br#"{"changes":[{"words":"a","branch":"mine"}]}"#] {
+        let engine::Tool::Change { changes } = decided(b"change", input).expect("branch mine").tool else {
+            panic!("change")
+        };
+        assert_eq!(
+            changes.as_ref(),
+            &[engine::ChangeCall {
+                branch: Some(engine::ChangeBranch::Mine),
+                ..engine::ChangeCall::words(b"a".as_slice().into(), None)
+            }]
+        );
+    }
+}
+
+#[test]
+fn change_refuses_a_branch_other_than_mine() {
+    let cases: &[(&[u8], Problem)] = &[
+        (br#"{"words":"a","branch":"theirs"}"#, Problem::Range(b"branch")),
+        (br#"{"words":"a","branch":""}"#, Problem::Range(b"branch")),
+        (br#"{"words":"a","branch":1}"#, Problem::Type(b"branch")),
+        (br#"{"changes":[{"words":"a","branch":"theirs"}]}"#, Problem::Range(b"branch")),
+        (br#"{"changes":[{"words":"a","branch":""}]}"#, Problem::Range(b"branch")),
+        (br#"{"changes":[{"words":"a","branch":1}]}"#, Problem::Type(b"branch")),
+    ];
+    for (input, expected) in cases {
+        assert_eq!(decided(b"change", input), Err(*expected), "{input:?}");
+    }
 }
 
 #[test]
@@ -1451,6 +1483,7 @@ fn change_decodes_several_changes_in_order() {
             repository: Some(b"work/hello".as_slice().into()),
             name: None,
             landing: Some(engine::ChangeLanding::Branch(b"main".as_slice().into())),
+            branch: None,
             merge: None,
             after: Box::new([engine::ChangeAfter::Task(1)]),
         }]
@@ -1494,7 +1527,7 @@ fn change_refuses_words_with_changes_and_empty_members() {
 #[test]
 fn change_offers_its_plan_members_only_with_control() {
     let legacy = br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."}},"required":["words"]}"#;
-    let plan = br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."},"name":{"type":"string","description":"Its name in this call, for a later change's after."},"landing":{"type":"string","description":"goal: your own goal branch; or a branch's name; left out, the default branch."},"merge":{"type":"string","description":"A catch-up: the commit to merge into a branch made at the landing branch's tip, as 40 or 64 hexadecimal digits; the merge job, not an agent, produces it."},"after":{"type":"array","description":"What it lands after: your live delegates' task numbers, or names given earlier in this call.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"changes":{"type":"array","description":"Instead of words: several changes as one batch, each with the members above.","items":{"type":"object"}}}}"#;
+    let plan = br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."},"name":{"type":"string","description":"Its name in this call, for a later change's after."},"landing":{"type":"string","description":"goal: your own goal branch; or a branch's name; left out, the default branch."},"branch":{"type":"string","enum":["mine"],"description":"mine: your own goal branch, landed whole as it stands, with no coder; left out, a branch of the change's own."},"merge":{"type":"string","description":"A catch-up: the commit to merge into a branch made at the landing branch's tip, as 40 or 64 hexadecimal digits; the merge job, not an agent, produces it."},"after":{"type":"array","description":"What it lands after: your live delegates' task numbers, or names given earlier in this call.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"changes":{"type":"array","description":"Instead of words: several changes as one batch, each with the members above.","items":{"type":"object"}}}}"#;
     let stock = 1_539;
     for (authority, schema) in [(stock, legacy.as_slice()), (stock | 0b100, plan.as_slice())] {
         let mut found = false;

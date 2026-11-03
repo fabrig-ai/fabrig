@@ -134,7 +134,37 @@ fn a_job_result_bound_past_the_tasks_child_is_not_configuration() {
 }
 
 fn due_job() -> (Core, Limits) {
+    due_job_with_holds(Box::new([]))
+}
+
+fn due_job_with_holds(holds: Box<[tasks::Name]>) -> (Core, Limits) {
     let (mut core, limits) = core();
+    let grant = authority::Grant {
+        connector: 1,
+        kind: 5,
+        pattern: authority::Pattern { segments: Box::new([]), last: authority::Last::Open(Box::new([])) },
+    };
+    let mut rules = core.authority.rules().clone();
+    let mut policy = core.authority.policy(1).expect("fixture project").clone();
+    rules.ceiling.grants = Box::new([grant.clone()]);
+    policy.roles[0].authority.grants = Box::new([grant.clone()]);
+    policy.ceiling.grants = Box::new([grant]);
+    core.authority = authority::Domain::new(rules, limits.authority).expect("fixture grants");
+    let mut out = Queue::uncapped();
+    authority::step(&mut core.authority, authority::Event::Policy { project: 1, policy }, &mut out);
+    for resource in &holds {
+        let hold = tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits };
+        send_task(&mut core, &limits, tasks::Event::Resource { name: resource.clone(), hold });
+        send_task(
+            &mut core,
+            &limits,
+            tasks::Event::ResourceAccess {
+                project: 1,
+                name: resource.clone(),
+                access: tasks::ResourceAccess::Writable,
+            },
+        );
+    }
     send_task(&mut core, &limits, tasks::Event::Check);
     send_task(&mut core, &limits, tasks::Event::Restored);
     send_task(
@@ -144,6 +174,11 @@ fn due_job() -> (Core, Limits) {
     );
     let mut parent = new_row(&core, 2, tasks::Funder::Period { project: 1, period: 1 }, None);
     parent.executor = tasks::Executor::Procedure { connector: 1, code: 1 };
+    let mut holdings = List::with_capacity(limits.tasks.holdings);
+    for resource in holds {
+        holdings.push(tasks::Holding::Write { resource, kind: 1 }).expect("fixture holdings");
+    }
+    parent.holdings = holdings.into_boxed();
     fixtures::make_batch(&mut core, &limits, tasks::Party::Person(1), Box::new([parent]));
     assert!(core.tasks.task(2).is_some(), "procedure fixture");
     let mut row = new_row(&core, 1, tasks::Funder::Task(2), None);
@@ -193,6 +228,7 @@ fn a_due_job_claims_without_an_agent_or_transcript_and_hands_its_start_to_connec
         Event::WorkspacePrepared {
             task: 1,
             attempt,
+            holds: Box::new([]),
             writes: Some(Box::new([])),
             credentials: Box::new([]),
             workspace: Some(Box::new([1, 2, 3])),
@@ -271,6 +307,7 @@ fn a_jobs_credential_wait_keeps_it_due_and_its_claim_grants_only_the_application
         Event::WorkspacePrepared {
             task: 1,
             attempt,
+            holds: Box::new([]),
             writes: Some(Box::new([])),
             credentials: Box::new([7]),
             workspace: None,
@@ -298,6 +335,7 @@ fn a_jobs_credential_wait_keeps_it_due_and_its_claim_grants_only_the_application
         Event::WorkspacePrepared {
             task: 1,
             attempt: next,
+            holds: Box::new([]),
             writes: Some(Box::new([])),
             credentials: Box::new([7]),
             workspace: None,
@@ -341,4 +379,50 @@ fn a_jobs_result_notice_preserves_its_bytes() {
         })),
         (tasks::ResultKind::Job, Box::<[u8]>::from([0, 255, 7]))
     );
+}
+
+/// Jobs claim their connectors' held names, distinct from authority paths
+/// (jig/docs/design/domain/engine.md, 7.1, step 3 and 7.5).
+#[test]
+fn a_job_claims_the_names_its_root_prepared() {
+    let held = tasks::Name { connector: 1, path: Box::new([Box::from(b"slot".as_slice())]) };
+    let checked = tasks::Name { connector: 1, path: Box::new([Box::from(b"authority".as_slice())]) };
+    let (mut core, limits) = due_job_with_holds(Box::new([held.clone()]));
+    let context = core.tasks.run_context(1).expect("due job");
+    drop(watch_outputs(&mut core, &limits, Event::Activate { context, ready: true }));
+    let attempt = core.workspace_flight(1).expect("workspace request").1;
+    let out = watch_outputs(
+        &mut core,
+        &limits,
+        Event::WorkspacePrepared {
+            task: 1,
+            attempt,
+            writes: Some(Box::new([authority::Write {
+                effect: authority::Effect {
+                    connector: checked.connector,
+                    kind: 5,
+                    name: authority::Name { segments: checked.path.clone() },
+                    state: [0; 32],
+                    price: None,
+                    access: authority::EffectAccess::Owned,
+                    additional: Box::new([]),
+                    guards: Box::new([]),
+                },
+                held: authority::Writer::Ancestor,
+            }])),
+            holds: Box::new([held.clone(), held.clone()]),
+            credentials: Box::new([]),
+            workspace: None,
+        },
+    );
+    assert_eq!(core.tasks.task(1).expect("job").phase, tasks::Phase::Active(tasks::Active::Claimed { attempt }));
+    assert_eq!(core.tasks.writer(&held).expect("prepared writer slot").writer, tasks::Writer::Run { task: 1, attempt });
+    assert!(core.tasks.writer(&checked).is_none(), "authority paths do not name writer slots");
+    let mut writers = List::with_capacity(limits.tasks.holdings);
+    for request in out {
+        if let Request::Write(Write::Save(Record::Tasks(tasks::Stored::Writer(slot)))) = request {
+            writers.push(slot.resource).expect("bounded writer slots");
+        }
+    }
+    assert_eq!(writers.as_slice(), [held], "the prepared names are deduplicated");
 }

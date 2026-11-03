@@ -14,7 +14,20 @@ pub(super) fn change_row(world: &World, task: u64) -> &forge_top::ChangeRow {
 }
 
 fn pushed_change(conflict: bool) -> (World, u64, u64, u64) {
-    let world = World::configured_ci(true, true, true).with_landing_deployment(Box::new([engine::LandingRule {
+    pushed_change_with_resolutions(conflict, None)
+}
+
+fn pushed_change_with_resolutions(conflict: bool, resolutions: Option<u32>) -> (World, u64, u64, u64) {
+    let world = World::configured_limits(
+        true,
+        true,
+        true,
+        1000,
+        Gate::default(),
+        None,
+        StoryLimits { resolutions, ..StoryLimits::default() },
+    )
+    .with_landing_deployment(Box::new([engine::LandingRule {
         connector: 0,
         kind: 4,
         enforce: true,
@@ -153,18 +166,47 @@ fn a_change_under_rules_asking_neither_merges_at_its_head() {
     world.close();
 }
 
-/// temper/docs/design/domain/forge.md, 8.4: a conflict past the resolution bound holds under every rule.
+/// temper/docs/design/domain/forge.md, 8.4: a conflict under rules asking no update delegates resolution at the observed base.
 #[test]
-fn a_conflict_under_rules_asking_neither_says_why_it_holds() {
+fn a_conflict_under_rules_asking_neither_delegates_resolution() {
     let (mut world, task, head, base) = pushed_change(true);
-    world.env.limits.forge.change_policy.resolutions = 0;
     // A persistent conflict is decided after the shipped mergeability window,
-    // with the world's twenty-second durable round trip left for the hold.
+    // with the world's twenty-second durable round trip left for resolution.
     let deadline =
         world.env.now.saturating_add(world.env.limits.forge.client.settle).saturating_add(Duration::from_secs(20));
     while world.env.now <= deadline {
         world.tick();
-        if matches!(live_task(&world, task).phase, tasks::Phase::Held { why: tasks::Hold::Procedure, .. }) {
+        if matches!(change_row(&world, task).delegate, Some((_, change_step::Delegate::Resolve { .. }))) {
+            break;
+        }
+    }
+    let resolution = super::delegates::fixtures::next_delegate(&mut world);
+    let row = change_row(&world, task);
+    let expected_base = translate::commit(base);
+    assert_eq!(row.change.state, change_step::State::Resolving { requested: true, base: expected_base });
+    assert_eq!(row.delegate, Some((resolution.task, change_step::Delegate::Resolve { base: expected_base })));
+    assert_eq!(live_task(&world, resolution.task).requester, tasks::Party::Task(task));
+    assert_eq!((row.change.updates, row.change.repairs, row.change.resolutions), (0, 0, 1));
+    assert!(!world.writes.iter().any(|write| matches!(write, skein_forge::api::Write::Update { .. })));
+    assert_eq!(world.merges, 0);
+    let pull = assert_pending_and_stale(&mut world, head, base);
+    assert!(!pull.checking, "the forge has settled mergeability");
+    assert!(!pull.mergeable);
+    assert!(pull.merged.is_none());
+    world.close();
+}
+
+/// temper/docs/design/domain/forge.md, 8.4: a conflict past the resolution bound holds under every rule.
+#[test]
+fn a_conflict_under_rules_asking_neither_says_why_it_holds() {
+    let (mut world, task, head, base) = pushed_change_with_resolutions(true, Some(0));
+    // A persistent conflict is decided after the shipped mergeability window,
+    // with the world's twenty-second durable round trip left for resolution.
+    let deadline =
+        world.env.now.saturating_add(world.env.limits.forge.client.settle).saturating_add(Duration::from_secs(20));
+    while world.env.now <= deadline {
+        world.tick();
+        if matches!(live_task(&world, task).phase, tasks::Phase::Held { .. }) {
             break;
         }
     }
@@ -180,8 +222,8 @@ fn a_conflict_under_rules_asking_neither_says_why_it_holds() {
     ));
     let tasks::Phase::Held { source, .. } = &live_task(&world, task).phase else { panic!("resolution hold") };
     assert!(source.is_none(), "the usual resolutions hold carries no landing-rule exception");
-    assert_eq!(world.merges, 0);
     assert_no_update_or_delegate(&world, task);
+    assert_eq!(world.merges, 0);
     let pull = assert_pending_and_stale(&mut world, head, base);
     assert!(!pull.checking, "the forge has settled mergeability");
     assert!(!pull.mergeable);

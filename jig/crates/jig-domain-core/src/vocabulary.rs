@@ -562,6 +562,9 @@ pub enum Event {
         task: u64,
         attempt: u64,
         writes: Option<Box<[authority::Write]>>,
+        /// A job's held names, translated by its connectors from workspace writes
+        /// (jig/docs/design/domain/engine.md, 7.1, step 3); empty for an agent.
+        holds: Box<[tasks::Name]>,
         credentials: Box<[u32]>,
         /// A job's application-encoded workspace items, within `Limits::run_bytes`.
         workspace: Option<Box<[u8]>>,

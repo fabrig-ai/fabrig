@@ -78,6 +78,27 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
     if facts.pull == Pull::Closed && closed_pull_holds(&change.state) {
         return hold(next, Hold::PullClosed);
     }
+    if facts.requester_branch
+        && let Some(head) = facts.branch
+    {
+        let prior_head = if let State::Opening { .. } = change.state {
+            change.last_head
+        } else if let State::Checking { head }
+        | State::Gating { head, .. }
+        | State::Queued { head, .. }
+        | State::First { head, .. }
+        | State::Ready { head, .. } = change.state
+        {
+            Some(head)
+        } else {
+            None
+        };
+        if let Some(prior) = prior_head
+            && prior != head
+        {
+            return take_pushed_head(next, head, now);
+        }
+    }
     advance_phase(change, next, facts, standing, now, limits)
 }
 
@@ -939,16 +960,20 @@ fn delegated(
     match standing.delegate {
         Status::Passed => {
             let Some(head) = facts.branch else { return waiting(change, now, limits) };
-            change.clean = Box::new([]);
-            change.owns_turn = false;
-            change.state = pushed(&change, head);
-            change.last_head = Some(head);
-            change.since = now;
-            Stepped { change, decision: Decision::None }
+            take_pushed_head(change, head, now)
         }
         Status::Failed => hold(change, Hold::Failed),
         Status::Unknown | Status::Pending => waiting(change, now, limits),
     }
+}
+
+fn take_pushed_head(mut change: Change, head: [u8; 32], now: Wall) -> Stepped {
+    change.clean = Box::new([]);
+    change.owns_turn = false;
+    change.state = pushed(&change, head);
+    change.last_head = Some(head);
+    change.since = now;
+    Stepped { change, decision: Decision::None }
 }
 
 fn landing(mut change: Change, head: [u8; 32], facts: &Facts, standing: &Heard, now: Wall, limits: &Limits) -> Stepped {

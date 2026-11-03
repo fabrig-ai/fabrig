@@ -81,6 +81,7 @@ pub struct Domain {
     pub(crate) brief_document_titles: Map<u64, Box<[Box<[u8]>]>>,
     pub(crate) forge_briefs: Map<Token, BriefSection>,
     pub(crate) run_workspaces: Map<u64, PreparedWorkspace>,
+    pub(crate) job_workspaces: Map<u64, crate::ForgeWorkspace>,
     pub(crate) forge: forge::Domain,
     pub(crate) application: Option<(Token, crate::Application)>,
     pub(crate) application_carried: Option<jig_domain_core::Carried>,
@@ -483,6 +484,7 @@ impl Domain {
             brief_document_titles: Map::with_capacity(limits.brief.briefs),
             forge_briefs: Map::uncapped(),
             run_workspaces: Map::with_capacity(limits.tasks.tasks),
+            job_workspaces: Map::with_capacity(limits.tasks.tasks),
             forge,
             application: None,
             application_carried: None,
@@ -586,6 +588,7 @@ impl Domain {
             && self.loads.quiescent()
             && self.work.is_empty()
             && self.assignment_parts.is_empty()
+            && self.job_workspaces.is_empty()
             && self.hub_link.payload_count() == 0
             && self.answer_parts.is_empty()
             && self.refused_calls.is_empty()

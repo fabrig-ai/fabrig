@@ -302,6 +302,7 @@ fn advance(d: &mut Domain, task: u64, wall: Wall, cancelled: bool) -> Queue<Requ
         d,
         &environment,
         StepInput {
+            merge_job: false,
             task,
             entry: OPEN,
             heard: heard(cancelled),
@@ -326,6 +327,7 @@ fn tier_run(d: &mut Domain, tier: &[u8], number: u64, commits: &[skein_forge::ap
         .insert(
             (REPO, Box::from(tier)),
             TierRow {
+                observations: Box::new([]),
                 repository: REPO,
                 tier: Box::from(tier),
                 task: None,

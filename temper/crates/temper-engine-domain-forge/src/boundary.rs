@@ -1192,6 +1192,11 @@ pub struct ChangeDependencies {
 /// A parent or child input to the connector top.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Event {
+    /// A due step saved these specification words on its own task.
+    TierWords {
+        task: u64,
+        words: Box<[u8]>,
+    },
     TierTask {
         repository: skein_forge::api::Repository,
         tier: Box<[u8]>,
@@ -1626,6 +1631,8 @@ pub enum Request {
     TierDecision {
         task: u64,
         decision: TierDecision,
+        /// Execution facts retained when a terminal decision clears the tier row.
+        projection: Option<Box<[u8]>>,
         entry: Option<u64>,
     },
     /// The project's adoption erasures precede this post-commit reply.
@@ -1948,6 +1955,8 @@ pub struct TierHeard {
 /// Family 28's policy and task (temper/docs/design/domain/after-landing.md, 10).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct TierRow {
+    /// Observed execution identities awaiting or replaying the task projection across restart.
+    pub observations: Box<[u8]>,
     pub repository: skein_forge::api::Repository,
     pub tier: Box<[u8]>,
     pub record: temper_engine_domain_forge_tiers::Record,

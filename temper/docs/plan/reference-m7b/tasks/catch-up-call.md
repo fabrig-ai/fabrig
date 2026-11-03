@@ -86,3 +86,14 @@ Acceptance:
 ## Report
 
 As the implementer's text says.
+
+## Answers
+
+### 2026-11-03: Should fab resume this task after change-merge-route supplies its typed job-workspace handoff (recommended), or assign that unfinished prerequisite here? (reference-m7b/catch-up-call-1, foreman reference-m7b/catch-up-call/foreman-1)
+
+Resume catch-up-call after change-merge-route supplies its typed job-workspace handoff; do not assign that prerequisite here.
+The spec declares `needs = ["change-merge-route"]` and says “the job's making `change-merge-route`'s; this task is the call, its refusals, parameter 16 and the stories.”
+`temper/docs/plan/reference-m7b/tasks/change-merge-route.md`, Answers: “This task builds it” assigns workspace preparation, claim, typed delivery and cleanup to change-merge-route.
+That answer also states: “a catch-up's `Merge { from: None }` head stays `catch-up-call`'s.”
+Acceptance remains incomplete; the pushed work is not accepted as done.
+After the prerequisite lands, resume catch-up-call to finish the item-start and push assertions, complete both landing stories, and run its required final checks.

@@ -165,6 +165,36 @@ fn delegations_with_one_repository_id_take_their_own_forges_holding() {
     }
 }
 
+#[test]
+fn a_change_on_its_requesters_branch_asks_no_write_holding() {
+    use super::{forge, tasks};
+    let (mut domain, env) = two_forges();
+    let connector = domain.config.forge_connector;
+    let spec = tasks::Spec {
+        parameters: Box::new([
+            tasks::Parameter::Resource { name: 1, connector, resource: forge::tag(1, 1) },
+            tasks::Parameter::Bytes { name: 2, value: Box::from(b"main".as_slice()) },
+            tasks::Parameter::Bytes { name: 3, value: Box::from(b"temper/7/g8".as_slice()) },
+            tasks::Parameter::Number { name: 11, value: 1 },
+        ]),
+        ..goal_spec()
+    };
+    let holdings = super::task_holdings(
+        &mut domain,
+        &env,
+        GOAL_PROJECT,
+        GOAL_ROOT,
+        GOAL_CHANGE,
+        tasks::Executor::Procedure { connector, code: super::CHANGE_CODE },
+        &spec,
+        Some(GOAL_TASK),
+        false,
+        &[],
+    )
+    .expect("a change on its requester's branch admitted");
+    assert!(holdings.is_empty(), "the goal keeps its holding instead of handing it down");
+}
+
 const GOAL_PROJECT: u32 = 5;
 const GOAL_ROOT: u64 = 7;
 const GOAL_TASK: u64 = 8;
@@ -1461,7 +1491,7 @@ fn make_tier(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits>) ->
         panic!("deployment seed")
     };
     assert_eq!(*executor, tasks::Executor::Procedure { connector: 0, code: super::AFTER_LANDING_CODE });
-    assert_eq!(spec.words.as_ref(), b"Tier fuzzy run 7");
+    assert!(spec.words.starts_with(b"Tier fuzzy run 7\n"));
     assert_eq!(
         spec.parameters.as_ref(),
         &[
@@ -1536,6 +1566,7 @@ fn a_held_tier_keeps_its_words_and_a_release_steps_it_again() {
         &mut domain,
         &env,
         forge::Request::TierDecision {
+            projection: None,
             task,
             decision: forge::TierDecision::Held { words: Box::from(words.as_slice()) },
             entry: None,
@@ -1564,23 +1595,7 @@ fn a_held_tier_keeps_its_words_and_a_release_steps_it_again() {
         source.as_deref(),
         Some(&tasks::HoldSource::Account { connector: 0, entry: None, words: Box::from(words.as_slice()) })
     );
-    let release = jig_domain_core::step(
-        &mut domain.core,
-        &crate::limits::environment_core(&env),
-        jig_domain_core::Event::Tasks(tasks::Event::Control {
-            reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(123)),
-            by: tasks::Party::Person(1),
-            task,
-            control: tasks::Control::Release { again: None, message: None },
-        }),
-    );
-    assert_eq!(domain.core.tasks.task(task).unwrap().due_reason, tasks::Why::Released, "{release:?}");
-    offer_tier(&mut domain, &env, task);
-    let Some(Work::Forge(forge::Event::StepTier { task: got, heard, .. })) = domain.work.pop() else {
-        panic!("released tier step")
-    };
-    assert_eq!(got, task);
-    assert!(heard.released && !heard.cancelled);
+    release_held_tier(&mut domain, &env, task);
 }
 
 #[test]
@@ -1593,6 +1608,7 @@ fn a_done_tier_ends_with_the_verdicts_words() {
         &mut domain,
         &env,
         forge::Request::TierDecision {
+            projection: None,
             task,
             decision: forge::TierDecision::Done { words: Box::from(words.as_slice()) },
             entry: None,
@@ -1825,6 +1841,7 @@ fn a_waiting_tier_ends_its_step_and_is_stepped_on_a_forge_wake() {
         &mut domain,
         &env,
         forge::Request::TierDecision {
+            projection: None,
             task,
             decision: forge::TierDecision::Wait { until: Some(skein_lib::Wall::from_nanos(100)) },
             entry: None,
@@ -1863,7 +1880,12 @@ fn a_tier_effect_without_a_description_is_vetoed_before_it_can_run() {
     forge_request(
         &mut domain,
         &env,
-        forge::Request::TierDecision { task, decision: forge::TierDecision::Wait { until: None }, entry: Some(8) },
+        forge::Request::TierDecision {
+            projection: None,
+            task,
+            decision: forge::TierDecision::Wait { until: None },
+            entry: Some(8),
+        },
     );
     let Some(Work::Forge(forge::Event::VetoTier { task: got, entry: 8 })) = domain.work.pop() else {
         panic!("veto tier entry")
@@ -1877,8 +1899,34 @@ fn a_tier_effect_without_a_description_is_vetoed_before_it_can_run() {
     assert!(domain.work.is_empty());
 }
 
+fn release_held_tier(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits>, task: u64) {
+    use super::{Work, forge, tasks};
+    let release = jig_domain_core::step(
+        &mut domain.core,
+        &crate::limits::environment_core(env),
+        jig_domain_core::Event::Tasks(tasks::Event::Control {
+            reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(123)),
+            by: tasks::Party::Person(1),
+            task,
+            control: tasks::Control::Release { again: None, message: None },
+        }),
+    );
+    assert_eq!(domain.core.tasks.task(task).unwrap().due_reason, tasks::Why::Released, "{release:?}");
+    offer_tier(domain, env, task);
+    let Some(Work::Forge(forge::Event::StepTier { task: got, heard, .. })) = domain.work.pop() else {
+        panic!("released tier step")
+    };
+    assert_eq!(got, task);
+    assert!(heard.released && !heard.cancelled);
+}
+
 /// temper/docs/design/domain/worker.md, 4.4: the root writes C2's worker record.
 #[test]
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    reason = "unit fixtures format expected protocol bytes and resolution text"
+)]
 fn a_merge_jobs_spec_is_its_command_and_its_two_commits() {
     use temper_protocol_worker_wire::v1;
     for (head, head_text) in COMMITS {
@@ -1901,6 +1949,11 @@ fn a_merge_jobs_spec_is_its_command_and_its_two_commits() {
 
 /// temper/docs/design/domain/forge.md, 8.4: a resolution carries the job's result within its words' room.
 #[test]
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    reason = "unit fixtures format expected protocol bytes and resolution text"
+)]
 fn a_resolution_after_a_merge_job_carries_its_result() {
     const OPENING: &[u8] = b"Resolve the merge conflict and push the merge commit";
     const PREFIX: &str = "Resolve the merge conflict and push the merge commit\n\nThe merge job settled what the project's merge command knows and left the rest:\n";
@@ -1917,5 +1970,9 @@ fn a_resolution_after_a_merge_job_carries_its_result() {
     assert_eq!(
         super::change_delegate_status(&super::tasks::MessageKind::Result(super::tasks::ResultKind::Job)),
         Some((super::forge_change::Status::Passed, false, false))
+    );
+    assert_eq!(
+        super::change_delegate_status(&super::tasks::MessageKind::Result(super::tasks::ResultKind::Failed)),
+        Some((super::forge_change::Status::Failed, true, false))
     );
 }

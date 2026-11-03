@@ -78,6 +78,7 @@ pub struct World {
     pub signed_in: Option<u64>,
     pub assigned: Vec<engine::Assignment>,
     pub jobs: Vec<host::JobAssignment>,
+    pub job_workspaces: BTreeMap<u64, engine::ForgeWorkspace>,
     /// Inbox messages delivered after an assignment, as a real worker receives them.
     pub delivered_messages: BTreeMap<(u64, u64), Vec<u64>>,
     pub answers: Vec<temper_engine_domain::CallAnswer>,
@@ -116,6 +117,7 @@ pub struct World {
 }
 
 #[derive(Clone, Copy, Default)]
+#[expect(clippy::struct_excessive_bools, reason = "stories independently configure landing rules, kind and authority")]
 pub struct StoryLimits {
     pub tier: Option<crate::tier_runs::Tier>,
     pub turn: bool,
@@ -130,6 +132,7 @@ pub struct StoryLimits {
     pub result_bytes: Option<u32>,
     pub forge_charter: Option<u32>,
     pub merge_kind: bool,
+    pub resolutions: Option<u32>,
     pub merge_authority: bool,
 }
 
@@ -292,6 +295,7 @@ impl World {
             forge_charter,
             merge_kind,
             merge_authority,
+            resolutions,
             turn,
             landing_members,
             slots,
@@ -710,6 +714,9 @@ impl World {
                     policy.roles[0].authority.delegation.kinds.clone_from(kinds);
                 }
             }
+            if let Some(resolutions) = resolutions {
+                limits.forge.change_policy.resolutions = resolutions;
+            }
             if let Some(stall) = stall {
                 limits.forge.change_policy.stall = stall;
             }
@@ -890,6 +897,7 @@ impl World {
             signed_in: None,
             assigned: Vec::new(),
             jobs: Vec::new(),
+            job_workspaces: BTreeMap::new(),
             delivered_messages: BTreeMap::new(),
             answers: Vec::new(),
             call_errors: Vec::new(),
@@ -1019,7 +1027,7 @@ impl World {
     pub fn restart_with_charter(&mut self, with_read: bool, with_change: bool, forge_charter: Option<u32>) {
         assert!(self.store.pending.is_empty(), "the chosen cut resolves store uncertainty first");
         assert!(self.pending.is_empty(), "old API terminals are drained at this cut");
-        let mut fresh = Self::configured_limits(
+        let fresh = Self::configured_limits(
             with_read,
             with_change,
             false,
@@ -1028,9 +1036,21 @@ impl World {
             None,
             StoryLimits { brief: Some(self.env.limits.brief), forge_charter, ..StoryLimits::default() },
         );
-        self.restart_config = fresh.restart_config;
-        std::mem::swap(&mut self.root, &mut fresh.root);
-        std::mem::swap(&mut self.out, &mut fresh.out);
+        self.restart_domain(fresh.restart_config, with_change);
+    }
+
+    /// Restart with the same tier and project configuration, retaining only durable rows.
+    pub fn restart_same(&mut self) {
+        self.restart_domain(crate::oracle::config::copy(&self.restart_config), true);
+    }
+
+    fn restart_domain(&mut self, config: engine::Config, with_change: bool) {
+        assert!(self.store.pending.is_empty(), "store answers precede a restart");
+        assert!(self.pending.is_empty(), "API answers precede a restart");
+        self.root =
+            engine::Domain::new(crate::oracle::config::copy(&config), &self.env.limits).expect("restart config");
+        self.restart_config = config;
+        self.out = Queue::uncapped();
         self.events.clear();
         self.held_write_answers.clear();
         self.hold_write_answers = None;
@@ -1254,7 +1274,12 @@ impl World {
                         self.signed_in = Some(sign_in);
                     }
                     Delivery::Assigned { assignment, .. } => self.assigned.push(assignment),
-                    Delivery::AssignedJob { job, .. } => self.jobs.push(job),
+                    Delivery::AssignedJob { job, workspace, .. } => {
+                        if let Some(workspace) = workspace {
+                            self.job_workspaces.insert(job.run.raw(), workspace);
+                        }
+                        self.jobs.push(job);
+                    }
                     Delivery::Read { reply, answer } => self.reads.push((reply, answer)),
                     Delivery::Link { down: host::LinkDown::Message { run, attempt, name, .. }, .. } => {
                         self.delivered_messages.entry((run.raw(), attempt.raw())).or_default().push(name.raw());

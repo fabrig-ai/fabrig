@@ -4,7 +4,7 @@
 
 - **Design lags:**
   - **3, 5, 14: `change` and its fields (N22, N13).** `../domain/agent.md`,
-    4.3.1: `change` names no requester's branch, `questions`, LLM choice
+    4.3.1: `change` names no `questions`, LLM choice
     or producer's charter, nor `repairs`. `../domain/forge.md`, 8.1 and 8.9: a
     change's producer runs under the forge's change charter, and
     `../protocol/configuration.md`, 13.2 numbers the forge's charters for

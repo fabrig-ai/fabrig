@@ -61,13 +61,29 @@ fn next_job(world: &mut World, task: u64, optimistic: bool) -> host::JobAssignme
         }
         world.tick();
     }
-    panic!("merge job was not assigned: {:?}; errors {:?}", change_row(world, task), world.call_errors);
+    let child = change_row(world, task).delegate.map(|(child, _)| child);
+    let phase = child.and_then(|child| world.root.tasks().task(child)).map(|row| &row.phase);
+    panic!(
+        "merge job was not assigned: {:?}; child phase {:?}; errors {:?}",
+        change_row(world, task),
+        phase,
+        world.call_errors
+    );
 }
 
 fn check_job(world: &World, task: u64, job: &host::JobAssignment, head: u64, base: u64) {
     assert_eq!(job.kind, host::JobKind(forge_top::MERGE_KIND));
     assert_eq!(job.deadline, Duration::from_secs(600));
-    assert!(job.workspace.is_some());
+    let workspace = job.workspace.as_ref().expect("job workspace");
+    assert_eq!(workspace.workstream, task, "the change owns the checkout cache");
+    let items = &world.job_workspaces.get(&job.run.raw()).expect("typed job items").repositories;
+    assert_eq!(items.len(), 1);
+    let item = &items[0];
+    let change = change_row(world, task);
+    assert_eq!(item.provider, change.repository);
+    assert_eq!(item.name.as_ref(), b"home");
+    assert_eq!(item.push.as_deref(), Some(change.branch.as_ref()));
+    assert_eq!(item.start, engine::ForgeStart::Merge { branch: change.branch.clone(), base: translate::commit(base) });
     let row = live_task(world, job.run.raw());
     assert_eq!(row.requester, tasks::Party::Task(task));
     assert_eq!(row.executor, tasks::Executor::Job { kind: 3 });
@@ -143,7 +159,6 @@ fn landed(world: &mut World, task: u64, head: u64) {
         "{:?}",
         change_row(world, task)
     );
-    assert_eq!(world.merges, 1);
     assert!(world.writes.iter().any(|write| matches!(write, skein_forge::api::Write::Merge { head: merged, .. } if *merged == translate::commit(head))));
 }
 
@@ -157,7 +172,7 @@ fn a_conflict_into_a_goal_branch_is_settled_by_the_merge_job_and_merges() {
         world.writes.iter().any(|write| matches!(write, skein_forge::api::Write::Merge { .. })),
         "the forge refused the optimistic merge for its conflict"
     );
-    assert_eq!(world.merges, 0);
+    assert_eq!(world.merges, 1, "the conflicting merge was attempted once");
     assert!(live_task(&world, task).authority.delegation.kinds.contains(&tasks::AuthorityExecutor::Job(3)));
     let merged = push_merge(&mut world, task, head, base);
     finish_job(&mut world, &job, RESULT);
@@ -271,29 +286,82 @@ fn a_merge_job_needs_its_declared_kind_authority_and_spec_room() {
     }
 }
 
-/// temper/docs/design/domain/forge.md, 8.4: a merge job's permanent failure holds as a failed resolution does.
+/// jig/docs/design/domain/engine.md, 7.5: transport failures exhaust retries and hold the job.
 #[test]
-fn a_failed_merge_job_holds_the_change() {
-    let (mut world, task, _, _) = pushed_change_in(world(false, true, true).with_merge_job(COMMAND), true, GOAL);
-    let job = next_job(&mut world, task, false);
-    let event = world.protocol.answer_job(
-        CHANNEL,
-        job.run.raw(),
-        job.attempt.raw(),
-        host::JobEnding::Failed {
-            failure: host::JobFailure::Failed,
-            detail: b"merge command failed".as_slice().into(),
-            work: host::Work { left: None, saved: None },
-        },
-    );
-    world.send(event);
+fn a_failed_merge_job_is_held_after_its_retries() {
+    let (mut world, task, head, base) = pushed_change_in(world(false, true, true).with_merge_job(COMMAND), true, GOAL);
+    // A permanent failure is terminal only after the configured retry allowance.
+    let mut last_job = None;
+    for _ in 0..=world.env.limits.tasks.retries.permanent.retries {
+        let job = next_job(&mut world, task, false);
+        let event = world.protocol.answer_job(
+            CHANNEL,
+            job.run.raw(),
+            job.attempt.raw(),
+            host::JobEnding::Failed {
+                failure: host::JobFailure::Undelivered(host::DeliveryOutcome::Refused),
+                detail: b"merge delivery refused".as_slice().into(),
+                work: host::Work { left: None, saved: None },
+            },
+        );
+        world.send(event);
+        last_job = Some(job);
+    }
+    let job = last_job.expect("at least the first attempt");
     for _ in 0..STEPS {
-        if matches!(change_row(&world, task).change.state, change::State::Held { why: change::Hold::Failed, .. }) {
+        if matches!(
+            live_task(&world, job.run.raw()).phase,
+            tasks::Phase::Held { why: tasks::Hold::Failures(tasks::Class::Permanent), .. }
+        ) {
             break;
         }
         world.tick();
     }
-    assert!(matches!(change_row(&world, task).change.state, change::State::Held { why: change::Hold::Failed, .. }));
+    assert!(matches!(
+        live_task(&world, job.run.raw()).phase,
+        tasks::Phase::Held { why: tasks::Hold::Failures(tasks::Class::Permanent), .. }
+    ));
+    assert_eq!(change_row(&world, task).change.resolutions, 1, "no additional conflict delegate is made");
+    assert_eq!(world.merges, 0);
     assert_eq!(world.assigned.len(), 2);
+    let revision = live_task(&world, job.run.raw()).revisions.hold;
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(94)),
+        sign_in: world.signed_in.expect("owner signed in"),
+        key: [94; 16],
+        ask: people::Ask::Release { project: 1, task: job.run.raw(), revision, again: None },
+    }));
+    let retry = next_job(&mut world, task, false);
+    let merged = push_merge(&mut world, task, head, base);
+    finish_job(&mut world, &retry, RESULT);
+    landed(&mut world, task, merged);
+    world.close();
+}
+
+/// temper/docs/design/domain/worker.md, 4.4: a retry prepares its workspace afresh after a transient failure.
+#[test]
+fn a_failed_merge_jobs_retry_keeps_the_changes_workspace() {
+    let (mut world, task, head, base) = pushed_change_in(world(false, true, true).with_merge_job(COMMAND), true, GOAL);
+    let first = next_job(&mut world, task, false);
+    check_job(&world, task, &first, head, base);
+    let event = world.protocol.answer_job(
+        CHANNEL,
+        first.run.raw(),
+        first.attempt.raw(),
+        host::JobEnding::Failed {
+            failure: host::JobFailure::Unprepared(host::Preparation::Transient),
+            detail: b"checkout temporarily unavailable".as_slice().into(),
+            work: host::Work { left: None, saved: None },
+        },
+    );
+    world.send(event);
+    let retry = next_job(&mut world, task, false);
+    assert_eq!(retry.run, first.run);
+    assert_ne!(retry.attempt, first.attempt);
+    check_job(&world, task, &retry, head, base);
+    let merged = push_merge(&mut world, task, head, base);
+    finish_job(&mut world, &retry, RESULT);
+    landed(&mut world, task, merged);
     world.close();
 }

@@ -3,7 +3,7 @@ id = "merge-r1-paths"
 part = "change-merge"
 kind = "migration"
 needs = ["change-merge-route", "merge-kind", "merge-reference"]
-files = ["temper/crates/temper-worker-domain-tooling/src/**", "temper/crates/temper-engine-domain-forge/src/items.rs", "temper/tests/worker/domain/**", "tools/merge/**"]
+files = ["temper/crates/temper-worker-domain-tooling/src/**", "temper/crates/temper-engine-domain-forge/src/items.rs", "temper/crates/temper-engine-domain-forge/src/domain.rs", "temper/crates/temper-worker-domain/src/tests/jobs.rs", "temper/tests/worker/domain/**", "tools/merge/**"]
 effort = "medium"
 minutes = 75
 +++
@@ -68,3 +68,26 @@ Acceptance:
 ## Report
 
 As the implementer's text says; name the revision (R1) in the commit's message.
+
+## Answers
+
+2026-11-03. **May this task also change `temper-worker-domain/src/tests/jobs.rs` and
+`temper-engine-domain-forge/src/domain.rs` for R1's fixture and the preflight's size?** Yes, both,
+each a reader of R1's command form, which R1 gives this task (`notes/contracts.md`, R1:
+`change-merge-route` builds to C2, this task moves its command to R1). `files` above now hold
+them.
+
+- `jobs.rs`: the fixture's command becomes `home/tools/check` (line 71), so its assertion's
+  `<directory>/home/tools/check` holds; nothing else in the file.
+- `domain.rs`, `merge_available` alone: the measured length counts the repository's name and its
+  `/` before `command.len()`, as the root's encoder now writes it, so a spec the encoder refuses
+  is never admitted; write the sum with checked arithmetic, which settles the lint at that line.
+  Keep the hunk to that sum: `change-merge-route` owns the rest of the file and may be editing it
+  at once. The other inherited lints (lines 2615, 2721, 2753) stay its: Left.
+- `tools/merge/README.md`'s `home/` layout: correct that line too (`tools/merge/**` is yours).
+- The inherited blockers stay Left, as reported: `tests/verification.rs`'s missing
+  `StepInput.merge_job` and the merge job's workspace handoff (both `change-merge-route`'s, the
+  latter by its own answer of today). The forge unit test and the four engine-world `merge_job`
+  stories that they block are unobserved, not failed by this task; run them once each after
+  merging `origin/reference-m7b/change-merge-route` if it has moved, and report what they show.
+  With the worker unit suite green and the rest as reported, acceptance holds.

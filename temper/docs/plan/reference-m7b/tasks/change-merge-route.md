@@ -3,7 +3,7 @@ id = "change-merge-route"
 part = "change-merge"
 kind = "feature"
 needs = ["change-merge-surface", "change-merge-steps", "merge-settings"]
-files = ["temper/crates/temper-engine-domain/src/route/forge_route.rs", "temper/crates/temper-engine-domain/src/route/forge_route/**", "temper/crates/temper-engine-domain/Cargo.toml", "temper/crates/temper-engine-domain-forge/src/domain.rs", "temper/crates/temper-engine-domain-forge/src/lib.rs", "temper/tests/engine/domain/src/**", "temper/tests/engine/domain/tests/suite/forge_routes/**", "temper/tests/engine/domain/tests/suite/forge_routes.rs"]
+files = ["temper/crates/temper-engine-domain/src/route/forge_route.rs", "temper/crates/temper-engine-domain/src/route/forge_route/**", "temper/crates/temper-engine-domain/Cargo.toml", "temper/crates/temper-engine-domain-forge/src/domain.rs", "temper/crates/temper-engine-domain-forge/src/lib.rs", "temper/tests/engine/domain/src/**", "temper/tests/engine/domain/tests/suite/forge_routes/**", "temper/tests/engine/domain/tests/suite/forge_routes.rs", "temper/crates/temper-engine-domain/src/route/now.rs", "temper/crates/temper-engine-domain/src/route/asks.rs", "temper/crates/temper-engine-domain/src/link.rs", "temper/crates/temper-engine-domain/src/decision.rs", "temper/crates/temper-engine-domain/src/boundary.rs", "temper/crates/temper-engine-domain/src/domain.rs", "temper/crates/temper-engine-domain/src/tests.rs", "temper/crates/temper-service/src/route.rs", "temper/crates/temper-service/src/translate.rs", "temper/crates/temper-service/src/clients/translation.rs", "temper/crates/temper-service/src/tests/**", "temper/crates/temper-engine-domain-forge/src/tests/verification.rs", "jig/crates/jig-domain-core/src/vocabulary.rs", "jig/crates/jig-domain-core/src/routing/mod.rs", "jig/crates/jig-domain-core/src/routing/run/preparation.rs", "jig/crates/jig-domain-core/src/routing/run/jobs.rs", "jig/crates/jig-domain-core/src/tests/jobs.rs", "jig/crates/jig-domain-core/src/tests/runs/windows.rs", "jig/testing/jig-test-domain/src/routes.rs", "jig/examples/ops/domain/src/route.rs"]
 effort = "high"
 minutes = 170
 +++
@@ -115,3 +115,84 @@ Acceptance:
 ## Report
 
 As the implementer's text says; say how the change's authority reached the facts.
+
+## Answers
+
+2026-11-03. **May this task also build the job's workspace handoff across the engine's root and
+the service, or should a prerequisite task supply it?** This task builds it: its stories cannot
+pass without it, no task of the plan owns it, and the run already holds the code. `files` above
+now hold the root's `route/now.rs`, `route/asks.rs`, `link.rs`, `decision.rs`, `boundary.rs`,
+`domain.rs` and `tests.rs`, and the service's `route.rs`, `translate.rs`,
+`clients/translation.rs` and `src/tests/`. The shape, as a run's workspace is handed over today:
+
+- **Prepared as a run's** (`now.rs`, `workspace`): a job task's workspace is made and its names
+  claimed as a run's, the prepared workspace kept by task, and `WorkspacePrepared` carries
+  `workspace: Some(_)` for a job whose workspace has repositories (the bytes the core keeps are
+  the root's own token for it; the core reads none of them). An agent run's answer stays
+  `workspace: None`, unchanged.
+- **Claimed as a run's** (`asks.rs`, `JobClaimed`): the root takes the kept workspace, makes the
+  forge's `Names` and own holds as `run_prepared` does, keeps the typed `ForgeWorkspace` for the
+  delivery, and starts the job on the prepared workspace's workstream (the change's, so its
+  checkout cache is shared), not the task's number.
+- **Delivered typed** (`link.rs`, `decision.rs`): `Delivery::AssignedJob` carries the job's
+  `ForgeWorkspace` (or `None`) in place of opaque item bytes; the service's `AssignedJob` arm
+  translates it with `translate.rs`'s `repository_item`, as `items` does for a run (one helper
+  both call), and sends the encoded items as the job's part. Remotes, git programs and accounts
+  stay the service's; the root encodes no worker item.
+- **No flight outlives its attempt:** the kept workspace is removed at the job's claim, at
+  `RunPreparationFailed` and wherever a run's is, so a failed job's retry prepares afresh and
+  `"one workspace flight per task"` holds; the failed-job story pins it.
+- **Tests:** the world stories above pin the root (a job's assignment has one repository item,
+  the change's, writable, `Start::Merge`); one service test in `src/tests/` beside the agent
+  path's translation test checks an `AssignedJob` with a forge workspace becomes the worker's
+  items, and one with none sends no part. Add `heavy cargo nextest run -p temper-service -E
+  'test(/job/)'` and clippy on `temper-service` to Step 4.
+
+Nothing else changes: the exhaustion fixture is this task's to repair as the run says, and a
+catch-up's `Merge { from: None }` head stays `catch-up-call`'s.
+
+2026-11-03. **May this task extend into Jig's job claim so the root supplies the writer names
+apart from the authority paths, or should a prerequisite supply it?** This task makes it: its
+stories cannot pass without it, no task of the plan owns it, and it is one field and one loop.
+The core is wrong here, not temper: a claim holds "the writer slots of the holds its workspace
+writes" (`jig/docs/design/domain/engine.md, 7.1`, step 3), the names its connectors translate
+and a run's root returns with `ClaimPrepared`; a job's claim is "as a run's does" (7.5), yet
+`routing/run/jobs.rs`, `prepared`, names its slots by the authority's segments. `files` above
+now hold the Jig files below and `temper-engine-domain-forge/src/tests/verification.rs` (the
+compiler-required `merge_job: false` the run reported). The shape:
+
+- **The root names a job's holds** (`vocabulary.rs`): `Event::WorkspacePrepared` gains
+  `holds: Box<[tasks::Name]>`, documented as a job's held names, its connectors' translation
+  of `writes` (engine.md, 7.1, step 3); an agent's is empty, its names coming with
+  `ClaimPrepared` as today. `routing/mod.rs` and `preparation.rs` pass it to `jobs::prepared`.
+- **The core claims them, and still checks the writes** (`jobs.rs`, `prepared`): the claim's
+  `writes` are `holds`, deduplicated, past `limits.tasks.holdings` held for `Hold::Effects` as
+  now; the loop over `write.effect.name.segments` and `additional` goes. `admission` still
+  checks the authority `writes`, unchanged. A job with authority writes and no holds claims no
+  slot, as a run whose root returns none.
+- **Every maker of the event fills it:** temper's `route/now.rs`, `workspace`, for a job with
+  the hub names of its workspace's `names` (`hub_name`, as `claim_workspace` makes them; one
+  helper both call), the names its parent's tasks hold covers; the forge's `Names` and own
+  holds stay at `JobClaimed`, as the run built them. `jig-test-domain`'s `routes.rs` with the names it
+  keeps in `workspace_writes` for a job, empty for an agent; the ops example's `route.rs` and
+  the core's tests with empty holds where they make none.
+- **One core test** in `tests/jobs.rs`: `a_job_claims_the_names_its_root_prepared`, a job
+  whose authority write is one path and whose `holds` another: the claim's `writes` are the
+  `holds`, and the job is claimed.
+- **Step 4 adds** `heavy cargo nextest run -p jig-domain-core --lib -E 'test(/job/)'`, then the
+  package's tests; `heavy cargo check -p jig-test-domain -p jig-ops-domain --tests`; clippy on
+  `jig-domain-core`, `--all-targets -- -D warnings`. Jig names no temper (the field is generic).
+
+## Rebase (2026-11-03, step merge, foreman reference-m7b/change-merge-route/foreman-3)
+
+resolve the four merge conflicts while preserving merge-job routing and incoming tier reporting.
+The merge refusal is the branch’s: all four conflicts reproduce against `origin/reference-m7b/integration`.
+Incoming commit `f012f783bf` adds tier reporting; merge `bc2c7c68e3` updates the light-rule conflict story.
+
+- `temper/crates/temper-engine-domain-forge/src/domain.rs`: retain both complete functions at EOF: this branch’s `merge_available` and incoming `bind`. Keep incoming `Event::TierWords` handling and the extracted `Event::Bind` call.
+- `temper/crates/temper-engine-domain/src/route/asks.rs`: retain this branch’s `step_made` signature with `env` and `decision`, its updated caller, and synchronous `super::forge_event(...Delegated...)` delivery before job activation. Add incoming tier-task detection and queued `Event::TierWords` at the start of that function.
+- `temper/crates/temper-engine-domain/src/route/forge_route/tests.rs`: retain both merge-job tests and incoming `release_held_tier`, each with its own closing brace. Preserve incoming tier assertions and `projection: None` fields.
+- `temper/tests/engine/domain/tests/suite/forge_routes/light_rules.rs`: retain two separate stories. Keep incoming `a_conflict_under_rules_asking_neither_delegates_resolution` with default resolution budget, observed-base delegation, and no update. Keep this branch’s `a_conflict_under_rules_asking_neither_says_why_it_holds` with `Some(0)`, waiting for the hold and asserting `Hold::Resolutions`, no source, and no delegate. Keep the configurable fixture helper.
+
+These stories cover distinct requirements of `temper/docs/design/domain/forge.md, 8.4`: ordinary conflicts resolve; exhausted resolution budgets hold.
+Validate the combined changes with the spec’s focused merge/light-rule tests and required package checks.

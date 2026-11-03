@@ -183,7 +183,10 @@ red by earlier failures it does not run (5.3).
   landing is cleared in every tier following the branch it landed on
   (at once, where no tier follows it: section 2); its branch's
   hold stays until then, and the branch is deleted as the task closes
-  (`forge.md`, 11), by queue and by turn alike.
+  (`forge.md`, 11), by queue and by turn alike. A goal's landing, a
+  change on its requester's held branch (`forge.md`, 8.1), holds none:
+  the goal's own branch stays the goal's, deleted as the goal closes
+  once this change has landed it.
 - **Its result is given at cleared,** naming the landing and, for a red
   one, the landing that repaired it. Its goal waits for it as for any
   delegate's result; a coordinator that goes on sooner does not wait,
@@ -268,6 +271,18 @@ red by earlier failures it does not run (5.3).
   grant of it is needed. A fault past `tier_retries` holds it. The
   tier's record names its task; at most one per tier and repository
   lives, so they are bounded by the repositories and `tiers`.
+- **The run task's words** start with `Tier NAME run N`, then name the
+  repository, the full tested commit and the owned `temper/tier/NAME.N`
+  branch at creation. Each part is identified separately: the judged
+  run, a failed-test rerun and each bisection probe, with its commit and
+  branch, and the forge run number and URL once observed. The procedure
+  projects these facts through its own task's specification words in a
+  due step (jig's `domain/tasks.md`, 5.3). New part words are saved
+  before its effects are issued; the procedure continues at a deadline
+  due immediately. The task keeps them after
+  completion, branch release and restart. Observations not yet projected
+  are kept on the tier row until a step acknowledges their task words,
+  including across follower replacement and restart.
 - **Effects:** the tiers' dispatches and reruns are `landing.md`, 11's
   kinds 16 and 17, their branches' creation kind 9, released at the
   task's close; statuses and comments are kinds 6 and 7; each its run's
