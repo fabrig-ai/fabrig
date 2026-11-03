@@ -479,6 +479,7 @@ pub(super) fn decode_limit_kind(value: wire::LimitKind) -> domain::LimitKind {
 #[expect(clippy::too_many_lines, reason = "one exhaustive translation preserves every stored refusal variant")]
 pub(crate) fn encode_refusal(value: &domain::Refusal, limits: &wire::Limits) -> Result<wire::Refusal, wire::Problem> {
     Ok(match value {
+        domain::Refusal::Forgotten { .. } => unreachable!("a restore: settings-store"),
         domain::Refusal::Judged { at, setting, why } => wire::Refusal::Judged(wire::RefusalJudged::new(
             limits,
             wire::RefusalJudgedParts { at: *at, setting: encode_setting(*setting, limits)?, why: why.clone() },

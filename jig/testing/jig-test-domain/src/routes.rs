@@ -838,6 +838,8 @@ pub(super) fn route_connector(
 /// Translate the core's choice without choosing a judge or admitting a write.
 fn route_effect_ask(domain: &mut Domain, number: u16, ask: core::effects::connector::Ask, work: &mut Queue<Work>) {
     let event = match ask {
+        core::effects::connector::Ask::ForgetReplaced { .. }
+        | core::effects::connector::Ask::RestoreSettings { .. } => unreachable!("a restore: restore-connector"),
         core::effects::connector::Ask::ResolveUncertain { entry, again } => {
             connector::Event::Resolve { entry, repeat: again }
         }
@@ -1069,6 +1071,7 @@ fn resource_reports(
 
 fn application_answer(outcome: people::Outcome) -> connector::ApplicationCoreAnswer {
     match outcome {
+        people::Outcome::Restored { .. } => unreachable!("a restore: restore-request"),
         people::Outcome::Released { .. } => connector::ApplicationCoreAnswer::Released,
         people::Outcome::Refused(why) => {
             connector::ApplicationCoreAnswer::Refused(crate::application_facts::refusal(why))

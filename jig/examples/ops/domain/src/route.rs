@@ -720,6 +720,9 @@ fn core_ask(
 fn effect_ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: connector::Ask, work: &mut Queue<Work>) {
     let destination = jig_ops_domain_connectors::connector(number);
     match (destination, ask) {
+        (_, connector::Ask::ForgetReplaced { .. } | connector::Ask::RestoreSettings { .. }) => {
+            unreachable!("a restore: restore-connector")
+        }
         (Some(Connector::Infrastructure | Connector::Observability) | None, connector::Ask::Describe { owner }) => {
             work.push(Work::Core(core::Event::EffectConnector(connector::Event::DescribeRefused { owner })));
         }

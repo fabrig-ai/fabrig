@@ -180,6 +180,7 @@ pub(crate) fn tag_people_part(
                 Request::Write(Write::Erase(Key::People(key)))
             }
             people::Request::Reply { to, reply } => match reply {
+                people::Reply::Outcome(people::Outcome::Restored { .. }) => unreachable!("a restore: restore-request"),
                 reply @ (people::Reply::Full { .. }
                 | people::Reply::Again(people::Again::Busy)
                 | people::Reply::Outcome(people::Outcome::Again(people::Again::Busy))) => {
@@ -272,6 +273,7 @@ pub(crate) fn tag_people_part(
                 }
                 let party = super::dispatch::Party { request, person, project, role };
                 match *ask {
+                    people::Ask::Restore { .. } => unreachable!("a restore: restore-request"),
                     people::Ask::RemoveProject { project, grace } => {
                         let result = if !core.open_project(project) {
                             Err(people::Refusal::Unknown)

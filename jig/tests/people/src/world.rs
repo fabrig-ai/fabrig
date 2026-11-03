@@ -590,6 +590,7 @@ impl World {
                     let key = self.context.expect("a routed call carries the client's key");
                     assert_eq!(person, key.person);
                     let kind = match ask.as_ref() {
+                        Ask::Restore { .. } => unreachable!("a restore: restore-request"),
                         Ask::Application { .. } => RouteKind::Application,
                         Ask::Create { .. } => RouteKind::Goal,
                         Ask::Propose { action: people::Action::Batch(_), .. } | Ask::Withdraw { .. } => {
@@ -674,6 +675,7 @@ impl World {
                         self.deferred.push((request, key));
                     } else {
                         match *ask {
+                            Ask::Restore { .. } => unreachable!("a restore: restore-request"),
                             Ask::Compound { project, operations } => {
                                 let outcome = if self.settings.authority_refuses {
                                     Outcome::CompoundRefused { at: 1, why: Refusal::Unknown }
@@ -987,6 +989,7 @@ impl World {
                                         Outcome::Refused(Refusal::Taken { by })
                                     }
                                     Some(PersonClaim { holder, answer: None }) => match act {
+                                        Ask::Restore { .. } => unreachable!("a restore: restore-request"),
                                         Ask::TakePerson { .. } if holder.is_none() => {
                                             person_claims.push((task, Some(person)));
                                             Outcome::PersonTaken { task }

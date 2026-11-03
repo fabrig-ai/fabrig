@@ -230,6 +230,20 @@ fn decide_with(
     if keep_previous {
         core.held.heads.insert(previous, core.current.head.clone()).expect("held heads preflighted");
     }
+    let mut items = skein_lib::List::with_capacity(u32::try_from(change.items.len()).expect("bounded revision items"));
+    for item in &change.items {
+        let replaced = match item.setting {
+            s::Setting::ProjectPolicy { .. } => unreachable!("a project's policy: policy-change"),
+            s::Setting::Charter(_)
+            | s::Setting::Template(_)
+            | s::Setting::Policy(_)
+            | s::Setting::Rules
+            | s::Setting::Application { .. } => core.current.replaced(item.setting),
+        };
+        items
+            .push(s::RevisionItem { setting: item.setting, edit: item.edit.clone(), replaced })
+            .expect("revision items");
+    }
     let writes = s::apply(&mut core.current, &change.items, number);
     core.current.head =
         s::Head { number, against: previous, at: env.wall, by, proposal, moved: change.running == s::Running::Moves };
@@ -239,7 +253,7 @@ fn decide_with(
         None => None,
     };
     let applications = s::application::keep(core, &mut routed.out, kept, number, proposal_number);
-    let revision = s::Revision { head: core.current.head.clone(), items: change.items, applications };
+    let revision = s::Revision { head: core.current.head.clone(), items: items.into_boxed(), applications };
     let (writes, oldest) = s::restart::revision_writes_with_hold(
         Some(revision),
         writes,

@@ -267,6 +267,7 @@ impl Core {
             after = Some(key);
             let source = Key::People(people::Key::Answer(key));
             match outcome {
+                people::Outcome::Restored { .. } => unreachable!("a restore: restore-request"),
                 people::Outcome::Applied { connector, .. } => {
                     assert!(self.connectors.contains(connector), "{source:?} links missing connector {connector}");
                 }
