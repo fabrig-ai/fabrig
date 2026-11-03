@@ -63,3 +63,17 @@ Acceptance (`notes/contracts.md`, section 3; `temper/docs/design/domain/after-la
 ## Report
 
 As the implementer's text asks.
+
+## Answers
+
+2026-11-03. May this task add a public read of the retained `Verification` row for
+`change_verification_words`? Yes: add `Domain::landing_verification(&self, repository:
+skein_forge::api::Repository, commit: &skein_forge::api::Commit) -> Option<&Verification>` in
+`verification.rs`, beside `change_verification`, with a one-line doc citing
+`temper/docs/design/domain/after-landing.md`, 6: it returns the live row of (repository,
+commit) from `self.verifications`, or `None`, and changes nothing. It is this spec's public
+item (`notes/contracts.md`, section 3, now names it); add no other. `change_verification_words`
+reads the cleared change's merge row through it (the `merge` it is given and the change row's
+`repository`). Test it through the result words in `forge_route/tests.rs`; no story of its own
+is needed. `ChangeRow.repairs` and `TierRepair.by` are `store-surface`'s: this task needs it,
+so start from a trunk that holds its merge, and define neither field here.
