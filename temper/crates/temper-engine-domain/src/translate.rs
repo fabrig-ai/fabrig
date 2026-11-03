@@ -23,6 +23,8 @@ pub struct Config {
     pub core: jig_domain_core::Config,
     /// Forge landing requirements and their connector-owned judge parameters.
     pub landing: LandingPolicy,
+    /// The forge's kind defaults at this start (temper/docs/design/domain/root.md, 5.6).
+    pub kinds_stock: Box<[forge::settings::Stock]>,
     /// Forge writer identities and this deployment's branch namespace.
     pub forge: skein_forge_client::Config,
     /// Each forge's git identity, an application credential (D10;

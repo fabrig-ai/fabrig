@@ -76,6 +76,7 @@ fn generated() -> (engine::Config, engine::Limits) {
     let forges = Box::new([]);
     (
         engine::Config {
+            kinds_stock: Box::default(),
             machine: Some(crate::system::machine_config(&settings.machine)),
             period_span: crate::stock::PERIOD_SPAN,
             core,

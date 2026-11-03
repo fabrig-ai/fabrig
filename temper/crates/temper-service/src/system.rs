@@ -219,9 +219,12 @@ impl Service {
         let notes = Queue::with_capacity(settings.limits.forge.forges);
         let configured = Box::new([]);
         let workers = workers::Workers::configured(&mut settings, seeds.deployment)?;
+        let mut core = jig_protocol_config::core(&settings.jig, seeds.deployment, seeds.seed);
+        core.kinds = crate::stock::kinds(&limits, *core.connectors.first().expect("checked forge connector"));
         let config = temper_engine_domain::Config {
+            kinds_stock: crate::stock::forge_defaults(&settings.landing, settings.charter),
             period_span: crate::stock::PERIOD_SPAN,
-            core: jig_protocol_config::core(&settings.jig, seeds.deployment, seeds.seed),
+            core,
             landing: settings.landing,
             forge: forge_config,
             identities,
