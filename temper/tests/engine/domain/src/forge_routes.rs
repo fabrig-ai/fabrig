@@ -352,7 +352,7 @@ impl World {
                 limits.tasks.depth = 4;
                 limits.tasks.parameters = 8;
                 limits.tasks.spec_bytes = 512;
-                limits.tasks.executor_kinds = 4;
+                limits.tasks.executor_kinds = 5;
                 limits.tasks.charters = 4;
                 let mut producer = walking::charter();
                 producer.number = 2;
@@ -360,16 +360,19 @@ impl World {
                 reviewer.number = 4;
                 reviewer.policy.modify = false;
                 reviewer.policy.agents = false;
-                config.core.defaults.charters = Box::new([walking::charter(), producer, reviewer]);
+                let mut foreman = reviewer.clone();
+                foreman.number = 6;
+                foreman.policy.shell = false;
+                config.core.defaults.charters = Box::new([walking::charter(), producer, reviewer, foreman]);
                 config.forge_charter = forge_charter.unwrap_or(1);
                 limits.tasks.authority_grants = 10;
                 limits.journal.run_bytes = 8192;
                 limits.tasks.authority_segments = 9;
                 limits.tasks.authority_bytes = 512;
-                limits.tasks.contract_choices = 2;
+                limits.tasks.contract_choices = 3;
                 limits.tasks.inbox_messages = 8;
                 limits.tasks.inbox_bytes = 1024;
-                limits.authority.executors = 4;
+                limits.authority.executors = 5;
                 limits.authority.batch = 2;
                 limits.authority.grants = 10;
                 limits.authority.segments = 8;
@@ -494,6 +497,7 @@ impl World {
                         authority::Executor::Charter(1),
                         authority::Executor::Charter(2),
                         authority::Executor::Charter(4),
+                        authority::Executor::Charter(6),
                         authority::Executor::Procedure(2),
                     ]);
                     rules.ceiling.delegation.tasks = 12;
@@ -527,8 +531,8 @@ impl World {
                 if turn || tier.is_some() {
                     limits.authority.grants = 14;
                     limits.tasks.authority_grants = 14;
-                    limits.authority.executors = 6;
-                    limits.tasks.executor_kinds = 6;
+                    limits.authority.executors = 7;
+                    limits.tasks.executor_kinds = 7;
                     limits.tasks.result_bytes = 256;
                     limits.journal.run_bytes = 32768;
                     if let Some(slots) = landing_members {
@@ -546,6 +550,7 @@ impl World {
                         authority::Executor::Charter(1),
                         authority::Executor::Charter(2),
                         authority::Executor::Charter(4),
+                        authority::Executor::Charter(6),
                         authority::Executor::Procedure(2),
                         authority::Executor::Procedure(3),
                         authority::Executor::Procedure(4),
@@ -837,6 +842,7 @@ impl World {
         store_limits.tasks.executor_kinds = limits.tasks.executor_kinds;
         store_limits.authority.executors = limits.authority.executors;
         store_limits.tasks.charters = limits.tasks.charters;
+        store_limits.tasks.contract_choices = limits.tasks.contract_choices;
         if stock.is_some() {
             store_limits.forge.issue_policy = limits.forge.issue_policy;
             store_limits.forge.client.op_bytes = limits.forge.client.op_bytes;
@@ -1015,7 +1021,7 @@ impl World {
         if !self.assigned.is_empty() {
             self.events.push_back(protocol::hello_slots(
                 Token::new(7),
-                if with_change { 2 } else { 1 },
+                self.oracle_peer.map_or(if with_change { 2 } else { 1 }, |(_, _, slots)| slots),
                 self.assigned
                     .iter()
                     .filter(|assignment| matches!(self.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(assignment.task)))), Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))) if matches!(row.phase, tasks::Phase::Active(tasks::Active::Running { attempt }) if attempt == assignment.attempt)))

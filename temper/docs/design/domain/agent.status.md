@@ -11,4 +11,4 @@ The remaining gaps concern charters, settings, brief admission and result delive
   the task's authority alone decides (`temper-engine-smith/src/calls.rs`).
   4.3, 8.1: the configuring agent: the stock's template and charter 3.
   4.4: a verdict's follow-up tasks. 8: a change's agents under charters of its own
-  (`forge.md`, 8.1). 8: a change's foremen: `change` refuses questions `foreman`.
+  (`forge.md`, 8.1).
