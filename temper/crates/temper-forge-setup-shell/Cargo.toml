@@ -22,7 +22,7 @@ skein-json.workspace = true
 skein-world.workspace = true
 skein-scratch.workspace = true
 skein-tls-world.workspace = true
-rustls.workspace = true
+rustls = { workspace = true, features = ["std"] }
 temper-service.workspace = true
 skein-forge-connection.workspace = true
 jig-protocol-config.workspace = true
