@@ -105,7 +105,7 @@ fn stock_chats_inspect_and_delegate_while_coders_modify() {
         assert!(charter.policy.inspect);
         assert!(!charter.policy.shell);
         assert_eq!(charter.policy.modify, charter.number == 2);
-        assert_eq!(charter.policy.agents, charter.number != 4);
+        assert_eq!(charter.policy.agents, charter.number == 1 || charter.number == 2);
     }
 }
 
@@ -148,15 +148,15 @@ fn each_floor_refuses_one_below_the_stocks_need() {
     }
     let current = settings::Current::new(defaults, &engine.limits.core);
     let rows: &[(&[u8], u64, Setting, &str)] = &[
-        (b"core.policy_bytes", 3250, Setting::Policy(1), "the stock's policy 1 needs 3250 bytes"),
+        (b"core.policy_bytes", 3266, Setting::Policy(1), "the stock's policy 1 needs 3266 bytes"),
         (b"core.run_bytes", run.0, run.1, ""),
         (b"authority.grants", 14, Setting::Rules, "the stock's rules need 14 grants"),
-        (b"authority.executors", 6, Setting::Rules, "the stock's rules need 6 executors"),
+        (b"authority.executors", 7, Setting::Rules, "the stock's rules need 7 executors"),
         (b"authority.segments", 1, Setting::Rules, "the stock's rules need 1 segment"),
         (b"authority.segment_bytes", 5, Setting::Rules, "the stock's rules need 5 bytes"),
         (b"authority.roles", 1, Setting::Policy(1), "the stock's policy 1 needs 1 role"),
         (b"authority.projects", 1, Setting::Policy(1), "the stock offers 1 policy"),
-        (b"tasks.charters", 3, Setting::Charter(1), "the stock offers 3 charters"),
+        (b"tasks.charters", 4, Setting::Charter(1), "the stock offers 4 charters"),
         (b"core.templates", 2, Setting::Template(1), "the stock offers 2 templates"),
         (b"documents.text_bytes", 4, Setting::Template(1), "the stock's template 1 needs 4 bytes"),
         (b"tasks.result_bytes", 32, Setting::Template(1), "the stock's template 1 needs 32 bytes"),
@@ -215,7 +215,7 @@ fn each_charters_run_bytes_floor_names_that_charter() {
     let engine = engine(&without_projects());
     for charter in &crate::stock::defaults(&engine.llm).charters {
         let mut defaults = crate::stock::defaults(&engine.llm);
-        // Isolate each run policy, including charter 4, from larger stock runs.
+        // Isolate each run policy from larger stock runs.
         defaults.charters = Box::new([charter.clone()]);
         let needed = jig_domain_core::policy_owned_bytes(&charter.policy).unwrap();
         let mut limits = engine.limits;
@@ -259,7 +259,7 @@ fn a_stock_policy_past_its_limit_is_refused_while_naming_files() {
     let found = crate::startup::named(&document, &config::Directories::working()).unwrap_err();
     assert_eq!(
         crate::startup::lines(&found).as_ref(),
-        b"engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 3250 bytes; raise it in engine.limits.overrides\n"
+        b"engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 3266 bytes; raise it in engine.limits.overrides\n"
     );
 }
 #[test]
@@ -469,6 +469,42 @@ fn the_reviewers_words_say_to_fail_when_it_cannot_review() {
 }
 
 #[test]
+fn the_foremans_charter_reads_and_gives_a_verdict() {
+    let engine = engine(&single_model());
+    let defaults = crate::stock::defaults(&engine.llm);
+    assert_eq!(defaults.charters.iter().map(|charter| charter.number).collect::<Box<[_]>>().as_ref(), [1, 2, 4, 6]);
+    let foreman = defaults.charters.iter().find(|charter| charter.number == 6).expect("foreman charter");
+    let mut expected = defaults.charters[2].clone();
+    expected.number = 6;
+    expected.policy.instructions = include_bytes!("../stock/foreman.txt").as_slice().into();
+    assert_eq!(*foreman, expected);
+    assert_eq!(foreman.wake, jig_domain_tasks::WakePolicy::DEFAULT);
+    assert_eq!(foreman.policy.instructions.as_ref(), include_bytes!("../stock/foreman.txt"));
+    assert!(foreman.policy.inspect);
+    assert!(!foreman.policy.modify);
+    assert!(!foreman.policy.shell);
+    assert!(!foreman.policy.agents);
+    for authority in [
+        &defaults.rules.ceiling,
+        &defaults.policies.get(&1).expect("policy 1").policy.ceiling,
+        &defaults.policies.get(&1).expect("policy 1").policy.roles[0].authority,
+    ] {
+        assert!(authority.delegation.kinds.contains(&jig_domain_authority::Executor::Charter(6)));
+    }
+}
+
+#[test]
+fn the_foremans_words_name_the_three_verdicts() {
+    let engine = engine(&single_model());
+    let defaults = crate::stock::defaults(&engine.llm);
+    let foreman = defaults.charters.iter().find(|charter| charter.number == 6).expect("foreman charter");
+    let words = core::str::from_utf8(&foreman.policy.instructions).expect("foreman instructions");
+    for phrase in ["answer:", "finish:", "escalate:", "never edit, push or run anything"] {
+        assert!(words.contains(phrase), "missing foreman instruction: {phrase}");
+    }
+}
+
+#[test]
 fn a_worlds_own_defaults_replace_the_stock_without_document_members() {
     let bytes = generated();
     let document =
@@ -525,7 +561,7 @@ fn stock_budgets_follow_the_default_models_completion_and_run_turn_floor() {
         let stock = crate::stock::defaults(&engine.llm);
         assert_eq!(stock.rules.minimum_run_spend, 2 * c, "{row}");
         assert_eq!(stock.rules.maximum_run_spend, k, "{row}");
-        for (charter, turns) in stock.charters.iter().zip([8, 16, 16]) {
+        for (charter, turns) in stock.charters.iter().zip([8, 16, 16, 16]) {
             assert_eq!(charter.policy.turns, turns, "{row}: charter {}", charter.number);
             assert_eq!(charter.policy.time, skein_lib::Duration::from_secs(120), "{row}");
             assert_eq!(charter.policy.reserve_turns, 1, "{row}");
@@ -594,6 +630,7 @@ fn stock_and_init_admit_the_landing_procedure_and_its_effects() {
                 Executor::Charter(1),
                 Executor::Charter(2),
                 Executor::Charter(4),
+                Executor::Charter(6),
                 Executor::Procedure(2),
                 Executor::Procedure(3),
                 Executor::Procedure(4)

@@ -103,7 +103,6 @@ fn the_default_is_the_owned_example_so_edited() {
         let mut expected = owned.clone();
         // A review names repository, base, branch, gate and head, then offers two verdicts.
         expected["engine"]["limits"]["overrides"]["tasks.parameters"] = json!(5_u32);
-        expected["engine"]["limits"]["overrides"]["tasks.contract_choices"] = json!(2_u32);
         expected["engine"]["acts"] = json!([{ "connector": 1_u16, "may": ["remove_project", "remove_account"] }]);
         assert!(!actual["engine"]["owners"].as_array().unwrap().is_empty());
         // The startup turn_bounds writer holds these to each document's own
