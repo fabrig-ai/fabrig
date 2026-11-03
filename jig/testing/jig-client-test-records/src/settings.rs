@@ -96,6 +96,7 @@ pub fn settings_values() -> List<SettingValue> {
             shell: true,
             agents: false,
             call_timeout: Duration::from_secs(14),
+            tools: 1536,
             hosts: SettingHosts::Both,
             spend: 99,
             wake: jig_client_domain::contract::WakePolicy {
