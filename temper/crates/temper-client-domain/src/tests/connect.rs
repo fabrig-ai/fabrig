@@ -400,7 +400,6 @@ fn first(state: forges::FirstState) -> forges::First {
         playground: false,
         org: b"work".as_slice().into(),
         repository: b"hello".as_slice().into(),
-        project: forges::SetUpProject::Existing(1),
         state,
         label: Box::from(b"temper-host".as_slice()),
     }
@@ -422,9 +421,6 @@ fn deliver_first(
             playground: false,
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
-            project: w::SetUpProject::Existing(
-                w::ExistingProject::new(&w::CEILINGS, w::ExistingProjectParts { project: 1 }).unwrap(),
-            ),
             state,
             label: Box::from(b"temper-host".as_slice()),
         },
@@ -511,8 +507,6 @@ fn a_set_up_carries_the_repository_name_regardless_of_the_current_project() {
         }
         let (_, _, w::Request::SetUp(value)) = sent(setup(&mut root)) else { panic!("setup") };
         assert_eq!((value.org(), value.repository()), (b"work".as_slice(), b"hello".as_slice()));
-        let w::SetUpProject::New(value) = value.project() else { panic!("new project") };
-        assert_eq!(value.name(), b"hello");
     }
 }
 #[test]
@@ -523,13 +517,8 @@ fn a_set_up_sends_the_fields_the_person_gave() {
     write_setup(&mut root, forges::SetupField::Repository, b"app");
     let (_, _, w::Request::SetUp(value)) = sent(setup(&mut root)) else { panic!("setup") };
     assert_eq!((value.org(), value.repository()), (b"team".as_slice(), b"app".as_slice()));
-    let w::SetUpProject::New(value) = value.project() else { panic!("new project") };
-    assert_eq!(value.name(), b"app");
     let last = root.forge().set_up().unwrap();
-    assert_eq!(
-        (&*last.org, &*last.repository, &last.project),
-        (b"team".as_slice(), b"app".as_slice(), &forges::SetUpProject::New(b"app".as_slice().into()))
-    );
+    assert_eq!((&*last.org, &*last.repository), (b"team".as_slice(), b"app".as_slice()));
 }
 #[test]
 fn an_empty_field_is_required_and_sends_nothing() {
@@ -607,25 +596,24 @@ fn a_client_that_did_not_set_up_adopts_nothing() {
     assert!(root.forge().set_up().is_none());
 }
 #[test]
-fn new_project_and_invalid_refusals_say_their_words() {
-    for (why, expected) in [
-        (w::SetUpRefusal::NewProject, b"a new project".as_slice()),
-        (w::SetUpRefusal::Invalid, b"invalid: the organization, repository or project name is empty or too long"),
-    ] {
-        let (mut root, _, _) = opened(true);
-        let (attempt, _, _) = sent(setup(&mut root));
-        reply(
-            &mut root,
-            attempt,
-            w::Outcome::SetUpRefused(w::SetUpRefused::new(&w::CEILINGS, w::SetUpRefusedParts { why }).unwrap()),
-        );
-        let Some(forges::SetUpAnswer::Outcome(forges::SetUpOutcome::Refused(why))) =
-            root.forge().set_up().unwrap().answer
-        else {
-            panic!("refusal")
-        };
-        assert_eq!(forge::words::set_up_refusal(why), expected);
-    }
+fn invalid_refusals_say_their_words() {
+    let (mut root, _, _) = opened(true);
+    let (attempt, _, _) = sent(setup(&mut root));
+    reply(
+        &mut root,
+        attempt,
+        w::Outcome::SetUpRefused(
+            w::SetUpRefused::new(&w::CEILINGS, w::SetUpRefusedParts { why: w::SetUpRefusal::Invalid }).unwrap(),
+        ),
+    );
+    let Some(forges::SetUpAnswer::Outcome(forges::SetUpOutcome::Refused(why))) = root.forge().set_up().unwrap().answer
+    else {
+        panic!("refusal")
+    };
+    assert_eq!(
+        forge::words::set_up_refusal(why),
+        b"invalid: the organization, repository or project name is empty or too long"
+    );
 }
 
 #[test]
@@ -637,9 +625,6 @@ fn set_up_again_on_another_client_uses_the_rows_fields() {
             playground: true,
             org: b"playground".as_slice().into(),
             repository: b"widget".as_slice().into(),
-            project: w::SetUpProject::Existing(
-                w::ExistingProject::new(&w::CEILINGS, w::ExistingProjectParts { project: 7 }).unwrap(),
-            ),
             state: w::FirstState::Failed(
                 w::CreateFailed::new(&w::CEILINGS, w::CreateFailedParts { step: w::CreateStep::File }).unwrap(),
             ),
@@ -651,8 +636,6 @@ fn set_up_again_on_another_client_uses_the_rows_fields() {
     let (_, _, w::Request::SetUp(value)) = sent(setup(&mut root)) else { panic!("setup") };
     assert_eq!((value.org(), value.repository()), (b"playground".as_slice(), b"widget".as_slice()));
     assert!(value.playground());
-    let w::SetUpProject::New(project) = value.project() else { panic!("repository name") };
-    assert_eq!(project.name(), b"widget");
 }
 #[test]
 fn signing_out_forgets_the_setup_intent() {
@@ -808,13 +791,8 @@ fn at_once_sends_fixed_names_without_reading_or_marking_the_form() {
     let w::Making::Kept(kept) = value.forge() else { panic!("kept forge") };
     assert_eq!(kept.forge(), HERE);
     assert_eq!((value.org(), value.repository(), value.playground()), (b"work".as_slice(), b"hello".as_slice(), false));
-    let w::SetUpProject::New(project) = value.project() else { panic!("new project") };
-    assert_eq!(project.name(), b"hello");
     let last = root.forge().set_up().unwrap();
-    assert_eq!(
-        (&*last.org, &*last.repository, &last.project, last.playground),
-        (b"work".as_slice(), b"hello".as_slice(), &forges::SetUpProject::New(b"hello".as_slice().into()), false)
-    );
+    assert_eq!((&*last.org, &*last.repository, last.playground), (b"work".as_slice(), b"hello".as_slice(), false));
     let after = root.forge().setup_form();
     assert_eq!((after.fields.clone(), after.written, after.checked), before);
     assert!(f::form_act(&mut root, forge::Act::SetUpAtOnce { forge: HERE }).is_empty());

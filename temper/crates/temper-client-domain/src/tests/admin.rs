@@ -146,8 +146,6 @@ fn the_token_is_secret_and_carried_once_with_the_first_ask() {
                 (first.org(), first.repository(), first.label()),
                 (b"team".as_slice(), b"app".as_slice(), b"linux.arm_64-1".as_slice())
             );
-            let w::SetUpProject::New(project) = first.project() else { panic!("new") };
-            assert_eq!(project.name(), b"app");
         }
     }
     assert_eq!(count, 1);
@@ -199,9 +197,6 @@ fn first() -> w::FirstRepository {
             playground: false,
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
-            project: w::SetUpProject::New(
-                w::NewProject::new(&w::CEILINGS, w::NewProjectParts { name: b"hello".as_slice().into() }).unwrap(),
-            ),
             state: w::FirstState::Made(w::Made::new(&w::CEILINGS, w::MadeParts { id: 42 }).unwrap()),
             label: b"docker".as_slice().into(),
         },

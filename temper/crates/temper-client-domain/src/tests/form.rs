@@ -414,10 +414,6 @@ fn first_rows(
                                 playground: number == 1,
                                 org: b"work".as_slice().into(),
                                 repository: b"hello".as_slice().into(),
-                                project: w::SetUpProject::Existing(
-                                    w::ExistingProject::new(&w::CEILINGS, w::ExistingProjectParts { project: 1 })
-                                        .unwrap(),
-                                ),
                                 state: state.clone(),
                                 label: b"docker".as_slice().into(),
                             },

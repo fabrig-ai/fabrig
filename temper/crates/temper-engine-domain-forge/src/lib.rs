@@ -318,10 +318,6 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                     .checked_add(bytes(&first.org)?)?
                     .checked_add(bytes(&first.repository)?)?
                     .checked_add(bytes(&first.label)?)?;
-                match &first.project {
-                    SetUpProject::Existing(_) => {}
-                    SetUpProject::New(name) => held = held.checked_add(bytes(name)?)?,
-                }
             }
             Some(held)
         }

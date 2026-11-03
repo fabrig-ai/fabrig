@@ -334,10 +334,10 @@ fn admin_connect_refuses_empty_and_over_bound_tokens() {
     }
 }
 #[test]
-fn admin_first_repository_uses_default_and_custom_project_and_label() {
-    for (extra, project, label) in [
-        (&["--first", "work/hello"][..], b"hello".as_slice(), b"docker".as_slice()),
-        (&["--first", "work/hello", "--project", "other", "--label", "runner_1.x-y"][..], b"other", b"runner_1.x-y"),
+fn admin_first_repository_sends_labels_with_local_project_arguments() {
+    for (extra, label) in [
+        (&["--first", "work/hello"][..], b"docker".as_slice()),
+        (&["--first", "work/hello", "--project", "other", "--label", "runner_1.x-y"][..], b"runner_1.x-y"),
     ] {
         let words = f::extended(ADMIN, extra);
         let mut root = f::signed_in(f::PARTY);
@@ -348,15 +348,13 @@ fn admin_first_repository_uses_default_and_custom_project_and_label() {
         assert_eq!(first.org(), b"work");
         assert_eq!(first.repository(), b"hello");
         assert_eq!(first.label(), label);
-        let w::SetUpProject::New(new) = first.project() else { panic!("new project") };
-        assert_eq!(new.name(), project);
         root.adoption_answer(call, w::Outcome::Connecting);
         assert!(root.answer(call).is_none(), "waits for creation and adoption");
         assert_eq!(root.progress.as_slice(), &[Box::<[u8]>::from(b"connecting\n".as_slice())]);
     }
 }
 #[test]
-fn admin_first_repository_resolves_an_existing_project_by_name_or_number() {
+fn admin_first_repository_sends_the_same_fields_with_existing_project_arguments() {
     for project in ["shop", "1"] {
         let extra = ["--first", "work/hello", "--project", project];
         let words = f::extended(ADMIN, &extra);
@@ -364,10 +362,7 @@ fn admin_first_repository_resolves_an_existing_project_by_name_or_number() {
         let call = root.submit_value(words.as_slice(), Some(Secret::new(TOKEN.into())));
         let w::Request::Connect(connect) = request(&root, call) else { panic!("connect") };
         let w::How::ForgejoAdmin(admin) = connect.how() else { panic!("admin") };
-        let w::SetUpProject::Existing(existing) = admin.first().as_ref().expect("first").project() else {
-            panic!("existing project")
-        };
-        assert_eq!(existing.project(), f::PROJECT);
+        assert_eq!(admin.first().as_ref().expect("first").repository(), b"hello");
     }
 }
 #[test]
@@ -433,9 +428,6 @@ fn first_page(root: &mut f::Harness, connection: w::Connection, state: w::FirstS
             playground: false,
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
-            project: w::SetUpProject::New(
-                w::NewProject::new(&l, w::NewProjectParts { name: b"hello".as_slice().into() }).unwrap(),
-            ),
             label: b"docker".as_slice().into(),
             state,
         },

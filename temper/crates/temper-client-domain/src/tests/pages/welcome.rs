@@ -119,13 +119,6 @@ fn forge_rows(root: &mut Domain, watch: Token, number: Option<u16>, adopted: boo
                                 w::FirstRepositoryParts {
                                     org: b"work".as_slice().into(),
                                     repository: b"hello".as_slice().into(),
-                                    project: w::SetUpProject::Existing(
-                                        w::ExistingProject::new(
-                                            &limits,
-                                            w::ExistingProjectParts { project: f::PROJECT },
-                                        )
-                                        .unwrap(),
-                                    ),
                                     state: w::FirstState::Made(w::Made::new(&limits, w::MadeParts { id: 1 }).unwrap()),
                                     label: Box::new([]),
                                     playground: false,

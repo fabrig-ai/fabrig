@@ -437,9 +437,6 @@ fn the_adoption_page_draws_the_unadopted_first_repository_defaults() {
                 playground: false,
                 org: b"work".as_slice().into(),
                 repository: b"hello".as_slice().into(),
-                project: w::SetUpProject::Existing(
-                    w::ExistingProject::new(&w::CEILINGS, w::ExistingProjectParts { project: 1 }).unwrap(),
-                ),
                 state: w::FirstState::Made(w::Made::new(&w::CEILINGS, w::MadeParts { id: 7 }).unwrap()),
                 label: b"docker".as_slice().into(),
             },

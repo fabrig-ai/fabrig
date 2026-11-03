@@ -1619,7 +1619,6 @@ fn setup_application(forge: u16, request: Token, token: Token) -> Event {
             forge: Making::Kept(forge),
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
-            project: SetUpProject::Existing(1),
         },
     }
 }
@@ -1777,12 +1776,11 @@ fn a_configured_forge_without_routing_input_reads_not_connected() {
 }
 
 #[test]
-fn a_new_project_is_admitted_and_retained_until_the_repository_is_made() {
+fn a_first_repository_is_admitted_and_retained_until_it_is_made() {
     let mut d = setup_domain(&configured(), true);
     outputs(&mut d, Event::Connection { forge: 1, state: Connection::NotSetUp });
     let request = Token::new(91);
     let token = Token::new(92);
-    let project = SetUpProject::New(b"Next".as_slice().into());
     let emitted = outputs(
         &mut d,
         Event::Application {
@@ -1796,7 +1794,6 @@ fn a_new_project_is_admitted_and_retained_until_the_repository_is_made() {
                 forge: Making::Kept(1),
                 org: b"work".as_slice().into(),
                 repository: b"hello".as_slice().into(),
-                project: project.clone(),
             },
         },
     );
@@ -1813,7 +1810,6 @@ fn a_new_project_is_admitted_and_retained_until_the_repository_is_made() {
             }
         ]
     );
-    assert_eq!(d.forges().rows[0].first.as_ref().unwrap().project, project);
     assert!(d.application_answer(token).is_none());
 }
 #[test]
@@ -1865,7 +1861,6 @@ fn setup_names_are_validated_at_admission_on_both_sides_of_the_name_bound() {
                     forge: Making::Kept(1),
                     org: org_name.clone(),
                     repository: repository.clone(),
-                    project: SetUpProject::Existing(1),
                 };
                 let mut emitted = Queue::uncapped();
                 step(
@@ -1904,9 +1899,7 @@ fn setup_names_are_validated_at_admission_on_both_sides_of_the_name_bound() {
 #[test]
 fn admitted_setup_projects_its_fields_as_making_and_the_next_admission_replaces_them() {
     let mut d = setup_domain(&configured(), true);
-    for (number, org, repository, project) in
-        [(91, b"work".as_slice(), b"hello".as_slice(), 1), (93, b"team", b"widget", 2)]
-    {
+    for (number, org, repository) in [(91, b"work".as_slice(), b"hello".as_slice()), (93, b"team", b"widget")] {
         outputs(
             &mut d,
             Event::Connection { forge: 1, state: Connection::SetUpFailed { why: b"retry".as_slice().into() } },
@@ -1917,7 +1910,6 @@ fn admitted_setup_projects_its_fields_as_making_and_the_next_admission_replaces_
             playground: false,
             org: org.into(),
             repository: repository.into(),
-            project: SetUpProject::Existing(project),
             state: FirstState::Making,
             label: Box::from(b"temper-host".as_slice()),
         };
@@ -1926,7 +1918,6 @@ fn admitted_setup_projects_its_fields_as_making_and_the_next_admission_replaces_
             forge: Making::Kept(1),
             org: first.org.clone(),
             repository: first.repository.clone(),
-            project: first.project.clone(),
         };
         assert_eq!(
             outputs(
