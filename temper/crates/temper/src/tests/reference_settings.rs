@@ -140,7 +140,15 @@ fn the_reference_settings_file_decodes() {
     };
     assert_eq!(coder.wake, WakePolicy::DEFAULT);
     assert!(coder.documents.is_empty());
-    assert!(coder.instructions.bytes().starts_with(include_bytes!("../../../temper-service/src/stock/coding.txt")));
+    assert!(coder.shell());
+    let stock = std::str::from_utf8(include_bytes!("../../../temper-service/src/stock/coding.txt"))
+        .expect("stock coding instructions are UTF-8");
+    let checks = "Before each delivery, run with the shell the lints and the focused tests of each package \
+                  you changed: `cargo clippy -p PKG --all-targets -- -D warnings`, then `cargo nextest run -p \
+                  PKG`, naming each package; fix what they find in your own files, and list a failure outside \
+                  them under Left.";
+    let instructions = stock.replace("You can run nothing.", checks);
+    assert!(coder.instructions.bytes().starts_with(instructions.as_bytes()));
     assert!(
         std::str::from_utf8(coder.instructions.bytes())
             .expect("coding instructions are UTF-8")
