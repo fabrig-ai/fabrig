@@ -615,8 +615,8 @@ Every tree's focused and fuzzy suites, and each slow tier (browser,
 process and live), have a CPU budget and a wall hard limit. A test's
 provenance (who wrote it, or why) is never a tier.
 The rule holds wherever they run: at the merge gate for focused and
-fuzzy, after landing, through `tools/tiers/run`, or in a person's or a
-lead's run. Slow tiers never run in the gate.
+fuzzy, after landing, through `tools/tiers/run`, or in anyone's own run.
+Slow tiers never run in the gate.
 
 **The budget is CPU seconds:** user plus system time of each test's
 processes, descendants included, measured per test and summed per suite
@@ -647,7 +647,7 @@ starvation; within that limit, harness deadlines keep 2.10's rule.
    code under test or in the test: O(n) where O(1) would do, needless
    complication, or a missing cache at some level. Fix that cause.
 3. **If neither, what does the user decide?** Take the measurements to
-   the user through the director; the user decides.
+   the user; the user decides.
 
 ## 9. Where a failure is fixed
 
