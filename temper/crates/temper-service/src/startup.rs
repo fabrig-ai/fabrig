@@ -1,5 +1,9 @@
 //! The document's shape and its checked startup (protocol/configuration.md, 2).
 pub(crate) mod application;
+pub mod members;
+mod reference;
+pub use crate::limits::{engine_reference, reference};
+pub use reference::{configuration_reference, engine_configuration_reference};
 #[cfg(test)]
 mod calls_tests;
 pub(crate) mod checks;
@@ -45,7 +49,7 @@ pub fn shape_with(
 pub fn shape(input: &[u8], directories: &config::Directories) -> Result<Shape, Problems> {
     shape_with(input, directories, &crate::stock::Given::Stock)
 }
-fn finish_shape(document: &skein_json::Document, object: read::Object, path: &Path, problems: &mut Problems) {
+fn finish_shape(document: &skein_json::Document, object: members::Object, path: &Path, problems: &mut Problems) {
     let mut found = config::Problems::empty();
     object.finish(document, path, &mut found);
     for found in &found.problems {
@@ -360,7 +364,7 @@ fn load_document(
     let shape = nearest(document);
     let mut problems = Problems::empty();
     let mut found = config::Problems::empty();
-    let mut whole = match read::Object::new(document, 0) {
+    let mut whole = match members::object(document, 0, "document") {
         Ok(object) => object,
         Err(what) => return Err(problem(Path::root(), What::Jig(what))),
     };

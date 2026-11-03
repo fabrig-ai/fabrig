@@ -151,6 +151,8 @@ both do. `--until changed` returns at the subject's next change.
 
 ## Limits
 
+`temper help configuration`: what needs a restart.
+
 - ctl reaches an engine on loopback alone: `127.0.0.0/8` or `[::1]`.
 - The link's deadline is 30 seconds: an engine that does not answer
   within it fails the call (exit 1).

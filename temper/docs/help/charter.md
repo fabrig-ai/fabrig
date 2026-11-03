@@ -81,6 +81,8 @@ Tasks made before keep it, on their revision.
 
 ## Limits
 
+For the configuration members that need a restart, read `temper help configuration`.
+
 - temper does not give a charter's `spend` to its runs: a run is given
   what its task has left, at most the rules' `maximum_run_spend`. A
   charter's spend must still hold its reserve.

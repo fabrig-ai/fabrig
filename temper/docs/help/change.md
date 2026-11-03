@@ -148,6 +148,8 @@ refused, naming what it lacks or the forge's answer.
 
 ## Limits
 
+`temper help configuration`: what needs a restart.
+
 - A change writes one repository, and lands on its landing branch.
 - temper does not let ctl start a change: a run asks for one, as a
   chat's does when asked (temper help chat).

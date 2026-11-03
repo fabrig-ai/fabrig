@@ -143,6 +143,8 @@ role depth - 1: the root consumes one task and one depth level. Thus
 
 ## Limits
 
+`temper help configuration`: what needs a restart.
+
 - temper gives no task an amount on demand: more comes from an
   accepted proposal or an amendment within its funder's authority.
 - temper does not refill a task when settings change: a new run cap

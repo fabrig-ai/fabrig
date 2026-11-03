@@ -74,6 +74,8 @@ policy's override naming it is refused.
 
 ## Limits
 
+For the configuration members that need a restart, read `temper help configuration`.
+
 - ctl starts a chat from a chat's template alone: `chat start
   --template` refuses one that is no chat's.
 - A template whose result is an approval is accepted, but an agent given
