@@ -15,6 +15,7 @@ files = [
   "temper/crates/temper-client-tools/src/tests/golden/**",
   "temper/crates/temper-client-shell-cli/src/arguments.rs",
   "temper/crates/temper-client-shell-cli/src/tests/keys.rs",
+  "temper/crates/temper-client-shell-cli/src/tests.rs",
   "temper/docs/help/reference/ctl-forge.md",
   "temper/docs/help/forgejo.md",
   "temper/docs/help/forge.md",
@@ -155,3 +156,13 @@ nothing else changes; what names the constants (`root.rs`, the CLI shell's `host
 `arguments.rs` and `host/input.rs`, the tests) follows without an edit. In `tests/landing.rs`,
 `help(Some(56))` and `help(Some(57))` become 57 and 58, or name `rows` constants if there are
 any. No other edit to either file. The report lists the moved indices.
+
+2026-11-03. May the task change the `forge connect` form count in the CLI shell's `src/tests.rs`,
+and which bound does the help name? Yes to the first: `temper-client-shell-cli/src/tests.rs` is
+now in `files`, for that one edit only: the assertion at `:766` counts 8 forms, not 7; nothing
+else in the file changes. The bound is 4085, `PASTED_PAYLOAD` as `temper-protocol-records`'
+codec computes it and as ctl and the CLI shell already print it: the acceptance's github.md item
+reads "`credential file must contain 1 to 4085 bytes`", the bound ctl now prints. The same
+sentence in `temper/docs/help/forgejo.md` (*If not:*) and the forge's bound in
+`temper/docs/help/party.md` ("a forge's 1 to 4089") also become 4085, both files already this
+task's. No change to the codec, the wire or the contract.
