@@ -5,7 +5,7 @@
 - **Design lags:**
   - **3, 5, 14: `change` and its fields (N22, N13).** `../domain/agent.md`,
     4.3.1: `change` names no `questions`, LLM choice,
-    producer's charter or merge job, nor `repairs`. `../domain/forge.md`, 8.1 and 8.9: a
+    producer's charter or merge job. `../domain/forge.md`, 8.1 and 8.9: a
     change's producer runs under the forge's change charter, and
     `../protocol/configuration.md`, 13.2 numbers the forge's charters for
     the change and its reviews alone.
@@ -44,11 +44,6 @@
     producer's early start, its once rule, its refusal on a conflict, or
     an amendment refused for dropping a dependency a producer started
     from.
-  - **10, 14: g's tier (N5).** `../domain/after-landing.md`, sections 1 to
-    3: a tier follows the one branch it names and judges the landings on
-    it; none follows the goals' own branches as they come and go, judges
-    no landing, runs at most once in a span, or sends its reds to the
-    goal as news without a verdict.
   - **11: catching up (N6).** `../domain/forge.md`, 10: a change never
     updates only because its base moved; 11.1: a goal's own branch takes
     the base's landings by an update. Neither has a catch-up change into
