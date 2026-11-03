@@ -119,10 +119,7 @@ pub(crate) fn build(selection: Selection, document: bool) -> Result<(Resolved, B
     let resolved = Resolved { agent, local, accounts, limits, settings, outside_models };
     for account in &resolved.accounts {
         if account.source() == AccountSource::SignIn {
-            crate::credentials::registration(
-                account,
-                &resolved.settings.workspace,
-            )?;
+            crate::credentials::registration(account, &resolved.settings.workspace)?;
         }
     }
     Ok((resolved, bytes))

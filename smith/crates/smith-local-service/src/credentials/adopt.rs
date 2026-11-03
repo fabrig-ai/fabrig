@@ -13,7 +13,7 @@ pub(super) fn source(
     files: &mut file_layer::FileIo,
     locks: &mut List<lock::Lock>,
     shared: bool,
-) -> Result<Binding, crate::Error> {
+) -> Binding {
     let (number, origin, configured) = match source {
         Source::Env { account, borrowed } => {
             (account, Origin::Env { initial: Some(borrowed) }, oauth::Account::HandedIn)
@@ -34,7 +34,7 @@ pub(super) fn source(
             )
         }
     };
-    Ok(Binding {
+    Binding {
         account: Account {
             number,
             source: origin,
@@ -48,5 +48,5 @@ pub(super) fn source(
             pending: None,
         },
         configured,
-    })
+    }
 }

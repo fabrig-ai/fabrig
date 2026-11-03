@@ -19,9 +19,11 @@ fn credential_commands_refuse_the_startup_declaration_matrix() {
 
 #[test]
 fn repository_accounts_name_the_file_and_authority() {
-    let refusal =
-        settings(&[source(Layer::Repository, "[accounts.openai]\nprovider='openai'\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n")])
-            .expect_err("repository account authority");
+    let refusal = settings(&[source(
+        Layer::Repository,
+        "[accounts.openai]\nprovider='openai'\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n",
+    )])
+    .expect_err("repository account authority");
     assert_eq!(refusal.key, "accounts", "authority belongs to the accounts table");
     assert_eq!(refusal.problem, super::super::Problem::RepositoryAuthority, "authority refusal");
     assert!(refusal.line().contains("fixture.toml:1") && refusal.line().contains("authority"), "{}", refusal.line());
@@ -134,9 +136,10 @@ fn withdrawn_endpoint_settings_name_the_replacement_at_their_key() {
     ] {
         let refusal = settings(&[source(Layer::User, text)]).expect_err("withdrawn endpoint");
         assert_eq!(refusal.key, key);
-        assert_eq!(refusal.origin, super::super::Origin::File {
-            layer: Layer::User, path: "fixture.toml".into(), line,
-        });
+        assert_eq!(
+            refusal.origin,
+            super::super::Origin::File { layer: Layer::User, path: "fixture.toml".into(), line }
+        );
         assert_eq!(crate::startup::Failure::Configuration { detail: refusal.line() }.exit_code(), 2);
         assert_eq!(refusal.line(), format!("smith: fixture.toml:{line}: {key}: use `openai/<model>`"));
     }

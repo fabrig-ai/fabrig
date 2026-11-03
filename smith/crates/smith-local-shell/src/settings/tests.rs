@@ -216,13 +216,14 @@ fn sub_agents_on_adds_the_models_of_every_account_with_a_source() {
     );
     assert_eq!(
         selected.accounts.iter().map(|account| (account.name.as_str(), account.number)).collect::<Vec<_>>(),
-        [("openai", 2100401399), ("anthropic", 3_339_635_307)]
+        [("openai", 2_100_401_399), ("anthropic", 3_339_635_307)]
     );
 }
 
 #[test]
 fn mains_account_without_a_source_is_refused_naming_the_key() {
-    let refusal = selection("model='openai/gpt-6-astra'\n[endpoints.openai]\naccount='openai'\n").expect_err("main account has no source");
+    let refusal = selection("model='openai/gpt-6-astra'\n[endpoints.openai]\naccount='openai'\n")
+        .expect_err("main account has no source");
     assert_eq!(refusal.key, "accounts.openai.source");
     assert_eq!(refusal.line(), "smith: built-in settings: accounts.openai.source: required value is absent");
 }
@@ -321,7 +322,7 @@ fn composition_adds_every_model_of_accounts_with_a_source() {
     );
     assert!(resolved.outside_models.is_empty());
     assert_eq!(resolved.agent.declarations.endpoints.len(), 2);
-    assert_eq!(resolved.local.accounts.as_ref(), [2100401399, 3_339_635_307]);
+    assert_eq!(resolved.local.accounts.as_ref(), [2_100_401_399, 3_339_635_307]);
 }
 
 #[test]

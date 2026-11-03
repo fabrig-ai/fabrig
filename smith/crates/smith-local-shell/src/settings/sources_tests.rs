@@ -19,7 +19,7 @@ fn selected_accounts_are_numbered_by_name_not_order() {
         .expect("selection");
         for account in selected.accounts {
             let expected = match account.name.as_str() {
-                "openai" => 2100401399,
+                "openai" => 2_100_401_399,
                 "anthropic" => 3_339_635_307,
                 _ => panic!("fixture account"),
             };
@@ -58,8 +58,8 @@ fn a_none_account_takes_part_in_the_collision_check() {
 
 #[test]
 fn a_program_account_on_an_endpoint_without_a_program_is_refused() {
-    let refusal =
-        selection("model='openai/gpt-6-luna'\n[accounts.openai]\nprovider='openai'\nsource='program'\n").expect_err("no endpoint program");
+    let refusal = selection("model='openai/gpt-6-luna'\n[accounts.openai]\nprovider='openai'\nsource='program'\n")
+        .expect_err("no endpoint program");
     assert_eq!(refusal.key, "accounts.openai.source", "source key");
     for text in ["accounts.openai", "endpoints.openai.program"] {
         assert!(refusal.line().contains(text), "binding names {text}");
@@ -90,7 +90,11 @@ fn the_main_endpoint_keeps_its_models_on_a_program_account() {
         "model='openai/gpt-6-luna'\n[accounts.openai]\nprovider='openai'\nsource='program'\n[endpoints.openai]\nprogram='claude_code'\n",
     )
     .expect("selection");
-    assert_eq!(selected.models, ["openai/gpt-6-luna", "openai/gpt-6-astra", "openai/gpt-6.1-sol"], "main endpoint models");
+    assert_eq!(
+        selected.models,
+        ["openai/gpt-6-luna", "openai/gpt-6-astra", "openai/gpt-6.1-sol"],
+        "main endpoint models"
+    );
 }
 
 #[test]

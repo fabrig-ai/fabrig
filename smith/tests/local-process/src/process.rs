@@ -515,7 +515,7 @@ fn configure_choices(config: &mut service::Config, lower: &mut agent::Config) {
     other.efforts = Box::new([b"low".as_slice().into()]);
     lower.domain.models = Box::new([main, other]);
     let mut names = skein_lib::List::with_capacity(1);
-    names.push(smith_protocol_translate::Endpoint { name: b"main".as_slice().into(), number: 0, dialect: 1 }).unwrap();
+    names.push(smith_protocol_translate::Endpoint { name: b"main".as_slice().into(), number: 0, dialect: 3 }).unwrap();
     lower.channel_endpoints = smith_protocol_translate::Endpoints::new(names);
     config.endpoints = lower.channel_endpoints.clone();
     let main = config.local.models[0].clone();
@@ -827,7 +827,7 @@ fn lending_accounts(
             let bytes = std::fs::read(&file).expect("scratch key at startup");
             lendable.insert(0, (0, smith_protocol_translate::GrantValue::Key(bytes.into()))).expect("one key value");
             locations
-                .push(Location { account: 0, name: "codex".into(), source: Source::Key { file } })
+                .push(Location { account: 0, name: "openai".into(), source: Source::Key { file } })
                 .expect("one key location");
             return Some(Prepared {
                 sources,
@@ -847,13 +847,13 @@ fn lending_accounts(
                 .iter()
                 .find_map(|entry| entry.strip_prefix(b"SMITH_FIXTURE_TOKEN="))
                 .expect("the launch's named fixture variable");
-            let borrowed = smith_local_shell::credentials::env_record(value, true, skein_tls_world::pki::VALID)
+            let borrowed = smith_local_shell::credentials::env_record(value, skein_tls_world::pki::VALID)
                 .expect("synthetic variable value");
-            (service::Source::Env { account: 0, borrowed }, Source::Env { variable: variable.into(), codex: true })
+            (service::Source::Env { account: 0, borrowed }, Source::Env { variable: variable.into() })
         }
     };
     assert!(sources.push(handed).is_ok(), "one selected source");
-    locations.push(Location { account: 0, name: "codex".into(), source: descriptor }).expect("one selected location");
+    locations.push(Location { account: 0, name: "openai".into(), source: descriptor }).expect("one selected location");
     Some(Prepared {
         sources,
         locations,

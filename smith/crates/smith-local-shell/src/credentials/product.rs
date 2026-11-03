@@ -44,8 +44,8 @@ pub fn prepare(
     let mut lendable = Map::with_capacity(count);
     let directory = super::Directory::of(&resolved.settings);
     for account in &resolved.accounts {
-        let descriptor = source(account, directory.as_ref())
-            .map_err(|credential| unavailable(&account.name, credential))?;
+        let descriptor =
+            source(account, directory.as_ref()).map_err(|credential| unavailable(&account.name, credential))?;
         locations
             .push(Location { account: account.number, name: account.name.clone(), source: descriptor.clone() })
             .expect("selected locations fit their account bound");
@@ -89,8 +89,7 @@ pub fn prepare(
                 super::sign_in::private_source(
                     account.number,
                     &file,
-                    super::registration(account, &resolved.settings.workspace)
-                        .map_err(Refusal::Configuration)?,
+                    super::registration(account, &resolved.settings.workspace).map_err(Refusal::Configuration)?,
                     interactive,
                 )
                 .map_err(|_| unavailable(&account.name, Credential::Unreadable { file }))?

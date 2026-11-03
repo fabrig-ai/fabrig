@@ -21,15 +21,15 @@ fn a_none_accounts_models_name_no_account_in_the_charter() {
     let resolved = resolved(&configured(&files, "none", false));
     assert!(resolved.local.models.iter().all(|model| model.account.is_none()), "no charter account");
     assert!(resolved.local.accounts.is_empty(), "no configured grant account");
-    assert_eq!(resolved.accounts[0].number, 2100401399, "none retains its number");
+    assert_eq!(resolved.accounts[0].number, 2_100_401_399, "none retains its number");
 }
 
 #[test]
 fn a_key_accounts_models_name_its_number() {
     let files = Files::new("smith-credentials");
     let resolved = resolved(&configured(&files, "key", false));
-    assert!(resolved.local.models.iter().all(|model| model.account == Some(2100401399)), "stable charter account");
-    assert_eq!(resolved.local.accounts.as_ref(), [2100401399], "configured grant account");
+    assert!(resolved.local.models.iter().all(|model| model.account == Some(2_100_401_399)), "stable charter account");
+    assert_eq!(resolved.local.accounts.as_ref(), [2_100_401_399], "configured grant account");
 }
 
 #[test]

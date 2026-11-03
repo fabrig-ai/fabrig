@@ -54,15 +54,8 @@ struct Account {
     pending: Option<oauth::Request>,
 }
 enum Origin {
-    Env {
-        initial: Option<Borrowed>,
-    },
-    SignIn {
-        root: Option<Token>,
-        interactive: bool,
-        sign_in: bool,
-        signing: bool,
-    },
+    Env { initial: Option<Borrowed> },
+    SignIn { root: Option<Token>, interactive: bool, sign_in: bool, signing: bool },
 }
 
 /// The service's account driver, socket pass and source file owner.
@@ -211,7 +204,7 @@ impl Accounts {
             files = files.with_effective_user(user);
         }
         for source in sources.into_boxed() {
-            let bound = adopt::source(source, &mut files, &mut locks, shared)?;
+            let bound = adopt::source(source, &mut files, &mut locks, shared);
             assert!(handed.push(bound.configured).is_ok(), "validated account capacity");
             assert!(accounts.push(bound.account).is_ok(), "validated account capacity");
         }

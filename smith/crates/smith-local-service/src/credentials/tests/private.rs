@@ -246,13 +246,10 @@ impl Private {
                         assert!(self.owner.request(7));
                     }
                 }
-                CredentialRequest::Ready { event: local::Event::Credential { form, grant }, value } => {
-                    assert_eq!(*form, smith_host_domain::Form::Credential(smith_host_domain::Scheme::Bearer));
-                    assert!(grant.renewable);
+                CredentialRequest::Ready { value, .. } => {
                     self.kept_before_grant = self.saved().access_token == *value
                         && (self.story == Story::Load || (self.syncs >= 2 && self.renames == 1));
                 }
-                CredentialRequest::Ready { .. } => panic!("credential grant terminal"),
                 CredentialRequest::Closed
                 | CredentialRequest::Notice { .. }
                 | CredentialRequest::Visit { .. }
@@ -361,6 +358,12 @@ fn a_private_sign_in_lends_only_after_the_native_record_is_durable() {
     let mut world = Private::new(Story::SignIn);
     world.until(Until::Ready);
     assert!(world.kept_before_grant);
+    for outcome in &world.outcomes {
+        if let CredentialRequest::Ready { event: local::Event::Credential { form, grant }, .. } = outcome {
+            assert_eq!(*form, smith_host_domain::Form::Credential(smith_host_domain::Scheme::Bearer));
+            assert!(grant.renewable);
+        }
+    }
     assert_eq!(world.saved().refresh_token.as_deref(), Some(b"refresh-new".as_slice()));
     world.close();
     assert!(world.browser.as_ref().expect("visited browser").1.saw_reply());

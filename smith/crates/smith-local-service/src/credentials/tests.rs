@@ -126,8 +126,13 @@ fn an_env_account_lends_the_handed_in_value_without_a_file_operation() {
     let mut out = Queue::uncapped();
     assert!(owner.request(7));
     settle(&mut owner, Time::ZERO, &mut out);
-    ready(&mut out, 1, 20, b"header.eyJleHAiOjEyMH0.signature",
-        smith_host_domain::Form::Credential(smith_host_domain::Scheme::Key));
+    ready(
+        &mut out,
+        1,
+        20,
+        b"header.eyJleHAiOjEyMH0.signature",
+        smith_host_domain::Form::Credential(smith_host_domain::Scheme::Key),
+    );
     assert!(owner.submissions().is_empty());
 }
 
@@ -137,7 +142,13 @@ fn releasing_a_finished_runs_grants_prevents_a_later_grant_failure() {
     let mut out = Queue::uncapped();
     assert!(owner.request(7));
     settle(&mut owner, Time::ZERO, &mut out);
-    ready(&mut out, 1, 20, b"header.eyJleHAiOjEyMH0.signature", smith_host_domain::Form::Credential(smith_host_domain::Scheme::Key));
+    ready(
+        &mut out,
+        1,
+        20,
+        b"header.eyJleHAiOjEyMH0.signature",
+        smith_host_domain::Form::Credential(smith_host_domain::Scheme::Key),
+    );
     owner.release_all(Time::ZERO, wall());
     owner.advance(Time::from_nanos(20_000_000_000), wall(), &mut out);
     assert!(out.is_empty());
@@ -200,7 +211,7 @@ fn an_env_value_has_no_announced_expiry() {
     let mut out = Queue::uncapped();
     assert!(owner.request(7));
     settle(&mut owner, Time::ZERO, &mut out);
-    assert!(matches!(out.pop(), Some(CredentialRequest::Ready { .. })));
+    let Some(CredentialRequest::Ready { .. }) = out.pop() else { panic!("env grant") };
     owner.advance(Time::from_nanos(30_000_000_000), wall(), &mut out);
     assert!(out.is_empty(), "the env key announces no expiry");
 }
