@@ -304,9 +304,9 @@ dependencies among them.
     carry it is asked for (a procedure's parameters naming one);
   - at most one task giving `AsAllowed`;
   - no circle of waits, with the live ones (6.7);
-  - within the limits: live tasks in the deployment, tasks in the tree,
-    depth below its root, delegates of the creator, goals in its project
-    (section 11);
+  - within the limits: its tasks' count and their bytes in all, live
+    tasks in the deployment, tasks in the tree, depth below its root,
+    delegates of the creator, goals in its project (section 11);
   - within authority: each task's authority fits what the creator has
     left, its budgets carved from what it has left (authority.md, 8.1),
     or, for a party, fits their role and their pool (authority.md, 8.4);
@@ -1567,6 +1567,17 @@ worst case (engine.md, section 13):
   amendment or an accepted proposal tracks them;
 - tasks per tree, and the depth of a tree;
 - delegates and dependencies per task, and batch size;
+- a batch's bytes: what its tasks hold in all, each task's record and
+  what it owns (its spec's words and parameters, its contract's choices
+  and their fields, its authority's grants, scopes and delegation, its
+  dependencies, holdings and LLM choice), a recurring task's template's
+  tasks among them. The store prices a batch by these bytes
+  (`../protocol/store.md`, 5.1). A batch past them, or past its size, is
+  refused as past the batch's limit (`Refusal::Batch`: a run's tool
+  answers `Refused: batch`, and a party hears the engine's batch limit)
+  wherever a batch is checked: made, proposed, kept as a recurring
+  task's template, and at restart against limits lowered since; a
+  result whose follow-ups pass it breaks its contract (5.6);
 - a spec's and a result's bytes, and inputs per task; a verdict's
   fields are counted apart, at most 512 (`VERDICT_FIELDS`, the store's
   schema's ceiling), never from a result's bytes, so a result's byte
