@@ -493,6 +493,9 @@ READ [--since DIGEST] [--until CONDITION] [--timeout DURATION]
   not met, exit 3, naming how the task ended (`ended: cancelled`), with
   the panel's last delivery and its digest; one with no panel ever
   delivered prints `no change panel for task N`, exit 2.
+- **A task wait fills its text document before printing** through the same
+  bounded specification reads as plain `task show` (6.4). These supplemental
+  words leave its completion, terminal result and digest unchanged.
 - **`replied`** holds while a chat's status (jig's
   `client/domain/client.md`, section 19, its facts) is parked, waiting
   for you, waiting for them, held, closing or ended. A chat wakes on its
@@ -1296,13 +1299,15 @@ may change with them.
 - **Program identifiers and manage URLs are whole or omitted.** If one
   cannot fit the text budget, JSON prints null and text omits its bytes;
   the document's cut flag is true. A displayed prefix is never a target.
-- **Plain `task show` fills its `asked:` words** with sequential specification
-  reads when the overview is cut, up to the smaller of the part and text
-  bounds and the result byte ceiling. Rendering shares the result's text
+- **Text `task show`, including waits, fills its `asked:` words** with
+  sequential specification reads when the overview is cut, up to the smaller
+  of the part and text bounds and the result byte ceiling. Rendering shares the result's text
   budget; any undisplayed source ends with a `task text TASK --field
   specification --from OFFSET` continuation. A refused or nonadvancing
-  chunk stops retrieval and keeps a continuation. JSON keeps the bounded
-  overview and its digest; supplemental text never changes the digest.
+  chunk stops retrieval and keeps a continuation. A wait retains its validated
+  terminal task and result, or its meeting delivery, while retrieving these
+  words; its status and `met` envelope stay those of that completion. JSON keeps
+  the bounded overview and its digest; supplemental text never changes the digest.
 - **Long texts are paged, never whole by default:** `chat show`, `task
   activity`, `task turn` and `task text` take a cursor or an offset.
   `task text` reads the source rather than the overview's prefix. It prints

@@ -367,9 +367,10 @@ a fault is a fault (section 3).
   due step (jig's `domain/tasks.md`, 5.3). New part words are saved
   before its effects are issued; the procedure continues at a deadline
   due immediately. The task keeps them after
-  completion, branch release and restart. Ordinary ctl `task show TASK`
-  follows missing specification chunks within its output bounds, so `asked:`
-  retains these identities beyond the overview prefix; when exhausted it
+  completion, branch release and restart. Both ctl `task show TASK` and
+  `task show TASK --until ended` follow missing specification chunks within
+  their output bounds, so `asked:` retains these identities beyond the
+  overview prefix; when exhausted it
   gives a `task text` continuation at the first undisplayed byte.
   Observations not yet projected
   are kept on the tier row until a step acknowledges their task words,
