@@ -1,3 +1,5 @@
+#[path = "forgejo_tokens.rs"]
+mod forgejo_tokens;
 use super::fixtures;
 use crate::forge::{
     self, family,

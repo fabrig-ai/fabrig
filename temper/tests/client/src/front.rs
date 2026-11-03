@@ -1462,21 +1462,32 @@ impl Joint {
             if let engine::Request::Install { forge, request, .. } = &request {
                 self.installs.push((*forge, *request));
             }
-            if let engine::Request::Connect {
-                forge,
-                request: attempt,
-                carried,
-                how: temper_engine_domain_forge::How::ForgejoAdmin { .. },
-            } = &request
-            {
-                let value = self.component.carried.get(&carried.number).expect("admin carrier");
-                assert!(value.expose().starts_with(&[0, 1, 0]), "temper-secrets admin bundle");
-                self.admin_connects.push((*forge, *attempt));
-                self.engine.send(engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::ConnectAnswered {
-                    forge: *forge,
-                    request: *attempt,
-                    answer: temper_engine_domain_forge::ConnectAnswer::Connecting,
-                })));
+            if let engine::Request::Connect { forge, request: attempt, carried, how } = &request {
+                let codes: &[u16] = match how {
+                    temper_engine_domain_forge::How::ForgejoAdmin { .. } => &[1],
+                    temper_engine_domain_forge::How::ForgejoTokens => &[2, 3],
+                    temper_engine_domain_forge::How::GitHubApp { .. }
+                    | temper_engine_domain_forge::How::GitHubManifest { .. } => &[],
+                };
+                if !codes.is_empty() {
+                    let value = self.component.carried.get(&carried.number).expect("connect carrier");
+                    let items = temper_client_domain::forge::forges::decode_pasted(value.expose())
+                        .expect("pasted connect bundle");
+                    for code in codes {
+                        assert!(items.iter().any(|(kind, _)| kind == code));
+                    }
+                    for (code, _) in &items {
+                        assert!(codes.contains(code) || (*code == 5 && codes == [2, 3]));
+                    }
+                    self.admin_connects.push((*forge, *attempt));
+                    self.engine.send(engine::Event::Forge(Box::new(
+                        temper_engine_domain_forge::Event::ConnectAnswered {
+                            forge: *forge,
+                            request: *attempt,
+                            answer: temper_engine_domain_forge::ConnectAnswer::Connecting,
+                        },
+                    )));
+                }
             }
             if let engine::Request::EraseCarried { number } = &request {
                 self.component.carried.remove(number);

@@ -590,3 +590,30 @@ fn remove_confirms_with_the_kinds_words_then_sends() {
         assert!(root.forge().setup_form().removal.as_ref().unwrap().request.is_some());
     }
 }
+
+#[test]
+fn a_disconnected_connected_mode_forgejo_links_to_its_tokens_form() {
+    for (connection, offered) in [
+        (w::Connection::NotConnected, true),
+        (
+            w::Connection::Stopped(
+                w::Stopped::new(&w::CEILINGS, w::StoppedParts { reason: b"stopped".as_slice().into() }).unwrap(),
+            ),
+            true,
+        ),
+        (w::Connection::Connecting, false),
+        (cf::connected(), false),
+    ] {
+        let mut rows = List::with_capacity(1);
+        rows.push(cf::row(HERE, w::Kind::Forgejo, w::Mode::Connected, connection, w::Offer::NotOffered)).unwrap();
+        let root = f::forge_root(Address::Forges, rows);
+        let view = f::page_view(&root);
+        assert_eq!(f::find(view.tree(), Role::Link, "Connect ›".as_bytes()).is_some(), offered);
+        if offered {
+            assert_eq!(
+                action(&root, Role::Link, "Connect ›".as_bytes()),
+                go(Address::ConnectForge { forge: Some(Choice::Forge(HERE)) })
+            );
+        }
+    }
+}

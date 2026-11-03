@@ -88,6 +88,7 @@ fn connection(row: &Row) -> Box<[u8]> {
         | Connection::Stopped { .. } => forge::words::forge_connection(row),
     }
 }
+#[expect(clippy::too_many_lines, reason = "the row keeps its actions together (client/forge.md, 5.4)")]
 fn personal(
     b: &mut Builder,
     root: &Domain,
@@ -162,6 +163,15 @@ fn personal(
     }
     if row.kind == Kind::GitHub {
         github(b, root, w, bindings, forge, row);
+    }
+    if forge::tokens::offered(row) {
+        connect::link(
+            b,
+            w,
+            bindings,
+            Word::TokensLink,
+            Address::ConnectForge { forge: Some(Choice::Forge(row.number)) },
+        );
     }
     if forge::connect::failed(row) && row.offer == Offer::Offered {
         connect::setup_control(b, root, w, forge, row.number, Word::ForgeAgain);
