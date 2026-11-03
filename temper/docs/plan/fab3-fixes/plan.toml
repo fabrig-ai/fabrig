@@ -1,3 +1,23 @@
 draft = "fab3-fixes"
 repo = "fabrig"
 sources = ["temper/docs/plan/fab3-fixes/inputs/request.md", "temper/docs/design/client/forge.md", "AGENTS.md"]
+
+# The acceptance findings of forgejo-connect and withdrawn-forms (inputs/request.md): one direct
+# part, three independent tasks, none reading another. plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "fixes"
+title = "the tokens draft emptied by its own connect's stop alone, temper's STATUS.md summary, smith-agent-shell's README"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/forge.md, 5.4"
+
+[[slice]]
+id = 1
+story = "a fresh token paste after a failed connect survives the forges watch's next delivery; temper's STATUS.md names only the connected Forgejo's open gap; smith-agent-shell's README configuration decodes"
+parts = ["fixes"]
+walk = false
