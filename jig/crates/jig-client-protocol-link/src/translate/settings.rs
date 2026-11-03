@@ -124,6 +124,7 @@ pub fn wire_charter(value: &c::Charter, limits: &w::Limits) -> Result<w::Charter
             call_timeout: value.call_timeout,
             hosts: wire_setting_hosts(&value.hosts)?,
             spend: value.spend,
+            wake: super::asks::wire_owner_wake_policy(&value.wake, limits)?,
         },
     )
 }
@@ -150,6 +151,7 @@ pub fn restore_charter(value: &w::Charter) -> Result<c::Charter, w::Problem> {
         call_timeout: value.call_timeout(),
         hosts: restore_setting_hosts(value.hosts())?,
         spend: value.spend(),
+        wake: super::facts::wake_policy(value.wake()),
     })
 }
 pub fn wire_setting_policy(value: &c::SettingPolicy, limits: &w::Limits) -> Result<w::SettingPolicy, w::Problem> {

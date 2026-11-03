@@ -48,6 +48,7 @@ How an agent's run works: its instructions, models, tools, hosts and budget. A t
 - `call_timeout`: nanoseconds. The longest one of the run's calls to temper's tools may take.
 - `hosts`: `"workers"`, `"engine"` or `"both"`. Which hosts may run it. `"workers"`: The deployment's workers alone. `"engine"`: The engine's own slots alone. `"both"`: Either.
 - `spend`: integer. A spend the charter must hold: at least `reserve_turns` plus one of the default model's completions at their costliest, else refused as `budget`. A run is given its task's funds left, at most `rules.maximum_run_spend`.
+- `wake`: `wake`, or null. Which messages wake a task made under the charter whose batch names no wake policy; null, or left out, for jig's default: every rule `"immediate"`, `results` `"last_or_failure"`, and questions, answers and timers waking.
 
 ## model
 
@@ -66,6 +67,34 @@ One of the deployment's models, as a charter offers it. Every member but `effort
 - `price_unit`: integer, 0 to 4,294,967,295. The number of tokens each price is for.
 - `efforts`: list of at most 16, each text, at most 32 bytes. The efforts it takes, in order, as configured.
 - `effort`: text, at most 32 bytes, or null. The effort a run asks of it, one of `efforts`, or null for its default.
+
+## wake
+
+What wakes a task, kind of message by kind; a proposal, an escalation and a cancel always wake it.
+
+- `words`: `wake_rule`. Words from tasks and from the deployment; a person's words always wake it at once.
+- `notices`: `wake_rule`. Notices: a task it references done or held, a proposal passing through, a hold it waits for.
+- `news`: `wake_rule`. News its connectors class as waking for it.
+- `results`: `"never"`, `"each"` or `"last_or_failure"`. Its delegates' results. `"never"`: None wakes it. `"each"`: Each delegate's result wakes it. `"last_or_failure"`: The last delegate's result, or any failure.
+- `questions`: true or false. Whether a delegate's question wakes it.
+- `answers`: true or false. Whether an answer to its own question wakes it.
+- `timers`: true or false. Whether its timers wake it.
+
+## wake_rule
+
+How a kind of message wakes a task: a word, or an object with one member.
+
+- `"never"`: It waits for the task's next run.
+- `"immediate"`: It wakes the task at once.
+- `batch`: `wake_batch`. Once enough have arrived, or the oldest has waited long enough.
+- `paced`: nanoseconds. At most once in this span from the task's last run's start; the first after a quiet span wakes it at once. Above zero, else refused as `shape`.
+
+## wake_batch
+
+A batch of messages that wakes a task once.
+
+- `count`: integer, 0 to 4,294,967,295. Wake once this many have arrived; above zero, else refused as `shape`.
+- `age`: nanoseconds. Or once the oldest has waited this long; above zero, else refused as `shape`.
 
 ## template
 

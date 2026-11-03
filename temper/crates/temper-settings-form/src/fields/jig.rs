@@ -1,10 +1,13 @@
 use super::{Bound, Choice, Field, Form, Limit, Shape, Value, Width, Word};
-pub static FORMS: [Form; 41] = [
+pub static FORMS: [Form; 44] = [
     Form { shape: Shape::File, name: b"file", choice: Choice::Every, line: b"A settings file, as `settings apply` and `settings propose` read it." },
     Form { shape: Shape::Item, name: b"item", choice: Choice::Every, line: b"One setting, and what becomes of it: `setting`, then exactly one of `set` and `edit`." },
     Form { shape: Shape::Setting, name: b"setting", choice: Choice::Every, line: b"Which setting: its kind and, but for the rules, its number." },
     Form { shape: Shape::Charter, name: b"charter", choice: Choice::Every, line: b"How an agent's run works: its instructions, models, tools, hosts and budget. A task's runs read the charter of the settings revision the task was made in." },
     Form { shape: Shape::Model, name: b"model", choice: Choice::Every, line: b"One of the deployment's models, as a charter offers it. Every member but `effort` must equal the configured model's, else refused as `reference`: copy them from a charter's value." },
+    Form { shape: Shape::Wake, name: b"wake", choice: Choice::Every, line: b"What wakes a task, kind of message by kind; a proposal, an escalation and a cancel always wake it." },
+    Form { shape: Shape::WakeRule, name: b"wake_rule", choice: Choice::One { words: &[Word { word: b"never", line: b"It waits for the task's next run." }, Word { word: b"immediate", line: b"It wakes the task at once." }] }, line: b"How a kind of message wakes a task: a word, or an object with one member." },
+    Form { shape: Shape::WakeBatch, name: b"wake_batch", choice: Choice::Every, line: b"A batch of messages that wakes a task once." },
     Form { shape: Shape::Template, name: b"template", choice: Choice::Every, line: b"How a new task of one shape is filled: its executor, result, budget, deadline and flags. A task keeps the values it was made with; a change reaches the tasks made after it." },
     Form { shape: Shape::Text, name: b"text", choice: Choice::Every, line: b"A text, whole." },
     Form {
@@ -67,7 +70,7 @@ pub static FORMS: [Form; 41] = [
     },
     Form { shape: Shape::Observed, name: b"observed", choice: Choice::Every, line: b"A requirement judged from facts read before the effect." },
 ];
-pub static FIELDS: [Field; 152] = [
+pub static FIELDS: [Field; 164] = [
     Field {
         shape: Shape::File,
         name: b"items",
@@ -205,6 +208,7 @@ pub static FIELDS: [Field; 152] = [
         null: false,
         line: b"A spend the charter must hold: at least `reserve_turns` plus one of the default model's completions at their costliest, else refused as `budget`. A run is given its task's funds left, at most `rules.maximum_run_spend`.",
     },
+    Field { shape: Shape::Charter, name: b"wake", value: Value::Shape(Shape::Wake), list: None, null: true, line: b"Which messages wake a task made under the charter whose batch names no wake policy; null, or left out, for jig's default: every rule `\"immediate\"`, `results` `\"last_or_failure\"`, and questions, answers and timers waking." },
     Field {
         shape: Shape::Model,
         name: b"dialect",
@@ -309,6 +313,17 @@ pub static FIELDS: [Field; 152] = [
         null: true,
         line: b"The effort a run asks of it, one of `efforts`, or null for its default.",
     },
+    Field { shape: Shape::Wake, name: b"words", value: Value::Shape(Shape::WakeRule), list: None, null: false, line: b"Words from tasks and from the deployment; a person's words always wake it at once." },
+    Field { shape: Shape::Wake, name: b"notices", value: Value::Shape(Shape::WakeRule), list: None, null: false, line: b"Notices: a task it references done or held, a proposal passing through, a hold it waits for." },
+    Field { shape: Shape::Wake, name: b"news", value: Value::Shape(Shape::WakeRule), list: None, null: false, line: b"News its connectors class as waking for it." },
+    Field { shape: Shape::Wake, name: b"results", value: Value::Words(&[Word { word: b"never", line: b"None wakes it." }, Word { word: b"each", line: b"Each delegate's result wakes it." }, Word { word: b"last_or_failure", line: b"The last delegate's result, or any failure." }]), list: None, null: false, line: b"Its delegates' results." },
+    Field { shape: Shape::Wake, name: b"questions", value: Value::Boolean, list: None, null: false, line: b"Whether a delegate's question wakes it." },
+    Field { shape: Shape::Wake, name: b"answers", value: Value::Boolean, list: None, null: false, line: b"Whether an answer to its own question wakes it." },
+    Field { shape: Shape::Wake, name: b"timers", value: Value::Boolean, list: None, null: false, line: b"Whether its timers wake it." },
+    Field { shape: Shape::WakeRule, name: b"batch", value: Value::Shape(Shape::WakeBatch), list: None, null: false, line: b"Once enough have arrived, or the oldest has waited long enough." },
+    Field { shape: Shape::WakeRule, name: b"paced", value: Value::Nanoseconds, list: None, null: false, line: b"At most once in this span from the task's last run's start; the first after a quiet span wakes it at once. Above zero, else refused as `shape`." },
+    Field { shape: Shape::WakeBatch, name: b"count", value: Value::Integer(Width::U32), list: None, null: false, line: b"Wake once this many have arrived; above zero, else refused as `shape`." },
+    Field { shape: Shape::WakeBatch, name: b"age", value: Value::Nanoseconds, list: None, null: false, line: b"Or once the oldest has waited this long; above zero, else refused as `shape`." },
     Field {
         shape: Shape::Template,
         name: b"number",
