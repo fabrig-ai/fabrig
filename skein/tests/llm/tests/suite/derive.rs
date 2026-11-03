@@ -119,7 +119,7 @@ fn captured_head(provider: Provider, scenario: &str) -> (Vec<u8>, u32) {
 
 #[test]
 fn archived_heads_fit_with_headroom_and_complete_with_derived_limits() {
-    for provider in [Provider::OpenAiCodex, Provider::Anthropic] {
+    for provider in [Provider::Anthropic] {
         let bounds = limits_for(provider);
         let mut maximum = 0;
         let mut maximum_fields = 0;

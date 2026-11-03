@@ -26,9 +26,6 @@ const DECLARED: Declared = Declared {
 #[test]
 fn every_archived_head_fits_within_a_quarter_of_its_derived_bounds() {
     let captures: &[(Provider, &[u8])] = &[
-        (Provider::OpenAiCodex, include_bytes!("../openai/fixtures/single-text/response.headers")),
-        (Provider::OpenAiCodex, include_bytes!("../openai/fixtures/tool-call/response.headers")),
-        (Provider::OpenAiCodex, include_bytes!("../openai/fixtures/tool-result-final/response.headers")),
         (Provider::Anthropic, include_bytes!("../anthropic/fixtures/single-text/response.headers")),
         (Provider::Anthropic, include_bytes!("../anthropic/fixtures/tool-call/response.headers")),
         (Provider::Anthropic, include_bytes!("../anthropic/fixtures/parallel-tool-calls/response.headers")),

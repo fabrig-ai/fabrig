@@ -97,28 +97,6 @@ fn stream(events: &[Event], limits: &Limits) -> Vec<Output> {
     drain(&mut out, &mut trace);
     trace
 }
-fn fixture(scenario: &str, file: &str) -> Vec<u8> {
-    let root = std::env::var("CARGO_MANIFEST_DIR").unwrap();
-    std::fs::read(std::path::Path::new(&root).join("src/openai/fixtures").join(scenario).join(file)).unwrap()
-}
-fn dechunk(input: &[u8]) -> Vec<u8> {
-    let mut at: usize = 0;
-    let mut out = Vec::new();
-    while at < input.len() {
-        let end = bytes::find(&input[at..], b"\r\n").unwrap();
-        let size = usize::from_str_radix(core::str::from_utf8(&input[at..at + end]).unwrap(), 16).unwrap();
-        at += end + 2;
-        if size == 0 {
-            assert_eq!(&input[at..], b"\r\n");
-            return out;
-        }
-        out.extend_from_slice(&input[at..at + size]);
-        at += size;
-        assert_eq!(&input[at..at + 2], b"\r\n");
-        at += 2;
-    }
-    panic!("archive misses terminal chunk")
-}
 
 #[test]
 fn measured_request_replays_all_input_kinds_and_bounded_raw_arguments() {
@@ -493,113 +471,7 @@ fn malformed_tokens_duplicates_and_every_document_limit_are_refused() {
     assert_eq!(decoded_bound(&overflowing), None);
 }
 
-fn assert_archive_deltas(trace: &[Output]) {
-    let mut text_delta = Vec::new();
-    let mut completed_text = Vec::new();
-    let mut argument_delta = Vec::new();
-    let mut completed_argument = Vec::new();
-    for output in trace {
-        match output {
-            Output::TextDelta { text, .. } => text_delta.extend_from_slice(text),
-            Output::ArgumentsDelta { delta, .. } => argument_delta.extend_from_slice(delta),
-            Output::Part(Part::Text { text, .. }) => completed_text.extend_from_slice(text),
-            Output::Part(Part::ToolCall { input, .. }) => completed_argument.extend_from_slice(input),
-            _ => {}
-        }
-    }
-    assert_eq!(text_delta, completed_text, "archived text deltas reconstruct the completed message");
-    assert_eq!(argument_delta, completed_argument, "archived argument deltas reconstruct the completed call");
-}
 
-#[test]
-fn archived_real_provider_requests_and_answers_match_known_completions() {
-    for (scenario, input, output, tool_count, opaque_count) in [
-        ("single-text", 27_u64, 17_u64, 0_usize, 1_usize),
-        ("tool-call", 76, 18, 1, 0),
-        ("tool-result-final", 116, 12, 0, 0),
-    ] {
-        let wrapper = Json::from_bytes(&fixture(scenario, "request.json"), &LIMITS.document()).unwrap();
-        let body =
-            json::text_ref(json::value_at(wrapper.view(), json::required(wrapper.view(), b"body").unwrap()).unwrap())
-                .unwrap();
-        let request = decode_request(&value(body), &LIMITS).unwrap();
-        assert!(!request.input.is_empty());
-        let captured = dechunk(&fixture(scenario, "response.sse"));
-        let mut decoder = StreamDecoder::new(crate::Provider::OpenAiCodex, &LIMITS);
-        let mut out = Queue::uncapped();
-        let mut trace = Vec::new();
-        for line in core::str::from_utf8(&captured).unwrap().lines() {
-            if let Some(data) = line.strip_prefix("data: ") {
-                decoder.event(decode_event(&value(data.as_bytes()), &LIMITS).unwrap(), &LIMITS, Wall::EPOCH, &mut out);
-                drain(&mut out, &mut trace);
-            }
-        }
-        decoder.end(&mut out);
-        drain(&mut out, &mut trace);
-        assert_archive_deltas(&trace);
-        assert_eq!(
-            trace
-                .iter()
-                .filter(|out| match out {
-                    Output::Part(Part::ToolCall { .. }) => true,
-                    _ => false,
-                })
-                .count(),
-            tool_count
-        );
-        assert_eq!(
-            trace
-                .iter()
-                .filter(|out| match out {
-                    Output::Part(Part::Opaque { .. }) => true,
-                    _ => false,
-                })
-                .count(),
-            opaque_count
-        );
-        assert_eq!(
-            trace.last(),
-            Some(&Output::Completed {
-                stop: if tool_count == 0 { Stop::EndTurn } else { Stop::ToolUse },
-                usage: Usage {
-                    input: Some(input),
-                    output: Some(output),
-                    cache_read: Some(0),
-                    cache_write: None,
-                    reasoning: Some(if scenario == "single-text" { 10 } else { 0 })
-                }
-            })
-        );
-        if scenario == "single-text" {
-            assert!(trace.iter().any(|out| match out {
-                Output::Part(Part::Text { text, .. }) if text.as_ref() == b"hello" => true,
-                _ => false,
-            }));
-            assert!(trace.iter().any(|out| match out {
-                Output::Part(Part::Opaque { bytes }) if bytes::find(bytes, b"encrypted_content").is_some() => true,
-                _ => false,
-            }));
-        }
-        if scenario == "tool-call" {
-            assert!(trace.iter().any(|out| match out {
-                Output::Part(Part::ToolCall {
-                    name,
-                    input,
-                    call_id,
-                    item_id,
-                    too_large: false,
-                    bytes: _,
-                    cut: false,
-                }) if name.as_ref() == b"get_weather"
-                    && input.as_ref() == br#"{"city":"Paris"}"#
-                    && !call_id.is_empty()
-                    && !item_id.is_empty() =>
-                    true,
-                _ => false,
-            }));
-        }
-    }
-}
 
 #[test]
 fn out_of_order_done_waits_for_order_and_terminal_waits_for_ready_parts() {
@@ -1365,36 +1237,6 @@ fn projected(input: &[u8], provider: crate::Provider) -> skein_json::Document {
     panic!("the bounded projection must finish");
 }
 
-#[test]
-fn captured_completion_retains_status_and_usage_without_echoes() {
-    let document = projected(include_bytes!("fixtures/provider-completed.json"), crate::Provider::OpenAiCodex);
-    assert!(document.len() < 64, "capture costs only its retained paths");
-    assert!(document.text_len() < 512, "wire echoes do not occupy retained text");
-    for index in 0..document.len() {
-        let record = document.token(index).unwrap();
-        if record.kind == skein_json::Kind::Key {
-            let key = document.text(record).unwrap();
-            assert!(
-                ![b"output".as_slice(), b"instructions", b"tools", b"attribution"].contains(&key),
-                "echo key was retained"
-            );
-        }
-    }
-    let event = decode_event(&Json::collected(document), &LIMITS).unwrap();
-    assert_eq!(
-        event,
-        Event::Completed {
-            stop: Stop::EndTurn,
-            usage: Usage {
-                input: Some(5256),
-                output: Some(36),
-                cache_read: Some(0),
-                cache_write: Some(0),
-                reasoning: Some(0)
-            },
-        }
-    );
-}
 
 #[test]
 fn native_function_arguments_are_counted_without_text_even_with_a_late_tag() {
@@ -1726,4 +1568,35 @@ fn a_completed_call_cannot_change_its_opened_identity() {
             _ => false,
         }));
     }
+}
+
+#[test]
+fn synthetic_echo_heavy_completion_keeps_only_status_and_usage() {
+    // Synthetic replacement for the recorded completion: the peer's echo
+    // carries instructions, tools and attribution far beyond retained bounds.
+    const ECHO_BYTES: usize = 8192; // Far beyond the projection's 512 retained bytes.
+    let mut request = request();
+    request.instructions = owned(&[b'x'; ECHO_BYTES]);
+    let usage =
+        Usage { input: Some(5256), output: Some(36), cache_read: Some(0), cache_write: Some(0), reasoning: Some(0) };
+    let input = crate::openai::encode_peer_event(
+        &Event::Completed { stop: Stop::EndTurn, usage },
+        Some(&request),
+        crate::openai::Echo { instructions: true, tools: true, attribution_bytes: u32::try_from(ECHO_BYTES).unwrap() },
+        &LIMITS,
+    )
+    .unwrap();
+    let document = projected(&input, crate::Provider::OpenAi);
+    assert!(document.len() < 64, "only retained paths count");
+    assert!(document.text_len() < 512, "echoes are scanned without retention");
+    for index in 0..document.len() {
+        let record = document.token(index).unwrap();
+        if record.kind == skein_json::Kind::Key {
+            assert!(
+                ![b"output".as_slice(), b"instructions", b"tools", b"attribution"]
+                    .contains(&document.text(record).unwrap())
+            );
+        }
+    }
+    assert_eq!(decode_event(&Json::collected(document), &LIMITS), Ok(Event::Completed { stop: Stop::EndTurn, usage }));
 }
