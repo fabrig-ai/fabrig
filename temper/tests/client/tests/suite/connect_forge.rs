@@ -118,15 +118,7 @@ fn setting_up_forgejo_here_from_the_welcome() {
     let (mut front, mut root, mut now) = owned_welcome();
     assert_eq!(root.person().pages().address(), &Address::Welcome { step: Step::Forge { forge: Some(Choice::Owned) } });
     let setup = root.person().forge().set_up().expect("welcome sent setup");
-    assert_eq!(
-        (&*setup.org, &*setup.repository, &setup.project, setup.playground),
-        (
-            b"work".as_slice(),
-            b"hello".as_slice(),
-            &d::forge::forges::SetUpProject::New(b"hello".as_slice().into()),
-            false
-        )
-    );
+    assert_eq!((&*setup.org, &*setup.repository, setup.playground), (b"work".as_slice(), b"hello".as_slice(), false));
     assert_eq!(front.set_ups().iter().map(|(forge, _)| *forge).collect::<Vec<_>>(), [OWNED]);
     assert!(accept_owned(&mut front, &mut root, &mut now), "accepted setup moves to Model");
     connection(&mut front, Connection::SettingUp { step: Some(forge::SetUpStep::Prepare) });

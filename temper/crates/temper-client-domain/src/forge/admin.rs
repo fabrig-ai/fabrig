@@ -260,16 +260,11 @@ fn send_target(side: &mut Side, limits: Limits, forge: u16, place: Option<forges
         target
     };
     let draft = &mut side.admin_form;
-    let project = forges::SetUpProject::New(draft.fields[1].clone());
     let first = w::FirstAsk::new(
         &bounds,
         w::FirstAskParts {
             org: draft.fields[0].clone(),
             repository: draft.fields[1].clone(),
-            project: w::SetUpProject::New(
-                w::NewProject::new(&bounds, w::NewProjectParts { name: draft.fields[1].clone() })
-                    .expect("project fits"),
-            ),
             label: draft.fields[2].clone(),
         },
     );
@@ -301,7 +296,6 @@ fn send_target(side: &mut Side, limits: Limits, forge: u16, place: Option<forges
         forge: if side.setup_form.making.is_some() { None } else { Some(forge) },
         org: draft.fields[0].clone(),
         repository: draft.fields[1].clone(),
-        project,
         request: skein_lib::Token::new(side.serial),
         progress: None,
         answer: None,

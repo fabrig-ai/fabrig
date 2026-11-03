@@ -408,13 +408,6 @@ fn forges(world: World) -> Box<[u8]> {
                                     playground: false,
                                     org: b"work".as_slice().into(),
                                     repository: b"hello".as_slice().into(),
-                                    project: w::SetUpProject::Existing(
-                                        w::ExistingProject::new(
-                                            &limits,
-                                            w::ExistingProjectParts { project: if step == 7 { 2 } else { 1 } },
-                                        )
-                                        .expect("project"),
-                                    ),
                                     state: if step == 7 {
                                         w::FirstState::Made(
                                             w::Made::new(&limits, w::MadeParts { id: 42 }).expect("made"),

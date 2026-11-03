@@ -71,10 +71,6 @@ impl Frame {
                     label: b"cold".as_slice().into(),
                     org: b"work".as_slice().into(),
                     repository: b"hello".as_slice().into(),
-                    project: f::SetUpProject::Existing(
-                        f::ExistingProject::new(&f::CEILINGS, f::ExistingProjectParts { project: 3 })
-                            .expect("valid setup fixture"),
-                    ),
                     state: f::FirstState::Made(
                         f::Made::new(&f::CEILINGS, f::MadeParts { id: 42 }).expect("valid setup fixture"),
                     ),

@@ -477,9 +477,6 @@ pub(super) fn first_rows(connection: w::Connection, state: w::FirstState) -> Lis
             playground: false,
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
-            project: w::SetUpProject::Existing(
-                w::ExistingProject::new(&w::CEILINGS, w::ExistingProjectParts { project: f::PROJECT }).unwrap(),
-            ),
             state,
             label: Box::from(b"temper-host".as_slice()),
         },
@@ -1438,9 +1435,6 @@ fn admin_first(state: w::FirstState) -> w::FirstRepository {
             playground: false,
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
-            project: w::SetUpProject::New(
-                w::NewProject::new(&w::CEILINGS, w::NewProjectParts { name: b"hello".as_slice().into() }).unwrap(),
-            ),
             state,
             label: b"linux-arm".as_slice().into(),
         },
